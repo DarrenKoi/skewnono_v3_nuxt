@@ -2,7 +2,7 @@
 
 ## Project: SKEWNONO (스큐노노)
 
-Web application for e-beam metrology, SEM (Scanning Electron Microscope) management, and data analytics. Designed for long-term maintainability and extensibility within a private cloud environment.
+Web application for metrology, specified for tool management and data analytics.
 
 ## Three-Phase Deployment Strategy
 
