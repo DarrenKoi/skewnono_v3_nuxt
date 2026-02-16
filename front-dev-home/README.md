@@ -37,10 +37,36 @@ pnpm install
 
 ## Development Server
 
-Start the development server on `http://localhost:3000`:
+Start the development server on `http://localhost:3100`:
 
 ```bash
 pnpm dev
+```
+
+For remote development in code-server, bind Nuxt to all interfaces:
+
+```bash
+pnpm dev:remote
+```
+
+Then access it through code-server proxy:
+
+```text
+https://<code-server-host>/proxy/3100
+```
+
+## Backend Proxy During Dev
+
+Nuxt dev server proxies `/api/*` to Python backend at `http://127.0.0.1:5000` by default.
+
+- Frontend should call `/api/...` instead of hardcoding `.../proxy/5000`.
+- Override backend target with `NUXT_API_TARGET` when needed.
+- Override frontend API base with `NUXT_PUBLIC_API_BASE` when needed.
+
+Example:
+
+```bash
+NUXT_API_TARGET=http://127.0.0.1:5000 pnpm dev:remote
 ```
 
 ## Production
