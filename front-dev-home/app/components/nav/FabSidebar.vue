@@ -18,7 +18,10 @@ const fabItems = computed(() => fabs.map(f => ({
     :class="sidebarCollapsed ? 'w-16' : 'w-48'"
   >
     <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-      <span v-if="!sidebarCollapsed" class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+      <span
+        v-if="!sidebarCollapsed"
+        class="text-xs font-semibold text-gray-500 uppercase tracking-wider"
+      >
         FAB
       </span>
       <button
@@ -34,9 +37,15 @@ const fabItems = computed(() => fabs.map(f => ({
 
     <nav class="flex-1 overflow-y-auto p-2">
       <!-- Favorites Section -->
-      <div v-if="favorites.length > 0 && !sidebarCollapsed" class="mb-4">
+      <div
+        v-if="favorites.length > 0 && !sidebarCollapsed"
+        class="mb-4"
+      >
         <div class="flex items-center gap-2 px-2 py-1 text-xs font-medium text-gray-500">
-          <UIcon name="i-lucide-star" class="w-3 h-3" />
+          <UIcon
+            name="i-lucide-star"
+            class="w-3 h-3"
+          />
           <span>Favorites</span>
         </div>
         <div
@@ -49,9 +58,15 @@ const fabItems = computed(() => fabs.map(f => ({
       </div>
 
       <!-- Recent Section -->
-      <div v-if="recent.length > 0 && !sidebarCollapsed" class="mb-4">
+      <div
+        v-if="recent.length > 0 && !sidebarCollapsed"
+        class="mb-4"
+      >
         <div class="flex items-center gap-2 px-2 py-1 text-xs font-medium text-gray-500">
-          <UIcon name="i-lucide-clock" class="w-3 h-3" />
+          <UIcon
+            name="i-lucide-clock"
+            class="w-3 h-3"
+          />
           <span>Recent</span>
         </div>
         <div
@@ -64,7 +79,10 @@ const fabItems = computed(() => fabs.map(f => ({
       </div>
 
       <!-- Divider -->
-      <div v-if="(favorites.length > 0 || recent.length > 0) && !sidebarCollapsed" class="border-t border-gray-200 dark:border-gray-700 my-2" />
+      <div
+        v-if="(favorites.length > 0 || recent.length > 0) && !sidebarCollapsed"
+        class="border-t border-gray-200 dark:border-gray-700 my-2"
+      />
 
       <!-- Fab List -->
       <div
@@ -76,8 +94,14 @@ const fabItems = computed(() => fabs.map(f => ({
           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
         @click="navigateToFab(item.id)"
       >
-        <span v-if="!sidebarCollapsed" class="text-sm font-medium">{{ item.label }}</span>
-        <span v-else class="text-xs font-medium">{{ item.label.substring(0, 3) }}</span>
+        <span
+          v-if="!sidebarCollapsed"
+          class="text-sm font-medium"
+        >{{ item.label }}</span>
+        <span
+          v-else
+          class="text-xs font-medium"
+        >{{ item.label.substring(0, 3) }}</span>
         <UIcon
           v-if="item.hasAlerts && !sidebarCollapsed"
           name="i-lucide-circle"
