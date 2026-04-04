@@ -10,7 +10,10 @@ const categories = [
 <template>
   <UHeader>
     <template #left>
-      <NuxtLink to="/" class="flex items-center">
+      <NuxtLink
+        to="/"
+        class="flex items-center"
+      >
         <AppLogo />
       </NuxtLink>
 

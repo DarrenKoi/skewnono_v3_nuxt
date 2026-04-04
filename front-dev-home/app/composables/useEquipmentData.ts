@@ -46,7 +46,7 @@ const mockEquipmentData: Equipment[] = [
   { fac_id: 'R3', eqp_id: 'ECXDX601', eqp_model_cd: 'CG6380', eqp_grp_id: 'G-ECD-01', vendor_nm: 'HITACHI', eqp_ip: '177.30.1.601', fab_name: 'R4', updt_dt: '2025-12-01 14:00:00', available: 'On', version: 3 },
   { fac_id: 'R3', eqp_id: 'ACD602', eqp_model_cd: 'TP4000', eqp_grp_id: 'G-ACD-03', vendor_nm: 'AMAT', eqp_ip: '177.30.1.602', fab_name: 'R4', updt_dt: '2025-12-01 14:15:00', available: 'On', version: 2 },
   { fac_id: 'R3', eqp_id: 'VCD603', eqp_model_cd: 'VERITYSEM_4', eqp_grp_id: 'G-KCD-03', vendor_nm: 'AMAT', eqp_ip: '177.30.1.603', fab_name: 'R4', updt_dt: '2025-11-30 10:30:00', available: 'Off', version: 1 },
-  { fac_id: 'R3', eqp_id: 'MCD604', eqp_model_cd: 'CG6300', eqp_grp_id: 'G-MDS-01', vendor_nm: 'HITACHI', eqp_ip: '177.30.1.604', fab_name: 'R4', updt_dt: '2025-12-01 06:30:00', available: 'On', version: 2 },
+  { fac_id: 'R3', eqp_id: 'MCD604', eqp_model_cd: 'CG6300', eqp_grp_id: 'G-MDS-01', vendor_nm: 'HITACHI', eqp_ip: '177.30.1.604', fab_name: 'R4', updt_dt: '2025-12-01 06:30:00', available: 'On', version: 2 }
 ]
 
 export const useEquipmentData = () => {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { toolType, navigateToToolType } = useNavigation()
-const { toolTypes } = useToolData()
+const { activeToolTypes } = useToolData()
 </script>
 
 <template>
@@ -8,7 +8,7 @@ const { toolTypes } = useToolData()
     <div class="max-w-7xl mx-auto px-4">
       <nav class="flex gap-1 py-2">
         <button
-          v-for="tool in toolTypes"
+          v-for="tool in activeToolTypes"
           :key="tool.id"
           class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors"
           :class="toolType === tool.id

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Fab } from '~/stores/navigation'
+
 const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 const { fabs } = useToolData()
@@ -11,12 +13,12 @@ const fabConfig = computed(() => {
 
 onMounted(() => {
   setToolType('verity-sem')
-  setFab(fabId.value as any)
+  setFab(fabId.value as Fab)
 })
 
 watch(() => route.params.fab, (newFab) => {
   if (newFab) {
-    setFab((newFab as string).toUpperCase() as any)
+    setFab((newFab as string).toUpperCase() as Fab)
   }
 })
 
@@ -33,16 +35,24 @@ const tools = computed(() => {
 <template>
   <div>
     <div class="mb-6">
-      <h1 class="text-2xl font-bold">VeritySEM - {{ fabConfig.label }}</h1>
-      <p class="text-gray-600 dark:text-gray-400">Dashboard view</p>
+      <h1 class="text-2xl font-bold">
+        VeritySEM - {{ fabConfig.label }}
+      </h1>
+      <p class="text-gray-600 dark:text-gray-400">
+        Dashboard view
+      </p>
     </div>
 
     <!-- Summary Cards -->
     <div class="grid md:grid-cols-4 gap-4 mb-8">
       <UCard>
         <div class="text-center">
-          <div class="text-3xl font-bold text-primary-600">{{ tools.length }}</div>
-          <div class="text-sm text-gray-500">Tools</div>
+          <div class="text-3xl font-bold text-primary-600">
+            {{ tools.length }}
+          </div>
+          <div class="text-sm text-gray-500">
+            Tools
+          </div>
         </div>
       </UCard>
       <UCard>
@@ -50,7 +60,9 @@ const tools = computed(() => {
           <div class="text-3xl font-bold text-green-600">
             {{ tools.filter(t => t.status === 'online').length }}
           </div>
-          <div class="text-sm text-gray-500">Online</div>
+          <div class="text-sm text-gray-500">
+            Online
+          </div>
         </div>
       </UCard>
       <UCard>
@@ -58,28 +70,44 @@ const tools = computed(() => {
           <div class="text-3xl font-bold text-blue-600">
             {{ tools.filter(t => t.currentJob).length }}
           </div>
-          <div class="text-sm text-gray-500">Active Jobs</div>
+          <div class="text-sm text-gray-500">
+            Active Jobs
+          </div>
         </div>
       </UCard>
       <UCard>
         <div class="text-center">
-          <div class="text-3xl font-bold text-amber-600">0</div>
-          <div class="text-sm text-gray-500">Alerts</div>
+          <div class="text-3xl font-bold text-amber-600">
+            0
+          </div>
+          <div class="text-sm text-gray-500">
+            Alerts
+          </div>
         </div>
       </UCard>
     </div>
 
     <!-- Tool List -->
-    <h2 class="text-lg font-semibold mb-4">Tools</h2>
+    <h2 class="text-lg font-semibold mb-4">
+      Tools
+    </h2>
     <UCard>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-gray-200 dark:border-gray-700">
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Tool ID</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Status</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Current Job</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Last Update</th>
+              <th class="text-left py-3 px-4 font-medium text-gray-500">
+                Tool ID
+              </th>
+              <th class="text-left py-3 px-4 font-medium text-gray-500">
+                Status
+              </th>
+              <th class="text-left py-3 px-4 font-medium text-gray-500">
+                Current Job
+              </th>
+              <th class="text-left py-3 px-4 font-medium text-gray-500">
+                Last Update
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -88,7 +116,9 @@ const tools = computed(() => {
               :key="tool.id"
               class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
             >
-              <td class="py-3 px-4 font-medium">{{ tool.id }}</td>
+              <td class="py-3 px-4 font-medium">
+                {{ tool.id }}
+              </td>
               <td class="py-3 px-4">
                 <UBadge
                   :label="tool.status"
@@ -99,7 +129,9 @@ const tools = computed(() => {
               <td class="py-3 px-4 text-gray-600 dark:text-gray-400">
                 {{ tool.currentJob || '-' }}
               </td>
-              <td class="py-3 px-4 text-gray-500">{{ tool.lastUpdate }}</td>
+              <td class="py-3 px-4 text-gray-500">
+                {{ tool.lastUpdate }}
+              </td>
             </tr>
           </tbody>
         </table>

@@ -35,7 +35,10 @@ const getFeatureRoute = (feature: string) => {
           ? 'border-primary-500 text-primary-600 dark:text-primary-400'
           : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300'"
       >
-        <UIcon :name="feature.icon" class="w-4 h-4" />
+        <UIcon
+          :name="feature.icon"
+          class="w-4 h-4"
+        />
         {{ feature.label }}
       </NuxtLink>
     </nav>

@@ -2,9 +2,6 @@
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
 
 export default defineNuxtConfig({
-  devServer: {
-    port: Number.isFinite(portFromEnv) ? portFromEnv : 3100
-  },
 
   modules: [
     '@nuxt/eslint',
@@ -25,6 +22,8 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/': { prerender: true }
+  }, devServer: {
+    port: Number.isFinite(portFromEnv) ? portFromEnv : 3100
   },
 
   compatibilityDate: '2025-01-15',

@@ -2,7 +2,10 @@
   <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
     <UHeader>
       <template #left>
-        <NuxtLink to="/" class="flex items-center">
+        <NuxtLink
+          to="/"
+          class="flex items-center"
+        >
           <AppLogo />
         </NuxtLink>
       </template>
