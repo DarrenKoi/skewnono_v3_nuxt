@@ -4,20 +4,33 @@ definePageMeta({
 })
 
 const { toolTypes } = useToolData()
+const { fetchToolInventory } = useEbeamToolApi()
 
-const ebeamTools = toolTypes
-const todayLabel = useState('hub-today-label', () => new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric'
+const { data: inventory } = await useAsyncData('ebeam-base-tool-inventory', () => fetchToolInventory())
+
+const ebeamTools = computed(() => {
+  return toolTypes.map(tool => ({
+    ...tool,
+    count: inventory.value?.[tool.id].length ?? tool.count
+  }))
+})
+
+const todayLabel = useState('hub-today-label', () => new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
 }).format(new Date()))
 
 const systemStatus = computed(() => {
-  return activeToolTypes.map(tool => ({
-    ...tool,
-    online: tool.count,
-    total: tool.count
-  }))
+  return ebeamTools.value.map((tool) => {
+    const rows = inventory.value?.[tool.id] ?? []
+
+    return {
+      ...tool,
+      online: rows.filter(row => row.available === 'On').length,
+      total: rows.length
+    }
+  })
 })
 </script>
 
@@ -55,8 +68,13 @@ const systemStatus = computed(() => {
         }"
       >
         <div class="flex items-start justify-between mb-4">
-          <h2 class="text-xl font-semibold">E-Beam Metrology</h2>
-          <UIcon name="i-lucide-microscope" class="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
+          <h2 class="text-xl font-semibold">
+            E-Beam Metrology
+          </h2>
+          <UIcon
+            name="i-lucide-microscope"
+            class="w-6 h-6 text-zinc-700 dark:text-zinc-300"
+          />
         </div>
 
         <nav class="space-y-2">
@@ -67,10 +85,19 @@ const systemStatus = computed(() => {
             class="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors group"
           >
             <span class="flex items-center gap-2">
-              <UIcon name="i-lucide-arrow-right" class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-              <span class="font-medium">{{ tool.label }}</span>
+              <UIcon
+                name="i-lucide-arrow-right"
+                class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
+              />
+              <span class="font-medium">
+                {{ tool.label }}
+              </span>
             </span>
-            <UBadge :label="String(tool.count)" color="neutral" variant="subtle" />
+            <UBadge
+              :label="String(tool.count)"
+              color="neutral"
+              variant="subtle"
+            />
           </NuxtLink>
         </nav>
       </UCard>
@@ -83,26 +110,43 @@ const systemStatus = computed(() => {
         }"
       >
         <div class="flex items-start justify-between mb-4">
-          <h2 class="text-xl font-semibold">Thickness Metrology</h2>
-          <UIcon name="i-lucide-ruler" class="w-6 h-6 text-zinc-500" />
+          <h2 class="text-xl font-semibold">
+            Thickness Metrology
+          </h2>
+          <UIcon
+            name="i-lucide-ruler"
+            class="w-6 h-6 text-zinc-500"
+          />
         </div>
 
         <div class="flex flex-col items-center justify-center h-32 text-zinc-500">
-          <UIcon name="i-lucide-construction" class="w-12 h-12 mb-2 text-zinc-400" />
-          <span class="text-sm">Coming Soon</span>
+          <UIcon
+            name="i-lucide-construction"
+            class="w-12 h-12 mb-2 text-zinc-400"
+          />
+          <span class="text-sm">
+            Coming Soon
+          </span>
         </div>
       </UCard>
     </div>
 
     <!-- Quick Access Section -->
-    <h3 class="text-lg font-semibold">Quick Access</h3>
+    <h3 class="text-lg font-semibold">
+      Quick Access
+    </h3>
     <div class="grid md:grid-cols-3 gap-4">
       <!-- Favorites -->
       <UCard class="dashboard-surface rounded-2xl">
         <template #header>
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-star" class="w-4 h-4 text-zinc-500" />
-            <span class="font-medium">Favorites</span>
+            <UIcon
+              name="i-lucide-star"
+              class="w-4 h-4 text-zinc-500"
+            />
+            <span class="font-medium">
+              Favorites
+            </span>
           </div>
         </template>
 
@@ -115,8 +159,13 @@ const systemStatus = computed(() => {
       <UCard class="dashboard-surface rounded-2xl">
         <template #header>
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-clock" class="w-4 h-4 text-zinc-500" />
-            <span class="font-medium">Recent</span>
+            <UIcon
+              name="i-lucide-clock"
+              class="w-4 h-4 text-zinc-500"
+            />
+            <span class="font-medium">
+              Recent
+            </span>
           </div>
         </template>
 
@@ -129,8 +178,13 @@ const systemStatus = computed(() => {
       <UCard class="dashboard-surface rounded-2xl">
         <template #header>
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-alert-triangle" class="w-4 h-4 text-zinc-500" />
-            <span class="font-medium">Alerts</span>
+            <UIcon
+              name="i-lucide-alert-triangle"
+              class="w-4 h-4 text-zinc-500"
+            />
+            <span class="font-medium">
+              Alerts
+            </span>
           </div>
         </template>
 
@@ -141,7 +195,9 @@ const systemStatus = computed(() => {
     </div>
 
     <!-- System Status -->
-    <h3 class="text-lg font-semibold">System Status</h3>
+    <h3 class="text-lg font-semibold">
+      System Status
+    </h3>
     <UCard class="dashboard-surface rounded-2xl">
       <div class="flex flex-wrap gap-6">
         <div

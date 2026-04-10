@@ -1,0 +1,61 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SK SKEWNONO" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]:
+          - generic [ref=e9]: SK
+          - generic [ref=e10]: SKEWNONO
+      - generic [ref=e11]:
+        - button "Search" [ref=e12]
+        - link "Settings" [ref=e14] [cursor=pointer]:
+          - /url: /settings
+        - button "Switch to dark mode" [ref=e16]
+  - main [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - paragraph [ref=e23]: Operations Overview
+          - heading "Metrology Control Center" [level=1] [ref=e24]
+          - paragraph [ref=e25]: Unified monitoring and diagnostics across fabrication modules
+        - generic [ref=e27]: Apr 10, 2026
+      - generic [ref=e28]:
+        - generic [ref=e30]:
+          - heading "E-Beam Metrology" [level=2] [ref=e32]
+          - navigation [ref=e34]:
+            - link "CD-SEM 250" [ref=e35] [cursor=pointer]:
+              - /url: /ebeam/cd-sem
+              - generic [ref=e38]: CD-SEM
+              - generic [ref=e40]: "250"
+            - link "HV-SEM 48" [ref=e41] [cursor=pointer]:
+              - /url: /ebeam/hv-sem
+              - generic [ref=e44]: HV-SEM
+              - generic [ref=e46]: "48"
+            - link "VeritySEM 24" [ref=e47] [cursor=pointer]:
+              - /url: /ebeam/verity-sem
+              - generic [ref=e50]: VeritySEM
+              - generic [ref=e52]: "24"
+            - link "Provision 12" [ref=e53] [cursor=pointer]:
+              - /url: /ebeam/provision
+              - generic [ref=e56]: Provision
+              - generic [ref=e58]: "12"
+        - generic [ref=e60]:
+          - heading "Thickness Metrology" [level=2] [ref=e62]
+          - generic [ref=e66]: Coming Soon
+      - heading "Quick Access" [level=3] [ref=e67]
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - generic [ref=e73]: Favorites
+          - generic [ref=e75]: No favorites yet
+        - generic [ref=e76]:
+          - generic [ref=e80]: Recent
+          - generic [ref=e82]: No recent activity
+        - generic [ref=e83]:
+          - generic [ref=e87]: Alerts
+          - generic [ref=e89]: No active alerts
+      - heading "System Status" [level=3] [ref=e90]
+      - generic [ref=e93]:
+        - generic [ref=e96]: CD-SEM:250/250
+        - generic [ref=e99]: HV-SEM:48/48
+  - contentinfo [ref=e100]:
+    - generic [ref=e101]: SKEWNONO v3 - E-Beam Metrology Dashboard

@@ -5,7 +5,8 @@
 .nitro
 .cache
 dist
-
+.github
+.playright-mcp
 # Node dependencies
 node_modules
 

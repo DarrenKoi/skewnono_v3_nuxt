@@ -4,7 +4,10 @@ const { category } = useNavigation()
 
 <template>
   <div class="relative isolate min-h-screen flex flex-col text-zinc-900 dark:text-zinc-100">
-    <div class="dashboard-bg-layer" aria-hidden="true" />
+    <div
+      class="dashboard-bg-layer"
+      aria-hidden="true"
+    />
     <NavAppHeader />
 
     <template v-if="category === 'ebeam'">

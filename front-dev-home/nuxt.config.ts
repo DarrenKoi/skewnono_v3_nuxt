@@ -1,5 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
+const apiTarget = import.meta.env.NUXT_API_TARGET
+const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || (apiTarget ? '/api' : '/mock-api')
 
 export default defineNuxtConfig({
 
@@ -16,7 +18,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: import.meta.env.NUXT_PUBLIC_API_BASE || '/api'
+      apiBase
     }
   },
 
@@ -28,15 +30,17 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-01-15',
 
-  nitro: {
-    devProxy: {
-      '/api': {
-        target: import.meta.env.NUXT_API_TARGET || 'http://127.0.0.1:5000',
-        changeOrigin: true,
-        prependPath: true
+  nitro: apiTarget
+    ? {
+        devProxy: {
+          '/api': {
+            target: apiTarget,
+            changeOrigin: true,
+            prependPath: true
+          }
+        }
       }
-    }
-  },
+    : undefined,
 
   vite: {
     server: {
