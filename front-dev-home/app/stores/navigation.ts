@@ -1,3 +1,6 @@
+import { useState } from 'nuxt/app'
+import { computed, readonly } from 'vue'
+
 export type Category = 'ebeam' | 'thickness'
 export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
 export type Fab = 'all' | 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
@@ -40,7 +43,7 @@ export function useNavigationStore() {
   }
 
   const removeFavorite = (toolId: string) => {
-    state.value.favorites = state.value.favorites.filter(f => f !== toolId)
+    state.value.favorites = state.value.favorites.filter((favoriteId: string) => favoriteId !== toolId)
   }
 
   const toggleFavorite = (toolId: string) => {
@@ -52,7 +55,7 @@ export function useNavigationStore() {
   }
 
   const addRecent = (toolId: string) => {
-    state.value.recent = [toolId, ...state.value.recent.filter(r => r !== toolId)].slice(0, 10)
+    state.value.recent = [toolId, ...state.value.recent.filter((recentId: string) => recentId !== toolId)].slice(0, 10)
   }
 
   return {

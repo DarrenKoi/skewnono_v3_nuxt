@@ -1,6 +1,9 @@
 <template>
   <div class="relative isolate min-h-screen flex flex-col text-zinc-900 dark:text-zinc-100">
-    <div class="dashboard-bg-layer" aria-hidden="true" />
+    <div
+      class="dashboard-bg-layer"
+      aria-hidden="true"
+    />
     <UHeader class="dashboard-surface border-b border-zinc-200/70 dark:border-zinc-800/70">
       <template #left>
         <NuxtLink

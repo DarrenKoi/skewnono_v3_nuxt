@@ -1,0 +1,113 @@
+resource: equipment
+description: CD-SEM and other metrology equipment inventory
+base_path: /api/equipment
+
+types:
+  Equipment:
+    fac_id:
+      type: string
+      description: Facility identifier where equipment is located
+      examples: ["M10", "M11", "M14", "M15", "M16", "R3"]
+    eqp_id:
+      type: string
+      description: Unique equipment identifier
+      examples: ["ECXDX101", "PCD203", "ACD301"]
+    eqp_model_cd:
+      type: string
+      description: Equipment model code
+      examples: ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380", "TP3000", "TP3500", "TP4000", "TP4500", "PROVISION_10", "PROVISION_20", "VERITYSEM_4", "VERITYSEM_5"]
+    eqp_grp_id:
+      type: string
+      description: Equipment group identifier
+      examples: ["G-ECD-01", "G-MCD-02", "G-KCD-03", "G-MDS-01", "G-PCD-02", "G-ACD-03"]
+    vendor_nm:
+      type: string
+      enum: ["HITACHI", "AMAT"]
+      description: Vendor/manufacturer name
+    eqp_ip:
+      type: string
+      description: Private IPv4 address assigned to equipment
+      examples: ["177.10.5.101", "197.168.1.45"]
+    fab_name:
+      type: string
+      description: Fabrication unit name (fac_id + suffix letter A/B/C, R3 uses R4)
+      examples: ["M10A", "M10B", "M10C", "M14A", "R4"]
+    updt_dt:
+      type: string
+      format: "YYYY-MM-DD HH:MM:SS"
+      description: Last update timestamp
+    available:
+      type: string
+      enum: ["On", "Off"]
+      description: Equipment operational status
+    version:
+      type: integer
+      description: Software/firmware version
+      examples: [1, 2, 3]
+
+endpoints:
+  - path: /api/equipment
+    method: GET
+    description: List equipment with optional filters
+    query_params:
+      fac_id:
+        type: string
+        required: false
+        description: Filter by facility ID
+      vendor_nm:
+        type: string
+        required: false
+        description: Filter by vendor name
+    response:
+      status: 200
+      body:
+        data:
+          type: array
+          items: Equipment
+        total:
+          type: integer
+    example_request: "GET /api/equipment?fac_id=M10"
+    example_response:
+      data:
+        - fac_id: "M10"
+          eqp_id: "ECXDX101"
+          eqp_model_cd: "CG6300"
+          eqp_grp_id: "G-ECD-01"
+          vendor_nm: "HITACHI"
+          eqp_ip: "177.10.5.101"
+          fab_name: "M10A"
+          updt_dt: "2025-12-01 08:30:00"
+          available: "On"
+          version: 3
+      total: 4
+
+  - path: /api/equipment/:id
+    method: GET
+    description: Get single equipment by eqp_id
+    path_params:
+      id:
+        type: string
+        description: Equipment ID (eqp_id)
+    response:
+      status: 200
+      body:
+        data:
+          type: Equipment
+    error_response:
+      status: 404
+      body:
+        statusCode: 404
+        statusMessage: "Equipment {id} not found"
+    example_request: "GET /api/equipment/ECXDX101"
+    example_response:
+      data:
+        fac_id: "M10"
+        eqp_id: "ECXDX101"
+        eqp_model_cd: "CG6300"
+        eqp_grp_id: "G-ECD-01"
+        vendor_nm: "HITACHI"
+        eqp_ip: "177.10.5.101"
+        fab_name: "M10A"
+        updt_dt: "2025-12-01 08:30:00"
+        available: "On"
+        version: 3

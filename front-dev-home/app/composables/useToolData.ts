@@ -15,10 +15,10 @@ export interface FabConfig {
 
 export const useToolData = () => {
   const toolTypes: ToolTypeConfig[] = [
-    { id: 'cd-sem', label: 'CD-SEM', count: 250, enabled: true },
-    { id: 'hv-sem', label: 'HV-SEM', count: 48, enabled: true },
-    { id: 'verity-sem', label: 'VeritySEM', count: 24, enabled: false },
-    { id: 'provision', label: 'Provision', count: 12, enabled: false }
+    { id: 'cd-sem', label: 'CD-SEM', count: 0, enabled: true },
+    { id: 'hv-sem', label: 'HV-SEM', count: 0, enabled: true },
+    { id: 'verity-sem', label: 'VeritySEM', count: 0, enabled: true },
+    { id: 'provision', label: 'Provision', count: 0, enabled: true }
   ]
 
   const activeToolTypes = toolTypes.filter(t => t.enabled)

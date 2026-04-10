@@ -1,14 +1,25 @@
 <script setup lang="ts">
 const { toolType, navigateToToolType } = useNavigation()
 const { activeToolTypes } = useToolData()
+const { fetchToolInventory } = useEbeamToolApi()
+
+const { data: inventory } = await useAsyncData('ebeam-tool-types', () => fetchToolInventory())
+
+const toolsWithCounts = computed(() => activeToolTypes.map(tool => ({
+  ...tool,
+  count: inventory.value?.[tool.id].length ?? tool.count
+})))
 </script>
 
 <template>
   <div class="px-4 md:px-6 lg:px-8 pt-4">
     <div class="max-w-7xl mx-auto">
-      <nav aria-label="Tool type navigation" class="dashboard-surface rounded-2xl p-2 flex gap-1 overflow-x-auto">
+      <nav
+        aria-label="Tool type navigation"
+        class="dashboard-surface rounded-2xl p-2 flex gap-1 overflow-x-auto"
+      >
         <button
-          v-for="tool in activeToolTypes"
+          v-for="tool in toolsWithCounts"
           :key="tool.id"
           :aria-pressed="toolType === tool.id"
           type="button"

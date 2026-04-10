@@ -25,7 +25,10 @@ const getFeatureRoute = (feature: string) => {
 
 <template>
   <div class="px-4 md:px-6 lg:px-8 pt-4">
-    <nav aria-label="Feature navigation" class="dashboard-surface rounded-2xl px-2 py-2 flex gap-1 overflow-x-auto">
+    <nav
+      aria-label="Feature navigation"
+      class="dashboard-surface rounded-2xl px-2 py-2 flex gap-1 overflow-x-auto"
+    >
       <NuxtLink
         v-for="feature in features"
         :key="feature.value"
