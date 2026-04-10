@@ -31,7 +31,7 @@ const fabStats = computed(() => {
 
     <!-- Summary Cards -->
     <div class="grid md:grid-cols-4 gap-4 mb-8">
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
           <div class="text-3xl font-bold text-primary-600">
             24
@@ -41,34 +41,22 @@ const fabStats = computed(() => {
           </div>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
-          <div class="text-3xl font-bold text-green-600">
-            24
-          </div>
-          <div class="text-sm text-gray-500">
-            Online
-          </div>
+          <div class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">24</div>
+          <div class="text-sm text-gray-500">Online</div>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
-          <div class="text-3xl font-bold text-blue-600">
-            8
-          </div>
-          <div class="text-sm text-gray-500">
-            Active Jobs
-          </div>
+          <div class="text-3xl font-bold text-zinc-700 dark:text-zinc-300">8</div>
+          <div class="text-sm text-gray-500">Active Jobs</div>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
-          <div class="text-3xl font-bold text-amber-600">
-            0
-          </div>
-          <div class="text-sm text-gray-500">
-            Alerts
-          </div>
+          <div class="text-3xl font-bold text-zinc-600 dark:text-zinc-400">0</div>
+          <div class="text-sm text-gray-500">Alerts</div>
         </div>
       </UCard>
     </div>
@@ -79,6 +67,7 @@ const fabStats = computed(() => {
     </h2>
     <div class="grid md:grid-cols-3 gap-4">
       <UCard
+        class="dashboard-surface rounded-2xl"
         v-for="fab in fabStats"
         :key="fab.id"
       >
@@ -100,7 +89,7 @@ const fabStats = computed(() => {
         <div class="mt-4">
           <NuxtLink
             :to="`/ebeam/verity-sem/${fab.id.toLowerCase()}`"
-            class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+            class="text-sm text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium"
           >
             View Details →
           </NuxtLink>

@@ -24,16 +24,16 @@ const getFeatureRoute = (feature: string) => {
 </script>
 
 <template>
-  <div class="border-b border-gray-200 dark:border-gray-700 px-4 pt-2">
-    <nav class="flex gap-1">
+  <div class="px-4 md:px-6 lg:px-8 pt-4">
+    <nav aria-label="Feature navigation" class="dashboard-surface rounded-2xl px-2 py-2 flex gap-1 overflow-x-auto">
       <NuxtLink
         v-for="feature in features"
         :key="feature.value"
         :to="getFeatureRoute(feature.value)"
-        class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px"
+        class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200"
         :class="activeFeature === feature.value
-          ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300'"
+          ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
+          : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60'"
       >
         <UIcon
           :name="feature.icon"

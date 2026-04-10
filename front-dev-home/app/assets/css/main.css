@@ -5,15 +5,60 @@
   --font-sans: 'Public Sans', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
   --font-korean: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+  --color-zinc-50: #FAFAFA;
+  --color-zinc-100: #F4F4F5;
+  --color-zinc-200: #E4E4E7;
+  --color-zinc-300: #D4D4D8;
+  --color-zinc-400: #A1A1AA;
+  --color-zinc-500: #71717A;
+  --color-zinc-600: #52525B;
+  --color-zinc-700: #3F3F46;
+  --color-zinc-800: #27272A;
+  --color-zinc-900: #18181B;
+  --color-zinc-950: #09090B;
+}
+
+html,
+body,
+#__nuxt {
+  min-height: 100%;
+}
+
+body {
+  background: #F5F5F5;
+}
+
+.dark body {
+  background: #09090B;
+}
+
+.dashboard-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 520px at 100% -15%, rgba(24, 24, 27, 0.14), transparent 62%),
+    radial-gradient(900px 520px at -15% -10%, rgba(63, 63, 70, 0.09), transparent 64%);
+}
+
+.dark .dashboard-bg-layer {
+  background:
+    radial-gradient(1200px 520px at 100% -15%, rgba(244, 244, 245, 0.08), transparent 62%),
+    radial-gradient(900px 520px at -15% -10%, rgba(228, 228, 231, 0.06), transparent 64%);
+}
+
+.dashboard-surface {
+  border: 1px solid rgba(39, 39, 42, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 26px -22px rgba(9, 9, 11, 0.55);
+}
+
+.dark .dashboard-surface {
+  border-color: rgba(228, 228, 231, 0.14);
+  background: rgba(24, 24, 27, 0.62);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 14px 28px -22px rgba(0, 0, 0, 0.72);
 }

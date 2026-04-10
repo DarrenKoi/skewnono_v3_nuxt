@@ -4,16 +4,18 @@ const { activeToolTypes } = useToolData()
 </script>
 
 <template>
-  <div class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-    <div class="max-w-7xl mx-auto px-4">
-      <nav class="flex gap-1 py-2">
+  <div class="px-4 md:px-6 lg:px-8 pt-4">
+    <div class="max-w-7xl mx-auto">
+      <nav aria-label="Tool type navigation" class="dashboard-surface rounded-2xl p-2 flex gap-1 overflow-x-auto">
         <button
           v-for="tool in activeToolTypes"
           :key="tool.id"
-          class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors"
+          :aria-pressed="toolType === tool.id"
+          type="button"
+          class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200"
           :class="toolType === tool.id
-            ? 'bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 shadow-sm'
-            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'"
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
+            : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60'"
           @click="navigateToToolType(tool.id)"
         >
           {{ tool.label }}
