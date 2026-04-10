@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(claude mcp add:*)"
+      "Bash(claude mcp add:*)",
+      "Bash(bun --version)",
+      "Bash(bun dev:*)",
+      "Bash(bun run:*)",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //IM nuxt.exe)",
+      "Bash(taskkill //F //IM bun.exe)"
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "echo \"$(basename \"$PWD\")  $(git branch --show-current 2>/dev/null || echo '-')  $CLAUDE_MODEL  ctx:${CLAUDE_CONTEXT_WINDOW_PERCENT:-0}%  $CLAUDE_COST\""
   }
 }
