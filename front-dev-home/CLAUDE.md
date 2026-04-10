@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Manager
 
-**Use `bun` for all package management and script execution** (not pnpm/npm/yarn, despite lockfiles present).
+**Use `bun` for all package management and script execution** (not pnpm/npm/yarn).
 
 ## Commands
 
 ```bash
-bun dev              # Start dev server on http://localhost:3100
-bun dev:remote       # Dev server bound to 0.0.0.0 (for remote access)
-bun build            # Production build
-bun preview          # Preview production build
-bun lint             # ESLint
-bun typecheck        # Type checking (vue-tsc + nuxt)
+bun run dev          # Start dev server on http://localhost:3100
+bun run dev:remote   # Dev server bound to 0.0.0.0 (for remote access)
+bun run build        # Production build
+bun run preview      # Preview production build
+bun run lint         # ESLint
+bun run typecheck    # Type checking (vue-tsc + nuxt)
 bun install          # Install dependencies
 ```
 
@@ -64,3 +64,4 @@ Dev server proxies `/api/*` to `http://127.0.0.1:5000` (overridable via `NUXT_AP
 - Vue SFCs: `<template>` first, then `<script setup>` — but existing files in this repo use `<script setup>` first. Follow whichever pattern the file already uses.
 - Icon set: `@iconify-json/lucide` (use `i-lucide-*` names)
 - Tailwind CSS v4 via NuxtUI
+

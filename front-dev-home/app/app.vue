@@ -14,7 +14,7 @@ useHead({
   ],
   htmlAttrs: {
     lang: 'en'
-  }
+  }~
 })
 
 const title = 'SKEWNONO - E-Beam Metrology Dashboard'
