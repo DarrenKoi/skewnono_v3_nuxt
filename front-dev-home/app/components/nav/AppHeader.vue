@@ -8,7 +8,7 @@ const categories = [
 </script>
 
 <template>
-  <UHeader>
+  <UHeader class="dashboard-surface border-b border-zinc-200/70 dark:border-zinc-800/70">
     <template #left>
       <NuxtLink
         to="/"
@@ -17,19 +17,24 @@ const categories = [
         <AppLogo />
       </NuxtLink>
 
-      <div class="hidden md:flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 ml-6">
+      <nav
+        aria-label="Category navigation"
+        class="hidden md:flex items-center gap-1 rounded-xl p-1.5 ml-6 border border-zinc-200/80 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-900/45 backdrop-blur"
+      >
         <button
           v-for="cat in categories"
           :key="cat.id"
-          class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
+          :aria-pressed="category === cat.id"
+          type="button"
+          class="px-4 py-1.5 text-sm font-medium rounded-lg transition-all duration-200"
           :class="category === cat.id
-            ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
-            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'"
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
+            : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'"
           @click="navigateToCategory(cat.id)"
         >
           {{ cat.label }}
         </button>
-      </div>
+      </nav>
     </template>
 
     <template #right>

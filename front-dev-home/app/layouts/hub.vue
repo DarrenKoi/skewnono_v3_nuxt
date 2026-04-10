@@ -1,6 +1,7 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-    <UHeader>
+  <div class="relative isolate min-h-screen flex flex-col text-zinc-900 dark:text-zinc-100">
+    <div class="dashboard-bg-layer" aria-hidden="true" />
+    <UHeader class="dashboard-surface border-b border-zinc-200/70 dark:border-zinc-800/70">
       <template #left>
         <NuxtLink
           to="/"
@@ -32,8 +33,8 @@
       <slot />
     </main>
 
-    <footer class="border-t border-gray-200 dark:border-gray-700 py-4">
-      <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+    <footer class="border-t border-zinc-200/70 dark:border-zinc-800/70 py-4">
+      <div class="max-w-7xl mx-auto px-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
         SKEWNONO v3 - E-Beam Metrology Dashboard
       </div>
     </footer>

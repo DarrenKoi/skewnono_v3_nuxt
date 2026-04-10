@@ -23,7 +23,7 @@ onMounted(() => {
       </p>
     </div>
 
-    <UCard>
+    <UCard class="dashboard-surface rounded-2xl">
       <div class="flex flex-col items-center justify-center py-12 text-gray-500">
         <UIcon
           name="i-lucide-activity"

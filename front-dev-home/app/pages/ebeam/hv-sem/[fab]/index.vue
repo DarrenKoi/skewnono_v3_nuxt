@@ -45,7 +45,7 @@ const tools = computed(() => {
 
     <!-- Summary Cards -->
     <div class="grid md:grid-cols-4 gap-4 mb-8">
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
           <div class="text-3xl font-bold text-primary-600">
             {{ tools.length }}
@@ -55,9 +55,9 @@ const tools = computed(() => {
           </div>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
-          <div class="text-3xl font-bold text-green-600">
+          <div class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">
             {{ tools.filter(t => t.status === 'online').length }}
           </div>
           <div class="text-sm text-gray-500">
@@ -65,9 +65,9 @@ const tools = computed(() => {
           </div>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
-          <div class="text-3xl font-bold text-blue-600">
+          <div class="text-3xl font-bold text-zinc-700 dark:text-zinc-300">
             {{ tools.filter(t => t.currentJob).length }}
           </div>
           <div class="text-sm text-gray-500">
@@ -75,23 +75,17 @@ const tools = computed(() => {
           </div>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
-          <div class="text-3xl font-bold text-amber-600">
-            0
-          </div>
-          <div class="text-sm text-gray-500">
-            Alerts
-          </div>
+          <div class="text-3xl font-bold text-zinc-600 dark:text-zinc-400">0</div>
+          <div class="text-sm text-gray-500">Alerts</div>
         </div>
       </UCard>
     </div>
 
     <!-- Tool List -->
-    <h2 class="text-lg font-semibold mb-4">
-      Tools
-    </h2>
-    <UCard>
+    <h2 class="text-lg font-semibold mb-4">Tools</h2>
+    <UCard class="dashboard-surface rounded-2xl">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
@@ -122,7 +116,7 @@ const tools = computed(() => {
               <td class="py-3 px-4">
                 <UBadge
                   :label="tool.status"
-                  :color="tool.status === 'online' ? 'success' : 'error'"
+                  color="neutral"
                   variant="subtle"
                 />
               </td>
