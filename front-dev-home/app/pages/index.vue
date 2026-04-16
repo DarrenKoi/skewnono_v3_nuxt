@@ -5,6 +5,7 @@ definePageMeta({
 
 const { toolTypes } = useToolData()
 const { fetchToolInventory } = useEbeamToolApi()
+const { toolTypeHref } = useNavigation()
 
 const { data: inventory } = await useAsyncData('ebeam-base-tool-inventory', () => fetchToolInventory())
 
@@ -40,14 +41,11 @@ const systemStatus = computed(() => {
       <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold mb-2">
-            Operations Overview
+            기반기술센터 SKEWNONO v3
           </p>
           <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">
-            Metrology Control Center
+            - CD Metrology Solution -
           </h1>
-          <p class="text-sm text-zinc-600 dark:text-zinc-300 mt-2">
-            Unified monitoring and diagnostics across fabrication modules
-          </p>
         </div>
         <UBadge
           :label="todayLabel"
@@ -81,7 +79,7 @@ const systemStatus = computed(() => {
           <NuxtLink
             v-for="tool in ebeamTools"
             :key="tool.id"
-            :to="`/ebeam/${tool.id}`"
+            :to="toolTypeHref(tool.id)"
             class="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors group"
           >
             <span class="flex items-center gap-2">

@@ -5,8 +5,9 @@
 .nitro
 .cache
 dist
-.github
-.playright-mcp
+.github/workflows
+.playwright-mcp
+.remember
 # Node dependencies
 node_modules
 

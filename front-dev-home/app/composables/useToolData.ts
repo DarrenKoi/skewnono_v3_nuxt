@@ -28,7 +28,7 @@ export const useToolData = () => {
     { id: 'R3', label: 'R3' },
     { id: 'M11', label: 'M11' },
     { id: 'M12', label: 'M12' },
-    { id: 'M14', label: 'M14', hasAlerts: true },
+    { id: 'M14', label: 'M14' },
     { id: 'M15', label: 'M15' },
     { id: 'M16', label: 'M16' }
   ]
