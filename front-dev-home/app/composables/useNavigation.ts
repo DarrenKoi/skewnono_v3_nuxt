@@ -5,9 +5,16 @@ export const useNavigation = () => {
   const store = useNavigationStore()
   const router = useRouter()
 
+  const toolTypeHref = (toolType: ToolType) => {
+    const fab = store.fab.value
+    return fab && fab !== 'all'
+      ? `/ebeam/${toolType}/${fab.toLowerCase()}`
+      : `/ebeam/${toolType}`
+  }
+
   const navigateToToolType = (toolType: ToolType) => {
     store.setToolType(toolType)
-    router.push(`/ebeam/${toolType}`)
+    router.push(toolTypeHref(toolType))
   }
 
   const navigateToFab = (fab: Fab) => {
@@ -25,12 +32,13 @@ export const useNavigation = () => {
     if (category === 'thickness') {
       router.push('/thickness')
     } else {
-      router.push(`/ebeam/${store.toolType.value}`)
+      router.push(toolTypeHref(store.toolType.value))
     }
   }
 
   return {
     ...store,
+    toolTypeHref,
     navigateToToolType,
     navigateToFab,
     navigateToCategory

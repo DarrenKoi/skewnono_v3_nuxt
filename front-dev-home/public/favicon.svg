@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SKEWNONO favicon">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#27272A" />
+      <stop offset="1" stop-color="#09090B" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)" />
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="#FAFAFA" stroke-opacity="0.12" />
+  <g fill="none" stroke="#FAFAFA" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.5">
+    <path d="M24 13H14C11.79 13 10 14.79 10 17C10 19.21 11.79 21 14 21H19C21.21 21 23 22.79 23 25C23 27.21 21.21 29 19 29H9" />
+    <path d="M38 13V29" />
+    <path d="M50 13L39 21" />
+    <path d="M50 29L39 21" />
+    <path d="M10 37V53" />
+    <path d="M10 37L22 53" />
+    <path d="M22 37V53" />
+    <path d="M40 37V53" />
+    <path d="M40 37L52 53" />
+    <path d="M52 37V53" />
+  </g>
+  <path d="M16 32H48" fill="none" stroke="#D4A24B" stroke-linecap="round" stroke-width="2.5" />
+</svg>

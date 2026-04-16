@@ -32,7 +32,7 @@ npm create nuxt@latest -- -t github:nuxt-ui-templates/starter
 Make sure to install the dependencies:
 
 ```bash
-bun install
+npm install
 ```
 
 ## Development Server
@@ -40,13 +40,13 @@ bun install
 Start the development server on `http://localhost:3100`:
 
 ```bash
-bun run dev
+npm run dev
 ```
 
 For remote development in code-server, bind Nuxt to all interfaces:
 
 ```bash
-bun run dev:remote
+npm run dev:remote
 ```
 
 Then access it through code-server proxy:
@@ -66,7 +66,7 @@ Nuxt dev server proxies `/api/*` to Python backend at `http://127.0.0.1:5000` by
 Example:
 
 ```bash
-NUXT_API_TARGET=http://127.0.0.1:5000 bun run dev:remote
+NUXT_API_TARGET=http://127.0.0.1:5000 npm run dev:remote
 ```
 
 ## Production
@@ -74,13 +74,13 @@ NUXT_API_TARGET=http://127.0.0.1:5000 bun run dev:remote
 Build the application for production:
 
 ```bash
-bun run build
+npm run build
 ```
 
 Locally preview production build:
 
 ```bash
-bun run preview
+npm run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
