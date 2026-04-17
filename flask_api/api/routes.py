@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from flask import Blueprint, jsonify
 
 from ..config import FRONTEND_INDEX_FILE, FRONTEND_PUBLIC_ROOT
