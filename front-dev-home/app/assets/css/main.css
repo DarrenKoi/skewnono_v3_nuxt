@@ -2,8 +2,8 @@
 @import "@nuxt/ui";
 
 /* Self-hosted fonts (offline-safe, no CDN access required).
-   Files sourced from @fontsource/* (latin + korean subsets only, woff2 only).
-   Re-copy from node_modules/@fontsource/*/files/ when bumping versions. */
+   Files sourced from @fontsource packages (latin + korean subsets only, woff2 only).
+   Re-copy from node_modules/@fontsource/<family>/files/ when bumping versions. */
 @font-face {
   font-family: 'Public Sans';
   font-style: normal;
