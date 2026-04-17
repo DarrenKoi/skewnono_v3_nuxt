@@ -77,6 +77,14 @@ Build the application for production:
 npm run build
 ```
 
+Generate a static export for Flask or any other static host:
+
+```bash
+npm run generate
+```
+
+That writes route HTML and assets to `.output/public`.
+
 Locally preview production build:
 
 ```bash
