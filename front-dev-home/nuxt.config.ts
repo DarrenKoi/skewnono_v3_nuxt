@@ -4,6 +4,8 @@ const apiTarget = import.meta.env.NUXT_API_TARGET
 const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || (apiTarget ? '/api' : '/mock-api')
 
 export default defineNuxtConfig({
+  // Flask serves the built SPA in Phase 2/3 — no Node server, no SSR.
+  ssr: false,
 
   modules: [
     '@nuxt/eslint',
@@ -28,9 +30,7 @@ export default defineNuxtConfig({
     }
   },
 
-  routeRules: {
-    '/': { prerender: true }
-  }, devServer: {
+  devServer: {
     port: Number.isFinite(portFromEnv) ? portFromEnv : 3100
   },
 
