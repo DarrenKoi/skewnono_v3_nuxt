@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from flask import Flask
 
 from .api import api_bp
