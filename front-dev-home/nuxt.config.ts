@@ -10,6 +10,12 @@ export default defineNuxtConfig({
     '@nuxt/ui'
   ],
 
+  // Fonts are self-hosted via @fontsource/*; disable @nuxt/fonts auto-resolution
+  // to avoid contacting fontshare/google/bunny/fontsource at dev and build time.
+  ui: {
+    fonts: false
+  },
+
   devtools: {
     enabled: true
   },
