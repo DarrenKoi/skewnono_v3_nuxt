@@ -2,6 +2,7 @@
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
 const apiTarget = import.meta.env.NUXT_API_TARGET
 const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || (apiTarget ? '/api' : '/mock-api')
+const isDev = process.env.NODE_ENV === 'development'
 
 export default defineNuxtConfig({
   // Flask serves the built SPA in Phase 2/3 — no Node server, no SSR.
@@ -19,7 +20,7 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: true
+    enabled: isDev
   },
 
   css: ['~/assets/css/main.css'],
