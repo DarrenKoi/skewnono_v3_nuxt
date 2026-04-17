@@ -1,15 +1,65 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* Self-hosted fonts (offline-safe, no CDN access required) */
-@import "@fontsource/public-sans/400.css";
-@import "@fontsource/public-sans/500.css";
-@import "@fontsource/public-sans/600.css";
-@import "@fontsource/public-sans/700.css";
-@import "@fontsource/noto-sans-kr/400.css";
-@import "@fontsource/noto-sans-kr/500.css";
-@import "@fontsource/noto-sans-kr/600.css";
-@import "@fontsource/noto-sans-kr/700.css";
+/* Self-hosted fonts (offline-safe, no CDN access required).
+   Files sourced from @fontsource/* (latin + korean subsets only, woff2 only).
+   Re-copy from node_modules/@fontsource/*/files/ when bumping versions. */
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/public-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('/fonts/public-sans-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/public-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/public-sans-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/noto-sans-kr-korean-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('/fonts/noto-sans-kr-korean-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/noto-sans-kr-korean-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/noto-sans-kr-korean-700-normal.woff2') format('woff2');
+}
 
 @theme static {
   --font-sans: 'Public Sans', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
