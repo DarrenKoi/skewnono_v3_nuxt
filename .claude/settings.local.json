@@ -8,7 +8,9 @@
       "Bash(tasklist)",
       "Bash(taskkill //F //IM nuxt.exe)",
       "Bash(taskkill //F //IM bun.exe)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npx vue-tsc *)"
     ]
   },
   "statusLine": {
