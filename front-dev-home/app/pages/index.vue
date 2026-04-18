@@ -4,15 +4,30 @@ definePageMeta({
 })
 
 const { toolTypes } = useToolData()
-const { fetchToolInventory } = useEbeamToolApi()
+const { fetchSemList } = useSemListApi()
 const { toolTypeHref } = useNavigation()
 
-const { data: inventory } = await useAsyncData('ebeam-base-tool-inventory', () => fetchToolInventory())
+const { data: semRows } = await useAsyncData('sem-list-base', () => fetchSemList())
+
+const rowsByToolType = computed(() => {
+  const groups = new Map<string, typeof semRows.value>()
+  for (const tool of toolTypes) {
+    groups.set(tool.id, [])
+  }
+
+  for (const row of semRows.value ?? []) {
+    const toolType = classifyToolType(row.eqp_model_cd)
+    if (!toolType) continue
+    groups.get(toolType)?.push(row)
+  }
+
+  return groups
+})
 
 const ebeamTools = computed(() => {
   return toolTypes.map(tool => ({
     ...tool,
-    count: inventory.value?.[tool.id].length ?? tool.count
+    count: rowsByToolType.value.get(tool.id)?.length ?? tool.count
   }))
 })
 
@@ -24,7 +39,7 @@ const todayLabel = useState('hub-today-label', () => new Intl.DateTimeFormat('ko
 
 const systemStatus = computed(() => {
   return ebeamTools.value.map((tool) => {
-    const rows = inventory.value?.[tool.id] ?? []
+    const rows = rowsByToolType.value.get(tool.id) ?? []
 
     return {
       ...tool,

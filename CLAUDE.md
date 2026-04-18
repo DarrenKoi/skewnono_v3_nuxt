@@ -9,18 +9,15 @@ Web application for metrology, specified for tool management and data analytics.
 ### Phase 1 — Home / Offline
 - Personal computer, fully offline
 - No backend server; all data via JS/TS mock data
-- Mock data simulates Elasticsearch queries and Redis operations
 - Mock layer mimics the fetch API so it can be swapped for real calls later
 
 ### Phase 2 — Company / Localhost
 - Company infrastructure, localhost
 - Flask dev server at `http://localhost:5000`
-- Connects to company-hosted Elasticsearch 7.14 and Redis
 
 ### Phase 3 — Company / Production
 - Private cloud, internal network only
 - Flask production server with internal URL
-- Elasticsearch 7.14, Redis on production infra
 - Flask serves the built Nuxt frontend
 
 **Cross-phase principle:** switch between mock → localhost → production via configuration changes only, no code changes.
@@ -33,8 +30,6 @@ Web application for metrology, specified for tool management and data analytics.
 | State management | Pinia |
 | Data fetching | TanStack Query (Vue Query) |
 | Backend | Flask with Blueprints (auth, data, search, etc.) |
-| Search/analytics DB | Elasticsearch 7.14 |
-| Cache/session | Redis |
 | Frontend serving (prod) | Flask serves built frontend files |
 
 ## Architecture Patterns
@@ -49,7 +44,7 @@ Three-tier configuration management. Database connections, API base URLs, and se
 
 ### Data Format Conventions
 - Prefer **dict** and **dataframe dict** format (`dataframe.to_dict()`)
-- Elasticsearch and Redis responses converted to dict/dataframe on the backend
+- Backend responses converted to dict/dataframe shape before returning JSON
 
 ### Flask Blueprints
 - Modular API organization (auth, data, search, etc.)
@@ -59,7 +54,7 @@ Three-tier configuration management. Database connections, API base URLs, and se
 ## Development Notes
 
 - Git-based workflow with separated workspaces per phase (home vs. office cannot sync directly)
-- Flask, Elasticsearch, and Redis are only accessible on company network
+- Flask backend is only accessible on company network
 - Production secured within private cloud (no public internet exposure)
 - Architecture prioritizes clean separation and maintainability over immediate feature complexity
 - Extensible design: support incremental page/feature additions without major refactoring

@@ -2,28 +2,27 @@
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
 const apiTarget = import.meta.env.NUXT_API_TARGET
 const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || (apiTarget ? '/api' : '/mock-api')
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = import.meta.dev
 
 export default defineNuxtConfig({
   // Flask serves the built SPA in Phase 2/3 — no Node server, no SSR.
-  ssr: false,
-
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui'
   ],
 
-  // Fonts are self-hosted via @fontsource/*; disable @nuxt/fonts auto-resolution
-  // to avoid contacting fontshare/google/bunny/fontsource at dev and build time.
-  ui: {
-    fonts: false
-  },
+  ssr: false,
 
   devtools: {
     enabled: isDev
   },
 
   css: ['~/assets/css/main.css'],
+  // Fonts are self-hosted via @fontsource/*; disable @nuxt/fonts auto-resolution
+  // to avoid contacting fontshare/google/bunny/fontsource at dev and build time.
+  ui: {
+    fonts: false
+  },
 
   runtimeConfig: {
     public: {

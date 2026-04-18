@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { ColumnFiltersState, SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
-import type { EbeamToolRow } from '~/mock-data/ebeam-tool-inventory/ebeam-tool-inventory'
+import type { SemListRow } from '~/mock-data/sem-list/sem-list'
 
 const props = withDefaults(defineProps<{
   fab?: Fab
@@ -13,26 +13,26 @@ const props = withDefaults(defineProps<{
   fab: 'all'
 })
 
-const { fetchToolInventory, filterRows } = useEbeamToolApi()
+const { fetchSemList, filterRows } = useSemListApi()
 
-const asyncKey = `ebeam-tool-inventory:${props.toolType}:${props.fab}`
+const asyncKey = `sem-list:${props.toolType}:${props.fab}`
 
 const { data } = await useAsyncData(asyncKey, async () => {
-  const inventory = await fetchToolInventory()
-  const rows = filterRows(inventory, props.toolType, props.fab)
-  const fabSummaries = props.fab === 'all' ? summarizeRowsByFab(rows) : []
+  const allRows = await fetchSemList()
+  const rows = filterRows(allRows, props.toolType, props.fab)
+  const facSummaries = props.fab === 'all' ? summarizeRowsByFacId(rows) : []
 
   return {
     rows,
-    fabSummaries
+    facSummaries
   }
 })
 
 const rows = computed(() => data.value?.rows ?? [])
-const fabSummaries = computed(() => data.value?.fabSummaries ?? [])
+const facSummaries = computed(() => data.value?.facSummaries ?? [])
 const onlineCount = computed(() => rows.value.filter(row => row.available === 'On').length)
 const offlineCount = computed(() => rows.value.filter(row => row.available === 'Off').length)
-const fabCount = computed(() => new Set(rows.value.map(row => row.fab_name)).size)
+const facCount = computed(() => new Set(rows.value.map(row => row.fac_id)).size)
 
 const defaultSortPreset = 'fab_name:asc'
 
@@ -45,7 +45,7 @@ const sorting = ref<SortingState>([
   }
 ])
 
-const setColumnFilter = (columnId: keyof EbeamToolRow, value: string) => {
+const setColumnFilter = (columnId: keyof SemListRow, value: string) => {
   const nextFilters = columnFilters.value.filter(filter => filter.id !== columnId)
 
   if (value !== 'all') {
@@ -58,7 +58,7 @@ const setColumnFilter = (columnId: keyof EbeamToolRow, value: string) => {
   columnFilters.value = nextFilters
 }
 
-const getColumnFilter = (columnId: keyof EbeamToolRow) => {
+const getColumnFilter = (columnId: keyof SemListRow) => {
   const filter = columnFilters.value.find(entry => entry.id === columnId)
 
   return typeof filter?.value === 'string' ? filter.value : 'all'
@@ -74,7 +74,7 @@ const modelFilter = computed({
   set: (value: string) => setColumnFilter('eqp_model_cd', value)
 })
 
-const fabFilter = computed({
+const fabNameFilter = computed({
   get: () => getColumnFilter('fab_name'),
   set: (value: string) => setColumnFilter('fab_name', value)
 })
@@ -117,17 +117,17 @@ const modelFilterOptions = computed(() => [
     }))
 ])
 
-const fabFilterOptions = computed(() => [
+const fabNameFilterOptions = computed(() => [
   { label: 'All Fabs', value: 'all' },
   ...Array.from(new Set(rows.value.map(row => row.fab_name)))
     .sort((left, right) => left.localeCompare(right))
-    .map(fab => ({
-      label: fab,
-      value: fab
+    .map(fabName => ({
+      label: fabName,
+      value: fabName
     }))
 ])
 
-const showFabFilter = computed(() => fabFilterOptions.value.length > 2)
+const showFabNameFilter = computed(() => fabNameFilterOptions.value.length > 2)
 
 const sortOptions = [
   { label: 'Fab (A-Z)', value: 'fab_name:asc' },
@@ -144,17 +144,19 @@ const sortOptions = [
   { label: 'Status (On first)', value: 'available:desc' }
 ]
 
-const filteredRows = computed(() => {
+const filteredRowCount = computed(() => {
   const searchTerm = globalFilter.value.trim().toLowerCase()
   const selectedAvailability = availabilityFilter.value
   const selectedModel = modelFilter.value
-  const selectedFab = fabFilter.value
+  const selectedFabName = fabNameFilter.value
 
   return rows.value.filter((row) => {
     const matchesSearch = searchTerm.length === 0 || [
+      row.fac_id,
       row.fab_name,
       row.eqp_id,
       row.eqp_model_cd,
+      row.vendor_nm,
       row.eqp_ip,
       String(row.version),
       row.available
@@ -162,13 +164,11 @@ const filteredRows = computed(() => {
 
     const matchesAvailability = selectedAvailability === 'all' || row.available === selectedAvailability
     const matchesModel = selectedModel === 'all' || row.eqp_model_cd === selectedModel
-    const matchesFab = selectedFab === 'all' || row.fab_name === selectedFab
+    const matchesFabName = selectedFabName === 'all' || row.fab_name === selectedFabName
 
-    return matchesSearch && matchesAvailability && matchesModel && matchesFab
-  })
+    return matchesSearch && matchesAvailability && matchesModel && matchesFabName
+  }).length
 })
-
-const filteredRowCount = computed(() => filteredRows.value.length)
 
 const hasActiveTableControls = computed(() => {
   return globalFilter.value.length > 0 || columnFilters.value.length > 0 || sortPreset.value !== defaultSortPreset
@@ -180,7 +180,11 @@ const tableMeta = {
   }
 }
 
-const columns: TableColumn<EbeamToolRow>[] = [
+const columns: TableColumn<SemListRow>[] = [
+  {
+    accessorKey: 'fac_id',
+    header: 'Fac'
+  },
   {
     accessorKey: 'fab_name',
     header: 'Fab',
@@ -194,6 +198,10 @@ const columns: TableColumn<EbeamToolRow>[] = [
     accessorKey: 'eqp_model_cd',
     header: 'Model',
     filterFn: 'equalsString'
+  },
+  {
+    accessorKey: 'vendor_nm',
+    header: 'Vendor'
   },
   {
     accessorKey: 'eqp_ip',
@@ -283,7 +291,7 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
       <UCard class="dashboard-surface rounded-2xl">
         <div class="text-center">
           <div class="text-3xl font-bold text-zinc-600 dark:text-zinc-400">
-            {{ fabCount }}
+            {{ facCount }}
           </div>
           <div class="text-sm text-gray-500">
             Fabs
@@ -292,20 +300,20 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
       </UCard>
     </div>
 
-    <template v-if="props.fab === 'all' && fabSummaries.length > 0">
+    <template v-if="props.fab === 'all' && facSummaries.length > 0">
       <div>
         <h2 class="text-lg font-semibold mb-4">
           Fab Breakdown
         </h2>
         <div class="grid gap-4 md:grid-cols-3">
           <UCard
-            v-for="summary in fabSummaries"
-            :key="summary.fab_name"
+            v-for="summary in facSummaries"
+            :key="summary.fac_id"
             class="dashboard-surface rounded-2xl"
           >
             <div class="flex items-center justify-between mb-3">
               <h3 class="font-semibold">
-                {{ summary.fab_name }}
+                {{ summary.fac_id }}
               </h3>
               <UBadge
                 :label="`${summary.online}/${summary.total} online`"
@@ -343,7 +351,7 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
 
             <div class="mt-4">
               <NuxtLink
-                :to="`/ebeam/${toolType}/${summary.fab_name.toLowerCase()}`"
+                :to="`/ebeam/${toolType}/${summary.fac_id.toLowerCase()}`"
                 class="text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
               >
                 View Details ->
@@ -388,12 +396,12 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
               />
 
               <USelect
-                v-if="showFabFilter"
-                v-model="fabFilter"
+                v-if="showFabNameFilter"
+                v-model="fabNameFilter"
                 class="w-full md:w-40"
                 color="neutral"
                 variant="subtle"
-                :items="fabFilterOptions"
+                :items="fabNameFilterOptions"
               />
 
               <USelect
@@ -432,6 +440,19 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
             :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
             sticky="header"
           >
+            <template #fac_id-header="{ column }">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                class="-mx-2"
+                :trailing-icon="getSortIcon(column.getIsSorted())"
+                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+              >
+                Fac
+              </UButton>
+            </template>
+
             <template #fab_name-header="{ column }">
               <UButton
                 color="neutral"
@@ -468,6 +489,19 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
                 @click="column.toggleSorting(column.getIsSorted() === 'asc')"
               >
                 Model
+              </UButton>
+            </template>
+
+            <template #vendor_nm-header="{ column }">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                class="-mx-2"
+                :trailing-icon="getSortIcon(column.getIsSorted())"
+                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+              >
+                Vendor
               </UButton>
             </template>
 

@@ -11,7 +11,18 @@
       "Bash(npm run *)",
       "Bash(npm install *)",
       "Bash(npx vue-tsc *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(fnm list *)",
+      "Bash(where fnm *)",
+      "Bash(powershell -Command \"Get-Command fnm -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell *)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(where py *)",
+      "Bash(where python *)",
+      "Bash(where python3 *)"
     ]
   },
   "statusLine": {
