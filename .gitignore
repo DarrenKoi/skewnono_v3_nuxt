@@ -1,2 +1,83 @@
-# Local agent state
+# ───────────────────────────────────────────────
+# Local agent / editor state
+# ───────────────────────────────────────────────
 .remember
+.claude/settings.local.json
+.playwright-mcp
+
+# IDEs & editors
+.idea/
+.vscode/
+.fleet/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───────────────────────────────────────────────
+# Python (flask_api/)
+# ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ───────────────────────────────────────────────
+# Nuxt / Node (front-dev-home/)
+# ───────────────────────────────────────────────
+node_modules/
+
+# Nuxt build / dev outputs
+.nuxt/
+.output/
+.nitro/
+.cache/
+.data/
+dist/
+
+# Package manager debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ───────────────────────────────────────────────
+# Logs & env
+# ───────────────────────────────────────────────
+logs/
+*.log
+
+.env
+.env.*
+!.env.example
