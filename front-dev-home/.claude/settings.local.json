@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bun lint:*)",
-      "Bash(bunx eslint:*)"
+      "Bash(echo \"---exit: $?\")"
     ]
   }
 }

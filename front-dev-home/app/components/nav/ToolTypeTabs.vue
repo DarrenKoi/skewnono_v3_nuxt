@@ -1,13 +1,23 @@
 <script setup lang="ts">
 const { toolType, navigateToToolType } = useNavigation()
 const { activeToolTypes } = useToolData()
-const { fetchToolInventory } = useEbeamToolApi()
+const { fetchSemList } = useSemListApi()
 
-const { data: inventory } = await useAsyncData('ebeam-tool-types', () => fetchToolInventory())
+const { data: semRows } = await useAsyncData('sem-list-tool-types', () => fetchSemList())
+
+const countsByToolType = computed(() => {
+  const counts = new Map<string, number>()
+  for (const row of semRows.value ?? []) {
+    const toolType = classifyToolType(row.eqp_model_cd)
+    if (!toolType) continue
+    counts.set(toolType, (counts.get(toolType) ?? 0) + 1)
+  }
+  return counts
+})
 
 const toolsWithCounts = computed(() => activeToolTypes.map(tool => ({
   ...tool,
-  count: inventory.value?.[tool.id].length ?? tool.count
+  count: countsByToolType.value.get(tool.id) ?? tool.count
 })))
 </script>
 

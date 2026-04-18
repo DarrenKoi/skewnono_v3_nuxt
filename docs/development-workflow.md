@@ -208,7 +208,7 @@ Same function signatures — no page changes needed.
 ### Step 5: TanStack Query
 
 ```bash
-pnpm add @tanstack/vue-query
+npm install @tanstack/vue-query
 ```
 
 ```typescript
@@ -263,7 +263,7 @@ Rewrite `.claude/skills/generate-mock/SKILL.md` to generate:
 ## Production Build (Phase 3)
 
 ```bash
-cd front-dev-home && pnpm generate
+cd front-dev-home && npm run generate
 # Output: .output/public/ (static HTML + JS + CSS)
 ```
 
@@ -288,8 +288,8 @@ API blueprints handle `/api/*` routes against Elasticsearch and Redis.
 
 ## Verification Checklist
 
-- [ ] `pnpm dev` (no .env) → `http://localhost:3100/api/equipment` returns mock JSON
-- [ ] `pnpm typecheck` passes (shared types resolve in both app/ and server/)
+- [ ] `npm run dev` (no .env) → `http://localhost:3100/api/equipment` returns mock JSON
+- [ ] `npm run typecheck` passes (shared types resolve in both app/ and server/)
 - [ ] Pages load equipment data from server routes
 - [ ] At work: `NUXT_USE_MOCK=false` + Flask running → same pages load real data
-- [ ] `pnpm generate` produces static build that Flask can serve
+- [ ] `npm run generate` produces static build that Flask can serve
