@@ -146,7 +146,7 @@ Iconify 아이콘 렌더러.
 이 프로젝트에 아직 등장하지 않았지만 앞으로 페이지를 확장하면 쓸 법한 것들:
 
 | 카테고리 | 컴포넌트 | 용도 |
-|---|---|---|
+| --- | --- | --- |
 | 폼 | `UInput`, `UTextarea`, `USelect`, `USelectMenu`, `UCheckbox`, `URadio`, `USwitch` | 기본 입력 |
 | 폼 | `UForm`, `UFormField` | 유효성 검사 (zod/valibot과 통합) |
 | 표시 | `UTable` | 데이터 테이블 (sort/pagination 내장) |

@@ -8,7 +8,7 @@
 
 ## Architecture Overview
 
-```
+```text
 Home (Phase 1)                          Work (Phase 2/3)
 ┌──────────────────┐                    ┌──────────────────────────┐
 │ nuxt dev         │                    │ nuxt dev + flask run     │
@@ -29,10 +29,10 @@ Home (Phase 1)                          Work (Phase 2/3)
 **Switching mechanism**: `NUXT_USE_MOCK` env var controls Nitro's devProxy.
 
 | Environment | NUXT_USE_MOCK | What happens to `/api` requests |
-|-------------|---------------|-------------------------------|
-| Home        | `true` (default) | Nuxt server routes return mock data |
-| Work (dev)  | `false`       | devProxy forwards to Flask at :5000 |
-| Work (prod) | N/A           | Flask serves static dist + handles /api directly |
+| --- | --- | --- |
+| Home | `true` (default) | Nuxt server routes return mock data |
+| Work (dev) | `false` | devProxy forwards to Flask at :5000 |
+| Work (prod) | N/A | Flask serves static dist + handles /api directly |
 
 ## The Bridge: API Contracts
 
@@ -46,7 +46,7 @@ The `docs/api-contracts/` directory is the shared language between frontend and 
 
 ## Target Directory Structure
 
-```
+```text
 skewnono_v3_nuxt/
 ├── docs/
 │   ├── development-workflow.md        ← this file

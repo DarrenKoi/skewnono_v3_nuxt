@@ -37,15 +37,19 @@ button { padding: 8px; }
 
 ### 2.1 `ref` — 단일 값
 
-```ts
+```html
+<script setup lang="ts">
 import { ref } from 'vue'  // Nuxt는 auto-import라 생략 가능
 
 const count = ref(0)
 console.log(count.value)   // 0  ← JS에서는 .value로 접근
 count.value++              // 값 갱신
+</script>
 
-// template에서는 .value 자동 언랩
-// <div>{{ count }}</div>  OK
+<template>
+  <!-- template에서는 .value 자동 언랩 -->
+  <div>{{ count }}</div>
+</template>
 ```
 
 프로젝트 예시 (`FabSidebar.vue`):
@@ -102,7 +106,7 @@ watchEffect(() => {
 
 `<script setup>` 블록에서 선언한 `const`, `function`, `import`는 자동으로 템플릿에서 사용 가능합니다.
 
-```vue
+```html
 <script setup lang="ts">
 const title = 'Hello'
 const onClick = () => console.log('clicked')
@@ -127,7 +131,7 @@ const onClick = () => console.log('clicked')
 ### 4.2 디렉티브
 
 | 디렉티브 | 기능 | 예시 |
-|---|---|---|
+| --- | --- | --- |
 | `v-if` / `v-else-if` / `v-else` | 조건부 렌더링 | `<div v-if="show">...</div>` |
 | `v-show` | CSS display로 토글 (DOM은 유지) | `<div v-show="show">` |
 | `v-for` | 반복 | `<li v-for="x in list" :key="x.id">` |
@@ -137,7 +141,7 @@ const onClick = () => console.log('clicked')
 
 프로젝트 예시:
 
-```vue
+```html
 <!-- v-for + :key 필수 -->
 <NuxtLink
   v-for="tool in ebeamTools"
@@ -164,7 +168,7 @@ const onClick = () => console.log('clicked')
 
 컴포넌트 내부에 외부에서 content를 꽂는 장치. 이 프로젝트의 `UHeader` 같은 NuxtUI 컴포넌트에 많이 사용됩니다.
 
-```vue
+```html
 <!-- 사용처 -->
 <UHeader>
   <template #left>
@@ -188,7 +192,8 @@ const onClick = () => console.log('clicked')
 
 TS 제네릭 방식이 표준입니다.
 
-```ts
+```html
+<script setup lang="ts">
 // ToolInventoryView.vue
 const props = withDefaults(defineProps<{
   fab?: Fab                 // 선택(?) 속성
@@ -201,11 +206,12 @@ const props = withDefaults(defineProps<{
 
 // 사용
 console.log(props.toolType)
+</script>
 ```
 
 부모에서 전달:
 
-```vue
+```html
 <EbeamToolInventoryView
   tool-type="cd-sem"        <!-- kebab-case 자동 변환 -->
   title="CD-SEM Overview"
@@ -217,24 +223,27 @@ console.log(props.toolType)
 
 이 프로젝트에는 없지만 표준 패턴:
 
-```ts
+```html
+<script setup lang="ts">
 const emit = defineEmits<{
   click: [id: string]       // 이벤트 이름: [인자 타입들]
   save: [value: number]
 }>()
 
 emit('click', 'tool-1')
+</script>
 ```
 
 부모:
 
-```vue
+```html
 <MyBtn @click="handleClick" @save="handleSave" />
 ```
 
 ## 6. Lifecycle hooks
 
-```ts
+```html
+<script setup lang="ts">
 import { onMounted, onUnmounted, onBeforeMount } from 'vue'  // auto-import됨
 
 onMounted(() => {
@@ -246,6 +255,7 @@ onMounted(() => {
 onUnmounted(() => {
   // 언마운트 직전 (타이머 정리 등)
 })
+</script>
 ```
 
 프로젝트 예시 (`pages/ebeam/cd-sem/index.vue`): 페이지 진입 시 navigation store를 동기화합니다.
@@ -256,7 +266,7 @@ onUnmounted(() => {
 
 규칙: 폴더 경로 + 파일명을 **PascalCase**로 이어붙인 이름.
 
-```
+```text
 components/nav/AppHeader.vue        → <NavAppHeader />
 components/nav/FabSidebar.vue       → <NavFabSidebar />
 components/ebeam/ToolInventoryView.vue → <EbeamToolInventoryView />
@@ -269,7 +279,8 @@ components/AppLogo.vue              → <AppLogo />
 
 백엔드 개발자가 가장 많이 실수하는 지점.
 
-```ts
+```html
+<script setup lang="ts">
 const count = ref(0)
 
 // ❌ 틀림 — JS에서는 .value 필요
@@ -277,9 +288,12 @@ if (count > 0) { ... }
 
 // ✅ 맞음
 if (count.value > 0) { ... }
+</script>
 
-// 단, template에서는 .value 생략 (자동 언랩)
-// <div v-if="count > 0">...</div>
+<template>
+  <!-- 단, template에서는 .value 생략 (자동 언랩) -->
+  <div v-if="count > 0">...</div>
+</template>
 ```
 
 함수 인자로 ref를 넘길 때 `.value`를 미리 꺼내면 반응성을 잃습니다. 원래 ref를 통째로 넘기세요.

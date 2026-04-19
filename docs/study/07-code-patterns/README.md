@@ -4,7 +4,7 @@
 
 ## 1. 레이어 구조 한눈에
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │  pages/*.vue                            │ ← 라우트, data 요청
 │    ↓ uses                               │
@@ -151,14 +151,17 @@ export const useEbeamToolApi = () => {
 지금 `useEbeamToolApi`는 `$fetch`를 호출하지만, Phase 1에선 `/mock-api/ebeam/tools` 엔드포인트가 없어서 실제로는 요청이 실패할 수 있습니다. 세 가지 해결책:
 
 1. **Nuxt server 라우트를 만들기**
+
    ```ts
    // server/api/ebeam/tools.ts
    import { mockEbeamToolInventoryResponse } from '~/mock-data/...'
    export default defineEventHandler(() => mockEbeamToolInventoryResponse)
    ```
+
    `apiBase='/api'`로 맞추면 `/api/ebeam/tools`가 자동으로 mock을 리턴.
 
 2. **Composable 내부에서 분기**
+
    ```ts
    const USE_MOCK = config.public.apiBase === '/mock-api'
    const fetchToolInventory = async () => {
@@ -247,7 +250,7 @@ const fabCount = computed(() => new Set(rows.value.map(row => row.fab_name)).siz
 
 여러 컴포넌트가 `useNavigation`을 통해 같은 상태를 공유합니다.
 
-```
+```text
 AppHeader.vue     → navigateToCategory
 FabSidebar.vue    → navigateToFab
 ToolTypeTabs.vue  → navigateToToolType
@@ -281,7 +284,7 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 ## 9. 요약
 
 | 패턴 | 어디서 | 핵심 |
-|---|---|---|
+| --- | --- | --- |
 | `useState` 기반 store | `stores/navigation.ts` | SSR-safe 전역 상태 + readonly 노출 |
 | URL 계산 추상화 | `useEbeamToolApi.ts` | `apiBase + path` 조합 |
 | 순수 헬퍼 함수 | `summarizeRowsByFab`, `filterRows` | 테스트 쉬움, 재사용 |

@@ -164,7 +164,7 @@ NuxtUI와 기본 ESLint가 접근성 관련 속성을 종종 요구합니다.
 ## 5. 자주 마주치는 린트 에러와 해결
 
 | 에러 | 원인 | 해결 |
-|---|---|---|
+| --- | --- | --- |
 | `Comma dangle is not allowed` | 배열/객체 끝에 콤마 | 삭제 |
 | `Expected indentation of N spaces` | 들여쓰기 불일치 | 2 space 사용 |
 | `Missing key in v-for` | `:key` 누락 | `:key="item.id"` 추가 |

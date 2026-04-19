@@ -58,3 +58,19 @@ Three-tier configuration management. Database connections, API base URLs, and se
 - Production secured within private cloud (no public internet exposure)
 - Architecture prioritizes clean separation and maintainability over immediate feature complexity
 - Extensible design: support incremental page/feature additions without major refactoring
+
+## Markdown Notes
+
+- Run `npm run lint:md` after editing Markdown files.
+- Use markdownlint `MD060` `compact` table style for every Markdown table.
+- Write `docs/` and study Markdown in Korean when it is intended for teammate sharing.
+- Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.
+- Preferred format:
+
+```md
+| Column | Value |
+| --- | --- |
+| A | B |
+```
+
+- Avoid vertically aligned pipes or mixed table styles.
