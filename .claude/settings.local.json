@@ -22,7 +22,13 @@
       "Bash(git push *)",
       "Bash(where py *)",
       "Bash(where python *)",
-      "Bash(where python3 *)"
+      "Bash(where python3 *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3000)",
+      "Bash(findstr :3001)",
+      "Bash(tasklist *)",
+      "Bash(taskkill *)",
+      "Bash(findstr :3100)"
     ]
   },
   "statusLine": {
