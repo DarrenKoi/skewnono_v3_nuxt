@@ -204,7 +204,7 @@ npm run build
 
 `.output/` 폴더에 생기는 것:
 
-```
+```text
 .output/
 ├── public/     브라우저로 보낼 정적 자원 (bundled JS/CSS, 이미지, HTML)
 ├── server/     Nitro 서버 코드 (SSR + API)
@@ -245,7 +245,7 @@ NUXT_PUBLIC_API_BASE=/api npm run build
 ## 7. 환경 변수 요약표
 
 | 변수 | 목적 | Phase 1 | Phase 2 | Phase 3 |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `NUXT_PORT` | dev 서버 포트 | 3100(기본) | 자유 | N/A |
 | `NUXT_API_TARGET` | Flask 프록시 대상 | (비움) | `http://127.0.0.1:5000` | N/A |
 | `NUXT_PUBLIC_API_BASE` | 프론트 API base path | (자동 `/mock-api`) | (자동 `/api`) | 명시적 `/api` |

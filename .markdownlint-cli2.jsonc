@@ -1,0 +1,16 @@
+{
+  "config": {
+    "default": false,
+    "MD031": true,
+    "MD040": true,
+    "MD060": {
+      "style": "compact"
+    }
+  },
+  "ignores": [
+    "**/node_modules/**",
+    "**/.nuxt/**",
+    "**/.output/**",
+    "**/.git/**"
+  ]
+}

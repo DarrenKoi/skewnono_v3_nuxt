@@ -18,7 +18,7 @@ let notYet: undefined = undefined
 Python 비교:
 
 | Python | TypeScript |
-|---|---|
+| --- | --- |
 | `int`, `float` | `number` |
 | `str` | `string` |
 | `bool` | `boolean` |
@@ -203,7 +203,7 @@ const cats = [
 ## 11. 프로젝트에 나타난 타입 패턴 요약
 
 | 파일 | 사용한 TS 기능 |
-|---|---|
+| --- | --- |
 | `stores/navigation.ts` | `type` union, `interface`, `readonly`, 제네릭 `useState<T>` |
 | `mock-data/.../ebeam-tool-inventory.ts` | `interface`, `Record<K, V>`, `Exclude<T, U>`, 리터럴 유니온 |
 | `composables/useEbeamToolApi.ts` | `import type`, 제네릭 `$fetch<T>`, `Map<K, V>`, 기본값 인자 |

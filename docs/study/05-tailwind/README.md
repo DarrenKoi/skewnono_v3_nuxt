@@ -7,7 +7,7 @@ Tailwind는 **유틸리티 CSS 프레임워크**입니다. `btn-primary` 같은 
 ## 1. v4의 핵심 변화
 
 | 이슈 | v3 | v4 |
-|---|---|---|
+| --- | --- | --- |
 | 설정 파일 | `tailwind.config.js` 필요 | CSS에 직접 `@theme` 선언 가능 |
 | import 방식 | `@tailwind base/components/utilities` | `@import "tailwindcss"` 한 줄 |
 | PostCSS 설정 | postcss.config 필요 | Vite 플러그인에서 바로 처리 |
@@ -37,7 +37,7 @@ Tailwind는 **유틸리티 CSS 프레임워크**입니다. `btn-primary` 같은 
 
 ### 3.1 레이아웃
 
-```
+```text
 flex            display: flex
 grid            display: grid
 block           display: block
@@ -54,7 +54,7 @@ space-y-6       자식 요소 사이 수직 간격
 
 ### 3.2 Grid
 
-```
+```text
 grid md:grid-cols-2            모바일 1열, md부터 2열
 grid md:grid-cols-3 gap-4
 grid gap-4 md:grid-cols-4
@@ -64,7 +64,7 @@ grid gap-4 md:grid-cols-4
 
 단위는 1 = 0.25rem = 4px.
 
-```
+```text
 p-4             padding: 1rem
 px-4 py-3       padding-x: 1rem / padding-y: 0.75rem
 m-2             margin
@@ -80,7 +80,7 @@ size-4          = w-4 h-4
 
 팔레트: `zinc`, `gray`, `slate`, `neutral`, `red`, `orange`, `yellow`, `green`, `blue`, `indigo`, `purple`, `pink` — 각 팔레트는 50~950의 수치 scale이 있습니다.
 
-```
+```text
 bg-zinc-900         배경
 text-zinc-100       글자
 border-zinc-200     테두리
@@ -89,7 +89,7 @@ dark:bg-zinc-900    다크 모드일 때 적용 (.dark 클래스 기반)
 
 ### 3.5 타이포그래피
 
-```
+```text
 text-xs text-sm text-base text-lg text-xl text-2xl text-3xl
 font-medium font-semibold font-bold
 tracking-tight tracking-[0.18em]   <!-- 임의의 값 -->
@@ -99,7 +99,7 @@ leading-tight
 
 ### 3.6 border / radius / shadow
 
-```
+```text
 border border-2 border-t border-zinc-200
 rounded rounded-xl rounded-2xl rounded-3xl rounded-full
 shadow shadow-sm shadow-md shadow-xl
@@ -107,7 +107,7 @@ shadow shadow-sm shadow-md shadow-xl
 
 ### 3.7 상호작용(hover, focus, ...)
 
-```
+```text
 hover:bg-zinc-100
 hover:text-zinc-900
 focus:ring-2 focus:ring-primary-500
@@ -125,7 +125,7 @@ group-hover:text-zinc-800   <!-- 부모 .group이 hover일 때 -->
 
 모바일 퍼스트 — prefix 없는 게 가장 작은 화면 기본입니다.
 
-```
+```html
 <h1 class="text-2xl md:text-3xl">  <!-- 모바일 2xl, md 이상 3xl -->
 ```
 
@@ -133,7 +133,7 @@ group-hover:text-zinc-800   <!-- 부모 .group이 hover일 때 -->
 
 `.dark` 클래스를 상위 요소(보통 `<html>`)에 붙이면 `dark:*` 유틸리티가 활성화됩니다. NuxtUI의 `<UColorModeButton>`이 자동 처리합니다.
 
-```
+```text
 text-zinc-900 dark:text-zinc-100
 bg-white dark:bg-zinc-900
 ```
@@ -205,7 +205,7 @@ bg-white dark:bg-zinc-900
 
 Tailwind가 기본 제공하지 않는 값은 대괄호로 넣습니다.
 
-```
+```text
 tracking-[0.18em]     letter-spacing: 0.18em
 text-[11px]
 bg-[#FF5733]

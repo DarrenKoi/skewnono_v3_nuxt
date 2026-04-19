@@ -28,6 +28,14 @@ Run commands from `front-dev-home/`:
 - Name composables as `useXxx.ts`, stores by domain (`navigation.ts`), and components in PascalCase (`AppHeader.vue`).
 - Keep route files descriptive and colocated by feature (`app/pages/ebeam/...`).
 
+## Markdown Conventions
+- Run `npm run lint:md` after creating or editing `.md` files.
+- Avoid markdownlint `MD060` by using the `compact` table style consistently.
+- Write tables like `| Column | Value |` with delimiter rows like `| --- | --- |`.
+- Do not vertically align pipes with extra hyphens or mix compact, aligned, and tight table styles in the same file.
+- Write Markdown under `docs/` and study materials in Korean when the content is meant for teammate sharing.
+- In those documents, prefer formal endings such as `~입니다.` and `~합니다.` instead of casual or mixed styles.
+
 ## Testing Guidelines
 A dedicated unit test runner is not configured yet. For now, treat `npm run lint` and `npm run typecheck` as required pre-merge quality gates. When adding tests, colocate them with features (for example `app/components/nav/AppHeader.test.ts`) and prioritize critical composables/stores.
 
