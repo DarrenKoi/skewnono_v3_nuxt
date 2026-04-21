@@ -4,7 +4,7 @@
       class="dashboard-bg-layer"
       aria-hidden="true"
     />
-    <UHeader class="dashboard-surface border-b border-zinc-200/70 dark:border-zinc-800/70">
+    <UHeader>
       <template #left>
         <NuxtLink
           to="/"
@@ -36,7 +36,7 @@
       <slot />
     </main>
 
-    <footer class="border-t border-zinc-200/70 dark:border-zinc-800/70 py-4">
+    <footer class="border-t-(--sk-border) py-4">
       <div class="max-w-7xl mx-auto px-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
         SKEWNONO v3 - E-Beam Metrology Dashboard
       </div>

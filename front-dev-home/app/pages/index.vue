@@ -75,7 +75,7 @@ const systemStatus = computed(() => {
     <div class="grid md:grid-cols-2 gap-6">
       <!-- E-Beam Metrology Card -->
       <UCard
-        class="dashboard-surface rounded-2xl"
+        class="dashboard-surface rounded-3xl"
         :ui="{
           body: 'p-6'
         }"
@@ -117,7 +117,7 @@ const systemStatus = computed(() => {
 
       <!-- Thickness Metrology Card -->
       <UCard
-        class="dashboard-surface rounded-2xl"
+        class="dashboard-surface rounded-3xl"
         :ui="{
           body: 'p-6'
         }"
@@ -150,7 +150,7 @@ const systemStatus = computed(() => {
     </h3>
     <div class="grid md:grid-cols-3 gap-4">
       <!-- Favorites -->
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon
@@ -169,7 +169,7 @@ const systemStatus = computed(() => {
       </UCard>
 
       <!-- Recent -->
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon
@@ -188,7 +188,7 @@ const systemStatus = computed(() => {
       </UCard>
 
       <!-- Alerts -->
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon
@@ -211,7 +211,7 @@ const systemStatus = computed(() => {
     <h3 class="text-lg font-semibold">
       System Status
     </h3>
-    <UCard class="dashboard-surface rounded-2xl">
+    <UCard class="dashboard-surface rounded-3xl">
       <div class="flex flex-wrap gap-6">
         <div
           v-for="status in systemStatus"

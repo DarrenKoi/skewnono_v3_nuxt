@@ -11,7 +11,7 @@ definePageMeta({
     </h1>
 
     <div class="space-y-6">
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <h2 class="font-semibold">
             Appearance
@@ -31,7 +31,7 @@ definePageMeta({
         </div>
       </UCard>
 
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <h2 class="font-semibold">
             Notifications
@@ -49,7 +49,7 @@ definePageMeta({
         </div>
       </UCard>
 
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <h2 class="font-semibold">
             About
