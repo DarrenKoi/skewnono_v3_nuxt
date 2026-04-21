@@ -26,23 +26,24 @@ const toolsWithCounts = computed(() => activeToolTypes.map(tool => ({
     <div class="max-w-7xl mx-auto">
       <nav
         aria-label="Tool type navigation"
-        class="dashboard-surface rounded-2xl p-2 flex gap-1 overflow-x-auto"
+        class="dashboard-surface rounded-full p-1.5 flex gap-1 overflow-x-auto"
       >
         <button
           v-for="tool in toolsWithCounts"
           :key="tool.id"
           :aria-pressed="toolType === tool.id"
           type="button"
-          class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200"
+          class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
           :class="toolType === tool.id
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
-            : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60'"
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
+            : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
           @click="navigateToToolType(tool.id)"
         >
           {{ tool.label }}
           <UBadge
             :label="String(tool.count)"
             size="xs"
+            class="rounded-full"
             :color="toolType === tool.id ? 'primary' : 'neutral'"
             variant="subtle"
           />

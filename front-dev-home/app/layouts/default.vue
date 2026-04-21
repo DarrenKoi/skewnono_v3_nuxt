@@ -14,10 +14,10 @@ const { category } = useNavigation()
       <NavToolTypeTabs />
     </template>
 
-    <div class="flex flex-1">
+    <div class="flex flex-1 gap-3 md:gap-4 pr-4 md:pr-6 lg:pr-8">
       <NavFabSidebar />
 
-      <main class="flex-1 flex flex-col overflow-hidden">
+      <main class="flex-1 flex flex-col overflow-hidden min-w-0">
         <NavFeatureTabs />
 
         <div class="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
