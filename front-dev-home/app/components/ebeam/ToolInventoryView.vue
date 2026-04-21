@@ -30,9 +30,20 @@ const { data } = await useAsyncData(asyncKey, async () => {
 
 const rows = computed(() => data.value?.rows ?? [])
 const facSummaries = computed(() => data.value?.facSummaries ?? [])
-const onlineCount = computed(() => rows.value.filter(row => row.available === 'On').length)
-const offlineCount = computed(() => rows.value.filter(row => row.available === 'Off').length)
-const facCount = computed(() => new Set(rows.value.map(row => row.fac_id)).size)
+
+const rowSummary = computed(() => {
+  let online = 0
+  let offline = 0
+  const facs = new Set<string>()
+
+  for (const row of rows.value) {
+    if (row.available === 'On') online++
+    else if (row.available === 'Off') offline++
+    facs.add(row.fac_id)
+  }
+
+  return { online, offline, facCount: facs.size }
+})
 
 const defaultSortPreset = 'fab_name:asc'
 
@@ -176,48 +187,37 @@ const hasActiveTableControls = computed(() => {
 
 const tableMeta = {
   class: {
-    tr: 'transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50'
+    tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
+    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
+    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 
 const columns: TableColumn<SemListRow>[] = [
-  {
-    accessorKey: 'fac_id',
-    header: 'Fac'
-  },
-  {
-    accessorKey: 'fab_name',
-    header: 'Fab',
-    filterFn: 'equalsString'
-  },
-  {
-    accessorKey: 'eqp_id',
-    header: 'Equipment ID'
-  },
-  {
-    accessorKey: 'eqp_model_cd',
-    header: 'Model',
-    filterFn: 'equalsString'
-  },
-  {
-    accessorKey: 'vendor_nm',
-    header: 'Vendor'
-  },
-  {
-    accessorKey: 'eqp_ip',
-    header: 'IP Address'
-  },
-  {
-    accessorKey: 'version',
-    header: 'Version',
-    sortingFn: 'basic'
-  },
-  {
-    accessorKey: 'available',
-    header: 'Available',
-    filterFn: 'equalsString'
-  }
+  { accessorKey: 'fac_id', header: 'Fac', size: 56 },
+  { accessorKey: 'fab_name', header: 'Fab', size: 64, filterFn: 'equalsString' },
+  { accessorKey: 'eqp_id', header: 'Equipment ID', size: 130 },
+  { accessorKey: 'eqp_model_cd', header: 'Model', size: 140, filterFn: 'equalsString' },
+  { accessorKey: 'vendor_nm', header: 'Vendor', size: 86 },
+  { accessorKey: 'eqp_ip', header: 'IP Address', size: 150 },
+  { accessorKey: 'version', header: 'Version', size: 76, sortingFn: 'basic' },
+  { accessorKey: 'available', header: 'Available', size: 100, filterFn: 'equalsString' }
 ]
+
+const sortableHeaders = columns.map(column => ({
+  id: column.accessorKey as keyof SemListRow,
+  label: column.header as string
+}))
+
+const monoColumns: (keyof SemListRow)[] = ['eqp_id', 'eqp_model_cd', 'eqp_ip', 'version']
+const mutedColumns: (keyof SemListRow)[] = ['fac_id', 'fab_name']
+
+const statCells = computed(() => [
+  { label: 'Total Tools', value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
+  { label: 'Online', value: rowSummary.value.online, tone: 'text-zinc-800 dark:text-zinc-200' },
+  { label: 'Offline', value: rowSummary.value.offline, tone: 'text-zinc-600 dark:text-zinc-400' },
+  { label: 'Fabs', value: rowSummary.value.facCount, tone: 'text-zinc-500' }
+])
 
 const resetTableControls = () => {
   globalFilter.value = ''
@@ -244,316 +244,215 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold">
-        {{ title }}
-      </h1>
-      <p class="text-gray-600 dark:text-gray-400">
-        {{ subtitle }}
-      </p>
-    </div>
+  <div class="space-y-4">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">
+          {{ title }}
+        </h1>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+          {{ subtitle }}
+        </p>
+      </div>
 
-    <div class="grid gap-4 md:grid-cols-4">
-      <UCard class="dashboard-surface rounded-2xl">
-        <div class="text-center">
-          <div class="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-            {{ rows.length }}
-          </div>
-          <div class="text-sm text-gray-500">
-            Total Tools
-          </div>
+      <div class="dashboard-surface rounded-2xl flex overflow-hidden self-start md:self-auto">
+        <div
+          v-for="(cell, index) in statCells"
+          :key="cell.label"
+          class="px-5 py-2.5 flex flex-col gap-0.5 min-w-[92px]"
+          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
+        >
+          <span
+            class="text-[22px] font-bold leading-none tabular-nums"
+            :class="cell.tone"
+          >{{ cell.value }}</span>
+          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
         </div>
-      </UCard>
-
-      <UCard class="dashboard-surface rounded-2xl">
-        <div class="text-center">
-          <div class="text-3xl font-bold text-zinc-800 dark:text-zinc-200">
-            {{ onlineCount }}
-          </div>
-          <div class="text-sm text-gray-500">
-            Online
-          </div>
-        </div>
-      </UCard>
-
-      <UCard class="dashboard-surface rounded-2xl">
-        <div class="text-center">
-          <div class="text-3xl font-bold text-zinc-700 dark:text-zinc-300">
-            {{ offlineCount }}
-          </div>
-          <div class="text-sm text-gray-500">
-            Offline
-          </div>
-        </div>
-      </UCard>
-
-      <UCard class="dashboard-surface rounded-2xl">
-        <div class="text-center">
-          <div class="text-3xl font-bold text-zinc-600 dark:text-zinc-400">
-            {{ facCount }}
-          </div>
-          <div class="text-sm text-gray-500">
-            Fabs
-          </div>
-        </div>
-      </UCard>
+      </div>
     </div>
 
     <template v-if="props.fab === 'all' && facSummaries.length > 0">
       <div>
-        <h2 class="text-lg font-semibold mb-4">
+        <h2 class="text-sm font-semibold mb-2 text-zinc-700 dark:text-zinc-300">
           Fab Breakdown
         </h2>
-        <div class="grid gap-4 md:grid-cols-3">
+        <div class="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           <UCard
             v-for="summary in facSummaries"
             :key="summary.fac_id"
-            class="dashboard-surface rounded-2xl"
+            class="dashboard-surface rounded-xl"
+            :ui="{ body: 'p-3 sm:p-3' }"
           >
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-semibold text-sm">
                 {{ summary.fac_id }}
               </h3>
               <UBadge
-                :label="`${summary.online}/${summary.total} online`"
+                :label="`${summary.online}/${summary.total}`"
+                size="xs"
                 color="neutral"
                 variant="subtle"
               />
             </div>
-
-            <div class="space-y-2 text-sm">
+            <div class="space-y-1 text-xs">
               <div class="flex justify-between">
-                <span class="text-gray-500">
-                  Total Tools
-                </span>
-                <span class="font-medium">
-                  {{ summary.total }}
-                </span>
+                <span class="text-zinc-500">Total</span>
+                <span class="font-medium tabular-nums">{{ summary.total }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-500">
-                  Online
-                </span>
-                <span class="font-medium">
-                  {{ summary.online }}
-                </span>
+                <span class="text-zinc-500">Online</span>
+                <span class="font-medium tabular-nums">{{ summary.online }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-500">
-                  Offline
-                </span>
-                <span class="font-medium">
-                  {{ summary.offline }}
-                </span>
+                <span class="text-zinc-500">Offline</span>
+                <span class="font-medium tabular-nums">{{ summary.offline }}</span>
               </div>
             </div>
-
-            <div class="mt-4">
-              <NuxtLink
-                :to="`/ebeam/${toolType}/${summary.fac_id.toLowerCase()}`"
-                class="text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-              >
-                View Details ->
-              </NuxtLink>
-            </div>
+            <NuxtLink
+              :to="`/ebeam/${toolType}/${summary.fac_id.toLowerCase()}`"
+              class="mt-2 block text-xs font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+            >
+              View ->
+            </NuxtLink>
           </UCard>
         </div>
       </div>
     </template>
 
-    <div>
-      <h2 class="text-lg font-semibold mb-4">
-        Tool Inventory
-      </h2>
-      <UCard class="dashboard-surface rounded-2xl">
-        <div class="space-y-4">
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div class="flex flex-1 flex-col gap-3 md:flex-row md:flex-wrap">
-              <UInput
-                v-model="globalFilter"
-                class="w-full md:min-w-[18rem] md:flex-1"
-                icon="i-lucide-search"
-                color="neutral"
-                variant="subtle"
-                placeholder="Search tool inventory"
-              />
-
-              <USelect
-                v-model="availabilityFilter"
-                class="w-full md:w-48"
-                color="neutral"
-                variant="subtle"
-                :items="availabilityFilterOptions"
-              />
-
-              <USelect
-                v-model="modelFilter"
-                class="w-full md:w-52"
-                color="neutral"
-                variant="subtle"
-                :items="modelFilterOptions"
-              />
-
-              <USelect
-                v-if="showFabNameFilter"
-                v-model="fabNameFilter"
-                class="w-full md:w-40"
-                color="neutral"
-                variant="subtle"
-                :items="fabNameFilterOptions"
-              />
-
-              <USelect
-                v-model="sortPreset"
-                class="w-full md:w-56"
-                color="neutral"
-                variant="subtle"
-                :items="sortOptions"
-              />
-            </div>
-
-            <div class="flex items-center justify-between gap-3 lg:justify-end">
-              <p class="text-sm text-gray-500">
-                {{ filteredRowCount }} of {{ rows.length }} tools
-              </p>
-
-              <UButton
-                color="neutral"
-                variant="outline"
-                label="Reset"
-                :disabled="!hasActiveTableControls"
-                @click="resetTableControls"
-              />
-            </div>
-          </div>
-
-          <UTable
-            v-model:global-filter="globalFilter"
-            v-model:column-filters="columnFilters"
-            v-model:sorting="sorting"
-            class="max-h-[36rem]"
-            :columns="columns"
-            :data="rows"
-            :empty="`No tools match the current search or filters.`"
-            :meta="tableMeta"
-            :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
-            sticky="header"
-          >
-            <template #fac_id-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Fac
-              </UButton>
-            </template>
-
-            <template #fab_name-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Fab
-              </UButton>
-            </template>
-
-            <template #eqp_id-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Equipment ID
-              </UButton>
-            </template>
-
-            <template #eqp_model_cd-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Model
-              </UButton>
-            </template>
-
-            <template #vendor_nm-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Vendor
-              </UButton>
-            </template>
-
-            <template #eqp_ip-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                IP Address
-              </UButton>
-            </template>
-
-            <template #version-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Version
-              </UButton>
-            </template>
-
-            <template #available-header="{ column }">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="-mx-2"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                Available
-              </UButton>
-            </template>
-
-            <template #available-cell="{ row }">
-              <UBadge
-                :label="row.original.available"
-                :color="row.original.available === 'On' ? 'success' : 'neutral'"
-                variant="subtle"
-              />
-            </template>
-          </UTable>
+    <UCard
+      class="dashboard-surface rounded-2xl"
+      :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
+    >
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Tool Inventory
+          </h2>
+          <p class="text-xs text-zinc-500 tabular-nums">
+            {{ filteredRowCount }} of {{ rows.length }} tools
+          </p>
         </div>
-      </UCard>
-    </div>
+      </template>
+
+      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
+        <UInput
+          v-model="globalFilter"
+          class="flex-1 min-w-[14rem]"
+          size="xs"
+          icon="i-lucide-search"
+          color="neutral"
+          variant="subtle"
+          placeholder="Search tool inventory"
+        />
+
+        <USelect
+          v-model="availabilityFilter"
+          class="w-[9rem]"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          :items="availabilityFilterOptions"
+        />
+
+        <USelect
+          v-model="modelFilter"
+          class="w-[11rem]"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          :items="modelFilterOptions"
+        />
+
+        <USelect
+          v-if="showFabNameFilter"
+          v-model="fabNameFilter"
+          class="w-[8rem]"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          :items="fabNameFilterOptions"
+        />
+
+        <USelect
+          v-model="sortPreset"
+          class="w-[13rem]"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          :items="sortOptions"
+        />
+
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-rotate-ccw"
+          label="Reset"
+          :disabled="!hasActiveTableControls"
+          @click="resetTableControls"
+        />
+      </div>
+
+      <UTable
+        v-model:global-filter="globalFilter"
+        v-model:column-filters="columnFilters"
+        v-model:sorting="sorting"
+        class="max-h-[34rem] font-mono-ids"
+        :columns="columns"
+        :data="rows"
+        :empty="`No tools match the current search or filters.`"
+        :meta="tableMeta"
+        :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
+        sticky="header"
+      >
+        <template
+          v-for="head in sortableHeaders"
+          :key="head.id"
+          #[`${head.id}-header`]="{ column }"
+        >
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            :trailing-icon="getSortIcon(column.getIsSorted())"
+            @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+          >
+            {{ head.label }}
+          </UButton>
+        </template>
+
+        <template #available-cell="{ row }">
+          <UBadge
+            :label="row.original.available"
+            size="xs"
+            :color="row.original.available === 'On' ? 'success' : 'neutral'"
+            variant="subtle"
+          />
+        </template>
+
+        <template
+          v-for="key in monoColumns"
+          :key="key"
+          #[`${key}-cell`]="{ row }"
+        >
+          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original[key] }}</span>
+        </template>
+
+        <template
+          v-for="key in mutedColumns"
+          :key="key"
+          #[`${key}-cell`]="{ row }"
+        >
+          <span class="text-zinc-500 font-medium">{{ row.original[key] }}</span>
+        </template>
+      </UTable>
+    </UCard>
   </div>
 </template>
+
+<style scoped>
+.font-mono-ids :deep(td .font-mono) {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+</style>
