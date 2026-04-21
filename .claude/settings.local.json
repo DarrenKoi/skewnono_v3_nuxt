@@ -28,7 +28,17 @@
       "Bash(findstr :3001)",
       "Bash(tasklist *)",
       "Bash(taskkill *)",
-      "Bash(findstr :3100)"
+      "Bash(findstr :3100)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/design-pkg)",
+      "Read(//tmp/**)",
+      "Bash(cp \"C:\\\\Users\\\\Daeyoung\\\\.claude\\\\projects\\\\C--Code-skewnono-v3-nuxt\\\\5782e3a7-c926-48e4-a8f5-5532c5721c3e\\\\tool-results\\\\webfetch-1776812479629-lfl84y.bin\" design.tar.gz)",
+      "Bash(tar -xzf design.tar.gz)",
+      "Bash(npx nuxt *)",
+      "Bash(npx nuxi *)",
+      "Bash(echo \"---exit $?\")",
+      "Bash(npx eslint *)",
+      "Bash(git commit *)"
     ]
   },
   "statusLine": {
