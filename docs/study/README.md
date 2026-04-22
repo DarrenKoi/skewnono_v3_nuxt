@@ -27,7 +27,8 @@ docs/study/
 ├── 05-tailwind/                 Tailwind v4 기본 + 프로젝트에서 쓰는 패턴
 ├── 06-vite-config/              Vite / nuxt.config.ts 설정 해설
 ├── 07-code-patterns/            프로젝트 고유 패턴 (composable, store, api 추상화)
-└── 08-eslint-style/             ESLint 규칙과 코드 스타일
+├── 08-eslint-style/             ESLint 규칙과 코드 스타일
+└── 09-ui-terminology/           한국 엔지니어 대상 UI 용어/문구 가이드
 ```
 
 ## 학습 순서 추천
@@ -42,6 +43,7 @@ docs/study/
 6. **`05-tailwind/`** — 유틸리티 CSS의 작동 원리와 프로젝트에서 자주 쓰는 클래스.
 7. **`06-vite-config/`** — 빌드 도구 설정 파일의 해석.
 8. **`08-eslint-style/`** — 커밋 전 지켜야 할 규칙들.
+9. **`09-ui-terminology/`** — 현장 엔지니어가 실제로 보게 되는 한글 UI 문구 기준.
 
 ## `questions.md`
 

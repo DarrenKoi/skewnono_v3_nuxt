@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { toolType, navigateToToolType } = useNavigation()
-const { activeToolTypes } = useToolData()
+const { toolTypes } = useToolData()
 const { fetchSemList } = useSemListApi()
 
 const { data: semRows } = await useAsyncData('sem-list-tool-types', () => fetchSemList())
@@ -15,7 +15,7 @@ const countsByToolType = computed(() => {
   return counts
 })
 
-const toolsWithCounts = computed(() => activeToolTypes.map(tool => ({
+const toolsWithCounts = computed(() => toolTypes.map(tool => ({
   ...tool,
   count: countsByToolType.value.get(tool.id) ?? tool.count
 })))
@@ -32,11 +32,15 @@ const toolsWithCounts = computed(() => activeToolTypes.map(tool => ({
           v-for="tool in toolsWithCounts"
           :key="tool.id"
           :aria-pressed="toolType === tool.id"
+          :aria-disabled="!tool.enabled"
+          :disabled="!tool.enabled"
           type="button"
           class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
           :class="toolType === tool.id
             ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
-            : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
+            : !tool.enabled
+              ? 'text-zinc-400 ring-1 ring-zinc-200/70 cursor-not-allowed dark:text-zinc-500 dark:ring-zinc-700/80'
+              : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
           @click="navigateToToolType(tool.id)"
         >
           {{ tool.label }}
@@ -44,7 +48,7 @@ const toolsWithCounts = computed(() => activeToolTypes.map(tool => ({
             :label="String(tool.count)"
             size="xs"
             class="rounded-full"
-            :color="toolType === tool.id ? 'primary' : 'neutral'"
+            :color="toolType === tool.id ? 'primary' : tool.enabled ? 'neutral' : 'warning'"
             variant="subtle"
           />
         </button>

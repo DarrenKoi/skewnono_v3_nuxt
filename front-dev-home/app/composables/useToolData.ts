@@ -17,11 +17,9 @@ export const useToolData = () => {
   const toolTypes: ToolTypeConfig[] = [
     { id: 'cd-sem', label: 'CD-SEM', count: 0, enabled: true },
     { id: 'hv-sem', label: 'HV-SEM', count: 0, enabled: true },
-    { id: 'verity-sem', label: 'VeritySEM', count: 0, enabled: true },
-    { id: 'provision', label: 'Provision', count: 0, enabled: true }
+    { id: 'verity-sem', label: 'VeritySEM', count: 0, enabled: false },
+    { id: 'provision', label: 'Provision', count: 0, enabled: false }
   ]
-
-  const activeToolTypes = toolTypes.filter(t => t.enabled)
 
   const fabs: FabConfig[] = [
     { id: 'all', label: 'All' },
@@ -50,7 +48,6 @@ export const useToolData = () => {
 
   return {
     toolTypes,
-    activeToolTypes,
     fabs,
     getToolTypeByRoute,
     getFabByRoute

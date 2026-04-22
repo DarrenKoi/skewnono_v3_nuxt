@@ -19,21 +19,21 @@ onMounted(() => {
         CD-SEM - {{ fabId }}
       </h1>
       <p class="text-gray-600 dark:text-gray-400">
-        Reports
+        Recipe Search
       </p>
     </div>
 
     <UCard class="dashboard-surface rounded-2xl">
       <div class="flex flex-col items-center justify-center py-12 text-gray-500">
         <UIcon
-          name="i-lucide-file-text"
+          name="i-lucide-search"
           class="w-16 h-16 mb-4 text-gray-300"
         />
         <p class="text-lg font-medium">
-          Reports
+          Recipe Search
         </p>
         <p class="text-sm">
-          Generated reports and exports will be displayed here
+          Recipe lookup tools and search results will be displayed here
         </p>
       </div>
     </UCard>
