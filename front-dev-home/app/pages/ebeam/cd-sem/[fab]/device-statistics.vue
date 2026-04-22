@@ -19,7 +19,7 @@ onMounted(() => {
         CD-SEM - {{ fabId }}
       </h1>
       <p class="text-gray-600 dark:text-gray-400">
-        Data analysis
+        Device Statistics
       </p>
     </div>
 
@@ -30,10 +30,10 @@ onMounted(() => {
           class="w-16 h-16 mb-4 text-gray-300"
         />
         <p class="text-lg font-medium">
-          Data Analysis
+          Device Statistics
         </p>
         <p class="text-sm">
-          Analysis tools and visualizations will be displayed here
+          Device trends and summary metrics will be displayed here
         </p>
       </div>
     </UCard>

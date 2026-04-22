@@ -193,20 +193,33 @@ const tableMeta = {
   }
 }
 
-const columns: TableColumn<SemListRow>[] = [
-  { accessorKey: 'fac_id', header: 'Fac', size: 56 },
-  { accessorKey: 'fab_name', header: 'Fab', size: 64, filterFn: 'equalsString' },
-  { accessorKey: 'eqp_id', header: 'Equipment ID', size: 130 },
-  { accessorKey: 'eqp_model_cd', header: 'Model', size: 140, filterFn: 'equalsString' },
-  { accessorKey: 'vendor_nm', header: 'Vendor', size: 86 },
-  { accessorKey: 'eqp_ip', header: 'IP Address', size: 150 },
-  { accessorKey: 'version', header: 'Version', size: 76, sortingFn: 'basic' },
-  { accessorKey: 'available', header: 'Available', size: 100, filterFn: 'equalsString' }
+type InventoryColumnConfig = {
+  id: keyof SemListRow
+  header: string
+  size: number
+  filterFn?: 'equalsString'
+  sortingFn?: 'basic'
+}
+
+const columnConfigs: InventoryColumnConfig[] = [
+  { id: 'fac_id', header: 'Fac', size: 56 },
+  { id: 'fab_name', header: 'Fab', size: 64, filterFn: 'equalsString' },
+  { id: 'eqp_id', header: 'Equipment ID', size: 130 },
+  { id: 'eqp_model_cd', header: 'Model', size: 140, filterFn: 'equalsString' },
+  { id: 'vendor_nm', header: 'Vendor', size: 86 },
+  { id: 'eqp_ip', header: 'IP Address', size: 150 },
+  { id: 'version', header: 'Version', size: 76, sortingFn: 'basic' },
+  { id: 'available', header: 'Available', size: 100, filterFn: 'equalsString' }
 ]
 
-const sortableHeaders = columns.map(column => ({
-  id: column.accessorKey as keyof SemListRow,
-  label: column.header as string
+const columns: TableColumn<SemListRow>[] = columnConfigs.map(({ id, ...column }) => ({
+  accessorKey: id,
+  ...column
+}))
+
+const sortableHeaders = columnConfigs.map(column => ({
+  id: column.id,
+  label: column.header
 }))
 
 const monoColumns: (keyof SemListRow)[] = ['eqp_id', 'eqp_model_cd', 'eqp_ip', 'version']

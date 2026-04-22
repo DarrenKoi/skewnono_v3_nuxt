@@ -19,21 +19,21 @@ onMounted(() => {
         CD-SEM - {{ fabId }}
       </h1>
       <p class="text-gray-600 dark:text-gray-400">
-        Real-time monitoring
+        Storage
       </p>
     </div>
 
     <UCard class="dashboard-surface rounded-2xl">
       <div class="flex flex-col items-center justify-center py-12 text-gray-500">
         <UIcon
-          name="i-lucide-activity"
+          name="i-lucide-database"
           class="w-16 h-16 mb-4 text-gray-300"
         />
         <p class="text-lg font-medium">
-          Real-time Monitoring
+          Storage
         </p>
         <p class="text-sm">
-          Charts and metrics will be displayed here
+          Storage data and capacity details will be displayed here
         </p>
       </div>
     </UCard>
