@@ -139,6 +139,7 @@ const fabNameFilterOptions = computed(() => [
 ])
 
 const showFabNameFilter = computed(() => fabNameFilterOptions.value.length > 2)
+const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 const sortOptions = [
   { label: 'Fab (A-Z)', value: 'fab_name:asc' },
@@ -155,30 +156,62 @@ const sortOptions = [
   { label: 'Status (On first)', value: 'available:desc' }
 ]
 
-const filteredRowCount = computed(() => {
+const matchesActiveFilters = (row: SemListRow) => {
   const searchTerm = globalFilter.value.trim().toLowerCase()
   const selectedAvailability = availabilityFilter.value
   const selectedModel = modelFilter.value
   const selectedFabName = fabNameFilter.value
 
-  return rows.value.filter((row) => {
-    const matchesSearch = searchTerm.length === 0 || [
-      row.fac_id,
-      row.fab_name,
-      row.eqp_id,
-      row.eqp_model_cd,
-      row.vendor_nm,
-      row.eqp_ip,
-      String(row.version),
-      row.available
-    ].some(value => value.toLowerCase().includes(searchTerm))
+  const matchesSearch = searchTerm.length === 0 || [
+    row.fac_id,
+    row.fab_name,
+    row.eqp_id,
+    row.eqp_model_cd,
+    row.vendor_nm,
+    row.eqp_ip,
+    String(row.version),
+    row.available
+  ].some(value => value.toLowerCase().includes(searchTerm))
 
-    const matchesAvailability = selectedAvailability === 'all' || row.available === selectedAvailability
-    const matchesModel = selectedModel === 'all' || row.eqp_model_cd === selectedModel
-    const matchesFabName = selectedFabName === 'all' || row.fab_name === selectedFabName
+  const matchesAvailability = selectedAvailability === 'all' || row.available === selectedAvailability
+  const matchesModel = selectedModel === 'all' || row.eqp_model_cd === selectedModel
+  const matchesFabName = selectedFabName === 'all' || row.fab_name === selectedFabName
 
-    return matchesSearch && matchesAvailability && matchesModel && matchesFabName
-  }).length
+  return matchesSearch && matchesAvailability && matchesModel && matchesFabName
+}
+
+const filteredRows = computed(() => rows.value.filter(matchesActiveFilters))
+
+const exportRows = computed(() => {
+  const currentSort = sorting.value[0]
+  const sortedRows = [...filteredRows.value]
+
+  if (!currentSort) {
+    return sortedRows
+  }
+
+  const columnId = currentSort.id as keyof SemListRow
+  const direction = currentSort.desc ? -1 : 1
+
+  return sortedRows.sort((left, right) => {
+    const leftValue = left[columnId]
+    const rightValue = right[columnId]
+
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      return (leftValue - rightValue) * direction
+    }
+
+    return sortCollator.compare(String(leftValue), String(rightValue)) * direction
+  })
+})
+
+const filteredRowCount = computed(() => filteredRows.value.length)
+
+const exportFileName = computed(() => {
+  const scope = props.fab === 'all' ? 'all-fabs' : props.fab.toLowerCase()
+  const today = new Date().toISOString().slice(0, 10)
+
+  return `${props.toolType}-${scope}-tool-inventory-${today}.csv`
 })
 
 const hasActiveTableControls = computed(() => {
@@ -253,6 +286,35 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
   }
 
   return 'i-lucide-arrow-up-down'
+}
+
+const escapeCsvValue = (value: string | number) => {
+  const normalized = String(value).replace(/"/g, '""')
+  return `"${normalized}"`
+}
+
+const downloadTableCsv = () => {
+  if (!import.meta.client || exportRows.value.length === 0) {
+    return
+  }
+
+  const headerRow = columnConfigs.map(column => escapeCsvValue(column.header)).join(',')
+  const bodyRows = exportRows.value.map(row => (
+    columnConfigs
+      .map(column => escapeCsvValue(row[column.id]))
+      .join(',')
+  ))
+
+  const csvContent = ['\uFEFF' + headerRow, ...bodyRows].join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = exportFileName.value
+  link.click()
+
+  URL.revokeObjectURL(url)
 }
 </script>
 
@@ -393,6 +455,16 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
           color="neutral"
           variant="subtle"
           :items="sortOptions"
+        />
+
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-download"
+          label="CSV 다운로드"
+          :disabled="filteredRowCount === 0"
+          @click="downloadTableCsv"
         />
 
         <UButton
