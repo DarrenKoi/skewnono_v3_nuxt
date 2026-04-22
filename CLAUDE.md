@@ -8,8 +8,10 @@ Web application for metrology, specified for tool management and data analytics.
 
 ### Phase 1 — Home / Offline
 - Personal computer, fully offline
-- No backend server; all data via JS/TS mock data
-- Mock layer mimics the fetch API so it can be swapped for real calls later
+- Flask mock server (`back_dev_home/`) runs on `http://localhost:5000`
+- Data sourced from in-memory Python mock modules (no OpenSearch, no Redis, no DB)
+- Same Flask code and blueprint layout as Phase 2/3 — only the data-access layer differs
+- Nuxt runs with `NUXT_API_TARGET=http://localhost:5000` so Nitro proxies `/api/*` to Flask
 
 ### Phase 2 — Company / Localhost
 - Company infrastructure, localhost
@@ -38,18 +40,26 @@ Web application for metrology, specified for tool management and data analytics.
 Three-tier configuration management. Database connections, API base URLs, and service configs change per environment. Frontend code stays the same across phases.
 
 ### API Abstraction Layer
-- Phase 1: mock data modules that return promises (mimicking fetch API)
-- Phase 2/3: real fetch calls to Flask endpoints
-- Swap via config, not code changes
+- All phases: frontend calls Flask over `/api/*` via `$fetch`
+- Swap surface is **inside each feature folder**: `back_dev_home/<feature>/data.py` (home mock) vs. a real implementation querying OpenSearch/Redis (office). Routes in `<feature>/routes.py` import via `from .data import ...` and do not change between phases.
+- Blueprints and response shapes stay identical across phases
+- Frontend code never branches on phase — only `NUXT_API_TARGET` changes
 
 ### Data Format Conventions
 - Prefer **dict** and **dataframe dict** format (`dataframe.to_dict()`)
 - Backend responses converted to dict/dataframe shape before returning JSON
 
-### Flask Blueprints
-- Modular API organization (auth, data, search, etc.)
-- RESTful endpoint design
-- Each blueprint can be developed independently
+### Feature-sliced Backend Layout
+- Each Nuxt feature tab has a matching top-level folder under `back_dev_home/` (e.g. `sem_list/`, `tool_inventory/`).
+- Each feature folder contains `routes.py` (the blueprint + handlers) and `data.py` (the data-access layer). Optional `__init__.py` re-exports `bp` for registration.
+- `back_dev_home/_core/` holds cross-feature infrastructure (health check, shared utilities). Underscore prefix marks it as non-feature.
+- `back_dev_home/__init__.py` is the app factory: it creates the Flask app, configures CORS, and registers each feature's blueprint under `/api`.
+- Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `<feature>/data.py`.
+
+### Repository Layout
+- `front-dev-home/` — Nuxt 3 SPA (same code runs in all phases; `ssr: false`)
+- `back_dev_home/` — Flask mock backend for Phase 1; mirrors office Flask structure
+- WSGI entry is root `index.py` (exposes `app` and `application`), which imports `create_app` from `back_dev_home`
 
 ## Development Notes
 

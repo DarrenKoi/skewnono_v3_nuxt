@@ -1,9 +1,12 @@
 # SEM List Data Structure
 
-Type: backend response array for the SEM equipment inventory endpoint (`/mock-api/sem-list`)
+Type: backend response array for the SEM equipment inventory endpoint (`/api/sem-list`)
 
 Source of truth for all SEM equipment regardless of tool type (CD-SEM, HV-SEM, etc.).
-Mirrors the shape of the legacy Python generator so Flask can drop in later without a schema change.
+Response is produced by Flask (`back_dev_home/sem_list/routes.py`) from
+`back_dev_home/sem_list/data.py`. The TypeScript file in this folder now
+only exports the `SemListRow` / `SemListResponse` type contract consumed by
+`useSemListApi.ts` and `ToolInventoryView.vue`.
 
 ## Column Definitions
 
@@ -65,6 +68,7 @@ Mirrors the shape of the legacy Python generator so Flask can drop in later with
 
 ## Generation
 
-Rows are produced by `generateSemList(nRows = 300, seed = 42)` using a seeded mulberry32 PRNG
-so output is deterministic across reloads — mirroring `np.random.seed(42)` in the original
-Python generator (`generate_equipment_data`).
+Rows are produced by Flask (`back_dev_home/sem_list/data.py::_generate_rows`)
+using `random.Random(seed=42)` for deterministic output across reloads. The TypeScript
+`sem-list.ts` file now only exports the `SemListRow` / `SemListResponse` type contract —
+no data generator lives in the frontend.
