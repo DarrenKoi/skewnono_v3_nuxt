@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
-const apiTarget = import.meta.env.NUXT_API_TARGET
-const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || (apiTarget ? '/api' : '/mock-api')
+const apiTarget = import.meta.env.NUXT_API_TARGET || 'http://localhost:5000'
+const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || '/api'
 const isDev = import.meta.dev
 
 export default defineNuxtConfig({
@@ -36,17 +36,16 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-01-15',
 
-  nitro: apiTarget
-    ? {
-        devProxy: {
-          '/api': {
-            target: apiTarget,
-            changeOrigin: true,
-            prependPath: true
-          }
-        }
+  nitro: {
+    devProxy: {
+      // h3 strips the '/api' mount prefix before the proxy runs, so the /api
+      // segment must live inside the target URL for Flask to receive it.
+      '/api': {
+        target: `${apiTarget.replace(/\/$/, '')}/api`,
+        changeOrigin: true
       }
-    : undefined,
+    }
+  },
 
   vite: {
     server: {

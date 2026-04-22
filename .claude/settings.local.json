@@ -38,7 +38,9 @@
       "Bash(npx nuxi *)",
       "Bash(echo \"---exit $?\")",
       "Bash(npx eslint *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git mv *)",
+      "Bash(python *)"
     ]
   },
   "statusLine": {

@@ -2,8 +2,8 @@
   "name": "skewnono-v3-nuxt-repo-tools",
   "private": true,
   "scripts": {
-    "lint:md": "markdownlint-cli2 \"*.md\" \"docs/**/*.md\" \"flask_api/**/*.md\" \"front-dev-home/**/*.md\"",
-    "lint:md:fix": "markdownlint-cli2 --fix \"*.md\" \"docs/**/*.md\" \"flask_api/**/*.md\" \"front-dev-home/**/*.md\""
+    "lint:md": "markdownlint-cli2 \"*.md\" \"docs/**/*.md\" \"front-dev-home/**/*.md\"",
+    "lint:md:fix": "markdownlint-cli2 --fix \"*.md\" \"docs/**/*.md\" \"front-dev-home/**/*.md\""
   },
   "devDependencies": {
     "markdownlint-cli2": "^0.18.1"
