@@ -34,7 +34,7 @@ ENV/
 
 # Packaging / build
 build/
-dist/
+dist
 *.egg-info/
 *.egg
 pip-wheel-metadata/
@@ -64,7 +64,6 @@ node_modules/
 .nitro/
 .cache/
 .data/
-dist/
 
 # Package manager debug logs
 npm-debug.log*
