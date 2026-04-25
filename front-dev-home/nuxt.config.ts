@@ -17,7 +17,25 @@ export default defineNuxtConfig({
     enabled: isDev
   },
 
+  app: {
+    head: {
+      title: 'SKEWNONO',
+      link: [
+        { rel: 'icon', href: '/favicon/favicon.ico', sizes: 'any' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon/favicon-32.png' },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon/favicon-16.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/favicon/site.webmanifest' }
+      ],
+      meta: [
+        { name: 'theme-color', content: '#f0eee9' }
+      ]
+    }
+  },
+
   css: ['~/assets/css/main.css'],
+
   // Fonts are self-hosted via @fontsource/*; disable @nuxt/fonts auto-resolution
   // to avoid contacting fontshare/google/bunny/fontsource at dev and build time.
   ui: {

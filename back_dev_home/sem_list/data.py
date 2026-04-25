@@ -2,8 +2,6 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal, TypedDict
 
-import pandas as pd
-
 
 class SemListRow(TypedDict):
     fac_id: str
@@ -78,6 +76,5 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
     return rows
 
 
-def get_sem_list() -> list[dict]:
-    df = pd.DataFrame(_generate_rows())
-    return df.to_dict(orient="records")
+def get_sem_list() -> list[SemListRow]:
+    return _generate_rows()

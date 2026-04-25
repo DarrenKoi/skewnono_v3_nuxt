@@ -48,7 +48,7 @@ const getFeatureRoute = (feature: string) => {
           :to="getFeatureRoute(feature.routeValue)"
           class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
           :class="activeFeature === feature.routeValue
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
             : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
         >
           <UIcon

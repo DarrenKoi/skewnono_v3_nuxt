@@ -16,11 +16,16 @@
 
       <template #right>
         <UButton
-          icon="i-lucide-search"
+          to="/information"
+          icon="i-lucide-info"
           color="neutral"
           variant="ghost"
-          aria-label="Search"
-        />
+          aria-label="프로젝트 정보"
+        >
+          <span class="hidden sm:inline">
+            정보
+          </span>
+        </UButton>
         <UButton
           to="/settings"
           icon="i-lucide-settings"

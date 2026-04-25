@@ -1,0 +1,12 @@
+모든 팹에서 사용되는 개발 디바이스 정보 
+R3, R4도 포함되어 있지만 R3, R4의 경우 r3_device_grp를 주로 사용 (최신 정보 반영되어 있음)
+
+Column -> Type: Value 설명
+모든 컬럼과 밸류는 string Type
+
+fac_id -> fab 이름 (fab_name처럼 fab 내 세부적인 표현 없음)
+lot_cd -> 3 or 4 Alphabets and Numbers, normally Starts with RAEA, RAAJ, 4MJ, 7EC. 3글자인 경우 맨 앞 숫자는 Fab을 지칭 (M17), R은 연구개발 디바이스
+ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "풀" 단어 포함 여부 중요), t-EV, tev, p-EV, PV, TV 등 개발 phase 정보 포함. 개발코드 명도 포함되어 있음
+chg_tm -> 개발 정보 등록 또는 변경된 시점 (예: 2019-09-30T17:30:33Z)
+tech_nm-> 테크 코드 (예, TP, 4G, AA, 7D), None
+rnd_connector -> 연구 개발에서 이용된 테크 코드명 (lot_cd가 R로 시작할 경우 tech_nm과 rnd_connector는 같은 value 사용)

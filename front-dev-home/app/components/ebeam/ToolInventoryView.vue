@@ -260,7 +260,7 @@ const mutedColumns: (keyof SemListRow)[] = ['fac_id', 'fab_name']
 
 const statCells = computed(() => [
   { label: 'Total Tools', value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
-  { label: 'Online', value: rowSummary.value.online, tone: 'text-zinc-800 dark:text-zinc-200' },
+  { label: 'Online', value: rowSummary.value.online, tone: 'text-(--sk-accent)' },
   { label: 'Offline', value: rowSummary.value.offline, tone: 'text-zinc-600 dark:text-zinc-400' },
   { label: 'Fabs', value: rowSummary.value.facCount, tone: 'text-zinc-500' }
 ])

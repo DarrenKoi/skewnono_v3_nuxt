@@ -117,7 +117,7 @@ const fabItems = computed(() => fabs.map(f => ({
         :class="[
           sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-2.5 py-1.5',
           item.active
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-fab-active'
             : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
         ]"
         @click="navigateToFab(item.id)"
@@ -133,11 +133,13 @@ const fabItems = computed(() => fabs.map(f => ({
         <UIcon
           v-if="item.hasAlerts && !sidebarCollapsed"
           name="i-lucide-circle"
-          class="w-2 h-2 text-zinc-500 fill-current ml-auto"
+          class="w-2 h-2 fill-current ml-auto"
+          style="color: var(--sk-accent);"
         />
         <span
           v-if="item.hasAlerts && sidebarCollapsed"
-          class="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-zinc-500"
+          class="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full"
+          style="background: var(--sk-accent);"
         />
       </button>
     </nav>
