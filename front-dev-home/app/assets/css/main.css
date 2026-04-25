@@ -87,6 +87,10 @@
   --sk-on-fg: #0f5132;
   --sk-off-bg: #f1f1f4;
   --sk-off-fg: #52525b;
+  /* Crimson accent — matches the favicon slash (#c8321f). Used as trim only. */
+  --sk-accent: #c8321f;
+  --sk-accent-border: rgba(200, 50, 31, 0.22);
+  --sk-accent-tint: rgba(200, 50, 31, 0.08);
 }
 
 .dark {
@@ -97,6 +101,9 @@
   --sk-on-fg: #bbf7d0;
   --sk-off-bg: #27272a;
   --sk-off-fg: #d4d4d8;
+  --sk-accent: #e0553f;
+  --sk-accent-border: rgba(224, 85, 63, 0.28);
+  --sk-accent-tint: rgba(224, 85, 63, 0.12);
 }
 
 html,
@@ -126,13 +133,31 @@ body {
 }
 
 .dashboard-surface {
-  border: 1px solid var(--sk-border);
+  border: 1px solid var(--sk-accent-border);
   background: var(--sk-surface);
-  box-shadow: 0 1px 0 rgba(9, 9, 11, 0.03);
+  box-shadow:
+    0 1px 0 rgba(9, 9, 11, 0.03),
+    inset 0 0 0 1px var(--sk-accent-tint);
 }
 
 .dark .dashboard-surface {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px var(--sk-accent-tint);
+}
+
+/* Crimson trim on active pill-style nav items. Sits inside the dark pill
+   as a 2px bottom underline — only visible on the active state. */
+.sk-nav-accent {
+  box-shadow: inset 0 -2px 0 0 var(--sk-accent);
+}
+
+/* Crimson left-edge bar for the active FAB row — reads as a "selected nav item"
+   indicator even at icon-rail width. Combines with existing shadow-sm. */
+.sk-fab-active {
+  box-shadow:
+    inset 2px 0 0 0 var(--sk-accent),
+    0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .sk-pill-on,

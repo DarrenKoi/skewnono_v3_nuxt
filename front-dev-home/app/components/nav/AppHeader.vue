@@ -30,7 +30,7 @@ const categories = [
           type="button"
           class="px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
           :class="category === cat.id
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
             : !cat.enabled
               ? 'text-zinc-400 ring-1 ring-zinc-200/70 cursor-not-allowed dark:text-zinc-500 dark:ring-zinc-700/80'
               : 'text-zinc-600 ring-1 ring-zinc-200/90 hover:text-zinc-900 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100'"
@@ -43,11 +43,16 @@ const categories = [
 
     <template #right>
       <UButton
-        icon="i-lucide-search"
+        to="/information"
+        icon="i-lucide-info"
         color="neutral"
         variant="ghost"
-        aria-label="Search"
-      />
+        aria-label="프로젝트 정보"
+      >
+        <span class="hidden sm:inline">
+          정보
+        </span>
+      </UButton>
       <UButton
         to="/settings"
         icon="i-lucide-settings"

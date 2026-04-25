@@ -40,7 +40,17 @@
       "Bash(npx eslint *)",
       "Bash(git commit *)",
       "Bash(git mv *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(mkdir -p /tmp/design_extract)",
+      "Bash(cp \"C:/Users/Daeyoung/.claude/projects/C--Code-skewnono-v3-nuxt/ce3925fe-f8fe-4db9-8d1d-e9cd4c3f8f95/tool-results/webfetch-1777037402888-g27pbm.bin\" ./design.gz)",
+      "Bash(gunzip -k design.gz)",
+      "Bash(mkdir -p contents)",
+      "Bash(tar -xf design -C contents)",
+      "Bash(mkdir -p \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon\")",
+      "Bash(cp -v /tmp/design_extract/contents/skewnono-dashboard/project/favicon/* \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon/\")",
+      "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon.ico \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.ico\")",
+      "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon.svg \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.svg\")",
+      "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon-192.png \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.png\")"
     ]
   },
   "statusLine": {

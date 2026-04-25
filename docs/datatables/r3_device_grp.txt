@@ -1,0 +1,18 @@
+R3, R4와 같은 R로 시작하는 팹을 눌렀을 때 불러와지는 Datatable
+
+Column -> Type: Value 설명
+모든 컬럼과 밸류는 string Type
+
+fac_id -> R3 (단일 value)
+plan_catg_type -> FULL, ADTPJT, MODULE, "" (플랜 카테고리 타입)
+prod_catg_cd -> DRAM, Tech, Advanced, FLASH, NAND ()
+tech_cd -> T1Z, S128, T1Y, C20, F12m, ""
+den_type -> 16G, 1T, 512G 등
+prod_grp_typ -> DDR4, Memory Tech, Advanced, NAND, Raw NAND, HZBM2E, GDDR6, ""
+gen_typ -> 2ND, 4TH, 1ST, 
+lot_cd -> 3 or 4 Alphabets and Numbers, normally Starts with "R" like R7BU, RAEA, RAAJ
+plan_grade_cd -> P1, P2, P3, P4, P5 ,""ㄿㄹ
+lake_load_tm -> datetime in string. yyyymmddhhmmss
+ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "풀" 단어 포함 여부 중요), t-EV, tev, p-EV, PV, TV 등 개발 phase 정보 포함. 개발코드 명도 포함되어 있음
+
+
