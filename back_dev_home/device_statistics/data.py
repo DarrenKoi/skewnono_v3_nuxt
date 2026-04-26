@@ -1,15 +1,11 @@
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 
-DeviceStatisticsSource = Literal["r3_device_grp", "device_desc"]
-
-
-class DeviceStatisticsRow(TypedDict):
+class R3DeviceGrpRow(TypedDict):
     id: str
-    source: DeviceStatisticsSource
     fac_id: str
     plan_catg_type: str
     prod_catg_cd: str
@@ -20,6 +16,13 @@ class DeviceStatisticsRow(TypedDict):
     lot_cd: str
     plan_grade_cd: str
     lake_load_tm: str
+    ctn_desc: str
+
+
+class DeviceDescRow(TypedDict):
+    id: str
+    fac_id: str
+    lot_cd: str
     ctn_desc: str
     chg_tm: str
     tech_nm: str
@@ -81,29 +84,10 @@ def _make_m_lot_code(fac_id: str, index: int) -> str:
     return f"{prefix}{_base36(index, 3)}"
 
 
-def _empty_row(row_id: str, source: DeviceStatisticsSource, fac_id: str) -> DeviceStatisticsRow:
-    return {
-        "id": row_id,
-        "source": source,
-        "fac_id": fac_id,
-        "plan_catg_type": "",
-        "prod_catg_cd": "",
-        "tech_cd": "",
-        "den_type": "",
-        "prod_grp_typ": "",
-        "gen_typ": "",
-        "lot_cd": "",
-        "plan_grade_cd": "",
-        "lake_load_tm": "",
-        "ctn_desc": "",
-        "chg_tm": "",
-        "tech_nm": "",
-        "rnd_connector": ""
-    }
-
-
-def _generate_r3_rows(rng: random.Random) -> list[DeviceStatisticsRow]:
-    rows: list[DeviceStatisticsRow] = []
+@lru_cache(maxsize=1)
+def _generate_r3_device_grp() -> tuple[R3DeviceGrpRow, ...]:
+    rng = random.Random(20260426)
+    rows: list[R3DeviceGrpRow] = []
 
     for index in range(R3_ROW_COUNT):
         lot_cd = _make_r3_lot_code(index)
@@ -113,8 +97,9 @@ def _generate_r3_rows(rng: random.Random) -> list[DeviceStatisticsRow]:
         phase = rng.choice(DEV_PHASES)
         timestamp = BASE_TIME - timedelta(hours=index * 3)
 
-        row = _empty_row(f"R3-{index + 1:04d}", "r3_device_grp", "R3")
-        row.update({
+        rows.append({
+            "id": f"R3-{index + 1:04d}",
+            "fac_id": "R3",
             "plan_catg_type": rng.choice(PLAN_CATG_TYPES),
             "prod_catg_cd": prod_catg_cd,
             "tech_cd": tech_cd,
@@ -126,13 +111,14 @@ def _generate_r3_rows(rng: random.Random) -> list[DeviceStatisticsRow]:
             "lake_load_tm": timestamp.strftime("%Y%m%d%H%M%S"),
             "ctn_desc": f"{phase} {prod_catg_cd} {tech_cd or 'NA'} {den_type or 'GEN'} development lot {lot_cd}"
         })
-        rows.append(row)
 
-    return rows
+    return tuple(rows)
 
 
-def _generate_m_rows(rng: random.Random) -> list[DeviceStatisticsRow]:
-    rows: list[DeviceStatisticsRow] = []
+@lru_cache(maxsize=1)
+def _generate_device_desc() -> tuple[DeviceDescRow, ...]:
+    rng = random.Random(20260427)
+    rows: list[DeviceDescRow] = []
     rows_per_fac = M_ROW_COUNT // len(M_FAC_IDS)
 
     for fac_id in M_FAC_IDS:
@@ -142,29 +128,33 @@ def _generate_m_rows(rng: random.Random) -> list[DeviceStatisticsRow]:
             phase = rng.choice(DEV_PHASES)
             timestamp = BASE_TIME - timedelta(hours=(index * 2) + M_FAC_IDS.index(fac_id))
 
-            row = _empty_row(f"{fac_id}-{index + 1:04d}", "device_desc", fac_id)
-            row.update({
+            # rnd_connector is a value device_desc stores natively — the R&D
+            # code name a device carried before it graduated to mass
+            # production. Generate it from this generator's own RNG without
+            # consulting r3_device_grp; in reality the two tables come from
+            # separate sources and any agreement between them is incidental.
+            has_rnd_origin = rng.random() < 0.9
+            rnd_connector = f"R{_base36(rng.randrange(36 ** 3), 3)}" if has_rnd_origin else ""
+
+            rows.append({
+                "id": f"{fac_id}-{index + 1:04d}",
+                "fac_id": fac_id,
                 "lot_cd": lot_cd,
                 "ctn_desc": f"{phase} {fac_id} {tech_nm} device description lot {lot_cd}",
                 "chg_tm": timestamp.isoformat().replace("+00:00", "Z"),
                 "tech_nm": tech_nm,
-                "rnd_connector": tech_nm if lot_cd.startswith("R") else ""
+                "rnd_connector": rnd_connector
             })
-            rows.append(row)
 
-    return rows
-
-
-@lru_cache(maxsize=1)
-def _generate_rows() -> tuple[DeviceStatisticsRow, ...]:
-    rng = random.Random(20260426)
-    rows = _generate_r3_rows(rng)
-    rows.extend(_generate_m_rows(rng))
     return tuple(rows)
 
 
-def get_device_statistics(fac_ids: list[str] | None = None) -> list[DeviceStatisticsRow]:
-    rows = list(_generate_rows())
+def get_r3_device_grp() -> list[R3DeviceGrpRow]:
+    return list(_generate_r3_device_grp())
+
+
+def get_device_desc(fac_ids: list[str] | None = None) -> list[DeviceDescRow]:
+    rows = list(_generate_device_desc())
 
     if not fac_ids:
         return rows

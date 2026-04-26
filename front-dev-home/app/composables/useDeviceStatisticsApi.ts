@@ -1,8 +1,5 @@
-export type DeviceStatisticsSource = 'r3_device_grp' | 'device_desc'
-
-export interface DeviceStatisticsRow {
+export interface R3DeviceGrpRow {
   id: string
-  source: DeviceStatisticsSource
   fac_id: string
   plan_catg_type: string
   prod_catg_cd: string
@@ -13,6 +10,13 @@ export interface DeviceStatisticsRow {
   lot_cd: string
   plan_grade_cd: string
   lake_load_tm: string
+  ctn_desc: string
+}
+
+export interface DeviceDescRow {
+  id: string
+  fac_id: string
+  lot_cd: string
   ctn_desc: string
   chg_tm: string
   tech_nm: string
@@ -28,15 +32,25 @@ const joinDeviceStatisticsApiPath = (base: string, path: string) => {
 
 export const useDeviceStatisticsApi = () => {
   const config = useRuntimeConfig()
-  const deviceStatisticsUrl = joinDeviceStatisticsApiPath(config.public.apiBase, '/device-statistics')
+  const base = config.public.apiBase
 
-  const fetchDeviceStatisticsRows = async (facIds: string[] = []): Promise<DeviceStatisticsRow[]> => {
+  const fetchR3DeviceGrp = async (): Promise<R3DeviceGrpRow[]> => {
+    return await $fetch<R3DeviceGrpRow[]>(
+      joinDeviceStatisticsApiPath(base, '/device-statistics/r3-device-grp')
+    )
+  }
+
+  const fetchDeviceDesc = async (facIds: string[] = []): Promise<DeviceDescRow[]> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
-    return await $fetch<DeviceStatisticsRow[]>(deviceStatisticsUrl, { query })
+    return await $fetch<DeviceDescRow[]>(
+      joinDeviceStatisticsApiPath(base, '/device-statistics/device-desc'),
+      { query }
+    )
   }
 
   return {
-    fetchDeviceStatisticsRows
+    fetchR3DeviceGrp,
+    fetchDeviceDesc
   }
 }
