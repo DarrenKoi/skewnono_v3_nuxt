@@ -69,6 +69,12 @@ Three-tier configuration management. Database connections, API base URLs, and se
 - Architecture prioritizes clean separation and maintainability over immediate feature complexity
 - Extensible design: support incremental page/feature additions without major refactoring
 
+## Playwright Screenshots
+
+Save all Playwright MCP screenshots under `.playwright-mcp/screenshots/`. When calling `browser_take_screenshot`, always pass a relative `filename` like `.playwright-mcp/screenshots/<descriptive-name>.png` — the MCP server resolves relative paths from the project cwd, so omitting the prefix dumps PNGs at the repo root.
+
+The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay out of git automatically.
+
 ## Markdown Notes
 
 - Run `npm run lint:md` after editing Markdown files.
