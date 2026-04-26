@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SKEWNONO 디자인 미리보기 (Dark)</title>
+<!--
+  This file is a static, offline-safe visual fixture for the SKEWNONO design system.
+  It mirrors the tokens defined in front-dev-home/app/assets/css/main.css.
+  The dark variant lives in preview-dark.html (only the <body class> differs).
+  When tokens change in main.css, mirror them here so the preview stays accurate.
+-->
+<style>
+  /* === Tokens (mirrored from main.css) ============================== */
+  :root {
+    --sk-canvas: #ececef;
+    --sk-surface: #ffffff;
+    --sk-border: #e4e4e7;
+    --sk-on-bg: #d9f5e8;
+    --sk-on-fg: #0f5132;
+    --sk-off-bg: #f1f1f4;
+    --sk-off-fg: #52525b;
+    --sk-accent: #c8321f;
+    --sk-accent-border: rgba(200, 50, 31, 0.22);
+    --sk-accent-tint: rgba(200, 50, 31, 0.08);
+
+    --zinc-50: #FAFAFA;
+    --zinc-100: #F4F4F5;
+    --zinc-200: #E4E4E7;
+    --zinc-300: #D4D4D8;
+    --zinc-400: #A1A1AA;
+    --zinc-500: #71717A;
+    --zinc-600: #52525B;
+    --zinc-700: #3F3F46;
+    --zinc-800: #27272A;
+    --zinc-900: #18181B;
+    --zinc-950: #09090B;
+
+    --rose-600: #e11d48;
+
+    --font-sans: 'Public Sans', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+
+  .dark {
+    --sk-canvas: #09090b;
+    --sk-surface: #18181b;
+    --sk-border: #27272a;
+    --sk-on-bg: #052e16;
+    --sk-on-fg: #bbf7d0;
+    --sk-off-bg: #27272a;
+    --sk-off-fg: #d4d4d8;
+    --sk-accent: #e0553f;
+    --sk-accent-border: rgba(224, 85, 63, 0.28);
+    --sk-accent-tint: rgba(224, 85, 63, 0.12);
+
+    --rose-600: #fb7185;
+  }
+
+  /* === Base ========================================================= */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    background: var(--sk-canvas);
+    color: var(--zinc-900);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .dark body, body.dark { color: var(--zinc-100); }
+  body.dark { background: var(--sk-canvas); }
+
+  a { color: inherit; }
+
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px 96px;
+  }
+
+  /* === Header ======================================================= */
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--sk-border);
+    background: var(--sk-surface);
+    border-radius: 9999px;
+    box-shadow: 0 1px 0 rgba(9, 9, 11, 0.03);
+    margin-bottom: 32px;
+  }
+  .top .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .top .brand .slash { color: var(--sk-accent); }
+  .top .links { display: flex; gap: 8px; font-size: 14px; }
+  .top .links a {
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--sk-border);
+    color: var(--zinc-600);
+  }
+  .dark .top .links a, body.dark .top .links a { color: var(--zinc-400); }
+  .top .links a.active {
+    background: var(--zinc-900);
+    color: var(--zinc-100);
+    box-shadow: inset 0 -2px 0 0 var(--sk-accent);
+    border-color: transparent;
+  }
+  body.dark .top .links a.active {
+    background: var(--zinc-100);
+    color: var(--zinc-900);
+  }
+
+  /* === Section primitives =========================================== */
+  section { margin-bottom: 56px; }
+  h1 { font-size: 30px; font-weight: 700; margin: 0 0 4px; }
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--sk-border);
+  }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+  p.lede { color: var(--zinc-500); margin: 0 0 32px; max-width: 56ch; }
+
+  .card {
+    background: var(--sk-surface);
+    border: 1px solid var(--sk-border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .card.surface {
+    border: 1px solid var(--sk-accent-border);
+    box-shadow:
+      0 1px 0 rgba(9, 9, 11, 0.03),
+      inset 0 0 0 1px var(--sk-accent-tint);
+  }
+  body.dark .card.surface {
+    box-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.35),
+      inset 0 0 0 1px var(--sk-accent-tint);
+  }
+
+  /* === Color swatches =============================================== */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .swatch {
+    border: 1px solid var(--sk-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--sk-surface);
+  }
+  .swatch .chip { height: 64px; }
+  .swatch .meta { padding: 8px 10px; font-size: 12px; }
+  .swatch .meta .name { font-weight: 600; }
+  .swatch .meta .hex { font-family: var(--font-mono); color: var(--zinc-500); }
+
+  /* === Typography preview =========================================== */
+  .type-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px;
+    align-items: baseline;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--sk-border);
+  }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .label { font-family: var(--font-mono); font-size: 12px; color: var(--zinc-500); }
+  .type-row .meta { font-family: var(--font-mono); font-size: 12px; color: var(--zinc-500); text-align: right; }
+  .t-xs { font-size: 12px; line-height: 16px; }
+  .t-sm { font-size: 14px; line-height: 20px; }
+  .t-base { font-size: 16px; line-height: 24px; }
+  .t-lg { font-size: 18px; line-height: 28px; font-weight: 600; }
+  .t-xl { font-size: 20px; line-height: 28px; font-weight: 600; }
+  .t-2xl { font-size: 24px; line-height: 32px; font-weight: 600; }
+  .t-3xl { font-size: 30px; line-height: 36px; font-weight: 700; }
+
+  /* === Spacing / radius ramps ======================================= */
+  .ramp { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .ramp .item { text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--zinc-500); }
+  .ramp .item .box {
+    background: var(--zinc-900);
+    margin-bottom: 6px;
+  }
+  body.dark .ramp .item .box { background: var(--zinc-100); }
+  .ramp.spacing .box { width: 16px; }
+  .ramp.radius .box { width: 64px; height: 64px; background: var(--sk-accent); }
+  body.dark .ramp.radius .box { background: var(--sk-accent); }
+
+  /* === Buttons ====================================================== */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 200ms, color 200ms, border-color 200ms;
+  }
+  .btn-solid {
+    background: var(--zinc-900);
+    color: var(--zinc-100);
+  }
+  body.dark .btn-solid {
+    background: var(--zinc-100);
+    color: var(--zinc-900);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--zinc-700);
+  }
+  body.dark .btn-ghost { color: var(--zinc-300); }
+  .btn-ghost:hover { background: var(--zinc-100); }
+  body.dark .btn-ghost:hover { background: var(--zinc-800); }
+  .btn-outline {
+    background: transparent;
+    color: var(--zinc-700);
+    border-color: var(--sk-border);
+  }
+  body.dark .btn-outline { color: var(--zinc-200); }
+  .btn-disabled {
+    background: var(--zinc-100);
+    color: var(--zinc-400);
+    cursor: not-allowed;
+  }
+  body.dark .btn-disabled {
+    background: var(--zinc-800);
+    color: var(--zinc-600);
+  }
+  .btn-icon { padding: 10px; }
+  .btn .ico {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: currentColor;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+  .ico-search { -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>"); mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>"); }
+  .ico-download { -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/></svg>"); mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/></svg>"); }
+  .ico-reset { -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8'/><path d='M3 3v5h5'/></svg>"); mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8'/><path d='M3 3v5h5'/></svg>"); }
+  .ico-info { -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>"); mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>"); }
+
+  /* === Pills / badges =============================================== */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .pill-on { background: var(--sk-on-bg); color: var(--sk-on-fg); }
+  .pill-off { background: var(--sk-off-bg); color: var(--sk-off-fg); }
+  .pill-count {
+    background: var(--zinc-100);
+    color: var(--zinc-700);
+    border: 1px solid var(--sk-border);
+  }
+  body.dark .pill-count {
+    background: var(--zinc-800);
+    color: var(--zinc-300);
+  }
+
+  /* === Inputs ======================================================= */
+  .input {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--sk-border);
+    border-radius: 8px;
+    background: var(--sk-surface);
+    font-size: 14px;
+    color: var(--zinc-700);
+    min-width: 200px;
+  }
+  body.dark .input { color: var(--zinc-200); }
+  .input .ph { color: var(--zinc-400); }
+  .input .ico { width: 16px; height: 16px; background: var(--zinc-500); -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; }
+
+  /* === Filter chips ================================================= */
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid var(--sk-border);
+    background: var(--sk-surface);
+    color: var(--zinc-600);
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  body.dark .chip { color: var(--zinc-300); }
+  .chip.is-active {
+    background: var(--zinc-900);
+    color: var(--zinc-100);
+    border-color: transparent;
+  }
+  body.dark .chip.is-active {
+    background: var(--zinc-100);
+    color: var(--zinc-900);
+  }
+
+  /* === Stat row ===================================================== */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+  }
+  .stat-cell {
+    padding: 16px 20px;
+    border-right: 1px solid var(--sk-border);
+  }
+  .stat-cell:last-child { border-right: 0; }
+  .stat-cell .label { font-size: 12px; color: var(--zinc-500); margin-bottom: 4px; }
+  .stat-cell .value {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* === Table ======================================================== */
+  table.tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.tbl th, table.tbl td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--sk-border);
+  }
+  table.tbl th {
+    font-weight: 600;
+    color: var(--zinc-700);
+    background: var(--sk-surface);
+    position: sticky; top: 0;
+    white-space: nowrap;
+  }
+  body.dark table.tbl th { color: var(--zinc-200); }
+  table.tbl td.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  table.tbl td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  table.tbl tr:hover td { background: var(--zinc-50); }
+  body.dark table.tbl tr:hover td { background: rgba(39, 39, 42, 0.5); }
+
+  /* === Nav demo ===================================================== */
+  .nav-pill-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 9999px;
+    border: 1px solid var(--sk-border);
+    background: var(--sk-surface);
+  }
+  .nav-pill {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--sk-border);
+    background: transparent;
+    color: var(--zinc-600);
+    cursor: pointer;
+  }
+  body.dark .nav-pill { color: var(--zinc-400); border-color: var(--sk-border); }
+  .nav-pill.is-active {
+    background: var(--zinc-900);
+    color: var(--zinc-100);
+    border-color: transparent;
+    box-shadow: inset 0 -2px 0 0 var(--sk-accent);
+  }
+  body.dark .nav-pill.is-active {
+    background: var(--zinc-100);
+    color: var(--zinc-900);
+  }
+  .nav-pill[disabled] {
+    color: var(--zinc-400);
+    cursor: not-allowed;
+  }
+
+  /* === FAB row ====================================================== */
+  .fab-row {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--sk-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--sk-surface);
+    width: 220px;
+  }
+  .fab-row .item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--sk-border);
+    font-size: 14px;
+  }
+  .fab-row .item:last-child { border-bottom: 0; }
+  .fab-row .item.is-active {
+    box-shadow:
+      inset 2px 0 0 0 var(--sk-accent),
+      0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    background: var(--sk-surface);
+    font-weight: 600;
+  }
+  .fab-row .star {
+    width: 14px; height: 14px; background: var(--zinc-400);
+    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>");
+    mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>");
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain;
+  }
+  .fab-row .item.is-active .star { background: var(--sk-accent); }
+
+  /* === Misc ========================================================= */
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 800px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .stat-cell:nth-child(2) { border-right: 0; }
+  }
+  code.tk {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--zinc-600);
+    background: var(--zinc-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  body.dark code.tk { color: var(--zinc-300); background: var(--zinc-800); }
+  .sub { color: var(--zinc-500); font-size: 12px; }
+</style>
+</head>
+<body class="dark">
+<div class="page">
+
+  <!-- Top bar -->
+  <div class="top">
+    <div class="brand">SKEWNONO<span class="slash">/</span><span class="sub">Design Preview</span></div>
+    <div class="links">
+      <a href="preview.html">Light</a>
+      <a href="preview-dark.html" class="active">Dark</a>
+      <a href="DESIGN.md">DESIGN.md</a>
+    </div>
+  </div>
+
+  <h1>SKEWNONO 디자인 미리보기</h1>
+  <p class="lede">
+    본 페이지는 <code class="tk">DESIGN.md</code> 에 정의된 토큰과 컴포넌트 컨벤션을 시각적으로 검증하기 위한 정적 픽스처입니다.
+    실제 토큰의 출처는 <code class="tk">front-dev-home/app/assets/css/main.css</code> 입니다.
+  </p>
+
+  <!-- Color: zinc scale -->
+  <section>
+    <h2>1. Color &mdash; Zinc 스케일</h2>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:#FAFAFA"></div><div class="meta"><div class="name">zinc-50</div><div class="hex">#FAFAFA</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#F4F4F5"></div><div class="meta"><div class="name">zinc-100</div><div class="hex">#F4F4F5</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#E4E4E7"></div><div class="meta"><div class="name">zinc-200</div><div class="hex">#E4E4E7</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#D4D4D8"></div><div class="meta"><div class="name">zinc-300</div><div class="hex">#D4D4D8</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#A1A1AA"></div><div class="meta"><div class="name">zinc-400</div><div class="hex">#A1A1AA</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#71717A"></div><div class="meta"><div class="name">zinc-500</div><div class="hex">#71717A</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#52525B"></div><div class="meta"><div class="name">zinc-600</div><div class="hex">#52525B</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#3F3F46"></div><div class="meta"><div class="name">zinc-700</div><div class="hex">#3F3F46</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#27272A"></div><div class="meta"><div class="name">zinc-800</div><div class="hex">#27272A</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#18181B"></div><div class="meta"><div class="name">zinc-900</div><div class="hex">#18181B</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#09090B"></div><div class="meta"><div class="name">zinc-950</div><div class="hex">#09090B</div></div></div>
+    </div>
+  </section>
+
+  <!-- Color: semantic -->
+  <section>
+    <h2>2. Color &mdash; 시맨틱 토큰 (<code class="tk">--sk-*</code>)</h2>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:var(--sk-canvas)"></div><div class="meta"><div class="name">--sk-canvas</div><div class="hex">body 배경</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-surface);border-bottom:1px solid var(--sk-border)"></div><div class="meta"><div class="name">--sk-surface</div><div class="hex">카드/헤더</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-border)"></div><div class="meta"><div class="name">--sk-border</div><div class="hex">기본 보더</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-on-bg)"></div><div class="meta"><div class="name">--sk-on-bg</div><div class="hex">On 배경</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-on-fg)"></div><div class="meta"><div class="name">--sk-on-fg</div><div class="hex">On 글자</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-off-bg)"></div><div class="meta"><div class="name">--sk-off-bg</div><div class="hex">Off 배경</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-off-fg)"></div><div class="meta"><div class="name">--sk-off-fg</div><div class="hex">Off 글자</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-accent)"></div><div class="meta"><div class="name">--sk-accent</div><div class="hex">크림슨</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-accent-tint)"></div><div class="meta"><div class="name">--sk-accent-tint</div><div class="hex">8% 틴트</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--sk-accent-border);"></div><div class="meta"><div class="name">--sk-accent-border</div><div class="hex">22% 보더</div></div></div>
+    </div>
+  </section>
+
+  <!-- Typography -->
+  <section>
+    <h2>3. Typography</h2>
+    <div class="card">
+      <div class="type-row"><div class="label">text-3xl</div><div class="t-3xl">디바이스 통계 — Device Statistics</div><div class="meta">30 / 36</div></div>
+      <div class="type-row"><div class="label">text-2xl</div><div class="t-2xl">CD-SEM 도구 인벤토리</div><div class="meta">24 / 32</div></div>
+      <div class="type-row"><div class="label">text-xl</div><div class="t-xl">필터 — Filters</div><div class="meta">20 / 28</div></div>
+      <div class="type-row"><div class="label">text-lg</div><div class="t-lg">디바이스 목록</div><div class="meta">18 / 28</div></div>
+      <div class="type-row"><div class="label">text-base</div><div class="t-base">현재 선택된 Fab 의 디바이스 데이터를 보여줍니다.</div><div class="meta">16 / 24</div></div>
+      <div class="type-row"><div class="label">text-sm</div><div class="t-sm">조건에 맞는 디바이스가 없습니다.</div><div class="meta">14 / 20</div></div>
+      <div class="type-row"><div class="label">text-xs</div><div class="t-xs">prod_catg_cd · lot_cd · tech_nm</div><div class="meta">12 / 16</div></div>
+    </div>
+    <p class="sub" style="margin-top:8px">
+      Sans &mdash; <code class="tk">Public Sans</code> + <code class="tk">Noto Sans KR</code> · Mono &mdash; <code class="tk">ui-monospace, Cascadia Code</code>
+    </p>
+  </section>
+
+  <!-- Spacing & radius -->
+  <section>
+    <h2>4. Spacing &amp; Radius</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Spacing scale</h3>
+        <div class="ramp spacing">
+          <div class="item"><div class="box" style="height:4px"></div>1<br/>4px</div>
+          <div class="item"><div class="box" style="height:8px"></div>2<br/>8px</div>
+          <div class="item"><div class="box" style="height:12px"></div>3<br/>12px</div>
+          <div class="item"><div class="box" style="height:16px"></div>4<br/>16px</div>
+          <div class="item"><div class="box" style="height:24px"></div>6<br/>24px</div>
+          <div class="item"><div class="box" style="height:32px"></div>8<br/>32px</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Radius scale</h3>
+        <div class="ramp radius">
+          <div class="item"><div class="box" style="border-radius:4px"></div>rounded<br/>4px</div>
+          <div class="item"><div class="box" style="border-radius:8px"></div>lg<br/>8px</div>
+          <div class="item"><div class="box" style="border-radius:16px"></div>2xl<br/>16px</div>
+          <div class="item"><div class="box" style="border-radius:24px"></div>3xl<br/>24px</div>
+          <div class="item"><div class="box" style="border-radius:9999px"></div>full</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Shadows -->
+  <section>
+    <h2>5. Surfaces &amp; Shadows</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>UCard (basic)</h3>
+        <p class="sub">표준 NuxtUI 카드. 1px 보더 + 16px 라운드, 그림자 없음.</p>
+        <div style="height:80px;border:1px solid var(--sk-border);border-radius:16px;background:var(--sk-surface);"></div>
+      </div>
+      <div class="card surface">
+        <h3>.dashboard-surface</h3>
+        <p class="sub">크림슨 보더(22% α) + 내부 8% 틴트. 통계·표 카드에서 사용.</p>
+        <div style="height:80px;border:1px solid var(--sk-accent-border);border-radius:16px;background:var(--sk-surface);box-shadow:inset 0 0 0 1px var(--sk-accent-tint);"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Buttons -->
+  <section>
+    <h2>6. Buttons</h2>
+    <div class="card">
+      <h3>Variants</h3>
+      <div class="btn-row">
+        <button class="btn btn-solid">기본 버튼</button>
+        <button class="btn btn-outline">테두리</button>
+        <button class="btn btn-ghost">고스트</button>
+        <button class="btn btn-disabled" disabled>비활성</button>
+      </div>
+      <h3>With icons</h3>
+      <div class="btn-row">
+        <button class="btn btn-solid"><span class="ico ico-download"></span>CSV 다운로드</button>
+        <button class="btn btn-outline"><span class="ico ico-reset"></span>초기화</button>
+        <button class="btn btn-ghost btn-icon" aria-label="정보"><span class="ico ico-info"></span></button>
+        <button class="btn btn-ghost btn-icon" aria-label="검색"><span class="ico ico-search"></span></button>
+      </div>
+      <h3>Inputs</h3>
+      <div class="btn-row">
+        <span class="input"><span class="ico ico-search"></span><span class="ph">테이블 검색</span></span>
+        <span class="input"><span>R3</span><span class="sub" style="margin-left:auto">▾</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pills / badges -->
+  <section>
+    <h2>7. Pills &amp; Badges</h2>
+    <div class="card">
+      <div class="row">
+        <span class="pill pill-on">On</span>
+        <span class="pill pill-off">Off</span>
+        <span class="pill pill-count">324건</span>
+        <span class="pill pill-count">필터 3개</span>
+      </div>
+      <p class="sub" style="margin-top:12px">알약 = 12px / weight 600 / radius 9999px. 색만이 아닌 라벨로도 상태를 전달합니다.</p>
+    </div>
+  </section>
+
+  <!-- Navigation -->
+  <section>
+    <h2>8. Navigation</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>카테고리 네비 (AppHeader)</h3>
+        <div class="nav-pill-group">
+          <button class="nav-pill is-active">E-Beam</button>
+          <button class="nav-pill" disabled>Thickness</button>
+        </div>
+        <p class="sub" style="margin-top:12px">활성 알약은 <code class="tk">.sk-nav-accent</code> 의 2px 크림슨 언더라인으로 강조됩니다.</p>
+      </div>
+      <div class="card">
+        <h3>도구 종류 탭 (ToolTypeTabs)</h3>
+        <div class="nav-pill-group">
+          <button class="nav-pill is-active">CD-SEM <span class="pill pill-count" style="margin-left:6px">12</span></button>
+          <button class="nav-pill">HV-SEM <span class="pill pill-count" style="margin-left:6px">8</span></button>
+          <button class="nav-pill" disabled>Provision</button>
+          <button class="nav-pill" disabled>Verity-SEM</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:24px" class="row">
+      <div>
+        <h3 style="margin-top:0">FAB 사이드바 (FabSidebar)</h3>
+        <div class="fab-row">
+          <div class="item is-active"><span class="star"></span>R3</div>
+          <div class="item"><span class="star"></span>M16</div>
+          <div class="item"><span class="star"></span>M15</div>
+          <div class="item"><span class="star"></span>M14</div>
+          <div class="item"><span class="star"></span>M12</div>
+          <div class="item"><span class="star"></span>M11</div>
+        </div>
+      </div>
+      <div style="flex:1; min-width:280px">
+        <h3 style="margin-top:0">필터 칩</h3>
+        <div class="card">
+          <div class="chip-row" style="margin-bottom:8px">
+            <button class="chip is-active">전체</button>
+            <button class="chip">FOUNDRY</button>
+            <button class="chip">MEMORY</button>
+            <button class="chip">LOGIC</button>
+            <button class="chip">ANALOG</button>
+          </div>
+          <div class="chip-row">
+            <button class="chip is-active">A1234</button>
+            <button class="chip is-active">B5678</button>
+            <button class="chip">C9012</button>
+            <button class="chip">D3456</button>
+            <button class="chip">+ 12개 더</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stat row -->
+  <section>
+    <h2>9. Stat row</h2>
+    <div class="card surface" style="padding:0">
+      <div class="stat-row">
+        <div class="stat-cell"><div class="label">현재 Fab</div><div class="value">R3</div></div>
+        <div class="stat-cell"><div class="label">전체</div><div class="value">2,481</div></div>
+        <div class="stat-cell"><div class="label">표시</div><div class="value">312</div></div>
+        <div class="stat-cell"><div class="label">활성 필터</div><div class="value">3</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter bar mock -->
+  <section>
+    <h2>10. Filter bar</h2>
+    <div class="card surface">
+      <div class="row" style="justify-content:space-between">
+        <div class="row">
+          <span class="input"><span class="ico ico-search"></span><span class="ph">테이블 검색</span></span>
+          <span class="input" style="min-width:120px"><span>25</span><span class="sub" style="margin-left:auto">▾</span></span>
+        </div>
+        <div class="row">
+          <button class="btn btn-outline"><span class="ico ico-download"></span>CSV 다운로드</button>
+          <button class="btn btn-ghost"><span class="ico ico-reset"></span>초기화</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Data table -->
+  <section>
+    <h2>11. Data table</h2>
+    <div class="card surface" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--sk-border)">
+        <h3 style="margin:0">디바이스 목록</h3>
+        <span class="pill pill-count">312건</span>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:80px">fac_id</th>
+            <th>prod_catg_cd</th>
+            <th>lot_cd</th>
+            <th>device_id</th>
+            <th class="num">step_count</th>
+            <th>status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">R3</td><td>FOUNDRY</td><td class="mono">A1234</td><td class="mono">DEV-00128</td><td class="num">42</td><td><span class="pill pill-on">On</span></td></tr>
+          <tr><td class="mono">R3</td><td>FOUNDRY</td><td class="mono">A1234</td><td class="mono">DEV-00129</td><td class="num">37</td><td><span class="pill pill-on">On</span></td></tr>
+          <tr><td class="mono">R3</td><td>MEMORY</td><td class="mono">B5678</td><td class="mono">DEV-00204</td><td class="num">12</td><td><span class="pill pill-off">Off</span></td></tr>
+          <tr><td class="mono">R3</td><td>MEMORY</td><td class="mono">B5678</td><td class="mono">DEV-00205</td><td class="num">19</td><td><span class="pill pill-on">On</span></td></tr>
+          <tr><td class="mono">R3</td><td>LOGIC</td><td class="mono">C9012</td><td class="mono">DEV-00318</td><td class="num">8</td><td><span class="pill pill-off">Off</span></td></tr>
+        </tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--sk-border)">
+        <span class="sub">페이지 1 / 13</span>
+        <div class="row">
+          <button class="btn btn-outline">이전</button>
+          <button class="btn btn-outline">다음</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Token reference -->
+  <section>
+    <h2>12. Reference</h2>
+    <p class="sub">
+      본 미리보기와 <code class="tk">DESIGN.md</code> 가 어긋나면 항상 코드(<code class="tk">main.css</code>, <code class="tk">app.config.ts</code>)가 정답입니다.
+      이 페이지는 토큰 변경 시 함께 갱신해 주세요.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
