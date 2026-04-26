@@ -12,15 +12,13 @@ export interface NavigationState {
   toolType: ToolType
   fab: Fab
   favorites: string[]
-  recent: string[]
 }
 
 const defaultState: NavigationState = {
   category: 'ebeam',
   toolType: 'cd-sem',
   fab: 'all',
-  favorites: [],
-  recent: []
+  favorites: []
 }
 
 export function useNavigationStore() {
@@ -56,23 +54,17 @@ export function useNavigationStore() {
     }
   }
 
-  const addRecent = (toolId: string) => {
-    state.value.recent = [toolId, ...state.value.recent.filter((recentId: string) => recentId !== toolId)].slice(0, 10)
-  }
-
   return {
     state: readonly(state),
     category: computed(() => state.value.category),
     toolType: computed(() => state.value.toolType),
     fab: computed(() => state.value.fab),
     favorites: computed(() => state.value.favorites),
-    recent: computed(() => state.value.recent),
     setCategory,
     setToolType,
     setFab,
     addFavorite,
     removeFavorite,
-    toggleFavorite,
-    addRecent
+    toggleFavorite
   }
 }

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 const route = useRoute()
-const { setToolType, setFab, addRecent } = useNavigation()
+const { setToolType, setFab } = useNavigation()
 
 const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
 
 const applyFab = (next: string) => {
   if (!next) return
   setFab(next)
-  addRecent(next)
 }
 
 setToolType('hv-sem')
