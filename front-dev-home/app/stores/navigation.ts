@@ -3,7 +3,9 @@ import { computed, readonly } from 'vue'
 
 export type Category = 'ebeam' | 'thickness'
 export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
-export type Fab = 'all' | 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
+// Fab holds a fab_name value from the Flask sem-list response (e.g. "R3", "R4", "M16B").
+// The literal 'all' is reserved as an internal "no fab selected" sentinel and is never rendered in the sidebar.
+export type Fab = string
 
 export interface NavigationState {
   category: Category

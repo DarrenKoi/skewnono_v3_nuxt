@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { DeviceStatisticsRow, DeviceStatisticsSource } from '~/composables/useDeviceStatisticsApi'
-import type { Fab } from '~/stores/navigation'
+
+definePageMeta({
+  hideFabSidebar: true
+})
 
 const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 const { fetchDeviceStatisticsRows } = useDeviceStatisticsApi()
 
-type DeviceFab = Exclude<Fab, 'all'>
+// Closed set of fac_id values used for device statistics filtering. Distinct from the open-ended
+// fab_name space because device-statistics aggregates at the fac level.
+type DeviceFab = 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
 
 const text = {
   title: '\ub514\ubc14\uc774\uc2a4 \ud1b5\uacc4',
   fabSelect: 'Fab \uc120\ud0dd',
-  all: '\uc804\uccb4',
   currentFab: '\ud604\uc7ac Fab',
-  displayedRows: '\ud45c\uc2dc Row',
   rFilter: 'R \uacc4\uc5f4 \ud544\ud130',
   mFilter: 'M \uacc4\uc5f4 \ud544\ud130',
   reset: '\ucd08\uae30\ud654',
@@ -34,11 +37,11 @@ const text = {
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
   { label: 'R3', value: 'R3' },
-  { label: 'M11', value: 'M11' },
-  { label: 'M12', value: 'M12' },
-  { label: 'M14', value: 'M14' },
+  { label: 'M16', value: 'M16' },
   { label: 'M15', value: 'M15' },
-  { label: 'M16', value: 'M16' }
+  { label: 'M14', value: 'M14' },
+  { label: 'M12', value: 'M12' },
+  { label: 'M11', value: 'M11' }
 ]
 
 const deviceFabValues = deviceFabOptions.map(option => option.value)
@@ -48,13 +51,28 @@ const isDeviceFab = (value: string): value is DeviceFab => {
   return deviceFabValues.includes(value as DeviceFab)
 }
 
+// The URL's fab segment is now a fab_name (e.g. "M16A", "R3", "R4"). Device statistics filter by
+// fac_id, so we collapse the fab_name into its parent fac_id before matching against DeviceFab.
 const routeFab = computed<DeviceFab>(() => {
   const fabParam = String(route.params.fab ?? '').toUpperCase()
+  const facId = fabNameToFacId(fabParam)
 
-  return isDeviceFab(fabParam) ? fabParam : 'R3'
+  return isDeviceFab(facId) ? facId : 'R3'
 })
 
-const selectedFabs = ref<DeviceFab[]>([routeFab.value])
+const SELECTED_FAB_STORAGE_KEY = 'skewnono:deviceStatistics.selectedFab'
+
+const readSavedFab = (): DeviceFab | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const saved = window.localStorage.getItem(SELECTED_FAB_STORAGE_KEY)
+    return saved && isDeviceFab(saved) ? saved : null
+  } catch {
+    return null
+  }
+}
+
+const selectedFab = ref<DeviceFab | null>(readSavedFab() ?? routeFab.value)
 const selectedProdCategories = ref<string[]>([])
 const selectedLots = ref<string[]>([])
 const selectedTechs = ref<string[]>([])
@@ -67,15 +85,17 @@ const pageSize = ref('25')
 
 const { data, pending, error } = await useAsyncData(
   'device-statistics',
-  () => fetchDeviceStatisticsRows(selectedFabs.value),
-  { watch: [selectedFabs] }
+  () => selectedFab.value
+    ? fetchDeviceStatisticsRows([selectedFab.value])
+    : Promise.resolve([] as DeviceStatisticsRow[]),
+  { watch: [selectedFab] }
 )
 
 const rows = computed(() => data.value ?? [])
-const hasRSelection = computed(() => selectedFabs.value.includes('R3'))
-const hasMSelection = computed(() => selectedFabs.value.some(fab => fab.startsWith('M')))
+const hasRSelection = computed(() => selectedFab.value === 'R3')
+const hasMSelection = computed(() => selectedFab.value?.startsWith('M') ?? false)
 const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
-const selectedFabLabel = computed(() => selectedFabs.value.join(', '))
+const selectedFabLabel = computed(() => selectedFab.value ?? '')
 
 const uniqueSorted = (values: string[]) => {
   return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)))
@@ -110,7 +130,6 @@ const techOptions = computed(() => uniqueSorted(mRows.value.map(row => row.tech_
 const visibleProdCategoryOptions = computed(() => filterOptions(prodCategoryOptions.value, prodCategorySearch.value))
 const visibleLotOptions = computed(() => filterOptions(lotOptions.value, lotSearch.value))
 const visibleTechOptions = computed(() => filterOptions(techOptions.value, techSearch.value))
-const selectedFabSet = computed(() => new Set(selectedFabs.value))
 
 const matchesSearch = (row: DeviceStatisticsRow) => {
   const searchTerm = tableSearch.value.trim().toLowerCase()
@@ -123,7 +142,7 @@ const matchesSearch = (row: DeviceStatisticsRow) => {
 }
 
 const matchesDomainFilters = (row: DeviceStatisticsRow) => {
-  if (!selectedFabSet.value.has(row.fac_id as DeviceFab)) {
+  if (!selectedFab.value || row.fac_id !== selectedFab.value) {
     return false
   }
 
@@ -166,20 +185,6 @@ const pagedRows = computed(() => {
   return filteredRows.value.slice(startIndex, startIndex + pageSizeNumber.value)
 })
 
-const rowSummary = computed(() => {
-  const r3Count = filteredRows.value.filter(row => row.source === 'r3_device_grp').length
-  const mCount = filteredRows.value.length - r3Count
-  const lotCount = new Set(filteredRows.value.map(row => row.lot_cd).filter(Boolean)).size
-  const techCount = new Set(filteredRows.value.map(row => row.tech_nm).filter(Boolean)).size
-
-  return {
-    r3Count,
-    mCount,
-    lotCount,
-    techCount
-  }
-})
-
 const pageSizeOptions = [
   { label: '25\uac1c', value: '25' },
   { label: '50\uac1c', value: '50' },
@@ -216,15 +221,7 @@ const toggleValue = (values: string[], value: string) => {
 }
 
 const toggleFab = (fab: DeviceFab) => {
-  if (selectedFabSet.value.has(fab)) {
-    if (selectedFabs.value.length > 1) {
-      selectedFabs.value = selectedFabs.value.filter(selectedFab => selectedFab !== fab)
-    }
-
-    return
-  }
-
-  selectedFabs.value = [...selectedFabs.value, fab].sort((left, right) => sortCollator.compare(left, right))
+  selectedFab.value = selectedFab.value === fab ? null : fab
 }
 
 const toggleProdCategory = (category: string) => {
@@ -239,12 +236,8 @@ const toggleTech = (tech: string) => {
   selectedTechs.value = toggleValue(selectedTechs.value, tech)
 }
 
-const selectAllFabs = () => {
-  selectedFabs.value = [...deviceFabValues]
-}
-
 const resetFabToRoute = () => {
-  selectedFabs.value = [routeFab.value]
+  selectedFab.value = routeFab.value
 }
 
 const clearRFilters = () => {
@@ -268,8 +261,7 @@ const resetAllFilters = () => {
 }
 
 const hasActiveFilters = computed(() => {
-  return selectedFabs.value.length !== 1
-    || selectedFabs.value[0] !== routeFab.value
+  return selectedFab.value !== routeFab.value
     || selectedProdCategories.value.length > 0
     || selectedLots.value.length > 0
     || selectedTechs.value.length > 0
@@ -285,8 +277,12 @@ const syncSelectionWithOptions = (selectedValues: string[], options: string[]) =
   return selectedValues.filter(value => optionSet.has(value))
 }
 
-watch(routeFab, (nextFab) => {
-  selectedFabs.value = [nextFab]
+watch(selectedFab, (next) => {
+  if (typeof window === 'undefined') return
+  try {
+    if (next) window.localStorage.setItem(SELECTED_FAB_STORAGE_KEY, next)
+    else window.localStorage.removeItem(SELECTED_FAB_STORAGE_KEY)
+  } catch { /* noop */ }
 })
 
 watch([prodCategoryOptions, lotOptions, techOptions, hasRSelection, hasMSelection], () => {
@@ -327,7 +323,7 @@ watch([filteredRowCount, pageSize], () => {
   }
 })
 
-watch([selectedFabs, selectedProdCategories, selectedLots, selectedTechs, tableSearch], () => {
+watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, tableSearch], () => {
   currentPage.value = 1
 })
 
@@ -362,24 +358,14 @@ onMounted(() => {
           <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             {{ text.fabSelect }}
           </h2>
-          <div class="flex gap-2">
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-layers-3"
-              :label="text.all"
-              @click="selectAllFabs"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-map-pin"
-              :label="text.currentFab"
-              @click="resetFabToRoute"
-            />
-          </div>
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-map-pin"
+            :label="text.currentFab"
+            @click="resetFabToRoute"
+          />
         </div>
       </template>
 
@@ -388,65 +374,26 @@ onMounted(() => {
           v-for="fab in deviceFabOptions"
           :key="fab.value"
           type="button"
-          class="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ring-1 transition-colors"
-          :class="selectedFabSet.has(fab.value)
+          class="inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium ring-1 transition-colors"
+          :class="selectedFab === fab.value
             ? 'bg-zinc-900 text-zinc-50 ring-zinc-900 dark:bg-zinc-50 dark:text-zinc-950 dark:ring-zinc-50'
             : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
           @click="toggleFab(fab.value)"
         >
-          <UIcon
-            :name="selectedFabSet.has(fab.value) ? 'i-lucide-check-square' : 'i-lucide-square'"
-            class="h-4 w-4"
-          />
           {{ fab.label }}
         </button>
       </div>
     </UCard>
 
-    <div class="grid gap-3 md:grid-cols-4">
-      <div class="dashboard-surface rounded-2xl px-4 py-3">
-        <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          {{ text.displayedRows }}
-        </p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-zinc-50">
-          {{ filteredRowCount }}
-        </p>
-      </div>
-      <div class="dashboard-surface rounded-2xl px-4 py-3">
-        <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          R3 Row
-        </p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-zinc-50">
-          {{ rowSummary.r3Count }}
-        </p>
-      </div>
-      <div class="dashboard-surface rounded-2xl px-4 py-3">
-        <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          M Row
-        </p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-zinc-50">
-          {{ rowSummary.mCount }}
-        </p>
-      </div>
-      <div class="dashboard-surface rounded-2xl px-4 py-3">
-        <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          Lot / Tech
-        </p>
-        <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-950 dark:text-zinc-50">
-          {{ rowSummary.lotCount }} / {{ rowSummary.techCount }}
-        </p>
-      </div>
-    </div>
-
     <UCard
-      v-if="hasRSelection"
+      v-if="selectedFab"
       class="dashboard-surface rounded-2xl"
       :ui="{ header: 'px-4 py-3 sm:px-4', body: 'px-4 py-4 sm:px-4' }"
     >
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.rFilter }}
+            {{ hasRSelection ? text.rFilter : text.mFilter }}
           </h2>
           <UButton
             size="xs"
@@ -454,13 +401,18 @@ onMounted(() => {
             variant="ghost"
             icon="i-lucide-rotate-ccw"
             :label="text.reset"
-            :disabled="selectedProdCategories.length === 0 && selectedLots.length === 0 && prodCategorySearch.length === 0 && lotSearch.length === 0"
-            @click="clearRFilters"
+            :disabled="hasRSelection
+              ? (selectedProdCategories.length === 0 && selectedLots.length === 0 && prodCategorySearch.length === 0 && lotSearch.length === 0)
+              : (selectedTechs.length === 0 && techSearch.length === 0)"
+            @click="hasRSelection ? clearRFilters() : clearMFilters()"
           />
         </div>
       </template>
 
-      <div class="grid gap-4 lg:grid-cols-[minmax(14rem,0.85fr)_minmax(18rem,1.15fr)]">
+      <div
+        v-if="hasRSelection"
+        class="grid gap-4 lg:grid-cols-[minmax(14rem,0.85fr)_minmax(18rem,1.15fr)]"
+      >
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-2">
             <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -539,31 +491,11 @@ onMounted(() => {
           </div>
         </div>
       </div>
-    </UCard>
 
-    <UCard
-      v-if="hasMSelection"
-      class="dashboard-surface rounded-2xl"
-      :ui="{ header: 'px-4 py-3 sm:px-4', body: 'px-4 py-4 sm:px-4' }"
-    >
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.mFilter }}
-          </h2>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-rotate-ccw"
-            :label="text.reset"
-            :disabled="selectedTechs.length === 0 && techSearch.length === 0"
-            @click="clearMFilters"
-          />
-        </div>
-      </template>
-
-      <div class="space-y-2">
+      <div
+        v-else
+        class="space-y-2"
+      >
         <div class="flex items-center justify-between gap-2">
           <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             tech_nm
@@ -601,6 +533,7 @@ onMounted(() => {
     </UCard>
 
     <UCard
+      v-if="selectedFab"
       class="dashboard-surface rounded-2xl"
       :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
     >

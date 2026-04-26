@@ -50,7 +50,23 @@
       "Bash(cp -v /tmp/design_extract/contents/skewnono-dashboard/project/favicon/* \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon/\")",
       "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon.ico \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.ico\")",
       "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon.svg \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.svg\")",
-      "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon-192.png \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.png\")"
+      "Bash(cp /tmp/design_extract/contents/skewnono-dashboard/project/favicon/favicon-192.png \"C:/Code/skewnono_v3_nuxt/front-dev-home/public/favicon.png\")",
+      "Read(//c/Users/Daeyoung/.config/git/**)",
+      "Bash(git config *)",
+      "Bash(echo \"---EXIT $?\")",
+      "PowerShell(icacls *)",
+      "Read(//c/Code/**)",
+      "Bash(echo \"Started Flask, PID $!\" sleep 2 curl -s http://localhost:5000/api/sem-list)",
+      "Bash(NUXT_API_TARGET=http://localhost:5000 npm run dev)",
+      "Bash(echo \"Started Nuxt, PID $!\")",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_take_screenshot",
+      "Bash(npx --no-install nuxt typecheck)"
     ]
   },
   "statusLine": {

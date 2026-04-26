@@ -1,28 +1,20 @@
 <script setup lang="ts">
-import type { Fab } from '~/stores/navigation'
-
 const route = useRoute()
-const { setToolType, setFab } = useNavigation()
-const { fabs } = useToolData()
+const { setToolType, setFab, addRecent } = useNavigation()
 
-const fabId = computed<Fab>(() => {
-  const param = route.params.fab as string
-  return param.toUpperCase() as Fab
-})
+const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
 
-const fabConfig = computed(() => {
-  return fabs.find(f => f.id === fabId.value) || { id: fabId.value, label: fabId.value, hasAlerts: false }
-})
+const applyFab = (next: string) => {
+  if (!next) return
+  setFab(next)
+  addRecent(next)
+}
 
-onMounted(() => {
-  setToolType('cd-sem')
-  setFab(fabId.value as Fab)
-})
+setToolType('cd-sem')
+applyFab(fabId.value)
 
 watch(() => route.params.fab, (newFab) => {
-  if (newFab) {
-    setFab((newFab as string).toUpperCase() as Fab)
-  }
+  applyFab(String(newFab ?? '').toUpperCase())
 })
 </script>
 
@@ -30,7 +22,7 @@ watch(() => route.params.fab, (newFab) => {
   <EbeamToolInventoryView
     tool-type="cd-sem"
     :fab="fabId"
-    :title="`CD-SEM - ${fabConfig.label}`"
+    :title="`CD-SEM - ${fabId}`"
     subtitle="Mocked backend inventory filtered by fab."
   />
 </template>

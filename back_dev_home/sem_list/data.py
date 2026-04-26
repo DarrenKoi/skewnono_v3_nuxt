@@ -39,7 +39,11 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
 
     for _ in range(n_rows):
         fac_id = rng.choice(FAC_IDS)
-        fab_name = "R4" if fac_id == "R3" and rng.random() < 0.3 else f"{fac_id}{rng.choice(FAB_SUFFIXES)}"
+        if fac_id == "R3":
+            # R-class fabs are only R3 and R4 (no A/B/C suffix); split roughly 70/30 within the R fac.
+            fab_name = "R4" if rng.random() < 0.3 else "R3"
+        else:
+            fab_name = f"{fac_id}{rng.choice(FAB_SUFFIXES)}"
 
         vendor_nm: Literal["HITACHI", "AMAT"] = "HITACHI" if rng.random() < 0.5 else "AMAT"
 

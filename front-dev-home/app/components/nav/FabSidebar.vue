@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const { fab, favorites, recent, navigateToFab } = useNavigation()
-const { fabs } = useToolData()
+const { fab, favorites, navigateToFab } = useNavigation()
+const { fetchFabNames } = useSemListApi()
 
 const SIDEBAR_COLLAPSED_KEY = 'skewnono:fabSidebar.collapsed'
 
@@ -21,11 +21,15 @@ watch(sidebarCollapsed, (value) => {
 
 const sidebarNavId = 'fab-sidebar-navigation'
 
-const fabItems = computed(() => fabs.map(f => ({
-  id: f.id,
-  label: f.label,
-  active: fab.value === f.id,
-  hasAlerts: f.hasAlerts
+// Shared with the inventory view's useAsyncData call so we don't double-fetch.
+const { data: fabNames } = await useAsyncData('sem-list:fab-names', () => fetchFabNames(), {
+  default: () => [] as string[]
+})
+
+const fabItems = computed(() => (fabNames.value ?? []).map(name => ({
+  id: name,
+  label: name,
+  active: fab.value === name
 })))
 </script>
 
@@ -82,27 +86,7 @@ const fabItems = computed(() => fabs.map(f => ({
       </div>
 
       <div
-        v-if="recent.length > 0 && !sidebarCollapsed"
-        class="mb-3"
-      >
-        <div class="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-          <UIcon
-            name="i-lucide-clock"
-            class="w-3 h-3"
-          />
-          <span>Recent</span>
-        </div>
-        <div
-          v-for="rec in recent.slice(0, 3)"
-          :key="rec"
-          class="px-2 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors truncate"
-        >
-          {{ rec }}
-        </div>
-      </div>
-
-      <div
-        v-if="(favorites.length > 0 || recent.length > 0) && !sidebarCollapsed"
+        v-if="favorites.length > 0 && !sidebarCollapsed"
         class="border-t border-zinc-200/70 dark:border-zinc-800/70 my-2"
       />
 
@@ -130,17 +114,6 @@ const fabItems = computed(() => fabs.map(f => ({
           v-else
           class="text-[11px] font-semibold tracking-tight"
         >{{ item.label }}</span>
-        <UIcon
-          v-if="item.hasAlerts && !sidebarCollapsed"
-          name="i-lucide-circle"
-          class="w-2 h-2 fill-current ml-auto"
-          style="color: var(--sk-accent);"
-        />
-        <span
-          v-if="item.hasAlerts && sidebarCollapsed"
-          class="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full"
-          style="background: var(--sk-accent);"
-        />
       </button>
     </nav>
   </aside>
