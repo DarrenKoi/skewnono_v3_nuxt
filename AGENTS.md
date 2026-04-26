@@ -74,6 +74,7 @@ Environment notes:
 - Prefer 2-space indentation and keep files formatter-friendly.
 - Name composables as `useXxx.ts`, stores by domain, and Vue components in PascalCase.
 - Keep route files descriptive and colocated by feature.
+- For cached frontend reads, use Nuxt's `useAsyncData(key, fn)` and share one key per resource (see `composables/useSemListApi.ts` `useSemList()`). TanStack Query (Vue Query) is not used in this project — Nuxt's built-in caching covers our needs.
 - In Flask, keep `routes.py` focused on route and response behavior. The environment swap should happen in each feature's `data.py`, not inside route handlers.
 - Preserve API response shapes when moving from mock data to real backends.
 

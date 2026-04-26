@@ -1,5 +1,17 @@
 import type { Fab, ToolType } from '~/stores/navigation'
 
+// One shared cache key for /api/sem-list. Every consumer (hub page, tool-type
+// tabs, fab sidebar, inventory view) calls useSemList() and derives its view
+// via computed.
+const SEM_LIST_CACHE_KEY = 'sem-list'
+
+// Module-scoped in-flight promise so concurrent useAsyncData calls from
+// sibling components (which mount across separate Suspense boundaries in
+// ssr:false mode) collapse into a single network request. Nuxt's built-in
+// _asyncDataPromises dedup is keyed per call site and doesn't reliably
+// cover this layout-vs-page race in client-only rendering.
+let inFlightSemList: Promise<SemListResponse> | null = null
+
 export interface SemListRow {
   fac_id: string
   eqp_id: string
@@ -76,20 +88,25 @@ export const useSemListApi = () => {
     })
   }
 
-  const fetchToolRows = async (toolType: ToolType, fab: Fab = 'all'): Promise<SemListRow[]> => {
-    const rows = await fetchSemList()
-    return filterRows(rows, toolType, fab)
-  }
-
-  const fetchFabNames = async (): Promise<string[]> => {
-    const rows = await fetchSemList()
-    return extractFabNames(rows)
-  }
-
   return {
     fetchSemList,
-    fetchToolRows,
-    fetchFabNames,
     filterRows
   }
+}
+
+export const useSemList = () => {
+  const { fetchSemList } = useSemListApi()
+  const fetchOnce = () => {
+    if (!inFlightSemList) {
+      inFlightSemList = fetchSemList().catch((err) => {
+        inFlightSemList = null
+        throw err
+      })
+    }
+    return inFlightSemList
+  }
+  return useAsyncData(SEM_LIST_CACHE_KEY, fetchOnce, {
+    default: () => [] as SemListRow[],
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+  })
 }
