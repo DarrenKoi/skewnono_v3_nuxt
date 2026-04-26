@@ -74,7 +74,11 @@
       "Bash(git -C C:/Code/skewnono_v3_nuxt diff -- front-dev-home/)",
       "Bash(git -C C:/Code/skewnono_v3_nuxt add front-dev-home/app/components/AppLogo.vue front-dev-home/app/composables/useFavorites.ts front-dev-home/app/composables/useRecent.ts front-dev-home/app/composables/useToolData.ts front-dev-home/app/pages/ebeam/cd-sem/\\\\[fab\\\\]/index.vue front-dev-home/app/pages/ebeam/hv-sem/\\\\[fab\\\\]/index.vue front-dev-home/app/pages/ebeam/provision/\\\\[fab\\\\]/index.vue front-dev-home/app/pages/ebeam/verity-sem/\\\\[fab\\\\]/index.vue front-dev-home/app/stores/navigation.ts)",
       "Bash(curl -s http://127.0.0.1:5000/api/device-statistics/r3-device-grp)",
-      "mcp__playwright__browser_wait_for"
+      "mcp__playwright__browser_wait_for",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(lsof -nP -iTCP:5000 -sTCP:LISTEN)",
+      "Bash(PORT=5050 .venv/bin/python *)",
+      "Bash(NUXT_API_TARGET=http://localhost:5050 npm run dev)"
     ]
   },
   "statusLine": {
