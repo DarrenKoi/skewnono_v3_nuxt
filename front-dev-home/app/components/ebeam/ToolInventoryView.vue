@@ -391,12 +391,10 @@ const downloadTableCsv = () => {
       </div>
 
       <UTable
-        v-model:global-filter="globalFilter"
-        v-model:column-filters="columnFilters"
         v-model:sorting="sorting"
         class="max-h-[34rem] font-mono-ids"
         :columns="columns"
-        :data="rows"
+        :data="exportRows"
         :empty="`No tools match the current search or filters.`"
         :meta="tableMeta"
         :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
