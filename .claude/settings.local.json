@@ -66,7 +66,15 @@
       "mcp__playwright__browser_click",
       "mcp__playwright__browser_close",
       "mcp__playwright__browser_take_screenshot",
-      "Bash(npx --no-install nuxt typecheck)"
+      "Bash(npx --no-install nuxt typecheck)",
+      "Bash(git -C C:/Code/skewnono_v3_nuxt status)",
+      "Bash(git -C C:/Code/skewnono_v3_nuxt diff HEAD --stat)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git -C C:/Code/skewnono_v3_nuxt log -3 --pretty=format:\"%h %s\")",
+      "Bash(git -C C:/Code/skewnono_v3_nuxt diff -- front-dev-home/)",
+      "Bash(git -C C:/Code/skewnono_v3_nuxt add front-dev-home/app/components/AppLogo.vue front-dev-home/app/composables/useFavorites.ts front-dev-home/app/composables/useRecent.ts front-dev-home/app/composables/useToolData.ts front-dev-home/app/pages/ebeam/cd-sem/\\\\[fab\\\\]/index.vue front-dev-home/app/pages/ebeam/hv-sem/\\\\[fab\\\\]/index.vue front-dev-home/app/pages/ebeam/provision/\\\\[fab\\\\]/index.vue front-dev-home/app/pages/ebeam/verity-sem/\\\\[fab\\\\]/index.vue front-dev-home/app/stores/navigation.ts)",
+      "Bash(curl -s http://127.0.0.1:5000/api/device-statistics/r3-device-grp)",
+      "mcp__playwright__browser_wait_for"
     ]
   },
   "statusLine": {

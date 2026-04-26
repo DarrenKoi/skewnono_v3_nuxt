@@ -412,7 +412,7 @@ const downloadTableCsv = () => {
           <UBadge
             :label="row.original.available"
             size="xs"
-            :color="row.original.available === 'On' ? 'success' : 'neutral'"
+            :color="row.original.available === 'On' ? 'success' : 'error'"
             variant="subtle"
           />
         </template>
