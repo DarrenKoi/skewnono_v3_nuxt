@@ -274,7 +274,7 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 
 1. **Mock API endpoint 구현** — 위 3.Phase 1 미구현 이슈 해결.
 2. **`useNavigation` 타입 좁히기** — `useRoute().params.fab`의 타입이 `string | string[]`이라서 `as Fab` 없이 쓰려면 runtime guard 함수가 필요.
-3. **Favorites/Recent 영속화** — 현재 `useState`는 새로고침 시 초기화. localStorage와 연동(`@vueuse/core`의 `useLocalStorage`)하면 유지.
+3. **Favorites 영속화** — 현재 `useState`는 새로고침 시 초기화됩니다. localStorage 연동(`@vueuse/core`의 `useLocalStorage`) 또는 Pinia + `pinia-plugin-persistedstate` 도입 시 유지됩니다. 참고: `recent` 파이프라인은 미사용 코드여서 제거되었습니다(2026-04-26 세션).
 4. **Error boundary** — `useAsyncData`의 `error`를 받아 UI로 표시. 현재 코드엔 없음.
 5. **Loading skeleton** — `pending` 값을 써서 스켈레톤 UI 표시.
 6. **Pinia 도입 검토** — store가 3개 이상으로 늘어나면 검토합니다. Pinia는 DevTools 통합, plugin 생태계 면에서 우수합니다.
@@ -285,9 +285,16 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 | 패턴 | 어디서 | 핵심 |
 | --- | --- | --- |
 | `useState` 기반 store | `stores/navigation.ts` | SSR-safe 전역 상태 + readonly 노출 |
-| URL 계산 추상화 | `useEbeamToolApi.ts` | `apiBase + path` 조합 |
-| 순수 헬퍼 함수 | `summarizeRowsByFab`, `filterRows` | 테스트 쉬움, 재사용 |
+| URL 계산 추상화 | `useSemListApi.ts`, `useStorageApi.ts`, `useDeviceStatisticsApi.ts` | `apiBase + path` 조합 |
+| 순수 헬퍼 함수 | `extractFabNames`, `filterRows`, `classifyToolType` | 테스트 쉬움, 재사용 |
 | View 컴포넌트 + Page 분리 | `ToolInventoryView.vue` + `pages/ebeam/*` | Page는 얇게, View는 재사용 |
 | Layout 선택 | `definePageMeta({layout})` | 페이지 단위 shell 전환 |
-| `useAsyncData(key, fn)` | View 컴포넌트 | 캐시 키 = props 조합 |
+| 단일 키 `useAsyncData` 통합 | `useSemList()` 컴포저블 | 모든 소비자가 같은 키를 공유해 SPA 세션 내내 캐시 |
+| 모듈 스코프 in-flight promise | `useSemListApi.ts`의 `inFlightSemList` | Suspense 경계를 가로지르는 동시 요청 dedupe 보강 |
 | `computed`로 파생 값 | 어디서나 | 반응형 + 캐시 |
+
+## 10. 심화 주제 — 별도 문서
+
+이 챕터에서 다 담기 어려운 주제는 별도 파일로 분리되어 있습니다.
+
+- [`sem-list-caching.md`](./sem-list-caching.md) — `useSemList()` 통합, Nuxt `useAsyncData` 중복 제거의 함정, TanStack Query 미도입 결정, 페이지 간 캐시 유지와 Pinia 도입 시점 (2026-04-26 세션 요약).
