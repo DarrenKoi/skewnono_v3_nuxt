@@ -15,13 +15,7 @@ export const useToolData = () => {
     { id: 'provision', label: 'Provision', count: 0, enabled: false }
   ]
 
-  const getToolTypeByRoute = (route: string): ToolType | null => {
-    const match = route.match(/\/ebeam\/(cd-sem|hv-sem|verity-sem|provision)/)
-    return match ? match[1] as ToolType : null
-  }
-
   return {
-    toolTypes,
-    getToolTypeByRoute
+    toolTypes
   }
 }
