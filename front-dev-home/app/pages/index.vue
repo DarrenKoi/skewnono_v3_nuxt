@@ -4,10 +4,9 @@ definePageMeta({
 })
 
 const { toolTypes } = useToolData()
-const { fetchSemList } = useSemListApi()
 const { toolTypeHref } = useNavigation()
 
-const { data: semRows } = await useAsyncData('sem-list-base', () => fetchSemList())
+const { data: semRows } = await useSemList()
 
 const rowsByToolType = computed(() => {
   const groups = new Map<string, typeof semRows.value>()

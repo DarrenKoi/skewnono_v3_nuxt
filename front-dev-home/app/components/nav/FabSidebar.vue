@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const { fab, favorites, navigateToFab } = useNavigation()
-const { fetchFabNames } = useSemListApi()
 
 const SIDEBAR_COLLAPSED_KEY = 'skewnono:fabSidebar.collapsed'
 
@@ -21,12 +20,10 @@ watch(sidebarCollapsed, (value) => {
 
 const sidebarNavId = 'fab-sidebar-navigation'
 
-// Shared with the inventory view's useAsyncData call so we don't double-fetch.
-const { data: fabNames } = await useAsyncData('sem-list:fab-names', () => fetchFabNames(), {
-  default: () => [] as string[]
-})
+const { data: semRows } = await useSemList()
+const fabNames = computed(() => extractFabNames(semRows.value ?? []))
 
-const fabItems = computed(() => (fabNames.value ?? []).map(name => ({
+const fabItems = computed(() => fabNames.value.map(name => ({
   id: name,
   label: name,
   active: fab.value === name

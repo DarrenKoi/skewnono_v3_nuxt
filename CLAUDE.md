@@ -27,12 +27,14 @@ Web application for metrology, specified for tool management and data analytics.
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend framework | Nuxt 3 + NuxtUI |
-| State management | Pinia |
-| Data fetching | TanStack Query (Vue Query) |
+| --- | --- |
+| Frontend framework | Nuxt 4 + NuxtUI |
+| State management | Pinia (planned) + `useState` composables (current) |
+| Data fetching | Nuxt `useAsyncData` + `$fetch` |
 | Backend | Flask with Blueprints (auth, data, search, etc.) |
 | Frontend serving (prod) | Flask serves built frontend files |
+
+**Data fetching note:** Use `useAsyncData(key, fn)` for cached, deduplicated reads. Share one cache key per resource (e.g. `'sem-list'`) so multiple components reuse the same fetch — see `composables/useSemListApi.ts`'s `useSemList()` for the pattern. TanStack Query (Vue Query) is **not** used; introduce it only if you need TTL (`staleTime`), background refetch on focus, polling, or key-prefix invalidation — none of which apply to the current mock-data flows.
 
 ## Architecture Patterns
 

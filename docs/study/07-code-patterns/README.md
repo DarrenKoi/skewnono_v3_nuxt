@@ -277,9 +277,8 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 3. **Favorites/Recent 영속화** — 현재 `useState`는 새로고침 시 초기화. localStorage와 연동(`@vueuse/core`의 `useLocalStorage`)하면 유지.
 4. **Error boundary** — `useAsyncData`의 `error`를 받아 UI로 표시. 현재 코드엔 없음.
 5. **Loading skeleton** — `pending` 값을 써서 스켈레톤 UI 표시.
-6. **Pinia 도입 검토** — store가 3개 이상으로 늘어나면 검토. Pinia는 DevTools 통합, plugin 생태계 면에서 우수.
-7. **TanStack Query 적용** — `CLAUDE.md`에 언급된 Vue Query. 캐시 정책, 리페치, 백그라운드 업데이트 등 `useAsyncData`보다 정교.
-8. **단위 테스트 기반 마련** — Vitest + Vue Test Utils로 `summarizeRowsByFab`, `filterRows` 같은 pure function부터 시작.
+6. **Pinia 도입 검토** — store가 3개 이상으로 늘어나면 검토합니다. Pinia는 DevTools 통합, plugin 생태계 면에서 우수합니다.
+7. **단위 테스트 기반 마련** — Vitest + Vue Test Utils로 `summarizeRowsByFab`, `filterRows` 같은 pure function부터 시작합니다.
 
 ## 9. 요약
 

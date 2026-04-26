@@ -70,10 +70,8 @@ skewnono_v3_nuxt/
     │       └── equipment.ts           # Mock data arrays
     │
     └── app/
-        ├── composables/
-        │   └── useEquipmentData.ts    # $fetch-based (no inline mock data)
-        └── plugins/
-            └── vue-query.ts           # TanStack Query setup
+        └── composables/
+            └── useEquipmentData.ts    # $fetch-based (no inline mock data)
 ```
 
 ## Implementation Steps
@@ -205,39 +203,30 @@ export const useEquipmentData = () => {
 
 Same function signatures — no page changes needed.
 
-### Step 5: TanStack Query
+### Step 5: Cached reads with `useAsyncData`
 
-```bash
-npm install @tanstack/vue-query
-```
+Use Nuxt's built-in `useAsyncData(key, fn)` for cached, deduplicated fetches. Wrap the API call in a tiny composable that pins the cache key, so every consumer reuses the same fetch.
 
 ```typescript
-// app/plugins/vue-query.ts
-import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
-
-export default defineNuxtPlugin((nuxtApp) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000 * 60 * 5,
-        retry: 1,
-        refetchOnWindowFocus: false
-      }
-    }
+// app/composables/useEquipmentList.ts
+export const useEquipmentList = () => {
+  const { fetchEquipmentList } = useEquipmentData()
+  return useAsyncData('equipment-list', fetchEquipmentList, {
+    default: () => ({ data: [], total: 0 })
   })
-  nuxtApp.vueApp.use(VueQueryPlugin, { queryClient })
-})
+}
 ```
 
-Pages wrap composable calls in `useQuery()`:
+Pages and components call the composable and derive views with `computed`:
 
 ```typescript
-const { fetchEquipmentByFacility } = useEquipmentData()
-const { data, isLoading } = useQuery({
-  queryKey: ['equipment', 'byFacility', fabId],
-  queryFn: () => fetchEquipmentByFacility(fabId.value)
-})
+const { data, pending, error } = await useEquipmentList()
+const onlineCount = computed(() => data.value.data.filter(e => e.available === 'On').length)
 ```
+
+When you need filtered subsets, fetch the full list once and filter in `computed` — do not create a second `useAsyncData` with a different key for the same endpoint. Multiple keys = multiple network requests.
+
+TanStack Query (Vue Query) is **not** used in this project. Adopt it only if a future feature needs TTL (`staleTime`), background refetch on focus, polling, mutations with optimistic updates, or key-prefix invalidation.
 
 ### Step 6: Environment Files
 

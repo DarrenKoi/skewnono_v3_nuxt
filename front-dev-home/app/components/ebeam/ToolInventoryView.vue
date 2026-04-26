@@ -11,19 +11,10 @@ const props = defineProps<{
   toolType: ToolType
 }>()
 
-const { fetchSemList, filterRows } = useSemListApi()
+const { filterRows } = useSemListApi()
 
-const { data: rows } = await useAsyncData(
-  `sem-list:${props.toolType}:${props.fab}`,
-  async () => {
-    const allRows = await fetchSemList()
-    return filterRows(allRows, props.toolType, props.fab)
-  },
-  {
-    default: () => [] as SemListRow[],
-    watch: [() => props.fab, () => props.toolType]
-  }
-)
+const { data: allRows } = await useSemList()
+const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fab))
 
 const rowSummary = computed(() => {
   let online = 0

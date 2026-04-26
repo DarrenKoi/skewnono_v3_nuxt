@@ -1,9 +1,8 @@
 <script setup lang="ts">
 const { toolType, navigateToToolType } = useNavigation()
 const { toolTypes } = useToolData()
-const { fetchSemList } = useSemListApi()
 
-const { data: semRows } = await useAsyncData('sem-list-tool-types', () => fetchSemList())
+const { data: semRows } = await useSemList()
 
 const countsByToolType = computed(() => {
   const counts = new Map<string, number>()
