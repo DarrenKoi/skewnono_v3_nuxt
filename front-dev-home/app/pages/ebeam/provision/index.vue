@@ -1,16 +1,13 @@
 <script setup lang="ts">
-const { setToolType, setFab } = useNavigation()
-
-onMounted(() => {
-  setToolType('provision')
-  setFab('all')
+definePageMeta({
+  middleware: () => {
+    const { fab } = useNavigation()
+    const target = fab.value && fab.value !== 'all' ? fab.value : 'R3'
+    return navigateTo(`/ebeam/provision/${target.toLowerCase()}`, { replace: true })
+  }
 })
 </script>
 
 <template>
-  <EbeamToolInventoryView
-    tool-type="provision"
-    title="Provision Overview"
-    subtitle="Mocked backend inventory loaded from the base e-beam tool-list response."
-  />
+  <div />
 </template>

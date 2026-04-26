@@ -1,0 +1,84 @@
+resource: sem-list
+description: Source-of-truth SEM equipment inventory across all tool types (CD-SEM, HV-SEM, VeritySEM, Provision). Frontend classifies tool type from eqp_model_cd prefix.
+base_path: /api/sem-list
+
+types:
+  SemListRow:
+    fac_id:
+      type: string
+      description: Facility identifier the equipment belongs to
+      examples: ["R3", "M11", "M12", "M14", "M15", "M16"]
+    eqp_id:
+      type: string
+      description: Unique equipment identifier — vendor-specific prefix plus 3-digit numeric suffix
+      examples: ["ECDX123", "HCDX456", "PCD789", "VCD234"]
+    eqp_model_cd:
+      type: string
+      description: Equipment model code. Prefix determines tool-type classification (CG*/GT* → CD-SEM, TP* → HV-SEM, VERITYSEM_* → VeritySEM, PROVISION_* → Provision).
+      examples: ["CG6380", "GT2000S", "TP4000", "PROVISION_20", "VERITYSEM_5"]
+    eqp_grp_id:
+      type: string
+      format: "G-<measurement>-<2-digit index>"
+      description: Equipment group identifier used for routing / recipe grouping
+      examples: ["G-ECD-01", "G-MCD-02", "G-PCD-03"]
+    vendor_nm:
+      type: string
+      enum: ["HITACHI", "AMAT"]
+      description: Equipment vendor
+    eqp_ip:
+      type: string
+      description: Private IPv4 address. Prefix is always 177.x.x.x or 197.x.x.x.
+      examples: ["177.30.1.101", "197.168.12.34"]
+    fab_name:
+      type: string
+      description: Fab identifier. M-class fabs use <fac_id><A|B|C>; R-class fabs are only "R3" or "R4" (no suffix).
+      examples: ["R3", "R4", "M11B", "M14C", "M16A"]
+    updt_dt:
+      type: string
+      format: "ISO 8601 UTC (e.g. 2026-03-15T00:00:00Z)"
+      description: Last update timestamp, within the prior 90 days
+    available:
+      type: string
+      enum: ["On", "Off"]
+      description: Tool availability status (~90% On)
+    version:
+      type: integer
+      description: Equipment model version
+      examples: [1, 2, 3]
+
+endpoints:
+  - path: /api/sem-list
+    method: GET
+    description: List all SEM equipment rows. No filtering — clients filter by tool type / fab on the frontend via classifyToolType() and fab_name.
+    response:
+      status: 200
+      body:
+        type: array
+        items: SemListRow
+    example_request: "GET /api/sem-list"
+    example_response:
+      - fac_id: "M16"
+        eqp_id: "ECDX234"
+        eqp_model_cd: "CG6380"
+        eqp_grp_id: "G-ECD-01"
+        vendor_nm: "HITACHI"
+        eqp_ip: "177.30.1.101"
+        fab_name: "M16A"
+        updt_dt: "2026-03-15T00:00:00Z"
+        available: "On"
+        version: 3
+      - fac_id: "R3"
+        eqp_id: "PCD789"
+        eqp_model_cd: "PROVISION_20"
+        eqp_grp_id: "G-PCD-02"
+        vendor_nm: "AMAT"
+        eqp_ip: "197.168.12.34"
+        fab_name: "R4"
+        updt_dt: "2026-02-10T00:00:00Z"
+        available: "Off"
+        version: 2
+
+notes:
+  - Phase 1 implementation — back_dev_home/sem_list/data.py generates 300 rows deterministically with random.Random(seed=42).
+  - Response is a bare JSON array, not wrapped in { data, total }. Frontend type SemListResponse in front-dev-home/app/composables/useSemListApi.ts mirrors this directly.
+  - Tool-type classification lives on the frontend (classifyToolType in useSemListApi.ts). The backend does not segment rows by tool type.

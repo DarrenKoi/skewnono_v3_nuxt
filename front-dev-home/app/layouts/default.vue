@@ -1,5 +1,8 @@
 <script setup lang="ts">
 const { category } = useNavigation()
+const route = useRoute()
+
+const showFabSidebar = computed(() => route.meta.hideFabSidebar !== true)
 </script>
 
 <template>
@@ -15,7 +18,7 @@ const { category } = useNavigation()
     </template>
 
     <div class="flex flex-1 gap-3 md:gap-4 pr-4 md:pr-6 lg:pr-8">
-      <NavFabSidebar />
+      <NavFabSidebar v-if="showFabSidebar" />
 
       <main class="flex-1 flex flex-col overflow-hidden min-w-0">
         <NavFeatureTabs />

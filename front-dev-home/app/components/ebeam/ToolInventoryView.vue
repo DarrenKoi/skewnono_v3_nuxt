@@ -2,56 +2,48 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { ColumnFiltersState, SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
-import type { SemListRow } from '~/mock-data/sem-list/sem-list'
+import type { SemListRow } from '~/composables/useSemListApi'
 
-const props = withDefaults(defineProps<{
-  fab?: Fab
+const props = defineProps<{
+  fab: Fab
   subtitle: string
   title: string
   toolType: ToolType
-}>(), {
-  fab: 'all'
-})
+}>()
 
 const { fetchSemList, filterRows } = useSemListApi()
 
-const asyncKey = `sem-list:${props.toolType}:${props.fab}`
-
-const { data } = await useAsyncData(asyncKey, async () => {
-  const allRows = await fetchSemList()
-  const rows = filterRows(allRows, props.toolType, props.fab)
-  const facSummaries = props.fab === 'all' ? summarizeRowsByFacId(rows) : []
-
-  return {
-    rows,
-    facSummaries
+const { data: rows } = await useAsyncData(
+  `sem-list:${props.toolType}:${props.fab}`,
+  async () => {
+    const allRows = await fetchSemList()
+    return filterRows(allRows, props.toolType, props.fab)
+  },
+  {
+    default: () => [] as SemListRow[],
+    watch: [() => props.fab, () => props.toolType]
   }
-})
-
-const rows = computed(() => data.value?.rows ?? [])
-const facSummaries = computed(() => data.value?.facSummaries ?? [])
+)
 
 const rowSummary = computed(() => {
   let online = 0
   let offline = 0
-  const facs = new Set<string>()
 
-  for (const row of rows.value) {
+  for (const row of rows.value ?? []) {
     if (row.available === 'On') online++
     else if (row.available === 'Off') offline++
-    facs.add(row.fac_id)
   }
 
-  return { online, offline, facCount: facs.size }
+  return { online, offline }
 })
 
-const defaultSortPreset = 'fab_name:asc'
+const defaultSortPreset = 'eqp_id:asc'
 
 const globalFilter = ref('')
 const columnFilters = ref<ColumnFiltersState>([])
 const sorting = ref<SortingState>([
   {
-    id: 'fab_name',
+    id: 'eqp_id',
     desc: false
   }
 ])
@@ -85,11 +77,6 @@ const modelFilter = computed({
   set: (value: string) => setColumnFilter('eqp_model_cd', value)
 })
 
-const fabNameFilter = computed({
-  get: () => getColumnFilter('fab_name'),
-  set: (value: string) => setColumnFilter('fab_name', value)
-})
-
 const sortPreset = computed({
   get: () => {
     const currentSort = sorting.value[0]
@@ -101,7 +88,7 @@ const sortPreset = computed({
     return `${currentSort.id}:${currentSort.desc ? 'desc' : 'asc'}`
   },
   set: (value: string) => {
-    const [columnId = 'fab_name', direction = 'asc'] = value.split(':')
+    const [columnId = 'eqp_id', direction = 'asc'] = value.split(':')
 
     sorting.value = [
       {
@@ -128,22 +115,9 @@ const modelFilterOptions = computed(() => [
     }))
 ])
 
-const fabNameFilterOptions = computed(() => [
-  { label: 'All Fabs', value: 'all' },
-  ...Array.from(new Set(rows.value.map(row => row.fab_name)))
-    .sort((left, right) => left.localeCompare(right))
-    .map(fabName => ({
-      label: fabName,
-      value: fabName
-    }))
-])
-
-const showFabNameFilter = computed(() => fabNameFilterOptions.value.length > 2)
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 const sortOptions = [
-  { label: 'Fab (A-Z)', value: 'fab_name:asc' },
-  { label: 'Fab (Z-A)', value: 'fab_name:desc' },
   { label: 'Equipment ID (A-Z)', value: 'eqp_id:asc' },
   { label: 'Equipment ID (Z-A)', value: 'eqp_id:desc' },
   { label: 'Model (A-Z)', value: 'eqp_model_cd:asc' },
@@ -160,7 +134,6 @@ const matchesActiveFilters = (row: SemListRow) => {
   const searchTerm = globalFilter.value.trim().toLowerCase()
   const selectedAvailability = availabilityFilter.value
   const selectedModel = modelFilter.value
-  const selectedFabName = fabNameFilter.value
 
   const matchesSearch = searchTerm.length === 0 || [
     row.fac_id,
@@ -175,9 +148,8 @@ const matchesActiveFilters = (row: SemListRow) => {
 
   const matchesAvailability = selectedAvailability === 'all' || row.available === selectedAvailability
   const matchesModel = selectedModel === 'all' || row.eqp_model_cd === selectedModel
-  const matchesFabName = selectedFabName === 'all' || row.fab_name === selectedFabName
 
-  return matchesSearch && matchesAvailability && matchesModel && matchesFabName
+  return matchesSearch && matchesAvailability && matchesModel
 }
 
 const filteredRows = computed(() => rows.value.filter(matchesActiveFilters))
@@ -208,10 +180,9 @@ const exportRows = computed(() => {
 const filteredRowCount = computed(() => filteredRows.value.length)
 
 const exportFileName = computed(() => {
-  const scope = props.fab === 'all' ? 'all-fabs' : props.fab.toLowerCase()
   const today = new Date().toISOString().slice(0, 10)
 
-  return `${props.toolType}-${scope}-tool-inventory-${today}.csv`
+  return `${props.toolType}-${props.fab.toLowerCase()}-tool-inventory-${today}.csv`
 })
 
 const hasActiveTableControls = computed(() => {
@@ -261,8 +232,7 @@ const mutedColumns: (keyof SemListRow)[] = ['fac_id', 'fab_name']
 const statCells = computed(() => [
   { label: 'Total Tools', value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
   { label: 'Online', value: rowSummary.value.online, tone: 'text-(--sk-accent)' },
-  { label: 'Offline', value: rowSummary.value.offline, tone: 'text-zinc-600 dark:text-zinc-400' },
-  { label: 'Fabs', value: rowSummary.value.facCount, tone: 'text-zinc-500' }
+  { label: 'Offline', value: rowSummary.value.offline, tone: 'text-zinc-600 dark:text-zinc-400' }
 ])
 
 const resetTableControls = () => {
@@ -270,7 +240,7 @@ const resetTableControls = () => {
   columnFilters.value = []
   sorting.value = [
     {
-      id: 'fab_name',
+      id: 'eqp_id',
       desc: false
     }
   ]
@@ -346,54 +316,6 @@ const downloadTableCsv = () => {
       </div>
     </div>
 
-    <template v-if="props.fab === 'all' && facSummaries.length > 0">
-      <div>
-        <h2 class="text-sm font-semibold mb-2 text-zinc-700 dark:text-zinc-300">
-          Fab Breakdown
-        </h2>
-        <div class="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          <UCard
-            v-for="summary in facSummaries"
-            :key="summary.fac_id"
-            class="dashboard-surface rounded-xl"
-            :ui="{ body: 'p-3 sm:p-3' }"
-          >
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="font-semibold text-sm">
-                {{ summary.fac_id }}
-              </h3>
-              <UBadge
-                :label="`${summary.online}/${summary.total}`"
-                size="xs"
-                color="neutral"
-                variant="subtle"
-              />
-            </div>
-            <div class="space-y-1 text-xs">
-              <div class="flex justify-between">
-                <span class="text-zinc-500">Total</span>
-                <span class="font-medium tabular-nums">{{ summary.total }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-zinc-500">Online</span>
-                <span class="font-medium tabular-nums">{{ summary.online }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-zinc-500">Offline</span>
-                <span class="font-medium tabular-nums">{{ summary.offline }}</span>
-              </div>
-            </div>
-            <NuxtLink
-              :to="`/ebeam/${toolType}/${summary.fac_id.toLowerCase()}`"
-              class="mt-2 block text-xs font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-            >
-              View ->
-            </NuxtLink>
-          </UCard>
-        </div>
-      </div>
-    </template>
-
     <UCard
       class="dashboard-surface rounded-2xl"
       :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
@@ -436,16 +358,6 @@ const downloadTableCsv = () => {
           color="neutral"
           variant="subtle"
           :items="modelFilterOptions"
-        />
-
-        <USelect
-          v-if="showFabNameFilter"
-          v-model="fabNameFilter"
-          class="w-[8rem]"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          :items="fabNameFilterOptions"
         />
 
         <USelect

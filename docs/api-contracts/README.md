@@ -37,7 +37,7 @@ endpoints:                             # API endpoint definitions
         description: What it filters
     response:
       status: 200
-      body:
+      body:                            # see "Response Body Shapes" below
         data:
           type: array
           items: Equipment             # reference to type above
@@ -49,6 +49,46 @@ endpoints:                             # API endpoint definitions
         - { field: "value" }
       total: 1
 ```
+
+## Response Body Shapes
+
+Document what the endpoint **actually returns**, not what feels canonical. Two patterns occur in this codebase:
+
+### Envelope-wrapped (data + total)
+
+Use when the endpoint paginates, filters server-side, or needs a row count separate from the row payload.
+
+```yaml
+response:
+  status: 200
+  body:
+    data:
+      type: array
+      items: Equipment
+    total:
+      type: integer
+example_response:
+  data:
+    - { field: "value" }
+  total: 1
+```
+
+### Bare array
+
+Use when the endpoint returns the full collection as a top-level JSON array, with no envelope. The frontend type is `Row[]` directly. See `sem-list.yaml` for a live example.
+
+```yaml
+response:
+  status: 200
+  body:
+    type: array
+    items: SemListRow
+example_response:
+  - { field: "value" }
+  - { field: "value" }
+```
+
+The wire shape is the source of truth — if a Flask handler does `jsonify(rows)`, document it as a bare array, not as an envelope.
 
 ## How Flask Should Read These
 

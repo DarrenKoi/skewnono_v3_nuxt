@@ -1,25 +1,20 @@
 <script setup lang="ts">
-import type { Fab } from '~/stores/navigation'
-
 const route = useRoute()
-const { setToolType, setFab } = useNavigation()
-const { fabs } = useToolData()
+const { setToolType, setFab, addRecent } = useNavigation()
 
-const fabId = computed<Fab>(() => (route.params.fab as string).toUpperCase() as Fab)
+const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
 
-const fabConfig = computed(() => {
-  return fabs.find(f => f.id === fabId.value) || { id: fabId.value, label: fabId.value }
-})
+const applyFab = (next: string) => {
+  if (!next) return
+  setFab(next)
+  addRecent(next)
+}
 
-onMounted(() => {
-  setToolType('provision')
-  setFab(fabId.value as Fab)
-})
+setToolType('provision')
+applyFab(fabId.value)
 
 watch(() => route.params.fab, (newFab) => {
-  if (newFab) {
-    setFab((newFab as string).toUpperCase() as Fab)
-  }
+  applyFab(String(newFab ?? '').toUpperCase())
 })
 </script>
 
@@ -27,7 +22,7 @@ watch(() => route.params.fab, (newFab) => {
   <EbeamToolInventoryView
     tool-type="provision"
     :fab="fabId"
-    :title="`Provision - ${fabConfig.label}`"
+    :title="`Provision - ${fabId}`"
     subtitle="Mocked backend inventory filtered by fab."
   />
 </template>
