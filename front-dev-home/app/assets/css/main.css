@@ -79,31 +79,56 @@
   --color-zinc-950: #09090B;
 }
 
+/* F · Paper · tinted cards — warm cream page + cards one shade lighter (still warm).
+   Page and surface share the same hue (80°, cream); cards aren't pure white, so the
+   whole UI reads as one warm material instead of "white islands floating on gray." */
 :root {
-  --sk-canvas: #ececef;
-  --sk-surface: #ffffff;
-  --sk-border: #e4e4e7;
+  --sk-canvas: oklch(0.96 0.012 80);
+  --sk-surface: oklch(0.99 0.006 80);
+  --sk-muted-surface: oklch(0.97 0.01 80);
+  --sk-border: oklch(0.91 0.014 80);
+  --sk-border-soft: oklch(0.94 0.01 80);
+  --sk-nav-bg: oklch(0.97 0.01 80 / 0.82);
+  --sk-nav-border: oklch(0.90 0.014 80);
+  --sk-ink: oklch(0.22 0.012 60);
+  --sk-ink-muted: oklch(0.47 0.014 60);
+  --sk-ink-subtle: oklch(0.66 0.012 70);
+  --sk-chip-bg: oklch(0.95 0.014 80);
+  --sk-chip-text: oklch(0.45 0.014 60);
   --sk-on-bg: #d9f5e8;
   --sk-on-fg: #0f5132;
-  --sk-off-bg: #f1f1f4;
-  --sk-off-fg: #52525b;
-  /* Crimson accent — matches the favicon slash (#c8321f). Used as trim only. */
-  --sk-accent: #c8321f;
-  --sk-accent-border: rgba(200, 50, 31, 0.22);
-  --sk-accent-tint: rgba(200, 50, 31, 0.08);
+  --sk-off-bg: oklch(0.95 0.014 80);
+  --sk-off-fg: oklch(0.45 0.014 60);
+  /* Warm crimson accent — same identity as the favicon slash, retoned to sit on cream. */
+  --sk-accent: oklch(0.58 0.13 35);
+  --sk-accent-soft: oklch(0.95 0.025 60);
+  --sk-accent-border: oklch(0.58 0.13 35 / 0.22);
+  --sk-accent-tint: oklch(0.58 0.13 35 / 0.06);
 }
 
+/* Dark mode keeps the tinted-card pattern: surface is one step lighter than canvas,
+   sharing the same warm hue, so the "one material" feel survives the inversion. */
 .dark {
-  --sk-canvas: #09090b;
-  --sk-surface: #18181b;
-  --sk-border: #27272a;
+  --sk-canvas: oklch(0.16 0.008 70);
+  --sk-surface: oklch(0.20 0.008 70);
+  --sk-muted-surface: oklch(0.22 0.008 70);
+  --sk-border: oklch(0.27 0.010 70);
+  --sk-border-soft: oklch(0.24 0.010 70);
+  --sk-nav-bg: oklch(0.18 0.008 70 / 0.82);
+  --sk-nav-border: oklch(0.27 0.010 70);
+  --sk-ink: oklch(0.96 0.008 80);
+  --sk-ink-muted: oklch(0.74 0.010 70);
+  --sk-ink-subtle: oklch(0.58 0.010 70);
+  --sk-chip-bg: oklch(0.24 0.010 70);
+  --sk-chip-text: oklch(0.74 0.010 70);
   --sk-on-bg: #052e16;
   --sk-on-fg: #bbf7d0;
-  --sk-off-bg: #27272a;
-  --sk-off-fg: #d4d4d8;
-  --sk-accent: #e0553f;
-  --sk-accent-border: rgba(224, 85, 63, 0.28);
-  --sk-accent-tint: rgba(224, 85, 63, 0.12);
+  --sk-off-bg: oklch(0.24 0.010 70);
+  --sk-off-fg: oklch(0.80 0.010 70);
+  --sk-accent: oklch(0.66 0.14 35);
+  --sk-accent-soft: oklch(0.30 0.040 35);
+  --sk-accent-border: oklch(0.66 0.14 35 / 0.28);
+  --sk-accent-tint: oklch(0.66 0.14 35 / 0.10);
 }
 
 html,
@@ -120,30 +145,36 @@ body {
   background: var(--sk-canvas);
 }
 
+/* Warm radial wash from the top-right — the page subtly absorbs the brand accent
+   at 5% opacity, so the logo's crimson no longer sits orphaned against dead gray. */
 .dashboard-bg-layer {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(900px 480px at 80% -20%, rgba(24, 24, 27, 0.06), transparent 55%);
+  background: radial-gradient(1000px 480px at 100% -10%, oklch(0.58 0.13 35 / 0.05), transparent 60%);
 }
 
 .dark .dashboard-bg-layer {
-  background: radial-gradient(900px 480px at 80% -20%, rgba(250, 250, 250, 0.04), transparent 55%);
+  background: radial-gradient(1000px 480px at 100% -10%, oklch(0.66 0.14 35 / 0.07), transparent 60%);
 }
 
+/* Tinted card: warm border (not accent-tinted) + soft drop shadow. The ambient
+   shadow uses negative spread (-18px) so it stays loose and diffuse instead of
+   a hard halo, which is what makes the card read as paper rather than plastic. */
 .dashboard-surface {
-  border: 1px solid var(--sk-accent-border);
+  border: 1px solid var(--sk-border);
   background: var(--sk-surface);
   box-shadow:
-    0 1px 0 rgba(9, 9, 11, 0.03),
-    inset 0 0 0 1px var(--sk-accent-tint);
+    0 1px 0 rgba(0, 0, 0, 0.02),
+    0 8px 22px -18px rgba(0, 0, 0, 0.18);
 }
 
 .dark .dashboard-surface {
+  border-color: var(--sk-border);
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px var(--sk-accent-tint);
+    0 8px 22px -18px rgba(0, 0, 0, 0.55);
 }
 
 /* Crimson trim on active pill-style nav items. Sits inside the dark pill
