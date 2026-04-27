@@ -445,11 +445,6 @@ const ctaLabel = computed(() => {
   return text.ctaMulti.replace('{count}', String(selectedDeviceLots.value.length))
 })
 
-const deviceFabSelectItems = computed(() => deviceFabOptions.map(option => ({
-  label: option.label,
-  value: option.value
-})))
-
 const resetAllFilters = () => {
   selectedFab.value = routeFab.value
   selectedProdCategories.value = []
@@ -650,15 +645,26 @@ onMounted(() => {
           </h1>
         </div>
         <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
-        <USelect
-          v-model="selectedFab"
-          class="w-[6.5rem]"
-          size="sm"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-map-pin"
-          :items="deviceFabSelectItems"
-        />
+        <div
+          role="radiogroup"
+          aria-label="Fab"
+          class="flex flex-wrap items-center gap-1 self-end mb-1.5"
+        >
+          <button
+            v-for="option in deviceFabOptions"
+            :key="option.value"
+            type="button"
+            role="radio"
+            :aria-checked="selectedFab === option.value"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="selectedFab === option.value
+              ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
+              : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+            @click="selectedFab = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
 
       <div class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto">
