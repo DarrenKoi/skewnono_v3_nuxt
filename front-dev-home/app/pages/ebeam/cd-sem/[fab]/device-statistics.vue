@@ -18,30 +18,37 @@ type DeviceFab = 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
 
 const text = {
   title: '\ub514\ubc14\uc774\uc2a4 \ud1b5\uacc4',
-  fabSelect: 'Fab \uc120\ud0dd',
-  currentFab: '\ud604\uc7ac Fab',
-  rFilter: '\uc5f0\uad6c\uc18c \ub514\ubc14\uc774\uc2a4 \ud544\ud130',
-  mFilter: '\uc81c\uc870 \ub514\ubc14\uc774\uc2a4 \ud544\ud130',
+  fabSelect: 'Fab',
   reset: '\ucd08\uae30\ud654',
-  categorySearch: '\uce74\ud14c\uace0\ub9ac \uac80\uc0c9',
-  lotSearch: 'Lot \uac80\uc0c9',
-  noLots: '\uc120\ud0dd \uac00\ub2a5\ud55c Lot\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.',
+  lotSearch: 'Lot \uac80\uc0c9 (\uc608: R0A2)',
   techSearch: 'Tech \uac80\uc0c9',
-  deviceList: '\ub514\ubc14\uc774\uc2a4 \ubaa9\ub85d',
   csvDownload: 'CSV \ub2e4\uc6b4\ub85c\ub4dc',
   resetAll: '\uc804\uccb4 \ucd08\uae30\ud654',
-  selectAll: '\uc804\uccb4 \uc120\ud0dd',
-  clearAll: '\uc120\ud0dd \ud574\uc81c',
+  clearAll: '\uc804\uccb4 \ud574\uc81c',
   tableSearch: '\ud14c\uc774\ube14 \uac80\uc0c9',
   allRows: '\uc804\uccb4',
   filteredRows: '\ud45c\uc2dc',
   activeFilters: '\ud544\ud130',
-  moreOptionsSuffix: '\uac1c \ub354 \uc788\uc2b5\ub2c8\ub2e4. \uac80\uc0c9\uc73c\ub85c \uc881\ud600 \ubcf4\uc138\uc694.',
   loading: '\ub85c\ub529 \uc911',
   loadError: '\ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.',
   emptyRows: '\uc870\uac74\uc5d0 \ub9de\ub294 \ub514\ubc14\uc774\uc2a4\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.',
   prev: '\uc774\uc804',
-  next: '\ub2e4\uc74c'
+  next: '\ub2e4\uc74c',
+  step1Title: '\ube60\ub978 \ud544\ud130',
+  step1HintR: '\uce74\ud14c\uace0\ub9ac / Lot\uc73c\ub85c \uc881\ud788\uae30',
+  step1HintM: 'Tech\ub85c \uc881\ud788\uae30',
+  step2Title: '\ub514\ubc14\uc774\uc2a4 \uc120\ud0dd',
+  step2Hint: '\uccb4\ud06c\ubc15\uc2a4\ub85c \uc5ec\ub7ec \uac1c \uc120\ud0dd',
+  step3Title: '\ube44\uad50 + \uc774\ub3d9',
+  step3Hint: '\uc120\ud0dd\ub41c \ub514\ubc14\uc774\uc2a4',
+  emptySelectionTitle: '\ub514\ubc14\uc774\uc2a4 \ube44\uad50 \uc2dc\uc791\ud558\uae30',
+  emptySelectionDescLineOne: '\uc67c\ucabd \ud14c\uc774\ube14\uc5d0\uc11c',
+  emptySelectionDescLineTwo: '2\uac1c \uc774\uc0c1 \uc120\ud0dd\ud574 \ubcf4\uc138\uc694',
+  ctaEmpty: '\ub514\ubc14\uc774\uc2a4\ub97c \uc120\ud0dd\ud558\uc138\uc694',
+  ctaSingle: '\ub514\ubc14\uc774\uc2a4 \ud1b5\uacc4 \ubcf4\uae30',
+  ctaMulti: '{count}\uac1c \ube44\uad50 \ud398\uc774\uc9c0\ub85c',
+  toastTitle: '\uac1c \ub514\ubc14\uc774\uc2a4 \uc120\ud0dd\ub428',
+  overflowSuffix: '\uc678 {count}\uac1c'
 } as const
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
@@ -73,7 +80,11 @@ const SELECTED_FAB_STORAGE_KEY = 'skewnono:deviceStatistics.selectedFab'
 const SELECTED_PROD_CATEGORIES_STORAGE_KEY = 'skewnono:deviceStatistics.selectedProdCategories'
 const SELECTED_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedLots'
 const SELECTED_TECHS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedTechs'
-const MAX_VISIBLE_LOT_OPTIONS = 160
+const SELECTED_DEVICE_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedDeviceLots'
+// Step 1 keeps the lot/tech chip strips compact: surface a small budget of unselected options,
+// always paired with any currently-selected ones so they remain togglable from the strip.
+const STEP1_LOT_CHIP_BUDGET = 24
+const STEP1_TECH_CHIP_BUDGET = 24
 
 const readSavedFab = (): DeviceFab | null => {
   if (typeof window === 'undefined') return null
@@ -101,7 +112,8 @@ const selectedFab = ref<DeviceFab>(readSavedFab() ?? routeFab.value)
 const selectedProdCategories = ref<string[]>(readSavedStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY))
 const selectedLots = ref<string[]>(readSavedStringArray(SELECTED_LOTS_STORAGE_KEY))
 const selectedTechs = ref<string[]>(readSavedStringArray(SELECTED_TECHS_STORAGE_KEY))
-const prodCategorySearch = ref('')
+// Step 3 cart selection — independent from the Step 1 lot/tech filters.
+const selectedDeviceLots = ref<string[]>(readSavedStringArray(SELECTED_DEVICE_LOTS_STORAGE_KEY))
 const lotSearch = ref('')
 const techSearch = ref('')
 const tableSearch = ref('')
@@ -163,10 +175,7 @@ const r3RowsAfterCategory = computed(() => {
 
 const lotOptions = computed(() => uniqueSorted(r3RowsAfterCategory.value.map(row => row.lot_cd)))
 const techOptions = computed(() => uniqueSorted(mRows.value.map(row => row.tech_nm)))
-const visibleProdCategoryOptions = computed(() => filterOptions(prodCategoryOptions.value, prodCategorySearch.value))
 const searchedLotOptions = computed(() => filterOptions(lotOptions.value, lotSearch.value))
-const visibleLotOptions = computed(() => searchedLotOptions.value.slice(0, MAX_VISIBLE_LOT_OPTIONS))
-const visibleLotOverflowCount = computed(() => Math.max(0, searchedLotOptions.value.length - visibleLotOptions.value.length))
 const visibleTechOptions = computed(() => filterOptions(techOptions.value, techSearch.value))
 
 const selectedProdCategorySet = computed(() => new Set(selectedProdCategories.value))
@@ -262,11 +271,20 @@ const deviceDescColumnMetadata = [
 const columns = computed<TableColumn<DeviceRow>[]>(() => {
   const meta = hasRSelection.value ? r3ColumnMetadata : deviceDescColumnMetadata
 
-  return meta.map(column => ({
-    accessorKey: column.key as string,
-    header: column.label,
-    size: column.size
-  }))
+  return [
+    {
+      id: 'select',
+      header: '',
+      size: 40,
+      enableSorting: false,
+      enableHiding: false
+    },
+    ...meta.map(column => ({
+      accessorKey: column.key as string,
+      header: column.label,
+      size: column.size
+    }))
+  ]
 })
 
 const tableMeta = {
@@ -283,10 +301,6 @@ const toggleValue = (values: string[], value: string) => {
     : [...values, value]
 }
 
-const toggleFab = (fab: DeviceFab) => {
-  selectedFab.value = fab
-}
-
 const toggleProdCategory = (category: string) => {
   selectedProdCategories.value = toggleValue(selectedProdCategories.value, category)
 }
@@ -299,53 +313,150 @@ const toggleTech = (tech: string) => {
   selectedTechs.value = toggleValue(selectedTechs.value, tech)
 }
 
-const allProdCategoriesSelected = computed(() => {
-  return prodCategoryOptions.value.length > 0
-    && selectedProdCategories.value.length === prodCategoryOptions.value.length
+const selectedDeviceLotSet = computed(() => new Set(selectedDeviceLots.value))
+const isDeviceSelected = (lot: string) => selectedDeviceLotSet.value.has(lot)
+
+const toggleDeviceSelect = (lot: string) => {
+  selectedDeviceLots.value = toggleValue(selectedDeviceLots.value, lot)
+}
+
+const clearDeviceSelection = () => {
+  selectedDeviceLots.value = []
+}
+
+// Preserve selection order so the Step 3 cart shows lots in the order the user added them.
+const filteredRowMap = computed(() => {
+  const map = new Map<string, DeviceRow>()
+
+  for (const row of filteredRows.value) {
+    map.set(row.lot_cd, row)
+  }
+
+  return map
 })
 
-const allLotsSelected = computed(() => {
-  return lotOptions.value.length > 0
-    && selectedLots.value.length === lotOptions.value.length
+const sortedRowMap = computed(() => {
+  const map = new Map<string, DeviceRow>()
+
+  for (const row of sortedRows.value) {
+    map.set(row.lot_cd, row)
+  }
+
+  return map
 })
 
-const allTechsSelected = computed(() => {
-  return techOptions.value.length > 0
-    && selectedTechs.value.length === techOptions.value.length
+const selectedDeviceRows = computed<DeviceRow[]>(() => {
+  return selectedDeviceLots.value
+    .map(lot => sortedRowMap.value.get(lot) ?? filteredRowMap.value.get(lot))
+    .filter((row): row is DeviceRow => Boolean(row))
 })
 
-const toggleAllProdCategories = () => {
-  selectedProdCategories.value = allProdCategoriesSelected.value ? [] : [...prodCategoryOptions.value]
+const allOnPageSelected = computed(() => {
+  return pagedRows.value.length > 0
+    && pagedRows.value.every(row => selectedDeviceLotSet.value.has(row.lot_cd))
+})
+
+const togglePageSelection = () => {
+  if (allOnPageSelected.value) {
+    const onPage = new Set(pagedRows.value.map(row => row.lot_cd))
+    selectedDeviceLots.value = selectedDeviceLots.value.filter(lot => !onPage.has(lot))
+    return
+  }
+
+  const next = [...selectedDeviceLots.value]
+
+  for (const row of pagedRows.value) {
+    if (!selectedDeviceLotSet.value.has(row.lot_cd)) {
+      next.push(row.lot_cd)
+    }
+  }
+
+  selectedDeviceLots.value = next
 }
 
-const toggleAllLots = () => {
-  selectedLots.value = allLotsSelected.value ? [] : [...lotOptions.value]
+const stepOneLotChips = computed<string[]>(() => {
+  const selectedSet = selectedLotSet.value
+  const selectedFromOptions = lotOptions.value.filter(lot => selectedSet.has(lot))
+  const remainingBudget = Math.max(0, STEP1_LOT_CHIP_BUDGET - selectedFromOptions.length)
+  const matchedUnselected = searchedLotOptions.value.filter(lot => !selectedSet.has(lot))
+
+  return [...selectedFromOptions, ...matchedUnselected.slice(0, remainingBudget)]
+})
+
+const stepOneLotOverflowCount = computed(() => {
+  const selectedSet = selectedLotSet.value
+  const matchedUnselected = searchedLotOptions.value.filter(lot => !selectedSet.has(lot))
+  const selectedFromOptions = lotOptions.value.filter(lot => selectedSet.has(lot))
+  const remainingBudget = Math.max(0, STEP1_LOT_CHIP_BUDGET - selectedFromOptions.length)
+
+  return Math.max(0, matchedUnselected.length - remainingBudget)
+})
+
+const stepOneTechChips = computed<string[]>(() => {
+  const selectedSet = selectedTechSet.value
+  const selectedFromOptions = techOptions.value.filter(tech => selectedSet.has(tech))
+  const remainingBudget = Math.max(0, STEP1_TECH_CHIP_BUDGET - selectedFromOptions.length)
+  const matchedUnselected = visibleTechOptions.value.filter(tech => !selectedSet.has(tech))
+
+  return [...selectedFromOptions, ...matchedUnselected.slice(0, remainingBudget)]
+})
+
+const stepOneTechOverflowCount = computed(() => {
+  const selectedSet = selectedTechSet.value
+  const matchedUnselected = visibleTechOptions.value.filter(tech => !selectedSet.has(tech))
+  const selectedFromOptions = techOptions.value.filter(tech => selectedSet.has(tech))
+  const remainingBudget = Math.max(0, STEP1_TECH_CHIP_BUDGET - selectedFromOptions.length)
+
+  return Math.max(0, matchedUnselected.length - remainingBudget)
+})
+
+const deviceChipLabel = (row: DeviceRow): string => {
+  if ('prod_catg_cd' in row && row.prod_catg_cd) {
+    const tech = (row as R3DeviceGrpRow).tech_cd
+
+    return tech ? `${row.prod_catg_cd} · ${tech}` : row.prod_catg_cd
+  }
+
+  const tech = (row as DeviceDescRow).tech_nm
+
+  return tech ? `${row.fac_id} · ${tech}` : row.fac_id
 }
 
-const toggleAllTechs = () => {
-  selectedTechs.value = allTechsSelected.value ? [] : [...techOptions.value]
+const toast = useToast()
+
+const proceedToStatistics = () => {
+  if (selectedDeviceLots.value.length === 0) return
+
+  const preview = selectedDeviceLots.value.slice(0, 6).join(', ')
+  const overflow = selectedDeviceLots.value.length - 6
+
+  toast.add({
+    title: `${selectedDeviceLots.value.length}개 디바이스 선택됨`,
+    description: overflow > 0 ? `${preview} 외 ${overflow}개` : preview,
+    icon: 'i-lucide-arrow-right',
+    color: 'primary'
+  })
 }
 
-const resetFabToRoute = () => {
-  selectedFab.value = routeFab.value
-}
+const ctaLabel = computed(() => {
+  if (selectedDeviceLots.value.length === 0) return text.ctaEmpty
+  if (selectedDeviceLots.value.length === 1) return text.ctaSingle
 
-const clearRFilters = () => {
-  selectedProdCategories.value = []
-  selectedLots.value = []
-  prodCategorySearch.value = ''
-  lotSearch.value = ''
-}
+  return text.ctaMulti.replace('{count}', String(selectedDeviceLots.value.length))
+})
 
-const clearMFilters = () => {
-  selectedTechs.value = []
-  techSearch.value = ''
-}
+const deviceFabSelectItems = computed(() => deviceFabOptions.map(option => ({
+  label: option.label,
+  value: option.value
+})))
 
 const resetAllFilters = () => {
-  resetFabToRoute()
-  clearRFilters()
-  clearMFilters()
+  selectedFab.value = routeFab.value
+  selectedProdCategories.value = []
+  selectedLots.value = []
+  selectedTechs.value = []
+  lotSearch.value = ''
+  techSearch.value = ''
   tableSearch.value = ''
   currentPage.value = 1
 }
@@ -355,7 +466,6 @@ const hasActiveFilters = computed(() => {
     || selectedProdCategories.value.length > 0
     || selectedLots.value.length > 0
     || selectedTechs.value.length > 0
-    || prodCategorySearch.value.length > 0
     || lotSearch.value.length > 0
     || techSearch.value.length > 0
     || tableSearch.value.length > 0
@@ -409,6 +519,32 @@ watch(selectedLots, (next) => {
 
 watch(selectedTechs, (next) => {
   persistStringArray(SELECTED_TECHS_STORAGE_KEY, next)
+})
+
+watch(selectedDeviceLots, (next) => {
+  persistStringArray(SELECTED_DEVICE_LOTS_STORAGE_KEY, next)
+})
+
+// Clear the Step 3 cart whenever the user actively switches fab — devices belong to a single
+// fab in this UI, so carrying selections across fabs would be confusing. Initial-load mismatches
+// are pruned by the watcher on `pending`/`sortedRows` below.
+watch(selectedFab, () => {
+  selectedDeviceLots.value = []
+})
+
+watch([sortedRows, pending], ([nextSortedRows, nextPending]) => {
+  if (nextPending) return
+  if (selectedDeviceLots.value.length === 0) return
+
+  const validLots = new Set(nextSortedRows.map(row => row.lot_cd))
+
+  if (validLots.size === 0) return
+
+  const pruned = selectedDeviceLots.value.filter(lot => validLots.has(lot))
+
+  if (pruned.length !== selectedDeviceLots.value.length) {
+    selectedDeviceLots.value = pruned
+  }
 })
 
 const escapeCsvValue = (value: unknown) => {
@@ -502,15 +638,27 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          CD-SEM
-        </p>
-        <h1 class="text-2xl font-bold text-zinc-950 dark:text-zinc-50">
-          {{ text.title }}
-        </h1>
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            CD-SEM
+          </p>
+          <h1 class="text-2xl font-bold whitespace-nowrap text-zinc-950 dark:text-zinc-50">
+            {{ text.title }}
+          </h1>
+        </div>
+        <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
+        <USelect
+          v-model="selectedFab"
+          class="w-[6.5rem]"
+          size="sm"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-map-pin"
+          :items="deviceFabSelectItems"
+        />
       </div>
 
       <div class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto">
@@ -529,340 +677,376 @@ onMounted(() => {
       </div>
     </div>
 
-    <UCard
-      class="dashboard-surface rounded-2xl"
-      :ui="{ header: 'px-4 py-3 sm:px-4', body: 'px-4 py-4 sm:px-4' }"
-    >
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.fabSelect }}
-          </h2>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-map-pin"
-            :label="text.currentFab"
-            @click="resetFabToRoute"
-          />
+    <!-- Step 1 — Quick filter strip -->
+    <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">1</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step1Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ hasRSelection ? text.step1HintR : text.step1HintM }}
+          </span>
         </div>
-      </template>
-
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="fab in deviceFabOptions"
-          :key="fab.value"
-          type="button"
-          class="inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium ring-1 transition-colors"
-          :class="selectedFab === fab.value
-            ? 'bg-zinc-900 text-zinc-50 ring-zinc-900 dark:bg-zinc-50 dark:text-zinc-950 dark:ring-zinc-50'
-            : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
-          @click="toggleFab(fab.value)"
-        >
-          {{ fab.label }}
-        </button>
-      </div>
-    </UCard>
-
-    <UCard
-      class="dashboard-surface rounded-2xl"
-      :ui="{ header: 'px-4 py-3 sm:px-4', body: 'px-4 py-4 sm:px-4' }"
-    >
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ hasRSelection ? text.rFilter : text.mFilter }}
-          </h2>
+        <div class="flex items-center gap-2">
+          <span
+            v-if="hasActiveFilters"
+            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[9.5px] tabular-nums text-(--sk-accent)"
+          >
+            {{ filteredRowCount.toLocaleString() }} / {{ rows.length.toLocaleString() }}
+          </span>
           <UButton
             size="xs"
             color="neutral"
             variant="ghost"
             icon="i-lucide-rotate-ccw"
             :label="text.reset"
-            :disabled="hasRSelection
-              ? (selectedProdCategories.length === 0 && selectedLots.length === 0 && prodCategorySearch.length === 0 && lotSearch.length === 0)
-              : (selectedTechs.length === 0 && techSearch.length === 0)"
-            @click="hasRSelection ? clearRFilters() : clearMFilters()"
+            :disabled="!hasActiveFilters"
+            @click="resetAllFilters"
           />
         </div>
-      </template>
+      </div>
 
       <div
         v-if="hasRSelection"
-        class="grid gap-4 lg:grid-cols-[minmax(11rem,1fr)_minmax(22rem,2.5fr)]"
+        class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
       >
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              prod_catg_cd
-            </p>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-zinc-500 tabular-nums">{{ selectedProdCategories.length }} / {{ prodCategoryOptions.length }}</span>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :icon="allProdCategoriesSelected ? 'i-lucide-square' : 'i-lucide-check-square'"
-                :label="allProdCategoriesSelected ? text.clearAll : text.selectAll"
-                :disabled="prodCategoryOptions.length === 0"
-                @click="toggleAllProdCategories"
-              />
-            </div>
-          </div>
-          <UInput
-            v-model="prodCategorySearch"
-            size="xs"
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-search"
-            :placeholder="text.categorySearch"
-          />
-          <div class="flex flex-wrap gap-1.5">
+        <div class="flex items-start gap-2 min-w-0 xl:col-span-4">
+          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">prod_catg_cd</span>
+          <div class="flex flex-wrap items-center gap-1">
             <button
-              v-for="category in visibleProdCategoryOptions"
+              v-for="category in prodCategoryOptions"
               :key="category"
               type="button"
-              class="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium ring-1 transition-colors"
+              class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
               :class="isProdCategorySelected(category)
-                ? 'bg-emerald-600 text-white ring-emerald-600 dark:bg-emerald-400 dark:text-emerald-950 dark:ring-emerald-400'
+                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
                 : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
               @click="toggleProdCategory(category)"
             >
-              <UIcon
-                :name="isProdCategorySelected(category) ? 'i-lucide-check' : 'i-lucide-plus'"
-                class="h-3.5 w-3.5"
-              />
               {{ category }}
             </button>
           </div>
         </div>
 
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              lot_cd
-            </p>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-zinc-500 tabular-nums">{{ selectedLots.length }} / {{ lotOptions.length }}</span>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :icon="allLotsSelected ? 'i-lucide-square' : 'i-lucide-check-square'"
-                :label="allLotsSelected ? text.clearAll : text.selectAll"
-                :disabled="lotOptions.length === 0"
-                @click="toggleAllLots"
-              />
-            </div>
-          </div>
+        <div class="flex items-start gap-2 min-w-0 xl:col-span-8">
+          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">lot_cd</span>
           <UInput
             v-model="lotSearch"
+            class="w-44 shrink-0"
             size="xs"
             color="neutral"
             variant="subtle"
             icon="i-lucide-search"
             :placeholder="text.lotSearch"
           />
-          <div class="max-h-48 overflow-y-auto rounded-lg border border-zinc-200/80 bg-white/70 p-2 dark:border-zinc-800 dark:bg-zinc-950/30">
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="lot in visibleLotOptions"
-                :key="lot"
-                type="button"
-                class="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium ring-1 transition-colors"
-                :class="isLotSelected(lot)
-                  ? 'bg-sky-600 text-white ring-sky-600 dark:bg-sky-400 dark:text-sky-950 dark:ring-sky-400'
-                  : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
-                @click="toggleLot(lot)"
-              >
-                <UIcon
-                  :name="isLotSelected(lot) ? 'i-lucide-check' : 'i-lucide-plus'"
-                  class="h-3.5 w-3.5"
-                />
-                {{ lot }}
-              </button>
-            </div>
-            <p
-              v-if="visibleLotOverflowCount > 0"
-              class="px-2 pt-2 text-xs text-zinc-500"
+          <div class="flex flex-wrap items-center gap-1 min-w-0">
+            <button
+              v-for="lot in stepOneLotChips"
+              :key="lot"
+              type="button"
+              class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
+              :class="isLotSelected(lot)
+                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
+                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+              @click="toggleLot(lot)"
             >
-              +{{ visibleLotOverflowCount }}{{ text.moreOptionsSuffix }}
-            </p>
-            <p
-              v-if="visibleLotOptions.length === 0"
-              class="px-2 py-4 text-center text-sm text-zinc-500"
+              {{ lot }}
+            </button>
+            <span
+              v-if="stepOneLotOverflowCount > 0"
+              class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
             >
-              {{ text.noLots }}
-            </p>
+              +{{ stepOneLotOverflowCount }}
+            </span>
           </div>
         </div>
       </div>
 
       <div
         v-else
-        class="space-y-2"
+        class="flex items-start gap-2 min-w-0"
       >
-        <div class="flex items-center justify-between gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            tech_nm
-          </p>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-zinc-500 tabular-nums">{{ selectedTechs.length }} / {{ techOptions.length }}</span>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :icon="allTechsSelected ? 'i-lucide-square' : 'i-lucide-check-square'"
-              :label="allTechsSelected ? text.clearAll : text.selectAll"
-              :disabled="techOptions.length === 0"
-              @click="toggleAllTechs"
-            />
-          </div>
-        </div>
+        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">tech_nm</span>
         <UInput
           v-model="techSearch"
-          class="max-w-sm"
+          class="w-44 shrink-0"
           size="xs"
           color="neutral"
           variant="subtle"
           icon="i-lucide-search"
           :placeholder="text.techSearch"
         />
-        <div class="flex flex-wrap gap-1.5">
+        <div class="flex flex-wrap items-center gap-1 min-w-0">
           <button
-            v-for="tech in visibleTechOptions"
+            v-for="tech in stepOneTechChips"
             :key="tech"
             type="button"
-            class="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium ring-1 transition-colors"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
             :class="isTechSelected(tech)
-              ? 'bg-violet-600 text-white ring-violet-600 dark:bg-violet-400 dark:text-violet-950 dark:ring-violet-400'
+              ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
               : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
             @click="toggleTech(tech)"
           >
-            <UIcon
-              :name="isTechSelected(tech) ? 'i-lucide-check' : 'i-lucide-plus'"
-              class="h-3.5 w-3.5"
-            />
             {{ tech }}
           </button>
-        </div>
-      </div>
-    </UCard>
-
-    <UCard
-      class="dashboard-surface rounded-2xl"
-      :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
-    >
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {{ text.deviceList }}
-            </h2>
-            <p class="text-xs text-zinc-500 tabular-nums">
-              {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
-            </p>
-          </div>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-rotate-ccw"
-            :label="text.resetAll"
-            :disabled="!hasActiveFilters"
-            @click="resetAllFilters"
-          />
-        </div>
-      </template>
-
-      <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
-        <UInput
-          v-model="tableSearch"
-          class="min-w-[14rem] flex-1"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          icon="i-lucide-search"
-          :placeholder="text.tableSearch"
-        />
-        <USelect
-          v-model="pageSize"
-          class="w-[7rem]"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          :items="pageSizeOptions"
-        />
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-download"
-          :label="text.csvDownload"
-          :disabled="filteredRowCount === 0"
-          @click="downloadDeviceListCsv"
-        />
-      </div>
-
-      <div
-        v-if="pending"
-        class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
-      >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="h-4 w-4 animate-spin"
-        />
-        {{ text.loading }}
-      </div>
-      <div
-        v-else-if="error"
-        class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
-      >
-        {{ text.loadError }}
-      </div>
-      <UTable
-        v-else
-        class="max-h-[34rem] font-mono-ids"
-        :columns="columns"
-        :data="pagedRows"
-        :empty="text.emptyRows"
-        :meta="tableMeta"
-        sticky="header"
-      >
-        <template #ctn_desc-cell="{ row }">
-          <span class="block max-w-[28rem] truncate text-zinc-600 dark:text-zinc-300">
-            {{ row.original.ctn_desc }}
+          <span
+            v-if="stepOneTechOverflowCount > 0"
+            class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+          >
+            +{{ stepOneTechOverflowCount }}
           </span>
-        </template>
-      </UTable>
-
-      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
-        <p class="text-xs text-zinc-500 tabular-nums">
-          Page {{ currentPage }} / {{ pageCount }}
-        </p>
-        <div class="flex gap-2">
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-chevron-left"
-            :label="text.prev"
-            :disabled="currentPage <= 1"
-            @click="currentPage -= 1"
-          />
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="outline"
-            trailing-icon="i-lucide-chevron-right"
-            :label="text.next"
-            :disabled="currentPage >= pageCount"
-            @click="currentPage += 1"
-          />
         </div>
       </div>
-    </UCard>
+    </div>
+
+    <!-- Step 2 (table) + Step 3 (cart) -->
+    <div class="grid grid-cols-12 gap-3">
+      <div class="col-span-12 space-y-2 lg:col-span-8">
+        <div class="flex items-center gap-2 px-1">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">2</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step2Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ text.step2Hint }}
+          </span>
+        </div>
+
+        <UCard
+          class="dashboard-surface rounded-2xl"
+          :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
+        >
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <p class="text-xs text-zinc-500 tabular-nums">
+                {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
+              </p>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-rotate-ccw"
+                :label="text.resetAll"
+                :disabled="!hasActiveFilters"
+                @click="resetAllFilters"
+              />
+            </div>
+          </template>
+
+          <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
+            <UInput
+              v-model="tableSearch"
+              class="min-w-[14rem] flex-1"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-search"
+              :placeholder="text.tableSearch"
+            />
+            <USelect
+              v-model="pageSize"
+              class="w-[7rem]"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              :items="pageSizeOptions"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              :label="text.csvDownload"
+              :disabled="filteredRowCount === 0"
+              @click="downloadDeviceListCsv"
+            />
+          </div>
+
+          <div
+            v-if="pending"
+            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="h-4 w-4 animate-spin"
+            />
+            {{ text.loading }}
+          </div>
+          <div
+            v-else-if="error"
+            class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
+          >
+            {{ text.loadError }}
+          </div>
+          <UTable
+            v-else
+            class="max-h-[34rem] font-mono-ids"
+            :columns="columns"
+            :data="pagedRows"
+            :empty="text.emptyRows"
+            :meta="tableMeta"
+            sticky="header"
+          >
+            <template #select-header>
+              <input
+                type="checkbox"
+                :checked="allOnPageSelected"
+                :aria-label="text.step2Hint"
+                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                @change="togglePageSelection"
+              >
+            </template>
+            <template #select-cell="{ row }">
+              <input
+                type="checkbox"
+                :checked="isDeviceSelected(row.original.lot_cd)"
+                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                @click.stop
+                @change="toggleDeviceSelect(row.original.lot_cd)"
+              >
+            </template>
+            <template #ctn_desc-cell="{ row }">
+              <span class="block max-w-[28rem] truncate text-zinc-600 dark:text-zinc-300">
+                {{ row.original.ctn_desc }}
+              </span>
+            </template>
+          </UTable>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
+            <p class="text-xs text-zinc-500 tabular-nums">
+              Page {{ currentPage }} / {{ pageCount }}
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-chevron-left"
+                :label="text.prev"
+                :disabled="currentPage <= 1"
+                @click="currentPage -= 1"
+              />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                trailing-icon="i-lucide-chevron-right"
+                :label="text.next"
+                :disabled="currentPage >= pageCount"
+                @click="currentPage += 1"
+              />
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div class="col-span-12 space-y-2 lg:col-span-4">
+        <div class="flex items-center gap-2 px-1">
+          <span
+            class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold transition-colors"
+            :class="selectedDeviceLots.length > 0
+              ? 'bg-(--sk-accent) text-white'
+              : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'"
+          >3</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step3Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ text.step3Hint }}
+          </span>
+          <span
+            v-if="selectedDeviceLots.length > 0"
+            class="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-(--sk-accent) px-1 font-mono text-[10px] font-semibold tabular-nums text-white"
+          >
+            {{ selectedDeviceLots.length }}
+          </span>
+        </div>
+
+        <UCard
+          class="dashboard-surface sticky top-2 overflow-hidden rounded-2xl"
+          :ui="{ body: 'p-0 sm:p-0' }"
+        >
+          <div class="max-h-[28rem] overflow-y-auto">
+            <div
+              v-if="selectedDeviceRows.length === 0"
+              class="px-4 py-10 text-center"
+            >
+              <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800">
+                <UIcon
+                  name="i-lucide-plus"
+                  class="h-4 w-4"
+                />
+              </div>
+              <p class="text-[11.5px] font-medium leading-snug text-zinc-600 dark:text-zinc-300">
+                {{ text.emptySelectionTitle }}
+              </p>
+              <p class="mt-1 text-[10.5px] leading-snug text-zinc-400 dark:text-zinc-500">
+                {{ text.emptySelectionDescLineOne }}<br>{{ text.emptySelectionDescLineTwo }}
+              </p>
+            </div>
+            <div
+              v-else
+              class="divide-y divide-zinc-100 dark:divide-zinc-800"
+            >
+              <div
+                v-for="(row, index) in selectedDeviceRows"
+                :key="row.lot_cd"
+                class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+              >
+                <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  {{ index + 1 }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ row.lot_cd }}</span>
+                    <span class="text-[9.5px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      {{ deviceChipLabel(row) }}
+                    </span>
+                  </div>
+                  <p class="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                    {{ row.ctn_desc }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  :aria-label="text.clearAll"
+                  @click="toggleDeviceSelect(row.lot_cd)"
+                >
+                  <UIcon
+                    name="i-lucide-x"
+                    class="h-3 w-3"
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2 border-t border-zinc-100 bg-zinc-50/40 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/30">
+            <UButton
+              block
+              size="md"
+              color="primary"
+              :disabled="selectedDeviceLots.length === 0"
+              :trailing-icon="selectedDeviceLots.length > 0 ? 'i-lucide-arrow-right' : undefined"
+              @click="proceedToStatistics"
+            >
+              {{ ctaLabel }}
+            </UButton>
+            <button
+              v-if="selectedDeviceLots.length > 0"
+              type="button"
+              class="block w-full text-center text-[10.5px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+              @click="clearDeviceSelection"
+            >
+              {{ text.clearAll }}
+            </button>
+          </div>
+        </UCard>
+      </div>
+    </div>
   </div>
 </template>
 

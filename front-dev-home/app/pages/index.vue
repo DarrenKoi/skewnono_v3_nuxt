@@ -37,15 +37,17 @@ const todayLabel = useState('hub-today-label', () => new Intl.DateTimeFormat('ko
 }).format(new Date()))
 
 const systemStatus = computed(() => {
-  return ebeamTools.value.map((tool) => {
-    const rows = rowsByToolType.value.get(tool.id) ?? []
+  return ebeamTools.value
+    .filter(tool => tool.enabled)
+    .map((tool) => {
+      const rows = rowsByToolType.value.get(tool.id) ?? []
 
-    return {
-      ...tool,
-      online: rows.filter(row => row.available === 'On').length,
-      total: rows.length
-    }
-  })
+      return {
+        ...tool,
+        online: rows.filter(row => row.available === 'On').length,
+        total: rows.length
+      }
+    })
 })
 </script>
 
@@ -90,27 +92,51 @@ const systemStatus = computed(() => {
         </div>
 
         <nav class="space-y-2">
-          <NuxtLink
+          <template
             v-for="tool in ebeamTools"
             :key="tool.id"
-            :to="toolTypeHref(tool.id)"
-            class="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors group"
           >
-            <span class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-arrow-right"
-                class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
-              />
-              <span class="font-medium">
-                {{ tool.label }}
+            <NuxtLink
+              v-if="tool.enabled"
+              :to="toolTypeHref(tool.id)"
+              class="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors group"
+            >
+              <span class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-arrow-right"
+                  class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
+                />
+                <span class="font-medium">
+                  {{ tool.label }}
+                </span>
               </span>
-            </span>
-            <UBadge
-              :label="String(tool.count)"
-              color="neutral"
-              variant="subtle"
-            />
-          </NuxtLink>
+              <UBadge
+                :label="String(tool.count)"
+                color="neutral"
+                variant="subtle"
+              />
+            </NuxtLink>
+            <div
+              v-else
+              :aria-disabled="true"
+              class="flex items-center justify-between p-3 rounded-xl text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+            >
+              <span class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-construction"
+                  class="w-4 h-4"
+                />
+                <span class="font-medium">
+                  {{ tool.label }}
+                </span>
+              </span>
+              <UBadge
+                label="개발 예정"
+                color="warning"
+                variant="subtle"
+              />
+            </div>
+          </template>
         </nav>
       </UCard>
 
@@ -137,7 +163,7 @@ const systemStatus = computed(() => {
             class="w-12 h-12 mb-2 text-zinc-400"
           />
           <span class="text-sm">
-            Coming Soon
+            개발 예정
           </span>
         </div>
       </UCard>
