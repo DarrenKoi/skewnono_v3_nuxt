@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from .data import get_device_desc, get_r3_device_grp
+from back_dev_home.device_statistics.data import get_device_desc, get_r3_device_grp
 
 bp = Blueprint("device_statistics", __name__)
 

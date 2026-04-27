@@ -1,10 +1,10 @@
 from flask import Flask
 from flask_cors import CORS
 
-from ._core import bp as core_bp
-from .device_statistics import bp as device_statistics_bp
-from .sem_list import bp as sem_list_bp
-from .storage import bp as storage_bp
+from back_dev_home._core import bp as core_bp
+from back_dev_home.device_statistics import bp as device_statistics_bp
+from back_dev_home.sem_list import bp as sem_list_bp
+from back_dev_home.storage import bp as storage_bp
 
 
 def create_app() -> Flask:

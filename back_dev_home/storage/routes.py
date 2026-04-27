@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from .data import get_storage
+from back_dev_home.storage.data import get_storage
 
 bp = Blueprint("storage", __name__)
 

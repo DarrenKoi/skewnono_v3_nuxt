@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 
-from .data import get_sem_list
+from back_dev_home.sem_list.data import get_sem_list
 
 bp = Blueprint("sem_list", __name__)
 
