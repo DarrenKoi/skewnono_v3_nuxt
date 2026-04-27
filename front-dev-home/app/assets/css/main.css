@@ -106,29 +106,30 @@
   --sk-accent-tint: oklch(0.58 0.13 35 / 0.06);
 }
 
-/* Dark mode keeps the tinted-card pattern: surface is one step lighter than canvas,
-   sharing the same warm hue, so the "one material" feel survives the inversion. */
+/* Dark · Walnut — paper at night. Page L≈0.21, hue 70°; cards lift one step to
+   L≈0.245 in the same hue family, so the tinted-card pattern survives inversion.
+   Terracotta accent brightens to L≈0.74 so it still pops against the warm dark. */
 .dark {
-  --sk-canvas: oklch(0.16 0.008 70);
-  --sk-surface: oklch(0.20 0.008 70);
-  --sk-muted-surface: oklch(0.22 0.008 70);
-  --sk-border: oklch(0.27 0.010 70);
-  --sk-border-soft: oklch(0.24 0.010 70);
-  --sk-nav-bg: oklch(0.18 0.008 70 / 0.82);
-  --sk-nav-border: oklch(0.27 0.010 70);
-  --sk-ink: oklch(0.96 0.008 80);
-  --sk-ink-muted: oklch(0.74 0.010 70);
-  --sk-ink-subtle: oklch(0.58 0.010 70);
-  --sk-chip-bg: oklch(0.24 0.010 70);
-  --sk-chip-text: oklch(0.74 0.010 70);
+  --sk-canvas: oklch(0.21 0.008 70);
+  --sk-surface: oklch(0.245 0.008 70);
+  --sk-muted-surface: oklch(0.225 0.008 70);
+  --sk-border: oklch(0.295 0.008 70);
+  --sk-border-soft: oklch(0.265 0.008 70);
+  --sk-nav-bg: oklch(0.225 0.008 70 / 0.78);
+  --sk-nav-border: oklch(0.30 0.008 70);
+  --sk-ink: oklch(0.96 0.006 80);
+  --sk-ink-muted: oklch(0.74 0.008 70);
+  --sk-ink-subtle: oklch(0.56 0.008 70);
+  --sk-chip-bg: oklch(0.285 0.008 70);
+  --sk-chip-text: oklch(0.74 0.008 70);
   --sk-on-bg: #052e16;
   --sk-on-fg: #bbf7d0;
-  --sk-off-bg: oklch(0.24 0.010 70);
-  --sk-off-fg: oklch(0.80 0.010 70);
-  --sk-accent: oklch(0.66 0.14 35);
-  --sk-accent-soft: oklch(0.30 0.040 35);
-  --sk-accent-border: oklch(0.66 0.14 35 / 0.28);
-  --sk-accent-tint: oklch(0.66 0.14 35 / 0.10);
+  --sk-off-bg: oklch(0.285 0.008 70);
+  --sk-off-fg: oklch(0.74 0.008 70);
+  --sk-accent: oklch(0.74 0.14 38);
+  --sk-accent-soft: oklch(0.34 0.05 38);
+  --sk-accent-border: oklch(0.74 0.14 38 / 0.32);
+  --sk-accent-tint: oklch(0.74 0.14 38 / 0.10);
 }
 
 html,
@@ -156,7 +157,7 @@ body {
 }
 
 .dark .dashboard-bg-layer {
-  background: radial-gradient(1000px 480px at 100% -10%, oklch(0.66 0.14 35 / 0.07), transparent 60%);
+  background: radial-gradient(1100px 520px at 100% -15%, oklch(0.74 0.14 38 / 0.06), transparent 62%);
 }
 
 /* Tinted card: warm border (not accent-tinted) + soft drop shadow. The ambient
@@ -170,11 +171,13 @@ body {
     0 8px 22px -18px rgba(0, 0, 0, 0.18);
 }
 
+/* Inset top highlight (1px white at 2%) mimics how light catches the upper edge
+   of physical paper — without it, dark cards blur into the page at the top. */
 .dark .dashboard-surface {
   border-color: var(--sk-border);
   box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.35),
-    0 8px 22px -18px rgba(0, 0, 0, 0.55);
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 8px 22px -18px rgba(0, 0, 0, 0.6);
 }
 
 /* Crimson trim on active pill-style nav items. Sits inside the dark pill
