@@ -132,8 +132,8 @@ const systemStatus = computed(() => {
               </span>
               <UBadge
                 label="개발 예정"
-                color="warning"
-                variant="subtle"
+                color="neutral"
+                variant="soft"
               />
             </div>
           </template>
