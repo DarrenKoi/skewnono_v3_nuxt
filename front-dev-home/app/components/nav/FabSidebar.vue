@@ -33,7 +33,7 @@ const fabItems = computed(() => fabNames.value.map(name => ({
 <template>
   <aside
     class="dashboard-surface border-r border-zinc-200/70 dark:border-zinc-800/70 flex flex-col transition-all duration-200 ml-3 md:ml-4 lg:ml-5 mt-4 mb-4 rounded-2xl overflow-hidden shrink-0"
-    :class="sidebarCollapsed ? 'w-16' : 'w-44'"
+    :class="sidebarCollapsed ? 'w-16' : 'w-28'"
   >
     <div class="px-2 py-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
       <span
@@ -96,7 +96,7 @@ const fabItems = computed(() => fabNames.value.map(name => ({
         type="button"
         class="relative flex items-center rounded-lg cursor-pointer transition-all duration-200 w-full"
         :class="[
-          sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-2.5 py-1.5',
+          sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-1.5',
           item.active
             ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-fab-active'
             : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
@@ -105,7 +105,7 @@ const fabItems = computed(() => fabNames.value.map(name => ({
       >
         <span
           v-if="!sidebarCollapsed"
-          class="text-xs font-medium truncate"
+          class="text-sm font-semibold tracking-wide tabular-nums truncate"
         >{{ item.label }}</span>
         <span
           v-else
