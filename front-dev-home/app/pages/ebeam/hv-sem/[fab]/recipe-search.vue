@@ -11,7 +11,7 @@ const applyFab = (next: string) => {
   setFab(next as Fab)
 }
 
-setToolType('cd-sem')
+setToolType('hv-sem')
 applyFab(fabId.value)
 
 watch(fabId, (next) => {
@@ -22,7 +22,7 @@ watch(fabId, (next) => {
 <template>
   <EbeamRecipeSearchView
     :fab="fabId"
-    tool-label="CD-SEM"
-    tool-type="cd-sem"
+    tool-label="HV-SEM"
+    tool-type="hv-sem"
   />
 </template>

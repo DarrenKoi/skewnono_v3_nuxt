@@ -1,22 +1,35 @@
 <script setup lang="ts">
+import type { ToolType } from '~/stores/navigation'
+
 const route = useRoute()
+
+type FeatureRouteValue = 'index' | 'storage' | 'recipe-search' | 'device-statistics'
 
 type FeatureTab = {
   label: string
   icon: string
   badgeIcon?: string
-  routeValue?: 'index' | 'storage' | 'recipe-search' | 'device-statistics'
+  routeValue?: FeatureRouteValue
+  enabledToolTypes?: ToolType[]
 }
 
 const features: FeatureTab[] = [
-  { label: '장비 리스트', routeValue: 'index', icon: 'i-lucide-layout-dashboard' },
-  { label: '스토리지', routeValue: 'storage', icon: 'i-lucide-database' },
-  { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search' },
-  { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3' },
+  { label: '장비 리스트', routeValue: 'index', icon: 'i-lucide-layout-dashboard', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: '스토리지', routeValue: 'storage', icon: 'i-lucide-database', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
   { label: 'Fail 이슈', icon: 'i-lucide-triangle-alert' },
   { label: 'H/W 관리', icon: 'i-lucide-cpu' },
   { label: '스큐보아', icon: 'i-lucide-eye', badgeIcon: 'i-lucide-sparkles' }
 ]
+
+const toolTypes: ToolType[] = ['cd-sem', 'hv-sem', 'verity-sem', 'provision']
+
+const routeToolType = computed<ToolType | null>(() => {
+  const [, category, toolType] = route.path.split('/')
+  if (category !== 'ebeam') return null
+  return toolTypes.includes(toolType as ToolType) ? toolType as ToolType : null
+})
 
 const activeFeature = computed(() => {
   const path = route.path
@@ -31,6 +44,12 @@ const getFeatureRoute = (feature: string) => {
   if (feature === 'index') return basePath
   return `${basePath}/${feature}`
 }
+
+const isFeatureEnabled = (feature: FeatureTab) => {
+  if (!feature.routeValue) return false
+  if (!feature.enabledToolTypes) return true
+  return routeToolType.value !== null && feature.enabledToolTypes.includes(routeToolType.value)
+}
 </script>
 
 <template>
@@ -44,7 +63,7 @@ const getFeatureRoute = (feature: string) => {
         :key="feature.label"
       >
         <NuxtLink
-          v-if="feature.routeValue"
+          v-if="isFeatureEnabled(feature) && feature.routeValue"
           :to="getFeatureRoute(feature.routeValue)"
           class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
           :class="activeFeature === feature.routeValue
