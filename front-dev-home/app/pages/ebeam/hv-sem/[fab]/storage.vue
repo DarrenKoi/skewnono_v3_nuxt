@@ -6,23 +6,18 @@ const { setToolType, setFab } = useNavigation()
 
 const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
 
-const applyFab = (next: string) => {
-  if (!next) return
-  setFab(next as Fab)
-}
-
-setToolType('cd-sem')
-applyFab(fabId.value)
+setToolType('hv-sem')
+setFab(fabId.value as Fab)
 
 watch(fabId, (next) => {
-  applyFab(next)
+  setFab(next as Fab)
 })
 </script>
 
 <template>
-  <EbeamRecipeSearchView
+  <EbeamStorageView
     :fab="fabId"
-    tool-label="CD-SEM"
-    tool-type="cd-sem"
+    tool-label="HV-SEM"
+    tool-type="hv-sem"
   />
 </template>
