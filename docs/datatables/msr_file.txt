@@ -1,0 +1,72 @@
+스큐보아에서 MSR raw measurement detail을 보여주기 위한 mock data
+pd.DataFrame 기준으로 한 row는 "하나의 MSR 안에서 특정 sequence, 특정 parameter로 측정된 1개 측정값"입니다.
+
+이 데이터는 독립적으로 생성하지 않고 meas_hist CSV를 입력으로 받아 생성합니다.
+meas_hist의 1개 row는 1회 측정 이력이고, msr_file의 여러 row는 그 측정 이력의 세부 측정 point입니다.
+
+입력 meas_hist 필수 컬럼
+
+MSR 또는 msr -> string: 측정 이력의 MSR 식별자. msr_file의 부모 key
+Class 또는 class_name -> string: recipe class. parameter 종류를 결정하는 기준
+total_images -> int64: 해당 측정의 전체 image 수. sequence 개수 상한에 사용
+
+프로젝트 mock data에서는 lowercase 컬럼명(msr, class_name)을 canonical로 사용합니다.
+Python prototype처럼 CSV가 uppercase 컬럼명(MSR, Class)을 가지고 있으면 생성 단계에서 lowercase로 normalize합니다.
+
+Column -> Type: Value 설명
+
+msr -> string: 부모 측정 이력의 MSR 식별자. meas_hist.msr와 join 가능
+sequence -> int64: MSR 안의 측정 순서. 1부터 시작
+chip_number -> string: wafer chip grid 위치. 예: -3, 7
+chip_coordinate -> string: chip 내부 좌표. 예: 12654321,252300
+stage_coordinate -> string: stage 좌표. 예: 175420000, 147210000
+dnum_group -> string: measurement point group. 예: 0, -1, 29, -1, -1, -1
+mp_number -> int64: measurement point 번호. 정상 row는 0~29, data 없는 row는 -1
+parameter -> string: 측정 parameter 이름. class_name에 따라 선택됨
+cd_value -> float64: parameter 측정값. parameter 종류에 따라 nm, degree, overlay offset 등 의미가 달라짐
+no_of_mp_image -> int64: 해당 measurement point에 연결된 image 개수. 1~5
+mp_image_name_01 -> string: 대표 image 파일명. 예: {msr}_001_CD_TOP_1234.tif
+
+Class별 parameter 후보
+
+CD -> CD_TOP, CD_BOTTOM, CD_MIDDLE, SIDEWALL_ANGLE
+OVL -> OVERLAY_X, OVERLAY_Y, OVERLAY_R, OVERLAY_THETA
+PROF -> HEIGHT, SIDEWALL_ANGLE, TOP_WIDTH, BOTTOM_WIDTH
+ROUGH -> LWR, LER, RMS_ROUGHNESS, CORRELATION_LENGTH
+THICK -> THICKNESS, UNIFORMITY, REFRACTIVE_INDEX
+GATE -> GATE_CD, GATE_HEIGHT, GATE_PROFILE
+CONTACT -> CONTACT_CD, CONTACT_DEPTH, ASPECT_RATIO
+VIA -> VIA_CD, VIA_DEPTH, TAPER_ANGLE
+METAL -> LINE_WIDTH, LINE_HEIGHT, PITCH, SPACE_WIDTH
+기타 class -> WAFER, EDGE, LEVEL
+
+Mock data 생성 규칙
+
+1. meas_hist CSV를 먼저 읽고, 각 meas_hist row의 msr 기준으로 msr_file row를 생성합니다.
+2. 같은 msr은 항상 같은 msr_file data를 만들 수 있어야 합니다. Python prototype처럼 md5(msr) 기반 seed를 사용합니다.
+3. seed_offset은 같은 meas_hist에서 다른 variation을 만들 때만 사용합니다. 기본값은 0입니다.
+4. num_measurements는 random 20~80 범위에서 고르되 total_images // 2보다 커지지 않게 합니다.
+5. class_name에 맞는 parameter 후보 중 1~3개를 선택합니다.
+6. 각 sequence마다 선택된 parameter 수만큼 row를 만듭니다. 예를 들어 sequence가 50개이고 parameter가 2개이면 msr_file row는 100개입니다.
+7. chip_number는 -10~10 grid에서 abs(x) + abs(y) <= 15인 위치만 사용해 단순 wafer shape를 흉내냅니다.
+8. chip_coordinate와 stage_coordinate는 sequence와 msr seed를 사용해 deterministic하게 생성합니다.
+9. sequence가 20의 배수이면 dnum_group은 -1, -1이고 mp_number는 -1입니다. 이 row는 측정 point metadata는 있으나 실제 point data가 비어 있는 케이스입니다.
+10. 그 외 sequence는 mp_number를 0~29로 순환시키고 dnum_group은 "{mp_number}, -1" 형식으로 둡니다.
+11. mp_image_name_01은 msr, sequence, parameter를 포함해 검색과 trace가 가능해야 합니다.
+
+cd_value 생성 기준
+
+CD 또는 WIDTH 포함 parameter -> 15.0 ~ 45.0 nm
+HEIGHT 또는 DEPTH 포함 parameter -> 50.0 ~ 200.0 nm
+ANGLE 포함 parameter -> 85.0 ~ 95.0 degree
+OVERLAY 포함 parameter -> -5.0 ~ 5.0 nm
+ROUGH 포함 parameter -> 1.0 ~ 5.0 nm
+THICK 포함 parameter -> 10.0 ~ 100.0 nm
+기타 parameter -> 10.0 ~ 50.0
+
+검색/화면 사용 기준
+
+스큐보아 MSR 상세 기본 join key: msr
+스큐보아 wafer/point 표시 후보: sequence, chip_number, chip_coordinate, stage_coordinate, dnum_group, mp_number
+스큐보아 측정값 표시 후보: parameter, cd_value, no_of_mp_image, mp_image_name_01
+Recipe 검색과의 연결 기준: meas_hist에서 검색된 recipe row의 msr을 선택하면 msr_file에서 같은 msr row를 불러옵니다.

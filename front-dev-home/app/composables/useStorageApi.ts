@@ -16,6 +16,20 @@ export interface StorageRow {
   eqp_model_cd: string
 }
 
+export type UnavailableReason = 'unreachable' | 'stale' | 'never_reported' | 'auth_failed'
+
+export interface UnavailableRow {
+  eqp_id: string
+  eqp_ip: string
+  fac_id: string
+  fab_name: string
+  eqp_model_cd: string
+  reason: UnavailableReason
+  error_code: string
+  last_attempt: string
+  last_success: string
+}
+
 const joinStorageApiPath = (base: string, path: string) => {
   const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -26,11 +40,18 @@ const joinStorageApiPath = (base: string, path: string) => {
 export const useStorageApi = () => {
   const config = useRuntimeConfig()
   const storageUrl = joinStorageApiPath(config.public.apiBase, '/storage')
+  const unavailableUrl = joinStorageApiPath(config.public.apiBase, '/storage-unavailable')
 
   const fetchStorageRows = async (facIds: string[] = []): Promise<StorageRow[]> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
     return await $fetch<StorageRow[]>(storageUrl, { query })
+  }
+
+  const fetchUnavailableRows = async (facIds: string[] = []): Promise<UnavailableRow[]> => {
+    const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
+
+    return await $fetch<UnavailableRow[]>(unavailableUrl, { query })
   }
 
   // Storage rows are aggregated at the fac level. The URL's fab segment may be a fab_name
@@ -41,8 +62,15 @@ export const useStorageApi = () => {
     return await fetchStorageRows([facId])
   }
 
+  const fetchUnavailableByUrlFab = async (urlFab: string): Promise<UnavailableRow[]> => {
+    const facId = fabNameToFacId(urlFab)
+    return await fetchUnavailableRows([facId])
+  }
+
   return {
     fetchStorageRows,
-    fetchByUrlFab
+    fetchByUrlFab,
+    fetchUnavailableRows,
+    fetchUnavailableByUrlFab
   }
 }

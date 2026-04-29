@@ -78,7 +78,12 @@
       "Bash(.venv/bin/pip install *)",
       "Bash(lsof -nP -iTCP:5000 -sTCP:LISTEN)",
       "Bash(PORT=5050 .venv/bin/python *)",
-      "Bash(NUXT_API_TARGET=http://localhost:5050 npm run dev)"
+      "Bash(NUXT_API_TARGET=http://localhost:5050 npm run dev)",
+      "mcp__playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_snapshot"
     ]
   },
   "statusLine": {
