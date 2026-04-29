@@ -1,0 +1,50 @@
+스큐보아와 Recipe 검색(recipe-search)에서 공통으로 사용할 측정 이력 mock data
+pd.DataFrame 기준으로 한 row는 "장비가 특정 lot에 특정 recipe를 실행한 1회 측정 이력"입니다.
+
+Recipe 검색에서는 recipe, lot, 장비, class, MSR 경로를 검색 대상으로 사용합니다.
+스큐보아에서는 MSR 존재 여부, align 결과, 측정 시간으로 측정 상태를 판단합니다.
+
+Column -> Type: Value 설명
+
+id -> string: mock row 고유 ID. 예: MEAS-000001
+fac_id -> string: fab 대표 코드. 예: M11, M12, M14, M15, M16, R3
+fab_name -> string: 실제 화면에서 선택하는 fab 이름. 예: M16A, M16B, R3, R4
+vendor_nm -> string: 장비 vendor. HITACHI, AMAT
+eqp_id -> string: 장비 ID. sem-list mock data의 eqp_id와 같은 형식을 사용
+eqp_model_cd -> string: 장비 모델. 예: CG6300, CG6380, TP4000, VERITYSEM_5
+lot_cd -> string: 디바이스/개발 lot 코드. R3/R4는 r3_device_grp, M fab은 device_desc 형식을 따름
+lot_id -> string: 실제 측정 lot ID. lot_cd + 숫자 suffix로 생성. 예: RAEA240031, 4MJ240882
+class_name -> string: recipe class 또는 layer group. 예: ADI, AEI, OVL, GATE, CNT, QC, DEF, EDGE
+recipe_name -> string: recipe 파일명 기준 이름. 예: ADI_CD_BIAS_001, QC_DAILY_MATCH_007
+full_name -> string: class_name/recipe_name 조합. 예: ADI/ADI_CD_BIAS_001
+timestamp -> datetime64[ns]: 측정 대표 시각. 화면 정렬 기준으로 쓰며 보통 end_time과 같은 값
+start_time -> datetime64[ns]: 측정 시작 시각
+end_time -> datetime64[ns]: 측정 종료 시각
+meastime -> int64: 측정 소요 시간. 단위는 second이며 end_time - start_time 값
+msr -> string: MSR raw data 식별자. 예: 20260428_ADI_CD_BIAS_001_RAEA240031_ECXDX123
+msr_check -> string: MSR 파일 존재 여부. Yes, No
+align_fail -> string: align 결과. Pass, Fail, NA
+total_images -> int64: 측정 대상 image 전체 개수
+fail_images -> int64: 실패 image 개수
+fail_ratio -> float64: fail_images / total_images 값. 0.0 ~ 1.0
+idp_name -> string: recipe idp 파일 경로. 예: /Recipe/ADI/ADI_CD_BIAS_001.idp
+idw_name -> string: recipe idw 파일 경로. 예: /Recipe/ADI/ADI_CD_BIAS_001.idw
+
+Mock data 생성 규칙
+
+1. eqp_id, eqp_model_cd, vendor_nm, fac_id, fab_name은 sem-list mock data에서 먼저 고른 장비 row를 기준으로 복사합니다.
+2. tool_type은 장비 모델로 결정합니다. CG 계열은 cd-sem, TP/PROVISION/VERITYSEM 계열은 hv-sem으로 둡니다.
+3. lot_cd는 fac_id와 맞게 생성합니다. R3/R4는 r3_device_grp의 lot_cd처럼 R로 시작하는 4자리 코드, M fab은 device_desc처럼 숫자 또는 알파벳 prefix를 포함한 3~4자리 코드로 둡니다.
+4. lot_id는 lot_cd가 앞에 보이도록 생성합니다. Recipe 검색에서 lot_cd와 lot_id 둘 다 검색될 수 있어야 합니다.
+5. full_name, idp_name, idw_name은 같은 class_name과 recipe_name에서 파생합니다. recipe 변수명을 따로 만들지 말고 recipe_name을 기준으로 만듭니다.
+6. timestamp는 최근 30~60일 안에서 생성합니다. start_time <= timestamp <= end_time 관계를 유지하고, timestamp는 기본적으로 end_time과 같게 둡니다.
+7. msr은 날짜, recipe_name, lot_id, eqp_id를 포함해서 unique하게 만듭니다.
+8. msr_check가 No이면 측정 raw data가 없는 상태이므로 스큐보아에서 문제 row로 보여줄 수 있어야 합니다.
+9. align_fail이 Fail이거나 msr_check가 No이면 fail_ratio를 높게 생성합니다. 정상 row는 보통 0.0 ~ 0.15 범위, 문제 row는 0.15 ~ 0.8 범위로 둡니다.
+10. fail_images는 int(total_images * fail_ratio)로 계산하고, fail_ratio는 최종적으로 fail_images / total_images로 다시 계산합니다.
+
+검색/화면 사용 기준
+
+Recipe 검색 기본 검색 대상: recipe_name, full_name, class_name, lot_cd, lot_id, eqp_id, eqp_model_cd, msr, idp_name, idw_name
+스큐보아 기본 판단 대상: msr_check, align_fail, total_images, fail_images, fail_ratio, meastime, timestamp
+공통 필터 후보: fac_id, fab_name, tool_type, eqp_model_cd, lot_cd, class_name

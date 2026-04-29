@@ -1,0 +1,60 @@
+device_desc를 기준으로 개발 디바이스 통계를 보여주기 위한 mock data
+pd.DataFrame 기준으로 한 row는 "특정 fac_id와 tech_nm 조합에 대한 개발 디바이스 요약"입니다.
+
+이 데이터는 원천 table이 아니라 device_desc에서 파생되는 summary table입니다.
+M 계열 Fab에서는 device_desc를 기준으로 fac_id -> tech_nm 순서로 디바이스를 탐색하고, device_info는 그 결과를 통계 카드나 요약 table로 보여줄 때 사용합니다.
+
+입력 device_desc 필수 컬럼
+
+fac_id -> string: fab 대표 코드. 예: M11, M12, M14, M15, M16
+lot_cd -> string: 개발 디바이스 lot 코드
+ctn_desc -> string: 개발 디바이스 설명. pool 여부, 개발 phase, 개발 코드명을 파악하는 원문
+chg_tm -> string: 개발 정보 등록 또는 변경 시점. ISO datetime string
+tech_nm -> string: 테크 코드. 예: TP, 4G, AA, 7D, None
+rnd_connector -> string: R&D 단계에서 연결된 연구 개발 코드명. 없으면 빈 문자열
+
+Column -> Type: Value 설명
+
+id -> string: summary row 고유 ID. 예: M11-TP
+fac_id -> string: fab 대표 코드. device_desc.fac_id에서 가져옴
+tech_nm -> string: 테크 코드. device_desc.tech_nm에서 가져옴
+device_count -> int64: 해당 fac_id + tech_nm 조합의 전체 device_desc row 수
+lot_count -> int64: 해당 조합의 unique lot_cd 개수
+pool_count -> int64: ctn_desc에 pool제, Pool, pool, 풀 중 하나가 포함된 row 수
+pool_ratio -> float64: pool_count / device_count 값. 0.0 ~ 1.0
+tev_count -> int64: ctn_desc에 t-EV 또는 tev가 포함된 row 수
+pev_count -> int64: ctn_desc에 p-EV가 포함된 row 수
+pv_count -> int64: ctn_desc에 PV가 포함된 row 수
+tv_count -> int64: ctn_desc에 TV가 포함된 row 수
+rnd_connector_count -> int64: rnd_connector가 빈 문자열이 아닌 row 수
+rnd_connector_ratio -> float64: rnd_connector_count / device_count 값. 0.0 ~ 1.0
+latest_chg_tm -> string: 해당 조합에서 가장 최근 chg_tm
+oldest_chg_tm -> string: 해당 조합에서 가장 오래된 chg_tm
+sample_lot_cd -> string: 화면 preview용 대표 lot_cd. 보통 최신 chg_tm row의 lot_cd
+sample_ctn_desc -> string: 화면 preview용 대표 ctn_desc. 보통 최신 chg_tm row의 ctn_desc
+
+Mock data 생성 규칙
+
+1. device_desc 전체 row를 읽고 fac_id, tech_nm 기준으로 group by 합니다.
+2. tech_nm이 None 문자열이거나 빈 문자열이면 UI에서는 "None" 또는 "미지정"으로 표시할 수 있지만, raw value는 원천 값을 유지합니다.
+3. device_count는 group row 개수입니다.
+4. lot_count는 lot_cd의 unique 개수입니다. 같은 lot_cd가 여러 번 있어도 1개 device로 계산할 수 있게 별도 count로 둡니다.
+5. pool_count는 ctn_desc에서 pool제, Pool, pool, 풀 단어를 case-insensitive에 가깝게 검사해서 계산합니다.
+6. phase count는 ctn_desc 원문에서 t-EV, tev, p-EV, PV, TV 문자열 포함 여부로 계산합니다.
+7. rnd_connector_count는 rnd_connector가 None, 빈 문자열, 공백이 아닌 row 수입니다.
+8. ratio 값은 분모가 0이면 0.0으로 둡니다. 그 외에는 소수 4자리 정도로 반올림해도 됩니다.
+9. latest_chg_tm과 oldest_chg_tm은 chg_tm을 datetime으로 해석해 계산합니다. 화면/API 응답에서는 ISO string으로 유지합니다.
+10. sample_lot_cd와 sample_ctn_desc는 최신 chg_tm row에서 가져와 summary row를 클릭했을 때 대표 내용을 바로 보여줄 수 있게 합니다.
+
+검색/화면 사용 기준
+
+디바이스 통계 기본 grouping: fac_id -> tech_nm
+통계 카드 후보: device_count, lot_count, pool_count, pool_ratio, rnd_connector_count, rnd_connector_ratio
+phase 분포 후보: tev_count, pev_count, pv_count, tv_count
+최근 변경 표시 후보: latest_chg_tm, sample_lot_cd, sample_ctn_desc
+상세 drill-down 기준: fac_id와 tech_nm으로 device_desc 원본 row를 다시 filter
+
+주의사항
+
+device_info는 device_desc의 통계 view이므로 원천 데이터처럼 직접 수정하지 않습니다.
+R3, R4 같은 R 계열 Fab은 최신 개발 디바이스 정보가 r3_device_grp에 더 잘 반영되어 있으므로, R 계열 통계는 별도 R3 summary를 만들거나 r3_device_grp 기준으로 계산합니다.

@@ -1,0 +1,94 @@
+Recipe 검색 화면에서 recipe를 열었을 때 보여줄 IDP mock data
+pd.DataFrame 기준으로는 하나의 파일 안에 3개 테이블을 함께 제공하는 구조입니다.
+
+Recipe 검색 결과에서 recipe row를 클릭하면 recipe_id, fac_id, tool_category를 기준으로 이 데이터를 읽습니다.
+실제 IDP 파일을 파싱하기 전까지는 Python generator가 만든 wafer_mp_info, wafer_align_info, idp_image_info를 사용합니다.
+
+응답 구조
+
+recipe_id -> string: 열람한 recipe ID 또는 recipe_name. 입력값이 없으면 DUMMY_RECIPE_001
+fac_id -> string: recipe가 속한 fab 대표 코드. 입력값이 없으면 R3
+tool_category -> string: 장비 타입. cd-sem, hv-sem. 입력값이 없으면 cd-sem
+timestamp -> string: 데이터를 생성하거나 읽은 시각. ISO datetime string
+wafer_mp_info -> records: wafer measurement point 정보 table
+wafer_align_info -> records: wafer alignment 정보 table
+idp_image_info -> records: IDP image와 parameter 연결 정보 table
+
+wafer_mp_info
+
+pd.DataFrame 기준으로 한 row는 wafer 위의 1개 measurement point입니다.
+Recipe open 화면에서 chip 위치, 측정 좌표, parameter, 대표 측정 image를 보여주는 데 사용합니다.
+
+Column -> Type: Value 설명
+
+ChipNo_X -> int64: wafer chip X index. mock range는 1~10
+ChipNo_Y -> int64: wafer chip Y index. mock range는 1~10
+Coordinate_X -> float64: chip 기준 X 좌표. mock range는 -50.0~50.0
+Coordinate_Y -> float64: chip 기준 Y 좌표. mock range는 -50.0~50.0
+P_No -> int64: parameter 또는 point 번호. mock range는 1~20
+D_No -> int64: d-number 또는 detail point 번호. mock range는 1~100
+Diff -> bool: differential 측정 여부
+Rel -> bool: relative move 적용 여부
+Rel_MoveX -> float64: relative move X offset. mock range는 -5.0~5.0
+RelMoveY -> float64: relative move Y offset. mock range는 -5.0~5.0
+Coordinate_X_r -> float64: relative move 적용 후 X 좌표. mock range는 -50.0~50.0
+Coordinate_Y_r -> float64: relative move 적용 후 Y 좌표. mock range는 -50.0~50.0
+Parameter -> string: parameter 이름. 예: Para_1, Para_20
+img_meas2 -> string: measurement image 파일명. 예: IMG_MEAS_0001.jpg
+
+wafer_align_info
+
+pd.DataFrame 기준으로 한 row는 wafer align에 사용되는 1개 align point입니다.
+Recipe open 화면에서 align 기준점과 chip 좌표를 확인하는 데 사용합니다.
+
+Column -> Type: Value 설명
+
+Align_No -> int64: align point 순번. 1부터 시작
+Chip.X -> int64: align point의 chip X index. mock range는 1~10
+Chip.Y -> int64: align point의 chip Y index. mock range는 1~10
+Coordinate.X -> float64: align point X 좌표. mock range는 -100.0~100.0
+Coordinate.Y -> float64: align point Y 좌표. mock range는 -100.0~100.0
+P.No -> int64: align point가 참조하는 point 번호. mock range는 1~20
+
+idp_image_info
+
+pd.DataFrame 기준으로 한 row는 IDP 안에서 parameter와 image 파일들이 연결된 1개 image definition입니다.
+Recipe open 화면에서 parameter별 image set, addressing 여부, mother parameter, 반복 측정 수를 보여주는 데 사용합니다.
+
+Column -> Type: Value 설명
+
+Parameter -> string: parameter 이름. 예: Para_1, Para_20
+img_add1 -> string: additional image 1 파일명. 예: IMG_ADD1_0001.jpg
+img_add2 -> string: additional image 2 파일명. 예: IMG_ADD2_0001.jpg
+img_meas1 -> string: measurement image 1 파일명. 예: IMG_MEAS1_0001.jpg
+img_meas2 -> string: measurement image 2 파일명. 예: IMG_MEAS2_0001.jpg
+SEQ -> int64: image definition 순번. 1부터 시작
+Last_SEQ -> int64: 연결된 마지막 sequence 번호. SEQ 이상 값
+Region -> int64: region 번호. Python prototype에서는 P_No와 같은 의미로 사용
+image_add3 -> string: additional image 3 파일명. 예: IMG_ADD3_0001.jpg
+Addressing -> string: addressing 사용 여부. Yes, No
+Mother_Para -> string: 기준 또는 parent parameter 이름. 예: Para_1, Para_5
+Double_Addressing -> bool: double addressing 사용 여부
+Meas_Counting -> int64: 해당 parameter의 측정 반복 수. mock range는 1~10
+dnumber_removed -> int64: 제외된 d-number 개수. mock range는 0~3
+
+Mock data 생성 규칙
+
+1. recipe_id, fac_id, tool_category는 Recipe 검색 화면에서 열린 row의 값을 그대로 넘깁니다.
+2. wafer_mp_info는 기본 50 rows를 생성합니다.
+3. wafer_align_info는 기본 10 rows를 생성합니다.
+4. idp_image_info는 기본 20 rows를 생성합니다.
+5. Python prototype의 원본 컬럼명은 IDP 파일 형식을 흉내 내기 위해 대문자, 점(.), underscore가 섞여 있습니다. 이 파일에서는 원본 컬럼명을 그대로 설명합니다.
+6. frontend/API DTO에서 다루기 어렵다면 응답 변환 단계에서 camelCase나 snake_case 별칭을 추가할 수 있지만, 원본 IDP 컬럼명은 raw data 확인용으로 유지합니다.
+7. img_meas2는 wafer_mp_info와 idp_image_info 양쪽에 있습니다. wafer_mp_info의 img_meas2는 point 대표 image이고, idp_image_info의 img_meas2는 parameter image set 안의 measurement image 2입니다.
+8. Region은 Python prototype에서 P_No와 같은 의미로 생성됩니다. Recipe open 화면에서 point와 image metadata를 연결하는 후보 key로 사용할 수 있습니다.
+9. timestamp는 mock 응답이 생성된 시각입니다. recipe 자체의 수정 시각이나 측정 시각은 아닙니다.
+
+검색/화면 사용 기준
+
+Recipe open 기본 key: recipe_id, fac_id, tool_category
+wafer map 표시 후보: wafer_mp_info.ChipNo_X, wafer_mp_info.ChipNo_Y, wafer_mp_info.P_No, wafer_mp_info.D_No
+좌표 표시 후보: Coordinate_X, Coordinate_Y, Coordinate_X_r, Coordinate_Y_r, Coordinate.X, Coordinate.Y
+align 표시 후보: wafer_align_info.Align_No, wafer_align_info.Chip.X, wafer_align_info.Chip.Y, wafer_align_info.P.No
+image 표시 후보: img_meas1, img_meas2, img_add1, img_add2, image_add3
+parameter 표시 후보: Parameter, Mother_Para, Region, Meas_Counting, Addressing, Double_Addressing
