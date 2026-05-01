@@ -289,7 +289,7 @@ const columns = computed<TableColumn<DeviceRow>[]>(() => {
 
 const tableMeta = {
   class: {
-    tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
+    tr: 'cursor-pointer select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
     td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
     th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
   }
@@ -894,6 +894,7 @@ onMounted(() => {
             :empty="text.emptyRows"
             :meta="tableMeta"
             sticky="header"
+            @select="(_, row) => toggleDeviceSelect(row.original.lot_cd)"
           >
             <template #select-header>
               <input
