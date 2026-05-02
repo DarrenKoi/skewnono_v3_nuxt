@@ -60,7 +60,7 @@ const systemStatus = computed(() => {
             기반기술센터 SKEWNONO v3
           </p>
           <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">
-            - CD Metrology Solution -
+            - Metrology Solution -
           </h1>
         </div>
         <UBadge
