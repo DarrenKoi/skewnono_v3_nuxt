@@ -1,0 +1,71 @@
+/**
+ * Korean Font Overrides
+ * Applied after Vuetify loads to ensure Korean font priority
+ */
+
+/* Root font family for Korean support */
+:root {
+  font-family: "Noto Sans KR", "Roboto", sans-serif;
+}
+
+/* Global application font */
+body,
+.v-application {
+  font-family: "Noto Sans KR", "Roboto", sans-serif !important;
+}
+
+/* Vuetify component font overrides */
+.v-btn,
+.v-card-title,
+.v-card-subtitle,
+.v-card-text,
+.v-list-item-title,
+.v-list-item-subtitle,
+.v-toolbar-title,
+.v-app-bar-title,
+.v-navigation-drawer,
+.v-tab,
+.v-window-item,
+.v-dialog,
+.v-snackbar,
+.v-tooltip,
+.v-menu,
+.v-select,
+.v-text-field,
+.v-textarea,
+.v-checkbox,
+.v-radio,
+.v-switch,
+.v-slider,
+.v-data-table,
+.v-pagination,
+.v-breadcrumbs,
+.v-chip,
+.v-badge,
+.v-avatar,
+.v-alert,
+.v-banner,
+.v-expansion-panels,
+.v-stepper,
+.v-timeline {
+  font-family: "Noto Sans KR", "Roboto", sans-serif !important;
+}
+
+/* Typography classes */
+.text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6,
+.text-subtitle-1, .text-subtitle-2,
+.text-body-1, .text-body-2,
+.text-button, .text-caption, .text-overline {
+  font-family: "Noto Sans KR", "Roboto", sans-serif !important;
+}
+
+/* Form elements */
+input, textarea, select, option {
+  font-family: "Noto Sans KR", "Roboto", sans-serif !important;
+}
+
+/* Ensure consistent font weight rendering for Korean characters */
+.v-application {
+  font-weight: 400;
+  font-display: swap;
+}
