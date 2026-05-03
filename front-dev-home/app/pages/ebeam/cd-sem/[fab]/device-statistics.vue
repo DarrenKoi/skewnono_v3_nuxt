@@ -17,38 +17,38 @@ const { fetchDeviceDesc, fetchR3DeviceGrp } = useDeviceStatisticsApi()
 type DeviceFab = 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
 
 const text = {
-  title: '\ub514\ubc14\uc774\uc2a4 \ud1b5\uacc4',
+  title: '디바이스 통계',
   fabSelect: 'Fab',
-  reset: '\ucd08\uae30\ud654',
-  lotSearch: 'Lot \uac80\uc0c9 (\uc608: R0A2)',
-  techSearch: 'Tech \uac80\uc0c9',
-  csvDownload: 'CSV \ub2e4\uc6b4\ub85c\ub4dc',
-  resetAll: '\uc804\uccb4 \ucd08\uae30\ud654',
-  clearAll: '\uc804\uccb4 \ud574\uc81c',
-  tableSearch: '\ud14c\uc774\ube14 \uac80\uc0c9',
-  allRows: '\uc804\uccb4',
-  filteredRows: '\ud45c\uc2dc',
-  activeFilters: '\ud544\ud130',
-  loading: '\ub85c\ub529 \uc911',
-  loadError: '\ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.',
-  emptyRows: '\uc870\uac74\uc5d0 \ub9de\ub294 \ub514\ubc14\uc774\uc2a4\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.',
-  prev: '\uc774\uc804',
-  next: '\ub2e4\uc74c',
-  step1Title: '\ube60\ub978 \ud544\ud130',
-  step1HintR: '\uce74\ud14c\uace0\ub9ac / Lot\uc73c\ub85c \uc881\ud788\uae30',
-  step1HintM: 'Tech\ub85c \uc881\ud788\uae30',
-  step2Title: '\ub514\ubc14\uc774\uc2a4 \uc120\ud0dd',
-  step2Hint: '\uccb4\ud06c\ubc15\uc2a4\ub85c \uc5ec\ub7ec \uac1c \uc120\ud0dd',
-  step3Title: '\ube44\uad50 + \uc774\ub3d9',
-  step3Hint: '\uc120\ud0dd\ub41c \ub514\ubc14\uc774\uc2a4',
-  emptySelectionTitle: '\ub514\ubc14\uc774\uc2a4 \ube44\uad50 \uc2dc\uc791\ud558\uae30',
-  emptySelectionDescLineOne: '\uc67c\ucabd \ud14c\uc774\ube14\uc5d0\uc11c',
-  emptySelectionDescLineTwo: '2\uac1c \uc774\uc0c1 \uc120\ud0dd\ud574 \ubcf4\uc138\uc694',
-  ctaEmpty: '\ub514\ubc14\uc774\uc2a4\ub97c \uc120\ud0dd\ud558\uc138\uc694',
-  ctaSingle: '\ub514\ubc14\uc774\uc2a4 \ud1b5\uacc4 \ubcf4\uae30',
-  ctaMulti: '{count}\uac1c \ube44\uad50 \ud398\uc774\uc9c0\ub85c',
-  toastTitle: '\uac1c \ub514\ubc14\uc774\uc2a4 \uc120\ud0dd\ub428',
-  overflowSuffix: '\uc678 {count}\uac1c'
+  reset: '초기화',
+  lotSearch: 'Lot 검색 (예: R0A2)',
+  techSearch: 'Tech 검색',
+  csvDownload: 'CSV 다운로드',
+  resetAll: '전체 초기화',
+  clearAll: '전체 해제',
+  tableSearch: '테이블 검색',
+  allRows: '전체',
+  filteredRows: '표시',
+  activeFilters: '필터',
+  loading: '로딩 중',
+  loadError: '데이터를 불러오지 못했습니다.',
+  emptyRows: '조건에 맞는 디바이스가 없습니다.',
+  prev: '이전',
+  next: '다음',
+  step1Title: '빠른 필터',
+  step1HintR: '카테고리 / Lot으로 좁히기',
+  step1HintM: 'Tech로 좁히기',
+  step2Title: '디바이스 선택',
+  step2Hint: '체크박스로 여러 개 선택',
+  step3Title: '비교 + 이동',
+  step3Hint: '선택된 디바이스',
+  emptySelectionTitle: '디바이스 비교 시작하기',
+  emptySelectionDescLineOne: '왼쪽 테이블에서',
+  emptySelectionDescLineTwo: '2개 이상 선택해 보세요',
+  ctaEmpty: '디바이스를 선택하세요',
+  ctaSingle: '디바이스 통계 보기',
+  ctaMulti: '{count}개 비교 페이지로',
+  toastTitle: '{count}개 디바이스 선택됨',
+  overflowSuffix: '외 {count}개'
 } as const
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
@@ -241,9 +241,9 @@ const pagedRows = computed(() => {
 })
 
 const pageSizeOptions = [
-  { label: '25\uac1c', value: '25' },
-  { label: '50\uac1c', value: '50' },
-  { label: '100\uac1c', value: '100' }
+  { label: '25개', value: '25' },
+  { label: '50개', value: '50' },
+  { label: '100개', value: '100' }
 ]
 
 const r3ColumnMetadata = [
@@ -431,8 +431,8 @@ const proceedToStatistics = async () => {
   const overflow = selectedDeviceLots.value.length - 6
 
   toast.add({
-    title: `${selectedDeviceLots.value.length}개 디바이스 선택됨`,
-    description: overflow > 0 ? `${preview} 외 ${overflow}개` : preview,
+    title: text.toastTitle.replace('{count}', String(selectedDeviceLots.value.length)),
+    description: overflow > 0 ? `${preview} ${text.overflowSuffix.replace('{count}', String(overflow))}` : preview,
     icon: 'i-lucide-arrow-right',
     color: 'primary'
   })
@@ -649,7 +649,7 @@ onMounted(() => {
         <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
         <div
           role="radiogroup"
-          aria-label="Fab"
+          :aria-label="text.fabSelect"
           class="flex flex-wrap items-center gap-1 self-end mb-1.5"
         >
           <button

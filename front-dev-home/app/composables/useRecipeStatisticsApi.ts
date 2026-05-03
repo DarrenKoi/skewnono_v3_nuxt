@@ -39,21 +39,14 @@ export interface RecipeInfoRow {
   para_5_percent: number
 }
 
-export type SummaryBucketKey =
-  | 'all_summary'
-  | 'only_normal_summary'
-  | 'mother_normal_summary'
-  | 'only_sample_summary'
+export type SummaryBucketKey
+  = 'all_summary' | 'only_normal_summary' | 'mother_normal_summary' | 'only_sample_summary'
 
-export type RecipeInfoBucketKey =
-  | 'all_rcp_info'
-  | 'only_normal_rcp_info'
-  | 'mother_normal_rcp_info'
-  | 'only_sample_rcp_info'
+export type RecipeInfoBucketKey
+  = 'all_rcp_info' | 'only_normal_rcp_info' | 'mother_normal_rcp_info' | 'only_sample_rcp_info'
 
-export type BucketPayload =
-  & Record<SummaryBucketKey, SummaryRow[]>
-  & Record<RecipeInfoBucketKey, RecipeInfoRow[]>
+export type BucketPayload
+  = Record<SummaryBucketKey, SummaryRow[]> & Record<RecipeInfoBucketKey, RecipeInfoRow[]>
 
 export interface RecipeStatisticsResponse {
   date: string | null
