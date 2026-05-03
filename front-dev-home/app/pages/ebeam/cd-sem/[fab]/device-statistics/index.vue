@@ -437,7 +437,7 @@ const proceedToStatistics = async () => {
     color: 'primary'
   })
 
-  await navigateTo(`/ebeam/cd-sem/${route.params.fab}/device-comparison`)
+  await navigateTo(`/ebeam/cd-sem/${route.params.fab}/device-statistics/comparison`)
 }
 
 const ctaLabel = computed(() => {
