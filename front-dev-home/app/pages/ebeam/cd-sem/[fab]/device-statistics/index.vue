@@ -134,7 +134,6 @@ const rows = computed(() => data.value ?? [])
 const hasRSelection = computed(() => selectedFab.value === 'R3')
 const hasMSelection = computed(() => selectedFab.value.startsWith('M'))
 const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
-const selectedFabLabel = computed(() => selectedFab.value)
 
 const uniqueSorted = (values: string[]) => {
   return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)))
@@ -194,10 +193,6 @@ const buildSearchText = (row: DeviceRow) => {
 }
 
 const matchesDomainFilters = (row: DeviceRow) => {
-  if (row.fac_id !== selectedFab.value) {
-    return false
-  }
-
   if (hasRSelection.value) {
     const r3Row = row as R3DeviceGrpRow
     const matchesCategory = selectedProdCategories.value.length === 0
@@ -225,8 +220,14 @@ const indexedRows = computed(() => sortedRows.value.map(row => ({
 const filteredRows = computed(() => {
   const searchTerm = normalizedTableSearch.value
 
+  // Skip the searchText index when there's no search term — Vue's lazy computeds mean
+  // indexedRows isn't built at all unless this branch reaches it.
+  if (!searchTerm) {
+    return sortedRows.value.filter(matchesDomainFilters)
+  }
+
   return indexedRows.value
-    .filter(({ row, searchText }) => matchesDomainFilters(row) && (!searchTerm || searchText.includes(searchTerm)))
+    .filter(({ row, searchText }) => matchesDomainFilters(row) && searchText.includes(searchTerm))
     .map(({ row }) => row)
 })
 
@@ -301,6 +302,11 @@ const toggleValue = (values: string[], value: string) => {
     : [...values, value]
 }
 
+// Step 1 chip strips and the fab radiogroup share the same accent-vs-neutral pill style.
+const chipClass = (active: boolean) => active
+  ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
+  : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'
+
 const toggleProdCategory = (category: string) => {
   selectedProdCategories.value = toggleValue(selectedProdCategories.value, category)
 }
@@ -325,16 +331,6 @@ const clearDeviceSelection = () => {
 }
 
 // Preserve selection order so the Step 3 cart shows lots in the order the user added them.
-const filteredRowMap = computed(() => {
-  const map = new Map<string, DeviceRow>()
-
-  for (const row of filteredRows.value) {
-    map.set(row.lot_cd, row)
-  }
-
-  return map
-})
-
 const sortedRowMap = computed(() => {
   const map = new Map<string, DeviceRow>()
 
@@ -347,7 +343,7 @@ const sortedRowMap = computed(() => {
 
 const selectedDeviceRows = computed<DeviceRow[]>(() => {
   return selectedDeviceLots.value
-    .map(lot => sortedRowMap.value.get(lot) ?? filteredRowMap.value.get(lot))
+    .map(lot => sortedRowMap.value.get(lot))
     .filter((row): row is DeviceRow => Boolean(row))
 })
 
@@ -374,41 +370,35 @@ const togglePageSelection = () => {
   selectedDeviceLots.value = next
 }
 
-const stepOneLotChips = computed<string[]>(() => {
-  const selectedSet = selectedLotSet.value
-  const selectedFromOptions = lotOptions.value.filter(lot => selectedSet.has(lot))
-  const remainingBudget = Math.max(0, STEP1_LOT_CHIP_BUDGET - selectedFromOptions.length)
-  const matchedUnselected = searchedLotOptions.value.filter(lot => !selectedSet.has(lot))
+const buildChipStrip = (
+  allOptions: string[],
+  visibleOptions: string[],
+  selectedSet: Set<string>,
+  budget: number
+) => {
+  const selectedFromOptions = allOptions.filter(option => selectedSet.has(option))
+  const matchedUnselected = visibleOptions.filter(option => !selectedSet.has(option))
+  const remainingBudget = Math.max(0, budget - selectedFromOptions.length)
 
-  return [...selectedFromOptions, ...matchedUnselected.slice(0, remainingBudget)]
-})
+  return {
+    chips: [...selectedFromOptions, ...matchedUnselected.slice(0, remainingBudget)],
+    overflowCount: Math.max(0, matchedUnselected.length - remainingBudget)
+  }
+}
 
-const stepOneLotOverflowCount = computed(() => {
-  const selectedSet = selectedLotSet.value
-  const matchedUnselected = searchedLotOptions.value.filter(lot => !selectedSet.has(lot))
-  const selectedFromOptions = lotOptions.value.filter(lot => selectedSet.has(lot))
-  const remainingBudget = Math.max(0, STEP1_LOT_CHIP_BUDGET - selectedFromOptions.length)
+const stepOneLotStrip = computed(() => buildChipStrip(
+  lotOptions.value,
+  searchedLotOptions.value,
+  selectedLotSet.value,
+  STEP1_LOT_CHIP_BUDGET
+))
 
-  return Math.max(0, matchedUnselected.length - remainingBudget)
-})
-
-const stepOneTechChips = computed<string[]>(() => {
-  const selectedSet = selectedTechSet.value
-  const selectedFromOptions = techOptions.value.filter(tech => selectedSet.has(tech))
-  const remainingBudget = Math.max(0, STEP1_TECH_CHIP_BUDGET - selectedFromOptions.length)
-  const matchedUnselected = visibleTechOptions.value.filter(tech => !selectedSet.has(tech))
-
-  return [...selectedFromOptions, ...matchedUnselected.slice(0, remainingBudget)]
-})
-
-const stepOneTechOverflowCount = computed(() => {
-  const selectedSet = selectedTechSet.value
-  const matchedUnselected = visibleTechOptions.value.filter(tech => !selectedSet.has(tech))
-  const selectedFromOptions = techOptions.value.filter(tech => selectedSet.has(tech))
-  const remainingBudget = Math.max(0, STEP1_TECH_CHIP_BUDGET - selectedFromOptions.length)
-
-  return Math.max(0, matchedUnselected.length - remainingBudget)
-})
+const stepOneTechStrip = computed(() => buildChipStrip(
+  techOptions.value,
+  visibleTechOptions.value,
+  selectedTechSet.value,
+  STEP1_TECH_CHIP_BUDGET
+))
 
 const deviceChipLabel = (row: DeviceRow): string => {
   if ('prod_catg_cd' in row && row.prod_catg_cd) {
@@ -479,7 +469,7 @@ const activeDomainFilterCount = computed(() => {
 const activeFilterCount = computed(() => activeDomainFilterCount.value + (normalizedTableSearch.value ? 1 : 0))
 
 const statCells = computed(() => [
-  { label: 'Fab', value: selectedFabLabel.value, tone: 'text-zinc-900 dark:text-zinc-100' },
+  { label: 'Fab', value: selectedFab.value, tone: 'text-zinc-900 dark:text-zinc-100' },
   { label: text.allRows, value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
   { label: text.filteredRows, value: filteredRowCount.value, tone: 'text-(--sk-accent)' },
   { label: text.activeFilters, value: activeFilterCount.value, tone: 'text-zinc-600 dark:text-zinc-300' }
@@ -583,11 +573,16 @@ const downloadDeviceListCsv = () => {
 }
 
 watch([prodCategoryOptions, lotOptions, techOptions, hasRSelection, hasMSelection], () => {
-  // R3 selections are kept in memory across fab switches so they survive a quick R3 → M → R3
-  // round-trip (and so the localStorage persistence isn't clobbered by an empty intermediate
-  // state). They're hidden in the template via v-if="hasRSelection" and ignored by
-  // matchesDomainFilters when on M, so leaving them populated is harmless. Only prune against
-  // the live R3 option set when actually on R3.
+  // Skip during refetch — useAsyncData briefly holds the previous fab's data while options
+  // computeds collapse to [] for the new fab, which would falsely prune (and clobber
+  // localStorage) the very R3/M selections this branch is meant to preserve. The watcher
+  // re-fires once data settles via the option-array changes themselves, so we don't need
+  // pending in the watch list.
+  if (pending.value) return
+
+  // R3 selections are kept across fab switches so they survive a quick R3 → M → R3 round-trip.
+  // Hidden in the template via v-if="hasRSelection" and ignored by matchesDomainFilters on M,
+  // so leaving them populated is harmless. Only prune against the live R3 option set on R3.
   if (hasRSelection.value) {
     const nextCategories = syncSelectionWithOptions(selectedProdCategories.value, prodCategoryOptions.value)
     const nextLots = syncSelectionWithOptions(selectedLots.value, lotOptions.value)
@@ -601,10 +596,7 @@ watch([prodCategoryOptions, lotOptions, techOptions, hasRSelection, hasMSelectio
     }
   }
 
-  // Same reasoning as the R3 selections above: keep techs in memory across fab switches so the
-  // localStorage persistence isn't clobbered when the user briefly hops over to R3. The tech
-  // filter UI is gated by v-else (i.e. !hasRSelection), and matchesDomainFilters ignores
-  // selectedTechs on R3 rows. Only prune against the live tech option set when on an M-fab.
+  // Same reasoning as R3 above — keep techs across fab switches; only prune on an M-fab.
   if (hasMSelection.value) {
     const nextTechs = syncSelectionWithOptions(selectedTechs.value, techOptions.value)
 
@@ -659,9 +651,7 @@ onMounted(() => {
             role="radio"
             :aria-checked="selectedFab === option.value"
             class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="selectedFab === option.value
-              ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-              : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+            :class="chipClass(selectedFab === option.value)"
             @click="selectedFab = option.value"
           >
             {{ option.label }}
@@ -728,9 +718,7 @@ onMounted(() => {
               :key="category"
               type="button"
               class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-              :class="isProdCategorySelected(category)
-                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+              :class="chipClass(isProdCategorySelected(category))"
               @click="toggleProdCategory(category)"
             >
               {{ category }}
@@ -751,22 +739,20 @@ onMounted(() => {
           />
           <div class="flex flex-wrap items-center gap-1 min-w-0">
             <button
-              v-for="lot in stepOneLotChips"
+              v-for="lot in stepOneLotStrip.chips"
               :key="lot"
               type="button"
               class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
-              :class="isLotSelected(lot)
-                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+              :class="chipClass(isLotSelected(lot))"
               @click="toggleLot(lot)"
             >
               {{ lot }}
             </button>
             <span
-              v-if="stepOneLotOverflowCount > 0"
+              v-if="stepOneLotStrip.overflowCount > 0"
               class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
             >
-              +{{ stepOneLotOverflowCount }}
+              +{{ stepOneLotStrip.overflowCount }}
             </span>
           </div>
         </div>
@@ -788,22 +774,20 @@ onMounted(() => {
         />
         <div class="flex flex-wrap items-center gap-1 min-w-0">
           <button
-            v-for="tech in stepOneTechChips"
+            v-for="tech in stepOneTechStrip.chips"
             :key="tech"
             type="button"
             class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="isTechSelected(tech)
-              ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-              : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+            :class="chipClass(isTechSelected(tech))"
             @click="toggleTech(tech)"
           >
             {{ tech }}
           </button>
           <span
-            v-if="stepOneTechOverflowCount > 0"
+            v-if="stepOneTechStrip.overflowCount > 0"
             class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
           >
-            +{{ stepOneTechOverflowCount }}
+            +{{ stepOneTechStrip.overflowCount }}
           </span>
         </div>
       </div>
