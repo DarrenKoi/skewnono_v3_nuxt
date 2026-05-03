@@ -174,6 +174,9 @@
 import * as echarts from 'echarts'
 import type { ECharts, EChartsOption } from 'echarts'
 import type { SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
+import { registerEchartsThemes } from '~/utils/echartsThemes'
+
+registerEchartsThemes(echarts)
 
 definePageMeta({
   hideFabSidebar: true
@@ -182,6 +185,8 @@ definePageMeta({
 const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 const { fetchRecipeStatistics } = useRecipeStatisticsApi()
+const colorMode = useColorMode()
+const echartsThemeName = computed(() => colorMode.value === 'dark' ? 'dark' : 'vintage')
 
 const SELECTED_DEVICE_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedDeviceLots'
 
@@ -254,13 +259,6 @@ const selectedLotsLabel = computed(() => {
     : `${text.selected}: ${preview}`
 })
 
-const PARA_COLORS = {
-  para_16: '#2563eb',
-  para_13: '#0ea5e9',
-  para_9: '#22c55e',
-  para_5: '#f59e0b'
-} as const
-
 const baseTooltip = {
   trigger: 'axis' as const,
   axisPointer: { type: 'shadow' as const }
@@ -279,10 +277,10 @@ const stackedOption = computed<EChartsOption>(() => ({
   },
   yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
   series: [
-    { name: 'para_16', type: 'bar', stack: 'para', itemStyle: { color: PARA_COLORS.para_16 }, data: rows.value.map(r => r.para_16) },
-    { name: 'para_13', type: 'bar', stack: 'para', itemStyle: { color: PARA_COLORS.para_13 }, data: rows.value.map(r => r.para_13) },
-    { name: 'para_9', type: 'bar', stack: 'para', itemStyle: { color: PARA_COLORS.para_9 }, data: rows.value.map(r => r.para_9) },
-    { name: 'para_5', type: 'bar', stack: 'para', itemStyle: { color: PARA_COLORS.para_5 }, data: rows.value.map(r => r.para_5) }
+    { name: 'para_16', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_16) },
+    { name: 'para_13', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_13) },
+    { name: 'para_9', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_9) },
+    { name: 'para_5', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_5) }
   ]
 }))
 
@@ -298,7 +296,6 @@ const paraAllOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'para_all',
     type: 'bar',
-    itemStyle: { color: '#6366f1' },
     data: rows.value.map(r => r.para_all)
   }]
 }))
@@ -315,7 +312,6 @@ const availRecipeOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'avail_recipe',
     type: 'bar',
-    itemStyle: { color: '#14b8a6' },
     data: rows.value.map(r => r.avail_recipe)
   }]
 }))
@@ -333,10 +329,12 @@ const useEchart = (
 
   const ensureChart = () => {
     if (chart || !elRef.value) return
-    chart = echarts.init(elRef.value)
+    chart = echarts.init(elRef.value, echartsThemeName.value)
     chart.setOption(optionRef.value)
-    resizeHandler = () => chart?.resize()
-    window.addEventListener('resize', resizeHandler)
+    if (!resizeHandler) {
+      resizeHandler = () => chart?.resize()
+      window.addEventListener('resize', resizeHandler)
+    }
   }
 
   onMounted(() => {
@@ -351,6 +349,15 @@ const useEchart = (
 
   watch(optionRef, (next) => {
     chart?.setOption(next, true)
+  })
+
+  // ECharts binds a theme at init time; swapping themes requires dispose +
+  // re-init on the same DOM node.
+  watch(echartsThemeName, () => {
+    if (!elRef.value) return
+    chart?.dispose()
+    chart = echarts.init(elRef.value, echartsThemeName.value)
+    chart.setOption(optionRef.value)
   })
 
   onBeforeUnmount(() => {
