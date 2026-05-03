@@ -4,8 +4,10 @@
 
 const SELECTED_DEVICE_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedDeviceLots'
 
-// Module-scoped flag: useState gives us a shared ref across calls, but watch() would re-register
-// per useDeviceCart() invocation. Attach the persistence watcher once per app instance.
+// watch() inside <script setup> registers in the component's effect scope and dies on unmount.
+// We need the persistence watcher to survive client-side navigation between the list page and
+// the comparison sub-page, so host it inside a detached effect scope (one per app instance).
+const persistenceScope = effectScope(true)
 let persistenceWatcherAttached = false
 
 const readSavedDeviceLots = (): string[] => {
@@ -40,8 +42,10 @@ export const useDeviceCart = () => {
   )
 
   if (!persistenceWatcherAttached) {
-    watch(selectedDeviceLots, next => persistDeviceLots(next))
     persistenceWatcherAttached = true
+    persistenceScope.run(() => {
+      watch(selectedDeviceLots, next => persistDeviceLots(next))
+    })
   }
 
   const selectedDeviceLotSet = computed(() => new Set(selectedDeviceLots.value))
