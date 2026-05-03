@@ -188,7 +188,7 @@ const { fetchRecipeStatistics } = useRecipeStatisticsApi()
 const colorMode = useColorMode()
 const echartsThemeName = computed(() => colorMode.value === 'dark' ? 'dark' : 'vintage')
 
-const SELECTED_DEVICE_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedDeviceLots'
+const { selectedDeviceLots: selectedLots } = useDeviceCart()
 
 const text = {
   title: '디바이스 비교',
@@ -215,19 +215,6 @@ const bucketOptions: BucketOption[] = [
   { label: 'Only Sample', value: 'only_sample_summary' }
 ]
 
-const readSavedLots = (): string[] => {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(SELECTED_DEVICE_LOTS_STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-const selectedLots = ref<string[]>(readSavedLots())
 const selectedBucket = ref<SummaryBucketKey>('all_summary')
 
 const { data, pending, error } = await useAsyncData(

@@ -492,7 +492,6 @@ const SELECTED_FAB_STORAGE_KEY = 'skewnono:deviceStatistics.selectedFab'
 const SELECTED_PROD_CATEGORIES_STORAGE_KEY = 'skewnono:deviceStatistics.selectedProdCategories'
 const SELECTED_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedLots'
 const SELECTED_TECHS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedTechs'
-const SELECTED_DEVICE_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedDeviceLots'
 // Step 1 keeps the lot/tech chip strips compact: surface a small budget of unselected options,
 // always paired with any currently-selected ones so they remain togglable from the strip.
 const STEP1_LOT_CHIP_BUDGET = 24
@@ -524,8 +523,17 @@ const selectedFab = ref<DeviceFab>(readSavedFab() ?? routeFab.value)
 const selectedProdCategories = ref<string[]>(readSavedStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY))
 const selectedLots = ref<string[]>(readSavedStringArray(SELECTED_LOTS_STORAGE_KEY))
 const selectedTechs = ref<string[]>(readSavedStringArray(SELECTED_TECHS_STORAGE_KEY))
-// Step 3 cart selection — independent from the Step 1 lot/tech filters.
-const selectedDeviceLots = ref<string[]>(readSavedStringArray(SELECTED_DEVICE_LOTS_STORAGE_KEY))
+
+// Step 3 cart — extracted to useDeviceCart so the comparison sub-page reads the same ref.
+const {
+  selectedDeviceLots,
+  selectedDeviceLotSet,
+  isDeviceSelected,
+  toggleDeviceSelect,
+  clearDeviceSelection,
+  addDeviceLots,
+  removeDeviceLots
+} = useDeviceCart()
 const lotSearch = ref('')
 const techSearch = ref('')
 const tableSearch = ref('')
@@ -731,17 +739,6 @@ const toggleTech = (tech: string) => {
   selectedTechs.value = toggleValue(selectedTechs.value, tech)
 }
 
-const selectedDeviceLotSet = computed(() => new Set(selectedDeviceLots.value))
-const isDeviceSelected = (lot: string) => selectedDeviceLotSet.value.has(lot)
-
-const toggleDeviceSelect = (lot: string) => {
-  selectedDeviceLots.value = toggleValue(selectedDeviceLots.value, lot)
-}
-
-const clearDeviceSelection = () => {
-  selectedDeviceLots.value = []
-}
-
 // Preserve selection order so the Step 3 cart shows lots in the order the user added them.
 const sortedRowMap = computed(() => {
   const map = new Map<string, DeviceRow>()
@@ -765,21 +762,9 @@ const allOnPageSelected = computed(() => {
 })
 
 const togglePageSelection = () => {
-  if (allOnPageSelected.value) {
-    const onPage = new Set(pagedRows.value.map(row => row.lot_cd))
-    selectedDeviceLots.value = selectedDeviceLots.value.filter(lot => !onPage.has(lot))
-    return
-  }
-
-  const next = [...selectedDeviceLots.value]
-
-  for (const row of pagedRows.value) {
-    if (!selectedDeviceLotSet.value.has(row.lot_cd)) {
-      next.push(row.lot_cd)
-    }
-  }
-
-  selectedDeviceLots.value = next
+  const pageLots = pagedRows.value.map(row => row.lot_cd)
+  if (allOnPageSelected.value) removeDeviceLots(pageLots)
+  else addDeviceLots(pageLots)
 }
 
 const buildChipStrip = (
@@ -918,10 +903,6 @@ watch(selectedLots, (next) => {
 
 watch(selectedTechs, (next) => {
   persistStringArray(SELECTED_TECHS_STORAGE_KEY, next)
-})
-
-watch(selectedDeviceLots, (next) => {
-  persistStringArray(SELECTED_DEVICE_LOTS_STORAGE_KEY, next)
 })
 
 // Clear the Step 3 cart whenever the user actively switches fab — devices belong to a single
