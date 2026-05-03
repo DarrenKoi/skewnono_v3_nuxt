@@ -264,12 +264,18 @@ const baseTooltip = {
   axisPointer: { type: 'shadow' as const }
 }
 
-const baseGrid = { left: 48, right: 16, top: 36, bottom: 32, containLabel: true }
+const baseGrid = { left: 48, right: 16, top: 36, bottom: 48, containLabel: true }
+
+const baseDataZoom = [
+  { type: 'inside' as const, xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false },
+  { type: 'slider' as const, xAxisIndex: 0, height: 14, bottom: 6, brushSelect: false }
+]
 
 const stackedOption = computed<EChartsOption>(() => ({
   tooltip: baseTooltip,
   legend: { top: 0, right: 0, textStyle: { fontSize: 11 } },
   grid: baseGrid,
+  dataZoom: baseDataZoom,
   xAxis: {
     type: 'category',
     data: lotLabels.value,
@@ -287,6 +293,7 @@ const stackedOption = computed<EChartsOption>(() => ({
 const paraAllOption = computed<EChartsOption>(() => ({
   tooltip: baseTooltip,
   grid: baseGrid,
+  dataZoom: baseDataZoom,
   xAxis: {
     type: 'category',
     data: lotLabels.value,
@@ -303,6 +310,7 @@ const paraAllOption = computed<EChartsOption>(() => ({
 const availRecipeOption = computed<EChartsOption>(() => ({
   tooltip: baseTooltip,
   grid: baseGrid,
+  dataZoom: baseDataZoom,
   xAxis: {
     type: 'category',
     data: lotLabels.value,
