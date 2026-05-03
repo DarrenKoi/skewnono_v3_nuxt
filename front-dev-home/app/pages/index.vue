@@ -4,6 +4,7 @@ definePageMeta({
 })
 
 const { toolTypes } = useToolData()
+const { fabs: afmFabs, afmToolHref } = useAfmToolData()
 const { toolTypeHref } = useNavigation()
 
 const { data: semRows } = await useSemList()
@@ -140,7 +141,7 @@ const systemStatus = computed(() => {
         </nav>
       </UCard>
 
-      <!-- Thickness Metrology Card -->
+      <!-- AFM Metrology Card -->
       <UCard
         class="dashboard-surface rounded-3xl"
         :ui="{
@@ -149,23 +150,46 @@ const systemStatus = computed(() => {
       >
         <div class="flex items-start justify-between mb-4">
           <h2 class="text-xl font-semibold">
-            Thickness Metrology
+            AFM Metrology
           </h2>
           <UIcon
-            name="i-lucide-ruler"
-            class="w-6 h-6 text-zinc-500"
+            name="i-lucide-activity"
+            class="w-6 h-6 text-zinc-700 dark:text-zinc-300"
           />
         </div>
 
-        <div class="flex flex-col items-center justify-center h-32 text-zinc-500">
-          <UIcon
-            name="i-lucide-construction"
-            class="w-12 h-12 mb-2 text-zinc-400"
-          />
-          <span class="text-sm">
-            개발 예정
-          </span>
-        </div>
+        <nav class="space-y-3">
+          <div
+            v-for="fabGroup in afmFabs"
+            :key="fabGroup.fab"
+            class="space-y-1"
+          >
+            <div class="px-3 text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 font-semibold">
+              {{ fabGroup.fab }}
+            </div>
+            <NuxtLink
+              v-for="tool in fabGroup.tools"
+              :key="tool.id"
+              :to="afmToolHref(tool)"
+              class="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors group"
+            >
+              <span class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-arrow-right"
+                  class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
+                />
+                <span class="font-medium">
+                  {{ tool.label }}
+                </span>
+              </span>
+              <UBadge
+                :label="fabGroup.fab"
+                color="neutral"
+                variant="subtle"
+              />
+            </NuxtLink>
+          </div>
+        </nav>
       </UCard>
     </div>
 

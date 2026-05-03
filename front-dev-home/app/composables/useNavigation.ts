@@ -29,8 +29,8 @@ export const useNavigation = () => {
 
   const navigateToCategory = (category: Category) => {
     store.setCategory(category)
-    if (category === 'thickness') {
-      router.push('/thickness')
+    if (category === 'afm') {
+      router.push('/afm')
     } else {
       router.push(toolTypeHref(store.toolType.value))
     }

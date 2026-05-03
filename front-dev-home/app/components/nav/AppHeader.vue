@@ -3,7 +3,7 @@ const { category, navigateToCategory } = useNavigation()
 
 const categories = [
   { id: 'ebeam' as const, label: 'E-Beam', enabled: true },
-  { id: 'thickness' as const, label: 'Thickness', enabled: false }
+  { id: 'afm' as const, label: 'AFM', enabled: true }
 ]
 </script>
 

@@ -1,9 +1,6 @@
 <script setup lang="ts">
-const { setCategory } = useNavigation()
-
-onMounted(() => {
-  setCategory('thickness')
-})
+// Thickness Metrology is hidden from navigation as of the AFM swap (2026-05).
+// File is preserved as a stub so it can be reintroduced without re-scaffolding.
 </script>
 
 <template>

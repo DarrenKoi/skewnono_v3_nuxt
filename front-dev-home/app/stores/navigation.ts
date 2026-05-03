@@ -1,7 +1,7 @@
 import { useState } from 'nuxt/app'
 import { computed, readonly } from 'vue'
 
-export type Category = 'ebeam' | 'thickness'
+export type Category = 'ebeam' | 'afm'
 export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
 // Fab holds a fab_name value from the Flask sem-list response (e.g. "R3", "R4", "M16B").
 // The literal 'all' is reserved as an internal "no fab selected" sentinel and is never rendered in the sidebar.
