@@ -35,12 +35,12 @@ const activeFeature = computed(() => {
   const path = route.path
   if (path.includes('/storage')) return 'storage'
   if (path.includes('/recipe-search')) return 'recipe-search'
-  if (path.includes('/device-statistics')) return 'device-statistics'
+  if (path.includes('/device-statistics') || path.includes('/device-comparison')) return 'device-statistics'
   return 'index'
 })
 
 const getFeatureRoute = (feature: string) => {
-  const basePath = route.path.replace(/\/(storage|recipe-search|device-statistics)$/, '')
+  const basePath = route.path.replace(/\/(storage|recipe-search|device-statistics|device-comparison)$/, '')
   if (feature === 'index') return basePath
   return `${basePath}/${feature}`
 }

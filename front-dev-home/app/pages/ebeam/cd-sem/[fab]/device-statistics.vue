@@ -424,7 +424,7 @@ const deviceChipLabel = (row: DeviceRow): string => {
 
 const toast = useToast()
 
-const proceedToStatistics = () => {
+const proceedToStatistics = async () => {
   if (selectedDeviceLots.value.length === 0) return
 
   const preview = selectedDeviceLots.value.slice(0, 6).join(', ')
@@ -436,6 +436,8 @@ const proceedToStatistics = () => {
     icon: 'i-lucide-arrow-right',
     color: 'primary'
   })
+
+  await navigateTo(`/ebeam/cd-sem/${route.params.fab}/device-comparison`)
 }
 
 const ctaLabel = computed(() => {
@@ -963,12 +965,6 @@ onMounted(() => {
           <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
             {{ text.step3Hint }}
           </span>
-          <span
-            v-if="selectedDeviceLots.length > 0"
-            class="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-(--sk-accent) px-1 font-mono text-[10px] font-semibold tabular-nums text-white"
-          >
-            {{ selectedDeviceLots.length }}
-          </span>
         </div>
 
         <UCard
@@ -1035,9 +1031,10 @@ onMounted(() => {
             <UButton
               block
               size="md"
-              color="primary"
               :disabled="selectedDeviceLots.length === 0"
               :trailing-icon="selectedDeviceLots.length > 0 ? 'i-lucide-arrow-right' : undefined"
+              class="bg-(--sk-accent) text-white ring-1 ring-(--sk-accent) hover:bg-(--sk-accent)/90 disabled:opacity-50"
+              :ui="{ label: 'flex-1 text-center' }"
               @click="proceedToStatistics"
             >
               {{ ctaLabel }}
