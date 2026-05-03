@@ -1,3 +1,415 @@
+<template>
+  <div class="space-y-3">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            CD-SEM
+          </p>
+          <h1 class="text-2xl font-bold whitespace-nowrap text-zinc-950 dark:text-zinc-50">
+            {{ text.title }}
+          </h1>
+        </div>
+        <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
+        <div
+          role="radiogroup"
+          :aria-label="text.fabSelect"
+          class="flex flex-wrap items-center gap-1 self-end mb-1.5"
+        >
+          <button
+            v-for="option in deviceFabOptions"
+            :key="option.value"
+            type="button"
+            role="radio"
+            :aria-checked="selectedFab === option.value"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(selectedFab === option.value)"
+            @click="selectedFab = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto">
+        <div
+          v-for="(cell, index) in statCells"
+          :key="cell.label"
+          class="flex min-w-[72px] flex-col gap-0.5 px-4 py-2.5"
+          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
+        >
+          <span
+            class="text-xl font-bold leading-none tabular-nums"
+            :class="cell.tone"
+          >{{ cell.value }}</span>
+          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1 — Quick filter strip -->
+    <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">1</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step1Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ hasRSelection ? text.step1HintR : text.step1HintM }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span
+            v-if="hasActiveFilters"
+            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[9.5px] tabular-nums text-(--sk-accent)"
+          >
+            {{ filteredRowCount.toLocaleString() }} / {{ rows.length.toLocaleString() }}
+          </span>
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-rotate-ccw"
+            :label="text.reset"
+            :disabled="!hasActiveFilters"
+            @click="resetAllFilters"
+          />
+        </div>
+      </div>
+
+      <div
+        v-if="hasRSelection"
+        class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
+      >
+        <div class="flex items-start gap-2 min-w-0 xl:col-span-4">
+          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">prod_catg_cd</span>
+          <div class="flex flex-wrap items-center gap-1">
+            <button
+              v-for="category in prodCategoryOptions"
+              :key="category"
+              type="button"
+              class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+              :class="chipClass(isProdCategorySelected(category))"
+              @click="toggleProdCategory(category)"
+            >
+              {{ category }}
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 min-w-0 xl:col-span-8">
+          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">lot_cd</span>
+          <UInput
+            v-model="lotSearch"
+            class="w-44 shrink-0"
+            size="xs"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-search"
+            :placeholder="text.lotSearch"
+          />
+          <div class="flex flex-wrap items-center gap-1 min-w-0">
+            <button
+              v-for="lot in stepOneLotStrip.chips"
+              :key="lot"
+              type="button"
+              class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
+              :class="chipClass(isLotSelected(lot))"
+              @click="toggleLot(lot)"
+            >
+              {{ lot }}
+            </button>
+            <span
+              v-if="stepOneLotStrip.overflowCount > 0"
+              class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+            >
+              +{{ stepOneLotStrip.overflowCount }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else
+        class="flex items-start gap-2 min-w-0"
+      >
+        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">tech_nm</span>
+        <UInput
+          v-model="techSearch"
+          class="w-44 shrink-0"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-search"
+          :placeholder="text.techSearch"
+        />
+        <div class="flex flex-wrap items-center gap-1 min-w-0">
+          <button
+            v-for="tech in stepOneTechStrip.chips"
+            :key="tech"
+            type="button"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(isTechSelected(tech))"
+            @click="toggleTech(tech)"
+          >
+            {{ tech }}
+          </button>
+          <span
+            v-if="stepOneTechStrip.overflowCount > 0"
+            class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+          >
+            +{{ stepOneTechStrip.overflowCount }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 (table) + Step 3 (cart) -->
+    <div class="grid grid-cols-12 gap-3">
+      <div class="col-span-12 space-y-2 lg:col-span-8">
+        <div class="flex items-center gap-2 px-1">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">2</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step2Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ text.step2Hint }}
+          </span>
+        </div>
+
+        <UCard
+          class="dashboard-surface rounded-2xl"
+          :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
+        >
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <p class="text-xs text-zinc-500 tabular-nums">
+                {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
+              </p>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-rotate-ccw"
+                :label="text.resetAll"
+                :disabled="!hasActiveFilters"
+                @click="resetAllFilters"
+              />
+            </div>
+          </template>
+
+          <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
+            <UInput
+              v-model="tableSearch"
+              class="min-w-[14rem] flex-1"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-search"
+              :placeholder="text.tableSearch"
+            />
+            <USelect
+              v-model="pageSize"
+              class="w-[7rem]"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              :items="pageSizeOptions"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              :label="text.csvDownload"
+              :disabled="filteredRowCount === 0"
+              @click="downloadDeviceListCsv"
+            />
+          </div>
+
+          <div
+            v-if="pending"
+            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="h-4 w-4 animate-spin"
+            />
+            {{ text.loading }}
+          </div>
+          <div
+            v-else-if="error"
+            class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
+          >
+            {{ text.loadError }}
+          </div>
+          <UTable
+            v-else
+            class="max-h-[34rem] font-mono-ids"
+            :columns="columns"
+            :data="pagedRows"
+            :empty="text.emptyRows"
+            :meta="tableMeta"
+            sticky="header"
+            @select="(_, row) => toggleDeviceSelect(row.original.lot_cd)"
+          >
+            <template #select-header>
+              <input
+                type="checkbox"
+                :checked="allOnPageSelected"
+                :aria-label="text.step2Hint"
+                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                @change="togglePageSelection"
+              >
+            </template>
+            <template #select-cell="{ row }">
+              <input
+                type="checkbox"
+                :checked="isDeviceSelected(row.original.lot_cd)"
+                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                @click.stop
+                @change="toggleDeviceSelect(row.original.lot_cd)"
+              >
+            </template>
+            <template #ctn_desc-cell="{ row }">
+              <span class="block max-w-[28rem] truncate text-zinc-600 dark:text-zinc-300">
+                {{ row.original.ctn_desc }}
+              </span>
+            </template>
+          </UTable>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
+            <p class="text-xs text-zinc-500 tabular-nums">
+              Page {{ currentPage }} / {{ pageCount }}
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-chevron-left"
+                :label="text.prev"
+                :disabled="currentPage <= 1"
+                @click="currentPage -= 1"
+              />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                trailing-icon="i-lucide-chevron-right"
+                :label="text.next"
+                :disabled="currentPage >= pageCount"
+                @click="currentPage += 1"
+              />
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div class="col-span-12 space-y-2 lg:col-span-4">
+        <div class="flex items-center gap-2 px-1">
+          <span
+            class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold transition-colors"
+            :class="selectedDeviceLots.length > 0
+              ? 'bg-(--sk-accent) text-white'
+              : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'"
+          >3</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step3Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ text.step3Hint }}
+          </span>
+        </div>
+
+        <UCard
+          class="dashboard-surface sticky top-2 overflow-hidden rounded-2xl"
+          :ui="{ body: 'p-0 sm:p-0' }"
+        >
+          <div class="max-h-[28rem] overflow-y-auto">
+            <div
+              v-if="selectedDeviceRows.length === 0"
+              class="px-4 py-10 text-center"
+            >
+              <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800">
+                <UIcon
+                  name="i-lucide-plus"
+                  class="h-4 w-4"
+                />
+              </div>
+              <p class="text-[11.5px] font-medium leading-snug text-zinc-600 dark:text-zinc-300">
+                {{ text.emptySelectionTitle }}
+              </p>
+              <p class="mt-1 text-[10.5px] leading-snug text-zinc-400 dark:text-zinc-500">
+                {{ text.emptySelectionDescLineOne }}<br>{{ text.emptySelectionDescLineTwo }}
+              </p>
+            </div>
+            <div
+              v-else
+              class="divide-y divide-zinc-100 dark:divide-zinc-800"
+            >
+              <div
+                v-for="(row, index) in selectedDeviceRows"
+                :key="row.lot_cd"
+                class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+              >
+                <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  {{ index + 1 }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ row.lot_cd }}</span>
+                    <span class="text-[9.5px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      {{ deviceChipLabel(row) }}
+                    </span>
+                  </div>
+                  <p class="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                    {{ row.ctn_desc }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  :aria-label="text.clearAll"
+                  @click="toggleDeviceSelect(row.lot_cd)"
+                >
+                  <UIcon
+                    name="i-lucide-x"
+                    class="h-3 w-3"
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2 border-t border-zinc-100 bg-zinc-50/40 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/30">
+            <UButton
+              block
+              size="md"
+              :disabled="selectedDeviceLots.length === 0"
+              :trailing-icon="selectedDeviceLots.length > 0 ? 'i-lucide-arrow-right' : undefined"
+              class="bg-(--sk-accent) text-white ring-1 ring-(--sk-accent) hover:bg-(--sk-accent)/90 disabled:opacity-50"
+              :ui="{ label: 'flex-1 text-center' }"
+              @click="proceedToStatistics"
+            >
+              {{ ctaLabel }}
+            </UButton>
+            <button
+              v-if="selectedDeviceLots.length > 0"
+              type="button"
+              class="block w-full text-center text-[10.5px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+              @click="clearDeviceSelection"
+            >
+              {{ text.clearAll }}
+            </button>
+          </div>
+        </UCard>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
@@ -625,418 +1037,6 @@ onMounted(() => {
   setFab(routeFab.value)
 })
 </script>
-
-<template>
-  <div class="space-y-3">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            CD-SEM
-          </p>
-          <h1 class="text-2xl font-bold whitespace-nowrap text-zinc-950 dark:text-zinc-50">
-            {{ text.title }}
-          </h1>
-        </div>
-        <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
-        <div
-          role="radiogroup"
-          :aria-label="text.fabSelect"
-          class="flex flex-wrap items-center gap-1 self-end mb-1.5"
-        >
-          <button
-            v-for="option in deviceFabOptions"
-            :key="option.value"
-            type="button"
-            role="radio"
-            :aria-checked="selectedFab === option.value"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedFab === option.value)"
-            @click="selectedFab = option.value"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto">
-        <div
-          v-for="(cell, index) in statCells"
-          :key="cell.label"
-          class="flex min-w-[72px] flex-col gap-0.5 px-4 py-2.5"
-          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-        >
-          <span
-            class="text-xl font-bold leading-none tabular-nums"
-            :class="cell.tone"
-          >{{ cell.value }}</span>
-          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 1 — Quick filter strip -->
-    <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">1</span>
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.step1Title }}
-          </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
-            {{ hasRSelection ? text.step1HintR : text.step1HintM }}
-          </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span
-            v-if="hasActiveFilters"
-            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[9.5px] tabular-nums text-(--sk-accent)"
-          >
-            {{ filteredRowCount.toLocaleString() }} / {{ rows.length.toLocaleString() }}
-          </span>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-rotate-ccw"
-            :label="text.reset"
-            :disabled="!hasActiveFilters"
-            @click="resetAllFilters"
-          />
-        </div>
-      </div>
-
-      <div
-        v-if="hasRSelection"
-        class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
-      >
-        <div class="flex items-start gap-2 min-w-0 xl:col-span-4">
-          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">prod_catg_cd</span>
-          <div class="flex flex-wrap items-center gap-1">
-            <button
-              v-for="category in prodCategoryOptions"
-              :key="category"
-              type="button"
-              class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-              :class="chipClass(isProdCategorySelected(category))"
-              @click="toggleProdCategory(category)"
-            >
-              {{ category }}
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-start gap-2 min-w-0 xl:col-span-8">
-          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">lot_cd</span>
-          <UInput
-            v-model="lotSearch"
-            class="w-44 shrink-0"
-            size="xs"
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-search"
-            :placeholder="text.lotSearch"
-          />
-          <div class="flex flex-wrap items-center gap-1 min-w-0">
-            <button
-              v-for="lot in stepOneLotStrip.chips"
-              :key="lot"
-              type="button"
-              class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
-              :class="chipClass(isLotSelected(lot))"
-              @click="toggleLot(lot)"
-            >
-              {{ lot }}
-            </button>
-            <span
-              v-if="stepOneLotStrip.overflowCount > 0"
-              class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
-            >
-              +{{ stepOneLotStrip.overflowCount }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div
-        v-else
-        class="flex items-start gap-2 min-w-0"
-      >
-        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">tech_nm</span>
-        <UInput
-          v-model="techSearch"
-          class="w-44 shrink-0"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          icon="i-lucide-search"
-          :placeholder="text.techSearch"
-        />
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <button
-            v-for="tech in stepOneTechStrip.chips"
-            :key="tech"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(isTechSelected(tech))"
-            @click="toggleTech(tech)"
-          >
-            {{ tech }}
-          </button>
-          <span
-            v-if="stepOneTechStrip.overflowCount > 0"
-            class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
-          >
-            +{{ stepOneTechStrip.overflowCount }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 2 (table) + Step 3 (cart) -->
-    <div class="grid grid-cols-12 gap-3">
-      <div class="col-span-12 space-y-2 lg:col-span-8">
-        <div class="flex items-center gap-2 px-1">
-          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">2</span>
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.step2Title }}
-          </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
-            {{ text.step2Hint }}
-          </span>
-        </div>
-
-        <UCard
-          class="dashboard-surface rounded-2xl"
-          :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
-        >
-          <template #header>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <p class="text-xs text-zinc-500 tabular-nums">
-                {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
-              </p>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-rotate-ccw"
-                :label="text.resetAll"
-                :disabled="!hasActiveFilters"
-                @click="resetAllFilters"
-              />
-            </div>
-          </template>
-
-          <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
-            <UInput
-              v-model="tableSearch"
-              class="min-w-[14rem] flex-1"
-              size="xs"
-              color="neutral"
-              variant="subtle"
-              icon="i-lucide-search"
-              :placeholder="text.tableSearch"
-            />
-            <USelect
-              v-model="pageSize"
-              class="w-[7rem]"
-              size="xs"
-              color="neutral"
-              variant="subtle"
-              :items="pageSizeOptions"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-download"
-              :label="text.csvDownload"
-              :disabled="filteredRowCount === 0"
-              @click="downloadDeviceListCsv"
-            />
-          </div>
-
-          <div
-            v-if="pending"
-            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="h-4 w-4 animate-spin"
-            />
-            {{ text.loading }}
-          </div>
-          <div
-            v-else-if="error"
-            class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
-          >
-            {{ text.loadError }}
-          </div>
-          <UTable
-            v-else
-            class="max-h-[34rem] font-mono-ids"
-            :columns="columns"
-            :data="pagedRows"
-            :empty="text.emptyRows"
-            :meta="tableMeta"
-            sticky="header"
-            @select="(_, row) => toggleDeviceSelect(row.original.lot_cd)"
-          >
-            <template #select-header>
-              <input
-                type="checkbox"
-                :checked="allOnPageSelected"
-                :aria-label="text.step2Hint"
-                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
-                @change="togglePageSelection"
-              >
-            </template>
-            <template #select-cell="{ row }">
-              <input
-                type="checkbox"
-                :checked="isDeviceSelected(row.original.lot_cd)"
-                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
-                @click.stop
-                @change="toggleDeviceSelect(row.original.lot_cd)"
-              >
-            </template>
-            <template #ctn_desc-cell="{ row }">
-              <span class="block max-w-[28rem] truncate text-zinc-600 dark:text-zinc-300">
-                {{ row.original.ctn_desc }}
-              </span>
-            </template>
-          </UTable>
-
-          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
-            <p class="text-xs text-zinc-500 tabular-nums">
-              Page {{ currentPage }} / {{ pageCount }}
-            </p>
-            <div class="flex gap-2">
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-chevron-left"
-                :label="text.prev"
-                :disabled="currentPage <= 1"
-                @click="currentPage -= 1"
-              />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="outline"
-                trailing-icon="i-lucide-chevron-right"
-                :label="text.next"
-                :disabled="currentPage >= pageCount"
-                @click="currentPage += 1"
-              />
-            </div>
-          </div>
-        </UCard>
-      </div>
-
-      <div class="col-span-12 space-y-2 lg:col-span-4">
-        <div class="flex items-center gap-2 px-1">
-          <span
-            class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold transition-colors"
-            :class="selectedDeviceLots.length > 0
-              ? 'bg-(--sk-accent) text-white'
-              : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'"
-          >3</span>
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.step3Title }}
-          </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
-            {{ text.step3Hint }}
-          </span>
-        </div>
-
-        <UCard
-          class="dashboard-surface sticky top-2 overflow-hidden rounded-2xl"
-          :ui="{ body: 'p-0 sm:p-0' }"
-        >
-          <div class="max-h-[28rem] overflow-y-auto">
-            <div
-              v-if="selectedDeviceRows.length === 0"
-              class="px-4 py-10 text-center"
-            >
-              <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800">
-                <UIcon
-                  name="i-lucide-plus"
-                  class="h-4 w-4"
-                />
-              </div>
-              <p class="text-[11.5px] font-medium leading-snug text-zinc-600 dark:text-zinc-300">
-                {{ text.emptySelectionTitle }}
-              </p>
-              <p class="mt-1 text-[10.5px] leading-snug text-zinc-400 dark:text-zinc-500">
-                {{ text.emptySelectionDescLineOne }}<br>{{ text.emptySelectionDescLineTwo }}
-              </p>
-            </div>
-            <div
-              v-else
-              class="divide-y divide-zinc-100 dark:divide-zinc-800"
-            >
-              <div
-                v-for="(row, index) in selectedDeviceRows"
-                :key="row.lot_cd"
-                class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
-              >
-                <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                  {{ index + 1 }}
-                </span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ row.lot_cd }}</span>
-                    <span class="text-[9.5px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                      {{ deviceChipLabel(row) }}
-                    </span>
-                  </div>
-                  <p class="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {{ row.ctn_desc }}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  class="shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  :aria-label="text.clearAll"
-                  @click="toggleDeviceSelect(row.lot_cd)"
-                >
-                  <UIcon
-                    name="i-lucide-x"
-                    class="h-3 w-3"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-2 border-t border-zinc-100 bg-zinc-50/40 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/30">
-            <UButton
-              block
-              size="md"
-              :disabled="selectedDeviceLots.length === 0"
-              :trailing-icon="selectedDeviceLots.length > 0 ? 'i-lucide-arrow-right' : undefined"
-              class="bg-(--sk-accent) text-white ring-1 ring-(--sk-accent) hover:bg-(--sk-accent)/90 disabled:opacity-50"
-              :ui="{ label: 'flex-1 text-center' }"
-              @click="proceedToStatistics"
-            >
-              {{ ctaLabel }}
-            </UButton>
-            <button
-              v-if="selectedDeviceLots.length > 0"
-              type="button"
-              class="block w-full text-center text-[10.5px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-              @click="clearDeviceSelection"
-            >
-              {{ text.clearAll }}
-            </button>
-          </div>
-        </UCard>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .font-mono-ids :deep(td) {
