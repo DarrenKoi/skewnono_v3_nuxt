@@ -105,10 +105,12 @@ export const useAfmCart = (toolId: string) => {
   if (!persistenceWatchers.has(toolId)) {
     persistenceWatchers.add(toolId)
     persistenceScope.run(() => {
-      watch(viewHistory, next => writeJSON(historyKey, next))
-      watch(groupedData, next => writeJSON(groupedKey, next))
-      watch(savedGroups, next => writeJSON(savedKey, next))
-      watch(recentSearches, next => writeJSON(recentKey, next))
+      // flush: 'sync' fires the watcher in the same task as the mutation, so localStorage
+      // is durable before any subsequent unload/navigation could drop the change.
+      watch(viewHistory, next => writeJSON(historyKey, next), { flush: 'sync' })
+      watch(groupedData, next => writeJSON(groupedKey, next), { flush: 'sync' })
+      watch(savedGroups, next => writeJSON(savedKey, next), { flush: 'sync' })
+      watch(recentSearches, next => writeJSON(recentKey, next), { flush: 'sync' })
     })
   }
 
