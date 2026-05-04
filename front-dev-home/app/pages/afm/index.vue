@@ -52,10 +52,5 @@ definePageMeta({
   layout: 'hub'
 })
 
-const { setCategory } = useNavigation()
 const { fabs, afmToolHref } = useAfmToolData()
-
-onMounted(() => {
-  setCategory('afm')
-})
 </script>

@@ -43,7 +43,7 @@
 
     <footer class="border-t-(--sk-border) py-4">
       <div class="max-w-7xl mx-auto px-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
-        SKEWNONO v3 - E-Beam Metrology Dashboard
+        SKEWNONO v3 - Metrology Solution
       </div>
     </footer>
   </div>

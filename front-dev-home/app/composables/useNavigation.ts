@@ -1,4 +1,4 @@
-import type { Category, ToolType, Fab } from '~/stores/navigation'
+import type { ToolType, Fab } from '~/stores/navigation'
 import { useNavigationStore } from '~/stores/navigation'
 
 export const useNavigation = () => {
@@ -27,20 +27,10 @@ export const useNavigation = () => {
     }
   }
 
-  const navigateToCategory = (category: Category) => {
-    store.setCategory(category)
-    if (category === 'afm') {
-      router.push('/afm')
-    } else {
-      router.push(toolTypeHref(store.toolType.value))
-    }
-  }
-
   return {
     ...store,
     toolTypeHref,
     navigateToToolType,
-    navigateToFab,
-    navigateToCategory
+    navigateToFab
   }
 }

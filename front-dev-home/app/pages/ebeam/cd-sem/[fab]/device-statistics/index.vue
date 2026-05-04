@@ -458,9 +458,7 @@ const text = {
   emptySelectionDescLineTwo: '2개 이상 선택해 보세요',
   ctaEmpty: '디바이스를 선택하세요',
   ctaSingle: '디바이스 통계 보기',
-  ctaMulti: '{count}개 비교 페이지로',
-  toastTitle: '{count}개 디바이스 선택됨',
-  overflowSuffix: '외 {count}개'
+  ctaMulti: '{count}개 비교 페이지로'
 } as const
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
@@ -809,20 +807,8 @@ const deviceChipLabel = (row: DeviceRow): string => {
   return tech ? `${row.fac_id} · ${tech}` : row.fac_id
 }
 
-const toast = useToast()
-
 const proceedToStatistics = async () => {
   if (selectedDeviceLots.value.length === 0) return
-
-  const preview = selectedDeviceLots.value.slice(0, 6).join(', ')
-  const overflow = selectedDeviceLots.value.length - 6
-
-  toast.add({
-    title: text.toastTitle.replace('{count}', String(selectedDeviceLots.value.length)),
-    description: overflow > 0 ? `${preview} ${text.overflowSuffix.replace('{count}', String(overflow))}` : preview,
-    icon: 'i-lucide-arrow-right',
-    color: 'primary'
-  })
 
   await navigateTo(`/ebeam/cd-sem/${route.params.fab}/device-statistics/comparison`)
 }

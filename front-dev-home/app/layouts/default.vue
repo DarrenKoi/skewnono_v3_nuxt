@@ -1,8 +1,8 @@
 <script setup lang="ts">
-const { category } = useNavigation()
 const route = useRoute()
 
-const showFabSidebar = computed(() => route.meta.hideFabSidebar !== true)
+const isEbeamRoute = computed(() => route.path === '/ebeam' || route.path.startsWith('/ebeam/'))
+const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSidebar !== true)
 </script>
 
 <template>
@@ -13,7 +13,7 @@ const showFabSidebar = computed(() => route.meta.hideFabSidebar !== true)
     />
     <NavAppHeader />
 
-    <template v-if="category === 'ebeam'">
+    <template v-if="isEbeamRoute">
       <NavToolTypeTabs />
     </template>
 
