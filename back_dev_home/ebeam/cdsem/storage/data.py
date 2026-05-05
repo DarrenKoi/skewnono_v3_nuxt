@@ -22,11 +22,12 @@ class StorageRow(TypedDict):
 FAC_IDS = ["M10", "M11", "M14", "M15", "M16", "R3"]
 FAB_SUFFIXES = ["A", "B", "C"]
 
-# CD-SEM scope: only Hitachi CG-series models. The AMAT inventory in
-# this mock dataset is HV-SEM (TP*), VeritySEM, or Provision — none of
-# which are CD-SEM per classifyToolType() in useSemListApi.ts — so it
-# is excluded from this endpoint.
-EQP_MODELS = ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380"]
+# CD-SEM scope: Hitachi CG-series and GT-series only. classifyToolType()
+# in useSemListApi.ts treats both CG* and GT* as cd-sem; mirror that
+# canonical list (sem_list/data.py) here. The AMAT inventory in this
+# mock dataset is HV-SEM (TP*), VeritySEM, or Provision — none CD-SEM —
+# so it is excluded from this endpoint.
+EQP_MODELS = ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380", "GT2000", "GT2000S"]
 EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
 
 IP_PREFIXES = ["177", "197"]
