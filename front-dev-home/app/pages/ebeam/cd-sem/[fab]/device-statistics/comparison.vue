@@ -62,7 +62,46 @@
     <template v-else>
       <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
         <div class="flex flex-wrap items-center gap-2">
-          <span class="font-mono text-[10px] text-zinc-400">bucket</span>
+          <div class="flex items-center gap-1.5">
+            <span class="font-mono text-[10px] text-zinc-400">bucket</span>
+            <UPopover>
+              <UButton
+                type="button"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-info"
+                aria-label="Bucket 설명"
+                class="h-6 w-6 rounded-full p-0 text-zinc-500"
+              />
+              <template #content>
+                <div class="w-72 space-y-3 p-3">
+                  <div>
+                    <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                      {{ text.bucketHelpTitle }}
+                    </p>
+                    <p class="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                      {{ text.bucketHelpIntro }}
+                    </p>
+                  </div>
+                  <dl class="space-y-2">
+                    <div
+                      v-for="option in bucketOptions"
+                      :key="`${option.value}-help`"
+                      class="rounded-md bg-zinc-50 px-2.5 py-2 dark:bg-zinc-900"
+                    >
+                      <dt class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                        {{ option.label }}
+                      </dt>
+                      <dd class="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
+                        {{ option.description }}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </template>
+            </UPopover>
+          </div>
           <div
             role="radiogroup"
             aria-label="Summary bucket"
@@ -203,16 +242,34 @@ const text = {
   chartStackedTitle: '파라미터 분포 (스택)',
   chartParaAllTitle: '전체 파라미터 수',
   chartAvailRecipeTitle: '가용 레시피 수',
-  selected: '선택'
+  selected: '선택',
+  bucketHelpTitle: 'Bucket 의미',
+  bucketHelpIntro: 'MMDM recipe step을 어떤 기준으로 모아 볼지 선택합니다.'
 } as const
 
-type BucketOption = { label: string, value: SummaryBucketKey }
+type BucketOption = { label: string, value: SummaryBucketKey, description: string }
 
 const bucketOptions: BucketOption[] = [
-  { label: 'All', value: 'all_summary' },
-  { label: 'Only Normal', value: 'only_normal_summary' },
-  { label: 'Mother Normal', value: 'mother_normal_summary' },
-  { label: 'Only Sample', value: 'only_sample_summary' }
+  {
+    label: 'All',
+    value: 'all_summary',
+    description: 'MMDM system의 모든 Step을 표시합니다. Full job과 Sample job을 함께 포함합니다.'
+  },
+  {
+    label: 'Only Normal',
+    value: 'only_normal_summary',
+    description: '정규 Recipe만 표시합니다. 스텝명에 CD만 포함된 Step 기준입니다.'
+  },
+  {
+    label: 'Mother Normal',
+    value: 'mother_normal_summary',
+    description: '정규 Recipe 중 TAT에 영향을 주는 파라미터만 선별합니다.'
+  },
+  {
+    label: 'Only Sample',
+    value: 'only_sample_summary',
+    description: 'Sample Recipe만 표시합니다. _S, SE Step을 선별합니다.'
+  }
 ]
 
 const selectedBucket = ref<SummaryBucketKey>('all_summary')
@@ -251,11 +308,11 @@ const baseTooltip = {
   axisPointer: { type: 'shadow' as const }
 }
 
-const baseGrid = { left: 48, right: 16, top: 36, bottom: 48, containLabel: true }
+const baseGrid = { left: 48, right: 16, top: 36, bottom: 55, containLabel: true }
 
 const baseDataZoom = [
   { type: 'inside' as const, xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false },
-  { type: 'slider' as const, xAxisIndex: 0, height: 14, bottom: 6, brushSelect: false }
+  { type: 'slider' as const, xAxisIndex: 0, height: 21, bottom: 6, brushSelect: false }
 ]
 
 const stackedOption = computed<EChartsOption>(() => ({
