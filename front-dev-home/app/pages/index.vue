@@ -131,11 +131,18 @@ const systemStatus = computed(() => {
                   {{ tool.label }}
                 </span>
               </span>
-              <UBadge
-                label="개발 예정"
-                color="neutral"
-                variant="soft"
-              />
+              <span class="flex items-center gap-1.5">
+                <UBadge
+                  :label="String(tool.count)"
+                  color="neutral"
+                  variant="subtle"
+                />
+                <UBadge
+                  label="개발 예정"
+                  color="neutral"
+                  variant="soft"
+                />
+              </span>
             </div>
           </template>
         </nav>
