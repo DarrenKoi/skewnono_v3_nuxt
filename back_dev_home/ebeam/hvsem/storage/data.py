@@ -22,15 +22,12 @@ class StorageRow(TypedDict):
 FAC_IDS = ["M10", "M11", "M14", "M15", "M16", "R3"]
 FAB_SUFFIXES = ["A", "B", "C"]
 
-HITACHI_MODELS = ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380"]
-AMAT_MODELS = [
-    "TP3000", "TP3500", "TP4000", "TP4500",
-    "PROVISION_10", "PROVISION_20",
-    "VERITYSEM_4", "VERITYSEM_5"
-]
-
-HITACHI_EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
-AMAT_EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
+# HV-SEM scope: only AMAT TP-series. PROVISION_* and VERITYSEM_* are
+# their own tool families (deferred to 2027 per the project roadmap)
+# and Hitachi CG* is CD-SEM — none belong on this endpoint per
+# classifyToolType() in useSemListApi.ts.
+EQP_MODELS = ["TP3000", "TP3500", "TP4000", "TP4500"]
+EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
 
 IP_PREFIXES = ["177", "197"]
 
@@ -57,13 +54,8 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[StorageRow]:
         else:
             fab_name = fac_id + rng.choice(FAB_SUFFIXES)
 
-        vendor = "HITACHI" if rng.random() < 0.5 else "AMAT"
-        if vendor == "HITACHI":
-            model = rng.choice(HITACHI_MODELS)
-            eqp_prefix = rng.choice(HITACHI_EQP_PREFIXES)
-        else:
-            model = rng.choice(AMAT_MODELS)
-            eqp_prefix = rng.choice(AMAT_EQP_PREFIXES)
+        model = rng.choice(EQP_MODELS)
+        eqp_prefix = rng.choice(EQP_PREFIXES)
 
         eqp_id = f"{eqp_prefix}{rng.randint(100, 999)}"
 
@@ -203,13 +195,8 @@ def _generate_unavailable_rows(n_rows: int = 60, seed: int = 43) -> list[Unavail
         else:
             fab_name = fac_id + rng.choice(FAB_SUFFIXES)
 
-        vendor = "HITACHI" if rng.random() < 0.5 else "AMAT"
-        if vendor == "HITACHI":
-            model = rng.choice(HITACHI_MODELS)
-            eqp_prefix = rng.choice(HITACHI_EQP_PREFIXES)
-        else:
-            model = rng.choice(AMAT_MODELS)
-            eqp_prefix = rng.choice(AMAT_EQP_PREFIXES)
+        model = rng.choice(EQP_MODELS)
+        eqp_prefix = rng.choice(EQP_PREFIXES)
 
         # Distinct numeric range from inventory generator (which uses 100-999).
         eqp_id = f"{eqp_prefix}{5000 + idx}"
