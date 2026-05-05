@@ -46,7 +46,30 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
     |-- _core/                   # cross-feature infrastructure
     |   |-- __init__.py
     |   `-- routes.py            # GET /api/health
-    |-- sem_list/                # feature: matches Nuxt tab
+    |-- afm/                     # tool family: AFM (single-tier feature)
+    |   |-- __init__.py
+    |   |-- routes.py
+    |   `-- data.py
+    |-- ebeam/                   # tool family: groups all e-beam tools
+    |   |-- __init__.py          # namespace only — no Blueprint
+    |   |-- cdsem/               # tool: CD-SEM (namespace; sub-features below)
+    |   |   |-- __init__.py      # namespace only — no Blueprint
+    |   |   |-- storage/         # feature: per-tool storage inventory
+    |   |   |   |-- __init__.py  # re-exports `bp`
+    |   |   |   |-- routes.py    # Blueprint("cdsem_storage") — /api/cdsem/storage*
+    |   |   |   `-- data.py      # Phase 1 mock; swap surface for Phase 2/3
+    |   |   `-- device_statistics/   # feature: recipe + device stats (CD-SEM only)
+    |   |       |-- __init__.py      # re-exports `bp`
+    |   |       |-- routes.py        # Blueprint("cdsem_device_statistics") — /api/cdsem/device-statistics/*
+    |   |       |-- data.py
+    |   |       `-- statistics.py
+    |   `-- hvsem/               # tool: HV-SEM (namespace; sub-features below)
+    |       |-- __init__.py      # namespace only — no Blueprint
+    |       `-- storage/         # feature: per-tool storage inventory
+    |           |-- __init__.py  # re-exports `bp`
+    |           |-- routes.py    # Blueprint("hvsem_storage") — /api/hvsem/storage*
+    |           `-- data.py      # currently identical to cdsem; differentiate later
+    |-- sem_list/                # feature: cross-tool SEM list
     |   |-- __init__.py          # re-exports `bp`
     |   |-- routes.py            # GET /api/sem-list
     |   `-- data.py              # Phase 1 mock; swap surface for Phase 2/3
@@ -56,4 +79,13 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
 
 ## Office migration (Phase 2)
 
-Replace each feature's `data.py` (e.g. `sem_list/data.py`) with a module that queries OpenSearch / Redis. `routes.py` stays unchanged — it only consumes `get_sem_list()` etc. via `from .data import ...`, not the data source. Keep function signatures and return shapes stable.
+Replace each feature's `data.py` (e.g. `sem_list/data.py`, `ebeam/cdsem/storage/data.py`) with a module that queries OpenSearch / Redis. `routes.py` stays unchanged — it only consumes `get_sem_list()` etc. via `from .data import ...`, not the data source. Keep function signatures and return shapes stable.
+
+## Adding a new e-beam tool feature
+
+The `ebeam/<tool>/` folders are **namespaces**, not Blueprints — each sub-feature folder (e.g. `ebeam/cdsem/storage/`) is its own Blueprint. To add a new feature for an existing tool:
+
+1. Create `back_dev_home/ebeam/<tool>/<feature>/` with `__init__.py`, `routes.py`, `data.py`.
+2. In `routes.py`, declare `bp = Blueprint("<tool>_<feature>", __name__)` — the prefix keeps Blueprint names globally unique.
+3. URL paths inside `routes.py` should be prefixed with `/<tool>/...` so the namespace is reflected in the URL too.
+4. Register the new Blueprint in `back_dev_home/__init__.py` under `create_app()`.

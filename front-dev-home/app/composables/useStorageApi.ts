@@ -30,6 +30,15 @@ export interface UnavailableRow {
   last_success: string
 }
 
+// Storage is now namespaced per ebeam tool (matches back_dev_home/ebeam/<tool>/storage/).
+// Frontend ToolType uses kebab-case ('cd-sem'); backend folders use no-hyphen ('cdsem').
+export type StorageTool = 'cd-sem' | 'hv-sem'
+
+const TOOL_TO_BACKEND_SLUG: Record<StorageTool, string> = {
+  'cd-sem': 'cdsem',
+  'hv-sem': 'hvsem'
+}
+
 const joinStorageApiPath = (base: string, path: string) => {
   const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -37,10 +46,11 @@ const joinStorageApiPath = (base: string, path: string) => {
   return `${normalizedBase}${normalizedPath}`
 }
 
-export const useStorageApi = () => {
+export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
   const config = useRuntimeConfig()
-  const storageUrl = joinStorageApiPath(config.public.apiBase, '/storage')
-  const unavailableUrl = joinStorageApiPath(config.public.apiBase, '/storage-unavailable')
+  const slug = TOOL_TO_BACKEND_SLUG[tool]
+  const storageUrl = joinStorageApiPath(config.public.apiBase, `/${slug}/storage`)
+  const unavailableUrl = joinStorageApiPath(config.public.apiBase, `/${slug}/storage-unavailable`)
 
   const fetchStorageRows = async (facIds: string[] = []): Promise<StorageRow[]> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined

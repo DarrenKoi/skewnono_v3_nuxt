@@ -68,7 +68,7 @@ export const useRecipeStatisticsApi = () => {
     const query = lotCds.length > 0 ? { lot_cds: lotCds.join(',') } : undefined
 
     return await $fetch<RecipeStatisticsResponse>(
-      joinRecipeStatisticsApiPath(base, '/device-statistics/recipe-statistics'),
+      joinRecipeStatisticsApiPath(base, '/cdsem/device-statistics/recipe-statistics'),
       { query }
     )
   }

@@ -1,17 +1,17 @@
 from flask import Blueprint, jsonify, request
 
-from back_dev_home.device_statistics.data import get_device_desc, get_r3_device_grp
-from back_dev_home.device_statistics.statistics import get_weekly_trend_data
+from back_dev_home.ebeam.cdsem.device_statistics.data import get_device_desc, get_r3_device_grp
+from back_dev_home.ebeam.cdsem.device_statistics.statistics import get_weekly_trend_data
 
-bp = Blueprint("device_statistics", __name__)
+bp = Blueprint("cdsem_device_statistics", __name__)
 
 
-@bp.get("/device-statistics/r3-device-grp")
+@bp.get("/cdsem/device-statistics/r3-device-grp")
 def r3_device_grp():
     return jsonify(get_r3_device_grp())
 
 
-@bp.get("/device-statistics/device-desc")
+@bp.get("/cdsem/device-statistics/device-desc")
 def device_desc():
     fac_id_param = request.args.get("fac_id", "")
     fac_ids = [value.strip() for value in fac_id_param.split(",") if value.strip()]
@@ -20,7 +20,7 @@ def device_desc():
     return jsonify(rows)
 
 
-@bp.get("/device-statistics/recipe-statistics")
+@bp.get("/cdsem/device-statistics/recipe-statistics")
 def recipe_statistics():
     lot_cds_param = request.args.get("lot_cds", "")
     lot_cds = [value.strip() for value in lot_cds_param.split(",") if value.strip()]

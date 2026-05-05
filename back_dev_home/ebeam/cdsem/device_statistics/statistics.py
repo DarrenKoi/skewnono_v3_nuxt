@@ -12,7 +12,7 @@ from datetime import timedelta
 from functools import lru_cache
 from typing import TypedDict
 
-from back_dev_home.device_statistics.data import BASE_TIME, get_device_desc, get_r3_device_grp
+from back_dev_home.ebeam.cdsem.device_statistics.data import BASE_TIME, get_device_desc, get_r3_device_grp
 
 
 class RecipeInfoRow(TypedDict):
@@ -262,7 +262,7 @@ def get_lot_index() -> list[dict]:
 
 if __name__ == "__main__":
     # Standalone mock-data preview. Run from the project root with:
-    #   python -m back_dev_home.device_statistics.statistics
+    #   python -m back_dev_home.ebeam.cdsem.device_statistics.statistics
     import pprint
 
     print("=" * 72)

@@ -36,7 +36,7 @@ export const useDeviceStatisticsApi = () => {
 
   const fetchR3DeviceGrp = async (): Promise<R3DeviceGrpRow[]> => {
     return await $fetch<R3DeviceGrpRow[]>(
-      joinDeviceStatisticsApiPath(base, '/device-statistics/r3-device-grp')
+      joinDeviceStatisticsApiPath(base, '/cdsem/device-statistics/r3-device-grp')
     )
   }
 
@@ -44,7 +44,7 @@ export const useDeviceStatisticsApi = () => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
     return await $fetch<DeviceDescRow[]>(
-      joinDeviceStatisticsApiPath(base, '/device-statistics/device-desc'),
+      joinDeviceStatisticsApiPath(base, '/cdsem/device-statistics/device-desc'),
       { query }
     )
   }

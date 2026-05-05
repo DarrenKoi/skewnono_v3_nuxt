@@ -337,7 +337,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Fab, ToolType } from '~/stores/navigation'
-import type { StorageRow, UnavailableRow, UnavailableReason } from '~/composables/useStorageApi'
+import type { StorageRow, UnavailableRow, UnavailableReason, StorageTool } from '~/composables/useStorageApi'
 
 const props = defineProps<{
   fab: Fab
@@ -345,12 +345,15 @@ const props = defineProps<{
   toolType: ToolType
 }>()
 
-const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi()
+// Backend storage routes only exist for cd-sem and hv-sem in 2026; default cd-sem
+// for any future toolType so the SPA still gets a sensible response.
+const storageTool: StorageTool = props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
+const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi(storageTool)
 
 const subtitle = computed(() => `Storage usage for ${props.fab} ${props.toolLabel} tools.`)
 
 const { data, pending, error } = await useAsyncData(
-  () => `storage:${props.fab}`,
+  () => `storage:${storageTool}:${props.fab}`,
   () => fetchByUrlFab(props.fab),
   { watch: [() => props.fab], default: () => [] as StorageRow[] }
 )
@@ -361,7 +364,7 @@ const {
   error: unavailableError,
   refresh: refreshUnavailable
 } = await useAsyncData(
-  () => `storage-unavailable:${props.fab}`,
+  () => `storage-unavailable:${storageTool}:${props.fab}`,
   () => fetchUnavailableByUrlFab(props.fab),
   { watch: [() => props.fab], default: () => [] as UnavailableRow[] }
 )
