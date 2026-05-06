@@ -46,6 +46,12 @@ SITES = ("1_UL", "2_UR", "3_LL", "4_LR", "5_C", "6_L", "7_R", "8_T", "9_B")
 SUMMARY_ITEMS = ("MEAN", "STDEV", "MIN", "MAX", "RANGE")
 STATE_CODES = ("OK", "OK", "OK", "WARN", "NG")
 
+SUMMARY_COLUMNS: tuple[tuple[str, float, tuple[float, float], tuple[float, float], tuple[float, float]], ...] = (
+    ("Left_H (nm)", 1.0, (0.8, 4.5), (8, 20), (15, 35)),
+    ("Right_H (nm)", 0.9, (0.9, 4.2), (7, 18), (12, 32)),
+    ("Ref_H (nm)", 0.7, (0.7, 3.8), (6, 16), (10, 28)),
+)
+
 TOOL_CONFIGS: dict[str, ToolConfig] = {
     "MAP608": {
         "tool_id": "map608",
@@ -106,6 +112,7 @@ def list_afm_files(tool_name: str | None = None) -> list[AfmMeasurementRow]:
     return list(_generate_measurements(tool))
 
 
+@lru_cache(maxsize=256)
 def get_afm_file_detail(
     filename: str,
     tool_name: str | None = None
@@ -122,23 +129,29 @@ def get_afm_file_detail(
     for site_index, site in enumerate(sites):
         site_x = round(-4800 + (site_index % 3) * 4800 + rng.uniform(-120, 120), 1)
         site_y = round(4800 - (site_index // 3) * 3600 + rng.uniform(-120, 120), 1)
-        left_base = rng.uniform(63, 122) + site_index * 1.7
-        right_base = left_base + rng.uniform(-4.5, 4.5)
-        ref_base = (left_base + right_base) / 2 + rng.uniform(-3.5, 3.5)
+        position_bias = site_index * rng.uniform(-2, 3)
+        point_variation = rng.uniform(-15, 15)
+        process_noise = rng.uniform(0.5, 3.0)
+        left_base = rng.uniform(60, 120) + position_bias + point_variation
+        right_base = rng.uniform(55, 115) + position_bias + point_variation * 0.8
+        ref_base = rng.uniform(50, 110) + position_bias + point_variation * 0.6
 
         summary.extend(
-            _summary_records(site, left_base, right_base, ref_base, rng)
+            _summary_records(
+                site, left_base, right_base, ref_base, process_noise, rng
+            )
         )
 
-        for point_no in range(1, 13):
+        num_measurements = rng.randint(20, 50)
+        for point_no in range(1, num_measurements + 1):
             detail.append({
                 "measurement_point": site,
                 "Site ID": site,
                 "Site X": site_x,
                 "Site Y": site_y,
                 "Point No": point_no,
-                "X (um)": round(site_x + rng.uniform(-130, 130), 1),
-                "Y (um)": round(site_y + rng.uniform(-130, 130), 1),
+                "X (um)": round(site_x + rng.uniform(-1000, 1000), 1),
+                "Y (um)": round(site_y + rng.uniform(-1000, 1000), 1),
                 "Method ID": rng.randint(1, 5),
                 "State": rng.choice(STATE_CODES),
                 "Valid": rng.random() > 0.08,
@@ -196,24 +209,26 @@ def get_profile_points(
     ]
     rng = random.Random(_seed_for(*seed_parts))
     grid_size = 20
-    z_base = rng.uniform(54, 92)
-    ridge_x = rng.uniform(0.25, 0.75)
-    ridge_y = rng.uniform(0.25, 0.75)
+    z_base = rng.uniform(80, 120)
+    peak1_x = rng.uniform(0, 25)
+    peak1_y = rng.uniform(0, 25)
+    peak2_x = rng.uniform(-25, 0)
+    peak2_y = rng.uniform(0, 25)
     points: list[dict[str, float]] = []
 
     for row_index in range(grid_size):
         for col_index in range(grid_size):
-            x_norm = col_index / (grid_size - 1)
-            y_norm = row_index / (grid_size - 1)
-            distance = math.sqrt((x_norm - ridge_x) ** 2 + (y_norm - ridge_y) ** 2)
-            gradient = 18 * (x_norm + y_norm) / 2
-            ridge = 34 * math.exp(-distance * 6)
-            noise = rng.uniform(-3.2, 3.2)
+            x = -50 + (100 * col_index / (grid_size - 1))
+            y = -50 + (100 * row_index / (grid_size - 1))
+            wave = 10 * math.sin(x / 10) * math.cos(y / 10)
+            peak1 = 5 * math.exp(-((x - peak1_x) ** 2 + (y - peak1_y) ** 2) / 100)
+            peak2 = 3 * math.exp(-((x - peak2_x) ** 2 + (y - peak2_y) ** 2) / 150)
+            noise = rng.gauss(0, 1)
 
             points.append({
-                "x": round(col_index * 10.0, 1),
-                "y": round(row_index * 10.0, 1),
-                "z": round(z_base + gradient + ridge + noise, 2)
+                "x": round(x, 2),
+                "y": round(y, 2),
+                "z": round(z_base + wave + peak1 + peak2 + noise, 2)
             })
 
     return points
@@ -275,6 +290,8 @@ def list_user_activities(user: str | None = None, limit: int = 100) -> list[dict
 
     for index, row in enumerate(rows):
         actor = user or f"engineer{(index % 4) + 1:02d}"
+        detail = get_afm_file_detail(row["filename"], row["tool_name"])
+        detail_count = len(detail["data"]) if detail else 0
         activities.append({
             "timestamp": (now - timedelta(minutes=index * 17)).isoformat().replace("+00:00", "Z"),
             "user": actor,
@@ -282,7 +299,7 @@ def list_user_activities(user: str | None = None, limit: int = 100) -> list[dict
             "tool": row["tool_name"],
             "filename": row["filename"],
             "summary_count": row["point_count"] * len(SUMMARY_ITEMS),
-            "detail_count": row["point_count"] * 12
+            "detail_count": detail_count
         })
 
     return activities
@@ -363,12 +380,12 @@ def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
             "fab": config["fab"],
             "profile_dir_list": _file_list(
                 has_profile,
-                [f"{clean_filename}_{site}_0001_Height.pkl" for site in sites[:3]]
+                _site_point_files(clean_filename, sites, "pkl")
             ),
             "data_dir_list": [f"{clean_filename}.pkl"],
             "tiff_dir_list": _file_list(
                 has_image,
-                [f"{clean_filename}_{site}_0001_Height.webp" for site in sites[:3]]
+                _site_point_files(clean_filename, sites, "webp")
             ),
             "align_dir_list": _file_list(
                 has_align,
@@ -414,36 +431,30 @@ def _summary_records(
     left_base: float,
     right_base: float,
     ref_base: float,
+    process_noise: float,
     rng: random.Random
 ) -> list[dict[str, Any]]:
-    rows = []
+    drift = rng.uniform(-1.5, 1.5)
+    bases = (left_base, right_base, ref_base)
+    column_values: dict[str, dict[str, float]] = {}
 
-    for item in SUMMARY_ITEMS:
-        if item == "MEAN":
-            scale = 0
-            spread = 2
-        elif item == "STDEV":
-            scale = -55
-            spread = 1.8
-        elif item == "MIN":
-            scale = -12
-            spread = 3
-        elif item == "MAX":
-            scale = 12
-            spread = 3
-        else:
-            scale = -42
-            spread = 4
+    for base, (key, drift_factor, stdev_range, offset_range, range_range) in zip(bases, SUMMARY_COLUMNS):
+        column_values[key] = {
+            "MEAN": base + drift * drift_factor,
+            "STDEV": rng.uniform(*stdev_range) * process_noise,
+            "MIN": base - rng.uniform(*offset_range),
+            "MAX": base + rng.uniform(*offset_range),
+            "RANGE": rng.uniform(*range_range)
+        }
 
-        rows.append({
+    return [
+        {
             "Site": site,
             "ITEM": item,
-            "Left_H (nm)": round(left_base + scale + rng.uniform(-spread, spread), 2),
-            "Right_H (nm)": round(right_base + scale + rng.uniform(-spread, spread), 2),
-            "Ref_H (nm)": round(ref_base + scale + rng.uniform(-spread, spread), 2)
-        })
-
-    return rows
+            **{key: round(values[item], 2) for key, values in column_values.items()}
+        }
+        for item in SUMMARY_ITEMS
+    ]
 
 
 def _sites_for(row: AfmMeasurementRow) -> list[str]:
@@ -466,6 +477,14 @@ def _strip_known_extension(filename: str) -> str:
 
 def _file_list(has_files: bool, files: list[str]) -> list[str]:
     return files if has_files else ["no files"]
+
+
+def _site_point_files(clean_filename: str, sites, extension: str) -> list[str]:
+    return [
+        f"{clean_filename}_{site}_{point_no:04d}_Height.{extension}"
+        for site in sites[:3]
+        for point_no in range(1, 4)
+    ]
 
 
 def _seed_for(*parts: str) -> int:
