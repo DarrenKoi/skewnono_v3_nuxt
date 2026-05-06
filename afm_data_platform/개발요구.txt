@@ -1,0 +1,86 @@
+개발 요구 2025. 8. 4.
+dict_merged = {’MAP608” : {data1}, “MAPC01”: {data2}}
+
+data1 and data 2 is in a form of nested dict
+
+
+“uniquekey”: unique identifier combined with several info become like “date#time#recipe_name#slot_info#lot_id#measured_info”
+‘filename’ : a filename from data_dir_list,
+‘date’ : date info like “250801,
+‘formatted_date’ : formatted date info like 2025-08-01,
+‘recipe_name’ : the recipe name used for the measurement,
+‘lot_id’: Lot identifier, normally combined with alphabet and numbers like TT032435, CRAP116313
+‘slot_number’ : slot number in the foup,
+‘time’: hhmmss like 120512,
+‘measured_info’: repeated count or some other info for the measurement,
+“profile_dir_list” : [”no files”] or file names (extension: txt) in a list,
+“data_dir_list” : [”no files”] or file name (extenstion: csv) in a list,
+“tiff_dir_list”: [”no files”]  or file names (webp) in a list,
+“align_dir_list”: [”no files”] or file names (webp) in a list,
+“tip_dir_list “ : [”no files”] or file names  (webp) in a list,
+“capture_dir_list“ : [”no files”] or file names  (webp) in a list.
+}
+
+some keys like time and measured_info can be None values
+
+
+
+개발 요구 2025. 8. 12.
+need to add library only available in my company.
+
+from hcputil.auto.sso import SSO
+
+@app.route(’/login’)
+@app.route(’/login/<path:sub_path>’)
+def login(sub_path=None):
+ sso = SSO(request)
+ redirect_url = sso.redirect_url + url_path
+ if sub_path is not None:
+  redirect_url = redirect_url + sub_path
+ if session.get(’logFlag’) != True:
+  cookie = request.headers.get(’cookie’)
+  if cookie is not None:
+   session[’logFlag’] = True
+   return redirect(redirect_url)
+
+@app.route(’/’, defaults={’path’: ‘’})
+@app.route(’/<path:path>’)
+def serve_vue_app(path):
+ if path.startswith(’api/):
+  reutrn {’error’: ‘Not Found’}, 404
+ if path:
+  return send_from_directory(static_folder, path)
+ return send_from_directory(static_folder, ‘index.html’)
+
+
+
+개발 요구 사항 2025. 8. 1.
+parsed_data = { 
+‘unique_key’ : key,
+‘filename’ : data_dir,
+‘date’ : date_info,
+‘formatted_date’ : formatted_date,
+‘recipe_name’ : recipe_name,
+‘lot_id’: lot_id
+‘slot_number’ : v_slot,
+‘time’: time_info,
+‘measured_info’:counter
+}
+
+
+parsed_data = { 
+‘unique_key’ : unique key for that specific measurement, normally contain strings like date, recipe_name, lot_id, and slot number. 
+‘filename’ : a filename from data_dir_list,
+‘date’ : date info like “250801,
+‘formatted_date’ : formatted date info like 2025-08-01,
+‘recipe_name’ : the recipe name used for the measurement,
+‘lot_id’: Lot id
+‘slot_number’ : slot number in the foup,
+‘time’: hhmmss like 120512,
+‘measured_info’: repeated count or some other info for the measurement,
+“profile_dir_list” : None or file names (pickle) in a list,
+“data_dir_list” : None or file name (pickle) in a list,
+“tiff_dir_list”: None  or file names (png) in a list,
+“align_dir_list”: None or file names (png) in a list,
+“tip_dir_list “ : None or file names  (tiff) in a list.
+}
