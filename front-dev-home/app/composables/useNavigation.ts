@@ -3,7 +3,20 @@ import { useNavigationStore } from '~/stores/navigation'
 
 export const useNavigation = () => {
   const store = useNavigationStore()
+  const route = useRoute()
   const router = useRouter()
+
+  const featureEnabledForToolType = (feature: string, toolType: ToolType) => {
+    if (feature === 'storage' || feature === 'recipe-search') return toolType === 'cd-sem' || toolType === 'hv-sem'
+    if (feature === 'device-statistics') return toolType === 'cd-sem'
+    return false
+  }
+
+  const currentFeaturePath = (toolType: ToolType) => {
+    const match = route.path.match(/\/(storage|recipe-search|device-statistics)(?:\/|$)/)
+    const feature = match?.[1]
+    return feature && featureEnabledForToolType(feature, toolType) ? `/${feature}` : ''
+  }
 
   const toolTypeHref = (toolType: ToolType) => {
     const fab = store.fab.value
@@ -23,7 +36,7 @@ export const useNavigation = () => {
     if (fab === 'all') {
       router.push(`/ebeam/${toolType}`)
     } else {
-      router.push(`/ebeam/${toolType}/${fab.toLowerCase()}`)
+      router.push(`/ebeam/${toolType}/${fab.toLowerCase()}${currentFeaturePath(toolType)}`)
     }
   }
 

@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import TypedDict
 
 
@@ -89,7 +89,17 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[StorageRow]:
             seconds=rng.randint(0, 59),
             microseconds=rng.randint(0, 999999)
         )
-        rcp_counts = rng.randint(50, 500)
+        # Tools cap at 50,000 recipes. Seed a realistic mix so the UI's
+        # warning (>49,000) and critical (>49,800) tiers are exercised.
+        rcp_roll = rng.random()
+        if rcp_roll < 0.08:
+            rcp_counts = rng.randint(49_801, 49_990)
+        elif rcp_roll < 0.20:
+            rcp_counts = rng.randint(49_001, 49_800)
+        elif rcp_roll < 0.40:
+            rcp_counts = rng.randint(35_000, 49_000)
+        else:
+            rcp_counts = rng.randint(2_000, 35_000)
         rcp_counts_mt = storage_mt + timedelta(
             hours=rng.uniform(-0.5, 0.5),
             microseconds=rng.randint(0, 999999)
@@ -128,114 +138,146 @@ def get_storage(fac_ids: list[str] | None = None) -> list[StorageRow]:
 
 
 # ---------------------------------------------------------------------------
-# Storage Unreachable: tools whose storage info we tried to extract but failed.
-# Distinct eqp_id range (5000-5999) so they never collide with inventory rows.
+# Storage Unreachable: daily snapshots of tools missing from storage inventory.
+# The source shape mirrors Phase 2 data: {"YYYY-MM-DD": dataframe-like rows}.
 # ---------------------------------------------------------------------------
 
 
-class UnavailableRow(TypedDict):
+class UnavailableSnapshotRow(TypedDict):
     eqp_id: str
     eqp_ip: str
     fac_id: str
     fab_name: str
     eqp_model_cd: str
-    reason: str         # "unreachable" | "stale" | "never_reported" | "auth_failed"
-    error_code: str     # ETIMEDOUT | E_STALE_DATA | E_NO_BASELINE | EAUTH
-    last_attempt: str   # ISO Z, always recent (the sweep ran)
-    last_success: str   # ISO Z, or "" when never reported
 
 
-REASON_TO_ERROR = {
-    "unreachable": "ETIMEDOUT",
-    "stale": "E_STALE_DATA",
-    "never_reported": "E_NO_BASELINE",
-    "auth_failed": "EAUTH",
-}
-
-# Weights mirror what's plausible in the field: most failures are network blips
-# and authentication drift; a smaller tail is true never-reported newcomers.
-REASON_WEIGHTS = [
-    ("unreachable", 0.42),
-    ("stale", 0.28),
-    ("auth_failed", 0.18),
-    ("never_reported", 0.12),
-]
+class UnavailableRow(UnavailableSnapshotRow):
+    missing_days_streak: int
 
 
-def _weighted_reason(rng: random.Random) -> str:
-    pick = rng.random()
-    cumulative = 0.0
-    for reason, weight in REASON_WEIGHTS:
-        cumulative += weight
-        if pick <= cumulative:
-            return reason
-    return REASON_WEIGHTS[-1][0]
+class StorageUnavailableSnapshot(TypedDict):
+    latest_date: str
+    rows: list[UnavailableRow]
 
 
-def _last_success_for(reason: str, last_attempt: datetime, rng: random.Random) -> str:
-    if reason == "never_reported":
-        return ""
-    if reason == "unreachable":
-        delta = timedelta(days=rng.uniform(1, 3), hours=rng.randint(0, 23))
-    elif reason == "stale":
-        delta = timedelta(days=rng.uniform(7, 30), hours=rng.randint(0, 23))
-    else:  # auth_failed
-        delta = timedelta(days=rng.uniform(5, 14), hours=rng.randint(0, 23))
-    return _iso_z(last_attempt - delta)
+MOCK_UNAVAILABLE_LATEST_DATE = date(2026, 5, 26)
+MOCK_UNAVAILABLE_DAYS = 8
 
 
-def _generate_unavailable_rows(n_rows: int = 60, seed: int = 43) -> list[UnavailableRow]:
-    rng = random.Random(seed)
-    now = datetime(2026, 4, 26, 12, 0, 0, tzinfo=timezone.utc)
-    rows: list[UnavailableRow] = []
+def _generate_unavailable_tool_pool(
+    n_tools: int,
+    rng: random.Random
+) -> list[UnavailableSnapshotRow]:
+    rows: list[UnavailableSnapshotRow] = []
 
-    for idx in range(n_rows):
+    for idx in range(n_tools):
         fac_id = rng.choice(FAC_IDS)
         if fac_id == "R3" and rng.random() < 0.3:
             fab_name = "R4"
         else:
             fab_name = fac_id + rng.choice(FAB_SUFFIXES)
 
-        model = rng.choice(EQP_MODELS)
         eqp_prefix = rng.choice(EQP_PREFIXES)
-
-        # Distinct numeric range from inventory generator (which uses 100-999).
-        eqp_id = f"{eqp_prefix}{5000 + idx}"
-
         ip_prefix = rng.choice(IP_PREFIXES)
-        eqp_ip = f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
 
-        reason = _weighted_reason(rng)
-
-        # last_attempt is always within the last hour — the sweep just ran.
-        last_attempt_dt = now - timedelta(
-            minutes=rng.randint(1, 59),
-            seconds=rng.randint(0, 59),
-        )
-
-        rows.append(UnavailableRow(
-            eqp_id=eqp_id,
-            eqp_ip=eqp_ip,
+        rows.append(UnavailableSnapshotRow(
+            eqp_id=f"{eqp_prefix}{5000 + idx}",
+            eqp_ip=f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}",
             fac_id=fac_id,
             fab_name=fab_name,
-            eqp_model_cd=model,
-            reason=reason,
-            error_code=REASON_TO_ERROR[reason],
-            last_attempt=_iso_z(last_attempt_dt),
-            last_success=_last_success_for(reason, last_attempt_dt, rng),
+            eqp_model_cd=rng.choice(EQP_MODELS),
         ))
 
     return rows
 
 
-def get_storage_unavailable(fac_ids: list[str] | None = None) -> list[UnavailableRow]:
-    rows = _generate_unavailable_rows()
+def _generate_unavailable_snapshots(
+    n_tools: int = 84,
+    n_latest_rows: int = 60,
+    seed: int = 43
+) -> dict[str, list[UnavailableSnapshotRow]]:
+    rng = random.Random(seed)
+    tools = _generate_unavailable_tool_pool(n_tools, rng)
+    latest_date = MOCK_UNAVAILABLE_LATEST_DATE
+    snapshot_dates = [
+        latest_date - timedelta(days=offset)
+        for offset in range(MOCK_UNAVAILABLE_DAYS - 1, -1, -1)
+    ]
+    snapshots: dict[str, list[UnavailableSnapshotRow]] = {
+        snapshot_date.isoformat(): []
+        for snapshot_date in snapshot_dates
+    }
 
-    if not fac_ids:
-        return rows
+    latest_tools = tools[:n_latest_rows]
+    historical_tools = tools[n_latest_rows:]
 
-    normalized = {fac_id.strip().upper() for fac_id in fac_ids if fac_id.strip()}
-    if not normalized:
-        return rows
+    for tool in latest_tools:
+        streak_length = rng.randint(1, MOCK_UNAVAILABLE_DAYS)
+        for offset in range(streak_length):
+            snapshot_key = (latest_date - timedelta(days=offset)).isoformat()
+            snapshots[snapshot_key].append(tool)
 
-    return [row for row in rows if row["fac_id"] in normalized]
+    for tool in historical_tools:
+        last_missing_offset = rng.randint(1, MOCK_UNAVAILABLE_DAYS - 1)
+        duration = rng.randint(1, min(3, MOCK_UNAVAILABLE_DAYS - last_missing_offset))
+        for offset in range(last_missing_offset, last_missing_offset + duration):
+            snapshot_key = (latest_date - timedelta(days=offset)).isoformat()
+            snapshots[snapshot_key].append(tool)
+
+    for snapshot_key, rows in snapshots.items():
+        snapshots[snapshot_key] = sorted(rows, key=lambda row: row["eqp_id"])
+
+    return snapshots
+
+
+def _missing_days_streak(
+    eqp_id: str,
+    latest_date: date,
+    eqp_ids_by_date: dict[str, set[str]]
+) -> int:
+    streak = 0
+    cursor = latest_date
+
+    while eqp_id in eqp_ids_by_date.get(cursor.isoformat(), set()):
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    return streak
+
+
+def get_storage_unavailable(
+    fac_ids: list[str] | None = None
+) -> StorageUnavailableSnapshot:
+    snapshots = _generate_unavailable_snapshots()
+    latest_key = max(snapshots)
+    latest_date = date.fromisoformat(latest_key)
+    normalized = {
+        fac_id.strip().upper()
+        for fac_id in (fac_ids or [])
+        if fac_id.strip()
+    }
+    eqp_ids_by_date = {
+        snapshot_key: {row["eqp_id"] for row in rows}
+        for snapshot_key, rows in snapshots.items()
+    }
+    rows: list[UnavailableRow] = []
+
+    for row in snapshots[latest_key]:
+        if normalized and row["fac_id"] not in normalized:
+            continue
+
+        rows.append(UnavailableRow(
+            **row,
+            missing_days_streak=_missing_days_streak(
+                row["eqp_id"],
+                latest_date,
+                eqp_ids_by_date
+            ),
+        ))
+
+    rows.sort(key=lambda row: (-row["missing_days_streak"], row["eqp_id"]))
+
+    return {
+        "latest_date": latest_key,
+        "rows": rows,
+    }

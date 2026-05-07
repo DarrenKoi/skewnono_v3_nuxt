@@ -123,6 +123,29 @@
             </button>
           </div>
         </div>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="font-mono text-[10px] text-zinc-400">sort</span>
+          <div
+            role="radiogroup"
+            aria-label="Sort by metric"
+            class="flex flex-wrap items-center gap-1"
+          >
+            <button
+              v-for="option in sortOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              :aria-checked="selectedSort === option.value"
+              class="inline-flex h-7 items-center gap-1 rounded-md px-3 text-[12px] font-medium ring-1 transition-colors"
+              :class="selectedSort === option.value
+                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
+                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+              @click="selectedSort = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div
@@ -241,7 +264,7 @@ const text = {
   emptyCta: '디바이스 선택으로',
   chartStackedTitle: '파라미터 분포 (스택)',
   chartParaAllTitle: '전체 파라미터 수',
-  chartAvailRecipeTitle: '가용 레시피 수',
+  chartAvailRecipeTitle: '운용 레시피수',
   selected: '선택',
   bucketHelpTitle: 'Bucket 의미',
   bucketHelpIntro: 'MMDM recipe step을 어떤 기준으로 모아 볼지 선택합니다.'
@@ -274,6 +297,23 @@ const bucketOptions: BucketOption[] = [
 
 const selectedBucket = ref<SummaryBucketKey>('all_summary')
 
+type SortKey = 'default' | 'paraStack' | 'paraAll' | 'availRecipe'
+
+const sortOptions = [
+  { label: '이름순', value: 'default' },
+  { label: '파라미터', value: 'paraStack' },
+  { label: '전체 파라미터', value: 'paraAll' },
+  { label: '운용 레시피수', value: 'availRecipe' }
+] as const
+
+const selectedSort = ref<SortKey>('default')
+
+const sortMetric: Record<Exclude<SortKey, 'default'>, (r: SummaryRow) => number> = {
+  paraStack: r => r.para_16 + r.para_13 + r.para_9 + r.para_5,
+  paraAll: r => r.para_all,
+  availRecipe: r => r.avail_recipe
+}
+
 const { data, pending, error } = await useAsyncData(
   'recipe-statistics',
   () => {
@@ -292,7 +332,22 @@ const rows = computed<SummaryRow[]>(() => {
   return Array.isArray(list) ? (list as SummaryRow[]) : []
 })
 
-const lotLabels = computed(() => rows.value.map(row => row.lot_cd))
+const sortedRows = computed<SummaryRow[]>(() => {
+  if (selectedSort.value === 'default') {
+    return [...rows.value].sort((a, b) => a.lot_cd.localeCompare(b.lot_cd))
+  }
+  const get = sortMetric[selectedSort.value]
+  return [...rows.value].sort((a, b) => get(b) - get(a))
+})
+
+const lotLabels = computed(() => sortedRows.value.map(row => row.lot_cd))
+
+const mean = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
+const avgStackTotal = computed(() =>
+  mean(sortedRows.value.map(r => r.para_16 + r.para_13 + r.para_9 + r.para_5))
+)
+const avgParaAll = computed(() => mean(sortedRows.value.map(r => r.para_all)))
+const avgAvailRecipe = computed(() => mean(sortedRows.value.map(r => r.avail_recipe)))
 
 const selectedLotsLabel = computed(() => {
   if (selectedLots.value.length === 0) return ''
@@ -315,6 +370,22 @@ const baseDataZoom = [
   { type: 'slider' as const, xAxisIndex: 0, height: 21, bottom: 6, brushSelect: false }
 ]
 
+const markLineColor = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
+
+const buildAvgMarkLine = (avg: number) => ({
+  symbol: 'none' as const,
+  silent: true,
+  lineStyle: { type: 'dashed' as const, color: markLineColor.value, width: 1.5 },
+  label: {
+    position: 'insideEndTop' as const,
+    formatter: `평균 ${Math.round(avg)}`,
+    fontSize: 10,
+    color: markLineColor.value,
+    backgroundColor: 'transparent'
+  },
+  data: [{ yAxis: avg }]
+})
+
 const stackedOption = computed<EChartsOption>(() => ({
   tooltip: baseTooltip,
   legend: { top: 0, right: 0, textStyle: { fontSize: 11 } },
@@ -327,10 +398,16 @@ const stackedOption = computed<EChartsOption>(() => ({
   },
   yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
   series: [
-    { name: 'para_16', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_16) },
-    { name: 'para_13', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_13) },
-    { name: 'para_9', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_9) },
-    { name: 'para_5', type: 'bar', stack: 'para', data: rows.value.map(r => r.para_5) }
+    { name: 'para_16', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_16) },
+    { name: 'para_13', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_13) },
+    { name: 'para_9', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_9) },
+    {
+      name: 'para_5',
+      type: 'bar',
+      stack: 'para',
+      data: sortedRows.value.map(r => r.para_5),
+      markLine: buildAvgMarkLine(avgStackTotal.value)
+    }
   ]
 }))
 
@@ -347,7 +424,8 @@ const paraAllOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'para_all',
     type: 'bar',
-    data: rows.value.map(r => r.para_all)
+    data: sortedRows.value.map(r => r.para_all),
+    markLine: buildAvgMarkLine(avgParaAll.value)
   }]
 }))
 
@@ -364,7 +442,8 @@ const availRecipeOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'avail_recipe',
     type: 'bar',
-    data: rows.value.map(r => r.avail_recipe)
+    data: sortedRows.value.map(r => r.avail_recipe),
+    markLine: buildAvgMarkLine(avgAvailRecipe.value)
   }]
 }))
 

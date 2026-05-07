@@ -1,9 +1,9 @@
 [
   {
-    "id": "2026-05-07-welcome",
+    "id": "2026-05-07-welcome1",
     "level": "info",
     "title": "스큐노노 v3 베타 오픈",
-    "body": "이슈가 있을 경우 관리자에게 알려주세요.",
+    "body": "이슈가 있을 경우 관리자에게 알려주지 마세요.",
     "dismissible": true
   }
 ]

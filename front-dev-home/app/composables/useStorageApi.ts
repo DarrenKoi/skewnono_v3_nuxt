@@ -16,18 +16,18 @@ export interface StorageRow {
   eqp_model_cd: string
 }
 
-export type UnavailableReason = 'unreachable' | 'stale' | 'never_reported' | 'auth_failed'
-
 export interface UnavailableRow {
   eqp_id: string
   eqp_ip: string
   fac_id: string
   fab_name: string
   eqp_model_cd: string
-  reason: UnavailableReason
-  error_code: string
-  last_attempt: string
-  last_success: string
+  missing_days_streak: number
+}
+
+export interface StorageUnavailableSnapshot {
+  latest_date: string
+  rows: UnavailableRow[]
 }
 
 // Storage is now namespaced per ebeam tool (matches back_dev_home/ebeam/<tool>/storage/).
@@ -58,10 +58,10 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
     return await $fetch<StorageRow[]>(storageUrl, { query })
   }
 
-  const fetchUnavailableRows = async (facIds: string[] = []): Promise<UnavailableRow[]> => {
+  const fetchUnavailableRows = async (facIds: string[] = []): Promise<StorageUnavailableSnapshot> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
-    return await $fetch<UnavailableRow[]>(unavailableUrl, { query })
+    return await $fetch<StorageUnavailableSnapshot>(unavailableUrl, { query })
   }
 
   // Storage rows are aggregated at the fac level. The URL's fab segment may be a fab_name
@@ -72,7 +72,7 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
     return await fetchStorageRows([facId])
   }
 
-  const fetchUnavailableByUrlFab = async (urlFab: string): Promise<UnavailableRow[]> => {
+  const fetchUnavailableByUrlFab = async (urlFab: string): Promise<StorageUnavailableSnapshot> => {
     const facId = fabNameToFacId(urlFab)
     return await fetchUnavailableRows([facId])
   }

@@ -11,6 +11,7 @@
       :title="item.title"
       :description="item.body"
       :close="item.dismissible ? { color: 'neutral', variant: 'link' } : undefined"
+      :ui="announcementUi"
       @update:open="(open: boolean) => !open && dismiss(item.id)"
     />
   </div>
@@ -22,6 +23,14 @@ import type { AnnouncementLevel } from '~/composables/useAnnouncementsApi'
 const STORAGE_KEY = 'sk:dismissed_announcement_ids'
 
 const { data } = useAnnouncements()
+
+const announcementUi = {
+  root: 'items-center justify-center px-10 sm:px-12',
+  wrapper: 'items-center text-center',
+  title: 'w-full text-center',
+  description: 'w-full text-center',
+  actions: 'absolute right-3 top-1/2 -translate-y-1/2 items-center'
+}
 
 const dismissedIds = ref<Set<string>>(new Set())
 

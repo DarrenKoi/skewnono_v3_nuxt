@@ -308,103 +308,12 @@
       </div>
 
       <div class="col-span-12 space-y-2 lg:col-span-4">
-        <div class="flex items-center gap-2 px-1">
-          <span
-            class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold transition-colors"
-            :class="selectedDeviceLots.length > 0
-              ? 'bg-(--sk-accent) text-white'
-              : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'"
-          >3</span>
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ text.step3Title }}
-          </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
-            {{ text.step3Hint }}
-          </span>
-        </div>
-
-        <UCard
-          class="dashboard-surface sticky top-2 overflow-hidden rounded-2xl"
-          :ui="{ body: 'p-0 sm:p-0' }"
-        >
-          <div class="max-h-[28rem] overflow-y-auto">
-            <div
-              v-if="selectedDeviceRows.length === 0"
-              class="px-4 py-10 text-center"
-            >
-              <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800">
-                <UIcon
-                  name="i-lucide-plus"
-                  class="h-4 w-4"
-                />
-              </div>
-              <p class="text-[11.5px] font-medium leading-snug text-zinc-600 dark:text-zinc-300">
-                {{ text.emptySelectionTitle }}
-              </p>
-              <p class="mt-1 text-[10.5px] leading-snug text-zinc-400 dark:text-zinc-500">
-                {{ text.emptySelectionDescLineOne }}<br>{{ text.emptySelectionDescLineTwo }}
-              </p>
-            </div>
-            <div
-              v-else
-              class="divide-y divide-zinc-100 dark:divide-zinc-800"
-            >
-              <div
-                v-for="(row, index) in selectedDeviceRows"
-                :key="row.lot_cd"
-                class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
-              >
-                <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                  {{ index + 1 }}
-                </span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ row.lot_cd }}</span>
-                    <span class="text-[9.5px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                      {{ deviceChipLabel(row) }}
-                    </span>
-                  </div>
-                  <p class="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {{ row.ctn_desc }}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  class="shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  :aria-label="text.clearAll"
-                  @click="toggleDeviceSelect(row.lot_cd)"
-                >
-                  <UIcon
-                    name="i-lucide-x"
-                    class="h-3 w-3"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-2 border-t border-zinc-100 bg-zinc-50/40 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/30">
-            <UButton
-              block
-              size="md"
-              :disabled="selectedDeviceLots.length === 0"
-              :trailing-icon="selectedDeviceLots.length > 0 ? 'i-lucide-arrow-right' : undefined"
-              class="bg-(--sk-accent) text-white ring-1 ring-(--sk-accent) hover:bg-(--sk-accent)/90 disabled:opacity-50"
-              :ui="{ label: 'flex-1 text-center' }"
-              @click="proceedToStatistics"
-            >
-              {{ ctaLabel }}
-            </UButton>
-            <button
-              v-if="selectedDeviceLots.length > 0"
-              type="button"
-              class="block w-full text-center text-[10.5px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-              @click="clearDeviceSelection"
-            >
-              {{ text.clearAll }}
-            </button>
-          </div>
-        </UCard>
+        <EbeamCompareCart
+          :selected-device-rows="selectedDeviceRows"
+          :fab="selectedFab"
+          @proceed="proceedToStatistics"
+          @apply-preset="applyPreset"
+        />
       </div>
     </div>
   </div>
@@ -413,6 +322,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
+import type { DevicePreset } from '~/composables/useDevicePresets'
 
 definePageMeta({
   hideFabSidebar: true
@@ -436,7 +346,6 @@ const text = {
   techSearch: 'Tech 검색',
   csvDownload: 'CSV 다운로드',
   resetAll: '전체 초기화',
-  clearAll: '전체 해제',
   tableSearch: '테이블 검색',
   allRows: '전체',
   filteredRows: '표시',
@@ -450,15 +359,7 @@ const text = {
   step1HintR: '카테고리 / Lot으로 좁히기',
   step1HintM: 'Tech로 좁히기',
   step2Title: '디바이스 선택',
-  step2Hint: '체크박스로 여러 개 선택',
-  step3Title: '비교 + 이동',
-  step3Hint: '선택된 디바이스',
-  emptySelectionTitle: '디바이스 비교 시작하기',
-  emptySelectionDescLineOne: '왼쪽 테이블에서',
-  emptySelectionDescLineTwo: '2개 이상 선택해 보세요',
-  ctaEmpty: '디바이스를 선택하세요',
-  ctaSingle: '디바이스 통계 보기',
-  ctaMulti: '{count}개 비교 페이지로'
+  step2Hint: '체크박스로 여러 개 선택'
 } as const
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
@@ -528,7 +429,6 @@ const {
   selectedDeviceLotSet,
   isDeviceSelected,
   toggleDeviceSelect,
-  clearDeviceSelection,
   addDeviceLots,
   removeDeviceLots
 } = useDeviceCart()
@@ -795,30 +695,76 @@ const stepOneTechStrip = computed(() => buildChipStrip(
   STEP1_TECH_CHIP_BUDGET
 ))
 
-const deviceChipLabel = (row: DeviceRow): string => {
-  if ('prod_catg_cd' in row && row.prod_catg_cd) {
-    const tech = (row as R3DeviceGrpRow).tech_cd
-
-    return tech ? `${row.prod_catg_cd} · ${tech}` : row.prod_catg_cd
-  }
-
-  const tech = (row as DeviceDescRow).tech_nm
-
-  return tech ? `${row.fac_id} · ${tech}` : row.fac_id
-}
-
 const proceedToStatistics = async () => {
   if (selectedDeviceLots.value.length === 0) return
 
   await navigateTo(`/ebeam/cd-sem/${route.params.fab}/device-statistics/comparison`)
 }
 
-const ctaLabel = computed(() => {
-  if (selectedDeviceLots.value.length === 0) return text.ctaEmpty
-  if (selectedDeviceLots.value.length === 1) return text.ctaSingle
-
-  return text.ctaMulti.replace('{count}', String(selectedDeviceLots.value.length))
+// Apply runs across multiple awaits and mutates cross-page useState (selectedDeviceLots) plus
+// fires a toast — both must be skipped if the user navigates away mid-apply, otherwise we'd
+// silently overwrite their cart and surface a toast for a page they've already left.
+let unmounted = false
+let cancelDataWait: (() => void) | null = null
+onUnmounted(() => {
+  unmounted = true
+  cancelDataWait?.()
 })
+
+const waitForDataReady = () => {
+  if (!pending.value) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const stop = watch(pending, (next) => {
+      if (!next) finish()
+    })
+    const finish = () => {
+      stop()
+      cancelDataWait = null
+      resolve()
+    }
+    cancelDataWait = finish
+  })
+}
+
+const toast = useToast()
+
+// Apply a saved preset. If the preset was captured on a different fab, switch fab first and let
+// the existing watchers (clear cart on fab change + prune on data ready) settle before assigning
+// the preset's lots — otherwise the fab-change watcher would clear the lots we just set.
+//
+// Backend data may have changed since the preset was saved (lots archived, removed, or renamed),
+// so we diff the preset's lots against the current sortedRows: assign only the surviving lots and
+// raise a toast naming the missing ones so the user sees explicitly what didn't load.
+const applyPreset = async (preset: DevicePreset) => {
+  if (preset.fab && isDeviceFab(preset.fab) && preset.fab !== selectedFab.value) {
+    selectedFab.value = preset.fab
+    await nextTick()
+    if (unmounted) return
+  }
+  await waitForDataReady()
+  if (unmounted) return
+
+  const validLots = new Set(sortedRows.value.map(row => row.lot_cd))
+  const loaded = preset.lots.filter(lot => validLots.has(lot))
+  const missing = preset.lots.filter(lot => !validLots.has(lot))
+  selectedDeviceLots.value = loaded
+
+  if (missing.length === 0) return
+
+  const MISSING_PREVIEW_LIMIT = 5
+  const previewLots = missing.slice(0, MISSING_PREVIEW_LIMIT).join(', ')
+  const overflow = missing.length > MISSING_PREVIEW_LIMIT
+    ? ` 외 ${missing.length - MISSING_PREVIEW_LIMIT}개`
+    : ''
+
+  toast.add({
+    title: `프리셋 '${preset.name}' · ${preset.lots.length}개 중 ${loaded.length}개 로드`,
+    description: `누락된 디바이스 ${missing.length}개: ${previewLots}${overflow}`,
+    icon: 'i-lucide-triangle-alert',
+    color: loaded.length === 0 ? 'error' : 'warning',
+    duration: 8000
+  })
+}
 
 const resetAllFilters = () => {
   selectedFab.value = routeFab.value
