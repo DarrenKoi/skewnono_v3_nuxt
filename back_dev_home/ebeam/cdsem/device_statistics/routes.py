@@ -36,3 +36,24 @@ def recipe_statistics():
 
     latest_date = next(reversed(trend))
     return jsonify({"date": latest_date, "buckets": trend[latest_date]})
+
+
+@bp.get("/cdsem/device-statistics/recipe-trend")
+def recipe_trend():
+    lot_cds_param = request.args.get("lot_cds", "")
+    lot_cds = [value.strip() for value in lot_cds_param.split(",") if value.strip()]
+    start_date = request.args.get("start_date") or None
+    end_date = request.args.get("end_date") or None
+
+    # Same `points`-stability constraint as recipe_statistics: always
+    # generate the full window, then slice by date string. ISO YYYY-MM-DD
+    # is lexicographically sortable so direct >=/<= comparisons work.
+    full = get_weekly_trend_data(lot_cds or None)
+
+    dates = [
+        d for d in full.keys()
+        if (start_date is None or d >= start_date)
+        and (end_date is None or d <= end_date)
+    ]
+    trend = {d: full[d] for d in dates}
+    return jsonify({"dates": dates, "trend": trend})

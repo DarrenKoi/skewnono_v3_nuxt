@@ -24,9 +24,9 @@
           {{ text.latestDate }} {{ data.date }}
         </span>
         <UButton
-          size="xs"
+          size="md"
           color="neutral"
-          variant="outline"
+          variant="subtle"
           icon="i-lucide-arrow-left"
           :label="text.back"
           @click="goBack"
@@ -172,61 +172,56 @@
       </div>
       <div
         v-else
-        class="grid grid-cols-1 gap-3 xl:grid-cols-3"
+        class="space-y-3"
       >
-        <UCard
-          class="dashboard-surface rounded-2xl"
-          :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
-        >
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-                {{ text.chartStackedTitle }}
-              </p>
-              <span class="text-[10.5px] text-zinc-400">para_16 / 13 / 9 / 5</span>
-            </div>
-          </template>
-          <div
-            ref="stackedEl"
-            class="h-72 w-full"
-          />
-        </UCard>
+        <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <UCard
+            class="dashboard-surface rounded-2xl"
+            :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
+          >
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {{ text.chartStackedTitle }}
+                </p>
+                <span class="text-[10.5px] text-zinc-400">para_16 / 13 / 9 / 5</span>
+              </div>
+            </template>
+            <div
+              ref="stackedEl"
+              class="h-72 w-full"
+            />
+          </UCard>
 
-        <UCard
-          class="dashboard-surface rounded-2xl"
-          :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
-        >
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-                {{ text.chartParaAllTitle }}
-              </p>
-              <span class="text-[10.5px] text-zinc-400">para_all</span>
-            </div>
-          </template>
-          <div
-            ref="paraAllEl"
-            class="h-72 w-full"
-          />
-        </UCard>
+          <UCard
+            class="dashboard-surface rounded-2xl"
+            :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
+          >
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {{ text.chartAvailRecipeTitle }}
+                </p>
+                <span class="text-[10.5px] text-zinc-400">avail_recipe</span>
+              </div>
+            </template>
+            <div
+              ref="availRecipeEl"
+              class="h-72 w-full"
+            />
+          </UCard>
+        </div>
 
-        <UCard
-          class="dashboard-surface rounded-2xl"
-          :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
-        >
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-                {{ text.chartAvailRecipeTitle }}
-              </p>
-              <span class="text-[10.5px] text-zinc-400">avail_recipe</span>
-            </div>
-          </template>
-          <div
-            ref="availRecipeEl"
-            class="h-72 w-full"
-          />
-        </UCard>
+        <div class="flex items-center gap-2 px-1 pt-2 text-[11px] uppercase tracking-wide text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          <span>{{ text.trendSection }}</span>
+          <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+        </div>
+
+        <EbeamCompareTrendCharts
+          :lot-cds="selectedLots"
+          :bucket="selectedBucket"
+        />
       </div>
     </template>
   </div>
@@ -234,7 +229,7 @@
 
 <script setup lang="ts">
 import * as echarts from 'echarts'
-import type { ECharts, EChartsOption } from 'echarts'
+import type { EChartsOption } from 'echarts'
 import type { SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
 import { registerEchartsThemes } from '~/utils/echartsThemes'
 
@@ -248,7 +243,6 @@ const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 const { fetchRecipeStatistics } = useRecipeStatisticsApi()
 const colorMode = useColorMode()
-const echartsThemeName = computed(() => colorMode.value === 'dark' ? 'dark' : 'vintage')
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
 
@@ -263,8 +257,8 @@ const text = {
   emptyDesc: '디바이스 통계 페이지에서 2개 이상을 선택해 주세요.',
   emptyCta: '디바이스 선택으로',
   chartStackedTitle: '파라미터 분포 (스택)',
-  chartParaAllTitle: '전체 파라미터 수',
   chartAvailRecipeTitle: '운용 레시피수',
+  trendSection: '주간 추이',
   selected: '선택',
   bucketHelpTitle: 'Bucket 의미',
   bucketHelpIntro: 'MMDM recipe step을 어떤 기준으로 모아 볼지 선택합니다.'
@@ -297,12 +291,11 @@ const bucketOptions: BucketOption[] = [
 
 const selectedBucket = ref<SummaryBucketKey>('all_summary')
 
-type SortKey = 'default' | 'paraStack' | 'paraAll' | 'availRecipe'
+type SortKey = 'default' | 'paraStack' | 'availRecipe'
 
 const sortOptions = [
   { label: '이름순', value: 'default' },
   { label: '파라미터', value: 'paraStack' },
-  { label: '전체 파라미터', value: 'paraAll' },
   { label: '운용 레시피수', value: 'availRecipe' }
 ] as const
 
@@ -310,7 +303,6 @@ const selectedSort = ref<SortKey>('default')
 
 const sortMetric: Record<Exclude<SortKey, 'default'>, (r: SummaryRow) => number> = {
   paraStack: r => r.para_16 + r.para_13 + r.para_9 + r.para_5,
-  paraAll: r => r.para_all,
   availRecipe: r => r.avail_recipe
 }
 
@@ -343,11 +335,21 @@ const sortedRows = computed<SummaryRow[]>(() => {
 const lotLabels = computed(() => sortedRows.value.map(row => row.lot_cd))
 
 const mean = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
-const avgStackTotal = computed(() =>
-  mean(sortedRows.value.map(r => r.para_16 + r.para_13 + r.para_9 + r.para_5))
-)
-const avgParaAll = computed(() => mean(sortedRows.value.map(r => r.para_all)))
-const avgAvailRecipe = computed(() => mean(sortedRows.value.map(r => r.avail_recipe)))
+// Sample stdev (n-1): we treat the selected devices as a sample, not the whole population.
+const stdDev = (xs: number[]) => {
+  if (xs.length < 2) return 0
+  const m = mean(xs)
+  return Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1))
+}
+
+const stackTotals = computed(() => sortedRows.value.map(r => r.para_16 + r.para_13 + r.para_9 + r.para_5))
+const availRecipeValues = computed(() => sortedRows.value.map(r => r.avail_recipe))
+
+const avgStackTotal = computed(() => mean(stackTotals.value))
+const avgAvailRecipe = computed(() => mean(availRecipeValues.value))
+
+const stdStackTotal = computed(() => stdDev(stackTotals.value))
+const stdAvailRecipe = computed(() => stdDev(availRecipeValues.value))
 
 const selectedLotsLabel = computed(() => {
   if (selectedLots.value.length === 0) return ''
@@ -365,6 +367,12 @@ const baseTooltip = {
 
 const baseGrid = { left: 48, right: 16, top: 36, bottom: 55, containLabel: true }
 
+const baseYAxis = {
+  type: 'value' as const,
+  axisLabel: { fontSize: 10 },
+  splitLine: { show: false }
+}
+
 const baseDataZoom = [
   { type: 'inside' as const, xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false },
   { type: 'slider' as const, xAxisIndex: 0, height: 21, bottom: 6, brushSelect: false }
@@ -372,18 +380,42 @@ const baseDataZoom = [
 
 const markLineColor = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
 
-const buildAvgMarkLine = (avg: number) => ({
+const sigmaLineStyle = computed(() => ({
+  type: 'dotted' as const,
+  color: markLineColor.value,
+  width: 1,
+  opacity: 0.55
+}))
+
+const buildStatsMarkLine = (avg: number, sd: number) => ({
   symbol: 'none' as const,
   silent: true,
   lineStyle: { type: 'dashed' as const, color: markLineColor.value, width: 1.5 },
   label: {
-    position: 'insideEndTop' as const,
-    formatter: `평균 ${Math.round(avg)}`,
     fontSize: 10,
     color: markLineColor.value,
     backgroundColor: 'transparent'
   },
-  data: [{ yAxis: avg }]
+  data: [
+    {
+      yAxis: avg,
+      label: { position: 'insideEndTop' as const, formatter: `평균 ${Math.round(avg)}` }
+    },
+    ...(sd > 0
+      ? [
+          {
+            yAxis: avg + sd,
+            lineStyle: sigmaLineStyle.value,
+            label: { position: 'insideEndTop' as const, formatter: `+1σ ${Math.round(avg + sd)}` }
+          },
+          {
+            yAxis: avg - sd,
+            lineStyle: sigmaLineStyle.value,
+            label: { position: 'insideEndBottom' as const, formatter: `-1σ ${Math.round(avg - sd)}` }
+          }
+        ]
+      : [])
+  ]
 })
 
 const stackedOption = computed<EChartsOption>(() => ({
@@ -396,7 +428,7 @@ const stackedOption = computed<EChartsOption>(() => ({
     data: lotLabels.value,
     axisLabel: { fontSize: 10, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
   },
-  yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+  yAxis: baseYAxis,
   series: [
     { name: 'para_16', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_16) },
     { name: 'para_13', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_13) },
@@ -406,27 +438,9 @@ const stackedOption = computed<EChartsOption>(() => ({
       type: 'bar',
       stack: 'para',
       data: sortedRows.value.map(r => r.para_5),
-      markLine: buildAvgMarkLine(avgStackTotal.value)
+      markLine: buildStatsMarkLine(avgStackTotal.value, stdStackTotal.value)
     }
   ]
-}))
-
-const paraAllOption = computed<EChartsOption>(() => ({
-  tooltip: baseTooltip,
-  grid: baseGrid,
-  dataZoom: baseDataZoom,
-  xAxis: {
-    type: 'category',
-    data: lotLabels.value,
-    axisLabel: { fontSize: 10, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
-  },
-  yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
-  series: [{
-    name: 'para_all',
-    type: 'bar',
-    data: sortedRows.value.map(r => r.para_all),
-    markLine: buildAvgMarkLine(avgParaAll.value)
-  }]
 }))
 
 const availRecipeOption = computed<EChartsOption>(() => ({
@@ -438,71 +452,19 @@ const availRecipeOption = computed<EChartsOption>(() => ({
     data: lotLabels.value,
     axisLabel: { fontSize: 10, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
   },
-  yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+  yAxis: baseYAxis,
   series: [{
     name: 'avail_recipe',
     type: 'bar',
     data: sortedRows.value.map(r => r.avail_recipe),
-    markLine: buildAvgMarkLine(avgAvailRecipe.value)
+    markLine: buildStatsMarkLine(avgAvailRecipe.value, stdAvailRecipe.value)
   }]
 }))
 
 const stackedEl = ref<HTMLDivElement | null>(null)
-const paraAllEl = ref<HTMLDivElement | null>(null)
 const availRecipeEl = ref<HTMLDivElement | null>(null)
 
-const useEchart = (
-  elRef: Ref<HTMLDivElement | null>,
-  optionRef: ComputedRef<EChartsOption>
-) => {
-  let chart: ECharts | null = null
-  let resizeHandler: (() => void) | null = null
-
-  const ensureChart = () => {
-    if (chart || !elRef.value) return
-    chart = echarts.init(elRef.value, echartsThemeName.value)
-    chart.setOption(optionRef.value)
-    if (!resizeHandler) {
-      resizeHandler = () => chart?.resize()
-      window.addEventListener('resize', resizeHandler)
-    }
-  }
-
-  onMounted(() => {
-    ensureChart()
-  })
-
-  // The chart container only renders once data is ready (v-else block), so
-  // re-run ensureChart whenever the element ref appears.
-  watch(elRef, (next) => {
-    if (next) ensureChart()
-  })
-
-  watch(optionRef, (next) => {
-    chart?.setOption(next, true)
-  })
-
-  // ECharts binds a theme at init time; swapping themes requires dispose +
-  // re-init on the same DOM node.
-  watch(echartsThemeName, () => {
-    if (!elRef.value) return
-    chart?.dispose()
-    chart = echarts.init(elRef.value, echartsThemeName.value)
-    chart.setOption(optionRef.value)
-  })
-
-  onBeforeUnmount(() => {
-    if (resizeHandler) {
-      window.removeEventListener('resize', resizeHandler)
-      resizeHandler = null
-    }
-    chart?.dispose()
-    chart = null
-  })
-}
-
 useEchart(stackedEl, stackedOption)
-useEchart(paraAllEl, paraAllOption)
 useEchart(availRecipeEl, availRecipeOption)
 
 const goBack = async () => {

@@ -53,6 +53,11 @@ export interface RecipeStatisticsResponse {
   buckets: BucketPayload | Record<string, never>
 }
 
+export interface RecipeTrendResponse {
+  dates: string[]
+  trend: Record<string, BucketPayload>
+}
+
 const joinRecipeStatisticsApiPath = (base: string, path: string) => {
   const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -73,7 +78,24 @@ export const useRecipeStatisticsApi = () => {
     )
   }
 
+  const fetchRecipeTrend = async (
+    lotCds: string[] = [],
+    startDate?: string,
+    endDate?: string
+  ): Promise<RecipeTrendResponse> => {
+    const query: Record<string, string> = {}
+    if (lotCds.length > 0) query.lot_cds = lotCds.join(',')
+    if (startDate) query.start_date = startDate
+    if (endDate) query.end_date = endDate
+
+    return await $fetch<RecipeTrendResponse>(
+      joinRecipeStatisticsApiPath(base, '/cdsem/device-statistics/recipe-trend'),
+      { query: Object.keys(query).length > 0 ? query : undefined }
+    )
+  }
+
   return {
-    fetchRecipeStatistics
+    fetchRecipeStatistics,
+    fetchRecipeTrend
   }
 }

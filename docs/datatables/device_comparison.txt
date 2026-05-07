@@ -1,1 +1,18 @@
 시계열로 트렌드가 어떻게 되는 지 표현
+계측 효율화 준수율 Monitoring
+Device별, Reciep별 계측 TAT
+
+Device별 Recipe, Para, Point
+Para (Mother, 자식 파라 분류, 총합)
+Device별 Recipe 진행 빈도, TAT (기간 설정 필요)
+Device별 Recipe 룰 위배 되는 지 확인
+
+테이블 search 기능
+
+Rcp AMP 비교
+
+PM 연계 분석(Tool 별 Down Up Time 현황)
+Up 판단 Spec Average 7.97+-0.05, 3*STD+-0.09
+
+Long Time Recipe excel로 다운로드
+
