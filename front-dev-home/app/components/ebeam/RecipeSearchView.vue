@@ -13,6 +13,9 @@ const MIN_SEARCH_LENGTH = 3
 const DEFAULT_PAGE_SIZE = '50'
 
 const { fetchRecipeList } = useRecipeSearchApi()
+const { recentSearches, recordRecentSearch, removeRecentSearch, clearRecentSearches } =
+  useRecipeRecentSearches(props.toolType, props.fab)
+const router = useRouter()
 
 const query = ref('')
 const pageSize = ref(DEFAULT_PAGE_SIZE)
@@ -37,18 +40,11 @@ const { data, pending, error, refresh } = await useAsyncData(
   }
 )
 
-const rows = computed(() => data.value?.rows ?? [])
-const totalRows = computed(() => data.value?.total ?? rows.value.length)
+const recipeNames = computed(() => data.value?.rows ?? [])
+const rows = computed<RecipeSearchRow[]>(() => recipeNames.value.map(recipeName => ({ recipe_name: recipeName })))
+const totalRows = computed(() => data.value?.total ?? recipeNames.value.length)
 const normalizedQuery = computed(() => query.value.trim().toLowerCase())
 const canSearch = computed(() => normalizedQuery.value.length >= MIN_SEARCH_LENGTH)
-
-const quickSearches = [
-  'ABC',
-  '123',
-  'ABC123',
-  'RACE/DEAE',
-  'EA/ERJERI'
-]
 
 type SearchableRecipe = {
   row: RecipeSearchRow
@@ -58,13 +54,7 @@ type SearchableRecipe = {
 const searchableRows = computed<SearchableRecipe[]>(() => {
   return rows.value.map(row => ({
     row,
-    searchText: [
-      row.recipe_name,
-      row.recipe_id,
-      row.class_name,
-      row.eqp_model_cd,
-      row.fab_name
-    ].join(' ').toLowerCase()
+    searchText: row.recipe_name.toLowerCase()
   }))
 })
 
@@ -112,24 +102,12 @@ const searchHelp = computed(() => {
   return `${filteredCount.value.toLocaleString()}개 검색됨`
 })
 
-const setQuickSearch = (value: string) => {
+const applyRecentSearch = (value: string) => {
   query.value = value
 }
 
 const clearSearch = () => {
   query.value = ''
-}
-
-const formatUpdatedAt = (iso: string) => {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
 }
 
 watch([normalizedQuery, pageSize, cacheKey], () => {
@@ -147,17 +125,26 @@ watch(pageCount, (next) => {
 })
 
 const columns: TableColumn<RecipeSearchRow>[] = [
-  { accessorKey: 'recipe_name', header: 'recipe_name', size: 320 },
-  { accessorKey: 'recipe_id', header: 'recipe_id', size: 190 },
-  { accessorKey: 'class_name', header: 'class', size: 80 },
-  { accessorKey: 'eqp_model_cd', header: 'model', size: 110 },
-  { accessorKey: 'updated_at', header: 'updated_at', size: 150 }
+  { accessorKey: 'recipe_name', header: 'recipe_name', size: 520 },
+  { id: 'open', header: '', size: 132 }
 ]
 
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis',
   th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+}
+
+const getRecipeDetailRoute = (recipeName: string) => ({
+  path: `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/open`,
+  query: {
+    recipe_name: recipeName
+  }
+})
+
+const openRecipeDetail = (recipeName: string) => {
+  recordRecentSearch(query.value.trim())
+  router.push(getRecipeDetailRoute(recipeName))
 }
 </script>
 
@@ -172,7 +159,7 @@ const tableUi = {
           Recipe 검색 - {{ fab }}
         </h1>
         <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          Flask에서 받은 {{ totalRows.toLocaleString() }}개 recipe 이름을 검색합니다.
+          API에서 받은 {{ totalRows.toLocaleString() }}개 recipe 이름을 검색합니다.
         </p>
       </div>
 
@@ -193,10 +180,10 @@ const tableUi = {
     </div>
 
     <section class="dashboard-surface rounded-2xl px-4 py-3">
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div class="flex items-center gap-2">
         <UInput
           v-model="query"
-          class="min-w-[16rem] flex-1"
+          class="flex-1"
           size="lg"
           icon="i-lucide-search"
           color="neutral"
@@ -205,28 +192,53 @@ const tableUi = {
           autocomplete="off"
           placeholder="Recipe 이름 검색 (예: ABC, 123, RACE/DEAE)"
         />
+        <UButton
+          v-if="query"
+          size="sm"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-x"
+          label="Clear"
+          @click="clearSearch"
+        />
+      </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            v-if="query"
-            size="sm"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-x"
-            label="Clear"
-            @click="clearSearch"
-          />
-          <UButton
-            v-for="item in quickSearches"
-            :key="item"
-            size="sm"
-            color="neutral"
-            variant="soft"
-            @click="setQuickSearch(item)"
+      <div
+        v-if="recentSearches.length"
+        class="mt-2.5 flex flex-wrap items-center gap-1.5"
+      >
+        <span class="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+          Recent
+        </span>
+        <div
+          v-for="term in recentSearches"
+          :key="term"
+          class="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 py-0.5 pl-2.5 pr-1 text-xs text-zinc-700 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+        >
+          <button
+            type="button"
+            class="font-mono leading-5"
+            @click="applyRecentSearch(term)"
           >
-            {{ item }}
-          </UButton>
+            {{ term }}
+          </button>
+          <button
+            type="button"
+            class="rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
+            :aria-label="`Remove ${term} from recent searches`"
+            @click.stop="removeRecentSearch(term)"
+          >
+            <UIcon name="i-lucide-x" class="h-3 w-3" />
+          </button>
         </div>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-trash-2"
+          label="Clear all"
+          @click="clearRecentSearches"
+        />
       </div>
 
       <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
@@ -342,31 +354,15 @@ const tableUi = {
           </span>
         </template>
 
-        <template #recipe_id-cell="{ row }">
-          <span class="font-mono text-[12px] text-zinc-500">
-            {{ row.original.recipe_id }}
-          </span>
-        </template>
-
-        <template #class_name-cell="{ row }">
-          <UBadge
-            :label="row.original.class_name"
-            color="neutral"
+        <template #open-cell="{ row }">
+          <UButton
             size="xs"
-            variant="soft"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-file-search"
+            label="자세히 보기"
+            @click="openRecipeDetail(row.original.recipe_name)"
           />
-        </template>
-
-        <template #eqp_model_cd-cell="{ row }">
-          <span class="font-mono text-[12px] text-zinc-600 dark:text-zinc-300">
-            {{ row.original.eqp_model_cd }}
-          </span>
-        </template>
-
-        <template #updated_at-cell="{ row }">
-          <span class="font-mono text-[12px] tabular-nums text-zinc-500">
-            {{ formatUpdatedAt(row.original.updated_at) }}
-          </span>
         </template>
       </UTable>
 

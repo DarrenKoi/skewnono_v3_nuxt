@@ -1,7 +1,7 @@
 Recipe 검색 화면에서 recipe를 열었을 때 보여줄 IDP mock data
 pd.DataFrame 기준으로는 하나의 파일 안에 3개 테이블을 함께 제공하는 구조입니다.
 
-Recipe 검색 결과에서 recipe row를 클릭하면 recipe_id, fac_id, tool_category를 기준으로 이 데이터를 읽습니다.
+Recipe 검색 결과 table의 "자세히 보기" 버튼을 누르면 recipe_name, fac_id, tool_category를 기준으로 이 데이터를 읽습니다.
 실제 IDP 파일을 파싱하기 전까지는 Python generator가 만든 wafer_mp_info, wafer_align_info, idp_image_info를 사용합니다.
 
 응답 구조
@@ -74,7 +74,7 @@ dnumber_removed -> int64: 제외된 d-number 개수. mock range는 0~3
 
 Mock data 생성 규칙
 
-1. recipe_id, fac_id, tool_category는 Recipe 검색 화면에서 열린 row의 값을 그대로 넘깁니다.
+1. recipe_id는 Recipe 검색 화면에서 선택한 recipe_name을 넘깁니다. fac_id와 tool_category는 현재 route context를 함께 넘깁니다. 검색 목록은 Redis recipe_name 문자열만 갖기 때문에 별도 recipe_id가 준비되기 전까지 recipe_name이 recipe open key입니다.
 2. wafer_mp_info는 기본 50 rows를 생성합니다.
 3. wafer_align_info는 기본 10 rows를 생성합니다.
 4. idp_image_info는 기본 20 rows를 생성합니다.
@@ -86,7 +86,7 @@ Mock data 생성 규칙
 
 검색/화면 사용 기준
 
-Recipe open 기본 key: recipe_id, fac_id, tool_category
+Recipe open 기본 key: recipe_name, fac_id, tool_category
 wafer map 표시 후보: wafer_mp_info.ChipNo_X, wafer_mp_info.ChipNo_Y, wafer_mp_info.P_No, wafer_mp_info.D_No
 좌표 표시 후보: Coordinate_X, Coordinate_Y, Coordinate_X_r, Coordinate_Y_r, Coordinate.X, Coordinate.Y
 align 표시 후보: wafer_align_info.Align_No, wafer_align_info.Chip.X, wafer_align_info.Chip.Y, wafer_align_info.P.No
