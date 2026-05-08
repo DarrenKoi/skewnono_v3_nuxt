@@ -45,8 +45,16 @@ export const useEchart = (
     ensureChart()
   })
 
-  // Containers may be inside a v-if, so the element ref appears later.
-  watch(elRef, (next) => {
+  // Containers may be inside a v-if and toggle on/off. When the previous
+  // element unmounts, dispose the instance bound to it; when a fresh element
+  // mounts, init against the new node. ensureChart() short-circuits when
+  // chart is already truthy, so without this dispose the new container would
+  // never receive an echarts instance after the first remount.
+  watch(elRef, (next, prev) => {
+    if (prev && prev !== next) {
+      chart?.dispose()
+      chart = null
+    }
     if (next) ensureChart()
   })
 

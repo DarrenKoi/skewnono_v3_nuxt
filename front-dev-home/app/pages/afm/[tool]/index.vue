@@ -109,6 +109,7 @@ const cart = useAfmCart(toolId.value)
 
 const onViewDetails = (measurement: AfmMeasurement) => {
   cart.addToHistory(measurement)
+  navigateTo(`/afm/${toolId.value}/${encodeURIComponent(measurement.filename)}`)
 }
 
 const onSaveGroup = (payload: { name: string, description: string }) => {

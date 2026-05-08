@@ -130,67 +130,74 @@
         <li
           v-for="result in filteredResults"
           :key="result.filename"
-          class="flex items-start gap-3 px-5 py-3"
+          class="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
         >
-          <div class="min-w-0 flex-1 space-y-1">
-            <p class="text-sm font-semibold tabular-nums">
+          <button
+            type="button"
+            class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+            @click="$emit('view-details', result)"
+          >
+            <span class="font-mono text-sm font-semibold tabular-nums">
               {{ result.formattedDate }}
-            </p>
-            <p class="text-sm text-zinc-700 dark:text-zinc-300">
+            </span>
+            <span class="text-sm font-semibold">
               {{ result.recipeName }}
-            </p>
-            <p class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-              <span class="font-mono">{{ result.lotId }}</span>
-              <UBadge
-                v-if="isInGroup(result.filename)"
-                label="GROUPED"
-                color="success"
-                size="xs"
-                variant="subtle"
-              />
-            </p>
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              <UBadge
-                :label="`Slot ${result.slotNumber}`"
-                color="primary"
-                size="xs"
-                variant="outline"
-              />
-              <UBadge
-                :label="result.measuredInfo"
-                color="neutral"
-                size="xs"
-                variant="outline"
-              />
-              <UIcon
-                v-for="dt in availableDataTypes(result)"
-                :key="dt.key"
-                :name="dt.icon"
-                class="h-4 w-4 text-emerald-500"
-                :title="dt.tooltip"
-              />
-            </div>
-          </div>
-          <div class="flex shrink-0 flex-col gap-1.5">
-            <UButton
-              size="xs"
-              color="success"
-              variant="outline"
-              icon="i-lucide-plus"
-              :disabled="isInGroup(result.filename)"
-              @click="$emit('add-to-group', result)"
-            >
-              Add to Group
-            </UButton>
-            <UButton
-              size="xs"
+            </span>
+            <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+              {{ result.lotId }}
+            </span>
+            <UBadge
+              :label="`Slot ${result.slotNumber}`"
               color="neutral"
+              size="xs"
+              variant="subtle"
+            />
+            <UBadge
+              :label="result.measuredInfo"
+              color="neutral"
+              size="xs"
               variant="outline"
-              @click="$emit('view-details', result)"
-            >
-              View Details
-            </UButton>
+            />
+            <UBadge
+              v-if="isInGroup(result.filename)"
+              label="GROUPED"
+              color="neutral"
+              size="xs"
+              variant="soft"
+            />
+          </button>
+
+          <div class="flex shrink-0 items-center gap-1">
+            <UIcon
+              v-for="dt in availableDataTypes(result)"
+              :key="dt.key"
+              :name="dt.icon"
+              class="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400"
+              :title="dt.tooltip"
+            />
           </div>
+
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-plus"
+            aria-label="Add to Group"
+            :disabled="isInGroup(result.filename)"
+            class="shrink-0"
+            @click="$emit('add-to-group', result)"
+          />
+
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="solid"
+            icon="i-lucide-square-arrow-out-up-right"
+            class="shrink-0"
+            @click="$emit('view-details', result)"
+          >
+            Open recipe
+          </UButton>
         </li>
       </ul>
     </section>
@@ -210,29 +217,15 @@ defineEmits<{
 }>()
 
 const { recentSearches: recentTerms, recordRecentSearch, clearRecentSearches } = useAfmCart(props.toolId)
+const { useAfmFiles } = useAfmDetailApi()
 
 const query = ref('')
 const activeQuery = ref('')
 const innerFilter = ref('')
 
-const mockResults = computed<AfmMeasurement[]>(() => {
-  const recipes = ['CMP_PRE', 'CMP_POST', 'ETCH_GATE', 'ETCH_VIA', 'DEP_OXIDE', 'DEP_NITRIDE']
-  const lots = ['T7HQR42TA', 'T7HQR43TB', 'T7HQR44TC', 'T7HQR45TD', 'T7HQR46TE']
-  const measured = ['CD', 'Step Height', 'Roughness', 'Profile', 'Sidewall']
-  return Array.from({ length: 12 }, (_, i) => ({
-    filename: `${props.toolId}_${i.toString().padStart(3, '0')}.afm`,
-    recipeName: recipes[i % recipes.length] ?? 'CMP_PRE',
-    lotId: lots[i % lots.length] ?? 'T7HQR42TA',
-    slotNumber: (i % 25) + 1,
-    measuredInfo: measured[i % measured.length] ?? 'CD',
-    formattedDate: `2026-04-${(i % 28 + 1).toString().padStart(2, '0')}`,
-    hasProfile: i % 2 === 0,
-    hasData: true,
-    hasImage: i % 3 !== 0,
-    hasAlign: i % 4 === 0,
-    hasTip: i % 5 === 0
-  }))
-})
+const { data: filesData } = await useAfmFiles(props.toolId.toUpperCase())
+
+const mockResults = computed<AfmMeasurement[]>(() => filesData.value ?? [])
 
 const matchesTerm = (row: AfmMeasurement, term: string) => {
   return [
