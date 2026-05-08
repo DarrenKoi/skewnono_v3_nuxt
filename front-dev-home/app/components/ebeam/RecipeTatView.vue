@@ -75,7 +75,7 @@
             디바이스 선택
           </h3>
           <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
-            {{ deviceList.length }}개의 디바이스
+            {{ filteredDeviceList.length }} / {{ deviceList.length }}개의 디바이스
           </span>
         </div>
         <UButton
@@ -84,9 +84,28 @@
           variant="ghost"
           icon="i-lucide-rotate-ccw"
           label="초기화"
-          :disabled="!selectedLot"
-          @click="selectedLot = null"
+          :disabled="!selectedLot && !lotSearch && selectedCategories.length === 0"
+          @click="() => { selectedLot = null; lotSearch = ''; selectedCategories = [] }"
         />
+      </div>
+
+      <div
+        v-if="categoryField && categoryOptions.length"
+        class="mb-2 flex flex-wrap items-start gap-2 min-w-0"
+      >
+        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">{{ categoryField }}</span>
+        <div class="flex flex-wrap items-center gap-1 min-w-0">
+          <button
+            v-for="category in categoryOptions"
+            :key="category"
+            type="button"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(selectedCategories.includes(category))"
+            @click="toggleCategory(category)"
+          >
+            {{ category }}
+          </button>
+        </div>
       </div>
 
       <div class="flex flex-wrap items-start gap-2 min-w-0">
@@ -268,15 +287,43 @@
               size="xs"
               :items="pageSizeOptions"
             />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              label="CSV 다운로드"
+              :disabled="sortedRankingRows.length === 0"
+              @click="downloadRankingCsv"
+            />
           </div>
         </div>
 
         <UTable
+          v-model:sorting="sorting"
           :columns="columns"
           :data="pagedRows"
+          :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
           sticky="header"
           :ui="tableUi"
-        />
+        >
+          <template
+            v-for="id in sortableColumnIds"
+            :key="id"
+            #[`${id}-header`]="{ column }"
+          >
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+              :trailing-icon="getSortIcon(column.getIsSorted())"
+              @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+            >
+              {{ column.columnDef.header }}
+            </UButton>
+          </template>
+        </UTable>
 
         <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
           <span class="tabular-nums">
@@ -313,6 +360,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
+import type { SortingState } from '@tanstack/vue-table'
 import {
   formatSecondsAsDuration,
   formatSecondsCompact,
@@ -320,6 +368,7 @@ import {
   type RecipeTatRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
+import { downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   fab: string
@@ -353,6 +402,7 @@ type ViewMode = typeof VIEW_MODES[number]['value']
 const viewMode = ref<ViewMode>('summary')
 const selectedLot = ref<string | null>(null)
 const lotSearch = ref('')
+const selectedCategories = ref<string[]>([])
 
 const DEVICE_CHIP_BUDGET = 24
 
@@ -412,31 +462,76 @@ const chipClass = (active: boolean) => active
 
 const deviceList = computed(() => devicesData.value?.devices ?? [])
 
-// Pin the selected chip at the front so it never disappears behind a
-// search filter or the +N overflow indicator.
+// Pick the categorical attribute the picker should narrow by — R3 lots
+// carry prod_catg_cd, M-fab lots carry tech_nm. Whichever field has any
+// values in the current device list wins.
+const categoryField = computed<'prod_catg_cd' | 'tech_nm' | null>(() => {
+  const list = deviceList.value
+  if (list.some(d => d.prod_catg_cd)) return 'prod_catg_cd'
+  if (list.some(d => d.tech_nm)) return 'tech_nm'
+  return null
+})
+
+const categoryOptions = computed(() => {
+  const field = categoryField.value
+  if (!field) return [] as string[]
+  const set = new Set<string>()
+  for (const d of deviceList.value) {
+    const value = d[field]
+    if (value) set.add(value)
+  }
+  return Array.from(set).sort()
+})
+
+const filteredDeviceList = computed(() => {
+  const field = categoryField.value
+  if (!field || selectedCategories.value.length === 0) return deviceList.value
+  const allowed = new Set(selectedCategories.value)
+  return deviceList.value.filter(d => {
+    const value = d[field]
+    return value !== null && allowed.has(value)
+  })
+})
+
+// Stable chip order. Only pin the selection at the front if it would
+// otherwise be hidden — i.e. it doesn't match the active search/category
+// filter or fell past the visible budget. Pinning unconditionally would
+// reshuffle the strip on every click and feel jumpy.
 const deviceChipStrip = computed(() => {
   const q = lotSearch.value.trim().toLowerCase()
-  const all = deviceList.value
+  const all = filteredDeviceList.value
   const matches = q
     ? all.filter(d => d.lot_cd.toLowerCase().includes(q))
     : all
 
-  const selectedRow = selectedLot.value
-    ? all.find(d => d.lot_cd === selectedLot.value) ?? null
-    : null
-  const matchesWithoutSelected = matches.filter(d => d.lot_cd !== selectedLot.value)
+  const visible = matches.slice(0, DEVICE_CHIP_BUDGET)
+  const overflow = Math.max(0, matches.length - DEVICE_CHIP_BUDGET)
 
-  const remainingBudget = Math.max(0, DEVICE_CHIP_BUDGET - (selectedRow ? 1 : 0))
-  const visibleMatches = matchesWithoutSelected.slice(0, remainingBudget)
+  const selected = selectedLot.value
+  if (!selected || visible.some(d => d.lot_cd === selected)) {
+    return { chips: visible, overflowCount: overflow }
+  }
 
+  const selectedRow = deviceList.value.find(d => d.lot_cd === selected)
+  if (!selectedRow) {
+    return { chips: visible, overflowCount: overflow }
+  }
+
+  const trimmed = visible.slice(0, DEVICE_CHIP_BUDGET - 1)
   return {
-    chips: selectedRow ? [selectedRow, ...visibleMatches] : visibleMatches,
-    overflowCount: Math.max(0, matchesWithoutSelected.length - remainingBudget)
+    chips: [selectedRow, ...trimmed],
+    overflowCount: overflow + (visible.length - trimmed.length)
   }
 })
 
 const toggleLot = (lot: string) => {
   selectedLot.value = selectedLot.value === lot ? null : lot
+}
+
+const toggleCategory = (category: string) => {
+  selectedCategories.value = selectedCategories.value.includes(category)
+    ? selectedCategories.value.filter(c => c !== category)
+    : [...selectedCategories.value, category]
 }
 
 const rankingRows = computed<RecipeTatRow[]>(() => data.value?.ranking.rows ?? [])
@@ -461,9 +556,10 @@ watch(data, (next) => {
 watch(
   () => [props.fab, dateRange.value.start, dateRange.value.end],
   () => {
-    if (selectedLot.value === null && lotSearch.value === '') return
+    if (selectedLot.value === null && lotSearch.value === '' && selectedCategories.value.length === 0) return
     selectedLot.value = null
     lotSearch.value = ''
+    selectedCategories.value = []
   }
 )
 
@@ -613,22 +709,43 @@ const filteredRankingRows = computed(() => {
     || row.full_name.toLowerCase().includes(q))
 })
 
+const sortableColumnIds = ['meas_counts', 'avg_meastime', 'total_meastime'] as const
+type SortableColumnId = typeof sortableColumnIds[number]
+
+const sorting = ref<SortingState>([
+  { id: 'total_meastime', desc: true }
+])
+
+const getSortIcon = (direction: false | 'asc' | 'desc') => {
+  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
+  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
+  return 'i-lucide-arrow-up-down'
+}
+
+const sortedRankingRows = computed(() => {
+  const current = sorting.value[0]
+  if (!current) return filteredRankingRows.value
+  const id = current.id as SortableColumnId
+  const dir = current.desc ? -1 : 1
+  return [...filteredRankingRows.value].sort((a, b) => (a[id] - b[id]) * dir)
+})
+
 const pageCount = computed(
-  () => Math.max(1, Math.ceil(filteredRankingRows.value.length / pageSizeNumber.value))
+  () => Math.max(1, Math.ceil(sortedRankingRows.value.length / pageSizeNumber.value))
 )
 const pageStart = computed(
-  () => filteredRankingRows.value.length === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1
+  () => sortedRankingRows.value.length === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1
 )
 const pageEnd = computed(
-  () => Math.min(currentPage.value * pageSizeNumber.value, filteredRankingRows.value.length)
+  () => Math.min(currentPage.value * pageSizeNumber.value, sortedRankingRows.value.length)
 )
 
 const pagedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSizeNumber.value
-  return filteredRankingRows.value.slice(start, start + pageSizeNumber.value)
+  return sortedRankingRows.value.slice(start, start + pageSizeNumber.value)
 })
 
-watch([tableSearch, pageSize, cacheKey], () => {
+watch([tableSearch, pageSize, cacheKey, sorting], () => {
   currentPage.value = 1
 })
 
@@ -680,5 +797,31 @@ const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums',
   th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+}
+
+const exportFileName = computed(() => {
+  const today = new Date().toISOString().slice(0, 10)
+  const fab = (props.fab || 'all').toLowerCase()
+  return `${props.toolType}-${fab}-recipe-tat-${today}.csv`
+})
+
+const downloadRankingCsv = () => {
+  const headers = [
+    'rank', 'class', 'recipe',
+    'meas_count', 'avg_meastime_sec', 'total_meastime_sec',
+    'last_run', 'share_pct'
+  ]
+  const total = totalForShare.value
+  const rows = sortedRankingRows.value.map(r => [
+    r.rank,
+    r.class_name,
+    r.recipe_name,
+    r.meas_counts,
+    r.avg_meastime,
+    r.total_meastime,
+    r.last_run,
+    total ? (r.total_meastime / total * 100).toFixed(2) : '0.00'
+  ])
+  downloadCsv(exportFileName.value, headers, rows)
 }
 </script>

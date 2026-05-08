@@ -531,6 +531,29 @@ class DeviceRow(TypedDict):
     lot_cd: str
     exec_count: int
     total_meastime: int
+    # 빠른 필터 metadata. Recipe-TAT's MeasHistRow doesn't carry product
+    # category info — these come from device_statistics (R3 → prod_catg_cd,
+    # M-fab → tech_nm). Exactly one is populated per lot in practice; the
+    # other is null.
+    prod_catg_cd: str | None
+    tech_nm: str | None
+
+
+@lru_cache(maxsize=1)
+def _lot_metadata() -> dict[str, dict[str, str | None]]:
+    """lot_cd → {prod_catg_cd, tech_nm}. Joined from device_statistics."""
+    from back_dev_home.ebeam.cdsem.device_statistics.data import (
+        get_device_desc,
+        get_r3_device_grp
+    )
+    out: dict[str, dict[str, str | None]] = {}
+    for row in get_r3_device_grp():
+        out[row["lot_cd"]] = {"prod_catg_cd": row["prod_catg_cd"], "tech_nm": None}
+    # M-fab lot_cds win on conflict — matches `_lot_index`'s last-source-wins
+    # convention so the picker label is consistent across features.
+    for row in get_device_desc():
+        out[row["lot_cd"]] = {"prod_catg_cd": None, "tech_nm": row["tech_nm"]}
+    return out
 
 
 def get_devices(
@@ -546,6 +569,7 @@ def get_devices(
     (no zero-result chips).
     """
     rows = _filter_rows(tool_type, fab_id, start_date, end_date)
+    metadata = _lot_metadata()
 
     bucket: dict[str, dict] = {}
     for row in rows:
@@ -557,7 +581,9 @@ def get_devices(
         {
             "lot_cd": lot_cd,
             "exec_count": entry["exec_count"],
-            "total_meastime": entry["total_meastime"]
+            "total_meastime": entry["total_meastime"],
+            "prod_catg_cd": metadata.get(lot_cd, {}).get("prod_catg_cd"),
+            "tech_nm": metadata.get(lot_cd, {}).get("tech_nm")
         }
         for lot_cd, entry in sorted(
             bucket.items(),

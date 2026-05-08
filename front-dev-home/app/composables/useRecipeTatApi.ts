@@ -57,6 +57,10 @@ export interface RecipeTatDeviceRow {
   lot_cd: string
   exec_count: number
   total_meastime: number
+  // Quick-filter metadata. R3 lots populate `prod_catg_cd`; M-fab lots
+  // populate `tech_nm`. Exactly one of these is non-null per lot.
+  prod_catg_cd: string | null
+  tech_nm: string | null
 }
 
 export interface RecipeTatDevicesResponse {
