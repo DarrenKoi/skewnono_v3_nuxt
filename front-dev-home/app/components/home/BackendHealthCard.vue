@@ -18,11 +18,15 @@
       </span>
       <div class="sk-health-card__summary-text">
         <span class="sk-health-card__headline">{{ headline }}</span>
-        <span class="sk-health-card__subline">{{ subline }}</span>
+        <span
+          v-if="subline"
+          class="sk-health-card__subline"
+        >{{ subline }}</span>
       </div>
     </div>
 
     <button
+      v-if="services.length > 0"
       type="button"
       class="sk-health-card__toggle"
       :aria-expanded="expanded"
@@ -38,7 +42,7 @@
     </button>
 
     <div
-      v-if="expanded"
+      v-if="expanded && services.length > 0"
       id="sk-health-details"
       class="sk-health-card__details"
     >
@@ -69,7 +73,10 @@ import type { ServiceHealth, ServiceStatus } from '~/composables/useBackendHealt
 const props = defineProps<{
   services: ServiceHealth[]
   checkedAt: string
+  error?: boolean
 }>()
+
+type OverallStatus = ServiceStatus | 'unknown'
 
 const STATUS_LABEL: Record<ServiceStatus, string> = {
   up: 'Connected',
@@ -92,25 +99,32 @@ const USER_COPY_DOWN: Record<string, string> = {
 
 const expanded = ref(false)
 
-const overallStatus = computed<ServiceStatus>(() =>
-  props.services.some(s => s.status === 'down') ? 'down' : 'up'
-)
+// services 가 비어 있으면 백엔드 응답을 아직 못 받았거나 실패한 상태입니다.
+// 그 경우 'up' 으로 떨어뜨리지 않고 'unknown' 으로 표기 — 초록 점이 거짓
+// 안전 신호를 주지 않도록.
+const overallStatus = computed<OverallStatus>(() => {
+  if (props.services.length === 0) return 'unknown'
+  return props.services.some(s => s.status === 'down') ? 'down' : 'up'
+})
 
 const headline = computed(() => {
-  if (props.services.length === 0) return '확인 중…'
+  if (overallStatus.value === 'unknown') {
+    return props.error ? '상태 확인 실패' : '상태 확인 중…'
+  }
   const downCount = props.services.filter(s => s.status === 'down').length
   if (downCount === 0) return '전체 정상'
   return `${downCount}개 항목 점검 필요`
 })
 
-const subline = computed(() =>
-  props.services
+const subline = computed(() => {
+  if (overallStatus.value === 'unknown') return ''
+  return props.services
     .map((s) => {
       const table = s.status === 'up' ? USER_COPY_OK : USER_COPY_DOWN
       return table[s.id] ?? s.label
     })
     .join(' · ')
-)
+})
 
 const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
 
@@ -194,6 +208,13 @@ const stampLabel = computed(() => {
   color: var(--sk-bad);
   --sk-status-soft: var(--sk-bad-soft);
   --sk-status-border: var(--sk-bad-border);
+}
+
+/* No data yet (loading) or fetch failed — neutral gray dot, no pulse, no
+   detail rows. Critically not green: a healthy-looking card with no underlying
+   data would lie to the user. */
+.sk-health-card--unknown {
+  color: var(--sk-ink-subtle);
 }
 
 .sk-health-card__head {
