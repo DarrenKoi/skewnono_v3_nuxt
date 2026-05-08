@@ -104,6 +104,14 @@
   --sk-accent-soft: oklch(0.95 0.025 60);
   --sk-accent-border: oklch(0.58 0.13 35 / 0.22);
   --sk-accent-tint: oklch(0.58 0.13 35 / 0.06);
+  /* Connected/Down palette for backend health card. Soft fills sit on muted-surface; */
+  /* borders use a 32% alpha of the accent so the badges read as label, not button. */
+  --sk-ok: oklch(0.62 0.13 145);
+  --sk-ok-soft: oklch(0.94 0.05 145);
+  --sk-ok-border: oklch(0.62 0.13 145 / 0.32);
+  --sk-bad: oklch(0.58 0.18 28);
+  --sk-bad-soft: oklch(0.94 0.04 30);
+  --sk-bad-border: oklch(0.58 0.18 28 / 0.32);
 }
 
 /* Dark · Walnut — paper at night. Page L≈0.21, hue 70°; cards lift one step to
@@ -130,6 +138,13 @@
   --sk-accent-soft: oklch(0.34 0.05 38);
   --sk-accent-border: oklch(0.74 0.14 38 / 0.32);
   --sk-accent-tint: oklch(0.74 0.14 38 / 0.10);
+  /* Status palette · dark — bump fg lightness so tinted soft fills stay legible on walnut. */
+  --sk-ok: oklch(0.78 0.14 150);
+  --sk-ok-soft: oklch(0.32 0.06 150);
+  --sk-ok-border: oklch(0.78 0.14 150 / 0.32);
+  --sk-bad: oklch(0.72 0.17 28);
+  --sk-bad-soft: oklch(0.32 0.06 28);
+  --sk-bad-border: oklch(0.72 0.17 28 / 0.32);
 }
 
 html,
@@ -213,4 +228,13 @@ body {
 .sk-pill-off {
   background: var(--sk-off-bg);
   color: var(--sk-off-fg);
+}
+
+/* Liveness halo on the backend-health dot — a 1.6s outward fade. The halo
+   uses currentColor + opacity rather than a tinted background so a single
+   keyframe works for ok/warn/bad. */
+@keyframes sk-pulse {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(2.6); opacity: 0;    }
+  100% { transform: scale(2.6); opacity: 0;    }
 }

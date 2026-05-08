@@ -8,6 +8,7 @@ const { fabs: afmFabs, afmToolHref } = useAfmToolData()
 const { toolTypeHref } = useNavigation()
 
 const { data: semRows } = await useSemList()
+const { data: healthData, error: healthError } = useBackendHealth()
 
 const rowsByToolType = computed(() => {
   const groups = new Map<string, typeof semRows.value>()
@@ -31,12 +32,6 @@ const ebeamTools = computed(() => {
   }))
 })
 
-const todayLabel = useState('hub-today-label', () => new Intl.DateTimeFormat('ko-KR', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric'
-}).format(new Date()))
-
 const systemStatus = computed(() => {
   return ebeamTools.value
     .filter(tool => tool.enabled)
@@ -55,7 +50,7 @@ const systemStatus = computed(() => {
 <template>
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <section class="dashboard-surface rounded-3xl p-6 md:p-8">
-      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold mb-2">
             기반기술센터 SKEWNONO v3
@@ -64,11 +59,10 @@ const systemStatus = computed(() => {
             - Metrology Solution -
           </h1>
         </div>
-        <UBadge
-          :label="todayLabel"
-          color="neutral"
-          variant="outline"
-          class="w-fit"
+        <HomeBackendHealthCard
+          :services="healthData?.services ?? []"
+          :checked-at="healthData?.checked_at ?? ''"
+          :error="!!healthError"
         />
       </div>
     </section>

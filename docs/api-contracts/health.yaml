@@ -1,0 +1,66 @@
+resource: health
+description: Backend service liveness for the landing-page status card. Home returns synthetic latencies; office times real pings against Redis / OpenSearch / MinIO.
+base_path: /api/health
+
+types:
+  ServiceHealth:
+    id:
+      type: string
+      enum: ["redis", "opensearch", "minio"]
+      description: Stable service id used as Vue list key
+    label:
+      type: string
+      description: Human-readable name shown in the UI ("Redis", "OpenSearch", "MinIO")
+    status:
+      type: string
+      enum: ["up", "down"]
+      description: Liveness — "up" = probe returned, "down" = probe raised or timed out. Drives dot color and badge label.
+    latency_ms:
+      type: integer
+      nullable: true
+      description: Round-trip time of the health probe in milliseconds. null when status is "down" (no successful response).
+    detail:
+      type: string
+      description: Short context line (version / node count / cluster color / failure reason)
+
+  ServicesHealthResponse:
+    checked_at:
+      type: string
+      format: "ISO 8601 UTC"
+      description: Timestamp the probe was run — frontend renders relative time ("checked 3s ago")
+    services:
+      type: array
+      items: ServiceHealth
+
+endpoints:
+  - path: /api/health/services
+    method: GET
+    description: Snapshot of liveness for the three backing services. Cheap to call; frontend polls every 15s.
+    response:
+      status: 200
+      body: ServicesHealthResponse
+    example_request: "GET /api/health/services"
+    example_response:
+      checked_at: "2026-05-08T07:16:00+00:00"
+      services:
+        - id: "redis"
+          label: "Redis"
+          status: "up"
+          latency_ms: 2
+          detail: "6.2.7 · 1 node"
+        - id: "opensearch"
+          label: "OpenSearch"
+          status: "up"
+          latency_ms: 14
+          detail: "2.11 · 3 nodes · green"
+        - id: "minio"
+          label: "MinIO"
+          status: "down"
+          latency_ms: null
+          detail: "connect timeout"
+
+notes:
+  - Phase 1 source is back_dev_home/health/data.py, which returns fixed always-up values for the three services because OpenSearch and MinIO are not reachable from home. Only checked_at varies per request. No fixture is captured because the office response is intrinsically time-varying.
+  - Office implementation should keep the same TypedDict shape and reuse the in-repo helpers — redis-py for Redis (ping()), ops_store.create_client() for OpenSearch (ping() or cluster.health()), minio_handler.create_client() for MinIO (list_buckets() or bucket_exists()). Wrap each in try/except, measure wall-clock around the call, and convert to int ms.
+  - Map probe results to status — "up" if the probe returned successfully (regardless of latency), "down" if it raised / timed out. Set latency_ms to None on "down".
+  - Endpoint must stay cheap (single-digit ms in the happy path) so the frontend can poll on a 15-second cadence without load.
