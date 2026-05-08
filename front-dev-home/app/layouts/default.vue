@@ -23,7 +23,7 @@ const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSi
       <main class="flex-1 flex flex-col overflow-hidden min-w-0">
         <NavFeatureTabs />
 
-        <div class="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <div class="flex-1 overflow-auto [scrollbar-gutter:stable] p-4 md:p-6 lg:p-8">
           <slot />
         </div>
       </main>

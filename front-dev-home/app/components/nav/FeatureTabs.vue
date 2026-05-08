@@ -56,51 +56,53 @@ const isFeatureEnabled = (feature: FeatureTab) => {
 
 <template>
   <div class="px-4 md:px-6 lg:px-8 pt-4">
-    <nav
-      aria-label="Feature navigation"
-      class="dashboard-surface rounded-full px-1.5 py-1.5 flex gap-1 overflow-x-auto"
-    >
-      <template
-        v-for="feature in features"
-        :key="feature.label"
+    <div class="max-w-7xl mx-auto">
+      <nav
+        aria-label="Feature navigation"
+        class="dashboard-surface rounded-full px-1.5 py-1.5 flex gap-1 overflow-x-auto"
       >
-        <NuxtLink
-          v-if="isFeatureEnabled(feature) && feature.routeValue"
-          :to="getFeatureRoute(feature.routeValue)"
-          class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
-          :class="activeFeature === feature.routeValue
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
-            : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
+        <template
+          v-for="feature in features"
+          :key="feature.label"
         >
-          <UIcon
-            :name="feature.icon"
-            class="w-4 h-4"
-          />
-          {{ feature.label }}
-          <UIcon
-            v-if="feature.badgeIcon"
-            :name="feature.badgeIcon"
-            class="w-3.5 h-3.5 text-rose-400 dark:text-rose-300"
-          />
-        </NuxtLink>
+          <NuxtLink
+            v-if="isFeatureEnabled(feature) && feature.routeValue"
+            :to="getFeatureRoute(feature.routeValue)"
+            class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
+            :class="activeFeature === feature.routeValue
+              ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
+              : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
+          >
+            <UIcon
+              :name="feature.icon"
+              class="w-4 h-4"
+            />
+            {{ feature.label }}
+            <UIcon
+              v-if="feature.badgeIcon"
+              :name="feature.badgeIcon"
+              class="w-3.5 h-3.5 text-rose-400 dark:text-rose-300"
+            />
+          </NuxtLink>
 
-        <span
-          v-else
-          aria-disabled="true"
-          class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full text-zinc-400 ring-1 ring-zinc-200/70 cursor-default dark:text-zinc-500 dark:ring-zinc-700/80"
-        >
-          <UIcon
-            :name="feature.icon"
-            class="w-4 h-4"
-          />
-          {{ feature.label }}
-          <UIcon
-            v-if="feature.badgeIcon"
-            :name="feature.badgeIcon"
-            class="w-3.5 h-3.5 text-rose-400 dark:text-rose-300"
-          />
-        </span>
-      </template>
-    </nav>
+          <span
+            v-else
+            aria-disabled="true"
+            class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full text-zinc-400 ring-1 ring-zinc-200/70 cursor-default dark:text-zinc-500 dark:ring-zinc-700/80"
+          >
+            <UIcon
+              :name="feature.icon"
+              class="w-4 h-4"
+            />
+            {{ feature.label }}
+            <UIcon
+              v-if="feature.badgeIcon"
+              :name="feature.badgeIcon"
+              class="w-3.5 h-3.5 text-rose-400 dark:text-rose-300"
+            />
+          </span>
+        </template>
+      </nav>
+    </div>
   </div>
 </template>
