@@ -1,4 +1,5 @@
 import { fabNameToFacId } from '~/composables/useSemListApi'
+import { joinApiPath } from '~/utils/apiPath'
 
 export interface StorageRow {
   eqp_id: string
@@ -39,18 +40,11 @@ const TOOL_TO_BACKEND_SLUG: Record<StorageTool, string> = {
   'hv-sem': 'hvsem'
 }
 
-const joinStorageApiPath = (base: string, path: string) => {
-  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-
-  return `${normalizedBase}${normalizedPath}`
-}
-
 export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
   const config = useRuntimeConfig()
   const slug = TOOL_TO_BACKEND_SLUG[tool]
-  const storageUrl = joinStorageApiPath(config.public.apiBase, `/${slug}/storage`)
-  const unavailableUrl = joinStorageApiPath(config.public.apiBase, `/${slug}/storage-unavailable`)
+  const storageUrl = joinApiPath(config.public.apiBase, `/${slug}/storage`)
+  const unavailableUrl = joinApiPath(config.public.apiBase, `/${slug}/storage-unavailable`)
 
   const fetchStorageRows = async (facIds: string[] = []): Promise<StorageRow[]> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined

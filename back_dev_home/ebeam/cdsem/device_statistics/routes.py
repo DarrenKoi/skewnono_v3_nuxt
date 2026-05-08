@@ -1,7 +1,10 @@
 from flask import Blueprint, jsonify, request
 
-from back_dev_home.ebeam.cdsem.device_statistics.data import get_device_desc, get_r3_device_grp
-from back_dev_home.ebeam.cdsem.device_statistics.statistics import get_weekly_trend_data
+from back_dev_home.ebeam.cdsem.device_statistics.data import (
+    get_device_desc,
+    get_r3_device_grp,
+    get_weekly_trend_data,
+)
 
 bp = Blueprint("cdsem_device_statistics", __name__)
 
@@ -48,7 +51,9 @@ def recipe_trend():
     # Same `points`-stability constraint as recipe_statistics: always
     # generate the full window, then slice by date string. ISO YYYY-MM-DD
     # is lexicographically sortable so direct >=/<= comparisons work.
-    full = get_weekly_trend_data(lot_cds or None)
+    # Trend chart only consumes *_summary buckets, so skip rcp_info to
+    # avoid serializing thousands of unused recipe rows.
+    full = get_weekly_trend_data(lot_cds or None, include_recipes=False)
 
     dates = [
         d for d in full.keys()

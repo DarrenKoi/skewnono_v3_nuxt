@@ -10,9 +10,15 @@
             {{ text.title }}
           </h1>
         </div>
-        <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
-        <span class="self-end mb-2 text-xs text-zinc-500">
-          {{ selectedLotsLabel }}
+        <div
+          v-if="selectedLots.length > 0"
+          class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block"
+        />
+        <span
+          v-if="selectedLots.length > 0"
+          class="self-end mb-2 text-xs text-zinc-500"
+        >
+          {{ text.selected }}: {{ selectedLots.length }}
         </span>
       </div>
 
@@ -174,6 +180,10 @@
         v-else
         class="space-y-3"
       >
+        <EbeamCompareDeviceChips
+          :lot-cds="lotLabels"
+          @select="openLot"
+        />
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <UCard
             class="dashboard-surface rounded-2xl"
@@ -224,13 +234,26 @@
         />
       </div>
     </template>
+
+    <EbeamRecipeDetailSlideover
+      :open="focusedLot !== null"
+      :lot-cd="focusedLot"
+      :bucket-key="selectedBucket"
+      :bucket-label="focusedBucketLabel"
+      :date="data?.date ?? null"
+      :summary-row="focusedSummaryRow"
+      :recipe-rows="focusedRecipeRows"
+      @update:open="onSlideoverOpenChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
-import type { SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
+import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
+import type { BucketPayload, RecipeInfoRow, SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
+import { summaryToRecipeInfoBucket } from '~/composables/useRecipeStatisticsApi'
 import { registerEchartsThemes } from '~/utils/echartsThemes'
 
 registerEchartsThemes(echarts)
@@ -258,7 +281,7 @@ const text = {
   emptyCta: '디바이스 선택으로',
   chartStackedTitle: '파라미터 분포 (스택)',
   chartAvailRecipeTitle: '운용 레시피수',
-  trendSection: '주간 추이',
+  trendSection: '기간별 변화',
   selected: '선택',
   bucketHelpTitle: 'Bucket 의미',
   bucketHelpIntro: 'MMDM recipe step을 어떤 기준으로 모아 볼지 선택합니다.'
@@ -351,18 +374,68 @@ const avgAvailRecipe = computed(() => mean(availRecipeValues.value))
 const stdStackTotal = computed(() => stdDev(stackTotals.value))
 const stdAvailRecipe = computed(() => stdDev(availRecipeValues.value))
 
-const selectedLotsLabel = computed(() => {
-  if (selectedLots.value.length === 0) return ''
-  const preview = selectedLots.value.slice(0, 4).join(', ')
-  const overflow = selectedLots.value.length - 4
-  return overflow > 0
-    ? `${text.selected}: ${preview} 외 ${overflow}개`
-    : `${text.selected}: ${preview}`
+const focusedLot = ref<string | null>(null)
+
+const openLot = (lotCd: string) => {
+  focusedLot.value = lotCd
+}
+
+const onSlideoverOpenChange = (value: boolean) => {
+  if (!value) focusedLot.value = null
+}
+
+const focusedRecipeRows = computed<RecipeInfoRow[]>(() => {
+  if (!focusedLot.value) return []
+  const buckets = data.value?.buckets as BucketPayload | undefined
+  const list = buckets?.[summaryToRecipeInfoBucket[selectedBucket.value]]
+  if (!list) return []
+  return list.filter(row => row.lot_cd === focusedLot.value)
 })
+
+const focusedSummaryRow = computed<SummaryRow | null>(() => {
+  if (!focusedLot.value) return null
+  return rows.value.find(row => row.lot_cd === focusedLot.value) ?? null
+})
+
+const focusedBucketLabel = computed(
+  () => bucketOptions.find(o => o.value === selectedBucket.value)?.label ?? ''
+)
+
+const ctnDescByLot = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const row of sortedRows.value) map[row.lot_cd] = row.ctn_desc
+  return map
+})
+
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => (
+  c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;'
+))
+
+const formatBarTooltip = (raw: TopLevelFormatterParams) => {
+  const arr = Array.isArray(raw) ? raw : [raw]
+  if (arr.length === 0) return ''
+  const lot = (arr[0]?.name as string | undefined) ?? ''
+  const desc = ctnDescByLot.value[lot] ?? ''
+  const header = `<div style="font-weight:600">${escapeHtml(lot)}</div>`
+    + (desc ? `<div style="font-size:10px;color:#888;margin:2px 0 6px">${escapeHtml(desc)}</div>` : '')
+  const lines = arr.map((p) => {
+    // ECharts marker can be a rich-text token object when textStyle.rich is
+    // configured; we don't use rich text, so the runtime value is always
+    // the HTML <span> string.
+    const marker = typeof p.marker === 'string' ? p.marker : ''
+    const seriesName = typeof p.seriesName === 'string' ? p.seriesName : ''
+    return `<div style="display:flex;justify-content:space-between;gap:16px">`
+      + `<span>${marker}${escapeHtml(seriesName)}</span>`
+      + `<span style="font-variant-numeric:tabular-nums">${escapeHtml(String(p.value ?? ''))}</span>`
+      + `</div>`
+  }).join('')
+  return header + lines
+}
 
 const baseTooltip = {
   trigger: 'axis' as const,
-  axisPointer: { type: 'shadow' as const }
+  axisPointer: { type: 'shadow' as const },
+  formatter: formatBarTooltip
 }
 
 const baseGrid = { left: 48, right: 16, top: 36, bottom: 55, containLabel: true }
@@ -464,8 +537,8 @@ const availRecipeOption = computed<EChartsOption>(() => ({
 const stackedEl = ref<HTMLDivElement | null>(null)
 const availRecipeEl = ref<HTMLDivElement | null>(null)
 
-useEchart(stackedEl, stackedOption)
-useEchart(availRecipeEl, availRecipeOption)
+useEchart(stackedEl, stackedOption, { onClick: openLot })
+useEchart(availRecipeEl, availRecipeOption, { onClick: openLot })
 
 const goBack = async () => {
   await navigateTo(`/ebeam/cd-sem/${route.params.fab}/device-statistics`)

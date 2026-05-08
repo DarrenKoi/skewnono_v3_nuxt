@@ -15,4 +15,4 @@ PM 연계 분석(Tool 별 Down Up Time 현황)
 Up 판단 Spec Average 7.97+-0.05, 3*STD+-0.09
 
 Long Time Recipe excel로 다운로드
-
+comparision

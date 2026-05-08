@@ -1,4 +1,5 @@
 import type { Fab, ToolType } from '~/stores/navigation'
+import { joinApiPath } from '~/utils/apiPath'
 
 // One shared cache key for /api/sem-list. Every consumer (hub page, tool-type
 // tabs, fab sidebar, inventory view) calls useSemList() and derives its view
@@ -26,13 +27,6 @@ export interface SemListRow {
 }
 
 export type SemListResponse = SemListRow[]
-
-const joinApiPath = (base: string, path: string) => {
-  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-
-  return `${normalizedBase}${normalizedPath}`
-}
 
 export const classifyToolType = (eqpModelCd: string): ToolType | null => {
   if (eqpModelCd.startsWith('CG') || eqpModelCd.startsWith('GT')) return 'cd-sem'

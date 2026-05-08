@@ -1,0 +1,159 @@
+{
+  "end_date": "2026-05-08",
+  "fab_id": null,
+  "lot_cd": null,
+  "points": [
+    {
+      "date": "2026-04-08",
+      "exec_count": 22,
+      "total_meastime": 11334
+    },
+    {
+      "date": "2026-04-09",
+      "exec_count": 29,
+      "total_meastime": 10194
+    },
+    {
+      "date": "2026-04-10",
+      "exec_count": 25,
+      "total_meastime": 8673
+    },
+    {
+      "date": "2026-04-11",
+      "exec_count": 20,
+      "total_meastime": 6825
+    },
+    {
+      "date": "2026-04-12",
+      "exec_count": 17,
+      "total_meastime": 4948
+    },
+    {
+      "date": "2026-04-13",
+      "exec_count": 28,
+      "total_meastime": 8625
+    },
+    {
+      "date": "2026-04-14",
+      "exec_count": 27,
+      "total_meastime": 8910
+    },
+    {
+      "date": "2026-04-15",
+      "exec_count": 28,
+      "total_meastime": 9677
+    },
+    {
+      "date": "2026-04-16",
+      "exec_count": 26,
+      "total_meastime": 9091
+    },
+    {
+      "date": "2026-04-17",
+      "exec_count": 32,
+      "total_meastime": 12504
+    },
+    {
+      "date": "2026-04-18",
+      "exec_count": 24,
+      "total_meastime": 8431
+    },
+    {
+      "date": "2026-04-19",
+      "exec_count": 29,
+      "total_meastime": 11807
+    },
+    {
+      "date": "2026-04-20",
+      "exec_count": 26,
+      "total_meastime": 10716
+    },
+    {
+      "date": "2026-04-21",
+      "exec_count": 23,
+      "total_meastime": 10011
+    },
+    {
+      "date": "2026-04-22",
+      "exec_count": 26,
+      "total_meastime": 11097
+    },
+    {
+      "date": "2026-04-23",
+      "exec_count": 26,
+      "total_meastime": 10940
+    },
+    {
+      "date": "2026-04-24",
+      "exec_count": 30,
+      "total_meastime": 11913
+    },
+    {
+      "date": "2026-04-25",
+      "exec_count": 22,
+      "total_meastime": 10235
+    },
+    {
+      "date": "2026-04-26",
+      "exec_count": 24,
+      "total_meastime": 8865
+    },
+    {
+      "date": "2026-04-27",
+      "exec_count": 21,
+      "total_meastime": 7204
+    },
+    {
+      "date": "2026-04-28",
+      "exec_count": 22,
+      "total_meastime": 8259
+    },
+    {
+      "date": "2026-04-29",
+      "exec_count": 25,
+      "total_meastime": 12418
+    },
+    {
+      "date": "2026-04-30",
+      "exec_count": 32,
+      "total_meastime": 12069
+    },
+    {
+      "date": "2026-05-01",
+      "exec_count": 23,
+      "total_meastime": 9183
+    },
+    {
+      "date": "2026-05-02",
+      "exec_count": 19,
+      "total_meastime": 8145
+    },
+    {
+      "date": "2026-05-03",
+      "exec_count": 21,
+      "total_meastime": 6890
+    },
+    {
+      "date": "2026-05-04",
+      "exec_count": 22,
+      "total_meastime": 8433
+    },
+    {
+      "date": "2026-05-05",
+      "exec_count": 27,
+      "total_meastime": 10698
+    },
+    {
+      "date": "2026-05-06",
+      "exec_count": 34,
+      "total_meastime": 15809
+    },
+    {
+      "date": "2026-05-07",
+      "exec_count": 22,
+      "total_meastime": 10170
+    }
+  ],
+  "start_date": "2026-04-08",
+  "tool_type": "cd-sem"
+}

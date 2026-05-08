@@ -1,6 +1,26 @@
+"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
+
+원본 데이터: 사무실 측 CD-SEM 스토리지 모니터링 인덱스(시계열 + 미수집 스냅샷)
+계약:        docs/api-contracts/cdsem-storage.yaml
+픽스처:      back_dev_home/ebeam/cdsem/storage/__fixtures__/
+
+스코프 정책: Hitachi CG/GT 시리즈만 CD-SEM 으로 분류합니다.
+classifyToolType() (front-dev-home/app/composables/useSemListApi.ts) 와 일치.
+"""
+
 import random
 from datetime import date, datetime, timedelta, timezone
 from typing import TypedDict
+
+
+__all__ = [
+    "StorageRow",
+    "UnavailableSnapshotRow",
+    "UnavailableRow",
+    "StorageUnavailableSnapshot",
+    "get_storage",
+    "get_storage_unavailable",
+]
 
 
 class StorageRow(TypedDict):

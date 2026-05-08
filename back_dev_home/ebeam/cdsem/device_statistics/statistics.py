@@ -5,14 +5,20 @@ join key. When the frontend selects one or more lot_cds, this module
 returns matching recipe-info and summary rows for each weekly date in
 a trend window — keyed by ISO date so the frontend can plot the
 trend directly without re-shaping.
+
+Internal module: callers should import the public surface from
+`device_statistics.data` (which re-exports the symbols below). Imports
+of `data` are deferred to function bodies — eager module-top imports
+would form a circular load with `data.py` (which itself re-exports from
+this module), so the import order is fragile when this module is
+entered first (e.g. `python -m ...statistics` running the __main__
+block, or any future test that imports statistics directly).
 """
 
 import random
 from datetime import timedelta
 from functools import lru_cache
 from typing import TypedDict
-
-from back_dev_home.ebeam.cdsem.device_statistics.data import BASE_TIME, get_device_desc, get_r3_device_grp
 
 
 class RecipeInfoRow(TypedDict):
@@ -66,14 +72,31 @@ OPER_DESCS = (
     "Annealing Process", "Final Inspection", "Wafer Testing"
 )
 
-# Per-bucket value ranges. "all" is the widest bucket; "only_sample" is
-# the narrowest — matches the legacy dashboard's visual hierarchy where
-# all_summary always dominates and only_sample is a small slice.
-SUMMARY_RANGES = {
-    "all": (5000, 10000),
-    "only_normal": (3000, 7000),
-    "mother_normal": (2000, 5000),
-    "only_sample": (1000, 3000),
+OPER_PREFIXES = (
+    "ETCH", "DEPO", "LITH", "IMPL", "CLEAN", "ANNL", "INSP", "MEAS",
+    "CMP", "STRIP", "OXID", "DIFF"
+)
+
+EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
+
+# Per-bucket recipe-count range. "all" is widest; "only_sample" narrowest —
+# the summary chart aggregates from these counts, so this also governs the
+# relative visual hierarchy of the bucket bars on the comparison page.
+RECIPE_COUNT_RANGES = {
+    "all": (130, 200),
+    "only_normal": (80, 150),
+    "mother_normal": (50, 110),
+    "only_sample": (25, 70),
+}
+
+# Per-recipe parameter ranges. Sums across ~150 recipes land in the legacy
+# summary range of ~5k–10k for `all`, which keeps existing chart axes
+# meaningful.
+PARA_RANGES = {
+    "para_16": (10, 50),
+    "para_13": (6, 32),
+    "para_9": (3, 16),
+    "para_5": (1, 9),
 }
 
 
@@ -91,6 +114,7 @@ def _seed_for(lot_cd: str, point_index: int) -> int:
 
 
 def _trend_dates(points: int, interval_days: int) -> tuple[str, ...]:
+    from .data import BASE_TIME  # 지연 import — 순환 로드 방지
     base_monday = (BASE_TIME - timedelta(days=BASE_TIME.weekday())).date()
     dates = [
         (base_monday - timedelta(days=interval_days * offset)).isoformat()
@@ -102,6 +126,7 @@ def _trend_dates(points: int, interval_days: int) -> tuple[str, ...]:
 @lru_cache(maxsize=1)
 def _lot_index() -> dict[str, str]:
     """lot_cd -> fac_id, sourced from both R3 and per-fab generators."""
+    from .data import get_device_desc, get_r3_device_grp  # 지연 import
     index: dict[str, str] = {}
 
     for row in get_r3_device_grp():
@@ -113,30 +138,56 @@ def _lot_index() -> dict[str, str]:
     return index
 
 
+@lru_cache(maxsize=1)
+def _lot_ctn_desc() -> dict[str, str]:
+    """lot_cd -> device-level ctn_desc, joined from both lot sources.
+
+    The frontend uses this on chart tooltips and the slideover summary
+    card so analysts can identify devices without memorizing lot codes.
+    Later sources win on conflict, matching `_lot_index`.
+    """
+    from .data import get_device_desc, get_r3_device_grp  # 지연 import
+    descs: dict[str, str] = {}
+
+    for row in get_r3_device_grp():
+        descs[row["lot_cd"]] = row["ctn_desc"]
+
+    for row in get_device_desc():
+        descs[row["lot_cd"]] = row["ctn_desc"]
+
+    return descs
+
+
 def _build_recipe_row(
     rng: random.Random,
     lot_cd: str,
     fac_id: str,
-    bucket_index: int
+    bucket: str,
+    idx: int
 ) -> RecipeInfoRow:
-    para_all = rng.randint(500, 1000)
-    para_16 = rng.randint(100, para_all // 2)
-    para_13 = rng.randint(50, para_all // 3)
-    para_9 = rng.randint(20, para_all // 4)
-    para_5 = rng.randint(10, para_all // 5)
+    para_16 = rng.randint(*PARA_RANGES["para_16"])
+    para_13 = rng.randint(*PARA_RANGES["para_13"])
+    para_9 = rng.randint(*PARA_RANGES["para_9"])
+    para_5 = rng.randint(*PARA_RANGES["para_5"])
+    para_all = para_16 + para_13 + para_9 + para_5
+
+    oper_prefix = rng.choice(OPER_PREFIXES)
+    oper_id = f"{oper_prefix}-{rng.randint(100, 999)}"
+    eqp_id = f"{rng.choice(EQP_FAMILIES)}-{rng.randint(1, 24):02d}"
+    recipe_id = f"RCP-{lot_cd}-{bucket[:3].upper()}-{idx:03d}"
 
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
-        "oper_id": f"OPER-{lot_cd}-{bucket_index}",
+        "oper_id": oper_id,
         "oper_desc": rng.choice(OPER_DESCS),
-        "oper_seq": rng.randint(1, 10),
+        "oper_seq": idx + 1,
         "samp_seq": rng.randint(1, 5),
-        "eqp_id": f"EQP-{lot_cd}-{bucket_index:02d}",
-        "recipe_id": f"RCP-{lot_cd}-{500 + bucket_index}",
-        "skip_yn": rng.choice(("Yes", "No")),
+        "eqp_id": eqp_id,
+        "recipe_id": recipe_id,
+        "skip_yn": "Yes" if rng.random() < 0.15 else "No",
         "chg_tm": f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}",
-        "ctn_desc": f"Container for {lot_cd}",
+        "ctn_desc": f"{oper_prefix} {rng.choice(OPER_DESCS)} step",
         "para_all": para_all,
         "para_16": para_16,
         "para_13": para_13,
@@ -149,21 +200,31 @@ def _build_recipe_row(
     }
 
 
-def _build_summary_row(
+def _build_recipes_for_bucket(
     rng: random.Random,
     lot_cd: str,
     fac_id: str,
     bucket: str
-) -> SummaryRow:
-    base_min, base_max = SUMMARY_RANGES[bucket]
-    para_all = rng.randint(base_min, base_max)
-    para_16 = rng.randint(base_min // 5, para_all // 2)
-    para_13 = rng.randint(base_min // 10, para_all // 3)
-    para_9 = rng.randint(max(base_min // 20, 1), para_all // 4)
-    para_5 = rng.randint(max(base_min // 50, 1), para_all // 5)
+) -> list[RecipeInfoRow]:
+    count_min, count_max = RECIPE_COUNT_RANGES[bucket]
+    count = rng.randint(count_min, count_max)
+    return [_build_recipe_row(rng, lot_cd, fac_id, bucket, i) for i in range(count)]
 
-    total_recipe = rng.randint(20, 50)
-    avail_recipe = rng.randint(10, total_recipe)
+
+def _summarize(
+    lot_cd: str,
+    fac_id: str,
+    ctn_desc: str,
+    recipes: list[RecipeInfoRow]
+) -> SummaryRow:
+    para_16 = sum(r["para_16"] for r in recipes)
+    para_13 = sum(r["para_13"] for r in recipes)
+    para_9 = sum(r["para_9"] for r in recipes)
+    para_5 = sum(r["para_5"] for r in recipes)
+    para_all = para_16 + para_13 + para_9 + para_5
+
+    total_recipe = len(recipes)
+    avail_recipe = sum(1 for r in recipes if r["skip_yn"] == "No")
 
     return {
         "lot_cd": lot_cd,
@@ -177,7 +238,7 @@ def _build_summary_row(
         "para_13_percent": _percent(para_13, para_all),
         "para_9_percent": _percent(para_9, para_all),
         "para_5_percent": _percent(para_5, para_all),
-        "ctn_desc": f"Summary Container for {lot_cd} ({bucket})",
+        "ctn_desc": ctn_desc,
         "total_recipe": total_recipe,
         "avail_recipe": avail_recipe,
         "avail_recipe_percent": _percent(avail_recipe, total_recipe),
@@ -201,7 +262,8 @@ def _resolve_lots(lot_cds: list[str] | None) -> list[str]:
 def get_weekly_trend_data(
     lot_cds: list[str] | None = None,
     points: int = DEFAULT_TREND_POINTS,
-    interval_days: int = DEFAULT_INTERVAL_DAYS
+    interval_days: int = DEFAULT_INTERVAL_DAYS,
+    include_recipes: bool = True
 ) -> dict[str, dict[str, list]]:
     """Return trend data keyed by ISO date.
 
@@ -228,6 +290,7 @@ def get_weekly_trend_data(
     across calls.
     """
     index = _lot_index()
+    descs = _lot_ctn_desc()
     selected = _resolve_lots(lot_cds)
     dates = _trend_dates(points, interval_days)
     trend: dict[str, dict[str, list]] = {}
@@ -235,19 +298,21 @@ def get_weekly_trend_data(
     for point_index, date_key in enumerate(dates):
         bucketed: dict[str, list] = {}
         for bucket in RCP_BUCKETS:
-            bucketed[f"{bucket}_rcp_info"] = []
+            if include_recipes:
+                bucketed[f"{bucket}_rcp_info"] = []
             bucketed[f"{bucket}_summary"] = []
 
         for lot_cd in selected:
             fac_id = index[lot_cd]
+            ctn_desc = descs.get(lot_cd, "")
             rng = random.Random(_seed_for(lot_cd, point_index))
 
-            for bucket_index, bucket in enumerate(RCP_BUCKETS):
-                bucketed[f"{bucket}_rcp_info"].append(
-                    _build_recipe_row(rng, lot_cd, fac_id, bucket_index)
-                )
+            for bucket in RCP_BUCKETS:
+                recipes = _build_recipes_for_bucket(rng, lot_cd, fac_id, bucket)
+                if include_recipes:
+                    bucketed[f"{bucket}_rcp_info"].extend(recipes)
                 bucketed[f"{bucket}_summary"].append(
-                    _build_summary_row(rng, lot_cd, fac_id, bucket)
+                    _summarize(lot_cd, fac_id, ctn_desc, recipes)
                 )
 
         trend[date_key] = bucketed

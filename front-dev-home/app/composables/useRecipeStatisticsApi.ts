@@ -1,3 +1,5 @@
+import { joinApiPath } from '~/utils/apiPath'
+
 export interface SummaryRow {
   lot_cd: string
   fac_id: string
@@ -45,25 +47,31 @@ export type SummaryBucketKey
 export type RecipeInfoBucketKey
   = 'all_rcp_info' | 'only_normal_rcp_info' | 'mother_normal_rcp_info' | 'only_sample_rcp_info'
 
+export const summaryToRecipeInfoBucket: Record<SummaryBucketKey, RecipeInfoBucketKey> = {
+  all_summary: 'all_rcp_info',
+  only_normal_summary: 'only_normal_rcp_info',
+  mother_normal_summary: 'mother_normal_rcp_info',
+  only_sample_summary: 'only_sample_rcp_info'
+}
+
+export type SummaryBucketPayload = Record<SummaryBucketKey, SummaryRow[]>
+
 export type BucketPayload
-  = Record<SummaryBucketKey, SummaryRow[]> & Record<RecipeInfoBucketKey, RecipeInfoRow[]>
+  = SummaryBucketPayload & Record<RecipeInfoBucketKey, RecipeInfoRow[]>
 
 export interface RecipeStatisticsResponse {
   date: string | null
   buckets: BucketPayload | Record<string, never>
 }
 
+// Trend endpoint only carries summary buckets — recipe-info rows are
+// excluded server-side to keep the payload small (the trend chart never
+// reads them).
 export interface RecipeTrendResponse {
   dates: string[]
-  trend: Record<string, BucketPayload>
+  trend: Record<string, SummaryBucketPayload>
 }
 
-const joinRecipeStatisticsApiPath = (base: string, path: string) => {
-  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-
-  return `${normalizedBase}${normalizedPath}`
-}
 
 export const useRecipeStatisticsApi = () => {
   const config = useRuntimeConfig()
@@ -73,7 +81,7 @@ export const useRecipeStatisticsApi = () => {
     const query = lotCds.length > 0 ? { lot_cds: lotCds.join(',') } : undefined
 
     return await $fetch<RecipeStatisticsResponse>(
-      joinRecipeStatisticsApiPath(base, '/cdsem/device-statistics/recipe-statistics'),
+      joinApiPath(base, '/cdsem/device-statistics/recipe-statistics'),
       { query }
     )
   }
@@ -89,7 +97,7 @@ export const useRecipeStatisticsApi = () => {
     if (endDate) query.end_date = endDate
 
     return await $fetch<RecipeTrendResponse>(
-      joinRecipeStatisticsApiPath(base, '/cdsem/device-statistics/recipe-trend'),
+      joinApiPath(base, '/cdsem/device-statistics/recipe-trend'),
       { query: Object.keys(query).length > 0 ? query : undefined }
     )
   }

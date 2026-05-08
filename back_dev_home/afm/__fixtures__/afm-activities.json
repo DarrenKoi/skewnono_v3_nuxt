@@ -1,0 +1,187 @@
+{
+  "count": 20,
+  "data": [
+    {
+      "action": "get_detail",
+      "detail_count": 138,
+      "filename": "#260424#FSOXCMP_DISHING_9PT#T7HQR16_093000#01_1#.csv",
+      "summary_count": 25,
+      "timestamp": "2026-04-28T09:30:00Z",
+      "tool": "MAP608",
+      "user": "engineer01"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 233,
+      "filename": "#260423#CMP_PRE#T3HQR17_083000#02_standard#.csv",
+      "summary_count": 30,
+      "timestamp": "2026-04-28T09:13:00Z",
+      "tool": "MAP608",
+      "user": "engineer02"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 233,
+      "filename": "#260422#CMP_POST#R3AFM18_073000#03_repeat2#.csv",
+      "summary_count": 35,
+      "timestamp": "2026-04-28T08:56:00Z",
+      "tool": "MAP608",
+      "user": "engineer03"
+    },
+    {
+      "action": "get_detail",
+      "detail_count": 290,
+      "filename": "#260421#ETCH_GATE#R3CMP19_063000#04_profile#.csv",
+      "summary_count": 40,
+      "timestamp": "2026-04-28T08:39:00Z",
+      "tool": "MAP608",
+      "user": "engineer04"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 301,
+      "filename": "#260420#DEP_OXIDE#T7HQR1A_053000#05_roughness#.csv",
+      "summary_count": 45,
+      "timestamp": "2026-04-28T08:22:00Z",
+      "tool": "MAP608",
+      "user": "engineer01"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 160,
+      "filename": "#260419#PROFILE_HEIGHT_5PT#T3HQR1B_043000#06_1#.csv",
+      "summary_count": 25,
+      "timestamp": "2026-04-28T08:05:00Z",
+      "tool": "MAP608",
+      "user": "engineer02"
+    },
+    {
+      "action": "get_detail",
+      "detail_count": 230,
+      "filename": "#260418#FSOXCMP_DISHING_9PT#R3AFM1C_093000#07_standard#.csv",
+      "summary_count": 30,
+      "timestamp": "2026-04-28T07:48:00Z",
+      "tool": "MAP608",
+      "user": "engineer03"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 221,
+      "filename": "#260417#CMP_PRE#R3CMP1D_083000#08_repeat2#.csv",
+      "summary_count": 35,
+      "timestamp": "2026-04-28T07:31:00Z",
+      "tool": "MAP608",
+      "user": "engineer04"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 277,
+      "filename": "#260416#CMP_POST#T7HQR1E_073000#09_profile#.csv",
+      "summary_count": 40,
+      "timestamp": "2026-04-28T07:14:00Z",
+      "tool": "MAP608",
+      "user": "engineer01"
+    },
+    {
+      "action": "get_detail",
+      "detail_count": 295,
+      "filename": "#260415#ETCH_GATE#T3HQR1F_063000#10_roughness#.csv",
+      "summary_count": 45,
+      "timestamp": "2026-04-28T06:57:00Z",
+      "tool": "MAP608",
+      "user": "engineer02"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 187,
+      "filename": "#260414#DEP_OXIDE#R3AFM1G_053000#11_1#.csv",
+      "summary_count": 25,
+      "timestamp": "2026-04-28T06:40:00Z",
+      "tool": "MAP608",
+      "user": "engineer03"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 220,
+      "filename": "#260413#PROFILE_HEIGHT_5PT#R3CMP1H_043000#12_standard#.csv",
+      "summary_count": 30,
+      "timestamp": "2026-04-28T06:23:00Z",
+      "tool": "MAP608",
+      "user": "engineer04"
+    },
+    {
+      "action": "get_detail",
+      "detail_count": 244,
+      "filename": "#260412#FSOXCMP_DISHING_9PT#T7HQR1I_093000#13_repeat2#.csv",
+      "summary_count": 35,
+      "timestamp": "2026-04-28T06:06:00Z",
+      "tool": "MAP608",
+      "user": "engineer01"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 300,
+      "filename": "#260411#CMP_PRE#T3HQR1J_083000#14_profile#.csv",
+      "summary_count": 40,
+      "timestamp": "2026-04-28T05:49:00Z",
+      "tool": "MAP608",
+      "user": "engineer02"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 335,
+      "filename": "#260410#CMP_POST#R3AFM1K_073000#15_roughness#.csv",
+      "summary_count": 45,
+      "timestamp": "2026-04-28T05:32:00Z",
+      "tool": "MAP608",
+      "user": "engineer03"
+    },
+    {
+      "action": "get_detail",
+      "detail_count": 161,
+      "filename": "#260409#ETCH_GATE#R3CMP1L_063000#16_1#.csv",
+      "summary_count": 25,
+      "timestamp": "2026-04-28T05:15:00Z",
+      "tool": "MAP608",
+      "user": "engineer04"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 236,
+      "filename": "#260408#DEP_OXIDE#T7HQR1M_053000#17_standard#.csv",
+      "summary_count": 30,
+      "timestamp": "2026-04-28T04:58:00Z",
+      "tool": "MAP608",
+      "user": "engineer01"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 190,
+      "filename": "#260407#PROFILE_HEIGHT_5PT#T3HQR1N_043000#18_repeat2#.csv",
+      "summary_count": 35,
+      "timestamp": "2026-04-28T04:41:00Z",
+      "tool": "MAP608",
+      "user": "engineer02"
+    },
+    {
+      "action": "get_detail",
+      "detail_count": 271,
+      "filename": "#260406#FSOXCMP_DISHING_9PT#R3AFM1O_093000#19_profile#.csv",
+      "summary_count": 40,
+      "timestamp": "2026-04-28T04:24:00Z",
+      "tool": "MAP608",
+      "user": "engineer03"
+    },
+    {
+      "action": "list_files",
+      "detail_count": 316,
+      "filename": "#260405#CMP_PRE#R3CMP1P_083000#20_roughness#.csv",
+      "summary_count": 45,
+      "timestamp": "2026-04-28T04:07:00Z",
+      "tool": "MAP608",
+      "user": "engineer04"
+    }
+  ],
+  "message": "Retrieved 20 mock AFM activities",
+  "success": true
+}

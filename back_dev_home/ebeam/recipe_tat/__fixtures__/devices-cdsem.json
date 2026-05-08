@@ -1,0 +1,158 @@
+{
+  "devices": [
+    {
+      "exec_count": 2,
+      "lot_cd": "67K",
+      "total_meastime": 1791
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "454",
+      "total_meastime": 1704
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "400N",
+      "total_meastime": 1650
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "R0YV",
+      "total_meastime": 1630
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "4076",
+      "total_meastime": 1536
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "68C",
+      "total_meastime": 1426
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "403J",
+      "total_meastime": 1416
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "R1BB",
+      "total_meastime": 1299
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "210",
+      "total_meastime": 1247
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "R0OC",
+      "total_meastime": 1225
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "208Q",
+      "total_meastime": 1200
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "R1A5",
+      "total_meastime": 1187
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "R182",
+      "total_meastime": 1177
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "R18G",
+      "total_meastime": 1157
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "40A9",
+      "total_meastime": 1147
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "68S",
+      "total_meastime": 1121
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "R05R",
+      "total_meastime": 1103
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "401X",
+      "total_meastime": 1097
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "62K",
+      "total_meastime": 1095
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "R0FT",
+      "total_meastime": 1089
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "60K",
+      "total_meastime": 1067
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "66W",
+      "total_meastime": 1064
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "6B0",
+      "total_meastime": 1062
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "R0B5",
+      "total_meastime": 1062
+    },
+    {
+      "exec_count": 2,
+      "lot_cd": "207I",
+      "total_meastime": 1050
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "603Y",
+      "total_meastime": 1035
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "R06G",
+      "total_meastime": 1033
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "408T",
+      "total_meastime": 1025
+    },
+    {
+      "exec_count": 1,
+      "lot_cd": "40O",
+      "total_meastime": 1011
+    },
+    {
+      "exec_count": 3,
+      "lot_cd": "604J",
+      "total_meastime": 1003
+    }
+  ],
+  "end_date": "2026-05-08",
+  "fab_id": null,
+  "start_date": "2026-04-08",
+  "tool_type": "cd-sem"
+}

@@ -1,0 +1,730 @@
+{
+  "end_date": "2026-05-08",
+  "fab_id": null,
+  "limit": 1000,
+  "lot_cd": null,
+  "rows": [
+    {
+      "avg_meastime": 883.35,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_LINEWIDTH_052",
+      "last_run": "2026-05-07T18:29:53Z",
+      "meas_counts": 26,
+      "rank": 1,
+      "recipe_name": "ADI_LINEWIDTH_052",
+      "sample_eqp_ids": [
+        "VERI-01",
+        "VERI-02",
+        "VERI-03",
+        "VERI-04",
+        "VERI-05"
+      ],
+      "sample_lot_cds": [
+        "2006",
+        "2057",
+        "4019",
+        "409N",
+        "40AU"
+      ],
+      "total_meastime": 22967
+    },
+    {
+      "avg_meastime": 726.32,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_023",
+      "last_run": "2026-05-04T09:42:59Z",
+      "meas_counts": 25,
+      "rank": 2,
+      "recipe_name": "ADI_CD_BIAS_023",
+      "sample_eqp_ids": [
+        "PROV-01",
+        "PROV-02",
+        "PROV-03",
+        "PROV-04",
+        "PROV-06"
+      ],
+      "sample_lot_cds": [
+        "400D",
+        "401Y",
+        "45O",
+        "47C",
+        "4AS"
+      ],
+      "total_meastime": 18158
+    },
+    {
+      "avg_meastime": 440.76,
+      "class_name": "CNT",
+      "full_name": "CNT/CNT_MATCH_014",
+      "last_run": "2026-05-07T07:58:01Z",
+      "meas_counts": 41,
+      "rank": 3,
+      "recipe_name": "CNT_MATCH_014",
+      "sample_eqp_ids": [
+        "VERI-03",
+        "VERI-04",
+        "VERI-06",
+        "VERI-07",
+        "VERI-08"
+      ],
+      "sample_lot_cds": [
+        "1039",
+        "104E",
+        "105B",
+        "201R",
+        "2036"
+      ],
+      "total_meastime": 18071
+    },
+    {
+      "avg_meastime": 581.33,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_LINEWIDTH_033",
+      "last_run": "2026-05-06T19:19:03Z",
+      "meas_counts": 18,
+      "rank": 4,
+      "recipe_name": "ADI_LINEWIDTH_033",
+      "sample_eqp_ids": [
+        "TP40-02",
+        "TP40-03",
+        "TP40-08",
+        "TP40-09",
+        "TP40-10"
+      ],
+      "sample_lot_cds": [
+        "202J",
+        "204J",
+        "209B",
+        "601T",
+        "603V"
+      ],
+      "total_meastime": 10464
+    },
+    {
+      "avg_meastime": 293.41,
+      "class_name": "CNT",
+      "full_name": "CNT/CNT_DIAM_015",
+      "last_run": "2026-05-07T16:15:00Z",
+      "meas_counts": 34,
+      "rank": 5,
+      "recipe_name": "CNT_DIAM_015",
+      "sample_eqp_ids": [
+        "VERI-02",
+        "VERI-03",
+        "VERI-05",
+        "VERI-06",
+        "VERI-07"
+      ],
+      "sample_lot_cds": [
+        "100U",
+        "101P",
+        "1021",
+        "103Q",
+        "1055"
+      ],
+      "total_meastime": 9976
+    },
+    {
+      "avg_meastime": 395.92,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_LINEWIDTH_030",
+      "last_run": "2026-05-07T23:09:48Z",
+      "meas_counts": 25,
+      "rank": 6,
+      "recipe_name": "ADI_LINEWIDTH_030",
+      "sample_eqp_ids": [
+        "PROV-01",
+        "PROV-02",
+        "PROV-03",
+        "PROV-06",
+        "PROV-07"
+      ],
+      "sample_lot_cds": [
+        "2031",
+        "2056",
+        "20AJ",
+        "20AR",
+        "21W"
+      ],
+      "total_meastime": 9898
+    },
+    {
+      "avg_meastime": 553.31,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_CD_008",
+      "last_run": "2026-05-07T20:59:18Z",
+      "meas_counts": 16,
+      "rank": 7,
+      "recipe_name": "GATE_CD_008",
+      "sample_eqp_ids": [
+        "PROV-01",
+        "PROV-04",
+        "PROV-05",
+        "PROV-06",
+        "PROV-12"
+      ],
+      "sample_lot_cds": [
+        "2007",
+        "205B",
+        "207P",
+        "210",
+        "27S"
+      ],
+      "total_meastime": 8853
+    },
+    {
+      "avg_meastime": 502.59,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_046",
+      "last_run": "2026-05-06T10:39:36Z",
+      "meas_counts": 17,
+      "rank": 8,
+      "recipe_name": "ADI_CD_BIAS_046",
+      "sample_eqp_ids": [
+        "PROV-01",
+        "PROV-03",
+        "PROV-04",
+        "PROV-07",
+        "PROV-08"
+      ],
+      "sample_lot_cds": [
+        "201A",
+        "203H",
+        "2092",
+        "20AV",
+        "21G"
+      ],
+      "total_meastime": 8544
+    },
+    {
+      "avg_meastime": 767.45,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_CD_009",
+      "last_run": "2026-05-02T06:11:39Z",
+      "meas_counts": 11,
+      "rank": 9,
+      "recipe_name": "GATE_CD_009",
+      "sample_eqp_ids": [
+        "TP40-02",
+        "TP40-03",
+        "TP40-09",
+        "TP40-12",
+        "TP40-15"
+      ],
+      "sample_lot_cds": [
+        "202D",
+        "20W",
+        "6089",
+        "60AD",
+        "60B3"
+      ],
+      "total_meastime": 8442
+    },
+    {
+      "avg_meastime": 831.4,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_OVERLAY_022",
+      "last_run": "2026-05-07T12:50:19Z",
+      "meas_counts": 10,
+      "rank": 10,
+      "recipe_name": "AEI_OVERLAY_022",
+      "sample_eqp_ids": [
+        "TP40-01",
+        "TP40-04",
+        "TP40-08",
+        "TP40-10",
+        "TP40-16"
+      ],
+      "sample_lot_cds": [
+        "405X",
+        "407T",
+        "409M",
+        "503D",
+        "5046"
+      ],
+      "total_meastime": 8314
+    },
+    {
+      "avg_meastime": 762.5,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_035",
+      "last_run": "2026-05-06T18:22:20Z",
+      "meas_counts": 10,
+      "rank": 11,
+      "recipe_name": "GATE_PITCH_035",
+      "sample_eqp_ids": [
+        "VERI-03",
+        "VERI-04",
+        "VERI-07",
+        "VERI-08",
+        "VERI-10"
+      ],
+      "sample_lot_cds": [
+        "201N",
+        "204Q",
+        "205R",
+        "20AF",
+        "409P"
+      ],
+      "total_meastime": 7625
+    },
+    {
+      "avg_meastime": 579.08,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_CD_042",
+      "last_run": "2026-05-04T12:07:29Z",
+      "meas_counts": 13,
+      "rank": 12,
+      "recipe_name": "GATE_CD_042",
+      "sample_eqp_ids": [
+        "TP40-01",
+        "TP40-05",
+        "TP40-08",
+        "TP40-10",
+        "TP40-14"
+      ],
+      "sample_lot_cds": [
+        "201R",
+        "206E",
+        "20AM",
+        "25K",
+        "268"
+      ],
+      "total_meastime": 7528
+    },
+    {
+      "avg_meastime": 512.93,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2M_044",
+      "last_run": "2026-05-07T21:17:10Z",
+      "meas_counts": 14,
+      "rank": 13,
+      "recipe_name": "OVL_M2M_044",
+      "sample_eqp_ids": [
+        "VERI-01",
+        "VERI-07",
+        "VERI-09",
+        "VERI-10",
+        "VERI-11"
+      ],
+      "sample_lot_cds": [
+        "106R",
+        "1079",
+        "203J",
+        "204E",
+        "2B0"
+      ],
+      "total_meastime": 7181
+    },
+    {
+      "avg_meastime": 461.13,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_043",
+      "last_run": "2026-05-05T00:16:32Z",
+      "meas_counts": 15,
+      "rank": 14,
+      "recipe_name": "GATE_PITCH_043",
+      "sample_eqp_ids": [
+        "VERI-02",
+        "VERI-07",
+        "VERI-08",
+        "VERI-11",
+        "VERI-12"
+      ],
+      "sample_lot_cds": [
+        "202L",
+        "2039",
+        "205F",
+        "20AJ",
+        "4023"
+      ],
+      "total_meastime": 6917
+    },
+    {
+      "avg_meastime": 419.88,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2P_051",
+      "last_run": "2026-05-07T03:26:49Z",
+      "meas_counts": 16,
+      "rank": 15,
+      "recipe_name": "OVL_M2P_051",
+      "sample_eqp_ids": [
+        "VERI-02",
+        "VERI-05",
+        "VERI-06",
+        "VERI-08",
+        "VERI-11"
+      ],
+      "sample_lot_cds": [
+        "102L",
+        "278",
+        "40A1",
+        "40AM",
+        "450"
+      ],
+      "total_meastime": 6718
+    },
+    {
+      "avg_meastime": 727.75,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_CD_BIAS_029",
+      "last_run": "2026-05-06T10:02:41Z",
+      "meas_counts": 8,
+      "rank": 16,
+      "recipe_name": "AEI_CD_BIAS_029",
+      "sample_eqp_ids": [
+        "PROV-01",
+        "PROV-02",
+        "PROV-10",
+        "PROV-11",
+        "PROV-12"
+      ],
+      "sample_lot_cds": [
+        "464",
+        "506T",
+        "506U",
+        "509F",
+        "R0F0"
+      ],
+      "total_meastime": 5822
+    },
+    {
+      "avg_meastime": 809.71,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_OVERLAY_057",
+      "last_run": "2026-05-04T11:18:27Z",
+      "meas_counts": 7,
+      "rank": 17,
+      "recipe_name": "AEI_OVERLAY_057",
+      "sample_eqp_ids": [
+        "VERI-01",
+        "VERI-02",
+        "VERI-15",
+        "VERI-17",
+        "VERI-22"
+      ],
+      "sample_lot_cds": [
+        "406E",
+        "407R",
+        "5046",
+        "507M",
+        "508R"
+      ],
+      "total_meastime": 5668
+    },
+    {
+      "avg_meastime": 413.54,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_OVERLAY_053",
+      "last_run": "2026-05-02T11:27:50Z",
+      "meas_counts": 13,
+      "rank": 18,
+      "recipe_name": "AEI_OVERLAY_053",
+      "sample_eqp_ids": [
+        "VERI-03",
+        "VERI-05",
+        "VERI-13",
+        "VERI-14",
+        "VERI-16"
+      ],
+      "sample_lot_cds": [
+        "400M",
+        "403P",
+        "40AD",
+        "507Z",
+        "509I"
+      ],
+      "total_meastime": 5376
+    },
+    {
+      "avg_meastime": 446.17,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2P_002",
+      "last_run": "2026-05-07T07:51:33Z",
+      "meas_counts": 12,
+      "rank": 19,
+      "recipe_name": "OVL_M2P_002",
+      "sample_eqp_ids": [
+        "VERI-01",
+        "VERI-07",
+        "VERI-11",
+        "VERI-12",
+        "VERI-13"
+      ],
+      "sample_lot_cds": [
+        "101A",
+        "234",
+        "5009",
+        "R02R",
+        "R09M"
+      ],
+      "total_meastime": 5354
+    },
+    {
+      "avg_meastime": 512.3,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_CD_049",
+      "last_run": "2026-05-04T23:43:32Z",
+      "meas_counts": 10,
+      "rank": 20,
+      "recipe_name": "GATE_CD_049",
+      "sample_eqp_ids": [
+        "PROV-01",
+        "PROV-02",
+        "PROV-03",
+        "PROV-08",
+        "PROV-09"
+      ],
+      "sample_lot_cds": [
+        "200Z",
+        "203M",
+        "20B2",
+        "27C",
+        "27O"
+      ],
+      "total_meastime": 5123
+    },
+    {
+      "avg_meastime": 329.07,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2P_060",
+      "last_run": "2026-04-28T03:44:08Z",
+      "meas_counts": 15,
+      "rank": 21,
+      "recipe_name": "OVL_M2P_060",
+      "sample_eqp_ids": [
+        "TP40-01",
+        "TP40-05",
+        "TP40-06",
+        "TP40-11",
+        "TP40-12"
+      ],
+      "sample_lot_cds": [
+        "103A",
+        "103J",
+        "106M",
+        "106Y",
+        "108L"
+      ],
+      "total_meastime": 4936
+    },
+    {
+      "avg_meastime": 408.09,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_CD_041",
+      "last_run": "2026-05-07T11:54:39Z",
+      "meas_counts": 11,
+      "rank": 22,
+      "recipe_name": "GATE_CD_041",
+      "sample_eqp_ids": [
+        "TP40-04",
+        "TP40-08",
+        "TP40-10",
+        "TP40-14",
+        "TP40-16"
+      ],
+      "sample_lot_cds": [
+        "204J",
+        "204R",
+        "2AK",
+        "4001",
+        "404"
+      ],
+      "total_meastime": 4489
+    },
+    {
+      "avg_meastime": 269.88,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_031",
+      "last_run": "2026-05-07T03:15:56Z",
+      "meas_counts": 16,
+      "rank": 23,
+      "recipe_name": "GATE_PITCH_031",
+      "sample_eqp_ids": [
+        "PROV-02",
+        "PROV-03",
+        "PROV-05",
+        "PROV-10",
+        "PROV-12"
+      ],
+      "sample_lot_cds": [
+        "200J",
+        "200Q",
+        "203J",
+        "2043",
+        "205P"
+      ],
+      "total_meastime": 4318
+    },
+    {
+      "avg_meastime": 312.92,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2P_038",
+      "last_run": "2026-05-04T19:31:30Z",
+      "meas_counts": 13,
+      "rank": 24,
+      "recipe_name": "OVL_M2P_038",
+      "sample_eqp_ids": [
+        "TP40-01",
+        "TP40-04",
+        "TP40-05",
+        "TP40-10",
+        "TP40-15"
+      ],
+      "sample_lot_cds": [
+        "15S",
+        "2099",
+        "406T",
+        "408N",
+        "R05G"
+      ],
+      "total_meastime": 4068
+    },
+    {
+      "avg_meastime": 439.89,
+      "class_name": "EDGE",
+      "full_name": "EDGE/EDGE_PROFILE_056",
+      "last_run": "2026-05-01T14:25:49Z",
+      "meas_counts": 9,
+      "rank": 25,
+      "recipe_name": "EDGE_PROFILE_056",
+      "sample_eqp_ids": [
+        "PROV-02",
+        "PROV-08",
+        "PROV-12",
+        "PROV-15",
+        "PROV-17"
+      ],
+      "sample_lot_cds": [
+        "106B",
+        "14S",
+        "19G",
+        "498",
+        "R06T"
+      ],
+      "total_meastime": 3959
+    },
+    {
+      "avg_meastime": 437.67,
+      "class_name": "EDGE",
+      "full_name": "EDGE/EDGE_PROFILE_032",
+      "last_run": "2026-05-06T07:09:01Z",
+      "meas_counts": 9,
+      "rank": 26,
+      "recipe_name": "EDGE_PROFILE_032",
+      "sample_eqp_ids": [
+        "TP40-06",
+        "TP40-07",
+        "TP40-12",
+        "TP40-13",
+        "TP40-15"
+      ],
+      "sample_lot_cds": [
+        "10AF",
+        "11W",
+        "154",
+        "19S",
+        "403P"
+      ],
+      "total_meastime": 3939
+    },
+    {
+      "avg_meastime": 430.56,
+      "class_name": "EDGE",
+      "full_name": "EDGE/EDGE_PROFILE_005",
+      "last_run": "2026-05-06T10:25:31Z",
+      "meas_counts": 9,
+      "rank": 27,
+      "recipe_name": "EDGE_PROFILE_005",
+      "sample_eqp_ids": [
+        "PROV-04",
+        "PROV-11",
+        "PROV-17",
+        "PROV-19",
+        "PROV-21"
+      ],
+      "sample_lot_cds": [
+        "101L",
+        "106M",
+        "400M",
+        "409Y",
+        "R0A5"
+      ],
+      "total_meastime": 3875
+    },
+    {
+      "avg_meastime": 344.6,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_CD_BIAS_050",
+      "last_run": "2026-05-04T16:29:59Z",
+      "meas_counts": 10,
+      "rank": 28,
+      "recipe_name": "AEI_CD_BIAS_050",
+      "sample_eqp_ids": [
+        "VERI-01",
+        "VERI-05",
+        "VERI-07",
+        "VERI-08",
+        "VERI-17"
+      ],
+      "sample_lot_cds": [
+        "5025",
+        "50AT",
+        "56W",
+        "5A4",
+        "R0O5"
+      ],
+      "total_meastime": 3446
+    },
+    {
+      "avg_meastime": 426.62,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_OVERLAY_018",
+      "last_run": "2026-05-03T23:38:25Z",
+      "meas_counts": 8,
+      "rank": 29,
+      "recipe_name": "AEI_OVERLAY_018",
+      "sample_eqp_ids": [
+        "TP40-03",
+        "TP40-08",
+        "TP40-12",
+        "TP40-13",
+        "TP40-20"
+      ],
+      "sample_lot_cds": [
+        "4027",
+        "501B",
+        "5025",
+        "503N",
+        "504N"
+      ],
+      "total_meastime": 3413
+    },
+    {
+      "avg_meastime": 407.25,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2M_020",
+      "last_run": "2026-04-28T05:23:37Z",
+      "meas_counts": 8,
+      "rank": 30,
+      "recipe_name": "OVL_M2M_020",
+      "sample_eqp_ids": [
+        "VERI-08",
+        "VERI-11",
+        "VERI-12",
+        "VERI-13",
+        "VERI-14"
+      ],
+      "sample_lot_cds": [
+        "102X",
+        "205F",
+        "401L",
+        "405P",
+        "R0PZ"
+      ],
+      "total_meastime": 3258
+    }
+  ],
+  "start_date": "2026-04-08",
+  "tool_type": "hv-sem"
+}

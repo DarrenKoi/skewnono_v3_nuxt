@@ -1,0 +1,230 @@
+resource: recipe-tat
+description: Recipe Turn-Around-Time analytics — ranks measurement recipes by total time consumption over a date window. Powers the recipe-tat dashboard for both CD-SEM and HV-SEM.
+base_path: /api/cdsem/recipe-tat
+
+types:
+  RankingRow:
+    rank:
+      type: integer
+      description: 1-based rank by total_meastime within the filtered window
+    class_name:
+      type: string
+      examples: ["ADI", "AEI", "OVL"]
+    recipe_name:
+      type: string
+      examples: ["ADI_LINEWIDTH_046", "ADI_PROFILE_051"]
+    full_name:
+      type: string
+      format: "<class>/<recipe>"
+    meas_counts:
+      type: integer
+      description: Execution count of this recipe in the window
+    total_meastime:
+      type: integer
+      description: Sum of meastime in seconds
+    avg_meastime:
+      type: number
+      description: total_meastime / meas_counts, rounded to 2 decimals
+    last_run:
+      type: string
+      format: "ISO 8601 UTC ending in Z"
+    sample_eqp_ids:
+      type: array
+      description: Up to 5 distinct equipment IDs that ran this recipe
+    sample_lot_cds:
+      type: array
+      description: Up to 5 distinct lot codes the recipe was run against
+
+  Summary:
+    tool_type:
+      type: string
+      enum: ["cd-sem", "hv-sem"]
+    fab_id:
+      type: string
+      description: null when not filtered
+    start_date:
+      type: string
+      format: "YYYY-MM-DD"
+    end_date:
+      type: string
+      format: "YYYY-MM-DD"
+    anchor_date:
+      type: string
+      format: "YYYY-MM-DD"
+      description: ANCHOR_TIME.date() — the latest date the dataset covers
+    total_executions:
+      type: integer
+    total_recipes:
+      type: integer
+      description: Distinct (class_name, recipe_name) pairs in the window
+    total_tat_seconds:
+      type: integer
+    avg_meastime:
+      type: number
+
+  DailyTrendPoint:
+    date:
+      type: string
+      format: "YYYY-MM-DD"
+    total_meastime:
+      type: integer
+    exec_count:
+      type: integer
+
+  DeviceRow:
+    lot_cd:
+      type: string
+    exec_count:
+      type: integer
+    total_meastime:
+      type: integer
+
+endpoints:
+  - path: /api/cdsem/recipe-tat/ranking
+    method: GET
+    description: Recipes ranked by total_meastime within the window. Note path prefix is /cdsem/recipe-tat for both CD-SEM and HV-SEM (history — preserve as-is for the office).
+    query_params:
+      tool_type:
+        type: string
+        enum: ["cd-sem", "hv-sem"]
+        required: true
+        description: 400 if missing or not in the enum
+      fab_id:
+        type: string
+        required: false
+        description: Strict fab_name match (case-insensitive). R3/R4 do not collapse.
+      start_date:
+        type: string
+        required: false
+        format: "YYYY-MM-DD"
+        description: Defaults to ANCHOR_TIME.date() - 30 days
+      end_date:
+        type: string
+        required: false
+        format: "YYYY-MM-DD"
+        description: Defaults to ANCHOR_TIME.date()
+      lot_cd:
+        type: string
+        required: false
+        description: Single lot filter (used by the slideover detail view)
+      limit:
+        type: integer
+        required: false
+        description: 1..1000, default 1000
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        limit:
+          type: integer
+        lot_cd:
+          type: string
+        rows:
+          type: array
+          items: RankingRow
+
+  - path: /api/cdsem/recipe-tat/summary
+    method: GET
+    description: Aggregate counts for the same window
+    query_params:
+      tool_type:
+        type: string
+        enum: ["cd-sem", "hv-sem"]
+        required: true
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      lot_cd:
+        type: string
+        required: false
+    response:
+      status: 200
+      body: Summary
+
+  - path: /api/cdsem/recipe-tat/daily-trend
+    method: GET
+    description: Per-day totals for the window
+    query_params:
+      tool_type:
+        type: string
+        enum: ["cd-sem", "hv-sem"]
+        required: true
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      lot_cd:
+        type: string
+        required: false
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        lot_cd:
+          type: string
+        points:
+          type: array
+          items: DailyTrendPoint
+
+  - path: /api/cdsem/recipe-tat/devices
+    method: GET
+    description: Per-lot totals within the window — used by the device slideover lot picker
+    query_params:
+      tool_type:
+        type: string
+        enum: ["cd-sem", "hv-sem"]
+        required: true
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        devices:
+          type: array
+          items: DeviceRow
+
+notes:
+  - Office must anchor the date window on max(timestamp) from the source index — do NOT use wall-clock now(). Phase 1 mock anchors on import-time wall-clock (ANCHOR_TIME) which drifts; production should be deterministic per query.
+  - Source schema is docs/datatables/meas_hist.txt. The TAT dashboard only needs timing fields; office should drop msr/align/image counts and idp paths just like the mock does, to keep payloads small.
+  - The path prefix /cdsem/recipe-tat is used for both tool types — clients pass tool_type as a query param. Do not split into /cdsem/... and /hvsem/... paths in the office.
+  - lru_cache(maxsize=64) on _filter_rows in the mock keys on (tool_type, fab_id, start_date, end_date, lot_cd). Office should cache the filter result similarly since each page hit triggers ranking + summary + daily-trend + devices with identical filters.

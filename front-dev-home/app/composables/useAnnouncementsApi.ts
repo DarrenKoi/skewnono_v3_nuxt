@@ -1,3 +1,5 @@
+import { joinApiPath } from '~/utils/apiPath'
+
 // One shared cache key for /api/announcements. Mounted once in app.vue and
 // reused if any other component ever needs to read it.
 const ANNOUNCEMENTS_CACHE_KEY = 'announcements'
@@ -12,12 +14,6 @@ export interface Announcement {
   starts_at?: string
   ends_at?: string
   dismissible?: boolean
-}
-
-const joinApiPath = (base: string, path: string) => {
-  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `${normalizedBase}${normalizedPath}`
 }
 
 export const useAnnouncementsApi = () => {

@@ -1,6 +1,16 @@
+"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
+
+원본 테이블:  (사무실 측 EQP 인벤토리 인덱스 / 테이블)
+계약:        docs/api-contracts/sem-list.yaml
+픽스처:      back_dev_home/sem_list/__fixtures__/
+"""
+
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal, TypedDict
+
+
+__all__ = ["SemListRow", "get_sem_list"]
 
 
 class SemListRow(TypedDict):

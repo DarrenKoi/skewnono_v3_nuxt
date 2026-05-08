@@ -1,0 +1,730 @@
+{
+  "end_date": "2026-05-08",
+  "fab_id": null,
+  "limit": 1000,
+  "lot_cd": null,
+  "rows": [
+    {
+      "avg_meastime": 762.81,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_LINEWIDTH_046",
+      "last_run": "2026-05-06T23:33:10Z",
+      "meas_counts": 21,
+      "rank": 1,
+      "recipe_name": "ADI_LINEWIDTH_046",
+      "sample_eqp_ids": [
+        "CG63-02",
+        "CG63-03",
+        "CG63-04",
+        "CG63-06",
+        "CG63-07"
+      ],
+      "sample_lot_cds": [
+        "203N",
+        "207I",
+        "258",
+        "2AS",
+        "400N"
+      ],
+      "total_meastime": 16019
+    },
+    {
+      "avg_meastime": 899.88,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_PROFILE_051",
+      "last_run": "2026-05-07T23:51:03Z",
+      "meas_counts": 16,
+      "rank": 2,
+      "recipe_name": "ADI_PROFILE_051",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-05",
+        "CG63-06",
+        "CG63-07"
+      ],
+      "sample_lot_cds": [
+        "210",
+        "21C",
+        "280",
+        "401X",
+        "47O"
+      ],
+      "total_meastime": 14398
+    },
+    {
+      "avg_meastime": 797.67,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_005",
+      "last_run": "2026-05-07T05:14:06Z",
+      "meas_counts": 18,
+      "rank": 3,
+      "recipe_name": "GATE_PITCH_005",
+      "sample_eqp_ids": [
+        "CG63-04",
+        "CG63-07",
+        "CG63-08",
+        "CG63-09",
+        "CG63-10"
+      ],
+      "sample_lot_cds": [
+        "2023",
+        "207X",
+        "4002",
+        "400B",
+        "400T"
+      ],
+      "total_meastime": 14358
+    },
+    {
+      "avg_meastime": 1002.58,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_008",
+      "last_run": "2026-05-07T22:37:52Z",
+      "meas_counts": 12,
+      "rank": 4,
+      "recipe_name": "ADI_CD_BIAS_008",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-05",
+        "CG63-06",
+        "CG63-09",
+        "CG63-12"
+      ],
+      "sample_lot_cds": [
+        "208R",
+        "603Y",
+        "60K",
+        "678",
+        "68S"
+      ],
+      "total_meastime": 12031
+    },
+    {
+      "avg_meastime": 785.53,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_025",
+      "last_run": "2026-05-08T00:30:46Z",
+      "meas_counts": 15,
+      "rank": 5,
+      "recipe_name": "ADI_CD_BIAS_025",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-06",
+        "CG63-11",
+        "CG63-13"
+      ],
+      "sample_lot_cds": [
+        "202V",
+        "208J",
+        "208Q",
+        "400N",
+        "605B"
+      ],
+      "total_meastime": 11783
+    },
+    {
+      "avg_meastime": 692.07,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_048",
+      "last_run": "2026-05-06T14:24:49Z",
+      "meas_counts": 15,
+      "rank": 6,
+      "recipe_name": "GATE_PITCH_048",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-03",
+        "CG63-04",
+        "CG63-06"
+      ],
+      "sample_lot_cds": [
+        "2013",
+        "205Z",
+        "208",
+        "20AX",
+        "454"
+      ],
+      "total_meastime": 10381
+    },
+    {
+      "avg_meastime": 365.22,
+      "class_name": "CNT",
+      "full_name": "CNT/CNT_DIAM_018",
+      "last_run": "2026-05-06T19:18:17Z",
+      "meas_counts": 23,
+      "rank": 7,
+      "recipe_name": "CNT_DIAM_018",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-04",
+        "CG63-06",
+        "CG63-10"
+      ],
+      "sample_lot_cds": [
+        "1001",
+        "109N",
+        "109T",
+        "200I",
+        "2063"
+      ],
+      "total_meastime": 8400
+    },
+    {
+      "avg_meastime": 651.0,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_055",
+      "last_run": "2026-05-07T08:01:23Z",
+      "meas_counts": 12,
+      "rank": 8,
+      "recipe_name": "GATE_PITCH_055",
+      "sample_eqp_ids": [
+        "CG50-01",
+        "CG50-03",
+        "CG50-04",
+        "CG50-05",
+        "CG50-06"
+      ],
+      "sample_lot_cds": [
+        "218",
+        "28W",
+        "4076",
+        "407X",
+        "40A9"
+      ],
+      "total_meastime": 7812
+    },
+    {
+      "avg_meastime": 157.77,
+      "class_name": "QC",
+      "full_name": "QC/QC_DAILY_MATCH_049",
+      "last_run": "2026-05-06T21:22:18Z",
+      "meas_counts": 48,
+      "rank": 9,
+      "recipe_name": "QC_DAILY_MATCH_049",
+      "sample_eqp_ids": [
+        "CG50-02",
+        "CG50-03",
+        "CG50-04",
+        "CG50-06",
+        "CG50-07"
+      ],
+      "sample_lot_cds": [
+        "104F",
+        "105J",
+        "106L",
+        "107N",
+        "10AL"
+      ],
+      "total_meastime": 7573
+    },
+    {
+      "avg_meastime": 534.57,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_044",
+      "last_run": "2026-05-07T19:06:42Z",
+      "meas_counts": 14,
+      "rank": 10,
+      "recipe_name": "GATE_PITCH_044",
+      "sample_eqp_ids": [
+        "CG63-02",
+        "CG63-03",
+        "CG63-06",
+        "CG63-10",
+        "CG63-12"
+      ],
+      "sample_lot_cds": [
+        "2045",
+        "208A",
+        "20AL",
+        "4057",
+        "454"
+      ],
+      "total_meastime": 7484
+    },
+    {
+      "avg_meastime": 915.38,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_OVERLAY_056",
+      "last_run": "2026-05-05T20:09:21Z",
+      "meas_counts": 8,
+      "rank": 11,
+      "recipe_name": "AEI_OVERLAY_056",
+      "sample_eqp_ids": [
+        "CG63-05",
+        "CG63-06",
+        "CG63-12",
+        "CG63-14",
+        "CG63-15"
+      ],
+      "sample_lot_cds": [
+        "405N",
+        "40O",
+        "5001",
+        "509V",
+        "R0DV"
+      ],
+      "total_meastime": 7323
+    },
+    {
+      "avg_meastime": 662.91,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_012",
+      "last_run": "2026-05-04T06:39:08Z",
+      "meas_counts": 11,
+      "rank": 12,
+      "recipe_name": "GATE_PITCH_012",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-04",
+        "CG63-10",
+        "CG63-13"
+      ],
+      "sample_lot_cds": [
+        "203U",
+        "206E",
+        "23G",
+        "4027",
+        "403J"
+      ],
+      "total_meastime": 7292
+    },
+    {
+      "avg_meastime": 637.45,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_052",
+      "last_run": "2026-05-07T19:31:49Z",
+      "meas_counts": 11,
+      "rank": 13,
+      "recipe_name": "ADI_CD_BIAS_052",
+      "sample_eqp_ids": [
+        "CG63-02",
+        "CG63-03",
+        "CG63-04",
+        "CG63-05",
+        "CG63-11"
+      ],
+      "sample_lot_cds": [
+        "404L",
+        "600L",
+        "R03I",
+        "R043",
+        "R0G4"
+      ],
+      "total_meastime": 7012
+    },
+    {
+      "avg_meastime": 615.0,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_CD_BIAS_034",
+      "last_run": "2026-05-05T18:26:32Z",
+      "meas_counts": 11,
+      "rank": 14,
+      "recipe_name": "AEI_CD_BIAS_034",
+      "sample_eqp_ids": [
+        "CG50-02",
+        "CG50-08",
+        "CG50-09",
+        "CG50-11",
+        "CG50-16"
+      ],
+      "sample_lot_cds": [
+        "403B",
+        "504M",
+        "505Q",
+        "50AJ",
+        "58K"
+      ],
+      "total_meastime": 6765
+    },
+    {
+      "avg_meastime": 319.57,
+      "class_name": "CNT",
+      "full_name": "CNT/CNT_DIAM_010",
+      "last_run": "2026-05-06T15:05:37Z",
+      "meas_counts": 21,
+      "rank": 15,
+      "recipe_name": "CNT_DIAM_010",
+      "sample_eqp_ids": [
+        "CG63-02",
+        "CG63-05",
+        "CG63-06",
+        "CG63-07",
+        "CG63-08"
+      ],
+      "sample_lot_cds": [
+        "100E",
+        "101F",
+        "107R",
+        "108I",
+        "10AI"
+      ],
+      "total_meastime": 6711
+    },
+    {
+      "avg_meastime": 581.45,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_006",
+      "last_run": "2026-05-02T12:46:46Z",
+      "meas_counts": 11,
+      "rank": 16,
+      "recipe_name": "GATE_PITCH_006",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-07",
+        "CG63-08",
+        "CG63-09"
+      ],
+      "sample_lot_cds": [
+        "200T",
+        "2071",
+        "208F",
+        "210",
+        "228"
+      ],
+      "total_meastime": 6396
+    },
+    {
+      "avg_meastime": 270.13,
+      "class_name": "CNT",
+      "full_name": "CNT/CNT_DIAM_002",
+      "last_run": "2026-05-06T03:09:37Z",
+      "meas_counts": 23,
+      "rank": 17,
+      "recipe_name": "CNT_DIAM_002",
+      "sample_eqp_ids": [
+        "CG50-01",
+        "CG50-03",
+        "CG50-05",
+        "CG50-06",
+        "CG50-07"
+      ],
+      "sample_lot_cds": [
+        "1042",
+        "108D",
+        "17W",
+        "201T",
+        "205J"
+      ],
+      "total_meastime": 6213
+    },
+    {
+      "avg_meastime": 115.49,
+      "class_name": "QC",
+      "full_name": "QC/QC_PM_014",
+      "last_run": "2026-05-07T20:56:08Z",
+      "meas_counts": 53,
+      "rank": 18,
+      "recipe_name": "QC_PM_014",
+      "sample_eqp_ids": [
+        "CG50-01",
+        "CG50-03",
+        "CG50-04",
+        "CG50-05",
+        "CG50-06"
+      ],
+      "sample_lot_cds": [
+        "105J",
+        "1089",
+        "203I",
+        "203X",
+        "205Y"
+      ],
+      "total_meastime": 6121
+    },
+    {
+      "avg_meastime": 610.6,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_CD_BIAS_015",
+      "last_run": "2026-05-06T02:27:36Z",
+      "meas_counts": 10,
+      "rank": 19,
+      "recipe_name": "AEI_CD_BIAS_015",
+      "sample_eqp_ids": [
+        "CG63-07",
+        "CG63-08",
+        "CG63-11",
+        "CG63-12",
+        "CG63-13"
+      ],
+      "sample_lot_cds": [
+        "4013",
+        "500E",
+        "R09K",
+        "R0CC",
+        "R0FA"
+      ],
+      "total_meastime": 6106
+    },
+    {
+      "avg_meastime": 659.44,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_CD_013",
+      "last_run": "2026-05-07T17:38:39Z",
+      "meas_counts": 9,
+      "rank": 20,
+      "recipe_name": "GATE_CD_013",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-08",
+        "CG63-17",
+        "CG63-19"
+      ],
+      "sample_lot_cds": [
+        "208M",
+        "401J",
+        "403J",
+        "60AN",
+        "R06K"
+      ],
+      "total_meastime": 5935
+    },
+    {
+      "avg_meastime": 105.26,
+      "class_name": "QC",
+      "full_name": "QC/QC_DAILY_MATCH_037",
+      "last_run": "2026-05-07T23:25:25Z",
+      "meas_counts": 53,
+      "rank": 21,
+      "recipe_name": "QC_DAILY_MATCH_037",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-03",
+        "CG63-04",
+        "CG63-05"
+      ],
+      "sample_lot_cds": [
+        "100N",
+        "1099",
+        "10AR",
+        "202D",
+        "204I"
+      ],
+      "total_meastime": 5579
+    },
+    {
+      "avg_meastime": 784.86,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_OVERLAY_040",
+      "last_run": "2026-04-29T06:47:08Z",
+      "meas_counts": 7,
+      "rank": 22,
+      "recipe_name": "AEI_OVERLAY_040",
+      "sample_eqp_ids": [
+        "CG50-05",
+        "CG50-14",
+        "CG50-15",
+        "CG50-19",
+        "CG50-21"
+      ],
+      "sample_lot_cds": [
+        "408T",
+        "504D",
+        "505Z",
+        "5096",
+        "54C"
+      ],
+      "total_meastime": 5494
+    },
+    {
+      "avg_meastime": 413.92,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_PROFILE_031",
+      "last_run": "2026-05-05T07:08:21Z",
+      "meas_counts": 13,
+      "rank": 23,
+      "recipe_name": "ADI_PROFILE_031",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-02",
+        "CG63-04",
+        "CG63-05",
+        "CG63-08"
+      ],
+      "sample_lot_cds": [
+        "201J",
+        "204A",
+        "20AF",
+        "4046",
+        "40S"
+      ],
+      "total_meastime": 5381
+    },
+    {
+      "avg_meastime": 365.14,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_001",
+      "last_run": "2026-05-07T02:57:45Z",
+      "meas_counts": 14,
+      "rank": 24,
+      "recipe_name": "ADI_CD_BIAS_001",
+      "sample_eqp_ids": [
+        "CG63-01",
+        "CG63-03",
+        "CG63-05",
+        "CG63-09",
+        "CG63-10"
+      ],
+      "sample_lot_cds": [
+        "2013",
+        "206L",
+        "28G",
+        "404V",
+        "44K"
+      ],
+      "total_meastime": 5112
+    },
+    {
+      "avg_meastime": 407.5,
+      "class_name": "GATE",
+      "full_name": "GATE/GATE_PITCH_043",
+      "last_run": "2026-04-28T13:53:19Z",
+      "meas_counts": 12,
+      "rank": 25,
+      "recipe_name": "GATE_PITCH_043",
+      "sample_eqp_ids": [
+        "CG63-02",
+        "CG63-04",
+        "CG63-05",
+        "CG63-06",
+        "CG63-07"
+      ],
+      "sample_lot_cds": [
+        "205M",
+        "20A3",
+        "240",
+        "288",
+        "403U"
+      ],
+      "total_meastime": 4890
+    },
+    {
+      "avg_meastime": 479.9,
+      "class_name": "AEI",
+      "full_name": "AEI/AEI_CD_BIAS_029",
+      "last_run": "2026-05-06T16:29:19Z",
+      "meas_counts": 10,
+      "rank": 26,
+      "recipe_name": "AEI_CD_BIAS_029",
+      "sample_eqp_ids": [
+        "CG63-03",
+        "CG63-04",
+        "CG63-07",
+        "CG63-09",
+        "CG63-13"
+      ],
+      "sample_lot_cds": [
+        "4096",
+        "501Z",
+        "5049",
+        "505F",
+        "520"
+      ],
+      "total_meastime": 4799
+    },
+    {
+      "avg_meastime": 339.71,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2M_019",
+      "last_run": "2026-05-07T03:11:54Z",
+      "meas_counts": 14,
+      "rank": 27,
+      "recipe_name": "OVL_M2M_019",
+      "sample_eqp_ids": [
+        "CG63-02",
+        "CG63-03",
+        "CG63-04",
+        "CG63-05",
+        "CG63-07"
+      ],
+      "sample_lot_cds": [
+        "207H",
+        "410",
+        "5006",
+        "508F",
+        "R001"
+      ],
+      "total_meastime": 4756
+    },
+    {
+      "avg_meastime": 384.0,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2M_007",
+      "last_run": "2026-05-04T17:18:01Z",
+      "meas_counts": 12,
+      "rank": 28,
+      "recipe_name": "OVL_M2M_007",
+      "sample_eqp_ids": [
+        "CG63-03",
+        "CG63-04",
+        "CG63-08",
+        "CG63-09",
+        "CG63-11"
+      ],
+      "sample_lot_cds": [
+        "1041",
+        "1045",
+        "228",
+        "4AW",
+        "5016"
+      ],
+      "total_meastime": 4608
+    },
+    {
+      "avg_meastime": 374.58,
+      "class_name": "ADI",
+      "full_name": "ADI/ADI_CD_BIAS_024",
+      "last_run": "2026-05-05T19:39:59Z",
+      "meas_counts": 12,
+      "rank": 29,
+      "recipe_name": "ADI_CD_BIAS_024",
+      "sample_eqp_ids": [
+        "CG50-01",
+        "CG50-05",
+        "CG50-07",
+        "CG50-09",
+        "CG50-10"
+      ],
+      "sample_lot_cds": [
+        "401I",
+        "402P",
+        "43C",
+        "6027",
+        "606D"
+      ],
+      "total_meastime": 4495
+    },
+    {
+      "avg_meastime": 476.0,
+      "class_name": "OVL",
+      "full_name": "OVL/OVL_M2P_058",
+      "last_run": "2026-05-06T20:58:39Z",
+      "meas_counts": 9,
+      "rank": 30,
+      "recipe_name": "OVL_M2P_058",
+      "sample_eqp_ids": [
+        "CG50-09",
+        "CG50-10",
+        "CG50-11",
+        "CG50-13",
+        "CG50-16"
+      ],
+      "sample_lot_cds": [
+        "1B0",
+        "2085",
+        "20AF",
+        "4003",
+        "R064"
+      ],
+      "total_meastime": 4284
+    }
+  ],
+  "start_date": "2026-04-08",
+  "tool_type": "cd-sem"
+}

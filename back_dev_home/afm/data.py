@@ -1,3 +1,14 @@
+"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
+
+원본 데이터: AFM 데이터 플랫폼 (afm_data_platform 명세 — docs/afm-migration-plan.md)
+계약:        docs/api-contracts/afm.yaml
+픽스처:      back_dev_home/afm/__fixtures__/
+
+AFM 은 단일 측정 행(`AfmMeasurementRow`) 보다 풍부한 디테일·프로파일·이미지 응답
+구조를 가집니다. 함수별 반환 형태가 다르므로 픽스처에 엔드포인트별 샘플을 모두
+캡처해 사무실 LLM이 형태를 한눈에 볼 수 있도록 합니다.
+"""
+
 import hashlib
 import html
 import math
@@ -5,6 +16,19 @@ import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, TypedDict
+
+
+__all__ = [
+    "AfmMeasurementRow",
+    "normalize_tool",
+    "get_tools",
+    "list_afm_files",
+    "get_afm_file_detail",
+    "get_profile_points",
+    "get_profile_image_svg",
+    "list_user_activities",
+    "get_user_analytics",
+]
 
 
 class AfmMeasurementRow(TypedDict):

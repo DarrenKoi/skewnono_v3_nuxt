@@ -1,0 +1,236 @@
+resource: cdsem-device-statistics
+description: Device-level lot inventory (R3 + M-fab) plus weekly recipe-bucket trends. Powers the device comparison page.
+base_path: /api/cdsem/device-statistics
+
+types:
+  R3DeviceGrpRow:
+    id:
+      type: string
+      format: "R3-NNNN"
+    fac_id:
+      type: string
+      enum: ["R3"]
+    plan_catg_type:
+      type: string
+      enum: ["FULL", "ADTPJT", "MODULE", ""]
+    prod_catg_cd:
+      type: string
+      enum: ["DRAM", "Tech", "Advanced", "FLASH", "NAND"]
+    tech_cd:
+      type: string
+      enum: ["T1Z", "S128", "T1Y", "C20", "F12m", ""]
+    den_type:
+      type: string
+      enum: ["16G", "1T", "512G", "256G", ""]
+    prod_grp_typ:
+      type: string
+    gen_typ:
+      type: string
+      enum: ["1ST", "2ND", "4TH", "5TH", ""]
+    lot_cd:
+      type: string
+      format: "R<base36 3-digit>"
+      description: Lot code unique within R3
+    plan_grade_cd:
+      type: string
+    lake_load_tm:
+      type: string
+      format: "YYYYMMDDHHMMSS"
+    ctn_desc:
+      type: string
+
+  DeviceDescRow:
+    id:
+      type: string
+      format: "<fac_id>-NNNN"
+    fac_id:
+      type: string
+      enum: ["M11", "M12", "M14", "M15", "M16"]
+    lot_cd:
+      type: string
+      format: "<fac-prefix><base36 2 or 3-digit>"
+    ctn_desc:
+      type: string
+    chg_tm:
+      type: string
+      format: "ISO 8601 UTC ending in Z"
+    tech_nm:
+      type: string
+    rnd_connector:
+      type: string
+      description: R&D origin code (e.g. "R042"). Empty if device has no R&D ancestor.
+
+  RecipeInfoRow:
+    lot_cd:
+      type: string
+    fac_id:
+      type: string
+    oper_id:
+      type: string
+    oper_desc:
+      type: string
+    oper_seq:
+      type: integer
+    samp_seq:
+      type: integer
+    eqp_id:
+      type: string
+    recipe_id:
+      type: string
+    skip_yn:
+      type: string
+      enum: ["Yes", "No"]
+    chg_tm:
+      type: string
+      format: "HH:MM:SS"
+    ctn_desc:
+      type: string
+    para_all:
+      type: integer
+    para_16:
+      type: integer
+    para_13:
+      type: integer
+    para_9:
+      type: integer
+    para_5:
+      type: integer
+    para_16_percent:
+      type: number
+    para_13_percent:
+      type: number
+    para_9_percent:
+      type: number
+    para_5_percent:
+      type: number
+
+  SummaryRow:
+    lot_cd:
+      type: string
+    fac_id:
+      type: string
+    para_all:
+      type: integer
+    para_16:
+      type: integer
+    para_13:
+      type: integer
+    para_9:
+      type: integer
+    para_5:
+      type: integer
+    para_16_percent:
+      type: number
+    para_13_percent:
+      type: number
+    para_9_percent:
+      type: number
+    para_5_percent:
+      type: number
+    ctn_desc:
+      type: string
+    total_recipe:
+      type: integer
+    avail_recipe:
+      type: integer
+    avail_recipe_percent:
+      type: number
+
+  RecipeBuckets:
+    description: Eight keys — four bucket names (all, only_normal, mother_normal, only_sample) crossed with rcp_info / summary
+    all_rcp_info:
+      type: array
+      items: RecipeInfoRow
+    all_summary:
+      type: array
+      items: SummaryRow
+    only_normal_rcp_info:
+      type: array
+      items: RecipeInfoRow
+    only_normal_summary:
+      type: array
+      items: SummaryRow
+    mother_normal_rcp_info:
+      type: array
+      items: RecipeInfoRow
+    mother_normal_summary:
+      type: array
+      items: SummaryRow
+    only_sample_rcp_info:
+      type: array
+      items: RecipeInfoRow
+    only_sample_summary:
+      type: array
+      items: SummaryRow
+
+endpoints:
+  - path: /api/cdsem/device-statistics/r3-device-grp
+    method: GET
+    description: All R3 lot rows. Frontend uses this for the R3 column of the device picker.
+    response:
+      status: 200
+      body:
+        type: array
+        items: R3DeviceGrpRow
+
+  - path: /api/cdsem/device-statistics/device-desc
+    method: GET
+    description: Per-fab lot rows for the M-class fabs.
+    query_params:
+      fac_id:
+        type: string
+        required: false
+        description: Comma-separated fac_ids (e.g. "M11,M12"). Case-insensitive. Returns all when omitted.
+    response:
+      status: 200
+      body:
+        type: array
+        items: DeviceDescRow
+
+  - path: /api/cdsem/device-statistics/recipe-statistics
+    method: GET
+    description: Latest-week recipe summary + recipe rows for selected lots.
+    query_params:
+      lot_cds:
+        type: string
+        required: false
+        description: Comma-separated lot codes (e.g. "R000,R001,1001"). Empty = all lots.
+    response:
+      status: 200
+      body:
+        date:
+          type: string
+          format: "YYYY-MM-DD or null when no data"
+          description: ISO date of the latest weekly bucket
+        buckets: RecipeBuckets
+
+  - path: /api/cdsem/device-statistics/recipe-trend
+    method: GET
+    description: Multi-week trend (summary buckets only — no recipe-info rows).
+    query_params:
+      lot_cds:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+        format: "YYYY-MM-DD"
+        description: Inclusive lower bound. ISO strings sort lexicographically.
+      end_date:
+        type: string
+        required: false
+        format: "YYYY-MM-DD"
+    response:
+      status: 200
+      body:
+        dates:
+          type: array
+          description: ISO date strings in ascending order
+        trend:
+          type: object
+          description: "{ <date>: <RecipeBuckets without rcp_info> }"
+
+notes:
+  - Phase 1 generator (back_dev_home/ebeam/cdsem/device_statistics/data.py + statistics.py) seeds 2000 R3 rows and 2000 M-fab rows; the trend window is 8 weekly points ending at BASE_TIME = 2026-04-01.
+  - recipe-statistics / recipe-trend share the same generator. Reducing the `points` arg on the home generator would break per-(lot, date) determinism — preserve the full window in office implementations and slice by date string.
+  - The frontend recipe-trend query filters dates client-side for now; office can keep the same shape or add server-side filtering without changing the response.

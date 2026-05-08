@@ -1,0 +1,54 @@
+resource: announcements
+description: Runtime banner notices shown across the app. Operators write a JSON file at home; office serves the same shape from a real notices source.
+base_path: /api/announcements
+
+types:
+  Announcement:
+    id:
+      type: string
+      description: Stable identifier — used by the frontend to remember dismissals
+      examples: ["2026-05-07-welcome1", "2026-04-22-storage-maint"]
+    level:
+      type: string
+      enum: ["info", "warning", "critical"]
+      description: Severity tier — drives banner color/icon on the frontend
+    title:
+      type: string
+      description: Short headline shown in the banner
+    body:
+      type: string
+      description: Optional longer body. May contain Korean text.
+    starts_at:
+      type: string
+      format: "ISO 8601 (naive timestamps interpreted as KST UTC+9)"
+      description: Optional show-from boundary. Naive timestamps allowed for operator convenience.
+      examples: ["2026-05-07T09:00:00", "2026-05-07T09:00:00+09:00"]
+    ends_at:
+      type: string
+      format: "ISO 8601 (naive timestamps interpreted as KST UTC+9)"
+      description: Optional show-until boundary
+    dismissible:
+      type: boolean
+      description: If true, the frontend stores dismissal in localStorage by id
+
+endpoints:
+  - path: /api/announcements
+    method: GET
+    description: Active announcements (filtered by starts_at/ends_at against now)
+    response:
+      status: 200
+      body:
+        type: array
+        items: Announcement
+    example_request: "GET /api/announcements"
+    example_response:
+      - id: "2026-05-07-welcome1"
+        level: "info"
+        title: "스큐노노 v3 베타 오픈"
+        body: "이슈가 있을 경우 관리자에게 알려주세요."
+        dismissible: true
+
+notes:
+  - Phase 1 source is back_dev_home/announcements/announcements.json (mtime-cached). Office should serve the same shape from a real notices table or feed.
+  - Naive timestamps in the source are interpreted as KST (UTC+9) so operators can omit timezone offsets. _is_active() in data.py compares to datetime.now(timezone.utc) — keep the same semantics in the office implementation to avoid drift.
+  - Response is a bare JSON array. Frontend type Announcement in front-dev-home/app/composables/useAnnouncementsApi.ts mirrors it directly.

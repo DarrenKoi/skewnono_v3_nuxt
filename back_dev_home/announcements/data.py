@@ -1,7 +1,20 @@
+"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
+
+원본:        announcements.json (홈) / 사무실 측 운영자 공지 테이블·피드
+계약:        docs/api-contracts/announcements.yaml
+픽스처:      back_dev_home/announcements/__fixtures__/
+
+Announcement 는 모의 발생기가 아니라 실제 JSON 파일을 읽는 유일한 피처입니다.
+사무실 전환 시 동일한 응답 형태로 사내 공지 소스를 매핑하면 됩니다.
+"""
+
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal, Optional, TypedDict
+
+
+__all__ = ["Announcement", "get_announcements"]
 
 
 class Announcement(TypedDict, total=False):

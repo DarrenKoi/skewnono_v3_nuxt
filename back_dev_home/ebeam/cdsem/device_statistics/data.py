@@ -1,3 +1,14 @@
+"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
+
+원본 테이블:  docs/datatables/r3_device_grp.txt, docs/datatables/device_desc.txt
+계약:        docs/api-contracts/cdsem-device-statistics.yaml
+픽스처:      back_dev_home/ebeam/cdsem/device_statistics/__fixtures__/
+
+이 모듈은 device_statistics 피처의 단일 공개 표면입니다. 라우터·다른 피처는
+오직 이 모듈만 import 합니다. 주간 트렌드 집계 로직은 분량이 커서
+`statistics.py` 에 분리되어 있지만, 공개 심볼은 본 모듈이 재노출합니다.
+"""
+
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -165,3 +176,32 @@ def get_device_desc(fac_ids: list[str] | None = None) -> list[DeviceDescRow]:
         return rows
 
     return [row for row in rows if row["fac_id"] in normalized_fac_ids]
+
+
+# ---------------------------------------------------------------------------
+# 공개 표면 재노출 — statistics.py 의 트렌드/요약 로직을 본 모듈에서 가져옵니다.
+# 라우터·타 피처(`recipe_tat`)는 항상 본 모듈만 import 하도록 유지하기 위함입니다.
+# 순환 import 회피: 위에서 BASE_TIME, get_r3_device_grp, get_device_desc 가
+# 먼저 정의되었으므로 statistics.py 가 본 모듈을 import 할 때 충돌이 없습니다.
+# ---------------------------------------------------------------------------
+from .statistics import (  # noqa: E402  (의도된 후위 import)
+    RecipeInfoRow,
+    SummaryRow,
+    _lot_index,
+    get_lot_index,
+    get_weekly_trend_data,
+)
+
+
+__all__ = [
+    "R3DeviceGrpRow",
+    "DeviceDescRow",
+    "RecipeInfoRow",
+    "SummaryRow",
+    "BASE_TIME",
+    "get_r3_device_grp",
+    "get_device_desc",
+    "get_weekly_trend_data",
+    "get_lot_index",
+    "_lot_index",
+]

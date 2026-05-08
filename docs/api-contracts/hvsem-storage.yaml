@@ -1,0 +1,93 @@
+resource: hvsem-storage
+description: HV-SEM tool storage utilization and "missing snapshot" inventory. AMAT TP-series only — PROVISION/VERITYSEM are deferred to 2027.
+base_path: /api/hvsem
+
+types:
+  StorageRow:
+    eqp_id:
+      type: string
+      examples: ["PCD234", "MCD567", "ACD789", "VCD101"]
+    eqp_ip:
+      type: string
+      format: "IPv4 (177.x.x.x or 197.x.x.x)"
+    fac_id:
+      type: string
+      examples: ["M10", "M11", "M14", "M15", "M16", "R3"]
+    fab_name:
+      type: string
+    eqp_model_cd:
+      type: string
+      enum: ["TP3000", "TP3500", "TP4000", "TP4500"]
+    total:
+      type: string
+      format: "<int>G or <float>T"
+    used:
+      type: string
+    avail:
+      type: string
+    percent:
+      type: string
+      format: "<int>%"
+    storage_mt:
+      type: string
+      format: "ISO 8601 UTC ending in Z"
+    storage_mt_date:
+      type: string
+      format: "YYYY-MM-DD"
+    rcp_counts:
+      type: integer
+    rcp_counts_mt:
+      type: string
+      format: "ISO 8601 UTC ending in Z"
+
+  UnavailableRow:
+    eqp_id:
+      type: string
+    eqp_ip:
+      type: string
+    fac_id:
+      type: string
+    fab_name:
+      type: string
+    eqp_model_cd:
+      type: string
+    missing_days_streak:
+      type: integer
+
+  StorageUnavailableSnapshot:
+    latest_date:
+      type: string
+      format: "YYYY-MM-DD"
+    rows:
+      type: array
+      items: UnavailableRow
+
+endpoints:
+  - path: /api/hvsem/storage
+    method: GET
+    description: All HV-SEM tools with storage and recipe-count snapshots
+    query_params:
+      fac_id:
+        type: string
+        required: false
+        description: Comma-separated fac_ids to filter by
+    response:
+      status: 200
+      body:
+        type: array
+        items: StorageRow
+
+  - path: /api/hvsem/storage-unavailable
+    method: GET
+    description: Latest snapshot of HV-SEM tools missing from inventory, with consecutive-missing streak
+    query_params:
+      fac_id:
+        type: string
+        required: false
+    response:
+      status: 200
+      body: StorageUnavailableSnapshot
+
+notes:
+  - Mirrors cdsem-storage.yaml in shape; only the tool-model scope and the equipment prefixes differ. Office should reuse the same query layer with a tool-type filter.
+  - 2027 roadmap reminder: PROVISION_* and VERITYSEM_* will get their own endpoint families when those features land — do not add them here.

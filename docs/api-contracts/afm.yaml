@@ -1,0 +1,315 @@
+resource: afm
+description: AFM (Atomic Force Microscopy) measurement data — tool listings, files, per-file detail, profile points, and SVG previews. Source schema documented in docs/afm-migration-plan.md.
+base_path: /api
+
+types:
+  AfmTool:
+    id:
+      type: string
+      description: Internal lowercase tool id
+      examples: ["map608", "mapc01"]
+    name:
+      type: string
+      description: Display name (uppercase)
+      examples: ["MAP608", "MAPC01"]
+    label:
+      type: string
+      description: Same as name; preserved for legacy frontends
+    fab:
+      type: string
+      description: Fab the tool sits in
+      examples: ["R3", "M12"]
+
+  AfmMeasurementRow:
+    unique_key:
+      type: string
+      description: Composite key derived from date#time#recipe#slot#lot#measured
+    filename:
+      type: string
+      format: "#YYMMDD#RECIPE#LOTID_HHMMSS#SLOT_INFO#.csv"
+      description: Original CSV filename. The frontend uses this as the route param.
+    date:
+      type: string
+      format: "YYMMDD"
+    formatted_date:
+      type: string
+      format: "YYYY-MM-DD"
+    recipe_name:
+      type: string
+      examples: ["FSOXCMP_DISHING_9PT", "CMP_PRE", "ROUGHNESS_SCAN"]
+    lot_id:
+      type: string
+    slot_number:
+      type: string
+      format: "01..25"
+    time:
+      type: string
+      format: "HHMMSS"
+    measured_info:
+      type: string
+      examples: ["1", "standard", "repeat2", "profile", "roughness"]
+    tool_name:
+      type: string
+    tool_id:
+      type: string
+    fab:
+      type: string
+    profile_dir_list:
+      type: array
+      description: List of profile-pickle filenames or ["no files"]
+    data_dir_list:
+      type: array
+    tiff_dir_list:
+      type: array
+    align_dir_list:
+      type: array
+    tip_dir_list:
+      type: array
+    capture_dir_list:
+      type: array
+    has_profile:
+      type: boolean
+    has_data:
+      type: boolean
+    has_image:
+      type: boolean
+    has_align:
+      type: boolean
+    has_tip:
+      type: boolean
+    hasProfile:
+      type: boolean
+      description: Camel-case alias kept for legacy frontend; office implementation must emit both snake_case and camelCase.
+    hasData:
+      type: boolean
+    hasImage:
+      type: boolean
+    hasAlign:
+      type: boolean
+    hasTip:
+      type: boolean
+    point_count:
+      type: integer
+      description: Number of measurement sites (5..9)
+
+  AfmFileDetail:
+    filename:
+      type: string
+    tool:
+      type: string
+    pickle_filename:
+      type: string
+    information:
+      type: object
+      description: Header fields (Lot ID, Recipe ID, Carrier ID, Sample ID, Start Time, Tool, Fab, Operator, Measurement)
+    summary:
+      type: array
+      description: Per-site stats (MEAN/STDEV/MIN/MAX/RANGE) for Left_H, Right_H, Ref_H
+    data:
+      type: array
+      description: Per-point detail rows (typically 20-50 per site)
+    available_points:
+      type: array
+      description: Site IDs (subset of "1_UL".."9_B")
+
+  AfmProfilePoint:
+    x:
+      type: number
+    y:
+      type: number
+    z:
+      type: number
+
+  AfmActivity:
+    timestamp:
+      type: string
+      format: "ISO 8601 UTC"
+    user:
+      type: string
+    action:
+      type: string
+      enum: ["list_files", "get_detail"]
+    tool:
+      type: string
+    filename:
+      type: string
+    summary_count:
+      type: integer
+    detail_count:
+      type: integer
+
+endpoints:
+  - path: /api/afm/tools
+    method: GET
+    description: List all AFM tools
+    response:
+      status: 200
+      body:
+        type: array
+        items: AfmTool
+    example_response:
+      - id: "map608"
+        name: "MAP608"
+        label: "MAP608"
+        fab: "R3"
+
+  - path: /api/afm/files
+    method: GET
+    description: List measurement files for a tool. Default tool is MAP608.
+    query_params:
+      tool:
+        type: string
+        required: false
+        description: Tool name (e.g. "MAP608", "MAPC01"). Case-insensitive; falls back to MAP608 if missing.
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        data:
+          type: array
+          items: AfmMeasurementRow
+        total:
+          type: integer
+        tool:
+          type: string
+        message:
+          type: string
+
+  - path: /api/afm/files/{filename}
+    method: GET
+    description: Detail for a single file (header + per-site summary + per-point detail). 404 if not found.
+    query_params:
+      tool:
+        type: string
+        required: false
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        data: AfmFileDetail
+        message:
+          type: string
+
+  - path: /api/afm/files/{filename}/profile/{point}
+    method: GET
+    description: 20×20 grid of (x,y,z) points for the named site
+    query_params:
+      tool:
+        type: string
+        required: false
+      site_id:
+        type: string
+        required: false
+      site_x:
+        type: string
+        required: false
+      site_y:
+        type: string
+        required: false
+      point_no:
+        type: integer
+        required: false
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        data:
+          type: array
+          items: AfmProfilePoint
+        count:
+          type: integer
+        tool:
+          type: string
+
+  - path: /api/afm/files/{filename}/image/{point}
+    method: GET
+    description: Returns metadata + URL for an SVG preview image
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        data:
+          type: object
+          description: "{ filename, relative_path, url }"
+
+  - path: /api/afm/files/{filename}/image-file/{point}
+    method: GET
+    description: Raw SVG response (image/svg+xml). Used as <img src> by the frontend.
+    response:
+      status: 200
+      body:
+        type: string
+        format: "image/svg+xml"
+
+  - path: /api/afm/activities
+    method: GET
+    description: Activity log
+    query_params:
+      user:
+        type: string
+        required: false
+      limit:
+        type: integer
+        required: false
+        description: Default 100, capped to 20 by the mock
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        data:
+          type: array
+          items: AfmActivity
+        count:
+          type: integer
+
+  - path: /api/afm/activities/me
+    method: GET
+    description: Activity log for the current user (cookie LASTUSER / LAST_USER)
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        user:
+          type: string
+        data:
+          type: array
+          items: AfmActivity
+
+  - path: /api/afm/current-user
+    method: GET
+    description: Returns the current user from cookies; falls back to "anonymous"
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        user:
+          type: string
+
+  - path: /api/afm/analytics
+    method: GET
+    description: Daily analytics summary
+    query_params:
+      days:
+        type: integer
+        required: false
+        description: 1..30; clamped server-side
+    response:
+      status: 200
+      body:
+        success:
+          type: boolean
+        data:
+          type: object
+          description: "{ daily_stats: [{date, unique_users, total_sessions, total_actions, avg_actions_per_session}], summary: {period_days, total_unique_users, avg_daily_users, avg_daily_sessions} }"
+
+notes:
+  - Phase 1 implementation in back_dev_home/afm/data.py uses TOOL_CONFIGS for two tools (MAP608 on R3, MAPC01 on M12) with deterministic seeds derived from filename + tool + point.
+  - The frontend expects both snake_case (has_profile) and camelCase (hasProfile) flags on AfmMeasurementRow. Office must emit both.
+  - Source schema reference: docs/afm-migration-plan.md (afm_data_platform mock spec).
