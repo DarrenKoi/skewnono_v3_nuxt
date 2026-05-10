@@ -7,13 +7,20 @@ export const useNavigation = () => {
   const router = useRouter()
 
   const featureEnabledForToolType = (feature: string, toolType: ToolType) => {
-    if (feature === 'storage' || feature === 'recipe-search' || feature === 'recipe-tat') return toolType === 'cd-sem' || toolType === 'hv-sem'
+    if (
+      feature === 'storage'
+      || feature === 'recipe-search'
+      || feature === 'recipe-tat'
+      || feature === 'fail-issue'
+      || feature === 'hardware'
+      || feature === 'skewvoir'
+    ) return toolType === 'cd-sem' || toolType === 'hv-sem'
     if (feature === 'device-statistics') return toolType === 'cd-sem'
     return false
   }
 
   const currentFeaturePath = (toolType: ToolType) => {
-    const match = route.path.match(/\/(storage|recipe-search|recipe-tat|device-statistics)(?:\/|$)/)
+    const match = route.path.match(/\/(storage|recipe-search|recipe-tat|fail-issue|hardware|device-statistics|skewvoir)(?:\/|$)/)
     const feature = match?.[1]
     return feature && featureEnabledForToolType(feature, toolType) ? `/${feature}` : ''
   }

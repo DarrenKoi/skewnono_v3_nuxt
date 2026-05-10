@@ -3,7 +3,7 @@ import type { ToolType } from '~/stores/navigation'
 
 const route = useRoute()
 
-type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'device-statistics'
+type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir'
 
 type FeatureTab = {
   label: string
@@ -17,10 +17,10 @@ const features: FeatureTab[] = [
   { label: '장비 상태', routeValue: 'index', icon: 'i-lucide-layout-dashboard', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'Recipe TAT', routeValue: 'recipe-tat', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem'] },
-  { label: 'Fail 이슈', icon: 'i-lucide-triangle-alert' },
-  { label: 'H/W 관리', icon: 'i-lucide-cpu' },
+  { label: 'Fail 이슈', routeValue: 'fail-issue', icon: 'i-lucide-triangle-alert', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
-  { label: '스큐보아', icon: 'i-lucide-eye', badgeIcon: 'i-lucide-sparkles' }
+  { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', badgeIcon: 'i-lucide-sparkles', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
 const toolTypes: ToolType[] = ['cd-sem', 'hv-sem', 'verity-sem', 'provision']
@@ -35,12 +35,15 @@ const activeFeature = computed(() => {
   const path = route.path
   if (path.includes('/recipe-search')) return 'recipe-search'
   if (path.includes('/recipe-tat')) return 'recipe-tat'
+  if (path.includes('/fail-issue')) return 'fail-issue'
+  if (path.includes('/hardware')) return 'hardware'
   if (path.includes('/device-statistics')) return 'device-statistics'
+  if (path.includes('/skewvoir')) return 'skewvoir'
   return 'index'
 })
 
 const getFeatureRoute = (feature: string) => {
-  const basePath = route.path.replace(/\/(storage|recipe-search|recipe-tat|device-statistics)(\/.*)?$/, '')
+  const basePath = route.path.replace(/\/(storage|recipe-search|recipe-tat|fail-issue|hardware|device-statistics|skewvoir)(\/.*)?$/, '')
   if (feature === 'index') return basePath
   return `${basePath}/${feature}`
 }
