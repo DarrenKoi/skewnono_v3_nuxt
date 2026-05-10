@@ -34,9 +34,15 @@ _KNOWN_EXTRA_KEYS = (
     "request_id",
     "method",
     "path",
+    "request_path",
+    "query_string",
     "status",
     "latency_ms",
     "remote_addr",
+    "feature",
+    "activity_weight",
+    "error_code",
+    "error_name",
 )
 
 

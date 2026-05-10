@@ -97,6 +97,13 @@ const buildQuery = (params: RecipeTatQuery) => {
   return query
 }
 
+// Path-slug is the backend's source of truth for tool_type — see
+// back_dev_home/ebeam/hitachi/_tool_specs.py's SLUG_TO_TOOL_TYPE.
+// The ?tool_type= query param is informational and ignored by the route,
+// so calling /cdsem/* from the HV-SEM page silently returns CD-SEM data.
+const toolSlug = (toolType: RecipeTatToolType): 'cdsem' | 'hvsem' =>
+  toolType === 'hv-sem' ? 'hvsem' : 'cdsem'
+
 export const useRecipeTatApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
@@ -105,7 +112,7 @@ export const useRecipeTatApi = () => {
     params: RecipeTatQuery
   ): Promise<RecipeTatRankingResponse> => {
     return await $fetch<RecipeTatRankingResponse>(
-      joinApiPath(base, '/cdsem/recipe-tat/ranking'),
+      joinApiPath(base, `/${toolSlug(params.toolType)}/recipe-tat/ranking`),
       { query: buildQuery(params) }
     )
   }
@@ -114,7 +121,7 @@ export const useRecipeTatApi = () => {
     params: RecipeTatQuery
   ): Promise<RecipeTatSummary> => {
     return await $fetch<RecipeTatSummary>(
-      joinApiPath(base, '/cdsem/recipe-tat/summary'),
+      joinApiPath(base, `/${toolSlug(params.toolType)}/recipe-tat/summary`),
       { query: buildQuery(params) }
     )
   }
@@ -123,7 +130,7 @@ export const useRecipeTatApi = () => {
     params: RecipeTatQuery
   ): Promise<RecipeTatDailyTrendResponse> => {
     return await $fetch<RecipeTatDailyTrendResponse>(
-      joinApiPath(base, '/cdsem/recipe-tat/daily-trend'),
+      joinApiPath(base, `/${toolSlug(params.toolType)}/recipe-tat/daily-trend`),
       { query: buildQuery(params) }
     )
   }
@@ -142,7 +149,7 @@ export const useRecipeTatApi = () => {
       endDate: params.endDate
     }
     return await $fetch<RecipeTatDevicesResponse>(
-      joinApiPath(base, '/cdsem/recipe-tat/devices'),
+      joinApiPath(base, `/${toolSlug(params.toolType)}/recipe-tat/devices`),
       { query: buildQuery(scope) }
     )
   }

@@ -23,7 +23,7 @@ def _install_rate_limit(app: Flask) -> None:
     limiter = Limiter(
         key_func=_rate_limit_key,
         storage_uri="memory://",
-        default_limits=["1 per 2 seconds"],
+        default_limits=["5 per 5 seconds"],
         application_limits_exempt_when=lambda: not request.path.startswith("/api/"),
     )
     limiter.init_app(app)

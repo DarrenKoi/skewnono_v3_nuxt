@@ -47,9 +47,15 @@ LOG_MAPPING_PROPERTIES: dict[str, Any] = {
     "request_id": {"type": "keyword"},
     "method": {"type": "keyword"},
     "path": {"type": "keyword"},
+    "request_path": {"type": "keyword"},
+    "query_string": {"type": "keyword", "ignore_above": 2048},
     "status": {"type": "integer"},
     "latency_ms": {"type": "integer"},
     "remote_addr": {"type": "keyword"},
+    "feature": {"type": "keyword"},
+    "activity_weight": {"type": "integer"},
+    "error_code": {"type": "keyword"},
+    "error_name": {"type": "keyword"},
     "exception": {
         "properties": {
             "type": {"type": "keyword"},
@@ -216,6 +222,19 @@ def ensure_rollover_index(client: Any) -> dict[str, Any]:
     }
 
 
+def put_current_mapping(client: Any) -> dict[str, Any]:
+    """Apply additive mapping updates to existing backing indices.
+
+    The index template only affects future rollover indices. This keeps an
+    already-created `skewnono_logging` alias compatible with newly added fields
+    without recreating production log storage.
+    """
+    return client.indices.put_mapping(
+        index=INDEX_ALIAS,
+        body=build_index_mappings(),
+    )
+
+
 def build_dry_run_plan() -> dict[str, Any]:
     return {
         "cluster": {
@@ -238,15 +257,25 @@ def build_dry_run_plan() -> dict[str, Any]:
             "path": f"/{FIRST_INDEX}",
             "body": build_initial_index_body(),
         },
+        "mapping_update_request": {
+            "method": "PUT",
+            "path": f"/{INDEX_ALIAS}/_mapping",
+            "body": build_index_mappings(),
+        },
     }
 
 
 def setup_skewnono_logging(client: Any | None = None) -> dict[str, Any]:
     actual_client = client or create_skewnono_client()
+    policy_result = put_ism_policy(actual_client)
+    template_result = put_index_template(actual_client)
+    index_result = ensure_rollover_index(actual_client)
+    mapping_result = put_current_mapping(actual_client)
     return {
-        "policy": put_ism_policy(actual_client),
-        "index_template": put_index_template(actual_client),
-        "index": ensure_rollover_index(actual_client),
+        "policy": policy_result,
+        "index_template": template_result,
+        "index": index_result,
+        "mapping_update": mapping_result,
     }
 
 

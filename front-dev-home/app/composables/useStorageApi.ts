@@ -46,29 +46,29 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
   const storageUrl = joinApiPath(config.public.apiBase, `/${slug}/storage`)
   const unavailableUrl = joinApiPath(config.public.apiBase, `/${slug}/storage-unavailable`)
 
-  const fetchStorageRows = async (facIds: string[] = []): Promise<StorageRow[]> => {
+  const fetchStorageRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<StorageRow[]> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
-    return await $fetch<StorageRow[]>(storageUrl, { query })
+    return await $fetch<StorageRow[]>(storageUrl, { query, signal })
   }
 
-  const fetchUnavailableRows = async (facIds: string[] = []): Promise<StorageUnavailableSnapshot> => {
+  const fetchUnavailableRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<StorageUnavailableSnapshot> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
-    return await $fetch<StorageUnavailableSnapshot>(unavailableUrl, { query })
+    return await $fetch<StorageUnavailableSnapshot>(unavailableUrl, { query, signal })
   }
 
   // Storage rows are aggregated at the fac level. The URL's fab segment may be a fab_name
   // (e.g. "M16A", "R3", "R4"), but storage shows everything under its parent fac — same approach
   // as device-statistics.vue. Pure fab_name filtering is left to the page if it ever needs it.
-  const fetchByUrlFab = async (urlFab: string): Promise<StorageRow[]> => {
+  const fetchByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<StorageRow[]> => {
     const facId = fabNameToFacId(urlFab)
-    return await fetchStorageRows([facId])
+    return await fetchStorageRows([facId], signal)
   }
 
-  const fetchUnavailableByUrlFab = async (urlFab: string): Promise<StorageUnavailableSnapshot> => {
+  const fetchUnavailableByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<StorageUnavailableSnapshot> => {
     const facId = fabNameToFacId(urlFab)
-    return await fetchUnavailableRows([facId])
+    return await fetchUnavailableRows([facId], signal)
   }
 
   return {

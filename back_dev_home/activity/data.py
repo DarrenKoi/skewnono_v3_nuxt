@@ -49,8 +49,8 @@ _TIERS: list[TierInfo] = [
     {"key": "diamond",  "label": "Diamond",  "icon": "crown",  "min_score": 1500, "next_score": None},
 ]
 
-# Skip self-referential paths so the activity page itself doesn't inflate scores.
-_SKIP_PATH_PREFIXES = ("/api/activity/",)
+# Skip observability paths so checking activity/logs doesn't inflate scores.
+_SKIP_PATH_PREFIXES = ("/api/activity/", "/api/admin/logs")
 # Cap recent-events buffer so memory stays bounded under heavy use.
 _RECENT_EVENTS_CAP = 50
 # Streak window: only consider the last 60 days when looking for gaps.

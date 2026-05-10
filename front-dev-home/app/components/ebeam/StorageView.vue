@@ -326,10 +326,19 @@ const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi(storageTool)
 const subtitle = '스토리지 정보 업데이트는 오전 8시에 한번 체크합니다'
 const pageTitle = computed(() => `${props.toolLabel} - ${props.fab}`)
 
+// Abort in-flight fetches on unmount so a fast tab-toggle doesn't leave zombie
+// requests consuming the backend rate-limit budget the next mount needs.
+const abortController = new AbortController()
+onScopeDispose(() => abortController.abort())
+
 const { data, pending, error } = await useAsyncData(
   () => `storage:${storageTool}:${props.fab}`,
-  () => fetchByUrlFab(props.fab),
-  { watch: [() => props.fab], default: () => [] as StorageRow[] }
+  () => fetchByUrlFab(props.fab, abortController.signal),
+  {
+    watch: [() => props.fab],
+    default: () => [] as StorageRow[],
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+  }
 )
 
 const {
@@ -338,8 +347,12 @@ const {
   error: unavailableError
 } = await useAsyncData(
   () => `storage-unavailable:${storageTool}:${props.fab}`,
-  () => fetchUnavailableByUrlFab(props.fab),
-  { watch: [() => props.fab], default: (): StorageUnavailableSnapshot => ({ latest_date: '', rows: [] }) }
+  () => fetchUnavailableByUrlFab(props.fab, abortController.signal),
+  {
+    watch: [() => props.fab],
+    default: (): StorageUnavailableSnapshot => ({ latest_date: '', rows: [] }),
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+  }
 )
 
 const rows = computed(() => (data.value ?? []).filter(row => classifyToolType(row.eqp_model_cd) === props.toolType))
