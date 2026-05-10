@@ -1,31 +1,18 @@
 <template>
   <div class="space-y-3">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            {{ toolLabel }}
-          </p>
-          <h1 class="text-2xl font-bold whitespace-nowrap text-zinc-950 dark:text-zinc-50">
-            Recipe TAT
-          </h1>
+    <EbeamFeatureHeader
+      subtitle="Recipe TAT"
+      :title="pageTitle"
+    >
+      <template #actions>
+        <div class="flex items-center gap-2">
+          <EbeamDateRangePopover
+            v-model="dateRange"
+            :anchor-date="summary?.anchor_date"
+          />
         </div>
-        <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
-        <span class="self-end mb-2 inline-flex h-6 items-center gap-1 rounded-md bg-zinc-100 px-2 font-mono text-[11px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-          <UIcon
-            name="i-lucide-factory"
-            class="h-3 w-3"
-          /> {{ fab || '—' }}
-        </span>
-      </div>
-
-      <div class="flex items-center gap-2 self-start md:self-auto">
-        <EbeamDateRangePopover
-          v-model="dateRange"
-          :anchor-date="summary?.anchor_date"
-        />
-      </div>
-    </div>
+      </template>
+    </EbeamFeatureHeader>
 
     <!-- View mode toggle -->
     <div class="flex flex-wrap items-center gap-2.5">
@@ -166,193 +153,193 @@
 
     <template v-else>
       <!-- KPI strip -->
-    <div class="dashboard-surface flex flex-wrap rounded-2xl">
-      <div
-        v-for="(cell, index) in kpiCells"
-        :key="cell.label"
-        class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
-        :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-      >
-        <span
-          class="text-2xl font-bold leading-none tabular-nums"
-          :class="cell.tone"
-        >{{ cell.value }}</span>
-        <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+      <div class="dashboard-surface flex flex-wrap rounded-2xl">
+        <div
+          v-for="(cell, index) in kpiCells"
+          :key="cell.label"
+          class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
+          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
+        >
+          <span
+            class="text-2xl font-bold leading-none tabular-nums"
+            :class="cell.tone"
+          >{{ cell.value }}</span>
+          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Empty / loading state -->
-    <div
-      v-if="status === 'pending' && !rankingRows.length"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
-    >
-      <UIcon
-        name="i-lucide-loader-2"
-        class="mx-auto h-5 w-5 animate-spin text-zinc-400"
-      />
-      <p class="mt-2">
-        Loading recipe TAT…
-      </p>
-    </div>
-    <div
-      v-else-if="!rankingRows.length"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
-    >
-      <UIcon
-        name="i-lucide-inbox"
-        class="mx-auto h-6 w-6 text-zinc-400"
-      />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
-        No measurements in this range
-      </p>
-      <p class="mt-1 text-xs text-zinc-500">
-        Try widening the date range or selecting a different fab.
-      </p>
-    </div>
+      <!-- Empty / loading state -->
+      <div
+        v-if="status === 'pending' && !rankingRows.length"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+      >
+        <UIcon
+          name="i-lucide-loader-2"
+          class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+        />
+        <p class="mt-2">
+          Loading recipe TAT…
+        </p>
+      </div>
+      <div
+        v-else-if="!rankingRows.length"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      >
+        <UIcon
+          name="i-lucide-inbox"
+          class="mx-auto h-6 w-6 text-zinc-400"
+        />
+        <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+          No measurements in this range
+        </p>
+        <p class="mt-1 text-xs text-zinc-500">
+          Try widening the date range or selecting a different fab.
+        </p>
+      </div>
 
-    <template v-else>
-      <!-- Charts -->
-      <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <UCard class="dashboard-surface rounded-2xl">
-          <template #header>
-            <div class="flex items-center justify-between">
+      <template v-else>
+        <!-- Charts -->
+        <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <UCard class="dashboard-surface rounded-2xl">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-lucide-bar-chart-horizontal"
+                    class="h-4 w-4 text-zinc-500"
+                  />
+                  <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Top {{ topNLimit }} recipes by total TAT
+                  </h3>
+                </div>
+                <USelect
+                  v-model="topNLimitText"
+                  size="xs"
+                  :items="topNOptions"
+                  class="w-[6rem]"
+                />
+              </div>
+            </template>
+            <div
+              ref="barEl"
+              class="h-[420px] w-full"
+            />
+          </UCard>
+
+          <UCard class="dashboard-surface rounded-2xl">
+            <template #header>
               <div class="flex items-center gap-2">
                 <UIcon
-                  name="i-lucide-bar-chart-horizontal"
+                  name="i-lucide-trending-up"
                   class="h-4 w-4 text-zinc-500"
                 />
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Top {{ topNLimit }} recipes by total TAT
+                  Daily TAT trend
                 </h3>
               </div>
-              <USelect
-                v-model="topNLimitText"
-                size="xs"
-                :items="topNOptions"
-                class="w-[6rem]"
-              />
-            </div>
-          </template>
-          <div
-            ref="barEl"
-            class="h-[420px] w-full"
-          />
-        </UCard>
+            </template>
+            <div
+              ref="trendEl"
+              class="h-[420px] w-full"
+            />
+          </UCard>
+        </div>
 
-        <UCard class="dashboard-surface rounded-2xl">
-          <template #header>
+        <!-- Table -->
+        <div class="dashboard-surface rounded-2xl px-3.5 py-3">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-trending-up"
-                class="h-4 w-4 text-zinc-500"
-              />
-              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Daily TAT trend
+              <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                Ranked recipes
               </h3>
+              <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                {{ filteredRankingRows.length.toLocaleString() }} / {{ rankingRows.length.toLocaleString() }}
+              </span>
+              <span
+                v-if="rankingLimit && rankingRows.length >= rankingLimit"
+                class="font-mono text-[10px] text-amber-600 dark:text-amber-400"
+              >capped at {{ rankingLimit.toLocaleString() }}</span>
             </div>
-          </template>
-          <div
-            ref="trendEl"
-            class="h-[420px] w-full"
-          />
-        </UCard>
-      </div>
-
-      <!-- Table -->
-      <div class="dashboard-surface rounded-2xl px-3.5 py-3">
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-              Ranked recipes
-            </h3>
-            <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {{ filteredRankingRows.length.toLocaleString() }} / {{ rankingRows.length.toLocaleString() }}
-            </span>
-            <span
-              v-if="rankingLimit && rankingRows.length >= rankingLimit"
-              class="font-mono text-[10px] text-amber-600 dark:text-amber-400"
-            >capped at {{ rankingLimit.toLocaleString() }}</span>
+            <div class="flex items-center gap-2">
+              <UInput
+                v-model="tableSearch"
+                size="xs"
+                placeholder="Search recipe / class…"
+                icon="i-lucide-search"
+                class="w-[14rem]"
+              />
+              <USelect
+                v-model="pageSize"
+                class="w-[6.5rem]"
+                size="xs"
+                :items="pageSizeOptions"
+              />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-download"
+                label="CSV 다운로드"
+                :disabled="sortedRankingRows.length === 0"
+                @click="downloadRankingCsv"
+              />
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <UInput
-              v-model="tableSearch"
-              size="xs"
-              placeholder="Search recipe / class…"
-              icon="i-lucide-search"
-              class="w-[14rem]"
-            />
-            <USelect
-              v-model="pageSize"
-              class="w-[6.5rem]"
-              size="xs"
-              :items="pageSizeOptions"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-download"
-              label="CSV 다운로드"
-              :disabled="sortedRankingRows.length === 0"
-              @click="downloadRankingCsv"
-            />
-          </div>
-        </div>
 
-        <UTable
-          v-model:sorting="sorting"
-          :columns="columns"
-          :data="pagedRows"
-          :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
-          sticky="header"
-          :ui="tableUi"
-        >
-          <template
-            v-for="id in sortableColumnIds"
-            :key="id"
-            #[`${id}-header`]="{ column }"
+          <UTable
+            v-model:sorting="sorting"
+            :columns="columns"
+            :data="pagedRows"
+            :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
+            sticky="header"
+            :ui="tableUi"
           >
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-              :trailing-icon="getSortIcon(column.getIsSorted())"
-              @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+            <template
+              v-for="id in sortableColumnIds"
+              :key="id"
+              #[`${id}-header`]="{ column }"
             >
-              {{ column.columnDef.header }}
-            </UButton>
-          </template>
-        </UTable>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                :trailing-icon="getSortIcon(column.getIsSorted())"
+                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+              >
+                {{ column.columnDef.header }}
+              </UButton>
+            </template>
+          </UTable>
 
-        <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
-          <span class="tabular-nums">
-            Page {{ currentPage }} / {{ pageCount }}
-            <span class="ml-2 text-zinc-400">
-              {{ pageStart }}–{{ pageEnd }} of {{ filteredRankingRows.length.toLocaleString() }}
+          <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
+            <span class="tabular-nums">
+              Page {{ currentPage }} / {{ pageCount }}
+              <span class="ml-2 text-zinc-400">
+                {{ pageStart }}–{{ pageEnd }} of {{ filteredRankingRows.length.toLocaleString() }}
+              </span>
             </span>
-          </span>
-          <div class="flex gap-1">
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-chevron-left"
-              :disabled="currentPage <= 1"
-              @click="currentPage -= 1"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              trailing-icon="i-lucide-chevron-right"
-              :disabled="currentPage >= pageCount"
-              @click="currentPage += 1"
-            />
+            <div class="flex gap-1">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-chevron-left"
+                :disabled="currentPage <= 1"
+                @click="currentPage -= 1"
+              />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                trailing-icon="i-lucide-chevron-right"
+                :disabled="currentPage >= pageCount"
+                @click="currentPage += 1"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </template>
+      </template>
     </template>
   </div>
 </template>
@@ -368,6 +355,7 @@ import {
   type RecipeTatRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
+import { chipClass } from '~/utils/chipClass'
 import { downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
@@ -376,10 +364,12 @@ const props = defineProps<{
   toolType: RecipeTatToolType
 }>()
 
-// Empty so the first request inherits the server's default; computing
-// "today" locally would drift past the mock's ANCHOR_TIME for long-running
-// Flask processes. The watcher below mirrors the resolved window back.
-const dateRange = ref({ start: '', end: '' })
+const pageTitle = computed(() => `${props.toolLabel} - ${props.fab || '—'}`)
+
+// Empty means "let the server resolve its default window"; computing
+// "today" locally drifts past the mock's ANCHOR_TIME for long-running
+// Flask processes.
+const userDateRange = ref({ start: '', end: '' })
 
 const topNOptions = [
   { label: 'Top 10', value: '10' },
@@ -416,8 +406,8 @@ const {
 const queryParams = computed(() => ({
   toolType: props.toolType,
   fabId: props.fab || undefined,
-  startDate: dateRange.value.start || undefined,
-  endDate: dateRange.value.end || undefined,
+  startDate: userDateRange.value.start || undefined,
+  endDate: userDateRange.value.end || undefined,
   limit: 1000,
   lotCd: viewMode.value === 'by-device' ? (selectedLot.value ?? undefined) : undefined
 }))
@@ -456,10 +446,6 @@ const { data: devicesData } = await useAsyncData(
   { watch: [devicesCacheKey] }
 )
 
-const chipClass = (active: boolean) => active
-  ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-  : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'
-
 const deviceList = computed(() => devicesData.value?.devices ?? [])
 
 // Pick the categorical attribute the picker should narrow by — R3 lots
@@ -487,7 +473,7 @@ const filteredDeviceList = computed(() => {
   const field = categoryField.value
   if (!field || selectedCategories.value.length === 0) return deviceList.value
   const allowed = new Set(selectedCategories.value)
-  return deviceList.value.filter(d => {
+  return deviceList.value.filter((d) => {
     const value = d[field]
     return value !== null && allowed.has(value)
   })
@@ -539,22 +525,29 @@ const rankingLimit = computed(() => data.value?.ranking.limit ?? 0)
 const summary = computed(() => data.value?.summary)
 const trendPoints = computed(() => data.value?.daily.points ?? [])
 
-// Mirror the server-resolved window into `dateRange` so the popover has
-// concrete values; equality guard prevents an extra refetch.
-watch(data, (next) => {
-  if (!next) return
-  const start = next.summary.start_date
-  const end = next.summary.end_date
-  if (!start || !end) return
-  if (dateRange.value.start === start && dateRange.value.end === end) return
-  dateRange.value = { start, end }
-}, { immediate: true })
+// Falling back to the server-resolved window only inside the getter (vs.
+// mirroring it into a ref) keeps echoed dates out of `userDateRange` and
+// therefore out of `cacheKey`, avoiding a redundant refetch on first load.
+const dateRange = computed({
+  get: () => {
+    if (userDateRange.value.start && userDateRange.value.end) {
+      return userDateRange.value
+    }
+    return {
+      start: data.value?.summary.start_date ?? '',
+      end: data.value?.summary.end_date ?? ''
+    }
+  },
+  set: (next) => {
+    userDateRange.value = next
+  }
+})
 
 // Clear selection on scope change — without this, ranking/summary/daily-trend
 // keep filtering by a stale lot_cd that's invisible in the refetched picker,
 // silently producing empty / misleading numbers.
 watch(
-  () => [props.fab, dateRange.value.start, dateRange.value.end],
+  () => [props.fab, userDateRange.value.start, userDateRange.value.end],
   () => {
     if (selectedLot.value === null && lotSearch.value === '' && selectedCategories.value.length === 0) return
     selectedLot.value = null

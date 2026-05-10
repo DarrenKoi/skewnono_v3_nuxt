@@ -53,15 +53,14 @@ const systemStatus = computed(() => {
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold mb-2">
-            기반기술센터 SKEWNONO v3
+            측정 데이터 검색, 분석, 상태 확인을 한 곳에서
           </p>
           <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">
-            - Metrology Solution -
+            METROLOGY WORKSPACE
           </h1>
         </div>
         <HomeBackendHealthCard
           :services="healthData?.services ?? []"
-          :checked-at="healthData?.checked_at ?? ''"
           :error="!!healthError"
         />
       </div>

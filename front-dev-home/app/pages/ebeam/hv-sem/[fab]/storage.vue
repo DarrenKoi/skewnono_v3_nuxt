@@ -15,9 +15,15 @@ watch(fabId, (next) => {
 </script>
 
 <template>
-  <EbeamStorageView
-    :fab="fabId"
-    tool-label="HV-SEM"
-    tool-type="hv-sem"
-  />
+  <div class="space-y-3">
+    <EbeamStorageView
+      :fab="fabId"
+      tool-label="HV-SEM"
+      tool-type="hv-sem"
+    >
+      <template #below-title>
+        <EbeamEquipmentStatusSubTabs />
+      </template>
+    </EbeamStorageView>
+  </div>
 </template>

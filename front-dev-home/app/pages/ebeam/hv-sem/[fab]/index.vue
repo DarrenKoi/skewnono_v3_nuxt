@@ -18,10 +18,16 @@ watch(() => route.params.fab, (newFab) => {
 </script>
 
 <template>
-  <EbeamToolInventoryView
-    tool-type="hv-sem"
-    :fab="fabId"
-    :title="`HV-SEM - ${fabId}`"
-    subtitle="Mocked backend inventory filtered by fab."
-  />
+  <div class="space-y-3">
+    <EbeamToolInventoryView
+      tool-type="hv-sem"
+      :fab="fabId"
+      :title="`HV-SEM - ${fabId}`"
+      subtitle="전산 시스템에 등록된 장비 기준으로 보여줍니다. 업데이트 주기: 1시간"
+    >
+      <template #below-title>
+        <EbeamEquipmentStatusSubTabs />
+      </template>
+    </EbeamToolInventoryView>
+  </div>
 </template>

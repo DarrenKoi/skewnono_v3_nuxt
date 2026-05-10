@@ -114,7 +114,7 @@ skewnono blueprint 컨벤션 (`/api/sem-list`, `/api/tool-inventory`) 에 맞춰
 기존 3-RotatingFileHandler 시스템은 Phase 1 mock 환경에 과도합니다.
 
 - 표준 `logging.getLogger("skewnono.afm")` 으로 통일합니다.
-- `back_dev_home/_core/` 에 `logging_config.py` 를 두고 모든 feature 가 공유합니다.
+- 공통 로깅 설정이 필요해지면 `back_dev_home/logging_config.py` 같은 명시적인 모듈로 둡니다.
 - activity 로그는 *파일 파싱 의존*에서 *메모리 또는 SQLite* 기반으로 단계적으로 이전합니다. 마이그레이션 첫 단계에서는 빈 리스트를 돌려주는 stub 으로 두고, 활동 추적 기능은 후속 작업으로 분리합니다.
 
 ### 3.6 `LASTUSER` 쿠키 의존성

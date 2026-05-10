@@ -21,7 +21,7 @@ Key backend paths:
 - `index.py` (repo root): WSGI entry that exposes `app` and `application`; imports `create_app` from `back_dev_home`.
 - `wsgi.ini` (repo root): uWSGI config (`module = index`, `callable = application`).
 - `back_dev_home/__init__.py`: Flask app factory; registers each feature's blueprint under `/api`.
-- `back_dev_home/_core/`: cross-feature infrastructure (health check, shared utilities).
+- `back_dev_home/health/`: service health API for backend dependencies.
 - `back_dev_home/<feature>/routes.py`: blueprint + route handlers for one Nuxt-tab-aligned feature.
 - `back_dev_home/<feature>/data.py`: data-access layer for that feature — Phase 1 mock, swapped for a real implementation in Phase 2/3.
 

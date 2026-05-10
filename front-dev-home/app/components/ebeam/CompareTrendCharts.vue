@@ -114,12 +114,8 @@
 </template>
 
 <script setup lang="ts">
-import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import type { SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
-import { registerEchartsThemes } from '~/utils/echartsThemes'
-
-registerEchartsThemes(echarts)
 
 const props = defineProps<{
   lotCds: string[]

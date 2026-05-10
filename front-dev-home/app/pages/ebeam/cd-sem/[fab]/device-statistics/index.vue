@@ -1,16 +1,12 @@
 <template>
   <div class="space-y-3">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            CD-SEM
-          </p>
-          <h1 class="text-2xl font-bold whitespace-nowrap text-zinc-950 dark:text-zinc-50">
-            {{ text.title }}
-          </h1>
-        </div>
-        <div class="hidden h-9 w-px self-end mb-1 bg-zinc-200 dark:bg-zinc-700 md:block" />
+    <EbeamFeatureHeader
+      :stats="statCells"
+      stat-size="sm"
+      :subtitle="text.title"
+      :title="pageTitle"
+    >
+      <template #meta>
         <div
           role="radiogroup"
           :aria-label="text.fabSelect"
@@ -29,23 +25,8 @@
             {{ option.label }}
           </button>
         </div>
-      </div>
-
-      <div class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto">
-        <div
-          v-for="(cell, index) in statCells"
-          :key="cell.label"
-          class="flex min-w-[72px] flex-col gap-0.5 px-4 py-2.5"
-          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-        >
-          <span
-            class="text-xl font-bold leading-none tabular-nums"
-            :class="cell.tone"
-          >{{ cell.value }}</span>
-          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
-        </div>
-      </div>
-    </div>
+      </template>
+    </EbeamFeatureHeader>
 
     <!-- Step 1 — Quick filter strip -->
     <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
@@ -323,6 +304,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
 import type { DevicePreset } from '~/composables/useDevicePresets'
+import { chipClass } from '~/utils/chipClass'
 
 definePageMeta({
   hideFabSidebar: true
@@ -419,6 +401,7 @@ const readSavedStringArray = (storageKey: string): string[] => {
 }
 
 const selectedFab = ref<DeviceFab>(readSavedFab() ?? routeFab.value)
+const pageTitle = computed(() => `CD-SEM - ${selectedFab.value}`)
 const selectedProdCategories = ref<string[]>(readSavedStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY))
 const selectedLots = ref<string[]>(readSavedStringArray(SELECTED_LOTS_STORAGE_KEY))
 const selectedTechs = ref<string[]>(readSavedStringArray(SELECTED_TECHS_STORAGE_KEY))
@@ -619,11 +602,6 @@ const toggleValue = (values: string[], value: string) => {
     ? values.filter(currentValue => currentValue !== value)
     : [...values, value]
 }
-
-// Step 1 chip strips and the fab radiogroup share the same accent-vs-neutral pill style.
-const chipClass = (active: boolean) => active
-  ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-  : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'
 
 const toggleProdCategory = (category: string) => {
   selectedProdCategories.value = toggleValue(selectedProdCategories.value, category)

@@ -21,7 +21,7 @@ export const useNavigation = () => {
   const toolTypeHref = (toolType: ToolType) => {
     const fab = store.fab.value
     return fab && fab !== 'all'
-      ? `/ebeam/${toolType}/${fab.toLowerCase()}`
+      ? `/ebeam/${toolType}/${fab.toLowerCase()}${currentFeaturePath(toolType)}`
       : `/ebeam/${toolType}`
   }
 

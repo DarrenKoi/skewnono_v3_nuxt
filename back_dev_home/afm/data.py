@@ -104,6 +104,20 @@ TOOL_CONFIGS: dict[str, ToolConfig] = {
             "DEP_NITRIDE",
             "ROUGHNESS_SCAN"
         )
+    },
+    "5MAPT01": {
+        "tool_id": "5mapt01",
+        "fab": "M15",
+        "row_count": 30,
+        "lot_prefixes": ("M15AFM", "M15CMP", "T01HQR", "M15DEV"),
+        "recipes": (
+            "FSOXCMP_DISHING_9PT",
+            "CMP_PRE",
+            "CMP_POST",
+            "ETCH_GATE",
+            "DEP_OXIDE",
+            "PROFILE_HEIGHT_5PT"
+        )
     }
 }
 

@@ -27,7 +27,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 ### 2.2 백엔드 — 8개 중 6개 피처가 깨끗합니다
 
 `routes.py`가 `from .data import ...` 만 하는 깨끗한 피처:
-`sem_list`, `afm`, `announcements`, `_core`, `cdsem/storage`, `hvsem/storage`.
+`sem_list`, `afm`, `announcements`, `health`, `cdsem/storage`, `hvsem/storage`.
 
 각 `data.py`는 TypedDict로 반환 형태를 명시하고, 고정 시드(`Random(42)` 등)로 결정론적 출력을 보장합니다.
 
@@ -44,8 +44,8 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 | ID | 위치 | 문제 |
 | --- | --- | --- |
 | L1 | `back_dev_home/ebeam/cdsem/device_statistics/routes.py:4` | `routes.py`가 `statistics.py`를 직접 import — `data.py` 우회 |
-| L2 | `back_dev_home/ebeam/recipe_tat/data.py:19` | `device_statistics.statistics._lot_index` 직접 의존 — 피처 간 결합 |
-| L3 | `back_dev_home/ebeam/recipe_tat/data.py:27` | `ANCHOR_TIME = datetime.now(...)` 모듈 로드 시점 고정 — 사무실에서는 실 데이터 max(timestamp) 기준이어야 함 |
+| L2 | `back_dev_home/ebeam/hitachi/recipe_tat/data.py:34` | `cdsem.device_statistics._lot_index` 직접 의존 — 피처 간 결합 (HV-SEM 응답이 CD-SEM 모의 lot 풀을 재사용 중) |
+| L3 | `back_dev_home/ebeam/hitachi/recipe_tat/data.py:54` | `ANCHOR_TIME = datetime.now(...)` 모듈 로드 시점 고정 — 사무실에서는 실 데이터 max(timestamp) 기준이어야 함 |
 | L4 | `useDeviceStatisticsApi.ts`, `useStorageApi.ts` | `joinApiPath` 로컬 재정의 중복 |
 | L5 | `docs/api-contracts/` | 8개 피처 중 2개만 YAML 작성됨 |
 
@@ -170,7 +170,7 @@ L1, L2는 사무실 스왑 직전 정리합니다. L3은 사무실 LLM 프롬프
 
 - `back_dev_home/ebeam/cdsem/device_statistics/data.py` — `statistics.py` 의 공개 심볼(`get_weekly_trend_data`, `_lot_index`)을 재노출(re-export)합니다.
 - `back_dev_home/ebeam/cdsem/device_statistics/routes.py` — `from .data import ...` 만 사용합니다.
-- `back_dev_home/ebeam/recipe_tat/data.py:19` — `device_statistics.data` 에서 `_lot_index` 를 가져옵니다.
+- `back_dev_home/ebeam/hitachi/recipe_tat/data.py:34` — `cdsem.device_statistics.data` 에서 `_lot_index` 를 가져옵니다. HV-SEM 전용 lot pool 도입 시 분리 대상.
 - `front-dev-home/app/composables/useDeviceStatisticsApi.ts`, `useStorageApi.ts` — 공유 `joinApiPath` 사용으로 통일합니다.
 
 ### 6.2 신규 산출물

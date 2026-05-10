@@ -5,7 +5,6 @@
   >
     <div class="sk-health-card__head">
       <span class="sk-health-card__title">시스템 상태</span>
-      <span class="sk-health-card__stamp">{{ stampLabel }}</span>
     </div>
 
     <div class="sk-health-card__summary">
@@ -72,7 +71,6 @@ import type { ServiceHealth, ServiceStatus } from '~/composables/useBackendHealt
 
 const props = defineProps<{
   services: ServiceHealth[]
-  checkedAt: string
   error?: boolean
 }>()
 
@@ -127,51 +125,6 @@ const subline = computed(() => {
 })
 
 const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
-
-// 보이지 않는 동안에는 1Hz 타이머를 멈춥니다 — Vue 가 매초 리액티비티를
-// 플러시하는 것을 막기 위함.
-const now = ref(Date.now())
-let timer: ReturnType<typeof setInterval> | null = null
-
-const startTimer = () => {
-  if (timer) return
-  now.value = Date.now()
-  timer = setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-}
-
-const stopTimer = () => {
-  if (!timer) return
-  clearInterval(timer)
-  timer = null
-}
-
-const onVisibility = () => {
-  if (document.hidden) stopTimer()
-  else startTimer()
-}
-
-onMounted(() => {
-  startTimer()
-  document.addEventListener('visibilitychange', onVisibility)
-})
-
-onBeforeUnmount(() => {
-  stopTimer()
-  document.removeEventListener('visibilitychange', onVisibility)
-})
-
-const stampLabel = computed(() => {
-  if (!props.checkedAt) return 'checking…'
-  const ts = Date.parse(props.checkedAt)
-  if (Number.isNaN(ts)) return 'checking…'
-  const seconds = Math.max(0, Math.round((now.value - ts) / 1000))
-  if (seconds < 1) return 'just now'
-  if (seconds < 60) return `${seconds}초 전 확인`
-  const minutes = Math.floor(seconds / 60)
-  return `${minutes}분 전 확인`
-})
 </script>
 
 <style scoped>
@@ -231,12 +184,6 @@ const stampLabel = computed(() => {
   letter-spacing: 0.2em;
   color: var(--sk-ink-subtle);
   text-transform: uppercase;
-}
-
-.sk-health-card__stamp {
-  font-size: 10px;
-  color: var(--sk-ink-subtle);
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 .sk-health-card__summary {

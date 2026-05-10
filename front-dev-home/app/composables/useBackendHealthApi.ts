@@ -28,50 +28,12 @@ export const useBackendHealthApi = () => {
   return { fetchHealth }
 }
 
-// Polls /api/health/services every 15s. The cadence is a compromise — fast
-// enough that a downed service shows up within a glance, slow enough that the
-// endpoint stays cheap. Pauses while the tab is hidden.
+// One-shot fetch on page mount; useAsyncData handles SSR/payload reuse.
 export const useBackendHealth = () => {
   const { fetchHealth } = useBackendHealthApi()
 
-  const result = useAsyncData(HEALTH_CACHE_KEY, fetchHealth, {
+  return useAsyncData(HEALTH_CACHE_KEY, fetchHealth, {
     default: (): ServicesHealthResponse => ({ checked_at: '', services: [] }),
     getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
   })
-
-  let timer: ReturnType<typeof setInterval> | null = null
-
-  const startTimer = () => {
-    if (timer) return
-    timer = setInterval(() => {
-      result.refresh()
-    }, 15_000)
-  }
-
-  const stopTimer = () => {
-    if (!timer) return
-    clearInterval(timer)
-    timer = null
-  }
-
-  const onVisibility = () => {
-    if (document.hidden) {
-      stopTimer()
-    } else {
-      result.refresh()
-      startTimer()
-    }
-  }
-
-  onMounted(() => {
-    startTimer()
-    document.addEventListener('visibilitychange', onVisibility)
-  })
-
-  onBeforeUnmount(() => {
-    stopTimer()
-    document.removeEventListener('visibilitychange', onVisibility)
-  })
-
-  return result
 }

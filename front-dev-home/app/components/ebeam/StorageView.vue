@@ -1,33 +1,12 @@
 <template>
   <div class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          {{ toolLabel }}
-        </p>
-        <h1 class="text-2xl font-bold text-zinc-950 dark:text-zinc-50">
-          Storage - {{ fab }}
-        </h1>
-        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-          {{ subtitle }}
-        </p>
-      </div>
+    <EbeamFeatureHeader
+      :stats="statCells"
+      :subtitle="subtitle"
+      :title="pageTitle"
+    />
 
-      <div class="dashboard-surface rounded-2xl flex overflow-hidden self-start md:self-auto">
-        <div
-          v-for="(cell, index) in statCells"
-          :key="cell.label"
-          class="px-5 py-2.5 flex flex-col gap-0.5 min-w-[96px]"
-          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-        >
-          <span
-            class="text-[22px] font-bold leading-none tabular-nums"
-            :class="cell.tone"
-          >{{ cell.value }}</span>
-          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
-        </div>
-      </div>
-    </div>
+    <slot name="below-title" />
 
     <UCard
       class="dashboard-surface rounded-2xl"
@@ -344,7 +323,8 @@ const props = defineProps<{
 const storageTool: StorageTool = props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
 const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi(storageTool)
 
-const subtitle = computed(() => `Storage usage for ${props.fab} ${props.toolLabel} tools.`)
+const subtitle = '스토리지 정보 업데이트는 오전 8시에 한번 체크합니다'
+const pageTitle = computed(() => `${props.toolLabel} - ${props.fab}`)
 
 const { data, pending, error } = await useAsyncData(
   () => `storage:${storageTool}:${props.fab}`,

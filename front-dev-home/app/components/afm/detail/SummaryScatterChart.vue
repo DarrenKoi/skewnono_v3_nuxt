@@ -24,9 +24,7 @@
               :key="col"
               type="button"
               class="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-              :class="selectedMeasurements.includes(col)
-                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700'"
+              :class="chipClass(selectedMeasurements.includes(col))"
               @click="toggleMeasurement(col)"
             >
               {{ col }}
@@ -54,17 +52,18 @@
 import type { EChartsOption } from 'echarts'
 import type { AfmSummaryItem, AfmSummaryRow } from '~/composables/useAfmDetailApi'
 import { AFM_SUMMARY_ITEMS } from '~/composables/useAfmDetailApi'
+import { chipClass } from '~/utils/chipClass'
 
 const props = defineProps<{
   summary: AfmSummaryRow[]
 }>()
 
-const statisticItems = AFM_SUMMARY_ITEMS
+const statisticItems = [...AFM_SUMMARY_ITEMS]
 const selectedStatistic = ref<AfmSummaryItem>('MEAN')
 
 const measurementColumns = computed(() => {
   if (!props.summary?.length) return []
-  return Object.keys(props.summary[0]).filter(k => k !== 'Site' && k !== 'ITEM')
+  return Object.keys(props.summary[0]!).filter(k => k !== 'Site' && k !== 'ITEM')
 })
 
 const selectedMeasurements = ref<string[]>([])

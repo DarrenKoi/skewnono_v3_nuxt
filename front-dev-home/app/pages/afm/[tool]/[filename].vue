@@ -104,7 +104,7 @@ const selectedPoint = ref<string>('')
 
 watch(payload, (next) => {
   if (next?.available_points?.length && !selectedPoint.value) {
-    selectedPoint.value = next.available_points[0]
+    selectedPoint.value = next.available_points[0] ?? ''
   }
 }, { immediate: true })
 

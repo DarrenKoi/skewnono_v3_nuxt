@@ -249,14 +249,10 @@
 </template>
 
 <script setup lang="ts">
-import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
 import type { BucketPayload, RecipeInfoRow, SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
 import { summaryToRecipeInfoBucket } from '~/composables/useRecipeStatisticsApi'
-import { registerEchartsThemes } from '~/utils/echartsThemes'
-
-registerEchartsThemes(echarts)
 
 definePageMeta({
   hideFabSidebar: true

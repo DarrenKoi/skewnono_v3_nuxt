@@ -22,7 +22,7 @@ python index.py
 
 Via WSGI (production-style): the repo-root `index.py` exposes `app` and `application` at module level and is imported by `wsgi.ini` as `module = index` + `callable = application`. `uwsgi --ini wsgi.ini` (or an equivalent `gunicorn index:application`) will serve the same Flask app.
 
-Health check: `GET http://localhost:5000/api/health`
+Health check: `GET http://localhost:5000/api/health/services`
 
 ## Frontend integration
 
@@ -43,9 +43,10 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
 |-- wsgi.ini                     # uWSGI config (module=index, callable=application)
 `-- back_dev_home/
     |-- __init__.py              # create_app() factory + feature registration
-    |-- _core/                   # cross-feature infrastructure
+    |-- health/                  # backend dependency health status
     |   |-- __init__.py
-    |   `-- routes.py            # GET /api/health
+    |   |-- routes.py            # GET /api/health/services
+    |   `-- data.py
     |-- afm/                     # tool family: AFM (single-tier feature)
     |   |-- __init__.py
     |   |-- routes.py
@@ -79,13 +80,21 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
 
 ## Office migration (Phase 2)
 
-Replace each feature's `data.py` (e.g. `sem_list/data.py`, `ebeam/cdsem/storage/data.py`) with a module that queries OpenSearch / Redis. `routes.py` stays unchanged — it only consumes `get_sem_list()` etc. via `from .data import ...`, not the data source. Keep function signatures and return shapes stable.
+Replace each feature's `data.py` (e.g. `sem_list/data.py`, `ebeam/hitachi/storage/data.py`) with a module that queries OpenSearch / Redis. `routes.py` stays unchanged — it only consumes `get_sem_list()` etc. via `from .data import ...`, not the data source. Keep function signatures and return shapes stable.
 
 ## Adding a new e-beam tool feature
 
-The `ebeam/<tool>/` folders are **namespaces**, not Blueprints — each sub-feature folder (e.g. `ebeam/cdsem/storage/`) is its own Blueprint. To add a new feature for an existing tool:
+The `ebeam/` layer has three kinds of folders:
 
-1. Create `back_dev_home/ebeam/<tool>/<feature>/` with `__init__.py`, `routes.py`, `data.py`.
-2. In `routes.py`, declare `bp = Blueprint("<tool>_<feature>", __name__)` — the prefix keeps Blueprint names globally unique.
-3. URL paths inside `routes.py` should be prefixed with `/<tool>/...` so the namespace is reflected in the URL too.
-4. Register the new Blueprint in `back_dev_home/__init__.py` under `create_app()`.
+- `ebeam/hitachi/<feature>/` — features shared across CD-SEM and HV-SEM (Hitachi tool family). Routes use Flask's `<tool_slug>` URL converter and produce both `/api/cdsem/<feature>/...` and `/api/hvsem/<feature>/...` endpoints from a single source of truth. Per-tool constants live in `ebeam/hitachi/_tool_specs.py`.
+- `ebeam/cdsem/<feature>/`, `ebeam/hvsem/<feature>/` — features that exist for one tool only (e.g. `cdsem/device_statistics/`). Each sub-feature folder is its own Blueprint.
+
+To add a new feature:
+
+1. Decide whether it is shared (most common) or tool-specific. Most CD-SEM features will eventually need an HV-SEM equivalent — start in `hitachi/` unless the data shape genuinely diverges.
+2. Create `back_dev_home/ebeam/<scope>/<feature>/` with `__init__.py`, `routes.py`, `data.py`.
+3. In `routes.py`, declare `bp = Blueprint("<scope>_<feature>", __name__)` — the prefix keeps Blueprint names globally unique. For shared features, use `bp = Blueprint("hitachi_<feature>", __name__)`.
+4. URL paths inside `routes.py`:
+   - Shared: `@bp.get("/<tool_slug>/<feature>/...")`, validate `tool_slug` against `VALID_TOOL_SLUGS`.
+   - Tool-specific: `@bp.get("/<tool>/<feature>/...")` with the tool name baked in.
+5. The blueprint loader in `back_dev_home/__init__.py` discovers any `routes.py` under the package and registers it under `/api`. No manual registration is needed.

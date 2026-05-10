@@ -10,7 +10,7 @@
 권장 office 구현 (요지):
     redis:      redis.Redis(...).ping()                      # ms = 측정시간
     opensearch: ops_store.create_client().ping()             # ms = 측정시간
-    minio:      minio_handler.create_client().list_buckets() # ms = 측정시간
+    minio:      minio_store.create_client().list_buckets()   # ms = 측정시간
 
 각각 try/except 로 감싸 예외 시 status="down", latency_ms=None, detail=에러 요약.
 """

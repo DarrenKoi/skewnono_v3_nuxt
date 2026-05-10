@@ -27,7 +27,7 @@ types:
     checked_at:
       type: string
       format: "ISO 8601 UTC"
-      description: Timestamp the probe was run — frontend renders relative time ("checked 3s ago")
+      description: Timestamp the probe was run on the server. Frontend currently does not render this; kept in the contract so Phase 2 / 3 can wire it back without a breaking change.
     services:
       type: array
       items: ServiceHealth
@@ -35,7 +35,7 @@ types:
 endpoints:
   - path: /api/health/services
     method: GET
-    description: Snapshot of liveness for the three backing services. Cheap to call; frontend polls every 15s.
+    description: Snapshot of liveness for the three backing services. Cheap to call; frontend fetches once on page mount.
     response:
       status: 200
       body: ServicesHealthResponse
@@ -61,6 +61,6 @@ endpoints:
 
 notes:
   - Phase 1 source is back_dev_home/health/data.py, which returns fixed always-up values for the three services because OpenSearch and MinIO are not reachable from home. Only checked_at varies per request. No fixture is captured because the office response is intrinsically time-varying.
-  - Office implementation should keep the same TypedDict shape and reuse the in-repo helpers — redis-py for Redis (ping()), ops_store.create_client() for OpenSearch (ping() or cluster.health()), minio_handler.create_client() for MinIO (list_buckets() or bucket_exists()). Wrap each in try/except, measure wall-clock around the call, and convert to int ms.
+  - Office implementation should keep the same TypedDict shape and reuse the in-repo helpers — redis-py for Redis (ping()), ops_store.create_client() for OpenSearch (ping() or cluster.health()), minio_store.create_client() for MinIO (list_buckets() or bucket_exists()). Wrap each in try/except, measure wall-clock around the call, and convert to int ms.
   - Map probe results to status — "up" if the probe returned successfully (regardless of latency), "down" if it raised / timed out. Set latency_ms to None on "down".
-  - Endpoint must stay cheap (single-digit ms in the happy path) so the frontend can poll on a 15-second cadence without load.
+  - Endpoint stays cheap (single-digit ms in the happy path) so future polling can be reintroduced without re-architecting if Phase 2 / 3 wants live status.

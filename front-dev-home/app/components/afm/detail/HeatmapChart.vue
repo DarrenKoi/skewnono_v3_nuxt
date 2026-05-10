@@ -52,6 +52,14 @@ const props = defineProps<{
 
 const chartEl = ref<HTMLDivElement | null>(null)
 
+const formatTooltip = (params: unknown) => {
+  const value = (params as { value?: unknown }).value
+  if (!Array.isArray(value)) return ''
+  const [x, y, z] = value
+  if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number') return ''
+  return `x: ${x.toFixed(1)}<br/>y: ${y.toFixed(1)}<br/>z: ${z.toFixed(2)}`
+}
+
 const zRange = computed(() => {
   if (!props.profile.length) return [0, 1]
   let min = Infinity
@@ -66,10 +74,7 @@ const zRange = computed(() => {
 const chartOption = computed<EChartsOption>(() => ({
   grid: { left: 50, right: 60, top: 16, bottom: 36 },
   tooltip: {
-    formatter: (params: { value: [number, number, number] }) => {
-      const [x, y, z] = params.value
-      return `x: ${x.toFixed(1)}<br/>y: ${y.toFixed(1)}<br/>z: ${z.toFixed(2)}`
-    }
+    formatter: formatTooltip
   },
   xAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
   yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },

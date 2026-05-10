@@ -54,7 +54,7 @@ Three-tier configuration management. Database connections, API base URLs, and se
 ### Feature-sliced Backend Layout
 - Each Nuxt feature tab has a matching top-level folder under `back_dev_home/` (e.g. `sem_list/`, `tool_inventory/`).
 - Each feature folder contains `routes.py` (the blueprint + handlers) and `data.py` (the data-access layer). Optional `__init__.py` re-exports `bp` for registration.
-- `back_dev_home/_core/` holds cross-feature infrastructure (health check, shared utilities). Underscore prefix marks it as non-feature.
+- `back_dev_home/health/` owns the backend service health API. Add shared backend helpers only when a concrete feature needs them.
 - `back_dev_home/__init__.py` is the app factory: it creates the Flask app, configures CORS, and registers each feature's blueprint under `/api`.
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `<feature>/data.py`.
 

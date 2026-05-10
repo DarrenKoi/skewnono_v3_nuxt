@@ -91,7 +91,7 @@ const informationEntries = computed(() =>
 
 const measurementColumns = computed(() => {
   if (!props.summary?.length) return []
-  const first = props.summary[0]
+  const first = props.summary[0]!
   return Object.keys(first).filter(k => k !== 'Site' && k !== 'ITEM')
 })
 

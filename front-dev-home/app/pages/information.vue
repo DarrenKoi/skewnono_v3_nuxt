@@ -137,10 +137,10 @@ const runtimeConfigRows = [
 const apiEndpoints: ApiEndpoint[] = [
   {
     method: 'GET',
-    path: '/api/health',
-    purpose: 'Flask 백엔드가 정상적으로 응답하는지 확인합니다.',
-    response: '{ "status": "ok" }',
-    example: 'curl http://localhost:5000/api/health'
+    path: '/api/health/services',
+    purpose: 'Redis, OpenSearch, MinIO 같은 백엔드 서비스 상태 요약을 반환합니다.',
+    response: 'ServicesHealthResponse',
+    example: 'curl http://localhost:5000/api/health/services'
   },
   {
     method: 'GET',

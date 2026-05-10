@@ -1,104 +1,234 @@
-// Theme objects mirror app/assets/echarts-theme/{vintage,dark}.js. The
-// originals are UMD files that rely on `root.echarts`; in Vite/ESM `root` is
-// undefined so we replicate the same theme objects here for ESM consumers.
-// Importing this file does NOT pull echarts into the bundle — the caller
-// passes its echarts module in.
-
 type EchartsModule = { registerTheme: (name: string, theme: object) => void }
 
-const vintageColorPalette = [
+export type EchartThemeName = 'vintage' | 'dark' | 'macarons' | 'infographic' | 'shine' | 'roma'
+export type EchartThemeSelection = 'default' | EchartThemeName
+
+type ThemeOption = {
+  value: EchartThemeSelection
+  label: string
+  fileName: string
+  description: string
+  colors: readonly string[]
+  backgroundColor: string
+  textColor: string
+}
+
+export const ECHART_THEME_STORAGE_KEY = 'skewnono:echarts-theme'
+export const DEFAULT_ECHART_THEME_SELECTION: EchartThemeSelection = 'default'
+
+const vintageColors = [
   '#d87c7c',
   '#919e8b',
   '#d7ab82',
   '#6e7074',
   '#61a0a8',
-  '#efa18d',
-  '#787464',
-  '#cc7e63',
-  '#724e58',
-  '#4b565b'
-]
+  '#efa18d'
+] as const
 
-const vintageTheme = {
-  color: vintageColorPalette,
-  backgroundColor: '#fef8ef',
-  graph: {
-    color: vintageColorPalette
-  }
-}
-
-const darkContrastColor = '#B9B8CE'
-const darkBackgroundColor = '#100C2A'
-
-const darkAxisCommon = () => ({
-  axisLine: { lineStyle: { color: darkContrastColor } },
-  splitLine: { lineStyle: { color: '#484753' } },
-  splitArea: { areaStyle: { color: ['rgba(255,255,255,0.02)', 'rgba(255,255,255,0.05)'] } },
-  minorSplitLine: { lineStyle: { color: '#20203B' } }
-})
-
-const darkColorPalette = [
+const darkColors = [
   '#4992ff',
   '#7cffb2',
   '#fddd60',
   '#ff6e76',
   '#58d9f9',
-  '#05c091',
-  '#ff8a45',
-  '#8d48e3',
-  '#dd79ff'
-]
+  '#05c091'
+] as const
 
-const darkTheme = {
-  darkMode: true,
-  color: darkColorPalette,
-  backgroundColor: darkBackgroundColor,
-  axisPointer: {
-    lineStyle: { color: '#817f91' },
-    crossStyle: { color: '#817f91' },
-    label: { color: '#fff' }
+const macaronsColors = [
+  '#2ec7c9',
+  '#b6a2de',
+  '#5ab1ef',
+  '#ffb980',
+  '#d87a80',
+  '#8d98b3'
+] as const
+
+const infographicColors = [
+  '#C1232B',
+  '#27727B',
+  '#FCCE10',
+  '#E87C25',
+  '#B5C334',
+  '#FE8463'
+] as const
+
+const shineColors = [
+  '#c12e34',
+  '#e6b600',
+  '#0098d9',
+  '#2b821d',
+  '#005eaa',
+  '#339ca8'
+] as const
+
+const romaColors = [
+  '#E01F54',
+  '#001852',
+  '#f5e8c8',
+  '#b8d2c7',
+  '#c6b38e',
+  '#a4d8c2'
+] as const
+
+export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
+  {
+    value: 'default',
+    label: 'Default',
+    fileName: 'vintage.js / dark.js',
+    description: 'Keeps the current app behavior: vintage in light mode and dark in dark mode.',
+    colors: ['#d87c7c', '#919e8b', '#fef8ef', '#100C2A', '#4992ff', '#7cffb2'],
+    backgroundColor: '#fef8ef',
+    textColor: '#3f3a34'
   },
-  legend: { textStyle: { color: darkContrastColor } },
-  textStyle: { color: darkContrastColor },
-  title: {
-    textStyle: { color: '#EEF1FA' },
-    subtextStyle: { color: '#B9B8CE' }
+  {
+    value: 'vintage',
+    label: 'Vintage',
+    fileName: 'vintage.js',
+    description: 'Warm paper-like background with muted red, green, and ochre chart colors.',
+    colors: vintageColors,
+    backgroundColor: '#fef8ef',
+    textColor: '#3f3a34'
   },
-  toolbox: { iconStyle: { borderColor: darkContrastColor } },
-  visualMap: { textStyle: { color: darkContrastColor } },
-  timeline: {
-    lineStyle: { color: darkContrastColor },
-    label: { color: darkContrastColor },
-    controlStyle: { color: darkContrastColor, borderColor: darkContrastColor }
+  {
+    value: 'dark',
+    label: 'Dark',
+    fileName: 'dark.js',
+    description: 'High-contrast dark canvas with bright blue, green, yellow, and red accents.',
+    colors: darkColors,
+    backgroundColor: '#100C2A',
+    textColor: '#EEF1FA'
   },
-  calendar: {
-    itemStyle: { color: darkBackgroundColor },
-    dayLabel: { color: darkContrastColor },
-    monthLabel: { color: darkContrastColor },
-    yearLabel: { color: darkContrastColor }
+  {
+    value: 'macarons',
+    label: 'Macarons',
+    fileName: 'macarons.js',
+    description: 'Soft pastel palette for dashboards that need a lighter, gentler tone.',
+    colors: macaronsColors,
+    backgroundColor: '#ffffff',
+    textColor: '#1f2937'
   },
-  timeAxis: darkAxisCommon(),
-  logAxis: darkAxisCommon(),
-  valueAxis: darkAxisCommon(),
-  categoryAxis: { ...darkAxisCommon(), splitLine: { show: false } },
-  line: { symbol: 'circle' },
-  graph: { color: darkColorPalette },
-  gauge: { title: { color: darkContrastColor } },
-  candlestick: {
-    itemStyle: {
-      color: '#FD1050',
-      color0: '#0CF49B',
-      borderColor: '#FD1050',
-      borderColor0: '#0CF49B'
-    }
+  {
+    value: 'infographic',
+    label: 'Infographic',
+    fileName: 'infographic.js',
+    description: 'Bold red, teal, yellow, and orange colors suited to presentation-style charts.',
+    colors: infographicColors,
+    backgroundColor: '#ffffff',
+    textColor: '#1f2937'
+  },
+  {
+    value: 'shine',
+    label: 'Shine',
+    fileName: 'shine.js',
+    description: 'Strong primary colors with a crisp business-report feel.',
+    colors: shineColors,
+    backgroundColor: '#ffffff',
+    textColor: '#1f2937'
+  },
+  {
+    value: 'roma',
+    label: 'Roma',
+    fileName: 'roma.js',
+    description: 'Deep red and navy with muted cream and green supporting colors.',
+    colors: romaColors,
+    backgroundColor: '#ffffff',
+    textColor: '#1f2937'
   }
+] as const
+
+const axisLine = (color: string) => ({
+  axisLine: { lineStyle: { color } },
+  splitLine: { lineStyle: { color: `${color}33` } }
+})
+
+const createLightTheme = (colors: readonly string[], axisColor: string) => ({
+  color: [...colors],
+  title: {
+    textStyle: {
+      fontWeight: 'normal'
+    }
+  },
+  tooltip: {
+    backgroundColor: 'rgba(50,50,50,0.72)',
+    textStyle: {
+      color: '#fff'
+    }
+  },
+  categoryAxis: axisLine(axisColor),
+  valueAxis: axisLine(axisColor),
+  line: {
+    symbol: 'circle'
+  },
+  graph: {
+    color: [...colors]
+  }
+})
+
+const themes: Record<EchartThemeName, object> = {
+  vintage: {
+    color: [...vintageColors],
+    backgroundColor: '#fef8ef',
+    graph: {
+      color: [...vintageColors]
+    }
+  },
+  dark: {
+    darkMode: true,
+    color: [...darkColors],
+    backgroundColor: '#100C2A',
+    legend: {
+      textStyle: {
+        color: '#B9B8CE'
+      }
+    },
+    textStyle: {
+      color: '#B9B8CE'
+    },
+    title: {
+      textStyle: {
+        color: '#EEF1FA'
+      },
+      subtextStyle: {
+        color: '#B9B8CE'
+      }
+    },
+    categoryAxis: {
+      ...axisLine('#B9B8CE'),
+      splitLine: {
+        show: false
+      }
+    },
+    valueAxis: axisLine('#B9B8CE'),
+    line: {
+      symbol: 'circle'
+    },
+    graph: {
+      color: [...darkColors]
+    }
+  },
+  macarons: createLightTheme(macaronsColors, '#008acd'),
+  infographic: createLightTheme(infographicColors, '#27727B'),
+  shine: createLightTheme(shineColors, '#06467c'),
+  roma: createLightTheme(romaColors, '#001852')
 }
 
 let registered = false
 
+export const isEchartThemeSelection = (value: unknown): value is EchartThemeSelection =>
+  ECHART_THEME_OPTIONS.some(option => option.value === value)
+
+export const resolveEchartThemeName = (
+  selection: EchartThemeSelection,
+  colorMode: string
+): EchartThemeName => {
+  if (selection !== 'default') return selection
+  return colorMode === 'dark' ? 'dark' : 'vintage'
+}
+
 export const registerEchartsThemes = (echarts: EchartsModule) => {
   if (registered) return
-  echarts.registerTheme('vintage', vintageTheme)
-  echarts.registerTheme('dark', darkTheme)
+  Object.entries(themes).forEach(([name, theme]) => {
+    echarts.registerTheme(name, theme)
+  })
   registered = true
 }

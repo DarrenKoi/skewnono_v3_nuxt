@@ -18,16 +18,20 @@ definePageMeta({
           </h2>
         </template>
 
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="font-medium">
-              Theme
-            </p>
-            <p class="text-sm text-gray-500">
-              Select your preferred color theme
-            </p>
+        <div class="space-y-6">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="font-medium">
+                App color mode
+              </p>
+              <p class="text-sm text-gray-500 dark:text-zinc-400">
+                Select the interface color mode.
+              </p>
+            </div>
+            <UColorModeSelect />
           </div>
-          <UColorModeSelect />
+
+          <SettingsEchartThemeSelector />
         </div>
       </UCard>
 

@@ -13,13 +13,31 @@ const MIN_SEARCH_LENGTH = 3
 const DEFAULT_PAGE_SIZE = '50'
 
 const { fetchRecipeList } = useRecipeSearchApi()
-const { recentSearches, recordRecentSearch, removeRecentSearch, clearRecentSearches } =
-  useRecipeRecentSearches(props.toolType, props.fab)
+const {
+  recentSearches,
+  recordRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches
+} = useRecipeRecentSearches(props.toolType, props.fab)
+const route = useRoute()
 const router = useRouter()
 
-const query = ref('')
-const pageSize = ref(DEFAULT_PAGE_SIZE)
-const currentPage = ref(1)
+const readStringQuery = (key: string) => {
+  const raw = route.query[key]
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return typeof value === 'string' ? value : ''
+}
+
+const readPageQuery = () => {
+  const parsed = Number.parseInt(readStringQuery('page'), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+const initialPageSize = readStringQuery('size') || DEFAULT_PAGE_SIZE
+
+const query = ref(readStringQuery('q'))
+const pageSize = ref(initialPageSize)
+const currentPage = ref(readPageQuery())
 
 const cacheKey = computed(() => `recipe-search:${props.toolType}:${props.fab || 'ALL'}`)
 
@@ -102,8 +120,21 @@ const searchHelp = computed(() => {
   return `${filteredCount.value.toLocaleString()}개 검색됨`
 })
 
+const pageTitle = computed(() => `${props.toolLabel} - ${props.fab}`)
+
+const headerStats = computed(() => [
+  { label: 'Loaded', value: totalRows.value.toLocaleString(), tone: 'neutral' },
+  { label: 'Matched', value: filteredCount.value.toLocaleString(), tone: 'accent' }
+])
+
 const applyRecentSearch = (value: string) => {
   query.value = value
+}
+
+const commitSearch = () => {
+  if (canSearch.value) {
+    recordRecentSearch(query.value.trim())
+  }
 }
 
 const clearSearch = () => {
@@ -124,9 +155,30 @@ watch(pageCount, (next) => {
   }
 })
 
+watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
+  const nextRouteQuery: Record<string, string> = {}
+
+  for (const [key, value] of Object.entries(route.query)) {
+    if (key === 'q' || key === 'size' || key === 'page') continue
+    if (typeof value === 'string') nextRouteQuery[key] = value
+  }
+
+  if (nextQuery) nextRouteQuery.q = nextQuery
+  if (nextSize && nextSize !== DEFAULT_PAGE_SIZE) nextRouteQuery.size = nextSize
+  if (nextPage > 1) nextRouteQuery.page = String(nextPage)
+
+  if ((route.query.q ?? '') === (nextRouteQuery.q ?? '')
+    && (route.query.size ?? '') === (nextRouteQuery.size ?? '')
+    && (route.query.page ?? '') === (nextRouteQuery.page ?? '')) {
+    return
+  }
+
+  router.replace({ query: nextRouteQuery })
+})
+
 const columns: TableColumn<RecipeSearchRow>[] = [
   { accessorKey: 'recipe_name', header: 'recipe_name', size: 520 },
-  { id: 'open', header: '', size: 132 }
+  { id: 'open', header: '', size: 340 }
 ]
 
 const tableUi = {
@@ -135,73 +187,87 @@ const tableUi = {
   th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
+const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/${subpath}`
+
 const getRecipeDetailRoute = (recipeName: string) => ({
-  path: `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/open`,
-  query: {
-    recipe_name: recipeName
-  }
+  path: recipeSubpath('open'),
+  query: { recipe_name: recipeName }
+})
+
+const getLateralRoute = (recipeName: string) => ({
+  path: recipeSubpath('lateral'),
+  query: { recipe_name: recipeName }
+})
+
+const getMeasHistRoute = (recipeName: string) => ({
+  path: recipeSubpath('meas-hist'),
+  query: { recipe_name: recipeName }
 })
 
 const openRecipeDetail = (recipeName: string) => {
   recordRecentSearch(query.value.trim())
   router.push(getRecipeDetailRoute(recipeName))
 }
+
+const openLateral = (recipeName: string) => {
+  recordRecentSearch(query.value.trim())
+  router.push(getLateralRoute(recipeName))
+}
+
+const openMeasHist = (recipeName: string) => {
+  recordRecentSearch(query.value.trim())
+  router.push(getMeasHistRoute(recipeName))
+}
 </script>
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          {{ toolLabel }}
-        </p>
-        <h1 class="text-2xl font-bold text-zinc-950 dark:text-zinc-50">
-          Recipe 검색 - {{ fab }}
-        </h1>
-        <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          API에서 받은 {{ totalRows.toLocaleString() }}개 recipe 이름을 검색합니다.
-        </p>
-      </div>
+    <EbeamFeatureHeader
+      :stats="headerStats"
+      :subtitle="`API에서 받은 ${totalRows.toLocaleString()}개 recipe 이름을 검색합니다.`"
+      :title="pageTitle"
+    />
 
-      <div class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto">
-        <div class="flex min-w-[112px] flex-col gap-0.5 px-5 py-2.5">
-          <span class="text-[22px] font-bold leading-none tabular-nums text-zinc-900 dark:text-zinc-100">
-            {{ totalRows.toLocaleString() }}
-          </span>
-          <span class="text-[11px] text-zinc-500">Loaded</span>
-        </div>
-        <div class="flex min-w-[112px] flex-col gap-0.5 border-l border-zinc-200/70 px-5 py-2.5 dark:border-zinc-800/70">
-          <span class="text-[22px] font-bold leading-none tabular-nums text-(--sk-accent)">
-            {{ filteredCount.toLocaleString() }}
-          </span>
-          <span class="text-[11px] text-zinc-500">Matched</span>
-        </div>
-      </div>
-    </div>
-
-    <section class="dashboard-surface rounded-2xl px-4 py-3">
-      <div class="flex items-center gap-2">
-        <UInput
-          v-model="query"
-          class="flex-1"
-          size="lg"
-          icon="i-lucide-search"
-          color="neutral"
-          variant="subtle"
-          type="search"
-          autocomplete="off"
-          placeholder="Recipe 이름 검색 (예: ABC, 123, RACE/DEAE)"
+    <section class="dashboard-surface rounded-2xl p-5">
+      <form
+        class="group flex h-12 w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 shadow-sm transition focus-within:border-zinc-300 focus-within:ring-4 focus-within:ring-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-within:border-zinc-700 dark:focus-within:ring-zinc-800/70"
+        @submit.prevent="commitSearch"
+      >
+        <UIcon
+          name="i-lucide-search"
+          class="h-5 w-5 shrink-0 text-zinc-400"
         />
+        <input
+          v-model="query"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          class="min-w-0 flex-1 bg-transparent text-sm text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+          aria-label="Search recipes"
+          placeholder="Recipe 이름 검색 (예: ABC, 123, RACE/DEAE)"
+        >
         <UButton
           v-if="query"
-          size="sm"
+          type="button"
+          size="xs"
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
-          label="Clear"
+          aria-label="Clear search"
+          class="rounded-full"
           @click="clearSearch"
         />
-      </div>
+        <UButton
+          type="submit"
+          size="xs"
+          color="neutral"
+          variant="solid"
+          icon="i-lucide-arrow-right"
+          aria-label="Save search"
+          class="rounded-full"
+          :disabled="!canSearch"
+        />
+      </form>
 
       <div
         v-if="recentSearches.length"
@@ -228,7 +294,10 @@ const openRecipeDetail = (recipeName: string) => {
             :aria-label="`Remove ${term} from recent searches`"
             @click.stop="removeRecentSearch(term)"
           >
-            <UIcon name="i-lucide-x" class="h-3 w-3" />
+            <UIcon
+              name="i-lucide-x"
+              class="h-3 w-3"
+            />
           </button>
         </div>
         <UButton
@@ -355,14 +424,32 @@ const openRecipeDetail = (recipeName: string) => {
         </template>
 
         <template #open-cell="{ row }">
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-file-search"
-            label="자세히 보기"
-            @click="openRecipeDetail(row.original.recipe_name)"
-          />
+          <div class="flex flex-wrap items-center gap-1.5">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-file-search"
+              label="열어 보기"
+              @click="openRecipeDetail(row.original.recipe_name)"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-network"
+              label="횡전개"
+              @click="openLateral(row.original.recipe_name)"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-history"
+              label="측정 이력"
+              @click="openMeasHist(row.original.recipe_name)"
+            />
+          </div>
         </template>
       </UTable>
 

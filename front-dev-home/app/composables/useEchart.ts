@@ -1,6 +1,7 @@
 import * as echarts from 'echarts'
 import type { ComputedRef, Ref } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
+import { registerEchartsThemes } from '~/utils/echartsThemes'
 
 interface UseEchartOptions {
   // Fired when a series element (e.g. a bar) is clicked. Receives the
@@ -14,8 +15,9 @@ export const useEchart = (
   optionRef: ComputedRef<EChartsOption>,
   options: UseEchartOptions = {}
 ) => {
-  const colorMode = useColorMode()
-  const themeName = computed(() => colorMode.value === 'dark' ? 'dark' : 'vintage')
+  registerEchartsThemes(echarts)
+
+  const { resolvedThemeName } = useEchartsTheme()
 
   let chart: ECharts | null = null
   let resizeHandler: (() => void) | null = null
@@ -32,7 +34,7 @@ export const useEchart = (
 
   const ensureChart = () => {
     if (chart || !elRef.value) return
-    chart = echarts.init(elRef.value, themeName.value)
+    chart = echarts.init(elRef.value, resolvedThemeName.value)
     chart.setOption(optionRef.value)
     bindClick()
     if (!resizeHandler) {
@@ -65,10 +67,10 @@ export const useEchart = (
   // ECharts binds a theme at init time; swapping themes requires
   // dispose + re-init on the same DOM node. Click handler is bound to the
   // instance, so it must be re-attached after re-init.
-  watch(themeName, () => {
+  watch(resolvedThemeName, () => {
     if (!elRef.value) return
     chart?.dispose()
-    chart = echarts.init(elRef.value, themeName.value)
+    chart = echarts.init(elRef.value, resolvedThemeName.value)
     chart.setOption(optionRef.value)
     bindClick()
   })

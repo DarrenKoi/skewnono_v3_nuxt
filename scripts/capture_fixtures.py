@@ -53,26 +53,19 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     ("ebeam/cdsem/device_statistics", "recipe-trend.json",
      "/api/cdsem/device-statistics/recipe-trend?lot_cds=R000,R001"),
 
-    # cdsem storage
-    ("ebeam/cdsem/storage", "storage.json", "/api/cdsem/storage"),
-    ("ebeam/cdsem/storage", "storage-r3.json", "/api/cdsem/storage?fac_id=R3"),
-    ("ebeam/cdsem/storage", "storage-unavailable.json", "/api/cdsem/storage-unavailable"),
+    # hitachi storage (shared CD-SEM / HV-SEM)
+    ("ebeam/hitachi/storage", "storage-cdsem.json", "/api/cdsem/storage"),
+    ("ebeam/hitachi/storage", "storage-cdsem-r3.json", "/api/cdsem/storage?fac_id=R3"),
+    ("ebeam/hitachi/storage", "storage-cdsem-unavailable.json", "/api/cdsem/storage-unavailable"),
+    ("ebeam/hitachi/storage", "storage-hvsem.json", "/api/hvsem/storage"),
+    ("ebeam/hitachi/storage", "storage-hvsem-unavailable.json", "/api/hvsem/storage-unavailable"),
 
-    # hvsem storage
-    ("ebeam/hvsem/storage", "storage.json", "/api/hvsem/storage"),
-    ("ebeam/hvsem/storage", "storage-unavailable.json", "/api/hvsem/storage-unavailable"),
-
-    # recipe-tat
-    ("ebeam/recipe_tat", "ranking-cdsem.json",
-     "/api/cdsem/recipe-tat/ranking?tool_type=cd-sem"),
-    ("ebeam/recipe_tat", "ranking-hvsem.json",
-     "/api/cdsem/recipe-tat/ranking?tool_type=hv-sem"),
-    ("ebeam/recipe_tat", "summary-cdsem.json",
-     "/api/cdsem/recipe-tat/summary?tool_type=cd-sem"),
-    ("ebeam/recipe_tat", "daily-trend-cdsem.json",
-     "/api/cdsem/recipe-tat/daily-trend?tool_type=cd-sem"),
-    ("ebeam/recipe_tat", "devices-cdsem.json",
-     "/api/cdsem/recipe-tat/devices?tool_type=cd-sem"),
+    # hitachi recipe-tat (tool_slug in URL; URL is authoritative)
+    ("ebeam/hitachi/recipe_tat", "ranking-cdsem.json", "/api/cdsem/recipe-tat/ranking"),
+    ("ebeam/hitachi/recipe_tat", "ranking-hvsem.json", "/api/hvsem/recipe-tat/ranking"),
+    ("ebeam/hitachi/recipe_tat", "summary-cdsem.json", "/api/cdsem/recipe-tat/summary"),
+    ("ebeam/hitachi/recipe_tat", "daily-trend-cdsem.json", "/api/cdsem/recipe-tat/daily-trend"),
+    ("ebeam/hitachi/recipe_tat", "devices-cdsem.json", "/api/cdsem/recipe-tat/devices"),
 ]
 
 

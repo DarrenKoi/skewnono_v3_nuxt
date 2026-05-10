@@ -27,6 +27,17 @@
           </span>
         </UButton>
         <UButton
+          to="/activity"
+          icon="i-lucide-circle-user-round"
+          color="neutral"
+          variant="ghost"
+          aria-label="내 활동 / 리더보드"
+        >
+          <span class="hidden sm:inline">
+            활동
+          </span>
+        </UButton>
+        <UButton
           to="/settings"
           icon="i-lucide-settings"
           color="neutral"

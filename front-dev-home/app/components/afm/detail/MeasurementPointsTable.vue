@@ -19,10 +19,8 @@
             v-for="point in availablePoints"
             :key="point"
             type="button"
-            class="inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-medium ring-1 transition-colors"
-            :class="selectedPoint === point
-              ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-              : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700'"
+            class="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(selectedPoint === point)"
             @click="$emit('update:selectedPoint', point)"
           >
             {{ point }}
@@ -84,6 +82,7 @@
 
 <script setup lang="ts">
 import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
+import { chipClass } from '~/utils/chipClass'
 
 const props = defineProps<{
   data: AfmDetailRow[]

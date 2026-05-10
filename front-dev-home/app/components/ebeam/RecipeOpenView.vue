@@ -7,6 +7,7 @@ import type {
   RecipeSearchToolType,
   WaferMpInfoRow
 } from '~/composables/useRecipeSearchApi'
+import { formatRecipeTimestamp, readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
 
 const props = defineProps<{
   fab: Fab
@@ -26,13 +27,9 @@ type WaferAlignDisplayRow = {
 const route = useRoute()
 const { fetchRecipeDetail } = useRecipeSearchApi()
 
-const recipeName = computed(() => {
-  const raw = route.query.recipe_name
-  const value = Array.isArray(raw) ? raw[0] : raw
-  return typeof value === 'string' ? value.trim() : ''
-})
-
+const recipeName = computed(() => readRecipeNameQuery(route))
 const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
+const { goBack: goBackToList } = useHistoryBack(backRoute)
 const cacheKey = computed(() => `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 
 const { data, pending, error, refresh } = await useAsyncData<RecipeDetailResponse | null>(
@@ -70,18 +67,7 @@ const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 
-const formatTimestamp = (iso: string) => {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  const ss = String(date.getSeconds()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`
-}
+const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso, { withSeconds: true })
 
 const statCells = computed(() => [
   { label: '측정 포인트', value: waferMpRows.value.length },
@@ -132,11 +118,7 @@ const idpImageColumns: TableColumn<IdpImageInfoRow>[] = [
   { accessorKey: 'dnumber_removed', header: 'dnumber_removed', size: 132 }
 ]
 
-const tableUi = {
-  tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis',
-  th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
-}
+const tableUi = recipeTableUi
 </script>
 
 <template>
@@ -144,12 +126,14 @@ const tableUi = {
     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div class="min-w-0">
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
-          variant="ghost"
+          variant="outline"
           icon="i-lucide-arrow-left"
           label="목록으로"
+          class="rounded-full font-semibold"
           :to="backRoute"
+          @click.prevent="goBackToList"
         />
         <p class="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
           {{ toolLabel }} · {{ fab }}

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
-import type { ColumnFiltersState, SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 
@@ -31,69 +29,21 @@ const rowSummary = computed(() => {
 const defaultSortPreset = 'eqp_id:asc'
 
 const globalFilter = ref('')
-const columnFilters = ref<ColumnFiltersState>([])
-const sorting = ref<SortingState>([
-  {
-    id: 'eqp_id',
-    desc: false
-  }
-])
-
-const setColumnFilter = (columnId: keyof SemListRow, value: string) => {
-  const nextFilters = columnFilters.value.filter(filter => filter.id !== columnId)
-
-  if (value !== 'all') {
-    nextFilters.push({
-      id: columnId,
-      value
-    })
-  }
-
-  columnFilters.value = nextFilters
-}
-
-const getColumnFilter = (columnId: keyof SemListRow) => {
-  const filter = columnFilters.value.find(entry => entry.id === columnId)
-
-  return typeof filter?.value === 'string' ? filter.value : 'all'
-}
-
-const availabilityFilter = computed({
-  get: () => getColumnFilter('available'),
-  set: (value: string) => setColumnFilter('available', value)
-})
-
-const modelFilter = computed({
-  get: () => getColumnFilter('eqp_model_cd'),
-  set: (value: string) => setColumnFilter('eqp_model_cd', value)
-})
+const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
+const modelFilter = ref<string>('all')
+const sortPresetRaw = ref(defaultSortPreset)
 
 const sortPreset = computed({
-  get: () => {
-    const currentSort = sorting.value[0]
-
-    if (!currentSort) {
-      return defaultSortPreset
-    }
-
-    return `${currentSort.id}:${currentSort.desc ? 'desc' : 'asc'}`
-  },
+  get: () => sortPresetRaw.value,
   set: (value: string) => {
-    const [columnId = 'eqp_id', direction = 'asc'] = value.split(':')
-
-    sorting.value = [
-      {
-        id: columnId,
-        desc: direction === 'desc'
-      }
-    ]
+    sortPresetRaw.value = value
   }
 })
 
 const availabilityFilterOptions = [
-  { label: 'All Statuses', value: 'all' },
-  { label: 'On', value: 'On' },
-  { label: 'Off', value: 'Off' }
+  { label: 'All', value: 'all' as const },
+  { label: 'On', value: 'On' as const },
+  { label: 'Off', value: 'Off' as const }
 ]
 
 const modelFilterOptions = computed(() => [
@@ -145,108 +95,100 @@ const matchesActiveFilters = (row: SemListRow) => {
 
 const filteredRows = computed(() => rows.value.filter(matchesActiveFilters))
 
-const exportRows = computed(() => {
-  const currentSort = sorting.value[0]
-  const sortedRows = [...filteredRows.value]
+const sortedFilteredRows = computed(() => {
+  const [columnIdRaw = 'eqp_id', direction = 'asc'] = sortPreset.value.split(':')
+  const columnId = columnIdRaw as keyof SemListRow
+  const sign = direction === 'desc' ? -1 : 1
+  const out = [...filteredRows.value]
 
-  if (!currentSort) {
-    return sortedRows
-  }
-
-  const columnId = currentSort.id as keyof SemListRow
-  const direction = currentSort.desc ? -1 : 1
-
-  return sortedRows.sort((left, right) => {
+  out.sort((left, right) => {
     const leftValue = left[columnId]
     const rightValue = right[columnId]
 
     if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return (leftValue - rightValue) * direction
+      return (leftValue - rightValue) * sign
     }
 
-    return sortCollator.compare(String(leftValue), String(rightValue)) * direction
+    return sortCollator.compare(String(leftValue), String(rightValue)) * sign
   })
+
+  return out
 })
 
 const filteredRowCount = computed(() => filteredRows.value.length)
 
+const segmentCounts = computed(() => {
+  // Counts respect search + model filter, so the segmented control reflects what
+  // the user would see if they clicked through. Status itself isn't applied here.
+  const searchTerm = globalFilter.value.trim().toLowerCase()
+  const selectedModel = modelFilter.value
+
+  let all = 0
+  let on = 0
+  let off = 0
+
+  for (const row of rows.value) {
+    const matchesSearch = searchTerm.length === 0 || [
+      row.fac_id, row.fab_name, row.eqp_id, row.eqp_model_cd,
+      row.vendor_nm, row.eqp_ip, String(row.version), row.available
+    ].some(value => value.toLowerCase().includes(searchTerm))
+    const matchesModel = selectedModel === 'all' || row.eqp_model_cd === selectedModel
+
+    if (!matchesSearch || !matchesModel) continue
+
+    all++
+    if (row.available === 'On') on++
+    else if (row.available === 'Off') off++
+  }
+
+  return { all, On: on, Off: off }
+})
+
+type GroupTone = 'ok' | 'off'
+type Group = { tone: GroupTone, label: string, rows: SemListRow[] }
+
+const groupedRows = computed<Group[]>(() => {
+  const off = sortedFilteredRows.value.filter(r => r.available === 'Off')
+  const on = sortedFilteredRows.value.filter(r => r.available === 'On')
+
+  const groups: Group[] = []
+  // Offline first — the only group with implied action.
+  if (off.length > 0) groups.push({ tone: 'off', label: 'Offline', rows: off })
+  if (on.length > 0) groups.push({ tone: 'ok', label: 'Available', rows: on })
+  return groups
+})
+
 const exportFileName = computed(() => {
   const today = new Date().toISOString().slice(0, 10)
-
   return `${props.toolType}-${props.fab.toLowerCase()}-tool-inventory-${today}.csv`
 })
 
 const hasActiveTableControls = computed(() => {
-  return globalFilter.value.length > 0 || columnFilters.value.length > 0 || sortPreset.value !== defaultSortPreset
+  return globalFilter.value.length > 0
+    || availabilityFilter.value !== 'all'
+    || modelFilter.value !== 'all'
+    || sortPreset.value !== defaultSortPreset
 })
 
-const tableMeta = {
-  class: {
-    tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
-  }
-}
-
-type InventoryColumnConfig = {
-  id: keyof SemListRow
-  header: string
-  size: number
-  filterFn?: 'equalsString'
-  sortingFn?: 'basic'
-}
-
-const columnConfigs: InventoryColumnConfig[] = [
-  { id: 'fac_id', header: 'Fac', size: 56 },
-  { id: 'fab_name', header: 'Fab', size: 64, filterFn: 'equalsString' },
-  { id: 'eqp_id', header: 'Equipment ID', size: 130 },
-  { id: 'eqp_model_cd', header: 'Model', size: 140, filterFn: 'equalsString' },
-  { id: 'vendor_nm', header: 'Vendor', size: 86 },
-  { id: 'eqp_ip', header: 'IP Address', size: 150 },
-  { id: 'version', header: 'Version', size: 76, sortingFn: 'basic' },
-  { id: 'available', header: 'Available', size: 100, filterFn: 'equalsString' }
+// CSV columns — keep all 8 fields even though several have been dropped from the UI.
+// Analysts pull this into Excel and want the full record.
+type CsvColumn = { id: keyof SemListRow, header: string }
+const csvColumns: CsvColumn[] = [
+  { id: 'fac_id', header: 'Fac' },
+  { id: 'fab_name', header: 'Fab' },
+  { id: 'eqp_id', header: 'Equipment ID' },
+  { id: 'eqp_model_cd', header: 'Model' },
+  { id: 'vendor_nm', header: 'Vendor' },
+  { id: 'eqp_ip', header: 'IP Address' },
+  { id: 'version', header: 'Version' },
+  { id: 'available', header: 'Available' }
 ]
-
-const columns: TableColumn<SemListRow>[] = columnConfigs.map(({ id, ...column }) => ({
-  accessorKey: id,
-  ...column
-}))
-
-const sortableHeaders = columnConfigs.map(column => ({
-  id: column.id,
-  label: column.header
-}))
-
-const monoColumns: (keyof SemListRow)[] = ['eqp_id', 'eqp_model_cd', 'eqp_ip', 'version']
-const mutedColumns: (keyof SemListRow)[] = ['fac_id', 'fab_name']
-
-const statCells = computed(() => [
-  { label: 'Total Tools', value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
-  { label: 'Online', value: rowSummary.value.online, tone: 'text-(--sk-accent)' },
-  { label: 'Offline', value: rowSummary.value.offline, tone: 'text-zinc-600 dark:text-zinc-400' }
-])
 
 const resetTableControls = () => {
   globalFilter.value = ''
-  columnFilters.value = []
-  sorting.value = [
-    {
-      id: 'eqp_id',
-      desc: false
-    }
-  ]
-}
-
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') {
-    return 'i-lucide-arrow-up-narrow-wide'
-  }
-
-  if (direction === 'desc') {
-    return 'i-lucide-arrow-down-wide-narrow'
-  }
-
-  return 'i-lucide-arrow-up-down'
+  availabilityFilter.value = 'all'
+  modelFilter.value = 'all'
+  sortPresetRaw.value = defaultSortPreset
 }
 
 const escapeCsvValue = (value: string | number) => {
@@ -255,18 +197,16 @@ const escapeCsvValue = (value: string | number) => {
 }
 
 const downloadTableCsv = () => {
-  if (!import.meta.client || exportRows.value.length === 0) {
-    return
-  }
+  if (!import.meta.client || sortedFilteredRows.value.length === 0) return
 
-  const headerRow = columnConfigs.map(column => escapeCsvValue(column.header)).join(',')
-  const bodyRows = exportRows.value.map(row => (
-    columnConfigs
+  const headerRow = csvColumns.map(column => escapeCsvValue(column.header)).join(',')
+  const bodyRows = sortedFilteredRows.value.map(row => (
+    csvColumns
       .map(column => escapeCsvValue(row[column.id]))
       .join(',')
   ))
 
-  const csvContent = ['\uFEFF' + headerRow, ...bodyRows].join('\r\n')
+  const csvContent = ['﻿' + headerRow, ...bodyRows].join('\r\n')
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -280,71 +220,110 @@ const downloadTableCsv = () => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-xl font-bold tracking-tight">
-          {{ title }}
-        </h1>
-        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-          {{ subtitle }}
-        </p>
-      </div>
+  <div class="space-y-3">
+    <EbeamFeatureHeader
+      :subtitle="subtitle"
+      :title="title"
+    />
 
-      <div class="dashboard-surface rounded-2xl flex overflow-hidden self-start md:self-auto">
-        <div
-          v-for="(cell, index) in statCells"
-          :key="cell.label"
-          class="px-5 py-2.5 flex flex-col gap-0.5 min-w-[92px]"
-          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-        >
-          <span
-            class="text-[22px] font-bold leading-none tabular-nums"
-            :class="cell.tone"
-          >{{ cell.value }}</span>
-          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+    <slot name="below-title" />
+
+    <!-- Overview strip — at-a-glance fab health -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="dashboard-surface rounded-2xl px-4 py-3.5 flex items-center gap-3.5">
+        <span
+          class="inline-flex items-center justify-center w-9 h-9 rounded-[10px] font-mono font-bold text-[17px] tabular-nums"
+          style="background: var(--sk-ok-soft); color: var(--sk-ok);"
+        >{{ rowSummary.online }}</span>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold leading-tight">
+            Available
+          </p>
+          <p class="text-[11.5px] text-zinc-500 mt-0.5">
+            {{ rowSummary.online }}/{{ rows.length }} ready to dispatch
+          </p>
+        </div>
+      </div>
+      <div class="dashboard-surface rounded-2xl px-4 py-3.5 flex items-center gap-3.5">
+        <span
+          class="inline-flex items-center justify-center w-9 h-9 rounded-[10px] font-mono font-bold text-[17px] tabular-nums"
+          style="background: var(--sk-bad-soft); color: var(--sk-bad);"
+        >{{ rowSummary.offline }}</span>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold leading-tight">
+            Offline
+          </p>
+          <p class="text-[11.5px] text-zinc-500 mt-0.5">
+            {{ rowSummary.offline === 0 ? 'all tools available' : 'needs attention' }}
+          </p>
         </div>
       </div>
     </div>
 
+    <!-- Tool Inventory grouped card -->
     <UCard
       class="dashboard-surface rounded-2xl"
       :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
     >
       <template #header>
         <div class="flex items-center justify-between gap-3">
-          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Tool Inventory
-          </h2>
+          <div class="flex items-baseline gap-2">
+            <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Tool Inventory
+            </h2>
+            <span class="text-[11.5px] text-zinc-500">grouped by status</span>
+          </div>
           <p class="text-xs text-zinc-500 tabular-nums">
             {{ filteredRowCount }} of {{ rows.length }} tools
           </p>
         </div>
       </template>
 
+      <!-- Toolbar -->
       <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
         <UInput
           v-model="globalFilter"
-          class="flex-1 min-w-[14rem]"
+          class="flex-1 min-w-56"
           size="xs"
           icon="i-lucide-search"
           color="neutral"
           variant="subtle"
-          placeholder="Search tool inventory"
+          placeholder="Search by Equipment ID, Model, IP…"
         />
 
-        <USelect
-          v-model="availabilityFilter"
-          class="w-[9rem]"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          :items="availabilityFilterOptions"
-        />
+        <!-- Segmented status filter (replaces availability dropdown) -->
+        <div
+          class="inline-flex items-center h-7 p-0.5 rounded-md gap-0.5"
+          style="background: var(--sk-muted-surface); border: 1px solid var(--sk-border);"
+          role="radiogroup"
+          aria-label="Filter by availability"
+        >
+          <button
+            v-for="option in availabilityFilterOptions"
+            :key="option.value"
+            type="button"
+            :aria-checked="availabilityFilter === option.value"
+            role="radio"
+            class="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-[5px] text-[12px] transition-colors cursor-pointer"
+            :class="availabilityFilter === option.value
+              ? 'font-semibold text-zinc-900 dark:text-zinc-100 shadow-sm'
+              : 'font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'"
+            :style="availabilityFilter === option.value
+              ? { background: 'var(--sk-surface)' }
+              : {}"
+            @click="availabilityFilter = option.value"
+          >
+            {{ option.label }}
+            <span
+              class="text-[10px] tabular-nums"
+              :class="availabilityFilter === option.value ? 'text-zinc-500' : 'text-zinc-400 dark:text-zinc-500'"
+            >{{ segmentCounts[option.value] }}</span>
+          </button>
+        </div>
 
         <USelect
           v-model="modelFilter"
-          class="w-[11rem]"
+          class="w-44"
           size="xs"
           color="neutral"
           variant="subtle"
@@ -353,7 +332,7 @@ const downloadTableCsv = () => {
 
         <USelect
           v-model="sortPreset"
-          class="w-[13rem]"
+          class="w-52"
           size="xs"
           color="neutral"
           variant="subtle"
@@ -373,7 +352,7 @@ const downloadTableCsv = () => {
         <UButton
           size="xs"
           color="neutral"
-          variant="outline"
+          variant="ghost"
           icon="i-lucide-rotate-ccw"
           label="Reset"
           :disabled="!hasActiveTableControls"
@@ -381,64 +360,93 @@ const downloadTableCsv = () => {
         />
       </div>
 
-      <UTable
-        v-model:sorting="sorting"
-        class="max-h-[34rem] font-mono-ids"
-        :columns="columns"
-        :data="exportRows"
-        :empty="`No tools match the current search or filters.`"
-        :meta="tableMeta"
-        :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
-        sticky="header"
+      <!-- Empty state -->
+      <p
+        v-if="groupedRows.length === 0"
+        class="px-6 py-12 text-center text-sm text-zinc-500"
       >
-        <template
-          v-for="head in sortableHeaders"
-          :key="head.id"
-          #[`${head.id}-header`]="{ column }"
-        >
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-            :trailing-icon="getSortIcon(column.getIsSorted())"
-            @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-          >
-            {{ head.label }}
-          </UButton>
-        </template>
+        No tools match the current search or filters.
+      </p>
 
-        <template #available-cell="{ row }">
-          <UBadge
-            :label="row.original.available"
-            size="xs"
-            :color="row.original.available === 'On' ? 'success' : 'error'"
-            variant="subtle"
+      <!-- Grouped tables -->
+      <div
+        v-for="group in groupedRows"
+        :key="group.label"
+        class="inv-group"
+      >
+        <!-- Group band -->
+        <div
+          class="flex items-center gap-2.5 px-4.5 py-2.5 border-t border-b text-[11px] tracking-[0.06em] uppercase font-bold"
+          :class="'inv-group__band'"
+          :style="{
+            background: 'var(--sk-muted-surface)',
+            borderColor: 'var(--sk-border-soft)'
+          }"
+        >
+          <span
+            class="inline-block w-2 h-2 rounded-full"
+            :style="{ background: group.tone === 'off' ? 'var(--sk-bad)' : 'var(--sk-ok)' }"
           />
-        </template>
+          <span class="text-(--sk-ink)">{{ group.label }}</span>
+          <span class="font-medium tracking-normal normal-case text-zinc-500 tabular-nums">
+            {{ group.rows.length }} {{ group.rows.length === 1 ? 'tool' : 'tools' }}
+          </span>
+        </div>
 
-        <template
-          v-for="key in monoColumns"
-          :key="key"
-          #[`${key}-cell`]="{ row }"
-        >
-          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original[key] }}</span>
-        </template>
-
-        <template
-          v-for="key in mutedColumns"
-          :key="key"
-          #[`${key}-cell`]="{ row }"
-        >
-          <span class="text-zinc-500 font-medium">{{ row.original[key] }}</span>
-        </template>
-      </UTable>
+        <table class="w-full table-fixed border-collapse">
+          <colgroup>
+            <col style="width: 27%;">
+            <col style="width: 19%;">
+            <col style="width: 16%;">
+            <col style="width: 27%;">
+            <col style="width: 11%;">
+          </colgroup>
+          <tbody>
+            <tr
+              v-for="row in group.rows"
+              :key="row.eqp_id"
+              class="border-b"
+              :style="{
+                background: group.tone === 'off' ? 'oklch(0.58 0.18 28 / 0.06)' : 'transparent',
+                borderColor: 'var(--sk-border-soft)'
+              }"
+            >
+              <td class="inv-cell">
+                <span class="font-mono font-bold text-[14.5px] text-(--sk-ink) tracking-tight">
+                  {{ row.eqp_id }}
+                </span>
+              </td>
+              <td class="inv-cell">
+                <span class="text-[12.5px] font-medium text-(--sk-ink)">
+                  {{ row.eqp_model_cd }}
+                </span>
+              </td>
+              <td class="inv-cell">
+                <span class="text-[11.5px] text-zinc-500 capitalize">
+                  {{ row.vendor_nm.toLowerCase() }}
+                </span>
+              </td>
+              <td class="inv-cell">
+                <span class="font-mono text-[11.5px] text-(--sk-ink-muted) tabular-nums">
+                  {{ row.eqp_ip }}
+                </span>
+              </td>
+              <td class="inv-cell">
+                <span class="font-mono text-[11.5px] text-(--sk-ink-muted) tabular-nums">
+                  v{{ row.version }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </UCard>
   </div>
 </template>
 
 <style scoped>
-.font-mono-ids :deep(td .font-mono) {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+.inv-cell {
+  padding: 11px 18px;
+  vertical-align: middle;
 }
 </style>

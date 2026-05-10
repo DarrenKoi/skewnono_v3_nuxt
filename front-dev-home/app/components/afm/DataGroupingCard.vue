@@ -58,20 +58,15 @@
       v-if="items.length > 0"
       class="flex flex-wrap items-center gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800"
     >
-      <UTooltip text="Trend analysis page is not yet ported">
-        <span class="inline-flex">
-          <UButton
-            size="xs"
-            color="primary"
-            variant="solid"
-            icon="i-lucide-line-chart"
-            disabled
-            class="pointer-events-none"
-          >
-            See Together
-          </UButton>
-        </span>
-      </UTooltip>
+      <UButton
+        size="xs"
+        color="primary"
+        variant="solid"
+        icon="i-lucide-line-chart"
+        @click="$emit('see-together')"
+      >
+        See Together
+      </UButton>
       <UButton
         v-if="items.length > 1"
         size="xs"
@@ -149,7 +144,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'remove', filename: string): void
-  (event: 'clear'): void
+  (event: 'clear' | 'see-together'): void
   (event: 'save', payload: { name: string, description: string }): void
 }>()
 
