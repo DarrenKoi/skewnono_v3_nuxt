@@ -49,7 +49,7 @@ export default defineNuxtConfig({
   },
 
   devServer: {
-    port: Number.isFinite(portFromEnv) ? portFromEnv : 3100
+    port: Number.isFinite(portFromEnv) ? portFromEnv : 3000
   },
 
   compatibilityDate: '2025-01-15',
