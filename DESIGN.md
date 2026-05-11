@@ -17,10 +17,13 @@
 ## 1. 디자인 원칙 (Principles)
 
 1. **차분함 우선 (Calm-first).** 메트롤로지 데이터를 다루는 도구이므로 색·그림자·애니메이션은 최소한으로 사용합니다.
-2. **중성 캔버스 + 크림슨 트림 (Neutral canvas, crimson trim).** Zinc 계열 회색을 기본으로 깔고, 활성 상태에만 크림슨 강조를 더합니다. 크림슨은 *절대* 채움 색으로 쓰지 않습니다.
-3. **읽기 위한 표 (Tables that read well).** 표는 등폭 숫자, 1px 보더, 호버 강조만 사용해 데이터를 가립니다.
-4. **오프라인 가능 (Offline-capable).** 폰트·아이콘·미리보기 모두 외부 CDN 없이 동작해야 합니다 (Phase 1 원칙).
-5. **이중 언어 (Bilingual UI).** UI 라벨은 한국어, 토큰·식별자·코드 식별자는 영어를 유지합니다.
+2. **두 색 가족, 두 의미 (Two color families, two meanings).** *Black = navigate*, *Terracotta = filter*. 활성 상태에 두 색을 같이 쓰지 않습니다. 이 규칙은 모든 페이지·컴포넌트에서 단일 기준입니다.
+3. **부드러운 사각형만 (Soft rectangles only).** 라운드 스케일은 `6 / 8 / 10 / 14` 네 단계만 사용합니다. `rounded-full` (전체 둥근 알약)은 신규 컴포넌트에 사용하지 않습니다.
+4. **읽기 위한 표 (Tables that read well).** 표는 등폭 숫자, 1px 보더, 호버 강조만 사용해 데이터를 가립니다.
+5. **오프라인 가능 (Offline-capable).** 폰트·아이콘·미리보기 모두 외부 CDN 없이 동작해야 합니다 (Phase 1 원칙).
+6. **이중 언어 (Bilingual UI).** UI 라벨은 한국어, 토큰·식별자·코드 식별자는 영어를 유지합니다.
+
+> 2026.05 업데이트 — *Selection & Button System (Bolder)* v1.0 브리프를 반영했습니다. 자세한 의미 규칙은 [§3.5 선택 의미 규칙](#35-선택-의미-규칙-black--nav-terracotta--filter) 을 참고합니다.
 
 ---
 
@@ -77,11 +80,50 @@
 
 **크림슨 사용 규칙 (필독)**
 
-- 크림슨은 다음 세 가지 형태로만 등장합니다.
-  1. `.sk-nav-accent` — 활성 네비 알약의 2px 하단 언더라인
-  2. `.sk-fab-active` — 선택된 FAB 행의 2px 좌측 엣지
-  3. `.dashboard-surface` — 카드 1px 보더 + 내부 8% 틴트
-- 절대 금지: 크림슨 채움 버튼, 크림슨 텍스트 본문, 큰 면적의 크림슨 배경.
+크림슨 (`--sk-accent`) 은 시각 트림에, 테라코타 (`--sk-brand`) 는 필터 채움에 사용합니다. 두 토큰은 동일 색상 가족이지만 역할이 다릅니다 — [§3.5](#35-선택-의미-규칙-black--nav-terracotta--filter) 참고.
+
+- 크림슨 (`--sk-accent`) 트림 사용처
+  1. `.sk-fab-active` — 선택된 FAB 행의 2px 좌측 엣지
+  2. `.dashboard-surface` — 카드 1px 보더 + 내부 8% 틴트
+- 절대 금지: 크림슨 채움 본문 버튼, 크림슨 본문 텍스트, 큰 면적의 크림슨 배경.
+- 테라코타 (`--sk-brand`) 채움은 필터 칩(`<SkChip>`) 의 활성 상태에서만 사용합니다.
+
+### 3.5 선택 의미 규칙 (BLACK = nav, TERRACOTTA = filter)
+
+> *Selection & Button System (Bolder)* v1.0 — 2026.05 적용.
+
+선택 상태는 두 가지 의미 가족 중 하나에 반드시 속합니다. 같은 역할에 두 색을 섞어 쓰지 않습니다.
+
+| 의미 | 색 | 어디에 쓰는가 |
+| --- | --- | --- |
+| **NAVIGATE** (보는 대상을 바꾼다) | `--sk-ink` (`#15110D`) 채움 + `--sk-ink-fg` 글자 | 제품 탭, 기능 탭, 섹션 토글(BSM/FDC/BM·PM), 서브탭, CTA 버튼 |
+| **FILTER** (보고 있는 데이터를 좁힌다) | `--sk-brand` (`#C75A3C`) 채움 + `--sk-brand-fg` 글자 | Fab, Category, Lot, Status, Model 칩 |
+
+판단 기준 — "이 요소를 누르면 페이지/뷰가 바뀌는가? 그러면 BLACK. 같은 페이지에서 보이는 데이터만 좁아지는가? 그러면 TERRACOTTA."
+
+부수 토큰
+
+| 토큰 | 라이트 | 다크 | 용도 |
+| --- | --- | --- | --- |
+| `--sk-ink` | `#15110D` | `#F4EFE6` (반전) | 네비 활성 채움 |
+| `--sk-ink-fg` | `#F8F4EC` | `#15110D` | `--sk-ink` 위 글자 |
+| `--sk-brand` | `#C75A3C` | `#E0553F` | 필터 활성 채움 |
+| `--sk-brand-fg` | `#FFF7F1` | `#FFF7F1` | `--sk-brand` 위 글자 |
+| `--sk-brand-soft` | `#F3DCD2` | `oklch(0.30 0.05 38)` | 필터 행 배경 틴트 |
+| `--sk-brand-ink` | `#8A3D27` | `#F3DCD2` | `--sk-brand-soft` 위 글자 |
+
+### 3.6 라운드 스케일 (Radius scale)
+
+소프트 사각형만 사용합니다. 신규 컴포넌트에 `rounded-full` 은 사용하지 않습니다.
+
+| 토큰 | 값 | 용도 |
+| --- | --- | --- |
+| `--sk-r-sidebar` | 6px | FAB 사이드바 셀, 미세 알림 |
+| `--sk-r-chip` | 8px | 필터 칩 (`<SkChip>`) |
+| `--sk-r-nav` | 10px | 네비 알약, 버튼 (`<SkNavPill>`, `<SkBtn>`) |
+| `--sk-r-card` | 14px | 카드, 패널 |
+
+Tailwind 매핑은 `rounded` (4px) ≠ `--sk-r-*` 이므로 신규 코드는 가급적 CSS 변수를 직접 사용합니다 (`rounded-[var(--sk-r-chip)]` 또는 컴포넌트 내부 클래스).
 
 ### 3.4 상태 색 (Status)
 
@@ -192,6 +234,24 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 ---
 
 ## 7. 컴포넌트 컨벤션 (Components)
+
+### 7.0 Sk 프리미티브 (`<SkNavPill>`, `<SkChip>`, `<SkBtn>`)
+
+> *Selection & Button System (Bolder)* 의 단일 진실 원천. 새 선택 상태가 필요하면 NuxtUI 의 `UButton` 대신 이 세 컴포넌트 중 하나를 선택합니다.
+
+| 컴포넌트 | 의미 | 활성 채움 | 라운드 | 사용처 |
+| --- | --- | --- | --- | --- |
+| `<SkNavPill>` | NAVIGATE | `--sk-ink` | `--sk-r-nav` (10px) | 제품 탭, 기능 탭, 섹션 토글, 서브탭, 사이드바 항목 |
+| `<SkChip>` | FILTER | `--sk-brand` (또는 `tone="ink"`) | `--sk-r-chip` (8px) | Fab, Category, Lot, Tech, Status 칩 |
+| `<SkBtn>` | ACTION | `primary` = `--sk-ink`, `brand` = `--sk-brand` | `--sk-r-nav` (10px) | CTA, 다이얼로그 버튼, 유틸리티 버튼 |
+
+**판단 흐름**
+
+1. 누르면 라우트/뷰가 바뀌는가 → `<SkNavPill>`.
+2. 같은 페이지에서 데이터만 좁아지는가 → `<SkChip>`.
+3. 데이터를 변경하거나 액션을 트리거하는가 → `<SkBtn>` (대부분 `kind="primary"`, "선택된 디바이스" 류의 강조 패널 안에서만 `kind="brand"`).
+
+**NuxtUI `UButton` 과의 관계** — Sk 프리미티브는 *선택 상태가 있는* 컨트롤에서 우선 사용합니다. 모달 닫기, 폼 제출, 단일 동작 버튼 등 일반 액션은 기존 `UButton` 을 계속 사용합니다.
 
 ### 7.1 버튼 (UButton)
 
@@ -349,3 +409,4 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 ## 14. 변경 이력 (Changelog)
 
 - 2026-04-26: 초기 작성. 기존 `main.css`, `app.config.ts`, 컴포넌트에서 추출한 디자인 토큰을 정리하고 미리보기 HTML 을 함께 추가했습니다.
+- 2026-05-12: *Selection & Button System (Bolder)* v1.0 브리프 반영. 의미 규칙(BLACK = nav, TERRACOTTA = filter), 라운드 4단 스케일(6/8/10/14), `<SkNavPill>` / `<SkChip>` / `<SkBtn>` 프리미티브와 `--sk-ink*` / `--sk-brand*` / `--sk-r-*` 토큰을 추가했습니다. `nav/FeatureTabs.vue`, `nav/ToolTypeTabs.vue`, `ebeam/HardwareView.vue` 가 새 프리미티브로 마이그레이션되었습니다.

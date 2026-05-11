@@ -112,6 +112,24 @@
   --sk-bad: oklch(0.58 0.18 28);
   --sk-bad-soft: oklch(0.94 0.04 30);
   --sk-bad-border: oklch(0.58 0.18 28 / 0.32);
+
+  /* Bolder selection system (Implementation Brief v1.0, 2026.05).
+     Two semantic families: BLACK = navigation, TERRACOTTA = filter.
+     Existing --sk-canvas/--sk-surface/--sk-accent stay as the warm cream
+     base; these tokens add the explicit "ink" fill + brand-soft tint that
+     the bolder direction needs. */
+  --sk-ink: #15110D;            /* near-black, nav active fill */
+  --sk-ink-fg: #F8F4EC;         /* cream foreground on ink fill */
+  --sk-brand: #C75A3C;          /* terracotta, filter active fill */
+  --sk-brand-fg: #FFF7F1;       /* on terracotta */
+  --sk-brand-soft: #F3DCD2;     /* tint background for filter rows */
+  --sk-brand-ink: #8A3D27;      /* readable text on --sk-brand-soft */
+
+  /* Radius scale — soft rectangles only. Anything outside this set is a bug. */
+  --sk-r-sidebar: 6px;
+  --sk-r-chip: 8px;
+  --sk-r-nav: 10px;
+  --sk-r-card: 14px;
 }
 
 /* Dark · Walnut — paper at night. Page L≈0.21, hue 70°; cards lift one step to
@@ -145,6 +163,16 @@
   --sk-bad: oklch(0.72 0.17 28);
   --sk-bad-soft: oklch(0.32 0.06 28);
   --sk-bad-border: oklch(0.72 0.17 28 / 0.32);
+
+  /* Bolder selection system · dark — invert the ink so nav pills still read
+     as "the darkest thing on the page". Brand brightens to stay legible
+     on walnut; brand-soft becomes a low-saturation tint of the dark canvas. */
+  --sk-ink: #F4EFE6;            /* cream fill for nav active in dark mode */
+  --sk-ink-fg: #15110D;         /* near-black foreground on cream fill */
+  --sk-brand: #E0553F;          /* warmer terracotta on dark */
+  --sk-brand-fg: #FFF7F1;       /* cream on warm terracotta — same as light */
+  --sk-brand-soft: oklch(0.30 0.05 38);
+  --sk-brand-ink: #F3DCD2;
 }
 
 html,

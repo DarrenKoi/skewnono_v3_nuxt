@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
+import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature } from '~/utils/features'
 
 const route = useRoute()
+const { fab } = useNavigation()
 
 type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir'
 
@@ -43,9 +45,24 @@ const activeFeature = computed(() => {
 })
 
 const getFeatureRoute = (feature: string) => {
-  const basePath = route.path.replace(/\/(storage|recipe-search|recipe-tat|fail-issue|hardware|device-statistics|skewvoir)(\/.*)?$/, '')
-  if (feature === 'index') return basePath
-  return `${basePath}/${feature}`
+  const toolType = routeToolType.value
+  if (!toolType) return route.path
+
+  if (isFablessFeature(feature)) {
+    return `/ebeam/${toolType}/${feature}`
+  }
+
+  // For fab-dependent features we need a fab segment in the URL. If the current path
+  // doesn't have one (we're on a fabless feature page), fall back to the store's last fab,
+  // and finally to the tool-type index — which redirects to the user's last-visited fab.
+  const basePath = route.path.replace(FEATURE_SLUG_SUFFIX_REGEX, '')
+  const pathFab = basePath.split('/')[3]
+  const storeFab = fab.value && fab.value !== 'all' ? fab.value.toLowerCase() : ''
+  const fabSegment = pathFab || storeFab
+
+  if (!fabSegment) return `/ebeam/${toolType}`
+  if (feature === 'index') return `/ebeam/${toolType}/${fabSegment}`
+  return `/ebeam/${toolType}/${fabSegment}/${feature}`
 }
 
 const isFeatureEnabled = (feature: FeatureTab) => {
@@ -56,53 +73,23 @@ const isFeatureEnabled = (feature: FeatureTab) => {
 </script>
 
 <template>
-  <div class="px-4 md:px-6 lg:px-8 pt-4">
+  <div class="px-4 md:px-6 lg:px-8 pt-3 border-b border-(--sk-border-soft)">
     <div class="max-w-7xl mx-auto">
       <nav
         aria-label="Feature navigation"
-        class="dashboard-surface rounded-full px-1.5 py-1.5 flex gap-1 overflow-x-auto"
+        class="flex gap-1 overflow-x-auto pb-2"
       >
-        <template
+        <SkNavPill
           v-for="feature in features"
           :key="feature.label"
-        >
-          <NuxtLink
-            v-if="isFeatureEnabled(feature) && feature.routeValue"
-            :to="getFeatureRoute(feature.routeValue)"
-            class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200"
-            :class="activeFeature === feature.routeValue
-              ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
-              : 'text-zinc-600 ring-1 ring-zinc-200/80 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
-          >
-            <UIcon
-              :name="feature.icon"
-              class="w-4 h-4"
-            />
-            {{ feature.label }}
-            <UIcon
-              v-if="feature.badgeIcon"
-              :name="feature.badgeIcon"
-              class="w-3.5 h-3.5 text-rose-400 dark:text-rose-300"
-            />
-          </NuxtLink>
-
-          <span
-            v-else
-            aria-disabled="true"
-            class="flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium rounded-full text-zinc-400 ring-1 ring-zinc-200/70 cursor-default dark:text-zinc-500 dark:ring-zinc-700/80"
-          >
-            <UIcon
-              :name="feature.icon"
-              class="w-4 h-4"
-            />
-            {{ feature.label }}
-            <UIcon
-              v-if="feature.badgeIcon"
-              :name="feature.badgeIcon"
-              class="w-3.5 h-3.5 text-rose-400 dark:text-rose-300"
-            />
-          </span>
-        </template>
+          :label="feature.label"
+          :icon="feature.icon"
+          :trailing-icon="feature.badgeIcon"
+          :active="activeFeature === feature.routeValue"
+          :disabled="!isFeatureEnabled(feature)"
+          :to="isFeatureEnabled(feature) && feature.routeValue ? getFeatureRoute(feature.routeValue) : undefined"
+          size="md"
+        />
       </nav>
     </div>
   </div>
