@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
-const apiTarget = import.meta.env.NUXT_API_TARGET || 'http://localhost:5000'
+const apiTarget = import.meta.env.NUXT_API_TARGET || 'http://localhost:5050'
 const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || '/api'
 const isDev = import.meta.dev
 

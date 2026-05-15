@@ -47,7 +47,7 @@ From the repo root:
 
 From `front-dev-home/`:
 - `npm.cmd install`: install frontend dependencies.
-- `npm.cmd run dev`: start Nuxt at `http://localhost:3100`.
+- `npm.cmd run dev`: start Nuxt at `http://localhost:3000`.
 - `npm.cmd run dev:remote`: start Nuxt bound to `0.0.0.0`.
 - `npm.cmd run build`: create a production build.
 - `npm.cmd run preview`: preview the production build.
@@ -64,7 +64,7 @@ Backend (run from the repo root):
 Environment notes:
 - `NUXT_API_TARGET` controls where Nuxt proxies `/api/*`; default is `http://localhost:5000`.
 - `NUXT_PUBLIC_API_BASE` defaults to `/api`.
-- `NUXT_PORT` overrides the frontend dev port; default is `3100`.
+- `NUXT_PORT` overrides the frontend dev port; default is `3000`.
 - On this Windows machine, prefer `npm.cmd` over `npm` in PowerShell because `npm.ps1` may be blocked by execution policy.
 
 ## Coding Style & Naming Conventions

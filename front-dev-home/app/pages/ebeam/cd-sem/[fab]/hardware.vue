@@ -1,13 +1,3 @@
-<template>
-  <EbeamComingSoon
-    eyebrow="CD-SEM"
-    title="H/W 관리"
-    subtitle="장비 하드웨어 구성 및 교체 이력 관리"
-    :fab="fabId"
-    icon="i-lucide-cpu"
-  />
-</template>
-
 <script setup lang="ts">
 import type { Fab } from '~/stores/navigation'
 
@@ -28,3 +18,11 @@ watch(fabId, (next) => {
   applyFab(next)
 })
 </script>
+
+<template>
+  <EbeamHardwareView
+    :fab="fabId"
+    tool-label="CD-SEM"
+    tool-type="cd-sem"
+  />
+</template>

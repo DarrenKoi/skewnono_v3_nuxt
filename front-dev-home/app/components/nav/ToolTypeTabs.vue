@@ -21,7 +21,7 @@ const toolsWithCounts = computed(() => toolTypes.map(tool => ({
 </script>
 
 <template>
-  <div class="px-4 md:px-6 lg:px-8 pt-4">
+  <div class="px-4 md:px-6 lg:px-8 pt-4 pb-3 border-b border-(--sk-border-soft)">
     <div class="max-w-7xl mx-auto">
       <nav
         aria-label="Tool type navigation"

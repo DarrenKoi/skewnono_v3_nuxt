@@ -64,7 +64,7 @@ const resolvedTag = computed(() => {
 const rootAttrs = computed(() => {
   const base: Record<string, unknown> = {
     'aria-label': props.ariaLabel,
-    onClick: (event: MouseEvent) => emit('click', event)
+    'onClick': (event: MouseEvent) => emit('click', event)
   }
 
   if (resolvedTag.value === 'button') {

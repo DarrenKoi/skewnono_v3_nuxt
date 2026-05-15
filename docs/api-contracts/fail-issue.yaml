@@ -1,0 +1,304 @@
+resource: fail-issue
+description: Measurement fail analytics — two aspects per row, "Align Fail" (wafer alignment outcome at measurement start) and "Meas Fail" (image-level failure during the run). Powers the fail-issue dashboard for both CD-SEM and HV-SEM.
+base_path: /api/<tool_slug>/fail-issue
+
+constants:
+  MEAS_FAIL_THRESHOLD:
+    value: 0.15
+    description: fail_ratio strictly greater than this value counts as a meas-fail. Pinned to docs/datatables/meas_hist.txt rule #9 — office must keep in sync.
+
+types:
+  Summary:
+    tool_type:
+      type: string
+      enum: ["cd-sem", "hv-sem"]
+    fab_id:
+      type: string
+      description: null when not filtered
+    start_date:
+      type: string
+      format: "YYYY-MM-DD"
+    end_date:
+      type: string
+      format: "YYYY-MM-DD"
+    anchor_date:
+      type: string
+      format: "YYYY-MM-DD"
+      description: Latest date the underlying meas_hist data covers — usable as the date-picker's max
+    total_executions:
+      type: integer
+    align_fail_count:
+      type: integer
+      description: Rows where align_fail == "Fail"
+    align_fail_rate:
+      type: number
+      description: align_fail_count / total_executions, rounded to 4 decimals
+    align_na_count:
+      type: integer
+      description: Rows where align_fail == "NA". Surfaced separately because NA reflects an aborted-or-skipped run rather than a true alignment failure.
+    meas_fail_count:
+      type: integer
+      description: Rows where fail_ratio > MEAS_FAIL_THRESHOLD
+    meas_fail_rate:
+      type: number
+    meas_fail_threshold:
+      type: number
+      description: Echo of MEAS_FAIL_THRESHOLD so clients can render the threshold in tooltips without hard-coding it
+    distinct_equipment:
+      type: integer
+    distinct_recipes:
+      type: integer
+      description: Distinct (class_name, recipe_name) pairs in the window
+    distinct_lots:
+      type: integer
+
+  DailyTrendPoint:
+    date:
+      type: string
+      format: "YYYY-MM-DD"
+    exec_count:
+      type: integer
+    align_fail_count:
+      type: integer
+    meas_fail_count:
+      type: integer
+      description: NB — a single row can contribute to both align_fail_count and meas_fail_count, so the sum can exceed exec_count. Charts should render the two series independently, not stacked.
+
+  AlignRankingRow:
+    rank:
+      type: integer
+      description: 1-based rank by align_fail_count desc (ties broken by align_fail_rate)
+    eqp_id:
+      type: string
+    eqp_model_cd:
+      type: string
+    vendor_nm:
+      type: string
+    exec_count:
+      type: integer
+    align_fail_count:
+      type: integer
+    align_fail_rate:
+      type: number
+    last_fail:
+      type: string
+      format: "ISO 8601 UTC ending in Z"
+      description: Timestamp of the most recent align-fail row for this eqp; null only if align_fail_count is 0 (which should not appear in this list).
+    sample_recipes:
+      type: array
+      description: Up to 5 distinct full_name values from align-fail rows on this eqp
+
+  MeasRankingRow:
+    rank:
+      type: integer
+      description: 1-based rank by meas_fail_count desc (ties broken by meas_fail_rate)
+    class_name:
+      type: string
+    recipe_name:
+      type: string
+    full_name:
+      type: string
+      format: "<class>/<recipe>"
+    exec_count:
+      type: integer
+    meas_fail_count:
+      type: integer
+    meas_fail_rate:
+      type: number
+    avg_fail_ratio:
+      type: number
+      description: Mean fail_ratio across all executions of this recipe in the window (not only the failing ones). Useful for distinguishing "always slightly dirty" recipes from "occasionally catastrophic".
+    last_fail:
+      type: string
+      format: "ISO 8601 UTC ending in Z"
+    sample_eqp_ids:
+      type: array
+
+  DeviceRow:
+    lot_cd:
+      type: string
+    exec_count:
+      type: integer
+    align_fail_count:
+      type: integer
+    meas_fail_count:
+      type: integer
+    prod_catg_cd:
+      type: string
+      description: Set for R3 lots, null otherwise
+    tech_nm:
+      type: string
+      description: Set for M-fab lots, null otherwise
+
+endpoints:
+  - path: /api/<tool_slug>/fail-issue/summary
+    method: GET
+    description: KPI counts and rates for the window. tool_slug is "cdsem" or "hvsem".
+    query_params:
+      fab_id:
+        type: string
+        required: false
+        description: Strict fab_name match (case-insensitive). R3/R4 do not collapse.
+      start_date:
+        type: string
+        required: false
+        format: "YYYY-MM-DD"
+        description: Defaults to anchor_date - 30 days
+      end_date:
+        type: string
+        required: false
+        format: "YYYY-MM-DD"
+        description: Defaults to anchor_date
+      lot_cd:
+        type: string
+        required: false
+        description: Single device filter — used by the 디바이스별 view
+    response:
+      status: 200
+      body: Summary
+
+  - path: /api/<tool_slug>/fail-issue/daily-trend
+    method: GET
+    description: Per-day counts of total executions, align fails, and meas fails. Backfills empty days so the chart x-axis stays continuous.
+    query_params:
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      lot_cd:
+        type: string
+        required: false
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        lot_cd:
+          type: string
+        points:
+          type: array
+          items: DailyTrendPoint
+
+  - path: /api/<tool_slug>/fail-issue/align-ranking
+    method: GET
+    description: Equipment ranked by align_fail_count descending. Only equipment with at least one align-fail in the window appears — clean tools are filtered out so the table is a triage list, not an inventory.
+    query_params:
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      lot_cd:
+        type: string
+        required: false
+      limit:
+        type: integer
+        required: false
+        description: 1..1000, default 1000
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        limit:
+          type: integer
+        lot_cd:
+          type: string
+        rows:
+          type: array
+          items: AlignRankingRow
+
+  - path: /api/<tool_slug>/fail-issue/meas-ranking
+    method: GET
+    description: Recipes ranked by meas_fail_count descending. Same triage-only filter as align-ranking — recipes with zero meas-fails are omitted.
+    query_params:
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      lot_cd:
+        type: string
+        required: false
+      limit:
+        type: integer
+        required: false
+        description: 1..1000, default 1000
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        limit:
+          type: integer
+        lot_cd:
+          type: string
+        rows:
+          type: array
+          items: MeasRankingRow
+
+  - path: /api/<tool_slug>/fail-issue/devices
+    method: GET
+    description: Per-lot fail counts within the window, sorted by (align + meas) fail count descending. Drives the device-picker chip strip on the 디바이스별 view. Intentionally does not accept lot_cd — this endpoint is the source of truth for which lots exist in scope.
+    query_params:
+      fab_id:
+        type: string
+        required: false
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        devices:
+          type: array
+          items: DeviceRow
+
+notes:
+  - Two aspects per row are independent — a measurement can be both align-fail AND meas-fail. Office should not collapse them into a single "fail" boolean.
+  - MEAS_FAIL_THRESHOLD is pinned at 0.15 to match the datatable spec. The summary endpoint echoes it so clients can render tooltips like "fail_ratio > 15%" without hard-coding.
+  - Path slug routes the request to CD-SEM vs HV-SEM data — /cdsem and /hvsem are separate paths (unlike recipe-tat which uses /cdsem for both and disambiguates by query string).
+  - Office should anchor the date window on max(timestamp) from the source index, not wall-clock now(). Phase 1 mock anchors on import-time wall-clock for the same reason recipe-tat does.
+  - Align-ranking and meas-ranking both filter out zero-fail entries before applying limit. Office implementations should do the same so the table only shows triage targets.

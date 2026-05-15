@@ -319,9 +319,11 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 | 영역 | 컴포넌트 | 패턴 |
 | --- | --- | --- |
 | 상단 카테고리 | `nav/AppHeader.vue` | 알약 토글 버튼, 활성 시 `bg-zinc-900 text-zinc-100 + sk-nav-accent` |
-| 도구 종류 탭 | `nav/ToolTypeTabs.vue` | 가로 스크롤 가능한 알약 그룹, 카운트 배지 포함 |
+| 도구 종류 탭 | `nav/ToolTypeTabs.vue` | 가로 스크롤 가능한 알약 그룹, 카운트 배지 포함, 하단 1px `--sk-border-soft` 디바이더 |
 | FAB 사이드바 | `nav/FabSidebar.vue` | 좁히기/펼치기 가능, 즐겨찾기 별, 활성 행에 `.sk-fab-active` |
-| 기능 탭 | `nav/FeatureTabs.vue` | 도구 종류별 4–7개 기능 탭, 비활성 시 `aria-disabled` |
+| 기능 탭 | `nav/FeatureTabs.vue` | 도구 종류별 4–7개 기능 탭, 비활성 시 `aria-disabled`, 하단 1px `--sk-border-soft` 디바이더 |
+
+**행 디바이더 규칙 (Selection System · Conservative 적용).** *장비 행* (`ToolTypeTabs`) 과 *기능 행* (`FeatureTabs`) 사이에는 1px `--sk-border-soft` 헤어라인 디바이더를 둡니다. 두 행 모두 알약(`SkNavPill`) 으로 구성되어 시각적으로 동급이므로, 디바이더 없이 붙으면 *"어떤 장비를 본다"* 와 *"그 장비를 어떻게 본다"* 의 의미 경계가 사라집니다. 디바이더는 컨테이너의 max-w-7xl 안쪽이 아닌 **풀-블리드**(`px-*` 부모 div 의 `border-b`)로 그려, FAB 사이드바를 가로지르며 화면 전체에 걸쳐 끊김 없이 이어집니다 — Conservative `PageShell` 의 `borderBottom: 1px solid lineSoft` 와 동일한 처리입니다.
 
 라벨은 한국어, 키보드 접근성을 위해 `aria-pressed`, `aria-disabled` 를 반드시 사용합니다.
 
@@ -410,3 +412,4 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 
 - 2026-04-26: 초기 작성. 기존 `main.css`, `app.config.ts`, 컴포넌트에서 추출한 디자인 토큰을 정리하고 미리보기 HTML 을 함께 추가했습니다.
 - 2026-05-12: *Selection & Button System (Bolder)* v1.0 브리프 반영. 의미 규칙(BLACK = nav, TERRACOTTA = filter), 라운드 4단 스케일(6/8/10/14), `<SkNavPill>` / `<SkChip>` / `<SkBtn>` 프리미티브와 `--sk-ink*` / `--sk-brand*` / `--sk-r-*` 토큰을 추가했습니다. `nav/FeatureTabs.vue`, `nav/ToolTypeTabs.vue`, `ebeam/HardwareView.vue` 가 새 프리미티브로 마이그레이션되었습니다.
+- 2026-05-16: *Selection System · Conservative* 의 행 디바이더 패턴을 글로벌 레이아웃에 적용. `nav/ToolTypeTabs.vue` 하단에 1px `--sk-border-soft` 헤어라인을 추가해 *장비 행* 과 *기능 행* 사이를 명시적으로 구분합니다(§7.7). 디바이더는 풀-블리드로 그려 FAB 사이드바를 가로지릅니다.

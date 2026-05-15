@@ -20,7 +20,7 @@
       :ui="{ body: 'p-0 sm:p-0' }"
     >
       <nav
-        aria-label="Compare cart view"
+        aria-label="Analysis cart view"
         class="flex gap-1 border-b border-zinc-100 bg-zinc-50/40 p-1.5 dark:border-zinc-800 dark:bg-zinc-900/30"
       >
         <button
@@ -233,14 +233,14 @@ const emit = defineEmits<{
 }>()
 
 const text = {
-  step3Title: '비교 + 이동',
+  step3Title: '분석 + 이동',
   step3HintSelection: '선택된 디바이스',
   step3HintPresets: '저장된 프리셋',
-  tabSelection: '비교 디바이스 선택',
+  tabSelection: '분석 디바이스 선택',
   tabPresets: 'Preset 보기',
-  emptySelectionTitle: '디바이스 비교 시작하기',
+  emptySelectionTitle: '디바이스 분석 시작하기',
   emptySelectionDescLineOne: '왼쪽 테이블에서',
-  emptySelectionDescLineTwo: '2개 이상 선택해 보세요',
+  emptySelectionDescLineTwo: '1개 이상 선택해 보세요',
   emptyPresetsTitle: '저장된 프리셋이 없습니다',
   emptyPresetsDescLineOne: '디바이스를 선택한 뒤',
   emptyPresetsDescLineTwo: '"저장" 버튼으로 묶음을 보관하세요',
@@ -249,8 +249,8 @@ const text = {
   deletePreset: '삭제',
   clearAll: '전체 해제',
   ctaEmpty: '디바이스를 선택하세요',
-  ctaSingle: '디바이스 통계 보기',
-  ctaMulti: '{count}개 비교 페이지로',
+  ctaSingle: '디바이스 분석 보기',
+  ctaMulti: '{count}개 분석 페이지로',
   lotsSuffix: '개'
 } as const
 

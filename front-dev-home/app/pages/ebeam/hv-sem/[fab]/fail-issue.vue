@@ -1,10 +1,8 @@
 <template>
-  <EbeamComingSoon
-    eyebrow="HV-SEM"
-    title="Fail 이슈"
-    subtitle="장비 Fail 이슈 트래킹 및 분석"
+  <EbeamFailIssueView
     :fab="fabId"
-    icon="i-lucide-triangle-alert"
+    tool-label="HV-SEM"
+    tool-type="hv-sem"
   />
 </template>
 

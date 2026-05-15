@@ -37,7 +37,7 @@ export interface AfmSummaryRow {
 }
 
 export interface AfmDetailRow {
-  measurement_point: string
+  'measurement_point': string
   'Site ID': string
   'Site X': number
   'Site Y': number
@@ -45,8 +45,8 @@ export interface AfmDetailRow {
   'X (um)': number
   'Y (um)': number
   'Method ID': number
-  State: string
-  Valid: boolean
+  'State': string
+  'Valid': boolean
   'Left_H (nm)': number
   'Left_H_Valid': boolean
   'Right_H (nm)': number
@@ -56,7 +56,7 @@ export interface AfmDetailRow {
   'Pick Up Count': number
   'Sample Count': number
   'Approach Count': number
-  Mileage: number
+  'Mileage': number
   [extra: string]: string | number | boolean
 }
 

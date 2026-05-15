@@ -1,0 +1,936 @@
+<template>
+  <div class="space-y-3">
+    <EbeamFeatureHeader
+      :stats="statCells"
+      stat-size="sm"
+      :subtitle="text.title"
+      :title="pageTitle"
+    >
+      <template #meta>
+        <div
+          role="radiogroup"
+          :aria-label="text.fabSelect"
+          class="flex flex-wrap items-center gap-1 self-end mb-1.5"
+        >
+          <button
+            v-for="option in deviceFabOptions"
+            :key="option.value"
+            type="button"
+            role="radio"
+            :aria-checked="selectedFab === option.value"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(selectedFab === option.value)"
+            @click="selectedFab = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </template>
+    </EbeamFeatureHeader>
+
+    <!-- Step 1 — Quick filter strip -->
+    <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">1</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step1Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ hasRSelection ? text.step1HintR : text.step1HintM }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span
+            v-if="hasActiveFilters"
+            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[9.5px] tabular-nums text-(--sk-accent)"
+          >
+            {{ filteredRowCount.toLocaleString() }} / {{ rows.length.toLocaleString() }}
+          </span>
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-rotate-ccw"
+            :label="text.reset"
+            :disabled="!hasActiveFilters"
+            @click="resetAllFilters"
+          />
+        </div>
+      </div>
+
+      <div
+        v-if="hasRSelection"
+        class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
+      >
+        <div class="flex items-start gap-2 min-w-0 xl:col-span-4">
+          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">prod_catg_cd</span>
+          <div class="flex flex-wrap items-center gap-1">
+            <button
+              v-for="category in prodCategoryOptions"
+              :key="category"
+              type="button"
+              class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+              :class="chipClass(isProdCategorySelected(category))"
+              @click="toggleProdCategory(category)"
+            >
+              {{ category }}
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 min-w-0 xl:col-span-8">
+          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">lot_cd</span>
+          <UInput
+            v-model="lotSearch"
+            class="w-44 shrink-0"
+            size="xs"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-search"
+            :placeholder="text.lotSearch"
+          />
+          <div class="flex flex-wrap items-center gap-1 min-w-0">
+            <button
+              v-for="lot in stepOneLotStrip.chips"
+              :key="lot"
+              type="button"
+              class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
+              :class="chipClass(isLotSelected(lot))"
+              @click="toggleLot(lot)"
+            >
+              {{ lot }}
+            </button>
+            <span
+              v-if="stepOneLotStrip.overflowCount > 0"
+              class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+            >
+              +{{ stepOneLotStrip.overflowCount }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else
+        class="flex items-start gap-2 min-w-0"
+      >
+        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">tech_nm</span>
+        <UInput
+          v-model="techSearch"
+          class="w-44 shrink-0"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-search"
+          :placeholder="text.techSearch"
+        />
+        <div class="flex flex-wrap items-center gap-1 min-w-0">
+          <button
+            v-for="tech in stepOneTechStrip.chips"
+            :key="tech"
+            type="button"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(isTechSelected(tech))"
+            @click="toggleTech(tech)"
+          >
+            {{ tech }}
+          </button>
+          <span
+            v-if="stepOneTechStrip.overflowCount > 0"
+            class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+          >
+            +{{ stepOneTechStrip.overflowCount }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 (table) + Step 3 (cart) -->
+    <div class="grid grid-cols-12 gap-3">
+      <div class="col-span-12 space-y-2 lg:col-span-8">
+        <div class="flex items-center gap-2 px-1">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">2</span>
+          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {{ text.step2Title }}
+          </h3>
+          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+            {{ text.step2Hint }}
+          </span>
+        </div>
+
+        <UCard
+          class="dashboard-surface rounded-2xl"
+          :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
+        >
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <p class="text-xs text-zinc-500 tabular-nums">
+                {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
+              </p>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-rotate-ccw"
+                :label="text.resetAll"
+                :disabled="!hasActiveFilters"
+                @click="resetAllFilters"
+              />
+            </div>
+          </template>
+
+          <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
+            <UInput
+              v-model="tableSearch"
+              class="min-w-[14rem] flex-1"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-search"
+              :placeholder="text.tableSearch"
+            />
+            <USelect
+              v-model="pageSize"
+              class="w-[7rem]"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              :items="pageSizeOptions"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              :label="text.csvDownload"
+              :disabled="filteredRowCount === 0"
+              @click="downloadDeviceListCsv"
+            />
+          </div>
+
+          <div
+            v-if="pending"
+            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="h-4 w-4 animate-spin"
+            />
+            {{ text.loading }}
+          </div>
+          <div
+            v-else-if="error"
+            class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
+          >
+            {{ text.loadError }}
+          </div>
+          <UTable
+            v-else
+            class="max-h-[34rem] font-mono-ids"
+            :columns="columns"
+            :data="pagedRows"
+            :empty="text.emptyRows"
+            :meta="tableMeta"
+            sticky="header"
+            @select="(_, row) => toggleDeviceSelect(row.original.lot_cd)"
+          >
+            <template #select-header>
+              <input
+                type="checkbox"
+                :checked="allOnPageSelected"
+                :aria-label="text.step2Hint"
+                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                @change="togglePageSelection"
+              >
+            </template>
+            <template #select-cell="{ row }">
+              <input
+                type="checkbox"
+                :checked="isDeviceSelected(row.original.lot_cd)"
+                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                @click.stop
+                @change="toggleDeviceSelect(row.original.lot_cd)"
+              >
+            </template>
+            <template #ctn_desc-cell="{ row }">
+              <span class="block max-w-[28rem] truncate text-zinc-600 dark:text-zinc-300">
+                {{ row.original.ctn_desc }}
+              </span>
+            </template>
+          </UTable>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
+            <p class="text-xs text-zinc-500 tabular-nums">
+              Page {{ currentPage }} / {{ pageCount }}
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-chevron-left"
+                :label="text.prev"
+                :disabled="currentPage <= 1"
+                @click="currentPage -= 1"
+              />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                trailing-icon="i-lucide-chevron-right"
+                :label="text.next"
+                :disabled="currentPage >= pageCount"
+                @click="currentPage += 1"
+              />
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div class="col-span-12 space-y-2 lg:col-span-4">
+        <EbeamCompareCart
+          :selected-device-rows="selectedDeviceRows"
+          :fab="selectedFab"
+          @proceed="proceedToStatistics"
+          @apply-preset="applyPreset"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
+import type { DevicePreset } from '~/composables/useDevicePresets'
+import { chipClass } from '~/utils/chipClass'
+
+definePageMeta({
+  hideFabSidebar: true
+})
+
+type DeviceRow = R3DeviceGrpRow | DeviceDescRow
+
+const { setToolType, setFab } = useNavigation()
+const { fetchDeviceDesc, fetchR3DeviceGrp } = useDeviceStatisticsApi()
+
+// Closed set of fac_id values used for device statistics filtering. Distinct from the open-ended
+// fab_name space because device-statistics aggregates at the fac level.
+type DeviceFab = 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
+
+// Default landing fab when nothing is persisted. R3 is the first item under our R&D-first sort order
+// and the only fab that exercises the R3DeviceGrp branch.
+const DEFAULT_FAB: DeviceFab = 'R3'
+
+const text = {
+  title: '디바이스 통계',
+  fabSelect: 'Fab',
+  reset: '초기화',
+  lotSearch: 'Lot 검색 (예: R0A2)',
+  techSearch: 'Tech 검색',
+  csvDownload: 'CSV 다운로드',
+  resetAll: '전체 초기화',
+  tableSearch: '테이블 검색',
+  allRows: '전체',
+  filteredRows: '표시',
+  activeFilters: '필터',
+  loading: '로딩 중',
+  loadError: '데이터를 불러오지 못했습니다.',
+  emptyRows: '조건에 맞는 디바이스가 없습니다.',
+  prev: '이전',
+  next: '다음',
+  step1Title: '빠른 필터',
+  step1HintR: '카테고리 / Lot으로 좁히기',
+  step1HintM: 'Tech로 좁히기',
+  step2Title: '디바이스 선택',
+  step2Hint: '체크박스로 여러 개 선택'
+} as const
+
+const deviceFabOptions: { label: string, value: DeviceFab }[] = [
+  { label: 'R3', value: 'R3' },
+  { label: 'M16', value: 'M16' },
+  { label: 'M15', value: 'M15' },
+  { label: 'M14', value: 'M14' },
+  { label: 'M12', value: 'M12' },
+  { label: 'M11', value: 'M11' }
+]
+
+const deviceFabValues = deviceFabOptions.map(option => option.value)
+const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+const isDeviceFab = (value: string): value is DeviceFab => {
+  return deviceFabValues.includes(value as DeviceFab)
+}
+
+const SELECTED_FAB_STORAGE_KEY = 'skewnono:deviceStatistics.selectedFab'
+const SELECTED_PROD_CATEGORIES_STORAGE_KEY = 'skewnono:deviceStatistics.selectedProdCategories'
+const SELECTED_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedLots'
+const SELECTED_TECHS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedTechs'
+// Step 1 keeps the lot/tech chip strips compact: surface a small budget of unselected options,
+// always paired with any currently-selected ones so they remain togglable from the strip.
+const STEP1_LOT_CHIP_BUDGET = 24
+const STEP1_TECH_CHIP_BUDGET = 24
+
+const readSavedFab = (): DeviceFab | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const saved = window.localStorage.getItem(SELECTED_FAB_STORAGE_KEY)
+    return saved && isDeviceFab(saved) ? saved : null
+  } catch {
+    return null
+  }
+}
+
+const readSavedStringArray = (storageKey: string): string[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const selectedFab = ref<DeviceFab>(readSavedFab() ?? DEFAULT_FAB)
+const pageTitle = computed(() => `CD-SEM - ${selectedFab.value}`)
+const selectedProdCategories = ref<string[]>(readSavedStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY))
+const selectedLots = ref<string[]>(readSavedStringArray(SELECTED_LOTS_STORAGE_KEY))
+const selectedTechs = ref<string[]>(readSavedStringArray(SELECTED_TECHS_STORAGE_KEY))
+
+// Step 3 cart — extracted to useDeviceCart so the comparison sub-page reads the same ref.
+const {
+  selectedDeviceLots,
+  selectedDeviceLotSet,
+  isDeviceSelected,
+  toggleDeviceSelect,
+  addDeviceLots,
+  removeDeviceLots
+} = useDeviceCart()
+const lotSearch = ref('')
+const techSearch = ref('')
+const tableSearch = ref('')
+const currentPage = ref(1)
+const pageSize = ref('25')
+
+const { data, pending, error } = await useAsyncData<DeviceRow[]>(
+  'device-statistics',
+  () => {
+    return selectedFab.value === 'R3'
+      ? fetchR3DeviceGrp()
+      : fetchDeviceDesc([selectedFab.value])
+  },
+  { watch: [selectedFab] }
+)
+
+const rows = computed(() => data.value ?? [])
+const hasRSelection = computed(() => selectedFab.value === 'R3')
+const hasMSelection = computed(() => selectedFab.value.startsWith('M'))
+const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
+
+const uniqueSorted = (values: string[]) => {
+  return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)))
+    .sort((left, right) => sortCollator.compare(left, right))
+}
+
+const filterOptions = (options: string[], search: string) => {
+  const searchTerm = search.trim().toLowerCase()
+
+  if (!searchTerm) {
+    return options
+  }
+
+  return options.filter(option => option.toLowerCase().includes(searchTerm))
+}
+
+// Narrow `rows` for each branch. Filtering by fac_id guards against the brief
+// transition window where useAsyncData still holds the previous fab's rows
+// while the new fetch is in flight.
+const r3Rows = computed<R3DeviceGrpRow[]>(() => {
+  if (!hasRSelection.value) return []
+  return (rows.value as R3DeviceGrpRow[]).filter(row => row.fac_id === 'R3')
+})
+const mRows = computed<DeviceDescRow[]>(() => {
+  if (!hasMSelection.value || !selectedFab.value) return []
+  return (rows.value as DeviceDescRow[]).filter(row => row.fac_id === selectedFab.value)
+})
+
+const prodCategoryOptions = computed(() => uniqueSorted(r3Rows.value.map(row => row.prod_catg_cd)))
+
+const r3RowsAfterCategory = computed(() => {
+  if (selectedProdCategories.value.length === 0) {
+    return r3Rows.value
+  }
+
+  return r3Rows.value.filter(row => selectedProdCategories.value.includes(row.prod_catg_cd))
+})
+
+const lotOptions = computed(() => uniqueSorted(r3RowsAfterCategory.value.map(row => row.lot_cd)))
+const techOptions = computed(() => uniqueSorted(mRows.value.map(row => row.tech_nm)))
+const searchedLotOptions = computed(() => filterOptions(lotOptions.value, lotSearch.value))
+const visibleTechOptions = computed(() => filterOptions(techOptions.value, techSearch.value))
+
+const selectedProdCategorySet = computed(() => new Set(selectedProdCategories.value))
+const selectedLotSet = computed(() => new Set(selectedLots.value))
+const selectedTechSet = computed(() => new Set(selectedTechs.value))
+const normalizedTableSearch = computed(() => tableSearch.value.trim().toLowerCase())
+
+const isProdCategorySelected = (category: string) => selectedProdCategorySet.value.has(category)
+const isLotSelected = (lot: string) => selectedLotSet.value.has(lot)
+const isTechSelected = (tech: string) => selectedTechSet.value.has(tech)
+
+const buildSearchText = (row: DeviceRow) => {
+  return Object.values(row)
+    .map(value => String(value).toLowerCase())
+    .join('\u0000')
+}
+
+const matchesDomainFilters = (row: DeviceRow) => {
+  if (hasRSelection.value) {
+    const r3Row = row as R3DeviceGrpRow
+    const matchesCategory = selectedProdCategories.value.length === 0
+      || selectedProdCategorySet.value.has(r3Row.prod_catg_cd)
+    const matchesLot = selectedLots.value.length === 0 || selectedLotSet.value.has(r3Row.lot_cd)
+
+    return matchesCategory && matchesLot
+  }
+
+  const mRow = row as DeviceDescRow
+  return selectedTechs.value.length === 0 || selectedTechSet.value.has(mRow.tech_nm)
+}
+
+const sortedRows = computed(() => {
+  const sourceRows: DeviceRow[] = hasRSelection.value ? r3Rows.value : mRows.value
+
+  return [...sourceRows].sort((left, right) => sortCollator.compare(left.lot_cd, right.lot_cd))
+})
+
+const indexedRows = computed(() => sortedRows.value.map(row => ({
+  row,
+  searchText: buildSearchText(row)
+})))
+
+const filteredRows = computed(() => {
+  const searchTerm = normalizedTableSearch.value
+
+  // Skip the searchText index when there's no search term — Vue's lazy computeds mean
+  // indexedRows isn't built at all unless this branch reaches it.
+  if (!searchTerm) {
+    return sortedRows.value.filter(matchesDomainFilters)
+  }
+
+  return indexedRows.value
+    .filter(({ row, searchText }) => matchesDomainFilters(row) && searchText.includes(searchTerm))
+    .map(({ row }) => row)
+})
+
+const filteredRowCount = computed(() => filteredRows.value.length)
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredRowCount.value / pageSizeNumber.value)))
+const pageStart = computed(() => filteredRowCount.value === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1)
+const pageEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredRowCount.value))
+const pagedRows = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSizeNumber.value
+
+  return filteredRows.value.slice(startIndex, startIndex + pageSizeNumber.value)
+})
+
+const pageSizeOptions = [
+  { label: '25개', value: '25' },
+  { label: '50개', value: '50' },
+  { label: '100개', value: '100' }
+]
+
+const r3ColumnMetadata = [
+  { key: 'fac_id', label: 'Fab', size: 72 },
+  { key: 'plan_catg_type', label: 'Plan Catg', size: 96 },
+  { key: 'prod_catg_cd', label: 'Category', size: 108 },
+  { key: 'tech_cd', label: 'R Tech', size: 88 },
+  { key: 'den_type', label: 'Density', size: 84 },
+  { key: 'prod_grp_typ', label: 'Group', size: 120 },
+  { key: 'gen_typ', label: 'Gen', size: 80 },
+  { key: 'lot_cd', label: 'Lot', size: 92 },
+  { key: 'plan_grade_cd', label: 'Grade', size: 76 },
+  { key: 'ctn_desc', label: 'Description' }
+] satisfies { key: keyof R3DeviceGrpRow, label: string, size?: number }[]
+
+const deviceDescColumnMetadata = [
+  { key: 'fac_id', label: 'Fab', size: 72 },
+  { key: 'lot_cd', label: 'Lot', size: 100 },
+  { key: 'tech_nm', label: 'Tech', size: 88 },
+  { key: 'rnd_connector', label: 'R&D Connector', size: 124 },
+  { key: 'chg_tm', label: 'Changed', size: 200 },
+  { key: 'ctn_desc', label: 'Description' }
+] satisfies { key: keyof DeviceDescRow, label: string, size?: number }[]
+
+const columns = computed<TableColumn<DeviceRow>[]>(() => {
+  const meta = hasRSelection.value ? r3ColumnMetadata : deviceDescColumnMetadata
+
+  return [
+    {
+      id: 'select',
+      header: '',
+      size: 40,
+      enableSorting: false,
+      enableHiding: false
+    },
+    ...meta.map(column => ({
+      accessorKey: column.key as string,
+      header: column.label,
+      size: column.size
+    }))
+  ]
+})
+
+const tableMeta = {
+  class: {
+    tr: 'cursor-pointer select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
+    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
+    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+  }
+}
+
+const toggleValue = (values: string[], value: string) => {
+  return values.includes(value)
+    ? values.filter(currentValue => currentValue !== value)
+    : [...values, value]
+}
+
+const toggleProdCategory = (category: string) => {
+  selectedProdCategories.value = toggleValue(selectedProdCategories.value, category)
+}
+
+const toggleLot = (lot: string) => {
+  selectedLots.value = toggleValue(selectedLots.value, lot)
+}
+
+const toggleTech = (tech: string) => {
+  selectedTechs.value = toggleValue(selectedTechs.value, tech)
+}
+
+// Preserve selection order so the Step 3 cart shows lots in the order the user added them.
+const sortedRowMap = computed(() => {
+  const map = new Map<string, DeviceRow>()
+
+  for (const row of sortedRows.value) {
+    map.set(row.lot_cd, row)
+  }
+
+  return map
+})
+
+const selectedDeviceRows = computed<DeviceRow[]>(() => {
+  return selectedDeviceLots.value
+    .map(lot => sortedRowMap.value.get(lot))
+    .filter((row): row is DeviceRow => Boolean(row))
+})
+
+const allOnPageSelected = computed(() => {
+  return pagedRows.value.length > 0
+    && pagedRows.value.every(row => selectedDeviceLotSet.value.has(row.lot_cd))
+})
+
+const togglePageSelection = () => {
+  const pageLots = pagedRows.value.map(row => row.lot_cd)
+  if (allOnPageSelected.value) removeDeviceLots(pageLots)
+  else addDeviceLots(pageLots)
+}
+
+const buildChipStrip = (
+  allOptions: string[],
+  visibleOptions: string[],
+  selectedSet: Set<string>,
+  budget: number
+) => {
+  const selectedFromOptions = allOptions.filter(option => selectedSet.has(option))
+  const matchedUnselected = visibleOptions.filter(option => !selectedSet.has(option))
+  const remainingBudget = Math.max(0, budget - selectedFromOptions.length)
+
+  return {
+    chips: [...selectedFromOptions, ...matchedUnselected.slice(0, remainingBudget)],
+    overflowCount: Math.max(0, matchedUnselected.length - remainingBudget)
+  }
+}
+
+const stepOneLotStrip = computed(() => buildChipStrip(
+  lotOptions.value,
+  searchedLotOptions.value,
+  selectedLotSet.value,
+  STEP1_LOT_CHIP_BUDGET
+))
+
+const stepOneTechStrip = computed(() => buildChipStrip(
+  techOptions.value,
+  visibleTechOptions.value,
+  selectedTechSet.value,
+  STEP1_TECH_CHIP_BUDGET
+))
+
+const proceedToStatistics = async () => {
+  if (selectedDeviceLots.value.length === 0) return
+
+  await navigateTo('/ebeam/cd-sem/device-statistics/comparison')
+}
+
+// Apply runs across multiple awaits and mutates cross-page useState (selectedDeviceLots) plus
+// fires a toast — both must be skipped if the user navigates away mid-apply, otherwise we'd
+// silently overwrite their cart and surface a toast for a page they've already left.
+let unmounted = false
+let cancelDataWait: (() => void) | null = null
+onUnmounted(() => {
+  unmounted = true
+  cancelDataWait?.()
+})
+
+const waitForDataReady = () => {
+  if (!pending.value) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const stop = watch(pending, (next) => {
+      if (!next) finish()
+    })
+    const finish = () => {
+      stop()
+      cancelDataWait = null
+      resolve()
+    }
+    cancelDataWait = finish
+  })
+}
+
+const toast = useToast()
+
+// Apply a saved preset. If the preset was captured on a different fab, switch fab first and let
+// the existing watchers (clear cart on fab change + prune on data ready) settle before assigning
+// the preset's lots — otherwise the fab-change watcher would clear the lots we just set.
+//
+// Backend data may have changed since the preset was saved (lots archived, removed, or renamed),
+// so we diff the preset's lots against the current sortedRows: assign only the surviving lots and
+// raise a toast naming the missing ones so the user sees explicitly what didn't load.
+const applyPreset = async (preset: DevicePreset) => {
+  if (preset.fab && isDeviceFab(preset.fab) && preset.fab !== selectedFab.value) {
+    selectedFab.value = preset.fab
+    await nextTick()
+    if (unmounted) return
+  }
+  await waitForDataReady()
+  if (unmounted) return
+
+  const validLots = new Set(sortedRows.value.map(row => row.lot_cd))
+  const loaded = preset.lots.filter(lot => validLots.has(lot))
+  const missing = preset.lots.filter(lot => !validLots.has(lot))
+  selectedDeviceLots.value = loaded
+
+  if (missing.length === 0) return
+
+  const MISSING_PREVIEW_LIMIT = 5
+  const previewLots = missing.slice(0, MISSING_PREVIEW_LIMIT).join(', ')
+  const overflow = missing.length > MISSING_PREVIEW_LIMIT
+    ? ` 외 ${missing.length - MISSING_PREVIEW_LIMIT}개`
+    : ''
+
+  toast.add({
+    title: `프리셋 '${preset.name}' · ${preset.lots.length}개 중 ${loaded.length}개 로드`,
+    description: `누락된 디바이스 ${missing.length}개: ${previewLots}${overflow}`,
+    icon: 'i-lucide-triangle-alert',
+    color: loaded.length === 0 ? 'error' : 'warning',
+    duration: 8000
+  })
+}
+
+const resetAllFilters = () => {
+  selectedFab.value = DEFAULT_FAB
+  selectedProdCategories.value = []
+  selectedLots.value = []
+  selectedTechs.value = []
+  lotSearch.value = ''
+  techSearch.value = ''
+  tableSearch.value = ''
+  currentPage.value = 1
+}
+
+const hasActiveFilters = computed(() => {
+  return selectedFab.value !== DEFAULT_FAB
+    || selectedProdCategories.value.length > 0
+    || selectedLots.value.length > 0
+    || selectedTechs.value.length > 0
+    || lotSearch.value.length > 0
+    || techSearch.value.length > 0
+    || tableSearch.value.length > 0
+})
+
+const activeDomainFilterCount = computed(() => {
+  if (hasRSelection.value) {
+    return Number(selectedProdCategories.value.length > 0) + Number(selectedLots.value.length > 0)
+  }
+
+  return Number(selectedTechs.value.length > 0)
+})
+
+const activeFilterCount = computed(() => activeDomainFilterCount.value + (normalizedTableSearch.value ? 1 : 0))
+
+const statCells = computed(() => [
+  { label: 'Fab', value: selectedFab.value, tone: 'text-zinc-900 dark:text-zinc-100' },
+  { label: text.allRows, value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
+  { label: text.filteredRows, value: filteredRowCount.value, tone: 'text-(--sk-accent)' },
+  { label: text.activeFilters, value: activeFilterCount.value, tone: 'text-zinc-600 dark:text-zinc-300' }
+])
+
+const syncSelectionWithOptions = (selectedValues: string[], options: string[]) => {
+  const optionSet = new Set(options)
+
+  return selectedValues.filter(value => optionSet.has(value))
+}
+
+watch(selectedFab, (next) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(SELECTED_FAB_STORAGE_KEY, next)
+  } catch { /* noop */ }
+})
+
+const persistStringArray = (storageKey: string, values: string[]) => {
+  if (typeof window === 'undefined') return
+  try {
+    if (values.length === 0) window.localStorage.removeItem(storageKey)
+    else window.localStorage.setItem(storageKey, JSON.stringify(values))
+  } catch { /* noop */ }
+}
+
+watch(selectedProdCategories, (next) => {
+  persistStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY, next)
+})
+
+watch(selectedLots, (next) => {
+  persistStringArray(SELECTED_LOTS_STORAGE_KEY, next)
+})
+
+watch(selectedTechs, (next) => {
+  persistStringArray(SELECTED_TECHS_STORAGE_KEY, next)
+})
+
+// Clear the Step 3 cart whenever the user actively switches fab — devices belong to a single
+// fab in this UI, so carrying selections across fabs would be confusing. Initial-load mismatches
+// are pruned by the watcher on `pending`/`sortedRows` below.
+watch(selectedFab, () => {
+  selectedDeviceLots.value = []
+})
+
+watch([sortedRows, pending], ([nextSortedRows, nextPending]) => {
+  if (nextPending) return
+  if (selectedDeviceLots.value.length === 0) return
+
+  const validLots = new Set(nextSortedRows.map(row => row.lot_cd))
+
+  if (validLots.size === 0) return
+
+  const pruned = selectedDeviceLots.value.filter(lot => validLots.has(lot))
+
+  if (pruned.length !== selectedDeviceLots.value.length) {
+    selectedDeviceLots.value = pruned
+  }
+})
+
+const escapeCsvValue = (value: unknown) => {
+  const normalized = String(value ?? '').replace(/"/g, '""')
+  return `"${normalized}"`
+}
+
+const getDeviceRowValue = (row: DeviceRow, key: string) => {
+  return (row as unknown as Record<string, unknown>)[key]
+}
+
+const csvFileName = computed(() => {
+  const today = new Date().toISOString().slice(0, 10)
+  const fab = selectedFab.value.toLowerCase()
+  return `cd-sem-${fab}-device-statistics-${today}.csv`
+})
+
+const downloadDeviceListCsv = () => {
+  if (!import.meta.client || filteredRows.value.length === 0) return
+
+  const meta = hasRSelection.value ? r3ColumnMetadata : deviceDescColumnMetadata
+  const headerRow = meta.map(column => escapeCsvValue(column.label)).join(',')
+  const bodyRows = filteredRows.value.map(row => (
+    meta
+      .map(column => escapeCsvValue(getDeviceRowValue(row, column.key as string)))
+      .join(',')
+  ))
+
+  const csvContent = ['﻿' + headerRow, ...bodyRows].join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = csvFileName.value
+  link.click()
+
+  URL.revokeObjectURL(url)
+}
+
+watch([prodCategoryOptions, lotOptions, techOptions, hasRSelection, hasMSelection], () => {
+  // Skip during refetch — useAsyncData briefly holds the previous fab's data while options
+  // computeds collapse to [] for the new fab, which would falsely prune (and clobber
+  // localStorage) the very R3/M selections this branch is meant to preserve. The watcher
+  // re-fires once data settles via the option-array changes themselves, so we don't need
+  // pending in the watch list.
+  if (pending.value) return
+
+  // R3 selections are kept across fab switches so they survive a quick R3 → M → R3 round-trip.
+  // Hidden in the template via v-if="hasRSelection" and ignored by matchesDomainFilters on M,
+  // so leaving them populated is harmless. Only prune against the live R3 option set on R3.
+  if (hasRSelection.value) {
+    const nextCategories = syncSelectionWithOptions(selectedProdCategories.value, prodCategoryOptions.value)
+    const nextLots = syncSelectionWithOptions(selectedLots.value, lotOptions.value)
+
+    if (nextCategories.length !== selectedProdCategories.value.length) {
+      selectedProdCategories.value = nextCategories
+    }
+
+    if (nextLots.length !== selectedLots.value.length) {
+      selectedLots.value = nextLots
+    }
+  }
+
+  // Same reasoning as R3 above — keep techs across fab switches; only prune on an M-fab.
+  if (hasMSelection.value) {
+    const nextTechs = syncSelectionWithOptions(selectedTechs.value, techOptions.value)
+
+    if (nextTechs.length !== selectedTechs.value.length) {
+      selectedTechs.value = nextTechs
+    }
+  }
+})
+
+watch([filteredRowCount, pageSize], () => {
+  if (currentPage.value > pageCount.value) {
+    currentPage.value = pageCount.value
+  }
+
+  if (currentPage.value < 1) {
+    currentPage.value = 1
+  }
+})
+
+watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, tableSearch], () => {
+  currentPage.value = 1
+})
+
+onMounted(() => {
+  setToolType('cd-sem')
+  setFab(selectedFab.value)
+})
+</script>
+
+<style scoped>
+.font-mono-ids :deep(td) {
+  font-size: 12.5px;
+}
+
+/* ctn_desc is always the last column in both R3 and device_desc layouts and
+   is the only prose field. Mono everything else regardless of column count. */
+.font-mono-ids :deep(td:not(:last-child)) {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+</style>

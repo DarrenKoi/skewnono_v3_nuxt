@@ -9,4 +9,4 @@ application = app
 if __name__ == "__main__":
     cloud = is_cloud()
     host = "0.0.0.0" if cloud else "127.0.0.1"
-    app.run(host=host, port=int(os.environ.get("PORT", 5000)), debug=not cloud)
+    app.run(host=host, port=int(os.environ.get("PORT", 5050)), debug=not cloud)

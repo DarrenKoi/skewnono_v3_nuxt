@@ -72,7 +72,6 @@ export interface RecipeTrendResponse {
   trend: Record<string, SummaryBucketPayload>
 }
 
-
 export const useRecipeStatisticsApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
