@@ -183,7 +183,7 @@
           <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
             <UInput
               v-model="tableSearch"
-              class="min-w-[14rem] flex-1"
+              class="min-w-56 flex-1"
               size="xs"
               color="neutral"
               variant="subtle"
@@ -192,7 +192,7 @@
             />
             <USelect
               v-model="pageSize"
-              class="w-[7rem]"
+              class="w-28"
               size="xs"
               color="neutral"
               variant="subtle"
@@ -227,7 +227,7 @@
           </div>
           <UTable
             v-else
-            class="max-h-[34rem] font-mono-ids"
+            class="max-h-136 font-mono-ids"
             :columns="columns"
             :data="pagedRows"
             :empty="text.emptyRows"
@@ -254,7 +254,7 @@
               >
             </template>
             <template #ctn_desc-cell="{ row }">
-              <span class="block max-w-[28rem] truncate text-zinc-600 dark:text-zinc-300">
+              <span class="block max-w-md truncate text-zinc-600 dark:text-zinc-300">
                 {{ row.original.ctn_desc }}
               </span>
             </template>
