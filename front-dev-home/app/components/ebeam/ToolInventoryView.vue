@@ -10,21 +10,10 @@ const props = defineProps<{
 }>()
 
 const { filterRows } = useSemListApi()
+const { setSelectedTool } = useNavigation()
 
 const { data: allRows } = await useSemList()
 const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fab))
-
-const rowSummary = computed(() => {
-  let online = 0
-  let offline = 0
-
-  for (const row of rows.value ?? []) {
-    if (row.available === 'On') online++
-    else if (row.available === 'Off') offline++
-  }
-
-  return { online, offline }
-})
 
 const defaultSortPreset = 'eqp_id:asc'
 
@@ -40,11 +29,45 @@ const sortPreset = computed({
   }
 })
 
-const availabilityFilterOptions = [
-  { label: 'All', value: 'all' as const },
-  { label: 'On', value: 'On' as const },
-  { label: 'Off', value: 'Off' as const }
+const toggleAvailabilityFilter = (target: 'On' | 'Off') => {
+  availabilityFilter.value = availabilityFilter.value === target ? 'all' : target
+}
+
+type StatusCard = {
+  status: 'On' | 'Off'
+  label: string
+  countBg: string
+  countFg: string
+  ringClass: string
+  focusRingClass: string
+  subline: (count: number, total: number) => string
+}
+
+const statusCards: StatusCard[] = [
+  {
+    status: 'On',
+    label: 'Available',
+    countBg: 'var(--sk-ok-soft)',
+    countFg: 'var(--sk-ok)',
+    ringClass: 'ring-(--sk-ok)',
+    focusRingClass: 'focus-visible:ring-(--sk-ok)',
+    subline: (count, total) => `${count}/${total} ready to dispatch`
+  },
+  {
+    status: 'Off',
+    label: 'Offline',
+    countBg: 'var(--sk-bad-soft)',
+    countFg: 'var(--sk-bad)',
+    ringClass: 'ring-(--sk-bad)',
+    focusRingClass: 'focus-visible:ring-(--sk-bad)',
+    subline: count => count === 0 ? 'all tools available' : 'needs attention'
+  }
 ]
+
+const goToHardware = (eqpId: string) => {
+  setSelectedTool(eqpId)
+  return navigateTo(`/ebeam/${props.toolType}/${props.fab.toLowerCase()}/hardware`)
+}
 
 const modelFilterOptions = computed(() => [
   { label: 'All Models', value: 'all' },
@@ -228,36 +251,38 @@ const downloadTableCsv = () => {
 
     <slot name="below-title" />
 
-    <!-- Overview strip — at-a-glance fab health -->
-    <div class="grid grid-cols-2 gap-2.5">
-      <div class="dashboard-surface rounded-2xl px-4 py-3.5 flex items-center gap-3.5">
+    <!-- Overview strip — also the availability filter (click a card to filter the table) -->
+    <div
+      class="grid grid-cols-2 gap-2.5"
+      role="radiogroup"
+      aria-label="Filter by availability"
+    >
+      <button
+        v-for="card in statusCards"
+        :key="card.status"
+        type="button"
+        role="radio"
+        :aria-checked="availabilityFilter === card.status"
+        class="dashboard-surface rounded-2xl px-4 py-3.5 flex items-center gap-3.5 text-left transition cursor-pointer hover:brightness-[0.99] focus:outline-none focus-visible:ring-2"
+        :class="[
+          card.focusRingClass,
+          availabilityFilter === card.status ? `ring-2 ${card.ringClass} shadow-sm` : 'ring-1 ring-transparent'
+        ]"
+        @click="toggleAvailabilityFilter(card.status)"
+      >
         <span
           class="inline-flex items-center justify-center w-9 h-9 rounded-[10px] font-mono font-bold text-[17px] tabular-nums"
-          style="background: var(--sk-ok-soft); color: var(--sk-ok);"
-        >{{ rowSummary.online }}</span>
+          :style="{ background: card.countBg, color: card.countFg }"
+        >{{ segmentCounts[card.status] }}</span>
         <div class="min-w-0">
           <p class="text-[13px] font-semibold leading-tight">
-            Available
+            {{ card.label }}
           </p>
           <p class="text-[11.5px] text-zinc-500 mt-0.5">
-            {{ rowSummary.online }}/{{ rows.length }} ready to dispatch
+            {{ card.subline(segmentCounts[card.status], segmentCounts.all) }}
           </p>
         </div>
-      </div>
-      <div class="dashboard-surface rounded-2xl px-4 py-3.5 flex items-center gap-3.5">
-        <span
-          class="inline-flex items-center justify-center w-9 h-9 rounded-[10px] font-mono font-bold text-[17px] tabular-nums"
-          style="background: var(--sk-bad-soft); color: var(--sk-bad);"
-        >{{ rowSummary.offline }}</span>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold leading-tight">
-            Offline
-          </p>
-          <p class="text-[11.5px] text-zinc-500 mt-0.5">
-            {{ rowSummary.offline === 0 ? 'all tools available' : 'needs attention' }}
-          </p>
-        </div>
-      </div>
+      </button>
     </div>
 
     <!-- Tool Inventory grouped card -->
@@ -290,36 +315,6 @@ const downloadTableCsv = () => {
           variant="subtle"
           placeholder="Search by Equipment ID, Model, IP…"
         />
-
-        <!-- Segmented status filter (replaces availability dropdown) -->
-        <div
-          class="inline-flex items-center h-7 p-0.5 rounded-md gap-0.5"
-          style="background: var(--sk-muted-surface); border: 1px solid var(--sk-border);"
-          role="radiogroup"
-          aria-label="Filter by availability"
-        >
-          <button
-            v-for="option in availabilityFilterOptions"
-            :key="option.value"
-            type="button"
-            :aria-checked="availabilityFilter === option.value"
-            role="radio"
-            class="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-[5px] text-[12px] transition-colors cursor-pointer"
-            :class="availabilityFilter === option.value
-              ? 'font-semibold text-zinc-900 dark:text-zinc-100 shadow-sm'
-              : 'font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'"
-            :style="availabilityFilter === option.value
-              ? { background: 'var(--sk-surface)' }
-              : {}"
-            @click="availabilityFilter = option.value"
-          >
-            {{ option.label }}
-            <span
-              class="text-[10px] tabular-nums"
-              :class="availabilityFilter === option.value ? 'text-zinc-500' : 'text-zinc-400 dark:text-zinc-500'"
-            >{{ segmentCounts[option.value] }}</span>
-          </button>
-        </div>
 
         <USelect
           v-model="modelFilter"
@@ -412,9 +407,20 @@ const downloadTableCsv = () => {
               }"
             >
               <td class="inv-cell">
-                <span class="font-mono font-bold text-[14.5px] text-(--sk-ink) tracking-tight">
-                  {{ row.eqp_id }}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="font-mono font-bold text-[14.5px] text-(--sk-ink) tracking-tight">
+                    {{ row.eqp_id }}
+                  </span>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="subtle"
+                    trailing-icon="i-lucide-arrow-right"
+                    label="H/W"
+                    :aria-label="`Open hardware view for ${row.eqp_id}`"
+                    @click="goToHardware(row.eqp_id)"
+                  />
+                </div>
               </td>
               <td class="inv-cell">
                 <span class="text-[12.5px] font-medium text-(--sk-ink)">

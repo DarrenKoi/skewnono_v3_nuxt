@@ -10,12 +10,14 @@ export interface NavigationState {
   toolType: ToolType
   fab: Fab
   favorites: string[]
+  selectedToolId: string
 }
 
 const defaultState: NavigationState = {
   toolType: 'cd-sem',
   fab: 'all',
-  favorites: []
+  favorites: [],
+  selectedToolId: ''
 }
 
 export function useNavigationStore() {
@@ -47,15 +49,21 @@ export function useNavigationStore() {
     }
   }
 
+  const setSelectedTool = (toolId: string) => {
+    state.value.selectedToolId = toolId
+  }
+
   return {
     state: readonly(state),
     toolType: computed(() => state.value.toolType),
     fab: computed(() => state.value.fab),
     favorites: computed(() => state.value.favorites),
+    selectedToolId: computed(() => state.value.selectedToolId),
     setToolType,
     setFab,
     addFavorite,
     removeFavorite,
-    toggleFavorite
+    toggleFavorite,
+    setSelectedTool
   }
 }
