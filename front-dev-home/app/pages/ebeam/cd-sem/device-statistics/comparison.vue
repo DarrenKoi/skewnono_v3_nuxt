@@ -172,88 +172,82 @@
       </div>
       <div
         v-else
-        class="space-y-3"
+        class="space-y-6"
       >
-        <EbeamCompareDeviceChips
-          :lot-cds="lotLabels"
-          @select="openLot"
-        />
-        <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          <UCard
-            class="dashboard-surface rounded-2xl"
-            :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
-          >
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-                  {{ text.chartStackedTitle }}
-                </p>
-                <span class="text-[10.5px] text-zinc-400">para_16 / 13 / 9 / 5</span>
-              </div>
-            </template>
-            <div
-              ref="stackedEl"
-              class="h-72 w-full"
+        <section class="space-y-3">
+          <header class="comparison-section-head">
+            <span
+              class="comparison-section-head__bar"
+              aria-hidden="true"
             />
-          </UCard>
+            <div>
+              <h2 class="comparison-section-head__title">{{ text.chartsGroupTitle }}</h2>
+              <p class="comparison-section-head__subtitle">{{ text.chartsGroupSubtitle }}</p>
+            </div>
+          </header>
 
-          <UCard
-            class="dashboard-surface rounded-2xl"
-            :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
-          >
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-                  {{ text.chartAvailRecipeTitle }}
-                </p>
-                <span class="text-[10.5px] text-zinc-400">avail_recipe</span>
-              </div>
-            </template>
-            <div
-              ref="availRecipeEl"
-              class="h-72 w-full"
-            />
-          </UCard>
-        </div>
+          <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <UCard
+              class="dashboard-surface rounded-2xl"
+              :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
+            >
+              <template #header>
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    {{ text.chartStackedTitle }}
+                  </p>
+                  <span class="text-[10.5px] text-zinc-400">para_16 / 13 / 9 / 5</span>
+                </div>
+              </template>
+              <div
+                ref="stackedEl"
+                class="h-72 w-full"
+              />
+            </UCard>
 
-        <div class="flex items-center gap-2 px-1 pt-2 text-[11px] uppercase tracking-wide text-zinc-400">
-          <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-          <span>{{ text.trendSection }}</span>
-          <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-        </div>
+            <UCard
+              class="dashboard-surface rounded-2xl"
+              :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
+            >
+              <template #header>
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    {{ text.chartAvailRecipeTitle }}
+                  </p>
+                  <span class="text-[10.5px] text-zinc-400">avail_recipe</span>
+                </div>
+              </template>
+              <div
+                ref="availRecipeEl"
+                class="h-72 w-full"
+              />
+            </UCard>
+          </div>
+        </section>
 
-        <EbeamCompareTrendCharts
-          :lot-cds="selectedLots"
+        <CdsemComparisonLotCards
+          :rows="augmentedRows"
           :bucket="selectedBucket"
+          :recipe-rows="recipeRowsForBucket"
+          :trend="trend ?? null"
         />
       </div>
     </template>
-
-    <EbeamRecipeDetailSlideover
-      :open="focusedLot !== null"
-      :lot-cd="focusedLot"
-      :bucket-key="selectedBucket"
-      :bucket-label="focusedBucketLabel"
-      :date="data?.date ?? null"
-      :summary-row="focusedSummaryRow"
-      :recipe-rows="focusedRecipeRows"
-      @update:open="onSlideoverOpenChange"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
-import type { BucketPayload, RecipeInfoRow, SummaryBucketKey, SummaryRow } from '~/composables/useRecipeStatisticsApi'
-import { summaryToRecipeInfoBucket } from '~/composables/useRecipeStatisticsApi'
+import { summaryToRecipeInfoBucket, type RecipeInfoRow, type SummaryBucketKey, type SummaryRow } from '~/composables/useRecipeStatisticsApi'
+import { augmentSummaryRow, type HealthAugmentedRow } from '~/composables/useLotHealthMock'
 
 definePageMeta({
   hideFabSidebar: true
 })
 
 const { setToolType } = useNavigation()
-const { fetchRecipeStatistics } = useRecipeStatisticsApi()
+const { fetchRecipeStatistics, fetchRecipeTrend } = useRecipeStatisticsApi()
 const colorMode = useColorMode()
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
@@ -269,9 +263,10 @@ const text = {
   emptyTitle: '선택된 디바이스가 없습니다',
   emptyDesc: '디바이스 통계 페이지에서 1개 이상 선택해 주세요.',
   emptyCta: '디바이스 선택으로',
+  chartsGroupTitle: '파라미터 비교',
+  chartsGroupSubtitle: '선택한 Lot 전체의 분포를 한눈에 봅니다.',
   chartStackedTitle: '파라미터 분포 (스택)',
   chartAvailRecipeTitle: '운용 레시피수',
-  trendSection: '기간별 변화',
   selected: '선택',
   bucketHelpTitle: 'Bucket 의미',
   bucketHelpIntro: 'MMDM recipe step을 어떤 기준으로 모아 볼지 선택합니다.'
@@ -319,22 +314,48 @@ const sortMetric: Record<Exclude<SortKey, 'default'>, (r: SummaryRow) => number>
   availRecipe: r => r.avail_recipe
 }
 
-const { data, pending, error } = await useAsyncData(
-  'recipe-statistics',
-  () => {
-    if (selectedLots.value.length === 0) {
-      return Promise.resolve({ date: null, buckets: {} })
-    }
-    return fetchRecipeStatistics(selectedLots.value)
-  },
-  { watch: [selectedLots] }
-)
+const [
+  { data, pending, error },
+  { data: trend }
+] = await Promise.all([
+  useAsyncData(
+    'recipe-statistics',
+    () => {
+      if (selectedLots.value.length === 0) {
+        return Promise.resolve({ date: null, buckets: {} })
+      }
+      return fetchRecipeStatistics(selectedLots.value)
+    },
+    { watch: [selectedLots] }
+  ),
+  useAsyncData(
+    'recipe-trend-comparison',
+    () => {
+      if (selectedLots.value.length === 0) {
+        return Promise.resolve({ dates: [], trend: {} })
+      }
+      return fetchRecipeTrend(selectedLots.value)
+    },
+    { watch: [selectedLots] }
+  )
+])
 
 const rows = computed<SummaryRow[]>(() => {
   const buckets = data.value?.buckets
   if (!buckets) return []
   const list = (buckets as Record<string, unknown>)[selectedBucket.value]
   return Array.isArray(list) ? (list as SummaryRow[]) : []
+})
+
+const augmentedRows = computed<HealthAugmentedRow[]>(() =>
+  rows.value.map(row => augmentSummaryRow(row, selectedBucket.value))
+)
+
+const recipeRowsForBucket = computed<RecipeInfoRow[]>(() => {
+  const buckets = data.value?.buckets
+  if (!buckets) return []
+  const list = (buckets as Record<string, unknown>)[summaryToRecipeInfoBucket[selectedBucket.value]]
+  return Array.isArray(list) ? (list as RecipeInfoRow[]) : []
 })
 
 const sortedRows = computed<SummaryRow[]>(() => {
@@ -363,33 +384,6 @@ const avgAvailRecipe = computed(() => mean(availRecipeValues.value))
 
 const stdStackTotal = computed(() => stdDev(stackTotals.value))
 const stdAvailRecipe = computed(() => stdDev(availRecipeValues.value))
-
-const focusedLot = ref<string | null>(null)
-
-const openLot = (lotCd: string) => {
-  focusedLot.value = lotCd
-}
-
-const onSlideoverOpenChange = (value: boolean) => {
-  if (!value) focusedLot.value = null
-}
-
-const focusedRecipeRows = computed<RecipeInfoRow[]>(() => {
-  if (!focusedLot.value) return []
-  const buckets = data.value?.buckets as BucketPayload | undefined
-  const list = buckets?.[summaryToRecipeInfoBucket[selectedBucket.value]]
-  if (!list) return []
-  return list.filter(row => row.lot_cd === focusedLot.value)
-})
-
-const focusedSummaryRow = computed<SummaryRow | null>(() => {
-  if (!focusedLot.value) return null
-  return rows.value.find(row => row.lot_cd === focusedLot.value) ?? null
-})
-
-const focusedBucketLabel = computed(
-  () => bucketOptions.find(o => o.value === selectedBucket.value)?.label ?? ''
-)
 
 const ctnDescByLot = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {}
@@ -527,8 +521,8 @@ const availRecipeOption = computed<EChartsOption>(() => ({
 const stackedEl = ref<HTMLDivElement | null>(null)
 const availRecipeEl = ref<HTMLDivElement | null>(null)
 
-useEchart(stackedEl, stackedOption, { onClick: openLot })
-useEchart(availRecipeEl, availRecipeOption, { onClick: openLot })
+useEchart(stackedEl, stackedOption)
+useEchart(availRecipeEl, availRecipeOption)
 
 const goBack = async () => {
   await navigateTo('/ebeam/cd-sem/device-statistics')
@@ -538,3 +532,34 @@ onMounted(() => {
   setToolType('cd-sem')
 })
 </script>
+
+<style scoped>
+.comparison-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.comparison-section-head__bar {
+  flex: none;
+  width: 4px;
+  height: 40px;
+  margin-top: 2px;
+  border-radius: 2px;
+  background: var(--sk-accent);
+}
+
+.comparison-section-head__title {
+  margin: 0;
+  font: 700 18px/1.15 var(--font-sans);
+  letter-spacing: -0.012em;
+  color: var(--sk-ink);
+}
+
+.comparison-section-head__subtitle {
+  margin: 4px 0 0;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--sk-ink-muted);
+}
+</style>

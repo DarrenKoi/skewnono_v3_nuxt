@@ -228,7 +228,7 @@ const openMeasHist = (recipeName: string) => {
       :title="pageTitle"
     />
 
-    <section class="dashboard-surface rounded-2xl p-5">
+    <section class="dashboard-surface max-w-4xl rounded-2xl p-5">
       <form
         class="group flex h-12 w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 shadow-sm transition focus-within:border-zinc-300 focus-within:ring-4 focus-within:ring-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-within:border-zinc-700 dark:focus-within:ring-zinc-800/70"
         @submit.prevent="commitSearch"
