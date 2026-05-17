@@ -17,7 +17,10 @@
       :name="icon"
       class="sk-nav-pill__icon"
     />
-    <span class="sk-nav-pill__label"><slot>{{ label }}</slot></span>
+    <span
+      class="sk-nav-pill__label"
+      :class="labelClass"
+    ><slot>{{ label }}</slot></span>
     <span
       v-if="count != null"
       class="sk-nav-pill__count"
@@ -47,6 +50,7 @@ const props = withDefaults(defineProps<{
   size?: Size
   to?: RouteLocationRaw
   ariaLabel?: string
+  labelClass?: string
 }>(), {
   size: 'md',
   countTone: 'neutral'

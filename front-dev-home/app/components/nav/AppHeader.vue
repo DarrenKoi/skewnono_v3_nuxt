@@ -9,6 +9,8 @@
       </NuxtLink>
     </template>
 
+    <NavFeatureTabs />
+
     <template #right>
       <UButton
         to="/information"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
-
-const isEbeamRoute = computed(() => route.path === '/ebeam' || route.path.startsWith('/ebeam/'))
+const isEbeamRoute = useEbeamRoute()
 const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSidebar !== true)
 </script>
 
@@ -13,16 +12,10 @@ const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSi
     />
     <NavAppHeader />
 
-    <template v-if="isEbeamRoute">
-      <NavToolTypeTabs />
-    </template>
-
     <div class="flex flex-1 gap-3 md:gap-4 pr-4 md:pr-6 lg:pr-8">
       <NavFabSidebar v-if="showFabSidebar" />
 
       <main class="flex-1 flex flex-col overflow-hidden min-w-0">
-        <NavFeatureTabs />
-
         <div class="flex-1 overflow-auto [scrollbar-gutter:stable] p-4 md:p-6 lg:p-8">
           <slot />
         </div>

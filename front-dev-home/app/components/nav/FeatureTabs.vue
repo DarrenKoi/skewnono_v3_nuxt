@@ -4,6 +4,7 @@ import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature } from '~/utils/features'
 
 const route = useRoute()
 const { fab } = useNavigation()
+const isEbeamRoute = useEbeamRoute()
 
 type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir'
 
@@ -73,24 +74,23 @@ const isFeatureEnabled = (feature: FeatureTab) => {
 </script>
 
 <template>
-  <div class="px-4 md:px-6 lg:px-8 pt-3 border-b border-(--sk-border-soft)">
-    <div class="max-w-7xl mx-auto">
-      <nav
-        aria-label="Feature navigation"
-        class="flex gap-1 overflow-x-auto pb-2"
-      >
-        <SkNavPill
-          v-for="feature in features"
-          :key="feature.label"
-          :label="feature.label"
-          :icon="feature.icon"
-          :trailing-icon="feature.badgeIcon"
-          :active="activeFeature === feature.routeValue"
-          :disabled="!isFeatureEnabled(feature)"
-          :to="isFeatureEnabled(feature) && feature.routeValue ? getFeatureRoute(feature.routeValue) : undefined"
-          size="md"
-        />
-      </nav>
-    </div>
-  </div>
+  <nav
+    v-if="isEbeamRoute"
+    aria-label="Feature navigation"
+    class="flex gap-1 min-w-0 overflow-x-auto"
+  >
+    <SkNavPill
+      v-for="feature in features"
+      :key="feature.label"
+      :label="feature.label"
+      :aria-label="feature.label"
+      :icon="feature.icon"
+      :trailing-icon="feature.badgeIcon"
+      :active="activeFeature === feature.routeValue"
+      :disabled="!isFeatureEnabled(feature)"
+      :to="isFeatureEnabled(feature) && feature.routeValue ? getFeatureRoute(feature.routeValue) : undefined"
+      size="sm"
+      label-class="hidden lg:inline"
+    />
+  </nav>
 </template>
