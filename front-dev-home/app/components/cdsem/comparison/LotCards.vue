@@ -7,7 +7,9 @@
           aria-hidden="true"
         />
         <div>
-          <h2 class="lot-cards__title">Lot Brief Atlas</h2>
+          <h2 class="lot-cards__title">
+            Lot Brief Atlas
+          </h2>
           <p class="lot-cards__subtitle">
             한 카드 = 한 lot. 카드를 클릭하면 그 자리에 펼쳐져 recipe 와 trend 가 함께 나옵니다.
           </p>
@@ -73,7 +75,9 @@
         <!-- Expanded detail -->
         <section v-if="expandedLot === row.lot_cd" class="lot-cards__card-expand" @click.stop>
           <div class="lot-cards__card-expand-head">
-            <h3 class="lot-cards__card-expand-title">recipe · {{ row.lot_cd }}</h3>
+            <h3 class="lot-cards__card-expand-title">
+              recipe · {{ row.lot_cd }}
+            </h3>
             <UButton
               size="xs"
               color="neutral"
@@ -82,23 +86,66 @@
               @click.stop="expandedLot = null"
             />
           </div>
-          <div class="lot-cards__recipe-list">
-            <div
-              v-for="r in recipesFor(row.lot_cd)"
-              :key="`${r.recipe_id}-${r.oper_id}`"
-              class="lot-cards__recipe-item"
+          <div class="lot-cards__recipe-table-wrap">
+            <table
+              v-if="recipesFor(row.lot_cd).length > 0"
+              class="lot-cards__recipe-table"
             >
-              <span class="lot-cards__recipe-id">{{ r.recipe_id }}</span>
-              <span class="lot-cards__recipe-oper">{{ r.oper_id }}</span>
-              <span class="lot-cards__recipe-params">
-                <span class="lot-cards__recipe-param" data-key="p16">{{ r.para_16 }}</span>
-                <span class="lot-cards__recipe-param" data-key="p13">{{ r.para_13 }}</span>
-                <span class="lot-cards__recipe-param" data-key="p9">{{ r.para_9 }}</span>
-                <span class="lot-cards__recipe-param" data-key="p5">{{ r.para_5 }}</span>
-              </span>
-              <span class="lot-cards__recipe-total">{{ r.para_16 + r.para_13 + r.para_9 + r.para_5 }}</span>
-            </div>
-            <p v-if="recipesFor(row.lot_cd).length === 0" class="lot-cards__recipe-empty">
+              <thead>
+                <tr>
+                  <th
+                    v-for="column in recipeColumns"
+                    :key="column.key"
+                    :aria-sort="ariaSort(column.key)"
+                    :class="{ 'lot-cards__recipe-th--numeric': column.numeric }"
+                    scope="col"
+                  >
+                    <button
+                      type="button"
+                      class="lot-cards__recipe-sort"
+                      :class="{ 'lot-cards__recipe-sort--active': recipeSort.key === column.key }"
+                      @click="toggleRecipeSort(column.key)"
+                    >
+                      <span>{{ column.label }}</span>
+                      <UIcon
+                        :name="recipeSort.key === column.key && recipeSort.dir === 'asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'"
+                        class="lot-cards__recipe-sort-icon"
+                        :class="{ 'lot-cards__recipe-sort-icon--muted': recipeSort.key !== column.key }"
+                      />
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in sortedRecipesFor(row.lot_cd)"
+                  :key="`${r.recipe_id}-${r.oper_id}-${r.oper_seq}`"
+                >
+                  <td class="lot-cards__recipe-id">
+                    {{ r.recipe_id }}
+                  </td>
+                  <td class="lot-cards__recipe-oper">
+                    {{ r.oper_id }}
+                  </td>
+                  <td class="lot-cards__recipe-number">
+                    {{ r.para_16 }}
+                  </td>
+                  <td class="lot-cards__recipe-number">
+                    {{ r.para_13 }}
+                  </td>
+                  <td class="lot-cards__recipe-number">
+                    {{ r.para_9 }}
+                  </td>
+                  <td class="lot-cards__recipe-number">
+                    {{ r.para_5 }}
+                  </td>
+                  <td class="lot-cards__recipe-total">
+                    {{ recipeParamTotal(r) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else class="lot-cards__recipe-empty">
               이 lot 의 recipe 가 현재 bucket 에 없습니다.
             </p>
           </div>
@@ -131,6 +178,24 @@ const props = defineProps<{
 
 const expandedLot = ref<string | null>(null)
 
+type RecipeSortKey = 'recipe_id' | 'oper_id' | 'para_16' | 'para_13' | 'para_9' | 'para_5' | 'para_all'
+type SortDirection = 'asc' | 'desc'
+
+const recipeColumns = [
+  { key: 'recipe_id', label: 'recipe_id', numeric: false },
+  { key: 'oper_id', label: 'oper_id', numeric: false },
+  { key: 'para_16', label: 'para_16', numeric: true },
+  { key: 'para_13', label: 'para_13', numeric: true },
+  { key: 'para_9', label: 'para_9', numeric: true },
+  { key: 'para_5', label: 'para_5', numeric: true },
+  { key: 'para_all', label: 'param_total', numeric: true }
+] as const satisfies readonly { key: RecipeSortKey, label: string, numeric: boolean }[]
+
+const recipeSort = ref<{ key: RecipeSortKey, dir: SortDirection }>({
+  key: 'para_all',
+  dir: 'desc'
+})
+
 const sortedRows = computed(() =>
   [...props.rows].sort((a, b) => {
     const da = healthOrder[a.health] - healthOrder[b.health]
@@ -161,6 +226,49 @@ const toggleCard = (lotCd: string) => {
 
 const recipesFor = (lotCd: string): RecipeInfoRow[] => recipesByLot.value.get(lotCd) ?? []
 
+const defaultRecipeSortDir = (key: RecipeSortKey): SortDirection =>
+  recipeColumns.find(column => column.key === key)?.numeric ? 'desc' : 'asc'
+
+const recipeParamTotal = (row: RecipeInfoRow): number =>
+  row.para_16 + row.para_13 + row.para_9 + row.para_5
+
+const recipeSortValue = (row: RecipeInfoRow, key: RecipeSortKey): string | number => {
+  if (key === 'para_all') return recipeParamTotal(row)
+  return row[key]
+}
+
+const sortedRecipesFor = (lotCd: string): RecipeInfoRow[] => {
+  const { key, dir } = recipeSort.value
+  const direction = dir === 'asc' ? 1 : -1
+
+  return [...recipesFor(lotCd)].sort((a, b) => {
+    const av = recipeSortValue(a, key)
+    const bv = recipeSortValue(b, key)
+
+    if (typeof av === 'number' && typeof bv === 'number') {
+      const diff = av - bv
+      if (diff !== 0) return diff * direction
+    } else {
+      const diff = String(av).localeCompare(String(bv), undefined, { numeric: true })
+      if (diff !== 0) return diff * direction
+    }
+
+    return a.recipe_id.localeCompare(b.recipe_id, undefined, { numeric: true })
+      || a.oper_id.localeCompare(b.oper_id, undefined, { numeric: true })
+      || a.oper_seq - b.oper_seq
+  })
+}
+
+const toggleRecipeSort = (key: RecipeSortKey) => {
+  recipeSort.value = recipeSort.value.key === key
+    ? { key, dir: recipeSort.value.dir === 'asc' ? 'desc' : 'asc' }
+    : { key, dir: defaultRecipeSortDir(key) }
+}
+
+const ariaSort = (key: RecipeSortKey): 'ascending' | 'descending' | 'none' => {
+  if (recipeSort.value.key !== key) return 'none'
+  return recipeSort.value.dir === 'asc' ? 'ascending' : 'descending'
+}
 </script>
 
 <style scoped>
@@ -395,48 +503,99 @@ const recipesFor = (lotCd: string): RecipeInfoRow[] => recipesByLot.value.get(lo
   color: var(--sk-ink);
 }
 
-.lot-cards__recipe-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.lot-cards__recipe-table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--sk-surface);
+  box-shadow: inset 0 0 0 1px var(--sk-border-soft);
 }
 
-.lot-cards__recipe-item {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr auto 50px;
-  gap: 10px;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--sk-surface);
+.lot-cards__recipe-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
   font: 500 11px/1.2 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-.lot-cards__recipe-id    { color: var(--sk-ink); font-weight: 600; }
-.lot-cards__recipe-oper  { color: var(--sk-ink-muted); }
-.lot-cards__recipe-total { text-align: right; font-weight: 700; color: var(--sk-ink); }
-
-.lot-cards__recipe-params {
-  display: inline-flex;
-  gap: 4px;
+.lot-cards__recipe-table th,
+.lot-cards__recipe-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--sk-border-soft);
+  white-space: nowrap;
 }
 
-.lot-cards__recipe-param {
+.lot-cards__recipe-table th {
+  background: color-mix(in oklch, var(--sk-muted-surface), var(--sk-surface) 42%);
+  color: var(--sk-ink-muted);
+  font-weight: 700;
+  text-align: left;
+}
+
+.lot-cards__recipe-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lot-cards__recipe-table tbody tr:hover {
+  background: var(--sk-muted-surface);
+}
+
+.lot-cards__recipe-th--numeric,
+.lot-cards__recipe-number,
+.lot-cards__recipe-total {
+  text-align: right;
+}
+
+.lot-cards__recipe-sort {
   display: inline-flex;
+  width: 100%;
   align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  padding: 2px 5px;
-  border-radius: 4px;
-  font: 600 10.5px/1 var(--font-mono);
-  color: white;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: inherit;
 }
 
-.lot-cards__recipe-param[data-key="p16"] { background: oklch(0.62 0.16 32); }
-.lot-cards__recipe-param[data-key="p13"] { background: oklch(0.72 0.14 65); }
-.lot-cards__recipe-param[data-key="p9"]  { background: oklch(0.66 0.10 100); }
-.lot-cards__recipe-param[data-key="p5"]  { background: oklch(0.62 0.08 165); }
+.lot-cards__recipe-th--numeric .lot-cards__recipe-sort {
+  justify-content: flex-end;
+}
+
+.lot-cards__recipe-sort--active {
+  color: var(--sk-ink);
+}
+
+.lot-cards__recipe-sort-icon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.lot-cards__recipe-sort-icon--muted {
+  opacity: 0.28;
+}
+
+.lot-cards__recipe-id {
+  color: var(--sk-ink);
+  font-weight: 600;
+}
+
+.lot-cards__recipe-oper {
+  color: var(--sk-ink-muted);
+}
+
+.lot-cards__recipe-number {
+  color: var(--sk-ink-muted);
+}
+
+.lot-cards__recipe-total {
+  color: var(--sk-ink);
+  font-weight: 700;
+}
 
 .lot-cards__recipe-empty {
   font: 500 11px/1.4 var(--font-sans);

@@ -23,7 +23,7 @@ watch(() => route.params.fab, (newFab) => {
       tool-type="cd-sem"
       :fab="fabId"
       :title="`CD-SEM - ${fabId}`"
-      subtitle="전산 시스템에 등록된 장비 기준으로 보여줍니다. 업데이트 주기: 1시간"
+      subtitle="스큐노노가 현재 접근 가능한 장비 리스트. 업데이트 주기 : 1 시간"
     >
       <template #below-title>
         <EbeamEquipmentStatusSubTabs />

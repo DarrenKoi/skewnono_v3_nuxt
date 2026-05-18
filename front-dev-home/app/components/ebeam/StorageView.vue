@@ -323,7 +323,7 @@ const props = defineProps<{
 const storageTool: StorageTool = props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
 const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi(storageTool)
 
-const subtitle = '스토리지 정보 업데이트는 오전 8시에 한번 체크합니다'
+const subtitle = '스큐노노가 획득한 장비 용량 정보. 업데이트 주기 : 매일 오전 8시 30분'
 const pageTitle = computed(() => `${props.toolLabel} - ${props.fab}`)
 
 // Abort in-flight fetches on unmount so a fast tab-toggle doesn't leave zombie

@@ -31,6 +31,7 @@ DEFAULT_QUEUE_SIZE = 10_000
 _KNOWN_EXTRA_KEYS = (
     "event",
     "user_id",
+    "api_token_id",
     "request_id",
     "method",
     "path",

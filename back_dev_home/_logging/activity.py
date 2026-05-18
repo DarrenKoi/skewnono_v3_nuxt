@@ -17,6 +17,10 @@ _STATUS_PHRASE = {status.value: status.phrase for status in HTTPStatus}
 def _activity_weight(user_id: str | None, path: str, status: int) -> int:
     if not user_id or user_id == "-":
         return 0
+    # Token-authenticated calls are logged but never scored — bots must not
+    # appear on the human leaderboard.
+    if getattr(g, "api_token_id", None):
+        return 0
     if not path.startswith("/api/"):
         return 0
     if path.startswith("/api/activity/") or path.startswith("/api/admin/logs"):
@@ -42,6 +46,7 @@ def _build_extra(*, event, status, ms, user_id, remote, error_code, error_name):
     return {
         "event": event,
         "user_id": str(user_id),
+        "api_token_id": getattr(g, "api_token_id", None),
         "method": request.method,
         "path": path,
         "request_path": path,
@@ -98,7 +103,8 @@ def install_activity_logging(app: Flask) -> None:
                 error_name=_status_error_name(status),
             ),
         )
-        record_request(user_id, request.method, request.path, status)
+        if not getattr(g, "api_token_id", None):
+            record_request(user_id, request.method, request.path, status)
         return response
 
     def _emit_exception(_sender, exception, **_extra):

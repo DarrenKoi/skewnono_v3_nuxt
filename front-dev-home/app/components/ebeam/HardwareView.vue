@@ -142,7 +142,7 @@ const serviceDetailEntries = computed(() => {
       subtitle="BSM, FDC, BM/PM 정보를 선택한 장비 기준으로 확인합니다."
     />
 
-    <section class="dashboard-surface max-w-4xl rounded-2xl p-4">
+    <section class="dashboard-surface mx-auto w-full max-w-3xl rounded-2xl p-4">
       <div class="flex flex-col gap-2 md:flex-row md:items-center">
         <USelect
           v-model="modelFilter"

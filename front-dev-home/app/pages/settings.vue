@@ -35,6 +35,8 @@ definePageMeta({
         </div>
       </UCard>
 
+      <SettingsApiTokens />
+
       <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <h2 class="font-semibold">
