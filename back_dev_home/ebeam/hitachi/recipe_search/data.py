@@ -13,6 +13,8 @@ from typing import Literal, TypedDict
 
 
 __all__ = [
+    "AmpRow",
+    "IMAGE_SLOTS",
     "IdpImageInfoRow",
     "RecipeDetailResponse",
     "RecipeSearchResponse",
@@ -72,6 +74,41 @@ IdpImageInfoRow = TypedDict("IdpImageInfoRow", {
 })
 
 
+# Auto Meas Parameter (AMP) — one row per (parameter, image slot).
+# Fields not applicable to a role come through as None.
+AmpRow = TypedDict("AmpRow", {
+    "parameter": str,
+    "slot": str,
+    "role": str,
+    "stage": str,
+    "Mag": str,
+    "Vacc": str,
+    "I_probe": str,
+    "Frame": str,
+    "Scan": str,
+    "WD": str,
+    "Det": str,
+    "Template": str | None,
+    "MatchScore": str | None,
+    "SearchArea": str | None,
+    "Rotation": str | None,
+    "Algo": str | None,
+    "ROI": str | None,
+    "EdgeThr": str | None,
+    "EdgeDir": str | None,
+    "Smooth": str | None
+})
+
+
+IMAGE_SLOTS: tuple[dict[str, str], ...] = (
+    {"key": "img_add1",   "label": "img_add1",   "role": "address", "stage": "Addressing 1"},
+    {"key": "img_add2",   "label": "img_add2",   "role": "address", "stage": "Addressing 2"},
+    {"key": "image_add3", "label": "image_add3", "role": "address", "stage": "Addressing 3"},
+    {"key": "img_meas1",  "label": "img_meas1",  "role": "measure", "stage": "Measure 1"},
+    {"key": "img_meas2",  "label": "img_meas2",  "role": "measure", "stage": "Measure 2"}
+)
+
+
 class RecipeSearchResponse(TypedDict):
     tool_type: ToolType
     fab_name: str | None
@@ -83,6 +120,7 @@ class RecipeDetailResponse(TypedDict):
     wafer_mp_info: list[WaferMpInfoRow]
     wafer_align_info: list[WaferAlignInfoRow]
     idp_image_info: list[IdpImageInfoRow]
+    amp_info: list[AmpRow]
     recipe_id: str
     fac_id: str
     tool_category: str
@@ -215,6 +253,81 @@ def generate_idp_image_info(
     return data
 
 
+_ADDR_ONLY_NONE = {
+    "Algo": None,
+    "ROI": None,
+    "EdgeThr": None,
+    "EdgeDir": None,
+    "Smooth": None
+}
+
+_MEAS_ONLY_NONE = {
+    "Template": None,
+    "MatchScore": None,
+    "SearchArea": None,
+    "Rotation": None
+}
+
+
+def generate_amp_info(idp_rows: list[IdpImageInfoRow]) -> list[AmpRow]:
+    """Generate Auto Meas Parameter rows for every (parameter, image slot).
+
+    Seeded deterministically off the parameter string so refreshes return the
+    same values for the same recipe.
+    """
+    rows: list[AmpRow] = []
+
+    for idp in idp_rows:
+        parameter = idp["Parameter"]
+        param_rng = random.Random(_seed_for_values("amp", parameter))
+
+        for slot in IMAGE_SLOTS:
+            common = {
+                "parameter": parameter,
+                "slot": slot["key"],
+                "role": slot["role"],
+                "stage": slot["stage"],
+                "WD": f"{param_rng.uniform(4.5, 6.0):.1f}"
+            }
+
+            if slot["role"] == "address":
+                rows.append({
+                    **common,
+                    "Mag": param_rng.choice(["1.0K", "3.0K", "5.0K", "10.0K"]),
+                    "Vacc": param_rng.choice(["300", "500", "800"]),
+                    "I_probe": param_rng.choice(["20", "40", "80"]),
+                    "Frame": param_rng.choice(["2", "4", "8"]),
+                    "Scan": param_rng.choice(["TV", "Fast"]),
+                    "Det": "SE",
+                    "Template": (
+                        f"TPL_{param_rng.choice(['LINE', 'PAD', 'VIA', 'CRN'])}"
+                        f"_{param_rng.randint(100, 999)}"
+                    ),
+                    "MatchScore": str(param_rng.randint(60, 95)),
+                    "SearchArea": param_rng.choice(["128", "256", "384", "512"]),
+                    "Rotation": f"{param_rng.uniform(-1.0, 1.0):.2f}",
+                    **_ADDR_ONLY_NONE
+                })
+            else:
+                rows.append({
+                    **common,
+                    "Mag": param_rng.choice(["30.0K", "50.0K", "80.0K", "100.0K"]),
+                    "Vacc": param_rng.choice(["800", "1000", "1500"]),
+                    "I_probe": param_rng.choice(["200", "400", "800"]),
+                    "Frame": param_rng.choice(["8", "16", "32"]),
+                    "Scan": param_rng.choice(["Slow1", "Slow2", "TV"]),
+                    "Det": param_rng.choice(["SE", "BSE"]),
+                    "Algo": param_rng.choice(["Linear", "Top-Bottom", "Threshold", "Box"]),
+                    "ROI": param_rng.choice(["256", "384", "512", "640"]),
+                    "EdgeThr": param_rng.choice(["40", "50", "60", "70"]),
+                    "EdgeDir": param_rng.choice(["L->R", "R->L", "Both"]),
+                    "Smooth": param_rng.choice(["Off", "3x3", "5x5", "Gauss"]),
+                    **_MEAS_ONLY_NONE
+                })
+
+    return rows
+
+
 def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> RecipeSearchResponse:
     rows = list(_generate_recipe_rows(tool_type, fab_name))
     return {
@@ -236,10 +349,13 @@ def get_recipe_open_data(
     resolved_tool_category = tool_category or "cd-sem"
     rng = random.Random(_seed_for_values(resolved_recipe_id, resolved_fac_id, resolved_tool_category))
 
+    idp_rows = generate_idp_image_info(rng=rng)
+
     return {
         "wafer_mp_info": generate_wafer_mp_info(rng=rng),
         "wafer_align_info": generate_wafer_align_info(rng=rng),
-        "idp_image_info": generate_idp_image_info(rng=rng),
+        "idp_image_info": idp_rows,
+        "amp_info": generate_amp_info(idp_rows),
         "recipe_id": resolved_recipe_id,
         "fac_id": resolved_fac_id,
         "tool_category": resolved_tool_category,

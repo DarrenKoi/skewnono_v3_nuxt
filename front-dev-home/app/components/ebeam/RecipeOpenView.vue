@@ -1,129 +1,6 @@
-<script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
-import type { Fab } from '~/stores/navigation'
-import type {
-  IdpImageInfoRow,
-  RecipeDetailResponse,
-  RecipeSearchToolType,
-  WaferMpInfoRow
-} from '~/composables/useRecipeSearchApi'
-import { formatRecipeTimestamp, readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
-
-const props = defineProps<{
-  fab: Fab
-  toolLabel: string
-  toolType: RecipeSearchToolType
-}>()
-
-type WaferAlignDisplayRow = {
-  Align_No: number
-  Chip_X: number
-  Chip_Y: number
-  Coordinate_X: number
-  Coordinate_Y: number
-  P_No: number
-}
-
-const route = useRoute()
-const { fetchRecipeDetail } = useRecipeSearchApi()
-
-const recipeName = computed(() => readRecipeNameQuery(route))
-const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
-const { goBack: goBackToList } = useHistoryBack(backRoute)
-const cacheKey = computed(() => `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
-
-const { data, pending, error, refresh } = await useAsyncData<RecipeDetailResponse | null>(
-  () => cacheKey.value,
-  () => {
-    if (!recipeName.value) {
-      return Promise.resolve(null)
-    }
-
-    return fetchRecipeDetail({
-      toolType: props.toolType,
-      fabName: props.fab,
-      recipeName: recipeName.value
-    })
-  },
-  {
-    watch: [cacheKey],
-    default: () => null,
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
-  }
-)
-
-const waferMpRows = computed(() => data.value?.wafer_mp_info ?? [])
-const waferAlignRows = computed<WaferAlignDisplayRow[]>(() => {
-  return (data.value?.wafer_align_info ?? []).map(row => ({
-    Align_No: row.Align_No,
-    Chip_X: row['Chip.X'],
-    Chip_Y: row['Chip.Y'],
-    Coordinate_X: row['Coordinate.X'],
-    Coordinate_Y: row['Coordinate.Y'],
-    P_No: row['P.No']
-  }))
-})
-const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
-
-const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
-
-const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso, { withSeconds: true })
-
-const statCells = computed(() => [
-  { label: '측정 포인트', value: waferMpRows.value.length },
-  { label: 'Align 포인트', value: waferAlignRows.value.length },
-  { label: 'Image 정의', value: idpImageRows.value.length }
-])
-
-const waferMpColumns: TableColumn<WaferMpInfoRow>[] = [
-  { accessorKey: 'ChipNo_X', header: 'ChipNo_X', size: 86 },
-  { accessorKey: 'ChipNo_Y', header: 'ChipNo_Y', size: 86 },
-  { accessorKey: 'Coordinate_X', header: 'Coordinate_X', size: 118 },
-  { accessorKey: 'Coordinate_Y', header: 'Coordinate_Y', size: 118 },
-  { accessorKey: 'P_No', header: 'P_No', size: 70 },
-  { accessorKey: 'D_No', header: 'D_No', size: 70 },
-  { accessorKey: 'Diff', header: 'Diff', size: 76 },
-  { accessorKey: 'Rel', header: 'Rel', size: 70 },
-  { accessorKey: 'Rel_MoveX', header: 'Rel_MoveX', size: 104 },
-  { accessorKey: 'RelMoveY', header: 'RelMoveY', size: 104 },
-  { accessorKey: 'Coordinate_X_r', header: 'Coordinate_X_r', size: 128 },
-  { accessorKey: 'Coordinate_Y_r', header: 'Coordinate_Y_r', size: 128 },
-  { accessorKey: 'Parameter', header: 'Parameter', size: 96 },
-  { accessorKey: 'img_meas2', header: 'img_meas2', size: 138 }
-]
-
-const waferAlignColumns: TableColumn<WaferAlignDisplayRow>[] = [
-  { accessorKey: 'Align_No', header: 'Align_No', size: 86 },
-  { accessorKey: 'Chip_X', header: 'Chip.X', size: 80 },
-  { accessorKey: 'Chip_Y', header: 'Chip.Y', size: 80 },
-  { accessorKey: 'Coordinate_X', header: 'Coordinate.X', size: 118 },
-  { accessorKey: 'Coordinate_Y', header: 'Coordinate.Y', size: 118 },
-  { accessorKey: 'P_No', header: 'P.No', size: 72 }
-]
-
-const idpImageColumns: TableColumn<IdpImageInfoRow>[] = [
-  { accessorKey: 'Parameter', header: 'Parameter', size: 96 },
-  { accessorKey: 'img_add1', header: 'img_add1', size: 134 },
-  { accessorKey: 'img_add2', header: 'img_add2', size: 134 },
-  { accessorKey: 'img_meas1', header: 'img_meas1', size: 138 },
-  { accessorKey: 'img_meas2', header: 'img_meas2', size: 138 },
-  { accessorKey: 'SEQ', header: 'SEQ', size: 64 },
-  { accessorKey: 'Last_SEQ', header: 'Last_SEQ', size: 88 },
-  { accessorKey: 'Region', header: 'Region', size: 78 },
-  { accessorKey: 'image_add3', header: 'image_add3', size: 138 },
-  { accessorKey: 'Addressing', header: 'Addressing', size: 104 },
-  { accessorKey: 'Mother_Para', header: 'Mother_Para', size: 112 },
-  { accessorKey: 'Double_Addressing', header: 'Double_Addressing', size: 146 },
-  { accessorKey: 'Meas_Counting', header: 'Meas_Counting', size: 122 },
-  { accessorKey: 'dnumber_removed', header: 'dnumber_removed', size: 132 }
-]
-
-const tableUi = recipeTableUi
-</script>
-
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+  <div class="flex h-full min-h-[640px] flex-col gap-4">
+    <div class="flex shrink-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div class="min-w-0">
         <UButton
           size="sm"
@@ -151,7 +28,7 @@ const tableUi = recipeTableUi
 
       <div
         v-if="data"
-        class="dashboard-surface flex overflow-hidden rounded-2xl self-start md:self-auto"
+        class="dashboard-surface flex self-start overflow-hidden rounded-2xl md:self-auto"
       >
         <div
           v-for="(cell, index) in statCells"
@@ -169,7 +46,7 @@ const tableUi = recipeTableUi
 
     <div
       v-if="!recipeName"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      class="dashboard-surface flex flex-1 flex-col items-center justify-center rounded-2xl px-6 py-12 text-center"
     >
       <UIcon
         name="i-lucide-circle-alert"
@@ -190,7 +67,7 @@ const tableUi = recipeTableUi
 
     <div
       v-else-if="pending"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+      class="dashboard-surface flex flex-1 flex-col items-center justify-center rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -203,7 +80,7 @@ const tableUi = recipeTableUi
 
     <div
       v-else-if="error"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      class="dashboard-surface flex flex-1 flex-col items-center justify-center rounded-2xl px-6 py-12 text-center"
     >
       <UIcon
         name="i-lucide-circle-alert"
@@ -223,93 +100,193 @@ const tableUi = recipeTableUi
       />
     </div>
 
-    <template v-else-if="data">
-      <section class="dashboard-surface rounded-2xl px-3.5 py-3">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            wafer_mp_info
-          </h2>
-          <span class="font-mono text-[11px] tabular-nums text-zinc-500">
-            {{ waferMpRows.length.toLocaleString() }} rows
-          </span>
-        </div>
-        <UTable
-          class="max-h-[24rem] font-mono-ids"
-          :columns="waferMpColumns"
-          :data="waferMpRows"
-          sticky="header"
-          :ui="tableUi"
-        >
-          <template #Diff-cell="{ row }">
-            <UBadge
-              :label="row.original.Diff ? 'True' : 'False'"
-              :color="row.original.Diff ? 'success' : 'neutral'"
-              size="xs"
-              variant="subtle"
-            />
-          </template>
-          <template #Rel-cell="{ row }">
-            <UBadge
-              :label="row.original.Rel ? 'True' : 'False'"
-              :color="row.original.Rel ? 'success' : 'neutral'"
-              size="xs"
-              variant="subtle"
-            />
-          </template>
-        </UTable>
-      </section>
+    <template v-else-if="data && selectedIdp">
+      <div class="grid gap-3.5 lg:min-h-0 lg:flex-1 lg:grid-cols-[1.05fr_1.3fr]">
+        <section class="dashboard-surface flex h-[520px] flex-col overflow-hidden rounded-2xl lg:h-auto">
+          <EbeamRecipeOpenIdpTable
+            v-model:selected-index="selectedIdpIndex"
+            :rows="idpImageRows"
+            @open-align="alignOpen = true"
+          />
+        </section>
 
-      <section class="dashboard-surface rounded-2xl px-3.5 py-3">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            wafer_align_info
-          </h2>
-          <span class="font-mono text-[11px] tabular-nums text-zinc-500">
-            {{ waferAlignRows.length.toLocaleString() }} rows
-          </span>
-        </div>
-        <UTable
-          class="max-h-[18rem] font-mono-ids"
-          :columns="waferAlignColumns"
-          :data="waferAlignRows"
-          sticky="header"
-          :ui="tableUi"
-        />
-      </section>
+        <section class="dashboard-surface flex h-[640px] flex-col overflow-hidden rounded-2xl lg:h-auto">
+          <div class="border-b border-zinc-200/70 px-4 pt-3 pb-3 dark:border-zinc-800/70">
+            <div class="mb-3 flex flex-wrap items-baseline gap-2.5">
+              <span class="font-mono text-[11px] tracking-wider text-(--sk-brand) uppercase">
+                SELECTED
+              </span>
+              <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+                {{ selectedIdp.Parameter }}
+              </span>
+              <EbeamRecipeOpenYesNoPill :value="selectedIdp.Addressing" />
+              <span
+                v-if="selectedIdp.Mother_Para && selectedIdp.Mother_Para !== '—'"
+                class="font-mono text-[11px] text-zinc-500"
+              >
+                ← {{ selectedIdp.Mother_Para }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <SkNavPill
+                size="sm"
+                label="이미지 + AMP"
+                icon="i-lucide-eye"
+                :count="IMAGE_SLOTS.length"
+                :active="activeTab === 'image'"
+                @click="activeTab = 'image'"
+              />
+              <SkNavPill
+                size="sm"
+                label="개요"
+                :active="activeTab === 'overview'"
+                @click="activeTab = 'overview'"
+              />
+              <SkNavPill
+                size="sm"
+                label="측정 위치"
+                :count="mpRowsForSelected.length"
+                :active="activeTab === 'mp'"
+                @click="activeTab = 'mp'"
+              />
+            </div>
+          </div>
 
-      <section class="dashboard-surface rounded-2xl px-3.5 py-3">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            idp_image_info
-          </h2>
-          <span class="font-mono text-[11px] tabular-nums text-zinc-500">
-            {{ idpImageRows.length.toLocaleString() }} rows
-          </span>
-        </div>
-        <UTable
-          class="max-h-[22rem] font-mono-ids"
-          :columns="idpImageColumns"
-          :data="idpImageRows"
-          sticky="header"
-          :ui="tableUi"
-        >
-          <template #Double_Addressing-cell="{ row }">
-            <UBadge
-              :label="row.original.Double_Addressing ? 'True' : 'False'"
-              :color="row.original.Double_Addressing ? 'success' : 'neutral'"
-              size="xs"
-              variant="subtle"
+          <div class="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+            <EbeamRecipeOpenImageAmpMatrix
+              v-if="activeTab === 'image'"
+              :row="selectedIdp"
+              :amp-rows="ampRowsForSelected"
+              @open-image="openLightbox"
             />
-          </template>
-        </UTable>
-      </section>
+
+            <EbeamRecipeOpenOverviewKV
+              v-else-if="activeTab === 'overview'"
+              :row="selectedIdp"
+            />
+
+            <template v-else>
+              <p class="mb-2 text-[11px] text-zinc-500">
+                자주 보지 않는 정보입니다. wafer_mp_info 에서
+                <b class="text-zinc-700 dark:text-zinc-200">Parameter = {{ selectedIdp.Parameter }}</b>
+                으로 필터링.
+              </p>
+              <EbeamRecipeOpenMpTable :rows="mpRowsForSelected" />
+            </template>
+          </div>
+        </section>
+      </div>
+
+      <EbeamRecipeOpenAlignPopup
+        v-model:open="alignOpen"
+        :rows="data.wafer_align_info"
+      />
+
+      <EbeamRecipeOpenImageLightbox
+        v-model:open="lightboxOpen"
+        :data="lightboxData"
+      />
     </template>
   </div>
 </template>
 
-<style scoped>
-.font-mono-ids :deep(td),
-.font-mono-ids :deep(th) {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+<script setup lang="ts">
+import type { Fab } from '~/stores/navigation'
+import type {
+  AmpRow,
+  RecipeDetailResponse,
+  RecipeSearchToolType
+} from '~/composables/useRecipeSearchApi'
+import {
+  IMAGE_SLOTS,
+  type ImageSlotKey,
+  formatRecipeTimestamp,
+  readRecipeNameQuery
+} from '~/utils/recipeView'
+import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
+
+const props = defineProps<{
+  fab: Fab
+  toolLabel: string
+  toolType: RecipeSearchToolType
+}>()
+
+const route = useRoute()
+const { fetchRecipeDetail } = useRecipeSearchApi()
+
+const recipeName = computed(() => readRecipeNameQuery(route))
+const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
+const { goBack: goBackToList } = useHistoryBack(backRoute)
+const cacheKey = computed(() => `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
+
+const { data, pending, error, refresh } = await useAsyncData<RecipeDetailResponse | null>(
+  () => cacheKey.value,
+  () => {
+    if (!recipeName.value) return Promise.resolve(null)
+    return fetchRecipeDetail({
+      toolType: props.toolType,
+      fabName: props.fab,
+      recipeName: recipeName.value
+    })
+  },
+  {
+    watch: [cacheKey],
+    default: () => null,
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+  }
+)
+
+const waferMpRows = computed(() => data.value?.wafer_mp_info ?? [])
+const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
+const ampInfo = computed<AmpRow[]>(() => data.value?.amp_info ?? [])
+
+const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
+const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso, { withSeconds: true })
+
+const statCells = computed(() => [
+  { label: '측정 포인트', value: waferMpRows.value.length },
+  { label: 'Align 포인트', value: data.value?.wafer_align_info.length ?? 0 },
+  { label: 'Image 정의', value: idpImageRows.value.length }
+])
+
+type Tab = 'image' | 'overview' | 'mp'
+
+const selectedIdpIndex = ref(0)
+const activeTab = ref<Tab>('image')
+const alignOpen = ref(false)
+const lightboxOpen = ref(false)
+const lightboxData = ref<LightboxData | null>(null)
+
+watch(cacheKey, () => {
+  selectedIdpIndex.value = 0
+  activeTab.value = 'image'
+  lightboxOpen.value = false
+  lightboxData.value = null
+})
+
+const selectedIdp = computed(() => idpImageRows.value[selectedIdpIndex.value] ?? null)
+
+const mpRowsForSelected = computed(() => {
+  const param = selectedIdp.value?.Parameter
+  if (!param) return []
+  return waferMpRows.value.filter(r => r.Parameter === param)
+})
+
+const ampRowsForSelected = computed(() => {
+  const param = selectedIdp.value?.Parameter
+  if (!param) return []
+  return ampInfo.value.filter(a => a.parameter === param)
+})
+
+const openLightbox = (slotKey: ImageSlotKey) => {
+  if (!selectedIdp.value) return
+  const slot = IMAGE_SLOTS.find(s => s.key === slotKey)
+  if (!slot) return
+  lightboxData.value = {
+    slot,
+    filename: selectedIdp.value[slot.key],
+    ampRow: ampRowsForSelected.value.find(a => a.slot === slot.key) ?? null
+  }
+  lightboxOpen.value = true
 }
-</style>
+</script>

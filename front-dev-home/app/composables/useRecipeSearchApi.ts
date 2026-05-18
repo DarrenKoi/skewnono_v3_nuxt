@@ -65,10 +65,36 @@ export interface IdpImageInfoRow {
   dnumber_removed: number
 }
 
+export type AmpRole = 'address' | 'measure'
+
+export interface AmpRow {
+  parameter: string
+  slot: string
+  role: AmpRole
+  stage: string
+  Mag: string
+  Vacc: string
+  I_probe: string
+  Frame: string
+  Scan: string
+  WD: string
+  Det: string
+  Template: string | null
+  MatchScore: string | null
+  SearchArea: string | null
+  Rotation: string | null
+  Algo: string | null
+  ROI: string | null
+  EdgeThr: string | null
+  EdgeDir: string | null
+  Smooth: string | null
+}
+
 export interface RecipeDetailResponse {
   wafer_mp_info: WaferMpInfoRow[]
   wafer_align_info: WaferAlignInfoRow[]
   idp_image_info: IdpImageInfoRow[]
+  amp_info: AmpRow[]
   recipe_id: string
   fac_id: string
   tool_category: RecipeSearchToolType
