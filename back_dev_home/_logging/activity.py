@@ -6,7 +6,8 @@ from flask import Flask, g, request
 from flask.signals import got_request_exception
 
 from .._runtime.env import is_cloud
-from ..activity.data import _feature_of, record_request
+from ..activity.data import is_recordable, record_request
+from .feature_map import route_to_feature
 from .opensearch_handler import install_opensearch_logging
 
 logger = logging.getLogger("skewnono.activity")
@@ -15,19 +16,11 @@ _STATUS_PHRASE = {status.value: status.phrase for status in HTTPStatus}
 
 
 def _activity_weight(user_id: str | None, path: str, status: int) -> int:
-    if not user_id or user_id == "-":
-        return 0
     # Token-authenticated calls are logged but never scored — bots must not
-    # appear on the human leaderboard.
+    # contribute to the usage dashboard's human-facing metrics.
     if getattr(g, "api_token_id", None):
         return 0
-    if not path.startswith("/api/"):
-        return 0
-    if path.startswith("/api/activity/") or path.startswith("/api/admin/logs"):
-        return 0
-    if status >= 400:
-        return 0
-    return 1
+    return 1 if is_recordable(user_id, path, status) else 0
 
 
 def _status_error_name(status: int) -> str | None:
@@ -36,7 +29,7 @@ def _status_error_name(status: int) -> str | None:
     return _STATUS_PHRASE.get(status, "HTTP error")
 
 
-def _build_extra(*, event, status, ms, user_id, remote, error_code, error_name):
+def _build_extra(*, event, status, ms, user_id, remote, feature, error_code, error_name):
     path = request.path
     query_string = (
         request.query_string.decode("utf-8", errors="replace")
@@ -54,7 +47,7 @@ def _build_extra(*, event, status, ms, user_id, remote, error_code, error_name):
         "status": status,
         "latency_ms": ms,
         "remote_addr": remote,
-        "feature": _feature_of(path),
+        "feature": feature,
         "activity_weight": _activity_weight(user_id, path, status),
         "error_code": error_code,
         "error_name": error_name,
@@ -83,13 +76,15 @@ def install_activity_logging(app: Flask) -> None:
         user_id = getattr(g, "user_id", "-")
         remote = request.remote_addr or "-"
         status = response.status_code
+        path = request.path
+        feature = route_to_feature(path)
         level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
         logger.log(
             level,
             "user=%s method=%s path=%s status=%s ms=%s remote=%s",
             user_id,
             request.method,
-            request.path,
+            path,
             status,
             ms,
             remote,
@@ -99,12 +94,13 @@ def install_activity_logging(app: Flask) -> None:
                 ms=ms,
                 user_id=user_id,
                 remote=remote,
+                feature=feature,
                 error_code=str(status) if status >= 400 else None,
                 error_name=_status_error_name(status),
             ),
         )
-        if not getattr(g, "api_token_id", None):
-            record_request(user_id, request.method, request.path, status)
+        if not getattr(g, "api_token_id", None) and is_recordable(user_id, path, status):
+            record_request(user_id, request.method, path, status, feature)
         return response
 
     def _emit_exception(_sender, exception, **_extra):
@@ -127,6 +123,7 @@ def install_activity_logging(app: Flask) -> None:
                 ms=ms,
                 user_id=user_id,
                 remote=remote,
+                feature=route_to_feature(request.path),
                 error_code=type(exception).__name__,
                 error_name=str(exception),
             ),

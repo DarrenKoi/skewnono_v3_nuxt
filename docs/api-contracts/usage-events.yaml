@@ -1,0 +1,78 @@
+resource: usage-events
+description: Event schema for raw request-level usage logs (the cold-tier source feeding the activity dashboard). Each non-bot, non-error API request emits one doc into the OpenSearch index `usage_events`. Hot counters in Redis are derived from the same emit point; this file documents the event shape so the home mock, the office writer, and any downstream consumer share one contract.
+base_path: (no HTTP surface — internal event)
+
+storage:
+  opensearch_index: usage_events
+  index_pattern: usage_events-{YYYY-MM}
+  rollover: monthly
+  retention: 13 months
+  redis_keys:
+    daily_feature_counts:
+      key: "usage:counts:YYYY-MM-DD"
+      type: HASH
+      field: "<feature>"
+      op: HINCRBY
+      ttl: 35d
+    daily_user_feature_counts:
+      key: "usage:counts:YYYY-MM-DD:<user_id>"
+      type: HASH
+      field: "<feature>"
+      op: HINCRBY
+      ttl: 35d
+    dau:
+      key: "usage:dau:YYYY-MM-DD"
+      type: SET
+      member: "<user_id>"
+      op: SADD
+      ttl: 35d
+    wau:
+      key: "usage:wau:YYYY-WW"
+      type: SET
+      member: "<user_id>"
+      op: SADD
+      ttl: 90d
+    mau:
+      key: "usage:mau:YYYY-MM"
+      type: SET
+      member: "<user_id>"
+      op: SADD
+      ttl: 400d
+
+types:
+  UsageEvent:
+    ts:
+      type: string
+      format: "ISO 8601 UTC"
+      description: Server timestamp at the moment the after_request hook fired.
+    user_id:
+      type: string
+      description: g.user_id from the identity middleware. Never empty in this index (bots and anonymous requests are filtered out before emit).
+    feature:
+      type: string
+      description: Slug returned by _logging/feature_map.route_to_feature(path). Stable across renames inside a feature folder — the map is the rename surface.
+    route:
+      type: string
+      description: Raw request.path (no query string). Useful for drill-down beyond feature-level grouping.
+    method:
+      type: string
+      enum: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    status:
+      type: integer
+      description: HTTP response status. Only 2xx and 3xx are emitted; 4xx and 5xx are dropped at the writer.
+    latency_ms:
+      type: integer
+      description: Wall-clock time spent in the Flask request, in milliseconds.
+
+emit_rules:
+  - Only non-bot requests (g.api_token_id is None) are emitted. Token-auth API calls are silently dropped.
+  - Anonymous requests (user_id == "-" or None) are dropped.
+  - Non-/api/ paths are dropped (SPA assets, /login).
+  - 4xx and 5xx responses are dropped — they do not represent successful feature usage.
+  - The activity API itself (/api/activity/*) and /api/admin/logs are dropped to avoid the dashboard inflating its own counters.
+
+notes:
+  - The home phase does NOT write to Redis or OpenSearch. All emits are routed to the in-memory _users dict in back_dev_home/activity/data.py instead. The is_cloud() gate in record_request() decides which path runs.
+  - Renames: if a route moves (e.g. /api/recipe-search → /api/ebeam/cdsem/recipe-search), update _logging/feature_map.py so that both old and new paths map to the same feature slug. This preserves continuity across the OpenSearch index. Do NOT rename a feature slug after it has been written — that creates a split between old and new docs.
+  - Why an index per month: 13-month rolling retention is the v1 target. Monthly rollover keeps individual shards small enough for fast date_histogram aggregations over the full retention window.
+  - Why drop 4xx/5xx: a misclicked URL or a transient backend error is not "usage". Errors are still captured by the existing _logging/activity.py logger output (and ship to OpenSearch via the separate request-log index), just not into the usage_events index.

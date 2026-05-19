@@ -28,13 +28,13 @@
         </UButton>
         <UButton
           to="/activity"
-          icon="i-lucide-circle-user-round"
+          icon="i-lucide-bar-chart-3"
           color="neutral"
           variant="ghost"
-          aria-label="내 활동 / 리더보드"
+          aria-label="사용 통계"
         >
           <span class="hidden sm:inline">
-            활동
+            통계
           </span>
         </UButton>
         <UButton

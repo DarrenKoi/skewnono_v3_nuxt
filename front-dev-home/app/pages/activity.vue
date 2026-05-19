@@ -4,17 +4,17 @@
       <div>
         <h1 class="text-3xl font-bold flex items-center gap-2">
           <UIcon
-            name="i-lucide-trophy"
-            class="text-amber-500"
+            name="i-lucide-bar-chart-3"
+            class="text-sky-500"
           />
-          내 활동 / 리더보드
+          사용 통계
         </h1>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          API 호출이 곧 점수입니다. 많이 둘러볼수록 등급이 올라갑니다.
+          최근 활동, 자주 쓰는 기능, 그리고 (관리자에게) 전체 사용 추이를 보여줍니다.
         </p>
       </div>
       <UButton
-        :loading="meRefreshing || lbRefreshing"
+        :loading="refreshing"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="ghost"
@@ -24,221 +24,44 @@
       </UButton>
     </header>
 
+    <!-- Personal panel: always visible -->
     <section
       v-if="me"
       class="grid grid-cols-1 lg:grid-cols-3 gap-4"
     >
-      <UCard class="dashboard-surface lg:col-span-2">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              내 등급
-            </span>
-            <UBadge
-              :color="tierColor(me.tier.current.key)"
-              variant="subtle"
-              size="lg"
-            >
-              <UIcon
-                :name="tierIconName(me.tier.current.icon)"
-                class="mr-1"
-              />
-              {{ me.tier.current.label }}
-            </UBadge>
-          </div>
-        </template>
-
-        <div class="flex items-center gap-4">
-          <div
-            class="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center text-white text-xl font-bold shadow-md"
-          >
-            {{ avatarInitials(me.user_id) }}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xl font-semibold truncate">
-              {{ me.user_id }}
-            </div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">
-              전체 {{ me.stats.total_users }}명 중
-              <span class="font-semibold text-zinc-900 dark:text-zinc-100">
-                #{{ me.stats.rank }}
-              </span>
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="text-3xl font-bold tabular-nums">
-              {{ me.stats.score }}
-            </div>
-            <div class="text-xs uppercase tracking-wider text-zinc-500">
-              점
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="me.tier.next"
-          class="mt-5"
-        >
-          <div class="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
-            <span>
-              다음 등급:
-              <span class="font-medium text-zinc-700 dark:text-zinc-200">
-                {{ me.tier.next.label }}
-              </span>
-            </span>
-            <span class="tabular-nums">
-              {{ me.tier.score_to_next }}점 남음
-            </span>
-          </div>
-          <div class="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-            <div
-              class="h-full bg-gradient-to-r from-amber-400 to-rose-500 transition-all"
-              :style="{ width: `${me.tier.pct}%` }"
-            />
-          </div>
-        </div>
-        <div
-          v-else
-          class="mt-5 text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
-        >
-          <UIcon name="i-lucide-crown" />
-          최고 등급에 도달했습니다.
-        </div>
-      </UCard>
-
       <UCard class="dashboard-surface">
         <template #header>
-          <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            한눈에 보기
+          <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+            <UIcon name="i-lucide-calendar-check" />
+            이번 달
           </span>
         </template>
         <div class="grid grid-cols-2 gap-4">
           <ActivityStatCell
-            icon="i-lucide-flame"
-            color="text-orange-500"
-            :value="me.stats.streak_days"
-            label="연속 활동일"
-            unit="일"
+            icon="i-lucide-activity"
+            color="text-sky-500"
+            :value="me.this_month.requests"
+            label="요청 수"
           />
           <ActivityStatCell
-            icon="i-lucide-calendar-check"
+            icon="i-lucide-calendar-days"
             color="text-emerald-500"
-            :value="me.stats.days_active"
-            label="누적 활동일"
+            :value="me.this_month.days_active"
+            label="활동일"
             unit="일"
           />
           <ActivityStatCell
             icon="i-lucide-sparkles"
             color="text-violet-500"
-            :value="me.stats.favorite_feature ?? '—'"
+            :value="myFavorite"
             label="가장 많이 쓴 기능"
           />
           <ActivityStatCell
             icon="i-lucide-clock"
-            color="text-sky-500"
+            color="text-amber-500"
             :value="lastSeenLabel"
             label="마지막 활동"
           />
-        </div>
-      </UCard>
-    </section>
-
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <UCard class="dashboard-surface lg:col-span-2">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-              <UIcon name="i-lucide-list-ordered" />
-              리더보드 Top {{ leaderboard?.top.length ?? 0 }}
-            </span>
-            <span
-              v-if="leaderboard"
-              class="text-xs text-zinc-500"
-            >
-              {{ formatTime(leaderboard.generated_at) }}
-            </span>
-          </div>
-        </template>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-xs uppercase tracking-wider text-zinc-500 border-b border-(--sk-border)">
-                <th class="py-2 pr-4 w-12">
-                  순위
-                </th>
-                <th class="py-2 pr-4">
-                  사용자
-                </th>
-                <th class="py-2 pr-4">
-                  등급
-                </th>
-                <th class="py-2 pr-4 text-right">
-                  점수
-                </th>
-                <th class="py-2 text-right">
-                  연속 활동일
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in leaderboard?.top ?? []"
-                :key="row.user_id"
-                :class="['border-b border-(--sk-border) last:border-b-0', row.is_me ? 'bg-amber-50/60 dark:bg-amber-500/10' : '']"
-              >
-                <td class="py-2.5 pr-4 font-semibold tabular-nums">
-                  {{ rankLabel(row.rank) }}
-                </td>
-                <td class="py-2.5 pr-4">
-                  <span class="font-medium">{{ row.user_id }}</span>
-                  <UBadge
-                    v-if="row.is_me"
-                    color="warning"
-                    variant="subtle"
-                    size="sm"
-                    class="ml-2"
-                  >
-                    나
-                  </UBadge>
-                </td>
-                <td class="py-2.5 pr-4">
-                  <UBadge
-                    :color="tierColor(row.tier)"
-                    variant="subtle"
-                    size="sm"
-                  >
-                    {{ tierLabel(row.tier) }}
-                  </UBadge>
-                </td>
-                <td class="py-2.5 pr-4 text-right tabular-nums font-semibold">
-                  {{ row.score }}
-                </td>
-                <td class="py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
-                  <UIcon
-                    name="i-lucide-flame"
-                    class="text-orange-500 mr-0.5"
-                  />
-                  {{ row.streak_days }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div
-          v-if="leaderboard?.me"
-          class="mt-4 pt-3 border-t border-dashed border-(--sk-border) flex items-center gap-3 text-sm"
-        >
-          <UIcon
-            name="i-lucide-corner-down-right"
-            class="text-zinc-400"
-          />
-          <span class="text-zinc-500">Top 밖이지만 본인은</span>
-          <span class="font-semibold tabular-nums">
-            #{{ leaderboard.me.rank }}
-          </span>
-          <span class="tabular-nums">
-            ({{ leaderboard.me.score }}점)
-          </span>
         </div>
       </UCard>
 
@@ -246,168 +69,262 @@
         <template #header>
           <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
             <UIcon name="i-lucide-pie-chart" />
-            기능별 사용
+            내가 자주 쓰는 기능
           </span>
         </template>
-        <div
-          v-if="me && featureBreakdown.length"
-          class="space-y-2.5"
-        >
-          <div
-            v-for="row in featureBreakdown"
-            :key="row.feature"
-            class="space-y-1"
-          >
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-medium text-zinc-700 dark:text-zinc-200">
-                {{ row.feature }}
-              </span>
-              <span class="text-zinc-500 tabular-nums">
-                {{ row.count }} ({{ row.pct }}%)
-              </span>
-            </div>
-            <div class="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-              <div
-                class="h-full bg-gradient-to-r from-sky-400 to-violet-500"
-                :style="{ width: `${row.pct}%` }"
-              />
-            </div>
-          </div>
-        </div>
-        <div
-          v-else
-          class="text-sm text-zinc-500"
-        >
-          아직 기록된 활동이 없습니다.
-        </div>
+        <ActivityFeatureBarList
+          :items="me.top_features"
+          empty-text="아직 기록된 활동이 없습니다."
+        />
       </UCard>
-    </section>
 
-    <section v-if="me?.recent.length">
       <UCard class="dashboard-surface">
         <template #header>
           <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-            <UIcon name="i-lucide-history" />
-            최근 활동 ({{ me.recent.length }})
+            <UIcon name="i-lucide-trending-up" />
+            30일 활동
           </span>
+        </template>
+        <ActivitySparkline
+          :series="me.daily"
+          color="from-sky-400 to-violet-500"
+        />
+      </UCard>
+    </section>
+
+    <!-- Admin panel: only when is_admin -->
+    <template v-if="me?.is_admin">
+      <div class="flex items-center gap-2 pt-2">
+        <UIcon
+          name="i-lucide-shield"
+          class="text-rose-500"
+        />
+        <h2 class="text-lg font-semibold">
+          전체 사용 현황
+        </h2>
+        <UBadge
+          color="error"
+          variant="subtle"
+          size="sm"
+        >
+          관리자 전용
+        </UBadge>
+      </div>
+
+      <!-- KPI row -->
+      <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <ActivityKpiCard
+          v-for="kpi in kpiCards"
+          :key="kpi.label"
+          :label="kpi.label"
+          :value="kpi.value"
+          :hint="kpi.hint"
+          :icon="kpi.icon"
+          :color="kpi.color"
+        />
+      </section>
+
+      <!-- Top features bar chart -->
+      <UCard class="dashboard-surface">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+              <UIcon name="i-lucide-list-ordered" />
+              인기 기능 Top 10
+            </span>
+            <UTabs
+              v-model="windowKey"
+              :items="windowTabs"
+              variant="pill"
+              size="xs"
+            />
+          </div>
+        </template>
+        <ActivityFeatureBarList
+          :items="topFeaturesForWindow"
+          empty-text="아직 데이터가 없습니다."
+        />
+      </UCard>
+
+      <!-- Users table -->
+      <UCard class="dashboard-surface">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+              <UIcon name="i-lucide-users" />
+              사용자 ({{ users?.users.length ?? 0 }})
+            </span>
+            <span
+              v-if="users"
+              class="text-xs text-zinc-500"
+            >
+              {{ formatTime(users.generated_at) }}
+            </span>
+          </div>
         </template>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs uppercase tracking-wider text-zinc-500 border-b border-(--sk-border)">
                 <th class="py-2 pr-4">
-                  시각
+                  사용자
+                </th>
+                <th class="py-2 pr-4 text-right">
+                  요청 (30일)
+                </th>
+                <th class="py-2 pr-4 text-right">
+                  활동일 (30일)
                 </th>
                 <th class="py-2 pr-4">
-                  기능
+                  가장 많이 쓴 기능
                 </th>
                 <th class="py-2 pr-4">
-                  메서드
+                  마지막 활동
                 </th>
-                <th class="py-2 pr-4">
-                  경로
-                </th>
-                <th class="py-2 text-right">
-                  상태
-                </th>
+                <th class="py-2 w-8" />
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="(row, idx) in me.recent.slice(0, 20)"
-                :key="`${row.timestamp}-${idx}`"
-                class="border-b border-(--sk-border) last:border-b-0"
+              <template
+                v-for="row in users?.users ?? []"
+                :key="row.user_id"
               >
-                <td class="py-2 pr-4 text-zinc-500 tabular-nums">
-                  {{ formatTime(row.timestamp) }}
-                </td>
-                <td class="py-2 pr-4 font-medium">
-                  {{ row.feature }}
-                </td>
-                <td class="py-2 pr-4 font-mono text-xs">
-                  {{ row.method }}
-                </td>
-                <td class="py-2 pr-4 font-mono text-xs text-zinc-600 dark:text-zinc-400 truncate max-w-md">
-                  {{ row.path }}
-                </td>
-                <td class="py-2 text-right tabular-nums">
-                  {{ row.status }}
-                </td>
-              </tr>
+                <tr
+                  class="border-b border-(--sk-border) last:border-b-0 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                  @click="toggleUser(row.user_id)"
+                >
+                  <td class="py-2.5 pr-4 font-medium">
+                    {{ row.user_id }}
+                  </td>
+                  <td class="py-2.5 pr-4 text-right tabular-nums font-semibold">
+                    {{ row.requests_30d }}
+                  </td>
+                  <td class="py-2.5 pr-4 text-right tabular-nums">
+                    {{ row.days_active_30d }}
+                  </td>
+                  <td class="py-2.5 pr-4 text-zinc-600 dark:text-zinc-400">
+                    {{ row.favorite_feature ?? '—' }}
+                  </td>
+                  <td class="py-2.5 pr-4 text-zinc-500 tabular-nums">
+                    {{ formatTime(row.last_seen) }}
+                  </td>
+                  <td class="py-2.5 text-zinc-400">
+                    <UIcon :name="expandedUser === row.user_id ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" />
+                  </td>
+                </tr>
+                <tr
+                  v-if="expandedUser === row.user_id"
+                  class="border-b border-(--sk-border)"
+                >
+                  <td
+                    colspan="6"
+                    class="py-3 pl-4 pr-4 bg-zinc-50/60 dark:bg-zinc-900/40"
+                  >
+                    <div
+                      v-if="userDetailLoading"
+                      class="text-sm text-zinc-500"
+                    >
+                      로딩 중…
+                    </div>
+                    <div
+                      v-else-if="userDetailError"
+                      class="text-sm text-rose-500"
+                    >
+                      불러오기 실패: {{ userDetailError }}
+                    </div>
+                    <div
+                      v-else-if="userDetail"
+                      class="grid grid-cols-1 lg:grid-cols-3 gap-4"
+                    >
+                      <div>
+                        <div class="text-xs uppercase tracking-wider text-zinc-500 mb-2">
+                          이번 달
+                        </div>
+                        <div class="text-2xl font-semibold tabular-nums">
+                          {{ userDetail.this_month.requests }}
+                        </div>
+                        <div class="text-xs text-zinc-500">
+                          요청 · {{ userDetail.this_month.days_active }}일 활동
+                        </div>
+                      </div>
+                      <div class="lg:col-span-1">
+                        <div class="text-xs uppercase tracking-wider text-zinc-500 mb-2">
+                          자주 쓰는 기능
+                        </div>
+                        <ActivityFeatureBarList
+                          :items="userDetail.top_features"
+                          :cap="5"
+                          empty-text="—"
+                        />
+                      </div>
+                      <div>
+                        <div class="text-xs uppercase tracking-wider text-zinc-500 mb-2">
+                          30일 활동
+                        </div>
+                        <ActivitySparkline
+                          :series="userDetail.daily"
+                          color="from-rose-400 to-amber-500"
+                        />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
       </UCard>
-    </section>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import {
-  useActivityLeaderboard,
+  fetchUserHistory,
+  resetActivityCache,
   useActivityMe,
-  type Tier
+  useActivitySummary,
+  useActivityUsers,
+  type FeatureCount,
+  type UserHistoryResponse
 } from '~/composables/useActivityApi'
 
 definePageMeta({ layout: 'hub' })
-useHead({ title: '내 활동 | SKEWNONO' })
+useHead({ title: '사용 통계 | SKEWNONO' })
 
 const { data: me, refresh: refreshMe, status: meStatus } = await useActivityMe()
-const { data: leaderboard, refresh: refreshLeaderboard, status: lbStatus } = await useActivityLeaderboard()
 
-const meRefreshing = computed(() => meStatus.value === 'pending')
-const lbRefreshing = computed(() => lbStatus.value === 'pending')
+// Summary + users are admin-only endpoints (return 403 otherwise). Decide
+// once at setup time whether to wire them up. If the viewer's admin status
+// changes mid-session they'll need to reload.
+const isAdmin = computed(() => Boolean(me.value?.is_admin))
+
+const adminQueries = isAdmin.value
+  ? await Promise.all([useActivitySummary(), useActivityUsers()]).then(
+      ([summary, users]) => ({ summary, users })
+    )
+  : null
+
+const summary = computed(() => adminQueries?.summary.data.value ?? null)
+const users = computed(() => adminQueries?.users.data.value ?? null)
+
+const refreshing = computed(() => {
+  if (meStatus.value === 'pending') return true
+  if (adminQueries?.summary.status.value === 'pending') return true
+  if (adminQueries?.users.status.value === 'pending') return true
+  return false
+})
 
 const refreshAll = async () => {
-  await Promise.all([refreshMe(), refreshLeaderboard()])
+  resetActivityCache()
+  const jobs: Array<Promise<unknown>> = [refreshMe()]
+  if (adminQueries) {
+    jobs.push(adminQueries.summary.refresh(), adminQueries.users.refresh())
+  }
+  await Promise.all(jobs)
 }
 
-const TIER_COLORS: Record<Tier, 'neutral' | 'info' | 'warning' | 'primary' | 'success'> = {
-  bronze: 'neutral',
-  silver: 'info',
-  gold: 'warning',
-  platinum: 'primary',
-  diamond: 'success'
-}
-
-const TIER_LABELS: Record<Tier, string> = {
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-  platinum: 'Platinum',
-  diamond: 'Diamond'
-}
-
-const tierColor = (tier: Tier) => TIER_COLORS[tier]
-const tierLabel = (tier: Tier) => TIER_LABELS[tier]
-const tierIconName = (icon: string) => `i-lucide-${icon}`
-
-const avatarInitials = (userId: string) => {
-  if (!userId) return '?'
-  const cleaned = userId.replace(/[^a-zA-Z0-9가-힣]/g, '')
-  return cleaned.slice(0, 2).toUpperCase() || '?'
-}
-
-const rankLabel = (rank: number) => {
-  if (rank === 1) return '🥇'
-  if (rank === 2) return '🥈'
-  if (rank === 3) return '🥉'
-  return `#${rank}`
-}
-
-const featureBreakdown = computed(() => {
-  if (!me.value) return []
-  const entries = Object.entries(me.value.stats.by_feature)
-  const total = entries.reduce((sum, [, n]) => sum + n, 0)
-  if (total === 0) return []
-  return entries
-    .map(([feature, count]) => ({
-      feature,
-      count,
-      pct: Math.max(1, Math.round((count * 100) / total))
-    }))
-    .sort((a, b) => b.count - a.count)
-})
+const myFavorite = computed(() => me.value?.top_features?.[0]?.feature ?? '—')
 
 const formatTime = (iso: string | null | undefined) => {
   if (!iso) return '—'
@@ -416,8 +333,74 @@ const formatTime = (iso: string | null | undefined) => {
   return d.toLocaleString('ko-KR', { hour12: false })
 }
 
-const lastSeenLabel = computed(() => {
-  if (!me.value?.stats.last_seen) return '—'
-  return formatTime(me.value.stats.last_seen)
+const lastSeenLabel = computed(() => formatTime(me.value?.last_seen))
+
+// --- admin: KPI cards ---
+const kpiCards = computed(() => {
+  if (!summary.value) return []
+  return [
+    {
+      label: 'DAU',
+      value: summary.value.dau,
+      hint: '오늘 활동한 사용자',
+      icon: 'i-lucide-user',
+      color: 'text-sky-500'
+    },
+    {
+      label: 'WAU',
+      value: summary.value.wau,
+      hint: '이번 주 활동한 사용자',
+      icon: 'i-lucide-users',
+      color: 'text-violet-500'
+    },
+    {
+      label: 'MAU',
+      value: summary.value.mau,
+      hint: '이번 달 활동한 사용자',
+      icon: 'i-lucide-user-check',
+      color: 'text-emerald-500'
+    }
+  ]
 })
+
+// --- admin: top features window toggle ---
+const windowKey = ref<'7d' | '30d'>('7d')
+const windowTabs = [
+  { label: '최근 7일', value: '7d' },
+  { label: '최근 30일', value: '30d' }
+]
+const topFeaturesForWindow = computed<FeatureCount[]>(() => {
+  if (!summary.value) return []
+  return windowKey.value === '7d'
+    ? summary.value.top_features_7d
+    : summary.value.top_features_30d
+})
+
+// --- admin: user table drill-down ---
+const expandedUser = ref<string | null>(null)
+const userDetail = ref<UserHistoryResponse | null>(null)
+const userDetailLoading = ref(false)
+const userDetailError = ref<string | null>(null)
+
+const toggleUser = async (userId: string) => {
+  if (expandedUser.value === userId) {
+    expandedUser.value = null
+    userDetail.value = null
+    userDetailError.value = null
+    return
+  }
+  expandedUser.value = userId
+  userDetail.value = null
+  userDetailError.value = null
+  userDetailLoading.value = true
+  try {
+    userDetail.value = await fetchUserHistory(userId)
+  }
+  catch (err) {
+    userDetailError.value = err instanceof Error ? err.message : String(err)
+  }
+  finally {
+    userDetailLoading.value = false
+  }
+}
 </script>

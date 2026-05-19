@@ -100,7 +100,7 @@ SKEWNONO의 모든 데이터는 `/api/*` 엔드포인트를 통해 노출됩니�
 | --- | --- | --- |
 | `user_id` | SSO 식별자 | 토큰 소유자 ID |
 | `api_token_id` | `null` | 토큰 ID |
-| `feature` | `_feature_of(path)` (공통) | 동일 |
+| `feature` | `route_to_feature(path)` (공통, `_logging/feature_map.py`) | 동일 |
 | `latency_ms` | 측정값 (공통) | 동일 |
 | `activity_weight` | 1 (조건 충족 시) | **항상 0** |
 

@@ -1,0 +1,176 @@
+resource: activity
+description: Usage statistics dashboard backing /activity. Tiered: every signed-in user sees their own panel; admins additionally see global aggregates (MAU/DAU/WAU, feature popularity, per-user drill-down). Home returns mock data from an in-memory store; office reads Redis counters and OpenSearch event history with mock fallback.
+base_path: /api/activity
+
+types:
+  FeatureCount:
+    feature:
+      type: string
+      description: Feature slug derived from the request path (sem_list, recipe_search, afm, etc.). See _logging/feature_map.py for the mapping.
+    count:
+      type: integer
+      description: Number of recorded requests in the window.
+
+  DailyCount:
+    date:
+      type: string
+      format: "YYYY-MM-DD"
+      description: UTC calendar day.
+    count:
+      type: integer
+      description: Total recorded requests for this user on that day.
+
+  MeThisMonth:
+    requests:
+      type: integer
+      description: Total recorded requests for this user in the current calendar month (UTC).
+    days_active:
+      type: integer
+      description: Distinct UTC days the user was active in the current calendar month.
+
+  MeResponse:
+    user_id:
+      type: string
+      description: The viewer's user_id as set by the identity middleware.
+    is_admin:
+      type: boolean
+      description: Whether the viewer is on the SKEWNONO_ADMIN_USERS allowlist. Frontend uses this to conditionally render the global panel.
+    this_month:
+      type: object
+      shape: MeThisMonth
+    top_features:
+      type: array
+      items: FeatureCount
+      description: Sorted descending by count, limited to top 10.
+    daily:
+      type: array
+      items: DailyCount
+      description: 30-day sparkline. Days with no activity appear with count = 0. Sorted ascending by date.
+    first_seen:
+      type: string
+      format: "ISO 8601 UTC"
+      nullable: true
+    last_seen:
+      type: string
+      format: "ISO 8601 UTC"
+      nullable: true
+
+  SummaryResponse:
+    generated_at:
+      type: string
+      format: "ISO 8601 UTC"
+    dau:
+      type: integer
+      description: Distinct user_ids active today (UTC). Office reads SCARD on usage:dau:YYYY-MM-DD.
+    wau:
+      type: integer
+      description: Distinct user_ids active in the current ISO week. SCARD on usage:wau:YYYY-WW.
+    mau:
+      type: integer
+      description: Distinct user_ids active in the current calendar month. SCARD on usage:mau:YYYY-MM.
+    top_features_7d:
+      type: array
+      items: FeatureCount
+      description: Top 10 features by request count across the last 7 days.
+    top_features_30d:
+      type: array
+      items: FeatureCount
+
+  UserListRow:
+    user_id:
+      type: string
+    requests_30d:
+      type: integer
+      description: Total non-bot requests this user made in the last 30 days.
+    days_active_30d:
+      type: integer
+    last_seen:
+      type: string
+      format: "ISO 8601 UTC"
+      nullable: true
+    favorite_feature:
+      type: string
+      nullable: true
+      description: Feature with the highest request count for this user in the last 30 days.
+
+  UserListResponse:
+    generated_at:
+      type: string
+      format: "ISO 8601 UTC"
+    users:
+      type: array
+      items: UserListRow
+      description: All known users sorted by requests_30d descending. No pagination in v1.
+
+  UserHistoryResponse:
+    user_id:
+      type: string
+    this_month:
+      type: object
+      shape: MeThisMonth
+    top_features:
+      type: array
+      items: FeatureCount
+    daily:
+      type: array
+      items: DailyCount
+    first_seen:
+      type: string
+      format: "ISO 8601 UTC"
+      nullable: true
+    last_seen:
+      type: string
+      format: "ISO 8601 UTC"
+      nullable: true
+
+endpoints:
+  - path: /api/activity/me
+    method: GET
+    description: Current viewer's personal usage stats. Always allowed (every signed-in user can see their own activity). Returns is_admin so the frontend can conditionally render the global panel.
+    response:
+      status: 200
+      body: MeResponse
+
+  - path: /api/activity/summary
+    method: GET
+    description: Global aggregates — DAU/WAU/MAU and top features over 7d / 30d windows.
+    auth: admin
+    response:
+      status: 200
+      body: SummaryResponse
+    errors:
+      - status: 403
+        code: forbidden
+        when: viewer is not in SKEWNONO_ADMIN_USERS
+
+  - path: /api/activity/users
+    method: GET
+    description: One row per known user with 30-day totals. Drives the admin users table.
+    auth: admin
+    response:
+      status: 200
+      body: UserListResponse
+    errors:
+      - status: 403
+        code: forbidden
+
+  - path: /api/activity/users/{user_id}
+    method: GET
+    description: Per-user drill-down (same shape as MeResponse, scoped to that user_id).
+    auth: admin
+    response:
+      status: 200
+      body: UserHistoryResponse
+    errors:
+      - status: 403
+        code: forbidden
+      - status: 404
+        code: not_found
+        when: user_id has no recorded activity
+
+notes:
+  - Phase 1 source is back_dev_home/activity/data.py, which keeps the in-memory _users dict (seeded by seed_demo_users at app start). Aggregate functions (get_summary, get_users_list) iterate the dict directly. No Redis/OpenSearch is touched in home mode — gated by _runtime/env.is_cloud().
+  - Office implementation swaps the read paths get_summary, get_user_history to Redis SCARD/HGETALL and OpenSearch term/date-histogram aggregations against the usage_events index (see usage-events.yaml). Each function tries the live client and falls back to the in-memory _users dict on exception, mirroring health/data.py.
+  - Bots (Authorization Bearer token requests, identified by g.api_token_id) are excluded from every counter, same as today. Anonymous (user_id == "-") is also excluded.
+  - Admin allowlist is read from env var SKEWNONO_ADMIN_USERS (comma-separated user_ids). Empty at home defaults to ["local-dev"] so the admin panel works out of the box.
+  - This contract replaces the previous gamification endpoints (/activity/leaderboard). The leaderboard endpoint is removed in this revision.

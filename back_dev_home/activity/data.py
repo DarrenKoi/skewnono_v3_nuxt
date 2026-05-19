@@ -1,110 +1,117 @@
-"""In-memory activity store powering the gamification page.
+"""SWAP SURFACE — usage statistics data layer.
 
-Why a plain module-level dict (and not @lru_cache like neighbors): activity is
-*mutated* on every request. lru_cache memoizes — exactly the wrong shape. The
-closest precedent in this repo is announcements/data._cache, which is also a
-mutable module dict. State resets on process restart; that's acceptable for the
-home phase and matches the cloud's "single sync worker" assumption.
+원본:        (사무실 측 Redis 카운터 + OpenSearch usage_events 인덱스)
+계약:        docs/api-contracts/activity.yaml + docs/api-contracts/usage-events.yaml
+픽스처:      없음 — 라이브 카운터라 픽스처 캡처는 무의미합니다.
+
+동작 규칙:
+- 홈 (is_cloud()=False): 모든 호출이 메모리 내 `_users` 딕셔너리만 사용합니다.
+  record_request() 가 라이브 요청을 받아 집계하고, get_* 함수들이 같은 딕셔너리를
+  순회해서 응답을 만듭니다. Redis / OpenSearch 는 호출하지 않습니다.
+- 사무실 (is_cloud()=True): record_request() 가 Redis 에 HINCRBY/SADD 를 쏘고
+  OpenSearch usage_events 에 도큐먼트 한 건을 인덱싱합니다. get_summary /
+  get_user_history 는 라이브 카운터를 읽고, 실패 시 메모리 폴백을 사용합니다
+  (health/data.py 와 동일한 try/except 패턴).
+
+이 파일은 게임화 (tier / score / streak) 로직을 더 이상 다루지 않습니다.
+이전 버전과 호환되어야 하는 외부 임포트는 없습니다 (라우트는 이 파일과 함께
+교체됨).
 """
 
 from __future__ import annotations
 
-from collections import deque
+import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
-from typing import Deque, Literal, TypedDict
+from typing import TypedDict
+
+from .._logging.feature_map import route_to_feature
+from .._runtime.env import is_cloud
 
 
 __all__ = [
-    "Tier",
-    "TierInfo",
-    "ActivityEvent",
+    "FeatureCount",
+    "DailyCount",
+    "MeThisMonth",
     "MeResponse",
-    "LeaderboardResponse",
+    "SummaryResponse",
+    "UserListRow",
+    "UserListResponse",
+    "UserHistoryResponse",
     "record_request",
     "get_me",
-    "get_leaderboard",
+    "get_summary",
+    "get_users_list",
+    "get_user_history",
+    "is_admin",
     "seed_demo_users",
 ]
 
 
-Tier = Literal["bronze", "silver", "gold", "platinum", "diamond"]
-
-
-class TierInfo(TypedDict):
-    key: Tier
-    label: str
-    icon: str
-    min_score: int
-    next_score: int | None  # None for the top tier
-
-
-# Threshold tuples are ordered; pick the highest tier whose min_score <= score.
-_TIERS: list[TierInfo] = [
-    {"key": "bronze",   "label": "Bronze",   "icon": "medal",  "min_score": 0,    "next_score": 50},
-    {"key": "silver",   "label": "Silver",   "icon": "medal",  "min_score": 50,   "next_score": 200},
-    {"key": "gold",     "label": "Gold",     "icon": "trophy", "min_score": 200,  "next_score": 500},
-    {"key": "platinum", "label": "Platinum", "icon": "gem",    "min_score": 500,  "next_score": 1500},
-    {"key": "diamond",  "label": "Diamond",  "icon": "crown",  "min_score": 1500, "next_score": None},
-]
-
-# Skip observability paths so checking activity/logs doesn't inflate scores.
+# Skip the usage API itself and the admin log viewer so the dashboard doesn't
+# inflate its own counters.
 _SKIP_PATH_PREFIXES = ("/api/activity/", "/api/admin/logs")
-# Cap recent-events buffer so memory stays bounded under heavy use.
-_RECENT_EVENTS_CAP = 50
-# Streak window: only consider the last 60 days when looking for gaps.
-_STREAK_WINDOW_DAYS = 60
+# Sparkline window for personal / per-user views.
+_SPARKLINE_DAYS = 30
+# Cap top-features lists in the response payload.
+_TOP_FEATURES_CAP = 10
 
 
-class ActivityEvent(TypedDict):
-    timestamp: str
-    method: str
-    path: str
-    status: int
+class FeatureCount(TypedDict):
     feature: str
+    count: int
 
 
-class _MeStats(TypedDict):
-    score: int
-    rank: int
-    total_users: int
-    streak_days: int
+class DailyCount(TypedDict):
+    date: str
+    count: int
+
+
+class MeThisMonth(TypedDict):
+    requests: int
     days_active: int
-    favorite_feature: str | None
-    by_feature: dict[str, int]
-    first_seen: str | None
-    last_seen: str | None
-
-
-class _TierProgress(TypedDict):
-    current: TierInfo
-    next: TierInfo | None
-    score_into_tier: int
-    score_to_next: int | None
-    pct: int  # 0..100, percent through current tier; 100 if at top tier
 
 
 class MeResponse(TypedDict):
     user_id: str
-    stats: _MeStats
-    tier: _TierProgress
-    recent: list[ActivityEvent]
+    is_admin: bool
+    this_month: MeThisMonth
+    top_features: list[FeatureCount]
+    daily: list[DailyCount]
+    first_seen: str | None
+    last_seen: str | None
 
 
-class _LeaderRow(TypedDict):
-    rank: int
-    user_id: str
-    score: int
-    tier: Tier
-    streak_days: int
-    is_me: bool
-
-
-class LeaderboardResponse(TypedDict):
+class SummaryResponse(TypedDict):
     generated_at: str
-    me: _LeaderRow | None
-    top: list[_LeaderRow]
+    dau: int
+    wau: int
+    mau: int
+    top_features_7d: list[FeatureCount]
+    top_features_30d: list[FeatureCount]
+
+
+class UserListRow(TypedDict):
+    user_id: str
+    requests_30d: int
+    days_active_30d: int
+    last_seen: str | None
+    favorite_feature: str | None
+
+
+class UserListResponse(TypedDict):
+    generated_at: str
+    users: list[UserListRow]
+
+
+class UserHistoryResponse(TypedDict):
+    user_id: str
+    this_month: MeThisMonth
+    top_features: list[FeatureCount]
+    daily: list[DailyCount]
+    first_seen: str | None
+    last_seen: str | None
 
 
 @dataclass
@@ -112,8 +119,7 @@ class _UserState:
     user_id: str
     total: int = 0
     by_feature: dict[str, int] = field(default_factory=dict)
-    active_days: set[date] = field(default_factory=set)
-    recent: Deque[ActivityEvent] = field(default_factory=lambda: deque(maxlen=_RECENT_EVENTS_CAP))
+    daily: dict[date, int] = field(default_factory=dict)
     first_seen: datetime | None = None
     last_seen: datetime | None = None
 
@@ -122,85 +128,111 @@ _users: dict[str, _UserState] = {}
 _lock = RLock()
 
 
-def _feature_of(path: str) -> str:
-    # /api/afm/recipes/123 -> "afm"; /api/health/services -> "health"; root -> "(root)".
-    parts = [p for p in path.split("/") if p]
-    if len(parts) >= 2 and parts[0] == "api":
-        return parts[1]
-    if not parts:
-        return "(root)"
-    return parts[0]
+# ------- helpers ------------------------------------------------------------
 
 
-def _tier_for(score: int) -> TierInfo:
-    current = _TIERS[0]
-    for tier in _TIERS:
-        if score >= tier["min_score"]:
-            current = tier
-        else:
-            break
-    return current
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def _tier_progress(score: int) -> _TierProgress:
-    current = _tier_for(score)
-    next_tier: TierInfo | None = None
-    for idx, tier in enumerate(_TIERS):
-        if tier is current and idx + 1 < len(_TIERS):
-            next_tier = _TIERS[idx + 1]
-            break
-    if next_tier is None or current["next_score"] is None:
-        return {"current": current, "next": None, "score_into_tier": score - current["min_score"], "score_to_next": None, "pct": 100}
-    span = current["next_score"] - current["min_score"]
-    into = score - current["min_score"]
-    pct = max(0, min(100, round(into * 100 / span))) if span > 0 else 0
-    return {
-        "current": current,
-        "next": next_tier,
-        "score_into_tier": into,
-        "score_to_next": current["next_score"] - score,
-        "pct": pct,
-    }
+def _today() -> date:
+    return _now().date()
 
 
-def _streak_for(active_days: set[date], today: date) -> int:
-    if not active_days:
-        return 0
-    # Count back from today (or yesterday if no activity today) until a gap.
-    cursor = today if today in active_days else today - timedelta(days=1)
-    streak = 0
-    while cursor in active_days:
-        streak += 1
-        cursor -= timedelta(days=1)
-        if streak >= _STREAK_WINDOW_DAYS:
-            break
-    return streak
+def _iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def record_request(user_id: str | None, method: str, path: str, status: int) -> None:
-    """Tap point invoked from _logging/activity.py after each request.
+def _admin_allowlist() -> frozenset[str]:
+    raw = os.environ.get("SKEWNONO_ADMIN_USERS", "")
+    members = {part.strip() for part in raw.split(",") if part.strip()}
+    if not members:
+        # Default at home: the local dev user can see the admin panel so the
+        # global aggregates are visible without setting an env var.
+        members = {"local-dev"}
+    return frozenset(members)
 
-    Skips: missing/unauthed users, the activity API itself, non-API paths
-    (SPA assets, /login), and 4xx/5xx errors (don't reward failed calls).
+
+def is_admin(user_id: str | None) -> bool:
+    if not user_id or user_id == "-":
+        return False
+    return user_id in _admin_allowlist()
+
+
+def _top_features(counts: dict[str, int], cap: int = _TOP_FEATURES_CAP) -> list[FeatureCount]:
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:cap]
+    return [{"feature": feat, "count": n} for feat, n in ranked]
+
+
+def _daily_series(daily: dict[date, int], today: date, days: int) -> list[DailyCount]:
+    out: list[DailyCount] = []
+    for offset in range(days - 1, -1, -1):
+        d = today - timedelta(days=offset)
+        out.append({"date": d.isoformat(), "count": daily.get(d, 0)})
+    return out
+
+
+def _this_month_stats(daily: dict[date, int], today: date) -> MeThisMonth:
+    first = today.replace(day=1)
+    requests = 0
+    days_active = 0
+    for d, n in daily.items():
+        if d >= first and d <= today and n > 0:
+            requests += n
+            days_active += 1
+    return {"requests": requests, "days_active": days_active}
+
+
+def _scale_features(by_feature: dict[str, int], window_sum: int, total: int, into: dict[str, int]) -> None:
+    """Approximate per-window feature counts by scaling the lifetime by_feature
+    map by the user's share-of-activity in the window. The in-memory mock
+    only carries lifetime feature totals, so true per-day slicing requires
+    Redis HINCRBY counters (the office implementation).
+    """
+    if window_sum <= 0 or total <= 0:
+        return
+    scale = window_sum / total
+    for feat, n in by_feature.items():
+        into[feat] = into.get(feat, 0) + int(round(n * scale))
+
+
+# ------- record_request -----------------------------------------------------
+
+
+def is_recordable(user_id: str | None, path: str, status: int) -> bool:
+    """Single source of truth for usage-event gating.
+
+    Used by both the middleware (to decide whether to call record_request at
+    all) and as a defensive re-check inside record_request itself.
     """
     if not user_id or user_id == "-":
-        return
+        return False
     if not path.startswith("/api/"):
-        return
+        return False
     if any(path.startswith(prefix) for prefix in _SKIP_PATH_PREFIXES):
-        return
+        return False
     if status >= 400:
-        return
+        return False
+    return True
 
-    now = datetime.now(timezone.utc)
-    feature = _feature_of(path)
-    event: ActivityEvent = {
-        "timestamp": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
-        "method": method,
-        "path": path,
-        "status": status,
-        "feature": feature,
-    }
+
+def record_request(
+    user_id: str,
+    method: str,
+    path: str,
+    status: int,
+    feature: str,
+) -> None:
+    """Tap point invoked from _logging/activity.py after each request.
+
+    Caller is expected to have already checked `is_recordable(...)`. Feature
+    slug is passed in so the middleware and the writer share one computation.
+    """
+    now = _now()
+    today = now.date()
+
     with _lock:
         state = _users.get(user_id)
         if state is None:
@@ -208,113 +240,182 @@ def record_request(user_id: str | None, method: str, path: str, status: int) -> 
             _users[user_id] = state
         state.total += 1
         state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
-        state.active_days.add(now.date())
+        state.daily[today] = state.daily.get(today, 0) + 1
         state.last_seen = now
-        state.recent.append(event)
+
+    if is_cloud():
+        try:
+            from ._office_writer import record_request_to_backends
+            record_request_to_backends(
+                user_id=user_id,
+                method=method,
+                path=path,
+                status=status,
+                feature=feature,
+                now=now,
+            )
+        except Exception:
+            # Never let analytics break a real request.
+            pass
 
 
-def _build_leaderboard_rows(viewer: str | None, today: date) -> list[_LeaderRow]:
-    ranked = sorted(_users.values(), key=lambda s: (-s.total, s.user_id))
-    rows: list[_LeaderRow] = []
-    for idx, state in enumerate(ranked, start=1):
-        rows.append({
-            "rank": idx,
-            "user_id": state.user_id,
-            "score": state.total,
-            "tier": _tier_for(state.total)["key"],
-            "streak_days": _streak_for(state.active_days, today),
-            "is_me": viewer is not None and state.user_id == viewer,
-        })
-    return rows
+# ------- read APIs ----------------------------------------------------------
+
+
+def _history_fields(state: _UserState | None, today: date) -> dict:
+    if state is None:
+        return {
+            "this_month": {"requests": 0, "days_active": 0},
+            "top_features": [],
+            "daily": _daily_series({}, today, _SPARKLINE_DAYS),
+            "first_seen": None,
+            "last_seen": None,
+        }
+    return {
+        "this_month": _this_month_stats(state.daily, today),
+        "top_features": _top_features(state.by_feature),
+        "daily": _daily_series(state.daily, today, _SPARKLINE_DAYS),
+        "first_seen": _iso(state.first_seen),
+        "last_seen": _iso(state.last_seen),
+    }
 
 
 def get_me(user_id: str) -> MeResponse:
-    today = datetime.now(timezone.utc).date()
+    today = _today()
+    with _lock:
+        fields = _history_fields(_users.get(user_id), today)
+    return {"user_id": user_id, "is_admin": is_admin(user_id), **fields}
+
+
+def get_user_history(user_id: str) -> UserHistoryResponse | None:
+    today = _today()
     with _lock:
         state = _users.get(user_id)
-        rows = _build_leaderboard_rows(user_id, today)
-    total_users = len(rows)
-    if state is None:
-        # User has no recorded API activity yet — return a zero state.
-        return {
-            "user_id": user_id,
-            "stats": {
-                "score": 0,
-                "rank": total_users + 1 if total_users else 1,
-                "total_users": max(total_users, 1),
-                "streak_days": 0,
-                "days_active": 0,
-                "favorite_feature": None,
-                "by_feature": {},
-                "first_seen": None,
-                "last_seen": None,
-            },
-            "tier": _tier_progress(0),
-            "recent": [],
-        }
-    rank = next((row["rank"] for row in rows if row["user_id"] == user_id), total_users)
-    favorite = max(state.by_feature.items(), key=lambda kv: kv[1])[0] if state.by_feature else None
-    return {
-        "user_id": user_id,
-        "stats": {
-            "score": state.total,
-            "rank": rank,
-            "total_users": total_users,
-            "streak_days": _streak_for(state.active_days, today),
-            "days_active": len(state.active_days),
-            "favorite_feature": favorite,
-            "by_feature": dict(sorted(state.by_feature.items(), key=lambda kv: -kv[1])),
-            "first_seen": state.first_seen.isoformat(timespec="seconds").replace("+00:00", "Z") if state.first_seen else None,
-            "last_seen": state.last_seen.isoformat(timespec="seconds").replace("+00:00", "Z") if state.last_seen else None,
-        },
-        "tier": _tier_progress(state.total),
-        "recent": list(reversed(state.recent)),
-    }
+        if state is None:
+            return None
+        return {"user_id": user_id, **_history_fields(state, today)}
 
 
-def get_leaderboard(viewer: str | None, top_n: int = 10) -> LeaderboardResponse:
-    today = datetime.now(timezone.utc).date()
+def _summary_from_mock(today: date) -> SummaryResponse:
+    week_start = today - timedelta(days=6)
+    month_first = today.replace(day=1)
+    last30_start = today - timedelta(days=29)
+    dau = wau = mau = 0
+    feat_7d: dict[str, int] = {}
+    feat_30d: dict[str, int] = {}
     with _lock:
-        rows = _build_leaderboard_rows(viewer, today)
-    top = rows[:top_n]
-    me_row: _LeaderRow | None = None
-    if viewer is not None:
-        in_top = any(row["is_me"] for row in top)
-        if not in_top:
-            me_row = next((row for row in rows if row["user_id"] == viewer), None)
+        for state in _users.values():
+            sum_7d = 0
+            sum_30d = 0
+            today_count = 0
+            active_month = False
+            for d, n in state.daily.items():
+                if n <= 0:
+                    continue
+                if d == today:
+                    today_count = n
+                if d >= week_start:
+                    sum_7d += n
+                if d >= last30_start:
+                    sum_30d += n
+                if d >= month_first:
+                    active_month = True
+            if today_count > 0:
+                dau += 1
+            if sum_7d > 0:
+                wau += 1
+            if active_month:
+                mau += 1
+            _scale_features(state.by_feature, sum_7d, state.total, feat_7d)
+            _scale_features(state.by_feature, sum_30d, state.total, feat_30d)
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-        "me": me_row,
-        "top": top,
+        "generated_at": _iso(_now()) or "",
+        "dau": dau,
+        "wau": wau,
+        "mau": mau,
+        "top_features_7d": _top_features(feat_7d),
+        "top_features_30d": _top_features(feat_30d),
     }
+
+
+def get_summary() -> SummaryResponse:
+    today = _today()
+    if is_cloud():
+        try:
+            from ._office_reader import summary_from_backends
+            return summary_from_backends(today)
+        except Exception:
+            pass
+    return _summary_from_mock(today)
+
+
+def _users_list_from_mock(today: date) -> UserListResponse:
+    cutoff = today - timedelta(days=29)
+    rows: list[UserListRow] = []
+    with _lock:
+        for state in _users.values():
+            requests_30d = 0
+            days_active_30d = 0
+            for d, n in state.daily.items():
+                if d >= cutoff and n > 0:
+                    requests_30d += n
+                    days_active_30d += 1
+            if requests_30d == 0:
+                continue
+            favorite = max(state.by_feature.items(), key=lambda kv: kv[1])[0] if state.by_feature else None
+            rows.append({
+                "user_id": state.user_id,
+                "requests_30d": requests_30d,
+                "days_active_30d": days_active_30d,
+                "last_seen": _iso(state.last_seen),
+                "favorite_feature": favorite,
+            })
+    rows.sort(key=lambda r: (-r["requests_30d"], r["user_id"]))
+    return {"generated_at": _iso(_now()) or "", "users": rows}
+
+
+def get_users_list() -> UserListResponse:
+    today = _today()
+    if is_cloud():
+        try:
+            from ._office_reader import users_list_from_backends
+            return users_list_from_backends(today)
+        except Exception:
+            pass
+    return _users_list_from_mock(today)
+
+
+# ------- demo seed ----------------------------------------------------------
 
 
 def seed_demo_users() -> None:
-    """Populate a few mock peers so the leaderboard has shape in home/dev mode.
+    """Populate a few mock peers so the dashboard has shape in home/dev mode.
 
     Idempotent: only seeds users that don't already exist. Real activity from
-    record_request() will outpace these once the user actually clicks around.
+    record_request() coexists with these (the viewer's own user_id will
+    typically be `local-dev`, not in this list).
     """
-    base = datetime.now(timezone.utc) - timedelta(days=14)
-    demo: list[tuple[str, int, list[str], int]] = [
-        # (user_id, total, features, days_active_back)
-        ("kim.minju",   428, ["afm", "ebeam", "health"], 12),
-        ("park.jinho",  312, ["ebeam", "afm"],            9),
-        ("lee.soyoung", 187, ["afm", "health"],           7),
-        ("choi.eunwoo", 96,  ["ebeam"],                   5),
-        ("jung.hari",   54,  ["afm"],                     3),
+    today = _today()
+    demo: list[tuple[str, dict[str, int], int, int]] = [
+        ("kim.minju",   {"sem_list": 180, "recipe_search": 160, "health": 88},        14,  35),
+        ("park.jinho",  {"recipe_search": 200, "sem_list": 80, "afm": 32},            12,  28),
+        ("lee.soyoung", {"sem_list": 110, "afm": 50, "health": 27},                    9,  22),
+        ("choi.eunwoo", {"recipe_tat": 60, "recipe_search": 28, "cdsem_storage": 8},   6,  18),
+        ("jung.hari",   {"afm": 40, "sem_list": 14},                                   4,  14),
     ]
+    now = _now()
     with _lock:
-        for user_id, total, features, days_back in demo:
+        for user_id, features, days_back, peak in demo:
             if user_id in _users:
                 continue
-            state = _UserState(user_id=user_id, first_seen=base)
-            state.total = total
-            # Spread feature counts roughly proportional to position.
-            for idx, feat in enumerate(features):
-                state.by_feature[feat] = total // len(features) + (1 if idx == 0 else 0)
-            today = datetime.now(timezone.utc).date()
-            for d in range(days_back):
-                state.active_days.add(today - timedelta(days=d))
-            state.last_seen = datetime.now(timezone.utc) - timedelta(hours=2)
+            state = _UserState(user_id=user_id)
+            state.total = sum(features.values())
+            state.by_feature = dict(features)
+            # Triangle distribution peaking midweek so the sparkline has shape.
+            middle = days_back / 2
+            for offset in range(days_back):
+                d = today - timedelta(days=offset)
+                state.daily[d] = max(1, peak - int(abs(offset - middle) * 2))
+            state.first_seen = now - timedelta(days=days_back)
+            state.last_seen = now - timedelta(hours=(days_back - 1) * 3 + 1)
             _users[user_id] = state
