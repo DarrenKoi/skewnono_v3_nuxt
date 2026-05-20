@@ -285,8 +285,8 @@
         <div class="grid grid-cols-1 gap-3 2xl:grid-cols-2">
           <!-- @vue-generic {FailIssueAlignRow} -->
           <EbeamFailIssueRankingTable
-            title="Align fails by equipment"
-            search-placeholder="Search eqp / model…"
+            title="Align fails by recipe"
+            search-placeholder="Search recipe / class"
             :rows="alignRows"
             :columns="alignColumns"
             :sortable-ids="alignSortableIds"
@@ -647,9 +647,9 @@ const alignSortableIds = ['exec_count', 'align_fail_count', 'align_fail_rate'] a
 const measSortableIds = ['exec_count', 'meas_fail_count', 'meas_fail_rate', 'avg_fail_ratio'] as const
 
 const alignSearchPredicate = (row: FailIssueAlignRow, q: string) =>
-  row.eqp_id.toLowerCase().includes(q)
-  || row.eqp_model_cd.toLowerCase().includes(q)
-  || row.vendor_nm.toLowerCase().includes(q)
+  row.recipe_name.toLowerCase().includes(q)
+  || row.class_name.toLowerCase().includes(q)
+  || row.full_name.toLowerCase().includes(q)
 
 const measSearchPredicate = (row: FailIssueMeasRow, q: string) =>
   row.recipe_name.toLowerCase().includes(q)
@@ -658,8 +658,8 @@ const measSearchPredicate = (row: FailIssueMeasRow, q: string) =>
 
 const alignColumns: TableColumn<FailIssueAlignRow>[] = [
   { accessorKey: 'rank', header: '#', size: 48 },
-  { accessorKey: 'eqp_id', header: 'eqp', size: 120 },
-  { accessorKey: 'eqp_model_cd', header: 'model', size: 100 },
+  { accessorKey: 'class_name', header: 'class', size: 70 },
+  { accessorKey: 'recipe_name', header: 'recipe', size: 200 },
   {
     accessorKey: 'exec_count',
     header: 'runs',
@@ -731,12 +731,11 @@ const exportFileBase = computed(() => {
 })
 
 const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
-  const headers = ['rank', 'eqp_id', 'eqp_model_cd', 'vendor_nm', 'exec_count', 'align_fail_count', 'align_fail_rate_pct', 'last_fail']
+  const headers = ['rank', 'class', 'recipe', 'exec_count', 'align_fail_count', 'align_fail_rate_pct', 'last_fail']
   const data = rows.map(r => [
     r.rank,
-    r.eqp_id,
-    r.eqp_model_cd,
-    r.vendor_nm,
+    r.class_name,
+    r.recipe_name,
     r.exec_count,
     r.align_fail_count,
     (r.align_fail_rate * 100).toFixed(2),

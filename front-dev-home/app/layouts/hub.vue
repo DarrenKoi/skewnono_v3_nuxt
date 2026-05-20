@@ -17,13 +17,13 @@
       <template #right>
         <UButton
           to="/information"
-          icon="i-lucide-info"
+          icon="i-lucide-plug"
           color="neutral"
           variant="ghost"
-          aria-label="프로젝트 정보"
+          aria-label="API 리스트"
         >
           <span class="hidden sm:inline">
-            정보
+            API
           </span>
         </UButton>
         <UButton

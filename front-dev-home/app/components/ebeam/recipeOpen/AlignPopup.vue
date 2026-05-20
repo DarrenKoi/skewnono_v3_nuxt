@@ -18,6 +18,36 @@
     </template>
 
     <template #body>
+      <div
+        v-if="images.length"
+        class="mb-4"
+      >
+        <p class="mb-1.5 font-mono text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
+          Align Image
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            v-for="img in images"
+            :key="img.filename"
+            type="button"
+            class="group flex min-w-0 flex-col gap-1 text-left"
+            :aria-label="`${img.label} 확대해서 보기`"
+            @click="zoomImage = img"
+          >
+            <div class="relative aspect-[4/3] w-full cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
+              <EbeamRecipeOpenSemNoise />
+              <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[9px] font-bold tracking-wider text-(--sk-ink-fg)">
+                {{ img.label }}
+              </span>
+              <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
+            </div>
+            <div class="truncate font-mono text-[9.5px] text-zinc-500">
+              {{ img.filename }}
+            </div>
+          </button>
+        </div>
+      </div>
+
       <UTable
         class="max-h-[60vh] font-mono-ids"
         :columns="columns"
@@ -27,11 +57,35 @@
       />
     </template>
   </UModal>
+
+  <UModal
+    :open="zoomImage !== null"
+    :ui="{ content: 'w-[92vw] sm:max-w-[920px]', body: 'p-0' }"
+    @update:open="value => { if (!value) zoomImage = null }"
+  >
+    <template #content>
+      <div
+        v-if="zoomImage"
+        class="relative flex aspect-[4/3] max-h-[82vh] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]"
+      >
+        <EbeamRecipeOpenSemNoise />
+        <div class="relative font-mono text-[80px] font-bold tracking-widest text-white/10">
+          ALIGN
+        </div>
+        <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
+          <span class="rounded bg-(--sk-ink) px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-(--sk-ink-fg)">
+            {{ zoomImage.label }}
+          </span>
+          <span class="font-mono text-[11px] text-white/60">{{ zoomImage.filename }}</span>
+        </div>
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
+import type { AlignImage, WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
 import { recipeTableUi } from '~/utils/recipeView'
 
 type AlignDisplayRow = {
@@ -45,9 +99,18 @@ type AlignDisplayRow = {
 
 const open = defineModel<boolean>('open', { required: true })
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   rows: WaferAlignInfoRow[]
-}>()
+  images?: AlignImage[]
+}>(), {
+  images: () => []
+})
+
+const zoomImage = ref<AlignImage | null>(null)
+
+watch(open, (isOpen) => {
+  if (!isOpen) zoomImage.value = null
+})
 
 const displayRows = computed<AlignDisplayRow[]>(() => props.rows.map(row => ({
   Align_No: row.Align_No,

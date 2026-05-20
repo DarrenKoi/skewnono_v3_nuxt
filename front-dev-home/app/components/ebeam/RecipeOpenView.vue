@@ -180,6 +180,7 @@
       <EbeamRecipeOpenAlignPopup
         v-model:open="alignOpen"
         :rows="data.wafer_align_info"
+        :images="data.align_images"
       />
 
       <EbeamRecipeOpenImageLightbox

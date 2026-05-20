@@ -48,6 +48,11 @@ export interface WaferAlignInfoRow {
   'P.No': number
 }
 
+export interface AlignImage {
+  label: string
+  filename: string
+}
+
 export interface IdpImageInfoRow {
   Parameter: string
   img_add1: string
@@ -93,6 +98,7 @@ export interface AmpRow {
 export interface RecipeDetailResponse {
   wafer_mp_info: WaferMpInfoRow[]
   wafer_align_info: WaferAlignInfoRow[]
+  align_images: AlignImage[]
   idp_image_info: IdpImageInfoRow[]
   amp_info: AmpRow[]
   recipe_id: string

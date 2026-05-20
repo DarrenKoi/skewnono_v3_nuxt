@@ -4,402 +4,1192 @@ definePageMeta({
 })
 
 useHead({
-  title: '프로젝트 정보 | SKEWNONO'
+  title: 'API 리스트 | SKEWNONO'
 })
 
-type TechStack = {
-  group: string
-  icon: string
-  status: string
-  description: string
-  items: string[]
-}
+type ApiMethod = 'GET' | 'POST' | 'DELETE'
 
 type ApiEndpoint = {
-  method: 'GET'
+  method: ApiMethod
   path: string
-  purpose: string
+  summary: string
+  params: string
   response: string
+  auth: '토큰 가능' | '사람 세션만' | '관리자'
   example: string
 }
 
-const projectGoals = [
-  'SKEWNONO v3는 E-Beam 계측 장비의 현황, Fab, 장비 타입, Online/Offline 상태를 한 화면에서 확인하기 위한 내부 대시보드입니다.',
-  '프론트엔드는 동일한 API 계약을 사용하고, 백엔드는 Mock 데이터에서 회사 내부 데이터 소스로 자연스럽게 교체할 수 있도록 구성합니다.',
-  '장비 리스트, 스토리지, Recipe 검색, 디바이스 통계처럼 엔지니어가 반복해서 확인하는 정보를 빠르게 탐색할 수 있게 만드는 것이 목적입니다.'
+type ApiGroup = {
+  name: string
+  description: string
+  icon: string
+  endpoints: ApiEndpoint[]
+}
+
+type PageGuide = {
+  id: string
+  title: string
+  path: string
+  icon: string
+  purpose: string
+  description: string
+  users: string
+  relatedApis: string[]
+  notes: string[]
+}
+
+const baseUrlRows = [
+  {
+    label: '프론트엔드 내부 호출',
+    value: '/api',
+    detail: 'Nuxt 화면과 composable에서 사용하는 기본 경로입니다.'
+  },
+  {
+    label: '로컬 Flask 직접 호출',
+    value: 'http://localhost:5000/api',
+    detail: '개인 개발 환경에서 백엔드만 띄워 확인할 때 사용합니다.'
+  },
+  {
+    label: '회사/운영 환경',
+    value: 'https://<skewnono-host>/api',
+    detail: '회사망에서 개인 스크립트나 배치가 데이터를 가져갈 때 사용하는 기준입니다.'
+  }
 ]
 
-const techStacks: TechStack[] = [
+const tokenSteps = [
   {
-    group: 'Nuxt',
-    icon: 'i-simple-icons-nuxt',
-    status: '현재 사용',
-    description: '프론트엔드 애플리케이션의 기본 프레임워크입니다.',
-    items: [
-      'Nuxt 4 기반 SPA로 구성되어 있으며 ssr: false 설정을 사용합니다.',
-      'app/pages 디렉터리의 파일 기반 라우팅으로 화면 URL을 관리합니다.',
-      'Nitro dev proxy가 /api 요청을 Flask 백엔드로 전달합니다.',
-      'runtimeConfig를 통해 NUXT_PUBLIC_API_BASE 같은 공개 설정을 주입합니다.'
-    ]
+    title: 'Settings에서 API Tokens 열기',
+    detail: '우측 상단 설정 버튼으로 이동한 뒤 API Tokens 섹션에서 New token을 누릅니다.'
   },
   {
-    group: 'Nuxt UI',
-    icon: 'i-lucide-panels-top-left',
-    status: '현재 사용',
-    description: '버튼, 카드, 배지, 테이블 같은 공통 UI의 기준 컴포넌트입니다.',
-    items: [
-      '@nuxt/ui를 사용해 UButton, UCard, UBadge, UTable, UColorModeButton을 렌더링합니다.',
-      'Tailwind CSS v4 유틸리티 클래스로 화면 간 간격, 색상, 반응형 레이아웃을 맞춥니다.',
-      '@iconify-json/lucide와 @iconify-json/simple-icons를 통해 아이콘을 사용합니다.',
-      'Public Sans와 Noto Sans KR 폰트를 self-hosted 방식으로 제공해 사내망/오프라인 환경에서도 글꼴이 유지됩니다.'
-    ]
+    title: '토큰 이름 입력',
+    detail: 'nightly-script, jupyter-analysis처럼 나중에 용도를 구분할 수 있는 label을 입력합니다.'
   },
   {
-    group: 'Vite',
-    icon: 'i-simple-icons-vite',
-    status: '현재 사용',
-    description: 'Nuxt 개발 서버와 프로덕션 번들의 빌드 엔진입니다.',
-    items: [
-      '개발 중에는 빠른 HMR과 모듈 변환을 담당합니다.',
-      'nuxt build 실행 시 클라이언트 번들을 생성합니다.',
-      'nuxt.config.ts의 vite.server.allowedHosts 설정으로 원격 터널 접속을 허용합니다.',
-      'ESLint, vue-tsc와 함께 프론트엔드 품질 검증 흐름을 구성합니다.'
-    ]
+    title: '토큰 원문 저장',
+    detail: '발급된 plaintext token은 한 번만 보입니다. 닫기 전에 안전한 곳에 저장해야 합니다.'
   },
   {
-    group: 'Flask API',
-    icon: 'i-lucide-server',
-    status: '현재 사용',
-    description: '프론트엔드가 호출하는 /api 엔드포인트를 제공하는 Python 백엔드입니다.',
-    items: [
-      'back_dev_home의 create_app() 팩터리에서 Flask 앱을 생성합니다.',
-      '각 기능은 Blueprint로 분리하고 /api 아래에 등록합니다.',
-      'routes.py는 응답 형태를 유지하고, data.py는 데이터 소스를 교체하는 경계로 사용합니다.',
-      'wsgi.ini를 통해 uWSGI 실행 구성을 제공합니다.'
-    ]
+    title: 'Bearer 헤더로 호출',
+    detail: '외부 개발 환경에서는 Authorization: Bearer skn_... 헤더를 붙여 /api/* 읽기 endpoint를 호출합니다.'
+  }
+]
+
+const authNotes = [
+  '토큰은 계정과 같은 읽기 권한을 가집니다. 유출되면 Settings의 API Tokens에서 즉시 Revoke 하십시오.',
+  '토큰 인증 요청은 사용자 활동 점수에는 반영되지 않지만, 운영 로그에는 api_token_id와 함께 남습니다.',
+  'POST/DELETE /api/account/api-tokens는 사람 세션 전용입니다. 이미 발급된 토큰으로 새 토큰을 만들거나 폐기할 수 없습니다.'
+]
+
+const examples = [
+  {
+    title: 'curl',
+    code: `BASE_URL="https://<skewnono-host>/api"
+SKEWNONO_TOKEN="skn_your_token"
+
+curl -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
+  "$BASE_URL/sem-list"`
   },
   {
-    group: 'OpenSearch',
+    title: 'Python requests',
+    code: `import requests
+
+base_url = "https://<skewnono-host>/api"
+headers = {"Authorization": "Bearer skn_your_token"}
+
+response = requests.get(f"{base_url}/cdsem/storage", headers=headers, timeout=10)
+response.raise_for_status()
+rows = response.json()`
+  },
+  {
+    title: 'Nuxt / Vue',
+    code: `const rows = await $fetch('/api/cdsem/storage', {
+  query: { fac_id: 'M11,M14' }
+})`
+  }
+]
+
+const pageGuides: PageGuide[] = [
+  {
+    id: 'home',
+    title: '홈',
+    path: '/',
+    icon: 'i-lucide-house',
+    purpose: 'SKEWNONO의 첫 진입 화면입니다.',
+    description: '사용자가 CD-SEM, HV-SEM, AFM 같은 작업 영역을 선택하고 각 장비군의 대표 상태를 빠르게 확인하는 허브 역할을 합니다.',
+    users: '일반 엔지니어, 장비 담당자, 신규 사용자',
+    relatedApis: ['/api/sem-list', '/api/announcements', '/api/health/services'],
+    notes: ['장비군 선택은 사용자의 의도가 강하므로 상단에서 과도한 교차 전환을 강요하지 않습니다.']
+  },
+  {
+    id: 'api-information',
+    title: 'API / Information',
+    path: '/information',
+    icon: 'i-lucide-plug',
+    purpose: '화면을 방문하지 않고 데이터를 가져가려는 개발자를 위한 안내 페이지입니다.',
+    description: 'API Token 사용법, Base URL, 호출 예시, 기능별 API 카탈로그, 페이지별 목적을 한 곳에서 확인합니다.',
+    users: '분석 스크립트 작성자, 배치 개발자, 프론트엔드/백엔드 개발자',
+    relatedApis: ['/api/account/api-tokens', '/api/*'],
+    notes: ['API 예시는 좌우 스크롤 없이 줄바꿈되도록 구성합니다.']
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    path: '/settings',
+    icon: 'i-lucide-settings',
+    purpose: '개인 설정과 API Token을 관리하는 화면입니다.',
+    description: '색상 모드, ECharts theme, API Token 발급/복사/폐기 기능을 제공합니다.',
+    users: '개인 개발 환경에서 API를 호출하려는 사용자',
+    relatedApis: ['/api/account/api-tokens'],
+    notes: ['Token plaintext는 발급 직후 한 번만 보여주므로 바로 저장해야 합니다.']
+  },
+  {
+    id: 'activity',
+    title: '사용 통계',
+    path: '/activity',
+    icon: 'i-lucide-bar-chart-3',
+    purpose: '사용자가 SKEWNONO를 어떻게 쓰고 있는지 확인하는 화면입니다.',
+    description: '내 활동 요약과 관리자용 사용자 활동 통계를 보여줍니다. API Token 호출은 활동 점수에는 반영하지 않고 운영 로그에 남기는 방식입니다.',
+    users: '일반 사용자, 관리자',
+    relatedApis: ['/api/activity/me', '/api/activity/summary', '/api/activity/users'],
+    notes: ['관리자용 summary와 users endpoint는 권한이 필요합니다.']
+  },
+  {
+    id: 'admin-logs',
+    title: '운영 로그',
+    path: '/admin/logs',
+    icon: 'i-lucide-file-search',
+    purpose: '운영자가 요청 로그와 오류를 추적하는 URL-only 화면입니다.',
+    description: 'OpenSearch 기반 로그를 level, path, user_id 등으로 필터링해 장애나 사용자 요청 흐름을 확인합니다.',
+    users: '관리자, 운영 담당자',
+    relatedApis: ['/api/admin/logs'],
+    notes: ['일반 내비게이션에는 노출하지 않고 URL 직접 입력으로 접근합니다.']
+  },
+  {
+    id: 'ebeam-entry',
+    title: 'E-Beam 진입',
+    path: '/ebeam/cd-sem, /ebeam/hv-sem',
+    icon: 'i-lucide-microscope',
+    purpose: 'E-Beam 장비군별 Fab 진입점을 제공합니다.',
+    description: 'CD-SEM 또는 HV-SEM을 선택한 뒤 Fab별 장비 목록, storage, recipe, 통계 기능으로 이동합니다.',
+    users: 'E-Beam 엔지니어',
+    relatedApis: ['/api/sem-list'],
+    notes: ['VeritySEM, Provision은 준비 중 화면으로 유지됩니다.']
+  },
+  {
+    id: 'tool-inventory',
+    title: '장비 목록',
+    path: '/ebeam/{tool}/{fab}',
+    icon: 'i-lucide-list-checks',
+    purpose: 'Fab별 E-Beam 장비 현황을 확인하는 기본 작업 화면입니다.',
+    description: '장비 ID, model, vendor, IP, online/offline 상태를 탐색하고 필요한 장비의 상세 기능으로 이동합니다.',
+    users: 'Fab 담당 엔지니어, 장비 담당자',
+    relatedApis: ['/api/sem-list'],
+    notes: ['CSV 다운로드와 filtering은 장비 현황 확인을 빠르게 하기 위한 보조 기능입니다.']
+  },
+  {
+    id: 'storage',
+    title: 'Storage',
+    path: '/ebeam/{tool}/{fab}/storage',
+    icon: 'i-lucide-hard-drive',
+    purpose: '장비별 storage 사용량과 unavailable 상태를 확인합니다.',
+    description: 'Fab, 장비, 사용률, capacity, recipe count 기준으로 storage 상태를 비교합니다.',
+    users: '장비 storage 관리 담당자',
+    relatedApis: ['/api/{tool_slug}/storage', '/api/{tool_slug}/storage-unavailable'],
+    notes: ['tool_slug는 cdsem 또는 hvsem입니다.']
+  },
+  {
+    id: 'hardware',
+    title: 'Hardware',
+    path: '/ebeam/{tool}/{fab}/hardware',
+    icon: 'i-lucide-cpu',
+    purpose: '장비별 hardware 보조 서비스 상태를 확인합니다.',
+    description: 'BSM, FDC, BM/PM 같은 service를 선택하고 장비 또는 Fab 기준으로 payload를 조회합니다.',
+    users: '장비 hardware 담당자',
+    relatedApis: ['/api/{tool_slug}/hardware/{service}'],
+    notes: ['같은 화면 컴포넌트를 CD-SEM과 HV-SEM에서 공유합니다.']
+  },
+  {
+    id: 'recipe-search',
+    title: 'Recipe Search',
+    path: '/ebeam/{tool}/{fab}/recipe-search',
     icon: 'i-lucide-search-code',
-    status: '연동 대상',
-    description: '회사 내부 장비/계측 검색 데이터를 가져올 때 사용할 검색 저장소입니다.',
-    items: [
-      '현재 홈/오프라인 개발에서는 Mock 데이터를 사용합니다.',
-      '회사 환경에서는 data.py 내부 구현을 OpenSearch 조회로 교체하는 구조를 목표로 합니다.',
-      '프론트엔드가 받는 JSON 응답 형태는 유지해야 합니다.',
-      '장비 리스트, Recipe 검색, 계측 결과 검색처럼 조건 검색이 필요한 화면과 잘 맞습니다.'
+    purpose: 'Recipe catalog를 검색하고 상세 분석 화면으로 이동합니다.',
+    description: 'recipe_name, Fab, tool type 기준으로 recipe를 찾고 open, lateral, meas history 화면으로 이어집니다.',
+    users: 'Recipe 담당 엔지니어, 계측 조건 분석자',
+    relatedApis: ['/api/{tool_slug}/recipe-search/recipes'],
+    notes: ['행 전체 클릭보다 명시적인 action 버튼으로 상세 화면에 진입합니다.']
+  },
+  {
+    id: 'recipe-open',
+    title: 'Recipe Open',
+    path: '/ebeam/{tool}/{fab}/recipe-search/open',
+    icon: 'i-lucide-file-code',
+    purpose: '선택한 recipe의 open recipe 상세 구조를 확인합니다.',
+    description: 'wafer measurement point, align point, image 정의, AMP 관련 정보를 확인합니다.',
+    users: 'Recipe 분석자',
+    relatedApis: ['/api/{tool_slug}/recipe-search/recipe-detail'],
+    notes: ['recipe_name query parameter가 필요합니다.']
+  },
+  {
+    id: 'lateral',
+    title: 'Lateral Recipe',
+    path: '/ebeam/{tool}/{fab}/recipe-search/lateral',
+    icon: 'i-lucide-git-compare',
+    purpose: '장비별 lateral recipe 보유 여부를 확인합니다.',
+    description: '선택 recipe가 각 장비에서 준비되어 있는지 비교하고 미보유 장비를 파악합니다.',
+    users: 'Recipe 배포 담당자',
+    relatedApis: ['/api/{tool_slug}/recipe-search/lateral'],
+    notes: ['Recipe Search에서 선택한 recipe context로 이동합니다.']
+  },
+  {
+    id: 'meas-hist',
+    title: 'Measurement History',
+    path: '/ebeam/{tool}/{fab}/recipe-search/meas-hist',
+    icon: 'i-lucide-history',
+    purpose: '선택 recipe의 측정 이력을 확인합니다.',
+    description: 'MSR 존재 여부, align fail, measurement fail 같은 이력 정보를 recipe 기준으로 조회합니다.',
+    users: '계측 결과 확인자',
+    relatedApis: ['/api/meas-hist'],
+    notes: ['필요 시 MSR file API와 연결됩니다.']
+  },
+  {
+    id: 'recipe-tat',
+    title: 'Recipe TAT',
+    path: '/ebeam/{tool}/{fab}/recipe-tat',
+    icon: 'i-lucide-timer',
+    purpose: 'Recipe 수행 시간과 병목을 확인합니다.',
+    description: 'ranking, summary, daily trend, device 목록을 통해 기간/lot/Fab 기준 TAT를 분석합니다.',
+    users: '공정/계측 효율 분석자',
+    relatedApis: ['/api/{tool_slug}/recipe-tat/ranking', '/api/{tool_slug}/recipe-tat/summary', '/api/{tool_slug}/recipe-tat/daily-trend'],
+    notes: ['기본 기간은 mock data anchor date 기준으로 계산됩니다.']
+  },
+  {
+    id: 'fail-issue',
+    title: 'Fail Issue',
+    path: '/ebeam/{tool}/{fab}/fail-issue',
+    icon: 'i-lucide-triangle-alert',
+    purpose: 'Align fail과 measurement fail 이슈를 추적합니다.',
+    description: 'summary, daily trend, align ranking, meas ranking을 통해 lot 또는 장비 단위의 fail 이슈를 좁혀 봅니다.',
+    users: '장비/계측 품질 담당자',
+    relatedApis: ['/api/{tool_slug}/fail-issue/summary', '/api/{tool_slug}/fail-issue/daily-trend', '/api/{tool_slug}/fail-issue/align-ranking'],
+    notes: ['CD-SEM과 HV-SEM이 같은 API 패턴을 사용합니다.']
+  },
+  {
+    id: 'device-statistics',
+    title: 'CD-SEM Device Statistics',
+    path: '/ebeam/cd-sem/device-statistics',
+    icon: 'i-lucide-table-properties',
+    purpose: 'CD-SEM device와 lot 기준 recipe 통계를 비교합니다.',
+    description: 'R3 device group, M-fab device description, lot별 recipe statistics와 trend를 조합해 분석합니다.',
+    users: 'CD-SEM device 분석자',
+    relatedApis: ['/api/cdsem/device-statistics/r3-device-grp', '/api/cdsem/device-statistics/device-desc', '/api/cdsem/device-statistics/recipe-statistics'],
+    notes: ['선택한 lot은 comparison 화면으로 이어집니다.']
+  },
+  {
+    id: 'skewvoir',
+    title: 'Skewvoir',
+    path: '/ebeam/{tool}/skewvoir',
+    icon: 'i-lucide-scan-search',
+    purpose: 'MSR 기반 CD 분포와 wafer 위치 분석을 수행합니다.',
+    description: 'MSR 목록을 선택하고 시간 흐름, CD 분포, wafer map, sequence trend를 함께 봅니다.',
+    users: '계측 데이터 분석자',
+    relatedApis: ['/api/meas-hist', '/api/msr-file'],
+    notes: ['현재 CD-SEM과 HV-SEM 진입 route가 모두 있습니다.']
+  },
+  {
+    id: 'afm',
+    title: 'AFM',
+    path: '/afm, /afm/{tool}',
+    icon: 'i-lucide-ruler',
+    purpose: 'AFM measurement file을 검색하고 상세를 확인합니다.',
+    description: 'tool별 file 목록, profile data, profile image, 활동/분석 정보를 조회합니다.',
+    users: 'AFM 담당 엔지니어',
+    relatedApis: ['/api/afm/tools', '/api/afm/files', '/api/afm/files/{filename}'],
+    notes: ['상세 화면은 filename route로 이동합니다.']
+  },
+  {
+    id: 'afm-see-together',
+    title: 'AFM See Together',
+    path: '/afm/{tool}/see-together',
+    icon: 'i-lucide-chart-line',
+    purpose: '여러 AFM measurement를 함께 비교합니다.',
+    description: '저장한 그룹이나 선택 항목을 기반으로 time-series 형태의 비교 관점을 제공합니다.',
+    users: 'AFM 비교 분석자',
+    relatedApis: ['/api/afm/files', '/api/afm/files/{filename}/profile/{point}'],
+    notes: ['AFM 검색 결과의 명시적인 action에서 이동합니다.']
+  },
+  {
+    id: 'coming-soon',
+    title: '준비 중 페이지',
+    path: '/thickness, /ebeam/verity-sem, /ebeam/provision',
+    icon: 'i-lucide-construction',
+    purpose: '아직 API와 화면 기능이 확정되지 않은 영역을 표시합니다.',
+    description: '사용자가 해당 기능이 준비 중임을 알 수 있게 하되, 완성되지 않은 API를 호출하도록 유도하지 않습니다.',
+    users: '전체 사용자',
+    relatedApis: ['아직 고정된 공개 API 없음'],
+    notes: ['API가 준비되지 않은 기능은 활성 탭처럼 보이지 않도록 관리합니다.']
+  }
+]
+
+const apiGroups: ApiGroup[] = [
+  {
+    name: '공통',
+    description: '서비스 상태, 공지, SEM 장비 기준 목록입니다.',
+    icon: 'i-lucide-server',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/health/services',
+        summary: 'OpenSearch, Redis, MinIO 같은 백엔드 의존 서비스 상태를 반환합니다.',
+        params: '없음',
+        response: 'ServicesHealthResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/health/services"'
+      },
+      {
+        method: 'GET',
+        path: '/api/sem-list',
+        summary: 'E-Beam 장비 목록과 fab, model, vendor, IP, online/offline 기준 필드를 반환합니다.',
+        params: '없음',
+        response: 'SemListRow[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/sem-list"'
+      },
+      {
+        method: 'GET',
+        path: '/api/announcements',
+        summary: '홈 화면 공지 목록을 반환합니다.',
+        params: '없음',
+        response: 'Announcement[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/announcements"'
+      }
     ]
   },
   {
-    group: 'Redis',
-    icon: 'i-lucide-database-zap',
-    status: '연동 대상',
-    description: '빠르게 바뀌는 상태, 캐시, 임시 집계 데이터를 다루기 위한 저장소입니다.',
-    items: [
-      '현재 requirements.txt에는 Redis 클라이언트가 직접 등록되어 있지 않습니다.',
-      '회사 환경 연동 시 장비 상태, 최근 조회 결과, 캐시성 요약 데이터를 Redis로 분리할 수 있습니다.',
-      'API 응답 형태를 바꾸지 않고 백엔드 data.py 계층에서만 연동 방식을 바꾸는 것이 원칙입니다.',
-      '실시간성 또는 반복 조회가 많은 데이터에 우선 적용하기 좋습니다.'
+    name: 'E-Beam Storage / Hardware',
+    description: 'CD-SEM/HV-SEM 장비 상태, storage, hardware 보조 서비스 데이터입니다.',
+    icon: 'i-lucide-hard-drive',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/storage',
+        summary: 'tool_slug가 cdsem 또는 hvsem일 때 storage 현황 row를 반환합니다.',
+        params: 'fac_id=M11,M14 optional',
+        response: 'StorageRow[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/storage?fac_id=M11,M14"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/storage-unavailable',
+        summary: 'storage unavailable 장비 목록을 반환합니다.',
+        params: 'fac_id=M11,M14 optional',
+        response: 'StorageUnavailableRow[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/storage-unavailable"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/hardware/{service}',
+        summary: 'BSM, FDC, BM/PM 같은 hardware 보조 서비스 payload를 반환합니다.',
+        params: 'eqp_id optional, fab_id optional',
+        response: 'HardwareServicePayload',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/hardware/bsm?fab_id=M11"'
+      }
     ]
   },
   {
-    group: 'ECharts',
-    icon: 'i-lucide-chart-no-axes-combined',
-    status: '주요 시각화 패키지',
-    description: '디바이스 통계, 추세, 분포 차트를 표현할 때 사용할 수 있는 차트 라이브러리입니다.',
-    items: [
-      '현재 package.json에는 echarts가 직접 의존성으로 등록되어 있지 않습니다.',
-      '디바이스 통계, 장비 가동률 추이, Fab별 분포처럼 차트가 필요한 화면에서 도입할 수 있습니다.',
-      'Vue 화면에서는 차트 옵션을 computed로 만들고 데이터 로딩 상태와 함께 관리하는 방식이 적합합니다.',
-      '도입 시에는 echarts와 Vue 래퍼 사용 여부를 정한 뒤 package.json에 명시해야 합니다.'
+    name: 'Recipe Search',
+    description: 'recipe catalog, open recipe, lateral recipe, measurement history, MSR file 데이터입니다.',
+    icon: 'i-lucide-search-code',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/recipes',
+        summary: 'CD-SEM/HV-SEM recipe 목록을 fab 기준으로 조회합니다.',
+        params: 'fab_name optional',
+        response: 'RecipeCatalogRow[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-search/recipes?fab_name=M11"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/recipe-detail',
+        summary: 'recipe_name에 해당하는 open recipe 상세 데이터를 반환합니다.',
+        params: 'recipe_name required, fab_name optional',
+        response: 'RecipeOpenPayload',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-search/recipe-detail?recipe_name=RCP_001"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/lateral',
+        summary: 'recipe_name에 해당하는 lateral recipe 데이터를 반환합니다.',
+        params: 'recipe_name required, fab_name optional',
+        response: 'LateralRecipePayload',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-search/lateral?recipe_name=RCP_001"'
+      },
+      {
+        method: 'GET',
+        path: '/api/meas-hist',
+        summary: 'tool_type, fab_name, recipe_name 기준 measurement history를 조회합니다.',
+        params: 'tool_type optional, fab_name optional, recipe_name optional',
+        response: 'MeasHistPayload',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/meas-hist?tool_type=cd-sem&fab_name=M11"'
+      },
+      {
+        method: 'GET',
+        path: '/api/msr-file',
+        summary: 'MSR identifier로 raw measurement file 정보를 조회합니다.',
+        params: 'msr required, class_name optional, total_images optional',
+        response: 'MsrFilePayload',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/msr-file?msr=MSR_001"'
+      }
+    ]
+  },
+  {
+    name: 'Recipe TAT',
+    description: '기간, fab, lot 기준 recipe TAT ranking, summary, trend, device 목록입니다.',
+    icon: 'i-lucide-timer',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-tat/ranking',
+        summary: 'recipe TAT ranking row를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd, limit optional',
+        response: 'RecipeTatRankingResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/ranking?fab_id=M11&limit=100"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-tat/summary',
+        summary: 'recipe TAT summary 지표를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd optional',
+        response: 'RecipeTatSummaryResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/summary?lot_cd=LOT001"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-tat/daily-trend',
+        summary: 'recipe TAT 일자별 trend point를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd optional',
+        response: 'RecipeTatTrendResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/recipe-tat/daily-trend?fab_id=M14"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-tat/devices',
+        summary: 'recipe TAT 화면에서 선택할 device 목록을 반환합니다.',
+        params: 'fab_id, start_date, end_date optional',
+        response: 'RecipeTatDeviceResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/devices?fab_id=M11"'
+      }
+    ]
+  },
+  {
+    name: 'Fail Issue',
+    description: '기간, fab, lot 기준 fail issue summary, trend, ranking, device 목록입니다.',
+    icon: 'i-lucide-triangle-alert',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/fail-issue/summary',
+        summary: 'fail issue summary 지표를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd optional',
+        response: 'FailIssueSummaryResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/summary?fab_id=M11"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/fail-issue/daily-trend',
+        summary: 'fail issue 일자별 trend point를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd optional',
+        response: 'FailIssueTrendResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/daily-trend?lot_cd=LOT001"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/fail-issue/align-ranking',
+        summary: 'align fail ranking row를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd, limit optional',
+        response: 'FailIssueRankingResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/fail-issue/align-ranking?limit=50"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/fail-issue/meas-ranking',
+        summary: 'measurement fail ranking row를 반환합니다.',
+        params: 'fab_id, start_date, end_date, lot_cd, limit optional',
+        response: 'FailIssueRankingResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/meas-ranking?fab_id=M11"'
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/fail-issue/devices',
+        summary: 'fail issue 화면에서 선택할 device 목록을 반환합니다.',
+        params: 'fab_id, start_date, end_date optional',
+        response: 'FailIssueDeviceResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/devices"'
+      }
+    ]
+  },
+  {
+    name: 'CD-SEM Device Statistics',
+    description: 'CD-SEM device 통계와 lot별 recipe statistics/trend 데이터입니다.',
+    icon: 'i-lucide-table-properties',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/cdsem/device-statistics/r3-device-grp',
+        summary: 'R3 device group 기준 row를 반환합니다.',
+        params: '없음',
+        response: 'R3DeviceGroupRow[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/r3-device-grp"'
+      },
+      {
+        method: 'GET',
+        path: '/api/cdsem/device-statistics/device-desc',
+        summary: 'fac_id 기준 device description row를 반환합니다.',
+        params: 'fac_id=M11,M14 optional',
+        response: 'DeviceDescRow[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/device-desc?fac_id=M11,M14"'
+      },
+      {
+        method: 'GET',
+        path: '/api/cdsem/device-statistics/recipe-statistics',
+        summary: 'lot_cds 기준 최신 주차 recipe statistics bucket을 반환합니다.',
+        params: 'lot_cds comma-separated optional',
+        response: 'RecipeStatisticsResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/recipe-statistics?lot_cds=R001,R002"'
+      },
+      {
+        method: 'GET',
+        path: '/api/cdsem/device-statistics/recipe-trend',
+        summary: 'lot_cds와 기간 기준 주차별 recipe statistics trend를 반환합니다.',
+        params: 'lot_cds, start_date, end_date optional',
+        response: 'RecipeTrendResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/recipe-trend?lot_cds=R001"'
+      }
+    ]
+  },
+  {
+    name: 'AFM',
+    description: 'AFM tool, file, profile, image, activity 데이터입니다.',
+    icon: 'i-lucide-ruler',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/afm/tools',
+        summary: 'AFM tool 목록을 반환합니다.',
+        params: '없음',
+        response: 'AfmTool[]',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/tools"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files',
+        summary: 'AFM measurement file 목록을 반환합니다.',
+        params: 'tool optional',
+        response: 'AfmFileListResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files?tool=AFM01"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}',
+        summary: 'AFM measurement file 상세 정보를 반환합니다.',
+        params: 'tool optional',
+        response: 'AfmFileDetailResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/profile/{point}',
+        summary: 'AFM profile point 데이터를 반환합니다.',
+        params: 'tool, site_id, site_x, site_y, point_no optional',
+        response: 'AfmProfileResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat/profile/P1"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/image/{point}',
+        summary: 'AFM image metadata와 image-file URL을 반환합니다.',
+        params: 'tool optional',
+        response: 'AfmImageResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat/image/P1"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/image-file/{point}',
+        summary: 'AFM profile image file을 SVG로 반환합니다.',
+        params: 'tool optional',
+        response: 'image/svg+xml',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat/image-file/P1"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/activities',
+        summary: 'AFM 사용자 활동 목록을 반환합니다.',
+        params: 'user, limit optional',
+        response: 'AfmActivityResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/activities?limit=50"'
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/analytics',
+        summary: 'AFM activity analytics를 반환합니다.',
+        params: 'days optional',
+        response: 'AfmAnalyticsResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/analytics?days=7"'
+      }
+    ]
+  },
+  {
+    name: '계정, 활동, 운영',
+    description: 'API token 관리, 사용자 활동 통계, 운영 로그 조회 endpoint입니다.',
+    icon: 'i-lucide-shield-check',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/account/api-tokens',
+        summary: '내 API token 목록을 반환합니다.',
+        params: '없음',
+        response: '{ tokens: ApiTokenView[] }',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/account/api-tokens"'
+      },
+      {
+        method: 'POST',
+        path: '/api/account/api-tokens',
+        summary: '새 API token을 발급합니다. 토큰 인증으로는 호출할 수 없습니다.',
+        params: 'JSON body: { label: string }',
+        response: '{ token: ApiTokenView, plaintext: string }',
+        auth: '사람 세션만',
+        example: 'curl -X POST -H "Content-Type: application/json" -d "{\\"label\\":\\"my-script\\"}" "$BASE_URL/account/api-tokens"'
+      },
+      {
+        method: 'DELETE',
+        path: '/api/account/api-tokens/{token_id}',
+        summary: '내 API token을 폐기합니다. 토큰 인증으로는 호출할 수 없습니다.',
+        params: 'token_id path parameter',
+        response: '{ revoked: string }',
+        auth: '사람 세션만',
+        example: 'curl -X DELETE "$BASE_URL/account/api-tokens/<token_id>"'
+      },
+      {
+        method: 'GET',
+        path: '/api/activity/me',
+        summary: '현재 사용자 활동 요약을 반환합니다.',
+        params: '없음',
+        response: 'ActivityMeResponse',
+        auth: '토큰 가능',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/activity/me"'
+      },
+      {
+        method: 'GET',
+        path: '/api/activity/summary',
+        summary: '전체 사용자 활동 summary를 반환합니다.',
+        params: '없음',
+        response: 'ActivitySummaryResponse',
+        auth: '관리자',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/activity/summary"'
+      },
+      {
+        method: 'GET',
+        path: '/api/admin/logs',
+        summary: '운영 로그를 조건별로 조회합니다.',
+        params: 'level, path, user_id, limit optional',
+        response: 'AdminLogQueryResponse',
+        auth: '관리자',
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/admin/logs?level=ERROR&limit=50"'
+      }
     ]
   }
 ]
 
-const runtimeConfigRows = [
-  {
-    name: 'NUXT_API_TARGET',
-    defaultValue: 'http://localhost:5000',
-    detail: 'Nuxt 개발 서버가 /api 요청을 전달할 Flask 백엔드 주소입니다.'
-  },
-  {
-    name: 'NUXT_PUBLIC_API_BASE',
-    defaultValue: '/api',
-    detail: '프론트엔드 composable이 사용하는 공개 API 기본 경로입니다.'
-  },
-  {
-    name: 'NUXT_PORT',
-    defaultValue: '3100',
-    detail: 'Nuxt 개발 서버 포트입니다.'
-  }
-]
+const totalEndpoints = computed(() =>
+  apiGroups.reduce((count, group) => count + group.endpoints.length, 0)
+)
 
-const apiEndpoints: ApiEndpoint[] = [
-  {
-    method: 'GET',
-    path: '/api/health/services',
-    purpose: 'Redis, OpenSearch, MinIO 같은 백엔드 서비스 상태 요약을 반환합니다.',
-    response: 'ServicesHealthResponse',
-    example: 'curl http://localhost:5000/api/health/services'
-  },
-  {
-    method: 'GET',
-    path: '/api/sem-list',
-    purpose: '대시보드, 장비 타입별 목록, Fab별 요약에서 사용하는 E-Beam 장비 목록을 반환합니다.',
-    response: 'SemListRow[]',
-    example: 'curl http://localhost:5000/api/sem-list'
-  }
-]
+const activePanel = ref('tokens')
+const selectedApiGroup = computed<ApiGroup>(() =>
+  apiGroups.find(group => group.name === activePanel.value) ?? apiGroups[0]!
+)
+const selectedPageGuide = computed<PageGuide>(() =>
+  pageGuides.find(page => `page:${page.id}` === activePanel.value) ?? pageGuides[0]!
+)
 
-const semListFields = [
-  'fac_id',
-  'eqp_id',
-  'eqp_model_cd',
-  'eqp_grp_id',
-  'vendor_nm',
-  'eqp_ip',
-  'fab_name',
-  'updt_dt',
-  'available',
-  'version'
-]
+const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
+  if (method === 'POST') return 'success'
+  if (method === 'DELETE') return 'error'
+  return 'primary'
+}
+
+const canOpenPage = (path: string) => !path.includes(',') && !path.includes('{')
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
-    <section class="dashboard-surface rounded-3xl p-6 md:p-8">
-      <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
-        <div class="max-w-3xl space-y-3">
-          <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold">
-            SKEWNONO v3
-          </p>
-          <h1 class="text-2xl md:text-4xl font-semibold tracking-tight">
-            프로젝트 정보
-          </h1>
-          <p class="text-sm md:text-base leading-7 text-zinc-600 dark:text-zinc-300">
-            이 페이지는 SKEWNONO v3의 목적, 주요 기술 스택, 공개 API 목록을 사내 엔지니어가 빠르게 이해하고
-            재사용할 수 있도록 정리한 안내 화면입니다.
-          </p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <UBadge
-            label="Nuxt 4"
-            color="neutral"
-            variant="subtle"
-            class="rounded-full"
-          />
-          <UBadge
-            label="Flask API"
-            color="neutral"
-            variant="subtle"
-            class="rounded-full"
-          />
-          <UBadge
-            label="OpenSearch / Redis"
-            color="neutral"
-            variant="subtle"
-            class="rounded-full"
-          />
-        </div>
-      </div>
-    </section>
-
-    <UCard
-      class="dashboard-surface rounded-3xl"
-      :ui="{ body: 'p-6' }"
-    >
-      <template #header>
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-target"
-            class="w-5 h-5 text-zinc-600 dark:text-zinc-300"
-          />
-          <h2 class="text-lg font-semibold">
-            프로젝트 목적
-          </h2>
-        </div>
-      </template>
-
-      <ul class="grid lg:grid-cols-3 gap-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-        <li
-          v-for="goal in projectGoals"
-          :key="goal"
-          class="flex gap-3 rounded-2xl border border-(--sk-border) bg-zinc-50/70 p-4 dark:bg-zinc-900/40"
+  <div class="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8 lg:px-8">
+    <div class="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <aside class="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <nav
+          class="space-y-6 border-b border-(--sk-border) pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
+          aria-label="Information sections"
         >
-          <UIcon
-            name="i-lucide-check"
-            class="w-4 h-4 mt-1 text-zinc-900 dark:text-zinc-100 shrink-0"
-          />
-          <span>{{ goal }}</span>
-        </li>
-      </ul>
-    </UCard>
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+              시작하기
+            </p>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition"
+              :class="activePanel === 'tokens' ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900'"
+              @click="activePanel = 'tokens'"
+            >
+              <UIcon
+                name="i-lucide-key-round"
+                class="h-4 w-4 shrink-0"
+              />
+              <span>API Token 사용법</span>
+            </button>
+          </div>
 
-    <section class="space-y-3">
-      <div class="flex items-center gap-2">
-        <UIcon
-          name="i-lucide-layers"
-          class="w-5 h-5 text-zinc-600 dark:text-zinc-300"
-        />
-        <h2 class="text-lg font-semibold">
-          기술 스택
-        </h2>
-      </div>
-
-      <div class="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        <UCard
-          v-for="stack in techStacks"
-          :key="stack.group"
-          class="dashboard-surface rounded-3xl"
-          :ui="{ body: 'p-6' }"
-        >
-          <template #header>
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex items-center gap-2">
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+              API 카탈로그
+            </p>
+            <div class="space-y-1">
+              <button
+                v-for="group in apiGroups"
+                :key="group.name"
+                type="button"
+                class="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition"
+                :class="activePanel === group.name ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900'"
+                @click="activePanel = group.name"
+              >
+                <span class="flex min-w-0 items-center gap-2">
+                  <UIcon
+                    :name="group.icon"
+                    class="h-4 w-4 shrink-0"
+                  />
+                  <span class="truncate">{{ group.name }}</span>
+                </span>
+                <span
+                  class="rounded-full px-2 py-0.5 text-[11px]"
+                  :class="activePanel === group.name ? 'bg-white/15 dark:bg-zinc-950/10' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400'"
+                >
+                  {{ group.endpoints.length }}
+                </span>
+              </button>
+            </div>
+          </div>
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+              페이지 안내
+            </p>
+            <div class="space-y-1">
+              <button
+                v-for="page in pageGuides"
+                :key="page.id"
+                type="button"
+                class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition"
+                :class="activePanel === `page:${page.id}` ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900'"
+                @click="activePanel = `page:${page.id}`"
+              >
                 <UIcon
-                  :name="stack.icon"
-                  class="w-5 h-5 text-zinc-600 dark:text-zinc-300"
+                  :name="page.icon"
+                  class="h-4 w-4 shrink-0"
                 />
-                <h3 class="text-lg font-semibold">
-                  {{ stack.group }}
-                </h3>
+                <span class="truncate">{{ page.title }}</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+      <main class="min-w-0">
+        <section
+          v-if="activePanel === 'tokens'"
+          class="space-y-8"
+        >
+          <header class="border-b border-(--sk-border) pb-6">
+            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              <UIcon
+                name="i-lucide-plug"
+                class="h-4 w-4"
+              />
+              <span>Developer API</span>
+            </div>
+            <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div class="max-w-3xl">
+                <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                  API Token 사용법
+                </h1>
+                <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                  Settings에서 개인 API token을 발급하면 SKEWNONO 화면을 열지 않고도 각자 개발 환경, 분석 노트북, 배치 스크립트에서 필요한 데이터를 직접 가져갈 수 있습니다.
+                </p>
               </div>
-              <UBadge
-                :label="stack.status"
+              <UButton
+                to="/settings#api-tokens"
+                icon="i-lucide-settings"
                 color="neutral"
                 variant="outline"
-                size="xs"
-                class="shrink-0"
-              />
+              >
+                Settings에서 발급
+              </UButton>
             </div>
-          </template>
+          </header>
 
-          <p class="mb-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-            {{ stack.description }}
-          </p>
-          <ul class="space-y-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-            <li
-              v-for="item in stack.items"
-              :key="item"
-              class="flex gap-2"
-            >
-              <span class="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
-              <span>{{ item }}</span>
-            </li>
-          </ul>
-        </UCard>
-      </div>
-    </section>
-
-    <section class="dashboard-surface rounded-3xl p-6 md:p-8 space-y-5">
-      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-plug"
-              class="w-5 h-5 text-zinc-600 dark:text-zinc-300"
-            />
-            <h2 class="text-lg font-semibold">
-              공개 API 목록
-            </h2>
-          </div>
-          <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-            프론트엔드에서는 <code class="font-mono text-xs">/api</code> 경로로 호출하고,
-            Flask 백엔드를 직접 확인할 때는 <code class="font-mono text-xs">http://localhost:5000/api</code>를 사용합니다.
-          </p>
-        </div>
-        <UBadge
-          label="현재 제공 중"
-          color="neutral"
-          variant="outline"
-          class="w-fit"
-        />
-      </div>
-
-      <div class="overflow-x-auto rounded-2xl border border-(--sk-border)">
-        <table class="min-w-full divide-y divide-(--sk-border) text-sm">
-          <thead class="bg-zinc-50 dark:bg-zinc-900/60">
-            <tr class="text-left text-zinc-500 dark:text-zinc-400">
-              <th class="px-4 py-3 font-semibold">
-                Method
-              </th>
-              <th class="px-4 py-3 font-semibold">
-                Path
-              </th>
-              <th class="px-4 py-3 font-semibold">
-                용도
-              </th>
-              <th class="px-4 py-3 font-semibold">
-                응답
-              </th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-(--sk-border)">
-            <tr
-              v-for="endpoint in apiEndpoints"
-              :key="endpoint.path"
-            >
-              <td class="px-4 py-4 align-top">
-                <UBadge
-                  :label="endpoint.method"
-                  color="neutral"
-                  variant="subtle"
+          <section class="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
+            <div class="space-y-4">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-link"
+                  class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
                 />
-              </td>
-              <td class="px-4 py-4 align-top">
-                <code class="font-mono text-xs text-zinc-900 dark:text-zinc-100">{{ endpoint.path }}</code>
-                <div class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  {{ endpoint.example }}
-                </div>
-              </td>
-              <td class="px-4 py-4 align-top text-zinc-600 dark:text-zinc-300">
-                {{ endpoint.purpose }}
-              </td>
-              <td class="px-4 py-4 align-top">
-                <code class="font-mono text-xs text-zinc-900 dark:text-zinc-100">{{ endpoint.response }}</code>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="grid lg:grid-cols-[1fr_1.2fr] gap-6">
-        <div>
-          <h3 class="font-semibold">
-            SemListRow 주요 필드
-          </h3>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <code
-              v-for="field in semListFields"
-              :key="field"
-              class="rounded-full border border-(--sk-border) bg-zinc-50 px-3 py-1 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-            >
-              {{ field }}
-            </code>
-          </div>
-        </div>
-
-        <div>
-          <h3 class="font-semibold">
-            런타임 설정
-          </h3>
-          <div class="mt-3 space-y-3">
-            <div
-              v-for="config in runtimeConfigRows"
-              :key="config.name"
-              class="rounded-2xl border border-(--sk-border) bg-zinc-50/70 p-4 dark:bg-zinc-900/40"
-            >
-              <div class="flex flex-wrap items-center gap-2">
-                <code class="font-mono text-xs text-zinc-900 dark:text-zinc-100">{{ config.name }}</code>
-                <span class="text-xs text-zinc-500 dark:text-zinc-400">기본값: {{ config.defaultValue }}</span>
+                <h2 class="text-lg font-semibold">
+                  Base URL
+                </h2>
               </div>
-              <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                {{ config.detail }}
+              <div class="overflow-hidden rounded-lg border border-(--sk-border)">
+                <table class="min-w-full divide-y divide-(--sk-border) text-sm">
+                  <tbody class="divide-y divide-(--sk-border)">
+                    <tr
+                      v-for="row in baseUrlRows"
+                      :key="row.label"
+                      class="bg-white dark:bg-zinc-950"
+                    >
+                      <th class="w-44 px-4 py-4 text-left align-top font-semibold">
+                        {{ row.label }}
+                      </th>
+                      <td class="px-4 py-4 align-top">
+                        <code class="font-mono text-xs text-zinc-950 dark:text-white">{{ row.value }}</code>
+                        <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                          {{ row.detail }}
+                        </p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-list-checks"
+                  class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                />
+                <h2 class="text-lg font-semibold">
+                  발급 순서
+                </h2>
+              </div>
+              <ol class="grid gap-3">
+                <li
+                  v-for="(step, index) in tokenSteps"
+                  :key="step.title"
+                  class="flex gap-3 rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950"
+                >
+                  <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950">
+                    {{ index + 1 }}
+                  </span>
+                  <span>
+                    <span class="block font-semibold">{{ step.title }}</span>
+                    <span class="mt-1 block text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ step.detail }}</span>
+                  </span>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-shield-check"
+                  class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                />
+                <h2 class="text-lg font-semibold">
+                  토큰 주의사항
+                </h2>
+              </div>
+              <ul class="mt-4 space-y-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                <li
+                  v-for="note in authNotes"
+                  :key="note"
+                  class="flex gap-2"
+                >
+                  <UIcon
+                    name="i-lucide-check"
+                    class="mt-1 h-4 w-4 shrink-0 text-zinc-900 dark:text-zinc-100"
+                  />
+                  <span>{{ note }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-terminal"
+                  class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                />
+                <h2 class="text-lg font-semibold">
+                  호출 예시
+                </h2>
+              </div>
+              <div class="mt-4 grid gap-4">
+                <div
+                  v-for="example in examples"
+                  :key="example.title"
+                  class="overflow-hidden rounded-lg border border-(--sk-border) bg-white dark:bg-zinc-950"
+                >
+                  <div class="border-b border-(--sk-border) px-4 py-3 text-sm font-semibold">
+                    {{ example.title }}
+                  </div>
+                  <pre class="whitespace-pre-wrap break-words p-4 text-xs leading-6"><code>{{ example.code }}</code></pre>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section
+          v-else-if="activePanel.startsWith('page:')"
+          class="space-y-6"
+        >
+          <header class="border-b border-(--sk-border) pb-6">
+            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              <UIcon
+                name="i-lucide-panels-top-left"
+                class="h-4 w-4"
+              />
+              <span>페이지 안내</span>
+            </div>
+            <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div class="max-w-3xl">
+                <div class="flex items-center gap-3">
+                  <UIcon
+                    :name="selectedPageGuide.icon"
+                    class="h-7 w-7 text-zinc-700 dark:text-zinc-200"
+                  />
+                  <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                    {{ selectedPageGuide.title }}
+                  </h1>
+                </div>
+                <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                  {{ selectedPageGuide.purpose }}
+                </p>
+              </div>
+              <UButton
+                :to="canOpenPage(selectedPageGuide.path) ? selectedPageGuide.path : undefined"
+                icon="i-lucide-arrow-up-right"
+                color="neutral"
+                variant="outline"
+                :disabled="!canOpenPage(selectedPageGuide.path)"
+              >
+                페이지 열기
+              </UButton>
+            </div>
+          </header>
+
+          <section class="grid gap-4 md:grid-cols-2">
+            <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
+              <div class="text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+                Route
+              </div>
+              <code class="mt-2 block break-words font-mono text-sm text-zinc-950 dark:text-white">
+                {{ selectedPageGuide.path }}
+              </code>
+            </div>
+            <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
+              <div class="text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+                주요 사용자
+              </div>
+              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                {{ selectedPageGuide.users }}
               </p>
             </div>
+          </section>
+
+          <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+            <h2 class="text-lg font-semibold">
+              화면 설명
+            </h2>
+            <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+              {{ selectedPageGuide.description }}
+            </p>
+          </section>
+
+          <section class="grid gap-6 lg:grid-cols-2">
+            <div class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+              <h2 class="text-lg font-semibold">
+                관련 API
+              </h2>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <code
+                  v-for="api in selectedPageGuide.relatedApis"
+                  :key="api"
+                  class="rounded-md bg-zinc-50 px-2.5 py-1.5 font-mono text-xs text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+                >
+                  {{ api }}
+                </code>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+              <h2 class="text-lg font-semibold">
+                참고 사항
+              </h2>
+              <ul class="mt-4 space-y-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                <li
+                  v-for="note in selectedPageGuide.notes"
+                  :key="note"
+                  class="flex gap-2"
+                >
+                  <UIcon
+                    name="i-lucide-check"
+                    class="mt-1 h-4 w-4 shrink-0 text-zinc-900 dark:text-zinc-100"
+                  />
+                  <span>{{ note }}</span>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+
+        <section
+          v-else
+          class="space-y-6"
+        >
+          <header class="border-b border-(--sk-border) pb-6">
+            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              <UIcon
+                name="i-lucide-list-tree"
+                class="h-4 w-4"
+              />
+              <span>API 카탈로그</span>
+            </div>
+            <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div class="max-w-3xl">
+                <div class="flex items-center gap-3">
+                  <UIcon
+                    :name="selectedApiGroup.icon"
+                    class="h-7 w-7 text-zinc-700 dark:text-zinc-200"
+                  />
+                  <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                    {{ selectedApiGroup.name }}
+                  </h1>
+                </div>
+                <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                  {{ selectedApiGroup.description }}
+                </p>
+              </div>
+              <div class="grid grid-cols-2 gap-3 sm:flex">
+                <div class="rounded-lg border border-(--sk-border) bg-white px-4 py-3 dark:bg-zinc-950">
+                  <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                    선택 항목
+                  </div>
+                  <div class="mt-1 text-xl font-semibold">
+                    {{ selectedApiGroup.endpoints.length }}
+                  </div>
+                </div>
+                <div class="rounded-lg border border-(--sk-border) bg-white px-4 py-3 dark:bg-zinc-950">
+                  <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                    전체 Endpoint
+                  </div>
+                  <div class="mt-1 text-xl font-semibold">
+                    {{ totalEndpoints }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div class="grid gap-4">
+            <article
+              v-for="endpoint in selectedApiGroup.endpoints"
+              :key="`${endpoint.method}:${endpoint.path}`"
+              class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950"
+            >
+              <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div class="min-w-0 space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <UBadge
+                      :label="endpoint.method"
+                      :color="methodColor(endpoint.method)"
+                      variant="subtle"
+                    />
+                    <code class="break-all font-mono text-xs text-zinc-950 dark:text-white">{{ endpoint.path }}</code>
+                  </div>
+                  <p class="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                    {{ endpoint.summary }}
+                  </p>
+                </div>
+                <div class="shrink-0">
+                  <UBadge
+                    :label="endpoint.auth"
+                    color="neutral"
+                    variant="outline"
+                  />
+                </div>
+              </div>
+
+              <dl class="mt-4 grid gap-3 md:grid-cols-2">
+                <div class="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
+                  <dt class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    Parameter
+                  </dt>
+                  <dd class="mt-1">
+                    <code class="break-words font-mono text-xs text-zinc-800 dark:text-zinc-200">{{ endpoint.params }}</code>
+                  </dd>
+                </div>
+                <div class="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
+                  <dt class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    Response
+                  </dt>
+                  <dd class="mt-1">
+                    <code class="break-words font-mono text-xs text-zinc-800 dark:text-zinc-200">{{ endpoint.response }}</code>
+                  </dd>
+                </div>
+              </dl>
+
+              <div class="mt-4 overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
+                <div class="border-b border-(--sk-border) px-3 py-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  Example
+                </div>
+                <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ endpoint.example }}</code></pre>
+              </div>
+            </article>
           </div>
-        </div>
-      </div>
-    </section>
+        </section>
+      </main>
+    </div>
   </div>
 </template>

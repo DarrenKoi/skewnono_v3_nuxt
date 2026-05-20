@@ -14,7 +14,7 @@ from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
 from back_dev_home.sem_list.data import SemListRow, get_sem_list
 
 
-__all__ = ["MeasHistRow", "MeasHistResponse", "ToolType", "get_meas_hist"]
+__all__ = ["MeasHistRow", "MeasHistResponse", "ToolType", "get_meas_hist", "find_meas_hist_by_msr"]
 
 
 class MeasHistRow(TypedDict):
@@ -178,6 +178,22 @@ def _all_rows() -> tuple[MeasHistRow, ...]:
             rows.append(row)
 
     return tuple(rows)
+
+
+@lru_cache(maxsize=1)
+def _rows_by_msr() -> dict[str, MeasHistRow]:
+    return {row["msr"]: row for row in _all_rows()}
+
+
+def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
+    """Look up the parent measurement-history row for an msr.
+
+    스큐보아(skewvoir) opens an MSR's raw detail (msr_file) and needs the
+    parent row's class_name / total_images. Only the pre-built mock rows are
+    indexed; recipe-search synthesized rows are not, since the UI selects from
+    real meas_hist rows before opening detail.
+    """
+    return _rows_by_msr().get(msr)
 
 
 def _split_recipe(recipe_name: str) -> tuple[str, str]:

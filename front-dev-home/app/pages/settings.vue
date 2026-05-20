@@ -35,7 +35,9 @@ definePageMeta({
         </div>
       </UCard>
 
-      <SettingsApiTokens />
+      <div id="api-tokens">
+        <SettingsApiTokens />
+      </div>
 
       <UCard class="dashboard-surface rounded-3xl">
         <template #header>

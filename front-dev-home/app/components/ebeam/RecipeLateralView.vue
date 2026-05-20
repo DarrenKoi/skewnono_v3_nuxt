@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { ColumnFiltersState } from '@tanstack/vue-table'
 import type { Fab } from '~/stores/navigation'
 import type {
   LateralRecipeResponse,
   LateralRecipeRow,
   LateralRecipeToolType
 } from '~/composables/useLateralRecipeApi'
-import { chipClass } from '~/utils/chipClass'
-import { readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
+import { formatRecipeTimestamp, readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
 
 const props = defineProps<{
   fab: Fab
@@ -46,6 +44,8 @@ const { data, pending, error, refresh } = await useAsyncData<LateralRecipeRespon
 )
 
 const rows = computed<LateralRecipeRow[]>(() => data.value?.rows ?? [])
+const readyRows = computed<LateralRecipeRow[]>(() => rows.value.filter(row => row.recipe_ready))
+const notReadyRows = computed<LateralRecipeRow[]>(() => rows.value.filter(row => !row.recipe_ready))
 const totalTools = computed(() => data.value?.total_tools_in_fab ?? 0)
 const readyCount = computed(() => data.value?.ready_count ?? 0)
 const notReadyCount = computed(() => data.value?.not_ready_count ?? 0)
@@ -54,17 +54,11 @@ const readyPercent = computed(() => {
   return Math.round((readyCount.value / totalTools.value) * 100)
 })
 
-type ReadinessFilter = 'all' | 'ready' | 'not-ready'
-const readinessFilter = ref<ReadinessFilter>('all')
+type LateralTab = 'ready' | 'not-ready'
+const activeTab = ref<LateralTab>('ready')
 
-const columnFilters = computed<ColumnFiltersState>(() => {
-  if (readinessFilter.value === 'all') return []
-  return [{ id: 'recipe_ready', value: readinessFilter.value === 'ready' }]
-})
-
-const filterOptions = computed<{ value: ReadinessFilter, label: string, count: number }[]>(() => [
-  { value: 'all', label: '전체', count: totalTools.value },
-  { value: 'ready', label: 'Recipe 보유', count: readyCount.value },
+const tabOptions = computed<{ value: LateralTab, label: string, count: number }[]>(() => [
+  { value: 'ready', label: '보유', count: readyCount.value },
   { value: 'not-ready', label: '미보유', count: notReadyCount.value }
 ])
 
@@ -74,14 +68,36 @@ const headerStats = computed(() => [
   { label: '미보유', value: notReadyCount.value.toLocaleString(), tone: 'bad' as const }
 ])
 
-const columns: TableColumn<LateralRecipeRow>[] = [
+const activeRows = computed<LateralRecipeRow[]>(() =>
+  activeTab.value === 'ready' ? readyRows.value : notReadyRows.value
+)
+
+const versionStatus = computed(() => {
+  const totalVersions = data.value?.versions.length ?? 0
+  if (totalVersions === 0) return '보유 장비 없음'
+  if (totalVersions === 1) return '동일 version'
+  return `${totalVersions}개 version 혼재`
+})
+
+const formatGeneratedAt = (iso: string | null | undefined) =>
+  iso ? formatRecipeTimestamp(iso, { withSeconds: true }) : '—'
+
+const baseColumns: TableColumn<LateralRecipeRow>[] = [
   { accessorKey: 'eqp_id', header: 'eqp_id', size: 132 },
   { accessorKey: 'eqp_model_cd', header: 'model', size: 124 },
   { accessorKey: 'vendor_nm', header: 'vendor', size: 100 },
-  { accessorKey: 'available', header: 'avail', size: 90 },
-  { accessorKey: 'recipe_ready', header: 'recipe', size: 130, filterFn: 'equals' },
-  { accessorKey: 'recipe_version', header: 'version', size: 96 }
+  { accessorKey: 'available', header: 'avail', size: 90 }
 ]
+
+const readyColumns: TableColumn<LateralRecipeRow>[] = [
+  ...baseColumns,
+  { accessorKey: 'recipe_version', header: 'version', size: 96 },
+  { accessorKey: 'recipe_generated_at', header: 'generated_at', size: 172 }
+]
+
+const activeColumns = computed<TableColumn<LateralRecipeRow>[]>(() =>
+  activeTab.value === 'ready' ? readyColumns : baseColumns
+)
 
 const tableUi = recipeTableUi
 </script>
@@ -164,85 +180,151 @@ const tableUi = recipeTableUi
       />
     </div>
 
-    <section
-      v-else-if="data"
-      class="dashboard-surface rounded-2xl px-3.5 py-3"
-    >
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            장비 리스트
-          </h2>
-          <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            {{ rows.length.toLocaleString() }}
-          </span>
+    <template v-else-if="data">
+      <section class="dashboard-surface rounded-2xl px-4 py-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                Recipe version
+              </h2>
+              <span
+                class="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold ring-1"
+                :class="data.versions.length <= 1
+                  ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900'
+                  : 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900'"
+              >
+                {{ versionStatus }}
+              </span>
+            </div>
+            <p class="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              version별 생성 시간과 보유 장비 수를 먼저 확인한 뒤 장비 리스트를 나눠 봅니다.
+            </p>
+          </div>
+          <div class="text-left lg:text-right">
+            <p class="font-mono text-[11px] text-zinc-400">
+              latest
+            </p>
+            <p class="mt-0.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {{ data.latest_recipe_version === null ? '—' : `v${data.latest_recipe_version}` }}
+            </p>
+            <p class="mt-0.5 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+              {{ formatGeneratedAt(data.latest_generated_at) }}
+            </p>
+          </div>
         </div>
 
         <div
-          role="radiogroup"
-          aria-label="recipe readiness filter"
-          class="inline-flex flex-wrap items-center gap-1.5"
+          v-if="data.versions.length > 0"
+          class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
         >
-          <button
-            v-for="option in filterOptions"
-            :key="option.value"
-            type="button"
-            role="radio"
-            :aria-checked="readinessFilter === option.value"
-            class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-semibold ring-1 transition-colors"
-            :class="chipClass(readinessFilter === option.value)"
-            @click="readinessFilter = option.value"
+          <div
+            v-for="version in data.versions"
+            :key="version.recipe_version"
+            class="rounded-lg border border-(--sk-border) bg-white px-3 py-2 dark:bg-zinc-950"
           >
-            {{ option.label }}
-            <span class="font-mono text-[10px] tabular-nums opacity-70">
-              {{ option.count.toLocaleString() }}
-            </span>
-          </button>
+            <div class="flex items-center justify-between gap-3">
+              <span class="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                v{{ version.recipe_version }}
+              </span>
+              <span class="font-mono text-[11px] tabular-nums text-zinc-500">
+                {{ version.ready_count.toLocaleString() }} tools
+              </span>
+            </div>
+            <p class="mt-1 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+              {{ formatGeneratedAt(version.generated_at) }}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <UTable
-        class="font-mono-ids"
-        :columns="columns"
-        :data="rows"
-        :column-filters="columnFilters"
-        sticky="header"
-        :ui="tableUi"
-      >
-        <template #eqp_id-cell="{ row }">
-          <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ row.original.eqp_id }}
-          </span>
-        </template>
+        <div
+          v-else
+          class="mt-3 rounded-lg border border-dashed border-(--sk-border) px-3 py-5 text-center text-xs text-zinc-500"
+        >
+          이 fab에서 해당 recipe를 보유한 장비가 없습니다.
+        </div>
+      </section>
 
-        <template #available-cell="{ row }">
-          <span
-            class="sk-lateral-badge"
-            :class="row.original.available === 'On' ? 'sk-lateral-badge--ok' : 'sk-lateral-badge--bad'"
+      <section class="dashboard-surface rounded-2xl px-3.5 py-3">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+              {{ activeTab === 'ready' ? '보유 장비 리스트' : '미보유 장비 리스트' }}
+            </h2>
+            <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {{ activeRows.length.toLocaleString() }}
+            </span>
+          </div>
+
+          <div
+            role="tablist"
+            aria-label="recipe readiness tabs"
+            class="inline-flex rounded-lg border border-(--sk-border) bg-zinc-50 p-0.5 dark:bg-zinc-900"
           >
-            {{ row.original.available }}
-          </span>
-        </template>
+            <button
+              v-for="option in tabOptions"
+              :key="option.value"
+              type="button"
+              role="tab"
+              :aria-selected="activeTab === option.value"
+              class="inline-flex h-8 min-w-24 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors"
+              :class="activeTab === option.value
+                ? 'bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white'
+                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100'"
+              @click="activeTab = option.value"
+            >
+              {{ option.label }}
+              <span class="font-mono text-[10px] tabular-nums opacity-70">
+                {{ option.count.toLocaleString() }}
+              </span>
+            </button>
+          </div>
+        </div>
 
-        <template #recipe_ready-cell="{ row }">
-          <span
-            class="sk-lateral-badge"
-            :class="row.original.recipe_ready ? 'sk-lateral-badge--ok' : 'sk-lateral-badge--bad'"
-          >
-            {{ row.original.recipe_ready ? '보유' : '미보유' }}
-          </span>
-        </template>
+        <UTable
+          v-if="activeRows.length > 0"
+          class="font-mono-ids"
+          :columns="activeColumns"
+          :data="activeRows"
+          sticky="header"
+          :ui="tableUi"
+        >
+          <template #eqp_id-cell="{ row }">
+            <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+              {{ row.original.eqp_id }}
+            </span>
+          </template>
 
-        <template #recipe_version-cell="{ row }">
-          <span
-            class="font-mono text-[12px] tabular-nums"
-            :class="row.original.recipe_version === null ? 'text-zinc-400' : 'text-zinc-700 dark:text-zinc-200'"
-          >
-            {{ row.original.recipe_version === null ? '—' : `v${row.original.recipe_version}` }}
-          </span>
-        </template>
-      </UTable>
-    </section>
+          <template #available-cell="{ row }">
+            <span
+              class="sk-lateral-badge"
+              :class="row.original.available === 'On' ? 'sk-lateral-badge--ok' : 'sk-lateral-badge--bad'"
+            >
+              {{ row.original.available }}
+            </span>
+          </template>
+
+          <template #recipe_version-cell="{ row }">
+            <span class="font-mono text-[12px] tabular-nums text-zinc-700 dark:text-zinc-200">
+              {{ row.original.recipe_version === null ? '—' : `v${row.original.recipe_version}` }}
+            </span>
+          </template>
+
+          <template #recipe_generated_at-cell="{ row }">
+            <span class="font-mono text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
+              {{ formatGeneratedAt(row.original.recipe_generated_at) }}
+            </span>
+          </template>
+        </UTable>
+
+        <div
+          v-else
+          class="rounded-lg border border-dashed border-(--sk-border) px-4 py-10 text-center text-sm text-zinc-500"
+        >
+          표시할 장비가 없습니다.
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 

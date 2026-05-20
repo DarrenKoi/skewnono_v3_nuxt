@@ -56,6 +56,12 @@ WaferAlignInfoRow = TypedDict("WaferAlignInfoRow", {
     "P.No": int
 })
 
+# Wafer-alignment reference images. Usually a pair (global + fine alignment).
+AlignImageRow = TypedDict("AlignImageRow", {
+    "label": str,
+    "filename": str
+})
+
 IdpImageInfoRow = TypedDict("IdpImageInfoRow", {
     "Parameter": str,
     "img_add1": str,
@@ -119,6 +125,7 @@ class RecipeSearchResponse(TypedDict):
 class RecipeDetailResponse(TypedDict):
     wafer_mp_info: list[WaferMpInfoRow]
     wafer_align_info: list[WaferAlignInfoRow]
+    align_images: list[AlignImageRow]
     idp_image_info: list[IdpImageInfoRow]
     amp_info: list[AmpRow]
     recipe_id: str
@@ -219,6 +226,17 @@ def generate_wafer_align_info(
         })
 
     return data
+
+
+def generate_wafer_align_images(
+    rng: random.Random | None = None
+) -> list[AlignImageRow]:
+    """Generate the pair of wafer-alignment reference images for a recipe."""
+    active_rng = rng or random.Random()
+    return [
+        {"label": "Global Align", "filename": f"ALIGN_GLOBAL_{active_rng.randint(1, 9999):04d}.jpg"},
+        {"label": "Fine Align", "filename": f"ALIGN_FINE_{active_rng.randint(1, 9999):04d}.jpg"}
+    ]
 
 
 def generate_idp_image_info(
@@ -354,6 +372,7 @@ def get_recipe_open_data(
     return {
         "wafer_mp_info": generate_wafer_mp_info(rng=rng),
         "wafer_align_info": generate_wafer_align_info(rng=rng),
+        "align_images": generate_wafer_align_images(rng=rng),
         "idp_image_info": idp_rows,
         "amp_info": generate_amp_info(idp_rows),
         "recipe_id": resolved_recipe_id,

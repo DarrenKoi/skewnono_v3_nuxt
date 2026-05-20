@@ -42,14 +42,14 @@ export interface FailIssueDailyTrendResponse {
 
 export interface FailIssueAlignRow {
   rank: number
-  eqp_id: string
-  eqp_model_cd: string
-  vendor_nm: string
+  class_name: string
+  recipe_name: string
+  full_name: string
   exec_count: number
   align_fail_count: number
   align_fail_rate: number
   last_fail: string | null
-  sample_recipes: string[]
+  sample_eqp_ids: string[]
 }
 
 export interface FailIssueAlignRankingResponse {

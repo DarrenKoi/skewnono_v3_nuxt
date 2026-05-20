@@ -1,5 +1,5 @@
 resource: activity
-description: Usage statistics dashboard backing /activity. Tiered: every signed-in user sees their own panel; admins additionally see global aggregates (MAU/DAU/WAU, feature popularity, per-user drill-down). Home returns mock data from an in-memory store; office reads Redis counters and OpenSearch event history with mock fallback.
+description: Usage statistics dashboard backing /activity. Every signed-in user sees their own panel plus shared global aggregates (MAU/DAU/WAU, feature popularity, per-user drill-down). Home returns mock data from an in-memory store; office reads Redis counters and OpenSearch event history with mock fallback.
 base_path: /api/activity
 
 types:
@@ -34,7 +34,7 @@ types:
       description: The viewer's user_id as set by the identity middleware.
     is_admin:
       type: boolean
-      description: Whether the viewer is on the SKEWNONO_ADMIN_USERS allowlist. Frontend uses this to conditionally render the global panel.
+      description: Whether the viewer is on the SKEWNONO_ADMIN_USERS allowlist. Kept for future admin affordances; it no longer gates the activity global panel.
     this_month:
       type: object
       shape: MeThisMonth
@@ -126,7 +126,7 @@ types:
 endpoints:
   - path: /api/activity/me
     method: GET
-    description: Current viewer's personal usage stats. Always allowed (every signed-in user can see their own activity). Returns is_admin so the frontend can conditionally render the global panel.
+    description: Current viewer's personal usage stats. Always allowed (every signed-in user can see their own activity). Returns is_admin for any future admin-specific affordances.
     response:
       status: 200
       body: MeResponse
@@ -134,36 +134,27 @@ endpoints:
   - path: /api/activity/summary
     method: GET
     description: Global aggregates — DAU/WAU/MAU and top features over 7d / 30d windows.
-    auth: admin
+    auth: signed-in user
     response:
       status: 200
       body: SummaryResponse
-    errors:
-      - status: 403
-        code: forbidden
-        when: viewer is not in SKEWNONO_ADMIN_USERS
 
   - path: /api/activity/users
     method: GET
-    description: One row per known user with 30-day totals. Drives the admin users table.
-    auth: admin
+    description: One row per known user with 30-day totals. Drives the shared users table.
+    auth: signed-in user
     response:
       status: 200
       body: UserListResponse
-    errors:
-      - status: 403
-        code: forbidden
 
   - path: /api/activity/users/{user_id}
     method: GET
     description: Per-user drill-down (same shape as MeResponse, scoped to that user_id).
-    auth: admin
+    auth: signed-in user
     response:
       status: 200
       body: UserHistoryResponse
     errors:
-      - status: 403
-        code: forbidden
       - status: 404
         code: not_found
         when: user_id has no recorded activity
@@ -172,5 +163,5 @@ notes:
   - Phase 1 source is back_dev_home/activity/data.py, which keeps the in-memory _users dict (seeded by seed_demo_users at app start). Aggregate functions (get_summary, get_users_list) iterate the dict directly. No Redis/OpenSearch is touched in home mode — gated by _runtime/env.is_cloud().
   - Office implementation swaps the read paths get_summary, get_user_history to Redis SCARD/HGETALL and OpenSearch term/date-histogram aggregations against the usage_events index (see usage-events.yaml). Each function tries the live client and falls back to the in-memory _users dict on exception, mirroring health/data.py.
   - Bots (Authorization Bearer token requests, identified by g.api_token_id) are excluded from every counter, same as today. Anonymous (user_id == "-") is also excluded.
-  - Admin allowlist is read from env var SKEWNONO_ADMIN_USERS (comma-separated user_ids). Empty at home defaults to ["local-dev"] so the admin panel works out of the box.
+  - Admin allowlist is read from env var SKEWNONO_ADMIN_USERS (comma-separated user_ids). Empty at home defaults to ["local-dev"]. This flag is returned by /activity/me but does not restrict shared activity reads.
   - This contract replaces the previous gamification endpoints (/activity/leaderboard). The leaderboard endpoint is removed in this revision.

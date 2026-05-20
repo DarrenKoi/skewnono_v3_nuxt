@@ -50,6 +50,16 @@ Coordinate.X -> float64: align point X 좌표. mock range는 -100.0~100.0
 Coordinate.Y -> float64: align point Y 좌표. mock range는 -100.0~100.0
 P.No -> int64: align point가 참조하는 point 번호. mock range는 1~20
 
+align_images
+
+list 안의 한 record는 wafer alignment에 사용된 reference image 1장입니다.
+보통 global align과 fine align 2장으로 구성되며, Recipe open 화면의 align 팝업 상단에 thumbnail로 보여주고 클릭하면 확대합니다.
+
+Column -> Type: Value 설명
+
+label -> string: align image 단계 라벨. Global Align, Fine Align
+filename -> string: align image 파일명. 예: ALIGN_GLOBAL_0001.jpg, ALIGN_FINE_0001.jpg
+
 idp_image_info
 
 pd.DataFrame 기준으로 한 row는 IDP 안에서 parameter와 image 파일들이 연결된 1개 image definition입니다.
@@ -77,9 +87,10 @@ Mock data 생성 규칙
 1. recipe_id는 Recipe 검색 화면에서 선택한 recipe_name을 넘깁니다. fac_id와 tool_category는 현재 route context를 함께 넘깁니다. 검색 목록은 Redis recipe_name 문자열만 갖기 때문에 별도 recipe_id가 준비되기 전까지 recipe_name이 recipe open key입니다.
 2. wafer_mp_info는 기본 50 rows를 생성합니다.
 3. wafer_align_info는 기본 10 rows를 생성합니다.
-4. idp_image_info는 기본 20 rows를 생성합니다.
-5. Python prototype의 원본 컬럼명은 IDP 파일 형식을 흉내 내기 위해 대문자, 점(.), underscore가 섞여 있습니다. 이 파일에서는 원본 컬럼명을 그대로 설명합니다.
-6. frontend/API DTO에서 다루기 어렵다면 응답 변환 단계에서 camelCase나 snake_case 별칭을 추가할 수 있지만, 원본 IDP 컬럼명은 raw data 확인용으로 유지합니다.
+4. align_images는 항상 Global Align, Fine Align 2개 record를 생성합니다.
+5. idp_image_info는 기본 20 rows를 생성합니다.
+6. Python prototype의 원본 컬럼명은 IDP 파일 형식을 흉내 내기 위해 대문자, 점(.), underscore가 섞여 있습니다. 이 파일에서는 원본 컬럼명을 그대로 설명합니다.
+7. frontend/API DTO에서 다루기 어렵다면 응답 변환 단계에서 camelCase나 snake_case 별칭을 추가할 수 있지만, 원본 IDP 컬럼명은 raw data 확인용으로 유지합니다.
 7. img_meas2는 wafer_mp_info와 idp_image_info 양쪽에 있습니다. wafer_mp_info의 img_meas2는 point 대표 image이고, idp_image_info의 img_meas2는 parameter image set 안의 measurement image 2입니다.
 8. Region은 Python prototype에서 P_No와 같은 의미로 생성됩니다. Recipe open 화면에서 point와 image metadata를 연결하는 후보 key로 사용할 수 있습니다.
 9. timestamp는 mock 응답이 생성된 시각입니다. recipe 자체의 수정 시각이나 측정 시각은 아닙니다.

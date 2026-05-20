@@ -68,12 +68,13 @@ types:
     rank:
       type: integer
       description: 1-based rank by align_fail_count desc (ties broken by align_fail_rate)
-    eqp_id:
+    class_name:
       type: string
-    eqp_model_cd:
+    recipe_name:
       type: string
-    vendor_nm:
+    full_name:
       type: string
+      format: "<class>/<recipe>"
     exec_count:
       type: integer
     align_fail_count:
@@ -83,10 +84,10 @@ types:
     last_fail:
       type: string
       format: "ISO 8601 UTC ending in Z"
-      description: Timestamp of the most recent align-fail row for this eqp; null only if align_fail_count is 0 (which should not appear in this list).
-    sample_recipes:
+      description: Timestamp of the most recent align-fail row for this recipe; null only if align_fail_count is 0 (which should not appear in this list).
+    sample_eqp_ids:
       type: array
-      description: Up to 5 distinct full_name values from align-fail rows on this eqp
+      description: Up to 5 distinct equipment IDs from align-fail rows for this recipe
 
   MeasRankingRow:
     rank:
@@ -192,7 +193,7 @@ endpoints:
 
   - path: /api/<tool_slug>/fail-issue/align-ranking
     method: GET
-    description: Equipment ranked by align_fail_count descending. Only equipment with at least one align-fail in the window appears — clean tools are filtered out so the table is a triage list, not an inventory.
+    description: Recipes ranked by align_fail_count descending. Only recipes with at least one align-fail in the window appear, so the table is a triage list, not an inventory.
     query_params:
       fab_id:
         type: string

@@ -10,7 +10,7 @@
           사용 통계
         </h1>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          최근 활동, 자주 쓰는 기능, 그리고 (관리자에게) 전체 사용 추이를 보여줍니다.
+          최근 활동, 자주 쓰는 기능, 전체 사용 추이를 보여줍니다.
         </p>
       </div>
       <UButton
@@ -92,22 +92,22 @@
       </UCard>
     </section>
 
-    <!-- Admin panel: only when is_admin -->
-    <template v-if="me?.is_admin">
+    <!-- Shared usage panel: visible to every viewer -->
+    <template v-if="me">
       <div class="flex items-center gap-2 pt-2">
         <UIcon
-          name="i-lucide-shield"
-          class="text-rose-500"
+          name="i-lucide-users"
+          class="text-sky-500"
         />
         <h2 class="text-lg font-semibold">
           전체 사용 현황
         </h2>
         <UBadge
-          color="error"
+          color="primary"
           variant="subtle"
           size="sm"
         >
-          관리자 전용
+          전체 공개
         </UBadge>
       </div>
 
@@ -294,33 +294,25 @@ useHead({ title: '사용 통계 | SKEWNONO' })
 
 const { data: me, refresh: refreshMe, status: meStatus } = await useActivityMe()
 
-// Summary + users are admin-only endpoints (return 403 otherwise). Decide
-// once at setup time whether to wire them up. If the viewer's admin status
-// changes mid-session they'll need to reload.
-const isAdmin = computed(() => Boolean(me.value?.is_admin))
+// Summary + users are shared activity views, so every viewer fetches them.
+const sharedQueries = await Promise.all([useActivitySummary(), useActivityUsers()]).then(
+  ([summary, users]) => ({ summary, users })
+)
 
-const adminQueries = isAdmin.value
-  ? await Promise.all([useActivitySummary(), useActivityUsers()]).then(
-      ([summary, users]) => ({ summary, users })
-    )
-  : null
-
-const summary = computed(() => adminQueries?.summary.data.value ?? null)
-const users = computed(() => adminQueries?.users.data.value ?? null)
+const summary = computed(() => sharedQueries.summary.data.value ?? null)
+const users = computed(() => sharedQueries.users.data.value ?? null)
 
 const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
-  if (adminQueries?.summary.status.value === 'pending') return true
-  if (adminQueries?.users.status.value === 'pending') return true
+  if (sharedQueries.summary.status.value === 'pending') return true
+  if (sharedQueries.users.status.value === 'pending') return true
   return false
 })
 
 const refreshAll = async () => {
   resetActivityCache()
   const jobs: Array<Promise<unknown>> = [refreshMe()]
-  if (adminQueries) {
-    jobs.push(adminQueries.summary.refresh(), adminQueries.users.refresh())
-  }
+  jobs.push(sharedQueries.summary.refresh(), sharedQueries.users.refresh())
   await Promise.all(jobs)
 }
 
@@ -335,7 +327,7 @@ const formatTime = (iso: string | null | undefined) => {
 
 const lastSeenLabel = computed(() => formatTime(me.value?.last_seen))
 
-// --- admin: KPI cards ---
+// --- shared usage: KPI cards ---
 const kpiCards = computed(() => {
   if (!summary.value) return []
   return [
@@ -363,7 +355,7 @@ const kpiCards = computed(() => {
   ]
 })
 
-// --- admin: top features window toggle ---
+// --- shared usage: top features window toggle ---
 const windowKey = ref<'7d' | '30d'>('7d')
 const windowTabs = [
   { label: '최근 7일', value: '7d' },
@@ -376,7 +368,7 @@ const topFeaturesForWindow = computed<FeatureCount[]>(() => {
     : summary.value.top_features_30d
 })
 
-// --- admin: user table drill-down ---
+// --- shared usage: user table drill-down ---
 const expandedUser = ref<string | null>(null)
 const userDetail = ref<UserHistoryResponse | null>(null)
 const userDetailLoading = ref(false)
@@ -395,11 +387,9 @@ const toggleUser = async (userId: string) => {
   userDetailLoading.value = true
   try {
     userDetail.value = await fetchUserHistory(userId)
-  }
-  catch (err) {
+  } catch (err) {
     userDetailError.value = err instanceof Error ? err.message : String(err)
-  }
-  finally {
+  } finally {
     userDetailLoading.value = false
   }
 }

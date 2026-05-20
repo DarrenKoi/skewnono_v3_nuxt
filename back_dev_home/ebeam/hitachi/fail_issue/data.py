@@ -7,7 +7,7 @@ Fail-issue mock data — measurement-history rows enriched with two failure
 aspects derived from the meas_hist schema:
 
 * `align_fail` (Pass/Fail/NA): wafer-alignment outcome at measurement start.
-  An eqp-side problem — surfaced as a per-equipment ranking.
+  Surfaced as a per-recipe ranking for the fail-issue table.
 * `fail_ratio` > MEAS_FAIL_THRESHOLD: image-level failure during the run.
   A recipe-side problem — surfaced as a per-recipe ranking.
 
@@ -359,18 +359,17 @@ def get_daily_trend(
 
 
 class AlignRankingRow(TypedDict):
-    # Ranked by align_fail_count desc — equipment that fails alignment most
-    # often. The eqp-id grouping reflects the operational fact that
-    # alignment is a tool-side problem (mirror, stage, beam).
+    # Ranked by align_fail_count desc, grouped by recipe so the Align Fail
+    # table uses the same recipe-first triage axis as Meas Fail.
     rank: int
-    eqp_id: str
-    eqp_model_cd: str
-    vendor_nm: str
+    class_name: str
+    recipe_name: str
+    full_name: str
     exec_count: int
     align_fail_count: int
     align_fail_rate: float
     last_fail: str | None
-    sample_recipes: list[str]
+    sample_eqp_ids: list[str]
 
 
 def get_align_ranking(
@@ -383,29 +382,27 @@ def get_align_ranking(
 ) -> list[AlignRankingRow]:
     rows = _filter_rows(tool_type, fab_id, start_date, end_date, lot_cd)
 
-    grouped: dict[str, dict] = {}
+    grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
-        eqp_id = row["eqp_id"]
-        bucket = grouped.setdefault(eqp_id, {
-            "eqp_id": eqp_id,
-            "eqp_model_cd": row["eqp_model_cd"],
-            "vendor_nm": row["vendor_nm"],
+        key = (row["class_name"], row["recipe_name"])
+        bucket = grouped.setdefault(key, {
+            "class_name": row["class_name"],
+            "recipe_name": row["recipe_name"],
+            "full_name": row["full_name"],
             "exec_count": 0,
             "align_fail_count": 0,
             "last_fail": None,
-            "recipes": set()
+            "eqp_ids": set()
         })
         bucket["exec_count"] += 1
         if _is_align_fail(row):
             bucket["align_fail_count"] += 1
             if bucket["last_fail"] is None or row["timestamp"] > bucket["last_fail"]:
                 bucket["last_fail"] = row["timestamp"]
-            bucket["recipes"].add(row["full_name"])
+            bucket["eqp_ids"].add(row["eqp_id"])
 
     ranked = sorted(
-        # Filter out equipment with zero fails — the ranking should not
-        # surface clean tools. Engineers scrolling this table want triage
-        # targets, and empty rows just dilute the signal.
+        # Filter out recipes with zero fails so this stays a triage table.
         (b for b in grouped.values() if b["align_fail_count"] > 0),
         key=lambda b: (b["align_fail_count"], b["align_fail_count"] / b["exec_count"]),
         reverse=True
@@ -419,14 +416,14 @@ def get_align_ranking(
 
         out.append({
             "rank": index + 1,
-            "eqp_id": bucket["eqp_id"],
-            "eqp_model_cd": bucket["eqp_model_cd"],
-            "vendor_nm": bucket["vendor_nm"],
+            "class_name": bucket["class_name"],
+            "recipe_name": bucket["recipe_name"],
+            "full_name": bucket["full_name"],
             "exec_count": exec_count,
             "align_fail_count": fail_count,
             "align_fail_rate": rate,
             "last_fail": bucket["last_fail"],
-            "sample_recipes": sorted(bucket["recipes"])[:5]
+            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5]
         })
 
     return out
@@ -573,11 +570,11 @@ if __name__ == "__main__":
     pprint.pprint(get_summary("cd-sem", None, start, end))
 
     print("\n" + "=" * 72)
-    print("TOP 5 ALIGN-FAIL EQUIPMENT")
+    print("TOP 5 ALIGN-FAIL RECIPES")
     print("=" * 72)
     for entry in get_align_ranking("cd-sem", None, start, end, limit=5):
         print(
-            f"#{entry['rank']:>2}  {entry['eqp_id']:<14}  "
+            f"#{entry['rank']:>2}  {entry['full_name']:<28}  "
             f"fails={entry['align_fail_count']:>3}/{entry['exec_count']:>4}  "
             f"rate={entry['align_fail_rate'] * 100:>5.2f}%"
         )

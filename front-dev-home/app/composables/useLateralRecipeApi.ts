@@ -9,6 +9,13 @@ export interface LateralRecipeRow {
   available: 'On' | 'Off'
   recipe_ready: boolean
   recipe_version: number | null
+  recipe_generated_at: string | null
+}
+
+export interface LateralRecipeVersion {
+  recipe_version: number
+  generated_at: string
+  ready_count: number
 }
 
 export interface LateralRecipeResponse {
@@ -18,6 +25,9 @@ export interface LateralRecipeResponse {
   total_tools_in_fab: number
   ready_count: number
   not_ready_count: number
+  latest_recipe_version: number | null
+  latest_generated_at: string | null
+  versions: LateralRecipeVersion[]
   rows: LateralRecipeRow[]
 }
 
