@@ -197,6 +197,7 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 
 - **타깃 화면은 FHD (1920×1080) 이지만, 콘텐츠 폭을 화면에 꽉 채우지 않습니다.** 콘텐츠 최대 폭은 `max-w-7xl mx-auto` (1280px) 를 표준으로 사용하며, 1920px 화면에서는 좌우를 여백으로 둡니다. 메트롤로지 데이터의 가독 폭을 제한하는 *차분함 우선*(§1) 원칙에 따른 의도적 결정입니다 — FHD 풀-블리드 최적화는 채택하지 않습니다.
 - 신규 페이지도 `max-w-7xl mx-auto` 를 표준으로 사용합니다. 1920px 폭을 더 활용하려는 변경(`2xl` breakpoint 에서 컬럼·테이블 폭 확대 등)은 별도 합의 없이 도입하지 않습니다.
+- **Dense 예외 (1440px)**: 좌측 리스트 + 우측 상세를 한 화면에서 다루는 데이터-밀도 페이지는 `max-w-[1440px] mx-auto` 까지 한 단계 확장할 수 있습니다. 현재 대상은 **H/W 관리**(`ebeam/HardwareView.vue`, 320px 리스트 레일 + `1fr` 상세 2컬럼)이며, 디바이스 통계·Time-Series 가 후보입니다. 이 예외는 합의된 패턴이므로 1280px 로 되돌리지 않습니다.
 - breakpoint 는 Tailwind v4 기본값(`sm 640 / md 768 / lg 1024 / xl 1280 / 2xl 1536`)을 그대로 사용하며, `main.css` 에 커스텀 화면 폭·viewport 정의를 두지 않습니다.
 - 사이드바가 있는 페이지는 `flex` + `min-w-0` 을 본문에 적용해 가로 스크롤을 방지합니다.
 - 카드 간 수직 간격은 `space-y-6` 입니다.
@@ -453,3 +454,4 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 - 2026-05-16: *Selection System · Conservative* 의 행 디바이더 패턴을 글로벌 레이아웃에 적용. `nav/ToolTypeTabs.vue` 하단에 1px `--sk-border-soft` 헤어라인을 추가해 *장비 행* 과 *기능 행* 사이를 명시적으로 구분합니다(§7.7). 디바이더는 풀-블리드로 그려 FAB 사이드바를 가로지릅니다.
 - 2026-05-23: 레이아웃 폭 기준을 명문화했습니다(§5). 타깃 화면은 FHD(1920×1080)이나, 콘텐츠 폭은 의도적으로 `max-w-7xl`(1280px)로 제한하고 풀-블리드 최적화는 채택하지 않습니다.
 - 2026-05-23: *메타 바*(`EbeamMetaBar`) 패턴을 추가했습니다(§7.8). 설계 원안 "옵션 E — 한 줄 메타바"를 기반으로, eyebrow + 고정 제목 + 토글 + 인라인 통계 + 신선도 배지 + 액션을 한 줄로 압축한 페이지 헤더입니다. `ebeam/ToolInventoryView.vue`(장비 리스트), `ebeam/StorageView.vue`(스토리지), `ebeam/RecipeTatView.vue`, `ebeam/FailIssueView.vue`, `cd-sem/device-statistics/index.vue` 가 기존 `FeatureHeader` 에서 메타 바로 마이그레이션되었습니다.
+- 2026-05-23: *H/W 관리* 를 **Dense 2컬럼**(`body-standard` 핸드오프 Artboard E)으로 재구성했습니다. `ebeam/HardwareView.vue` 가 좁은 `max-w-3xl` 중앙 picker 에서 `max-w-[1440px]` 단일 컨테이너로 바뀌었고, 좌측 320px 레일(검색 + Model 필터 + All/On/Off 칩 + 클릭형 장비 리스트)과 우측 상세(장비 요약 바 + BM/PM·BSM·FDC 세그먼트 + 상세 카드)로 분할됩니다. 리스트 행 클릭으로 장비를 전환하며, 세그먼트 탭은 `useState('hw-section')` 로 영속됩니다. 1440px Dense 예외는 §5 에 명문화했습니다.

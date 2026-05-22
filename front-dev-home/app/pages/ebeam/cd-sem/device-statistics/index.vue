@@ -1,16 +1,15 @@
 <template>
   <div class="space-y-3">
-    <EbeamFeatureHeader
-      :stats="statCells"
-      stat-size="sm"
-      :subtitle="text.title"
-      :title="pageTitle"
+    <EbeamMetaBar
+      eyebrow="CD-SEM"
+      :title="text.title"
+      :stats="metaStats"
     >
-      <template #meta>
+      <template #toggle>
         <div
           role="radiogroup"
           :aria-label="text.fabSelect"
-          class="flex flex-wrap items-center gap-1 self-end mb-1.5"
+          class="inline-flex flex-wrap items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
         >
           <button
             v-for="option in deviceFabOptions"
@@ -18,15 +17,17 @@
             type="button"
             role="radio"
             :aria-checked="selectedFab === option.value"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedFab === option.value)"
+            class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+            :class="selectedFab === option.value
+              ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
+              : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
             @click="selectedFab = option.value"
           >
             {{ option.label }}
           </button>
         </div>
       </template>
-    </EbeamFeatureHeader>
+    </EbeamMetaBar>
 
     <!-- Step 1 — Quick filter strip -->
     <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
@@ -304,6 +305,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
 import type { DevicePreset } from '~/composables/useDevicePresets'
+import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { chipClass } from '~/utils/chipClass'
 
 definePageMeta({
@@ -395,7 +397,6 @@ const readSavedStringArray = (storageKey: string): string[] => {
 }
 
 const selectedFab = ref<DeviceFab>(readSavedFab() ?? DEFAULT_FAB)
-const pageTitle = computed(() => `CD-SEM - ${selectedFab.value}`)
 const selectedProdCategories = ref<string[]>(readSavedStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY))
 const selectedLots = ref<string[]>(readSavedStringArray(SELECTED_LOTS_STORAGE_KEY))
 const selectedTechs = ref<string[]>(readSavedStringArray(SELECTED_TECHS_STORAGE_KEY))
@@ -769,11 +770,12 @@ const activeDomainFilterCount = computed(() => {
 
 const activeFilterCount = computed(() => activeDomainFilterCount.value + (normalizedTableSearch.value ? 1 : 0))
 
-const statCells = computed(() => [
-  { label: 'Fab', value: selectedFab.value, tone: 'text-zinc-900 dark:text-zinc-100' },
-  { label: text.allRows, value: rows.value.length, tone: 'text-zinc-900 dark:text-zinc-100' },
-  { label: text.filteredRows, value: filteredRowCount.value, tone: 'text-(--sk-accent)' },
-  { label: text.activeFilters, value: activeFilterCount.value, tone: 'text-zinc-600 dark:text-zinc-300' }
+// Fab is omitted here — the fab selector in the meta bar's toggle slot already
+// surfaces the active fab, so repeating it as a stat would be redundant.
+const metaStats = computed<MetaBarStat[]>(() => [
+  { key: 'all', label: text.allRows, value: rows.value.length, tone: 'neutral' },
+  { key: 'filtered', label: text.filteredRows, value: filteredRowCount.value, tone: 'accent' },
+  { key: 'active', label: text.activeFilters, value: activeFilterCount.value, tone: 'neutral' }
 ])
 
 const syncSelectionWithOptions = (selectedValues: string[], options: string[]) => {

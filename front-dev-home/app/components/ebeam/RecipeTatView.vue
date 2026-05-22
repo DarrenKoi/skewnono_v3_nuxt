@@ -1,55 +1,55 @@
 <template>
   <div class="space-y-3">
-    <EbeamFeatureHeader
-      subtitle="Recipe TAT"
-      :title="pageTitle"
+    <EbeamMetaBar
+      :eyebrow="identity"
+      title="Recipe TAT"
+      subtitle="recipe별 측정 시간(TAT) 소비 현황을 분석합니다."
+      :as-of="summary?.anchor_date"
     >
-      <template #actions>
-        <div class="flex items-center gap-2">
-          <EbeamDateRangePopover
-            v-model="dateRange"
-            :anchor-date="summary?.anchor_date"
-          />
+      <template #toggle>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div
+            role="radiogroup"
+            class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
+          >
+            <button
+              v-for="mode in VIEW_MODES"
+              :key="mode.value"
+              type="button"
+              role="radio"
+              :aria-checked="viewMode === mode.value"
+              class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+              :class="viewMode === mode.value
+                ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
+                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+              @click="viewMode = mode.value"
+            >
+              <UIcon
+                :name="mode.icon"
+                class="h-4 w-4"
+              />
+              {{ mode.label }}
+            </button>
+          </div>
+          <span
+            v-if="viewMode === 'by-device' && selectedLot"
+            class="inline-flex h-7 items-center gap-1 rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-[12px] font-semibold text-(--sk-accent)"
+          >
+            <UIcon
+              name="i-lucide-target"
+              class="h-3.5 w-3.5"
+            />
+            {{ selectedLot }}
+          </span>
         </div>
       </template>
-    </EbeamFeatureHeader>
-
-    <!-- View mode toggle -->
-    <div class="flex flex-wrap items-center gap-2.5">
-      <div
-        role="radiogroup"
-        class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
-      >
-        <button
-          v-for="mode in VIEW_MODES"
-          :key="mode.value"
-          type="button"
-          role="radio"
-          :aria-checked="viewMode === mode.value"
-          class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-          :class="viewMode === mode.value
-            ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-            : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
-          @click="viewMode = mode.value"
-        >
-          <UIcon
-            :name="mode.icon"
-            class="h-4 w-4"
-          />
-          {{ mode.label }}
-        </button>
-      </div>
-      <span
-        v-if="viewMode === 'by-device' && selectedLot"
-        class="inline-flex h-7 items-center gap-1 rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-[12px] font-semibold text-(--sk-accent)"
-      >
-        <UIcon
-          name="i-lucide-target"
-          class="h-3.5 w-3.5"
+      <template #actions>
+        <EbeamDateRangePopover
+          v-model="dateRange"
+          :anchor-date="summary?.anchor_date"
         />
-        {{ selectedLot }}
-      </span>
-    </div>
+      </template>
+    </EbeamMetaBar>
 
     <!-- Device picker (디바이스별 mode only) -->
     <div
@@ -222,7 +222,7 @@
             </template>
             <div
               ref="barEl"
-              class="h-[420px] w-full"
+              class="h-[400px] w-full"
             />
           </UCard>
 
@@ -240,7 +240,7 @@
             </template>
             <div
               ref="trendEl"
-              class="h-[420px] w-full"
+              class="h-[400px] w-full"
             />
           </UCard>
         </div>
@@ -364,7 +364,7 @@ const props = defineProps<{
   toolType: RecipeTatToolType
 }>()
 
-const pageTitle = computed(() => `${props.toolLabel} - ${props.fab || '—'}`)
+const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
 
 // Empty means "let the server resolve its default window"; computing
 // "today" locally drifts past the mock's ANCHOR_TIME for long-running

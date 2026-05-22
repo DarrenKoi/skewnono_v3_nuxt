@@ -22,12 +22,10 @@ watch(() => route.params.fab, (newFab) => {
     <EbeamToolInventoryView
       tool-type="cd-sem"
       :fab="fabId"
-      :title="`CD-SEM - ${fabId}`"
-      subtitle="스큐노노가 현재 접근 가능한 장비 리스트. 업데이트 주기 : 1 시간"
-    >
-      <template #below-title>
-        <EbeamEquipmentStatusSubTabs />
-      </template>
-    </EbeamToolInventoryView>
+      :eyebrow="`CD-SEM · ${fabId}`"
+      title="장비 상태"
+      subtitle="스큐노노가 현재 접근 가능한 장비 리스트입니다."
+      cadence="1시간 주기"
+    />
   </div>
 </template>

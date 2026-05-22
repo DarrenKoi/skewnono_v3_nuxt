@@ -5,14 +5,14 @@ const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSi
 </script>
 
 <template>
-  <div class="relative isolate min-h-screen flex flex-col text-zinc-900 dark:text-zinc-100">
+  <div class="relative isolate flex h-screen min-h-0 flex-col overflow-hidden text-zinc-900 dark:text-zinc-100">
     <div
       class="dashboard-bg-layer"
       aria-hidden="true"
     />
     <NavAppHeader />
 
-    <div class="flex flex-1 gap-3 md:gap-4 pr-4 md:pr-6 lg:pr-8">
+    <div class="flex min-h-0 flex-1 gap-3 pr-4 md:gap-4 md:pr-6 lg:pr-8">
       <NavFabSidebar v-if="showFabSidebar" />
 
       <main class="flex-1 flex flex-col overflow-hidden min-w-0">

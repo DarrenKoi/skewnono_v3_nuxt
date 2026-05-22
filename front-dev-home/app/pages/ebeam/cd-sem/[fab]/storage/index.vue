@@ -20,10 +20,6 @@ watch(fabId, (next) => {
       :fab="fabId"
       tool-label="CD-SEM"
       tool-type="cd-sem"
-    >
-      <template #below-title>
-        <EbeamEquipmentStatusSubTabs />
-      </template>
-    </EbeamStorageView>
+    />
   </div>
 </template>

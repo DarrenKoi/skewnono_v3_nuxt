@@ -1,12 +1,12 @@
 <template>
   <div class="space-y-4">
-    <EbeamFeatureHeader
-      :stats="statCells"
+    <EbeamMetaBar
+      :eyebrow="eyebrow"
+      title="장비 상태"
       :subtitle="subtitle"
-      :title="pageTitle"
+      cadence="매일 08:30"
+      :stats="metaStats"
     />
-
-    <slot name="below-title" />
 
     <UCard
       class="dashboard-surface rounded-2xl"
@@ -311,6 +311,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
 import type { StorageRow, StorageTool, StorageUnavailableSnapshot, UnavailableRow } from '~/composables/useStorageApi'
+import type { MetaBarStat } from './MetaBar.vue'
 
 const props = defineProps<{
   fab: Fab
@@ -323,8 +324,10 @@ const props = defineProps<{
 const storageTool: StorageTool = props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
 const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi(storageTool)
 
-const subtitle = '스큐노노가 획득한 장비 용량 정보. 업데이트 주기 : 매일 오전 8시 30분'
-const pageTitle = computed(() => `${props.toolLabel} - ${props.fab}`)
+// Meta bar (design option E): stable "장비 상태" title, fab as eyebrow, freshness
+// cadence carries the daily update timing the old subtitle used to spell out.
+const subtitle = '스큐노노가 획득한 장비 용량 정보입니다.'
+const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 
 // Abort in-flight fetches on unmount so a fast tab-toggle doesn't leave zombie
 // requests consuming the backend rate-limit budget the next mount needs.
@@ -577,32 +580,32 @@ const filteredRows = computed(() => {
 const summary = computed(() => {
   const total = rows.value.length
   if (total === 0) {
-    return { total: 0, avg: 0, critical: 0, healthy: 0 }
+    return { total: 0, critical: 0, warning: 0, healthy: 0 }
   }
 
-  let sum = 0
   let critical = 0
+  let warning = 0
   let healthy = 0
   for (const row of rows.value) {
     const pct = parsePercent(row.percent)
-    sum += pct
     if (pct >= 80) critical++
-    else if (pct < 60) healthy++
+    else if (pct >= 60) warning++
+    else healthy++
   }
 
   return {
     total,
-    avg: Math.round(sum / total),
     critical,
+    warning,
     healthy
   }
 })
 
-const statCells = computed(() => [
-  { label: 'Total Tools', value: summary.value.total, tone: 'text-zinc-900 dark:text-zinc-100' },
-  { label: 'Avg Usage', value: `${summary.value.avg}%`, tone: 'text-(--sk-accent)' },
-  { label: 'Critical', value: summary.value.critical, tone: 'text-rose-600 dark:text-rose-300' },
-  { label: 'Healthy', value: summary.value.healthy, tone: 'text-emerald-600 dark:text-emerald-300' }
+const metaStats = computed<MetaBarStat[]>(() => [
+  { key: 'total', label: 'Total Tools', value: summary.value.total, tone: 'neutral' },
+  { key: 'critical', label: 'Critical', value: summary.value.critical, tone: 'bad' },
+  { key: 'warning', label: 'Warning', value: summary.value.warning, tone: 'warn' },
+  { key: 'healthy', label: 'Healthy', value: summary.value.healthy, tone: 'ok' }
 ])
 
 const hasActiveControls = computed(() => {

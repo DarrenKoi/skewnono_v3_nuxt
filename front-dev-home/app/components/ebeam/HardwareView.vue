@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { Fab, ToolType } from '~/stores/navigation'
+import type { Fab } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
-import type { HardwarePayload, HardwareServiceKey } from '~/composables/useHardwareApi'
+import type { HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
 
 const props = defineProps<{
   fab: Fab
   toolLabel: string
-  toolType: ToolType
+  // Hardware services only exist for CD-SEM / HV-SEM, so the prop is the
+  // narrow HardwareToolType — this is also what fetchService() requires.
+  toolType: HardwareToolType
 }>()
 
 type HardwareService = {
@@ -49,8 +51,12 @@ const { data: allRows } = await useSemList()
 const { selectedToolId: storeSelectedToolId, setSelectedTool } = useNavigation()
 const { fetchService } = useHardwareApi()
 
-const activeService = ref<HardwareServiceKey>(defaultHardwareService.key)
+// Section tab is page-scoped state so navigating away and back keeps the last
+// view (DESIGN.md handoff RULE 5). The list rail filters/search stay local —
+// they're per-visit scratch, not worth persisting.
+const activeService = useState<HardwareServiceKey>('hw-section', () => defaultHardwareService.key)
 const modelFilter = ref('all')
+const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
 const toolSearch = ref('')
 const selectedToolId = ref(storeSelectedToolId.value)
 
@@ -61,6 +67,8 @@ if (storeSelectedToolId.value) {
 
 const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fab))
 
+const onlineCount = computed(() => rows.value.filter(row => row.available === 'On').length)
+
 const modelOptions = computed(() => [
   { label: 'All Models', value: 'all' },
   ...Array.from(new Set(rows.value.map(row => row.eqp_model_cd)))
@@ -68,38 +76,64 @@ const modelOptions = computed(() => [
     .map(model => ({ label: model, value: model }))
 ])
 
-const searchedRows = computed(() => {
+const matchesQuery = (row: SemListRow) => {
   const query = toolSearch.value.trim().toLowerCase()
+  if (query.length === 0) return true
+  return [row.eqp_id, row.eqp_model_cd, row.eqp_ip, row.vendor_nm, row.available]
+    .some(value => value.toLowerCase().includes(query))
+}
 
-  return rows.value.filter((row) => {
-    const matchesModel = modelFilter.value === 'all' || row.eqp_model_cd === modelFilter.value
-    const matchesSearch = query.length === 0 || [
-      row.eqp_id,
-      row.eqp_model_cd,
-      row.eqp_ip,
-      row.vendor_nm,
-      row.available
-    ].some(value => value.toLowerCase().includes(query))
+const matchesModel = (row: SemListRow) =>
+  modelFilter.value === 'all' || row.eqp_model_cd === modelFilter.value
 
-    return matchesModel && matchesSearch
-  })
+// Availability segment counts respect the active search + model filter so the
+// chips reflect exactly what clicking each one would reveal.
+const availabilityCounts = computed(() => {
+  let on = 0
+  let off = 0
+  for (const row of rows.value) {
+    if (!matchesQuery(row) || !matchesModel(row)) continue
+    if (row.available === 'On') on++
+    else off++
+  }
+  return { all: on + off, On: on, Off: off }
 })
 
-const toolOptions = computed(() =>
-  searchedRows.value.map(row => ({
-    label: `${row.eqp_id} · ${row.eqp_model_cd}`,
-    value: row.eqp_id
-  }))
+const searchedRows = computed(() =>
+  rows.value.filter(row =>
+    matchesModel(row)
+    && matchesQuery(row)
+    && (availabilityFilter.value === 'all' || row.available === availabilityFilter.value)
+  )
 )
 
-const selectedTool = computed(() => {
-  return rows.value.find(row => row.eqp_id === selectedToolId.value) ?? searchedRows.value[0] ?? rows.value[0] ?? null
-})
+const selectedTool = computed(() =>
+  rows.value.find(row => row.eqp_id === selectedToolId.value)
+  ?? searchedRows.value[0]
+  ?? rows.value[0]
+  ?? null
+)
 
-const activeServiceDetail = computed<HardwareService>(() => {
-  return hardwareServices.find(service => service.key === activeService.value) ?? defaultHardwareService
-})
+const activeServiceDetail = computed<HardwareService>(() =>
+  hardwareServices.find(service => service.key === activeService.value) ?? defaultHardwareService
+)
 
+const selectTool = (eqpId: string) => {
+  selectedToolId.value = eqpId
+}
+
+const resetListControls = () => {
+  toolSearch.value = ''
+  modelFilter.value = 'all'
+  availabilityFilter.value = 'all'
+}
+
+const hasActiveListControls = computed(() =>
+  toolSearch.value.length > 0 || modelFilter.value !== 'all' || availabilityFilter.value !== 'all'
+)
+
+// Keep a valid selection when the list filters change: if the current pick
+// drops out of view, fall back to the first remaining row.
 watch(searchedRows, (nextRows) => {
   if (nextRows.length === 0) {
     selectedToolId.value = ''
@@ -136,151 +170,267 @@ const serviceDetailEntries = computed(() => {
 </script>
 
 <template>
-  <div class="space-y-3">
-    <EbeamFeatureHeader
-      :title="`${toolLabel} H/W 관리 - ${fab}`"
-      subtitle="BSM, FDC, BM/PM 정보를 선택한 장비 기준으로 확인합니다."
-    />
-
-    <section class="dashboard-surface mx-auto w-full max-w-3xl rounded-2xl p-4">
-      <div class="flex flex-col gap-2 md:flex-row md:items-center">
-        <USelect
-          v-model="modelFilter"
-          color="neutral"
-          variant="subtle"
-          :items="modelOptions"
-          class="md:w-28"
-        />
-        <USelect
-          v-model="selectedToolId"
-          color="neutral"
-          variant="subtle"
-          :items="toolOptions"
-          :disabled="toolOptions.length === 0"
-          placeholder="Tool 선택"
-          class="md:w-48"
-        />
-        <UInput
-          v-model="toolSearch"
-          icon="i-lucide-search"
-          color="neutral"
-          variant="subtle"
-          placeholder="Equipment ID, Model, IP 검색"
-          class="md:w-56"
-        />
-        <span class="font-mono tabular-nums text-xs text-zinc-500 dark:text-zinc-400 md:ml-auto">
-          {{ searchedRows.length }} / {{ rows.length }} tools
-        </span>
-      </div>
-
-      <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-zinc-200/70 pt-3 text-xs text-zinc-500 dark:border-zinc-800/70 dark:text-zinc-400">
-        <template v-if="selectedTool">
-          <span class="font-mono text-sm font-bold text-zinc-950 dark:text-zinc-50">
-            {{ selectedTool.eqp_id }}
-          </span>
-          <span class="text-zinc-300 dark:text-zinc-700">·</span>
-          <span class="font-medium text-zinc-700 dark:text-zinc-200">
-            {{ selectedTool.vendor_nm }} {{ selectedTool.eqp_model_cd }}
-          </span>
-          <span class="text-zinc-300 dark:text-zinc-700">·</span>
-          <span
-            class="inline-flex items-center gap-1.5 font-semibold"
-            :class="selectedTool.available === 'On'
-              ? 'text-emerald-700 dark:text-emerald-300'
-              : 'text-rose-700 dark:text-rose-300'"
-          >
-            <span class="h-1.5 w-1.5 rounded-full bg-current" />
-            {{ selectedTool.available }}
-          </span>
-          <span class="text-zinc-300 dark:text-zinc-700">·</span>
-          <span>{{ selectedTool.fab_name }}</span>
-          <span class="text-zinc-300 dark:text-zinc-700">·</span>
-          <span class="font-mono">{{ selectedTool.eqp_ip }}</span>
-          <span class="text-zinc-300 dark:text-zinc-700">·</span>
-          <span>v{{ selectedTool.version }}</span>
-        </template>
-        <span v-else>—</span>
-        <div class="ml-auto inline-flex gap-1">
-          <SkNavPill
-            v-for="service in hardwareServices"
-            :key="service.key"
-            :label="service.label"
-            :icon="service.icon"
-            :active="activeService === service.key"
-            size="sm"
-            @click="activeService = service.key"
-          />
-        </div>
-      </div>
-    </section>
-
-    <section class="dashboard-surface rounded-2xl p-4">
+  <div class="mx-auto w-full max-w-[1440px] space-y-4">
+    <!-- ===== Page header — breadcrumb · h1 · subtitle (left) + status (right) ===== -->
+    <header class="flex flex-col gap-3 border-b border-(--sk-border-soft) pb-4 md:flex-row md:items-start md:justify-between md:gap-6">
       <div class="min-w-0">
-        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
-          {{ activeServiceDetail.label }}
-        </p>
-        <h2 class="mt-1 text-lg font-bold text-zinc-950 dark:text-zinc-50">
-          {{ activeServiceDetail.title }}
-        </h2>
-        <p class="mt-1 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">
-          {{ activeServiceDetail.description }}
+        <nav
+          aria-label="breadcrumb"
+          class="mb-1 flex items-center gap-1.5 font-mono text-[11px] tracking-[0.04em] text-zinc-500"
+        >
+          <span>{{ toolLabel }}</span>
+          <span class="text-zinc-300 dark:text-zinc-700">/</span>
+          <span>{{ fab }}</span>
+        </nav>
+        <h1 class="text-2xl font-bold leading-tight tracking-tight text-(--sk-ink)">
+          H/W 관리
+          <span class="font-medium text-zinc-400">· dense view</span>
+        </h1>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          장비 리스트와 상세를 한 화면에서 확인합니다.
         </p>
       </div>
 
-      <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
-        <template v-if="servicePending">
-          <span class="inline-flex items-center gap-2">
-            <UIcon name="i-lucide-loader-2" class="h-4 w-4 animate-spin" />
-            {{ activeServiceDetail.label }} 데이터를 불러오는 중...
-          </span>
-        </template>
-        <template v-else-if="serviceError">
-          <span class="text-rose-700 dark:text-rose-300">
-            {{ activeServiceDetail.label }} 요청 실패: {{ serviceError.message }}
-          </span>
-        </template>
-        <template v-else-if="servicePayload">
-          <div class="flex flex-col gap-2">
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
-              <span
-                class="inline-flex items-center gap-1.5 text-xs font-semibold"
-                :class="servicePayload.available
-                  ? 'text-emerald-700 dark:text-emerald-300'
-                  : 'text-amber-700 dark:text-amber-300'"
+      <div class="flex shrink-0 items-center gap-2 md:pt-1.5">
+        <span class="inline-flex items-center gap-1.5 rounded-lg bg-(--sk-ok-soft) px-2.5 py-1 text-xs font-semibold text-(--sk-ok)">
+          <span class="h-1.5 w-1.5 rounded-full bg-current" />
+          장비 ON {{ onlineCount }}
+        </span>
+        <EbeamDataFreshness cadence="1시간 주기" />
+      </div>
+    </header>
+
+    <!-- ===== 2-column body: list rail + detail ===== -->
+    <div class="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <!-- LEFT · search + equipment list -->
+      <UCard
+        class="dashboard-surface flex max-h-[36rem] flex-col overflow-hidden rounded-2xl lg:max-h-[calc(100vh-13rem)]"
+        :ui="{ body: 'p-0 sm:p-0', header: 'p-0 sm:px-0' }"
+      >
+        <template #header>
+          <div class="space-y-2.5 border-b border-zinc-200/70 px-3 py-3 dark:border-zinc-800/70">
+            <UInput
+              v-model="toolSearch"
+              size="xs"
+              icon="i-lucide-search"
+              color="neutral"
+              variant="subtle"
+              placeholder="장비 ID, Model, IP 검색"
+              class="w-full"
+            />
+            <USelect
+              v-model="modelFilter"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              :items="modelOptions"
+              class="w-full"
+            />
+            <div class="flex items-center gap-1.5">
+              <SkChip
+                size="sm"
+                :active="availabilityFilter === 'all'"
+                :count="availabilityCounts.all"
+                @click="availabilityFilter = 'all'"
               >
-                <span class="h-1.5 w-1.5 rounded-full bg-current" />
-                {{ servicePayload.available ? 'Available' : 'Not available' }}
-              </span>
-              <span class="text-xs font-mono text-zinc-400 dark:text-zinc-500">
-                {{ servicePayload.fetched_at }}
-              </span>
+                All
+              </SkChip>
+              <SkChip
+                size="sm"
+                :active="availabilityFilter === 'On'"
+                :count="availabilityCounts.On"
+                @click="availabilityFilter = 'On'"
+              >
+                On
+              </SkChip>
+              <SkChip
+                size="sm"
+                :active="availabilityFilter === 'Off'"
+                :count="availabilityCounts.Off"
+                @click="availabilityFilter = 'Off'"
+              >
+                Off
+              </SkChip>
+              <UButton
+                v-if="hasActiveListControls"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-rotate-ccw"
+                class="ml-auto"
+                aria-label="리스트 필터 초기화"
+                @click="resetListControls"
+              />
             </div>
-            <p>{{ servicePayload.summary }}</p>
-            <dl
-              v-if="serviceDetailEntries.length"
-              class="mt-1 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2"
-            >
-              <div
-                v-for="[key, value] in serviceDetailEntries"
-                :key="key"
-                class="flex items-baseline gap-2"
-              >
-                <dt class="font-medium text-zinc-500 dark:text-zinc-400">
-                  {{ key }}
-                </dt>
-                <dd class="font-mono tabular-nums text-zinc-900 dark:text-zinc-100">
-                  {{ value }}
-                </dd>
-              </div>
-            </dl>
           </div>
         </template>
-        <span v-else>
-          <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
-          정보는 선택한 장비를 기준으로 열립니다.
-        </span>
+
+        <!-- Equipment rows — click to switch the detail pane -->
+        <div class="flex-1 overflow-auto">
+          <button
+            v-for="row in searchedRows"
+            :key="row.eqp_id"
+            type="button"
+            class="flex w-full items-center gap-2.5 border-b border-l-2 border-zinc-100 px-3.5 py-2.5 text-left transition-colors dark:border-zinc-800/60"
+            :class="row.eqp_id === selectedToolId
+              ? 'border-l-(--sk-ink) bg-(--sk-muted-surface)'
+              : 'border-l-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/40'"
+            :aria-current="row.eqp_id === selectedToolId ? 'true' : undefined"
+            @click="selectTool(row.eqp_id)"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="truncate font-mono text-[13px] font-bold text-(--sk-ink)">
+                {{ row.eqp_id }}
+              </div>
+              <div class="truncate text-[11px] text-zinc-500">
+                {{ row.vendor_nm }} {{ row.eqp_model_cd }}
+              </div>
+            </div>
+            <span
+              class="inline-flex items-center gap-1 text-[11px] font-semibold"
+              :style="{ color: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
+            >
+              <span
+                class="h-1.5 w-1.5 rounded-full"
+                :style="{ background: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
+              />
+              {{ row.available }}
+            </span>
+          </button>
+
+          <p
+            v-if="searchedRows.length === 0"
+            class="px-3.5 py-8 text-center text-xs text-zinc-500"
+          >
+            검색·필터 조건에 맞는 장비가 없습니다.
+          </p>
+        </div>
+      </UCard>
+
+      <!-- RIGHT · selected equipment summary bar + service detail -->
+      <div class="flex min-w-0 flex-col gap-3">
+        <!-- Equipment summary bar — identity (left) + segment tabs (right) -->
+        <section class="dashboard-surface flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl px-4 py-3">
+          <template v-if="selectedTool">
+            <span class="font-mono text-base font-bold text-(--sk-ink)">{{ selectedTool.eqp_id }}</span>
+            <span class="text-zinc-300 dark:text-zinc-700">·</span>
+            <span class="text-sm text-zinc-700 dark:text-zinc-200">
+              {{ selectedTool.vendor_nm }} {{ selectedTool.eqp_model_cd }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold"
+              :class="selectedTool.available === 'On'
+                ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
+                : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-current" />
+              {{ selectedTool.available }}
+            </span>
+            <span class="font-mono text-[11px] text-zinc-500">
+              {{ selectedTool.fab_name }} · {{ selectedTool.eqp_ip }} · v{{ selectedTool.version }}
+            </span>
+          </template>
+          <span
+            v-else
+            class="text-sm text-zinc-500"
+          >장비를 선택하세요.</span>
+
+          <span class="ml-auto" />
+
+          <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes) -->
+          <div
+            role="tablist"
+            aria-label="섹션 전환"
+            class="flex overflow-hidden rounded-[10px] border border-(--sk-border)"
+          >
+            <SkNavPill
+              v-for="service in hardwareServices"
+              :key="service.key"
+              role="tab"
+              :aria-selected="activeService === service.key"
+              :label="service.label"
+              :icon="service.icon"
+              :active="activeService === service.key"
+              size="sm"
+              class="!rounded-none !border-0 !px-3.5"
+              @click="activeService = service.key"
+            />
+          </div>
+        </section>
+
+        <!-- Service detail -->
+        <section class="dashboard-surface flex-1 rounded-2xl p-4">
+          <div class="min-w-0">
+            <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
+              {{ activeServiceDetail.label }}
+            </p>
+            <h2 class="mt-1 text-lg font-bold text-(--sk-ink)">
+              {{ activeServiceDetail.title }}
+            </h2>
+            <p class="mt-1 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">
+              {{ activeServiceDetail.description }}
+            </p>
+          </div>
+
+          <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
+            <template v-if="servicePending">
+              <span class="inline-flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-loader-2"
+                  class="h-4 w-4 animate-spin"
+                />
+                {{ activeServiceDetail.label }} 데이터를 불러오는 중...
+              </span>
+            </template>
+            <template v-else-if="serviceError">
+              <span class="text-rose-700 dark:text-rose-300">
+                {{ activeServiceDetail.label }} 요청 실패: {{ serviceError.message }}
+              </span>
+            </template>
+            <template v-else-if="servicePayload">
+              <div class="flex flex-col gap-2">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
+                  <span
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold"
+                    :class="servicePayload.available
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-amber-700 dark:text-amber-300'"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full bg-current" />
+                    {{ servicePayload.available ? 'Available' : 'Not available' }}
+                  </span>
+                  <span class="font-mono text-xs text-zinc-400 dark:text-zinc-500">
+                    {{ servicePayload.fetched_at }}
+                  </span>
+                </div>
+                <p>{{ servicePayload.summary }}</p>
+                <dl
+                  v-if="serviceDetailEntries.length"
+                  class="mt-1 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4"
+                >
+                  <div
+                    v-for="[key, value] in serviceDetailEntries"
+                    :key="key"
+                    class="rounded-xl bg-(--sk-surface) px-3 py-2.5 ring-1 ring-(--sk-border-soft)"
+                  >
+                    <dt class="font-mono text-[10px] uppercase tracking-[0.05em] text-zinc-500 dark:text-zinc-400">
+                      {{ key }}
+                    </dt>
+                    <dd class="mt-1 font-mono text-lg font-bold tabular-nums text-(--sk-ink)">
+                      {{ value }}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </template>
+            <span v-else>
+              <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
+              정보는 선택한 장비를 기준으로 열립니다.
+            </span>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </div>
 </template>
