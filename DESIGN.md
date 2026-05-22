@@ -195,7 +195,9 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 
 **레이아웃**
 
-- 콘텐츠 최대 폭은 `max-w-7xl mx-auto` (1280px) 를 표준으로 사용합니다.
+- **타깃 화면은 FHD (1920×1080) 이지만, 콘텐츠 폭을 화면에 꽉 채우지 않습니다.** 콘텐츠 최대 폭은 `max-w-7xl mx-auto` (1280px) 를 표준으로 사용하며, 1920px 화면에서는 좌우를 여백으로 둡니다. 메트롤로지 데이터의 가독 폭을 제한하는 *차분함 우선*(§1) 원칙에 따른 의도적 결정입니다 — FHD 풀-블리드 최적화는 채택하지 않습니다.
+- 신규 페이지도 `max-w-7xl mx-auto` 를 표준으로 사용합니다. 1920px 폭을 더 활용하려는 변경(`2xl` breakpoint 에서 컬럼·테이블 폭 확대 등)은 별도 합의 없이 도입하지 않습니다.
+- breakpoint 는 Tailwind v4 기본값(`sm 640 / md 768 / lg 1024 / xl 1280 / 2xl 1536`)을 그대로 사용하며, `main.css` 에 커스텀 화면 폭·viewport 정의를 두지 않습니다.
 - 사이드바가 있는 페이지는 `flex` + `min-w-0` 을 본문에 적용해 가로 스크롤을 방지합니다.
 - 카드 간 수직 간격은 `space-y-6` 입니다.
 
@@ -327,6 +329,42 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 
 라벨은 한국어, 키보드 접근성을 위해 `aria-pressed`, `aria-disabled` 를 반드시 사용합니다.
 
+### 7.8 메타 바 (Meta Bar · `EbeamMetaBar`)
+
+> *메타 바* 는 페이지 본문(body)의 **첫 번째 컴포넌트**로 놓이는 페이지 단위 헤더 바입니다. 상단 글로벌 네비게이션(로고 + `FeatureTabs`)과는 구별되는 *페이지 헤더* 이며, 이전의 `FeatureHeader` + 별도 토글 행 + 통계 스트립을 한 줄로 압축합니다. 설계 원안의 "옵션 E — 한 줄 메타바"에서 유래했습니다.
+
+**구조** — 한 줄(`flex flex-wrap`) 안에 두 클러스터를 둡니다.
+
+| 영역 | 내용 |
+| --- | --- |
+| 좌측 클러스터 (제목 포드 + 토글) | eyebrow(`CD-SEM · R3` 등 mono 소문자 키커) + **고정 제목**(`<h1>`) → 1px 세로 디바이더 → 토글 슬롯 |
+| 우측 클러스터 (채움) | 인라인 통계 + 데이터 신선도 배지(`EbeamDataFreshness`) + `#actions` 슬롯 |
+| 바 아래 | 강등된 부제(컨텍스트 라인, `text-xs text-zinc-500`) |
+
+**핵심 규칙**
+
+- **제목은 탭/뷰가 바뀌어도 변하지 않습니다.** 페이지 이름(`장비 상태`, `Recipe TAT`, `디바이스 통계`)을 `<h1>` 에 고정하고, fab/스코프는 eyebrow(mono 키커)로 내립니다. 토글 라벨과 제목이 중복되지 않게 하는 것이 메타 바의 1차 목적입니다.
+- 토글 슬롯(`#toggle`)은 기능에 따라 다른 컨트롤을 받습니다 — 라우트 기반 서브탭(기본값 `EbeamEquipmentStatusSubTabs`), 뷰 모드 세그먼트 컨트롤(전체 요약/디바이스별), fab 세그먼트 컨트롤 등. 모두 §3.5 의 **BLACK = nav** 가족(세그먼트 컨트롤 스타일)을 사용하며, 필터용 테라코타 칩(`<SkChip>`)을 토글에 쓰지 않습니다.
+
+**`stats` prop (인라인 통계)**
+
+| 항목 | 설명 |
+| --- | --- |
+| `stats: MetaBarStat[]` | 각 셀은 `{ key, value, label, tone?, active? }`. 셀 사이를 1px `--sk-border-soft` 로 구분합니다. |
+| `tone` | `ok` / `bad` / `warn` / `accent` / `neutral` — 숫자 색상을 결정합니다. |
+| `interactiveStats` | `true` 면 통계가 클릭형 필터(`role="radiogroup"`)가 되어, 활성 셀에 tone-soft 배경 틴트가 깔립니다(예: 장비 리스트의 Available/Offline 필터). `false` 면 읽기 전용입니다. |
+
+**사용처**
+
+| 페이지 | 제목 | 토글 | 통계 |
+| --- | --- | --- | --- |
+| 장비 리스트 / 스토리지 | `장비 상태` | 서브탭(장비 리스트·스토리지) | 인터랙티브(리스트) / 읽기 전용(스토리지) |
+| Recipe TAT | `Recipe TAT` | 전체 요약·디바이스별 | 없음 (KPI 스트립은 바 아래 별도 유지) |
+| Fail 이슈 | `Fail 이슈` | 전체 요약·디바이스별 | 없음 (Align/Meas KPI 카드 별도 유지) |
+| 디바이스 통계 | `디바이스 통계` | fab 세그먼트(R3·M16·…) | 읽기 전용(전체·표시·필터) |
+
+리치 KPI(기간·디바이스 선택에 따라 바뀌거나, Fail 이슈처럼 Align/Meas 로 묶이는 지표)는 인라인 통계로 평탄화하지 않고 바 아래 카드/스트립으로 유지합니다.
+
 ---
 
 ## 8. 다크 모드 (Dark mode)
@@ -413,3 +451,5 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 - 2026-04-26: 초기 작성. 기존 `main.css`, `app.config.ts`, 컴포넌트에서 추출한 디자인 토큰을 정리하고 미리보기 HTML 을 함께 추가했습니다.
 - 2026-05-12: *Selection & Button System (Bolder)* v1.0 브리프 반영. 의미 규칙(BLACK = nav, TERRACOTTA = filter), 라운드 4단 스케일(6/8/10/14), `<SkNavPill>` / `<SkChip>` / `<SkBtn>` 프리미티브와 `--sk-ink*` / `--sk-brand*` / `--sk-r-*` 토큰을 추가했습니다. `nav/FeatureTabs.vue`, `nav/ToolTypeTabs.vue`, `ebeam/HardwareView.vue` 가 새 프리미티브로 마이그레이션되었습니다.
 - 2026-05-16: *Selection System · Conservative* 의 행 디바이더 패턴을 글로벌 레이아웃에 적용. `nav/ToolTypeTabs.vue` 하단에 1px `--sk-border-soft` 헤어라인을 추가해 *장비 행* 과 *기능 행* 사이를 명시적으로 구분합니다(§7.7). 디바이더는 풀-블리드로 그려 FAB 사이드바를 가로지릅니다.
+- 2026-05-23: 레이아웃 폭 기준을 명문화했습니다(§5). 타깃 화면은 FHD(1920×1080)이나, 콘텐츠 폭은 의도적으로 `max-w-7xl`(1280px)로 제한하고 풀-블리드 최적화는 채택하지 않습니다.
+- 2026-05-23: *메타 바*(`EbeamMetaBar`) 패턴을 추가했습니다(§7.8). 설계 원안 "옵션 E — 한 줄 메타바"를 기반으로, eyebrow + 고정 제목 + 토글 + 인라인 통계 + 신선도 배지 + 액션을 한 줄로 압축한 페이지 헤더입니다. `ebeam/ToolInventoryView.vue`(장비 리스트), `ebeam/StorageView.vue`(스토리지), `ebeam/RecipeTatView.vue`, `ebeam/FailIssueView.vue`, `cd-sem/device-statistics/index.vue` 가 기존 `FeatureHeader` 에서 메타 바로 마이그레이션되었습니다.
