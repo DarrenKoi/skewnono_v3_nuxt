@@ -90,5 +90,6 @@
   "statusLine": {
     "type": "command",
     "command": "echo \"$(basename \"$PWD\")  $(git branch --show-current 2>/dev/null || echo '-')  $CLAUDE_MODEL  ctx:${CLAUDE_CONTEXT_WINDOW_PERCENT:-0}%  $CLAUDE_COST\""
-  }
+  },
+  "prefersReducedMotion": true
 }
