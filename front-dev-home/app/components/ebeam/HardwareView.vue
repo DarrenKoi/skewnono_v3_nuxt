@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Fab } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
-import type { HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
+import type { HardwareMetricTone, HardwareMetricValue, HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
+import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 
 const props = defineProps<{
   fab: Fab
@@ -68,6 +69,15 @@ if (storeSelectedToolId.value) {
 const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fab))
 
 const onlineCount = computed(() => rows.value.filter(row => row.available === 'On').length)
+
+// Fab/scope rides in the mono eyebrow; the <h1> stays the fixed page name
+// (DESIGN.md §7.8). ON count is read-only — list filtering lives in the rail.
+const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
+
+const metaStats = computed<MetaBarStat[]>(() => [
+  { key: 'online', label: '장비 ON', value: onlineCount.value, tone: 'ok' },
+  { key: 'total', label: '전체', value: rows.value.length, tone: 'neutral' }
+])
 
 const modelOptions = computed(() => [
   { label: 'All Models', value: 'all' },
@@ -162,43 +172,29 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
   }
 )
 
-const serviceDetailEntries = computed(() => {
-  const details = servicePayload.value?.details
-  if (!details) return []
-  return Object.entries(details)
-})
+const formatMetricValue = (value: HardwareMetricValue | undefined) => {
+  if (value === undefined || value === null || value === '') return '-'
+  return String(value)
+}
+
+const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
+  ok: 'text-emerald-700 dark:text-emerald-300',
+  warning: 'text-amber-700 dark:text-amber-300',
+  bad: 'text-rose-700 dark:text-rose-300',
+  neutral: 'text-(--sk-ink)'
+})[tone]
 </script>
 
 <template>
   <div class="mx-auto w-full max-w-[1440px] space-y-4">
-    <!-- ===== Page header — breadcrumb · h1 · subtitle (left) + status (right) ===== -->
-    <header class="flex flex-col gap-3 border-b border-(--sk-border-soft) pb-4 md:flex-row md:items-start md:justify-between md:gap-6">
-      <div class="min-w-0">
-        <nav
-          aria-label="breadcrumb"
-          class="mb-1 flex items-center gap-1.5 font-mono text-[11px] tracking-[0.04em] text-zinc-500"
-        >
-          <span>{{ toolLabel }}</span>
-          <span class="text-zinc-300 dark:text-zinc-700">/</span>
-          <span>{{ fab }}</span>
-        </nav>
-        <h1 class="text-2xl font-bold leading-tight tracking-tight text-(--sk-ink)">
-          H/W 관리
-          <span class="font-medium text-zinc-400">· dense view</span>
-        </h1>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          장비 리스트와 상세를 한 화면에서 확인합니다.
-        </p>
-      </div>
-
-      <div class="flex shrink-0 items-center gap-2 md:pt-1.5">
-        <span class="inline-flex items-center gap-1.5 rounded-lg bg-(--sk-ok-soft) px-2.5 py-1 text-xs font-semibold text-(--sk-ok)">
-          <span class="h-1.5 w-1.5 rounded-full bg-current" />
-          장비 ON {{ onlineCount }}
-        </span>
-        <EbeamDataFreshness cadence="1시간 주기" />
-      </div>
-    </header>
+    <!-- ===== Page meta bar — fixed title + scope eyebrow + ON/전체 stats ===== -->
+    <EbeamMetaBar
+      :eyebrow="identity"
+      title="H/W 관리"
+      subtitle="등록된 장비들의 Hardware 상태를 확인합니다."
+      cadence="1시간 주기"
+      :stats="metaStats"
+    />
 
     <!-- ===== 2-column body: list rail + detail ===== -->
     <div class="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -211,7 +207,7 @@ const serviceDetailEntries = computed(() => {
           <div class="space-y-2.5 border-b border-zinc-200/70 px-3 py-3 dark:border-zinc-800/70">
             <UInput
               v-model="toolSearch"
-              size="xs"
+              size="md"
               icon="i-lucide-search"
               color="neutral"
               variant="subtle"
@@ -220,7 +216,7 @@ const serviceDetailEntries = computed(() => {
             />
             <USelect
               v-model="modelFilter"
-              size="xs"
+              size="md"
               color="neutral"
               variant="subtle"
               :items="modelOptions"
@@ -282,7 +278,7 @@ const serviceDetailEntries = computed(() => {
               <div class="truncate font-mono text-[13px] font-bold text-(--sk-ink)">
                 {{ row.eqp_id }}
               </div>
-              <div class="truncate text-[11px] text-zinc-500">
+              <div class="truncate text-[11px] text-(--sk-ink-muted)">
                 {{ row.vendor_nm }} {{ row.eqp_model_cd }}
               </div>
             </div>
@@ -300,7 +296,7 @@ const serviceDetailEntries = computed(() => {
 
           <p
             v-if="searchedRows.length === 0"
-            class="px-3.5 py-8 text-center text-xs text-zinc-500"
+            class="px-3.5 py-8 text-center text-xs text-(--sk-ink-muted)"
           >
             검색·필터 조건에 맞는 장비가 없습니다.
           </p>
@@ -326,13 +322,13 @@ const serviceDetailEntries = computed(() => {
               <span class="h-1.5 w-1.5 rounded-full bg-current" />
               {{ selectedTool.available }}
             </span>
-            <span class="font-mono text-[11px] text-zinc-500">
+            <span class="font-mono text-[11px] text-(--sk-ink-muted)">
               {{ selectedTool.fab_name }} · {{ selectedTool.eqp_ip }} · v{{ selectedTool.version }}
             </span>
           </template>
           <span
             v-else
-            class="text-sm text-zinc-500"
+            class="text-sm text-(--sk-ink-muted)"
           >장비를 선택하세요.</span>
 
           <span class="ml-auto" />
@@ -406,22 +402,82 @@ const serviceDetailEntries = computed(() => {
                 </div>
                 <p>{{ servicePayload.summary }}</p>
                 <dl
-                  v-if="serviceDetailEntries.length"
+                  v-if="servicePayload.cards.length"
                   class="mt-1 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4"
                 >
                   <div
-                    v-for="[key, value] in serviceDetailEntries"
-                    :key="key"
+                    v-for="card in servicePayload.cards"
+                    :key="card.key"
                     class="rounded-xl bg-(--sk-surface) px-3 py-2.5 ring-1 ring-(--sk-border-soft)"
                   >
                     <dt class="font-mono text-[10px] uppercase tracking-[0.05em] text-zinc-500 dark:text-zinc-400">
-                      {{ key }}
+                      {{ card.label }}
                     </dt>
-                    <dd class="mt-1 font-mono text-lg font-bold tabular-nums text-(--sk-ink)">
-                      {{ value }}
+                    <dd
+                      class="mt-1 font-mono text-lg font-bold tabular-nums"
+                      :class="metricToneClass(card.tone)"
+                    >
+                      {{ formatMetricValue(card.value) }}
+                      <span
+                        v-if="card.unit"
+                        class="ml-1 text-xs font-semibold text-(--sk-ink-muted)"
+                      >{{ card.unit }}</span>
                     </dd>
                   </div>
                 </dl>
+
+<!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
+                <EbeamHardwareBmPmTables
+                  v-if="activeService === 'bm-pm' && servicePayload.tables.length"
+                  :tables="servicePayload.tables"
+                />
+
+                <!-- BSM: category toggle + trend charts + clickable summary + 360° radars -->
+                <EbeamHardwareBsmPanel
+                  v-if="activeService === 'bsm' && servicePayload.bsm"
+                  :bsm="servicePayload.bsm"
+                />
+
+                <!-- BSM / FDC: generic table renderer -->
+                <div
+                  v-for="section in (activeService === 'bm-pm' ? [] : servicePayload.tables)"
+                  :key="section.key"
+                  class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
+                >
+                  <div class="border-b border-(--sk-border-soft) px-3 py-2 text-xs font-bold text-(--sk-ink)">
+                    {{ section.title }}
+                  </div>
+                  <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-xs">
+                      <thead class="bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                        <tr>
+                          <th
+                            v-for="column in section.columns"
+                            :key="column.key"
+                            class="whitespace-nowrap px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]"
+                          >
+                            {{ column.label }}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="(row, rowIndex) in section.rows"
+                          :key="rowIndex"
+                          class="border-t border-(--sk-border-soft)"
+                        >
+                          <td
+                            v-for="column in section.columns"
+                            :key="column.key"
+                            class="whitespace-nowrap px-3 py-2 font-mono text-(--sk-ink)"
+                          >
+                            {{ formatMetricValue(row[column.key]) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </template>
             <span v-else>

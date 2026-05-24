@@ -73,13 +73,16 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
         </h1>
       </div>
 
-      <div class="my-2 mx-1 w-px bg-(--sk-border-soft)" />
+      <!-- Toggle is opt-in: pages without a page-level toggle (Recipe 검색, H/W
+           관리) omit the slot and the divider collapses with it. 장비 상태 pages
+           pass EbeamEquipmentStatusSubTabs explicitly. -->
+      <template v-if="$slots.toggle">
+        <div class="my-2 mx-1 w-px bg-(--sk-border-soft)" />
 
-      <div class="flex items-center px-1">
-        <slot name="toggle">
-          <EbeamEquipmentStatusSubTabs />
-        </slot>
-      </div>
+        <div class="flex items-center px-1">
+          <slot name="toggle" />
+        </div>
+      </template>
     </div>
 
     <!-- MIDDLE — subtitle fills the dead space between the toggle and the stats.
@@ -120,7 +123,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
             class="text-[26px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums"
             :class="toneTextClass(stat.tone)"
           >{{ stat.value }}</span>
-          <span class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.02em] text-zinc-500">
+          <span class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.02em] text-(--sk-ink-muted)">
             {{ stat.label }}
           </span>
         </component>

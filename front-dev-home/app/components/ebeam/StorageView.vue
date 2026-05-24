@@ -1,12 +1,16 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="eyebrow"
       title="장비 상태"
       :subtitle="subtitle"
       cadence="매일 08:30"
       :stats="metaStats"
-    />
+    >
+      <template #toggle>
+        <EbeamEquipmentStatusSubTabs />
+      </template>
+    </EbeamMetaBar>
 
     <UCard
       class="dashboard-surface rounded-2xl"
@@ -17,7 +21,7 @@
           <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             Storage Inventory
           </h2>
-          <p class="text-xs text-zinc-500 tabular-nums">
+          <p class="text-xs text-(--sk-ink-muted) tabular-nums">
             {{ filteredRows.length }} of {{ rows.length }} tools
           </p>
         </div>
@@ -65,7 +69,7 @@
 
       <div
         v-if="pending"
-        class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
+        class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-(--sk-ink-muted)"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -99,7 +103,7 @@
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting(column.getIsSorted() === 'asc')"
           >
@@ -111,10 +115,10 @@
           <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.eqp_id }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px] text-zinc-500">{{ row.original.eqp_ip }}</span>
+          <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
         </template>
         <template #fab_name-cell="{ row }">
-          <span class="text-zinc-500 font-medium">{{ row.original.fab_name }}</span>
+          <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
           <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd }}</span>
@@ -141,7 +145,7 @@
           <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.used }}</span>
         </template>
         <template #avail-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px] text-zinc-500">{{ row.original.avail }}</span>
+          <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.avail }}</span>
         </template>
         <template #rcp_counts-cell="{ row }">
           <span
@@ -158,7 +162,7 @@
           </span>
         </template>
         <template #storage_mt-cell="{ row }">
-          <span class="text-[12px] text-zinc-500 tabular-nums">{{ formatTimestamp(row.original.storage_mt) }}</span>
+          <span class="text-[12px] text-(--sk-ink) tabular-nums">{{ formatTimestamp(row.original.storage_mt) }}</span>
         </template>
       </UTable>
     </UCard>
@@ -173,13 +177,13 @@
             <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               Storage Unreachable
             </h2>
-            <p class="text-[12px] text-zinc-500 mt-0.5">
+            <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
               Latest date:
               <span class="font-mono tabular-nums">{{ unavailableLatestDate || '-' }}</span>
             </p>
           </div>
 
-          <p class="text-xs text-zinc-500 tabular-nums">
+          <p class="text-xs text-(--sk-ink-muted) tabular-nums">
             {{ filteredUnavailable.length }} of {{ unavailableRows.length }} tools
           </p>
         </div>
@@ -209,7 +213,7 @@
 
       <div
         v-if="unavailablePending"
-        class="flex items-center justify-center gap-2 px-4 py-10 text-sm text-zinc-500"
+        class="flex items-center justify-center gap-2 px-4 py-10 text-sm text-(--sk-ink-muted)"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -234,7 +238,7 @@
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           No tools missing from the latest storage snapshot.
         </p>
-        <p class="text-[12px] text-zinc-500 mt-0.5">
+        <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
           {{ props.fab }} {{ props.toolLabel }} on {{ unavailableLatestDate || 'the latest date' }}.
         </p>
       </div>
@@ -249,7 +253,7 @@
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           No tools match the current search.
         </p>
-        <p class="text-[12px] text-zinc-500 mt-0.5">
+        <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
           {{ unavailableRows.length }} tools are hidden by search.
         </p>
         <UButton
@@ -281,7 +285,7 @@
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting(column.getIsSorted() === 'asc')"
           >
@@ -293,13 +297,13 @@
           <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.eqp_id }}</span>
         </template>
         <template #fab_name-cell="{ row }">
-          <span class="text-zinc-500 font-medium">{{ row.original.fab_name }}</span>
+          <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
           <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px] text-zinc-500">{{ row.original.eqp_ip }}</span>
+          <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
         </template>
       </UTable>
     </UCard>
@@ -627,7 +631,7 @@ const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
     td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 
@@ -733,7 +737,7 @@ const unavailableTableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
     td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 

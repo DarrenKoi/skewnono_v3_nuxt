@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-4 border-t border-(--sk-border) bg-(--sk-surface) px-3 py-1.5 font-mono text-[10.5px] text-zinc-500">
+  <div class="flex items-center gap-4 border-t border-(--sk-border) bg-(--sk-surface) px-3 py-1.5 font-mono text-[10.5px] text-(--sk-ink-muted)">
     <span class="inline-flex items-center gap-1.5 font-semibold text-(--sk-ok)">
       <span class="h-1.5 w-1.5 rounded-full bg-(--sk-ok)" />
       READY

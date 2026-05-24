@@ -3,6 +3,7 @@
     <EbeamMetaBar
       eyebrow="CD-SEM"
       :title="text.title"
+      :subtitle="text.subtitle"
       :stats="metaStats"
     >
       <template #toggle>
@@ -327,6 +328,7 @@ const DEFAULT_FAB: DeviceFab = 'R3'
 
 const text = {
   title: '디바이스 통계',
+  subtitle: 'Fab 별로 운영중인 CD-SEM Recipe 현황을 확인합니다.',
   fabSelect: 'Fab',
   reset: '초기화',
   lotSearch: 'Lot 검색 (예: R0A2)',

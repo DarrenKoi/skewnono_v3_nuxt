@@ -41,7 +41,7 @@
         </div>
         <span
           v-if="visibleLots.length > 0 && visibleLots.length !== lotCds.length"
-          class="ml-1 font-mono text-[10px] text-zinc-500"
+          class="ml-1 font-mono text-[10px] text-(--sk-ink-muted)"
         >
           {{ visibleLots.length }} / {{ lotCds.length }}
         </span>
@@ -50,7 +50,7 @@
 
     <div
       v-if="pending"
-      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-zinc-500"
+      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -66,7 +66,7 @@
     </div>
     <div
       v-else-if="dates.length === 0 || visibleLots.length === 0"
-      class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-zinc-500"
+      class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-(--sk-ink-muted)"
     >
       {{ text.noRows }}
     </div>

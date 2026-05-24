@@ -3,8 +3,9 @@
     <EbeamMetaBar
       :eyebrow="identity"
       title="Recipe TAT"
-      subtitle="recipe별 측정 시간(TAT) 소비 현황을 분석합니다."
+      :subtitle="metaSubtitle"
       :as-of="summary?.anchor_date"
+      cadence="1시간 주기"
     >
       <template #toggle>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -31,6 +32,11 @@
               {{ mode.label }}
             </button>
           </div>
+          <EbeamDateRangePopover
+            v-model="dateRange"
+            :anchor-date="summary?.anchor_date"
+            trigger-class="h-9 px-3.5 text-sm"
+          />
           <span
             v-if="viewMode === 'by-device' && selectedLot"
             class="inline-flex h-7 items-center gap-1 rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-[12px] font-semibold text-(--sk-accent)"
@@ -42,12 +48,6 @@
             {{ selectedLot }}
           </span>
         </div>
-      </template>
-      <template #actions>
-        <EbeamDateRangePopover
-          v-model="dateRange"
-          :anchor-date="summary?.anchor_date"
-        />
       </template>
     </EbeamMetaBar>
 
@@ -146,7 +146,7 @@
       <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
         디바이스를 선택해주세요
       </p>
-      <p class="mt-1 text-xs text-zinc-500">
+      <p class="mt-1 text-xs text-(--sk-ink-muted)">
         위에서 디바이스 칩을 클릭하면 해당 디바이스의 Recipe TAT 정보가 표시됩니다.
       </p>
     </div>
@@ -164,14 +164,14 @@
             class="text-2xl font-bold leading-none tabular-nums"
             :class="cell.tone"
           >{{ cell.value }}</span>
-          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+          <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
         </div>
       </div>
 
       <!-- Empty / loading state -->
       <div
         v-if="status === 'pending' && !rankingRows.length"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
       >
         <UIcon
           name="i-lucide-loader-2"
@@ -192,7 +192,7 @@
         <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
           No measurements in this range
         </p>
-        <p class="mt-1 text-xs text-zinc-500">
+        <p class="mt-1 text-xs text-(--sk-ink-muted)">
           Try widening the date range or selecting a different fab.
         </p>
       </div>
@@ -206,7 +206,7 @@
                 <div class="flex items-center gap-2">
                   <UIcon
                     name="i-lucide-bar-chart-horizontal"
-                    class="h-4 w-4 text-zinc-500"
+                    class="h-4 w-4 text-(--sk-ink-muted)"
                   />
                   <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     Top {{ topNLimit }} recipes by total TAT
@@ -231,7 +231,7 @@
               <div class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-trending-up"
-                  class="h-4 w-4 text-zinc-500"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
                 />
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   Daily TAT trend
@@ -303,7 +303,7 @@
                 size="xs"
                 color="neutral"
                 variant="ghost"
-                class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
                 :trailing-icon="getSortIcon(column.getIsSorted())"
                 @click="column.toggleSorting(column.getIsSorted() === 'asc')"
               >
@@ -312,7 +312,7 @@
             </template>
           </UTable>
 
-          <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
+          <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
             <span class="tabular-nums">
               Page {{ currentPage }} / {{ pageCount }}
               <span class="ml-2 text-zinc-400">
@@ -390,6 +390,11 @@ const VIEW_MODES = [
 type ViewMode = typeof VIEW_MODES[number]['value']
 
 const viewMode = ref<ViewMode>('summary')
+const metaSubtitle = computed(() =>
+  viewMode.value === 'by-device'
+    ? 'Recipe별 측정 시간 (TAT) 디바이스별로 분석합니다.'
+    : 'Recipe별 측정 시간 (TAT)을 Fab 기준으로 분석합니다.'
+)
 const selectedLot = ref<string | null>(null)
 const lotSearch = ref('')
 const selectedCategories = ref<string[]>([])
@@ -789,7 +794,7 @@ const columns: TableColumn<RecipeTatRow>[] = [
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums',
-  th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
 const exportFileName = computed(() => {

@@ -18,7 +18,7 @@
     <div class="text-center font-mono text-[10.5px] font-semibold text-zinc-900 dark:text-zinc-100">
       {{ imageSlot.label }}
     </div>
-    <div class="truncate text-center font-mono text-[9.5px] text-zinc-500">
+    <div class="truncate text-center font-mono text-[9.5px] text-(--sk-ink-muted)">
       {{ filename }}
     </div>
   </div>

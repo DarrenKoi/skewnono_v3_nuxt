@@ -10,14 +10,14 @@
         class="min-w-[10rem]"
         :disabled="paramItems.length === 0"
       />
-      <span class="ml-auto font-mono text-[10px] text-zinc-500">
+      <span class="ml-auto font-mono text-[10px] text-(--sk-ink-muted)">
         {{ selectedRows.length }} MSR · {{ loadedCount }} loaded
       </span>
     </div>
 
     <div
       v-if="pending"
-      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-zinc-500"
+      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -55,7 +55,7 @@
         />
         <p
           v-else
-          class="px-2 py-10 text-center text-sm text-zinc-500"
+          class="px-2 py-10 text-center text-sm text-(--sk-ink-muted)"
         >
           선택한 parameter에 대한 시계열 데이터가 없습니다.
         </p>
@@ -82,13 +82,13 @@
 
         <div
           v-if="!focusFile"
-          class="px-2 py-10 text-center text-sm text-zinc-500"
+          class="px-2 py-10 text-center text-sm text-(--sk-ink-muted)"
         >
           상세를 볼 MSR을 선택하세요.
         </div>
         <div
           v-else-if="!focusHasParam"
-          class="px-2 py-10 text-center text-sm text-zinc-500"
+          class="px-2 py-10 text-center text-sm text-(--sk-ink-muted)"
         >
           이 MSR에는 {{ selectedParam }} parameter가 없습니다.
         </div>
@@ -97,7 +97,7 @@
           class="grid grid-cols-1 gap-3 xl:grid-cols-2"
         >
           <div class="rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-800">
-            <p class="border-b border-zinc-100 px-3 py-2 text-[11.5px] font-medium text-zinc-500 dark:border-zinc-800">
+            <p class="border-b border-zinc-100 px-3 py-2 text-[11.5px] font-medium text-(--sk-ink-muted) dark:border-zinc-800">
               Wafer map (mean per chip)
             </p>
             <EbeamSkewvoirWaferMap
@@ -107,7 +107,7 @@
             />
           </div>
           <div class="rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-800">
-            <p class="border-b border-zinc-100 px-3 py-2 text-[11.5px] font-medium text-zinc-500 dark:border-zinc-800">
+            <p class="border-b border-zinc-100 px-3 py-2 text-[11.5px] font-medium text-(--sk-ink-muted) dark:border-zinc-800">
               CD 분포
             </p>
             <EbeamSkewvoirCdDistribution
@@ -117,7 +117,7 @@
             />
           </div>
           <div class="rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-800 xl:col-span-2">
-            <p class="border-b border-zinc-100 px-3 py-2 text-[11.5px] font-medium text-zinc-500 dark:border-zinc-800">
+            <p class="border-b border-zinc-100 px-3 py-2 text-[11.5px] font-medium text-(--sk-ink-muted) dark:border-zinc-800">
               Sequence 추이
             </p>
             <EbeamSkewvoirSequenceTrend

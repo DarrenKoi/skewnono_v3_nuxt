@@ -18,7 +18,7 @@ watch(() => route.params.fab, (newFab) => {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="h-full">
     <EbeamToolInventoryView
       tool-type="hv-sem"
       :fab="fabId"

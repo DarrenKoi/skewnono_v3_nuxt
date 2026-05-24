@@ -36,7 +36,7 @@
         <tr v-if="rows.length === 0">
           <td
             :colspan="columns.length"
-            class="px-3 py-4 text-center text-[12px] text-zinc-500"
+            class="px-3 py-4 text-center text-[12px] text-(--sk-ink-muted)"
           >
             매칭되는 측정 포인트가 없습니다.
           </td>

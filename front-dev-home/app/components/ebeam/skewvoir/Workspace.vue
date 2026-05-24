@@ -14,7 +14,7 @@
               name="i-lucide-chevron-right"
               class="h-3.5 w-3.5 text-zinc-300"
             />
-            <span class="font-normal text-zinc-500">{{ breadcrumb.tail }}</span>
+            <span class="font-normal text-(--sk-ink-muted)">{{ breadcrumb.tail }}</span>
           </p>
 
           <div class="flex items-center gap-1.5">

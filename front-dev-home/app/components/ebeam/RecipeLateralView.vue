@@ -147,7 +147,7 @@ const tableUi = recipeTableUi
 
     <div
       v-else-if="pending"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -227,7 +227,7 @@ const tableUi = recipeTableUi
               <span class="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 v{{ version.recipe_version }}
               </span>
-              <span class="font-mono text-[11px] tabular-nums text-zinc-500">
+              <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
                 {{ version.ready_count.toLocaleString() }} tools
               </span>
             </div>
@@ -239,7 +239,7 @@ const tableUi = recipeTableUi
 
         <div
           v-else
-          class="mt-3 rounded-lg border border-dashed border-(--sk-border) px-3 py-5 text-center text-xs text-zinc-500"
+          class="mt-3 rounded-lg border border-dashed border-(--sk-border) px-3 py-5 text-center text-xs text-(--sk-ink-muted)"
         >
           이 fab에서 해당 recipe를 보유한 장비가 없습니다.
         </div>
@@ -319,7 +319,7 @@ const tableUi = recipeTableUi
 
         <div
           v-else
-          class="rounded-lg border border-dashed border-(--sk-border) px-4 py-10 text-center text-sm text-zinc-500"
+          class="rounded-lg border border-dashed border-(--sk-border) px-4 py-10 text-center text-sm text-(--sk-ink-muted)"
         >
           표시할 장비가 없습니다.
         </div>

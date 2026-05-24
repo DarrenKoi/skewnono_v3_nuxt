@@ -1,0 +1,142 @@
+resource: hardware
+description: CD-SEM/HV-SEM hardware service payloads for BM/PM, BSM, and FDC.
+base_path: /api/{tool_slug}/hardware/{service}
+
+types:
+  HardwareMetricCard:
+    key:
+      type: string
+      description: Stable metric key for frontend rendering.
+      examples: ["last_bm_date", "row_count"]
+    label:
+      type: string
+      description: Display label for the metric.
+      examples: ["Last BM", "Rows"]
+    value:
+      type: string|integer|float|boolean|null
+      description: Metric value after backend normalization.
+      examples: ["2026-04-22", 8]
+    unit:
+      type: string
+      required: false
+      description: Optional unit suffix.
+      examples: ["hours"]
+    tone:
+      type: string
+      required: false
+      enum: ["neutral", "ok", "warning", "bad"]
+      description: Optional semantic display tone.
+
+  HardwareTableColumn:
+    key:
+      type: string
+      description: Row key to read for this column.
+      examples: ["event", "date", "status"]
+    label:
+      type: string
+      description: Display label for this column.
+      examples: ["Event", "Date", "Status"]
+
+  HardwareTableSection:
+    key:
+      type: string
+      description: Stable table section key.
+      examples: ["maintenance_schedule"]
+    title:
+      type: string
+      description: Display title for the section.
+      examples: ["Maintenance Schedule"]
+    columns:
+      type: array
+      items: HardwareTableColumn
+      description: Columns used to render each row.
+    rows:
+      type: array
+      items: object
+      description: Normalized row objects keyed by column key.
+
+  HardwarePayload:
+    tool_slug:
+      type: string
+      enum: ["cdsem", "hvsem"]
+      description: Tool family slug from the route.
+    service:
+      type: string
+      enum: ["bsm", "fdc", "bm-pm"]
+      description: Hardware service key from the route.
+    eqp_id:
+      type: string|null
+      description: Selected equipment ID, if provided.
+    fab_id:
+      type: string|null
+      description: Selected fab ID, if provided.
+    available:
+      type: boolean
+      description: Whether this service has data for the selected scope.
+    fetched_at:
+      type: string
+      format: ISO-8601
+      description: Backend fetch timestamp.
+    summary:
+      type: string
+      description: Human-readable status summary.
+    cards:
+      type: array
+      items: HardwareMetricCard
+      description: Normalized metrics for compact rendering.
+    tables:
+      type: array
+      items: HardwareTableSection
+      description: Normalized detail sections for tabular rendering.
+    raw:
+      type: object
+      required: false
+      description: Optional debug-only source sample during office bring-up.
+
+endpoints:
+  - path: /api/{tool_slug}/hardware/{service}
+    method: GET
+    description: Return one normalized hardware service payload.
+    path_params:
+      tool_slug:
+        type: string
+        enum: ["cdsem", "hvsem"]
+        description: Tool family.
+      service:
+        type: string
+        enum: ["bsm", "fdc", "bm-pm"]
+        description: Hardware service to fetch.
+    query_params:
+      eqp_id:
+        type: string
+        required: false
+        description: Equipment ID selected in the hardware page.
+      fab_id:
+        type: string
+        required: false
+        description: Fab name or ID selected in the hardware page.
+    response:
+      status: 200
+      body: HardwarePayload
+    example_request: "GET /api/cdsem/hardware/bm-pm?eqp_id=CDSEM-R3-001&fab_id=R3"
+    example_response:
+      tool_slug: cdsem
+      service: bm-pm
+      eqp_id: CDSEM-R3-001
+      fab_id: R3
+      available: true
+      fetched_at: "2026-05-24T00:00:00+00:00"
+      summary: BM/PM schedule and recent maintenance history are available.
+      cards:
+        - { key: last_bm_date, label: Last BM, value: "2026-04-22", tone: neutral }
+        - { key: next_pm_date, label: Next PM, value: "2026-06-10", tone: ok }
+      tables:
+        - key: maintenance_schedule
+          title: Maintenance Schedule
+          columns:
+            - { key: event, label: Event }
+            - { key: date, label: Date }
+            - { key: status, label: Status }
+          rows:
+            - { event: Last BM, date: "2026-04-22", status: closed }
+            - { event: Next PM, date: "2026-06-10", status: planned }

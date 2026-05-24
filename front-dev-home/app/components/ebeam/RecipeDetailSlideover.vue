@@ -69,7 +69,7 @@
 
         <div
           v-if="recipeRows.length === 0"
-          class="rounded-2xl px-4 py-12 text-center text-sm text-zinc-500 ring-1 ring-zinc-200 dark:ring-zinc-800"
+          class="rounded-2xl px-4 py-12 text-center text-sm text-(--sk-ink-muted) ring-1 ring-zinc-200 dark:ring-zinc-800"
         >
           {{ text.empty }}
         </div>
@@ -145,7 +145,7 @@ const tableMeta = {
   class: {
     tr: 'select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
     td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums',
-    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 </script>

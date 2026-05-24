@@ -3,8 +3,9 @@
     <EbeamMetaBar
       :eyebrow="identity"
       title="Fail 이슈"
-      subtitle="Align·Meas fail 발생 현황을 recipe별로 분석합니다."
+      :subtitle="metaSubtitle"
       :as-of="summary?.anchor_date"
+      cadence="1시간 주기"
     >
       <template #toggle>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -31,6 +32,11 @@
               {{ mode.label }}
             </button>
           </div>
+          <EbeamDateRangePopover
+            v-model="dateRange"
+            :anchor-date="summary?.anchor_date"
+            trigger-class="h-9 px-3.5 text-sm"
+          />
           <span
             v-if="viewMode === 'by-device' && selectedLot"
             class="inline-flex h-7 items-center gap-1 rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-[12px] font-semibold text-(--sk-accent)"
@@ -42,12 +48,6 @@
             {{ selectedLot }}
           </span>
         </div>
-      </template>
-      <template #actions>
-        <EbeamDateRangePopover
-          v-model="dateRange"
-          :anchor-date="summary?.anchor_date"
-        />
       </template>
     </EbeamMetaBar>
 
@@ -146,7 +146,7 @@
       <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
         디바이스를 선택해주세요
       </p>
-      <p class="mt-1 text-xs text-zinc-500">
+      <p class="mt-1 text-xs text-(--sk-ink-muted)">
         위에서 디바이스 칩을 클릭하면 해당 디바이스의 Fail 이슈 정보가 표시됩니다.
       </p>
     </div>
@@ -154,7 +154,7 @@
     <template v-else>
       <div
         v-if="status === 'pending' && !alignRows.length && !measRows.length"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
       >
         <UIcon
           name="i-lucide-loader-2"
@@ -175,7 +175,7 @@
         <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
           No measurements in this range
         </p>
-        <p class="mt-1 text-xs text-zinc-500">
+        <p class="mt-1 text-xs text-(--sk-ink-muted)">
           Try widening the date range or selecting a different fab.
         </p>
       </div>
@@ -207,7 +207,7 @@
                   class="text-2xl font-bold leading-none tabular-nums"
                   :class="cell.tone"
                 >{{ cell.value }}</span>
-                <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+                <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
               </div>
             </div>
           </UCard>
@@ -238,7 +238,7 @@
                   class="text-2xl font-bold leading-none tabular-nums"
                   :class="cell.tone"
                 >{{ cell.value }}</span>
-                <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+                <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
               </div>
             </div>
           </UCard>
@@ -251,7 +251,7 @@
               <div class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-trending-up"
-                  class="h-4 w-4 text-zinc-500"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
                 />
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   Align fail · daily trend
@@ -269,7 +269,7 @@
               <div class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-trending-up"
-                  class="h-4 w-4 text-zinc-500"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
                 />
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   Meas fail · daily trend
@@ -349,6 +349,11 @@ const VIEW_MODES = [
 type ViewMode = typeof VIEW_MODES[number]['value']
 
 const viewMode = ref<ViewMode>('summary')
+const metaSubtitle = computed(() =>
+  viewMode.value === 'by-device'
+    ? 'Align Fail / Measurement Fail을 디바이스별로 분석합니다.'
+    : 'Align Fail / Measurement Fail을 Fab 기준으로 분석합니다.'
+)
 const selectedLot = ref<string | null>(null)
 const lotSearch = ref('')
 const selectedCategories = ref<string[]>([])

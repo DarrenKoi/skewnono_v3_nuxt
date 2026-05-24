@@ -17,7 +17,7 @@
           @click="activeRole = 'address'"
         />
       </div>
-      <span class="font-mono text-[10.5px] text-zinc-500">
+      <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
         {{ activeRole === 'measure'
           ? '실측 단계 — CD/Edge 측정'
           : '패턴 매칭 단계 — 측정 위치 찾기' }}

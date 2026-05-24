@@ -11,7 +11,7 @@
         <p class="mt-1 text-[17px] font-bold text-zinc-900 dark:text-zinc-100">
           웨이퍼 정렬 포인트
         </p>
-        <p class="mt-1 text-[12px] text-zinc-500">
+        <p class="mt-1 text-[12px] text-(--sk-ink-muted)">
           레시피의 wafer alignment 측정점 {{ rows.length }}개. 일반적으로 조회 빈도가 낮아 별도 창으로 분리했습니다.
         </p>
       </div>
@@ -22,7 +22,7 @@
         v-if="images.length"
         class="mb-4"
       >
-        <p class="mb-1.5 font-mono text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
+        <p class="mb-1.5 font-mono text-[10px] font-bold tracking-wider text-(--sk-ink-muted) uppercase">
           Align Image
         </p>
         <div class="grid grid-cols-2 gap-3">
@@ -41,7 +41,7 @@
               </span>
               <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
             </div>
-            <div class="truncate font-mono text-[9.5px] text-zinc-500">
+            <div class="truncate font-mono text-[9.5px] text-(--sk-ink-muted)">
               {{ img.filename }}
             </div>
           </button>

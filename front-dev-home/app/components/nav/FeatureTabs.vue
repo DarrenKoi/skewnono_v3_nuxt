@@ -91,6 +91,7 @@ const isFeatureEnabled = (feature: FeatureTab) => {
       :to="isFeatureEnabled(feature) && feature.routeValue ? getFeatureRoute(feature.routeValue) : undefined"
       size="sm"
       label-class="hidden lg:inline"
+      :class="activeFeature === feature.routeValue ? 'shadow-sm sk-nav-accent' : undefined"
     />
   </nav>
 </template>

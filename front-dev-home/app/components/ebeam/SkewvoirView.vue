@@ -9,7 +9,7 @@
 
     <div
       v-if="pending"
-      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-zinc-500"
+      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -56,7 +56,7 @@
         <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
           분석할 MSR을 선택하세요.
         </p>
-        <p class="mt-1 text-[12px] text-zinc-500">
+        <p class="mt-1 text-[12px] text-(--sk-ink-muted)">
           여러 건을 선택하면 시계열 추이가, 한 건을 선택하면 상세 분석이 표시됩니다.
         </p>
       </div>

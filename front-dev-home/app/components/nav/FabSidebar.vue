@@ -72,7 +72,7 @@ const activeToolLabel = computed(() =>
         v-if="!sidebarCollapsed"
         class="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.14em] pl-1.5"
       >
-        System
+        장비모델
       </span>
       <button
         :aria-expanded="!sidebarCollapsed"
@@ -104,11 +104,11 @@ const activeToolLabel = computed(() =>
         :disabled="!tool.enabled"
         :title="sidebarCollapsed ? tool.label : undefined"
         type="button"
-        class="relative flex items-center rounded-lg transition-colors duration-200 w-full"
+        class="relative flex items-center rounded-lg transition-all duration-200 w-full"
         :class="[
           sidebarCollapsed ? 'justify-center px-0 py-2' : 'justify-between gap-2 px-3 py-1.5',
           tool.active
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold'
+            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-sm sk-fab-active'
             : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800',
           !tool.enabled ? 'opacity-55 cursor-not-allowed' : 'cursor-pointer'
         ]"

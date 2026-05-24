@@ -140,7 +140,7 @@ const tableUi = recipeTableUi
 
     <div
       v-else-if="pending"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -194,7 +194,7 @@ const tableUi = recipeTableUi
         <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
           측정 이력 (최신순)
         </h2>
-        <span class="font-mono text-[11px] tabular-nums text-zinc-500">
+        <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
           {{ rows.length.toLocaleString() }} rows
         </span>
       </div>

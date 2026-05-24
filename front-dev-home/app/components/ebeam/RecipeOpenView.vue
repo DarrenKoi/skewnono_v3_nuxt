@@ -39,7 +39,7 @@
           <span class="text-[22px] font-bold leading-none tabular-nums text-zinc-900 dark:text-zinc-100">
             {{ cell.value.toLocaleString() }}
           </span>
-          <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+          <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
         </div>
       </div>
     </div>
@@ -67,7 +67,7 @@
 
     <div
       v-else-if="pending"
-      class="dashboard-surface flex flex-1 flex-col items-center justify-center rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
+      class="dashboard-surface flex flex-1 flex-col items-center justify-center rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -122,7 +122,7 @@
               <EbeamRecipeOpenYesNoPill :value="selectedIdp.Addressing" />
               <span
                 v-if="selectedIdp.Mother_Para && selectedIdp.Mother_Para !== '—'"
-                class="font-mono text-[11px] text-zinc-500"
+                class="font-mono text-[11px] text-(--sk-ink-muted)"
               >
                 ← {{ selectedIdp.Mother_Para }}
               </span>
@@ -166,7 +166,7 @@
             />
 
             <template v-else>
-              <p class="mb-2 text-[11px] text-zinc-500">
+              <p class="mb-2 text-[11px] text-(--sk-ink-muted)">
                 자주 보지 않는 정보입니다. wafer_mp_info 에서
                 <b class="text-zinc-700 dark:text-zinc-200">Parameter = {{ selectedIdp.Parameter }}</b>
                 으로 필터링.

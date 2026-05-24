@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-3">
+  <div class="flex flex-col gap-3 h-full min-h-0">
     <EbeamMetaBar
       :eyebrow="eyebrow"
       :title="title"
@@ -9,18 +9,22 @@
       interactive-stats
       stats-label="가용성으로 필터"
       @select-stat="onSelectStat"
-    />
+    >
+      <template #toggle>
+        <EbeamEquipmentStatusSubTabs />
+      </template>
+    </EbeamMetaBar>
 
     <UCard
-      class="dashboard-surface rounded-2xl"
-      :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
+      class="dashboard-surface rounded-2xl flex flex-col flex-1 min-h-0"
+      :ui="{ body: 'p-0 sm:p-0 flex flex-1 flex-col min-h-0', header: 'px-4 py-3 sm:px-4' }"
     >
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             Tool Inventory
           </h2>
-          <p class="text-xs text-zinc-500 tabular-nums">
+          <p class="text-xs text-(--sk-ink-muted) tabular-nums">
             {{ filteredRows.length }} of {{ rows.length }} tools
           </p>
         </div>
@@ -31,7 +35,7 @@
         <UInput
           v-model="globalFilter"
           class="flex-1 min-w-56"
-          size="xs"
+          size="sm"
           icon="i-lucide-search"
           color="neutral"
           variant="subtle"
@@ -41,14 +45,14 @@
         <USelect
           v-model="modelFilter"
           class="w-44"
-          size="xs"
+          size="sm"
           color="neutral"
           variant="subtle"
           :items="modelFilterOptions"
         />
 
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
           variant="outline"
           icon="i-lucide-download"
@@ -58,7 +62,7 @@
         />
 
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
           icon="i-lucide-rotate-ccw"
@@ -70,7 +74,7 @@
 
       <UTable
         v-model:sorting="sorting"
-        class="max-h-[40rem] font-mono-ids"
+        class="flex-1 min-h-0 font-mono-ids"
         :columns="columns"
         :data="filteredRows"
         :empty="`No tools match the current search or filters.`"
@@ -87,7 +91,7 @@
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting(column.getIsSorted() === 'asc')"
           >
@@ -129,13 +133,13 @@
           <span class="text-[12.5px] font-medium text-(--sk-ink)">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #vendor_nm-cell="{ row }">
-          <span class="text-[11.5px] text-zinc-500 capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
+          <span class="text-[11.5px] text-(--sk-ink) capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-[11.5px] text-(--sk-ink-muted)">{{ row.original.eqp_ip }}</span>
+          <span class="font-mono tabular-nums text-[11.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
         </template>
         <template #version-cell="{ row }">
-          <span class="font-mono tabular-nums text-[11.5px] text-(--sk-ink-muted)">v{{ row.original.version }}</span>
+          <span class="font-mono tabular-nums text-[11.5px] text-(--sk-ink)">v{{ row.original.version }}</span>
         </template>
       </UTable>
     </UCard>
@@ -292,7 +296,7 @@ const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
     td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 

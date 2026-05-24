@@ -62,7 +62,7 @@
         <span class="h-1.5 w-1.5 rounded-full bg-(--sk-ok)" />
         {{ streamCount }} streams
       </span>
-      <span class="font-mono text-[11px] text-zinc-500">{{ dataPath }}</span>
+      <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ dataPath }}</span>
       <span class="flex h-6 w-6 items-center justify-center rounded-(--sk-r-chip) bg-zinc-900 font-mono text-[10px] font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">
         {{ user }}
       </span>

@@ -23,7 +23,7 @@
         :disabled="modelValue.length === 0"
         @click="clearSelection"
       />
-      <span class="ml-auto font-mono text-[11px] tabular-nums text-zinc-500">
+      <span class="ml-auto font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
         {{ modelValue.length }} / {{ rows.length }} 선택
       </span>
     </div>

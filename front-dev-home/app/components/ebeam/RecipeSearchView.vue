@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchResponse, RecipeSearchRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
+import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 
 const props = defineProps<{
   fab: Fab
@@ -91,15 +92,28 @@ const filteredRows = computed(() => {
   return matches
 })
 
+// In-table filter: live-narrows the coarse top-bar matches (AND composition),
+// so you can drill within a large result family without re-running the search.
+const tableFilter = ref('')
+const normalizedTableFilter = computed(() => tableFilter.value.trim().toLowerCase())
+const isRefining = computed(() => normalizedTableFilter.value.length > 0)
+
+const refinedRows = computed(() => {
+  if (!isRefining.value) return filteredRows.value
+  const term = normalizedTableFilter.value
+  return filteredRows.value.filter(row => row.recipe_name.toLowerCase().includes(term))
+})
+
 const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
 const filteredCount = computed(() => filteredRows.value.length)
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredCount.value / pageSizeNumber.value)))
-const pageStart = computed(() => filteredCount.value === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1)
-const pageEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredCount.value))
+const refinedCount = computed(() => refinedRows.value.length)
+const pageCount = computed(() => Math.max(1, Math.ceil(refinedCount.value / pageSizeNumber.value)))
+const pageStart = computed(() => refinedCount.value === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1)
+const pageEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, refinedCount.value))
 
 const pagedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSizeNumber.value
-  return filteredRows.value.slice(start, start + pageSizeNumber.value)
+  return refinedRows.value.slice(start, start + pageSizeNumber.value)
 })
 
 const pageSizeOptions = [
@@ -120,11 +134,13 @@ const searchHelp = computed(() => {
   return `${filteredCount.value.toLocaleString()}개 검색됨`
 })
 
-const pageTitle = computed(() => `${props.toolLabel} - ${props.fab}`)
+// Fab/scope rides in the mono eyebrow; the <h1> stays the fixed page name so
+// the header never renames itself per fab (DESIGN.md §7.8).
+const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
 
-const headerStats = computed(() => [
-  { label: 'Loaded', value: totalRows.value.toLocaleString(), tone: 'neutral' },
-  { label: 'Matched', value: filteredCount.value.toLocaleString(), tone: 'accent' }
+const metaStats = computed<MetaBarStat[]>(() => [
+  { key: 'loaded', label: 'Loaded', value: totalRows.value.toLocaleString(), tone: 'neutral' },
+  { key: 'matched', label: 'Matched', value: filteredCount.value.toLocaleString(), tone: 'accent' }
 ])
 
 const applyRecentSearch = (value: string) => {
@@ -142,6 +158,11 @@ const clearSearch = () => {
 }
 
 watch([normalizedQuery, pageSize, cacheKey], () => {
+  currentPage.value = 1
+  tableFilter.value = ''
+})
+
+watch(normalizedTableFilter, () => {
   currentPage.value = 1
 })
 
@@ -178,13 +199,13 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 
 const columns: TableColumn<RecipeSearchRow>[] = [
   { accessorKey: 'recipe_name', header: 'recipe_name', size: 520 },
-  { id: 'open', header: '', size: 340 }
+  { id: 'open', header: '', size: 400 }
 ]
 
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis',
-  th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+  td: 'py-2.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis',
+  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
 const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/${subpath}`
@@ -221,266 +242,307 @@ const openMeasHist = (recipeName: string) => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <EbeamFeatureHeader
-      :stats="headerStats"
-      :subtitle="`API에서 받은 ${totalRows.toLocaleString()}개 recipe 이름을 검색합니다.`"
-      :title="pageTitle"
+  <div class="mx-auto w-full max-w-[1440px] space-y-4">
+    <EbeamMetaBar
+      :eyebrow="identity"
+      title="Recipe 검색"
+      subtitle="DB에 등록된 Recipe를 빠르게 검색합니다."
+      :stats="metaStats"
     />
 
-    <div class="mx-auto w-full max-w-3xl space-y-4">
+    <div class="space-y-4">
       <section class="dashboard-surface rounded-2xl p-5">
-      <form
-        class="group flex h-12 w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 shadow-sm transition focus-within:border-zinc-300 focus-within:ring-4 focus-within:ring-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-within:border-zinc-700 dark:focus-within:ring-zinc-800/70"
-        @submit.prevent="commitSearch"
-      >
-        <UIcon
-          name="i-lucide-search"
-          class="h-5 w-5 shrink-0 text-zinc-400"
-        />
-        <input
-          v-model="query"
-          type="search"
-          inputmode="search"
-          autocomplete="off"
-          class="min-w-0 flex-1 bg-transparent text-sm text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
-          aria-label="Search recipes"
-          placeholder="Recipe 이름 검색 (예: ABC, 123, RACE/DEAE)"
+        <form
+          class="group flex h-14 w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-5 shadow-sm transition focus-within:border-zinc-300 focus-within:ring-4 focus-within:ring-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-within:border-zinc-700 dark:focus-within:ring-zinc-800/70"
+          @submit.prevent="commitSearch"
         >
-        <UButton
-          v-if="query"
-          type="button"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-x"
-          aria-label="Clear search"
-          class="rounded-full"
-          @click="clearSearch"
-        />
-        <UButton
-          type="submit"
-          size="xs"
-          color="neutral"
-          variant="solid"
-          icon="i-lucide-arrow-right"
-          aria-label="Save search"
-          class="rounded-full"
-          :disabled="!canSearch"
-        />
-      </form>
+          <UIcon
+            name="i-lucide-search"
+            class="h-5 w-5 shrink-0 text-zinc-400"
+          />
+          <input
+            v-model="query"
+            type="search"
+            inputmode="search"
+            autocomplete="off"
+            class="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+            aria-label="Search recipes"
+            placeholder="Recipe 이름 검색 (예: ABC, 123, RACE/DEAE)"
+          >
+          <UButton
+            v-if="query"
+            type="button"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            aria-label="Clear search"
+            class="rounded-full"
+            @click="clearSearch"
+          />
+          <UButton
+            type="submit"
+            size="sm"
+            color="neutral"
+            variant="solid"
+            icon="i-lucide-arrow-right"
+            aria-label="Save search"
+            class="rounded-full"
+            :disabled="!canSearch"
+          />
+        </form>
+
+        <div
+          v-if="recentSearches.length"
+          class="mt-2.5 flex flex-wrap items-center gap-1.5"
+        >
+          <span class="text-xs font-medium uppercase tracking-wide text-(--sk-ink-muted)">
+            Recent
+          </span>
+          <div
+            v-for="term in recentSearches"
+            :key="term"
+            class="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 py-1 pl-3 pr-1.5 text-sm text-zinc-700 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+          >
+            <button
+              type="button"
+              class="font-mono leading-5"
+              @click="applyRecentSearch(term)"
+            >
+              {{ term }}
+            </button>
+            <button
+              type="button"
+              class="rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
+              :aria-label="`Remove ${term} from recent searches`"
+              @click.stop="removeRecentSearch(term)"
+            >
+              <UIcon
+                name="i-lucide-x"
+                class="h-3.5 w-3.5"
+              />
+            </button>
+          </div>
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-trash-2"
+            label="Clear all"
+            @click="clearRecentSearches"
+          />
+        </div>
+
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-(--sk-ink-muted)">
+          <span>{{ searchHelp }}</span>
+          <span
+            v-if="canSearch && refinedCount > 0"
+            class="tabular-nums"
+          >
+            {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} / {{ refinedCount.toLocaleString() }}
+          </span>
+        </div>
+      </section>
 
       <div
-        v-if="recentSearches.length"
-        class="mt-2.5 flex flex-wrap items-center gap-1.5"
+        v-if="pending"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
       >
-        <span class="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-          Recent
-        </span>
-        <div
-          v-for="term in recentSearches"
-          :key="term"
-          class="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 py-0.5 pl-2.5 pr-1 text-xs text-zinc-700 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-        >
-          <button
-            type="button"
-            class="font-mono leading-5"
-            @click="applyRecentSearch(term)"
-          >
-            {{ term }}
-          </button>
-          <button
-            type="button"
-            class="rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
-            :aria-label="`Remove ${term} from recent searches`"
-            @click.stop="removeRecentSearch(term)"
-          >
-            <UIcon
-              name="i-lucide-x"
-              class="h-3 w-3"
-            />
-          </button>
-        </div>
+        <UIcon
+          name="i-lucide-loader-circle"
+          class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+        />
+        <p class="mt-2">
+          Recipe 목록을 불러오는 중입니다.
+        </p>
+      </div>
+
+      <div
+        v-else-if="error"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      >
+        <UIcon
+          name="i-lucide-circle-alert"
+          class="mx-auto h-6 w-6 text-rose-500"
+        />
+        <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
+          Recipe 목록을 불러오지 못했습니다.
+        </p>
         <UButton
-          size="xs"
+          class="mt-3"
+          size="sm"
           color="neutral"
-          variant="ghost"
-          icon="i-lucide-trash-2"
-          label="Clear all"
-          @click="clearRecentSearches"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          label="Retry"
+          @click="refresh()"
         />
       </div>
 
-      <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
-        <span>{{ searchHelp }}</span>
-        <span
-          v-if="canSearch && filteredCount > 0"
-          class="tabular-nums"
-        >
-          {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} / {{ filteredCount.toLocaleString() }}
-        </span>
-      </div>
-    </section>
-
-    <div
-      v-if="pending"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-zinc-500"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="mx-auto h-5 w-5 animate-spin text-zinc-400"
-      />
-      <p class="mt-2">
-        Recipe 목록을 불러오는 중입니다.
-      </p>
-    </div>
-
-    <div
-      v-else-if="error"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
-    >
-      <UIcon
-        name="i-lucide-circle-alert"
-        class="mx-auto h-6 w-6 text-rose-500"
-      />
-      <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
-        Recipe 목록을 불러오지 못했습니다.
-      </p>
-      <UButton
-        class="mt-3"
-        size="sm"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        label="Retry"
-        @click="refresh()"
-      />
-    </div>
-
-    <div
-      v-else-if="!canSearch"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
-    >
-      <UIcon
-        name="i-lucide-keyboard"
-        class="mx-auto h-6 w-6 text-zinc-400"
-      />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
-        3자 이상 입력해주세요
-      </p>
-      <p class="mt-1 text-xs text-zinc-500">
-        Recipe 이름에는 "/"가 포함될 수 있으며, ABC 또는 123으로 바로 확인할 수 있습니다.
-      </p>
-    </div>
-
-    <div
-      v-else-if="filteredCount === 0"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
-    >
-      <UIcon
-        name="i-lucide-search-x"
-        class="mx-auto h-6 w-6 text-zinc-400"
-      />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
-        검색 결과가 없습니다.
-      </p>
-      <p class="mt-1 text-xs text-zinc-500">
-        다른 recipe 이름 조각을 입력해주세요.
-      </p>
-    </div>
-
-    <section
-      v-else
-      class="dashboard-surface rounded-2xl px-3.5 py-3"
-    >
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            Recipe results
-          </h2>
-          <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            {{ filteredCount.toLocaleString() }}
-          </span>
-        </div>
-
-        <USelect
-          v-model="pageSize"
-          class="w-[7rem]"
-          size="xs"
-          :items="pageSizeOptions"
-        />
-      </div>
-
-      <UTable
-        class="font-mono-ids"
-        :columns="columns"
-        :data="pagedRows"
-        sticky="header"
-        :ui="tableUi"
+      <div
+        v-else-if="!canSearch"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center"
       >
-        <template #recipe_name-cell="{ row }">
-          <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {{ row.original.recipe_name }}
-          </span>
-        </template>
+        <UIcon
+          name="i-lucide-keyboard"
+          class="mx-auto h-6 w-6 text-zinc-400"
+        />
+        <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+          3자 이상 입력해주세요
+        </p>
+        <p class="mt-1 text-xs text-(--sk-ink-muted)">
+          Recipe 이름에는 "/"가 포함될 수 있으며, ABC 또는 123으로 바로 확인할 수 있습니다.
+        </p>
+      </div>
 
-        <template #open-cell="{ row }">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <UButton
+      <div
+        v-else-if="filteredCount === 0"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      >
+        <UIcon
+          name="i-lucide-search-x"
+          class="mx-auto h-6 w-6 text-zinc-400"
+        />
+        <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+          검색 결과가 없습니다.
+        </p>
+        <p class="mt-1 text-xs text-(--sk-ink-muted)">
+          다른 recipe 이름 조각을 입력해주세요.
+        </p>
+      </div>
+
+      <section
+        v-else
+        class="dashboard-surface rounded-2xl px-3.5 py-3"
+      >
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+              Recipe results
+            </h2>
+            <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <template v-if="isRefining">{{ refinedCount.toLocaleString() }} / {{ filteredCount.toLocaleString() }}</template>
+              <template v-else>{{ filteredCount.toLocaleString() }}</template>
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <div class="group flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 transition focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-within:border-zinc-700 dark:focus-within:ring-zinc-800/70">
+              <UIcon
+                name="i-lucide-filter"
+                class="h-3.5 w-3.5 shrink-0 text-zinc-400"
+              />
+              <input
+                v-model="tableFilter"
+                type="search"
+                autocomplete="off"
+                class="w-40 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+                aria-label="Filter results"
+                placeholder="결과 내 필터"
+              >
+              <button
+                v-if="tableFilter"
+                type="button"
+                class="shrink-0 rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+                aria-label="Clear filter"
+                @click="tableFilter = ''"
+              >
+                <UIcon
+                  name="i-lucide-x"
+                  class="h-3 w-3"
+                />
+              </button>
+            </div>
+
+            <USelect
+              v-model="pageSize"
+              class="w-[7rem]"
               size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-file-search"
-              label="열어 보기"
-              @click="openRecipeDetail(row.original.recipe_name)"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-network"
-              label="횡전개"
-              @click="openLateral(row.original.recipe_name)"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-history"
-              label="측정 이력"
-              @click="openMeasHist(row.original.recipe_name)"
+              :items="pageSizeOptions"
             />
           </div>
-        </template>
-      </UTable>
-
-      <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
-        <span class="tabular-nums">
-          Page {{ currentPage }} / {{ pageCount }}
-          <span class="ml-2 text-zinc-400">
-            {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} of {{ filteredCount.toLocaleString() }}
-          </span>
-        </span>
-        <div class="flex gap-1">
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-chevron-left"
-            :disabled="currentPage <= 1"
-            @click="currentPage -= 1"
-          />
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            trailing-icon="i-lucide-chevron-right"
-            :disabled="currentPage >= pageCount"
-            @click="currentPage += 1"
-          />
         </div>
-      </div>
-    </section>
+
+        <UTable
+          class="font-mono-ids"
+          :columns="columns"
+          :data="pagedRows"
+          sticky="header"
+          :ui="tableUi"
+        >
+          <template #empty>
+            <div class="py-8 text-center text-xs text-(--sk-ink-muted)">
+              <UIcon
+                name="i-lucide-filter-x"
+                class="mx-auto mb-1.5 h-5 w-5 text-zinc-400"
+              />
+              <p>필터 "<span class="font-mono text-zinc-700 dark:text-zinc-300">{{ tableFilter }}</span>"와 일치하는 recipe가 없습니다.</p>
+            </div>
+          </template>
+
+          <template #recipe_name-cell="{ row }">
+            <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+              {{ row.original.recipe_name }}
+            </span>
+          </template>
+
+          <template #open-cell="{ row }">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <UButton
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-file-search"
+                label="열어 보기"
+                @click="openRecipeDetail(row.original.recipe_name)"
+              />
+              <UButton
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-network"
+                label="횡전개"
+                @click="openLateral(row.original.recipe_name)"
+              />
+              <UButton
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-history"
+                label="측정 이력"
+                @click="openMeasHist(row.original.recipe_name)"
+              />
+            </div>
+          </template>
+        </UTable>
+
+        <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
+          <span class="tabular-nums">
+            Page {{ currentPage }} / {{ pageCount }}
+            <span class="ml-2 text-zinc-400">
+              {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} of {{ refinedCount.toLocaleString() }}
+            </span>
+          </span>
+          <div class="flex gap-1">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-chevron-left"
+              :disabled="currentPage <= 1"
+              @click="currentPage -= 1"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              trailing-icon="i-lucide-chevron-right"
+              :disabled="currentPage >= pageCount"
+              @click="currentPage += 1"
+            />
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>

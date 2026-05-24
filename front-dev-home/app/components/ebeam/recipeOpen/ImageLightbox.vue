@@ -37,7 +37,7 @@
               :key="field.key"
               class="flex items-baseline justify-between gap-3 border-b border-zinc-100 py-1.5 dark:border-zinc-800/60"
             >
-              <span class="font-mono text-[11px] tracking-wide text-zinc-500">
+              <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">
                 {{ field.label }}<span
                   v-if="field.unit"
                   class="ml-1 text-zinc-400"

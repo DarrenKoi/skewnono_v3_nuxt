@@ -10,7 +10,7 @@
         </p>
       </div>
       <div class="flex flex-col items-end gap-1.5">
-        <span class="text-[11px] text-zinc-500">
+        <span class="text-[11px] text-(--sk-ink-muted)">
           행 클릭 → 우측 상세 표시
         </span>
         <UButton

@@ -4,7 +4,7 @@
       class="grid gap-2 px-3.5 py-2.5"
       :style="{ gridTemplateColumns: `110px repeat(${imageSlots.length}, minmax(0, 1fr))` }"
     >
-      <div class="flex items-end pb-1 font-mono text-[10px] tracking-wide text-zinc-500">
+      <div class="flex items-end pb-1 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
         AMP ↓ / Image →
       </div>
       <EbeamRecipeOpenImgThumb

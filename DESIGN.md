@@ -137,6 +137,22 @@ NuxtUI 는 success/warning/error/info 색을 자체 키로 노출하지 않으�
 | Loading | `i-lucide-loader-circle` + `animate-spin` | 색상 변경 없음 |
 | Error 텍스트 | `text-rose-600 dark:text-rose-400` | 메시지 라인에서만 사용 |
 
+### 3.7 잉크 텍스트 계층 (Ink text hierarchy)
+
+본문·라벨 텍스트는 세 단계 잉크 토큰으로 구분합니다. 모두 `:root`(라이트)와 `.dark`(다크)에서 페어로 정의되어 테마에 따라 자동 전환됩니다.
+
+| 토큰 | 라이트 | 다크 | 용도 |
+| --- | --- | --- | --- |
+| `--sk-ink` | `oklch(0.22)` | `oklch(0.96)` | 본문, **표의 데이터 값**(ID·모델·벤더·IP·버전·측정값), 제목 |
+| `--sk-ink-muted` | `oklch(0.47)` | `oklch(0.74)` | 라벨, 캡션, 헤더 버튼, 메타 정보 — *값이 아닌 보조 텍스트* |
+| `--sk-ink-subtle` | `oklch(0.66)` | `oklch(0.56)` | 비활성·de-emphasized 텍스트 |
+
+사용 형태는 `text-(--sk-ink)`, `text-(--sk-ink-muted)`, `text-(--sk-ink-subtle)` 입니다. 보조 텍스트에 `text-zinc-500` 같은 고정 명도 클래스를 쓰면 다크 모드에서 캔버스에 묻히므로, 위 시맨틱 토큰을 우선 사용합니다.
+
+**규칙 (다크 모드 가독성, 필독).** 사용자가 실제로 읽어야 하는 **데이터 값**에는 `--sk-ink` 를 사용합니다. `--sk-ink-muted` 는 라벨·캡션·헤더 등 *값이 아닌* 보조 텍스트 전용이며, 데이터 셀 값에 사용하지 않습니다. 다크 모드에서 `--sk-ink-muted`(`oklch 0.74`)는 캔버스(`oklch 0.21`) 대비 의도적으로 흐리게 떠오르도록 설계되었기 때문에, 값 컬럼에 적용하면 제목·ID 컬럼(`--sk-ink`, `oklch 0.96`) 옆에서 흐리게 보여 가독성이 떨어집니다.
+
+판단 기준 — "이 텍스트가 사용자가 읽으려는 **값**인가, 그 값을 설명하는 **라벨/메타**인가? 값이면 `--sk-ink`, 라벨이면 `--sk-ink-muted`."
+
 ---
 
 ## 4. 타이포그래피 (Typography)
@@ -374,6 +390,7 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 - 모든 색은 `--sk-*` 변수를 거쳐 자동 전환합니다. 컴포넌트에서 직접 `dark:` 변종을 사용하는 경우는 보더(`dark:border-zinc-800`)·호버 (`dark:hover:bg-zinc-800/50`)에 한정합니다.
 - 새 컴포넌트를 만들 때, *다크 변종을 잊지 않는 가장 간단한 방법*은 `--sk-*` 변수를 직접 쓰는 것입니다. `bg-(--sk-surface)`, `border-(--sk-border)`, `text-(--sk-on-fg)` 형태.
 - 다크 모드에서 크림슨은 `#e0553f` 로 약간 더 따뜻하게 떠올라 가독성을 보존합니다.
+- **텍스트 가독성** — 데이터 값과 보조 텍스트의 잉크 계층은 [§3.7 잉크 텍스트 계층](#37-잉크-텍스트-계층-ink-text-hierarchy) 을 단일 기준으로 삼습니다. 값 컬럼에 `--sk-ink-muted` 를 쓰면 다크 모드에서 흐려지므로 `--sk-ink` 를 사용합니다.
 
 ---
 
@@ -454,4 +471,5 @@ Tailwind 의 기본 스페이싱 스케일(4px 단위)을 사용합니다. 자�
 - 2026-05-16: *Selection System · Conservative* 의 행 디바이더 패턴을 글로벌 레이아웃에 적용. `nav/ToolTypeTabs.vue` 하단에 1px `--sk-border-soft` 헤어라인을 추가해 *장비 행* 과 *기능 행* 사이를 명시적으로 구분합니다(§7.7). 디바이더는 풀-블리드로 그려 FAB 사이드바를 가로지릅니다.
 - 2026-05-23: 레이아웃 폭 기준을 명문화했습니다(§5). 타깃 화면은 FHD(1920×1080)이나, 콘텐츠 폭은 의도적으로 `max-w-7xl`(1280px)로 제한하고 풀-블리드 최적화는 채택하지 않습니다.
 - 2026-05-23: *메타 바*(`EbeamMetaBar`) 패턴을 추가했습니다(§7.8). 설계 원안 "옵션 E — 한 줄 메타바"를 기반으로, eyebrow + 고정 제목 + 토글 + 인라인 통계 + 신선도 배지 + 액션을 한 줄로 압축한 페이지 헤더입니다. `ebeam/ToolInventoryView.vue`(장비 리스트), `ebeam/StorageView.vue`(스토리지), `ebeam/RecipeTatView.vue`, `ebeam/FailIssueView.vue`, `cd-sem/device-statistics/index.vue` 가 기존 `FeatureHeader` 에서 메타 바로 마이그레이션되었습니다.
+- 2026-05-24: *잉크 텍스트 계층*(§3.7)을 명문화했습니다. `--sk-ink` / `--sk-ink-muted` / `--sk-ink-subtle` 세 단계의 라이트/다크 값과 용도를 정의하고, **데이터 값에는 `--sk-ink`, 보조 텍스트에만 `--sk-ink-muted`** 라는 다크 모드 가독성 규칙을 추가했습니다(§8 에서 교차 참조). 다크 모드에서 벤더·IP·버전 컬럼이 흐리게 보이던 문제를 따라, `ebeam/ToolInventoryView.vue` 의 Vendor·IP Address·Version 셀을 `--sk-ink-muted` → `--sk-ink` 로 전환했습니다.
 - 2026-05-23: *H/W 관리* 를 **Dense 2컬럼**(`body-standard` 핸드오프 Artboard E)으로 재구성했습니다. `ebeam/HardwareView.vue` 가 좁은 `max-w-3xl` 중앙 picker 에서 `max-w-[1440px]` 단일 컨테이너로 바뀌었고, 좌측 320px 레일(검색 + Model 필터 + All/On/Off 칩 + 클릭형 장비 리스트)과 우측 상세(장비 요약 바 + BM/PM·BSM·FDC 세그먼트 + 상세 카드)로 분할됩니다. 리스트 행 클릭으로 장비를 전환하며, 세그먼트 탭은 `useState('hw-section')` 로 영속됩니다. 1440px Dense 예외는 §5 에 명문화했습니다.

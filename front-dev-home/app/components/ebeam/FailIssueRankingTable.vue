@@ -52,7 +52,7 @@
           size="xs"
           color="neutral"
           variant="ghost"
-          class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
           :trailing-icon="getSortIcon(column.getIsSorted())"
           @click="column.toggleSorting(column.getIsSorted() === 'asc')"
         >
@@ -61,7 +61,7 @@
       </template>
     </UTable>
 
-    <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
+    <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
       <span class="tabular-nums">
         Page {{ page }} / {{ pageCount }}
         <span class="ml-2 text-zinc-400">
@@ -130,7 +130,7 @@ const pageSizeOptions = [
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums',
-  th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
 const getSortIcon = (direction: false | 'asc' | 'desc') => {

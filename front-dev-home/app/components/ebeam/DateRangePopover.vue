@@ -5,7 +5,7 @@
       color="neutral"
       variant="outline"
       size="sm"
-      class="font-medium tabular-nums"
+      :class="['font-medium tabular-nums', triggerClass]"
     >
       <span>{{ startLabel }}</span>
       <span class="text-zinc-400">~</span>
@@ -54,6 +54,10 @@ interface ModelValue {
 const props = defineProps<{
   modelValue: ModelValue
   icon?: string
+  // Extra classes merged onto the trigger button — lets a caller enlarge the
+  // hit target (e.g. match a page's h-9 toggle row) without changing the
+  // shared default sizing used by other pages.
+  triggerClass?: string
   // Optional ISO YYYY-MM-DD anchor. When provided, presets ("Last 7 days",
   // etc.) and the calendar's max-value resolve relative to this date instead
   // of wall-clock today. Used by callers tied to mock data with a fixed

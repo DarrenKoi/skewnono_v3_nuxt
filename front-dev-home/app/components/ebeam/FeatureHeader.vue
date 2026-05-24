@@ -78,7 +78,7 @@ const statToneClass = (tone: HeaderStatTone = 'neutral') => {
             >
               {{ cell.value }}
             </span>
-            <span class="text-[11px] text-zinc-500">{{ cell.label }}</span>
+            <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
           </div>
         </div>
       </slot>
