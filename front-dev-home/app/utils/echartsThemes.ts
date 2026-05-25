@@ -212,6 +212,21 @@ const themes: Record<EchartThemeName, object> = {
   roma: createLightTheme(romaColors, '#001852')
 }
 
+const themePalettes: Record<EchartThemeName, readonly string[]> = {
+  vintage: vintageColors,
+  dark: darkColors,
+  macarons: macaronsColors,
+  infographic: infographicColors,
+  shine: shineColors,
+  roma: romaColors
+}
+
+// The color array a given theme cycles through for its series. Components that
+// must hardcode a color reference (tooltip HTML, axis-name text) read from here
+// so those literals track the same palette ECharts auto-assigns to the series.
+export const getEchartThemePalette = (name: EchartThemeName): readonly string[] =>
+  themePalettes[name]
+
 let registered = false
 
 export const isEchartThemeSelection = (value: unknown): value is EchartThemeSelection =>

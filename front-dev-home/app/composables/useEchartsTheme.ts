@@ -2,6 +2,7 @@ import {
   DEFAULT_ECHART_THEME_SELECTION,
   ECHART_THEME_OPTIONS,
   ECHART_THEME_STORAGE_KEY,
+  getEchartThemePalette,
   isEchartThemeSelection,
   resolveEchartThemeName,
   type EchartThemeSelection
@@ -26,6 +27,11 @@ export const useEchartsTheme = () => {
 
   const resolvedThemeName = computed(() => resolveEchartThemeName(selectedTheme.value, colorMode.value))
 
+  // The active theme's series palette. Charts that need explicit color literals
+  // (e.g. tooltip markers) read indices off this so they match the line colors
+  // ECharts assigns from the same palette.
+  const palette = computed(() => getEchartThemePalette(resolvedThemeName.value))
+
   if (import.meta.client) {
     watch(
       selectedTheme,
@@ -39,6 +45,7 @@ export const useEchartsTheme = () => {
   return {
     selectedTheme,
     resolvedThemeName,
+    palette,
     themeOptions: ECHART_THEME_OPTIONS
   }
 }
