@@ -181,6 +181,14 @@ body,
   min-height: 100%;
 }
 
+/* Always reserve the vertical scrollbar gutter so centered (mx-auto) page
+   content keeps the same horizontal position whether or not a page scrolls.
+   Without this, short pages (e.g. /intro) re-center ~8px to the right vs.
+   scrolling pages, making them look like a different width. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--sk-canvas);
 }

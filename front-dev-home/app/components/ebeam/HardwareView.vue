@@ -34,7 +34,7 @@ const hardwareServices: HardwareService[] = [
     key: 'bsm',
     label: 'BSM',
     title: 'Beam Shape Matching',
-    description: 'Beam profile, shape drift, matching result를 선택한 장비 기준으로 확인합니다.',
+    description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.',
     icon: 'i-lucide-radar'
   },
   {
@@ -192,7 +192,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
       :eyebrow="identity"
       title="H/W 관리"
       subtitle="등록된 장비들의 Hardware 상태를 확인합니다."
-      cadence="1시간 주기"
+      cadence="4시간 주기"
       :stats="metaStats"
     />
 
