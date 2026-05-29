@@ -1,0 +1,50 @@
+목적
+= 무분별하게 계측 파라미터가 증가하는 것을 막기 위해서 Recipe Ground Rule (그라운드 룰)을 마련한다. 
+
+lot_cd -> string: 개발 디바이스 lot 코드 (동의어: 제품 코드)
+ctn_desc -> string: 개발 디바이스 설명. pool 여부, 개발 phase, 개발 코드명을 파악하는 원문
+prod_catg_cd -> DRAM, Tech, Advanced, FLASH, NAND
+
+보통 Recipe에서 파라미터 이름으로 WAFER, LEVEL, EDGE, EDGE_EX는 (WAFER 파라들로 통칭하기도 함)는 
+가장 중요한 파라미터들이고 항상 측정을 하는 것을 기본으로 한다. 
+일반적인 WAFER 파라 측정 포인트 수 WAFER : 13, LEVEL 4, EDGE 8~16, EDGE_EX 8~16
+
+Recipe 이름에 "_SE" 또는 "_S" 들어가면 SAMPLE Recipe라고 
+부르며, 샘플 레시피는 보통 짧게 측정하는 것이 목표이기 때문에 WAFER 파라들만 측정한다. 
+
+Main RCP는 
+공정 process flow Base Plan에서 Step 명에 "CD" 가 suffix로 붙는 Step들은 
+계측 스텝에 해당된다. 참고: suffix "OCD"는 다른 장비의 계측
+각 CD 계측 step에는 recipe_id가 할당된다. 
+
+suffix에 CD(E), CD2, CD(F), CD(E1),... 과 같이 추가 내용이 붙으면, 메인 계측이 아닌 추가 계측 용으로
+공정/소자 엔지니어들이 수시로 계측을 하거나 스킵을 하거나 한다. process flow에서 Skip Y/N 설정 가능.
+
+공정/소자/MI 엔지니어들이 모여 계측 표준화를 위해 합의점에 이르렀다.
+
+우리는 메모리 반도체 회사로, 개발 카테고리는 prod_catg_cd로 구분이 된다. 
+
+Core, Pool제, VG/RTC/Cubic 제품군 별로 Main Rcp의 경우 계측 파라미터에 제한을 두기로 한다. 
+각 제품은 t-EV, EV, TV, PV등 개발 단계 (PHASE)가 있다. PV는 양산 이관 직전으로 상당히 중요한 phase
+
+Pool제 제품은 ctn_desc에 "Pool", "Pool제"와 같은 string이 들어가 있다. 
+VT/RTC/Cubic또한 ctn_desc에 vertical gate, vertical, RTC, Cubic과 같은 string이 포함되어 있다.
+그외 제품들은 전부 Core로 가정한다.
+
+Sample Recipe는 간소화 합의점에 이르렀다. 
+1. WAFER 파라들 이외에는 삭제를 목표. 
+2. WAFER 파라들도 측정 포인트 조정.
+
+WAFER 13, LEVEL 4, EDGE_EX 0
+EDGE_EX가 약간 차이가 있다 -> DRAM/VG/RTC/Cubic은 10, NAND&FLASH는 8
+Core인 경우 TV 이후 (TV, PV) EDGE 16개로 증가.
+
+
+Main RCP의 경우
+WAFER 파라들 외에는 모두 9포인트 이하로 측정하기. 보통 9 OR 5개.
+예외 케이스 (파라 이름에 DSPT, WF, WAFER 포함하면 13개)
+
+CORE제품군의 경우 TV, PV의 경우에 EDGE 16, EDGE_EX 16
+Pool제 제품군의 경우 
+수율 확인 전 -> DRAM은 EDGE 10, NAND는 EDGE 8, EDGE_EX는 모두 0
+수율 확인 후 -> DRAM은 EDGE 10, EDGE_EX 10 , NAND는 EDGE 8, EDGE_EX 8

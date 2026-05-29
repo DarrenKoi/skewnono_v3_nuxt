@@ -1,0 +1,25 @@
+N배화 가능 장비? 판정
+
+
+Lot ID 별로 할당된 WIP 이 있고 wip이 많은 lot_id들은 자연스럽게 측정량이 많기 때문에 측정 총 시간도 많을 수 있다.
+
+하지만 평균 측정 시간? 좀 더 구체적으로 특정 lot_id에서는 어떤 recipe들이 문제를 일으키고 있는가? 
+
+
+===========
+Recipe Long Time 관리 테이블
+
+필요 컬럼 정보
+제품 description
+Device Code (lot_cd)
+Long Time Recipe 수
+장당 평균 측정 시간
+총 측정 장수
+총 측정 시간
+Skip N : Skip 하지 않음. Base Plan 필수 계측이면서 Long Time 계측
+Skip Y : Skip 함. Base Plan Skip으로 되어 있지만 Long Time 계측
+Base Plan 없음 (M) : Base Plan에 등록되어 있지 않은 Recipe지만 Long Time 계측
+
+
+Base Plan외에 Long Time Recipe 점검 필요 -> 공정 Recipe
+

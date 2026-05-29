@@ -20,6 +20,22 @@ CD-SEM 디바이스의 식별 및 **조직적 ownership 단위**입니다. 팹 �
 
 Recipe와 쌍을 이루는 측정 step 식별자. 같은 recipe_id라도 oper_id 조합에 따라 다르게 운영될 수 있어, recipe 분석 시 oper_id를 분리해 살펴봅니다.
 
+### 파라미터 (Parameter) / 파라미터 타입
+
+한 [[recipe]]가 측정하는 개별 항목. 각 파라미터는 **이름**과 **측정 포인트 수**를 가지며, **타입**(WAFER / LEVEL / EDGE / EDGE_EX / 기타)은 이름에서 파생됩니다. WAFER·LEVEL·EDGE·EDGE_EX 는 "WAFER 파라들"로 통칭되는 가장 중요한 파라미터 타입으로, 항상 측정을 기본으로 합니다. [[계측-룰]]은 (타입 → 기대 측정 포인트 수)로 기술되므로, 룰 검증의 입력 데이터는 **파라미터 단위(이름·타입·포인트수)** 여야 합니다.
+
+**para_16/13/9/5 와의 관계**: 기존 device-statistics 의 `para_N` 컬럼(= N 포인트로 측정되는 파라미터 *개수*)은 이제 파라미터 단위 데이터에서 **파생되는 집계 view** 입니다. `para_N` bin 만으로는 `EDGE_EX=0`·`LEVEL=4` 같은 타입별 룰을 표현할 수 없어, raw 파라미터 데이터가 source of truth 입니다.
+
+### Recipe Class (Main / Sample / 추가계측)
+
+[[recipe]]가 계측 표준화에서 갖는 분류로, [[계측-룰]]의 1차 분기 축입니다. backend 가 사용자가 준비한 데이터(`sample` 0/1 플래그, `skip_yn` Y/N, `recipe_id`, step 명 컬럼)의 문자열 분석으로 파생합니다.
+
+- **Sample** — `recipe_id` 의 `_SE`/`_S` 또는 `sample=1`. WAFER 파라들만 짧게 측정.
+- **Main** — process-flow step 명 suffix 가 `CD` 인 핵심 계측. 룰의 주 대상.
+- **추가계측** — step suffix `CD(E)`/`CD2`/`CD(F)`… 인 보조 계측. 엔지니어가 수시로 측정/스킵(`skip_yn`). **룰 검증 대상에서 제외**(표시는 되나 violation 없음).
+
+[[bucket]]과의 매핑: `only_sample`=Sample, `only_normal`=Main, **`all`=Main+추가계측**, `mother_normal`=Main(Mother 파라 view). 룰 검증은 `only_sample`→Sample 룰, 그 외 버킷→Main 룰(추가계측 행은 skip).
+
 ### Bucket (페이지 단위 기준 보기)
 
 Recipe step을 묶어 보는 4가지 보기 모드: `all`, `only_normal`, `mother_normal`, `only_sample`. [[mother-vs-son]] 관계가 bucket 선택의 의미를 결정합니다.
@@ -55,13 +71,25 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 **편집 권한과 위치**: 룰 편집은 **관리자 전용**, 별도 `/admin/measurement-rules` 페이지에서 수행합니다. 다른 사용자는 read-only — 신호등 색이 cross-team coordination 매체이므로 룰은 single source of truth여야 합니다. seed 룰과 그 read/write API는 `back_dev_home/ebeam/cdsem/device_statistics/rules.py` 에 위치하고, swap pattern에 따라 Phase 2/3에서 함수 시그니처 그대로 DB-backed 구현으로 교체됩니다.
 
-### Device Stage
+### Product Family (Core / Pool제 / VG·RTC·Cubic)
 
-디바이스 개발 단계 분류 — 현재 알려진 값: **EV / TV / PV / Pool제**. stage에 따라 허용되는 [[계측-룰]]이 달라집니다(중요도 높을수록 파라미터 허용량 ↑). **R&D fab(R3)에만 존재하는 축**이며, 양산 fab(M11/M12/M14/M15/M16)의 lot은 stage 개념이 없습니다. 따라서 룰 매트릭스도 R3에서는 `(stage × bucket)`이고 M-fab에서는 `bucket` 한 축만 갖습니다.
+개발 제품군 분류로, [[계측-룰]]을 가르는 축 중 하나. **backend 가 `ctn_desc` 문자열에서 파생**합니다:
 
-stage 값은 **backend에서 `ctn_desc` 문자열로부터 추출**해 응답에 직접 실어 줍니다 (PV / EV / Pool 등의 단어 추출 로직). 프런트는 이미 정해진 `dev_stage` 컬럼을 소비만 합니다.
+- **Pool제** — `ctn_desc` 에 `"Pool"`/`"Pool제"` 포함.
+- **VG·RTC·Cubic** — `"vertical gate"`/`"vertical"`/`"RTC"`/`"Cubic"` 포함.
+- **Core** — 그 외 전부 (default).
 
-**추출 실패 시 fallback**: `ctn_desc` 에 stage 키워드가 없으면 *초기 개발 단계*로 간주해 **EV cap (가장 strict)** 을 적용합니다 — 안전상 가장 엄격한 룰을 걸어 두는 보수적 선택. 단 UI 칩 표시는 `[?]` 로 정직하게 노출해 "fallback 으로 EV cap 적용 중" 임을 tooltip 으로 부연, 데이터 품질 audit 가능성을 살려 둡니다.
+**우선순위 (다중 매치 시)**: 가장 구체적인 것 우선 → `VG·RTC·Cubic > Pool > Core`.
+
+> ⚠️ 이전 모델은 "Pool제" 를 [[phase]] 의 한 값으로 다뤘으나(§Flagged ambiguities), Pool제는 **phase 와 직교하는 product family** 로 확정. Pool제 제품도 t-EV→PV phase 를 거칩니다.
+
+### Phase (t-EV / EV / TV / PV)
+
+디바이스 개발 단계. [[product-family]]와 **직교**하는 룰 축. PV 는 양산 이관 직전으로 가장 중요. 룰은 종종 **"TV 이후"(TV + PV)** 를 한 묶음으로 다룹니다(예: Core 의 EDGE 16 증가). backend 가 `ctn_desc` 에서 추출(`PV`/`TV`/`EV`/`t-EV` 단어). 프런트는 파생된 컬럼을 소비만 합니다.
+
+**추출 실패 시 fallback**: phase 키워드가 없으면 *초기 개발 단계* 로 간주해 **가장 strict 한 룰(EV 급)** 을 적용 — 보수적 선택. UI 칩은 `[?]` 로 노출해 "fallback 적용 중" 을 tooltip 으로 부연, 데이터 품질 audit 가능성 유지.
+
+**fab 적용 범위**: ground rule 은 *개발 제품* 대상. R3(R&D) 적용은 확정, 양산 M-fab 의 family/phase 적용 여부는 [[analysis-scope]] 와 함께 별도 결정(grilling 진행 중).
 
 ### Lot Health Signal (신호등)
 
@@ -89,3 +117,39 @@ device-statistics 페이지는 두 audience를 동시에 섬깁니다.
 - **Executive (팀장 · 임원)** — 여러 lot의 정량적 비교를 한 장으로 보고, 최적화가 정체된 팀에 top-down directive를 발동. 필요 surface: lot-level 정량 차트(파라미터·운용 레시피수)와 [[lot-health-signal]].
 
 둘은 같은 URL을 공유합니다 — evidence artifact가 양방향으로 forward 되기 때문. 따라서 어떤 IA든 한 페이지에서 두 audience 모두를 first-class로 다뤄야 하며, 한쪽을 hide-by-tab 처리하면 forwarding 시 깨집니다.
+
+### 계측 포인트 샘플링 (Measurement Point Sampling)
+
+[[계측-룰]]/ground rule이 정한 "파라미터 타입별 측정 포인트 수"(예: EDGE 16)를 전제로, 그 N개 포인트를 **wafer 위 어디에 찍을지** 및 **정합성을 잃지 않고 몇 개까지 줄일 수 있는지**를 다루는 한 단계 안쪽 개념. ground rule(파라미터 타입 → 개수)과 **직교**한다.
+
+페이지의 역할은 **per-recipe 추천 도구** — 특정 recipe의 과거 포인트 데이터를 입력받아, 줄여도 [[계측-정합성]]이 유지되는 포인트 후보를 추천·시각화한다. 룰 수립이나 일괄 audit가 아니라, 엔지니어가 한 recipe를 다듬을 때 쓰는 분석 surface.
+
+포인트 단위 과거 데이터의 substrate는 [[msr-file]]에 이미 존재한다 — `chip_number`(웨이퍼 그리드 x,y), `chip_coordinate`/`stage_coordinate`(스테이지 µm), `mp_number`, `parameter`, `cd_value`.
+
+**추천 엔진은 데이터 양에 따라 두 모드**를 가지며, 엔지니어가 둘로 나눠 점검할 수 있다 (단일 알고리즘 아님):
+
+- **공간모델 모드 (Spatial-model)** — recipe history가 희소할 때(기본). 단일/소수 wafer의 **공간 상관**을 지오통계(variogram/kriging) 또는 GP 공분산으로 모델링하고, 부족분은 **동일 공정 step([[oper-id]]/layer)·유사 장비**로 풀링해 borrow strength (wafer CD signature는 공정 장비/스텝 물리에서 나오므로 — family/phase는 보조 필터). 다른 site로 잘 예측되는 site부터 greedy하게 제거.
+- **이력상관 모드 (History-correlation)** — 같은 recipe에 wafer가 충분히 쌓였을 때. `site × wafer` 행렬의 cross-run 상관/주성분으로 중복 site를 제거. 데이터가 적으면 과적합 위험이라 희소 모드로 후퇴.
+
+두 모드의 acceptance 기준([[계측-정합성]] = uniformity 일치)은 동일하다 — 다른 건 "어느 site를 버릴지" 고르는 selection mechanism뿐.
+
+### CDU / MTX (측정 의도)
+
+한 측정이 **무엇을 보려고** 포인트를 배치하는가. [[계측-포인트-샘플링]]의 방법론을 가르는 1차 축이다 — 두 의도는 통계 구조가 정반대다.
+
+- **CDU** — wafer 전체에서 CD 값의 **uniformity**를 본다. wafer를 일정 간격으로 나눠 측정. wafer는 원형이라 위치별로 CD가 매끄러운 공간 성향을 가짐 → "공간적으로 상관된 장을 최소 포인트로 추정"하는 문제.
+- **MTX** — wafer에서 **경향성(trend)**을 본다. 위치에 따라 CD size가 의도적으로 다르도록 공정되어, 가로·세로로 쭉 찍어 실험 경향을 파악 → "설계된 gradient를 잃지 않을 만큼만 측정"하는 문제.
+
+### 계측 정합성 (Measurement Fidelity)
+
+[[계측-포인트-샘플링]] 추천을 사용자가 받아들일지 가르는 **acceptance 기준**. CDU에서는 **줄인 포인트로 계산한 uniformity 지표가 full set과 허용오차 이내**임을 뜻한다. CDU의 결과물 자체가 uniformity이므로, 평균 CD 일치만으로는(산포를 놓쳐) 부족하다. 측정은 **leave-one-wafer-out 교차검증의 worst-case gap**으로 한다 — 최악 wafer에서도 축소·full uniformity 차이가 tolerance 이내일 때만 추천을 채택(평균이 아닌 최악값 기준).
+
+"유지 **또는 향상**" — 포인트를 줄였는데 정합성이 *오르는* 경우는 redundant 제거가 아니라 **불량 포인트**(에지/노치 근처, align fail, 측정 artifact) 제거로 uniformity 추정이 더 견고해질 때다. 따라서 엔진은 "중복 제거 + 불량 포인트 식별" 두 역할을 가진다.
+
+역할 구분(한 단어로 뭉치지 말 것): **acceptance metric**(이 정합성 정의) vs **selection mechanism**(어느 포인트를 버릴지 고르는 엔진 내부 통계) vs **시각 확인**(wafer map signature). 뒤 둘은 acceptance metric에 종속된 하위 개념.
+
+> ⚠️ 미정: uniformity 지표를 **range(max−min)** 로 볼지 **3σ** 로 볼지. range는 단일 outlier에 민감, 3σ는 견고. tolerance 정의와 함께 확정 예정.
+
+## Flagged ambiguities
+
+- **"Pool" — stage 인가 product family 인가 (✅ 해소)**: 이전 모델은 "Pool제" 를 [[phase]](구 Device Stage) 의 한 값으로 다뤘으나, [[product-family]]로 확정 — phase 와 직교. mock `data.py:64` 의 `DEV_PHASES` 가 `Pool` 을 phase 토큰에 섞어 둔 것은 추후 데이터 정비 시 분리 대상.
