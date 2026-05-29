@@ -9,7 +9,7 @@ export interface StorageRow {
   used: string
   avail: string
   percent: string
-  storage_mt: string
+  storage_mt: string | null
   rcp_counts: number
   rcp_counts_mt: string
   storage_mt_date: string
@@ -17,7 +17,12 @@ export interface StorageRow {
   eqp_model_cd: string
 }
 
-export interface UnavailableRow {
+// A tool whose storage collection failed: no sample timestamp or no avail value.
+// Mirrors back_dev_home storage data.py (storage_mt is None / avail is "").
+export const isStorageUnavailable = (row: StorageRow): boolean =>
+  !row.storage_mt || !row.avail
+
+export interface PpidUnavailableRow {
   eqp_id: string
   eqp_ip: string
   fac_id: string
@@ -26,9 +31,9 @@ export interface UnavailableRow {
   missing_days_streak: number
 }
 
-export interface StorageUnavailableSnapshot {
+export interface PpidUnavailableSnapshot {
   latest_date: string
-  rows: UnavailableRow[]
+  rows: PpidUnavailableRow[]
 }
 
 // Storage is now namespaced per ebeam tool (matches back_dev_home/ebeam/<tool>/storage/).
@@ -44,7 +49,7 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
   const config = useRuntimeConfig()
   const slug = TOOL_TO_BACKEND_SLUG[tool]
   const storageUrl = joinApiPath(config.public.apiBase, `/${slug}/storage`)
-  const unavailableUrl = joinApiPath(config.public.apiBase, `/${slug}/storage-unavailable`)
+  const ppidUnavailableUrl = joinApiPath(config.public.apiBase, `/${slug}/ppid-unavailable`)
 
   const fetchStorageRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<StorageRow[]> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
@@ -52,10 +57,10 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
     return await $fetch<StorageRow[]>(storageUrl, { query, signal })
   }
 
-  const fetchUnavailableRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<StorageUnavailableSnapshot> => {
+  const fetchPpidUnavailableRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<PpidUnavailableSnapshot> => {
     const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
 
-    return await $fetch<StorageUnavailableSnapshot>(unavailableUrl, { query, signal })
+    return await $fetch<PpidUnavailableSnapshot>(ppidUnavailableUrl, { query, signal })
   }
 
   // Storage rows are aggregated at the fac level. The URL's fab segment may be a fab_name
@@ -66,15 +71,15 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
     return await fetchStorageRows([facId], signal)
   }
 
-  const fetchUnavailableByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<StorageUnavailableSnapshot> => {
+  const fetchPpidUnavailableByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<PpidUnavailableSnapshot> => {
     const facId = fabNameToFacId(urlFab)
-    return await fetchUnavailableRows([facId], signal)
+    return await fetchPpidUnavailableRows([facId], signal)
   }
 
   return {
     fetchStorageRows,
     fetchByUrlFab,
-    fetchUnavailableRows,
-    fetchUnavailableByUrlFab
+    fetchPpidUnavailableRows,
+    fetchPpidUnavailableByUrlFab
   }
 }

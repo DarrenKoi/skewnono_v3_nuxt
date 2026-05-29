@@ -56,9 +56,9 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     # hitachi storage (shared CD-SEM / HV-SEM)
     ("ebeam/hitachi/storage", "storage-cdsem.json", "/api/cdsem/storage"),
     ("ebeam/hitachi/storage", "storage-cdsem-r3.json", "/api/cdsem/storage?fac_id=R3"),
-    ("ebeam/hitachi/storage", "storage-cdsem-unavailable.json", "/api/cdsem/storage-unavailable"),
+    ("ebeam/hitachi/storage", "storage-cdsem-ppid-unavailable.json", "/api/cdsem/ppid-unavailable"),
     ("ebeam/hitachi/storage", "storage-hvsem.json", "/api/hvsem/storage"),
-    ("ebeam/hitachi/storage", "storage-hvsem-unavailable.json", "/api/hvsem/storage-unavailable"),
+    ("ebeam/hitachi/storage", "storage-hvsem-ppid-unavailable.json", "/api/hvsem/ppid-unavailable"),
 
     # hitachi recipe-tat (tool_slug in URL; URL is authoritative)
     ("ebeam/hitachi/recipe_tat", "ranking-cdsem.json", "/api/cdsem/recipe-tat/ranking"),
@@ -79,7 +79,7 @@ def _truncate(payload: Any, max_rows: int = 30) -> Any:
     """Cap large arrays so fixtures stay reviewable.
 
     프론트엔드는 수천 행을 받지만 픽스처는 형태 검증용입니다. 길이 자체가
-    의미 있는 경우(예: storage-unavailable 의 streak 분포)는 max_rows 가
+    의미 있는 경우(예: ppid-unavailable 의 streak 분포)는 max_rows 가
     충분히 크게 설정되어 있고, 형태만 보면 되는 경우는 30 행으로 줄여
     사무실 LLM 컨텍스트 비용을 아낍니다.
     """

@@ -148,12 +148,12 @@ const apiGroups: ApiGroup[] = [
       },
       {
         method: 'GET',
-        path: '/api/{tool_slug}/storage-unavailable',
-        summary: 'storage unavailable 장비 목록을 반환합니다.',
+        path: '/api/{tool_slug}/ppid-unavailable',
+        summary: 'PPID(레시피) 접근 불가 장비 목록을 반환합니다. (sem_list와 IP 매칭)',
         params: 'fac_id=M11,M14 optional',
-        response: 'StorageUnavailableRow[]',
+        response: 'PpidUnavailableSnapshot',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/storage-unavailable"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/ppid-unavailable"'
       },
       {
         method: 'GET',

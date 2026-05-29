@@ -4,7 +4,7 @@
       :eyebrow="eyebrow"
       title="장비 상태"
       :subtitle="subtitle"
-      cadence="매일 08:30"
+      cadence="매일 04:30"
       :stats="metaStats"
     >
       <template #toggle>
@@ -124,7 +124,20 @@
           <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #percent-cell="{ row }">
-          <div class="flex items-center gap-2 min-w-[10rem]">
+          <div
+            v-if="storageNa(row.original)"
+            class="flex items-center gap-1.5 min-w-[10rem] text-(--sk-ink-muted)"
+          >
+            <UIcon
+              name="i-lucide-circle-slash"
+              class="h-3.5 w-3.5 shrink-0"
+            />
+            <span class="text-[12px] italic">Storage N/A</span>
+          </div>
+          <div
+            v-else
+            class="flex items-center gap-2 min-w-[10rem]"
+          >
             <div class="flex-1 h-1.5 rounded-full bg-zinc-200/70 dark:bg-zinc-800/70 overflow-hidden">
               <div
                 class="h-full rounded-full transition-all"
@@ -139,13 +152,22 @@
           </div>
         </template>
         <template #total-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.total }}</span>
+          <span
+            class="font-mono tabular-nums text-[12.5px]"
+            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : ''"
+          >{{ storageNa(row.original) ? 'N/A' : row.original.total }}</span>
         </template>
         <template #used-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.used }}</span>
+          <span
+            class="font-mono tabular-nums text-[12.5px]"
+            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : ''"
+          >{{ storageNa(row.original) ? 'N/A' : row.original.used }}</span>
         </template>
         <template #avail-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.avail }}</span>
+          <span
+            class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)"
+            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : ''"
+          >{{ storageNa(row.original) ? 'N/A' : row.original.avail }}</span>
         </template>
         <template #rcp_counts-cell="{ row }">
           <span
@@ -162,7 +184,7 @@
           </span>
         </template>
         <template #storage_mt-cell="{ row }">
-          <span class="text-[12px] text-(--sk-ink) tabular-nums">{{ formatTimestamp(row.original.storage_mt) }}</span>
+          <span class="text-[12px] text-(--sk-ink) tabular-nums">{{ row.original.storage_mt ? formatTimestamp(row.original.storage_mt) : '—' }}</span>
         </template>
       </UTable>
     </UCard>
@@ -175,23 +197,23 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Storage Unreachable
+              PPID Unreachable
             </h2>
             <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
               Latest date:
-              <span class="font-mono tabular-nums">{{ unavailableLatestDate || '-' }}</span>
+              <span class="font-mono tabular-nums">{{ ppidLatestDate || '-' }}</span>
             </p>
           </div>
 
           <p class="text-xs text-(--sk-ink-muted) tabular-nums">
-            {{ filteredUnavailable.length }} of {{ unavailableRows.length }} tools
+            {{ filteredPpidUnavailable.length }} of {{ ppidUnavailableRows.length }} tools
           </p>
         </div>
       </template>
 
       <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
         <UInput
-          v-model="unavailableFilter"
+          v-model="ppidUnavailableFilter"
           class="flex-1 min-w-[14rem]"
           size="xs"
           icon="i-lucide-search"
@@ -206,29 +228,29 @@
           variant="outline"
           icon="i-lucide-rotate-ccw"
           label="Reset"
-          :disabled="!hasActiveUnavailableControls"
-          @click="resetUnavailableFilters"
+          :disabled="!hasActivePpidControls"
+          @click="resetPpidFilters"
         />
       </div>
 
       <div
-        v-if="unavailablePending"
+        v-if="ppidUnavailablePending"
         class="flex items-center justify-center gap-2 px-4 py-10 text-sm text-(--sk-ink-muted)"
       >
         <UIcon
           name="i-lucide-loader-circle"
           class="h-4 w-4 animate-spin"
         />
-        Loading daily unreachable data...
+        Loading daily PPID-unreachable data...
       </div>
       <div
-        v-else-if="unavailableError"
+        v-else-if="ppidUnavailableError"
         class="px-4 py-10 text-center text-sm text-rose-600 dark:text-rose-300"
       >
-        Failed to load unreachable list.
+        Failed to load PPID-unreachable list.
       </div>
       <div
-        v-else-if="unavailableRows.length === 0"
+        v-else-if="ppidUnavailableRows.length === 0"
         class="px-4 py-12 text-center"
       >
         <UIcon
@@ -236,14 +258,14 @@
           class="mx-auto mb-2 h-6 w-6 text-emerald-500/80"
         />
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          No tools missing from the latest storage snapshot.
+          No tools failed PPID access on the latest date.
         </p>
         <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
-          {{ props.fab }} {{ props.toolLabel }} on {{ unavailableLatestDate || 'the latest date' }}.
+          {{ props.fab }} {{ props.toolLabel }} on {{ ppidLatestDate || 'the latest date' }}.
         </p>
       </div>
       <div
-        v-else-if="filteredUnavailable.length === 0"
+        v-else-if="filteredPpidUnavailable.length === 0"
         class="px-4 py-10 text-center"
       >
         <UIcon
@@ -254,7 +276,7 @@
           No tools match the current search.
         </p>
         <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
-          {{ unavailableRows.length }} tools are hidden by search.
+          {{ ppidUnavailableRows.length }} tools are hidden by search.
         </p>
         <UButton
           class="mt-3"
@@ -263,21 +285,21 @@
           variant="outline"
           icon="i-lucide-rotate-ccw"
           label="Clear search"
-          @click="resetUnavailableFilters"
+          @click="resetPpidFilters"
         />
       </div>
       <UTable
         v-else
-        v-model:sorting="unavailableSorting"
+        v-model:sorting="ppidSorting"
         class="max-h-[22rem] font-mono-ids"
-        :columns="unavailableColumns"
-        :data="filteredUnavailable"
-        :meta="unavailableTableMeta"
+        :columns="ppidColumns"
+        :data="filteredPpidUnavailable"
+        :meta="ppidTableMeta"
         :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false, manualSorting: true }"
         sticky="header"
       >
         <template
-          v-for="head in unavailableSortableHeaders"
+          v-for="head in ppidSortableHeaders"
           :key="head.id"
           #[`${head.id}-header`]="{ column }"
         >
@@ -293,17 +315,23 @@
           </UButton>
         </template>
 
-        <template #eqp_id-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.eqp_id }}</span>
-        </template>
         <template #fab_name-cell="{ row }">
-          <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name }}</span>
+          <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name || '—' }}</span>
+        </template>
+        <template #eqp_id-cell="{ row }">
+          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.eqp_id || '—' }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
-          <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd }}</span>
+          <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd || '—' }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
           <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+        </template>
+        <template #missing_days_streak-cell="{ row }">
+          <span
+            class="inline-flex items-center justify-center min-w-[2rem] rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold tabular-nums"
+            :class="row.original.missing_days_streak >= 7 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-300' : 'bg-zinc-500/10 text-(--sk-ink-muted)'"
+          >{{ row.original.missing_days_streak }}d</span>
         </template>
       </UTable>
     </UCard>
@@ -314,7 +342,8 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
-import type { StorageRow, StorageTool, StorageUnavailableSnapshot, UnavailableRow } from '~/composables/useStorageApi'
+import type { StorageRow, StorageTool, PpidUnavailableSnapshot, PpidUnavailableRow } from '~/composables/useStorageApi'
+import { isStorageUnavailable } from '~/composables/useStorageApi'
 import type { MetaBarStat } from './MetaBar.vue'
 
 const props = defineProps<{
@@ -326,7 +355,7 @@ const props = defineProps<{
 // Backend storage routes only exist for cd-sem and hv-sem in 2026; default cd-sem
 // for any future toolType so the SPA still gets a sensible response.
 const storageTool: StorageTool = props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
-const { fetchByUrlFab, fetchUnavailableByUrlFab } = useStorageApi(storageTool)
+const { fetchByUrlFab, fetchPpidUnavailableByUrlFab } = useStorageApi(storageTool)
 
 // Meta bar (design option E): stable "장비 상태" title, fab as eyebrow, freshness
 // cadence carries the daily update timing the old subtitle used to spell out.
@@ -349,24 +378,26 @@ const { data, pending, error } = await useAsyncData(
 )
 
 const {
-  data: unavailableData,
-  pending: unavailablePending,
-  error: unavailableError
+  data: ppidUnavailableData,
+  pending: ppidUnavailablePending,
+  error: ppidUnavailableError
 } = await useAsyncData(
-  () => `storage-unavailable:${storageTool}:${props.fab}`,
-  () => fetchUnavailableByUrlFab(props.fab, abortController.signal),
+  () => `ppid-unavailable:${storageTool}:${props.fab}`,
+  () => fetchPpidUnavailableByUrlFab(props.fab, abortController.signal),
   {
     watch: [() => props.fab],
-    default: (): StorageUnavailableSnapshot => ({ latest_date: '', rows: [] }),
+    default: (): PpidUnavailableSnapshot => ({ latest_date: '', rows: [] }),
     getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
   }
 )
 
 const rows = computed(() => (data.value ?? []).filter(row => classifyToolType(row.eqp_model_cd) === props.toolType))
 
-const unavailableLatestDate = computed(() => unavailableData.value?.latest_date ?? '')
+const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? '')
 
-const unavailableRows = computed(() => (unavailableData.value?.rows ?? []).filter(row => classifyToolType(row.eqp_model_cd) === props.toolType))
+// Orphan rows (no sem_list match) have an empty eqp_model_cd; keep them so
+// data-quality gaps stay visible rather than silently filtered out.
+const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? []).filter(row => row.eqp_model_cd === '' || classifyToolType(row.eqp_model_cd) === props.toolType))
 
 const parsePercent = (label: string): number => {
   const parsed = Number.parseInt(label.replace('%', ''), 10)
@@ -380,6 +411,8 @@ const parseSizeGb = (label: string): number => {
   if (trimmed.endsWith('T')) return numeric * 1024
   return numeric
 }
+
+const storageNa = (row: StorageRow): boolean => isStorageUnavailable(row)
 
 const usageBarClass = (percent: number) => {
   if (percent >= 80) return 'bg-rose-500 dark:bg-rose-400'
@@ -431,7 +464,7 @@ const formatTimestamp = (iso: string) => {
 }
 
 const globalFilter = ref('')
-const usageFilter = ref<'all' | 'critical' | 'warning' | 'healthy'>('all')
+const usageFilter = ref<'all' | 'critical' | 'warning' | 'healthy' | 'unavailable'>('all')
 const defaultSortPreset = 'percent:desc'
 const storageSorting = ref<SortingState>([
   {
@@ -444,7 +477,8 @@ const usageFilterOptions = [
   { label: 'All Usage', value: 'all' },
   { label: 'Critical (>=80%)', value: 'critical' },
   { label: 'Warning (60-79%)', value: 'warning' },
-  { label: 'Healthy (<60%)', value: 'healthy' }
+  { label: 'Healthy (<60%)', value: 'healthy' },
+  { label: 'Not available', value: 'unavailable' }
 ]
 
 const sortOptions = [
@@ -510,11 +544,13 @@ const readStorageSortValue = (row: StorageRow, key: keyof StorageRow) => {
   if (key === 'percent') return parsePercent(row.percent)
   if (key === 'total' || key === 'used' || key === 'avail') return parseSizeGb(row[key])
   if (key === 'storage_mt') {
-    const timestamp = Date.parse(row.storage_mt)
-    return Number.isFinite(timestamp) ? timestamp : row.storage_mt
+    const raw = row.storage_mt
+    if (!raw) return 0
+    const timestamp = Date.parse(raw)
+    return Number.isFinite(timestamp) ? timestamp : raw
   }
 
-  return row[key]
+  return row[key] ?? ''
 }
 
 const compareStorageRows = (left: StorageRow, right: StorageRow, key: keyof StorageRow) => {
@@ -551,7 +587,11 @@ const filteredRows = computed(() => {
       }
     }
 
-    if (usage !== 'all') {
+    const na = storageNa(row)
+    if (usage === 'unavailable') {
+      if (!na) return false
+    } else if (usage !== 'all') {
+      if (na) return false
       const pct = parsePercent(row.percent)
       if (usage === 'critical' && pct < 80) return false
       if (usage === 'warning' && (pct < 60 || pct >= 80)) return false
@@ -563,34 +603,36 @@ const filteredRows = computed(() => {
 
   const currentSort = storageSorting.value[0]
 
-  if (!currentSort) {
-    return matched
+  // Storage-N/A rows have no percent/capacity to rank, so they always sit at
+  // the bottom regardless of the active sort.
+  const available = matched.filter(row => !storageNa(row))
+  const unavailable = matched.filter(row => storageNa(row))
+
+  if (currentSort) {
+    const key = currentSort.id as keyof StorageRow
+    const direction = currentSort.desc ? -1 : 1
+    available.sort((a, b) => {
+      const sortResult = compareStorageRows(a, b, key)
+      if (sortResult !== 0) return sortResult * direction
+      return sortCollator.compare(a.eqp_id, b.eqp_id)
+    })
   }
 
-  const key = currentSort.id as keyof StorageRow
-  const direction = currentSort.desc ? -1 : 1
+  unavailable.sort((a, b) => sortCollator.compare(a.eqp_id, b.eqp_id))
 
-  return [...matched].sort((a, b) => {
-    const sortResult = compareStorageRows(a, b, key)
-
-    if (sortResult !== 0) {
-      return sortResult * direction
-    }
-
-    return sortCollator.compare(a.eqp_id, b.eqp_id)
-  })
+  return [...available, ...unavailable]
 })
 
 const summary = computed(() => {
-  const total = rows.value.length
-  if (total === 0) {
-    return { total: 0, critical: 0, warning: 0, healthy: 0 }
-  }
-
   let critical = 0
   let warning = 0
   let healthy = 0
+  let na = 0
   for (const row of rows.value) {
+    if (storageNa(row)) {
+      na++
+      continue
+    }
     const pct = parsePercent(row.percent)
     if (pct >= 80) critical++
     else if (pct >= 60) warning++
@@ -598,10 +640,11 @@ const summary = computed(() => {
   }
 
   return {
-    total,
+    total: rows.value.length,
     critical,
     warning,
-    healthy
+    healthy,
+    na
   }
 })
 
@@ -609,7 +652,8 @@ const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'total', label: 'Total Tools', value: summary.value.total, tone: 'neutral' },
   { key: 'critical', label: 'Critical', value: summary.value.critical, tone: 'bad' },
   { key: 'warning', label: 'Warning', value: summary.value.warning, tone: 'warn' },
-  { key: 'healthy', label: 'Healthy', value: summary.value.healthy, tone: 'ok' }
+  { key: 'healthy', label: 'Healthy', value: summary.value.healthy, tone: 'ok' },
+  { key: 'na', label: 'Storage N/A', value: summary.value.na, tone: 'neutral' }
 ])
 
 const hasActiveControls = computed(() => {
@@ -664,16 +708,16 @@ const storageSortableHeaders = storageColumnConfigs.map(column => ({
   label: column.header
 }))
 
-const unavailableFilter = ref('')
-const defaultUnavailableSort = {
-  id: 'fab_name',
-  desc: false
+const ppidUnavailableFilter = ref('')
+const defaultPpidSort = {
+  id: 'missing_days_streak',
+  desc: true
 }
-const unavailableSorting = ref<SortingState>([
-  defaultUnavailableSort
+const ppidSorting = ref<SortingState>([
+  defaultPpidSort
 ])
 
-const compareUnavailableRows = (left: UnavailableRow, right: UnavailableRow, key: keyof UnavailableRow) => {
+const comparePpidRows = (left: PpidUnavailableRow, right: PpidUnavailableRow, key: keyof PpidUnavailableRow) => {
   const leftValue = left[key]
   const rightValue = right[key]
 
@@ -684,10 +728,10 @@ const compareUnavailableRows = (left: UnavailableRow, right: UnavailableRow, key
   return sortCollator.compare(String(leftValue), String(rightValue))
 }
 
-const filteredUnavailable = computed(() => {
-  const term = unavailableFilter.value.trim().toLowerCase()
+const filteredPpidUnavailable = computed(() => {
+  const term = ppidUnavailableFilter.value.trim().toLowerCase()
 
-  const matched = unavailableRows.value.filter((row) => {
+  const matched = ppidUnavailableRows.value.filter((row) => {
     if (!term) return true
     const hay = [
       row.eqp_id,
@@ -698,42 +742,42 @@ const filteredUnavailable = computed(() => {
     return hay.some(v => v.toLowerCase().includes(term))
   })
 
-  const currentSort = unavailableSorting.value[0]
+  const currentSort = ppidSorting.value[0]
 
   if (!currentSort) {
     return matched
   }
 
-  const key = currentSort.id as keyof UnavailableRow
+  const key = currentSort.id as keyof PpidUnavailableRow
   const direction = currentSort.desc ? -1 : 1
 
   return [...matched].sort((a, b) => {
-    const sortResult = compareUnavailableRows(a, b, key)
+    const sortResult = comparePpidRows(a, b, key)
 
     if (sortResult !== 0) {
       return sortResult * direction
     }
 
-    return sortCollator.compare(a.eqp_id, b.eqp_id)
+    return sortCollator.compare(a.eqp_ip, b.eqp_ip)
   })
 })
 
-const hasActiveUnavailableControls = computed(() => {
-  const currentSort = unavailableSorting.value[0]
+const hasActivePpidControls = computed(() => {
+  const currentSort = ppidSorting.value[0]
 
-  return unavailableFilter.value.length > 0
-    || currentSort?.id !== defaultUnavailableSort.id
-    || currentSort?.desc !== defaultUnavailableSort.desc
+  return ppidUnavailableFilter.value.length > 0
+    || currentSort?.id !== defaultPpidSort.id
+    || currentSort?.desc !== defaultPpidSort.desc
 })
 
-const resetUnavailableFilters = () => {
-  unavailableFilter.value = ''
-  unavailableSorting.value = [
-    defaultUnavailableSort
+const resetPpidFilters = () => {
+  ppidUnavailableFilter.value = ''
+  ppidSorting.value = [
+    defaultPpidSort
   ]
 }
 
-const unavailableTableMeta = {
+const ppidTableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
     td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
@@ -741,25 +785,26 @@ const unavailableTableMeta = {
   }
 }
 
-type UnavailableColumnConfig = {
-  id: keyof UnavailableRow
+type PpidColumnConfig = {
+  id: keyof PpidUnavailableRow
   header: string
   size: number
 }
 
-const unavailableColumnConfigs: UnavailableColumnConfig[] = [
+const ppidColumnConfigs: PpidColumnConfig[] = [
+  { id: 'missing_days_streak', header: 'Days Down', size: 88 },
   { id: 'fab_name', header: 'Fab', size: 64 },
   { id: 'eqp_id', header: 'Equipment ID', size: 130 },
   { id: 'eqp_model_cd', header: 'Model', size: 130 },
   { id: 'eqp_ip', header: 'IP Address', size: 140 }
 ]
 
-const unavailableColumns: TableColumn<UnavailableRow>[] = unavailableColumnConfigs.map(({ id, ...column }) => ({
+const ppidColumns: TableColumn<PpidUnavailableRow>[] = ppidColumnConfigs.map(({ id, ...column }) => ({
   accessorKey: id,
   ...column
 }))
 
-const unavailableSortableHeaders = unavailableColumnConfigs.map(column => ({
+const ppidSortableHeaders = ppidColumnConfigs.map(column => ({
   id: column.id,
   label: column.header
 }))
