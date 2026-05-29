@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from .._tool_specs import VALID_TOOL_SLUGS
-from .data import get_storage, get_storage_unavailable
+from .data import get_storage, get_ppid_unavailable
 
 
 bp = Blueprint("hitachi_storage", __name__)
@@ -26,11 +26,11 @@ def storage(tool_slug: str):
     return jsonify(rows)
 
 
-@bp.get("/<tool_slug>/storage-unavailable")
-def storage_unavailable(tool_slug: str):
+@bp.get("/<tool_slug>/ppid-unavailable")
+def ppid_unavailable(tool_slug: str):
     slug = _validate_slug(tool_slug)
     if not slug:
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
 
-    rows = get_storage_unavailable(slug, _parse_fac_ids())
+    rows = get_ppid_unavailable(slug, _parse_fac_ids())
     return jsonify(rows)

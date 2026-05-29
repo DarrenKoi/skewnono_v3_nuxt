@@ -14,16 +14,21 @@ import random
 from datetime import date, datetime, timedelta, timezone
 from typing import TypedDict
 
-from .._tool_specs import TOOL_SPECS, ToolSlug
+from .._tool_specs import (
+    SLUG_TO_TOOL_TYPE,
+    TOOL_SPECS,
+    ToolSlug,
+    model_to_tool_type,
+)
+from ....sem_list.data import get_sem_list
 
 
 __all__ = [
     "StorageRow",
-    "UnavailableSnapshotRow",
-    "UnavailableRow",
-    "StorageUnavailableSnapshot",
+    "PpidUnavailableRow",
+    "PpidUnavailableSnapshot",
     "get_storage",
-    "get_storage_unavailable",
+    "get_ppid_unavailable",
 ]
 
 
@@ -31,14 +36,14 @@ class StorageRow(TypedDict):
     eqp_id: str
     eqp_ip: str
     fac_id: str
-    total: str
-    used: str
-    avail: str
-    percent: str
-    storage_mt: str
+    total: str            # "" when storage collection failed
+    used: str             # "" when storage collection failed
+    avail: str            # "" when storage collection failed
+    percent: str          # "" when storage collection failed
+    storage_mt: str | None  # None when storage collection failed
     rcp_counts: int
     rcp_counts_mt: str
-    storage_mt_date: str
+    storage_mt_date: str  # "" when storage collection failed
     fab_name: str
     eqp_model_cd: str
 
@@ -82,6 +87,52 @@ def _generate_rows(tool_slug: ToolSlug, n_rows: int = 300, seed: int = 42) -> li
         ip_prefix = rng.choice(IP_PREFIXES)
         eqp_ip = f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
 
+        # Sample timestamp drives both storage_mt and rcp_counts_mt; recipe
+        # (ppid) counting is a separate collection path from storage capacity.
+        sample_base = now - timedelta(
+            days=rng.uniform(0, 7),
+            hours=rng.randint(0, 23),
+            minutes=rng.randint(0, 59),
+            seconds=rng.randint(0, 59),
+            microseconds=rng.randint(0, 999999)
+        )
+
+        # Tools cap at 50,000 recipes. Seed a realistic mix so the UI's
+        # warning (>49,000) and critical (>49,800) tiers are exercised.
+        rcp_roll = rng.random()
+        if rcp_roll < 0.08:
+            rcp_counts = rng.randint(49_801, 49_990)
+        elif rcp_roll < 0.20:
+            rcp_counts = rng.randint(49_001, 49_800)
+        elif rcp_roll < 0.40:
+            rcp_counts = rng.randint(35_000, 49_000)
+        else:
+            rcp_counts = rng.randint(2_000, 35_000)
+        rcp_counts_mt = sample_base + timedelta(
+            hours=rng.uniform(-0.5, 0.5),
+            microseconds=rng.randint(0, 999999)
+        )
+
+        # ~8% of tools fail storage collection: storage_mt is None and the
+        # capacity fields are blank, but recipe counts still report.
+        if rng.random() < 0.08:
+            rows.append(StorageRow(
+                eqp_id=eqp_id,
+                eqp_ip=eqp_ip,
+                fac_id=fac_id,
+                total="",
+                used="",
+                avail="",
+                percent="",
+                storage_mt=None,
+                rcp_counts=rcp_counts,
+                rcp_counts_mt=_iso_z(rcp_counts_mt),
+                storage_mt_date="",
+                fab_name=fab_name,
+                eqp_model_cd=model
+            ))
+            continue
+
         # Capacity: 70% chance GB (500-999), 30% chance TB (1.0-2.0)
         if rng.random() < 0.7:
             total_gb_value = rng.randint(500, 999)
@@ -100,30 +151,6 @@ def _generate_rows(tool_slug: ToolSlug, n_rows: int = 300, seed: int = 42) -> li
         avail_label = _format_size_gb(avail_value)
         percent_label = f"{int(used_ratio * 100)}%"
 
-        days_ago = rng.uniform(0, 7)
-        storage_mt = now - timedelta(
-            days=days_ago,
-            hours=rng.randint(0, 23),
-            minutes=rng.randint(0, 59),
-            seconds=rng.randint(0, 59),
-            microseconds=rng.randint(0, 999999)
-        )
-        # Tools cap at 50,000 recipes. Seed a realistic mix so the UI's
-        # warning (>49,000) and critical (>49,800) tiers are exercised.
-        rcp_roll = rng.random()
-        if rcp_roll < 0.08:
-            rcp_counts = rng.randint(49_801, 49_990)
-        elif rcp_roll < 0.20:
-            rcp_counts = rng.randint(49_001, 49_800)
-        elif rcp_roll < 0.40:
-            rcp_counts = rng.randint(35_000, 49_000)
-        else:
-            rcp_counts = rng.randint(2_000, 35_000)
-        rcp_counts_mt = storage_mt + timedelta(
-            hours=rng.uniform(-0.5, 0.5),
-            microseconds=rng.randint(0, 999999)
-        )
-
         rows.append(StorageRow(
             eqp_id=eqp_id,
             eqp_ip=eqp_ip,
@@ -132,10 +159,10 @@ def _generate_rows(tool_slug: ToolSlug, n_rows: int = 300, seed: int = 42) -> li
             used=used_label,
             avail=avail_label,
             percent=percent_label,
-            storage_mt=_iso_z(storage_mt),
+            storage_mt=_iso_z(sample_base),
             rcp_counts=rcp_counts,
             rcp_counts_mt=_iso_z(rcp_counts_mt),
-            storage_mt_date=storage_mt.date().isoformat(),
+            storage_mt_date=sample_base.date().isoformat(),
             fab_name=fab_name,
             eqp_model_cd=model
         ))
@@ -157,153 +184,130 @@ def get_storage(tool_slug: ToolSlug, fac_ids: list[str] | None = None) -> list[S
 
 
 # ---------------------------------------------------------------------------
-# Storage Unreachable: daily snapshots of tools missing from storage inventory.
-# The source shape mirrors Phase 2 data: {"YYYY-MM-DD": dataframe-like rows}.
+# PPID not available: tools whose recipe/ppid endpoint could not be reached.
+# Office source: Redis hash 'v3_hitachi_sem_ppid_not_avail',
+#   hget(key, "%Y%m%d") -> not_avail_ip_list (list[str] of eqp_ip), kept 30 days.
+# Only IPs are stored, so each IP is joined against sem_list to enrich; IPs with
+# no sem_list match surface as orphan rows (IP only).
 # ---------------------------------------------------------------------------
 
 
-class UnavailableSnapshotRow(TypedDict):
+class PpidUnavailableRow(TypedDict):
     eqp_id: str
     eqp_ip: str
     fac_id: str
     fab_name: str
     eqp_model_cd: str
-
-
-class UnavailableRow(UnavailableSnapshotRow):
     missing_days_streak: int
 
 
-class StorageUnavailableSnapshot(TypedDict):
+class PpidUnavailableSnapshot(TypedDict):
     latest_date: str
-    rows: list[UnavailableRow]
+    rows: list[PpidUnavailableRow]
 
 
-MOCK_UNAVAILABLE_LATEST_DATE = date(2026, 5, 26)
-MOCK_UNAVAILABLE_DAYS = 8
+MOCK_PPID_LATEST_DATE = date(2026, 5, 26)
+MOCK_PPID_WINDOW_DAYS = 30
 
 
-def _generate_unavailable_tool_pool(
-    tool_slug: ToolSlug,
-    n_tools: int,
-    rng: random.Random
-) -> list[UnavailableSnapshotRow]:
-    spec = TOOL_SPECS[tool_slug]
-    eqp_models = spec["eqp_models"]
-    eqp_prefixes = spec["eqp_prefixes"]
-
-    rows: list[UnavailableSnapshotRow] = []
-
-    for idx in range(n_tools):
-        fac_id = rng.choice(FAC_IDS)
-        if fac_id == "R3" and rng.random() < 0.3:
-            fab_name = "R4"
-        else:
-            fab_name = fac_id + rng.choice(FAB_SUFFIXES)
-
-        eqp_prefix = rng.choice(eqp_prefixes)
-        ip_prefix = rng.choice(IP_PREFIXES)
-
-        rows.append(UnavailableSnapshotRow(
-            eqp_id=f"{eqp_prefix}{5000 + idx}",
-            eqp_ip=f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}",
-            fac_id=fac_id,
-            fab_name=fab_name,
-            eqp_model_cd=rng.choice(eqp_models),
-        ))
-
-    return rows
+def _ymd(value: date) -> str:
+    return value.strftime("%Y%m%d")
 
 
-def _generate_unavailable_snapshots(
-    tool_slug: ToolSlug,
-    n_tools: int = 84,
-    n_latest_rows: int = 60,
-    seed: int = 43
-) -> dict[str, list[UnavailableSnapshotRow]]:
+def _generate_ppid_snapshots(tool_slug: ToolSlug, seed: int = 43) -> dict[str, list[str]]:
+    """Redis-shaped mock: {"YYYYMMDD": [eqp_ip, ...]} for the last 30 days."""
     rng = random.Random(seed)
-    tools = _generate_unavailable_tool_pool(tool_slug, n_tools, rng)
-    latest_date = MOCK_UNAVAILABLE_LATEST_DATE
-    snapshot_dates = [
-        latest_date - timedelta(days=offset)
-        for offset in range(MOCK_UNAVAILABLE_DAYS - 1, -1, -1)
+    tool_type = SLUG_TO_TOOL_TYPE[tool_slug]
+    sem_rows = [
+        row for row in get_sem_list()
+        if model_to_tool_type(row["eqp_model_cd"]) == tool_type
     ]
-    snapshots: dict[str, list[UnavailableSnapshotRow]] = {
-        snapshot_date.isoformat(): []
-        for snapshot_date in snapshot_dates
+
+    latest = MOCK_PPID_LATEST_DATE
+    snapshots: dict[str, list[str]] = {
+        _ymd(latest - timedelta(days=offset)): []
+        for offset in range(MOCK_PPID_WINDOW_DAYS)
     }
 
-    latest_tools = tools[:n_latest_rows]
-    historical_tools = tools[n_latest_rows:]
+    if sem_rows:
+        failing = rng.sample(sem_rows, max(1, int(len(sem_rows) * 0.4)))
+    else:
+        failing = []
+    n_current = len(failing) // 2
 
-    for tool in latest_tools:
-        streak_length = rng.randint(1, MOCK_UNAVAILABLE_DAYS)
-        for offset in range(streak_length):
-            snapshot_key = (latest_date - timedelta(days=offset)).isoformat()
-            snapshots[snapshot_key].append(tool)
+    # Currently unreachable: a streak ending at the latest date.
+    for row in failing[:n_current]:
+        streak = rng.randint(1, MOCK_PPID_WINDOW_DAYS)
+        for offset in range(streak):
+            snapshots[_ymd(latest - timedelta(days=offset))].append(row["eqp_ip"])
 
-    for tool in historical_tools:
-        last_missing_offset = rng.randint(1, MOCK_UNAVAILABLE_DAYS - 1)
-        duration = rng.randint(1, min(3, MOCK_UNAVAILABLE_DAYS - last_missing_offset))
-        for offset in range(last_missing_offset, last_missing_offset + duration):
-            snapshot_key = (latest_date - timedelta(days=offset)).isoformat()
-            snapshots[snapshot_key].append(tool)
+    # Failed earlier in the window then recovered (absent from the latest date).
+    for row in failing[n_current:]:
+        start = rng.randint(1, MOCK_PPID_WINDOW_DAYS - 1)
+        duration = rng.randint(1, min(4, MOCK_PPID_WINDOW_DAYS - start))
+        for offset in range(start, start + duration):
+            snapshots[_ymd(latest - timedelta(days=offset))].append(row["eqp_ip"])
 
-    for snapshot_key, rows in snapshots.items():
-        snapshots[snapshot_key] = sorted(rows, key=lambda row: row["eqp_id"])
+    # A few orphan IPs absent from sem_list (e.g. decommissioned but still failing).
+    for idx in range(3):
+        orphan_ip = f"177.{200 + idx}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
+        streak = rng.randint(1, 6)
+        for offset in range(streak):
+            snapshots[_ymd(latest - timedelta(days=offset))].append(orphan_ip)
 
     return snapshots
 
 
-def _missing_days_streak(
-    eqp_id: str,
-    latest_date: date,
-    eqp_ids_by_date: dict[str, set[str]]
-) -> int:
+def _ppid_streak(eqp_ip: str, latest_date: date, ip_by_date: dict[str, set[str]]) -> int:
     streak = 0
     cursor = latest_date
-
-    while eqp_id in eqp_ids_by_date.get(cursor.isoformat(), set()):
+    while eqp_ip in ip_by_date.get(_ymd(cursor), set()):
         streak += 1
         cursor -= timedelta(days=1)
-
     return streak
 
 
-def get_storage_unavailable(
+def get_ppid_unavailable(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None
-) -> StorageUnavailableSnapshot:
-    snapshots = _generate_unavailable_snapshots(tool_slug)
-    latest_key = max(snapshots)
-    latest_date = date.fromisoformat(latest_key)
+    fac_ids: list[str] | None = None,
+) -> PpidUnavailableSnapshot:
+    snapshots = _generate_ppid_snapshots(tool_slug)
+    latest_key = max(snapshots)  # compact YYYYMMDD sorts chronologically
+    latest_date = datetime.strptime(latest_key, "%Y%m%d").date()
+
+    ip_by_date = {key: set(ips) for key, ips in snapshots.items()}
+    sem_by_ip = {row["eqp_ip"]: row for row in get_sem_list()}
+
     normalized = {
         fac_id.strip().upper()
         for fac_id in (fac_ids or [])
         if fac_id.strip()
     }
-    eqp_ids_by_date = {
-        snapshot_key: {row["eqp_id"] for row in rows}
-        for snapshot_key, rows in snapshots.items()
-    }
-    rows: list[UnavailableRow] = []
 
-    for row in snapshots[latest_key]:
-        if normalized and row["fac_id"] not in normalized:
+    rows: list[PpidUnavailableRow] = []
+    for eqp_ip in snapshots[latest_key]:
+        match = sem_by_ip.get(eqp_ip)
+        fac_id = match["fac_id"] if match else ""
+        fab_name = match["fab_name"] if match else ""
+        eqp_id = match["eqp_id"] if match else ""
+        eqp_model_cd = match["eqp_model_cd"] if match else ""
+
+        # A fac filter drops orphan rows (they have no fac_id to match).
+        if normalized and fac_id not in normalized:
             continue
 
-        rows.append(UnavailableRow(
-            **row,
-            missing_days_streak=_missing_days_streak(
-                row["eqp_id"],
-                latest_date,
-                eqp_ids_by_date
-            ),
+        rows.append(PpidUnavailableRow(
+            eqp_id=eqp_id,
+            eqp_ip=eqp_ip,
+            fac_id=fac_id,
+            fab_name=fab_name,
+            eqp_model_cd=eqp_model_cd,
+            missing_days_streak=_ppid_streak(eqp_ip, latest_date, ip_by_date),
         ))
 
-    rows.sort(key=lambda row: (-row["missing_days_streak"], row["eqp_id"]))
+    rows.sort(key=lambda row: (-row["missing_days_streak"], row["eqp_ip"]))
 
     return {
-        "latest_date": latest_key,
+        "latest_date": latest_date.isoformat(),
         "rows": rows,
     }
