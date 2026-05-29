@@ -22,25 +22,28 @@ types:
     total:
       type: string
       format: "<int>G or <float>T"
-      description: Human-readable total storage size
+      description: Human-readable total storage size. Empty string when storage collection failed (storage not available).
       examples: ["750G", "999G", "1.5T"]
     used:
       type: string
       format: "<int>G or <float>T"
+      description: Empty string when storage collection failed.
     avail:
       type: string
       format: "<int>G or <float>T"
+      description: Empty string when storage collection failed (one of the two storage-not-available markers).
     percent:
       type: string
       format: "<int>%"
+      description: Empty string when storage collection failed.
     storage_mt:
-      type: string
-      format: "ISO 8601 UTC ending in Z"
-      description: Last storage-monitor sample timestamp
+      type: "string | null"
+      format: "ISO 8601 UTC ending in Z, or null when storage collection failed"
+      description: Last storage-monitor sample timestamp. Null is the primary storage-not-available marker.
     storage_mt_date:
       type: string
       format: "YYYY-MM-DD"
-      description: Date portion of storage_mt for table grouping
+      description: Date portion of storage_mt for table grouping. Empty string when storage collection failed.
     rcp_counts:
       type: integer
       description: Recipe count on the tool. Cap is 50000; UI shows warning >49000, critical >49800.
@@ -48,28 +51,33 @@ types:
       type: string
       format: "ISO 8601 UTC ending in Z"
 
-  UnavailableRow:
+  PpidUnavailableRow:
     eqp_id:
       type: string
+      description: From sem_list join; empty string for orphan IPs with no sem_list match.
     eqp_ip:
       type: string
+      description: The only field stored in Redis; everything else is enriched via the sem_list join.
     fac_id:
       type: string
+      description: From sem_list join; empty for orphan IPs.
     fab_name:
       type: string
+      description: From sem_list join; empty for orphan IPs.
     eqp_model_cd:
       type: string
+      description: From sem_list join; empty for orphan IPs.
     missing_days_streak:
       type: integer
-      description: Consecutive days the tool has been missing from snapshots, ending at latest_date
+      description: Consecutive days the tool's PPID endpoint has been unreachable, ending at latest_date
 
-  StorageUnavailableSnapshot:
+  PpidUnavailableSnapshot:
     latest_date:
       type: string
       format: "YYYY-MM-DD"
     rows:
       type: array
-      items: UnavailableRow
+      items: PpidUnavailableRow
 
 endpoints:
   - path: /api/cdsem/storage
@@ -86,18 +94,26 @@ endpoints:
         type: array
         items: StorageRow
 
-  - path: /api/cdsem/storage-unavailable
+  - path: /api/cdsem/ppid-unavailable
     method: GET
-    description: Latest snapshot of CD-SEM tools missing from storage inventory, with consecutive-missing streak
+    description: >-
+      Latest daily snapshot of CD-SEM tools whose PPID (recipe) endpoint was
+      unreachable, with consecutive-days-unreachable streak. Source: Redis hash
+      'v3_hitachi_sem_ppid_not_avail', hget(key, "%Y%m%d") -> list of eqp_ip,
+      retained 30 days; IPs are joined against sem-list to enrich. Unmatched
+      (orphan) IPs appear with eqp_ip only.
     query_params:
       fac_id:
         type: string
         required: false
+        description: Comma-separated fac_ids; orphan rows (no fac_id) are dropped when set.
     response:
       status: 200
-      body: StorageUnavailableSnapshot
+      body: PpidUnavailableSnapshot
 
 notes:
-  - Phase 1 generator seeds 300 tools with deterministic random.Random(seed=42) and 8 days of unavailable snapshots from random.Random(seed=43). Office should query the same monitoring index that feeds these dashboards.
+  - Phase 1 storage generator seeds 300 tools with deterministic random.Random(seed=42). Office should query the same monitoring index that feeds these dashboards.
+  - storage-not-available rows (storage_mt null, blank capacity fields) are ~8% of the main df; rcp_counts still reports since recipe (ppid) counting is a separate collection path. ppid == recipe_id, rcp_counts == ppid_counts.
+  - Phase 1 ppid-unavailable generator uses random.Random(seed=43) over a 30-day window and joins IPs against get_sem_list().
   - Tool-type scope is enforced server-side here (CD-SEM only). The HV-SEM mirror lives at /api/hvsem/storage.
   - rcp_counts thresholds (49000 warn, 49800 critical) are UI conventions; preserve them in the office implementation since the frontend has no fallback values.

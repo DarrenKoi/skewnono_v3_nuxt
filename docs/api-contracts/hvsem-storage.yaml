@@ -21,46 +21,58 @@ types:
     total:
       type: string
       format: "<int>G or <float>T"
+      description: Empty string when storage collection failed (storage not available).
     used:
       type: string
+      description: Empty string when storage collection failed.
     avail:
       type: string
+      description: Empty string when storage collection failed (one of the two storage-not-available markers).
     percent:
       type: string
       format: "<int>%"
+      description: Empty string when storage collection failed.
     storage_mt:
-      type: string
-      format: "ISO 8601 UTC ending in Z"
+      type: "string | null"
+      format: "ISO 8601 UTC ending in Z, or null when storage collection failed"
+      description: Null is the primary storage-not-available marker.
     storage_mt_date:
       type: string
       format: "YYYY-MM-DD"
+      description: Empty string when storage collection failed.
     rcp_counts:
       type: integer
     rcp_counts_mt:
       type: string
       format: "ISO 8601 UTC ending in Z"
 
-  UnavailableRow:
+  PpidUnavailableRow:
     eqp_id:
       type: string
+      description: From sem_list join; empty string for orphan IPs with no sem_list match.
     eqp_ip:
       type: string
+      description: The only field stored in Redis; everything else is enriched via the sem_list join.
     fac_id:
       type: string
+      description: From sem_list join; empty for orphan IPs.
     fab_name:
       type: string
+      description: From sem_list join; empty for orphan IPs.
     eqp_model_cd:
       type: string
+      description: From sem_list join; empty for orphan IPs.
     missing_days_streak:
       type: integer
+      description: Consecutive days the tool's PPID endpoint has been unreachable, ending at latest_date
 
-  StorageUnavailableSnapshot:
+  PpidUnavailableSnapshot:
     latest_date:
       type: string
       format: "YYYY-MM-DD"
     rows:
       type: array
-      items: UnavailableRow
+      items: PpidUnavailableRow
 
 endpoints:
   - path: /api/hvsem/storage
@@ -77,17 +89,24 @@ endpoints:
         type: array
         items: StorageRow
 
-  - path: /api/hvsem/storage-unavailable
+  - path: /api/hvsem/ppid-unavailable
     method: GET
-    description: Latest snapshot of HV-SEM tools missing from inventory, with consecutive-missing streak
+    description: >-
+      Latest daily snapshot of HV-SEM tools whose PPID (recipe) endpoint was
+      unreachable, with consecutive-days-unreachable streak. Source: Redis hash
+      'v3_hitachi_sem_ppid_not_avail', hget(key, "%Y%m%d") -> list of eqp_ip,
+      retained 30 days; IPs are joined against sem-list to enrich. Unmatched
+      (orphan) IPs appear with eqp_ip only.
     query_params:
       fac_id:
         type: string
         required: false
+        description: Comma-separated fac_ids; orphan rows (no fac_id) are dropped when set.
     response:
       status: 200
-      body: StorageUnavailableSnapshot
+      body: PpidUnavailableSnapshot
 
 notes:
   - Mirrors cdsem-storage.yaml in shape; only the tool-model scope and the equipment prefixes differ. Office should reuse the same query layer with a tool-type filter.
+  - storage-not-available rows (storage_mt null, blank capacity) and the ppid-unavailable Redis join behave identically to the CD-SEM mirror.
   - 2027 roadmap reminder: PROVISION_* and VERITYSEM_* will get their own endpoint families when those features land — do not add them here.
