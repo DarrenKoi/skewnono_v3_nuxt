@@ -12,7 +12,8 @@ types:
       format: "IPv4 (177.x.x.x or 197.x.x.x)"
     fac_id:
       type: string
-      examples: ["M10", "M11", "M14", "M15", "M16", "R3"]
+      description: Inherited from the sem-list fleet (storage is keyed off the same equipment inventory).
+      examples: ["M11", "M12", "M14", "M15", "M16", "R3"]
     fab_name:
       type: string
     eqp_model_cd:
@@ -108,5 +109,6 @@ endpoints:
 
 notes:
   - Mirrors cdsem-storage.yaml in shape; only the tool-model scope and the equipment prefixes differ. Office should reuse the same query layer with a tool-type filter.
+  - Storage rows derive from the sem-list fleet (AMAT TP only), so equipment identity matches sem-list; PROVISION_*/VERITYSEM_* are excluded (no tool-type until 2027).
   - storage-not-available rows (storage_mt null, blank capacity) and the ppid-unavailable Redis join behave identically to the CD-SEM mirror.
   - 2027 roadmap reminder: PROVISION_* and VERITYSEM_* will get their own endpoint families when those features land — do not add them here.

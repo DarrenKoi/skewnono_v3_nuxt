@@ -12,7 +12,8 @@ types:
       format: "IPv4 (177.x.x.x or 197.x.x.x)"
     fac_id:
       type: string
-      examples: ["M10", "M11", "M14", "M15", "M16", "R3"]
+      description: Inherited from the sem-list fleet (storage is keyed off the same equipment inventory).
+      examples: ["M11", "M12", "M14", "M15", "M16", "R3"]
     fab_name:
       type: string
       description: Same convention as sem-list (M-class fabs use suffix A/B/C; R-class is R3 or R4)
@@ -112,7 +113,7 @@ endpoints:
       body: PpidUnavailableSnapshot
 
 notes:
-  - Phase 1 storage generator seeds 300 tools with deterministic random.Random(seed=42). Office should query the same monitoring index that feeds these dashboards.
+  - Phase 1 storage rows are derived from the sem-list fleet (filtered to this tool family), so eqp_id/eqp_ip/fac_id/fab_name/eqp_model_cd match sem-list exactly; storage-only fields (capacity, percent, rcp_counts, storage_mt) are layered on with random.Random(seed=42). Office should query the same monitoring index keyed off the same equipment inventory.
   - storage-not-available rows (storage_mt null, blank capacity fields) are ~8% of the main df; rcp_counts still reports since recipe (ppid) counting is a separate collection path. ppid == recipe_id, rcp_counts == ppid_counts.
   - Phase 1 ppid-unavailable generator uses random.Random(seed=43) over a 30-day window and joins IPs against get_sem_list().
   - Tool-type scope is enforced server-side here (CD-SEM only). The HV-SEM mirror lives at /api/hvsem/storage.

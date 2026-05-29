@@ -16,7 +16,6 @@ from typing import TypedDict
 
 from .._tool_specs import (
     SLUG_TO_TOOL_TYPE,
-    TOOL_SPECS,
     ToolSlug,
     model_to_tool_type,
 )
@@ -48,11 +47,6 @@ class StorageRow(TypedDict):
     eqp_model_cd: str
 
 
-FAC_IDS = ["M10", "M11", "M14", "M15", "M16", "R3"]
-FAB_SUFFIXES = ["A", "B", "C"]
-IP_PREFIXES = ["177", "197"]
-
-
 def _format_size_gb(value_gb: float) -> str:
     if value_gb < 1024:
         return f"{int(value_gb)}G"
@@ -63,29 +57,27 @@ def _iso_z(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
 
-def _generate_rows(tool_slug: ToolSlug, n_rows: int = 300, seed: int = 42) -> list[StorageRow]:
-    spec = TOOL_SPECS[tool_slug]
-    eqp_models = spec["eqp_models"]
-    eqp_prefixes = spec["eqp_prefixes"]
+def _generate_rows(tool_slug: ToolSlug, seed: int = 42) -> list[StorageRow]:
+    # sem_list is the single source of truth for the equipment fleet; storage is
+    # per-tool monitoring data keyed off it. Deriving (rather than re-rolling)
+    # eqp_id/eqp_ip/fac_id/fab_name/model keeps every dataset — sem_list, storage,
+    # and the ppid-unavailable IP join — consistent for the same physical tools.
+    tool_type = SLUG_TO_TOOL_TYPE[tool_slug]
+    fleet = [
+        tool for tool in get_sem_list()
+        if model_to_tool_type(tool["eqp_model_cd"]) == tool_type
+    ]
 
     rng = random.Random(seed)
     now = datetime(2026, 4, 26, 12, 0, 0, tzinfo=timezone.utc)
     rows: list[StorageRow] = []
 
-    for _ in range(n_rows):
-        fac_id = rng.choice(FAC_IDS)
-        if fac_id == "R3" and rng.random() < 0.3:
-            fab_name = "R4"
-        else:
-            fab_name = fac_id + rng.choice(FAB_SUFFIXES)
-
-        model = rng.choice(eqp_models)
-        eqp_prefix = rng.choice(eqp_prefixes)
-
-        eqp_id = f"{eqp_prefix}{rng.randint(100, 999)}"
-
-        ip_prefix = rng.choice(IP_PREFIXES)
-        eqp_ip = f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
+    for tool in fleet:
+        eqp_id = tool["eqp_id"]
+        eqp_ip = tool["eqp_ip"]
+        fac_id = tool["fac_id"]
+        fab_name = tool["fab_name"]
+        model = tool["eqp_model_cd"]
 
         # Sample timestamp drives both storage_mt and rcp_counts_mt; recipe
         # (ppid) counting is a separate collection path from storage capacity.
