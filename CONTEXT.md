@@ -124,7 +124,9 @@ device-statistics 페이지는 두 audience를 동시에 섬깁니다.
 
 페이지의 역할은 **per-recipe 추천 도구** — 특정 recipe의 과거 포인트 데이터를 입력받아, 줄여도 [[계측-정합성]]이 유지되는 포인트 후보를 추천·시각화한다. 룰 수립이나 일괄 audit가 아니라, 엔지니어가 한 recipe를 다듬을 때 쓰는 분석 surface.
 
-포인트 단위 과거 데이터의 substrate는 [[msr-file]]에 이미 존재한다 — `chip_number`(웨이퍼 그리드 x,y), `chip_coordinate`/`stage_coordinate`(스테이지 µm), `mp_number`, `parameter`, `cd_value`.
+포인트 단위 과거 데이터의 substrate는 [[msr-file]]에 이미 존재한다 — `chip_number`(웨이퍼 그리드 x,y), `chip_coordinate`/`stage_coordinate`(스테이지 µm), `mp_number`, `parameter`, `cd_value`. per-recipe 입력은 `meas_hist`(같은 `recipe_name` 의 run 들 = "wafer")를 `msr` 로 [[msr-file]]에 조인해 만든 `site × wafer` 행렬이다.
+
+**uniformity 는 parameter 별, droppability 는 cross-parameter**: 한 물리 포인트를 스킵하면 그 포인트에서 뽑는 **모든 parameter**(예: 한 image 의 `CD_TOP`·`CD_BOTTOM`·`SIDEWALL_ANGLE`)가 함께 빠진다. 따라서 [[계측-정합성]] 게이트는 parameter 별로 계산하되 **추천 축소 set 은 모든 parameter 게이트를 동시에 만족하는 site 의 교집합**이다 — 한 parameter 만 보고 고른 축소는 다른 parameter 에 물리적으로 위험.
 
 **추천 엔진은 데이터 양에 따라 두 모드**를 가지며, 엔지니어가 둘로 나눠 점검할 수 있다 (단일 알고리즘 아님):
 
@@ -148,7 +150,7 @@ device-statistics 페이지는 두 audience를 동시에 섬깁니다.
 
 역할 구분(한 단어로 뭉치지 말 것): **acceptance metric**(이 정합성 정의) vs **selection mechanism**(어느 포인트를 버릴지 고르는 엔진 내부 통계) vs **시각 확인**(wafer map signature). 뒤 둘은 acceptance metric에 종속된 하위 개념.
 
-> ⚠️ 미정: uniformity 지표를 **range(max−min)** 로 볼지 **3σ** 로 볼지. range는 단일 outlier에 민감, 3σ는 견고. tolerance 정의와 함께 확정 예정.
+**uniformity 지표 (✅ 확정 — dual-metric)**: acceptance 는 **3σ 와 range(max−min) 두 지표가 각자의 허용오차를 동시에 만족**할 때만 통과합니다(둘 중 하나라도 넘으면 기각). 두 지표는 서로 다른 것을 지킵니다 — **3σ 는 산포의 *형태*** 를, **range 는 *극단 포인트*(에지·코너)** 를 보호. gap 은 LOWO 교차검증에서 두 지표 각각으로 계산하므로 tolerance 도 `3σ_tolerance`·`range_tolerance` 둘이 필요합니다 — v1 에서는 **엔지니어가 조정하는 per-recipe knob**(단일 tolerance 객체에 두 필드, full-set 대비 % 기본값)이며, [[계측-룰]]처럼 admin 게이트로 두지 않습니다(이 페이지는 cross-team 신호가 아니라 개인 분석 surface 이기 때문). 한 wafer 에서 두 지표가 크게 엇갈리면 **불량 포인트 신호**로도 읽습니다.
 
 ## Flagged ambiguities
 
