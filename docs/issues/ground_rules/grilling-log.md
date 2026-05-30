@@ -3,6 +3,12 @@
 `ground_rules.txt` 의 계측 Ground Rule 을 web application(특히 [device-statistics] 페이지)에
 연동하기 위한 grilling 진행 기록입니다. 확정된 결정과 아직 열려 있는 질문을 함께 추적합니다.
 
+> **📓 저널 규약 (append-only)**: 이 문서는 **날짜별로 쌓이는 결정 저널**입니다. 과거 날짜 섹션과
+> 확정된 결정은 **고치지 않습니다** — 틀린 결정은 지우지 말고 새 결정으로 supersede 하세요
+> (예: "D8 → D20 이 supersede"). 결정 ID(`D1`, `D2`…)는 **날짜와 무관하게 단조 증가**하는 영구
+> 앵커이며 다른 문서가 이 ID 로 인용합니다. "지금의 통합 결론"은 `progress-and-next-steps.md`(살아있는
+> 요약, 매번 덮어씀)가 담당하고, 본 저널은 "어떻게 거기 도달했나"의 날짜별 기록을 담당합니다.
+
 > **🎯 이 grilling 의 목표**: 계측 룰을 **시각적으로 잘 표현**해서, 인증된 엔지니어 **누구나 쉽게
 > (1) 룰을 바꾸고 (2) 준수 상태를 모니터링**할 수 있게 한다. D1–D11 은 그 시각적 surface 를 가능케 하는
 > 룰 엔진 기반이고, **결과물은 visual rule editor + monitoring 화면**(Q7)이다.
@@ -26,7 +32,10 @@ Ground Rule 문서와 현재 코드는 **서로 다른 어휘**로 룰을 기술
 두 표현은 호환되지 않습니다. `EDGE_EX = 0`, `LEVEL = 4` 는 현재 bin 모델로 표현할 수 없습니다.
 따라서 룰 검증의 입력은 **파라미터 단위 raw 데이터**여야 합니다.
 
-## 확정된 결정
+## 2026-05-30 — 룰 모델·데이터 계약 확정 (D1–D15)
+
+> D1–D4 는 이전 세션의 기반 결정을, D5–D15 는 이날 세션에서 확정한 결정을 이 날짜로 정리했습니다.
+> (문서 자체가 260530 에 정리됨 — 통합본 `progress-and-next-steps.md` 참조.)
 
 ### D1 — 파라미터 단위(raw)를 source of truth 로 둡니다
 
@@ -272,3 +281,52 @@ audit log" 대안을 채택한다. ADR 0003 의 우려(실시간 SSOT 흔들림)
 7. ~~**UI 표현**~~ — ✅ 해소 → **D13**(편집 매트릭스) + **D14**(모니터링 cascade) + **D15**(라우트) +
    `rule-editor-structure.md`(구조 설계) + `rule-dashboard.prototype.html`(3변형 프로토타입). 구현은 §8 빌드 순서.
 8. ~~**Sample 룰 세부 모순**~~ — ✅ 해소 → **D6** (10/8 은 `EDGE`, `EDGE_EX`=0; 이름 오버라이드 레이어 확인).
+
+## 2026-05-31 — 모니터링 구현 + 신호등 threshold (D16–)
+
+> step 4(모니터링)를 구현 가능한 형태로 좁히고, 그간 *provisional* 로 봉인됐던 신호등 threshold 를
+> 편집 가능한 정책값으로 확정하는 세션. 기반: D14(cascade) · §8-bis(client-side live what-if) · CONTEXT `lot-health-signal`.
+
+### D16 — 신호등 threshold = fab별 RuleVersion 의 공유 필드 (개인 오버라이드 없음)
+
+신호등 색 경계(`yellow_at`, `red_at`)는 코드 상수도 데이터 파생값도 아닌 **fab별 `RuleVersion` 객체의 필드**다.
+cap 과 **동일 생명주기** — 버전 이력·rollback·SSO 추적·전원 공유.
+
+- **편집 위치**: 프론트 룰 에디터에서 cap 과 같은 화면에서 편집·저장(D13 매트릭스에 fab-level threshold 컨트롤 1쌍).
+- **live 재색칠은 자연 귀결**: 위반 판정이 client-side(§8-bis)이므로 threshold 를 바꾸면 신호등이 즉시 다시 물든다
+  — 별도 "what-if" 기능이 아니라 client 계산의 부수효과. 저장해야 남는다.
+- **개인 sticky/오버라이드 없음** (사용자 확정): 신호등은 cross-team **단일 진실원**이어야 한다(ADR 0004 논리,
+  `Analysis Scope` = fab 내 닫힘). "팀장은 20%, 담당자는 10%" 식 사적 뷰는 도입하지 않는다.
+- **provisional 10/20% 의 처지**: 폐기가 아니라 **seed 기본값**으로 강등 — 이제 데이터가 아니라 편집 가능한 정책 필드의 초기값.
+- **데이터 모델 영향**: `RuleVersion` 에 `thresholds: { yellow_at: number, red_at: number }` 추가
+  (셀별이 아니라 **fab-level** — lot roll-up 비율에 걸리는 값이므로). `rule-editor-structure.md §2` 갱신 대상.
+
+### D17 — 모니터링 데이터 흐름: 단일 composable + 적용/저장 분리 (§8-bis live 서술 갱신)
+
+- **단일 소스 composable `useMeasurementMonitor(fab)`** 가 3개 데이터셋(`fetchRules` + `recipe-params` +
+  `annotations`) fetch 와 `ruleEngine` 계산을 소유하고, **두 모니터 화면을 모두 먹인다** — device-statistics
+  캐스케이드(D14)와 룰 매트릭스 모니터 모드(D13). 무거운 `recipe-params` 의 중복 fetch 를 피한다.
+- **재계산은 per-keystroke 가 아니라 명시적 "적용" 트리거**(§8-bis 의 "즉시 재계산" 폐기). `draft`(편집 입력값)
+  ↔ `applied`(스냅샷) 분리, `apply()` 가 draft→applied 복사, `monitorResult = computed(() => evaluateLot(…, applied))`
+  는 **applied 가 바뀔 때만** 재계산. cap 칸 숫자는 타이핑 즉시 보이되 신호등 재색칠은 적용까지 대기.
+  - 근거: 멀티자리 입력 중간상태(`1`→`16`) 깜빡임, 다(多)셀 시나리오는 합산 결과를 한 번에 봐야 함, 전 lot×recipe
+    재계산 비용.
+- **적용 ≠ 저장 (사용자 확정)**: **적용** = 저장 없이 local 재계산(공유 버전을 더럽히지 않는 what-if 탐색),
+  **저장** = 마음에 들면 새 `RuleVersion` 영속(D12 버전·rollback·SSO·전원 공유). 두 버튼 분리.
+- **코드 귀결**: `ruleEngine.ts:217` `classifyHealth(ratio)` 의 하드코딩 threshold(`0.1`/`0.2`) 제거 →
+  `classifyHealth(ratio, thresholds)`, `evaluateLot(…, thresholds)` 로 D16 의 threshold 주입.
+
+### D18 — 신호등은 합의 후 고정: threshold 는 what-if 에서 제외 (D16 미세조정, Q4 해소)
+
+복잡도를 줄이기 위해 **신호등 경계(threshold)는 엔지니어 합의로 정한 뒤 고정**하고 what-if 대상에서 뺀다.
+what-if/적용(D17)은 **cap 에만** 작동한다.
+
+- **양쪽 화면 모두 저장된 threshold 로 신호등을 칠한다** — device-statistics 든 에디터 미리보기든 동일.
+  적용은 "이 cap 이면 recipe pass/fail 이 어떻게 바뀌나"만 재계산하고, 신호등 경계는 흔들리지 않는다.
+  → 단일 질문으로 수렴: *"합의된 신호등 기준 위에서 cap 을 바꾸면 몇 lot 이 빨개지나."*
+- **threshold 고정 방식 = (가) 편집 가능하되 거의 안 바꿈** (사용자 확정). D16 의 "fab 별 `RuleVersion` 필드,
+  프론트 편집·저장·버전" 은 그대로 유지하되, **what-if draft 에는 포함하지 않는다**(저장 시에만 반영).
+  - (나) seed 상수 완전 고정은 기각: Phase 3 양산은 배포가 어려워 재합의 때마다 코드 배포가 필요해짐.
+    "거의 안 바꾸되 코드 없이 바꿀 길은 프론트에 열어둔다."
+- **Q4 해소**: 화면 간 applied 비대칭은 **cap 에만** 남는다(에디터 draft vs device-statistics 저장본).
+  threshold 는 어디서나 저장본이라 비대칭이 사라진다 → composable 단순화(threshold 는 상수처럼 주입, draft 제외).

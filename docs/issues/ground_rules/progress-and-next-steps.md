@@ -1,5 +1,8 @@
 # 계측 룰 — 진행 요약 & 다음 단계
 
+> _as of 2026-05-31_ · **살아있는 통합본** — 늘 "지금의 결론"만 담도록 매 세션 덮어씁니다.
+> 날짜별 도출 과정은 `grilling-log.md`(append-only 저널)를 보세요.
+
 이 문서는 ground_rules grilling 세션의 **요약 + 핸드오프**입니다. 상세는 같은 폴더의
 `grilling-log.md`(결정 로그) · `rule-editor-structure.md`(구현 설계) · `adr-0004-open-rule-editing.md`(권한 ADR) 참조.
 
@@ -14,7 +17,7 @@ web 기능으로 옮기기 위한 룰 모델·데이터 계약·프론트 구조
 
 ## 확정된 결정 (D1–D15)
 
-D1–D4 는 이전 세션, **D5–D15 가 이번 세션** 확정입니다 (전체 근거는 `grilling-log.md`).
+D1–D4(이전 세션) · **D5–D15(2026-05-30)** · **D16–D18(2026-05-31, 모니터링·신호등)** (전체 근거는 `grilling-log.md`).
 
 | # | 결정 |
 | --- | --- |
@@ -33,6 +36,9 @@ D1–D4 는 이전 세션, **D5–D15 가 이번 세션** 확정입니다 (전�
 | **D13** | UI = 편집 가능 매트릭스 (편집 + 모니터링 겸용) |
 | **D14** | 모니터링 = lot→recipe→parameter cascade, 회색 2종(룰미정/미분류) 보수적 비위반 |
 | **D15** | M-fab = `recipe_class × memory_class` (family·phase·Pool 없음); 라우트 confirmed |
+| **D16** | 신호등 threshold = fab별 `RuleVersion` 의 공유 필드(`yellow_at`/`red_at`); 프론트 편집·버전, **개인 오버라이드 없음** |
+| **D17** | 모니터링 = **단일 composable `useMeasurementMonitor`** 가 두 화면 먹임; **적용(local 재계산) ≠ 저장(새 버전)** 분리, what-if 는 명시적 트리거 |
+| **D18** | 신호등은 합의 후 **고정** — threshold 는 what-if 제외(양쪽 화면 저장본), what-if/적용은 **cap 에만**. threshold 는 편집 가능하되 거의 안 바꿈 |
 
 열린 질문 Q1–Q8 **전부 해소**.
 
@@ -53,7 +59,7 @@ D1–D4 는 이전 세션, **D5–D15 가 이번 세션** 확정입니다 (전�
 - [x] **1. `ruleEngine.ts` + 단위 테스트** — 완료·검증 (`npm test` → 13 pass, strict typecheck clean)
 - [ ] **2. `rules.py` seed + GET `/rules` + `useMeasurementRulesApi.fetchRules` → 읽기전용 매트릭스** ← 다음
 - [ ] 3. `RuleCapCell` 인라인 편집 + PUT `/rules`
-- [ ] 4. 모니터 오버레이 + `UnassignedBucket` — `useLotHealthMock` 대체
+- [ ] 4. `useMeasurementMonitor`(§5-bis: 적용/저장 분리, threshold 고정 — D17·D18) + 모니터 오버레이 + `UnassignedBucket` — `useLotHealthMock` 대체
 - [ ] 5. `RuleHistoryPanel` + history/rollback
 
 ## 다음 단계 (step 2) 상세
@@ -61,13 +67,15 @@ D1–D4 는 이전 세션, **D5–D15 가 이번 세션** 확정입니다 (전�
 채택안: 변형 **A(매트릭스)**, 라우트 `pages/ebeam/cd-sem/device-statistics/measurement-rules.vue`.
 
 1. **백엔드** `back_dev_home/ebeam/cdsem/device_statistics/rules.py` — `RuleCell` seed(D8 전체 cap 표 + M-fab DRAM/NAND)
-   + `get_rules(fab)`. `routes.py` 에 `GET /cdsem/device-statistics/rules?fab=` 등록.
+   + `thresholds` seed(`yellow_at` 0.1 / `red_at` 0.2 — D16) + `get_rules(fab)`. `routes.py` 에 `GET /cdsem/device-statistics/rules?fab=` 등록.
 2. **composable** `useMeasurementRulesApi.ts` — `fetchRules(fab)` (`$fetch` + `joinApiPath`, `useAsyncData` 캐시).
 3. **프론트** `MeasurementRulesView.vue` + `RuleMatrix`/`RuleRow`/`RuleCapCell`(읽기전용 먼저) + `RuleFabSelector`.
    매트릭스 렌더는 `ruleEngine` 타입 재사용. M-fab 이면 family/phase 축 숨김(D15).
 
 ## 미해결 / 향후
 
-- `useLotHealthMock.ts` 는 옛 모델 — step 4 에서 `ruleEngine` 으로 교체(마이그레이션, greenfield 아님).
+- `useLotHealthMock.ts` 는 옛 모델 — step 4 에서 `useMeasurementMonitor`(`ruleEngine` 기반, 구조 설계 §5-bis)로 교체.
+  소비처: `device-statistics/comparison.vue` + `LotCards`/`TrendChart`/`StackedBar`/`StageChip`(마이그레이션, greenfield 아님).
 - 백엔드 `recipe-params` 데이터셋(파라미터 raw 행, D1)·`annotations` 데이터셋 mock 필요 — 모니터링(step 4) 전제.
-- 신호등 색 threshold(10/20%)는 provisional — 사용자 합의 시 조정.
+- ~~신호등 색 threshold(10/20%) provisional~~ → ✅ **D16·D18 해소**: `RuleVersion.thresholds` 의 편집 가능한
+  seed 기본값(10/20%)으로 강등, what-if 제외(합의 후 고정). `classifyHealth(ratio, thresholds)` 로 주입.

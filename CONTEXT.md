@@ -102,7 +102,7 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 2. lot 단위 roll-up: `violation_ratio = 위반 recipe 수 / 총 recipe 수`.
 3. 색 매핑 (provisional, 사용자 합의 시 조정 예정): `< 10%` green, `10~20%` yellow, `≥ 20%` red.
 
-threshold 값은 코드 상수가 아니라 룰 정의 객체의 일부로 저장되어 사용자가 함께 편집합니다.
+threshold 값(`yellow_at`/`red_at`)은 코드 상수가 아니라 **fab별 룰 버전 객체(`RuleVersion`)의 필드**로, cap 과 같은 생명주기(버전 이력·rollback·SSO 추적·전원 공유)로 프런트 룰 에디터에서 편집·저장됩니다. 위반 판정이 client-side 이므로 편집 중 신호등은 즉시 재색칠되지만, 저장해야 공유됩니다. **개인별 오버라이드는 없습니다** — 신호등은 cross-team 단일 진실원이어야 하므로(같은 fab 의 모든 [[audiences]] 가 동일 경계를 봅니다). 기존 `10% / 20%` 는 데이터값이 아니라 편집 가능한 seed 기본값입니다.
 
 **투명성 신호**: WAFER 이름 companion 을 관대히 인정하므로(이름 prefix 가 표준 토큰이면 WAFER-family), 비대해진 recipe 가 위반 없이 통과할 수 있습니다 — 이를 보완해 recipe 별 **총 파라미터 수**를 노출해 또래 대비 비정상 다(多)파라를 사람이 인지하게 합니다.
 

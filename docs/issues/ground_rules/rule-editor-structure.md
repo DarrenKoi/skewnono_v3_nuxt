@@ -48,6 +48,10 @@ interface RuleCell {
 interface RuleVersion {      // D12 — append-only 이력 + rollback
   version: number
   cells: RuleCell[]
+  thresholds: {              // D16 — fab-level 신호등 경계 (lot roll-up 비율). 셀별 아님
+    yellow_at: number        // 기본 0.1 (seed, 편집 가능 — D18 '가')
+    red_at: number           // 기본 0.2
+  }
   author: string             // SSO 신원
   edited_at: string          // ISO8601
   note?: string              // 변경 사유 (운영 practice)
@@ -94,11 +98,23 @@ pages/ebeam/cd-sem/device-statistics/measurement-rules.vue   ← 라우트(§7)
 | 함수 | 메서드 · 경로 | 용도 |
 | --- | --- | --- |
 | `fetchRules(fab)` | GET `/cdsem/device-statistics/rules?fab=` | 현재 버전 룰 셀 |
-| `saveRules(fab, cells, note)` | PUT `/cdsem/device-statistics/rules` | 새 버전 append (D12) |
+| `saveRules(fab, cells, thresholds, note)` | PUT `/cdsem/device-statistics/rules` | 새 버전 append (D12·D16) |
 | `fetchHistory(fab)` | GET `/cdsem/device-statistics/rules/history?fab=` | 버전 목록 |
 | `rollback(fab, version)` | POST `/cdsem/device-statistics/rules/rollback` | 지정 버전 복원 |
 
 읽기 캐시 키는 `['measurement-rules', fab]` — 저장·rollback 후 `refresh()`.
+
+### 5-bis. 모니터링 composable `useMeasurementMonitor(fab)` (D17·D18)
+
+**두 모니터 화면(device-statistics 캐스케이드 D14 · 룰 매트릭스 모니터 모드 D13)을 먹이는 단일 소스.**
+3개 데이터셋(`fetchRules` + `recipe-params` + `annotations`)을 `useAsyncData` 로 받아 `ruleEngine` 으로 계산한다.
+
+- `applied` (ref) = 모니터를 돌릴 룰 스냅샷. `monitorResult = computed(() => recipes.map(r => evaluateLot(…, applied.cells, applied.thresholds)))`.
+- **에디터(measurement-rules)**: `draft`(편집 입력값) 별도. **"적용"** 버튼이 `draft.cells → applied.cells` 복사
+  (cap what-if). `draft.thresholds` 는 적용 대상이 아니라 **저장 시에만** 반영(D18) — `applied.thresholds` 는 항상 저장본.
+- **device-statistics**: `draft` 없음. `applied = 저장 버전` 고정 — 공유 진실 뷰(D18).
+- **"저장"** 은 별개: `saveRules(fab, draft.cells, draft.thresholds, note)` → 새 버전(D12). 저장 후 캐시 `refresh()`.
+- threshold 는 `applied` 안에서 상수처럼 주입되며 what-if draft 에 없다(D18) — composable 분기 단순.
 
 ## 6. 백엔드 (`back_dev_home/ebeam/cdsem/device_statistics/rules.py`)
 
@@ -117,7 +133,9 @@ fab 은 페이지 내 `RuleFabSelector` 로. CONTEXT.md 의 `/admin/measurement-
 ## 8-bis. 백엔드 데이터셋 ↔ 프론트엔드 책임
 
 **원칙**: 백엔드는 **raw 데이터**(룰·파라미터·어노테이션)만 보낸다. 위반 판정은 **프론트엔드**(`ruleEngine.ts`)가
-client-side 로 수행한다 — cap 한 글자 수정 시 round-trip 없이 모니터링이 즉시 재계산되어야 하기 때문(live what-if).
+client-side 로 수행한다 — 룰 draft 를 바꾸고 **"적용"** 을 누르면 round-trip(refetch) 없이 모니터링이 재계산되기
+때문(what-if). 재계산은 **명시적 "적용" 트리거**이며 per-keystroke 가 아니다(D17). "적용"(local 재계산)과
+"저장"(새 버전 영속, D12)은 분리된 동작이다.
 
 ### 백엔드가 주는 3개 데이터셋
 
@@ -163,7 +181,7 @@ client-side 로 수행한다 — cap 한 글자 수정 시 round-trip 없이 모
 | 3. Evaluate | 파라미터마다 `deriveType` → `capFor` → `point_count ≤ cap?` | D5·D9·D10 |
 | 4. Aggregate | recipe: 총·위반 파라 수, pass/fail · lot: 위반recipe/총 → ratio → health · cell: 오버레이 색 | D14 |
 | 5. Render | 매트릭스(A) + 모니터링 cascade(B) + 미분류 버킷 + 회색 셀 | D13·D14 |
-| 6. Live what-if | cap 편집 → 3·4 즉시 client 재계산(refetch 없음) | 에디터 핵심 |
+| 6. What-if | cap·threshold draft 편집 → **"적용"** 시 3·4 client 재계산(refetch 없음). "저장"은 별개 | 에디터 핵심 (D17) |
 
 ## 8. 빌드 순서 (incremental vertical slice)
 
