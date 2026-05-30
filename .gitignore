@@ -84,3 +84,6 @@ ea3138ca-4157-449d-a379-186a3db9af06.png
 .env
 .env.*
 !.env.example
+
+# Superpowers brainstorming visual companion
+.superpowers/
