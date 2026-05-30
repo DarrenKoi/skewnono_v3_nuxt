@@ -101,7 +101,7 @@ finder는 **`meas_hist`를 추적 기점**으로 삼습니다. `msr` 파일에 �
 
 ## 5. 대시보드
 
-경로 `/ebeam/cd-sem/[fab]/skew` 의 단일 대시보드(팹 스코프), 위에서 아래로 구성합니다.
+경로 `/ebeam/cd-sem/[fab]/skew-check` 의 단일 대시보드(팹 스코프), 위에서 아래로 구성합니다.
 헤더는 기존 `EbeamMetaBar` 패턴을 따릅니다.
 
 1. **측정 장비 추천 finder** — 군집(cluster) 1차 답 + 장비쌍 행렬(heatmap) 근거
