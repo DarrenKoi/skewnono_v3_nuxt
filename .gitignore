@@ -1,7 +1,8 @@
 # ───────────────────────────────────────────────
 # Local agent / editor state
 # ───────────────────────────────────────────────
-.remember
+# .remember/ is governed by .remember/.gitignore:
+# tracks remember.md + rolled history; ignores now.md, tmp/, logs/
 .claude/settings.local.json
 .playwright-mcp
 

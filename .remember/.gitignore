@@ -1,0 +1,11 @@
+# Default: ignore everything in .remember/ (ephemeral session buffers)
+*
+
+# Track the handoff baton + rolled history so it syncs across machines.
+# now.md (active buffer), tmp/, and logs/ stay local to avoid merge churn.
+!.gitignore
+!remember.md
+!today-*.md
+!recent.md
+!archive.md
+!core-memories.md
