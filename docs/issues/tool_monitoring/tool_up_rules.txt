@@ -1,0 +1,12 @@
+장비를 BM/PM때마다 엔지니어는 Data를 직접 확인하고  업/다운을 결정한다. 
+
+hardware engineer는 점검을 마치고 application engineer에게 Data 확인 요청을 한다. 
+
+문제는 app's engineer가 없을 때는 확인해줄 주체가 없기 때문에 장비 업이 늦어져 문제가 생긴다. 
+
+일정 룰을 마련해 Data를 자동으로 확인하고 문제가 없으면 hardware 엔지니어가 그걸 보고 업을 할 수 있도록 
+
+대시보드를 만드는게 목적.
+
+
+BM/PM 전/후로 여러가지 Data가 변하지 않는게 제일 좋다. 
