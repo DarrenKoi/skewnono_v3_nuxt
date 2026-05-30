@@ -1,4 +1,11 @@
+---
+status: superseded by docs/issues/ground_rules/adr-0004-open-rule-editing.md
+---
+
 # Measurement Rule 편집은 관리자 전용입니다
+
+> ⚠️ **SUPERSEDED (2026-05-30)** — `docs/issues/ground_rules/adr-0004-open-rule-editing.md` 로 대체되었습니다.
+> 룰·어노테이션 편집은 이제 **전 엔지니어 개방**(SSO 추적 + 버전 이력 + rollback)입니다. 아래는 역사적 기록입니다.
 
 [[계측-룰]] (Measurement Rule) 은 모든 [[lot-health-signal]] 계산의 입력입니다. 한 lot 의 신호등 색이 *cross-team coordination 매체* 로 쓰이므로 — 담당자가 임원에게 빨간 lot 을 보고할 때, 임원이 다른 팀에 비교 directive 를 내릴 때 — 룰은 **single source of truth** 여야 합니다. 따라서 룰 편집은 별도 `/admin/measurement-rules` 페이지에서 **관리자(admin) 한 사람만** 수행하고, 다른 사용자는 read-only 입니다.
 

@@ -10,7 +10,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "node --test \"app/**/*.test.ts\""
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.87",

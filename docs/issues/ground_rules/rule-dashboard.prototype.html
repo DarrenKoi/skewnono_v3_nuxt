@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>계측 룰 대시보드 — PROTOTYPE</title>
+<!--
+  THROWAWAY PROTOTYPE — answers "what should the rule dashboard look like?"
+  3 variants via ?variant=A|B|C (+ bottom bar, ←/→ keys). Mock data = D8 ruleset.
+  No build, no deps, no persistence (edits live in memory). Delete or fold the winner.
+  Source design: docs/issues/ground_rules/rule-editor-structure.md (D1–D14)
+-->
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --line:#2a323d;
+    --ink:#e6edf3; --ink2:#9aa7b4; --ink3:#6b7785;
+    --accent:#4493f8; --accent2:#1f6feb;
+    --green:#2ea043; --green-bg:#0f2a17; --red:#f85149; --red-bg:#2d1213;
+    --amber:#d29922; --amber-bg:#2b2410; --gray:#3a4350; --gray-bg:#1a1f26;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Pretendard",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  h1,h2,h3{margin:0;font-weight:650}
+  .proto-banner{background:repeating-linear-gradient(45deg,#3a2a00,#3a2a00 12px,#2e2200 12px,#2e2200 24px);
+    color:#f0c674;font:600 11px/1 var(--mono);letter-spacing:.08em;text-align:center;padding:5px;text-transform:uppercase}
+  header.app{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header.app .logo{font-weight:750;letter-spacing:.02em}
+  header.app .logo small{color:var(--ink3);font-weight:500;margin-left:8px}
+  .spacer{flex:1}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel2)}
+  .seg button{background:transparent;border:0;color:var(--ink2);padding:7px 13px;font:600 13px var(--sans);cursor:pointer}
+  .seg button.on{background:var(--accent2);color:#fff}
+  .fabsel{display:inline-flex;gap:6px}
+  .fabsel button{background:var(--panel2);border:1px solid var(--line);color:var(--ink2);border-radius:7px;padding:6px 12px;cursor:pointer;font:600 13px var(--mono)}
+  .fabsel button.on{border-color:var(--accent);color:var(--ink);background:#11233f}
+  main{padding:22px;max-width:1240px;margin:0 auto}
+  .sub{color:var(--ink2);margin:2px 0 18px;font-size:13px}
+  .pill{display:inline-block;padding:1px 7px;border-radius:999px;font:600 11px var(--mono);border:1px solid var(--line)}
+  .pill.dram{color:#79c0ff;border-color:#1f4d7a;background:#0d2440}
+  .pill.nand{color:#ffa657;border-color:#7a4a1f;background:#3a2410}
+  .pill.core{color:#a5d6ff}.pill.pool{color:#d2a8ff}.pill.sample{color:#7ee787}
+  .legend{display:flex;gap:16px;align-items:center;color:var(--ink2);font-size:12px;margin-bottom:14px;flex-wrap:wrap}
+  .legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+  .note{color:var(--ink3);font-size:12px}
+
+  /* ---- shared cap cell ---- */
+  .cap{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:30px;border-radius:6px;
+    border:1px solid var(--line);background:var(--panel2);font:600 14px var(--mono);color:var(--ink)}
+  .cap[contenteditable]{cursor:text}
+  .cap[contenteditable]:focus{outline:2px solid var(--accent);background:#0d1b30}
+  .cap.zero{color:var(--ink3)}
+  .cap.exempt{color:#7ee787;border-color:#234b2a;background:#0f2417;font-size:11px;min-width:54px}
+  .cap.gray{color:var(--ink3);border-style:dashed;background:var(--gray-bg)}
+  .cap.viol{border-color:var(--red);background:var(--red-bg);color:#ffb4ad}
+  .cap.ok{border-color:#234b2a}
+  .cap .mini{font-size:10px;color:var(--ink3);margin-left:3px}
+
+  /* ---- variant A: matrix ---- */
+  table.mx{border-collapse:separate;border-spacing:0;width:100%}
+  table.mx th,table.mx td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line)}
+  table.mx thead th{color:var(--ink2);font:600 12px var(--mono);text-align:center;position:sticky;top:0;background:var(--bg);text-transform:uppercase;letter-spacing:.05em}
+  table.mx td.sel,table.mx th.sel{text-align:left;white-space:nowrap;font:500 13px var(--sans);min-width:230px}
+  table.mx tbody tr:hover{background:#0f141b}
+  .grp{font:700 12px var(--mono);color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;padding-top:16px!important;text-align:left}
+  .ovrow td{background:#10151c}
+  .ovrow .ovlabel{color:var(--ink3);font-size:12px;text-align:left;padding-left:20px}
+  .ovrow code{color:#ffa657}
+  .mxstat{font:600 12px var(--mono)}
+  .mxstat.bad{color:var(--red)} .mxstat.good{color:var(--green)} .mxstat.idle{color:var(--ink3)}
+
+  /* ---- variant B: master-detail ---- */
+  .md{display:grid;grid-template-columns:300px 1fr;gap:18px}
+  .mdlist{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);align-self:start}
+  .mdlist .mdgrp{padding:9px 13px;font:700 11px var(--mono);color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;background:var(--panel2);border-top:1px solid var(--line)}
+  .mdlist .mdgrp:first-child{border-top:0}
+  .mditem{padding:10px 13px;border-top:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .mditem:hover{background:#0f141b}
+  .mditem.on{background:#11233f;box-shadow:inset 3px 0 0 var(--accent)}
+  .mditem .lab{font-size:13px}
+  .mditem .badge{font:600 11px var(--mono)}
+  .mdpanel{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:20px}
+  .mdpanel h2{font-size:18px;margin-bottom:4px}
+  .caprow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .caprow .tname{width:90px;font:600 13px var(--mono);color:var(--ink2)}
+  .caprow .desc{color:var(--ink3);font-size:12px;flex:1}
+  .barwrap{height:8px;flex:1;max-width:240px;background:var(--panel2);border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+  .bar{height:100%;background:var(--accent2)}
+  .bar.viol{background:var(--red)}
+
+  /* ---- variant C: monitoring-first ---- */
+  .lots{display:flex;flex-direction:column;gap:10px}
+  .lotcard{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+  .lothead{display:flex;align-items:center;gap:14px;padding:13px 16px;cursor:pointer}
+  .lothead:hover{background:#0f141b}
+  .lotcd{font:700 15px var(--mono)}
+  .ratio{font:600 13px var(--mono)}
+  .ratiobar{width:140px;height:9px;background:var(--panel2);border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+  .ratiobar i{display:block;height:100%;background:var(--red)}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.green{background:var(--green)}.dot.amber{background:var(--amber)}.dot.red{background:var(--red)}
+  .recipes{border-top:1px solid var(--line);display:none}
+  .lotcard.open .recipes{display:block}
+  .recipe{padding:11px 16px 11px 30px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center}
+  .recipe:first-child{border-top:0}
+  .rname{font:600 13px var(--mono)}
+  .rmeta{color:var(--ink3);font-size:12px}
+  .params{padding:4px 16px 14px 30px;display:none;gap:6px;flex-wrap:wrap}
+  .recipe.open + .params{display:flex}
+  .param{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:5px 9px;background:var(--panel2);font:600 12px var(--mono)}
+  .param.viol{border-color:var(--red);background:var(--red-bg)}
+  .param .vs{color:var(--ink3)}
+  .param.viol .vs{color:#ffb4ad}
+  .chev{color:var(--ink3);font-size:11px}
+  .ctaedit{background:transparent;border:1px dashed var(--line);color:var(--ink2);border-radius:6px;padding:3px 8px;font:600 11px var(--mono);cursor:pointer}
+  .ctaedit:hover{border-color:var(--accent);color:var(--ink)}
+
+  /* ---- history hint ---- */
+  .hist{margin-top:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:14px 16px}
+  .hist h3{font-size:13px;color:var(--ink2);margin-bottom:10px}
+  .hrow{display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+  .hrow:first-of-type{border-top:0}
+  .hrow .who{font:600 12px var(--mono);color:var(--accent)}
+  .hrow .when{color:var(--ink3);font-size:12px}
+  .hrow .rb{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--ink2);border-radius:6px;padding:3px 9px;cursor:pointer;font:600 11px var(--mono)}
+  .hrow .rb:hover{border-color:var(--accent);color:var(--ink)}
+
+  /* ---- floating switcher ---- */
+  .switch{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;
+    background:#0a0d12;border:1px solid #30363d;border-radius:999px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.55);z-index:50}
+  .switch button{background:transparent;border:0;color:var(--ink);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:17px}
+  .switch button:hover{background:#1c232c}
+  .switch .vlabel{padding:0 12px;font:600 13px var(--mono);min-width:170px;text-align:center}
+  .switch .vlabel b{color:var(--accent)}
+  .kbd{font:600 10px var(--mono);color:var(--ink3);border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+</style>
+</head>
+<body>
+<div class="proto-banner">⚠ Throwaway Prototype · 계측 룰 대시보드 · ?variant=A|B|C · ←/→ 로 전환</div>
+
+<header class="app">
+  <div class="logo">SKEWNONO <small>계측 룰 / measurement rules</small></div>
+  <div class="spacer"></div>
+  <div class="fabsel" id="fabsel"></div>
+  <div class="seg" id="modeseg">
+    <button data-mode="edit">편집</button>
+    <button data-mode="monitor">모니터링</button>
+  </div>
+</header>
+
+<main id="root"></main>
+
+<div class="switch">
+  <button id="prev" title="이전 (←)">‹</button>
+  <div class="vlabel" id="vlabel"></div>
+  <button id="next" title="다음 (→)">›</button>
+</div>
+
+<script>
+//=================== MOCK STATE (D8 ruleset) ===================
+const TYPES = ['WAFER','LEVEL','EDGE','EDGE_EX','_other'];
+const TLABEL = {WAFER:'WAFER',LEVEL:'LEVEL',EDGE:'EDGE',EDGE_EX:'EDGE_EX',_other:'기타'};
+
+// R3 — full matrix; M-fab — flat (Q3 추천: family/phase 없음, Pool 개념 없음)
+const RULES = {
+  R3: {
+    Main: [
+      {grp:'Core', sel:'Core · t-EV·EV', mem:'DRAM', fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:10,EDGE_EX:0,_other:9}, mon:{total:14,viol:2}},
+      {grp:'Core', sel:'Core · t-EV·EV', mem:'NAND', fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:8,EDGE_EX:0,_other:9},  mon:{total:9,viol:1}},
+      {grp:'Core', sel:'Core · TV·PV',   mem:null,   fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:16,EDGE_EX:16,_other:9},mon:{total:11,viol:0}},
+      {grp:'Pool', sel:'Pool · 수율전',   mem:'DRAM', fam:'pool', caps:{WAFER:13,LEVEL:4,EDGE:10,EDGE_EX:0,_other:9}, mon:{total:6,viol:1}},
+      {grp:'Pool', sel:'Pool · 수율전',   mem:'NAND', fam:'pool', caps:{WAFER:13,LEVEL:4,EDGE:8,EDGE_EX:0,_other:9},  mon:{total:4,viol:0}},
+      {grp:'Pool', sel:'Pool · 수율후',   mem:'DRAM', fam:'pool', caps:{WAFER:13,LEVEL:4,EDGE:10,EDGE_EX:10,_other:9},mon:{total:7,viol:3}},
+      {grp:'Pool', sel:'Pool · 수율후',   mem:'NAND', fam:'pool', caps:{WAFER:13,LEVEL:4,EDGE:8,EDGE_EX:8,_other:9},  mon:{total:5,viol:1}},
+      {grp:'VG·RTC·Cubic', sel:'VG·RTC·Cubic', mem:null, fam:'core', gray:true, caps:{WAFER:null,LEVEL:null,EDGE:null,EDGE_EX:null,_other:null}, mon:{total:3,viol:0}},
+    ],
+    Sample: [
+      {grp:'Sample', sel:'Sample (고정 1벌)', mem:'DRAM·VG·RTC·Cubic', fam:'sample', caps:{WAFER:13,LEVEL:4,EDGE:10,EDGE_EX:0,_other:'exempt'}, mon:{total:20,viol:1}},
+      {grp:'Sample', sel:'Sample (고정 1벌)', mem:'NAND',  fam:'sample', caps:{WAFER:13,LEVEL:4,EDGE:8,EDGE_EX:0,_other:'exempt'}, mon:{total:12,viol:0}},
+    ],
+    nameOv:{patterns:['DSPT','WF','WAFER'],match:'contains',cap:13},
+  },
+  M11: {
+    Main:[
+      {grp:'Main', sel:'M11 · Main (이상감지 임계치)', mem:'DRAM', fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:16,EDGE_EX:16,_other:9}, mon:{total:24,viol:3}},
+      {grp:'Main', sel:'M11 · Main (이상감지 임계치)', mem:'NAND', fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:12,EDGE_EX:12,_other:9}, mon:{total:16,viol:2}},
+    ],
+    Sample:[
+      {grp:'Sample', sel:'M11 · Sample', mem:'DRAM', fam:'sample', caps:{WAFER:13,LEVEL:4,EDGE:10,EDGE_EX:0,_other:0}, mon:{total:9,viol:0}},
+      {grp:'Sample', sel:'M11 · Sample', mem:'NAND', fam:'sample', caps:{WAFER:13,LEVEL:4,EDGE:8,EDGE_EX:0,_other:0}, mon:{total:6,viol:0}},
+    ],
+    nameOv:{patterns:['DSPT','WF','WAFER'],match:'contains',cap:13}, mfab:true,
+  },
+  M14:{
+    Main:[
+      {grp:'Main', sel:'M14 · Main (이상감지 임계치)', mem:'DRAM', fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:16,EDGE_EX:16,_other:9}, mon:{total:20,viol:1}},
+      {grp:'Main', sel:'M14 · Main (이상감지 임계치)', mem:'NAND', fam:'core', caps:{WAFER:13,LEVEL:4,EDGE:12,EDGE_EX:12,_other:9}, mon:{total:13,viol:1}},
+    ],
+    Sample:[
+      {grp:'Sample', sel:'M14 · Sample', mem:'DRAM', fam:'sample', caps:{WAFER:13,LEVEL:4,EDGE:10,EDGE_EX:0,_other:0}, mon:{total:7,viol:0}},
+      {grp:'Sample', sel:'M14 · Sample', mem:'NAND', fam:'sample', caps:{WAFER:13,LEVEL:4,EDGE:8,EDGE_EX:0,_other:0}, mon:{total:5,viol:0}},
+    ],
+    nameOv:{patterns:['DSPT','WF','WAFER'],match:'contains',cap:13}, mfab:true,
+  }
+};
+
+// lot → recipe → parameter cascade (variant C, D14). Mock for R3.
+const LOTS = [
+  {lot:'R3K-12', fam:'Core', recipes:[
+    {name:'R3K12_CD', cell:'Core · t-EV·EV · DRAM', params:[
+      {n:'WAFER',pc:13,cap:13},{n:'LEVEL',pc:4,cap:4},{n:'EDGE',pc:12,cap:10},{n:'EDGE_EX',pc:0,cap:0},{n:'OVL_DSPT',pc:13,cap:13},{n:'CD_X',pc:9,cap:9}]},
+    {name:'R3K12_CD2', cell:'Core · t-EV·EV · DRAM', params:[
+      {n:'WAFER',pc:13,cap:13},{n:'EDGE',pc:10,cap:10},{n:'EDGE_EX',pc:2,cap:0},{n:'CD_Y',pc:5,cap:9}]},
+    {name:'R3K12_SE', cell:'Sample', params:[
+      {n:'WAFER',pc:13,cap:13},{n:'LEVEL',pc:4,cap:4},{n:'EDGE',pc:10,cap:10},{n:'EDGE_EX',pc:0,cap:0}]},
+  ]},
+  {lot:'R3P-07', fam:'Pool', recipes:[
+    {name:'R3P07_CD', cell:'Pool · 수율후 · DRAM', params:[
+      {n:'WAFER',pc:13,cap:13},{n:'EDGE',pc:10,cap:10},{n:'EDGE_EX',pc:14,cap:10},{n:'CRIT',pc:11,cap:9}]},
+    {name:'R3P07_CD2', cell:'Pool · 수율후 · DRAM', params:[
+      {n:'WAFER',pc:13,cap:13},{n:'EDGE',pc:10,cap:10},{n:'EDGE_EX',pc:10,cap:10}]},
+  ]},
+  {lot:'R3V-03', fam:'VG·RTC·Cubic', gray:true, recipes:[
+    {name:'R3V03_CD', cell:'VG·RTC·Cubic (룰 미정)', gray:true, params:[
+      {n:'WAFER',pc:13,cap:null},{n:'EDGE',pc:12,cap:null},{n:'EDGE_EX',pc:8,cap:null}]},
+  ]},
+  {lot:'R3T-21', fam:'Core', graydata:true, recipes:[
+    {name:'R3T21_CD', cell:'미분류 — memory_class 미설정', graydata:true, params:[
+      {n:'WAFER',pc:13,cap:'?'},{n:'EDGE',pc:9,cap:'?'}]},
+  ]},
+];
+
+const HISTORY = [
+  {who:'kim.dy', when:'2026-05-30 09:14', note:'Pool 수율후 EDGE_EX 8→10'},
+  {who:'park.jh', when:'2026-05-29 17:02', note:'Core TV·PV EDGE 14→16'},
+  {who:'seed', when:'2026-05-20 10:00', note:'초기 seed 룰'},
+];
+
+//=================== UI STATE ===================
+const qs = new URLSearchParams(location.search);
+let variant = (qs.get('variant')||'A').toUpperCase();
+if(!['A','B','C'].includes(variant)) variant='A';
+let fab = 'R3';
+let mode = 'monitor';       // edit | monitor
+let selectedCell = 0;       // variant B
+const VNAME = {A:'매트릭스', B:'마스터·디테일', C:'모니터링 우선'};
+
+//=================== HELPERS ===================
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+function capView(cell, type){
+  const v = cell.caps[type];
+  if(cell.gray || v===null) return `<span class="cap gray" title="룰 미정 (Gray-A)">—</span>`;
+  if(v==='exempt') return `<span class="cap exempt" title="WF/WAFER 면제">면제</span>`;
+  const editable = (mode==='edit' && !cell.gray);
+  const zc = (v===0)?' zero':'';
+  // monitoring overlay
+  let cls='cap'+zc;
+  if(mode==='monitor' && typeof v==='number'){
+    // fake: mark EDGE/EDGE_EX cells that have violations in this cell as viol-tinted
+    const breached = cell.mon && cell.mon.viol>0 && (type==='EDGE'||type==='EDGE_EX') && v>0 && cell.sel.includes('수율후');
+    cls += breached ? ' viol' : (cell.mon&&cell.mon.viol===0?' ok':'');
+  }
+  return `<span class="${cls}" ${editable?'contenteditable="true"':''} data-type="${type}">${v}</span>`;
+}
+
+//=================== VARIANT A — MATRIX ===================
+function renderA(){
+  const R=RULES[fab];
+  const wrap=el('div');
+  wrap.append(el('div','sub',`행 = 룰 셀(family · 축 · memory) · 열 = 파라미터 타입 · 칸 = cap. ${mode==='edit'?'칸을 클릭해 편집':'actual vs cap 색 오버레이'}.`));
+  wrap.append(legend());
+  const classes = ['Main','Sample'];
+  const tbl=el('table','mx');
+  const thead=el('thead');
+  let htr='<th class="sel">룰 셀</th>'+TYPES.map(t=>`<th>${TLABEL[t]}</th>`).join('')+(mode==='monitor'?'<th>준수</th>':'');
+  thead.append(el('tr',null,htr));tbl.append(thead);
+  const tb=el('tbody');
+  classes.forEach(cls=>{
+    (R[cls]||[]).forEach((cell,i)=>{
+      const tr=el('tr');
+      const memPill = cell.mem?` <span class="pill ${cell.mem.startsWith('NAND')?'nand':'dram'}">${cell.mem}</span>`:'';
+      tr.append(el('td','sel',`<span class="pill ${cell.fam}">${cls}</span> ${cell.sel}${memPill}`));
+      TYPES.forEach(t=>{const td=el('td');td.innerHTML=capView(cell,t);tr.append(td);});
+      if(mode==='monitor'){
+        const m=cell.mon||{total:0,viol:0};
+        const k = cell.gray?'idle':(m.viol>0?'bad':'good');
+        const txt = cell.gray?'— 룰미정':`${m.viol}/${m.total}${m.viol>0?' 위반':' ✓'}`;
+        tr.append(el('td',null,`<span class="mxstat ${k}">${txt}</span>`));
+      }
+      tb.append(tr);
+    });
+  });
+  // name override row
+  const ov=R.nameOv;
+  const ovtr=el('tr','ovrow');
+  ovtr.append(el('td','ovlabel',`▸ 이름 예외 (기타 파라 전용): <code>${ov.patterns.join(' | ')}</code> ${ov.match} → cap ${ov.cap}`));
+  ovtr.append(el('td',null,`<td colspan="${TYPES.length+(mode==='monitor'?1:0)}"></td>`));
+  tb.append(ovtr);
+  tbl.append(tb);wrap.append(tbl);
+  if(RULES[fab].mfab) wrap.append(el('div','note',`▲ ${fab} 은 양산 fab — family/phase/Pool 축 없이 Class × memory_class(DRAM/NAND) 룰 (Q3).`));
+  wrap.append(histPanel());
+  return wrap;
+}
+
+//=================== VARIANT B — MASTER / DETAIL ===================
+function renderB(){
+  const R=RULES[fab];
+  const all=[]; ['Main','Sample'].forEach(cls=>(R[cls]||[]).forEach(c=>all.push({...c,cls})));
+  if(selectedCell>=all.length) selectedCell=0;
+  const md=el('div','md');
+
+  // master list
+  const list=el('div','mdlist');
+  let lastGrp=null;
+  all.forEach((c,i)=>{
+    if(c.grp!==lastGrp){list.append(el('div','mdgrp',c.grp));lastGrp=c.grp;}
+    const it=el('div','mditem'+(i===selectedCell?' on':''));
+    const m=c.mon||{};const badge=c.gray?`<span class="mxstat idle">미정</span>`:(m.viol>0?`<span class="mxstat bad">${m.viol}/${m.total}</span>`:`<span class="mxstat good">✓</span>`);
+    const memPill=c.mem?`<span class="pill ${c.mem.startsWith('NAND')?'nand':'dram'}">${c.mem}</span>`:'';
+    it.innerHTML=`<span class="lab">${c.sel} ${memPill}</span>${badge}`;
+    it.onclick=()=>{selectedCell=i;render();};
+    list.append(it);
+  });
+  md.append(list);
+
+  // detail panel
+  const c=all[selectedCell];
+  const p=el('div','mdpanel');
+  const memPill=c.mem?`<span class="pill ${c.mem.startsWith('NAND')?'nand':'dram'}">${c.mem}</span>`:'';
+  p.append(el('h2',null,`${c.sel} ${memPill}`));
+  p.append(el('div','sub',`<span class="pill ${c.fam}">${c.cls}</span> · ${c.gray?'룰 미정 (Gray-A) — 누구나 정의 가능':'cap 편집 + 이 셀에 속한 recipe 모니터링'}`));
+  TYPES.forEach(t=>{
+    const row=el('div','caprow');
+    row.append(el('div','tname',TLABEL[t]));
+    const capbox=el('div');capbox.innerHTML=capView(c,t);row.append(capbox);
+    const v=c.caps[t];
+    let desc='상한 ≤';
+    if(t==='EDGE_EX'&&v===0)desc='측정 금지 (cap 0)';
+    if(t==='_other'&&v==='exempt')desc='Sample: WF/WAFER 면제, 그 외 0';
+    if(t==='_other'&&typeof v==='number')desc=`기타 파라 기본 상한 (이름예외 → ${RULES[fab].nameOv.cap})`;
+    row.append(el('div','desc',desc));
+    if(mode==='monitor'&&typeof v==='number'&&!c.gray){
+      const m=c.mon||{total:1,viol:0};const ratio=Math.min(1,(m.viol/(m.total||1)));
+      const bw=el('div','barwrap');bw.append(el('div','bar'+(m.viol>0&&(t==='EDGE'||t==='EDGE_EX')?' viol':''),''));
+      bw.firstChild.style.width=(20+ratio*70)+'%';row.append(bw);
+    }
+    p.append(row);
+  });
+  if(mode==='monitor'&&!c.gray){
+    const m=c.mon||{};
+    p.append(el('div','sub',`<br>이 셀 모니터링: <b class="${m.viol>0?'mxstat bad':'mxstat good'}">${m.viol}/${m.total}</b> recipe 위반.`));
+  }
+  md.append(p);
+  const wrap=el('div');
+  wrap.append(el('div','sub','왼쪽에서 룰 셀 선택 → 오른쪽에서 cap 편집·모니터링. 한 번에 한 셀, 여유 있는 편집.'));
+  wrap.append(md);wrap.append(histPanel());
+  return wrap;
+}
+
+//=================== VARIANT C — MONITORING FIRST ===================
+function renderC(){
+  const wrap=el('div');
+  wrap.append(el('div','sub','lot → recipe → parameter cascade (D14). 위반이 보이는 자리에서 cap 을 바로 편집. 모니터링이 편집을 이끈다.'));
+  wrap.append(legend());
+  const lots=el('div','lots');
+  LOTS.forEach((lot,li)=>{
+    const card=el('div','lotcard'+(li===0?' open':''));
+    let viol=0,total=0;lot.recipes.forEach(r=>{total++;if(r.params.some(p=>typeof p.cap==='number'&&p.pc>p.cap))viol++;});
+    const ratio=total?viol/total:0;
+    const lvl=lot.gray||lot.graydata?'amber':(ratio>=.34?'red':ratio>0?'amber':'green');
+    const head=el('div','lothead');
+    head.innerHTML=`<span class="dot ${lvl}"></span><span class="lotcd">${lot.lot}</span>`+
+      `<span class="pill ${lot.fam==='Pool'?'pool':lot.fam==='Core'?'core':''}">${lot.fam}</span>`+
+      `<div class="spacer" style="flex:1"></div>`+
+      `<span class="ratio ${viol>0?'mxstat bad':'mxstat good'}">위반 ${viol}/${total}</span>`+
+      `<span class="ratiobar"><i style="width:${Math.round(ratio*100)}%"></i></span>`+
+      `<span class="ratio" style="color:var(--ink3)">${Math.round(ratio*100)}%</span>`;
+    head.onclick=()=>{card.classList.toggle('open');};
+    card.append(head);
+    const recs=el('div','recipes');
+    lot.recipes.forEach((r,ri)=>{
+      const vparams=r.params.filter(p=>typeof p.cap==='number'&&p.pc>p.cap);
+      const bad=vparams.length>0;
+      const row=el('div','recipe'+(ri===0&&li===0?' open':''));
+      const status=r.gray?'<span class="mxstat idle">룰 미정</span>':r.graydata?'<span class="mxstat idle">미분류</span>':(bad?'<span class="mxstat bad">위반</span>':'<span class="mxstat good">준수 ✓</span>');
+      row.innerHTML=`<div><span class="chev">▸</span> <span class="rname">${r.name}</span> <span class="rmeta">→ ${r.cell}</span></div>`+
+        `<div class="rmeta">총 ${r.params.length} 파라 · 위반 ${vparams.length}</div>`+
+        `<div>${status}</div>`;
+      const pwrap=el('div','params');
+      r.params.forEach(p=>{
+        const isv=typeof p.cap==='number'&&p.pc>p.cap;
+        const capTxt = p.cap===null?'—':p.cap==='?'?'?':p.cap;
+        const box=el('div','param'+(isv?' viol':''));
+        box.innerHTML=`${p.n} <span class="vs">${p.pc}/${capTxt}</span>`+(isv&&mode==='edit'?` <button class="ctaedit">cap↑</button>`:'');
+        pwrap.append(box);
+      });
+      row.onclick=()=>{row.classList.toggle('open');};
+      recs.append(row);recs.append(pwrap);
+    });
+    card.append(recs);lots.append(card);
+  });
+  wrap.append(lots);
+  wrap.append(el('div','note','회색 dot = Gray-A(룰 미정) 또는 Gray-B(어노테이션 미설정) — 둘 다 위반에서 제외(보수적, D14).'));
+  return wrap;
+}
+
+//=================== shared bits ===================
+function legend(){
+  const l=el('div','legend');
+  l.innerHTML=`<span><span class="sw" style="background:var(--green-bg);border:1px solid var(--green)"></span>준수 (actual ≤ cap)</span>`+
+    `<span><span class="sw" style="background:var(--red-bg);border:1px solid var(--red)"></span>위반 (&gt; cap)</span>`+
+    `<span><span class="sw" style="background:var(--gray-bg);border:1px dashed var(--gray)"></span>회색 = 룰미정/미분류</span>`+
+    `<span><span class="sw" style="background:#0f2417;border:1px solid #234b2a"></span>면제 (WF/WAFER)</span>`;
+  return l;
+}
+function histPanel(){
+  const h=el('div','hist');
+  h.append(el('h3',null,`변경 이력 · ${fab} (누구나 편집 · SSO 추적 · rollback) — D12 / adr-0004`));
+  HISTORY.forEach(r=>{
+    const row=el('div','hrow');
+    row.innerHTML=`<span class="who">${r.who}</span><span>${r.note}</span><span class="when">${r.when}</span>`+
+      `<button class="rb">rollback</button>`;
+    h.append(row);
+  });
+  return h;
+}
+
+//=================== RENDER + WIRING ===================
+function render(){
+  // fab selector
+  const fs=document.getElementById('fabsel');fs.innerHTML='';
+  Object.keys(RULES).forEach(f=>{const b=el('button',f===fab?'on':'',f);b.onclick=()=>{fab=f;selectedCell=0;render();};fs.append(b);});
+  // mode seg
+  document.querySelectorAll('#modeseg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));
+  // body
+  const root=document.getElementById('root');root.innerHTML='';
+  const head=el('div');
+  head.append(el('h1',null,`계측 룰 — ${variant==='C'?'모니터링':'편집'} 대시보드`));
+  root.append(head);
+  root.append({A:renderA,B:renderB,C:renderC}[variant]());
+  // switcher label
+  document.getElementById('vlabel').innerHTML=`<b>${variant}</b> — ${VNAME[variant]}`;
+  // contenteditable cap edits (in-memory only)
+  root.querySelectorAll('.cap[contenteditable]').forEach(c=>{
+    c.addEventListener('blur',e=>{
+      const t=e.target.dataset.type;const n=parseInt(e.target.textContent,10);
+      // find the cell — simplest: re-render reads from RULES, so write back by matching is skipped in proto
+      e.target.textContent=isNaN(n)?'0':n; // just normalize; persistence intentionally omitted
+    });
+  });
+}
+document.querySelectorAll('#modeseg button').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;render();});
+function setVariant(v){variant=v;const u=new URL(location);u.searchParams.set('variant',v);history.replaceState({},'',u);render();}
+document.getElementById('prev').onclick=()=>setVariant({A:'C',B:'A',C:'B'}[variant]);
+document.getElementById('next').onclick=()=>setVariant({A:'B',B:'C',C:'A'}[variant]);
+document.addEventListener('keydown',e=>{
+  if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)||document.activeElement.isContentEditable)return;
+  if(e.key==='ArrowLeft')document.getElementById('prev').click();
+  if(e.key==='ArrowRight')document.getElementById('next').click();
+});
+render();
+</script>
+</body>
+</html>

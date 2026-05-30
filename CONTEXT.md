@@ -61,15 +61,16 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 ### 계측 룰 (Measurement Rule)
 
-한 [[lot]] 내의 recipe들이 가져야 할 **기대 파라미터 분포**. 구체적으로는 para_16 / para_13 / para_9 / para_5 계측 포인트 수의 분포가 정해진 비율 또는 범위에 들어 있는지를 의미합니다. 룰의 형태는 (bucket × fab 종류)에 따라 셋으로 갈립니다:
+한 recipe 의 각 파라미터가 넘지 말아야 할 **타입별 측정 포인트 상한(cap)**. 준수 = 모든 파라미터가 `point_count ≤ cap` 입니다 — **과소측정은 위반이 아닙니다**(비대화 억제가 목적). 룰은 파라미터 **타입**(WAFER/LEVEL/EDGE/EDGE_EX/기타)별 cap + 기타 파라용 **이름 예외(name override)** 로 구성됩니다. (옛 `para_16/13/9/5` bin 모델은 `EDGE_EX=0`·`LEVEL=4` 를 표현할 수 없어 폐기 — raw 파라미터 데이터가 source of truth.)
 
-- `only_sample` bucket — Sample recipe는 “약속된 특정 파라미터만 측정”이라는 조직 합의가 있어 **fab·stage 전부 무관한 고정 룰 한 벌**을 공유합니다. R3와 M-fab 모두 동일 룰.
-- R3 의 `only_normal` / `mother_normal` / `all` — **[[device-stage]] 별 룰**(EV/TV/PV/Pool). stage가 후기일수록 더 많은 파라미터 허용.
-- M-fab 의 `only_normal` / `mother_normal` / `all` — **fab 단일 룰**. 양산은 공식 “기대 분포” 합의가 없지만, 사용자가 같은 룰 폼에 임계치를 넣어 **이상 감지(anomaly detection)** 용도로 활용합니다. UI 카피상 R3 와 동일 표현을 쓰지 않도록 주의 (“기대 분포” vs “이상 감지 임계치”).
+룰 셀의 키 축은 fab 에 따라 다릅니다:
 
-룰은 코드 상수가 아니라 관리자/사용자가 입력·수정하는 도메인 객체이며, 룰을 벗어나는 정도가 [[lot-health-signal]]의 입력입니다.
+- **R3 (R&D)** — `recipe_class × [[product-family]] × (Core=[[phase]] | Pool=yield_check) × memory_class`. Sample 은 fab·축 무관 **고정 한 벌**.
+- **M-fab (양산)** — `recipe_class × memory_class` (family·phase·Pool 없음). 의미는 "기대 분포"가 아니라 **이상감지 임계치**.
 
-**편집 권한과 위치**: 룰 편집은 **관리자 전용**, 별도 `/admin/measurement-rules` 페이지에서 수행합니다. 다른 사용자는 read-only — 신호등 색이 cross-team coordination 매체이므로 룰은 single source of truth여야 합니다. seed 룰과 그 read/write API는 `back_dev_home/ebeam/cdsem/device_statistics/rules.py` 에 위치하고, swap pattern에 따라 Phase 2/3에서 함수 시그니처 그대로 DB-backed 구현으로 교체됩니다.
+룰은 코드 상수가 아니라 사용자가 입력·수정하는 도메인 객체이며, 룰을 벗어나는 정도가 [[lot-health-signal]]의 입력입니다. 상세 모델·결정은 `docs/issues/ground_rules/`(grilling-log · rule-editor-structure) 참조.
+
+**편집 권한과 위치**: 룰·어노테이션 편집은 **인증된 엔지니어 누구나** `device-statistics/measurement-rules` 페이지에서 수행하며, SSO 신원 추적 + 버전 이력 + rollback 으로 무결성을 확보합니다(ADR 0004 — ADR 0003 의 관리자 전용을 supersede). seed 룰과 read/write/history/rollback API 는 `back_dev_home/ebeam/cdsem/device_statistics/rules.py` 에 위치하고, swap pattern 으로 Phase 2/3 DB-backed 교체됩니다.
 
 ### Product Family (Core / Pool제 / VG·RTC·Cubic)
 
@@ -89,7 +90,7 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 **추출 실패 시 fallback**: phase 키워드가 없으면 *초기 개발 단계* 로 간주해 **가장 strict 한 룰(EV 급)** 을 적용 — 보수적 선택. UI 칩은 `[?]` 로 노출해 "fallback 적용 중" 을 tooltip 으로 부연, 데이터 품질 audit 가능성 유지.
 
-**fab 적용 범위**: ground rule 은 *개발 제품* 대상. R3(R&D) 적용은 확정, 양산 M-fab 의 family/phase 적용 여부는 [[analysis-scope]] 와 함께 별도 결정(grilling 진행 중).
+**fab 적용 범위**: ground rule 의 family/phase 축은 *개발*(R3) 전용입니다. **양산 M-fab 은 family·phase·Pool 축이 없고** `recipe_class × memory_class` 로만 키잉됩니다(양산은 DRAM/NAND 로 분리되나 개발 단계 개념은 없음). 상세는 [[계측-룰]] 참조.
 
 ### Lot Health Signal (신호등)
 
@@ -97,13 +98,13 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 **계산 방식**:
 
-1. 각 recipe가 자기 lot의 `(fab × stage × bucket)` 룰을 검사 — 룰은 파라미터 카테고리별 정수 cap (`para_16_max`, `para_13_max`, `para_9_max`, `para_5_max`). cap 하나라도 넘으면 violation 1건.
+1. 각 recipe 를 룰 셀에 resolve 한 뒤, recipe 의 **모든 파라미터**가 `point_count ≤ cap` 인지 검사 — 하나라도 초과하면 그 recipe 는 violation. (룰 미정·어노테이션 미설정 recipe 는 보수적으로 violation 에서 제외하고 별도 표기.)
 2. lot 단위 roll-up: `violation_ratio = 위반 recipe 수 / 총 recipe 수`.
 3. 색 매핑 (provisional, 사용자 합의 시 조정 예정): `< 10%` green, `10~20%` yellow, `≥ 20%` red.
 
 threshold 값은 코드 상수가 아니라 룰 정의 객체의 일부로 저장되어 사용자가 함께 편집합니다.
 
-**Severity (per-cell)**: cap 초과의 심각도는 같은 `(fab × stage × bucket)` 안에서 해당 파라미터 카테고리 actual 값들의 표준편차(σ)를 기준으로 표현합니다. 예) recipe의 `para_16` 값이 cap을 2σ 위로 초과하면 cell이 진한 색조로 표시되어 “단순 over”와 “심하게 over”를 시각적으로 분리합니다. lot-level pass/fail은 단순 binary (cap 초과 여부) 로 두고, severity는 cell-level 시각 표현에만 적용 — 첫 버전 복잡도를 억제합니다.
+**투명성 신호**: WAFER 이름 companion 을 관대히 인정하므로(이름 prefix 가 표준 토큰이면 WAFER-family), 비대해진 recipe 가 위반 없이 통과할 수 있습니다 — 이를 보완해 recipe 별 **총 파라미터 수**를 노출해 또래 대비 비정상 다(多)파라를 사람이 인지하게 합니다.
 
 ### Analysis Scope
 
