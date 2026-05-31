@@ -35,27 +35,27 @@
       PM Planning fleet request failed: {{ error.message }}
     </div>
 
-    <div
+    <EbeamPmPlanningFocusRanking
       v-else-if="tools.length"
-      class="dashboard-surface rounded-2xl px-4 py-3 text-xs text-(--sk-ink-muted)"
-    >
-      Focus controls staged:
-      N={{ focusN }},
-      <span
-        v-for="beam in beamConditions"
-        :key="beam"
-        class="ml-2 font-mono"
-      >
-        {{ beam }} {{ (threshold[beam] ?? 0).toFixed(2) }}nm
-      </span>
-    </div>
+      v-model:top-n="topN"
+      v-model:threshold-pct="thresholdPct"
+      :tools="rankedTools"
+      :selected-tool-id="selectedToolId"
+      @select-tool="selectedToolId = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { usePmPlanningApi, type FleetResponse, type ToolBlock } from '~/composables/usePmPlanningApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import type { BeamCondition } from '~/utils/pmPlanning'
+import { rankFocusTargets, type BeamCondition, type RankedTool } from '~/utils/pmPlanning'
+
+type RankedFocusTool = RankedTool & {
+  beam: BeamCondition
+  skewPct: number
+  tier: 'focus' | 'monitor' | 'ok'
+}
 
 const props = defineProps<{
   fab: string
@@ -85,15 +85,37 @@ watch(tools, (list) => {
   selectedEqpId.value = hold?.eqp_id ?? list[0]?.eqp_id ?? null
 }, { immediate: true })
 
-const focusN = ref(3)
-const threshold = ref<Record<string, number>>({ '500V': 0.30, '800V': 0.40 })
+const topN = ref(5)
+const thresholdPct = ref(80)
+const selectedToolId = ref('')
 const beamConditions = computed<BeamCondition[]>(() => fleet.value?.beam_conditions ?? ['500V', '800V'])
 
-watch(fleet, (nextFleet) => {
-  if (!nextFleet) return
-  focusN.value = nextFleet.defaults.focus_n
-  threshold.value = { ...nextFleet.defaults.advisory_threshold }
-}, { immediate: true })
+const rankedTools = computed<RankedFocusTool[]>(() => {
+  const rows: RankedFocusTool[] = []
+
+  for (const beam of beamConditions.value) {
+    const ranked = rankFocusTargets(tools.value, beam, 0, tools.value.length)
+    const maxScore = ranked[0]?.score ?? 0
+
+    rows.push(...ranked.slice(0, topN.value).map((tool: RankedTool) => {
+      const skewPct = maxScore > 0 ? (tool.score / maxScore) * 100 : 0
+      const tier: RankedFocusTool['tier'] = skewPct >= thresholdPct.value
+        ? 'focus'
+        : skewPct >= thresholdPct.value * 0.75
+          ? 'monitor'
+          : 'ok'
+
+      return {
+        ...tool,
+        beam,
+        skewPct,
+        tier
+      }
+    }))
+  }
+
+  return rows
+})
 
 const metaStats = computed<MetaBarStat[]>(() => {
   const list = tools.value
