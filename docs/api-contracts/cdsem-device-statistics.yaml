@@ -136,6 +136,34 @@ types:
     avail_recipe_percent:
       type: number
 
+  NameOverride:
+    description: Name-based cap override for OTHER (non-WAFER-family) params only (D9).
+    patterns:
+      type: array
+      description: 'e.g. ["DSPT", "WF", "WAFER"]'
+    match:
+      type: string
+      enum: ["contains", "affix"]
+    cap:
+      type: integer
+      description: "null = 면제 (no limit)"
+
+  RuleCell:
+    description: One rule cell — selector + caps + name_overrides (D11). Consumed client-side by ruleEngine.ts.
+    id:
+      type: string
+    selector:
+      type: object
+      description: >
+        { fab, recipe_class } always present. Main keys on family + (phase_in for Core/VG
+        | yield_check for Pool) + optional memory_class (D8). M-fab omits family/phase (D15).
+    caps:
+      type: object
+      description: "{ WAFER, LEVEL, EDGE?, EDGE_EX?, _other } — integer caps; absent type = not applicable"
+    name_overrides:
+      type: array
+      items: NameOverride
+
   RecipeBuckets:
     description: Eight keys — four bucket names (all, only_normal, mother_normal, only_sample) crossed with rcp_info / summary
     all_rcp_info:
@@ -203,6 +231,36 @@ endpoints:
           format: "YYYY-MM-DD or null when no data"
           description: ISO date of the latest weekly bucket
         buckets: RecipeBuckets
+
+  - path: /api/cdsem/device-statistics/rules
+    method: GET
+    description: >
+      Current measurement-rule version for a fab (D8 cap matrix / D15 M-fab shape).
+      Ships raw rule cells only — the frontend ruleEngine computes violations client-side.
+      save / history / rollback (D12) are added in later steps.
+    query_params:
+      fab:
+        type: string
+        required: true
+        description: 'Fab id (e.g. "R3", "M14"). Case-insensitive. 400 if missing, 404 if unknown.'
+    response:
+      status: 200
+      body:
+        fab:
+          type: string
+        version:
+          type: integer
+        edited_by:
+          type: string
+        edited_at:
+          type: string
+          format: "ISO 8601"
+        cells:
+          type: array
+          items: RuleCell
+        thresholds:
+          type: object
+          description: "fab-level signal boundaries { yellow_at, red_at } — lot roll-up ratio (D16)"
 
   - path: /api/cdsem/device-statistics/recipe-trend
     method: GET

@@ -330,3 +330,22 @@ what-if/적용(D17)은 **cap 에만** 작동한다.
     "거의 안 바꾸되 코드 없이 바꿀 길은 프론트에 열어둔다."
 - **Q4 해소**: 화면 간 applied 비대칭은 **cap 에만** 남는다(에디터 draft vs device-statistics 저장본).
   threshold 는 어디서나 저장본이라 비대칭이 사라진다 → composable 단순화(threshold 는 상수처럼 주입, draft 제외).
+
+### D19 — Sample Core TV·PV 는 EDGE 16 (D6 의 "phase 공통 한 벌" 부분 supersede)
+
+step 2(seed) 구현 리뷰에서 `/code-review` 와 `codex:rescue` 가 **충돌**했다: code-review 는
+`ground_rules.txt` L40 "Core인 경우 TV 이후 (TV, PV) EDGE 16개로 증가" 가 **Sample 섹션**(L34–41)에
+있는데 seed 가 누락했다고 지적, codex 는 "D6 에서 해소됨"으로 판단. 사용자 확정: **L40 을 정본으로 채택**.
+
+- **D6 의 미세 수정**: D6 은 Sample 을 "모든 fab·phase 공통 한 벌"로 단순화하며 L40(Core TV·PV EDGE 상향)을
+  의도치 않게 떨궜다. D19 가 **그 부분만** supersede — Sample 의 나머지(WAFER 13/LEVEL 4/EDGE 10·8/EDGE_EX 0/
+  `_other` 0, WF/WAFER affix 면제)는 D6 그대로 유지.
+- **셀 형태**: `selector {recipe_class:Sample, family:Core, phase_in:[TV,PV]}`, EDGE 16. **memory-blind**
+  (Main 의 Core TV·PV(D8)가 memory 분기 없이 EDGE 16 인 것과 동일 — DRAM·NAND Core 모두 16).
+  EDGE_EX 0, `_other` 0 은 Sample 기본 유지.
+- **순서 = 우선순위 (D11 first-match 의존)**: ruleEngine 은 specificity 정렬 없이 first-match 이므로,
+  이 specific 셀을 seed 배열에서 phase-blind Sample 셀(`r3-sample-dram/nand`)보다 **앞에** 둬야 한다.
+  뒤에 두면 phase-blind 가 먼저 잡혀 EDGE 10/8 로 떨어져 D19 가 무력화된다. (`rules.py:_r3_cells` 주석 참조,
+  `ruleEngine.test.ts` 의 D19 테스트가 순서=우선순위를 고정.)
+- **영향**: Core TV·PV Sample recipe 의 EDGE 11–16 이 더 이상 거짓 위반으로 잡히지 않는다.
+- ⚠️ Pool·VG 의 Sample TV·PV 는 L40 이 "Core인 경우"로 한정하므로 **대상 아님** — phase-blind 10/8 유지.

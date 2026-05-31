@@ -1,10 +1,11 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, abort, jsonify, request
 
 from back_dev_home.ebeam.cdsem.device_statistics.data import (
     get_device_desc,
     get_r3_device_grp,
     get_weekly_trend_data,
 )
+from back_dev_home.ebeam.cdsem.device_statistics.rules import get_rules
 
 bp = Blueprint("cdsem_device_statistics", __name__)
 
@@ -39,6 +40,21 @@ def recipe_statistics():
 
     latest_date = next(reversed(trend))
     return jsonify({"date": latest_date, "buckets": trend[latest_date]})
+
+
+@bp.get("/cdsem/device-statistics/rules")
+def measurement_rules():
+    # Current rule version for a fab (D8/D15 seed). The frontend ruleEngine
+    # consumes these cells client-side; this endpoint ships raw rules only.
+    fab = request.args.get("fab", "").strip()
+    if not fab:
+        abort(400, description="fab query parameter is required")
+
+    rules = get_rules(fab)
+    if rules is None:
+        abort(404, description=f"no rules for fab '{fab}'")
+
+    return jsonify(rules)
 
 
 @bp.get("/cdsem/device-statistics/recipe-trend")

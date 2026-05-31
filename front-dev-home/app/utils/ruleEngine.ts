@@ -1,9 +1,9 @@
 // Measurement-rule engine — pure, framework-free logic.
-// Implements grilling decisions D1–D15 (docs/issues/ground_rules/).
+// Implements grilling decisions D1–D18 (docs/issues/ground_rules/).
 // The backend ships RAW data (rules + parameters + annotations); ALL violation
 // judgement happens here, client-side, so editing a cap recomputes instantly.
 
-//=================== Types (rule-editor-structure.md §2) ===================
+// =================== Types (rule-editor-structure.md §2) ===================
 
 export type RecipeClass = 'Main' | 'Sample'
 export type Family = 'Core' | 'Pool' | 'VG_RTC_Cubic'
@@ -13,9 +13,9 @@ export type ParamType = 'WAFER' | 'LEVEL' | 'EDGE' | 'EDGE_EX' | 'OTHER'
 
 /** Name-based override — applies ONLY to OTHER (non-WAFER-family) params (D9). */
 export interface NameOverride {
-  patterns: string[]                 // e.g. ['DSPT','WF','WAFER']
-  match: 'contains' | 'affix'        // affix = prefix OR suffix
-  cap: number | null                 // null = exempt (no limit) — Sample WF/WAFER case
+  patterns: string[] // e.g. ['DSPT','WF','WAFER']
+  match: 'contains' | 'affix' // affix = prefix OR suffix
+  cap: number | null // null = exempt (no limit) — Sample WF/WAFER case
 }
 
 export type CapMap = Partial<Record<Exclude<ParamType, 'OTHER'>, number>> & { _other: number }
@@ -26,9 +26,9 @@ export interface RuleCell {
     fab: string
     recipe_class: RecipeClass
     family?: Family
-    phase_in?: Phase[]               // Core keys on this (D8)
+    phase_in?: Phase[] // Core keys on this (D8)
     yield_check?: 'before' | 'after' // Pool keys on this (D8)
-    memory_class?: MemoryClass       // only EDGE/EDGE_EX-split cells (D11)
+    memory_class?: MemoryClass // only EDGE/EDGE_EX-split cells (D11)
   }
   caps: CapMap
   name_overrides: NameOverride[]
@@ -56,13 +56,13 @@ export interface Annotation {
   yield_check?: 'before' | 'after' | null
 }
 
-//=================== Derivation (D3 / D7 / D10) ===================
+// =================== Derivation (D3 / D7 / D10) ===================
 
 const STD_TYPES: Exclude<ParamType, 'OTHER'>[] = ['EDGE_EX', 'EDGE', 'WAFER', 'LEVEL']
 
 /** D10 — longest-prefix match; suffix allowed; Class-independent. */
 export const deriveType = (name: string): ParamType => {
-  const up = name.toUpperCase()
+  const up = (name || '').toUpperCase()
   for (const t of STD_TYPES) if (up.startsWith(t)) return t
   return 'OTHER'
 }
@@ -93,10 +93,10 @@ export const deriveMemoryClass = (prodCatgCd: string): MemoryClass | 'unknown' =
   return 'unknown'
 }
 
-//=================== Cap resolution (D9) ===================
+// =================== Cap resolution (D9) ===================
 
 const matchName = (name: string, ov: NameOverride): boolean => {
-  const up = name.toUpperCase()
+  const up = (name || '').toUpperCase()
   return ov.patterns.some((p) => {
     const P = p.toUpperCase()
     return ov.match === 'contains' ? up.includes(P) : (up.startsWith(P) || up.endsWith(P))
@@ -119,7 +119,7 @@ export const capFor = (param: Parameter, cell: RuleCell): number | null => {
   return cell.caps._other
 }
 
-//=================== Cell resolution (D8 / D14) ===================
+// =================== Cell resolution (D8 / D14) ===================
 
 export interface MergedRecipe extends Omit<RecipeInput, 'memory_class_auto'> {
   memory_class: MemoryClass | null
@@ -130,15 +130,19 @@ export interface MergedRecipe extends Omit<RecipeInput, 'memory_class_auto'> {
 export const applyAnnotation = (recipe: RecipeInput, ann?: Annotation): MergedRecipe => {
   const auto = recipe.memory_class_auto === 'unknown' ? null : recipe.memory_class_auto
   const { memory_class_auto: _omit, ...rest } = recipe
+  // D7 — VG·RTC·Cubic provisionally reduces to DRAM-side when no explicit class
+  // is set (manual annotation still wins; backend auto-derivation still wins).
+  const vgFallback = rest.family === 'VG_RTC_Cubic' ? 'DRAM' : null
   return {
     ...rest,
-    memory_class: ann?.memory_class ?? auto,
-    yield_check: ann?.yield_check ?? null,
+    memory_class: ann?.memory_class ?? auto ?? vgFallback,
+    yield_check: ann?.yield_check ?? null
   }
 }
 
 const selectorMatches = (cell: RuleCell, r: MergedRecipe): boolean => {
   const s = cell.selector
+  if (s.fab !== r.fac_id) return false // D15 — fab is a real axis
   if (s.recipe_class !== r.recipe_class) return false
   if (s.family != null && s.family !== r.family) return false
   if (s.phase_in && !(r.phase && s.phase_in.includes(r.phase))) return false
@@ -147,15 +151,16 @@ const selectorMatches = (cell: RuleCell, r: MergedRecipe): boolean => {
   return true
 }
 
-export type CellResolution =
-  | { kind: 'cell', cell: RuleCell }
-  | { kind: 'gray', gray: 'A' | 'B', reason: string }
+export type CellResolution
+  = | { kind: 'cell', cell: RuleCell }
+    | { kind: 'gray', gray: 'A' | 'B', reason: string }
 
 /** D8 + D14 — find the cell, or classify why it's gray (A=룰미정, B=어노테이션미설정). */
 export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolution => {
   const byClassFam = cells.filter(
-    c => c.selector.recipe_class === r.recipe_class
-      && (c.selector.family == null || c.selector.family === r.family),
+    c => c.selector.fab === r.fac_id // D15 — gray detection is fab-scoped
+      && c.selector.recipe_class === r.recipe_class
+      && (c.selector.family == null || c.selector.family === r.family)
   )
   const match = byClassFam.find(c => selectorMatches(c, r))
   if (match) return { kind: 'cell', cell: match }
@@ -167,7 +172,7 @@ export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolut
   return { kind: 'gray', gray: 'A', reason: '룰 미정' }
 }
 
-//=================== Evaluation (D5 / D14) ===================
+// =================== Evaluation (D5 / D14) ===================
 
 export interface ParamResult { name: string, point_count: number, type: ParamType, cap: number | null, violation: boolean }
 
@@ -188,10 +193,10 @@ export const evaluateRecipe = (recipe: MergedRecipe, res: CellResolution): Recip
       recipe_id: recipe.recipe_id,
       total_params: recipe.parameters.length,
       violation_params: [],
-      pass: true,           // conservative: gray ≠ violation (D14)
+      pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, violation: false })),
+      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, violation: false }))
     }
   }
   const results = recipe.parameters.map((p): ParamResult => {
@@ -205,17 +210,41 @@ export const evaluateRecipe = (recipe: MergedRecipe, res: CellResolution): Recip
     violation_params,
     pass: violation_params.length === 0,
     gray: null,
-    results,
+    results
   }
 }
 
-//=================== Lot roll-up (D14) ===================
+// =================== Lot roll-up (D14) ===================
 
 export type HealthLevel = 'green' | 'yellow' | 'red'
 
-/** Mirrors the existing classifyHealth thresholds (provisional). */
-export const classifyHealth = (violationRatio: number): HealthLevel =>
-  violationRatio < 0.1 ? 'green' : violationRatio < 0.2 ? 'yellow' : 'red'
+/** D16 — fab-level signal boundaries (lot roll-up ratio), shared on RuleVersion. */
+export interface Thresholds { yellow_at: number, red_at: number }
+
+/** D16/D18 — seed defaults; editable & versioned, but excluded from cap what-if. */
+export const SEED_THRESHOLDS: Thresholds = { yellow_at: 0.1, red_at: 0.2 }
+
+/** D12/D16 — one fab's current rule version: cells + shared thresholds + attribution.
+ * The container type for what GET /rules ships (rule-editor-structure.md §2). */
+export interface RuleVersion {
+  fab: string
+  version: number
+  edited_by: string
+  edited_at: string
+  cells: RuleCell[]
+  thresholds: Thresholds
+}
+
+/** D17 — thresholds are injected (no longer hardcoded); seed used when absent. */
+export const classifyHealth = (
+  violationRatio: number,
+  thresholds: Thresholds = SEED_THRESHOLDS
+): HealthLevel =>
+  violationRatio < thresholds.yellow_at
+    ? 'green'
+    : violationRatio < thresholds.red_at
+      ? 'yellow'
+      : 'red'
 
 export interface LotHealth {
   lot_cd: string
@@ -232,6 +261,7 @@ export const evaluateLot = (
   recipes: RecipeInput[],
   cells: RuleCell[],
   annotation?: Annotation,
+  thresholds: Thresholds = SEED_THRESHOLDS
 ): LotHealth => {
   const results = recipes.map((r) => {
     const merged = applyAnnotation(r, annotation)
@@ -246,7 +276,7 @@ export const evaluateLot = (
     total_recipes: recipes.length,
     violation_recipes,
     violation_ratio,
-    health: classifyHealth(violation_ratio),
-    recipes: results,
+    health: classifyHealth(violation_ratio, thresholds),
+    recipes: results
   }
 }
