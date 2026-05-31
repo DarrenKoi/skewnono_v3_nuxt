@@ -1,6 +1,8 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-5">
-    <p class="text-xs text-(--sk-ink-subtle)">오늘 함대 skew 현황</p>
+    <p class="text-xs text-(--sk-ink-subtle)">
+      오늘 함대 skew 현황
+    </p>
     <div class="mt-3 space-y-2">
       <div
         v-for="d in sorted"
@@ -9,7 +11,10 @@
       >
         <span class="w-24 text-(--sk-ink-muted)">{{ labelFor(d.eqp_id) }}</span>
         <div class="flex-1 relative h-4">
-          <div class="absolute inset-y-0 left-1/2 w-px" :style="{ background: 'var(--sk-border)' }" />
+          <div
+            class="absolute inset-y-0 left-1/2 w-px"
+            :style="{ background: 'var(--sk-border)' }"
+          />
           <div
             class="absolute inset-y-0.5 rounded"
             :style="barStyle(d.deviation)"
@@ -30,7 +35,7 @@
 <script setup lang="ts">
 import type { FleetToday, ToolRef } from '~/composables/useSkewCheckApi'
 
-const props = defineProps<{ fleet: FleetToday; tools: ToolRef[] }>()
+const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 
 const labelFor = (eqp: string) => props.tools.find(t => t.eqp_id === eqp)?.label ?? eqp
 

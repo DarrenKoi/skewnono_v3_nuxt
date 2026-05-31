@@ -9,14 +9,25 @@
       :stats="metaStats"
     />
 
-    <div v-if="pending" class="text-sm text-(--sk-ink-muted)">불러오는 중…</div>
-    <div v-else-if="!payload?.available" class="text-sm text-(--sk-bad)">
+    <div
+      v-if="pending"
+      class="text-sm text-(--sk-ink-muted)"
+    >
+      불러오는 중…
+    </div>
+    <div
+      v-else-if="!payload?.available"
+      class="text-sm text-(--sk-bad)"
+    >
       {{ payload?.summary ?? '데이터가 없습니다.' }}
     </div>
 
     <template v-else>
       <div class="dashboard-surface rounded-2xl p-4">
-        <EbeamSkewCheckToleranceKnob v-model="tolerance" :range="payload.tolerance_range" />
+        <EbeamSkewCheckToleranceKnob
+          v-model="tolerance"
+          :range="payload.tolerance_range"
+        />
       </div>
 
       <EbeamSkewCheckRecommendationCard
@@ -33,8 +44,14 @@
         :tolerance="tolerance"
       />
 
-      <EbeamSkewCheckFleetStatus :fleet="payload.fleet_today" :tools="payload.tools" />
-      <EbeamSkewCheckTrendChart :trend="payload.trend" :markers="payload.epoch_markers" />
+      <EbeamSkewCheckFleetStatus
+        :fleet="payload.fleet_today"
+        :tools="payload.tools"
+      />
+      <EbeamSkewCheckTrendChart
+        :trend="payload.trend"
+        :markers="payload.epoch_markers"
+      />
       <EbeamSkewCheckMdcTimeline :history="payload.mdc_history" />
     </template>
   </div>
@@ -44,13 +61,15 @@
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from '~/utils/skewGrouping'
 
-const props = defineProps<{ fab: string; toolLabel: string; toolType: string }>()
+const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
 const { useSkewCheck } = useSkewCheckApi()
 const { data: payload, pending } = useSkewCheck(props.toolType, props.fab)
 
 const tolerance = ref(0.05)
-watch(payload, (p) => { if (p) tolerance.value = p.current_tolerance }, { immediate: true })
+watch(payload, (p) => {
+  if (p) tolerance.value = p.current_tolerance
+}, { immediate: true })
 
 // occupied cells → GroupCell[] (direct matrix preferred, else predicted).
 const groupCells = computed<GroupCell[]>(() =>

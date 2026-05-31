@@ -1,7 +1,7 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { SkewMatrix, Confidence, Tier } from '~/utils/skewGrouping'
 
-export interface ToolRef { eqp_id: string; label: string }
+export interface ToolRef { eqp_id: string, label: string }
 
 export interface CellSkew {
   cell_id: string
@@ -19,21 +19,29 @@ export interface CellSkew {
 export interface ProductionCorroboration {
   level: 'high' | 'mid' | 'low'
   note: string
-  detail: { pair: string; overlap: number }[]
+  detail: { pair: string, overlap: number }[]
 }
 
 export interface FleetToday {
   matrix: SkewMatrix
-  consensus_deviation: { eqp_id: string; deviation: number }[]
+  consensus_deviation: { eqp_id: string, deviation: number }[]
 }
 
-export interface TrendPoint { eqp_id: string; date: string; skew: number }
+export interface TrendPoint { eqp_id: string, date: string, skew: number }
 export interface EpochMarker {
-  eqp_id: string; date: string; kind: 'hard' | 'soft'; mdc_changed: boolean; label: string
+  eqp_id: string
+  date: string
+  kind: 'hard' | 'soft'
+  mdc_changed: boolean
+  label: string
 }
 export interface MdcHistoryEntry {
-  eqp_id: string; beam_condition: string; axis: 'X' | 'Y'
-  date: string; old_value: number; new_value: number
+  eqp_id: string
+  beam_condition: string
+  axis: 'X' | 'Y'
+  date: string
+  old_value: number
+  new_value: number
 }
 
 export interface SkewCheckPayload {
@@ -45,7 +53,7 @@ export interface SkewCheckPayload {
   summary: string
   tools: ToolRef[]
   current_tolerance: number
-  tolerance_range: { min: number; max: number; step: number }
+  tolerance_range: { min: number, max: number, step: number }
   occupied_cells: CellSkew[]
   production_corroboration: ProductionCorroboration
   fleet_today: FleetToday

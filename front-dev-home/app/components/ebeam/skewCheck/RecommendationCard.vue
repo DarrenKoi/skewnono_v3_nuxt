@@ -1,8 +1,13 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-5">
-    <p class="text-xs text-(--sk-ink-subtle)">1차 추천 (최대 N배화)</p>
+    <p class="text-xs text-(--sk-ink-subtle)">
+      1차 추천 (최대 N배화)
+    </p>
 
-    <div v-if="primary" class="mt-2">
+    <div
+      v-if="primary"
+      class="mt-2"
+    >
       <div class="flex items-center gap-2 flex-wrap">
         <span
           v-for="t in primary.tools"
@@ -19,12 +24,20 @@
       </p>
     </div>
 
-    <p v-else class="mt-2 text-sm text-(--sk-bad)">
+    <p
+      v-else
+      class="mt-2 text-sm text-(--sk-bad)"
+    >
       현재 tolerance에서 모든 점유 셀을 동시에 만족하는 N배화 그룹이 없습니다.
     </p>
 
-    <div v-if="others.length" class="mt-4">
-      <p class="text-xs text-(--sk-ink-subtle)">다른 후보 그룹</p>
+    <div
+      v-if="others.length"
+      class="mt-4"
+    >
+      <p class="text-xs text-(--sk-ink-subtle)">
+        다른 후보 그룹
+      </p>
       <div class="mt-1 flex flex-wrap gap-2">
         <span
           v-for="(g, i) in others"

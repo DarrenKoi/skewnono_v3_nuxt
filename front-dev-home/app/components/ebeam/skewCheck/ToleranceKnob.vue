@@ -19,7 +19,7 @@
 <script setup lang="ts">
 defineProps<{
   modelValue: number
-  range: { min: number; max: number; step: number }
+  range: { min: number, max: number, step: number }
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
 

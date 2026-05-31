@@ -1,7 +1,12 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-5">
-    <p class="text-xs text-(--sk-ink-subtle)">장비별 skew 트렌드 · BM/PM 마커</p>
-    <div ref="el" class="mt-3 h-64 w-full" />
+    <p class="text-xs text-(--sk-ink-subtle)">
+      장비별 skew 트렌드 · BM/PM 마커
+    </p>
+    <div
+      ref="el"
+      class="mt-3 h-64 w-full"
+    />
     <div class="mt-2 flex flex-wrap gap-3 text-[11px] text-(--sk-ink-muted)">
       <span>● hard = MDC 변경(epoch 리셋)</span>
       <span>○ soft = BM/PM(MDC 불변)</span>
@@ -13,7 +18,7 @@
 import type { EChartsOption } from 'echarts'
 import type { TrendPoint, EpochMarker } from '~/composables/useSkewCheckApi'
 
-const props = defineProps<{ trend: TrendPoint[]; markers: EpochMarker[] }>()
+const props = defineProps<{ trend: TrendPoint[], markers: EpochMarker[] }>()
 
 const el = ref<HTMLDivElement | null>(null)
 

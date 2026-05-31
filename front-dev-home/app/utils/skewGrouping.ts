@@ -35,7 +35,7 @@ export function maximalCliques(adj: boolean[][]): number[][] {
       bk(
         new Set([...R, v]),
         new Set([...P].filter(u => Nv.has(u))),
-        new Set([...X].filter(u => Nv.has(u))),
+        new Set([...X].filter(u => Nv.has(u)))
       )
       P.delete(v)
       X.add(v)
@@ -78,7 +78,7 @@ export interface NbaGroup {
 const CONF_RANK: Record<Confidence, number> = { High: 3, Med: 2, Low: 1 }
 
 // Weakest (lowest) confidence / predicted-dominant tier across cells.
-function inheritConfidence(cells: GroupCell[]): { confidence: Confidence; tier: Tier } {
+function inheritConfidence(cells: GroupCell[]): { confidence: Confidence, tier: Tier } {
   let confidence: Confidence = 'High'
   let tier: Tier = 'direct'
   for (const c of cells) {
@@ -133,7 +133,7 @@ export function groupFromCells(cells: GroupCell[], tolerance: ToleranceNm): NbaG
       n: clique.length,
       weakestPairSkew: Number(weakest.toFixed(6)),
       confidence,
-      tier,
+      tier
     }
   })
 }

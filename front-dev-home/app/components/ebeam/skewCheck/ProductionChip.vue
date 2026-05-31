@@ -1,8 +1,14 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-4">
-    <button class="flex items-center gap-2 w-full text-left" @click="open = !open">
+    <button
+      class="flex items-center gap-2 w-full text-left"
+      @click="open = !open"
+    >
       <span class="text-xs text-(--sk-ink-subtle)">양산 정합도 (참고)</span>
-      <span class="px-2 py-0.5 rounded text-xs font-medium" :style="levelStyle">
+      <span
+        class="px-2 py-0.5 rounded text-xs font-medium"
+        :style="levelStyle"
+      >
         {{ levelLabel }}
       </span>
       <span class="text-xs text-(--sk-ink-muted)">{{ corroboration.note }}</span>
@@ -12,15 +18,24 @@
       />
     </button>
 
-    <div v-if="open" class="mt-3 space-y-1">
+    <div
+      v-if="open"
+      class="mt-3 space-y-1"
+    >
       <div
         v-for="row in corroboration.detail"
         :key="row.pair"
         class="flex items-center gap-2 text-xs"
       >
         <span class="w-28 text-(--sk-ink-muted)">{{ row.pair }}</span>
-        <div class="flex-1 h-2 rounded" :style="{ background: 'var(--sk-muted-surface)' }">
-          <div class="h-2 rounded" :style="{ width: `${row.overlap * 100}%`, background: 'var(--sk-accent)' }" />
+        <div
+          class="flex-1 h-2 rounded"
+          :style="{ background: 'var(--sk-muted-surface)' }"
+        >
+          <div
+            class="h-2 rounded"
+            :style="{ width: `${row.overlap * 100}%`, background: 'var(--sk-accent)' }"
+          />
         </div>
         <span class="tabular-nums text-(--sk-ink)">{{ (row.overlap * 100).toFixed(0) }}%</span>
       </div>
