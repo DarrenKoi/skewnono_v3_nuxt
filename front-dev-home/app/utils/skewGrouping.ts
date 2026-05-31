@@ -93,6 +93,16 @@ export function groupFromCells(cells: GroupCell[], tolerance: ToleranceNm): NbaG
   const tools = cells[0]!.matrix.tools
   const n = tools.length
 
+  // All cells must share the same tool list in the same order — the AND-fold
+  // below aligns cells by positional index. Fail loud rather than silently
+  // mis-grouping (matters when office swaps in real multi-source data).
+  for (const cell of cells) {
+    const t = cell.matrix.tools
+    if (t.length !== n || t.some((name, i) => name !== tools[i])) {
+      throw new Error('groupFromCells: every cell must share the same tool list/order as cells[0]')
+    }
+  }
+
   // Intersect adjacency: a pair is TTTM only if <= tolerance in EVERY cell.
   const inter: boolean[][] = Array.from({ length: n }, () => Array<boolean>(n).fill(true))
   for (let i = 0; i < n; i++) inter[i]![i] = false

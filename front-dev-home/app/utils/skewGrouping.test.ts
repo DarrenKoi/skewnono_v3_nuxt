@@ -117,3 +117,15 @@ test('pickPrimary: equal N breaks on smaller weakest-pair skew, then higher conf
   // tie on N(3); 0.03 beats 0.04; among the two 0.03s, High beats Low
   assert.equal(pickPrimary(g)!.tools.join(','), 'A,B,E')
 })
+
+test('groupFromCells: throws when cells have mismatched tool order', () => {
+  const a: GroupCell = {
+    tier: 'direct', confidence: 'High',
+    matrix: { tools: ['A', 'B'], values: [[0, 0.02], [0.02, 0]] },
+  }
+  const b: GroupCell = {
+    tier: 'direct', confidence: 'High',
+    matrix: { tools: ['B', 'A'], values: [[0, 0.02], [0.02, 0]] },
+  }
+  assert.throws(() => groupFromCells([a, b], 0.05), /tool list/)
+})
