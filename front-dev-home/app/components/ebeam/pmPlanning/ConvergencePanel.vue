@@ -9,22 +9,18 @@
           Convergence drilldown
         </h3>
         <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
-          {{ tool.eqp_id }} / {{ tool.beam }} / rank axis {{ tool.axis }}
+          {{ tool.eqp_id }} / {{ beam }} / rank axis {{ rankAxis }}
         </span>
       </div>
       <span
-        class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-semibold"
-        :class="tool.tier === 'focus'
-          ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-          : tool.tier === 'monitor'
-            ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
-            : 'bg-green-500/15 text-green-600 dark:text-green-400'"
+        class="inline-flex h-6 items-center gap-1 rounded-md bg-red-500/15 px-2 text-[11px] font-semibold text-red-600 dark:text-red-400"
+        title="max-axis skew vs fleet median (nm)"
       >
         <UIcon
           name="i-lucide-radar"
           class="h-3.5 w-3.5"
         />
-        {{ tool.skewPct.toFixed(0) }}% relative skew
+        {{ maxSkew.toFixed(3) }} nm
       </span>
     </div>
 
@@ -33,7 +29,7 @@
         v-for="cell in beamCells"
         :key="`${cell.beam}:${cell.axis}`"
         class="rounded-lg border border-(--sk-border) px-3 py-2"
-        :class="cell.axis === tool.axis ? 'bg-(--sk-muted-surface) ring-1 ring-(--sk-accent)' : ''"
+        :class="cell.axis === rankAxis ? 'bg-(--sk-muted-surface) ring-1 ring-(--sk-accent)' : ''"
       >
         <div class="flex items-center justify-between gap-2">
           <span class="font-mono text-[11px] font-semibold text-(--sk-ink)">
@@ -90,6 +86,9 @@
           class="h-3.5 w-3.5"
         />
         Epoch history
+        <span class="font-normal normal-case tracking-normal text-(--sk-ink-muted)">
+          (this tool's own MDC record — not a target)
+        </span>
       </div>
 
       <div
@@ -125,27 +124,35 @@
 </template>
 
 <script setup lang="ts">
-import type { EpochPoint } from '~/composables/usePmPlanningApi'
-import type { BeamCondition, CellSkew, RankedTool } from '~/utils/pmPlanning'
-
-type ConvergenceTool = RankedTool & {
-  beam: BeamCondition
-  cells: CellSkew[]
-  skewPct: number
-  tier: 'focus' | 'monitor' | 'ok'
-}
+import type { ToolBlock } from '~/composables/usePmPlanningApi'
+import { maxAxisSkew, type BeamCondition } from '~/utils/pmPlanning'
 
 const props = defineProps<{
-  tool: ConvergenceTool | null
-  epochs: EpochPoint[]
+  tools: ToolBlock[]
+  selection: { beam: BeamCondition, eqpId: string } | null
 }>()
 
-const beamCells = computed(() =>
-  props.tool?.cells.filter(cell => cell.beam === props.tool?.beam) ?? []
+const tool = computed<ToolBlock | null>(() =>
+  props.selection
+    ? props.tools.find(t => t.eqp_id === props.selection!.eqpId) ?? null
+    : null
 )
 
+const beam = computed<BeamCondition>(() => props.selection?.beam ?? '500V')
+
+const beamCells = computed(() =>
+  tool.value?.cells.filter(cell => cell.beam === beam.value) ?? []
+)
+
+// The worst axis for this beam — the calibration unit the rank points at.
+const worst = computed(() =>
+  tool.value ? maxAxisSkew(tool.value.cells, beam.value) : { score: 0, axis: 'X' as const }
+)
+const maxSkew = computed(() => worst.value.score)
+const rankAxis = computed(() => worst.value.axis)
+
 const recentEpochs = computed(() =>
-  props.epochs.slice(-4).reverse()
+  (tool.value?.epoch_history ?? []).slice(-4).reverse()
 )
 
 const directionIcon = (gap: number) => {

@@ -37,16 +37,19 @@
 
     <template v-else-if="tools.length">
       <EbeamPmPlanningFocusRanking
-        v-model:top-n="topN"
-        v-model:threshold-pct="thresholdPct"
-        :tools="rankedTools"
-        :selected-tool-id="selectedToolId"
-        @select-tool="selectedToolId = $event"
+        :tools="tools"
+        :beam-conditions="beamConditions"
+        :focus-n="focusN"
+        :threshold="threshold"
+        :selected="focusSelection"
+        @update:focus-n="focusN = $event"
+        @update:threshold="setThreshold"
+        @select="selectFocus"
       />
 
       <EbeamPmPlanningConvergencePanel
-        :tool="selectedRankedTool"
-        :epochs="selectedEpochs"
+        :tools="tools"
+        :selection="focusSelection"
       />
     </template>
   </div>
@@ -55,14 +58,7 @@
 <script setup lang="ts">
 import { usePmPlanningApi, type FleetResponse, type ToolBlock } from '~/composables/usePmPlanningApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { rankFocusTargets, type BeamCondition, type RankedTool } from '~/utils/pmPlanning'
-
-type RankedFocusTool = RankedTool & {
-  beam: BeamCondition
-  cells: ToolBlock['cells']
-  skewPct: number
-  tier: 'focus' | 'monitor' | 'ok'
-}
+import { rankFocusTargets, type BeamCondition } from '~/utils/pmPlanning'
 
 const props = defineProps<{
   fab: string
@@ -92,51 +88,47 @@ watch(tools, (list) => {
   selectedEqpId.value = hold?.eqp_id ?? list[0]?.eqp_id ?? null
 }, { immediate: true })
 
-const topN = ref(5)
-const thresholdPct = ref(80)
-const selectedToolId = ref('')
+// Focus-ranking knobs — seeded from the server defaults, then engineer-tunable
+// (client-only). The per-beam threshold is in nm and acts as the self-limiting
+// gate inside rankFocusTargets; raising it nominates fewer tools.
 const beamConditions = computed<BeamCondition[]>(() => fleet.value?.beam_conditions ?? ['500V', '800V'])
+const focusN = ref(3)
+const threshold = ref<Record<string, number>>({ '500V': 0.30, '800V': 0.40 })
 
-const rankedTools = computed<RankedFocusTool[]>(() => {
-  const rows: RankedFocusTool[] = []
-  const cellsByTool = new Map(tools.value.map(tool => [tool.eqp_id, tool.cells]))
+watch(fleet, (snapshot) => {
+  if (!snapshot) return
+  focusN.value = snapshot.defaults.focus_n
+  threshold.value = { ...snapshot.defaults.advisory_threshold }
+}, { immediate: true })
 
-  for (const beam of beamConditions.value) {
-    const ranked = rankFocusTargets(tools.value, beam, 0, tools.value.length)
-    const maxScore = ranked[0]?.score ?? 0
+const setThreshold = ({ beam, value }: { beam: BeamCondition, value: number }) => {
+  threshold.value = { ...threshold.value, [beam]: value }
+}
 
-    rows.push(...ranked.slice(0, topN.value).map((tool: RankedTool) => {
-      const skewPct = maxScore > 0 ? (tool.score / maxScore) * 100 : 0
-      const tier: RankedFocusTool['tier'] = skewPct >= thresholdPct.value
-        ? 'focus'
-        : skewPct >= thresholdPct.value * 0.75
-          ? 'monitor'
-          : 'ok'
+// Selected (beam, tool) for the convergence panel. Auto-selects the worst
+// nominee of the first beam that still has one, so the panel isn't empty on
+// load and re-resolves when the knobs change the candidate set.
+const focusSelection = ref<{ beam: BeamCondition, eqpId: string } | null>(null)
 
-      return {
-        ...tool,
-        beam,
-        cells: cellsByTool.get(tool.eqp_id) ?? [],
-        skewPct,
-        tier
-      }
-    }))
+const selectFocus = (payload: { beam: BeamCondition, eqpId: string }) => {
+  focusSelection.value = payload
+}
+
+watch([tools, beamConditions, focusN, threshold], () => {
+  const current = focusSelection.value
+  if (current) {
+    const stillRanked = rankFocusTargets(tools.value, current.beam, threshold.value[current.beam] ?? 0, focusN.value)
+      .some(row => row.eqp_id === current.eqpId)
+    if (stillRanked) return
   }
-
-  return rows
-})
-
-const selectedRankedTool = computed<RankedFocusTool | null>(() =>
-  rankedTools.value.find(tool => tool.eqp_id === selectedToolId.value) ?? null
-)
-
-const selectedEpochs = computed(() =>
-  tools.value.find(tool => tool.eqp_id === selectedToolId.value)?.epoch_history ?? []
-)
-
-watch(rankedTools, (list) => {
-  if (selectedToolId.value && list.some(tool => tool.eqp_id === selectedToolId.value)) return
-  selectedToolId.value = list[0]?.eqp_id ?? ''
+  for (const beam of beamConditions.value) {
+    const top = rankFocusTargets(tools.value, beam, threshold.value[beam] ?? 0, focusN.value)[0]
+    if (top) {
+      focusSelection.value = { beam, eqpId: top.eqp_id }
+      return
+    }
+  }
+  focusSelection.value = null
 }, { immediate: true })
 
 const metaStats = computed<MetaBarStat[]>(() => {
