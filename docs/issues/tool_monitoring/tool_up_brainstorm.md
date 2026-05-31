@@ -1,7 +1,10 @@
 # BM/PM 장비 Up 게이트 & PM 집중 관리 — 브레인스토밍 결정 기록
 
 - 작성일: 2026-05-31
-- 단계: 브레인스토밍(설계 진입 전). 본 문서는 **결정 기록**이며 아직 정식 spec이 아닙니다.
+- 단계: **설계·계획 완료**. 본 문서는 초기 **결정 기록**이며, §4의 모든 과제가
+  해소되어 정식 spec과 구현 plan으로 승격되었습니다.
+  - 정식 spec: `docs/superpowers/specs/2026-05-31-bmpm-up-gate-pm-planning-design.md`
+  - 구현 plan: `docs/superpowers/plans/2026-05-31-bmpm-up-gate-pm-planning.md`
 - 원천 이슈: `docs/issues/tool_monitoring/tool_up_rules.txt`
 - 상위 도메인: `docs/issues/hardware_mgmt/skew_btw_tools.txt`
 - 공유 코어: `docs/superpowers/specs/2026-05-31-tool-skew-mgmt-design.md`
@@ -70,15 +73,30 @@ Up 했기 때문에, 장비는 안정적으로 운영되지만 **시간이 지�
   수는 있으나 그것이 최종 목표는 될 수 없습니다.
 - "권고 MDC 수치 산출"은 회귀모델·office 실데이터가 필요하므로 deferred.
 
-## 4. 다음 세션 과제
+## 4. 다음 세션 과제 — ✅ 모두 해소 (2026-05-31)
 
-1. **대시보드 레이아웃 확정** (사용자가 다음 세션에서 확인) — 라우트 후보
-   `/ebeam/cd-sem/[fab]/pm-planning`, 헤더는 `EbeamMetaBar` 패턴. Up 게이트 +
-   집중 대상 선정을 한 페이지에 배치. mockup 동반 검토 가능.
-2. **열린 결정** — 후순위 N 값(예: 3), 빔별 "중앙값 거리" 산출 지표 정의
-   (코어 skew를 빔 단위로 축 집계하는 방식), spec range 원천(기존 per-tool spec),
-   advisory 임계값.
-3. 위 확정 후 정식 spec(`docs/superpowers/specs/`)으로 승격 → `writing-plans`.
+아래 항목은 후속 브레인스토밍에서 모두 확정되어 정식 spec에 반영되었습니다.
+
+1. **대시보드 레이아웃** → **레이아웃 A(스택)** 채택. 라우트
+   `/ebeam/cd-sem/[fab]/pm-planning`, 헤더 `EbeamMetaBar`. 게이트는 슬림 상단
+   스트립, 집중 관리가 full-width 본문.
+2. **열린 결정 확정:**
+   - 순위 지표 = **max-axis** `max(|skew_X|, |skew_Y|)` (빔별, 축은 드릴다운).
+   - 선정 규칙 = **advisory 임계 게이트 → bottom-N** (자기-제한).
+   - N·임계값 = **knob + 기본값**(N=3, 빔별 임계 500V 0.30 / 800V 0.40 nm),
+     클라이언트 재계산.
+   - spec range 원천 = 기존 per-tool spec(**hardware 피처가 소유**). 게이트는
+     **사후값 ∈ spec**만 보고 전후 delta는 context(비차단).
+3. 정식 spec 승격 + `writing-plans` 완료 (위 헤더의 두 문서 링크 참조).
+
+### 4.1 구현 착수 전 유의사항 (다음 작업자용)
+
+- **스큐 코어는 아직 docs-only.** 백엔드에 consensus·skew·epoch 엔진과
+  `/skew-check` 페이지가 구현되어 있지 않습니다. 따라서 Phase-1 `pm_planning`
+  mock은 계약에 맞는 skew 데이터를 **자체 합성**합니다(코어 구현 시 `data.py`만 스왑).
+- **hardware 피처에 spec range 필드가 실제로는 아직 없습니다.** plan의 Task A1이
+  `hardware/providers/spec_range_mock.py`를 새로 추가해 소유권은 hardware에 두고
+  `pm_planning`이 import하는 구조로 처리합니다.
 
 ## 5. 범위 밖 (후속)
 
