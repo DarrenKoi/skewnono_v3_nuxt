@@ -1,0 +1,13 @@
+"""Office skew provider — wired against real statistics during Phase-2/3 swap."""
+
+from back_dev_home.ebeam.hitachi.skew.contracts import SkewCheckPayload
+
+
+def get_skew_check(
+    tool_slug: str,
+    fab_id: str,
+    recipe_id: str | None,
+) -> SkewCheckPayload:
+    raise NotImplementedError(
+        "office skew provider is wired during the office data swap (Phase-2/3)"
+    )
