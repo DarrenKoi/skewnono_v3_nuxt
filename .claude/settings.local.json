@@ -84,7 +84,11 @@
       "mcp__plugin_playwright_playwright__browser_navigate",
       "mcp__plugin_playwright_playwright__browser_wait_for",
       "mcp__plugin_playwright_playwright__browser_snapshot",
-      "PowerShell(Get-ChildItem *)"
+      "PowerShell(Get-ChildItem *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Code\\\\skewnono_v3_nuxt\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem *)",
+      "Skill(codex:rescue)"
     ]
   },
   "statusLine": {
