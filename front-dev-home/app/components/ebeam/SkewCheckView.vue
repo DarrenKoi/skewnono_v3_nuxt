@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <EbeamMetaBar
-      :eyebrow="`CD-SEM · ${fab}`"
+      :eyebrow="`${toolLabel} · ${fab}`"
       title="장비간 스큐 관리"
       subtitle="Recipe가 점유하는 셀에서 서로 잘 맞는(N배화) 측정 장비 조합을 추천합니다."
       cadence="1주 윈도우"

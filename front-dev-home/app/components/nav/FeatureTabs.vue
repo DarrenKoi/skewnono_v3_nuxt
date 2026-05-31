@@ -6,7 +6,7 @@ const route = useRoute()
 const { fab } = useNavigation()
 const isEbeamRoute = useEbeamRoute()
 
-type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir'
+type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir' | 'skew-check'
 
 type FeatureTab = {
   label: string
@@ -23,6 +23,7 @@ const features: FeatureTab[] = [
   { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
+  { label: '스큐 관리', routeValue: 'skew-check', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
   { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', badgeIcon: 'i-lucide-sparkles', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
@@ -41,6 +42,7 @@ const activeFeature = computed(() => {
   if (path.includes('/fail-issue')) return 'fail-issue'
   if (path.includes('/hardware')) return 'hardware'
   if (path.includes('/device-statistics')) return 'device-statistics'
+  if (path.includes('/skew-check')) return 'skew-check'
   if (path.includes('/skewvoir')) return 'skewvoir'
   return 'index'
 })

@@ -120,7 +120,7 @@
   ],
   "epoch_markers": [
     { "eqp_id": "EQP05", "date": "2026-05-28", "kind": "hard", "mdc_changed": true, "label": "PM + MDC 변경 (epoch 리셋)" },
-    { "eqp_id": "EQP03", "date": "2026-05-26", "kind": "soft", "mdc_changed": false, "label": "BM (MDC 불변)" }
+    { "eqp_id": "EQP03", "date": "2026-05-27", "kind": "soft", "mdc_changed": false, "label": "BM (MDC 불변)" }
   ],
   "mdc_history": [
     { "eqp_id": "EQP05", "beam_condition": "BC1", "axis": "X", "date": "2026-05-28", "old_value": 1.0012, "new_value": 1.0007 },
