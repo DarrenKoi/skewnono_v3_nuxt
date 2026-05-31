@@ -8,7 +8,7 @@ CD_MONITORING이라는 Recipe로 동일한 WAFER를 주기적으로 측정하여
 CD-SEM의 경우 X, Y 스캔 방향에 대해 전자 코일이 조정되기 때문에 각각 Calibration 되어 있음. 
  X, Y의 코일이 복합적으로 작용하는 특수각 (예, 32도, 64도, 218도 등등)도 측정하며, 
 X, Y의 Calibration이 어떤 식으로 영향을 끼치는 지는 확인 못함.
-       ? 
+
 Calibration 수치는 장비마다 고유의 수치 (초기 H/W Setting 시 결정)를 가지며 예를 들어 A 장비에서 1.0001과 B 장비에서 1.0001은
 다르다. S/W적으로 MDC (Measure Data Correction)를 조정해 최종적으로 원하는 값을 뱉어낼 수 있게 함. 
 그 기준은 CD_MONITORING이고 모든 장비가 매일 측정하기 때문에 신규 장비 또는 BM/PM했을 때 H/W Setting을 마치고 
