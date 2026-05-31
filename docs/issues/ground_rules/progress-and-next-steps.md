@@ -78,15 +78,30 @@ D1–D4(이전 세션) · **D5–D15(2026-05-30)** · **D16–D18(2026-05-31, �
 - [ ] 4. `useMeasurementMonitor`(§5-bis: 적용/저장 분리, threshold 고정 — D17·D18) + 모니터 오버레이 + `UnassignedBucket` — `useLotHealthMock` 대체
 - [ ] 5. `RuleHistoryPanel` + history/rollback
 
-## 다음 단계 (step 2) 상세
+## 다음 단계 (step 3) 상세 — 인라인 cap 편집 + PUT `/rules`
 
-채택안: 변형 **A(매트릭스)**, 라우트 `pages/ebeam/cd-sem/device-statistics/measurement-rules.vue`.
+> **핸드오프 (2026-05-31, feat/tool-skew-mgmt 커밋 `8e6d348` 이후 중단)**: step 1·2 완료·푸시.
+> step 3 은 읽기전용 매트릭스를 **편집 가능**으로 바꾼다. 파이프라인 유지:
+> *implement → /code-review → codex:rescue → reconcile → fix → verify*.
 
-1. **백엔드** `back_dev_home/ebeam/cdsem/device_statistics/rules.py` — `RuleCell` seed(D8 전체 cap 표 + M-fab DRAM/NAND)
-   + `thresholds` seed(`yellow_at` 0.1 / `red_at` 0.2 — D16) + `get_rules(fab)`. `routes.py` 에 `GET /cdsem/device-statistics/rules?fab=` 등록.
-2. **composable** `useMeasurementRulesApi.ts` — `fetchRules(fab)` (`$fetch` + `joinApiPath`, `useAsyncData` 캐시).
-3. **프론트** `MeasurementRulesView.vue` + `RuleMatrix`/`RuleRow`/`RuleCapCell`(읽기전용 먼저) + `RuleFabSelector`.
-   매트릭스 렌더는 `ruleEngine` 타입 재사용. M-fab 이면 family/phase 축 숨김(D15).
+1. **`RuleCapCell` 편집 가능화** — `mode: 'read' | 'edit'` prop 추가. edit 모드면 cap 칸을 인라인 입력
+   (number)으로. 면제(`null`)·해당없음(`undefined`)·0 의 편집 UX 정의 필요(프로토타입 `contenteditable` 참고).
+   타이핑 즉시 보이되 **신호등 재색칠은 "적용"까지 대기**(D17) — step 3 은 cap draft 보관까지, 재계산은 step 4.
+2. **`draft` 상태** — `MeasurementRulesView`(또는 신규 `useMeasurementRulesDraft`)에 저장본(`applied`)과
+   별개의 `draft.cells` 보관(D17). step 3 범위에서는 draft 편집 + "저장"만; "적용"(local 재계산)은 step 4 모니터와 함께.
+3. **백엔드 `PUT /rules`** — `rules.py` 에 `save_rules(fab, cells, thresholds, author, note)` 추가:
+   **append-only 버전 이력 리스트**로 전환(현재 `_SEED` 는 단일 버전 → `{fab: [v1, v2, ...]}` 구조로).
+   `version` 증가, `edited_by`(Phase 1 mock 고정, Phase 2/3 SSO 헤더), `edited_at`, `note`. `routes.py` PUT 핸들러.
+4. **composable `saveRules(fab, cells, thresholds, note)`** — PUT + 저장 후 `refresh()`(캐시 키 `'measurement-rules'`).
+
+**step 3 이 반드시 같이 처리해야 할 carry-over (step 1·2 리뷰서 도출):**
+
+- ⚠️ **first-match specificity 결합** (step 2 D11/D19): `ruleEngine.resolveRuleCell` 은 specificity 정렬 없이
+  `.find()` 첫 매치를 쓴다. D19 의 Sample Core TV·PV 셀은 seed 배열에서 phase-blind 셀보다 **앞**이라 동작.
+  편집/저장이 셀 순서를 흔들 수 있으므로(step 3), **저장 시 순서 보존**하거나 **engine 에 specificity 정렬 도입**
+  중 택1 — 안 그러면 저장 후 D19 가 조용히 깨질 수 있다. (테스트 `ruleEngine.test.ts` D19 가 순서=우선순위 고정 중.)
+- **라우트 provider 예외 → 500 JSON** (codex LOW): `_install_json_error_handlers` 는 `HTTPException` 만 JSON 화.
+  Phase 2/3 에서 `save_rules`/`get_rules` 가 DB 예외를 던지면 generic 500. PUT 추가 시 같이 정리 권장.
 
 ## 미해결 / 향후
 
