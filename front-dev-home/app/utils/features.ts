@@ -8,7 +8,8 @@ export const FEATURE_SLUGS = [
   'fail-issue',
   'hardware',
   'device-statistics',
-  'skewvoir'
+  'skewvoir',
+  'skew-check'
 ] as const
 
 export type FeatureSlug = typeof FEATURE_SLUGS[number]

@@ -17,6 +17,7 @@ export const useNavigation = () => {
       || feature === 'skewvoir'
     ) return toolType === 'cd-sem' || toolType === 'hv-sem'
     if (feature === 'device-statistics') return toolType === 'cd-sem'
+    if (feature === 'skew-check') return toolType === 'cd-sem'
     return false
   }
 
