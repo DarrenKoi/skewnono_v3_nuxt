@@ -35,14 +35,20 @@
       PM Planning fleet request failed: {{ error.message }}
     </div>
 
-    <EbeamPmPlanningFocusRanking
-      v-else-if="tools.length"
-      v-model:top-n="topN"
-      v-model:threshold-pct="thresholdPct"
-      :tools="rankedTools"
-      :selected-tool-id="selectedToolId"
-      @select-tool="selectedToolId = $event"
-    />
+    <template v-else-if="tools.length">
+      <EbeamPmPlanningFocusRanking
+        v-model:top-n="topN"
+        v-model:threshold-pct="thresholdPct"
+        :tools="rankedTools"
+        :selected-tool-id="selectedToolId"
+        @select-tool="selectedToolId = $event"
+      />
+
+      <EbeamPmPlanningConvergencePanel
+        :tool="selectedRankedTool"
+        :epochs="selectedEpochs"
+      />
+    </template>
   </div>
 </template>
 
@@ -53,6 +59,7 @@ import { rankFocusTargets, type BeamCondition, type RankedTool } from '~/utils/p
 
 type RankedFocusTool = RankedTool & {
   beam: BeamCondition
+  cells: ToolBlock['cells']
   skewPct: number
   tier: 'focus' | 'monitor' | 'ok'
 }
@@ -92,6 +99,7 @@ const beamConditions = computed<BeamCondition[]>(() => fleet.value?.beam_conditi
 
 const rankedTools = computed<RankedFocusTool[]>(() => {
   const rows: RankedFocusTool[] = []
+  const cellsByTool = new Map(tools.value.map(tool => [tool.eqp_id, tool.cells]))
 
   for (const beam of beamConditions.value) {
     const ranked = rankFocusTargets(tools.value, beam, 0, tools.value.length)
@@ -108,6 +116,7 @@ const rankedTools = computed<RankedFocusTool[]>(() => {
       return {
         ...tool,
         beam,
+        cells: cellsByTool.get(tool.eqp_id) ?? [],
         skewPct,
         tier
       }
@@ -116,6 +125,19 @@ const rankedTools = computed<RankedFocusTool[]>(() => {
 
   return rows
 })
+
+const selectedRankedTool = computed<RankedFocusTool | null>(() =>
+  rankedTools.value.find(tool => tool.eqp_id === selectedToolId.value) ?? null
+)
+
+const selectedEpochs = computed(() =>
+  tools.value.find(tool => tool.eqp_id === selectedToolId.value)?.epoch_history ?? []
+)
+
+watch(rankedTools, (list) => {
+  if (selectedToolId.value && list.some(tool => tool.eqp_id === selectedToolId.value)) return
+  selectedToolId.value = list[0]?.eqp_id ?? ''
+}, { immediate: true })
 
 const metaStats = computed<MetaBarStat[]>(() => {
   const list = tools.value
