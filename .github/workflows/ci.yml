@@ -1,0 +1,45 @@
+name: CI
+
+# Guards the frontend on every push (and manual runs). Keeps `nuxt typecheck`
+# and the node:test suite green. ESLint is intentionally NOT gated yet — main
+# still carries pre-existing lint errors in untouched files; add `npm run lint`
+# here once those are cleaned.
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NUXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  frontend:
+    name: typecheck + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-dev-home
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24: the *.test.ts files run under `node --test` with native
+          # type-stripping (unflagged on 23.6+/24). Must match local dev.
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: front-dev-home/package-lock.json
+
+      # `npm ci` runs the postinstall `nuxt prepare`, generating .nuxt types
+      # that `nuxt typecheck` depends on.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
