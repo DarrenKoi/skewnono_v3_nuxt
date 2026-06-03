@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Pure-logic tests for pmPlanning. Zero deps - run with Node's built-in runner:
 //   node --test app/utils/pmPlanning.test.ts        (Node 24+ strips types)
 import { test } from 'node:test'
