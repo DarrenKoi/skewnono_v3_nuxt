@@ -88,7 +88,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Code\\\\skewnono_v3_nuxt\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(Get-ChildItem *)",
-      "Skill(codex:rescue)"
+      "Skill(codex:rescue)",
+      "Skill(update-config)"
     ]
   },
   "statusLine": {
