@@ -71,6 +71,17 @@ export default defineNuxtConfig({
     }
   },
 
+  // *.test.ts files are node:test scripts (run via `npm test`), not browser app
+  // code. Exclude them from the app typecheck so vue-tsc doesn't error on
+  // `node:test` imports and `.ts` import extensions.
+  typescript: {
+    tsConfig: {
+      // Path is relative to the generated config in `.nuxt/`, mirroring its
+      // `../app/**/*` include — a bare `**/*.test.ts` would only match `.nuxt/`.
+      exclude: ['../app/**/*.test.ts']
+    }
+  },
+
   eslint: {
     config: {
       stylistic: {
