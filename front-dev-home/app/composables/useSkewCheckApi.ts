@@ -3,7 +3,7 @@ import type { SkewMatrix, Confidence, Tier } from '~/utils/skewGrouping'
 
 export interface ToolRef { eqp_id: string, label: string }
 
-export interface CellSkew {
+export interface SkewCondition {
   cell_id: string
   beam_condition: string
   axis: 'X' | 'Y'
@@ -54,7 +54,7 @@ export interface SkewCheckPayload {
   tools: ToolRef[]
   current_tolerance: number
   tolerance_range: { min: number, max: number, step: number }
-  occupied_cells: CellSkew[]
+  occupied_cells: SkewCondition[]
   production_corroboration: ProductionCorroboration
   fleet_today: FleetToday
   trend: TrendPoint[]

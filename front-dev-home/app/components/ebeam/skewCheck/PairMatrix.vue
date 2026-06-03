@@ -62,12 +62,12 @@
 </template>
 
 <script setup lang="ts">
-import type { CellSkew, ToolRef } from '~/composables/useSkewCheckApi'
+import type { SkewCondition, ToolRef } from '~/composables/useSkewCheckApi'
 import type { SkewMatrix } from '~/utils/skewGrouping'
 
-const props = defineProps<{ cells: CellSkew[], tools: ToolRef[], tolerance: number }>()
+const props = defineProps<{ cells: SkewCondition[], tools: ToolRef[], tolerance: number }>()
 
-const matrixOf = (cell: CellSkew): SkewMatrix =>
+const matrixOf = (cell: SkewCondition): SkewMatrix =>
   (cell.direct_skew_matrix ?? cell.predicted_skew_matrix)!
 
 const shortLabel = (eqp: string) =>
@@ -86,7 +86,7 @@ const cellStyle = (v: number | null, i: number, j: number) => {
     : { background: 'var(--sk-bad-soft)', color: 'var(--sk-bad)' }
 }
 
-const pairTitle = (cell: CellSkew, i: number, j: number, v: number | null) => {
+const pairTitle = (cell: SkewCondition, i: number, j: number, v: number | null) => {
   if (i === j || v === null) return ''
   const m = matrixOf(cell)
   const state = v <= props.tolerance ? 'TTTM' : 'tolerance 초과'
