@@ -1,6 +1,11 @@
 from flask import Blueprint, jsonify, request
 
-from back_dev_home.ebeam.hitachi.recipe_search.data import ToolType, get_recipe_catalog, get_recipe_open_data
+from back_dev_home.ebeam.hitachi.recipe_search.data import (
+    ToolType,
+    get_recipe_catalog,
+    get_recipe_compare_data,
+    get_recipe_open_data,
+)
 
 
 bp = Blueprint("ebeam_recipe_search", __name__)
@@ -44,3 +49,20 @@ def recipe_search_recipe_detail(tool_slug: str):
         fac_id=_resolve_fab_name(),
         tool_category=tool_type
     ))
+
+
+@bp.post("/<tool_slug>/recipe-search/compare")
+def recipe_search_compare(tool_slug: str):
+    tool_type = _resolve_tool_type(tool_slug)
+    if not tool_type:
+        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    recipe_names = payload.get("recipe_names")
+    if not isinstance(recipe_names, list) or not recipe_names:
+        return jsonify({"error": "recipe_names must be a non-empty list"}), 400
+
+    fab_name = (payload.get("fab_name") or "").strip().upper() or None
+    return jsonify(
+        get_recipe_compare_data(tool_type, fab_name, [str(name) for name in recipe_names])
+    )
