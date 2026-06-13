@@ -95,5 +95,7 @@ const toggle = (recipeId: string) => {
 }
 
 // Collapse all when the slideover is reopened for a different device.
-watch(() => props.device?.lot_cd, () => { expanded.value = new Set() })
+watch(() => props.device?.lot_cd, () => {
+  expanded.value = new Set()
+})
 </script>

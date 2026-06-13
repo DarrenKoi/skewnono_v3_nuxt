@@ -26,7 +26,7 @@ test('outlier drill marks the over-threshold param and its recipe', () => {
   assert.equal(recB.flagged_count, 1)
   const p0 = recB.parameters.find(p => p.name === 'P_0')!
   assert.equal(p0.flagged, true)
-  assert.equal(p0.note, '> 20')          // threshold note
+  assert.equal(p0.note, '> 20') // threshold note
   const p1 = recB.parameters.find(p => p.name === 'P_1')!
   assert.equal(p1.flagged, false)
 

@@ -22,7 +22,10 @@
       class="dashboard-surface flex flex-col items-center justify-center rounded-2xl px-6 py-16 text-center"
     >
       <div class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-(--sk-surface) text-(--sk-ink-subtle) ring-1 ring-(--sk-border)">
-        <UIcon name="i-lucide-inbox" class="h-5 w-5" />
+        <UIcon
+          name="i-lucide-inbox"
+          class="h-5 w-5"
+        />
       </div>
       <p class="text-sm font-medium text-(--sk-ink)">
         {{ text.emptyTitle }}
@@ -30,22 +33,43 @@
       <p class="mt-1 text-xs text-(--sk-ink-muted)">
         {{ text.emptyDesc }}
       </p>
-      <UButton class="mt-4" size="sm" :label="text.emptyCta" trailing-icon="i-lucide-arrow-right" @click="goBack" />
+      <UButton
+        class="mt-4"
+        size="sm"
+        :label="text.emptyCta"
+        trailing-icon="i-lucide-arrow-right"
+        @click="goBack"
+      />
     </div>
 
-    <div v-else class="dashboard-surface rounded-2xl p-4">
+    <div
+      v-else
+      class="dashboard-surface rounded-2xl p-4"
+    >
       <p class="mb-3 text-[11.5px] text-(--sk-ink-muted)">
         {{ text.legend }}
       </p>
 
-      <div v-if="pending" class="flex items-center justify-center gap-2 py-16 text-sm text-(--sk-ink-muted)">
-        <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
+      <div
+        v-if="pending"
+        class="flex items-center justify-center gap-2 py-16 text-sm text-(--sk-ink-muted)"
+      >
+        <UIcon
+          name="i-lucide-loader-circle"
+          class="h-4 w-4 animate-spin"
+        />
         {{ text.loading }}
       </div>
-      <div v-else-if="error" class="py-16 text-center text-sm text-rose-600 dark:text-rose-300">
+      <div
+        v-else-if="error"
+        class="py-16 text-center text-sm text-rose-600 dark:text-rose-300"
+      >
         {{ text.loadError }}
       </div>
-      <table v-else class="w-full border-collapse">
+      <table
+        v-else
+        class="w-full border-collapse"
+      >
         <thead>
           <tr class="border-b border-(--sk-border)">
             <th class="px-3 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">
@@ -88,7 +112,13 @@
               >{{ dev.outlier_count }}</span>
             </td>
             <td class="px-2 py-1.5 text-right">
-              <UButton size="xs" color="neutral" variant="outline" :label="text.details" @click="openDrill(dev.lot_cd)" />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                :label="text.details"
+                @click="openDrill(dev.lot_cd)"
+              />
             </td>
           </tr>
         </tbody>
