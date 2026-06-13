@@ -7,25 +7,36 @@
       :stats="metaStats"
     >
       <template #toggle>
-        <div
-          role="radiogroup"
-          :aria-label="text.fabSelect"
-          class="inline-flex flex-wrap items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
-        >
-          <button
-            v-for="option in deviceFabOptions"
-            :key="option.value"
-            type="button"
-            role="radio"
-            :aria-checked="selectedFab === option.value"
-            class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-            :class="selectedFab === option.value
-              ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-              : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
-            @click="selectedFab = option.value"
+        <div class="flex flex-wrap items-center gap-2">
+          <div
+            role="radiogroup"
+            :aria-label="text.fabSelect"
+            class="inline-flex flex-wrap items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
           >
-            {{ option.label }}
-          </button>
+            <button
+              v-for="option in deviceFabOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              :aria-checked="selectedFab === option.value"
+              class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+              :class="selectedFab === option.value
+                ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
+                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+              @click="selectedFab = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+          <UButton
+            v-if="hasRSelection"
+            to="/ebeam/cd-sem/device-statistics/measurement-rules"
+            size="md"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-ruler"
+            :label="text.rulesLink"
+          />
         </div>
       </template>
     </EbeamMetaBar>
@@ -331,6 +342,7 @@ const text = {
   title: '디바이스 통계',
   subtitle: 'Fab 별로 운영중인 CD-SEM Recipe 현황을 확인합니다.',
   fabSelect: 'Fab',
+  rulesLink: '계측 룰',
   reset: '초기화',
   lotSearch: 'Lot 검색 (예: R0A2)',
   techSearch: 'Tech 검색',
