@@ -8,13 +8,13 @@
         <span
           v-for="name in selected"
           :key="name"
-          class="inline-flex max-w-[240px] items-center gap-1 rounded-full bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[10.5px] text-zinc-700 dark:text-zinc-200"
+          class="inline-flex max-w-[240px] items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[10.5px] text-(--sk-ink)"
         >
           <span class="truncate">{{ name }}</span>
           <button
             type="button"
             :aria-label="`Remove ${name}`"
-            class="rounded-full p-0.5 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+            class="rounded-md p-0.5 hover:bg-zinc-300 dark:hover:bg-zinc-600"
             @click="emit('remove', name)"
           >
             <UIcon
@@ -31,7 +31,7 @@
             autocomplete="off"
             placeholder="＋ recipe 추가…"
             aria-label="recipe 추가"
-            class="w-44 rounded-full border border-dashed border-zinc-300 bg-transparent px-3 py-1 font-mono text-[10.5px] outline-none focus:border-(--sk-brand) dark:border-zinc-700"
+            class="w-44 rounded-lg border border-dashed border-zinc-300 bg-transparent px-3 py-1 font-mono text-[10.5px] outline-none focus:border-(--sk-brand) dark:border-zinc-700"
           >
           <div
             v-if="suggestions.length"
@@ -54,8 +54,8 @@
     <UButton
       class="shrink-0"
       size="sm"
-      color="success"
-      variant="soft"
+      color="neutral"
+      variant="solid"
       icon="i-lucide-download"
       label="Excel 다운로드"
       :disabled="!canExport"

@@ -210,13 +210,29 @@ const activeSlot = ref<ImageSlotKey>('img_meas1')
 const diffOnly = ref(false)
 const viewMode = ref<'matrix' | 'grouping'>('matrix')
 
-// When a new dataset loads, default the parameter selection to common params and
-// the view mode to grouping for large sets.
+// On first load, default the parameter selection to common params and the view
+// mode to grouping for large sets. On later dataset changes (user adds/removes a
+// recipe) keep their picks — only drop parameters that no longer exist, and leave
+// the view mode alone.
+const initialized = ref(false)
 watch(overlapRows, (rows) => {
   if (rows.length === 0) return
   const common = commonParameters(rows)
-  selectedParameters.value = common.length ? common : [rows[0]!.parameter]
-  viewMode.value = recipes.value.length > GROUPING_DEFAULT_THRESHOLD ? 'grouping' : 'matrix'
+
+  if (!initialized.value) {
+    initialized.value = true
+    selectedParameters.value = common.length ? common : [rows[0]!.parameter]
+    viewMode.value = recipes.value.length > GROUPING_DEFAULT_THRESHOLD ? 'grouping' : 'matrix'
+    return
+  }
+
+  const available = new Set(rows.map(r => r.parameter))
+  const stillValid = selectedParameters.value.filter(p => available.has(p))
+  if (stillValid.length !== selectedParameters.value.length) {
+    selectedParameters.value = stillValid.length
+      ? stillValid
+      : (common.length ? common : [rows[0]!.parameter])
+  }
 }, { immediate: true })
 
 // Keep activeParam valid as the selection changes.

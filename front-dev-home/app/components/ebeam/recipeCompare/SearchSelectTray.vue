@@ -11,18 +11,22 @@
     >
       <div class="dashboard-surface flex flex-col gap-3 rounded-2xl border border-(--sk-brand)/40 p-3 shadow-lg sm:flex-row sm:items-center">
         <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <span class="shrink-0 text-[11px] font-semibold text-(--sk-brand)">
-            🧺 작업 세트 · {{ selected.length }}
+          <span class="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-(--sk-brand)">
+            <UIcon
+              name="i-lucide-shopping-basket"
+              class="h-3.5 w-3.5"
+            />
+            작업 세트 · {{ selected.length }}
           </span>
           <span
             v-for="name in selected"
             :key="name"
-            class="inline-flex max-w-[220px] items-center gap-1 rounded-full bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[10.5px] text-zinc-700 dark:text-zinc-200"
+            class="inline-flex max-w-[220px] items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[10.5px] text-(--sk-ink)"
           >
             <span class="truncate">{{ name }}</span>
             <button
               type="button"
-              class="rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
+              class="rounded-md p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
               :aria-label="`Remove ${name}`"
               @click="emit('remove', name)"
             >
