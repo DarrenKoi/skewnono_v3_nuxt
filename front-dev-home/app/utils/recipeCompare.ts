@@ -203,6 +203,54 @@ export interface ValueBucket {
   isOutlier: boolean
 }
 
+export interface WorkbookSheet {
+  name: string
+  rows: (string | number)[][]
+}
+
+export interface CompareWorkbook {
+  sheets: WorkbookSheet[]
+}
+
+export function buildCompareWorkbook(
+  recipes: CompareRecipe[],
+  parameters: string[]
+): CompareWorkbook {
+  const recipeIds = recipes.map(r => r.recipe_id)
+  const sheets: WorkbookSheet[] = []
+
+  const overlap = buildOverlap(recipes)
+  const overlapRows: (string | number)[][] = [['parameter', 'coverage', ...recipeIds]]
+  for (const row of overlap) {
+    overlapRows.push([
+      row.parameter,
+      row.coverage,
+      ...recipes.map(r => (row.presentIn.includes(r.recipe_id) ? '✓' : '—'))
+    ])
+  }
+  sheets.push({ name: 'Overlap', rows: overlapRows })
+
+  const idpRows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
+  for (const parameter of parameters) {
+    for (const r of buildIdpRows(recipes, parameter)) {
+      idpRows.push([parameter, r.label, ...r.values])
+    }
+  }
+  sheets.push({ name: 'IDP', rows: idpRows })
+
+  for (const slot of COMPARE_SLOTS) {
+    const rows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
+    for (const parameter of parameters) {
+      for (const r of buildAmpRows(recipes, parameter, slot.key)) {
+        rows.push([parameter, r.label, ...r.values])
+      }
+    }
+    sheets.push({ name: slot.stage, rows })
+  }
+
+  return { sheets }
+}
+
 export function groupFieldValues(pairs: { recipeId: string, value: string }[]): ValueBucket[] {
   const map = new Map<string, string[]>()
   const order: string[] = []

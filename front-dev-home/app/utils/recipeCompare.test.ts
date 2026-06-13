@@ -6,7 +6,8 @@ import {
   classifyCoverage,
   filterOverlap,
   commonParameters,
-  buildIdpRows, buildAmpRows, cellsDiffer, imageFilenames
+  buildIdpRows, buildAmpRows, cellsDiffer, imageFilenames,
+  buildCompareWorkbook
 } from './recipeCompare.ts'
 import type { CompareRecipe, CompareParameter } from '../composables/useRecipeCompareApi.ts'
 import type { AmpRow } from '../composables/useRecipeSearchApi.ts'
@@ -157,4 +158,23 @@ test('groupFieldValues flags nothing on a tie for largest', () => {
 test('groupFieldValues: single value is never an outlier', () => {
   const buckets = groupFieldValues([{ recipeId: 'A', value: 'x' }, { recipeId: 'B', value: 'x' }])
   assert.equal(buckets[0]?.isOutlier, false)
+})
+
+test('buildCompareWorkbook emits Overlap + IDP + one sheet per slot', () => {
+  const wb = buildCompareWorkbook([
+    recipeWithAmp('A', [measAmp({ Mag: '50.0K' })]),
+    recipeWithAmp('B', [measAmp({ Mag: '80.0K' })])
+  ], ['WAFER'])
+
+  const names = wb.sheets.map(s => s.name)
+  assert.deepEqual(names, ['Overlap', 'IDP', 'Addressing 1', 'Addressing 2', 'Addressing 3', 'Measure 1', 'Measure 2'])
+
+  const overlap = wb.sheets.find(s => s.name === 'Overlap')!
+  assert.deepEqual(overlap.rows[0], ['parameter', 'coverage', 'A', 'B'])
+  assert.deepEqual(overlap.rows[1], ['WAFER', 'all', '✓', '✓'])
+
+  const meas1 = wb.sheets.find(s => s.name === 'Measure 1')!
+  assert.deepEqual(meas1.rows[0], ['parameter', 'attr', 'A', 'B'])
+  const magRow = meas1.rows.find(r => r[1] === 'Mag')!
+  assert.deepEqual(magRow, ['WAFER', 'Mag', '50.0K', '80.0K'])
 })
