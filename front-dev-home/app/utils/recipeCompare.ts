@@ -251,6 +251,19 @@ export function buildCompareWorkbook(
   return { sheets }
 }
 
+export async function downloadCompareWorkbook(
+  workbook: CompareWorkbook,
+  filename: string
+): Promise<void> {
+  const XLSX = await import('xlsx')
+  const book = XLSX.utils.book_new()
+  for (const sheet of workbook.sheets) {
+    const ws = XLSX.utils.aoa_to_sheet(sheet.rows)
+    XLSX.utils.book_append_sheet(book, ws, sheet.name.slice(0, 31))
+  }
+  XLSX.writeFile(book, filename)
+}
+
 export function groupFieldValues(pairs: { recipeId: string, value: string }[]): ValueBucket[] {
   const map = new Map<string, string[]>()
   const order: string[] = []
