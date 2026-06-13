@@ -134,14 +134,14 @@
             />
           </div>
 
-          <EbeamRecipeCompareCompareMatrix
+          <EbeamRecipeCompareMatrix
             v-if="viewMode === 'matrix'"
             :recipes="recipes"
             :parameter="activeParam"
             :slot-key="activeSlot"
             :diff-only="diffOnly"
           />
-          <EbeamRecipeCompareCompareGrouping
+          <EbeamRecipeCompareGrouping
             v-else
             :recipes="recipes"
             :parameter="activeParam"
