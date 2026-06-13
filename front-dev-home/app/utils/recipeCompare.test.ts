@@ -7,6 +7,7 @@ import {
   filterOverlap,
   commonParameters,
   buildIdpRows, buildAmpRows, cellsDiffer, imageFilenames,
+  groupFieldValues,
   buildCompareWorkbook
 } from './recipeCompare.ts'
 import type { CompareRecipe, CompareParameter } from '../composables/useRecipeCompareApi.ts'
@@ -124,8 +125,6 @@ test('imageFilenames returns per-recipe slot filename or null', () => {
   assert.deepEqual(files, ['A_m1', null])
 })
 
-import { groupFieldValues } from './recipeCompare.ts'
-
 test('groupFieldValues sorts buckets by count desc', () => {
   const buckets = groupFieldValues([
     { recipeId: 'A', value: '50K' }, { recipeId: 'B', value: '80K' },
@@ -145,7 +144,7 @@ test('groupFieldValues flags a small minority as outlier', () => {
   const byValue = Object.fromEntries(buckets.map(b => [b.value, b]))
   assert.equal(byValue['50K'].isOutlier, false) // largest
   assert.equal(byValue['80K'].isOutlier, false) // 0.31 share > 0.25
-  assert.equal(byValue['100K'].isOutlier, true)  // 0.07 share <= 0.25
+  assert.equal(byValue['100K'].isOutlier, true) // 0.07 share <= 0.25
 })
 
 test('groupFieldValues flags nothing on a tie for largest', () => {
