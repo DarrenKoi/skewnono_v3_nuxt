@@ -122,3 +122,39 @@ test('imageFilenames returns per-recipe slot filename or null', () => {
   ], 'WAFER', 'img_meas1')
   assert.deepEqual(files, ['A_m1', null])
 })
+
+import { groupFieldValues } from './recipeCompare.ts'
+
+test('groupFieldValues sorts buckets by count desc', () => {
+  const buckets = groupFieldValues([
+    { recipeId: 'A', value: '50K' }, { recipeId: 'B', value: '80K' },
+    { recipeId: 'C', value: '50K' }, { recipeId: 'D', value: '50K' }
+  ])
+  assert.deepEqual(buckets.map(b => b.value), ['50K', '80K'])
+  assert.deepEqual(buckets[0]?.recipeIds, ['A', 'C', 'D'])
+})
+
+test('groupFieldValues flags a small minority as outlier', () => {
+  const pairs = [
+    ...Array.from({ length: 62 }, (_, i) => ({ recipeId: `a${i}`, value: '50K' })),
+    ...Array.from({ length: 31 }, (_, i) => ({ recipeId: `b${i}`, value: '80K' })),
+    ...Array.from({ length: 7 }, (_, i) => ({ recipeId: `c${i}`, value: '100K' }))
+  ]
+  const buckets = groupFieldValues(pairs)
+  const byValue = Object.fromEntries(buckets.map(b => [b.value, b]))
+  assert.equal(byValue['50K'].isOutlier, false) // largest
+  assert.equal(byValue['80K'].isOutlier, false) // 0.31 share > 0.25
+  assert.equal(byValue['100K'].isOutlier, true)  // 0.07 share <= 0.25
+})
+
+test('groupFieldValues flags nothing on a tie for largest', () => {
+  const buckets = groupFieldValues([
+    { recipeId: 'A', value: 'x' }, { recipeId: 'B', value: 'y' }
+  ])
+  assert.equal(buckets.every(b => !b.isOutlier), true)
+})
+
+test('groupFieldValues: single value is never an outlier', () => {
+  const buckets = groupFieldValues([{ recipeId: 'A', value: 'x' }, { recipeId: 'B', value: 'x' }])
+  assert.equal(buckets[0]?.isOutlier, false)
+})

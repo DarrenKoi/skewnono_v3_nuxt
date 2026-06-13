@@ -195,3 +195,42 @@ export function imageFilenames(
     return p ? (p.images[slot] ?? null) : null
   })
 }
+
+export interface ValueBucket {
+  value: string
+  count: number
+  recipeIds: string[]
+  isOutlier: boolean
+}
+
+export function groupFieldValues(pairs: { recipeId: string, value: string }[]): ValueBucket[] {
+  const map = new Map<string, string[]>()
+  const order: string[] = []
+  for (const { recipeId, value } of pairs) {
+    if (!map.has(value)) {
+      map.set(value, [])
+      order.push(value)
+    }
+    map.get(value)!.push(recipeId)
+  }
+
+  const buckets: ValueBucket[] = order.map(value => ({
+    value,
+    count: map.get(value)!.length,
+    recipeIds: map.get(value)!,
+    isOutlier: false
+  }))
+  buckets.sort((a, b) => b.count - a.count)
+
+  const total = pairs.length
+  const maxCount = buckets[0]?.count ?? 0
+  const largestBuckets = buckets.filter(b => b.count === maxCount).length
+
+  for (const bucket of buckets) {
+    const isLargest = bucket.count === maxCount
+    const share = total > 0 ? bucket.count / total : 0
+    bucket.isOutlier = !isLargest && largestBuckets === 1 && share <= OUTLIER_SHARE
+  }
+
+  return buckets
+}
