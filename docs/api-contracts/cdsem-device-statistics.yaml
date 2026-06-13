@@ -271,14 +271,14 @@ endpoints:
   - path: /api/cdsem/device-statistics/rules
     method: GET
     description: >
-      Current measurement-rule version for a fab (D8 cap matrix / D15 M-fab shape).
-      Ships raw rule cells only — the frontend ruleEngine computes violations client-side.
-      save / history / rollback (D12) are added in later steps.
+      Current measurement-rule version for R3 (D8 cap matrix). R3-only since D22
+      (M-fab has no agreed rule — placeholder caps removed). Ships raw rule cells
+      only; the frontend ruleEngine computes violations client-side.
     query_params:
       fab:
         type: string
         required: true
-        description: 'Fab id (e.g. "R3", "M14"). Case-insensitive. 400 if missing, 404 if unknown.'
+        description: 'Fab id — only "R3" is served (D22). 400 if missing, 404 for any other fab.'
     response:
       status: 200
       body:
