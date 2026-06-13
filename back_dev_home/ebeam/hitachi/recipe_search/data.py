@@ -14,8 +14,11 @@ from typing import Literal, TypedDict
 
 __all__ = [
     "AmpRow",
+    "CompareParameter",
+    "CompareRecipe",
     "IMAGE_SLOTS",
     "IdpImageInfoRow",
+    "RecipeCompareResponse",
     "RecipeDetailResponse",
     "RecipeSearchResponse",
     "RecipeSearchRow",
@@ -23,6 +26,7 @@ __all__ = [
     "WaferAlignInfoRow",
     "WaferMpInfoRow",
     "get_recipe_catalog",
+    "get_recipe_compare_data",
     "get_recipe_open_data"
 ]
 
@@ -132,6 +136,31 @@ class RecipeDetailResponse(TypedDict):
     fac_id: str
     tool_category: str
     timestamp: str
+
+
+COMPARE_IDP_FIELDS: tuple[str, ...] = (
+    "Addressing", "Double_Addressing", "Mother_Para",
+    "Region", "Meas_Counting", "dnumber_removed"
+)
+
+
+class CompareParameter(TypedDict):
+    Parameter: str
+    idp: dict[str, object]
+    images: dict[str, str]
+    amp: list[AmpRow]
+
+
+class CompareRecipe(TypedDict):
+    recipe_id: str
+    fac_id: str
+    parameters: list[CompareParameter]
+
+
+class RecipeCompareResponse(TypedDict):
+    tool_type: ToolType
+    fab_name: str | None
+    recipes: list[CompareRecipe]
 
 
 RECIPE_COUNT = 50_000
@@ -380,3 +409,44 @@ def get_recipe_open_data(
         "tool_category": resolved_tool_category,
         "timestamp": datetime.now().isoformat()
     }
+
+
+def get_recipe_compare_data(
+    tool_type: ToolType,
+    fab_name: str | None,
+    recipe_names: list[str]
+) -> RecipeCompareResponse:
+    """Compact per-recipe comparison payload: IDP fields + slot image filenames +
+    AMP rows per parameter. Reuses get_recipe_open_data so compare matches open."""
+    recipes: list[CompareRecipe] = []
+    for name in recipe_names:
+        clean = (name or "").strip()
+        if not clean:
+            continue
+        detail = get_recipe_open_data(
+            recipe_id=clean, fac_id=fab_name, tool_category=tool_type
+        )
+        amp_by_param: dict[str, list[AmpRow]] = {}
+        for amp in detail["amp_info"]:
+            amp_by_param.setdefault(amp["parameter"], []).append(amp)
+
+        seen: set[str] = set()
+        parameters: list[CompareParameter] = []
+        for idp in detail["idp_image_info"]:
+            param = idp["Parameter"]
+            if param in seen:
+                continue
+            seen.add(param)
+            parameters.append({
+                "Parameter": param,
+                "idp": {field: idp[field] for field in COMPARE_IDP_FIELDS},
+                "images": {slot["key"]: idp[slot["key"]] for slot in IMAGE_SLOTS},
+                "amp": amp_by_param.get(param, [])
+            })
+        recipes.append({
+            "recipe_id": detail["recipe_id"],
+            "fac_id": detail["fac_id"],
+            "parameters": parameters
+        })
+
+    return {"tool_type": tool_type, "fab_name": fab_name, "recipes": recipes}
