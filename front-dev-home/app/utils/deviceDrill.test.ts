@@ -2,8 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { toOutlierDrill, toViolationDrill } from './deviceDrill.ts'
-import type { RecipeInput } from './ruleEngine.ts'
-import { evaluateLot, type RuleCell } from './ruleEngine.ts'
+import { evaluateLot, type RecipeInput, type RuleCell } from './ruleEngine.ts'
 import { detectDeviceOutliers } from './outlierDetect.ts'
 
 const recipe = (recipe_id: string, points: number[]): RecipeInput => ({
