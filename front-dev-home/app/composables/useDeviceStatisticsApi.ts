@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { RecipeInput } from '~/utils/ruleEngine'
 
 export interface R3DeviceGrpRow {
   id: string
@@ -44,8 +45,18 @@ export const useDeviceStatisticsApi = () => {
     )
   }
 
+  const fetchRecipeParams = async (lotCds: string[] = []): Promise<RecipeInput[]> => {
+    const query = lotCds.length > 0 ? { lot_cds: lotCds.join(',') } : undefined
+
+    return await $fetch<RecipeInput[]>(
+      joinApiPath(base, '/cdsem/device-statistics/recipe-params'),
+      { query }
+    )
+  }
+
   return {
     fetchR3DeviceGrp,
-    fetchDeviceDesc
+    fetchDeviceDesc,
+    fetchRecipeParams
   }
 }
