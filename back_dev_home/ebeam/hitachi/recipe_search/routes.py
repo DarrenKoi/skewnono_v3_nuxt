@@ -62,6 +62,9 @@ def recipe_search_compare(tool_slug: str):
     if not isinstance(recipe_names, list) or not recipe_names:
         return jsonify({"error": "recipe_names must be a non-empty list"}), 400
 
+    if len(recipe_names) > 200:
+        return jsonify({"error": "recipe_names exceeds the 200-recipe limit"}), 400
+
     fab_name = (payload.get("fab_name") or "").strip().upper() or None
     return jsonify(
         get_recipe_compare_data(tool_type, fab_name, [str(name) for name in recipe_names])

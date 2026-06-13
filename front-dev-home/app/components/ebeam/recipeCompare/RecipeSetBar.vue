@@ -85,7 +85,10 @@ const { fetchRecipeList } = useRecipeSearchApi()
 const { data: catalog } = await useAsyncData(
   () => `recipe-search:${props.toolType}:${props.fab || 'ALL'}`,
   () => fetchRecipeList({ toolType: props.toolType, fabName: props.fab }),
-  { getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key] }
+  {
+    default: () => ({ tool_type: props.toolType, fab_name: props.fab || null, total: 0, rows: [] as string[] }),
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+  }
 )
 
 const addQuery = ref('')

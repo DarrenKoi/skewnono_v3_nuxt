@@ -232,9 +232,13 @@ const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'params', label: 'Params', value: selectedParameters.value.length.toLocaleString(), tone: 'neutral' }
 ])
 
-const downloadExcel = () => {
+const downloadExcel = async () => {
   if (!recipes.value.length || !selectedParameters.value.length) return
-  const workbook = buildCompareWorkbook(recipes.value, selectedParameters.value)
-  downloadCompareWorkbook(workbook, `recipe-compare_${props.toolType}_${props.fab}.xlsx`)
+  try {
+    const workbook = buildCompareWorkbook(recipes.value, selectedParameters.value)
+    await downloadCompareWorkbook(workbook, `recipe-compare_${props.toolType}_${props.fab}.xlsx`)
+  } catch (err) {
+    console.error('Excel export failed', err)
+  }
 }
 </script>
