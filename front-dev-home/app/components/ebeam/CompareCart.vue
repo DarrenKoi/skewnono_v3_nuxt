@@ -114,6 +114,18 @@
             size="sm"
             color="neutral"
             variant="outline"
+            icon="i-lucide-bar-chart-3"
+            :disabled="selectedDeviceLots.length === 0"
+            class="disabled:opacity-50"
+            @click="emit('profile')"
+          >
+            {{ text.analyzeProfile }}
+          </UButton>
+          <UButton
+            block
+            size="sm"
+            color="neutral"
+            variant="outline"
             icon="i-lucide-bookmark-plus"
             :disabled="selectedDeviceLots.length === 0"
             class="disabled:opacity-50"
@@ -229,10 +241,12 @@ defineProps<{
 
 const emit = defineEmits<{
   proceed: []
+  profile: []
   applyPreset: [preset: DevicePreset]
 }>()
 
 const text = {
+  analyzeProfile: '측정 프로파일 비교',
   step3Title: '분석 + 이동',
   step3HintSelection: '선택된 디바이스',
   step3HintPresets: '저장된 프리셋',
