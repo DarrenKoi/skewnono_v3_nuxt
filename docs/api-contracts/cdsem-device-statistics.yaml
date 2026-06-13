@@ -164,6 +164,42 @@ types:
       type: array
       items: NameOverride
 
+  ParameterRow:
+    name:
+      type: string
+      description: "Parameter name. Type derived by longest-prefix (EDGE_EX>EDGE>WAFER>LEVEL); else OTHER."
+    point_count:
+      type: integer
+
+  RecipeParamsRow:
+    description: One recipe with its measured parameters (D22). Matches ruleEngine.ts RecipeInput; consumed client-side by evaluateLot (R3 compliance) and detectDeviceOutliers (descriptive view).
+    lot_cd:
+      type: string
+    recipe_id:
+      type: string
+      format: "RCP-<lot_cd>-NNN"
+    fac_id:
+      type: string
+    ctn_desc:
+      type: string
+    prod_catg_cd:
+      type: string
+    recipe_class:
+      type: string
+      enum: ["Main", "Sample"]
+    family:
+      type: string
+      enum: ["Core", "Pool", "VG_RTC_Cubic"]
+    phase:
+      type: string
+      enum: ["t-EV", "EV", "TV", "PV", null]
+    memory_class_auto:
+      type: string
+      enum: ["DRAM", "NAND", "unknown"]
+    parameters:
+      type: array
+      items: ParameterRow
+
   RecipeBuckets:
     description: Eight keys — four bucket names (all, only_normal, mother_normal, only_sample) crossed with rcp_info / summary
     all_rcp_info:
@@ -235,14 +271,14 @@ endpoints:
   - path: /api/cdsem/device-statistics/rules
     method: GET
     description: >
-      Current measurement-rule version for a fab (D8 cap matrix / D15 M-fab shape).
-      Ships raw rule cells only — the frontend ruleEngine computes violations client-side.
-      save / history / rollback (D12) are added in later steps.
+      Current measurement-rule version for R3 (D8 cap matrix). R3-only since D22
+      (M-fab has no agreed rule — placeholder caps removed). Ships raw rule cells
+      only; the frontend ruleEngine computes violations client-side.
     query_params:
       fab:
         type: string
         required: true
-        description: 'Fab id (e.g. "R3", "M14"). Case-insensitive. 400 if missing, 404 if unknown.'
+        description: 'Fab id — only "R3" is served (D22). 400 if missing, 404 for any other fab.'
     response:
       status: 200
       body:
@@ -261,6 +297,23 @@ endpoints:
         thresholds:
           type: object
           description: "fab-level signal boundaries { yellow_at, red_at } — lot roll-up ratio (D16)"
+
+  - path: /api/cdsem/device-statistics/recipe-params
+    method: GET
+    description: >
+      Per-recipe parameter rows (name + point_count) for the selected lots (D22).
+      Ships raw data only; violation/outlier judgement is client-side
+      (ruleEngine.evaluateLot for R3, outlierDetect.detectDeviceOutliers for the descriptive view).
+    query_params:
+      lot_cds:
+        type: string
+        required: false
+        description: Comma-separated lot codes (e.g. "R000,R001"). Empty = all lots (large).
+    response:
+      status: 200
+      body:
+        type: array
+        items: RecipeParamsRow
 
   - path: /api/cdsem/device-statistics/recipe-trend
     method: GET

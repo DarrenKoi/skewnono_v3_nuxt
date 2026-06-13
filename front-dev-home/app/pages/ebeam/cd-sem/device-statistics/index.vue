@@ -295,6 +295,7 @@
           :selected-device-rows="selectedDeviceRows"
           :fab="selectedFab"
           @proceed="proceedToStatistics"
+          @profile="proceedToProfile"
           @apply-preset="applyPreset"
         />
       </div>
@@ -674,6 +675,11 @@ const proceedToStatistics = async () => {
   if (selectedDeviceLots.value.length === 0) return
 
   await navigateTo('/ebeam/cd-sem/device-statistics/comparison')
+}
+
+const proceedToProfile = async () => {
+  if (selectedDeviceLots.value.length === 0) return
+  await navigateTo('/ebeam/cd-sem/device-statistics/profile')
 }
 
 // Apply runs across multiple awaits and mutates cross-page useState (selectedDeviceLots) plus

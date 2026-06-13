@@ -145,41 +145,17 @@ def _r3_cells() -> list[RuleCell]:
     ]
 
 
-def _mfab_cells(fab: str) -> list[RuleCell]:
-    """M-fab(양산) — recipe_class × memory_class 만 (family·phase·Pool 없음, D15).
-
-    의미가 R3 와 다름: R3='기대 분포', M-fab='이상감지 임계치'. cap 도 더 느슨.
-    """
-    return [
-        _main_cell(f"{fab.lower()}-main-dram",
-                   {"fab": fab, "recipe_class": "Main", "memory_class": "DRAM"}, edge=16, edge_ex=16),
-        _main_cell(f"{fab.lower()}-main-nand",
-                   {"fab": fab, "recipe_class": "Main", "memory_class": "NAND"}, edge=12, edge_ex=12),
-        _sample_cell(f"{fab.lower()}-sample-dram", fab, "DRAM", edge=10),
-        _sample_cell(f"{fab.lower()}-sample-nand", fab, "NAND", edge=8),
-    ]
-
-
-M_FAB_IDS = ["M11", "M12", "M14", "M15", "M16"]
-
-# 현재 버전 seed. step 3/5 에서 버전 이력 리스트로 확장(append-only, D12).
+# 현재 버전 seed. R3 전용 (D22 — M-fab 룰 폐기, D15 supersede).
 _SEED: dict[str, RuleVersion] = {
     "R3": {
         "fab": "R3", "version": 1, "edited_by": "seed", "edited_at": "2026-05-20T10:00:00Z",
         "cells": _r3_cells(), "thresholds": dict(_SEED_THRESHOLDS),
     },
-    **{
-        fab: {
-            "fab": fab, "version": 1, "edited_by": "seed", "edited_at": "2026-05-20T10:00:00Z",
-            "cells": _mfab_cells(fab), "thresholds": dict(_SEED_THRESHOLDS),
-        }
-        for fab in M_FAB_IDS
-    },
 }
 
 
 def list_rule_fabs() -> list[str]:
-    return ["R3", *M_FAB_IDS]
+    return ["R3"]
 
 
 def get_rules(fab: str) -> RuleVersion | None:

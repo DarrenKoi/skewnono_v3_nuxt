@@ -3,6 +3,7 @@ from flask import Blueprint, abort, jsonify, request
 from back_dev_home.ebeam.cdsem.device_statistics.data import (
     get_device_desc,
     get_r3_device_grp,
+    get_recipe_params,
     get_weekly_trend_data,
 )
 from back_dev_home.ebeam.cdsem.device_statistics.rules import get_rules
@@ -40,6 +41,13 @@ def recipe_statistics():
 
     latest_date = next(reversed(trend))
     return jsonify({"date": latest_date, "buckets": trend[latest_date]})
+
+
+@bp.get("/cdsem/device-statistics/recipe-params")
+def recipe_params():
+    lot_cds_param = request.args.get("lot_cds", "")
+    lot_cds = [value.strip() for value in lot_cds_param.split(",") if value.strip()]
+    return jsonify(get_recipe_params(lot_cds or None))
 
 
 @bp.get("/cdsem/device-statistics/rules")
