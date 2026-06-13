@@ -1,0 +1,32 @@
+device-statistics 의 recipe-params mock data 입니다.
+
+device(lot_cd) 1개는 recipe 100~200개를 가지며, recipe 1개는 파라미터 다수를
+측정합니다. 파라미터마다 측정 point 수가 다릅니다. 프론트엔드 ruleEngine.ts 의
+RecipeInput 형태와 1:1 로 맞춰 raw 로 내려보냅니다. 위반(R3 cap)·outlier 판정은
+프론트엔드가 client-side 로 수행합니다 (백엔드는 raw 만 제공).
+
+GET /api/cdsem/device-statistics/recipe-params?lot_cds=R000,R001
+
+응답: RecipeParamsRow 배열 (recipe 당 1행)
+
+컬럼 -> 타입: 설명
+
+lot_cd -> string: device 식별자. r3-device-grp / device-desc 의 lot_cd 와 조인됩니다.
+recipe_id -> string: recipe 식별자. 형식은 RCP-<lot_cd>-NNN 입니다.
+fac_id -> string: fab 코드. R3 또는 M11~M16 입니다.
+ctn_desc -> string: recipe 설명 문자열입니다.
+prod_catg_cd -> string: 제품 카테고리. DRAM, NAND, FLASH, Tech, Advanced 중 하나입니다.
+recipe_class -> string: Main 또는 Sample 입니다 (D2).
+family -> string: Core, Pool, VG_RTC_Cubic 중 하나입니다 (D3).
+phase -> string|null: t-EV, EV, TV, PV 또는 null 입니다 (D3).
+memory_class_auto -> string: DRAM, NAND, unknown 중 하나입니다. Tech/Advanced 는 unknown(수동) 입니다 (D7).
+parameters -> records: 측정 파라미터 배열입니다. 각 원소는 {name, point_count} 입니다.
+
+parameters 원소
+name -> string: 파라미터 이름. 타입은 longest-prefix(EDGE_EX > EDGE > WAFER > LEVEL)로 파생되며, 그 외는 OTHER 입니다.
+point_count -> int: 해당 파라미터의 측정 point 수입니다.
+
+Mock 생성 규칙
+1. lot_cd 별 결정론적 seed(statistics._seed_for)로 recipe·parameter 를 생성합니다.
+2. 약 8% recipe 는 기타(OTHER) 파라미터가 많은 bloated recipe 입니다 (D10 신호 검증용).
+3. 약 5% recipe 는 EDGE point 수가 또래 대비 큰 outlier 를 포함합니다 (outlier 뷰·R3 cap 검증용).
