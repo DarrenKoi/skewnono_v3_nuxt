@@ -5,14 +5,7 @@
       :title="text.title"
       :subtitle="text.subtitle"
       :stats="metaStats"
-    >
-      <template #toggle>
-        <EbeamRulesFabSelector
-          v-model="selectedFab"
-          :fabs="fabs"
-        />
-      </template>
-    </EbeamMetaBar>
+    />
 
     <div class="dashboard-surface rounded-2xl p-4">
       <!-- legend -->
@@ -51,16 +44,15 @@
       <template v-else-if="version">
         <EbeamRulesMatrix
           :cells="version.cells"
-          :mfab="isMfab"
+          :mfab="false"
         />
-        <p
-          v-if="isMfab"
-          class="mt-3 text-[11.5px] text-(--sk-ink-subtle)"
-        >
-          {{ text.mfabNote }}
-        </p>
       </template>
     </div>
+
+    <EbeamRulesComplianceTable
+      v-if="version"
+      :cells="version.cells"
+    />
   </div>
 </template>
 
@@ -73,44 +65,24 @@ import type { RuleVersion } from '~/utils/ruleEngine'
 const { setToolType } = useNavigation()
 const { fetchRules } = useMeasurementRulesApi()
 
-// R3 (full dev matrix) first, then M-fabs newest-first — matches device-statistics.
-// Display order is a frontend concern; the seeded set is rules.py:M_FAB_IDS (+R3).
-// Keep in sync when adding a fab there (a /rules/fabs route can serve it later).
-const fabs = ['R3', 'M16', 'M15', 'M14', 'M12', 'M11']
-const DEFAULT_FAB = 'R3'
-const STORAGE_KEY = 'skewnono:measurementRules.selectedFab'
-
-const readSavedFab = (): string => {
-  if (typeof window === 'undefined') return DEFAULT_FAB
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY)
-    return saved && fabs.includes(saved) ? saved : DEFAULT_FAB
-  } catch {
-    return DEFAULT_FAB
-  }
-}
-
-const selectedFab = ref<string>(readSavedFab())
-const isMfab = computed(() => selectedFab.value !== 'R3')
+// R3-only rule page (D22 — M-fab placeholder caps removed). The rule API serves
+// only R3; any other fab 404s.
+const RULE_FAB = 'R3'
 
 const text = {
   title: '계측 룰',
-  subtitle: 'Fab 별 계측 파라미터 cap 정책을 확인합니다.',
+  subtitle: 'R3 계측 파라미터 cap 정책과 준수 결과를 확인합니다.',
   legendLead: '행 = 룰 셀 · 열 = 파라미터 타입 · 칸 = 최대 측정 포인트 수(cap, ≤).',
   legendCap: '상한',
   legendZero: '측정 금지',
   legendNA: '해당 없음',
   loading: '로딩 중',
-  loadError: '룰을 불러오지 못했습니다.',
-  mfabNote: '▲ 양산 fab — family/phase/Pool 축 없이 Recipe Class × memory_class(DRAM/NAND) 룰입니다.'
+  loadError: '룰을 불러오지 못했습니다.'
 } as const
 
-// Stable key + watch (the device-statistics convention) — one cache slot the
-// matrix reuses; switching fab refetches in place rather than spawning per-fab keys.
 const { data: version, pending, error } = await useAsyncData<RuleVersion>(
   'measurement-rules',
-  () => fetchRules(selectedFab.value),
-  { watch: [selectedFab] }
+  () => fetchRules(RULE_FAB)
 )
 
 const metaStats = computed<MetaBarStat[]>(() => {
@@ -120,13 +92,6 @@ const metaStats = computed<MetaBarStat[]>(() => {
     { key: 'version', label: '버전', value: `v${version.value.version}`, tone: 'accent' },
     { key: 'editor', label: '최종 편집', value: version.value.edited_by, tone: 'neutral' }
   ]
-})
-
-watch(selectedFab, (next) => {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(STORAGE_KEY, next)
-  } catch { /* noop */ }
 })
 
 onMounted(() => {
