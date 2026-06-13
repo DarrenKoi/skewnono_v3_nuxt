@@ -1,10 +1,65 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
-import {
-  IMAGE_SLOTS,
-  ampFieldsForRole,
-  formatAmpValue,
-  type ImageSlotKey
-} from './recipeView.ts'
+import type { AmpRole, AmpRow } from '~/composables/useRecipeSearchApi'
+import type { ImageSlotKey } from '~/utils/recipeView'
+
+// NOTE: recipeCompare runs under `node --test`, which cannot resolve the `~` alias
+// or extension-less sibling imports, while `nuxt typecheck` forbids `.ts`-extension
+// imports. So the slot / AMP-field metadata below is inlined rather than imported
+// from recipeView.ts. KEEP IN SYNC with recipeView.ts (IMAGE_SLOTS, AMP_FIELDS_*,
+// ampFieldsForRole, formatAmpValue).
+
+interface CompareSlot {
+  key: ImageSlotKey
+  stage: string
+  role: AmpRole
+}
+
+export const COMPARE_SLOTS: readonly CompareSlot[] = [
+  { key: 'img_add1', stage: 'Addressing 1', role: 'address' },
+  { key: 'img_add2', stage: 'Addressing 2', role: 'address' },
+  { key: 'image_add3', stage: 'Addressing 3', role: 'address' },
+  { key: 'img_meas1', stage: 'Measure 1', role: 'measure' },
+  { key: 'img_meas2', stage: 'Measure 2', role: 'measure' }
+]
+
+interface AmpFieldDescriptor {
+  key: keyof AmpRow
+  label: string
+  unit?: string
+}
+
+const AMP_FIELDS_COMMON: readonly AmpFieldDescriptor[] = [
+  { key: 'Mag', label: 'Mag', unit: '×' },
+  { key: 'Vacc', label: 'Vacc', unit: 'V' },
+  { key: 'I_probe', label: 'I_probe', unit: 'pA' },
+  { key: 'Frame', label: 'Frame' },
+  { key: 'Scan', label: 'Scan' },
+  { key: 'WD', label: 'WD', unit: 'mm' },
+  { key: 'Det', label: 'Det' }
+]
+
+const AMP_FIELDS_ADDR: readonly AmpFieldDescriptor[] = [
+  ...AMP_FIELDS_COMMON,
+  { key: 'Template', label: 'Template' },
+  { key: 'MatchScore', label: 'MatchScore', unit: '%' },
+  { key: 'SearchArea', label: 'SearchArea', unit: 'px' },
+  { key: 'Rotation', label: 'Rotation', unit: '°' }
+]
+
+const AMP_FIELDS_MEAS: readonly AmpFieldDescriptor[] = [
+  ...AMP_FIELDS_COMMON,
+  { key: 'Algo', label: 'Algo' },
+  { key: 'ROI', label: 'ROI', unit: 'px' },
+  { key: 'EdgeThr', label: 'EdgeThr', unit: '%' },
+  { key: 'EdgeDir', label: 'EdgeDir' },
+  { key: 'Smooth', label: 'Smooth' }
+]
+
+const ampFieldsForRole = (role: AmpRole): readonly AmpFieldDescriptor[] =>
+  role === 'measure' ? AMP_FIELDS_MEAS : AMP_FIELDS_ADDR
+
+const formatAmpValue = (value: AmpRow[keyof AmpRow] | undefined): string =>
+  (value === null || value === undefined || value === '') ? '—' : String(value)
 
 export const GROUPING_DEFAULT_THRESHOLD = 8
 export const OUTLIER_SHARE = 0.25
@@ -116,7 +171,7 @@ export function buildAmpRows(
   parameter: string,
   slot: ImageSlotKey
 ): MatrixRow[] {
-  const descriptor = IMAGE_SLOTS.find(s => s.key === slot)
+  const descriptor = COMPARE_SLOTS.find(s => s.key === slot)
   if (!descriptor) return []
   return ampFieldsForRole(descriptor.role).map((field) => {
     const values = recipes.map((recipe) => {
