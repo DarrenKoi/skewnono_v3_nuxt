@@ -97,9 +97,11 @@
               />
             </div>
             <div class="ml-auto flex items-center gap-2">
-              <label class="flex items-center gap-1.5 text-[11px] text-(--sk-ink-muted)">
-                <UCheckbox v-model="diffOnly" /> 차이만 보기
-              </label>
+              <UCheckbox
+                v-model="diffOnly"
+                label="차이만 보기"
+                class="text-[11px] text-(--sk-ink-muted)"
+              />
               <div class="flex rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-800">
                 <button
                   type="button"
