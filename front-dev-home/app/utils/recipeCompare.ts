@@ -1,4 +1,10 @@
-import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
+import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
+import {
+  IMAGE_SLOTS,
+  ampFieldsForRole,
+  formatAmpValue,
+  type ImageSlotKey
+} from './recipeView.ts'
 
 export const GROUPING_DEFAULT_THRESHOLD = 8
 export const OUTLIER_SHARE = 0.25
@@ -58,4 +64,79 @@ export function filterOverlap(rows: OverlapRow[], filter: CoverageFilter): Overl
 
 export function commonParameters(rows: OverlapRow[]): string[] {
   return rows.filter(r => r.coverage === 'all').map(r => r.parameter)
+}
+
+const MISSING = '없음'
+
+export interface MatrixRow {
+  key: string
+  label: string
+  unit?: string
+  values: string[]
+  differs: boolean
+}
+
+interface IdpFieldDescriptor {
+  key: keyof CompareIdpFields
+  label: string
+}
+
+export const IDP_COMPARE_FIELDS: readonly IdpFieldDescriptor[] = [
+  { key: 'Addressing', label: 'Addressing' },
+  { key: 'Double_Addressing', label: 'Double_Addressing' },
+  { key: 'Mother_Para', label: 'Mother_Para' },
+  { key: 'Region', label: 'Region' },
+  { key: 'Meas_Counting', label: 'Meas_Counting' },
+  { key: 'dnumber_removed', label: 'dnumber_removed' }
+]
+
+export function cellsDiffer(values: string[]): boolean {
+  if (values.length < 2) return false
+  return values.some(v => v !== values[0])
+}
+
+export function findParameter(recipe: CompareRecipe, parameter: string): CompareParameter | null {
+  return recipe.parameters.find(p => p.Parameter === parameter) ?? null
+}
+
+export function buildIdpRows(recipes: CompareRecipe[], parameter: string): MatrixRow[] {
+  return IDP_COMPARE_FIELDS.map((field) => {
+    const values = recipes.map((recipe) => {
+      const p = findParameter(recipe, parameter)
+      if (!p) return MISSING
+      const v = p.idp[field.key]
+      return v === null || v === undefined || v === '' ? '—' : String(v)
+    })
+    return { key: String(field.key), label: field.label, values, differs: cellsDiffer(values) }
+  })
+}
+
+export function buildAmpRows(
+  recipes: CompareRecipe[],
+  parameter: string,
+  slot: ImageSlotKey
+): MatrixRow[] {
+  const descriptor = IMAGE_SLOTS.find(s => s.key === slot)
+  if (!descriptor) return []
+  return ampFieldsForRole(descriptor.role).map((field) => {
+    const values = recipes.map((recipe) => {
+      const p = findParameter(recipe, parameter)
+      if (!p) return MISSING
+      const amp = p.amp.find(a => a.slot === slot) ?? null
+      if (!amp) return MISSING
+      return formatAmpValue(amp[field.key])
+    })
+    return { key: String(field.key), label: field.label, unit: field.unit, values, differs: cellsDiffer(values) }
+  })
+}
+
+export function imageFilenames(
+  recipes: CompareRecipe[],
+  parameter: string,
+  slot: ImageSlotKey
+): (string | null)[] {
+  return recipes.map((recipe) => {
+    const p = findParameter(recipe, parameter)
+    return p ? (p.images[slot] ?? null) : null
+  })
 }
