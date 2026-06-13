@@ -1,7 +1,7 @@
 // Shared drill-down view-model (D22). Both the descriptive (outlier) and
 // prescriptive (cap-violation) surfaces normalize into DrillDevice so a single
 // slideover renders both. Adapters are pure + unit-tested.
-import type { RecipeInput } from './ruleEngine'
+import type { RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
 export interface DrillParameter {
@@ -49,5 +49,35 @@ export const toOutlierDrill = (
     recipes: drillRecipes,
     flagged_recipe_count: drillRecipes.filter(r => r.flagged).length,
     flagged_param_count: result.outlier_count
+  }
+}
+
+/** Prescriptive adapter — cap violations from evaluateLot (D22, count not ratio). */
+export const toViolationDrill = (
+  lot_cd: string,
+  ctn_desc: string,
+  health: LotHealth
+): DrillDevice => {
+  const drillRecipes: DrillRecipe[] = health.recipes.map((r) => {
+    const parameters: DrillParameter[] = r.results.map(p => ({
+      name: p.name,
+      point_count: p.point_count,
+      flagged: p.violation,
+      note: p.violation && typeof p.cap === 'number' ? `cap ${p.cap}` : undefined
+    }))
+    return {
+      recipe_id: r.recipe_id,
+      flagged: !r.pass && r.gray == null,
+      total_params: r.total_params,
+      flagged_count: r.violation_params.length,
+      parameters
+    }
+  })
+  return {
+    lot_cd,
+    ctn_desc,
+    recipes: drillRecipes,
+    flagged_recipe_count: health.violation_recipes, // count (D22)
+    flagged_param_count: drillRecipes.reduce((sum, r) => sum + r.flagged_count, 0)
   }
 }
