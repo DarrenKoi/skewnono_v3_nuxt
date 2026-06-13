@@ -20,6 +20,7 @@ const {
   removeRecentSearch,
   clearRecentSearches
 } = useRecipeRecentSearches(props.toolType, props.fab)
+
 const route = useRoute()
 const router = useRouter()
 
@@ -198,8 +199,9 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 })
 
 const columns: TableColumn<RecipeSearchRow>[] = [
-  { accessorKey: 'recipe_name', header: 'recipe_name', size: 520 },
-  { id: 'open', header: '', size: 400 }
+  { id: 'select', header: '', size: 36 },
+  { accessorKey: 'recipe_name', header: 'recipe_name', size: 500 },
+  { id: 'open', header: '', size: 380 }
 ]
 
 const tableUi = {
@@ -224,6 +226,36 @@ const getMeasHistRoute = (recipeName: string) => ({
   path: recipeSubpath('meas-hist'),
   query: { recipe_name: recipeName }
 })
+
+const { selected, has, toggle, remove, clear, count } = useRecipeSelectionSet(props.toolType, props.fab)
+
+const togglePageSelection = () => {
+  const pageNames = pagedRows.value.map(row => row.recipe_name)
+  const allSelected = pageNames.length > 0 && pageNames.every(name => has(name))
+  if (allSelected) {
+    pageNames.forEach(name => remove(name))
+  } else {
+    pageNames.forEach((name) => {
+      if (!has(name)) toggle(name)
+    })
+  }
+}
+
+const firstSelected = computed(() => selected.value[0] ?? '')
+
+const openSetCompare = () => {
+  if (count.value < 1) return
+  router.push({ path: recipeSubpath('compare') })
+}
+const openSetDetail = () => {
+  if (firstSelected.value) router.push(getRecipeDetailRoute(firstSelected.value))
+}
+const openSetLateral = () => {
+  if (firstSelected.value) router.push(getLateralRoute(firstSelected.value))
+}
+const openSetMeasHist = () => {
+  if (firstSelected.value) router.push(getMeasHistRoute(firstSelected.value))
+}
 
 const openRecipeDetail = (recipeName: string) => {
   recordRecentSearch(query.value.trim())
@@ -334,7 +366,7 @@ const openMeasHist = (recipeName: string) => {
         </div>
 
         <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-(--sk-ink-muted)">
-          <span>{{ searchHelp }}</span>
+          <span>{{ searchHelp }} · <span class="text-(--sk-ink-muted)">체크하면 여러 recipe를 한 번에 열거나 비교할 수 있습니다.</span></span>
           <span
             v-if="canSearch && refinedCount > 0"
             class="tabular-nums"
@@ -480,6 +512,22 @@ const openMeasHist = (recipeName: string) => {
             </div>
           </template>
 
+          <template #select-header>
+            <UCheckbox
+              :model-value="pagedRows.length > 0 && pagedRows.every(row => has(row.recipe_name))"
+              aria-label="현재 페이지 전체 선택"
+              @update:model-value="togglePageSelection"
+            />
+          </template>
+
+          <template #select-cell="{ row }">
+            <UCheckbox
+              :model-value="has(row.original.recipe_name)"
+              :aria-label="`${row.original.recipe_name} 선택`"
+              @update:model-value="toggle(row.original.recipe_name)"
+            />
+          </template>
+
           <template #recipe_name-cell="{ row }">
             <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
               {{ row.original.recipe_name }}
@@ -544,6 +592,16 @@ const openMeasHist = (recipeName: string) => {
         </div>
       </section>
     </div>
+
+    <EbeamRecipeCompareSearchSelectTray
+      :selected="selected"
+      @remove="remove"
+      @clear="clear"
+      @compare="openSetCompare"
+      @open="openSetDetail"
+      @lateral="openSetLateral"
+      @meas-hist="openSetMeasHist"
+    />
   </div>
 </template>
 
