@@ -349,3 +349,103 @@ step 2(seed) 구현 리뷰에서 `/code-review` 와 `codex:rescue` 가 **충돌*
   `ruleEngine.test.ts` 의 D19 테스트가 순서=우선순위를 고정.)
 - **영향**: Core TV·PV Sample recipe 의 EDGE 11–16 이 더 이상 거짓 위반으로 잡히지 않는다.
 - ⚠️ Pool·VG 의 Sample TV·PV 는 L40 이 "Core인 경우"로 한정하므로 **대상 아님** — phase-blind 10/8 유지.
+
+## 2026-06-13 — 룰 편집 admin 전용 회귀 + 이력/rollback 폐기 (D20, D12 supersede)
+
+> 구현 직전 재검토 세션. D12(전면 개방 + append-only 이력 + rollback)가 추가한 **무결성 레이어의
+> 복잡도**가 단일 편집자 시나리오에는 과하다고 판단하여, 편집 권한을 admin(daeyoung) 전용으로
+> 되돌리고 버전 이력·rollback 을 폐기합니다.
+
+### D20 — 룰 편집은 admin 전용, 이력·rollback 폐기 (D12 reversal, ADR 0004 supersede)
+
+룰(cap 정책)과 threshold 는 **admin(daeyoung) 단독 편집**합니다. 버전 이력(append-only)·rollback·
+SSO author 추적을 **전부 폐기**합니다. **저장 = 현재 룰 덮어쓰기**(단일 상태, 이력 없음).
+
+- **사유**: 편집자가 1명이면 D12 의 정당화(다수 편집자 → 감사 추적·SSOT 흔들림 방지)가 사라집니다.
+  룰 엔진/매트릭스 복잡도(D1–D11)는 편집 권한과 직교하여 그대로 남지만, **버전 이력·rollback·author
+  배관은 통째로 제거**할 수 있어 step 3(저장)이 덮어쓰기 한 줄로, step 5(이력 패널)는 **삭제**됩니다.
+- **핵심 정정**: D12 의 "anyone can edit, no gate" 는 권한 축에선 오히려 단순했고, 복잡도는 **이력+rollback**
+  에서 왔습니다. 따라서 진짜 단순화는 "admin 전용"이 아니라 **이력 폐기**에서 옵니다 (admin gate 자체는
+  코드를 약간 *더함*). 사용자 확정 fork = "이력/rollback 을 둘 것인가" → **두지 않음**.
+- **트레이드오프(수용함)**: in-app undo 없음. cap 오타 시 복구는 git 또는 수동 재편집뿐.
+- **Phase 1(오프라인)**: 사용자가 유일 유저라 gate 도 불필요 — 저장은 in-memory seed 덮어쓰기.
+  Phase 2/3 에서 admin 식별(SSO)로 쓰기 경로만 보호.
+
+**ADR 영향**: `adr-0004-open-rule-editing.md` status → **superseded by D20**. ADR 0003(admin 전용)의
+*권한 결론*은 사실상 복원되나, 0003 이 전제한 "버전 이력 + read/write API"보다 **더 단순**합니다
+(이력 자체를 폐기하므로). 새 ADR `adr-0005-admin-only-no-history.md` 로 D20 을 정본화 예정.
+
+**데이터 모델 영향**:
+- `RuleVersion` 의 `version`/`edited_by`/`edited_at` 은 **의미를 잃습니다**(이력 없음). 단일 룰 상태로
+  축소하거나, 호환을 위해 필드는 두되 `version` 을 고정값으로 둘 수 있음 — 구현 시 확정.
+- threshold(`yellow_at`/`red_at`, D16)는 **유지**합니다. admin 이 같은 화면에서 편집·저장하되, 역시
+  이력 없이 덮어쓰기. D18(threshold 는 what-if 제외, 저장본으로 신호등 고정)은 그대로 유효.
+
+**빌드 순서 영향**(rule-editor-structure.md §8):
+- step 3(저장) = `PUT /rules` 가 seed 덮어쓰기. `saveRules(fab, cells, thresholds)` — author/note 없음.
+- step 5(이력/rollback) **삭제**. `RuleHistoryPanel.vue`, `GET /rules/history`, `POST /rules/rollback`
+  미구현.
+- step 1·2(ruleEngine + 읽기 매트릭스)·step 4(모니터링)는 **영향 없음** — 편집 권한과 직교.
+
+⚠️ **루트 문서 갱신(사용자 승인 후)**: 루트 `docs/adr/0003` status, `CONTEXT.md` §계측-룰 서술,
+`rule-editor-structure.md` §5/§8 은 본 폴더 기록 후 별도 정리. (D12 와 동일한 folder 제약.)
+
+### D21 — 룰 테이블은 정적(static) read-only, 프론트 편집 모드 폐기 (D13·D20·§8 step 3 supersede)
+
+편집자가 1명(admin)이고 룰이 거의 안 바뀌므로, **프론트엔드 편집 모드를 아예 만들지 않습니다.** 룰 테이블은
+**정적 read-only 매트릭스**로 배포하고, 드물게 바뀔 때는 **seed(`rules.py`) 를 고쳐 재배포**합니다.
+
+- **위치**: `device-statistics/measurement-rules` **유지**(D15 위치 그대로). admin 전용 페이지로 옮기지
+  않습니다 — 어차피 편집 UI 가 없어 일반 read 화면과 동일하므로, 소비처(device-statistics) colocate 가
+  자연스럽습니다.
+- **D13 supersede(편집 부분만)**: D13 의 "클릭 편집 매트릭스" 중 **편집(inline cap edit)·what-if 적용은
+  폐기**. 행=룰셀·열=파라타입·칸=cap 의 **표현(matrix)** 메타포는 유지. 모니터 색 오버레이(D13 monitor
+  mode)는 step 4(모니터링)에서 별도 판단 — 편집과 무관.
+- **빌드 순서 영향**(§8): **step 3(인라인 편집 + `PUT /rules` 저장) 전면 폐기.** `saveRules`·write 라우트
+  불필요. step 1·2(ruleEngine + read 매트릭스)로 **이 테이블은 완성**. step 5(이력/rollback)는 D20 에서 이미 폐기.
+- **데이터 경로**: 현행 `GET /rules` → `useAsyncData` → read-only 매트릭스 유지(API 추상화 원칙과 일치,
+  Phase 2/3 은 `data.py` swap 으로 실제 소스 교체 가능). 룰 = seed 상수, write 경로 없음.
+- **남은 작업**: 룰 테이블 자체는 **없음**(이미 렌더 중). step 4(컴플라이언스 모니터링, D14 cascade)는
+  편집과 독립된 별개 결정 — 진행 여부는 추후.
+
+**현 코드 상태 확인(2026-06-13)**: `CapCell.vue`·`Row.vue` 는 순수 표시 컴포넌트(편집 입력 없음).
+편집은 미구현 step 3 였으므로 **제거할 잔여 UI 없음** — D21 은 현 상태를 그대로 정본화합니다.
+
+### D22 — descriptive(device-statistics) ↔ prescriptive(R3 룰) 페이지 분리 + M-fab 룰 폐기 (D15·D14·D16 supersede)
+
+M-fab 은 합의된 룰이 없습니다. 따라서 룰 매트릭스를 fab 별로 분기(D15)하는 대신, **기술(descriptive) 뷰와
+규범(prescriptive) 뷰를 두 페이지로 분리**합니다. device-statistics 는 전 fab 공통 기술 뷰가 되고, R3 룰 적용은
+별도 페이지로 빠집니다.
+
+**도메인 전제(사용자 확인)**: device = `lot_cd`. device 1개 = recipe 100~200개, recipe 1개 = 파라미터 다수,
+파라미터마다 측정 point 수가 다름. 따라서 raw 나열은 불가 — **집계/판정으로 환원**해야 함.
+
+**(1) device-statistics = 전 fab 공통 descriptive 뷰**
+- device(lot_cd) → recipe → parameter **드릴다운을 모든 fab 이 공유**("같은 방식으로 본다"). 드릴다운은
+  **단일 공유 컴포넌트**, 하이라이트 규칙만 파라미터화(outlier vs cap-violation).
+- 하이라이트 = **device 내 point-count outlier**. baseline = **(a) 같은 device 내 다른 파라미터 대비**(룰
+  불필요·상대 판정), 측정값 = **point count**(Q3). 판정 = **multiplier 기준**(point > k × device median,
+  k 기본값 구현 시 확정, 예: 2×).
+- **기타(_other) 파라는 드릴다운에서 펼쳐 개별 나열**(D10 — bloat 가시화). 기타는 단일 열이 아니라 다수
+  파라미터의 bag.
+- over-measuring 의 두 신호(Q1): (i) 파라미터 수 과다(특히 기타) 표시, (ii) point-count outlier 판정.
+  device row 는 **device 내 outlier 파라미터 개수**를 노출(사용자 "counts of ... outlier in the device").
+
+**(2) R3 룰 페이지(measurement-rules) = R3 전용 prescriptive 뷰**
+- 정적 cap 매트릭스(D21) **+ R3 compliance device-table**: 룰을 **recipe 단위로 적용**, recipe 가 cap 위반 시
+  위반 recipe 로 집계 → device row = **위반 recipe count**(D14 ratio supersede). 드릴다운은 **cap 위반 파라미터**
+  하이라이트(공유 드릴다운 컴포넌트 재사용).
+- **count 채택 이유(사용자)**: 룰은 엔지니어 합의이므로 위반은 recipe 총수와 무관하게 위반. → **D14(ratio
+  roll-up) supersede**, **D16 ratio thresholds(yellow 0.1/red 0.2) 무효화**(비율 아님). device row health
+  color 유지/폐기는 **미정**(추후 — count ≥ 임계 방식 등).
+
+**(3) R3 는 두 뷰 모두 등장, M-fab 은 device-statistics 만**
+- R3 = descriptive(device-statistics) + prescriptive(rule page) **두 렌즈**. M-fab = descriptive 만.
+- **M-fab 룰 폐기(D15 supersede)**: `rules.py` `_mfab_cells()`·M-fab seed 제거, rules API 는 **R3 only**.
+  `list_rule_fabs()`·`M_FAB_IDS` 의 룰 용도 제거(device-statistics fab 목록과 분리).
+
+**미정(구현 시 확정)**: ① outlier multiplier k 기본값, ② device row 단위(outlier 파라미터 수 vs outlier 포함
+recipe 수), ③ R3 compliance device row 의 health-color 유지 여부.
+
+**영향 파일(예상)**: `device-statistics/index.vue`(+ 공유 드릴다운 컴포넌트 신설), `measurement-rules.vue`
+(compliance 섹션 추가), `rules.py`(M-fab 제거), 신규 mock `recipe-params`(파라미터 point_count raw, §8-bis B).
