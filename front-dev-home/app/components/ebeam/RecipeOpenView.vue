@@ -1,5 +1,9 @@
 <template>
   <div class="flex h-full min-h-[640px] flex-col gap-4">
+    <EbeamRecipeSwitcher
+      :tool-type="toolType"
+      :fab="fab"
+    />
     <div class="flex shrink-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div class="min-w-0">
         <UButton

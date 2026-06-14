@@ -104,6 +104,10 @@ const tableUi = recipeTableUi
 
 <template>
   <div class="space-y-4">
+    <EbeamRecipeSwitcher
+      :tool-type="toolType"
+      :fab="fab"
+    />
     <div class="space-y-3">
       <UButton
         size="sm"
