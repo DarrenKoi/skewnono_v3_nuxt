@@ -513,7 +513,7 @@ git commit -m "feat(recipe-compare): wire back-route + pass active-slot image bl
 
 `http://localhost:3000/ebeam/cd-sem/r3/recipe-search/compare`로 이동(working-set ≥ 2 필요; 없으면 먼저 `recipe-search`에서 2개 이상 체크). 브라우저 콘솔에 ExcelJS 관련 모듈 해석 에러가 없는지 확인한다.
 
-만약 Vite가 `exceljs`의 node 내장 모듈(`fs`/`stream` 등)을 해석하지 못해 런타임/빌드 에러가 나면: Task 3의 `await import('exceljs')`를 브라우저 번들 `await import('exceljs/dist/exceljs.min.js')`로 바꾸고, 타입은 `import type ExcelJSNs from 'exceljs'`로 가져와 `const ExcelJS = (mod.default ?? mod) as typeof ExcelJSNs`로 캐스팅한다. 변경 후 typecheck/lint/commit을 다시 수행한다.
+ExcelJS는 `package.json`에 `browser` 엔트리를 제공하므로 Vite가 `await import('exceljs')`를 브라우저용으로 해석해야 한다 — **`nuxt.config`(vite.optimizeDeps / build.transpile)를 선제적으로 수정하지 말 것**. 만약 실제로 node 내장 모듈(`fs`/`stream` 등) 해석 에러가 확인되면, dist 번들 import로 바꾸기보다 먼저 프로젝트 `.d.ts`에 `declare module 'exceljs/dist/exceljs.min.js' { export * from 'exceljs' }` shim을 추가하거나 동적 import에 단일 `@ts-expect-error`를 붙이는 방식을 우선 검토한다. 변경이 필요하면 typecheck/lint/commit을 다시 수행한다.
 
 - [ ] **Step 2: Playwright E2E — set bar UI**
 

@@ -82,12 +82,12 @@ async function downloadCompareWorkbook(
     sheetName: string        // 활성 슬롯의 stage 이름 (예: 'Measure 1')
     parameter: string        // 활성 파라미터
     images: (string | null)[] // recipe별 이미지 파일명(없으면 null) — 빈 셀 판정용
-    role: 'address' | 'measure'
+    pngDataUrl: string        // view(브라우저)에서 미리 렌더한 SEM 노이즈 PNG data URL
   }
 ): Promise<void>
 ```
 
-동작: 각 `sheet.rows`를 `worksheet.addRow`로 기록. `imageBlock`이 있고 `sheet.name === imageBlock.sheetName`이면, 헤더 아래에 레이블 행 + 이미지 행 + 빈 행을 `spliceRows`로 삽입하고, recipe 컬럼마다 `images[i]`가 non-null인 셀에 role별 PNG를 `worksheet.addImage`로 anchor.
+동작: 각 `sheet.rows`를 `worksheet.addRow`로 기록. `imageBlock`이 있고 `sheet.name === imageBlock.sheetName`이면, 헤더 아래에 레이블 행 + 이미지 행 + 빈 행을 `spliceRows`로 삽입하고, `book.addImage({ base64: imageBlock.pngDataUrl, extension: 'png' })`로 한 번 등록한 이미지 id를 recipe 컬럼마다 `images[i]`가 non-null인 셀에 `worksheet.addImage`로 anchor(재사용). PNG 렌더(`renderSemNoisePng`)는 view에서 수행하고 writer는 받은 `pngDataUrl`만 사용한다(canvas 코드가 `node --test` 대상 `recipeCompare.ts`에 들어가지 않게).
 
 ### 4.4 신규 브라우저 전용 헬퍼 (canvas → PNG)
 
