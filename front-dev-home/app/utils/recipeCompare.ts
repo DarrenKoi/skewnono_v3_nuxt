@@ -251,17 +251,60 @@ export function buildCompareWorkbook(
   return { sheets }
 }
 
+export interface CompareImageBlock {
+  sheetName: string // 활성 슬롯의 stage 이름 (예: 'Measure 1')
+  parameter: string // 활성 파라미터
+  images: (string | null)[] // recipe별 이미지 파일명(없으면 null); 빈 셀 판정용
+  pngDataUrl: string // 브라우저에서 미리 렌더한 SEM 노이즈 PNG (data URL)
+}
+
 export async function downloadCompareWorkbook(
   workbook: CompareWorkbook,
-  filename: string
+  filename: string,
+  imageBlock?: CompareImageBlock
 ): Promise<void> {
-  const XLSX = await import('xlsx')
-  const book = XLSX.utils.book_new()
+  const mod = await import('exceljs')
+  const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod
+  const book = new ExcelJS.Workbook()
+
   for (const sheet of workbook.sheets) {
-    const ws = XLSX.utils.aoa_to_sheet(sheet.rows)
-    XLSX.utils.book_append_sheet(book, ws, sheet.name.slice(0, 31))
+    const ws = book.addWorksheet(sheet.name.slice(0, 31))
+    for (const row of sheet.rows) {
+      ws.addRow(row)
+    }
+
+    if (imageBlock && sheet.name === imageBlock.sheetName) {
+      // header occupies row 1; insert an image strip directly beneath it:
+      // row 2 = label, row 3 = image anchor row, row 4 = spacer.
+      ws.spliceRows(2, 0, ['이미지', imageBlock.parameter], [], [])
+      ws.getRow(3).height = 115
+
+      const imageId = book.addImage({
+        base64: imageBlock.pngDataUrl,
+        extension: 'png'
+      })
+      imageBlock.images.forEach((file, i) => {
+        if (!file) return
+        // columns: 0='parameter', 1='attr', recipe columns start at index 2 (C).
+        // ExcelJS anchors are 0-based; row index 2 === Excel row 3 (the anchor row).
+        ws.addImage(imageId, {
+          tl: { col: 2 + i, row: 2 },
+          ext: { width: 150, height: 150 }
+        })
+      })
+    }
   }
-  XLSX.writeFile(book, filename)
+
+  const buffer = await book.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 export function groupFieldValues(pairs: { recipeId: string, value: string }[]): ValueBucket[] {
