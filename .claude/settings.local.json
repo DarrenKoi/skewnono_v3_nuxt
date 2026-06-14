@@ -89,7 +89,8 @@
       "Bash(Select-Object Name)",
       "Bash(Get-ChildItem *)",
       "Skill(codex:rescue)",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "PowerShell(Get-NetTCPConnection *)"
     ]
   },
   "statusLine": {
