@@ -31,11 +31,9 @@
     <template v-else>
       <EbeamRecipeCompareRecipeSetBar
         :selected="selected"
-        :tool-type="toolType"
-        :fab="fab"
+        :back-route="backRoute"
         :can-export="!!data && selectedParameters.length > 0"
         @remove="remove"
-        @add="add"
         @download="downloadExcel"
       />
 
@@ -167,13 +165,16 @@ import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { RecipeCompareResponse } from '~/composables/useRecipeCompareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import {
+  COMPARE_SLOTS,
   GROUPING_DEFAULT_THRESHOLD,
   buildCompareWorkbook,
   buildOverlap,
   commonParameters,
-  downloadCompareWorkbook
+  downloadCompareWorkbook,
+  imageFilenames
 } from '~/utils/recipeCompare'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
+import { renderSemNoisePng } from '~/utils/semNoiseImage'
 
 const props = defineProps<{
   fab: Fab
@@ -181,7 +182,7 @@ const props = defineProps<{
   toolType: RecipeSearchToolType
 }>()
 
-const { selected, add, remove } = useRecipeSelectionSet(props.toolType, props.fab)
+const { selected, remove } = useRecipeSelectionSet(props.toolType, props.fab)
 const { fetchCompare } = useRecipeCompareApi()
 
 const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
@@ -252,7 +253,20 @@ const downloadExcel = async () => {
   if (!recipes.value.length || !selectedParameters.value.length) return
   try {
     const workbook = buildCompareWorkbook(recipes.value, selectedParameters.value)
-    await downloadCompareWorkbook(workbook, `recipe-compare_${props.toolType}_${props.fab}.xlsx`)
+    const slot = COMPARE_SLOTS.find(s => s.key === activeSlot.value)
+    const imageBlock = (slot && activeParam.value)
+      ? {
+          sheetName: slot.stage,
+          parameter: activeParam.value,
+          images: imageFilenames(recipes.value, activeParam.value, activeSlot.value),
+          pngDataUrl: renderSemNoisePng(slot.role)
+        }
+      : undefined
+    await downloadCompareWorkbook(
+      workbook,
+      `recipe-compare_${props.toolType}_${props.fab}.xlsx`,
+      imageBlock
+    )
   } catch (err) {
     console.error('Excel export failed', err)
   }
