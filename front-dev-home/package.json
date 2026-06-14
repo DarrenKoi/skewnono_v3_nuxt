@@ -20,8 +20,7 @@
     "echarts": "^6.0.0",
     "exceljs": "^4.4.0",
     "nuxt": "^4.4.2",
-    "tailwindcss": "^4.1.18",
-    "xlsx": "^0.18.5"
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@fontsource/noto-sans-kr": "^5.2.9",
