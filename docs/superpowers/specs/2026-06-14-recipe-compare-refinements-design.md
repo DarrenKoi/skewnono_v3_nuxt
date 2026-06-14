@@ -1,7 +1,7 @@
 # Recipe Compare 개선 — 설계 (Design)
 
 - **Date:** 2026-06-14
-- **Status:** 설계 승인됨 → 구현 예정
+- **Status:** 구현 완료 (Implemented), E2E 검증 완료
 - **관련:** [[2026-06-14-recipe-comparison-design]] (compare 뷰 본체), [[2026-06-14-recipe-switcher-design]]
 - **대상 화면:** `ebeam/<tool>/<fab>/recipe-search/compare` (`RecipeCompareView.vue`)
 
