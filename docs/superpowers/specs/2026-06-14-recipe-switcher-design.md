@@ -1,7 +1,7 @@
 # Recipe Switcher — 설계 (Design)
 
 - **Date:** 2026-06-14
-- **Status:** 설계 승인 대기 → 구현 예정
+- **Status:** 구현 완료 (Implemented), E2E 검증 완료
 - **관련:** [[2026-06-14-recipe-comparison-design]] (작업 세트 `useRecipeSelectionSet` 의 fast-follow, 빌드 저널 §6.5)
 - **승인된 접근:** Approach A — URL `recipe_name` 쿼리 구동 방식
 

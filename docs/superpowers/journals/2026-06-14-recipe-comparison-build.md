@@ -150,8 +150,9 @@ A value bucket is an outlier when it is **not the single largest** bucket AND it
 
 ### 6.5 Compare-first scope (deliberate, deferred work)
 Only 비교하기 consumes the full set now. The tray's 열어보기/횡전개/측정이력 open the **first** selected
-recipe (existing single-recipe behavior). An in-page **recipe switcher** across those three views is a
-documented fast-follow — the set composable is built switcher-ready but the switcher is **not** implemented.
+recipe (existing single-recipe behavior). An in-page **recipe switcher** across those three views was a
+documented fast-follow — the set composable was built switcher-ready, and the switcher is **now implemented**
+(`EbeamRecipeSwitcher`, set=1 query-gated; spec `2026-06-14-recipe-switcher-design.md`).
 
 ### 6.6 NuxtUI `UCheckbox` must use its `label` prop, not a wrapping `<label>`
 Double-label nesting caused a double-toggle / unresponsive checkbox on some browsers. Fixed in `78377c0`.
@@ -198,7 +199,8 @@ Excel 다운로드. E2E screenshots saved under `.playwright-mcp/screenshots/` (
    so the same parameter has IDENTICAL amp rows across recipes → the AMP matrix/분포 always shows
    *agreement* on mock data; only IDP fields (per-recipe seeded) differ. Real office data will differ.
    **Follow-up:** seed AMP off `(recipe_id + parameter)` to make the mock demo richer.
-2. **Recipe switcher** for open/lateral/meas-hist is deferred (§6.5).
+2. **Recipe switcher** for open/lateral/meas-hist is **now implemented** (`EbeamRecipeSwitcher`, set=1
+   query-gated tab bar; spec `2026-06-14-recipe-switcher-design.md`, E2E-verified on `feat/recipe-switcher`).
 3. **Backend `recipe_names` cap = 200** — generous for the ~100 target; revisit if the office Flask reuses
    this handler with different limits.
 4. **Branch not pushed** — `main` is ahead of `origin/main`. Push when ready (`git push origin main`).
