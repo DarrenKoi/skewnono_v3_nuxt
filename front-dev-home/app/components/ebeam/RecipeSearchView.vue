@@ -247,14 +247,21 @@ const openSetCompare = () => {
   if (count.value < 1) return
   router.push({ path: recipeSubpath('compare') })
 }
+// Set-mode entry: tag the navigation with set=1 so the target view shows the
+// working-set tab switcher. Per-row buttons (openRecipeDetail/openLateral/
+// openMeasHist) intentionally omit this flag → single-recipe screen.
+const withSetFlag = (target: { path: string, query: Record<string, string> }) => ({
+  ...target,
+  query: { ...target.query, set: '1' }
+})
 const openSetDetail = () => {
-  if (firstSelected.value) router.push(getRecipeDetailRoute(firstSelected.value))
+  if (firstSelected.value) router.push(withSetFlag(getRecipeDetailRoute(firstSelected.value)))
 }
 const openSetLateral = () => {
-  if (firstSelected.value) router.push(getLateralRoute(firstSelected.value))
+  if (firstSelected.value) router.push(withSetFlag(getLateralRoute(firstSelected.value)))
 }
 const openSetMeasHist = () => {
-  if (firstSelected.value) router.push(getMeasHistRoute(firstSelected.value))
+  if (firstSelected.value) router.push(withSetFlag(getMeasHistRoute(firstSelected.value)))
 }
 
 const openRecipeDetail = (recipeName: string) => {
