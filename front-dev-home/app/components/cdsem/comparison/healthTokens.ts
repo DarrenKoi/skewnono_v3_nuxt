@@ -48,10 +48,10 @@ export const healthSwatches: Record<HealthLevel, HealthSwatch> = {
 // same warm-paper family as --sk-accent. Saturated enough to read at
 // stacked-bar width 80px, restrained enough to never out-shout the brand.
 export const paraColors = {
-  para_16: 'oklch(0.62 0.16 32)',  // terracotta (heaviest weight)
-  para_13: 'oklch(0.72 0.14 65)',  // amber
+  para_16: 'oklch(0.62 0.16 32)', // terracotta (heaviest weight)
+  para_13: 'oklch(0.72 0.14 65)', // amber
   para_9: 'oklch(0.66 0.10 100)', // olive
-  para_5: 'oklch(0.62 0.08 165)'  // dusty sage (lightest weight)
+  para_5: 'oklch(0.62 0.08 165)' // dusty sage (lightest weight)
 } as const
 
 export const paraColorsDark = {

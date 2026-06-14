@@ -29,7 +29,10 @@
       v-if="groupedItems.length === 0"
       class="dashboard-surface rounded-2xl px-4 py-14 text-center"
     >
-      <UIcon name="i-lucide-layers-2" class="mx-auto h-10 w-10 text-zinc-400" />
+      <UIcon
+        name="i-lucide-layers-2"
+        class="mx-auto h-10 w-10 text-zinc-400"
+      />
       <h2 class="mt-3 text-base font-semibold">
         No grouped measurements
       </h2>
@@ -42,12 +45,20 @@
       <section class="dashboard-surface rounded-2xl">
         <header class="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-list-checks" class="h-4 w-4 text-zinc-500" />
+            <UIcon
+              name="i-lucide-list-checks"
+              class="h-4 w-4 text-zinc-500"
+            />
             <h2 class="text-sm font-semibold">
               Selected measurements
             </h2>
           </div>
-          <UBadge :label="String(groupedItems.length)" color="primary" size="xs" variant="subtle" />
+          <UBadge
+            :label="String(groupedItems.length)"
+            color="primary"
+            size="xs"
+            variant="subtle"
+          />
         </header>
 
         <ul class="grid gap-px divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -65,8 +76,18 @@
             <span class="font-mono text-xs text-zinc-500">
               {{ item.lotId }}
             </span>
-            <UBadge :label="`Slot ${item.slotNumber}`" size="xs" color="neutral" variant="subtle" />
-            <UBadge :label="item.measuredInfo" size="xs" color="neutral" variant="outline" />
+            <UBadge
+              :label="`Slot ${item.slotNumber}`"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+            />
+            <UBadge
+              :label="item.measuredInfo"
+              size="xs"
+              color="neutral"
+              variant="outline"
+            />
           </li>
         </ul>
       </section>
@@ -83,7 +104,10 @@
       <section class="dashboard-surface rounded-2xl">
         <header class="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-chart-no-axes-combined" class="h-4 w-4 text-zinc-500" />
+            <UIcon
+              name="i-lucide-chart-no-axes-combined"
+              class="h-4 w-4 text-zinc-500"
+            />
             <h2 class="text-sm font-semibold">
               Time series
             </h2>
@@ -122,7 +146,10 @@
             v-if="pending"
             class="flex h-96 items-center justify-center text-sm text-zinc-500"
           >
-            <UIcon name="i-lucide-loader-circle" class="mr-2 h-4 w-4 animate-spin" />
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="mr-2 h-4 w-4 animate-spin"
+            />
             Loading grouped measurement details...
           </div>
           <div

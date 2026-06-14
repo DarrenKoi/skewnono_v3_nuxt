@@ -3,7 +3,10 @@
     v-if="loading"
     class="flex h-96 items-center justify-center text-sm text-zinc-500"
   >
-    <UIcon name="i-lucide-loader-circle" class="mr-2 h-4 w-4 animate-spin" />
+    <UIcon
+      name="i-lucide-loader-circle"
+      class="mr-2 h-4 w-4 animate-spin"
+    />
     Loading time series...
   </div>
   <div

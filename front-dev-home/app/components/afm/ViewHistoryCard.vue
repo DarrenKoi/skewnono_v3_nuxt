@@ -2,11 +2,19 @@
   <section class="dashboard-surface rounded-2xl">
     <header class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
       <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-eye" class="h-4 w-4 text-zinc-500" />
+        <UIcon
+          name="i-lucide-eye"
+          class="h-4 w-4 text-zinc-500"
+        />
         <h3 class="text-sm font-semibold">
           View History
         </h3>
-        <UBadge :label="String(items.length)" color="neutral" size="xs" variant="subtle" />
+        <UBadge
+          :label="String(items.length)"
+          color="neutral"
+          size="xs"
+          variant="subtle"
+        />
       </div>
       <UButton
         v-if="items.length > 0"

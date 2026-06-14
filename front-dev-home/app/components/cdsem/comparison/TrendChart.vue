@@ -1,11 +1,25 @@
 <template>
-  <div class="trend-chart" :class="compact ? 'trend-chart--compact' : ''">
-    <header v-if="!compact" class="trend-chart__head">
+  <div
+    class="trend-chart"
+    :class="compact ? 'trend-chart--compact' : ''"
+  >
+    <header
+      v-if="!compact"
+      class="trend-chart__head"
+    >
       <div>
-        <p class="trend-chart__eyebrow">trend · {{ focusedLot ? focusedLot : '-' }}</p>
-        <h4 class="trend-chart__title">{{ title }}</h4>
+        <p class="trend-chart__eyebrow">
+          trend · {{ focusedLot ? focusedLot : '-' }}
+        </p>
+        <h4 class="trend-chart__title">
+          {{ title }}
+        </h4>
       </div>
-      <div class="trend-chart__toggle" role="tablist" aria-label="trend mode">
+      <div
+        class="trend-chart__toggle"
+        role="tablist"
+        aria-label="trend mode"
+      >
         <button
           type="button"
           role="tab"
@@ -39,8 +53,14 @@
       </div>
     </header>
 
-    <div v-if="!hasData" class="trend-chart__empty">
-      <UIcon name="i-lucide-line-chart" class="h-4 w-4" />
+    <div
+      v-if="!hasData"
+      class="trend-chart__empty"
+    >
+      <UIcon
+        name="i-lucide-line-chart"
+        class="h-4 w-4"
+      />
       <span>lot 을 선택하면 추이가 표시됩니다</span>
     </div>
 
@@ -154,9 +174,19 @@
       </g>
     </svg>
 
-    <footer v-if="!compact && (mode === 'composition' || mode === 'lines')" class="trend-chart__legend">
-      <span v-for="(c, key) in legendColors" :key="key" class="trend-chart__legend-item">
-        <span class="trend-chart__swatch" :style="{ background: c }" />
+    <footer
+      v-if="!compact && (mode === 'composition' || mode === 'lines')"
+      class="trend-chart__legend"
+    >
+      <span
+        v-for="(c, key) in legendColors"
+        :key="key"
+        class="trend-chart__legend-item"
+      >
+        <span
+          class="trend-chart__swatch"
+          :style="{ background: c }"
+        />
         {{ key }}
       </span>
     </footer>
@@ -246,12 +276,12 @@ const healthDots = computed(() => {
 })
 
 // Y bands for health zones
-const bandRedY    = computed(() => yForRatio(1.0))
-const bandRedH    = computed(() => yForRatio(0.20) - yForRatio(1.0))
+const bandRedY = computed(() => yForRatio(1.0))
+const bandRedH = computed(() => yForRatio(0.20) - yForRatio(1.0))
 const bandYellowY = computed(() => yForRatio(0.20))
 const bandYellowH = computed(() => yForRatio(0.10) - yForRatio(0.20))
-const bandGreenY  = computed(() => yForRatio(0.10))
-const bandGreenH  = computed(() => yForRatio(0)    - yForRatio(0.10))
+const bandGreenY = computed(() => yForRatio(0.10))
+const bandGreenH = computed(() => yForRatio(0) - yForRatio(0.10))
 
 const lineColor = computed(() => colorMode.value === 'dark' ? '#F4EFE6' : '#15110D')
 

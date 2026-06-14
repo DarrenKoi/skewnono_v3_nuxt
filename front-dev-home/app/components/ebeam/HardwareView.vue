@@ -426,7 +426,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   </div>
                 </dl>
 
-<!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
+                <!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
                 <EbeamHardwareBmPmTables
                   v-if="activeService === 'bm-pm' && servicePayload.tables.length"
                   :tables="servicePayload.tables"

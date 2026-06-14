@@ -6,7 +6,10 @@
     <template #header>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-target" class="h-4 w-4 text-zinc-500" />
+          <UIcon
+            name="i-lucide-target"
+            class="h-4 w-4 text-zinc-500"
+          />
           <h2 class="text-sm font-semibold">
             Measurement points
           </h2>
@@ -31,7 +34,10 @@
             class="inline-flex h-6 items-center gap-1 rounded-full px-2 text-[11px] text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800"
             @click="$emit('update:selectedPoint', '')"
           >
-            <UIcon name="i-lucide-x" class="h-3 w-3" />
+            <UIcon
+              name="i-lucide-x"
+              class="h-3 w-3"
+            />
             All
           </button>
         </div>

@@ -16,13 +16,22 @@
         </div>
       </div>
       <div class="lot-cards__legend">
-        <span class="lot-cards__legend-item" data-health="red">
+        <span
+          class="lot-cards__legend-item"
+          data-health="red"
+        >
           <span class="lot-cards__legend-dot" /> {{ counts.red }} red
         </span>
-        <span class="lot-cards__legend-item" data-health="yellow">
+        <span
+          class="lot-cards__legend-item"
+          data-health="yellow"
+        >
           <span class="lot-cards__legend-dot" /> {{ counts.yellow }} yellow
         </span>
-        <span class="lot-cards__legend-item" data-health="green">
+        <span
+          class="lot-cards__legend-item"
+          data-health="green"
+        >
           <span class="lot-cards__legend-dot" /> {{ counts.green }} green
         </span>
       </div>
@@ -41,7 +50,10 @@
         <header class="lot-cards__card-head">
           <div class="lot-cards__card-id">
             <span class="lot-cards__card-lot">{{ row.lot_cd }}</span>
-            <CdsemComparisonStageChip :stage="row.dev_stage" :inferred="row.stage_inferred" />
+            <CdsemComparisonStageChip
+              :stage="row.dev_stage"
+              :inferred="row.stage_inferred"
+            />
           </div>
           <span class="lot-cards__card-vio">
             <span class="lot-cards__card-vio-num">{{ row.violations }}</span>
@@ -54,11 +66,18 @@
             <span class="lot-cards__card-avail-num">{{ row.avail_recipe }}</span>
             <span class="lot-cards__card-avail-lbl">recipes</span>
           </span>
-          <span class="lot-cards__card-ctn" :title="row.ctn_desc">{{ row.ctn_desc || '—' }}</span>
+          <span
+            class="lot-cards__card-ctn"
+            :title="row.ctn_desc"
+          >{{ row.ctn_desc || '—' }}</span>
         </div>
 
         <div class="lot-cards__card-bar">
-          <CdsemComparisonStackedBar :row="row" :height="20" :show-values="true" />
+          <CdsemComparisonStackedBar
+            :row="row"
+            :height="20"
+            :show-values="true"
+          />
         </div>
 
         <footer class="lot-cards__card-foot">
@@ -73,7 +92,11 @@
         </footer>
 
         <!-- Expanded detail -->
-        <section v-if="expandedLot === row.lot_cd" class="lot-cards__card-expand" @click.stop>
+        <section
+          v-if="expandedLot === row.lot_cd"
+          class="lot-cards__card-expand"
+          @click.stop
+        >
           <div class="lot-cards__card-expand-head">
             <h3 class="lot-cards__card-expand-title">
               recipe · {{ row.lot_cd }}
@@ -145,14 +168,20 @@
                 </tr>
               </tbody>
             </table>
-            <p v-else class="lot-cards__recipe-empty">
+            <p
+              v-else
+              class="lot-cards__recipe-empty"
+            >
               이 lot 의 recipe 가 현재 bucket 에 없습니다.
             </p>
           </div>
         </section>
       </article>
 
-      <p v-if="rows.length === 0" class="lot-cards__empty">
+      <p
+        v-if="rows.length === 0"
+        class="lot-cards__empty"
+      >
         표시할 lot 이 없습니다. 다른 bucket 을 선택해 보세요.
       </p>
     </div>

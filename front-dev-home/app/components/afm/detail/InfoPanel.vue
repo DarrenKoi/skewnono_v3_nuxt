@@ -5,7 +5,10 @@
   >
     <template #header>
       <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-info" class="h-4 w-4 text-zinc-500" />
+        <UIcon
+          name="i-lucide-info"
+          class="h-4 w-4 text-zinc-500"
+        />
         <h2 class="text-sm font-semibold">
           Information
         </h2>

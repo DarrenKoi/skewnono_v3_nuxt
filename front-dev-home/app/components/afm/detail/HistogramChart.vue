@@ -6,7 +6,10 @@
     <template #header>
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-bar-chart-3" class="h-4 w-4 text-zinc-500" />
+          <UIcon
+            name="i-lucide-bar-chart-3"
+            class="h-4 w-4 text-zinc-500"
+          />
           <h2 class="text-sm font-semibold">
             Z-value distribution
           </h2>
@@ -24,7 +27,10 @@
       v-if="loading"
       class="flex h-60 items-center justify-center text-sm text-zinc-500"
     >
-      <UIcon name="i-lucide-loader-circle" class="mr-2 h-4 w-4 animate-spin" />
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="mr-2 h-4 w-4 animate-spin"
+      />
       Loading distribution…
     </div>
     <div

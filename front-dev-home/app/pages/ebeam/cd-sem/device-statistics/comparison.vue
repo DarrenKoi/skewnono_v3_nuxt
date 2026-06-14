@@ -181,8 +181,12 @@
               aria-hidden="true"
             />
             <div>
-              <h2 class="comparison-section-head__title">{{ text.chartsGroupTitle }}</h2>
-              <p class="comparison-section-head__subtitle">{{ text.chartsGroupSubtitle }}</p>
+              <h2 class="comparison-section-head__title">
+                {{ text.chartsGroupTitle }}
+              </h2>
+              <p class="comparison-section-head__subtitle">
+                {{ text.chartsGroupSubtitle }}
+              </p>
             </div>
           </header>
 

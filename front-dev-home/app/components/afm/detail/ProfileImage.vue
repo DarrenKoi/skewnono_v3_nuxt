@@ -6,7 +6,10 @@
     <template #header>
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-image" class="h-4 w-4 text-zinc-500" />
+          <UIcon
+            name="i-lucide-image"
+            class="h-4 w-4 text-zinc-500"
+          />
           <h2 class="text-sm font-semibold">
             Profile image
           </h2>
@@ -25,14 +28,20 @@
       v-if="loading"
       class="flex h-72 items-center justify-center text-sm text-zinc-500"
     >
-      <UIcon name="i-lucide-loader-circle" class="mr-2 h-4 w-4 animate-spin" />
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="mr-2 h-4 w-4 animate-spin"
+      />
       Loading image…
     </div>
     <div
       v-else-if="!url"
       class="flex h-72 flex-col items-center justify-center text-center text-sm text-zinc-500"
     >
-      <UIcon name="i-lucide-image-off" class="mb-2 h-8 w-8 text-zinc-400" />
+      <UIcon
+        name="i-lucide-image-off"
+        class="mb-2 h-8 w-8 text-zinc-400"
+      />
       No profile image available
     </div>
     <div

@@ -6,7 +6,10 @@
     <template #header>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-scatter-chart" class="h-4 w-4 text-zinc-500" />
+          <UIcon
+            name="i-lucide-scatter-chart"
+            class="h-4 w-4 text-zinc-500"
+          />
           <h2 class="text-sm font-semibold">
             Summary by point
           </h2>

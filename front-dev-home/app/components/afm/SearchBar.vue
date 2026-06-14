@@ -51,7 +51,10 @@
                 class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 @click="useRecentTerm(term)"
               >
-                <UIcon name="i-lucide-history" class="h-4 w-4 text-zinc-400" />
+                <UIcon
+                  name="i-lucide-history"
+                  class="h-4 w-4 text-zinc-400"
+                />
                 <span class="truncate">{{ term }}</span>
               </button>
               <button
@@ -59,7 +62,10 @@
                 class="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
                 @click="clearRecentTerms"
               >
-                <UIcon name="i-lucide-trash-2" class="h-4 w-4" />
+                <UIcon
+                  name="i-lucide-trash-2"
+                  class="h-4 w-4"
+                />
                 Clear recent
               </button>
             </div>
@@ -93,7 +99,10 @@
     <section class="dashboard-surface rounded-2xl">
       <header class="flex items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-database" class="h-4 w-4 text-zinc-500" />
+          <UIcon
+            name="i-lucide-database"
+            class="h-4 w-4 text-zinc-500"
+          />
           <h2 class="text-sm font-semibold">
             {{ activeQuery ? 'Search Results' : 'Recent Measurements' }}
           </h2>

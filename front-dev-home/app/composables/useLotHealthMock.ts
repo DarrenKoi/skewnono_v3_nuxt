@@ -12,12 +12,12 @@ export interface RuleCaps {
 
 export interface HealthAugmentedRow extends SummaryRow {
   dev_stage: DevStage
-  stage_inferred: boolean         // true when ctn_desc had no stage keyword
+  stage_inferred: boolean // true when ctn_desc had no stage keyword
   caps: RuleCaps
-  violations: number              // number of cap-categories exceeded
-  cap_total: number               // sum of caps (used as denominator hint)
-  para_total: number              // para_16+13+9+5
-  violation_ratio: number         // violations / 4  (fraction of cap-categories breached)
+  violations: number // number of cap-categories exceeded
+  cap_total: number // sum of caps (used as denominator hint)
+  para_total: number // para_16+13+9+5
+  violation_ratio: number // violations / 4  (fraction of cap-categories breached)
   health: HealthLevel
   // Per-cell over indicator (how far past cap, in cap-relative units 0..2+).
   // Drives the cell stripe / chip intensity in the stacked bar.
@@ -30,9 +30,9 @@ export interface HealthAugmentedRow extends SummaryRow {
 }
 
 const STAGE_PATTERNS: Array<{ stage: DevStage, regex: RegExp }> = [
-  { stage: 'PV',   regex: /\bPV\b|\bP\.?V\b|\bpv\b/ },
-  { stage: 'EV',   regex: /\bEV\b|\bE\.?V\b|\bev\b/ },
-  { stage: 'TV',   regex: /\bTV\b|\bT\.?V\b|\btv\b/ },
+  { stage: 'PV', regex: /\bPV\b|\bP\.?V\b|\bpv\b/ },
+  { stage: 'EV', regex: /\bEV\b|\bE\.?V\b|\bev\b/ },
+  { stage: 'TV', regex: /\bTV\b|\bT\.?V\b|\btv\b/ },
   { stage: 'Pool', regex: /\bPool\b|\bpool\b|\bPOOL\b/ }
 ]
 
@@ -40,11 +40,11 @@ const STAGE_PATTERNS: Array<{ stage: DevStage, regex: RegExp }> = [
 // back_dev_home/ebeam/cdsem/device_statistics/rules.py). Later this composable
 // is swapped for a real fetch against /admin/measurement-rules.
 const CAPS_BY_STAGE: Record<DevStage, RuleCaps> = {
-  EV:   { para_16_max: 14, para_13_max: 22, para_9_max: 30, para_5_max: 40 },  // strictest (earliest stage)
-  TV:   { para_16_max: 18, para_13_max: 28, para_9_max: 38, para_5_max: 52 },
-  PV:   { para_16_max: 24, para_13_max: 36, para_9_max: 48, para_5_max: 64 },
-  Pool: { para_16_max: 30, para_13_max: 44, para_9_max: 58, para_5_max: 78 },  // most permissive
-  '?':  { para_16_max: 14, para_13_max: 22, para_9_max: 30, para_5_max: 40 }   // unknown → strictest fallback (CONTEXT.md)
+  'EV': { para_16_max: 14, para_13_max: 22, para_9_max: 30, para_5_max: 40 }, // strictest (earliest stage)
+  'TV': { para_16_max: 18, para_13_max: 28, para_9_max: 38, para_5_max: 52 },
+  'PV': { para_16_max: 24, para_13_max: 36, para_9_max: 48, para_5_max: 64 },
+  'Pool': { para_16_max: 30, para_13_max: 44, para_9_max: 58, para_5_max: 78 }, // most permissive
+  '?': { para_16_max: 14, para_13_max: 22, para_9_max: 30, para_5_max: 40 } // unknown → strictest fallback (CONTEXT.md)
 }
 
 // M-fab caps — single rule per bucket, no stage axis. Tuned mid-strict.
@@ -82,15 +82,15 @@ export const augmentSummaryRow = (
   const breach = {
     para_16: Math.max(0, (row.para_16 - caps.para_16_max) / Math.max(1, caps.para_16_max)),
     para_13: Math.max(0, (row.para_13 - caps.para_13_max) / Math.max(1, caps.para_13_max)),
-    para_9:  Math.max(0, (row.para_9  - caps.para_9_max)  / Math.max(1, caps.para_9_max)),
-    para_5:  Math.max(0, (row.para_5  - caps.para_5_max)  / Math.max(1, caps.para_5_max))
+    para_9: Math.max(0, (row.para_9 - caps.para_9_max) / Math.max(1, caps.para_9_max)),
+    para_5: Math.max(0, (row.para_5 - caps.para_5_max) / Math.max(1, caps.para_5_max))
   }
 
   const violations
     = (breach.para_16 > 0 ? 1 : 0)
-    + (breach.para_13 > 0 ? 1 : 0)
-    + (breach.para_9  > 0 ? 1 : 0)
-    + (breach.para_5  > 0 ? 1 : 0)
+      + (breach.para_13 > 0 ? 1 : 0)
+      + (breach.para_9 > 0 ? 1 : 0)
+      + (breach.para_5 > 0 ? 1 : 0)
 
   const violation_ratio = violations / 4
 

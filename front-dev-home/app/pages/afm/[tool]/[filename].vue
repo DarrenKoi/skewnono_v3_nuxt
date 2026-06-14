@@ -33,7 +33,10 @@
       v-if="pending"
       class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-16 text-sm text-zinc-500"
     >
-      <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="h-4 w-4 animate-spin"
+      />
       Loading measurement detail…
     </div>
     <div

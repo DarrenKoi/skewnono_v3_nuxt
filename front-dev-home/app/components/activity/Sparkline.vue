@@ -59,9 +59,9 @@ import type { DailyCount } from '~/composables/useActivityApi'
 // consistent with the rest of the page (other places use "from-X to-Y")
 // without forcing inline styles at the call site.
 const GRADIENT_MAP: Record<string, { start: string, end: string }> = {
-  'from-sky-400 to-violet-500':   { start: '#38bdf8', end: '#8b5cf6' },
-  'from-rose-400 to-amber-500':   { start: '#fb7185', end: '#f59e0b' },
-  'from-emerald-400 to-sky-500':  { start: '#34d399', end: '#0ea5e9' }
+  'from-sky-400 to-violet-500': { start: '#38bdf8', end: '#8b5cf6' },
+  'from-rose-400 to-amber-500': { start: '#fb7185', end: '#f59e0b' },
+  'from-emerald-400 to-sky-500': { start: '#34d399', end: '#0ea5e9' }
 }
 
 const props = withDefaults(

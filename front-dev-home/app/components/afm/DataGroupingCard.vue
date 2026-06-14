@@ -2,11 +2,19 @@
   <section class="dashboard-surface rounded-2xl">
     <header class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
       <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-layers" class="h-4 w-4 text-zinc-500" />
+        <UIcon
+          name="i-lucide-layers"
+          class="h-4 w-4 text-zinc-500"
+        />
         <h3 class="text-sm font-semibold">
           Data Grouping
         </h3>
-        <UBadge :label="String(items.length)" color="primary" size="xs" variant="subtle" />
+        <UBadge
+          :label="String(items.length)"
+          color="primary"
+          size="xs"
+          variant="subtle"
+        />
       </div>
       <UButton
         v-if="items.length > 0"
@@ -83,13 +91,19 @@
       <template #content>
         <div class="space-y-4 p-6">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-save" class="h-5 w-5 text-primary-500" />
+            <UIcon
+              name="i-lucide-save"
+              class="h-5 w-5 text-primary-500"
+            />
             <h3 class="text-base font-semibold">
               Save Data Group
             </h3>
           </div>
 
-          <UFormField label="Group name" required>
+          <UFormField
+            label="Group name"
+            required
+          >
             <UInput
               v-model="groupName"
               placeholder="Enter a name for this group"

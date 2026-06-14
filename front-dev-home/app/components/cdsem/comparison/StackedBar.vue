@@ -11,13 +11,16 @@
       class="stack-bar__seg"
       :class="seg.breach > 0 ? 'stack-bar__seg--breach' : ''"
       :style="{
-        flex: seg.flex,
-        background: seg.color,
+        'flex': seg.flex,
+        'background': seg.color,
         '--breach-edge': seg.breach > 0 ? seg.edgeColor : 'transparent'
       }"
       :title="`${seg.label}: ${seg.value}${seg.breach > 0 ? ` (cap ${seg.cap} 초과)` : ''}`"
     >
-      <span v-if="showValues && seg.flex >= 0.08" class="stack-bar__val">{{ seg.value }}</span>
+      <span
+        v-if="showValues && seg.flex >= 0.08"
+        class="stack-bar__val"
+      >{{ seg.value }}</span>
     </div>
     <div
       v-if="emptyFlex > 0"

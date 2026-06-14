@@ -4,7 +4,10 @@
     :class="chipClass"
     :title="inferred ? 'stage 추출 실패 — EV cap 적용 중' : `stage: ${stage}`"
   >
-    <span v-if="inferred" class="opacity-70">?</span>
+    <span
+      v-if="inferred"
+      class="opacity-70"
+    >?</span>
     <span v-else>{{ stage }}</span>
   </span>
 </template>
