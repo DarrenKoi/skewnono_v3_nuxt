@@ -32,14 +32,14 @@
               :class="row.differs ? 'bg-amber-50 dark:bg-amber-950/30' : ''"
             >
               <td class="px-3 py-2 font-mono text-(--sk-ink-muted)">{{ row.path }}</td>
-              <td class="px-3 py-2 font-mono font-bold text-(--sk-ink)">{{ row.selected || '-' }}</td>
+              <td class="px-3 py-2 font-mono font-bold text-(--sk-ink)">{{ row.selected !== '' ? row.selected : '-' }}</td>
               <td
                 v-for="id in siblingIds"
                 :key="id"
                 class="px-3 py-2 font-mono"
                 :class="row.siblings[id] !== row.selected ? 'text-(--sk-bad) font-bold' : 'text-(--sk-ink)'"
               >
-                {{ row.siblings[id] || '-' }}
+                {{ row.siblings[id] !== '' ? row.siblings[id] : '-' }}
               </td>
             </tr>
           </tbody>
