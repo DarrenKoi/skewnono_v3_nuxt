@@ -1,7 +1,7 @@
 import { joinApiPath } from '~/utils/apiPath'
 
 export type HardwareToolType = 'cd-sem' | 'hv-sem'
-export type HardwareServiceKey = 'bsm' | 'fdc' | 'bm-pm'
+export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm'
 export type HardwareMetricTone = 'neutral' | 'ok' | 'warning' | 'bad'
 export type HardwareMetricValue = string | number | boolean | null
 
@@ -28,49 +28,20 @@ export interface HardwareTableSection {
   rows: Record<string, HardwareMetricValue>[]
 }
 
-export interface BsmSummaryRow {
-  timestamp: string
-  eqp_id: string
-  sharpness_avg: number
-  sharpness_3std: number
-  noise_avg: number
-  noise_3std: number
-}
-
-export interface BsmProfile {
-  // Parallel to BsmBlock.angles: one value per 22.5° step.
-  sharpness: number[]
-  noise: number[]
-}
-
-export interface BsmCategory {
-  key: string
-  label: string
-  summary: BsmSummaryRow[]
-  // Raw 360° profiles keyed by the summary row's timestamp (the join key the
-  // radar uses on row/point click).
-  profiles: Record<string, BsmProfile>
-}
-
-export interface BsmBlock {
-  angles: string[]
-  categories: BsmCategory[]
-}
-
-export type BsmMetric = 'sharpness' | 'noise'
-
 export interface HardwarePayload {
   tool_slug: 'cdsem' | 'hvsem'
   service: HardwareServiceKey
   eqp_id: string | null
-  fab_id: string | null
+  fab_name: string | null
   available: boolean
   fetched_at: string
   summary: string
   cards: HardwareMetricCard[]
   tables: HardwareTableSection[]
-  // Present only for the BSM service.
-  bsm?: BsmBlock
+  // bsm / reso-center / fdc → faithful raw docs (ascending time).
+  docs?: Record<string, unknown>[]
+  // mdc / sce → dict-of-dict keyed by eqp_id (selected eqp + in-fab siblings).
+  settings?: Record<string, Record<string, unknown>>
   raw?: Record<string, HardwareMetricValue>
 }
 
@@ -78,7 +49,9 @@ export interface HardwareQuery {
   toolType: HardwareToolType
   service: HardwareServiceKey
   eqpId?: string
-  fabId?: string
+  fabName?: string
+  start?: string
+  end?: string
 }
 
 const toolSlug = (toolType: HardwareToolType): 'cdsem' | 'hvsem' =>
@@ -90,11 +63,13 @@ export const useHardwareApi = () => {
 
   const fetchService = async (params: HardwareQuery): Promise<HardwarePayload> => {
     const query: Record<string, string> = {}
-    if (params.eqpId) query.eqp_id = params.eqpId
-    if (params.fabId) query.fab_id = params.fabId
+    if (params.fabName) query.fab_name = params.fabName
+    if (params.start) query.start = params.start
+    if (params.end) query.end = params.end
 
+    const eqpSegment = params.eqpId ?? '_'
     return await $fetch<HardwarePayload>(
-      joinApiPath(base, `/${toolSlug(params.toolType)}/hardware/${params.service}`),
+      joinApiPath(base, `/${toolSlug(params.toolType)}/hardware/${eqpSegment}/${params.service}`),
       { query }
     )
   }
