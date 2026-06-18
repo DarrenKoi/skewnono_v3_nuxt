@@ -66,6 +66,20 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     ("ebeam/hitachi/recipe_tat", "summary-cdsem.json", "/api/cdsem/recipe-tat/summary"),
     ("ebeam/hitachi/recipe_tat", "daily-trend-cdsem.json", "/api/cdsem/recipe-tat/daily-trend"),
     ("ebeam/hitachi/recipe_tat", "devices-cdsem.json", "/api/cdsem/recipe-tat/devices"),
+
+    # hitachi hardware (equipment-first path; tool_slug + eqp_id + service)
+    ("ebeam/hitachi/hardware", "hardware-bsm.json",
+     "/api/cdsem/hardware/ECXDX204/bsm?fab_name=M16B&start=2026-04-24&end=2026-05-24"),
+    ("ebeam/hitachi/hardware", "hardware-reso-center.json",
+     "/api/cdsem/hardware/ECXDX204/reso-center?fab_name=M16B&start=2026-04-24&end=2026-05-24"),
+    ("ebeam/hitachi/hardware", "hardware-fdc.json",
+     "/api/cdsem/hardware/ECXDX204/fdc?fab_name=M16B&start=2026-05-17&end=2026-05-24"),
+    ("ebeam/hitachi/hardware", "hardware-mdc.json",
+     "/api/cdsem/hardware/ECXDX204/mdc?fab_name=M16B&end=2026-05-24"),
+    ("ebeam/hitachi/hardware", "hardware-sce.json",
+     "/api/cdsem/hardware/ECXDX204/sce?fab_name=M16B&end=2026-05-24"),
+    ("ebeam/hitachi/hardware", "hardware-bm-pm.json",
+     "/api/cdsem/hardware/ECXDX204/bm-pm?fab_name=M16B"),
 ]
 
 

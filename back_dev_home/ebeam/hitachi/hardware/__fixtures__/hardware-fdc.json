@@ -1,0 +1,623 @@
+{
+  "available": true,
+  "cards": [
+    {
+      "key": "doc_count",
+      "label": "문서 수",
+      "tone": "neutral",
+      "unit": "건",
+      "value": 109
+    },
+    {
+      "key": "latest_ts",
+      "label": "최신 측정",
+      "tone": "neutral",
+      "value": "2026-05-23T22:06:00"
+    }
+  ],
+  "docs": [
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T00:02:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.39409"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T00:02:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.21297"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T00:06:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "3",
+        "23.25213"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "ContactpinConductionInfo",
+      "timestamp": "2026-05-17T04:00:00",
+      "values": [
+        "ContactpinConductionInfo",
+        "0",
+        "A",
+        "5",
+        "Conduction",
+        "-3.5",
+        "-3.3",
+        "23.6",
+        "19.0",
+        "118600"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T04:01:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.47492"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "ContactpinConductionInfo",
+      "timestamp": "2026-05-17T04:03:00",
+      "values": [
+        "ContactpinConductionInfo",
+        "0",
+        "B",
+        "4",
+        "NotConduction",
+        "-9.7",
+        "1.5",
+        "3.4",
+        "21.8",
+        "122804"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T04:04:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.32787"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "ContactpinConductionInfo",
+      "timestamp": "2026-05-17T04:06:00",
+      "values": [
+        "ContactpinConductionInfo",
+        "0",
+        "C",
+        "6",
+        "Conduction",
+        "2.2",
+        "3.4",
+        "4.4",
+        "13.7",
+        "198213"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T04:06:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "3",
+        "23.35082"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "SPMVoltages",
+      "timestamp": "2026-05-17T05:00:00",
+      "values": [
+        "SPMVoltages",
+        "0",
+        "A",
+        "7",
+        "1",
+        "1",
+        "quartic",
+        "-1.2638",
+        "-1.2376",
+        "-0.3207",
+        "-0.8537",
+        "-1.3797",
+        "-0.1403",
+        "-1.1493",
+        "0.0115",
+        "-0.9135",
+        "-0.7901",
+        "0.2996",
+        "-0.9990",
+        "0.4633",
+        "-0.0364",
+        "-0.9051",
+        "-0.8599",
+        "-1.1925",
+        "-1.1116",
+        "-0.4825",
+        "-1.4879",
+        "-1.4866",
+        "-1.2352",
+        "-0.3453"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "SPMVoltages",
+      "timestamp": "2026-05-17T05:02:00",
+      "values": [
+        "SPMVoltages",
+        "0",
+        "B",
+        "7",
+        "1",
+        "1",
+        "spline",
+        "0.4834",
+        "0.4455",
+        "-0.8273",
+        "-0.0562",
+        "-0.8023",
+        "-1.2803",
+        "-1.4159",
+        "-1.4115",
+        "-0.1508",
+        "0.0379",
+        "0.0802",
+        "-1.2103",
+        "0.0211",
+        "-0.9065",
+        "-1.1006",
+        "-1.2081",
+        "-1.1087",
+        "-0.5405",
+        "0.4791",
+        "0.3765",
+        "-1.1171",
+        "0.0487",
+        "-0.4253"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "SPMVoltages",
+      "timestamp": "2026-05-17T05:04:00",
+      "values": [
+        "SPMVoltages",
+        "0",
+        "C",
+        "7",
+        "1",
+        "1",
+        "spline",
+        "0.1373",
+        "-0.7772",
+        "0.0905",
+        "-1.3295",
+        "0.1845",
+        "-0.4226",
+        "-0.2521",
+        "-0.1916",
+        "-0.2798",
+        "-0.4578",
+        "0.1039",
+        "-0.4797",
+        "-0.3920",
+        "-0.5649",
+        "-1.1327",
+        "-0.6564",
+        "-0.7920",
+        "-0.5510",
+        "0.3563",
+        "0.1804",
+        "-0.1290",
+        "-0.2813",
+        "0.1241"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "LaserPower",
+      "timestamp": "2026-05-17T08:00:00",
+      "values": [
+        "LaserPower",
+        "0",
+        "0.73",
+        "0.79",
+        "321276906",
+        "48754084"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T08:01:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.4574"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T08:06:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.38855"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T08:06:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "3",
+        "23.56031"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T12:02:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.40845"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T12:04:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.23553"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T12:09:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "3",
+        "23.24342"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T16:03:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.24281"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T16:06:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.25408"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T16:09:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "3",
+        "23.58473"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T22:01:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.20123"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T22:02:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.28885"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-17T22:03:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "3",
+        "23.4951"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "SPMVoltages",
+      "timestamp": "2026-05-18T05:00:00",
+      "values": [
+        "SPMVoltages",
+        "0",
+        "A",
+        "7",
+        "1",
+        "1",
+        "spline",
+        "0.3035",
+        "-0.7572",
+        "-1.1983",
+        "-0.3165",
+        "-1.0532",
+        "0.2466",
+        "0.4592",
+        "0.2328",
+        "-1.4827",
+        "0.4925",
+        "-1.0209",
+        "0.4130",
+        "-0.9816",
+        "-1.1672",
+        "-0.4572",
+        "0.1258",
+        "-0.3605",
+        "-0.9806",
+        "-0.7624",
+        "-0.8413",
+        "-1.0814",
+        "-1.1732",
+        "-0.1976"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "SPMVoltages",
+      "timestamp": "2026-05-18T05:02:00",
+      "values": [
+        "SPMVoltages",
+        "0",
+        "B",
+        "7",
+        "1",
+        "1",
+        "spline",
+        "0.3554",
+        "0.1077",
+        "0.0210",
+        "-1.4145",
+        "-0.5871",
+        "-0.2520",
+        "-1.3972",
+        "-0.5633",
+        "-0.9891",
+        "-1.4650",
+        "-1.2956",
+        "0.2085",
+        "-0.2926",
+        "-0.0981",
+        "-0.9609",
+        "-0.6496",
+        "-1.0696",
+        "-1.0919",
+        "-0.7680",
+        "0.2239",
+        "-0.3462",
+        "-1.4767",
+        "0.4847"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "SPMVoltages",
+      "timestamp": "2026-05-18T05:04:00",
+      "values": [
+        "SPMVoltages",
+        "0",
+        "C",
+        "7",
+        "1",
+        "1",
+        "quartic",
+        "-0.1296",
+        "-0.7035",
+        "0.3760",
+        "0.3560",
+        "-0.2956",
+        "0.3274",
+        "-0.1099",
+        "0.1232",
+        "0.4608",
+        "0.1887",
+        "-0.7959",
+        "-0.2382",
+        "-0.1509",
+        "-1.2133",
+        "0.4605",
+        "-0.9096",
+        "-0.2449",
+        "-0.5875",
+        "-0.8670",
+        "0.4646",
+        "-1.2812",
+        "-0.8694",
+        "-1.4749"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-18T06:02:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "1",
+        "23.39885"
+      ]
+    },
+    {
+      "eqp_id": "ECXDX204",
+      "eqp_ip": "177.201.208.194",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M16B",
+      "fdc_key": "TemperatureEchuck",
+      "timestamp": "2026-05-18T06:06:00",
+      "values": [
+        "TemperatureEchuck",
+        "0",
+        "2",
+        "23.50353"
+      ]
+    }
+  ],
+  "eqp_id": "ECXDX204",
+  "fab_name": "M16B",
+  "fetched_at": "2026-06-18T21:47:34+00:00",
+  "service": "fdc",
+  "summary": "network_fdc_cdsem 원시 문서(fdc_key별)를 시간순으로 제공합니다.",
+  "tables": [],
+  "tool_slug": "cdsem"
+}

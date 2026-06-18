@@ -1,6 +1,9 @@
 resource: hardware
-description: CD-SEM/HV-SEM hardware service payloads for BM/PM, BSM, and FDC.
-base_path: /api/{tool_slug}/hardware/{service}
+description: >
+  CD-SEM/HV-SEM hardware service payloads for BM/PM, BSM (beam shape),
+  Reso Center, FDC (focus drift compensation), MDC (magnification drift
+  compensation), and SCE (scan-charge elimination).
+base_path: /api/{tool_slug}/hardware/{eqp_id}/{service}
 
 types:
   HardwareMetricCard:
@@ -62,14 +65,14 @@ types:
       description: Tool family slug from the route.
     service:
       type: string
-      enum: ["bsm", "fdc", "bm-pm"]
+      enum: ["bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm"]
       description: Hardware service key from the route.
     eqp_id:
       type: string|null
       description: Selected equipment ID, if provided.
-    fab_id:
+    fab_name:
       type: string|null
-      description: Selected fab ID, if provided.
+      description: Selected fab name, if provided.
     available:
       type: boolean
       description: Whether this service has data for the selected scope.
@@ -88,13 +91,18 @@ types:
       type: array
       items: HardwareTableSection
       description: Normalized detail sections for tabular rendering.
-    raw:
+    docs:
+      type: array
+      items: object
+      required: false
+      description: Faithful time-series raw docs (bsm / reso-center / fdc), ascending time.
+    settings:
       type: object
       required: false
-      description: Optional debug-only source sample during office bring-up.
+      description: Faithful dict-of-dict (mdc / sce) — selected eqp + in-fab siblings.
 
 endpoints:
-  - path: /api/{tool_slug}/hardware/{service}
+  - path: /api/{tool_slug}/hardware/{eqp_id}/{service}
     method: GET
     description: Return one normalized hardware service payload.
     path_params:
@@ -102,41 +110,47 @@ endpoints:
         type: string
         enum: ["cdsem", "hvsem"]
         description: Tool family.
-      service:
-        type: string
-        enum: ["bsm", "fdc", "bm-pm"]
-        description: Hardware service to fetch.
-    query_params:
       eqp_id:
         type: string
-        required: false
-        description: Equipment ID selected in the hardware page.
-      fab_id:
+        description: "Equipment ID (required path segment; '_' = none selected yet)."
+      service:
+        type: string
+        enum: ["bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm"]
+        description: Hardware service to fetch.
+    query_params:
+      fab_name:
         type: string
         required: false
-        description: Fab name or ID selected in the hardware page.
+        description: "Fab name scope hint; required for mdc/sce siblings."
+      start:
+        type: string
+        format: ISO-8601
+        required: false
+        description: "Start of the time window (default: last 30 days). Ignored for mdc/sce."
+      end:
+        type: string
+        format: ISO-8601
+        required: false
+        description: "End of the time window (default: last 30 days). For mdc/sce this is the as-of date; start is ignored."
     response:
       status: 200
       body: HardwarePayload
-    example_request: "GET /api/cdsem/hardware/bm-pm?eqp_id=CDSEM-R3-001&fab_id=R3"
+    example_request: "GET /api/cdsem/hardware/ECXDX204/mdc?fab_name=M16B&end=2026-05-24"
     example_response:
       tool_slug: cdsem
-      service: bm-pm
-      eqp_id: CDSEM-R3-001
-      fab_id: R3
+      service: mdc
+      eqp_id: ECXDX204
+      fab_name: M16B
       available: true
       fetched_at: "2026-05-24T00:00:00+00:00"
-      summary: BM/PM schedule and recent maintenance history are available.
+      summary: 선택 장비와 동일 fab 장비의 MDC 보정 계수 스냅샷(as-of)을 제공합니다.
       cards:
-        - { key: last_bm_date, label: Last BM, value: "2026-04-22", tone: neutral }
-        - { key: next_pm_date, label: Next PM, value: "2026-06-10", tone: ok }
-      tables:
-        - key: maintenance_schedule
-          title: Maintenance Schedule
-          columns:
-            - { key: event, label: Event }
-            - { key: date, label: Date }
-            - { key: status, label: Status }
-          rows:
-            - { event: Last BM, date: "2026-04-22", status: closed }
-            - { event: Next PM, date: "2026-06-10", status: planned }
+        - { key: as_of, label: 기준일, value: "2026-05-24", tone: neutral }
+        - { key: sibling_count, label: 동일 fab 장비, value: 4, unit: 대, tone: neutral }
+      tables: []
+      settings:
+        ECXDX204:
+          "800V_HR_0Deg": "1.004984"
+          "800V_HR_90Deg": "1.005625"
+          "500V_HR_0Deg": "1.004096"
+          "500V_HR_90Deg": "1.003888"

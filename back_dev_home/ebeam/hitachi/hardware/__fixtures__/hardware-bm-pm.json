@@ -1,0 +1,194 @@
+{
+  "available": true,
+  "cards": [
+    {
+      "key": "last_bm",
+      "label": "Last BM",
+      "tone": "neutral",
+      "value": "2026-05-18 16:00"
+    },
+    {
+      "key": "next_pm",
+      "label": "Next PM",
+      "tone": "ok",
+      "value": "2026-08-14 17:00"
+    },
+    {
+      "key": "planned_count",
+      "label": "예정 작업",
+      "tone": "warning",
+      "unit": "건",
+      "value": 2
+    },
+    {
+      "key": "recent_count",
+      "label": "최근 작업",
+      "tone": "neutral",
+      "unit": "건",
+      "value": 10
+    }
+  ],
+  "eqp_id": "ECXDX204",
+  "fab_name": "M16B",
+  "fetched_at": "2026-06-18T21:47:40+00:00",
+  "service": "bm-pm",
+  "summary": "선택한 장비의 BM/PM 작업 이력과 예정 작업을 최신순으로 표시합니다.",
+  "tables": [
+    {
+      "columns": [
+        {
+          "key": "timestamp",
+          "label": "Uploaded"
+        },
+        {
+          "key": "eqp_id",
+          "label": "EQP ID"
+        },
+        {
+          "key": "category",
+          "label": "Category"
+        },
+        {
+          "key": "job_starts",
+          "label": "Job Start"
+        },
+        {
+          "key": "job_end",
+          "label": "Job End"
+        },
+        {
+          "expandable": true,
+          "key": "engr_note",
+          "label": "Engineer Note"
+        }
+      ],
+      "key": "past_work",
+      "rows": [
+        {
+          "category": "BM",
+          "engr_note": "컬럼 정렬 토크 재조정 후 시운전 정상.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-05-18 16:00",
+          "job_starts": "2026-05-18 15:00",
+          "timestamp": "2026-05-18 19:16"
+        },
+        {
+          "category": "BM",
+          "engr_note": "로드락 관련 간헐적 오류로 분해 점검 실시. 내부 오염 확인하여 세척하고 부품 일부 교체함. 재조립 후 빔 안정성 테스트 통과. 모니터링 지속 예정.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-05-11 01:15",
+          "job_starts": "2026-05-11 00:15",
+          "timestamp": "2026-05-11 04:49"
+        },
+        {
+          "category": "PM",
+          "engr_note": "디텍터 관련 간헐적 오류로 분해 점검 실시. 내부 오염 확인하여 세척하고 부품 일부 교체함. 재조립 후 빔 안정성 테스트 통과. 모니터링 지속 예정.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-05-04 11:45",
+          "job_starts": "2026-05-04 05:45",
+          "timestamp": "2026-05-04 14:38"
+        },
+        {
+          "category": "PM",
+          "engr_note": "정기 점검 진행. 컬럼 정렬 상태 양호하며 추가 조치 불필요.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-04-15 19:30",
+          "job_starts": "2026-04-15 10:30",
+          "timestamp": "2026-04-15 20:53"
+        },
+        {
+          "category": "BM",
+          "engr_note": "고객 요청으로 긴급 대응. 전자총 이상 증상 재현되지 않았으나 예방 차원에서 교체 진행. 작업 중 인접 모듈 케이블 정리도 함께 수행. 특이사항 없음.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-04-13 17:45",
+          "job_starts": "2026-04-13 12:45",
+          "timestamp": "2026-04-13 21:45"
+        },
+        {
+          "category": "PM",
+          "engr_note": "렌즈 코일 재교정.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-03-24 04:15",
+          "job_starts": "2026-03-23 19:15",
+          "timestamp": "2026-03-24 07:18"
+        },
+        {
+          "category": "PM",
+          "engr_note": "필라멘트 관련 간헐적 오류로 분해 점검 실시. 내부 오염 확인하여 세척하고 부품 일부 교체함. 재조립 후 빔 안정성 테스트 통과. 모니터링 지속 예정.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-03-21 05:45",
+          "job_starts": "2026-03-20 20:45",
+          "timestamp": "2026-03-21 06:30"
+        },
+        {
+          "category": "PM",
+          "engr_note": "전자총 알람 발생 이력 확인. 청소 및 재교정 후 정상화. 약 2시간 소요됨.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-03-16 17:15",
+          "job_starts": "2026-03-16 06:15",
+          "timestamp": "2026-03-16 18:54"
+        },
+        {
+          "category": "BM",
+          "engr_note": "고객 요청으로 긴급 대응. 컬럼 정렬 이상 증상 재현되지 않았으나 예방 차원에서 교체 진행. 작업 중 인접 모듈 케이블 정리도 함께 수행. 특이사항 없음.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-03-11 23:45",
+          "job_starts": "2026-03-11 20:45",
+          "timestamp": "2026-03-12 02:28"
+        },
+        {
+          "category": "BM",
+          "engr_note": "정기 점검 진행. 필라멘트 상태 양호하며 추가 조치 불필요.",
+          "eqp_id": "ECXDX204",
+          "job_end": "2025-12-25 09:30",
+          "job_starts": "2025-12-25 04:30",
+          "timestamp": "2025-12-25 12:38"
+        }
+      ],
+      "title": "최근 작업 이력 (Past Work)"
+    },
+    {
+      "columns": [
+        {
+          "key": "eqp_id",
+          "label": "EQP ID"
+        },
+        {
+          "key": "category",
+          "label": "Category"
+        },
+        {
+          "key": "job_starts",
+          "label": "Job Start"
+        },
+        {
+          "key": "job_end",
+          "label": "Job End"
+        },
+        {
+          "key": "timestamp",
+          "label": "Uploaded"
+        }
+      ],
+      "key": "future_work",
+      "rows": [
+        {
+          "category": "PM",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-08-15 00:00",
+          "job_starts": "2026-08-14 17:00",
+          "timestamp": "2026-05-20 16:00"
+        },
+        {
+          "category": "BM",
+          "eqp_id": "ECXDX204",
+          "job_end": "2026-08-12 23:00",
+          "job_starts": "2026-08-12 22:00",
+          "timestamp": "2026-05-18 14:00"
+        }
+      ],
+      "title": "예정 작업 (Future Work)"
+    }
+  ],
+  "tool_slug": "cdsem"
+}

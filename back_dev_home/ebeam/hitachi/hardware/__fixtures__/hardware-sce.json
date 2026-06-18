@@ -1,0 +1,1267 @@
+{
+  "available": true,
+  "cards": [
+    {
+      "key": "as_of",
+      "label": "기준일",
+      "tone": "neutral",
+      "value": "2026-05-24"
+    },
+    {
+      "key": "sibling_count",
+      "label": "동일 fab 장비",
+      "tone": "neutral",
+      "unit": "대",
+      "value": 4
+    }
+  ],
+  "eqp_id": "ECXDX204",
+  "fab_name": "M16B",
+  "fetched_at": "2026-06-18T21:47:38+00:00",
+  "service": "sce",
+  "settings": {
+    "ECXDX132": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.009652,
+            0.953308
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.01443,
+            0.979605
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.019028,
+            0.946825
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.01779,
+            0.935632
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.005475,
+            0.990108
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.014585,
+            0.931265
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.006845,
+            0.994591
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.016856,
+            0.955699
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.004427,
+            0.967337
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.003734,
+            0.911932
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.000203,
+            0.926095
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.005435,
+            0.914727
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.005062,
+            0.960656
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.001037,
+            0.953544
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.002234,
+            0.997963
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.008818,
+            0.919818
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.012142,
+            0.969793
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.013199,
+            0.940806
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.019728,
+            0.911063
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.00437,
+            0.940992
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.007058,
+            0.959053
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.01717,
+            0.91271
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.01867,
+            0.990946
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.003141,
+            0.945634
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.017129,
+            0.935503
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.01607,
+            0.995203
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.003266,
+            0.982339
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.01691,
+            0.957564
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.001663,
+            0.915211
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.004023,
+            0.954377
+          ]
+        }
+      ],
+      "FileInfo": {
+        "FileName": "SCE_ECXDX132_20260508.dat",
+        "Updated": "2026-03-08"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-2"
+        ],
+        "ImgCond_Mag": [
+          "150001470",
+          "150001470"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.27839",
+        "SCEParam_CycleLowerTh": "21.061588",
+        "SCEParam_CycleUpperTh": "5.331",
+        "SCEParam_FitRangeEd": "75",
+        "SCEParam_FitRangeSt": "35",
+        "SCEParam_SmoothRadius": "9",
+        "SCEParam_SmoothTheta": "7"
+      },
+      "SemCond": {
+        "SemCond_Detector": "EF",
+        "SemCond_Ip": "7.6837",
+        "SemCond_IpMode": "Middle",
+        "SemCond_No": "2",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
+      }
+    },
+    "ECXDX204": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.010285,
+            0.978597
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.006496,
+            0.904586
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.018359,
+            0.964948
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.008771,
+            0.926296
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.008518,
+            0.907453
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.007167,
+            0.993626
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.001429,
+            0.905018
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.016812,
+            0.964494
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.013021,
+            0.902326
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.017413,
+            0.903011
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.011469,
+            0.918622
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.017291,
+            0.936572
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.002928,
+            0.937387
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.019653,
+            0.958518
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.00741,
+            0.982388
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.011827,
+            0.929674
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.014961,
+            0.924902
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.012803,
+            0.932778
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.016702,
+            0.900366
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.019266,
+            0.990708
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.015137,
+            0.925497
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.011368,
+            0.957588
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.009459,
+            0.965698
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.007945,
+            0.978992
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.004422,
+            0.963267
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.011762,
+            0.938503
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.017103,
+            0.997316
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.010888,
+            0.936714
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.007329,
+            0.972258
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.016407,
+            0.91461
+          ]
+        }
+      ],
+      "FileInfo": {
+        "FileName": "SCE_ECXDX204_20260114.dat",
+        "Updated": "2026-03-14"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "1"
+        ],
+        "ImgCond_Mag": [
+          "150000742",
+          "150000742"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.13373",
+        "SCEParam_CycleLowerTh": "21.472465",
+        "SCEParam_CycleUpperTh": "6.286",
+        "SCEParam_FitRangeEd": "85",
+        "SCEParam_FitRangeSt": "35",
+        "SCEParam_SmoothRadius": "9",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "EF",
+        "SemCond_Ip": "8.0021",
+        "SemCond_IpMode": "Middle",
+        "SemCond_No": "7",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      }
+    },
+    "ECXDX588": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.013244,
+            0.912721
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.001304,
+            0.946723
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.007698,
+            0.924798
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.010027,
+            0.920625
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.002183,
+            0.992531
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.007039,
+            0.928476
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.008871,
+            0.936678
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.016844,
+            0.902763
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.006466,
+            0.966079
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.010047,
+            0.987835
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.017018,
+            0.924983
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.00135,
+            0.953682
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.019333,
+            0.927143
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.018139,
+            0.921058
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.000793,
+            0.956639
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.008085,
+            0.982288
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.00363,
+            0.978684
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.002101,
+            0.91188
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.004269,
+            0.907855
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.014049,
+            0.94429
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.011908,
+            0.906104
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.01317,
+            0.987541
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.002385,
+            0.990991
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.002655,
+            0.900772
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.013273,
+            0.955813
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.018559,
+            0.993166
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.014957,
+            0.963506
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.004777,
+            0.963866
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.006316,
+            0.98916
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.015395,
+            0.947186
+          ]
+        }
+      ],
+      "FileInfo": {
+        "FileName": "SCE_ECXDX588_20260409.dat",
+        "Updated": "2026-05-09"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-1"
+        ],
+        "ImgCond_Mag": [
+          "150006066",
+          "150006066"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.15296",
+        "SCEParam_CycleLowerTh": "22.066359",
+        "SCEParam_CycleUpperTh": "6.317",
+        "SCEParam_FitRangeEd": "75",
+        "SCEParam_FitRangeSt": "43",
+        "SCEParam_SmoothRadius": "5",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "6.1440",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "3",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "800"
+      }
+    },
+    "ECXDX734": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.014421,
+            0.945465
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.008643,
+            0.917438
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.002661,
+            0.992567
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.012726,
+            0.910331
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.002131,
+            0.967347
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.017737,
+            0.931752
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.00107,
+            0.997406
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.006904,
+            0.985087
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.004893,
+            0.946218
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.01439,
+            0.982622
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.009535,
+            0.90571
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.001671,
+            0.901405
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.016119,
+            0.981324
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.013398,
+            0.989103
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.018361,
+            0.94997
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.002631,
+            0.989483
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.006478,
+            0.916595
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.003426,
+            0.98984
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.008104,
+            0.93312
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.000655,
+            0.969076
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.010378,
+            0.931058
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.007457,
+            0.99798
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.014272,
+            0.946584
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.017353,
+            0.980852
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.002334,
+            0.934116
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.012558,
+            0.942109
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.000821,
+            0.903382
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.018863,
+            0.949768
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.016031,
+            0.925886
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.006441,
+            0.996335
+          ]
+        }
+      ],
+      "FileInfo": {
+        "FileName": "SCE_ECXDX734_20260224.dat",
+        "Updated": "2026-05-24"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "1"
+        ],
+        "ImgCond_Mag": [
+          "150004995",
+          "150004995"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.16273",
+        "SCEParam_CycleLowerTh": "20.598332",
+        "SCEParam_CycleUpperTh": "5.041",
+        "SCEParam_FitRangeEd": "76",
+        "SCEParam_FitRangeSt": "37",
+        "SCEParam_SmoothRadius": "9",
+        "SCEParam_SmoothTheta": "5"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "7.9743",
+        "SemCond_IpMode": "Middle",
+        "SemCond_No": "2",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      }
+    },
+    "ECXDX923": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.001862,
+            0.942206
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.001057,
+            0.997958
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.019154,
+            0.943349
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.018803,
+            0.938406
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.009817,
+            0.93565
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.015306,
+            0.915082
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.008047,
+            0.968294
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.001291,
+            0.960428
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.002179,
+            0.90395
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.013684,
+            0.907294
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.003059,
+            0.916429
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.010808,
+            0.900647
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.013194,
+            0.9188
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.001329,
+            0.959247
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.010244,
+            0.940825
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.001546,
+            0.99227
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.015021,
+            0.996777
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.019923,
+            0.916233
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.009146,
+            0.916116
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.012396,
+            0.960063
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.002029,
+            0.945237
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.017697,
+            0.993406
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.010067,
+            0.941246
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.004915,
+            0.947722
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.001444,
+            0.918752
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.014911,
+            0.943278
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.007014,
+            0.910579
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.002982,
+            0.928966
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.01697,
+            0.940892
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.010427,
+            0.95396
+          ]
+        }
+      ],
+      "FileInfo": {
+        "FileName": "SCE_ECXDX923_20260509.dat",
+        "Updated": "2026-04-09"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150009998",
+          "150009998"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.20985",
+        "SCEParam_CycleLowerTh": "20.692956",
+        "SCEParam_CycleUpperTh": "6.502",
+        "SCEParam_FitRangeEd": "76",
+        "SCEParam_FitRangeSt": "36",
+        "SCEParam_SmoothRadius": "6",
+        "SCEParam_SmoothTheta": "5"
+      },
+      "SemCond": {
+        "SemCond_Detector": "EF",
+        "SemCond_Ip": "6.3744",
+        "SemCond_IpMode": "Low",
+        "SemCond_No": "3",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
+      }
+    }
+  },
+  "summary": "선택 장비와 동일 fab 장비의 SCE 설정/계수 스냅샷(as-of)을 제공합니다. SCE는 양산(M-fab)에서 활용됩니다.",
+  "tables": [],
+  "tool_slug": "cdsem"
+}
