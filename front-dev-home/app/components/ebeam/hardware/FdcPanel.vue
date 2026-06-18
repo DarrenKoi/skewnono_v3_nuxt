@@ -1,0 +1,233 @@
+<template>
+  <div class="mt-3 space-y-3">
+    <!-- fdc_key sub-tabs -->
+    <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border) w-fit">
+      <button
+        v-for="key in availableKeys"
+        :key="key"
+        type="button"
+        class="px-3.5 py-1.5 text-xs font-semibold transition-colors"
+        :class="key === activeKey
+          ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
+          : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
+        @click="activeKey = key"
+      >
+        {{ key }}
+        <span class="ml-1 font-mono text-[10px] opacity-70">{{ grouped[key]?.length ?? 0 }}</span>
+      </button>
+    </div>
+
+    <div
+      v-if="availableKeys.length === 0"
+      class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center text-sm text-(--sk-ink-muted) ring-1 ring-(--sk-border-soft)"
+    >
+      FDC 데이터가 없습니다.
+    </div>
+
+    <!-- ContactpinConductionInfo → status table -->
+    <div
+      v-else-if="activeKey === 'ContactpinConductionInfo'"
+      class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
+    >
+      <table class="min-w-full text-left text-xs">
+        <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
+          <tr>
+            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Timestamp</th>
+            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Ch</th>
+            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Judgment</th>
+            <th class="px-3 py-2 text-right font-mono text-[10px] uppercase tracking-[0.05em]">Values</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="(row, i) in contactpinRows"
+            :key="i"
+            class="border-t border-(--sk-border-soft)"
+          >
+            <td class="px-3 py-2 font-mono text-(--sk-ink)">{{ row.ts }}</td>
+            <td class="px-3 py-2 font-mono text-(--sk-ink)">{{ row.channel }}</td>
+            <td class="px-3 py-2">
+              <span
+                class="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                :class="row.judgment === 'Conduction'
+                  ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
+                  : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
+              >{{ row.judgment }}</span>
+            </td>
+            <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
+              {{ row.values.join(' · ') }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SPMVoltages → profile per A/B/C + judgment badge, timestamp-selectable -->
+    <div
+      v-else-if="activeKey === 'SPMVoltages'"
+      class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
+    >
+      <div class="mb-1 flex items-center justify-between gap-2 px-1">
+        <div class="flex items-center gap-2">
+          <span
+            v-for="b in spmJudgments"
+            :key="b.channel"
+            class="rounded bg-(--sk-muted-surface) px-1.5 py-0.5 font-mono text-[10px] font-bold text-(--sk-ink)"
+          >{{ b.channel }}: {{ b.judgment }}</span>
+        </div>
+        <USelect
+          v-model="spmTs"
+          :items="spmTimestampItems"
+          size="xs"
+          icon="i-lucide-clock"
+          class="w-56"
+        />
+      </div>
+      <div
+        ref="chartEl"
+        class="h-72 w-full"
+      />
+    </div>
+
+    <!-- TemperatureEchuck / LaserPower → trend chart -->
+    <div
+      v-else
+      class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
+    >
+      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">{{ activeKey }} trend</div>
+      <div
+        ref="chartEl"
+        class="h-72 w-full"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { EChartsOption } from 'echarts'
+import { parseFdcValues } from '~/utils/fdcValues'
+
+const props = defineProps<{ docs: Record<string, unknown>[] }>()
+
+const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
+const valuesOf = (d: Record<string, unknown>) => (Array.isArray(d.values) ? d.values : [])
+
+const { palette } = useEchartsTheme()
+const c0 = computed(() => palette.value[0] ?? '#C75A3C')
+const c1 = computed(() => palette.value[1] ?? '#3F5D52')
+const c2 = computed(() => palette.value[2] ?? '#7B6CC4')
+
+const grouped = computed(() => {
+  const g: Record<string, Record<string, unknown>[]> = {}
+  for (const d of props.docs) {
+    const key = String(d.fdc_key ?? '')
+    if (!key) continue
+    ;(g[key] ??= []).push(d)
+  }
+  for (const k of Object.keys(g)) g[k]!.sort((a, b) => tsOf(a).localeCompare(tsOf(b)))
+  return g
+})
+const availableKeys = computed(() => Object.keys(grouped.value).sort())
+const activeKey = ref('')
+watch(availableKeys, (keys) => {
+  if (!keys.includes(activeKey.value)) activeKey.value = keys[0] ?? ''
+}, { immediate: true })
+
+const activeDocs = computed(() => grouped.value[activeKey.value] ?? [])
+const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
+
+const chartEl = ref<HTMLDivElement | null>(null)
+
+// --- ContactpinConductionInfo ---
+const contactpinRows = computed(() =>
+  activeDocs.value.map((d) => {
+    const p = parseFdcValues(valuesOf(d))
+    const data = p.key === 'ContactpinConductionInfo' ? p.data : null
+    return { ts: tsOf(d), channel: data?.channel ?? '', judgment: data?.judgment ?? '', values: data?.values ?? [] }
+  })
+)
+
+// --- SPMVoltages ---
+const spmTimestampItems = computed(() =>
+  Array.from(new Set(activeDocs.value.map(tsOf))).filter(Boolean).reverse()
+)
+const spmTs = ref('')
+watch(spmTimestampItems, (items) => {
+  if (!items.includes(spmTs.value)) spmTs.value = items[0] ?? ''
+}, { immediate: true })
+const spmAtTs = computed(() =>
+  activeDocs.value
+    .filter(d => tsOf(d) === spmTs.value)
+    .map(d => parseFdcValues(valuesOf(d)))
+    .filter(p => p.key === 'SPMVoltages')
+)
+const spmJudgments = computed(() =>
+  spmAtTs.value.map(p => ({ channel: (p.data as any).channel as string, judgment: (p.data as any).judgment as string }))
+)
+
+const chartOption = computed<EChartsOption>(() => {
+  if (activeKey.value === 'SPMVoltages') {
+    const colors = [c0.value, c1.value, c2.value]
+    return {
+      grid: { left: 48, right: 16, top: 24, bottom: 36 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, textStyle: { fontSize: 10 } },
+      xAxis: { type: 'category', name: 'index', axisLabel: { fontSize: 10 } },
+      yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+      series: spmAtTs.value.map((p, i) => ({
+        name: (p.data as any).channel as string,
+        type: 'line', smooth: true, showSymbol: false,
+        lineStyle: { color: colors[i % colors.length] },
+        itemStyle: { color: colors[i % colors.length] },
+        data: (p.data as any).profile as number[]
+      }))
+    }
+  }
+
+  if (activeKey.value === 'LaserPower') {
+    const pts = activeDocs.value.map(d => ({ ts: tsOf(d), parsed: parseFdcValues(valuesOf(d)) }))
+    const pair = (i: number) => pts.map(p => ({
+      name: p.ts,
+      value: [toEpoch(p.ts), ((p.parsed.data as any)?.pairs?.[i]?.x ?? NaN)]
+    }))
+    return {
+      grid: { left: 56, right: 56, top: 24, bottom: 36 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, textStyle: { fontSize: 10 } },
+      xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+      yAxis: [
+        { type: 'value', name: 'pair 1', scale: true, axisLabel: { fontSize: 10 } },
+        { type: 'value', name: 'pair 2', scale: true, axisLabel: { fontSize: 10 } }
+      ],
+      series: [
+        { name: 'pair 1 (x)', type: 'line', yAxisIndex: 0, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pair(0) },
+        { name: 'pair 2 (x)', type: 'line', yAxisIndex: 1, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: pair(1) }
+      ]
+    }
+  }
+
+  // TemperatureEchuck → one line per position (1/2/3)
+  const byPos: Record<string, { ts: string; temp: number }[]> = {}
+  for (const d of activeDocs.value) {
+    const p = parseFdcValues(valuesOf(d))
+    if (p.key !== 'TemperatureEchuck') continue
+    const pos = (p.data as any).position as string
+    ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as any).temp as number })
+  }
+  const colors = [c0.value, c1.value, c2.value]
+  return {
+    grid: { left: 56, right: 16, top: 24, bottom: 36 },
+    tooltip: { trigger: 'axis' },
+    legend: { top: 0, textStyle: { fontSize: 10 } },
+    xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: '°C', scale: true, axisLabel: { fontSize: 10 } },
+    series: Object.keys(byPos).sort().map((pos, i) => ({
+      name: `pos ${pos}`, type: 'line', showSymbol: true,
+      lineStyle: { color: colors[i % colors.length] }, itemStyle: { color: colors[i % colors.length] },
+      data: byPos[pos]!.map(r => ({ name: r.ts, value: [toEpoch(r.ts), r.temp] }))
+    }))
+  }
+})
+
+useEchart(chartEl, chartOption)
+</script>
