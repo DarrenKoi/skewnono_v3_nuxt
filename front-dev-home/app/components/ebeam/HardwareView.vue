@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Fab } from '~/stores/navigation'
+import MdcPanel from '~/components/ebeam/hardware/MdcPanel.vue'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { HardwareMetricTone, HardwareMetricValue, HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
@@ -457,7 +458,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 />
 
                 <!-- MDC: skew matrix -->
-                <EbeamHardwareMdcPanel
+                <MdcPanel
                   v-else-if="activeService === 'mdc'"
                   :settings="servicePayload.settings ?? {}"
                   :selected-eqp="selectedTool?.eqp_id ?? ''"
