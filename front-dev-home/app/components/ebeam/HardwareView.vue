@@ -23,27 +23,12 @@ type HardwareService = {
 // BM/PM leads the pill row and seeds the default tab because maintenance
 // data exists for every tool; BSM/FDC availability varies per equipment.
 const hardwareServices: HardwareService[] = [
-  {
-    key: 'bm-pm',
-    label: 'BM/PM',
-    title: 'BM / PM Information',
-    description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.',
-    icon: 'i-lucide-wrench'
-  },
-  {
-    key: 'bsm',
-    label: 'BSM',
-    title: 'Beam Shape Matching',
-    description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.',
-    icon: 'i-lucide-radar'
-  },
-  {
-    key: 'fdc',
-    label: 'FDC',
-    title: 'Fault Detection & Classification',
-    description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.',
-    icon: 'i-lucide-activity'
-  }
+  { key: 'bm-pm', label: 'BM/PM', title: 'BM / PM Information', description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.', icon: 'i-lucide-wrench' },
+  { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.', icon: 'i-lucide-radar' },
+  { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 focus sweep를 추적합니다.', icon: 'i-lucide-crosshair' },
+  { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity' },
+  { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3' },
+  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline' }
 ]
 const defaultHardwareService = hardwareServices[0]!
 
@@ -52,6 +37,24 @@ const { data: allRows } = await useSemList()
 const { selectedToolId: storeSelectedToolId, setSelectedTool } = useNavigation()
 const { fetchService } = useHardwareApi()
 
+const route = useRoute()
+
+// Deep-link contract (spec §4): /ebeam/cd-sem/<fab>/hardware?eqp_id=&start=&end=
+// Pre-select the tool and set the time window from the URL on first load.
+const qp = (k: string): string => {
+  const v = route.query[k]
+  return Array.isArray(v) ? (v[0] ?? '') : (v ?? '')
+}
+const deepLinkEqpId = qp('eqp_id')
+
+// 30-day default window when start/end omitted (spec §3, §13).
+const DAY_MS = 86_400_000
+const defaultEnd = new Date()
+const defaultStart = new Date(defaultEnd.getTime() - 30 * DAY_MS)
+const toIso = (d: Date) => d.toISOString()
+const windowStart = ref(qp('start') || toIso(defaultStart))
+const windowEnd = ref(qp('end') || toIso(defaultEnd))
+
 // Section tab is page-scoped state so navigating away and back keeps the last
 // view (DESIGN.md handoff RULE 5). The list rail filters/search stay local —
 // they're per-visit scratch, not worth persisting.
@@ -59,7 +62,7 @@ const activeService = useState<HardwareServiceKey>('hw-section', () => defaultHa
 const modelFilter = ref('all')
 const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
 const toolSearch = ref('')
-const selectedToolId = ref(storeSelectedToolId.value)
+const selectedToolId = ref(deepLinkEqpId || storeSelectedToolId.value)
 
 // Clear after consume so the store doesn't override later in-page picks on this visit.
 if (storeSelectedToolId.value) {
@@ -165,7 +168,9 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
     toolType: props.toolType,
     service: activeService.value,
     eqpId: selectedTool.value?.eqp_id,
-    fabId: selectedTool.value?.fab_name
+    fabName: selectedTool.value?.fab_name,
+    start: windowStart.value,
+    end: windowEnd.value
   }),
   {
     watch: [() => props.toolType, () => props.fab, activeService, () => selectedTool.value?.eqp_id]
@@ -432,15 +437,42 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   :tables="servicePayload.tables"
                 />
 
-                <!-- BSM: category toggle + trend charts + clickable summary + 360° radars -->
+                <!-- BSM: beam_condition filter + scalar trends + 360° radars (reads docs) -->
                 <EbeamHardwareBsmPanel
-                  v-if="activeService === 'bsm' && servicePayload.bsm"
-                  :bsm="servicePayload.bsm"
+                  v-if="activeService === 'bsm'"
+                  :docs="servicePayload.docs ?? []"
+                  :fetched-at="servicePayload.fetched_at"
                 />
 
-                <!-- BSM / FDC: generic table renderer -->
+                <!-- Reso Center: drift scatter + best-reso trend + focus sweep -->
+                <EbeamHardwareResoCenterPanel
+                  v-else-if="activeService === 'reso-center'"
+                  :docs="servicePayload.docs ?? []"
+                />
+
+                <!-- FDC: fdc_key sub-tabs -->
+                <EbeamHardwareFdcPanel
+                  v-else-if="activeService === 'fdc'"
+                  :docs="servicePayload.docs ?? []"
+                />
+
+                <!-- MDC: skew matrix -->
+                <EbeamHardwareMdcPanel
+                  v-else-if="activeService === 'mdc'"
+                  :settings="servicePayload.settings ?? {}"
+                  :selected-eqp="selectedTool?.eqp_id ?? ''"
+                />
+
+                <!-- SCE: settings compare + coefficient curve -->
+                <EbeamHardwareScePanel
+                  v-else-if="activeService === 'sce'"
+                  :settings="servicePayload.settings ?? {}"
+                  :selected-eqp="selectedTool?.eqp_id ?? ''"
+                />
+
+                <!-- Generic table renderer (excluded for all dedicated panel services) -->
                 <div
-                  v-for="section in (activeService === 'bm-pm' ? [] : servicePayload.tables)"
+                  v-for="section in (['bm-pm','bsm','reso-center','fdc','mdc','sce'].includes(activeService) ? [] : servicePayload.tables)"
                   :key="section.key"
                   class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
                 >
