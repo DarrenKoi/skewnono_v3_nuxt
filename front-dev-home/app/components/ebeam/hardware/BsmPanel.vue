@@ -1,141 +1,211 @@
 <template>
   <div class="mt-3 space-y-3">
-    <!-- Category toggle: Daily Monitoring vs PM Confirm (two separate sample sets) -->
-    <div class="flex items-center justify-between gap-2">
+    <!-- Filter row: beam_condition -->
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-(--sk-ink-muted)">데이터셋</span>
-        <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
-          <button
-            v-for="category in bsm.categories"
-            :key="category.key"
-            type="button"
-            class="px-3.5 py-1.5 text-xs font-semibold transition-colors"
-            :class="category.key === selectedKey
-              ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
-              : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
-            @click="selectedKey = category.key"
-          >
-            {{ category.label }}
-            <span class="ml-1 font-mono text-[10px] opacity-70">{{ category.summary.length }}</span>
-          </button>
-        </div>
+        <span class="text-xs font-semibold text-(--sk-ink-muted)">Beam Condition</span>
+        <USelect
+          v-model="beamCondition"
+          :items="beamConditionItems"
+          size="xs"
+          icon="i-lucide-filter"
+          class="w-48"
+        />
+        <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
       </div>
-      <!-- Raw numbers moved off-screen into a CSV export (the trend charts now
-           carry the avg/3σ visualization the table used to duplicate). -->
       <UButton
         icon="i-lucide-download"
         size="xs"
         color="neutral"
         variant="outline"
-        :disabled="activeRows.length === 0"
-        @click="downloadSummaryCsv"
+        :disabled="filteredDocs.length === 0"
+        @click="downloadScalarsCsv"
       >
         CSV 다운로드
       </UButton>
     </div>
 
-    <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <!-- Trend charts: sharpness + noise, each avg & 3σ lines -->
-      <EbeamHardwareBsmTrendChart
-        metric="sharpness"
-        label="Sharpness (avg · 3σ)"
-        :rows="activeRows"
-        :selected="selectedTimestamp"
+    <!-- Header cards: scalars of the selected measurement -->
+    <dl
+      v-if="selectedScalarCards.length"
+      class="grid gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-5"
+    >
+      <div
+        v-for="card in selectedScalarCards"
+        :key="card.key"
+        class="rounded-xl bg-(--sk-surface) px-3 py-2 ring-1 ring-(--sk-border-soft)"
+      >
+        <dt class="truncate font-mono text-[10px] uppercase tracking-[0.05em] text-(--sk-ink-muted)">
+          {{ card.label }}
+        </dt>
+        <dd class="mt-0.5 font-mono text-sm font-bold tabular-nums text-(--sk-ink)">
+          {{ card.value }}
+        </dd>
+      </div>
+    </dl>
+
+    <!-- Two stacked scalar trend panes, each its own scalar dropdown -->
+    <div class="grid gap-3 lg:grid-cols-2">
+      <div
+        v-for="pane in trendPanes"
+        :key="pane.id"
         class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
-        @select="selectedTimestamp = $event"
-      />
-      <EbeamHardwareBsmTrendChart
-        metric="noise"
-        label="Noise (avg · 3σ)"
-        :rows="activeRows"
-        :selected="selectedTimestamp"
-        class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
-        @select="selectedTimestamp = $event"
-      />
+      >
+        <div class="mb-1 flex items-center justify-between gap-2 px-1">
+          <USelect
+            v-model="pane.metric.value"
+            :items="scalarItems"
+            size="xs"
+            class="w-44"
+          />
+        </div>
+        <EbeamHardwareBsmTrendChart
+          :label="prettyLabel(pane.metric.value)"
+          :points="trendPoints(pane.metric.value)"
+          :selected="selectedTs"
+          @select="selectedTs = $event"
+        />
+      </div>
     </div>
 
-    <!-- Two side-by-side radars for the selected measurement's 360° profile.
-         Now full-width (the summary table was retired in favor of CSV export);
-         pick the measurement via the trend charts (click) or this dropdown. -->
+    <!-- Dual 360° radars for the selected measurement -->
     <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
-        <div class="text-xs font-bold text-(--sk-ink)">
-          360° 빔 형상
-        </div>
+        <div class="text-xs font-bold text-(--sk-ink)">360° 빔 형상</div>
         <USelect
-          v-model="selectedTimestamp"
+          v-model="selectedTs"
           :items="timestampItems"
           size="xs"
           icon="i-lucide-clock"
           placeholder="측정 시각 선택"
-          class="w-52"
+          class="w-56"
         />
       </div>
       <div class="grid grid-cols-2 gap-2">
-        <EbeamHardwareBsmRadarChart
-          title="Sharpness"
-          :color-index="0"
-          :angles="bsm.angles"
-          :values="selectedProfile?.sharpness ?? []"
-          :min="7.6"
-          :max="8.3"
-        />
-        <EbeamHardwareBsmRadarChart
-          title="Noise"
-          :color-index="1"
-          :angles="bsm.angles"
-          :values="selectedProfile?.noise ?? []"
-          :min="6.4"
-          :max="7.1"
-        />
+        <div
+          v-for="radar in radarPanes"
+          :key="radar.id"
+          class="flex flex-col"
+        >
+          <USelect
+            v-model="radar.metric.value"
+            :items="profileItems"
+            size="xs"
+            class="mx-auto mb-1 w-44"
+          />
+          <EbeamHardwareBsmRadarChart
+            :title="prettyLabel(radar.metric.value)"
+            :color-index="radar.colorIndex"
+            :angles="angles"
+            :values="profileValues(radar.metric.value)"
+            :min="radialRange(filteredDocs, radar.metric.value).min"
+            :max="radialRange(filteredDocs, radar.metric.value).max"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { BsmBlock, BsmCategory } from '~/composables/useHardwareApi'
+import {
+  profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel
+} from '~/utils/beamMetrics'
 import { downloadCsv } from '~/utils/csvDownload'
 
-const props = defineProps<{ bsm: BsmBlock }>()
+const props = defineProps<{
+  docs: Record<string, unknown>[]
+  fetchedAt: string
+}>()
 
-const selectedKey = ref(props.bsm.categories[0]?.key ?? '')
-const selectedTimestamp = ref('')
-
-const activeCategory = computed<BsmCategory | undefined>(() =>
-  props.bsm.categories.find(category => category.key === selectedKey.value)
-  ?? props.bsm.categories[0]
-)
-
-const activeRows = computed(() => activeCategory.value?.summary ?? [])
-
-// Timestamps (desc, newest first) for the radar selector dropdown.
-const timestampItems = computed(() => activeRows.value.map(row => row.timestamp))
-
-// Export the active dataset's summary — the 1:1 replacement for the removed
-// 측정 요약 table. Reuses the shared util (UTF-8 BOM + CRLF for Excel).
-const downloadSummaryCsv = () => {
-  const headers = ['timestamp', 'sharpness_avg', 'sharpness_3std', 'noise_avg', 'noise_3std']
-  const rows = activeRows.value.map(row => [
-    row.timestamp,
-    row.sharpness_avg,
-    row.sharpness_3std,
-    row.noise_avg,
-    row.noise_3std
-  ])
-  const date = new Date().toISOString().slice(0, 10)
-  downloadCsv(`bsm-summary-${selectedKey.value || 'all'}-${date}.csv`, headers, rows)
+const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
+const numOf = (v: unknown): number => {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : NaN
 }
 
-const selectedProfile = computed(() =>
-  activeCategory.value?.profiles[selectedTimestamp.value]
+// beam_condition filter
+const beamConditions = computed(() =>
+  Array.from(new Set(props.docs.map(d => String(d.beam_condition ?? '')).filter(Boolean))).sort()
+)
+const beamCondition = ref('all')
+const beamConditionItems = computed(() => [
+  { label: 'All conditions', value: 'all' },
+  ...beamConditions.value.map(c => ({ label: c, value: c }))
+])
+
+const filteredDocs = computed(() =>
+  beamCondition.value === 'all'
+    ? props.docs
+    : props.docs.filter(d => String(d.beam_condition ?? '') === beamCondition.value)
 )
 
-// Default the selection to the most recent measurement (rows are timestamp-desc)
-// and reset it whenever the category — or the equipment behind it — changes.
-watch(activeRows, (rows) => {
-  if (!rows.some(row => row.timestamp === selectedTimestamp.value)) {
-    selectedTimestamp.value = rows[0]?.timestamp ?? ''
-  }
+// Selectors derived from docs (data-driven).
+const profileOptions = computed(() => profileMetricKeys(props.docs))
+const scalarOptions = computed(() => scalarMetricKeys(props.docs))
+const profileItems = computed(() => profileOptions.value.map(o => ({ label: o.label, value: o.key })))
+const scalarItems = computed(() => scalarOptions.value.map(o => ({ label: o.label, value: o.key })))
+const angles = computed(() => degreeLabels(props.docs))
+
+// Two trend metrics + two radar metrics, seeded from known keys when present.
+const pick = (opts: { key: string }[], preferred: string, fallbackIdx: number) =>
+  opts.some(o => o.key === preferred) ? preferred : (opts[fallbackIdx]?.key ?? opts[0]?.key ?? '')
+
+const trendA = ref(pick(scalarOptions.value, 'Ellipicity', 0))
+const trendB = ref(pick(scalarOptions.value, 'Ave. Noise', 1))
+const radarA = ref(pick(profileOptions.value, 'Reso EB', 0))
+const radarB = ref(pick(profileOptions.value, 'Reso Detector', 1))
+
+const trendPanes = [
+  { id: 'a', metric: trendA },
+  { id: 'b', metric: trendB }
+]
+const radarPanes = [
+  { id: 'a', metric: radarA, colorIndex: 0 },
+  { id: 'b', metric: radarB, colorIndex: 1 }
+]
+
+// Trend points (ascending time) for a scalar key.
+const trendPoints = (key: string) =>
+  filteredDocs.value
+    .map(d => ({ ts: tsOf(d), value: numOf(d[key]) }))
+    .filter(p => p.ts && Number.isFinite(p.value))
+    .sort((a, b) => a.ts.localeCompare(b.ts))
+
+// Timestamps (desc, newest first) for the radar selector dropdown.
+const timestampItems = computed(() =>
+  [...filteredDocs.value].map(tsOf).filter(Boolean).sort((a, b) => b.localeCompare(a))
+)
+
+const selectedTs = ref('')
+watch(timestampItems, (items) => {
+  if (!items.includes(selectedTs.value)) selectedTs.value = items[0] ?? ''
 }, { immediate: true })
+
+const selectedDoc = computed(() => filteredDocs.value.find(d => tsOf(d) === selectedTs.value))
+
+const profileValues = (key: string): number[] => {
+  const v = selectedDoc.value?.[key]
+  return Array.isArray(v) ? v.map(numOf) : []
+}
+
+const selectedScalarCards = computed(() => {
+  const d = selectedDoc.value
+  if (!d) return []
+  return scalarOptions.value.map(o => ({
+    key: o.key,
+    label: o.label,
+    value: Number.isFinite(numOf(d[o.key])) ? numOf(d[o.key]).toFixed(4) : '-'
+  }))
+})
+
+const downloadScalarsCsv = () => {
+  const keys = scalarOptions.value.map(o => o.key)
+  const headers = ['timestamp', 'beam_condition', ...keys]
+  const rows = [...filteredDocs.value]
+    .sort((a, b) => tsOf(a).localeCompare(tsOf(b)))
+    .map(d => [tsOf(d), String(d.beam_condition ?? ''), ...keys.map(k => numOf(d[k]))])
+  const date = new Date().toISOString().slice(0, 10)
+  downloadCsv(`bsm-${beamCondition.value}-${date}.csv`, headers, rows)
+}
 </script>
