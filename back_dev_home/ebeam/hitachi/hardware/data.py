@@ -6,6 +6,7 @@ canonical contract in `contracts.py`.
 """
 
 import os
+from datetime import datetime
 from typing import Literal
 
 from back_dev_home._runtime.env import is_cloud
@@ -31,7 +32,11 @@ def get_hardware_service(
     tool_slug: str,
     service: ServiceKey,
     eqp_id: str | None,
-    fab_id: str | None,
+    fab_name: str | None,
+    start: datetime,
+    end: datetime,
 ) -> HardwarePayload:
     provider = office if _provider_key() == "office" else mock
-    return provider.get_hardware_service(tool_slug, service, eqp_id, fab_id)
+    return provider.get_hardware_service(
+        tool_slug, service, eqp_id, fab_name, start, end
+    )
