@@ -2,8 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel,
-  type BeamMetricOption
+  profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel
 } from './beamMetrics.ts'
 
 const arr16 = (base: number) => Array.from({ length: 16 }, (_, i) => base + i * 0.01)
@@ -15,7 +14,7 @@ const doc = (overrides: Record<string, unknown> = {}): Record<string, unknown> =
   'Reso EB Focus Range': ['8.0000'],
   'Ellipicity': 1.023,
   'Major Axis': 8.12,
-  'Ave. Noise': '6.277',          // numeric string scalar
+  'Ave. Noise': '6.277', // numeric string scalar
   'type': 'total',
   'beam_condition': 'HR0800_IP0080',
   'eqp_id': 'ECXDX1234',

@@ -24,7 +24,7 @@ import type { EChartsOption } from 'echarts'
 
 const props = defineProps<{
   label: string
-  points: { ts: string; value: number }[]
+  points: { ts: string, value: number }[]
   selected: string
 }>()
 

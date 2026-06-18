@@ -54,7 +54,7 @@ export const compareSettings = (
 
 export const coefficientSeries = (
   eqpSettings: Record<string, unknown> | undefined
-): { v0: number[]; v1: number[] } => {
+): { v0: number[], v1: number[] } => {
   const v0 = Array.from({ length: 360 }, () => NaN)
   const v1 = Array.from({ length: 360 }, () => NaN)
   const coeffs = eqpSettings?.Coefficients

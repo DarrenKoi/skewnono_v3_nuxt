@@ -32,10 +32,18 @@
       <table class="min-w-full text-left text-xs">
         <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
           <tr>
-            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Timestamp</th>
-            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Ch</th>
-            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Judgment</th>
-            <th class="px-3 py-2 text-right font-mono text-[10px] uppercase tracking-[0.05em]">Values</th>
+            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+              Timestamp
+            </th>
+            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+              Ch
+            </th>
+            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+              Judgment
+            </th>
+            <th class="px-3 py-2 text-right font-mono text-[10px] uppercase tracking-[0.05em]">
+              Values
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -44,8 +52,12 @@
             :key="i"
             class="border-t border-(--sk-border-soft)"
           >
-            <td class="px-3 py-2 font-mono text-(--sk-ink)">{{ row.ts }}</td>
-            <td class="px-3 py-2 font-mono text-(--sk-ink)">{{ row.channel }}</td>
+            <td class="px-3 py-2 font-mono text-(--sk-ink)">
+              {{ row.ts }}
+            </td>
+            <td class="px-3 py-2 font-mono text-(--sk-ink)">
+              {{ row.channel }}
+            </td>
             <td class="px-3 py-2">
               <span
                 class="rounded px-1.5 py-0.5 text-[10px] font-bold"
@@ -94,7 +106,9 @@
       v-else
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
-      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">{{ activeKey }} trend</div>
+      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+        {{ activeKey }} trend
+      </div>
       <div
         ref="chartEl"
         class="h-72 w-full"
@@ -105,7 +119,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { parseFdcValues } from '~/utils/fdcValues'
+import { parseFdcValues, type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue } from '~/utils/fdcValues'
 
 const props = defineProps<{ docs: Record<string, unknown>[] }>()
 
@@ -162,7 +176,7 @@ const spmAtTs = computed(() =>
     .filter(p => p.key === 'SPMVoltages')
 )
 const spmJudgments = computed(() =>
-  spmAtTs.value.map(p => ({ channel: (p.data as any).channel as string, judgment: (p.data as any).judgment as string }))
+  spmAtTs.value.map(p => ({ channel: (p.data as SpmVoltagesValue).channel, judgment: (p.data as SpmVoltagesValue).judgment }))
 )
 
 const chartOption = computed<EChartsOption>(() => {
@@ -175,11 +189,11 @@ const chartOption = computed<EChartsOption>(() => {
       xAxis: { type: 'category', name: 'index', axisLabel: { fontSize: 10 } },
       yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
       series: spmAtTs.value.map((p, i) => ({
-        name: (p.data as any).channel as string,
+        name: (p.data as SpmVoltagesValue).channel,
         type: 'line', smooth: true, showSymbol: false,
         lineStyle: { color: colors[i % colors.length] },
         itemStyle: { color: colors[i % colors.length] },
-        data: (p.data as any).profile as number[]
+        data: (p.data as SpmVoltagesValue).profile
       }))
     }
   }
@@ -188,7 +202,7 @@ const chartOption = computed<EChartsOption>(() => {
     const pts = activeDocs.value.map(d => ({ ts: tsOf(d), parsed: parseFdcValues(valuesOf(d)) }))
     const pair = (i: number) => pts.map(p => ({
       name: p.ts,
-      value: [toEpoch(p.ts), ((p.parsed.data as any)?.pairs?.[i]?.x ?? NaN)]
+      value: [toEpoch(p.ts), ((p.parsed.data as LaserPowerValue)?.pairs?.[i]?.x ?? NaN)]
     }))
     return {
       grid: { left: 56, right: 56, top: 24, bottom: 36 },
@@ -207,12 +221,12 @@ const chartOption = computed<EChartsOption>(() => {
   }
 
   // TemperatureEchuck → one line per position (1/2/3)
-  const byPos: Record<string, { ts: string; temp: number }[]> = {}
+  const byPos: Record<string, { ts: string, temp: number }[]> = {}
   for (const d of activeDocs.value) {
     const p = parseFdcValues(valuesOf(d))
     if (p.key !== 'TemperatureEchuck') continue
-    const pos = (p.data as any).position as string
-    ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as any).temp as number })
+    const pos = (p.data as TemperatureValue).position
+    ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as TemperatureValue).temp })
   }
   const colors = [c0.value, c1.value, c2.value]
   return {

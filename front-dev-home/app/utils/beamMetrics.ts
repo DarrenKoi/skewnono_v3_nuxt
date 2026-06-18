@@ -3,7 +3,7 @@
 // value is a length-16 numeric array is a radar metric; a numeric scalar is a
 // trend metric. Adding a future key to the mock surfaces it automatically.
 
-export interface BeamMetricOption { key: string; label: string }
+export interface BeamMetricOption { key: string, label: string }
 
 // Keys that look like profile arrays but are NOT selectable metrics.
 const PROFILE_DENY = new Set(['degree', 'Reso EB Focus Range'])
@@ -49,7 +49,7 @@ const isScalarNumber = (v: unknown): boolean =>
 const option = (key: string): BeamMetricOption => ({ key, label: prettyLabel(key) })
 
 // Use the first doc that actually owns each key to classify it.
-const classify = (docs: Record<string, unknown>[]): { profile: Set<string>; scalar: Set<string> } => {
+const classify = (docs: Record<string, unknown>[]): { profile: Set<string>, scalar: Set<string> } => {
   const profile = new Set<string>()
   const scalar = new Set<string>()
   for (const d of docs) {
@@ -71,7 +71,7 @@ export const scalarMetricKeys = (docs: Record<string, unknown>[]): BeamMetricOpt
 export const radialRange = (
   docs: Record<string, unknown>[],
   key: string
-): { min: number; max: number } => {
+): { min: number, max: number } => {
   let lo = Infinity
   let hi = -Infinity
   for (const d of docs) {

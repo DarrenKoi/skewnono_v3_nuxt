@@ -4,17 +4,17 @@
 
 export type FdcKey = 'TemperatureEchuck' | 'LaserPower' | 'SPMVoltages' | 'ContactpinConductionInfo'
 
-export interface TemperatureValue { position: string; temp: number }
-export interface LaserPowerValue { pairs: { x: number; y: number }[] }
-export interface SpmVoltagesValue { channel: string; judgment: string; profile: number[] }
-export interface ContactpinValue { channel: string; judgment: string; values: number[] }
+export interface TemperatureValue { position: string, temp: number }
+export interface LaserPowerValue { pairs: { x: number, y: number }[] }
+export interface SpmVoltagesValue { channel: string, judgment: string, profile: number[] }
+export interface ContactpinValue { channel: string, judgment: string, values: number[] }
 
-export type FdcParsed =
-  | { key: 'TemperatureEchuck'; data: TemperatureValue }
-  | { key: 'LaserPower'; data: LaserPowerValue }
-  | { key: 'SPMVoltages'; data: SpmVoltagesValue }
-  | { key: 'ContactpinConductionInfo'; data: ContactpinValue }
-  | { key: string; data: null }
+export type FdcParsed
+  = | { key: 'TemperatureEchuck', data: TemperatureValue }
+    | { key: 'LaserPower', data: LaserPowerValue }
+    | { key: 'SPMVoltages', data: SpmVoltagesValue }
+    | { key: 'ContactpinConductionInfo', data: ContactpinValue }
+    | { key: string, data: null }
 
 const num = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)

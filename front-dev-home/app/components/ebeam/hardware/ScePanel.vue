@@ -13,8 +13,12 @@
         <table class="min-w-full text-left text-xs">
           <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
             <tr>
-              <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">Setting</th>
-              <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">{{ selectedEqp }} (선택)</th>
+              <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+                Setting
+              </th>
+              <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+                {{ selectedEqp }} (선택)
+              </th>
               <th
                 v-for="id in siblingIds"
                 :key="id"
@@ -31,8 +35,12 @@
               class="border-t border-(--sk-border-soft)"
               :class="row.differs ? 'bg-amber-50 dark:bg-amber-950/30' : ''"
             >
-              <td class="px-3 py-2 font-mono text-(--sk-ink-muted)">{{ row.path }}</td>
-              <td class="px-3 py-2 font-mono font-bold text-(--sk-ink)">{{ row.selected !== '' ? row.selected : '-' }}</td>
+              <td class="px-3 py-2 font-mono text-(--sk-ink-muted)">
+                {{ row.path }}
+              </td>
+              <td class="px-3 py-2 font-mono font-bold text-(--sk-ink)">
+                {{ row.selected !== '' ? row.selected : '-' }}
+              </td>
               <td
                 v-for="id in siblingIds"
                 :key="id"
@@ -49,7 +57,9 @@
       <!-- Coefficients[0..359] overlay: values[0] / values[1], selected vs one sibling -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
         <div class="mb-1 flex items-center justify-between gap-2 px-1">
-          <div class="text-xs font-bold text-(--sk-ink)">Coefficients (0–359)</div>
+          <div class="text-xs font-bold text-(--sk-ink)">
+            Coefficients (0–359)
+          </div>
           <USelect
             v-model="overlayEqp"
             :items="overlayItems"

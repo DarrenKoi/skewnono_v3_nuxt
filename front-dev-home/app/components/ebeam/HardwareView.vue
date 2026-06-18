@@ -472,7 +472,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
 
                 <!-- Generic table renderer (excluded for all dedicated panel services) -->
                 <div
-                  v-for="section in (['bm-pm','bsm','reso-center','fdc','mdc','sce'].includes(activeService) ? [] : servicePayload.tables)"
+                  v-for="section in (['bm-pm', 'bsm', 'reso-center', 'fdc', 'mdc', 'sce'].includes(activeService) ? [] : servicePayload.tables)"
                   :key="section.key"
                   class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
                 >

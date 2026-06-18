@@ -71,7 +71,9 @@
     <!-- Dual 360° radars for the selected measurement -->
     <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
-        <div class="text-xs font-bold text-(--sk-ink)">360° 빔 형상</div>
+        <div class="text-xs font-bold text-(--sk-ink)">
+          360° 빔 형상
+        </div>
         <USelect
           v-model="selectedTs"
           :items="timestampItems"

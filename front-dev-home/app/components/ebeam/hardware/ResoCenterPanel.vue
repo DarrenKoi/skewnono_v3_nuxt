@@ -23,7 +23,9 @@
     <div class="grid gap-3 lg:grid-cols-2">
       <!-- Center-drift scatter (CenterX vs CenterY, latest emphasized) -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-        <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">Center Drift</div>
+        <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+          Center Drift
+        </div>
         <div
           ref="scatterEl"
           class="h-72 w-full"
@@ -31,7 +33,9 @@
       </div>
       <!-- BestReso / ResoDelta trend (click → select) -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-        <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">BestReso · ResoDelta</div>
+        <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+          BestReso · ResoDelta
+        </div>
         <div
           ref="trendEl"
           class="h-72 w-full"
@@ -41,7 +45,9 @@
 
     <!-- Focus-sweep curve for the selected measurement (Raw vs Smooth) -->
     <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">Focus Sweep (Raw vs Smooth)</div>
+      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+        Focus Sweep (Raw vs Smooth)
+      </div>
       <div
         ref="sweepEl"
         class="h-64 w-full"
@@ -100,7 +106,7 @@ const scatterOption = computed<EChartsOption>(() => {
   const latest = pts[pts.length - 1]
   return {
     grid: { left: 48, right: 16, top: 16, bottom: 36 },
-    tooltip: { trigger: 'item', formatter: (p: any) => `${p.data[2]}<br/>X ${p.data[0]} · Y ${p.data[1]}` },
+    tooltip: { trigger: 'item', formatter: (p: Record<string, unknown[]>) => `${p['data'][2]}<br/>X ${p['data'][0]} · Y ${p['data'][1]}` },
     xAxis: { type: 'value', name: 'CenterX', scale: true, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: 'CenterY', scale: true, axisLabel: { fontSize: 10 } },
     series: [
@@ -108,11 +114,13 @@ const scatterOption = computed<EChartsOption>(() => {
         type: 'scatter', symbolSize: 7, itemStyle: { color: c0.value, opacity: 0.5 },
         data: pts.map(p => [p.x, p.y, p.ts])
       },
-      ...(latest ? [{
-        type: 'scatter' as const, symbolSize: 14,
-        itemStyle: { color: c1.value, borderColor: '#fff', borderWidth: 1 },
-        data: [[latest.x, latest.y, `${latest.ts} (latest)`]]
-      }] : [])
+      ...(latest
+        ? [{
+            type: 'scatter' as const, symbolSize: 14,
+            itemStyle: { color: c1.value, borderColor: '#fff', borderWidth: 1 },
+            data: [[latest.x, latest.y, `${latest.ts} (latest)`]]
+          }]
+        : [])
     ]
   }
 })
@@ -166,6 +174,8 @@ const sweepOption = computed<EChartsOption>(() => {
 })
 
 useEchart(scatterEl, scatterOption)
-useEchart(trendEl, trendOption, { onClick: ts => { selectedTs.value = ts } })
+useEchart(trendEl, trendOption, {
+  onClick: (ts) => { selectedTs.value = ts }
+})
 useEchart(sweepEl, sweepOption)
 </script>

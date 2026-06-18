@@ -186,7 +186,9 @@ const copyPlaintext = async () => {
   try {
     await navigator.clipboard.writeText(plaintext.value)
     copied.value = true
-    setTimeout(() => { copied.value = false }, 1500)
+    setTimeout(() => {
+      copied.value = false
+    }, 1500)
   } catch {
     toast.add({ title: 'Clipboard unavailable', description: 'Copy the token manually.', color: 'warning' })
   }
