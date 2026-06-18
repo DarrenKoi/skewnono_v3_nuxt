@@ -1,0 +1,21 @@
+장비의 상태 모니터링. bm/pm시에 체크하고 data로 남기게 되어있다.
+beam_shape, reso_center에 해당
+
+doc 하나에는 다음과 같은 필드가 있다.
+'category': str "reso_center_log"
+'CenterX': float 예 = 1.15
+'CenterY': float -0.99
+'BestReso' : float 2.98
+'ResoIScenter': float 2.98
+'ResoDelta': float 0.06
+'Resolution_Range': list ['-10', '-5', '0', '5', '10']
+'Resolution_Range_Raw': dict {'-10':[five numbers], '-5':[five numbers'], '0',..}
+'Resolution_Range_Smooth': dict {'-10',.. }
+'beam_condition': str 'HR0500_IP0080'
+'timestamp':str '2026-04-20T12:55:16'
+'timestamp_date' str = '2026-04-20'
+'eqp_id'
+'eqp_ip'
+'fac_id'
+'fab_name'
+'fdc_category' same as category

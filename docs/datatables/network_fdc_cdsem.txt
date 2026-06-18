@@ -1,0 +1,31 @@
+the doc from opensearch.
+fields are like this, 
+
+eqp_id:str,
+eqp_model_cd:str
+fab_name:str
+eqp_ip:str
+fdc_key:str -> "SPMVoltages", "LaserPower", "ContactpinConductionInfo", "TemperatureEchuck"
+timestamp:str "2026-06-17T09:20:00"
+values:list (starts with fdc_key) -> 
+['TemperatureEchuck', '0', '1', '23.39053']
+['TemperatureEchuck', '0', '2', '23.35351']
+['TemperatureEcheck', '0', '3', '23.31353']
+일정 시간 간격으로 1, 2, 3에서 여러 측정 값 존재 timestamp 모두 다름.
+주기적으로 장비의 세 위치에 대한 온도를 측정
+===
+['SPMVoltages', '0', 'B', '7', '1', '1', 'spline', '-0.2', '0', '-0.4', '0.0', '-1.2',.... 100개량 이어짐]
+['SPMVoltages', '0', 'A', '6', '1', '1', 'quartic', '-0.2', '0', '-0.4', '0.0', '-1.2',.... 100개량 이어짐]
+'A' 'B' 'C' 구분, string (spline, quartic,..)은 판정. 그 뒤 숫자는 측정 값들. 
+'A', 'B', 'C'와 판정 (pline, quartic) 사이에 숫자 7, 6, 1, 1, 도 변함. 아직 무슨 의미인지는 파악 못함.
+====
+['LaserPower', '0', '0.78', '0.73', '341990938', '46504250']
+'0'뒤에 2개의 쌍 (x, y)로 이루어짐 각각 스케일이 다른게 포인트. 아직 무슨 의미인지 파악 못함. 둘 다 의미있는 측정 value로 추정
+====
+['ContactpinConductionInfo', '0', 'A', '5', 'NotConduction', '-25.5', '-0.9', '24.6', '25,0', '182501']
+['ContactpinConductionInfo', '0', 'B', '3', 'Conduction', '-5.0', '-5.0', '0.0', '5.0', '182671']
+판정 (NotConduction, Condition)은 장비 알고리즘에 의해 판정되는 것으로 추정. 
+
+A, B, C들은 주기적으로 한번씩 측정되기 때문에 timestamp상 서로 근접한 상태
+
+doc 하나는 고유의 eqp_id, timestamp, values를 가짐. 

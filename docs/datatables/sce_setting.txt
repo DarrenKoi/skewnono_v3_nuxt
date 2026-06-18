@@ -1,0 +1,46 @@
+
+
+sce (beam shape과 유사한 개념) 
+R3, R4에서는 사용하지 않지만 양산 (M-fab)에서 활용 중
+sharpnesss characteristic equalizer
+enable SE GL-proile matching to referece tool
+
+
+dict of dict 형태
+
+{eqp_id: 
+    {
+        'FileInfo': {...},
+        'SemCond': {
+            'SemCond_No': '6',
+            'SemCond_Optics' : 'High Reso.',
+            'SemCond_Vacc' : '800',
+            'SemCond_Ip' : '8.0000',
+            'SemCond_IpMode': 'Middle',
+            'SemCond_Detector': 'SE+EF'
+        },
+        'ImgCond': {
+            'ImgCond_FocusOffset': ['-2'],
+            'ImgCond_Mag': ['150003298', '150003298']
+            'ImgCond_Pixel: ['1024', '1024'],
+        },
+        'SCEParam': {
+            'SCEParam_CycleUpperTh': '6.000',
+            'SCEParam_CycleLowerTh': '22.500000',
+            'SCEParam_SmoothRadius': '7',
+            'SCEParam_SmoothTheta': '7',
+            'SCEParam_FitRangeSt': '40',
+            'SCEParam_FitRangeEd': '79',
+            'SCEParam_CorrCoefLimit': '0.20000'
+        },
+        'Coefficients': [
+            {
+                'index': 0, 'values': [0.00884, 0.964293],
+                'index': 1, 'values' : [0.000927, 0.972554]
+            }
+        ]
+    }
+
+}
+
+indice in Coefficients are 360 (0~359)

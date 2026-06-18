@@ -1,0 +1,43 @@
+Beam Shape is often displayed by radar chart as they have 360 degree data point (by 16 numbers)
+
+for the type total we have a doc like this.
+
+'category': str 'I-diff_hp'
+'Reso EB Focus Range': list ['8.0000']
+'Reso EB Focus': list [['8.94623', '8.096161', ... 16 numbers total]]
+'degree': list [0.0, 22.5, ... 337.5] 16 numbers total
+'Reso Detector':list [0.005665, 0.005116,... ] 16 numbers total
+'Noise':list [6.069593, '6.118456',...] 16 numbers total
+'Reso EB': list [8.0668,..]  16 numbers total
+'Focus offset': list [4.6745, 7.53525..] 16 numbers total
+'Apature angle factor': list [0.00117, 0.001521,...] 16 numbers total
+'Major Axis': float 8.124588
+'Minor Axis': flaot 7.941668
+'Ellipicity': float 1.023033
+'Tilt':float -35.09035
+'X range': float 8.06693
+'Y range': float 7.995835
+'Area':float 202.704313
+'Ave. Reso Detector':float 0.003042
+'Ave. Noise': float 6.27704
+'Ave. Apature angle factor': float 0.001214
+'type': str 'total'
+'beam_condition':str 'HR0800_IP0080'
+'timestamp'
+'timestamp_date'
+'eqp_ip'
+'eqp_id'
+'fac_id'
+'fab_name'
+'fdc_category':str 'bsi_beam_shape'
+
+=====
+
+for the type 'index2' we have like this,
+'degree'
+'Reso EB': list [8.066812,..] 16 numbers
+'RR00 Reso EB': list [16 float numbers]
+'RR90 Reso EB': list [16 float numbers]
+'type': str 'index2'
+
+if not 16 numbers, we ignore as they lose the credibility.

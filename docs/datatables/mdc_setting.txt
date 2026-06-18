@@ -1,0 +1,28 @@
+dict of dict format
+
+{'eqp_id': {beam conditions: str}}
+
+예를 들어,
+{'4CCD6701': {
+        '800V_HR_0Deg': '1.004984',
+        '800V_HR_90Deg': '1.005625',
+        '500V_HR_0Deg': '1.004096',
+        '500V_HR_90Deg': '1.003888'
+    }
+}
+
+each eqip id는 beam 종류과 값이 모두 다름
+특정 장비는 더 많은 beam 종류를 가지고 있기도 함.
+3000V, Valley 모드등 존재 
+
+자주 바뀌지는 않지만 장비간 skew를 확인하는데 중요한 요소 
+
+MDC : Meas Data correction
+
+MDC 수치를 바꿈으로 인해 측정 결과값이 달라짐. result = MDC * actual measurement data
+
+MDC는 절대 수치로 다른 장비의 수치와 같다고 해서 그 두 장비가 같다고 말할 수 없음
+하지만 값이 비슷할 수록 장비의 h/w setting이 유사하다고 유추 가능.
+
+MinIO에는 날짜별로 기록하여 추적 가능하도록 함
+redis에는 가장 최근 mdc 값들을 fab_name 별로 저장
