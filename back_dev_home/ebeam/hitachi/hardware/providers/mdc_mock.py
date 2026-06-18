@@ -55,7 +55,8 @@ def build_mdc_settings(
     as_of_salt = int(as_of.strftime("%Y%m%d"))
     out: dict[str, dict[str, str]] = {}
     for tool in eqp_ids:
-        rng = random.Random(seed_for(tool) ^ 0x4D44_4332 ^ as_of_salt)
-        conds = _conditions_for(rng)
-        out[tool] = {cond: _value(rng) for cond in conds}
+        struct_seed = seed_for(tool) ^ 0x4D44_4332          # stable tool/condition set
+        conds = _conditions_for(random.Random(struct_seed))  # date-INDEPENDENT
+        val_rng = random.Random(struct_seed ^ as_of_salt)    # date-perturbed values
+        out[tool] = {cond: _value(val_rng) for cond in conds}
     return out
