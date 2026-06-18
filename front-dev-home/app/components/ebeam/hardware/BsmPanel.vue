@@ -174,7 +174,7 @@ const trendPoints = (key: string) =>
 
 // Timestamps (desc, newest first) for the radar selector dropdown.
 const timestampItems = computed(() =>
-  [...filteredDocs.value].map(tsOf).filter(Boolean).sort((a, b) => b.localeCompare(a))
+  Array.from(new Set([...filteredDocs.value].map(tsOf).filter(Boolean))).sort((a, b) => b.localeCompare(a))
 )
 
 const selectedTs = ref('')
