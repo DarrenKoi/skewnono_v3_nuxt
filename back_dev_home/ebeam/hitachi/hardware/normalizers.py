@@ -3,7 +3,6 @@
 from datetime import datetime, timezone
 
 from back_dev_home.ebeam.hitachi.hardware.contracts import (
-    BsmBlock,
     HardwareMetricCard,
     HardwarePayload,
     HardwareTableSection,
@@ -20,14 +19,14 @@ def unavailable_payload(
     service: ServiceKey,
     tool_slug: str,
     eqp_id: str | None,
-    fab_id: str | None,
+    fab_name: str | None,
     summary: str,
 ) -> HardwarePayload:
     return {
         "tool_slug": tool_slug,
         "service": service,
         "eqp_id": eqp_id,
-        "fab_id": fab_id,
+        "fab_name": fab_name,
         "available": False,
         "fetched_at": now_iso(),
         "summary": summary,
@@ -39,7 +38,7 @@ def unavailable_payload(
 def bm_pm_payload(
     tool_slug: str,
     eqp_id: str | None,
-    fab_id: str | None,
+    fab_name: str | None,
     *,
     last_bm_date: str,
     next_pm_date: str,
@@ -93,7 +92,7 @@ def bm_pm_payload(
         "tool_slug": tool_slug,
         "service": "bm-pm",
         "eqp_id": eqp_id,
-        "fab_id": fab_id,
+        "fab_name": fab_name,
         "available": True,
         "fetched_at": now_iso(),
         "summary": (
@@ -109,7 +108,7 @@ def bm_pm_payload(
 def bm_pm_history_payload(
     tool_slug: str,
     eqp_id: str | None,
-    fab_id: str | None,
+    fab_name: str | None,
     *,
     past_rows: list[dict[str, RecordValue]],
     future_rows: list[dict[str, RecordValue]],
@@ -181,7 +180,7 @@ def bm_pm_history_payload(
         "tool_slug": tool_slug,
         "service": "bm-pm",
         "eqp_id": eqp_id,
-        "fab_id": fab_id,
+        "fab_name": fab_name,
         "available": True,
         "fetched_at": now_iso(),
         "summary": "선택한 장비의 BM/PM 작업 이력과 예정 작업을 최신순으로 표시합니다.",
@@ -190,50 +189,11 @@ def bm_pm_history_payload(
     }
 
 
-def bsm_payload(
-    tool_slug: str,
-    eqp_id: str | None,
-    fab_id: str | None,
-    *,
-    bsm: BsmBlock,
-) -> HardwarePayload:
-    """Build the BSM payload from generated category data.
-
-    Summary cards report the measurement count per category; the trend charts,
-    summary tables, and radar all read from the `bsm` block (the canonical
-    `cards`/`tables` slots stay empty for this service).
-    """
-    cards: list[HardwareMetricCard] = []
-    for category in bsm["categories"]:
-        cards.append(
-            {
-                "key": f"{category['key']}_count",
-                "label": f"{category['label']} 측정",
-                "value": len(category["summary"]),
-                "unit": "건",
-                "tone": "neutral",
-            }
-        )
-
-    return {
-        "tool_slug": tool_slug,
-        "service": "bsm",
-        "eqp_id": eqp_id,
-        "fab_id": fab_id,
-        "available": True,
-        "fetched_at": now_iso(),
-        "summary": "Daily Monitoring과 PM Confirm BSM 결과를 선택해 추세와 360° 빔 형상을 확인합니다.",
-        "cards": cards,
-        "tables": [],
-        "bsm": bsm,
-    }
-
-
 def normalize_office_rows(
     service: ServiceKey,
     tool_slug: str,
     eqp_id: str | None,
-    fab_id: str | None,
+    fab_name: str | None,
     raw_rows: list[dict[str, RecordValue]],
 ) -> HardwarePayload:
     """Temporary adapter for unknown office BSM/FDC row shapes."""
@@ -242,7 +202,7 @@ def normalize_office_rows(
             service,
             tool_slug,
             eqp_id,
-            fab_id,
+            fab_name,
             f"{service.upper()} office data is not available for the selected equipment.",
         )
 
@@ -255,7 +215,7 @@ def normalize_office_rows(
         "tool_slug": tool_slug,
         "service": service,
         "eqp_id": eqp_id,
-        "fab_id": fab_id,
+        "fab_name": fab_name,
         "available": True,
         "fetched_at": now_iso(),
         "summary": f"{service.upper()} office rows were normalized into a table payload.",
@@ -275,4 +235,75 @@ def normalize_office_rows(
                 "rows": raw_rows,
             }
         ],
+    }
+
+
+def docs_payload(
+    service: ServiceKey,
+    tool_slug: str,
+    eqp_id: str | None,
+    fab_name: str | None,
+    *,
+    docs: list[dict],
+    summary: str,
+    extra_cards: list[HardwareMetricCard] | None = None,
+) -> HardwarePayload:
+    """Wrap a faithful time-series doc list (bsm / reso-center / fdc).
+
+    Thin summary cards only: doc count + latest timestamp. The page reads
+    chart axes straight off `docs` (data-driven selectors).
+    """
+    latest = docs[-1].get("timestamp", "—") if docs else "—"
+    cards: list[HardwareMetricCard] = [
+        {"key": "doc_count", "label": "문서 수", "value": len(docs), "unit": "건", "tone": "neutral"},
+        {"key": "latest_ts", "label": "최신 측정", "value": latest, "tone": "neutral"},
+    ]
+    if extra_cards:
+        cards.extend(extra_cards)
+    return {
+        "tool_slug": tool_slug,
+        "service": service,
+        "eqp_id": eqp_id,
+        "fab_name": fab_name,
+        "available": True,
+        "fetched_at": now_iso(),
+        "summary": summary,
+        "cards": cards,
+        "tables": [],
+        "docs": docs,
+    }
+
+
+def settings_payload(
+    service: ServiceKey,
+    tool_slug: str,
+    eqp_id: str | None,
+    fab_name: str | None,
+    *,
+    settings: dict[str, dict],
+    as_of: str,
+    summary: str,
+    tables: list[HardwareTableSection] | None = None,
+) -> HardwarePayload:
+    """Wrap a faithful dict-of-dict (mdc / sce): eqp + in-fab siblings.
+
+    Thin cards: as-of date + sibling count. `tables` optional (e.g. the mdc
+    matrix or sce settings-compare are built frontend-side off `settings`).
+    """
+    sibling_count = max(0, len(settings) - 1)
+    cards: list[HardwareMetricCard] = [
+        {"key": "as_of", "label": "기준일", "value": as_of, "tone": "neutral"},
+        {"key": "sibling_count", "label": "동일 fab 장비", "value": sibling_count, "unit": "대", "tone": "neutral"},
+    ]
+    return {
+        "tool_slug": tool_slug,
+        "service": service,
+        "eqp_id": eqp_id,
+        "fab_name": fab_name,
+        "available": True,
+        "fetched_at": now_iso(),
+        "summary": summary,
+        "cards": cards,
+        "tables": tables or [],
+        "settings": settings,
     }
