@@ -11,12 +11,12 @@
       />
       <span class="ml-auto" />
       <USelect
-        v-model="selectedTs"
-        :items="timestampItems"
+        v-model="selectedKey"
+        :items="measurementItems"
         size="xs"
         icon="i-lucide-clock"
         placeholder="측정 시각 선택"
-        class="w-56"
+        class="w-64"
       />
     </div>
 
@@ -66,6 +66,10 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : NaN
 }
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
+// One doc per (timestamp, beam_condition), so timestamp alone is ambiguous under
+// "All conditions". Identify a measurement by the composite key.
+const condOf = (d: Record<string, unknown>) => String(d.beam_condition ?? '')
+const keyOf = (d: Record<string, unknown>) => `${tsOf(d)}|${condOf(d)}`
 
 const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
@@ -86,14 +90,22 @@ const filtered = computed(() =>
 )
 const ordered = computed(() => [...filtered.value].sort((a, b) => tsOf(a).localeCompare(tsOf(b))))
 
-const timestampItems = computed(() =>
-  Array.from(new Set([...ordered.value].map(tsOf).filter(Boolean))).reverse()
+// Measurements (newest first). Under "All conditions" the label disambiguates
+// by appending the beam_condition; the value is always the composite key.
+const measurementItems = computed(() =>
+  [...ordered.value]
+    .filter(d => tsOf(d))
+    .reverse()
+    .map(d => ({
+      label: beamCondition.value === 'all' ? `${tsOf(d)} · ${condOf(d)}` : tsOf(d),
+      value: keyOf(d)
+    }))
 )
-const selectedTs = ref('')
-watch(timestampItems, (items) => {
-  if (!items.includes(selectedTs.value)) selectedTs.value = items[0] ?? ''
+const selectedKey = ref('')
+watch(measurementItems, (items) => {
+  if (!items.some(i => i.value === selectedKey.value)) selectedKey.value = items[0]?.value ?? ''
 }, { immediate: true })
-const selectedDoc = computed(() => ordered.value.find(d => tsOf(d) === selectedTs.value))
+const selectedDoc = computed(() => ordered.value.find(d => keyOf(d) === selectedKey.value))
 
 const scatterEl = ref<HTMLDivElement | null>(null)
 const trendEl = ref<HTMLDivElement | null>(null)
@@ -106,7 +118,13 @@ const scatterOption = computed<EChartsOption>(() => {
   const latest = pts[pts.length - 1]
   return {
     grid: { left: 48, right: 16, top: 16, bottom: 36 },
-    tooltip: { trigger: 'item', formatter: (p: Record<string, unknown[]>) => `${p['data'][2]}<br/>X ${p['data'][0]} · Y ${p['data'][1]}` },
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => {
+        const d = (Array.isArray(params) ? params[0] : params)?.data
+        return Array.isArray(d) ? `${d[2]}<br/>X ${d[0]} · Y ${d[1]}` : ''
+      }
+    },
     xAxis: { type: 'value', name: 'CenterX', scale: true, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: 'CenterY', scale: true, axisLabel: { fontSize: 10 } },
     series: [
@@ -140,12 +158,12 @@ const trendOption = computed<EChartsOption>(() => {
       {
         name: 'BestReso', type: 'line', yAxisIndex: 0,
         lineStyle: { color: c0.value }, itemStyle: { color: c0.value },
-        data: rows.map(d => ({ name: tsOf(d), value: [toEpoch(tsOf(d)), num(d.BestReso)], symbolSize: tsOf(d) === selectedTs.value ? 12 : 5 }))
+        data: rows.map(d => ({ name: keyOf(d), value: [toEpoch(tsOf(d)), num(d.BestReso)], symbolSize: keyOf(d) === selectedKey.value ? 12 : 5 }))
       },
       {
         name: 'ResoDelta', type: 'line', yAxisIndex: 1,
         lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value },
-        data: rows.map(d => ({ name: tsOf(d), value: [toEpoch(tsOf(d)), num(d.ResoDelta)], symbolSize: tsOf(d) === selectedTs.value ? 11 : 4 }))
+        data: rows.map(d => ({ name: keyOf(d), value: [toEpoch(tsOf(d)), num(d.ResoDelta)], symbolSize: keyOf(d) === selectedKey.value ? 11 : 4 }))
       }
     ]
   }
@@ -175,7 +193,7 @@ const sweepOption = computed<EChartsOption>(() => {
 
 useEchart(scatterEl, scatterOption)
 useEchart(trendEl, trendOption, {
-  onClick: (ts) => { selectedTs.value = ts }
+  onClick: (key) => { selectedKey.value = key }
 })
 useEchart(sweepEl, sweepOption)
 </script>

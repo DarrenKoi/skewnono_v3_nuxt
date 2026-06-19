@@ -24,11 +24,11 @@ import type { EChartsOption } from 'echarts'
 
 const props = defineProps<{
   label: string
-  points: { ts: string, value: number }[]
+  points: { ts: string, key: string, value: number }[]
   selected: string
 }>()
 
-const emit = defineEmits<{ select: [ts: string] }>()
+const emit = defineEmits<{ select: [key: string] }>()
 
 const chartEl = ref<HTMLDivElement | null>(null)
 const { palette } = useEchartsTheme()
@@ -67,9 +67,9 @@ const chartOption = computed<EChartsOption>(() => ({
       itemStyle: { color: color.value },
       emphasis: { scale: 1.6 },
       data: props.points.map(p => ({
-        name: p.ts,
+        name: p.key,
         value: [toEpoch(p.ts), p.value],
-        symbolSize: p.ts === props.selected ? 12 : 5
+        symbolSize: p.key === props.selected ? 12 : 5
       }))
     }
   ]

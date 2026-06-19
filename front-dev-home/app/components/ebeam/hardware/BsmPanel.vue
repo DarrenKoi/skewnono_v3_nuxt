@@ -62,8 +62,8 @@
         <EbeamHardwareBsmTrendChart
           :label="prettyLabel(pane.metric.value)"
           :points="trendPoints(pane.metric.value)"
-          :selected="selectedTs"
-          @select="selectedTs = $event"
+          :selected="selectedKey"
+          @select="selectedKey = $event"
         />
       </div>
     </div>
@@ -75,12 +75,12 @@
           360° 빔 형상
         </div>
         <USelect
-          v-model="selectedTs"
-          :items="timestampItems"
+          v-model="selectedKey"
+          :items="measurementItems"
           size="xs"
           icon="i-lucide-clock"
           placeholder="측정 시각 선택"
-          class="w-56"
+          class="w-64"
         />
       </div>
       <div class="grid grid-cols-2 gap-2">
@@ -121,6 +121,10 @@ const props = defineProps<{
 }>()
 
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
+// The mock emits one doc per (timestamp, beam_condition), so timestamp alone is
+// ambiguous under "All conditions". Identify a measurement by the composite key.
+const condOf = (d: Record<string, unknown>) => String(d.beam_condition ?? '')
+const keyOf = (d: Record<string, unknown>) => `${tsOf(d)}|${condOf(d)}`
 const numOf = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : NaN
@@ -167,24 +171,32 @@ const radarPanes = [
   { id: 'b', metric: radarB, colorIndex: 1 }
 ]
 
-// Trend points (ascending time) for a scalar key.
+// Trend points (ascending time) for a scalar key. `key` is the composite
+// measurement id so a click selects the exact (timestamp, beam_condition) doc.
 const trendPoints = (key: string) =>
   filteredDocs.value
-    .map(d => ({ ts: tsOf(d), value: numOf(d[key]) }))
+    .map(d => ({ ts: tsOf(d), key: keyOf(d), value: numOf(d[key]) }))
     .filter(p => p.ts && Number.isFinite(p.value))
     .sort((a, b) => a.ts.localeCompare(b.ts))
 
-// Timestamps (desc, newest first) for the radar selector dropdown.
-const timestampItems = computed(() =>
-  Array.from(new Set([...filteredDocs.value].map(tsOf).filter(Boolean))).sort((a, b) => b.localeCompare(a))
+// Measurements (desc, newest first) for the radar selector dropdown. Under
+// "All conditions" the label disambiguates by appending the beam_condition.
+const measurementItems = computed(() =>
+  [...filteredDocs.value]
+    .filter(d => tsOf(d))
+    .sort((a, b) => keyOf(b).localeCompare(keyOf(a)))
+    .map(d => ({
+      label: beamCondition.value === 'all' ? `${tsOf(d)} · ${condOf(d)}` : tsOf(d),
+      value: keyOf(d)
+    }))
 )
 
-const selectedTs = ref('')
-watch(timestampItems, (items) => {
-  if (!items.includes(selectedTs.value)) selectedTs.value = items[0] ?? ''
+const selectedKey = ref('')
+watch(measurementItems, (items) => {
+  if (!items.some(i => i.value === selectedKey.value)) selectedKey.value = items[0]?.value ?? ''
 }, { immediate: true })
 
-const selectedDoc = computed(() => filteredDocs.value.find(d => tsOf(d) === selectedTs.value))
+const selectedDoc = computed(() => filteredDocs.value.find(d => keyOf(d) === selectedKey.value))
 
 const profileValues = (key: string): number[] => {
   const v = selectedDoc.value?.[key]

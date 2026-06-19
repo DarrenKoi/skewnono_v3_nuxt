@@ -157,12 +157,12 @@ const apiGroups: ApiGroup[] = [
       },
       {
         method: 'GET',
-        path: '/api/{tool_slug}/hardware/{service}',
+        path: '/api/{tool_slug}/hardware/{eqp_id}/{service}',
         summary: 'BSM, FDC, BM/PM 같은 hardware 보조 서비스 payload를 반환합니다.',
-        params: 'eqp_id optional, fab_id optional',
+        params: 'fab_name optional, start/end optional (ISO-8601)',
         response: 'HardwareServicePayload',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/hardware/bsm?fab_id=M11"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/hardware/EQP01/bsm?fab_name=M11"'
       }
     ]
   },
