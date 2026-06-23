@@ -45,17 +45,24 @@ export default defineNuxtConfig({
   // The SPA (ssr:false) is served by Flask with no Nitro server at runtime, so
   // icons must be embedded into the client JS at build time. Without this the
   // client falls back to the network Iconify API (blocked on the internal
-  // office network) and icons render blank. `scan` bakes in every i-lucide-* /
-  // i-simple-icons-* actually used in the source; the size cap is raised well
-  // above the 256KB default since the scanned set exceeds it.
+  // office network) and icons render blank.
   icon: {
+    // Hard-disable the runtime Iconify API fallback. On the offline office
+    // network those requests fail silently, so we never want them: any icon not
+    // bundled below simply won't render (and makes no network call), which also
+    // surfaces exactly which icons still need adding.
+    fallbackToApi: false,
     clientBundle: {
-      scan: true,
-      sizeLimitKb: 1024,
-      // `scan` only sees literal i-lucide-* strings in app source. These are
-      // missed because they live in Nuxt UI's components (node_modules) as
-      // default icons — close (x), search, menu, sun, settings — or are bound
-      // dynamically in our own code. Listing them force-bundles them. Format is
+      // Scan both our own source AND Nuxt UI's compiled components, so the
+      // component-default icons (close=x, search, menu, sun, settings, chevrons)
+      // that live in node_modules get auto-detected instead of leaking to the API.
+      scan: {
+        globInclude: ['app/**/*.{vue,ts,js}', 'node_modules/@nuxt/ui/dist/**/*.{vue,js,mjs}'],
+        globExclude: ['node_modules/**/node_modules/**']
+      },
+      // Raised well above the 256KB default since the scanned set exceeds it.
+      sizeLimitKb: 2048,
+      // Dynamically-named icons that scan can't see as literal strings. Format is
       // `lucide:<name>`, not the `i-lucide-<name>` template form.
       icons: [
         'lucide:x',
