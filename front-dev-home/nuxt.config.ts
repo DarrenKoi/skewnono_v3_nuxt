@@ -42,6 +42,41 @@ export default defineNuxtConfig({
     fonts: false
   },
 
+  // The SPA (ssr:false) is served by Flask with no Nitro server at runtime, so
+  // icons must be embedded into the client JS at build time. Without this the
+  // client falls back to the network Iconify API (blocked on the internal
+  // office network) and icons render blank. `scan` bakes in every i-lucide-* /
+  // i-simple-icons-* actually used in the source; the size cap is raised well
+  // above the 256KB default since the scanned set exceeds it.
+  icon: {
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 1024,
+      // `scan` only sees literal i-lucide-* strings in app source. These are
+      // missed because they live in Nuxt UI's components (node_modules) as
+      // default icons — close (x), search, menu, sun, settings — or are bound
+      // dynamically in our own code. Listing them force-bundles them. Format is
+      // `lucide:<name>`, not the `i-lucide-<name>` template form.
+      icons: [
+        'lucide:x',
+        'lucide:layout-dashboard',
+        'lucide:timer',
+        'lucide:triangle-alert',
+        'lucide:search',
+        'lucide:cpu',
+        'lucide:bar-chart-3',
+        'lucide:git-compare',
+        'lucide:eye',
+        'lucide:sparkles',
+        'lucide:panels-top-left',
+        'lucide:plug',
+        'lucide:settings',
+        'lucide:sun',
+        'lucide:menu'
+      ]
+    }
+  },
+
   runtimeConfig: {
     public: {
       apiBase
