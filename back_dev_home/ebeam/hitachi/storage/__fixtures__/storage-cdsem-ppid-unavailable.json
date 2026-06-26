@@ -1,0 +1,245 @@
+{
+  "latest_date": "2026-05-26",
+  "rows": [
+    {
+      "eqp_id": "ECXDX752",
+      "eqp_ip": "197.142.181.110",
+      "eqp_model_cd": "GT2000S",
+      "fab_name": "M14A",
+      "fac_id": "M14",
+      "missing_days_streak": 29
+    },
+    {
+      "eqp_id": "ECXDX872",
+      "eqp_ip": "197.75.60.209",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "R4",
+      "fac_id": "R3",
+      "missing_days_streak": 29
+    },
+    {
+      "eqp_id": "ECDX810",
+      "eqp_ip": "177.153.36.148",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "M11A",
+      "fac_id": "M11",
+      "missing_days_streak": 28
+    },
+    {
+      "eqp_id": "ECDX246",
+      "eqp_ip": "177.144.138.68",
+      "eqp_model_cd": "GT2000",
+      "fab_name": "M12C",
+      "fac_id": "M12",
+      "missing_days_streak": 25
+    },
+    {
+      "eqp_id": "ECXDX438",
+      "eqp_ip": "197.217.95.24",
+      "eqp_model_cd": "CG6340",
+      "fab_name": "M16A",
+      "fac_id": "M16",
+      "missing_days_streak": 25
+    },
+    {
+      "eqp_id": "HCDX760",
+      "eqp_ip": "177.193.240.19",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "M14A",
+      "fac_id": "M14",
+      "missing_days_streak": 24
+    },
+    {
+      "eqp_id": "HCDX761",
+      "eqp_ip": "197.9.149.94",
+      "eqp_model_cd": "CG6300",
+      "fab_name": "R3",
+      "fac_id": "R3",
+      "missing_days_streak": 24
+    },
+    {
+      "eqp_id": "HCDX430",
+      "eqp_ip": "177.59.247.173",
+      "eqp_model_cd": "CG6360",
+      "fab_name": "M11C",
+      "fac_id": "M11",
+      "missing_days_streak": 23
+    },
+    {
+      "eqp_id": "ECDX539",
+      "eqp_ip": "177.147.107.48",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "M16C",
+      "fac_id": "M16",
+      "missing_days_streak": 22
+    },
+    {
+      "eqp_id": "HCDX864",
+      "eqp_ip": "177.203.219.107",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "M12B",
+      "fac_id": "M12",
+      "missing_days_streak": 22
+    },
+    {
+      "eqp_id": "ECDX413",
+      "eqp_ip": "177.50.81.31",
+      "eqp_model_cd": "CG6360",
+      "fab_name": "M16B",
+      "fac_id": "M16",
+      "missing_days_streak": 22
+    },
+    {
+      "eqp_id": "HCDX633",
+      "eqp_ip": "177.16.143.243",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "R3",
+      "fac_id": "R3",
+      "missing_days_streak": 20
+    },
+    {
+      "eqp_id": "HCDX931",
+      "eqp_ip": "197.22.28.197",
+      "eqp_model_cd": "CG6340",
+      "fab_name": "M15C",
+      "fac_id": "M15",
+      "missing_days_streak": 19
+    },
+    {
+      "eqp_id": "HCDX398",
+      "eqp_ip": "197.79.201.102",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "M12A",
+      "fac_id": "M12",
+      "missing_days_streak": 18
+    },
+    {
+      "eqp_id": "HCDX533",
+      "eqp_ip": "197.177.52.183",
+      "eqp_model_cd": "GT2000S",
+      "fab_name": "M16A",
+      "fac_id": "M16",
+      "missing_days_streak": 17
+    },
+    {
+      "eqp_id": "ECDX689",
+      "eqp_ip": "177.164.107.75",
+      "eqp_model_cd": "CG6300",
+      "fab_name": "M11B",
+      "fac_id": "M11",
+      "missing_days_streak": 16
+    },
+    {
+      "eqp_id": "ECDX893",
+      "eqp_ip": "197.194.11.195",
+      "eqp_model_cd": "CG6300",
+      "fab_name": "M16C",
+      "fac_id": "M16",
+      "missing_days_streak": 15
+    },
+    {
+      "eqp_id": "ECXDX853",
+      "eqp_ip": "197.234.144.31",
+      "eqp_model_cd": "CG6300",
+      "fab_name": "M14C",
+      "fac_id": "M14",
+      "missing_days_streak": 12
+    },
+    {
+      "eqp_id": "ECXDX643",
+      "eqp_ip": "197.47.44.45",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "M14B",
+      "fac_id": "M14",
+      "missing_days_streak": 12
+    },
+    {
+      "eqp_id": "HCDX270",
+      "eqp_ip": "177.27.229.147",
+      "eqp_model_cd": "CG6360",
+      "fab_name": "M15C",
+      "fac_id": "M15",
+      "missing_days_streak": 11
+    },
+    {
+      "eqp_id": "ECDX333",
+      "eqp_ip": "197.111.48.175",
+      "eqp_model_cd": "CG6360",
+      "fab_name": "M11C",
+      "fac_id": "M11",
+      "missing_days_streak": 10
+    },
+    {
+      "eqp_id": "ECDX308",
+      "eqp_ip": "177.145.222.57",
+      "eqp_model_cd": "GT2000S",
+      "fab_name": "M11C",
+      "fac_id": "M11",
+      "missing_days_streak": 9
+    },
+    {
+      "eqp_id": "ECXDX455",
+      "eqp_ip": "197.18.130.166",
+      "eqp_model_cd": "CG6380",
+      "fab_name": "R3",
+      "fac_id": "R3",
+      "missing_days_streak": 6
+    },
+    {
+      "eqp_id": "ECDX817",
+      "eqp_ip": "197.240.229.18",
+      "eqp_model_cd": "CG6360",
+      "fab_name": "R4",
+      "fac_id": "R3",
+      "missing_days_streak": 6
+    },
+    {
+      "eqp_id": "ECXDX524",
+      "eqp_ip": "197.107.16.53",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "M15C",
+      "fac_id": "M15",
+      "missing_days_streak": 5
+    },
+    {
+      "eqp_id": "",
+      "eqp_ip": "177.201.251.99",
+      "eqp_model_cd": "",
+      "fab_name": "",
+      "fac_id": "",
+      "missing_days_streak": 4
+    },
+    {
+      "eqp_id": "",
+      "eqp_ip": "177.202.58.16",
+      "eqp_model_cd": "",
+      "fab_name": "",
+      "fac_id": "",
+      "missing_days_streak": 4
+    },
+    {
+      "eqp_id": "ECXDX622",
+      "eqp_ip": "197.50.232.199",
+      "eqp_model_cd": "CG6320",
+      "fab_name": "R3",
+      "fac_id": "R3",
+      "missing_days_streak": 4
+    },
+    {
+      "eqp_id": "ECDX740",
+      "eqp_ip": "177.141.34.238",
+      "eqp_model_cd": "GT2000S",
+      "fab_name": "M12C",
+      "fac_id": "M12",
+      "missing_days_streak": 3
+    },
+    {
+      "eqp_id": "HCDX885",
+      "eqp_ip": "197.22.164.138",
+      "eqp_model_cd": "GT2000",
+      "fab_name": "M15C",
+      "fac_id": "M15",
+      "missing_days_streak": 3
+    }
+  ]
+}
