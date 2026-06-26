@@ -28,9 +28,16 @@ test('all-identical values (MAD=0) → no false positives', () => {
 })
 
 test('MAD=0 with one different value → only the different one flags', () => {
-  // median 7, MAD 0 → fall back to "differs from median".
+  // median 7, MAD 0 → mean-abs-deviation fallback still flags a lone odd value.
   const flags = detectMadOutliers([7, 7, 7, 7, 7, 9])
   assert.deepEqual(flags, [false, false, false, false, false, true])
+})
+
+test('MAD=0 with a large shared sub-cluster → not flagged as outliers', () => {
+  // median 10, abs-devs median is 0 (MAD=0). The three 20s are a third of the
+  // sample, not anomalies; the mean-abs-deviation fallback must not flag them.
+  const flags = detectMadOutliers([10, 10, 10, 10, 20, 20, 20])
+  assert.deepEqual(flags, [false, false, false, false, false, false, false])
 })
 
 test('masking: a single extreme does not hide itself (vs classic z-score)', () => {
