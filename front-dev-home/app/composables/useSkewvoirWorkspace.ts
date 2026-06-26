@@ -1,10 +1,11 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 
-// The 6 left-rail view modes. A tab is always one of these kinds; the search
-// landing is the home view and is never closable.
+// The analysis workspace exposes 5 view modes in the left rail. Search is no
+// longer one of them — it is a separate landing route. The active view is
+// driven by the URL `view` query param via useSkewvoirRoute (single source of
+// truth), so an analysis screen is fully reproducible from its link.
 export type SkewvoirViewKind
-  = | 'search'
-    | 'dashboard'
+  = | 'dashboard'
     | 'position-stack'
     | 'time-series'
     | 'correlation'
@@ -18,18 +19,13 @@ export interface SkewvoirViewMode {
   icon: string
 }
 
-export interface SkewvoirTab {
-  id: string
-  kind: SkewvoirViewKind
-  label: string
-  badge?: string
-  closable: boolean
-}
-
+// A measurement selection. Carried entirely in the URL query so analysis links
+// are shareable (live re-query: opening the link rebuilds this from the query).
 export interface SkewvoirSelection {
   lot: string
   recipe: string
   eq: string
+  mp: string
   capturedAt: string
 }
 
@@ -48,36 +44,23 @@ export interface SkewvoirHealth {
 }
 
 export const SKEWVOIR_VIEW_MODES: readonly SkewvoirViewMode[] = [
-  { kind: 'search', index: 1, label: '검색', sub: 'Search / Landing', icon: 'i-lucide-search' },
-  { kind: 'dashboard', index: 2, label: 'Dashboard', sub: 'Single Measurement', icon: 'i-lucide-layout-dashboard' },
-  { kind: 'position-stack', index: 3, label: '위치 비교', sub: 'Position Stack', icon: 'i-lucide-layers' },
-  { kind: 'time-series', index: 4, label: 'Time-Series', sub: 'Multi-measurement Trend', icon: 'i-lucide-trending-up' },
-  { kind: 'correlation', index: 5, label: '상관 / 분포', sub: 'Correlation & Distribution', icon: 'i-lucide-scatter-chart' },
-  { kind: 'gallery', index: 6, label: '이미지 갤러리', sub: 'SEM Gallery', icon: 'i-lucide-images' }
+  { kind: 'dashboard', index: 1, label: 'Dashboard', sub: 'Single Measurement', icon: 'i-lucide-layout-dashboard' },
+  { kind: 'position-stack', index: 2, label: '위치 비교', sub: 'Position Stack', icon: 'i-lucide-layers' },
+  { kind: 'time-series', index: 3, label: 'Time-Series', sub: 'Multi-measurement Trend', icon: 'i-lucide-trending-up' },
+  { kind: 'correlation', index: 4, label: '상관 / 분포', sub: 'Correlation & Distribution', icon: 'i-lucide-scatter-chart' },
+  { kind: 'gallery', index: 5, label: '이미지 갤러리', sub: 'SEM Gallery', icon: 'i-lucide-images' }
 ] as const
-
-const labelForKind = (kind: SkewvoirViewKind): string =>
-  SKEWVOIR_VIEW_MODES.find(mode => mode.kind === kind)?.label ?? kind
 
 export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: string) => {
   const eqType = toolType === 'hv-sem' ? 'HV-CD-SEM' : 'CD-SEM'
+  const skRoute = useSkewvoirRoute(toolType)
 
-  const tabs = useState<SkewvoirTab[]>(`skewvoir-tabs-${toolType}`, () => [
-    { id: 'search', kind: 'search', label: '검색', closable: false },
-    { id: 'dashboard-demo', kind: 'dashboard', label: 'RK2W016.13', badge: 'DRAM', closable: true },
-    { id: 'position-demo', kind: 'position-stack', label: '위치 비교', closable: true },
-    { id: 'time-series-demo', kind: 'time-series', label: 'Time-Series', closable: true }
-  ])
+  // selection + active view both derive from the URL (via useSkewvoirRoute).
+  const selection = skRoute.selection
+  const activeKind = skRoute.view
 
-  const activeTabId = useState<string>(`skewvoir-active-${toolType}`, () => 'search')
-
-  const selection = useState<SkewvoirSelection | null>(`skewvoir-selection-${toolType}`, () => ({
-    lot: 'RK2W016.13',
-    recipe: 'RK2A_DSVTEOSETCLN',
-    eq: 'MCD026',
-    capturedAt: '05. 11. 오전 06:29'
-  }))
-
+  // Pinned filters / health stay mock-seeded for this pass; the MP filter
+  // mirrors the URL selection when present so the rail and the link agree.
   const pinnedFilters = useState<SkewvoirPinnedFilters>(`skewvoir-filters-${toolType}`, () => ({
     area: 'DRAM',
     fab: 'R3',
@@ -89,55 +72,25 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
 
   const health = useState<SkewvoirHealth>(`skewvoir-health-${toolType}`, () => ({ scans: 24, outliers: 15 }))
 
-  const activeTab = computed(() => tabs.value.find(tab => tab.id === activeTabId.value) ?? tabs.value[0])
-  const activeKind = computed<SkewvoirViewKind>(() => activeTab.value?.kind ?? 'search')
-
-  const activate = (id: string) => {
-    if (tabs.value.some(tab => tab.id === id)) activeTabId.value = id
-  }
-
-  // Opening a view mode focuses its existing tab, or appends a fresh one.
-  const openView = (kind: SkewvoirViewKind) => {
-    const existing = tabs.value.find(tab => tab.kind === kind)
-    if (existing) {
-      activeTabId.value = existing.id
-      return
-    }
-    const id = `${kind}-${Date.now()}`
-    tabs.value.push({ id, kind, label: labelForKind(kind), closable: kind !== 'search' })
-    activeTabId.value = id
-  }
-
-  const closeTab = (id: string) => {
-    const index = tabs.value.findIndex(tab => tab.id === id)
-    const tab = tabs.value[index]
-    if (!tab || !tab.closable) return
-
-    tabs.value = tabs.value.filter(t => t.id !== id)
-    if (activeTabId.value === id) {
-      const fallback = tabs.value[index - 1] ?? tabs.value[0]
-      activeTabId.value = fallback?.id ?? 'search'
-    }
-  }
-
-  const newTab = () => openView('search')
+  // Switching views just rewrites the `view` query param (keeps the rest).
+  const openView = (kind: SkewvoirViewKind) => skRoute.setView(kind)
+  const goSearch = () => skRoute.goSearch()
 
   return {
     toolType,
     toolLabel,
     eqType,
     viewModes: SKEWVOIR_VIEW_MODES,
-    tabs,
-    activeTabId,
-    activeTab,
-    activeKind,
     selection,
+    activeKind,
     pinnedFilters,
     health,
-    activate,
     openView,
-    closeTab,
-    newTab
+    goSearch,
+    openAnalysis: skRoute.openAnalysis,
+    shareUrl: skRoute.shareUrl,
+    analysisPath: skRoute.analysisPath,
+    basePath: skRoute.basePath
   }
 }
 

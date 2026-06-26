@@ -130,6 +130,13 @@
   --sk-r-chip: 8px;
   --sk-r-nav: 10px;
   --sk-r-card: 14px;
+
+  /* Skewvoir diverging data scale — wafer heat map + histogram. low=navy,
+     mid=warm tan, high=red. Defined here; consumed by the analysis chart
+     panels in the chart-wiring pass. */
+  --sk-scale-low: #2752a8;
+  --sk-scale-mid: #e8ddc9;
+  --sk-scale-high: #b21f24;
 }
 
 /* Dark · Walnut — paper at night. Page L≈0.21, hue 70°; cards lift one step to
@@ -173,6 +180,12 @@
   --sk-brand-fg: #FFF7F1;       /* cream on warm terracotta — same as light */
   --sk-brand-soft: oklch(0.30 0.05 38);
   --sk-brand-ink: #F3DCD2;
+
+  /* Skewvoir diverging data scale · dark — brightened so the heat map and
+     histogram bars stay legible on walnut. */
+  --sk-scale-low: #5b7fc7;
+  --sk-scale-mid: #6b6353;
+  --sk-scale-high: #e0544f;
 }
 
 html,

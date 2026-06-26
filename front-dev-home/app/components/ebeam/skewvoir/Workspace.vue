@@ -21,31 +21,104 @@
             <UButton
               v-for="action in actions"
               :key="action.label"
-              :color="action.primary ? undefined : 'neutral'"
-              :variant="action.primary ? 'solid' : 'ghost'"
-              :class="action.primary ? 'bg-(--sk-ink) text-(--sk-ink-fg)' : ''"
+              color="neutral"
+              variant="ghost"
               :icon="action.icon"
               :label="action.label"
               size="xs"
+              @click="action.onClick?.()"
+            />
+            <UButton
+              class="bg-(--sk-ink) text-(--sk-ink-fg)"
+              icon="i-lucide-bookmark"
+              label="Save view"
+              size="xs"
+              :disabled="!ws.selection.value"
+              @click="openSave"
             />
           </div>
         </div>
 
-        <!-- View body -->
+        <!-- View body — the active analysis view, driven by the URL `view` param -->
         <div class="min-h-0 flex-1 overflow-auto p-3">
-          <EbeamSkewvoirWorkspaceSearchView
-            v-if="ws.activeKind.value === 'search'"
-            :ws="ws"
-          />
-          <EbeamSkewvoirWorkspacePlaceholderView
-            v-else
-            :kind="ws.activeKind.value"
-          />
+          <div
+            v-if="!ws.selection.value"
+            class="flex h-full flex-col items-center justify-center gap-3 py-20 text-center"
+          >
+            <span class="flex h-12 w-12 items-center justify-center rounded-(--sk-r-card) bg-(--sk-chip-bg) text-zinc-400">
+              <UIcon
+                name="i-lucide-mouse-pointer-click"
+                class="h-6 w-6"
+              />
+            </span>
+            <div>
+              <p class="text-[14px] font-semibold text-zinc-700 dark:text-zinc-200">
+                분석할 측정을 먼저 선택하세요.
+              </p>
+              <p class="mt-0.5 text-[12px] text-(--sk-ink-muted)">
+                검색에서 결과를 열면 이 워크스페이스가 해당 측정으로 채워집니다.
+              </p>
+            </div>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-search"
+              label="검색으로"
+              size="sm"
+              @click="ws.goSearch()"
+            />
+          </div>
+
+          <template v-else>
+            <EbeamSkewvoirViewsDashboard v-if="ws.activeKind.value === 'dashboard'" />
+            <EbeamSkewvoirViewsPositionStack v-else-if="ws.activeKind.value === 'position-stack'" />
+            <EbeamSkewvoirViewsTimeSeries v-else-if="ws.activeKind.value === 'time-series'" />
+            <EbeamSkewvoirViewsCorrelation v-else-if="ws.activeKind.value === 'correlation'" />
+            <EbeamSkewvoirViewsGallery v-else />
+          </template>
         </div>
       </main>
     </div>
 
     <EbeamSkewvoirWorkspaceStatusBar :ws="ws" />
+
+    <!-- Save view modal -->
+    <UModal
+      v-model:open="saveOpen"
+      title="뷰 저장"
+      description="현재 분석 화면을 이름을 붙여 저장합니다. 저장된 뷰는 링크로 다시 열 수 있습니다."
+    >
+      <template #body>
+        <div class="space-y-3">
+          <UInput
+            v-model="saveName"
+            placeholder="예: RK2W016.13 edge roll-off"
+            autofocus
+            class="w-full"
+            @keydown.enter="confirmSave"
+          />
+          <p class="font-mono text-[11px] text-(--sk-ink-subtle)">
+            {{ ws.selection.value?.lot }} · {{ ws.selection.value?.recipe }}
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="취소"
+            @click="saveOpen = false"
+          />
+          <UButton
+            class="bg-(--sk-ink) text-(--sk-ink-fg)"
+            label="저장"
+            :disabled="!saveName.trim()"
+            @click="confirmSave"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -58,9 +131,11 @@ const props = defineProps<{
 }>()
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
+const savedViews = useSkewvoirSavedViews(props.toolType)
+const route = useRoute()
+const toast = useToast()
 
-// Keys 1-6 jump to the matching left-rail view mode. usingInput defaults to
-// false, so typing a digit inside the search box never switches views.
+// Keys 1-5 jump to the matching left-rail view mode.
 defineShortcuts(
   Object.fromEntries(
     ws.viewModes.map(mode => [String(mode.index), () => ws.openView(mode.kind)])
@@ -68,7 +143,6 @@ defineShortcuts(
 )
 
 const BREADCRUMBS: Record<string, { head: string, tail: string }> = {
-  'search': { head: '검색', tail: 'Lot / Recipe' },
   'dashboard': { head: 'Dashboard', tail: 'Single Measurement' },
   'position-stack': { head: '위치 비교', tail: 'Position Stack' },
   'time-series': { head: 'Time-Series', tail: 'Multi-measurement Trend' },
@@ -76,13 +150,40 @@ const BREADCRUMBS: Record<string, { head: string, tail: string }> = {
   'gallery': { head: '이미지 갤러리', tail: 'SEM Gallery' }
 }
 
-const breadcrumb = computed(() => BREADCRUMBS[ws.activeKind.value] ?? BREADCRUMBS.search!)
+const breadcrumb = computed(() => BREADCRUMBS[ws.activeKind.value] ?? BREADCRUMBS.dashboard!)
+
+const share = async () => {
+  const url = ws.shareUrl()
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.add({ title: '링크가 복사되었습니다', description: url, icon: 'i-lucide-link', color: 'success' })
+  } catch {
+    toast.add({ title: '복사하지 못했습니다', description: url, icon: 'i-lucide-triangle-alert', color: 'warning' })
+  }
+}
 
 const actions = [
-  { label: '+ Annotate', icon: 'i-lucide-message-square-plus', primary: false },
-  { label: 'Excel / CSV', icon: 'i-lucide-file-spreadsheet', primary: false },
-  { label: 'Skew Check', icon: 'i-lucide-activity', primary: false },
-  { label: 'Share', icon: 'i-lucide-share-2', primary: false },
-  { label: '+ Save view', icon: 'i-lucide-bookmark', primary: true }
+  { label: '+ Annotate', icon: 'i-lucide-message-square-plus' },
+  { label: 'Excel / CSV', icon: 'i-lucide-file-spreadsheet' },
+  { label: 'Skew Check', icon: 'i-lucide-activity' },
+  { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
 ]
+
+// --- Save view ---
+const saveOpen = ref(false)
+const saveName = ref('')
+
+const openSave = () => {
+  const sel = ws.selection.value
+  saveName.value = sel ? `${sel.lot} · ${ws.activeKind.value}` : ''
+  saveOpen.value = true
+}
+
+const confirmSave = () => {
+  const name = saveName.value.trim()
+  if (!name) return
+  savedViews.save(name, { ...route.query })
+  saveOpen.value = false
+  toast.add({ title: '뷰를 저장했습니다', description: name, icon: 'i-lucide-bookmark-check', color: 'success' })
+}
 </script>

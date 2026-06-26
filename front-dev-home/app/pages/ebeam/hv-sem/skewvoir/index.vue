@@ -1,7 +1,7 @@
 <template>
-  <EbeamSkewvoirView
-    tool-label="CD-SEM"
-    tool-type="cd-sem"
+  <EbeamSkewvoirSearchLanding
+    tool-label="HV-CD-SEM"
+    tool-type="hv-sem"
   />
 </template>
 
@@ -12,5 +12,5 @@ definePageMeta({
 
 const { setToolType } = useNavigation()
 
-setToolType('cd-sem')
+setToolType('hv-sem')
 </script>

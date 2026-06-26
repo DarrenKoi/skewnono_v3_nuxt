@@ -1,5 +1,18 @@
 <template>
   <aside class="flex w-60 shrink-0 flex-col gap-5 overflow-y-auto border-r border-(--sk-border) bg-(--sk-surface) px-3 py-4">
+    <!-- Back to search -->
+    <button
+      type="button"
+      class="flex items-center gap-2 rounded-(--sk-r-nav) px-2.5 py-2 text-left text-[12.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-500/10 dark:text-zinc-300"
+      @click="ws.goSearch()"
+    >
+      <UIcon
+        name="i-lucide-arrow-left"
+        class="h-4 w-4"
+      />
+      검색으로
+    </button>
+
     <!-- View modes -->
     <section>
       <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
@@ -147,18 +160,20 @@ const selectionFields = computed(() => {
     { label: 'Lot', value: sel.lot, strong: true },
     { label: 'Recipe', value: sel.recipe, strong: false },
     { label: 'EQ', value: sel.eq, strong: false },
+    { label: 'MP', value: sel.mp, strong: false },
     { label: 'Captured', value: sel.capturedAt, strong: false }
   ]
 })
 
 const filterFields = computed(() => {
   const f = props.ws.pinnedFilters.value
+  const sel = props.ws.selection.value
   return [
     { label: 'Area', value: f.area },
     { label: 'FAB', value: f.fab },
     { label: 'EQ type', value: f.eqType },
     { label: 'Period', value: f.period },
-    { label: 'MP', value: f.mp }
+    { label: 'MP', value: sel?.mp ?? f.mp }
   ]
 })
 </script>
