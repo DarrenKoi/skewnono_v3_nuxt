@@ -1,15 +1,24 @@
 <template>
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-(--sk-ink-muted)">
     <span class="inline-flex items-center gap-1">
-      <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: 'var(--sk-warn)' }" />
+      <span
+        class="h-2 w-2 rounded-full"
+        :style="{ backgroundColor: 'var(--sk-warn)' }"
+      />
       주의 {{ watchLabel }}
     </span>
     <span class="inline-flex items-center gap-1">
-      <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: 'var(--sk-bad)' }" />
+      <span
+        class="h-2 w-2 rounded-full"
+        :style="{ backgroundColor: 'var(--sk-bad)' }"
+      />
       이상 {{ abnormalLabel }}
     </span>
     <span class="inline-flex items-center gap-1">
-      <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: 'var(--sk-ink-subtle)' }" />
+      <span
+        class="h-2 w-2 rounded-full"
+        :style="{ backgroundColor: 'var(--sk-ink-subtle)' }"
+      />
       미평가
     </span>
     <span class="text-(--sk-ink-subtle)">· 사용자 허용범위 ({{ methodLabel }})</span>
