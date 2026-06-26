@@ -215,6 +215,15 @@ const apiGroups: ApiGroup[] = [
         response: 'MsrFilePayload',
         auth: '토큰 가능',
         example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/msr-file?msr=MSR_001"'
+      },
+      {
+        method: 'POST',
+        path: '/api/msr-files',
+        summary: '여러 MSR의 raw measurement file 정보를 한 번에 조회합니다 (스큐보아 다중 선택).',
+        params: 'body: { items: [{ msr, class_name?, total_images? }] } — 최대 200건',
+        response: '{ results: MsrFilePayload[] }',
+        auth: '토큰 가능',
+        example: 'curl -X POST -H "Content-Type: application/json" -d \'{"items":[{"msr":"MSR_001"}]}\' "$BASE_URL/msr-files"'
       }
     ]
   },

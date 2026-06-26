@@ -26,7 +26,7 @@
       icon="i-lucide-trending-up"
     >
       <div
-        v-if="analysis.trendPending.value"
+        v-if="analysis.setPending.value"
         class="flex h-72 items-center justify-center gap-2 text-[12px] text-(--sk-ink-muted)"
       >
         <UIcon

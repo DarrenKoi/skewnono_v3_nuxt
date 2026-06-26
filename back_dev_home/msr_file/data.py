@@ -34,6 +34,7 @@ __all__ = [
     "FdcParamSummary",
     "MsrFileResponse",
     "get_msr_file",
+    "get_msr_image",
 ]
 
 
@@ -373,6 +374,75 @@ def _summaries(rows: list[MsrFileRow]) -> list[MsrParamSummary]:
     ]
     summaries.sort(key=lambda summary: summary["parameter"])
     return summaries
+
+
+def _xml_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+@lru_cache(maxsize=512)
+def get_msr_image(name: str) -> str:
+    """Deterministic mock SEM micrograph (SVG) for an ``mp_image`` filename.
+
+    PHASE-1 (home) ONLY. The office build replaces this with a real fetch — the
+    backend pulls the actual image from the tool by this same filename. Home has
+    no tool, so we render a seeded placeholder (line/space or contact-hole pattern
+    + grain + scale bar) so the gallery/viewer have something to show offline.
+    The swap surface is this function; the /msr-image route and the frontend
+    image URL stay identical across phases.
+    """
+    name = (name or "").strip()
+    seed = _seed(name) if name else 0
+    rng = random.Random(seed)
+    size = 400
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}">',
+        '<defs>',
+        f'<filter id="grain"><feTurbulence type="fractalNoise" '
+        f'baseFrequency="{0.55 + rng.random() * 0.35:.3f}" numOctaves="2" seed="{seed % 100}"/>'
+        '<feColorMatrix type="saturate" values="0"/>'
+        '<feComponentTransfer><feFuncA type="linear" slope="0.16"/></feComponentTransfer></filter>',
+        '</defs>',
+        f'<rect width="{size}" height="{size}" fill="#16161a"/>',
+    ]
+
+    if rng.random() < 0.5:
+        # Line / space pattern.
+        count = rng.randint(6, 12)
+        gap = size / count
+        for i in range(count):
+            shade = rng.randint(90, 200)
+            parts.append(
+                f'<rect x="{i * gap + gap * 0.15:.1f}" y="18" width="{gap * 0.6:.1f}" '
+                f'height="{size - 56}" fill="rgb({shade},{shade},{shade})" opacity="0.82"/>'
+            )
+    else:
+        # Contact / via hole array.
+        cols, rows_n = rng.randint(5, 8), rng.randint(5, 8)
+        cw, ch = size / (cols + 1), (size - 56) / (rows_n + 1)
+        radius = min(cw, ch) * 0.28
+        for cx in range(1, cols + 1):
+            for cy in range(1, rows_n + 1):
+                shade = rng.randint(120, 230)
+                parts.append(
+                    f'<circle cx="{cx * cw:.1f}" cy="{cy * ch + 8:.1f}" r="{radius:.1f}" '
+                    f'fill="rgb({shade},{shade},{shade})" opacity="0.85"/>'
+                )
+
+    parts.append(f'<rect width="{size}" height="{size}" filter="url(#grain)"/>')
+    # Scale bar + label.
+    parts.append(f'<rect x="{size - 110}" y="{size - 26}" width="80" height="5" fill="#fff"/>')
+    parts.append(
+        f'<text x="{size - 70}" y="{size - 32}" fill="#fff" font-size="13" '
+        'font-family="monospace" text-anchor="middle">200 nm</text>'
+    )
+    short = name if len(name) <= 26 else name[:25] + "…"
+    parts.append(
+        f'<text x="12" y="22" fill="#cfcfcf" font-size="11" font-family="monospace">{_xml_escape(short)}</text>'
+    )
+    parts.append("</svg>")
+    return "".join(parts)
 
 
 @lru_cache(maxsize=256)

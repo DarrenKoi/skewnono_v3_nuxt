@@ -1,24 +1,38 @@
 <template>
   <EbeamSkewvoirPanelFrame
+    v-model="mode"
     title="SEM Image"
     :meta="meta"
     :toggles="['Single', '4-up']"
     icon="i-lucide-image"
   >
-    <div class="flex h-56 flex-col items-center justify-center gap-2 rounded-(--sk-r-chip) border border-dashed border-(--sk-border) text-(--sk-ink-subtle)">
-      <UIcon
-        name="i-lucide-image"
-        class="h-7 w-7"
-      />
-      <p
-        v-if="firstImage"
-        class="font-mono text-[11px]"
+    <div
+      v-if="!images.length"
+      class="flex h-56 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+    >
+      이미지가 없습니다.
+    </div>
+    <div
+      v-else-if="mode === 'Single'"
+      class="flex h-56 items-center justify-center"
+    >
+      <img
+        :src="msrImageUrl(images[0]!)"
+        :alt="images[0]"
+        class="max-h-56 rounded-(--sk-r-chip) border border-(--sk-border)"
       >
-        {{ firstImage }}
-      </p>
-      <p class="text-[10.5px]">
-        이미지 뷰어는 다음 단계에서 연결됩니다.
-      </p>
+    </div>
+    <div
+      v-else
+      class="grid grid-cols-2 gap-1.5"
+    >
+      <img
+        v-for="img in images.slice(0, 4)"
+        :key="img"
+        :src="msrImageUrl(img)"
+        :alt="img"
+        class="w-full rounded-(--sk-r-chip) border border-(--sk-border)"
+      >
     </div>
   </EbeamSkewvoirPanelFrame>
 </template>
@@ -28,12 +42,23 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const firstImage = computed(() => {
-  const row = props.analysis.siteRows.value.find(
-    r => r.parameter === props.analysis.activeParam.value && r.mp_image_name_01
-  )
-  return row?.mp_image_name_01 ?? ''
+const { msrImageUrl } = useMsrFileApi()
+
+const mode = ref('Single')
+
+const images = computed(() => {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const r of props.analysis.siteRows.value) {
+    if (r.parameter !== props.analysis.activeParam.value || r.mp_number < 0) continue
+    const name = r.mp_image_name_01
+    if (name && !seen.has(name)) {
+      seen.add(name)
+      out.push(name)
+    }
+  }
+  return out
 })
 
-const meta = computed(() => firstImage.value || `${props.analysis.focusRow.value?.total_images ?? 0} images`)
+const meta = computed(() => images.value[0] ?? `${images.value.length} images`)
 </script>

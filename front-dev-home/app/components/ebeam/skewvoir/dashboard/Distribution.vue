@@ -1,5 +1,6 @@
 <template>
   <EbeamSkewvoirPanelFrame
+    v-model="mode"
     title="Distribution"
     :meta="meta"
     :toggles="['Hist', 'Box', 'Violin']"
@@ -15,11 +16,12 @@
       />
       불러오는 중…
     </div>
-    <EbeamSkewvoirCdDistribution
+    <EbeamSkewvoirDistributionChart
       v-else-if="hasData"
       :rows="analysis.siteRows.value"
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
+      :mode="mode"
     />
     <div
       v-else
@@ -34,6 +36,8 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
+
+const mode = ref('Hist')
 
 const hasData = computed(() =>
   props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value)

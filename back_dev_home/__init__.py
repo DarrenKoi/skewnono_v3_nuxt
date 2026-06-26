@@ -40,6 +40,13 @@ def _install_rate_limit(app: Flask) -> None:
         if view is not None:
             limiter.exempt(view)
 
+    # SEM image serving is static-like (deterministic + cacheable), and a single
+    # gallery fans out dozens of <img> requests at once. Counting those against
+    # the 20/5s data budget makes the gallery 429 itself; exempt it.
+    image_view = app.view_functions.get("msr_file.msr_image")
+    if image_view is not None:
+        limiter.exempt(image_view)
+
 
 def _install_json_error_handlers(app: Flask) -> None:
     @app.errorhandler(HTTPException)

@@ -82,8 +82,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const activeUnit = computed(() => activeSummary.value?.unit ?? '')
   const siteRows = computed<MsrFileRow[]>(() => focusFile.value?.rows ?? [])
 
-  // --- Multi-measurement trend (Time-Series), fetched lazily on that view ---
-  const wantTrend = computed(() => ws.activeKind.value === 'time-series')
+  // --- Curated set (Time-Series + Position Stack), fetched lazily ---
+  // Both views consume the same batch-fetched MsrFiles of the URL `msrs` set:
+  // Time-Series builds the trend, Position Stack builds the composite map.
+  const wantSet = computed(() =>
+    ws.activeKind.value === 'time-series' || ws.activeKind.value === 'position-stack'
+  )
 
   // meas_hist row lookup by msr, for resolving the curated set + picker labels.
   const rowByMsr = computed(() => new Map(rows.value.map(r => [r.msr, r])))
@@ -102,32 +106,32 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       .slice(0, TREND_LIMIT)
   )
 
-  const trendFiles = ref<Map<string, MsrFileResponse>>(new Map())
-  const trendPending = ref(false)
+  const setFiles = ref<Map<string, MsrFileResponse>>(new Map())
+  const setPending = ref(false)
 
   const setKey = computed(() =>
-    wantTrend.value ? setRows.value.map(r => r.msr).sort().join('|') : ''
+    wantSet.value ? setRows.value.map(r => r.msr).sort().join('|') : ''
   )
 
   watch(setKey, async (key) => {
     if (!key) return
     const list = setRows.value
     if (list.length === 0) {
-      trendFiles.value = new Map()
+      setFiles.value = new Map()
       return
     }
-    trendPending.value = true
+    setPending.value = true
     try {
       const res = await fetchMsrFiles(list.map(r => ({
         msr: r.msr,
         className: r.class_name,
         totalImages: r.total_images
       })))
-      trendFiles.value = new Map(res.map(f => [f.msr, f]))
+      setFiles.value = new Map(res.map(f => [f.msr, f]))
     } catch {
       // Leave the previous map in place on failure rather than blanking the chart.
     } finally {
-      trendPending.value = false
+      setPending.value = false
     }
   }, { immediate: true })
 
@@ -136,7 +140,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const trendPoints = computed<TimeSeriesPoint[]>(() => {
     const points: (TimeSeriesPoint & { ts: number })[] = []
     for (const row of setRows.value) {
-      const summary = trendFiles.value.get(row.msr)?.parameters.find(p => p.parameter === activeParam.value)
+      const summary = setFiles.value.get(row.msr)?.parameters.find(p => p.parameter === activeParam.value)
       if (!summary) continue
       points.push({
         ts: new Date(row.timestamp).getTime(),
@@ -173,8 +177,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     siteRows,
     candidateRows,
     setRows,
-    trendPoints,
-    trendPending
+    setFiles,
+    setPending,
+    trendPoints
   }
 }
 

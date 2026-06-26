@@ -85,14 +85,23 @@
               v-if="ws.activeKind.value === 'dashboard'"
               :analysis="analysis"
             />
-            <EbeamSkewvoirViewsPositionStack v-else-if="ws.activeKind.value === 'position-stack'" />
+            <EbeamSkewvoirViewsPositionStack
+              v-else-if="ws.activeKind.value === 'position-stack'"
+              :analysis="analysis"
+            />
             <EbeamSkewvoirViewsTimeSeries
               v-else-if="ws.activeKind.value === 'time-series'"
               :ws="ws"
               :analysis="analysis"
             />
-            <EbeamSkewvoirViewsCorrelation v-else-if="ws.activeKind.value === 'correlation'" />
-            <EbeamSkewvoirViewsGallery v-else />
+            <EbeamSkewvoirViewsCorrelation
+              v-else-if="ws.activeKind.value === 'correlation'"
+              :analysis="analysis"
+            />
+            <EbeamSkewvoirViewsGallery
+              v-else
+              :analysis="analysis"
+            />
           </template>
         </div>
       </main>

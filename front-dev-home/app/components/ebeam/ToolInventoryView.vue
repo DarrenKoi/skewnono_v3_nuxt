@@ -122,7 +122,7 @@
               color="neutral"
               variant="subtle"
               trailing-icon="i-lucide-arrow-right"
-              label="H/W"
+              label="H/W 상태"
               :aria-label="`Open hardware view for ${row.original.eqp_id}`"
               @click="goToHardware(row.original.eqp_id)"
             />
