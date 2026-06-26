@@ -36,34 +36,44 @@
 모든 검출기가 emit하고 모든 UI가 소비하는 단일 타입입니다.
 
 ```ts
-export type Severity = 'normal' | 'watch' | 'abnormal' | 'insufficient'
+export type EvalStatus = 'evaluated' | 'insufficient'
+
+export type Severity = 'normal' | 'watch' | 'abnormal'   // evaluated일 때만 유효
 
 export type AnomalySignal = 'peer' | 'sibling' | 'drift'
 
 export interface AnomalyVerdict {
-  severity: Severity
-  score: number          // 부호 있는 수정 z-score (σ 단위). insufficient면 NaN 허용
+  status: EvalStatus     // 'insufficient' = 검출 수행 불가 (severity·score 무의미)
+  severity: Severity     // status === 'evaluated'일 때만 의미 있음
+  score: number          // 부호 있는 수정 z-score (σ 단위), evaluated일 때만 유효
   reason: string         // 한국어 + 절대단위 동반, 예: "평균 3.8σ 높음 (Δ 2.1 nm)"
   metric: string         // 대상 지표: 'mean' | 'spread' | 'drift' | 'sibling' ...
   signal: AnomalySignal
 }
 ```
 
+**`status`와 `severity`는 별개 축입니다.** `severity`는 "얼마나 비정상인가"의
+순서형(normal < watch < abnormal) 척도이고, `status`는 "검출을 수행했는가"의
+평가 상태입니다. 둘을 한 필드에 섞으면 `score`가 무의미해지는 값이 생기고
+worst-of 정렬이 모호해지므로 분리합니다. `status === 'insufficient'`이면
+`severity`/`score`는 읽지 않습니다(검출 미수행).
+
 ### 3.1 심각도 밴딩 (공용 레이어 소유)
 
 밴딩은 **각 검출기가 아니라 공용 레이어**가 소유하여 면 간 일관성을 보장합니다.
+먼저 `status`를 정하고, `evaluated`일 때만 `severity`를 밴딩합니다.
 
-| 조건 | severity |
-| --- | --- |
-| `N < 검출기 minN` 또는 값이 non-numeric | `insufficient` |
-| `|z| < 3.5` | `normal` |
-| `3.5 ≤ |z| < 5` | `watch` |
-| `|z| ≥ 5` | `abnormal` |
+| 조건 | status | severity |
+| --- | --- | --- |
+| `N < 검출기 minN` 또는 값이 non-numeric | `insufficient` | — |
+| `|z| < 3.5` | `evaluated` | `normal` |
+| `3.5 ≤ |z| < 5` | `evaluated` | `watch` |
+| `|z| ≥ 5` | `evaluated` | `abnormal` |
 
-`insufficient`는 **"검출을 수행할 통계적 근거가 없음"**을 명시합니다. 선행 설계는
-이를 `normal`(전부 false)로 묶었으나, `normal`이 **무채색(silence)**으로 표시되는
-본 컨벤션에서는 "확인했고 정상"과 "확인 불가"가 구분되지 않아 위험합니다(Codex
-지적 #3). 따라서 별도 상태로 둡니다.
+`status: insufficient`는 **"검출을 수행할 통계적 근거가 없음"**을 명시합니다. 선행
+설계는 이를 `normal`(전부 false)로 묶었으나, `normal`이 **무채색(silence)**으로
+표시되는 본 컨벤션에서는 "확인했고 정상"과 "확인 불가"가 구분되지 않아
+위험합니다(Codex 지적 #3). 따라서 평가 상태를 **별도 축**으로 둡니다(§3 참조).
 
 ### 3.2 `combineVerdicts`
 
@@ -71,17 +81,20 @@ export interface AnomalyVerdict {
 
 ```ts
 export interface CombinedVerdict {
-  severity: Severity          // worst-of (abnormal > watch > normal > insufficient)
-  verdicts: AnomalyVerdict[]  // 기여한 개별 verdict들 — 그대로 보존
+  status: EvalStatus          // 평가된 verdict이 하나라도 있으면 'evaluated'
+  severity: Severity          // evaluated 중 worst-of (abnormal > watch > normal)
+  verdicts: AnomalyVerdict[]  // 기여한 개별 verdict들 — status 무관하게 그대로 보존
 }
 ```
 
-- **색(severity)**은 worst-of로 결정하되, **개별 근거는 배열로 보존**합니다.
-  문자열을 이어 붙이지 않습니다(Codex #2). Badge tooltip이 signal별 한 줄씩
-  나열하므로, 3개가 동시에 잡혀도 읽힙니다.
+- **평가된 verdict만으로 worst-of**를 계산합니다(abnormal > watch > normal).
+  `insufficient` verdict은 severity 정렬에서 빠지지만 **배열에는 보존**되므로,
+  "한 검출기가 평가 불가"라는 사실이 tooltip에서 사라지지 않습니다(별도 축으로
+  분리한 핵심 이유 — `normal`에 묻히지 않음).
+- 평가된 verdict이 **하나도 없으면** `status: insufficient`.
+- **개별 근거는 배열로 보존**하고 문자열을 이어 붙이지 않습니다(Codex #2). Badge
+  tooltip이 signal별 한 줄씩 나열하므로 3개가 동시에 잡혀도 읽힙니다.
 - worst-of 동률 시 `|score|`가 큰 verdict을 대표로 정렬 맨 위에 둡니다.
-- 모든 기여 verdict이 `insufficient` → 결과도 `insufficient`. 일부라도 평가
-  가능하면 평가된 것들로 worst-of를 계산합니다.
 
 ## 4. 검출기 3종 (순수 함수)
 
@@ -151,12 +164,12 @@ siblingDivergence(items, {
 
 기존 `--sk-ok` / `--sk-bad` 스케일의 **빠진 중간값을 채웁니다**.
 
-| severity | 토큰 | 표시 |
+| 상태 | 토큰 | 표시 |
 | --- | --- | --- |
-| `normal` | (없음) | **무채색 — 표시하지 않음** |
-| `watch` | **신규 `--sk-warn`** (amber, `-soft`/`-border`, 다크모드 쌍) | amber 점 |
-| `abnormal` | 기존 `--sk-bad` (terracotta-red) | red 점 |
-| `insufficient` | 기존 중립 ink 토큰 | 작은 회색 점 |
+| `insufficient` (status) | 기존 중립 ink 토큰 | 작은 회색 점 |
+| `evaluated` · `normal` | (없음) | **무채색 — 표시하지 않음** |
+| `evaluated` · `watch` | **신규 `--sk-warn`** (amber, `-soft`/`-border`, 다크모드 쌍) | amber 점 |
+| `evaluated` · `abnormal` | 기존 `--sk-bad` (terracotta-red) | red 점 |
 
 `normal`을 **무채색**으로 두는 이유: 모든 행을 칠하면 노이즈가 커지고, 임계가
 지나치게 민감하면 **화면에 amber가 가득 차서 튜닝 문제가 눈으로 드러납니다**.
@@ -165,11 +178,13 @@ siblingDivergence(items, {
 ### 5.2 `SkAnomalyBadge`
 
 - props: `verdict: CombinedVerdict | AnomalyVerdict | null`.
-  `null`·`normal` → 아무것도 렌더하지 않음(`v-if`).
-- severity 색의 점 + (선택) 짧은 라벨. 전체 `reason`(들)은 **tooltip/title**로
-  — "explained" 페이로드는 항상 hover 한 번 거리, 행을 어지럽히지 않음.
+  렌더 분기는 **status 먼저, 그다음 severity**:
+  - `null` 또는 `status: evaluated` + `normal` → 아무것도 렌더하지 않음(`v-if`).
+  - `status: insufficient` → 회색 점 + tooltip `"표본 부족 — 미평가"`.
+  - `evaluated` + `watch`/`abnormal` → 해당 색 점.
+- 점 + (선택) 짧은 라벨. 전체 `reason`(들)은 **tooltip/title**로 — "explained"
+  페이로드는 항상 hover 한 번 거리, 행을 어지럽히지 않음.
 - `:compact` prop: 점만(차트 점·표 셀 등 고밀도) vs 점 + reason 텍스트(카드).
-- `insufficient`는 회색 점 + tooltip `"표본 부족 — 미평가"`.
 
 ### 5.3 `SkAnomalyLegend`
 
@@ -212,8 +227,9 @@ siblingDivergence(items, {
 
 - 순수 util `node --test` (저장소 관례):
   `peerOutlier`, `siblingDivergence`, `driftChangepoint`, `combineVerdicts`.
-  밴딩 경계(normal/watch/abnormal/insufficient edge), `minN`/`minGroup` 가드,
-  MAD=0 / 분산 0 이탈, worst-of + 개별 근거 보존.
+  status/severity 경계(insufficient ↔ normal/watch/abnormal edge),
+  `minN`/`minGroup` 가드, MAD=0 / 분산 0 이탈, worst-of(평가된 것만) + 개별 근거
+  보존(insufficient도 배열에 남는지).
 - 기존 `madOutliers.test.ts` 케이스는 `peerOutlier.test.ts`로 이관
   (boolean → verdict 단언).
 - **sibling 사전 측정**: 파일럿 mock에서 `recipe·param·device` 그룹 크기 분포를
