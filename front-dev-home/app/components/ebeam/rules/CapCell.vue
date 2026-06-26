@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex h-7 min-w-11 items-center justify-center rounded-md border px-2 font-mono text-[13px] font-semibold tabular-nums"
+    class="inline-flex h-6 min-w-11 items-center justify-center rounded-md border px-2 font-mono text-[13px] font-semibold tabular-nums"
     :class="cellClass"
     :title="title"
   >

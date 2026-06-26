@@ -1,6 +1,6 @@
 <template>
   <tr class="border-t border-(--sk-border) transition-colors hover:bg-(--sk-accent-tint)/40">
-    <td class="px-3 py-1.5 text-left whitespace-nowrap">
+    <td class="px-3 py-1 text-left whitespace-nowrap">
       <div class="flex items-center gap-2">
         <span
           v-if="secondary"
@@ -22,7 +22,7 @@
     <td
       v-for="column in columns"
       :key="column.key"
-      class="px-2 py-1.5 text-center"
+      class="px-2 py-1 text-center"
     >
       <EbeamRulesCapCell :value="capValue(cell, column.key)" />
     </td>

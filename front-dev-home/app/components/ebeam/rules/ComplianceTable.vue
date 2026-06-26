@@ -1,6 +1,6 @@
 <template>
-  <div class="dashboard-surface rounded-2xl p-4">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+  <div class="dashboard-surface rounded-2xl p-3">
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h3 class="text-[12.5px] font-semibold text-(--sk-ink)">
         {{ text.title }}
       </h3>
@@ -55,13 +55,13 @@
           :key="dev.lot_cd"
           class="border-t border-(--sk-border) transition-colors hover:bg-(--sk-accent-tint)/40"
         >
-          <td class="px-3 py-1.5 font-mono text-[12.5px] text-(--sk-ink)">
+          <td class="px-3 py-1 font-mono text-[12.5px] text-(--sk-ink)">
             {{ dev.lot_cd }}
           </td>
-          <td class="px-2 py-1.5 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink-muted)">
+          <td class="px-2 py-1 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink-muted)">
             {{ dev.recipe_count }}
           </td>
-          <td class="px-2 py-1.5 text-right">
+          <td class="px-2 py-1 text-right">
             <span
               class="inline-flex h-5 min-w-7 items-center justify-center rounded px-1.5 font-mono text-[11px] font-semibold tabular-nums"
               :class="dev.violation_count > 0
@@ -69,7 +69,7 @@
                 : 'bg-(--sk-surface) text-(--sk-ink-subtle)'"
             >{{ dev.violation_count }}</span>
           </td>
-          <td class="px-2 py-1.5 text-right">
+          <td class="px-2 py-1 text-right">
             <UButton
               size="xs"
               color="neutral"

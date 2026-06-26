@@ -30,6 +30,8 @@ fail_images -> int64: 실패 image 개수
 fail_ratio -> float64: fail_images / total_images 값. 0.0 ~ 1.0
 idp_name -> string: recipe idp 파일 경로. 예: /Recipe/ADI/ADI_CD_BIAS_001.idp
 idw_name -> string: recipe idw 파일 경로. 예: /Recipe/ADI/ADI_CD_BIAS_001.idw
+minio_msr -> minio에 msr data 원본 저장 경로 
+minio_pkl -> minio에 msr 후처리 된 pkl 저장 경로
 
 Mock data 생성 규칙
 
