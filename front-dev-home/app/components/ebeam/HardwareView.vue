@@ -12,25 +12,37 @@ const props = defineProps<{
   toolType: HardwareToolType
 }>()
 
+// 분기(quarterly): reference-wafer / PM-tied checks. 데일리(daily): high-cadence
+// chamber-stub monitors. Same beam-quality condition, different sample & cadence.
+type HardwareCategory = '분기' | '데일리'
+
 type HardwareService = {
   key: HardwareServiceKey
   label: string
   title: string
   description: string
   icon: string
+  category: HardwareCategory
 }
 
 // BM/PM leads the pill row and seeds the default tab because maintenance
 // data exists for every tool; BSM/FDC availability varies per equipment.
 const hardwareServices: HardwareService[] = [
-  { key: 'bm-pm', label: 'BM/PM', title: 'BM / PM Information', description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.', icon: 'i-lucide-wrench' },
-  { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.', icon: 'i-lucide-radar' },
-  { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 focus sweep를 추적합니다.', icon: 'i-lucide-crosshair' },
-  { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity' },
-  { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3' },
-  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline' }
+  { key: 'bm-pm', label: 'BM/PM', title: 'BM / PM Information', description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.', icon: 'i-lucide-wrench', category: '분기' },
+  { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.', icon: 'i-lucide-radar', category: '분기' },
+  { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 focus sweep를 추적합니다.', icon: 'i-lucide-crosshair', category: '분기' },
+  { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3', category: '분기' },
+  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' },
+  { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity', category: '데일리' },
+  { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-sparkles', category: '데일리' }
 ]
 const defaultHardwareService = hardwareServices[0]!
+
+// Two labeled pill clusters in the segment bar (분기 / 데일리).
+const serviceGroups: { category: HardwareCategory, services: HardwareService[] }[] = [
+  { category: '분기', services: hardwareServices.filter(s => s.category === '분기') },
+  { category: '데일리', services: hardwareServices.filter(s => s.category === '데일리') }
+]
 
 const { filterRows } = useSemListApi()
 const { data: allRows } = await useSemList()
@@ -338,24 +350,36 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
 
           <span class="ml-auto" />
 
-          <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes) -->
+          <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes).
+               Grouped into 분기 / 데일리 clusters by measurement cadence. -->
           <div
             role="tablist"
             aria-label="섹션 전환"
-            class="flex overflow-hidden rounded-[10px] border border-(--sk-border)"
+            class="flex flex-wrap items-end gap-x-4 gap-y-2"
           >
-            <SkNavPill
-              v-for="service in hardwareServices"
-              :key="service.key"
-              role="tab"
-              :aria-selected="activeService === service.key"
-              :label="service.label"
-              :icon="service.icon"
-              :active="activeService === service.key"
-              size="sm"
-              class="!rounded-none !border-0 !px-3.5"
-              @click="activeService = service.key"
-            />
+            <div
+              v-for="group in serviceGroups"
+              :key="group.category"
+              class="flex flex-col gap-1"
+            >
+              <span class="px-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--sk-ink-muted)">
+                {{ group.category }}
+              </span>
+              <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
+                <SkNavPill
+                  v-for="service in group.services"
+                  :key="service.key"
+                  role="tab"
+                  :aria-selected="activeService === service.key"
+                  :label="service.label"
+                  :icon="service.icon"
+                  :active="activeService === service.key"
+                  size="sm"
+                  class="!rounded-none !border-0 !px-3.5"
+                  @click="activeService = service.key"
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -456,6 +480,13 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   :docs="servicePayload.docs ?? []"
                 />
 
+                <!-- Sharpness: chamber-stub beam quality — condition filter + summ_beam trends + per-degree radars -->
+                <EbeamHardwareSharpnessPanel
+                  v-else-if="activeService === 'sharpness'"
+                  :docs="servicePayload.docs ?? []"
+                  :fetched-at="servicePayload.fetched_at"
+                />
+
                 <!-- MDC: skew matrix -->
                 <EbeamHardwareMdcPanel
                   v-else-if="activeService === 'mdc'"
@@ -472,7 +503,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
 
                 <!-- Generic table renderer (excluded for all dedicated panel services) -->
                 <div
-                  v-for="section in (['bm-pm', 'bsm', 'reso-center', 'fdc', 'mdc', 'sce'].includes(activeService) ? [] : servicePayload.tables)"
+                  v-for="section in (['bm-pm', 'bsm', 'reso-center', 'fdc', 'mdc', 'sce', 'sharpness'].includes(activeService) ? [] : servicePayload.tables)"
                   :key="section.key"
                   class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
                 >

@@ -14,17 +14,21 @@ from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm_mock import build_bm_p
 from back_dev_home.ebeam.hitachi.hardware.providers.beam_shape_mock import build_beam_shape_docs
 from back_dev_home.ebeam.hitachi.hardware.providers.fdc_mock import build_fdc_docs
 from back_dev_home.ebeam.hitachi.hardware.providers.mdc_mock import build_mdc_settings
+from back_dev_home.ebeam.hitachi.hardware.providers.network_sharpness_mock import (
+    build_network_sharpness_docs,
+)
 from back_dev_home.ebeam.hitachi.hardware.providers.reso_center_mock import build_reso_center_docs
 from back_dev_home.ebeam.hitachi.hardware.providers.sce_mock import build_sce_settings
 
 
-# bsm / reso-center / sce are CD-SEM-only checks.
-_CDSEM_ONLY: frozenset[str] = frozenset({"bsm", "reso-center", "sce"})
+# bsm / reso-center / sce / sharpness are CD-SEM-only checks.
+_CDSEM_ONLY: frozenset[str] = frozenset({"bsm", "reso-center", "sce", "sharpness"})
 
 _CDSEM_ONLY_MSG: dict[str, str] = {
     "bsm": "BSM는 CD-SEM 장비에서만 제공됩니다.",
     "reso-center": "Reso Center는 CD-SEM 장비에서만 제공됩니다.",
     "sce": "SCE는 CD-SEM 장비에서만 제공됩니다.",
+    "sharpness": "Sharpness는 CD-SEM 장비에서만 제공됩니다.",
 }
 
 _EMPTY_HINT: dict[str, str] = {
@@ -34,6 +38,7 @@ _EMPTY_HINT: dict[str, str] = {
     "mdc": "장비를 선택하면 MDC 보정 계수와 동일 fab skew를 확인할 수 있습니다.",
     "sce": "장비를 선택하면 SCE 설정과 계수 곡선을 확인할 수 있습니다.",
     "bm-pm": "장비를 선택하면 BM/PM 작업 이력과 예정 작업을 확인할 수 있습니다.",
+    "sharpness": "장비를 선택하면 chamber stub sharpness 추세와 360° 빔 형상을 확인할 수 있습니다.",
 }
 
 
@@ -105,6 +110,14 @@ def get_hardware_service(
             service, tool_slug, eqp_id, fab_name,
             docs=docs,
             summary="network_fdc_cdsem 원시 문서(fdc_key별)를 시간순으로 제공합니다.",
+        )
+
+    if service == "sharpness":
+        docs = build_network_sharpness_docs(eqp_id, fab_name, start, end)
+        return docs_payload(
+            service, tool_slug, eqp_id, fab_name,
+            docs=docs,
+            summary="network_sharpness_cdsem 원시 문서를 시간순으로 제공합니다.",
         )
 
     if service == "mdc":

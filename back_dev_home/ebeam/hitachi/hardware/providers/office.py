@@ -24,6 +24,7 @@ _OFFICE_PENDING: dict[str, str] = {
     "fdc": "FDC office wiring is pending.",
     "mdc": "MDC office wiring is pending.",
     "sce": "SCE office wiring is pending.",
+    "sharpness": "Sharpness office wiring is pending.",
 }
 
 
