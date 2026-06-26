@@ -40,13 +40,65 @@
         :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
       >
         <template #header>
-          <div class="flex items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
               시계열 추이 · {{ selectedParam || '—' }}
             </p>
-            <span class="text-[10.5px] text-zinc-400">mean ± min/max band, 시간순</span>
+            <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
+              주의 {{ anomalySummary.watch }} · 이상 {{ anomalySummary.abnormal }} / {{ timeSeriesPoints.length }} MSR
+            </span>
           </div>
         </template>
+        <div class="mb-2 flex flex-wrap items-center gap-2">
+          <USelect
+            v-model="anomalyCfg.method"
+            size="xs"
+            :items="[{ label: '범위(%)', value: 'range' }, { label: '표준편차(σ) · 진단', value: 'stddev' }]"
+            class="min-w-[11rem]"
+          />
+          <template v-if="anomalyCfg.method === 'range'">
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              주의 ±<UInput
+                v-model.number="anomalyCfg.range.watchPct"
+                type="number"
+                size="xs"
+                class="w-14"
+              />%
+            </label>
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              이상 ±<UInput
+                v-model.number="anomalyCfg.range.abnormalPct"
+                type="number"
+                size="xs"
+                class="w-14"
+              />%
+            </label>
+          </template>
+          <template v-else>
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              주의 ±<UInput
+                v-model.number="anomalyCfg.stddev.watchK"
+                type="number"
+                size="xs"
+                class="w-14"
+              />σ
+            </label>
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              이상 ±<UInput
+                v-model.number="anomalyCfg.stddev.abnormalK"
+                type="number"
+                size="xs"
+                class="w-14"
+              />σ
+            </label>
+          </template>
+          <SkAnomalyLegend
+            class="ml-auto"
+            :method="anomalyCfg.method"
+            :range="anomalyCfg.range"
+            :stddev="anomalyCfg.stddev"
+          />
+        </div>
         <EbeamSkewvoirTimeSeriesChart
           v-if="timeSeriesPoints.length > 0"
           :points="timeSeriesPoints"
@@ -78,9 +130,12 @@
       >
         <template #header>
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-              단일 MSR 상세
-            </p>
+            <div class="flex items-center gap-2">
+              <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                단일 MSR 상세
+              </p>
+              <SkAnomalyBadge :verdict="focusVerdict" />
+            </div>
             <USelect
               v-model="focusMsrLocal"
               size="xs"
@@ -165,7 +220,10 @@ import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MsrFileResponse } from '~/composables/useMsrFileApi'
 import type { TimeSeriesPoint } from '~/components/ebeam/skewvoir/TimeSeriesChart.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
-import { detectMadOutliers } from '~/utils/madOutliers'
+import {
+  peerVerdicts, combineVerdicts, DEFAULT_RANGE, DEFAULT_STDDEV,
+  type CombinedVerdict, type MethodConfig
+} from '~/utils/anomaly'
 
 const props = defineProps<{
   selectedRows: MeasHistRow[]
@@ -239,6 +297,14 @@ const selectedUnit = computed(() => {
   return ''
 })
 
+// Active scoring method + thresholds. Range is the authoritative default;
+// stddev is a diagnostic lens. Persisted across remounts via useState.
+const anomalyCfg = useState<MethodConfig>('skewvoir-anomaly-cfg', () => ({
+  method: 'range',
+  range: { ...DEFAULT_RANGE },
+  stddev: { ...DEFAULT_STDDEV }
+}))
+
 // One trend point per selected MSR (at its meas_hist timestamp) for the chosen parameter.
 const timeSeriesPoints = computed<TimeSeriesPoint[]>(() => {
   const points: (TimeSeriesPoint & { ts: number })[] = []
@@ -259,16 +325,30 @@ const timeSeriesPoints = computed<TimeSeriesPoint[]>(() => {
   }
   points.sort((a, b) => a.ts - b.ts)
 
-  // Outlier flags are relative to this selection: median+MAD over the
-  // selection's means (level shift) and stds (spread instability).
-  const meanFlags = detectMadOutliers(points.map(p => p.mean))
-  const spreadFlags = detectMadOutliers(points.map(p => p.std))
+  // Peer verdicts under the active method: level (mean) and spread (std),
+  // each judged leave-one-out against the rest of the selection.
+  const meanV = peerVerdicts(points.map(p => p.mean), { config: anomalyCfg.value, metric: 'mean' })
+  const spreadV = peerVerdicts(points.map(p => p.std), { config: anomalyCfg.value, metric: 'spread', tag: '산포' })
 
   return points.map(({ ts: _ts, ...rest }, i) => ({
     ...rest,
-    outlier: { mean: meanFlags[i] ?? false, spread: spreadFlags[i] ?? false }
+    verdict: combineVerdicts([meanV[i]!, spreadV[i]!]) as CombinedVerdict
   }))
 })
+
+const anomalySummary = computed(() => {
+  let watch = 0, abnormal = 0
+  for (const p of timeSeriesPoints.value) {
+    if (p.verdict?.severity === 'abnormal') abnormal++
+    else if (p.verdict?.severity === 'watch') watch++
+  }
+  return { watch, abnormal }
+})
+
+// Verdict for the currently-focused MSR, for the SkAnomalyBadge in the detail card.
+const focusVerdict = computed<CombinedVerdict | null>(() =>
+  timeSeriesPoints.value.find(p => p.msr === focusMsrLocal.value)?.verdict ?? null
+)
 
 const focusItems = computed(() =>
   props.selectedRows.map(r => ({
