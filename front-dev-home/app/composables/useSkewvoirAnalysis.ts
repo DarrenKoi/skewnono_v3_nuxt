@@ -3,6 +3,7 @@ import type { MsrFileResponse, MsrParamSummary, MsrFileRow } from '~/composables
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { TimeSeriesPoint } from '~/components/ebeam/skewvoir/TimeSeriesChart.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
+import { peerVerdicts, combineVerdicts, DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -17,6 +18,15 @@ const TREND_LIMIT = 30
 export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const { fetchMeasHist } = useMeasHistApi()
   const { fetchMsrFile, fetchMsrFiles } = useMsrFileApi()
+
+  // Active scoring method + thresholds for trend anomaly verdicts. Range is the
+  // authoritative default; stddev is a diagnostic lens. Shared view-state so the
+  // Time-Series controls and this computation stay in sync (survives remounts).
+  const anomalyCfg = useState<MethodConfig>('skewvoir-anomaly-cfg', () => ({
+    method: 'range',
+    range: { ...DEFAULT_RANGE },
+    stddev: { ...DEFAULT_STDDEV }
+  }))
 
   const histKey = `skewvoir-meas-hist:${ws.toolType}`
 
@@ -168,9 +178,31 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     points.sort((a, b) => a.ts - b.ts)
 
-    // verdict is attached by AnalyzePanel via combineVerdicts; omit it here.
-    return points.map(({ ts: _ts, ...rest }) => rest)
+    // Peer verdicts under the active method: level (mean) and spread (std), each
+    // judged leave-one-out against the rest of the curated set, then combined.
+    const meanV = peerVerdicts(points.map(p => p.mean), { config: anomalyCfg.value, metric: 'mean' })
+    const spreadV = peerVerdicts(points.map(p => p.std), { config: anomalyCfg.value, metric: 'spread', tag: '산포' })
+
+    return points.map(({ ts: _ts, ...rest }, i) => ({
+      ...rest,
+      verdict: combineVerdicts([meanV[i]!, spreadV[i]!]) as CombinedVerdict
+    }))
   })
+
+  // Watch/abnormal counts across the curated trend, for the panel meta.
+  const trendSummary = computed(() => {
+    let watch = 0, abnormal = 0
+    for (const p of trendPoints.value) {
+      if (p.verdict?.severity === 'abnormal') abnormal++
+      else if (p.verdict?.severity === 'watch') watch++
+    }
+    return { watch, abnormal }
+  })
+
+  // Verdict for the focused measurement (if it is in the curated trend set), for the badge.
+  const focusVerdict = computed<CombinedVerdict | null>(() =>
+    trendPoints.value.find(p => p.msr === focusRow.value?.msr)?.verdict ?? null
+  )
 
   return {
     focusRow,
@@ -187,7 +219,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     setRows,
     setFiles,
     setPending,
-    trendPoints
+    trendPoints,
+    anomalyCfg,
+    trendSummary,
+    focusVerdict
   }
 }
 

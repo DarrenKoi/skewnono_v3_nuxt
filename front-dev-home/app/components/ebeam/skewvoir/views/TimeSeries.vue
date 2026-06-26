@@ -42,12 +42,66 @@
         />
         추이 데이터를 불러오는 중…
       </div>
-      <EbeamSkewvoirTimeSeriesChart
-        v-else-if="analysis.trendPoints.value.length"
-        :points="analysis.trendPoints.value"
-        :parameter="analysis.activeParam.value"
-        :unit="analysis.activeUnit.value"
-      />
+      <template v-else-if="analysis.trendPoints.value.length">
+        <div class="mb-2 flex flex-wrap items-center gap-2">
+          <USelect
+            v-model="anomalyCfg.value.method"
+            size="xs"
+            :items="methodItems"
+            class="min-w-[11rem]"
+          />
+          <template v-if="anomalyCfg.value.method === 'range'">
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              주의 ±<UInput
+                v-model.number="anomalyCfg.value.range.watchPct"
+                type="number"
+                size="xs"
+                class="w-14"
+              />%
+            </label>
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              이상 ±<UInput
+                v-model.number="anomalyCfg.value.range.abnormalPct"
+                type="number"
+                size="xs"
+                class="w-14"
+              />%
+            </label>
+          </template>
+          <template v-else>
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              주의 ±<UInput
+                v-model.number="anomalyCfg.value.stddev.watchK"
+                type="number"
+                size="xs"
+                class="w-14"
+              />σ
+            </label>
+            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              이상 ±<UInput
+                v-model.number="anomalyCfg.value.stddev.abnormalK"
+                type="number"
+                size="xs"
+                class="w-14"
+              />σ
+            </label>
+          </template>
+          <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
+            주의 {{ analysis.trendSummary.value.watch }} · 이상 {{ analysis.trendSummary.value.abnormal }} / {{ analysis.trendPoints.value.length }} MSR
+          </span>
+          <SkAnomalyLegend
+            class="ml-auto"
+            :method="anomalyCfg.value.method"
+            :range="anomalyCfg.value.range"
+            :stddev="anomalyCfg.value.stddev"
+          />
+        </div>
+        <EbeamSkewvoirTimeSeriesChart
+          :points="analysis.trendPoints.value"
+          :parameter="analysis.activeParam.value"
+          :unit="analysis.activeUnit.value"
+        />
+      </template>
       <div
         v-else
         class="flex h-72 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
@@ -62,6 +116,9 @@
       :meta="`focus · ${analysis.focusRow.value?.lot_id ?? '—'}`"
       icon="i-lucide-activity"
     >
+      <template #actions>
+        <SkAnomalyBadge :verdict="analysis.focusVerdict.value" />
+      </template>
       <EbeamSkewvoirSequenceTrend
         v-if="hasFocusData"
         :rows="analysis.siteRows.value"
@@ -87,6 +144,16 @@ const props = defineProps<{
   ws: SkewvoirWorkspace
   analysis: SkewvoirAnalysis
 }>()
+
+// Destructure the mutable shared state ref into a local so v-model bindings do
+// not trigger vue/no-mutating-props (anomalyCfg is useState-backed reactive state,
+// not a plain prop value — accessing it through a local ref is safe).
+const anomalyCfg = props.analysis.anomalyCfg
+
+const methodItems = [
+  { label: '범위(%)', value: 'range' },
+  { label: '표준편차(σ) · 진단', value: 'stddev' }
+]
 
 const candidateItems = computed(() =>
   props.analysis.candidateRows.value.map(r => ({

@@ -16,7 +16,7 @@ export interface TimeSeriesPoint {
   min: number
   max: number
   std: number
-  // Set by AnalyzePanel via combineVerdicts; absent ⇒ treated as normal.
+  // Set by useSkewvoirAnalysis (trendPoints) via combineVerdicts; absent ⇒ treated as normal.
   verdict?: import('~/utils/anomaly').CombinedVerdict
 }
 
