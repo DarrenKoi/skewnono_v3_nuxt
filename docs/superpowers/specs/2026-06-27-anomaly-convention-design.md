@@ -6,34 +6,49 @@
 
 ## 1. 목적
 
-현재 앱에는 "비정상(abnormal)"을 가리키는 서로 다른 세 가지 방식이 흩어져 있습니다.
+현재 앱에는 "비정상(abnormal)"을 가리키는 서로 다른 방식이 흩어져 있습니다.
 
 - `device-statistics`: point-count `> 2 × median` 임계 (`outlierDetect.ts`)
 - `skewvoir`: median+MAD 수정 z-score boolean (`madOutliers.ts`)
 - `FdcAnalysis`: FDC drift ±2σ warning / ±3.5σ bad 밴드
 
-세 면이 **서로 다른 통계 정의·시각 표현·용어**를 쓰기 때문에, 사용자가 데이터를
-볼 때 "무엇이, 왜 비정상인지"를 일관되게 읽을 수 없습니다. 본 설계의 목적은
-**하나의 공용 컨벤션**(검출 결과 모델 + 검출기 인터페이스 + 시각 규약)을 정의하고,
-이를 **파일럿 1면(skewvoir `AnalyzePanel`)에서 끝까지 증명**하는 것입니다. 나머지
-면의 이관(retrofit)은 후속 작업으로 둡니다.
+세 면이 **서로 다른 정의·시각 표현·용어**를 쓰기 때문에, 사용자가 데이터를 볼 때
+"무엇이, 왜 비정상인지"를 일관되게 읽을 수 없습니다. 본 설계의 목적은 **하나의
+공용 컨벤션**(검출 결과 모델 + 채점 방식 + 시각 규약)을 정의하고, 이를 **파일럿
+1면(skewvoir `AnalyzePanel`)에서 끝까지 증명**하는 것입니다. 나머지 면의
+이관(retrofit)은 후속 작업으로 둡니다.
+
+**용어 원칙**: 화면·툴팁·범례의 모든 문구는 팀이 익숙한 용어(평균, 표준편차,
+범위, % 초과)로 표기합니다. `z-score`/`MAD`/`modified z-score` 같은 용어는
+사용하지 않습니다.
 
 ## 2. 범위 (Scope)
 
-- **공용 레이어**: 검출 결과 타입(`AnomalyVerdict`), 결합 함수
-  (`combineVerdicts`), 순수 검출기 3종, 공용 표시 컴포넌트
-  (`SkAnomalyBadge`, `SkAnomalyLegend`), 시각 토큰(`--sk-warn`).
-- **검출 정의 3종** (모두 뷰가 이미 보유한 데이터로 계산, 백엔드 변경 없음):
-  - **peer**: 같은 화면의 다른 값 대비 이상치 (상대적, self-contained)
-  - **sibling**: 같아야 할 형제 그룹 대비 이탈 (예: tool-to-tool skew)
-  - **drift**: 자기 자신의 시계열 대비 최근 수준 변화 (mean-shift)
-- **파일럿**: `AnalyzePanel`에 **단계적**으로 적용 — peer 단독 → 검증 → sibling +
-  drift 추가.
-- **비목표는 §10** 참조.
+본 컨벤션은 **두 개의 독립 축**으로 구성됩니다.
+
+- **비교 기준(comparison base)** — *무엇과* 비교하는가. 비교 대상의 **중심값**을
+  결정합니다.
+  - **peer**: 같은 화면의 다른 값들의 평균
+  - **sibling**: 같아야 할 형제 그룹의 평균 (예: tool-to-tool skew)
+  - **drift**: 자기 시계열의 baseline 평균 (최근 수준 변화)
+- **채점 방식(scoring method)** — *어떻게* 거리를 판정하는가. 사용자가 고르는
+  렌즈입니다.
+  - **범위(range)**: 중심값 ± **사용자 지정 %** 밖이면 이상치 (기본 ±10% / ±20%)
+  - **표준편차(stddev)**: 평균 ± **k·표준편차** 밖이면 이상치 (기본 ±2σ / ±3σ)
+
+검출기(비교 기준)는 "중심값(및 표준편차)"만 제공하고, 활성 채점 방식이 거리를
+밴딩합니다. **같은 데이터에 대한 두 가지 관점**이며 사용자가 토글로 전환합니다.
+
+- 모두 뷰가 이미 보유한 데이터로 계산 — **백엔드 변경 없음**.
+- **공용 표시**: `SkAnomalyBadge`, `SkAnomalyLegend`, 시각 토큰(`--sk-warn`),
+  방식 토글 컨트롤.
+- **파일럿**: `AnalyzePanel`에 **단계적** 적용 — peer 단독(두 방식 모두) → 검증
+  → sibling + drift.
+- 비목표는 §10 참조.
 
 ## 3. 검출 결과 모델 (the contract)
 
-모든 검출기가 emit하고 모든 UI가 소비하는 단일 타입입니다.
+모든 검출기·방식이 emit하고 모든 UI가 소비하는 단일 타입입니다.
 
 ```ts
 export type EvalStatus = 'evaluated' | 'insufficient'
@@ -42,127 +57,136 @@ export type Severity = 'normal' | 'watch' | 'abnormal'   // evaluated일 때만 
 
 export type AnomalySignal = 'peer' | 'sibling' | 'drift'
 
+export type ScoringMethod = 'range' | 'stddev'
+
 export interface AnomalyVerdict {
   status: EvalStatus     // 'insufficient' = 검출 수행 불가 (severity·score 무의미)
   severity: Severity     // status === 'evaluated'일 때만 의미 있음
-  score: number          // 부호 있는 수정 z-score (σ 단위), evaluated일 때만 유효
-  reason: string         // 한국어 + 절대단위 동반, 예: "평균 3.8σ 높음 (Δ 2.1 nm)"
+  method: ScoringMethod  // 점수의 단위를 결정 (range → %, stddev → σ)
+  score: number          // 부호 있는 거리. range → % 편차, stddev → σ 배수
+  reason: string         // 한국어 + 실측·절대단위 동반
   metric: string         // 대상 지표: 'mean' | 'spread' | 'drift' | 'sibling' ...
   signal: AnomalySignal
 }
 ```
 
-**`status`와 `severity`는 별개 축입니다.** `severity`는 "얼마나 비정상인가"의
-순서형(normal < watch < abnormal) 척도이고, `status`는 "검출을 수행했는가"의
-평가 상태입니다. 둘을 한 필드에 섞으면 `score`가 무의미해지는 값이 생기고
-worst-of 정렬이 모호해지므로 분리합니다. `status === 'insufficient'`이면
-`severity`/`score`는 읽지 않습니다(검출 미수행).
+- **`status`와 `severity`는 별개 축입니다.** `severity`는 "얼마나 비정상인가"의
+  순서형(normal < watch < abnormal) 척도, `status`는 "검출을 수행했는가"의 평가
+  상태입니다. `status === 'insufficient'`이면 `severity`/`score`는 읽지 않습니다.
+- **`method`가 `score`의 단위를 규정합니다.** UI/범례/문구는 이 값을 보고 % 또는
+  σ로 렌더합니다.
 
-### 3.1 심각도 밴딩 (공용 레이어 소유)
+### 3.1 심각도 밴딩 (공용 레이어 소유, 방식별)
 
-밴딩은 **각 검출기가 아니라 공용 레이어**가 소유하여 면 간 일관성을 보장합니다.
-먼저 `status`를 정하고, `evaluated`일 때만 `severity`를 밴딩합니다.
+밴딩은 각 검출기가 아니라 **공용 레이어**가 소유해 면 간 일관성을 보장합니다.
+먼저 `status`를 정하고, `evaluated`일 때만 활성 방식의 임계로 `severity`를
+밴딩합니다. 임계값은 **설정 객체**로 주입되며 사용자가 조정합니다(§5.4).
+
+**범위(range) 방식** — `dev% = (value − center) / |center| × 100`:
 
 | 조건 | status | severity |
 | --- | --- | --- |
-| `N < 검출기 minN` 또는 값이 non-numeric | `insufficient` | — |
-| `|z| < 3.5` | `evaluated` | `normal` |
-| `3.5 ≤ |z| < 5` | `evaluated` | `watch` |
-| `|z| ≥ 5` | `evaluated` | `abnormal` |
+| `N < minN`, 비수치, 또는 `center ≈ 0` | `insufficient` | — |
+| `|dev%| < watchPct` (기본 10) | `evaluated` | `normal` |
+| `watchPct ≤ |dev%| < abnormalPct` (기본 20) | `evaluated` | `watch` |
+| `|dev%| ≥ abnormalPct` | `evaluated` | `abnormal` |
 
-`status: insufficient`는 **"검출을 수행할 통계적 근거가 없음"**을 명시합니다. 선행
-설계는 이를 `normal`(전부 false)로 묶었으나, `normal`이 **무채색(silence)**으로
-표시되는 본 컨벤션에서는 "확인했고 정상"과 "확인 불가"가 구분되지 않아
-위험합니다(Codex 지적 #3). 따라서 평가 상태를 **별도 축**으로 둡니다(§3 참조).
+**표준편차(stddev) 방식** — `k = (value − mean) / std`:
+
+| 조건 | status | severity |
+| --- | --- | --- |
+| `N < minN` 또는 비수치 | `insufficient` | — |
+| `|k| < watchK` (기본 2) | `evaluated` | `normal` |
+| `watchK ≤ |k| < abnormalK` (기본 3) | `evaluated` | `watch` |
+| `|k| ≥ abnormalK` | `evaluated` | `abnormal` |
+
+> 참고: 기존 `FdcAnalysis`는 ±2σ warning / **±3.5σ** bad를 씁니다. 본 컨벤션
+> 기본은 ±3σ(고전 3시그마)로 두되, 추후 FDC 이관 시 `abnormalK`를 3.5로 맞출지
+> 확정합니다(설정으로 흡수 가능).
+
+`status: insufficient`는 **"검출을 수행할 통계적 근거가 없음"**을 명시합니다.
+`normal`이 **무채색(silence)**으로 표시되므로 "확인했고 정상"과 "확인 불가"를
+반드시 구분합니다(Codex #3).
 
 ### 3.2 `combineVerdicts`
 
-한 항목(예: 한 MSR 점)에 여러 signal이 동시에 잡힐 수 있습니다.
+한 항목(예: 한 MSR 점)에 여러 signal이 동시에 잡힐 수 있습니다. **한 뷰의 모든
+verdict은 동일한 활성 `method`로 계산**되므로 단위가 섞이지 않습니다.
 
 ```ts
 export interface CombinedVerdict {
   status: EvalStatus          // 평가된 verdict이 하나라도 있으면 'evaluated'
   severity: Severity          // evaluated 중 worst-of (abnormal > watch > normal)
-  verdicts: AnomalyVerdict[]  // 기여한 개별 verdict들 — status 무관하게 그대로 보존
+  verdicts: AnomalyVerdict[]  // 기여한 개별 verdict들 — status 무관하게 보존
 }
 ```
 
-- **평가된 verdict만으로 worst-of**를 계산합니다(abnormal > watch > normal).
-  `insufficient` verdict은 severity 정렬에서 빠지지만 **배열에는 보존**되므로,
-  "한 검출기가 평가 불가"라는 사실이 tooltip에서 사라지지 않습니다(별도 축으로
-  분리한 핵심 이유 — `normal`에 묻히지 않음).
+- **평가된 verdict만으로 worst-of**(abnormal > watch > normal). `insufficient`는
+  정렬에서 빠지지만 **배열에는 보존**되어 "한 검출기가 평가 불가"라는 사실이
+  tooltip에서 사라지지 않습니다.
 - 평가된 verdict이 **하나도 없으면** `status: insufficient`.
 - **개별 근거는 배열로 보존**하고 문자열을 이어 붙이지 않습니다(Codex #2). Badge
   tooltip이 signal별 한 줄씩 나열하므로 3개가 동시에 잡혀도 읽힙니다.
 - worst-of 동률 시 `|score|`가 큰 verdict을 대표로 정렬 맨 위에 둡니다.
 
-## 4. 검출기 3종 (순수 함수)
+## 4. 두 축의 구성 단위 (순수 함수)
 
-세 검출기 모두 동일 1차 프리미티브(median + MAD → σ 정규화 크기)로 환원되어
-**임계·단위(σ)를 공유**합니다. 차이는 **무엇과 비교하느냐**(화면 전체 / 형제 그룹
-/ 자기 과거)뿐입니다. 각 검출기는 raw score를 emit하고, 밴딩은 §3.1을 따릅니다.
+### 4.1 채점 방식 (scoring method)
 
-### 4.1 `peerOutlier` — peer 대비 (madOutliers 리팩터)
-
-- 현행 `madOutliers.ts`의 median+MAD 수정 z-score를 **boolean이 아니라 score로**
-  반환하도록 일반화합니다. 현행 `detectMadOutliers(boolean[])`는 신규 함수 위에서
-  유지하거나 호출부 교체 후 제거합니다(§6).
-- `minN = 5`. 미만이면 `insufficient`.
-- reason: `"{metric} {z}σ {높음|낮음} (Δ {x} {unit})"`.
-
-### 4.2 `siblingDivergence` — 형제 그룹 대비
+검출기가 제공한 `{ value, center, std? }`를 받아 §3.1 표대로 밴딩해 `severity`·
+`score`·`reason`을 만드는 순수 함수입니다. 검출기와 분리되어 어느 비교 기준과도
+조합됩니다.
 
 ```ts
-siblingDivergence(items, {
-  groupKey:  (item) => string,   // 같아야 할 통제 facet들 (예: recipe·param·device)
-  contrast:  (item) => string,   // 달라도 되는 차원 — reason에 명시 (예: eqp_id)
-  value:     (item) => number,   // 그룹 내에서 비교할 지표
-  minGroup?: number              // 기본 3; 미만 그룹은 insufficient
-})
+score(input: { value: number; center: number; std?: number },
+      cfg: MethodConfig): { status; severity; score; reason }
 ```
 
-- `groupKey`로 분할 → 그룹별 robust center(median+MAD) → 각 멤버 σ 정규화 →
-  밴딩. reason은 이탈 멤버의 **`contrast` 값**을 명시:
-  `"동일 recipe·param에서 장비 EQP-03이 그룹 중심 대비 4.1σ 이탈 (Δ 3.0 nm)"`.
-- `groupKey`에는 **통제되어야 할** facet(recipe·param·device)을 넣고, `contrast`
-  (eqp_id)는 **제외**합니다. tool로 그룹화하면 정상적인 recipe-간 변동을 이탈로
-  오판합니다.
-- `minGroup` 기본 3. 단, 3은 robust 추정에 여전히 약하므로 — **파일럿 mock에서
-  그룹 크기 분포를 먼저 측정**하고(§7) 필요 시 `minGroup` 상향 또는 `groupKey`
-  완화를 검토합니다(Codex #6).
+- **범위(range)**: 중심값 대비 % 편차. `center ≈ 0`이면 % 밴드가 무의미하므로
+  `insufficient`. reason 예: `"평균 10 대비 +14% (실측 11.4) · 허용 ±10% 초과"`.
+- **표준편차(stddev)**: 고전 평균 ± k·표준편차. reason 예:
+  `"평균 10.0, 표준편차 0.5 · 평균+3.2σ (실측 11.6) · ±3σ 초과"`.
+  - **std = 0 (분산 0)** 예외: 0으로 나누지 않습니다. 모든 값이 동일하면 그 값은
+    `normal`(score 0). baseline이 완전 평탄한데 새 값만 다르면 일반 σ 판정과
+    질적으로 다르므로, **"표준편차 0 기준에서 이탈, Δ {x}"** verdict을 결정론적으로
+    emit하되 σ 대신 절대 Δ로 reason을 채웁니다.
 
-### 4.3 `driftChangepoint` — 자기 시계열 대비 (mean-shift)
+### 4.2 비교 기준 (comparison base) — 검출기 3종
 
-- 입력: 시간순 정렬된 단일 수치 시계열.
-- 방법: 의존성 없는 **two-window mean-shift**. 최근 `w`점의 robust mean을 그
-  이전 baseline의 robust mean과 비교하고, **baseline MAD로 정규화**합니다.
-  최근 수준 이동(FDC의 "변곡점" 개념)을 잡되, slope/trend는 보지 않습니다.
-- `minN ≈ 8`. 미만이면 `insufficient`.
-- reason: `"최근 {w}점 평균이 기존 대비 {Δ}σ {상승|하락} (변곡 추정, Δ {x} {unit})"`.
+각 검출기는 항목 집합에서 비교 단위의 **중심값**(및 stddev 방식용 표준편차)을
+산출해 채점 방식에 넘깁니다. 차이는 **무엇을 중심으로 보느냐**뿐입니다.
 
-### 4.4 공통 에지 케이스 계약
+- **`peer`**: 화면 내 값들의 평균을 중심값으로, 각 값을 채점.
+  `minN` 기본 3(range)·5(stddev). reason의 metric은 `mean`/`spread`.
+- **`siblingDivergence(items, { groupKey, contrast, value, minGroup })`**:
+  `groupKey`(같아야 할 통제 facet, 예: `recipe·param·device`)로 분할 → 그룹별
+  중심값 → 멤버를 채점. reason은 이탈 멤버의 **`contrast` 값**(예: `eqp_id`)을
+  명시: `"동일 recipe·param에서 장비 EQP-03이 그룹 평균 대비 +12% 이탈"`.
+  `groupKey`에는 통제 facet을, `contrast`(eqp_id)는 **제외**합니다. `minGroup`
+  기본 3 — **파일럿 mock에서 그룹 크기 분포를 먼저 측정**(§7)해 확정·완화(Codex #6).
+- **`driftChangepoint(series, { window, minN })`**: 시간순 시계열에서 baseline
+  평균을 중심값으로, 최근 `window`점을 채점(최근 수준 이동 = FDC "변곡점").
+  slope/trend는 보지 않습니다. `minN` 기본 8. reason:
+  `"최근 {w}점이 기존 평균 대비 +13% 상승 (변곡 추정)"`.
 
-- **MAD = 0 (분산 0)**: 0으로 나누지 않습니다. 모든 값이 동일하면 그 값은
-  score `0`(정상). baseline이 완전 평탄한데 새 값만 다르면 일반 z-score와
-  **질적으로 다른** 상황이므로, **"분산 0 기준 이탈"** verdict을 결정론적으로
-  emit하되 σ 대신 **절대 Δ**로 reason을 채웁니다:
-  `"분산 0 기준에서 이탈, Δ {x} {unit}"`. (현행 mean-abs 폴백은 *크기* 판정
-  목적이 분명한 peerOutlier 내부에서만 보조로 유지합니다.)
-- **non-numeric / 결측값**: baseline 계산에서 제외하고 해당 항목은
-  `insufficient`. NaN/∞가 score로 새어 나가지 않습니다.
-- **중복 timestamp**: drift 입력에서 순서를 유지(정렬 안정성)하며 제거하지
-  않습니다.
-- **재계산 범위**: verdict은 **선택 집합(selected set) 전체** 기준으로
-  계산합니다. 화면에 보이는 부분집합(visible subset)이 아닙니다 — 필터/확대에
-  따라 색이 흔들리지 않도록.
+### 4.3 공통 계약 (모든 검출기·방식)
+
+- **비수치 / 결측값**: 중심값 계산에서 제외하고 해당 항목은 `insufficient`.
+  NaN/∞가 score로 새어 나가지 않습니다.
+- **재계산 범위**: verdict은 **선택 집합(selected set) 전체** 기준으로 계산합니다.
+  화면에 보이는 부분집합이 아닙니다(필터/확대에 색이 흔들리지 않도록).
+- **중복 timestamp**: drift 입력에서 순서를 유지하며 제거하지 않습니다.
+- **방식 전환**: 활성 `method`가 바뀌면 전 항목 재계산. tooltip의 stale 방지.
 
 ## 5. 시각 컨벤션
 
-흩어진 표현을 **하나의 토큰 스케일·하나의 배지·하나의 범례**로 통일합니다.
+흩어진 표현을 **하나의 토큰 스케일·하나의 배지·하나의 범례·하나의 방식 토글**로
+통일합니다.
 
 ### 5.1 토큰 (`assets/css/main.css`)
 
-기존 `--sk-ok` / `--sk-bad` 스케일의 **빠진 중간값을 채웁니다**.
+기존 `--sk-ok` / `--sk-bad` 스케일의 **빠진 중간값을 채웁니다**. (방식과 무관하게
+severity만으로 색이 정해지므로 색 규칙은 한 벌입니다.)
 
 | 상태 | 토큰 | 표시 |
 | --- | --- | --- |
@@ -171,102 +195,108 @@ siblingDivergence(items, {
 | `evaluated` · `watch` | **신규 `--sk-warn`** (amber, `-soft`/`-border`, 다크모드 쌍) | amber 점 |
 | `evaluated` · `abnormal` | 기존 `--sk-bad` (terracotta-red) | red 점 |
 
-`normal`을 **무채색**으로 두는 이유: 모든 행을 칠하면 노이즈가 커지고, 임계가
-지나치게 민감하면 **화면에 amber가 가득 차서 튜닝 문제가 눈으로 드러납니다**.
-초록 "ok" 점을 모든 곳에 찍는 것도 또 다른 노이즈이므로 두지 않습니다.
+`normal`을 무채색으로 두면, 임계가 지나치게 민감할 때 amber가 화면에 가득 차
+**튜닝 문제가 눈으로 드러납니다**. 초록 "ok" 점을 모든 곳에 찍는 것도 노이즈이므로
+두지 않습니다.
 
 ### 5.2 `SkAnomalyBadge`
 
-- props: `verdict: CombinedVerdict | AnomalyVerdict | null`.
-  렌더 분기는 **status 먼저, 그다음 severity**:
-  - `null` 또는 `status: evaluated` + `normal` → 아무것도 렌더하지 않음(`v-if`).
-  - `status: insufficient` → 회색 점 + tooltip `"표본 부족 — 미평가"`.
-  - `evaluated` + `watch`/`abnormal` → 해당 색 점.
-- 점 + (선택) 짧은 라벨. 전체 `reason`(들)은 **tooltip/title**로 — "explained"
-  페이로드는 항상 hover 한 번 거리, 행을 어지럽히지 않음.
-- `:compact` prop: 점만(차트 점·표 셀 등 고밀도) vs 점 + reason 텍스트(카드).
+- props: `verdict: CombinedVerdict | AnomalyVerdict | null`. 렌더 분기는
+  **status 먼저, 그다음 severity**:
+  - `null` 또는 `evaluated`+`normal` → 렌더 안 함(`v-if`).
+  - `insufficient` → 회색 점 + tooltip `"표본 부족 — 미평가"`.
+  - `evaluated`+`watch`/`abnormal` → 해당 색 점.
+- 전체 `reason`(들)은 **tooltip/title**로 — 행을 어지럽히지 않음.
+- `:compact` prop: 점만(차트 점·표 셀) vs 점 + reason 텍스트(카드).
 
 ### 5.3 `SkAnomalyLegend`
 
-- 배지를 쓰는 면마다 1개 배치.
-- 3단계 스케일과 의미 + **현재 활성 임계**(`watch ≥ 3.5σ · abnormal ≥ 5σ`)를
-  표시 — 엔지니어가 색의 의미를 아는 신뢰 앵커.
+- 배지를 쓰는 면마다 1개. **활성 방식의 용어로** 스케일과 임계를 표시:
+  - range: `정상 ±10% · 주의 ±10~20% · 이상 ±20% 초과`
+  - stddev: `정상 ±2σ 이내 · 주의 ±2σ · 이상 ±3σ 초과`
 
-### 5.4 부착 패턴 (컨벤션의 "how")
+### 5.4 방식 토글 + 임계 컨트롤
 
-면은 `<script setup>`에서 순수 검출기를 호출해 항목 id별 verdict map을 만들고,
-항목이 렌더되는 곳(차트 점·표 행·카드 헤더)마다 `<SkAnomalyBadge>`를
-떨어뜨립니다. **검출은 테스트 가능한 util, 컴포넌트는 렌더 전용.**
+- 뷰 헤더(범례 옆)에 **방식 토글**: `범위 ⇄ 표준편차`. 기본 **범위**.
+- 범위 선택 시 **% 입력**(watch/abnormal, 기본 10·20)을 노출 — 사용자가 조정.
+  표준편차 선택 시 k 입력(기본 2·3). 변경은 즉시 재계산.
+- 선택값은 뷰 단위 상태(필요 시 `useState`+localStorage, 도구×fab 스코프 —
+  기존 working-set 패턴 준용)로 보존.
+
+### 5.5 부착 패턴
+
+면은 `<script setup>`에서 순수 검출기+방식을 호출해 항목 id별 verdict map을 만들고,
+항목이 렌더되는 곳마다 `<SkAnomalyBadge>`를 떨어뜨립니다. **검출은 테스트 가능한
+util, 컴포넌트는 렌더 전용.**
 
 ## 6. 파일럿: skewvoir `AnalyzePanel` (단계적)
 
-선행 설계(2026-06-26)에서 이미 **boolean recolor**가 shipped 되어 있습니다. 본
-파일럿은 그 위에서 **bool → graded verdict**, **recolor → `SkAnomalyBadge`**로
-진화시킵니다.
+선행 설계(2026-06-26)에서 **boolean recolor**가 이미 shipped. 본 파일럿은 그 위에서
+**bool → graded verdict**, **recolor → `SkAnomalyBadge`**, **단일 고정 방식 → 방식
+토글**로 진화시킵니다.
 
-### Phase 1 — peer 단독 (컨벤션 증명)
+### Phase 1 — peer 단독 + 방식 토글 (컨벤션 증명)
 
-- `AnalyzePanel`의 `timeSeriesPoints`에서 현행 `detectMadOutliers(mean/std)`
-  호출을 `peerOutlier`로 교체, score 보존.
-- `TimeSeriesChart`의 점별 recolor 대신 `SkAnomalyBadge`(compact)로 표시,
-  tooltip에 reason. `insufficient`(선택 MSR < 5)는 회색 점으로 명시.
-- 헤더에 `SkAnomalyLegend`, 요약줄에 `watch N · abnormal N` 카운트.
-- **여기서 contract·badge·legend·insufficient 표시를 끝까지 검증**한 뒤 Phase 2로.
+- `timeSeriesPoints`의 현행 `detectMadOutliers(mean/std)`를 `peer` 검출기 +
+  활성 채점 방식 호출로 교체.
+- `TimeSeriesChart` 점별 recolor 대신 `SkAnomalyBadge`(compact), tooltip에 reason.
+  `insufficient`(선택 MSR < minN)는 회색 점.
+- 헤더에 `SkAnomalyLegend` + **방식 토글/임계 컨트롤**(§5.4), 요약줄에
+  `주의 N · 이상 N` 카운트.
+- **여기서 contract·두 방식·badge·legend·insufficient·토글을 끝까지 검증**한 뒤
+  Phase 2로.
 
 ### Phase 2 — sibling + drift 추가
 
 - sibling: 동일 점들에 `groupKey = recipe·param·device`, `contrast = eqp_id`,
-  `value = mean`. **먼저 §7의 그룹 크기 분포를 확인**하고 `minGroup`을 확정.
+  `value = mean`. **먼저 §7 그룹 크기 분포 확인** 후 `minGroup` 확정.
 - drift: focus parameter의 시간순 mean 시계열에 `driftChangepoint`.
-- `combineVerdicts`로 MSR 점당 1배지(개별 근거는 tooltip에 다중 행).
+- `combineVerdicts`로 MSR 점당 1배지(개별 근거는 tooltip 다중 행).
 
-백엔드 신규 엔드포인트 없음 — 세 검출기 모두 `useMsrFileApi`가 이미 로드한
-선택 데이터로 계산.
+백엔드 신규 엔드포인트 없음 — 모두 `useMsrFileApi`가 이미 로드한 선택 데이터로 계산.
 
 ## 7. 검증·캘리브레이션 (mock)
 
-- 순수 util `node --test` (저장소 관례):
-  `peerOutlier`, `siblingDivergence`, `driftChangepoint`, `combineVerdicts`.
-  status/severity 경계(insufficient ↔ normal/watch/abnormal edge),
-  `minN`/`minGroup` 가드, MAD=0 / 분산 0 이탈, worst-of(평가된 것만) + 개별 근거
-  보존(insufficient도 배열에 남는지).
-- 기존 `madOutliers.test.ts` 케이스는 `peerOutlier.test.ts`로 이관
-  (boolean → verdict 단언).
+- 순수 util `node --test`:
+  - 채점 방식 `range`/`stddev`: 밴딩 경계(normal/watch/abnormal edge), `center≈0`
+    → insufficient, `std=0` → 분산 0 이탈, 부호(±) 정확성.
+  - 검출기 `peer`/`siblingDivergence`/`driftChangepoint`: 중심값 산출, `minN`/
+    `minGroup` 가드, 결측 제외.
+  - `combineVerdicts`: worst-of(평가된 것만) + insufficient 보존.
+- 기존 `madOutliers.test.ts`는 제거하고 새 방식 테스트로 대체(MAD 미사용).
 - **sibling 사전 측정**: 파일럿 mock에서 `recipe·param·device` 그룹 크기 분포를
-  산출해 `minGroup` 확정 및 coverage 빈약 시 `groupKey` 완화 판단.
-- 컴포넌트는 thin/렌더 전용 → 컴포넌트 테스트 없음. Playwright로 네 severity가
-  렌더되는지 스팟 체크.
+  산출해 `minGroup`/`groupKey` 확정.
+- 컴포넌트는 thin → 컴포넌트 테스트 없음. Playwright로 두 방식 전환 + 네 상태
+  (insufficient/normal/watch/abnormal) 렌더 스팟 체크.
 
 ## 8. 데이터 흐름
 
 ```text
-files (Map<msr, MsrFileResponse>)
+files (Map<msr, MsrFileResponse>) + 활성 method/임계 (뷰 상태)
   → timeSeriesPoints computed (AnalyzePanel, 선택 집합 전체 기준)
       시간순 정렬 → metric 추출
-      → peerOutlier / siblingDivergence / driftChangepoint  (raw score)
-      → §3.1 밴딩 → AnomalyVerdict[]
+      → 검출기(peer/sibling/drift): 중심값(+std) 산출
+      → 활성 채점 방식(range|stddev): §3.1 밴딩 → AnomalyVerdict[]
       → combineVerdicts → 항목별 CombinedVerdict map
-  → SkAnomalyBadge (차트 점 / 헤더 legend / 요약 카운트)
+  → SkAnomalyBadge (차트 점) · SkAnomalyLegend · 방식 토글 · 요약 카운트
 ```
 
 ## 9. 에지 케이스 (요약)
 
 - 선택 MSR < minN → `insufficient`(회색 점), `normal`과 구분.
-- 모든 값 동일 → 분산 0 → score 0, false positive 없음.
-- 평탄 baseline + 단일 상이값 → "분산 0 기준 이탈" 결정론 verdict(절대 Δ).
-- 특정 MSR에 parameter 없음 → 입력 단계에서 제외(결측 → `insufficient`).
-- sibling 그룹 1~2개 → `minGroup` 미만 → `insufficient`(허위 flag 없음).
-- 단일 극단값 masking → MAD 규칙이 정상 검출.
+- range 방식에서 평균 ≈ 0 → % 밴드 무의미 → `insufficient`.
+- stddev 방식에서 모든 값 동일(std=0) → score 0, false positive 없음.
+- stddev 방식에서 평탄 baseline + 단일 상이값 → "표준편차 0 기준 이탈"(절대 Δ).
+- 특정 MSR에 parameter 없음 → 입력 단계 제외(결측 → `insufficient`).
+- sibling 그룹 1~2개 → `minGroup` 미만 → `insufficient`.
+- 방식/임계 변경 → 전 항목 재계산(stale 없음).
 
 ## 10. 비목표 (Non-goals)
 
-- **spec/control limit(USL/LSL) 기반 검출** — Phase-1 mock에 limit 데이터 없음.
-- **slope/trend changepoint** — mean-shift만. 실제 시계열이 요구하면 후속.
+- **고정 spec/control limit(USL/LSL, 절대 nm)** — 범위 방식이 평균 대비 %라 mock에
+  한정해 충분. 절대 한계 기반은 실데이터 등장 후.
+- **slope/trend changepoint** — mean-shift만. 실 시계열 요구 시 후속.
+- **MAD/수정 z-score** — 팀 비친숙으로 채택 안 함(평균/표준편차/범위만 노출).
 - **device-statistics·FdcAnalysis 이관** — 본 스펙은 컨벤션을 *증명*만. 각 면은
-  후속 스펙에서 채택.
-- **per-detector 신뢰도 모델링(Bayesian 등)** — Codex #1의 무거운 버전. Phase-1
-  mock에는 과설계. 공유 σ 밴드 + 검출기별 `minN`/`insufficient`로 대응하고,
-  실데이터 등장 시 Phase-2/3에서 재검토.
-- **실데이터 캘리브레이션 하니스** — 실제 CD 측정 레인지 등장 후 작업.
+  후속 스펙에서 채택(FDC의 ±3.5σ는 `abnormalK` 설정으로 흡수 검토).
 - 백엔드 엔드포인트, verdict 영속화·알림/피드.
-- 사용자 조정 가능한 민감도(k) UI.
