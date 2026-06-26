@@ -120,7 +120,10 @@ export default defineNuxtConfig({
     tsConfig: {
       // Path is relative to the generated config in `.nuxt/`, mirroring its
       // `../app/**/*` include — a bare `**/*.test.ts` would only match `.nuxt/`.
-      exclude: ['../app/**/*.test.ts']
+      exclude: ['../app/**/*.test.ts'],
+      compilerOptions: {
+        allowImportingTsExtensions: true
+      }
     }
   },
 

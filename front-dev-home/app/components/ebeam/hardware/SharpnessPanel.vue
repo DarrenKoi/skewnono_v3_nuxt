@@ -194,7 +194,7 @@ const radarPanes = [
 // Trend points (ascending time) for a summ_beam scalar key.
 const trendPoints = (key: string) =>
   filteredDocs.value
-    .map(d => ({ ts: tsOf(d), value: numOf(asRecord(d.summ_beam)[key]) }))
+    .map(d => ({ ts: tsOf(d), key, value: numOf(asRecord(d.summ_beam)[key]) }))
     .filter(p => p.ts && Number.isFinite(p.value))
     .sort((a, b) => a.ts.localeCompare(b.ts))
 
