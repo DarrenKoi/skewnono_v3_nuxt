@@ -3,13 +3,13 @@
     <table class="w-full border-collapse">
       <thead>
         <tr class="border-b border-(--sk-border)">
-          <th class="px-3 py-2 text-left font-mono text-[11px] font-semibold tracking-wide text-(--sk-ink-muted) uppercase">
+          <th class="px-3 py-1.5 text-left font-mono text-[11px] font-semibold tracking-wide text-(--sk-ink-muted) uppercase">
             룰 셀
           </th>
           <th
             v-for="column in CAP_COLUMNS"
             :key="column.key"
-            class="px-2 py-2 text-center font-mono text-[11px] font-semibold tracking-wide text-(--sk-ink-muted) uppercase"
+            class="px-2 py-1.5 text-center font-mono text-[11px] font-semibold tracking-wide text-(--sk-ink-muted) uppercase"
           >
             {{ column.label }}
           </th>
@@ -23,7 +23,7 @@
           <tr>
             <td
               :colspan="CAP_COLUMNS.length + 1"
-              class="px-3 pt-4 pb-1 text-left font-mono text-[11px] font-bold tracking-wide text-(--sk-ink-muted) uppercase"
+              class="px-3 pt-2.5 pb-0.5 text-left font-mono text-[11px] font-bold tracking-wide text-(--sk-ink-muted) uppercase"
             >
               {{ group.label }}
             </td>
@@ -41,7 +41,7 @@
           >
             <td
               :colspan="CAP_COLUMNS.length + 1"
-              class="px-3 py-1.5 pl-6 text-left text-[11.5px] text-(--sk-ink-subtle)"
+              class="px-3 py-1 pl-6 text-left text-[11.5px] text-(--sk-ink-subtle)"
             >
               ▸ 이름 예외 (기타 파라 전용):
               <code class="font-mono text-(--sk-ink-muted)">{{ overrideLabel(ov) }}</code>

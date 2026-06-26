@@ -61,6 +61,16 @@
         </p>
       </UCard>
 
+      <!-- FDC drift, CD↔FDC correlation, per-MSR FDC status + hardware x-ref -->
+      <EbeamSkewvoirFdcAnalysis
+        v-if="loadedCount > 0"
+        :selected-rows="selectedRows"
+        :files="files"
+        :cd-param="selectedParam"
+        :cd-unit="selectedUnit"
+        :tool-type="toolType"
+      />
+
       <!-- Single-MSR focus detail -->
       <UCard
         class="dashboard-surface rounded-2xl"
@@ -126,6 +136,24 @@
               :unit="selectedUnit"
             />
           </div>
+          <div class="rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-800 xl:col-span-2">
+            <div class="flex items-center justify-between border-b border-zinc-100 px-3 py-1.5 dark:border-zinc-800">
+              <p class="text-[11.5px] font-medium text-(--sk-ink-muted)">
+                FDC sequence 추이 (측정 중 장비 거동)
+              </p>
+              <USelect
+                v-model="focusFdcParam"
+                size="xs"
+                :items="focusFdcItems"
+                class="min-w-[10rem]"
+              />
+            </div>
+            <EbeamSkewvoirFdcSequenceTrend
+              v-if="focusFdcParam"
+              :file="focusFile"
+              :param="focusFdcParam"
+            />
+          </div>
         </div>
       </UCard>
     </template>
@@ -137,10 +165,15 @@ import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MsrFileResponse } from '~/composables/useMsrFileApi'
 import type { TimeSeriesPoint } from '~/components/ebeam/skewvoir/TimeSeriesChart.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
+import { detectMadOutliers } from '~/utils/madOutliers'
 
 const props = defineProps<{
   selectedRows: MeasHistRow[]
 }>()
+
+// tool_type is uniform across the picked rows (the picker is per-tool), so the
+// first row tells the FDC hardware cross-ref which tool family to query.
+const toolType = computed(() => props.selectedRows[0]?.tool_type ?? 'cd-sem')
 
 const { fetchMsrFiles } = useMsrFileApi()
 
@@ -225,7 +258,16 @@ const timeSeriesPoints = computed<TimeSeriesPoint[]>(() => {
     })
   }
   points.sort((a, b) => a.ts - b.ts)
-  return points.map(({ ts: _ts, ...rest }) => rest)
+
+  // Outlier flags are relative to this selection: median+MAD over the
+  // selection's means (level shift) and stds (spread instability).
+  const meanFlags = detectMadOutliers(points.map(p => p.mean))
+  const spreadFlags = detectMadOutliers(points.map(p => p.std))
+
+  return points.map(({ ts: _ts, ...rest }, i) => ({
+    ...rest,
+    outlier: { mean: meanFlags[i] ?? false, spread: spreadFlags[i] ?? false }
+  }))
 })
 
 const focusItems = computed(() =>
@@ -250,4 +292,21 @@ const focusFile = computed(() => files.value.get(focusMsrLocal.value) ?? null)
 const focusHasParam = computed(() =>
   !!focusFile.value?.parameters.some(p => p.parameter === selectedParam.value)
 )
+
+// FDC param traced across sequences for the focused MSR; defaults to whichever
+// param drifted most in that measurement.
+const focusFdcParam = ref('')
+const focusFdcItems = computed(() =>
+  (focusFile.value?.fdc_params ?? []).map(p => ({ label: p.name, value: p.name }))
+)
+watch(focusFile, (file) => {
+  if (!file || file.fdc_params.length === 0) {
+    focusFdcParam.value = ''
+    return
+  }
+  if (!file.fdc_params.some(p => p.name === focusFdcParam.value)) {
+    focusFdcParam.value = [...file.fdc_params]
+      .sort((a, b) => b.drift_sigma - a.drift_sigma)[0]!.name
+  }
+}, { immediate: true })
 </script>

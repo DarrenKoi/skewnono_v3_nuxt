@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-3">
+  <div class="space-y-2.5">
     <EbeamMetaBar
       eyebrow="CD-SEM"
       :title="text.title"
@@ -7,9 +7,9 @@
       :stats="metaStats"
     />
 
-    <div class="dashboard-surface rounded-2xl p-4">
+    <div class="dashboard-surface rounded-2xl p-3">
       <!-- legend -->
-      <div class="mb-3 flex flex-wrap items-center gap-4 text-[11.5px] text-(--sk-ink-muted)">
+      <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-(--sk-ink-muted)">
         <span>{{ text.legendLead }}</span>
         <span class="inline-flex items-center gap-1.5">
           <span class="inline-flex h-5 min-w-7 items-center justify-center rounded border border-(--sk-border) bg-(--sk-surface) font-mono text-[11px] text-(--sk-ink)">13</span>

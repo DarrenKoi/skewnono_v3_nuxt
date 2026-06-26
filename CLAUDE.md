@@ -59,11 +59,15 @@ Three-tier configuration management. Database connections, API base URLs, and se
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `<feature>/data.py`.
 
 ### Repository Layout
-- `front-dev-home/` — Nuxt 3 SPA (same code runs in all phases; `ssr: false`)
+- `front-dev-home/` — Nuxt 4 SPA (same code runs in all phases; `ssr: false`)
 - `back_dev_home/` — Flask mock backend for Phase 1; mirrors office Flask structure
 - WSGI entry is root `index.py` (exposes `app` and `application`), which imports `create_app` from `back_dev_home`
 
 ## Development Notes
+
+### Git Workflow
+- **Work directly on `main` by default.** Commit and push to `main` unless I explicitly ask for a separate branch. Do **not** auto-create a feature branch just because the change lands on the default branch.
+- Still only commit/push when I ask — working on `main` is not standing permission to commit unprompted.
 
 - Git-based workflow with separated workspaces per phase (home vs. office cannot sync directly)
 - Flask backend is only accessible on company network

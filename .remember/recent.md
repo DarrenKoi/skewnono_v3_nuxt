@@ -4,5 +4,5 @@
 
 # Recent
 
-## 2026-05-30
-Resolved compliance questions Q5/Q8 via grilling; drafted ADR 0004/0005 for memory class & permission rules. Fixed Nuxt port conflict (3100→3000) in dev setup. Completed Q7 matrix UI design & Q6/Q7-b monitoring spec. Cataloged 8 undefined stat methods in spec §3, mapped to contract requirements; next steps: FE struct design & stat method implementation.
+## 2026-06-23
+Merged feat/tool-skew-mgmt to main (+68 commits, 65 tests). Fixed Lucide icons for offline Windows by bundling 15 icons and configuring clientBundle.scan (ssr: false, fallbackToApi: false) to block external Iconify API requests. Synced origin, cherry-picked c848b22.

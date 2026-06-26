@@ -16,6 +16,8 @@ export interface TimeSeriesPoint {
   min: number
   max: number
   std: number
+  // Set by AnalyzePanel from detectMadOutliers; absent ⇒ treated as not-outlier.
+  outlier?: { mean: boolean, spread: boolean }
 }
 
 const props = defineProps<{
@@ -30,7 +32,17 @@ const labels = computed(() => props.points.map(p => p.label))
 // then a translucent area of height (max - min) on top of it.
 const floor = computed(() => props.points.map(p => p.min))
 const bandHeight = computed(() => props.points.map(p => Number((p.max - p.min).toFixed(3))))
-const means = computed(() => props.points.map(p => p.mean))
+// Per-datum styling so flagged points stand out without a second series.
+// mean outlier → red+large; spread-only → amber+medium; normal → blue.
+const meanData = computed(() =>
+  props.points.map((p) => {
+    const isMean = p.outlier?.mean ?? false
+    const isSpread = p.outlier?.spread ?? false
+    const color = isMean ? '#dc2626' : isSpread ? '#d97706' : '#2563eb'
+    const symbolSize = isMean ? 10 : isSpread ? 9 : 6
+    return { value: p.mean, itemStyle: { color }, symbolSize }
+  })
+)
 
 const option = computed<EChartsOption>(() => ({
   tooltip: {
@@ -40,13 +52,19 @@ const option = computed<EChartsOption>(() => ({
       const idx = (list[0] as { dataIndex: number }).dataIndex
       const p = props.points[idx]
       if (!p) return ''
-      return [
+      const lines = [
         p.label,
         `eqp: ${p.eqpId}`,
         `mean: <b>${p.mean}</b> ${props.unit}`,
         `min/max: ${p.min} / ${p.max}`,
         `std: ${p.std}`
-      ].join('<br/>')
+      ]
+      const o = p.outlier
+      if (o && (o.mean || o.spread)) {
+        const kind = o.mean && o.spread ? 'mean+spread' : o.mean ? 'mean' : 'spread'
+        lines.push(`<span style="color:#dc2626">⚠ outlier: ${kind}</span>`)
+      }
+      return lines.join('<br/>')
     }
   },
   grid: { left: 48, right: 16, top: 20, bottom: 64, containLabel: true },
@@ -89,7 +107,7 @@ const option = computed<EChartsOption>(() => ({
     {
       name: 'mean',
       type: 'line',
-      data: means.value,
+      data: meanData.value,
       smooth: false,
       showSymbol: true,
       symbolSize: 6,

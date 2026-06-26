@@ -1,7 +1,7 @@
 import { joinApiPath } from '~/utils/apiPath'
 
 export type HardwareToolType = 'cd-sem' | 'hv-sem'
-export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm'
+export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm' | 'sharpness'
 export type HardwareMetricTone = 'neutral' | 'ok' | 'warning' | 'bad'
 export type HardwareMetricValue = string | number | boolean | null
 

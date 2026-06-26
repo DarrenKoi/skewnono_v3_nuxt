@@ -1,0 +1,80 @@
+"df_result_data" : pd.DataFrame
+
+columns : value (examples)
+"sequence": 1,2,3...
+"chip_number" : "1,1", "-5,0", "0,-5"
+"stage_coordinate: "161395915,169086859"
+"dnum_group": "-1,-1", "2,-1", "7,-1"
+"mp_number": 1,2,3,...7,2,3,4,5
+"parameter": "WAFER",..
+"cd_value" :43.14, None
+"no_of_mp_image": 1, 0
+"mp_image_name 01": image file name
+"meas_condition mag": magnification value (0, 250030, 250044)
+"meas_condition vac": voltage acceleration (0, 500,..)
+"meas_condition pixel": "0,0", "512,512"
+"addressing1_score": "None", "868"
+"addressing2_score": "None", "646"
+"measurement_score": "165", "None"
+"meas_method": "Score", "Width", "Edge"
+"object": "MP", "Space", "Line"
+"meas_kind": "None, "Multi Point",..
+
+=====
+
+"exe_detail_info": dict
+"class"
+"recipe_name"
+"idp_name"
+"lot_id"
+"process"
+"wafer_id"
+"idw_name"
+"chip_array"
+"chip_pitch"
+"wafer_size"
+"map_offset"
+"map_origin"
+
+====
+
+"alignment": dict
+"image_file" : dict ("1":image file name, "2": image file name 2,..)
+"offset" : dict ("1": ["OM", "365", "3525",..], "2": ["SEM", "3535", "3535"])
+"score" : dict ("1": "896", "2": "899",.., )
+=====
+
+"fixed_fdc": dict
+"SEMCondVsup"
+"ESCD"
+"Lux"
+"Alignment1X"
+"Alignment1Y"
+"Alignment3X"
+"Alignment3Y"
+...
+
+so many paramters
+
+===
+
+"dynamic_fdc": dict
+
+keys : "1", "2", "3",.. matching with sequence
+
+"Brightness",
+"Contrast",
+"Alignment2X",
+"Alignment2Y",
+"StigmaX",
+"StigmaY",
+...
+and so on
+
+===
+
+"spm_dict": dict
+
+"vave" = [float]
+"Vol" = list: 32 floats [1.55135, -0.4359, .. 1.5,.. ]
+"wf_len" = list: 32 floats [-148.0 ~ -4, 5, 144.19]

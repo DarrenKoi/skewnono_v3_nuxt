@@ -9,9 +9,9 @@ returns. Faithful raw docs ride in `docs` (time-series) / `settings`
 from typing import Literal, NotRequired, TypeAlias, TypedDict
 
 
-ServiceKey = Literal["bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm"]
+ServiceKey = Literal["bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm", "sharpness"]
 VALID_SERVICES: frozenset[str] = frozenset(
-    {"bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm"}
+    {"bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm", "sharpness"}
 )
 
 MetricTone = Literal["neutral", "ok", "warning", "bad"]
