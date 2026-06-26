@@ -26,6 +26,9 @@ export interface SkewvoirSelection {
   recipe: string
   eq: string
   mp: string
+  // The measurement (msr) id — the stable detail-data key. Carried in the URL so
+  // the analysis route can fetch the MsrFile directly and links stay self-sufficient.
+  msr: string
   capturedAt: string
 }
 
@@ -58,6 +61,8 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
   // selection + active view both derive from the URL (via useSkewvoirRoute).
   const selection = skRoute.selection
   const activeKind = skRoute.view
+  // Explicit curated comparison set for the Time-Series view (msr ids in URL).
+  const msrList = skRoute.msrList
 
   // Pinned filters / health stay mock-seeded for this pass; the MP filter
   // mirrors the URL selection when present so the rail and the link agree.
@@ -83,11 +88,15 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     viewModes: SKEWVOIR_VIEW_MODES,
     selection,
     activeKind,
+    msrList,
     pinnedFilters,
     health,
     openView,
     goSearch,
     openAnalysis: skRoute.openAnalysis,
+    openAnalysisSet: skRoute.openAnalysisSet,
+    setMsrs: skRoute.setMsrs,
+    setParam: skRoute.setParam,
     shareUrl: skRoute.shareUrl,
     analysisPath: skRoute.analysisPath,
     basePath: skRoute.basePath

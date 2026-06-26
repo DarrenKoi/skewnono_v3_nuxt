@@ -1,19 +1,40 @@
 <template>
   <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
-    <EbeamSkewvoirDashboardWaferMap class="xl:col-span-5" />
-    <EbeamSkewvoirDashboardDataSummary class="xl:col-span-7" />
+    <EbeamSkewvoirDashboardWaferMap
+      class="xl:col-span-5"
+      :analysis="analysis"
+    />
+    <EbeamSkewvoirDashboardDataSummary
+      class="xl:col-span-7"
+      :analysis="analysis"
+    />
 
-    <EbeamSkewvoirDashboardRadiusPlot class="xl:col-span-5" />
-    <EbeamSkewvoirDashboardSemImage class="xl:col-span-4" />
-    <EbeamSkewvoirDashboardDistribution class="xl:col-span-3" />
+    <EbeamSkewvoirDashboardRadiusPlot
+      class="xl:col-span-5"
+      :analysis="analysis"
+    />
+    <EbeamSkewvoirDashboardSemImage
+      class="xl:col-span-4"
+      :analysis="analysis"
+    />
+    <EbeamSkewvoirDashboardDistribution
+      class="xl:col-span-3"
+      :analysis="analysis"
+    />
 
-    <EbeamSkewvoirDashboardMeasurementPoints class="xl:col-span-8" />
-    <EbeamSkewvoirDashboardAcquisition class="xl:col-span-4" />
+    <EbeamSkewvoirDashboardMeasurementPoints
+      class="xl:col-span-8"
+      :analysis="analysis"
+    />
+    <EbeamSkewvoirDashboardAcquisition
+      class="xl:col-span-4"
+      :analysis="analysis"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-// Single-measurement dashboard — composes its panels from the dashboard/ folder.
-// Each panel is its own file so the chart-wiring pass fills one focused leaf at
-// a time.
+import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+
+defineProps<{ analysis: SkewvoirAnalysis }>()
 </script>

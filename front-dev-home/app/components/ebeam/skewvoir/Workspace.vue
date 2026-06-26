@@ -8,14 +8,25 @@
       <main class="flex min-w-0 flex-1 flex-col">
         <!-- Main header: breadcrumb + view actions -->
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border) px-4 py-2.5">
-          <p class="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
-            <span>{{ breadcrumb.head }}</span>
-            <UIcon
-              name="i-lucide-chevron-right"
-              class="h-3.5 w-3.5 text-zinc-300"
+          <div class="flex items-center gap-2.5">
+            <p class="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
+              <span>{{ breadcrumb.head }}</span>
+              <UIcon
+                name="i-lucide-chevron-right"
+                class="h-3.5 w-3.5 text-zinc-300"
+              />
+              <span class="font-normal text-(--sk-ink-muted)">{{ breadcrumb.tail }}</span>
+            </p>
+            <USelect
+              v-if="analysis.availableParams.value.length"
+              :model-value="analysis.activeParam.value"
+              :items="analysis.availableParams.value"
+              size="xs"
+              icon="i-lucide-ruler"
+              class="min-w-[9rem]"
+              @update:model-value="ws.setParam"
             />
-            <span class="font-normal text-(--sk-ink-muted)">{{ breadcrumb.tail }}</span>
-          </p>
+          </div>
 
           <div class="flex items-center gap-1.5">
             <UButton
@@ -70,9 +81,16 @@
           </div>
 
           <template v-else>
-            <EbeamSkewvoirViewsDashboard v-if="ws.activeKind.value === 'dashboard'" />
+            <EbeamSkewvoirViewsDashboard
+              v-if="ws.activeKind.value === 'dashboard'"
+              :analysis="analysis"
+            />
             <EbeamSkewvoirViewsPositionStack v-else-if="ws.activeKind.value === 'position-stack'" />
-            <EbeamSkewvoirViewsTimeSeries v-else-if="ws.activeKind.value === 'time-series'" />
+            <EbeamSkewvoirViewsTimeSeries
+              v-else-if="ws.activeKind.value === 'time-series'"
+              :ws="ws"
+              :analysis="analysis"
+            />
             <EbeamSkewvoirViewsCorrelation v-else-if="ws.activeKind.value === 'correlation'" />
             <EbeamSkewvoirViewsGallery v-else />
           </template>
@@ -131,6 +149,7 @@ const props = defineProps<{
 }>()
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
+const analysis = useSkewvoirAnalysis(ws)
 const savedViews = useSkewvoirSavedViews(props.toolType)
 const route = useRoute()
 const toast = useToast()

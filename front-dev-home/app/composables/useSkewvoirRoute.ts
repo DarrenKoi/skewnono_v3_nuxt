@@ -38,6 +38,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
       recipe: qstr(route.query.recipe) ?? '',
       eq: qstr(route.query.eq) ?? '',
       mp: qstr(route.query.mp) ?? 'WAFER',
+      msr: qstr(route.query.msr) ?? '',
       capturedAt: qstr(route.query.cap) ?? '—'
     }
   })
@@ -47,24 +48,57 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     return v && VIEW_KINDS.includes(v) ? v : DEFAULT_VIEW
   })
 
-  // Serialize a selection (+ view) into a query object for an analysis link.
-  const toQuery = (sel: SkewvoirSelection, v: SkewvoirViewKind = DEFAULT_VIEW) => ({
+  // The Time-Series comparison set — an EXPLICIT, user-curated list of msr ids
+  // carried in the URL (?msrs=a,b,c). The focus `msr` is always a member; an
+  // empty list falls back to just the focus so a single-pick still renders.
+  const msrList = computed<string[]>(() => {
+    const raw = qstr(route.query.msrs)
+    const ids = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
+    const fallback = qstr(route.query.msr)
+    return ids.length ? ids : (fallback ? [fallback] : [])
+  })
+
+  // Serialize a selection (+ view + explicit set) into an analysis-link query.
+  // `msrs` defaults to the focus alone; pass a curated list for the trend set.
+  const toQuery = (
+    sel: SkewvoirSelection,
+    v: SkewvoirViewKind = DEFAULT_VIEW,
+    msrs?: string[]
+  ) => ({
     lot: sel.lot,
     recipe: sel.recipe,
     eq: sel.eq,
     mp: sel.mp,
+    msr: sel.msr,
+    msrs: (msrs && msrs.length ? msrs : [sel.msr]).filter(Boolean).join(','),
     cap: sel.capturedAt,
     view: v
   })
 
-  // Navigate from search into analysis for a picked measurement.
+  // Navigate from search into analysis for a single picked measurement.
   const openAnalysis = (sel: SkewvoirSelection, v: SkewvoirViewKind = DEFAULT_VIEW) =>
     navigateTo({ path: analysisPath, query: toQuery(sel, v) })
+
+  // Navigate from search into analysis with a curated comparison set (focus +
+  // the explicit msr list); defaults to the Time-Series view.
+  const openAnalysisSet = (
+    focus: SkewvoirSelection,
+    msrs: string[],
+    v: SkewvoirViewKind = 'time-series'
+  ) => navigateTo({ path: analysisPath, query: toQuery(focus, v, msrs) })
 
   // Switch the active view without losing the rest of the selection. replace()
   // keeps view changes out of the back-stack so Back returns to search.
   const setView = (v: SkewvoirViewKind) =>
     router.replace({ path: analysisPath, query: { ...route.query, view: v } })
+
+  // Rewrite the curated comparison set in place (used by the Time-Series picker).
+  const setMsrs = (list: string[]) =>
+    router.replace({ path: analysisPath, query: { ...route.query, msrs: list.filter(Boolean).join(',') } })
+
+  // Change the active parameter (URL `mp`) in place.
+  const setParam = (mp: string) =>
+    router.replace({ path: analysisPath, query: { ...route.query, mp } })
 
   const goSearch = () => navigateTo(basePath)
 
@@ -76,9 +110,13 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     analysisPath,
     selection,
     view,
+    msrList,
     toQuery,
     openAnalysis,
+    openAnalysisSet,
     setView,
+    setMsrs,
+    setParam,
     goSearch,
     shareUrl
   }

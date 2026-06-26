@@ -148,7 +148,30 @@
             {{ visibleRows.length }} of {{ analyzableRows.length }}
           </span>
         </div>
-        <span class="font-mono text-[10.5px] text-zinc-400">클릭하여 분석 열기</span>
+        <div
+          v-if="selected.length"
+          class="flex items-center gap-2"
+        >
+          <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ selected.length }} 선택</span>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            label="지우기"
+            @click="selected = []"
+          />
+          <UButton
+            class="bg-(--sk-ink) text-(--sk-ink-fg)"
+            size="xs"
+            icon="i-lucide-trending-up"
+            label="선택 분석 (Time-Series)"
+            @click="openSet"
+          />
+        </div>
+        <span
+          v-else
+          class="font-mono text-[10.5px] text-zinc-400"
+        >행 클릭 = 단일 분석 · 체크 = 비교 세트</span>
       </header>
 
       <div
@@ -168,6 +191,7 @@
       >
         <thead>
           <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-zinc-400">
+            <th class="w-8 px-3 py-1.5" />
             <th class="px-3 py-1.5 font-medium">
               LOT
             </th>
@@ -191,8 +215,18 @@
             v-for="row in visibleRows"
             :key="row.id"
             class="cursor-pointer border-b border-(--sk-border-soft) transition-colors last:border-0 hover:bg-(--sk-brand)/5"
+            :class="{ 'bg-(--sk-brand)/5': isSelected(row.msr) }"
             @click="open(row)"
           >
+            <td
+              class="px-3 py-2"
+              @click.stop
+            >
+              <UCheckbox
+                :model-value="isSelected(row.msr)"
+                @update:model-value="toggle(row.msr)"
+              />
+            </td>
             <td class="px-3 py-2 font-mono font-semibold text-zinc-900 dark:text-zinc-100">
               {{ row.lot_id }}
             </td>
@@ -263,10 +297,25 @@ const toSelection = (row: MeasHistRow): SkewvoirSelection => ({
   recipe: row.recipe_name,
   eq: row.eqp_id,
   mp: 'WAFER',
+  msr: row.msr,
   capturedAt: row.timestamp
 })
 
 const open = (row: MeasHistRow) => ws.openAnalysis(toSelection(row))
+
+// Multi-select: curate a comparison set, then open it in the Time-Series view.
+const selected = ref<string[]>([])
+const isSelected = (msr: string) => selected.value.includes(msr)
+const toggle = (msr: string) => {
+  selected.value = isSelected(msr)
+    ? selected.value.filter(m => m !== msr)
+    : [...selected.value, msr]
+}
+const openSet = () => {
+  const rowsSel = analyzableRows.value.filter(r => selected.value.includes(r.msr))
+  if (rowsSel.length === 0) return
+  ws.openAnalysisSet(toSelection(rowsSel[0]!), rowsSel.map(r => r.msr), 'time-series')
+}
 
 const openSaved = (v: SkewvoirSavedView) =>
   router.push({ path: ws.analysisPath, query: v.query })
