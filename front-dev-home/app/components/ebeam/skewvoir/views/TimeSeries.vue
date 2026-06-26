@@ -45,15 +45,15 @@
       <template v-else-if="analysis.trendPoints.value.length">
         <div class="mb-2 flex flex-wrap items-center gap-2">
           <USelect
-            v-model="anomalyCfg.value.method"
+            v-model="anomalyCfg.method"
             size="xs"
             :items="methodItems"
             class="min-w-[11rem]"
           />
-          <template v-if="anomalyCfg.value.method === 'range'">
+          <template v-if="anomalyCfg.method === 'range'">
             <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
               주의 ±<UInput
-                v-model.number="anomalyCfg.value.range.watchPct"
+                v-model.number="anomalyCfg.range.watchPct"
                 type="number"
                 size="xs"
                 class="w-14"
@@ -61,7 +61,7 @@
             </label>
             <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
               이상 ±<UInput
-                v-model.number="anomalyCfg.value.range.abnormalPct"
+                v-model.number="anomalyCfg.range.abnormalPct"
                 type="number"
                 size="xs"
                 class="w-14"
@@ -71,7 +71,7 @@
           <template v-else>
             <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
               주의 ±<UInput
-                v-model.number="anomalyCfg.value.stddev.watchK"
+                v-model.number="anomalyCfg.stddev.watchK"
                 type="number"
                 size="xs"
                 class="w-14"
@@ -79,7 +79,7 @@
             </label>
             <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
               이상 ±<UInput
-                v-model.number="anomalyCfg.value.stddev.abnormalK"
+                v-model.number="anomalyCfg.stddev.abnormalK"
                 type="number"
                 size="xs"
                 class="w-14"
@@ -91,9 +91,9 @@
           </span>
           <SkAnomalyLegend
             class="ml-auto"
-            :method="anomalyCfg.value.method"
-            :range="anomalyCfg.value.range"
-            :stddev="anomalyCfg.value.stddev"
+            :method="anomalyCfg.method"
+            :range="anomalyCfg.range"
+            :stddev="anomalyCfg.stddev"
           />
         </div>
         <EbeamSkewvoirTimeSeriesChart
