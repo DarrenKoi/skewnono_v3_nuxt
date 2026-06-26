@@ -77,17 +77,11 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const parseChip = (chip: string): [number, number] | null => {
-  const [x, y] = chip.split(',').map(part => Number(part.trim()))
-  if (Number.isNaN(x) || Number.isNaN(y)) return null
-  return [x!, y!]
-}
-
 const points = computed(() =>
   props.analysis.siteRows.value
     .filter(r => r.parameter === props.analysis.activeParam.value && r.mp_number >= 0)
     .map((r, i) => {
-      const xy = parseChip(r.chip_number)
+      const xy = parseChipXY(r.chip_number)
       return {
         key: `${r.msr}-${r.sequence}-${i}`,
         mp: r.mp_number,

@@ -23,7 +23,13 @@ const props = withDefaults(defineProps<{
 const valueRange = computed(() => {
   const vals = props.points.map(p => p[2])
   if (vals.length === 0) return { min: 0, max: 1 }
-  return { min: Math.min(...vals), max: Math.max(...vals) }
+  const min = Math.min(...vals)
+  const max = Math.max(...vals)
+  // All sites equal (e.g. a single-wafer σ map is all zeros) → min===max makes
+  // ECharts' continuous visualMap divide by zero. Widen to a unit range so the
+  // map renders a flat mid-color instead of a degenerate/blank scale.
+  if (min === max) return { min: min - 0.5, max: max + 0.5 }
+  return { min, max }
 })
 
 const option = computed<EChartsOption>(() => ({

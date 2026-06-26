@@ -41,19 +41,23 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const focusPending = ref(false)
   const focusError = ref(false)
 
-  watch(() => focusRow.value?.msr, async (msr) => {
-    const row = focusRow.value
-    if (!msr || !row) {
+  // Key on the URL msr itself (not the meas-hist row): the backend resolves the
+  // parent class_name/total_images on its own, so a deep/shared link still loads
+  // even when the row isn't in the currently-loaded meas-hist list. When the row
+  // IS known, pass its fields to skip that backend lookup.
+  watch(() => ws.selection.value?.msr, async (msr) => {
+    if (!msr) {
       focusFile.value = null
       return
     }
+    const row = focusRow.value
     focusPending.value = true
     focusError.value = false
     try {
       focusFile.value = await fetchMsrFile({
-        msr: row.msr,
-        className: row.class_name,
-        totalImages: row.total_images
+        msr,
+        className: row?.class_name,
+        totalImages: row?.total_images
       })
     } catch {
       focusError.value = true
@@ -81,6 +85,16 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
   const activeUnit = computed(() => activeSummary.value?.unit ?? '')
   const siteRows = computed<MsrFileRow[]>(() => focusFile.value?.rows ?? [])
+
+  // Once the file loads, if the URL `mp` isn't one of its parameters the charts
+  // fall back to the first param — but the rail/breadcrumb and any saved link
+  // still show the stale `mp`. Write the effective param back to the URL so the
+  // displayed selection (and saved views) match what's actually plotted.
+  watch([availableParams, () => ws.selection.value?.mp], ([params, mp]) => {
+    if (params.length === 0) return
+    if (mp && params.includes(mp)) return
+    if (activeParam.value && activeParam.value !== mp) ws.setParam(activeParam.value)
+  })
 
   // --- Curated set (Time-Series + Position Stack), fetched lazily ---
   // Both views consume the same batch-fetched MsrFiles of the URL `msrs` set:

@@ -17,6 +17,13 @@
       <span class="font-mono text-[11px] text-(--sk-ink-muted)">
         {{ analysis.setRows.value.length }} measurements · {{ analysis.activeParam.value }}
       </span>
+      <span
+        v-if="ws.msrList.value.length > analysis.setRows.value.length"
+        class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-[10.5px] text-(--sk-bad)"
+        :title="`${ws.msrList.value.length}개 선택, ${analysis.setRows.value.length}개만 표시 (최대 30)`"
+      >
+        {{ ws.msrList.value.length }}개 중 {{ analysis.setRows.value.length }}개 표시
+      </span>
     </div>
 
     <!-- Multi-measurement trend (mean ± min/max band) -->

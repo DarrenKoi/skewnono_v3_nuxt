@@ -19,19 +19,13 @@ const props = withDefaults(defineProps<{
   degree: 3
 })
 
-const parseChip = (chip: string): [number, number] | null => {
-  const [x, y] = chip.split(',').map(part => Number(part.trim()))
-  if (Number.isNaN(x) || Number.isNaN(y)) return null
-  return [x!, y!]
-}
-
 // (distance-from-center, CD) per measured site for the active parameter.
 const points = computed<[number, number][]>(() => {
   const out: [number, number][] = []
   for (const row of props.rows) {
     if (row.parameter !== props.parameter) continue
     if (row.mp_number < 0) continue
-    const xy = parseChip(row.chip_number)
+    const xy = parseChipXY(row.chip_number)
     if (!xy) continue
     const radius = Math.hypot(xy[0], xy[1])
     out.push([Number(radius.toFixed(3)), row.cd_value])

@@ -15,12 +15,6 @@ const props = defineProps<{
   unit: string
 }>()
 
-const parseChip = (chip: string): [number, number] | null => {
-  const [x, y] = chip.split(',').map(part => Number(part.trim()))
-  if (Number.isNaN(x) || Number.isNaN(y)) return null
-  return [x!, y!]
-}
-
 // One marker per chip position, colored by the mean cd_value of the selected
 // parameter at that position (multiple sequences can land on the same chip).
 const points = computed(() => {
@@ -28,7 +22,7 @@ const points = computed(() => {
   for (const row of props.rows) {
     if (row.parameter !== props.parameter) continue
     if (row.mp_number < 0) continue
-    const xy = parseChip(row.chip_number)
+    const xy = parseChipXY(row.chip_number)
     if (!xy) continue
     const key = `${xy[0]},${xy[1]}`
     const entry = acc.get(key) ?? { x: xy[0], y: xy[1], sum: 0, n: 0 }

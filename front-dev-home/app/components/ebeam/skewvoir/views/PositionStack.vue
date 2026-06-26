@@ -69,9 +69,10 @@
 
     <div
       v-else
-      class="dashboard-surface flex h-72 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+      class="dashboard-surface flex h-72 items-center justify-center text-center text-[12px] text-(--sk-ink-subtle)"
     >
-      비교 세트를 추가하면 합성 맵이 표시됩니다.
+      <span v-if="analysis.setRows.value.length === 0">비교 세트를 추가하면 합성 맵이 표시됩니다.</span>
+      <span v-else>이 세트에는 “{{ analysis.activeParam.value }}” 파라미터 데이터가 없습니다. 다른 파라미터를 선택하세요.</span>
     </div>
   </div>
 </template>
@@ -80,12 +81,6 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
-
-const parseChip = (chip: string): [number, number] | null => {
-  const [x, y] = chip.split(',').map(part => Number(part.trim()))
-  if (Number.isNaN(x) || Number.isNaN(y)) return null
-  return [x!, y!]
-}
 
 const waferCount = computed(() => props.analysis.setFiles.value.size)
 
@@ -97,7 +92,7 @@ const composite = computed(() => {
   for (const file of props.analysis.setFiles.value.values()) {
     for (const r of file.rows) {
       if (r.parameter !== param || r.mp_number < 0) continue
-      const xy = parseChip(r.chip_number)
+      const xy = parseChipXY(r.chip_number)
       if (!xy) continue
       const key = `${xy[0]},${xy[1]}`
       const e = acc.get(key) ?? { x: xy[0], y: xy[1], sum: 0, sumsq: 0, n: 0 }

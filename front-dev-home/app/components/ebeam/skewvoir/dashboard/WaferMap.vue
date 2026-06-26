@@ -2,7 +2,6 @@
   <EbeamSkewvoirPanelFrame
     title="Wafer Map"
     :meta="meta"
-    :toggles="['Cell', 'Dot']"
     icon="i-lucide-grid-3x3"
   >
     <div

@@ -163,10 +163,25 @@ const savedViews = useSkewvoirSavedViews(props.toolType)
 const route = useRoute()
 const toast = useToast()
 
+// USelect/USelectMenu triggers render as <button role="combobox">, not <input>,
+// so defineShortcuts' usingInput guard does NOT suppress digit keys while one is
+// focused/open — a digit typed for option type-ahead would also switch the view.
+const selectorFocused = (): boolean => {
+  if (!import.meta.client) return false
+  const el = document.activeElement
+  if (!el) return false
+  return el.getAttribute('role') === 'combobox'
+    || el.getAttribute('aria-haspopup') === 'listbox'
+    || !!el.closest('[role="listbox"]')
+}
+
 // Keys 1-5 jump to the matching left-rail view mode.
 defineShortcuts(
   Object.fromEntries(
-    ws.viewModes.map(mode => [String(mode.index), () => ws.openView(mode.kind)])
+    ws.viewModes.map(mode => [String(mode.index), () => {
+      if (selectorFocused()) return
+      ws.openView(mode.kind)
+    }])
   )
 )
 

@@ -39,6 +39,10 @@ def msr_image():
     name = (request.args.get("name") or "").strip()
     if not name:
         return jsonify({"error": "name query param is required"}), 400
+    # The route is rate-limit exempt; cap the name so it can't be used to fan out
+    # huge-string hashing / cache keys (only the first chars are ever displayed).
+    if len(name) > 256:
+        return jsonify({"error": "name too long"}), 400
 
     svg = get_msr_image(name)
     return Response(
@@ -80,8 +84,11 @@ def msr_files_bulk():
         class_name = item.get("class_name")
         class_name = class_name.strip() if isinstance(class_name, str) and class_name.strip() else None
 
+        # bool is a subclass of int, so guard against it; also reject negatives to
+        # match the single endpoint's isdigit() validation.
         total_images = item.get("total_images")
-        total_images = total_images if isinstance(total_images, int) else None
+        if not isinstance(total_images, int) or isinstance(total_images, bool) or total_images < 0:
+            total_images = None
 
         result = get_msr_file(msr, class_name, total_images)
         if result is not None:
