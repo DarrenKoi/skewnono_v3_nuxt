@@ -1,5 +1,5 @@
 <template>
-  <EbeamSkewvoirWorkspace
+  <EbeamSkewvoirView
     tool-label="HV-CD-SEM"
     tool-type="hv-sem"
   />
