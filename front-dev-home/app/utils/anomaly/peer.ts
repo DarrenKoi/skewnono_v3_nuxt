@@ -8,8 +8,8 @@ import { scoreByRange, scoreByStddev } from './score.ts'
 
 export interface PeerOptions {
   config: MethodConfig
-  metric: string          // 'mean' | 'spread'
-  tag?: string            // Korean reason prefix, e.g. '산포'
+  metric: string // 'mean' | 'spread'
+  tag?: string // Korean reason prefix, e.g. '산포'
   minN?: number
 }
 

@@ -16,8 +16,8 @@ export interface TimeSeriesPoint {
   min: number
   max: number
   std: number
-  // Set by AnalyzePanel from detectMadOutliers; absent ⇒ treated as not-outlier.
-  outlier?: { mean: boolean, spread: boolean }
+  // Set by AnalyzePanel via combineVerdicts; absent ⇒ treated as normal.
+  verdict?: import('~/utils/anomaly').CombinedVerdict
 }
 
 const props = defineProps<{
@@ -32,15 +32,18 @@ const labels = computed(() => props.points.map(p => p.label))
 // then a translucent area of height (max - min) on top of it.
 const floor = computed(() => props.points.map(p => p.min))
 const bandHeight = computed(() => props.points.map(p => Number((p.max - p.min).toFixed(3))))
-// Per-datum styling so flagged points stand out without a second series.
-// mean outlier → red+large; spread-only → amber+medium; normal → blue.
+// Per-datum styling by severity (status first): insufficient grey, watch amber,
+// abnormal red, normal blue. Hexes mirror the --sk-warn/--sk-bad tokens for canvas.
+const SEV_HEX: Record<string, string> = {
+  abnormal: '#dc2626', watch: '#d97706', insufficient: '#9ca3af', normal: '#2563eb'
+}
+const sevKey = (p: TimeSeriesPoint): string =>
+  !p.verdict ? 'normal' : p.verdict.status === 'insufficient' ? 'insufficient' : p.verdict.severity
 const meanData = computed(() =>
   props.points.map((p) => {
-    const isMean = p.outlier?.mean ?? false
-    const isSpread = p.outlier?.spread ?? false
-    const color = isMean ? '#dc2626' : isSpread ? '#d97706' : '#2563eb'
-    const symbolSize = isMean ? 10 : isSpread ? 9 : 6
-    return { value: p.mean, itemStyle: { color }, symbolSize }
+    const key = sevKey(p)
+    const symbolSize = key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 7 : 6
+    return { value: p.mean, itemStyle: { color: SEV_HEX[key] }, symbolSize }
   })
 )
 
@@ -59,10 +62,13 @@ const option = computed<EChartsOption>(() => ({
         `min/max: ${p.min} / ${p.max}`,
         `std: ${p.std}`
       ]
-      const o = p.outlier
-      if (o && (o.mean || o.spread)) {
-        const kind = o.mean && o.spread ? 'mean+spread' : o.mean ? 'mean' : 'spread'
-        lines.push(`<span style="color:#dc2626">⚠ outlier: ${kind}</span>`)
+      const v = p.verdict
+      if (v && (v.status === 'insufficient' || v.severity !== 'normal')) {
+        const color = v.severity === 'abnormal' ? '#dc2626' : v.severity === 'watch' ? '#d97706' : '#9ca3af'
+        for (const x of v.verdicts) {
+          if (x.status === 'evaluated' && x.severity === 'normal') continue
+          lines.push(`<span style="color:${color}">⚠ ${x.reason}</span>`)
+        }
       }
       return lines.join('<br/>')
     }

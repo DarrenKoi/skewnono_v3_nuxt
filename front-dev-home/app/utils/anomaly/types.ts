@@ -9,11 +9,11 @@ export type AnomalySignal = 'peer' | 'sibling' | 'recent-shift'
 
 export interface AnomalyVerdict {
   status: EvalStatus
-  severity: Severity      // valid only when status === 'evaluated'
-  method: ScoringMethod   // decides the unit of `score`
-  score: number           // range → signed % deviation; stddev → signed σ (NaN when insufficient)
-  reason: string          // Korean, value-bearing
-  metric: string          // 'mean' | 'spread' | ...
+  severity: Severity // valid only when status === 'evaluated'
+  method: ScoringMethod // decides the unit of `score`
+  score: number // range → signed % deviation; stddev → signed σ (NaN when insufficient)
+  reason: string // Korean, value-bearing
+  metric: string // 'mean' | 'spread' | ...
   signal: AnomalySignal
 }
 
@@ -26,7 +26,7 @@ export interface CombinedVerdict {
 export interface RangeConfig {
   watchPct: number
   abnormalPct: number
-  minAbsCenter: number    // |center| below this → insufficient (zero-centred metric guard)
+  minAbsCenter: number // |center| below this → insufficient (zero-centred metric guard)
 }
 export interface StddevConfig {
   watchK: number

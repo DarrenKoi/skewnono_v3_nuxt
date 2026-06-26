@@ -3,7 +3,6 @@ import type { MsrFileResponse, MsrParamSummary, MsrFileRow } from '~/composables
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { TimeSeriesPoint } from '~/components/ebeam/skewvoir/TimeSeriesChart.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
-import { detectMadOutliers } from '~/utils/madOutliers'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -169,13 +168,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     points.sort((a, b) => a.ts - b.ts)
 
-    const meanFlags = detectMadOutliers(points.map(p => p.mean))
-    const spreadFlags = detectMadOutliers(points.map(p => p.std))
-
-    return points.map(({ ts: _ts, ...rest }, i) => ({
-      ...rest,
-      outlier: { mean: meanFlags[i] ?? false, spread: spreadFlags[i] ?? false }
-    }))
+    // verdict is attached by AnalyzePanel via combineVerdicts; omit it here.
+    return points.map(({ ts: _ts, ...rest }) => rest)
   })
 
   return {

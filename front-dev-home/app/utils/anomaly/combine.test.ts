@@ -17,8 +17,8 @@ test('worst-of severity wins among evaluated', () => {
 
 test('insufficient is ignored for severity but preserved in the array', () => {
   const c = combineVerdicts([mk({ severity: 'normal' }), mk({ status: 'insufficient', score: NaN })])
-  assert.equal(c.severity, 'normal')           // NOT hidden under insufficient
-  assert.equal(c.verdicts.length, 2)           // the insufficient one survives
+  assert.equal(c.severity, 'normal') // NOT hidden under insufficient
+  assert.equal(c.verdicts.length, 2) // the insufficient one survives
 })
 
 test('all insufficient → combined insufficient', () => {
@@ -32,7 +32,7 @@ test('evaluated sorted before insufficient; ties broken by |score|', () => {
     mk({ severity: 'watch', score: 12 }),
     mk({ severity: 'watch', score: 18 })
   ])
-  assert.equal(c.verdicts[0]!.score, 18)       // larger |score| first
+  assert.equal(c.verdicts[0]!.score, 18) // larger |score| first
   assert.equal(c.verdicts[2]!.status, 'insufficient')
 })
 

@@ -42,48 +42,6 @@ export default defineNuxtConfig({
     fonts: false
   },
 
-  // The SPA (ssr:false) is served by Flask with no Nitro server at runtime, so
-  // icons must be embedded into the client JS at build time. Without this the
-  // client falls back to the network Iconify API (blocked on the internal
-  // office network) and icons render blank.
-  icon: {
-    // Hard-disable the runtime Iconify API fallback. On the offline office
-    // network those requests fail silently, so we never want them: any icon not
-    // bundled below simply won't render (and makes no network call), which also
-    // surfaces exactly which icons still need adding.
-    fallbackToApi: false,
-    clientBundle: {
-      // Scan both our own source AND Nuxt UI's compiled components, so the
-      // component-default icons (close=x, search, menu, sun, settings, chevrons)
-      // that live in node_modules get auto-detected instead of leaking to the API.
-      scan: {
-        globInclude: ['app/**/*.{vue,ts,js}', 'node_modules/@nuxt/ui/dist/**/*.{vue,js,mjs}'],
-        globExclude: ['node_modules/**/node_modules/**']
-      },
-      // Raised well above the 256KB default since the scanned set exceeds it.
-      sizeLimitKb: 2048,
-      // Dynamically-named icons that scan can't see as literal strings. Format is
-      // `lucide:<name>`, not the `i-lucide-<name>` template form.
-      icons: [
-        'lucide:x',
-        'lucide:layout-dashboard',
-        'lucide:timer',
-        'lucide:triangle-alert',
-        'lucide:search',
-        'lucide:cpu',
-        'lucide:bar-chart-3',
-        'lucide:git-compare',
-        'lucide:eye',
-        'lucide:sparkles',
-        'lucide:panels-top-left',
-        'lucide:plug',
-        'lucide:settings',
-        'lucide:sun',
-        'lucide:menu'
-      ]
-    }
-  },
-
   runtimeConfig: {
     public: {
       apiBase
@@ -133,6 +91,48 @@ export default defineNuxtConfig({
         commaDangle: 'never',
         braceStyle: '1tbs'
       }
+    }
+  },
+
+  // The SPA (ssr:false) is served by Flask with no Nitro server at runtime, so
+  // icons must be embedded into the client JS at build time. Without this the
+  // client falls back to the network Iconify API (blocked on the internal
+  // office network) and icons render blank.
+  icon: {
+    // Hard-disable the runtime Iconify API fallback. On the offline office
+    // network those requests fail silently, so we never want them: any icon not
+    // bundled below simply won't render (and makes no network call), which also
+    // surfaces exactly which icons still need adding.
+    fallbackToApi: false,
+    clientBundle: {
+      // Scan both our own source AND Nuxt UI's compiled components, so the
+      // component-default icons (close=x, search, menu, sun, settings, chevrons)
+      // that live in node_modules get auto-detected instead of leaking to the API.
+      scan: {
+        globInclude: ['app/**/*.{vue,ts,js}', 'node_modules/@nuxt/ui/dist/**/*.{vue,js,mjs}'],
+        globExclude: ['node_modules/**/node_modules/**']
+      },
+      // Raised well above the 256KB default since the scanned set exceeds it.
+      sizeLimitKb: 2048,
+      // Dynamically-named icons that scan can't see as literal strings. Format is
+      // `lucide:<name>`, not the `i-lucide-<name>` template form.
+      icons: [
+        'lucide:x',
+        'lucide:layout-dashboard',
+        'lucide:timer',
+        'lucide:triangle-alert',
+        'lucide:search',
+        'lucide:cpu',
+        'lucide:bar-chart-3',
+        'lucide:git-compare',
+        'lucide:eye',
+        'lucide:sparkles',
+        'lucide:panels-top-left',
+        'lucide:plug',
+        'lucide:settings',
+        'lucide:sun',
+        'lucide:menu'
+      ]
     }
   }
 })
