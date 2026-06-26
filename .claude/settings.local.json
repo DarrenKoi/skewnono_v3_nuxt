@@ -90,7 +90,9 @@
       "Bash(Get-ChildItem *)",
       "Skill(codex:rescue)",
       "Skill(update-config)",
-      "PowerShell(Get-NetTCPConnection *)"
+      "PowerShell(Get-NetTCPConnection *)",
+      "Skill(generate-mock)",
+      "Bash(git fetch *)"
     ]
   },
   "statusLine": {
