@@ -59,3 +59,10 @@ test('reason never contains forbidden vocabulary', () => {
   const r = scoreByStddev(13, 10, 1, DEFAULT_STDDEV)
   assert.doesNotMatch(r.reason, /z-score|MAD/i)
 })
+
+test('stddev: watch-level reason cites watchK, not abnormalK', () => {
+  const r = scoreByStddev(12.5, 10, 1, DEFAULT_STDDEV) // k = +2.5σ → watch
+  assert.equal(r.severity, 'watch')
+  assert.match(r.reason, /±2σ 초과/)
+  assert.doesNotMatch(r.reason, /±3σ 초과/)
+})

@@ -55,6 +55,7 @@
               주의 ±<UInput
                 v-model.number="anomalyCfg.range.watchPct"
                 type="number"
+                min="0"
                 size="xs"
                 class="w-14"
               />%
@@ -63,6 +64,7 @@
               이상 ±<UInput
                 v-model.number="anomalyCfg.range.abnormalPct"
                 type="number"
+                min="0"
                 size="xs"
                 class="w-14"
               />%
@@ -73,6 +75,7 @@
               주의 ±<UInput
                 v-model.number="anomalyCfg.stddev.watchK"
                 type="number"
+                min="0"
                 size="xs"
                 class="w-14"
               />σ
@@ -81,6 +84,7 @@
               이상 ±<UInput
                 v-model.number="anomalyCfg.stddev.abnormalK"
                 type="number"
+                min="0"
                 size="xs"
                 class="w-14"
               />σ

@@ -185,7 +185,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
     return points.map(({ ts: _ts, ...rest }, i) => ({
       ...rest,
-      verdict: combineVerdicts([meanV[i]!, spreadV[i]!]) as CombinedVerdict
+      verdict: combineVerdicts([meanV[i]!, spreadV[i]!])
     }))
   })
 

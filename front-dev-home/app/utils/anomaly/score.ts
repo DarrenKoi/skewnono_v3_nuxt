@@ -13,9 +13,9 @@ export interface ScorePart {
 const r = (n: number, d = 2): number => Number(n.toFixed(d))
 const sgn = (n: number): string => (n >= 0 ? '+' : '')
 
-const INSUFFICIENT: ScorePart = {
+const INSUFFICIENT: ScorePart = Object.freeze({
   status: 'insufficient', severity: 'normal', score: NaN, reason: '표본 부족 — 미평가'
-}
+})
 
 export const bandRange = (absDevPct: number, cfg: RangeConfig): Severity =>
   absDevPct < cfg.watchPct ? 'normal' : absDevPct < cfg.abnormalPct ? 'watch' : 'abnormal'
@@ -59,7 +59,8 @@ export const scoreByStddev = (
   }
   const k = (value - mean) / std
   const severity = bandStddev(Math.abs(k), cfg)
-  const exceed = severity === 'normal' ? '' : ` · ±${cfg.abnormalK}σ 초과`
+  const crossed = severity === 'abnormal' ? cfg.abnormalK : cfg.watchK
+  const exceed = severity === 'normal' ? '' : ` · ±${crossed}σ 초과`
   const reason = `${pre}나머지 평균 ${r(mean)}, 표준편차 ${r(std)} · ${sgn(k)}${r(k)}σ (실측 ${r(value)})${exceed}`
   return { status: 'evaluated', severity, score: k, reason }
 }

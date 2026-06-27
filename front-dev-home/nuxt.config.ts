@@ -80,6 +80,7 @@ export default defineNuxtConfig({
       // `../app/**/*` include — a bare `**/*.test.ts` would only match `.nuxt/`.
       exclude: ['../app/**/*.test.ts'],
       compilerOptions: {
+        // anomaly utils/tests import siblings with explicit .ts extensions (node --test needs them)
         allowImportingTsExtensions: true
       }
     }
