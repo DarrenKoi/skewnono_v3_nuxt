@@ -11,4 +11,7 @@ Resolved compliance questions Q5/Q8 via grilling; drafted ADR 0004/0005 for memo
 
 ## Week of 2026-06-16
 Locked skew-check terminology (fleet/consensus/residual/site-pool) and variance decomposition strategy. Refined skew-check logic (per-day median consensus, 10-meas/1wk window, 2wk max-lookback). Ported dev server 3100→3000. Drafted PM Up-gate spec (CD_MONITORING+BSM with fleet-skew advisory, no block).
+
+## Week of 2026-06-23
+Merged feat/tool-skew-mgmt to main (+68 commits, 65 tests). Fixed Lucide icons for offline Windows by bundling 15 icons and configuring clientBundle.scan to block external Iconify API requests. Synced origin, cherry-picked c848b22.
 ```

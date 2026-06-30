@@ -4,5 +4,5 @@
 
 # Recent
 
-## 2026-06-23
-Merged feat/tool-skew-mgmt to main (+68 commits, 65 tests). Fixed Lucide icons for offline Windows by bundling 15 icons and configuring clientBundle.scan (ssr: false, fallbackToApi: false) to block external Iconify API requests. Synced origin, cherry-picked c848b22.
+## 2026-06-26
+Compacted device-statistics/measurement-rules UI across CapCell, Row, Matrix, and related views (reduced vertical spacing). Removed hardcoded --port from dev config and enabled NUXT_PORT env var with .env example. Fixed useRoute-in-middleware pattern across semaphore components via useNavigationStore(). Added network_sharpness daily service with quarterly/daily tab group for hardware monitoring.
