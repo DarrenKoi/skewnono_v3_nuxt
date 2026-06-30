@@ -111,7 +111,6 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     selection,
     view,
     msrList,
-    toQuery,
     openAnalysis,
     openAnalysisSet,
     setView,

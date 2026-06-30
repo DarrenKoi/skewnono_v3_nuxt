@@ -48,7 +48,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // --- Single measurement (Dashboard) ---
   const focusFile = ref<MsrFileResponse | null>(null)
   const focusPending = ref(false)
-  const focusError = ref(false)
 
   // Key on the URL msr itself (not the meas-hist row): the backend resolves the
   // parent class_name/total_images on its own, so a deep/shared link still loads
@@ -61,7 +60,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     const row = focusRow.value
     focusPending.value = true
-    focusError.value = false
     try {
       focusFile.value = await fetchMsrFile({
         msr,
@@ -69,7 +67,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
         totalImages: row?.total_images
       })
     } catch {
-      focusError.value = true
       focusFile.value = null
     } finally {
       focusPending.value = false
@@ -208,7 +205,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusRow,
     focusFile,
     focusPending,
-    focusError,
     activeParam,
     availableParams,
     paramSummaries,
