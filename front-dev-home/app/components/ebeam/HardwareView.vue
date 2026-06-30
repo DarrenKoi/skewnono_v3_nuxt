@@ -465,7 +465,6 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 <EbeamHardwareBsmPanel
                   v-if="activeService === 'bsm'"
                   :docs="servicePayload.docs ?? []"
-                  :fetched-at="servicePayload.fetched_at"
                 />
 
                 <!-- Reso Center: drift scatter + best-reso trend + focus sweep -->
@@ -484,7 +483,6 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 <EbeamHardwareSharpnessPanel
                   v-else-if="activeService === 'sharpness'"
                   :docs="servicePayload.docs ?? []"
-                  :fetched-at="servicePayload.fetched_at"
                 />
 
                 <!-- MDC: skew matrix -->

@@ -114,7 +114,6 @@ import { downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
-  fetchedAt: string
 }>()
 
 // The three per-degree fields (dicts keyed "0.0".."337.5") usable as radars.

@@ -117,7 +117,6 @@ import { downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
-  fetchedAt: string
 }>()
 
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')

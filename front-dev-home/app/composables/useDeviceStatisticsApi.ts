@@ -12,7 +12,6 @@ export interface R3DeviceGrpRow {
   gen_typ: string
   lot_cd: string
   plan_grade_cd: string
-  lake_load_tm: string
   ctn_desc: string
 }
 
