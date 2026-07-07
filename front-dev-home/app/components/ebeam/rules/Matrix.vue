@@ -55,14 +55,14 @@
 
 <script setup lang="ts">
 import type { NameOverride, RuleCell } from '~/utils/ruleEngine'
-import { CAP_COLUMNS, familyLabel, overrideLabel } from '~/utils/ruleMatrix'
+import { CAP_COLUMNS, collectOverrides, familyLabel, overrideLabel } from '~/utils/ruleMatrix'
 
-// Editable matrix (D13) — read-only for step 2. Rows = rule cells grouped by
-// family (R3) or recipe_class (M-fab, D15); columns = parameter types.
+// Main-rule matrix (D13) — read-only for step 2. Rows = rule cells grouped by
+// family; columns = the per-cell cap axes (EDGE / EDGE_EX / 기타). Sample rules
+// render in their own table (rules/SampleTable); WAFER·LEVEL are fixed fab-wide
+// and live in the header strip, not here.
 const props = defineProps<{
   cells: RuleCell[]
-  // M-fab collapses family/phase axes — group by recipe_class instead (D15).
-  mfab: boolean
 }>()
 
 interface RuleGroup {
@@ -72,37 +72,8 @@ interface RuleGroup {
   overrides: NameOverride[]
 }
 
-const groupKeyOf = (cell: RuleCell): string => {
-  if (cell.selector.recipe_class === 'Sample') return 'Sample'
-  if (props.mfab) return 'Main'
-  return cell.selector.family ?? 'Main'
-}
-
-const groupLabelOf = (key: string): string => {
-  if (key === 'Sample') return 'Sample'
-  if (key === 'Main') return 'Main'
-  return familyLabel(key)
-}
-
 // Group order is fixed so the matrix layout is stable regardless of cell order.
-const GROUP_ORDER_R3 = ['Core', 'Pool', 'VG_RTC_Cubic', 'Sample']
-const GROUP_ORDER_MFAB = ['Main', 'Sample']
-
-// Collect every distinct name-override across a group's cells (by signature),
-// rather than trusting cells[0] — robust if a group ever holds mixed overrides.
-const collectOverrides = (cells: RuleCell[]): NameOverride[] => {
-  const seen = new Set<string>()
-  const out: NameOverride[] = []
-  for (const cell of cells) {
-    for (const ov of cell.name_overrides ?? []) {
-      const sig = JSON.stringify(ov)
-      if (seen.has(sig)) continue
-      seen.add(sig)
-      out.push(ov)
-    }
-  }
-  return out
-}
+const GROUP_ORDER = ['Core', 'Pool', 'VG_RTC_Cubic']
 
 const groups = computed<RuleGroup[]>(() => {
   const byKey = new Map<string, RuleCell[]>()
@@ -110,16 +81,15 @@ const groups = computed<RuleGroup[]>(() => {
   // cell with no selector) — degrade to an empty matrix instead of throwing.
   for (const cell of props.cells ?? []) {
     if (!cell?.selector) continue
-    const key = groupKeyOf(cell)
+    const key = cell.selector.family ?? 'Main'
     const bucket = byKey.get(key)
     if (bucket) bucket.push(cell)
     else byKey.set(key, [cell])
   }
 
-  const order = props.mfab ? GROUP_ORDER_MFAB : GROUP_ORDER_R3
   const orderedKeys = [
-    ...order.filter(key => byKey.has(key)),
-    ...[...byKey.keys()].filter(key => !order.includes(key))
+    ...GROUP_ORDER.filter(key => byKey.has(key)),
+    ...[...byKey.keys()].filter(key => !GROUP_ORDER.includes(key))
   ]
 
   return orderedKeys.map((key) => {
@@ -127,7 +97,7 @@ const groups = computed<RuleGroup[]>(() => {
     // Name-overrides surface once per group (D9/D11), deduped across its cells.
     return {
       key,
-      label: groupLabelOf(key),
+      label: familyLabel(key) || key,
       cells,
       overrides: collectOverrides(cells)
     }

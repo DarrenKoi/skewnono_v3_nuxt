@@ -14,8 +14,11 @@
 //   undefined → "—" (type not applicable to this cell)
 //   0         → measurement forbidden (EDGE_EX 0)
 //   n         → upper bound
+// emphasis marks caps opened up beyond the EV baseline (TV 포함 이후 · 수율 후);
+// it only tints positive caps — 0/— keep their own meaning.
 const props = defineProps<{
   value: number | undefined
+  emphasis?: boolean
 }>()
 
 const isNA = computed(() => props.value === undefined)
@@ -26,6 +29,7 @@ const display = computed(() => (isNA.value ? '—' : String(props.value)))
 const title = computed(() => {
   if (isNA.value) return '해당 없음'
   if (isZero.value) return '측정 금지 (cap 0)'
+  if (props.emphasis) return `상한 ${props.value} (≤) · EV 룰 대비 확대`
   return `상한 ${props.value} (≤)`
 })
 
@@ -35,6 +39,9 @@ const cellClass = computed(() => {
   }
   if (isZero.value) {
     return 'border-(--sk-border) bg-(--sk-surface) text-(--sk-ink-subtle)'
+  }
+  if (props.emphasis) {
+    return 'border-(--sk-accent-border) bg-(--sk-accent-tint) text-(--sk-accent)'
   }
   return 'border-(--sk-border) bg-(--sk-surface) text-(--sk-ink)'
 })
