@@ -9,6 +9,7 @@ any CD-SEM eqp in the mock and let `normalizers.settings_payload` note usage.
 
 from __future__ import annotations
 
+import math
 import random
 from datetime import datetime
 
@@ -61,13 +62,42 @@ def _sce_param(rng: random.Random) -> dict[str, str]:
     }
 
 
-def _coefficients(rng: random.Random) -> list[dict]:
-    out: list[dict] = []
+def _smooth_curve(
+    rng: random.Random,
+    center: float,
+    half_range: float,
+) -> list[float]:
+    """Smooth periodic curve over 0..359 deg staying in center +/- half_range.
+
+    SCE coefficients are angular corrections, so the real curves are smooth
+    (a few low-order harmonics), not per-index noise. Sum 3 sinusoids with
+    random order/phase/weight, add small jitter, and clamp to the band.
+    """
+    terms = [
+        (order, rng.uniform(0.0, 2.0 * math.pi), rng.uniform(0.4, 1.0))
+        for order in (1, 2, rng.randint(3, 5))
+    ]
+    total_weight = sum(weight for _, _, weight in terms)
+    values: list[float] = []
     for index in range(360):
-        v0 = round(rng.uniform(-0.02, 0.02), 6)
-        v1 = round(rng.uniform(0.90, 1.00), 6)
-        out.append({"index": index, "values": [v0, v1]})
-    return out
+        theta = math.radians(index)
+        shape = sum(
+            weight * math.sin(order * theta + phase)
+            for order, phase, weight in terms
+        ) / total_weight
+        jitter = rng.uniform(-0.04, 0.04)
+        unit = max(-1.0, min(1.0, shape + jitter))
+        values.append(center + half_range * unit)
+    return values
+
+
+def _coefficients(rng: random.Random) -> list[dict]:
+    v0 = _smooth_curve(rng, center=0.0, half_range=0.02)
+    v1 = _smooth_curve(rng, center=0.95, half_range=0.05)
+    return [
+        {"index": index, "values": [round(v0[index], 6), round(v1[index], 6)]}
+        for index in range(360)
+    ]
 
 
 def build_sce_settings(
