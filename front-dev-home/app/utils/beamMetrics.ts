@@ -3,6 +3,8 @@
 // value is a length-16 numeric array is a radar metric; a numeric scalar is a
 // trend metric. Adding a future key to the mock surfaces it automatically.
 
+import { stableRadialRange } from './chartRange.ts'
+
 export interface BeamMetricOption { key: string, label: string }
 
 // Keys that look like profile arrays but are NOT selectable metrics.
@@ -72,23 +74,13 @@ export const radialRange = (
   docs: Record<string, unknown>[],
   key: string
 ): { min: number, max: number } => {
-  let lo = Infinity
-  let hi = -Infinity
+  const vals: number[] = []
   for (const d of docs) {
     const v = d[key]
     if (!Array.isArray(v)) continue
-    for (const cell of v) {
-      const n = toNum(cell)
-      if (!Number.isFinite(n)) continue
-      if (n < lo) lo = n
-      if (n > hi) hi = n
-    }
+    for (const cell of v) vals.push(toNum(cell))
   }
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { min: 0, max: 1 }
-  const span = hi - lo
-  const pad = Math.max(span * 0.05, 0.001)
-  const round6 = (n: number) => Number(n.toFixed(6))
-  return { min: round6(lo - pad), max: round6(hi + pad) }
+  return stableRadialRange(vals) ?? { min: 0, max: 1 }
 }
 
 export const degreeLabels = (docs: Record<string, unknown>[]): string[] => {

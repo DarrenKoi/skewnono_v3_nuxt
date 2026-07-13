@@ -66,3 +66,14 @@ export const stableYRange = (
     interval: step
   }
 }
+
+// Radial scale for radar charts (indicators take {min, max} only). Same
+// stable-span policy: a near-constant 360° profile reads as a near-circle at
+// mid-radius instead of a tightly-fitted, exaggerated blob.
+export const stableRadialRange = (
+  values: number[],
+  options?: StableYRangeOptions
+): { min: number, max: number } | null => {
+  const r = stableYRange(values, options)
+  return r ? { min: r.min, max: r.max } : null
+}

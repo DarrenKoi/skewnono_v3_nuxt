@@ -183,12 +183,13 @@ const spmJudgments = computed(() =>
 const chartOption = computed<EChartsOption>(() => {
   if (activeKey.value === 'SPMVoltages') {
     const colors = [c0.value, c1.value, c2.value]
+    const spmAxis = stableYRange(spmAtTs.value.flatMap(p => (p.data as SpmVoltagesValue).profile)) ?? { scale: true }
     return {
       grid: { left: 48, right: 16, top: 24, bottom: 36 },
       tooltip: { trigger: 'axis' },
       legend: { top: 0, textStyle: { fontSize: 10 } },
       xAxis: { type: 'category', name: 'index', axisLabel: { fontSize: 10 } },
-      yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+      yAxis: { type: 'value', ...spmAxis, axisLabel: { fontSize: 10 } },
       series: spmAtTs.value.map((p, i) => ({
         name: (p.data as SpmVoltagesValue).channel,
         type: 'line', smooth: true, showSymbol: false,

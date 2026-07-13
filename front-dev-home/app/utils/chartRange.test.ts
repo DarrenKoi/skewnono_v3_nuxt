@@ -1,7 +1,7 @@
 // Pure-logic tests for chartRange. Run: node --test app/utils/chartRange.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { stableYRange } from './chartRange.ts'
+import { stableYRange, stableRadialRange } from './chartRange.ts'
 
 test('empty or all-NaN input → null (caller falls back to scale:true)', () => {
   assert.equal(stableYRange([]), null)
@@ -80,4 +80,16 @@ test('tiny magnitudes (near-zero deltas) do not collapse or explode', () => {
   assert.ok(r)
   assert.ok(r.min <= 0.0019 && r.max >= 0.0021)
   assert.ok(r.max - r.min < 0.01, 'range stays in the data’s order of magnitude')
+})
+
+test('stableRadialRange: same stable bounds as stableYRange, min/max only', () => {
+  const y = stableYRange([99.9, 100.1, 100.0])
+  const r = stableRadialRange([99.9, 100.1, 100.0])
+  assert.ok(y && r)
+  assert.deepEqual(r, { min: y.min, max: y.max })
+  assert.ok(!('interval' in r))
+})
+
+test('stableRadialRange: empty input → null (caller falls back)', () => {
+  assert.equal(stableRadialRange([NaN]), null)
 })

@@ -111,6 +111,7 @@
 
 <script setup lang="ts">
 import { downloadCsv } from '~/utils/csvDownload'
+import { stableRadialRange } from '~/utils/chartRange'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
@@ -215,23 +216,15 @@ const profileValues = (key: string): number[] => {
   return angles.value.map(a => numOf(dict[a]))
 }
 
-// Fixed radial scale per metric across the filtered docs (pad the span a touch).
+// Fixed radial scale per metric across the filtered docs, with a stable
+// magnitude-relative span so a near-constant profile reads as a near-circle.
 const radialRange = (key: string): { min: number, max: number } => {
-  let lo = Infinity
-  let hi = -Infinity
+  const vals: number[] = []
   for (const d of filteredDocs.value) {
     const dict = asRecord(d[key])
-    for (const a of angles.value) {
-      const n = numOf(dict[a])
-      if (!Number.isFinite(n)) continue
-      if (n < lo) lo = n
-      if (n > hi) hi = n
-    }
+    for (const a of angles.value) vals.push(numOf(dict[a]))
   }
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { min: 0, max: 1 }
-  const pad = Math.max((hi - lo) * 0.05, 0.001)
-  const round6 = (n: number) => Number((n).toFixed(6))
-  return { min: round6(lo - pad), max: round6(hi + pad) }
+  return stableRadialRange(vals) ?? { min: 0, max: 1 }
 }
 
 const selectedScalarCards = computed(() => {
