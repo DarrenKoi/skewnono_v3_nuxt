@@ -1,28 +1,15 @@
 <template>
-  <EbeamRecipeTatView
-    :fab="fabId"
-    tool-label="HV-SEM"
-    tool-type="hv-sem"
-  />
+  <div />
 </template>
 
 <script setup lang="ts">
-import type { Fab } from '~/stores/navigation'
-
-const route = useRoute()
-const { setToolType, setFab } = useNavigation()
-
-const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
-
-const applyFab = (next: string) => {
-  if (!next) return
-  setFab(next as Fab)
-}
-
-setToolType('hv-sem')
-applyFab(fabId.value)
-
-watch(fabId, (next) => {
-  applyFab(next)
+// Merged into Recipe 현황 — redirect keeps old bookmarks/deep links working.
+definePageMeta({
+  middleware: [
+    to => navigateTo(
+      { path: `/ebeam/hv-sem/${to.params.fab}/recipe-status`, query: { ...to.query, tab: 'tat' } },
+      { replace: true }
+    )
+  ]
 })
 </script>

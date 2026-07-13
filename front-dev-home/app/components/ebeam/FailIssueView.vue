@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="identity"
-      title="Fail 이슈"
+      :title="viewTitle"
       :subtitle="metaSubtitle"
       :as-of="summary?.anchor_date"
       cadence="1시간 주기"
@@ -181,9 +181,16 @@
       </div>
 
       <template v-else>
-        <!-- KPI cards: side-by-side Align / Meas -->
-        <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          <UCard class="dashboard-surface rounded-2xl">
+        <!-- KPI cards: side-by-side Align / Meas (single column when a
+             section prop narrows the view to one aspect) -->
+        <div
+          class="grid grid-cols-1 gap-3"
+          :class="{ 'xl:grid-cols-2': !section }"
+        >
+          <UCard
+            v-if="showAlign"
+            class="dashboard-surface rounded-2xl"
+          >
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon
@@ -212,7 +219,10 @@
             </div>
           </UCard>
 
-          <UCard class="dashboard-surface rounded-2xl">
+          <UCard
+            v-if="showMeas"
+            class="dashboard-surface rounded-2xl"
+          >
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon
@@ -245,8 +255,14 @@
         </div>
 
         <!-- Trend charts -->
-        <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          <UCard class="dashboard-surface rounded-2xl">
+        <div
+          class="grid grid-cols-1 gap-3"
+          :class="{ 'xl:grid-cols-2': !section }"
+        >
+          <UCard
+            v-if="showAlign"
+            class="dashboard-surface rounded-2xl"
+          >
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon
@@ -264,7 +280,10 @@
             />
           </UCard>
 
-          <UCard class="dashboard-surface rounded-2xl">
+          <UCard
+            v-if="showMeas"
+            class="dashboard-surface rounded-2xl"
+          >
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon
@@ -284,9 +303,13 @@
         </div>
 
         <!-- Ranking tables -->
-        <div class="grid grid-cols-1 gap-3 2xl:grid-cols-2">
+        <div
+          class="grid grid-cols-1 gap-3"
+          :class="{ '2xl:grid-cols-2': !section }"
+        >
           <!-- @vue-generic {FailIssueAlignRow} -->
           <EbeamFailIssueRankingTable
+            v-if="showAlign"
             title="Align fails by recipe"
             search-placeholder="Search recipe / class"
             :rows="alignRows"
@@ -307,6 +330,7 @@
           </EbeamFailIssueRankingTable>
           <!-- @vue-generic {FailIssueMeasRow} -->
           <EbeamFailIssueRankingTable
+            v-if="showMeas"
             title="Meas fails by recipe"
             search-placeholder="Search recipe / class…"
             :rows="measRows"
@@ -348,9 +372,17 @@ const props = defineProps<{
   fab: string
   toolLabel: string
   toolType: FailIssueToolType
+  // When set, render only that failure aspect (merged Recipe 현황 page shows
+  // each as its own tab). Omitted → standalone page with both halves.
+  section?: 'align' | 'meas'
 }>()
 
 const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
+const showAlign = computed(() => props.section !== 'meas')
+const showMeas = computed(() => props.section !== 'align')
+const viewTitle = computed(() =>
+  props.section === 'align' ? 'Align Fail' : props.section === 'meas' ? 'Meas Fail' : 'Fail 이슈'
+)
 
 // Empty means "let the server resolve its default window". Computing
 // wall-clock today locally would drift past the mock's ANCHOR_TIME for
@@ -364,11 +396,14 @@ const VIEW_MODES = [
 type ViewMode = typeof VIEW_MODES[number]['value']
 
 const viewMode = ref<ViewMode>('summary')
-const metaSubtitle = computed(() =>
-  viewMode.value === 'by-device'
-    ? 'Align Fail / Measurement Fail을 디바이스별로 분석합니다.'
-    : 'Align Fail / Measurement Fail을 Fab 기준으로 분석합니다.'
-)
+const metaSubtitle = computed(() => {
+  const aspect = props.section === 'align'
+    ? 'Align Fail'
+    : props.section === 'meas' ? 'Measurement Fail' : 'Align Fail / Measurement Fail'
+  return viewMode.value === 'by-device'
+    ? `${aspect}을 디바이스별로 분석합니다.`
+    : `${aspect}을 Fab 기준으로 분석합니다.`
+})
 const selectedLot = ref<string | null>(null)
 const lotSearch = ref('')
 const selectedCategories = ref<string[]>([])

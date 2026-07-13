@@ -13,7 +13,7 @@ const isInfoRoute = computed(() =>
   INFO_PATHS.some(path => route.path === path || route.path.startsWith(`${path}/`))
 )
 
-type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir' | 'skew-check'
+type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'device-statistics' | 'skewvoir' | 'skew-check'
 
 type FeatureTab = {
   label: string
@@ -25,8 +25,7 @@ type FeatureTab = {
 
 const features: FeatureTab[] = [
   { label: '장비 상태', routeValue: 'index', icon: 'i-lucide-layout-dashboard', enabledToolTypes: ['cd-sem', 'hv-sem'] },
-  { label: 'Recipe TAT', routeValue: 'recipe-tat', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem'] },
-  { label: 'Fail 이슈', routeValue: 'fail-issue', icon: 'i-lucide-triangle-alert', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: 'Recipe 현황', routeValue: 'recipe-status', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
@@ -50,8 +49,9 @@ const activeFeature = computed<FeatureRouteValue | null>(() => {
   if (!isEbeamRoute.value) return null
   const path = route.path
   if (path.includes('/recipe-search')) return 'recipe-search'
-  if (path.includes('/recipe-tat')) return 'recipe-tat'
-  if (path.includes('/fail-issue')) return 'fail-issue'
+  // Old recipe-tat / fail-issue paths redirect to recipe-status; matching
+  // them here keeps the pill highlighted during that brief transition.
+  if (path.includes('/recipe-status') || path.includes('/recipe-tat') || path.includes('/fail-issue')) return 'recipe-status'
   if (path.includes('/hardware')) return 'hardware'
   if (path.includes('/device-statistics')) return 'device-statistics'
   if (path.includes('/skew-check')) return 'skew-check'

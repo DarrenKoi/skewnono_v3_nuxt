@@ -4,6 +4,9 @@
 export const FEATURE_SLUGS = [
   'storage',
   'recipe-search',
+  // recipe-tat / fail-issue merged into recipe-status; the old slugs stay
+  // listed so fab-switching on a stale URL still strips them before redirect.
+  'recipe-status',
   'recipe-tat',
   'fail-issue',
   'hardware',

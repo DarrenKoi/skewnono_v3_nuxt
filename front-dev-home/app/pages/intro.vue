@@ -393,26 +393,18 @@ const pageGuides: PageGuide[] = [
     notes: ['필요 시 MSR file 상세 조회로 이어집니다.']
   },
   {
-    id: 'recipe-tat',
-    title: 'Recipe TAT',
-    path: '/ebeam/{tool}/{fab}/recipe-tat',
+    id: 'recipe-status',
+    title: 'Recipe 현황',
+    path: '/ebeam/{tool}/{fab}/recipe-status',
     icon: 'i-lucide-timer',
     section: 'ebeam',
-    purpose: 'Recipe 수행 시간과 병목을 확인합니다.',
-    description: 'ranking, summary, daily trend, device 목록을 통해 기간/lot/Fab 기준 TAT를 분석합니다.',
-    users: '공정/계측 효율 분석자',
-    notes: ['기본 기간은 mock data anchor date 기준으로 계산됩니다.']
-  },
-  {
-    id: 'fail-issue',
-    title: 'Fail Issue',
-    path: '/ebeam/{tool}/{fab}/fail-issue',
-    icon: 'i-lucide-triangle-alert',
-    section: 'ebeam',
-    purpose: 'Align fail과 measurement fail 이슈를 추적합니다.',
-    description: 'summary, daily trend, align ranking, meas ranking을 통해 lot 또는 장비 단위의 fail 이슈를 좁혀 봅니다.',
-    users: '장비/계측 품질 담당자',
-    notes: ['CD-SEM과 HV-SEM이 같은 화면 구성을 사용합니다.']
+    purpose: 'Recipe TAT와 Align/Meas fail 이슈를 한 화면에서 확인합니다.',
+    description: 'Recipe TAT · Align Fail · Meas Fail 세 개의 내부 탭으로 recipe 수행 시간, 병목, fail 이슈를 기간/lot/Fab 기준으로 분석합니다.',
+    users: '공정/계측 효율 분석자, 장비/계측 품질 담당자',
+    notes: [
+      '기존 Recipe TAT · Fail 이슈 페이지가 이 화면으로 통합되었습니다 (이전 URL은 자동 redirect).',
+      'CD-SEM과 HV-SEM이 같은 화면 구성을 사용합니다.'
+    ]
   },
   {
     id: 'device-statistics',

@@ -11,6 +11,7 @@ export const useNavigation = () => {
     if (
       feature === 'storage'
       || feature === 'recipe-search'
+      || feature === 'recipe-status'
       || feature === 'recipe-tat'
       || feature === 'fail-issue'
       || feature === 'hardware'
