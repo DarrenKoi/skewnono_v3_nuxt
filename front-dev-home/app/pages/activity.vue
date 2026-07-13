@@ -9,7 +9,7 @@
           />
           사용 통계
         </h1>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+        <p class="text-sm text-(--sk-ink-muted) mt-1">
           최근 활동, 자주 쓰는 기능, 전체 사용 추이를 보여줍니다.
         </p>
       </div>
@@ -23,6 +23,29 @@
         새로고침
       </UButton>
     </header>
+
+    <UAlert
+      v-if="loadError"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      title="일부 활동 데이터를 불러오지 못했습니다."
+      :description="loadError"
+      :actions="[{ label: '다시 시도', onClick: refreshAll }]"
+    />
+
+    <UCard
+      v-if="!me && !loadError"
+      class="dashboard-surface"
+    >
+      <div class="flex items-center justify-center gap-2 py-12 text-sm text-(--sk-ink-muted)">
+        <UIcon
+          name="i-lucide-loader-circle"
+          class="animate-spin"
+        />
+        사용 통계를 불러오는 중입니다.
+      </div>
+    </UCard>
 
     <!-- Personal panel: always visible -->
     <section
@@ -90,6 +113,59 @@
           color="from-sky-400 to-violet-500"
         />
       </UCard>
+
+      <UCard class="dashboard-surface lg:col-span-3">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
+              <UIcon name="i-lucide-gauge" />
+              내 활동 인사이트
+            </span>
+            <span class="text-xs text-(--sk-ink-muted)">
+              최근 30일 기준
+            </span>
+          </div>
+        </template>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <div class="text-2xl font-semibold font-mono tabular-nums">
+              {{ personalInsights.recent7Requests.toLocaleString() }}
+            </div>
+            <div class="text-xs text-(--sk-ink-muted)">
+              최근 7일 요청
+            </div>
+          </div>
+          <div>
+            <div class="text-2xl font-semibold font-mono tabular-nums flex items-center gap-1.5">
+              <UIcon
+                :name="weeklyChange.icon"
+                :class="weeklyChange.color"
+                class="text-lg"
+              />
+              {{ weeklyChange.label }}
+            </div>
+            <div class="text-xs text-(--sk-ink-muted)">
+              이전 7일 대비
+            </div>
+          </div>
+          <div>
+            <div class="text-2xl font-semibold font-mono tabular-nums">
+              {{ personalInsights.activeDays7 }}<span class="text-sm font-normal text-(--sk-ink-muted)"> / 7일</span>
+            </div>
+            <div class="text-xs text-(--sk-ink-muted)">
+              최근 활동일
+            </div>
+          </div>
+          <div>
+            <div class="text-2xl font-semibold font-mono tabular-nums">
+              {{ personalInsights.averagePerActiveDay30.toLocaleString() }}
+            </div>
+            <div class="text-xs text-(--sk-ink-muted)">
+              활동일당 평균 요청
+            </div>
+          </div>
+        </div>
+      </UCard>
     </section>
 
     <!-- Shared usage panel: visible to every viewer -->
@@ -112,7 +188,7 @@
       </div>
 
       <!-- KPI row -->
-      <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <ActivityKpiCard
           v-for="kpi in kpiCards"
           :key="kpi.label"
@@ -149,19 +225,72 @@
       <!-- Users table -->
       <UCard class="dashboard-surface">
         <template #header>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-3">
             <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
               <UIcon name="i-lucide-users" />
-              사용자 ({{ users?.users.length ?? 0 }})
+              사용자
             </span>
-            <span
-              v-if="users"
-              class="text-xs text-zinc-500"
-            >
-              {{ formatTime(users.generated_at) }}
-            </span>
+            <div class="flex items-center gap-2">
+              <UBadge
+                color="neutral"
+                variant="subtle"
+              >
+                {{ filteredUsers.length }} / {{ users?.users.length ?? 0 }}
+              </UBadge>
+              <span
+                v-if="users"
+                class="text-xs text-(--sk-ink-muted)"
+              >
+                {{ formatTime(users.generated_at) }}
+              </span>
+            </div>
           </div>
         </template>
+        <div class="flex flex-wrap items-center gap-2 pb-3 mb-1 border-b border-(--sk-border)">
+          <UInput
+            v-model="userQuery"
+            class="flex-1 min-w-56"
+            size="sm"
+            icon="i-lucide-search"
+            color="neutral"
+            variant="subtle"
+            placeholder="사용자 또는 기능 검색"
+          />
+          <USelect
+            v-model="featureFilter"
+            class="w-44"
+            size="sm"
+            color="neutral"
+            variant="subtle"
+            :items="featureFilterOptions"
+          />
+          <USelect
+            v-model="userSort"
+            class="w-44"
+            size="sm"
+            color="neutral"
+            variant="subtle"
+            :items="userSortOptions"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-download"
+            label="CSV 다운로드"
+            :disabled="filteredUsers.length === 0"
+            @click="downloadUsersCsv"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-rotate-ccw"
+            label="초기화"
+            :disabled="!hasActiveUserControls"
+            @click="resetUserControls"
+          />
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -186,26 +315,30 @@
             </thead>
             <tbody>
               <template
-                v-for="row in users?.users ?? []"
+                v-for="row in filteredUsers"
                 :key="row.user_id"
               >
                 <tr
                   class="border-b border-(--sk-border) last:border-b-0 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                  tabindex="0"
+                  :aria-expanded="expandedUser === row.user_id"
                   @click="toggleUser(row.user_id)"
+                  @keydown.enter="toggleUser(row.user_id)"
+                  @keydown.space.prevent="toggleUser(row.user_id)"
                 >
-                  <td class="py-2.5 pr-4 font-medium">
+                  <td class="py-2.5 pr-4 font-mono font-medium text-(--sk-ink)">
                     {{ row.user_id }}
                   </td>
-                  <td class="py-2.5 pr-4 text-right tabular-nums font-semibold">
-                    {{ row.requests_30d }}
+                  <td class="py-2.5 pr-4 text-right font-mono tabular-nums font-semibold text-(--sk-ink)">
+                    {{ row.requests_30d.toLocaleString() }}
                   </td>
-                  <td class="py-2.5 pr-4 text-right tabular-nums">
+                  <td class="py-2.5 pr-4 text-right font-mono tabular-nums text-(--sk-ink)">
                     {{ row.days_active_30d }}
                   </td>
-                  <td class="py-2.5 pr-4 text-zinc-600 dark:text-zinc-400">
-                    {{ row.favorite_feature ?? '—' }}
+                  <td class="py-2.5 pr-4 text-(--sk-ink)">
+                    {{ activityFeatureLabel(row.favorite_feature) }}
                   </td>
-                  <td class="py-2.5 pr-4 text-zinc-500 tabular-nums">
+                  <td class="py-2.5 pr-4 font-mono text-(--sk-ink) tabular-nums">
                     {{ formatTime(row.last_seen) }}
                   </td>
                   <td class="py-2.5 text-zinc-400">
@@ -270,6 +403,14 @@
                   </td>
                 </tr>
               </template>
+              <tr v-if="filteredUsers.length === 0">
+                <td
+                  colspan="6"
+                  class="py-10 text-center text-sm text-(--sk-ink-muted)"
+                >
+                  검색·필터 조건에 맞는 사용자가 없습니다.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -286,13 +427,21 @@ import {
   useActivitySummary,
   useActivityUsers,
   type FeatureCount,
+  type UserListRow,
   type UserHistoryResponse
 } from '~/composables/useActivityApi'
+import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
+import { downloadCsv } from '~/utils/csvDownload'
 
 definePageMeta({ layout: 'hub' })
 useHead({ title: '사용 통계 | SKEWNONO' })
 
-const { data: me, refresh: refreshMe, status: meStatus } = await useActivityMe()
+const {
+  data: me,
+  error: meError,
+  refresh: refreshMe,
+  status: meStatus
+} = await useActivityMe()
 
 // Summary + users are shared activity views, so every viewer fetches them.
 const sharedQueries = await Promise.all([useActivitySummary(), useActivityUsers()]).then(
@@ -301,6 +450,14 @@ const sharedQueries = await Promise.all([useActivitySummary(), useActivityUsers(
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
 const users = computed(() => sharedQueries.users.data.value ?? null)
+
+const loadError = computed(() => {
+  const error = meError.value
+    ?? sharedQueries.summary.error.value
+    ?? sharedQueries.users.error.value
+  if (!error) return null
+  return error instanceof Error ? error.message : String(error)
+})
 
 const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
@@ -316,7 +473,7 @@ const refreshAll = async () => {
   await Promise.all(jobs)
 }
 
-const myFavorite = computed(() => me.value?.top_features?.[0]?.feature ?? '—')
+const myFavorite = computed(() => activityFeatureLabel(me.value?.top_features?.[0]?.feature))
 
 const formatTime = (iso: string | null | undefined) => {
   if (!iso) return '—'
@@ -327,9 +484,26 @@ const formatTime = (iso: string | null | undefined) => {
 
 const lastSeenLabel = computed(() => formatTime(me.value?.last_seen))
 
+const personalInsights = computed(() => summarizePersonalActivity(me.value?.daily ?? []))
+const weeklyChange = computed(() => {
+  const change = personalInsights.value.changePercent
+  if (change === null) {
+    return personalInsights.value.recent7Requests > 0
+      ? { label: '새 활동', icon: 'i-lucide-sparkles', color: 'text-violet-500' }
+      : { label: '변화 없음', icon: 'i-lucide-minus', color: 'text-(--sk-ink-muted)' }
+  }
+  if (change > 0) return { label: `+${change}%`, icon: 'i-lucide-trending-up', color: 'text-emerald-500' }
+  if (change < 0) return { label: `${change}%`, icon: 'i-lucide-trending-down', color: 'text-amber-500' }
+  return { label: '0%', icon: 'i-lucide-minus', color: 'text-(--sk-ink-muted)' }
+})
+
 // --- shared usage: KPI cards ---
 const kpiCards = computed(() => {
   if (!summary.value) return []
+  const totalRequests30d = users.value?.users.reduce((sum, row) => sum + row.requests_30d, 0) ?? 0
+  const returnRate = summary.value.mau > 0
+    ? Math.round((summary.value.wau / summary.value.mau) * 100)
+    : 0
   return [
     {
       label: 'DAU',
@@ -351,6 +525,20 @@ const kpiCards = computed(() => {
       hint: '이번 달 활동한 사용자',
       icon: 'i-lucide-user-check',
       color: 'text-emerald-500'
+    },
+    {
+      label: '30D 요청',
+      value: totalRequests30d.toLocaleString(),
+      hint: '전체 사용자의 요청 합계',
+      icon: 'i-lucide-mouse-pointer-click',
+      color: 'text-amber-500'
+    },
+    {
+      label: 'WAU / MAU',
+      value: `${returnRate}%`,
+      hint: '월간 사용자 중 주간 활동 비율',
+      icon: 'i-lucide-repeat-2',
+      color: 'text-rose-500'
     }
   ]
 })
@@ -367,6 +555,87 @@ const topFeaturesForWindow = computed<FeatureCount[]>(() => {
     ? summary.value.top_features_7d
     : summary.value.top_features_30d
 })
+
+// --- shared usage: user discovery controls ---
+type UserSort = 'requests' | 'days' | 'recent' | 'name'
+
+const userQuery = ref('')
+const featureFilter = ref('all')
+const userSort = ref<UserSort>('requests')
+
+const userSortOptions = [
+  { label: '요청 많은 순', value: 'requests' },
+  { label: '활동일 많은 순', value: 'days' },
+  { label: '최근 활동 순', value: 'recent' },
+  { label: '사용자 이름 순', value: 'name' }
+]
+
+const featureFilterOptions = computed(() => {
+  const features = new Set(
+    (users.value?.users ?? [])
+      .map(row => row.favorite_feature)
+      .filter((feature): feature is string => Boolean(feature))
+  )
+  return [
+    { label: '모든 기능', value: 'all' },
+    ...Array.from(features)
+      .sort((a, b) => activityFeatureLabel(a).localeCompare(activityFeatureLabel(b), 'ko'))
+      .map(feature => ({ label: activityFeatureLabel(feature), value: feature }))
+  ]
+})
+
+const filteredUsers = computed<UserListRow[]>(() => {
+  const query = userQuery.value.trim().toLocaleLowerCase('ko-KR')
+  const rows = (users.value?.users ?? []).filter((row) => {
+    if (featureFilter.value !== 'all' && row.favorite_feature !== featureFilter.value) return false
+    if (!query) return true
+    const searchable = [
+      row.user_id,
+      row.favorite_feature ?? '',
+      activityFeatureLabel(row.favorite_feature)
+    ].join(' ').toLocaleLowerCase('ko-KR')
+    return searchable.includes(query)
+  })
+
+  return [...rows].sort((a, b) => {
+    if (userSort.value === 'days') {
+      return b.days_active_30d - a.days_active_30d || b.requests_30d - a.requests_30d
+    }
+    if (userSort.value === 'recent') {
+      const bTime = b.last_seen ? Date.parse(b.last_seen) : 0
+      const aTime = a.last_seen ? Date.parse(a.last_seen) : 0
+      return bTime - aTime
+    }
+    if (userSort.value === 'name') return a.user_id.localeCompare(b.user_id)
+    return b.requests_30d - a.requests_30d || a.user_id.localeCompare(b.user_id)
+  })
+})
+
+const hasActiveUserControls = computed(() =>
+  Boolean(userQuery.value) || featureFilter.value !== 'all' || userSort.value !== 'requests'
+)
+
+const resetUserControls = () => {
+  userQuery.value = ''
+  featureFilter.value = 'all'
+  userSort.value = 'requests'
+}
+
+const downloadUsersCsv = () => {
+  const date = new Date().toISOString().slice(0, 10)
+  downloadCsv(
+    `activity-users-${date}.csv`,
+    ['사용자', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
+    filteredUsers.value.map(row => [
+      row.user_id,
+      row.requests_30d,
+      row.days_active_30d,
+      activityFeatureLabel(row.favorite_feature),
+      row.favorite_feature,
+      row.last_seen
+    ])
+  )
+}
 
 // --- shared usage: user table drill-down ---
 const expandedUser = ref<string | null>(null)

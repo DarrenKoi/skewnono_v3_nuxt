@@ -9,8 +9,11 @@
       class="space-y-1"
     >
       <div class="flex items-center justify-between text-xs">
-        <span class="font-medium text-zinc-700 dark:text-zinc-200 truncate">
-          {{ row.feature }}
+        <span
+          class="font-medium text-(--sk-ink) truncate"
+          :title="row.feature"
+        >
+          {{ activityFeatureLabel(row.feature) }}
         </span>
         <span class="text-zinc-500 tabular-nums shrink-0 ml-2">
           {{ row.count }}
@@ -34,6 +37,7 @@
 
 <script setup lang="ts">
 import type { FeatureCount } from '~/composables/useActivityApi'
+import { activityFeatureLabel } from '~/utils/activity'
 
 const props = withDefaults(
   defineProps<{
