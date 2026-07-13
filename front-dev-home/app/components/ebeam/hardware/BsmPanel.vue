@@ -63,6 +63,7 @@
           :label="prettyLabel(pane.metric.value)"
           :points="trendPoints(pane.metric.value)"
           :selected="selectedKey"
+          :events="maintenanceEvents"
           @select="selectedKey = $event"
         />
       </div>
@@ -114,9 +115,11 @@ import {
   profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel
 } from '~/utils/beamMetrics'
 import { downloadCsv } from '~/utils/csvDownload'
+import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
+  maintenanceEvents?: BmPmEvent[]
 }>()
 
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')

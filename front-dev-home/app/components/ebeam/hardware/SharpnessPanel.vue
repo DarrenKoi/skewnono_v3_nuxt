@@ -63,6 +63,7 @@
           :label="pane.metric.value"
           :points="trendPoints(pane.metric.value)"
           :selected="selectedTs"
+          :events="maintenanceEvents"
           @select="selectedTs = $event"
         />
       </div>
@@ -112,9 +113,11 @@
 <script setup lang="ts">
 import { downloadCsv } from '~/utils/csvDownload'
 import { stableRadialRange } from '~/utils/chartRange'
+import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
+  maintenanceEvents?: BmPmEvent[]
 }>()
 
 // The three per-degree fields (dicts keyed "0.0".."337.5") usable as radars.

@@ -3,6 +3,7 @@ import type { Fab } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { HardwareMetricTone, HardwareMetricValue, HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import { parseBmPmEvents, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   fab: Fab
@@ -187,6 +188,36 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
   {
     watch: [() => props.toolType, () => props.fab, activeService, () => selectedTool.value?.eqp_id]
   }
+)
+
+// ---- BM/PM overlay (spec Part B) ----
+// Tabs whose charts have a time x-axis; the toggle only shows there.
+const OVERLAY_SERVICES: HardwareServiceKey[] = ['bsm', 'reso-center', 'mdc', 'fdc', 'sharpness']
+// Page-scoped like `hw-section`: keeps its state across tab switches/visits.
+const showBmPmOverlay = useState('hw-bmpm-overlay', () => true)
+const overlayToggleVisible = computed(() => OVERLAY_SERVICES.includes(activeService.value))
+
+// Second cached fetch of the existing bm-pm endpoint — events for whatever
+// tab is active. Failure/empty just means no markers; charts are unaffected.
+const { data: bmPmPayload } = await useAsyncData<HardwarePayload | null>(
+  `hardware:bmpm-events:${props.toolType}:${props.fab}`,
+  () => {
+    const eqpId = selectedTool.value?.eqp_id
+    if (!eqpId) return Promise.resolve(null)
+    return fetchService({
+      toolType: props.toolType,
+      service: 'bm-pm',
+      eqpId,
+      fabName: selectedTool.value?.fab_name,
+      start: windowStart.value,
+      end: windowEnd.value
+    })
+  },
+  { watch: [() => props.toolType, () => props.fab, () => selectedTool.value?.eqp_id] }
+)
+
+const overlayEvents = computed<BmPmEvent[]>(() =>
+  showBmPmOverlay.value ? parseBmPmEvents(bmPmPayload.value?.tables ?? []) : []
 )
 
 const formatMetricValue = (value: HardwareMetricValue | undefined) => {
@@ -385,16 +416,26 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
 
         <!-- Service detail -->
         <section class="dashboard-surface flex-1 rounded-2xl p-4">
-          <div class="min-w-0">
-            <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-(--sk-ink-muted)">
-              {{ activeServiceDetail.label }}
-            </p>
-            <h2 class="mt-1 text-lg font-bold text-(--sk-ink)">
-              {{ activeServiceDetail.title }}
-            </h2>
-            <p class="mt-1 max-w-2xl text-sm text-(--sk-ink-muted)">
-              {{ activeServiceDetail.description }}
-            </p>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-(--sk-ink-muted)">
+                {{ activeServiceDetail.label }}
+              </p>
+              <h2 class="mt-1 text-lg font-bold text-(--sk-ink)">
+                {{ activeServiceDetail.title }}
+              </h2>
+              <p class="mt-1 max-w-2xl text-sm text-(--sk-ink-muted)">
+                {{ activeServiceDetail.description }}
+              </p>
+            </div>
+            <!-- BM/PM 수직 마커 오버레이 on/off — 시간축 차트가 있는 탭에서만 -->
+            <USwitch
+              v-if="overlayToggleVisible"
+              v-model="showBmPmOverlay"
+              size="sm"
+              label="BM/PM 표시"
+              class="shrink-0"
+            />
           </div>
 
           <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
@@ -465,6 +506,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 <EbeamHardwareBsmPanel
                   v-if="activeService === 'bsm'"
                   :docs="servicePayload.docs ?? []"
+                  :maintenance-events="overlayEvents"
                 />
 
                 <!-- Reso Center: drift scatter + best-reso trend + focus sweep -->
@@ -483,6 +525,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 <EbeamHardwareSharpnessPanel
                   v-else-if="activeService === 'sharpness'"
                   :docs="servicePayload.docs ?? []"
+                  :maintenance-events="overlayEvents"
                 />
 
                 <!-- MDC: 시계열 (trajectory + per-axis trends) / 비교 sub-tabs -->
@@ -491,6 +534,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   :settings="servicePayload.settings ?? {}"
                   :docs="servicePayload.docs ?? []"
                   :selected-eqp="selectedTool?.eqp_id ?? ''"
+                  :maintenance-events="overlayEvents"
                 />
 
                 <!-- SCE: settings compare + coefficient curve -->

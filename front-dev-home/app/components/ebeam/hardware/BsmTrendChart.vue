@@ -22,6 +22,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { stableYRange } from '~/utils/chartRange'
+import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   label: string
@@ -31,6 +32,8 @@ const props = defineProps<{
   // 'tight' skips stableYRange's magnitude-relative floor (which would
   // flatten the series) and lets the axis hug the data.
   yMode?: 'stable' | 'tight'
+  // BM/PM maintenance timestamps drawn as vertical markLines (empty → none).
+  events?: BmPmEvent[]
 }>()
 
 const emit = defineEmits<{ select: [key: string] }>()
@@ -38,6 +41,7 @@ const emit = defineEmits<{ select: [key: string] }>()
 const chartEl = ref<HTMLDivElement | null>(null)
 const { palette } = useEchartsTheme()
 const color = computed(() => palette.value[0] ?? '#C75A3C')
+const colorMode = useColorMode()
 
 const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
 const formatTime = (value: number | string) => {
@@ -77,6 +81,7 @@ const chartOption = computed<EChartsOption>(() => ({
       lineStyle: { color: color.value, width: 1.8 },
       itemStyle: { color: color.value },
       emphasis: { scale: 1.6 },
+      markLine: bmPmMarkLine(props.events ?? [], { dark: colorMode.value === 'dark' }),
       data: props.points.map(p => ({
         name: p.key,
         value: [toEpoch(p.ts), p.value],

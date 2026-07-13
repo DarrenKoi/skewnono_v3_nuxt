@@ -65,6 +65,7 @@
                 :points="axisPoints(activeFamily.zero)"
                 selected=""
                 y-mode="tight"
+                :events="maintenanceEvents"
               />
             </div>
             <div
@@ -76,6 +77,7 @@
                 :points="axisPoints(activeFamily.ninety)"
                 selected=""
                 y-mode="tight"
+                :events="maintenanceEvents"
               />
             </div>
           </div>
@@ -114,11 +116,13 @@
 import type { EChartsOption } from 'echarts'
 import { boxStats } from '~/utils/boxplotStats'
 import { buildMdcFamilies, trajectoryPoints, type MdcHistoryPoint } from '~/utils/mdcHistory'
+import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   settings: Record<string, Record<string, unknown>>
   docs: Record<string, unknown>[]
   selectedEqp: string
+  maintenanceEvents?: BmPmEvent[]
 }>()
 
 const TABS = ['시계열', '비교'] as const
