@@ -2,9 +2,10 @@
 
 Real office BM/PM data arrives as two pandas DataFrames per tool — completed
 maintenance ("past work") and planned maintenance ("future work"). This module
-fabricates the same shape deterministically from the `eqp_id`, so a given tool
-shows the same history on every request without any stored fixture (the same
-seed-from-id trick `sem_list/data.py` uses).
+fabricates the same shape deterministically from the `eqp_id` and the caller's
+`anchor`, so a given tool shows the same history for a given window on every
+request without any stored fixture (the same seed-from-id trick
+`sem_list/data.py` uses).
 
 `build_bm_pm_data()` is the only public entry point; it returns plain dict
 records (via `DataFrame.to_dict`) plus pre-computed summary-card values, ready
@@ -21,8 +22,6 @@ import pandas as pd
 __all__ = ["build_bm_pm_data"]
 
 
-# Anchor "today" so generated dates are stable regardless of the wall clock.
-NOW = datetime(2026, 5, 24, 9, 0)
 _TS_FMT = "%Y-%m-%d %H:%M"
 
 Category = str  # "BM" | "PM"
@@ -82,14 +81,14 @@ def _make_note(rng: random.Random) -> str:
     return template.format(p=rng.choice(_NOTE_PARTS))
 
 
-def build_past_frame(eqp_id: str, rng: random.Random) -> pd.DataFrame:
-    """Completed BM/PM jobs — many rows, sorted by upload timestamp desc."""
+def build_past_frame(eqp_id: str, rng: random.Random, anchor: datetime) -> pd.DataFrame:
+    """Completed BM/PM jobs in the ~150 days before `anchor`, ts-desc."""
     n_rows = rng.randint(4, 12)
     records = []
     for _ in range(n_rows):
         category: Category = "PM" if rng.random() < 0.55 else "BM"
         # Job sometime in the last ~150 days.
-        starts = NOW - timedelta(
+        starts = anchor - timedelta(
             days=rng.randint(3, 150),
             hours=rng.randint(0, 23),
             minutes=rng.choice([0, 15, 30, 45]),
@@ -117,20 +116,20 @@ def build_past_frame(eqp_id: str, rng: random.Random) -> pd.DataFrame:
     return frame.sort_values("timestamp", ascending=False, ignore_index=True)
 
 
-def build_future_frame(eqp_id: str, rng: random.Random) -> pd.DataFrame:
-    """Planned BM/PM — few rows (plans change), sorted by timestamp desc."""
+def build_future_frame(eqp_id: str, rng: random.Random, anchor: datetime) -> pd.DataFrame:
+    """Planned BM/PM after `anchor` — few rows (plans change), ts-desc."""
     n_rows = rng.randint(0, 3)
     records = []
     for _ in range(n_rows):
         # Planned PM dominates the forward schedule.
         category: Category = "PM" if rng.random() < 0.8 else "BM"
-        starts = NOW + timedelta(
+        starts = anchor + timedelta(
             days=rng.randint(5, 90),
             hours=rng.choice([8, 9, 13]),
         )
         ends = starts + timedelta(hours=rng.randint(4, 12) if category == "PM" else rng.randint(1, 6))
         # Plan registered recently relative to now.
-        timestamp = NOW - timedelta(days=rng.randint(0, 14), hours=rng.randint(0, 23))
+        timestamp = anchor - timedelta(days=rng.randint(0, 14), hours=rng.randint(0, 23))
         records.append(
             {
                 "eqp_id": eqp_id,
@@ -171,11 +170,16 @@ def _derive_cards(past: pd.DataFrame, future: pd.DataFrame) -> dict[str, object]
     }
 
 
-def build_bm_pm_data(eqp_id: str) -> dict[str, object]:
-    """Deterministic past/future BM/PM records + summary cards for one tool."""
+def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
+    """Deterministic past/future BM/PM records + summary cards for one tool.
+
+    `anchor` is the requested window end — the same clock the trend-chart
+    mocks generate against, so BM/PM overlay markers land inside chart
+    ranges. Same (eqp_id, anchor) → same data.
+    """
     rng = random.Random(_seed_for(eqp_id))
-    past = build_past_frame(eqp_id, rng)
-    future = build_future_frame(eqp_id, rng)
+    past = build_past_frame(eqp_id, rng, anchor)
+    future = build_future_frame(eqp_id, rng, anchor)
     return {
         "past": past.to_dict(orient="records"),
         "future": future.to_dict(orient="records"),

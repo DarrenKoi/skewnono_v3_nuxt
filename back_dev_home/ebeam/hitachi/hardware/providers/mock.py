@@ -80,7 +80,7 @@ def get_hardware_service(
         return _empty_available(tool_slug, service, fab_name)
 
     if service == "bm-pm":
-        data = build_bm_pm_data(eqp_id)
+        data = build_bm_pm_data(eqp_id, end)
         return bm_pm_history_payload(
             tool_slug,
             eqp_id,
