@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import os
+import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
@@ -39,9 +40,12 @@ __all__ = [
     "UserListRow",
     "UserListResponse",
     "UserHistoryResponse",
+    "SemModelCount",
+    "SemModelUsageResponse",
     "record_request",
     "get_me",
     "get_summary",
+    "get_sem_model_usage",
     "get_users_list",
     "get_user_history",
     "is_admin",
@@ -112,6 +116,19 @@ class UserHistoryResponse(TypedDict):
     daily: list[DailyCount]
     first_seen: str | None
     last_seen: str | None
+
+
+class SemModelCount(TypedDict):
+    model: str
+    vendor: str
+    tool_count: int
+    count: int
+
+
+class SemModelUsageResponse(TypedDict):
+    generated_at: str
+    models_7d: list[SemModelCount]
+    models_30d: list[SemModelCount]
 
 
 @dataclass
@@ -383,6 +400,51 @@ def get_users_list() -> UserListResponse:
         except Exception:
             pass
     return _users_list_from_mock(today)
+
+
+def _sem_model_usage_from_mock() -> SemModelUsageResponse:
+    # Model universe comes from the actual sem_list mock fleet so the
+    # breakdown always matches what the 장비 상태 pages show.
+    from back_dev_home.sem_list.data import get_sem_list
+
+    fleet: dict[str, dict[str, object]] = {}
+    for row in get_sem_list():
+        entry = fleet.setdefault(
+            row["eqp_model_cd"], {"vendor": row["vendor_nm"], "tools": 0}
+        )
+        entry["tools"] = int(entry["tools"]) + 1  # type: ignore[arg-type]
+
+    # Fixed seed: the ranking stays stable across refreshes. Traffic scales
+    # with fleet size but is skewed by a per-model popularity factor so the
+    # list isn't just a fleet-size mirror.
+    rng = random.Random(0x53454D4C)
+    models_7d: list[SemModelCount] = []
+    models_30d: list[SemModelCount] = []
+    for model in sorted(fleet):
+        info = fleet[model]
+        tools = int(info["tools"])  # type: ignore[arg-type]
+        monthly = max(tools, int(tools * rng.uniform(2.5, 9.0)))
+        weekly = max(1, int(monthly * rng.uniform(0.18, 0.32)))
+        base = {"model": model, "vendor": str(info["vendor"]), "tool_count": tools}
+        models_30d.append({**base, "count": monthly})  # type: ignore[typeddict-item]
+        models_7d.append({**base, "count": weekly})  # type: ignore[typeddict-item]
+    models_30d.sort(key=lambda r: (-r["count"], r["model"]))
+    models_7d.sort(key=lambda r: (-r["count"], r["model"]))
+    return {
+        "generated_at": _iso(_now()) or "",
+        "models_7d": models_7d,
+        "models_30d": models_30d,
+    }
+
+
+def get_sem_model_usage() -> SemModelUsageResponse:
+    if is_cloud():
+        try:
+            from ._office_reader import sem_model_usage_from_backends
+            return sem_model_usage_from_backends()
+        except Exception:
+            pass
+    return _sem_model_usage_from_mock()
 
 
 # ------- demo seed ----------------------------------------------------------

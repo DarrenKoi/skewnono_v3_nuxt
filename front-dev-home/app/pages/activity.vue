@@ -222,6 +222,44 @@
         />
       </UCard>
 
+      <!-- SEM List usage per equipment model -->
+      <UCard class="dashboard-surface">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+              <UIcon name="i-lucide-microscope" />
+              SEM List 모델별 사용
+            </span>
+            <UTabs
+              v-model="modelWindowKey"
+              :items="windowTabs"
+              variant="pill"
+              size="xs"
+            />
+          </div>
+        </template>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div
+            v-for="group in modelGroups"
+            :key="group.vendor"
+          >
+            <div class="text-xs font-semibold text-(--sk-ink-muted) uppercase tracking-[0.05em] mb-2">
+              {{ group.vendor }}
+            </div>
+            <ActivityModelBarList
+              :items="group.rows"
+              empty-text="아직 데이터가 없습니다."
+            />
+          </div>
+        </div>
+        <div
+          v-if="!modelGroups.length"
+          class="text-sm text-zinc-500"
+        >
+          아직 데이터가 없습니다.
+        </div>
+      </UCard>
+
       <!-- Users table -->
       <UCard class="dashboard-surface">
         <template #header>
@@ -424,9 +462,11 @@ import {
   fetchUserHistory,
   resetActivityCache,
   useActivityMe,
+  useActivitySemModels,
   useActivitySummary,
   useActivityUsers,
   type FeatureCount,
+  type SemModelCount,
   type UserListRow,
   type UserHistoryResponse
 } from '~/composables/useActivityApi'
@@ -443,18 +483,25 @@ const {
   status: meStatus
 } = await useActivityMe()
 
-// Summary + users are shared activity views, so every viewer fetches them.
-const sharedQueries = await Promise.all([useActivitySummary(), useActivityUsers()]).then(
-  ([summary, users]) => ({ summary, users })
+// Summary + users + model breakdown are shared activity views, so every
+// viewer fetches them.
+const sharedQueries = await Promise.all([
+  useActivitySummary(),
+  useActivityUsers(),
+  useActivitySemModels()
+]).then(
+  ([summary, users, semModels]) => ({ summary, users, semModels })
 )
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
 const users = computed(() => sharedQueries.users.data.value ?? null)
+const semModels = computed(() => sharedQueries.semModels.data.value ?? null)
 
 const loadError = computed(() => {
   const error = meError.value
     ?? sharedQueries.summary.error.value
     ?? sharedQueries.users.error.value
+    ?? sharedQueries.semModels.error.value
   if (!error) return null
   return error instanceof Error ? error.message : String(error)
 })
@@ -463,13 +510,18 @@ const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
   if (sharedQueries.summary.status.value === 'pending') return true
   if (sharedQueries.users.status.value === 'pending') return true
+  if (sharedQueries.semModels.status.value === 'pending') return true
   return false
 })
 
 const refreshAll = async () => {
   resetActivityCache()
   const jobs: Array<Promise<unknown>> = [refreshMe()]
-  jobs.push(sharedQueries.summary.refresh(), sharedQueries.users.refresh())
+  jobs.push(
+    sharedQueries.summary.refresh(),
+    sharedQueries.users.refresh(),
+    sharedQueries.semModels.refresh()
+  )
   await Promise.all(jobs)
 }
 
@@ -554,6 +606,26 @@ const topFeaturesForWindow = computed<FeatureCount[]>(() => {
   return windowKey.value === '7d'
     ? summary.value.top_features_7d
     : summary.value.top_features_30d
+})
+
+// --- shared usage: SEM List per-model breakdown ---
+const modelWindowKey = ref<'7d' | '30d'>('7d')
+const modelGroups = computed<{ vendor: string, rows: SemModelCount[] }[]>(() => {
+  const rows = modelWindowKey.value === '7d'
+    ? semModels.value?.models_7d ?? []
+    : semModels.value?.models_30d ?? []
+  const byVendor = new Map<string, SemModelCount[]>()
+  for (const row of rows) {
+    const bucket = byVendor.get(row.vendor)
+    if (bucket) bucket.push(row)
+    else byVendor.set(row.vendor, [row])
+  }
+  // Busiest vendor column first; rows arrive pre-sorted by count.
+  return [...byVendor.entries()]
+    .map(([vendor, vendorRows]) => ({ vendor, rows: vendorRows }))
+    .sort((a, b) =>
+      b.rows.reduce((s, r) => s + r.count, 0) - a.rows.reduce((s, r) => s + r.count, 0)
+    )
 })
 
 // --- shared usage: user discovery controls ---
