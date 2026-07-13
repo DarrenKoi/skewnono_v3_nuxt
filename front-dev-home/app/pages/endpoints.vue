@@ -1,8 +1,4 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'hub'
-})
-
 useHead({
   title: 'API 리스트 | SKEWNONO'
 })
@@ -526,7 +522,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
 <template>
   <div class="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8 lg:px-8">
     <div class="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside class="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+      <aside class="lg:sticky lg:top-0 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
         <nav
           class="space-y-6 border-b border-(--sk-border) pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
           aria-label="Information sections"

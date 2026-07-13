@@ -473,7 +473,6 @@ import {
 import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
 import { downloadCsv } from '~/utils/csvDownload'
 
-definePageMeta({ layout: 'hub' })
 useHead({ title: '사용 통계 | SKEWNONO' })
 
 const {

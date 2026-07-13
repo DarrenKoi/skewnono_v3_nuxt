@@ -3,8 +3,15 @@ import type { ToolType } from '~/stores/navigation'
 import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature } from '~/utils/features'
 
 const route = useRoute()
-const { fab } = useNavigation()
+const { fab, toolType: storeToolType } = useNavigation()
 const isEbeamRoute = useEbeamRoute()
+
+// Header-right info pages keep the feature tabs so the user can jump back to the main
+// pages; outside ebeam routes the tool type falls back to the store's remembered value.
+const INFO_PATHS = ['/intro', '/endpoints', '/activity', '/settings']
+const isInfoRoute = computed(() =>
+  INFO_PATHS.some(path => route.path === path || route.path.startsWith(`${path}/`))
+)
 
 type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-tat' | 'fail-issue' | 'hardware' | 'device-statistics' | 'skewvoir' | 'skew-check'
 
@@ -35,7 +42,12 @@ const routeToolType = computed<ToolType | null>(() => {
   return toolTypes.includes(toolType as ToolType) ? toolType as ToolType : null
 })
 
-const activeFeature = computed(() => {
+const effectiveToolType = computed<ToolType | null>(() =>
+  routeToolType.value ?? (isInfoRoute.value ? storeToolType.value : null)
+)
+
+const activeFeature = computed<FeatureRouteValue | null>(() => {
+  if (!isEbeamRoute.value) return null
   const path = route.path
   if (path.includes('/recipe-search')) return 'recipe-search'
   if (path.includes('/recipe-tat')) return 'recipe-tat'
@@ -48,7 +60,7 @@ const activeFeature = computed(() => {
 })
 
 const getFeatureRoute = (feature: string) => {
-  const toolType = routeToolType.value
+  const toolType = effectiveToolType.value
   if (!toolType) return route.path
 
   if (isFablessFeature(feature)) {
@@ -71,13 +83,13 @@ const getFeatureRoute = (feature: string) => {
 const isFeatureEnabled = (feature: FeatureTab) => {
   if (!feature.routeValue) return false
   if (!feature.enabledToolTypes) return true
-  return routeToolType.value !== null && feature.enabledToolTypes.includes(routeToolType.value)
+  return effectiveToolType.value !== null && feature.enabledToolTypes.includes(effectiveToolType.value)
 }
 </script>
 
 <template>
   <nav
-    v-if="isEbeamRoute"
+    v-if="isEbeamRoute || isInfoRoute"
     aria-label="Feature navigation"
     class="flex gap-1 min-w-0 overflow-x-auto"
   >
