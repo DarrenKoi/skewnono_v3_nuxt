@@ -54,6 +54,17 @@ test('trajectoryPoints: zips 0/90 by timestamp, skipping unmatched events', () =
   ])
 })
 
+test('trajectoryPoints: drops events missing one axis', () => {
+  const fams = buildMdcFamilies([
+    doc('2026-06-01 09:00', '800V_HR_0Deg', 1.001),
+    doc('2026-06-01 09:00', '800V_HR_90Deg', 0.999),
+    doc('2026-06-08 10:00', '800V_HR_0Deg', 1.003)
+  ])
+  assert.deepEqual(trajectoryPoints(fams[0]!), [
+    { ts: '2026-06-01 09:00', x: 1.001, y: 0.999 }
+  ])
+})
+
 test('trajectoryPoints: unpaired family yields no points', () => {
   const valley = buildMdcFamilies(docs)[1]!
   assert.deepEqual(trajectoryPoints(valley), [])
