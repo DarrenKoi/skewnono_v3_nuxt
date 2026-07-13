@@ -224,8 +224,8 @@ const boxOption = computed<EChartsOption>(() => ({
     formatter: (params) => {
       const p = Array.isArray(params) ? params[0] : params
       if (!p) return ''
-      const cond = conditions.value[p.dataIndex ?? 0] ?? ''
       if (p.seriesType === 'boxplot') {
+        const cond = conditions.value[p.dataIndex ?? 0] ?? ''
         // ECharts prepends the category index → normalize to the 5 stats.
         const arr = (p.value ?? p.data) as number[]
         const v = arr.length === 6 ? arr.slice(1) : arr
@@ -233,7 +233,9 @@ const boxOption = computed<EChartsOption>(() => ({
           + `<br/>median ${fmtVal(v[2]!)}<br/>Q1 ${fmtVal(v[1]!)}<br/>min ${fmtVal(v[0]!)}`
       }
       const v = p.data as [number, number]
-      return `<b>${props.selectedEqp}</b> · ${cond}<br/>${fmtVal(v[1]!)}`
+      // Scatter data is null-filtered, so dataIndex is post-filter — the
+      // point's own x-index carries the true condition position.
+      return `<b>${props.selectedEqp}</b> · ${conditions.value[v[0]] ?? ''}<br/>${fmtVal(v[1]!)}`
     }
   },
   xAxis: { type: 'category', data: conditions.value, axisLabel: { fontSize: 10, rotate: 20 } },
