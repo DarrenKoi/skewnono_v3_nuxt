@@ -27,6 +27,10 @@ const props = defineProps<{
   label: string
   points: { ts: string, key: string, value: number }[]
   selected: string
+  // MDC corrections drift ±0.55% around 1.0 — the drift IS the signal, so
+  // 'tight' skips stableYRange's magnitude-relative floor (which would
+  // flatten the series) and lets the axis hug the data.
+  yMode?: 'stable' | 'tight'
 }>()
 
 const emit = defineEmits<{ select: [key: string] }>()
@@ -57,7 +61,9 @@ const chartOption = computed<EChartsOption>(() => ({
   xAxis: { type: 'time', axisLabel: { fontSize: 10, formatter: formatTime } },
   yAxis: {
     type: 'value',
-    ...(stableYRange(props.points.map(p => p.value)) ?? { scale: true }),
+    ...(props.yMode === 'tight'
+      ? { scale: true }
+      : (stableYRange(props.points.map(p => p.value)) ?? { scale: true })),
     axisLabel: { fontSize: 10 }
   },
   dataZoom: [

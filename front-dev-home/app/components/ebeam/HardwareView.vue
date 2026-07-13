@@ -485,10 +485,11 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   :docs="servicePayload.docs ?? []"
                 />
 
-                <!-- MDC: skew matrix -->
+                <!-- MDC: 시계열 (trajectory + per-axis trends) / 비교 sub-tabs -->
                 <EbeamHardwareMdcPanel
                   v-else-if="activeService === 'mdc'"
                   :settings="servicePayload.settings ?? {}"
+                  :docs="servicePayload.docs ?? []"
                   :selected-eqp="selectedTool?.eqp_id ?? ''"
                 />
 
