@@ -58,6 +58,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import { stableYRange } from '~/utils/chartRange'
 
 const props = defineProps<{ docs: Record<string, unknown>[] }>()
 
@@ -116,6 +117,8 @@ const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
 const scatterOption = computed<EChartsOption>(() => {
   const pts = ordered.value.map(d => ({ ts: tsOf(d), x: num(d.CenterX), y: num(d.CenterY) }))
   const latest = pts[pts.length - 1]
+  const xAxisRange = stableYRange(pts.map(p => p.x)) ?? { scale: true }
+  const yAxisRange = stableYRange(pts.map(p => p.y)) ?? { scale: true }
   return {
     grid: { left: 48, right: 16, top: 16, bottom: 36 },
     tooltip: {
@@ -125,8 +128,8 @@ const scatterOption = computed<EChartsOption>(() => {
         return Array.isArray(d) ? `${d[2]}<br/>X ${d[0]} · Y ${d[1]}` : ''
       }
     },
-    xAxis: { type: 'value', name: 'CenterX', scale: true, axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: 'CenterY', scale: true, axisLabel: { fontSize: 10 } },
+    xAxis: { type: 'value', name: 'CenterX', ...xAxisRange, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: 'CenterY', ...yAxisRange, axisLabel: { fontSize: 10 } },
     series: [
       {
         type: 'scatter', symbolSize: 7, itemStyle: { color: c0.value, opacity: 0.5 },
@@ -145,14 +148,18 @@ const scatterOption = computed<EChartsOption>(() => {
 
 const trendOption = computed<EChartsOption>(() => {
   const rows = ordered.value
+  // ResoDelta is a magnitude-of-error metric: anchor its axis at 0 so the
+  // noisy near-zero series sits low instead of filling a centred band.
+  const axisFor = (key: 'BestReso' | 'ResoDelta') =>
+    stableYRange(rows.map(d => num(d[key])), { zeroMin: key === 'ResoDelta' }) ?? { scale: true }
   return {
     grid: { left: 56, right: 56, top: 24, bottom: 36 },
     tooltip: { trigger: 'axis' },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
     yAxis: [
-      { type: 'value', name: 'BestReso', scale: true, axisLabel: { fontSize: 10 } },
-      { type: 'value', name: 'ResoDelta', scale: true, axisLabel: { fontSize: 10 } }
+      { type: 'value', name: 'BestReso', ...axisFor('BestReso'), axisLabel: { fontSize: 10 } },
+      { type: 'value', name: 'ResoDelta', ...axisFor('ResoDelta'), axisLabel: { fontSize: 10 } }
     ],
     series: [
       {

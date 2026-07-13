@@ -21,6 +21,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import { stableYRange } from '~/utils/chartRange'
 
 const props = defineProps<{
   label: string
@@ -54,7 +55,11 @@ const chartOption = computed<EChartsOption>(() => ({
     valueFormatter: v => (typeof v === 'number' ? v.toFixed(4) : String(v))
   },
   xAxis: { type: 'time', axisLabel: { fontSize: 10, formatter: formatTime } },
-  yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+  yAxis: {
+    type: 'value',
+    ...(stableYRange(props.points.map(p => p.value)) ?? { scale: true }),
+    axisLabel: { fontSize: 10 }
+  },
   dataZoom: [
     { type: 'inside', start: 0, end: 100 },
     { type: 'slider', start: 0, end: 100, height: 16, bottom: 12 }

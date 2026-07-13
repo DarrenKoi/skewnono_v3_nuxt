@@ -120,6 +120,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { parseFdcValues, type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue } from '~/utils/fdcValues'
+import { stableYRange } from '~/utils/chartRange'
 
 const props = defineProps<{ docs: Record<string, unknown>[] }>()
 
@@ -200,18 +201,20 @@ const chartOption = computed<EChartsOption>(() => {
 
   if (activeKey.value === 'LaserPower') {
     const pts = activeDocs.value.map(d => ({ ts: tsOf(d), parsed: parseFdcValues(valuesOf(d)) }))
+    const pairY = (p: (typeof pts)[number], i: number) => (p.parsed.data as LaserPowerValue)?.pairs?.[i]?.x ?? NaN
     const pair = (i: number) => pts.map(p => ({
       name: p.ts,
-      value: [toEpoch(p.ts), ((p.parsed.data as LaserPowerValue)?.pairs?.[i]?.x ?? NaN)]
+      value: [toEpoch(p.ts), pairY(p, i)]
     }))
+    const pairAxis = (i: number) => stableYRange(pts.map(p => pairY(p, i))) ?? { scale: true }
     return {
       grid: { left: 56, right: 56, top: 24, bottom: 36 },
       tooltip: { trigger: 'axis' },
       legend: { top: 0, textStyle: { fontSize: 10 } },
       xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
       yAxis: [
-        { type: 'value', name: 'pair 1', scale: true, axisLabel: { fontSize: 10 } },
-        { type: 'value', name: 'pair 2', scale: true, axisLabel: { fontSize: 10 } }
+        { type: 'value', name: 'pair 1', ...pairAxis(0), axisLabel: { fontSize: 10 } },
+        { type: 'value', name: 'pair 2', ...pairAxis(1), axisLabel: { fontSize: 10 } }
       ],
       series: [
         { name: 'pair 1 (x)', type: 'line', yAxisIndex: 0, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pair(0) },
@@ -229,12 +232,13 @@ const chartOption = computed<EChartsOption>(() => {
     ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as TemperatureValue).temp })
   }
   const colors = [c0.value, c1.value, c2.value]
+  const tempAxis = stableYRange(Object.values(byPos).flat().map(r => r.temp)) ?? { scale: true }
   return {
     grid: { left: 56, right: 16, top: 24, bottom: 36 },
     tooltip: { trigger: 'axis' },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '°C', scale: true, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 } },
     series: Object.keys(byPos).sort().map((pos, i) => ({
       name: `pos ${pos}`, type: 'line', showSymbol: true,
       lineStyle: { color: colors[i % colors.length] }, itemStyle: { color: colors[i % colors.length] },
