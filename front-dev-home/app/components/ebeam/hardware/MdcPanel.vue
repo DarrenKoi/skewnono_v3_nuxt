@@ -83,58 +83,28 @@
       </template>
     </template>
 
-    <!-- ===== 비교: fleet snapshot (matrix table — boxplot lands in the next task) ===== -->
+    <!-- ===== 비교: fleet distribution boxplot per beam condition ===== -->
     <template v-else>
       <div
-        v-if="matrix.tools.length === 0"
+        v-if="conditions.length === 0"
         class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center text-sm text-(--sk-ink-muted) ring-1 ring-(--sk-border-soft)"
       >
         MDC 설정 데이터가 없습니다.
       </div>
       <div
         v-else
-        class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
+        class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
       >
-        <table class="min-w-full text-left text-xs">
-          <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
-            <tr>
-              <th class="whitespace-nowrap px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
-                EQP
-              </th>
-              <th
-                v-for="cond in matrix.conditions"
-                :key="cond"
-                class="whitespace-nowrap px-3 py-2 text-right font-mono text-[10px] uppercase tracking-[0.05em]"
-              >
-                {{ cond }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(tool, row) in matrix.tools"
-              :key="tool"
-              class="border-t border-(--sk-border-soft)"
-              :class="row === 0 ? 'bg-(--sk-muted-surface)' : ''"
-            >
-              <td class="whitespace-nowrap px-3 py-2 font-mono font-bold text-(--sk-ink)">
-                {{ tool }}
-                <span
-                  v-if="row === 0"
-                  class="ml-1 rounded bg-(--sk-ink) px-1 text-[9px] text-white dark:text-zinc-900"
-                >선택</span>
-              </td>
-              <td
-                v-for="(cond, col) in matrix.conditions"
-                :key="cond"
-                class="whitespace-nowrap px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)"
-                :style="cellStyle(row, col)"
-              >
-                {{ formatCell(matrix.values[row]?.[col]) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="mb-1 flex items-center justify-between px-1">
+          <span class="text-xs font-bold text-(--sk-ink)">Fleet 분포 · 조건별</span>
+          <span class="font-mono text-[11px] text-(--sk-ink-muted)">
+            ◆ {{ selectedEqp || '—' }} · {{ fleetSize }}대
+          </span>
+        </div>
+        <div
+          ref="boxEl"
+          class="h-80 w-full"
+        />
       </div>
     </template>
   </div>
@@ -142,7 +112,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { buildMdcMatrix, cellDeviation } from '~/utils/mdcMatrix'
+import { boxStats } from '~/utils/boxplotStats'
 import { buildMdcFamilies, trajectoryPoints, type MdcHistoryPoint } from '~/utils/mdcHistory'
 
 const props = defineProps<{
@@ -222,19 +192,73 @@ const xyOption = computed<EChartsOption>(() => {
 })
 useEchart(xyEl, xyOption)
 
-// --- 비교 (matrix table — replaced by the fleet boxplot in the next task) ---
-const matrix = computed(() => buildMdcMatrix(props.settings, props.selectedEqp))
-
-const formatCell = (v: number | null | undefined) =>
-  v === null || v === undefined ? '-' : v.toFixed(4)
-
-// Warm (rose) for above-baseline, cool (sky) for below; alpha = magnitude.
-const cellStyle = (row: number, col: number) => {
-  if (row === 0) return {}
-  const dev = cellDeviation(matrix.value, row, col)
-  if (dev === 0) return {}
-  const alpha = Math.min(Math.abs(dev) * 0.6, 0.6).toFixed(3)
-  const rgb = dev > 0 ? '244, 63, 94' : '56, 189, 248'
-  return { backgroundColor: `rgba(${rgb}, ${alpha})` }
+// --- 비교: per-condition fleet distribution + selected-tool marker ---
+const toNum = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : null
 }
+
+const fleetSize = computed(() => Object.keys(props.settings).length)
+
+const conditions = computed(() => {
+  const set = new Set<string>()
+  for (const tool of Object.keys(props.settings)) {
+    for (const cond of Object.keys(props.settings[tool] ?? {})) set.add(cond)
+  }
+  return [...set].sort()
+})
+
+const boxRows = computed(() => conditions.value.map((cond) => {
+  const fleet = Object.keys(props.settings)
+    .map(tool => toNum(props.settings[tool]?.[cond]))
+    .filter((v): v is number => v !== null)
+  return { cond, stats: boxStats(fleet), mine: toNum(props.settings[props.selectedEqp]?.[cond]) }
+}))
+
+const boxEl = ref<HTMLDivElement | null>(null)
+const fmtVal = (v: number) => v.toFixed(4)
+const boxOption = computed<EChartsOption>(() => ({
+  grid: { left: 64, right: 16, top: 24, bottom: 48 },
+  tooltip: {
+    trigger: 'item',
+    formatter: (params) => {
+      const p = Array.isArray(params) ? params[0] : params
+      if (!p) return ''
+      const cond = conditions.value[p.dataIndex ?? 0] ?? ''
+      if (p.seriesType === 'boxplot') {
+        // ECharts prepends the category index → normalize to the 5 stats.
+        const arr = (p.value ?? p.data) as number[]
+        const v = arr.length === 6 ? arr.slice(1) : arr
+        return `${cond}<br/>max ${fmtVal(v[4]!)}<br/>Q3 ${fmtVal(v[3]!)}`
+          + `<br/>median ${fmtVal(v[2]!)}<br/>Q1 ${fmtVal(v[1]!)}<br/>min ${fmtVal(v[0]!)}`
+      }
+      const v = p.data as [number, number]
+      return `<b>${props.selectedEqp}</b> · ${cond}<br/>${fmtVal(v[1]!)}`
+    }
+  },
+  xAxis: { type: 'category', data: conditions.value, axisLabel: { fontSize: 10, rotate: 20 } },
+  yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+  series: [
+    {
+      name: 'fleet',
+      type: 'boxplot',
+      itemStyle: { color: 'transparent', borderColor: c0.value },
+      boxWidth: ['18%', '42%'],
+      data: boxRows.value.map(r => r.stats
+        ? [r.stats.min, r.stats.q1, r.stats.median, r.stats.q3, r.stats.max]
+        : [NaN, NaN, NaN, NaN, NaN])
+    },
+    {
+      name: 'selected',
+      type: 'scatter',
+      symbol: 'diamond',
+      symbolSize: 12,
+      itemStyle: { color: c1.value, borderColor: '#fff', borderWidth: 1 },
+      data: boxRows.value
+        .map((r, i) => (r.mine !== null ? [i, r.mine] as [number, number] : null))
+        .filter((d): d is [number, number] => d !== null)
+    }
+  ]
+}))
+useEchart(boxEl, boxOption)
 </script>
