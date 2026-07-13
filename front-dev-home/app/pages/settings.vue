@@ -19,17 +19,7 @@ definePageMeta({
         </template>
 
         <div class="space-y-6">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p class="font-medium">
-                App color mode
-              </p>
-              <p class="text-sm text-gray-500 dark:text-zinc-400">
-                Select the interface color mode.
-              </p>
-            </div>
-            <UColorModeSelect />
-          </div>
+          <SettingsColorModeSelector />
 
           <SettingsEchartThemeSelector />
         </div>
@@ -38,24 +28,6 @@ definePageMeta({
       <div id="api-tokens">
         <SettingsApiTokens />
       </div>
-
-      <UCard class="dashboard-surface rounded-3xl">
-        <template #header>
-          <h2 class="font-semibold">
-            Notifications
-          </h2>
-        </template>
-
-        <div class="flex flex-col items-center justify-center py-8 text-gray-500">
-          <UIcon
-            name="i-lucide-bell"
-            class="w-12 h-12 mb-4 text-gray-300"
-          />
-          <p class="text-sm">
-            Notification settings coming soon
-          </p>
-        </div>
-      </UCard>
 
       <UCard class="dashboard-surface rounded-3xl">
         <template #header>
