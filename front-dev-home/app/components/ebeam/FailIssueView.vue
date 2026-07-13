@@ -665,8 +665,8 @@ const measSearchPredicate = (row: FailIssueMeasRow, q: string) =>
 
 const alignColumns: TableColumn<FailIssueAlignRow>[] = [
   { accessorKey: 'rank', header: '#', size: 48 },
+  { accessorKey: 'full_name', header: 'full name', size: 220 },
   { accessorKey: 'class_name', header: 'class', size: 70 },
-  { accessorKey: 'recipe_name', header: 'recipe', size: 200 },
   {
     accessorKey: 'exec_count',
     header: 'runs',
@@ -695,8 +695,8 @@ const alignColumns: TableColumn<FailIssueAlignRow>[] = [
 
 const measColumns: TableColumn<FailIssueMeasRow>[] = [
   { accessorKey: 'rank', header: '#', size: 48 },
+  { accessorKey: 'full_name', header: 'full name', size: 220 },
   { accessorKey: 'class_name', header: 'class', size: 70 },
-  { accessorKey: 'recipe_name', header: 'recipe', size: 200 },
   {
     accessorKey: 'exec_count',
     header: 'runs',
@@ -738,11 +738,11 @@ const exportFileBase = computed(() => {
 })
 
 const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
-  const headers = ['rank', 'class', 'recipe', 'exec_count', 'align_fail_count', 'align_fail_rate_pct', 'last_fail']
+  const headers = ['rank', 'full_name', 'class', 'exec_count', 'align_fail_count', 'align_fail_rate_pct', 'last_fail']
   const data = rows.map(r => [
     r.rank,
+    r.full_name,
     r.class_name,
-    r.recipe_name,
     r.exec_count,
     r.align_fail_count,
     (r.align_fail_rate * 100).toFixed(2),
@@ -752,11 +752,11 @@ const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
 }
 
 const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
-  const headers = ['rank', 'class', 'recipe', 'exec_count', 'meas_fail_count', 'meas_fail_rate_pct', 'avg_fail_ratio_pct', 'last_fail']
+  const headers = ['rank', 'full_name', 'class', 'exec_count', 'meas_fail_count', 'meas_fail_rate_pct', 'avg_fail_ratio_pct', 'last_fail']
   const data = rows.map(r => [
     r.rank,
+    r.full_name,
     r.class_name,
-    r.recipe_name,
     r.exec_count,
     r.meas_fail_count,
     (r.meas_fail_rate * 100).toFixed(2),

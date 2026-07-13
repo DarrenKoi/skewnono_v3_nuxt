@@ -209,8 +209,12 @@
                     class="h-4 w-4 text-(--sk-ink-muted)"
                   />
                   <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    Top {{ topNLimit }} recipes by total TAT
+                    {{ barChartTitle }}
                   </h3>
+                  <span
+                    v-if="tableSearch.trim()"
+                    class="text-[10.5px] text-(--sk-ink-muted)"
+                  >표 검색 적용됨</span>
                 </div>
                 <USelect
                   v-model="topNLimitText"
@@ -586,58 +590,6 @@ const kpiCells = computed(() => [
   }
 ])
 
-// Bar chart — top N recipes by total TAT (horizontal)
-
-const barEl = ref<HTMLDivElement | null>(null)
-
-const barOption = computed<EChartsOption>(() => {
-  const top = rankingRows.value.slice(0, topNLimit.value)
-  // ECharts horizontal bar — categories on yAxis must read top-to-bottom,
-  // so reverse the slice (largest at the top of the chart).
-  const reversed = [...top].reverse()
-
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params: unknown) => {
-        const arr = Array.isArray(params) ? params : [params]
-        const first = arr[0] as { name?: string, value?: number, dataIndex?: number }
-        const idx = typeof first.dataIndex === 'number' ? first.dataIndex : 0
-        const row = reversed[idx]
-        if (!row) return ''
-        return [
-          `<b>${row.full_name}</b>`,
-          `Total: ${formatSecondsAsDuration(row.total_meastime)}`,
-          `Executions: ${row.meas_counts.toLocaleString()}`,
-          `Avg: ${formatSecondsAsDuration(Math.round(row.avg_meastime))}`
-        ].join('<br/>')
-      }
-    },
-    grid: { left: 8, right: 24, top: 8, bottom: 24, containLabel: true },
-    xAxis: {
-      type: 'value',
-      axisLabel: {
-        fontSize: 10,
-        formatter: (v: number) => formatSecondsCompact(v)
-      }
-    },
-    yAxis: {
-      type: 'category',
-      data: reversed.map(r => r.full_name),
-      axisLabel: { fontSize: 10 }
-    },
-    series: [{
-      type: 'bar',
-      data: reversed.map(r => r.total_meastime),
-      barMaxWidth: 18,
-      itemStyle: { borderRadius: [0, 4, 4, 0] }
-    }]
-  }
-})
-
-useEchart(barEl, barOption)
-
 // Daily trend line
 
 const trendEl = ref<HTMLDivElement | null>(null)
@@ -747,14 +699,92 @@ watch([tableSearch, pageSize, cacheKey, sorting], () => {
   currentPage.value = 1
 })
 
+// Bar chart — the table's leading rows, drawn (horizontal)
+//
+// Reads `sortedRankingRows` rather than the raw server ranking so the chart
+// and the table can never disagree: the same search filter and the same sort
+// column drive both, and the bars are literally the table's first N rows.
+// The plotted measure follows the sorted column too — charting total TAT
+// while the table is sorted by meas count would render non-monotonic bars
+// that look broken.
+
+const BAR_METRICS: Record<SortableColumnId, { label: string, format: (v: number) => string }> = {
+  total_meastime: { label: 'total TAT', format: v => formatSecondsCompact(v) },
+  avg_meastime: { label: 'avg meastime', format: v => formatSecondsCompact(v) },
+  meas_counts: { label: 'meas count', format: v => v.toLocaleString() }
+}
+
+const barMetric = computed(() => {
+  const id = (sorting.value[0]?.id ?? 'total_meastime') as SortableColumnId
+  return { id, ...BAR_METRICS[id] }
+})
+
+const barRows = computed(() => sortedRankingRows.value.slice(0, topNLimit.value))
+
+const barChartTitle = computed(() => {
+  const descending = sorting.value[0]?.desc ?? true
+  const edge = descending ? 'Top' : 'Bottom'
+  return `${edge} ${topNLimit.value} recipes by ${barMetric.value.label}`
+})
+
+const barEl = ref<HTMLDivElement | null>(null)
+
+const barOption = computed<EChartsOption>(() => {
+  const metric = barMetric.value
+  // ECharts renders the first category at the bottom of a horizontal bar,
+  // so reverse to make the table's first row sit at the top of the chart.
+  const reversed = [...barRows.value].reverse()
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: unknown) => {
+        const arr = Array.isArray(params) ? params : [params]
+        const first = arr[0] as { name?: string, value?: number, dataIndex?: number }
+        const idx = typeof first.dataIndex === 'number' ? first.dataIndex : 0
+        const row = reversed[idx]
+        if (!row) return ''
+        return [
+          `<b>${row.full_name}</b>`,
+          `Total: ${formatSecondsAsDuration(row.total_meastime)}`,
+          `Executions: ${row.meas_counts.toLocaleString()}`,
+          `Avg: ${formatSecondsAsDuration(Math.round(row.avg_meastime))}`
+        ].join('<br/>')
+      }
+    },
+    grid: { left: 8, right: 24, top: 8, bottom: 24, containLabel: true },
+    xAxis: {
+      type: 'value',
+      axisLabel: {
+        fontSize: 10,
+        formatter: (v: number) => metric.format(v)
+      }
+    },
+    yAxis: {
+      type: 'category',
+      data: reversed.map(r => r.full_name),
+      axisLabel: { fontSize: 10 }
+    },
+    series: [{
+      type: 'bar',
+      data: reversed.map(r => r[metric.id]),
+      barMaxWidth: 18,
+      itemStyle: { borderRadius: [0, 4, 4, 0] }
+    }]
+  }
+})
+
+useEchart(barEl, barOption)
+
 const totalForShare = computed(
   () => rankingRows.value.reduce((sum, row) => sum + row.total_meastime, 0)
 )
 
 const columns: TableColumn<RecipeTatRow>[] = [
   { accessorKey: 'rank', header: '#', size: 56 },
+  { accessorKey: 'full_name', header: 'full name', size: 240 },
   { accessorKey: 'class_name', header: 'class', size: 80 },
-  { accessorKey: 'recipe_name', header: 'recipe', size: 220 },
   {
     accessorKey: 'meas_counts',
     header: 'meas count',
@@ -805,15 +835,15 @@ const exportFileName = computed(() => {
 
 const downloadRankingCsv = () => {
   const headers = [
-    'rank', 'class', 'recipe',
+    'rank', 'full_name', 'class',
     'meas_count', 'avg_meastime_sec', 'total_meastime_sec',
     'last_run', 'share_pct'
   ]
   const total = totalForShare.value
   const rows = sortedRankingRows.value.map(r => [
     r.rank,
+    r.full_name,
     r.class_name,
-    r.recipe_name,
     r.meas_counts,
     r.avg_meastime,
     r.total_meastime,
