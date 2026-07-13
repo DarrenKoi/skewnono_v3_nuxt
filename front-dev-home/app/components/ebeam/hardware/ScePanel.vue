@@ -97,8 +97,11 @@ const overlayItems = computed(() => [
 const overlayEqp = ref('none')
 
 const { palette } = useEchartsTheme()
+// Overlay uses palette[3]: across the bundled themes it stays hue-distant
+// from palette[0], while palette[1]/[2] land on similar or near-background
+// tones (e.g. cream/ochre next to the default theme's muted red).
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
-const c2 = computed(() => palette.value[2] ?? '#7B6CC4')
+const cOverlay = computed(() => palette.value[3] ?? '#2F5D8A')
 
 const chartEl = ref<HTMLDivElement | null>(null)
 const indices = Array.from({ length: 360 }, (_, i) => i)
@@ -141,8 +144,8 @@ const chartOption = computed<EChartsOption>(() => {
       line(props.selectedEqp, sel.v1, c0.value, 1),
       ...(sib
         ? [
-            line(overlayEqp.value, sib.v0, c2.value, 0, true),
-            line(overlayEqp.value, sib.v1, c2.value, 1, true)
+            line(overlayEqp.value, sib.v0, cOverlay.value, 0, true),
+            line(overlayEqp.value, sib.v1, cOverlay.value, 1, true)
           ]
         : [])
     ]
