@@ -121,8 +121,12 @@
 import type { EChartsOption } from 'echarts'
 import { parseFdcValues, type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue } from '~/utils/fdcValues'
 import { stableYRange } from '~/utils/chartRange'
+import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
-const props = defineProps<{ docs: Record<string, unknown>[] }>()
+const props = defineProps<{
+  docs: Record<string, unknown>[]
+  maintenanceEvents?: BmPmEvent[]
+}>()
 
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
 const valuesOf = (d: Record<string, unknown>) => (Array.isArray(d.values) ? d.values : [])
@@ -131,6 +135,11 @@ const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
 const c1 = computed(() => palette.value[1] ?? '#3F5D52')
 const c2 = computed(() => palette.value[2] ?? '#7B6CC4')
+
+const colorMode = useColorMode()
+const maintenanceMarkLine = computed(() =>
+  bmPmMarkLine(props.maintenanceEvents ?? [], { dark: colorMode.value === 'dark' })
+)
 
 const grouped = computed(() => {
   const g: Record<string, Record<string, unknown>[]> = {}
@@ -220,7 +229,7 @@ const chartOption = computed<EChartsOption>(() => {
         { type: 'value', name: 'pair 2', ...pairAxis(1), axisLabel: { fontSize: 10 }, splitLine: { show: false } }
       ],
       series: [
-        { name: 'pair 1 (x)', type: 'line', yAxisIndex: 0, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pair(0) },
+        { name: 'pair 1 (x)', type: 'line', yAxisIndex: 0, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pair(0), markLine: maintenanceMarkLine.value },
         { name: 'pair 2 (x)', type: 'line', yAxisIndex: 1, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: pair(1) }
       ]
     }
@@ -245,7 +254,8 @@ const chartOption = computed<EChartsOption>(() => {
     series: Object.keys(byPos).sort().map((pos, i) => ({
       name: `pos ${pos}`, type: 'line', showSymbol: true,
       lineStyle: { color: colors[i % colors.length] }, itemStyle: { color: colors[i % colors.length] },
-      data: byPos[pos]!.map(r => ({ name: r.ts, value: [toEpoch(r.ts), r.temp] }))
+      data: byPos[pos]!.map(r => ({ name: r.ts, value: [toEpoch(r.ts), r.temp] })),
+      ...(i === 0 ? { markLine: maintenanceMarkLine.value } : {})
     }))
   }
 })

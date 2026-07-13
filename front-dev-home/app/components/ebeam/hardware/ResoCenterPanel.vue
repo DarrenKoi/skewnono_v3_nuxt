@@ -59,8 +59,12 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { stableYRange } from '~/utils/chartRange'
+import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
-const props = defineProps<{ docs: Record<string, unknown>[] }>()
+const props = defineProps<{
+  docs: Record<string, unknown>[]
+  maintenanceEvents?: BmPmEvent[]
+}>()
 
 const num = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)
@@ -75,6 +79,11 @@ const keyOf = (d: Record<string, unknown>) => `${tsOf(d)}|${condOf(d)}`
 const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
 const c1 = computed(() => palette.value[1] ?? '#3F5D52')
+
+const colorMode = useColorMode()
+const maintenanceMarkLine = computed(() =>
+  bmPmMarkLine(props.maintenanceEvents ?? [], { dark: colorMode.value === 'dark' })
+)
 
 const beamConditions = computed(() =>
   Array.from(new Set(props.docs.map(d => String(d.beam_condition ?? '')).filter(Boolean))).sort()
@@ -167,7 +176,8 @@ const trendOption = computed<EChartsOption>(() => {
       {
         name: 'BestReso', type: 'line', yAxisIndex: 0,
         lineStyle: { color: c0.value }, itemStyle: { color: c0.value },
-        data: rows.map(d => ({ name: keyOf(d), value: [toEpoch(tsOf(d)), num(d.BestReso)], symbolSize: keyOf(d) === selectedKey.value ? 12 : 5 }))
+        data: rows.map(d => ({ name: keyOf(d), value: [toEpoch(tsOf(d)), num(d.BestReso)], symbolSize: keyOf(d) === selectedKey.value ? 12 : 5 })),
+        markLine: maintenanceMarkLine.value
       },
       {
         name: 'ResoDelta', type: 'line', yAxisIndex: 1,

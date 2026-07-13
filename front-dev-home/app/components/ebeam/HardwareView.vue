@@ -513,12 +513,14 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 <EbeamHardwareResoCenterPanel
                   v-else-if="activeService === 'reso-center'"
                   :docs="servicePayload.docs ?? []"
+                  :maintenance-events="overlayEvents"
                 />
 
                 <!-- FDC: fdc_key sub-tabs -->
                 <EbeamHardwareFdcPanel
                   v-else-if="activeService === 'fdc'"
                   :docs="servicePayload.docs ?? []"
+                  :maintenance-events="overlayEvents"
                 />
 
                 <!-- Sharpness: chamber-stub beam quality — condition filter + summ_beam trends + per-degree radars -->
