@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import random
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
     seed_for,
@@ -19,7 +19,7 @@ from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
 )
 
 
-__all__ = ["build_mdc_settings"]
+__all__ = ["build_mdc_history", "build_mdc_settings"]
 
 
 _BASE_CONDITIONS: tuple[str, ...] = (
@@ -60,3 +60,47 @@ def build_mdc_settings(
         val_rng = random.Random(struct_seed ^ as_of_salt)    # date-perturbed values
         out[tool] = {cond: _value(val_rng) for cond in conds}
     return out
+
+
+_TS_FMT = "%Y-%m-%d %H:%M"
+# Random-walk band: the same envelope the snapshot values use.
+_BAND_LO, _BAND_HI = 0.995, 1.006
+# Walk origin far enough back to cover any plausible request window.
+_WALK_ANCHOR = datetime(2025, 1, 1, 9, 0)
+
+
+def build_mdc_history(
+    eqp_id: str,
+    start: datetime,
+    end: datetime,
+) -> list[dict[str, str | float]]:
+    """Timestamped MDC history for one tool across [start, end], ascending.
+
+    Recalibration events land every 3-10 days; each event refreshes every
+    beam_condition the tool carries (long format: one record per condition).
+    Values drift as a clamped random walk inside the snapshot band. The walk
+    always replays from a fixed anchor, so a given eqp_id yields identical
+    values for the same dates regardless of the requested window.
+    """
+    struct_seed = seed_for(eqp_id) ^ 0x4D44_4332          # same tool/condition set as settings
+    conds = _conditions_for(random.Random(struct_seed))
+    rng = random.Random(struct_seed ^ 0x48495354)         # distinct history value stream
+    values = {cond: rng.uniform(_BAND_LO, _BAND_HI) for cond in conds}
+
+    records: list[dict[str, str | float]] = []
+    moment = _WALK_ANCHOR
+    while moment <= end:
+        if moment >= start:
+            for cond in conds:
+                records.append(
+                    {
+                        "timestamp": moment.strftime(_TS_FMT),
+                        "beam_condition": cond,
+                        "mdc_value": round(values[cond], 6),
+                    }
+                )
+        moment += timedelta(days=rng.randint(3, 10), hours=rng.randint(0, 5))
+        for cond in conds:
+            stepped = values[cond] + rng.gauss(0.0, 0.0012)
+            values[cond] = min(_BAND_HI, max(_BAND_LO, stepped))
+    return records

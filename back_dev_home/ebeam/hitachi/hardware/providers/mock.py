@@ -13,7 +13,10 @@ from back_dev_home.ebeam.hitachi.hardware.normalizers import (
 from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm_mock import build_bm_pm_data
 from back_dev_home.ebeam.hitachi.hardware.providers.beam_shape_mock import build_beam_shape_docs
 from back_dev_home.ebeam.hitachi.hardware.providers.fdc_mock import build_fdc_docs
-from back_dev_home.ebeam.hitachi.hardware.providers.mdc_mock import build_mdc_settings
+from back_dev_home.ebeam.hitachi.hardware.providers.mdc_mock import (
+    build_mdc_history,
+    build_mdc_settings,
+)
 from back_dev_home.ebeam.hitachi.hardware.providers.network_sharpness_mock import (
     build_network_sharpness_docs,
 )
@@ -122,11 +125,14 @@ def get_hardware_service(
 
     if service == "mdc":
         settings = build_mdc_settings(eqp_id, fab_name, end)
+        history = build_mdc_history(eqp_id, start, end)
         return settings_payload(
             service, tool_slug, eqp_id, fab_name,
             settings=settings,
             as_of=end.strftime("%Y-%m-%d"),
-            summary="선택 장비와 동일 fab 장비의 MDC 보정 계수 스냅샷(as-of)을 제공합니다.",
+            summary="선택 장비의 MDC 보정 이력(시계열)과 동일 fab 장비의 "
+                    "스냅샷(as-of) 비교를 제공합니다.",
+            docs=history,
         )
 
     # service == "sce"

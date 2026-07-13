@@ -284,18 +284,20 @@ def settings_payload(
     as_of: str,
     summary: str,
     tables: list[HardwareTableSection] | None = None,
+    docs: list[dict] | None = None,
 ) -> HardwarePayload:
     """Wrap a faithful dict-of-dict (mdc / sce): eqp + in-fab siblings.
 
-    Thin cards: as-of date + sibling count. `tables` optional (e.g. the mdc
-    matrix or sce settings-compare are built frontend-side off `settings`).
+    Thin cards: as-of date + sibling count. `tables` optional (e.g. the sce
+    settings-compare is built frontend-side off `settings`). `docs` optionally
+    carries the selected tool's timestamped history (mdc 시계열), ascending.
     """
     sibling_count = max(0, len(settings) - 1)
     cards: list[HardwareMetricCard] = [
         {"key": "as_of", "label": "기준일", "value": as_of, "tone": "neutral"},
         {"key": "sibling_count", "label": "동일 fab 장비", "value": sibling_count, "unit": "대", "tone": "neutral"},
     ]
-    return {
+    payload: HardwarePayload = {
         "tool_slug": tool_slug,
         "service": service,
         "eqp_id": eqp_id,
@@ -307,3 +309,6 @@ def settings_payload(
         "tables": tables or [],
         "settings": settings,
     }
+    if docs is not None:
+        payload["docs"] = docs
+    return payload
