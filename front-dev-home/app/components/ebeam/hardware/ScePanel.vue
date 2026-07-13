@@ -61,12 +61,20 @@
           <div class="text-xs font-bold text-(--sk-ink)">
             Coefficients (0–359)
           </div>
-          <USelect
-            v-model="overlayEqp"
-            :items="overlayItems"
-            size="xs"
-            class="w-44"
-          />
+          <div class="flex items-center gap-2">
+            <UTabs
+              v-model="viewMode"
+              :items="viewTabs"
+              variant="pill"
+              size="xs"
+            />
+            <USelect
+              v-model="overlayEqp"
+              :items="overlayItems"
+              size="xs"
+              class="w-44"
+            />
+          </div>
         </div>
         <div
           ref="chartEl"
@@ -80,6 +88,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
+import { stableRadialRange } from '~/utils/chartRange'
 
 const props = defineProps<{
   settings: Record<string, Record<string, unknown>>
@@ -103,17 +112,23 @@ const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
 const cOverlay = computed(() => palette.value[3] ?? '#2F5D8A')
 
+const viewTabs = [
+  { label: '라인', value: 'line' },
+  { label: '레이더', value: 'radar' }
+]
+const viewMode = ref('line')
+
 const chartEl = ref<HTMLDivElement | null>(null)
 const indices = Array.from({ length: 360 }, (_, i) => i)
+
+interface CoeffPair { v0: number[], v1: number[] }
 
 // values[0] (~±0.02) and values[1] (~0.9–1.0) live on different scales, so a
 // shared y-axis flattens both into disjoint bands. Plot each value type in
 // its own grid (v0 top, v1 bottom) with a linked x-axis crosshair; the
 // selected/overlay pair shares one series name per eqp so each equipment gets
 // a single legend entry toggling both panels.
-const chartOption = computed<EChartsOption>(() => {
-  const sel = coefficientSeries(props.settings[props.selectedEqp])
-  const sib = overlayEqp.value !== 'none' ? coefficientSeries(props.settings[overlayEqp.value]) : null
+const lineOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
   const line = (name: string, data: number[], color: string, gridIndex: number, dashed = false) => ({
     name, type: 'line' as const, showSymbol: false, smooth: false,
     xAxisIndex: gridIndex, yAxisIndex: gridIndex,
@@ -150,6 +165,65 @@ const chartOption = computed<EChartsOption>(() => {
         : [])
     ]
   }
+}
+
+// Radar view: the index IS an angle (0–359°), so each value type gets its own
+// polar system (v0 left, v1 right) drawn as a closed 360° profile. A true
+// `radar` series would need 360 named indicators — unreadable — so this uses
+// line-on-polar. Radius uses stableRadialRange (not tight scaling): a stable
+// profile should read as a near-circle, not an exaggerated blob.
+const radarOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
+  const polarLine = (name: string, data: number[], color: string, polarIndex: number, dashed = false) => ({
+    name, type: 'line' as const, coordinateSystem: 'polar' as const, polarIndex,
+    showSymbol: false, smooth: false,
+    lineStyle: { color, width: 1.2, type: dashed ? ('dashed' as const) : ('solid' as const) },
+    itemStyle: { color }, data
+  })
+  const angleAxis = (polarIndex: number) => ({
+    polarIndex, type: 'category' as const, data: indices,
+    startAngle: 90,
+    // 360 categories: label every 45° so the dial stays legible.
+    axisLabel: { fontSize: 9, interval: 44 }
+  })
+  const radiusAxis = (polarIndex: number, values: number[]) => ({
+    polarIndex,
+    ...(stableRadialRange(values) ?? {}),
+    axisLabel: { fontSize: 9 }
+  })
+  const title = (text: string, left: string) => ({
+    text, left, bottom: 4, textAlign: 'center' as const,
+    textStyle: { fontSize: 10, fontWeight: 'normal' as const }
+  })
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { top: 0, textStyle: { fontSize: 10 } },
+    title: [title('values[0]', '25%'), title('values[1]', '75%')],
+    polar: [
+      { center: ['25%', '54%'], radius: '66%' },
+      { center: ['75%', '54%'], radius: '66%' }
+    ],
+    angleAxis: [angleAxis(0), angleAxis(1)],
+    radiusAxis: [
+      radiusAxis(0, [...sel.v0, ...(sib?.v0 ?? [])]),
+      radiusAxis(1, [...sel.v1, ...(sib?.v1 ?? [])])
+    ],
+    series: [
+      polarLine(props.selectedEqp, sel.v0, c0.value, 0),
+      polarLine(props.selectedEqp, sel.v1, c0.value, 1),
+      ...(sib
+        ? [
+            polarLine(overlayEqp.value, sib.v0, cOverlay.value, 0, true),
+            polarLine(overlayEqp.value, sib.v1, cOverlay.value, 1, true)
+          ]
+        : [])
+    ]
+  }
+}
+
+const chartOption = computed<EChartsOption>(() => {
+  const sel = coefficientSeries(props.settings[props.selectedEqp])
+  const sib = overlayEqp.value !== 'none' ? coefficientSeries(props.settings[overlayEqp.value]) : null
+  return viewMode.value === 'radar' ? radarOption(sel, sib) : lineOption(sel, sib)
 })
 
 useEchart(chartEl, chartOption)
