@@ -67,7 +67,11 @@ export default defineNuxtConfig({
 
   vite: {
     server: {
-      allowedHosts: ['.trycloudflare.com']
+      // Vite rejects unknown Host headers (anti-DNS-rebinding). Allow the
+      // remote-preview hostnames: Tailscale MagicDNS (`npm run dev:remote`,
+      // reached from the tablet) and cloudflared quick tunnels. Raw IPs are
+      // permitted by Vite without being listed here.
+      allowedHosts: ['.ts.net', '.trycloudflare.com']
     }
   },
 
