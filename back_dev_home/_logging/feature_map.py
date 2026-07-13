@@ -14,23 +14,45 @@ from __future__ import annotations
 
 # Ordered list of (path_prefix, slug). Longest prefix wins, so put more
 # specific rules first. Trailing slashes in the prefix are stripped at lookup.
-_FEATURE_RULES: tuple[tuple[str, str], ...] = (
-    ("/api/ebeam/cdsem/recipe-search",     "recipe_search"),
-    ("/api/ebeam/cdsem/recipe-tat",        "recipe_tat"),
-    ("/api/ebeam/cdsem/device-statistics", "cdsem_device_statistics"),
-    ("/api/ebeam/cdsem/storage",           "cdsem_storage"),
-    ("/api/ebeam/hvsem/storage",           "hvsem_storage"),
-    ("/api/ebeam/cdsem",                   "cdsem"),
-    ("/api/ebeam/hvsem",                   "hvsem"),
-    ("/api/afm",                           "afm"),
-    ("/api/sem-list",                      "sem_list"),
-    ("/api/equipment",                     "equipment"),
-    ("/api/announcements",                 "announcements"),
-    ("/api/fail-issue",                    "fail_issue"),
-    ("/api/health",                        "health"),
-    ("/api/api-tokens",                    "api_tokens"),
-    ("/api/activity",                      "activity"),
-    ("/api/admin/logs",                    "admin_logs"),
+#
+# Granularity is PAGE-LEVEL on purpose: one slug per Nuxt page/tab, not per
+# endpoint. CD-SEM and HV-SEM share page slugs (recipe_search covers both
+# /api/cdsem/recipe-search and /api/hvsem/recipe-search) because the ranking
+# should answer "which page is popular", not "which tool family".
+_TOOL_SLUGS = ("cdsem", "hvsem")
+
+# Shared Hitachi e-beam pages mounted at /api/<tool_slug>/<page>.
+_TOOL_PAGE_RULES: tuple[tuple[str, str], ...] = (
+    ("device-statistics", "device_statistics"),
+    ("recipe-search",     "recipe_search"),
+    ("recipe-tat",        "recipe_tat"),
+    ("fail-issue",        "fail_issue"),
+    ("storage",           "storage"),
+    ("ppid-unavailable",  "storage"),   # StorageView side panel
+    ("hardware",          "hardware"),
+    ("skew",              "skew_check"),
+    ("pm-planning",       "pm_planning"),
+)
+
+_FEATURE_RULES: tuple[tuple[str, str], ...] = tuple(
+    (f"/api/{tool}/{page}", slug)
+    for tool in _TOOL_SLUGS
+    for page, slug in _TOOL_PAGE_RULES
+) + (
+    # Skewvoir workspace (MSR file/image APIs).
+    ("/api/msr-file",           "skewvoir"),
+    ("/api/msr-files",          "skewvoir"),
+    ("/api/msr-image",          "skewvoir"),
+    # Standalone pages.
+    ("/api/sem-list",           "sem_list"),
+    ("/api/meas-hist",          "meas_hist"),
+    ("/api/afm",                "afm"),
+    ("/api/afm-files",          "afm"),
+    ("/api/announcements",      "announcements"),
+    ("/api/health",             "health"),
+    ("/api/account/api-tokens", "api_tokens"),
+    ("/api/activity",           "activity"),
+    ("/api/admin/logs",         "admin_logs"),
 )
 
 

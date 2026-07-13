@@ -1,5 +1,7 @@
 import type { DailyCount } from '~/composables/useActivityApi'
 
+// Page-level slugs — see back_dev_home/_logging/feature_map.py. `cdsem` /
+// `hvsem` only appear via the fallback for unmapped tool-slug endpoints.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',
@@ -7,16 +9,19 @@ const FEATURE_LABELS: Record<string, string> = {
   announcements: '공지사항',
   api_tokens: 'API 토큰',
   cdsem: 'CD-SEM',
-  cdsem_device_statistics: '디바이스 통계',
-  cdsem_storage: 'CD-SEM Storage',
-  equipment: '장비 현황',
+  device_statistics: '디바이스 통계',
   fail_issue: 'Fail Issue',
+  hardware: 'Hardware 모니터링',
   health: '서비스 상태',
   hvsem: 'HV-SEM',
-  hvsem_storage: 'HV-SEM Storage',
+  meas_hist: '측정 이력',
+  pm_planning: 'PM Planning',
   recipe_search: 'Recipe 검색',
   recipe_tat: 'Recipe TAT',
-  sem_list: 'SEM List'
+  sem_list: 'SEM List',
+  skew_check: 'Skew Check',
+  skewvoir: 'Skewvoir',
+  storage: 'Storage'
 }
 
 export const activityFeatureLabel = (feature: string | null | undefined): string => {

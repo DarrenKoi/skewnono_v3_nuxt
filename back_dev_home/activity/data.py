@@ -396,12 +396,16 @@ def seed_demo_users() -> None:
     typically be `local-dev`, not in this list).
     """
     today = _today()
+    # Page-level slugs from _logging/feature_map.py. The mix is shaped so the
+    # global Top 10 reads like real traffic: everyone lands on SEM List first
+    # (the basic tool-list request), engineers live in Recipe 검색/TAT, and
+    # niche pages (Skewvoir, AFM, 디바이스 통계) trail behind.
     demo: list[tuple[str, dict[str, int], int, int]] = [
-        ("kim.minju",   {"sem_list": 180, "recipe_search": 160, "health": 88},        14,  35),
-        ("park.jinho",  {"recipe_search": 200, "sem_list": 80, "afm": 32},            12,  28),
-        ("lee.soyoung", {"sem_list": 110, "afm": 50, "health": 27},                    9,  22),
-        ("choi.eunwoo", {"recipe_tat": 60, "recipe_search": 28, "cdsem_storage": 8},   6,  18),
-        ("jung.hari",   {"afm": 40, "sem_list": 14},                                   4,  14),
+        ("kim.minju",   {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},         14, 35),
+        ("park.jinho",  {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},           12, 28),
+        ("lee.soyoung", {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},                  9, 22),
+        ("choi.eunwoo", {"recipe_tat": 70, "sem_list": 60, "recipe_search": 40, "device_statistics": 25},    6, 18),
+        ("jung.hari",   {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},                        4, 14),
     ]
     now = _now()
     with _lock:
