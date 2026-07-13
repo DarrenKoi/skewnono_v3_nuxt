@@ -59,6 +59,19 @@
           {{ column.columnDef.header }}
         </UButton>
       </template>
+
+      <!-- Forward parent-provided cell slots (e.g. #actions-cell) so panels
+           can add per-row controls without widening this component's API. -->
+      <template
+        v-for="(_, name) in $slots"
+        :key="name"
+        #[name]="slotProps"
+      >
+        <slot
+          :name="name"
+          v-bind="slotProps"
+        />
+      </template>
     </UTable>
 
     <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">

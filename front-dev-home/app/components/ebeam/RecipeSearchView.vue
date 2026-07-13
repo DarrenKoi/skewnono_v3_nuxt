@@ -212,20 +212,14 @@ const tableUi = {
 
 const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/${subpath}`
 
-const getRecipeDetailRoute = (recipeName: string) => ({
-  path: recipeSubpath('open'),
-  query: { recipe_name: recipeName }
-})
+const getRecipeDetailRoute = (recipeName: string) =>
+  recipeDetailRoute(props.toolType, props.fab, 'open', recipeName)
 
-const getLateralRoute = (recipeName: string) => ({
-  path: recipeSubpath('lateral'),
-  query: { recipe_name: recipeName }
-})
+const getLateralRoute = (recipeName: string) =>
+  recipeDetailRoute(props.toolType, props.fab, 'lateral', recipeName)
 
-const getMeasHistRoute = (recipeName: string) => ({
-  path: recipeSubpath('meas-hist'),
-  query: { recipe_name: recipeName }
-})
+const getMeasHistRoute = (recipeName: string) =>
+  recipeDetailRoute(props.toolType, props.fab, 'meas-hist', recipeName)
 
 const { selected, has, toggle, remove, clear, count } = useRecipeSelectionSet(props.toolType, props.fab)
 

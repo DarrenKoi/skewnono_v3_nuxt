@@ -68,6 +68,30 @@ export const formatAmpValue = (value: AmpRow[keyof AmpRow] | undefined): string 
   return String(value)
 }
 
+export type RecipeDetailScreen = 'open' | 'lateral' | 'meas-hist'
+
+export const recipeDetailRoute = (
+  toolType: string,
+  fab: string,
+  screen: RecipeDetailScreen,
+  recipeName: string
+) => ({
+  path: `/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search/${screen}`,
+  query: { recipe_name: recipeName }
+})
+
+export interface RecipeRowAction {
+  screen: RecipeDetailScreen
+  label: string
+  icon: string
+}
+
+export const RECIPE_ROW_ACTIONS: readonly RecipeRowAction[] = [
+  { screen: 'open', label: '열어 보기', icon: 'i-lucide-file-search' },
+  { screen: 'lateral', label: '횡전개', icon: 'i-lucide-network' },
+  { screen: 'meas-hist', label: '측정 이력', icon: 'i-lucide-history' }
+] as const
+
 export const readRecipeNameQuery = (route: RouteLocationNormalizedLoaded): string => {
   const raw = route.query.recipe_name
   const value = Array.isArray(raw) ? raw[0] : raw

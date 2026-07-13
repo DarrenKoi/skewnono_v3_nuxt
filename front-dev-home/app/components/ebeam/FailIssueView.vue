@@ -296,7 +296,15 @@
             :reset-key="cacheKey"
             :search-predicate="alignSearchPredicate"
             @download="downloadAlignCsv"
-          />
+          >
+            <template #actions-cell="{ row }">
+              <EbeamRecipeRowActions
+                :tool-type="toolType"
+                :fab="fab"
+                :recipe-name="row.original.recipe_name"
+              />
+            </template>
+          </EbeamFailIssueRankingTable>
           <!-- @vue-generic {FailIssueMeasRow} -->
           <EbeamFailIssueRankingTable
             title="Meas fails by recipe"
@@ -308,7 +316,15 @@
             :reset-key="cacheKey"
             :search-predicate="measSearchPredicate"
             @download="downloadMeasCsv"
-          />
+          >
+            <template #actions-cell="{ row }">
+              <EbeamRecipeRowActions
+                :tool-type="toolType"
+                :fab="fab"
+                :recipe-name="row.original.recipe_name"
+              />
+            </template>
+          </EbeamFailIssueRankingTable>
         </div>
       </template>
     </template>
@@ -665,6 +681,7 @@ const measSearchPredicate = (row: FailIssueMeasRow, q: string) =>
 const alignColumns: TableColumn<FailIssueAlignRow>[] = [
   { accessorKey: 'rank', header: '#', size: 48 },
   { accessorKey: 'full_name', header: 'full name', size: 220 },
+  { id: 'actions', header: '', size: 96 },
   { accessorKey: 'class_name', header: 'class', size: 70 },
   {
     accessorKey: 'exec_count',
@@ -689,6 +706,7 @@ const alignColumns: TableColumn<FailIssueAlignRow>[] = [
 const measColumns: TableColumn<FailIssueMeasRow>[] = [
   { accessorKey: 'rank', header: '#', size: 48 },
   { accessorKey: 'full_name', header: 'full name', size: 220 },
+  { id: 'actions', header: '', size: 96 },
   { accessorKey: 'class_name', header: 'class', size: 70 },
   {
     accessorKey: 'exec_count',

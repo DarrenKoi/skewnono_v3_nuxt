@@ -314,6 +314,14 @@
                 {{ column.columnDef.header }}
               </UButton>
             </template>
+
+            <template #actions-cell="{ row }">
+              <EbeamRecipeRowActions
+                :tool-type="toolType"
+                :fab="fab"
+                :recipe-name="row.original.recipe_name"
+              />
+            </template>
           </UTable>
 
           <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
@@ -784,6 +792,7 @@ const totalForShare = computed(
 const columns: TableColumn<RecipeTatRow>[] = [
   { accessorKey: 'rank', header: '#', size: 56 },
   { accessorKey: 'full_name', header: 'full name', size: 240 },
+  { id: 'actions', header: '', size: 96 },
   { accessorKey: 'class_name', header: 'class', size: 80 },
   {
     accessorKey: 'meas_counts',

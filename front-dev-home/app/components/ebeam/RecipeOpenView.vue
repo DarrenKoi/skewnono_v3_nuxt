@@ -11,7 +11,7 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-arrow-left"
-          label="목록으로"
+          label="돌아가기"
           class="rounded-full font-semibold"
           :to="backRoute"
           @click.prevent="goBackToList"
