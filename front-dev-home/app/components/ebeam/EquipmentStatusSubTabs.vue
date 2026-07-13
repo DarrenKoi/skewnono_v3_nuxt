@@ -1,27 +1,22 @@
 <template>
-  <div
-    role="radiogroup"
+  <!-- These sub-tabs change the route, so by the BLACK/TERRACOTTA litmus test
+       they are NAVIGATE and take sk-nav-pill (ink fill), not a chip and not a
+       hand-rolled segmented control. SkNavPill emits aria-current="page" when
+       given `to`, which is the correct semantic for a link that owns the view. -->
+  <nav
     aria-label="장비 상태 sub-view"
-    class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
+    class="inline-flex items-center gap-1"
   >
-    <NuxtLink
+    <SkNavPill
       v-for="option in options"
       :key="option.value"
       :to="option.to"
-      role="radio"
-      :aria-checked="active === option.value"
-      class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-      :class="active === option.value
-        ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-        : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-    >
-      <UIcon
-        :name="option.icon"
-        class="h-4 w-4"
-      />
-      {{ option.label }}
-    </NuxtLink>
-  </div>
+      :icon="option.icon"
+      :label="option.label"
+      :active="active === option.value"
+      size="sm"
+    />
+  </nav>
 </template>
 
 <script setup lang="ts">

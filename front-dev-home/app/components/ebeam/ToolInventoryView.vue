@@ -16,22 +16,25 @@
     </EbeamMetaBar>
 
     <UCard
-      class="dashboard-surface rounded-2xl flex flex-col flex-1 min-h-0"
+      class="dashboard-surface flex flex-col flex-1 min-h-0"
       :ui="{ body: 'p-0 sm:p-0 flex flex-1 flex-col min-h-0', header: 'px-4 py-3 sm:px-4' }"
     >
       <template #header>
         <div class="flex items-center justify-between gap-3">
-          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Tool Inventory
+          <h2 class="text-lg font-semibold">
+            장비 리스트
           </h2>
-          <p class="text-xs text-(--sk-ink-muted) tabular-nums">
-            {{ filteredRows.length }} of {{ rows.length }} tools
-          </p>
+          <UBadge
+            color="neutral"
+            variant="subtle"
+          >
+            {{ filteredRows.length }} / {{ rows.length }}
+          </UBadge>
         </div>
       </template>
 
       <!-- Toolbar -->
-      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
+      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-(--sk-border)">
         <UInput
           v-model="globalFilter"
           class="flex-1 min-w-56"
@@ -39,7 +42,7 @@
           icon="i-lucide-search"
           color="neutral"
           variant="subtle"
-          placeholder="Search by Equipment ID, Model, IP…"
+          placeholder="장비 ID, Model, IP 검색"
         />
 
         <USelect
@@ -66,7 +69,7 @@
           color="neutral"
           variant="ghost"
           icon="i-lucide-rotate-ccw"
-          label="Reset"
+          label="초기화"
           :disabled="!hasActiveTableControls"
           @click="resetTableControls"
         />
@@ -74,10 +77,10 @@
 
       <UTable
         v-model:sorting="sorting"
-        class="flex-1 min-h-0 font-mono-ids"
+        class="flex-1 min-h-0"
         :columns="columns"
         :data="filteredRows"
-        :empty="`No tools match the current search or filters.`"
+        empty="검색·필터 조건에 맞는 장비가 없습니다."
         :meta="tableMeta"
         :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false, manualSorting: true }"
         sticky="header"
@@ -99,22 +102,17 @@
           </UButton>
         </template>
 
+        <!-- Equipment running state renders as a status pill with a text label,
+             never color alone. -->
         <template #available-cell="{ row }">
-          <span
-            class="inline-flex items-center gap-1.5 text-[12px] font-semibold"
-            :style="{ color: row.original.available === 'Off' ? 'var(--sk-bad)' : 'var(--sk-ok)' }"
-          >
-            <span
-              class="inline-block w-1.5 h-1.5 rounded-full"
-              :style="{ background: row.original.available === 'Off' ? 'var(--sk-bad)' : 'var(--sk-ok)' }"
-            />
+          <span :class="row.original.available === 'Off' ? 'sk-pill-off' : 'sk-pill-on'">
             {{ row.original.available === 'Off' ? 'Offline' : 'Available' }}
           </span>
         </template>
 
         <template #eqp_id-cell="{ row }">
           <div class="flex items-center gap-3">
-            <span class="font-mono font-bold text-[13px] text-(--sk-ink) tracking-tight">
+            <span class="font-mono font-bold text-(--sk-ink) tracking-tight">
               {{ row.original.eqp_id }}
             </span>
             <UButton
@@ -123,23 +121,25 @@
               variant="subtle"
               trailing-icon="i-lucide-arrow-right"
               label="H/W 상태"
-              :aria-label="`Open hardware view for ${row.original.eqp_id}`"
+              :aria-label="`${row.original.eqp_id} H/W 상태 열기`"
               @click="goToHardware(row.original.eqp_id)"
             />
           </div>
         </template>
 
+        <!-- Every cell below is a data value, so all of them take full ink and
+             the td's text size — no muted ink, no per-cell sizes. -->
         <template #eqp_model_cd-cell="{ row }">
-          <span class="text-[12.5px] font-medium text-(--sk-ink)">{{ row.original.eqp_model_cd }}</span>
+          <span class="font-medium text-(--sk-ink)">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #vendor_nm-cell="{ row }">
-          <span class="text-[11.5px] text-(--sk-ink) capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
+          <span class="text-(--sk-ink) capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-[11.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
         </template>
         <template #version-cell="{ row }">
-          <span class="font-mono tabular-nums text-[11.5px] text-(--sk-ink)">v{{ row.original.version }}</span>
+          <span class="font-mono tabular-nums text-(--sk-ink)">v{{ row.original.version }}</span>
         </template>
       </UTable>
     </UCard>
@@ -189,7 +189,7 @@ const goToHardware = (eqpId: string) => {
 }
 
 const modelFilterOptions = computed(() => [
-  { label: 'All Models', value: 'all' },
+  { label: '전체 Model', value: 'all' },
   ...Array.from(new Set(rows.value.map(row => row.eqp_model_cd)))
     .sort((left, right) => left.localeCompare(right))
     .map(model => ({
@@ -292,11 +292,14 @@ const hasActiveTableControls = computed(() => {
     || currentSort?.desc !== defaultSort.desc
 })
 
+// Table hover is one of the two sanctioned direct uses of the zinc scale.
+// The header needs no background: the sticky header already sits on the themed
+// surface, so a tint here would just be a second, colder card.
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+    td: 'py-1.5 px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis',
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted)'
   }
 }
 
@@ -369,9 +372,3 @@ const downloadTableCsv = () => {
   URL.revokeObjectURL(url)
 }
 </script>
-
-<style scoped>
-.font-mono-ids :deep(td .font-mono) {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-}
-</style>

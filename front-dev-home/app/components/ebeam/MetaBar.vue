@@ -42,23 +42,23 @@ const emit = defineEmits<{ (e: 'select-stat', key: string): void }>()
 const toneTextClass = (tone: MetaBarStatTone = 'neutral') => ({
   ok: 'text-(--sk-ok)',
   bad: 'text-(--sk-bad)',
-  warn: 'text-amber-600 dark:text-amber-300',
+  warn: 'text-(--sk-warn)',
   accent: 'text-(--sk-accent)',
-  neutral: 'text-zinc-900 dark:text-zinc-100'
+  neutral: 'text-(--sk-ink)'
 }[tone])
 
 // Soft background tint for the engaged filter segment (interactive stats only).
 const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
   ok: 'var(--sk-ok-soft)',
   bad: 'var(--sk-bad-soft)',
-  warn: 'oklch(0.92 0.06 80)',
+  warn: 'var(--sk-warn-soft)',
   accent: 'var(--sk-accent-tint)',
   neutral: 'var(--sk-muted-surface)'
 }[tone])
 </script>
 
 <template>
-  <div class="dashboard-surface flex flex-wrap items-stretch gap-y-1.5 rounded-2xl p-1.5">
+  <div class="dashboard-surface flex flex-wrap items-stretch gap-y-1.5 rounded-[var(--sk-r-card)] p-1.5">
     <!-- LEFT cluster — title pod + toggle, locked together -->
     <div class="flex shrink-0 items-stretch">
       <div class="flex flex-col justify-center py-1.5 pl-3 pr-4">
@@ -68,7 +68,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
         >
           {{ eyebrow }}
         </p>
-        <h1 class="text-[17px] font-extrabold leading-tight tracking-tight text-(--sk-ink)">
+        <h1 class="text-lg font-extrabold leading-tight tracking-tight text-(--sk-ink)">
           {{ title }}
         </h1>
       </div>
@@ -111,18 +111,19 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
           :type="interactiveStats ? 'button' : undefined"
           :role="interactiveStats ? 'radio' : undefined"
           :aria-checked="interactiveStats ? stat.active : undefined"
-          class="flex flex-col justify-center border-r border-(--sk-border-soft) px-4 py-0.5 text-left transition"
+          class="flex flex-col justify-center border-r border-(--sk-border-soft) px-4 py-0.5 text-left transition-colors duration-200"
           :class="[
             index === 0 ? 'border-l' : '',
-            interactiveStats ? 'cursor-pointer hover:bg-(--sk-muted-surface) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--sk-accent)' : ''
+            interactiveStats ? 'cursor-pointer hover:bg-(--sk-accent-soft)' : ''
           ]"
           :style="interactiveStats && stat.active ? { background: toneActiveBg(stat.tone) } : undefined"
           @click="interactiveStats ? emit('select-stat', stat.key) : undefined"
         >
           <span
-            class="text-[26px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums"
+            class="text-2xl font-bold leading-[1.05] tracking-[-0.02em] tabular-nums"
             :class="toneTextClass(stat.tone)"
           >{{ stat.value }}</span>
+          <!-- 11px micro-label: a caption naming the number, never a value. -->
           <span class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.02em] text-(--sk-ink-muted)">
             {{ stat.label }}
           </span>

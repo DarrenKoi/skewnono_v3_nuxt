@@ -13,21 +13,24 @@
     </EbeamMetaBar>
 
     <UCard
-      class="dashboard-surface rounded-2xl"
+      class="dashboard-surface"
       :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
     >
       <template #header>
         <div class="flex items-center justify-between gap-3">
-          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Storage Inventory
+          <h2 class="text-lg font-semibold">
+            스토리지 용량
           </h2>
-          <p class="text-xs text-(--sk-ink-muted) tabular-nums">
-            {{ filteredRows.length }} of {{ rows.length }} tools
-          </p>
+          <UBadge
+            color="neutral"
+            variant="subtle"
+          >
+            {{ filteredRows.length }} / {{ rows.length }}
+          </UBadge>
         </div>
       </template>
 
-      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
+      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-(--sk-border)">
         <UInput
           v-model="globalFilter"
           class="flex-1 min-w-[14rem]"
@@ -35,7 +38,7 @@
           icon="i-lucide-search"
           color="neutral"
           variant="subtle"
-          placeholder="Search storage inventory"
+          placeholder="장비 ID, Model, IP 검색"
         />
 
         <USelect
@@ -61,7 +64,7 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-rotate-ccw"
-          label="Reset"
+          label="초기화"
           :disabled="!hasActiveControls"
           @click="resetControls"
         />
@@ -75,21 +78,21 @@
           name="i-lucide-loader-circle"
           class="h-4 w-4 animate-spin"
         />
-        Loading storage data...
+        스토리지 정보를 불러오는 중입니다.
       </div>
       <div
         v-else-if="error"
-        class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
+        class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-400"
       >
-        Failed to load storage data.
+        스토리지 정보를 불러오지 못했습니다.
       </div>
       <UTable
         v-else
         v-model:sorting="storageSorting"
-        class="max-h-[36rem] font-mono-ids"
+        class="max-h-[36rem]"
         :columns="columns"
         :data="filteredRows"
-        :empty="`No storage rows match the current search.`"
+        empty="검색 조건에 맞는 스토리지 정보가 없습니다."
         :meta="tableMeta"
         :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false, manualSorting: true }"
         sticky="header"
@@ -112,16 +115,16 @@
         </template>
 
         <template #eqp_id-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.eqp_id }}</span>
+          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_id }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
         </template>
         <template #fab_name-cell="{ row }">
           <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
-          <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd }}</span>
+          <span class="font-mono text-(--sk-ink)">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #percent-cell="{ row }">
           <div
@@ -132,48 +135,50 @@
               name="i-lucide-circle-slash"
               class="h-3.5 w-3.5 shrink-0"
             />
-            <span class="text-[12px] italic">Storage N/A</span>
+            <span class="italic">스토리지 정보 없음</span>
           </div>
           <div
             v-else
             class="flex items-center gap-2 min-w-[10rem]"
           >
-            <div class="flex-1 h-1.5 rounded-full bg-zinc-200/70 dark:bg-zinc-800/70 overflow-hidden">
+            <!-- 6px track at 6px radius (--sk-r-sidebar) reads as a bar without
+                 reaching for the banned rounded-full. -->
+            <div class="flex-1 h-1.5 rounded-[var(--sk-r-sidebar)] bg-(--sk-muted-surface) overflow-hidden">
               <div
-                class="h-full rounded-full transition-all"
+                class="h-full rounded-[var(--sk-r-sidebar)] transition-colors duration-200"
                 :class="usageBarClass(parsePercent(row.original.percent))"
                 :style="{ width: `${parsePercent(row.original.percent)}%` }"
               />
             </div>
             <span
-              class="text-[12px] font-semibold tabular-nums w-10 text-right"
+              class="font-semibold tabular-nums w-10 text-right"
               :class="usageTextClass(parsePercent(row.original.percent))"
             >{{ row.original.percent }}</span>
           </div>
         </template>
         <template #total-cell="{ row }">
           <span
-            class="font-mono tabular-nums text-[12.5px]"
-            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : ''"
+            class="font-mono tabular-nums"
+            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : 'text-(--sk-ink)'"
           >{{ storageNa(row.original) ? 'N/A' : row.original.total }}</span>
         </template>
         <template #used-cell="{ row }">
           <span
-            class="font-mono tabular-nums text-[12.5px]"
-            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : ''"
+            class="font-mono tabular-nums"
+            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : 'text-(--sk-ink)'"
           >{{ storageNa(row.original) ? 'N/A' : row.original.used }}</span>
         </template>
         <template #avail-cell="{ row }">
           <span
-            class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)"
-            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : ''"
+            class="font-mono tabular-nums"
+            :class="storageNa(row.original) ? 'text-(--sk-ink-muted) italic' : 'text-(--sk-ink)'"
           >{{ storageNa(row.original) ? 'N/A' : row.original.avail }}</span>
         </template>
         <template #rcp_counts-cell="{ row }">
           <span
-            class="inline-flex items-center gap-1 tabular-nums text-[12.5px]"
+            class="inline-flex items-center gap-1 tabular-nums text-(--sk-ink)"
             :class="rcpClass(row.original.rcp_counts)"
-            :title="rcpTier(row.original.rcp_counts) === 'critical' ? `Approaching 50,000 recipe cap — manage this tool` : rcpTier(row.original.rcp_counts) === 'warning' ? `High recipe count, watch for cap` : undefined"
+            :title="rcpTier(row.original.rcp_counts) === 'critical' ? 'Recipe 상한(50,000)에 근접했습니다. 정리가 필요합니다.' : rcpTier(row.original.rcp_counts) === 'warning' ? 'Recipe 수가 많습니다. 상한에 주의하세요.' : undefined"
           >
             <UIcon
               v-if="rcpTier(row.original.rcp_counts) === 'critical'"
@@ -184,34 +189,37 @@
           </span>
         </template>
         <template #storage_mt-cell="{ row }">
-          <span class="text-[12px] text-(--sk-ink) tabular-nums">{{ row.original.storage_mt ? formatTimestamp(row.original.storage_mt) : '—' }}</span>
+          <span class="text-(--sk-ink) tabular-nums">{{ row.original.storage_mt ? formatTimestamp(row.original.storage_mt) : '—' }}</span>
         </template>
       </UTable>
     </UCard>
 
     <UCard
-      class="dashboard-surface rounded-2xl"
+      class="dashboard-surface"
       :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
     >
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              PPID Unreachable
+            <h2 class="text-lg font-semibold">
+              PPID 미접속 장비
             </h2>
-            <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
-              Latest date:
-              <span class="font-mono tabular-nums">{{ ppidLatestDate || '-' }}</span>
+            <p class="text-xs text-(--sk-ink-muted) mt-0.5">
+              기준일
+              <span class="font-mono tabular-nums text-(--sk-ink)">{{ ppidLatestDate || '-' }}</span>
             </p>
           </div>
 
-          <p class="text-xs text-(--sk-ink-muted) tabular-nums">
-            {{ filteredPpidUnavailable.length }} of {{ ppidUnavailableRows.length }} tools
-          </p>
+          <UBadge
+            color="neutral"
+            variant="subtle"
+          >
+            {{ filteredPpidUnavailable.length }} / {{ ppidUnavailableRows.length }}
+          </UBadge>
         </div>
       </template>
 
-      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
+      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-(--sk-border)">
         <UInput
           v-model="ppidUnavailableFilter"
           class="flex-1 min-w-[14rem]"
@@ -219,7 +227,7 @@
           icon="i-lucide-search"
           color="neutral"
           variant="subtle"
-          placeholder="Search unreachable tools"
+          placeholder="미접속 장비 검색"
         />
 
         <UButton
@@ -227,7 +235,7 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-rotate-ccw"
-          label="Reset"
+          label="초기화"
           :disabled="!hasActivePpidControls"
           @click="resetPpidFilters"
         />
@@ -241,13 +249,13 @@
           name="i-lucide-loader-circle"
           class="h-4 w-4 animate-spin"
         />
-        Loading daily PPID-unreachable data...
+        PPID 미접속 정보를 불러오는 중입니다.
       </div>
       <div
         v-else-if="ppidUnavailableError"
-        class="px-4 py-10 text-center text-sm text-rose-600 dark:text-rose-300"
+        class="px-4 py-10 text-center text-sm text-rose-600 dark:text-rose-400"
       >
-        Failed to load PPID-unreachable list.
+        PPID 미접속 목록을 불러오지 못했습니다.
       </div>
       <div
         v-else-if="ppidUnavailableRows.length === 0"
@@ -255,13 +263,13 @@
       >
         <UIcon
           name="i-lucide-circle-check-big"
-          class="mx-auto mb-2 h-6 w-6 text-emerald-500/80"
+          class="mx-auto mb-2 h-6 w-6 text-(--sk-ok)"
         />
-        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          No tools failed PPID access on the latest date.
+        <p class="text-sm font-medium text-(--sk-ink)">
+          기준일에 PPID 접속에 실패한 장비가 없습니다.
         </p>
-        <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
-          {{ props.fab }} {{ props.toolLabel }} on {{ ppidLatestDate || 'the latest date' }}.
+        <p class="text-xs text-(--sk-ink-muted) mt-0.5 leading-relaxed">
+          {{ props.fab }} {{ props.toolLabel }} · {{ ppidLatestDate || '최신 기준일' }}
         </p>
       </div>
       <div
@@ -272,11 +280,11 @@
           name="i-lucide-filter-x"
           class="mx-auto mb-2 h-6 w-6 text-(--sk-ink-muted)"
         />
-        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          No tools match the current search.
+        <p class="text-sm font-medium text-(--sk-ink)">
+          검색 조건에 맞는 장비가 없습니다.
         </p>
-        <p class="text-[12px] text-(--sk-ink-muted) mt-0.5">
-          {{ ppidUnavailableRows.length }} tools are hidden by search.
+        <p class="text-xs text-(--sk-ink-muted) mt-0.5 leading-relaxed">
+          검색 조건으로 {{ ppidUnavailableRows.length }}대가 숨겨져 있습니다.
         </p>
         <UButton
           class="mt-3"
@@ -284,14 +292,14 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-rotate-ccw"
-          label="Clear search"
+          label="검색 초기화"
           @click="resetPpidFilters"
         />
       </div>
       <UTable
         v-else
         v-model:sorting="ppidSorting"
-        class="max-h-[22rem] font-mono-ids"
+        class="max-h-[22rem]"
         :columns="ppidColumns"
         :data="filteredPpidUnavailable"
         :meta="ppidTableMeta"
@@ -319,18 +327,20 @@
           <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name || '—' }}</span>
         </template>
         <template #eqp_id-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px]">{{ row.original.eqp_id || '—' }}</span>
+          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_id || '—' }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
-          <span class="font-mono text-[12.5px]">{{ row.original.eqp_model_cd || '—' }}</span>
+          <span class="font-mono text-(--sk-ink)">{{ row.original.eqp_model_cd || '—' }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-[12.5px] text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
         </template>
         <template #missing_days_streak-cell="{ row }">
           <span
-            class="inline-flex items-center justify-center min-w-[2rem] rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold tabular-nums"
-            :class="row.original.missing_days_streak >= 7 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-300' : 'bg-zinc-500/10 text-(--sk-ink-muted)'"
+            class="inline-flex items-center justify-center min-w-[2rem] rounded-[var(--sk-r-chip)] px-1.5 py-0.5 font-semibold tabular-nums"
+            :class="row.original.missing_days_streak >= 7
+              ? 'bg-(--sk-bad-soft) text-(--sk-bad)'
+              : 'bg-(--sk-muted-surface) text-(--sk-ink-muted)'"
           >{{ row.original.missing_days_streak }}d</span>
         </template>
       </UTable>
@@ -414,16 +424,18 @@ const parseSizeGb = (label: string): number => {
 
 const storageNa = (row: StorageRow): boolean => isStorageUnavailable(row)
 
+// Status hues come from the --sk-ok/warn/bad families, not raw Tailwind colors:
+// the token pairs are already tuned per mode, so one class covers light + dark.
 const usageBarClass = (percent: number) => {
-  if (percent >= 80) return 'bg-rose-500 dark:bg-rose-400'
-  if (percent >= 60) return 'bg-amber-500 dark:bg-amber-400'
-  return 'bg-emerald-500 dark:bg-emerald-400'
+  if (percent >= 80) return 'bg-(--sk-bad)'
+  if (percent >= 60) return 'bg-(--sk-warn)'
+  return 'bg-(--sk-ok)'
 }
 
 const usageTextClass = (percent: number) => {
-  if (percent >= 80) return 'text-rose-600 dark:text-rose-300'
-  if (percent >= 60) return 'text-amber-600 dark:text-amber-300'
-  return 'text-emerald-600 dark:text-emerald-300'
+  if (percent >= 80) return 'text-(--sk-bad)'
+  if (percent >= 60) return 'text-(--sk-warn)'
+  return 'text-(--sk-ok)'
 }
 
 // Tools cap at 50,000 recipes; flag well before the ceiling so engineers can
@@ -443,9 +455,9 @@ const rcpTier = (count: number): RcpTier => {
 const rcpClass = (count: number) => {
   switch (rcpTier(count)) {
     case 'critical':
-      return 'text-rose-600 dark:text-rose-300 font-bold'
+      return 'text-(--sk-bad) font-bold'
     case 'warning':
-      return 'text-amber-600 dark:text-amber-300 font-semibold'
+      return 'text-(--sk-warn) font-semibold'
     default:
       return ''
   }
@@ -473,35 +485,37 @@ const storageSorting = ref<SortingState>([
   }
 ])
 
+// Option labels are Korean, values stay English keys. Domain tokens that appear
+// as column headers (Model, IP, Fab, Recipe) keep their English form.
 const usageFilterOptions = [
-  { label: 'All Usage', value: 'all' },
-  { label: 'Critical (>=80%)', value: 'critical' },
-  { label: 'Warning (60-79%)', value: 'warning' },
-  { label: 'Healthy (<60%)', value: 'healthy' },
-  { label: 'Not available', value: 'unavailable' }
+  { label: '전체 사용률', value: 'all' },
+  { label: '위험 (80% 이상)', value: 'critical' },
+  { label: '주의 (60–79%)', value: 'warning' },
+  { label: '정상 (60% 미만)', value: 'healthy' },
+  { label: '정보 없음', value: 'unavailable' }
 ]
 
 const sortOptions = [
-  { label: 'Usage (High to Low)', value: 'percent:desc' },
-  { label: 'Usage (Low to High)', value: 'percent:asc' },
-  { label: 'Equipment ID (A-Z)', value: 'eqp_id:asc' },
-  { label: 'Equipment ID (Z-A)', value: 'eqp_id:desc' },
-  { label: 'Fab (A-Z)', value: 'fab_name:asc' },
-  { label: 'Fab (Z-A)', value: 'fab_name:desc' },
-  { label: 'Model (A-Z)', value: 'eqp_model_cd:asc' },
-  { label: 'Model (Z-A)', value: 'eqp_model_cd:desc' },
-  { label: 'IP Address (A-Z)', value: 'eqp_ip:asc' },
-  { label: 'IP Address (Z-A)', value: 'eqp_ip:desc' },
-  { label: 'Total Capacity (High to Low)', value: 'total:desc' },
-  { label: 'Total Capacity (Low to High)', value: 'total:asc' },
-  { label: 'Used Capacity (High to Low)', value: 'used:desc' },
-  { label: 'Used Capacity (Low to High)', value: 'used:asc' },
-  { label: 'Available Capacity (High to Low)', value: 'avail:desc' },
-  { label: 'Available Capacity (Low to High)', value: 'avail:asc' },
-  { label: 'Recipe Count (High to Low)', value: 'rcp_counts:desc' },
-  { label: 'Recipe Count (Low to High)', value: 'rcp_counts:asc' },
-  { label: 'Last Reported (Newest)', value: 'storage_mt:desc' },
-  { label: 'Last Reported (Oldest)', value: 'storage_mt:asc' }
+  { label: '사용률 높은 순', value: 'percent:desc' },
+  { label: '사용률 낮은 순', value: 'percent:asc' },
+  { label: '장비 ID 오름차순', value: 'eqp_id:asc' },
+  { label: '장비 ID 내림차순', value: 'eqp_id:desc' },
+  { label: 'Fab 오름차순', value: 'fab_name:asc' },
+  { label: 'Fab 내림차순', value: 'fab_name:desc' },
+  { label: 'Model 오름차순', value: 'eqp_model_cd:asc' },
+  { label: 'Model 내림차순', value: 'eqp_model_cd:desc' },
+  { label: 'IP 오름차순', value: 'eqp_ip:asc' },
+  { label: 'IP 내림차순', value: 'eqp_ip:desc' },
+  { label: '전체 용량 큰 순', value: 'total:desc' },
+  { label: '전체 용량 작은 순', value: 'total:asc' },
+  { label: '사용 용량 큰 순', value: 'used:desc' },
+  { label: '사용 용량 작은 순', value: 'used:asc' },
+  { label: '잔여 용량 큰 순', value: 'avail:desc' },
+  { label: '잔여 용량 작은 순', value: 'avail:asc' },
+  { label: 'Recipe 수 많은 순', value: 'rcp_counts:desc' },
+  { label: 'Recipe 수 적은 순', value: 'rcp_counts:asc' },
+  { label: '최근 보고 순', value: 'storage_mt:desc' },
+  { label: '오래된 보고 순', value: 'storage_mt:asc' }
 ]
 
 const sortPreset = computed({
@@ -674,8 +688,8 @@ const resetControls = () => {
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+    td: 'py-1.5 px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted)'
   }
 }
 
@@ -780,8 +794,8 @@ const resetPpidFilters = () => {
 const ppidTableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+    td: 'py-1.5 px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted)'
   }
 }
 
@@ -809,9 +823,3 @@ const ppidSortableHeaders = ppidColumnConfigs.map(column => ({
   label: column.header
 }))
 </script>
-
-<style scoped>
-.font-mono-ids :deep(td .font-mono) {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-}
-</style>
