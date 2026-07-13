@@ -39,7 +39,7 @@ const baseUrlRows = [
   },
   {
     label: '회사/운영 환경',
-    value: 'https://<skewnono-host>/api',
+    value: 'http://sknn.skhynix.com/api',
     detail: '회사망에서 개인 스크립트나 배치가 데이터를 가져갈 때 사용하는 기준입니다.'
   }
 ]
@@ -72,7 +72,7 @@ const authNotes = [
 const examples = [
   {
     title: 'curl',
-    code: `BASE_URL="https://<skewnono-host>/api"
+    code: `BASE_URL="http://sknn.skhynix.com/api"
 SKEWNONO_TOKEN="skn_your_token"
 
 curl -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
@@ -82,7 +82,7 @@ curl -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
     title: 'Python requests',
     code: `import requests
 
-base_url = "https://<skewnono-host>/api"
+base_url = "http://sknn.skhynix.com/api"
 headers = {"Authorization": "Bearer skn_your_token"}
 
 response = requests.get(f"{base_url}/cdsem/storage", headers=headers, timeout=10)
