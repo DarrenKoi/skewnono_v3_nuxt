@@ -249,6 +249,16 @@
   outline-offset: 2px;
 }
 
+/* Tailwind v4's Preflight dropped v3's opinionated `cursor: pointer` on buttons,
+   so every UButton renders with an arrow cursor and reads as non-interactive.
+   Declared outside @layer so it beats Preflight's `@layer base` rule. Disabled
+   controls keep their own cursor. */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+summary {
+  cursor: pointer;
+}
+
 html,
 body,
 #__nuxt {
