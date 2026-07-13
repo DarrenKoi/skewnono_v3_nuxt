@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { stableYRange } from '~/utils/chartRange'
+import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -66,7 +66,7 @@ const chartOption = computed<EChartsOption>(() => ({
   yAxis: {
     type: 'value',
     ...(props.yMode === 'tight'
-      ? { scale: true }
+      ? (tightYRange(props.points.map(p => p.value)) ?? { scale: true })
       : (stableYRange(props.points.map(p => p.value)) ?? { scale: true })),
     axisLabel: { fontSize: 10 }
   },

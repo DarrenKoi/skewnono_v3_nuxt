@@ -67,6 +67,31 @@ export const stableYRange = (
   }
 }
 
+// Y-axis range for MDC-style 'tight' trend/trajectory charts: mirrors
+// `scale: true` (axis hugs the data so real drift stays visible) but guards
+// the one case `scale: true` handles badly — a perfectly flat series (e.g. a
+// clamped random walk pinned at its band edge). ECharts pads a degenerate
+// [v, v] domain by a fraction of v itself (roughly ±60%), which buries a
+// near-1.0 MDC value in a mostly-empty axis. Genuinely varying data (hi >
+// lo) returns null so the caller keeps plain `scale: true`.
+export const tightYRange = (
+  values: number[],
+  { minHalfSpanRatio = 0.01 }: { minHalfSpanRatio?: number } = {}
+): StableYRange | null => {
+  const finite = values.filter(v => Number.isFinite(v))
+  if (finite.length === 0) return null
+  const lo = Math.min(...finite)
+  const hi = Math.max(...finite)
+  if (hi > lo) return null
+  const half = Math.max(Math.abs(lo) * minHalfSpanRatio, 0.001)
+  const step = niceStep(half * 2)
+  return {
+    min: roundToStep(lo - half, step, 'floor'),
+    max: roundToStep(hi + half, step, 'ceil'),
+    interval: step
+  }
+}
+
 // Radial scale for radar charts (indicators take {min, max} only). Same
 // stable-span policy: a near-constant 360° profile reads as a near-circle at
 // mid-radius instead of a tightly-fitted, exaggerated blob.

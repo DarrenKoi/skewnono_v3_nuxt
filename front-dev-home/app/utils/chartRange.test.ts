@@ -1,7 +1,7 @@
 // Pure-logic tests for chartRange. Run: node --test app/utils/chartRange.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { stableYRange, stableRadialRange } from './chartRange.ts'
+import { stableYRange, stableRadialRange, tightYRange } from './chartRange.ts'
 
 test('empty or all-NaN input → null (caller falls back to scale:true)', () => {
   assert.equal(stableYRange([]), null)
@@ -92,4 +92,31 @@ test('stableRadialRange: same stable bounds as stableYRange, min/max only', () =
 
 test('stableRadialRange: empty input → null (caller falls back)', () => {
   assert.equal(stableRadialRange([NaN]), null)
+})
+
+test('tightYRange: genuinely varying data defers to scale:true (null)', () => {
+  assert.equal(tightYRange([0.997, 1.0005, 0.9995]), null)
+})
+
+test('tightYRange: a clamped flat series (e.g. MDC pinned at its band edge) gets a small, non-degenerate pad', () => {
+  const r = tightYRange([0.995, 0.995, 0.995])
+  assert.ok(r)
+  assert.ok(r.min < 0.995 && r.max > 0.995, 'flat value sits strictly inside the range')
+  // Guard against the ECharts default (~±60% of the value) — stay tight.
+  assert.ok(r.max - r.min < 0.995 * 0.05, `span ${r.max - r.min} should stay well under 5% of the value`)
+})
+
+test('tightYRange: a single repeated point behaves the same as a flat series', () => {
+  assert.deepEqual(tightYRange([1.002]), tightYRange([1.002, 1.002]))
+})
+
+test('tightYRange: flat zero series does not divide by zero', () => {
+  const r = tightYRange([0, 0])
+  assert.ok(r)
+  assert.ok(r.min < 0 && r.max > 0)
+})
+
+test('tightYRange: empty or all-NaN input → null', () => {
+  assert.equal(tightYRange([]), null)
+  assert.equal(tightYRange([NaN, Infinity, -Infinity]), null)
 })

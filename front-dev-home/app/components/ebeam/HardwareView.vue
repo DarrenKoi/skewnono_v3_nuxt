@@ -35,7 +35,7 @@ const hardwareServices: HardwareService[] = [
   { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3', category: '분기' },
   { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' },
   { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity', category: '데일리' },
-  { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-sparkles', category: '데일리' }
+  { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-focus', category: '데일리' }
 ]
 const defaultHardwareService = hardwareServices[0]!
 

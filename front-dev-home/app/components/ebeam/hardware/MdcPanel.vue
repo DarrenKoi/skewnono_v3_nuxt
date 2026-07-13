@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { boxStats } from '~/utils/boxplotStats'
+import { tightYRange } from '~/utils/chartRange'
 import { buildMdcFamilies, trajectoryPoints, type MdcHistoryPoint } from '~/utils/mdcHistory'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
@@ -162,8 +163,18 @@ const xyOption = computed<EChartsOption>(() => {
         return Array.isArray(v) ? `${v[2]}<br/>0° ${v[0]} · 90° ${v[1]}` : ''
       }
     },
-    xAxis: { type: 'value', name: '0°', scale: true, axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '90°', scale: true, axisLabel: { fontSize: 10 } },
+    xAxis: {
+      type: 'value',
+      name: '0°',
+      ...(tightYRange(pts.map(p => p.x)) ?? { scale: true }),
+      axisLabel: { fontSize: 10 }
+    },
+    yAxis: {
+      type: 'value',
+      name: '90°',
+      ...(tightYRange(pts.map(p => p.y)) ?? { scale: true }),
+      axisLabel: { fontSize: 10 }
+    },
     series: [
       {
         type: 'scatter',
