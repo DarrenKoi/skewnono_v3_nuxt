@@ -13,7 +13,7 @@
               <span>{{ breadcrumb.head }}</span>
               <UIcon
                 name="i-lucide-chevron-right"
-                class="h-3.5 w-3.5 text-zinc-300"
+                class="h-3.5 w-3.5 text-(--sk-ink-subtle)"
               />
               <span class="font-normal text-(--sk-ink-muted)">{{ breadcrumb.tail }}</span>
             </p>
@@ -56,7 +56,7 @@
             v-if="!ws.selection.value"
             class="flex h-full flex-col items-center justify-center gap-3 py-20 text-center"
           >
-            <span class="flex h-12 w-12 items-center justify-center rounded-(--sk-r-card) bg-(--sk-chip-bg) text-zinc-400">
+            <span class="flex h-12 w-12 items-center justify-center rounded-(--sk-r-card) bg-(--sk-chip-bg) text-(--sk-ink-muted)">
               <UIcon
                 name="i-lucide-mouse-pointer-click"
                 class="h-6 w-6"

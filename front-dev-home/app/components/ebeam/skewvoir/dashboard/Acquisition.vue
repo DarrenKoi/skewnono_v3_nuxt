@@ -10,7 +10,7 @@
         :key="field.label"
         class="flex items-baseline justify-between gap-2 border-b border-(--sk-border-soft) pb-1.5"
       >
-        <dt class="text-zinc-400">
+        <dt class="text-(--sk-ink-muted)">
           {{ field.label }}
         </dt>
         <dd class="truncate font-mono text-zinc-800 dark:text-zinc-200">

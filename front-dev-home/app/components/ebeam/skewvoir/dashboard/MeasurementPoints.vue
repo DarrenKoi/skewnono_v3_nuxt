@@ -20,7 +20,7 @@
     >
       <table class="w-full border-collapse text-[11.5px]">
         <thead class="sticky top-0 bg-(--sk-surface)">
-          <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-zinc-400">
+          <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
             <th class="px-2 py-1.5 font-medium">
               #
             </th>

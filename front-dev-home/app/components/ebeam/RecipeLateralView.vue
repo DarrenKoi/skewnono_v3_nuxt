@@ -155,7 +155,7 @@ const tableUi = recipeTableUi
     >
       <UIcon
         name="i-lucide-loader-circle"
-        class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+        class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
       />
       <p class="mt-2">
         Recipe 횡전개 정보를 불러오는 중입니다.
@@ -201,18 +201,18 @@ const tableUi = recipeTableUi
                 {{ versionStatus }}
               </span>
             </div>
-            <p class="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            <p class="mt-1 text-xs leading-5 text-(--sk-ink-muted)">
               version별 생성 시간과 보유 장비 수를 먼저 확인한 뒤 장비 리스트를 나눠 봅니다.
             </p>
           </div>
           <div class="text-left lg:text-right">
-            <p class="font-mono text-[11px] text-zinc-400">
+            <p class="font-mono text-[11px] text-(--sk-ink-muted)">
               latest
             </p>
             <p class="mt-0.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {{ data.latest_recipe_version === null ? '—' : `v${data.latest_recipe_version}` }}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p class="mt-0.5 font-mono text-[11px] text-(--sk-ink-muted)">
               {{ formatGeneratedAt(data.latest_generated_at) }}
             </p>
           </div>
@@ -235,7 +235,7 @@ const tableUi = recipeTableUi
                 {{ version.ready_count.toLocaleString() }} tools
               </span>
             </div>
-            <p class="mt-1 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p class="mt-1 font-mono text-[11px] text-(--sk-ink-muted)">
               {{ formatGeneratedAt(version.generated_at) }}
             </p>
           </div>
@@ -274,7 +274,7 @@ const tableUi = recipeTableUi
               class="inline-flex h-8 min-w-24 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors"
               :class="activeTab === option.value
                 ? 'bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white'
-                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100'"
+                : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
               @click="activeTab = option.value"
             >
               {{ option.label }}
@@ -315,7 +315,7 @@ const tableUi = recipeTableUi
           </template>
 
           <template #recipe_generated_at-cell="{ row }">
-            <span class="font-mono text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
+            <span class="font-mono text-[11px] tabular-nums text-(--sk-ink)">
               {{ formatGeneratedAt(row.original.recipe_generated_at) }}
             </span>
           </template>

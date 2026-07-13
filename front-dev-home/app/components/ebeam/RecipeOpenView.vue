@@ -16,7 +16,7 @@
           :to="backRoute"
           @click.prevent="goBackToList"
         />
-        <p class="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+        <p class="mt-3 text-sm font-medium text-(--sk-ink-muted)">
           {{ toolLabel }} · {{ fab }}
         </p>
         <h1 class="mt-1 break-all text-2xl font-bold text-zinc-950 dark:text-zinc-50">
@@ -24,7 +24,7 @@
         </h1>
         <p
           v-if="data"
-          class="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
+          class="mt-1 text-xs text-(--sk-ink-muted)"
         >
           {{ data.fac_id }} · {{ data.tool_category }} · {{ formatTimestamp(data.timestamp) }}
         </p>
@@ -75,7 +75,7 @@
     >
       <UIcon
         name="i-lucide-loader-circle"
-        class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+        class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
       />
       <p class="mt-2">
         Recipe 내용을 불러오는 중입니다.

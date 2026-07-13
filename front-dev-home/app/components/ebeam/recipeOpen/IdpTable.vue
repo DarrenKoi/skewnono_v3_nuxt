@@ -27,7 +27,7 @@
     <div class="min-h-0 flex-1 overflow-auto">
       <table class="w-full border-collapse font-mono text-[12px]">
         <thead>
-          <tr class="sticky top-0 z-10 bg-zinc-50/80 text-left text-zinc-500 dark:bg-zinc-900/60 dark:text-zinc-400">
+          <tr class="sticky top-0 z-10 bg-zinc-50/80 text-left text-(--sk-ink-muted) dark:bg-zinc-900/60">
             <th class="w-1 p-0" />
             <th class="whitespace-nowrap border-b border-zinc-200 px-2.5 py-2 font-medium tracking-wide dark:border-zinc-800">
               Parameter

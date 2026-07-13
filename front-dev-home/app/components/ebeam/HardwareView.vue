@@ -326,7 +326,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <section class="dashboard-surface flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl px-4 py-3">
           <template v-if="selectedTool">
             <span class="font-mono text-base font-bold text-(--sk-ink)">{{ selectedTool.eqp_id }}</span>
-            <span class="text-zinc-300 dark:text-zinc-700">·</span>
+            <span class="text-(--sk-ink-subtle)">·</span>
             <span class="text-sm text-zinc-700 dark:text-zinc-200">
               {{ selectedTool.vendor_nm }} {{ selectedTool.eqp_model_cd }}
             </span>
@@ -386,13 +386,13 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <!-- Service detail -->
         <section class="dashboard-surface flex-1 rounded-2xl p-4">
           <div class="min-w-0">
-            <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
+            <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-(--sk-ink-muted)">
               {{ activeServiceDetail.label }}
             </p>
             <h2 class="mt-1 text-lg font-bold text-(--sk-ink)">
               {{ activeServiceDetail.title }}
             </h2>
-            <p class="mt-1 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="mt-1 max-w-2xl text-sm text-(--sk-ink-muted)">
               {{ activeServiceDetail.description }}
             </p>
           </div>
@@ -425,7 +425,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                     <span class="h-1.5 w-1.5 rounded-full bg-current" />
                     {{ servicePayload.available ? 'Available' : 'Not available' }}
                   </span>
-                  <span class="font-mono text-xs text-zinc-400 dark:text-zinc-500">
+                  <span class="font-mono text-xs text-(--sk-ink-muted)">
                     {{ servicePayload.fetched_at }}
                   </span>
                 </div>
@@ -439,7 +439,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                     :key="card.key"
                     class="rounded-xl bg-(--sk-surface) px-3 py-2.5 ring-1 ring-(--sk-border-soft)"
                   >
-                    <dt class="font-mono text-[10px] uppercase tracking-[0.05em] text-zinc-500 dark:text-zinc-400">
+                    <dt class="font-mono text-[10px] uppercase tracking-[0.05em] text-(--sk-ink-muted)">
                       {{ card.label }}
                     </dt>
                     <dd
@@ -510,7 +510,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   </div>
                   <div class="overflow-x-auto">
                     <table class="min-w-full text-left text-xs">
-                      <thead class="bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                      <thead class="bg-zinc-100 text-(--sk-ink-muted) dark:bg-zinc-900">
                         <tr>
                           <th
                             v-for="column in section.columns"

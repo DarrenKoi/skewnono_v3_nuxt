@@ -206,7 +206,7 @@ const columns: TableColumn<RecipeSearchRow>[] = [
 
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-2.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis',
+  td: 'py-2.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
   th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
@@ -297,14 +297,14 @@ const openMeasHist = (recipeName: string) => {
         >
           <UIcon
             name="i-lucide-search"
-            class="h-5 w-5 shrink-0 text-zinc-400"
+            class="h-5 w-5 shrink-0 text-(--sk-ink-muted)"
           />
           <input
             v-model="query"
             type="search"
             inputmode="search"
             autocomplete="off"
-            class="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+            class="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-(--sk-ink-muted) dark:text-zinc-50"
             aria-label="Search recipes"
             placeholder="Recipe 이름 검색 (예: ABC, 123, RACE/DEAE)"
           >
@@ -352,7 +352,7 @@ const openMeasHist = (recipeName: string) => {
             </button>
             <button
               type="button"
-              class="rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
+              class="rounded-full p-0.5 text-(--sk-ink-muted) transition hover:bg-zinc-300 hover:text-(--sk-ink) dark:hover:bg-zinc-600"
               :aria-label="`Remove ${term} from recent searches`"
               @click.stop="removeRecentSearch(term)"
             >
@@ -389,7 +389,7 @@ const openMeasHist = (recipeName: string) => {
       >
         <UIcon
           name="i-lucide-loader-circle"
-          class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+          class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
         />
         <p class="mt-2">
           Recipe 목록을 불러오는 중입니다.
@@ -424,7 +424,7 @@ const openMeasHist = (recipeName: string) => {
       >
         <UIcon
           name="i-lucide-keyboard"
-          class="mx-auto h-6 w-6 text-zinc-400"
+          class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
         />
         <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
           3자 이상 입력해주세요
@@ -440,7 +440,7 @@ const openMeasHist = (recipeName: string) => {
       >
         <UIcon
           name="i-lucide-search-x"
-          class="mx-auto h-6 w-6 text-zinc-400"
+          class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
         />
         <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
           검색 결과가 없습니다.
@@ -469,20 +469,20 @@ const openMeasHist = (recipeName: string) => {
             <div class="group flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 transition focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-within:border-zinc-700 dark:focus-within:ring-zinc-800/70">
               <UIcon
                 name="i-lucide-filter"
-                class="h-3.5 w-3.5 shrink-0 text-zinc-400"
+                class="h-3.5 w-3.5 shrink-0 text-(--sk-ink-muted)"
               />
               <input
                 v-model="tableFilter"
                 type="search"
                 autocomplete="off"
-                class="w-40 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+                class="w-40 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-(--sk-ink-muted) dark:text-zinc-50"
                 aria-label="Filter results"
                 placeholder="결과 내 필터"
               >
               <button
                 v-if="tableFilter"
                 type="button"
-                class="shrink-0 rounded-full p-0.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+                class="shrink-0 rounded-full p-0.5 text-(--sk-ink-muted) transition hover:bg-zinc-100 hover:text-(--sk-ink) dark:hover:bg-zinc-800"
                 aria-label="Clear filter"
                 @click="tableFilter = ''"
               >
@@ -513,7 +513,7 @@ const openMeasHist = (recipeName: string) => {
             <div class="py-8 text-center text-xs text-(--sk-ink-muted)">
               <UIcon
                 name="i-lucide-filter-x"
-                class="mx-auto mb-1.5 h-5 w-5 text-zinc-400"
+                class="mx-auto mb-1.5 h-5 w-5 text-(--sk-ink-muted)"
               />
               <p>필터 "<span class="font-mono text-zinc-700 dark:text-zinc-300">{{ tableFilter }}</span>"와 일치하는 recipe가 없습니다.</p>
             </div>
@@ -574,7 +574,7 @@ const openMeasHist = (recipeName: string) => {
         <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
           <span class="tabular-nums">
             Page {{ currentPage }} / {{ pageCount }}
-            <span class="ml-2 text-zinc-400">
+            <span class="ml-2 text-(--sk-ink-muted)">
               {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} of {{ refinedCount.toLocaleString() }}
             </span>
           </span>

@@ -22,7 +22,7 @@
               class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
               :class="selectedFab === option.value
                 ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+                : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
               @click="selectedFab = option.value"
             >
               {{ option.label }}
@@ -49,7 +49,7 @@
           <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
             {{ text.step1Title }}
           </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+          <span class="text-[10.5px] text-(--sk-ink-muted)">
             {{ hasRSelection ? text.step1HintR : text.step1HintM }}
           </span>
         </div>
@@ -77,7 +77,7 @@
         class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
       >
         <div class="flex items-start gap-2 min-w-0 xl:col-span-4">
-          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">prod_catg_cd</span>
+          <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">prod_catg_cd</span>
           <div class="flex flex-wrap items-center gap-1">
             <button
               v-for="category in prodCategoryOptions"
@@ -93,7 +93,7 @@
         </div>
 
         <div class="flex items-start gap-2 min-w-0 xl:col-span-8">
-          <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">lot_cd</span>
+          <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">lot_cd</span>
           <UInput
             v-model="lotSearch"
             class="w-44 shrink-0"
@@ -116,7 +116,7 @@
             </button>
             <span
               v-if="stepOneLotStrip.overflowCount > 0"
-              class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+              class="font-mono text-[10px] text-(--sk-ink-muted)"
             >
               +{{ stepOneLotStrip.overflowCount }}
             </span>
@@ -128,7 +128,7 @@
         v-else
         class="flex items-start gap-2 min-w-0"
       >
-        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">tech_nm</span>
+        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">tech_nm</span>
         <UInput
           v-model="techSearch"
           class="w-44 shrink-0"
@@ -151,7 +151,7 @@
           </button>
           <span
             v-if="stepOneTechStrip.overflowCount > 0"
-            class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+            class="font-mono text-[10px] text-(--sk-ink-muted)"
           >
             +{{ stepOneTechStrip.overflowCount }}
           </span>
@@ -167,7 +167,7 @@
           <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
             {{ text.step2Title }}
           </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+          <span class="text-[10.5px] text-(--sk-ink-muted)">
             {{ text.step2Hint }}
           </span>
         </div>
@@ -178,7 +178,7 @@
         >
           <template #header>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <p class="text-xs text-zinc-500 tabular-nums">
+              <p class="text-xs text-(--sk-ink-muted) tabular-nums">
                 {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
               </p>
               <UButton
@@ -224,7 +224,7 @@
 
           <div
             v-if="pending"
-            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
+            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-(--sk-ink-muted)"
           >
             <UIcon
               name="i-lucide-loader-circle"
@@ -274,7 +274,7 @@
           </UTable>
 
           <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
-            <p class="text-xs text-zinc-500 tabular-nums">
+            <p class="text-xs text-(--sk-ink-muted) tabular-nums">
               Page {{ currentPage }} / {{ pageCount }}
             </p>
             <div class="flex gap-2">
@@ -602,8 +602,8 @@ const columns = computed<TableColumn<DeviceRow>[]>(() => {
 const tableMeta = {
   class: {
     tr: 'cursor-pointer select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-zinc-500 bg-zinc-50/60 dark:bg-zinc-900/40'
+    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
+    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 

@@ -52,7 +52,7 @@
           size="xs"
           color="neutral"
           variant="ghost"
-          class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
+          class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
           :trailing-icon="getSortIcon(column.getIsSorted())"
           @click="column.toggleSorting(column.getIsSorted() === 'asc')"
         >
@@ -64,7 +64,7 @@
     <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
       <span class="tabular-nums">
         Page {{ page }} / {{ pageCount }}
-        <span class="ml-2 text-zinc-400">
+        <span class="ml-2 text-(--sk-ink-muted)">
           {{ pageStart }}–{{ pageEnd }} of {{ filteredRows.length.toLocaleString() }}
         </span>
       </span>
@@ -129,7 +129,7 @@ const pageSizeOptions = [
 
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums',
+  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
   th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 

@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-surface flex flex-wrap items-center gap-1.5 rounded-2xl px-3.5 py-2.5">
-    <span class="font-mono text-[10px] text-zinc-400">
+    <span class="font-mono text-[10px] text-(--sk-ink-muted)">
       {{ text.label }}
     </span>
     <button
@@ -14,7 +14,7 @@
       <span>{{ lot }}</span>
       <UIcon
         name="i-lucide-arrow-up-right"
-        class="h-3.5 w-3.5 text-zinc-400 transition-colors group-hover:text-(--sk-accent)"
+        class="h-3.5 w-3.5 text-(--sk-ink-muted) transition-colors group-hover:text-(--sk-accent)"
       />
     </button>
   </div>

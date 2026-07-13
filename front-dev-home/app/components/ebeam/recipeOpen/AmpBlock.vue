@@ -28,7 +28,7 @@
               {{ field.label }}
               <span
                 v-if="field.unit"
-                class="ml-1 font-normal text-zinc-400"
+                class="ml-1 font-normal text-(--sk-ink-muted)"
               >({{ field.unit }})</span>
             </td>
             <td
@@ -36,7 +36,7 @@
               :key="`${field.key}-${ci}`"
               class="border-b border-zinc-100 px-2.5 py-1.5 text-right whitespace-nowrap dark:border-zinc-800/60"
               :class="formatAmpValue(amp[field.key]) === '—'
-                ? 'text-zinc-400'
+                ? 'text-(--sk-ink-muted)'
                 : 'text-zinc-900 dark:text-zinc-100'"
             >
               {{ formatAmpValue(amp[field.key]) }}

@@ -25,7 +25,7 @@
         />
         <template #content>
           <div class="w-80 p-2">
-            <p class="px-2 py-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+            <p class="px-2 py-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
               SAVED VIEWS
             </p>
             <p
@@ -58,7 +58,7 @@
                 >
                   <UIcon
                     name="i-lucide-x"
-                    class="h-3.5 w-3.5 text-zinc-400 hover:text-(--sk-bad)"
+                    class="h-3.5 w-3.5 text-(--sk-ink-muted) hover:text-(--sk-bad)"
                   />
                 </button>
               </li>
@@ -70,7 +70,7 @@
 
     <!-- Search bar -->
     <div class="dashboard-surface rounded-(--sk-r-card) p-3">
-      <p class="mb-2 px-0.5 text-[11px] text-zinc-400">
+      <p class="mb-2 px-0.5 text-[11px] text-(--sk-ink-muted)">
         검색 · <span class="font-semibold text-zinc-600 dark:text-zinc-300">Lot / Recipe / Machine</span>
         · Elastic Search · 1.2M scans · last 90d
       </p>
@@ -92,14 +92,14 @@
 
       <!-- Filters -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <span class="font-mono text-[10px] tracking-wide text-zinc-400">FILTERS</span>
+        <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">FILTERS</span>
         <button
           v-for="opt in dropdownFilters"
           :key="opt.label"
           type="button"
           class="inline-flex h-7 items-center gap-1.5 rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-surface) px-2.5 text-[12px] text-zinc-600 hover:bg-zinc-500/5 dark:text-zinc-300"
         >
-          <span class="text-zinc-400">{{ opt.label }}:</span>
+          <span class="text-(--sk-ink-muted)">{{ opt.label }}:</span>
           <span class="font-medium text-zinc-800 dark:text-zinc-100">{{ opt.value }}</span>
           <UIcon
             name="i-lucide-chevron-down"
@@ -170,7 +170,7 @@
         </div>
         <span
           v-else
-          class="font-mono text-[10.5px] text-zinc-400"
+          class="font-mono text-[10.5px] text-(--sk-ink-muted)"
         >행 클릭 = 단일 분석 · 체크 = 비교 세트</span>
       </header>
 
@@ -190,7 +190,7 @@
         class="w-full border-collapse text-[12px]"
       >
         <thead>
-          <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-zinc-400">
+          <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
             <th class="w-8 px-3 py-1.5" />
             <th class="px-3 py-1.5 font-medium">
               LOT
@@ -247,7 +247,7 @@
             <td class="px-3 py-2 text-right">
               <UIcon
                 name="i-lucide-arrow-right"
-                class="h-3.5 w-3.5 text-zinc-300"
+                class="h-3.5 w-3.5 text-(--sk-ink-subtle)"
               />
             </td>
           </tr>

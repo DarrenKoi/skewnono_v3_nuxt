@@ -12,7 +12,7 @@
 
       <div class="overflow-x-auto">
         <table class="min-w-full text-left text-xs">
-          <thead class="bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          <thead class="bg-zinc-100 text-(--sk-ink-muted) dark:bg-zinc-900">
             <tr>
               <th
                 v-for="column in section.columns"

@@ -14,7 +14,7 @@
     <template v-else-if="params.length">
       <!-- Param X / Y selectors -->
       <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-        <span class="font-mono text-[10px] tracking-wide text-zinc-400">X</span>
+        <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">X</span>
         <USelect
           v-model="paramX"
           :items="params"
@@ -23,9 +23,9 @@
         />
         <UIcon
           name="i-lucide-x"
-          class="h-3 w-3 text-zinc-300"
+          class="h-3 w-3 text-(--sk-ink-subtle)"
         />
-        <span class="font-mono text-[10px] tracking-wide text-zinc-400">Y</span>
+        <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">Y</span>
         <USelect
           v-model="paramY"
           :items="params"

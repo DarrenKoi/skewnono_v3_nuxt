@@ -8,7 +8,7 @@
         v-if="open && data"
         class="grid h-full max-h-[88vh] grid-cols-1 gap-4 p-4 md:grid-cols-[1.4fr_320px]"
       >
-        <div class="relative flex min-h-[360px] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]">
+        <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]">
           <EbeamRecipeOpenSemNoise />
           <div class="relative font-mono text-[80px] font-bold tracking-widest text-white/10">
             SEM
@@ -40,7 +40,7 @@
               <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">
                 {{ field.label }}<span
                   v-if="field.unit"
-                  class="ml-1 text-zinc-400"
+                  class="ml-1 text-(--sk-ink-subtle)"
                 >({{ field.unit }})</span>
               </span>
               <span class="text-right font-mono text-[13px] font-medium text-zinc-900 dark:text-zinc-100">

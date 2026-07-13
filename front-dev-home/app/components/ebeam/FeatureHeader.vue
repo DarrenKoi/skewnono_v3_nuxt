@@ -39,7 +39,7 @@ const statToneClass = (tone: HeaderStatTone = 'neutral') => {
       <div class="min-w-0">
         <p
           v-if="eyebrow"
-          class="text-sm font-medium text-zinc-500 dark:text-zinc-400"
+          class="text-sm font-medium text-(--sk-ink-muted)"
         >
           {{ eyebrow }}
         </p>
@@ -48,7 +48,7 @@ const statToneClass = (tone: HeaderStatTone = 'neutral') => {
         </h1>
         <p
           v-if="subtitle"
-          class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400"
+          class="mt-0.5 text-xs text-(--sk-ink-muted)"
         >
           {{ subtitle }}
         </p>

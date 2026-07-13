@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <!-- Curate the comparison set — writes straight to the URL ?msrs= -->
     <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-      <span class="font-mono text-[10px] tracking-wide text-zinc-400">비교 세트</span>
+      <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">비교 세트</span>
       <USelectMenu
         :model-value="ws.msrList.value"
         multiple

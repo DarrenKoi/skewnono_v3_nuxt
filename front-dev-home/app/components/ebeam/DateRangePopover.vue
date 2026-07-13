@@ -8,7 +8,7 @@
       :class="['font-medium tabular-nums', triggerClass]"
     >
       <span>{{ startLabel }}</span>
-      <span class="text-zinc-400">~</span>
+      <span class="text-(--sk-ink-subtle)">~</span>
       <span>{{ endLabel }}</span>
     </UButton>
 

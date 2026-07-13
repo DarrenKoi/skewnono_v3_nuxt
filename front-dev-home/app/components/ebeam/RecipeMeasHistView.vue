@@ -148,7 +148,7 @@ const tableUi = recipeTableUi
     >
       <UIcon
         name="i-lucide-loader-circle"
-        class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+        class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
       />
       <p class="mt-2">
         측정 이력을 불러오는 중입니다.
@@ -183,7 +183,7 @@ const tableUi = recipeTableUi
     >
       <UIcon
         name="i-lucide-search-x"
-        class="mx-auto h-6 w-6 text-zinc-400"
+        class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
       <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
         측정 이력이 없습니다.

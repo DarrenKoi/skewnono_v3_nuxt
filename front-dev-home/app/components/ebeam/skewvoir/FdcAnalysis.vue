@@ -11,7 +11,7 @@
             <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
               FDC 변곡점 추이 · drift (σ)
             </p>
-            <p class="text-[10.5px] text-zinc-400">
+            <p class="text-[10.5px] text-(--sk-ink-muted)">
               장비 이상거동 파라미터를 σ 단위로 정규화 · ±2σ warning · ±3.5σ bad
             </p>
           </div>
@@ -32,7 +32,7 @@
           class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition"
           :class="selectedFdcParams.includes(name)
             ? 'border-transparent text-white'
-            : 'border-zinc-200 text-zinc-500 hover:bg-zinc-500/5 dark:border-zinc-700 dark:text-zinc-400'"
+            : 'border-zinc-200 text-(--sk-ink-muted) hover:bg-zinc-500/5 dark:border-zinc-700'"
           :style="selectedFdcParams.includes(name) ? { backgroundColor: colorFor(name) } : {}"
           @click="toggleFdcParam(name)"
         >
@@ -69,7 +69,7 @@
             <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
               CD ↔ FDC 상관
             </p>
-            <p class="text-[10.5px] text-zinc-400">
+            <p class="text-[10.5px] text-(--sk-ink-muted)">
               MSR별 {{ cdParam || 'CD' }} 평균 vs FDC drift — CD 변동이 장비 상태와 함께 움직이는지 확인
             </p>
           </div>
@@ -96,7 +96,7 @@
         />
         <div class="flex flex-row gap-4 lg:flex-col lg:justify-center">
           <div>
-            <p class="font-mono text-[10px] uppercase tracking-wide text-zinc-400">
+            <p class="font-mono text-[10px] uppercase tracking-wide text-(--sk-ink-muted)">
               Pearson r
             </p>
             <p
@@ -140,7 +140,7 @@
         </template>
         <div class="max-h-80 overflow-auto">
           <table class="w-full text-[11.5px]">
-            <thead class="sticky top-0 bg-(--sk-surface) text-left text-[10px] uppercase tracking-wide text-zinc-400">
+            <thead class="sticky top-0 bg-(--sk-surface) text-left text-[10px] uppercase tracking-wide text-(--sk-ink-muted)">
               <tr>
                 <th class="px-3 py-1.5 font-medium">
                   time
@@ -235,18 +235,18 @@
               :key="card.key"
               class="rounded-xl ring-1 ring-zinc-200 px-3 py-2 dark:ring-zinc-800"
             >
-              <p class="text-[10px] uppercase tracking-wide text-zinc-400">
+              <p class="text-[10px] uppercase tracking-wide text-(--sk-ink-muted)">
                 {{ card.label }}
               </p>
               <p class="font-mono text-[13px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
                 {{ card.value }}<span
                   v-if="card.unit"
-                  class="ml-0.5 text-[10px] font-normal text-zinc-400"
+                  class="ml-0.5 text-[10px] font-normal text-(--sk-ink-muted)"
                 >{{ card.unit }}</span>
               </p>
             </div>
           </div>
-          <p class="mt-2 text-[10.5px] text-zinc-400">
+          <p class="mt-2 text-[10.5px] text-(--sk-ink-muted)">
             측정 pickle FDC(이 화면)와 장비 상시 FDC 모니터링을 비교하면, CD 이상이 측정 순간의 문제인지 장비 상시 열화인지 구분할 수 있습니다.
           </p>
         </div>
@@ -471,7 +471,7 @@ const scatterFit = computed<[[number, number], [number, number]] | null>(() => {
 
 const correlationTone = computed(() => {
   const r = pearson.value
-  if (r == null) return 'text-zinc-400'
+  if (r == null) return 'text-(--sk-ink-muted)'
   const a = Math.abs(r)
   if (a >= 0.6) return 'text-rose-600 dark:text-rose-400'
   if (a >= 0.3) return 'text-amber-600 dark:text-amber-400'

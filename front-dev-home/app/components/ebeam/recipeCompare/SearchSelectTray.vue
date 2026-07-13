@@ -26,7 +26,7 @@
             <span class="truncate">{{ name }}</span>
             <button
               type="button"
-              class="rounded-md p-0.5 text-zinc-400 transition hover:bg-zinc-300 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-50"
+              class="rounded-md p-0.5 text-(--sk-ink-muted) transition hover:bg-zinc-300 hover:text-(--sk-ink) dark:hover:bg-zinc-600"
               :aria-label="`Remove ${name}`"
               @click="emit('remove', name)"
             >

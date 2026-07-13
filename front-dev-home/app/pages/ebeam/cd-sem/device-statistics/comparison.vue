@@ -38,7 +38,7 @@
       v-if="selectedLots.length === 0"
       class="dashboard-surface flex flex-col items-center justify-center rounded-2xl px-6 py-16 text-center"
     >
-      <div class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800">
+      <div class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 text-(--sk-ink-muted) ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800">
         <UIcon
           name="i-lucide-inbox"
           class="h-5 w-5"
@@ -47,7 +47,7 @@
       <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
         {{ text.emptyTitle }}
       </p>
-      <p class="mt-1 text-xs text-zinc-500">
+      <p class="mt-1 text-xs text-(--sk-ink-muted)">
         {{ text.emptyDesc }}
       </p>
       <UButton
@@ -63,7 +63,7 @@
       <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
         <div class="flex flex-wrap items-center gap-2">
           <div class="flex items-center gap-1.5">
-            <span class="font-mono text-[10px] text-zinc-400">bucket</span>
+            <span class="font-mono text-[10px] text-(--sk-ink-muted)">bucket</span>
             <UPopover>
               <UButton
                 type="button"
@@ -72,7 +72,7 @@
                 variant="ghost"
                 icon="i-lucide-info"
                 aria-label="Bucket 설명"
-                class="h-6 w-6 rounded-full p-0 text-zinc-500"
+                class="h-6 w-6 rounded-full p-0 text-(--sk-ink-muted)"
               />
               <template #content>
                 <div class="w-72 space-y-3 p-3">
@@ -80,7 +80,7 @@
                     <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                       {{ text.bucketHelpTitle }}
                     </p>
-                    <p class="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    <p class="mt-1 text-xs leading-5 text-(--sk-ink-muted)">
                       {{ text.bucketHelpIntro }}
                     </p>
                   </div>
@@ -93,7 +93,7 @@
                       <dt class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                         {{ option.label }}
                       </dt>
-                      <dd class="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
+                      <dd class="mt-1 text-xs leading-5 text-(--sk-ink-muted)">
                         {{ option.description }}
                       </dd>
                     </div>
@@ -124,7 +124,7 @@
           </div>
         </div>
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <span class="font-mono text-[10px] text-zinc-400">sort</span>
+          <span class="font-mono text-[10px] text-(--sk-ink-muted)">sort</span>
           <div
             role="radiogroup"
             aria-label="Sort by metric"
@@ -150,7 +150,7 @@
 
       <div
         v-if="pending"
-        class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-zinc-500"
+        class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-(--sk-ink-muted)"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -166,7 +166,7 @@
       </div>
       <div
         v-else-if="rows.length === 0"
-        class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-zinc-500"
+        class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-(--sk-ink-muted)"
       >
         {{ text.noRows }}
       </div>
@@ -200,7 +200,7 @@
                   <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
                     {{ text.chartStackedTitle }}
                   </p>
-                  <span class="text-[10.5px] text-zinc-400">para_16 / 13 / 9 / 5</span>
+                  <span class="text-[10.5px] text-(--sk-ink-muted)">para_16 / 13 / 9 / 5</span>
                 </div>
               </template>
               <div
@@ -218,7 +218,7 @@
                   <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
                     {{ text.chartAvailRecipeTitle }}
                   </p>
-                  <span class="text-[10.5px] text-zinc-400">avail_recipe</span>
+                  <span class="text-[10.5px] text-(--sk-ink-muted)">avail_recipe</span>
                 </div>
               </template>
               <div

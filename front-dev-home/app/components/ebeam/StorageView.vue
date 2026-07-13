@@ -103,7 +103,7 @@
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting(column.getIsSorted() === 'asc')"
           >
@@ -270,7 +270,7 @@
       >
         <UIcon
           name="i-lucide-filter-x"
-          class="mx-auto mb-2 h-6 w-6 text-zinc-400"
+          class="mx-auto mb-2 h-6 w-6 text-(--sk-ink-muted)"
         />
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           No tools match the current search.
@@ -307,7 +307,7 @@
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting(column.getIsSorted() === 'asc')"
           >
@@ -674,7 +674,7 @@ const resetControls = () => {
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
+    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
     th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
@@ -780,7 +780,7 @@ const resetPpidFilters = () => {
 const ppidTableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis',
+    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
     th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }

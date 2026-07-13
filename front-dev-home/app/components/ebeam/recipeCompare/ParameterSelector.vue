@@ -4,7 +4,7 @@
       <div class="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 dark:border-zinc-800 dark:bg-zinc-950">
         <UIcon
           name="i-lucide-search"
-          class="h-3.5 w-3.5 shrink-0 text-zinc-400"
+          class="h-3.5 w-3.5 shrink-0 text-(--sk-ink-muted)"
         />
         <input
           v-model="paramSearch"
@@ -12,7 +12,7 @@
           autocomplete="off"
           placeholder="파라미터 검색 (예: WAFER)"
           aria-label="파라미터 검색"
-          class="w-44 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+          class="w-44 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-(--sk-ink-muted) dark:text-zinc-50"
         >
       </div>
       <div class="flex items-center gap-1">
@@ -39,7 +39,7 @@
     <div class="max-h-[300px] overflow-auto rounded-lg border border-zinc-200/70 dark:border-zinc-800/70">
       <table class="w-full border-collapse font-mono text-[11px]">
         <thead>
-          <tr class="sticky top-0 z-10 bg-zinc-50/90 text-left text-zinc-500 dark:bg-zinc-900/70 dark:text-zinc-400">
+          <tr class="sticky top-0 z-10 bg-zinc-50/90 text-left text-(--sk-ink-muted) dark:bg-zinc-900/70">
             <th class="w-8 p-2" />
             <th class="px-2.5 py-2 font-medium tracking-wide">
               parameter
@@ -85,7 +85,7 @@
               v-for="id in recipeIds"
               :key="id"
               class="px-2 py-1.5 text-center"
-              :class="row.presentIn.includes(id) ? 'text-emerald-500' : 'text-zinc-300 dark:text-zinc-600'"
+              :class="row.presentIn.includes(id) ? 'text-emerald-500' : 'text-(--sk-ink-subtle)'"
             >
               {{ row.presentIn.includes(id) ? '✓' : '—' }}
             </td>
@@ -159,5 +159,5 @@ const coverageClass = (coverage: Coverage) =>
     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
     : coverage === 'partial'
       ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-      : 'bg-zinc-500/15 text-zinc-500'
+      : 'bg-zinc-500/15 text-(--sk-ink-muted)'
 </script>

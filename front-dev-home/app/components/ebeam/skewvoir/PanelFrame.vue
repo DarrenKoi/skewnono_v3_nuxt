@@ -43,7 +43,7 @@
     >
       <slot :active="active">
         <div
-          class="flex h-full items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) text-zinc-300 dark:text-zinc-600"
+          class="flex h-full items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) text-(--sk-ink-subtle)"
           :class="placeholderHeight"
         >
           <UIcon

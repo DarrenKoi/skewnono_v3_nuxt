@@ -91,7 +91,7 @@
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting(column.getIsSorted() === 'asc')"
           >

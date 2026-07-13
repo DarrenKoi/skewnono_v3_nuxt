@@ -22,7 +22,7 @@
               class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
               :class="viewMode === mode.value
                 ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+                : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
               @click="viewMode = mode.value"
             >
               <UIcon
@@ -61,7 +61,7 @@
           <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
             디바이스 선택
           </h3>
-          <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+          <span class="text-[10.5px] text-(--sk-ink-muted)">
             {{ filteredDeviceList.length }} / {{ deviceList.length }}개의 디바이스
           </span>
         </div>
@@ -80,7 +80,7 @@
         v-if="categoryField && categoryOptions.length"
         class="mb-2 flex flex-wrap items-start gap-2 min-w-0"
       >
-        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">{{ categoryField }}</span>
+        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">{{ categoryField }}</span>
         <div class="flex flex-wrap items-center gap-1 min-w-0">
           <button
             v-for="category in categoryOptions"
@@ -96,7 +96,7 @@
       </div>
 
       <div class="flex flex-wrap items-start gap-2 min-w-0">
-        <span class="mt-1.5 font-mono text-[10px] text-zinc-400 shrink-0">lot_cd</span>
+        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">lot_cd</span>
         <UInput
           v-model="lotSearch"
           class="w-44 shrink-0"
@@ -120,13 +120,13 @@
           </button>
           <span
             v-if="deviceChipStrip.overflowCount > 0"
-            class="font-mono text-[10px] text-zinc-400 dark:text-zinc-500"
+            class="font-mono text-[10px] text-(--sk-ink-muted)"
           >
             +{{ deviceChipStrip.overflowCount }}
           </span>
           <span
             v-if="!deviceList.length"
-            class="text-[11px] text-zinc-400 dark:text-zinc-500"
+            class="text-[11px] text-(--sk-ink-muted)"
           >
             이 기간에 측정된 디바이스가 없습니다.
           </span>
@@ -141,7 +141,7 @@
     >
       <UIcon
         name="i-lucide-mouse-pointer-click"
-        class="mx-auto h-6 w-6 text-zinc-400"
+        class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
       <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
         디바이스를 선택해주세요
@@ -158,7 +158,7 @@
       >
         <UIcon
           name="i-lucide-loader-2"
-          class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+          class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
         />
         <p class="mt-2">
           Loading fail-issue data…
@@ -170,7 +170,7 @@
       >
         <UIcon
           name="i-lucide-inbox"
-          class="mx-auto h-6 w-6 text-zinc-400"
+          class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
         />
         <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
           No measurements in this range
@@ -193,7 +193,7 @@
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   Align Fail
                 </h3>
-                <span class="text-[10.5px] text-zinc-400">wafer alignment outcome at run start</span>
+                <span class="text-[10.5px] text-(--sk-ink-muted)">wafer alignment outcome at run start</span>
               </div>
             </template>
             <div class="flex flex-wrap">
@@ -222,7 +222,7 @@
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   Meas Fail
                 </h3>
-                <span class="text-[10.5px] text-zinc-400">
+                <span class="text-[10.5px] text-(--sk-ink-muted)">
                   fail_ratio &gt; {{ formatPercent(measFailThreshold, 0) }}
                 </span>
               </div>

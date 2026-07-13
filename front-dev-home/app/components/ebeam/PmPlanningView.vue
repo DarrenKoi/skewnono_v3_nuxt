@@ -21,7 +21,7 @@
     >
       <UIcon
         name="i-lucide-loader-2"
-        class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+        class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
       />
       <p class="mt-2">
         Loading fleet skew snapshot...

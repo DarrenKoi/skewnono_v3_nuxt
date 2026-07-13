@@ -13,7 +13,7 @@
       class="inline-flex h-9 items-center rounded-md px-4 font-mono text-sm font-semibold transition-colors"
       :class="modelValue === fab
         ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-        : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+        : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
       @click="emit('update:modelValue', fab)"
     >
       {{ fab }}

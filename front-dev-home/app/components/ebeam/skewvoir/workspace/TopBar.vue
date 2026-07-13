@@ -9,7 +9,7 @@
         <p class="text-[13px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           SKEWNONO<span class="text-(--sk-brand)">.</span>
         </p>
-        <p class="mt-0.5 font-mono text-[9.5px] text-zinc-400">
+        <p class="mt-0.5 font-mono text-[9.5px] text-(--sk-ink-muted)">
           {{ version }} · {{ ws.toolLabel }}
         </p>
       </div>

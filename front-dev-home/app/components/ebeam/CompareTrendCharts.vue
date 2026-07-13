@@ -2,14 +2,14 @@
   <div class="space-y-3">
     <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="font-mono text-[10px] text-zinc-400">{{ text.rangeLabel }}</span>
+        <span class="font-mono text-[10px] text-(--sk-ink-muted)">{{ text.rangeLabel }}</span>
         <USelect
           v-model="startDate"
           size="xs"
           :items="dateItems"
           class="min-w-[7.5rem]"
         />
-        <span class="text-[12px] text-zinc-400">~</span>
+        <span class="text-[12px] text-(--sk-ink-subtle)">~</span>
         <USelect
           v-model="endDate"
           size="xs"
@@ -18,7 +18,7 @@
         />
       </div>
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        <span class="font-mono text-[10px] text-zinc-400">{{ text.filterLabel }}</span>
+        <span class="font-mono text-[10px] text-(--sk-ink-muted)">{{ text.filterLabel }}</span>
         <div
           role="radiogroup"
           aria-label="Display filter"
@@ -83,7 +83,7 @@
             <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
               {{ text.chartParaTitle }}
             </p>
-            <span class="text-[10.5px] text-zinc-400">para_all</span>
+            <span class="text-[10.5px] text-(--sk-ink-muted)">para_all</span>
           </div>
         </template>
         <div
@@ -101,7 +101,7 @@
             <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
               {{ text.chartRecipeTitle }}
             </p>
-            <span class="text-[10.5px] text-zinc-400">avail_recipe</span>
+            <span class="text-[10.5px] text-(--sk-ink-muted)">avail_recipe</span>
           </div>
         </template>
         <div

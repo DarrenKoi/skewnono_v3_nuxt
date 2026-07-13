@@ -102,7 +102,7 @@ const tooltip = computed(() => {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--sk-ink-subtle);
+  color: var(--sk-ink-muted);
 }
 
 .sk-fresh__readout {

@@ -36,7 +36,7 @@
           />
         </UFormField>
 
-        <div class="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+        <div class="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-(--sk-ink) dark:bg-zinc-900">
           <strong>저장될 디바이스:</strong> {{ selectedLots.length }}개{{ fab ? ` · ${fab}` : '' }}
         </div>
 

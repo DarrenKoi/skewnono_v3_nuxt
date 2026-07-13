@@ -10,12 +10,12 @@
       <div class="mx-auto flex max-w-md flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-zinc-300 px-6 py-14 text-center dark:border-zinc-700">
         <UIcon
           :name="icon"
-          class="h-8 w-8 text-zinc-400 dark:text-zinc-500"
+          class="h-8 w-8 text-(--sk-ink-muted)"
         />
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
           준비 중입니다
         </p>
-        <p class="text-xs text-zinc-500 dark:text-zinc-400">
+        <p class="text-xs text-(--sk-ink-muted)">
           Coming soon
         </p>
       </div>

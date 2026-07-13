@@ -15,7 +15,7 @@
 
     <!-- View modes -->
     <section>
-      <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+      <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
         WORKSPACE
       </p>
       <ul class="space-y-1">
@@ -47,7 +47,7 @@
               <span class="block truncate text-[12.5px] font-semibold">{{ mode.label }}</span>
               <span
                 class="block truncate text-[10.5px]"
-                :class="mode.kind === ws.activeKind.value ? 'text-(--sk-ink-fg)/70' : 'text-zinc-400'"
+                :class="mode.kind === ws.activeKind.value ? 'text-(--sk-ink-fg)/70' : 'text-(--sk-ink-muted)'"
               >{{ mode.sub }}</span>
             </span>
             <UKbd
@@ -65,7 +65,7 @@
       v-if="ws.selection.value"
       class="space-y-1.5 border-t border-(--sk-border-soft) pt-4"
     >
-      <p class="mb-1 px-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+      <p class="mb-1 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
         CURRENT SELECTION
       </p>
       <dl class="space-y-1 px-1 text-[11.5px]">
@@ -74,7 +74,7 @@
           :key="field.label"
           class="flex items-baseline justify-between gap-2"
         >
-          <dt class="text-zinc-400">
+          <dt class="text-(--sk-ink-muted)">
             {{ field.label }}
           </dt>
           <dd
@@ -89,7 +89,7 @@
 
     <!-- Pinned filters -->
     <section class="space-y-2 border-t border-(--sk-border-soft) pt-4">
-      <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+      <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
         FILTER PINNED
       </p>
       <div class="space-y-1.5 px-1">
@@ -98,7 +98,7 @@
           :key="field.label"
           class="flex items-center justify-between gap-2"
         >
-          <span class="text-[11.5px] text-zinc-400">{{ field.label }}</span>
+          <span class="text-[11.5px] text-(--sk-ink-muted)">{{ field.label }}</span>
           <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-[11px] text-(--sk-chip-text)">
             {{ field.value }}
           </span>
@@ -113,7 +113,7 @@
           </span>
           <button
             type="button"
-            class="rounded-(--sk-r-chip) border border-dashed border-zinc-300 px-2 py-0.5 font-mono text-[11px] text-zinc-400 hover:border-zinc-400 hover:text-zinc-600 dark:border-zinc-600"
+            class="rounded-(--sk-r-chip) border border-dashed border-zinc-300 px-2 py-0.5 font-mono text-[11px] text-(--sk-ink-muted) hover:border-zinc-400 hover:text-(--sk-ink) dark:border-zinc-600"
           >
             + add
           </button>
@@ -123,7 +123,7 @@
 
     <!-- Health -->
     <section class="mt-auto space-y-2 border-t border-(--sk-border-soft) pt-4">
-      <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-400">
+      <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
         HEALTH · LAST 31H
       </p>
       <div class="flex gap-6 px-1">
@@ -131,7 +131,7 @@
           <p class="font-mono text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
             {{ ws.health.value.scans }}
           </p>
-          <p class="font-mono text-[10px] tracking-wide text-zinc-400">
+          <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
             SCANS
           </p>
         </div>
@@ -139,7 +139,7 @@
           <p class="font-mono text-2xl font-bold tabular-nums text-(--sk-bad)">
             {{ ws.health.value.outliers }}
           </p>
-          <p class="font-mono text-[10px] tracking-wide text-zinc-400">
+          <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
             OUTLIERS
           </p>
         </div>

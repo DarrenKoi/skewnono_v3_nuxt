@@ -14,7 +14,7 @@
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="text-[11px] uppercase tracking-wide text-zinc-400">
+              <p class="text-[11px] uppercase tracking-wide text-(--sk-ink-muted)">
                 {{ text.summaryHeading }}
               </p>
               <p class="mt-0.5 text-[12.5px] text-zinc-700 dark:text-zinc-300">
@@ -33,7 +33,7 @@
           </div>
           <dl class="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px] sm:grid-cols-4">
             <div>
-              <dt class="font-mono text-[10px] text-zinc-400">
+              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
                 fac_id
               </dt>
               <dd class="font-mono text-zinc-700 dark:text-zinc-200">
@@ -41,7 +41,7 @@
               </dd>
             </div>
             <div>
-              <dt class="font-mono text-[10px] text-zinc-400">
+              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
                 avail_recipe
               </dt>
               <dd class="tabular-nums text-zinc-700 dark:text-zinc-200">
@@ -49,7 +49,7 @@
               </dd>
             </div>
             <div>
-              <dt class="font-mono text-[10px] text-zinc-400">
+              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
                 para_all
               </dt>
               <dd class="tabular-nums text-zinc-700 dark:text-zinc-200">
@@ -57,7 +57,7 @@
               </dd>
             </div>
             <div>
-              <dt class="font-mono text-[10px] text-zinc-400">
+              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
                 stack
               </dt>
               <dd class="font-mono text-zinc-700 dark:text-zinc-200">
@@ -144,7 +144,7 @@ const columns: TableColumn<RecipeInfoRow>[] = [
 const tableMeta = {
   class: {
     tr: 'select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums',
+    td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
     th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }

@@ -34,7 +34,7 @@
             :aria-label="`${img.label} 확대해서 보기`"
             @click="zoomImage = img"
           >
-            <div class="relative aspect-[4/3] w-full cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
+            <div class="relative mx-auto aspect-square w-full max-w-[220px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
               <EbeamRecipeOpenSemNoise />
               <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[9px] font-bold tracking-wider text-(--sk-ink-fg)">
                 {{ img.label }}
@@ -66,7 +66,7 @@
     <template #content>
       <div
         v-if="zoomImage"
-        class="relative flex aspect-[4/3] max-h-[82vh] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]"
+        class="relative mx-auto flex aspect-square w-full max-w-[min(100%,82vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]"
       >
         <EbeamRecipeOpenSemNoise />
         <div class="relative font-mono text-[80px] font-bold tracking-widest text-white/10">

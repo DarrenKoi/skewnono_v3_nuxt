@@ -5,12 +5,12 @@
         class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold transition-colors"
         :class="selectedDeviceLots.length > 0 || presets.length > 0
           ? 'bg-(--sk-accent) text-white'
-          : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'"
+          : 'bg-zinc-200 text-(--sk-ink-muted) dark:bg-zinc-700'"
       >3</span>
       <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
         {{ text.step3Title }}
       </h3>
-      <span class="text-[10.5px] text-zinc-400 dark:text-zinc-500">
+      <span class="text-[10.5px] text-(--sk-ink-muted)">
         {{ activeTab === 'selection' ? text.step3HintSelection : text.step3HintPresets }}
       </span>
     </div>
@@ -31,7 +31,7 @@
           class="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200"
           :class="activeTab === tab.id
             ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
-            : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60'"
+            : 'text-(--sk-ink-muted) hover:text-(--sk-ink) hover:bg-zinc-100/70 dark:hover:bg-zinc-800/60'"
           @click="activeTab = tab.id"
         >
           <UIcon
@@ -68,23 +68,23 @@
               :key="row.lot_cd"
               class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
             >
-              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-(--sk-ink-muted) dark:bg-zinc-800">
                 {{ index + 1 }}
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">
                   <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ row.lot_cd }}</span>
-                  <span class="text-[9.5px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                  <span class="text-[9.5px] uppercase tracking-wide text-(--sk-ink-muted)">
                     {{ deviceChipLabel(row) }}
                   </span>
                 </div>
-                <p class="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                <p class="truncate text-[10px] text-(--sk-ink)">
                   {{ row.ctn_desc }}
                 </p>
               </div>
               <button
                 type="button"
-                class="shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-zinc-900 dark:hover:text-zinc-100"
+                class="shrink-0 text-(--sk-ink-muted) opacity-0 transition-opacity group-hover:opacity-100 hover:text-(--sk-ink)"
                 :aria-label="text.clearAll"
                 @click="toggleDeviceSelect(row.lot_cd)"
               >
@@ -136,7 +136,7 @@
           <button
             v-if="selectedDeviceLots.length > 0"
             type="button"
-            class="block w-full text-center text-[10.5px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            class="block w-full text-center text-[10.5px] text-(--sk-ink-muted) hover:text-(--sk-ink)"
             @click="clearDeviceSelection"
           >
             {{ text.clearAll }}
@@ -172,17 +172,17 @@
                     >
                       {{ preset.fab }}
                     </span>
-                    <span class="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[9.5px] tabular-nums text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                    <span class="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[9.5px] tabular-nums text-(--sk-ink-muted) dark:bg-zinc-800">
                       {{ preset.lots.length }}{{ text.lotsSuffix }}
                     </span>
                   </div>
                   <p
                     v-if="preset.comments"
-                    class="mt-1 line-clamp-2 text-[10.5px] leading-snug text-zinc-500 dark:text-zinc-400"
+                    class="mt-1 line-clamp-2 text-[10.5px] leading-snug text-(--sk-ink)"
                   >
                     {{ preset.comments }}
                   </p>
-                  <p class="mt-1 flex items-center gap-1 text-[9.5px] text-zinc-400 dark:text-zinc-500">
+                  <p class="mt-1 flex items-center gap-1 text-[9.5px] text-(--sk-ink-muted)">
                     <UIcon
                       name="i-lucide-clock-3"
                       class="h-2.5 w-2.5"
@@ -192,7 +192,7 @@
                 </div>
                 <button
                   type="button"
-                  class="shrink-0 rounded p-1 text-zinc-500 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:bg-red-50 focus-visible:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 dark:text-zinc-400 dark:hover:bg-red-950/40 dark:hover:text-red-400 dark:focus-visible:bg-red-950/40 dark:focus-visible:text-red-400 dark:focus-visible:ring-red-900"
+                  class="shrink-0 rounded p-1 text-(--sk-ink-muted) transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:bg-red-50 focus-visible:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 dark:hover:bg-red-950/40 dark:hover:text-red-400 dark:focus-visible:bg-red-950/40 dark:focus-visible:text-red-400 dark:focus-visible:ring-red-900"
                   :aria-label="`${text.deletePreset}: ${preset.name}`"
                   @click="removePreset(preset.id)"
                 >

@@ -13,7 +13,7 @@
     >
       <UIcon
         name="i-lucide-scale"
-        class="mx-auto h-6 w-6 text-zinc-400"
+        class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
       <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
         비교하려면 recipe를 2개 이상 선택하세요.
@@ -43,7 +43,7 @@
       >
         <UIcon
           name="i-lucide-loader-circle"
-          class="mx-auto h-5 w-5 animate-spin text-zinc-400"
+          class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
         />
         <p class="mt-2">
           비교 데이터를 불러오는 중입니다.

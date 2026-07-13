@@ -76,7 +76,7 @@
             <td class="sticky left-0 z-10 bg-inherit px-2.5 py-1.5 font-medium text-(--sk-ink-muted)">
               {{ row.label }}<span
                 v-if="row.unit"
-                class="ml-1 text-zinc-400"
+                class="ml-1 text-(--sk-ink-subtle)"
               >({{ row.unit }})</span>
             </td>
             <td

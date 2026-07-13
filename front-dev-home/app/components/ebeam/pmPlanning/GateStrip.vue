@@ -2,7 +2,7 @@
   <div class="dashboard-surface rounded-2xl px-3.5 py-3">
     <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
       <div class="flex items-center gap-2">
-        <span class="font-mono text-[10px] text-zinc-400">Tool</span>
+        <span class="font-mono text-[10px] text-(--sk-ink-muted)">Tool</span>
         <USelect
           :model-value="selectedEqpId ?? undefined"
           :items="toolOptions"
