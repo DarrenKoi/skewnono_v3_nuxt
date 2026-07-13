@@ -54,7 +54,8 @@
         </table>
       </div>
 
-      <!-- Coefficients[0..359] overlay: values[0] / values[1], selected vs one sibling -->
+      <!-- Coefficients[0..359] overlay: values[0] / values[1] in stacked
+           per-type panels, selected vs one sibling -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
         <div class="mb-1 flex items-center justify-between gap-2 px-1">
           <div class="text-xs font-bold text-(--sk-ink)">
@@ -69,7 +70,7 @@
         </div>
         <div
           ref="chartEl"
-          class="h-80 w-full"
+          class="h-96 w-full"
         />
       </div>
     </template>
@@ -97,31 +98,53 @@ const overlayEqp = ref('none')
 
 const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
-const c1 = computed(() => palette.value[1] ?? '#3F5D52')
 const c2 = computed(() => palette.value[2] ?? '#7B6CC4')
-const c3 = computed(() => palette.value[3] ?? '#B0843C')
 
 const chartEl = ref<HTMLDivElement | null>(null)
 const indices = Array.from({ length: 360 }, (_, i) => i)
 
+// values[0] (~±0.02) and values[1] (~0.9–1.0) live on different scales, so a
+// shared y-axis flattens both into disjoint bands. Plot each value type in
+// its own grid (v0 top, v1 bottom) with a linked x-axis crosshair; the
+// selected/overlay pair shares one series name per eqp so each equipment gets
+// a single legend entry toggling both panels.
 const chartOption = computed<EChartsOption>(() => {
   const sel = coefficientSeries(props.settings[props.selectedEqp])
   const sib = overlayEqp.value !== 'none' ? coefficientSeries(props.settings[overlayEqp.value]) : null
-  const line = (name: string, data: number[], color: string, dashed = false) => ({
+  const line = (name: string, data: number[], color: string, gridIndex: number, dashed = false) => ({
     name, type: 'line' as const, showSymbol: false, smooth: false,
+    xAxisIndex: gridIndex, yAxisIndex: gridIndex,
     lineStyle: { color, width: 1.2, type: dashed ? ('dashed' as const) : ('solid' as const) },
     itemStyle: { color }, data
   })
+  const catAxis = (gridIndex: number, showLabels: boolean) => ({
+    type: 'category' as const, gridIndex, data: indices,
+    axisLabel: { fontSize: 10, show: showLabels },
+    ...(showLabels ? { name: 'index' } : {})
+  })
+  const valAxis = (gridIndex: number, name: string) => ({
+    type: 'value' as const, gridIndex, name, scale: true,
+    nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 }
+  })
   return {
-    grid: { left: 48, right: 16, top: 24, bottom: 36 },
+    grid: [
+      { left: 56, right: 16, top: 30, height: '36%' },
+      { left: 56, right: 16, bottom: 40, height: '36%' }
+    ],
     tooltip: { trigger: 'axis' },
+    axisPointer: { link: [{ xAxisIndex: 'all' }] },
     legend: { top: 0, textStyle: { fontSize: 10 } },
-    xAxis: { type: 'category', data: indices, name: 'index', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+    xAxis: [catAxis(0, false), catAxis(1, true)],
+    yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
     series: [
-      line(`${props.selectedEqp} v0`, sel.v0, c0.value),
-      line(`${props.selectedEqp} v1`, sel.v1, c1.value),
-      ...(sib ? [line(`${overlayEqp.value} v0`, sib.v0, c2.value, true), line(`${overlayEqp.value} v1`, sib.v1, c3.value, true)] : [])
+      line(props.selectedEqp, sel.v0, c0.value, 0),
+      line(props.selectedEqp, sel.v1, c0.value, 1),
+      ...(sib
+        ? [
+            line(overlayEqp.value, sib.v0, c2.value, 0, true),
+            line(overlayEqp.value, sib.v1, c2.value, 1, true)
+          ]
+        : [])
     ]
   }
 })
