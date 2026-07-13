@@ -6,6 +6,24 @@
           class="space-y-6 border-b border-(--sk-border) pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
           aria-label="페이지 안내"
         >
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+              시작하기
+            </p>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition"
+              :class="activePageId === 'overview' ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900'"
+              @click="activePageId = 'overview'"
+            >
+              <UIcon
+                name="i-lucide-sparkles"
+                class="h-4 w-4 shrink-0"
+              />
+              <span>SKEWNONO 소개</span>
+            </button>
+          </div>
+
           <div
             v-for="section in guideSections"
             :key="section.key"
@@ -38,7 +56,79 @@
       </aside>
 
       <main class="min-w-0">
-        <section class="space-y-6">
+        <section
+          v-if="activePageId === 'overview'"
+          class="space-y-6"
+        >
+          <header class="border-b border-(--sk-border) pb-6">
+            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              <UIcon
+                name="i-lucide-sparkles"
+                class="h-4 w-4"
+              />
+              <span>소개</span>
+            </div>
+            <div class="mt-3 max-w-3xl">
+              <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                SKEWNONO
+              </h1>
+              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                SKEWNONO는 계측(metrology) 장비 관리와 데이터 분석을 위한 웹 애플리케이션입니다.
+                CD-SEM, HV-SEM 같은 E-Beam 장비군과 AFM 장비군의 상태 확인, recipe 관리,
+                측정 데이터 분석을 한 곳에서 제공합니다.
+              </p>
+            </div>
+          </header>
+
+          <section class="grid gap-4 md:grid-cols-3">
+            <div
+              v-for="area in overviewAreas"
+              :key="area.title"
+              class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950"
+            >
+              <div class="flex items-center gap-2">
+                <UIcon
+                  :name="area.icon"
+                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                />
+                <h2 class="text-base font-semibold">
+                  {{ area.title }}
+                </h2>
+              </div>
+              <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                {{ area.description }}
+              </p>
+            </div>
+          </section>
+
+          <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div class="max-w-2xl">
+                <h2 class="text-lg font-semibold">
+                  페이지 안내 보는 법
+                </h2>
+                <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                  왼쪽 목록에서 페이지를 선택하면 각 페이지의 목적, 주요 사용자, 화면 구성을 확인할 수 있습니다.
+                  화면 없이 데이터를 직접 가져가려는 개발자는 API 리스트 페이지를 참고하십시오.
+                </p>
+              </div>
+              <UButton
+                to="/endpoints"
+                icon="i-lucide-plug"
+                color="neutral"
+                variant="outline"
+                class="shrink-0"
+              >
+                API 리스트 열기
+              </UButton>
+            </div>
+          </section>
+        </section>
+
+        <section
+          v-else
+          class="space-y-6"
+        >
           <header class="border-b border-(--sk-border) pb-6">
             <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
               <UIcon
@@ -149,6 +239,24 @@ type PageGuide = {
   notes: string[]
 }
 
+const overviewAreas = [
+  {
+    title: '공통',
+    icon: 'i-lucide-layout-grid',
+    description: '홈에서 작업 영역을 선택하고, 개인 설정과 사용 통계를 관리합니다. 운영자는 요청 로그를 추적합니다.'
+  },
+  {
+    title: 'E-Beam Metrology',
+    icon: 'i-lucide-microscope',
+    description: 'CD-SEM, HV-SEM 장비 현황과 storage, hardware 상태를 확인하고 recipe 검색, TAT, fail issue, 측정 데이터 분석을 수행합니다.'
+  },
+  {
+    title: 'AFM Metrology',
+    icon: 'i-lucide-ruler',
+    description: 'Fab별 AFM tool을 선택해 measurement file을 검색하고, 상세 profile 분석과 여러 측정의 비교를 수행합니다.'
+  }
+]
+
 const sectionMeta: { key: GuideSection, label: string, icon: string }[] = [
   { key: 'common', label: '공통', icon: 'i-lucide-layout-grid' },
   { key: 'ebeam', label: 'E-Beam Metrology', icon: 'i-lucide-microscope' },
@@ -168,17 +276,6 @@ const pageGuides: PageGuide[] = [
     notes: ['장비군 선택은 사용자의 의도가 강하므로 상단에서 과도한 교차 전환을 강요하지 않습니다.']
   },
   {
-    id: 'api-information',
-    title: 'API',
-    path: '/endpoints',
-    icon: 'i-lucide-plug',
-    section: 'common',
-    purpose: '화면을 방문하지 않고 데이터를 가져가려는 개발자를 위한 안내 페이지입니다.',
-    description: 'API Token 사용법, Base URL, 호출 예시, 기능별 API 카탈로그를 한 곳에서 확인합니다.',
-    users: '분석 스크립트 작성자, 배치 개발자, 프론트엔드/백엔드 개발자',
-    notes: ['API 예시는 좌우 스크롤 없이 줄바꿈되도록 구성합니다.']
-  },
-  {
     id: 'settings',
     title: 'Settings',
     path: '/settings',
@@ -196,9 +293,9 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-bar-chart-3',
     section: 'common',
     purpose: '사용자가 SKEWNONO를 어떻게 쓰고 있는지 확인하는 화면입니다.',
-    description: '내 활동 요약과 관리자용 사용자 활동 통계를 보여줍니다. API Token 호출은 활동 점수에는 반영하지 않고 운영 로그에 남기는 방식입니다.',
+    description: '내 활동 요약과 관리자용 사용자 활동 통계를 보여줍니다.',
     users: '일반 사용자, 관리자',
-    notes: ['관리자용 summary와 users endpoint는 권한이 필요합니다.']
+    notes: ['관리자용 전체 사용자 통계는 권한이 필요합니다.']
   },
   {
     id: 'admin-logs',
@@ -297,7 +394,7 @@ const pageGuides: PageGuide[] = [
     purpose: '선택 recipe의 측정 이력을 확인합니다.',
     description: 'MSR 존재 여부, align fail, measurement fail 같은 이력 정보를 recipe 기준으로 조회합니다.',
     users: '계측 결과 확인자',
-    notes: ['필요 시 MSR file API와 연결됩니다.']
+    notes: ['필요 시 MSR file 상세 조회로 이어집니다.']
   },
   {
     id: 'recipe-tat',
@@ -319,7 +416,7 @@ const pageGuides: PageGuide[] = [
     purpose: 'Align fail과 measurement fail 이슈를 추적합니다.',
     description: 'summary, daily trend, align ranking, meas ranking을 통해 lot 또는 장비 단위의 fail 이슈를 좁혀 봅니다.',
     users: '장비/계측 품질 담당자',
-    notes: ['CD-SEM과 HV-SEM이 같은 API 패턴을 사용합니다.']
+    notes: ['CD-SEM과 HV-SEM이 같은 화면 구성을 사용합니다.']
   },
   {
     id: 'device-statistics',
@@ -393,14 +490,14 @@ const pageGuides: PageGuide[] = [
     path: '/thickness, /ebeam/verity-sem, /ebeam/provision',
     icon: 'i-lucide-construction',
     section: 'common',
-    purpose: '아직 API와 화면 기능이 확정되지 않은 영역을 표시합니다.',
-    description: '사용자가 해당 기능이 준비 중임을 알 수 있게 하되, 완성되지 않은 API를 호출하도록 유도하지 않습니다.',
+    purpose: '아직 기능이 확정되지 않은 영역을 표시합니다.',
+    description: '사용자가 해당 기능이 준비 중임을 알 수 있게 하되, 완성되지 않은 기능으로 유도하지 않습니다.',
     users: '전체 사용자',
-    notes: ['API가 준비되지 않은 기능은 활성 탭처럼 보이지 않도록 관리합니다.']
+    notes: ['준비되지 않은 기능은 활성 탭처럼 보이지 않도록 관리합니다.']
   }
 ]
 
-const activePageId = ref(pageGuides[0]!.id)
+const activePageId = ref('overview')
 const selectedPageGuide = computed<PageGuide>(() =>
   pageGuides.find(page => page.id === activePageId.value) ?? pageGuides[0]!
 )
