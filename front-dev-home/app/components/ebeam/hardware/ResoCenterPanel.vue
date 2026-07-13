@@ -157,9 +157,11 @@ const trendOption = computed<EChartsOption>(() => {
     tooltip: { trigger: 'axis' },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+    // Dual y-axes have independent tick intervals, so their splitLines never
+    // align — hide them both instead of drawing a misaligned double grid.
     yAxis: [
-      { type: 'value', name: 'BestReso', ...axisFor('BestReso'), axisLabel: { fontSize: 10 } },
-      { type: 'value', name: 'ResoDelta', ...axisFor('ResoDelta'), axisLabel: { fontSize: 10 } }
+      { type: 'value', name: 'BestReso', ...axisFor('BestReso'), axisLabel: { fontSize: 10 }, splitLine: { show: false } },
+      { type: 'value', name: 'ResoDelta', ...axisFor('ResoDelta'), axisLabel: { fontSize: 10 }, splitLine: { show: false } }
     ],
     series: [
       {

@@ -212,9 +212,11 @@ const chartOption = computed<EChartsOption>(() => {
       tooltip: { trigger: 'axis' },
       legend: { top: 0, textStyle: { fontSize: 10 } },
       xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+      // Dual y-axes: hide both splitLine sets — they use independent
+      // intervals and never align.
       yAxis: [
-        { type: 'value', name: 'pair 1', ...pairAxis(0), axisLabel: { fontSize: 10 } },
-        { type: 'value', name: 'pair 2', ...pairAxis(1), axisLabel: { fontSize: 10 } }
+        { type: 'value', name: 'pair 1', ...pairAxis(0), axisLabel: { fontSize: 10 }, splitLine: { show: false } },
+        { type: 'value', name: 'pair 2', ...pairAxis(1), axisLabel: { fontSize: 10 }, splitLine: { show: false } }
       ],
       series: [
         { name: 'pair 1 (x)', type: 'line', yAxisIndex: 0, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pair(0) },
