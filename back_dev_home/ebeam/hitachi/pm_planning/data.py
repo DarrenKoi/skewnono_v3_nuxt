@@ -127,7 +127,7 @@ def _latest_daily_bsm(eqp_id: str) -> tuple[float, float]:
 
 def _latest_pm_at(eqp_id: str) -> str | None:
     """Return most-recent completed PM job_end from the BM/PM mock."""
-    data = build_bm_pm_data(eqp_id)
+    data = build_bm_pm_data(eqp_id, NOW)
     for row in data["past"]:
         if row.get("category") == "PM":
             return str(row["job_end"]).replace(" ", "T")
