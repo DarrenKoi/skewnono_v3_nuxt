@@ -77,6 +77,23 @@
   --color-zinc-800: #27272A;
   --color-zinc-900: #18181B;
   --color-zinc-950: #09090B;
+
+  /* Paper — the warm neutral ramp NuxtUI draws from (app.config.ts maps
+     primary + neutral onto it). Zinc is cool (hue ~285); every NuxtUI default
+     used to pull from it, which is why buttons and inputs read gray-blue on a
+     cream page. Same lightness steps as zinc, re-hued to the paper/walnut
+     family (70-80°) so NuxtUI components sit in the same material as the cards. */
+  --color-paper-50: oklch(0.985 0.006 80);
+  --color-paper-100: oklch(0.965 0.010 80);
+  --color-paper-200: oklch(0.910 0.014 80);
+  --color-paper-300: oklch(0.850 0.014 78);
+  --color-paper-400: oklch(0.720 0.014 74);
+  --color-paper-500: oklch(0.600 0.014 70);
+  --color-paper-600: oklch(0.500 0.014 64);
+  --color-paper-700: oklch(0.400 0.014 60);
+  --color-paper-800: oklch(0.300 0.010 66);
+  --color-paper-900: oklch(0.245 0.008 70);
+  --color-paper-950: oklch(0.180 0.008 70);
 }
 
 /* F · Paper · tinted cards — warm cream page + cards one shade lighter (still warm).
@@ -90,7 +107,7 @@
   --sk-border-soft: oklch(0.94 0.01 80);
   --sk-nav-bg: oklch(0.97 0.01 80 / 0.82);
   --sk-nav-border: oklch(0.90 0.014 80);
-  --sk-ink: oklch(0.22 0.012 60);
+  /* --sk-ink is defined once, in the selection block below (#15110D). */
   --sk-ink-muted: oklch(0.47 0.014 60);
   --sk-ink-subtle: oklch(0.66 0.012 70);
   --sk-chip-bg: oklch(0.95 0.014 80);
@@ -133,6 +150,9 @@
   --sk-r-chip: 8px;
   --sk-r-nav: 10px;
   --sk-r-card: 14px;
+
+  /* One focus ring for both selection families (BLACK nav + TERRACOTTA filter). */
+  --sk-focus-ring: oklch(0.58 0.13 35 / 0.45);
 }
 
 /* Dark · Walnut — paper at night. Page L≈0.21, hue 70°; cards lift one step to
@@ -146,7 +166,7 @@
   --sk-border-soft: oklch(0.265 0.008 70);
   --sk-nav-bg: oklch(0.225 0.008 70 / 0.78);
   --sk-nav-border: oklch(0.30 0.008 70);
-  --sk-ink: oklch(0.96 0.006 80);
+  /* --sk-ink is defined once, in the selection block below (#F4EFE6). */
   --sk-ink-muted: oklch(0.74 0.008 70);
   --sk-ink-subtle: oklch(0.56 0.008 70);
   --sk-chip-bg: oklch(0.285 0.008 70);
@@ -179,6 +199,54 @@
   --sk-brand-fg: #FFF7F1;       /* cream on warm terracotta — same as light */
   --sk-brand-soft: oklch(0.30 0.05 38);
   --sk-brand-ink: #F3DCD2;
+
+  --sk-focus-ring: oklch(0.74 0.14 38 / 0.45);
+}
+
+/* ── NuxtUI bridge ────────────────────────────────────────────────────────────
+   NuxtUI themes its components off a fixed set of semantic tokens (--ui-bg,
+   --ui-text, --ui-border, …), which by default resolve to the neutral color
+   ramp. Pointing them at --sk-* here is what makes a bare <UCard>, <UButton>,
+   <UInput>, <USelect> or <UTable> come out in the paper/walnut material with no
+   per-call-site classes — before this block, every component had to be patched
+   at its call site with bg-/text-/border- overrides, and the ones that were
+   missed rendered stock zinc.
+
+   Declared *outside* @layer, so it beats NuxtUI's own @layer theme defaults.
+   Only :root is needed: the --sk-* tokens already flip under .dark, so the dark
+   values follow automatically and can never drift out of sync with light. */
+:root {
+  /* Surfaces. --ui-bg is NuxtUI's "default" surface = our card surface; the
+     page floor stays --sk-canvas via the body rule below. */
+  --ui-bg: var(--sk-surface);
+  --ui-bg-muted: var(--sk-muted-surface);
+  --ui-bg-elevated: var(--sk-muted-surface);
+  --ui-bg-accented: var(--sk-border-soft);
+  --ui-bg-inverted: var(--sk-ink);
+
+  /* Text — the three-step ink hierarchy. NuxtUI's "toned" has no counterpart in
+     our scale, so it folds into muted rather than inventing a fourth step. */
+  --ui-text-dimmed: var(--sk-ink-subtle);
+  --ui-text-muted: var(--sk-ink-muted);
+  --ui-text-toned: var(--sk-ink-muted);
+  --ui-text: var(--sk-ink);
+  --ui-text-highlighted: var(--sk-ink);
+  --ui-text-inverted: var(--sk-ink-fg);
+
+  --ui-border: var(--sk-border);
+  --ui-border-muted: var(--sk-border-soft);
+  --ui-border-accented: var(--sk-border);
+  --ui-border-inverted: var(--sk-ink);
+
+  /* NAVIGATE = ink. Makes UButton's default solid fill the ink fill the design
+     system already specifies for primary actions, instead of a zinc-500 slab. */
+  --ui-primary: var(--sk-ink);
+}
+
+/* One ring color for both selection families, per the design system. */
+:focus-visible {
+  outline: 2px solid var(--sk-focus-ring);
+  outline-offset: 2px;
 }
 
 html,

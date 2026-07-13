@@ -62,6 +62,17 @@ All colors are defined as light/dark pairs on `:root` and `.dark` and must be co
 - **Error text** (`text-rose-600 dark:text-rose-400`): Message lines only.
 - **Focus ring** (`--sk-focus-ring` — accent at 45% alpha): `outline: 2px solid; outline-offset: 2px` on `:focus-visible`, one ring color for both selection families.
 
+### NuxtUI Token Bridge
+
+NuxtUI themes its components off its own fixed token set (`--ui-bg`, `--ui-text*`, `--ui-border*`, `--ui-primary`), which by default resolves to a neutral color ramp. Two pieces connect it to this design system, and together they are why **a bare `<UCard>`, `<UButton>`, `<UInput>`, `<USelect>` or `<UTable>` comes out on-system with no classes at the call site**:
+
+1. **`paper` ramp** (`--color-paper-50…950`, `main.css` `@theme`) — zinc's lightness steps re-hued to the warm 70–80° family. `app.config.ts` maps NuxtUI's `primary` and `neutral` onto it. Zinc is hue ≈ 285 (cool); every NuxtUI default used to draw from it, which is why untouched components read gray-blue against a cream page.
+2. **Semantic bridge** (`main.css`) — `--ui-*` → `--sk-*`: `--ui-bg` → `--sk-surface`, `--ui-text` → `--sk-ink`, `--ui-text-muted` → `--sk-ink-muted`, `--ui-border` → `--sk-border`, `--ui-bg-inverted` / `--ui-primary` → `--sk-ink`.
+
+Two rules protect this layer. It is declared **outside `@layer`**, so it outranks NuxtUI's own `@layer theme` defaults. And it is declared **in `:root` only, never in `.dark`** — the `--sk-*` tokens already invert under `.dark`, so dark mode follows for free; adding a `.dark` bridge block would let the two modes drift apart and is a bug, not a safety net.
+
+**Consequence for existing code:** a call-site class like `border-zinc-200/70` or `text-zinc-900` is no longer a color that needs *replacing* — the correct value is already underneath it. Delete the class.
+
 ## Typography
 
 ### Font Family
@@ -83,11 +94,14 @@ All fonts are **self-hosted**: woff2 only (latin + korean subsets) extracted fro
 | `text-lg` | 18px | 600 | 28px | 0 | Card titles |
 | `text-base` | 16px | 400 | 24px | 0 | Body default |
 | `text-sm` | 14px | 400 | 20px | 0 | Table cells, inputs, secondary body |
-| `text-xs` | 12px | 500–600 | 16px | 0 | Metadata, pills, secondary labels — **the floor** |
-| eyebrow | 11px | 500 mono | 1.4 | +0.08em, uppercase | Meta-bar kickers (`CD-SEM · R3`) — the one sub-12px exception, mono caps only |
+| `text-xs` | 12px | 500–600 | 16px | 0 | Metadata, pills, secondary labels — **the floor for anything the user reads as content** |
+| micro-label | 11px | 500–600 | 16px | 0 to +0.02em | **Labels only** — table header cells, stat-strip captions. Never a data value |
+| eyebrow | 10px | 500–600 mono | 1.4 | +0.06em, uppercase | Meta-bar kickers (`CD-SEM · R3`) — mono caps only |
 
 ### Principles
-Weight carries hierarchy, not color: 400 body → 500 nav labels/buttons → 600 section titles/pills → 700 page titles and big numbers. Number and ID columns always take `font-mono tabular-nums`; tabular figures are mandatory wherever numbers update in place. Korean labels keep natural spacing with `whitespace-nowrap` on header cells; Korean paragraphs (help text, empty states) take `leading-relaxed` — dense Hangul needs the extra line height at 14–16px. Page titles are Korean; the eyebrow above them is English (`CD-SEM`, `HV-SEM`). Nothing renders below 12px except the mono eyebrow — if a label doesn't fit at 12px, shorten the label.
+Weight carries hierarchy, not color: 400 body → 500 nav labels/buttons → 600 section titles/pills → 700 page titles and big numbers. Number and ID columns always take `font-mono tabular-nums`; tabular figures are mandatory wherever numbers update in place. Korean labels keep natural spacing with `whitespace-nowrap` on header cells; Korean paragraphs (help text, empty states) take `leading-relaxed` — dense Hangul needs the extra line height at 14–16px. Page titles are Korean; the eyebrow above them is English (`CD-SEM`, `HV-SEM`).
+
+**The sub-12px rule.** Metrology screens are dense, and two tiers below the floor earn their place: the 10px mono **eyebrow** and the 11px **micro-label**. Both are strictly *chrome that names things* — a column header, a stat caption, a kicker. The line that does not move: **a data value never renders below 12px.** If a value doesn't fit, the column is too narrow; if a label doesn't fit at 11px, shorten the label. Nothing else goes under 12px, and no new tier gets invented — 10 and 11 are the whole list.
 
 ## Layout
 
@@ -133,7 +147,11 @@ The philosophy is **material first, shadow rare**: depth comes from the canvas �
 | `--sk-r-card` | 14px | Cards, panels |
 | pill (legacy) | 9999px | `.sk-pill-on` / `.sk-pill-off` status pills only |
 
-Soft rectangles only — anything outside this set is a bug. `rounded-full` is banned on new components; the status pills are the single grandfathered exception. Tailwind's `rounded` (4px) does not map to this scale, so new code uses the variables directly (`rounded-[var(--sk-r-chip)]`).
+Soft rectangles only — anything outside this set is a bug. `rounded-full` is banned on new components; the status pills are the single grandfathered exception.
+
+**Why the variables, and not `rounded-lg`.** NuxtUI overrides Tailwind's `rounded-*` utilities and derives every one of them from a single `--ui-radius` base by fixed multipliers (`sm` 1×, `md` 1.5×, `lg` 2×, `xl` 3×, `2xl` 4×) — a *geometric* ramp. The scale above is not geometric, so **no value of `--ui-radius` can produce 6/8/10/14.** Rather than bend the scale to the framework, we bypass the utilities: `--ui-radius` is left at its default, and `app.config.ts` pins the components to the scale by slot (`card` → `--sk-r-card`, `button` / `input` / `select` / `textarea` → `--sk-r-nav`, `badge` → `--sk-r-chip`). Dialog, popover and dropdown radii stay on NuxtUI's defaults.
+
+So: NuxtUI components inherit the scale automatically, and **hand-written markup uses the variables directly** (`rounded-[var(--sk-r-chip)]`) — never `rounded-lg`/`rounded-2xl`, whose sizes are an artifact of NuxtUI's ramp rather than a decision made here. A `rounded-2xl` on a `<UCard>` is worse than redundant: tailwind-merge lets it *beat* the themed radius, so the card silently leaves the scale.
 
 ### Iconography & Imagery
 No photography, no illustration — this is a data tool. One icon set: **Lucide** (`@iconify-json/lucide`), used as `icon="i-lucide-<name>"`. Canonical assignments: `search` (inputs), `rotate-ccw` (reset), `download` (CSV export), `info`, `settings`, `loader-circle` + `animate-spin` (loading), `star`/`star-off` (favorites), `arrow-up-narrow-wide`/`arrow-down-wide-narrow`/`arrow-up-down` (sort), `construction` (under construction). `@iconify-json/simple-icons` exists as a dependency but is reserved for brand logos.
@@ -190,9 +208,9 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 
 ### Inputs & Forms
 
-**`text-input`** — `<UInput icon="i-lucide-search" placeholder="검색" />`; NuxtUI defaults for border and radius. Focus uses the `--sk-focus-ring` treatment.
+**`text-input`** — `<UInput icon="i-lucide-search" placeholder="검색" />`. Border and radius come from the theme (`--sk-border`, `--sk-r-nav`) via the NuxtUI bridge — do not restate them at the call site. Focus uses the `--sk-focus-ring` treatment.
 
-**`select`** — NuxtUI `<USelectMenu>` defaults. Option labels Korean, values English. Multi-select filters (Category, Lot, Tech) use the `sk-chip` pattern instead — see `device-statistics.vue`.
+**`select`** — `<USelect>` / `<USelectMenu>`, same themed border and radius as the input. Option labels Korean, values English. Multi-select filters (Category, Lot, Tech) use the `sk-chip` pattern instead — see `device-statistics.vue`.
 
 ### Tags / Badges
 
@@ -216,10 +234,11 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 - Don't mix BLACK and TERRACOTTA in the same role, and never put a terracotta chip in a toggle slot.
 - Don't use `--sk-ink-muted` on data cells — it washes out in dark mode next to full-ink columns.
 - Don't use `rounded-full` on new components; the radius scale is 6/8/10/14 and nothing else.
-- Don't use fixed-lightness classes (`text-zinc-500`) for supporting text; they sink into the dark canvas. Zinc survives only in table hovers and the empty-state message.
+- Don't use fixed-lightness classes (`text-zinc-500`, `border-zinc-200`) for supporting text or chrome; they sink into the dark canvas, and they are *cool* against a warm page. Zinc survives only in table hovers and the empty-state message.
+- Don't restate a themed default at the call site. `bg-`/`text-`/`border-`/`rounded-` on a NuxtUI component is almost always either redundant with the bridge or actively overriding it — check what the component renders bare before adding a class.
 - Don't add shadows beyond the paper-card treatment, and don't restyle NuxtUI's dialog/dropdown shadows.
 - Don't change the meta-bar `<h1>` when a tab changes — scope belongs in the eyebrow.
-- Don't set anything below 12px except the mono eyebrow.
+- Don't put a data value below 12px, and don't invent a third sub-12px tier — 10px mono eyebrow and 11px micro-label are the complete list.
 - Don't introduce long transitions, skeletons, or shimmers; `transition-colors duration-200`, `animate-spin`, and `sk-pulse` are the entire motion vocabulary.
 
 ## Responsive Behavior
@@ -255,12 +274,15 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 
 ## Known Gaps
 
-- **Code drift to fix (doc is correct):** `main.css` defines `--sk-ink` twice in `:root` and `.dark` (ink-text block vs. selection block) — keep the selection-system values (`#15110D` / `#F4EFE6`), delete the earlier pair. `--sk-focus-ring` is specified here but not yet in `main.css`. The `--sk-accent-soft` hover on interactive stat cells is specified but not yet applied everywhere.
+- **Call-site drift to sweep (doc + theme are correct):** pages still carry chrome classes that predate the NuxtUI bridge — `rounded-2xl` on cards (which *beats* the themed 14px), `border-zinc-*` toolbar dividers, `bg-zinc-*` table headers, `text-zinc-900` card titles, and raw `rose`/`amber`/`emerald` where the `--sk-ok/warn/bad` families belong. These are now **deletions**, not replacements: the correct value already sits underneath. `장비 상태` (`ToolInventoryView.vue`, `StorageView.vue`) is the worst offender and the reference case for the sweep.
+- Equipment status sub-tabs (`EquipmentStatusSubTabs.vue`) are a hand-rolled white/zinc segmented control; they are a NAVIGATE control and must become `<SkNavPill>` (ink fill).
+- Several pages are still English in the UI copy (placeholders, `Reset`, empty states, error lines) against the Korean-voice rule.
+- The `--sk-accent-soft` hover on interactive stat cells is specified but not yet applied everywhere.
 - Destructive actions have no component yet; the `text-rose-600` + confirm-dialog rule is untested.
 - `prefers-reduced-motion` is not handled; only `animate-spin` and `sk-pulse` would be affected.
 - Skeleton/shimmer loading states are deliberately not adopted; if load times grow, that decision should be revisited here first.
 - `--sk-accent-border` / `--sk-accent-tint` are defined but currently unused (the old crimson-bordered card treatment was retired in favor of the paper shadow).
-- The zinc scale remains in `main.css` for Tailwind compatibility; its only sanctioned direct uses are table hovers and empty-state text.
+- The zinc scale remains in `main.css` for Tailwind compatibility; it is no longer NuxtUI's neutral (that is `paper` now), and its only sanctioned direct uses are table hovers and empty-state text.
 
 ## Changelog
 
@@ -271,3 +293,4 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 - 2026-05-24: Ink text hierarchy codified — data values get `--sk-ink`, muted ink for labels only.
 - 2026-07-13: Full polish — translated to English, promoted to source of truth, token values synced to the Paper/Walnut theme, missing tokens documented, focus ring + type refinements added.
 - 2026-07-13: **Reformatted to the standard design-system document format** (Overview / Colors / Typography / Layout / Elevation & Depth / Shapes / Components / Do's and Don'ts / Responsive Behavior / Iteration Guide / Known Gaps). Voice & tone and accessibility rules folded into Do's and Don'ts; code-drift items moved to Known Gaps.
+- 2026-07-13: **NuxtUI token bridge** — `app.config.ts` now genuinely implements the mapping this document always claimed it did. NuxtUI's `primary`/`neutral` point at a new warm `paper` ramp instead of cool zinc, and the `--ui-*` semantic tokens are bridged to `--sk-*` (unlayered, `:root`-only, so dark mode follows the `--sk-*` inversion automatically). NuxtUI components now inherit the design system with no call-site classes. Resolved three doc↔code conflicts: **(1)** the §Shapes-vs-§Inputs radius contradiction — components are pinned to the 6/8/10/14 scale by slot in `app.config.ts`, since NuxtUI's geometric `--ui-radius` ramp cannot express a non-geometric scale; **(2)** the 12px floor, which the code broke 311× — two sub-12px tiers (10px mono eyebrow, 11px micro-label) are now sanctioned for *labels only*, with data values still hard-floored at 12px; **(3)** the cool-zinc neutral underlying every NuxtUI component on a warm page. Also landed the previously-missing `--sk-focus-ring` and removed the duplicate `--sk-ink` definition.
