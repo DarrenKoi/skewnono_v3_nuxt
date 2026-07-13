@@ -81,10 +81,6 @@ types:
       type: integer
     align_fail_rate:
       type: number
-    last_fail:
-      type: string
-      format: "ISO 8601 UTC ending in Z"
-      description: Timestamp of the most recent align-fail row for this recipe; null only if align_fail_count is 0 (which should not appear in this list).
     sample_eqp_ids:
       type: array
       description: Up to 5 distinct equipment IDs from align-fail rows for this recipe
@@ -109,9 +105,6 @@ types:
     avg_fail_ratio:
       type: number
       description: Mean fail_ratio across all executions of this recipe in the window (not only the failing ones). Useful for distinguishing "always slightly dirty" recipes from "occasionally catastrophic".
-    last_fail:
-      type: string
-      format: "ISO 8601 UTC ending in Z"
     sample_eqp_ids:
       type: array
 

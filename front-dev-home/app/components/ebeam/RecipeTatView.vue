@@ -804,12 +804,6 @@ const columns: TableColumn<RecipeTatRow>[] = [
     cell: ({ row }) => formatSecondsAsDuration(row.original.total_meastime)
   },
   {
-    accessorKey: 'last_run',
-    header: 'last run',
-    size: 160,
-    cell: ({ row }) => row.original.last_run.replace('T', ' ').replace('Z', '')
-  },
-  {
     id: 'share',
     header: 'share',
     size: 72,
@@ -837,7 +831,7 @@ const downloadRankingCsv = () => {
   const headers = [
     'rank', 'full_name', 'class',
     'meas_count', 'avg_meastime_sec', 'total_meastime_sec',
-    'last_run', 'share_pct'
+    'share_pct'
   ]
   const total = totalForShare.value
   const rows = sortedRankingRows.value.map(r => [
@@ -847,7 +841,6 @@ const downloadRankingCsv = () => {
     r.meas_counts,
     r.avg_meastime,
     r.total_meastime,
-    r.last_run,
     total ? (r.total_meastime / total * 100).toFixed(2) : '0.00'
   ])
   downloadCsv(exportFileName.value, headers, rows)

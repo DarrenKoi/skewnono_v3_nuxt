@@ -379,7 +379,6 @@ class RankingRow(TypedDict):
     meas_counts: int
     total_meastime: int
     avg_meastime: float
-    last_run: str
     sample_lot_cds: list[str]
     sample_eqp_ids: list[str]
 
@@ -403,14 +402,11 @@ def get_ranking(
             "full_name": row["full_name"],
             "meas_counts": 0,
             "total_meastime": 0,
-            "last_run": row["timestamp"],
             "lot_cds": set(),
             "eqp_ids": set()
         })
         bucket["meas_counts"] += 1
         bucket["total_meastime"] += row["meastime"]
-        if row["timestamp"] > bucket["last_run"]:
-            bucket["last_run"] = row["timestamp"]
         bucket["lot_cds"].add(row["lot_cd"])
         bucket["eqp_ids"].add(row["eqp_id"])
 
@@ -438,7 +434,6 @@ def get_ranking(
             "meas_counts": meas_counts,
             "total_meastime": total,
             "avg_meastime": avg,
-            "last_run": bucket["last_run"],
             "sample_lot_cds": sample_lots,
             "sample_eqp_ids": sample_eqps
         })

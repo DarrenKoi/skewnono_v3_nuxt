@@ -3,156 +3,216 @@
     {
       "exec_count": 2,
       "lot_cd": "67K",
+      "prod_catg_cd": null,
+      "tech_nm": "AA",
       "total_meastime": 1791
     },
     {
       "exec_count": 2,
       "lot_cd": "454",
+      "prod_catg_cd": null,
+      "tech_nm": "3D",
       "total_meastime": 1704
     },
     {
       "exec_count": 2,
       "lot_cd": "400N",
+      "prod_catg_cd": null,
+      "tech_nm": "N2",
       "total_meastime": 1650
     },
     {
       "exec_count": 2,
       "lot_cd": "R0YV",
+      "prod_catg_cd": "DRAM",
+      "tech_nm": null,
       "total_meastime": 1630
     },
     {
       "exec_count": 2,
       "lot_cd": "4076",
+      "prod_catg_cd": null,
+      "tech_nm": "None",
       "total_meastime": 1536
     },
     {
       "exec_count": 2,
       "lot_cd": "68C",
+      "prod_catg_cd": null,
+      "tech_nm": "AA",
       "total_meastime": 1426
     },
     {
       "exec_count": 2,
       "lot_cd": "403J",
+      "prod_catg_cd": null,
+      "tech_nm": "None",
       "total_meastime": 1416
     },
     {
       "exec_count": 2,
       "lot_cd": "R1BB",
+      "prod_catg_cd": "FLASH",
+      "tech_nm": null,
       "total_meastime": 1299
     },
     {
       "exec_count": 2,
       "lot_cd": "210",
+      "prod_catg_cd": null,
+      "tech_nm": "R1",
       "total_meastime": 1247
     },
     {
       "exec_count": 2,
       "lot_cd": "R0OC",
+      "prod_catg_cd": "Tech",
+      "tech_nm": null,
       "total_meastime": 1225
     },
     {
       "exec_count": 2,
       "lot_cd": "208Q",
+      "prod_catg_cd": null,
+      "tech_nm": "Q7",
       "total_meastime": 1200
     },
     {
       "exec_count": 2,
       "lot_cd": "R1A5",
+      "prod_catg_cd": "Tech",
+      "tech_nm": null,
       "total_meastime": 1187
     },
     {
       "exec_count": 2,
       "lot_cd": "R182",
+      "prod_catg_cd": "Tech",
+      "tech_nm": null,
       "total_meastime": 1177
     },
     {
       "exec_count": 1,
       "lot_cd": "R18G",
+      "prod_catg_cd": "DRAM",
+      "tech_nm": null,
       "total_meastime": 1157
     },
     {
       "exec_count": 2,
       "lot_cd": "40A9",
+      "prod_catg_cd": null,
+      "tech_nm": "TP",
       "total_meastime": 1147
     },
     {
       "exec_count": 1,
       "lot_cd": "68S",
+      "prod_catg_cd": null,
+      "tech_nm": "N2",
       "total_meastime": 1121
     },
     {
       "exec_count": 1,
       "lot_cd": "R05R",
+      "prod_catg_cd": "Advanced",
+      "tech_nm": null,
       "total_meastime": 1103
     },
     {
       "exec_count": 1,
       "lot_cd": "401X",
+      "prod_catg_cd": null,
+      "tech_nm": "None",
       "total_meastime": 1097
     },
     {
       "exec_count": 2,
       "lot_cd": "62K",
+      "prod_catg_cd": null,
+      "tech_nm": "AA",
       "total_meastime": 1095
     },
     {
       "exec_count": 1,
       "lot_cd": "R0FT",
+      "prod_catg_cd": "NAND",
+      "tech_nm": null,
       "total_meastime": 1089
     },
     {
       "exec_count": 1,
       "lot_cd": "60K",
+      "prod_catg_cd": null,
+      "tech_nm": "TP",
       "total_meastime": 1067
     },
     {
       "exec_count": 1,
       "lot_cd": "66W",
+      "prod_catg_cd": null,
+      "tech_nm": "TP",
       "total_meastime": 1064
     },
     {
       "exec_count": 1,
       "lot_cd": "6B0",
+      "prod_catg_cd": null,
+      "tech_nm": "N2",
       "total_meastime": 1062
     },
     {
       "exec_count": 2,
       "lot_cd": "R0B5",
+      "prod_catg_cd": "Tech",
+      "tech_nm": null,
       "total_meastime": 1062
     },
     {
       "exec_count": 2,
       "lot_cd": "207I",
+      "prod_catg_cd": null,
+      "tech_nm": "TP",
       "total_meastime": 1050
     },
     {
       "exec_count": 1,
       "lot_cd": "603Y",
+      "prod_catg_cd": null,
+      "tech_nm": "3D",
       "total_meastime": 1035
     },
     {
       "exec_count": 1,
       "lot_cd": "R06G",
+      "prod_catg_cd": "Advanced",
+      "tech_nm": null,
       "total_meastime": 1033
     },
     {
       "exec_count": 1,
       "lot_cd": "408T",
+      "prod_catg_cd": null,
+      "tech_nm": "TP",
       "total_meastime": 1025
     },
     {
       "exec_count": 1,
       "lot_cd": "40O",
+      "prod_catg_cd": null,
+      "tech_nm": "Q7",
       "total_meastime": 1011
     },
     {
       "exec_count": 3,
       "lot_cd": "604J",
+      "prod_catg_cd": null,
+      "tech_nm": "C2",
       "total_meastime": 1003
     }
   ],
-  "end_date": "2026-05-08",
+  "end_date": "2026-07-13",
   "fab_id": null,
-  "start_date": "2026-04-08",
+  "start_date": "2026-06-13",
   "tool_type": "cd-sem"
 }

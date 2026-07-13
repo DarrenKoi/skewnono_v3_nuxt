@@ -48,7 +48,6 @@ export interface FailIssueAlignRow {
   exec_count: number
   align_fail_count: number
   align_fail_rate: number
-  last_fail: string | null
   sample_eqp_ids: string[]
 }
 
@@ -71,7 +70,6 @@ export interface FailIssueMeasRow {
   meas_fail_count: number
   meas_fail_rate: number
   avg_fail_ratio: number
-  last_fail: string | null
   sample_eqp_ids: string[]
 }
 
@@ -196,9 +194,4 @@ export const useFailIssueApi = () => {
 export const formatPercent = (value: number, fractionDigits = 2): string => {
   if (!Number.isFinite(value) || value <= 0) return '0%'
   return `${(value * 100).toFixed(fractionDigits)}%`
-}
-
-export const formatTimestamp = (iso: string | null): string => {
-  if (!iso) return '—'
-  return iso.replace('T', ' ').replace('Z', '')
 }

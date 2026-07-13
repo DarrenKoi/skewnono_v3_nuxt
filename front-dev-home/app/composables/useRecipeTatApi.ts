@@ -10,7 +10,6 @@ export interface RecipeTatRow {
   meas_counts: number
   total_meastime: number
   avg_meastime: number
-  last_run: string
   sample_lot_cds: string[]
   sample_eqp_ids: string[]
 }

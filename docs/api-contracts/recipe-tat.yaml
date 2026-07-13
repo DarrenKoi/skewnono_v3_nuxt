@@ -25,9 +25,6 @@ types:
     avg_meastime:
       type: number
       description: total_meastime / meas_counts, rounded to 2 decimals
-    last_run:
-      type: string
-      format: "ISO 8601 UTC ending in Z"
     sample_eqp_ids:
       type: array
       description: Up to 5 distinct equipment IDs that ran this recipe

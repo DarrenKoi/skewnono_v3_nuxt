@@ -320,7 +320,6 @@ import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
 import {
   formatPercent,
-  formatTimestamp,
   useFailIssueApi,
   type FailIssueAlignRow,
   type FailIssueMeasRow,
@@ -684,12 +683,6 @@ const alignColumns: TableColumn<FailIssueAlignRow>[] = [
     header: 'rate',
     size: 80,
     cell: ({ row }) => formatPercent(row.original.align_fail_rate)
-  },
-  {
-    accessorKey: 'last_fail',
-    header: 'last fail',
-    size: 160,
-    cell: ({ row }) => formatTimestamp(row.original.last_fail)
   }
 ]
 
@@ -720,12 +713,6 @@ const measColumns: TableColumn<FailIssueMeasRow>[] = [
     header: 'avg ratio',
     size: 90,
     cell: ({ row }) => formatPercent(row.original.avg_fail_ratio)
-  },
-  {
-    accessorKey: 'last_fail',
-    header: 'last fail',
-    size: 160,
-    cell: ({ row }) => formatTimestamp(row.original.last_fail)
   }
 ]
 
@@ -738,21 +725,20 @@ const exportFileBase = computed(() => {
 })
 
 const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
-  const headers = ['rank', 'full_name', 'class', 'exec_count', 'align_fail_count', 'align_fail_rate_pct', 'last_fail']
+  const headers = ['rank', 'full_name', 'class', 'exec_count', 'align_fail_count', 'align_fail_rate_pct']
   const data = rows.map(r => [
     r.rank,
     r.full_name,
     r.class_name,
     r.exec_count,
     r.align_fail_count,
-    (r.align_fail_rate * 100).toFixed(2),
-    r.last_fail ?? ''
+    (r.align_fail_rate * 100).toFixed(2)
   ])
   downloadCsv(`${exportFileBase.value}-align.csv`, headers, data)
 }
 
 const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
-  const headers = ['rank', 'full_name', 'class', 'exec_count', 'meas_fail_count', 'meas_fail_rate_pct', 'avg_fail_ratio_pct', 'last_fail']
+  const headers = ['rank', 'full_name', 'class', 'exec_count', 'meas_fail_count', 'meas_fail_rate_pct', 'avg_fail_ratio_pct']
   const data = rows.map(r => [
     r.rank,
     r.full_name,
@@ -760,8 +746,7 @@ const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
     r.exec_count,
     r.meas_fail_count,
     (r.meas_fail_rate * 100).toFixed(2),
-    (r.avg_fail_ratio * 100).toFixed(2),
-    r.last_fail ?? ''
+    (r.avg_fail_ratio * 100).toFixed(2)
   ])
   downloadCsv(`${exportFileBase.value}-meas.csv`, headers, data)
 }

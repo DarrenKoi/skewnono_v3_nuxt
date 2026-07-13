@@ -368,7 +368,6 @@ class AlignRankingRow(TypedDict):
     exec_count: int
     align_fail_count: int
     align_fail_rate: float
-    last_fail: str | None
     sample_eqp_ids: list[str]
 
 
@@ -391,14 +390,11 @@ def get_align_ranking(
             "full_name": row["full_name"],
             "exec_count": 0,
             "align_fail_count": 0,
-            "last_fail": None,
             "eqp_ids": set()
         })
         bucket["exec_count"] += 1
         if _is_align_fail(row):
             bucket["align_fail_count"] += 1
-            if bucket["last_fail"] is None or row["timestamp"] > bucket["last_fail"]:
-                bucket["last_fail"] = row["timestamp"]
             bucket["eqp_ids"].add(row["eqp_id"])
 
     ranked = sorted(
@@ -422,7 +418,6 @@ def get_align_ranking(
             "exec_count": exec_count,
             "align_fail_count": fail_count,
             "align_fail_rate": rate,
-            "last_fail": bucket["last_fail"],
             "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5]
         })
 
@@ -438,7 +433,6 @@ class MeasRankingRow(TypedDict):
     meas_fail_count: int
     meas_fail_rate: float
     avg_fail_ratio: float
-    last_fail: str | None
     sample_eqp_ids: list[str]
 
 
@@ -462,15 +456,12 @@ def get_meas_ranking(
             "exec_count": 0,
             "meas_fail_count": 0,
             "fail_ratio_sum": 0.0,
-            "last_fail": None,
             "eqp_ids": set()
         })
         bucket["exec_count"] += 1
         bucket["fail_ratio_sum"] += row["fail_ratio"]
         if _is_meas_fail(row):
             bucket["meas_fail_count"] += 1
-            if bucket["last_fail"] is None or row["timestamp"] > bucket["last_fail"]:
-                bucket["last_fail"] = row["timestamp"]
             bucket["eqp_ids"].add(row["eqp_id"])
 
     ranked = sorted(
@@ -495,7 +486,6 @@ def get_meas_ranking(
             "meas_fail_count": fail_count,
             "meas_fail_rate": rate,
             "avg_fail_ratio": avg_ratio,
-            "last_fail": bucket["last_fail"],
             "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5]
         })
 
