@@ -79,37 +79,39 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { validRows } from '~/utils/msrRows'
+import { isValidRow } from '~/utils/msrRows'
+import { mean as meanOf, sampleStd } from '~/utils/stats'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const waferCount = computed(() => props.analysis.setFiles.value.size)
 
 // Aggregate CD across every wafer in the set, per chip position, for the active
-// parameter: composite mean + wafer-to-wafer σ at each site.
+// parameter: composite mean + wafer-to-wafer sigma at each site.
+//
+// Values are collected first and reduced in two passes. The old one-pass
+// sumsq/n - m^2 shortcut needed a Math.max(0, ...) clamp because it can return a
+// NEGATIVE variance when the mean dominates the spread — which is exactly the CD
+// regime (mean ~1e2 nm, spread ~1 nm).
 const composite = computed(() => {
   const param = props.analysis.activeParam.value
-  const acc = new Map<string, { x: number, y: number, sum: number, sumsq: number, n: number }>()
+  const acc = new Map<string, { x: number, y: number, values: number[] }>()
   for (const file of props.analysis.setFiles.value.values()) {
-    for (const r of validRows(file.rows)) {
-      if (r.parameter !== param) continue
+    for (const r of file.rows) {
+      if (r.parameter !== param || !isValidRow(r)) continue
       const xy = parseChipXY(r.chip_number)
       if (!xy) continue
       const key = `${xy[0]},${xy[1]}`
-      const e = acc.get(key) ?? { x: xy[0], y: xy[1], sum: 0, sumsq: 0, n: 0 }
-      e.sum += r.cd_value
-      e.sumsq += r.cd_value * r.cd_value
-      e.n += 1
+      const e = acc.get(key) ?? { x: xy[0], y: xy[1], values: [] }
+      e.values.push(r.cd_value)
       acc.set(key, e)
     }
   }
   const mean: [number, number, number][] = []
   const sigma: [number, number, number][] = []
   for (const e of acc.values()) {
-    const m = e.sum / e.n
-    const variance = Math.max(0, e.sumsq / e.n - m * m)
-    mean.push([e.x, e.y, Number(m.toFixed(3))])
-    sigma.push([e.x, e.y, Number(Math.sqrt(variance).toFixed(3))])
+    mean.push([e.x, e.y, Number(meanOf(e.values).toFixed(3))])
+    sigma.push([e.x, e.y, Number(sampleStd(e.values).toFixed(3))])
   }
   return { mean, sigma }
 })
