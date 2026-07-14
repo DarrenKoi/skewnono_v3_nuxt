@@ -145,7 +145,7 @@ UI 는 이를 검색창 아래 칩으로 표시합니다. 자동 판별이 어�
 
 **`useSkewvoirRecentlyViewed.ts`** (신규) — localStorage 목록. `useSkewvoirSavedViews` 의 구조를 그대로 따릅니다 (모듈 수준 `readAll`/`writeAll`, `useState` 로 반응성 공유, `import.meta.client` 가드).
 
-- `record(row)` — 앞에 추가, `msr` 기준 중복 제거, **최대 20건**, 저장.
+- `record(row)` — 앞에 추가, `msr` 기준 중복 제거, **최대 15건**, 저장.
 - `items` — tool type 별 computed. 각 항목은 `expired: capturedAt < today − 60d` 를 함께 가집니다.
 - 랜딩의 `open()` 과 분석 워크스페이스 양쪽에서 호출합니다. 공유 링크로 연 측정도 기록에 남아야 합니다.
 
