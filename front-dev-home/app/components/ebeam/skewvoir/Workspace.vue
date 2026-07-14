@@ -164,11 +164,13 @@ const route = useRoute()
 const toast = useToast()
 
 // A shared analysis link bypasses the search landing page (where opening a row
-// records into recently-viewed), so record here too — once, on mount, and only
-// if this msr isn't already known. That guard matters: when navigation DOES
-// come from the landing page, SearchLanding.open() already recorded a richer
-// entry (real `fab`) just before navigating here; recording again with the
-// blank `fab` available at this layer would clobber it.
+// records into recently-viewed), so record here too — once, on mount, every
+// time. `recent.record()` dedupes by msr and prepends, which is also the one
+// job "recently viewed" has: bump `viewedAt` and move the entry back to the
+// top even when the msr is already known. When navigation DID come from the
+// landing page, SearchLanding.open() already recorded a richer entry (real
+// `fab`) just before navigating here; carry that forward from the existing
+// entry rather than overwriting it with the blank `fab` available at this layer.
 const recent = useSkewvoirRecentlyViewed(props.toolType)
 const { anchor } = useMeasHistFacets(props.toolType)
 
@@ -177,15 +179,14 @@ watch(anchor, value => recent.setAnchor(value), { immediate: true })
 onMounted(() => {
   const sel = ws.selection.value
   if (!sel?.msr) return
-  const alreadyKnown = recent.items.value.some(item => item.msr === sel.msr)
-  if (alreadyKnown) return
+  const existing = recent.items.value.find(item => item.msr === sel.msr)
   recent.record({
     msr: sel.msr,
     toolType: props.toolType,
     lot: sel.lot,
     recipe: sel.recipe,
     eq: sel.eq,
-    fab: '',
+    fab: existing?.fab ?? '',
     capturedAt: sel.capturedAt,
     viewedAt: new Date().toISOString()
   })
