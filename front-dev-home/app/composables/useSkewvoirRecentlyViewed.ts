@@ -1,23 +1,18 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
-
-// A measurement the user opened in the analysis workspace. Phase 1 persists to
-// localStorage (fully offline), same as useSkewvoirSavedViews. Phase 2/3 swaps
-// the read/write internals for a per-user Flask blueprint; this surface stays.
-export interface SkewvoirRecentItem {
-  msr: string
-  toolType: MeasHistToolType
-  lot: string
-  recipe: string
-  eq: string
-  fab: string
-  capturedAt: string
-  viewedAt: string
-}
+import {
+  addSkewvoirRecentItem,
+  buildSkewvoirRecentItem,
+  normalizeSkewvoirRecentItems,
+  type SkewvoirRecentItem,
+  type SkewvoirRecentMeasurement,
+  type SkewvoirRecentMode
+} from '~/utils/skewvoirRecent'
 
 export interface SkewvoirRecentEntry extends SkewvoirRecentItem {
-  // Outside the 60-day retention window: the row is remembered but the data is
-  // gone, so the entry is shown greyed rather than silently dropped.
+  // An entry is disabled only when every measurement has left retention. A
+  // partially expired Time-Series can still reopen with its remaining rows.
   expired: boolean
+  expiredCount: number
 }
 
 const STORAGE_KEY = 'skewvoir-recently-viewed'
@@ -28,8 +23,7 @@ const readAll = (): SkewvoirRecentItem[] => {
   if (!import.meta.client) return []
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? (parsed as SkewvoirRecentItem[]) : []
+    return normalizeSkewvoirRecentItems(raw ? JSON.parse(raw) : [])
   } catch {
     return []
   }
@@ -37,7 +31,9 @@ const readAll = (): SkewvoirRecentItem[] => {
 
 const writeAll = (items: SkewvoirRecentItem[]) => {
   if (!import.meta.client) return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  } catch { /* localStorage can be unavailable in restricted browser contexts */ }
 }
 
 const shiftIso = (iso: string, days: number): string => {
@@ -61,20 +57,35 @@ export const useSkewvoirRecentlyViewed = (toolType: MeasHistToolType) => {
     const floor = anchor.value ? shiftIso(anchor.value, RETENTION_DAYS) : ''
     return all.value
       .filter(item => item.toolType === toolType)
-      .map(item => ({
-        ...item,
-        expired: Boolean(floor) && item.capturedAt.slice(0, 10) < floor
-      }))
+      .map((item) => {
+        const expiredCount = floor
+          ? item.measurements.filter(measurement =>
+            Boolean(measurement.capturedAt)
+            && measurement.capturedAt.slice(0, 10) < floor
+          ).length
+          : 0
+        return {
+          ...item,
+          expired: item.measurements.length > 0 && expiredCount === item.measurements.length,
+          expiredCount
+        }
+      })
   })
 
-  const record = (item: SkewvoirRecentItem) => {
-    const deduped = all.value.filter(existing => existing.msr !== item.msr)
-    all.value = [item, ...deduped].slice(0, MAX_ITEMS)
+  const record = (
+    mode: SkewvoirRecentMode,
+    measurements: SkewvoirRecentMeasurement[],
+    viewedAt = new Date().toISOString()
+  ) => {
+    const item = buildSkewvoirRecentItem(toolType, mode, measurements, viewedAt)
+    if (!item) return null
+    all.value = addSkewvoirRecentItem(all.value, item, MAX_ITEMS)
     writeAll(all.value)
+    return item
   }
 
-  const remove = (msr: string) => {
-    all.value = all.value.filter(item => item.msr !== msr)
+  const remove = (id: string) => {
+    all.value = all.value.filter(item => item.id !== id)
     writeAll(all.value)
   }
 

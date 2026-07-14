@@ -1,5 +1,5 @@
 <template>
-  <section class="dashboard-surface flex flex-col rounded-(--sk-r-card)">
+  <section class="dashboard-surface flex min-h-0 flex-col overflow-hidden rounded-(--sk-r-card)">
     <header class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border-soft) px-3 py-2">
       <div class="flex items-baseline gap-2">
         <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
@@ -13,28 +13,8 @@
         </span>
       </div>
 
-      <div
-        v-if="selected.length"
-        class="flex items-center gap-2"
-      >
-        <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ selected.length }} 선택</span>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          label="지우기"
-          @click="selected = []"
-        />
-        <UButton
-          class="bg-(--sk-ink) text-(--sk-ink-fg)"
-          size="xs"
-          icon="i-lucide-trending-up"
-          label="선택 분석 (Time-Series)"
-          @click="emitSet"
-        />
-      </div>
       <UInput
-        v-else-if="searched && rows.length"
+        v-if="searched && rows.length"
         :model-value="narrowText"
         size="xs"
         icon="i-lucide-filter"
@@ -152,11 +132,23 @@
       </p>
     </div>
 
-    <template v-else>
+    <div
+      v-else
+      class="min-h-0 flex-1 overflow-auto"
+    >
       <table class="w-full border-collapse text-[12px]">
-        <thead>
+        <thead class="sticky top-0 z-10 bg-(--sk-surface)">
           <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
-            <th class="w-8 px-3 py-1.5" />
+            <th
+              class="w-8 px-3 py-1.5"
+              @click.stop
+            >
+              <UCheckbox
+                :model-value="allVisibleSelected"
+                aria-label="현재 검색 결과 전체 선택"
+                @update:model-value="toggleVisible"
+              />
+            </th>
             <th class="px-3 py-1.5 font-medium">
               LOT
             </th>
@@ -180,7 +172,7 @@
             v-for="row in rows"
             :key="row.msr"
             class="cursor-pointer border-b border-(--sk-border-soft) transition-colors last:border-0 hover:bg-(--sk-brand)/5"
-            :class="{ 'bg-(--sk-brand)/5': selected.includes(row.msr) }"
+            :class="{ 'bg-(--sk-brand)/5': isSelected(row.msr) }"
             @click="emit('open', row)"
           >
             <td
@@ -188,8 +180,9 @@
               @click.stop
             >
               <UCheckbox
-                :model-value="selected.includes(row.msr)"
-                @update:model-value="toggle(row.msr)"
+                :model-value="isSelected(row.msr)"
+                :aria-label="`${row.full_name} 측정 선택`"
+                @update:model-value="emit('toggle', row)"
               />
             </td>
             <td class="px-3 py-2 font-mono font-semibold text-zinc-900 dark:text-zinc-100">
@@ -233,7 +226,7 @@
           @click="emit('loadMore')"
         />
       </div>
-    </template>
+    </div>
   </section>
 </template>
 
@@ -251,33 +244,27 @@ const props = defineProps<{
   hasMore: boolean
   narrowText: string
   retentionDays: number
+  selected: MeasHistRow[]
 }>()
 
 const emit = defineEmits<{
   'open': [row: MeasHistRow]
-  'openSet': [rows: MeasHistRow[]]
+  'toggle': [row: MeasHistRow]
+  'selectRows': [rows: MeasHistRow[], enabled: boolean]
   'loadMore': []
   'retry': []
   'update:narrowText': [value: string]
 }>()
 
-const selected = ref<string[]>([])
+const selectedIds = computed(() => new Set(props.selected.map(row => row.msr)))
+const isSelected = (msr: string) => selectedIds.value.has(msr)
+const allVisibleSelected = computed(() =>
+  props.rows.length > 0 && props.rows.every(row => isSelected(row.msr))
+)
 
-const toggle = (msr: string) => {
-  selected.value = selected.value.includes(msr)
-    ? selected.value.filter(m => m !== msr)
-    : [...selected.value, msr]
+const toggleVisible = () => {
+  emit('selectRows', props.rows, !allVisibleSelected.value)
 }
-
-const emitSet = () => {
-  const picked = props.rows.filter(r => selected.value.includes(r.msr))
-  if (picked.length) emit('openSet', picked)
-}
-
-// A fresh result set invalidates the old selection.
-watch(() => props.rows, () => {
-  selected.value = selected.value.filter(msr => props.rows.some(r => r.msr === msr))
-})
 
 // Five distinct states, in priority order. An error never masks rows that are
 // already on screen — 'error' banner (above) layers on top of the table

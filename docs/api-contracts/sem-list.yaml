@@ -79,6 +79,7 @@ endpoints:
         version: 2
 
 notes:
-  - Phase 1 implementation — back_dev_home/sem_list/data.py generates 300 rows deterministically with random.Random(seed=42).
+  - Phase 1 implementation — back_dev_home/sem_list/providers/mock.py generates 300 rows deterministically with random.Random(seed=42).
+  - back_dev_home/sem_list/data.py selects the mock or office adapter without changing this contract.
   - Response is a bare JSON array, not wrapped in { data, total }. Frontend type SemListResponse in front-dev-home/app/composables/useSemListApi.ts mirrors this directly.
   - Tool-type classification lives on the frontend (classifyToolType in useSemListApi.ts). The backend does not segment rows by tool type.

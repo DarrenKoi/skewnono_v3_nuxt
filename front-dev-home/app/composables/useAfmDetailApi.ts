@@ -8,6 +8,7 @@ export interface AfmFileRow {
   slot_number: string | number
   measured_info: string
   formatted_date: string
+  time?: string
   has_profile?: boolean
   has_data?: boolean
   has_image?: boolean
@@ -102,6 +103,15 @@ export interface AfmSiteInfo {
   point_no?: string | number
 }
 
+// Backend rows carry the measurement time as a raw HHMMSS code separate from
+// formatted_date; fold it into the display date so lists show "YYYY-MM-DD HH:MM:SS".
+const formatMeasuredAt = (row: AfmFileRow): string => {
+  const code = row.time ?? ''
+  if (!/^\d{4,6}$/.test(code)) return row.formatted_date
+  const padded = code.padEnd(6, '0')
+  return `${row.formatted_date} ${padded.slice(0, 2)}:${padded.slice(2, 4)}:${padded.slice(4, 6)}`
+}
+
 const inFlightFiles = new Map<string, Promise<AfmFilesResponse>>()
 const inFlightDetail = new Map<string, Promise<AfmDetailResponse>>()
 const inFlightProfile = new Map<string, Promise<AfmProfileResponse>>()
@@ -136,7 +146,7 @@ export const useAfmDetailApi = () => {
           lotId: row.lot_id,
           slotNumber: row.slot_number,
           measuredInfo: row.measured_info,
-          formattedDate: row.formatted_date,
+          formattedDate: formatMeasuredAt(row),
           hasProfile: row.has_profile,
           hasData: row.has_data,
           hasImage: row.has_image,

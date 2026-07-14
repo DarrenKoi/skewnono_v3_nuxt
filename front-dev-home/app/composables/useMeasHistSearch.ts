@@ -2,8 +2,8 @@ import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi
 import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
 
 // No `recipe` field: recipes are found via the search bar only (there is no
-  // RECIPE dropdown — see FilterBar.vue). Bare recipe fragments use `q`;
-  // explicit `recipe:value` tokens still reach the recipe request field.
+// RECIPE dropdown — see FilterBar.vue). Bare recipe fragments use `q`;
+// explicit `recipe:value` tokens still reach the recipe request field.
 export interface MeasHistFilters {
   fab: string[]
   model: string[]

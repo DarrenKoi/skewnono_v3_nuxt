@@ -56,6 +56,7 @@
           :tool-id="toolId"
           :is-in-group="cart.isInGroup"
           @add-to-group="cart.addToGroup"
+          @remove-from-group="measurement => cart.removeFromGroup(measurement.filename)"
           @view-details="onViewDetails"
         />
       </div>

@@ -4,7 +4,7 @@
       검색 · <span class="font-semibold text-zinc-600 dark:text-zinc-300">장비 / Recipe / Lot / 날짜 / MSR</span>
       · OpenSearch<span v-if="retentionDays"> · 최근 {{ retentionDays }}일 보존</span>
     </p>
-    <div class="flex items-center gap-2">
+    <div class="flex max-w-xl items-center gap-2">
       <UInput
         :model-value="modelValue"
         class="flex-1"

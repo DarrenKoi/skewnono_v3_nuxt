@@ -186,11 +186,10 @@
             size="xs"
             color="neutral"
             variant="outline"
-            icon="i-lucide-plus"
-            aria-label="Add to Group"
-            :disabled="isInGroup(result.filename)"
+            :icon="isInGroup(result.filename) ? 'i-lucide-minus' : 'i-lucide-plus'"
+            :aria-label="isInGroup(result.filename) ? 'Remove from Group' : 'Add to Group'"
             class="shrink-0"
-            @click="$emit('add-to-group', result)"
+            @click="$emit(isInGroup(result.filename) ? 'remove-from-group' : 'add-to-group', result)"
           />
 
           <UButton
@@ -218,7 +217,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  (event: 'add-to-group' | 'view-details', measurement: AfmMeasurement): void
+  (event: 'add-to-group' | 'remove-from-group' | 'view-details', measurement: AfmMeasurement): void
 }>()
 
 const { recentSearches: recentTerms, recordRecentSearch, clearRecentSearches } = useAfmCart(props.toolId)

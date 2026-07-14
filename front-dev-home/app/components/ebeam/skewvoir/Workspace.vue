@@ -39,14 +39,6 @@
               size="xs"
               @click="action.onClick?.()"
             />
-            <UButton
-              class="bg-(--sk-ink) text-(--sk-ink-fg)"
-              icon="i-lucide-bookmark"
-              label="Save view"
-              size="xs"
-              :disabled="!ws.selection.value"
-              @click="openSave"
-            />
           </div>
         </div>
 
@@ -108,49 +100,17 @@
     </div>
 
     <EbeamSkewvoirWorkspaceStatusBar :ws="ws" />
-
-    <!-- Save view modal -->
-    <UModal
-      v-model:open="saveOpen"
-      title="뷰 저장"
-      description="현재 분석 화면을 이름을 붙여 저장합니다. 저장된 뷰는 링크로 다시 열 수 있습니다."
-    >
-      <template #body>
-        <div class="space-y-3">
-          <UInput
-            v-model="saveName"
-            placeholder="예: RK2W016.13 edge roll-off"
-            autofocus
-            class="w-full"
-            @keydown.enter="confirmSave"
-          />
-          <p class="font-mono text-[11px] text-(--sk-ink-subtle)">
-            {{ ws.selection.value?.lot }} · {{ ws.selection.value?.recipe }}
-          </p>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            label="취소"
-            @click="saveOpen = false"
-          />
-          <UButton
-            class="bg-(--sk-ink) text-(--sk-ink-fg)"
-            label="저장"
-            :disabled="!saveName.trim()"
-            @click="confirmSave"
-          />
-        </div>
-      </template>
-    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
+import {
+  skewvoirRecentItemId,
+  toSkewvoirRecentMeasurement,
+  type SkewvoirRecentMeasurement,
+  type SkewvoirRecentMode
+} from '~/utils/skewvoirRecent'
 
 const props = defineProps<{
   toolLabel: string
@@ -159,38 +119,55 @@ const props = defineProps<{
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
 const analysis = useSkewvoirAnalysis(ws)
-const savedViews = useSkewvoirSavedViews(props.toolType)
-const route = useRoute()
 const toast = useToast()
 
-// A shared analysis link bypasses the search landing page (where opening a row
-// records into recently-viewed), so record here too — once, on mount, every
-// time. `recent.record()` dedupes by msr and prepends, which is also the one
-// job "recently viewed" has: bump `viewedAt` and move the entry back to the
-// top even when the msr is already known. When navigation DID come from the
-// landing page, SearchLanding.open() already recorded a richer entry (real
-// `fab`, class-qualified `recipe`) just before navigating here; the URL only
-// carries a bare recipe name and no fab at all, so carry both forward from the
-// existing entry rather than downgrading them with what this layer can see.
+// Shared links bypass the landing page, so the workspace records the opened
+// analysis too. If the landing page already wrote a rich single/group entry,
+// reuse its metadata; candidate rows can enrich a deep-link placeholder once
+// the measurement history finishes loading.
 const recent = useSkewvoirRecentlyViewed(props.toolType)
 const { anchor } = useMeasHistFacets(props.toolType)
+const openedAt = new Date().toISOString()
 
 watch(anchor, value => recent.setAnchor(value), { immediate: true })
 
-onMounted(() => {
+const recordCurrentAnalysis = () => {
   const sel = ws.selection.value
   if (!sel?.msr) return
-  const existing = recent.items.value.find(item => item.msr === sel.msr)
-  recent.record({
-    msr: sel.msr,
-    toolType: props.toolType,
-    lot: sel.lot,
-    recipe: existing?.recipe ?? sel.recipe,
-    eq: sel.eq,
-    fab: existing?.fab ?? '',
-    capturedAt: sel.capturedAt,
-    viewedAt: new Date().toISOString()
+
+  const msrs = ws.msrList.value.length ? ws.msrList.value : [sel.msr]
+  const mode: SkewvoirRecentMode = msrs.length > 1 || ws.activeKind.value === 'time-series'
+    ? 'time-series'
+    : 'single'
+  const id = skewvoirRecentItemId(props.toolType, mode, msrs)
+  const existing = recent.items.value.find(item => item.id === id)
+  const previousByMsr = new Map(existing?.measurements.map(item => [item.msr, item]) ?? [])
+  const rowByMsr = new Map(analysis.candidateRows.value.map(row => [row.msr, row]))
+
+  const measurements = msrs.map<SkewvoirRecentMeasurement>((msr) => {
+    const row = rowByMsr.get(msr)
+    if (row) return toSkewvoirRecentMeasurement(row)
+    const previous = previousByMsr.get(msr)
+    if (previous) return previous
+    if (msr === sel.msr) {
+      return {
+        msr,
+        lot: sel.lot,
+        recipe: sel.recipe,
+        eq: sel.eq,
+        fab: '',
+        capturedAt: sel.capturedAt
+      }
+    }
+    return { msr, lot: '', recipe: '', eq: '', fab: '', capturedAt: '' }
   })
+
+  recent.record(mode, measurements, existing?.viewedAt ?? openedAt)
+}
+
+onMounted(recordCurrentAnalysis)
+watch(analysis.candidateRows, (rows) => {
+  if (rows.length) recordCurrentAnalysis()
 })
 
 // USelect/USelectMenu triggers render as <button role="combobox">, not <input>,
@@ -241,22 +218,4 @@ const actions = [
   { label: 'Skew Check', icon: 'i-lucide-activity' },
   { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
 ]
-
-// --- Save view ---
-const saveOpen = ref(false)
-const saveName = ref('')
-
-const openSave = () => {
-  const sel = ws.selection.value
-  saveName.value = sel ? `${sel.lot} · ${ws.activeKind.value}` : ''
-  saveOpen.value = true
-}
-
-const confirmSave = () => {
-  const name = saveName.value.trim()
-  if (!name) return
-  savedViews.save(name, { ...route.query })
-  saveOpen.value = false
-  toast.add({ title: '뷰를 저장했습니다', description: name, icon: 'i-lucide-bookmark-check', color: 'success' })
-}
 </script>

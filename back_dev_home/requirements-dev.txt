@@ -1,0 +1,9 @@
+# Dev/test dependencies. Kept out of requirements.txt so the Phase 3 production
+# install (private cloud) does not ship a test runner.
+#
+#   .venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt
+#   .venv/bin/python -m pytest tests/ -q
+
+-r requirements.txt
+
+pytest>=8

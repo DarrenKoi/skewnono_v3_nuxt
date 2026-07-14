@@ -72,13 +72,139 @@
               <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
                 SKEWNONO
               </h1>
+              <p class="mt-3 text-lg font-medium text-zinc-900 dark:text-zinc-100 md:text-xl">
+                흩어진 측정·장비 데이터를 연결해 더 신뢰할 수 있는 판단으로
+              </p>
               <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
-                SKEWNONO는 계측(metrology) 장비 관리와 데이터 분석을 위한 웹 애플리케이션입니다.
-                CD-SEM, HV-SEM 같은 E-Beam 장비군과 AFM 장비군의 상태 확인, recipe 관리,
-                측정 데이터 분석을 한 곳에서 제공합니다.
+                측정값 하나만으로는 공정이 제대로 진행되었는지, 문제의 원인이 어디에 있는지
+                판단하기 어렵습니다. SKEWNONO는 CD와 Recipe 이력뿐 아니라 FDC, Beam Calibration,
+                Hardware 설정값, BM/PM 일정 등 여러 데이터를 한곳에서 함께 확인해 엔지니어가
+                데이터의 맥락과 신뢰도를 판단하도록 돕는 Metrology Workspace입니다.
               </p>
             </div>
           </header>
+
+          <section class="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
+            <div class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-lightbulb"
+                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                />
+                <h2 class="text-lg font-semibold">
+                  왜 SKEWNONO인가요?
+                </h2>
+              </div>
+              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                장비에서 이상이 관찰되면 최근 해당 Recipe에서 오측정이 반복되었는지와 장비의
+                Hardware 상태를 함께 살펴야 합니다. SKEWNONO는 서로 떨어져 있던 정보를 연결해
+                장비, Wafer 상태, 공정 영향 중 어디에서 차이가 시작되었는지 관찰할 수 있게 합니다.
+              </p>
+            </div>
+
+            <div class="rounded-lg border border-(--sk-border) bg-zinc-950 p-5 text-white dark:bg-zinc-100 dark:text-zinc-950">
+              <div class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-600">
+                Name Story
+              </div>
+              <div class="mt-3 text-xl font-semibold">
+                SKEW + NO-NO
+              </div>
+              <p class="mt-3 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
+                데이터의 SKEW는 모두를 힘들고 지치게 합니다. 그래서 SKEW는 NO-NO입니다.
+                SKEWNONO는 빠르고 정확한 분석으로 SKEW의 참원인을 찾아 없애는 것을 목표로 합니다.
+              </p>
+            </div>
+          </section>
+
+          <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+            <div class="max-w-3xl">
+              <h2 class="text-lg font-semibold">
+                함께 확인하는 데이터
+              </h2>
+              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                하나의 수치만 보는 대신 서로 다른 신호를 같은 맥락에서 연결해 확인합니다.
+              </p>
+            </div>
+            <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div
+                v-for="source in dataSources"
+                :key="source.title"
+                class="rounded-md border border-(--sk-border) p-4"
+              >
+                <UIcon
+                  :name="source.icon"
+                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                />
+                <h3 class="mt-3 text-sm font-semibold">
+                  {{ source.title }}
+                </h3>
+                <p class="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  {{ source.description }}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+            <div class="max-w-3xl">
+              <h2 class="text-lg font-semibold">
+                문제를 확인하는 흐름
+              </h2>
+              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                SKEWNONO는 하나의 결과를 단정하기보다, 엔지니어가 근거를 넓혀 가며 원인에
+                접근하도록 돕습니다.
+              </p>
+            </div>
+            <ol class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <li
+                v-for="(step, index) in diagnosisSteps"
+                :key="step.title"
+                class="relative rounded-md bg-zinc-50 p-4 dark:bg-zinc-900"
+              >
+                <div class="text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                  {{ String(index + 1).padStart(2, '0') }}
+                </div>
+                <h3 class="mt-2 text-sm font-semibold">
+                  {{ step.title }}
+                </h3>
+                <p class="mt-2 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+                  {{ step.description }}
+                </p>
+              </li>
+            </ol>
+          </section>
+
+          <section>
+            <div class="mb-4 max-w-3xl">
+              <h2 class="text-lg font-semibold">
+                주요 사용자
+              </h2>
+              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                공정, 소자, MI Engineer가 같은 데이터를 각자의 업무 관점에서 확인할 수 있도록
+                개발하고 있습니다.
+              </p>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div
+                v-for="audience in audiences"
+                :key="audience.title"
+                class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950"
+              >
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    :name="audience.icon"
+                    class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                  />
+                  <h3 class="text-base font-semibold">
+                    {{ audience.title }}
+                  </h3>
+                </div>
+                <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                  {{ audience.description }}
+                </p>
+              </div>
+            </div>
+          </section>
 
           <section class="grid gap-4 md:grid-cols-3">
             <div
@@ -101,16 +227,58 @@
             </div>
           </section>
 
+          <section class="grid gap-4 lg:grid-cols-2">
+            <div class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-user-round-check"
+                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                />
+                <h2 class="text-lg font-semibold">
+                  현재: 판단 지원
+                </h2>
+              </div>
+              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                현재 SKEWNONO는 여러 근거를 한곳에 모아 엔지니어가 직접 비교하고 판단하도록
+                지원합니다. 화면의 데이터는 최종 판정을 대신하는 결과가 아니라, 문제를 더 빠르고
+                넓게 살펴보기 위한 근거입니다.
+              </p>
+            </div>
+
+            <div class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-bot"
+                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                />
+                <h2 class="text-lg font-semibold">
+                  방향: Metrology AI Agent
+                </h2>
+              </div>
+              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                장기적으로는 이상 징후 감지, 원인 후보 제시, 점검 순서 추천, 보고서 생성을 수행하며
+                엔지니어와 함께 문제를 해결하는 AI Agent로 발전하는 것을 목표로 합니다.
+              </p>
+            </div>
+          </section>
+
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div class="max-w-2xl">
                 <h2 class="text-lg font-semibold">
-                  페이지 안내 보는 법
+                  원하는 데이터부터 바로 확인하세요
                 </h2>
                 <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                  왼쪽 목록에서 페이지를 선택하면 각 페이지의 목적, 주요 사용자, 화면 구성을 확인할 수 있습니다.
-                  화면 없이 데이터를 직접 가져가려는 개발자는 API 리스트 페이지를 참고하십시오.
+                  왼쪽 목록에서 페이지를 선택해 목적과 화면 구성을 확인한 뒤, 원하는 Navigation Tab으로
+                  이동하면 됩니다. 화면 없이 데이터를 직접 가져가려는 개발자는 API 리스트를 참고하십시오.
                 </p>
+                <div class="mt-4 flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  <UIcon
+                    name="i-lucide-message-circle"
+                    class="h-4 w-4 shrink-0"
+                  />
+                  <span>문의: 기반기술전략&amp;안전 AX Part 최대영 TL · 큐브 DM</span>
+                </div>
               </div>
               <UButton
                 to="/endpoints"
@@ -250,6 +418,66 @@ const overviewAreas = [
     title: 'AFM Metrology',
     icon: 'i-lucide-ruler',
     description: 'Fab별 AFM tool을 선택해 measurement file을 검색하고, 상세 profile 분석과 여러 측정의 비교를 수행합니다.'
+  }
+]
+
+const dataSources = [
+  {
+    title: 'CD',
+    icon: 'i-lucide-ruler',
+    description: '측정 결과와 분포'
+  },
+  {
+    title: 'FDC',
+    icon: 'i-lucide-activity',
+    description: '장비 상태 신호와 변화'
+  },
+  {
+    title: 'Beam Calibration',
+    icon: 'i-lucide-crosshair',
+    description: 'Beam 보정 상태'
+  },
+  {
+    title: 'Hardware Settings',
+    icon: 'i-lucide-sliders-horizontal',
+    description: '장비 설정값과 조건'
+  },
+  {
+    title: 'BM/PM Schedule',
+    icon: 'i-lucide-calendar-clock',
+    description: '정비 일정과 전후 맥락'
+  }
+]
+
+const diagnosisSteps = [
+  {
+    title: '차이 발견',
+    description: '측정값이나 장비 동작에서 평소와 다른 SKEW를 발견합니다.'
+  },
+  {
+    title: 'Recipe 이력 확인',
+    description: '최근 같은 Recipe에서 오측정이나 Fail이 반복되었는지 확인합니다.'
+  },
+  {
+    title: '장비 상태 연결',
+    description: 'FDC, Calibration, Hardware 설정, BM/PM 이력을 함께 살펴봅니다.'
+  },
+  {
+    title: '원인 범위 판단',
+    description: '장비, Wafer 상태, 공정 영향 가운데 확인할 원인 범위를 좁힙니다.'
+  }
+]
+
+const audiences = [
+  {
+    title: 'MI Engineer',
+    icon: 'i-lucide-microscope',
+    description: '장비 관리가 우선인 사용자는 장비 목록, Storage 상태, Hardware 화면에서 장비의 현재 상태와 유지보수 맥락을 자주 확인합니다.'
+  },
+  {
+    title: '공정·소자 Engineer',
+    icon: 'i-lucide-chart-no-axes-combined',
+    description: 'Recipe와 측정 데이터, 분석 화면을 연결해 관찰된 차이가 Wafer 상태나 공정 영향과 관련되는지 살펴봅니다.'
   }
 ]
 

@@ -29,7 +29,7 @@
 ### 비목표
 
 - MP, outlier, 3σ 관련 필터/칩은 이 화면에서 제거합니다. (분석 화면의 관심사입니다.)
-- 분석 워크스페이스(`analysis.vue`) 내부는 변경하지 않습니다. 단, 최근 본 측정 기록을 위한 호출 한 줄은 추가합니다.
+- 분석 워크스페이스는 단일/그룹 최근 기록을 남기며, 별도의 `Save view` 기능은 제공하지 않습니다.
 
 ## 3. 검색 실행 모델
 
@@ -218,11 +218,12 @@ Phase 2 로 넘어갈 때 바뀌는 것은 `RETENTION_ANCHOR` 한 줄뿐입니�
 
 **`useMeasHistFacets.ts`** (신규) — `useAsyncData('meas-hist-facets:<tool>')`. tool type 별로 캐시하며 모든 드롭다운이 공유합니다.
 
-**`useSkewvoirRecentlyViewed.ts`** (신규) — localStorage 목록. `useSkewvoirSavedViews` 의 구조를 그대로 따릅니다 (모듈 수준 `readAll`/`writeAll`, `useState` 로 반응성 공유, `import.meta.client` 가드).
+**`useSkewvoirRecentlyViewed.ts`** (신규) — localStorage 기반 단일/그룹 분석 이력입니다 (모듈 수준 `readAll`/`writeAll`, `useState` 로 반응성 공유, `import.meta.client` 가드).
 
-- `record(row)` — 앞에 추가, `msr` 기준 중복 제거, **최대 15건**, 저장.
-- `items` — tool type 별 computed. 각 항목은 `expired: capturedAt < today − 60d` 를 함께 가집니다.
-- 랜딩의 `open()` 과 분석 워크스페이스 양쪽에서 호출합니다. 공유 링크로 연 측정도 기록에 남아야 합니다.
+- `record(mode, measurements)` — `single` 또는 `time-series` 항목을 앞에 추가하고, mode + MSR 집합 기준으로 중복 제거하여 **최대 15건** 저장합니다.
+- `items` — tool type 별 computed. 각 항목은 전체 만료 여부와 그룹 안의 만료 측정 개수를 함께 가집니다.
+- 랜딩의 단일 열기와 선택 분석, 분석 워크스페이스에서 모두 호출합니다. 공유 링크로 연 그룹도 같은 MSR 집합으로 기록합니다.
+- 기존 단일 MSR localStorage 항목은 읽을 때 새 `single` 구조로 변환합니다.
 
 ### 6.2 컴포넌트 분리
 
@@ -230,11 +231,13 @@ Phase 2 로 넘어갈 때 바뀌는 것은 `RETENTION_ANCHOR` 한 줄뿐입니�
 
 | 컴포넌트 | 책임 |
 | --- | --- |
-| `SearchLanding.vue` | 오케스트레이션만. 헤더, 저장된 뷰, 컴포저블 연결 (~120줄) |
+| `SearchLanding.vue` | 오케스트레이션과 master/detail 반응형 경계. 데스크톱은 결과 + 340px 최근 기록 rail, 작은 화면은 최근 기록 drawer |
 | `search/SearchBar.vue` | 입력, Search 버튼, **파싱 토큰 칩** (`EQ: MCD018` ×, 미인식 토큰은 빨강). 칩의 × 는 해당 토큰을 검색어에서 제거합니다. |
-| `search/FilterBar.vue` | 다섯 개 facet 을 실제 `UPopover` 다중 선택으로. 선택 개수 표시, 활성 시 `초기화` |
-| `search/ResultTable.vue` | 검색 결과 표. 빈 상태, 좁히기 입력, `총 N건` + 상한 경고, 다중 선택 → `선택 분석`, `더 보기` |
-| `search/RecentlyViewed.vue` | localStorage 표. 만료 행은 흐리게 + `보존 기간 만료` |
+| `search/FilterBar.vue` | 네 개 facet 을 실제 `UPopover` 다중 선택으로. 선택 개수 표시, 활성 시 `초기화` |
+| `search/SearchScopeStrip.vue` | 실제로 실행되는 파싱 범위(`ANY` 포함), 기간, 보존일, hit 수를 한 줄로 표시하고 검색 문법을 안내 |
+| `search/ResultTable.vue` | master 검색 결과 표. 빈 상태, 좁히기 입력, `총 N건` + 상한 경고, 다중 선택, 내부 스크롤, `더 보기` |
+| `search/SelectionWorkbench.vue` | 검색 console 오른쪽의 compact 작업 영역. 누적 선택, 범위 요약, Time-Series 실행 |
+| `search/RecentMeasurementsRail.vue` | detail 영역. 단일/Time-Series 최근 이력만 전용으로 표시 |
 
 ### 6.3 필터 항목
 
@@ -263,14 +266,20 @@ facet 은 네 개뿐입니다.
 ### 6.4 결과 영역
 
 - **기본 상태(질의 없음): 빈 상태.** 무엇을 검색할 수 있는지와 60일 보존 안내만 보여줍니다.
+- 검색 console은 데스크톱 master 영역의 절반을 사용하고, 필터와 실제 실행 범위(`SCOPE`)를 같은 카드 안에 둡니다. 나머지 절반은 측정 작업 세트가 사용합니다.
 - 결과는 **50건씩**, `더 보기` 로 다음 50건을 이어붙입니다. 페이지 번호는 두지 않습니다. 7페이지로 걸어가기보다 검색어를 좁히는 편이 언제나 낫습니다.
 - 표 컬럼: `LOT · RECIPE(full_name) · EQ · FAB · CAPTURED`
-- 기존 다중 선택 → `선택 분석 (Time-Series)` 와 저장된 뷰 팝오버는 유지합니다.
+- 다중 선택은 검색 결과가 바뀌어도 작업 세트에 유지되며, `선택 분석 (Time-Series)` 로 엽니다.
+- 측정 작업 세트는 검색 console 오른쪽에 같은 크기의 카드로 배치합니다. 최근 기록 rail과 분리하여 선택 항목과 과거 분석이 한 패널에서 경쟁하지 않게 합니다.
+- `저장된 뷰` 팝오버와 분석 화면의 `Save view` 버튼은 제거합니다. 다시 열기는 하단 `최근 본 측정`으로 통합합니다.
+- `xl` 이상은 340px 고정폭 최근 기록 rail을 sticky detail로 항상 표시합니다. 그보다 작은 화면은 우측 하단 `최근 본 측정 · N` 버튼으로 동일 컴포넌트를 drawer에서 엽니다.
 
 ### 6.5 최근 본 측정
 
-- 분석 워크스페이스로 측정을 열면 `{msr, lot, recipe, eq, fab, capturedAt, viewedAt}` 를 기록합니다.
-- 60일 보존 창을 벗어난 항목은 **흐리게 표시하고 클릭을 막으며 `보존 기간 만료`** 를 붙입니다. 조용히 사라지게 하지 않습니다. 보존 규칙이 있다는 사실 자체가 두 달 만에 lot 을 다시 찾는 사람에게 필요한 정보입니다.
+- 별도 전체 폭 표를 만들지 않고 우측 rail 전체를 사용합니다. 따라서 사용자는 검색 결과를 보면서 최근 단일/그룹 분석을 바로 다시 열 수 있습니다.
+- 단일 측정을 열면 `single` 항목 하나를 기록합니다. 선택 작업 세트를 열면 모든 선택 측정을 포함한 `time-series` 항목 하나를 기록합니다.
+- 표에서 `단일` 또는 `Time-Series · N`을 명시하고, 그룹을 클릭하면 동일한 MSR 집합을 Time-Series로 다시 엽니다.
+- 60일 보존 창을 모두 벗어난 항목은 **흐리게 표시하고 클릭을 막으며 `보존 기간 만료`** 를 붙입니다. 그룹 일부만 만료되면 클릭은 유지하고 만료 개수를 표시합니다.
 - 만료 판정은 `capturedAt < anchor - 60d` 입니다. anchor 는 백엔드가 준 값입니다 (§5.2.1). 벽시계를 쓰지 않습니다.
 - mock 에는 삭제 경로가 없으므로 날짜 계산으로 충분합니다. Phase 2 는 저장된 msr 을 백엔드로 검증하는 방식으로 UI 변경 없이 올릴 수 있습니다.
 
@@ -279,6 +288,7 @@ facet 은 네 개뿐입니다.
 - `Result Timeline`, `Quick Stats by Recipe` 패널
 - `MP : WAFER`, `3σ > 0.5`, `outliers` 칩
 - `useSkewvoirWorkspace` 의 `pinnedFilters` (mock 시드값이며 실제로 쓰이는 곳이 없습니다)
+- `useSkewvoirSavedViews`, 랜딩의 `저장된 뷰` 팝오버, 분석 화면의 `Save view` 모달
 
 ## 7. 오류 처리
 
