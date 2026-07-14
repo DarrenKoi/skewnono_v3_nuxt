@@ -31,12 +31,12 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { isValidRow } from '~/utils/msrRows'
+import { isMeasuredRow } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const siteCount = computed(() =>
-  props.analysis.siteRows.value.filter(r => r.parameter === props.analysis.activeParam.value && isValidRow(r)).length
+  props.analysis.siteRows.value.filter(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r)).length
 )
 const hasData = computed(() => siteCount.value > 0)
 const meta = computed(() => `${props.analysis.activeParam.value} · ${siteCount.value} sites`)

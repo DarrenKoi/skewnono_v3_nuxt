@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { isValidRow } from '~/utils/msrRows'
+import { isMeasuredRow } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -42,7 +42,7 @@ const degToggle = ref('3°')
 const degree = computed(() => (degToggle.value === '1°' ? 1 : 3))
 
 const hasData = computed(() =>
-  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isValidRow(r))
+  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r))
 )
 
 const meta = computed(() => (degree.value === 3 ? '3rd polynomial' : '1st order fit'))

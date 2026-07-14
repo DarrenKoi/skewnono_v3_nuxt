@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { validRows } from '~/utils/msrRows'
+import { measuredRows } from '~/utils/msrRows'
 import { pearson, spearman, fitLine } from '~/utils/stats'
 import { SK_CHART } from '~/utils/chartPalette'
 
@@ -23,7 +23,7 @@ const props = defineProps<{
   unitY: string
 }>()
 
-const rows = computed(() => validRows(props.rows))
+const rows = computed(() => measuredRows(props.rows))
 
 const pairs = computed<[number, number][]>(() => {
   const xBySite = new Map<string, number>()

@@ -43,9 +43,9 @@ test('unmeasured rows are excluded — they cannot be judged nor judge others', 
 })
 
 // The case above pairs mp_number: -1 with cd_value: null, so it alone would
-// not catch a regression that dropped either half of isValidRow's `&&`. Pin
+// not catch a regression that dropped either half of isMeasuredRow's `&&`. Pin
 // each half independently against the same gate siteVerdicts relies on.
-test('a valid mp_number with a null cd_value is still excluded', () => {
+test('a real mp_number with a null cd_value is still excluded', () => {
   const rows = [
     row({ sequence: 1, cd_value: 100 }),
     row({ sequence: 2, cd_value: 100 }),

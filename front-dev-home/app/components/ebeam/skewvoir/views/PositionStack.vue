@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { isValidRow } from '~/utils/msrRows'
+import { isMeasuredRow } from '~/utils/msrRows'
 import { mean as meanOf, sampleStd } from '~/utils/stats'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
@@ -98,7 +98,7 @@ const composite = computed(() => {
   const acc = new Map<string, { x: number, y: number, values: number[] }>()
   for (const file of props.analysis.setFiles.value.values()) {
     for (const r of file.rows) {
-      if (r.parameter !== param || !isValidRow(r)) continue
+      if (r.parameter !== param || !isMeasuredRow(r)) continue
       const xy = parseChipXY(r.chip_number)
       if (!xy) continue
       const key = `${xy[0]},${xy[1]}`

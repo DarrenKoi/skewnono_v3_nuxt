@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { validRows } from '~/utils/msrRows'
+import { measuredRows } from '~/utils/msrRows'
 import { SK_CHART } from '~/utils/chartPalette'
 
 const props = defineProps<{
@@ -17,7 +17,7 @@ const props = defineProps<{
   unit: string
 }>()
 
-const rows = computed(() => validRows(props.rows))
+const rows = computed(() => measuredRows(props.rows))
 
 // One marker per chip position, colored by the mean cd_value of the selected
 // parameter at that position (multiple sequences can land on the same chip).

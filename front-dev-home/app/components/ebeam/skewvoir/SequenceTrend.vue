@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { validRows } from '~/utils/msrRows'
+import { measuredRows } from '~/utils/msrRows'
 
 const props = defineProps<{
   rows: MsrFileRow[]
@@ -18,7 +18,7 @@ const props = defineProps<{
 
 // cd_value across measurement order within the MSR — surfaces intra-wafer drift.
 const series = computed(() =>
-  validRows(props.rows)
+  measuredRows(props.rows)
     .filter(r => r.parameter === props.parameter)
     .sort((a, b) => a.sequence - b.sequence)
     .map(r => [r.sequence, r.cd_value])

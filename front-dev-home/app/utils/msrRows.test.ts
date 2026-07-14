@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isValidRow, validRows, paramValues } from './msrRows.ts'
+import { isMeasuredRow, measuredRows, paramValues } from './msrRows.ts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 
 const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
@@ -14,41 +14,41 @@ const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
   ...over
 })
 
-test('a null cd_value is invalid', () => {
-  assert.equal(isValidRow(row({ cd_value: null, mp_number: -1 })), false)
+test('a null cd_value is not a measurement', () => {
+  assert.equal(isMeasuredRow(row({ cd_value: null, mp_number: -1 })), false)
 })
 
-test('mp_number < 0 is invalid even if a cd_value somehow survives', () => {
+test('mp_number < 0 is unmeasured even if a cd_value somehow survives', () => {
   // Defence in depth: the office backend may not honour the null contract.
-  assert.equal(isValidRow(row({ mp_number: -1, cd_value: 42 })), false)
+  assert.equal(isMeasuredRow(row({ mp_number: -1, cd_value: 42 })), false)
 })
 
 // Every case above pairs mp_number: -1 with cd_value: null, so deleting the
-// `cd_value != null` clause of isValidRow would leave them all green. Pin it
-// in isolation: mp_number is a valid non-sentinel, but cd_value is still null.
-test('mp_number >= 0 with a null cd_value is invalid — the null is the backend contract', () => {
-  assert.equal(isValidRow(row({ mp_number: 0, cd_value: null })), false)
+// `cd_value != null` clause of isMeasuredRow would leave them all green. Pin it
+// in isolation: mp_number is a real non-sentinel, but cd_value is still null.
+test('mp_number >= 0 with a null cd_value is unmeasured — the null is the backend contract', () => {
+  assert.equal(isMeasuredRow(row({ mp_number: 0, cd_value: null })), false)
 })
 
-test('non-finite cd_value is invalid', () => {
-  assert.equal(isValidRow(row({ cd_value: Number.NaN })), false)
-  assert.equal(isValidRow(row({ cd_value: Number.POSITIVE_INFINITY })), false)
+test('a non-finite cd_value is not a measurement', () => {
+  assert.equal(isMeasuredRow(row({ cd_value: Number.NaN })), false)
+  assert.equal(isMeasuredRow(row({ cd_value: Number.POSITIVE_INFINITY })), false)
 })
 
-test('mp_number 0 is valid — only negatives are sentinels', () => {
-  assert.equal(isValidRow(row({ mp_number: 0 })), true)
+test('mp_number 0 is measured — only negatives are sentinels', () => {
+  assert.equal(isMeasuredRow(row({ mp_number: 0 })), true)
 })
 
-test('validRows drops invalid rows and preserves order', () => {
+test('measuredRows drops unmeasured rows and preserves order', () => {
   const rows = [
     row({ sequence: 1 }),
     row({ sequence: 2, mp_number: -1, cd_value: null }),
     row({ sequence: 3 })
   ]
-  assert.deepEqual(validRows(rows).map(r => r.sequence), [1, 3])
+  assert.deepEqual(measuredRows(rows).map(r => r.sequence), [1, 3])
 })
 
-test('paramValues filters by parameter AND validity', () => {
+test('paramValues filters by parameter AND by being measured', () => {
   const rows = [
     row({ parameter: 'CD_TOP', cd_value: 10 }),
     row({ parameter: 'CD_BOTTOM', cd_value: 20 }),
@@ -59,6 +59,6 @@ test('paramValues filters by parameter AND validity', () => {
 })
 
 test('empty input yields empty output', () => {
-  assert.deepEqual(validRows([]), [])
+  assert.deepEqual(measuredRows([]), [])
   assert.deepEqual(paramValues([], 'CD_TOP'), [])
 })

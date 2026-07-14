@@ -524,7 +524,7 @@ def _summaries(rows: list[MsrFileRow]) -> list[MsrParamSummary]:
     These summaries feed the Data Summary table, the 3-sigma column AND the
     time-series anomaly verdicts, so a single unmeasured row leaking in here
     propagates into a wrong watch/abnormal call. Mirrors the frontend gate in
-    app/utils/msrRows.ts::isValidRow.
+    app/utils/msrRows.ts::isMeasuredRow.
     """
     by_param: dict[str, list[float]] = {}
     for row in rows:

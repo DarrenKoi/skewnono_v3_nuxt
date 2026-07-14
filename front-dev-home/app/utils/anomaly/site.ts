@@ -8,14 +8,14 @@
 // (how bad?). An independent IQR-fence verdict living beside this one would let
 // two panels disagree about the same site.
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import type { ValidMsrRow } from '../msrRows.ts'
-import { isValidRow } from '../msrRows.ts'
+import type { MeasuredMsrRow } from '../msrRows.ts'
+import { isMeasuredRow } from '../msrRows.ts'
 import type { AnomalyVerdict, MethodConfig } from './types.ts'
 import { DEFAULT_METHOD_CONFIG } from './types.ts'
 import { peerVerdicts } from './peer.ts'
 
 export interface SiteVerdict {
-  row: ValidMsrRow
+  row: MeasuredMsrRow
   verdict: AnomalyVerdict
 }
 
@@ -26,7 +26,7 @@ export const siteVerdicts = (
 ): SiteVerdict[] => {
   // Gate FIRST. An unmeasured row admitted here would distort the peer band and
   // could mask a genuine outlier.
-  const sites = rows.filter((r): r is ValidMsrRow => r.parameter === parameter && isValidRow(r))
+  const sites = rows.filter((r): r is MeasuredMsrRow => r.parameter === parameter && isMeasuredRow(r))
   if (sites.length === 0) return []
 
   const verdicts = peerVerdicts(sites.map(r => r.cd_value), {

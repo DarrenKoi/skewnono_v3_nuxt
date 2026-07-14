@@ -74,12 +74,12 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { validRows } from '~/utils/msrRows'
+import { measuredRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const points = computed(() =>
-  validRows(props.analysis.siteRows.value)
+  measuredRows(props.analysis.siteRows.value)
     .filter(r => r.parameter === props.analysis.activeParam.value)
     .map((r, i) => {
       const xy = parseChipXY(r.chip_number)

@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { validRows } from '~/utils/msrRows'
+import { measuredRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -50,7 +50,7 @@ const mode = ref('Single')
 const images = computed(() => {
   const seen = new Set<string>()
   const out: string[] = []
-  for (const r of validRows(props.analysis.siteRows.value)) {
+  for (const r of measuredRows(props.analysis.siteRows.value)) {
     if (r.parameter !== props.analysis.activeParam.value) continue
     const name = r.mp_image_name_01
     if (name && !seen.has(name)) {

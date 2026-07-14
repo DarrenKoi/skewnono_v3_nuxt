@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { validRows } from '~/utils/msrRows'
+import { measuredRows } from '~/utils/msrRows'
 import { polyfit, polyval } from '~/utils/polyfit'
 import { SK_CHART } from '~/utils/chartPalette'
 
@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   degree: 3
 })
 
-const rows = computed(() => validRows(props.rows))
+const rows = computed(() => measuredRows(props.rows))
 
 // (distance-from-center, CD) per measured site for the active parameter.
 const points = computed<[number, number][]>(() => {
