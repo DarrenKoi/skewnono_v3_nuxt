@@ -35,10 +35,24 @@
 
 **백엔드 검색 + 클라이언트 즉시 좁히기(hybrid)** 방식입니다.
 
-- 검색과 필터는 백엔드가 실행합니다. Phase 1은 `data.py`의 in-memory 필터, Phase 2/3은 동일 함수의 OpenSearch 구현입니다. 라우트와 프런트엔드는 바뀌지 않습니다.
+- 검색어는 프런트엔드가 구조화된 필드로 파싱합니다 (§4.0).
+- 검색과 필터의 **실행**은 백엔드가 합니다. Phase 1은 `data.py`의 in-memory 필터, Phase 2/3은 동일 함수의 OpenSearch 구현입니다. 라우트와 프런트엔드는 바뀌지 않습니다.
 - 브라우저에 로드된 결과 행에 한해, 네트워크를 타지 않는 즉시 좁히기(narrow) 입력을 제공합니다.
 
 ## 4. 검색어 문법
+
+### 4.0 파서의 위치 — 프런트엔드
+
+검색어 파싱은 **프런트엔드**(`app/utils/measHistQuery.ts`)에서 수행합니다. 백엔드는 원문 `q` 를 받지 않고 **구조화된 필드만** 받습니다. 필터 드롭다운이 만들어내는 것과 정확히 같은 모양입니다.
+
+이유는 네 가지입니다.
+
+1. **백엔드 입력 계약이 하나로 단일화됩니다.** 원문 문법과 구조화 필드, 두 벌의 입력을 백엔드가 이해할 필요가 없습니다. `bool { must: [terms, terms, ...] }` 를 만들 재료가 그대로 들어옵니다.
+2. **facet 응답을 파싱 근거로 쓸 수 있습니다.** facets 는 실재하는 `eqp_id` 와 `full_name` 목록을 이미 담고 있습니다. 알려진 장비 id 와 **정확히 일치하는** 토큰은 추측할 필요 없이 장비 id 입니다. `MCD`/`ECXDX` 같은 접두사 정규식을 데이터와 따로 관리하지 않아도 됩니다.
+3. **칩이 즉시 렌더링됩니다.** 해석 결과를 보려고 왕복할 필요가 없습니다.
+4. **저장소의 테스트 관례와 맞습니다.** 이 저장소의 테스트는 전부 `app/**/*.test.ts` 이고 `node --test` 로 돕니다. 백엔드 pytest 인프라는 존재하지 않습니다. 파서는 이 기능의 유일한 실질 로직이므로 반드시 테스트되어야 하고, 이미 있는 도구로 테스트하는 편이 낫습니다.
+
+대가는 필드 형태 지식이 클라이언트에 있다는 점, 그리고 원문 `q` 를 실은 손수 만든 API 호출은 동작하지 않는다는 점입니다. 클라이언트가 하나뿐이므로 감수합니다.
 
 ### 4.1 토큰화
 
@@ -48,14 +62,18 @@
 
 ### 4.2 필드 자동 판별
 
-토큰마다 다음 순서로 필드를 판별합니다.
+토큰마다 다음 순서로 판별합니다. facets 목록(`knownEq`, `knownRecipe`)을 함께 넘겨받습니다.
 
 1. `field:value` 접두사(`lot:`, `recipe:`, `eq:`, `msr:`, `date:`)가 있으면 그 필드로 강제합니다.
 2. 날짜 형태(`2026-05-10`, `20260510`) → `date`
-3. 8자리 숫자로 시작하는 `_` 구분 3개 이상 → `msr` (예: `20260510_ADI_CD_BIAS_001_RKPB240012_MCD018`)
-4. lot id 형태(`^[A-Z0-9]{3,4}\d{6}$`, 예: `RKPB240012`) → `lot`
-5. 알려진 장비 접두사(`MCD`, `PCD`, `ACD`, `VCD`, `ECXDX`, `ECDX`, `HCDX`)로 시작 → `eq`
-6. 그 외 → `recipe` (대소문자 무시 부분 일치, `full_name` 과 `recipe_name` 양쪽에 매칭)
+3. 8자리 숫자로 시작하는 `_` 구분 4개 이상 → `msr` (예: `20260510_ADI_CD_BIAS_001_RKPB240012_MCD018`)
+4. `knownEq` 에 정확히 있는 값 → `eq`
+5. `knownRecipe` 의 `full_name` 또는 `/` 뒤 `recipe_name` 과 정확히 일치 → `recipe`
+6. lot id 형태(`^[A-Z0-9]{3,4}\d{6,8}$`, 예: `RKPB240012`) → `lot`
+7. `knownRecipe` 중 하나의 부분 문자열이면 (대소문자 무시) → `recipe` (부분 일치)
+8. 그 외 → `unknown`
+
+facets 를 아직 못 받았으면 4·5·7 단계는 건너뛰고 형태 규칙(2·3·6)만 적용하며, 나머지는 `recipe` 부분 일치로 둡니다. 검색이 facets 로딩에 막히지 않게 하기 위함입니다.
 
 ### 4.3 결합 규칙
 
@@ -68,30 +86,42 @@
 
 msr 은 `날짜_레시피_lot_장비` 조합이므로 lot id 를 부분 문자열로 포함합니다. 따라서 `RKPB240012` 는 lot 필드로 판별해 색인된 term 질의를 보냅니다. msr 부분 문자열 매칭은 wildcard 스캔이 되어 느리므로 사용하지 않습니다. 완전한 msr 형태의 토큰만 `msr` 필드에 정확 일치로 질의합니다.
 
-### 4.5 파싱 결과 되돌려주기
+### 4.5 파싱 결과
 
-응답에 `parsed` 를 포함합니다.
+파서 반환값입니다.
 
-```json
-{ "eq": ["MCD018"], "lot": ["RKPB240012"], "recipe": [], "msr": [], "date": ["2026-05-10"], "unknown": ["xyz"] }
+```ts
+interface ParsedQuery {
+  eq: string[]
+  lot: string[]
+  recipe: string[]
+  msr: string[]
+  date: string[]     // YYYY-MM-DD 정규화
+  unknown: string[]
+}
 ```
 
-UI 는 이를 검색창 아래 칩으로 표시합니다. 자동 판별이 어떻게 해석했는지 사용자가 볼 수 있어야 오타와 무결과를 구분할 수 있습니다. Phase 2 의 OpenSearch 질의도 같은 파서 결과로 만들어지므로 표시와 실제 질의가 어긋나지 않습니다.
+UI 는 이를 검색창 아래 칩으로 표시합니다. 미인식 토큰(`unknown`)은 빨강으로 구분합니다. 자동 판별이 어떻게 해석했는지 사용자가 볼 수 있어야 오타와 무결과를 구분할 수 있습니다. 이 값이 그대로 요청 파라미터가 되므로 화면에 보이는 해석과 실제 질의는 어긋날 수 없습니다.
 
 ## 5. 백엔드
 
 ### 5.1 `GET /api/meas-hist/search`
 
-| 파라미터 | 설명 |
-| --- | --- |
-| `tool_type` | `cd-sem` \| `hv-sem` |
-| `q` | 검색창 원문 |
-| `fab` | 다중 선택 (반복 파라미터) |
-| `model` | `eqp_model_cd` 다중 선택 |
-| `eq` | `eqp_id` 다중 선택 |
-| `recipe` | `full_name` 다중 선택 |
-| `from`, `to` | 조회 기간 |
-| `offset`, `limit` | 페이징 (기본 `limit=50`) |
+모든 파라미터가 구조화된 필드입니다. 원문 `q` 는 받지 않습니다 (§4.0). 검색창이 만든 필드와 필터 드롭다운이 만든 필드는 같은 파라미터로 합쳐져 들어옵니다.
+
+| 파라미터 | 출처 | 설명 |
+| --- | --- | --- |
+| `tool_type` | 라우트 | `cd-sem` \| `hv-sem` |
+| `fab` | 필터 | `fab_name` 다중 선택 (반복 파라미터) |
+| `model` | 필터 | `eqp_model_cd` 다중 선택 |
+| `eq` | 필터 + 검색어 | `eqp_id` 정확 일치, 다중 |
+| `recipe` | 필터 + 검색어 | `full_name` / `recipe_name` 부분 일치, 다중 |
+| `lot` | 검색어 | `lot_id` 정확 일치, 다중 |
+| `msr` | 검색어 | `msr` 정확 일치, 다중 |
+| `from`, `to` | 필터 + 검색어 | 조회 기간 |
+| `offset`, `limit` | 페이징 | 기본 `limit=50` |
+
+같은 파라미터의 값 여러 개는 OR, 파라미터 간에는 AND 입니다 (§4.3).
 
 응답:
 
@@ -102,7 +132,7 @@ UI 는 이를 검색창 아래 칩으로 표시합니다. 자동 판별이 어�
   "offset": 0,
   "limit": 50,
   "range": { "from": "2026-05-15", "to": "2026-07-14" },
-  "parsed": { "...": "..." },
+  "out_of_retention": false,
   "rows": []
 }
 ```
@@ -124,19 +154,27 @@ UI 는 이를 검색창 아래 칩으로 표시합니다. 자동 판별이 어�
 
 ### 5.4 파일 구성
 
-- `back_dev_home/meas_hist/query.py` (신규) — 토큰 파서. 순수 함수.
 - `back_dev_home/meas_hist/data.py` — `search_meas_hist(...)`, `get_meas_hist_facets(...)` 추가. 기존 600행 시드 데이터 위에서 in-memory 필터링합니다.
-- `back_dev_home/meas_hist/routes.py` — 파라미터 마샬링만 합니다.
+- `back_dev_home/meas_hist/routes.py` — 파라미터 마샬링만 합니다. `request.args.getlist(...)` 로 반복 파라미터를 읽습니다.
 
-교체면(swap surface)은 `data.py` 안에 머뭅니다. Phase 2 는 이 두 함수만 OpenSearch 질의로 다시 쓰면 되고 라우트와 프런트엔드는 그대로입니다.
+블루프린트는 `back_dev_home/__init__.py` 가 `rglob("routes.py")` 로 자동 등록하므로 등록 코드를 추가할 필요가 없습니다.
+
+교체면(swap surface)은 `data.py` 안에 머뭅니다. Phase 2 는 이 두 함수만 OpenSearch 질의로 다시 쓰면 되고 라우트와 프런트엔드는 그대로입니다. `opensearch-py` 는 이미 `requirements.txt` 에 있습니다.
 
 ## 6. 프런트엔드
 
 ### 6.1 컴포저블
 
+**`app/utils/measHistQuery.ts`** (신규, 순수 함수)
+
+- `parseMeasHistQuery(text: string, known?: { eq: string[], recipe: string[] }): ParsedQuery` — §4 의 문법 전체. 순수 함수이므로 `node --test` 로 직접 테스트합니다.
+- `removeToken(text: string, token: string): string` — 칩의 × 가 검색어에서 해당 토큰만 제거할 때 씁니다.
+
 **`useMeasHistSearch.ts`** (신규)
 
-- 상태: `queryText`, `filters`(`fab[]`, `model[]`, `eq[]`, `recipe[]`, `from`, `to`), `offset`, 결과(`rows`, `total`, `capped`, `parsed`).
+- 상태: `queryText`, `filters`(`fab[]`, `model[]`, `eq[]`, `recipe[]`, `from`, `to`), `offset`, 결과(`rows`, `total`, `capped`, `outOfRetention`).
+- `parsed` — `queryText` + facets 로부터 계산되는 computed 입니다. 타이핑 즉시 칩이 갱신됩니다.
+- 요청 파라미터는 `parsed` 와 `filters` 를 필드별로 합집합해 만듭니다 (검색어의 `eq` 와 드롭다운의 `eq` 는 같은 `eq` 파라미터로 합쳐집니다).
 - `search()` — 결과를 교체합니다. `loadMore()` — `offset += 50` 으로 이어붙입니다.
 - **검색은 명시적입니다.** Enter 또는 Search 버튼에서만 실행합니다. 타이핑마다 60일 색인에 질의하면 lot id 하나 입력에 질의 여섯 번이 나갑니다. 반면 **필터 드롭다운 변경은 즉시 재검색**합니다. 의도적인 단일 동작이기 때문입니다.
 - `narrowText` + `narrowedRows` — 로드된 행에 대한 클라이언트 즉시 필터입니다. 네트워크를 타지 않습니다.
@@ -207,10 +245,15 @@ UI 는 이를 검색창 아래 칩으로 표시합니다. 자동 판별이 어�
 
 ## 8. 테스트
 
-`back_dev_home` pytest:
+이 저장소에는 백엔드 테스트 인프라(pytest)가 없습니다. 테스트는 전부 `app/**/*.test.ts` 이며 `npm test` (`node --test`) 로 돕니다. 이 기능의 유일한 실질 로직인 파서를 프런트엔드에 둔 이유 중 하나입니다 (§4.0).
 
-- **토큰 파서** — 필드별 형태 판별, `field:` 강제, 같은 필드 OR / 필드 간 AND, 구분자(공백·콤마·세미콜론) 처리, 미인식 토큰.
-- **`search_meas_hist`** — 60일 clamp, 사용자 범위와의 교집합, 보존 창 밖 질의, `capped` 플래그, 페이징.
-- **`get_meas_hist_facets`** — 값과 건수.
+**`app/utils/measHistQuery.test.ts`** (신규):
 
-파서는 순수 함수이고 이 기능의 유일한 실질 로직이므로 제대로 테스트할 가치가 있습니다.
+- 토큰화 — 공백·콤마·세미콜론 혼합, 연속 구분자, 후행 구분자.
+- 필드 판별 — 날짜 두 형태, msr 형태, `knownEq` 정확 일치, `knownRecipe` 정확/부분 일치, lot 형태, 미인식.
+- `field:` 접두사 강제 — 형태 규칙을 이깁니다.
+- 같은 필드 여러 토큰이 배열로 누적되는지.
+- facets 미로딩 상태의 축약 규칙.
+- `removeToken` — 해당 토큰만 제거하고 나머지 구분자를 망가뜨리지 않는지.
+
+백엔드 `search_meas_hist` / `get_meas_hist_facets` 는 pytest 인프라를 새로 들이지 않고, 실행 중인 Flask 에 대한 수동 curl 검증으로 확인합니다 (60일 clamp, 보존 창 밖 질의, `capped` 플래그, 페이징, facet 건수). 백엔드 테스트 관례를 세우는 일은 이 기능의 범위를 넘어서므로 별도 작업으로 남깁니다.
