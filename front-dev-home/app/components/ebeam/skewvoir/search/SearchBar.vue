@@ -39,7 +39,7 @@
       v-if="disabled"
       class="mt-1.5 text-[11px] text-(--sk-ink-muted)"
     >
-      장비 목록을 아직 불러오지 못했습니다 — 잠시 후 다시 시도해 주세요.
+      장비 목록을 아직 불러오지 못했습니다 — 계속되면 페이지를 새로고침해 주세요.
     </p>
 
     <!-- How each token was read. Without this, auto-detection is a black box
