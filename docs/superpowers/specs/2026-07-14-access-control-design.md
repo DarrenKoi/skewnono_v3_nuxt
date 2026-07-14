@@ -60,7 +60,7 @@ HTTP 상태 코드는 `403`입니다. 프런트엔드는 `code === "access_denie
 
 `data.py`:
 
-- 예외 목록은 `back_dev_home/storage/access_exceptions.json`에 저장합니다.
+- 예외 목록은 `back_dev_home/access_control/state/access_exceptions.json`에 저장합니다.
   - 경로는 `SKEWNONO_ACCESS_EXCEPTIONS_FILE` 환경 변수로 재정의 가능(운영에서 패키지
     디렉터리가 읽기 전용일 경우 대비).
   - `.gitignore`에 추가합니다.

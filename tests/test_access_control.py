@@ -50,6 +50,21 @@ class AccessControlBase(unittest.TestCase):
         return self.client.get(path)
 
 
+class TestStorePath(unittest.TestCase):
+    def test_default_store_is_scoped_to_access_control(self):
+        override = os.environ.pop("SKEWNONO_ACCESS_EXCEPTIONS_FILE", None)
+        try:
+            expected = (
+                Path(ac_data.__file__).resolve().parent
+                / "state"
+                / "access_exceptions.json"
+            )
+            self.assertEqual(ac_data._store_path(), expected)
+        finally:
+            if override is not None:
+                os.environ["SKEWNONO_ACCESS_EXCEPTIONS_FILE"] = override
+
+
 class TestBlockingRule(AccessControlBase):
     def test_normal_user_passes(self):
         res = self._get("/api/activity/me", NORMAL)

@@ -89,5 +89,6 @@ ea3138ca-4157-449d-a379-186a3db9af06.png
 # Superpowers brainstorming visual companion
 .superpowers/
 
-# Access-control exception list (managed via /admin/access, per-deployment state)
+# Access-control exception lists (managed via /admin/access, per-deployment state)
 back_dev_home/storage/access_exceptions.json
+back_dev_home/access_control/state/access_exceptions.json

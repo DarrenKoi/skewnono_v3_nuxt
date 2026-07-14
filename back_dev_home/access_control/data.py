@@ -52,7 +52,7 @@ def _store_path() -> Path:
     override = os.environ.get("SKEWNONO_ACCESS_EXCEPTIONS_FILE")
     if override:
         return Path(override)
-    return Path(__file__).resolve().parent.parent / "storage" / "access_exceptions.json"
+    return Path(__file__).resolve().parent / "state" / "access_exceptions.json"
 
 
 def _load_locked() -> OrderedDict[str, dict]:
