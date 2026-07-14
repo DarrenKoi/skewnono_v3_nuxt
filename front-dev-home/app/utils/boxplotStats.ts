@@ -1,6 +1,8 @@
-// Pure: five-number summary for the MDC fleet boxplot. Quartiles use R-7
-// linear interpolation (numpy/Excel default). min/max are the true extremes —
-// hardware fleets are 4-6 tools, so whisker fencing would hide real tools.
+// Pure: five-number summary for the MDC fleet boxplot. Quartiles use R-7 linear
+// interpolation (numpy/Excel default). min/max are the true extremes — hardware
+// fleets are 4-6 tools, so whisker fencing would hide real tools. (CD site
+// distributions DO want fencing — see iqrFences in stats.ts.)
+import { quantileSorted } from './stats.ts'
 
 export interface BoxStats {
   min: number
@@ -8,13 +10,6 @@ export interface BoxStats {
   median: number
   q3: number
   max: number
-}
-
-const quantileSorted = (sorted: number[], p: number): number => {
-  const pos = (sorted.length - 1) * p
-  const lo = Math.floor(pos)
-  const hi = Math.ceil(pos)
-  return sorted[lo]! + (pos - lo) * (sorted[hi]! - sorted[lo]!)
 }
 
 export const boxStats = (values: number[]): BoxStats | null => {
