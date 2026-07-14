@@ -14,7 +14,20 @@ from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
 from back_dev_home.sem_list.data import SemListRow, get_sem_list
 
 
-__all__ = ["MeasHistRow", "MeasHistResponse", "ToolType", "get_meas_hist", "find_meas_hist_by_msr"]
+__all__ = [
+    "MeasHistRow",
+    "MeasHistResponse",
+    "MeasHistSearchResponse",
+    "MeasHistFacetsResponse",
+    "ToolType",
+    "get_meas_hist",
+    "find_meas_hist_by_msr",
+    "search_meas_hist",
+    "get_meas_hist_facets",
+    "RETENTION_DAYS",
+    "MAX_RESULT_WINDOW",
+    "DEFAULT_LIMIT",
+]
 
 
 class MeasHistRow(TypedDict):
@@ -274,4 +287,208 @@ def get_meas_hist(
         recipe_name=recipe_name,
         total=len(rows),
         rows=rows
+    )
+
+
+# --- Search -----------------------------------------------------------------
+#
+# Phase 1 filters the seeded rows in memory. Phase 2/3 replaces the bodies of
+# search_meas_hist / get_meas_hist_facets with OpenSearch queries (a
+# bool{must:[terms...]} + a terms aggregation). Routes and frontend do not change.
+
+RETENTION_DAYS = 60
+# OpenSearch index.max_result_window default. A retrieval ceiling, not a promise
+# to the browser: `total` may exceed it, in which case `capped` is True.
+MAX_RESULT_WINDOW = 10000
+DEFAULT_LIMIT = 50
+
+# The clock the retention window is measured from. Phase 1 pins it to the mock's
+# frozen NOW so the 60-day window actually contains the seeded rows; Phase 2/3
+# swaps this one line for datetime.now(timezone.utc).
+RETENTION_ANCHOR = NOW
+
+
+class MeasHistSearchResponse(TypedDict):
+    total: int
+    capped: bool
+    offset: int
+    limit: int
+    range: dict[str, str]
+    out_of_retention: bool
+    rows: list[MeasHistRow]
+
+
+class MeasHistFacetValue(TypedDict):
+    value: str
+    count: int
+
+
+class MeasHistFacetsResponse(TypedDict):
+    tool_type: ToolType | None
+    anchor: str
+    retention_days: int
+    fab: list[MeasHistFacetValue]
+    model: list[MeasHistFacetValue]
+    eq: list[MeasHistFacetValue]
+    recipe: list[MeasHistFacetValue]
+
+
+def _parse_date(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _retention_window() -> tuple[datetime, datetime]:
+    end = RETENTION_ANCHOR
+    return end - timedelta(days=RETENTION_DAYS), end
+
+
+def _resolve_window(
+    date_from: str | None,
+    date_to: str | None
+) -> tuple[datetime, datetime, bool]:
+    """Intersect the caller's range with the retention window.
+
+    The window is a guarantee, not a default: a stale bookmark or a hand-edited
+    URL must never widen the scan past retention. Returns (start, end,
+    out_of_retention) — the flag says the caller's range fell entirely outside.
+    """
+    floor, ceiling = _retention_window()
+
+    requested_start = _parse_date(date_from)
+    requested_end = _parse_date(date_to)
+
+    if requested_start and requested_start > ceiling:
+        return floor, ceiling, True
+    if requested_end and requested_end < floor:
+        return floor, ceiling, True
+
+    start = max(requested_start, floor) if requested_start else floor
+    # `to` is inclusive of the whole day.
+    end = min(requested_end + timedelta(days=1), ceiling) if requested_end else ceiling
+
+    if start > end:
+        return floor, ceiling, True
+
+    return start, end, False
+
+
+def _row_time(row: MeasHistRow) -> datetime:
+    return datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
+
+
+def _matches_recipe_term(row: MeasHistRow, term: str) -> bool:
+    """Recipe terms are substrings — the search bar accepts fragments."""
+    needle = term.lower()
+    return needle in row["full_name"].lower() or needle in row["recipe_name"].lower()
+
+
+def search_meas_hist(
+    tool_type: ToolType | None = None,
+    fab: list[str] | None = None,
+    model: list[str] | None = None,
+    eq: list[str] | None = None,
+    recipe: list[str] | None = None,
+    lot: list[str] | None = None,
+    msr: list[str] | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    offset: int = 0,
+    limit: int = DEFAULT_LIMIT
+) -> MeasHistSearchResponse:
+    start, end, out_of_retention = _resolve_window(date_from, date_to)
+
+    fab_set = {v.upper() for v in (fab or [])}
+    model_set = {v.upper() for v in (model or [])}
+    eq_set = {v.upper() for v in (eq or [])}
+    lot_set = {v.upper() for v in (lot or [])}
+    msr_set = set(msr or [])
+    recipe_terms = [v for v in (recipe or []) if v]
+
+    rows: list[MeasHistRow] = []
+    if not out_of_retention:
+        for row in _all_rows():
+            if tool_type and row["tool_type"] != tool_type:
+                continue
+
+            ts = _row_time(row)
+            if ts < start or ts > end:
+                continue
+
+            # Values within a field OR together; fields AND together.
+            if fab_set and row["fab_name"].upper() not in fab_set:
+                continue
+            if model_set and row["eqp_model_cd"].upper() not in model_set:
+                continue
+            if eq_set and row["eqp_id"].upper() not in eq_set:
+                continue
+            if lot_set and row["lot_id"].upper() not in lot_set:
+                continue
+            if msr_set and row["msr"] not in msr_set:
+                continue
+            if recipe_terms and not any(_matches_recipe_term(row, t) for t in recipe_terms):
+                continue
+
+            rows.append(row)
+
+    rows.sort(key=lambda r: r["timestamp"], reverse=True)
+
+    total = len(rows)
+    capped = total > MAX_RESULT_WINDOW
+    retrievable = rows[:MAX_RESULT_WINDOW]
+
+    offset = max(offset, 0)
+    limit = max(1, min(limit, DEFAULT_LIMIT * 10))
+    page = retrievable[offset:offset + limit]
+
+    return MeasHistSearchResponse(
+        total=total,
+        capped=capped,
+        offset=offset,
+        limit=limit,
+        range={
+            "from": start.strftime("%Y-%m-%d"),
+            "to": end.strftime("%Y-%m-%d"),
+            "anchor": RETENTION_ANCHOR.strftime("%Y-%m-%d")
+        },
+        out_of_retention=out_of_retention,
+        rows=page
+    )
+
+
+def _facet_counts(rows: tuple[MeasHistRow, ...], key: str) -> list[MeasHistFacetValue]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        counts[row[key]] = counts.get(row[key], 0) + 1
+    return [
+        MeasHistFacetValue(value=value, count=count)
+        for value, count in sorted(counts.items())
+    ]
+
+
+def get_meas_hist_facets(tool_type: ToolType | None = None) -> MeasHistFacetsResponse:
+    """Dropdown options — only values that actually exist inside retention.
+
+    Phase 2/3: a terms aggregation over the same bool filter.
+    """
+    start, end = _retention_window()
+
+    rows = tuple(
+        row for row in _all_rows()
+        if (not tool_type or row["tool_type"] == tool_type)
+        and start <= _row_time(row) <= end
+    )
+
+    return MeasHistFacetsResponse(
+        tool_type=tool_type,
+        anchor=RETENTION_ANCHOR.strftime("%Y-%m-%d"),
+        retention_days=RETENTION_DAYS,
+        fab=_facet_counts(rows, "fab_name"),
+        model=_facet_counts(rows, "eqp_model_cd"),
+        eq=_facet_counts(rows, "eqp_id"),
+        recipe=_facet_counts(rows, "full_name")
     )
