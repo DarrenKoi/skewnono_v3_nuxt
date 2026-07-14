@@ -9,6 +9,7 @@
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { paramValues } from '~/utils/msrRows'
+import { mean as meanOf, quantileSorted, iqrFences } from '~/utils/stats'
 import { SK_CHART } from '~/utils/chartPalette'
 
 // CD distribution for one parameter, in three shapes: histogram, box plot, or a
@@ -30,7 +31,7 @@ const values = computed(() => paramValues(props.rows, props.parameter))
 
 const mean = computed(() => {
   const v = values.value
-  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0
+  return v.length ? meanOf(v) : 0
 })
 
 // Shared binning for histogram + violin.
@@ -50,24 +51,20 @@ const bins = computed(() => {
   return { centers, counts }
 })
 
-const quantile = (sorted: number[], q: number): number => {
-  if (sorted.length === 0) return 0
-  const pos = (sorted.length - 1) * q
-  const base = Math.floor(pos)
-  const rest = pos - base
-  const next = sorted[base + 1]
-  return next !== undefined ? sorted[base]! + rest * (next - sorted[base]!) : sorted[base]!
-}
-
+// Five-number summary with Tukey-fenced whiskers. Unlike the MDC fleet boxplot
+// (boxplotStats.ts), a CD distribution has hundreds of sites, so fencing surfaces
+// genuine outliers instead of hiding real tools.
 const boxStats = computed(() => {
   const sorted = [...values.value].sort((a, b) => a - b)
   if (sorted.length === 0) return null
+  const f = iqrFences(sorted)!
+  const inliers = sorted.filter(v => v >= f.lower && v <= f.upper)
   return [
-    sorted[0]!,
-    quantile(sorted, 0.25),
-    quantile(sorted, 0.5),
-    quantile(sorted, 0.75),
-    sorted[sorted.length - 1]!
+    inliers[0] ?? sorted[0]!,
+    f.q1,
+    quantileSorted(sorted, 0.5),
+    f.q3,
+    inliers[inliers.length - 1] ?? sorted[sorted.length - 1]!
   ]
 })
 

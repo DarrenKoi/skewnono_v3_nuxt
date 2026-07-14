@@ -262,6 +262,7 @@ import type { HardwarePayload } from '~/composables/useHardwareApi'
 import type { FdcTrendPoint, FdcTrendSeries } from '~/components/ebeam/skewvoir/FdcTimeSeriesChart.vue'
 import type { FdcScatterPoint } from '~/components/ebeam/skewvoir/FdcScatter.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
+import { pearson as pearsonOf, linearFit } from '~/utils/stats'
 
 const props = defineProps<{
   selectedRows: MeasHistRow[]
@@ -423,50 +424,19 @@ const scatterPoints = computed<FdcScatterPoint[]>(() => {
   return points
 })
 
-// Require ≥3 points: with n=2 Pearson r is trivially ±1 (two points are always
-// perfectly collinear), which would overstate a non-existent relationship.
-const MIN_CORR_N = 3
-
-const pearson = computed<number | null>(() => {
-  const pts = scatterPoints.value
-  const n = pts.length
-  if (n < MIN_CORR_N) return null
-  const mx = pts.reduce((s, p) => s + p.x, 0) / n
-  const my = pts.reduce((s, p) => s + p.y, 0) / n
-  let sxy = 0
-  let sxx = 0
-  let syy = 0
-  for (const p of pts) {
-    const dx = p.x - mx
-    const dy = p.y - my
-    sxy += dx * dy
-    sxx += dx * dx
-    syy += dy * dy
-  }
-  if (sxx === 0 || syy === 0) return 0
-  return sxy / Math.sqrt(sxx * syy)
-})
+// Shared pearson already floors at n >= 3: with n = 2 Pearson r is trivially
+// ±1 (two points are always perfectly collinear), which would overstate a
+// non-existent relationship. It returns null (not 0) when undefined.
+const pearson = computed<number | null>(() => pearsonOf(scatterPoints.value.map(p => [p.x, p.y])))
 
 const scatterFit = computed<[[number, number], [number, number]] | null>(() => {
   const pts = scatterPoints.value
-  const n = pts.length
-  if (n < 2) return null
-  const mx = pts.reduce((s, p) => s + p.x, 0) / n
-  const my = pts.reduce((s, p) => s + p.y, 0) / n
-  let sxy = 0
-  let sxx = 0
-  for (const p of pts) {
-    const dx = p.x - mx
-    sxy += dx * (p.y - my)
-    sxx += dx * dx
-  }
-  if (sxx === 0) return null
-  const slope = sxy / sxx
-  const intercept = my - slope * mx
+  const fit = linearFit(pts.map(p => [p.x, p.y]))
+  if (!fit) return null
   const xs = pts.map(p => p.x)
   const x0 = Math.min(...xs)
   const x1 = Math.max(...xs)
-  return [[x0, slope * x0 + intercept], [x1, slope * x1 + intercept]]
+  return [[x0, fit.slope * x0 + fit.intercept], [x1, fit.slope * x1 + fit.intercept]]
 })
 
 const correlationTone = computed(() => {
