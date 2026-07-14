@@ -34,13 +34,14 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { isValidRow } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const mode = ref('Hist')
 
 const hasData = computed(() =>
-  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value)
+  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isValidRow(r))
 )
 
 const meta = computed(() => {

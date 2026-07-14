@@ -143,6 +143,7 @@
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
+import { isValidRow } from '~/utils/msrRows'
 
 const props = defineProps<{
   ws: SkewvoirWorkspace
@@ -167,6 +168,6 @@ const candidateItems = computed(() =>
 )
 
 const hasFocusData = computed(() =>
-  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value)
+  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isValidRow(r))
 )
 </script>

@@ -9,7 +9,7 @@
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { validRows } from '~/utils/msrRows'
-import { pearson, spearman, linearFit } from '~/utils/stats'
+import { pearson, spearman, fitLine } from '~/utils/stats'
 import { SK_CHART } from '~/utils/chartPalette'
 
 // Param-vs-param correlation within one measurement. Pairs the two parameters'
@@ -44,15 +44,12 @@ const r2 = computed(() => (r.value == null ? null : r.value * r.value))
 const rho = computed(() => spearman(pairs.value))
 const sampleN = computed(() => pairs.value.length)
 
-const fitLine = computed<[number, number][]>(() => {
-  const pts = pairs.value
-  const fit = linearFit(pts)
-  if (!fit) return []
-  const xs = pts.map(p => p[0])
-  const min = Math.min(...xs)
-  const max = Math.max(...xs)
-  return [[min, fit.slope * min + fit.intercept], [max, fit.slope * max + fit.intercept]]
-})
+// pearson returns null for TWO distinct reasons: n < 3 (too few pairs) or zero
+// variance on either axis (plenty of pairs, but a constant CD). Conflating them
+// under "표본 부족" would lie when n is large — label each honestly.
+const noAnswerLabel = computed(() => (sampleN.value < 3 ? '표본 부족' : '분산 없음'))
+
+const fitLinePoints = computed<[number, number][]>(() => fitLine(pairs.value) ?? [])
 
 const option = computed<EChartsOption>(() => ({
   tooltip: {
@@ -69,7 +66,7 @@ const option = computed<EChartsOption>(() => ({
         top: 4,
         textStyle: { fontSize: 11, color: SK_CHART.brand }
       }
-    : { text: `표본 부족 · n = ${sampleN.value}`, right: 8, top: 4, textStyle: { fontSize: 11, color: SK_CHART.muted } },
+    : { text: `${noAnswerLabel.value} · n = ${sampleN.value}`, right: 8, top: 4, textStyle: { fontSize: 11, color: SK_CHART.muted } },
   grid: { left: 44, right: 16, top: 24, bottom: 36, containLabel: true },
   xAxis: {
     type: 'value',
@@ -99,7 +96,7 @@ const option = computed<EChartsOption>(() => ({
       smooth: false,
       showSymbol: false,
       lineStyle: { color: SK_CHART.brand, width: 2 },
-      data: fitLine.value,
+      data: fitLinePoints.value,
       tooltip: { show: false },
       silent: true
     }

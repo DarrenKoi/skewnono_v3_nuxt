@@ -23,6 +23,13 @@ test('mp_number < 0 is invalid even if a cd_value somehow survives', () => {
   assert.equal(isValidRow(row({ mp_number: -1, cd_value: 42 })), false)
 })
 
+// Every case above pairs mp_number: -1 with cd_value: null, so deleting the
+// `cd_value != null` clause of isValidRow would leave them all green. Pin it
+// in isolation: mp_number is a valid non-sentinel, but cd_value is still null.
+test('mp_number >= 0 with a null cd_value is invalid — the null is the backend contract', () => {
+  assert.equal(isValidRow(row({ mp_number: 0, cd_value: null })), false)
+})
+
 test('non-finite cd_value is invalid', () => {
   assert.equal(isValidRow(row({ cd_value: Number.NaN })), false)
   assert.equal(isValidRow(row({ cd_value: Number.POSITIVE_INFINITY })), false)

@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mean, sampleStd, quantileSorted, iqrFences, pearson, spearman, linearFit } from './stats.ts'
+import { mean, sampleStd, quantileSorted, iqrFences, pearson, spearman, linearFit, fitLine } from './stats.ts'
 
 const close = (a: number, b: number, eps = 1e-9) =>
   assert.ok(Math.abs(a - b) < eps, `${a} !== ${b}`)
@@ -54,6 +54,14 @@ test('pearson returns null on zero variance in either axis', () => {
   assert.equal(pearson([[1, 5], [2, 5], [3, 5]]), null)
 })
 
+// Pins the n=3 floor exactly: mutating it to n < 4 must fail this, not the
+// n=2/zero-variance tests above, which would stay green either way.
+test('pearson at exactly n=3 with genuine variance on both axes returns a real value', () => {
+  const r = pearson([[1, 1], [2, 3], [3, 4]])
+  assert.notEqual(r, null)
+  close(r!, 0.9819805060619659)
+})
+
 test('spearman is 1 for any monotonic relation, even a non-linear one', () => {
   // Pearson would NOT be 1 here; that is the whole reason Spearman exists.
   close(spearman([[1, 1], [2, 8], [3, 27], [4, 64]])!, 1)
@@ -72,4 +80,23 @@ test('linearFit recovers slope and intercept', () => {
 
 test('linearFit returns null when x has zero variance', () => {
   assert.equal(linearFit([[2, 1], [2, 3], [2, 5]]), null)
+})
+
+test('fitLine returns the two endpoints at min(x) and max(x)', () => {
+  const seg = fitLine([[0, 1], [1, 3], [2, 5], [3, 7]])!
+  close(seg[0][0], 0)
+  close(seg[0][1], 1)
+  close(seg[1][0], 3)
+  close(seg[1][1], 7)
+})
+
+test('fitLine returns null when linearFit does', () => {
+  assert.equal(fitLine([[2, 1], [2, 3], [2, 5]]), null)
+  assert.equal(fitLine([[1, 5]]), null)
+})
+
+test('fitLine ignores non-finite pairs when locating the endpoints', () => {
+  const seg = fitLine([[0, 1], [1, 3], [2, 5], [3, 7], [Number.NaN, 99], [Infinity, -1]])!
+  close(seg[0][0], 0)
+  close(seg[1][0], 3)
 })

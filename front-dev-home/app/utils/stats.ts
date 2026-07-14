@@ -122,3 +122,15 @@ export const linearFit = (pairs: [number, number][]): LinearFit | null => {
   const slope = c.sxy / c.sxx
   return { slope, intercept: c.my - slope * c.mx }
 }
+
+// The two endpoints of a fitted line, at min(x) and max(x) — the single shape
+// every scatter's fit overlay needs. Was duplicated in CorrelationScatter.vue
+// and FdcAnalysis.vue before this; both now call here instead.
+export const fitLine = (pairs: [number, number][]): [[number, number], [number, number]] | null => {
+  const fit = linearFit(pairs)
+  if (!fit) return null
+  const xs = pairs.filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)).map(([x]) => x)
+  const min = Math.min(...xs)
+  const max = Math.max(...xs)
+  return [[min, fit.slope * min + fit.intercept], [max, fit.slope * max + fit.intercept]]
+}

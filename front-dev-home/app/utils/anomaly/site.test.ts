@@ -42,6 +42,31 @@ test('unmeasured rows are excluded — they cannot be judged nor judge others', 
   assert.ok(out.every(o => o.verdict.severity === 'normal'))
 })
 
+// The case above pairs mp_number: -1 with cd_value: null, so it alone would
+// not catch a regression that dropped either half of isValidRow's `&&`. Pin
+// each half independently against the same gate siteVerdicts relies on.
+test('a valid mp_number with a null cd_value is still excluded', () => {
+  const rows = [
+    row({ sequence: 1, cd_value: 100 }),
+    row({ sequence: 2, cd_value: 100 }),
+    row({ sequence: 3, cd_value: 100 }),
+    row({ sequence: 4, cd_value: null, mp_number: 0 })
+  ]
+  const out = siteVerdicts(rows, 'CD_TOP', DEFAULT_METHOD_CONFIG)
+  assert.equal(out.length, 3)
+})
+
+test('a negative mp_number is excluded even if a cd_value somehow survives', () => {
+  const rows = [
+    row({ sequence: 1, cd_value: 100 }),
+    row({ sequence: 2, cd_value: 100 }),
+    row({ sequence: 3, cd_value: 100 }),
+    row({ sequence: 4, cd_value: 130, mp_number: -1 })
+  ]
+  const out = siteVerdicts(rows, 'CD_TOP', DEFAULT_METHOD_CONFIG)
+  assert.equal(out.length, 3)
+})
+
 test('other parameters are ignored', () => {
   const rows = [
     row({ sequence: 1, parameter: 'CD_TOP', cd_value: 100 }),

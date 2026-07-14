@@ -29,9 +29,12 @@ const BIN_COUNT = 12
 
 const values = computed(() => paramValues(props.rows, props.parameter))
 
-const mean = computed(() => {
+// null, not 0: an empty parameter has no mean to mark. A markline/label
+// consumer must suppress rendering on null rather than plotting a fabricated
+// CD = 0 — see governing principle in app/utils/msrRows.ts / stats.ts.
+const mean = computed<number | null>(() => {
   const v = values.value
-  return v.length ? meanOf(v) : 0
+  return v.length ? meanOf(v) : null
 })
 
 // Shared binning for histogram + violin.

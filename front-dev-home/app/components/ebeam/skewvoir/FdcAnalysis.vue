@@ -262,7 +262,7 @@ import type { HardwarePayload } from '~/composables/useHardwareApi'
 import type { FdcTrendPoint, FdcTrendSeries } from '~/components/ebeam/skewvoir/FdcTimeSeriesChart.vue'
 import type { FdcScatterPoint } from '~/components/ebeam/skewvoir/FdcScatter.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
-import { pearson as pearsonOf, linearFit } from '~/utils/stats'
+import { pearson as pearsonOf, fitLine } from '~/utils/stats'
 
 const props = defineProps<{
   selectedRows: MeasHistRow[]
@@ -429,15 +429,9 @@ const scatterPoints = computed<FdcScatterPoint[]>(() => {
 // non-existent relationship. It returns null (not 0) when undefined.
 const pearson = computed<number | null>(() => pearsonOf(scatterPoints.value.map(p => [p.x, p.y])))
 
-const scatterFit = computed<[[number, number], [number, number]] | null>(() => {
-  const pts = scatterPoints.value
-  const fit = linearFit(pts.map(p => [p.x, p.y]))
-  if (!fit) return null
-  const xs = pts.map(p => p.x)
-  const x0 = Math.min(...xs)
-  const x1 = Math.max(...xs)
-  return [[x0, fit.slope * x0 + fit.intercept], [x1, fit.slope * x1 + fit.intercept]]
-})
+const scatterFit = computed<[[number, number], [number, number]] | null>(() =>
+  fitLine(scatterPoints.value.map(p => [p.x, p.y]))
+)
 
 const correlationTone = computed(() => {
   const r = pearson.value
