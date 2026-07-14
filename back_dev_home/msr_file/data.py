@@ -17,21 +17,34 @@ md5(msr) seed, so the same MSR always opens to identical detail data with no DB
 A single per-MSR ``health`` scalar (0 = nominal, 1 = strongly abnormal) biases
 BOTH the CD drift and the FDC drift, so an unhealthy tool shows correlated CD ↔
 FDC excursions — that correlation is exactly what the skewvoir analysis surfaces.
+
+Two columns are renamed from the pickle spec because the literal names are not
+usable as Python identifiers in a TypedDict: `class` -> `class_name` (keyword)
+and `object` -> `object_type` (shadows the builtin). The wire format uses the
+renamed keys and the frontend consumes them under those names.
+
+`cd_value` is NULLABLE (docs §df_result_data). It is None exactly when
+mp_number < 0 — a point with metadata but no data has no measurement. Every
+consumer must gate on this; see app/utils/msrRows.ts.
 """
 
 import hashlib
+import math
 import random
 from functools import lru_cache
-from statistics import fmean, pstdev
+from statistics import fmean, pstdev, stdev
 from typing import NamedTuple, TypedDict
 
-from back_dev_home.meas_hist.data import find_meas_hist_by_msr
+from back_dev_home.meas_hist.data import MeasHistRow, find_meas_hist_by_msr
 
 
 __all__ = [
     "MsrFileRow",
     "MsrParamSummary",
     "FdcParamSummary",
+    "ExeDetailInfo",
+    "AlignmentInfo",
+    "SpmDict",
     "MsrFileResponse",
     "get_msr_file",
     "get_msr_image",
@@ -47,14 +60,21 @@ class MsrFileRow(TypedDict):
     dnum_group: str
     mp_number: int
     parameter: str
-    cd_value: float
+    # NULLABLE (docs §df_result_data: "cd_value": 43.14, None). None exactly when
+    # mp_number < 0 — a point with no data has no measurement. Emitting a float
+    # here is what silently contaminated every mean, sigma and anomaly verdict.
+    cd_value: float | None
     no_of_mp_image: int
     mp_image_name_01: str
-    # Richer df_result_data fields from the pickle (docs §df_result_data). Quality
-    # scores are nullable — a skipped/failed point reports None.
+    meas_condition_mag: int      # pickle "meas_condition mag"
+    meas_condition_vac: int      # pickle "meas_condition vac"
+    meas_condition_pixel: str    # pickle "meas_condition pixel"
+    addressing1_score: int | None
+    addressing2_score: int | None
     measurement_score: int | None
-    meas_method: str
-    object_type: str
+    meas_method: str             # Score | Width | Edge
+    object_type: str             # pickle "object" — renamed, `object` shadows the builtin
+    meas_kind: str | None        # Multi Point | Single Point | None
 
 
 class MsrParamSummary(TypedDict):
@@ -82,6 +102,42 @@ class FdcParamSummary(TypedDict):
     status: str  # ok | warning | bad
 
 
+class ExeDetailInfo(TypedDict):
+    """docs §exe_detail_info. `class` is a Python keyword -> `class_name`."""
+    class_name: str
+    recipe_name: str
+    idp_name: str
+    lot_id: str
+    process: str
+    wafer_id: str
+    idw_name: str
+    chip_array: str
+    chip_pitch: str
+    wafer_size: str
+    map_offset: str
+    map_origin: str
+
+
+class AlignmentInfo(TypedDict):
+    """docs §alignment. Keys "1".."3" are the alignment points."""
+    image_file: dict[str, str]
+    offset: dict[str, list[str]]   # [method, x, y] e.g. ["OM", "365", "3525"]
+    score: dict[str, str]
+
+
+class SpmDict(TypedDict):
+    """docs §spm_dict. A 32-point profile: Vol (signal) against wf_len (nm).
+
+    PLACEHOLDER MOCK. The real waveform is broadly stable or gently parabolic,
+    and Phase 1 (home) has no consumer for it — nothing reads spm_dict yet. So it
+    is generated as a shallow parabola plus noise, deliberately NOT coupled to
+    cd_value. Do not build analysis on its shape; it carries no signal.
+    """
+    vave: list[float]
+    Vol: list[float]
+    wf_len: list[float]
+
+
 class MsrFileResponse(TypedDict):
     msr: str
     class_name: str
@@ -94,6 +150,9 @@ class MsrFileResponse(TypedDict):
     fixed_fdc: dict[str, float]
     # Per-sequence FDC (docs §dynamic_fdc): keyed by sequence string → {param: value}.
     dynamic_fdc: dict[str, dict[str, float]]
+    exe_detail_info: ExeDetailInfo
+    alignment: AlignmentInfo
+    spm_dict: SpmDict
     total: int
     rows: list[MsrFileRow]
 
@@ -214,6 +273,84 @@ FDC_CATEGORY_LABELS: dict[str, str] = {
 _MEAS_METHODS: tuple[str, ...] = ("Score", "Width", "Edge")
 _OBJECT_TYPES: tuple[str, ...] = ("MP", "Line", "Space")
 
+_MEAS_KINDS: tuple[str | None, ...] = ("Multi Point", "Single Point", None)
+_MAGNIFICATIONS: tuple[int, ...] = (200015, 250030, 250044)
+_VOLTAGES: tuple[int, ...] = (500, 800, 1000)
+_PIXELS: tuple[str, ...] = ("512,512", "1024,1024")
+_PROCESS_BY_CLASS: dict[str, str] = {
+    "ADI": "PHOTO", "AEI": "ETCH", "OVL": "PHOTO", "GATE": "ETCH",
+    "CNT": "ETCH", "EDGE": "ETCH", "QC": "METRO", "DEF": "METRO",
+}
+SPM_POINTS = 32
+
+
+def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> ExeDetailInfo:
+    """Acquisition context. Sourced from the parent meas_hist row wherever
+    possible so the MSR detail can never contradict the measurement history it
+    hangs off; only the wafer geometry (absent upstream) is seeded."""
+    rng = random.Random(_seed(msr, 313))
+    recipe_name = parent["recipe_name"] if parent else f"{class_name}_UNKNOWN"
+    lot_id = parent["lot_id"] if parent else f"LOT{_seed(msr) % 1_000_000:06d}"
+    idp_name = parent["idp_name"] if parent else f"/Recipe/{class_name}/{recipe_name}.idp"
+    idw_name = parent["idw_name"] if parent else f"/Recipe/{class_name}/{recipe_name}.idw"
+
+    cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
+    pitch_x, pitch_y = rng.randrange(24, 28) * 1_000_000, rng.randrange(31, 35) * 1_000_000
+
+    return ExeDetailInfo(
+        class_name=class_name,
+        recipe_name=recipe_name,
+        idp_name=idp_name,
+        lot_id=lot_id,
+        process=_PROCESS_BY_CLASS.get(class_name.upper(), "METRO"),
+        # 25 wafers to a lot; the slot is stable per MSR.
+        wafer_id=f"{lot_id}_{(_seed(msr, 41) % 25) + 1:02d}",
+        idw_name=idw_name,
+        chip_array=f"{cols},{rows_n}",
+        chip_pitch=f"{pitch_x},{pitch_y}",
+        wafer_size="300",
+        map_offset=f"{rng.randrange(-3_000_000, 3_000_000)},{rng.randrange(-3_000_000, 3_000_000)}",
+        map_origin=f"{rng.randrange(-1_000_000, 1_000_000)},{rng.randrange(-1_000_000, 1_000_000)}",
+    )
+
+
+def _alignment(msr: str, health: float) -> AlignmentInfo:
+    """Three alignment points. Scores are plain integers, seeded per MSR and
+    trending lower as `health` rises. Nothing downstream thresholds on them yet,
+    so the exact scale is not load-bearing — keep it an int and keep it stable."""
+    rng = random.Random(_seed(msr, 617))
+    image_file: dict[str, str] = {}
+    offset: dict[str, list[str]] = {}
+    score: dict[str, str] = {}
+
+    for i in range(1, 4):
+        key = str(i)
+        method = "OM" if i == 1 else "SEM"
+        image_file[key] = f"{msr}_ALIGN{i}_{rng.randint(0, 9999):04d}.tif"
+        offset[key] = [method, str(rng.randrange(-4000, 4000)), str(rng.randrange(-4000, 4000))]
+        score[key] = str(max(0, int(round(rng.uniform(820, 960) - 400 * health))))
+
+    return AlignmentInfo(image_file=image_file, offset=offset, score=score)
+
+
+def _spm_dict(msr: str) -> SpmDict:
+    """A 32-point profile. PLACEHOLDER — see SpmDict.
+
+    Shallow parabola + noise. Nothing reads spm_dict in Phase 1, and the real
+    signal is broadly stable, so this exists to satisfy the response shape and
+    nothing more. It is deliberately NOT derived from cd_value or health: a mock
+    that looks meaningful invites analysis it cannot support.
+    """
+    rng = random.Random(_seed(msr, 829))
+    span = 148.0
+    wf_len = [round(-span + (2 * span) * i / (SPM_POINTS - 1), 2) for i in range(SPM_POINTS)]
+
+    curvature = rng.uniform(2e-5, 8e-5)
+    base = rng.uniform(0.8, 1.6)
+    vol = [round(base - curvature * (x ** 2) + rng.gauss(0, 0.03), 5) for x in wf_len]
+
+    return SpmDict(vave=[round(fmean(vol), 5)], Vol=vol, wf_len=wf_len)
+
 
 def _health(msr: str) -> float:
     """Per-MSR abnormality in [0, 1]; squared so most MSRs sit near nominal."""
@@ -271,16 +408,33 @@ def _build_rows(
         chip_coordinate = f"{12_000_000 + sequence * 1000 + seed % 1_000_000},{250_000 + sequence * 100}"
         stage_coordinate = f"{175_000_000 + sequence * 10000 + seed % 100_000}, {147_000_000 + sequence * 5000}"
 
-        # Every 20th sequence has point metadata but no actual point data.
-        if sequence % 20 == 0:
+        # Every 20th sequence carries point METADATA but no point DATA (spec rule 9).
+        # Such a row has no measurement, so it has no cd_value, no image and no
+        # score. Emitting a float here is the bug this rewrite exists to kill.
+        empty = sequence % 20 == 0
+
+        if empty:
             dnum_group, mp_number = "-1, -1", -1
         else:
             mp_number = (sequence - 1) % 30
             dnum_group = f"{mp_number}, -1"
 
-        # Quality score falls as health rises; ~health fraction of points fail to score.
-        scored = rng.random() > (0.05 + 0.35 * health)
-        measurement_score = int(round(rng.uniform(820, 990) - 220 * health)) if scored else None
+        if empty:
+            meas_mag, meas_vac, meas_pixel = 0, 0, "0,0"
+            measurement_score = None
+            addressing1 = addressing2 = None
+            meas_kind = None
+        else:
+            meas_mag = _MAGNIFICATIONS[(sequence + seed) % len(_MAGNIFICATIONS)]
+            meas_vac = _VOLTAGES[(sequence + seed) % len(_VOLTAGES)]
+            meas_pixel = _PIXELS[(sequence + seed) % len(_PIXELS)]
+            # Quality scores fall as health rises; ~health fraction fail to score.
+            scored = rng.random() > (0.05 + 0.35 * health)
+            measurement_score = int(round(rng.uniform(820, 990) - 220 * health)) if scored else None
+            addressing1 = int(round(rng.uniform(600, 950) - 200 * health)) if scored else None
+            addressing2 = int(round(rng.uniform(600, 950) - 200 * health)) if scored else None
+            meas_kind = _MEAS_KINDS[(sequence + seed) % len(_MEAS_KINDS)]
+
         meas_method = _MEAS_METHODS[(sequence + seed) % len(_MEAS_METHODS)]
         object_type = _OBJECT_TYPES[(sequence + seed) % len(_OBJECT_TYPES)]
 
@@ -294,12 +448,21 @@ def _build_rows(
                 dnum_group=dnum_group,
                 mp_number=mp_number,
                 parameter=parameter,
-                cd_value=_cd_value(rng, parameter, health, seq_frac),
-                no_of_mp_image=1 + rng.randint(0, 4),
-                mp_image_name_01=f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}.tif",
+                cd_value=None if empty else _cd_value(rng, parameter, health, seq_frac),
+                no_of_mp_image=0 if empty else 1 + rng.randint(0, 4),
+                mp_image_name_01=(
+                    "" if empty
+                    else f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}.tif"
+                ),
+                meas_condition_mag=meas_mag,
+                meas_condition_vac=meas_vac,
+                meas_condition_pixel=meas_pixel,
+                addressing1_score=addressing1,
+                addressing2_score=addressing2,
                 measurement_score=measurement_score,
                 meas_method=meas_method,
                 object_type=object_type,
+                meas_kind=meas_kind,
             ))
 
     return rows
@@ -356,21 +519,35 @@ def _build_fdc(
 
 
 def _summaries(rows: list[MsrFileRow]) -> list[MsrParamSummary]:
+    """Per-parameter descriptive stats over MEASURED rows only.
+
+    These summaries feed the Data Summary table, the 3-sigma column AND the
+    time-series anomaly verdicts, so a single unmeasured row leaking in here
+    propagates into a wrong watch/abnormal call. Mirrors the frontend gate in
+    app/utils/msrRows.ts::isValidRow.
+    """
     by_param: dict[str, list[float]] = {}
     for row in rows:
-        by_param.setdefault(row["parameter"], []).append(row["cd_value"])
+        value = row["cd_value"]
+        if value is None or not math.isfinite(value):
+            continue
+        by_param.setdefault(row["parameter"], []).append(value)
 
     summaries = [
         MsrParamSummary(
             parameter=parameter,
             count=len(values),
             mean=round(fmean(values), 3),
-            std=round(pstdev(values), 3) if len(values) > 1 else 0.0,
+            # Sample stdev (n-1), matching app/utils/stats.ts::sampleStd and
+            # anomaly/peer.ts::looStats. pstdev would make the backend sigma and
+            # the frontend sigma different quantities.
+            std=round(stdev(values), 3) if len(values) > 1 else 0.0,
             min=round(min(values), 3),
             max=round(max(values), 3),
-            unit=_unit(parameter)
+            unit=_unit(parameter),
         )
         for parameter, values in by_param.items()
+        if values
     ]
     summaries.sort(key=lambda summary: summary["parameter"])
     return summaries
@@ -455,15 +632,18 @@ def get_msr_file(
         return None
 
     # The skewvoir UI passes class_name/total_images from the selected meas_hist
-    # row; for direct API access we fall back to the parent meas_hist lookup.
-    if class_name is None or total_images is None:
-        parent = find_meas_hist_by_msr(msr)
+    # row, but exe_detail_info needs recipe_name, lot_id, idp_name and idw_name
+    # too — so always attempt the parent lookup, and only fall back to seeded
+    # synthesis when the MSR has no parent at all.
+    parent = find_meas_hist_by_msr(msr)
+    if class_name is None:
         if parent is None:
             return None
-        if class_name is None:
-            class_name = parent["class_name"]
-        if total_images is None:
-            total_images = parent["total_images"]
+        class_name = parent["class_name"]
+    if total_images is None:
+        if parent is None:
+            return None
+        total_images = parent["total_images"]
 
     health = _health(msr)
     rows = _build_rows(msr, class_name, total_images, health)
@@ -483,6 +663,9 @@ def get_msr_file(
         fdc_params=fdc_params,
         fixed_fdc=fixed_fdc,
         dynamic_fdc=dynamic_fdc,
+        exe_detail_info=_exe_detail_info(msr, parent, class_name),
+        alignment=_alignment(msr, health),
+        spm_dict=_spm_dict(msr),
         total=len(rows),
         rows=rows
     )
