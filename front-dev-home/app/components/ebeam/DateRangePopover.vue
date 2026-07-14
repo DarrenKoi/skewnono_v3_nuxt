@@ -63,6 +63,10 @@ const props = defineProps<{
   // of wall-clock today. Used by callers tied to mock data with a fixed
   // ceiling — without it presets land outside the data window.
   anchorDate?: string
+  // Optional override for the preset list. Defaults to Today/7/30/90 days —
+  // callers bound to a shorter retention window (where 90 days would only
+  // ever return a clamped range) can pass their own list instead.
+  presets?: { label: string, days: number }[]
 }>()
 
 const emit = defineEmits<{
@@ -108,12 +112,14 @@ const range = computed({
 const startLabel = computed(() => props.modelValue.start || '----/--/--')
 const endLabel = computed(() => props.modelValue.end || '----/--/--')
 
-const presets = [
+const DEFAULT_PRESETS = [
   { label: 'Today', days: 0 },
   { label: 'Last 7 days', days: 7 },
   { label: 'Last 30 days', days: 30 },
   { label: 'Last 90 days', days: 90 }
 ]
+
+const presets = computed(() => props.presets ?? DEFAULT_PRESETS)
 
 const applyPreset = (days: number) => {
   const end = anchorValue.value
