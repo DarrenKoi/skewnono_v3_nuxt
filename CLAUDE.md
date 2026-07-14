@@ -87,3 +87,17 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 - Use markdownlint `MD060` `compact` table style for every Markdown table.
 - Write `docs/` and study Markdown in Korean when it is intended for teammate sharing.
 - Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked as Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the five canonical label names as status values. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository with `CONTEXT.md` and `docs/adr/` at the root. See `docs/agents/domain.md`.
