@@ -70,7 +70,7 @@
 
     <!-- Search + filters -->
     <div class="dashboard-surface rounded-(--sk-r-card) p-3">
-      <EbeamSkewvoirSearchSearchBar
+      <EbeamSkewvoirSearchBar
         v-model="search.queryText.value"
         :parsed="search.parsed.value"
         :pending="search.pending.value"

@@ -169,8 +169,9 @@ const toast = useToast()
 // job "recently viewed" has: bump `viewedAt` and move the entry back to the
 // top even when the msr is already known. When navigation DID come from the
 // landing page, SearchLanding.open() already recorded a richer entry (real
-// `fab`) just before navigating here; carry that forward from the existing
-// entry rather than overwriting it with the blank `fab` available at this layer.
+// `fab`, class-qualified `recipe`) just before navigating here; the URL only
+// carries a bare recipe name and no fab at all, so carry both forward from the
+// existing entry rather than downgrading them with what this layer can see.
 const recent = useSkewvoirRecentlyViewed(props.toolType)
 const { anchor } = useMeasHistFacets(props.toolType)
 
@@ -184,7 +185,7 @@ onMounted(() => {
     msr: sel.msr,
     toolType: props.toolType,
     lot: sel.lot,
-    recipe: sel.recipe,
+    recipe: existing?.recipe ?? sel.recipe,
     eq: sel.eq,
     fab: existing?.fab ?? '',
     capturedAt: sel.capturedAt,
