@@ -1,25 +1,17 @@
-"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
+"""SWAP SURFACE for storage-page provider selection.
 
-원본 데이터: 사무실 측 CD-SEM / HV-SEM 스토리지 모니터링 인덱스
-계약:        docs/api-contracts/cdsem-storage.yaml, docs/api-contracts/hvsem-storage.yaml
-
-스코프 정책: tool_slug 에 따라 EQP 풀이 달라집니다.
-- "cdsem": Hitachi CG/GT 시리즈
-- "hvsem": AMAT TP 시리즈
-
-`classifyToolType()` (front-dev-home/app/composables/useSemListApi.ts) 와 일치.
+Routes import only this module. The selected adapter lives in
+``providers/mock.py`` or ``providers/office.py`` and must return the shared
+contracts from ``contracts.py``.
 """
 
-import random
-from datetime import date, datetime, timedelta, timezone
-from typing import TypedDict
-
-from .._tool_specs import (
-    SLUG_TO_TOOL_TYPE,
-    ToolSlug,
-    model_to_tool_type,
+from back_dev_home._runtime.data_provider import get_data_provider
+from back_dev_home.ebeam.hitachi._tool_specs import ToolSlug
+from back_dev_home.ebeam.hitachi.storage.contracts import (
+    PpidUnavailableRow,
+    PpidUnavailableSnapshot,
+    StorageRow,
 )
-from ....sem_list.data import get_sem_list
 
 
 __all__ = [
@@ -31,275 +23,33 @@ __all__ = [
 ]
 
 
-class StorageRow(TypedDict):
-    eqp_id: str
-    eqp_ip: str
-    fac_id: str
-    total: str            # "" when storage collection failed
-    used: str             # "" when storage collection failed
-    avail: str            # "" when storage collection failed
-    percent: str          # "" when storage collection failed
-    storage_mt: str | None  # None when storage collection failed
-    rcp_counts: int
-    rcp_counts_mt: str
-    storage_mt_date: str  # "" when storage collection failed
-    fab_name: str
-    eqp_model_cd: str
-
-
-def _format_size_gb(value_gb: float) -> str:
-    if value_gb < 1024:
-        return f"{int(value_gb)}G"
-    return f"{round(value_gb / 1024, 1)}T"
-
-
-def _iso_z(dt: datetime) -> str:
-    return dt.isoformat().replace("+00:00", "Z")
-
-
-def _generate_rows(tool_slug: ToolSlug, seed: int = 42) -> list[StorageRow]:
-    # sem_list is the single source of truth for the equipment fleet; storage is
-    # per-tool monitoring data keyed off it. Deriving (rather than re-rolling)
-    # eqp_id/eqp_ip/fac_id/fab_name/model keeps every dataset — sem_list, storage,
-    # and the ppid-unavailable IP join — consistent for the same physical tools.
-    tool_type = SLUG_TO_TOOL_TYPE[tool_slug]
-    fleet = [
-        tool for tool in get_sem_list()
-        if model_to_tool_type(tool["eqp_model_cd"]) == tool_type
-    ]
-
-    rng = random.Random(seed)
-    now = datetime(2026, 4, 26, 12, 0, 0, tzinfo=timezone.utc)
-    rows: list[StorageRow] = []
-
-    for tool in fleet:
-        eqp_id = tool["eqp_id"]
-        eqp_ip = tool["eqp_ip"]
-        fac_id = tool["fac_id"]
-        fab_name = tool["fab_name"]
-        model = tool["eqp_model_cd"]
-
-        # Sample timestamp drives both storage_mt and rcp_counts_mt; recipe
-        # (ppid) counting is a separate collection path from storage capacity.
-        sample_base = now - timedelta(
-            days=rng.uniform(0, 7),
-            hours=rng.randint(0, 23),
-            minutes=rng.randint(0, 59),
-            seconds=rng.randint(0, 59),
-            microseconds=rng.randint(0, 999999)
+def get_storage(
+    tool_slug: ToolSlug,
+    fac_ids: list[str] | None = None,
+) -> list[StorageRow]:
+    if get_data_provider("storage") == "office":
+        from back_dev_home.ebeam.hitachi.storage.providers.office import (
+            get_storage as load_storage,
         )
-
-        # Tools cap at 50,000 recipes. Seed a realistic mix so the UI's
-        # warning (>49,000) and critical (>49,800) tiers are exercised.
-        rcp_roll = rng.random()
-        if rcp_roll < 0.08:
-            rcp_counts = rng.randint(49_801, 49_990)
-        elif rcp_roll < 0.20:
-            rcp_counts = rng.randint(49_001, 49_800)
-        elif rcp_roll < 0.40:
-            rcp_counts = rng.randint(35_000, 49_000)
-        else:
-            rcp_counts = rng.randint(2_000, 35_000)
-        rcp_counts_mt = sample_base + timedelta(
-            hours=rng.uniform(-0.5, 0.5),
-            microseconds=rng.randint(0, 999999)
-        )
-
-        # ~8% of tools fail storage collection: storage_mt is None and the
-        # capacity fields are blank, but recipe counts still report.
-        if rng.random() < 0.08:
-            rows.append(StorageRow(
-                eqp_id=eqp_id,
-                eqp_ip=eqp_ip,
-                fac_id=fac_id,
-                total="",
-                used="",
-                avail="",
-                percent="",
-                storage_mt=None,
-                rcp_counts=rcp_counts,
-                rcp_counts_mt=_iso_z(rcp_counts_mt),
-                storage_mt_date="",
-                fab_name=fab_name,
-                eqp_model_cd=model
-            ))
-            continue
-
-        # Capacity: 70% chance GB (500-999), 30% chance TB (1.0-2.0)
-        if rng.random() < 0.7:
-            total_gb_value = rng.randint(500, 999)
-            total_label = f"{total_gb_value}G"
-            total_value = float(total_gb_value)
-        else:
-            total_tb_value = round(rng.uniform(1.0, 2.0), 1)
-            total_label = f"{total_tb_value}T"
-            total_value = total_tb_value * 1024
-
-        used_ratio = rng.uniform(0.2, 0.9)
-        used_value = total_value * used_ratio
-        avail_value = total_value - used_value
-
-        used_label = _format_size_gb(used_value)
-        avail_label = _format_size_gb(avail_value)
-        percent_label = f"{int(used_ratio * 100)}%"
-
-        rows.append(StorageRow(
-            eqp_id=eqp_id,
-            eqp_ip=eqp_ip,
-            fac_id=fac_id,
-            total=total_label,
-            used=used_label,
-            avail=avail_label,
-            percent=percent_label,
-            storage_mt=_iso_z(sample_base),
-            rcp_counts=rcp_counts,
-            rcp_counts_mt=_iso_z(rcp_counts_mt),
-            storage_mt_date=sample_base.date().isoformat(),
-            fab_name=fab_name,
-            eqp_model_cd=model
-        ))
-
-    return rows
-
-
-def get_storage(tool_slug: ToolSlug, fac_ids: list[str] | None = None) -> list[StorageRow]:
-    rows = _generate_rows(tool_slug)
-
-    if not fac_ids:
-        return rows
-
-    normalized = {fac_id.strip().upper() for fac_id in fac_ids if fac_id.strip()}
-    if not normalized:
-        return rows
-
-    return [row for row in rows if row["fac_id"] in normalized]
-
-
-# ---------------------------------------------------------------------------
-# PPID not available: tools whose recipe/ppid endpoint could not be reached.
-# Office source: Redis hash 'v3_hitachi_sem_ppid_not_avail',
-#   hget(key, "%Y%m%d") -> not_avail_ip_list (list[str] of eqp_ip), kept 30 days.
-# Only IPs are stored, so each IP is joined against sem_list to enrich; IPs with
-# no sem_list match surface as orphan rows (IP only).
-# ---------------------------------------------------------------------------
-
-
-class PpidUnavailableRow(TypedDict):
-    eqp_id: str
-    eqp_ip: str
-    fac_id: str
-    fab_name: str
-    eqp_model_cd: str
-    missing_days_streak: int
-
-
-class PpidUnavailableSnapshot(TypedDict):
-    latest_date: str
-    rows: list[PpidUnavailableRow]
-
-
-MOCK_PPID_LATEST_DATE = date(2026, 5, 26)
-MOCK_PPID_WINDOW_DAYS = 30
-
-
-def _ymd(value: date) -> str:
-    return value.strftime("%Y%m%d")
-
-
-def _generate_ppid_snapshots(tool_slug: ToolSlug, seed: int = 43) -> dict[str, list[str]]:
-    """Redis-shaped mock: {"YYYYMMDD": [eqp_ip, ...]} for the last 30 days."""
-    rng = random.Random(seed)
-    tool_type = SLUG_TO_TOOL_TYPE[tool_slug]
-    sem_rows = [
-        row for row in get_sem_list()
-        if model_to_tool_type(row["eqp_model_cd"]) == tool_type
-    ]
-
-    latest = MOCK_PPID_LATEST_DATE
-    snapshots: dict[str, list[str]] = {
-        _ymd(latest - timedelta(days=offset)): []
-        for offset in range(MOCK_PPID_WINDOW_DAYS)
-    }
-
-    if sem_rows:
-        failing = rng.sample(sem_rows, max(1, int(len(sem_rows) * 0.4)))
     else:
-        failing = []
-    n_current = len(failing) // 2
+        from back_dev_home.ebeam.hitachi.storage.providers.mock import (
+            get_storage as load_storage,
+        )
 
-    # Currently unreachable: a streak ending at the latest date.
-    for row in failing[:n_current]:
-        streak = rng.randint(1, MOCK_PPID_WINDOW_DAYS)
-        for offset in range(streak):
-            snapshots[_ymd(latest - timedelta(days=offset))].append(row["eqp_ip"])
-
-    # Failed earlier in the window then recovered (absent from the latest date).
-    for row in failing[n_current:]:
-        start = rng.randint(1, MOCK_PPID_WINDOW_DAYS - 1)
-        duration = rng.randint(1, min(4, MOCK_PPID_WINDOW_DAYS - start))
-        for offset in range(start, start + duration):
-            snapshots[_ymd(latest - timedelta(days=offset))].append(row["eqp_ip"])
-
-    # A few orphan IPs absent from sem_list (e.g. decommissioned but still failing).
-    for idx in range(3):
-        orphan_ip = f"177.{200 + idx}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
-        streak = rng.randint(1, 6)
-        for offset in range(streak):
-            snapshots[_ymd(latest - timedelta(days=offset))].append(orphan_ip)
-
-    return snapshots
-
-
-def _ppid_streak(eqp_ip: str, latest_date: date, ip_by_date: dict[str, set[str]]) -> int:
-    streak = 0
-    cursor = latest_date
-    while eqp_ip in ip_by_date.get(_ymd(cursor), set()):
-        streak += 1
-        cursor -= timedelta(days=1)
-    return streak
+    return load_storage(tool_slug, fac_ids)
 
 
 def get_ppid_unavailable(
     tool_slug: ToolSlug,
     fac_ids: list[str] | None = None,
 ) -> PpidUnavailableSnapshot:
-    snapshots = _generate_ppid_snapshots(tool_slug)
-    latest_key = max(snapshots)  # compact YYYYMMDD sorts chronologically
-    latest_date = datetime.strptime(latest_key, "%Y%m%d").date()
+    if get_data_provider("storage") == "office":
+        from back_dev_home.ebeam.hitachi.storage.providers.office import (
+            get_ppid_unavailable as load_ppid_unavailable,
+        )
+    else:
+        from back_dev_home.ebeam.hitachi.storage.providers.mock import (
+            get_ppid_unavailable as load_ppid_unavailable,
+        )
 
-    ip_by_date = {key: set(ips) for key, ips in snapshots.items()}
-    sem_by_ip = {row["eqp_ip"]: row for row in get_sem_list()}
-
-    normalized = {
-        fac_id.strip().upper()
-        for fac_id in (fac_ids or [])
-        if fac_id.strip()
-    }
-
-    rows: list[PpidUnavailableRow] = []
-    for eqp_ip in snapshots[latest_key]:
-        match = sem_by_ip.get(eqp_ip)
-        fac_id = match["fac_id"] if match else ""
-        fab_name = match["fab_name"] if match else ""
-        eqp_id = match["eqp_id"] if match else ""
-        eqp_model_cd = match["eqp_model_cd"] if match else ""
-
-        # A fac filter drops orphan rows (they have no fac_id to match).
-        if normalized and fac_id not in normalized:
-            continue
-
-        rows.append(PpidUnavailableRow(
-            eqp_id=eqp_id,
-            eqp_ip=eqp_ip,
-            fac_id=fac_id,
-            fab_name=fab_name,
-            eqp_model_cd=eqp_model_cd,
-            missing_days_streak=_ppid_streak(eqp_ip, latest_date, ip_by_date),
-        ))
-
-    rows.sort(key=lambda row: (-row["missing_days_streak"], row["eqp_ip"]))
-
-    return {
-        "latest_date": latest_date.isoformat(),
-        "rows": rows,
-    }
+    return load_ppid_unavailable(tool_slug, fac_ids)

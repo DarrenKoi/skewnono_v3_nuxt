@@ -80,7 +80,13 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
 
 ## Office migration (Phase 2)
 
-Replace each feature's `data.py` (e.g. `sem_list/data.py`, `ebeam/hitachi/storage/data.py`) with a module that queries OpenSearch / Redis. `routes.py` stays unchanged — it only consumes `get_sem_list()` etc. via `from .data import ...`, not the data source. Keep function signatures and return shapes stable.
+Provider-backed features keep `routes.py` and `data.py` unchanged. Implement the
+real source in the feature's `providers/office.py`, normalize its result to
+`contracts.py`, then select it with `SKEWNONO_DATA_PROVIDER=office` or a feature
+override. For storage, use `SKEWNONO_STORAGE_PROVIDER=office`; this selects the
+office adapter for both `/api/<tool_slug>/storage` and
+`/api/<tool_slug>/ppid-unavailable`. Keep the function interfaces and response
+shapes stable.
 
 ## Adding a new e-beam tool feature
 
