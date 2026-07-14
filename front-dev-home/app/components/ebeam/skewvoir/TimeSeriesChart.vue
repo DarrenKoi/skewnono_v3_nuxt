@@ -7,6 +7,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import { SK_CHART } from '~/utils/chartPalette'
 
 export interface TimeSeriesPoint {
   msr: string
@@ -33,9 +34,9 @@ const labels = computed(() => props.points.map(p => p.label))
 const floor = computed(() => props.points.map(p => p.min))
 const bandHeight = computed(() => props.points.map(p => Number((p.max - p.min).toFixed(3))))
 // Per-datum styling by severity (status first): insufficient grey, watch amber,
-// abnormal red, normal blue. Hexes mirror the --sk-warn/--sk-bad tokens for canvas.
+// abnormal red, normal blue.
 const SEV_HEX: Record<string, string> = {
-  abnormal: '#dc2626', watch: '#d97706', insufficient: '#9ca3af', normal: '#2563eb'
+  abnormal: SK_CHART.bad, watch: SK_CHART.warn, insufficient: SK_CHART.muted, normal: SK_CHART.series
 }
 const sevKey = (p: TimeSeriesPoint): string =>
   !p.verdict ? 'normal' : p.verdict.status === 'insufficient' ? 'insufficient' : p.verdict.severity
@@ -64,7 +65,7 @@ const option = computed<EChartsOption>(() => ({
       ]
       const v = p.verdict
       if (v && (v.status === 'insufficient' || v.severity !== 'normal')) {
-        const color = v.severity === 'abnormal' ? '#dc2626' : v.severity === 'watch' ? '#d97706' : '#9ca3af'
+        const color = v.severity === 'abnormal' ? SK_CHART.bad : v.severity === 'watch' ? SK_CHART.warn : SK_CHART.muted
         for (const x of v.verdicts) {
           if (x.status === 'evaluated' && x.severity === 'normal') continue
           lines.push(`<span style="color:${color}">⚠ ${x.reason}</span>`)
@@ -105,7 +106,7 @@ const option = computed<EChartsOption>(() => ({
       stack: 'band',
       data: bandHeight.value,
       lineStyle: { opacity: 0 },
-      areaStyle: { color: '#3b82f6', opacity: 0.12 },
+      areaStyle: { color: SK_CHART.series, opacity: 0.12 },
       symbol: 'none',
       silent: true,
       z: 1
@@ -117,8 +118,8 @@ const option = computed<EChartsOption>(() => ({
       smooth: false,
       showSymbol: true,
       symbolSize: 6,
-      lineStyle: { width: 2, color: '#2563eb' },
-      itemStyle: { color: '#2563eb' },
+      lineStyle: { width: 2, color: SK_CHART.series },
+      itemStyle: { color: SK_CHART.series },
       z: 3
     }
   ]

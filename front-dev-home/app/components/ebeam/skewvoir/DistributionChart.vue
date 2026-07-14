@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
+import { SK_CHART } from '~/utils/chartPalette'
 
 // CD distribution for one parameter, in three shapes: histogram, box plot, or a
 // (mirrored-density) violin. The active shape is driven by the panel's toggle.
@@ -88,7 +89,7 @@ const histOption = computed<EChartsOption>(() => ({
     type: 'bar',
     data: bins.value.counts,
     barWidth: '90%',
-    itemStyle: { color: '#7895c8', borderRadius: [2, 2, 0, 0] }
+    itemStyle: { color: SK_CHART.seriesSoft, borderRadius: [2, 2, 0, 0] }
   }]
 }))
 
@@ -100,7 +101,7 @@ const boxOption = computed<EChartsOption>(() => ({
   series: [{
     type: 'boxplot',
     data: boxStats.value ? [boxStats.value] : [],
-    itemStyle: { color: '#e8ddc9', borderColor: '#2752a8' }
+    itemStyle: { color: SK_CHART.sand, borderColor: SK_CHART.series }
   }]
 }))
 
@@ -123,8 +124,8 @@ const violinOption = computed<EChartsOption>(() => {
     },
     yAxis: { type: 'value', axisLabel: { show: false }, splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } },
     series: [
-      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: '#2752a8', width: 1 }, areaStyle: { color: '#7895c8', opacity: 0.5 }, data: top },
-      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: '#2752a8', width: 1 }, areaStyle: { color: '#7895c8', opacity: 0.5 }, data: bottom }
+      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: SK_CHART.series, width: 1 }, areaStyle: { color: SK_CHART.seriesSoft, opacity: 0.5 }, data: top },
+      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: SK_CHART.series, width: 1 }, areaStyle: { color: SK_CHART.seriesSoft, opacity: 0.5 }, data: bottom }
     ]
   }
 })

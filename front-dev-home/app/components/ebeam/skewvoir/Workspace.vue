@@ -4,28 +4,10 @@
       <EbeamSkewvoirWorkspaceLeftRail :ws="ws" />
 
       <main class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <!-- Main header: breadcrumb + view actions -->
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border) px-4 py-2.5">
-          <div class="flex items-center gap-2.5">
-            <p class="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
-              <span>{{ breadcrumb.head }}</span>
-              <UIcon
-                name="i-lucide-chevron-right"
-                class="h-3.5 w-3.5 text-(--sk-ink-subtle)"
-              />
-              <span class="font-normal text-(--sk-ink-muted)">{{ breadcrumb.tail }}</span>
-            </p>
-            <USelect
-              v-if="analysis.availableParams.value.length"
-              :model-value="analysis.activeParam.value"
-              :items="analysis.availableParams.value"
-              size="xs"
-              icon="i-lucide-ruler"
-              class="min-w-[9rem]"
-              @update:model-value="ws.setParam"
-            />
-          </div>
-
+        <!-- Main header: view actions. The breadcrumb and the parameter select
+             used to sit on the left; both were dropped — the rail already names
+             the active view, and the parameter is fixed per measurement. -->
+        <div class="flex flex-wrap items-center justify-end gap-2 border-b border-(--sk-border) px-4 py-2.5">
           <div class="flex items-center gap-1.5">
             <UButton
               v-for="action in actions"
@@ -187,16 +169,6 @@ defineShortcuts(
     }])
   )
 )
-
-const BREADCRUMBS: Record<string, { head: string, tail: string }> = {
-  'dashboard': { head: 'Dashboard', tail: 'Single Measurement' },
-  'position-stack': { head: '위치 비교', tail: 'Position Stack' },
-  'time-series': { head: 'Time-Series', tail: 'Multi-measurement Trend' },
-  'correlation': { head: '상관 / 분포', tail: 'Correlation & Distribution' },
-  'gallery': { head: '이미지 갤러리', tail: 'SEM Gallery' }
-}
-
-const breadcrumb = computed(() => BREADCRUMBS[ws.activeKind.value] ?? BREADCRUMBS.dashboard!)
 
 const share = async () => {
   const url = ws.shareUrl()

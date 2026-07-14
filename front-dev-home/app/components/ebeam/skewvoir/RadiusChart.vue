@@ -9,6 +9,7 @@
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { polyfit, polyval } from '~/utils/polyfit'
+import { SK_CHART } from '~/utils/chartPalette'
 
 const props = withDefaults(defineProps<{
   rows: MsrFileRow[]
@@ -77,14 +78,14 @@ const option = computed<EChartsOption>(() => ({
     {
       type: 'scatter',
       symbolSize: 7,
-      itemStyle: { color: '#7895c8', opacity: 0.7 },
+      itemStyle: { color: SK_CHART.seriesSoft, opacity: 0.7 },
       data: points.value
     },
     {
       type: 'line',
       smooth: true,
       showSymbol: false,
-      lineStyle: { color: '#b21f24', width: 2 },
+      lineStyle: { color: SK_CHART.brand, width: 2 },
       data: fitLine.value,
       tooltip: { show: false },
       silent: true

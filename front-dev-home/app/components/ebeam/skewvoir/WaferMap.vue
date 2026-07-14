@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
+import { SK_CHART } from '~/utils/chartPalette'
 
 const props = defineProps<{
   rows: MsrFileRow[]
@@ -74,7 +75,7 @@ const option = computed<EChartsOption>(() => ({
     top: 'center',
     itemHeight: 120,
     textStyle: { fontSize: 10 },
-    inRange: { color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] }
+    inRange: { color: [...SK_CHART.scale] }
   },
   series: [{
     type: 'scatter',

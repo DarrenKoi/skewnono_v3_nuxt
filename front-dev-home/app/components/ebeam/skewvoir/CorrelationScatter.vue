@@ -9,6 +9,7 @@
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { polyfit, polyval } from '~/utils/polyfit'
+import { SK_CHART } from '~/utils/chartPalette'
 
 // Param-vs-param correlation within one measurement. Pairs the two parameters'
 // CD values by site key (chip + sequence), draws the scatter + a linear fit, and
@@ -75,7 +76,7 @@ const option = computed<EChartsOption>(() => ({
     }
   },
   title: r2.value != null
-    ? { text: `R² = ${r2.value.toFixed(3)}`, right: 8, top: 4, textStyle: { fontSize: 11, color: '#b21f24' } }
+    ? { text: `R² = ${r2.value.toFixed(3)}`, right: 8, top: 4, textStyle: { fontSize: 11, color: SK_CHART.brand } }
     : undefined,
   grid: { left: 44, right: 16, top: 24, bottom: 36, containLabel: true },
   xAxis: {
@@ -98,14 +99,14 @@ const option = computed<EChartsOption>(() => ({
     {
       type: 'scatter',
       symbolSize: 7,
-      itemStyle: { color: '#7895c8', opacity: 0.7 },
+      itemStyle: { color: SK_CHART.seriesSoft, opacity: 0.7 },
       data: pairs.value
     },
     {
       type: 'line',
       smooth: false,
       showSymbol: false,
-      lineStyle: { color: '#b21f24', width: 2 },
+      lineStyle: { color: SK_CHART.brand, width: 2 },
       data: fitLine.value,
       tooltip: { show: false },
       silent: true

@@ -45,8 +45,12 @@
           <tr
             v-for="s in summaries"
             :key="s.parameter"
-            class="border-b border-(--sk-border-soft) last:border-0"
-            :class="s.parameter === analysis.activeParam.value ? 'bg-(--sk-brand)/8 font-medium' : ''"
+            class="cursor-pointer border-b border-(--sk-border-soft) transition-colors last:border-0"
+            :class="s.parameter === analysis.activeParam.value
+              ? 'bg-(--sk-brand)/8 font-medium'
+              : 'hover:bg-(--sk-chip-bg)'"
+            :aria-selected="s.parameter === analysis.activeParam.value"
+            @click="analysis.setParam(s.parameter)"
           >
             <td class="px-2 py-1.5 font-mono text-zinc-800 dark:text-zinc-100">
               {{ s.parameter }}

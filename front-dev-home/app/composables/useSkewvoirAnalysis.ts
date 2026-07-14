@@ -207,6 +207,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusPending,
     activeParam,
     availableParams,
+    // Re-exported so the Data Summary rows can switch the plotted parameter.
+    // It replaced the header's parameter select, which read as dead chrome.
+    setParam: ws.setParam,
     paramSummaries,
     activeSummary,
     activeUnit,
