@@ -12,8 +12,9 @@
         placeholder="ECXDX925, 6LD257421, ADI_CD_BIAS_001, 2026-05-10 …"
         size="md"
         :loading="pending"
+        :disabled="disabled"
         @update:model-value="emit('update:modelValue', String($event))"
-        @keydown.enter="emit('search')"
+        @keydown.enter="onSearch"
       />
       <UButton
         class="bg-(--sk-ink) text-(--sk-ink-fg)"
@@ -21,9 +22,25 @@
         icon="i-lucide-corner-down-left"
         size="md"
         :loading="pending"
-        @click="emit('search')"
+        :disabled="disabled"
+        @click="onSearch"
       />
     </div>
+
+    <!-- Fix 4: while facets haven't loaded (still fetching, or the fetch
+         failed), the parser has no `known.eq` to match against, so a valid
+         equipment id silently misclassifies as a `recipe` substring and
+         returns zero rows under a green chip — indistinguishable from a
+         genuine no-hit. Disabling the search action here (rather than
+         letting it run against a parser that can't recognize eq ids yet) is
+         the smaller change than adding a separate warning-banner component,
+         and it mirrors FilterBar already going inert on the same signal. -->
+    <p
+      v-if="disabled"
+      class="mt-1.5 text-[11px] text-(--sk-ink-muted)"
+    >
+      장비 목록을 아직 불러오지 못했습니다 — 잠시 후 다시 시도해 주세요.
+    </p>
 
     <!-- How each token was read. Without this, auto-detection is a black box
          and a typo is indistinguishable from a genuine no-hit. -->
@@ -68,12 +85,21 @@ const props = defineProps<{
   // retention window next to the search hint. Omitted, the hint just drops
   // that segment rather than lying with a stale/hardcoded day count.
   retentionDays?: number
+  // True while facets haven't loaded (pending or errored) — see the Fix 4
+  // comment below. Blocks the search action so it can't run against a
+  // parser with no `known.eq` to check tokens against.
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   'search': []
 }>()
+
+const onSearch = () => {
+  if (props.disabled) return
+  emit('search')
+}
 
 const LABELS: Record<string, string> = {
   eq: 'EQ',

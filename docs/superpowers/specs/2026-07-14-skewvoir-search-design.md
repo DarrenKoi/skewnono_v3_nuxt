@@ -279,7 +279,7 @@ facet 은 네 개뿐입니다.
 **`app/utils/measHistQuery.test.ts`** (신규):
 
 - 토큰화 — 공백·콤마·세미콜론 혼합, 연속 구분자, 후행 구분자.
-- 필드 판별 — 날짜 두 형태, msr 형태, `knownEq` 정확 일치, `knownRecipe` 정확/부분 일치, lot 형태, 미인식.
+- 필드 판별 — 날짜 두 형태, msr 형태, `knownEq` 정확 일치, lot 형태, 그 외 전부 recipe 폴백, `field:` 접두사 오류로만 남는 미인식.
 - `field:` 접두사 강제 — 형태 규칙을 이깁니다.
 - 같은 필드 여러 토큰이 배열로 누적되는지.
 - facets 미로딩 상태의 축약 규칙.

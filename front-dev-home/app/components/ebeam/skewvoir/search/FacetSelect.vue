@@ -80,7 +80,8 @@ const props = defineProps<{
   label: string
   options: MeasHistFacetValue[]
   modelValue: string[]
-  // Recipe/EQ lists run to hundreds in the office index — type to narrow.
+  // EQ lists run to hundreds in the office index — type to narrow. (There is
+  // no RECIPE facet: recipes are found via the search bar only, see §6.3.)
   searchable?: boolean
   disabled?: boolean
 }>()

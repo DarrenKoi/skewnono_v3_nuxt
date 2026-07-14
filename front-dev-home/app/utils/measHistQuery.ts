@@ -44,15 +44,43 @@ const PREFIXED = /^(lot|recipe|eq|msr|date):(.*)$/i
 const MSR = /^\d{8}_.+_.+_.+$/
 const DATE_DASHED = /^(\d{4})-(\d{2})-(\d{2})$/
 const DATE_COMPACT = /^(\d{4})(\d{2})(\d{2})$/
-// 6LD257421 (3 alnum + 6 digits), RKPB240012 (4 alnum + 6 digits).
-const LOT = /^[A-Z0-9]{3,4}\d{6}$/i
+// 6LD257421 (3 alnum + 6 digits), RKPB240012 (4 alnum + 6 digits). Spec §4.2
+// widens the tail to 6-8 digits — the office index carries lot ids longer
+// than the mock's uniformly-6-digit ones, and a 7-8 digit lot id must not
+// fall through to the `recipe` terminal branch (a real lot id returning zero
+// rows honestly disguised as "no such recipe"). Eq ids top out at 8 total
+// chars (prefix + 3 digits, see back_dev_home/sem_list/providers/mock.py),
+// below this pattern's 9-char minimum (3+6), so widening cannot swallow one.
+const LOT = /^[A-Z0-9]{3,4}\d{6,8}$/i
 
 const emptyQuery = (): ParsedQuery => ({ eq: [], lot: [], recipe: [], msr: [], date: [], unknown: [] })
 
-// '20260510' | '2026-05-10' -> '2026-05-10'. null if neither.
+// '20260510' | '2026-05-10' -> '2026-05-10'. null if neither shape matches,
+// OR if the shape matches but the calendar date isn't real (2026-13-45,
+// 2026-02-30, 99999999). A digit-shape-only check would let those through as
+// `date`, and an invalid `from`/`to` bound silently widens the backend's
+// query to the full retention window (Fix 1) — the worst direction of
+// failure for this feature. Round-trip through Date.UTC and confirm the
+// components come back unchanged; JS Date normalizes overflow (month 13
+// rolls into the next year, day 45 rolls past month end) instead of
+// rejecting it, so a component mismatch after the round trip is exactly the
+// signal an invalid calendar date leaves behind. Date.UTC on the token's own
+// explicit y/m/d is not wall-clock "now" — no violation of the no-wall-clock
+// rule.
 const normalizeDate = (token: string): string | null => {
   const m = DATE_DASHED.exec(token) ?? DATE_COMPACT.exec(token)
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null
+  if (!m) return null
+
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  const dt = new Date(Date.UTC(year, month - 1, day))
+  const roundTrips = dt.getUTCFullYear() === year
+    && dt.getUTCMonth() === month - 1
+    && dt.getUTCDate() === day
+  if (!roundTrips) return null
+
+  return `${m[1]}-${m[2]}-${m[3]}`
 }
 
 const classify = (token: string, known?: KnownValues): { field: ParsedField, value: string } => {
@@ -131,6 +159,18 @@ export const removeToken = (text: string, token: string): string =>
       return normalizeDate(bare) !== token
     })
     .join(' ')
+
+// Strip every parsed date token out of the raw text — the pure step a 기간
+// dropdown edit performs before it overwrites filters.from/to, so a date
+// token typed in the search bar can't keep winning over the freshly-picked
+// range (see resolveDateRange's precedence doc comment / spec §6.3).
+// Extracted out of useMeasHistSearch's setDateRange so it's a plain function
+// this repo's node --test suite can call directly — a test that only
+// re-implements removeToken/resolveDateRange inline exercises those
+// functions, not the composable's actual token-strip step, and would keep
+// passing even if that step were deleted from setDateRange.
+export const stripDateTokens = (text: string, dateTokens: string[]): string =>
+  dateTokens.reduce((acc, token) => removeToken(acc, token), text)
 
 // Resolve the effective from/to for a meas_hist search request.
 //

@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseMeasHistQuery, removeToken, resolveDateRange } from './measHistQuery.ts'
+import { parseMeasHistQuery, removeToken, resolveDateRange, stripDateTokens } from './measHistQuery.ts'
 
 // No `recipe` list: there is no RECIPE facet/dropdown (removed — the office
 // index carries hundreds of recipes). A token unmatched by every other rule
@@ -40,6 +40,26 @@ test('lot id shape is detected', () => {
   assert.deepEqual(parseMeasHistQuery('RKPB240012', KNOWN).lot, ['RKPB240012'])
 })
 
+// Fix 2: code (`\d{6}`) contradicted spec §4.2 (`\d{6,8}`). All 600 mock lots
+// happen to have exactly 6-digit tails, so nothing failed locally — but the
+// office index is not guaranteed to. A 7-8 digit lot id must classify as
+// `lot`, not fall through to `recipe` (green chip, honest-looking zero rows
+// that are actually a misread lot id).
+test('lot id shape accepts 7 and 8 digit tails per spec §4.2, not just 6', () => {
+  assert.deepEqual(parseMeasHistQuery('6LD2574210', KNOWN).lot, ['6LD2574210'])
+  assert.deepEqual(parseMeasHistQuery('RKPB24001234', KNOWN).lot, ['RKPB24001234'])
+})
+
+// Widening the digit tail must not start swallowing real eq ids. Eq ids top
+// out at 8 total characters (a 3-5 char prefix + 3 digits — see
+// back_dev_home/sem_list/providers/mock.py), below the lot pattern's 9-char
+// floor (3 alnum + 6 digits), so no known eq id shape can collide.
+test('widened lot regex does not swallow a known eq id', () => {
+  const r = parseMeasHistQuery('ECXDX925', KNOWN)
+  assert.deepEqual(r.eq, ['ECXDX925'])
+  assert.deepEqual(r.lot, [])
+})
+
 test('msr is detected by its leading 8-digit date, despite underscores in the recipe', () => {
   const msr = '20260315_CNT_CONTACT_CHECK_ABC123_QUAL_00008_6LD257421_ECXDX925'
   const r = parseMeasHistQuery(msr, KNOWN)
@@ -51,6 +71,37 @@ test('msr is detected by its leading 8-digit date, despite underscores in the re
 test('both date forms normalize to YYYY-MM-DD', () => {
   assert.deepEqual(parseMeasHistQuery('2026-05-10', KNOWN).date, ['2026-05-10'])
   assert.deepEqual(parseMeasHistQuery('20260510', KNOWN).date, ['2026-05-10'])
+})
+
+// Fix 1: a digit-shape match alone is not enough — 2026-13-45, 2026-02-30 and
+// 99999999 all match the DASHED/COMPACT shape but are not real calendar
+// dates. Classifying them as `date` sends an unparseable from/to bound to
+// the backend, which (pre-fix) silently widened the query to the entire
+// 60-day retention window instead of returning honest zero rows. A bare
+// invalid-date token must fall through every other shape rule to the
+// `recipe` terminal branch (honest zero rows), never `date`.
+test('an invalid calendar date is not classified as date, even though its digit shape matches', () => {
+  const impossibleMonth = parseMeasHistQuery('2026-13-45', KNOWN)
+  assert.deepEqual(impossibleMonth.date, [])
+  assert.deepEqual(impossibleMonth.recipe, ['2026-13-45'])
+
+  const impossibleDay = parseMeasHistQuery('2026-02-30', KNOWN)
+  assert.deepEqual(impossibleDay.date, [])
+  assert.deepEqual(impossibleDay.recipe, ['2026-02-30'])
+
+  const impossibleCompact = parseMeasHistQuery('99999999', KNOWN)
+  assert.deepEqual(impossibleCompact.date, [])
+  assert.deepEqual(impossibleCompact.recipe, ['99999999'])
+})
+
+// Fix 1: the PREFIXED form of the same bad dates must land in `unknown` (red
+// chip) instead — the user explicitly forced the `date:` field, so a shape
+// that fails calendar validation is a malformed prefix, not a recipe guess.
+test('an invalid calendar date behind a date: prefix is unknown, not date or recipe', () => {
+  const r = parseMeasHistQuery('date:2026-13-45', KNOWN)
+  assert.deepEqual(r.unknown, ['2026-13-45'])
+  assert.deepEqual(r.date, [])
+  assert.deepEqual(r.recipe, [])
 })
 
 test('a full_name, a bare recipe_name, and a bare fragment all classify as recipe (no facet to check against)', () => {
@@ -175,33 +226,37 @@ test('resolveDateRange: a date token wins over the dropdown; the dropdown wins o
 // right back to it, and hasActiveFilters lit up 초기화 for a date the query
 // silently ignored. useMeasHistSearch's setDateRange fixes this by making a
 // dropdown edit "last write wins": it strips the date token out of queryText
-// (via removeToken, which already handles bare/normalized/prefixed forms)
 // THEN writes filters.from/to, so resolveDateRange has nothing left to prefer
-// over the dropdown's pick. This test pins that exact sequence — the same two
-// pure functions setDateRange composes — without needing Vue's reactivity
-// runtime (this repo's tests are plain `node --test`, no Nuxt/Vue test infra;
-// see the file header).
-test('setDateRange contract: stripping the date token before resolving makes the dropdown pick win, not the stale token', () => {
-  let queryText = 'MCD018 date:2026-05-05'
+// over the dropdown's pick.
+//
+// Fix 3: the previous version of this test re-implemented that strip step
+// inline with `removeToken`, calling a helper the composable doesn't call —
+// it exercised removeToken/resolveDateRange, not the actual code path, and
+// would keep passing even if the strip step were deleted from setDateRange.
+// `stripDateTokens` is the exact pure helper useMeasHistSearch.ts's
+// setDateRange calls (see its import there), so testing it here tests real
+// production code, not a stand-in. Delete the `.reduce` body inside
+// stripDateTokens and this test fails — that's what "not vacuous" means.
+test('stripDateTokens removes every parsed date token, leaving other tokens and separators intact', () => {
+  const queryText = 'MCD018 date:2026-05-05 6LD257421'
   const parsed = parseMeasHistQuery(queryText, KNOWN)
   assert.deepEqual(parsed.date, ['2026-05-05'])
 
-  // setDateRange's first step: strip every parsed date token out of queryText.
-  for (const token of parsed.date) {
-    queryText = removeToken(queryText, token)
-  }
-  assert.equal(queryText, 'MCD018')
-  assert.equal(queryText.includes('2026-05-05'), false)
+  const stripped = stripDateTokens(queryText, parsed.date)
+  assert.equal(stripped, 'MCD018 6LD257421')
+  assert.equal(stripped.includes('2026-05-05'), false)
 
-  // setDateRange's second step: filters.from/to become the dropdown's range.
+  // With the date token gone, a re-parse of the stripped text has nothing
+  // left to out-rank the dropdown's freshly-picked range.
+  const reparsed = parseMeasHistQuery(stripped, KNOWN)
   const filterFrom = '2026-05-01'
   const filterTo = '2026-05-08'
-
-  // resolvedRange is recomputed against the now-stripped query text, so the
-  // stale date token can no longer win over the freshly-picked range.
-  const reparsed = parseMeasHistQuery(queryText, KNOWN)
   assert.deepEqual(
     resolveDateRange(reparsed.date, filterFrom, filterTo, '2026-03-11', '2026-05-10'),
     { start: filterFrom, end: filterTo }
   )
+})
+
+test('stripDateTokens is a no-op when there are no date tokens to strip', () => {
+  assert.equal(stripDateTokens('MCD018 6LD257421', []), 'MCD018 6LD257421')
 })

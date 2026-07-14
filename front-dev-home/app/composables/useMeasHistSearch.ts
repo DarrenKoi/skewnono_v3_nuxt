@@ -1,5 +1,5 @@
 import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
-import { parseMeasHistQuery, removeToken, resolveDateRange } from '~/utils/measHistQuery'
+import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
 
 // No `recipe` field: recipes are found via the search bar only (there is no
 // RECIPE dropdown — see FilterBar.vue). The parser's `recipe` tokens still
@@ -24,7 +24,19 @@ const shiftIso = (iso: string, days: number): string => {
 
 export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   const { searchMeasHist } = useMeasHistApi()
-  const { facets, pending: facetsPending, known, anchor, retentionDays } = useMeasHistFacets(toolType)
+  const { facets, pending: facetsPending, error: facetsError, known, anchor, retentionDays } = useMeasHistFacets(toolType)
+
+  // Fix 4: while `known.eq` is empty (facets still loading, or the fetch
+  // failed outright), the parser's classify() has no eq list to match
+  // against, so a perfectly valid equipment id like `ECDX160` falls through
+  // to the terminal `recipe` branch — a substring query that returns zero
+  // rows under a green RECIPE chip instead of the honest "can't recognize
+  // equipment ids yet" it actually is. Spec §7 already disables the facet
+  // *dropdowns* on load failure; disabling the search action too (smaller
+  // change than a separate warning banner, and consistent with how
+  // FilterBar already goes inert on the same signal) keeps the search bar
+  // from ever silently misclassifying an eq token while facets aren't ready.
+  const searchDisabled = computed(() => facetsPending.value || Boolean(facetsError.value))
 
   const queryText = ref('')
   const narrowText = ref('')
@@ -118,8 +130,12 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   }
 
   // Explicit: Enter or the Search button. Searching per keystroke would fire a
-  // full OpenSearch query for every character of a lot id.
+  // full OpenSearch query for every character of a lot id. Also refuses while
+  // facets aren't ready (Fix 4) — belt-and-suspenders alongside SearchBar's
+  // own disabled state, since a search fired with an empty `known.eq` can
+  // silently misclassify a valid eq token as a recipe substring.
   const search = async () => {
+    if (searchDisabled.value) return
     searched.value = true
     narrowText.value = ''
     await run(0)
@@ -154,8 +170,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   // precedence doc comment). Stripping the token first makes filters.from/to
   // the sole source of truth for resolvedRange again.
   const setDateRange = (range: { start: string, end: string }) => {
-    const dateTokens = parsed.value.date
-    queryText.value = dateTokens.reduce((text, token) => removeToken(text, token), queryText.value)
+    queryText.value = stripDateTokens(queryText.value, parsed.value.date)
     filters.value = { ...filters.value, from: range.start, to: range.end }
   }
 
@@ -198,6 +213,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     retentionDays,
     facets,
     facetsPending,
+    searchDisabled,
     search,
     loadMore,
     reset,

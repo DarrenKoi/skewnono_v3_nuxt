@@ -332,13 +332,23 @@ class MeasHistFacetsResponse(TypedDict):
     eq: list[MeasHistFacetValue]
 
 
-def _parse_date(value: str | None) -> datetime | None:
-    if not value:
-        return None
+def _parse_date(value: str | None) -> tuple[datetime | None, bool]:
+    """Parse a caller-supplied `from`/`to` bound.
+
+    Returns (parsed, invalid). `invalid` is True only when `value` was
+    PRESENT (non-empty) but failed to parse as `%Y-%m-%d` — a caller error
+    (e.g. `2026-13-45`), distinct from the value being genuinely ABSENT
+    (None/empty), which legitimately means "no bound" and defaults to the
+    retention window. Conflating the two (as returning bare `None` for both
+    used to do) let an unparseable date silently widen the query to the full
+    60-day window instead of the honest zero rows a bad date deserves.
+    """
+    if not value or not value.strip():
+        return None, False
     try:
-        return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc), False
     except ValueError:
-        return None
+        return None, True
 
 
 def _retention_window() -> tuple[datetime, datetime]:
@@ -355,7 +365,7 @@ def _resolve_window(
     The window is a guarantee, not a default: a stale bookmark or a hand-edited
     URL must never widen the scan past retention. Returns (start, end,
     out_of_retention, reported_end) — the flag says the caller's range fell
-    entirely outside.
+    entirely outside (or, see below, was unparseable).
 
     `end` is the FILTERING bound: `date_to` shifted one day forward so the
     comparison `ts <= end` includes the whole of `date_to`. That shift is an
@@ -363,12 +373,22 @@ def _resolve_window(
     to the caller (e.g. the `range` field in the search response) must use
     `reported_end` instead, which stays the caller-facing INCLUSIVE end date
     (clamped to the retention ceiling, never pushed a day past it).
+
+    A PRESENT-but-unparseable `from`/`to` (e.g. `2026-13-45`) is a caller
+    error, not an absent bound — it must not fall back to "no bound", which
+    would silently widen the scan to the full retention window and answer a
+    single-date query with everything (Fix 1). It is treated the same as a
+    range that falls entirely outside retention: zero rows, `out_of_retention`
+    True. A genuinely ABSENT (empty/omitted) `from`/`to` is unaffected and
+    still defaults to the retention window, exactly as before.
     """
     floor, ceiling = _retention_window()
 
-    requested_start = _parse_date(date_from)
-    requested_end = _parse_date(date_to)
+    requested_start, start_invalid = _parse_date(date_from)
+    requested_end, end_invalid = _parse_date(date_to)
 
+    if start_invalid or end_invalid:
+        return floor, ceiling, True, ceiling
     if requested_start and requested_start > ceiling:
         return floor, ceiling, True, ceiling
     if requested_end and requested_end < floor:
