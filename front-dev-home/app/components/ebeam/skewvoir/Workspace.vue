@@ -1,14 +1,21 @@
 <template>
-  <div class="flex h-[calc(100dvh-7.5rem)] min-h-[36rem] flex-col overflow-hidden rounded-(--sk-r-card) border border-(--sk-border) bg-(--sk-canvas)">
-    <EbeamSkewvoirWorkspaceTopBar :ws="ws" />
-
+  <div class="flex h-[calc(100dvh-7.5rem)] min-h-[36rem] flex-col overflow-hidden rounded-(--sk-r-card) border border-(--sk-border) bg-(--sk-canvas) xl:h-full xl:min-h-0">
     <div class="flex min-h-0 flex-1">
       <EbeamSkewvoirWorkspaceLeftRail :ws="ws" />
 
-      <main class="flex min-w-0 flex-1 flex-col">
+      <main class="flex min-h-0 min-w-0 flex-1 flex-col">
         <!-- Main header: breadcrumb + view actions -->
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border) px-4 py-2.5">
           <div class="flex items-center gap-2.5">
+            <UButton
+              color="primary"
+              variant="solid"
+              icon="i-lucide-arrow-left"
+              label="검색으로"
+              size="sm"
+              class="shadow-sm"
+              @click="ws.goSearch()"
+            />
             <p class="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
               <span>{{ breadcrumb.head }}</span>
               <UIcon
@@ -63,8 +70,8 @@
               </p>
             </div>
             <UButton
-              color="neutral"
-              variant="outline"
+              color="primary"
+              variant="solid"
               icon="i-lucide-search"
               label="검색으로"
               size="sm"
@@ -98,8 +105,6 @@
         </div>
       </main>
     </div>
-
-    <EbeamSkewvoirWorkspaceStatusBar :ws="ws" />
   </div>
 </template>
 

@@ -1,18 +1,5 @@
 <template>
   <aside class="flex w-60 shrink-0 flex-col gap-5 overflow-y-auto border-r border-(--sk-border) bg-(--sk-surface) px-3 py-4">
-    <!-- Back to search -->
-    <button
-      type="button"
-      class="flex items-center gap-2 rounded-(--sk-r-nav) px-2.5 py-2 text-left text-[12.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-500/10 dark:text-zinc-300"
-      @click="ws.goSearch()"
-    >
-      <UIcon
-        name="i-lucide-arrow-left"
-        class="h-4 w-4"
-      />
-      검색으로
-    </button>
-
     <!-- View modes -->
     <section>
       <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">

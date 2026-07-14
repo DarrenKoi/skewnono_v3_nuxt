@@ -2,6 +2,7 @@
 const route = useRoute()
 const isEbeamRoute = useEbeamRoute()
 const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSidebar !== true)
+const lockDesktopPageScroll = computed(() => route.meta.lockDesktopPageScroll === true)
 </script>
 
 <template>
@@ -16,7 +17,12 @@ const showFabSidebar = computed(() => isEbeamRoute.value && route.meta.hideFabSi
       <NavFabSidebar v-if="showFabSidebar" />
 
       <main class="flex-1 flex flex-col overflow-hidden min-w-0">
-        <div class="flex-1 overflow-auto [scrollbar-gutter:stable] p-4 md:p-6 lg:p-8">
+        <div
+          class="min-h-0 flex-1 p-4 md:p-6 lg:p-8"
+          :class="lockDesktopPageScroll
+            ? 'overflow-auto [scrollbar-gutter:stable] xl:overflow-hidden xl:[scrollbar-gutter:auto]'
+            : 'overflow-auto [scrollbar-gutter:stable]'"
+        >
           <slot />
         </div>
       </main>

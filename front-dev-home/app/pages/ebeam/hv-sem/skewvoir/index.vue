@@ -7,7 +7,8 @@
 
 <script setup lang="ts">
 definePageMeta({
-  hideFabSidebar: true
+  hideFabSidebar: true,
+  lockDesktopPageScroll: true
 })
 
 const { setToolType } = useNavigation()

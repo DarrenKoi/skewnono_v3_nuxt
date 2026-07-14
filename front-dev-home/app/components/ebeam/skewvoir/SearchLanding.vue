@@ -1,20 +1,20 @@
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-3 pb-20 xl:pb-0">
+  <div class="mx-auto flex w-full max-w-[1600px] flex-col gap-3 pb-20 xl:h-full xl:min-h-0 xl:pb-0">
     <!-- Landing header -->
-    <div>
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
       <p class="font-mono text-[11px] tracking-wide text-(--sk-ink-subtle)">
         {{ toolLabel }} · SKEWVOIR
       </p>
-      <h1 class="mt-0.5 text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-        측정 결과 검색
+      <h1 class="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+        측정 검색
       </h1>
-      <p class="mt-1 text-[12.5px] text-(--sk-ink-muted)">
-        Lot · Recipe · 장비 · 날짜 · MSR 로 찾고, 여러 검색의 측정을 작업 세트에 모아 분석합니다.
+      <p class="text-[12px] text-(--sk-ink-muted)">
+        찾은 측정을 작업 세트에 모아 분석합니다.
       </p>
     </div>
 
-    <div class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <main class="min-w-0 space-y-3">
+    <div class="grid items-start gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-stretch">
+      <main class="flex min-w-0 flex-col gap-3 xl:min-h-0">
         <!-- Search and the active measurement set share the master width
              equally. They are the two inputs to the result/analysis flow. -->
         <div class="grid gap-3 lg:grid-cols-2 lg:items-stretch">
@@ -59,7 +59,7 @@
         <!-- Master: the results own the wide workspace and scroll internally
              on engineering desktop displays. -->
         <EbeamSkewvoirSearchResultTable
-          class="xl:h-[calc(100dvh-18rem)] xl:min-h-[30rem]"
+          class="xl:min-h-0 xl:flex-1"
           :rows="search.narrowedRows.value"
           :total="search.total.value"
           :capped="search.capped.value"
@@ -81,7 +81,7 @@
       </main>
 
       <!-- Detail: recent history exclusively owns the desktop rail. -->
-      <aside class="hidden h-[calc(100dvh-6.5rem)] min-h-[36rem] xl:sticky xl:top-3 xl:block">
+      <aside class="hidden min-h-0 xl:block">
         <EbeamSkewvoirSearchRecentMeasurementsRail
           :items="recent.items.value"
           @open="openRecent"
