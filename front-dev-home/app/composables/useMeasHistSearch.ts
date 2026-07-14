@@ -1,5 +1,5 @@
 import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
-import { parseMeasHistQuery } from '~/utils/measHistQuery'
+import { parseMeasHistQuery, resolveDateRange } from '~/utils/measHistQuery'
 
 export interface MeasHistFilters {
   fab: string[]
@@ -62,11 +62,24 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   // Search-bar fields and dropdown fields feed the same request params.
   const union = (a: string[], b: string[]) => [...new Set([...a, ...b])]
 
+  // Single source of truth for the effective date range — a `date:` token
+  // wins over the 기간 dropdown (see resolveDateRange's doc comment / spec
+  // §6.3). FilterBar renders this same value as its 기간 chip instead of
+  // deriving its own, so the displayed range can never drift from the range
+  // actually sent to the backend.
+  const resolvedRange = computed(() =>
+    resolveDateRange(
+      parsed.value.date,
+      filters.value.from,
+      filters.value.to,
+      defaultRange.value.start,
+      defaultRange.value.end
+    )
+  )
+
   const buildParams = (offset: number) => {
     const p = parsed.value
-    const dates = [...p.date].sort()
-    const from = filters.value.from || dates[0] || defaultRange.value.start
-    const to = filters.value.to || dates[dates.length - 1] || defaultRange.value.end
+    const { start: from, end: to } = resolvedRange.value
 
     return {
       toolType,
@@ -164,6 +177,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     hasMore,
     hasActiveFilters,
     defaultRange,
+    resolvedRange,
     anchor,
     retentionDays,
     facets,

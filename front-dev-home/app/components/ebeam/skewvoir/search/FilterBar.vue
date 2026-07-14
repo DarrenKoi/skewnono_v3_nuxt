@@ -35,7 +35,7 @@
 
     <EbeamDateRangePopover
       v-if="anchor"
-      :model-value="range"
+      :model-value="props.range"
       :anchor-date="anchor"
       :presets="periodPresets"
       @update:model-value="setRange"
@@ -64,6 +64,12 @@ const props = defineProps<{
   // Backend-declared clock. Presets resolve against it, not wall-clock today.
   anchor: string
   retentionDays: number
+  // The composable's resolvedRange — the SAME from/to that goes into the
+  // search request. A `date:` token in the search bar wins over this
+  // dropdown, so the 기간 chip must render this resolved value rather than
+  // deriving its own from `filters` alone, or the chip can show a range the
+  // backend never received (see useMeasHistSearch's resolvedRange).
+  range: { start: string, end: string }
 }>()
 
 const emit = defineEmits<{
@@ -88,28 +94,6 @@ const periodPresets = computed(() => {
     { label: `Last ${days} days`, days }
   ]
 })
-
-// Subtract days from an ISO YYYY-MM-DD without touching wall clock — same
-// rule as useMeasHistSearch's shiftIso: the retention window is measured
-// from the backend's anchor, never from wall-clock today.
-const shiftIso = (iso: string, days: number): string => {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
-  dt.setUTCDate(dt.getUTCDate() - days)
-  return dt.toISOString().slice(0, 10)
-}
-
-// FilterBar already has anchor + retentionDays, so it derives its own
-// default window instead of asking the caller for a redundant defaultRange.
-const defaultRange = computed(() => ({
-  start: props.anchor ? shiftIso(props.anchor, props.retentionDays) : '',
-  end: props.anchor
-}))
-
-const range = computed(() => ({
-  start: props.filters.from || defaultRange.value.start,
-  end: props.filters.to || defaultRange.value.end
-}))
 
 const setRange = (value: { start: string, end: string }) => {
   emit('update:filters', { ...props.filters, from: value.start, to: value.end })

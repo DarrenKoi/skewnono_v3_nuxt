@@ -74,7 +74,13 @@ const classify = (token: string, known?: KnownValues): { field: ParsedField, val
 
   if (MSR.test(token)) return { field: 'msr', value: token }
 
-  if (known?.eq.includes(token)) return { field: 'eq', value: token }
+  // Case-insensitive: the backend upper-cases both sides of the eq compare
+  // (see back_dev_home/meas_hist/data.py), so 'ecdx625' must classify the
+  // same as 'ECDX625' — otherwise it silently falls through to 'unknown'
+  // and the token is dropped from the request instead of matched.
+  if (known && known.eq.some(v => v.toLowerCase() === token.toLowerCase())) {
+    return { field: 'eq', value: token }
+  }
 
   if (known && matchesKnownRecipe(token, known.recipe, true)) {
     return { field: 'recipe', value: token }
@@ -110,6 +116,13 @@ export const parseMeasHistQuery = (text: string, known?: KnownValues): ParsedQue
 // Drop one token from the raw text (used by the × on a parsed chip). Matches
 // the bare token and any `field:token` form, and re-joins on single spaces so
 // the remaining text stays well-formed.
+//
+// Date is the only field whose parsed/displayed value differs from the raw
+// token typed (`20260510` -> `2026-05-10`), so a chip's × passes the
+// NORMALIZED value while the raw text still holds the compact/dashed form.
+// A plain string compare misses that token entirely, so also compare via
+// normalizeDate (reusing the same normalizer parseMeasHistQuery uses) rather
+// than duplicating the date regexes here.
 export const removeToken = (text: string, token: string): string =>
   text
     .trim()
@@ -118,6 +131,31 @@ export const removeToken = (text: string, token: string): string =>
     .filter((raw) => {
       const prefixed = PREFIXED.exec(raw)
       const bare = prefixed ? prefixed[2]! : raw
-      return bare.toLowerCase() !== token.toLowerCase()
+      if (bare.toLowerCase() === token.toLowerCase()) return false
+      return normalizeDate(bare) !== token
     })
     .join(' ')
+
+// Resolve the effective from/to for a meas_hist search request.
+//
+// Precedence: a `date:` token typed in the search bar WINS over the 기간
+// dropdown — the user just typed it, and the spec (§6.3) requires the two
+// to act as ONE parameter with one visible source of truth rather than two
+// competing inputs. The dropdown only applies when there is no date token;
+// the default retention-window bounds apply when neither is set. The 기간
+// chip that FilterBar renders must be a projection of this same result, not
+// an independently-derived value, or the two can show different ranges
+// again.
+export const resolveDateRange = (
+  dateTokens: string[],
+  filterFrom: string,
+  filterTo: string,
+  defaultStart: string,
+  defaultEnd: string
+): { start: string, end: string } => {
+  const sorted = [...dateTokens].sort()
+  return {
+    start: sorted[0] || filterFrom || defaultStart,
+    end: sorted[sorted.length - 1] || filterTo || defaultEnd
+  }
+}

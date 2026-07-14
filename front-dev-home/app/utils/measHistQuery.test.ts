@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseMeasHistQuery, removeToken } from './measHistQuery.ts'
+import { parseMeasHistQuery, removeToken, resolveDateRange } from './measHistQuery.ts'
 
 const KNOWN = {
   eq: ['ECXDX925', 'ECDX753', 'MCD018'],
@@ -101,4 +101,50 @@ test('removeToken drops only that token and leaves the rest usable', () => {
   assert.equal(removeToken('ECXDX925, MCD018 ; 6LD257421', 'MCD018'), 'ECXDX925 6LD257421')
   assert.equal(removeToken('lot:6LD257421 MCD018', '6LD257421'), 'MCD018')
   assert.equal(removeToken('MCD018', 'MCD018'), '')
+})
+
+// Fix 3: the × on a compact-date chip passes the NORMALIZED value
+// ('2026-05-10'), but the raw text still holds the compact/prefixed form
+// the user typed. removeToken must match through normalizeDate, not just a
+// literal string compare, or the × silently does nothing.
+test('removeToken matches a compact-date token via its normalized value', () => {
+  assert.equal(removeToken('20260510 MCD018', '2026-05-10'), 'MCD018')
+  assert.equal(removeToken('date:20260510 MCD018', '2026-05-10'), 'MCD018')
+})
+
+// Fix 2: the backend upper-cases both sides of the eq compare, so a
+// lowercase-typed known eq id must classify as 'eq', not fall through to
+// 'unknown' and get silently dropped from the request.
+test('a lowercase known-eq token classifies as eq, not unknown', () => {
+  const r = parseMeasHistQuery('ecdx753', KNOWN)
+  assert.deepEqual(r.eq, ['ecdx753'])
+  assert.deepEqual(r.unknown, [])
+})
+
+// Fix 1 / spec §6.3: a typed `date:` token must win over whatever the 기간
+// dropdown already holds, and the resolved range is what both the request
+// AND the displayed 기간 chip must use — one source of truth, not two.
+test('resolveDateRange: a date token wins over the dropdown; the dropdown wins over the default', () => {
+  // No date token: dropdown filter values apply.
+  assert.deepEqual(
+    resolveDateRange([], '2026-04-01', '2026-04-30', '2026-03-11', '2026-05-10'),
+    { start: '2026-04-01', end: '2026-04-30' }
+  )
+  // A single date token overrides the dropdown entirely, even though the
+  // dropdown still holds a (now stale) value.
+  assert.deepEqual(
+    resolveDateRange(['2026-05-09'], '2026-04-01', '2026-04-30', '2026-03-11', '2026-05-10'),
+    { start: '2026-05-09', end: '2026-05-09' }
+  )
+  // Two date tokens form a range, unsorted input included, still overriding
+  // the dropdown.
+  assert.deepEqual(
+    resolveDateRange(['2026-05-09', '2026-05-01'], '2026-04-01', '2026-04-30', '2026-03-11', '2026-05-10'),
+    { start: '2026-05-01', end: '2026-05-09' }
+  )
+  // Neither a token nor a dropdown value: falls back to the default range.
+  assert.deepEqual(
+    resolveDateRange([], '', '', '2026-03-11', '2026-05-10'),
+    { start: '2026-03-11', end: '2026-05-10' }
+  )
 })

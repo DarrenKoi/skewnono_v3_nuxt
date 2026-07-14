@@ -350,12 +350,20 @@ def _retention_window() -> tuple[datetime, datetime]:
 def _resolve_window(
     date_from: str | None,
     date_to: str | None
-) -> tuple[datetime, datetime, bool]:
+) -> tuple[datetime, datetime, bool, datetime]:
     """Intersect the caller's range with the retention window.
 
     The window is a guarantee, not a default: a stale bookmark or a hand-edited
     URL must never widen the scan past retention. Returns (start, end,
-    out_of_retention) — the flag says the caller's range fell entirely outside.
+    out_of_retention, reported_end) — the flag says the caller's range fell
+    entirely outside.
+
+    `end` is the FILTERING bound: `date_to` shifted one day forward so the
+    comparison `ts <= end` includes the whole of `date_to`. That shift is an
+    internal implementation detail — callers reporting the applied range back
+    to the caller (e.g. the `range` field in the search response) must use
+    `reported_end` instead, which stays the caller-facing INCLUSIVE end date
+    (clamped to the retention ceiling, never pushed a day past it).
     """
     floor, ceiling = _retention_window()
 
@@ -363,18 +371,19 @@ def _resolve_window(
     requested_end = _parse_date(date_to)
 
     if requested_start and requested_start > ceiling:
-        return floor, ceiling, True
+        return floor, ceiling, True, ceiling
     if requested_end and requested_end < floor:
-        return floor, ceiling, True
+        return floor, ceiling, True, ceiling
 
     start = max(requested_start, floor) if requested_start else floor
-    # `to` is inclusive of the whole day.
+    # `to` is inclusive of the whole day for FILTERING purposes only.
     end = min(requested_end + timedelta(days=1), ceiling) if requested_end else ceiling
+    reported_end = min(requested_end, ceiling) if requested_end else ceiling
 
     if start > end:
-        return floor, ceiling, True
+        return floor, ceiling, True, ceiling
 
-    return start, end, False
+    return start, end, False, reported_end
 
 
 def _row_time(row: MeasHistRow) -> datetime:
@@ -400,7 +409,7 @@ def search_meas_hist(
     offset: int = 0,
     limit: int = DEFAULT_LIMIT
 ) -> MeasHistSearchResponse:
-    start, end, out_of_retention = _resolve_window(date_from, date_to)
+    start, end, out_of_retention, reported_end = _resolve_window(date_from, date_to)
 
     fab_set = {v.upper() for v in (fab or [])}
     model_set = {v.upper() for v in (model or [])}
@@ -452,7 +461,10 @@ def search_meas_hist(
         limit=limit,
         range={
             "from": start.strftime("%Y-%m-%d"),
-            "to": end.strftime("%Y-%m-%d"),
+            # Inclusive end date as the caller understands it — NOT `end`,
+            # which is shifted one day forward internally so the filtering
+            # comparison covers the whole of the last day (Fix 4).
+            "to": reported_end.strftime("%Y-%m-%d"),
             "anchor": RETENTION_ANCHOR.strftime("%Y-%m-%d")
         },
         out_of_retention=out_of_retention,

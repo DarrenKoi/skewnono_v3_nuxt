@@ -83,6 +83,7 @@
         :disabled="search.facetsPending.value"
         :anchor="search.anchor.value"
         :retention-days="search.retentionDays.value"
+        :range="search.resolvedRange.value"
         @update:filters="search.filters.value = $event"
         @reset="search.resetFilters"
       />
