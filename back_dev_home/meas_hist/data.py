@@ -11,6 +11,7 @@ from functools import lru_cache
 from typing import Literal, TypedDict
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
+from back_dev_home.meas_hist.opensearch_query import SEARCHABLE_SOURCE_FIELDS
 from back_dev_home.sem_list.data import SemListRow, get_sem_list
 
 
@@ -27,6 +28,7 @@ __all__ = [
     "RETENTION_DAYS",
     "MAX_RESULT_WINDOW",
     "DEFAULT_LIMIT",
+    "MOCK_SEARCH_FIXTURES",
 ]
 
 
@@ -80,6 +82,64 @@ NOW = datetime(2026, 5, 10, tzinfo=timezone.utc)
 HISTORY_DAYS = 60
 MOCK_ROW_COUNT = 600
 SYNTH_ROW_COUNT_RANGE = (8, 20)
+
+# Stable rows for home development and contract tests. Randomly generated rows
+# remain useful for realistic volume, but UI examples must never depend on a
+# random sequence or on sem_list seed changes elsewhere in the repository.
+MOCK_SEARCH_FIXTURES: tuple[MeasHistRow, ...] = (
+    MeasHistRow(
+        id="msr_search_cdsem",
+        fac_id="M11",
+        fab_name="M11A",
+        vendor_nm="HITACHI",
+        eqp_id="ECXDX925",
+        eqp_model_cd="CG6300",
+        tool_type="cd-sem",
+        lot_cd="6LD",
+        lot_id="6LD257421",
+        class_name="ADI",
+        recipe_name="ADI_CD_BIAS_001",
+        full_name="ADI/ADI_CD_BIAS_001",
+        timestamp="2026-05-09T12:00:00Z",
+        start_time="2026-05-09T11:58:00Z",
+        end_time="2026-05-09T12:00:00Z",
+        meastime=120,
+        msr="20260509_ADI_CD_BIAS_001_6LD257421_ECXDX925",
+        msr_check="Yes",
+        align_fail="Pass",
+        total_images=120,
+        fail_images=0,
+        fail_ratio=0.0,
+        idp_name="/Recipe/ADI/ADI_CD_BIAS_001.idp",
+        idw_name="/Recipe/ADI/ADI_CD_BIAS_001.idw"
+    ),
+    MeasHistRow(
+        id="msr_search_hvsem",
+        fac_id="M14",
+        fab_name="M14B",
+        vendor_nm="AMAT",
+        eqp_id="MCD018",
+        eqp_model_cd="TP3000",
+        tool_type="hv-sem",
+        lot_cd="RKPB",
+        lot_id="RKPB240012",
+        class_name="CNT",
+        recipe_name="CNT_CONTACT_CHECK_001",
+        full_name="CNT/CNT_CONTACT_CHECK_001",
+        timestamp="2026-05-09T11:00:00Z",
+        start_time="2026-05-09T10:57:00Z",
+        end_time="2026-05-09T11:00:00Z",
+        meastime=180,
+        msr="20260509_CNT_CONTACT_CHECK_001_RKPB240012_MCD018",
+        msr_check="Yes",
+        align_fail="Pass",
+        total_images=180,
+        fail_images=1,
+        fail_ratio=0.0056,
+        idp_name="/Recipe/CNT/CNT_CONTACT_CHECK_001.idp",
+        idw_name="/Recipe/CNT/CNT_CONTACT_CHECK_001.idw"
+    )
+)
 
 
 def _seed(*values: str | None) -> int:
@@ -183,8 +243,8 @@ def _all_rows() -> tuple[MeasHistRow, ...]:
     rng = random.Random(_seed("meas_hist", "v1"))
     sem_rows = _eligible_sem_rows()
 
-    rows: list[MeasHistRow] = []
-    for index in range(MOCK_ROW_COUNT):
+    rows: list[MeasHistRow] = list(MOCK_SEARCH_FIXTURES)
+    for index in range(len(rows), MOCK_ROW_COUNT):
         eqp = rng.choice(sem_rows)
         row = _build_row(eqp, rng, index)
         if row is not None:
@@ -415,6 +475,15 @@ def _matches_recipe_term(row: MeasHistRow, term: str) -> bool:
     return needle in row["full_name"].lower() or needle in row["recipe_name"].lower()
 
 
+def _matches_any_term(row: MeasHistRow, terms: list[str]) -> bool:
+    """OR fallback terms across an explicit field allowlist."""
+    needles = [term.casefold() for term in terms if term]
+    if not needles:
+        return True
+    haystacks = [str(row[field]).casefold() for field in SEARCHABLE_SOURCE_FIELDS]
+    return any(needle in value for needle in needles for value in haystacks)
+
+
 def search_meas_hist(
     tool_type: ToolType | None = None,
     fab: list[str] | None = None,
@@ -423,6 +492,7 @@ def search_meas_hist(
     recipe: list[str] | None = None,
     lot: list[str] | None = None,
     msr: list[str] | None = None,
+    q: list[str] | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     offset: int = 0,
@@ -436,6 +506,7 @@ def search_meas_hist(
     lot_set = {v.upper() for v in (lot or [])}
     msr_set = set(msr or [])
     recipe_terms = [v for v in (recipe or []) if v]
+    q_terms = [v for v in (q or []) if v]
 
     rows: list[MeasHistRow] = []
     if not out_of_retention:
@@ -459,6 +530,8 @@ def search_meas_hist(
             if msr_set and row["msr"] not in msr_set:
                 continue
             if recipe_terms and not any(_matches_recipe_term(row, t) for t in recipe_terms):
+                continue
+            if q_terms and not _matches_any_term(row, q_terms):
                 continue
 
             rows.append(row)

@@ -71,6 +71,7 @@ export interface MeasHistSearchParams {
   recipe?: string[]
   lot?: string[]
   msr?: string[]
+  q?: string[]
   from?: string
   to?: string
   offset?: number
@@ -124,7 +125,7 @@ export const useMeasHistApi = () => {
     // Repeated params (?eq=A&eq=B) are how a field ORs its values.
     const query: Record<string, string | string[] | number> = { tool_type: params.toolType }
 
-    for (const key of ['fab', 'model', 'eq', 'recipe', 'lot', 'msr'] as const) {
+    for (const key of ['fab', 'model', 'eq', 'recipe', 'lot', 'msr', 'q'] as const) {
       const values = params[key]
       if (values?.length) query[key] = values
     }

@@ -12,6 +12,9 @@ export interface ParsedQuery {
   msr: string[]
   // Always normalized to YYYY-MM-DD.
   date: string[]
+  // Uncategorized tokens. The backend searches each term as a
+  // case-insensitive substring across the fixed searchable-field allowlist.
+  q: string[]
   // Tokens that matched no field — surfaced in the UI so a typo is
   // distinguishable from a genuine no-hit.
   unknown: string[]
@@ -24,21 +27,19 @@ export interface ParsedQuery {
 // aggregating them all server-side just to recognize search-bar tokens is
 // exactly the cost the RECIPE dropdown's removal was meant to avoid. Instead,
 // any token that survives every other classification rule falls through to
-// `recipe` (see classify()'s final branch) — a recipe substring query, never
-// `unknown`. That keeps the parser's promise that no typed token is silently
-// dropped from the request: a bogus recipe now returns zero rows honestly
-// instead of falling to `unknown` (which the backend never receives) and
-// quietly widening the result set to everything.
+// cross-field `q` (see classify()'s final branch). That keeps the parser's
+// promise that no typed token is silently dropped while also allowing partial
+// equipment ids such as `ECXDX` to find `ECXDX925`.
 export interface KnownValues {
   eq: string[]
 }
 
-export const PARSED_FIELDS = ['eq', 'lot', 'recipe', 'msr', 'date', 'unknown'] as const
+export const PARSED_FIELDS = ['eq', 'lot', 'recipe', 'msr', 'date', 'q', 'unknown'] as const
 
 type ParsedField = typeof PARSED_FIELDS[number]
 
 const SEPARATORS = /[\s,;]+/
-const PREFIXED = /^(lot|recipe|eq|msr|date):(.*)$/i
+const PREFIXED = /^(lot|recipe|eq|msr|date|q):(.*)$/i
 // 20260315_CNT_CONTACT_CHECK_..._6LD257421_ECXDX925 — recipe names contain
 // underscores too, so the leading 8-digit date is what makes an msr an msr.
 const MSR = /^\d{8}_.+_.+_.+$/
@@ -47,13 +48,12 @@ const DATE_COMPACT = /^(\d{4})(\d{2})(\d{2})$/
 // 6LD257421 (3 alnum + 6 digits), RKPB240012 (4 alnum + 6 digits). Spec §4.2
 // widens the tail to 6-8 digits — the office index carries lot ids longer
 // than the mock's uniformly-6-digit ones, and a 7-8 digit lot id must not
-// fall through to the `recipe` terminal branch (a real lot id returning zero
-// rows honestly disguised as "no such recipe"). Eq ids top out at 8 total
+// fall through to cross-field `q`. Eq ids top out at 8 total
 // chars (prefix + 3 digits, see back_dev_home/sem_list/providers/mock.py),
 // below this pattern's 9-char minimum (3+6), so widening cannot swallow one.
 const LOT = /^[A-Z0-9]{3,4}\d{6,8}$/i
 
-const emptyQuery = (): ParsedQuery => ({ eq: [], lot: [], recipe: [], msr: [], date: [], unknown: [] })
+const emptyQuery = (): ParsedQuery => ({ eq: [], lot: [], recipe: [], msr: [], date: [], q: [], unknown: [] })
 
 // '20260510' | '2026-05-10' -> '2026-05-10'. null if neither shape matches,
 // OR if the shape matches but the calendar date isn't real (2026-13-45,
@@ -86,7 +86,7 @@ const normalizeDate = (token: string): string | null => {
 const classify = (token: string, known?: KnownValues): { field: ParsedField, value: string } => {
   const prefixed = PREFIXED.exec(token)
   if (prefixed) {
-    const field = prefixed[1]!.toLowerCase() as 'lot' | 'recipe' | 'eq' | 'msr' | 'date'
+    const field = prefixed[1]!.toLowerCase() as 'lot' | 'recipe' | 'eq' | 'msr' | 'date' | 'q'
     const raw = prefixed[2]!
     if (field === 'date') {
       const iso = normalizeDate(raw)
@@ -102,25 +102,21 @@ const classify = (token: string, known?: KnownValues): { field: ParsedField, val
 
   // Case-insensitive: the backend upper-cases both sides of the eq compare
   // (see back_dev_home/meas_hist/data.py), so 'ecdx625' must classify the
-  // same as 'ECDX625' — otherwise it silently falls through to 'unknown'
-  // and the token is dropped from the request instead of matched.
+  // same as 'ECDX625'. If facets are not loaded, the token safely falls
+  // through to cross-field `q` instead of being dropped.
   if (known && known.eq.some(v => v.toLowerCase() === token.toLowerCase())) {
     return { field: 'eq', value: token }
   }
 
   if (LOT.test(token)) return { field: 'lot', value: token }
 
-  // Every other shape rule missed. There is no recipe list to check a token
-  // against (see KnownValues) and never will be, so this is the terminal
-  // branch, not a "give up" case: treat the token as a recipe substring. The
-  // backend matches recipe terms as case-insensitive substrings against
-  // full_name/recipe_name (back_dev_home/meas_hist/data.py), so a real
-  // recipe fragment still finds its rows, and a genuine typo honestly
-  // returns zero rows instead of being dropped into `unknown` (which the
-  // backend never receives) and silently widening the query to everything.
+  // Every other shape rule missed. Search it across every allowed field rather
+  // than guessing `recipe`: a prefix such as ECXDX is useful even though it is
+  // not an exact equipment facet value. A genuine typo still returns zero rows
+  // instead of being dropped and silently widening the query to everything.
   // `unknown` is reserved for a malformed `field:` prefix (e.g.
   // `date:notadate`) — see the prefixed-date branch above.
-  return { field: 'recipe', value: token }
+  return { field: 'q', value: token }
 }
 
 export const parseMeasHistQuery = (text: string, known?: KnownValues): ParsedQuery => {

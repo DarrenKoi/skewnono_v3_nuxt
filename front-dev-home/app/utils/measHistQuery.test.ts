@@ -5,13 +5,12 @@ import { parseMeasHistQuery, removeToken, resolveDateRange, stripDateTokens } fr
 
 // No `recipe` list: there is no RECIPE facet/dropdown (removed — the office
 // index carries hundreds of recipes). A token unmatched by every other rule
-// falls through to `recipe` regardless of what's "known" — see classify()'s
-// terminal branch in measHistQuery.ts.
+// falls through to cross-field `q`, which searches every searchable field.
 const KNOWN = {
   eq: ['ECXDX925', 'ECDX753', 'MCD018']
 }
 
-const EMPTY = { eq: [], lot: [], recipe: [], msr: [], date: [], unknown: [] }
+const EMPTY = { eq: [], lot: [], recipe: [], msr: [], date: [], q: [], unknown: [] }
 
 test('empty input parses to all-empty', () => {
   assert.deepEqual(parseMeasHistQuery('', KNOWN), EMPTY)
@@ -31,8 +30,10 @@ test('tolerates repeated and trailing separators', () => {
 
 test('known equipment id is detected exactly, not by prefix guessing', () => {
   assert.deepEqual(parseMeasHistQuery('ECXDX925', KNOWN).eq, ['ECXDX925'])
-  // Same prefix, not a real tool -> not an eq.
-  assert.deepEqual(parseMeasHistQuery('ECXDX999', KNOWN).eq, [])
+  // Same prefix, not a faceted exact id -> robust cross-field fallback.
+  const fallback = parseMeasHistQuery('ECXDX999', KNOWN)
+  assert.deepEqual(fallback.eq, [])
+  assert.deepEqual(fallback.q, ['ECXDX999'])
 })
 
 test('lot id shape is detected', () => {
@@ -79,19 +80,19 @@ test('both date forms normalize to YYYY-MM-DD', () => {
 // the backend, which (pre-fix) silently widened the query to the entire
 // 60-day retention window instead of returning honest zero rows. A bare
 // invalid-date token must fall through every other shape rule to the
-// `recipe` terminal branch (honest zero rows), never `date`.
+// cross-field fallback (honest zero rows), never `date`.
 test('an invalid calendar date is not classified as date, even though its digit shape matches', () => {
   const impossibleMonth = parseMeasHistQuery('2026-13-45', KNOWN)
   assert.deepEqual(impossibleMonth.date, [])
-  assert.deepEqual(impossibleMonth.recipe, ['2026-13-45'])
+  assert.deepEqual(impossibleMonth.q, ['2026-13-45'])
 
   const impossibleDay = parseMeasHistQuery('2026-02-30', KNOWN)
   assert.deepEqual(impossibleDay.date, [])
-  assert.deepEqual(impossibleDay.recipe, ['2026-02-30'])
+  assert.deepEqual(impossibleDay.q, ['2026-02-30'])
 
   const impossibleCompact = parseMeasHistQuery('99999999', KNOWN)
   assert.deepEqual(impossibleCompact.date, [])
-  assert.deepEqual(impossibleCompact.recipe, ['99999999'])
+  assert.deepEqual(impossibleCompact.q, ['99999999'])
 })
 
 // Fix 1: the PREFIXED form of the same bad dates must land in `unknown` (red
@@ -104,21 +105,23 @@ test('an invalid calendar date behind a date: prefix is unknown, not date or rec
   assert.deepEqual(r.recipe, [])
 })
 
-test('a full_name, a bare recipe_name, and a bare fragment all classify as recipe (no facet to check against)', () => {
-  assert.deepEqual(parseMeasHistQuery('ADI/ADI_CD_BIAS_001', KNOWN).recipe, ['ADI/ADI_CD_BIAS_001'])
-  assert.deepEqual(parseMeasHistQuery('ADI_CD_BIAS_001', KNOWN).recipe, ['ADI_CD_BIAS_001'])
-  assert.deepEqual(parseMeasHistQuery('cd_bias', KNOWN).recipe, ['cd_bias'])
+test('unprefixed recipe names and fragments use cross-field fallback', () => {
+  assert.deepEqual(parseMeasHistQuery('ADI/ADI_CD_BIAS_001', KNOWN).q, ['ADI/ADI_CD_BIAS_001'])
+  assert.deepEqual(parseMeasHistQuery('ADI_CD_BIAS_001', KNOWN).q, ['ADI_CD_BIAS_001'])
+  assert.deepEqual(parseMeasHistQuery('cd_bias', KNOWN).q, ['cd_bias'])
 })
 
-// Was: "a token matching nothing is unknown". There is no recipe facet to
-// confirm a match against anymore, so the terminal fallback in classify()
-// is `recipe`, not `unknown` — a bogus recipe now returns zero rows
-// honestly instead of being dropped from the request and silently widening
-// the query to everything (see classify()'s terminal-branch comment).
-test('an otherwise-unclassified token is treated as a recipe substring, not dropped as unknown', () => {
+test('an otherwise-unclassified token becomes a cross-field fallback, not unknown', () => {
   const r = parseMeasHistQuery('zzz', KNOWN)
-  assert.deepEqual(r.recipe, ['zzz'])
+  assert.deepEqual(r.q, ['zzz'])
+  assert.deepEqual(r.recipe, [])
   assert.deepEqual(r.unknown, [])
+})
+
+test('an equipment prefix uses cross-field fallback so ECXDX finds ECXDX925', () => {
+  const r = parseMeasHistQuery('ECXDX', KNOWN)
+  assert.deepEqual(r.eq, [])
+  assert.deepEqual(r.q, ['ECXDX'])
 })
 
 test('field: prefix overrides shape rules', () => {
@@ -128,12 +131,13 @@ test('field: prefix overrides shape rules', () => {
   assert.deepEqual(parseMeasHistQuery('eq:ECXDX999', KNOWN).eq, ['ECXDX999'])
   assert.deepEqual(parseMeasHistQuery('lot:zzz', KNOWN).lot, ['zzz'])
   assert.deepEqual(parseMeasHistQuery('msr:abc', KNOWN).msr, ['abc'])
+  assert.deepEqual(parseMeasHistQuery('q:ECXDX', KNOWN).q, ['ECXDX'])
   assert.deepEqual(parseMeasHistQuery('date:20260510', KNOWN).date, ['2026-05-10'])
 })
 
 // With the recipe facet gone, classify()'s only remaining route to `unknown`
 // is a malformed `field:` prefix — a plain unmatched token now falls to
-// `recipe` instead (see the test above). Pin that `unknown` still exists for
+// `q` instead (see the test above). Pin that `unknown` still exists for
 // this one case, so the red `?` chip has something real to render.
 test('unknown is reserved for a malformed field: prefix, e.g. an unparseable date', () => {
   const r = parseMeasHistQuery('date:notadate', KNOWN)
@@ -158,12 +162,12 @@ test('duplicate tokens are de-duplicated', () => {
   assert.deepEqual(parseMeasHistQuery('MCD018 MCD018', KNOWN).eq, ['MCD018'])
 })
 
-test('without facets, shape rules still work and leftovers become recipe substrings', () => {
+test('without facets, shape rules still work and leftovers become cross-field terms', () => {
   const r = parseMeasHistQuery('ECXDX925 6LD257421 2026-05-10')
   assert.deepEqual(r.lot, ['6LD257421'])
   assert.deepEqual(r.date, ['2026-05-10'])
-  // No known list to confirm against, so it stays a recipe guess rather than unknown.
-  assert.deepEqual(r.recipe, ['ECXDX925'])
+  assert.deepEqual(r.q, ['ECXDX925'])
+  assert.deepEqual(r.recipe, [])
   assert.deepEqual(r.unknown, [])
 })
 

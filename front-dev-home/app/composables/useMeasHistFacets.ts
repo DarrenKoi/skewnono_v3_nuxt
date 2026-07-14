@@ -25,7 +25,7 @@ export const useMeasHistFacets = (toolType: MeasHistToolType) => {
   // What the search-text parser needs to identify a token by exact match
   // rather than by guessing at its shape. No `recipe` list: recipes are never
   // faceted (see MeasHistFacets), so an otherwise-unclassified token is
-  // treated as a recipe substring by the parser's fallback instead.
+  // sent through the parser's cross-field `q` fallback instead.
   const known = computed<KnownValues>(() => ({
     eq: (facets.value?.eq ?? []).map(v => v.value)
   }))

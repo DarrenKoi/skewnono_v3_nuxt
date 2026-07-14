@@ -9,7 +9,7 @@
         :model-value="modelValue"
         class="flex-1"
         icon="i-lucide-search"
-        placeholder="ECXDX925, 6LD257421, ADI_CD_BIAS_001, 2026-05-10 …"
+        placeholder="예: ECXDX (장비 일부) 또는 6LD257421"
         size="md"
         :loading="pending"
         :disabled="disabled"
@@ -107,6 +107,7 @@ const LABELS: Record<string, string> = {
   recipe: 'RECIPE',
   msr: 'MSR',
   date: 'DATE',
+  q: 'ANY',
   unknown: '?'
 }
 

@@ -2,8 +2,8 @@ import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi
 import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
 
 // No `recipe` field: recipes are found via the search bar only (there is no
-// RECIPE dropdown — see FilterBar.vue). The parser's `recipe` tokens still
-// reach the request; they're unioned in at buildParams below.
+  // RECIPE dropdown — see FilterBar.vue). Bare recipe fragments use `q`;
+  // explicit `recipe:value` tokens still reach the recipe request field.
 export interface MeasHistFilters {
   fab: string[]
   model: string[]
@@ -99,11 +99,12 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
       fab: filters.value.fab,
       model: filters.value.model,
       eq: union(filters.value.eq, p.eq),
-      // No recipe dropdown to union in — the parser's tokens ARE the recipe
-      // filter (see MeasHistFilters's doc comment).
+      // No recipe dropdown to union in. Only an explicit `recipe:value` token
+      // reaches this structured field; bare fragments use cross-field `q`.
       recipe: p.recipe,
       lot: p.lot,
       msr: p.msr,
+      q: p.q,
       from,
       to,
       offset,

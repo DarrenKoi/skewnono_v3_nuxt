@@ -60,6 +60,7 @@ def meas_hist_search():
         recipe=_list_arg("recipe"),
         lot=_list_arg("lot"),
         msr=_list_arg("msr"),
+        q=_list_arg("q"),
         date_from=request.args.get("from"),
         date_to=request.args.get("to"),
         offset=_int_arg("offset", 0),

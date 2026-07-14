@@ -43,16 +43,16 @@
 
 ### 4.0 파서의 위치 — 프런트엔드
 
-검색어 파싱은 **프런트엔드**(`app/utils/measHistQuery.ts`)에서 수행합니다. 백엔드는 원문 `q` 를 받지 않고 **구조화된 필드만** 받습니다. 필터 드롭다운이 만들어내는 것과 정확히 같은 모양입니다.
+검색어 파싱은 **프런트엔드**(`app/utils/measHistQuery.ts`)에서 수행합니다. 백엔드는 원문 전체를 다시 파싱하지 않고 **구조화된 필드 + 미분류 토큰 `q`** 를 받습니다. `q` 는 쿼리 문자열 문법이 아니라 프런트엔드가 분리한 반복 문자열 파라미터입니다.
 
 이유는 네 가지입니다.
 
-1. **백엔드 입력 계약이 하나로 단일화됩니다.** 원문 문법과 구조화 필드, 두 벌의 입력을 백엔드가 이해할 필요가 없습니다. `bool { must: [terms, terms, ...] }` 를 만들 재료가 그대로 들어옵니다.
+1. **백엔드 입력 계약이 하나로 단일화됩니다.** 원문 문법을 백엔드가 다시 이해할 필요가 없습니다. 구조화 필드는 정확 필터로, `q` 는 허용 필드 전체의 부분 일치로 변환합니다.
 2. **facet 응답을 파싱 근거로 쓸 수 있습니다.** facets 는 실재하는 `eqp_id` 와 `full_name` 목록을 이미 담고 있습니다. 알려진 장비 id 와 **정확히 일치하는** 토큰은 추측할 필요 없이 장비 id 입니다. `MCD`/`ECXDX` 같은 접두사 정규식을 데이터와 따로 관리하지 않아도 됩니다.
 3. **칩이 즉시 렌더링됩니다.** 해석 결과를 보려고 왕복할 필요가 없습니다.
-4. **저장소의 테스트 관례와 맞습니다.** 이 저장소의 테스트는 전부 `app/**/*.test.ts` 이고 `node --test` 로 돕니다. 백엔드 pytest 인프라는 존재하지 않습니다. 파서는 이 기능의 유일한 실질 로직이므로 반드시 테스트되어야 하고, 이미 있는 도구로 테스트하는 편이 낫습니다.
+4. **저장소의 테스트 관례와 맞습니다.** 프런트엔드 파서는 `app/**/*.test.ts` 와 `node --test` 로, home Flask 계약은 표준 라이브러리 `unittest` 로 검증합니다. OpenSearch 실연결 검증은 별도 office-local 테스트로 격리합니다.
 
-대가는 필드 형태 지식이 클라이언트에 있다는 점, 그리고 원문 `q` 를 실은 손수 만든 API 호출은 동작하지 않는다는 점입니다. 클라이언트가 하나뿐이므로 감수합니다.
+대가는 필드 형태 지식이 클라이언트에 있다는 점입니다. 손수 만든 API 호출도 반복 `q` 파라미터를 사용할 수 있지만, `q` 값 내부에 별도의 검색 문법은 없습니다.
 
 ### 4.1 토큰화
 
@@ -64,29 +64,29 @@
 
 토큰마다 다음 순서로 판별합니다. facets 의 장비 목록(`knownEq`)을 함께 넘겨받습니다.
 
-1. `field:value` 접두사(`lot:`, `recipe:`, `eq:`, `msr:`, `date:`)가 있으면 그 필드로 강제합니다.
+1. `field:value` 접두사(`lot:`, `recipe:`, `eq:`, `msr:`, `date:`, `q:`)가 있으면 그 필드로 강제합니다.
 2. 날짜 형태(`2026-05-10`, `20260510`) → `date`
 3. 8자리 숫자로 시작하는 `_` 구분 4개 이상 → `msr` (예: `20260510_ADI_CD_BIAS_001_RKPB240012_MCD018`)
 4. `knownEq` 에 있는 값 (대소문자 무시) → `eq`
 5. lot id 형태(`^[A-Z0-9]{3,4}\d{6,8}$`, 예: `RKPB240012`) → `lot`
-6. **그 외 전부 → `recipe` (부분 일치)**
+6. **그 외 전부 → `q` (검색 허용 필드 전체의 부분 일치)**
 
-**레시피 목록은 판별 근거로 쓰지 않습니다.** 실제 색인의 레시피는 수백 개여서 전부 내려받을 수 없기 때문입니다 (§6.3). 따라서 나머지 규칙에 걸리지 않은 토큰은 전부 레시피 부분 문자열로 간주해 백엔드로 보냅니다.
+**레시피 목록은 판별 근거로 쓰지 않습니다.** 실제 색인의 레시피는 수백 개여서 전부 내려받을 수 없기 때문입니다 (§6.3). 따라서 `ECXDX` 같은 장비 접두사와 `CD_BIAS` 같은 레시피 일부는 모두 `q` 로 보냅니다. 백엔드는 `eqp_id`, `lot_id`, `recipe_name`, `full_name`, `msr` 등 고정 허용 목록 전체에서 대소문자를 무시한 부분 일치를 수행합니다.
 
-이 규칙의 중요한 성질은 **어떤 토큰도 조용히 버려지지 않는다** 는 점입니다. 존재하지 않는 레시피를 입력하면 결과가 0건으로 정직하게 나옵니다. 토큰을 질의에서 빼버려 결과가 사용자가 입력한 것보다 **넓어지는** 일은 없습니다. 계측 도구에서는 이쪽이 훨씬 위험한 실패 방향입니다.
+이 규칙의 중요한 성질은 **어떤 토큰도 조용히 버려지거나 임의로 레시피로 오분류되지 않는다** 는 점입니다. 존재하지 않는 문자열을 입력하면 결과가 0건으로 정직하게 나옵니다. 토큰을 질의에서 빼버려 결과가 사용자가 입력한 것보다 **넓어지는** 일은 없습니다. 계측 도구에서는 이쪽이 훨씬 위험한 실패 방향입니다.
 
 `unknown` 은 이제 `field:` 접두사가 붙었는데 값이 형식에 맞지 않는 경우(예: `date:notadate`)에만 남습니다. 이 경우에만 빨간 칩으로 표시합니다.
 
 ### 4.3 결합 규칙
 
 - **같은 필드끼리는 OR**, **필드 간에는 AND** 입니다.
-- `MCD018, MCD019, ADI_CD_BIAS_001` → `(eq = MCD018 OR eq = MCD019) AND recipe ~ ADI_CD_BIAS_001`
+- `MCD018, MCD019, ADI_CD_BIAS_001` → `(eq = MCD018 OR eq = MCD019) AND search_all ~ ADI_CD_BIAS_001`
 - 이 규칙이 아니면 같은 필드 토큰 두 개는 항상 0건이 됩니다. OpenSearch `bool { must: [terms, terms] }` 와 그대로 대응합니다.
 - 날짜 토큰 1개는 해당 일자, 2개는 범위입니다.
 
 ### 4.4 msr 과 lot 의 관계
 
-msr 은 `날짜_레시피_lot_장비` 조합이므로 lot id 를 부분 문자열로 포함합니다. 따라서 `RKPB240012` 는 lot 필드로 판별해 색인된 term 질의를 보냅니다. msr 부분 문자열 매칭은 wildcard 스캔이 되어 느리므로 사용하지 않습니다. 완전한 msr 형태의 토큰만 `msr` 필드에 정확 일치로 질의합니다.
+msr 은 `날짜_레시피_lot_장비` 조합이므로 lot id 를 부분 문자열로 포함합니다. 따라서 완전한 `RKPB240012` 는 lot 필드로 판별해 term 질의를 보냅니다. 완전한 msr 형태도 `msr` 정확 일치로 질의합니다. 그 외 msr 일부 문자열은 `q` 로 들어가며, 일반 keyword 필드가 아니라 §5.2.2의 전용 `wildcard` 필드에서 찾습니다.
 
 ### 4.5 파싱 결과
 
@@ -99,6 +99,7 @@ interface ParsedQuery {
   recipe: string[]
   msr: string[]
   date: string[]     // YYYY-MM-DD 정규화
+  q: string[]        // 고정 허용 필드 전체 부분 일치
   unknown: string[]
 }
 ```
@@ -109,7 +110,7 @@ UI 는 이를 검색창 아래 칩으로 표시합니다. 미인식 토큰(`unkn
 
 ### 5.1 `GET /api/meas-hist/search`
 
-모든 파라미터가 구조화된 필드입니다. 원문 `q` 는 받지 않습니다 (§4.0). 검색창이 만든 필드와 필터 드롭다운이 만든 필드는 같은 파라미터로 합쳐져 들어옵니다.
+모든 파라미터는 프런트엔드가 분류한 값입니다. `q` 도 원문 전체가 아니라 미분류 토큰의 반복 파라미터입니다 (§4.0). 검색창이 만든 필드와 필터 드롭다운이 만든 필드는 같은 파라미터로 합쳐져 들어옵니다.
 
 | 파라미터 | 출처 | 설명 |
 | --- | --- | --- |
@@ -120,6 +121,7 @@ UI 는 이를 검색창 아래 칩으로 표시합니다. 미인식 토큰(`unkn
 | `recipe` | 필터 + 검색어 | `full_name` / `recipe_name` 부분 일치, 다중 |
 | `lot` | 검색어 | `lot_id` 정확 일치, 다중 |
 | `msr` | 검색어 | `msr` 정확 일치, 다중 |
+| `q` | 검색어 fallback | 고정 허용 필드 전체에서 대소문자 무시 부분 일치, 다중 |
 | `from`, `to` | 필터 + 검색어 | 조회 기간 |
 | `offset`, `limit` | 페이징 | 기본 `limit=50` |
 
@@ -164,6 +166,20 @@ Phase 1 mock 의 시계는 `meas_hist/data.py` 의 `NOW = datetime(2026, 5, 10)`
 
 Phase 2 로 넘어갈 때 바뀌는 것은 `RETENTION_ANCHOR` 한 줄뿐입니다.
 
+### 5.2.2 OpenSearch 부분 일치 전략
+
+일반 `keyword` 필드 여러 개에 `*토큰*` 을 직접 실행하는 방식은 기본 전략으로 사용하지 않습니다. 선행 wildcard 는 많은 term 을 순회해 느리고, 클러스터의 `search.allow_expensive_queries=false` 설정에서 차단될 수 있습니다.
+
+대신 색인 시 검색 허용 필드를 합친 `search_all` 값을 추가하고 이를 OpenSearch `wildcard` 타입으로 매핑합니다. 정확 필터는 기존 keyword 필드에 유지하고, `q` fallback 만 `search_all` 에 `*토큰*` 질의를 실행합니다.
+
+- 검색 허용 필드와 OpenSearch DSL: `back_dev_home/meas_hist/opensearch_query.py`
+- home mock: 동일 허용 필드를 메모리에서 `casefold()` 부분 일치합니다.
+- office ingest: `build_search_all_value(row)` 값을 `search_all` 로 색인합니다.
+- 기존 60일 문서: 매핑만 추가해서는 값이 생기지 않으므로 재색인 또는 backfill 후 기능을 활성화합니다.
+- 실클러스터 확인: `tests/test_meas_hist_search_local.py` 를 office 환경 변수로 실행합니다.
+
+근거는 OpenSearch 공식 문서의 [Wildcard query](https://docs.opensearch.org/latest/query-dsl/term/wildcard/)와 [Wildcard field type](https://docs.opensearch.org/latest/mappings/supported-field-types/wildcard/)입니다.
+
 ### 5.3 `GET /api/meas-hist/facets`
 
 `tool_type` 에 대해 존재하는 `fab`, `model`, `eq` 값과 건수를 반환합니다. Phase 2 는 OpenSearch terms aggregation 입니다. 드롭다운은 실재하는 값만 보여줍니다.
@@ -174,7 +190,8 @@ Phase 2 로 넘어갈 때 바뀌는 것은 `RETENTION_ANCHOR` 한 줄뿐입니�
 
 ### 5.4 파일 구성
 
-- `back_dev_home/meas_hist/data.py` — `search_meas_hist(...)`, `get_meas_hist_facets(...)` 추가. 기존 600행 시드 데이터 위에서 in-memory 필터링합니다.
+- `back_dev_home/meas_hist/data.py` — `search_meas_hist(...)`, `get_meas_hist_facets(...)` 추가. 2개 고정 검색 fixture + 랜덤 행으로 구성된 600행 시드 데이터 위에서 in-memory 필터링합니다.
+- `back_dev_home/meas_hist/opensearch_query.py` — office `search_all` 매핑·ingest 값·fallback DSL 계약입니다.
 - `back_dev_home/meas_hist/routes.py` — 파라미터 마샬링만 합니다. `request.args.getlist(...)` 로 반복 파라미터를 읽습니다.
 
 블루프린트는 `back_dev_home/__init__.py` 가 `rglob("routes.py")` 로 자동 등록하므로 등록 코드를 추가할 필요가 없습니다.
@@ -187,7 +204,7 @@ Phase 2 로 넘어갈 때 바뀌는 것은 `RETENTION_ANCHOR` 한 줄뿐입니�
 
 **`app/utils/measHistQuery.ts`** (신규, 순수 함수)
 
-- `parseMeasHistQuery(text: string, known?: { eq: string[], recipe: string[] }): ParsedQuery` — §4 의 문법 전체. 순수 함수이므로 `node --test` 로 직접 테스트합니다.
+- `parseMeasHistQuery(text: string, known?: { eq: string[] }): ParsedQuery` — §4 의 문법 전체. 순수 함수이므로 `node --test` 로 직접 테스트합니다.
 - `removeToken(text: string, token: string): string` — 칩의 × 가 검색어에서 해당 토큰만 제거할 때 씁니다.
 
 **`useMeasHistSearch.ts`** (신규)
@@ -274,15 +291,17 @@ facet 은 네 개뿐입니다.
 
 ## 8. 테스트
 
-이 저장소에는 백엔드 테스트 인프라(pytest)가 없습니다. 테스트는 전부 `app/**/*.test.ts` 이며 `npm test` (`node --test`) 로 돕니다. 이 기능의 유일한 실질 로직인 파서를 프런트엔드에 둔 이유 중 하나입니다 (§4.0).
+프런트엔드 순수 파서는 `app/**/*.test.ts` 와 `npm test` (`node --test`) 로 검증합니다. Flask와 OpenSearch 계약은 외부 패키지 추가 없이 `tests/`의 `unittest` 모듈로 나눕니다.
 
 **`app/utils/measHistQuery.test.ts`** (신규):
 
 - 토큰화 — 공백·콤마·세미콜론 혼합, 연속 구분자, 후행 구분자.
-- 필드 판별 — 날짜 두 형태, msr 형태, `knownEq` 정확 일치, lot 형태, 그 외 전부 recipe 폴백, `field:` 접두사 오류로만 남는 미인식.
+- 필드 판별 — 날짜 두 형태, msr 형태, `knownEq` 정확 일치, lot 형태, 그 외 전부 `q` 폴백, `field:` 접두사 오류로만 남는 미인식.
 - `field:` 접두사 강제 — 형태 규칙을 이깁니다.
 - 같은 필드 여러 토큰이 배열로 누적되는지.
 - facets 미로딩 상태의 축약 규칙.
 - `removeToken` — 해당 토큰만 제거하고 나머지 구분자를 망가뜨리지 않는지.
 
-백엔드 `search_meas_hist` / `get_meas_hist_facets` 는 pytest 인프라를 새로 들이지 않고, 실행 중인 Flask 에 대한 수동 curl 검증으로 확인합니다 (60일 clamp, 보존 창 밖 질의, `capped` 플래그, 페이징, facet 건수). 백엔드 테스트 관례를 세우는 일은 이 기능의 범위를 넘어서므로 별도 작업으로 남깁니다.
+**`tests/test_meas_hist_search_home.py`** 는 고정 mock fixture, `q`의 장비/lot/recipe/model/msr 부분 일치, 구조화 필터와의 AND, Flask 반복 파라미터 계약, OpenSearch DSL 생성을 검증합니다.
+
+**`tests/test_meas_hist_search_local.py`** 는 home에서 skip되고, office 환경 변수가 있을 때 실제 index의 `search_all` wildcard 매핑과 실데이터 hit를 확인합니다.
