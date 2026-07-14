@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
+import { validRows } from '~/utils/msrRows'
 import { polyfit, polyval } from '~/utils/polyfit'
 import { SK_CHART } from '~/utils/chartPalette'
 
@@ -22,13 +23,15 @@ const props = defineProps<{
   unitY: string
 }>()
 
+const rows = computed(() => validRows(props.rows))
+
 const pairs = computed<[number, number][]>(() => {
   const xBySite = new Map<string, number>()
-  for (const r of props.rows) {
+  for (const r of rows.value) {
     if (r.parameter === props.paramX) xBySite.set(`${r.chip_number}#${r.sequence}`, r.cd_value)
   }
   const out: [number, number][] = []
-  for (const r of props.rows) {
+  for (const r of rows.value) {
     if (r.parameter !== props.paramY) continue
     const x = xBySite.get(`${r.chip_number}#${r.sequence}`)
     if (x != null) out.push([x, r.cd_value])

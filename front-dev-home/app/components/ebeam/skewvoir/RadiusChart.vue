@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
+import { validRows } from '~/utils/msrRows'
 import { polyfit, polyval } from '~/utils/polyfit'
 import { SK_CHART } from '~/utils/chartPalette'
 
@@ -20,12 +21,13 @@ const props = withDefaults(defineProps<{
   degree: 3
 })
 
+const rows = computed(() => validRows(props.rows))
+
 // (distance-from-center, CD) per measured site for the active parameter.
 const points = computed<[number, number][]>(() => {
   const out: [number, number][] = []
-  for (const row of props.rows) {
+  for (const row of rows.value) {
     if (row.parameter !== props.parameter) continue
-    if (row.mp_number < 0) continue
     const xy = parseChipXY(row.chip_number)
     if (!xy) continue
     const radius = Math.hypot(xy[0], xy[1])

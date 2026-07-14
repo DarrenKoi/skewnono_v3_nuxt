@@ -9,12 +9,51 @@ export interface MsrFileRow {
   dnum_group: string
   mp_number: number
   parameter: string
-  cd_value: number
+  // NULLABLE: null exactly when mp_number < 0 — a point with metadata but no
+  // data has no measurement. Never coerce this to 0; gate it via utils/msrRows.
+  cd_value: number | null
   no_of_mp_image: number
   mp_image_name_01: string
+  meas_condition_mag: number
+  meas_condition_vac: number
+  meas_condition_pixel: string
+  addressing1_score: number | null
+  addressing2_score: number | null
   measurement_score: number | null
   meas_method: string
   object_type: string
+  meas_kind: string | null
+}
+
+export interface ExeDetailInfo {
+  class_name: string
+  recipe_name: string
+  idp_name: string
+  lot_id: string
+  process: string
+  wafer_id: string
+  idw_name: string
+  chip_array: string
+  chip_pitch: string
+  wafer_size: string
+  map_offset: string
+  map_origin: string
+}
+
+export interface AlignmentInfo {
+  image_file: Record<string, string>
+  // [method, x, y] — e.g. ['OM', '365', '3525']
+  offset: Record<string, [string, string, string]>
+  score: Record<string, string>
+}
+
+// A 32-point profile: Vol (signal) against wf_len (nm). PLACEHOLDER — the mock
+// generates a seeded parabola with no signal in it. Nothing consumes this yet;
+// do not build analysis on its shape.
+export interface SpmDict {
+  vave: number[]
+  Vol: number[]
+  wf_len: number[]
 }
 
 export interface MsrParamSummary {
@@ -67,6 +106,9 @@ export interface MsrFileResponse {
   fixed_fdc: Record<string, number>
   // Per-sequence FDC keyed by sequence string → { param: value }.
   dynamic_fdc: Record<string, Record<string, number>>
+  exe_detail_info: ExeDetailInfo
+  alignment: AlignmentInfo
+  spm_dict: SpmDict
   total: number
   rows: MsrFileRow[]
 }

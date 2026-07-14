@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { validRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -53,8 +54,8 @@ const { msrImageUrl } = useMsrFileApi()
 const images = computed(() => {
   const seen = new Set<string>()
   const out: { name: string, chip: string, cd: number }[] = []
-  for (const r of props.analysis.siteRows.value) {
-    if (r.parameter !== props.analysis.activeParam.value || r.mp_number < 0) continue
+  for (const r of validRows(props.analysis.siteRows.value)) {
+    if (r.parameter !== props.analysis.activeParam.value) continue
     const name = r.mp_image_name_01
     if (name && !seen.has(name)) {
       seen.add(name)

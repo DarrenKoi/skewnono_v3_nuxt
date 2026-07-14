@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
+import { paramValues } from '~/utils/msrRows'
 import { SK_CHART } from '~/utils/chartPalette'
 
 // CD distribution for one parameter, in three shapes: histogram, box plot, or a
@@ -25,9 +26,7 @@ const props = withDefaults(defineProps<{
 
 const BIN_COUNT = 12
 
-const values = computed(() =>
-  props.rows.filter(r => r.parameter === props.parameter).map(r => r.cd_value)
-)
+const values = computed(() => paramValues(props.rows, props.parameter))
 
 const mean = computed(() => {
   const v = values.value

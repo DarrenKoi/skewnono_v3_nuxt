@@ -79,6 +79,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { validRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -90,8 +91,8 @@ const composite = computed(() => {
   const param = props.analysis.activeParam.value
   const acc = new Map<string, { x: number, y: number, sum: number, sumsq: number, n: number }>()
   for (const file of props.analysis.setFiles.value.values()) {
-    for (const r of file.rows) {
-      if (r.parameter !== param || r.mp_number < 0) continue
+    for (const r of validRows(file.rows)) {
+      if (r.parameter !== param) continue
       const xy = parseChipXY(r.chip_number)
       if (!xy) continue
       const key = `${xy[0]},${xy[1]}`
