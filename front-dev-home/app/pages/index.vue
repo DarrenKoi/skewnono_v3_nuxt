@@ -193,69 +193,6 @@ const systemStatus = computed(() => {
       </UCard>
     </div>
 
-    <!-- Quick Access Section -->
-    <h3 class="text-lg font-semibold">
-      Quick Access
-    </h3>
-    <div class="grid md:grid-cols-3 gap-4">
-      <!-- Favorites -->
-      <UCard class="dashboard-surface rounded-3xl">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-star"
-              class="w-4 h-4 text-zinc-500"
-            />
-            <span class="font-medium">
-              Favorites
-            </span>
-          </div>
-        </template>
-
-        <div class="text-sm text-zinc-500 dark:text-zinc-400 py-4 text-center">
-          No favorites yet
-        </div>
-      </UCard>
-
-      <!-- Recent -->
-      <UCard class="dashboard-surface rounded-3xl">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-clock"
-              class="w-4 h-4 text-zinc-500"
-            />
-            <span class="font-medium">
-              Recent
-            </span>
-          </div>
-        </template>
-
-        <div class="text-sm text-zinc-500 dark:text-zinc-400 py-4 text-center">
-          No recent activity
-        </div>
-      </UCard>
-
-      <!-- Alerts -->
-      <UCard class="dashboard-surface rounded-3xl">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-alert-triangle"
-              class="w-4 h-4 text-zinc-500"
-            />
-            <span class="font-medium">
-              Alerts
-            </span>
-          </div>
-        </template>
-
-        <div class="text-sm text-zinc-500 dark:text-zinc-400 py-4 text-center">
-          No active alerts
-        </div>
-      </UCard>
-    </div>
-
     <!-- System Status -->
     <h3 class="text-lg font-semibold">
       System Status
