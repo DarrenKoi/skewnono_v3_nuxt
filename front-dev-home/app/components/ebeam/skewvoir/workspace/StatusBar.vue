@@ -22,10 +22,12 @@
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 
-const props = defineProps<{ ws: SkewvoirWorkspace }>()
+defineProps<{ ws: SkewvoirWorkspace }>()
 
 const user = 'KSH'
-const conn = computed(() => `elastic-${props.ws.pinnedFilters.value.fab.toLowerCase()}`)
+// Static backend label — the mock connection string was never derived from a
+// real query (it read a pinned-filters FAB that no consumer actually queried).
+const conn = 'opensearch'
 
 const now = ref(new Date())
 let timer: ReturnType<typeof setInterval> | null = null

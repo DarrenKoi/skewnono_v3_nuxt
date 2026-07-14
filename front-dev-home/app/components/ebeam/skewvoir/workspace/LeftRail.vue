@@ -87,40 +87,6 @@
       </dl>
     </section>
 
-    <!-- Pinned filters -->
-    <section class="space-y-2 border-t border-(--sk-border-soft) pt-4">
-      <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
-        FILTER PINNED
-      </p>
-      <div class="space-y-1.5 px-1">
-        <div
-          v-for="field in filterFields"
-          :key="field.label"
-          class="flex items-center justify-between gap-2"
-        >
-          <span class="text-[11.5px] text-(--sk-ink-muted)">{{ field.label }}</span>
-          <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-[11px] text-(--sk-chip-text)">
-            {{ field.value }}
-          </span>
-        </div>
-        <div class="flex flex-wrap gap-1.5 pt-1">
-          <span
-            v-for="flag in ws.pinnedFilters.value.flags"
-            :key="flag"
-            class="rounded-(--sk-r-chip) bg-(--sk-brand) px-2 py-0.5 font-mono text-[11px] font-medium text-(--sk-brand-fg)"
-          >
-            {{ flag }}
-          </span>
-          <button
-            type="button"
-            class="rounded-(--sk-r-chip) border border-dashed border-zinc-300 px-2 py-0.5 font-mono text-[11px] text-(--sk-ink-muted) hover:border-zinc-400 hover:text-(--sk-ink) dark:border-zinc-600"
-          >
-            + add
-          </button>
-        </div>
-      </div>
-    </section>
-
     <!-- Health -->
     <section class="mt-auto space-y-2 border-t border-(--sk-border-soft) pt-4">
       <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
@@ -162,18 +128,6 @@ const selectionFields = computed(() => {
     { label: 'EQ', value: sel.eq, strong: false },
     { label: 'MP', value: sel.mp, strong: false },
     { label: 'Captured', value: sel.capturedAt, strong: false }
-  ]
-})
-
-const filterFields = computed(() => {
-  const f = props.ws.pinnedFilters.value
-  const sel = props.ws.selection.value
-  return [
-    { label: 'Area', value: f.area },
-    { label: 'FAB', value: f.fab },
-    { label: 'EQ type', value: f.eqType },
-    { label: 'Period', value: f.period },
-    { label: 'MP', value: sel?.mp ?? f.mp }
   ]
 })
 </script>

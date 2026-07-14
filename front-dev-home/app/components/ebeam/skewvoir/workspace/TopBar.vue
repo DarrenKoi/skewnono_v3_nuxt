@@ -57,7 +57,6 @@ const user = 'KSH'
 
 const dataPath = computed(() => {
   const sel = props.ws.selection.value
-  const fab = props.ws.pinnedFilters.value.fab.toLowerCase()
-  return sel ? `/data/${fab}/${sel.eq}` : `/data/${fab}`
+  return sel ? `/data/${sel.eq}` : '/data'
 })
 </script>

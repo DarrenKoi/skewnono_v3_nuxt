@@ -163,6 +163,34 @@ const savedViews = useSkewvoirSavedViews(props.toolType)
 const route = useRoute()
 const toast = useToast()
 
+// A shared analysis link bypasses the search landing page (where opening a row
+// records into recently-viewed), so record here too — once, on mount, and only
+// if this msr isn't already known. That guard matters: when navigation DOES
+// come from the landing page, SearchLanding.open() already recorded a richer
+// entry (real `fab`) just before navigating here; recording again with the
+// blank `fab` available at this layer would clobber it.
+const recent = useSkewvoirRecentlyViewed(props.toolType)
+const { anchor } = useMeasHistFacets(props.toolType)
+
+watch(anchor, value => recent.setAnchor(value), { immediate: true })
+
+onMounted(() => {
+  const sel = ws.selection.value
+  if (!sel?.msr) return
+  const alreadyKnown = recent.items.value.some(item => item.msr === sel.msr)
+  if (alreadyKnown) return
+  recent.record({
+    msr: sel.msr,
+    toolType: props.toolType,
+    lot: sel.lot,
+    recipe: sel.recipe,
+    eq: sel.eq,
+    fab: '',
+    capturedAt: sel.capturedAt,
+    viewedAt: new Date().toISOString()
+  })
+})
+
 // USelect/USelectMenu triggers render as <button role="combobox">, not <input>,
 // so defineShortcuts' usingInput guard does NOT suppress digit keys while one is
 // focused/open — a digit typed for option type-ahead would also switch the view.

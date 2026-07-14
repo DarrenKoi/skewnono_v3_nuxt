@@ -32,15 +32,6 @@ export interface SkewvoirSelection {
   capturedAt: string
 }
 
-export interface SkewvoirPinnedFilters {
-  area: string
-  fab: string
-  eqType: string
-  period: string
-  mp: string
-  flags: string[]
-}
-
 export interface SkewvoirHealth {
   scans: number
   outliers: number
@@ -64,17 +55,7 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
   // Explicit curated comparison set for the Time-Series view (msr ids in URL).
   const msrList = skRoute.msrList
 
-  // Pinned filters / health stay mock-seeded for this pass; the MP filter
-  // mirrors the URL selection when present so the rail and the link agree.
-  const pinnedFilters = useState<SkewvoirPinnedFilters>(`skewvoir-filters-${toolType}`, () => ({
-    area: 'DRAM',
-    fab: 'R3',
-    eqType,
-    period: '2026-05-01 → 11',
-    mp: 'WAFER',
-    flags: ['3σ > 0.5', 'outliers']
-  }))
-
+  // Health stays mock-seeded for this pass (Phase 1 has no live scan feed yet).
   const health = useState<SkewvoirHealth>(`skewvoir-health-${toolType}`, () => ({ scans: 24, outliers: 15 }))
 
   // Switching views just rewrites the `view` query param (keeps the rest).
@@ -89,7 +70,6 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     selection,
     activeKind,
     msrList,
-    pinnedFilters,
     health,
     openView,
     goSearch,
