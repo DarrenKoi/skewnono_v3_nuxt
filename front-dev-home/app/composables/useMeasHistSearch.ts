@@ -1,0 +1,176 @@
+import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
+import { parseMeasHistQuery } from '~/utils/measHistQuery'
+
+export interface MeasHistFilters {
+  fab: string[]
+  model: string[]
+  eq: string[]
+  recipe: string[]
+  from: string
+  to: string
+}
+
+const PAGE_SIZE = 50
+
+// Subtract days from an ISO YYYY-MM-DD without touching wall clock.
+const shiftIso = (iso: string, days: number): string => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
+  dt.setUTCDate(dt.getUTCDate() - days)
+  return dt.toISOString().slice(0, 10)
+}
+
+export const useMeasHistSearch = (toolType: MeasHistToolType) => {
+  const { searchMeasHist } = useMeasHistApi()
+  const { facets, pending: facetsPending, known, anchor, retentionDays } = useMeasHistFacets(toolType)
+
+  const queryText = ref('')
+  const narrowText = ref('')
+
+  // The retention window is anchored to the backend's declared clock, never to
+  // wall-clock today — the Phase 1 mock's data ends at a frozen NOW.
+  const defaultRange = computed(() => ({
+    start: anchor.value ? shiftIso(anchor.value, retentionDays.value) : '',
+    end: anchor.value
+  }))
+
+  const filters = ref<MeasHistFilters>({ fab: [], model: [], eq: [], recipe: [], from: '', to: '' })
+
+  // Chips render as you type — no round-trip needed to see how a token was read.
+  const parsed = computed(() => parseMeasHistQuery(queryText.value, known.value))
+
+  const rows = ref<MeasHistRow[]>([])
+  const total = ref(0)
+  const capped = ref(false)
+  const outOfRetention = ref(false)
+  const pending = ref(false)
+  const error = ref<string | null>(null)
+  // False until the first search runs — drives the "type something" empty state.
+  const searched = ref(false)
+
+  const hasActiveFilters = computed(() =>
+    filters.value.fab.length > 0
+    || filters.value.model.length > 0
+    || filters.value.eq.length > 0
+    || filters.value.recipe.length > 0
+    || Boolean(filters.value.from)
+    || Boolean(filters.value.to)
+  )
+
+  const hasMore = computed(() => rows.value.length < Math.min(total.value, 10000))
+
+  // Search-bar fields and dropdown fields feed the same request params.
+  const union = (a: string[], b: string[]) => [...new Set([...a, ...b])]
+
+  const buildParams = (offset: number) => {
+    const p = parsed.value
+    const dates = [...p.date].sort()
+    const from = filters.value.from || dates[0] || defaultRange.value.start
+    const to = filters.value.to || dates[dates.length - 1] || defaultRange.value.end
+
+    return {
+      toolType,
+      fab: filters.value.fab,
+      model: filters.value.model,
+      eq: union(filters.value.eq, p.eq),
+      recipe: union(filters.value.recipe, p.recipe),
+      lot: p.lot,
+      msr: p.msr,
+      from,
+      to,
+      offset,
+      limit: PAGE_SIZE
+    }
+  }
+
+  const run = async (offset: number) => {
+    pending.value = true
+    error.value = null
+    try {
+      const res = await searchMeasHist(buildParams(offset))
+      rows.value = offset === 0 ? res.rows : [...rows.value, ...res.rows]
+      total.value = res.total
+      capped.value = res.capped
+      outOfRetention.value = res.out_of_retention
+    } catch {
+      // Keep the current rows on failure — losing results to a transient blip
+      // is worse than showing stale ones next to a retry.
+      error.value = '검색에 실패했습니다.'
+    } finally {
+      pending.value = false
+    }
+  }
+
+  // Explicit: Enter or the Search button. Searching per keystroke would fire a
+  // full OpenSearch query for every character of a lot id.
+  const search = async () => {
+    searched.value = true
+    narrowText.value = ''
+    await run(0)
+  }
+
+  const loadMore = async () => {
+    if (!hasMore.value || pending.value) return
+    await run(rows.value.length)
+  }
+
+  // Instant, local narrowing of the rows already loaded. Never hits the network.
+  const narrowedRows = computed(() => {
+    const needle = narrowText.value.trim().toLowerCase()
+    if (!needle) return rows.value
+    return rows.value.filter(row =>
+      row.lot_id.toLowerCase().includes(needle)
+      || row.full_name.toLowerCase().includes(needle)
+      || row.eqp_id.toLowerCase().includes(needle)
+      || row.fab_name.toLowerCase().includes(needle)
+    )
+  })
+
+  const resetFilters = () => {
+    filters.value = { fab: [], model: [], eq: [], recipe: [], from: '', to: '' }
+  }
+
+  const reset = () => {
+    queryText.value = ''
+    narrowText.value = ''
+    resetFilters()
+    rows.value = []
+    total.value = 0
+    capped.value = false
+    outOfRetention.value = false
+    error.value = null
+    searched.value = false
+  }
+
+  // A dropdown change is one deliberate act, so it re-searches immediately —
+  // unlike typing, which waits for Enter.
+  watch(() => filters.value, () => {
+    if (searched.value) void search()
+  }, { deep: true })
+
+  return {
+    queryText,
+    narrowText,
+    filters,
+    parsed,
+    rows,
+    narrowedRows,
+    total,
+    capped,
+    outOfRetention,
+    pending,
+    error,
+    searched,
+    hasMore,
+    hasActiveFilters,
+    defaultRange,
+    anchor,
+    retentionDays,
+    facets,
+    facetsPending,
+    search,
+    loadMore,
+    reset,
+    resetFilters
+  }
+}
