@@ -20,13 +20,13 @@
 
 from __future__ import annotations
 
-import os
 import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 from typing import TypedDict
 
+from .._auth.admin import is_admin
 from .._logging.feature_map import route_to_feature
 from .._runtime.env import is_cloud
 
@@ -160,22 +160,6 @@ def _iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def _admin_allowlist() -> frozenset[str]:
-    raw = os.environ.get("SKEWNONO_ADMIN_USERS", "")
-    members = {part.strip() for part in raw.split(",") if part.strip()}
-    if not members:
-        # Default at home: the local dev user can see the admin panel so the
-        # global aggregates are visible without setting an env var.
-        members = {"local-dev"}
-    return frozenset(members)
-
-
-def is_admin(user_id: str | None) -> bool:
-    if not user_id or user_id == "-":
-        return False
-    return user_id in _admin_allowlist()
 
 
 def _top_features(counts: dict[str, int], cap: int = _TOP_FEATURES_CAP) -> list[FeatureCount]:

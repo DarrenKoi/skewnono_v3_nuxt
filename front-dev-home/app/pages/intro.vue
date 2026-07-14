@@ -305,6 +305,17 @@ const pageGuides: PageGuide[] = [
     notes: ['일반 내비게이션에는 노출하지 않고 URL 직접 입력으로 접근합니다.']
   },
   {
+    id: 'admin-access',
+    title: '접근 권한 관리',
+    path: '/admin/access',
+    icon: 'i-lucide-shield-check',
+    section: 'common',
+    purpose: 'X-사번 차단 규칙의 예외 허용 목록을 관리하는 관리자 전용 화면입니다.',
+    description: 'X로 시작하는 사번은 기본 차단되며, 이 화면에서 예외로 허용하거나 최근 차단 시도를 확인해 원클릭으로 허용합니다.',
+    users: '관리자',
+    notes: ['일반 내비게이션에는 노출하지 않고 URL 직접 입력으로 접근합니다.']
+  },
+  {
     id: 'ebeam-entry',
     title: 'E-Beam 진입',
     path: '/ebeam/cd-sem, /ebeam/hv-sem',

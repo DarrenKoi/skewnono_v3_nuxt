@@ -1,6 +1,8 @@
 from flask import Flask, g, redirect, request
 
+from ..access_control.data import is_blocked, record_denied
 from ..api_tokens.data import find_by_plaintext, touch_last_used
+from .admin import is_admin
 from .errors import error_json
 from .provider import IdentityProvider
 
@@ -36,6 +38,23 @@ def _try_api_token():
     return True, None
 
 
+def _deny_if_blocked():
+    """X-prefixed member ids are blocked unless granted an exception.
+
+    Only /api/* is denied — the SPA HTML must still load so the frontend
+    can render the friendly access-denied screen. Admins always pass.
+    """
+    user_id = getattr(g, "user_id", None)
+    # is_blocked first: non-X ids (nearly everyone) short-circuit on a prefix
+    # check without touching the admin allowlist or the exception store.
+    if not user_id or not is_blocked(user_id) or is_admin(user_id):
+        return None
+    if request.path.startswith("/api/"):
+        record_denied(user_id)
+        return error_json("access_denied", "member id is not allowed to access this service", 403)
+    return None
+
+
 def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
     @app.before_request
     def _attach_identity():
@@ -44,12 +63,12 @@ def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
 
         matched, response = _try_api_token()
         if matched:
-            return response
+            return response or _deny_if_blocked()
 
         user_id = provider.identify(request)
         if user_id:
             g.user_id = user_id
-            return None
+            return _deny_if_blocked()
 
         if request.path.startswith("/api/"):
             return error_json("unauthenticated", "SSO session required", 401)

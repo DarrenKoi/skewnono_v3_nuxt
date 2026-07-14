@@ -21,13 +21,23 @@ useSeoMeta({
   ogTitle: title,
   ogDescription: description
 })
+
+// Identity gate: resolve who the visitor is before rendering the shell, so a
+// blocked member id sees only the denied screen (no flash of protected UI).
+// The 'activity-me' cache key is shared with the activity page, so this adds
+// no extra request for allowed users.
+const { error: meError } = await useActivityMe()
+const accessDenied = computed(() => isAccessDeniedError(meError.value))
 </script>
 
 <template>
   <UApp>
-    <AnnouncementBanner />
-    <NuxtLayout>
-      <NuxtPage />
-    </NuxtLayout>
+    <AccessDeniedScreen v-if="accessDenied" />
+    <template v-else>
+      <AnnouncementBanner />
+      <NuxtLayout>
+        <NuxtPage />
+      </NuxtLayout>
+    </template>
   </UApp>
 </template>

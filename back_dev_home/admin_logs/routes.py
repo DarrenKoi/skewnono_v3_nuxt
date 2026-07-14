@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, jsonify, request
 
+from back_dev_home._auth.admin import require_admin
 from back_dev_home._auth.errors import error_json
 
 from .data import query_logs
@@ -11,6 +12,7 @@ logger = logging.getLogger("skewnono.admin_logs")
 
 
 @bp.get("/admin/logs")
+@require_admin
 def admin_logs():
     try:
         return jsonify(query_logs(request.args))

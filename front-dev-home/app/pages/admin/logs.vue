@@ -469,6 +469,16 @@ const pageCount = computed(() => {
 
 const errorMessage = computed(() => {
   if (!error.value) return ''
+  // The backend now require_admin-gates this endpoint; show the same notice
+  // as /admin/access instead of the raw FetchError text.
+  const err = error.value as {
+    statusCode?: number
+    data?: { error?: { code?: string }, data?: { error?: { code?: string } } }
+  }
+  const code = err.data?.error?.code ?? err.data?.data?.error?.code
+  if (err.statusCode === 403 || code === 'forbidden') {
+    return '관리자만 접근할 수 있는 페이지입니다.'
+  }
   return error.value.message || 'Failed to load logs.'
 })
 

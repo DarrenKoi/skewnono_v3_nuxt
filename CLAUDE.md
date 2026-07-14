@@ -8,10 +8,10 @@ Web application for metrology, specified for tool management and data analytics.
 
 ### Phase 1 — Home / Offline
 - Personal computer, fully offline
-- Flask mock server (`back_dev_home/`) runs on `http://localhost:5000`
+- Flask mock server (`back_dev_home/`) runs on `http://localhost:5050` (5000 conflicts with macOS AirPlay; `PORT` env overrides)
 - Data sourced from in-memory Python mock modules (no OpenSearch, no Redis, no DB)
 - Same Flask code and blueprint layout as Phase 2/3 — only the data-access layer differs
-- Nuxt runs with `NUXT_API_TARGET=http://localhost:5000` so Nitro proxies `/api/*` to Flask
+- Nuxt runs with `NUXT_API_TARGET=http://localhost:5050` so Nitro proxies `/api/*` to Flask
 
 ### Phase 2 — Company / Localhost
 - Company infrastructure, localhost
