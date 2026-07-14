@@ -7,15 +7,6 @@
         <!-- Main header: breadcrumb + view actions -->
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border) px-4 py-2.5">
           <div class="flex items-center gap-2.5">
-            <UButton
-              color="primary"
-              variant="solid"
-              icon="i-lucide-arrow-left"
-              label="검색으로"
-              size="sm"
-              class="shadow-sm"
-              @click="ws.goSearch()"
-            />
             <p class="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
               <span>{{ breadcrumb.head }}</span>
               <UIcon

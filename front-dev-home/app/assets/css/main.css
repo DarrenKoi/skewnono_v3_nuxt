@@ -61,10 +61,42 @@
   src: url('/fonts/noto-sans-kr-korean-700-normal.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('/fonts/jetbrains-mono-latin-600-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('/fonts/jetbrains-mono-latin-700-normal.woff2') format('woff2');
+}
+
 @theme static {
   --font-sans: 'Public Sans', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
   --font-korean: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Segoe UI Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --color-zinc-50: #FAFAFA;
   --color-zinc-100: #F4F4F5;
@@ -132,6 +164,16 @@
   --sk-warn: oklch(0.70 0.15 75);
   --sk-warn-soft: oklch(0.94 0.06 85);
   --sk-warn-border: oklch(0.70 0.15 75 / 0.32);
+
+  /* Chart palette — benchmarked from the "Paper Pro" (1a) design study.
+     Diverging ramp: cool anchor -> paper mid -> brand terracotta. These mirror
+     utils/chartPalette.ts, which is what ECharts reads (canvas can't see vars);
+     these tokens exist for the SVG/DOM bits — legend swatches, wafer tiles. */
+  --sk-chart-1: #5C86AE;
+  --sk-chart-2: #9BB6CD;
+  --sk-chart-3: #E4D9C4;
+  --sk-chart-4: #DB9A6B;
+  --sk-chart-5: #C75A3C;
 
   /* Bolder selection system (Implementation Brief v1.0, 2026.05).
      Two semantic families: BLACK = navigation, TERRACOTTA = filter.

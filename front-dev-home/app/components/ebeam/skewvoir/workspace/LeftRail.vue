@@ -1,7 +1,17 @@
 <template>
   <aside class="flex w-60 shrink-0 flex-col gap-5 overflow-y-auto border-r border-(--sk-border) bg-(--sk-surface) px-3 py-4">
-    <!-- View modes -->
+    <!-- View modes — the back-to-search escape hatch sits directly above them and
+         is the only saturated control here, so it never reads as a view mode. -->
     <section>
+      <UButton
+        block
+        variant="solid"
+        icon="i-lucide-arrow-left"
+        label="검색으로"
+        size="sm"
+        class="mb-3 justify-start bg-(--sk-accent) font-semibold text-white shadow-sm ring-1 ring-(--sk-accent-border) hover:bg-(--sk-accent) hover:brightness-110 focus-visible:outline-(--sk-accent)"
+        @click="ws.goSearch()"
+      />
       <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
         WORKSPACE
       </p>
