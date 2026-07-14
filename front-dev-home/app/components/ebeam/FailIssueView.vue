@@ -181,175 +181,159 @@
       </div>
 
       <template v-else>
-        <!-- KPI cards: side-by-side Align / Meas (single column when a
-             section prop narrows the view to one aspect) -->
-        <div
-          class="grid grid-cols-1 gap-3"
-          :class="{ 'xl:grid-cols-2': !section }"
+        <!-- KPI card for the active aspect -->
+        <UCard
+          v-if="showAlign"
+          class="dashboard-surface rounded-2xl"
         >
-          <UCard
-            v-if="showAlign"
-            class="dashboard-surface rounded-2xl"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-crosshair"
-                  class="h-4 w-4 text-(--sk-bad)"
-                />
-                <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Align Fail
-                </h3>
-                <span class="text-[10.5px] text-(--sk-ink-muted)">wafer alignment outcome at run start</span>
-              </div>
-            </template>
-            <div class="flex flex-wrap">
-              <div
-                v-for="(cell, i) in alignKpiCells"
-                :key="cell.label"
-                class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
-                :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': i > 0 }"
-              >
-                <span
-                  class="text-2xl font-bold leading-none tabular-nums"
-                  :class="cell.tone"
-                >{{ cell.value }}</span>
-                <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
-              </div>
-            </div>
-          </UCard>
-
-          <UCard
-            v-if="showMeas"
-            class="dashboard-surface rounded-2xl"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-image-off"
-                  class="h-4 w-4 text-(--sk-bad)"
-                />
-                <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Meas Fail
-                </h3>
-                <span class="text-[10.5px] text-(--sk-ink-muted)">
-                  fail_ratio &gt; {{ formatPercent(measFailThreshold, 0) }}
-                </span>
-              </div>
-            </template>
-            <div class="flex flex-wrap">
-              <div
-                v-for="(cell, i) in measKpiCells"
-                :key="cell.label"
-                class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
-                :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': i > 0 }"
-              >
-                <span
-                  class="text-2xl font-bold leading-none tabular-nums"
-                  :class="cell.tone"
-                >{{ cell.value }}</span>
-                <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
-              </div>
-            </div>
-          </UCard>
-        </div>
-
-        <!-- Trend charts -->
-        <div
-          class="grid grid-cols-1 gap-3"
-          :class="{ 'xl:grid-cols-2': !section }"
-        >
-          <UCard
-            v-if="showAlign"
-            class="dashboard-surface rounded-2xl"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-trending-up"
-                  class="h-4 w-4 text-(--sk-ink-muted)"
-                />
-                <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Align fail · daily trend
-                </h3>
-              </div>
-            </template>
-            <div
-              ref="alignTrendEl"
-              class="h-[400px] w-full"
-            />
-          </UCard>
-
-          <UCard
-            v-if="showMeas"
-            class="dashboard-surface rounded-2xl"
-          >
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-trending-up"
-                  class="h-4 w-4 text-(--sk-ink-muted)"
-                />
-                <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Meas fail · daily trend
-                </h3>
-              </div>
-            </template>
-            <div
-              ref="measTrendEl"
-              class="h-[400px] w-full"
-            />
-          </UCard>
-        </div>
-
-        <!-- Ranking tables -->
-        <div
-          class="grid grid-cols-1 gap-3"
-          :class="{ '2xl:grid-cols-2': !section }"
-        >
-          <!-- @vue-generic {FailIssueAlignRow} -->
-          <EbeamFailIssueRankingTable
-            v-if="showAlign"
-            title="Align fails by recipe"
-            search-placeholder="Search recipe / class"
-            :rows="alignRows"
-            :columns="alignColumns"
-            :sortable-ids="alignSortableIds"
-            default-sort-id="align_fail_count"
-            :reset-key="cacheKey"
-            :search-predicate="alignSearchPredicate"
-            @download="downloadAlignCsv"
-          >
-            <template #actions-cell="{ row }">
-              <EbeamRecipeRowActions
-                :tool-type="toolType"
-                :fab="fab"
-                :recipe-name="row.original.recipe_name"
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-crosshair"
+                class="h-4 w-4 text-(--sk-bad)"
               />
-            </template>
-          </EbeamFailIssueRankingTable>
-          <!-- @vue-generic {FailIssueMeasRow} -->
-          <EbeamFailIssueRankingTable
-            v-if="showMeas"
-            title="Meas fails by recipe"
-            search-placeholder="Search recipe / class…"
-            :rows="measRows"
-            :columns="measColumns"
-            :sortable-ids="measSortableIds"
-            default-sort-id="meas_fail_count"
-            :reset-key="cacheKey"
-            :search-predicate="measSearchPredicate"
-            @download="downloadMeasCsv"
-          >
-            <template #actions-cell="{ row }">
-              <EbeamRecipeRowActions
-                :tool-type="toolType"
-                :fab="fab"
-                :recipe-name="row.original.recipe_name"
+              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Align Fail
+              </h3>
+              <span class="text-[10.5px] text-(--sk-ink-muted)">wafer alignment outcome at run start</span>
+            </div>
+          </template>
+          <div class="flex flex-wrap">
+            <div
+              v-for="(cell, i) in alignKpiCells"
+              :key="cell.label"
+              class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
+              :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': i > 0 }"
+            >
+              <span
+                class="text-2xl font-bold leading-none tabular-nums"
+                :class="cell.tone"
+              >{{ cell.value }}</span>
+              <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+            </div>
+          </div>
+        </UCard>
+
+        <UCard
+          v-if="showMeas"
+          class="dashboard-surface rounded-2xl"
+        >
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-image-off"
+                class="h-4 w-4 text-(--sk-bad)"
               />
-            </template>
-          </EbeamFailIssueRankingTable>
-        </div>
+              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Meas Fail
+              </h3>
+              <span class="text-[10.5px] text-(--sk-ink-muted)">
+                fail_ratio &gt; {{ formatPercent(measFailThreshold, 0) }}
+              </span>
+            </div>
+          </template>
+          <div class="flex flex-wrap">
+            <div
+              v-for="(cell, i) in measKpiCells"
+              :key="cell.label"
+              class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
+              :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': i > 0 }"
+            >
+              <span
+                class="text-2xl font-bold leading-none tabular-nums"
+                :class="cell.tone"
+              >{{ cell.value }}</span>
+              <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Trend chart for the active aspect -->
+        <UCard
+          v-if="showAlign"
+          class="dashboard-surface rounded-2xl"
+        >
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-trending-up"
+                class="h-4 w-4 text-(--sk-ink-muted)"
+              />
+              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Align fail · daily trend
+              </h3>
+            </div>
+          </template>
+          <div
+            ref="alignTrendEl"
+            class="h-[400px] w-full"
+          />
+        </UCard>
+
+        <UCard
+          v-if="showMeas"
+          class="dashboard-surface rounded-2xl"
+        >
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-trending-up"
+                class="h-4 w-4 text-(--sk-ink-muted)"
+              />
+              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Meas fail · daily trend
+              </h3>
+            </div>
+          </template>
+          <div
+            ref="measTrendEl"
+            class="h-[400px] w-full"
+          />
+        </UCard>
+
+        <!-- Ranking table for the active aspect -->
+        <!-- @vue-generic {FailIssueAlignRow} -->
+        <EbeamFailIssueRankingTable
+          v-if="showAlign"
+          title="Align fails by recipe"
+          search-placeholder="Search recipe / class"
+          :rows="alignRows"
+          :columns="alignColumns"
+          :sortable-ids="alignSortableIds"
+          default-sort-id="align_fail_count"
+          :reset-key="cacheKey"
+          :search-predicate="alignSearchPredicate"
+          @download="downloadAlignCsv"
+        >
+          <template #actions-cell="{ row }">
+            <EbeamRecipeRowActions
+              :tool-type="toolType"
+              :fab="fab"
+              :recipe-name="row.original.recipe_name"
+            />
+          </template>
+        </EbeamFailIssueRankingTable>
+        <!-- @vue-generic {FailIssueMeasRow} -->
+        <EbeamFailIssueRankingTable
+          v-if="showMeas"
+          title="Meas fails by recipe"
+          search-placeholder="Search recipe / class…"
+          :rows="measRows"
+          :columns="measColumns"
+          :sortable-ids="measSortableIds"
+          default-sort-id="meas_fail_count"
+          :reset-key="cacheKey"
+          :search-predicate="measSearchPredicate"
+          @download="downloadMeasCsv"
+        >
+          <template #actions-cell="{ row }">
+            <EbeamRecipeRowActions
+              :tool-type="toolType"
+              :fab="fab"
+              :recipe-name="row.original.recipe_name"
+            />
+          </template>
+        </EbeamFailIssueRankingTable>
       </template>
     </template>
   </div>
@@ -372,17 +356,15 @@ const props = defineProps<{
   fab: string
   toolLabel: string
   toolType: FailIssueToolType
-  // When set, render only that failure aspect (merged Recipe 현황 page shows
-  // each as its own tab). Omitted → standalone page with both halves.
-  section?: 'align' | 'meas'
+  // Which failure aspect to render — the merged Recipe 현황 page shows each
+  // as its own tab on one shared instance (data + filters survive flips).
+  section: 'align' | 'meas'
 }>()
 
 const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
-const showAlign = computed(() => props.section !== 'meas')
-const showMeas = computed(() => props.section !== 'align')
-const viewTitle = computed(() =>
-  props.section === 'align' ? 'Align Fail' : props.section === 'meas' ? 'Meas Fail' : 'Fail 이슈'
-)
+const showAlign = computed(() => props.section === 'align')
+const showMeas = computed(() => props.section === 'meas')
+const viewTitle = computed(() => props.section === 'align' ? 'Align Fail' : 'Meas Fail')
 
 // Empty means "let the server resolve its default window". Computing
 // wall-clock today locally would drift past the mock's ANCHOR_TIME for
@@ -397,9 +379,7 @@ type ViewMode = typeof VIEW_MODES[number]['value']
 
 const viewMode = ref<ViewMode>('summary')
 const metaSubtitle = computed(() => {
-  const aspect = props.section === 'align'
-    ? 'Align Fail'
-    : props.section === 'meas' ? 'Measurement Fail' : 'Align Fail / Measurement Fail'
+  const aspect = props.section === 'align' ? 'Align Fail' : 'Measurement Fail'
   return viewMode.value === 'by-device'
     ? `${aspect}을 디바이스별로 분석합니다.`
     : `${aspect}을 Fab 기준으로 분석합니다.`

@@ -29,7 +29,9 @@ const features: FeatureTab[] = [
   { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
-  { label: '스큐 관리', routeValue: 'skew-check', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
+  // 스큐 관리 (skew-check) is hidden from the nav while its design is reworked.
+  // The route and page still exist and remain reachable by URL.
+  // { label: '스큐 관리', routeValue: 'skew-check', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
   { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', badgeIcon: 'i-lucide-sparkles', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
@@ -49,9 +51,7 @@ const activeFeature = computed<FeatureRouteValue | null>(() => {
   if (!isEbeamRoute.value) return null
   const path = route.path
   if (path.includes('/recipe-search')) return 'recipe-search'
-  // Old recipe-tat / fail-issue paths redirect to recipe-status; matching
-  // them here keeps the pill highlighted during that brief transition.
-  if (path.includes('/recipe-status') || path.includes('/recipe-tat') || path.includes('/fail-issue')) return 'recipe-status'
+  if (path.includes('/recipe-status')) return 'recipe-status'
   if (path.includes('/hardware')) return 'hardware'
   if (path.includes('/device-statistics')) return 'device-statistics'
   if (path.includes('/skew-check')) return 'skew-check'

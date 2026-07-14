@@ -1,52 +1,70 @@
 <template>
   <div class="space-y-3">
-    <!-- 내부 탭: TAT / Align Fail / Meas Fail -->
-    <div
-      role="tablist"
-      aria-label="Recipe 현황 탭"
-      class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
-    >
-      <button
-        v-for="tab in TABS"
-        :key="tab.value"
-        type="button"
-        role="tab"
-        :aria-selected="activeTab === tab.value"
-        class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-        :class="activeTab === tab.value
-          ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-          : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-        @click="selectTab(tab.value)"
+    <!-- 내부 탭: TAT / Align Fail / Meas Fail.
+         Same card + segmented-track style as the meta-bar's 전체 요약/디바이스별
+         toggle beneath, so the two selection rows read as one family. -->
+    <div class="dashboard-surface inline-flex items-stretch rounded-[var(--sk-r-card)] p-1.5">
+      <!-- Title pod + divider, mirroring the meta-bar's left cluster. -->
+      <div class="flex flex-col justify-center py-1.5 pl-3 pr-4">
+        <p class="font-mono text-[10px] font-semibold tracking-[0.06em] text-(--sk-ink-muted)">
+          RECIPE 현황
+        </p>
+        <h2 class="text-lg font-extrabold leading-tight tracking-tight text-(--sk-ink)">
+          목록
+        </h2>
+      </div>
+      <div class="my-2 mx-1 w-px bg-(--sk-border-soft)" />
+      <div
+        role="tablist"
+        aria-label="Recipe 현황 탭"
+        class="ml-1.5 inline-flex items-center gap-1 self-center rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
       >
-        <UIcon
-          :name="tab.icon"
-          class="h-4 w-4"
-        />
-        {{ tab.label }}
-      </button>
+        <button
+          v-for="tab in TABS"
+          :key="tab.value"
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === tab.value"
+          class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+          :class="activeTab === tab.value
+            ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
+            : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+          @click="selectTab(tab.value)"
+        >
+          <UIcon
+            :name="tab.icon"
+            class="h-4 w-4"
+          />
+          {{ tab.label }}
+        </button>
+      </div>
     </div>
 
-    <EbeamRecipeTatView
-      v-if="activeTab === 'tat'"
-      :fab="fab"
-      :tool-label="toolLabel"
-      :tool-type="toolType"
-    />
-    <!-- Align/Meas share one FailIssueView instance (only the section prop
-         changes), so device/date filters survive switching between the two
-         fail tabs. -->
-    <EbeamFailIssueView
-      v-else
-      :fab="fab"
-      :tool-label="toolLabel"
-      :tool-type="toolType"
-      :section="activeTab"
-    />
+    <!-- KeepAlive: tab flips deactivate instead of unmount, so each view's
+         filters, table state, and fetched data survive TAT <-> Fail switches
+         without refetching. Align/Meas additionally share one FailIssueView
+         instance (only the section prop changes). -->
+    <KeepAlive>
+      <EbeamRecipeTatView
+        v-if="activeTab === 'tat'"
+        :fab="fab"
+        :tool-label="toolLabel"
+        :tool-type="toolType"
+      />
+      <EbeamFailIssueView
+        v-else
+        :fab="fab"
+        :tool-label="toolLabel"
+        :tool-type="toolType"
+        :section="activeTab"
+      />
+    </KeepAlive>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { FailIssueToolType } from '~/composables/useFailIssueApi'
+import { matchFeatureFromPath } from '~/utils/features'
 
 defineProps<{
   fab: string
@@ -68,15 +86,34 @@ const isTab = (v: unknown): v is RecipeStatusTab =>
 const route = useRoute()
 const router = useRouter()
 
-// Last-viewed tab survives navigating away and back (same policy as the
-// hardware page's section tabs); an explicit ?tab= deep link overrides it.
-const activeTab = useState<RecipeStatusTab>('recipe-status-tab', () => 'tat')
-const queryTab = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab
-if (isTab(queryTab)) activeTab.value = queryTab
+// The URL is the single source of truth for the active tab. The useState only
+// remembers the last-viewed tab (same policy as the hardware page's section
+// tabs) as the fallback when a navigation arrives without ?tab=.
+const lastTab = useState<RecipeStatusTab>('recipe-status-tab', () => 'tat')
+
+const queryTab = computed(() => {
+  const raw = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab
+  return isTab(raw) ? raw : null
+})
+
+const activeTab = computed<RecipeStatusTab>(() => queryTab.value ?? lastTab.value)
+
+watch(activeTab, (tab) => {
+  lastTab.value = tab
+}, { immediate: true })
+
+// Keep the URL carrying the visible tab (shareable/reload-safe) without
+// stacking history entries. Runs on mount (deep link without ?tab=) and when
+// a same-route navigation drops or garbles the query. Path guard: this
+// watcher must never rewrite the query of a route we are navigating away to.
+watch(() => [route.path, route.query.tab] as const, ([path]) => {
+  if (matchFeatureFromPath(path) !== 'recipe-status') return
+  if (queryTab.value !== activeTab.value) {
+    router.replace({ query: { ...route.query, tab: activeTab.value } })
+  }
+}, { immediate: true })
 
 const selectTab = (tab: RecipeStatusTab) => {
-  activeTab.value = tab
-  // Keep the URL shareable without stacking history entries.
   router.replace({ query: { ...route.query, tab } })
 }
 </script>

@@ -12,8 +12,6 @@ export const useNavigation = () => {
       feature === 'storage'
       || feature === 'recipe-search'
       || feature === 'recipe-status'
-      || feature === 'recipe-tat'
-      || feature === 'fail-issue'
       || feature === 'hardware'
       || feature === 'skewvoir'
     ) return toolType === 'cd-sem' || toolType === 'hv-sem'
@@ -41,7 +39,13 @@ export const useNavigation = () => {
 
   const navigateToToolType = (toolType: ToolType) => {
     store.setToolType(toolType)
-    router.push(toolTypeHref(toolType))
+    const feature = currentFeature()
+    const sameFeature = feature !== '' && featureEnabledForToolType(feature, toolType)
+    // Staying on the same feature keeps its query params (e.g. recipe-status
+    // ?tab=) valid; landing on a different page must not inherit them.
+    router.push(sameFeature
+      ? { path: toolTypeHref(toolType), query: route.query }
+      : toolTypeHref(toolType))
   }
 
   const navigateToFab = (fab: Fab) => {
@@ -63,8 +67,13 @@ export const useNavigation = () => {
       return
     }
 
-    const featureSuffix = featureEnabled ? `/${feature}` : ''
-    router.push(`/ebeam/${toolType}/${fab.toLowerCase()}${featureSuffix}`)
+    // Same feature, new fab: keep the feature's query params (e.g.
+    // recipe-status ?tab=) so the visible state stays URL-encoded.
+    if (featureEnabled) {
+      router.push({ path: `/ebeam/${toolType}/${fab.toLowerCase()}/${feature}`, query: route.query })
+      return
+    }
+    router.push(`/ebeam/${toolType}/${fab.toLowerCase()}`)
   }
 
   return {
