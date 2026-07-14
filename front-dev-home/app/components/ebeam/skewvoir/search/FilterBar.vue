@@ -24,21 +24,13 @@
       searchable
       @update:model-value="patch('eq', $event)"
     />
-    <EbeamSkewvoirSearchFacetSelect
-      label="RECIPE"
-      :options="facets.recipe"
-      :model-value="filters.recipe"
-      :disabled="disabled"
-      searchable
-      @update:model-value="patch('recipe', $event)"
-    />
 
     <EbeamDateRangePopover
       v-if="anchor"
       :model-value="props.range"
       :anchor-date="anchor"
       :presets="periodPresets"
-      @update:model-value="setRange"
+      @update:model-value="emit('set-date-range', $event)"
     />
 
     <UButton
@@ -74,6 +66,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:filters': [value: MeasHistFilters]
+  // A dropdown edit is "last write wins": the composable must both write
+  // filters.from/to AND strip any date token out of queryText, or the two
+  // inputs fight (see useMeasHistSearch's setDateRange doc comment). That
+  // can't happen via a plain `update:filters` patch, so this gets its own
+  // event instead of going through `patch()`.
+  'set-date-range': [value: { start: string, end: string }]
   'reset': []
 }>()
 
@@ -95,15 +93,10 @@ const periodPresets = computed(() => {
   ]
 })
 
-const setRange = (value: { start: string, end: string }) => {
-  emit('update:filters', { ...props.filters, from: value.start, to: value.end })
-}
-
 const hasActive = computed(() =>
   props.filters.fab.length > 0
   || props.filters.model.length > 0
   || props.filters.eq.length > 0
-  || props.filters.recipe.length > 0
   || Boolean(props.filters.from)
   || Boolean(props.filters.to)
 )

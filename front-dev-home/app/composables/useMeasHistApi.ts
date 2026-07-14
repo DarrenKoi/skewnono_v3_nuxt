@@ -57,7 +57,10 @@ export interface MeasHistFacets {
   fab: MeasHistFacetValue[]
   model: MeasHistFacetValue[]
   eq: MeasHistFacetValue[]
-  recipe: MeasHistFacetValue[]
+  // No `recipe` facet: the office index has hundreds of recipes, and
+  // aggregating them all server-side just to populate a dropdown (or throw
+  // most of them away) is exactly the cost this type must not invite.
+  // Recipes are found via the search bar's free-text substring match only.
 }
 
 export interface MeasHistSearchParams {

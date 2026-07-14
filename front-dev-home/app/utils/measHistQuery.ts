@@ -19,9 +19,18 @@ export interface ParsedQuery {
 
 // Real values from the facets endpoint. Optional: search must not block on
 // facets loading, so the parser degrades to shape rules alone without them.
+//
+// No `recipe` list: the office index carries hundreds of recipes, and
+// aggregating them all server-side just to recognize search-bar tokens is
+// exactly the cost the RECIPE dropdown's removal was meant to avoid. Instead,
+// any token that survives every other classification rule falls through to
+// `recipe` (see classify()'s final branch) — a recipe substring query, never
+// `unknown`. That keeps the parser's promise that no typed token is silently
+// dropped from the request: a bogus recipe now returns zero rows honestly
+// instead of falling to `unknown` (which the backend never receives) and
+// quietly widening the result set to everything.
 export interface KnownValues {
   eq: string[]
-  recipe: string[]
 }
 
 export const PARSED_FIELDS = ['eq', 'lot', 'recipe', 'msr', 'date', 'unknown'] as const
@@ -44,17 +53,6 @@ const emptyQuery = (): ParsedQuery => ({ eq: [], lot: [], recipe: [], msr: [], d
 const normalizeDate = (token: string): string | null => {
   const m = DATE_DASHED.exec(token) ?? DATE_COMPACT.exec(token)
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null
-}
-
-// A recipe facet value is 'CNT/CNT_CONTACT_CHECK_001'. Users type either the
-// full name, the bare recipe name, or a fragment of either.
-const matchesKnownRecipe = (token: string, known: string[], exact: boolean): boolean => {
-  const t = token.toLowerCase()
-  return known.some((full) => {
-    const f = full.toLowerCase()
-    const bare = f.includes('/') ? f.slice(f.indexOf('/') + 1) : f
-    return exact ? f === t || bare === t : f.includes(t)
-  })
 }
 
 const classify = (token: string, known?: KnownValues): { field: ParsedField, value: string } => {
@@ -82,20 +80,18 @@ const classify = (token: string, known?: KnownValues): { field: ParsedField, val
     return { field: 'eq', value: token }
   }
 
-  if (known && matchesKnownRecipe(token, known.recipe, true)) {
-    return { field: 'recipe', value: token }
-  }
-
   if (LOT.test(token)) return { field: 'lot', value: token }
 
-  if (known) {
-    return matchesKnownRecipe(token, known.recipe, false)
-      ? { field: 'recipe', value: token }
-      : { field: 'unknown', value: token }
-  }
-
-  // No facets yet — assume a recipe fragment rather than crying "unknown" at
-  // something we simply cannot check.
+  // Every other shape rule missed. There is no recipe list to check a token
+  // against (see KnownValues) and never will be, so this is the terminal
+  // branch, not a "give up" case: treat the token as a recipe substring. The
+  // backend matches recipe terms as case-insensitive substrings against
+  // full_name/recipe_name (back_dev_home/meas_hist/data.py), so a real
+  // recipe fragment still finds its rows, and a genuine typo honestly
+  // returns zero rows instead of being dropped into `unknown` (which the
+  // backend never receives) and silently widening the query to everything.
+  // `unknown` is reserved for a malformed `field:` prefix (e.g.
+  // `date:notadate`) — see the prefixed-date branch above.
   return { field: 'recipe', value: token }
 }
 

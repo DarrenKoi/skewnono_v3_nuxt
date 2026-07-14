@@ -16,18 +16,18 @@ export const useMeasHistFacets = (toolType: MeasHistToolType) => {
         retention_days: 60,
         fab: [],
         model: [],
-        eq: [],
-        recipe: []
+        eq: []
       }),
       getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
     }
   )
 
   // What the search-text parser needs to identify a token by exact match
-  // rather than by guessing at its shape.
+  // rather than by guessing at its shape. No `recipe` list: recipes are never
+  // faceted (see MeasHistFacets), so an otherwise-unclassified token is
+  // treated as a recipe substring by the parser's fallback instead.
   const known = computed<KnownValues>(() => ({
-    eq: (facets.value?.eq ?? []).map(v => v.value),
-    recipe: (facets.value?.recipe ?? []).map(v => v.value)
+    eq: (facets.value?.eq ?? []).map(v => v.value)
   }))
 
   // Empty until facets land; callers must not compute dates from wall clock.

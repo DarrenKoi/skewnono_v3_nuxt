@@ -85,6 +85,7 @@
         :retention-days="search.retentionDays.value"
         :range="search.resolvedRange.value"
         @update:filters="search.filters.value = $event"
+        @set-date-range="search.setDateRange"
         @reset="search.resetFilters"
       />
     </div>

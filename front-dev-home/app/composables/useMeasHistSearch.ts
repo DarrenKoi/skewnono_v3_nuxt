@@ -1,11 +1,13 @@
 import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
-import { parseMeasHistQuery, resolveDateRange } from '~/utils/measHistQuery'
+import { parseMeasHistQuery, removeToken, resolveDateRange } from '~/utils/measHistQuery'
 
+// No `recipe` field: recipes are found via the search bar only (there is no
+// RECIPE dropdown — see FilterBar.vue). The parser's `recipe` tokens still
+// reach the request; they're unioned in at buildParams below.
 export interface MeasHistFilters {
   fab: string[]
   model: string[]
   eq: string[]
-  recipe: string[]
   from: string
   to: string
 }
@@ -34,7 +36,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     end: anchor.value
   }))
 
-  const filters = ref<MeasHistFilters>({ fab: [], model: [], eq: [], recipe: [], from: '', to: '' })
+  const filters = ref<MeasHistFilters>({ fab: [], model: [], eq: [], from: '', to: '' })
 
   // Chips render as you type — no round-trip needed to see how a token was read.
   const parsed = computed(() => parseMeasHistQuery(queryText.value, known.value))
@@ -52,7 +54,6 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     filters.value.fab.length > 0
     || filters.value.model.length > 0
     || filters.value.eq.length > 0
-    || filters.value.recipe.length > 0
     || Boolean(filters.value.from)
     || Boolean(filters.value.to)
   )
@@ -86,7 +87,9 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
       fab: filters.value.fab,
       model: filters.value.model,
       eq: union(filters.value.eq, p.eq),
-      recipe: union(filters.value.recipe, p.recipe),
+      // No recipe dropdown to union in — the parser's tokens ARE the recipe
+      // filter (see MeasHistFilters's doc comment).
+      recipe: p.recipe,
       lot: p.lot,
       msr: p.msr,
       from,
@@ -140,7 +143,20 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   })
 
   const resetFilters = () => {
-    filters.value = { fab: [], model: [], eq: [], recipe: [], from: '', to: '' }
+    filters.value = { fab: [], model: [], eq: [], from: '', to: '' }
+  }
+
+  // A 기간 dropdown edit is "last write wins": it must not merely set
+  // filters.from/to alongside a `date:` token that still sits in queryText,
+  // or resolvedRange stays derived from that (unchanged) token, the popover
+  // label snaps back to it on the next re-search, and hasActiveFilters lights
+  // up 초기화 for a date the query silently ignores (see resolveDateRange's
+  // precedence doc comment). Stripping the token first makes filters.from/to
+  // the sole source of truth for resolvedRange again.
+  const setDateRange = (range: { start: string, end: string }) => {
+    const dateTokens = parsed.value.date
+    queryText.value = dateTokens.reduce((text, token) => removeToken(text, token), queryText.value)
+    filters.value = { ...filters.value, from: range.start, to: range.end }
   }
 
   const reset = () => {
@@ -185,6 +201,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     search,
     loadMore,
     reset,
-    resetFilters
+    resetFilters,
+    setDateRange
   }
 }

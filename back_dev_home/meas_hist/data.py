@@ -330,7 +330,6 @@ class MeasHistFacetsResponse(TypedDict):
     fab: list[MeasHistFacetValue]
     model: list[MeasHistFacetValue]
     eq: list[MeasHistFacetValue]
-    recipe: list[MeasHistFacetValue]
 
 
 def _parse_date(value: str | None) -> datetime | None:
@@ -485,6 +484,13 @@ def _facet_counts(rows: tuple[MeasHistRow, ...], key: str) -> list[MeasHistFacet
 def get_meas_hist_facets(tool_type: ToolType | None = None) -> MeasHistFacetsResponse:
     """Dropdown options — only values that actually exist inside retention.
 
+    Recipe is intentionally NOT aggregated here: the office index carries
+    hundreds of recipes, and loading them all into a dropdown just to let the
+    user pick one (or throw the rest away) is the exact cost this endpoint
+    must avoid. Recipes are found via the search bar's free-text `recipe`
+    parameter instead (substring match against full_name/recipe_name in
+    search_meas_hist), never via a facet list.
+
     Phase 2/3: a terms aggregation over the same bool filter.
     """
     start, end = _retention_window()
@@ -501,6 +507,5 @@ def get_meas_hist_facets(tool_type: ToolType | None = None) -> MeasHistFacetsRes
         retention_days=RETENTION_DAYS,
         fab=_facet_counts(rows, "fab_name"),
         model=_facet_counts(rows, "eqp_model_cd"),
-        eq=_facet_counts(rows, "eqp_id"),
-        recipe=_facet_counts(rows, "full_name")
+        eq=_facet_counts(rows, "eqp_id")
     )
