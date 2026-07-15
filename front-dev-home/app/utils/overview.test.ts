@@ -75,3 +75,19 @@ test('other parameters are ignored', () => {
   const ov = overviewSites(rows, 'CD_TOP', DEFAULT_METHOD_CONFIG)
   assert.equal(ov.coverage.total, 7)
 })
+
+test('normal sites are excluded from outlierCount and tableRows', () => {
+  // 9 peers at 100 → each site's leave-one-out mean is ~106.7, a ~6% deviation
+  // (< watchPct 10) → normal. The lone 160 site is +60% → abnormal. This is the
+  // fixture that actually exercises normal-exclusion: dropping the severity
+  // filter in overviewSites would make outlierCount 10 here, not 1.
+  const rows = [
+    ...Array.from({ length: 9 }, (_, i) => row({ sequence: i + 1, cd_value: 100 })),
+    row({ sequence: 10, cd_value: 160, chip_number: '9, 9' })
+  ]
+  const ov = overviewSites(rows, 'CD_TOP', DEFAULT_METHOD_CONFIG)
+  assert.equal(ov.status, 'evaluated')
+  assert.equal(ov.outlierCount, 1) // only the 160 site; the 9 normals are excluded
+  assert.equal(ov.tableRows.length, 1)
+  assert.equal(ov.tableRows[0]!.kind, 'abnormal')
+})
