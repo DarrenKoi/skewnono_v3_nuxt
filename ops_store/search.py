@@ -66,6 +66,22 @@ def _records_to_dataframe(records: list[dict[str, Any]]) -> Any:
 _DATE_TYPES = frozenset({"date", "date_nanos"})
 
 
+def _build_range_clause(
+    time_field: str,
+    days: int | None,
+    hours: int | None,
+) -> dict[str, Any]:
+    if days is None and hours is None:
+        days = 7
+    parts: list[str] = []
+    if days is not None:
+        parts.append(f"{days}d")
+    if hours is not None:
+        parts.append(f"{hours}h")
+    gte = "now-" + "-".join(parts)
+    return {"range": {time_field: {"gte": gte, "lte": "now"}}}
+
+
 def _lookup_mapped_field(
     properties: dict[str, Any], dotted_path: str
 ) -> dict[str, Any] | None:
@@ -114,6 +130,7 @@ class OSSearch(OSBase):
         index: str | None = None,
         batch_size: int = 1000,
         scroll: str = "2m",
+        max_rows: int | None = None,
     ) -> list[dict[str, Any]]:
         name = self._resolve_index(index)
         request_body = dict(body)
@@ -126,6 +143,8 @@ class OSSearch(OSBase):
 
         try:
             while page_hits and scroll_id is not None:
+                if max_rows is not None and len(all_hits) >= max_rows:
+                    break
                 response = self.client.scroll(scroll_id=scroll_id, scroll=scroll)
                 next_scroll_id = response.get("_scroll_id")
                 if next_scroll_id is not None:
@@ -136,6 +155,8 @@ class OSSearch(OSBase):
             if scroll_id is not None:
                 self.client.clear_scroll(scroll_id=scroll_id)
 
+        if max_rows is not None and len(all_hits) > max_rows:
+            return all_hits[:max_rows]
         return all_hits
 
     def search_dataframe(
@@ -156,6 +177,7 @@ class OSSearch(OSBase):
         batch_size: int = 1000,
         scroll: str = "2m",
         include_meta: bool = False,
+        max_rows: int | None = None,
     ) -> Any:
         _require_pandas()
         all_hits = self._search_all_hits(
@@ -163,6 +185,7 @@ class OSSearch(OSBase):
             index=index,
             batch_size=batch_size,
             scroll=scroll,
+            max_rows=max_rows,
         )
         return _records_to_dataframe(
             _records_from_hits(all_hits, include_meta=include_meta)
@@ -210,6 +233,7 @@ class OSSearch(OSBase):
         batch_size: int = 1000,
         scroll: str = "2m",
         include_meta: bool = False,
+        max_rows: int | None = None,
     ) -> Any:
         body = {"query": {"match": {field: query}}}
         return self.search_dataframe_all(
@@ -218,6 +242,7 @@ class OSSearch(OSBase):
             batch_size=batch_size,
             scroll=scroll,
             include_meta=include_meta,
+            max_rows=max_rows,
         )
 
     def term(
@@ -404,6 +429,110 @@ class OSSearch(OSBase):
         except NotFoundError:
             return None
 
+    def latest_match_dataframe(
+        self,
+        field: str,
+        keyword: str,
+        *,
+        time_field: str = "timestamp",
+        index: str | None = None,
+        size: int = 1,
+        include_meta: bool = False,
+    ) -> Any:
+        """Return the most recent docs matching ``keyword`` on ``field`` as a DataFrame.
+
+        Runs a ``match`` query on ``field``, sorts by ``time_field`` descending, and
+        returns the top ``size`` hits (default 1 = just the latest) as a pandas
+        DataFrame. Returns an empty DataFrame when the index is missing.
+        """
+        result = self.latest(
+            time_field,
+            index=index,
+            size=size,
+            query={"match": {field: keyword}},
+        )
+        if result is None:
+            return _records_to_dataframe([])
+        return self.to_dataframe(result, include_meta=include_meta)
+
+    def range_search(
+        self,
+        *,
+        time_field: str = "timestamp",
+        days: int | None = None,
+        hours: int | None = None,
+        index: str | None = None,
+        query: dict[str, Any] | None = None,
+        size: int = 10000,
+    ) -> dict[str, Any]:
+        range_clause = _build_range_clause(time_field, days, hours)
+        if query is not None:
+            body_query: dict[str, Any] = {
+                "bool": {"must": [query], "filter": [range_clause]}
+            }
+        else:
+            body_query = range_clause
+        body = {
+            "query": body_query,
+            "size": size,
+            "sort": [{time_field: {"order": "desc"}}],
+        }
+        return self.search_raw(body, index=index)
+
+    def range_dataframe(
+        self,
+        *,
+        time_field: str = "timestamp",
+        days: int | None = None,
+        hours: int | None = None,
+        index: str | None = None,
+        query: dict[str, Any] | None = None,
+        size: int = 10000,
+        include_meta: bool = False,
+    ) -> Any:
+        result = self.range_search(
+            time_field=time_field,
+            days=days,
+            hours=hours,
+            index=index,
+            query=query,
+            size=size,
+        )
+        return self.to_dataframe(result, include_meta=include_meta)
+
+    def range_dataframe_all(
+        self,
+        *,
+        time_field: str = "timestamp",
+        days: int | None = None,
+        hours: int | None = None,
+        index: str | None = None,
+        query: dict[str, Any] | None = None,
+        batch_size: int = 1000,
+        scroll: str = "2m",
+        include_meta: bool = False,
+        max_rows: int | None = None,
+    ) -> Any:
+        range_clause = _build_range_clause(time_field, days, hours)
+        if query is not None:
+            body_query: dict[str, Any] = {
+                "bool": {"must": [query], "filter": [range_clause]}
+            }
+        else:
+            body_query = range_clause
+        body = {
+            "query": body_query,
+            "sort": [{time_field: {"order": "desc"}}],
+        }
+        return self.search_dataframe_all(
+            body,
+            index=index,
+            batch_size=batch_size,
+            scroll=scroll,
+            include_meta=include_meta,
+            max_rows=max_rows,
+        )
+
     def sample(
         self,
         *,
@@ -427,6 +556,23 @@ class OSSearch(OSBase):
             },
         }
         return self.search_raw(body, index=index)
+
+    def sample_to_dataframe(
+        self,
+        *,
+        index: str | None = None,
+        size: int = 10,
+        query: dict[str, Any] | None = None,
+        seed: int | None = None,
+        include_meta: bool = False,
+    ) -> Any:
+        result = self.sample(
+            index=index,
+            size=size,
+            query=query,
+            seed=seed,
+        )
+        return self.to_dataframe(result, include_meta=include_meta)
 
     def unique_values(
         self,

@@ -30,7 +30,7 @@ def _parse_bool(value: str) -> bool:
 
 
 def _module_values(attr_map: dict[str, str]) -> dict[str, Any]:
-    """Return non-None constants defined in ``minio_store.minio_config``.
+    """Return non-None constants defined in ``minio_handler.minio_config``.
 
     Missing module or missing attributes are silently ignored so the package
     works on a fresh clone where the gitignored config file is absent.

@@ -18,7 +18,7 @@
 | class/function | DAG에서의 용도 |
 | --- | --- |
 | `OSIndex` | index 생성, mapping/settings 적용, alias/rollover 확인, ISM policy 생성 |
-| `OSDoc` | 단건 `index`, `upsert`, `delete`, `bulk_index`, raw bulk action 실행 |
+| `OSDoc` | 단건 `index`, `upsert`, `delete`, `bulk_index`, 중복 `_id` 건너뛰는 `bulk_create`, raw bulk action 실행 |
 | `OSSearch` | raw search, `match`, `term`, `filter_terms`, `latest`, `sample`, aggregation |
 | `OSConfig` | 환경 변수 대신 명시적 연결 설정이 필요할 때 사용 |
 | `create_client` | 여러 service가 같은 OpenSearch client를 공유해야 할 때 사용 |
@@ -242,35 +242,79 @@ DAG 문서에서는 긴 mapping reference를 따로 두지 않습니다. 실무 
 - mapping은 대부분 immutable입니다. type을 바꿔야 하면 새 index를 만들고
   reindex하거나 rollover로 새 write index부터 새 mapping을 적용합니다.
 
-## Append-only ingest가 필요할 때
+## Skip-if-exists ingest (`bulk_create`)
 
-`bulk_index()`는 일반 bulk index action을 만들기 때문에 같은 `_id`가 있으면
-OpenSearch semantic상 overwrite가 될 수 있습니다. 중복 ID를 실패로 보고 싶은
-append-only log라면 raw bulk action을 직접 만듭니다.
+`bulk_index()`는 같은 `_id`가 있으면 overwrite하지만, `bulk_create()`는
+OpenSearch bulk `create` op type을 써서 **이미 존재하는 `_id`는 건너뜁니다**
+(HTTP 409). 같은 batch를 다시 돌려도 기존 document를 덮어쓰지 않으므로
+append-only log나 idempotent ingest에 그대로 씁니다.
+
+`_id`는 각 dict의 `id_field`(기본 `"_id"`) 에서 꺼내 document `_id`로 올리고,
+`_source`에는 저장하지 않습니다. 반환값 `BulkCreateResult`는 새로 쓴 건수
+`created`, 이미 있어서 건너뛴 `skipped`, 그리고 409가 아닌 실제 실패만 담는
+`errors`를 분리해서 돌려줍니다.
 
 ```python
-from ops_store import OSDoc, normalize_document
+from ops_store import OSDoc
 
 
-def ingest_append_only(records: list[dict]) -> dict:
-    def actions():
-        for record in records:
-            source = normalize_document(record)
-            yield {
-                "_op_type": "create",
-                "_index": "recipe-events-write",
-                "_id": source["event_id"],
-                "_source": source,
-            }
-
-    success, errors = OSDoc(index="recipe-events-write").bulk(
-        actions(),
-        raise_on_error=False,
+def ingest_skip_existing(records: list[dict]) -> dict:
+    result = OSDoc(index="recipe-events-write").bulk_create(
+        records,
+        id_field="event_id",   # 이 key를 _id로 올림. 생략하면 각 dict의 "_id" 사용
+        normalize=True,        # datetime/Decimal/NaN/numpy 값을 JSON-safe로 변환
     )
-    if errors:
-        raise RuntimeError(f"append-only bulk errors: {errors[:3]}")
-    return {"success": success}
+    if result.errors:
+        raise RuntimeError(f"bulk_create errors: {result.errors[:3]}")
+    return {"created": result.created, "skipped": result.skipped}
 ```
+
+### `_id`를 dict list에 직접 넣기
+
+`_id`를 본인이 계산해서 각 dict에 넣어두고 기본 `id_field="_id"`로 넘기는
+패턴입니다. composite key는 여러 field를 이어 붙여 만듭니다.
+
+```python
+# 단일 field를 _id로
+records = [{"_id": r["event_id"], **r} for r in raw_records]
+
+# composite _id (예: tool_id + event_id + timestamp)
+records = [
+    {"_id": f"{r['tool_id']}:{r['event_id']}:{r['timestamp']}", **r}
+    for r in raw_records
+]
+
+OSDoc(index="recipe-events-write").bulk_create(records)
+```
+
+`_id`는 metadata이므로 `bulk_create`가 `_source`에서 자동으로 빼냅니다.
+즉 위 `{"_id": ..., **r}`에서 `_id` key만 빠지고 나머지 field는 그대로
+저장됩니다. 별도 field로도 남기고 싶으면 다른 이름으로 한 번 더 넣으세요
+(예: `{"_id": cid, "composite_id": cid, **r}`).
+
+### `id_field`로 다른 key를 id로 지정하기
+
+dict를 새로 만들지 않고, 이미 들고 있는 field를 그대로 `_id`로 쓰고 싶을 때는
+`id_field`에 그 key 이름을 넘깁니다. 해당 key는 꺼내서 document `_id`로 올라가고
+`_source`에는 저장되지 않습니다.
+
+```python
+records = [
+    {"event_id": "recipe-001", "tool_id": "CDSEM-01", "status": "done"},
+    {"event_id": "recipe-002", "tool_id": "CDSEM-02", "status": "failed"},
+]
+
+result = OSDoc(index="recipe-events-write").bulk_create(
+    records,
+    id_field="event_id",   # event_id를 _id로 올림 → _source에는 tool_id, status만 남음
+)
+# 위 records의 _id는 각각 "recipe-001", "recipe-002"가 되고,
+# 다시 같은 batch를 돌리면 result.skipped == 2 (전부 이미 존재)
+```
+
+`id_field`로 지정한 key가 `_source`에서 빠지는 게 싫다면(= id로도 쓰고 field로도
+남기고 싶다면), `id_field`를 쓰지 말고 위의 "직접 넣기"처럼 `_id`를 따로 넣으세요:
+`{"_id": r["event_id"], **r}`.
 
 ## Search task 예제
 

@@ -25,7 +25,7 @@ storage 자체는 자유로워도, key 설계와 정책을 잘못 잡으면 6개
 
 ### 좋은 key 예시와 나쁜 key 예시
 
-```text
+```
 ✓ 2067928/datasets/wafer/2026/05/04/lot-AB12.parquet
 ✓ 2067928/uploads/2026-05-04T13-22-08Z__user-1234__report.pdf
 ✓ 2067928/sha256/ab/cd/abcd1234...ef.bin    (content-addressed)
@@ -59,7 +59,7 @@ storage 자체는 자유로워도, key 설계와 정책을 잘못 잡으면 6개
 
 ### 권장 형태
 
-```text
+```
 2067928/datasets/<domain>/year=2026/month=05/day=04/<file>
 2067928/logs/<service>/2026/05/04/<file>.jsonl
 ```
@@ -82,7 +82,7 @@ OpenSearch)나 DB에 따로 두는 편이 깔끔합니다. S3 안에서 두 차�
 같은 파일이 여러 사용자/요청에 의해 업로드되는 application은 SHA-256 hash를
 key로 쓰는 패턴이 강력합니다.
 
-```text
+```
 2067928/sha256/ab/cd/abcd1234ef.....bin
 ```
 
@@ -148,7 +148,7 @@ mo.put("doc.pdf", body, metadata={"x-amz-meta-author": "daeyoung",
 
 application 단의 단순함이 최우선이라면 **timestamped key**를 권장합니다.
 
-```text
+```
 2067928/configs/app.json                          (포인터, 항상 최신)
 2067928/configs/history/app__2026-05-04T13-22.json (보관본)
 ```
@@ -193,8 +193,8 @@ mo.delete("active/report.pdf")
 ```
 
 `2067928/trash/`는 cleanup DAG에 30일 retention으로 등록해 두면 자동 정리
-(사내 환경에서는 lifecycle 권한이 없으므로 `recipes.md`의 `purge_older_than`
-패턴으로 처리합니다).
+(사내 환경에서는 lifecycle 권한이 없으므로 `MinioObject.delete_older_than`
+메서드로 처리합니다. `recipes.md`의 "정기 cleanup" 절 참고).
 
 방법 2: **tag로 표시**
 

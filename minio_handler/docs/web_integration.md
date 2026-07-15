@@ -15,7 +15,7 @@
 가장 먼저 정해야 할 것: **파일 byte가 backend를 통과하는가, 아니면 클라이언트가
 MinIO와 직접 통신하는가.**
 
-```text
+```
 [Pattern A: backend proxies]
 client ─── multipart/form-data ──→ Flask ─── put_object ──→ MinIO
 client ←──── streamed bytes ───── Flask ←─── get_object ──── MinIO
@@ -50,7 +50,7 @@ Pattern B를 선택하는 경우:
 ```python
 # api/routes.py
 from flask import request
-from minio_store import MinioObject, load_config
+from minio_handler import MinioObject, load_config
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -281,7 +281,7 @@ minio-py에서 multipart 저레벨 API는 internal하게 분류되어 있어 안
 업로드 직후 무거운 작업 (썸네일 생성, OCR, ML 추론)이 필요하면 다음 흐름이
 표준입니다.
 
-```text
+```
 client ──→ backend ──→ MinIO PUT
                   └──→ Redis/SQS에 "process this key" 메시지
                               ↓
@@ -350,7 +350,7 @@ def stream_video(key: str):
 
 흐름:
 
-```text
+```
 client ──→ CDN edge ──cache hit──→ client
                   └──cache miss──→ MinIO origin
 ```

@@ -43,7 +43,7 @@ def get_dataframe(self, key, *, bucket=None) -> pd.DataFrame
 ```python
 import pandas as pd
 
-from minio_store import MinioObject
+from minio_handler import MinioObject
 
 mo = MinioObject()                      # bucket=user, prefix=2067928/
 

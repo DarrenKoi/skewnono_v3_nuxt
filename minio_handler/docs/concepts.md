@@ -26,7 +26,7 @@ in-place edit / inode 같은 개념도 없습니다. 대신:
 
 ## Bucket / Object / Key
 
-```text
+```
 [bucket]   user
 [key]      2067928/reports/2026/q1.pdf
 [body]     <PDF bytes>
@@ -114,7 +114,7 @@ S3 (그리고 MinIO)는 모든 동작에 **strong read-after-write consistency**
 
 prefix는 사용자가 자유롭게 더 잘게 나눌 수 있습니다.
 
-```text
+```
 user/2067928/datasets/...
 user/2067928/uploads/...
 user/2067928/exports/...

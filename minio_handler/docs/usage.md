@@ -1,8 +1,8 @@
-# minio_store 사용 가이드
+# minio_handler 사용 가이드
 
 ## 패키지가 무엇인가
 
-`minio_store`는 MinIO / S3-compatible object storage를 다루는 작은 wrapper
+`minio_handler`는 MinIO / S3-compatible object storage를 다루는 작은 wrapper
 입니다. 공식 `minio` Python SDK를 그대로 쓰되, 다음 세 가지를 편하게 만들어
 줍니다.
 
@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 1. `MinioConfig(...)` / `MinioObject(...)` 호출 시 직접 넘기는 인자 (kwargs)
 2. 환경 변수 (`MINIO_*`)
-3. `minio_store/minio_config.py` 안의 상수
+3. `minio_handler/minio_config.py` 안의 상수
 4. 패키지 빌트인 기본값
 
 즉 `minio_config.py`에 키를 넣어 두면 평소엔 그것이 쓰이고, 운영 환경에서는
@@ -40,7 +40,7 @@ pip install -r requirements.txt
 키를 직접 넣어 둘 수 있습니다.
 
 ```python
-# minio_store/minio_config.py
+# minio_handler/minio_config.py
 ENDPOINT: str | None = "aistor-api.lake.skhynix.com"
 ACCESS_KEY: str | None = "<여기에 access key>"
 SECRET_KEY: str | None = "<여기에 secret key>"
@@ -55,7 +55,7 @@ PREFIX: str | None = "2067928/"
 값을 채워 두면 application 코드는 인자 없이 한 줄로 끝납니다.
 
 ```python
-from minio_store import MinioObject
+from minio_handler import MinioObject
 
 mo = MinioObject()              # ENDPOINT, KEY, BUCKET, PREFIX 모두 자동 적용
 mo.put("hello.txt", b"hi")
@@ -87,7 +87,7 @@ print(mo.get("hello.txt"))
 ## 가장 짧은 사용 예
 
 ```python
-from minio_store import MinioConfig, MinioObject
+from minio_handler import MinioConfig, MinioObject
 
 config = MinioConfig(
     endpoint="aistor-api.lake.skhynix.com",
@@ -111,7 +111,7 @@ mo.delete("hello.txt")
 ## 환경 변수로부터 만드는 경우
 
 ```python
-from minio_store import MinioObject, load_config
+from minio_handler import MinioObject, load_config
 
 # 환경 변수: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_SECURE
 mo = MinioObject(config=load_config(), bucket="user", prefix="2067928/")
@@ -131,7 +131,7 @@ mo = MinioObject(bucket="user", prefix="2067928/")
 client를 한 번만 만들고 재사용합니다.
 
 ```python
-from minio_store import MinioObject, create_client, load_config
+from minio_handler import MinioObject, create_client, load_config
 
 config = load_config()
 client = create_client(config=config)
@@ -252,6 +252,19 @@ if errors:
 `delete_many`는 한 번의 HTTP 요청으로 여러 object를 지웁니다. 반환값은
 실패 항목들의 리스트입니다.
 
+key 목록을 미리 모르고 패턴으로 지우고 싶을 때는 두 가지가 더 있습니다.
+
+```python
+# 맨 앞 prefix 통째로 (날짜가 path 앞조각일 때 가장 효율적)
+mo.delete_prefix("scratch/2026-06-11/")
+
+# key 문자열 조건으로 (날짜가 파일명 중간, 확장자, 형식 혼재일 때)
+mo.delete_matching(lambda k: "2026-06-11" in k, prefix="sem")
+```
+
+넷 다 실패 entry list를 돌려줍니다. 선택 기준과 더 많은 예시는
+`recipes.md`의 "Bulk 삭제 패턴"을 참고하세요.
+
 ## 목록 조회
 
 ```python
@@ -318,7 +331,7 @@ url = mo.presigned_get_url(
 from datetime import timedelta
 from flask import redirect
 
-from minio_store import MinioObject, load_config
+from minio_handler import MinioObject, load_config
 
 mo = MinioObject(config=load_config(), bucket="user", prefix="2067928/")
 
@@ -528,7 +541,7 @@ export MINIO_SECURE=true
 ```
 
 ```python
-from minio_store import MinioObject
+from minio_handler import MinioObject
 
 mo = MinioObject(bucket="user", prefix="2067928/")
 mo.put("ping.txt", b"pong")
@@ -538,11 +551,11 @@ mo.delete("ping.txt")
 
 ## `minio_config.py`만으로 사용하는 가장 짧은 형태
 
-`minio_store/minio_config.py`에 ENDPOINT / ACCESS_KEY / SECRET_KEY / BUCKET /
+`minio_handler/minio_config.py`에 ENDPOINT / ACCESS_KEY / SECRET_KEY / BUCKET /
 PREFIX 를 채워 두면 끝입니다.
 
 ```python
-from minio_store import MinioObject
+from minio_handler import MinioObject
 
 mo = MinioObject()
 mo.put("ping.txt", b"pong")

@@ -86,6 +86,9 @@ ea3138ca-4157-449d-a379-186a3db9af06.png
 .env.*
 !.env.example
 
+# Local office object-storage configuration may contain credentials.
+minio_handler/minio_config.py
+
 # Superpowers brainstorming visual companion
 .superpowers/
 

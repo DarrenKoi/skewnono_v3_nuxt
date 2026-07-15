@@ -10,14 +10,14 @@ OPENSEARCH_HOST = "skewnono-db1-os.osp01.skhynix.com"
 OPENSEARCH_USER = "skewnono001"
 OPENSEARCH_PASSWORD = ""
 
-INDEX_ALIASES = ("cdsem_msr_info", "hvsem_msr_info")
-POLICY_ID = "sem_msr_info_retention_policy"
+INDEX_ALIASES = ("meas_hist_cdsem", "meas_hist_hvsem")
+POLICY_ID = "sem_meas_hist_retention_policy"
 
 SHARDS = 3
 REPLICAS = 1
 REFRESH_INTERVAL = "30s"
-ROLLOVER_SIZE = "15gb"
-RETENTION_AGE = "50d"
+ROLLOVER_AGE = "60d"
+RETENTION_AGE = "365d"
 POLICY_PRIORITY = 100
 
 
@@ -51,7 +51,7 @@ def build_ism_policy_body() -> dict[str, Any]:
     return {
         "policy": {
             "description": (
-                f"Rollover SEM MSR indices at {ROLLOVER_SIZE} primary storage "
+                f"Rollover SEM measurement history indices after {ROLLOVER_AGE} "
                 f"and delete backing indices after {RETENTION_AGE}."
             ),
             "schema_version": 1,
@@ -62,7 +62,7 @@ def build_ism_policy_body() -> dict[str, Any]:
                     "actions": [
                         {
                             "rollover": {
-                                "min_size": ROLLOVER_SIZE,
+                                "min_index_age": ROLLOVER_AGE,
                             }
                         }
                     ],
@@ -268,8 +268,8 @@ def setup_sem_msr_info(client: Any | None = None) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Create cdsem_msr_info and hvsem_msr_info rollover indices, "
-            "index templates, aliases, and a shared 50-day ISM policy."
+            "Create meas_hist_cdsem and meas_hist_hvsem rollover indices, "
+            "index templates, aliases, and a shared one-year ISM policy."
         )
     )
     parser.add_argument(
