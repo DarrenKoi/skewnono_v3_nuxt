@@ -4,12 +4,12 @@
          an actions slot on the right (matches the sample's panel chrome). -->
     <header class="flex items-center justify-between gap-2 border-b border-(--sk-border-soft) px-3 py-2">
       <div class="flex min-w-0 items-baseline gap-2">
-        <h2 class="truncate text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 class="truncate text-[13px] font-semibold text-(--sk-ink)">
           {{ title }}
         </h2>
         <span
           v-if="meta"
-          class="truncate font-mono text-[10.5px] text-(--sk-ink-subtle)"
+          class="truncate font-mono text-[11px] text-(--sk-ink-muted)"
         >{{ meta }}</span>
       </div>
 
@@ -22,10 +22,10 @@
             v-for="opt in toggles"
             :key="opt"
             type="button"
-            class="rounded-[6px] px-2 py-0.5 font-mono text-[10.5px] font-medium transition-colors"
+            class="rounded-[6px] px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
             :class="opt === active
-              ? 'bg-(--sk-surface) text-zinc-900 shadow-sm dark:text-zinc-100'
-              : 'text-(--sk-ink-subtle) hover:text-zinc-700 dark:hover:text-zinc-200'"
+              ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
+              : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
             @click="select(opt)"
           >
             {{ opt }}

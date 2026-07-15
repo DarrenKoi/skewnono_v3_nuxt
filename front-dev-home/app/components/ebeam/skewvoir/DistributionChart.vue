@@ -1,7 +1,8 @@
 <template>
   <div
     ref="chartEl"
-    class="h-72 w-full"
+    class="w-full"
+    :class="heightClass"
   />
 </template>
 
@@ -21,8 +22,12 @@ const props = withDefaults(defineProps<{
   // 'Hist' | 'Box' | 'Violin' — kept as a plain string so callers can bind the
   // PanelFrame toggle value directly without an in-template type cast.
   mode?: string
+  // Chart height utility. Defaults to a fixed h-72; the dashboard passes h-full
+  // so the chart fills a flex panel.
+  heightClass?: string
 }>(), {
-  mode: 'Hist'
+  mode: 'Hist',
+  heightClass: 'h-72'
 })
 
 const BIN_COUNT = 12
@@ -77,13 +82,13 @@ const histOption = computed<EChartsOption>(() => ({
   xAxis: {
     type: 'category',
     data: bins.value.centers.map(c => c.toFixed(1)),
-    axisLabel: { fontSize: 10 },
+    axisLabel: { fontSize: 11 },
     name: props.unit ? `${props.parameter} (${props.unit})` : props.parameter,
     nameLocation: 'middle',
     nameGap: 26,
-    nameTextStyle: { fontSize: 10 }
+    nameTextStyle: { fontSize: 11 }
   },
-  yAxis: { type: 'value', axisLabel: { fontSize: 10 }, splitLine: { show: false }, name: 'count', nameTextStyle: { fontSize: 10 } },
+  yAxis: { type: 'value', axisLabel: { fontSize: 11 }, splitLine: { show: false }, name: 'count', nameTextStyle: { fontSize: 11 } },
   series: [{
     type: 'bar',
     data: bins.value.counts,
@@ -95,8 +100,8 @@ const histOption = computed<EChartsOption>(() => ({
 const boxOption = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'item' },
   grid: { left: 48, right: 16, top: 24, bottom: 28, containLabel: true },
-  xAxis: { type: 'category', data: [props.parameter], axisLabel: { fontSize: 10 } },
-  yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 }, name: props.unit, nameTextStyle: { fontSize: 10 } },
+  xAxis: { type: 'category', data: [props.parameter], axisLabel: { fontSize: 11 } },
+  yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 11 }, name: props.unit, nameTextStyle: { fontSize: 11 } },
   series: [{
     type: 'boxplot',
     data: boxStats.value ? [boxStats.value] : [],
@@ -118,8 +123,8 @@ const violinOption = computed<EChartsOption>(() => {
       name: props.unit ? `${props.parameter} (${props.unit})` : props.parameter,
       nameLocation: 'middle',
       nameGap: 24,
-      nameTextStyle: { fontSize: 10 },
-      axisLabel: { fontSize: 10 }
+      nameTextStyle: { fontSize: 11 },
+      axisLabel: { fontSize: 11 }
     },
     yAxis: { type: 'value', axisLabel: { show: false }, splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } },
     series: [

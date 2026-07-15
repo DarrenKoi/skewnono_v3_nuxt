@@ -1,7 +1,15 @@
 <template>
   <div class="flex h-full min-h-0 flex-col gap-2.5">
-    <!-- Compact stats + parameter navigator — both follow the active parameter -->
-    <EbeamSkewvoirOverviewStatBar :analysis="analysis" />
+    <!-- Top: coverage/outlier/mean/align stats + measurement conditions -->
+    <div class="flex flex-wrap items-stretch gap-2.5">
+      <EbeamSkewvoirOverviewStatBar
+        class="min-w-0 flex-1"
+        :analysis="analysis"
+      />
+      <EbeamSkewvoirDashboardConditions :analysis="analysis" />
+    </div>
+
+    <!-- Parameter navigator — switching it syncs every panel below -->
     <EbeamSkewvoirDashboardParamNav :analysis="analysis" />
 
     <!-- Inspection zone. On xl the single row fills the viewport and each panel
@@ -24,11 +32,17 @@
         :analysis="analysis"
       />
 
-      <!-- Detail tabs, right: distribution · SEM · conditions -->
-      <EbeamSkewvoirDashboardDetailTabs
-        class="min-h-0 xl:col-span-4"
-        :analysis="analysis"
-      />
+      <!-- Right: SEM image (top) over distribution (bottom) -->
+      <div class="flex min-h-0 flex-col gap-2.5 xl:col-span-4">
+        <EbeamSkewvoirDashboardSemImage
+          class="min-h-0 flex-1"
+          :analysis="analysis"
+        />
+        <EbeamSkewvoirDashboardDistribution
+          class="min-h-0 flex-1"
+          :analysis="analysis"
+        />
+      </div>
     </div>
   </div>
 </template>

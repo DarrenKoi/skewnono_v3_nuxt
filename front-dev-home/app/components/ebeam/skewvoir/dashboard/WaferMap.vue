@@ -35,15 +35,15 @@
       </div>
       <!-- Legend, separate from the chart so it can't overlap the wafer: a color
            scale (low→high) plus the ✕/◎ symbols. -->
-      <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[9.5px] text-(--sk-ink-muted)">
+      <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-(--sk-ink-muted)">
         <span class="inline-flex items-center gap-1.5">
-          <span class="tabular-nums">{{ rangeLabel.min }}</span>
+          <span class="tabular-nums text-(--sk-ink)">{{ rangeLabel.min }}</span>
           <span
-            class="h-2 w-16 rounded-full"
+            class="h-2.5 w-16 rounded-(--sk-r-sidebar)"
             :style="gradientStyle"
           />
-          <span class="tabular-nums">{{ rangeLabel.max }}</span>
-          <span class="text-(--sk-ink-subtle)">{{ analysis.activeUnit.value }}</span>
+          <span class="tabular-nums text-(--sk-ink)">{{ rangeLabel.max }}</span>
+          <span>{{ analysis.activeUnit.value }}</span>
         </span>
         <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">✕</span>측정 실패</span>
         <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">◎</span>이상</span>

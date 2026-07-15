@@ -90,15 +90,15 @@ const option = computed<EChartsOption>(() => ({
     name: 'distance from center (mm)',
     nameLocation: 'middle',
     nameGap: 22,
-    nameTextStyle: { fontSize: 10 },
-    axisLabel: { fontSize: 10 }
+    nameTextStyle: { fontSize: 11 },
+    axisLabel: { fontSize: 11 }
   },
   yAxis: {
     type: 'value',
     scale: true,
     name: props.unit || 'CD',
-    nameTextStyle: { fontSize: 10 },
-    axisLabel: { fontSize: 10 }
+    nameTextStyle: { fontSize: 11 },
+    axisLabel: { fontSize: 11 }
   },
   series: [
     {

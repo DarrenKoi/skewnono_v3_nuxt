@@ -1,55 +1,58 @@
 <template>
-  <div class="dashboard-surface flex flex-wrap items-stretch gap-x-5 gap-y-1 rounded-(--sk-r-card) px-3 py-1.5">
+  <div class="dashboard-surface flex flex-wrap items-center gap-x-5 gap-y-2 rounded-(--sk-r-card) px-4 py-2.5">
     <!-- 측정 성공률 -->
-    <div class="flex items-baseline gap-1.5">
-      <span class="font-mono text-[9.5px] uppercase tracking-wide text-(--sk-ink-muted)">성공률</span>
+    <div class="flex flex-col gap-0.5">
+      <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">측정 성공률</span>
       <span
-        class="font-mono text-[13px] font-bold tabular-nums"
-        :class="cov.failed > 0 ? 'text-(--sk-bad)' : 'text-zinc-900 dark:text-zinc-100'"
-      >{{ cov.measured }}<span class="text-(--sk-ink-subtle)">/{{ cov.total }}</span></span>
-      <span
-        v-if="cov.failed > 0"
-        class="font-mono text-[10px] text-(--sk-bad)"
-      >· {{ cov.failed }} 실패</span>
+        class="font-mono text-base font-bold tabular-nums"
+        :class="cov.failed > 0 ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
+      >{{ cov.measured }}<span class="text-(--sk-ink-muted)">/{{ cov.total }}</span>
+        <span
+          v-if="cov.failed > 0"
+          class="text-xs font-medium text-(--sk-bad)"
+        > · {{ cov.failed }} 실패</span>
+      </span>
     </div>
 
-    <span class="w-px self-stretch bg-(--sk-border-soft)" />
+    <span class="h-8 w-px bg-(--sk-border-soft)" />
 
     <!-- 이상 사이트 -->
-    <div class="flex items-baseline gap-1.5">
-      <span class="font-mono text-[9.5px] uppercase tracking-wide text-(--sk-ink-muted)">이상</span>
+    <div class="flex flex-col gap-0.5">
+      <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">이상 사이트</span>
       <span
         v-if="ov.status === 'evaluated'"
-        class="font-mono text-[13px] font-bold tabular-nums"
-        :class="ov.outlierCount > 0 ? 'text-(--sk-bad)' : 'text-zinc-900 dark:text-zinc-100'"
+        class="font-mono text-base font-bold tabular-nums"
+        :class="ov.outlierCount > 0 ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
       >{{ ov.outlierCount }}</span>
       <span
         v-else
-        class="font-mono text-[11px] text-(--sk-ink-subtle)"
+        class="text-sm font-semibold text-(--sk-ink-subtle)"
       >평가 불가</span>
     </div>
 
-    <span class="w-px self-stretch bg-(--sk-border-soft)" />
+    <span class="h-8 w-px bg-(--sk-border-soft)" />
 
     <!-- {param} 평균 -->
-    <div class="flex items-baseline gap-1.5">
-      <span class="truncate font-mono text-[9.5px] uppercase tracking-wide text-(--sk-ink-muted)">{{ param }} 평균</span>
-      <span class="font-mono text-[13px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
-        {{ summary ? summary.mean.toFixed(2) : '—' }}<span class="text-[10px] text-(--sk-ink-subtle)"> {{ unit }}</span>
+    <div class="flex flex-col gap-0.5">
+      <span class="truncate font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">{{ param }} 평균</span>
+      <span class="font-mono text-base font-bold tabular-nums text-(--sk-ink)">
+        {{ summary ? summary.mean.toFixed(2) : '—' }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ unit }}</span>
+        <span
+          v-if="summary"
+          class="text-xs font-medium text-(--sk-ink-muted)"
+        > · 3σ <span class="text-(--sk-ink)">{{ (summary.std * 3).toFixed(2) }}</span></span>
       </span>
-      <span
-        v-if="summary"
-        class="font-mono text-[10px] text-(--sk-ink-muted)"
-      >· 3σ {{ (summary.std * 3).toFixed(2) }}</span>
     </div>
 
-    <span class="w-px self-stretch bg-(--sk-border-soft)" />
+    <span class="h-8 w-px bg-(--sk-border-soft)" />
 
-    <!-- 정렬 -->
-    <div class="flex min-w-0 items-baseline gap-1.5">
-      <span class="font-mono text-[9.5px] uppercase tracking-wide text-(--sk-ink-muted)">정렬</span>
-      <span class="font-mono text-[13px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{{ align.total }}</span>
-      <span class="truncate font-mono text-[10px] text-(--sk-ink-muted)">{{ align.methods.join(' · ') || '—' }}</span>
+    <!-- Align -->
+    <div class="flex min-w-0 flex-col items-start gap-1">
+      <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">Align</span>
+      <span class="truncate font-mono text-base font-bold tabular-nums text-(--sk-ink)">
+        {{ align.total }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ align.methods.join(' · ') || '—' }}</span>
+      </span>
+      <EbeamSkewvoirDashboardAlignImages :analysis="analysis" />
     </div>
   </div>
 </template>

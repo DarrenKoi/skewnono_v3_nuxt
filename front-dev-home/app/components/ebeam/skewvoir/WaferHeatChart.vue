@@ -54,18 +54,18 @@ const option = computed<EChartsOption>(() => ({
     min: -axisMax.value,
     max: axisMax.value,
     splitLine: { show: true },
-    axisLabel: { fontSize: 10 },
+    axisLabel: { fontSize: 11 },
     name: 'chip x',
-    nameTextStyle: { fontSize: 10 }
+    nameTextStyle: { fontSize: 11 }
   },
   yAxis: {
     type: 'value',
     min: -axisMax.value,
     max: axisMax.value,
     splitLine: { show: true },
-    axisLabel: { fontSize: 10 },
+    axisLabel: { fontSize: 11 },
     name: 'chip y',
-    nameTextStyle: { fontSize: 10 }
+    nameTextStyle: { fontSize: 11 }
   },
   visualMap: {
     min: valueRange.value.min,
@@ -75,7 +75,7 @@ const option = computed<EChartsOption>(() => ({
     right: 0,
     top: 'center',
     itemHeight: 120,
-    textStyle: { fontSize: 10 },
+    textStyle: { fontSize: 11 },
     // Diverging navy → tan → red (the sample's signature wafer colormap).
     inRange: { color: [...SK_CHART.scale] }
   },

@@ -65,7 +65,7 @@
       <p class="mb-1 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
         CURRENT SELECTION
       </p>
-      <dl class="space-y-1 px-1 text-[11.5px]">
+      <dl class="space-y-1 px-1 text-[12px]">
         <div
           v-for="field in selectionFields"
           :key="field.label"
@@ -75,7 +75,7 @@
             {{ field.label }}
           </dt>
           <dd
-            class="truncate font-mono text-zinc-800 dark:text-zinc-200"
+            class="truncate font-mono text-(--sk-ink)"
             :class="{ 'font-semibold': field.strong }"
           >
             {{ field.value }}
@@ -83,13 +83,69 @@
         </div>
       </dl>
     </section>
+
+    <!-- Actions — separated from the selection above by its own bordered section -->
+    <section
+      v-if="ws.selection.value"
+      class="border-t border-(--sk-border) pt-4"
+    >
+      <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
+        ACTIONS
+      </p>
+      <div class="space-y-1.5">
+        <UButton
+          v-for="action in actions"
+          :key="action.label"
+          block
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="justify-start"
+          :icon="action.icon"
+          :label="action.label"
+          @click="action.onClick?.()"
+        />
+      </div>
+    </section>
   </aside>
 </template>
 
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
+import { recipeDetailRoute } from '~/utils/recipeView'
 
-const props = defineProps<{ ws: SkewvoirWorkspace }>()
+const props = defineProps<{ ws: SkewvoirWorkspace, fab: string }>()
+
+const toast = useToast()
+const router = useRouter()
+
+// Open the current measurement's recipe in the existing "Recipe 열어 보기" page,
+// in a new tab. The analysis route isn't fab-scoped, so the fab comes from the
+// focus measurement (passed in).
+const openRecipe = () => {
+  const recipe = props.ws.selection.value?.recipe
+  if (!recipe || !props.fab) return
+  const route = recipeDetailRoute(props.ws.toolType, props.fab, 'open', recipe)
+  window.open(router.resolve(route).href, '_blank', 'noopener')
+}
+
+const share = async () => {
+  const url = props.ws.shareUrl()
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.add({ title: '링크가 복사되었습니다', description: url, icon: 'i-lucide-link', color: 'success' })
+  } catch {
+    toast.add({ title: '복사하지 못했습니다', description: url, icon: 'i-lucide-triangle-alert', color: 'warning' })
+  }
+}
+
+// Recipe 열어보기 + Share work today; Annotate is staged for the feature
+// discussion to follow. Excel export lives on the data table, not here.
+const actions = [
+  { label: '+ Annotate', icon: 'i-lucide-message-square-plus', onClick: undefined as (() => void) | undefined },
+  { label: 'Recipe 열어보기', icon: 'i-lucide-file-search', onClick: openRecipe },
+  { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
+]
 
 const selectionFields = computed(() => {
   const sel = props.ws.selection.value

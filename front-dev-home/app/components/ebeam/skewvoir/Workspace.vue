@@ -1,28 +1,15 @@
 <template>
   <div class="flex h-[calc(100dvh-7.5rem)] min-h-[36rem] flex-col overflow-hidden rounded-(--sk-r-card) border border-(--sk-border) bg-(--sk-canvas) xl:h-full xl:min-h-0">
     <div class="flex min-h-0 flex-1">
-      <EbeamSkewvoirWorkspaceLeftRail :ws="ws" />
+      <EbeamSkewvoirWorkspaceLeftRail
+        :ws="ws"
+        :fab="analysis.fab.value"
+      />
 
       <main class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <!-- Main header: view actions. The breadcrumb and the parameter select
-             used to sit on the left; both were dropped — the rail already names
-             the active view, and the parameter is fixed per measurement. -->
-        <div class="flex flex-wrap items-center justify-end gap-2 border-b border-(--sk-border) px-4 py-2.5">
-          <div class="flex items-center gap-1.5">
-            <UButton
-              v-for="action in actions"
-              :key="action.label"
-              color="neutral"
-              variant="ghost"
-              :icon="action.icon"
-              :label="action.label"
-              size="xs"
-              @click="action.onClick?.()"
-            />
-          </div>
-        </div>
-
-        <!-- View body — the active analysis view, driven by the URL `view` param -->
+        <!-- View body — the active analysis view, driven by the URL `view` param.
+             View actions (Annotate / Excel / Skew Check / Share) moved to the
+             left rail, under CURRENT SELECTION. -->
         <div class="min-h-0 flex-1 overflow-auto p-3">
           <div
             v-if="!ws.selection.value"
@@ -97,7 +84,6 @@ const props = defineProps<{
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
 const analysis = useSkewvoirAnalysis(ws)
-const toast = useToast()
 
 // Shared links bypass the landing page, so the workspace records the opened
 // analysis too. If the landing page already wrote a rich single/group entry,
@@ -169,21 +155,4 @@ defineShortcuts(
     }])
   )
 )
-
-const share = async () => {
-  const url = ws.shareUrl()
-  try {
-    await navigator.clipboard.writeText(url)
-    toast.add({ title: '링크가 복사되었습니다', description: url, icon: 'i-lucide-link', color: 'success' })
-  } catch {
-    toast.add({ title: '복사하지 못했습니다', description: url, icon: 'i-lucide-triangle-alert', color: 'warning' })
-  }
-}
-
-const actions = [
-  { label: '+ Annotate', icon: 'i-lucide-message-square-plus' },
-  { label: 'Excel / CSV', icon: 'i-lucide-file-spreadsheet' },
-  { label: 'Skew Check', icon: 'i-lucide-activity' },
-  { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
-]
 </script>
