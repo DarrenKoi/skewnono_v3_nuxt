@@ -119,11 +119,13 @@
                 </div>
               </div>
               <p class="mt-4 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
-                데이터의 SKEW는 모두를 힘들고 지치게 합니다. 그래서 SKEW는 NO-NO입니다.
-                SKEWNONO는 빠르고 정확한 분석으로 SKEW의 참원인을 찾아 없애는 것을 목표로 합니다.
+                SKEW는 데이터가 한쪽으로 치우치거나 기준에서 어긋나는 현상입니다. 원인을 알 수 없는
+                SKEW는 판단을 흐리고 모두를 지치게 합니다. 그래서 SKEW는 있어서는 안 될 NO-NO입니다.
               </p>
               <p class="mt-3 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
-                나란히 기울어지고 조금 떨어진 두 개의 바는 CD Bar 측정과 SKEW를 의미합니다.
+                SKEWNONO는 빠르고 정확한 분석으로 SKEW의 참원인을 찾아 없애고자 합니다.
+                나란히 기울어진 채 살짝 벌어진 두 개의 바는 CD Bar 측정과 그 사이에서 드러나는 SKEW를
+                함께 나타냅니다.
               </p>
             </div>
           </section>
