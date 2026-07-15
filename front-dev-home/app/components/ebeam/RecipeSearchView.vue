@@ -273,8 +273,8 @@ const openMeasHist = (recipeName: string) => {
     />
 
     <div class="space-y-4">
-      <div class="grid gap-3 lg:grid-cols-2 lg:items-stretch">
-        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card)">
+      <div class="grid gap-4 xl:grid-cols-12 xl:items-stretch">
+        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-8">
           <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
             <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-subtle)">
               RECIPE LOOKUP
@@ -355,7 +355,7 @@ const openMeasHist = (recipeName: string) => {
           </div>
         </section>
 
-        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card)">
+        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-4">
           <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
             <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-subtle)">
               RECENT SEARCHES
