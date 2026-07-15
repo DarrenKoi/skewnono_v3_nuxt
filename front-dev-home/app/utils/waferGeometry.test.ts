@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseWaferGeometry, stagePosMm, dieCenterMm, siteRadiusMm } from './waferGeometry.ts'
+import { parseWaferGeometry, stagePosMm, dieCenterMm, siteRadiusMm, mmToDieIndex } from './waferGeometry.ts'
 import type { ExeDetailInfo } from '~/composables/useMsrFileApi'
 
 const info = (over: Partial<ExeDetailInfo> = {}): ExeDetailInfo => ({
@@ -52,4 +52,14 @@ test('siteRadiusMm is the distance from wafer centre', () => {
   // (3,4) mm from centre → radius 5 mm
   const r = siteRadiusMm('153000000,154000000', g)
   assert.ok(r != null && Math.abs(r - 5) < 1e-9)
+})
+
+test('mmToDieIndex rounds mm to the nearest die column/row', () => {
+  assert.equal(mmToDieIndex(0, 6.818182), 0)
+  assert.equal(mmToDieIndex(6.9, 6.818182), 1)
+  assert.equal(mmToDieIndex(-13.6, 6.818182), -2)
+})
+
+test('mmToDieIndex returns null when pitch is unknown', () => {
+  assert.equal(mmToDieIndex(50, 0), null)
 })

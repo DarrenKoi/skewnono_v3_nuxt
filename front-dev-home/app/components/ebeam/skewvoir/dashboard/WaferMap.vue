@@ -3,10 +3,25 @@
     v-model="mode"
     title="Wafer Map"
     :meta="meta"
-    :toggles="['Sites', 'Field']"
+    :toggles="['Field', 'Die']"
     icon="i-lucide-grid-3x3"
     body-class="flex flex-col gap-2"
   >
+    <template #actions>
+      <UButton
+        icon="i-lucide-maximize-2"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        aria-label="확대"
+        @click="detailOpen = true"
+      />
+      <EbeamSkewvoirWaferMapOptions
+        v-model:options="options"
+        :auto-range="autoRange"
+      />
+    </template>
+
     <div
       v-if="analysis.focusPending.value"
       class="flex flex-1 items-center justify-center gap-2 sk-body"
@@ -19,34 +34,35 @@
     </div>
     <template v-else-if="hasData">
       <div class="grid min-h-0 flex-1 place-items-center">
-        <div class="aspect-square w-full max-w-[17rem]">
+        <div class="aspect-square w-full max-w-[22rem]">
           <EbeamSkewvoirWaferMap
             :rows="analysis.siteRows.value"
             :parameter="analysis.activeParam.value"
             :unit="analysis.activeUnit.value"
             :geo="analysis.waferGeo.value"
             :mode="mode"
+            :options="options"
+            :color-min="effectiveRange.colorMin"
+            :color-max="effectiveRange.colorMax"
             :focused-sequence="analysis.focusedSequence.value"
             :outlier-seqs="outlierSeqs"
             @focus="analysis.setFocusedSequence"
-            @rangechange="colorRange = $event"
+            @rangechange="autoRange = $event"
           />
         </div>
       </div>
-      <!-- Legend, separate from the chart so it can't overlap the wafer: a color
-           scale (low→high) plus the ✕/◎ symbols. -->
-      <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-(--sk-ink-muted)">
-        <span class="inline-flex items-center gap-1.5">
-          <span class="tabular-nums text-(--sk-ink)">{{ rangeLabel.min }}</span>
-          <span
-            class="h-2.5 w-16 rounded-(--sk-r-sidebar)"
-            :style="gradientStyle"
-          />
-          <span class="tabular-nums text-(--sk-ink)">{{ rangeLabel.max }}</span>
-          <span>{{ analysis.activeUnit.value }}</span>
-        </span>
-        <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">✕</span>측정 실패</span>
-        <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">◎</span>이상</span>
+      <!-- Legend, separate from the chart so it can't overlap the wafer: a ticked
+           color bar plus the ✕/◎ symbols. -->
+      <div class="flex flex-col items-center gap-1">
+        <EbeamSkewvoirColorScaleBar
+          :min="effectiveRange.colorMin"
+          :max="effectiveRange.colorMax"
+          :unit="analysis.activeUnit.value"
+        />
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-(--sk-ink-muted)">
+          <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">✕</span>측정 실패</span>
+          <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">◎</span>이상</span>
+        </div>
       </div>
     </template>
     <div
@@ -55,26 +71,38 @@
     >
       {{ analysis.activeParam.value }} 데이터가 없습니다.
     </div>
+
+    <EbeamSkewvoirWaferDetailModal
+      v-model:open="detailOpen"
+      :rows="analysis.siteRows.value"
+      :parameter="analysis.activeParam.value"
+      :unit="analysis.activeUnit.value"
+      :geo="analysis.waferGeo.value"
+      :focused-sequence="analysis.focusedSequence.value"
+      :outlier-seqs="outlierSeqs"
+      @focus="analysis.setFocusedSequence"
+    />
   </EbeamSkewvoirPanelFrame>
 </template>
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
-import { SK_CHART } from '~/utils/chartPalette'
+import { defaultWaferMapOptions, resolveColorRange } from '~/utils/waferMapOptions'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const mode = ref<'Sites' | 'Field'>('Sites')
+const mode = ref<'Field' | 'Die'>('Field')
+const detailOpen = ref(false)
+const options = ref(defaultWaferMapOptions())
 
-// Color-scale range published by the chart — drives the DOM legend below it.
-const colorRange = ref<{ min: number, max: number } | null>(null)
-const gradientStyle = computed(() => ({ background: `linear-gradient(to right, ${SK_CHART.scale.join(', ')})` }))
-const rangeLabel = computed(() =>
-  colorRange.value
-    ? { min: colorRange.value.min.toFixed(1), max: colorRange.value.max.toFixed(1) }
-    : { min: '—', max: '—' }
-)
+// The leaf publishes its auto (data) range via @rangechange; the manual override
+// from the popover is applied here and fed back to the leaf's visualMap + bar.
+const autoRange = ref<{ min: number, max: number }>({ min: 0, max: 1 })
+const effectiveRange = computed(() => {
+  const r = resolveColorRange(options.value.colorMode, options.value.colorMin, options.value.colorMax, autoRange.value)
+  return { colorMin: r.min, colorMax: r.max }
+})
 
 const siteCount = computed(() =>
   props.analysis.siteRows.value.filter(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r)).length
@@ -87,5 +115,6 @@ const outlierSeqs = computed(() =>
   props.analysis.activeOverview.value.tableRows.filter(r => r.kind !== 'failed').map(r => r.sequence)
 )
 
-const meta = computed(() => `${props.analysis.activeParam.value} · ${siteCount.value} sites`)
+// "fields" = measured points (a die can hold several); consistent with Field mode.
+const meta = computed(() => `${props.analysis.activeParam.value} · ${siteCount.value} fields`)
 </script>
