@@ -25,3 +25,48 @@ export const downloadCsv = (
   link.click()
   URL.revokeObjectURL(url)
 }
+
+// Copy a table to the clipboard as TSV (tab-separated). Excel, Google
+// Sheets, and other spreadsheets split pasted text on tabs, so TSV pastes
+// straight into cells with no import step. Tabs/newlines inside a value are
+// flattened to spaces so a stray value can't break the row/column grid.
+// Returns true on success so callers can show a confirmation toast.
+export const copyTableToClipboard = async (
+  headers: string[],
+  rows: unknown[][]
+): Promise<boolean> => {
+  if (!import.meta.client || rows.length === 0) return false
+
+  const toCell = (value: unknown): string =>
+    String(value ?? '').replace(/[\t\r\n]+/g, ' ')
+  const tsv = [headers, ...rows]
+    .map(row => row.map(toCell).join('\t'))
+    .join('\r\n')
+
+  // Preferred path — requires a secure context (https or localhost).
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(tsv)
+      return true
+    } catch {
+      // Fall through to the execCommand fallback (e.g. http:// production).
+    }
+  }
+
+  // Fallback for non-secure contexts where navigator.clipboard is absent.
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = tsv
+    textarea.style.position = 'fixed'
+    textarea.style.top = '-9999px'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return ok
+  } catch {
+    return false
+  }
+}

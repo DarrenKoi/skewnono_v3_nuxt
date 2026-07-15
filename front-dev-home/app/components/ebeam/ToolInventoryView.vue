@@ -58,6 +58,17 @@
           size="sm"
           color="neutral"
           variant="outline"
+          icon="i-lucide-clipboard"
+          aria-label="표를 클립보드에 복사"
+          title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
+          :disabled="filteredRows.length === 0"
+          @click="copyTable"
+        />
+
+        <UButton
+          size="sm"
+          color="neutral"
+          variant="outline"
           icon="i-lucide-download"
           label="CSV 다운로드"
           :disabled="filteredRows.length === 0"
@@ -152,6 +163,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   fab: Fab
@@ -345,30 +357,25 @@ const csvColumns: CsvColumn[] = [
   { id: 'available', header: 'Available' }
 ]
 
-const escapeCsvValue = (value: string | number) => {
-  const normalized = String(value).replace(/"/g, '""')
-  return `"${normalized}"`
-}
+const toast = useToast()
+
+const tableData = () => ({
+  headers: csvColumns.map(column => column.header),
+  rows: filteredRows.value.map(row => csvColumns.map(column => row[column.id]))
+})
 
 const downloadTableCsv = () => {
-  if (!import.meta.client || filteredRows.value.length === 0) return
+  const { headers, rows } = tableData()
+  downloadCsv(exportFileName.value, headers, rows)
+}
 
-  const headerRow = csvColumns.map(column => escapeCsvValue(column.header)).join(',')
-  const bodyRows = filteredRows.value.map(row => (
-    csvColumns
-      .map(column => escapeCsvValue(row[column.id]))
-      .join(',')
-  ))
-
-  const csvContent = ['﻿' + headerRow, ...bodyRows].join('\r\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-
-  link.href = url
-  link.download = exportFileName.value
-  link.click()
-
-  URL.revokeObjectURL(url)
+const copyTable = async () => {
+  const { headers, rows } = tableData()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 </script>

@@ -14,6 +14,16 @@
         <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
       </div>
       <UButton
+        icon="i-lucide-clipboard"
+        size="xs"
+        color="neutral"
+        variant="outline"
+        aria-label="표를 클립보드에 복사"
+        title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
+        :disabled="filteredDocs.length === 0"
+        @click="copyScalarsTable"
+      />
+      <UButton
         icon="i-lucide-download"
         size="xs"
         color="neutral"
@@ -111,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { stableRadialRange } from '~/utils/chartRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
@@ -240,7 +250,9 @@ const selectedScalarCards = computed(() => {
   }))
 })
 
-const downloadScalarsCsv = () => {
+const toast = useToast()
+
+const scalarsTable = () => {
   const keys = scalarKeys.value
   const headers = ['timestamp', 'condition', ...keys]
   const rows = [...filteredDocs.value]
@@ -249,7 +261,22 @@ const downloadScalarsCsv = () => {
       const sb = asRecord(d.summ_beam)
       return [tsOf(d), condKeyOf(d), ...keys.map(k => numOf(sb[k]))]
     })
+  return { headers, rows }
+}
+
+const downloadScalarsCsv = () => {
+  const { headers, rows } = scalarsTable()
   const date = new Date().toISOString().slice(0, 10)
   downloadCsv(`sharpness-${condition.value}-${date}.csv`, headers, rows)
+}
+
+const copyScalarsTable = async () => {
+  const { headers, rows } = scalarsTable()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 </script>

@@ -14,6 +14,16 @@
         <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
       </div>
       <UButton
+        icon="i-lucide-clipboard"
+        size="xs"
+        color="neutral"
+        variant="outline"
+        aria-label="표를 클립보드에 복사"
+        title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
+        :disabled="filteredDocs.length === 0"
+        @click="copyScalarsTable"
+      />
+      <UButton
         icon="i-lucide-download"
         size="xs"
         color="neutral"
@@ -114,7 +124,7 @@
 import {
   profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel
 } from '~/utils/beamMetrics'
-import { downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -215,13 +225,30 @@ const selectedScalarCards = computed(() => {
   }))
 })
 
-const downloadScalarsCsv = () => {
+const toast = useToast()
+
+const scalarsTable = () => {
   const keys = scalarOptions.value.map(o => o.key)
   const headers = ['timestamp', 'beam_condition', ...keys]
   const rows = [...filteredDocs.value]
     .sort((a, b) => tsOf(a).localeCompare(tsOf(b)))
     .map(d => [tsOf(d), String(d.beam_condition ?? ''), ...keys.map(k => numOf(d[k]))])
+  return { headers, rows }
+}
+
+const downloadScalarsCsv = () => {
+  const { headers, rows } = scalarsTable()
   const date = new Date().toISOString().slice(0, 10)
   downloadCsv(`bsm-${beamCondition.value}-${date}.csv`, headers, rows)
+}
+
+const copyScalarsTable = async () => {
+  const { headers, rows } = scalarsTable()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 </script>

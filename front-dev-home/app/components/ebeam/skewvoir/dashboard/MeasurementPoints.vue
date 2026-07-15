@@ -12,6 +12,16 @@
         color="neutral"
         variant="ghost"
         size="xs"
+        icon="i-lucide-clipboard"
+        aria-label="표를 클립보드에 복사"
+        title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
+        :disabled="!rows.length"
+        @click="copyPoints"
+      />
+      <UButton
+        color="neutral"
+        variant="ghost"
+        size="xs"
         icon="i-lucide-download"
         label="Excel"
         :disabled="!rows.length"
@@ -117,6 +127,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SiteKind } from '~/utils/overview'
 import { siteRadiusMm } from '~/utils/waferGeometry'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -189,23 +200,38 @@ const rows = computed(() => {
   })
 })
 
-// Download the current (filtered + sorted) rows as a CSV. BOM + CRLF so Excel
-// opens the Korean 상태 labels in UTF-8 without mojibake.
+const toast = useToast()
+
+// Build the current (filtered + sorted) rows as headers + a value matrix,
+// shared by CSV download and clipboard copy.
+const pointsTable = () => ({
+  headers: ['SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS'],
+  rows: rows.value.map(p => [
+    p.seq,
+    p.x ?? '',
+    p.y ?? '',
+    p.cd ?? '',
+    p.radius.toFixed(2),
+    badgeLabel(p.kind)
+  ])
+})
+
+const exportFileName = () =>
+  `${props.analysis.focusFile.value?.msr ?? 'msr'}_${props.analysis.activeParam.value}_points.csv`
+
 const exportCsv = () => {
-  if (!import.meta.client || !rows.value.length) return
-  const header = ['SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS']
-  const lines = [header.join(',')]
-  for (const p of rows.value) {
-    lines.push([p.seq, p.x ?? '', p.y ?? '', p.cd ?? '', p.radius.toFixed(2), badgeLabel(p.kind)].join(','))
-  }
-  const bom = String.fromCharCode(0xFEFF) // Excel opens UTF-8 correctly with a BOM
-  const blob = new Blob([bom + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${props.analysis.focusFile.value?.msr ?? 'msr'}_${props.analysis.activeParam.value}_points.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  const { headers, rows: data } = pointsTable()
+  downloadCsv(exportFileName(), headers, data)
+}
+
+const copyPoints = async () => {
+  const { headers, rows: data } = pointsTable()
+  const ok = await copyTableToClipboard(headers, data)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 
 const flaggedCount = computed(() => allPoints.value.filter(p => p.kind !== 'normal').length)
