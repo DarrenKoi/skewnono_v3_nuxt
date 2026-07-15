@@ -5,10 +5,11 @@
     :meta="meta"
     :toggles="['1°', '3°']"
     icon="i-lucide-line-chart"
+    body-class="flex flex-col"
   >
     <div
       v-if="analysis.focusPending.value"
-      class="flex h-56 items-center justify-center gap-2 text-[12px] text-(--sk-ink-muted)"
+      class="flex flex-1 items-center justify-center gap-2 text-[12px] text-(--sk-ink-muted)"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -21,13 +22,14 @@
       :rows="analysis.siteRows.value"
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
+      :geo="analysis.waferGeo.value"
       :degree="degree"
       :focused-sequence="analysis.focusedSequence.value"
       @focus="analysis.setFocusedSequence"
     />
     <div
       v-else
-      class="flex h-56 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+      class="flex flex-1 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
     >
       {{ analysis.activeParam.value }} 데이터가 없습니다.
     </div>

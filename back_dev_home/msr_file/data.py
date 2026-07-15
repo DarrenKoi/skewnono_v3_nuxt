@@ -30,6 +30,7 @@ consumer must gate on this; see app/utils/msrRows.ts.
 
 import hashlib
 import math
+import math
 import random
 from functools import lru_cache
 from statistics import fmean, pstdev, stdev
@@ -191,15 +192,59 @@ def _seed(msr: str, offset: int = 0) -> int:
     return (int(digest[:8], 16) + offset) % (2 ** 31)
 
 
-@lru_cache(maxsize=1)
-def _chip_positions() -> tuple[tuple[int, int], ...]:
-    """Simplified round wafer: -10..10 grid keeping abs(x) + abs(y) <= 15."""
-    return tuple(
-        (x, y)
-        for x in range(-10, 11)
-        for y in range(-10, 11)
-        if abs(x) + abs(y) <= 15
+# ── Wafer geometry (physical, coherent across chip_number / stage / wafer_size) ──
+# A 300 mm wafer. `chip_number` is the die INDEX (col, row) centred on the wafer;
+# `stage_coordinate` is the physical position in nm from a corner origin, so the
+# wafer centre sits at (wafer_size/2, wafer_size/2). Die pitch is derived from the
+# array count so pitch * array ≈ the wafer diameter — the three fields can never
+# disagree (docs/datatables/msr_file_pickle.txt).
+WAFER_SIZE_MM = 300
+NM_PER_MM = 1_000_000
+_WAFER_NM = WAFER_SIZE_MM * NM_PER_MM
+_WAFER_CENTER_NM = _WAFER_NM // 2
+_WAFER_RADIUS_NM = _WAFER_NM / 2
+_EDGE_EXCLUSION_NM = 3 * NM_PER_MM  # dies whose centre is < 3 mm from the edge
+
+
+class WaferGeom(NamedTuple):
+    cols: int
+    rows: int
+    pitch_x_nm: int
+    pitch_y_nm: int
+
+
+@lru_cache(maxsize=256)
+def _wafer_geometry(msr: str) -> WaferGeom:
+    """Per-MSR die array + pitch. Pitch = wafer diameter / array count, so the
+    array physically spans the wafer and stage coordinates land inside it."""
+    rng = random.Random(_seed(msr, 313))
+    cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
+    return WaferGeom(cols, rows_n, round(_WAFER_NM / cols), round(_WAFER_NM / rows_n))
+
+
+def _die_center_nm(col: int, row: int, geom: WaferGeom) -> tuple[float, float]:
+    """Physical centre (nm, corner origin) of die (col, row)."""
+    return (
+        _WAFER_CENTER_NM + col * geom.pitch_x_nm,
+        _WAFER_CENTER_NM + row * geom.pitch_y_nm,
     )
+
+
+@lru_cache(maxsize=256)
+def _measured_dies(msr: str) -> tuple[tuple[int, int], ...]:
+    """Die (col, row) indices whose centre lies within the wafer (minus an edge
+    exclusion), shuffled so a sequence→die walk spreads across the whole wafer
+    instead of marching down one column."""
+    geom = _wafer_geometry(msr)
+    limit = _WAFER_RADIUS_NM - _EDGE_EXCLUSION_NM
+    dies = [
+        (col, row)
+        for col in range(-(geom.cols // 2), geom.cols // 2 + 1)
+        for row in range(-(geom.rows // 2), geom.rows // 2 + 1)
+        if math.hypot(col * geom.pitch_x_nm, row * geom.pitch_y_nm) <= limit
+    ]
+    random.Random(_seed(msr, 971)).shuffle(dies)
+    return tuple(dies)
 
 
 # Parameter name substrings -> (value range, unit). First match wins, so range
@@ -294,8 +339,9 @@ def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> E
     idp_name = parent["idp_name"] if parent else f"/Recipe/{class_name}/{recipe_name}.idp"
     idw_name = parent["idw_name"] if parent else f"/Recipe/{class_name}/{recipe_name}.idw"
 
-    cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
-    pitch_x, pitch_y = rng.randrange(24, 28) * 1_000_000, rng.randrange(31, 35) * 1_000_000
+    # Array + pitch come from the shared geometry so chip_array, chip_pitch and
+    # wafer_size stay mutually consistent with the chip_number / stage columns.
+    geom = _wafer_geometry(msr)
 
     return ExeDetailInfo(
         class_name=class_name,
@@ -306,11 +352,12 @@ def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> E
         # 25 wafers to a lot; the slot is stable per MSR.
         wafer_id=f"{lot_id}_{(_seed(msr, 41) % 25) + 1:02d}",
         idw_name=idw_name,
-        chip_array=f"{cols},{rows_n}",
-        chip_pitch=f"{pitch_x},{pitch_y}",
-        wafer_size="300",
+        chip_array=f"{geom.cols},{geom.rows}",
+        chip_pitch=f"{geom.pitch_x_nm},{geom.pitch_y_nm}",
+        wafer_size=str(WAFER_SIZE_MM),
+        # Origin at the wafer centre (corner-origin system: centre = size/2).
         map_offset=f"{rng.randrange(-3_000_000, 3_000_000)},{rng.randrange(-3_000_000, 3_000_000)}",
-        map_origin=f"{rng.randrange(-1_000_000, 1_000_000)},{rng.randrange(-1_000_000, 1_000_000)}",
+        map_origin=f"{_WAFER_CENTER_NM},{_WAFER_CENTER_NM}",
     )
 
 
@@ -366,13 +413,43 @@ def _fdc_status(drift_sigma: float) -> str:
     return "ok"
 
 
-def _cd_value(rng: random.Random, parameter: str, health: float, seq_frac: float) -> float:
-    lo, hi, _unit_label = _param_spec(parameter)
-    base = rng.uniform(lo, hi)
-    # Unhealthy tools drift CD upward, more so late in the run — this is what
-    # makes CD track the FDC excursion in the correlation view.
-    drift = health * (hi - lo) * 0.25 * (0.3 + 0.7 * seq_frac)
-    return round(base + drift, 2)
+class CdField(NamedTuple):
+    mean: float
+    radial_amp: float  # centre→edge delta (absolute units)
+    site_sigma: float
+    lo: float
+    hi: float
+
+
+def _cd_field(msr: str, parameter: str, health: float) -> CdField:
+    """Per-(MSR, parameter) wafer CD model. Sites cluster tightly around ``mean``
+    with a smooth centre→edge trend (``radial_amp``) and small run-to-run noise
+    (``site_sigma``), so leave-one-out outlier detection flags only genuine
+    excursions — not most of the wafer. ``mean`` rises with ``health`` so a
+    tool's CD tracks its FDC excursion across the multi-measurement trend."""
+    lo, hi, _ = _param_spec(parameter)
+    span = hi - lo
+    rng = random.Random(_seed(f"{msr}:{parameter}", 431))
+    mean = lo + span * rng.uniform(0.42, 0.58) + span * 0.12 * health
+    radial_amp = span * rng.uniform(0.03, 0.06) * (1.0 if rng.random() < 0.5 else -1.0)
+    return CdField(mean=mean, radial_amp=radial_amp, site_sigma=span * 0.012, lo=lo, hi=hi)
+
+
+def _cd_value(
+    field: CdField,
+    radius_norm: float,
+    health: float,
+    seq_frac: float,
+    rng: random.Random,
+    outlier_dev: float,
+) -> float:
+    """One site's CD: wafer mean + radial trend + noise, plus a mild within-run
+    tilt for unhealthy tools and an injected deviation for the few flagged sites.
+    Clamped to the parameter's physical range."""
+    val = field.mean + field.radial_amp * radius_norm + rng.gauss(0, field.site_sigma)
+    val += field.mean * 0.03 * health * (2 * seq_frac - 1)  # slight late-run tilt
+    val += outlier_dev
+    return round(min(field.hi, max(field.lo, val)), 2)
 
 
 def _unit(parameter: str) -> str:
@@ -397,16 +474,42 @@ def _build_rows(
     num_params = min(rng.randint(1, 3), len(params_pool))
     selected_params = rng.sample(params_pool, num_params)
 
-    positions = _chip_positions()
+    geom = _wafer_geometry(msr)
+    dies = _measured_dies(msr)
     rows: list[MsrFileRow] = []
     span = max(1, num_measurements - 1)
 
+    # Per-parameter wafer CD model + a handful of injected outliers, so most sites
+    # sit tight (few flags) while the 이상 UI still has genuine excursions to show.
+    fields = {p: _cd_field(msr, p, health) for p in selected_params}
+    measured_seqs = [s for s in range(1, num_measurements + 1) if s % 20 != 0]
+    outliers_by_param: dict[str, dict[int, float]] = {}
+    for p in selected_params:
+        prng = random.Random(_seed(f"{msr}:{p}:outliers", 733))
+        picks = prng.sample(measured_seqs, min(prng.choice((0, 0, 1, 1, 2)), len(measured_seqs)))
+        outliers_by_param[p] = {
+            s: (1.0 if prng.random() < 0.5 else -1.0) * abs(fields[p].mean) * prng.uniform(0.24, 0.40)
+            for s in picks
+        }
+
     for sequence in range(1, num_measurements + 1):
         seq_frac = (sequence - 1) / span
-        chip_x, chip_y = positions[(sequence - 1) % len(positions)]
-        chip_number = f"{chip_x}, {chip_y}"
-        chip_coordinate = f"{12_000_000 + sequence * 1000 + seed % 1_000_000},{250_000 + sequence * 100}"
-        stage_coordinate = f"{175_000_000 + sequence * 10000 + seed % 100_000}, {147_000_000 + sequence * 5000}"
+
+        # Die index (chip_number) + its physical stage position (nm, corner
+        # origin). A small within-die offset keeps stage_coordinate from being an
+        # exact multiple of the pitch — the point is measured somewhere in the die.
+        chip_x, chip_y = dies[(sequence - 1) % len(dies)]
+        chip_number = f"{chip_x},{chip_y}"
+        center_x_nm, center_y_nm = _die_center_nm(chip_x, chip_y, geom)
+        off_x = rng.uniform(-0.3, 0.3) * geom.pitch_x_nm
+        off_y = rng.uniform(-0.3, 0.3) * geom.pitch_y_nm
+        stage_coordinate = f"{int(center_x_nm + off_x)},{int(center_y_nm + off_y)}"
+        chip_coordinate = f"{int(center_x_nm)},{int(center_y_nm)}"
+        # Physical radius from wafer centre, normalised to the wafer radius, drives
+        # the centre→edge CD trend seen in the radius plot.
+        radius_norm = math.hypot(
+            chip_x * geom.pitch_x_nm + off_x, chip_y * geom.pitch_y_nm + off_y
+        ) / _WAFER_RADIUS_NM
 
         # Every 20th sequence carries point METADATA but no point DATA (spec rule 9).
         # Such a row has no measurement, so it has no cd_value, no image and no
@@ -448,7 +551,10 @@ def _build_rows(
                 dnum_group=dnum_group,
                 mp_number=mp_number,
                 parameter=parameter,
-                cd_value=None if empty else _cd_value(rng, parameter, health, seq_frac),
+                cd_value=None if empty else _cd_value(
+                    fields[parameter], radius_norm, health, seq_frac, rng,
+                    outliers_by_param[parameter].get(sequence, 0.0),
+                ),
                 no_of_mp_image=0 if empty else 1 + rng.randint(0, 4),
                 mp_image_name_01=(
                     "" if empty

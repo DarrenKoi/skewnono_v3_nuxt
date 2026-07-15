@@ -21,6 +21,14 @@ const props = withDefaults(defineProps<{
   label: 'value'
 })
 
+// Axis spans the data (chip-index positions), so a wider die grid never clips.
+// Symmetric + padded so the point cloud stays centred.
+const axisMax = computed(() => {
+  let m = 1
+  for (const p of props.points) m = Math.max(m, Math.abs(p[0]), Math.abs(p[1]))
+  return Math.ceil(m) + 1
+})
+
 const valueRange = computed(() => {
   const vals = props.points.map(p => p[2])
   if (vals.length === 0) return { min: 0, max: 1 }
@@ -43,8 +51,8 @@ const option = computed<EChartsOption>(() => ({
   grid: { left: 36, right: 16, top: 16, bottom: 28, containLabel: true },
   xAxis: {
     type: 'value',
-    min: -11,
-    max: 11,
+    min: -axisMax.value,
+    max: axisMax.value,
     splitLine: { show: true },
     axisLabel: { fontSize: 10 },
     name: 'chip x',
@@ -52,8 +60,8 @@ const option = computed<EChartsOption>(() => ({
   },
   yAxis: {
     type: 'value',
-    min: -11,
-    max: 11,
+    min: -axisMax.value,
+    max: axisMax.value,
     splitLine: { show: true },
     axisLabel: { fontSize: 10 },
     name: 'chip y',

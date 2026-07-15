@@ -1,7 +1,7 @@
 <template>
   <div
     ref="chartEl"
-    class="h-56 w-full"
+    class="h-full min-h-[9rem] w-full"
   />
 </template>
 
@@ -11,11 +11,13 @@ import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { measuredRows } from '~/utils/msrRows'
 import { polyfit, polyval } from '~/utils/polyfit'
 import { SK_CHART } from '~/utils/chartPalette'
+import { siteRadiusMm, type WaferGeometry } from '~/utils/waferGeometry'
 
 const props = withDefaults(defineProps<{
   rows: MsrFileRow[]
   parameter: string
   unit: string
+  geo: WaferGeometry
   degree?: number
   focusedSequence: number | null
 }>(), {
@@ -25,15 +27,15 @@ const emit = defineEmits<{ focus: [sequence: number] }>()
 
 const rows = computed(() => measuredRows(props.rows))
 
-// (distance-from-center, CD) per measured site for the active parameter.
+// (distance-from-center mm, CD) per measured site for the active parameter.
+// Radius is the physical distance from the wafer centre (from stage_coordinate).
 // Plain numeric tuples — the polynomial fit below reads p[0]/p[1] off this.
 const points = computed<[number, number][]>(() => {
   const out: [number, number][] = []
   for (const row of rows.value) {
     if (row.parameter !== props.parameter) continue
-    const xy = parseChipXY(row.chip_number)
-    if (!xy) continue
-    const radius = Math.hypot(xy[0], xy[1])
+    const radius = siteRadiusMm(row.stage_coordinate, props.geo)
+    if (radius == null) continue
     out.push([Number(radius.toFixed(3)), row.cd_value])
   }
   return out
@@ -46,9 +48,8 @@ const scatterData = computed(() => {
   const out: { name: string, value: [number, number] }[] = []
   for (const row of rows.value) {
     if (row.parameter !== props.parameter) continue
-    const xy = parseChipXY(row.chip_number)
-    if (!xy) continue
-    const radius = Math.hypot(xy[0], xy[1])
+    const radius = siteRadiusMm(row.stage_coordinate, props.geo)
+    if (radius == null) continue
     out.push({ name: String(row.sequence), value: [Number(radius.toFixed(3)), row.cd_value] })
   }
   return out
@@ -86,7 +87,7 @@ const option = computed<EChartsOption>(() => ({
   xAxis: {
     type: 'value',
     min: 0,
-    name: 'distance from center',
+    name: 'distance from center (mm)',
     nameLocation: 'middle',
     nameGap: 22,
     nameTextStyle: { fontSize: 10 },
