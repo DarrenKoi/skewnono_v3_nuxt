@@ -138,7 +138,7 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-family: 'Public Sans', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: 'Public Sans', 'Spoqa Han Sans Neo', system-ui, sans-serif;
 }
 
 @media (min-width: 768px) {

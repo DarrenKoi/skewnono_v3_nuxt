@@ -76,13 +76,13 @@ Two rules protect this layer. It is declared **outside `@layer`**, so it outrank
 ## Typography
 
 ### Font Family
-The system runs **Noto Sans KR** as the default UI/body sans, covering **both Hangul and Latin** from self-hosted korean + latin/latin-ext subsets, with **Public Sans** kept as a Latin fallback, and **JetBrains Mono** for numbers, IDs, code, and eyebrows. Fallback stacks: `Noto Sans KR, Public Sans, Apple SD Gothic Neo, Malgun Gothic, Segoe UI, sans-serif` (`--font-sans`), `JetBrains Mono, ui-monospace, Cascadia Code, Segoe UI Mono, SFMono-Regular, Menlo, Consolas, monospace` (`--font-mono`), and `--font-korean` when Korean must be forced.
+The system runs **Spoqa Han Sans Neo** as the default UI/body sans, covering **both Hangul and Latin** from a single self-hosted face per weight, with **Public Sans** kept as a Latin fallback, and **JetBrains Mono** for numbers, IDs, code, and eyebrows. Fallback stacks: `Spoqa Han Sans Neo, Public Sans, Apple SD Gothic Neo, Malgun Gothic, Segoe UI, sans-serif` (`--font-sans`), `JetBrains Mono, ui-monospace, Cascadia Code, Segoe UI Mono, SFMono-Regular, Menlo, Consolas, monospace` (`--font-mono`), and `--font-korean` when Korean must be forced.
 
-The Noto Sans KR `@font-face` Latin subsets are declared **after** its Korean face (which carries no `unicode-range`); for overlapping ranges the later-defined rule wins, so Latin codepoints resolve to the small Latin subsets while Hangul/CJK fall to the Korean face — one family, both scripts.
+Unlike the previous Noto Sans KR setup (which split into korean + latin subsets with `unicode-range` ordering), each Spoqa Han Sans Neo weight is **one woff2 file that already covers Latin + Hangul**, so there are only three `@font-face` blocks. Spoqa Han Sans Neo ships **no SemiBold (600)** — only 400/500/700 are bundled. The Medium (500) face declares `font-weight: 500 600`, so `font-semibold` / `font-weight: 600` render as **Medium** rather than auto-mapping up to Bold; flip the range if 600 should render as Bold.
 
-All fonts are **self-hosted**: woff2 only (latin + latin-ext + korean subsets) extracted from `@fontsource/*` into `front-dev-home/public/fonts/`. No CDN or Google Fonts access, ever (offline principle).
+All fonts are **self-hosted**: woff2 only, in `front-dev-home/public/fonts/`. Public Sans and JetBrains Mono come from `@fontsource/*`; Spoqa Han Sans Neo comes from the `spoqa-han-sans` npm package (v3.3.0, `Subset/SpoqaHanSansNeo/*.woff2`, SIL OFL 1.1). No CDN or Google Fonts access, ever (offline principle).
 
-- Noto Sans KR 400–700 → default sans: body, navigation, buttons, headings, Korean labels and copy (Latin + Hangul)
+- Spoqa Han Sans Neo 400/500/700 → default sans: body, navigation, buttons, headings, Korean labels and copy (Latin + Hangul); weight 600 → Medium
 - Public Sans 400–700 → Latin fallback
 - JetBrains Mono 400–700 → all numeric and ID columns, code, eyebrows
 

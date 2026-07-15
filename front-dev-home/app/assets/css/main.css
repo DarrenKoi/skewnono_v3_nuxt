@@ -2,8 +2,10 @@
 @import "@nuxt/ui";
 
 /* Self-hosted fonts (offline-safe, no CDN access required).
-   Files sourced from @fontsource packages (latin + korean subsets only, woff2 only).
-   Re-copy from node_modules/@fontsource/<family>/files/ when bumping versions. */
+   Public Sans / JetBrains Mono sourced from @fontsource packages (woff2 only);
+   re-copy from node_modules/@fontsource/<family>/files/ when bumping versions.
+   Spoqa Han Sans Neo sourced from the `spoqa-han-sans` npm package (v3.3.0),
+   Subset/SpoqaHanSansNeo/*.woff2 (SIL OFL 1.1) — one file per weight, Latin + Hangul. */
 @font-face {
   font-family: 'Public Sans';
   font-style: normal;
@@ -33,102 +35,29 @@
   src: url('/fonts/public-sans-latin-700-normal.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Noto Sans KR';
+  font-family: 'Spoqa Han Sans Neo';
   font-style: normal;
   font-display: swap;
   font-weight: 400;
-  src: url('/fonts/noto-sans-kr-korean-400-normal.woff2') format('woff2');
+  src: url('/fonts/spoqa-han-sans-neo-400-normal.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Noto Sans KR';
+  font-family: 'Spoqa Han Sans Neo';
   font-style: normal;
   font-display: swap;
-  font-weight: 500;
-  src: url('/fonts/noto-sans-kr-korean-500-normal.woff2') format('woff2');
+  /* Spoqa Han Sans Neo ships no SemiBold. Medium covers the 500–600 range so that
+     font-semibold / font-weight:600 render as Medium instead of jumping to Bold.
+     To make 600 render as Bold instead, narrow this to `500` and add `600 700`
+     to the Bold face below. */
+  font-weight: 500 600;
+  src: url('/fonts/spoqa-han-sans-neo-500-normal.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url('/fonts/noto-sans-kr-korean-600-normal.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Noto Sans KR';
+  font-family: 'Spoqa Han Sans Neo';
   font-style: normal;
   font-display: swap;
   font-weight: 700;
-  src: url('/fonts/noto-sans-kr-korean-700-normal.woff2') format('woff2');
-}
-
-/* Noto Sans KR Latin subsets. Declared AFTER the Korean faces above (which carry
-   no unicode-range, so they cover everything): for overlapping ranges the
-   later-defined @font-face wins, so Latin codepoints resolve to these subsets
-   while Hangul/CJK fall back to the Korean face. This lets Noto Sans KR be the
-   single default sans for both scripts. */
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url('/fonts/noto-sans-kr-latin-400-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url('/fonts/noto-sans-kr-latin-ext-400-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url('/fonts/noto-sans-kr-latin-500-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url('/fonts/noto-sans-kr-latin-ext-500-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url('/fonts/noto-sans-kr-latin-600-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url('/fonts/noto-sans-kr-latin-ext-600-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url('/fonts/noto-sans-kr-latin-700-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
-}
-@font-face {
-  font-family: 'Noto Sans KR';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url('/fonts/noto-sans-kr-latin-ext-700-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+  src: url('/fonts/spoqa-han-sans-neo-700-normal.woff2') format('woff2');
 }
 
 @font-face {
@@ -164,8 +93,8 @@
 }
 
 @theme static {
-  --font-sans: 'Noto Sans KR', 'Public Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
-  --font-korean: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --font-sans: 'Spoqa Han Sans Neo', 'Public Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --font-korean: 'Spoqa Han Sans Neo', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Segoe UI Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --color-zinc-50: #FAFAFA;
