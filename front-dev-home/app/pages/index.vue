@@ -5,10 +5,20 @@ definePageMeta({
 
 const { toolTypes } = useToolData()
 const { fabs: afmFabs, afmToolHref } = useAfmToolData()
-const { toolTypeHref } = useNavigation()
+const { fab, setFab, toolTypeHref } = useNavigation()
 
 const { data: semRows } = await useSemList()
 const { data: healthData, error: healthError } = useBackendHealth()
+
+const fabOptions = computed(() => extractFabNames(semRows.value ?? []).map(name => ({
+  label: name,
+  value: name
+})))
+
+const selectedFab = computed<string | undefined>({
+  get: () => fab.value === 'all' ? undefined : fab.value,
+  set: value => setFab(value ?? 'all')
+})
 
 const rowsByToolType = computed(() => {
   const groups = new Map<string, typeof semRows.value>()
@@ -58,6 +68,25 @@ const systemStatus = computed(() => {
           <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">
             METROLOGY WORKSPACE
           </h1>
+          <div class="mt-5 flex w-full items-center gap-3 sm:w-80">
+            <label
+              for="landing-fab-select"
+              class="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+            >
+              FAB 선택
+            </label>
+            <USelect
+              id="landing-fab-select"
+              v-model="selectedFab"
+              class="min-w-0 flex-1"
+              size="lg"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-factory"
+              placeholder="Select a FAB (default: R3)"
+              :items="fabOptions"
+            />
+          </div>
         </div>
         <HomeBackendHealthCard
           :services="healthData?.services ?? []"
