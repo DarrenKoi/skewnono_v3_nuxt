@@ -103,15 +103,27 @@
             </div>
 
             <div class="rounded-lg border border-(--sk-border) bg-zinc-950 p-5 text-white dark:bg-zinc-100 dark:text-zinc-950">
-              <div class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-600">
-                Name Story
+              <div class="flex items-start gap-4">
+                <img
+                  src="/favicon.svg"
+                  alt="나란히 기울어진 두 개의 CD Bar로 SKEW를 표현한 SKEWNONO 마크"
+                  class="h-14 w-14 shrink-0 rounded-lg"
+                >
+                <div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-600">
+                    Name Story
+                  </div>
+                  <div class="mt-2 text-xl font-semibold">
+                    SKEW + NO-NO
+                  </div>
+                </div>
               </div>
-              <div class="mt-3 text-xl font-semibold">
-                SKEW + NO-NO
-              </div>
-              <p class="mt-3 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
+              <p class="mt-4 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
                 데이터의 SKEW는 모두를 힘들고 지치게 합니다. 그래서 SKEW는 NO-NO입니다.
                 SKEWNONO는 빠르고 정확한 분석으로 SKEW의 참원인을 찾아 없애는 것을 목표로 합니다.
+              </p>
+              <p class="mt-3 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
+                나란히 기울어지고 조금 떨어진 두 개의 바는 CD Bar 측정과 SKEW를 의미합니다.
               </p>
             </div>
           </section>

@@ -234,7 +234,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1440px] space-y-4">
+  <div class="min-w-0 w-full space-y-4">
     <!-- ===== Page meta bar — fixed title + scope eyebrow + ON/전체 stats ===== -->
     <EbeamMetaBar
       :eyebrow="identity"
