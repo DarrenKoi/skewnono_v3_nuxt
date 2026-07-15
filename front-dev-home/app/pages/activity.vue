@@ -222,38 +222,52 @@
         />
       </UCard>
 
-      <!-- SEM List usage per equipment model -->
+      <!-- Fab별 페이지 사용 -->
       <UCard class="dashboard-surface">
         <template #header>
           <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
-              <UIcon name="i-lucide-microscope" />
-              SEM List 모델별 사용
+              <UIcon name="i-lucide-factory" />
+              Fab별 페이지 사용
             </span>
             <UTabs
-              v-model="modelWindowKey"
+              v-model="fabWindowKey"
               :items="windowTabs"
               variant="pill"
               size="xs"
             />
           </div>
         </template>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div
-            v-for="group in modelGroups"
-            :key="group.vendor"
+        <div
+          v-if="fabsForWindow.length"
+          class="grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_1fr] gap-4"
+        >
+          <nav
+            aria-label="Fab 선택"
+            class="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible border-b md:border-b-0 md:border-r border-(--sk-border) pb-2 md:pb-0 md:pr-3"
           >
-            <div class="sk-eyebrow mb-2">
-              {{ group.vendor }}
-            </div>
-            <ActivityModelBarList
-              :items="group.rows"
-              empty-text="아직 데이터가 없습니다."
-            />
-          </div>
+            <button
+              v-for="row in fabsForWindow"
+              :key="row.fab"
+              type="button"
+              :aria-pressed="selectedFab === row.fab"
+              class="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm shrink-0 w-full text-left transition-colors"
+              :class="selectedFab === row.fab
+                ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-sm'
+                : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
+              @click="selectedFab = row.fab"
+            >
+              <span class="font-semibold tracking-wide truncate">{{ row.fab }}</span>
+              <span class="tabular-nums text-xs shrink-0 opacity-80">{{ row.total.toLocaleString() }}</span>
+            </button>
+          </nav>
+          <ActivityFeatureBarList
+            :items="selectedFabPages"
+            empty-text="아직 데이터가 없습니다."
+          />
         </div>
         <div
-          v-if="!modelGroups.length"
+          v-else
           class="sk-body"
         >
           아직 데이터가 없습니다.
@@ -472,11 +486,11 @@
 import {
   resetActivityCache,
   useActivityMe,
-  useActivitySemModels,
+  useActivityFabs,
   useActivitySummary,
   useActivityUsers,
   type FeatureCount,
-  type SemModelCount
+  type FabUsageRow
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
 
@@ -494,20 +508,20 @@ const {
 const sharedQueries = await Promise.all([
   useActivitySummary(),
   useActivityUsers(),
-  useActivitySemModels()
+  useActivityFabs()
 ]).then(
-  ([summary, users, semModels]) => ({ summary, users, semModels })
+  ([summary, users, fabs]) => ({ summary, users, fabs })
 )
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
 const users = computed(() => sharedQueries.users.data.value ?? null)
-const semModels = computed(() => sharedQueries.semModels.data.value ?? null)
+const fabs = computed(() => sharedQueries.fabs.data.value ?? null)
 
 const loadError = computed(() => {
   const error = meError.value
     ?? sharedQueries.summary.error.value
     ?? sharedQueries.users.error.value
-    ?? sharedQueries.semModels.error.value
+    ?? sharedQueries.fabs.error.value
   if (!error) return null
   return error instanceof Error ? error.message : String(error)
 })
@@ -516,7 +530,7 @@ const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
   if (sharedQueries.summary.status.value === 'pending') return true
   if (sharedQueries.users.status.value === 'pending') return true
-  if (sharedQueries.semModels.status.value === 'pending') return true
+  if (sharedQueries.fabs.status.value === 'pending') return true
   return false
 })
 
@@ -526,7 +540,7 @@ const refreshAll = async () => {
   jobs.push(
     sharedQueries.summary.refresh(),
     sharedQueries.users.refresh(),
-    sharedQueries.semModels.refresh()
+    sharedQueries.fabs.refresh()
   )
   await Promise.all(jobs)
 }
@@ -614,24 +628,27 @@ const topFeaturesForWindow = computed<FeatureCount[]>(() => {
     : summary.value.top_features_30d
 })
 
-// --- shared usage: SEM List per-model breakdown ---
-const modelWindowKey = ref<'7d' | '30d'>('7d')
-const modelGroups = computed<{ vendor: string, rows: SemModelCount[] }[]>(() => {
-  const rows = modelWindowKey.value === '7d'
-    ? semModels.value?.models_7d ?? []
-    : semModels.value?.models_30d ?? []
-  const byVendor = new Map<string, SemModelCount[]>()
-  for (const row of rows) {
-    const bucket = byVendor.get(row.vendor)
-    if (bucket) bucket.push(row)
-    else byVendor.set(row.vendor, [row])
+// --- shared usage: Fab page breakdown ---
+const fabWindowKey = ref<'7d' | '30d'>('7d')
+const fabsForWindow = computed<FabUsageRow[]>(() =>
+  fabWindowKey.value === '7d'
+    ? fabs.value?.fabs_7d ?? []
+    : fabs.value?.fabs_30d ?? []
+)
+const selectedFab = ref<string | null>(null)
+watchEffect(() => {
+  const rows = fabsForWindow.value
+  if (!rows.length) {
+    selectedFab.value = null
+    return
   }
-  // Busiest vendor column first; rows arrive pre-sorted by count.
-  return [...byVendor.entries()]
-    .map(([vendor, vendorRows]) => ({ vendor, rows: vendorRows }))
-    .sort((a, b) =>
-      b.rows.reduce((s, r) => s + r.count, 0) - a.rows.reduce((s, r) => s + r.count, 0)
-    )
+  if (!selectedFab.value || !rows.some(row => row.fab === selectedFab.value)) {
+    selectedFab.value = rows[0]?.fab ?? null
+  }
+})
+const selectedFabPages = computed<FeatureCount[]>(() => {
+  const row = fabsForWindow.value.find(item => item.fab === selectedFab.value)
+  return row?.pages ?? []
 })
 
 const userRows = computed(() => users.value?.users ?? [])

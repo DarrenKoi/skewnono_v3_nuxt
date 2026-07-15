@@ -20,7 +20,6 @@
 
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
@@ -39,12 +38,13 @@ __all__ = [
     "UserListRow",
     "UserListResponse",
     "UserHistoryResponse",
-    "SemModelCount",
-    "SemModelUsageResponse",
+    "FabPageCount",
+    "FabUsageRow",
+    "FabUsageResponse",
     "record_request",
     "get_me",
     "get_summary",
-    "get_sem_model_usage",
+    "get_fab_page_usage",
     "get_users_list",
     "get_user_history",
     "is_admin",
@@ -117,22 +117,27 @@ class UserHistoryResponse(TypedDict):
     last_seen: str | None
 
 
-class SemModelCount(TypedDict):
-    model: str
-    vendor: str
-    tool_count: int
+class FabPageCount(TypedDict):
+    feature: str
     count: int
 
 
-class SemModelUsageResponse(TypedDict):
+class FabUsageRow(TypedDict):
+    fab: str
+    total: int
+    pages: list[FabPageCount]
+
+
+class FabUsageResponse(TypedDict):
     generated_at: str
-    models_7d: list[SemModelCount]
-    models_30d: list[SemModelCount]
+    fabs_7d: list[FabUsageRow]
+    fabs_30d: list[FabUsageRow]
 
 
 @dataclass
 class _UserState:
     user_id: str
+    fab: str | None = None
     total: int = 0
     by_feature: dict[str, int] = field(default_factory=dict)
     daily: dict[date, int] = field(default_factory=dict)
@@ -385,49 +390,52 @@ def get_users_list() -> UserListResponse:
     return _users_list_from_mock(today)
 
 
-def _sem_model_usage_from_mock() -> SemModelUsageResponse:
-    # Model universe comes from the actual sem_list mock fleet so the
-    # breakdown always matches what the 장비 상태 pages show.
-    from back_dev_home.sem_list.data import get_sem_list
+def _fab_rows(fab_feat: dict[str, dict[str, int]]) -> list[FabUsageRow]:
+    rows: list[FabUsageRow] = []
+    for fab, feats in fab_feat.items():
+        total = sum(feats.values())
+        if total <= 0:
+            continue
+        rows.append({"fab": fab, "total": total, "pages": _top_features(feats)})
+    rows.sort(key=lambda r: (-r["total"], r["fab"]))
+    return rows
 
-    fleet: dict[str, dict[str, object]] = {}
-    for row in get_sem_list():
-        entry = fleet.setdefault(
-            row["eqp_model_cd"], {"vendor": row["vendor_nm"], "tools": 0}
-        )
-        entry["tools"] = int(entry["tools"]) + 1  # type: ignore[arg-type]
 
-    # Fixed seed: the ranking stays stable across refreshes. Traffic scales
-    # with fleet size but is skewed by a per-model popularity factor so the
-    # list isn't just a fleet-size mirror.
-    rng = random.Random(0x53454D4C)
-    models_7d: list[SemModelCount] = []
-    models_30d: list[SemModelCount] = []
-    for model in sorted(fleet):
-        info = fleet[model]
-        tools = int(info["tools"])  # type: ignore[arg-type]
-        monthly = max(tools, int(tools * rng.uniform(2.5, 9.0)))
-        weekly = max(1, int(monthly * rng.uniform(0.18, 0.32)))
-        base = {"model": model, "vendor": str(info["vendor"]), "tool_count": tools}
-        models_30d.append({**base, "count": monthly})  # type: ignore[typeddict-item]
-        models_7d.append({**base, "count": weekly})  # type: ignore[typeddict-item]
-    models_30d.sort(key=lambda r: (-r["count"], r["model"]))
-    models_7d.sort(key=lambda r: (-r["count"], r["model"]))
+def _fab_page_usage_from_mock(today: date) -> FabUsageResponse:
+    week_start = today - timedelta(days=6)
+    last30_start = today - timedelta(days=29)
+    fab_feat_7d: dict[str, dict[str, int]] = {}
+    fab_feat_30d: dict[str, dict[str, int]] = {}
+    with _lock:
+        for state in _users.values():
+            sum_7d = 0
+            sum_30d = 0
+            for d, n in state.daily.items():
+                if n <= 0:
+                    continue
+                if d >= week_start:
+                    sum_7d += n
+                if d >= last30_start:
+                    sum_30d += n
+            fab = state.fab or "미지정"
+            _scale_features(state.by_feature, sum_7d, state.total, fab_feat_7d.setdefault(fab, {}))
+            _scale_features(state.by_feature, sum_30d, state.total, fab_feat_30d.setdefault(fab, {}))
     return {
         "generated_at": _iso(_now()) or "",
-        "models_7d": models_7d,
-        "models_30d": models_30d,
+        "fabs_7d": _fab_rows(fab_feat_7d),
+        "fabs_30d": _fab_rows(fab_feat_30d),
     }
 
 
-def get_sem_model_usage() -> SemModelUsageResponse:
+def get_fab_page_usage() -> FabUsageResponse:
+    today = _today()
     if is_cloud():
         try:
-            from ._office_reader import sem_model_usage_from_backends
-            return sem_model_usage_from_backends()
+            from ._office_reader import fab_page_usage_from_backends
+            return fab_page_usage_from_backends(today)
         except Exception:
             pass
-    return _sem_model_usage_from_mock()
+    return _fab_page_usage_from_mock(today)
 
 
 # ------- demo seed ----------------------------------------------------------
@@ -445,19 +453,19 @@ def seed_demo_users() -> None:
     # global Top 10 reads like real traffic: everyone lands on SEM List first
     # (the basic tool-list request), engineers live in Recipe 검색/TAT, and
     # niche pages (Skewvoir, AFM, 디바이스 통계) trail behind.
-    demo: list[tuple[str, dict[str, int], int, int]] = [
-        ("kim.minju",   {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},         14, 35),
-        ("park.jinho",  {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},           12, 28),
-        ("lee.soyoung", {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},                  9, 22),
-        ("choi.eunwoo", {"recipe_tat": 70, "sem_list": 60, "recipe_search": 40, "device_statistics": 25},    6, 18),
-        ("jung.hari",   {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},                        4, 14),
+    demo: list[tuple[str, str, dict[str, int], int, int]] = [
+        ("kim.minju",   "M14",  {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},         14, 35),
+        ("park.jinho",  "M16B", {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},           12, 28),
+        ("lee.soyoung", "M11",  {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},                  9, 22),
+        ("choi.eunwoo", "R3",   {"recipe_tat": 70, "sem_list": 60, "recipe_search": 40, "device_statistics": 25},    6, 18),
+        ("jung.hari",   "M15",  {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},                        4, 14),
     ]
     now = _now()
     with _lock:
-        for user_id, features, days_back, peak in demo:
+        for user_id, fab, features, days_back, peak in demo:
             if user_id in _users:
                 continue
-            state = _UserState(user_id=user_id)
+            state = _UserState(user_id=user_id, fab=fab)
             state.total = sum(features.values())
             state.by_feature = dict(features)
             # Triangle distribution peaking midweek so the sparkline has shape.

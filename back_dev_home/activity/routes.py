@@ -2,8 +2,8 @@ from flask import Blueprint, g, jsonify
 
 from .._auth.errors import error_json
 from .data import (
+    get_fab_page_usage,
     get_me,
-    get_sem_model_usage,
     get_summary,
     get_user_history,
     get_users_list,
@@ -22,9 +22,9 @@ def activity_summary():
     return jsonify(get_summary())
 
 
-@bp.get("/activity/sem-models")
-def activity_sem_models():
-    return jsonify(get_sem_model_usage())
+@bp.get("/activity/fabs")
+def activity_fabs():
+    return jsonify(get_fab_page_usage())
 
 
 @bp.get("/activity/users")

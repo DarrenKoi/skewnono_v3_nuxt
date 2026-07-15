@@ -34,17 +34,16 @@ export interface SummaryResponse {
   top_features_30d: FeatureCount[]
 }
 
-export interface SemModelCount {
-  model: string
-  vendor: string
-  tool_count: number
-  count: number
+export interface FabUsageRow {
+  fab: string
+  total: number
+  pages: FeatureCount[]
 }
 
-export interface SemModelUsageResponse {
+export interface FabUsageResponse {
   generated_at: string
-  models_7d: SemModelCount[]
-  models_30d: SemModelCount[]
+  fabs_7d: FabUsageRow[]
+  fabs_30d: FabUsageRow[]
 }
 
 export interface UserListRow {
@@ -72,12 +71,12 @@ export interface UserHistoryResponse {
 const ME_KEY = 'activity-me'
 const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
-const SEM_MODELS_KEY = 'activity-sem-models'
+const FABS_KEY = 'activity-fabs'
 
 let inFlightMe: Promise<MeResponse> | null = null
 let inFlightSummary: Promise<SummaryResponse> | null = null
 let inFlightUsers: Promise<UserListResponse> | null = null
-let inFlightSemModels: Promise<SemModelUsageResponse> | null = null
+let inFlightFabs: Promise<FabUsageResponse> | null = null
 
 const useActivityUrls = () => {
   const config = useRuntimeConfig()
@@ -86,7 +85,7 @@ const useActivityUrls = () => {
     meUrl: joinApiPath(base, '/activity/me'),
     summaryUrl: joinApiPath(base, '/activity/summary'),
     usersUrl: joinApiPath(base, '/activity/users'),
-    semModelsUrl: joinApiPath(base, '/activity/sem-models'),
+    fabsUrl: joinApiPath(base, '/activity/fabs'),
     userDetailUrl: (userId: string) =>
       joinApiPath(base, `/activity/users/${encodeURIComponent(userId)}`)
   }
@@ -140,18 +139,18 @@ export const useActivityUsers = () => {
   })
 }
 
-export const useActivitySemModels = () => {
-  const { semModelsUrl } = useActivityUrls()
+export const useActivityFabs = () => {
+  const { fabsUrl } = useActivityUrls()
   const fetchOnce = () => {
-    if (!inFlightSemModels) {
-      inFlightSemModels = $fetch<SemModelUsageResponse>(semModelsUrl).catch((err) => {
-        inFlightSemModels = null
+    if (!inFlightFabs) {
+      inFlightFabs = $fetch<FabUsageResponse>(fabsUrl).catch((err) => {
+        inFlightFabs = null
         throw err
       })
     }
-    return inFlightSemModels
+    return inFlightFabs
   }
-  return useAsyncData(SEM_MODELS_KEY, fetchOnce, {
+  return useAsyncData(FABS_KEY, fetchOnce, {
     getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
   })
 }
@@ -168,5 +167,5 @@ export const resetActivityCache = () => {
   inFlightMe = null
   inFlightSummary = null
   inFlightUsers = null
-  inFlightSemModels = null
+  inFlightFabs = null
 }
