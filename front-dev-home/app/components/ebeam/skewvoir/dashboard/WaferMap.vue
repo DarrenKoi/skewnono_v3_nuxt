@@ -19,6 +19,8 @@
       :rows="analysis.siteRows.value"
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
+      :focused-sequence="analysis.focusedSequence.value"
+      @focus="analysis.setFocusedSequence"
     />
     <div
       v-else
