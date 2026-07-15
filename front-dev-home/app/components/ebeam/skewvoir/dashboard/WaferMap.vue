@@ -20,6 +20,7 @@
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
       :focused-sequence="analysis.focusedSequence.value"
+      :outlier-seqs="analysis.activeOverview.value.tableRows.filter(r => r.kind !== 'failed').map(r => r.sequence)"
       @focus="analysis.setFocusedSequence"
     />
     <div

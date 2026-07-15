@@ -16,7 +16,7 @@ const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
   ...over
 })
 
-// 5 measured at 100, one at 160 (+~52% off LOO mean → abnormal), one failure.
+// 5 measured at 100, one at 160 (+60% off LOO mean → abnormal), one failure.
 const sample = (): MsrFileRow[] => [
   row({ sequence: 1, cd_value: 100 }),
   row({ sequence: 2, cd_value: 100 }),
@@ -90,4 +90,24 @@ test('normal sites are excluded from outlierCount and tableRows', () => {
   assert.equal(ov.outlierCount, 1) // only the 160 site; the 9 normals are excluded
   assert.equal(ov.tableRows.length, 1)
   assert.equal(ov.tableRows[0]!.kind, 'abnormal')
+})
+
+test('empty rows and an unmatched parameter yield zero coverage + insufficient status', () => {
+  assert.deepEqual(overviewSites([], 'CD_TOP', DEFAULT_METHOD_CONFIG).coverage, { total: 0, measured: 0, failed: 0 })
+  const ov = overviewSites(sample(), 'NO_SUCH_PARAM', DEFAULT_METHOD_CONFIG)
+  assert.equal(ov.coverage.total, 0)
+  assert.equal(ov.status, 'insufficient')
+  assert.deepEqual(ov.tableRows, [])
+})
+
+test('multiple failed rows sort by sequence', () => {
+  const rows = [
+    row({ sequence: 1, cd_value: 100 }),
+    row({ sequence: 2, cd_value: 100 }),
+    row({ sequence: 3, cd_value: 100 }),
+    row({ sequence: 9, cd_value: null, mp_number: -1 }),
+    row({ sequence: 5, cd_value: null, mp_number: -1 })
+  ]
+  const failed = overviewSites(rows, 'CD_TOP', DEFAULT_METHOD_CONFIG).tableRows.filter(r => r.kind === 'failed')
+  assert.deepEqual(failed.map(r => r.sequence), [5, 9])
 })

@@ -64,7 +64,7 @@
         정렬 · ALIGNMENT
       </p>
       <p class="mt-1 font-mono text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
-        {{ align.total }} <span class="text-(--sk-ink-subtle)">/ {{ align.total }}</span>
+        {{ align.total }}
       </p>
       <p class="mt-0.5 truncate font-mono text-[10.5px] text-(--sk-ink-muted)">
         {{ align.methods.join(' · ') || '—' }}

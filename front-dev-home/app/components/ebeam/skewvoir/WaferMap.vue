@@ -9,7 +9,6 @@
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { isMeasuredRow, measuredRows } from '~/utils/msrRows'
-import { siteVerdicts } from '~/utils/anomaly/site'
 import { SK_CHART } from '~/utils/chartPalette'
 
 const props = defineProps<{
@@ -17,6 +16,7 @@ const props = defineProps<{
   parameter: string
   unit: string
   focusedSequence: number | null
+  outlierSeqs: number[]
 }>()
 const emit = defineEmits<{ focus: [sequence: number] }>()
 
@@ -53,13 +53,9 @@ const failurePoints = computed(() =>
   }).filter((p): p is { name: string, value: number[] } => p !== null)
 )
 
-// ◎ ring on any chip where ANY of its sequences is a siteVerdicts outlier.
+// ◎ ring on any chip holding a sequence flagged by the single overview source.
 const outlierPoints = computed(() => {
-  const flagged = new Set(
-    siteVerdicts(props.rows, props.parameter)
-      .filter(v => v.verdict.status === 'evaluated' && v.verdict.severity !== 'normal')
-      .map(v => v.row.sequence)
-  )
+  const flagged = new Set(props.outlierSeqs)
   return chips.value
     .filter(e => [...e.seqs].some(s => flagged.has(s)))
     .map(e => ({ name: String(e.seq), value: [e.x, e.y] }))
@@ -102,7 +98,8 @@ const option = computed<EChartsOption>(() => ({
     { type: 'scatter', symbolSize: 14, data: measuredPoints.value },
     { type: 'scatter', symbol: 'circle', symbolSize: 26, data: outlierPoints.value,
       itemStyle: { color: 'transparent', borderColor: SK_CHART.bad, borderWidth: 2 }, silent: true },
-    { type: 'scatter', symbol: 'pin', symbolSize: 1, data: failurePoints.value,
+    { type: 'scatter', symbolSize: 14, data: failurePoints.value,
+      itemStyle: { color: 'transparent' },
       label: { show: true, formatter: '✕', color: SK_CHART.bad, fontSize: 14, fontWeight: 'bold' } },
     { type: 'scatter', symbol: 'circle', symbolSize: 20, data: focusPoint.value,
       itemStyle: { color: 'transparent', borderColor: SK_CHART.series, borderWidth: 3 }, silent: true, z: 5 }
