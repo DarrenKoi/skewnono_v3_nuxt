@@ -154,10 +154,6 @@ _SEED: dict[str, RuleVersion] = {
 }
 
 
-def list_rule_fabs() -> list[str]:
-    return ["R3"]
-
-
 def get_rules(fab: str) -> RuleVersion | None:
     """현재 룰 버전(seed). 알 수 없는 fab 이면 None — 라우터가 404 로 변환."""
     return _SEED.get(fab.strip().upper())

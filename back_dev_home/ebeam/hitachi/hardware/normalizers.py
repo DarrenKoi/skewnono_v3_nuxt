@@ -189,55 +189,6 @@ def bm_pm_history_payload(
     }
 
 
-def normalize_office_rows(
-    service: ServiceKey,
-    tool_slug: str,
-    eqp_id: str | None,
-    fab_name: str | None,
-    raw_rows: list[dict[str, RecordValue]],
-) -> HardwarePayload:
-    """Temporary adapter for unknown office BSM/FDC row shapes."""
-    if not raw_rows:
-        return unavailable_payload(
-            service,
-            tool_slug,
-            eqp_id,
-            fab_name,
-            f"{service.upper()} office data is not available for the selected equipment.",
-        )
-
-    first_row = raw_rows[0]
-    columns = [
-        {"key": key, "label": key.replace("_", " ").title()}
-        for key in first_row.keys()
-    ]
-    return {
-        "tool_slug": tool_slug,
-        "service": service,
-        "eqp_id": eqp_id,
-        "fab_name": fab_name,
-        "available": True,
-        "fetched_at": now_iso(),
-        "summary": f"{service.upper()} office rows were normalized into a table payload.",
-        "cards": [
-            {
-                "key": "row_count",
-                "label": "Rows",
-                "value": len(raw_rows),
-                "tone": "neutral",
-            }
-        ],
-        "tables": [
-            {
-                "key": f"{service}_office_rows",
-                "title": f"{service.upper()} Rows",
-                "columns": columns,
-                "rows": raw_rows,
-            }
-        ],
-    }
-
-
 def docs_payload(
     service: ServiceKey,
     tool_slug: str,

@@ -27,7 +27,6 @@ from threading import RLock
 from typing import TypedDict
 
 from .._auth.admin import is_admin
-from .._logging.feature_map import route_to_feature
 from .._runtime.env import is_cloud
 
 
