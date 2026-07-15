@@ -175,7 +175,7 @@ def _check_minio(latest_doc: dict[str, Any] | None) -> ServiceHealth:
         bucket, key = _parse_minio_path(path)
 
         from minio.error import S3Error  # type: ignore[import-not-found]
-        from minio_store import MinioObject
+        from minio_handler import MinioObject
 
         store = MinioObject(bucket=bucket)
         started = time.perf_counter()

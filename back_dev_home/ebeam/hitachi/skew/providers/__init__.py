@@ -1,3 +1,5 @@
-from back_dev_home.ebeam.hitachi.skew.providers import mock, office
+"""Data adapters for skew checks.
 
-__all__ = ["mock", "office"]
+Provider modules are deliberately not imported here. This keeps office-only
+dependencies out of the home startup path.
+"""

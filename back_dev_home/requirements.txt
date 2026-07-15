@@ -3,3 +3,5 @@ flask-cors>=4.0
 flask-limiter>=3.5
 opensearch-py>=2,<3
 pandas>=2.2
+redis>=5
+minio>=7
