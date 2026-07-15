@@ -14,25 +14,25 @@ import { siteVerdicts } from './anomaly/site.ts'
 import { isMeasuredRow } from './msrRows.ts'
 
 export interface ParamCoverage {
-  total: number    // rows attempted for this parameter
+  total: number // rows attempted for this parameter
   measured: number // rows with a real cd_value
-  failed: number   // total - measured (cd_value: null)
+  failed: number // total - measured (cd_value: null)
 }
 
 export type SiteKind = 'abnormal' | 'watch' | 'failed'
 
 export interface OverviewSiteRow {
   sequence: number
-  chip: string          // chip_number, e.g. '-4, 6'
-  cd: number | null     // null for a failed site
-  delta: number | null  // signed % vs sibling sites (range method); null for failed
+  chip: string // chip_number, e.g. '-4, 6'
+  cd: number | null // null for a failed site
+  delta: number | null // signed % vs sibling sites (range method); null for failed
   kind: SiteKind
 }
 
 export interface OverviewSites {
   coverage: ParamCoverage
   outlierCount: number // sites with severity abnormal|watch (evaluated only)
-  status: EvalStatus   // 'insufficient' when too few measured sites to judge
+  status: EvalStatus // 'insufficient' when too few measured sites to judge
   tableRows: OverviewSiteRow[] // flagged + failed, sorted for the table
 }
 
