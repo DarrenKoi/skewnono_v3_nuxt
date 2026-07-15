@@ -52,87 +52,13 @@
     </EbeamMetaBar>
 
     <!-- Device picker (디바이스별 mode only) -->
-    <div
+    <EbeamAnalyticsDevicePicker
       v-if="viewMode === 'by-device'"
-      class="dashboard-surface rounded-2xl px-3.5 py-2.5"
-    >
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <h3 class="sk-title">
-            디바이스 선택
-          </h3>
-          <span class="sk-meta">
-            {{ filteredDeviceList.length }} / {{ deviceList.length }}개의 디바이스
-          </span>
-        </div>
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-rotate-ccw"
-          label="초기화"
-          :disabled="!selectedLot && !lotSearch && selectedCategories.length === 0"
-          @click="() => { selectedLot = null; lotSearch = ''; selectedCategories = [] }"
-        />
-      </div>
-
-      <div
-        v-if="categoryField && categoryOptions.length"
-        class="mb-2 flex flex-wrap items-start gap-2 min-w-0"
-      >
-        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">{{ categoryField }}</span>
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <button
-            v-for="category in categoryOptions"
-            :key="category"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedCategories.includes(category))"
-            @click="toggleCategory(category)"
-          >
-            {{ category }}
-          </button>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap items-start gap-2 min-w-0">
-        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">lot_cd</span>
-        <UInput
-          v-model="lotSearch"
-          class="w-44 shrink-0"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          icon="i-lucide-search"
-          placeholder="디바이스 검색"
-        />
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <button
-            v-for="device in deviceChipStrip.chips"
-            :key="device.lot_cd"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedLot === device.lot_cd)"
-            :title="`${device.exec_count.toLocaleString()} runs · align fails ${device.align_fail_count} · meas fails ${device.meas_fail_count}`"
-            @click="toggleLot(device.lot_cd)"
-          >
-            {{ device.lot_cd }}
-          </button>
-          <span
-            v-if="deviceChipStrip.overflowCount > 0"
-            class="font-mono text-[10px] text-(--sk-ink-muted)"
-          >
-            +{{ deviceChipStrip.overflowCount }}
-          </span>
-          <span
-            v-if="!deviceList.length"
-            class="text-[11px] text-(--sk-ink-muted)"
-          >
-            이 기간에 측정된 디바이스가 없습니다.
-          </span>
-        </div>
-      </div>
-    </div>
+      v-model:selected-lot="selectedLot"
+      :devices="deviceList"
+      :get-title="failDeviceTitle"
+      :reset-key="devicesCacheKey"
+    />
 
     <!-- 디바이스별 mode without a selection: prompt -->
     <div
@@ -304,6 +230,7 @@
           :reset-key="cacheKey"
           :search-predicate="alignSearchPredicate"
           @download="downloadAlignCsv"
+          @copy="copyAlignTable"
         >
           <template #actions-cell="{ row }">
             <EbeamRecipeRowActions
@@ -325,6 +252,7 @@
           :reset-key="cacheKey"
           :search-predicate="measSearchPredicate"
           @download="downloadMeasCsv"
+          @copy="copyMeasTable"
         >
           <template #actions-cell="{ row }">
             <EbeamRecipeRowActions
@@ -346,11 +274,11 @@ import {
   formatPercent,
   useFailIssueApi,
   type FailIssueAlignRow,
+  type FailIssueDeviceRow,
   type FailIssueMeasRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
-import { chipClass } from '~/utils/chipClass'
-import { downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   fab: string
@@ -385,10 +313,6 @@ const metaSubtitle = computed(() => {
     : `${aspect}을 Fab 기준으로 분석합니다.`
 })
 const selectedLot = ref<string | null>(null)
-const lotSearch = ref('')
-const selectedCategories = ref<string[]>([])
-
-const DEVICE_CHIP_BUDGET = 24
 
 const {
   fetchSummary,
@@ -445,75 +369,10 @@ const trendPoints = computed(() => data.value?.daily.points ?? [])
 const alignRows = computed<FailIssueAlignRow[]>(() => data.value?.align.rows ?? [])
 const measRows = computed<FailIssueMeasRow[]>(() => data.value?.meas.rows ?? [])
 const deviceList = computed(() => devicesData.value?.devices ?? [])
+const failDeviceTitle = (device: FailIssueDeviceRow) =>
+  `${device.exec_count.toLocaleString()} runs · align fails ${device.align_fail_count} · meas fails ${device.meas_fail_count}`
 
 const measFailThreshold = computed(() => summary.value?.meas_fail_threshold ?? 0.15)
-
-// Pick the categorical attribute the picker should narrow by — R3 lots
-// carry prod_catg_cd, M-fab lots carry tech_nm. (Same logic as recipe-tat.)
-const categoryField = computed<'prod_catg_cd' | 'tech_nm' | null>(() => {
-  const list = deviceList.value
-  if (list.some(d => d.prod_catg_cd)) return 'prod_catg_cd'
-  if (list.some(d => d.tech_nm)) return 'tech_nm'
-  return null
-})
-
-const categoryOptions = computed(() => {
-  const field = categoryField.value
-  if (!field) return [] as string[]
-  const set = new Set<string>()
-  for (const d of deviceList.value) {
-    const value = d[field]
-    if (value) set.add(value)
-  }
-  return Array.from(set).sort()
-})
-
-const filteredDeviceList = computed(() => {
-  const field = categoryField.value
-  if (!field || selectedCategories.value.length === 0) return deviceList.value
-  const allowed = new Set(selectedCategories.value)
-  return deviceList.value.filter((d) => {
-    const value = d[field]
-    return value !== null && allowed.has(value)
-  })
-})
-
-const deviceChipStrip = computed(() => {
-  const q = lotSearch.value.trim().toLowerCase()
-  const all = filteredDeviceList.value
-  const matches = q
-    ? all.filter(d => d.lot_cd.toLowerCase().includes(q))
-    : all
-
-  const visible = matches.slice(0, DEVICE_CHIP_BUDGET)
-  const overflow = Math.max(0, matches.length - DEVICE_CHIP_BUDGET)
-
-  const selected = selectedLot.value
-  if (!selected || visible.some(d => d.lot_cd === selected)) {
-    return { chips: visible, overflowCount: overflow }
-  }
-
-  const selectedRow = deviceList.value.find(d => d.lot_cd === selected)
-  if (!selectedRow) {
-    return { chips: visible, overflowCount: overflow }
-  }
-
-  const trimmed = visible.slice(0, DEVICE_CHIP_BUDGET - 1)
-  return {
-    chips: [selectedRow, ...trimmed],
-    overflowCount: overflow + (visible.length - trimmed.length)
-  }
-})
-
-const toggleLot = (lot: string) => {
-  selectedLot.value = selectedLot.value === lot ? null : lot
-}
-
-const toggleCategory = (category: string) => {
-  selectedCategories.value = selectedCategories.value.includes(category)
-    ? selectedCategories.value.filter(c => c !== category)
-    : [...selectedCategories.value, category]
-}
 
 // Echo the server-resolved window only inside the getter (vs. mirroring
 // into a ref) so first-load values don't trigger a redundant refetch.
@@ -531,18 +390,6 @@ const dateRange = computed({
     userDateRange.value = next
   }
 })
-
-// Clear selection on scope change so the rankings/summary don't keep
-// filtering by a stale lot_cd that's invisible in the refetched picker.
-watch(
-  () => [props.fab, userDateRange.value.start, userDateRange.value.end],
-  () => {
-    if (selectedLot.value === null && lotSearch.value === '' && selectedCategories.value.length === 0) return
-    selectedLot.value = null
-    lotSearch.value = ''
-    selectedCategories.value = []
-  }
-)
 
 // KPI cells -----------------------------------------------------------------
 
@@ -757,9 +604,19 @@ const exportFileBase = computed(() => {
   return `${props.toolType}-${fab}-fail-issue-${today}`
 })
 
-const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
-  const headers = ['rank', 'full_name', 'class', 'exec_count', 'align_fail_count', 'align_fail_rate_pct']
-  const data = rows.map(r => [
+const toast = useToast()
+
+const notifyCopy = (ok: boolean) => {
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
+
+const alignTable = (rows: FailIssueAlignRow[]) => ({
+  headers: ['rank', 'full_name', 'class', 'exec_count', 'align_fail_count', 'align_fail_rate_pct'],
+  data: rows.map(r => [
     r.rank,
     r.full_name,
     r.class_name,
@@ -767,12 +624,11 @@ const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
     r.align_fail_count,
     (r.align_fail_rate * 100).toFixed(2)
   ])
-  downloadCsv(`${exportFileBase.value}-align.csv`, headers, data)
-}
+})
 
-const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
-  const headers = ['rank', 'full_name', 'class', 'exec_count', 'meas_fail_count', 'meas_fail_rate_pct', 'avg_fail_ratio_pct']
-  const data = rows.map(r => [
+const measTable = (rows: FailIssueMeasRow[]) => ({
+  headers: ['rank', 'full_name', 'class', 'exec_count', 'meas_fail_count', 'meas_fail_rate_pct', 'avg_fail_ratio_pct'],
+  data: rows.map(r => [
     r.rank,
     r.full_name,
     r.class_name,
@@ -781,6 +637,25 @@ const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
     (r.meas_fail_rate * 100).toFixed(2),
     (r.avg_fail_ratio * 100).toFixed(2)
   ])
+})
+
+const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
+  const { headers, data } = alignTable(rows)
+  downloadCsv(`${exportFileBase.value}-align.csv`, headers, data)
+}
+
+const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
+  const { headers, data } = measTable(rows)
   downloadCsv(`${exportFileBase.value}-meas.csv`, headers, data)
+}
+
+const copyAlignTable = async (rows: FailIssueAlignRow[]) => {
+  const { headers, data } = alignTable(rows)
+  notifyCopy(await copyTableToClipboard(headers, data))
+}
+
+const copyMeasTable = async (rows: FailIssueMeasRow[]) => {
+  const { headers, data } = measTable(rows)
+  notifyCopy(await copyTableToClipboard(headers, data))
 }
 </script>

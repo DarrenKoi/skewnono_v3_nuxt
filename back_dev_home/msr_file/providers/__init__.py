@@ -1,0 +1,1 @@
+"""MSR-file data adapters."""

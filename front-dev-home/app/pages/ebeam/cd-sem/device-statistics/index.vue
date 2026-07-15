@@ -211,6 +211,17 @@
               variant="subtle"
               :items="pageSizeOptions"
             />
+            <UTooltip text="클립보드 복사">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-clipboard"
+                :aria-label="text.clipboardCopy"
+                :disabled="filteredRowCount === 0"
+                @click="copyDeviceList"
+              />
+            </UTooltip>
             <UButton
               size="xs"
               color="neutral"
@@ -318,8 +329,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
 import type { DevicePreset } from '~/composables/useDevicePresets'
+import {
+  DEFAULT_DEVICE_FAB,
+  isDeviceFab,
+  type DeviceFab
+} from '~/composables/useDeviceStatisticsPreferences'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { chipClass } from '~/utils/chipClass'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 definePageMeta({
   hideFabSidebar: true
@@ -330,14 +347,6 @@ type DeviceRow = R3DeviceGrpRow | DeviceDescRow
 const { setToolType, setFab } = useNavigation()
 const { fetchDeviceDesc, fetchR3DeviceGrp } = useDeviceStatisticsApi()
 
-// Closed set of fac_id values used for device statistics filtering. Distinct from the open-ended
-// fab_name space because device-statistics aggregates at the fac level.
-type DeviceFab = 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
-
-// Default landing fab when nothing is persisted. R3 is the first item under our R&D-first sort order
-// and the only fab that exercises the R3DeviceGrp branch.
-const DEFAULT_FAB: DeviceFab = 'R3'
-
 const text = {
   title: '디바이스 통계',
   subtitle: 'Fab 별로 운영중인 CD-SEM Recipe 현황을 확인합니다.',
@@ -347,6 +356,7 @@ const text = {
   lotSearch: 'Lot 검색 (예: R0A2)',
   techSearch: 'Tech 검색',
   csvDownload: 'CSV 다운로드',
+  clipboardCopy: '표를 클립보드에 복사 (엑셀에 붙여넣기)',
   resetAll: '전체 초기화',
   tableSearch: '테이블 검색',
   allRows: '전체',
@@ -373,48 +383,18 @@ const deviceFabOptions: { label: string, value: DeviceFab }[] = [
   { label: 'M11', value: 'M11' }
 ]
 
-const deviceFabValues = deviceFabOptions.map(option => option.value)
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-
-const isDeviceFab = (value: string): value is DeviceFab => {
-  return deviceFabValues.includes(value as DeviceFab)
-}
-
-const SELECTED_FAB_STORAGE_KEY = 'skewnono:deviceStatistics.selectedFab'
-const SELECTED_PROD_CATEGORIES_STORAGE_KEY = 'skewnono:deviceStatistics.selectedProdCategories'
-const SELECTED_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedLots'
-const SELECTED_TECHS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedTechs'
 // Step 1 keeps the lot/tech chip strips compact: surface a small budget of unselected options,
 // always paired with any currently-selected ones so they remain togglable from the strip.
 const STEP1_LOT_CHIP_BUDGET = 24
 const STEP1_TECH_CHIP_BUDGET = 24
 
-const readSavedFab = (): DeviceFab | null => {
-  if (typeof window === 'undefined') return null
-  try {
-    const saved = window.localStorage.getItem(SELECTED_FAB_STORAGE_KEY)
-    return saved && isDeviceFab(saved) ? saved : null
-  } catch {
-    return null
-  }
-}
-
-const readSavedStringArray = (storageKey: string): string[] => {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-const selectedFab = ref<DeviceFab>(readSavedFab() ?? DEFAULT_FAB)
-const selectedProdCategories = ref<string[]>(readSavedStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY))
-const selectedLots = ref<string[]>(readSavedStringArray(SELECTED_LOTS_STORAGE_KEY))
-const selectedTechs = ref<string[]>(readSavedStringArray(SELECTED_TECHS_STORAGE_KEY))
+const {
+  selectedFab,
+  selectedProdCategories,
+  selectedLots,
+  selectedTechs
+} = useDeviceStatisticsPreferences()
 
 // Step 3 cart — extracted to useDeviceCart so the comparison sub-page reads the same ref.
 const {
@@ -760,7 +740,7 @@ const applyPreset = async (preset: DevicePreset) => {
 }
 
 const resetAllFilters = () => {
-  selectedFab.value = DEFAULT_FAB
+  selectedFab.value = DEFAULT_DEVICE_FAB
   selectedProdCategories.value = []
   selectedLots.value = []
   selectedTechs.value = []
@@ -771,7 +751,7 @@ const resetAllFilters = () => {
 }
 
 const hasActiveFilters = computed(() => {
-  return selectedFab.value !== DEFAULT_FAB
+  return selectedFab.value !== DEFAULT_DEVICE_FAB
     || selectedProdCategories.value.length > 0
     || selectedLots.value.length > 0
     || selectedTechs.value.length > 0
@@ -804,33 +784,6 @@ const syncSelectionWithOptions = (selectedValues: string[], options: string[]) =
   return selectedValues.filter(value => optionSet.has(value))
 }
 
-watch(selectedFab, (next) => {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(SELECTED_FAB_STORAGE_KEY, next)
-  } catch { /* noop */ }
-})
-
-const persistStringArray = (storageKey: string, values: string[]) => {
-  if (typeof window === 'undefined') return
-  try {
-    if (values.length === 0) window.localStorage.removeItem(storageKey)
-    else window.localStorage.setItem(storageKey, JSON.stringify(values))
-  } catch { /* noop */ }
-}
-
-watch(selectedProdCategories, (next) => {
-  persistStringArray(SELECTED_PROD_CATEGORIES_STORAGE_KEY, next)
-})
-
-watch(selectedLots, (next) => {
-  persistStringArray(SELECTED_LOTS_STORAGE_KEY, next)
-})
-
-watch(selectedTechs, (next) => {
-  persistStringArray(SELECTED_TECHS_STORAGE_KEY, next)
-})
-
 // Clear the Step 3 cart whenever the user actively switches fab — devices belong to a single
 // fab in this UI, so carrying selections across fabs would be confusing. Initial-load mismatches
 // are pruned by the watcher on `pending`/`sortedRows` below.
@@ -853,11 +806,6 @@ watch([sortedRows, pending], ([nextSortedRows, nextPending]) => {
   }
 })
 
-const escapeCsvValue = (value: unknown) => {
-  const normalized = String(value ?? '').replace(/"/g, '""')
-  return `"${normalized}"`
-}
-
 const getDeviceRowValue = (row: DeviceRow, key: string) => {
   return (row as unknown as Record<string, unknown>)[key]
 }
@@ -868,27 +816,29 @@ const csvFileName = computed(() => {
   return `cd-sem-${fab}-device-statistics-${today}.csv`
 })
 
-const downloadDeviceListCsv = () => {
-  if (!import.meta.client || filteredRows.value.length === 0) return
-
+const deviceTable = () => {
   const meta = hasRSelection.value ? r3ColumnMetadata : deviceDescColumnMetadata
-  const headerRow = meta.map(column => escapeCsvValue(column.label)).join(',')
-  const bodyRows = filteredRows.value.map(row => (
-    meta
-      .map(column => escapeCsvValue(getDeviceRowValue(row, column.key as string)))
-      .join(',')
-  ))
+  return {
+    headers: meta.map(column => column.label),
+    rows: filteredRows.value.map(row =>
+      meta.map(column => getDeviceRowValue(row, column.key as string))
+    )
+  }
+}
 
-  const csvContent = ['﻿' + headerRow, ...bodyRows].join('\r\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
+const downloadDeviceListCsv = () => {
+  const { headers, rows } = deviceTable()
+  downloadCsv(csvFileName.value, headers, rows)
+}
 
-  link.href = url
-  link.download = csvFileName.value
-  link.click()
-
-  URL.revokeObjectURL(url)
+const copyDeviceList = async () => {
+  const { headers, rows } = deviceTable()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 
 watch([prodCategoryOptions, lotOptions, techOptions, hasRSelection, hasMSelection], () => {

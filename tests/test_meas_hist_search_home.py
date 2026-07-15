@@ -102,6 +102,12 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
         self.assertIn("ADI_CD_BIAS_001", value)
         self.assertNotIn("120 0 0.0", value)
 
+    def test_unconnected_office_adapter_fails_explicitly(self):
+        os.environ["SKEWNONO_MEAS_HIST_PROVIDER"] = "office"
+
+        with self.assertRaisesRegex(NotImplementedError, "meas_hist office adapter"):
+            search_meas_hist(tool_type="cd-sem")
+
 
 if __name__ == "__main__":
     unittest.main()

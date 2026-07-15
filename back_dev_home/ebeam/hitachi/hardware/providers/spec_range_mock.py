@@ -5,7 +5,9 @@ profile against the accepted spec window. Keeping the spec here, next to the
 BM/PM and BSM mock sources, gives pm_planning one backend seam to import.
 """
 
-import hashlib
+from back_dev_home.ebeam.hitachi.hardware.providers._mock_utils import (
+    seed_for_equipment,
+)
 
 
 __all__ = [
@@ -26,14 +28,9 @@ _BSM_NOISE_LOWER = 6.65
 _BSM_NOISE_UPPER = 6.95
 
 
-def _seed_for(eqp_id: str) -> int:
-    digest = hashlib.md5(eqp_id.encode("utf-8")).hexdigest()
-    return int(digest[:8], 16)
-
-
 def get_cd_monitoring_spec(eqp_id: str) -> dict[str, float]:
     """Return that tool's CD_MONITORING target/lower/upper spec in nm."""
-    offset = ((_seed_for(eqp_id) % 21) - 10) / 100.0
+    offset = ((seed_for_equipment(eqp_id) % 21) - 10) / 100.0
     target = round(CD_MON_NOMINAL_NM + offset, 3)
     return {
         "target": target,

@@ -12,11 +12,14 @@ records (via `DataFrame.to_dict`) plus pre-computed summary-card values, ready
 for `normalizers.bm_pm_history_payload`.
 """
 
-import hashlib
 import random
 from datetime import datetime, timedelta
 
 import pandas as pd
+
+from back_dev_home.ebeam.hitachi.hardware.providers._mock_utils import (
+    seed_for_equipment,
+)
 
 
 __all__ = ["build_bm_pm_data"]
@@ -60,16 +63,6 @@ _NOTE_PARTS: list[str] = [
     "필라멘트",
     "렌즈 코일",
 ]
-
-
-def _seed_for(eqp_id: str) -> int:
-    """Stable int seed derived from the equipment id.
-
-    `hash()` is salted per-process, so we hash explicitly to keep the same tool
-    reproducible across requests and restarts.
-    """
-    digest = hashlib.md5(eqp_id.encode("utf-8")).hexdigest()
-    return int(digest[:8], 16)
 
 
 def _fmt(dt: datetime) -> str:
@@ -177,7 +170,7 @@ def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
     mocks generate against, so BM/PM overlay markers land inside chart
     ranges. Same (eqp_id, anchor) → same data.
     """
-    rng = random.Random(_seed_for(eqp_id))
+    rng = random.Random(seed_for_equipment(eqp_id))
     past = build_past_frame(eqp_id, rng, anchor)
     future = build_future_frame(eqp_id, rng, anchor)
     return {

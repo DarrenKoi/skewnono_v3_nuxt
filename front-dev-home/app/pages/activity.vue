@@ -310,6 +310,17 @@
             variant="subtle"
             :items="userSortOptions"
           />
+          <UTooltip text="클립보드 복사">
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-clipboard"
+              aria-label="표를 클립보드에 복사"
+              :disabled="filteredUsers.length === 0"
+              @click="copyUsersTable"
+            />
+          </UTooltip>
           <UButton
             size="sm"
             color="neutral"
@@ -459,19 +470,15 @@
 
 <script setup lang="ts">
 import {
-  fetchUserHistory,
   resetActivityCache,
   useActivityMe,
   useActivitySemModels,
   useActivitySummary,
   useActivityUsers,
   type FeatureCount,
-  type SemModelCount,
-  type UserListRow,
-  type UserHistoryResponse
+  type SemModelCount
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
-import { downloadCsv } from '~/utils/csvDownload'
 
 useHead({ title: '사용 통계 | SKEWNONO' })
 
@@ -627,110 +634,22 @@ const modelGroups = computed<{ vendor: string, rows: SemModelCount[] }[]>(() => 
     )
 })
 
-// --- shared usage: user discovery controls ---
-type UserSort = 'requests' | 'days' | 'recent' | 'name'
-
-const userQuery = ref('')
-const featureFilter = ref('all')
-const userSort = ref<UserSort>('requests')
-
-const userSortOptions = [
-  { label: '요청 많은 순', value: 'requests' },
-  { label: '활동일 많은 순', value: 'days' },
-  { label: '최근 활동 순', value: 'recent' },
-  { label: '사용자 이름 순', value: 'name' }
-]
-
-const featureFilterOptions = computed(() => {
-  const features = new Set(
-    (users.value?.users ?? [])
-      .map(row => row.favorite_feature)
-      .filter((feature): feature is string => Boolean(feature))
-  )
-  return [
-    { label: '모든 기능', value: 'all' },
-    ...Array.from(features)
-      .sort((a, b) => activityFeatureLabel(a).localeCompare(activityFeatureLabel(b), 'ko'))
-      .map(feature => ({ label: activityFeatureLabel(feature), value: feature }))
-  ]
-})
-
-const filteredUsers = computed<UserListRow[]>(() => {
-  const query = userQuery.value.trim().toLocaleLowerCase('ko-KR')
-  const rows = (users.value?.users ?? []).filter((row) => {
-    if (featureFilter.value !== 'all' && row.favorite_feature !== featureFilter.value) return false
-    if (!query) return true
-    const searchable = [
-      row.user_id,
-      row.favorite_feature ?? '',
-      activityFeatureLabel(row.favorite_feature)
-    ].join(' ').toLocaleLowerCase('ko-KR')
-    return searchable.includes(query)
-  })
-
-  return [...rows].sort((a, b) => {
-    if (userSort.value === 'days') {
-      return b.days_active_30d - a.days_active_30d || b.requests_30d - a.requests_30d
-    }
-    if (userSort.value === 'recent') {
-      const bTime = b.last_seen ? Date.parse(b.last_seen) : 0
-      const aTime = a.last_seen ? Date.parse(a.last_seen) : 0
-      return bTime - aTime
-    }
-    if (userSort.value === 'name') return a.user_id.localeCompare(b.user_id)
-    return b.requests_30d - a.requests_30d || a.user_id.localeCompare(b.user_id)
-  })
-})
-
-const hasActiveUserControls = computed(() =>
-  Boolean(userQuery.value) || featureFilter.value !== 'all' || userSort.value !== 'requests'
-)
-
-const resetUserControls = () => {
-  userQuery.value = ''
-  featureFilter.value = 'all'
-  userSort.value = 'requests'
-}
-
-const downloadUsersCsv = () => {
-  const date = new Date().toISOString().slice(0, 10)
-  downloadCsv(
-    `activity-users-${date}.csv`,
-    ['사용자', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
-    filteredUsers.value.map(row => [
-      row.user_id,
-      row.requests_30d,
-      row.days_active_30d,
-      activityFeatureLabel(row.favorite_feature),
-      row.favorite_feature,
-      row.last_seen
-    ])
-  )
-}
-
-// --- shared usage: user table drill-down ---
-const expandedUser = ref<string | null>(null)
-const userDetail = ref<UserHistoryResponse | null>(null)
-const userDetailLoading = ref(false)
-const userDetailError = ref<string | null>(null)
-
-const toggleUser = async (userId: string) => {
-  if (expandedUser.value === userId) {
-    expandedUser.value = null
-    userDetail.value = null
-    userDetailError.value = null
-    return
-  }
-  expandedUser.value = userId
-  userDetail.value = null
-  userDetailError.value = null
-  userDetailLoading.value = true
-  try {
-    userDetail.value = await fetchUserHistory(userId)
-  } catch (err) {
-    userDetailError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    userDetailLoading.value = false
-  }
-}
+const userRows = computed(() => users.value?.users ?? [])
+const {
+  query: userQuery,
+  featureFilter,
+  sort: userSort,
+  sortOptions: userSortOptions,
+  featureFilterOptions,
+  filteredRows: filteredUsers,
+  hasActiveControls: hasActiveUserControls,
+  resetControls: resetUserControls,
+  download: downloadUsersCsv,
+  copy: copyUsersTable,
+  expandedUser,
+  userDetail,
+  userDetailLoading,
+  userDetailError,
+  toggleUser
+} = useActivityUserTable(userRows)
 </script>

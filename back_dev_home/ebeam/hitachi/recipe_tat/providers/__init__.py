@@ -1,0 +1,1 @@
+"""Recipe-TAT data adapters."""

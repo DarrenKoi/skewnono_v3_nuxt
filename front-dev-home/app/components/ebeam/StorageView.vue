@@ -194,157 +194,14 @@
       </UTable>
     </UCard>
 
-    <UCard
-      class="dashboard-surface"
-      :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
-    >
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="sk-heading">
-              PPID 미접속 장비
-            </h2>
-            <p class="sk-meta mt-0.5">
-              기준일
-              <span class="sk-value-num">{{ ppidLatestDate || '-' }}</span>
-            </p>
-          </div>
-
-          <UBadge
-            color="neutral"
-            variant="subtle"
-          >
-            {{ filteredPpidUnavailable.length }} / {{ ppidUnavailableRows.length }}
-          </UBadge>
-        </div>
-      </template>
-
-      <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-(--sk-border)">
-        <UInput
-          v-model="ppidUnavailableFilter"
-          class="flex-1 min-w-[14rem]"
-          size="xs"
-          icon="i-lucide-search"
-          color="neutral"
-          variant="subtle"
-          placeholder="미접속 장비 검색"
-        />
-
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-rotate-ccw"
-          label="초기화"
-          :disabled="!hasActivePpidControls"
-          @click="resetPpidFilters"
-        />
-      </div>
-
-      <div
-        v-if="ppidUnavailablePending"
-        class="flex items-center justify-center gap-2 px-4 py-10 text-sm text-(--sk-ink-muted)"
-      >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="h-4 w-4 animate-spin"
-        />
-        PPID 미접속 정보를 불러오는 중입니다.
-      </div>
-      <div
-        v-else-if="ppidUnavailableError"
-        class="px-4 py-10 text-center text-sm text-rose-600 dark:text-rose-400"
-      >
-        PPID 미접속 목록을 불러오지 못했습니다.
-      </div>
-      <div
-        v-else-if="ppidUnavailableRows.length === 0"
-        class="px-4 py-12 text-center"
-      >
-        <UIcon
-          name="i-lucide-circle-check-big"
-          class="mx-auto mb-2 h-6 w-6 text-(--sk-ok)"
-        />
-        <p class="text-sm font-medium text-(--sk-ink)">
-          기준일에 PPID 접속에 실패한 장비가 없습니다.
-        </p>
-        <p class="text-xs text-(--sk-ink-muted) mt-0.5 leading-relaxed">
-          {{ props.fab }} {{ props.toolLabel }} · {{ ppidLatestDate || '최신 기준일' }}
-        </p>
-      </div>
-      <div
-        v-else-if="filteredPpidUnavailable.length === 0"
-        class="px-4 py-10 text-center"
-      >
-        <UIcon
-          name="i-lucide-filter-x"
-          class="mx-auto mb-2 h-6 w-6 text-(--sk-ink-muted)"
-        />
-        <p class="text-sm font-medium text-(--sk-ink)">
-          검색 조건에 맞는 장비가 없습니다.
-        </p>
-        <p class="text-xs text-(--sk-ink-muted) mt-0.5 leading-relaxed">
-          검색 조건으로 {{ ppidUnavailableRows.length }}대가 숨겨져 있습니다.
-        </p>
-        <UButton
-          class="mt-3"
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-rotate-ccw"
-          label="검색 초기화"
-          @click="resetPpidFilters"
-        />
-      </div>
-      <UTable
-        v-else
-        v-model:sorting="ppidSorting"
-        class="max-h-[22rem]"
-        :columns="ppidColumns"
-        :data="filteredPpidUnavailable"
-        :meta="ppidTableMeta"
-        :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false, manualSorting: true }"
-        sticky="header"
-      >
-        <template
-          v-for="head in ppidSortableHeaders"
-          :key="head.id"
-          #[`${head.id}-header`]="{ column }"
-        >
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
-            :trailing-icon="getSortIcon(column.getIsSorted())"
-            @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-          >
-            {{ head.label }}
-          </UButton>
-        </template>
-
-        <template #fab_name-cell="{ row }">
-          <span class="sk-value">{{ row.original.fab_name || '—' }}</span>
-        </template>
-        <template #eqp_id-cell="{ row }">
-          <span class="sk-value-num">{{ row.original.eqp_id || '—' }}</span>
-        </template>
-        <template #eqp_model_cd-cell="{ row }">
-          <span class="sk-value-num">{{ row.original.eqp_model_cd || '—' }}</span>
-        </template>
-        <template #eqp_ip-cell="{ row }">
-          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
-        </template>
-        <template #missing_days_streak-cell="{ row }">
-          <span
-            class="inline-flex items-center justify-center min-w-[2rem] rounded-[var(--sk-r-chip)] px-1.5 py-0.5 font-semibold tabular-nums"
-            :class="row.original.missing_days_streak >= 7
-              ? 'bg-(--sk-bad-soft) text-(--sk-bad)'
-              : 'bg-(--sk-muted-surface) text-(--sk-ink-muted)'"
-          >{{ row.original.missing_days_streak }}d</span>
-        </template>
-      </UTable>
-    </UCard>
+    <EbeamStoragePpidUnavailablePanel
+      :rows="ppidUnavailableRows"
+      :latest-date="ppidLatestDate"
+      :pending="ppidUnavailablePending"
+      :error="ppidUnavailableError"
+      :fab="props.fab"
+      :tool-label="props.toolLabel"
+    />
   </div>
 </template>
 
@@ -352,7 +209,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
-import type { StorageRow, StorageTool, PpidUnavailableSnapshot, PpidUnavailableRow } from '~/composables/useStorageApi'
+import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composables/useStorageApi'
 import { isStorageUnavailable } from '~/composables/useStorageApi'
 import type { MetaBarStat } from './MetaBar.vue'
 
@@ -718,107 +575,6 @@ const columns: TableColumn<StorageRow>[] = storageColumnConfigs.map(({ id, ...co
 }))
 
 const storageSortableHeaders = storageColumnConfigs.map(column => ({
-  id: column.id,
-  label: column.header
-}))
-
-const ppidUnavailableFilter = ref('')
-const defaultPpidSort = {
-  id: 'missing_days_streak',
-  desc: true
-}
-const ppidSorting = ref<SortingState>([
-  defaultPpidSort
-])
-
-const comparePpidRows = (left: PpidUnavailableRow, right: PpidUnavailableRow, key: keyof PpidUnavailableRow) => {
-  const leftValue = left[key]
-  const rightValue = right[key]
-
-  if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-    return leftValue - rightValue
-  }
-
-  return sortCollator.compare(String(leftValue), String(rightValue))
-}
-
-const filteredPpidUnavailable = computed(() => {
-  const term = ppidUnavailableFilter.value.trim().toLowerCase()
-
-  const matched = ppidUnavailableRows.value.filter((row) => {
-    if (!term) return true
-    const hay = [
-      row.eqp_id,
-      row.eqp_ip,
-      row.fab_name,
-      row.eqp_model_cd
-    ]
-    return hay.some(v => v.toLowerCase().includes(term))
-  })
-
-  const currentSort = ppidSorting.value[0]
-
-  if (!currentSort) {
-    return matched
-  }
-
-  const key = currentSort.id as keyof PpidUnavailableRow
-  const direction = currentSort.desc ? -1 : 1
-
-  return [...matched].sort((a, b) => {
-    const sortResult = comparePpidRows(a, b, key)
-
-    if (sortResult !== 0) {
-      return sortResult * direction
-    }
-
-    return sortCollator.compare(a.eqp_ip, b.eqp_ip)
-  })
-})
-
-const hasActivePpidControls = computed(() => {
-  const currentSort = ppidSorting.value[0]
-
-  return ppidUnavailableFilter.value.length > 0
-    || currentSort?.id !== defaultPpidSort.id
-    || currentSort?.desc !== defaultPpidSort.desc
-})
-
-const resetPpidFilters = () => {
-  ppidUnavailableFilter.value = ''
-  ppidSorting.value = [
-    defaultPpidSort
-  ]
-}
-
-const ppidTableMeta = {
-  class: {
-    tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
-    td: 'py-1.5 px-3 whitespace-nowrap overflow-hidden text-ellipsis sk-value',
-    th: 'py-2 px-3 sk-label'
-  }
-}
-
-type PpidColumnConfig = {
-  id: keyof PpidUnavailableRow
-  header: string
-  size: number
-}
-
-const ppidColumnConfigs: PpidColumnConfig[] = [
-  { id: 'missing_days_streak', header: 'Days Down', size: 88 },
-  { id: 'fab_name', header: 'Fab', size: 64 },
-  { id: 'eqp_id', header: 'Equipment ID', size: 130 },
-  { id: 'eqp_model_cd', header: 'Model', size: 130 },
-  { id: 'eqp_ip', header: 'IP Address', size: 140 }
-]
-
-const ppidColumns: TableColumn<PpidUnavailableRow>[] = ppidColumnConfigs.map(({ id, ...column }) => ({
-  accessorKey: id,
-  ...column
-}))
-
-const ppidSortableHeaders = ppidColumnConfigs.map(column => ({
   id: column.id,
   label: column.header
 }))

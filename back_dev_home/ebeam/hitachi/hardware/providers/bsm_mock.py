@@ -19,12 +19,15 @@ computed straight off the generated raw profiles so avg/3sigma stay consistent
 with the radar values, then handed to `normalizers.bsm_payload`.
 """
 
-import hashlib
 import random
 import statistics
 from datetime import datetime, timedelta
 
 import pandas as pd
+
+from back_dev_home.ebeam.hitachi.hardware.providers._mock_utils import (
+    seed_for_equipment,
+)
 
 
 __all__ = ["build_bsm_data"]
@@ -48,16 +51,6 @@ _SUMMARY_COLUMNS = [
     "noise_avg",
     "noise_3std",
 ]
-
-
-def _seed_for(eqp_id: str) -> int:
-    """Stable int seed derived from the equipment id.
-
-    `hash()` is salted per-process, so we hash explicitly to keep the same tool
-    reproducible across requests and restarts.
-    """
-    digest = hashlib.md5(eqp_id.encode("utf-8")).hexdigest()
-    return int(digest[:8], 16)
 
 
 def _fmt(dt: datetime) -> str:
@@ -149,7 +142,7 @@ def _pm_timestamps(rng: random.Random) -> list[datetime]:
 
 def build_bsm_data(eqp_id: str) -> dict[str, object]:
     """Deterministic daily + PM BSM categories for one tool."""
-    rng = random.Random(_seed_for(eqp_id))
+    rng = random.Random(seed_for_equipment(eqp_id))
 
     daily_frame, daily_profiles = _build_category(eqp_id, rng, _daily_timestamps(rng))
     pm_frame, pm_profiles = _build_category(eqp_id, rng, _pm_timestamps(rng))

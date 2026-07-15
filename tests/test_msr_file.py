@@ -1,4 +1,5 @@
 import math
+import os
 
 import pytest
 
@@ -167,3 +168,16 @@ def test_same_msr_always_yields_identical_data(sample_msr):
     get_msr_file.cache_clear()
     second = get_msr_file(sample_msr)
     assert first == second
+
+
+def test_unconnected_office_adapter_fails_explicitly(sample_msr):
+    previous = os.environ.get("SKEWNONO_MSR_FILE_PROVIDER")
+    os.environ["SKEWNONO_MSR_FILE_PROVIDER"] = "office"
+    try:
+        with pytest.raises(NotImplementedError, match="msr_file office adapter"):
+            get_msr_file(sample_msr)
+    finally:
+        if previous is None:
+            os.environ.pop("SKEWNONO_MSR_FILE_PROVIDER", None)
+        else:
+            os.environ["SKEWNONO_MSR_FILE_PROVIDER"] = previous

@@ -1,0 +1,1 @@
+"""Fail-issue data adapters."""

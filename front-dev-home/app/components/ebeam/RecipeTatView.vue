@@ -52,87 +52,13 @@
     </EbeamMetaBar>
 
     <!-- Device picker (디바이스별 mode only) -->
-    <div
+    <EbeamAnalyticsDevicePicker
       v-if="viewMode === 'by-device'"
-      class="dashboard-surface rounded-2xl px-3.5 py-2.5"
-    >
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <h3 class="sk-title">
-            디바이스 선택
-          </h3>
-          <span class="sk-meta">
-            {{ filteredDeviceList.length }} / {{ deviceList.length }}개의 디바이스
-          </span>
-        </div>
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-rotate-ccw"
-          label="초기화"
-          :disabled="!selectedLot && !lotSearch && selectedCategories.length === 0"
-          @click="() => { selectedLot = null; lotSearch = ''; selectedCategories = [] }"
-        />
-      </div>
-
-      <div
-        v-if="categoryField && categoryOptions.length"
-        class="mb-2 flex flex-wrap items-start gap-2 min-w-0"
-      >
-        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">{{ categoryField }}</span>
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <button
-            v-for="category in categoryOptions"
-            :key="category"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedCategories.includes(category))"
-            @click="toggleCategory(category)"
-          >
-            {{ category }}
-          </button>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap items-start gap-2 min-w-0">
-        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">lot_cd</span>
-        <UInput
-          v-model="lotSearch"
-          class="w-44 shrink-0"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          icon="i-lucide-search"
-          placeholder="디바이스 검색"
-        />
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <button
-            v-for="device in deviceChipStrip.chips"
-            :key="device.lot_cd"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedLot === device.lot_cd)"
-            :title="`${device.exec_count.toLocaleString()} runs · ${formatSecondsCompact(device.total_meastime)}`"
-            @click="toggleLot(device.lot_cd)"
-          >
-            {{ device.lot_cd }}
-          </button>
-          <span
-            v-if="deviceChipStrip.overflowCount > 0"
-            class="font-mono text-[10px] text-(--sk-ink-muted)"
-          >
-            +{{ deviceChipStrip.overflowCount }}
-          </span>
-          <span
-            v-if="!deviceList.length"
-            class="text-[11px] text-(--sk-ink-muted)"
-          >
-            이 기간에 측정된 디바이스가 없습니다.
-          </span>
-        </div>
-      </div>
-    </div>
+      v-model:selected-lot="selectedLot"
+      :devices="deviceList"
+      :get-title="recipeDeviceTitle"
+      :reset-key="devicesCacheKey"
+    />
 
     <!-- 디바이스별 mode without a selection: prompt instead of dashboard -->
     <div
@@ -278,6 +204,17 @@
                 size="xs"
                 :items="pageSizeOptions"
               />
+              <UTooltip text="클립보드 복사">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-clipboard"
+                  aria-label="표를 클립보드에 복사"
+                  :disabled="sortedRankingRows.length === 0"
+                  @click="copyRankingTable"
+                />
+              </UTooltip>
               <UButton
                 size="xs"
                 color="neutral"
@@ -364,11 +301,11 @@ import {
   formatSecondsAsDuration,
   formatSecondsCompact,
   useRecipeTatApi,
+  type RecipeTatDeviceRow,
   type RecipeTatRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import { chipClass } from '~/utils/chipClass'
-import { downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   fab: string
@@ -408,10 +345,6 @@ const metaSubtitle = computed(() =>
     : 'Recipe별 측정 시간 (TAT)을 Fab 기준으로 분석합니다.'
 )
 const selectedLot = ref<string | null>(null)
-const lotSearch = ref('')
-const selectedCategories = ref<string[]>([])
-
-const DEVICE_CHIP_BUDGET = 24
 
 const {
   fetchRecipeTatRanking,
@@ -464,78 +397,8 @@ const { data: devicesData } = await useAsyncData(
 )
 
 const deviceList = computed(() => devicesData.value?.devices ?? [])
-
-// Pick the categorical attribute the picker should narrow by — R3 lots
-// carry prod_catg_cd, M-fab lots carry tech_nm. Whichever field has any
-// values in the current device list wins.
-const categoryField = computed<'prod_catg_cd' | 'tech_nm' | null>(() => {
-  const list = deviceList.value
-  if (list.some(d => d.prod_catg_cd)) return 'prod_catg_cd'
-  if (list.some(d => d.tech_nm)) return 'tech_nm'
-  return null
-})
-
-const categoryOptions = computed(() => {
-  const field = categoryField.value
-  if (!field) return [] as string[]
-  const set = new Set<string>()
-  for (const d of deviceList.value) {
-    const value = d[field]
-    if (value) set.add(value)
-  }
-  return Array.from(set).sort()
-})
-
-const filteredDeviceList = computed(() => {
-  const field = categoryField.value
-  if (!field || selectedCategories.value.length === 0) return deviceList.value
-  const allowed = new Set(selectedCategories.value)
-  return deviceList.value.filter((d) => {
-    const value = d[field]
-    return value !== null && allowed.has(value)
-  })
-})
-
-// Stable chip order. Only pin the selection at the front if it would
-// otherwise be hidden — i.e. it doesn't match the active search/category
-// filter or fell past the visible budget. Pinning unconditionally would
-// reshuffle the strip on every click and feel jumpy.
-const deviceChipStrip = computed(() => {
-  const q = lotSearch.value.trim().toLowerCase()
-  const all = filteredDeviceList.value
-  const matches = q
-    ? all.filter(d => d.lot_cd.toLowerCase().includes(q))
-    : all
-
-  const visible = matches.slice(0, DEVICE_CHIP_BUDGET)
-  const overflow = Math.max(0, matches.length - DEVICE_CHIP_BUDGET)
-
-  const selected = selectedLot.value
-  if (!selected || visible.some(d => d.lot_cd === selected)) {
-    return { chips: visible, overflowCount: overflow }
-  }
-
-  const selectedRow = deviceList.value.find(d => d.lot_cd === selected)
-  if (!selectedRow) {
-    return { chips: visible, overflowCount: overflow }
-  }
-
-  const trimmed = visible.slice(0, DEVICE_CHIP_BUDGET - 1)
-  return {
-    chips: [selectedRow, ...trimmed],
-    overflowCount: overflow + (visible.length - trimmed.length)
-  }
-})
-
-const toggleLot = (lot: string) => {
-  selectedLot.value = selectedLot.value === lot ? null : lot
-}
-
-const toggleCategory = (category: string) => {
-  selectedCategories.value = selectedCategories.value.includes(category)
-    ? selectedCategories.value.filter(c => c !== category)
-    : [...selectedCategories.value, category]
-}
+const recipeDeviceTitle = (device: RecipeTatDeviceRow) =>
+  `${device.exec_count.toLocaleString()} runs · ${formatSecondsCompact(device.total_meastime)}`
 
 const rankingRows = computed<RecipeTatRow[]>(() => data.value?.ranking.rows ?? [])
 const rankingLimit = computed(() => data.value?.ranking.limit ?? 0)
@@ -559,19 +422,6 @@ const dateRange = computed({
     userDateRange.value = next
   }
 })
-
-// Clear selection on scope change — without this, ranking/summary/daily-trend
-// keep filtering by a stale lot_cd that's invisible in the refetched picker,
-// silently producing empty / misleading numbers.
-watch(
-  () => [props.fab, userDateRange.value.start, userDateRange.value.end],
-  () => {
-    if (selectedLot.value === null && lotSearch.value === '' && selectedCategories.value.length === 0) return
-    selectedLot.value = null
-    lotSearch.value = ''
-    selectedCategories.value = []
-  }
-)
 
 // KPI cells
 
@@ -836,7 +686,9 @@ const exportFileName = computed(() => {
   return `${props.toolType}-${fab}-recipe-tat-${today}.csv`
 })
 
-const downloadRankingCsv = () => {
+const toast = useToast()
+
+const rankingTable = () => {
   const headers = [
     'rank', 'full_name', 'class',
     'meas_count', 'avg_meastime_sec', 'total_meastime_sec',
@@ -852,6 +704,21 @@ const downloadRankingCsv = () => {
     r.total_meastime,
     total ? (r.total_meastime / total * 100).toFixed(2) : '0.00'
   ])
+  return { headers, rows }
+}
+
+const downloadRankingCsv = () => {
+  const { headers, rows } = rankingTable()
   downloadCsv(exportFileName.value, headers, rows)
+}
+
+const copyRankingTable = async () => {
+  const { headers, rows } = rankingTable()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 </script>
