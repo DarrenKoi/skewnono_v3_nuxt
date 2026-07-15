@@ -38,9 +38,11 @@
   scale, recipe와 acquisition 조건을 함께 확인하는 measurement-evidence 화면이어야
   합니다. charging, focus, contamination, edge algorithm에 의한 오차를 pattern
   변화와 구분해야 합니다.
-- 1차 제품은 업계에서 이미 정착한 CDU, run chart/SPC, tool matching, exact-pair
-  correlation, image review를 우선해야 합니다. Zernike fingerprint, spatial signature
-  자동 분류, PCA/MSPC, virtual metrology는 연구 기능으로 분리해야 합니다.
+- 1차 제품은 업계에서 이미 정착한 CDU, run chart/SPC, exact-pair correlation,
+  image review를 우선해야 합니다. tool matching은 reference-artifact 반복 측정 계약이
+  준비된 뒤 조건부로 제공하며, 일반 production wafer의 tool별 평균 차이만으로 metrology
+  bias를 추정하지 않습니다. Zernike fingerprint, spatial signature 자동 분류, PCA/MSPC,
+  virtual metrology는 연구 기능으로 분리해야 합니다.
 
 ## 2. 방법 성숙도 구분
 
@@ -263,7 +265,9 @@ UI는 mode를 상단 segmented control로 나누고, 서로 다른 분석 단위
 
 ### 7.2 Within-MSR Pair
 
-- `chip_number + sequence + parameter`보다 강한 canonical site key로 exact join합니다.
+- 값 pairing은 `chip_number + sequence + parameter`보다 강한 MeasurementKey
+  (PhysicalSiteKey + parameter)로 exact join합니다. 서로 다른 parameter(X↔Y, CD↔FDC)를
+  같은 위치에서 join할 때는 parameter를 뺀 PhysicalSiteKey를 씁니다.
 - Pearson `r`, Spearman `ρ`, valid pair `N`, missing X/Y 수를 같이 표시합니다.
 - scatter에서 outlier, 비선형성, 이분산을 보고 통계량을 해석합니다.
 - radial bin·sector·scan-order 색상을 toggle해 공간 또는 sequence confounding을
@@ -285,6 +289,9 @@ NIST는 scatter plot이 관계의 형태, 방향, outlier를 보여주지만 인
 - point 색은 tool, outline은 lot, 화살표 또는 작은 label은 시간 순서로 표현합니다.
 - 여러 feature·lag를 탐색했다면 검사한 전체 수와 multiplicity 상태를 표시합니다.
 - MSR 결과 하나를 수천 개 raw FDC timestamp에 복제해 큰 `N`을 만들지 않습니다.
+- home mock에서 CD와 FDC는 모두 per-MSR 공통 `health` scalar로 편향되므로, 이
+  데이터에서 관찰되는 CD↔FDC 상관은 생성기 artifact이며 방법 검증 근거가 아닙니다.
+  단일 sequence(§6)와 다중 run 화면 모두에 `데모 데이터` 표식을 답니다.
 
 ### 7.4 분포와 공정 능력
 
@@ -419,8 +426,9 @@ workspace가 되어야 합니다.
 | correlation outlier 클릭 | 해당 MSR·site를 map에서 강조합니다. | run 또는 sequence를 강조합니다. | pair와 residual을 유지합니다. | 정확한 source image를 엽니다. |
 | Gallery image 클릭 | site 위치를 강조합니다. | acquisition sequence를 강조합니다. | 해당 row를 raw point로 강조합니다. | overlay·profile lightbox를 엽니다. |
 
-URL 또는 workspace state에는 최소한 `focus msr`, comparison set, parameter, site,
-time point, stratum, reference version을 담아 분석 결과를 재현할 수 있어야 합니다.
+URL 또는 workspace state에는 최소한 `focus msr`, comparison set, parameter,
+physical site key, time point, stratum, reference version을 담아 분석 결과를 재현할 수
+있어야 합니다.
 
 ## 10. 데이터 준비도와 추가 계약
 
@@ -440,6 +448,14 @@ time point, stratum, reference version을 담아 분석 결과를 재현할 수 
 현재 계약의 자세한 근거는 [MSR 파일 설명](../../datatables/msr_file.txt),
 [pickle 구조](../../datatables/msr_file_pickle.txt),
 [프런트 MSR API](../../../front-dev-home/app/composables/useMsrFileApi.ts)에 있습니다.
+
+**Phase-1(offline mock) 처분.** 위 표에서 `현재 확인 상태`가 계약 미충족인 항목
+(registered map comparison, frozen-baseline SPC, capability, tool matching, image
+overlay/profile, LER/LWR)은 Phase-1 mock 데이터로 live-verify 할 수 없습니다. 이
+항목들은 UI를 미리 완성하지 않고 readiness placeholder와 필요한 계약만 표시하며,
+실제 구현·검증은 office 계약이 연결되는 Phase 2/3으로 미룹니다. Phase-1에서 검증
+가능한 범위는 단일 MSR 공간 진단, 단일 sequence+FDC, exact-pair correlation, review
+queue입니다.
 
 ## 11. Source-to-feature 근거 매트릭스
 

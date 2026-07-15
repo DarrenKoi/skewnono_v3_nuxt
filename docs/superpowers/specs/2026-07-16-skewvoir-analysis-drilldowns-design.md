@@ -417,7 +417,9 @@ Color: tool · Window: during measurement · Exploratory association
 기본 우선순위는 다음과 같습니다.
 
 1. 측정 실패 또는 image failure입니다.
-2. site verdict가 abnormal/watch인 이미지입니다.
+2. site verdict가 abnormal/watch인 이미지입니다. 단, verdict는 **제공된 판정
+   provenance가 있을 때만** 사용하며 mock `health`로 유도하지 않습니다. provenance가
+   없으면 이 우선순위는 비활성화하고 3~4번 근거로만 정렬합니다.
 3. center/radial trend를 제거한 residual 절대값이 큰 이미지입니다.
 4. vendor measurement/addressing score가 낮은 이미지입니다. 단, `모니터링`으로만
    표시하고 판정 이유에는 넣지 않습니다.
@@ -520,17 +522,26 @@ compatibility signature는 최소한 recipe identity/revision, parameter/unit,
 method/object/kind, mag/vac/pixel, coordinate system, wafer size, site-layout hash를
 포함합니다. 현재 계약에 없는 항목은 `unknown`으로 두며 같은 값으로 가정하지 않습니다.
 
-### 10.2 Canonical site key
+### 10.2 Canonical site key — 물리 site와 측정 key 분리
 
 현재 `chip_number`와 `sequence`만으로 다른 MSR의 같은 site를 확정하면 안 됩니다.
-backend가 다음 key를 만들거나 그 근거 필드를 제공해야 합니다.
+두 층을 구분합니다.
 
 ```text
-site_layout_id + chip/die index + mp_number + parameter + coordinate identity
+PhysicalSiteKey = site_layout_id + chip/die index + mp_number + coordinate identity
+MeasurementKey  = PhysicalSiteKey + parameter
 ```
 
-같은 site key가 없으면 다중 delta와 same-site gallery를 `제한적`으로 표시하고,
-stage coordinate tolerance join을 자동 확정하지 않습니다.
+- **PhysicalSiteKey**는 같은 물리 위치를 뜻하며 parameter를 포함하지 않습니다.
+  공간 비교(§5), same-site gallery(§8.3), 서로 다른 parameter를 같은 위치에서 짝짓는
+  §7.3의 CD↔dynamic FDC·X↔Y join에 사용합니다.
+- **MeasurementKey**는 한 물리 site의 한 parameter 측정값입니다. 같은 parameter의
+  값 pairing과 분포 계산에 사용합니다.
+
+parameter를 물리 site key에 넣지 않는 이유는 서로 다른 parameter를 같은 물리 site에서
+join해야 하기 때문입니다. backend가 이 key 또는 그 근거 필드를 제공하지 않으면 다중
+delta와 same-site gallery를 `제한적`으로 표시하고, stage coordinate tolerance join을
+자동 확정하지 않습니다.
 
 ### 10.3 MSR feature row
 
@@ -571,7 +582,9 @@ export는 화면의 숫자만 내보내지 않고 이 provenance를 함께 포�
 7. correlation에는 grain, pair N, missing, strata, window를 표시합니다.
 8. tool·lot이 섞인 pooled 결과 옆에 stratified 결과를 제공합니다.
 9. vendor score는 모니터링이며 공식 판정 근거가 아닙니다.
-10. mock의 CD↔FDC 관계로 방법 성능을 검증하지 않습니다.
+10. mock의 CD↔FDC 관계로 방법 성능을 검증하지 않습니다. 이 결합은 공통 `health`
+    scalar에서 오므로 단일 MSR sequence(§6.2), 상관 / 분포(§7), 다중 MSR을 포함한
+    모든 CD↔FDC chart에 `데모 데이터 · 방법 검증 불가` 표식을 붙입니다.
 11. 평가 불가는 정상으로 치환하지 않습니다.
 12. 모든 결과에서 raw site, MSR, image, event로 drill-through할 수 있어야 합니다.
 
@@ -595,6 +608,15 @@ export는 화면의 숫자만 내보내지 않고 이 provenance를 함께 포�
 | C4 | review queue, same-site filmstrip, full viewer | image evidence metadata, canonical site |
 | C5 | 승인 baseline control chart, variance component | baseline registry, 충분한 역사 반복 |
 | Research | signature similarity, PCA/MSPC, virtual metrology | engineer label, offline/time-split 검증 |
+
+**Phase-1(offline mock) 검증 경계.** C0, C1의 단일 MSR 진단, C2의 단일 sequence+FDC,
+C4의 review queue는 mock 데이터로 live-verify 합니다. C1의 다중 delta/variability,
+C2의 control chart, C3의 capability/variance, C4의 same-site filmstrip과
+measurement-evidence overlay, C5는 office 계약(canonical layout, 승인 baseline, spec
+limit, image evidence, reference artifact)이 연결된 뒤에만 검증되므로 Phase-1에서는
+readiness placeholder까지만 만듭니다. 구현 순서와 gate는
+[구현 계획](../plans/2026-07-16-skewvoir-analysis-drilldowns.md)의 Phase-1 완료 경계를
+따릅니다.
 
 ## 14. 비범위
 

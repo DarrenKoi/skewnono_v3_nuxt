@@ -22,7 +22,7 @@
 4. overview, spatial, trend, relationship, image evidence를 하나의 health score로 합치지 않습니다.
 5. 현재 mock의 `health`와 placeholder `spm_dict`는 모든 판정·검증 경로에서 제외합니다.
 6. 각 task는 framework-free 계산 test → component wiring → live evidence 순서로 닫습니다.
-7. UI 구현 중 [wafer map enhancement design](../specs/2026-07-16-skewvoir-wafer-map-enhancement-design.md)과 겹치는 `WaferMap.vue`, `RadiusChart.vue`, `dashboard/WaferMap.vue` 변경은 먼저 현재 worktree를 확인하고 병합합니다.
+7. UI 구현 중 [wafer map enhancement design](../specs/2026-07-16-skewvoir-wafer-map-enhancement-design.md)과 겹치는 `WaferMap.vue`, `RadiusChart.vue`, `dashboard/RadiusPlot.vue`, `dashboard/MeasurementPoints.vue` 변경은 **Task 0에서 먼저 착륙시킨 뒤** 그 결과 위에서 시작합니다.
 
 ## 1. 단계와 의존성
 
@@ -40,6 +40,44 @@ C6 승인 baseline / variance / advanced research (별도 계획)
 
 C1~C4는 C0 이후 서로 독립적으로 구현할 수 있습니다. 한 번에 네 페이지를 바꾸지 않고
 각 페이지를 vertical slice로 출하합니다.
+
+## 2. Phase-1 완료 경계 (mock backend)
+
+이 계획의 모든 Task를 Phase 1(offline mock) 안에서 "완료"로 볼 수 없습니다. mock
+`msr_file`은 `site_layout_id`/layout hash, coordinate-transform version, recipe revision,
+sequence timestamp, 승인 baseline, USL/LSL, image ROI/edge/line-profile, reference
+artifact를 제공하지 않습니다. 따라서 Task를 다음처럼 구분합니다.
+
+| 구분 | Task | Phase-1에서의 상태 |
+| --- | --- | --- |
+| Phase-1 buildable·verifiable | Task 1~5, 7, 9, 11, 13, 14 | C0 공통 계층, 단일 MSR 진단, review-queue gallery, hand-off를 mock 데이터로 live-verify 합니다. |
+| Office-contract-gated | Task 6, 12 | canonical layout/좌표·image evidence 계약이 연결된 뒤에만 live-verify 합니다. Phase-1에서는 readiness `unavailable` placeholder까지만 만듭니다. |
+| Partially gated | Task 8, 10 | descriptive run chart·tool/lot 층화(8), MSR-grain pooled/stratified(10)는 mock으로 가능합니다. control chart·recipe-revision facet(8), capability·variance·spatial/same-site 연결(10)은 계약 대기입니다. |
+
+Office-contract-gated Task는 실제 계약 없이 UI를 완성하지 않습니다. 각 Task 아래
+entry gate를 명시하고, 계약이 없으면 clearly-labeled fixture로만 렌더하되 화면에
+`office 계약 대기`를 표시합니다. Phase-1 출하 "완료" 조건은 buildable Task와 partially
+gated Task의 mock-가능 부분입니다.
+
+---
+
+## Task 0: 진행 중 wafer-map 작업 선착륙 (gating)
+
+**이유:** 현재 worktree에 커밋되지 않은
+[wafer map enhancement](../specs/2026-07-16-skewvoir-wafer-map-enhancement-design.md)
+변경이 이 계획과 같은 파일을 건드립니다. 충돌을 피하기 위해 먼저 착륙시킵니다.
+
+**Files (선착륙·병합 확인 대상):**
+
+- `front-dev-home/app/components/ebeam/skewvoir/WaferMap.vue`
+- `front-dev-home/app/components/ebeam/skewvoir/RadiusChart.vue`
+- `front-dev-home/app/components/ebeam/skewvoir/dashboard/RadiusPlot.vue`
+- `front-dev-home/app/components/ebeam/skewvoir/dashboard/MeasurementPoints.vue`
+
+**Gate:**
+
+- [ ] wafer-map enhancement 변경을 커밋하여 위 파일에 대해 `git status`가 clean이 됩니다.
+- [ ] clean 이전에는 Task 5/6/13을 시작하지 않습니다.
 
 ---
 
@@ -82,6 +120,7 @@ npm --prefix front-dev-home run typecheck
 - Modify: `front-dev-home/app/composables/useMsrFileApi.ts`
 - Modify: `back_dev_home/msr_file/providers/mock.py`
 - Modify: `back_dev_home/msr_file/providers/office.py`
+- Add: `back_dev_home/msr_file/tests/test_contract.py`
 - Add: `docs/api-contracts/msr-file.yaml`
 
 **Interfaces:**
@@ -103,6 +142,8 @@ npm --prefix front-dev-home run typecheck
 - [ ] `buildAnalysisManifest(focus, files, parameter)`가 포함/제외/group/readiness를 계산합니다.
 - [ ] 동일 layout이 아니면 multi delta, variability, same-site gallery readiness가 `unavailable`이 되는 test를 작성합니다.
 - [ ] 일부 site만 겹치면 common coverage와 `limited`가 되는 test를 작성합니다.
+- [ ] backend contract test로 mock provider가 선언한 signature 필드를 실제로 emit하고, 계약에 없는 필드(layout hash·recipe revision·sequence timestamp 등)는 응답에 나타나지 않음을 고정합니다.
+- [ ] office adapter가 canonical metadata 연결 전 `NotImplemented` 또는 limited reason을 반환하는 계약을 backend test로 고정합니다.
 
 **Acceptance:**
 
@@ -115,6 +156,7 @@ npm --prefix front-dev-home run typecheck
 npm --prefix front-dev-home test
 npm --prefix front-dev-home run lint
 npm --prefix front-dev-home run typecheck
+python -m pytest back_dev_home/msr_file   # mock signature 필드 + office NotImplemented/limited 계약
 ```
 
 **Commit:** `feat(skewvoir): add analysis compatibility manifest`
@@ -206,10 +248,11 @@ npm --prefix front-dev-home run typecheck
 - Add: `front-dev-home/app/components/ebeam/skewvoir/position/RadialProfile.vue`
 - Add: `front-dev-home/app/components/ebeam/skewvoir/position/SectorProfile.vue`
 - Add: `front-dev-home/app/components/ebeam/skewvoir/position/SiteEvidenceDrawer.vue`
-- Rewrite: `front-dev-home/app/components/ebeam/skewvoir/views/PositionStack.vue`
+- Modify (branch-by-abstraction): `front-dev-home/app/components/ebeam/skewvoir/views/PositionStack.vue`
 
 **Steps:**
 
+- [ ] 기존 composite-mean 뷰를 즉시 삭제하지 않고, 새 단일-MSR workbench를 flag/조건 뒤에 붙여 verify 전까지 기존 화면이 계속 동작하게 합니다.
 - [ ] raw, median-centered, residual, failure layer를 정의합니다.
 - [ ] radius bin별 median/spread/N과 검증된 notch 기반 sector summary를 계산합니다.
 - [ ] coordinate readiness가 부족하면 raw layer와 table만 남기고 이유를 표시합니다.
@@ -229,6 +272,11 @@ npm --prefix front-dev-home run typecheck
 ---
 
 ## Task 6: 위치 비교 다중 MSR — reference/delta workbench
+
+> ⚠ **Office-contract-gated (Phase-1 제외).** Entry gate: canonical layout/좌표 identity
+> 계약(§10.2 PhysicalSiteKey)이 backend에 연결되어야 합니다. Phase-1 mock에서는 layout이
+> `unknown`이므로 delta/variability map을 만들지 않고 readiness `unavailable`과 필요한
+> 계약만 표시합니다.
 
 **Files:**
 
@@ -279,6 +327,7 @@ npm --prefix front-dev-home run typecheck
 - [ ] failure/image/alignment evidence를 sequence event lane에 배치합니다.
 - [ ] sequence cursor를 wafer scan path와 `focusedSite`에 연결합니다.
 - [ ] 단위가 다른 CD/FDC를 한 Y축에 합치지 않습니다.
+- [ ] home mock에서 CD와 dynamic FDC가 공통 `health` scalar로 결합됨을 pane meta에 `데모 데이터 · 방법 검증 불가`로 표시합니다.
 - [ ] sequence timestamp가 없을 때 초당 slope와 time lag UI가 나타나지 않는 test를 작성합니다.
 
 **Acceptance:**
@@ -291,6 +340,11 @@ npm --prefix front-dev-home run typecheck
 ---
 
 ## Task 8: Time-Series 다중 MSR — run chart와 event context
+
+> ⚠ **Partially gated.** descriptive run chart와 tool/lot 층화는 Phase-1 mock으로
+> 구현·verify 합니다. control chart(I-MR/EWMA/CUSUM)와 recipe-revision facet은 승인
+> baseline·recipe revision 계약이 없으므로 disabled readiness로만 두고 Phase-1 완료
+> 조건에서 제외합니다.
 
 **Files:**
 
@@ -341,16 +395,18 @@ npm --prefix front-dev-home run typecheck
 - Modify: `front-dev-home/app/components/ebeam/skewvoir/DistributionChart.vue`
 - Add: `front-dev-home/app/components/ebeam/skewvoir/factor/RelationshipSummary.vue`
 - Add: `front-dev-home/app/components/ebeam/skewvoir/factor/PairedEvidenceTable.vue`
-- Rewrite: `front-dev-home/app/components/ebeam/skewvoir/views/Correlation.vue`
+- Modify (branch-by-abstraction): `front-dev-home/app/components/ebeam/skewvoir/views/Correlation.vue`
 
 **Steps:**
 
-- [ ] canonical site 또는 same sequence exact join만 허용합니다.
+- [ ] 기존 focus-only scatter/분포 뷰를 verify 전까지 유지하고, 새 exact-pair explorer를 flag 뒤에 붙입니다.
+- [ ] canonical site(PhysicalSiteKey) 또는 same sequence exact join만 허용합니다. CD↔FDC·X↔Y처럼 서로 다른 parameter는 parameter를 뺀 PhysicalSiteKey로 join합니다.
 - [ ] Pearson r, Spearman ρ, pair N, missing N, constant-variable readiness를 계산합니다.
 - [ ] active query가 scatter, marginal distribution, group distribution, evidence table을 함께 갱신합니다.
 - [ ] histogram 외에 ECDF를 기본 비교 후보로 추가하고 box/violin 위에 raw point 또는 N을 표시합니다.
 - [ ] radius/sector group은 coordinate readiness를 통과한 경우만 제공합니다.
 - [ ] CD↔dynamic FDC는 같은 MSR+sequence join임을 chart meta에 표시합니다.
+- [ ] home mock에서 CD와 dynamic FDC는 공통 `health` scalar로 결합되므로, 이 데이터의 CD↔FDC 상관 chart에 `데모 데이터 · 방법 검증 불가` 표식을 붙입니다.
 - [ ] correlation이 `연관이며 원인 증명이 아님`이라는 문구를 항상 표시합니다.
 
 **Acceptance:**
@@ -364,6 +420,10 @@ npm --prefix front-dev-home run typecheck
 ---
 
 ## Task 10: 상관 / 분포 다중 MSR — stratified feature analysis
+
+> ⚠ **Partially gated.** MSR-grain pooled/stratified 관계는 Phase-1 mock으로
+> 구현·verify 합니다. Cp/Cpk(spec 계약), variance component, 그리고 PhysicalSiteKey가
+> 필요한 spatial·same-site 연결은 계약 대기로 두고 Phase-1 완료 조건에서 제외합니다.
 
 **Files:**
 
@@ -405,12 +465,13 @@ npm --prefix front-dev-home run typecheck
 - Add: `front-dev-home/app/components/ebeam/skewvoir/gallery/EvidenceCard.vue`
 - Add: `front-dev-home/app/components/ebeam/skewvoir/gallery/ImageViewer.vue`
 - Add: `front-dev-home/app/components/ebeam/skewvoir/gallery/ImageEvidenceDrawer.vue`
-- Rewrite: `front-dev-home/app/components/ebeam/skewvoir/views/Gallery.vue`
+- Modify (branch-by-abstraction): `front-dev-home/app/components/ebeam/skewvoir/views/Gallery.vue`
 
 **Steps:**
 
-- [ ] image row를 failure, site verdict, residual, vendor-score-monitor, sequence reason으로 분류합니다.
-- [ ] 기본 sort는 failure → abnormal/watch → residual magnitude → sequence입니다.
+- [ ] 기존 filename grid를 verify 전까지 유지하고, 새 review-queue를 flag 뒤에 붙입니다.
+- [ ] image row를 failure, residual, vendor-score-monitor, sequence reason으로 분류합니다. `abnormal/watch` site verdict는 **판정 provenance가 제공될 때만** 분류 근거로 쓰고, mock `health`로 유도하지 않습니다(§0.5).
+- [ ] 기본 sort는 failure → residual magnitude → sequence입니다. verdict provenance가 있을 때만 abnormal/watch를 failure 다음 우선순위로 삽입합니다.
 - [ ] vendor score는 monitoring badge만 만들고 verdict reason에는 포함하지 않습니다.
 - [ ] card에 chip/MP, sequence, parameter/value/unit, residual, reason을 표시합니다.
 - [ ] virtualized/lazy grid와 per-image retry를 적용합니다.
@@ -430,6 +491,10 @@ npm --prefix front-dev-home run typecheck
 ---
 
 ## Task 12: 이미지 갤러리 다중 MSR — same-site filmstrip
+
+> ⚠ **Office-contract-gated (Phase-1 제외).** Entry gate: PhysicalSiteKey(§10.2)와
+> image acquisition/scale metadata 계약이 필요합니다. Phase-1 mock에서는 canonical
+> site를 확정할 수 없으므로 filmstrip을 만들지 않고 readiness `unavailable`을 표시합니다.
 
 **Files:**
 
@@ -541,6 +606,7 @@ git diff --check
 - I-MR/EWMA/CUSUM의 offline false-alarm·shift detection 검증입니다.
 - hardware BSM/Reso/MDC/SCE/BM·PM event-time join입니다.
 - tool/lot/wafer/site variance component와 identifiability gate입니다.
+- reference-artifact 기반 tool-to-tool matching과 metrology/process bias 분해입니다.
 - spatial signature library와 engineer labeling workflow입니다.
 - PCA/MSPC, virtual metrology, dynamic sampling입니다.
 - image registration, edge/ROI·gray-level line profile office contract, similarity model입니다.
