@@ -17,13 +17,16 @@ const props = withDefaults(defineProps<{
   parameter: string
   unit: string
   degree?: number
+  focusedSequence: number | null
 }>(), {
   degree: 3
 })
+const emit = defineEmits<{ focus: [sequence: number] }>()
 
 const rows = computed(() => measuredRows(props.rows))
 
 // (distance-from-center, CD) per measured site for the active parameter.
+// Plain numeric tuples — the polynomial fit below reads p[0]/p[1] off this.
 const points = computed<[number, number][]>(() => {
   const out: [number, number][] = []
   for (const row of rows.value) {
@@ -35,6 +38,26 @@ const points = computed<[number, number][]>(() => {
   }
   return out
 })
+
+// Same rows/filter as `points`, but named per-sequence so scatter points can be
+// clicked and the focused one highlighted. Kept separate so the fit above keeps
+// reading `points` as plain [radius, cd] tuples.
+const scatterData = computed(() => {
+  const out: { name: string, value: [number, number] }[] = []
+  for (const row of rows.value) {
+    if (row.parameter !== props.parameter) continue
+    const xy = parseChipXY(row.chip_number)
+    if (!xy) continue
+    const radius = Math.hypot(xy[0], xy[1])
+    out.push({ name: String(row.sequence), value: [Number(radius.toFixed(3)), row.cd_value] })
+  }
+  return out
+})
+
+// Highlight ring for the sequence focused from another linked panel.
+const focusPoint = computed(() =>
+  scatterData.value.filter(p => Number(p.name) === props.focusedSequence)
+)
 
 // Sampled polynomial fit line across the radius span.
 const fitLine = computed<[number, number][]>(() => {
@@ -81,7 +104,7 @@ const option = computed<EChartsOption>(() => ({
       type: 'scatter',
       symbolSize: 7,
       itemStyle: { color: SK_CHART.seriesSoft, opacity: 0.7 },
-      data: points.value
+      data: scatterData.value
     },
     {
       type: 'line',
@@ -91,10 +114,18 @@ const option = computed<EChartsOption>(() => ({
       data: fitLine.value,
       tooltip: { show: false },
       silent: true
+    },
+    {
+      type: 'scatter',
+      symbolSize: 16,
+      data: focusPoint.value,
+      itemStyle: { color: 'transparent', borderColor: SK_CHART.series, borderWidth: 3 },
+      silent: true,
+      z: 5
     }
   ]
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
-useEchart(chartEl, option)
+useEchart(chartEl, option, { onClick: name => emit('focus', Number(name)) })
 </script>

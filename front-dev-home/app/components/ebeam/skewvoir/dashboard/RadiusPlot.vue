@@ -22,6 +22,8 @@
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
       :degree="degree"
+      :focused-sequence="analysis.focusedSequence.value"
+      @focus="analysis.setFocusedSequence"
     />
     <div
       v-else

@@ -42,7 +42,9 @@
           <tr
             v-for="p in points"
             :key="p.key"
-            class="border-b border-(--sk-border-soft) last:border-0"
+            class="cursor-pointer border-b border-(--sk-border-soft) transition-colors last:border-0"
+            :class="p.seq === analysis.focusedSequence.value ? 'bg-(--sk-brand)/12' : 'hover:bg-(--sk-chip-bg)'"
+            @click="analysis.setFocusedSequence(p.seq)"
           >
             <td class="px-2 py-1.5 font-mono text-(--sk-ink-subtle)">
               {{ p.mp }}

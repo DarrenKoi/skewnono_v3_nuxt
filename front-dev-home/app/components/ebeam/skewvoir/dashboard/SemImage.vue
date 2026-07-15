@@ -48,10 +48,14 @@ const { msrImageUrl } = useMsrFileApi()
 const mode = ref('Single')
 
 const images = computed(() => {
+  const rows = measuredRows(props.analysis.siteRows.value).filter(r => r.parameter === props.analysis.activeParam.value)
+  const focused = props.analysis.focusedSequence.value
+  const ordered = focused != null
+    ? [...rows].sort((a, b) => (a.sequence === focused ? -1 : 0) - (b.sequence === focused ? -1 : 0))
+    : rows
   const seen = new Set<string>()
   const out: string[] = []
-  for (const r of measuredRows(props.analysis.siteRows.value)) {
-    if (r.parameter !== props.analysis.activeParam.value) continue
+  for (const r of ordered) {
     const name = r.mp_image_name_01
     if (name && !seen.has(name)) {
       seen.add(name)
@@ -61,5 +65,8 @@ const images = computed(() => {
   return out
 })
 
-const meta = computed(() => images.value[0] ?? `${images.value.length} images`)
+const meta = computed(() => {
+  const seq = props.analysis.focusedSequence.value
+  return seq != null ? `seq ${seq}` : (images.value[0] ?? `${images.value.length} images`)
+})
 </script>
