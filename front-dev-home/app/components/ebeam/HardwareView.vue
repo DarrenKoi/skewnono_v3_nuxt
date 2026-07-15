@@ -344,7 +344,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
 
           <p
             v-if="searchedRows.length === 0"
-            class="px-3.5 py-8 text-center text-xs text-(--sk-ink-muted)"
+            class="px-3.5 py-8 text-center sk-body"
           >
             검색·필터 조건에 맞는 장비가 없습니다.
           </p>
@@ -376,7 +376,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
           </template>
           <span
             v-else
-            class="text-sm text-(--sk-ink-muted)"
+            class="sk-body"
           >장비를 선택하세요.</span>
 
           <span class="ml-auto" />
@@ -393,7 +393,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
               :key="group.category"
               class="flex flex-col gap-1"
             >
-              <span class="px-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--sk-ink-muted)">
+              <span class="px-0.5 sk-eyebrow">
                 {{ group.category }}
               </span>
               <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
@@ -418,13 +418,13 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <section class="dashboard-surface flex-1 rounded-2xl p-4">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-(--sk-ink-muted)">
+              <p class="sk-eyebrow">
                 {{ activeServiceDetail.label }}
               </p>
-              <h2 class="mt-1 text-lg font-bold text-(--sk-ink)">
+              <h2 class="mt-1 sk-heading">
                 {{ activeServiceDetail.title }}
               </h2>
-              <p class="mt-1 max-w-2xl text-sm text-(--sk-ink-muted)">
+              <p class="mt-1 max-w-2xl sk-body">
                 {{ activeServiceDetail.description }}
               </p>
             </div>
@@ -480,7 +480,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                     :key="card.key"
                     class="rounded-xl bg-(--sk-surface) px-3 py-2.5 ring-1 ring-(--sk-border-soft)"
                   >
-                    <dt class="font-mono text-[10px] uppercase tracking-[0.05em] text-(--sk-ink-muted)">
+                    <dt class="sk-eyebrow">
                       {{ card.label }}
                     </dt>
                     <dd
@@ -552,7 +552,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   :key="section.key"
                   class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
                 >
-                  <div class="border-b border-(--sk-border-soft) px-3 py-2 text-xs font-bold text-(--sk-ink)">
+                  <div class="border-b border-(--sk-border-soft) px-3 py-2 sk-title">
                     {{ section.title }}
                   </div>
                   <div class="overflow-x-auto">
@@ -562,7 +562,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                           <th
                             v-for="column in section.columns"
                             :key="column.key"
-                            class="whitespace-nowrap px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]"
+                            class="whitespace-nowrap px-3 py-2 sk-eyebrow"
                           >
                             {{ column.label }}
                           </th>
@@ -577,7 +577,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                           <td
                             v-for="column in section.columns"
                             :key="column.key"
-                            class="whitespace-nowrap px-3 py-2 font-mono text-(--sk-ink)"
+                            class="whitespace-nowrap px-3 py-2 sk-value-num"
                           >
                             {{ formatMetricValue(row[column.key]) }}
                           </td>

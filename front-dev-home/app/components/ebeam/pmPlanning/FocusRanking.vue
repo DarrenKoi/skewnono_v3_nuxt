@@ -2,16 +2,16 @@
   <div class="dashboard-surface rounded-2xl px-3.5 py-3">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <h3 class="text-[12.5px] font-semibold text-(--sk-ink)">
+        <h3 class="sk-title">
           Next PM focus ranking
         </h3>
-        <span class="text-[10.5px] text-(--sk-ink-muted)">
+        <span class="sk-meta">
           Tools past the line, worst {{ focusN }} per beam
         </span>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <label class="flex items-center gap-1.5 text-[11px] text-(--sk-ink-muted)">
+        <label class="flex items-center gap-1.5 sk-label">
           N
           <USelect
             :model-value="String(focusN)"
@@ -25,7 +25,7 @@
         <label
           v-for="beam in beamConditions"
           :key="beam"
-          class="flex items-center gap-1.5 text-[11px] text-(--sk-ink-muted)"
+          class="flex items-center gap-1.5 sk-label"
         >
           {{ beam }} line
           <UInput
@@ -48,7 +48,7 @@
         :key="beam"
       >
         <div class="mb-1.5 flex items-center gap-2">
-          <span class="text-[12px] font-semibold text-(--sk-ink)">{{ beam }}</span>
+          <span class="sk-title">{{ beam }}</span>
           <span class="font-mono text-[10px] text-(--sk-ink-muted)">
             line {{ (threshold[beam] ?? 0).toFixed(2) }}nm
           </span>
@@ -78,7 +78,7 @@
               <span class="w-5 shrink-0 font-mono text-[11px] text-(--sk-ink-muted)">
                 {{ index + 1 }}
               </span>
-              <span class="w-[8rem] shrink-0 truncate font-mono text-[11.5px] font-semibold text-(--sk-ink)">
+              <span class="w-[8rem] shrink-0 truncate sk-value-num">
                 {{ row.eqp_id }}
               </span>
               <span class="relative h-4 flex-1 overflow-hidden rounded bg-(--sk-border-soft)">

@@ -1,6 +1,6 @@
 <template>
   <div class="mt-3 flex flex-wrap items-center gap-2">
-    <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">FILTERS</span>
+    <span class="sk-eyebrow">FILTERS</span>
 
     <EbeamSkewvoirSearchFacetSelect
       label="FAB"

@@ -58,10 +58,10 @@
     >
       <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 class="sk-title">
             디바이스 선택
           </h3>
-          <span class="text-[10.5px] text-(--sk-ink-muted)">
+          <span class="sk-meta">
             {{ filteredDeviceList.length }} / {{ deviceList.length }}개의 디바이스
           </span>
         </div>
@@ -154,7 +154,7 @@
     <template v-else>
       <div
         v-if="status === 'pending' && !alignRows.length && !measRows.length"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
+        class="dashboard-surface rounded-2xl px-6 py-12 text-center sk-body"
       >
         <UIcon
           name="i-lucide-loader-2"
@@ -192,10 +192,10 @@
                 name="i-lucide-crosshair"
                 class="h-4 w-4 text-(--sk-bad)"
               />
-              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 class="sk-title">
                 Align Fail
               </h3>
-              <span class="text-[10.5px] text-(--sk-ink-muted)">wafer alignment outcome at run start</span>
+              <span class="sk-meta">wafer alignment outcome at run start</span>
             </div>
           </template>
           <div class="flex flex-wrap">
@@ -209,7 +209,7 @@
                 class="text-2xl font-bold leading-none tabular-nums"
                 :class="cell.tone"
               >{{ cell.value }}</span>
-              <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+              <span class="sk-label">{{ cell.label }}</span>
             </div>
           </div>
         </UCard>
@@ -224,10 +224,10 @@
                 name="i-lucide-image-off"
                 class="h-4 w-4 text-(--sk-bad)"
               />
-              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 class="sk-title">
                 Meas Fail
               </h3>
-              <span class="text-[10.5px] text-(--sk-ink-muted)">
+              <span class="sk-meta">
                 fail_ratio &gt; {{ formatPercent(measFailThreshold, 0) }}
               </span>
             </div>
@@ -243,7 +243,7 @@
                 class="text-2xl font-bold leading-none tabular-nums"
                 :class="cell.tone"
               >{{ cell.value }}</span>
-              <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+              <span class="sk-label">{{ cell.label }}</span>
             </div>
           </div>
         </UCard>
@@ -259,7 +259,7 @@
                 name="i-lucide-trending-up"
                 class="h-4 w-4 text-(--sk-ink-muted)"
               />
-              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 class="sk-title">
                 Align fail · daily trend
               </h3>
             </div>
@@ -280,7 +280,7 @@
                 name="i-lucide-trending-up"
                 class="h-4 w-4 text-(--sk-ink-muted)"
               />
-              <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 class="sk-title">
                 Meas fail · daily trend
               </h3>
             </div>

@@ -8,9 +8,9 @@
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-scatter-chart"
-            class="h-4 w-4 text-zinc-500"
+            class="h-4 w-4 text-(--sk-ink-muted)"
           />
-          <h2 class="text-sm font-semibold">
+          <h2 class="sk-title">
             Summary by point
           </h2>
         </div>
@@ -39,7 +39,7 @@
 
     <div
       v-if="!summary?.length"
-      class="px-4 py-12 text-center text-sm text-zinc-500"
+      class="px-4 py-12 text-center sk-body"
     >
       No statistical data available
     </div>

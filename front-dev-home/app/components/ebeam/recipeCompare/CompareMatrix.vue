@@ -3,7 +3,7 @@
     <!-- IDP block -->
     <div class="overflow-x-auto rounded-lg border border-zinc-200/70 dark:border-zinc-800/70">
       <table class="w-full border-collapse font-mono text-[11px]">
-        <caption class="px-2.5 py-1.5 text-left text-[10px] font-bold tracking-wider text-(--sk-brand) uppercase">
+        <caption class="px-2.5 py-1.5 text-left sk-eyebrow text-(--sk-brand)">
           IDP · 파라미터 단위
         </caption>
         <tbody>

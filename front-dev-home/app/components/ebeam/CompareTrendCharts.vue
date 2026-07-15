@@ -50,7 +50,7 @@
 
     <div
       v-if="pending"
-      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-(--sk-ink-muted)"
+      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -66,7 +66,7 @@
     </div>
     <div
       v-else-if="dates.length === 0 || visibleLots.length === 0"
-      class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-(--sk-ink-muted)"
+      class="dashboard-surface rounded-2xl px-4 py-12 text-center sk-body"
     >
       {{ text.noRows }}
     </div>
@@ -80,10 +80,10 @@
       >
         <template #header>
           <div class="flex items-center justify-between gap-3">
-            <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <p class="sk-title">
               {{ text.chartParaTitle }}
             </p>
-            <span class="text-[10.5px] text-(--sk-ink-muted)">para_all</span>
+            <span class="sk-meta">para_all</span>
           </div>
         </template>
         <div
@@ -98,10 +98,10 @@
       >
         <template #header>
           <div class="flex items-center justify-between gap-3">
-            <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <p class="sk-title">
               {{ text.chartRecipeTitle }}
             </p>
-            <span class="text-[10.5px] text-(--sk-ink-muted)">avail_recipe</span>
+            <span class="sk-meta">avail_recipe</span>
           </div>
         </template>
         <div

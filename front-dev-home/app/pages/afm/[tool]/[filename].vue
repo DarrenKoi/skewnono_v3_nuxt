@@ -3,13 +3,13 @@
     <section class="dashboard-surface rounded-3xl p-5 md:p-6">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div class="min-w-0">
-          <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold mb-2">
+          <p class="sk-eyebrow mb-2">
             AFM · Recipe detail
           </p>
           <h1 class="truncate text-xl md:text-2xl font-semibold tracking-tight font-mono">
             {{ filename }}
           </h1>
-          <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <p class="sk-meta mt-1">
             {{ toolId.toUpperCase() }}
             <span v-if="information?.['Recipe ID']"> · {{ information['Recipe ID'] }}</span>
             <span v-if="information?.['Lot ID']"> · {{ information['Lot ID'] }}</span>
@@ -31,7 +31,7 @@
 
     <div
       v-if="pending"
-      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-16 text-sm text-zinc-500"
+      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-16 sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"

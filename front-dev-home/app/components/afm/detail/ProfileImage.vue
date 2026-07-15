@@ -8,9 +8,9 @@
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-image"
-            class="h-4 w-4 text-zinc-500"
+            class="h-4 w-4 text-(--sk-ink-muted)"
           />
-          <h2 class="text-sm font-semibold">
+          <h2 class="sk-title">
             Profile image
           </h2>
         </div>
@@ -26,7 +26,7 @@
 
     <div
       v-if="loading"
-      class="flex h-72 items-center justify-center text-sm text-zinc-500"
+      class="flex h-72 items-center justify-center sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -36,11 +36,11 @@
     </div>
     <div
       v-else-if="!url"
-      class="flex h-72 flex-col items-center justify-center text-center text-sm text-zinc-500"
+      class="flex h-72 flex-col items-center justify-center text-center sk-body"
     >
       <UIcon
         name="i-lucide-image-off"
-        class="mb-2 h-8 w-8 text-zinc-400"
+        class="mb-2 h-8 w-8 text-(--sk-ink-muted)"
       />
       No profile image available
     </div>

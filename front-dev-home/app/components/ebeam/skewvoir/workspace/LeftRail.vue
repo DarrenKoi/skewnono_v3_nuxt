@@ -12,7 +12,7 @@
         class="mb-3 justify-start bg-(--sk-accent) font-semibold text-white shadow-sm ring-1 ring-(--sk-accent-border) hover:bg-(--sk-accent) hover:brightness-110 focus-visible:outline-(--sk-accent)"
         @click="ws.goSearch()"
       />
-      <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
+      <p class="mb-2 px-1 sk-eyebrow">
         WORKSPACE
       </p>
       <ul class="space-y-1">
@@ -43,7 +43,7 @@
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[12.5px] font-semibold">{{ mode.label }}</span>
               <span
-                class="block truncate text-[10.5px]"
+                class="block truncate text-[11px]"
                 :class="mode.kind === ws.activeKind.value ? 'text-(--sk-ink-fg)/70' : 'text-(--sk-ink-muted)'"
               >{{ mode.sub }}</span>
             </span>
@@ -62,7 +62,7 @@
       v-if="ws.selection.value"
       class="space-y-1.5 border-t border-(--sk-border-soft) pt-4"
     >
-      <p class="mb-1 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
+      <p class="mb-1 px-1 sk-eyebrow">
         CURRENT SELECTION
       </p>
       <dl class="space-y-1 px-1 text-[12px]">
@@ -71,7 +71,7 @@
           :key="field.label"
           class="flex items-baseline justify-between gap-2"
         >
-          <dt class="text-(--sk-ink-muted)">
+          <dt class="sk-label">
             {{ field.label }}
           </dt>
           <dd
@@ -89,7 +89,7 @@
       v-if="ws.selection.value"
       class="border-t border-(--sk-border) pt-4"
     >
-      <p class="mb-2 px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
+      <p class="mb-2 px-1 sk-eyebrow">
         ACTIONS
       </p>
       <div class="space-y-1.5">

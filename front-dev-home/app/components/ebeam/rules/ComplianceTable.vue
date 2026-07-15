@@ -1,23 +1,23 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-3">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <h3 class="text-[12.5px] font-semibold text-(--sk-ink)">
+      <h3 class="sk-title">
         {{ text.title }}
       </h3>
-      <span class="text-[11px] text-(--sk-ink-muted)">
+      <span class="sk-meta">
         {{ text.legend }}
       </span>
     </div>
 
     <div
       v-if="r3Lots.length === 0"
-      class="px-4 py-12 text-center text-sm text-(--sk-ink-muted)"
+      class="px-4 py-12 text-center sk-body"
     >
       {{ text.empty }}
     </div>
     <div
       v-else-if="pending"
-      class="flex items-center justify-center gap-2 py-12 text-sm text-(--sk-ink-muted)"
+      class="flex items-center justify-center gap-2 py-12 sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -37,13 +37,13 @@
     >
       <thead>
         <tr class="border-b border-(--sk-border)">
-          <th class="px-3 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">
+          <th class="px-3 py-2 text-left sk-eyebrow">
             디바이스
           </th>
-          <th class="px-2 py-2 text-right font-mono text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">
+          <th class="px-2 py-2 text-right sk-eyebrow">
             recipe
           </th>
-          <th class="px-2 py-2 text-right font-mono text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">
+          <th class="px-2 py-2 text-right sk-eyebrow">
             위반 recipe
           </th>
           <th class="px-2 py-2" />
@@ -55,7 +55,7 @@
           :key="dev.lot_cd"
           class="border-t border-(--sk-border) transition-colors hover:bg-(--sk-accent-tint)/40"
         >
-          <td class="px-3 py-1 font-mono text-[12.5px] text-(--sk-ink)">
+          <td class="px-3 py-1 sk-value-num">
             {{ dev.lot_cd }}
           </td>
           <td class="px-2 py-1 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink-muted)">

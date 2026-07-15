@@ -7,7 +7,7 @@
       ref="el"
       class="mt-3 h-64 w-full"
     />
-    <div class="mt-2 flex flex-wrap gap-3 text-[11px] text-(--sk-ink-muted)">
+    <div class="mt-2 flex flex-wrap gap-3 sk-meta">
       <span>● hard = MDC 변경(epoch 리셋)</span>
       <span>○ soft = BM/PM(MDC 불변)</span>
     </div>

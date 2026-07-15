@@ -2,7 +2,7 @@
   <div class="dashboard-surface flex flex-wrap items-center gap-x-5 gap-y-2 rounded-(--sk-r-card) px-4 py-2.5">
     <!-- 측정 성공률 -->
     <div class="flex flex-col gap-0.5">
-      <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">측정 성공률</span>
+      <span class="sk-label">측정 성공률</span>
       <span
         class="font-mono text-base font-bold tabular-nums"
         :class="cov.failed > 0 ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
@@ -18,7 +18,7 @@
 
     <!-- 이상 사이트 -->
     <div class="flex flex-col gap-0.5">
-      <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">이상 사이트</span>
+      <span class="sk-label">이상 사이트</span>
       <span
         v-if="ov.status === 'evaluated'"
         class="font-mono text-base font-bold tabular-nums"
@@ -34,7 +34,7 @@
 
     <!-- {param} 평균 -->
     <div class="flex flex-col gap-0.5">
-      <span class="truncate font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">{{ param }} 평균</span>
+      <span class="truncate sk-label">{{ param }} 평균</span>
       <span class="font-mono text-base font-bold tabular-nums text-(--sk-ink)">
         {{ summary ? summary.mean.toFixed(2) : '—' }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ unit }}</span>
         <span
@@ -48,7 +48,7 @@
 
     <!-- Align -->
     <div class="flex min-w-0 flex-col items-start gap-1">
-      <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">Align</span>
+      <span class="sk-label">Align</span>
       <span class="truncate font-mono text-base font-bold tabular-nums text-(--sk-ink)">
         {{ align.total }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ align.methods.join(' · ') || '—' }}</span>
       </span>

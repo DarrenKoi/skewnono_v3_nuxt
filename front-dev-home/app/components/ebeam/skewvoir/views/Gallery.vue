@@ -6,7 +6,7 @@
   >
     <div
       v-if="analysis.focusPending.value"
-      class="flex h-96 items-center justify-center gap-2 text-[12px] text-(--sk-ink-muted)"
+      class="flex h-96 items-center justify-center gap-2 sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -29,14 +29,14 @@
           class="aspect-square w-full object-cover"
           loading="lazy"
         >
-        <figcaption class="truncate px-1.5 py-1 font-mono text-[9.5px] text-(--sk-ink-subtle)">
+        <figcaption class="truncate px-1.5 py-1 sk-meta">
           {{ img.chip }} · {{ img.cd.toFixed(2) }}
         </figcaption>
       </figure>
     </div>
     <div
       v-else
-      class="flex h-96 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+      class="flex h-96 items-center justify-center sk-body"
     >
       {{ analysis.activeParam.value }} 이미지가 없습니다.
     </div>

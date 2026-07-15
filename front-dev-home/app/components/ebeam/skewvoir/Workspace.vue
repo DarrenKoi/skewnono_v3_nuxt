@@ -22,10 +22,10 @@
               />
             </span>
             <div>
-              <p class="text-[14px] font-semibold text-zinc-700 dark:text-zinc-200">
+              <p class="sk-title">
                 분석할 측정을 먼저 선택하세요.
               </p>
-              <p class="mt-0.5 text-[12px] text-(--sk-ink-muted)">
+              <p class="mt-0.5 sk-meta">
                 검색에서 결과를 열면 이 워크스페이스가 해당 측정으로 채워집니다.
               </p>
             </div>

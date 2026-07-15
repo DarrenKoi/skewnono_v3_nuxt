@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="loading"
-    class="flex h-96 items-center justify-center text-sm text-zinc-500"
+    class="flex h-96 items-center justify-center sk-body"
   >
     <UIcon
       name="i-lucide-loader-circle"
@@ -11,7 +11,7 @@
   </div>
   <div
     v-else-if="series.length === 0"
-    class="flex h-96 items-center justify-center text-center text-sm text-zinc-500"
+    class="flex h-96 items-center justify-center text-center sk-body"
   >
     No time series data
   </div>

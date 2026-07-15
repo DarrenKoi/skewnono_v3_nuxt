@@ -8,12 +8,12 @@
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-target"
-            class="h-4 w-4 text-zinc-500"
+            class="h-4 w-4 text-(--sk-ink-muted)"
           />
-          <h2 class="text-sm font-semibold">
+          <h2 class="sk-title">
             Measurement points
           </h2>
-          <span class="text-[11px] text-zinc-400 tabular-nums">
+          <span class="sk-meta tabular-nums">
             ({{ filteredRows.length }} / {{ data.length }})
           </span>
         </div>
@@ -31,7 +31,7 @@
           <button
             v-if="selectedPoint"
             type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-full px-2 text-[11px] text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800"
+            class="inline-flex h-6 items-center gap-1 rounded-full px-2 text-[11px] text-(--sk-ink-muted) ring-1 ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800"
             @click="$emit('update:selectedPoint', '')"
           >
             <UIcon
@@ -46,7 +46,7 @@
 
     <div
       v-if="filteredRows.length === 0"
-      class="px-4 py-10 text-center text-sm text-zinc-500"
+      class="px-4 py-10 text-center sk-body"
     >
       No measurement rows
     </div>
@@ -55,12 +55,12 @@
       class="max-h-[480px] overflow-auto"
     >
       <table class="w-full text-[12px] font-mono">
-        <thead class="sticky top-0 z-10 bg-zinc-50/95 text-zinc-500 backdrop-blur dark:bg-zinc-900/90">
+        <thead class="sticky top-0 z-10 bg-zinc-50/95 text-(--sk-ink-muted) backdrop-blur dark:bg-zinc-900/90">
           <tr>
             <th
               v-for="col in columns"
               :key="col.key"
-              class="px-2.5 py-1.5 text-right font-medium first:text-left"
+              class="px-2.5 py-1.5 text-right sk-label first:text-left"
             >
               {{ col.label }}
             </th>
@@ -75,7 +75,7 @@
             <td
               v-for="col in columns"
               :key="col.key"
-              class="px-2.5 py-1 text-right tabular-nums first:text-left"
+              class="px-2.5 py-1 text-right sk-value-num first:text-left"
             >
               {{ formatCell(row[col.key]) }}
             </td>

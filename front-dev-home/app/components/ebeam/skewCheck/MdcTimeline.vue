@@ -62,7 +62,7 @@
     </table>
     <p
       v-else
-      class="mt-3 text-sm text-(--sk-ink-muted)"
+      class="mt-3 sk-body"
     >
       기록된 MDC 변경이 없습니다.
     </p>

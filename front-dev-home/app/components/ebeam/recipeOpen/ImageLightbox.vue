@@ -25,10 +25,10 @@
         </div>
 
         <div class="max-h-[88vh] overflow-auto rounded-xl bg-zinc-50/60 px-4 py-3 dark:bg-zinc-900/40">
-          <p class="font-mono text-[10px] font-bold tracking-wider text-(--sk-brand) uppercase">
+          <p class="sk-eyebrow text-(--sk-brand)">
             AMP — {{ data.slot.stage.toUpperCase() }}
           </p>
-          <p class="mt-0.5 font-mono text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+          <p class="mt-0.5 sk-title">
             {{ data.slot.label }}
           </p>
           <div class="mt-2.5">
@@ -37,13 +37,13 @@
               :key="field.key"
               class="flex items-baseline justify-between gap-3 border-b border-zinc-100 py-1.5 dark:border-zinc-800/60"
             >
-              <span class="font-mono text-[11px] tracking-wide text-(--sk-ink-muted)">
+              <span class="sk-label">
                 {{ field.label }}<span
                   v-if="field.unit"
                   class="ml-1 text-(--sk-ink-subtle)"
                 >({{ field.unit }})</span>
               </span>
-              <span class="text-right font-mono text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+              <span class="text-right sk-value-num">
                 {{ formatAmpValue(data?.ampRow?.[field.key]) }}
               </span>
             </div>

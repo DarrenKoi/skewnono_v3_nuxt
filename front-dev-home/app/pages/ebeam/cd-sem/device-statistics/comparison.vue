@@ -47,7 +47,7 @@
       <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
         {{ text.emptyTitle }}
       </p>
-      <p class="mt-1 text-xs text-(--sk-ink-muted)">
+      <p class="mt-1 sk-meta">
         {{ text.emptyDesc }}
       </p>
       <UButton
@@ -77,10 +77,10 @@
               <template #content>
                 <div class="w-72 space-y-3 p-3">
                   <div>
-                    <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                    <p class="sk-title">
                       {{ text.bucketHelpTitle }}
                     </p>
-                    <p class="mt-1 text-xs leading-5 text-(--sk-ink-muted)">
+                    <p class="mt-1 sk-meta leading-5">
                       {{ text.bucketHelpIntro }}
                     </p>
                   </div>
@@ -93,7 +93,7 @@
                       <dt class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                         {{ option.label }}
                       </dt>
-                      <dd class="mt-1 text-xs leading-5 text-(--sk-ink-muted)">
+                      <dd class="mt-1 sk-meta leading-5">
                         {{ option.description }}
                       </dd>
                     </div>
@@ -150,7 +150,7 @@
 
       <div
         v-if="pending"
-        class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 text-sm text-(--sk-ink-muted)"
+        class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 sk-body"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -160,13 +160,13 @@
       </div>
       <div
         v-else-if="error"
-        class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
+        class="dashboard-surface rounded-2xl px-4 py-12 text-center sk-body text-rose-600 dark:text-rose-300"
       >
         {{ text.loadError }}
       </div>
       <div
         v-else-if="rows.length === 0"
-        class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-(--sk-ink-muted)"
+        class="dashboard-surface rounded-2xl px-4 py-12 text-center sk-body"
       >
         {{ text.noRows }}
       </div>
@@ -197,10 +197,10 @@
             >
               <template #header>
                 <div class="flex items-center justify-between gap-3">
-                  <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  <p class="sk-title">
                     {{ text.chartStackedTitle }}
                   </p>
-                  <span class="text-[10.5px] text-(--sk-ink-muted)">para_16 / 13 / 9 / 5</span>
+                  <span class="text-[11px] text-(--sk-ink-muted)">para_16 / 13 / 9 / 5</span>
                 </div>
               </template>
               <div
@@ -215,10 +215,10 @@
             >
               <template #header>
                 <div class="flex items-center justify-between gap-3">
-                  <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  <p class="sk-title">
                     {{ text.chartAvailRecipeTitle }}
                   </p>
-                  <span class="text-[10.5px] text-(--sk-ink-muted)">avail_recipe</span>
+                  <span class="text-[11px] text-(--sk-ink-muted)">avail_recipe</span>
                 </div>
               </template>
               <div

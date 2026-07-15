@@ -17,7 +17,7 @@
 
     <div
       v-if="status === 'pending' && !tools.length"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
+      class="dashboard-surface rounded-2xl px-6 py-12 text-center sk-body"
     >
       <UIcon
         name="i-lucide-loader-2"

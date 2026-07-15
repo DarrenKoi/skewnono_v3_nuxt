@@ -2,12 +2,12 @@
   <section class="dashboard-surface flex min-h-0 flex-col overflow-hidden rounded-(--sk-r-card)">
     <header class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border-soft) px-3 py-2">
       <div class="flex items-baseline gap-2">
-        <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 class="sk-title">
           검색 결과
         </h2>
         <span
           v-if="searched"
-          class="font-mono text-[10.5px] text-(--sk-ink-subtle)"
+          class="sk-meta tabular-nums"
         >
           {{ rows.length }} / {{ total.toLocaleString() }}건
         </span>
@@ -28,7 +28,7 @@
          would quietly give a wrong answer to "how many times did this run". -->
     <p
       v-if="capped"
-      class="border-b border-(--sk-border-soft) bg-amber-500/10 px-3 py-1.5 text-[11.5px] text-amber-700 dark:text-amber-400"
+      class="border-b border-(--sk-border-soft) bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400"
     >
       {{ total.toLocaleString() }}건 중 상위 10,000건만 조회됩니다. 검색어나 기간을 좁혀주세요.
     </p>
@@ -40,7 +40,7 @@
          dedicated error prompt below. -->
     <div
       v-if="error && rows.length"
-      class="flex items-center justify-between gap-3 border-b border-(--sk-border-soft) bg-(--sk-bad)/10 px-3 py-1.5 text-[11.5px] text-(--sk-bad)"
+      class="flex items-center justify-between gap-3 border-b border-(--sk-border-soft) bg-(--sk-bad)/10 px-3 py-1.5 text-xs text-(--sk-bad)"
     >
       <span>{{ error }}</span>
       <UButton
@@ -54,7 +54,7 @@
 
     <div
       v-if="bodyState === 'loading'"
-      class="flex items-center justify-center gap-2 px-4 py-12 text-[12px] text-(--sk-ink-muted)"
+      class="flex items-center justify-center gap-2 px-4 py-12 sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -73,10 +73,10 @@
         name="i-lucide-search"
         class="h-5 w-5 text-(--sk-ink-subtle)"
       />
-      <p class="text-[12.5px] text-(--sk-ink-muted)">
+      <p class="sk-body">
         장비 · Recipe · Lot · 날짜 · MSR 로 측정을 검색하세요.
       </p>
-      <p class="font-mono text-[10.5px] text-(--sk-ink-subtle)">
+      <p class="sk-meta">
         최근 {{ retentionDays }}일 보존
       </p>
     </div>
@@ -114,7 +114,7 @@
         name="i-lucide-calendar-off"
         class="h-5 w-5 text-(--sk-ink-subtle)"
       />
-      <p class="text-[12.5px] text-(--sk-ink-muted)">
+      <p class="sk-body">
         보존 기간({{ retentionDays }}일) 밖입니다. 기간을 조정해 주세요.
       </p>
     </div>
@@ -127,7 +127,7 @@
         name="i-lucide-file-question"
         class="h-5 w-5 text-(--sk-ink-subtle)"
       />
-      <p class="text-[12.5px] text-(--sk-ink-muted)">
+      <p class="sk-body">
         일치하는 측정이 없습니다.
       </p>
     </div>
@@ -138,7 +138,7 @@
     >
       <table class="w-full border-collapse text-[12px]">
         <thead class="sticky top-0 z-10 bg-(--sk-surface)">
-          <tr class="border-b border-(--sk-border-soft) text-left font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          <tr class="border-b border-(--sk-border-soft) text-left">
             <th
               class="w-8 px-3 py-1.5"
               @click.stop
@@ -149,19 +149,19 @@
                 @update:model-value="toggleVisible"
               />
             </th>
-            <th class="px-3 py-1.5 font-medium">
+            <th class="px-3 py-1.5 sk-eyebrow">
               LOT
             </th>
-            <th class="px-3 py-1.5 font-medium">
+            <th class="px-3 py-1.5 sk-eyebrow">
               RECIPE
             </th>
-            <th class="px-3 py-1.5 font-medium">
+            <th class="px-3 py-1.5 sk-eyebrow">
               EQ
             </th>
-            <th class="px-3 py-1.5 font-medium">
+            <th class="px-3 py-1.5 sk-eyebrow">
               FAB
             </th>
-            <th class="px-3 py-1.5 font-medium">
+            <th class="px-3 py-1.5 sk-eyebrow">
               CAPTURED
             </th>
             <th class="px-3 py-1.5" />

@@ -4,12 +4,12 @@
          an actions slot on the right (matches the sample's panel chrome). -->
     <header class="flex items-center justify-between gap-2 border-b border-(--sk-border-soft) px-3 py-2">
       <div class="flex min-w-0 items-baseline gap-2">
-        <h2 class="truncate text-[13px] font-semibold text-(--sk-ink)">
+        <h2 class="truncate sk-title">
           {{ title }}
         </h2>
         <span
           v-if="meta"
-          class="truncate font-mono text-[11px] text-(--sk-ink-muted)"
+          class="truncate sk-meta"
         >{{ meta }}</span>
       </div>
 

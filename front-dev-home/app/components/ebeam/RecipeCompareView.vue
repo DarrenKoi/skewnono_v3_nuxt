@@ -15,7 +15,7 @@
         name="i-lucide-scale"
         class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+      <p class="mt-2 sk-body">
         비교하려면 recipe를 2개 이상 선택하세요.
       </p>
       <UButton
@@ -58,7 +58,7 @@
           name="i-lucide-circle-alert"
           class="mx-auto h-6 w-6 text-rose-500"
         />
-        <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
+        <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
           비교 데이터를 불러오지 못했습니다.
         </p>
         <UButton
@@ -150,7 +150,7 @@
 
         <div
           v-else
-          class="dashboard-surface rounded-2xl px-6 py-10 text-center text-sm text-(--sk-ink-muted)"
+          class="dashboard-surface rounded-2xl px-6 py-10 text-center sk-body"
         >
           비교할 파라미터를 선택하세요. (공통 전체 선택을 눌러보세요.)
         </div>

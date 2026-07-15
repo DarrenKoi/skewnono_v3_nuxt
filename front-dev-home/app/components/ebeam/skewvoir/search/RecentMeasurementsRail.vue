@@ -1,12 +1,12 @@
 <template>
   <section class="dashboard-surface flex h-full min-h-0 flex-col overflow-hidden rounded-(--sk-r-card)">
     <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
-      <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-subtle)">
+      <p class="sk-eyebrow">
         RECENT ANALYSIS
       </p>
       <div class="mt-0.5 flex items-center justify-between gap-2">
         <div class="flex items-baseline gap-2">
-          <h2 class="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 class="sk-title">
             최근 본 측정
           </h2>
           <span class="font-mono text-[10px] text-(--sk-ink-subtle)">{{ items.length }}</span>
@@ -20,14 +20,14 @@
           @click="emit('clear')"
         />
       </div>
-      <p class="mt-1 text-[10.5px] leading-4 text-(--sk-ink-muted)">
+      <p class="mt-1 sk-meta">
         단일 측정과 Time-Series 분석을 다시 엽니다.
       </p>
     </header>
 
     <p
       v-if="!items.length"
-      class="px-4 py-10 text-center text-[11.5px] leading-5 text-(--sk-ink-muted)"
+      class="px-4 py-10 text-center sk-body"
     >
       단일 측정 또는 Time-Series를 열면<br>최근 작업이 여기에 표시됩니다.
     </p>
@@ -47,7 +47,7 @@
       >
         <div class="flex items-start justify-between gap-2">
           <span
-            class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-[9.5px] font-semibold"
+            class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-[11px] font-semibold"
             :class="item.mode === 'time-series'
               ? 'bg-(--sk-brand-soft) text-(--sk-brand)'
               : 'bg-(--sk-chip-bg) text-(--sk-chip-text)'"
@@ -69,13 +69,13 @@
         <p class="mt-2 truncate font-mono text-[11px] font-semibold text-(--sk-ink)">
           {{ summarizeRecentValues(item.measurements.map(measurement => measurement.lot)) }}
         </p>
-        <p class="mt-0.5 truncate font-mono text-[9.5px] text-(--sk-ink-muted)">
+        <p class="mt-0.5 truncate font-mono text-[11px] text-(--sk-ink-muted)">
           {{ summarizeRecentValues(item.measurements.map(measurement => measurement.recipe)) }}
         </p>
-        <p class="mt-0.5 truncate font-mono text-[9.5px] text-(--sk-ink-muted)">
+        <p class="mt-0.5 truncate font-mono text-[11px] text-(--sk-ink-muted)">
           {{ summarizeRecentValues(item.measurements.map(measurement => measurement.eq)) }}
         </p>
-        <div class="mt-2 flex items-center justify-between gap-2 font-mono text-[9px] text-(--sk-ink-subtle)">
+        <div class="mt-2 flex items-center justify-between gap-2 font-mono text-[11px] text-(--sk-ink-subtle)">
           <span>{{ item.viewedAt.slice(0, 16).replace('T', ' ') }}</span>
           <span v-if="item.expired">보존 기간 만료</span>
           <span v-else-if="item.expiredCount">{{ item.expiredCount }}개 만료</span>

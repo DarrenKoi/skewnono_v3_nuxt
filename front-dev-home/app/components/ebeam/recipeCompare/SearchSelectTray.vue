@@ -17,14 +17,14 @@ const emit = defineEmits<{
   <section class="dashboard-surface rounded-2xl border border-(--sk-brand)/35 p-4 shadow-sm xl:sticky xl:top-0">
     <div class="flex items-center justify-between gap-3">
       <div>
-        <p class="flex items-center gap-1.5 text-sm font-bold text-(--sk-ink)">
+        <p class="flex items-center gap-1.5 sk-title">
           <UIcon
             name="i-lucide-shopping-basket"
             class="h-4 w-4 text-(--sk-brand)"
           />
           작업 세트
         </p>
-        <p class="mt-0.5 text-xs text-(--sk-ink-muted)">
+        <p class="mt-0.5 sk-meta">
           선택한 Recipe {{ selected.length }}개
         </p>
       </div>
@@ -70,10 +70,10 @@ const emit = defineEmits<{
         name="i-lucide-list-checks"
         class="mx-auto h-5 w-5 text-(--sk-ink-muted)"
       />
-      <p class="mt-2 text-sm font-medium text-(--sk-ink)">
+      <p class="mt-2 sk-body">
         Recipe를 선택해주세요
       </p>
-      <p class="mt-1 text-xs text-(--sk-ink-muted)">
+      <p class="mt-1 sk-meta">
         결과 표의 체크박스로 작업 세트를 구성할 수 있습니다.
       </p>
     </div>

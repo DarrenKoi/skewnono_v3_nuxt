@@ -3,14 +3,14 @@
     <header class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <div class="flex items-center gap-2">
-          <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 class="sk-title">
             측정 작업 세트
           </h2>
           <span class="rounded-(--sk-r-chip) bg-(--sk-brand-soft) px-1.5 py-0.5 font-mono text-[10px] font-semibold text-(--sk-brand)">
             {{ selected.length }}
           </span>
         </div>
-        <p class="mt-1 truncate font-mono text-[9.5px] text-(--sk-ink-subtle)">
+        <p class="mt-1 truncate sk-meta tabular-nums">
           {{ coverage.recipes }} RECIPE · {{ coverage.lots }} LOT · {{ coverage.equipment }} EQ
         </p>
       </div>
@@ -18,7 +18,7 @@
       <div class="flex shrink-0 items-center gap-1.5">
         <span
           v-if="selected.length > 30"
-          class="font-mono text-[9px] text-(--sk-bad)"
+          class="font-mono text-[11px] text-(--sk-bad)"
         >최대 30개 표시</span>
         <UButton
           color="primary"
@@ -44,7 +44,7 @@
     <div class="mt-3 flex min-h-12 max-h-28 min-w-0 flex-1 flex-wrap content-start items-start gap-1.5 overflow-y-auto border-t border-(--sk-border-soft) pt-2.5">
       <p
         v-if="!selected.length"
-        class="self-center text-[11.5px] text-(--sk-ink-muted)"
+        class="self-center sk-body"
       >
         검색 결과의 체크박스로 여러 검색의 측정을 모으세요.
       </p>
@@ -52,7 +52,7 @@
         v-for="row in selected"
         v-else
         :key="row.msr"
-        class="group inline-flex max-w-56 shrink-0 items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) py-1 pl-2 pr-1 font-mono text-[9.5px] text-(--sk-ink)"
+        class="group inline-flex max-w-56 shrink-0 items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) py-1 pl-2 pr-1 font-mono text-[11px] text-(--sk-ink)"
         :title="`${row.full_name} · ${row.lot_id} · ${row.eqp_id}`"
       >
         <span class="truncate">{{ row.lot_id }} · {{ row.eqp_id }}</span>

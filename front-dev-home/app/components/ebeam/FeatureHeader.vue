@@ -48,7 +48,7 @@ const statToneClass = (tone: HeaderStatTone = 'neutral') => {
         </h1>
         <p
           v-if="subtitle"
-          class="mt-0.5 text-xs text-(--sk-ink-muted)"
+          class="mt-0.5 sk-meta"
         >
           {{ subtitle }}
         </p>
@@ -78,7 +78,7 @@ const statToneClass = (tone: HeaderStatTone = 'neutral') => {
             >
               {{ cell.value }}
             </span>
-            <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+            <span class="sk-label">{{ cell.label }}</span>
           </div>
         </div>
       </slot>

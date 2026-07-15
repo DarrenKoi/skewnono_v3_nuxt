@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <div
       v-if="analysis.setPending.value"
-      class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) text-[12px] text-(--sk-ink-muted)"
+      class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -44,7 +44,7 @@
         icon="i-lucide-list"
       >
         <div class="max-h-48 overflow-auto">
-          <table class="w-full border-collapse text-[11.5px]">
+          <table class="w-full border-collapse text-xs">
             <tbody>
               <tr
                 v-for="row in analysis.setRows.value"
@@ -69,7 +69,7 @@
 
     <div
       v-else
-      class="dashboard-surface flex h-72 items-center justify-center text-center text-[12px] text-(--sk-ink-subtle)"
+      class="dashboard-surface flex h-72 items-center justify-center text-center sk-body"
     >
       <span v-if="analysis.setRows.value.length === 0">비교 세트를 추가하면 합성 맵이 표시됩니다.</span>
       <span v-else>이 세트에는 “{{ analysis.activeParam.value }}” 파라미터 데이터가 없습니다. 다른 파라미터를 선택하세요.</span>

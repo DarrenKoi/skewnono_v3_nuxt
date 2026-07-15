@@ -47,6 +47,6 @@ defineProps<{
 }>()
 
 const rowClass = 'flex items-baseline justify-between gap-3 border-b border-zinc-100 py-1.5 dark:border-zinc-800/60'
-const labelClass = 'font-mono text-[11px] tracking-wide text-(--sk-ink-muted)'
-const valueClass = 'text-right text-[13px] font-medium text-zinc-900 dark:text-zinc-100'
+const labelClass = 'sk-label'
+const valueClass = 'text-right sk-value'
 </script>

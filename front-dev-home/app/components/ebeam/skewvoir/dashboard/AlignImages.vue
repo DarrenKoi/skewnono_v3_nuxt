@@ -23,7 +23,7 @@
           @click.stop
         >
           <div class="mb-3 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-(--sk-ink)">
+            <h3 class="sk-title">
               정렬 이미지 · Align
             </h3>
             <button
@@ -54,14 +54,14 @@
                 class="w-full cursor-zoom-in rounded-(--sk-r-chip) border border-(--sk-border) transition hover:ring-2 hover:ring-(--sk-brand)"
                 @click="zoomSrc = msrImageUrl(img.name)"
               >
-              <figcaption class="font-mono text-[11px] text-(--sk-ink-muted)">
+              <figcaption class="sk-meta">
                 {{ img.label }} · score {{ img.score }}
               </figcaption>
             </figure>
           </div>
           <p
             v-else
-            class="py-8 text-center text-sm text-(--sk-ink-subtle)"
+            class="py-8 text-center sk-body"
           >
             정렬 이미지가 없습니다.
           </p>

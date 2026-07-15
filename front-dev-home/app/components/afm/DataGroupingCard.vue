@@ -4,9 +4,9 @@
       <div class="flex items-center gap-2">
         <UIcon
           name="i-lucide-layers"
-          class="h-4 w-4 text-zinc-500"
+          class="h-4 w-4 text-(--sk-ink-muted)"
         />
-        <h3 class="text-sm font-semibold">
+        <h3 class="sk-title">
           Data Grouping
         </h3>
         <UBadge
@@ -37,10 +37,10 @@
         class="group flex items-start gap-2 px-4 py-2.5"
       >
         <div class="min-w-0 flex-1">
-          <p class="truncate text-xs font-medium">
+          <p class="truncate sk-value">
             {{ item.formattedDate }} • {{ item.recipeName }} • {{ item.lotId }}
           </p>
-          <p class="truncate text-[11px] text-zinc-500">
+          <p class="truncate sk-meta">
             Slot {{ item.slotNumber }} · {{ item.measuredInfo }}
           </p>
         </div>
@@ -57,7 +57,7 @@
     </ul>
     <p
       v-else
-      class="px-4 py-6 text-center text-xs text-zinc-500"
+      class="px-4 py-6 text-center sk-body"
     >
       No grouped data yet
     </p>
@@ -121,7 +121,7 @@
             />
           </UFormField>
 
-          <div class="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+          <div class="rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-900 sk-meta">
             <strong>Group contains:</strong> {{ items.length }} measurements
           </div>
 

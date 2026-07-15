@@ -2,7 +2,7 @@
   <div class="dashboard-surface rounded-2xl px-3.5 py-3">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+        <h3 class="sk-title">
           {{ title }}
         </h3>
         <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -74,7 +74,7 @@
       </template>
     </UTable>
 
-    <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
+    <div class="mt-2 flex items-center justify-between sk-meta">
       <span class="tabular-nums">
         Page {{ page }} / {{ pageCount }}
         <span class="ml-2 text-(--sk-ink-muted)">
@@ -142,8 +142,8 @@ const pageSizeOptions = [
 
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  td: 'py-1.5 px-3 whitespace-nowrap overflow-hidden text-ellipsis tabular-nums sk-value',
+  th: 'py-2 px-3 sk-label bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
 const getSortIcon = (direction: false | 'asc' | 'desc') => {

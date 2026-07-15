@@ -8,7 +8,7 @@
   >
     <template #body>
       <div class="space-y-2">
-        <div class="flex flex-wrap items-center gap-3 text-[12px] text-(--sk-ink-muted)">
+        <div class="flex flex-wrap items-center gap-3 sk-meta">
           <span>recipe {{ device?.recipes.length ?? 0 }}개</span>
           <span class="inline-flex items-center gap-1.5">
             <span class="inline-block h-2 w-2 rounded-full bg-rose-500" />
@@ -27,7 +27,7 @@
             class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
             @click="toggle(recipe.recipe_id)"
           >
-            <span class="flex items-center gap-2 font-mono text-[12px] text-(--sk-ink)">
+            <span class="flex items-center gap-2 sk-value-num">
               <UIcon
                 :name="expanded.has(recipe.recipe_id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
                 class="h-3.5 w-3.5 text-(--sk-ink-subtle)"
@@ -53,10 +53,10 @@
                 :key="param.name"
                 :class="param.flagged ? 'bg-rose-100/50 dark:bg-rose-950/30' : ''"
               >
-                <td class="px-3 py-1 font-mono text-(--sk-ink)">
+                <td class="px-3 py-1 sk-value-num">
                   {{ param.name }}
                 </td>
-                <td class="px-3 py-1 text-right font-mono tabular-nums text-(--sk-ink)">
+                <td class="px-3 py-1 text-right sk-value-num">
                   {{ param.point_count }}
                 </td>
                 <td class="px-3 py-1 text-right font-mono text-[11px] text-(--sk-ink-subtle)">

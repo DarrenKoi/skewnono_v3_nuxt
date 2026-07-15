@@ -3,13 +3,13 @@
     <section class="dashboard-surface rounded-3xl p-5 md:p-6">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div class="min-w-0">
-          <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold mb-2">
+          <p class="sk-eyebrow mb-2">
             AFM - See Together
           </p>
           <h1 class="text-xl md:text-2xl font-semibold tracking-tight">
             Time series comparison
           </h1>
-          <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <p class="sk-meta mt-1">
             {{ toolName }} - {{ groupedItems.length }} selected measurements
           </p>
         </div>
@@ -31,12 +31,12 @@
     >
       <UIcon
         name="i-lucide-layers-2"
-        class="mx-auto h-10 w-10 text-zinc-400"
+        class="mx-auto h-10 w-10 text-(--sk-ink-muted)"
       />
       <h2 class="mt-3 text-base font-semibold">
         No grouped measurements
       </h2>
-      <p class="mt-1 text-sm text-zinc-500">
+      <p class="mt-1 sk-body">
         Add AFM recipes to Data Grouping before opening See Together.
       </p>
     </section>
@@ -47,9 +47,9 @@
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-list-checks"
-              class="h-4 w-4 text-zinc-500"
+              class="h-4 w-4 text-(--sk-ink-muted)"
             />
-            <h2 class="text-sm font-semibold">
+            <h2 class="sk-title">
               Selected measurements
             </h2>
           </div>
@@ -73,7 +73,7 @@
             <span class="truncate text-sm font-medium">
               {{ item.recipeName }}
             </span>
-            <span class="font-mono text-xs text-zinc-500">
+            <span class="font-mono text-xs text-(--sk-ink-muted)">
               {{ item.lotId }}
             </span>
             <UBadge
@@ -106,12 +106,12 @@
           <div class="flex items-center gap-2">
             <UIcon
               name="i-lucide-chart-no-axes-combined"
-              class="h-4 w-4 text-zinc-500"
+              class="h-4 w-4 text-(--sk-ink-muted)"
             />
-            <h2 class="text-sm font-semibold">
+            <h2 class="sk-title">
               Time series
             </h2>
-            <span class="text-xs text-zinc-500">
+            <span class="sk-meta">
               {{ loadedPayloads.length }} loaded
             </span>
           </div>
@@ -144,7 +144,7 @@
         <div class="p-4">
           <div
             v-if="pending"
-            class="flex h-96 items-center justify-center text-sm text-zinc-500"
+            class="flex h-96 items-center justify-center sk-body"
           >
             <UIcon
               name="i-lucide-loader-circle"
@@ -154,13 +154,13 @@
           </div>
           <div
             v-else-if="loadedPayloads.length === 0"
-            class="flex h-96 items-center justify-center text-center text-sm text-zinc-500"
+            class="flex h-96 items-center justify-center text-center sk-body"
           >
             No measurement details were loaded.
           </div>
           <div
             v-else-if="!selectedSite || !selectedColumn"
-            class="flex h-96 items-center justify-center text-center text-sm text-zinc-500"
+            class="flex h-96 items-center justify-center text-center sk-body"
           >
             Select a site and measurement column.
           </div>

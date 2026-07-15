@@ -2,15 +2,15 @@
   <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div class="flex items-start justify-between gap-3 border-b border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
       <div>
-        <p class="font-mono text-[11px] tracking-wider text-(--sk-brand) uppercase">
+        <p class="sk-eyebrow text-(--sk-brand)">
           IDP_IMAGE_INFO
         </p>
-        <p class="mt-0.5 text-sm font-bold text-zinc-900 dark:text-zinc-100">
+        <p class="mt-0.5 sk-title">
           파라미터 목록 · {{ rows.length }}
         </p>
       </div>
       <div class="flex flex-col items-end gap-1.5">
-        <span class="text-[11px] text-(--sk-ink-muted)">
+        <span class="sk-meta">
           행 클릭 → 우측 상세 표시
         </span>
         <UButton

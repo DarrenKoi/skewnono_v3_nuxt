@@ -7,10 +7,10 @@
           ? 'bg-(--sk-accent) text-white'
           : 'bg-zinc-200 text-(--sk-ink-muted) dark:bg-zinc-700'"
       >3</span>
-      <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+      <h3 class="sk-title">
         {{ text.step3Title }}
       </h3>
-      <span class="text-[10.5px] text-(--sk-ink-muted)">
+      <span class="sk-meta">
         {{ activeTab === 'selection' ? text.step3HintSelection : text.step3HintPresets }}
       </span>
     </div>
@@ -68,13 +68,13 @@
               :key="row.lot_cd"
               class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
             >
-              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[9px] text-(--sk-ink-muted) dark:bg-zinc-800">
+              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[11px] text-(--sk-ink-muted) dark:bg-zinc-800">
                 {{ index + 1 }}
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">
-                  <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ row.lot_cd }}</span>
-                  <span class="text-[9.5px] uppercase tracking-wide text-(--sk-ink-muted)">
+                  <span class="sk-value-num">{{ row.lot_cd }}</span>
+                  <span class="text-[11px] uppercase tracking-wide text-(--sk-ink-muted)">
                     {{ deviceChipLabel(row) }}
                   </span>
                 </div>
@@ -136,7 +136,7 @@
           <button
             v-if="selectedDeviceLots.length > 0"
             type="button"
-            class="block w-full text-center text-[10.5px] text-(--sk-ink-muted) hover:text-(--sk-ink)"
+            class="block w-full text-center text-[11px] text-(--sk-ink-muted) hover:text-(--sk-ink)"
             @click="clearDeviceSelection"
           >
             {{ text.clearAll }}
@@ -165,24 +165,24 @@
               <div class="flex items-start gap-2">
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    <span class="truncate text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{{ preset.name }}</span>
+                    <span class="truncate sk-title">{{ preset.name }}</span>
                     <span
                       v-if="preset.fab"
-                      class="shrink-0 rounded bg-(--sk-accent-tint) px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide text-(--sk-accent) ring-1 ring-(--sk-accent-border)"
+                      class="shrink-0 rounded bg-(--sk-accent-tint) px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-wide text-(--sk-accent) ring-1 ring-(--sk-accent-border)"
                     >
                       {{ preset.fab }}
                     </span>
-                    <span class="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[9.5px] tabular-nums text-(--sk-ink-muted) dark:bg-zinc-800">
+                    <span class="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-(--sk-ink-muted) dark:bg-zinc-800">
                       {{ preset.lots.length }}{{ text.lotsSuffix }}
                     </span>
                   </div>
                   <p
                     v-if="preset.comments"
-                    class="mt-1 line-clamp-2 text-[10.5px] leading-snug text-(--sk-ink)"
+                    class="mt-1 line-clamp-2 text-[11px] leading-snug text-(--sk-ink)"
                   >
                     {{ preset.comments }}
                   </p>
-                  <p class="mt-1 flex items-center gap-1 text-[9.5px] text-(--sk-ink-muted)">
+                  <p class="mt-1 flex items-center gap-1 sk-meta">
                     <UIcon
                       name="i-lucide-clock-3"
                       class="h-2.5 w-2.5"

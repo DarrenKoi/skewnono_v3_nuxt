@@ -6,10 +6,10 @@
     <div class="dashboard-surface inline-flex items-stretch rounded-[var(--sk-r-card)] p-1.5">
       <!-- Title pod + divider, mirroring the meta-bar's left cluster. -->
       <div class="flex flex-col justify-center py-1.5 pl-3 pr-4">
-        <p class="font-mono text-[10px] font-semibold tracking-[0.06em] text-(--sk-ink-muted)">
+        <p class="sk-eyebrow">
           RECIPE 현황
         </p>
-        <h2 class="text-lg font-extrabold leading-tight tracking-tight text-(--sk-ink)">
+        <h2 class="sk-heading">
           목록
         </h2>
       </div>

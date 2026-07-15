@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="mb-2 px-0.5 text-[11px] text-(--sk-ink-muted)">
+    <p class="mb-2 px-0.5 sk-meta">
       검색 · <span class="font-semibold text-zinc-600 dark:text-zinc-300">장비 / Recipe / Lot / 날짜 / MSR</span>
       · OpenSearch<span v-if="retentionDays"> · 최근 {{ retentionDays }}일 보존</span>
     </p>
@@ -37,7 +37,7 @@
          and it mirrors FilterBar already going inert on the same signal. -->
     <p
       v-if="disabled"
-      class="mt-1.5 text-[11px] text-(--sk-ink-muted)"
+      class="mt-1.5 sk-meta"
     >
       장비 목록을 아직 불러오지 못했습니다 — 계속되면 페이지를 새로고침해 주세요.
     </p>

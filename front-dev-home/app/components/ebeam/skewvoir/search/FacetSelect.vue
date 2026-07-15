@@ -28,7 +28,7 @@
         />
         <p
           v-if="!visibleOptions.length"
-          class="px-2 py-3 text-[12px] text-(--sk-ink-muted)"
+          class="px-2 py-3 sk-body"
         >
           값이 없습니다.
         </p>
@@ -50,8 +50,8 @@
               class="flex min-w-0 flex-1 items-baseline justify-between gap-2 text-left"
               @click="toggle(opt.value)"
             >
-              <span class="truncate font-mono text-[11.5px] text-zinc-700 dark:text-zinc-200">{{ opt.value }}</span>
-              <span class="shrink-0 font-mono text-[10.5px] text-(--sk-ink-subtle)">{{ opt.count }}</span>
+              <span class="truncate font-mono text-xs text-zinc-700 dark:text-zinc-200">{{ opt.value }}</span>
+              <span class="shrink-0 font-mono text-[11px] text-(--sk-ink-subtle)">{{ opt.count }}</span>
             </button>
           </li>
         </ul>

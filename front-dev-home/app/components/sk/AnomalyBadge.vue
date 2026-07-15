@@ -11,7 +11,7 @@
       />
       <span
         v-if="!compact && label"
-        class="text-[10.5px] font-medium"
+        class="text-[11px] font-medium"
         :style="{ color: colorVar }"
       >{{ label }}</span>
     </span>

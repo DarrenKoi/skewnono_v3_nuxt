@@ -276,22 +276,22 @@ const openMeasHist = (recipeName: string) => {
       <div class="grid gap-4 xl:grid-cols-12 xl:items-stretch">
         <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-8">
           <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
-            <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-subtle)">
+            <p class="sk-eyebrow">
               RECIPE LOOKUP
             </p>
             <div class="mt-0.5 flex items-baseline justify-between gap-2">
-              <h2 class="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2 class="sk-title">
                 Recipe 검색
               </h2>
               <span class="font-mono text-[10px] text-(--sk-ink-subtle)">3자 이상</span>
             </div>
-            <p class="mt-1 text-[10.5px] leading-4 text-(--sk-ink-muted)">
+            <p class="mt-1 sk-meta">
               Recipe 이름의 전체 또는 일부를 입력하여 DB를 조회합니다.
             </p>
           </header>
 
           <div class="flex flex-1 flex-col p-3">
-            <p class="mb-2 px-0.5 text-[11px] text-(--sk-ink-muted)">
+            <p class="mb-2 px-0.5 sk-meta">
               검색 · <span class="font-semibold text-zinc-600 dark:text-zinc-300">Recipe 이름</span> · DB
             </p>
             <form
@@ -357,12 +357,12 @@ const openMeasHist = (recipeName: string) => {
 
         <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-4">
           <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
-            <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-subtle)">
+            <p class="sk-eyebrow">
               RECENT SEARCHES
             </p>
             <div class="mt-0.5 flex items-center justify-between gap-2">
               <div class="flex items-baseline gap-2">
-                <h2 class="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                <h2 class="sk-title">
                   최근 검색
                 </h2>
                 <span class="font-mono text-[10px] text-(--sk-ink-subtle)">{{ recentSearches.length }}</span>
@@ -376,7 +376,7 @@ const openMeasHist = (recipeName: string) => {
                 @click="clearRecentSearches"
               />
             </div>
-            <p class="mt-1 text-[10.5px] leading-4 text-(--sk-ink-muted)">
+            <p class="mt-1 sk-meta">
               최근 검색어를 선택하여 동일한 Recipe 목록을 다시 조회합니다.
             </p>
           </header>
@@ -416,7 +416,7 @@ const openMeasHist = (recipeName: string) => {
           </div>
           <p
             v-else
-            class="px-4 py-10 text-center text-[11.5px] leading-5 text-(--sk-ink-muted)"
+            class="px-4 py-10 text-center sk-meta"
           >
             Recipe를 검색하면<br>최근 검색어가 여기에 표시됩니다.
           </p>
@@ -446,7 +446,7 @@ const openMeasHist = (recipeName: string) => {
               name="i-lucide-circle-alert"
               class="mx-auto h-6 w-6 text-rose-500"
             />
-            <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
+            <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
               Recipe 목록을 불러오지 못했습니다.
             </p>
             <UButton
@@ -468,10 +468,10 @@ const openMeasHist = (recipeName: string) => {
               name="i-lucide-keyboard"
               class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
             />
-            <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            <p class="mt-2 sk-body">
               3자 이상 입력해주세요
             </p>
-            <p class="mt-1 text-xs text-(--sk-ink-muted)">
+            <p class="mt-1 sk-meta">
               Recipe 이름을 3자 이상 입력하면 검색이 시작됩니다. · 체크하면 여러 recipe를 한 번에 열거나 비교할 수 있습니다.
             </p>
           </div>
@@ -484,10 +484,10 @@ const openMeasHist = (recipeName: string) => {
               name="i-lucide-search-x"
               class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
             />
-            <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            <p class="mt-2 sk-body">
               검색 결과가 없습니다.
             </p>
-            <p class="mt-1 text-xs text-(--sk-ink-muted)">
+            <p class="mt-1 sk-meta">
               다른 recipe 이름 조각을 입력해주세요.
             </p>
           </div>
@@ -498,7 +498,7 @@ const openMeasHist = (recipeName: string) => {
           >
             <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2">
-                <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                <h2 class="sk-title">
                   Recipe results
                 </h2>
                 <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">

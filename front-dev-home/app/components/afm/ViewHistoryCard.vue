@@ -4,9 +4,9 @@
       <div class="flex items-center gap-2">
         <UIcon
           name="i-lucide-eye"
-          class="h-4 w-4 text-zinc-500"
+          class="h-4 w-4 text-(--sk-ink-muted)"
         />
-        <h3 class="text-sm font-semibold">
+        <h3 class="sk-title">
           View History
         </h3>
         <UBadge
@@ -41,10 +41,10 @@
           class="min-w-0 flex-1 cursor-pointer text-left"
           @click="$emit('view-details', item)"
         >
-          <p class="truncate text-xs font-medium">
+          <p class="truncate sk-value">
             {{ item.formattedDate }} • {{ item.recipeName }} • {{ item.lotId }}
           </p>
-          <p class="truncate text-[11px] text-zinc-500">
+          <p class="truncate sk-meta">
             Slot {{ item.slotNumber }} · {{ item.measuredInfo }} · {{ formatViewedAt(item.viewedAt) }}
           </p>
         </button>
@@ -61,7 +61,7 @@
     </ul>
     <p
       v-else
-      class="px-4 py-6 text-center text-xs text-zinc-500"
+      class="px-4 py-6 text-center sk-body"
     >
       No view history yet
     </p>

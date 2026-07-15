@@ -14,10 +14,10 @@
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="text-[11px] uppercase tracking-wide text-(--sk-ink-muted)">
+              <p class="sk-eyebrow">
                 {{ text.summaryHeading }}
               </p>
-              <p class="mt-0.5 text-[12.5px] text-zinc-700 dark:text-zinc-300">
+              <p class="mt-0.5 sk-value">
                 {{ summaryRow.ctn_desc || '—' }}
               </p>
             </div>
@@ -33,34 +33,34 @@
           </div>
           <dl class="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px] sm:grid-cols-4">
             <div>
-              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
+              <dt class="sk-label">
                 fac_id
               </dt>
-              <dd class="font-mono text-zinc-700 dark:text-zinc-200">
+              <dd class="sk-value-num">
                 {{ summaryRow.fac_id }}
               </dd>
             </div>
             <div>
-              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
+              <dt class="sk-label">
                 avail_recipe
               </dt>
-              <dd class="tabular-nums text-zinc-700 dark:text-zinc-200">
+              <dd class="sk-value-num">
                 {{ summaryRow.avail_recipe }} / {{ summaryRow.total_recipe }}
               </dd>
             </div>
             <div>
-              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
+              <dt class="sk-label">
                 para_all
               </dt>
-              <dd class="tabular-nums text-zinc-700 dark:text-zinc-200">
+              <dd class="sk-value-num">
                 {{ summaryRow.para_all }}
               </dd>
             </div>
             <div>
-              <dt class="font-mono text-[10px] text-(--sk-ink-muted)">
+              <dt class="sk-label">
                 stack
               </dt>
-              <dd class="font-mono text-zinc-700 dark:text-zinc-200">
+              <dd class="sk-value-num">
                 {{ summaryRow.para_16 }}/{{ summaryRow.para_13 }}/{{ summaryRow.para_9 }}/{{ summaryRow.para_5 }}
               </dd>
             </div>
@@ -69,7 +69,7 @@
 
         <div
           v-if="recipeRows.length === 0"
-          class="rounded-2xl px-4 py-12 text-center text-sm text-(--sk-ink-muted) ring-1 ring-zinc-200 dark:ring-zinc-800"
+          class="rounded-2xl px-4 py-12 text-center sk-body ring-1 ring-zinc-200 dark:ring-zinc-800"
         >
           {{ text.empty }}
         </div>

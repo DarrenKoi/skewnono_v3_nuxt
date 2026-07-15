@@ -1,15 +1,13 @@
 <template>
   <div class="dashboard-surface flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-(--sk-r-card) px-4 py-2.5">
-    <span class="font-mono text-[10px] font-semibold tracking-[0.06em] text-(--sk-ink-muted) uppercase">
-      측정 조건
-    </span>
+    <span class="sk-eyebrow">측정 조건</span>
     <div
       v-for="f in conditionFields"
       :key="f.label"
       class="flex flex-col gap-0.5"
     >
-      <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ f.label }}</span>
-      <span class="max-w-[10rem] truncate font-mono text-xs text-(--sk-ink)">{{ f.value }}</span>
+      <span class="sk-label">{{ f.label }}</span>
+      <span class="sk-value-num max-w-[10rem] truncate">{{ f.value }}</span>
     </div>
   </div>
 </template>

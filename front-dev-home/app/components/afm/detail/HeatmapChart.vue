@@ -8,15 +8,15 @@
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-grid-3x3"
-            class="h-4 w-4 text-zinc-500"
+            class="h-4 w-4 text-(--sk-ink-muted)"
           />
-          <h2 class="text-sm font-semibold">
+          <h2 class="sk-title">
             Wafer heat map
           </h2>
         </div>
         <span
           v-if="profile.length"
-          class="text-[11px] text-zinc-400 tabular-nums"
+          class="sk-meta tabular-nums"
         >
           {{ profile.length.toLocaleString() }} points
         </span>
@@ -25,7 +25,7 @@
 
     <div
       v-if="loading"
-      class="flex h-72 items-center justify-center text-sm text-zinc-500"
+      class="flex h-72 items-center justify-center sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -35,7 +35,7 @@
     </div>
     <div
       v-else-if="profile.length === 0"
-      class="flex h-72 items-center justify-center text-center text-sm text-zinc-500"
+      class="flex h-72 items-center justify-center text-center sk-body"
     >
       Heat map data unavailable
     </div>

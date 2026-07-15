@@ -7,7 +7,7 @@
       >
         <UIcon
           name="i-lucide-search"
-          class="h-5 w-5 shrink-0 text-zinc-400"
+          class="h-5 w-5 shrink-0 text-(--sk-ink-muted)"
         />
         <input
           v-model="query"
@@ -41,7 +41,7 @@
           />
           <template #content>
             <div class="w-64 p-2">
-              <p class="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <p class="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-(--sk-ink-muted)">
                 Recent searches
               </p>
               <button
@@ -53,7 +53,7 @@
               >
                 <UIcon
                   name="i-lucide-history"
-                  class="h-4 w-4 text-zinc-400"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
                 />
                 <span class="truncate">{{ term }}</span>
               </button>
@@ -84,13 +84,13 @@
 
       <p
         v-if="activeQuery && filteredResults.length === 0"
-        class="mt-3 text-center text-xs text-zinc-500"
+        class="mt-3 text-center sk-meta"
       >
         No results found for "{{ activeQuery }}"
       </p>
       <p
         v-else-if="activeQuery"
-        class="mt-3 text-center text-xs text-zinc-500"
+        class="mt-3 text-center sk-meta"
       >
         Found {{ filteredResults.length }} results for "{{ activeQuery }}"
       </p>
@@ -101,19 +101,19 @@
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-database"
-            class="h-4 w-4 text-zinc-500"
+            class="h-4 w-4 text-(--sk-ink-muted)"
           />
-          <h2 class="text-sm font-semibold">
+          <h2 class="sk-title">
             {{ activeQuery ? 'Search Results' : 'Recent Measurements' }}
           </h2>
-          <span class="text-xs text-zinc-500 tabular-nums">
+          <span class="sk-meta tabular-nums">
             ({{ filteredResults.length }}{{ filteredResults.length !== mockResults.length ? `/${mockResults.length}` : '' }})
           </span>
         </div>
         <div class="relative w-48">
           <UIcon
             name="i-lucide-filter"
-            class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--sk-ink-muted)"
           />
           <input
             v-model="innerFilter"
@@ -127,7 +127,7 @@
 
       <div
         v-if="filteredResults.length === 0"
-        class="px-5 py-10 text-center text-sm text-zinc-500"
+        class="px-5 py-10 text-center sk-body"
       >
         No measurements to show
       </div>
@@ -148,7 +148,7 @@
             <span class="text-sm font-semibold">
               {{ result.recipeName }}
             </span>
-            <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+            <span class="font-mono text-xs text-(--sk-ink-muted)">
               {{ result.lotId }}
             </span>
             <UBadge
@@ -177,7 +177,7 @@
               v-for="dt in availableDataTypes(result)"
               :key="dt.key"
               :name="dt.icon"
-              class="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400"
+              class="h-3.5 w-3.5 text-(--sk-ink-muted)"
               :title="dt.tooltip"
             />
           </div>

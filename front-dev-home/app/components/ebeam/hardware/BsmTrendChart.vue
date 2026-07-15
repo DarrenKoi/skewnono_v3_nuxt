@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col">
     <div class="mb-1 flex items-center gap-2 px-1">
-      <span class="text-[11px] font-semibold uppercase tracking-[0.06em] text-(--sk-ink-muted)">
+      <span class="sk-eyebrow">
         {{ label }}
       </span>
     </div>
     <div
       v-if="points.length === 0"
-      class="flex h-72 items-center justify-center text-sm text-(--sk-ink-muted)"
+      class="flex h-72 items-center justify-center sk-body"
     >
       추세 데이터가 없습니다.
     </div>

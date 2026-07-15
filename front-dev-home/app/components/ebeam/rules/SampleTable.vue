@@ -1,10 +1,10 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-3">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <h3 class="text-[12.5px] font-semibold text-(--sk-ink)">
+      <h3 class="sk-title">
         {{ text.title }}
       </h3>
-      <span class="text-[11px] text-(--sk-ink-muted)">
+      <span class="sk-meta">
         {{ text.subtitle }}
       </span>
     </div>
@@ -13,13 +13,13 @@
       <table class="w-full border-collapse">
         <thead>
           <tr class="border-b border-(--sk-border)">
-            <th class="px-3 py-1.5 text-left font-mono text-[11px] font-semibold tracking-wide text-(--sk-ink-muted) uppercase">
+            <th class="px-3 py-1.5 text-left sk-eyebrow">
               룰 셀
             </th>
             <th
               v-for="column in CAP_COLUMNS"
               :key="column.key"
-              class="px-2 py-1.5 text-center font-mono text-[11px] font-semibold tracking-wide text-(--sk-ink-muted) uppercase"
+              class="px-2 py-1.5 text-center sk-eyebrow"
             >
               {{ column.label }}
             </th>
@@ -67,7 +67,7 @@
 
     <p
       v-if="overrides.length > 0"
-      class="mt-1.5 px-3 text-[11.5px] text-(--sk-ink-subtle)"
+      class="mt-1.5 px-3 text-xs text-(--sk-ink-subtle)"
     >
       ▸ 이름 예외 (기타 파라 전용):
       <code

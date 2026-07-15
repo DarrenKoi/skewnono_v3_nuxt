@@ -136,7 +136,7 @@ const tableUi = recipeTableUi
         name="i-lucide-circle-alert"
         class="mx-auto h-6 w-6 text-rose-500"
       />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+      <p class="mt-2 sk-body">
         Recipe 이름이 없습니다.
       </p>
       <UButton
@@ -170,7 +170,7 @@ const tableUi = recipeTableUi
         name="i-lucide-circle-alert"
         class="mx-auto h-6 w-6 text-rose-500"
       />
-      <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
+      <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
         Recipe 횡전개 정보를 불러오지 못했습니다.
       </p>
       <UButton
@@ -189,7 +189,7 @@ const tableUi = recipeTableUi
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2 class="sk-title">
                 Recipe version
               </h2>
               <span
@@ -201,7 +201,7 @@ const tableUi = recipeTableUi
                 {{ versionStatus }}
               </span>
             </div>
-            <p class="mt-1 text-xs leading-5 text-(--sk-ink-muted)">
+            <p class="mt-1 sk-meta">
               version별 생성 시간과 보유 장비 수를 먼저 확인한 뒤 장비 리스트를 나눠 봅니다.
             </p>
           </div>
@@ -243,7 +243,7 @@ const tableUi = recipeTableUi
 
         <div
           v-else
-          class="mt-3 rounded-lg border border-dashed border-(--sk-border) px-3 py-5 text-center text-xs text-(--sk-ink-muted)"
+          class="mt-3 rounded-lg border border-dashed border-(--sk-border) px-3 py-5 text-center sk-meta"
         >
           이 fab에서 해당 recipe를 보유한 장비가 없습니다.
         </div>
@@ -252,7 +252,7 @@ const tableUi = recipeTableUi
       <section class="dashboard-surface rounded-2xl px-3.5 py-3">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2">
-            <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <h2 class="sk-title">
               {{ activeTab === 'ready' ? '보유 장비 리스트' : '미보유 장비 리스트' }}
             </h2>
             <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -323,7 +323,7 @@ const tableUi = recipeTableUi
 
         <div
           v-else
-          class="rounded-lg border border-dashed border-(--sk-border) px-4 py-10 text-center text-sm text-(--sk-ink-muted)"
+          class="rounded-lg border border-dashed border-(--sk-border) px-4 py-10 text-center sk-body"
         >
           표시할 장비가 없습니다.
         </div>

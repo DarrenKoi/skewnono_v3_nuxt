@@ -10,7 +10,7 @@
       <h1 class="mt-4 text-xl font-semibold text-zinc-950 dark:text-zinc-50">
         접근 권한이 없습니다
       </h1>
-      <p class="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+      <p class="mt-2 text-sm leading-6 text-(--sk-ink-muted)">
         현재 계정으로는 스큐노노 서비스를 이용할 수 없습니다.<br>
         이용이 필요하시면 관리자에게 접근 권한을 요청해 주세요.
       </p>

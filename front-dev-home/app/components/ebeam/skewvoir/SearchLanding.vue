@@ -2,13 +2,13 @@
   <div class="mx-auto flex w-full max-w-[1600px] flex-col gap-3 pb-20 xl:h-full xl:min-h-0 xl:pb-0">
     <!-- Landing header -->
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-      <p class="font-mono text-[11px] tracking-wide text-(--sk-ink-subtle)">
+      <p class="sk-eyebrow">
         {{ toolLabel }} · SKEWVOIR
       </p>
-      <h1 class="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+      <h1 class="sk-heading">
         측정 검색
       </h1>
-      <p class="text-[12px] text-(--sk-ink-muted)">
+      <p class="sk-meta">
         찾은 측정을 작업 세트에 모아 분석합니다.
       </p>
     </div>

@@ -8,7 +8,7 @@
         />
       </div>
       <div class="min-w-0 flex-1">
-        <div class="text-xs uppercase tracking-wider text-zinc-500">
+        <div class="sk-label">
           {{ label }}
         </div>
         <div class="text-3xl font-bold tabular-nums leading-tight">
@@ -16,7 +16,7 @@
         </div>
         <div
           v-if="hint"
-          class="text-xs text-zinc-500 dark:text-zinc-400 truncate"
+          class="sk-meta truncate"
         >
           {{ hint }}
         </div>

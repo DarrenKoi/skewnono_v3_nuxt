@@ -10,13 +10,13 @@
     >
       <div class="flex items-center justify-between text-xs">
         <span
-          class="font-medium text-(--sk-ink) truncate"
+          class="sk-value truncate"
           :title="row.model"
         >
           {{ row.model }}
-          <span class="text-zinc-500 font-normal ml-1">{{ row.tool_count }}대</span>
+          <span class="sk-meta ml-1">{{ row.tool_count }}대</span>
         </span>
-        <span class="text-zinc-500 tabular-nums shrink-0 ml-2">
+        <span class="sk-meta tabular-nums shrink-0 ml-2">
           {{ row.count }}
         </span>
       </div>
@@ -30,7 +30,7 @@
   </div>
   <div
     v-else
-    class="text-sm text-zinc-500"
+    class="sk-body"
   >
     {{ emptyText }}
   </div>

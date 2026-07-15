@@ -6,7 +6,7 @@
       class="overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
     >
       <div class="flex items-center justify-between border-b border-(--sk-border-soft) px-3 py-1.5">
-        <span class="text-xs font-bold text-(--sk-ink)">{{ section.title }}</span>
+        <span class="sk-title">{{ section.title }}</span>
         <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ section.rows.length }} rows</span>
       </div>
 
@@ -17,7 +17,7 @@
               <th
                 v-for="column in section.columns"
                 :key="column.key"
-                class="whitespace-nowrap px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.05em]"
+                class="whitespace-nowrap px-3 py-1.5 sk-eyebrow"
                 :class="column.expandable ? 'w-full' : ''"
               >
                 {{ column.label }}
@@ -66,7 +66,7 @@
                 <!-- Default: mono date / id cell -->
                 <span
                   v-else
-                  class="font-mono text-(--sk-ink)"
+                  class="sk-value-num"
                 >{{ formatValue(row[column.key]) }}</span>
               </td>
             </tr>
@@ -74,7 +74,7 @@
             <tr v-if="section.rows.length === 0">
               <td
                 :colspan="section.columns.length"
-                class="px-3 py-4 text-center text-(--sk-ink-muted)"
+                class="px-3 py-4 text-center sk-body"
               >
                 표시할 작업이 없습니다.
               </td>

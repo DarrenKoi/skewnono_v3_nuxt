@@ -2,14 +2,14 @@
   <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
     <header class="flex items-end justify-between flex-wrap gap-4">
       <div>
-        <h1 class="text-3xl font-bold flex items-center gap-2">
+        <h1 class="sk-page-title flex items-center gap-2">
           <UIcon
             name="i-lucide-bar-chart-3"
             class="text-sky-500"
           />
           사용 통계
         </h1>
-        <p class="text-sm text-(--sk-ink-muted) mt-1">
+        <p class="sk-meta mt-1">
           최근 활동, 자주 쓰는 기능, 전체 사용 추이를 보여줍니다.
         </p>
       </div>
@@ -38,7 +38,7 @@
       v-if="!me && !loadError"
       class="dashboard-surface"
     >
-      <div class="flex items-center justify-center gap-2 py-12 text-sm text-(--sk-ink-muted)">
+      <div class="flex items-center justify-center gap-2 py-12 sk-body">
         <UIcon
           name="i-lucide-loader-circle"
           class="animate-spin"
@@ -54,7 +54,7 @@
     >
       <UCard class="dashboard-surface">
         <template #header>
-          <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+          <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
             <UIcon name="i-lucide-calendar-check" />
             이번 달
           </span>
@@ -90,7 +90,7 @@
 
       <UCard class="dashboard-surface">
         <template #header>
-          <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+          <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
             <UIcon name="i-lucide-pie-chart" />
             내가 자주 쓰는 기능
           </span>
@@ -103,7 +103,7 @@
 
       <UCard class="dashboard-surface">
         <template #header>
-          <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+          <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
             <UIcon name="i-lucide-trending-up" />
             30일 활동
           </span>
@@ -121,7 +121,7 @@
               <UIcon name="i-lucide-gauge" />
               내 활동 인사이트
             </span>
-            <span class="text-xs text-(--sk-ink-muted)">
+            <span class="sk-meta">
               최근 30일 기준
             </span>
           </div>
@@ -131,7 +131,7 @@
             <div class="text-2xl font-semibold font-mono tabular-nums">
               {{ personalInsights.recent7Requests.toLocaleString() }}
             </div>
-            <div class="text-xs text-(--sk-ink-muted)">
+            <div class="sk-meta">
               최근 7일 요청
             </div>
           </div>
@@ -144,7 +144,7 @@
               />
               {{ weeklyChange.label }}
             </div>
-            <div class="text-xs text-(--sk-ink-muted)">
+            <div class="sk-meta">
               이전 7일 대비
             </div>
           </div>
@@ -152,7 +152,7 @@
             <div class="text-2xl font-semibold font-mono tabular-nums">
               {{ personalInsights.activeDays7 }}<span class="text-sm font-normal text-(--sk-ink-muted)"> / 7일</span>
             </div>
-            <div class="text-xs text-(--sk-ink-muted)">
+            <div class="sk-meta">
               최근 활동일
             </div>
           </div>
@@ -160,7 +160,7 @@
             <div class="text-2xl font-semibold font-mono tabular-nums">
               {{ personalInsights.averagePerActiveDay30.toLocaleString() }}
             </div>
-            <div class="text-xs text-(--sk-ink-muted)">
+            <div class="sk-meta">
               활동일당 평균 요청
             </div>
           </div>
@@ -175,7 +175,7 @@
           name="i-lucide-users"
           class="text-sky-500"
         />
-        <h2 class="text-lg font-semibold">
+        <h2 class="sk-heading">
           전체 사용 현황
         </h2>
         <UBadge
@@ -204,7 +204,7 @@
       <UCard class="dashboard-surface">
         <template #header>
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
               <UIcon name="i-lucide-list-ordered" />
               인기 기능 Top 10
             </span>
@@ -226,7 +226,7 @@
       <UCard class="dashboard-surface">
         <template #header>
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
               <UIcon name="i-lucide-microscope" />
               SEM List 모델별 사용
             </span>
@@ -243,7 +243,7 @@
             v-for="group in modelGroups"
             :key="group.vendor"
           >
-            <div class="text-xs font-semibold text-(--sk-ink-muted) uppercase tracking-[0.05em] mb-2">
+            <div class="sk-eyebrow mb-2">
               {{ group.vendor }}
             </div>
             <ActivityModelBarList
@@ -254,7 +254,7 @@
         </div>
         <div
           v-if="!modelGroups.length"
-          class="text-sm text-zinc-500"
+          class="sk-body"
         >
           아직 데이터가 없습니다.
         </div>
@@ -264,7 +264,7 @@
       <UCard class="dashboard-surface">
         <template #header>
           <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
               <UIcon name="i-lucide-users" />
               사용자
             </span>
@@ -277,7 +277,7 @@
               </UBadge>
               <span
                 v-if="users"
-                class="text-xs text-(--sk-ink-muted)"
+                class="sk-meta"
               >
                 {{ formatTime(users.generated_at) }}
               </span>
@@ -332,7 +332,7 @@
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-left text-xs uppercase tracking-wider text-zinc-500 border-b border-(--sk-border)">
+              <tr class="text-left sk-eyebrow border-b border-(--sk-border)">
                 <th class="py-2 pr-4">
                   사용자
                 </th>
@@ -364,22 +364,22 @@
                   @keydown.enter="toggleUser(row.user_id)"
                   @keydown.space.prevent="toggleUser(row.user_id)"
                 >
-                  <td class="py-2.5 pr-4 font-mono font-medium text-(--sk-ink)">
+                  <td class="py-2.5 pr-4 sk-value-num">
                     {{ row.user_id }}
                   </td>
-                  <td class="py-2.5 pr-4 text-right font-mono tabular-nums font-semibold text-(--sk-ink)">
+                  <td class="py-2.5 pr-4 text-right sk-value-num">
                     {{ row.requests_30d.toLocaleString() }}
                   </td>
-                  <td class="py-2.5 pr-4 text-right font-mono tabular-nums text-(--sk-ink)">
+                  <td class="py-2.5 pr-4 text-right sk-value-num">
                     {{ row.days_active_30d }}
                   </td>
-                  <td class="py-2.5 pr-4 text-(--sk-ink)">
+                  <td class="py-2.5 pr-4 sk-value">
                     {{ activityFeatureLabel(row.favorite_feature) }}
                   </td>
-                  <td class="py-2.5 pr-4 font-mono text-(--sk-ink) tabular-nums">
+                  <td class="py-2.5 pr-4 sk-value-num">
                     {{ formatTime(row.last_seen) }}
                   </td>
-                  <td class="py-2.5 text-zinc-400">
+                  <td class="py-2.5 text-(--sk-ink-muted)">
                     <UIcon :name="expandedUser === row.user_id ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" />
                   </td>
                 </tr>
@@ -393,13 +393,13 @@
                   >
                     <div
                       v-if="userDetailLoading"
-                      class="text-sm text-zinc-500"
+                      class="sk-body"
                     >
                       로딩 중…
                     </div>
                     <div
                       v-else-if="userDetailError"
-                      class="text-sm text-rose-500"
+                      class="sk-body text-rose-500"
                     >
                       불러오기 실패: {{ userDetailError }}
                     </div>
@@ -408,18 +408,18 @@
                       class="grid grid-cols-1 lg:grid-cols-3 gap-4"
                     >
                       <div>
-                        <div class="text-xs uppercase tracking-wider text-zinc-500 mb-2">
+                        <div class="sk-eyebrow mb-2">
                           이번 달
                         </div>
                         <div class="text-2xl font-semibold tabular-nums">
                           {{ userDetail.this_month.requests }}
                         </div>
-                        <div class="text-xs text-zinc-500">
+                        <div class="sk-meta">
                           요청 · {{ userDetail.this_month.days_active }}일 활동
                         </div>
                       </div>
                       <div class="lg:col-span-1">
-                        <div class="text-xs uppercase tracking-wider text-zinc-500 mb-2">
+                        <div class="sk-eyebrow mb-2">
                           자주 쓰는 기능
                         </div>
                         <ActivityFeatureBarList
@@ -429,7 +429,7 @@
                         />
                       </div>
                       <div>
-                        <div class="text-xs uppercase tracking-wider text-zinc-500 mb-2">
+                        <div class="sk-eyebrow mb-2">
                           30일 활동
                         </div>
                         <ActivitySparkline
@@ -444,7 +444,7 @@
               <tr v-if="filteredUsers.length === 0">
                 <td
                   colspan="6"
-                  class="py-10 text-center text-sm text-(--sk-ink-muted)"
+                  class="py-10 text-center sk-body"
                 >
                   검색·필터 조건에 맞는 사용자가 없습니다.
                 </td>

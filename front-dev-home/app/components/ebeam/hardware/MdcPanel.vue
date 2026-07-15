@@ -20,7 +20,7 @@
     <template v-if="activeTab === '시계열'">
       <div
         v-if="families.length === 0"
-        class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center text-sm text-(--sk-ink-muted) ring-1 ring-(--sk-border-soft)"
+        class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
       >
         MDC 이력 데이터가 없습니다.
       </div>
@@ -48,7 +48,7 @@
             v-if="isPaired"
             class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
           >
-            <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+            <div class="mb-1 px-1 sk-title">
               0° · 90° Trajectory
             </div>
             <div
@@ -89,7 +89,7 @@
     <template v-else>
       <div
         v-if="conditions.length === 0"
-        class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center text-sm text-(--sk-ink-muted) ring-1 ring-(--sk-border-soft)"
+        class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
       >
         MDC 설정 데이터가 없습니다.
       </div>
@@ -98,7 +98,7 @@
         class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
       >
         <div class="mb-1 flex items-center justify-between px-1">
-          <span class="text-xs font-bold text-(--sk-ink)">Fleet 분포 · 조건별</span>
+          <span class="sk-title">Fleet 분포 · 조건별</span>
           <span class="font-mono text-[11px] text-(--sk-ink-muted)">
             ◆ {{ selectedEqp || '—' }} · {{ fleetSize }}대
           </span>

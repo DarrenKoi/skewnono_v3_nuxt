@@ -37,13 +37,13 @@
     </svg>
     <div
       v-else
-      class="text-sm text-zinc-500 h-16 flex items-center"
+      class="sk-body h-16 flex items-center"
     >
       30일간 활동이 없습니다.
     </div>
     <div
       v-if="hasData"
-      class="flex justify-between text-[10px] text-zinc-500 mt-1 tabular-nums"
+      class="flex justify-between text-[10px] text-(--sk-ink-muted) mt-1 tabular-nums"
     >
       <span>{{ firstLabel }}</span>
       <span>{{ totalLabel }}</span>

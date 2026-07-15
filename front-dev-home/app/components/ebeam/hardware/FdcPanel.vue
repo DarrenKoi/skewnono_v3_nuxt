@@ -19,7 +19,7 @@
 
     <div
       v-if="availableKeys.length === 0"
-      class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center text-sm text-(--sk-ink-muted) ring-1 ring-(--sk-border-soft)"
+      class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
     >
       FDC 데이터가 없습니다.
     </div>
@@ -32,16 +32,16 @@
       <table class="min-w-full text-left text-xs">
         <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
           <tr>
-            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+            <th class="px-3 py-2 sk-eyebrow">
               Timestamp
             </th>
-            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+            <th class="px-3 py-2 sk-eyebrow">
               Ch
             </th>
-            <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+            <th class="px-3 py-2 sk-eyebrow">
               Judgment
             </th>
-            <th class="px-3 py-2 text-right font-mono text-[10px] uppercase tracking-[0.05em]">
+            <th class="px-3 py-2 text-right sk-eyebrow">
               Values
             </th>
           </tr>
@@ -52,10 +52,10 @@
             :key="i"
             class="border-t border-(--sk-border-soft)"
           >
-            <td class="px-3 py-2 font-mono text-(--sk-ink)">
+            <td class="px-3 py-2 sk-value-num">
               {{ row.ts }}
             </td>
-            <td class="px-3 py-2 font-mono text-(--sk-ink)">
+            <td class="px-3 py-2 sk-value-num">
               {{ row.channel }}
             </td>
             <td class="px-3 py-2">
@@ -66,7 +66,7 @@
                   : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
               >{{ row.judgment }}</span>
             </td>
-            <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
+            <td class="px-3 py-2 text-right sk-value-num">
               {{ row.values.join(' · ') }}
             </td>
           </tr>
@@ -106,7 +106,7 @@
       v-else
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
-      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+      <div class="mb-1 px-1 sk-title">
         {{ activeKey }} trend
       </div>
       <div

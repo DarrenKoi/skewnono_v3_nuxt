@@ -18,7 +18,7 @@
     >
       <template #header>
         <div class="flex items-center justify-between gap-3">
-          <h2 class="text-lg font-semibold">
+          <h2 class="sk-heading">
             스토리지 용량
           </h2>
           <UBadge
@@ -115,16 +115,16 @@
         </template>
 
         <template #eqp_id-cell="{ row }">
-          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_id }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_id }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
         </template>
         <template #fab_name-cell="{ row }">
-          <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name }}</span>
+          <span class="sk-value">{{ row.original.fab_name }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
-          <span class="font-mono text-(--sk-ink)">{{ row.original.eqp_model_cd }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #percent-cell="{ row }">
           <div
@@ -201,12 +201,12 @@
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold">
+            <h2 class="sk-heading">
               PPID 미접속 장비
             </h2>
-            <p class="text-xs text-(--sk-ink-muted) mt-0.5">
+            <p class="sk-meta mt-0.5">
               기준일
-              <span class="font-mono tabular-nums text-(--sk-ink)">{{ ppidLatestDate || '-' }}</span>
+              <span class="sk-value-num">{{ ppidLatestDate || '-' }}</span>
             </p>
           </div>
 
@@ -324,16 +324,16 @@
         </template>
 
         <template #fab_name-cell="{ row }">
-          <span class="text-(--sk-ink) font-medium">{{ row.original.fab_name || '—' }}</span>
+          <span class="sk-value">{{ row.original.fab_name || '—' }}</span>
         </template>
         <template #eqp_id-cell="{ row }">
-          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_id || '—' }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_id || '—' }}</span>
         </template>
         <template #eqp_model_cd-cell="{ row }">
-          <span class="font-mono text-(--sk-ink)">{{ row.original.eqp_model_cd || '—' }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_model_cd || '—' }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
         </template>
         <template #missing_days_streak-cell="{ row }">
           <span
@@ -688,8 +688,8 @@ const resetControls = () => {
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted)'
+    td: 'py-1.5 px-3 whitespace-nowrap overflow-hidden text-ellipsis sk-value',
+    th: 'py-2 px-3 sk-label'
   }
 }
 
@@ -794,8 +794,8 @@ const resetPpidFilters = () => {
 const ppidTableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
-    td: 'py-1.5 px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted)'
+    td: 'py-1.5 px-3 whitespace-nowrap overflow-hidden text-ellipsis sk-value',
+    th: 'py-2 px-3 sk-label'
   }
 }
 

@@ -58,10 +58,10 @@
     >
       <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 class="sk-title">
             디바이스 선택
           </h3>
-          <span class="text-[10.5px] text-(--sk-ink-muted)">
+          <span class="sk-meta">
             {{ filteredDeviceList.length }} / {{ deviceList.length }}개의 디바이스
           </span>
         </div>
@@ -143,10 +143,10 @@
         name="i-lucide-mouse-pointer-click"
         class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+      <p class="mt-2 sk-body">
         디바이스를 선택해주세요
       </p>
-      <p class="mt-1 text-xs text-(--sk-ink-muted)">
+      <p class="mt-1 sk-meta">
         위에서 디바이스 칩을 클릭하면 해당 디바이스의 Recipe TAT 정보가 표시됩니다.
       </p>
     </div>
@@ -164,7 +164,7 @@
             class="text-2xl font-bold leading-none tabular-nums"
             :class="cell.tone"
           >{{ cell.value }}</span>
-          <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+          <span class="sk-label">{{ cell.label }}</span>
         </div>
       </div>
 
@@ -189,10 +189,10 @@
           name="i-lucide-inbox"
           class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
         />
-        <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+        <p class="mt-2 sk-body">
           No measurements in this range
         </p>
-        <p class="mt-1 text-xs text-(--sk-ink-muted)">
+        <p class="mt-1 sk-meta">
           Try widening the date range or selecting a different fab.
         </p>
       </div>
@@ -208,12 +208,12 @@
                     name="i-lucide-bar-chart-horizontal"
                     class="h-4 w-4 text-(--sk-ink-muted)"
                   />
-                  <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <h3 class="sk-title">
                     {{ barChartTitle }}
                   </h3>
                   <span
                     v-if="tableSearch.trim()"
-                    class="text-[10.5px] text-(--sk-ink-muted)"
+                    class="sk-meta"
                   >표 검색 적용됨</span>
                 </div>
                 <USelect
@@ -237,7 +237,7 @@
                   name="i-lucide-trending-up"
                   class="h-4 w-4 text-(--sk-ink-muted)"
                 />
-                <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                <h3 class="sk-title">
                   Daily TAT trend
                 </h3>
               </div>
@@ -253,7 +253,7 @@
         <div class="dashboard-surface rounded-2xl px-3.5 py-3">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 class="sk-title">
                 Ranked recipes
               </h3>
               <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">

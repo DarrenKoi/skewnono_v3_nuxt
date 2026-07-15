@@ -19,12 +19,12 @@
         <p class="mt-3 text-sm font-medium text-(--sk-ink-muted)">
           {{ toolLabel }} · {{ fab }}
         </p>
-        <h1 class="mt-1 break-all text-2xl font-bold text-zinc-950 dark:text-zinc-50">
+        <h1 class="mt-1 break-all sk-page-title">
           {{ titleRecipeName || 'Recipe 상세' }}
         </h1>
         <p
           v-if="data"
-          class="mt-1 text-xs text-(--sk-ink-muted)"
+          class="mt-1 sk-meta"
         >
           {{ data.fac_id }} · {{ data.tool_category }} · {{ formatTimestamp(data.timestamp) }}
         </p>
@@ -43,7 +43,7 @@
           <span class="text-[22px] font-bold leading-none tabular-nums text-zinc-900 dark:text-zinc-100">
             {{ cell.value.toLocaleString() }}
           </span>
-          <span class="text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+          <span class="sk-label">{{ cell.label }}</span>
         </div>
       </div>
     </div>
@@ -56,7 +56,7 @@
         name="i-lucide-circle-alert"
         class="mx-auto h-6 w-6 text-rose-500"
       />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+      <p class="mt-2 sk-body">
         Recipe 이름이 없습니다.
       </p>
       <UButton
@@ -90,7 +90,7 @@
         name="i-lucide-circle-alert"
         class="mx-auto h-6 w-6 text-rose-500"
       />
-      <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
+      <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
         Recipe 내용을 불러오지 못했습니다.
       </p>
       <UButton
@@ -117,7 +117,7 @@
         <section class="dashboard-surface flex h-[640px] flex-col overflow-hidden rounded-2xl lg:h-auto">
           <div class="border-b border-zinc-200/70 px-4 pt-3 pb-3 dark:border-zinc-800/70">
             <div class="mb-3 flex flex-wrap items-baseline gap-2.5">
-              <span class="font-mono text-[11px] tracking-wider text-(--sk-brand) uppercase">
+              <span class="sk-eyebrow text-(--sk-brand)">
                 SELECTED
               </span>
               <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
@@ -170,7 +170,7 @@
             />
 
             <template v-else>
-              <p class="mb-2 text-[11px] text-(--sk-ink-muted)">
+              <p class="mb-2 sk-meta">
                 자주 보지 않는 정보입니다. wafer_mp_info 에서
                 <b class="text-zinc-700 dark:text-zinc-200">Parameter = {{ selectedIdp.Parameter }}</b>
                 으로 필터링.

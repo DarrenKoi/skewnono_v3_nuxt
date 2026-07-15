@@ -7,7 +7,7 @@
           aria-label="페이지 안내"
         >
           <div>
-            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+            <p class="mb-2 sk-eyebrow">
               시작하기
             </p>
             <button
@@ -28,7 +28,7 @@
             v-for="section in guideSections"
             :key="section.key"
           >
-            <p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+            <p class="mb-2 flex items-center gap-1.5 sk-eyebrow">
               <UIcon
                 :name="section.icon"
                 class="h-3.5 w-3.5 shrink-0"
@@ -61,7 +61,7 @@
           class="space-y-6"
         >
           <header class="border-b border-(--sk-border) pb-6">
-            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+            <div class="flex items-center gap-2 text-sm font-semibold text-(--sk-ink-muted)">
               <UIcon
                 name="i-lucide-sparkles"
                 class="h-4 w-4"
@@ -69,13 +69,13 @@
               <span>소개</span>
             </div>
             <div class="mt-3 max-w-3xl">
-              <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+              <h1 class="sk-page-title md:text-4xl">
                 SKEWNONO
               </h1>
               <p class="mt-3 text-lg font-medium text-zinc-900 dark:text-zinc-100 md:text-xl">
                 흩어진 측정·장비 데이터를 연결해 더 신뢰할 수 있는 판단으로
               </p>
-              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+              <p class="mt-3 sk-body leading-7 md:text-base">
                 측정값 하나만으로는 공정이 제대로 진행되었는지, 문제의 원인이 어디에 있는지
                 판단하기 어렵습니다. SKEWNONO는 CD와 Recipe 이력뿐 아니라 FDC, Beam Calibration,
                 Hardware 설정값, BM/PM 일정 등 여러 데이터를 한곳에서 함께 확인해 엔지니어가
@@ -91,11 +91,11 @@
                   name="i-lucide-lightbulb"
                   class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   왜 SKEWNONO인가요?
                 </h2>
               </div>
-              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-3 sk-body leading-7">
                 장비에서 이상이 관찰되면 최근 해당 Recipe에서 오측정이 반복되었는지와 장비의
                 Hardware 상태를 함께 살펴야 합니다. SKEWNONO는 서로 떨어져 있던 정보를 연결해
                 장비, Wafer 상태, 공정 영향 중 어디에서 차이가 시작되었는지 관찰할 수 있게 합니다.
@@ -110,7 +110,7 @@
                   class="h-14 w-14 shrink-0 rounded-lg"
                 >
                 <div>
-                  <div class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-600">
+                  <div class="text-xs font-semibold uppercase tracking-[0.18em] text-(--sk-ink-muted)">
                     Name Story
                   </div>
                   <div class="mt-2 text-xl font-semibold">
@@ -130,10 +130,10 @@
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
             <div class="max-w-3xl">
-              <h2 class="text-lg font-semibold">
+              <h2 class="sk-heading">
                 함께 확인하는 데이터
               </h2>
-              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-2 sk-body leading-6">
                 하나의 수치만 보는 대신 서로 다른 신호를 같은 맥락에서 연결해 확인합니다.
               </p>
             </div>
@@ -147,10 +147,10 @@
                   :name="source.icon"
                   class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
                 />
-                <h3 class="mt-3 text-sm font-semibold">
+                <h3 class="mt-3 sk-title">
                   {{ source.title }}
                 </h3>
-                <p class="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                <p class="mt-1 sk-meta leading-5">
                   {{ source.description }}
                 </p>
               </div>
@@ -159,10 +159,10 @@
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
             <div class="max-w-3xl">
-              <h2 class="text-lg font-semibold">
+              <h2 class="sk-heading">
                 문제를 확인하는 흐름
               </h2>
-              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-2 sk-body leading-6">
                 SKEWNONO는 하나의 결과를 단정하기보다, 엔지니어가 근거를 넓혀 가며 원인에
                 접근하도록 돕습니다.
               </p>
@@ -173,13 +173,13 @@
                 :key="step.title"
                 class="relative rounded-md bg-zinc-50 p-4 dark:bg-zinc-900"
               >
-                <div class="text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                <div class="text-xs font-semibold text-(--sk-ink-muted)">
                   {{ String(index + 1).padStart(2, '0') }}
                 </div>
-                <h3 class="mt-2 text-sm font-semibold">
+                <h3 class="mt-2 sk-title">
                   {{ step.title }}
                 </h3>
-                <p class="mt-2 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+                <p class="mt-2 sk-meta leading-5">
                   {{ step.description }}
                 </p>
               </li>
@@ -188,10 +188,10 @@
 
           <section>
             <div class="mb-4 max-w-3xl">
-              <h2 class="text-lg font-semibold">
+              <h2 class="sk-heading">
                 주요 사용자
               </h2>
-              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-2 sk-body leading-6">
                 공정, 소자, MI Engineer가 같은 데이터를 각자의 업무 관점에서 확인할 수 있도록
                 개발하고 있습니다.
               </p>
@@ -211,7 +211,7 @@
                     {{ audience.title }}
                   </h3>
                 </div>
-                <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                <p class="mt-3 sk-body leading-6">
                   {{ audience.description }}
                 </p>
               </div>
@@ -233,7 +233,7 @@
                   {{ area.title }}
                 </h2>
               </div>
-              <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-3 sk-body leading-6">
                 {{ area.description }}
               </p>
             </div>
@@ -246,11 +246,11 @@
                   name="i-lucide-user-round-check"
                   class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   현재: 판단 지원
                 </h2>
               </div>
-              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-3 sk-body leading-7">
                 현재 SKEWNONO는 여러 근거를 한곳에 모아 엔지니어가 직접 비교하고 판단하도록
                 지원합니다. 화면의 데이터는 최종 판정을 대신하는 결과가 아니라, 문제를 더 빠르고
                 넓게 살펴보기 위한 근거입니다.
@@ -263,11 +263,11 @@
                   name="i-lucide-bot"
                   class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   방향: Metrology AI Agent
                 </h2>
               </div>
-              <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-3 sk-body leading-7">
                 장기적으로는 이상 징후 감지, 원인 후보 제시, 점검 순서 추천, 보고서 생성을 수행하며
                 엔지니어와 함께 문제를 해결하는 AI Agent로 발전하는 것을 목표로 합니다.
               </p>
@@ -277,14 +277,14 @@
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div class="max-w-2xl">
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   원하는 데이터부터 바로 확인하세요
                 </h2>
-                <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                <p class="mt-2 sk-body leading-6">
                   왼쪽 목록에서 페이지를 선택해 목적과 화면 구성을 확인한 뒤, 원하는 Navigation Tab으로
                   이동하면 됩니다. 화면 없이 데이터를 직접 가져가려는 개발자는 API 리스트를 참고하십시오.
                 </p>
-                <div class="mt-4 flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <div class="mt-4 flex items-center gap-2 sk-meta">
                   <UIcon
                     name="i-lucide-message-circle"
                     class="h-4 w-4 shrink-0"
@@ -310,7 +310,7 @@
           class="space-y-6"
         >
           <header class="border-b border-(--sk-border) pb-6">
-            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+            <div class="flex items-center gap-2 text-sm font-semibold text-(--sk-ink-muted)">
               <UIcon
                 name="i-lucide-panels-top-left"
                 class="h-4 w-4"
@@ -324,11 +324,11 @@
                     :name="selectedPageGuide.icon"
                     class="h-7 w-7 text-zinc-700 dark:text-zinc-200"
                   />
-                  <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                  <h1 class="sk-page-title md:text-4xl">
                     {{ selectedPageGuide.title }}
                   </h1>
                 </div>
-                <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                <p class="mt-3 sk-body leading-7 md:text-base">
                   {{ selectedPageGuide.purpose }}
                 </p>
               </div>
@@ -346,37 +346,37 @@
 
           <section class="grid gap-4 md:grid-cols-2">
             <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
-              <div class="text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+              <div class="sk-eyebrow">
                 Route
               </div>
-              <code class="mt-2 block break-words font-mono text-sm text-zinc-950 dark:text-white">
+              <code class="mt-2 block break-words sk-value-num">
                 {{ selectedPageGuide.path }}
               </code>
             </div>
             <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
-              <div class="text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+              <div class="sk-eyebrow">
                 주요 사용자
               </div>
-              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              <p class="mt-2 sk-body leading-6">
                 {{ selectedPageGuide.users }}
               </p>
             </div>
           </section>
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
-            <h2 class="text-lg font-semibold">
+            <h2 class="sk-heading">
               화면 설명
             </h2>
-            <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+            <p class="mt-3 sk-body leading-7">
               {{ selectedPageGuide.description }}
             </p>
           </section>
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
-            <h2 class="text-lg font-semibold">
+            <h2 class="sk-heading">
               참고 사항
             </h2>
-            <ul class="mt-4 space-y-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            <ul class="mt-4 space-y-3 sk-body leading-6">
               <li
                 v-for="note in selectedPageGuide.notes"
                 :key="note"

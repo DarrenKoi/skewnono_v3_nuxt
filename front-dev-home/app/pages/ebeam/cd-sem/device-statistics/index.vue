@@ -46,17 +46,17 @@
       <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">1</span>
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 class="sk-title">
             {{ text.step1Title }}
           </h3>
-          <span class="text-[10.5px] text-(--sk-ink-muted)">
+          <span class="text-[11px] text-(--sk-ink-muted)">
             {{ hasRSelection ? text.step1HintR : text.step1HintM }}
           </span>
         </div>
         <div class="flex items-center gap-2">
           <span
             v-if="hasActiveFilters"
-            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[9.5px] tabular-nums text-(--sk-accent)"
+            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[11px] tabular-nums text-(--sk-accent)"
           >
             {{ filteredRowCount.toLocaleString() }} / {{ rows.length.toLocaleString() }}
           </span>
@@ -164,10 +164,10 @@
       <div class="col-span-12 space-y-2 lg:col-span-8">
         <div class="flex items-center gap-2 px-1">
           <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">2</span>
-          <h3 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 class="sk-title">
             {{ text.step2Title }}
           </h3>
-          <span class="text-[10.5px] text-(--sk-ink-muted)">
+          <span class="text-[11px] text-(--sk-ink-muted)">
             {{ text.step2Hint }}
           </span>
         </div>

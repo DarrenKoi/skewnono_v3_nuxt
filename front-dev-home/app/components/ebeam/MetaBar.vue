@@ -64,7 +64,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
       <div class="flex flex-col justify-center py-1.5 pl-3 pr-4">
         <p
           v-if="eyebrow"
-          class="font-mono text-[10px] font-semibold tracking-[0.06em] text-(--sk-ink-muted)"
+          class="sk-eyebrow"
         >
           {{ eyebrow }}
         </p>
@@ -91,7 +91,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
     <p
       v-if="subtitle"
       :title="subtitle"
-      class="hidden min-w-0 flex-1 items-center truncate px-4 text-xs text-(--sk-ink-muted) md:flex"
+      class="hidden min-w-0 flex-1 items-center truncate px-4 sk-meta md:flex"
     >
       {{ subtitle }}
     </p>
@@ -124,7 +124,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
             :class="toneTextClass(stat.tone)"
           >{{ stat.value }}</span>
           <!-- 11px micro-label: a caption naming the number, never a value. -->
-          <span class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.02em] text-(--sk-ink-muted)">
+          <span class="mt-0.5 sk-eyebrow">
             {{ stat.label }}
           </span>
         </component>

@@ -11,7 +11,7 @@
 
     <div
       v-if="pending"
-      class="text-sm text-(--sk-ink-muted)"
+      class="sk-body"
     >
       불러오는 중…
     </div>

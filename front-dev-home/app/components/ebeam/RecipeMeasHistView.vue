@@ -129,7 +129,7 @@ const tableUi = recipeTableUi
         name="i-lucide-circle-alert"
         class="mx-auto h-6 w-6 text-rose-500"
       />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+      <p class="mt-2 sk-body">
         Recipe 이름이 없습니다.
       </p>
       <UButton
@@ -163,7 +163,7 @@ const tableUi = recipeTableUi
         name="i-lucide-circle-alert"
         class="mx-auto h-6 w-6 text-rose-500"
       />
-      <p class="mt-2 text-sm font-medium text-rose-600 dark:text-rose-300">
+      <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
         측정 이력을 불러오지 못했습니다.
       </p>
       <UButton
@@ -185,7 +185,7 @@ const tableUi = recipeTableUi
         name="i-lucide-search-x"
         class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
-      <p class="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+      <p class="mt-2 sk-body">
         측정 이력이 없습니다.
       </p>
     </div>
@@ -195,10 +195,10 @@ const tableUi = recipeTableUi
       class="dashboard-surface rounded-2xl px-3.5 py-3"
     >
       <div class="mb-3 flex items-center justify-between gap-3">
-        <h2 class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 class="sk-title">
           측정 이력 (최신순)
         </h2>
-        <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+        <span class="sk-meta">
           {{ rows.length.toLocaleString() }} rows
         </span>
       </div>
@@ -211,7 +211,7 @@ const tableUi = recipeTableUi
         :ui="tableUi"
       >
         <template #timestamp-cell="{ row }">
-          <span class="font-mono text-[11.5px] tabular-nums text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
             {{ formatTimestamp(row.original.timestamp) }}
           </span>
         </template>
@@ -223,19 +223,19 @@ const tableUi = recipeTableUi
         </template>
 
         <template #lot_id-cell="{ row }">
-          <span class="font-mono text-[11.5px] text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-xs text-zinc-700 dark:text-zinc-200">
             {{ row.original.lot_id }}
           </span>
         </template>
 
         <template #recipe_name-cell="{ row }">
-          <span class="font-mono text-[11.5px] text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-xs text-zinc-700 dark:text-zinc-200">
             {{ row.original.recipe_name }}
           </span>
         </template>
 
         <template #meastime-cell="{ row }">
-          <span class="font-mono text-[11.5px] tabular-nums text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
             {{ row.original.meastime }}
           </span>
         </template>
@@ -259,14 +259,14 @@ const tableUi = recipeTableUi
         </template>
 
         <template #total_images-cell="{ row }">
-          <span class="font-mono text-[11.5px] tabular-nums text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
             {{ row.original.total_images }}
           </span>
         </template>
 
         <template #fail_images-cell="{ row }">
           <span
-            class="font-mono text-[11.5px] tabular-nums"
+            class="font-mono text-xs tabular-nums"
             :class="row.original.fail_images > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-700 dark:text-zinc-200'"
           >
             {{ row.original.fail_images }}
@@ -275,7 +275,7 @@ const tableUi = recipeTableUi
 
         <template #fail_ratio-cell="{ row }">
           <span
-            class="font-mono text-[11.5px] tabular-nums"
+            class="font-mono text-xs tabular-nums"
             :class="row.original.fail_ratio >= 0.15 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-700 dark:text-zinc-200'"
           >
             {{ (row.original.fail_ratio * 100).toFixed(1) }}%

@@ -21,7 +21,7 @@
     >
       <template #header>
         <div class="flex items-center justify-between gap-3">
-          <h2 class="text-lg font-semibold">
+          <h2 class="sk-heading">
             장비 리스트
           </h2>
           <UBadge
@@ -112,7 +112,7 @@
 
         <template #eqp_id-cell="{ row }">
           <div class="flex items-center gap-3">
-            <span class="font-mono font-bold text-(--sk-ink) tracking-tight">
+            <span class="sk-value-num">
               {{ row.original.eqp_id }}
             </span>
             <UButton
@@ -130,16 +130,16 @@
         <!-- Every cell below is a data value, so all of them take full ink and
              the td's text size — no muted ink, no per-cell sizes. -->
         <template #eqp_model_cd-cell="{ row }">
-          <span class="font-medium text-(--sk-ink)">{{ row.original.eqp_model_cd }}</span>
+          <span class="sk-value">{{ row.original.eqp_model_cd }}</span>
         </template>
         <template #vendor_nm-cell="{ row }">
-          <span class="text-(--sk-ink) capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
+          <span class="sk-value capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="font-mono tabular-nums text-(--sk-ink)">{{ row.original.eqp_ip }}</span>
+          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
         </template>
         <template #version-cell="{ row }">
-          <span class="font-mono tabular-nums text-(--sk-ink)">v{{ row.original.version }}</span>
+          <span class="sk-value-num">v{{ row.original.version }}</span>
         </template>
       </UTable>
     </UCard>
@@ -298,8 +298,8 @@ const hasActiveTableControls = computed(() => {
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted)'
+    td: 'py-1.5 px-3 whitespace-nowrap overflow-hidden text-ellipsis sk-value',
+    th: 'py-2 px-3 sk-label'
   }
 }
 

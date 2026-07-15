@@ -2,7 +2,7 @@
   <div class="mt-3 space-y-3">
     <div
       v-if="!hasSelected"
-      class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center text-sm text-(--sk-ink-muted) ring-1 ring-(--sk-border-soft)"
+      class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
     >
       SCE 설정 데이터가 없습니다.
     </div>
@@ -13,16 +13,16 @@
         <table class="min-w-full text-left text-xs">
           <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
             <tr>
-              <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+              <th class="px-3 py-2 sk-eyebrow">
                 Setting
               </th>
-              <th class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]">
+              <th class="px-3 py-2 sk-eyebrow">
                 {{ selectedEqp }} (선택)
               </th>
               <th
                 v-for="id in siblingIds"
                 :key="id"
-                class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.05em]"
+                class="px-3 py-2 sk-eyebrow"
               >
                 {{ id }}
               </th>
@@ -58,7 +58,7 @@
            per-type panels, selected vs one sibling -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
         <div class="mb-1 flex items-center justify-between gap-2 px-1">
-          <div class="text-xs font-bold text-(--sk-ink)">
+          <div class="sk-title">
             Coefficients (0–359)
           </div>
           <div class="flex items-center gap-2">

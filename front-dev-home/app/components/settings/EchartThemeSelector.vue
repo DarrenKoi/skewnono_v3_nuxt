@@ -18,7 +18,7 @@ const selectedLabel = computed(() =>
         <p class="font-medium text-zinc-900 dark:text-zinc-100">
           ECharts theme
         </p>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+        <p class="text-sm text-(--sk-ink-muted)">
           Choose the visual style used by dashboard charts.
         </p>
       </div>
@@ -97,7 +97,7 @@ const selectedLabel = computed(() =>
       </button>
     </div>
 
-    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+    <p class="sk-meta">
       Selected theme: {{ selectedLabel }}. The choice is saved in this browser.
     </p>
   </section>

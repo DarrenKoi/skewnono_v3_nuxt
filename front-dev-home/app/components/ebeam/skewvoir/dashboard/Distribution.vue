@@ -9,7 +9,7 @@
   >
     <div
       v-if="analysis.focusPending.value"
-      class="flex flex-1 items-center justify-center gap-2 text-sm text-(--sk-ink-muted)"
+      class="flex flex-1 items-center justify-center gap-2 sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -27,7 +27,7 @@
     />
     <div
       v-else
-      class="flex flex-1 items-center justify-center text-sm text-(--sk-ink-subtle)"
+      class="flex flex-1 items-center justify-center sk-body"
     >
       {{ analysis.activeParam.value }} 데이터가 없습니다.
     </div>

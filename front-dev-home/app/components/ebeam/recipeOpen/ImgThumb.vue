@@ -8,17 +8,17 @@
     >
       <EbeamRecipeOpenSemNoise />
       <span
-        class="absolute top-1 left-1 rounded-sm px-1.5 py-px font-mono text-[9px] font-bold tracking-wider"
+        class="absolute top-1 left-1 rounded-sm px-1.5 py-px font-mono text-[11px] font-bold tracking-wider"
         :class="isMeas
           ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
           : 'bg-(--sk-ink) text-(--sk-ink-fg)'"
       >{{ isMeas ? 'MEAS' : 'ADDR' }}</span>
       <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
     </button>
-    <div class="text-center font-mono text-[10.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+    <div class="text-center font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
       {{ imageSlot.label }}
     </div>
-    <div class="truncate text-center font-mono text-[9.5px] text-(--sk-ink-muted)">
+    <div class="truncate text-center font-mono text-[11px] text-(--sk-ink-muted)">
       {{ filename }}
     </div>
   </div>

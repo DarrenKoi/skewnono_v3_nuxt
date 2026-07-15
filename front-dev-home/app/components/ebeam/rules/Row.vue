@@ -3,7 +3,7 @@
     <td class="px-3 py-1 text-left whitespace-nowrap">
       <div class="flex items-center gap-2">
         <template v-if="vehicle.main">
-          <span class="text-[12.5px] font-medium text-(--sk-ink)">{{ vehicle.main }}</span>
+          <span class="sk-value">{{ vehicle.main }}</span>
           <span
             v-if="vehicle.hint"
             class="text-[11px] text-(--sk-ink-subtle)"

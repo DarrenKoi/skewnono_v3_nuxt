@@ -3,14 +3,14 @@
 
 <template>
   <div class="max-w-7xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6">
+    <h1 class="sk-page-title mb-6">
       Settings
     </h1>
 
     <div class="space-y-6">
       <UCard class="dashboard-surface rounded-3xl">
         <template #header>
-          <h2 class="font-semibold">
+          <h2 class="sk-title">
             Appearance
           </h2>
         </template>
@@ -28,7 +28,7 @@
 
       <UCard class="dashboard-surface rounded-3xl">
         <template #header>
-          <h2 class="font-semibold">
+          <h2 class="sk-title">
             About
           </h2>
         </template>

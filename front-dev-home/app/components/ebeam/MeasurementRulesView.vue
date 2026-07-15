@@ -9,16 +9,16 @@
 
     <div class="dashboard-surface rounded-2xl p-3">
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 class="text-[12.5px] font-semibold text-(--sk-ink)">
+        <h3 class="sk-title">
           {{ text.mainTitle }}
         </h3>
-        <span class="text-[11px] text-(--sk-ink-muted)">
+        <span class="sk-meta">
           {{ text.mainHint }}
         </span>
       </div>
 
       <!-- fixed caps + legend -->
-      <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-(--sk-ink-muted)">
+      <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 sk-meta">
         <span
           v-if="fixedEntries.length > 0"
           class="inline-flex items-center gap-1.5"
@@ -47,7 +47,7 @@
 
       <div
         v-if="pending"
-        class="flex items-center justify-center gap-2 py-16 text-sm text-(--sk-ink-muted)"
+        class="flex items-center justify-center gap-2 py-16 sk-body"
       >
         <UIcon
           name="i-lucide-loader-circle"

@@ -7,9 +7,9 @@
       <div class="flex items-center gap-2">
         <UIcon
           name="i-lucide-info"
-          class="h-4 w-4 text-zinc-500"
+          class="h-4 w-4 text-(--sk-ink-muted)"
         />
-        <h2 class="text-sm font-semibold">
+        <h2 class="sk-title">
           Information
         </h2>
       </div>
@@ -21,10 +21,10 @@
         :key="entry.key"
         class="flex items-baseline justify-between gap-3 border-b border-zinc-100 pb-1.5 last:border-0 dark:border-zinc-800/60"
       >
-        <dt class="text-[11px] uppercase tracking-wider text-zinc-500">
+        <dt class="sk-label">
           {{ entry.key }}
         </dt>
-        <dd class="font-mono text-[12.5px] text-zinc-800 dark:text-zinc-100 text-right truncate">
+        <dd class="sk-value-num text-right truncate">
           {{ entry.value }}
         </dd>
       </div>
@@ -34,20 +34,20 @@
       v-if="summarySites.length > 0"
       class="mt-5"
     >
-      <p class="mb-2 text-[11px] uppercase tracking-wider text-zinc-500">
+      <p class="mb-2 sk-label">
         Summary by site (MEAN)
       </p>
       <div class="overflow-x-auto rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-800">
         <table class="w-full text-[12px] font-mono">
-          <thead class="bg-zinc-50/70 text-zinc-500 dark:bg-zinc-900/50">
+          <thead class="bg-zinc-50/70 text-(--sk-ink-muted) dark:bg-zinc-900/50">
             <tr>
-              <th class="px-2 py-1.5 text-left font-medium">
+              <th class="px-2 py-1.5 text-left sk-label">
                 Site
               </th>
               <th
                 v-for="col in measurementColumns"
                 :key="col"
-                class="px-2 py-1.5 text-right font-medium"
+                class="px-2 py-1.5 text-right sk-label"
               >
                 {{ col }}
               </th>
@@ -59,13 +59,13 @@
               :key="site.site"
               class="border-t border-zinc-100 dark:border-zinc-800/60"
             >
-              <td class="px-2 py-1 text-left">
+              <td class="px-2 py-1 text-left sk-value-num">
                 {{ site.site }}
               </td>
               <td
                 v-for="col in measurementColumns"
                 :key="col"
-                class="px-2 py-1 text-right tabular-nums"
+                class="px-2 py-1 text-right sk-value-num"
               >
                 {{ site.values[col] ?? '–' }}
               </td>

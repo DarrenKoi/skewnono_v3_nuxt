@@ -2,14 +2,14 @@
   <div class="mx-auto max-w-4xl space-y-4 px-4 py-6">
     <header class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="flex items-center gap-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+        <h1 class="flex items-center gap-2 sk-page-title">
           <UIcon
             name="i-lucide-shield-check"
             class="text-sky-500"
           />
           접근 권한 관리
         </h1>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p class="mt-1 sk-meta">
           X-사번 차단 규칙과 예외 허용 목록을 관리합니다
         </p>
       </div>
@@ -26,7 +26,7 @@
 
     <section
       v-if="!isAdmin"
-      class="dashboard-surface rounded-lg border border-(--sk-border) p-6 text-center text-sm text-zinc-500 dark:text-zinc-400"
+      class="dashboard-surface rounded-lg border border-(--sk-border) p-6 text-center sk-body"
     >
       관리자만 접근할 수 있는 페이지입니다.
     </section>
@@ -38,7 +38,7 @@
           name="i-lucide-info"
           class="mt-0.5 shrink-0 text-sky-500"
         />
-        <p class="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+        <p class="sk-body leading-6">
           사번이
           <UBadge
             color="error"
@@ -54,7 +54,7 @@
 
       <!-- Add exception -->
       <section class="dashboard-surface rounded-lg border border-(--sk-border) p-4">
-        <h2 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        <h2 class="sk-title">
           예외 추가
         </h2>
         <form
@@ -81,7 +81,7 @@
         </form>
         <p
           v-if="formError"
-          class="mt-2 text-xs text-red-500"
+          class="mt-2 sk-meta text-red-500"
         >
           {{ formError }}
         </p>
@@ -89,15 +89,15 @@
 
       <!-- Exception list -->
       <section class="dashboard-surface rounded-lg border border-(--sk-border) p-4">
-        <h2 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        <h2 class="sk-title">
           허용된 사번
-          <span class="ml-1 text-xs font-normal text-zinc-500 tabular-nums">
+          <span class="ml-1 sk-meta tabular-nums">
             {{ exceptions.length }}
           </span>
         </h2>
         <p
           v-if="!exceptions.length"
-          class="mt-2 text-sm text-zinc-500 dark:text-zinc-400"
+          class="mt-2 sk-body"
         >
           아직 허용된 예외가 없습니다.
         </p>
@@ -111,10 +111,10 @@
             class="flex items-center justify-between gap-3 py-2"
           >
             <div class="flex items-baseline gap-3">
-              <span class="font-medium text-zinc-950 tabular-nums dark:text-zinc-50">
+              <span class="sk-value-num">
                 {{ row.user_id }}
               </span>
-              <span class="text-xs text-zinc-500">
+              <span class="sk-meta">
                 허용일 {{ formatTime(row.granted_at) }}
               </span>
             </div>
@@ -134,18 +134,18 @@
 
       <!-- Recently denied -->
       <section class="dashboard-surface rounded-lg border border-(--sk-border) p-4">
-        <h2 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        <h2 class="sk-title">
           최근 차단된 접근 시도
-          <span class="ml-1 text-xs font-normal text-zinc-500 tabular-nums">
+          <span class="ml-1 sk-meta tabular-nums">
             {{ denied.length }}
           </span>
         </h2>
-        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p class="mt-1 sk-meta">
           서버 재시작 전까지의 최근 50건입니다. "허용"을 누르면 바로 예외 목록에 추가됩니다.
         </p>
         <p
           v-if="!denied.length"
-          class="mt-2 text-sm text-zinc-500 dark:text-zinc-400"
+          class="mt-2 sk-body"
         >
           기록된 차단 시도가 없습니다.
         </p>
@@ -159,10 +159,10 @@
             class="flex items-center justify-between gap-3 py-2"
           >
             <div class="flex items-baseline gap-3">
-              <span class="font-medium text-zinc-950 tabular-nums dark:text-zinc-50">
+              <span class="sk-value-num">
                 {{ row.user_id }}
               </span>
-              <span class="text-xs text-zinc-500">
+              <span class="sk-meta">
                 마지막 시도 {{ formatTime(row.last_denied_at) }}
               </span>
             </div>

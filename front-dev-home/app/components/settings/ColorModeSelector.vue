@@ -36,7 +36,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
         <p class="font-medium text-zinc-900 dark:text-zinc-100">
           App color mode
         </p>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+        <p class="text-sm text-(--sk-ink-muted)">
           Choose how the interface should look on this device.
         </p>
       </div>
@@ -93,7 +93,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
         <div class="flex items-start gap-3 p-3.5">
           <UIcon
             :name="option.icon"
-            class="mt-0.5 h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400"
+            class="mt-0.5 h-4 w-4 shrink-0 text-(--sk-ink-muted)"
           />
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-2">
@@ -106,7 +106,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
                 class="h-4 w-4 shrink-0 text-(--sk-accent)"
               />
             </div>
-            <p class="mt-1 text-xs leading-4 text-zinc-500 dark:text-zinc-400">
+            <p class="mt-1 sk-meta">
               {{ option.description }}
             </p>
           </div>
@@ -114,7 +114,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
       </button>
     </div>
 
-    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+    <p class="sk-meta">
       Selected mode: {{ selectedLabel }}. The choice is saved in this browser.
     </p>
   </section>

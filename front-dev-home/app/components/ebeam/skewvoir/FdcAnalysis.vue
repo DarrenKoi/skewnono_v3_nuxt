@@ -8,15 +8,15 @@
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <p class="sk-title">
               FDC 변곡점 추이 · drift (σ)
             </p>
-            <p class="text-[10.5px] text-(--sk-ink-muted)">
+            <p class="sk-meta">
               장비 이상거동 파라미터를 σ 단위로 정규화 · ±2σ warning · ±3.5σ bad
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
+            <span class="sk-meta tabular-nums">
               warning {{ healthSummary.warning }} · bad {{ healthSummary.bad }} / {{ timeOrderedRows.length }} MSR
             </span>
           </div>
@@ -52,7 +52,7 @@
       />
       <p
         v-else
-        class="px-2 py-10 text-center text-sm text-(--sk-ink-muted)"
+        class="px-2 py-10 text-center sk-body"
       >
         표시할 FDC 파라미터를 한 개 이상 선택하세요.
       </p>
@@ -66,10 +66,10 @@
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <p class="sk-title">
               CD ↔ FDC 상관
             </p>
-            <p class="text-[10.5px] text-(--sk-ink-muted)">
+            <p class="sk-meta">
               MSR별 {{ cdParam || 'CD' }} 평균 vs FDC drift — CD 변동이 장비 상태와 함께 움직이는지 확인
             </p>
           </div>
@@ -96,7 +96,7 @@
         />
         <div class="flex flex-row gap-4 lg:flex-col lg:justify-center">
           <div>
-            <p class="font-mono text-[10px] uppercase tracking-wide text-(--sk-ink-muted)">
+            <p class="sk-eyebrow">
               Pearson r
             </p>
             <p
@@ -105,11 +105,11 @@
             >
               {{ pearson != null ? pearson.toFixed(2) : '—' }}
             </p>
-            <p class="mt-0.5 text-[11px] text-(--sk-ink-muted)">
+            <p class="mt-0.5 sk-meta">
               {{ correlationLabel }}
             </p>
           </div>
-          <div class="text-[11px] text-(--sk-ink-muted)">
+          <div class="sk-meta">
             <p>n = {{ scatterPoints.length }} MSR</p>
             <p class="mt-1">
               <span class="inline-block h-2 w-2 rounded-full bg-green-500" /> ok ·
@@ -121,7 +121,7 @@
       </div>
       <p
         v-else
-        class="px-2 py-8 text-center text-sm text-(--sk-ink-muted)"
+        class="px-2 py-8 text-center sk-body"
       >
         상관 분석에는 {{ cdParam || 'CD' }} parameter를 가진 MSR이 3건 이상 필요합니다. 같은 recipe/parameter의 MSR을 함께 선택하세요.
       </p>
@@ -134,27 +134,27 @@
         :ui="{ body: 'p-0 sm:p-0', header: 'px-4 py-3 sm:px-4' }"
       >
         <template #header>
-          <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <p class="sk-title">
             MSR별 FDC 상태
           </p>
         </template>
         <div class="max-h-80 overflow-auto">
-          <table class="w-full text-[11.5px]">
-            <thead class="sticky top-0 bg-(--sk-surface) text-left text-[10px] uppercase tracking-wide text-(--sk-ink-muted)">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-(--sk-surface) text-left">
               <tr>
-                <th class="px-3 py-1.5 font-medium">
+                <th class="px-3 py-1.5 sk-eyebrow">
                   time
                 </th>
-                <th class="px-2 py-1.5 font-medium">
+                <th class="px-2 py-1.5 sk-eyebrow">
                   eqp
                 </th>
-                <th class="px-2 py-1.5 font-medium">
+                <th class="px-2 py-1.5 sk-eyebrow">
                   worst FDC
                 </th>
-                <th class="px-2 py-1.5 text-right font-medium">
+                <th class="px-2 py-1.5 text-right sk-eyebrow">
                   drift
                 </th>
-                <th class="px-3 py-1.5 font-medium">
+                <th class="px-3 py-1.5 sk-eyebrow">
                   status
                 </th>
               </tr>
@@ -197,7 +197,7 @@
       >
         <template #header>
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <p class="sk-title">
               장비 상시 FDC 교차확인
             </p>
             <USelect
@@ -211,7 +211,7 @@
 
         <div
           v-if="hwPending"
-          class="flex items-center justify-center gap-2 py-10 text-sm text-(--sk-ink-muted)"
+          class="flex items-center justify-center gap-2 py-10 sk-body"
         >
           <UIcon
             name="i-lucide-loader-circle"
@@ -221,12 +221,12 @@
         </div>
         <div
           v-else-if="!hardware || hardware.available === false"
-          class="py-10 text-center text-sm text-(--sk-ink-muted)"
+          class="py-10 text-center sk-body"
         >
           {{ hardwareEqp }} 장비의 상시 FDC 데이터가 없습니다.
         </div>
         <div v-else>
-          <p class="mb-2 text-[11.5px] text-(--sk-ink-muted)">
+          <p class="mb-2 sk-meta">
             {{ hardware.summary }}
           </p>
           <div class="grid grid-cols-2 gap-2">
@@ -235,10 +235,10 @@
               :key="card.key"
               class="rounded-xl ring-1 ring-zinc-200 px-3 py-2 dark:ring-zinc-800"
             >
-              <p class="text-[10px] uppercase tracking-wide text-(--sk-ink-muted)">
+              <p class="sk-label">
                 {{ card.label }}
               </p>
-              <p class="font-mono text-[13px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+              <p class="sk-value-num">
                 {{ card.value }}<span
                   v-if="card.unit"
                   class="ml-0.5 text-[10px] font-normal text-(--sk-ink-muted)"
@@ -246,7 +246,7 @@
               </p>
             </div>
           </div>
-          <p class="mt-2 text-[10.5px] text-(--sk-ink-muted)">
+          <p class="mt-2 sk-meta">
             측정 pickle FDC(이 화면)와 장비 상시 FDC 모니터링을 비교하면, CD 이상이 측정 순간의 문제인지 장비 상시 열화인지 구분할 수 있습니다.
           </p>
         </div>

@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-wrap items-center gap-2 rounded-(--sk-r-card) border border-(--sk-border) bg-(--sk-muted-surface) px-3 py-2">
-    <span class="font-mono text-[10px] font-semibold tracking-[0.06em] text-(--sk-ink-muted) uppercase">
+    <span class="sk-eyebrow">
       Parameter
     </span>
     <button

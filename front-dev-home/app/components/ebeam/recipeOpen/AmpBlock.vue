@@ -17,14 +17,14 @@
     </div>
 
     <div class="overflow-auto">
-      <table class="w-full border-collapse font-mono text-[11.5px]">
+      <table class="w-full border-collapse font-mono text-xs">
         <tbody>
           <tr
             v-for="(field, fi) in fields"
             :key="field.key"
             :class="fi % 2 ? 'bg-black/[0.014] dark:bg-white/[0.02]' : ''"
           >
-            <td class="w-[110px] border-b border-zinc-100 px-3.5 py-1.5 text-[10.5px] font-semibold whitespace-nowrap text-zinc-700 dark:border-zinc-800/60 dark:text-zinc-300">
+            <td class="w-[110px] border-b border-zinc-100 px-3.5 py-1.5 text-[11px] font-semibold whitespace-nowrap text-zinc-700 dark:border-zinc-800/60 dark:text-zinc-300">
               {{ field.label }}
               <span
                 v-if="field.unit"

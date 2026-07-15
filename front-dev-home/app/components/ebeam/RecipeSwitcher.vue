@@ -4,7 +4,7 @@
     aria-label="작업 세트 recipe 전환"
     class="flex flex-wrap items-center gap-1.5"
   >
-    <span class="px-1 font-mono text-[10px] font-bold tracking-wider text-(--sk-brand) uppercase">
+    <span class="px-1 sk-eyebrow text-(--sk-brand)">
       작업 세트 · {{ selected.length }}
     </span>
     <SkNavPill

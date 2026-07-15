@@ -1,11 +1,11 @@
 <template>
   <div class="flex flex-col">
-    <div class="mb-1 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-(--sk-ink-muted)">
+    <div class="mb-1 text-center sk-eyebrow">
       {{ title }}
     </div>
     <div
       v-if="values.length === 0"
-      class="flex h-80 items-center justify-center text-sm text-(--sk-ink-muted)"
+      class="flex h-80 items-center justify-center sk-body"
     >
       측정을 선택하세요.
     </div>

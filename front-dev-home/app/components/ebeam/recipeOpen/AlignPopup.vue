@@ -5,13 +5,13 @@
   >
     <template #header>
       <div class="px-1 py-1">
-        <p class="font-mono text-[11px] tracking-wider text-(--sk-brand) uppercase">
+        <p class="sk-eyebrow text-(--sk-brand)">
           WAFER_ALIGN_INFO
         </p>
-        <p class="mt-1 text-[17px] font-bold text-zinc-900 dark:text-zinc-100">
+        <p class="mt-1 sk-heading">
           웨이퍼 정렬 포인트
         </p>
-        <p class="mt-1 text-[12px] text-(--sk-ink-muted)">
+        <p class="mt-1 sk-meta">
           레시피의 wafer alignment 측정점 {{ rows.length }}개. 일반적으로 조회 빈도가 낮아 별도 창으로 분리했습니다.
         </p>
       </div>
@@ -22,7 +22,7 @@
         v-if="images.length"
         class="mb-4"
       >
-        <p class="mb-1.5 font-mono text-[10px] font-bold tracking-wider text-(--sk-ink-muted) uppercase">
+        <p class="mb-1.5 sk-eyebrow">
           Align Image
         </p>
         <div class="grid grid-cols-2 gap-3">
@@ -36,12 +36,12 @@
           >
             <div class="relative mx-auto aspect-square w-full max-w-[220px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
               <EbeamRecipeOpenSemNoise />
-              <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[9px] font-bold tracking-wider text-(--sk-ink-fg)">
+              <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)">
                 {{ img.label }}
               </span>
               <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
             </div>
-            <div class="truncate font-mono text-[9.5px] text-(--sk-ink-muted)">
+            <div class="truncate font-mono text-[11px] text-(--sk-ink-muted)">
               {{ img.filename }}
             </div>
           </button>

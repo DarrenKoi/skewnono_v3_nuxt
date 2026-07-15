@@ -51,7 +51,7 @@
           </span>
         </div>
 
-        <div class="flex items-center gap-2 text-[11px] text-(--sk-ink-muted)">
+        <div class="flex items-center gap-2 sk-meta">
           <span
             class="inline-flex h-6 items-center gap-1 rounded px-2"
             :class="advisory.beyond ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : ''"
@@ -88,7 +88,7 @@
 
       <span
         v-else
-        class="text-xs text-(--sk-ink-muted)"
+        class="sk-body"
       >
         No tools in this fleet snapshot.
       </span>

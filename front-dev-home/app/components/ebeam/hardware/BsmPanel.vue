@@ -3,7 +3,7 @@
     <!-- Filter row: beam_condition -->
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-(--sk-ink-muted)">Beam Condition</span>
+        <span class="sk-label">Beam Condition</span>
         <USelect
           v-model="beamCondition"
           :items="beamConditionItems"
@@ -35,7 +35,7 @@
         :key="card.key"
         class="rounded-xl bg-(--sk-surface) px-3 py-2 ring-1 ring-(--sk-border-soft)"
       >
-        <dt class="truncate font-mono text-[10px] uppercase tracking-[0.05em] text-(--sk-ink-muted)">
+        <dt class="truncate sk-eyebrow">
           {{ card.label }}
         </dt>
         <dd class="mt-0.5 font-mono text-sm font-bold tabular-nums text-(--sk-ink)">
@@ -72,7 +72,7 @@
     <!-- Dual 360° radars for the selected measurement -->
     <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
-        <div class="text-xs font-bold text-(--sk-ink)">
+        <div class="sk-title">
           360° 빔 형상
         </div>
         <USelect

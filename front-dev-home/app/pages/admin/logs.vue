@@ -2,14 +2,14 @@
   <div class="mx-auto max-w-7xl space-y-4 px-4 py-6">
     <header class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="flex items-center gap-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+        <h1 class="flex items-center gap-2 sk-page-title">
           <UIcon
             name="i-lucide-file-search"
             class="text-sky-500"
           />
           Production Logs
         </h1>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p class="mt-1 sk-meta">
           skewnono_logging
           <UBadge
             v-if="isDemoMode"
@@ -26,7 +26,7 @@
       <div class="flex items-center gap-2">
         <span
           v-if="logs"
-          class="text-xs text-zinc-500 tabular-nums"
+          class="sk-meta tabular-nums"
         >
           {{ logs.total.toLocaleString() }} rows
         </span>
@@ -139,7 +139,7 @@
       </div>
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <div class="text-xs text-zinc-500 tabular-nums">
+        <div class="sk-meta tabular-nums">
           Page {{ currentPage }} / {{ pageCount }}
         </div>
         <div class="flex items-center gap-1.5">
@@ -174,7 +174,7 @@
     <section class="dashboard-surface overflow-hidden rounded-lg border border-(--sk-border)">
       <div
         v-if="pending"
-        class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-zinc-500"
+        class="flex items-center justify-center gap-2 px-4 py-12 sk-body"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -185,7 +185,7 @@
 
       <div
         v-else-if="!rows.length"
-        class="px-4 py-12 text-center text-sm text-zinc-500"
+        class="px-4 py-12 text-center sk-body"
       >
         No logs matched the current filters.
       </div>
@@ -195,7 +195,7 @@
         class="overflow-x-auto"
       >
         <table class="w-full min-w-[72rem] text-left text-xs">
-          <thead class="border-b border-(--sk-border) text-[11px] uppercase tracking-wide text-zinc-500">
+          <thead class="border-b border-(--sk-border) sk-eyebrow">
             <tr>
               <th class="px-3 py-2">
                 Time
@@ -238,7 +238,7 @@
                 class="cursor-pointer border-b border-(--sk-border) hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
                 @click="toggleRow(row.id)"
               >
-                <td class="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-zinc-500">
+                <td class="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-(--sk-ink-muted)">
                   {{ formatTime(row.timestamp) }}
                 </td>
                 <td class="px-3 py-2">
@@ -304,7 +304,7 @@
         </table>
       </div>
 
-      <div class="flex items-center justify-between border-t border-(--sk-border) px-3 py-2 text-xs text-zinc-500">
+      <div class="flex items-center justify-between border-t border-(--sk-border) px-3 py-2 sk-meta">
         <span class="tabular-nums">
           {{ rangeLabel }}
         </span>

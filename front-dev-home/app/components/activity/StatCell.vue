@@ -8,10 +8,10 @@
       <div class="text-xl font-semibold tabular-nums truncate">
         {{ value }}<span
           v-if="unit"
-          class="text-sm font-normal text-zinc-500 ml-0.5"
+          class="text-sm font-normal text-(--sk-ink-muted) ml-0.5"
         >{{ unit }}</span>
       </div>
-      <div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+      <div class="sk-label truncate">
         {{ label }}
       </div>
     </div>

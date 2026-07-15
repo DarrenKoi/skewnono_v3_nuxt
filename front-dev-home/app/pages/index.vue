@@ -62,16 +62,16 @@ const systemStatus = computed(() => {
     <section class="dashboard-surface rounded-3xl p-6 md:p-8">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
-          <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 font-semibold mb-2">
+          <p class="text-xs uppercase tracking-[0.18em] text-(--sk-ink-muted) font-semibold mb-2">
             측정 데이터 검색, 분석, 상태 확인을 한 곳에서
           </p>
-          <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">
+          <h1 class="sk-page-title">
             METROLOGY WORKSPACE
           </h1>
           <div class="mt-5 flex w-full items-center gap-3 sm:w-80">
             <label
               for="landing-fab-select"
-              class="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+              class="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-(--sk-ink-muted)"
             >
               FAB 선택
             </label>
@@ -127,7 +127,7 @@ const systemStatus = computed(() => {
               <span class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-arrow-right"
-                  class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
+                  class="w-4 h-4 text-(--sk-ink-muted) group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
                 />
                 <span class="font-medium">
                   {{ tool.label }}
@@ -142,7 +142,7 @@ const systemStatus = computed(() => {
             <div
               v-else
               :aria-disabled="true"
-              class="flex items-center justify-between p-3 rounded-xl text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+              class="flex items-center justify-between p-3 rounded-xl text-(--sk-ink-muted) cursor-not-allowed"
             >
               <span class="flex items-center gap-2">
                 <UIcon
@@ -193,7 +193,7 @@ const systemStatus = computed(() => {
             :key="fabGroup.fab"
             class="space-y-1"
           >
-            <div class="px-3 text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 font-semibold">
+            <div class="px-3 text-xs uppercase tracking-[0.16em] text-(--sk-ink-muted) font-semibold">
               {{ fabGroup.fab }}
             </div>
             <NuxtLink
@@ -205,7 +205,7 @@ const systemStatus = computed(() => {
               <span class="flex items-center gap-2">
                 <UIcon
                   name="i-lucide-arrow-right"
-                  class="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
+                  class="w-4 h-4 text-(--sk-ink-muted) group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
                 />
                 <span class="font-medium">
                   {{ tool.label }}
@@ -223,7 +223,7 @@ const systemStatus = computed(() => {
     </div>
 
     <!-- System Status -->
-    <h3 class="text-lg font-semibold">
+    <h3 class="sk-heading">
       System Status
     </h3>
     <UCard class="dashboard-surface rounded-3xl">

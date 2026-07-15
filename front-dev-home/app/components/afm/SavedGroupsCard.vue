@@ -4,9 +4,9 @@
       <div class="flex items-center gap-2">
         <UIcon
           name="i-lucide-folder-open"
-          class="h-4 w-4 text-zinc-500"
+          class="h-4 w-4 text-(--sk-ink-muted)"
         />
-        <h3 class="text-sm font-semibold">
+        <h3 class="sk-title">
           Saved Groups
         </h3>
         <UBadge
@@ -41,16 +41,16 @@
           class="min-w-0 flex-1 cursor-pointer text-left"
           @click="$emit('load', group.id)"
         >
-          <p class="truncate text-xs font-semibold">
+          <p class="truncate sk-value">
             {{ group.name }}
           </p>
           <p
             v-if="group.description"
-            class="truncate text-[11px] text-zinc-500"
+            class="truncate sk-meta"
           >
             {{ group.description }}
           </p>
-          <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
+          <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 sk-meta">
             <span>{{ group.itemCount }} items</span>
             <span>•</span>
             <span>{{ formatDate(group.createdAt) }}</span>
@@ -77,7 +77,7 @@
     </ul>
     <p
       v-else
-      class="px-4 py-6 text-center text-xs text-zinc-500"
+      class="px-4 py-6 text-center sk-body"
     >
       No saved groups yet
     </p>

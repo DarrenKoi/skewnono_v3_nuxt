@@ -5,10 +5,10 @@
   >
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <h3 class="text-[12.5px] font-semibold text-(--sk-ink)">
+        <h3 class="sk-title">
           Convergence drilldown
         </h3>
-        <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
+        <span class="font-mono text-[11px] text-(--sk-ink-muted)">
           {{ tool.eqp_id }} / {{ beam }} / rank axis {{ rankAxis }}
         </span>
       </div>
@@ -32,7 +32,7 @@
         :class="cell.axis === rankAxis ? 'bg-(--sk-muted-surface) ring-1 ring-(--sk-accent)' : ''"
       >
         <div class="flex items-center justify-between gap-2">
-          <span class="font-mono text-[11px] font-semibold text-(--sk-ink)">
+          <span class="sk-value-num">
             {{ cell.beam }}.{{ cell.axis }}
           </span>
           <span
@@ -117,7 +117,7 @@
 
   <div
     v-else
-    class="dashboard-surface rounded-2xl px-6 py-8 text-center text-[12px] text-(--sk-ink-muted)"
+    class="dashboard-surface rounded-2xl px-6 py-8 text-center sk-body"
   >
     Select a ranked tool to inspect its axis convergence and epoch history.
   </div>

@@ -70,7 +70,7 @@ const activeToolLabel = computed(() =>
     <div class="px-2 py-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
       <span
         v-if="!sidebarCollapsed"
-        class="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.14em] pl-1.5"
+        class="text-[10px] font-semibold text-(--sk-ink-muted) uppercase tracking-[0.14em] pl-1.5"
       >
         장비모델
       </span>
@@ -79,7 +79,7 @@ const activeToolLabel = computed(() =>
         :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         :aria-controls="sidebarNavId"
         type="button"
-        class="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        class="p-1.5 rounded-lg text-(--sk-ink-muted) hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         :class="sidebarCollapsed ? 'mx-auto' : ''"
         @click="sidebarCollapsed = !sidebarCollapsed"
       >
@@ -134,11 +134,11 @@ const activeToolLabel = computed(() =>
     <div class="border-t border-zinc-200/70 dark:border-zinc-800/70">
       <div
         v-if="!sidebarCollapsed"
-        class="px-3.5 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.14em]"
+        class="px-3.5 pt-2 pb-1 text-[10px] font-semibold text-(--sk-ink-muted) uppercase tracking-[0.14em]"
       >
         Fab<span
           v-if="activeToolLabel"
-          class="text-zinc-400 dark:text-zinc-500 normal-case font-medium tracking-normal"
+          class="text-(--sk-ink-muted) normal-case font-medium tracking-normal"
         > · {{ activeToolLabel }}</span>
       </div>
     </div>
@@ -152,7 +152,7 @@ const activeToolLabel = computed(() =>
         v-if="favorites.length > 0 && !sidebarCollapsed"
         class="mb-3"
       >
-        <div class="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+        <div class="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium text-(--sk-ink-muted)">
           <UIcon
             name="i-lucide-star"
             class="w-3 h-3"

@@ -33,7 +33,7 @@
         label="공통 전체 선택"
         @click="selectCommon"
       />
-      <span class="ml-auto text-[11px] text-(--sk-ink-muted)">{{ modelValue.length }}개 선택</span>
+      <span class="ml-auto sk-meta">{{ modelValue.length }}개 선택</span>
     </div>
 
     <div class="max-h-[300px] overflow-auto rounded-lg border border-zinc-200/70 dark:border-zinc-800/70">
@@ -75,7 +75,7 @@
             </td>
             <td class="px-2.5 py-1.5">
               <span
-                class="rounded px-1.5 py-0.5 text-[9px] font-bold"
+                class="rounded px-1.5 py-0.5 text-[11px] font-bold"
                 :class="coverageClass(row.coverage)"
               >
                 {{ coverageLabel(row) }}

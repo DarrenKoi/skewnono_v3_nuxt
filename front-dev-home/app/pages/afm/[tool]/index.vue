@@ -3,13 +3,13 @@
     <section class="dashboard-surface rounded-3xl px-5 py-6 md:px-7 md:py-7">
       <div class="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
         <div class="min-w-0">
-          <p class="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+          <p class="mb-3 sk-eyebrow">
             AFM Metrology
           </p>
           <h1 class="text-4xl font-semibold tracking-normal text-zinc-950 md:text-5xl dark:text-zinc-50">
             {{ toolLabel }}
           </h1>
-          <p class="mt-2 text-base font-medium text-zinc-500 dark:text-zinc-400">
+          <p class="mt-2 text-base font-medium text-(--sk-ink-muted)">
             <span v-if="fabLabel">{{ fabLabel }} fab</span>
             <span v-if="fabLabel && conceptLabel"> · </span>
             <span v-if="conceptLabel">{{ conceptLabel }}</span>
@@ -26,7 +26,7 @@
             :key="fabGroup.fab"
             class="rounded-2xl border border-[var(--sk-border)] bg-[var(--sk-muted-surface)] px-4 py-3"
           >
-            <span class="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-300">
+            <span class="mb-3 flex items-center gap-2 sk-eyebrow">
               <span class="h-2 w-2 rounded-full bg-[var(--sk-accent)]" />
               {{ fabGroup.fab }} FAB
             </span>

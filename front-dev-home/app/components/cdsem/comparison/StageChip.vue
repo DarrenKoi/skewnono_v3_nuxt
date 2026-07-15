@@ -23,7 +23,7 @@ const props = defineProps<{
 
 const chipClass = computed(() => {
   if (props.inferred) {
-    return 'bg-zinc-100/70 text-zinc-500 ring-zinc-200 dark:bg-zinc-800/70 dark:text-zinc-400 dark:ring-zinc-700'
+    return 'bg-zinc-100/70 text-(--sk-ink-muted) ring-zinc-200 dark:bg-zinc-800/70 dark:text-zinc-400 dark:ring-zinc-700'
   }
   switch (props.stage) {
     case 'EV':
@@ -35,7 +35,7 @@ const chipClass = computed(() => {
     case 'Pool':
       return 'bg-sky-100/70 text-sky-800 ring-sky-200 dark:bg-sky-900/30 dark:text-sky-200 dark:ring-sky-800/50'
     default:
-      return 'bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700'
+      return 'bg-zinc-100 text-(--sk-ink-muted) ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700'
   }
 })
 </script>

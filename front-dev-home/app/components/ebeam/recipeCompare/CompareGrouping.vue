@@ -5,7 +5,7 @@
       :key="field.key"
       class="flex flex-wrap items-center gap-2 border-b border-zinc-100 py-2 dark:border-zinc-800/60"
     >
-      <span class="w-28 shrink-0 font-mono text-[11px] font-medium text-(--sk-ink-muted)">{{ field.label }}</span>
+      <span class="w-28 shrink-0 sk-label">{{ field.label }}</span>
       <button
         v-for="bucket in field.buckets"
         :key="bucket.value"
@@ -27,7 +27,7 @@
     </div>
     <p
       v-if="fields.length === 0"
-      class="py-6 text-center text-[11px] text-(--sk-ink-muted)"
+      class="py-6 text-center sk-meta"
     >
       차이가 있는 항목이 없습니다.
     </p>

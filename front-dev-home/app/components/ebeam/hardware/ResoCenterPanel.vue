@@ -23,7 +23,7 @@
     <div class="grid gap-3 lg:grid-cols-2">
       <!-- Center-drift scatter (CenterX vs CenterY, latest emphasized) -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-        <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+        <div class="mb-1 px-1 sk-title">
           Center Drift
         </div>
         <div
@@ -33,7 +33,7 @@
       </div>
       <!-- BestReso / ResoDelta trend (click → select) -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-        <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
+        <div class="mb-1 px-1 sk-title">
           BestReso · ResoDelta
         </div>
         <div

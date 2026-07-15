@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <div
       v-if="analysis.focusPending.value"
-      class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) text-[12px] text-(--sk-ink-muted)"
+      class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) sk-body"
     >
       <UIcon
         name="i-lucide-loader-circle"
@@ -14,7 +14,7 @@
     <template v-else-if="params.length">
       <!-- Param X / Y selectors -->
       <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-        <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">X</span>
+        <span class="sk-eyebrow">X</span>
         <USelect
           v-model="paramX"
           :items="params"
@@ -25,7 +25,7 @@
           name="i-lucide-x"
           class="h-3 w-3 text-(--sk-ink-subtle)"
         />
-        <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">Y</span>
+        <span class="sk-eyebrow">Y</span>
         <USelect
           v-model="paramY"
           :items="params"
@@ -68,7 +68,7 @@
 
     <div
       v-else
-      class="dashboard-surface flex h-72 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+      class="dashboard-surface flex h-72 items-center justify-center sk-body"
     >
       파라미터 데이터가 없습니다.
     </div>

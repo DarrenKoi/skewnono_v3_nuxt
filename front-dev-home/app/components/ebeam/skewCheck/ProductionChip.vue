@@ -11,7 +11,7 @@
       >
         {{ levelLabel }}
       </span>
-      <span class="text-xs text-(--sk-ink-muted)">{{ corroboration.note }}</span>
+      <span class="sk-meta">{{ corroboration.note }}</span>
       <UIcon
         :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
         class="ml-auto text-(--sk-ink-muted)"

@@ -30,7 +30,7 @@
       <p class="text-sm font-medium text-(--sk-ink)">
         {{ text.emptyTitle }}
       </p>
-      <p class="mt-1 text-xs text-(--sk-ink-muted)">
+      <p class="mt-1 sk-meta">
         {{ text.emptyDesc }}
       </p>
       <UButton
@@ -46,13 +46,13 @@
       v-else
       class="dashboard-surface rounded-2xl p-4"
     >
-      <p class="mb-3 text-[11.5px] text-(--sk-ink-muted)">
+      <p class="mb-3 sk-meta">
         {{ text.legend }}
       </p>
 
       <div
         v-if="pending"
-        class="flex items-center justify-center gap-2 py-16 text-sm text-(--sk-ink-muted)"
+        class="flex items-center justify-center gap-2 py-16 sk-body"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -62,7 +62,7 @@
       </div>
       <div
         v-else-if="error"
-        class="py-16 text-center text-sm text-rose-600 dark:text-rose-300"
+        class="py-16 text-center sk-body text-rose-600 dark:text-rose-300"
       >
         {{ text.loadError }}
       </div>
@@ -72,13 +72,13 @@
       >
         <thead>
           <tr class="border-b border-(--sk-border)">
-            <th class="px-3 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">
+            <th class="px-3 py-2 text-left sk-eyebrow">
               디바이스
             </th>
             <th
               v-for="col in COLS"
               :key="col.key"
-              class="px-2 py-2 text-right font-mono text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)"
+              class="px-2 py-2 text-right sk-eyebrow"
             >
               {{ col.label }}
             </th>
@@ -91,13 +91,13 @@
             :key="dev.lot_cd"
             class="border-t border-(--sk-border) transition-colors hover:bg-(--sk-accent-tint)/40"
           >
-            <td class="px-3 py-1.5 font-mono text-[12.5px] text-(--sk-ink)">
+            <td class="px-3 py-1.5 sk-value-num">
               {{ dev.lot_cd }}
             </td>
-            <td class="px-2 py-1.5 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink)">
+            <td class="px-2 py-1.5 text-right sk-value-num">
               {{ dev.recipe_count }}
             </td>
-            <td class="px-2 py-1.5 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink)">
+            <td class="px-2 py-1.5 text-right sk-value-num">
               {{ dev.param_count }}
             </td>
             <td class="px-2 py-1.5 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink-muted)">

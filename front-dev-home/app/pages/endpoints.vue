@@ -528,7 +528,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
           aria-label="Information sections"
         >
           <div>
-            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+            <p class="mb-2 sk-eyebrow">
               시작하기
             </p>
             <button
@@ -546,7 +546,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
           </div>
 
           <div>
-            <p class="mb-2 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">
+            <p class="mb-2 sk-eyebrow">
               API 카탈로그
             </p>
             <div class="space-y-1">
@@ -567,7 +567,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                 </span>
                 <span
                   class="rounded-full px-2 py-0.5 text-[11px]"
-                  :class="activePanel === group.name ? 'bg-white/15 dark:bg-zinc-950/10' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400'"
+                  :class="activePanel === group.name ? 'bg-white/15 dark:bg-zinc-950/10' : 'bg-zinc-100 text-(--sk-ink-muted) dark:bg-zinc-900 dark:text-zinc-400'"
                 >
                   {{ group.endpoints.length }}
                 </span>
@@ -583,7 +583,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
           class="space-y-8"
         >
           <header class="border-b border-(--sk-border) pb-6">
-            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+            <div class="flex items-center gap-2 text-sm font-semibold text-(--sk-ink-muted)">
               <UIcon
                 name="i-lucide-plug"
                 class="h-4 w-4"
@@ -592,10 +592,10 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
             </div>
             <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div class="max-w-3xl">
-                <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                <h1 class="sk-page-title md:text-4xl">
                   API Token 사용법
                 </h1>
-                <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                <p class="mt-3 sk-body leading-7 md:text-base">
                   Settings에서 개인 API token을 발급하면 SKEWNONO 화면을 열지 않고도 각자 개발 환경, 분석 노트북, 배치 스크립트에서 필요한 데이터를 직접 가져갈 수 있습니다.
                 </p>
               </div>
@@ -617,7 +617,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   name="i-lucide-link"
                   class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   Base URL
                 </h2>
               </div>
@@ -633,8 +633,8 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                         {{ row.label }}
                       </th>
                       <td class="px-4 py-4 align-top">
-                        <code class="font-mono text-xs text-zinc-950 dark:text-white">{{ row.value }}</code>
-                        <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                        <code class="sk-value-num">{{ row.value }}</code>
+                        <p class="mt-2 sk-body leading-6">
                           {{ row.detail }}
                         </p>
                       </td>
@@ -650,7 +650,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   name="i-lucide-list-checks"
                   class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   발급 순서
                 </h2>
               </div>
@@ -664,8 +664,8 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                     {{ index + 1 }}
                   </span>
                   <span>
-                    <span class="block font-semibold">{{ step.title }}</span>
-                    <span class="mt-1 block text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ step.detail }}</span>
+                    <span class="block sk-title">{{ step.title }}</span>
+                    <span class="mt-1 block sk-body leading-6">{{ step.detail }}</span>
                   </span>
                 </li>
               </ol>
@@ -679,11 +679,11 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   name="i-lucide-shield-check"
                   class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   토큰 주의사항
                 </h2>
               </div>
-              <ul class="mt-4 space-y-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              <ul class="mt-4 space-y-3 sk-body leading-6">
                 <li
                   v-for="note in authNotes"
                   :key="note"
@@ -704,7 +704,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   name="i-lucide-terminal"
                   class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
                 />
-                <h2 class="text-lg font-semibold">
+                <h2 class="sk-heading">
                   호출 예시
                 </h2>
               </div>
@@ -714,7 +714,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   :key="example.title"
                   class="overflow-hidden rounded-lg border border-(--sk-border) bg-white dark:bg-zinc-950"
                 >
-                  <div class="border-b border-(--sk-border) px-4 py-3 text-sm font-semibold">
+                  <div class="border-b border-(--sk-border) px-4 py-3 sk-title">
                     {{ example.title }}
                   </div>
                   <pre class="whitespace-pre-wrap break-words p-4 text-xs leading-6"><code>{{ example.code }}</code></pre>
@@ -729,7 +729,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
           class="space-y-6"
         >
           <header class="border-b border-(--sk-border) pb-6">
-            <div class="flex items-center gap-2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+            <div class="flex items-center gap-2 text-sm font-semibold text-(--sk-ink-muted)">
               <UIcon
                 name="i-lucide-list-tree"
                 class="h-4 w-4"
@@ -743,17 +743,17 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                     :name="selectedApiGroup.icon"
                     class="h-7 w-7 text-zinc-700 dark:text-zinc-200"
                   />
-                  <h1 class="text-2xl font-semibold text-zinc-950 dark:text-white md:text-4xl">
+                  <h1 class="sk-page-title md:text-4xl">
                     {{ selectedApiGroup.name }}
                   </h1>
                 </div>
-                <p class="mt-3 text-sm leading-7 text-zinc-600 dark:text-zinc-300 md:text-base">
+                <p class="mt-3 sk-body leading-7 md:text-base">
                   {{ selectedApiGroup.description }}
                 </p>
               </div>
               <div class="grid grid-cols-2 gap-3 sm:flex">
                 <div class="rounded-lg border border-(--sk-border) bg-white px-4 py-3 dark:bg-zinc-950">
-                  <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                  <div class="sk-meta">
                     선택 항목
                   </div>
                   <div class="mt-1 text-xl font-semibold">
@@ -761,7 +761,7 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   </div>
                 </div>
                 <div class="rounded-lg border border-(--sk-border) bg-white px-4 py-3 dark:bg-zinc-950">
-                  <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                  <div class="sk-meta">
                     전체 Endpoint
                   </div>
                   <div class="mt-1 text-xl font-semibold">
@@ -786,9 +786,9 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                       :color="methodColor(endpoint.method)"
                       variant="subtle"
                     />
-                    <code class="break-all font-mono text-xs text-zinc-950 dark:text-white">{{ endpoint.path }}</code>
+                    <code class="break-all sk-value-num">{{ endpoint.path }}</code>
                   </div>
-                  <p class="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                  <p class="sk-body leading-6">
                     {{ endpoint.summary }}
                   </p>
                 </div>
@@ -803,25 +803,25 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
 
               <dl class="mt-4 grid gap-3 md:grid-cols-2">
                 <div class="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
-                  <dt class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <dt class="sk-label">
                     Parameter
                   </dt>
                   <dd class="mt-1">
-                    <code class="break-words font-mono text-xs text-zinc-800 dark:text-zinc-200">{{ endpoint.params }}</code>
+                    <code class="break-words sk-value-num">{{ endpoint.params }}</code>
                   </dd>
                 </div>
                 <div class="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
-                  <dt class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <dt class="sk-label">
                     Response
                   </dt>
                   <dd class="mt-1">
-                    <code class="break-words font-mono text-xs text-zinc-800 dark:text-zinc-200">{{ endpoint.response }}</code>
+                    <code class="break-words sk-value-num">{{ endpoint.response }}</code>
                   </dd>
                 </div>
               </dl>
 
               <div class="mt-4 overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
-                <div class="border-b border-(--sk-border) px-3 py-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
                   Example
                 </div>
                 <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ endpoint.example }}</code></pre>

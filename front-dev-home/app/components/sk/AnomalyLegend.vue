@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-(--sk-ink-muted)">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-(--sk-ink-muted)">
     <span class="inline-flex items-center gap-1">
       <span
         class="h-2 w-2 rounded-full"

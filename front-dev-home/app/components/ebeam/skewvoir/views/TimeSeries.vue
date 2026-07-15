@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <!-- Curate the comparison set — writes straight to the URL ?msrs= -->
     <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-      <span class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">비교 세트</span>
+      <span class="sk-eyebrow">비교 세트</span>
       <USelectMenu
         :model-value="ws.msrList.value"
         multiple
@@ -14,12 +14,12 @@
         size="sm"
         @update:model-value="ws.setMsrs"
       />
-      <span class="font-mono text-[11px] text-(--sk-ink-muted)">
+      <span class="sk-meta tabular-nums">
         {{ analysis.setRows.value.length }} measurements · {{ analysis.activeParam.value }}
       </span>
       <span
         v-if="ws.msrList.value.length > analysis.setRows.value.length"
-        class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-[10.5px] text-(--sk-bad)"
+        class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-[11px] text-(--sk-bad)"
         :title="`${ws.msrList.value.length}개 선택, ${analysis.setRows.value.length}개만 표시 (최대 30)`"
       >
         {{ ws.msrList.value.length }}개 중 {{ analysis.setRows.value.length }}개 표시
@@ -34,7 +34,7 @@
     >
       <div
         v-if="analysis.setPending.value"
-        class="flex h-72 items-center justify-center gap-2 text-[12px] text-(--sk-ink-muted)"
+        class="flex h-72 items-center justify-center gap-2 sk-body"
       >
         <UIcon
           name="i-lucide-loader-circle"
@@ -90,7 +90,7 @@
               />σ
             </label>
           </template>
-          <span class="font-mono text-[10.5px] text-(--sk-ink-muted)">
+          <span class="sk-meta tabular-nums">
             주의 {{ analysis.trendSummary.value.watch }} · 이상 {{ analysis.trendSummary.value.abnormal }} / {{ analysis.trendPoints.value.length }} MSR
           </span>
           <SkAnomalyLegend
@@ -108,7 +108,7 @@
       </template>
       <div
         v-else
-        class="flex h-72 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+        class="flex h-72 items-center justify-center sk-body"
       >
         비교할 측정을 추가하세요.
       </div>
@@ -131,7 +131,7 @@
       />
       <div
         v-else
-        class="flex h-56 items-center justify-center text-[12px] text-(--sk-ink-subtle)"
+        class="flex h-56 items-center justify-center sk-body"
       >
         focus 측정의 sequence 데이터가 없습니다.
       </div>

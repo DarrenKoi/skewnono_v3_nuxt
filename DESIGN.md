@@ -76,13 +76,15 @@ Two rules protect this layer. It is declared **outside `@layer`**, so it outrank
 ## Typography
 
 ### Font Family
-The system runs **Public Sans** as the UI/body sans with **Noto Sans KR** covering Hangul, and a system monospace stack for numbers and code. Fallback stacks: `Public Sans, Noto Sans KR, Apple SD Gothic Neo, Malgun Gothic, Segoe UI, sans-serif` (`--font-sans`), `ui-monospace, Cascadia Code, Segoe UI Mono, SFMono-Regular, Menlo, Consolas, monospace` (`--font-mono`), and `--font-korean` when Korean must be forced.
+The system runs **Noto Sans KR** as the default UI/body sans, covering **both Hangul and Latin** from self-hosted korean + latin/latin-ext subsets, with **Public Sans** kept as a Latin fallback, and **JetBrains Mono** for numbers, IDs, code, and eyebrows. Fallback stacks: `Noto Sans KR, Public Sans, Apple SD Gothic Neo, Malgun Gothic, Segoe UI, sans-serif` (`--font-sans`), `JetBrains Mono, ui-monospace, Cascadia Code, Segoe UI Mono, SFMono-Regular, Menlo, Consolas, monospace` (`--font-mono`), and `--font-korean` when Korean must be forced.
 
-All fonts are **self-hosted**: woff2 only (latin + korean subsets) extracted from `@fontsource/*` into `front-dev-home/public/fonts/`. No CDN or Google Fonts access, ever (offline principle).
+The Noto Sans KR `@font-face` Latin subsets are declared **after** its Korean face (which carries no `unicode-range`); for overlapping ranges the later-defined rule wins, so Latin codepoints resolve to the small Latin subsets while Hangul/CJK fall to the Korean face — one family, both scripts.
 
-- Public Sans 400–700 → body, navigation, buttons, headings
-- Noto Sans KR 400–700 → Korean labels and copy
-- Mono stack → all numeric and ID columns, code, eyebrows
+All fonts are **self-hosted**: woff2 only (latin + latin-ext + korean subsets) extracted from `@fontsource/*` into `front-dev-home/public/fonts/`. No CDN or Google Fonts access, ever (offline principle).
+
+- Noto Sans KR 400–700 → default sans: body, navigation, buttons, headings, Korean labels and copy (Latin + Hangul)
+- Public Sans 400–700 → Latin fallback
+- JetBrains Mono 400–700 → all numeric and ID columns, code, eyebrows
 
 ### Hierarchy
 
@@ -102,6 +104,24 @@ All fonts are **self-hosted**: woff2 only (latin + korean subsets) extracted fro
 Weight carries hierarchy, not color: 400 body → 500 nav labels/buttons → 600 section titles/pills → 700 page titles and big numbers. Number and ID columns always take `font-mono tabular-nums`; tabular figures are mandatory wherever numbers update in place. Korean labels keep natural spacing with `whitespace-nowrap` on header cells; Korean paragraphs (help text, empty states) take `leading-relaxed` — dense Hangul needs the extra line height at 14–16px. Page titles are Korean; the eyebrow above them is English (`CD-SEM`, `HV-SEM`).
 
 **The sub-12px rule.** Metrology screens are dense, and two tiers below the floor earn their place: the 10px mono **eyebrow** and the 11px **micro-label**. Both are strictly *chrome that names things* — a column header, a stat caption, a kicker. The line that does not move: **a data value never renders below 12px.** If a value doesn't fit, the column is too narrow; if a label doesn't fit at 11px, shorten the label. Nothing else goes under 12px, and no new tier gets invented — 10 and 11 are the whole list.
+
+### Semantic type classes
+
+The hierarchy above is implemented as a small set of **role-named classes** in `main.css`, so type is styled by *purpose and location*, not by ad-hoc `text-[…]` / `text-(--sk-…)` utilities scattered per call site. Each class bundles size + weight + colour + family; a change to a role lands in **one place**, and the class name documents intent. This is the mechanism that keeps the type consistent — hand-written `text-[9.5px]`, `text-[10.5px]`, `text-[11.5px]` and `text-zinc-400/500` on content are the drift these replace.
+
+| Class | Role — purpose / location | Size · weight · colour |
+|---|---|---|
+| `.sk-eyebrow` | Mono uppercase kicker (meta-bar, section kicker) | 10px · 600 · mono +0.06em uppercase · ink-muted |
+| `.sk-label` | Field / column / caption **label** (table headers, stat captions) | 11px · 600 · ink-muted |
+| `.sk-value` | A data **value** (table cell, stat text, ID) | 12px · 500 · **ink** |
+| `.sk-value-num` | A **numeric** value (mono + tabular figures) | 12px · 500 · mono tabular · **ink** |
+| `.sk-meta` | Secondary / supporting text (helper, timestamp, de-emphasised) | 12px · 400 · ink-muted |
+| `.sk-body` | Body copy (descriptions, empty states, help) | 14px · 400 · ink |
+| `.sk-title` | Compact panel / card title (dense dashboards) | 13px · 600 · ink |
+| `.sk-heading` | Card / section heading | 18px · 600 · ink |
+| `.sk-page-title` | Page title (`<h1>`) | 30px · 700 · tracking-tight · ink |
+
+Rules that fall out of the table, enforced by which class you pick: **values are ink, labels are muted** (choosing `.sk-value` vs `.sk-label` *is* the litmus test); **a value is never `.sk-eyebrow`/`.sk-label`** (those are sub-12px, chrome-only); dark-mode colour follows for free because the classes reference `--sk-*` tokens. Spacing, alignment and layout stay as Tailwind utilities at the call site — these classes own type only. NuxtUI components keep inheriting type through the token bridge; use these on hand-written markup.
 
 ## Layout
 
@@ -274,7 +294,8 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 
 ## Known Gaps
 
-- **Call-site drift to sweep (doc + theme are correct):** pages still carry chrome classes that predate the NuxtUI bridge — `rounded-2xl` on cards (which *beats* the themed 14px), `border-zinc-*` toolbar dividers, `bg-zinc-*` table headers, `text-zinc-900` card titles, and raw `rose`/`amber`/`emerald` where the `--sk-ok/warn/bad` families belong. These are now **deletions**, not replacements: the correct value already sits underneath. `장비 상태` (`ToolInventoryView.vue`, `StorageView.vue`) is the worst offender and the reference case for the sweep.
+- **Call-site drift to sweep (doc + theme are correct):** some pages still carry chrome classes that predate the NuxtUI bridge — `rounded-2xl` on cards (which *beats* the themed 14px), `border-zinc-*` toolbar dividers, `bg-zinc-*` table headers, `text-zinc-900` card titles, and raw `rose`/`amber`/`emerald` where the `--sk-ok/warn/bad` families belong. These are **deletions**, not replacements: the correct value already sits underneath. `장비 리스트` / `스토리지` (`ToolInventoryView.vue`, `StorageView.vue`) have been **swept and now read as the reference case** — data tables at `text-xs` full-`--sk-ink` values, `text-[11px]` muted headers, sanctioned zinc only in the row hover.
+- **Font-tier + dim-colour sweep (done, 2026-07-15):** non-sanctioned type tiers (`text-[9px]`, `text-[9.5px]`, `text-[10.5px]`, `text-[11.5px]`) were normalised to the sanctioned 11px/12px, and cool `text-zinc-400/500` supporting text was replaced with the warmer, higher-contrast `--sk-ink-muted`. Going forward, prefer the **semantic type classes** (§Typography → Semantic type classes) over re-introducing ad-hoc `text-[…]` sizes; adopting them across the remaining components is the open follow-up.
 - Equipment status sub-tabs (`EquipmentStatusSubTabs.vue`) are a hand-rolled white/zinc segmented control; they are a NAVIGATE control and must become `<SkNavPill>` (ink fill).
 - Several pages are still English in the UI copy (placeholders, `Reset`, empty states, error lines) against the Korean-voice rule.
 - The `--sk-accent-soft` hover on interactive stat cells is specified but not yet applied everywhere.

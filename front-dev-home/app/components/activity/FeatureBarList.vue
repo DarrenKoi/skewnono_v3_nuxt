@@ -10,12 +10,12 @@
     >
       <div class="flex items-center justify-between text-xs">
         <span
-          class="font-medium text-(--sk-ink) truncate"
+          class="sk-value truncate"
           :title="row.feature"
         >
           {{ activityFeatureLabel(row.feature) }}
         </span>
-        <span class="text-zinc-500 tabular-nums shrink-0 ml-2">
+        <span class="sk-meta tabular-nums shrink-0 ml-2">
           {{ row.count }}
         </span>
       </div>
@@ -29,7 +29,7 @@
   </div>
   <div
     v-else
-    class="text-sm text-zinc-500"
+    class="sk-body"
   >
     {{ emptyText }}
   </div>
