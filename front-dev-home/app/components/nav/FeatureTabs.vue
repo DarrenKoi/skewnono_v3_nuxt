@@ -18,7 +18,6 @@ type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware
 type FeatureTab = {
   label: string
   icon: string
-  badgeIcon?: string
   routeValue?: FeatureRouteValue
   enabledToolTypes?: ToolType[]
 }
@@ -32,7 +31,7 @@ const features: FeatureTab[] = [
   // 스큐 관리 (skew-check) is hidden from the nav while its design is reworked.
   // The route and page still exist and remain reachable by URL.
   // { label: '스큐 관리', routeValue: 'skew-check', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
-  { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', badgeIcon: 'i-lucide-sparkles', enabledToolTypes: ['cd-sem', 'hv-sem'] }
+  { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
 const toolTypes: ToolType[] = ['cd-sem', 'hv-sem', 'verity-sem', 'provision']
@@ -99,7 +98,6 @@ const isFeatureEnabled = (feature: FeatureTab) => {
       :label="feature.label"
       :aria-label="feature.label"
       :icon="feature.icon"
-      :trailing-icon="feature.badgeIcon"
       :active="activeFeature === feature.routeValue"
       :disabled="!isFeatureEnabled(feature)"
       :to="isFeatureEnabled(feature) && feature.routeValue ? getFeatureRoute(feature.routeValue) : undefined"
