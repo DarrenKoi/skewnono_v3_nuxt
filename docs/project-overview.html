@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="SKEWNONO v3 임원 보고용 프로젝트 소개" />
+  <title>SKEWNONO v3 | Executive Brief</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --navy-950: #08162b;
+      --navy-900: #10233f;
+      --navy-800: #173254;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-100: #dbeafe;
+      --cyan-400: #22d3ee;
+      --cyan-100: #cffafe;
+      --violet-500: #8b5cf6;
+      --green-500: #10b981;
+      --green-100: #d1fae5;
+      --amber-500: #f59e0b;
+      --amber-100: #fef3c7;
+      --ink: #162033;
+      --ink-soft: #526079;
+      --ink-muted: #77839a;
+      --line: #dfe6f0;
+      --surface: #ffffff;
+      --surface-soft: #f4f7fb;
+      --shadow: 0 24px 70px rgba(8, 22, 43, 0.12);
+      --shadow-soft: 0 12px 34px rgba(8, 22, 43, 0.07);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(59, 130, 246, 0.1), transparent 28rem),
+        var(--surface-soft);
+      color: var(--ink);
+      font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.65;
+      word-break: keep-all;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page-shell {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 72px;
+      color: var(--navy-900);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border-radius: 11px;
+      background: var(--navy-950);
+      box-shadow: 0 8px 18px rgba(8, 22, 43, 0.2);
+      color: white;
+      font-size: 13px;
+    }
+
+    .topbar-meta {
+      color: var(--ink-muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 68px;
+      border-radius: var(--radius-xl);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 42%),
+        linear-gradient(135deg, var(--navy-950) 0%, #102c50 54%, #17466f 100%);
+      box-shadow: var(--shadow);
+      color: white;
+    }
+
+    .hero::before,
+    .hero::after {
+      position: absolute;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      content: "";
+    }
+
+    .hero::before {
+      top: -180px;
+      right: -90px;
+      width: 460px;
+      height: 460px;
+    }
+
+    .hero::after {
+      right: 145px;
+      bottom: -210px;
+      width: 360px;
+      height: 360px;
+    }
+
+    .hero-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+      gap: 64px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 22px;
+      color: #9eeafb;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 28px;
+      height: 2px;
+      background: var(--cyan-400);
+      content: "";
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 700px;
+      margin-bottom: 22px;
+      font-size: clamp(42px, 6vw, 76px);
+      line-height: 1.04;
+      letter-spacing: -0.055em;
+    }
+
+    .hero-lead {
+      max-width: 690px;
+      margin-bottom: 0;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 17px;
+      line-height: 1.8;
+    }
+
+    .launch-card {
+      padding: 26px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .launch-label {
+      margin-bottom: 9px;
+      color: #9eeafb;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .launch-date {
+      margin-bottom: 6px;
+      font-size: 29px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .launch-note {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.64);
+      font-size: 13px;
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .metric {
+      min-height: 142px;
+      padding: 23px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .metric-value {
+      margin-bottom: 8px;
+      color: var(--navy-950);
+      font-size: 34px;
+      font-weight: 850;
+      letter-spacing: -0.045em;
+      line-height: 1.15;
+    }
+
+    .metric-label {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    main {
+      padding: 78px 0 96px;
+    }
+
+    .section {
+      margin-top: 92px;
+    }
+
+    .section:first-child {
+      margin-top: 0;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 34px;
+      margin-bottom: 34px;
+      align-items: start;
+    }
+
+    .section-kicker {
+      padding-top: 8px;
+      color: var(--blue-600);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .section-title {
+      margin-bottom: 12px;
+      color: var(--navy-950);
+      font-size: clamp(30px, 4vw, 44px);
+      line-height: 1.2;
+      letter-spacing: -0.045em;
+    }
+
+    .section-desc {
+      max-width: 780px;
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 16px;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 66px 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .version-card {
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .version-card.v3 {
+      border-color: rgba(37, 99, 235, 0.28);
+      background:
+        linear-gradient(145deg, rgba(37, 99, 235, 0.06), transparent 46%),
+        var(--surface);
+    }
+
+    .version-tag {
+      display: inline-flex;
+      margin-bottom: 18px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: var(--ink-soft);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .v3 .version-tag {
+      background: var(--blue-100);
+      color: #1d4ed8;
+    }
+
+    .version-card h3 {
+      margin-bottom: 6px;
+      color: var(--navy-950);
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+
+    .version-tools {
+      margin-bottom: 28px;
+      color: var(--ink-muted);
+      font-size: 13px;
+    }
+
+    .version-list {
+      display: grid;
+      gap: 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .version-list li {
+      position: relative;
+      padding-left: 25px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .version-list li::before {
+      position: absolute;
+      top: 9px;
+      left: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #a5afbd;
+      content: "";
+    }
+
+    .v3 .version-list li::before {
+      background: var(--blue-500);
+      box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.11);
+    }
+
+    .compare-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--blue-500);
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .feature-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 310px;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .feature-card::after {
+      position: absolute;
+      right: -45px;
+      bottom: -55px;
+      width: 160px;
+      height: 160px;
+      border: 26px solid rgba(37, 99, 235, 0.045);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .feature-number {
+      display: inline-grid;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 26px;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--navy-950);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .feature-card:nth-child(2) .feature-number {
+      background: var(--blue-600);
+    }
+
+    .feature-card:nth-child(3) .feature-number {
+      background: var(--violet-500);
+    }
+
+    .feature-card:nth-child(4) .feature-number {
+      background: #0f766e;
+    }
+
+    .feature-card h3 {
+      margin-bottom: 14px;
+      color: var(--navy-950);
+      font-size: 22px;
+      line-height: 1.35;
+      letter-spacing: -0.03em;
+    }
+
+    .feature-card p {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 22px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .tag-list {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tag-list li {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--surface-soft);
+      color: var(--ink-soft);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .rule-panel {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .rule-card,
+    .recipe-card {
+      padding: 34px;
+      border-radius: var(--radius-xl);
+    }
+
+    .rule-card {
+      background: var(--navy-950);
+      color: white;
+    }
+
+    .rule-card .mini-label,
+    .recipe-card .mini-label {
+      margin-bottom: 14px;
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .rule-card .mini-label {
+      color: #8be5f5;
+    }
+
+    .rule-card h3,
+    .recipe-card h3 {
+      margin-bottom: 14px;
+      font-size: 24px;
+      letter-spacing: -0.035em;
+      line-height: 1.35;
+    }
+
+    .rule-card p {
+      margin-bottom: 0;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+    }
+
+    .recipe-card {
+      border: 1px solid #ddd6fe;
+      background: linear-gradient(135deg, #f5f3ff, #ffffff);
+    }
+
+    .recipe-card .mini-label {
+      color: #6d28d9;
+    }
+
+    .recipe-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-top: 24px;
+    }
+
+    .recipe-state {
+      min-height: 100px;
+      padding: 18px;
+      border: 1px solid rgba(139, 92, 246, 0.18);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    .recipe-state strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--navy-950);
+      font-size: 15px;
+    }
+
+    .recipe-state span {
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    .recipe-arrow {
+      color: var(--violet-500);
+      font-weight: 900;
+    }
+
+    .impact-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .impact-card {
+      padding: 27px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+
+    .impact-icon {
+      width: 32px;
+      height: 4px;
+      margin-bottom: 24px;
+      border-radius: 999px;
+      background: var(--blue-500);
+    }
+
+    .impact-card:nth-child(2) .impact-icon {
+      background: var(--green-500);
+    }
+
+    .impact-card:nth-child(3) .impact-icon {
+      background: var(--violet-500);
+    }
+
+    .impact-card:nth-child(4) .impact-icon {
+      background: var(--amber-500);
+    }
+
+    .impact-card h3 {
+      margin-bottom: 10px;
+      color: var(--navy-950);
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+
+    .impact-card p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+
+    .roadmap {
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+      background: var(--navy-950);
+      box-shadow: var(--shadow);
+      color: white;
+    }
+
+    .roadmap-head {
+      padding: 44px 48px 0;
+    }
+
+    .roadmap-head .section-kicker {
+      color: #8be5f5;
+    }
+
+    .roadmap-head h2 {
+      max-width: 720px;
+      margin-bottom: 10px;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.25;
+      letter-spacing: -0.045em;
+    }
+
+    .roadmap-head p {
+      max-width: 720px;
+      margin-bottom: 0;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 38px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .timeline-item {
+      position: relative;
+      min-height: 290px;
+      padding: 42px 48px 48px;
+    }
+
+    .timeline-item + .timeline-item {
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .timeline-year {
+      margin-bottom: 22px;
+      color: var(--cyan-400);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .timeline-item h3 {
+      margin-bottom: 14px;
+      font-size: 25px;
+      letter-spacing: -0.03em;
+    }
+
+    .timeline-item p {
+      margin-bottom: 22px;
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 14px;
+    }
+
+    .timeline-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .timeline-tags span {
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .closing {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 34px;
+      margin-top: 92px;
+      padding: 42px 0 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .closing-label {
+      color: var(--blue-600);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .closing p {
+      margin: 0;
+      color: var(--navy-950);
+      font-size: clamp(23px, 3vw, 34px);
+      font-weight: 760;
+      line-height: 1.45;
+      letter-spacing: -0.04em;
+    }
+
+    footer {
+      padding: 28px 0 44px;
+      color: var(--ink-muted);
+      font-size: 11px;
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        padding: 46px;
+      }
+
+      .hero-grid,
+      .section-head,
+      .rule-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-grid {
+        gap: 38px;
+      }
+
+      .metric-strip,
+      .impact-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .compare-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .compare-arrow {
+        transform: rotate(90deg);
+      }
+
+      .feature-grid,
+      .timeline {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-item + .timeline-item {
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        border-left: 0;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page-shell {
+        width: min(100% - 24px, 1180px);
+      }
+
+      .topbar-meta {
+        display: none;
+      }
+
+      .hero {
+        padding: 34px 26px;
+        border-radius: 22px;
+      }
+
+      h1 {
+        font-size: 42px;
+      }
+
+      .metric-strip,
+      .impact-grid {
+        grid-template-columns: 1fr;
+      }
+
+      main {
+        padding-top: 58px;
+      }
+
+      .section {
+        margin-top: 68px;
+      }
+
+      .feature-card,
+      .version-card,
+      .rule-card,
+      .recipe-card {
+        padding: 27px;
+      }
+
+      .recipe-flow {
+        grid-template-columns: 1fr;
+      }
+
+      .recipe-arrow {
+        transform: rotate(90deg);
+        text-align: center;
+      }
+
+      .roadmap-head,
+      .timeline-item {
+        padding-right: 28px;
+        padding-left: 28px;
+      }
+
+      .closing {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .page-shell {
+        width: 100%;
+      }
+
+      .topbar {
+        min-height: 52px;
+      }
+
+      .hero,
+      .roadmap {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .hero {
+        padding: 42px;
+        box-shadow: none;
+      }
+
+      .metric,
+      .version-card,
+      .feature-card,
+      .rule-card,
+      .recipe-card,
+      .impact-card,
+      .roadmap {
+        break-inside: avoid;
+        box-shadow: none;
+      }
+
+      .section {
+        margin-top: 58px;
+      }
+
+      main {
+        padding: 52px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-shell">
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-mark">SN</span>
+        <span>SKEWNONO</span>
+      </div>
+      <div class="topbar-meta">Executive Brief · 2026</div>
+    </div>
+
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">E-Beam Metrology Intelligence</p>
+          <h1 id="hero-title">SKEWNONO<br />v3</h1>
+          <p class="hero-lead">
+            CD-SEM과 HV-SEM 운영 데이터를 통합하고, 장비 정합성부터 Recipe·Parameter
+            관리와 데이터 분석까지 하나로 연결하는 E-Beam 계측 플랫폼입니다.
+          </p>
+        </div>
+        <aside class="launch-card" aria-label="오픈 목표">
+          <div class="launch-label">Target Open</div>
+          <div class="launch-date">2026년 7월 말</div>
+          <p class="launch-note">통합 관리 · Device Statistics · Skewvoir</p>
+        </aside>
+      </div>
+    </section>
+
+    <div class="metric-strip" aria-label="핵심 지표">
+      <article class="metric">
+        <div class="metric-value">약 320대</div>
+        <p class="metric-label">통합 관리 대상 장비</p>
+      </article>
+      <article class="metric">
+        <div class="metric-value">270 + 50</div>
+        <p class="metric-label">CD-SEM + HV-SEM</p>
+      </article>
+      <article class="metric">
+        <div class="metric-value">전사 Recipe</div>
+        <p class="metric-label">추적 범위 확대 추진</p>
+      </article>
+      <article class="metric">
+        <div class="metric-value">2027+</div>
+        <p class="metric-label">장비 확장 및 AI Agent</p>
+      </article>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="section" aria-labelledby="change-title">
+      <div class="section-head">
+        <div class="section-kicker">01 · Evolution</div>
+        <div>
+          <h2 class="section-title" id="change-title">단일 장비군 서비스에서<br />통합 계측 플랫폼으로</h2>
+          <p class="section-desc">
+            v2의 CD-SEM 중심 운영 서비스를 확장하여, v3에서는 지원 장비와 분석 범위를
+            동시에 넓히고 장비·측정·Recipe 데이터를 하나의 관리 체계로 연결합니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="compare-grid">
+        <article class="version-card">
+          <span class="version-tag">SKEWNONO v2</span>
+          <h3>CD-SEM 중심</h3>
+          <div class="version-tools">약 270대</div>
+          <ul class="version-list">
+            <li>CD-SEM 단일 장비군 서비스</li>
+            <li>측정 이력이 있는 Recipe 중심 추적</li>
+            <li>개별 기능 중심의 데이터 확인</li>
+          </ul>
+        </article>
+
+        <div class="compare-arrow" aria-hidden="true">→</div>
+
+        <article class="version-card v3">
+          <span class="version-tag">SKEWNONO v3</span>
+          <h3>통합 관리·분석</h3>
+          <div class="version-tools">약 320대</div>
+          <ul class="version-list">
+            <li>CD-SEM 270대 + HV-SEM 50대</li>
+            <li>전사 전체 Recipe 추적 구조 구축</li>
+            <li>하드웨어·캘리브레이션 데이터 통합</li>
+            <li>Skewvoir 데이터 분석 대시보드</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="capability-title">
+      <div class="section-head">
+        <div class="section-kicker">02 · Capabilities</div>
+        <div>
+          <h2 class="section-title" id="capability-title">핵심 구축 범위</h2>
+          <p class="section-desc">
+            장비 통합, 정합성 개선, Parameter 관리, 데이터 분석을 하나의 흐름으로
+            연결하여 계측 운영의 가시성과 의사결정 속도를 높입니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <span class="feature-number">01</span>
+          <h3>CD-SEM·HV-SEM 통합 관리</h3>
+          <p>
+            장비 목록, 상태, Recipe 및 운영 정보를 장비 유형과 Fab 기준으로 통합해
+            약 320대의 E-Beam 장비를 한곳에서 관리합니다.
+          </p>
+          <ul class="tag-list">
+            <li>CD-SEM 270대</li>
+            <li>HV-SEM 50대</li>
+            <li>Fab별 관리</li>
+          </ul>
+        </article>
+
+        <article class="feature-card">
+          <span class="feature-number">02</span>
+          <h3>Tool-to-Tool Matching 개선</h3>
+          <p>
+            주요 하드웨어 상태와 캘리브레이션 이력을 측정 결과와 함께 비교하여
+            장비 간 편차의 원인을 구체적으로 파악하고 정합성 개선을 지원합니다.
+          </p>
+          <ul class="tag-list">
+            <li>하드웨어 상태</li>
+            <li>캘리브레이션</li>
+            <li>장비 간 비교</li>
+          </ul>
+        </article>
+
+        <article class="feature-card">
+          <span class="feature-number">03</span>
+          <h3>Device Statistics 대폭 강화</h3>
+          <p>
+            DRAM·NAND·New Memory를 구분하고, Device별 CD Step과 Parameter 현황 및
+            기간별 변화를 세부적으로 추적합니다.
+          </p>
+          <ul class="tag-list">
+            <li>DRAM</li>
+            <li>NAND</li>
+            <li>New Memory</li>
+            <li>CD Step</li>
+          </ul>
+        </article>
+
+        <article class="feature-card">
+          <span class="feature-number">04</span>
+          <h3>데이터 분석 대시보드 Skewvoir</h3>
+          <p>
+            측정 결과, 장비 상태, 실행·데이터 품질을 연결하여 검토가 필요한 측정을
+            빠르게 찾고 위치·시간·상관관계·이미지 관점으로 원인을 분석합니다.
+          </p>
+          <ul class="tag-list">
+            <li>위치별 분포</li>
+            <li>시계열</li>
+            <li>상관관계</li>
+            <li>이미지 분석</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="rule-panel">
+        <article class="rule-card">
+          <div class="mini-label">Common Measurement Rule</div>
+          <h3>공정·소자·MI의<br />합의 기준으로 관리</h3>
+          <p>
+            합의된 계측 룰을 공통 기준으로 적용하여 Device별 위반 Recipe 비율과 변화
+            추이를 추적하고, 개선이 필요한 대상을 일관되게 식별합니다.
+          </p>
+        </article>
+
+        <article class="recipe-card">
+          <div class="mini-label">Recipe Coverage Expansion</div>
+          <h3>측정된 Recipe에서 전사 전체 Recipe로</h3>
+          <div class="recipe-flow" aria-label="Recipe 추적 범위 확대">
+            <div class="recipe-state">
+              <strong>기존</strong>
+              <span>실제 측정 이력이 있는 Recipe 중심</span>
+            </div>
+            <div class="recipe-arrow" aria-hidden="true">→</div>
+            <div class="recipe-state">
+              <strong>v3 구축 방향</strong>
+              <span>미사용·미측정 Recipe를 포함한 전사 추적</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="impact-title">
+      <div class="section-head">
+        <div class="section-kicker">03 · Impact</div>
+        <div>
+          <h2 class="section-title" id="impact-title">기대 효과</h2>
+          <p class="section-desc">
+            단순 조회를 넘어 관리 기준과 분석 근거를 연결함으로써 장비 운영과 계측
+            최적화를 위한 공통 의사결정 기반을 제공합니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="impact-grid">
+        <article class="impact-card">
+          <div class="impact-icon"></div>
+          <h3>통합 가시성</h3>
+          <p>CD-SEM과 HV-SEM 운영 현황을 하나의 플랫폼에서 확인합니다.</p>
+        </article>
+        <article class="impact-card">
+          <div class="impact-icon"></div>
+          <h3>정합성 향상</h3>
+          <p>하드웨어·보정 이력과 측정 편차를 연결해 TTTM 개선을 지원합니다.</p>
+        </article>
+        <article class="impact-card">
+          <div class="impact-icon"></div>
+          <h3>표준화·최적화</h3>
+          <p>합의된 계측 룰로 Device별 위반과 개선 추이를 일관되게 관리합니다.</p>
+        </article>
+        <article class="impact-card">
+          <div class="impact-icon"></div>
+          <h3>분석 리드타임 단축</h3>
+          <p>Skewvoir에서 이상 징후 발견부터 원인 검토까지 한 흐름으로 수행합니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section roadmap" aria-labelledby="roadmap-title">
+      <div class="roadmap-head">
+        <div class="section-kicker">04 · Roadmap</div>
+        <h2 id="roadmap-title">2026년 통합 오픈에서<br />2027년 AI 분석 플랫폼으로</h2>
+        <p>
+          지원 장비와 데이터 범위를 단계적으로 확장하고, 최종적으로는 분석 전문
+          AI Agent가 엔지니어의 판단을 지원하는 플랫폼으로 발전합니다.
+        </p>
+      </div>
+
+      <div class="timeline">
+        <article class="timeline-item">
+          <div class="timeline-year">2026 · Current Target</div>
+          <h3>7월 말 SKEWNONO v3 오픈</h3>
+          <p>
+            CD-SEM·HV-SEM 통합 관리, Device Statistics 강화, 하드웨어·캘리브레이션
+            데이터 활용, Skewvoir 분석 대시보드를 핵심 범위로 추진합니다.
+          </p>
+          <div class="timeline-tags">
+            <span>약 320대</span>
+            <span>Device Statistics</span>
+            <span>Skewvoir</span>
+          </div>
+        </article>
+
+        <article class="timeline-item">
+          <div class="timeline-year">2027 · Expansion</div>
+          <h3>장비 확장 및 분석 전문 AI Agent</h3>
+          <p>
+            VeritySEM·PROVision과 Thickness 측정 장비를 추가 연계하고, 장비·측정·Recipe와
+            Parameter 데이터를 종합 분석해 이상 징후와 주요 검토 사항을 제안하는
+            AI Agent로 발전시킬 계획입니다.
+          </p>
+          <div class="timeline-tags">
+            <span>VeritySEM</span>
+            <span>PROVision</span>
+            <span>Thickness</span>
+            <span>AI Agent</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="closing" aria-label="프로젝트 한 문장 요약">
+      <div class="closing-label">In One Sentence</div>
+      <p>
+        SKEWNONO v3는 E-Beam 장비와 계측 데이터를 통합하여 장비 간 정합성, Recipe와
+        Parameter 표준화, 데이터 기반 원인 분석을 하나로 연결하는 계측 인텔리전스
+        플랫폼입니다.
+      </p>
+    </section>
+  </main>
+
+  <footer class="page-shell">
+    SKEWNONO v3 · Executive Project Overview · 2026
+  </footer>
+</body>
+</html>
