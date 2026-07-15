@@ -4,6 +4,7 @@ import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { TimeSeriesPoint } from '~/components/ebeam/skewvoir/TimeSeriesChart.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
 import { peerVerdicts, combineVerdicts, DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
+import { overviewSites, type OverviewSites } from '~/utils/overview'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -91,6 +92,26 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
   const activeUnit = computed(() => activeSummary.value?.unit ?? '')
   const siteRows = computed<MsrFileRow[]>(() => focusFile.value?.rows ?? [])
+
+  // Focused measurement point (sequence) — shared inspection state for linked
+  // selection across the overview panels. useState so it survives remounts;
+  // resets whenever the focus MSR or active parameter changes (a sequence only
+  // identifies a point within one measurement + parameter).
+  const focusedSequence = useState<number | null>(`skewvoir-focused-seq-${ws.toolType}`, () => null)
+  const setFocusedSequence = (seq: number | null) => {
+    focusedSequence.value = seq
+  }
+  watch([() => ws.selection.value?.msr, activeParam], () => {
+    focusedSequence.value = null
+  })
+
+  // The B1 overview roll-up (coverage, outlier count, status, table rows) for the
+  // ACTIVE parameter. overviewFor() computes the same for any parameter (navigator).
+  const activeOverview = computed<OverviewSites>(() =>
+    overviewSites(siteRows.value, activeParam.value, anomalyCfg.value)
+  )
+  const overviewFor = (parameter: string): OverviewSites =>
+    overviewSites(siteRows.value, parameter, anomalyCfg.value)
 
   // Once the file loads, if the URL `mp` isn't one of its parameters the charts
   // fall back to the first param — but the rail/breadcrumb and any saved link
@@ -214,6 +235,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     activeSummary,
     activeUnit,
     siteRows,
+    focusedSequence,
+    setFocusedSequence,
+    activeOverview,
+    overviewFor,
     candidateRows,
     setRows,
     setFiles,
