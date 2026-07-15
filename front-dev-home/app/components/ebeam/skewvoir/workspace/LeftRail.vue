@@ -83,31 +83,6 @@
         </div>
       </dl>
     </section>
-
-    <!-- Health -->
-    <section class="mt-auto space-y-2 border-t border-(--sk-border-soft) pt-4">
-      <p class="px-1 font-mono text-[10px] font-semibold tracking-wider text-(--sk-ink-muted)">
-        HEALTH · LAST 31H
-      </p>
-      <div class="flex gap-6 px-1">
-        <div>
-          <p class="font-mono text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
-            {{ ws.health.value.scans }}
-          </p>
-          <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
-            SCANS
-          </p>
-        </div>
-        <div>
-          <p class="font-mono text-2xl font-bold tabular-nums text-(--sk-bad)">
-            {{ ws.health.value.outliers }}
-          </p>
-          <p class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
-            OUTLIERS
-          </p>
-        </div>
-      </div>
-    </section>
   </aside>
 </template>
 

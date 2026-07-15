@@ -32,13 +32,8 @@ export interface SkewvoirSelection {
   capturedAt: string
 }
 
-export interface SkewvoirHealth {
-  scans: number
-  outliers: number
-}
-
 export const SKEWVOIR_VIEW_MODES: readonly SkewvoirViewMode[] = [
-  { kind: 'dashboard', index: 1, label: 'Dashboard', sub: 'Single Measurement', icon: 'i-lucide-layout-dashboard' },
+  { kind: 'dashboard', index: 1, label: '측정 개요', sub: 'Measurement Overview', icon: 'i-lucide-clipboard-check' },
   { kind: 'position-stack', index: 2, label: '위치 비교', sub: 'Position Stack', icon: 'i-lucide-layers' },
   { kind: 'time-series', index: 3, label: 'Time-Series', sub: 'Multi-measurement Trend', icon: 'i-lucide-trending-up' },
   { kind: 'correlation', index: 4, label: '상관 / 분포', sub: 'Correlation & Distribution', icon: 'i-lucide-scatter-chart' },
@@ -55,9 +50,6 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
   // Explicit curated comparison set for the Time-Series view (msr ids in URL).
   const msrList = skRoute.msrList
 
-  // Health stays mock-seeded for this pass (Phase 1 has no live scan feed yet).
-  const health = useState<SkewvoirHealth>(`skewvoir-health-${toolType}`, () => ({ scans: 24, outliers: 15 }))
-
   // Switching views just rewrites the `view` query param (keeps the rest).
   const openView = (kind: SkewvoirViewKind) => skRoute.setView(kind)
   const goSearch = () => skRoute.goSearch()
@@ -70,7 +62,6 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     selection,
     activeKind,
     msrList,
-    health,
     openView,
     goSearch,
     openAnalysis: skRoute.openAnalysis,
