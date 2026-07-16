@@ -232,6 +232,22 @@ const themePalettes: Record<EchartThemeName, readonly string[]> = {
 export const getEchartThemePalette = (name: EchartThemeName): readonly string[] =>
   themePalettes[name]
 
+// Themes render on a transparent canvas so charts inherit their card surface.
+// A PNG export, however, needs a solid backdrop or it comes out transparent and
+// looks broken on light backgrounds. These match each theme's intended tone:
+// vintage's warm paper, dark's navy, and white for the light alt-themes.
+const themeBackgrounds: Record<EchartThemeName, string> = {
+  vintage: '#fef8ef',
+  dark: '#100C2A',
+  macarons: '#ffffff',
+  infographic: '#ffffff',
+  shine: '#ffffff',
+  roma: '#ffffff'
+}
+
+export const getEchartThemeBackground = (name: EchartThemeName): string =>
+  themeBackgrounds[name]
+
 let registered = false
 
 export const isEchartThemeSelection = (value: unknown): value is EchartThemeSelection =>
