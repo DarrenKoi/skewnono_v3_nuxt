@@ -8,16 +8,17 @@
     body-class="flex flex-col"
   >
     <template #actions>
-      <UButton
-        color="neutral"
-        variant="ghost"
-        size="xs"
-        icon="i-lucide-clipboard"
-        aria-label="표를 클립보드에 복사"
-        title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
-        :disabled="!rows.length"
-        @click="copyPoints"
-      />
+      <UTooltip text="클립보드 복사">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          icon="i-lucide-clipboard"
+          aria-label="표를 클립보드에 복사"
+          :disabled="!rows.length"
+          @click="copyPoints"
+        />
+      </UTooltip>
       <UButton
         color="neutral"
         variant="ghost"

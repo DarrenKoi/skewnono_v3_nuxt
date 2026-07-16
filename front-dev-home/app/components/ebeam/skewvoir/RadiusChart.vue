@@ -1,131 +1,254 @@
 <template>
   <div
     ref="chartEl"
-    class="h-full min-h-[9rem] w-full"
+    class="w-full"
+    :class="heightClass"
   />
 </template>
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { measuredRows } from '~/utils/msrRows'
-import { polyfit, polyval } from '~/utils/polyfit'
+import type { RadialBandMode, RadialProfileResult } from '~/utils/radialAnalysis'
 import { SK_CHART } from '~/utils/chartPalette'
-import { siteRadiusMm, type WaferGeometry } from '~/utils/waferGeometry'
 
 const props = withDefaults(defineProps<{
-  rows: MsrFileRow[]
+  profile: RadialProfileResult
   parameter: string
   unit: string
-  geo: WaferGeometry
-  degree?: number
   focusedSequence: number | null
+  band?: RadialBandMode
+  colorBySector?: boolean
+  showResiduals?: boolean
+  heightClass?: string
 }>(), {
-  degree: 3
+  band: 'iqr',
+  colorBySector: false,
+  showResiduals: false,
+  heightClass: 'h-full min-h-[9rem]'
 })
 const emit = defineEmits<{ focus: [sequence: number] }>()
 
-const rows = computed(() => measuredRows(props.rows))
+const SECTOR_COLORS: Record<string, string> = {
+  E: SK_CHART.series,
+  N: SK_CHART.brand,
+  W: SK_CHART.warn,
+  S: SK_CHART.ok
+}
 
-// (distance-from-center mm, CD) per measured site for the active parameter.
-// Radius is the physical distance from the wafer centre (from stage_coordinate).
-// Plain numeric tuples — the polynomial fit below reads p[0]/p[1] off this.
-const points = computed<[number, number][]>(() => {
-  const out: [number, number][] = []
-  for (const row of rows.value) {
-    if (row.parameter !== props.parameter) continue
-    const radius = siteRadiusMm(row.stage_coordinate, props.geo)
-    if (radius == null) continue
-    out.push([Number(radius.toFixed(3)), row.cd_value])
+const scatterData = computed(() => props.profile.points.map(point => ({
+  name: String(point.sequence),
+  value: [point.radius, point.value],
+  fitted: point.fitted,
+  residual: point.residual,
+  sector: point.sector,
+  itemStyle: props.colorBySector && point.sector
+    ? { color: SECTOR_COLORS[point.sector] ?? SK_CHART.seriesSoft, opacity: 0.78 }
+    : { color: SK_CHART.seriesSoft, opacity: 0.72 }
+})))
+
+const focused = computed(() => scatterData.value.filter(point => Number(point.name) === props.focusedSequence))
+
+const bandPoints = computed(() => {
+  if (props.band === 'iqr') {
+    return props.profile.bins.map(bin => ({ radius: bin.radius, lower: bin.q1, upper: bin.q3 }))
   }
-  return out
-})
-
-// Same rows/filter as `points`, but named per-sequence so scatter points can be
-// clicked and the focused one highlighted. Kept separate so the fit above keeps
-// reading `points` as plain [radius, cd] tuples.
-const scatterData = computed(() => {
-  const out: { name: string, value: [number, number] }[] = []
-  for (const row of rows.value) {
-    if (row.parameter !== props.parameter) continue
-    const radius = siteRadiusMm(row.stage_coordinate, props.geo)
-    if (radius == null) continue
-    out.push({ name: String(row.sequence), value: [Number(radius.toFixed(3)), row.cd_value] })
+  if (props.band === 'confidence') {
+    return props.profile.curve.flatMap(point =>
+      point.confidenceLower != null && point.confidenceUpper != null
+        ? [{ radius: point.radius, lower: point.confidenceLower, upper: point.confidenceUpper }]
+        : [])
   }
-  return out
+  if (props.band === 'prediction') {
+    return props.profile.curve.flatMap(point =>
+      point.predictionLower != null && point.predictionUpper != null
+        ? [{ radius: point.radius, lower: point.predictionLower, upper: point.predictionUpper }]
+        : [])
+  }
+  return []
 })
 
-// Highlight ring for the sequence focused from another linked panel.
-const focusPoint = computed(() =>
-  scatterData.value.filter(p => Number(p.name) === props.focusedSequence)
-)
-
-// Sampled polynomial fit line across the radius span.
-const fitLine = computed<[number, number][]>(() => {
-  if (points.value.length < props.degree + 1) return []
-  const xs = points.value.map(p => p[0])
-  const ys = points.value.map(p => p[1])
-  const coeffs = polyfit(xs, ys, props.degree)
-  if (!coeffs) return []
-  const maxR = Math.max(...xs)
-  const steps = 40
-  return Array.from({ length: steps + 1 }, (_, i) => {
-    const x = (maxR * i) / steps
-    return [Number(x.toFixed(3)), Number(polyval(coeffs, x).toFixed(4))] as [number, number]
-  })
-})
-
-const option = computed<EChartsOption>(() => ({
-  tooltip: {
-    trigger: 'item',
-    formatter: (params) => {
-      const v = (params as { value: number[] }).value
-      return `r ${v[0]}<br/>${props.parameter}: <b>${v[1]}</b> ${props.unit}`
-    }
-  },
-  grid: { left: 44, right: 16, top: 16, bottom: 32, containLabel: true },
-  xAxis: {
-    type: 'value',
-    min: 0,
-    name: 'distance from center (mm)',
-    nameLocation: 'middle',
-    nameGap: 22,
-    nameTextStyle: { fontSize: 11 },
-    axisLabel: { fontSize: 11 }
-  },
-  yAxis: {
-    type: 'value',
-    scale: true,
-    name: props.unit || 'CD',
-    nameTextStyle: { fontSize: 11 },
-    axisLabel: { fontSize: 11 }
-  },
-  series: [
+const bandSeries = computed(() => {
+  if (!bandPoints.value.length || props.band === 'none') return []
+  return [
     {
-      type: 'scatter',
-      symbolSize: 7,
-      itemStyle: { color: SK_CHART.seriesSoft, opacity: 0.7 },
-      data: scatterData.value
-    },
-    {
-      type: 'line',
-      smooth: true,
-      showSymbol: false,
-      lineStyle: { color: SK_CHART.brand, width: 2 },
-      data: fitLine.value,
+      name: 'band lower',
+      type: 'line' as const,
+      stack: 'radial-band',
+      data: bandPoints.value.map(point => [point.radius, point.lower]),
+      lineStyle: { opacity: 0 },
+      symbol: 'none',
       tooltip: { show: false },
-      silent: true
+      silent: true,
+      z: 1
     },
     {
-      type: 'scatter',
-      symbolSize: 16,
-      data: focusPoint.value,
-      itemStyle: { color: 'transparent', borderColor: SK_CHART.series, borderWidth: 3 },
+      name: props.band === 'iqr' ? 'radial IQR' : `${props.band} 95%`,
+      type: 'line' as const,
+      stack: 'radial-band',
+      data: bandPoints.value.map(point => [point.radius, point.upper - point.lower]),
+      lineStyle: { opacity: 0 },
+      areaStyle: { color: props.band === 'iqr' ? SK_CHART.sand : SK_CHART.series, opacity: 0.2 },
+      symbol: 'none',
+      tooltip: { show: false },
       silent: true,
-      z: 5
+      z: 1
     }
   ]
-}))
+})
+
+const medianSeries = computed(() => props.profile.bins.length
+  ? [{
+      name: 'radial median',
+      type: 'line' as const,
+      smooth: false,
+      showSymbol: true,
+      symbolSize: 4,
+      lineStyle: { color: SK_CHART.muted, width: 1, type: 'dashed' as const },
+      itemStyle: { color: SK_CHART.muted },
+      data: props.profile.bins.map(bin => [bin.radius, bin.median]),
+      tooltip: { show: false },
+      silent: true,
+      z: 2
+    }]
+  : [])
+
+const residualSeries = computed(() => {
+  if (!props.showResiduals || props.profile.status !== 'fitted') return []
+  return [{
+    name: 'residual',
+    type: 'scatter' as const,
+    xAxisIndex: 1,
+    yAxisIndex: 1,
+    symbolSize: 6,
+    data: props.profile.points.flatMap(point => point.residual == null
+      ? []
+      : [{
+          name: String(point.sequence),
+          value: [point.radius, point.residual],
+          fitted: point.fitted,
+          residual: point.residual,
+          sector: point.sector,
+          itemStyle: props.colorBySector && point.sector
+            ? { color: SECTOR_COLORS[point.sector] ?? SK_CHART.series }
+            : { color: SK_CHART.series }
+        }]),
+    markLine: {
+      silent: true,
+      symbol: 'none',
+      label: { show: false },
+      lineStyle: { color: SK_CHART.muted, width: 1 },
+      data: [{ yAxis: 0 }]
+    },
+    z: 3
+  }]
+})
+
+const option = computed<EChartsOption>(() => {
+  const hasResiduals = props.showResiduals && props.profile.status === 'fitted'
+  const mainGrid = hasResiduals
+    ? { left: 52, right: 20, top: 20, height: '55%', containLabel: true }
+    : { left: 48, right: 16, top: 18, bottom: 36, containLabel: true }
+  const xAxes = [{
+    type: 'value' as const,
+    min: props.profile.metrics.n ? props.profile.metrics.radiusMin : 0,
+    max: props.profile.metrics.n ? props.profile.metrics.radiusMax : undefined,
+    name: hasResiduals ? '' : 'distance from center (mm)',
+    nameLocation: 'middle' as const,
+    nameGap: 24,
+    nameTextStyle: { fontSize: 11 },
+    axisLabel: { fontSize: 10 }
+  }]
+  const yAxes = [{
+    type: 'value' as const,
+    scale: true,
+    name: props.unit || props.parameter,
+    nameTextStyle: { fontSize: 10 },
+    axisLabel: { fontSize: 10 }
+  }]
+  if (hasResiduals) {
+    xAxes.push({
+      type: 'value',
+      min: props.profile.metrics.radiusMin,
+      max: props.profile.metrics.radiusMax,
+      name: 'distance from center (mm)',
+      nameLocation: 'middle',
+      nameGap: 24,
+      nameTextStyle: { fontSize: 10 },
+      axisLabel: { fontSize: 10 },
+      gridIndex: 1
+    } as typeof xAxes[number])
+    yAxes.push({
+      type: 'value',
+      scale: true,
+      name: `residual${props.unit ? ` (${props.unit})` : ''}`,
+      nameTextStyle: { fontSize: 10 },
+      axisLabel: { fontSize: 10 },
+      gridIndex: 1
+    } as typeof yAxes[number])
+  }
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => {
+        const data = (params as { data?: { name?: string, value?: number[], fitted?: number | null, residual?: number | null, sector?: string } }).data
+        if (!data?.value || !data.name) return ''
+        const lines = [
+          `seq ${data.name}${data.sector ? ` · sector ${data.sector}` : ''}`,
+          `r: <b>${data.value[0]?.toFixed(2)}</b> mm`
+        ]
+        if (data.residual != null && (params as { seriesName?: string }).seriesName === 'residual') {
+          lines.push(`residual: <b>${data.residual.toFixed(4)}</b> ${props.unit}`)
+        } else {
+          lines.push(`${props.parameter}: <b>${data.value[1]?.toFixed(4)}</b> ${props.unit}`)
+          if (data.fitted != null) lines.push(`fit: ${data.fitted.toFixed(4)} · residual: ${data.residual?.toFixed(4)}`)
+        }
+        return lines.join('<br/>')
+      }
+    },
+    legend: props.colorBySector
+      ? { data: [], show: false }
+      : undefined,
+    grid: hasResiduals
+      ? [mainGrid, { left: 52, right: 20, top: '72%', bottom: 38, containLabel: true }]
+      : mainGrid,
+    xAxis: xAxes,
+    yAxis: yAxes,
+    series: [
+      ...bandSeries.value,
+      ...medianSeries.value,
+      {
+        name: props.parameter,
+        type: 'scatter',
+        symbolSize: 7,
+        data: scatterData.value,
+        z: 3
+      },
+      {
+        name: 'fit',
+        type: 'line',
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { color: SK_CHART.brand, width: 2 },
+        data: props.profile.curve.map(point => [point.radius, point.value]),
+        tooltip: { show: false },
+        silent: true,
+        z: 4
+      },
+      {
+        name: 'focused',
+        type: 'scatter',
+        symbolSize: 16,
+        data: focused.value,
+        itemStyle: { color: 'transparent', borderColor: SK_CHART.ink, borderWidth: 3 },
+        tooltip: { show: false },
+        silent: true,
+        z: 6
+      },
+      ...residualSeries.value
+    ]
+  }
+})
 
 const chartEl = ref<HTMLDivElement | null>(null)
 useEchart(chartEl, option, { onClick: name => emit('focus', Number(name)) })

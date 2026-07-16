@@ -164,10 +164,15 @@ const createLightTheme = (colors: readonly string[], axisColor: string) => ({
   }
 })
 
+// Registered themes render with a transparent canvas so each chart inherits its
+// card's --sk-surface. The theme's own backgroundColor (kept in the theme-picker
+// swatch metadata above) otherwise painted an opaque rectangle that never
+// matched the card. The light alt-themes below (createLightTheme) already omit
+// backgroundColor, so only the two defaults need the override.
 const themes: Record<EchartThemeName, object> = {
   vintage: {
     color: [...vintageColors],
-    backgroundColor: '#fef8ef',
+    backgroundColor: 'transparent',
     graph: {
       color: [...vintageColors]
     }
@@ -175,7 +180,7 @@ const themes: Record<EchartThemeName, object> = {
   dark: {
     darkMode: true,
     color: [...darkColors],
-    backgroundColor: '#100C2A',
+    backgroundColor: 'transparent',
     legend: {
       textStyle: {
         color: '#B9B8CE'

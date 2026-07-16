@@ -49,10 +49,15 @@
     <!-- Align -->
     <div class="flex min-w-0 flex-col items-start gap-1">
       <span class="sk-label">Align</span>
-      <span class="truncate font-mono text-base font-bold tabular-nums text-(--sk-ink)">
-        {{ align.total }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ align.methods.join(' · ') || '—' }}</span>
-      </span>
-      <EbeamSkewvoirDashboardAlignImages :analysis="analysis" />
+      <div class="flex min-w-0 items-center gap-2">
+        <span class="truncate font-mono text-base font-bold tabular-nums text-(--sk-ink)">
+          {{ align.total }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ align.methods.join(' · ') || '—' }}</span>
+        </span>
+        <EbeamSkewvoirDashboardAlignImages
+          class="shrink-0"
+          :analysis="analysis"
+        />
+      </div>
     </div>
   </div>
 </template>
