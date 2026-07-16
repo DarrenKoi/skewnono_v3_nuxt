@@ -1,31 +1,17 @@
 <template>
-  <div class="space-y-3">
-    <!-- Curate the comparison set — writes straight to the URL ?msrs= -->
-    <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-      <span class="sk-eyebrow">비교 세트</span>
-      <USelectMenu
-        :model-value="ws.msrList.value"
-        multiple
-        value-key="value"
-        :items="candidateItems"
-        :search-input="{ placeholder: 'lot / eq 로 검색…' }"
-        placeholder="측정 추가/제거"
-        class="min-w-[20rem] flex-1"
-        size="sm"
-        @update:model-value="ws.setMsrs"
-      />
-      <span class="sk-meta tabular-nums">
-        {{ analysis.setRows.value.length }} measurements · {{ analysis.activeParam.value }}
-      </span>
-      <span
-        v-if="ws.msrList.value.length > analysis.setRows.value.length"
-        class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-[11px] text-(--sk-bad)"
-        :title="`${ws.msrList.value.length}개 선택, ${analysis.setRows.value.length}개만 표시 (최대 30)`"
-      >
-        {{ ws.msrList.value.length }}개 중 {{ analysis.setRows.value.length }}개 표시
-      </span>
-    </div>
+  <!-- Branch-by-abstraction on analysis scope:
+       • single → the single-MSR measurement-order + dynamic-FDC workbench (Task 7)
+       • set    → the existing multi-measurement trend + sequence-trend panels
+                  (kept until the multi-MSR run chart of Task 8). -->
+  <EbeamSkewvoirTimeseriesSequenceWorkbench
+    v-if="analysis.scope.value === 'single'"
+    :analysis="analysis"
+  />
 
+  <div
+    v-else
+    class="space-y-3"
+  >
     <!-- Multi-measurement trend (mean ± min/max band) -->
     <EbeamSkewvoirPanelFrame
       title="Multi-Measurement Trend"
@@ -142,7 +128,6 @@
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { formatRecipeTimestamp } from '~/utils/recipeView'
 import { isMeasuredRow } from '~/utils/msrRows'
 
 const props = defineProps<{
@@ -159,13 +144,6 @@ const methodItems = [
   { label: '범위(%)', value: 'range' },
   { label: '표준편차(σ) · 진단', value: 'stddev' }
 ]
-
-const candidateItems = computed(() =>
-  props.analysis.candidateRows.value.map(r => ({
-    label: `${formatRecipeTimestamp(r.timestamp)} · ${r.eqp_id} · ${r.lot_id}`,
-    value: r.msr
-  }))
-)
 
 const hasFocusData = computed(() =>
   props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r))
