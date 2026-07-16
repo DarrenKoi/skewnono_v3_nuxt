@@ -6,7 +6,7 @@ providers/mock.py or providers/office.py.
 
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
-from back_dev_home.ebeam.lateral_recipe.providers.mock import LateralRecipeResponse
+from back_dev_home.ebeam.lateral_recipe.contracts import LateralRecipeResponse
 
 
 __all__ = [

@@ -12,9 +12,13 @@ import hashlib
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Literal, TypedDict
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
+from back_dev_home.ebeam.lateral_recipe.contracts import (
+    LateralRecipeResponse,
+    LateralRecipeRow,
+    LateralRecipeVersion,
+)
 from back_dev_home.sem_list.data import SemListRow, get_sem_list
 
 
@@ -25,35 +29,6 @@ __all__ = [
     "ToolType",
     "get_lateral_recipe",
 ]
-
-
-class LateralRecipeRow(TypedDict):
-    eqp_id: str
-    eqp_model_cd: str
-    vendor_nm: Literal["HITACHI", "AMAT"]
-    available: Literal["On", "Off"]
-    recipe_ready: bool
-    recipe_version: int | None
-    recipe_generated_at: str | None
-
-
-class LateralRecipeVersion(TypedDict):
-    recipe_version: int
-    generated_at: str
-    ready_count: int
-
-
-class LateralRecipeResponse(TypedDict):
-    tool_type: ToolType
-    fab_name: str | None
-    recipe_name: str
-    total_tools_in_fab: int
-    ready_count: int
-    not_ready_count: int
-    latest_recipe_version: int | None
-    latest_generated_at: str | None
-    versions: list[LateralRecipeVersion]
-    rows: list[LateralRecipeRow]
 
 
 READY_RATIO = 0.65
