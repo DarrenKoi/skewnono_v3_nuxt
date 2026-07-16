@@ -344,7 +344,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     if (!key) {
       // scope flipped away from 'set' (or the set key is otherwise empty): drop
       // the prior set's files so manifest.counts stops reflecting a stale set
-      // while the context bar is showing a non-set scope. No new fetch here —
+      // while the analysis views (left rail) are showing a non-set scope. No new fetch here —
       // the lazy-load invariant only fires when setKey is non-empty.
       setFiles.value = new Map()
       setPending.value = false

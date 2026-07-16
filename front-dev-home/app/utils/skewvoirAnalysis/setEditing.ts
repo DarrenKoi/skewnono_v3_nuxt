@@ -11,3 +11,9 @@ export const removeFromSet = (list: string[], msr: string, focusMsr: string): st
 
 /** Empty the set down to just the focused MSR (선택 해제). */
 export const clearToFocus = (focusMsr: string): string[] => [focusMsr]
+
+/** Ensure the focused MSR stays in the set. The modal's multi-select set
+ *  editor writes the raw selection; this re-adds the focus if the user
+ *  deselected it, upholding the "focus is never removable" invariant. */
+export const ensureFocus = (list: string[], focusMsr: string): string[] =>
+  focusMsr && !list.includes(focusMsr) ? [focusMsr, ...list] : list.slice()

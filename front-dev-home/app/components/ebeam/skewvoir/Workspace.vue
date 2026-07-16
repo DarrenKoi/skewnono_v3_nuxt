@@ -93,7 +93,7 @@ const props = defineProps<{
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
 const analysis = useSkewvoirAnalysis(ws)
 
-// Readiness drawer open state (opened from the context bar).
+// Readiness drawer open state (opened from the left rail's open-readiness emit).
 const readinessOpen = ref(false)
 
 // Shared links bypass the landing page, so the workspace records the opened

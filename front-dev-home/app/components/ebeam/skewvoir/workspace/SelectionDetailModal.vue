@@ -86,7 +86,7 @@
             :search-input="{ placeholder: 'lot / eq 로 검색…' }"
             placeholder="측정 추가/제거"
             size="sm"
-            @update:model-value="ws.setMsrs"
+            @update:model-value="onEditSet"
           />
         </div>
       </div>
@@ -98,9 +98,14 @@
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
+import { ensureFocus } from '~/utils/skewvoirAnalysis/setEditing'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis }>()
 const open = defineModel<boolean>('open', { default: false })
+
+const onEditSet = (list: string[]) => {
+  props.ws.setMsrs(ensureFocus(list, props.ws.selection.value?.msr ?? ''))
+}
 
 const scope = computed(() => props.analysis.scope.value)
 const counts = computed(() => props.analysis.manifest.value.counts)
