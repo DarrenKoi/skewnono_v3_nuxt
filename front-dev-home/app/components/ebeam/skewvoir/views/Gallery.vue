@@ -121,7 +121,22 @@ const queue = computed(() =>
   )
 )
 
-const filter = ref<ReviewFilter>({ evidenceOnly: false, imageOnly: false, query: '' })
+// Seed the 이상·실패 우선 toggle from the URL `filter` key (e.g. the overview's
+// "검토할 이미지" hand-off writes `filter=priority`) so the queue opens
+// pre-filtered; absent/unrecognised values fall back to the existing default
+// (both filters off).
+const filter = ref<ReviewFilter>({
+  evidenceOnly: props.analysis.filterParam.value === 'priority',
+  imageOnly: false,
+  query: ''
+})
+
+// Write the toggle back to the URL so the queue's filtered state is shareable.
+// Only the evidence-priority toggle round-trips through `filter` (the value
+// the hand-off writes); image-only/text search stay local-only, unchanged.
+watch(() => filter.value.evidenceOnly, (evidenceOnly) => {
+  props.analysis.setFilter(evidenceOnly ? 'priority' : null)
+})
 
 const filteredEntries = computed<ReviewEntry[]>(() => {
   const q = filter.value.query.trim().toLowerCase()

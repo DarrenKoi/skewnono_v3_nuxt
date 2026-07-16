@@ -71,6 +71,7 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     grainParam: skRoute.grainParam,
     xParam: skRoute.xParam,
     yParam: skRoute.yParam,
+    filterParam: skRoute.filterParam,
     openView,
     goSearch,
     openAnalysis: skRoute.openAnalysis,
@@ -83,6 +84,7 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     setMetric: skRoute.setMetric,
     setGrain: skRoute.setGrain,
     setXY: skRoute.setXY,
+    setFilter: skRoute.setFilter,
     // Low-level atomic multi-key query patch — re-exported so a single hand-off
     // action (e.g. the overview's evidence hand-offs) can set `view` PLUS the
     // target state (site/mp/x/y/scope/...) in ONE router.replace, no extra

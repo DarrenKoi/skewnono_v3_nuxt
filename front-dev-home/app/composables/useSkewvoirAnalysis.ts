@@ -504,6 +504,15 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusedSite,
     setFocusedSite,
     setFocusedMsr,
+    // URL-carried X/Y param picks (Correlation single-scope explorer) and the
+    // Gallery review-queue filter preset — raw passthrough of the URL params +
+    // their setters, same opaque treatment as siteParam/setSite above. Consumers
+    // seed local component state from these on mount and write back on change.
+    xParam: ws.xParam,
+    yParam: ws.yParam,
+    setXY: ws.setXY,
+    filterParam: ws.filterParam,
+    setFilter: ws.setFilter,
     handoffs,
     goHandoff,
     // For the overview focus-switcher chip strip: chip order comes from

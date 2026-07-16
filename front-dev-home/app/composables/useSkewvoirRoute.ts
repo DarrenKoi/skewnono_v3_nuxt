@@ -80,6 +80,10 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const grainParam = computed<string | undefined>(() => qstr(route.query.grain))
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
+  // Gallery review-queue filter preset (e.g. 'priority' — the 이상·실패 우선
+  // hand-off from the overview). Same opaque-passthrough treatment as
+  // site/ref/metric/grain above.
+  const filterParam = computed<string | undefined>(() => qstr(route.query.filter))
 
   // Serialize a selection (+ view + explicit set) into an analysis-link query.
   // `msrs` defaults to the focus alone; pass a curated list for the trend set.
@@ -160,6 +164,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setMetric = (metric: string | null) => patchQuery({ metric })
   const setGrain = (grain: string | null) => patchQuery({ grain })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
+  const setFilter = (filter: string | null) => patchQuery({ filter })
 
   const goSearch = () => navigateTo(basePath)
 
@@ -179,6 +184,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     grainParam,
     xParam,
     yParam,
+    filterParam,
     openAnalysis,
     openAnalysisSet,
     setView,
@@ -191,6 +197,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     setMetric,
     setGrain,
     setXY,
+    setFilter,
     goSearch,
     shareUrl
   }

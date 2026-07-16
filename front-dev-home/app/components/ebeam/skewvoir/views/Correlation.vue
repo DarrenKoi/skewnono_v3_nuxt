@@ -185,10 +185,14 @@ watch(params, (list) => {
 const distMode = ref('Hist')
 const drawerOpen = ref(false)
 
+// Seed X/Y from the URL `x`/`y` (e.g. the overview's "짝지은 값" hand-off) when
+// present; the immediate watch below validates them against the loaded params
+// and falls back to the first two available params otherwise (unchanged
+// default behaviour when no x/y is in the URL).
 const query = ref<FactorQuery>({
   yKind: 'cd',
-  xParam: '',
-  yParam: '',
+  xParam: props.analysis.xParam.value ?? '',
+  yParam: props.analysis.yParam.value ?? '',
   fdcParam: '',
   group: 'none'
 })
@@ -201,6 +205,14 @@ watch([params, fdcParams], ([cd, fdc]) => {
   if (!fdc.includes(query.value.fdcParam)) query.value.fdcParam = fdc[0] ?? ''
   if (query.value.yKind === 'fdc' && fdc.length === 0) query.value.yKind = 'cd'
 }, { immediate: true })
+
+// Write the active X/Y pair back to the URL so the explorer stays shareable —
+// a link copied mid-session reopens on the same pair (round-trips with the
+// seed above).
+watch([() => query.value.xParam, () => query.value.yParam], ([x, y]) => {
+  if (!x) return
+  props.analysis.setXY(x, y || null)
+})
 
 // Spatial diagnosis on the X parameter — its site sequences key the pairs, so its
 // coordinates place them. Drives coordinate readiness (the group gate) + the SEM
