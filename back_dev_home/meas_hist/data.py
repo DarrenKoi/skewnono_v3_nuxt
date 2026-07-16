@@ -1,15 +1,17 @@
 """Stable measurement-history data seam with mock/office adapters."""
 
 from back_dev_home._runtime.data_provider import get_data_provider
+from back_dev_home.meas_hist.contracts import (
+    MeasHistFacetsResponse,
+    MeasHistResponse,
+    MeasHistRow,
+    MeasHistSearchResponse,
+)
 from back_dev_home.meas_hist.providers.mock import (
     DEFAULT_LIMIT,
     MAX_RESULT_WINDOW,
     MOCK_SEARCH_FIXTURES,
     RETENTION_DAYS,
-    MeasHistFacetsResponse,
-    MeasHistResponse,
-    MeasHistRow,
-    MeasHistSearchResponse,
     ToolType,
 )
 

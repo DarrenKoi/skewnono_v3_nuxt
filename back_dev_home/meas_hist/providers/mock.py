@@ -8,9 +8,16 @@ import hashlib
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Literal, TypedDict
+from typing import Literal
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
+from back_dev_home.meas_hist.contracts import (
+    MeasHistFacetsResponse,
+    MeasHistFacetValue,
+    MeasHistResponse,
+    MeasHistRow,
+    MeasHistSearchResponse,
+)
 from back_dev_home.meas_hist.opensearch_query import SEARCHABLE_SOURCE_FIELDS
 from back_dev_home.sem_list.data import SemListRow, get_sem_list
 
@@ -30,41 +37,6 @@ __all__ = [
     "DEFAULT_LIMIT",
     "MOCK_SEARCH_FIXTURES",
 ]
-
-
-class MeasHistRow(TypedDict):
-    id: str
-    fac_id: str
-    fab_name: str
-    vendor_nm: Literal["HITACHI", "AMAT"]
-    eqp_id: str
-    eqp_model_cd: str
-    tool_type: ToolType
-    lot_cd: str
-    lot_id: str
-    class_name: str
-    recipe_name: str
-    full_name: str
-    timestamp: str
-    start_time: str
-    end_time: str
-    meastime: int
-    msr: str
-    msr_check: Literal["Yes", "No"]
-    align_fail: Literal["Pass", "Fail", "NA"]
-    total_images: int
-    fail_images: int
-    fail_ratio: float
-    idp_name: str
-    idw_name: str
-
-
-class MeasHistResponse(TypedDict):
-    tool_type: ToolType | None
-    fab_name: str | None
-    recipe_name: str | None
-    total: int
-    rows: list[MeasHistRow]
 
 
 RECIPE_CATALOG: dict[str, tuple[str, ...]] = {
@@ -366,30 +338,6 @@ DEFAULT_LIMIT = 50
 # frozen NOW so the 60-day window actually contains the seeded rows; Phase 2/3
 # swaps this one line for datetime.now(timezone.utc).
 RETENTION_ANCHOR = NOW
-
-
-class MeasHistSearchResponse(TypedDict):
-    total: int
-    capped: bool
-    offset: int
-    limit: int
-    range: dict[str, str]
-    out_of_retention: bool
-    rows: list[MeasHistRow]
-
-
-class MeasHistFacetValue(TypedDict):
-    value: str
-    count: int
-
-
-class MeasHistFacetsResponse(TypedDict):
-    tool_type: ToolType | None
-    anchor: str
-    retention_days: int
-    fab: list[MeasHistFacetValue]
-    model: list[MeasHistFacetValue]
-    eq: list[MeasHistFacetValue]
 
 
 def _parse_date(value: str | None) -> tuple[datetime | None, bool]:

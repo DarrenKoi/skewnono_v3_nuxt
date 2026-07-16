@@ -3,9 +3,7 @@
 from datetime import datetime
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.ebeam.hitachi.recipe_tat.providers import mock as mock_provider
-from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import (
-    ANCHOR_TIME,
+from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
     MeasHistRow,
@@ -13,6 +11,8 @@ from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import (
     SummaryPayload,
     ToolType,
 )
+from back_dev_home.ebeam.hitachi.recipe_tat.providers import mock as mock_provider
+from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import ANCHOR_TIME
 
 
 __all__ = [

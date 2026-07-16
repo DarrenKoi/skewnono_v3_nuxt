@@ -3,16 +3,18 @@
 from datetime import datetime
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.ebeam.hitachi.fail_issue.providers import mock as mock_provider
-from back_dev_home.ebeam.hitachi.fail_issue.providers.mock import (
-    ANCHOR_TIME,
-    MEAS_FAIL_THRESHOLD,
+from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     AlignRankingRow,
     DailyTrendPoint,
     DeviceRow,
     FailRow,
     MeasRankingRow,
     SummaryPayload,
+)
+from back_dev_home.ebeam.hitachi.fail_issue.providers import mock as mock_provider
+from back_dev_home.ebeam.hitachi.fail_issue.providers.mock import (
+    ANCHOR_TIME,
+    MEAS_FAIL_THRESHOLD,
     ToolType,
 )
 

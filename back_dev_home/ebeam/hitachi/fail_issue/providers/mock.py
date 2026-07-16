@@ -27,7 +27,6 @@ MEAS_FAIL_THRESHOLD 의 값은 YAML 계약에 명시되어 있으므로 임의�
 import random
 from datetime import timedelta
 from functools import lru_cache
-from typing import Literal, TypedDict
 
 from back_dev_home.ebeam.hitachi._analytics import (
     MeasurementScope,
@@ -35,6 +34,16 @@ from back_dev_home.ebeam.hitachi._analytics import (
     filter_measurements,
     lot_metadata,
     parse_iso_date,
+)
+from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+    AlignOutcome,
+    AlignRankingRow,
+    DailyTrendPoint,
+    DeviceRow,
+    FailRow,
+    MeasRankingRow,
+    MsrCheck,
+    SummaryPayload,
 )
 from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import (
     ANCHOR_TIME,
@@ -62,33 +71,6 @@ __all__ = [
 # 0.0 ~ 0.15"). The YAML contract repeats this constant; office must keep
 # it in sync.
 MEAS_FAIL_THRESHOLD = 0.15
-
-
-AlignOutcome = Literal["Pass", "Fail", "NA"]
-MsrCheck = Literal["Yes", "No"]
-
-
-class FailRow(TypedDict):
-    # Subset of MeasHistRow needed by fail aggregators, plus enriched fail
-    # fields. Keeping this typed lets the aggregators below stay readable.
-    id: str
-    fac_id: str
-    fab_name: str
-    vendor_nm: str
-    eqp_id: str
-    eqp_model_cd: str
-    tool_type: ToolType
-    lot_cd: str
-    lot_id: str
-    class_name: str
-    recipe_name: str
-    full_name: str
-    timestamp: str
-    align_fail: AlignOutcome
-    msr_check: MsrCheck
-    total_images: int
-    fail_images: int
-    fail_ratio: float
 
 
 # Per-fab fail-rate personalities. Without this, switching fab in the
@@ -233,24 +215,6 @@ def _is_meas_fail(row: FailRow) -> bool:
     return row["fail_ratio"] > MEAS_FAIL_THRESHOLD
 
 
-class SummaryPayload(TypedDict):
-    tool_type: ToolType
-    fab_id: str | None
-    start_date: str | None
-    end_date: str | None
-    anchor_date: str
-    total_executions: int
-    align_fail_count: int
-    align_fail_rate: float
-    align_na_count: int
-    meas_fail_count: int
-    meas_fail_rate: float
-    meas_fail_threshold: float
-    distinct_equipment: int
-    distinct_recipes: int
-    distinct_lots: int
-
-
 def get_summary(
     tool_type: ToolType,
     fab_id: str | None,
@@ -285,13 +249,6 @@ def get_summary(
         "distinct_recipes": len({(r["class_name"], r["recipe_name"]) for r in rows}),
         "distinct_lots": len({r["lot_cd"] for r in rows})
     }
-
-
-class DailyTrendPoint(TypedDict):
-    date: str
-    exec_count: int
-    align_fail_count: int
-    meas_fail_count: int
 
 
 def get_daily_trend(
@@ -341,19 +298,6 @@ def get_daily_trend(
         }
         for date_key, entry in sorted(bucket.items())
     ]
-
-
-class AlignRankingRow(TypedDict):
-    # Ranked by align_fail_count desc, grouped by recipe so the Align Fail
-    # table uses the same recipe-first triage axis as Meas Fail.
-    rank: int
-    class_name: str
-    recipe_name: str
-    full_name: str
-    exec_count: int
-    align_fail_count: int
-    align_fail_rate: float
-    sample_eqp_ids: list[str]
 
 
 def get_align_ranking(
@@ -407,18 +351,6 @@ def get_align_ranking(
         })
 
     return out
-
-
-class MeasRankingRow(TypedDict):
-    rank: int
-    class_name: str
-    recipe_name: str
-    full_name: str
-    exec_count: int
-    meas_fail_count: int
-    meas_fail_rate: float
-    avg_fail_ratio: float
-    sample_eqp_ids: list[str]
 
 
 def get_meas_ranking(
@@ -475,15 +407,6 @@ def get_meas_ranking(
         })
 
     return out
-
-
-class DeviceRow(TypedDict):
-    lot_cd: str
-    exec_count: int
-    align_fail_count: int
-    meas_fail_count: int
-    prod_catg_cd: str | None
-    tech_nm: str | None
 
 
 def get_devices(

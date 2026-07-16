@@ -29,7 +29,6 @@ mock-only Phase 1 since no HV-SEM frontend currently calls these endpoints.
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Literal, TypedDict
 
 from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index
 from back_dev_home.ebeam.hitachi._analytics import (
@@ -38,6 +37,14 @@ from back_dev_home.ebeam.hitachi._analytics import (
     filter_measurements,
     lot_metadata,
     parse_iso_date,
+)
+from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
+    DailyTrendPoint,
+    DeviceRow,
+    MeasHistRow,
+    RankingRow,
+    SummaryPayload,
+    ToolType,
 )
 
 
@@ -59,28 +66,6 @@ __all__ = [
 # principle — anchoring on a fixed mock date would force the frontend to
 # special-case Phase 1 vs 2/3.
 ANCHOR_TIME = datetime.now(timezone.utc).replace(microsecond=0)
-
-
-ToolType = Literal["cd-sem", "hv-sem"]
-
-
-class MeasHistRow(TypedDict):
-    id: str
-    fac_id: str
-    fab_name: str
-    vendor_nm: str
-    eqp_id: str
-    eqp_model_cd: str
-    tool_type: ToolType
-    lot_cd: str
-    lot_id: str
-    class_name: str
-    recipe_name: str
-    full_name: str
-    timestamp: str       # ISO-8601 UTC
-    start_time: str
-    end_time: str
-    meastime: int        # seconds
 
 
 # Tool model -> tool type mapping. CG family is CD-SEM; TP / VERITYSEM /
@@ -342,18 +327,6 @@ def _filter_rows(
     )
 
 
-class RankingRow(TypedDict):
-    rank: int
-    class_name: str
-    recipe_name: str
-    full_name: str
-    meas_counts: int
-    total_meastime: int
-    avg_meastime: float
-    sample_lot_cds: list[str]
-    sample_eqp_ids: list[str]
-
-
 def get_ranking(
     tool_type: ToolType,
     fab_id: str | None,
@@ -412,22 +385,6 @@ def get_ranking(
     return out
 
 
-class SummaryPayload(TypedDict):
-    tool_type: ToolType
-    fab_id: str | None
-    start_date: str | None
-    end_date: str | None
-    # `anchor_date` reports the latest UTC date for which the underlying
-    # data has rows — pinned to ANCHOR_TIME at module import. The frontend
-    # uses it as the date-picker's ceiling so preset clicks ("Last 7 days")
-    # never overshoot the available data.
-    anchor_date: str
-    total_tat_seconds: int
-    total_recipes: int
-    total_executions: int
-    avg_meastime: float
-
-
 def get_summary(
     tool_type: ToolType,
     fab_id: str | None,
@@ -453,12 +410,6 @@ def get_summary(
         "total_executions": total_executions,
         "avg_meastime": avg_meastime
     }
-
-
-class DailyTrendPoint(TypedDict):
-    date: str
-    total_meastime: int
-    exec_count: int
 
 
 def get_daily_trend(
@@ -496,18 +447,6 @@ def get_daily_trend(
         }
         for date_key, entry in sorted(bucket.items())
     ]
-
-
-class DeviceRow(TypedDict):
-    lot_cd: str
-    exec_count: int
-    total_meastime: int
-    # 빠른 필터 metadata. Recipe-TAT's MeasHistRow doesn't carry product
-    # category info — these come from device_statistics (R3 → prod_catg_cd,
-    # M-fab → tech_nm). Exactly one is populated per lot in practice; the
-    # other is null.
-    prod_catg_cd: str | None
-    tech_nm: str | None
 
 
 def get_devices(
