@@ -31,7 +31,7 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Literal, TypedDict
 
-from back_dev_home.ebeam.cdsem.device_statistics.data import _lot_index
+from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index
 from back_dev_home.ebeam.hitachi._analytics import (
     MeasurementScope,
     fab_base,

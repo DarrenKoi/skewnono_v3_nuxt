@@ -1,6 +1,4 @@
-"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
-
-recipe-params 데이터 표면 (D22). device(lot_cd) 1개 = recipe 100~200개,
+"""recipe-params data surface (D22). device(lot_cd) 1개 = recipe 100~200개,
 recipe 1개 = 파라미터 다수, 파라미터마다 측정 point 수가 다릅니다. 프론트
 ruleEngine.ts 의 RecipeInput 형태와 1:1 로 맞춥니다 (lot_cd, recipe_id,
 fac_id, ctn_desc, prod_catg_cd, recipe_class, family, phase,
@@ -12,28 +10,19 @@ memory_class_auto, parameters[{name, point_count}]).
 Phase 1 mock: lot 당 결정론적 seed 로 recipe·parameter 생성. 일부 recipe 에
 의도적으로 (a) point-count outlier 와 (b) cap 위반 파라미터를 심어 두 소비처
 (outlier 뷰 · R3 compliance)가 모두 실데이터로 검증되게 합니다.
+
+Internal module: callers outside this feature must import the public
+surface from `device_statistics.data` (the provider switch), not this file
+directly.
 """
 
 import random
-from typing import Literal, TypedDict
+from typing import Literal
 
-
-class ParameterRow(TypedDict):
-    name: str
-    point_count: int
-
-
-class RecipeParamsRow(TypedDict):
-    lot_cd: str
-    recipe_id: str
-    fac_id: str
-    ctn_desc: str
-    prod_catg_cd: str
-    recipe_class: Literal["Main", "Sample"]
-    family: Literal["Core", "Pool", "VG_RTC_Cubic"]
-    phase: Literal["t-EV", "EV", "TV", "PV"] | None
-    memory_class_auto: Literal["DRAM", "NAND", "unknown"]
-    parameters: list[ParameterRow]
+from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
+    ParameterRow,
+    RecipeParamsRow,
+)
 
 
 # Recipes per device. Domain: 100~200 (D22).
@@ -99,7 +88,7 @@ def _build_parameters(rng: random.Random, bloated: bool, over_measured: bool) ->
 
 
 def _build_recipe(rng: random.Random, lot_cd: str, fac_id: str, prod_catg_cd: str, idx: int) -> RecipeParamsRow:
-    recipe_class = "Sample" if rng.random() < 0.2 else "Main"
+    recipe_class: Literal["Main", "Sample"] = "Sample" if rng.random() < 0.2 else "Main"
     family = rng.choice(FAMILIES)
     phase = rng.choice(PHASES)
     bloated = rng.random() < 0.08       # ~8% of recipes over-parameterized
@@ -123,7 +112,7 @@ def _build_recipe(rng: random.Random, lot_cd: str, fac_id: str, prod_catg_cd: st
 def _prod_catg_for(lot_cd: str, fac_id: str) -> str:
     """Reuse the device's own prod_catg_cd when it is an R3 lot; M-fab device-desc
     rows carry no prod_catg_cd, so fall back to a deterministic pick."""
-    from .data import get_r3_device_grp  # 지연 import — 순환 로드 방지
+    from .mock import get_r3_device_grp  # deferred import — avoid circular load
     for row in get_r3_device_grp():
         if row["lot_cd"] == lot_cd:
             return row["prod_catg_cd"]
@@ -132,7 +121,7 @@ def _prod_catg_for(lot_cd: str, fac_id: str) -> str:
 
 
 def _recipe_seed(lot_cd: str, salt: int) -> int:
-    from .statistics import _seed_for  # 지연 import
+    from .statistics import _seed_for  # deferred import
     return _seed_for(lot_cd, salt)
 
 
@@ -141,7 +130,7 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
 
     Empty / None lot_cds → every known lot (can be large; callers should pass a
     selection). Deterministic per lot_cd via _seed_for."""
-    from .statistics import _lot_index, _resolve_lots  # 지연 import
+    from .statistics import _lot_index, _resolve_lots  # deferred import
     index = _lot_index()
     selected = _resolve_lots(lot_cds)
 
@@ -157,7 +146,7 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
 
 
 if __name__ == "__main__":
-    # 미리보기:  python -m back_dev_home.ebeam.cdsem.device_statistics.recipe_params
+    # 미리보기:  python -m back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_params
     import pprint
     rows = get_recipe_params(["R000"])
     print(f"R000 recipes: {len(rows)}  (expect 100~200)")

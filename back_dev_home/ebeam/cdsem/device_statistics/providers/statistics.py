@@ -1,65 +1,31 @@
 """Recipe statistics mock data for device_statistics.
 
-The lot_cd column on r3_device_grp / device_desc (see data.py) is the
-join key. When the frontend selects one or more lot_cds, this module
+The lot_cd column on r3_device_grp / device_desc (see providers/mock.py) is
+the join key. When the frontend selects one or more lot_cds, this module
 returns matching recipe-info and summary rows for each weekly date in
 a trend window — keyed by ISO date so the frontend can plot the
 trend directly without re-shaping.
 
-Internal module: callers should import the public surface from
-`device_statistics.data` (which re-exports the symbols below). Imports
-of `data` are deferred to function bodies — eager module-top imports
-would form a circular load with `data.py` (which itself re-exports from
-this module), so the import order is fragile when this module is
-entered first (e.g. `python -m ...statistics` running the __main__
-block, or any future test that imports statistics directly).
+Internal module: callers outside this feature must import the public surface
+from `device_statistics.data` (the provider switch); `recipe_tat`'s mock
+provider is the one sanctioned exception and imports `_lot_index` straight
+from `device_statistics.providers.mock` (mock-to-mock, never through the
+switch — see that module's own docstring). Imports of `.mock` are deferred
+to function bodies — eager module-top imports would form a circular load
+with `mock.py` (which itself re-exports the symbols below), so the import
+order is fragile when this module is entered first (e.g. `python -m ...
+providers.statistics` running the __main__ block, or any future test that
+imports this module directly).
 """
 
 import random
 from datetime import timedelta
 from functools import lru_cache
-from typing import TypedDict
 
-
-class RecipeInfoRow(TypedDict):
-    lot_cd: str
-    fac_id: str
-    oper_id: str
-    oper_desc: str
-    oper_seq: int
-    samp_seq: int
-    eqp_id: str
-    recipe_id: str
-    skip_yn: str
-    chg_tm: str
-    ctn_desc: str
-    para_all: int
-    para_16: int
-    para_13: int
-    para_9: int
-    para_5: int
-    para_16_percent: float
-    para_13_percent: float
-    para_9_percent: float
-    para_5_percent: float
-
-
-class SummaryRow(TypedDict):
-    lot_cd: str
-    fac_id: str
-    para_all: int
-    para_16: int
-    para_13: int
-    para_9: int
-    para_5: int
-    para_16_percent: float
-    para_13_percent: float
-    para_9_percent: float
-    para_5_percent: float
-    ctn_desc: str
-    total_recipe: int
-    avail_recipe: int
-    avail_recipe_percent: float
+from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
+    RecipeInfoRow,
+    SummaryRow,
+)
 
 
 RCP_BUCKETS = ("all", "only_normal", "mother_normal", "only_sample")
@@ -114,7 +80,7 @@ def _seed_for(lot_cd: str, point_index: int) -> int:
 
 
 def _trend_dates(points: int, interval_days: int) -> tuple[str, ...]:
-    from .data import BASE_TIME  # 지연 import — 순환 로드 방지
+    from .mock import BASE_TIME  # deferred import — avoid circular load
     base_monday = (BASE_TIME - timedelta(days=BASE_TIME.weekday())).date()
     dates = [
         (base_monday - timedelta(days=interval_days * offset)).isoformat()
@@ -126,7 +92,7 @@ def _trend_dates(points: int, interval_days: int) -> tuple[str, ...]:
 @lru_cache(maxsize=1)
 def _lot_index() -> dict[str, str]:
     """lot_cd -> fac_id, sourced from both R3 and per-fab generators."""
-    from .data import get_device_desc, get_r3_device_grp  # 지연 import
+    from .mock import get_device_desc, get_r3_device_grp  # deferred import
     index: dict[str, str] = {}
 
     for row in get_r3_device_grp():
@@ -146,7 +112,7 @@ def _lot_ctn_desc() -> dict[str, str]:
     card so analysts can identify devices without memorizing lot codes.
     Later sources win on conflict, matching `_lot_index`.
     """
-    from .data import get_device_desc, get_r3_device_grp  # 지연 import
+    from .mock import get_device_desc, get_r3_device_grp  # deferred import
     descs: dict[str, str] = {}
 
     for row in get_r3_device_grp():
@@ -327,7 +293,7 @@ def get_lot_index() -> list[dict]:
 
 if __name__ == "__main__":
     # Standalone mock-data preview. Run from the project root with:
-    #   python -m back_dev_home.ebeam.cdsem.device_statistics.statistics
+    #   python -m back_dev_home.ebeam.cdsem.device_statistics.providers.statistics
     import pprint
 
     print("=" * 72)

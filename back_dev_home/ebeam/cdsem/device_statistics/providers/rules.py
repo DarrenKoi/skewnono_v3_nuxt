@@ -1,6 +1,4 @@
-"""SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
-
-계측 룰(파라미터 cap 정책) 데이터 표면입니다. Phase 1 은 in-memory seed,
+"""계측 룰(파라미터 cap 정책) 데이터 표면입니다. Phase 1 은 in-memory seed,
 Phase 2/3 은 동일 시그니처로 DB(버전 이력 테이블) 교체.
 
 설계:   docs/issues/ground_rules/rule-editor-structure.md (§2 데이터 모델, §6 백엔드)
@@ -11,51 +9,21 @@ Phase 2/3 은 동일 시그니처로 DB(버전 이력 테이블) 교체.
 원칙(§8-bis): 백엔드는 raw 룰만 보낸다. 위반 판정·신호등 색은 프론트(ruleEngine)가
 client-side 로 계산한다. 본 모듈은 현재 버전(seed)만 노출한다 — save/history/rollback
 (D12)은 step 3/5 에서 추가.
+
+Internal module: callers outside this feature must import the public
+surface from `device_statistics.data` (the provider switch), not this file
+directly.
 """
 
-from typing import Literal, TypedDict
+from typing import Literal
 
-
-class NameOverride(TypedDict):
-    patterns: list[str]
-    match: Literal["contains", "affix"]
-    cap: int | None  # None = 면제(무제한)
-
-
-class SelectorBase(TypedDict):
-    # Always present. Split out so total=False below applies only to the
-    # optional keying axes — fab/recipe_class stay structurally required
-    # (ruleEngine.selectorMatches compares both and a missing fab never matches).
-    fab: str
-    recipe_class: Literal["Main", "Sample"]
-
-
-class Selector(SelectorBase, total=False):
-    family: Literal["Core", "Pool", "VG_RTC_Cubic"]
-    phase_in: list[str]
-    yield_check: Literal["before", "after"]
-    memory_class: Literal["DRAM", "NAND"]
-
-
-class RuleCell(TypedDict):
-    id: str
-    selector: Selector
-    caps: dict[str, int]  # WAFER/LEVEL/EDGE/EDGE_EX/_other (누락 type = 해당 없음)
-    name_overrides: list[NameOverride]
-
-
-class Thresholds(TypedDict):
-    yellow_at: float
-    red_at: float
-
-
-class RuleVersion(TypedDict):
-    fab: str
-    version: int
-    edited_by: str
-    edited_at: str
-    cells: list[RuleCell]
-    thresholds: Thresholds
+from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
+    NameOverride,
+    RuleCell,
+    RuleVersion,
+    Selector,
+    Thresholds,
+)
 
 
 # Main 공통: WAFER 13, LEVEL 4, _other 9 — 이름 DSPT/WF/WAFER → 13 (D8 L157).

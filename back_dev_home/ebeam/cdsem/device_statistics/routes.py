@@ -4,9 +4,9 @@ from back_dev_home.ebeam.cdsem.device_statistics.data import (
     get_device_desc,
     get_r3_device_grp,
     get_recipe_params,
+    get_rules,
     get_weekly_trend_data,
 )
-from back_dev_home.ebeam.cdsem.device_statistics.rules import get_rules
 
 bp = Blueprint("cdsem_device_statistics", __name__)
 
