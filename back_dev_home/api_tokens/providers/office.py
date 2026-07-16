@@ -1,13 +1,13 @@
 """Office adapter for api_tokens — NOT CONNECTED YET.
 
-Implement create_token/list_tokens/revoke_token in api_tokens/MIGRATION.md
-against the office Redis token store. Normalize every result to
-api_tokens/contracts.py shapes.
-
-find_by_plaintext and touch_last_used are NOT part of this seam: the
-bearer-token auth path (back_dev_home/_auth/middleware.py) always calls the
-mock module's versions directly via api_tokens/data.py, regardless of
-SKEWNONO_API_TOKENS_PROVIDER — see the note in data.py and MIGRATION.md.
+Implement all five functions here against the office Redis token store —
+create_token/list_tokens/revoke_token AND find_by_plaintext/
+touch_last_used. All five must read/write the SAME store: find_by_plaintext
+must be able to resolve a token created by this module's create_token, or
+bearer-token auth (back_dev_home/_auth/middleware.py) breaks the moment
+SKEWNONO_API_TOKENS_PROVIDER=office is set. Normalize CRUD results to
+api_tokens/contracts.py shapes; see api_tokens/MIGRATION.md's "Auth path"
+section for find_by_plaintext's required return shape.
 """
 
 
@@ -27,4 +27,12 @@ def list_tokens(*args, **kwargs):
 
 
 def revoke_token(*args, **kwargs):
+    return _not_connected()
+
+
+def find_by_plaintext(*args, **kwargs):
+    return _not_connected()
+
+
+def touch_last_used(*args, **kwargs):
     return _not_connected()

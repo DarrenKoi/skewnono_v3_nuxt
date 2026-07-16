@@ -6,9 +6,10 @@
   `providers/mock.py`, `contracts.py`, or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
-- `find_by_plaintext` and `touch_last_used` are **out of scope** — leave
-  them alone. They are re-exported straight from `providers/mock.py` by
-  `data.py`, unconditionally, and are not part of this seam (see Notes).
+- Implement **all five** functions here, not just the three CRUD ones:
+  `create_token`, `list_tokens`, `revoke_token`, `find_by_plaintext`,
+  `touch_last_used`. See "Auth path" below — the last two must read/write
+  the SAME office store as the first three, or bearer-token auth breaks.
 
 ## Endpoint: GET /api/account/api-tokens
 
@@ -109,20 +110,51 @@
   returns 0, not an error — make sure the office adapter maps "0 keys
   deleted" to `False`, not an exception, to preserve idempotency -->
 
+## Auth path: find_by_plaintext / touch_last_used
+
+These are not HTTP endpoints — they are called by
+`back_dev_home/_auth/middleware.py:4`
+(`from ..api_tokens.data import find_by_plaintext, touch_last_used`) on
+**every** `/api/*` request that carries an
+`Authorization: Bearer skn_...` header (`_try_api_token` in that file),
+not just at token creation time. `data.py` dispatches both through the
+same `_provider()` switch as the three CRUD functions above — **this
+office adapter must implement both against the SAME Redis store it uses
+for create_token/list_tokens/revoke_token.** If only the CRUD three are
+wired to office while these two stay pointed at the mock's in-memory
+store, a token created via office `create_token` becomes unfindable by
+`find_by_plaintext`, and bearer-token auth silently breaks for every
+office-created token the moment `SKEWNONO_API_TOKENS_PROVIDER=office` is
+set — this is not a hypothetical, it is the exact bug this section exists
+to prevent.
+
+- `find_by_plaintext(plaintext) -> _TokenRow | None`: hashes the plaintext
+  (SHA-256) and looks it up by hash, never by the plaintext itself (the
+  store never contains a plaintext token to begin with). Returns `None`
+  if the prefix doesn't match (`skn_`) or the hash isn't found.
+  **Return-shape contract:** `back_dev_home/_auth/middleware.py` does
+  `g.user_id = row.owner_user_id` and `g.api_token_id = row.id` — i.e. it
+  reads **attributes**, not dict keys. The mock's return type is its
+  private `providers/mock._TokenRow` dataclass with fields `id`,
+  `owner_user_id`, `label`, `hash`, `created_at`, `last_used_at`. The
+  office implementation does not have to reuse that exact class, but
+  whatever it returns MUST expose at least `.id` and `.owner_user_id` as
+  attributes (a small dataclass/namedtuple is the simplest match — do not
+  return a plain dict, `row.id` would raise `AttributeError`).
+- `touch_last_used(token_id) -> None`: updates `last_used_at` on the
+  resolved row. Called once per authenticated bearer request, right after
+  `find_by_plaintext` succeeds — i.e. on the hot path of every API call a
+  token makes, not just once at creation. The mock debounces the actual
+  write to once per 60s per token (`_TOUCH_DEBOUNCE`) to avoid a write per
+  request; preserve that debounce (or an equivalent) in office so this
+  doesn't become a write-per-request against Redis.
+- Office data source: <!-- OFFICE: same `api_tokens:token:<token_id>` /
+  hash-lookup key pattern as the CRUD functions above — find_by_plaintext
+  needs a hash → token_id reverse index (mirrors the mock's `_by_hash`
+  dict) so it doesn't have to scan every token to match a hash -->
+
 ## Notes
 
-- `find_by_plaintext(plaintext)` and `touch_last_used(token_id)` are
-  **not** part of this office migration. `data.py` imports them straight
-  from `providers/mock.py` unconditionally (same pattern as `activity`'s
-  `is_recordable`/`seed_demo_users`), because
-  `back_dev_home/_auth/middleware.py` calls them directly on every
-  `/api/*` request carrying an `Authorization: Bearer skn_...` header, and
-  they must keep reading/writing the exact same in-memory store that
-  `create_token`/`list_tokens`/`revoke_token` use in mock mode. Setting
-  `SKEWNONO_API_TOKENS_PROVIDER=office` does **not** change bearer-token
-  auth behavior — only the three CRUD endpoints above route to
-  `providers/office.py`. Wiring bearer-token auth to a real office token
-  store is future work, out of scope for this task.
 - The parity harness pins `GET /api/account/api-tokens` as
   `200 {"tokens": []}` (empty store, fresh process) — a legitimate parity
   value. It does not exercise POST/DELETE (the harness only issues GET
