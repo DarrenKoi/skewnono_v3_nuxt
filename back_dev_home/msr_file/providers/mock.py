@@ -26,6 +26,19 @@ renamed keys and the frontend consumes them under those names.
 `cd_value` is NULLABLE (docs §df_result_data). It is None exactly when
 mp_number < 0 — a point with metadata but no data has no measurement. Every
 consumer must gate on this; see app/utils/msrRows.ts.
+
+UNKNOWN-SAFE SIGNATURE BOUNDARY (Task 2). The response DELIBERATELY carries no
+``site_layout_hash``, ``recipe_revision``, ``coordinate_transform_version`` or
+``sequence_timestamp``. The frontend compatibility signature
+(app/utils/skewvoirAnalysis/compatibility.ts) reads those as UNKNOWN and never
+fabricates them, which is what forces layout-dependent readiness (multi-MSR
+delta, site variability, same-site gallery) to ``unavailable`` in Phase 1. Note
+also that the per-MSR wafer geometry (``_wafer_geometry``) is seeded off
+md5(msr): there is NO shared layout identity across MSRs, so a layout hash could
+not be honestly emitted here even if the field existed. Do NOT add any of these
+fields to make a screen result line up — connect them in the office adapter
+instead (see providers/office.py). The absence is pinned by
+tests/test_contract.py.
 """
 
 import hashlib

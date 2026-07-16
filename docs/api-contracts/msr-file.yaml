@@ -1,0 +1,225 @@
+resource: msr-file
+description: Raw MSR measurement detail for 스큐보아 (Skewvoir) — per-measurement CD values plus FDC telemetry, acquisition context, recipe identity and wafer coordinate metadata. Derived deterministically from the parent meas_hist row (md5(msr) seed) in Phase 1; the office build swaps the data layer only.
+base_path: /api/msr-file
+
+types:
+  ExeDetailInfo:
+    class_name:
+      type: string
+      description: Measurement class (renamed from pickle "class", a Python keyword).
+    recipe_name:
+      type: string
+      description: Recipe identity — signature source. From the parent meas_hist row.
+    idp_name:
+      type: string
+      description: Recipe .idp path — signature source.
+    idw_name:
+      type: string
+      description: Recipe .idw path — signature source.
+    lot_id:
+      type: string
+    process:
+      type: string
+      examples: ["PHOTO", "ETCH", "METRO"]
+    wafer_id:
+      type: string
+    chip_array:
+      type: string
+      format: "<cols>,<rows>"
+      description: Die array count — coordinate metadata (signature source).
+    chip_pitch:
+      type: string
+      format: "<pitch_x_nm>,<pitch_y_nm>"
+      description: Die pitch in nm — coordinate metadata (signature source).
+    wafer_size:
+      type: string
+      description: Wafer diameter in mm — coordinate metadata (signature source). Always "300" in mock.
+    map_offset:
+      type: string
+      format: "<x_nm>,<y_nm>"
+      description: Map offset in nm — coordinate metadata (signature source).
+    map_origin:
+      type: string
+      format: "<x_nm>,<y_nm>"
+      description: Map origin in nm (wafer centre) — coordinate metadata (signature source).
+  MsrParamSummary:
+    parameter:
+      type: string
+    count:
+      type: integer
+    mean:
+      type: number
+    std:
+      type: number
+    min:
+      type: number
+    max:
+      type: number
+    unit:
+      type: string
+      description: Per-parameter unit — signature source. Each parameter carries its OWN unit (not a shared/global unit).
+  MsrFileRow:
+    msr:
+      type: string
+    sequence:
+      type: integer
+    chip_number:
+      type: string
+      format: "<col>,<row>"
+      description: Die index within the wafer array.
+    chip_coordinate:
+      type: string
+      format: "<x_nm>,<y_nm>"
+    stage_coordinate:
+      type: string
+      format: "<x_nm>,<y_nm>"
+      description: Physical stage position in nm (corner origin).
+    dnum_group:
+      type: string
+    mp_number:
+      type: integer
+      description: Measurement-point index; < 0 marks a metadata-only row with no measurement.
+    parameter:
+      type: string
+    cd_value:
+      type: number | null
+      description: NULLABLE — null exactly when mp_number < 0. Never coerce to 0.
+    no_of_mp_image:
+      type: integer
+    mp_image_name_01:
+      type: string
+    meas_condition_mag:
+      type: integer
+      description: Magnification — per-row-varying acquisition field (signature source). 0 on metadata-only rows.
+    meas_condition_vac:
+      type: integer
+      description: Accelerating voltage — per-row-varying acquisition field (signature source).
+    meas_condition_pixel:
+      type: string
+      description: Pixel dimensions — per-row-varying acquisition field (signature source).
+    addressing1_score:
+      type: integer | null
+    addressing2_score:
+      type: integer | null
+    measurement_score:
+      type: integer | null
+    meas_method:
+      type: string
+      enum: ["Score", "Width", "Edge"]
+      description: Per-row-varying acquisition field (signature source).
+    object_type:
+      type: string
+      enum: ["MP", "Line", "Space"]
+      description: Per-row-varying acquisition field (renamed from pickle "object").
+    meas_kind:
+      type: string | null
+      enum: ["Multi Point", "Single Point", null]
+      description: Per-row-varying acquisition field (signature source).
+  MsrFileResponse:
+    msr:
+      type: string
+    class_name:
+      type: string
+    total_images:
+      type: integer
+    sequence_count:
+      type: integer
+    health:
+      type: number
+      description: Per-MSR abnormality scalar in [0, 1]; biases CD drift and FDC drift together.
+    parameters:
+      type: array
+      items: MsrParamSummary
+    fdc_params:
+      type: array
+      description: Per-FDC-param drift summary (see docs/datatables/hardware.txt).
+    fixed_fdc:
+      type: object
+      description: Per-MSR scalar FDC — one value per measurement.
+    dynamic_fdc:
+      type: object
+      description: Per-sequence FDC keyed by sequence string.
+    exe_detail_info:
+      type: ExeDetailInfo
+    alignment:
+      type: object
+    spm_dict:
+      type: object
+      description: PLACEHOLDER 32-point profile; no signal in Phase 1.
+    total:
+      type: integer
+    rows:
+      type: array
+      items: MsrFileRow
+
+endpoints:
+  - path: /api/msr-file
+    method: GET
+    description: One MSR's full measurement detail.
+    query:
+      msr:
+        type: string
+        required: true
+      class_name:
+        type: string
+        required: false
+        description: Passed from the selected meas_hist row; falls back to a parent lookup.
+      total_images:
+        type: integer
+        required: false
+    response:
+      status: 200
+      body:
+        type: MsrFileResponse
+    errors:
+      - status: 400
+        when: msr query param missing
+      - status: 404
+        when: "MSR not found (no parent meas_hist row and no class_name/total_images override)"
+    example_request: "GET /api/msr-file?msr=MSR123&class_name=ADI&total_images=40"
+  - path: /api/msr-files
+    method: POST
+    description: Batch sibling of /msr-file. The AnalyzePanel multi-selects MSRs; one request per MSR trips the 20-req/5s rate limit, so the whole selection collapses into ONE request. Not-found MSRs are silently skipped; results preserve request order.
+    request_body:
+      items:
+        type: array
+        maxItems: 200
+        items:
+          msr:
+            type: string
+          class_name:
+            type: string | null
+          total_images:
+            type: integer | null
+    response:
+      status: 200
+      body:
+        results:
+          type: array
+          items: MsrFileResponse
+    errors:
+      - status: 400
+        when: "items is not a list, or exceeds the 200-MSR limit"
+    example_request: 'POST /api/msr-files  {"items": [{"msr": "MSR123", "class_name": "ADI", "total_images": 40}]}'
+  - path: /api/msr-image
+    method: GET
+    description: SEM micrograph for an mp_image filename. Home returns a deterministic SVG placeholder; office fetches the real image from the tool by the same filename. Rate-limit exempt.
+    query:
+      name:
+        type: string
+        required: true
+        maxLength: 256
+    response:
+      status: 200
+      content_type: image/svg+xml
+    errors:
+      - status: 400
+        when: "name missing or longer than 256 chars"
+    example_request: "GET /api/msr-image?name=MSR123_001_CD_TOP_0421.tif"
+
+notes:
+  - Phase 1 implementation — back_dev_home/msr_file/providers/mock.py generates detail deterministically from md5(msr); back_dev_home/msr_file/data.py selects mock vs office without changing this contract.
+  - Frontend types mirror this in front-dev-home/app/composables/useMsrFileApi.ts (MsrFileResponse et al.).
+  - "Compatibility signature sources (front-dev-home/app/utils/skewvoirAnalysis/compatibility.ts): recipe identity (recipe_name/idp_name/idw_name), parameter unit, coordinate metadata (wafer_size/chip_array/chip_pitch/map_offset/map_origin), and the per-row-varying acquisition fields (meas_method/object_type/meas_kind/meas_condition_mag/vac/pixel)."
+  - "CANONICAL FIELDS NOT YET PROVIDED (office-gated). The response intentionally carries NO site_layout_hash, recipe_revision, coordinate_transform_version, or sequence_timestamp. The frontend treats these as UNKNOWN and never fabricates them, which forces layout-dependent readiness (multi-MSR delta, site variability, same-site gallery) to `unavailable` in Phase 1. The office adapter (providers/office.py) must connect them before office mode; their absence is pinned by back_dev_home/msr_file/tests/test_contract.py."
+  - "The per-MSR wafer geometry is seeded off md5(msr); there is NO shared site-layout identity across MSRs in mock, so a layout hash could not be honestly emitted here even if the field existed."

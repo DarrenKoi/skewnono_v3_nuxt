@@ -1,5 +1,22 @@
 import { joinApiPath } from '~/utils/apiPath'
 
+// The cross-MSR compatibility signature is extracted STRUCTURALLY from
+// MsrFileResponse — every field the signature reads (recipe identity, per-param
+// unit, coordinate metadata, per-row acquisition fields) already lives on this
+// response. All manifest/compatibility logic is framework-free and stays in
+// utils/skewvoirAnalysis; re-exported here so callers have one MSR-file import
+// surface. See utils/skewvoirAnalysis/compatibility.ts for the unknown-safe
+// contract and the office-gated fields (layout hash, recipe revision, …) this
+// response intentionally does NOT carry.
+export type {
+  AnalysisManifest,
+  AnalysisScope,
+  CompatibilitySignature,
+  ExclusionReason,
+  Readiness,
+  ReadinessMatrix
+} from '~/utils/skewvoirAnalysis/types'
+
 export interface MsrFileRow {
   msr: string
   sequence: number
