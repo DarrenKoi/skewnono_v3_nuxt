@@ -4,49 +4,19 @@
       :tool-type="toolType"
       :fab="fab"
     />
-    <div class="flex shrink-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
-      <div class="min-w-0">
-        <UButton
-          size="sm"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-arrow-left"
-          label="돌아가기"
-          class="rounded-full font-semibold"
-          :to="backRoute"
-          @click.prevent="goBackToList"
+    <EbeamMetaBar
+      :title="titleRecipeName || 'Recipe 상세'"
+      :subtitle="data ? formatTimestamp(data.timestamp) : ''"
+    >
+      <template #actions>
+        <EbeamRecipeDetailNav
+          :tool-type="toolType"
+          :fab="fab"
+          :recipe-name="recipeName"
+          active-screen="open"
         />
-        <p class="mt-3 text-sm font-medium text-(--sk-ink-muted)">
-          {{ toolLabel }} · {{ fab }}
-        </p>
-        <h1 class="mt-1 break-all sk-page-title">
-          {{ titleRecipeName || 'Recipe 상세' }}
-        </h1>
-        <p
-          v-if="data"
-          class="mt-1 sk-meta"
-        >
-          {{ data.fac_id }} · {{ data.tool_category }} · {{ formatTimestamp(data.timestamp) }}
-        </p>
-      </div>
-
-      <div
-        v-if="data"
-        class="dashboard-surface flex self-start overflow-hidden rounded-2xl md:self-auto"
-      >
-        <div
-          v-for="(cell, index) in statCells"
-          :key="cell.label"
-          class="flex min-w-[108px] flex-col gap-0.5 px-5 py-2.5"
-          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-        >
-          <span class="text-[22px] font-bold leading-none tabular-nums text-zinc-900 dark:text-zinc-100">
-            {{ cell.value.toLocaleString() }}
-          </span>
-          <span class="sk-label">{{ cell.label }}</span>
-        </div>
-      </div>
-    </div>
+      </template>
+    </EbeamMetaBar>
 
     <div
       v-if="!recipeName"
@@ -223,7 +193,6 @@ const { fetchRecipeDetail } = useRecipeSearchApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
 const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
-const { goBack: goBackToList } = useHistoryBack(backRoute)
 const cacheKey = computed(() => `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 
 const { data, pending, error, refresh } = await useAsyncData<RecipeDetailResponse | null>(
@@ -249,12 +218,6 @@ const ampInfo = computed<AmpRow[]>(() => data.value?.amp_info ?? [])
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso, { withSeconds: true })
-
-const statCells = computed(() => [
-  { label: '측정 포인트', value: waferMpRows.value.length },
-  { label: 'Align 포인트', value: data.value?.wafer_align_info.length ?? 0 },
-  { label: 'Image 정의', value: idpImageRows.value.length }
-])
 
 type Tab = 'image' | 'overview' | 'mp'
 

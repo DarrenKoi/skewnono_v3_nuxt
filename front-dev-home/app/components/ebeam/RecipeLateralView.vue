@@ -18,8 +18,6 @@ const route = useRoute()
 const { fetchLateralRecipe } = useLateralRecipeApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
-const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
-const { goBack: goBackToList } = useHistoryBack(backRoute)
 
 const cacheKey = computed(() => `lateral:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 
@@ -109,19 +107,14 @@ const tableUi = recipeTableUi
       :fab="fab"
     />
     <div class="space-y-3">
-      <UButton
-        size="sm"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-arrow-left"
-        label="돌아가기"
-        class="rounded-full font-semibold"
-        :to="backRoute"
-        @click.prevent="goBackToList"
+      <EbeamRecipeDetailNav
+        :tool-type="toolType"
+        :fab="fab"
+        :recipe-name="recipeName"
+        active-screen="lateral"
       />
 
       <EbeamFeatureHeader
-        :eyebrow="`${toolLabel} · ${fab} · 횡전개`"
         :stats="data ? headerStats : []"
         :subtitle="data ? `이 fab 안에서 해당 recipe를 보유한 장비를 확인합니다. 보유 ratio: ${readyPercent}%` : ''"
         :title="recipeName || 'Recipe 횡전개'"
@@ -145,7 +138,7 @@ const tableUi = recipeTableUi
         color="neutral"
         variant="outline"
         label="Recipe 검색으로 돌아가기"
-        :to="backRoute"
+        :to="`/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search`"
       />
     </div>
 

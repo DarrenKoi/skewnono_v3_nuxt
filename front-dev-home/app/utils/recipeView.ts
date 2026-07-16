@@ -92,6 +92,23 @@ export const RECIPE_ROW_ACTIONS: readonly RecipeRowAction[] = [
   { screen: 'meas-hist', label: '측정 이력', icon: 'i-lucide-history' }
 ] as const
 
+export const buildRecipeDetailNavItems = (
+  toolType: string,
+  fab: string,
+  recipeName: string,
+  activeScreen: RecipeDetailScreen,
+  setFlag: unknown
+) => RECIPE_ROW_ACTIONS.map((action) => {
+  const target = recipeDetailRoute(toolType, fab, action.screen, recipeName)
+  return {
+    ...action,
+    active: action.screen === activeScreen,
+    to: setFlag === '1'
+      ? { ...target, query: { ...target.query, set: '1' } }
+      : target
+  }
+})
+
 export const readRecipeNameQuery = (route: RouteLocationNormalizedLoaded): string => {
   const raw = route.query.recipe_name
   const value = Array.isArray(raw) ? raw[0] : raw

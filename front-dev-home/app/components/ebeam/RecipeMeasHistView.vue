@@ -18,8 +18,6 @@ const route = useRoute()
 const { fetchMeasHist } = useMeasHistApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
-const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
-const { goBack: goBackToList } = useHistoryBack(backRoute)
 
 const cacheKey = computed(() => `meas-hist:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 
@@ -102,19 +100,14 @@ const tableUi = recipeTableUi
       :fab="fab"
     />
     <div class="space-y-3">
-      <UButton
-        size="sm"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-arrow-left"
-        label="돌아가기"
-        class="rounded-full font-semibold"
-        :to="backRoute"
-        @click.prevent="goBackToList"
+      <EbeamRecipeDetailNav
+        :tool-type="toolType"
+        :fab="fab"
+        :recipe-name="recipeName"
+        active-screen="meas-hist"
       />
 
       <EbeamFeatureHeader
-        :eyebrow="`${toolLabel} · ${fab} · 측정 이력`"
         :stats="data ? headerStats : []"
         subtitle="최근 60일 측정 row 기준입니다. msr_check / align_fail / fail_ratio로 측정 상태를 판단합니다."
         :title="recipeName || '측정 이력'"
@@ -138,7 +131,7 @@ const tableUi = recipeTableUi
         color="neutral"
         variant="outline"
         label="Recipe 검색으로 돌아가기"
-        :to="backRoute"
+        :to="`/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search`"
       />
     </div>
 
