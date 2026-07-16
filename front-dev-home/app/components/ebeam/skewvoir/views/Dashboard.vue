@@ -1,5 +1,8 @@
 <template>
   <div class="flex h-full min-h-0 flex-col gap-2.5">
+    <!-- Focus switcher: only renders when the curated set has 2+ members -->
+    <EbeamSkewvoirDashboardFocusChipStrip :analysis="analysis" />
+
     <!-- Top: coverage/outlier/mean/align stats + measurement conditions -->
     <div class="flex flex-wrap items-stretch gap-2.5">
       <EbeamSkewvoirOverviewStatBar

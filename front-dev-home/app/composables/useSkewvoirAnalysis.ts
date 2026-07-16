@@ -45,8 +45,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
 
   const rows = computed<MeasHistRow[]>(() => hist.value?.rows ?? [])
+  // The URL-pinned focus msr, independent of whether meas_hist has a matching
+  // row (a deep-link msr may not) — the reliable "which chip is active" key
+  // for the focus-switcher chip strip.
+  const focusMsr = computed<string | null>(() => ws.selection.value?.msr ?? null)
   const focusRow = computed<MeasHistRow | null>(() =>
-    rows.value.find(r => r.msr === ws.selection.value?.msr) ?? null
+    rows.value.find(r => r.msr === focusMsr.value) ?? null
   )
   // The focus measurement's fab (per-measurement, e.g. 'M11B') — for fab-scoped
   // links like the recipe 열어보기 page.
@@ -59,14 +63,49 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // keeping the PREVIOUS msr's data rendered as if it were the new focus.
   const focusError = ref<Error | null>(null)
 
+  // Declared here (ahead of its populating watcher further down) purely so
+  // loadFocus below — which is invoked immediately by a `watch(..., {
+  // immediate: true })` a few lines later — can read it without tripping the
+  // temporal-dead-zone: `setFiles` must already be initialized by the time
+  // that first synchronous loadFocus call runs.
+  const setFiles = ref<Map<string, MsrFileResponse>>(new Map())
+
+  // Session cache for focus MsrFile responses, keyed by msr. Bounded at
+  // TREND_LIMIT (30) with insertion-order eviction (oldest key dropped first),
+  // so a chip strip switching among the curated set (also capped at
+  // TREND_LIMIT) fits entirely without evicting anything mid-session. A
+  // cache hit lets a chip switch back to a just-viewed msr render with 0
+  // network requests. Module-scope Map (not a ref) — it's a resolution-order
+  // optimization, not reactive UI state.
+  const focusCache = new Map<string, MsrFileResponse>()
+
+  const cacheFocusFile = (msr: string, file: MsrFileResponse) => {
+    // Delete-then-set moves an existing key to the most-recently-inserted
+    // position (Map iteration order), so re-touching a cached msr counts as
+    // fresh recency rather than aging out first.
+    focusCache.delete(msr)
+    focusCache.set(msr, file)
+    if (focusCache.size > TREND_LIMIT) {
+      const oldest = focusCache.keys().next().value
+      if (oldest !== undefined) focusCache.delete(oldest)
+    }
+  }
+
   // Key on the URL msr itself (not the meas-hist row): the backend resolves the
   // parent class_name/total_images on its own, so a deep/shared link still loads
   // even when the row isn't in the currently-loaded meas-hist list. When the row
   // IS known, pass its fields to skip that backend lookup.
   //
+  // Resolution order: session cache → the curated set's already-fetched
+  // `setFiles` → `fetchMsrFile` (the only network path). A chip switch to an
+  // msr already resolved by either of the first two costs 0 requests.
+  //
   // Stale-response guard: A→B→A genuinely races because fetchMsrFile has only
   // in-flight dedupe, no completed-response cache. We capture the requested msr
-  // before the await and DISCARD the result if the URL focus has moved on.
+  // before the await and DISCARD the result if the URL focus has moved on. The
+  // two synchronous cache-hit paths below are race-free (nothing to await) but
+  // still only ASSIGN when the requested msr still matches the current
+  // selection — populating focusCache happens unconditionally either way.
   const loadFocus = async (msr: string | undefined) => {
     if (!msr) {
       focusFile.value = null
@@ -74,6 +113,29 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       return
     }
     const requestedMsr = msr
+
+    const cached = focusCache.get(msr)
+    if (cached) {
+      cacheFocusFile(msr, cached) // touch recency
+      if (ws.selection.value?.msr === requestedMsr) {
+        focusFile.value = cached
+        focusPending.value = false
+        focusError.value = null
+      }
+      return
+    }
+
+    const fromSet = setFiles.value.get(msr)
+    if (fromSet) {
+      cacheFocusFile(msr, fromSet)
+      if (ws.selection.value?.msr === requestedMsr) {
+        focusFile.value = fromSet
+        focusPending.value = false
+        focusError.value = null
+      }
+      return
+    }
+
     const row = focusRow.value
     focusPending.value = true
     focusError.value = null
@@ -83,6 +145,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
         className: row?.class_name,
         totalImages: row?.total_images
       })
+      cacheFocusFile(msr, res)
       if (ws.selection.value?.msr !== requestedMsr) return
       focusFile.value = res
     } catch (err) {
@@ -189,6 +252,16 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // meas_hist row lookup by msr, for resolving the curated set + picker labels.
   const rowByMsr = computed(() => new Map(rows.value.map(r => [r.msr, r])))
 
+  // Chip-strip label for an msr in the URL `msrs` set: the row's eqp_id +
+  // timestamp when meas_hist has loaded a row for it, else the bare msr id
+  // (deep-link msr with no row). Rendering a label never requires an msr_file
+  // fetch — it only reads the already-loaded meas_hist list.
+  const msrLabel = (msr: string): string => {
+    const row = rowByMsr.value.get(msr)
+    if (!row) return msr
+    return `${row.eqp_id} · ${formatRecipeTimestamp(row.timestamp)}`
+  }
+
   // Move the focus to another MSR in place (no history entry): rewrites the URL
   // `msr` and the focus identity `lot`/`eq`/`cap` from the new focus's meas_hist
   // row (so LeftRail never shows a stale identity), while preserving
@@ -218,7 +291,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       .slice(0, TREND_LIMIT)
   )
 
-  const setFiles = ref<Map<string, MsrFileResponse>>(new Map())
+  // setFiles itself is declared earlier (ahead of loadFocus's TDZ boundary);
+  // this watcher is its only populating side effect.
   const setPending = ref(false)
 
   const setKey = computed(() =>
@@ -337,6 +411,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   })
 
   return {
+    focusMsr,
     focusRow,
     fab,
     focusFile,
@@ -358,6 +433,11 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusedSite,
     setFocusedSite,
     setFocusedMsr,
+    // For the overview focus-switcher chip strip: chip order comes from
+    // ws.msrList directly, labels from rowByMsr/msrLabel — no msr_file fetch.
+    rowByMsr,
+    msrLabel,
+    msrList: ws.msrList,
     scope: ws.scope,
     manifest,
     reference,
