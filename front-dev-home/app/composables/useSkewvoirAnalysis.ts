@@ -9,6 +9,13 @@ import { parseWaferGeometry, type WaferGeometry } from '~/utils/waferGeometry'
 import { buildAnalysisManifest, extractSignature, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
 import type { AnalysisManifest, ReferenceDescriptor } from '~/utils/skewvoirAnalysis/types'
 import {
+  buildHandoffs,
+  hasSpatialCoordinates,
+  hasSequenceData as hasSequenceEvidence,
+  hasImageEvidence,
+  type HandoffTarget
+} from '~/utils/skewvoirAnalysis/handoffs'
+import {
   featureRows as computeFeatureRows,
   featureRegistry as computeFeatureRegistry,
   type FeatureSource,
@@ -226,6 +233,33 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       setFocusedSite(null)
     }
   })
+
+  // --- Overview → detail hand-offs (Task 13) ---
+  // Four evidence hand-offs, generated ONLY from facts already sitting in
+  // memory (siteRows/availableParams/focusedSite) — no new fetch. A hand-off
+  // whose underlying fact isn't confirmed carries `ready: false` + a reason
+  // string instead of a working target, so a caller renders the reason rather
+  // than a CTA that would land on an empty page.
+  const handoffs = computed<HandoffTarget[]>(() => buildHandoffs(
+    {
+      activeParam: activeParam.value,
+      availableParams: availableParams.value,
+      focusedSite: focusedSite.value
+    },
+    {
+      coordinates: hasSpatialCoordinates(siteRows.value, activeParam.value),
+      sequence: hasSequenceEvidence(siteRows.value, activeParam.value),
+      images: hasImageEvidence(siteRows.value, activeParam.value)
+    }
+  ))
+
+  // Navigate a hand-off atomically: ONE router.replace carrying `view` plus the
+  // target state, so a single click lands on the detail view already
+  // configured (no extra history entry, no second render with stale state).
+  const goHandoff = (target: HandoffTarget) => {
+    if (!target.ready) return
+    ws.patchQuery(target.query)
+  }
 
   // The B1 overview roll-up (coverage, outlier count, status, table rows) for the
   // ACTIVE parameter. overviewFor() computes the same for any parameter (navigator).
@@ -470,6 +504,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusedSite,
     setFocusedSite,
     setFocusedMsr,
+    handoffs,
+    goHandoff,
     // For the overview focus-switcher chip strip: chip order comes from
     // ws.msrList directly, labels from rowByMsr/msrLabel — no msr_file fetch.
     rowByMsr,

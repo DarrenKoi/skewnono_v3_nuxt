@@ -83,6 +83,11 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     setMetric: skRoute.setMetric,
     setGrain: skRoute.setGrain,
     setXY: skRoute.setXY,
+    // Low-level atomic multi-key query patch — re-exported so a single hand-off
+    // action (e.g. the overview's evidence hand-offs) can set `view` PLUS the
+    // target state (site/mp/x/y/scope/...) in ONE router.replace, no extra
+    // history entry.
+    patchQuery: skRoute.patchQuery,
     shareUrl: skRoute.shareUrl,
     analysisPath: skRoute.analysisPath,
     basePath: skRoute.basePath

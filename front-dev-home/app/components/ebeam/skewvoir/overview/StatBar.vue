@@ -59,6 +59,20 @@
         />
       </div>
     </div>
+
+    <span class="h-8 w-px bg-(--sk-border-soft)" />
+
+    <!-- Evidence hand-offs — site/image drilldowns, generated ONLY from
+         confirmed facts (a wafer site's coordinate + image evidence). An
+         unready hand-off shows its reason instead of a dead-end button. -->
+    <div class="ml-auto flex flex-wrap items-center gap-1.5">
+      <EbeamSkewvoirOverviewHandoffButton
+        v-for="target in siteHandoffs"
+        :key="target.key"
+        :target="target"
+        @go="analysis.goHandoff(target)"
+      />
+    </div>
   </div>
 </template>
 
@@ -77,4 +91,10 @@ const align = computed(() => {
   const methods = a ? Object.values(a.offset).map(o => o[0]) : []
   return { total: methods.length, methods }
 })
+
+// Site-scoped hand-offs: 공간 pattern (coordinates) + 검토할 이미지 (image
+// evidence) — both carry the currently focused wafer site.
+const siteHandoffs = computed(() =>
+  props.analysis.handoffs.value.filter(t => t.key === 'position' || t.key === 'gallery')
+)
 </script>

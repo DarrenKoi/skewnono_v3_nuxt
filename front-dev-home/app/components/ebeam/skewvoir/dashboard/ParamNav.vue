@@ -22,6 +22,17 @@
           : c.flagged ? 'font-semibold text-(--sk-bad)' : 'text-(--sk-ink-subtle)'"
       >{{ c.flagged ? `● ${c.flaggedCount}` : `${c.measured}/${c.total}` }}</span>
     </button>
+
+    <!-- Parameter-scoped hand-offs: 측정 순서와 FDC (this param's sequence data)
+         + 짝지은 값 (needs ≥2 parameters to pair). -->
+    <div class="ml-auto flex flex-wrap items-center gap-1.5">
+      <EbeamSkewvoirOverviewHandoffButton
+        v-for="target in paramHandoffs"
+        :key="target.key"
+        :target="target"
+        @go="analysis.goHandoff(target)"
+      />
+    </div>
   </div>
 </template>
 
@@ -46,5 +57,9 @@ const chips = computed(() =>
       flaggedCount
     }
   })
+)
+
+const paramHandoffs = computed(() =>
+  props.analysis.handoffs.value.filter(t => t.key === 'sequence' || t.key === 'paired')
 )
 </script>
