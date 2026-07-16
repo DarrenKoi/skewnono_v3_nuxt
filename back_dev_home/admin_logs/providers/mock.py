@@ -3,40 +3,14 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
-from typing import Any, TypedDict
+from typing import Any
 
 from back_dev_home._runtime.env import is_cloud
+from back_dev_home.admin_logs.contracts import LogItem, LogQueryResponse
 
 INDEX_ALIAS = "skewnono_logging"
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
-
-
-class LogItem(TypedDict, total=False):
-    id: str
-    index: str
-    timestamp: str | None
-    level: str | None
-    event: str | None
-    logger: str | None
-    user_id: str | None
-    method: str | None
-    path: str | None
-    status: int | None
-    latency_ms: int | None
-    feature: str | None
-    message: str | None
-    exception: dict[str, Any] | None
-    raw: dict[str, Any]
-
-
-class LogQueryResponse(TypedDict):
-    generated_at: str
-    page: int
-    page_size: int
-    total: int
-    filters: dict[str, Any]
-    items: list[LogItem]
 
 
 def _utc_now() -> datetime:
