@@ -19,7 +19,7 @@ const selectedLabel = computed(() =>
           ECharts theme
         </p>
         <p class="text-sm text-(--sk-ink-muted)">
-          Choose the visual style used by dashboard charts.
+          대시보드 차트에 사용할 색상과 모양을 선택하세요.
         </p>
       </div>
       <div class="inline-flex items-center gap-2 self-start rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -27,7 +27,7 @@ const selectedLabel = computed(() =>
           name="i-lucide-palette"
           class="h-3.5 w-3.5"
         />
-        <span class="whitespace-nowrap">Applied: {{ appliedLabel }}</span>
+        <span class="whitespace-nowrap">적용 중: {{ appliedLabel }}</span>
       </div>
     </div>
 
@@ -98,7 +98,7 @@ const selectedLabel = computed(() =>
     </div>
 
     <p class="sk-meta">
-      Selected theme: {{ selectedLabel }}. The choice is saved in this browser.
+      선택한 테마: {{ selectedLabel }}. 이 설정은 이 브라우저에 저장됩니다.
     </p>
   </section>
 </template>

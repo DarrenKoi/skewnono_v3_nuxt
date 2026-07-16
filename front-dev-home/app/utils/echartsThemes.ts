@@ -75,7 +75,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'default',
     label: 'Default',
     fileName: 'vintage.js / dark.js',
-    description: 'Keeps the current app behavior: vintage in light mode and dark in dark mode.',
+    description: '밝은 화면에서는 Vintage, 어두운 화면에서는 Dark 테마를 자동으로 사용합니다.',
     colors: ['#d87c7c', '#919e8b', '#fef8ef', '#100C2A', '#4992ff', '#7cffb2'],
     backgroundColor: '#fef8ef',
     textColor: '#3f3a34'
@@ -84,7 +84,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'vintage',
     label: 'Vintage',
     fileName: 'vintage.js',
-    description: 'Warm paper-like background with muted red, green, and ochre chart colors.',
+    description: '종이처럼 따뜻한 배경에 차분한 빨강, 초록, 황토색을 사용합니다.',
     colors: vintageColors,
     backgroundColor: '#fef8ef',
     textColor: '#3f3a34'
@@ -93,7 +93,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'dark',
     label: 'Dark',
     fileName: 'dark.js',
-    description: 'High-contrast dark canvas with bright blue, green, yellow, and red accents.',
+    description: '어두운 배경에 밝은 파랑, 초록, 노랑, 빨강을 사용합니다.',
     colors: darkColors,
     backgroundColor: '#100C2A',
     textColor: '#EEF1FA'
@@ -102,7 +102,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'macarons',
     label: 'Macarons',
     fileName: 'macarons.js',
-    description: 'Soft pastel palette for dashboards that need a lighter, gentler tone.',
+    description: '밝고 부드러운 느낌의 연한 색을 사용합니다.',
     colors: macaronsColors,
     backgroundColor: '#ffffff',
     textColor: '#1f2937'
@@ -111,7 +111,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'infographic',
     label: 'Infographic',
     fileName: 'infographic.js',
-    description: 'Bold red, teal, yellow, and orange colors suited to presentation-style charts.',
+    description: '발표용 차트에 어울리는 선명한 빨강, 청록, 노랑, 주황을 사용합니다.',
     colors: infographicColors,
     backgroundColor: '#ffffff',
     textColor: '#1f2937'
@@ -120,7 +120,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'shine',
     label: 'Shine',
     fileName: 'shine.js',
-    description: 'Strong primary colors with a crisp business-report feel.',
+    description: '업무 보고서에 어울리는 또렷한 기본 색을 사용합니다.',
     colors: shineColors,
     backgroundColor: '#ffffff',
     textColor: '#1f2937'
@@ -129,7 +129,7 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
     value: 'roma',
     label: 'Roma',
     fileName: 'roma.js',
-    description: 'Deep red and navy with muted cream and green supporting colors.',
+    description: '짙은 빨강과 남색에 차분한 크림색과 초록을 함께 사용합니다.',
     colors: romaColors,
     backgroundColor: '#ffffff',
     textColor: '#1f2937'

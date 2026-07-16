@@ -18,9 +18,9 @@
     </template>
 
     <p class="mb-4 text-sm text-gray-500 dark:text-zinc-400">
-      Generate a token to call <code class="text-xs">/api/*</code> from internal services or scripts.
-      Use it in the <code class="text-xs">Authorization: Bearer ...</code> header.
-      Tokens grant the same read access as your account; revoke immediately if leaked.
+      내부 서비스나 스크립트에서 <code class="text-xs">/api/*</code>를 호출하려면 토큰을 만드세요.
+      토큰은 <code class="text-xs">Authorization: Bearer ...</code> 헤더에 넣어 사용합니다.
+      토큰은 내 계정과 같은 읽기 권한을 가집니다. 유출되면 바로 폐기하세요.
     </p>
 
     <div

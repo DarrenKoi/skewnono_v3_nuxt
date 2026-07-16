@@ -5,19 +5,19 @@ const colorModeOptions = [
   {
     value: 'light',
     label: 'Light',
-    description: 'A bright interface for daytime use.',
+    description: '낮이나 밝은 곳에서 보기 편한 화면입니다.',
     icon: 'i-lucide-sun'
   },
   {
     value: 'dark',
     label: 'Dark',
-    description: 'A low-light interface that is easy on the eyes.',
+    description: '어두운 곳에서 눈이 덜 피로한 화면입니다.',
     icon: 'i-lucide-moon'
   },
   {
     value: 'system',
     label: 'System',
-    description: 'Automatically match your device appearance.',
+    description: '기기의 화면 설정에 맞춰 자동으로 바뀝니다.',
     icon: 'i-lucide-monitor'
   }
 ] as const
@@ -37,7 +37,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
           App color mode
         </p>
         <p class="text-sm text-(--sk-ink-muted)">
-          Choose how the interface should look on this device.
+          이 기기에서 사용할 화면 밝기를 선택하세요.
         </p>
       </div>
       <div class="inline-flex items-center gap-2 self-start rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -45,7 +45,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
           name="i-lucide-circle-half"
           class="h-3.5 w-3.5"
         />
-        <span class="whitespace-nowrap">Applied: {{ resolvedLabel }}</span>
+        <span class="whitespace-nowrap">적용 중: {{ resolvedLabel }}</span>
       </div>
     </div>
 
@@ -115,7 +115,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
     </div>
 
     <p class="sk-meta">
-      Selected mode: {{ selectedLabel }}. The choice is saved in this browser.
+      선택한 모드: {{ selectedLabel }}. 이 설정은 이 브라우저에 저장됩니다.
     </p>
   </section>
 </template>
