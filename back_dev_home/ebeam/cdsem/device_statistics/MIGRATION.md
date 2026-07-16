@@ -1,0 +1,317 @@
+# device_statistics — office migration
+
+## Rules
+
+- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
+  `providers/mock.py`, `providers/statistics.py`, `providers/recipe_params.py`,
+  `providers/rules.py`, `contracts.py`, or `tests/`.
+- Normalize every result to the shapes in `contracts.py` before returning.
+- Definition of done: the Verify command at the bottom is green.
+- Implement **all five** functions here: `get_r3_device_grp`,
+  `get_device_desc`, `get_recipe_params`, `get_weekly_trend_data`,
+  `get_rules`. These back six GET endpoints (`recipe-statistics` and
+  `recipe-trend` both call `get_weekly_trend_data`, just with different
+  arguments and different route-level post-processing).
+- **External importer — do not break this.** `back_dev_home/ebeam/hitachi/
+  _analytics.py`'s `lot_metadata()` lazily imports `get_device_desc` and
+  `get_r3_device_grp` from `device_statistics.data` (the switch you are
+  implementing here) — it powers Recipe TAT's device quick-filter chips.
+  Once office is selected, `lot_metadata()` will read office data
+  automatically; make sure `get_device_desc()`/`get_r3_device_grp()` keep
+  returning the same row shapes (`lot_cd`, `fac_id`, `prod_catg_cd`,
+  `tech_nm` are the fields it actually reads).
+- **Do NOT touch `providers/mock.py`'s `_lot_index` export or the recipe_tat
+  import that reads it.** `back_dev_home/ebeam/hitachi/recipe_tat/
+  providers/mock.py` imports `_lot_index` directly from
+  `device_statistics.providers.mock` — NOT from `device_statistics.data` —
+  by design. That import intentionally bypasses this office switch: Recipe
+  TAT's own mock provider needs a mock lot pool regardless of which
+  provider device_statistics itself is running, since Recipe TAT has no
+  office adapter of its own here. Nothing in this office migration should
+  change that import path.
+
+## Endpoint: GET /api/cdsem/device-statistics/r3-device-grp
+
+- Handler: `routes.py` → `r3_device_grp()` → `data.get_r3_device_grp()`, no
+  query params.
+- Contract: `list[R3DeviceGrpRow]` —
+
+  ```python
+  class R3DeviceGrpRow(TypedDict):
+      id: str
+      fac_id: str
+      plan_catg_type: str
+      prod_catg_cd: str
+      tech_cd: str
+      den_type: str
+      prod_grp_typ: str
+      gen_typ: str
+      lot_cd: str
+      plan_grade_cd: str
+      lake_load_tm: str
+      ctn_desc: str
+  ```
+
+- Mock behavior: a fixed, memoized (`lru_cache`) universe of 2000 rows
+  generated once per process, all with `fac_id: "R3"` and unique
+  `lot_cd`/`id` values (`R{base36 index}` / `R3-####`). Deterministic per
+  process via a fixed RNG seed (`20260426`) — the same rows every call
+  within a process, not necessarily byte-identical across process restarts
+  if the generator changes, but stable within a running server.
+- Office data source: <!-- OFFICE: docs/datatables/r3_device_grp.txt table
+  query -->
+- Notes: **this endpoint has no query params and always returns the full
+  2000-row table** — unlike `recipe-statistics`/`recipe-params`/
+  `recipe-trend` below, there is no narrowing here to preserve; office
+  should expect callers (including the parity harness) to always fetch the
+  whole table. `lot_cd` is the join key shared with `device-desc` below —
+  office must keep both tables' `lot_cd` vocabularies compatible for
+  `recipe-params`/`recipe-statistics`/`recipe-trend`'s downstream lot
+  lookups to work at all.
+
+## Endpoint: GET /api/cdsem/device-statistics/device-desc
+
+- Handler: `routes.py` → `device_desc()`. Reads `fac_id` from the query
+  string as a comma-separated list (`?fac_id=M11,M12`), splits and strips
+  it, then calls `data.get_device_desc(fac_ids)` (empty list becomes
+  `None`, meaning "no filter").
+- Contract: `list[DeviceDescRow]` —
+
+  ```python
+  class DeviceDescRow(TypedDict):
+      id: str
+      fac_id: str
+      lot_cd: str
+      ctn_desc: str
+      chg_tm: str
+      tech_nm: str
+      rnd_connector: str
+  ```
+
+- Mock behavior: a fixed, memoized 2000-row universe (400 rows per fab)
+  spread across `M11`/`M12`/`M14`/`M15`/`M16`, generated once with RNG seed
+  `20260427` independently of `r3_device_grp` — `rnd_connector` (the R&D
+  code name a device carried pre-mass-production) is deliberately NOT
+  derived from any r3_device_grp field, matching real-world data
+  provenance (~90% of rows get a non-empty `rnd_connector`, ~10% get `""`).
+  When `fac_ids` is provided, filtering is by exact (normalized-uppercase)
+  `fac_id` match; an empty/all-falsy `fac_ids` list (after stripping)
+  behaves identically to `None` — full unfiltered table.
+- Office data source: <!-- OFFICE: docs/datatables/device_desc.txt table
+  query, filterable by fac_id -->
+- Notes: like `r3-device-grp`, this endpoint returns the full (or
+  fac_id-filtered) table with no lot-narrowing — no huge-payload concern
+  here relative to the trend/params endpoints below, but the unfiltered
+  call is still ~2000 rows; office does not need to artificially cap it.
+
+## Endpoint: GET /api/cdsem/device-statistics/recipe-statistics
+
+- Handler: `routes.py` → `recipe_statistics()`. Reads `lot_cds` from the
+  query string (comma-separated, e.g. `?lot_cds=R000,R001`), calls
+  `data.get_weekly_trend_data(lot_cds or None)` (defaults: `points=8`,
+  `interval_days=7`, `include_recipes=True`), then takes ONLY the latest
+  date's bucket from the returned dict and reshapes it to
+  `{"date": <iso>, "buckets": <TrendBucket>}` — an empty trend dict becomes
+  `{"date": None, "buckets": {}}`.
+- Contract (of `get_weekly_trend_data` itself — the wire response is a
+  route-level reshape of this, not a separate data-layer shape):
+
+  ```python
+  class TrendBucket(TypedDict, total=False):
+      all_rcp_info: list[RecipeInfoRow]
+      all_summary: list[SummaryRow]
+      only_normal_rcp_info: list[RecipeInfoRow]
+      only_normal_summary: list[SummaryRow]
+      mother_normal_rcp_info: list[RecipeInfoRow]
+      mother_normal_summary: list[SummaryRow]
+      only_sample_rcp_info: list[RecipeInfoRow]
+      only_sample_summary: list[SummaryRow]
+
+  # get_weekly_trend_data(...) -> dict[str, TrendBucket]  (ISO date -> bucket)
+  ```
+
+  `RecipeInfoRow`/`SummaryRow` are the per-recipe and per-lot-aggregate row
+  shapes — see `contracts.py` for the full field lists (19 and 14 fields
+  respectively; both carry the four `para_16`/`para_13`/`para_9`/`para_5`
+  counts plus their `_percent` siblings).
+- Mock behavior: buckets recipes into 4 categories per lot per date
+  (`all`, `only_normal`, `mother_normal`, `only_sample`), each with its own
+  recipe-count range (widest for `all`, narrowest for `only_sample`), and
+  pairs each `*_rcp_info` list with a `*_summary` aggregate row. Generation
+  is deterministic per `(lot_cd, date_index)` via `_seed_for` — repeated
+  calls with the same lot/date give byte-identical output. `points`/
+  `interval_days` govern how many weekly dates are generated (always the
+  full window is built, then only the latest is surfaced by this route) —
+  **do not change `points` from its default**: `_seed_for` keys off
+  `point_index`, so reducing `points` shifts which index is "latest" and
+  changes that date's generated values, breaking the deterministic-per-date
+  guarantee documented on `get_weekly_trend_data`.
+- Office data source: <!-- OFFICE: recipe/parameter aggregation per lot per
+  week, bucketed by normal/mother/sample recipe classification -->
+- Notes: **huge-payload endpoint.** Called with no `lot_cds` filter, this
+  fans out over every lot in the mock (2000 R3 + 2000 M-fab = 4000 lots)
+  and returns a full cross-product — this is how the original capture
+  produced a 1.07 GB golden file before the parity harness pinned it down
+  to a single lot. The frontend
+  (`front-dev-home/app/composables/useRecipeStatisticsApi.ts`) always joins
+  a user-selected lot list into `lot_cds` before calling; an unfiltered
+  call is not a realistic usage pattern. The parity harness pins
+  `?lot_cds=R000` (a real R3 lot, ~165 KB response) — office's realistic
+  per-request size for the documented, expected usage (a handful of
+  user-selected lots) should stay in the tens-to-low-hundreds of KB range,
+  not the multi-GB unfiltered case.
+
+## Endpoint: GET /api/cdsem/device-statistics/recipe-params
+
+- Handler: `routes.py` → `recipe_params()`. Reads `lot_cds` from the query
+  string (comma-separated), calls
+  `data.get_recipe_params(lot_cds or None)` and returns the flat list
+  directly (no route-level reshape).
+- Contract: `list[RecipeParamsRow]` —
+
+  ```python
+  class ParameterRow(TypedDict):
+      name: str
+      point_count: int
+
+  class RecipeParamsRow(TypedDict):
+      lot_cd: str
+      recipe_id: str
+      fac_id: str
+      ctn_desc: str
+      prod_catg_cd: str
+      recipe_class: Literal["Main", "Sample"]
+      family: Literal["Core", "Pool", "VG_RTC_Cubic"]
+      phase: Literal["t-EV", "EV", "TV", "PV"] | None
+      memory_class_auto: Literal["DRAM", "NAND", "unknown"]
+      parameters: list[ParameterRow]
+  ```
+
+- Mock behavior: 100–200 recipes per requested lot (`RECIPE_COUNT_RANGE`),
+  deterministic per lot via a seeded RNG (`_seed_for(lot_cd, 4242)`).
+  `prod_catg_cd` is reused from the lot's own `r3_device_grp` row when it
+  is an R3 lot; M-fab `device_desc` rows carry no `prod_catg_cd`, so it
+  falls back to a deterministic pick. `memory_class_auto` is derived
+  purely from `prod_catg_cd` (`DRAM`→`DRAM`, `NAND`/`FLASH`→`NAND`,
+  anything else→`unknown`, meaning manual classification per D7). ~8% of
+  recipes are deliberately "bloated" (many extra `OTHER`-type parameters)
+  and ~5% deliberately carry a point-count outlier (one `EDGE_R` parameter
+  pushed to 40–60 points) — these are intentional signal, not noise, so
+  both the outlier-detection view and R3 compliance checks have real data
+  to validate against. Parameter names are chosen from fixed per-type
+  pools (`WAFER_*`, `LEVEL_*`, `EDGE_*`, `EDGE_EX_*`, plus an `OTHER` bag)
+  specifically to exercise the frontend's longest-prefix type derivation
+  (`EDGE_EX` > `EDGE` > `WAFER` > `LEVEL` > everything else = `OTHER`).
+- Office data source: <!-- OFFICE: recipe + parameter tables joined per
+  lot_cd, with recipe_class/family/phase/memory_class_auto classification
+  -->
+- Notes: **huge-payload endpoint**, same shape of concern as
+  `recipe-statistics` above — an unfiltered call fans out over all ~4000
+  lots (the original capture was 578 MB). The parity harness pins
+  `?lot_cds=R000` (~100 KB). The frontend
+  (`front-dev-home/app/composables/useDeviceStatisticsApi.ts`) always
+  passes a selected lot list. `lot_cd`/`fac_id` here must stay joinable
+  with `r3-device-grp`/`device-desc`'s own `lot_cd`/`fac_id` columns.
+
+## Endpoint: GET /api/cdsem/device-statistics/rules
+
+- Handler: `routes.py` → `measurement_rules()`. Requires `fab` as a query
+  param (`400 invalid_request`-equivalent `abort(400)` if missing/blank —
+  via Flask's `abort`, not the project's `error_json` helper, so the error
+  body shape differs from other 4xx responses in this codebase). Calls
+  `data.get_rules(fab)`; a `None` result is translated to `abort(404)` by
+  the route itself, not by `data.py`/the provider.
+- Contract: `RuleVersion` —
+
+  ```python
+  class NameOverride(TypedDict):
+      patterns: list[str]
+      match: Literal["contains", "affix"]
+      cap: int | None  # None = exempt (unlimited)
+
+  class Selector(TypedDict, total=False):
+      fab: str                                    # required (see SelectorBase)
+      recipe_class: Literal["Main", "Sample"]      # required (see SelectorBase)
+      family: Literal["Core", "Pool", "VG_RTC_Cubic"]
+      phase_in: list[str]
+      yield_check: Literal["before", "after"]
+      memory_class: Literal["DRAM", "NAND"]
+
+  class RuleCell(TypedDict):
+      id: str
+      selector: Selector
+      caps: dict[str, int]        # WAFER/LEVEL/EDGE/EDGE_EX/_other
+      name_overrides: list[NameOverride]
+
+  class Thresholds(TypedDict):
+      yellow_at: float
+      red_at: float
+
+  class RuleVersion(TypedDict):
+      fab: str
+      version: int
+      edited_by: str
+      edited_at: str
+      cells: list[RuleCell]
+      thresholds: Thresholds
+  ```
+
+  (`fab`/`recipe_class` on `Selector` are structurally required — modeled
+  as `SelectorBase` in `contracts.py` with `Selector` extending it via
+  `total=False` for the remaining optional keying axes — see
+  `contracts.py` for the exact split.)
+- Mock behavior: a single seeded rule version for fab `"R3"` only
+  (`version: 1`) covering the full family × (phase | yield_check) ×
+  memory_class matrix for `Main` recipes plus `Sample` rules keyed by
+  memory_class. Any other `fab` value returns `None`. **Backend serves raw
+  rule cells only** — violation judgment and traffic-light coloring are
+  computed client-side by the frontend's `ruleEngine.ts` (§8-bis
+  principle); this endpoint never evaluates or filters against real
+  parameter data. Cell match order matters: `r3-sample-core-tvpv` must
+  precede the general `r3-sample-dram`/`r3-sample-nand` cells so the
+  frontend's first-match selection picks the more specific cell.
+- Office data source: <!-- OFFICE: rule version history table, keyed by
+  fab; office may serve more than one fab and more than one version, but
+  this endpoint's contract only asks for "the current version" per fab --
+  >
+- Notes: not a huge-payload endpoint — one fab's rule set is a handful of
+  cells. `save`/`history`/`rollback` are explicitly out of scope for this
+  seam (per the mock's own docstring, "step 3/5" — a future feature, not
+  part of this office migration).
+
+## Endpoint: GET /api/cdsem/device-statistics/recipe-trend
+
+- Handler: `routes.py` → `recipe_trend()`. Reads `lot_cds` (comma-separated),
+  `start_date`, `end_date` from the query string. Calls
+  `data.get_weekly_trend_data(lot_cds or None, include_recipes=False)` —
+  **same underlying function as `recipe-statistics`, called with
+  `include_recipes=False`** so the `*_rcp_info` keys are omitted from each
+  bucket (this route only consumes `*_summary` data for its trend chart,
+  and skipping `rcp_info` avoids serializing thousands of unused recipe
+  rows). The route then filters the full date range down to
+  `[start_date, end_date]` via lexicographic ISO-string comparison (dates
+  are always `YYYY-MM-DD`, which sorts correctly as plain strings) and
+  returns `{"dates": [...], "trend": {date: bucket, ...}}`.
+- Contract: same `dict[str, TrendBucket]` as `recipe-statistics` above,
+  except every bucket in practice only has the four `*_summary` keys
+  populated (the `*_rcp_info` keys are `TypedDict`-optional via
+  `total=False` specifically so both call shapes validate against the same
+  `TrendBucket` contract).
+- Mock behavior: same trend-generation logic as `recipe-statistics`
+  (identical `_seed_for`-driven determinism, identical "don't change
+  `points`" caveat), just with the recipe-detail lists stripped before
+  return and a date-range slice applied by the route afterward instead of
+  "take only the latest date."
+- Office data source: <!-- OFFICE: same aggregation as recipe-statistics,
+  summary-only (no per-recipe rows), filterable by date range -->
+- Notes: **huge-payload endpoint**, same class of concern as
+  `recipe-statistics`/`recipe-params` — the original capture was 70 MB
+  unfiltered. The parity harness pins `?lot_cds=R000` (~12 KB). Because
+  this variant already omits recipe-level detail, its realistic per-request
+  size (a handful of lots × 8 weekly points × 4 summary rows) is smaller
+  than `recipe-statistics`'s even before any date-range narrowing is
+  applied.
+
+## Verify
+
+    SKEWNONO_DEVICE_STATISTICS_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/cdsem/device_statistics
