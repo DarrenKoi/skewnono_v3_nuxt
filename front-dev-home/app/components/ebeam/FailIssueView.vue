@@ -107,72 +107,72 @@
       </div>
 
       <template v-else>
-        <!-- KPI card for the active aspect -->
-        <UCard
+        <!-- Compact KPI strip for the active aspect -->
+        <div
           v-if="showAlign"
-          class="dashboard-surface rounded-2xl"
+          class="dashboard-surface flex flex-col gap-3 rounded-2xl px-4 py-3 lg:flex-row lg:items-center"
         >
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-crosshair"
-                class="h-4 w-4 text-(--sk-bad)"
-              />
+          <div class="flex min-w-0 items-center gap-2 lg:w-64 lg:shrink-0">
+            <UIcon
+              name="i-lucide-crosshair"
+              class="h-4 w-4 shrink-0 text-(--sk-bad)"
+            />
+            <div class="min-w-0">
               <h3 class="sk-title">
                 Align Fail
               </h3>
-              <span class="sk-meta">wafer alignment outcome at run start</span>
-            </div>
-          </template>
-          <div class="flex flex-wrap">
-            <div
-              v-for="(cell, i) in alignKpiCells"
-              :key="cell.label"
-              class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
-              :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': i > 0 }"
-            >
-              <span
-                class="text-2xl font-bold leading-none tabular-nums"
-                :class="cell.tone"
-              >{{ cell.value }}</span>
-              <span class="sk-label">{{ cell.label }}</span>
+              <p class="truncate text-[11px] text-(--sk-ink-muted)">
+                wafer alignment outcome at run start
+              </p>
             </div>
           </div>
-        </UCard>
+          <div class="grid min-w-0 flex-1 grid-cols-2 gap-1 sm:grid-cols-4">
+            <div
+              v-for="cell in alignKpiCells"
+              :key="cell.label"
+              class="min-w-0 rounded-lg bg-zinc-50/80 px-3 py-2 dark:bg-zinc-900/45"
+            >
+              <span
+                class="block truncate text-lg font-bold leading-tight tabular-nums"
+                :class="cell.tone"
+              >{{ cell.value }}</span>
+              <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">{{ cell.label }}</span>
+            </div>
+          </div>
+        </div>
 
-        <UCard
+        <div
           v-if="showMeas"
-          class="dashboard-surface rounded-2xl"
+          class="dashboard-surface flex flex-col gap-3 rounded-2xl px-4 py-3 lg:flex-row lg:items-center"
         >
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-image-off"
-                class="h-4 w-4 text-(--sk-bad)"
-              />
+          <div class="flex min-w-0 items-center gap-2 lg:w-64 lg:shrink-0">
+            <UIcon
+              name="i-lucide-image-off"
+              class="h-4 w-4 shrink-0 text-(--sk-bad)"
+            />
+            <div class="min-w-0">
               <h3 class="sk-title">
                 Meas Fail
               </h3>
-              <span class="sk-meta">
+              <p class="truncate text-[11px] text-(--sk-ink-muted)">
                 fail_ratio &gt; {{ formatPercent(measFailThreshold, 0) }}
-              </span>
-            </div>
-          </template>
-          <div class="flex flex-wrap">
-            <div
-              v-for="(cell, i) in measKpiCells"
-              :key="cell.label"
-              class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
-              :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': i > 0 }"
-            >
-              <span
-                class="text-2xl font-bold leading-none tabular-nums"
-                :class="cell.tone"
-              >{{ cell.value }}</span>
-              <span class="sk-label">{{ cell.label }}</span>
+              </p>
             </div>
           </div>
-        </UCard>
+          <div class="grid min-w-0 flex-1 grid-cols-2 gap-1 sm:grid-cols-4">
+            <div
+              v-for="cell in measKpiCells"
+              :key="cell.label"
+              class="min-w-0 rounded-lg bg-zinc-50/80 px-3 py-2 dark:bg-zinc-900/45"
+            >
+              <span
+                class="block truncate text-lg font-bold leading-tight tabular-nums"
+                :class="cell.tone"
+              >{{ cell.value }}</span>
+              <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">{{ cell.label }}</span>
+            </div>
+          </div>
+        </div>
 
         <!-- Trend chart for the active aspect -->
         <UCard
@@ -180,14 +180,40 @@
           class="dashboard-surface rounded-2xl"
         >
           <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-trending-up"
-                class="h-4 w-4 text-(--sk-ink-muted)"
-              />
-              <h3 class="sk-title">
-                Align fail · daily trend
-              </h3>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-trending-up"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
+                />
+                <h3 class="sk-title">
+                  Align fail · daily trend
+                </h3>
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Align fail chart type"
+                class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
+              >
+                <button
+                  v-for="chartOption in CHART_TYPES"
+                  :key="chartOption.value"
+                  type="button"
+                  role="radio"
+                  :aria-checked="chartType === chartOption.value"
+                  class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
+                  :class="chartType === chartOption.value
+                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
+                    : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+                  @click="chartType = chartOption.value"
+                >
+                  <UIcon
+                    :name="chartOption.icon"
+                    class="h-3.5 w-3.5"
+                  />
+                  {{ chartOption.label }}
+                </button>
+              </div>
             </div>
           </template>
           <div
@@ -201,14 +227,40 @@
           class="dashboard-surface rounded-2xl"
         >
           <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-trending-up"
-                class="h-4 w-4 text-(--sk-ink-muted)"
-              />
-              <h3 class="sk-title">
-                Meas fail · daily trend
-              </h3>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-trending-up"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
+                />
+                <h3 class="sk-title">
+                  Meas fail · daily trend
+                </h3>
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Meas fail chart type"
+                class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
+              >
+                <button
+                  v-for="chartOption in CHART_TYPES"
+                  :key="chartOption.value"
+                  type="button"
+                  role="radio"
+                  :aria-checked="chartType === chartOption.value"
+                  class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
+                  :class="chartType === chartOption.value
+                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
+                    : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+                  @click="chartType = chartOption.value"
+                >
+                  <UIcon
+                    :name="chartOption.icon"
+                    class="h-3.5 w-3.5"
+                  />
+                  {{ chartOption.label }}
+                </button>
+              </div>
             </div>
           </template>
           <div
@@ -305,7 +357,15 @@ const VIEW_MODES = [
 ] as const
 type ViewMode = typeof VIEW_MODES[number]['value']
 
+const CHART_TYPES = [
+  { value: 'bar', label: 'Bar', icon: 'i-lucide-chart-column' },
+  { value: 'line', label: 'Line', icon: 'i-lucide-chart-no-axes-combined' },
+  { value: 'ratio', label: 'Ratio', icon: 'i-lucide-percent' }
+] as const
+type ChartType = typeof CHART_TYPES[number]['value']
+
 const viewMode = ref<ViewMode>('summary')
+const chartType = ref<ChartType>('bar')
 const metaSubtitle = computed(() => {
   const aspect = props.section === 'align' ? 'Align Fail' : 'Measurement Fail'
   return viewMode.value === 'by-device'
@@ -370,7 +430,7 @@ const alignRows = computed<FailIssueAlignRow[]>(() => data.value?.align.rows ?? 
 const measRows = computed<FailIssueMeasRow[]>(() => data.value?.meas.rows ?? [])
 const deviceList = computed(() => devicesData.value?.devices ?? [])
 const failDeviceTitle = (device: FailIssueDeviceRow) =>
-  `${device.exec_count.toLocaleString()} runs · align fails ${device.align_fail_count} · meas fails ${device.meas_fail_count}`
+  `전체 측정 장수 ${device.exec_count.toLocaleString()} · align fails ${device.align_fail_count} · meas fails ${device.meas_fail_count}`
 
 const measFailThreshold = computed(() => summary.value?.meas_fail_threshold ?? 0.15)
 
@@ -410,7 +470,7 @@ const measKpiCells = computed(() => {
   return [
     { label: 'Meas fails', value: s.meas_fail_count.toLocaleString(), tone: 'text-(--sk-bad)' },
     { label: 'Fail rate', value: formatPercent(s.meas_fail_rate), tone: 'text-zinc-900 dark:text-zinc-100' },
-    { label: 'Total runs', value: s.total_executions.toLocaleString(), tone: 'text-zinc-600 dark:text-zinc-300' },
+    { label: '전체 측정 장수', value: s.total_executions.toLocaleString(), tone: 'text-zinc-600 dark:text-zinc-300' },
     { label: 'Distinct recipes', value: s.distinct_recipes.toLocaleString(), tone: 'text-zinc-700 dark:text-zinc-300' }
   ]
 })
@@ -440,71 +500,115 @@ const buildTrendOption = (
   values: number[],
   color: string,
   baseline: number[]
-): EChartsOption => ({
-  tooltip: {
-    trigger: 'axis',
-    formatter: (params: unknown) => {
-      const arr = Array.isArray(params) ? params : [params]
-      const first = arr[0] as { dataIndex?: number }
-      const idx = typeof first.dataIndex === 'number' ? first.dataIndex : 0
-      const point = trendPoints.value[idx]
-      if (!point) return ''
-      return [
-        `<b>${point.date}</b>`,
-        `${seriesName}: <b>${values[idx]?.toLocaleString() ?? 0}</b>`,
-        `Total executions: ${point.exec_count.toLocaleString()}`
-      ].join('<br/>')
-    }
-  },
-  legend: {
-    data: [seriesName, 'Total runs'],
-    bottom: 0,
-    textStyle: { fontSize: 10 }
-  },
-  grid: { left: 8, right: 16, top: 12, bottom: 32, containLabel: true },
-  xAxis: {
-    type: 'category',
-    data: xAxisDates.value,
-    axisLabel: {
-      fontSize: 10,
-      interval: Math.max(0, Math.floor(xAxisDates.value.length / 8) - 1)
-    }
-  },
-  yAxis: [
-    {
-      type: 'value',
-      name: 'Fails',
-      nameTextStyle: { fontSize: 10 },
-      axisLabel: { fontSize: 10 }
+): EChartsOption => {
+  const totalLabel = '전체 측정 장수'
+  const isRatio = chartType.value === 'ratio'
+  const ratioSeriesName = `${seriesName} ratio`
+  const ratioValues = values.map((value, index) => {
+    const total = baseline[index] ?? 0
+    return total > 0 ? value / total * 100 : 0
+  })
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: unknown) => {
+        const arr = Array.isArray(params) ? params : [params]
+        const first = arr[0] as { dataIndex?: number }
+        const idx = typeof first.dataIndex === 'number' ? first.dataIndex : 0
+        const point = trendPoints.value[idx]
+        if (!point) return ''
+        const failCount = values[idx] ?? 0
+        const totalCount = baseline[idx] ?? 0
+        return [
+          `<b>${point.date}</b>`,
+          isRatio
+            ? `${ratioSeriesName}: <b>${formatPercent(totalCount > 0 ? failCount / totalCount : 0)}</b>`
+            : `${seriesName}: <b>${failCount.toLocaleString()}</b>`,
+          `${totalLabel}: ${totalCount.toLocaleString()}`
+        ].join('<br/>')
+      }
     },
-    {
-      type: 'value',
-      name: 'Runs',
-      nameTextStyle: { fontSize: 10 },
-      axisLabel: { fontSize: 10 },
-      splitLine: { show: false }
-    }
-  ],
-  series: [
-    {
-      name: seriesName,
-      type: 'bar',
-      data: values,
-      itemStyle: { color, borderRadius: [4, 4, 0, 0] },
-      barMaxWidth: 14,
-      yAxisIndex: 0
+    legend: {
+      data: isRatio ? [ratioSeriesName] : [seriesName, totalLabel],
+      bottom: 0,
+      textStyle: { fontSize: 10 }
     },
-    {
-      name: 'Total runs',
-      type: 'line',
-      smooth: true,
-      symbol: 'none',
-      data: baseline,
-      lineStyle: { color: '#a1a1aa', type: 'dashed', width: 1 },
-      yAxisIndex: 1
-    }
-  ]
-})
+    grid: { left: 8, right: 16, top: 12, bottom: 32, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: xAxisDates.value,
+      axisLabel: {
+        fontSize: 10,
+        interval: Math.max(0, Math.floor(xAxisDates.value.length / 8) - 1)
+      }
+    },
+    yAxis: isRatio
+      ? {
+          type: 'value',
+          name: 'Fail rate',
+          nameTextStyle: { fontSize: 10 },
+          axisLabel: { fontSize: 10, formatter: '{value}%' }
+        }
+      : [
+          {
+            type: 'value',
+            name: 'Fails',
+            nameTextStyle: { fontSize: 10 },
+            axisLabel: { fontSize: 10 }
+          },
+          {
+            type: 'value',
+            name: '측정 장수',
+            nameTextStyle: { fontSize: 10 },
+            axisLabel: { fontSize: 10 },
+            splitLine: { show: false }
+          }
+        ],
+    series: isRatio
+      ? [{
+          name: ratioSeriesName,
+          type: 'line',
+          data: ratioValues,
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { color, width: 2 },
+          itemStyle: { color },
+          areaStyle: { color, opacity: 0.08 }
+        }]
+      : [
+          chartType.value === 'bar'
+            ? {
+                name: seriesName,
+                type: 'bar',
+                data: values,
+                itemStyle: { color, borderRadius: [4, 4, 0, 0] },
+                barMaxWidth: 14,
+                yAxisIndex: 0
+              }
+            : {
+                name: seriesName,
+                type: 'line',
+                data: values,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color, width: 2 },
+                itemStyle: { color },
+                areaStyle: { color, opacity: 0.08 },
+                yAxisIndex: 0
+              },
+          {
+            name: totalLabel,
+            type: 'line',
+            smooth: true,
+            symbol: 'none',
+            data: baseline,
+            lineStyle: { color: '#a1a1aa', type: 'dashed', width: 1 },
+            yAxisIndex: 1
+          }
+        ]
+  }
+}
 
 const alignTrendOption = computed<EChartsOption>(() =>
   buildTrendOption(
