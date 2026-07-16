@@ -9,6 +9,7 @@ from back_dev_home.afm import data
 from back_dev_home.afm.contracts import (
     AfmFileDetail,
     AfmMeasurementRow,
+    AfmProfilePoint,
     AfmToolRow,
     AfmUserActivity,
     AfmUserAnalytics,
@@ -45,9 +46,7 @@ def test_get_profile_points_returns_xyz_points():
     assert isinstance(points, list)
     assert points
     for entry in points:
-        assert isinstance(entry["x"], float)
-        assert isinstance(entry["y"], float)
-        assert isinstance(entry["z"], float)
+        assert_matches(entry, AfmProfilePoint)
 
 
 def test_get_profile_image_svg_returns_string():
