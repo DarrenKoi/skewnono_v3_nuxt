@@ -1,5 +1,16 @@
 <template>
-  <div class="space-y-3">
+  <!-- Branch-by-abstraction on analysis scope:
+       • single → the single-MSR spatial workbench (Task 5)
+       • set    → the existing composite-mean / σ view (kept until Task 6). -->
+  <EbeamSkewvoirPositionSpatialWorkbench
+    v-if="analysis.scope.value === 'single'"
+    :analysis="analysis"
+  />
+
+  <div
+    v-else
+    class="space-y-3"
+  >
     <div
       v-if="analysis.setPending.value"
       class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) sk-body"
