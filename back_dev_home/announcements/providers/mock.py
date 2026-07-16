@@ -11,20 +11,12 @@ Announcement 는 모의 발생기가 아니라 실제 JSON 파일을 읽는 유�
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal, Optional, TypedDict
+from typing import Optional
+
+from back_dev_home.announcements.contracts import Announcement
 
 
-__all__ = ["Announcement", "get_announcements"]
-
-
-class Announcement(TypedDict, total=False):
-    id: str
-    level: Literal["info", "warning", "critical"]
-    title: str
-    body: str
-    starts_at: str
-    ends_at: str
-    dismissible: bool
+__all__ = ["get_announcements"]
 
 
 # Naive timestamps in announcements.json are interpreted as KST so operators
