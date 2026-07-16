@@ -38,7 +38,8 @@ Node test runner, ESLint, Nuxt typecheck, markdownlint-cli2.
 ## 0. Implementation principles
 
 1. `측정 개요` keeps loading exactly one focus MSR quickly. The initial Dashboard
-   never pays a set fan-out because of detail comparison.
+   never pays a set fan-out because of detail comparison. Focus switching is
+   allowed — what is banned is the set fan-out, not sequential single fetches.
 2. Single-MSR and multi-MSR share the same menu but differ in question, grain, and
    empty state.
 3. Multi-MSR computation is keyed on the *number of compatible MSRs*, not the
@@ -81,7 +82,7 @@ therefore classified as follows.
 
 | Class | Tasks | State in Phase 1 |
 | --- | --- | --- |
-| Phase-1 buildable · verifiable | Tasks 1–5, 7, 9, 11, 13, 14 | The C0 shared layer, single-MSR diagnosis, review-queue gallery, and hand-off are live-verified on mock data. |
+| Phase-1 buildable · verifiable | Tasks 1–5 (incl. 3b), 7, 9, 11, 13, 14 | The C0 shared layer, single-MSR diagnosis, review-queue gallery, and hand-off are live-verified on mock data. |
 | Office-contract-gated | Tasks 6, 12 | Live-verifiable only after the canonical layout/coordinate and image-evidence contracts are connected. In Phase 1, build only the readiness `unavailable` placeholder. |
 | Partially gated | Tasks 8, 10 | Descriptive run chart + tool/lot stratification (8) and MSR-grain pooled/stratified analysis (10) work on the mock. Control charts + recipe-revision facet (8) and capability/variance + spatial/same-site linking (10) are contract-pending. |
 
@@ -130,6 +131,7 @@ touch the same files as this plan. Land them first to avoid conflicts.
 - [ ] Confirm the lazy-load invariant that `fetchMsrFiles` does not run when only the single Dashboard is open.
 - [ ] Preserve `msr_file.rows` nullable `cd_value` and per-parameter units in the fixture.
 - [ ] Note, via test name or comment, the current limits: Position Stack synthesizes chip coordinates directly, and Correlation/Gallery use only the focus file.
+- [ ] Mark the "focus MSR only changes via search re-entry" current-behavior fixture as a test slated for update, because Task 3's `setFocusedMsr` intentionally supersedes it.
 
 **Verify:**
 
@@ -224,14 +226,64 @@ python -m pytest back_dev_home/msr_file   # mock signature fields + office NotIm
 - [ ] Show group composition, excluded MSRs and reasons, and per-capability ready/limited/unavailable in the readiness drawer.
 - [ ] Reset the linked site when parameter or focus group changes and the site key is no longer valid.
 - [ ] Keep the existing behavior of keyboard shortcuts 1–5 and the combobox guard.
+- [ ] `setFocusedMsr(msr)` changes `msr` with the same router.replace pattern as `setView`/`setMsrs`/`setParam`, preserving `msrs`/`view`/`mp`. It adds no history entry, so Back still returns to search.
+- [ ] On a focus switch, also rewrite `lot`/`eq`/`cap` from the new focus MSR's `meas_hist` row (`rowByMsr`) — LeftRail renders these URL fields verbatim, so no stale identity is left on screen. A deep-link MSR without a row keeps the existing values.
+- [ ] Discard an in-flight focus fetch whose msr no longer equals the current URL `msr` at resolve time (stale-response guard). This race is real today: `fetchMsrFile` only dedupes in-flight requests and has no completed-response cache.
+- [ ] When the focus file fails to load, keep the URL as truth and show a failure state with retry. Never keep rendering the previous MSR's data as if it were the new focus.
+- [ ] `focusedSequence` reset and `mp` normalization are already handled by existing watchers — verify the behavior instead of re-implementing it.
 
 **Acceptance:**
 
 - A comparison set edited on Time-Series appears identically on Position/Correlation/Gallery.
 - Opening the shared URL in a new tab restores scope, focus, parameter, site, and reference.
 - No set batch request occurs when only Dashboard is open.
+- `setFocusedMsr` adds no history entry and preserves `msrs`/`view`/`mp`.
 
 **Commit:** `feat(skewvoir): add shared analysis context and readiness`
+
+---
+
+## Task 3b: Measurement Overview focus switcher chip strip
+
+**Reason:** Even with multiple MSRs selected, today's Measurement Overview is not
+aware of the comparison set, and there is no way to change the focus MSR inside
+the workspace. As the first UI consumer of Task 3's `setFocusedMsr`, add a
+comparison-set chip strip at the top of the overview that switches focus on click.
+The overview still renders exactly one focus MSR at a time, so principle 0.1's
+set-fan-out ban is not violated. Set add/remove stays the sole job of the shared
+context bar's set editor; the chip strip is focus switching only.
+
+**Files:**
+
+- Add: `front-dev-home/app/components/ebeam/skewvoir/dashboard/FocusChipStrip.vue`
+- Modify: `front-dev-home/app/components/ebeam/skewvoir/views/Dashboard.vue`
+- Modify: `front-dev-home/app/composables/useSkewvoirAnalysis.ts`
+
+**Steps:**
+
+- [ ] Render the chip strip only when `msrs` has 2+ members and view=dashboard. Chips follow the URL `msrs` order; labels come from the `meas_hist` row, falling back to the msr id when no row exists. Rendering chips requires no msr_file fetch.
+- [ ] A chip click calls Task 3's `setFocusedMsr` and stays on the dashboard view.
+- [ ] Resolve the focus file in order: session cache → `setFiles` → `fetchMsrFile`. The session cache is a `Map<msr, MsrFileResponse>` bounded at `TREND_LIMIT` (30).
+- [ ] One switch causes at most one `GET /msr-file`, and the Dashboard never calls `fetchMsrFiles` (mind the mock 20-req/5s rate limit).
+- [ ] Apply Task 3's stale-response guard so on rapid consecutive switches an earlier response never overwrites a later one.
+
+**Acceptance:**
+
+- The chip strip shows every member in URL `msrs` order and does not render when `msrs` has 1 or fewer members.
+- A chip click changes only `msr` (plus that row's `lot`/`eq`/`cap`) via router.replace, preserving `msrs`/`view`/`mp`, with no history entry added.
+- Switching to a never-seen MSR causes exactly one `GET /msr-file`, and no batch request ever occurs from the Dashboard (Task 1 invariant preserved).
+- Returning to an already-viewed MSR in the same session renders from cache with zero network requests, and on rapid consecutive switches only the last-clicked MSR's data remains on screen.
+- A switch resets `focusedSequence`, and on focus-file load failure the previous MSR's data is not kept as if current — a failure state with retry is shown (the clicked chip stays selected).
+
+**Verify:**
+
+```bash
+npm --prefix front-dev-home test
+npm --prefix front-dev-home run lint
+npm --prefix front-dev-home run typecheck
+```
+
+**Commit:** `feat(skewvoir): add overview focus switcher chips`
 
 ---
 
@@ -574,13 +626,13 @@ python -m pytest back_dev_home/msr_file   # mock signature fields + office NotIm
 - [ ] Generate the `공간 pattern 자세히` (spatial pattern detail), `측정 순서와 FDC` (sequence and FDC), `짝지은 값` (paired values), and `검토할 이미지` (images to review) hand-offs only from confirmed facts.
 - [ ] Pass view, parameter, focused site/sequence, X/Y query, and filter in the hand-off.
 - [ ] For a detail page whose data is not ready, show the reason instead of a CTA.
-- [ ] Keep the linked selection and the current compact no-page-scroll layout.
+- [ ] Keep the linked selection and the current compact no-page-scroll layout. Task 3b's chip strip also fits inside this layout.
 
 **Acceptance:**
 
 - Navigating from an overview wafer site to Gallery selects the same site and parameter.
 - Navigating from sequence evidence to Time-Series restores the single-scope sequence cursor.
-- The overview's initial load request count and layout height are identical to before the detail-page rework.
+- The overview's initial load request count and layout height are identical to before the detail-page rework. A chip switch adds at most one msr_file request (zero on a cache hit).
 
 **Commit:** `feat(skewvoir): route overview evidence into drilldowns`
 
@@ -679,7 +731,7 @@ an independent spec/plan after C0–C5 ship.
 | Generating control limits from a selection set | baseline readiness + descriptive default |
 | Mistaking a mock correlation for a validation result | mock label + method-validation ban |
 | Gallery exploding request/render | lazy original + virtual grid + batch context |
-| Overview becoming heavy again | Dashboard set-fetch-ban characterization test |
+| Overview becoming heavy again | Dashboard set-fetch-ban characterization test + chip switch is single-fetch + cache |
 | Conflict with current wafer-map work | re-check worktree at Task 0 / implementation start |
 
 The completion condition of this plan is not that four pages get charts, but that

@@ -16,7 +16,7 @@
 
 ## 0. 구현 원칙
 
-1. `측정 개요`는 계속 focus MSR 한 건을 빠르게 로드합니다. 상세 비교 때문에 초기 Dashboard가 set fan-out을 지불하지 않습니다.
+1. `측정 개요`는 계속 focus MSR 한 건을 빠르게 로드합니다. 상세 비교 때문에 초기 Dashboard가 set fan-out을 지불하지 않습니다. focus 전환은 허용합니다 — 금지 대상은 set fan-out이지 순차적 단건 fetch가 아닙니다.
 2. 단일 MSR과 다중 MSR은 같은 메뉴를 공유하지만 질문·grain·empty state가 다릅니다.
 3. 다중 계산은 `선택 수`가 아니라 `호환 MSR 수`를 기준으로 합니다.
 4. overview, spatial, trend, relationship, image evidence를 하나의 health score로 합치지 않습니다.
@@ -50,7 +50,7 @@ artifact를 제공하지 않습니다. 따라서 Task를 다음처럼 구분합�
 
 | 구분 | Task | Phase-1에서의 상태 |
 | --- | --- | --- |
-| Phase-1 buildable·verifiable | Task 1~5, 7, 9, 11, 13, 14 | C0 공통 계층, 단일 MSR 진단, review-queue gallery, hand-off를 mock 데이터로 live-verify 합니다. |
+| Phase-1 buildable·verifiable | Task 1~5(3b 포함), 7, 9, 11, 13, 14 | C0 공통 계층, 단일 MSR 진단, review-queue gallery, hand-off를 mock 데이터로 live-verify 합니다. |
 | Office-contract-gated | Task 6, 12 | canonical layout/좌표·image evidence 계약이 연결된 뒤에만 live-verify 합니다. Phase-1에서는 readiness `unavailable` placeholder까지만 만듭니다. |
 | Partially gated | Task 8, 10 | descriptive run chart·tool/lot 층화(8), MSR-grain pooled/stratified(10)는 mock으로 가능합니다. control chart·recipe-revision facet(8), capability·variance·spatial/same-site 연결(10)은 계약 대기입니다. |
 
@@ -98,6 +98,7 @@ gated Task의 mock-가능 부분입니다.
 - [ ] 단일 Dashboard만 열 때 `fetchMsrFiles`가 실행되지 않는 lazy-load invariant를 확인합니다.
 - [ ] `msr_file.rows`의 nullable `cd_value`와 parameter별 단위를 fixture에서 보존합니다.
 - [ ] 현재 Position Stack이 chip coordinate를 직접 합성하고 Correlation/Gallery가 focus file만 사용하는 한계를 test name 또는 주석으로 명시합니다.
+- [ ] focus MSR이 search 재진입으로만 변경되는 현재 동작 fixture는 Task 3의 `setFocusedMsr`가 의도적으로 대체하므로 갱신 대상 test로 표시합니다.
 
 **Verify:**
 
@@ -192,14 +193,63 @@ python -m pytest back_dev_home/msr_file   # mock signature 필드 + office NotIm
 - [ ] readiness drawer에 group 구성, 제외 MSR과 이유, capability별 ready/limited/unavailable을 표시합니다.
 - [ ] parameter 또는 focus group이 바뀌어 site key가 유효하지 않으면 linked site를 reset합니다.
 - [ ] keyboard shortcut 1~5와 combobox guard의 기존 동작을 유지합니다.
+- [ ] `setFocusedMsr(msr)`는 `setView`/`setMsrs`/`setParam`과 같은 router.replace 패턴으로 `msr`를 바꾸고 `msrs`/`view`/`mp`를 보존합니다. history entry를 추가하지 않아 Back은 여전히 검색으로 돌아갑니다.
+- [ ] focus 전환 시 새 focus MSR의 `meas_hist` row(`rowByMsr`)에서 `lot`/`eq`/`cap`을 함께 다시 씁니다. LeftRail이 URL 필드를 그대로 표시하므로 stale identity를 남기지 않습니다. row가 없는 deep-link MSR은 기존 값을 유지합니다.
+- [ ] 진행 중인 focus fetch는 응답 시점의 msr가 현재 URL `msr`와 다르면 폐기합니다(stale-response guard). 현재 `fetchMsrFile`은 in-flight dedupe만 있고 완료 응답 cache가 없으므로 연속 전환 race가 실제로 존재합니다.
+- [ ] focus 파일 로드 실패 시 URL은 그대로 두고 실패 상태와 재시도를 표시합니다. 이전 MSR 데이터를 새 focus처럼 계속 렌더링하지 않습니다.
+- [ ] `focusedSequence` 초기화와 `mp` 정규화는 기존 watcher가 이미 처리하므로 재구현하지 않고 동작만 확인합니다.
 
 **Acceptance:**
 
 - Time-Series에서 편집한 비교 세트가 위치/상관/갤러리에 동일하게 나타납니다.
 - 공유 URL을 새 탭에서 열면 scope, focus, parameter, site, reference가 복원됩니다.
 - Dashboard만 열 때 set batch request는 발생하지 않습니다.
+- `setFocusedMsr`는 history entry를 추가하지 않고 `msrs`/`view`/`mp`를 보존합니다.
 
 **Commit:** `feat(skewvoir): add shared analysis context and readiness`
+
+---
+
+## Task 3b: 측정 개요 focus 전환 chip strip
+
+**이유:** 다중 MSR을 선택해도 현재 측정 개요는 비교 세트를 인지하지 못하고, workspace
+안에서 focus MSR을 바꿀 방법이 없습니다. Task 3의 `setFocusedMsr`를 소비하는 첫 UI로,
+개요 상단에 비교 세트 chip strip을 추가해 클릭으로 focus를 전환합니다. 개요는 여전히
+한 번에 focus 한 건만 렌더링하므로 원칙 0.1의 set fan-out 금지를 위반하지 않습니다.
+세트 추가/삭제는 공통 context bar의 set editor 전담으로 유지하고, chip strip은 focus
+전환 전용입니다.
+
+**Files:**
+
+- Add: `front-dev-home/app/components/ebeam/skewvoir/dashboard/FocusChipStrip.vue`
+- Modify: `front-dev-home/app/components/ebeam/skewvoir/views/Dashboard.vue`
+- Modify: `front-dev-home/app/composables/useSkewvoirAnalysis.ts`
+
+**Steps:**
+
+- [ ] chip strip은 `msrs`가 2개 이상이고 view=dashboard일 때만 렌더링합니다. chip은 URL `msrs` 순서를 따르고, label은 `meas_hist` row에서 가져오며 row가 없으면 msr id를 표시합니다. chip 렌더링에 msr_file fetch를 요구하지 않습니다.
+- [ ] chip 클릭은 Task 3의 `setFocusedMsr`를 호출하고 dashboard view에 머무릅니다.
+- [ ] focus file은 session cache → `setFiles` → `fetchMsrFile` 순서로 해결합니다. session cache는 `TREND_LIMIT`(30)로 bound한 `Map<msr, MsrFileResponse>`입니다.
+- [ ] 전환 1회는 최대 1건의 `GET /msr-file`만 발생시키고, Dashboard에서 `fetchMsrFiles`를 절대 호출하지 않습니다(mock 20req/5s rate limit 고려).
+- [ ] 연속 빠른 전환에서 이전 응답이 나중 응답을 덮어쓰지 않도록 Task 3의 stale-response guard를 적용합니다.
+
+**Acceptance:**
+
+- chip strip이 URL `msrs` 순서대로 모든 구성원을 표시하고, `msrs`가 1개 이하이면 렌더링되지 않습니다.
+- chip 클릭은 router.replace로 `msr`(및 해당 row의 `lot`/`eq`/`cap`)만 바꾸고 `msrs`/`view`/`mp`를 보존하며 history entry가 늘지 않습니다.
+- 처음 보는 MSR 전환은 정확히 1건의 `GET /msr-file`을 발생시키고, Dashboard에서 batch 요청은 발생하지 않습니다(Task 1 invariant 유지).
+- 같은 세션에서 이미 본 MSR로 되돌아가면 네트워크 요청 0건으로 캐시에서 렌더링되고, 연속 빠른 전환에서도 마지막 클릭한 MSR의 데이터만 화면에 남습니다.
+- 전환 시 `focusedSequence`가 초기화되고, focus 파일 로드 실패 시 이전 MSR 데이터를 현재처럼 유지하지 않고 실패 상태와 재시도를 표시합니다(선택된 chip은 유지).
+
+**Verify:**
+
+```bash
+npm --prefix front-dev-home test
+npm --prefix front-dev-home run lint
+npm --prefix front-dev-home run typecheck
+```
+
+**Commit:** `feat(skewvoir): add overview focus switcher chips`
 
 ---
 
@@ -540,13 +590,13 @@ python -m pytest back_dev_home/msr_file   # mock signature 필드 + office NotIm
 - [ ] 확인된 사실에서만 `공간 pattern 자세히`, `측정 순서와 FDC`, `짝지은 값`, `검토할 이미지` hand-off를 생성합니다.
 - [ ] hand-off에 view, parameter, focused site/sequence, X/Y query, filter를 전달합니다.
 - [ ] 데이터가 준비되지 않은 상세 페이지는 CTA 대신 이유를 표시합니다.
-- [ ] linked selection과 current compact no-page-scroll layout을 유지합니다.
+- [ ] linked selection과 current compact no-page-scroll layout을 유지합니다. Task 3b의 chip strip도 이 layout 안에 들어갑니다.
 
 **Acceptance:**
 
 - overview의 wafer site에서 Gallery로 이동하면 같은 site와 parameter가 선택됩니다.
 - sequence evidence에서 Time-Series로 이동하면 단일 scope의 sequence cursor가 복원됩니다.
-- overview의 초기 load request 수와 layout 높이는 상세 페이지 개편 전과 동일합니다.
+- overview의 초기 load request 수와 layout 높이는 상세 페이지 개편 전과 동일합니다. chip 전환은 회당 최대 1건(캐시 히트 시 0건)의 msr_file 요청만 추가합니다.
 
 **Commit:** `feat(skewvoir): route overview evidence into drilldowns`
 
@@ -645,7 +695,7 @@ git diff --check
 | selection set으로 control limit 생성 | baseline readiness + descriptive default |
 | mock 상관을 검증 결과로 오해 | mock label + method validation 금지 |
 | Gallery가 request/render를 폭증 | lazy original + virtual grid + batch context |
-| overview가 다시 무거워짐 | Dashboard set fetch 금지 characterization test |
+| overview가 다시 무거워짐 | Dashboard set fetch 금지 characterization test + chip 전환 단건 fetch·캐시 |
 | current wafer-map 작업과 충돌 | Task 0/implementation start에서 worktree 재확인 |
 
 이 plan의 완료 조건은 네 페이지에 차트가 생기는 것이 아니라, **각 페이지가 하나의
