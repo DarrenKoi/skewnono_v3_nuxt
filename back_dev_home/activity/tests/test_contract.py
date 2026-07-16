@@ -30,11 +30,10 @@ def test_users_list_matches_contract():
 
 
 def test_me_and_history_match_contract():
-    # Derive a real user id from the active provider so this test is
+    # Seed demo users to ensure the test is self-sufficient and
     # provider-independent (office has different users than mock).
+    data.seed_demo_users()
     users = data.get_users_list()["users"]
-    if not users:
-        pytest.skip("active provider returned no users")
     user_id = users[0]["user_id"]
     assert_matches(data.get_me(user_id), MeResponse)
     history = data.get_user_history(user_id)

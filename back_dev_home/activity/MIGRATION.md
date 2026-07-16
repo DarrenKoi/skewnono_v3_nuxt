@@ -163,7 +163,7 @@
   unconditionally updates the in-memory `_users[user_id]` state (creates the
   user on first sight, bumps `total`, `by_feature[feature]`,
   `daily[today]`, and `last_seen`) — it does **not** re-check
-  `is_recordable` itself despite what its own docstring implies; the
+  `is_recordable` itself despite what `is_recordable`'s docstring claims; the
   middleware's pre-call check is the only gate. Any office reimplementation
   should preserve that division of responsibility rather than double-gating.
 - `is_recordable` policy lives in `data.py` (provider-independent) and is
