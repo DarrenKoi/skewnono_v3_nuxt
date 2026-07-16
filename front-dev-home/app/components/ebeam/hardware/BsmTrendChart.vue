@@ -34,6 +34,9 @@ const props = defineProps<{
   yMode?: 'stable' | 'tight'
   // BM/PM maintenance timestamps drawn as vertical markLines (empty → none).
   events?: BmPmEvent[]
+  // Optional comparison tools drawn as thin extra lines (empty/omitted → the
+  // chart stays single-series, so BsmPanel/SharpnessPanel are unaffected).
+  overlays?: { name: string, points: { ts: string, value: number }[], color?: string }[]
 }>()
 
 const emit = defineEmits<{ select: [key: string] }>()
@@ -55,19 +58,30 @@ const formatTime = (value: number | string) => {
 }
 
 // Points arrive ascending (oldest first) from the panel.
+const overlays = computed(() => props.overlays ?? [])
+const hasOverlays = computed(() => overlays.value.length > 0)
+
+// The y-axis must span the overlays too, or comparison tools drawn at a
+// different correction level would clip out of view.
+const yValues = computed(() => [
+  ...props.points.map(p => p.value),
+  ...overlays.value.flatMap(o => o.points.map(p => p.value))
+])
+
 const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 56, right: 16, top: 16, bottom: 56 },
+  grid: { left: 56, right: 16, top: hasOverlays.value ? 28 : 16, bottom: 56 },
   tooltip: {
     trigger: 'axis',
     axisPointer: { type: 'line' },
     valueFormatter: v => (typeof v === 'number' ? v.toFixed(4) : String(v))
   },
+  ...(hasOverlays.value ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
   xAxis: { type: 'time', axisLabel: { fontSize: 10, formatter: formatTime } },
   yAxis: {
     type: 'value',
     ...(props.yMode === 'tight'
-      ? (tightYRange(props.points.map(p => p.value)) ?? { scale: true })
-      : (stableYRange(props.points.map(p => p.value)) ?? { scale: true })),
+      ? (tightYRange(yValues.value) ?? { scale: true })
+      : (stableYRange(yValues.value) ?? { scale: true })),
     axisLabel: { fontSize: 10 }
   },
   dataZoom: [
@@ -76,6 +90,8 @@ const chartOption = computed<EChartsOption>(() => ({
   ],
   series: [
     {
+      // Named only when overlays share the chart, so a solo chart keeps no legend.
+      ...(hasOverlays.value ? { name: props.label } : {}),
       type: 'line',
       showSymbol: true,
       lineStyle: { color: color.value, width: 1.8 },
@@ -87,7 +103,16 @@ const chartOption = computed<EChartsOption>(() => ({
         value: [toEpoch(p.ts), p.value],
         symbolSize: p.key === props.selected ? 12 : 5
       }))
-    }
+    },
+    ...overlays.value.map(o => ({
+      name: o.name,
+      type: 'line' as const,
+      showSymbol: false,
+      smooth: false,
+      lineStyle: { color: o.color ?? '#94a3b8', width: 1, opacity: 0.9 },
+      itemStyle: { color: o.color ?? '#94a3b8' },
+      data: o.points.map(p => [toEpoch(p.ts), p.value] as [number, number])
+    }))
   ]
 }))
 

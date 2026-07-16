@@ -8,7 +8,14 @@
     </div>
 
     <template v-else>
-      <!-- Settings compare table: selected vs siblings, diffs flagged -->
+      <!-- Shared comparison-tool picker (drives both the table and the curve) -->
+      <EbeamHardwareCompareToolPicker
+        v-model="compareIds"
+        :sibling-ids="siblingIds"
+        :selected-eqp="selectedEqp"
+      />
+
+      <!-- Settings compare table: selected vs picked tools, diffs flagged -->
       <div class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)">
         <table class="min-w-full text-left text-xs">
           <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
@@ -20,11 +27,17 @@
                 {{ selectedEqp }} (선택)
               </th>
               <th
-                v-for="id in siblingIds"
+                v-for="id in compareIds"
                 :key="id"
                 class="px-3 py-2 sk-eyebrow"
               >
-                {{ id }}
+                <span class="inline-flex items-center gap-1.5">
+                  <span
+                    class="h-2 w-2 rounded-full"
+                    :style="{ background: compareColors[id] }"
+                  />
+                  {{ id }}
+                </span>
               </th>
             </tr>
           </thead>
@@ -42,39 +55,37 @@
                 {{ row.selected !== '' ? row.selected : '-' }}
               </td>
               <td
-                v-for="id in siblingIds"
+                v-for="id in compareIds"
                 :key="id"
                 class="px-3 py-2 font-mono"
                 :class="row.siblings[id] !== row.selected ? 'text-(--sk-bad) font-bold' : 'text-(--sk-ink)'"
               >
-                {{ row.siblings[id] !== '' ? row.siblings[id] : '-' }}
+                {{ row.siblings[id] !== '' && row.siblings[id] !== undefined ? row.siblings[id] : '-' }}
               </td>
             </tr>
           </tbody>
         </table>
+        <p
+          v-if="compareIds.length === 0"
+          class="border-t border-(--sk-border-soft) px-3 py-3 text-center sk-body"
+        >
+          위 드롭박스에서 비교할 장비를 선택하면 열이 추가됩니다.
+        </p>
       </div>
 
       <!-- Coefficients[0..359] overlay: values[0] / values[1] in stacked
-           per-type panels, selected vs one sibling -->
+           per-type panels, selected vs every picked tool -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
         <div class="mb-1 flex items-center justify-between gap-2 px-1">
           <div class="sk-title">
             Coefficients (0–359)
           </div>
-          <div class="flex items-center gap-2">
-            <UTabs
-              v-model="viewMode"
-              :items="viewTabs"
-              variant="pill"
-              size="xs"
-            />
-            <USelect
-              v-model="overlayEqp"
-              :items="overlayItems"
-              size="xs"
-              class="w-44"
-            />
-          </div>
+          <UTabs
+            v-model="viewMode"
+            :items="viewTabs"
+            variant="pill"
+            size="xs"
+          />
         </div>
         <div
           ref="chartEl"
@@ -88,6 +99,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
+import { assignCompareColors } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
 
 const props = defineProps<{
@@ -97,20 +109,21 @@ const props = defineProps<{
 
 const hasSelected = computed(() => Boolean(props.settings[props.selectedEqp]))
 const siblingIds = computed(() => Object.keys(props.settings).filter(id => id !== props.selectedEqp).sort())
-const rows = computed(() => compareSettings(props.settings, props.selectedEqp))
 
-const overlayItems = computed(() => [
-  { label: 'overlay 없음', value: 'none' },
-  ...siblingIds.value.map(id => ({ label: id, value: id }))
-])
-const overlayEqp = ref('none')
+// Page-scoped selection shared with the MDC panel (see HardwareView). Prune to
+// the current cohort so a stale id from a previous tool never lingers.
+const compareIds = useState<string[]>('hw-compare-tools', () => [])
+watch(siblingIds, (ids) => {
+  const kept = compareIds.value.filter(id => ids.includes(id))
+  if (kept.length !== compareIds.value.length) compareIds.value = kept
+}, { immediate: true })
+
+const rows = computed(() => compareSettings(props.settings, props.selectedEqp, compareIds.value))
 
 const { palette } = useEchartsTheme()
-// Overlay uses palette[3]: across the bundled themes it stays hue-distant
-// from palette[0], while palette[1]/[2] land on similar or near-background
-// tones (e.g. cream/ochre next to the default theme's muted red).
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
-const cOverlay = computed(() => palette.value[3] ?? '#2F5D8A')
+// One stable color per picked tool, reused by the table dots and the curves.
+const compareColors = computed(() => assignCompareColors(compareIds.value, palette.value))
 
 const viewTabs = [
   { label: '라인', value: 'line' },
@@ -122,13 +135,14 @@ const chartEl = ref<HTMLDivElement | null>(null)
 const indices = Array.from({ length: 360 }, (_, i) => i)
 
 interface CoeffPair { v0: number[], v1: number[] }
+interface CompareCoeff { id: string, pair: CoeffPair, color: string }
 
 // values[0] (~±0.02) and values[1] (~0.9–1.0) live on different scales, so a
 // shared y-axis flattens both into disjoint bands. Plot each value type in
 // its own grid (v0 top, v1 bottom) with a linked x-axis crosshair; the
-// selected/overlay pair shares one series name per eqp so each equipment gets
+// selected/picked tools share one series name per eqp so each equipment gets
 // a single legend entry toggling both panels.
-const lineOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
+const lineOption = (sel: CoeffPair, cmp: CompareCoeff[]): EChartsOption => {
   const line = (name: string, data: number[], color: string, gridIndex: number, dashed = false) => ({
     name, type: 'line' as const, showSymbol: false, smooth: false,
     xAxisIndex: gridIndex, yAxisIndex: gridIndex,
@@ -151,18 +165,16 @@ const lineOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
     ],
     tooltip: { trigger: 'axis' },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    legend: { top: 0, textStyle: { fontSize: 10 } },
+    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
     xAxis: [catAxis(0, false), catAxis(1, true)],
     yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
     series: [
       line(props.selectedEqp, sel.v0, c0.value, 0),
       line(props.selectedEqp, sel.v1, c0.value, 1),
-      ...(sib
-        ? [
-            line(overlayEqp.value, sib.v0, cOverlay.value, 0, true),
-            line(overlayEqp.value, sib.v1, cOverlay.value, 1, true)
-          ]
-        : [])
+      ...cmp.flatMap(c => [
+        line(c.id, c.pair.v0, c.color, 0, true),
+        line(c.id, c.pair.v1, c.color, 1, true)
+      ])
     ]
   }
 }
@@ -172,7 +184,7 @@ const lineOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
 // `radar` series would need 360 named indicators — unreadable — so this uses
 // line-on-polar. Radius uses stableRadialRange (not tight scaling): a stable
 // profile should read as a near-circle, not an exaggerated blob.
-const radarOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
+const radarOption = (sel: CoeffPair, cmp: CompareCoeff[]): EChartsOption => {
   const polarLine = (name: string, data: number[], color: string, polarIndex: number, dashed = false) => ({
     name, type: 'line' as const, coordinateSystem: 'polar' as const, polarIndex,
     showSymbol: false, smooth: false,
@@ -196,7 +208,7 @@ const radarOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
   })
   return {
     tooltip: { trigger: 'axis' },
-    legend: { top: 0, textStyle: { fontSize: 10 } },
+    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
     title: [title('values[0]', '25%'), title('values[1]', '75%')],
     polar: [
       { center: ['25%', '54%'], radius: '66%' },
@@ -204,26 +216,28 @@ const radarOption = (sel: CoeffPair, sib: CoeffPair | null): EChartsOption => {
     ],
     angleAxis: [angleAxis(0), angleAxis(1)],
     radiusAxis: [
-      radiusAxis(0, [...sel.v0, ...(sib?.v0 ?? [])]),
-      radiusAxis(1, [...sel.v1, ...(sib?.v1 ?? [])])
+      radiusAxis(0, [...sel.v0, ...cmp.flatMap(c => c.pair.v0)]),
+      radiusAxis(1, [...sel.v1, ...cmp.flatMap(c => c.pair.v1)])
     ],
     series: [
       polarLine(props.selectedEqp, sel.v0, c0.value, 0),
       polarLine(props.selectedEqp, sel.v1, c0.value, 1),
-      ...(sib
-        ? [
-            polarLine(overlayEqp.value, sib.v0, cOverlay.value, 0, true),
-            polarLine(overlayEqp.value, sib.v1, cOverlay.value, 1, true)
-          ]
-        : [])
+      ...cmp.flatMap(c => [
+        polarLine(c.id, c.pair.v0, c.color, 0, true),
+        polarLine(c.id, c.pair.v1, c.color, 1, true)
+      ])
     ]
   }
 }
 
 const chartOption = computed<EChartsOption>(() => {
   const sel = coefficientSeries(props.settings[props.selectedEqp])
-  const sib = overlayEqp.value !== 'none' ? coefficientSeries(props.settings[overlayEqp.value]) : null
-  return viewMode.value === 'radar' ? radarOption(sel, sib) : lineOption(sel, sib)
+  const cmp: CompareCoeff[] = compareIds.value.map(id => ({
+    id,
+    pair: coefficientSeries(props.settings[id]),
+    color: compareColors.value[id] ?? '#2F5D8A'
+  }))
+  return viewMode.value === 'radar' ? radarOption(sel, cmp) : lineOption(sel, cmp)
 })
 
 useEchart(chartEl, chartOption)

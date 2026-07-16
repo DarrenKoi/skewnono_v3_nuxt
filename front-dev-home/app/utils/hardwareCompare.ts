@@ -1,0 +1,55 @@
+// Pure: shared helpers for the MDC/SCE multi-tool comparison picker. A picked
+// tool must read the SAME color across the SCE table accent, coefficient curve,
+// MDC boxplot marker, and 시계열 overlay — color IS the tool's identity in a
+// multi-series view — so color assignment lives here as one deterministic source.
+
+// Fallback ramp when the active ECharts theme exposes no (or a 1-entry) palette:
+// hue-distant, mid-saturation tones that stay legible on both surfaces.
+const FALLBACK_COMPARE_COLORS = [
+  '#2F5D8A', '#B7791F', '#4C956C', '#A64253',
+  '#6D6875', '#0F766E', '#9A6D3F', '#5B6C8F'
+]
+
+// palette[0] is reserved for the selected (primary) tool everywhere, so picked
+// tools cycle palette[1..]; if the theme has < 2 entries, fall back to the ramp.
+export const assignCompareColors = (
+  ids: readonly string[],
+  palette: readonly string[]
+): Record<string, string> => {
+  const ramp = palette.length > 1 ? palette.slice(1) : FALLBACK_COMPARE_COLORS
+  const out: Record<string, string> = {}
+  ids.forEach((id, i) => {
+    out[id] = ramp[i % ramp.length]!
+  })
+  return out
+}
+
+const toNum = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+export interface CompareBoxSeries {
+  id: string
+  // [conditionIndex, value] pairs — ready for an ECharts scatter series aligned
+  // to the same category axis as the fleet boxplot.
+  values: [number, number][]
+}
+
+// Map each picked tool to its per-condition snapshot values, indexed to match
+// the boxplot's `conditions` category axis. Conditions the tool lacks are
+// simply omitted (no null holes), so a tool with fewer modes plots fewer points.
+export const compareBoxPoints = (
+  settings: Record<string, Record<string, unknown>>,
+  compareIds: readonly string[],
+  conditions: readonly string[]
+): CompareBoxSeries[] =>
+  compareIds.map((id) => {
+    const toolSettings = settings[id] ?? {}
+    const values: [number, number][] = []
+    conditions.forEach((cond, condIdx) => {
+      const v = toNum(toolSettings[cond])
+      if (v !== null) values.push([condIdx, v])
+    })
+    return { id, values }
+  })

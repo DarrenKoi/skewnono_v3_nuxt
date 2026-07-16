@@ -1,5 +1,12 @@
 <template>
   <div class="mt-3 space-y-3">
+    <!-- Shared comparison-tool picker — governs both sub-tabs -->
+    <EbeamHardwareCompareToolPicker
+      v-model="compareIds"
+      :sibling-ids="siblingIds"
+      :selected-eqp="selectedEqp"
+    />
+
     <!-- 시계열 | 비교 sub-tabs (same pattern as the FDC fdc_key tabs) -->
     <div class="flex w-fit overflow-hidden rounded-[10px] border border-(--sk-border)">
       <button
@@ -63,6 +70,7 @@
               <EbeamHardwareBsmTrendChart
                 :label="isPaired ? `${activeFamily.key} · 0°` : activeFamily.key"
                 :points="axisPoints(activeFamily.zero)"
+                :overlays="overlaysFor('zero')"
                 selected=""
                 y-mode="tight"
                 :events="maintenanceEvents"
@@ -75,6 +83,7 @@
               <EbeamHardwareBsmTrendChart
                 :label="`${activeFamily.key} · 90°`"
                 :points="axisPoints(activeFamily.ninety)"
+                :overlays="overlaysFor('ninety')"
                 selected=""
                 y-mode="tight"
                 :events="maintenanceEvents"
@@ -116,18 +125,35 @@
 import type { EChartsOption } from 'echarts'
 import { boxStats } from '~/utils/boxplotStats'
 import { tightYRange } from '~/utils/chartRange'
-import { buildMdcFamilies, trajectoryPoints, type MdcHistoryPoint } from '~/utils/mdcHistory'
+import { buildMdcFamilies, trajectoryPoints, type MdcFamily, type MdcHistoryPoint } from '~/utils/mdcHistory'
+import { assignCompareColors, compareBoxPoints } from '~/utils/hardwareCompare'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   settings: Record<string, Record<string, unknown>>
   docs: Record<string, unknown>[]
+  // Per-tool MDC history for the picked comparison tools (fetched by
+  // HardwareView; empty until those requests resolve).
+  compareDocs?: Record<string, Record<string, unknown>[]>
   selectedEqp: string
   maintenanceEvents?: BmPmEvent[]
 }>()
 
 const TABS = ['시계열', '비교'] as const
 const activeTab = ref<(typeof TABS)[number]>('시계열')
+
+// --- shared comparison selection (page-scoped, shared with SCE) ---
+const siblingIds = computed(() => Object.keys(props.settings).filter(id => id !== props.selectedEqp).sort())
+const compareIds = useState<string[]>('hw-compare-tools', () => [])
+watch(siblingIds, (ids) => {
+  const kept = compareIds.value.filter(id => ids.includes(id))
+  if (kept.length !== compareIds.value.length) compareIds.value = kept
+}, { immediate: true })
+
+const { palette } = useEchartsTheme()
+const c0 = computed(() => palette.value[0] ?? '#C75A3C')
+const c1 = computed(() => palette.value[1] ?? '#3F5D52')
+const compareColors = computed(() => assignCompareColors(compareIds.value, palette.value))
 
 // --- 시계열 ---
 const families = computed(() => buildMdcFamilies(props.docs))
@@ -144,23 +170,56 @@ const isPaired = computed(() => (activeFamily.value?.ninety.length ?? 0) > 0)
 // the timestamp doubles as the key.
 const axisPoints = (pts: MdcHistoryPoint[]) => pts.map(p => ({ ts: p.ts, key: p.ts, value: p.value }))
 
-const { palette } = useEchartsTheme()
-const c0 = computed(() => palette.value[0] ?? '#C75A3C')
-const c1 = computed(() => palette.value[1] ?? '#3F5D52')
+// Each picked tool's history, keyed by eqp_id, shaped into the same families.
+const compareFamilies = computed<Record<string, MdcFamily | undefined>>(() => {
+  const out: Record<string, MdcFamily | undefined> = {}
+  for (const id of compareIds.value) {
+    const fams = buildMdcFamilies(props.compareDocs?.[id] ?? [])
+    out[id] = fams.find(f => f.key === activeFamilyKey.value)
+  }
+  return out
+})
+
+// Overlay one thin line per picked tool on the active family's 0°/90° trend.
+const overlaysFor = (axis: 'zero' | 'ninety') =>
+  compareIds.value
+    .map(id => ({
+      name: id,
+      color: compareColors.value[id],
+      points: (compareFamilies.value[id]?.[axis] ?? []).map(p => ({ ts: p.ts, value: p.value }))
+    }))
+    .filter(o => o.points.length > 0)
 
 const xyEl = ref<HTMLDivElement | null>(null)
 const xyOption = computed<EChartsOption>(() => {
   const pts = activeFamily.value ? trajectoryPoints(activeFamily.value) : []
   const n = pts.length
   const latest = pts[n - 1]
+  // Each picked tool's trajectory as a low-opacity colored path.
+  const compareSeries = compareIds.value.flatMap((id) => {
+    const fam = compareFamilies.value[id]
+    const cpts = fam ? trajectoryPoints(fam) : []
+    if (cpts.length === 0) return []
+    return [{
+      name: id,
+      type: 'scatter' as const,
+      symbolSize: 6,
+      itemStyle: { color: compareColors.value[id], opacity: 0.55 },
+      data: cpts.map(p => ({ value: [p.x, p.y, `${id} · ${p.ts}`] }))
+    }]
+  })
+  const hasCompare = compareSeries.length > 0
   return {
-    grid: { left: 56, right: 16, top: 16, bottom: 36 },
+    grid: { left: 56, right: 16, top: hasCompare ? 28 : 16, bottom: 36 },
+    ...(hasCompare ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
     tooltip: {
       trigger: 'item',
       formatter: (params) => {
         const raw = (Array.isArray(params) ? params[0] : params)?.data as unknown
         const v = (raw as { value?: unknown })?.value ?? raw
-        return Array.isArray(v) ? `${v[2]}<br/>0° ${v[0]} · 90° ${v[1]}` : ''
+        return Array.isArray(v)
+          ? (v.length >= 3 ? `${v[2]}<br/>0° ${v[0]} · 90° ${v[1]}` : `0° ${v[0]} · 90° ${v[1]}`)
+          : ''
       }
     },
     xAxis: {
@@ -177,6 +236,7 @@ const xyOption = computed<EChartsOption>(() => {
     },
     series: [
       {
+        name: props.selectedEqp,
         type: 'scatter',
         symbolSize: 8,
         // (1.0, 1.0) = no-correction reference crosshair.
@@ -194,8 +254,10 @@ const xyOption = computed<EChartsOption>(() => {
           itemStyle: { color: c0.value, opacity: n <= 1 ? 1 : 0.2 + 0.7 * (i / (n - 1)) }
         }))
       },
+      ...compareSeries,
       ...(latest
         ? [{
+            name: `${props.selectedEqp} (latest)`,
             type: 'scatter' as const,
             symbolSize: 14,
             itemStyle: { color: c1.value, borderColor: '#fff', borderWidth: 1 },
@@ -207,7 +269,7 @@ const xyOption = computed<EChartsOption>(() => {
 })
 useEchart(xyEl, xyOption)
 
-// --- 비교: per-condition fleet distribution + selected-tool marker ---
+// --- 비교: per-condition fleet distribution + selected + picked-tool markers ---
 const toNum = (v: unknown): number | null => {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : null
@@ -230,10 +292,14 @@ const boxRows = computed(() => conditions.value.map((cond) => {
   return { cond, stats: boxStats(fleet), mine: toNum(props.settings[props.selectedEqp]?.[cond]) }
 }))
 
+// Picked tools mapped to [conditionIndex, value] scatter points (color per tool).
+const compareBoxSeries = computed(() => compareBoxPoints(props.settings, compareIds.value, conditions.value))
+
 const boxEl = ref<HTMLDivElement | null>(null)
 const fmtVal = (v: number) => v.toFixed(4)
 const boxOption = computed<EChartsOption>(() => ({
-  grid: { left: 64, right: 16, top: 24, bottom: 48 },
+  grid: { left: 64, right: 16, top: compareIds.value.length ? 28 : 24, bottom: 48 },
+  ...(compareIds.value.length ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
   tooltip: {
     trigger: 'item',
     formatter: (params) => {
@@ -250,7 +316,7 @@ const boxOption = computed<EChartsOption>(() => ({
       const v = p.data as [number, number]
       // Scatter data is null-filtered, so dataIndex is post-filter — the
       // point's own x-index carries the true condition position.
-      return `<b>${props.selectedEqp}</b> · ${conditions.value[v[0]] ?? ''}<br/>${fmtVal(v[1]!)}`
+      return `<b>${p.seriesName}</b> · ${conditions.value[v[0]] ?? ''}<br/>${fmtVal(v[1]!)}`
     }
   },
   xAxis: { type: 'category', data: conditions.value, axisLabel: { fontSize: 10, rotate: 20 } },
@@ -266,7 +332,7 @@ const boxOption = computed<EChartsOption>(() => ({
         : [NaN, NaN, NaN, NaN, NaN])
     },
     {
-      name: 'selected',
+      name: props.selectedEqp || 'selected',
       type: 'scatter',
       symbol: 'diamond',
       symbolSize: 12,
@@ -274,7 +340,15 @@ const boxOption = computed<EChartsOption>(() => ({
       data: boxRows.value
         .map((r, i) => (r.mine !== null ? [i, r.mine] as [number, number] : null))
         .filter((d): d is [number, number] => d !== null)
-    }
+    },
+    ...compareBoxSeries.value.map(s => ({
+      name: s.id,
+      type: 'scatter' as const,
+      symbol: 'circle' as const,
+      symbolSize: 9,
+      itemStyle: { color: compareColors.value[s.id], opacity: 0.85 },
+      data: s.values
+    }))
   ]
 }))
 useEchart(boxEl, boxOption)

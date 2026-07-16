@@ -34,6 +34,22 @@ test('compareSettings: flags only the differing Vacc row', () => {
   assert.equal(ip.differs, false)
 })
 
+test('compareSettings: compareIds scopes siblings + differs to picked tools', () => {
+  const eqpC = { ...eqpB, SemCond: { SemCond_Vacc: '800', SemCond_Ip: '8.0000' } }
+  // B differs on Vacc, C matches A. Scoping to [C] should hide B and clear differs.
+  const rows = compareSettings({ A: eqpA, B: eqpB, C: eqpC }, 'A', ['C'])
+  const vacc = rows.find(r => r.path === 'SemCond.SemCond_Vacc')!
+  assert.deepEqual(Object.keys(vacc.siblings), ['C'])
+  assert.equal(vacc.siblings['C'], '800')
+  assert.equal(vacc.differs, false)
+})
+
+test('compareSettings: empty compareIds → no sibling columns', () => {
+  const rows = compareSettings({ A: eqpA, B: eqpB }, 'A', [])
+  assert.ok(rows.every(r => Object.keys(r.siblings).length === 0))
+  assert.ok(rows.every(r => r.differs === false))
+})
+
 test('coefficientSeries: dense 360-length arrays, gaps NaN', () => {
   const { v0, v1 } = coefficientSeries(eqpA)
   assert.equal(v0.length, 360)

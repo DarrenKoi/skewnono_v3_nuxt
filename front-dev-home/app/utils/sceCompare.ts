@@ -28,12 +28,17 @@ export interface SceCompareRow {
   differs: boolean
 }
 
+// `compareIds` (when given) scopes both the emitted `siblings` map and the
+// `differs` flag to just those tools, so the flag reflects exactly the columns
+// on screen. Omit it to compare against every in-fab sibling (default).
 export const compareSettings = (
   settings: Record<string, Record<string, unknown>>,
-  selectedEqp: string
+  selectedEqp: string,
+  compareIds?: string[]
 ): SceCompareRow[] => {
   const selectedFlat = flattenSettings(settings[selectedEqp] ?? {})
-  const siblingIds = Object.keys(settings).filter(id => id !== selectedEqp).sort()
+  const allSiblings = Object.keys(settings).filter(id => id !== selectedEqp)
+  const siblingIds = (compareIds ? allSiblings.filter(id => compareIds.includes(id)) : allSiblings).sort()
   const siblingFlats = siblingIds.map(id => [id, flattenSettings(settings[id] ?? {})] as const)
 
   const paths = new Set<string>(Object.keys(selectedFlat))

@@ -26,23 +26,23 @@ type HardwareService = {
   category: HardwareCategory
 }
 
-// BM/PM leads the pill row and seeds the default tab because maintenance
-// data exists for every tool; BSM/FDC availability varies per equipment.
+// Daily checks lead the pill row and seed the default tab because they are the
+// most frequently reviewed hardware signals.
 const hardwareServices: HardwareService[] = [
+  { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity', category: '데일리' },
+  { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-focus', category: '데일리' },
   { key: 'bm-pm', label: 'BM/PM', title: 'BM / PM Information', description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.', icon: 'i-lucide-wrench', category: '분기' },
   { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.', icon: 'i-lucide-radar', category: '분기' },
   { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 focus sweep를 추적합니다.', icon: 'i-lucide-crosshair', category: '분기' },
   { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3', category: '분기' },
-  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' },
-  { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity', category: '데일리' },
-  { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-focus', category: '데일리' }
+  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' }
 ]
 const defaultHardwareService = hardwareServices[0]!
 
-// Two labeled pill clusters in the segment bar (분기 / 데일리).
+// Two labeled pill clusters in the segment bar (데일리 / 분기).
 const serviceGroups: { category: HardwareCategory, services: HardwareService[] }[] = [
-  { category: '분기', services: hardwareServices.filter(s => s.category === '분기') },
-  { category: '데일리', services: hardwareServices.filter(s => s.category === '데일리') }
+  { category: '데일리', services: hardwareServices.filter(s => s.category === '데일리') },
+  { category: '분기', services: hardwareServices.filter(s => s.category === '분기') }
 ]
 
 const { filterRows } = useSemListApi()
@@ -220,6 +220,51 @@ const overlayEvents = computed<BmPmEvent[]>(() =>
   showBmPmOverlay.value ? parseBmPmEvents(bmPmPayload.value?.tables ?? []) : []
 )
 
+// ---- Multi-tool comparison (MDC/SCE) ----
+// Page-scoped picked set, shared with the MDC & SCE panels. The primary tool's
+// sibling cohort changes when you switch tools, so clear the picks on switch —
+// the panels also prune defensively against their own settings keys.
+const compareIds = useState<string[]>('hw-compare-tools', () => [])
+watch(() => selectedTool.value?.eqp_id, () => {
+  compareIds.value = []
+})
+
+// SCE compares from `settings` already in the payload; MDC 시계열 needs each
+// picked tool's own history, so fetch their mdc docs on demand.
+const { data: compareMdcDocs } = await useAsyncData<Record<string, Record<string, unknown>[]>>(
+  `hardware:mdc-compare:${props.toolType}:${props.fab}`,
+  async () => {
+    if (activeService.value !== 'mdc' || compareIds.value.length === 0) return {}
+    const ids = [...compareIds.value]
+    const results = await Promise.all(ids.map(id =>
+      fetchService({
+        toolType: props.toolType,
+        service: 'mdc',
+        eqpId: id,
+        fabName: selectedTool.value?.fab_name,
+        start: windowStart.value,
+        end: windowEnd.value
+      })
+        .then(payload => [id, payload.docs ?? []] as const)
+        .catch(() => [id, [] as Record<string, unknown>[]] as const)
+    ))
+    return Object.fromEntries(results)
+  },
+  {
+    default: () => ({}),
+    watch: [activeService, compareIds, () => selectedTool.value?.eqp_id, windowStart, windowEnd]
+  }
+)
+
+// The backend "동일 fab 장비 · N대" card is redundant on MDC/SCE now that the
+// comparison picker carries that count, so drop it from the metric-card row.
+const visibleCards = computed(() => {
+  const cards = servicePayload.value?.cards ?? []
+  return (activeService.value === 'mdc' || activeService.value === 'sce')
+    ? cards.filter(card => card.key !== 'sibling_count')
+    : cards
+})
+
 const formatMetricValue = (value: HardwareMetricValue | undefined) => {
   if (value === undefined || value === null || value === '') return '-'
   return String(value)
@@ -315,31 +360,36 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
             v-for="row in searchedRows"
             :key="row.eqp_id"
             type="button"
-            class="flex w-full items-center gap-2.5 border-b border-l-2 border-zinc-100 px-3.5 py-2.5 text-left transition-colors dark:border-zinc-800/60"
+            class="flex w-full items-start gap-2.5 border-b border-l-2 border-zinc-100 px-3.5 py-3 text-left transition-colors dark:border-zinc-800/60"
             :class="row.eqp_id === selectedToolId
               ? 'border-l-(--sk-ink) bg-(--sk-muted-surface)'
               : 'border-l-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/40'"
             :aria-current="row.eqp_id === selectedToolId ? 'true' : undefined"
             @click="selectTool(row.eqp_id)"
           >
-            <div class="min-w-0 flex-1">
-              <div class="truncate font-mono text-[13px] font-bold text-(--sk-ink)">
-                {{ row.eqp_id }}
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="min-w-0 flex-1 truncate font-mono text-[13px] font-bold text-(--sk-ink)">
+                  {{ row.eqp_id }}
+                </span>
+                <span
+                  class="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold"
+                  :style="{ color: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
+                >
+                  <span
+                    class="h-1.5 w-1.5 rounded-full"
+                    :style="{ background: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
+                  />
+                  {{ row.available }}
+                </span>
               </div>
               <div class="truncate text-[11px] text-(--sk-ink-muted)">
                 {{ row.vendor_nm }} {{ row.eqp_model_cd }}
               </div>
+              <div class="truncate font-mono text-[10px] text-(--sk-ink-subtle)">
+                {{ row.fab_name }} · {{ row.eqp_ip }} · v{{ row.version }}
+              </div>
             </div>
-            <span
-              class="inline-flex items-center gap-1 text-[11px] font-semibold"
-              :style="{ color: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
-            >
-              <span
-                class="h-1.5 w-1.5 rounded-full"
-                :style="{ background: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
-              />
-              {{ row.available }}
-            </span>
           </button>
 
           <p
@@ -351,38 +401,12 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </div>
       </UCard>
 
-      <!-- RIGHT · selected equipment summary bar + service detail -->
+      <!-- RIGHT · service navigation + detail -->
       <div class="flex min-w-0 flex-col gap-3">
-        <!-- Equipment summary bar — identity (left) + segment tabs (right) -->
-        <section class="dashboard-surface flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl px-4 py-3">
-          <template v-if="selectedTool">
-            <span class="font-mono text-base font-bold text-(--sk-ink)">{{ selectedTool.eqp_id }}</span>
-            <span class="text-(--sk-ink-subtle)">·</span>
-            <span class="text-sm text-zinc-700 dark:text-zinc-200">
-              {{ selectedTool.vendor_nm }} {{ selectedTool.eqp_model_cd }}
-            </span>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold"
-              :class="selectedTool.available === 'On'
-                ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
-                : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
-            >
-              <span class="h-1.5 w-1.5 rounded-full bg-current" />
-              {{ selectedTool.available }}
-            </span>
-            <span class="font-mono text-[11px] text-(--sk-ink-muted)">
-              {{ selectedTool.fab_name }} · {{ selectedTool.eqp_ip }} · v{{ selectedTool.version }}
-            </span>
-          </template>
-          <span
-            v-else
-            class="sk-body"
-          >장비를 선택하세요.</span>
-
-          <span class="ml-auto" />
-
+        <!-- Service tabs — tool details stay with the selectable rows in the left rail. -->
+        <section class="dashboard-surface flex flex-wrap items-center rounded-2xl px-4 py-3">
           <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes).
-               Grouped into 분기 / 데일리 clusters by measurement cadence. -->
+               Grouped into 데일리 / 분기 clusters by measurement cadence. -->
           <div
             role="tablist"
             aria-label="섹션 전환"
@@ -472,11 +496,11 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 </div>
                 <p>{{ servicePayload.summary }}</p>
                 <dl
-                  v-if="servicePayload.cards.length"
+                  v-if="visibleCards.length"
                   class="mt-1 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4"
                 >
                   <div
-                    v-for="card in servicePayload.cards"
+                    v-for="card in visibleCards"
                     :key="card.key"
                     class="rounded-xl bg-(--sk-surface) px-3 py-2.5 ring-1 ring-(--sk-border-soft)"
                   >
@@ -535,6 +559,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   v-else-if="activeService === 'mdc'"
                   :settings="servicePayload.settings ?? {}"
                   :docs="servicePayload.docs ?? []"
+                  :compare-docs="compareMdcDocs ?? {}"
                   :selected-eqp="selectedTool?.eqp_id ?? ''"
                   :maintenance-events="overlayEvents"
                 />
