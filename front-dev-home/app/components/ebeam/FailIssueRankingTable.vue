@@ -1,13 +1,17 @@
 <template>
   <div class="dashboard-surface rounded-2xl px-3.5 py-3">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <h3 class="sk-title">
           {{ title }}
         </h3>
         <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           {{ filteredRows.length.toLocaleString() }} / {{ rows.length.toLocaleString() }}
         </span>
+        <EbeamRecipeStatusInlineSummary
+          v-if="summaryItems?.length"
+          :items="summaryItems"
+        />
       </div>
       <div class="flex items-center gap-2">
         <UInput
@@ -117,6 +121,7 @@
 <script setup lang="ts" generic="T extends object">
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
+import type { RecipeStatusSummaryItem } from '~/utils/recipeStatusSummary'
 
 // Generic ranking table — Align (by eqp_id) and Meas (by recipe) panels
 // share the same pagination/sort/search/CSV machinery and only differ in
@@ -124,6 +129,7 @@ import type { SortingState } from '@tanstack/vue-table'
 // FailIssueView focused on layout instead of repeating table boilerplate.
 const props = defineProps<{
   title: string
+  summaryItems?: readonly RecipeStatusSummaryItem[]
   searchPlaceholder: string
   rows: readonly T[]
   columns: TableColumn<T>[]
