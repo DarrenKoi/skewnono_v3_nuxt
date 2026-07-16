@@ -57,65 +57,139 @@
       </ul>
     </section>
 
-    <!-- Comparison set (scope=set): the set members double as the focus switcher -->
+    <!-- CURRENT SELECTION — scope, compact meta/counts, and the member list.
+         Row click focuses an MSR (all views); the leading checkbox removes it
+         from the compared set (the focused MSR is guarded, never removable).
+         Enlarge (⤢) opens the full-detail modal; 분석 준비 상태 opens the drawer. -->
     <section
-      v-if="ws.selection.value && isSet"
-      class="space-y-1.5 border-t border-(--sk-border-soft) pt-4"
+      v-if="ws.selection.value"
+      class="space-y-2 border-t border-(--sk-border-soft) pt-4"
     >
-      <p class="mb-1 px-1 sk-eyebrow">
-        비교 세트 · {{ setChips.length }}
-      </p>
-      <ul class="space-y-1">
-        <li
-          v-for="chip in setChips"
-          :key="chip.msr"
+      <div class="flex items-center justify-between gap-2 px-1">
+        <span
+          class="inline-flex items-center gap-1 rounded-(--sk-r-chip) px-1.5 py-0.5 text-[10.5px] font-semibold"
+          :class="isSet
+            ? 'bg-(--sk-accent-soft) text-(--sk-accent)'
+            : 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'"
         >
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 rounded-(--sk-r-nav) px-2 py-1.5 text-left font-mono text-[12px] transition-colors"
-            :class="chip.active
-              ? 'bg-(--sk-brand) font-semibold text-(--sk-brand-fg)'
-              : 'text-(--sk-ink-muted) hover:bg-(--sk-chip-bg) hover:text-(--sk-ink)'"
-            :aria-pressed="chip.active"
-            :title="chip.label"
-            @click="props.analysis.setFocusedMsr(chip.msr)"
-          >
-            <UIcon
-              :name="chip.active ? 'i-lucide-crosshair' : 'i-lucide-circle-dot'"
-              class="h-3.5 w-3.5 shrink-0"
-            />
-            <span class="min-w-0 flex-1 truncate">{{ chip.label }}</span>
-          </button>
-        </li>
-      </ul>
-    </section>
+          <UIcon
+            :name="isSet ? 'i-lucide-layers' : 'i-lucide-focus'"
+            class="h-3 w-3"
+          />
+          {{ isSet ? '세트 비교' : '단일 측정' }}
+        </span>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          icon="i-lucide-maximize-2"
+          aria-label="상세 보기"
+          @click="detailOpen = true"
+        />
+      </div>
 
-    <!-- Current selection (single measurement) -->
-    <section
-      v-else-if="ws.selection.value"
-      class="space-y-1.5 border-t border-(--sk-border-soft) pt-4"
-    >
-      <p class="mb-1 px-1 sk-eyebrow">
-        CURRENT SELECTION
-      </p>
+      <!-- Compact meta -->
       <dl class="space-y-1 px-1 text-[12px]">
-        <div
-          v-for="field in selectionFields"
-          :key="field.label"
-          class="flex items-baseline justify-between gap-2"
-        >
+        <div class="flex items-baseline justify-between gap-2">
           <dt class="sk-label">
-            {{ field.label }}
+            Focus
           </dt>
-          <dd
-            class="truncate font-mono text-(--sk-ink)"
-            :class="{ 'font-semibold': field.strong }"
-          >
-            {{ field.value }}
+          <dd class="truncate font-mono font-semibold text-(--sk-ink)">
+            {{ focusMsr || '—' }}
+          </dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-2">
+          <dt class="sk-label">
+            Param
+          </dt>
+          <dd class="truncate font-mono text-(--sk-ink)">
+            {{ analysis.activeParam.value || '—' }}
+          </dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-2">
+          <dt class="sk-label">
+            Lot
+          </dt>
+          <dd class="truncate font-mono text-(--sk-ink)">
+            {{ ws.selection.value.lot || '—' }}
           </dd>
         </div>
       </dl>
+
+      <!-- Compact counts -->
+      <div class="flex flex-wrap items-center gap-1 px-1">
+        <span class="rounded-(--sk-r-chip) bg-(--sk-ok-soft) px-1.5 py-0.5 font-mono text-[10.5px] text-(--sk-ok)">호환 {{ counts.compatible }}</span>
+        <span
+          v-if="counts.excluded > 0"
+          class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 py-0.5 font-mono text-[10.5px] text-(--sk-bad)"
+        >제외 {{ counts.excluded }}</span>
+      </div>
+
+      <!-- MSR member list — row = focus, checkbox = membership (guarded) -->
+      <template v-if="isSet">
+        <div class="flex items-center justify-between px-1">
+          <span class="sk-eyebrow">비교 세트 · {{ setChips.length }}</span>
+          <button
+            type="button"
+            class="text-[11px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+            @click="deselectToFocus"
+          >
+            선택 해제
+          </button>
+        </div>
+        <ul class="space-y-1">
+          <li
+            v-for="chip in setChips"
+            :key="chip.msr"
+            class="flex items-center gap-1.5"
+          >
+            <UCheckbox
+              :model-value="true"
+              :disabled="chip.active"
+              :aria-label="`${chip.label} 세트에서 제거`"
+              size="sm"
+              @update:model-value="removeMember(chip.msr)"
+            />
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-2 rounded-(--sk-r-nav) px-2 py-1.5 text-left font-mono text-[12px] transition-colors"
+              :class="chip.active
+                ? 'bg-(--sk-brand) font-semibold text-(--sk-brand-fg)'
+                : 'text-(--sk-ink-muted) hover:bg-(--sk-chip-bg) hover:text-(--sk-ink)'"
+              :aria-pressed="chip.active"
+              :title="chip.label"
+              @click="props.analysis.setFocusedMsr(chip.msr)"
+            >
+              <UIcon
+                :name="chip.active ? 'i-lucide-crosshair' : 'i-lucide-circle-dot'"
+                class="h-3.5 w-3.5 shrink-0"
+              />
+              <span class="min-w-0 flex-1 truncate">{{ chip.label }}</span>
+            </button>
+          </li>
+        </ul>
+      </template>
+
+      <!-- Readiness drawer opener -->
+      <UButton
+        block
+        color="neutral"
+        variant="soft"
+        size="xs"
+        class="justify-start"
+        icon="i-lucide-list-checks"
+        :label="`분석 준비 상태${counts.excluded > 0 ? ` · 제외 ${counts.excluded}` : ''}`"
+        @click="emit('openReadiness')"
+      />
     </section>
+
+    <!-- Full-detail enlarge modal -->
+    <EbeamSkewvoirWorkspaceSelectionDetailModal
+      v-if="ws.selection.value"
+      v-model:open="detailOpen"
+      :ws="ws"
+      :analysis="analysis"
+    />
 
     <!-- Actions — separated from the selection above by its own bordered section -->
     <section
@@ -147,8 +221,13 @@
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { recipeDetailRoute } from '~/utils/recipeView'
+import { removeFromSet, clearToFocus } from '~/utils/skewvoirAnalysis/setEditing'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis, fab: string }>()
+
+const emit = defineEmits<{ openReadiness: [] }>()
+
+const detailOpen = ref(false)
 
 // In a comparison set (scope=set) the rail shows the 비교 세트 members as the
 // focus switcher (works on every view); a single measurement keeps the plain
@@ -161,6 +240,19 @@ const setChips = computed(() =>
     active: msr === props.analysis.focusMsr.value
   }))
 )
+
+const focusMsr = computed(() => props.ws.selection.value?.msr ?? '')
+const counts = computed(() => props.analysis.manifest.value.counts)
+
+// Uncheck removes the member (focused MSR is guarded inside removeFromSet).
+const removeMember = (msr: string) => {
+  props.ws.setMsrs(removeFromSet(props.analysis.msrList.value, msr, focusMsr.value))
+}
+
+// 선택 해제 — empty the set down to the focused MSR.
+const deselectToFocus = () => {
+  if (focusMsr.value) props.ws.setMsrs(clearToFocus(focusMsr.value))
+}
 
 const toast = useToast()
 const router = useRouter()
@@ -192,16 +284,4 @@ const actions = [
   { label: 'Recipe 열어보기', icon: 'i-lucide-file-search', onClick: openRecipe },
   { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
 ]
-
-const selectionFields = computed(() => {
-  const sel = props.ws.selection.value
-  if (!sel) return []
-  return [
-    { label: 'Lot', value: sel.lot, strong: true },
-    { label: 'Recipe', value: sel.recipe, strong: false },
-    { label: 'EQ', value: sel.eq, strong: false },
-    { label: 'MP', value: sel.mp, strong: false },
-    { label: 'Captured', value: sel.capturedAt, strong: false }
-  ]
-})
 </script>
