@@ -211,6 +211,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
 import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composables/useStorageApi'
 import { isStorageUnavailable } from '~/composables/useStorageApi'
+import { storageUsageTier } from '~/utils/storageUsage'
 import type { MetaBarStat } from './MetaBar.vue'
 
 const props = defineProps<{
@@ -284,15 +285,25 @@ const storageNa = (row: StorageRow): boolean => isStorageUnavailable(row)
 // Status hues come from the --sk-ok/warn/bad families, not raw Tailwind colors:
 // the token pairs are already tuned per mode, so one class covers light + dark.
 const usageBarClass = (percent: number) => {
-  if (percent >= 80) return 'bg-(--sk-bad)'
-  if (percent >= 60) return 'bg-(--sk-warn)'
-  return 'bg-(--sk-ok)'
+  switch (storageUsageTier(percent)) {
+    case 'critical':
+      return 'bg-(--sk-bad)'
+    case 'warning':
+      return 'bg-(--sk-warn)'
+    default:
+      return 'bg-(--sk-ok)'
+  }
 }
 
 const usageTextClass = (percent: number) => {
-  if (percent >= 80) return 'text-(--sk-bad)'
-  if (percent >= 60) return 'text-(--sk-warn)'
-  return 'text-(--sk-ok)'
+  switch (storageUsageTier(percent)) {
+    case 'critical':
+      return 'text-(--sk-bad)'
+    case 'warning':
+      return 'text-(--sk-warn)'
+    default:
+      return 'text-(--sk-ok)'
+  }
 }
 
 // Tools cap at 50,000 recipes; flag well before the ceiling so engineers can
@@ -346,9 +357,9 @@ const storageSorting = ref<SortingState>([
 // as column headers (Model, IP, Fab, Recipe) keep their English form.
 const usageFilterOptions = [
   { label: '전체 사용률', value: 'all' },
-  { label: '위험 (80% 이상)', value: 'critical' },
-  { label: '주의 (60–79%)', value: 'warning' },
-  { label: '정상 (60% 미만)', value: 'healthy' },
+  { label: '위험 (98% 이상)', value: 'critical' },
+  { label: '주의 (90–97%)', value: 'warning' },
+  { label: '정상 (90% 미만)', value: 'healthy' },
   { label: '정보 없음', value: 'unavailable' }
 ]
 
@@ -464,9 +475,7 @@ const filteredRows = computed(() => {
     } else if (usage !== 'all') {
       if (na) return false
       const pct = parsePercent(row.percent)
-      if (usage === 'critical' && pct < 80) return false
-      if (usage === 'warning' && (pct < 60 || pct >= 80)) return false
-      if (usage === 'healthy' && pct >= 60) return false
+      if (usage !== storageUsageTier(pct)) return false
     }
 
     return true
@@ -504,10 +513,16 @@ const summary = computed(() => {
       na++
       continue
     }
-    const pct = parsePercent(row.percent)
-    if (pct >= 80) critical++
-    else if (pct >= 60) warning++
-    else healthy++
+    switch (storageUsageTier(parsePercent(row.percent))) {
+      case 'critical':
+        critical++
+        break
+      case 'warning':
+        warning++
+        break
+      default:
+        healthy++
+    }
   }
 
   return {
