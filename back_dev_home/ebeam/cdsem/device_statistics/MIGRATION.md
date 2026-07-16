@@ -272,8 +272,8 @@
   frontend's first-match selection picks the more specific cell.
 - Office data source: <!-- OFFICE: rule version history table, keyed by
   fab; office may serve more than one fab and more than one version, but
-  this endpoint's contract only asks for "the current version" per fab --
-  >
+  this endpoint's contract only asks for "the current version" per fab -->
+
 - Notes: not a huge-payload endpoint — one fab's rule set is a handful of
   cells. `save`/`history`/`rollback` are explicitly out of scope for this
   seam (per the mock's own docstring, "step 3/5" — a future feature, not

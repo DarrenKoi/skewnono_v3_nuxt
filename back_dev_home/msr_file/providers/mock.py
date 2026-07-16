@@ -48,7 +48,8 @@ from functools import lru_cache
 from statistics import fmean, pstdev, stdev
 from typing import NamedTuple, TypedDict
 
-from back_dev_home.meas_hist.data import MeasHistRow, find_meas_hist_by_msr
+from back_dev_home.meas_hist.contracts import MeasHistRow
+from back_dev_home.meas_hist.providers.mock import find_meas_hist_by_msr
 
 
 __all__ = [

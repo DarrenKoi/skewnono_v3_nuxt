@@ -9,16 +9,17 @@ from __future__ import annotations
 import unittest
 
 from back_dev_home.activity import data
+from back_dev_home.activity.providers import mock as activity_mock
 
 
 class FabPageUsageTestCase(unittest.TestCase):
     def setUp(self):
         # Isolate from any live record_request traffic and other tests.
-        data._users.clear()
+        activity_mock._users.clear()
         data.seed_demo_users()
 
     def tearDown(self):
-        data._users.clear()
+        activity_mock._users.clear()
 
     def test_response_shape(self):
         payload = data.get_fab_page_usage()
@@ -44,7 +45,7 @@ class FabPageUsageTestCase(unittest.TestCase):
         self.assertLessEqual({"M14", "M16B", "M11", "R3", "M15"}, fabs)
 
     def test_unaffiliated_traffic_buckets_under_mijijeong(self):
-        data._users.clear()
+        activity_mock._users.clear()
         data.record_request("live-dev", "GET", "/api/sem-list", 200, "sem_list")
         fabs = {row["fab"] for row in data.get_fab_page_usage()["fabs_30d"]}
         self.assertIn("미지정", fabs)

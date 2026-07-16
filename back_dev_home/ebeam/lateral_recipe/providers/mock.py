@@ -19,7 +19,8 @@ from back_dev_home.ebeam.lateral_recipe.contracts import (
     LateralRecipeRow,
     LateralRecipeVersion,
 )
-from back_dev_home.sem_list.data import SemListRow, get_sem_list
+from back_dev_home.sem_list.contracts import SemListRow
+from back_dev_home.sem_list.providers.mock import get_sem_list
 
 
 __all__ = [

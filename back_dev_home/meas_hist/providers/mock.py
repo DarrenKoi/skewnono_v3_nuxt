@@ -19,7 +19,8 @@ from back_dev_home.meas_hist.contracts import (
     MeasHistSearchResponse,
 )
 from back_dev_home.meas_hist.opensearch_query import SEARCHABLE_SOURCE_FIELDS
-from back_dev_home.sem_list.data import SemListRow, get_sem_list
+from back_dev_home.sem_list.contracts import SemListRow
+from back_dev_home.sem_list.providers.mock import get_sem_list
 
 
 __all__ = [

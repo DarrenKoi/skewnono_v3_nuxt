@@ -13,7 +13,7 @@ from back_dev_home.ebeam.hitachi.storage.contracts import (
     PpidUnavailableSnapshot,
     StorageRow,
 )
-from back_dev_home.sem_list.data import get_sem_list
+from back_dev_home.sem_list.providers.mock import get_sem_list
 
 
 def _format_size_gb(value_gb: float) -> str:

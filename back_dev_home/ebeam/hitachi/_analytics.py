@@ -71,7 +71,7 @@ def filter_measurements(
 @lru_cache(maxsize=1)
 def lot_metadata() -> dict[str, dict[str, str | None]]:
     """Return device quick-filter metadata keyed by lot code."""
-    from back_dev_home.ebeam.cdsem.device_statistics.data import (
+    from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import (
         get_device_desc,
         get_r3_device_grp,
     )
