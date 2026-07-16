@@ -110,6 +110,8 @@
           <EbeamRecipeOpenIdpTable
             v-model:selected-index="selectedIdpIndex"
             :rows="idpImageRows"
+            :measurement-point-count="waferMpRows.length"
+            :align-point-count="data.wafer_align_info.length"
             @open-align="alignOpen = true"
           />
         </section>
