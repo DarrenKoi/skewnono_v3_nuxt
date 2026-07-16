@@ -34,3 +34,14 @@ test('keeps legacy releases concise and gives v3 four detailed feature areas', (
   ])
   assert.ok(v3?.features.every(feature => feature.description))
 })
+
+test('names every supported memory category in Device Statistics', () => {
+  const deviceStatistics = skewnonoHistory
+    .find(release => release.current)
+    ?.features.find(feature => feature.title === 'Device Statistics 강화')
+
+  assert.ok(deviceStatistics?.description)
+  assert.match(deviceStatistics.description, /DRAM/)
+  assert.match(deviceStatistics.description, /NAND/)
+  assert.match(deviceStatistics.description, /New Memory/)
+})

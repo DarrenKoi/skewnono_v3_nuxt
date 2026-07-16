@@ -19,7 +19,7 @@
           SKEWNONO History
         </h1>
         <p class="mt-3 sk-body leading-7 md:text-base">
-          2024년 첫 버전부터 현재 v3까지, SKEWNONO가 장비 조회 도구에서
+          2024년 첫 버전부터 현재까지, SKEWNONO가 장비 조회 도구에서
           통합 Metrology Workspace로 발전해 온 과정입니다.
         </p>
       </div>
@@ -60,7 +60,7 @@
           </p>
 
           <div
-            v-if="release.current"
+            v-if="release.current && release.features.length > 0"
             class="mt-5 grid gap-3 sm:grid-cols-2"
           >
             <section
@@ -85,7 +85,7 @@
           </div>
 
           <ul
-            v-else
+            v-if="!release.current && release.features.length > 0"
             class="mt-4 flex flex-wrap gap-2"
             aria-label="주요 기능"
           >

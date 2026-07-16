@@ -51,7 +51,7 @@ export const skewnonoHistory = [
       },
       {
         title: 'Device Statistics 강화',
-        description: 'Device와 CD Step별 Recipe·Parameter 현황, 계측 룰 위반, 기간별 변화 추이를 분석합니다.',
+        description: 'DRAM, NAND, New Memory의 Device와 CD Step별 Recipe·Parameter 현황, 계측 룰 위반, 기간별 변화 추이를 분석합니다.',
         icon: 'i-lucide-table-properties'
       },
       {
