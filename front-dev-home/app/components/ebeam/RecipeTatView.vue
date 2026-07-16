@@ -78,22 +78,6 @@
     </div>
 
     <template v-else>
-      <!-- KPI strip -->
-      <div class="dashboard-surface flex flex-wrap rounded-2xl">
-        <div
-          v-for="(cell, index) in kpiCells"
-          :key="cell.label"
-          class="flex min-w-[160px] flex-1 flex-col gap-0.5 px-4 py-3"
-          :class="{ 'border-l border-zinc-200/70 dark:border-zinc-800/70': index > 0 }"
-        >
-          <span
-            class="text-2xl font-bold leading-none tabular-nums"
-            :class="cell.tone"
-          >{{ cell.value }}</span>
-          <span class="sk-label">{{ cell.label }}</span>
-        </div>
-      </div>
-
       <!-- Empty / loading state -->
       <div
         v-if="status === 'pending' && !rankingRows.length"
@@ -178,7 +162,7 @@
         <!-- Table -->
         <div class="dashboard-surface rounded-2xl px-3.5 py-3">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <h3 class="sk-title">
                 Ranked recipes
               </h3>
@@ -189,6 +173,7 @@
                 v-if="rankingLimit && rankingRows.length >= rankingLimit"
                 class="font-mono text-[10px] text-amber-600 dark:text-amber-400"
               >capped at {{ rankingLimit.toLocaleString() }}</span>
+              <EbeamRecipeStatusInlineSummary :items="tatSummaryItems" />
             </div>
             <div class="flex items-center gap-2">
               <UInput
@@ -306,6 +291,7 @@ import {
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { buildTatSummaryItems } from '~/utils/recipeStatusSummary'
 
 const props = defineProps<{
   fab: string
@@ -423,30 +409,16 @@ const dateRange = computed({
   }
 })
 
-// KPI cells
-
-const kpiCells = computed(() => [
-  {
-    label: 'Total TAT',
-    value: summary.value ? formatSecondsAsDuration(summary.value.total_tat_seconds) : '—',
-    tone: 'text-(--sk-accent)'
-  },
-  {
-    label: 'Distinct recipes',
-    value: summary.value ? summary.value.total_recipes.toLocaleString() : '—',
-    tone: 'text-(--sk-ink)'
-  },
-  {
-    label: 'Total executions',
-    value: summary.value ? summary.value.total_executions.toLocaleString() : '—',
-    tone: 'text-(--sk-ink)'
-  },
-  {
-    label: 'Avg meastime',
-    value: summary.value ? formatSecondsAsDuration(Math.round(summary.value.avg_meastime)) : '—',
-    tone: 'text-(--sk-ink)'
-  }
-])
+const tatSummaryItems = computed(() => buildTatSummaryItems({
+  totalTat: summary.value
+    ? formatSecondsAsDuration(summary.value.total_tat_seconds)
+    : '—',
+  distinctRecipes: summary.value?.total_recipes.toLocaleString() ?? '—',
+  totalExecutions: summary.value?.total_executions.toLocaleString() ?? '—',
+  avgMeastime: summary.value
+    ? formatSecondsAsDuration(Math.round(summary.value.avg_meastime))
+    : '—'
+}))
 
 // Daily trend line
 
