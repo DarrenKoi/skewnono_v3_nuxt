@@ -107,73 +107,6 @@
       </div>
 
       <template v-else>
-        <!-- Compact KPI strip for the active aspect -->
-        <div
-          v-if="showAlign"
-          class="dashboard-surface flex flex-col gap-3 rounded-2xl px-4 py-3 lg:flex-row lg:items-center"
-        >
-          <div class="flex min-w-0 items-center gap-2 lg:w-64 lg:shrink-0">
-            <UIcon
-              name="i-lucide-crosshair"
-              class="h-4 w-4 shrink-0 text-(--sk-bad)"
-            />
-            <div class="min-w-0">
-              <h3 class="sk-title">
-                Align Fail
-              </h3>
-              <p class="truncate text-[11px] text-(--sk-ink-muted)">
-                wafer alignment outcome at run start
-              </p>
-            </div>
-          </div>
-          <div class="grid min-w-0 flex-1 grid-cols-2 gap-1 sm:grid-cols-4">
-            <div
-              v-for="cell in alignKpiCells"
-              :key="cell.label"
-              class="min-w-0 rounded-lg bg-zinc-50/80 px-3 py-2 dark:bg-zinc-900/45"
-            >
-              <span
-                class="block truncate text-lg font-bold leading-tight tabular-nums"
-                :class="cell.tone"
-              >{{ cell.value }}</span>
-              <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">{{ cell.label }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="showMeas"
-          class="dashboard-surface flex flex-col gap-3 rounded-2xl px-4 py-3 lg:flex-row lg:items-center"
-        >
-          <div class="flex min-w-0 items-center gap-2 lg:w-64 lg:shrink-0">
-            <UIcon
-              name="i-lucide-image-off"
-              class="h-4 w-4 shrink-0 text-(--sk-bad)"
-            />
-            <div class="min-w-0">
-              <h3 class="sk-title">
-                Meas Fail
-              </h3>
-              <p class="truncate text-[11px] text-(--sk-ink-muted)">
-                fail_ratio &gt; {{ formatPercent(measFailThreshold, 0) }}
-              </p>
-            </div>
-          </div>
-          <div class="grid min-w-0 flex-1 grid-cols-2 gap-1 sm:grid-cols-4">
-            <div
-              v-for="cell in measKpiCells"
-              :key="cell.label"
-              class="min-w-0 rounded-lg bg-zinc-50/80 px-3 py-2 dark:bg-zinc-900/45"
-            >
-              <span
-                class="block truncate text-lg font-bold leading-tight tabular-nums"
-                :class="cell.tone"
-              >{{ cell.value }}</span>
-              <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-(--sk-ink-muted)">{{ cell.label }}</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Trend chart for the active aspect -->
         <UCard
           v-if="showAlign"
@@ -275,6 +208,7 @@
           v-if="showAlign"
           title="Align fails by recipe"
           search-placeholder="Search recipe / class"
+          :summary-items="alignSummaryItems"
           :rows="alignRows"
           :columns="alignColumns"
           :sortable-ids="alignSortableIds"
@@ -297,6 +231,7 @@
           v-if="showMeas"
           title="Meas fails by recipe"
           search-placeholder="Search recipe / class…"
+          :summary-items="measSummaryItems"
           :rows="measRows"
           :columns="measColumns"
           :sortable-ids="measSortableIds"
@@ -331,6 +266,10 @@ import {
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import {
+  buildFailSummaryItems,
+  resolveRecipeStatusSummaryValue
+} from '~/utils/recipeStatusSummary'
 
 const props = defineProps<{
   fab: string
@@ -432,8 +371,6 @@ const deviceList = computed(() => devicesData.value?.devices ?? [])
 const failDeviceTitle = (device: FailIssueDeviceRow) =>
   `전체 측정 장수 ${device.exec_count.toLocaleString()} · align fails ${device.align_fail_count} · meas fails ${device.meas_fail_count}`
 
-const measFailThreshold = computed(() => summary.value?.meas_fail_threshold ?? 0.15)
-
 // Echo the server-resolved window only inside the getter (vs. mirroring
 // into a ref) so first-load values don't trigger a redundant refetch.
 const dateRange = computed({
@@ -451,44 +388,42 @@ const dateRange = computed({
   }
 })
 
-// KPI cells -----------------------------------------------------------------
+const alignSummaryItems = computed(() => buildFailSummaryItems({
+  failLabel: 'Align fails',
+  failCount: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.align_fail_count.toLocaleString()
+  ),
+  totalMeasurements: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.total_executions.toLocaleString()
+  ),
+  failRatio: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value ? formatPercent(summary.value.align_fail_rate) : undefined
+  )
+}))
 
-const alignKpiCells = computed(() => {
-  const s = summary.value
-  if (!s) return placeholderKpis()
-  return [
-    { label: 'Align fails', value: s.align_fail_count.toLocaleString(), tone: 'text-(--sk-bad)' },
-    { label: 'Fail rate', value: formatPercent(s.align_fail_rate), tone: 'text-zinc-900 dark:text-zinc-100' },
-    { label: 'NA (skipped)', value: s.align_na_count.toLocaleString(), tone: 'text-zinc-600 dark:text-zinc-300' },
-    { label: 'Distinct eqps', value: s.distinct_equipment.toLocaleString(), tone: 'text-zinc-700 dark:text-zinc-300' }
-  ]
-})
-
-const measKpiCells = computed(() => {
-  const s = summary.value
-  if (!s) return placeholderKpis()
-  return [
-    { label: 'Meas fails', value: s.meas_fail_count.toLocaleString(), tone: 'text-(--sk-bad)' },
-    { label: 'Fail rate', value: formatPercent(s.meas_fail_rate), tone: 'text-zinc-900 dark:text-zinc-100' },
-    { label: '전체 측정 장수', value: s.total_executions.toLocaleString(), tone: 'text-zinc-600 dark:text-zinc-300' },
-    { label: 'Distinct recipes', value: s.distinct_recipes.toLocaleString(), tone: 'text-zinc-700 dark:text-zinc-300' }
-  ]
-})
-
-function placeholderKpis() {
-  return [
-    { label: '—', value: '—', tone: 'text-(--sk-bad)' },
-    { label: '—', value: '—', tone: 'text-zinc-900 dark:text-zinc-100' },
-    { label: '—', value: '—', tone: 'text-zinc-600 dark:text-zinc-300' },
-    { label: '—', value: '—', tone: 'text-zinc-700 dark:text-zinc-300' }
-  ]
-}
+const measSummaryItems = computed(() => buildFailSummaryItems({
+  failLabel: 'Meas fails',
+  failCount: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.meas_fail_count.toLocaleString()
+  ),
+  totalMeasurements: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.total_executions.toLocaleString()
+  ),
+  failRatio: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value ? formatPercent(summary.value.meas_fail_rate) : undefined
+  )
+}))
 
 // Trend charts --------------------------------------------------------------
 // One series per chart instead of stacking Align and Meas together. A single
 // row can be both an align-fail and a meas-fail, so stacking would
-// mis-represent totals. Two charts also keep the dashboard visually
-// symmetric with the KPI strip above.
+// mis-represent totals.
 
 const alignTrendEl = ref<HTMLDivElement | null>(null)
 const measTrendEl = ref<HTMLDivElement | null>(null)
