@@ -84,3 +84,22 @@ def test_plain_dict_value_type_checked():
 def test_non_dict_for_typeddict_fails():
     with pytest.raises(ContractViolation, match=r"\$: expected Row"):
         assert_matches(["not", "a", "dict"], Row)
+
+
+def test_literal_rejects_bool_for_int_literal():
+    class Flag(TypedDict):
+        state: Literal[0, 1]
+
+    with pytest.raises(ContractViolation, match=r"\$\.state"):
+        assert_matches({"state": True}, Flag)
+    assert_matches({"state": 1}, Flag)
+
+
+def test_missing_key_error_is_deterministic():
+    class Multi(TypedDict):
+        alpha: str
+        beta: str
+
+    # both keys missing -> the alphabetically first is always reported
+    with pytest.raises(ContractViolation, match=r"\$\.alpha: required key missing"):
+        assert_matches({}, Multi)

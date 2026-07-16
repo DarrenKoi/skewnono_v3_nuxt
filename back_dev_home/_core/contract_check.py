@@ -31,7 +31,9 @@ def assert_matches(value: Any, contract: Any, path: str = "$") -> None:
     elif origin in (Union, types.UnionType):
         _check_union(value, contract, path)
     elif origin is Literal:
-        if value not in get_args(contract):
+        if not any(
+            type(value) is type(arm) and value == arm for arm in get_args(contract)
+        ):
             _fail(path, f"one of {get_args(contract)!r}", value)
     elif origin is list:
         if not isinstance(value, list):
@@ -56,13 +58,13 @@ def _check_typeddict(value: Any, contract: Any, path: str) -> None:
     if not isinstance(value, dict):
         _fail(path, contract.__name__, value)
     hints = get_type_hints(contract)
-    for key in contract.__required_keys__:
+    for key in sorted(contract.__required_keys__):
         if key not in value:
             raise ContractViolation(
                 f"{path}.{key}: required key missing ({contract.__name__})"
             )
         assert_matches(value[key], hints[key], f"{path}.{key}")
-    for key in contract.__optional_keys__:
+    for key in sorted(contract.__optional_keys__):
         if key in value:
             assert_matches(value[key], hints[key], f"{path}.{key}")
     # Extra keys: allowed by policy.
