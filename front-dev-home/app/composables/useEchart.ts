@@ -147,13 +147,14 @@ export const useEchart = (
   })
 
   // ECharts binds a theme at init time; swapping themes requires dispose +
-  // re-init on the same DOM node. The host div and its download button persist
-  // across this (same node), so ensureChart()'s mountDownloadButton() no-ops and
-  // the button's click closure reads the freshly-assigned `chart`.
+  // re-init on the same DOM node. dispose() clears the host div's children,
+  // detaching the download button, so it must be torn down and re-mounted
+  // rather than assumed to persist.
   watch(resolvedThemeName, () => {
     if (!elRef.value) return
     chart?.dispose()
     chart = null
+    unmountDownloadButton()
     ensureChart()
   })
 
