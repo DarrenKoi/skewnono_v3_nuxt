@@ -49,6 +49,8 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
   const activeKind = skRoute.view
   // Explicit curated comparison set for the Time-Series view (msr ids in URL).
   const msrList = skRoute.msrList
+  // Analysis scope (single | set), held separately from the selection count.
+  const scope = skRoute.scope
 
   // Switching views just rewrites the `view` query param (keeps the rest).
   const openView = (kind: SkewvoirViewKind) => skRoute.setView(kind)
@@ -62,12 +64,25 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     selection,
     activeKind,
     msrList,
+    scope,
+    siteParam: skRoute.siteParam,
+    refParam: skRoute.refParam,
+    metricParam: skRoute.metricParam,
+    grainParam: skRoute.grainParam,
+    xParam: skRoute.xParam,
+    yParam: skRoute.yParam,
     openView,
     goSearch,
     openAnalysis: skRoute.openAnalysis,
     openAnalysisSet: skRoute.openAnalysisSet,
     setMsrs: skRoute.setMsrs,
     setParam: skRoute.setParam,
+    setFocus: skRoute.setFocus,
+    setSite: skRoute.setSite,
+    setRef: skRoute.setRef,
+    setMetric: skRoute.setMetric,
+    setGrain: skRoute.setGrain,
+    setXY: skRoute.setXY,
     shareUrl: skRoute.shareUrl,
     analysisPath: skRoute.analysisPath,
     basePath: skRoute.basePath

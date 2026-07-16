@@ -7,6 +7,15 @@
       />
 
       <main class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <!-- Shared analysis context — scope, focus, parameter, compatibility
+             counts, reference provenance, and the set editor. Opens the
+             readiness drawer. -->
+        <EbeamSkewvoirWorkspaceAnalysisContextBar
+          :ws="ws"
+          :analysis="analysis"
+          @open-readiness="readinessOpen = true"
+        />
+
         <!-- View body — the active analysis view, driven by the URL `view` param.
              View actions (Annotate / Excel / Skew Check / Share) moved to the
              left rail, under CURRENT SELECTION. -->
@@ -65,6 +74,13 @@
         </div>
       </main>
     </div>
+
+    <!-- Readiness drawer — manifest groups, excluded MSRs, per-capability readiness. -->
+    <EbeamSkewvoirWorkspaceReadinessDrawer
+      :analysis="analysis"
+      :open="readinessOpen"
+      @update:open="readinessOpen = $event"
+    />
   </div>
 </template>
 
@@ -84,6 +100,9 @@ const props = defineProps<{
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
 const analysis = useSkewvoirAnalysis(ws)
+
+// Readiness drawer open state (opened from the context bar).
+const readinessOpen = ref(false)
 
 // Shared links bypass the landing page, so the workspace records the opened
 // analysis too. If the landing page already wrote a rich single/group entry,

@@ -184,22 +184,82 @@ test('toQuery falls back to [sel.msr] when the explicit set is empty', () => {
   assert.equal(q.msrs, 'msr-focus')
 })
 
-// CURRENT — to be superseded by Task 3 setFocusedMsr: the focus `msr` only
-// ever changes by re-entering the analysis route from search (openAnalysis
-// -> toQuery -> navigateTo), never by an in-place URL patch the way
-// setView/setMsrs/setParam mutate `view`/`msrs`/`mp` in place (see
-// useSkewvoirRoute.ts:92-101). There is no `setFocusedMsr` today; Task 3
-// intentionally adds one, which will change this fixture's premise.
-test('CURRENT — to be superseded by Task 3 setFocusedMsr: focus msr changes only via search re-entry (toQuery), not an in-place setter', () => {
-  const sel: Selection = { lot: 'LOT1', recipe: 'R1', eq: 'EQ1', mp: 'WAFER', msr: 'msr-old', capturedAt: '—' }
-  // The only way to move the focus msr today is to build a fresh query via
-  // toQuery with a new selection.msr and navigate to it (openAnalysis).
-  const nextSel: Selection = { ...sel, msr: 'msr-new' }
-  const q = toQuery(nextSel)
-  assert.equal(q.msr, 'msr-new')
-  // Crucially: msrs also resets to just the new focus, because there is no
-  // setter that changes `msr` while preserving an existing `msrs` set.
-  assert.equal(q.msrs, 'msr-new')
+// UPDATED by Task 3 — setFocusedMsr in-place query-rewrite contract. Mirrors
+// useSkewvoirRoute.ts:133-149 (patchQuery + setFocus) and
+// useSkewvoirAnalysis.ts:196-206 (setFocusedMsr, which resolves lot/eq/cap from
+// the new focus's meas_hist row). Unlike the old search-re-entry path, the focus
+// now moves via an in-place router.replace (no history entry) that rewrites
+// `msr` + `lot`/`eq`/`cap` while PRESERVING `msrs`/`view`/`mp` (and everything
+// else). patchQuery is three-valued per key: a string writes, `null` clears,
+// `undefined` leaves the existing value UNTOUCHED (deep-link focus with no row
+// keeps its identity).
+interface FocusRow { lot_id: string, eqp_id: string, timestamp: string }
+
+const patchQuery = (
+  query: Record<string, string>,
+  patch: Record<string, string | null | undefined>
+): Record<string, string> => {
+  const cleared = new Set(
+    Object.entries(patch).filter(([, v]) => v === null).map(([k]) => k)
+  )
+  const next: Record<string, string> = {}
+  for (const [key, value] of Object.entries(query)) {
+    if (!cleared.has(key)) next[key] = value
+  }
+  for (const [key, value] of Object.entries(patch)) {
+    if (typeof value === 'string') next[key] = value
+  }
+  return next
+}
+
+const setFocusedMsr = (
+  query: Record<string, string>,
+  msr: string,
+  row: FocusRow | undefined
+): Record<string, string> =>
+  patchQuery(query, { msr, lot: row?.lot_id, eq: row?.eqp_id, cap: row?.timestamp })
+
+test('setFocusedMsr rewrites msr + lot/eq/cap and PRESERVES msrs/view/mp (in-place, no history)', () => {
+  const query = { lot: 'LOT-old', recipe: 'R1', eq: 'EQ-old', mp: 'GATE_CD', msr: 'msr-old', msrs: 'msr-old,msr-b,msr-c', cap: 'T-old', view: 'time-series' }
+  const row: FocusRow = { lot_id: 'LOT-new', eqp_id: 'EQ-new', timestamp: 'T-new' }
+  const next = setFocusedMsr(query, 'msr-b', row)
+  // Focus + identity fields rewritten from the new focus row.
+  assert.equal(next.msr, 'msr-b')
+  assert.equal(next.lot, 'LOT-new')
+  assert.equal(next.eq, 'EQ-new')
+  assert.equal(next.cap, 'T-new')
+  // Curated set, view, and parameter are PRESERVED (the whole point vs. re-entry).
+  assert.equal(next.msrs, 'msr-old,msr-b,msr-c')
+  assert.equal(next.view, 'time-series')
+  assert.equal(next.mp, 'GATE_CD')
+})
+
+test('setFocusedMsr on a deep-link msr with no meas_hist row keeps the existing lot/eq/cap', () => {
+  const query = { lot: 'LOT-old', eq: 'EQ-old', mp: 'WAFER', msr: 'msr-old', msrs: 'msr-old,msr-x', cap: 'T-old', view: 'gallery' }
+  const next = setFocusedMsr(query, 'msr-x', undefined)
+  assert.equal(next.msr, 'msr-x')
+  // undefined identity fields are left UNTOUCHED, not blanked.
+  assert.equal(next.lot, 'LOT-old')
+  assert.equal(next.eq, 'EQ-old')
+  assert.equal(next.cap, 'T-old')
+  assert.equal(next.msrs, 'msr-old,msr-x')
+  assert.equal(next.view, 'gallery')
+})
+
+// Stale-response guard — mirrors useSkewvoirAnalysis.ts:86,89: the focus fetch
+// captures the requested msr before awaiting, and DISCARDS the resolved result
+// when the current URL `msr` has moved on (A→B→A races because fetchMsrFile has
+// only in-flight dedupe, no completed-response cache).
+const shouldDiscardFocusResult = (currentUrlMsr: string | undefined, requestedMsr: string): boolean =>
+  currentUrlMsr !== requestedMsr
+
+test('stale-guard discards a focus result whose requested msr is no longer the current URL msr', () => {
+  // Requested B, but the URL is back on A by the time B resolves → discard B.
+  assert.equal(shouldDiscardFocusResult('msr-a', 'msr-b'), true)
+})
+
+test('stale-guard keeps a focus result whose requested msr still matches the current URL msr', () => {
+  assert.equal(shouldDiscardFocusResult('msr-b', 'msr-b'), false)
 })
 
 // ---------------------------------------------------------------------------
@@ -238,25 +298,33 @@ test('setRows caps the curated set at TREND_LIMIT (30), keeping the leading msrL
   assert.deepEqual(result.map(r => r.msr), ids.slice(0, TREND_LIMIT))
 })
 
-// Mirrors useSkewvoirAnalysis.ts:138-140 (wantSet) — the Dashboard
-// lazy-load invariant: the curated-set batch fetch (fetchMsrFiles) is only
-// wanted for 'time-series' and 'position-stack'; Dashboard, Correlation and
-// Gallery must NOT trigger it (Dashboard uses fetchMsrFile on the focus msr
-// only; Correlation/Gallery consume the same focus file via siteRows — see
-// views/Correlation.vue and views/Gallery.vue, which both read only
-// `analysis.siteRows` / `analysis.focusPending`, never `analysis.setFiles`).
-const wantSet = (activeKind: string): boolean =>
-  activeKind === 'time-series' || activeKind === 'position-stack'
+// UPDATED by Task 3 — mirrors useSkewvoirAnalysis.ts:185-187 (wantSet). The rule
+// was GENERALISED from the hardcoded `time-series | position-stack` set to
+// `scope === 'set' && activeKind !== 'dashboard'`: the curated comparison set is
+// now shared across ALL non-dashboard detail views (position / time-series /
+// correlation / gallery) whenever the analysis is in `set` scope. Dashboard stays
+// excluded to preserve the Task-1 single-measurement lazy-load invariant (no set
+// fan-out), and a `single`-scope screen never triggers the batch fetch either.
+const wantSet = (scope: 'single' | 'set', activeKind: string): boolean =>
+  scope === 'set' && activeKind !== 'dashboard'
 
-test('wantSet lazy-load invariant: only time-series and position-stack trigger the curated-set batch fetch', () => {
-  assert.equal(wantSet('time-series'), true)
-  assert.equal(wantSet('position-stack'), true)
+test('wantSet: under set scope, every non-dashboard detail view triggers the curated-set batch fetch', () => {
+  assert.equal(wantSet('set', 'position-stack'), true)
+  assert.equal(wantSet('set', 'time-series'), true)
+  assert.equal(wantSet('set', 'correlation'), true)
+  assert.equal(wantSet('set', 'gallery'), true)
 })
 
-test('wantSet lazy-load invariant: dashboard, correlation, and gallery do NOT trigger fetchMsrFiles', () => {
-  assert.equal(wantSet('dashboard'), false)
-  assert.equal(wantSet('correlation'), false)
-  assert.equal(wantSet('gallery'), false)
+test('wantSet lazy-load invariant: Dashboard NEVER triggers fetchMsrFiles, even under set scope', () => {
+  assert.equal(wantSet('set', 'dashboard'), false)
+  assert.equal(wantSet('single', 'dashboard'), false)
+})
+
+test('wantSet: under single scope no view triggers the batch fetch (no comparison set to load)', () => {
+  assert.equal(wantSet('single', 'time-series'), false)
+  assert.equal(wantSet('single', 'position-stack'), false)
+  assert.equal(wantSet('single', 'correlation'), false)
+  assert.equal(wantSet('single', 'gallery'), false)
 })
 
 // LIMITATION: Position Stack (views/PositionStack.vue:96-117) synthesizes

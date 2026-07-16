@@ -6,6 +6,8 @@ import { formatRecipeTimestamp } from '~/utils/recipeView'
 import { peerVerdicts, combineVerdicts, DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
 import { overviewSites, type OverviewSites } from '~/utils/overview'
 import { parseWaferGeometry, type WaferGeometry } from '~/utils/waferGeometry'
+import { buildAnalysisManifest, extractSignature, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
+import type { AnalysisManifest, ReferenceDescriptor } from '~/utils/skewvoirAnalysis/types'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -53,30 +55,48 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // --- Single measurement (Dashboard) ---
   const focusFile = ref<MsrFileResponse | null>(null)
   const focusPending = ref(false)
+  // Focus load failure. When set, consumers show an error + retry rather than
+  // keeping the PREVIOUS msr's data rendered as if it were the new focus.
+  const focusError = ref<Error | null>(null)
 
   // Key on the URL msr itself (not the meas-hist row): the backend resolves the
   // parent class_name/total_images on its own, so a deep/shared link still loads
   // even when the row isn't in the currently-loaded meas-hist list. When the row
   // IS known, pass its fields to skip that backend lookup.
-  watch(() => ws.selection.value?.msr, async (msr) => {
+  //
+  // Stale-response guard: A→B→A genuinely races because fetchMsrFile has only
+  // in-flight dedupe, no completed-response cache. We capture the requested msr
+  // before the await and DISCARD the result if the URL focus has moved on.
+  const loadFocus = async (msr: string | undefined) => {
     if (!msr) {
       focusFile.value = null
+      focusError.value = null
       return
     }
+    const requestedMsr = msr
     const row = focusRow.value
     focusPending.value = true
+    focusError.value = null
     try {
-      focusFile.value = await fetchMsrFile({
+      const res = await fetchMsrFile({
         msr,
         className: row?.class_name,
         totalImages: row?.total_images
       })
-    } catch {
+      if (ws.selection.value?.msr !== requestedMsr) return
+      focusFile.value = res
+    } catch (err) {
+      if (ws.selection.value?.msr !== requestedMsr) return
+      focusError.value = err instanceof Error ? err : new Error('focus load failed')
       focusFile.value = null
     } finally {
-      focusPending.value = false
+      if (ws.selection.value?.msr === requestedMsr) focusPending.value = false
     }
-  }, { immediate: true })
+  }
+
+  watch(() => ws.selection.value?.msr, loadFocus, { immediate: true })
+
+  const retryFocus = () => loadFocus(ws.selection.value?.msr)
 
   const paramSummaries = computed<MsrParamSummary[]>(() => focusFile.value?.parameters ?? [])
   const availableParams = computed(() => paramSummaries.value.map(p => p.parameter))
@@ -114,6 +134,29 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusedSequence.value = null
   })
 
+  // Focused canonical site key — shared linked-site state across the analysis
+  // views, carried in the URL `site` param so a shared link restores it. useState
+  // so it survives remounts; seeded from the URL. Its full consumers are later
+  // spatial/gallery tasks; here we own its lifecycle + reset.
+  const focusedSite = useState<string | null>(
+    `skewvoir-focused-site-${ws.toolType}`,
+    () => ws.siteParam.value ?? null
+  )
+  const setFocusedSite = (siteKey: string | null) => {
+    focusedSite.value = siteKey
+    ws.setSite(siteKey)
+  }
+  // The site keys the current focus can address (Phase-1: die identity from
+  // chip_number). When the active parameter or focus group changes and the held
+  // site key is no longer among them, reset the linked site so a stale key from
+  // a different measurement/parameter never lingers.
+  const validSiteKeys = computed(() => new Set(siteRows.value.map(r => r.chip_number)))
+  watch([activeParam, () => ws.selection.value?.msr], () => {
+    if (focusedSite.value && !validSiteKeys.value.has(focusedSite.value)) {
+      setFocusedSite(null)
+    }
+  })
+
   // The B1 overview roll-up (coverage, outlier count, status, table rows) for the
   // ACTIVE parameter. overviewFor() computes the same for any parameter (navigator).
   const activeOverview = computed<OverviewSites>(() =>
@@ -135,12 +178,31 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // --- Curated set (Time-Series + Position Stack), fetched lazily ---
   // Both views consume the same batch-fetched MsrFiles of the URL `msrs` set:
   // Time-Series builds the trend, Position Stack builds the composite map.
+  // The curated comparison set is shared across ALL non-dashboard detail views
+  // under `set` scope (position / time-series / correlation / gallery), so a set
+  // edited in one view is present in the others. Dashboard stays excluded to
+  // preserve the single-measurement lazy-load invariant (no set fan-out).
   const wantSet = computed(() =>
-    ws.activeKind.value === 'time-series' || ws.activeKind.value === 'position-stack'
+    ws.scope.value === 'set' && ws.activeKind.value !== 'dashboard'
   )
 
   // meas_hist row lookup by msr, for resolving the curated set + picker labels.
   const rowByMsr = computed(() => new Map(rows.value.map(r => [r.msr, r])))
+
+  // Move the focus to another MSR in place (no history entry): rewrites the URL
+  // `msr` and the focus identity `lot`/`eq`/`cap` from the new focus's meas_hist
+  // row (so LeftRail never shows a stale identity), while preserving
+  // `msrs`/`view`/`mp`. A deep-link MSR with no row keeps the existing identity.
+  const setFocusedMsr = (msr: string) => {
+    if (!msr || msr === ws.selection.value?.msr) return
+    const row = rowByMsr.value.get(msr)
+    ws.setFocus({
+      msr,
+      lot: row?.lot_id,
+      eq: row?.eqp_id,
+      cap: row?.timestamp
+    })
+  }
 
   // All analyzable measurements — the candidate pool for the Time-Series picker.
   const candidateRows = computed<MeasHistRow[]>(() =>
@@ -231,11 +293,56 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     trendPoints.value.find(p => p.msr === focusRow.value?.msr)?.verdict ?? null
   )
 
+  // --- Cross-MSR compatibility manifest + reference (shared analysis context) ---
+  // The manifest assembles the loaded MSRs — focus first, then the curated set
+  // members (deduped, focus included) — and computes inclusion / exclusion /
+  // groups / readiness against the focus for the active parameter. `requestedMsrs`
+  // is the URL set so `counts.selected` (picked) and `counts.loaded` (fetched)
+  // stay distinct. No siteKeys are passed: the Phase-1 mock carries no canonical
+  // site keys, so layout-dependent readiness stays `unavailable` (intended).
+  const manifest = computed<AnalysisManifest>(() => {
+    const focusMsr = ws.selection.value?.msr ?? ''
+    const focus = focusFile.value
+    if (!focus || !focusMsr) {
+      // No focus loaded yet — a safe, degenerate manifest (never throws).
+      return buildAnalysisManifest(focusMsr, [], activeParam.value, {
+        requestedMsrs: ws.msrList.value
+      })
+    }
+    const sources: SignatureSource[] = [focus]
+    const seen = new Set<string>([focus.msr])
+    for (const file of setFiles.value.values()) {
+      if (seen.has(file.msr)) continue
+      seen.add(file.msr)
+      sources.push(file)
+    }
+    return buildAnalysisManifest(focusMsr, sources, activeParam.value, {
+      requestedMsrs: ws.msrList.value
+    })
+  })
+
+  // The focus MSR described as the reference every candidate is compared against
+  // (consumed by the spatial / sequence / hand-off tasks). Null until a focus
+  // file has loaded.
+  const reference = computed<ReferenceDescriptor | null>(() => {
+    const focus = focusFile.value
+    const focusMsr = ws.selection.value?.msr
+    if (!focus || !focusMsr) return null
+    return {
+      msr: focusMsr,
+      parameter: activeParam.value,
+      scope: manifest.value.scope,
+      signature: extractSignature(focus, activeParam.value)
+    }
+  })
+
   return {
     focusRow,
     fab,
     focusFile,
     focusPending,
+    focusError,
+    retryFocus,
     activeParam,
     availableParams,
     // Re-exported so the Data Summary rows can switch the plotted parameter.
@@ -248,6 +355,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     waferGeo,
     focusedSequence,
     setFocusedSequence,
+    focusedSite,
+    setFocusedSite,
+    setFocusedMsr,
+    scope: ws.scope,
+    manifest,
+    reference,
     activeOverview,
     overviewFor,
     candidateRows,
