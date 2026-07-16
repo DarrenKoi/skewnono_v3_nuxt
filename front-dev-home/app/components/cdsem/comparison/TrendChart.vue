@@ -221,7 +221,9 @@ const palette = computed(() => colorMode.value === 'dark' ? paraColorsDark : par
 const mode = ref<TrendMode>(props.defaultMode)
 
 const svgEl = ref<SVGElement | null>(null)
-const vbW = 320
+// Full mode renders in wide containers (detail modal); a wider viewBox keeps
+// tick/label text at its designed optical size instead of scaling up 2-3x.
+const vbW = computed(() => props.compact ? 320 : 640)
 const vbH = computed(() => props.compact ? 60 : 110)
 
 const displayDates = computed(() => props.trend?.dates ?? [])
@@ -249,8 +251,8 @@ const healthValues = computed<Array<number | null>>(() => {
 
 const xForIndex = (idx: number) => {
   const n = displayDates.value.length
-  if (n <= 1) return vbW / 2
-  return 14 + (vbW - 28) * (idx / (n - 1))
+  if (n <= 1) return vbW.value / 2
+  return 14 + (vbW.value - 28) * (idx / (n - 1))
 }
 
 const yForRatio = (ratio: number) => {

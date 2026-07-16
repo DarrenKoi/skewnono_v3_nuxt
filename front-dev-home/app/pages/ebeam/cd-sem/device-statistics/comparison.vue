@@ -1,38 +1,23 @@
 <template>
   <div class="space-y-3">
-    <EbeamFeatureHeader
+    <EbeamMetaBar
       eyebrow="CD-SEM"
-      :subtitle="text.subtitle"
       :title="text.title"
+      :subtitle="text.subtitle"
+      :stats="metaStats"
+      :as-of="data?.date ?? ''"
     >
-      <template #meta>
-        <span
-          v-if="selectedLots.length > 0"
-          class="self-end mb-1.5 rounded-md bg-zinc-100 px-2 py-1 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-        >
-          {{ text.selected }}: {{ selectedLots.length }}
-        </span>
-      </template>
-
       <template #actions>
-        <div class="flex items-center gap-2">
-          <span
-            v-if="data?.date"
-            class="rounded-md bg-zinc-100 px-2 py-1 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-          >
-            {{ text.latestDate }} {{ data.date }}
-          </span>
-          <UButton
-            size="md"
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-arrow-left"
-            :label="text.back"
-            @click="goBack"
-          />
-        </div>
+        <UButton
+          size="sm"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-arrow-left"
+          :label="text.back"
+          @click="goBack"
+        />
       </template>
-    </EbeamFeatureHeader>
+    </EbeamMetaBar>
 
     <div
       v-if="selectedLots.length === 0"
@@ -61,51 +46,12 @@
 
     <template v-else>
       <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex items-center gap-1.5">
-            <span class="font-mono text-[10px] text-(--sk-ink-muted)">bucket</span>
-            <UPopover>
-              <UButton
-                type="button"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-info"
-                aria-label="Bucket 설명"
-                class="h-6 w-6 rounded-full p-0 text-(--sk-ink-muted)"
-              />
-              <template #content>
-                <div class="w-72 space-y-3 p-3">
-                  <div>
-                    <p class="sk-title">
-                      {{ text.bucketHelpTitle }}
-                    </p>
-                    <p class="mt-1 sk-meta leading-5">
-                      {{ text.bucketHelpIntro }}
-                    </p>
-                  </div>
-                  <dl class="space-y-2">
-                    <div
-                      v-for="option in bucketOptions"
-                      :key="`${option.value}-help`"
-                      class="rounded-md bg-zinc-50 px-2.5 py-2 dark:bg-zinc-900"
-                    >
-                      <dt class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                        {{ option.label }}
-                      </dt>
-                      <dd class="mt-1 sk-meta leading-5">
-                        {{ option.description }}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </template>
-            </UPopover>
-          </div>
+        <div class="space-y-1.5">
+          <span class="font-mono text-[10px] text-(--sk-ink-muted)">bucket</span>
           <div
             role="radiogroup"
             aria-label="Summary bucket"
-            class="flex flex-wrap items-center gap-1"
+            class="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-4"
           >
             <button
               v-for="option in bucketOptions"
@@ -113,13 +59,24 @@
               type="button"
               role="radio"
               :aria-checked="selectedBucket === option.value"
-              class="inline-flex h-7 items-center gap-1 rounded-md px-3 text-[12px] font-medium ring-1 transition-colors"
+              class="rounded-lg px-3 py-2 text-left ring-1 transition-colors"
               :class="selectedBucket === option.value
-                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+                ? 'bg-(--sk-accent-tint) ring-(--sk-accent)'
+                : 'bg-white ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
               @click="selectedBucket = option.value"
             >
-              {{ option.label }}
+              <span
+                class="flex items-center gap-1.5 text-[12px] font-semibold"
+                :class="selectedBucket === option.value ? 'text-(--sk-accent)' : 'text-(--sk-ink)'"
+              >
+                {{ option.label }}
+                <UIcon
+                  v-if="selectedBucket === option.value"
+                  name="i-lucide-check"
+                  class="h-3.5 w-3.5"
+                />
+              </span>
+              <span class="mt-0.5 block text-[11px] leading-4 text-(--sk-ink-muted)">{{ option.description }}</span>
             </button>
           </div>
         </div>
@@ -137,9 +94,7 @@
               role="radio"
               :aria-checked="selectedSort === option.value"
               class="inline-flex h-7 items-center gap-1 rounded-md px-3 text-[12px] font-medium ring-1 transition-colors"
-              :class="selectedSort === option.value
-                ? 'bg-(--sk-accent) text-white ring-(--sk-accent)'
-                : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
+              :class="chipClass(selectedSort === option.value)"
               @click="selectedSort = option.value"
             >
               {{ option.label }}
@@ -229,8 +184,13 @@
           </div>
         </section>
 
-        <CdsemComparisonLotCards
+        <CdsemComparisonLotTable
           :rows="augmentedRows"
+          @select-lot="openLotDetail"
+        />
+        <CdsemComparisonLotDetailModal
+          v-model:open="lotModalOpen"
+          :row="selectedLotRow"
           :bucket="selectedBucket"
           :recipe-rows="recipeRowsForBucket"
           :trend="trend ?? null"
@@ -245,6 +205,9 @@ import type { EChartsOption } from 'echarts'
 import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
 import { summaryToRecipeInfoBucket, type RecipeInfoRow, type SummaryBucketKey, type SummaryRow } from '~/composables/useRecipeStatisticsApi'
 import { augmentSummaryRow, type HealthAugmentedRow } from '~/composables/useLotHealthMock'
+import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
+import { SK_CHART } from '~/utils/chartPalette'
 
 definePageMeta({
   hideFabSidebar: true
@@ -260,7 +223,6 @@ const text = {
   title: '디바이스 분석',
   subtitle: '선택한 Lot의 recipe 파라미터 분포와 운용 레시피수를 확인합니다.',
   back: '돌아가기',
-  latestDate: '최신 데이터',
   loading: '로딩 중',
   loadError: '데이터를 불러오지 못했습니다.',
   noRows: '조건에 맞는 요약 데이터가 없습니다.',
@@ -270,11 +232,14 @@ const text = {
   chartsGroupTitle: '파라미터 비교',
   chartsGroupSubtitle: '선택한 Lot 전체의 분포를 한눈에 봅니다.',
   chartStackedTitle: '파라미터 분포 (스택)',
-  chartAvailRecipeTitle: '운용 레시피수',
-  selected: '선택',
-  bucketHelpTitle: 'Bucket 의미',
-  bucketHelpIntro: 'MMDM recipe step을 어떤 기준으로 모아 볼지 선택합니다.'
+  chartAvailRecipeTitle: '운용 레시피수'
 } as const
+
+const metaStats = computed<MetaBarStat[]>(() =>
+  selectedLots.value.length > 0
+    ? [{ key: 'selected', value: selectedLots.value.length, label: '선택 디바이스', tone: 'accent' }]
+    : []
+)
 
 type BucketOption = { label: string, value: SummaryBucketKey, description: string }
 
@@ -441,6 +406,10 @@ const baseDataZoom = [
 
 const markLineColor = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
 
+// Same para palette as the table's StackedBar cells (dark-aware), so the
+// stacked chart, table, and detail modal all read as one color system.
+const paraPalette = computed(() => colorMode.value === 'dark' ? paraColorsDark : paraColors)
+
 const sigmaLineStyle = computed(() => ({
   type: 'dotted' as const,
   color: markLineColor.value,
@@ -490,18 +459,16 @@ const stackedOption = computed<EChartsOption>(() => ({
     axisLabel: { fontSize: 10, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
   },
   yAxis: baseYAxis,
-  series: [
-    { name: 'para_16', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_16) },
-    { name: 'para_13', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_13) },
-    { name: 'para_9', type: 'bar', stack: 'para', data: sortedRows.value.map(r => r.para_9) },
-    {
-      name: 'para_5',
-      type: 'bar',
-      stack: 'para',
-      data: sortedRows.value.map(r => r.para_5),
-      markLine: buildStatsMarkLine(avgStackTotal.value, stdStackTotal.value)
-    }
-  ]
+  series: paraOrder.map((key, index) => ({
+    name: key,
+    type: 'bar' as const,
+    stack: 'para',
+    itemStyle: { color: paraPalette.value[key] },
+    data: sortedRows.value.map(r => r[key]),
+    ...(index === paraOrder.length - 1
+      ? { markLine: buildStatsMarkLine(avgStackTotal.value, stdStackTotal.value) }
+      : {})
+  }))
 }))
 
 const availRecipeOption = computed<EChartsOption>(() => ({
@@ -517,6 +484,7 @@ const availRecipeOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'avail_recipe',
     type: 'bar',
+    itemStyle: { color: SK_CHART.series },
     data: sortedRows.value.map(r => r.avail_recipe),
     markLine: buildStatsMarkLine(avgAvailRecipe.value, stdAvailRecipe.value)
   }]
@@ -527,6 +495,20 @@ const availRecipeEl = ref<HTMLDivElement | null>(null)
 
 useEchart(stackedEl, stackedOption)
 useEchart(availRecipeEl, availRecipeOption)
+
+const lotModalOpen = ref(false)
+const selectedLotRow = ref<HealthAugmentedRow | null>(null)
+
+const openLotDetail = (row: HealthAugmentedRow) => {
+  selectedLotRow.value = row
+  lotModalOpen.value = true
+}
+
+// Caps (and therefore health/violations) are bucket-dependent, so an open
+// modal would show stale numbers after a bucket switch — close it instead.
+watch(selectedBucket, () => {
+  lotModalOpen.value = false
+})
 
 const goBack = async () => {
   await navigateTo('/ebeam/cd-sem/device-statistics')
