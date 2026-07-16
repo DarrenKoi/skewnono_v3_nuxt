@@ -1,0 +1,253 @@
+<template>
+  <Teleport to="body">
+    <div
+      v-if="open && entry"
+      class="fixed inset-0 z-50 flex bg-black/80"
+      role="dialog"
+      aria-modal="true"
+      @click.self="emit('close')"
+    >
+      <!-- Image stage -->
+      <div class="relative flex min-w-0 flex-1 flex-col">
+        <div class="relative min-h-0 flex-1">
+          <EbeamSkewvoirZoomableImage
+            v-if="entry.image && !failed"
+            :key="entry.image + nonce"
+            :src="src!"
+            :alt="entry.image"
+            class="h-full w-full"
+          />
+          <div
+            v-else
+            class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
+          >
+            <UIcon
+              name="i-lucide-image-off"
+              class="h-8 w-8"
+            />
+            <span class="text-sm">{{ entry.image ? '이미지 로드 실패' : '이미지 없음' }}</span>
+            <button
+              v-if="entry.image"
+              type="button"
+              class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-[11px] text-white/80 hover:text-white"
+              @click="retry"
+            >
+              <UIcon
+                name="i-lucide-rotate-ccw"
+                class="h-3.5 w-3.5"
+              />
+              재시도
+            </button>
+          </div>
+
+          <!-- Prev / next -->
+          <button
+            v-if="entries.length > 1"
+            type="button"
+            class="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
+            aria-label="이전"
+            @click="step(-1)"
+          >
+            <UIcon
+              name="i-lucide-chevron-left"
+              class="h-5 w-5"
+            />
+          </button>
+          <button
+            v-if="entries.length > 1"
+            type="button"
+            class="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
+            aria-label="다음"
+            @click="step(1)"
+          >
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="h-5 w-5"
+            />
+          </button>
+
+          <!-- Physical scale bar (honest: pixel ruler + calibration disclosure). -->
+          <div class="absolute bottom-3 left-3 flex flex-col gap-1 rounded-md bg-black/55 px-2.5 py-1.5 backdrop-blur-sm">
+            <div class="flex items-center gap-1.5">
+              <div class="h-1 w-16 rounded-sm bg-white/90" />
+              <span class="font-mono text-[10px] text-white/85">{{ scaleLabel }}</span>
+            </div>
+            <span class="font-mono text-[9px] text-white/50">{{ scaleNote }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata rail -->
+      <aside class="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-white/10 bg-(--sk-surface) p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="sk-title">
+            이미지 근거
+          </h3>
+          <button
+            type="button"
+            class="rounded-(--sk-r-sidebar) p-1 text-(--sk-ink-muted) hover:text-(--sk-ink)"
+            aria-label="닫기"
+            @click="emit('close')"
+          >
+            <UIcon
+              name="i-lucide-x"
+              class="h-4 w-4"
+            />
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-1">
+          <span
+            v-for="reason in entry.reasons"
+            :key="reason"
+            class="rounded-(--sk-r-sidebar) px-1.5 py-0.5 font-mono text-[10px] font-semibold"
+            :class="roleClass(REASON_META[reason].role)"
+          >{{ REASON_META[reason].label }}</span>
+          <span
+            v-if="entry.monitor?.low"
+            class="rounded-(--sk-r-sidebar) border border-(--sk-border) px-1.5 py-0.5 font-mono text-[10px] text-(--sk-ink-muted)"
+          >취득 점수↓</span>
+        </div>
+
+        <dl class="space-y-1.5">
+          <div
+            v-for="item in meta"
+            :key="item.k"
+            class="flex items-center justify-between gap-2 text-[12px]"
+          >
+            <dt class="text-(--sk-ink-muted)">
+              {{ item.k }}
+            </dt>
+            <dd class="truncate font-mono tabular-nums text-(--sk-ink)">
+              {{ item.v }}
+            </dd>
+          </div>
+        </dl>
+
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-accent)/40 bg-(--sk-accent)/10 px-3 py-1.5 font-mono text-[11px] font-medium text-(--sk-accent) transition-colors hover:bg-(--sk-accent)/20"
+          @click="emit('moveToSite', entry.chip)"
+        >
+          <UIcon
+            name="i-lucide-crosshair"
+            class="h-3.5 w-3.5"
+          />
+          wafer 위치 이동
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-[11px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+          @click="emit('evidence', entry)"
+        >
+          <UIcon
+            name="i-lucide-layers"
+            class="h-3.5 w-3.5"
+          />
+          측정 근거 레이어
+        </button>
+
+        <p class="mt-auto font-mono text-[10px] text-(--sk-ink-subtle)">
+          {{ index + 1 }} / {{ entries.length }} · ← → 로 이동
+        </p>
+      </aside>
+    </div>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import type { WaferGeometry } from '~/utils/waferGeometry'
+import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+
+const props = defineProps<{
+  open: boolean
+  entries: ReviewEntry[]
+  index: number
+  geo: WaferGeometry
+}>()
+const emit = defineEmits<{
+  'close': []
+  'update:index': [value: number]
+  'moveToSite': [chip: string]
+  'evidence': [entry: ReviewEntry]
+}>()
+
+const { msrImageUrl } = useMsrFileApi()
+
+const entry = computed<ReviewEntry | null>(() => props.entries[props.index] ?? null)
+
+const failed = ref(false)
+const nonce = ref(0)
+const src = computed(() => {
+  const name = entry.value?.image
+  if (!name) return null
+  const base = msrImageUrl(name)
+  return nonce.value > 0 ? `${base}${base.includes('?') ? '&' : '?'}_r=${nonce.value}` : base
+})
+const retry = () => {
+  failed.value = false
+  nonce.value++
+}
+
+const step = (delta: number) => {
+  if (props.entries.length === 0) return
+  const next = (props.index + delta + props.entries.length) % props.entries.length
+  emit('update:index', next)
+}
+
+// A new image resets the per-image error state.
+watch(() => entry.value?.image, () => {
+  failed.value = false
+  nonce.value = 0
+})
+
+// Physical scale bar. Phase-1 metadata carries image RESOLUTION
+// (meas_condition_pixel) but no field-of-view, so a true nm/pixel calibration
+// cannot be derived — we render a pixel ruler and disclose that, rather than
+// fabricate a physical length.
+const pixelDims = computed(() => entry.value?.pixel ?? '')
+const scaleLabel = computed(() => {
+  const w = Number(pixelDims.value.split(',')[0])
+  return Number.isFinite(w) && w > 0 ? `${Math.round(w / 8)} px` : '— px'
+})
+const scaleNote = computed(() => `해상도 ${pixelDims.value || '—'} · 물리 보정 미제공`)
+
+const meta = computed(() => {
+  const e = entry.value
+  if (!e) return []
+  const items: { k: string, v: string }[] = [
+    { k: 'chip / MP', v: `${e.chip} · MP${e.mp}` },
+    { k: 'sequence', v: String(e.sequence) },
+    { k: e.parameter, v: e.value != null ? `${e.value.toFixed(2)}${e.unit ? ' ' + e.unit : ''}` : '실패' }
+  ]
+  if (e.residual != null) items.push({ k: '국소 잔차', v: `${e.residual >= 0 ? '+' : ''}${e.residual.toFixed(2)}${e.unit ? ' ' + e.unit : ''}` })
+  items.push({ k: '배율', v: e.mag ? `${e.mag.toLocaleString()}x` : '—' })
+  items.push({ k: '진공', v: e.vac ? String(e.vac) : '—' })
+  if (e.monitor) {
+    items.push({ k: '측정 점수', v: e.monitor.measurementScore != null ? String(e.monitor.measurementScore) : '—' })
+  }
+  return items
+})
+
+const roleClass = (role: 'bad' | 'warn' | 'muted'): string => {
+  if (role === 'bad') return 'bg-(--sk-bad)/90 text-white'
+  if (role === 'warn') return 'bg-(--sk-warn)/90 text-black'
+  return 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'
+}
+
+// Keyboard nav — arrows step, Esc closes — only while open.
+const onKey = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') emit('close')
+  else if (e.key === 'ArrowLeft') step(-1)
+  else if (e.key === 'ArrowRight') step(1)
+}
+watch(() => props.open, (isOpen) => {
+  if (!import.meta.client) return
+  if (isOpen) window.addEventListener('keydown', onKey)
+  else window.removeEventListener('keydown', onKey)
+})
+onBeforeUnmount(() => {
+  if (import.meta.client) window.removeEventListener('keydown', onKey)
+})
+</script>
