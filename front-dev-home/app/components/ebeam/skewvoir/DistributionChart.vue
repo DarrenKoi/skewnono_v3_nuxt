@@ -13,14 +13,29 @@ import { paramValues } from '~/utils/msrRows'
 import { mean as meanOf, quantileSorted, iqrFences } from '~/utils/stats'
 import { SK_CHART } from '~/utils/chartPalette'
 
-// CD distribution for one parameter, in three shapes: histogram, box plot, or a
-// (mirrored-density) violin. The active shape is driven by the panel's toggle.
+// One group's raw values for the grouped box/violin comparison.
+export interface DistributionGroup {
+  label: string
+  values: number[]
+}
+
+// CD distribution for one parameter, in four shapes: histogram, ECDF, box plot,
+// or a (mirrored-density) violin. The active shape is driven by the panel toggle.
+//
+// Value source (first that is set wins):
+//   • `groups` — per-group value lists; Box renders one box per group (the group
+//     distribution). Hist/ECDF/Violin pool the groups' values.
+//   • `values` — an explicit value list (the exact-pair explorer passes the
+//     paired Y values so the marginal matches the active query, not all rows).
+//   • `rows` + `parameter` — the legacy path (the `set` branch), unchanged.
 const props = withDefaults(defineProps<{
-  rows: MsrFileRow[]
-  parameter: string
+  rows?: MsrFileRow[]
+  parameter?: string
   unit: string
-  // 'Hist' | 'Box' | 'Violin' — kept as a plain string so callers can bind the
-  // PanelFrame toggle value directly without an in-template type cast.
+  values?: number[]
+  groups?: DistributionGroup[]
+  // 'Hist' | 'ECDF' | 'Box' | 'Violin' — kept as a plain string so callers can
+  // bind the PanelFrame toggle value directly without an in-template type cast.
   mode?: string
   // Chart height utility. Defaults to a fixed h-72; the dashboard passes h-full
   // so the chart fills a flex panel.
@@ -32,7 +47,12 @@ const props = withDefaults(defineProps<{
 
 const BIN_COUNT = 12
 
-const values = computed(() => paramValues(props.rows, props.parameter))
+// Pooled values — the flat list every non-grouped shape reads from.
+const values = computed<number[]>(() => {
+  if (props.groups) return props.groups.flatMap(g => g.values).filter(v => Number.isFinite(v))
+  if (props.values) return props.values.filter(v => Number.isFinite(v))
+  return paramValues(props.rows ?? [], props.parameter ?? '')
+})
 
 // null, not 0: an empty parameter has no mean to mark. A markline/label
 // consumer must suppress rendering on null rather than plotting a fabricated
@@ -59,11 +79,9 @@ const bins = computed(() => {
   return { centers, counts }
 })
 
-// Five-number summary with Tukey-fenced whiskers. Unlike the MDC fleet boxplot
-// (boxplotStats.ts), a CD distribution has hundreds of sites, so fencing surfaces
-// genuine outliers instead of hiding real tools.
-const boxStats = computed(() => {
-  const sorted = [...values.value].sort((a, b) => a - b)
+// Five-number summary with Tukey-fenced whiskers for a set of values.
+const fiveNumber = (vals: number[]): number[] | null => {
+  const sorted = [...vals].sort((a, b) => a - b)
   if (sorted.length === 0) return null
   const f = iqrFences(sorted)!
   const inliers = sorted.filter(v => v >= f.lower && v <= f.upper)
@@ -74,6 +92,15 @@ const boxStats = computed(() => {
     f.q3,
     inliers[inliers.length - 1] ?? sorted[sorted.length - 1]!
   ]
+}
+
+// ECDF: sorted value → cumulative proportion (i+1)/n, drawn as a step line. The
+// default comparison candidate alongside the histogram — it reads the shape of a
+// distribution (and shifts between groups) without binning artefacts.
+const ecdfPoints = computed<[number, number][]>(() => {
+  const sorted = [...values.value].sort((a, b) => a - b)
+  const n = sorted.length
+  return sorted.map((v, i) => [v, (i + 1) / n])
 })
 
 const histOption = computed<EChartsOption>(() => ({
@@ -83,7 +110,7 @@ const histOption = computed<EChartsOption>(() => ({
     type: 'category',
     data: bins.value.centers.map(c => c.toFixed(1)),
     axisLabel: { fontSize: 11 },
-    name: props.unit ? `${props.parameter} (${props.unit})` : props.parameter,
+    name: props.unit ? `${label.value} (${props.unit})` : label.value,
     nameLocation: 'middle',
     nameGap: 26,
     nameTextStyle: { fontSize: 11 }
@@ -97,30 +124,92 @@ const histOption = computed<EChartsOption>(() => ({
   }]
 }))
 
-const boxOption = computed<EChartsOption>(() => ({
-  tooltip: { trigger: 'item' },
-  grid: { left: 48, right: 16, top: 24, bottom: 28, containLabel: true },
-  xAxis: { type: 'category', data: [props.parameter], axisLabel: { fontSize: 11 } },
-  yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 11 }, name: props.unit, nameTextStyle: { fontSize: 11 } },
+const ecdfOption = computed<EChartsOption>(() => ({
+  tooltip: {
+    trigger: 'axis',
+    formatter: (params) => {
+      const p = (Array.isArray(params) ? params[0] : params) as { value: number[] }
+      const v = p.value
+      return `${label.value}: <b>${v[0]?.toFixed(3)}</b><br/>F(x): <b>${((v[1] ?? 0) * 100).toFixed(0)}%</b>`
+    }
+  },
+  grid: { left: 40, right: 16, top: 24, bottom: 28, containLabel: true },
+  xAxis: {
+    type: 'value',
+    scale: true,
+    name: props.unit ? `${label.value} (${props.unit})` : label.value,
+    nameLocation: 'middle',
+    nameGap: 24,
+    nameTextStyle: { fontSize: 11 },
+    axisLabel: { fontSize: 11 }
+  },
+  yAxis: { type: 'value', min: 0, max: 1, axisLabel: { fontSize: 11, formatter: (v: number) => `${(v * 100).toFixed(0)}%` }, name: 'F(x)', nameTextStyle: { fontSize: 11 } },
   series: [{
-    type: 'boxplot',
-    data: boxStats.value ? [boxStats.value] : [],
-    itemStyle: { color: SK_CHART.sand, borderColor: SK_CHART.series }
+    type: 'line',
+    step: 'end',
+    showSymbol: false,
+    lineStyle: { color: SK_CHART.series, width: 1.5 },
+    areaStyle: { color: SK_CHART.seriesSoft, opacity: 0.35 },
+    data: ecdfPoints.value
   }]
 }))
 
-// Violin: mirror the binned density around the value axis (±count/2).
+// Box plot. With `groups` it renders one box PER group (the group distribution);
+// otherwise a single box. Raw points are overlaid (jittered) and the N of each
+// category is carried in the axis label, per the spec's "raw points or N".
+const boxCategories = computed<{ label: string, values: number[] }[]>(() => {
+  if (props.groups) return props.groups
+  return [{ label: props.parameter ?? label.value, values: values.value }]
+})
+
+const boxOption = computed<EChartsOption>(() => {
+  const cats = boxCategories.value
+  const boxData = cats.map(c => fiveNumber(c.values)).filter((d): d is number[] => d != null)
+  // Jittered raw points per category index — the honest overlay of every value.
+  const rawPoints: [number, number][] = []
+  cats.forEach((c, i) => {
+    for (const v of c.values) rawPoints.push([i + (Math.random() - 0.5) * 0.3, v])
+  })
+  return {
+    tooltip: { trigger: 'item' },
+    grid: { left: 48, right: 16, top: 24, bottom: 34, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: cats.map(c => `${c.label} (n=${c.values.length})`),
+      axisLabel: { fontSize: 11, interval: 0 }
+    },
+    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 11 }, name: props.unit, nameTextStyle: { fontSize: 11 } },
+    series: [
+      {
+        type: 'boxplot',
+        data: boxData,
+        itemStyle: { color: SK_CHART.sand, borderColor: SK_CHART.series }
+      },
+      {
+        type: 'scatter',
+        symbolSize: 4,
+        itemStyle: { color: SK_CHART.brand, opacity: 0.35 },
+        data: rawPoints,
+        tooltip: { show: false }
+      }
+    ]
+  }
+})
+
+// Violin: mirror the binned density around the value axis (±count/2). Pools any
+// groups. The sample N is annotated so a thin violin is never misread as certain.
 const violinOption = computed<EChartsOption>(() => {
   const { centers, counts } = bins.value
   const top = centers.map((c, i) => [c, counts[i]! / 2])
   const bottom = centers.map((c, i) => [c, -counts[i]! / 2])
   return {
     tooltip: { trigger: 'axis' },
+    title: { text: `n = ${values.value.length}`, right: 8, top: 4, textStyle: { fontSize: 11, color: SK_CHART.muted } },
     grid: { left: 36, right: 16, top: 24, bottom: 28, containLabel: true },
     xAxis: {
       type: 'value',
       scale: true,
-      name: props.unit ? `${props.parameter} (${props.unit})` : props.parameter,
+      name: props.unit ? `${label.value} (${props.unit})` : label.value,
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { fontSize: 11 },
@@ -134,7 +223,12 @@ const violinOption = computed<EChartsOption>(() => {
   }
 })
 
+// Axis label: the parameter name, falling back to a neutral '값' for the
+// explicit-values / grouped paths that carry no single parameter identity.
+const label = computed(() => props.parameter || '값')
+
 const option = computed<EChartsOption>(() => {
+  if (props.mode === 'ECDF') return ecdfOption.value
   if (props.mode === 'Box') return boxOption.value
   if (props.mode === 'Violin') return violinOption.value
   return histOption.value
