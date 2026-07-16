@@ -3,7 +3,7 @@
 from typing import Any
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.afm.providers.mock import AfmMeasurementRow
+from back_dev_home.afm.contracts import AfmMeasurementRow
 
 
 __all__ = [

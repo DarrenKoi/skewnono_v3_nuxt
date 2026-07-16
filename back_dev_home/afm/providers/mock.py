@@ -15,7 +15,9 @@ import math
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Any, TypedDict
+from typing import Any
+
+from back_dev_home.afm.contracts import AfmMeasurementRow
 
 
 __all__ = [
@@ -29,38 +31,6 @@ __all__ = [
     "list_user_activities",
     "get_user_analytics",
 ]
-
-
-class AfmMeasurementRow(TypedDict):
-    unique_key: str
-    filename: str
-    date: str
-    formatted_date: str
-    recipe_name: str
-    lot_id: str
-    slot_number: str
-    time: str
-    measured_info: str
-    tool_name: str
-    tool_id: str
-    fab: str
-    profile_dir_list: list[str]
-    data_dir_list: list[str]
-    tiff_dir_list: list[str]
-    align_dir_list: list[str]
-    tip_dir_list: list[str]
-    capture_dir_list: list[str]
-    has_profile: bool
-    has_data: bool
-    has_image: bool
-    has_align: bool
-    has_tip: bool
-    hasProfile: bool
-    hasData: bool
-    hasImage: bool
-    hasAlign: bool
-    hasTip: bool
-    point_count: int
 
 
 ToolConfig = dict[str, Any]
