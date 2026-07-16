@@ -40,11 +40,15 @@
             :key="field.label"
             class="flex items-baseline justify-between gap-2"
           >
-            <dt class="sk-label">{{ field.label }}</dt>
+            <dt class="sk-label">
+              {{ field.label }}
+            </dt>
             <dd
               class="truncate font-mono text-(--sk-ink)"
               :class="{ 'font-semibold': field.strong }"
-            >{{ field.value }}</dd>
+            >
+              {{ field.value }}
+            </dd>
           </div>
         </dl>
 
