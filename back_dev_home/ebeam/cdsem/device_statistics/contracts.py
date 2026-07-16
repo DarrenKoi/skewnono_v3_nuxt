@@ -93,23 +93,31 @@ class SummaryRow(TypedDict):
     avail_recipe_percent: float
 
 
-class TrendBucket(TypedDict, total=False):
+class _TrendBucketSummary(TypedDict):
+    """The four `*_summary` keys returned in BOTH trend route modes."""
+
+    all_summary: list[SummaryRow]
+    only_normal_summary: list[SummaryRow]
+    mother_normal_summary: list[SummaryRow]
+    only_sample_summary: list[SummaryRow]
+
+
+class TrendBucket(_TrendBucketSummary, total=False):
     """One weekly-trend date entry, as returned by get_weekly_trend_data().
 
-    All keys are optional (`total=False`): `recipe-trend` calls with
-    `include_recipes=False` and only gets the four `*_summary` keys back;
-    `recipe-statistics` calls with the default `include_recipes=True` and
-    gets all eight keys (four `*_rcp_info` + four `*_summary`).
+    The four `*_summary` keys (inherited, required) are always present:
+    `recipe-trend` calls with `include_recipes=False` and gets only those;
+    `recipe-statistics` calls with the default `include_recipes=True` and gets
+    all eight. The four `*_rcp_info` keys are recipe-detail-only, hence
+    optional here — but an empty `{}` can no longer pass the gate. (Base-class
+    + total False is used instead of NotRequired because this module enables
+    `from __future__ import annotations`.)
     """
 
     all_rcp_info: list[RecipeInfoRow]
-    all_summary: list[SummaryRow]
     only_normal_rcp_info: list[RecipeInfoRow]
-    only_normal_summary: list[SummaryRow]
     mother_normal_rcp_info: list[RecipeInfoRow]
-    mother_normal_summary: list[SummaryRow]
     only_sample_rcp_info: list[RecipeInfoRow]
-    only_sample_summary: list[SummaryRow]
 
 
 class ParameterRow(TypedDict):

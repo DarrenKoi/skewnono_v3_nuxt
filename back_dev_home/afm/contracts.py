@@ -62,6 +62,10 @@ class AfmFileDetail(TypedDict):
     pickle_filename: str
     information: dict[str, str]
     summary: list[dict[str, Any]]
+    # Frontend-required: available_points feeds the point picker; data carries
+    # the per-site measurement rows the profile view reads.
+    available_points: list[str]
+    data: list[dict[str, Any]]
 
 
 class AfmProfilePoint(TypedDict):

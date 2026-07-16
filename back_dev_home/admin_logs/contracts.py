@@ -8,7 +8,10 @@ from typing import Any, TypedDict
 __all__ = ["LogItem", "LogQueryResponse"]
 
 
-class LogItem(TypedDict, total=False):
+class LogItem(TypedDict):
+    # Every key is always emitted by _item_from_hit(); values may be None for
+    # source fields that are absent, but the key itself is a stable part of the
+    # contract, so office payloads must carry all of them.
     id: str
     index: str
     timestamp: str | None
