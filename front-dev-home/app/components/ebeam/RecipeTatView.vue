@@ -435,6 +435,10 @@ const tatSummaryItems = computed(() => buildTatSummaryItems({
 
 // Daily trend line
 
+// Shared theme palette so the two TAT charts read as distinct hues while
+// staying theme-aware: bar = palette[0], trend = palette[1].
+const { palette } = useEchartsTheme()
+
 const trendEl = ref<HTMLDivElement | null>(null)
 
 const trendOption = computed<EChartsOption>(() => ({
@@ -453,7 +457,7 @@ const trendOption = computed<EChartsOption>(() => ({
       ].join('<br/>')
     }
   },
-  grid: { left: 8, right: 16, top: 12, bottom: 28, containLabel: true },
+  grid: { left: 8, right: 24, top: 12, bottom: 28, containLabel: true },
   xAxis: {
     type: 'category',
     data: trendPoints.value.map(p => p.date),
@@ -473,12 +477,14 @@ const trendOption = computed<EChartsOption>(() => ({
     type: 'line',
     smooth: true,
     showSymbol: false,
-    areaStyle: { opacity: 0.18 },
+    itemStyle: { color: palette.value[1] },
+    lineStyle: { color: palette.value[1] },
+    areaStyle: { color: palette.value[1], opacity: 0.18 },
     data: trendPoints.value.map(p => p.total_meastime)
   }]
 }))
 
-useEchart(trendEl, trendOption)
+useEchart(trendEl, trendOption, { exportName: 'daily-tat-trend' })
 
 // Table
 
@@ -596,7 +602,7 @@ const barOption = computed<EChartsOption>(() => {
         ].join('<br/>')
       }
     },
-    grid: { left: 8, right: 24, top: 8, bottom: 24, containLabel: true },
+    grid: { left: 8, right: 24, top: 12, bottom: 28, containLabel: true },
     xAxis: {
       type: 'value',
       axisLabel: {
@@ -613,12 +619,12 @@ const barOption = computed<EChartsOption>(() => {
       type: 'bar',
       data: reversed.map(r => r[metric.id]),
       barMaxWidth: 18,
-      itemStyle: { borderRadius: [0, 4, 4, 0] }
+      itemStyle: { color: palette.value[0], borderRadius: [0, 4, 4, 0] }
     }]
   }
 })
 
-useEchart(barEl, barOption)
+useEchart(barEl, barOption, { exportName: 'top-recipe-by-tat' })
 
 const totalForShare = computed(
   () => rankingRows.value.reduce((sum, row) => sum + row.total_meastime, 0)
