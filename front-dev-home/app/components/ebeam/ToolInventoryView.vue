@@ -54,16 +54,17 @@
           :items="modelFilterOptions"
         />
 
-        <UButton
-          size="sm"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-clipboard"
-          aria-label="표를 클립보드에 복사"
-          title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
-          :disabled="filteredRows.length === 0"
-          @click="copyTable"
-        />
+        <UTooltip text="클립보드 복사">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-clipboard"
+            aria-label="표를 클립보드에 복사"
+            :disabled="filteredRows.length === 0"
+            @click="copyTable"
+          />
+        </UTooltip>
 
         <UButton
           size="sm"

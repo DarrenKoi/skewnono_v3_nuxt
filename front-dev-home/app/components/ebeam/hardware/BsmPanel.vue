@@ -13,16 +13,17 @@
         />
         <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
       </div>
-      <UButton
-        icon="i-lucide-clipboard"
-        size="xs"
-        color="neutral"
-        variant="outline"
-        aria-label="표를 클립보드에 복사"
-        title="표를 클립보드에 복사 (엑셀에 붙여넣기)"
-        :disabled="filteredDocs.length === 0"
-        @click="copyScalarsTable"
-      />
+      <UTooltip text="클립보드 복사">
+        <UButton
+          icon="i-lucide-clipboard"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          aria-label="표를 클립보드에 복사"
+          :disabled="filteredDocs.length === 0"
+          @click="copyScalarsTable"
+        />
+      </UTooltip>
       <UButton
         icon="i-lucide-download"
         size="xs"

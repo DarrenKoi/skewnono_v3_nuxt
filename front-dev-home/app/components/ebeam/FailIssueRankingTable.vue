@@ -23,6 +23,17 @@
           size="xs"
           :items="pageSizeOptions"
         />
+        <UTooltip text="클립보드 복사">
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-clipboard"
+            aria-label="표를 클립보드에 복사"
+            :disabled="sortedRows.length === 0"
+            @click="emitCopy"
+          />
+        </UTooltip>
         <UButton
           size="xs"
           color="neutral"
@@ -126,6 +137,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   download: [rows: T[]]
+  copy: [rows: T[]]
 }>()
 
 const search = ref('')
@@ -198,5 +210,9 @@ watch([search, pageSize, sorting, () => props.resetKey], () => {
 
 const emitDownload = () => {
   emit('download', sortedRows.value)
+}
+
+const emitCopy = () => {
+  emit('copy', sortedRows.value)
 }
 </script>
