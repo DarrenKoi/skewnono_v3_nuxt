@@ -144,3 +144,71 @@ git commit -m "settings: translate explanations into Korean"
 ```
 
 Expected: One commit containing only the five implementation files and this plan.
+
+### Task 2: Split Appearance and ECharts theme into vertical cards
+
+**Files:**
+- Modify: `front-dev-home/app/pages/settings.vue`
+
+**Interfaces:**
+- Consumes: Existing `SettingsColorModeSelector` and `SettingsEchartThemeSelector` components.
+- Produces: Two vertically stacked settings cards without changing either selector's behavior.
+
+- [ ] **Step 1: Verify both selectors currently share one card**
+
+Run:
+
+```bash
+sed -n '8,30p' front-dev-home/app/pages/settings.vue
+```
+
+Expected: `SettingsColorModeSelector` and `SettingsEchartThemeSelector` appear inside the same `UCard`.
+
+- [ ] **Step 2: Separate the cards**
+
+Keep `SettingsColorModeSelector` inside the existing `Appearance` card. Close that card after the selector, then add a second `UCard` with an `ECharts theme` header containing only `SettingsEchartThemeSelector`.
+
+```vue
+<UCard class="dashboard-surface rounded-3xl">
+  <template #header>
+    <h2 class="sk-title">
+      Appearance
+    </h2>
+  </template>
+
+  <SettingsColorModeSelector />
+</UCard>
+
+<UCard class="dashboard-surface rounded-3xl">
+  <template #header>
+    <h2 class="sk-title">
+      ECharts theme
+    </h2>
+  </template>
+
+  <SettingsEchartThemeSelector />
+</UCard>
+```
+
+- [ ] **Step 3: Run frontend validation**
+
+Run:
+
+```bash
+npm run lint --prefix front-dev-home
+npm run typecheck --prefix front-dev-home
+git diff --check -- front-dev-home/app/pages/settings.vue docs/superpowers/plans/2026-07-16-settings-korean-explanations.md
+```
+
+Expected: All commands exit with status 0.
+
+- [ ] **Step 4: Commit the card split**
+
+Run:
+
+```bash
+git add front-dev-home/app/pages/settings.vue docs/superpowers/plans/2026-07-16-settings-korean-explanations.md
+git commit -m "settings: separate appearance theme cards"
+```
+
+Expected: One commit containing only the settings page and updated implementation plan.

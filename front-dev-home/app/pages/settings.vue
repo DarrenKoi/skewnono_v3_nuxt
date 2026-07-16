@@ -15,11 +15,17 @@
           </h2>
         </template>
 
-        <div class="space-y-6">
-          <SettingsColorModeSelector />
+        <SettingsColorModeSelector />
+      </UCard>
 
-          <SettingsEchartThemeSelector />
-        </div>
+      <UCard class="dashboard-surface rounded-3xl">
+        <template #header>
+          <h2 class="sk-title">
+            ECharts theme
+          </h2>
+        </template>
+
+        <SettingsEchartThemeSelector />
       </UCard>
 
       <div id="api-tokens">
