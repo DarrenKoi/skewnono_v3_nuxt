@@ -24,6 +24,14 @@
 
 데이터 흐름, 상태 저장, API 호출, 접근성 속성, 레이아웃은 변경하지 않습니다. About 카드가 사라지고 기존 설명 문구만 한국어로 표시됩니다.
 
+## Appearance 카드 분리
+
+- `SettingsColorModeSelector`는 `Appearance` 카드에 단독으로 배치합니다.
+- `SettingsEchartThemeSelector`는 별도의 `ECharts theme` 카드에 단독으로 배치합니다.
+- 두 카드는 설정 페이지에서 세로로 배치하고 기존 카드 간격을 유지합니다.
+- 두 선택기 컴포넌트의 상태 저장과 선택 동작은 변경하지 않습니다.
+- 카드 분리 외의 레이아웃과 문구는 변경하지 않습니다.
+
 ## 확인 방법
 
 - `front-dev-home/`에서 `npm run lint`를 실행합니다.
