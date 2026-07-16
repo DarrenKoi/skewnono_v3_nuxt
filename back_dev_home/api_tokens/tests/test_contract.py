@@ -27,6 +27,14 @@ def test_create_then_revoke_roundtrip():
     try:
         payload = {"token": view, "plaintext": plaintext}
         assert_matches(payload, CreateTokenResponse)
+
+        # Bearer-auth path (store-coupled): the freshly-created plaintext must
+        # resolve to a token, a bogus secret must not, and the last-used write
+        # must not raise. A CRUD-only gate would miss that these enforcement
+        # functions were switched alongside create/revoke.
+        assert data.find_by_plaintext(plaintext) is not None
+        assert data.find_by_plaintext("sknn_not-a-real-token") is None
+        data.touch_last_used(view["id"])
     finally:
         token_id = view["id"]
         assert data.revoke_token("contract-gate-user", token_id) is True

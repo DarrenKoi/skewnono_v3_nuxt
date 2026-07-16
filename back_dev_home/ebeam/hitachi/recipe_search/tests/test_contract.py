@@ -19,12 +19,12 @@ def test_recipe_catalog_matches_contract():
 
 
 def test_recipe_open_and_compare_match_contract():
+    # Prefer a real catalog recipe, but never silently skip on an empty catalog
+    # — get_recipe_open_data accepts any id, so a deterministic fallback keeps
+    # detail/compare exercised even when the catalog is empty.
     catalog = data.get_recipe_catalog("cd-sem")
     rows = catalog["rows"]
-    if not rows:
-        return
-
-    recipe_name = rows[0]
+    recipe_name = rows[0] if rows else "RECIPE-CONTRACT-0001"
 
     detail = data.get_recipe_open_data(recipe_id=recipe_name)
     assert_matches(detail, RecipeDetailResponse)

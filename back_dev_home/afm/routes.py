@@ -46,7 +46,7 @@ def afm_file_detail(filename: str):
         return jsonify({
             "success": False,
             "error": "Measurement file not found",
-            "message": f"No mock AFM measurement found for {decoded_filename}",
+            "message": f"No AFM measurement found for {decoded_filename}",
             "tool": tool_name
         }), 404
 
@@ -74,7 +74,7 @@ def afm_profile(filename: str, point: str):
         return jsonify({
             "success": False,
             "error": "Profile file not found",
-            "message": f"No mock profile found for {decoded_filename}, point {decoded_point}",
+            "message": f"No profile found for {decoded_filename}, point {decoded_point}",
             "tool": tool_name
         }), 404
 
@@ -99,7 +99,7 @@ def afm_image(filename: str, point: str):
         return jsonify({
             "success": False,
             "error": "Image file not found",
-            "message": f"No mock image found for {decoded_filename}, point {decoded_point}",
+            "message": f"No image found for {decoded_filename}, point {decoded_point}",
             "tool": tool_name
         }), 404
 
@@ -114,11 +114,11 @@ def afm_image(filename: str, point: str):
         "success": True,
         "data": {
             "filename": f"{decoded_filename}_{decoded_point}_Height.svg",
-            "relative_path": f"mock/{decoded_filename}_{decoded_point}_Height.svg",
+            "relative_path": f"{decoded_filename}_{decoded_point}_Height.svg",
             "url": image_url
         },
         "tool": tool_name,
-        "message": f"Successfully found mock image for {decoded_filename}, point {decoded_point}"
+        "message": f"Successfully found image for {decoded_filename}, point {decoded_point}"
     })
 
 
@@ -145,7 +145,7 @@ def afm_activities():
         "success": True,
         "data": activities,
         "count": len(activities),
-        "message": f"Retrieved {len(activities)} mock AFM activities"
+        "message": f"Retrieved {len(activities)} AFM activities"
     })
 
 
@@ -158,7 +158,7 @@ def afm_my_activities():
         "user": user,
         "data": activities,
         "count": len(activities),
-        "message": f"Retrieved {len(activities)} mock AFM activities for {user}"
+        "message": f"Retrieved {len(activities)} AFM activities for {user}"
     })
 
 
@@ -178,7 +178,7 @@ def afm_analytics():
     return jsonify({
         "success": True,
         "data": get_user_analytics(days),
-        "message": f"Mock user analytics for the last {days} days"
+        "message": f"User analytics for the last {days} days"
     })
 
 

@@ -1,9 +1,14 @@
-"""Office hardware provider.
+"""Office hardware provider — NOT CONNECTED YET.
 
-Wire OpenSearch, Redis, files, or internal APIs here. Keep source-specific keys
-inside this module and `normalizers.py`; the route must keep returning the
-canonical hardware contract. New raw-doc services (bsm/reso-center/fdc/mdc/sce)
-are stubbed unavailable until office data is wired.
+Wire OpenSearch, Redis, files, or internal APIs here per hardware/MIGRATION.md,
+then normalize each service's raw docs to the canonical HardwarePayload using
+``normalizers.py`` (bm_pm_payload / unavailable_payload are ready for that).
+
+Until every service has a real source, this adapter FAILS FAST: returning empty
+placeholders here (the previous behaviour) let office mode silently report
+services as available with blank/zero data, so flipping SKEWNONO_HARDWARE_PROVIDER
+to office looked connected when it was not. Fail fast so the gate and the app
+surface the missing wiring instead of hiding it.
 """
 
 from datetime import datetime
@@ -12,20 +17,13 @@ from back_dev_home.ebeam.hitachi.hardware.contracts import (
     HardwarePayload,
     ServiceKey,
 )
-from back_dev_home.ebeam.hitachi.hardware.normalizers import (
-    bm_pm_payload,
-    unavailable_payload,
-)
 
 
-_OFFICE_PENDING: dict[str, str] = {
-    "bsm": "BSM beam_shape office wiring is pending.",
-    "reso-center": "Reso Center office wiring is pending.",
-    "fdc": "FDC office wiring is pending.",
-    "mdc": "MDC office wiring is pending.",
-    "sce": "SCE office wiring is pending.",
-    "sharpness": "Sharpness office wiring is pending.",
-}
+def _not_connected() -> HardwarePayload:
+    raise NotImplementedError(
+        "The hardware office adapter has not been connected yet. "
+        "Set SKEWNONO_HARDWARE_PROVIDER=mock until it is ready."
+    )
 
 
 def get_hardware_service(
@@ -36,18 +34,4 @@ def get_hardware_service(
     start: datetime,
     end: datetime,
 ) -> HardwarePayload:
-    _ = (start, end)
-    if service == "bm-pm":
-        return bm_pm_payload(
-            tool_slug,
-            eqp_id,
-            fab_name,
-            last_bm_date="",
-            next_pm_date="",
-            pm_window_hours=0,
-            open_work_orders=0,
-        )
-    return unavailable_payload(
-        service, tool_slug, eqp_id, fab_name,
-        _OFFICE_PENDING.get(service, f"{service} office wiring is pending."),
-    )
+    return _not_connected()
