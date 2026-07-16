@@ -70,7 +70,7 @@
   recipe_version per (eqp_id, recipe_name) -->
 - Cross-feature note: the mock derives the EQP population from
   `sem_list.data.get_sem_list()` so the table always lists the same
-  `eqp_id`s as the 장비 리스트 (tool inventory) view for the same
+  `eqp_id`s as the tool inventory view for the same
   tool/fab. An office implementation should preserve that invariant — the
   `rows` returned here should agree with whatever office source backs
   `sem_list` for the equipment identity fields (`eqp_id`, `eqp_model_cd`,
