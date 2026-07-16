@@ -91,6 +91,7 @@ minio_handler/minio_config.py
 
 # Superpowers brainstorming visual companion
 .superpowers/
+.worktrees/
 
 # Access-control exception lists (managed via /admin/access, per-deployment state)
 back_dev_home/storage/access_exceptions.json
