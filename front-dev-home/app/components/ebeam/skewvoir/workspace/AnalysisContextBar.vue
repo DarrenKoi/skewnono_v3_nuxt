@@ -66,7 +66,7 @@
       v-if="scope === 'set'"
       class="flex min-w-[16rem] flex-1 items-center gap-2"
     >
-      <span class="sk-label shrink-0">비교 세트</span>
+      <span class="sk-label shrink-0">세트 편집</span>
       <USelectMenu
         :model-value="ws.msrList.value"
         multiple

@@ -57,9 +57,42 @@
       </ul>
     </section>
 
-    <!-- Current selection -->
+    <!-- Comparison set (scope=set): the set members double as the focus switcher -->
     <section
-      v-if="ws.selection.value"
+      v-if="ws.selection.value && isSet"
+      class="space-y-1.5 border-t border-(--sk-border-soft) pt-4"
+    >
+      <p class="mb-1 px-1 sk-eyebrow">
+        비교 세트 · {{ setChips.length }}
+      </p>
+      <ul class="space-y-1">
+        <li
+          v-for="chip in setChips"
+          :key="chip.msr"
+        >
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-(--sk-r-nav) px-2 py-1.5 text-left font-mono text-[12px] transition-colors"
+            :class="chip.active
+              ? 'bg-(--sk-brand) font-semibold text-(--sk-brand-fg)'
+              : 'text-(--sk-ink-muted) hover:bg-(--sk-chip-bg) hover:text-(--sk-ink)'"
+            :aria-pressed="chip.active"
+            :title="chip.label"
+            @click="props.analysis.setFocusedMsr(chip.msr)"
+          >
+            <UIcon
+              :name="chip.active ? 'i-lucide-crosshair' : 'i-lucide-circle-dot'"
+              class="h-3.5 w-3.5 shrink-0"
+            />
+            <span class="min-w-0 flex-1 truncate">{{ chip.label }}</span>
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Current selection (single measurement) -->
+    <section
+      v-else-if="ws.selection.value"
       class="space-y-1.5 border-t border-(--sk-border-soft) pt-4"
     >
       <p class="mb-1 px-1 sk-eyebrow">
@@ -112,9 +145,22 @@
 
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
+import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { recipeDetailRoute } from '~/utils/recipeView'
 
-const props = defineProps<{ ws: SkewvoirWorkspace, fab: string }>()
+const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis, fab: string }>()
+
+// In a comparison set (scope=set) the rail shows the 비교 세트 members as the
+// focus switcher (works on every view); a single measurement keeps the plain
+// CURRENT SELECTION card.
+const isSet = computed(() => props.analysis.scope.value === 'set' && props.analysis.msrList.value.length >= 2)
+const setChips = computed(() =>
+  props.analysis.msrList.value.map(msr => ({
+    msr,
+    label: props.analysis.msrLabel(msr),
+    active: msr === props.analysis.focusMsr.value
+  }))
+)
 
 const toast = useToast()
 const router = useRouter()

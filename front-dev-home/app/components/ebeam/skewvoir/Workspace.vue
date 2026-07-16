@@ -3,6 +3,7 @@
     <div class="flex min-h-0 flex-1">
       <EbeamSkewvoirWorkspaceLeftRail
         :ws="ws"
+        :analysis="analysis"
         :fab="analysis.fab.value"
       />
 
