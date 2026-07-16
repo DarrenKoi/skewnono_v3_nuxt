@@ -1,44 +1,36 @@
 <template>
   <div class="space-y-3">
-    <!-- 내부 탭: TAT / Align Fail / Meas Fail.
-         Same card + segmented-track style as the meta-bar's 전체 요약/디바이스별
-         toggle beneath, so the two selection rows read as one family. -->
-    <div class="dashboard-surface inline-flex items-stretch rounded-[var(--sk-r-card)] p-1.5">
-      <!-- Title pod + divider, mirroring the meta-bar's left cluster. -->
-      <div class="flex flex-col justify-center py-1.5 pl-3 pr-4">
-        <p class="sk-eyebrow">
-          RECIPE 현황
-        </p>
-        <h2 class="sk-heading">
-          목록
-        </h2>
-      </div>
-      <div class="my-2 mx-1 w-px bg-(--sk-border-soft)" />
-      <div
-        role="tablist"
-        aria-label="Recipe 현황 탭"
-        class="ml-1.5 inline-flex items-center gap-1 self-center rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
-      >
-        <button
-          v-for="tab in TABS"
-          :key="tab.value"
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === tab.value"
-          class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-          :class="activeTab === tab.value
-            ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-            : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-          @click="selectTab(tab.value)"
+    <EbeamMetaBar
+      :eyebrow="`${toolLabel} · ${fab}`"
+      title="Recipe 현황"
+    >
+      <template #toggle>
+        <div
+          role="tablist"
+          aria-label="Recipe 현황 탭"
+          class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
         >
-          <UIcon
-            :name="tab.icon"
-            class="h-4 w-4"
-          />
-          {{ tab.label }}
-        </button>
-      </div>
-    </div>
+          <button
+            v-for="tab in TABS"
+            :key="tab.value"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab.value"
+            class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+            :class="activeTab === tab.value
+              ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
+              : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            @click="selectTab(tab.value)"
+          >
+            <UIcon
+              :name="tab.icon"
+              class="h-4 w-4"
+            />
+            {{ tab.label }}
+          </button>
+        </div>
+      </template>
+    </EbeamMetaBar>
 
     <!-- KeepAlive: tab flips deactivate instead of unmount, so each view's
          filters, table state, and fetched data survive TAT <-> Fail switches
