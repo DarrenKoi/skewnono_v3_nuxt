@@ -1,17 +1,12 @@
 """Mock (Phase 1 home/offline) provider for api_tokens.
 
-In-memory API token store. The office swap can replace list_tokens/
-create_token/revoke_token with an OpenSearch- or Redis-backed
-implementation (see api_tokens/MIGRATION.md); routes.py and the auth
-middleware import only api_tokens/data.py, never this module directly for
-those three.
-
-find_by_plaintext and touch_last_used are the exception: they back the
-bearer-token authentication path in back_dev_home/_auth/middleware.py and
-are wired directly to this module from data.py regardless of
-SKEWNONO_API_TOKENS_PROVIDER, because they read/write the same in-memory
-store as the mock CRUD functions above and are out of scope for the office
-migration in this feature (see api_tokens/data.py and MIGRATION.md).
+In-memory API token store. All five functions — create_token, list_tokens,
+revoke_token, find_by_plaintext, touch_last_used — are provider-switched
+through data.py's _provider() and dispatched based on SKEWNONO_API_TOKENS_PROVIDER.
+An office implementation must implement all five against the same backing store
+(Redis, OpenSearch, or database), since tokens created by office create_token
+must be resolvable by office find_by_plaintext for bearer authentication to work.
+See api_tokens/data.py and MIGRATION.md for architecture details.
 """
 
 from __future__ import annotations

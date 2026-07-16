@@ -24,8 +24,9 @@ def test_create_then_revoke_roundtrip():
     # (routes.py does the same reassembly) before checking it against
     # CreateTokenResponse.
     view, plaintext = data.create_token("contract-gate-user", "contract-gate-token")
-    payload = {"token": view, "plaintext": plaintext}
-    assert_matches(payload, CreateTokenResponse)
-
-    token_id = view["id"]
-    assert data.revoke_token("contract-gate-user", token_id) is True
+    try:
+        payload = {"token": view, "plaintext": plaintext}
+        assert_matches(payload, CreateTokenResponse)
+    finally:
+        token_id = view["id"]
+        assert data.revoke_token("contract-gate-user", token_id) is True
