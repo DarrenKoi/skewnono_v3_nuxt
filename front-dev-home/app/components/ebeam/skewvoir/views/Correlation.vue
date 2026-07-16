@@ -214,6 +214,11 @@ watch([() => query.value.xParam, () => query.value.yParam], ([x, y]) => {
   props.analysis.setXY(x, y || null)
 })
 
+const unitX = computed(() => unitOf(query.value.xParam))
+const unitY = computed(() =>
+  query.value.yKind === 'fdc' ? fdcUnitOf(query.value.fdcParam) : unitOf(query.value.yParam)
+)
+
 // Spatial diagnosis on the X parameter — its site sequences key the pairs, so its
 // coordinates place them. Drives coordinate readiness (the group gate) + the SEM
 // drawer's site lookup.
@@ -245,11 +250,6 @@ const relationship = computed(() => {
 
 const xLabel = computed(() => query.value.xParam)
 const yLabel = computed(() => (query.value.yKind === 'fdc' ? query.value.fdcParam : query.value.yParam))
-const unitX = computed(() => unitOf(query.value.xParam))
-const unitY = computed(() =>
-  query.value.yKind === 'fdc' ? fdcUnitOf(query.value.fdcParam) : unitOf(query.value.yParam)
-)
-
 // Marginal distribution reflects the ACTIVE query's paired Y values, not every row.
 const marginalValues = computed(() => relationship.value.points.map(p => p.y))
 
