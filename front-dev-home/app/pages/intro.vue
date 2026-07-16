@@ -6,7 +6,7 @@
           class="space-y-6 border-b border-(--sk-border) pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
           aria-label="페이지 안내"
         >
-          <div>
+          <div class="space-y-1">
             <p class="mb-2 sk-eyebrow">
               시작하기
             </p>
@@ -21,6 +21,18 @@
                 class="h-4 w-4 shrink-0"
               />
               <span>SKEWNONO 소개</span>
+            </button>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition"
+              :class="activePageId === 'history' ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900'"
+              @click="activePageId = 'history'"
+            >
+              <UIcon
+                name="i-lucide-history"
+                class="h-4 w-4 shrink-0"
+              />
+              <span>History</span>
             </button>
           </div>
 
@@ -306,6 +318,8 @@
             </div>
           </section>
         </section>
+
+        <IntroHistoryView v-else-if="activePageId === 'history'" />
 
         <section
           v-else
