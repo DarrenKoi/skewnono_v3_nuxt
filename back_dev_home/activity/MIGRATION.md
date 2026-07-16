@@ -121,9 +121,9 @@
 - Office data source: <!-- OFFICE: OpenSearch usage_events aggregation by user_id, 30-day window -->
 - Notes: `last_seen` uses the same UTC ISO-8601 + `Z` format as `/me`. An
   empty result is a valid response: `{"generated_at": ..., "users": []}`, not
-  an error — the contract test in `tests/test_contract.py` explicitly skips
-  the `/me`+history check when this list is empty rather than failing, since
-  a freshly-connected office backend may have no users yet.
+  an error. A freshly-connected office backend may legitimately have no users
+  yet; the `/me`+history contract check derives its user id from this list, so
+  it exercises identity only when at least one user is present.
 
 ## Endpoint: GET /api/activity/users/<user_id>
 

@@ -4,8 +4,6 @@ Home:   .venv/bin/pytest back_dev_home/activity
 Office: SKEWNONO_ACTIVITY_PROVIDER=office .venv/bin/pytest back_dev_home/activity
 """
 
-import pytest
-
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home.activity import data
 from back_dev_home.activity.contracts import (

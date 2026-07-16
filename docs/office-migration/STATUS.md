@@ -7,10 +7,9 @@
 ## 전환 절차
 
 1. GLM이 `back_dev_home/<기능>/MIGRATION.md`를 읽고 `providers/office.py`를 구현합니다.
-2. 계약 테스트가 office 모드에서 통과해야 합니다. **주의:** 계약 테스트는 반드시
-   저장소 루트에서 백엔드 전체 경로로 실행합니다 — `SKEWNONO_<기능>_PROVIDER=office
-   .venv/bin/python -m pytest back_dev_home/<기능>` 형식을 사용합니다. (`.venv/bin/pytest`로
-   하위 폴더만 직접 지정하면 `back_dev_home` 모듈을 찾지 못합니다.)
+2. 계약 테스트가 office 모드에서 통과해야 합니다. 저장소 루트에서
+   `SKEWNONO_<기능>_PROVIDER=office .venv/bin/pytest back_dev_home/<기능>` 형식으로
+   실행하며, 이는 각 기능의 `MIGRATION.md` Verify 명령과 동일합니다.
 3. Flask 실행 환경변수에 `SKEWNONO_<기능>_PROVIDER=office`를 추가하고 재시작한 뒤,
    아래 표의 상태/검증일을 갱신합니다.
 
