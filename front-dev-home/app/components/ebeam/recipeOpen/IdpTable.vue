@@ -35,12 +35,12 @@
             <th
               v-for="column in columns"
               :key="column.key"
+              :aria-sort="ariaSort(column.key)"
               class="whitespace-nowrap border-b border-zinc-200 px-2.5 py-2 font-medium tracking-wide dark:border-zinc-800"
             >
               <button
                 type="button"
                 class="inline-flex items-center gap-1"
-                :aria-sort="ariaSort(column.key)"
                 @click="applySort(column.key)"
               >
                 <UIcon
