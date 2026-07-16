@@ -21,26 +21,12 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal, TypedDict
+from typing import Any
+
+from back_dev_home.health.contracts import ServiceHealth, ServicesHealthResponse
 
 
-__all__ = ["ServiceHealth", "ServicesHealthResponse", "get_services_health"]
-
-
-Status = Literal["up", "down"]
-
-
-class ServiceHealth(TypedDict):
-    id: str
-    label: str
-    status: Status
-    latency_ms: int | None
-    detail: str
-
-
-class ServicesHealthResponse(TypedDict):
-    checked_at: str
-    services: list[ServiceHealth]
+__all__ = ["get_services_health"]
 
 
 FRESHNESS_WINDOW = timedelta(hours=1)
