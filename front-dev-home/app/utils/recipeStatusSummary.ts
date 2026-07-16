@@ -4,6 +4,15 @@ export interface RecipeStatusSummaryItem {
   tone?: 'danger'
 }
 
+export const recipeStatusSummaryValueClass = (
+  tone?: RecipeStatusSummaryItem['tone']
+): string => tone === 'danger' ? 'text-(--sk-bad)' : 'text-(--sk-ink)'
+
+export const resolveRecipeStatusSummaryValue = (
+  pending: boolean,
+  value: string | undefined
+): string => pending ? '—' : (value ?? '—')
+
 interface FailSummaryInput {
   failLabel: 'Align fails' | 'Meas fails'
   failCount: string

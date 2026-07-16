@@ -266,7 +266,10 @@ import {
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-import { buildFailSummaryItems } from '~/utils/recipeStatusSummary'
+import {
+  buildFailSummaryItems,
+  resolveRecipeStatusSummaryValue
+} from '~/utils/recipeStatusSummary'
 
 const props = defineProps<{
   fab: string
@@ -387,16 +390,34 @@ const dateRange = computed({
 
 const alignSummaryItems = computed(() => buildFailSummaryItems({
   failLabel: 'Align fails',
-  failCount: summary.value?.align_fail_count.toLocaleString() ?? '—',
-  totalMeasurements: summary.value?.total_executions.toLocaleString() ?? '—',
-  failRatio: summary.value ? formatPercent(summary.value.align_fail_rate) : '—'
+  failCount: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.align_fail_count.toLocaleString()
+  ),
+  totalMeasurements: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.total_executions.toLocaleString()
+  ),
+  failRatio: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value ? formatPercent(summary.value.align_fail_rate) : undefined
+  )
 }))
 
 const measSummaryItems = computed(() => buildFailSummaryItems({
   failLabel: 'Meas fails',
-  failCount: summary.value?.meas_fail_count.toLocaleString() ?? '—',
-  totalMeasurements: summary.value?.total_executions.toLocaleString() ?? '—',
-  failRatio: summary.value ? formatPercent(summary.value.meas_fail_rate) : '—'
+  failCount: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.meas_fail_count.toLocaleString()
+  ),
+  totalMeasurements: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.total_executions.toLocaleString()
+  ),
+  failRatio: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value ? formatPercent(summary.value.meas_fail_rate) : undefined
+  )
 }))
 
 // Trend charts --------------------------------------------------------------

@@ -291,7 +291,10 @@ import {
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-import { buildTatSummaryItems } from '~/utils/recipeStatusSummary'
+import {
+  buildTatSummaryItems,
+  resolveRecipeStatusSummaryValue
+} from '~/utils/recipeStatusSummary'
 
 const props = defineProps<{
   fab: string
@@ -410,14 +413,24 @@ const dateRange = computed({
 })
 
 const tatSummaryItems = computed(() => buildTatSummaryItems({
-  totalTat: summary.value
-    ? formatSecondsAsDuration(summary.value.total_tat_seconds)
-    : '—',
-  distinctRecipes: summary.value?.total_recipes.toLocaleString() ?? '—',
-  totalExecutions: summary.value?.total_executions.toLocaleString() ?? '—',
-  avgMeastime: summary.value
-    ? formatSecondsAsDuration(Math.round(summary.value.avg_meastime))
-    : '—'
+  totalTat: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value ? formatSecondsAsDuration(summary.value.total_tat_seconds) : undefined
+  ),
+  distinctRecipes: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.total_recipes.toLocaleString()
+  ),
+  totalExecutions: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value?.total_executions.toLocaleString()
+  ),
+  avgMeastime: resolveRecipeStatusSummaryValue(
+    status.value === 'pending',
+    summary.value
+      ? formatSecondsAsDuration(Math.round(summary.value.avg_meastime))
+      : undefined
+  )
 }))
 
 // Daily trend line

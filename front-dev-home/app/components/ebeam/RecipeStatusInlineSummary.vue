@@ -9,8 +9,8 @@
         {{ item.label }}
       </dt>
       <dd
-        class="font-mono text-[11px] font-semibold tabular-nums text-(--sk-ink)"
-        :class="{ 'text-(--sk-bad)': item.tone === 'danger' }"
+        class="font-mono text-[11px] font-semibold tabular-nums"
+        :class="recipeStatusSummaryValueClass(item.tone)"
       >
         {{ item.value }}
       </dd>
@@ -19,7 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import type { RecipeStatusSummaryItem } from '~/utils/recipeStatusSummary'
+import {
+  recipeStatusSummaryValueClass,
+  type RecipeStatusSummaryItem
+} from '~/utils/recipeStatusSummary'
 
 defineProps<{
   items: readonly RecipeStatusSummaryItem[]
