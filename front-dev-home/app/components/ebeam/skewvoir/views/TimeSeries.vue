@@ -126,12 +126,10 @@
 </template>
 
 <script setup lang="ts">
-import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
 
 const props = defineProps<{
-  ws: SkewvoirWorkspace
   analysis: SkewvoirAnalysis
 }>()
 

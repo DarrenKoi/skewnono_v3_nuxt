@@ -8,8 +8,11 @@
     <template v-if="bins.length">
       <div
         ref="chartEl"
+        role="img"
         class="h-40 w-full shrink-0"
+        :aria-label="ariaLabel"
       />
+      <span class="sr-only">{{ ariaLabel }}</span>
       <div class="min-h-0 overflow-auto">
         <table class="w-full border-collapse text-xs">
           <thead class="sticky top-0 bg-(--sk-surface)">
@@ -86,6 +89,16 @@ const props = defineProps<{
 const bins = computed(() => props.spatial.radiusBins)
 
 const meta = computed(() => `${bins.value.length} bins · ${props.unit || props.parameter}`)
+
+// Screen-reader text alternative for the canvas chart: bin count plus the
+// center → outer median, the headline numbers the plot exists to show.
+const ariaLabel = computed(() => {
+  const u = props.unit || props.parameter
+  if (!bins.value.length) return '방사형 프로파일: 표시할 데이터가 없습니다.'
+  const first = bins.value[0]!
+  const last = bins.value[bins.value.length - 1]!
+  return `방사형 프로파일: ${bins.value.length}개 반경 구간, 중심 ${first.median.toFixed(1)}${u} → 외곽 ${last.median.toFixed(1)}${u}`
+})
 
 const option = computed<EChartsOption>(() => ({
   tooltip: {

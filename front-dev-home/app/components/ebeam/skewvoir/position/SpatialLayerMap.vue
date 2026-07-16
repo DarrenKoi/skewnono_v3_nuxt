@@ -52,10 +52,14 @@
         <div class="aspect-square w-full max-w-[22rem]">
           <div
             ref="chartEl"
+            role="img"
+            tabindex="0"
             class="h-full w-full"
+            :aria-label="ariaLabel"
           />
         </div>
       </div>
+      <span class="sr-only">{{ ariaLabel }}</span>
       <div class="flex flex-col items-center gap-1">
         <EbeamSkewvoirColorScaleBar
           :min="range.min"
@@ -166,6 +170,16 @@ const waferOutline = computed<[number, number][]>(() => {
 const meta = computed(() => {
   const label = layer.value === 'centered' ? '중앙값 대비' : layer.value === 'residual' ? '추세 잔차' : layer.value === 'failure' ? '측정 실패' : 'raw'
   return `${label} · ${points.value.length} sites`
+})
+
+// Screen-reader text alternative for the wafer scatter canvas: active layer,
+// site count, and the value range the color scale is currently mapped to —
+// the same numbers the color bar next to the chart shows.
+const ariaLabel = computed(() => {
+  const layerLabel = layer.value === 'centered' ? '중앙값 대비' : layer.value === 'residual' ? '추세 잔차' : layer.value === 'failure' ? '측정 실패' : 'raw'
+  const u = activeLayerUnit.value
+  const r = range.value
+  return `공간 레이어 맵: ${layerLabel} 레이어, ${points.value.length}개 측정 지점, 범위 ${r.min.toFixed(2)} ~ ${r.max.toFixed(2)}${u ? ` ${u}` : ''}`
 })
 
 const option = computed<EChartsOption>(() => ({

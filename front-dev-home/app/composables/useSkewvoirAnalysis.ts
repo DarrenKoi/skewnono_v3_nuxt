@@ -341,7 +341,15 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
 
   watch(setKey, async (key) => {
-    if (!key) return
+    if (!key) {
+      // scope flipped away from 'set' (or the set key is otherwise empty): drop
+      // the prior set's files so manifest.counts stops reflecting a stale set
+      // while the context bar is showing a non-set scope. No new fetch here —
+      // the lazy-load invariant only fires when setKey is non-empty.
+      setFiles.value = new Map()
+      setPending.value = false
+      return
+    }
     const list = setRows.value
     if (list.length === 0) {
       setFiles.value = new Map()

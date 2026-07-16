@@ -1,8 +1,12 @@
 <template>
   <div
     ref="chartEl"
+    role="img"
+    tabindex="0"
     class="h-72 w-full"
+    :aria-label="ariaLabel"
   />
+  <span class="sr-only">{{ ariaLabel }}</span>
 </template>
 
 <script setup lang="ts">
@@ -79,6 +83,15 @@ const noAnswerLabel = computed(() =>
 )
 
 const fitLinePoints = computed<[number, number][]>(() => fitLine(pairs.value) ?? [])
+
+// Screen-reader text alternative: the two parameters plotted and the same
+// R²/ρ/n headline the on-chart title shows sighted users.
+const ariaLabel = computed(() => {
+  const stat = r2.value != null
+    ? `R² ${r2.value.toFixed(3)}${rho.value != null ? `, ρ ${rho.value.toFixed(3)}` : ''}`
+    : noAnswerLabel.value
+  return `${props.paramX} 대 ${props.paramY} 산점도: n=${sampleN.value}, ${stat}`
+})
 
 const option = computed<EChartsOption>(() => ({
   tooltip: {

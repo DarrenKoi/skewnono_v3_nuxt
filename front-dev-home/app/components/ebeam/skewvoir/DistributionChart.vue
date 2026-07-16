@@ -1,9 +1,12 @@
 <template>
   <div
     ref="chartEl"
+    role="img"
     class="w-full"
     :class="heightClass"
+    :aria-label="ariaLabel"
   />
+  <span class="sr-only">{{ ariaLabel }}</span>
 </template>
 
 <script setup lang="ts">
@@ -46,6 +49,16 @@ const props = withDefaults(defineProps<{
 })
 
 const BIN_COUNT = 12
+
+// Deterministic per-point jitter for the box-plot raw-point overlay: hashes
+// (category index, point index) into a stable pseudo-random value in [0, 1).
+// Same visual spread as Math.random() but stable across reactive recomputes.
+function jitterHash(catIndex: number, pointIndex: number): number {
+  let h = (catIndex * 73856093) ^ (pointIndex * 19349663)
+  h = (h ^ (h >>> 13)) * 1274126177
+  h = h ^ (h >>> 16)
+  return ((h >>> 0) % 10000) / 10000
+}
 
 // Pooled values — the flat list every non-grouped shape reads from.
 const values = computed<number[]>(() => {
@@ -166,9 +179,12 @@ const boxOption = computed<EChartsOption>(() => {
   const cats = boxCategories.value
   const boxData = cats.map(c => fiveNumber(c.values)).filter((d): d is number[] => d != null)
   // Jittered raw points per category index — the honest overlay of every value.
+  // Jitter is a deterministic hash of (category index, point index) rather than
+  // Math.random(), so points hold their horizontal position across reactive
+  // recomputes instead of reshuffling on every re-render.
   const rawPoints: [number, number][] = []
   cats.forEach((c, i) => {
-    for (const v of c.values) rawPoints.push([i + (Math.random() - 0.5) * 0.3, v])
+    c.values.forEach((v, j) => rawPoints.push([i + (jitterHash(i, j) - 0.5) * 0.3, v]))
   })
   return {
     tooltip: { trigger: 'item' },
@@ -226,6 +242,21 @@ const violinOption = computed<EChartsOption>(() => {
 // Axis label: the parameter name, falling back to a neutral '값' for the
 // explicit-values / grouped paths that carry no single parameter identity.
 const label = computed(() => props.parameter || '값')
+
+// Screen-reader text alternative: the active shape's headline numbers, mirroring
+// what a sighted user reads off the axis/title (n, and mean where one exists).
+const ariaLabel = computed(() => {
+  const n = values.value.length
+  const meanStr = mean.value != null ? `, 평균 ${mean.value.toFixed(3)}${props.unit}` : ''
+  if (props.mode === 'Box') {
+    const cats = boxCategories.value
+    const total = cats.reduce((sum, c) => sum + c.values.length, 0)
+    return `${label.value} 박스플롯: ${cats.length}개 그룹, 전체 n=${total}`
+  }
+  if (props.mode === 'ECDF') return `${label.value} 누적분포(ECDF): n=${n}${meanStr}`
+  if (props.mode === 'Violin') return `${label.value} 바이올린 분포: n=${n}${meanStr}`
+  return `${label.value} 히스토그램: n=${n}${meanStr}`
+})
 
 const option = computed<EChartsOption>(() => {
   if (props.mode === 'ECDF') return ecdfOption.value

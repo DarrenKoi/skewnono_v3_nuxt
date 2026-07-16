@@ -1,8 +1,12 @@
 <template>
   <div
     ref="chartEl"
+    role="img"
+    tabindex="0"
     class="h-56 w-full"
+    :aria-label="ariaLabel"
   />
+  <span class="sr-only">{{ ariaLabel }}</span>
 </template>
 
 <script setup lang="ts">
@@ -44,6 +48,16 @@ const data = computed(() => {
 })
 
 const color = computed(() => props.color ?? '#2563eb')
+
+// Screen-reader text alternative: the pane's own N/start/end, mirroring the
+// numbers the panel's meta line already shows sighted users.
+const ariaLabel = computed(() => {
+  const vals = data.value.filter((v): v is number => v != null)
+  if (!vals.length) return `${props.name} 측정 순서 추이: 데이터 없음`
+  const start = vals[0]!
+  const end = vals[vals.length - 1]!
+  return `${props.name} 측정 순서 추이: ${vals.length}개 지점, 시작 ${start.toFixed(2)}${props.unit} → 종료 ${end.toFixed(2)}${props.unit}`
+})
 
 const option = computed<EChartsOption>(() => ({
   tooltip: {

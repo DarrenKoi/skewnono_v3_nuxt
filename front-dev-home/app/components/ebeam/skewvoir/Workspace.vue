@@ -60,7 +60,6 @@
             />
             <EbeamSkewvoirViewsTimeSeries
               v-else-if="ws.activeKind.value === 'time-series'"
-              :ws="ws"
               :analysis="analysis"
             />
             <EbeamSkewvoirViewsCorrelation

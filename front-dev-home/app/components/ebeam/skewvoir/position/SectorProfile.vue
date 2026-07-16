@@ -17,6 +17,9 @@
         노치 기준: {{ notchLabel }}<span class="text-(--sk-ink-subtle)"> · Phase-1 검증 기본값</span>
       </p>
       <table class="w-full border-collapse text-xs">
+        <caption class="sr-only">
+          {{ ariaSummary }}
+        </caption>
         <thead>
           <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
             <th
@@ -91,4 +94,13 @@ const notchLabel = computed(() => NOTCH_LABEL[summary.value.notch])
 const meta = computed(() =>
   summary.value.status === 'ok' ? `${summary.value.sectors.length} sectors · ${props.unit}` : '평가 불가'
 )
+
+// This panel renders a data table, not a canvas chart — the caption below is
+// the screen-reader summary of its headline numbers (no role="img" needed
+// since the table markup is already accessible).
+const ariaSummary = computed(() => {
+  if (summary.value.status !== 'ok') return `섹터 프로파일: 평가 불가 (${summary.value.reason})`
+  const parts = summary.value.sectors.map(s => `${s.label} ${s.median.toFixed(2)}${props.unit}`).join(', ')
+  return `섹터 프로파일: ${summary.value.sectors.length}개 섹터, 노치 기준 ${notchLabel.value} — ${parts}`
+})
 </script>
