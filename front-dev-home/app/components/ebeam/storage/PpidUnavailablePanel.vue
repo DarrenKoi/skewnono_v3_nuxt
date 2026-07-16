@@ -135,7 +135,19 @@
         <span class="sk-value-num">{{ row.original.eqp_model_cd || '—' }}</span>
       </template>
       <template #eqp_ip-cell="{ row }">
-        <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+        <div class="flex items-center gap-1">
+          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+          <UTooltip text="IP 복사">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-copy"
+              :aria-label="`${row.original.eqp_ip} 복사`"
+              @click="copyIp(row.original.eqp_ip)"
+            />
+          </UTooltip>
+        </div>
       </template>
       <template #missing_days_streak-cell="{ row }">
         <span
@@ -155,6 +167,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { PpidUnavailableRow } from '~/composables/useStorageApi'
+import { copyTextToClipboard } from '~/utils/csvDownload'
 
 const props = defineProps<{
   rows: readonly PpidUnavailableRow[]
@@ -206,6 +219,17 @@ const reset = () => {
   sorting.value = [defaultSort]
 }
 
+const toast = useToast()
+
+const copyIp = async (ip: string) => {
+  const ok = await copyTextToClipboard(ip)
+  toast.add(
+    ok
+      ? { title: 'IP가 복사되었습니다', description: ip, icon: 'i-lucide-check', color: 'success' }
+      : { title: 'IP 복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
+
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40',
@@ -219,7 +243,7 @@ const columnConfigs: Array<{ id: keyof PpidUnavailableRow, header: string, size:
   { id: 'fab_name', header: 'Fab', size: 64 },
   { id: 'eqp_id', header: 'Equipment ID', size: 130 },
   { id: 'eqp_model_cd', header: 'Model', size: 130 },
-  { id: 'eqp_ip', header: 'IP Address', size: 140 }
+  { id: 'eqp_ip', header: 'IP Address', size: 168 }
 ]
 const columns: TableColumn<PpidUnavailableRow>[] = columnConfigs.map(({ id, ...column }) => ({
   accessorKey: id,

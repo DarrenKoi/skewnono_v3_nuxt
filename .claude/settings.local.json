@@ -95,5 +95,6 @@
       "Bash(git fetch *)"
     ]
   },
+  "spinnerTipsEnabled": true,
   "prefersReducedMotion": true
 }

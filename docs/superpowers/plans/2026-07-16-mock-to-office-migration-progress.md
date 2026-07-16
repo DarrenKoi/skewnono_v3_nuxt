@@ -1,6 +1,11 @@
-# Mock→Office 마이그레이션 진행 현황 (T10에서 중단)
+# Mock→Office 마이그레이션 진행 현황 (T1–T18 전부 완료)
 
-작성일: 2026-07-16. 사용자 지시로 Task 10까지 완료 후 중단했습니다.
+작성일: 2026-07-16. **업데이트: 오후 6시 세션에서 T11–T18과 최종 전체 리뷰까지
+모두 완료했습니다.** T1–T10은 이전 세션에서 완료했고, 이번에 나머지를 이어서
+마무리했습니다. 결과: 19개 백엔드 기능 전부가 `SKEWNONO_<기능>_PROVIDER` 환경변수로
+mock↔office 전환 가능하며, 최종 리뷰는 "머지 준비 완료(Critical/Important 없음)"
+입니다. 백엔드 전체 테스트 69/69 통과. **아직 push하지 않았습니다**(아래 미해결
+이슈의 1.6GB blob 정리가 선행되어야 하며, 이는 사용자 결정 사항입니다).
 
 - 플랜: `docs/superpowers/plans/2026-07-16-mock-to-office-migration.md`
 - 스펙: `docs/superpowers/specs/2026-07-16-mock-to-office-migration-design.md`
@@ -50,22 +55,32 @@
 - 로컬 `main`이 `origin/main`과 분기되어 있습니다(로컬 다수 커밋 + 원격 전용
   커밋 존재). push 전 정리가 필요합니다.
 
-## 남은 작업 (T11–T18)
+## 완료된 작업 (T11–T18, 전부 리뷰 승인)
 
-| 태스크 | 내용 |
-| --- | --- |
-| T11 | `ebeam/hitachi/recipe_search` 분리 (ToolType 재수출, 3개 함수) |
-| T12 | `ebeam/lateral_recipe` 분리 (1개 함수) |
-| T13 | 백필: sem_list, hardware, skew, storage (계약 테스트 + MIGRATION.md) |
-| T14 | 백필: meas_hist, afm, recipe_tat, fail_issue (contracts 이동/파생 포함) |
-| T15 | 백필: msr_file (mock-pin 테스트 유지, 별도 게이트 파일 추가) |
-| T16 | `docs/office-migration/STATUS.md` 한글 체크리스트 |
-| T17 | 하니스 삭제 + 전체 검증 + 라이브 확인 + bogus-provider 스모크 |
-| T18 | `.claude/skills/home-to-office/` 컨벤션 감사 스킬 |
-| 마지막 | 전체 브랜치 최종 리뷰 (원장의 Minor 목록 triage 포함) |
+| 태스크 | 내용 | 커밋 |
+| --- | --- | --- |
+| T11 | `recipe_search` 분리 (로컬 ToolType→contracts 이동+재수출) | a2d9dda, f12c76e |
+| T12 | `lateral_recipe` 분리 (1개 함수) | 25c1491, 935dea8, 7298af7 |
+| T13 | 백필: sem_list, hardware, skew, storage | c4add20 |
+| T14 | 백필: meas_hist·recipe_tat·fail_issue(14a) + afm(14b, 파생) | 1d0a625, e5dfb18, c6bd06d |
+| T15 | 백필: msr_file (병렬 contracts + 별도 게이트, mock-pin 유지) | 98b42c7 |
+| T16 | `docs/office-migration/STATUS.md` 한글 체크리스트 (19행) | cb069f8 |
+| T17 | 하니스 삭제 + 전체 검증 + 라이브 확인 + bogus 스모크 | 9d6dbf8, 987760d |
+| T18 | `.claude/skills/home-to-office/` 컨벤션 감사 스킬 | 3b874b9 |
+| 최종 | 전체 브랜치 리뷰(머지 준비 완료) + Minor 정리 | f9bb780 |
 
-## 재개 방법
+## 최종 상태
 
-새 세션에서: 플랜 파일과 이 문서, 그리고 `.superpowers/sdd/progress.md` 원장을
-읽고 Task 11부터 subagent-driven-development로 계속하면 됩니다. 원장의 Minor
-목록은 최종 리뷰에서 일괄 triage합니다.
+- 19개 기능 전부: `data.py` 스위치 + `contracts.py` + `tests/test_contract.py` +
+  `MIGRATION.md` 구비. STATUS.md·home-to-office 스킬 반영. 임시 패리티 하니스 제거.
+- 백엔드 전체 테스트 69/69 통과. office 네거티브 게이트로 스위치가 office 어댑터에
+  도달함을 확인.
+- 최종 리뷰(opus): 머지 준비 완료 — Critical/Important 없음. 실행 가능한 Minor는
+  모두 수정, 나머지는 사소한 문서/스타일로 수용.
+- 상세 이력은 `.superpowers/sdd/progress.md` 원장의 migration 섹션 참고.
+
+## 미해결 (사용자 결정 필요)
+
+- **push하지 않음.** 로컬 main이 origin/main보다 64 커밋 앞서고 2 커밋 뒤처져
+  있으며, 이력에 ~1.6GB golden blob(커밋 916733a)이 남아 있습니다. push 전
+  이력 정리(사용자 승인 rewrite/squash)가 필요합니다.

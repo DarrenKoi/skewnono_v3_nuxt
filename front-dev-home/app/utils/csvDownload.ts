@@ -26,6 +26,38 @@ export const downloadCsv = (
   URL.revokeObjectURL(url)
 }
 
+// Copy plain text with the same fallback used by table exports. Clipboard API
+// access can be unavailable outside HTTPS/localhost, so keep the legacy path
+// for office deployments that still run over an internal HTTP address.
+export const copyTextToClipboard = async (text: string): Promise<boolean> => {
+  if (!import.meta.client) return false
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Fall through to the execCommand fallback (e.g. http:// production).
+    }
+  }
+
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.top = '-9999px'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return ok
+  } catch {
+    return false
+  }
+}
+
 // Copy a table to the clipboard as TSV (tab-separated). Excel, Google
 // Sheets, and other spreadsheets split pasted text on tabs, so TSV pastes
 // straight into cells with no import step. Tabs/newlines inside a value are
@@ -43,30 +75,5 @@ export const copyTableToClipboard = async (
     .map(row => row.map(toCell).join('\t'))
     .join('\r\n')
 
-  // Preferred path — requires a secure context (https or localhost).
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(tsv)
-      return true
-    } catch {
-      // Fall through to the execCommand fallback (e.g. http:// production).
-    }
-  }
-
-  // Fallback for non-secure contexts where navigator.clipboard is absent.
-  try {
-    const textarea = document.createElement('textarea')
-    textarea.value = tsv
-    textarea.style.position = 'fixed'
-    textarea.style.top = '-9999px'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.focus()
-    textarea.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(textarea)
-    return ok
-  } catch {
-    return false
-  }
+  return copyTextToClipboard(tsv)
 }

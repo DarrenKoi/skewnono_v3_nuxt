@@ -118,7 +118,19 @@
           <span class="sk-value-num">{{ row.original.eqp_id }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+          <div class="flex items-center gap-1">
+            <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+            <UTooltip text="IP 복사">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-copy"
+                :aria-label="`${row.original.eqp_ip} 복사`"
+                @click="copyIp(row.original.eqp_ip)"
+              />
+            </UTooltip>
+          </div>
         </template>
         <template #fab_name-cell="{ row }">
           <span class="sk-value">{{ row.original.fab_name }}</span>
@@ -211,6 +223,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
 import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composables/useStorageApi'
 import { isStorageUnavailable } from '~/composables/useStorageApi'
+import { copyTextToClipboard } from '~/utils/csvDownload'
 import { storageUsageTier } from '~/utils/storageUsage'
 import type { MetaBarStat } from './MetaBar.vue'
 
@@ -557,6 +570,17 @@ const resetControls = () => {
   ]
 }
 
+const toast = useToast()
+
+const copyIp = async (ip: string) => {
+  const ok = await copyTextToClipboard(ip)
+  toast.add(
+    ok
+      ? { title: 'IP가 복사되었습니다', description: ip, icon: 'i-lucide-check', color: 'success' }
+      : { title: 'IP 복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
+
 const tableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
@@ -575,7 +599,7 @@ const storageColumnConfigs: StorageColumnConfig[] = [
   { id: 'eqp_id', header: 'Equipment ID', size: 130 },
   { id: 'fab_name', header: 'Fab', size: 64 },
   { id: 'eqp_model_cd', header: 'Model', size: 130 },
-  { id: 'eqp_ip', header: 'IP Address', size: 140 },
+  { id: 'eqp_ip', header: 'IP Address', size: 168 },
   { id: 'total', header: 'Total', size: 76 },
   { id: 'used', header: 'Used', size: 76 },
   { id: 'avail', header: 'Available', size: 96 },

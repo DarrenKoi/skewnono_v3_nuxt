@@ -4,7 +4,7 @@
 Built office transition skills (/leave-office, /back-to-office); extended MSR file FDC mock with functional SkewvoirView integration and analysis visualization (FdcAnalysis, TimeSeriesChart, Scatter, SequenceTrend). Hardened useMsrFileApi with bounded concurrency and 429-retry handling. Verified 26 MSRs across 87 tests; saved architectural memories.
 
 ## Week of 2026-06-30
-Shipped network_sharpness_cdsem service with quarterly/daily tab UI. Designed and implemented CD outlier detection using median+MAD for skewvoir TimeSeriesChart with per-point recoloring (flags mean/spread anomalies). Dead-code cleanup pass on hardware/device-statistics and skewvoir (4 stale/export removals). 97 tests, 2 commits (b836e4f..bf0f862).
+Shipped network_sharpness_cdsem service with quarterly/daily tab UI. Designed and implemented CD outlier detection using median+MAD for skewvoir TimeSeriesChart with per-point recoloring (flags mean/spread anomalies). Dead-code cleanup pass on hardware/device-statistics and skewvoir (4 stale/export removals). 97 tests, 2 commits.
 
 ## Week of 2026-06-23
 Merged feat/tool-skew-mgmt to main (+68 commits, 65 tests). Fixed Lucide icons for offline Windows by bundling 15 icons. Compacted device-statistics/measurement-rules UI (CapCell/Row/Matrix, reduced vertical spacing). Removed hardcoded --port from dev config; enabled NUXT_PORT env var. Fixed useRoute-in-middleware pattern in semaphore components. Added network_sharpness daily service with quarterly/daily tab grouping.

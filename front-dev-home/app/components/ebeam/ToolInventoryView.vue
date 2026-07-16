@@ -148,7 +148,19 @@
           <span class="sk-value capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
         </template>
         <template #eqp_ip-cell="{ row }">
-          <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+          <div class="flex items-center gap-1">
+            <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+            <UTooltip text="IP 복사">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-copy"
+                :aria-label="`${row.original.eqp_ip} 복사`"
+                @click="copyIp(row.original.eqp_ip)"
+              />
+            </UTooltip>
+          </div>
         </template>
         <template #version-cell="{ row }">
           <span class="sk-value-num">v{{ row.original.version }}</span>
@@ -164,7 +176,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { Fab, ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard, copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
   fab: Fab
@@ -323,7 +335,7 @@ const columnConfigs: ColumnConfig[] = [
   { id: 'eqp_id', header: 'Equipment ID', size: 220 },
   { id: 'eqp_model_cd', header: 'Model', size: 140 },
   { id: 'vendor_nm', header: 'Vendor', size: 110 },
-  { id: 'eqp_ip', header: 'IP Address', size: 160 },
+  { id: 'eqp_ip', header: 'IP Address', size: 176 },
   { id: 'version', header: 'Version', size: 90 }
 ]
 
@@ -377,6 +389,15 @@ const copyTable = async () => {
     ok
       ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
       : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
+
+const copyIp = async (ip: string) => {
+  const ok = await copyTextToClipboard(ip)
+  toast.add(
+    ok
+      ? { title: 'IP가 복사되었습니다', description: ip, icon: 'i-lucide-check', color: 'success' }
+      : { title: 'IP 복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
   )
 }
 </script>

@@ -1,7 +1,7 @@
 # Recipe Detail Header and Parameter Sorting — Design
 
 - Date: 2026-07-16
-- Status: User-approved design, awaiting written-spec review
+- Status: Approved — implementation plan written
 - Area: `front-dev-home` E-beam Recipe detail screens
 
 ## Goal
