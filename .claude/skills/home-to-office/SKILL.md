@@ -1,0 +1,49 @@
+---
+name: home-to-office
+description: Audit backend features against the mock→office provider convention before conveying work to the office. Use when the user says "office check", "sync check", "convey to office", "office 준비", or before /leave-office when back_dev_home changed.
+argument-hint: [feature-name … | leave empty to auto-detect from git]
+allowed-tools: Read, Grep, Glob, Bash, Edit, Write
+---
+
+# Office Sync Check
+
+Audit one or more `back_dev_home/` features against the provider convention
+(spec: `docs/superpowers/specs/2026-07-16-mock-to-office-migration-design.md`)
+so that everything created or modified at home is office-ready: folder
+structure, contracts, gates, and the GLM 5.2 prompt.
+
+## 1. Determine scope
+
+- If arguments name features, audit those.
+- Otherwise auto-detect: `git status --porcelain` + `git diff HEAD~5 --name-only`,
+  map touched files under `back_dev_home/<feature>/` to features (a route-owning
+  folder = has `routes.py`). Also flag NEW route-owning folders that have no
+  provider split at all.
+
+## 2. Audit each feature (report table, one row per check)
+
+| # | Check | How |
+| --- | --- | --- |
+| 1 | Folder layout | `contracts.py`, `data.py`, `MIGRATION.md`, `providers/mock.py`, `providers/office.py`, `tests/test_contract.py` all exist |
+| 2 | Thin switch | `data.py` calls `get_data_provider("<key>")`; contains no data generation (no random/fixtures/loops building rows) |
+| 3 | Routes discipline | `routes.py` imports only from `.data` (grep for `providers` imports — must be none) |
+| 4 | Endpoint coverage | every `@bp.get/post/put/delete` in `routes.py` has a matching `## Endpoint:` block in `MIGRATION.md` |
+| 5 | Contract coverage | every data function used by `routes.py` has an assert in `tests/test_contract.py`; tests import `from … import data`, never `providers.mock` (exception: mock-pin tests, e.g. msr_file) |
+| 6 | Office stub honest | every public function in `providers/mock.py` that `data.py` switches exists in `providers/office.py` (implemented or `_not_connected`) |
+| 7 | Placeholders intact | `MIGRATION.md` still has `<!-- OFFICE: -->` slots for anything only knowable at the office |
+| 8 | STATUS row | `docs/office-migration/STATUS.md` has a row with the feature's exact `get_data_provider` key as `SKEWNONO_<KEY>_PROVIDER` |
+| 9 | Gate green | `.venv/bin/pytest back_dev_home/<feature> -q` passes |
+| 10 | Office switch wired | `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest back_dev_home/<feature> -q` fails with NotImplementedError (or passes if office is implemented) — anything else means the switch is broken |
+
+## 3. Fix or report
+
+- Auto-fix mechanical gaps after showing the user what's missing: create
+  missing stubs/tests/MIGRATION blocks following the `activity` and `sem_list`
+  exemplars (copy their file shapes exactly; derive contracts from mock output).
+- NEVER auto-edit `providers/mock.py` logic or `routes.py` — report only.
+- New endpoints added to an existing feature: update `contracts.py` (new
+  TypedDicts), add the contract test, add the MIGRATION.md endpoint block,
+  extend `providers/office.py` with the new `_not_connected` stub.
+- Finish with `npm run lint:md` if any Markdown changed, and print a final
+  READY / NOT READY verdict per feature with the office verify command:
+  `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest back_dev_home/<feature>`
