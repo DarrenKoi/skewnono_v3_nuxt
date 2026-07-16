@@ -8,6 +8,13 @@ import { overviewSites, type OverviewSites } from '~/utils/overview'
 import { parseWaferGeometry, type WaferGeometry } from '~/utils/waferGeometry'
 import { buildAnalysisManifest, extractSignature, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
 import type { AnalysisManifest, ReferenceDescriptor } from '~/utils/skewvoirAnalysis/types'
+import {
+  featureRows as computeFeatureRows,
+  featureRegistry as computeFeatureRegistry,
+  type FeatureSource,
+  type MsrFeatureRow,
+  type FeatureDefinition
+} from '~/utils/skewvoirAnalysis/features'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -410,6 +417,36 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
   })
 
+  // --- Shared feature table (Task 4) ---
+  // The SAME per-MSR feature source Time-Series (Task 8) and multi-MSR
+  // Correlation (Task 10) read from, so neither recomputes its own
+  // level/spread/spatial/FDC numbers. Sources: focus first, then the curated
+  // set's loaded files, deduped by msr (mirrors `manifest` above) — featureRows
+  // dedupes defensively too, so passing an already-deduped list here is just
+  // an optimization, not a correctness requirement.
+  const featureSources = computed<FeatureSource[]>(() => {
+    const focus = focusFile.value
+    const list: FeatureSource[] = []
+    const seen = new Set<string>()
+    if (focus) {
+      list.push(focus)
+      seen.add(focus.msr)
+    }
+    for (const file of setFiles.value.values()) {
+      if (seen.has(file.msr)) continue
+      seen.add(file.msr)
+      list.push(file)
+    }
+    return list
+  })
+
+  const featureRows = computed<MsrFeatureRow[]>(() =>
+    computeFeatureRows(featureSources.value, activeParam.value, anomalyCfg.value)
+  )
+  const featureRegistry = computed<FeatureDefinition[]>(() =>
+    computeFeatureRegistry(featureSources.value, activeParam.value)
+  )
+
   return {
     focusMsr,
     focusRow,
@@ -450,7 +487,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     trendPoints,
     anomalyCfg,
     trendSummary,
-    focusVerdict
+    focusVerdict,
+    featureRows,
+    featureRegistry
   }
 }
 
