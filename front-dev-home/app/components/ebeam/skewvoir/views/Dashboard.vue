@@ -22,7 +22,7 @@
       <div class="flex min-h-0 flex-col gap-2.5 xl:col-span-4">
         <EbeamSkewvoirDashboardWaferMap :analysis="analysis" />
         <EbeamSkewvoirDashboardRadiusPlot
-          class="min-h-0 flex-1"
+          class="min-h-[18rem] flex-1"
           :analysis="analysis"
         />
       </div>

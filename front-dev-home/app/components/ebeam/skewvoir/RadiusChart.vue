@@ -147,7 +147,7 @@ const option = computed<EChartsOption>(() => {
   const hasResiduals = props.showResiduals && props.profile.status === 'fitted'
   const mainGrid = hasResiduals
     ? { left: 52, right: 20, top: 20, height: '55%', containLabel: true }
-    : { left: 48, right: 16, top: 18, bottom: 36, containLabel: true }
+    : { left: 40, right: 44, top: 30, bottom: 36, containLabel: true }
   const xAxes = [{
     type: 'value' as const,
     min: props.profile.metrics.n ? props.profile.metrics.radiusMin : 0,
@@ -156,14 +156,14 @@ const option = computed<EChartsOption>(() => {
     nameLocation: 'middle' as const,
     nameGap: 24,
     nameTextStyle: { fontSize: 11 },
-    axisLabel: { fontSize: 10 }
+    axisLabel: { fontSize: 10, formatter: (value: number) => String(Math.round(value)) }
   }]
   const yAxes = [{
     type: 'value' as const,
     scale: true,
     name: props.unit || props.parameter,
     nameTextStyle: { fontSize: 10 },
-    axisLabel: { fontSize: 10 }
+    axisLabel: { fontSize: 10, formatter: (value: number) => value.toFixed(2) }
   }]
   if (hasResiduals) {
     xAxes.push({
