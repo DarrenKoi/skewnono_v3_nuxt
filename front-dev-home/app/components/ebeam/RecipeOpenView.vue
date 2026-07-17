@@ -4,19 +4,12 @@
       :tool-type="toolType"
       :fab="fab"
     />
-    <EbeamMetaBar
-      :title="titleRecipeName || 'Recipe 상세'"
-      :subtitle="data ? formatTimestamp(data.timestamp) : ''"
-    >
-      <template #actions>
-        <EbeamRecipeDetailNav
-          :tool-type="toolType"
-          :fab="fab"
-          :recipe-name="recipeName"
-          active-screen="open"
-        />
-      </template>
-    </EbeamMetaBar>
+    <EbeamRecipeDetailNav
+      :tool-type="toolType"
+      :fab="fab"
+      :recipe-name="titleRecipeName || recipeName"
+      active-screen="open"
+    />
 
     <div
       v-if="!recipeName"
@@ -177,7 +170,6 @@ import type {
 import {
   IMAGE_SLOTS,
   type ImageSlotKey,
-  formatRecipeTimestamp,
   readRecipeNameQuery
 } from '~/utils/recipeView'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
@@ -217,7 +209,6 @@ const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
 const ampInfo = computed<AmpRow[]>(() => data.value?.amp_info ?? [])
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
-const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso, { withSeconds: true })
 
 type Tab = 'image' | 'overview' | 'mp'
 

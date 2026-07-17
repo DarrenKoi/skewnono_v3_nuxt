@@ -117,7 +117,7 @@ const tableUi = recipeTableUi
       <EbeamFeatureHeader
         :stats="data ? headerStats : []"
         :subtitle="data ? `이 fab 안에서 해당 recipe를 보유한 장비를 확인합니다. 보유 ratio: ${readyPercent}%` : ''"
-        :title="recipeName || 'Recipe 횡전개'"
+        title="Recipe 횡전개"
       />
     </div>
 
