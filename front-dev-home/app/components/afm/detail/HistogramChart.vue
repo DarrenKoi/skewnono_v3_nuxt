@@ -4,7 +4,7 @@
     :ui="{ body: 'p-4 sm:p-5', header: 'px-4 sm:px-5 py-3' }"
   >
     <template #header>
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-col gap-1">
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-bar-chart-3"
@@ -14,12 +14,14 @@
             Z-value distribution
           </h2>
         </div>
-        <span
-          v-if="profile.length"
+        <p
+          v-if="stats.count"
           class="sk-meta tabular-nums"
         >
           μ={{ stats.mean.toFixed(2) }} · σ={{ stats.stdev.toFixed(2) }}
-        </span>
+          · Q1={{ stats.q1.toFixed(2) }} · Md={{ stats.median.toFixed(2) }} · Q3={{ stats.q3.toFixed(2) }}
+          · skew={{ stats.skewness.toFixed(2) }} · kurt={{ stats.kurtosis.toFixed(2) }} · CV={{ stats.cv.toFixed(1) }}%
+        </p>
       </div>
     </template>
 
@@ -39,17 +41,55 @@
     >
       No distribution data
     </div>
-    <div
-      v-else
-      ref="chartEl"
-      class="h-60 w-full"
-    />
+    <template v-else>
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <USelect
+          v-model="binMethod"
+          :items="binMethodItems"
+          size="xs"
+          class="min-w-28"
+          aria-label="Bin method"
+        />
+        <UInput
+          v-if="binMethod === 'custom'"
+          v-model.number="customBins"
+          type="number"
+          size="xs"
+          class="w-20"
+          :min="5"
+          :max="200"
+          aria-label="Bin count"
+        />
+        <USelect
+          v-model="displayMode"
+          :items="displayModeItems"
+          size="xs"
+          class="min-w-28"
+          aria-label="Display mode"
+        />
+        <UCheckbox
+          v-model="showNormal"
+          label="Normal"
+          size="xs"
+        />
+        <UCheckbox
+          v-model="showPercentiles"
+          label="Quartiles"
+          size="xs"
+        />
+      </div>
+      <div
+        ref="chartEl"
+        class="h-60 w-full"
+      />
+    </template>
   </UCard>
 </template>
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
+import type { BinMethod, HistogramMode } from '~/utils/afmHistogram'
 
 const props = defineProps<{
   profile: AfmProfilePoint[]
@@ -57,58 +97,97 @@ const props = defineProps<{
   exportName?: string
 }>()
 
-const BIN_COUNT = 24
-
-const stats = computed(() => {
-  const points = props.profile
-  if (points.length === 0) return { mean: 0, stdev: 0, min: 0, max: 0 }
-  let sum = 0
-  let min = Infinity
-  let max = -Infinity
-  for (const p of points) {
-    sum += p.z
-    if (p.z < min) min = p.z
-    if (p.z > max) max = p.z
-  }
-  const mean = sum / points.length
-  let sqSum = 0
-  for (const p of points) sqSum += (p.z - mean) ** 2
-  return { mean, stdev: Math.sqrt(sqSum / points.length), min, max }
-})
-
-const bins = computed(() => {
-  if (props.profile.length === 0) return { centers: [], counts: [] }
-  const { min, max } = stats.value
-  const span = max - min || 1
-  const width = span / BIN_COUNT
-  const counts = new Array(BIN_COUNT).fill(0)
-  for (const p of props.profile) {
-    const idx = Math.min(BIN_COUNT - 1, Math.max(0, Math.floor((p.z - min) / width)))
-    counts[idx] += 1
-  }
-  const centers = Array.from({ length: BIN_COUNT }, (_, i) =>
-    (min + width * (i + 0.5)).toFixed(2)
-  )
-  return { centers, counts }
-})
-
 const chartEl = ref<HTMLDivElement | null>(null)
 
-const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 44, right: 12, top: 16, bottom: 32 },
-  tooltip: { trigger: 'axis' },
-  xAxis: {
-    type: 'category',
-    data: bins.value.centers,
-    axisLabel: { fontSize: 10, interval: 3 }
-  },
-  yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
-  series: [{
+const binMethod = ref<BinMethod>('auto')
+const customBins = ref<number>(30)
+const displayMode = ref<HistogramMode>('frequency')
+const showNormal = ref(true)
+const showPercentiles = ref(true)
+
+const binMethodItems: { label: string, value: BinMethod }[] = [
+  { label: 'Auto bins', value: 'auto' },
+  { label: 'Custom bins', value: 'custom' }
+]
+const displayModeItems: { label: string, value: HistogramMode }[] = [
+  { label: 'Frequency', value: 'frequency' },
+  { label: 'Density', value: 'density' },
+  { label: 'Cumulative', value: 'cumulative' }
+]
+
+const zs = computed(() => props.profile.map(p => p.z))
+const stats = computed(() => histogramStats(zs.value))
+const binCount = computed(() => resolveBinCount(zs.value, binMethod.value, customBins.value))
+const hist = computed(() => computeHistogram(zs.value, binCount.value, displayMode.value))
+
+const centerLabels = computed(() => hist.value.centers.map(c => c.toFixed(2)))
+
+const normalSeriesData = computed(() =>
+  showNormal.value
+    ? normalCurveOverCenters(stats.value, displayMode.value, hist.value.binWidth, hist.value.centers)
+    : []
+)
+
+const percentileMarks = computed(() => {
+  if (!showPercentiles.value || !stats.value.count) return []
+  const edges = hist.value.edges
+  return [
+    { name: 'Q1', xAxis: binIndexForValue(edges, stats.value.q1) },
+    { name: 'Md', xAxis: binIndexForValue(edges, stats.value.median) },
+    { name: 'Q3', xAxis: binIndexForValue(edges, stats.value.q3) }
+  ]
+})
+
+const yAxisName = computed(() =>
+  displayMode.value === 'density'
+    ? 'Density'
+    : displayMode.value === 'cumulative' ? 'Cumulative' : 'Frequency'
+)
+
+const chartOption = computed<EChartsOption>(() => {
+  const series: EChartsOption['series'] = [{
     type: 'bar',
-    data: bins.value.counts,
-    itemStyle: { borderRadius: [3, 3, 0, 0] }
+    data: hist.value.values,
+    itemStyle: { borderRadius: [3, 3, 0, 0] },
+    markLine: percentileMarks.value.length
+      ? {
+          symbol: 'none',
+          silent: true,
+          lineStyle: { type: 'dashed', color: '#94a3b8' },
+          label: { fontSize: 9, formatter: (p: { name?: string }) => p.name ?? '' },
+          data: percentileMarks.value
+        }
+      : undefined
   }]
-}))
+
+  if (normalSeriesData.value.length) {
+    series.push({
+      type: 'line',
+      data: normalSeriesData.value,
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { color: '#ef4444', width: 2 },
+      z: 3
+    })
+  }
+
+  return {
+    grid: { left: 46, right: 12, top: 16, bottom: 32 },
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category',
+      data: centerLabels.value,
+      axisLabel: { fontSize: 10, interval: Math.max(0, Math.ceil(centerLabels.value.length / 8) - 1) }
+    },
+    yAxis: {
+      type: 'value',
+      name: yAxisName.value,
+      nameTextStyle: { fontSize: 9 },
+      axisLabel: { fontSize: 10 }
+    },
+    series
+  }
+})
 
 useEchart(chartEl, chartOption, { exportName: props.exportName })
 </script>
