@@ -2,6 +2,7 @@ import importlib
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Blueprint, Flask, g, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
@@ -57,6 +58,7 @@ def _install_json_error_handlers(app: Flask) -> None:
 
 
 def create_app() -> Flask:
+    load_dotenv(Path(__file__).parent / ".env")
     app = Flask(__name__)
     app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", "dev-only-not-for-prod")
 
