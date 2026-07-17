@@ -10,15 +10,15 @@ import {
 } from './afmExport.ts'
 
 test('buildInfoCsv → key,value rows preserving null', () => {
-  const t = buildInfoCsv({ 'Recipe ID': 'ABC', 'Lot ID': 'TT01', Missing: null })
+  const t = buildInfoCsv({ 'Recipe ID': 'ABC', 'Lot ID': 'TT01', 'Missing': null })
   assert.deepEqual(t.headers, ['key', 'value'])
   assert.deepEqual(t.rows, [['Recipe ID', 'ABC'], ['Lot ID', 'TT01'], ['Missing', null]])
 })
 
 test('buildSummaryCsv collects dynamic measurement columns after Site/ITEM', () => {
   const t = buildSummaryCsv([
-    { Site: '1', ITEM: 'MEAN', 'CD (nm)': 12, 'H (nm)': 3 },
-    { Site: '1', ITEM: 'STDEV', 'CD (nm)': 0.5, 'H (nm)': 0.1 }
+    { 'Site': '1', 'ITEM': 'MEAN', 'CD (nm)': 12, 'H (nm)': 3 },
+    { 'Site': '1', 'ITEM': 'STDEV', 'CD (nm)': 0.5, 'H (nm)': 0.1 }
   ])
   assert.deepEqual(t.headers, ['Site', 'ITEM', 'CD (nm)', 'H (nm)'])
   assert.deepEqual(t.rows[0], ['1', 'MEAN', 12, 3])
@@ -33,7 +33,7 @@ test('buildSummaryCsv on empty input → headers only, no rows', () => {
 test('buildDetailedCsv unions keys across ragged rows, missing → empty', () => {
   const t = buildDetailedCsv([
     { 'Site ID': 'A', 'X (um)': 1 },
-    { 'Site ID': 'B', 'X (um)': 2, Extra: 9 }
+    { 'Site ID': 'B', 'X (um)': 2, 'Extra': 9 }
   ])
   assert.deepEqual(t.headers, ['Site ID', 'X (um)', 'Extra'])
   assert.deepEqual(t.rows[0], ['A', 1, ''])
