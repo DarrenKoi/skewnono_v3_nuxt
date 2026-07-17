@@ -14,13 +14,24 @@
             Profile image
           </h2>
         </div>
-        <UBadge
-          v-if="point"
-          :label="`Point ${point}`"
-          color="primary"
-          size="xs"
-          variant="subtle"
-        />
+        <div class="flex items-center gap-2">
+          <UBadge
+            v-if="point"
+            :label="`Point ${point}`"
+            color="primary"
+            size="xs"
+            variant="subtle"
+          />
+          <UButton
+            v-if="url"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-download"
+            aria-label="Download profile image"
+            @click="downloadImage"
+          />
+        </div>
       </div>
     </template>
 
@@ -58,9 +69,27 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   url: string | null
   point: string
+  filename: string
   loading?: boolean
 }>()
+
+const downloadImage = async () => {
+  if (!import.meta.client || !props.url) return
+  try {
+    const res = await fetch(props.url)
+    const blob = await res.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    const safePoint = props.point.replace(/[^a-zA-Z0-9]+/g, '_') || 'point'
+    link.download = `${props.filename}-point${safePoint}.svg`
+    link.click()
+    URL.revokeObjectURL(objectUrl)
+  } catch {
+    // Best-effort download; a failed fetch simply does nothing.
+  }
+}
 </script>

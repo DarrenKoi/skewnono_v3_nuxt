@@ -89,6 +89,7 @@
           <AfmDetailProfileImage
             :url="imageUrl"
             :point="selectedPoint"
+            :filename="filename"
             :loading="imagePending"
           />
         </div>
