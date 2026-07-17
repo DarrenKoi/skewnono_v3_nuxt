@@ -186,9 +186,11 @@ const filteredRows = computed(() =>
 const pagedRows = computed(() => pagePointRows(filteredRows.value, page.value, PAGE_SIZE))
 const summary = computed(() => pointsSummary(filteredRows.value))
 
-watch([() => props.selectedPoint, search, visibleKeys], () => {
+// Reset to page 1 whenever the row set or any filter changes. `() => props.data`
+// covers the router reusing this instance across measurement navigations.
+watch([() => props.data, () => props.selectedPoint, search, visibleKeys], () => {
   page.value = 1
-}, { deep: true })
+})
 
 const formatCell = (v: unknown) => {
   if (v === null || v === undefined || v === '') return '–'
