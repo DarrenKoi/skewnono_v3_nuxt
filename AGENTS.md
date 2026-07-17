@@ -100,3 +100,13 @@ There is no dedicated unit or E2E runner configured at the repo root yet.
 - PRs should state purpose, key changes, impacted routes or APIs, and manual verification steps.
 - Include screenshots or recordings for UI changes.
 - Note any environment variables or phase-specific assumptions when relevant.
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
+
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+
+<!-- OPENWIKI:END -->
