@@ -4,16 +4,20 @@ from flask import Blueprint, Response, jsonify, request
 
 from back_dev_home.afm.data import (
     get_afm_file_detail,
+    get_analysis_image_svg,
     get_profile_image_svg,
     get_profile_points,
     get_tools,
     get_user_analytics,
     list_afm_files,
+    list_analysis_images,
     list_user_activities,
     normalize_tool
 )
 
 bp = Blueprint("afm", __name__)
+
+_VALID_IMAGE_TYPES = ("align", "tip", "capture", "tiff")
 
 
 @bp.get("/afm/tools")
@@ -129,6 +133,44 @@ def afm_image_file(filename: str, point: str):
     decoded_filename = unquote(filename)
     decoded_point = unquote(point)
     svg = get_profile_image_svg(decoded_filename, decoded_point, tool_name)
+
+    if svg is None:
+        return "Image file not found", 404
+
+    return Response(svg, mimetype="image/svg+xml")
+
+
+@bp.get("/afm/files/<path:filename>/images/<image_type>")
+def afm_analysis_images(filename: str, image_type: str):
+    tool_name = _tool_name()
+    if image_type not in _VALID_IMAGE_TYPES:
+        return jsonify({
+            "success": False,
+            "error": "Invalid image type",
+            "message": f"Unknown image type '{image_type}'",
+            "tool": tool_name
+        }), 404
+
+    decoded_filename = unquote(filename)
+    images = list_analysis_images(decoded_filename, image_type, tool_name)
+    return jsonify({
+        "success": True,
+        "data": images,
+        "count": len(images),
+        "tool": tool_name,
+        "message": f"Found {len(images)} {image_type} images for {decoded_filename}"
+    })
+
+
+@bp.get("/afm/files/<path:filename>/images/<image_type>/<path:name>")
+def afm_analysis_image_file(filename: str, image_type: str, name: str):
+    if image_type not in _VALID_IMAGE_TYPES:
+        return "Invalid image type", 404
+
+    tool_name = _tool_name()
+    decoded_filename = unquote(filename)
+    decoded_name = unquote(name)
+    svg = get_analysis_image_svg(decoded_filename, image_type, decoded_name, tool_name)
 
     if svg is None:
         return "Image file not found", 404
