@@ -54,6 +54,7 @@ import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
 const props = defineProps<{
   profile: AfmProfilePoint[]
   loading?: boolean
+  exportName?: string
 }>()
 
 const BIN_COUNT = 24
@@ -109,5 +110,5 @@ const chartOption = computed<EChartsOption>(() => ({
   }]
 }))
 
-useEchart(chartEl, chartOption)
+useEchart(chartEl, chartOption, { exportName: props.exportName })
 </script>

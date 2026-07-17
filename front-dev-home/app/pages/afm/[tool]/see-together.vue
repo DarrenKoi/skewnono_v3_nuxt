@@ -168,6 +168,7 @@
             v-else
             :series="chartSeries"
             :selected-column="selectedColumn"
+            :export-name="`${toolId}-trend`"
           />
         </div>
       </section>

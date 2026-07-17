@@ -59,6 +59,7 @@ import { chipClass } from '~/utils/chipClass'
 
 const props = defineProps<{
   summary: AfmSummaryRow[]
+  exportName?: string
 }>()
 
 const statisticItems = [...AFM_SUMMARY_ITEMS]
@@ -121,5 +122,5 @@ const chartOption = computed<EChartsOption>(() => ({
   }))
 }))
 
-useEchart(chartEl, chartOption)
+useEchart(chartEl, chartOption, { exportName: props.exportName })
 </script>

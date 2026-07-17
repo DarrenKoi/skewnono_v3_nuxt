@@ -55,6 +55,7 @@ const props = defineProps<{
   series: AfmTrendSeries[]
   selectedColumn: string
   loading?: boolean
+  exportName?: string
 }>()
 
 const chartEl = ref<HTMLDivElement | null>(null)
@@ -133,5 +134,5 @@ const chartOption = computed<EChartsOption>(() => ({
   }))
 }))
 
-useEchart(chartEl, chartOption)
+useEchart(chartEl, chartOption, { exportName: props.exportName })
 </script>

@@ -75,15 +75,20 @@
           />
         </div>
         <div class="space-y-5 lg:col-span-7">
-          <AfmDetailSummaryScatterChart :summary="payload.summary" />
+          <AfmDetailSummaryScatterChart
+            :summary="payload.summary"
+            :export-name="`${filename}-summary-scatter`"
+          />
           <div class="grid gap-5 md:grid-cols-2">
             <AfmDetailHeatmapChart
               :profile="profile"
               :loading="profilePending"
+              :export-name="`${filename}-heatmap`"
             />
             <AfmDetailHistogramChart
               :profile="profile"
               :loading="profilePending"
+              :export-name="`${filename}-histogram`"
             />
           </div>
           <AfmDetailProfileImage
