@@ -3,9 +3,11 @@
     <section class="dashboard-surface rounded-3xl p-5 md:p-6">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div class="min-w-0">
-          <p class="sk-eyebrow mb-2">
-            AFM · Recipe detail
-          </p>
+          <AfmBreadcrumb
+            :tool="toolId"
+            :current="filename"
+            class="mb-2"
+          />
           <h1 class="truncate text-xl md:text-2xl font-semibold tracking-tight font-mono">
             {{ filename }}
           </h1>
