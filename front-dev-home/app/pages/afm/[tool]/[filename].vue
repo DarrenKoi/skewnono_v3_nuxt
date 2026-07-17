@@ -206,8 +206,20 @@ const downloadCombined = () => {
   downloadCsvRaw(`${filename.value}-all.csv`, content)
 }
 
+const hasAnyData = computed(() =>
+  infoEntries.value.length > 0
+  || summaryRows.value.length > 0
+  || detailRows.value.length > 0
+  || profile.value.length > 0
+)
+
 const exportItems = computed<DropdownMenuItem[][]>(() => [
-  [{ label: 'Download All (CSV)', icon: 'i-lucide-download', onSelect: () => downloadCombined() }],
+  [{
+    label: 'Download All (CSV)',
+    icon: 'i-lucide-download',
+    disabled: !hasAnyData.value,
+    onSelect: () => downloadCombined()
+  }],
   [
     {
       label: `Measurement Info (${infoEntries.value.length})`,
