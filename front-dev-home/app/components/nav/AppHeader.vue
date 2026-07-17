@@ -50,6 +50,15 @@ const toggleColorMode = () => {
         :class="headerActionClass('/endpoints')"
       />
       <UButton
+        to="/chat"
+        icon="i-lucide-message-square"
+        color="neutral"
+        variant="ghost"
+        aria-label="채팅"
+        :aria-current="isActivePath('/chat') ? 'page' : undefined"
+        :class="headerActionClass('/chat')"
+      />
+      <UButton
         to="/activity"
         icon="i-lucide-bar-chart-3"
         color="neutral"
