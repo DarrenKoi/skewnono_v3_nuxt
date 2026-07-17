@@ -3,27 +3,35 @@ export const escapeCsvValue = (value: unknown): string => {
   return `"${normalized}"`
 }
 
-// Excel reads UTF-8 only when a BOM (U+FEFF) is present and CRLF line
-// endings are used; without these, Korean/Japanese values render as
-// mojibake on Windows.
-export const downloadCsv = (
-  filename: string,
-  headers: string[],
-  rows: unknown[][]
-): void => {
-  if (!import.meta.client || rows.length === 0) return
-
+// Compose CSV text (no BOM): header + rows, every value escaped, CRLF-joined.
+// Pure — safe to import and call under `node --test`.
+export const buildCsvContent = (headers: string[], rows: unknown[][]): string => {
   const headerRow = headers.map(escapeCsvValue).join(',')
   const bodyRows = rows.map(row => row.map(escapeCsvValue).join(','))
-  const csvContent = ['﻿' + headerRow, ...bodyRows].join('\r\n')
+  return [headerRow, ...bodyRows].join('\r\n')
+}
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+// Download an arbitrary CSV string. Excel reads UTF-8 only when a BOM (U+FEFF)
+// is present, so this is the single place the BOM is added. Client-only.
+export const downloadCsvRaw = (filename: string, content: string): void => {
+  if (!import.meta.client || content.length === 0) return
+
+  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
   link.click()
   URL.revokeObjectURL(url)
+}
+
+export const downloadCsv = (
+  filename: string,
+  headers: string[],
+  rows: unknown[][]
+): void => {
+  if (rows.length === 0) return
+  downloadCsvRaw(filename, buildCsvContent(headers, rows))
 }
 
 // Copy plain text with the same fallback used by table exports. Clipboard API
