@@ -149,14 +149,14 @@ v1.
 
 ```text
 CHAT_BASE_URL   # home: https://openrouter.ai/api/v1   office: http://internal-llm/v1
-CHAT_API_KEY    # office key; at home falls back to OPENROUTER_API_KEY (see below)
+CHAT_API_KEY    # OpenRouter key at home, internal gateway key at office
 CHAT_MODELS     # JSON list: [{"id":"...","label":"..."}]
 CHAT_TIMEOUT    # seconds, default 60
 ```
 
-- **Key resolution:** `config.py` reads `CHAT_API_KEY`, falling back to the
-  existing **`OPENROUTER_API_KEY`** already present in `back_dev_home/.env`.
-  Home works with the key already on disk; office sets `CHAT_API_KEY`.
+- **Key:** `config.py` reads **`CHAT_API_KEY`**. The existing key in
+  `back_dev_home/.env` has been renamed `OPENROUTER_API_KEY` -> `CHAT_API_KEY`,
+  so the phase-generic name is the single source at home and office alike.
 - **`.env` loading:** the app does **not** currently load `.env`
   (no `load_dotenv` anywhere). This feature adds `python-dotenv` and calls
   `load_dotenv()` at startup so the key is actually read. New dependency:
