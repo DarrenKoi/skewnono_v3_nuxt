@@ -13,7 +13,7 @@ export const DEFAULT_POINT_COLUMN_KEYS: string[] = [
 ]
 
 const LABEL_OVERRIDES: Record<string, string> = {
-  measurement_point: 'Site',
+  'measurement_point': 'Site',
   'Point No': '#',
   'X (um)': 'X (μm)',
   'Y (um)': 'Y (μm)',
