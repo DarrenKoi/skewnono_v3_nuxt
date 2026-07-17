@@ -24,20 +24,22 @@ mock populates the **filenames** (`providers/mock.py:394-406`), but:
 
 ## Goals
 
-1. From the measurement detail page, browse supplementary images per measurement in three
-   tabs: **Align**, **Tip**, **Result** (mapped to `align` / `tip` / `tiff`).
+1. From the measurement detail page, browse **all supplementary image kinds** per
+   measurement — mirroring the legacy `image_routes.py`, which serves five directory
+   "modes" (`profile`, `tiff`, `align`, `tip`, `capture`). Profile is already shown as its
+   own card, so the gallery adds the other four as tabs: **Align** (`align`), **Tip**
+   (`tip`), **Capture** (`capture`), **Result** (`tiff`).
 2. Open any image full-size and download it individually.
 3. Make this fully functional in Phase 1 by generating deterministic placeholder images in
-   the mock, served through the provider seam so Phase 2/3 can swap in real files with no
-   frontend change.
+   the mock — populating every one of the four dir-lists (including `capture`, which the
+   mock currently leaves empty) so all four tabs display — served through the provider seam
+   so Phase 2/3 can swap in real files with no frontend change.
 
 ## Non-goals
 
 - **Bulk "Download All" per tab.** Deferred: it fires N separate browser downloads (the
   wart Sub-project A deliberately avoided), and Phase-1 images are placeholders. Per-image
   download only.
-- A **Capture** tab. The mock never populates `capture_dir_list`; excluded until office
-  data does. (`tiff` = "Result" is the per-site-point image set.)
 - Real image formats in Phase 1. The mock serves `image/svg+xml` placeholders even though
   the contract filenames say `.png`/`.tiff`/`.webp`; `<img>` and download work regardless,
   and the office provider returns true formats later.
@@ -61,23 +63,29 @@ Add both names to `data.py`'s `__all__`.
 
 **Mock provider** (`back_dev_home/afm/providers/mock.py`):
 
-- `IMAGE_TYPE_FIELDS = { "align": "align_dir_list", "tip": "tip_dir_list", "tiff": "tiff_dir_list" }`
+- `IMAGE_TYPE_FIELDS = { "align": "align_dir_list", "tip": "tip_dir_list", "capture": "capture_dir_list", "tiff": "tiff_dir_list" }`
   maps the route's `image_type` to the row's dir-list key.
+- **Populate `capture_dir_list`** in the mock row builder (currently hard-coded to
+  `["no files"]` at `providers/mock.py:406`): give each measurement a capture image, e.g.
+  `[f"{clean_filename}_{sites[0]}_capture.png"]`, so the Capture tab displays at home. Keep
+  `align`/`tip` on their existing sparse cadence (realistic — not every measurement has
+  them); `tiff` (Result) and `capture` populate broadly.
 - `list_analysis_images`: locate the measurement row (`_find_measurement`), read the mapped
   dir-list, drop `"no files"`, and build one entry per name with `url =
   /api/afm/files/<enc filename>/images/<image_type>/<enc name>`.
 - `get_analysis_image_svg`: validate the name is in the type's dir-list, then generate a
   placeholder SVG mirroring `get_profile_image_svg` — seeded via
   `_seed_for("analysis-image", tool, filename, f"{image_type}:{name}")` for determinism, a
-  per-type accent color (align / tip / tiff distinct), and a text label of
+  per-type accent color (align / tip / capture / tiff distinct), and a text label of
   `tool · lot · image_type · name`.
 - Add both to `mock.py`'s `__all__`.
 
 **Office provider** (`back_dev_home/afm/providers/office.py`): add `list_analysis_images`
 and `get_analysis_image_svg` as `_not_connected()` stubs, matching the existing pattern.
 
-**Routes** (`back_dev_home/afm/routes.py`) — `image_type` is validated against the three
-known types; unknown → 404. Import the two new data functions.
+**Routes** (`back_dev_home/afm/routes.py`) — `image_type` is validated against the four
+known types (`align`, `tip`, `capture`, `tiff`); unknown → 404. Import the two new data
+functions.
 
 | Route | Returns |
 | --- | --- |
@@ -93,14 +101,15 @@ the existing point-based `image-file/<point>` route.
 
 - `interface AfmAnalysisImage { name: string; url: string }`
 - `interface AfmAnalysisImagesResponse { success: boolean; data: AfmAnalysisImage[]; count: number; tool: string }`
-- `fetchAnalysisImages(toolName: string, filename: string, imageType: 'align' | 'tip' | 'tiff'): Promise<AfmAnalysisImagesResponse>`
+- `type AfmImageType = 'align' | 'tip' | 'capture' | 'tiff'`
+- `fetchAnalysisImages(toolName: string, filename: string, imageType: AfmImageType): Promise<AfmAnalysisImagesResponse>`
   with in-flight de-dup keyed by `tool|filename|imageType`, mirroring `fetchImage`.
 - Export the new function from the composable's returned object.
 
 **`components/afm/detail/AnalysisImages.vue`** (new) — props `{ tool: string; filename: string }`.
 
-- A `UCard` titled "Analysis images" with three tabs (`UTabs`): **Align** (`align`),
-  **Tip** (`tip`), **Result** (`tiff`).
+- A `UCard` titled "Analysis images" with four tabs (`UTabs`): **Align** (`align`),
+  **Tip** (`tip`), **Capture** (`capture`), **Result** (`tiff`).
 - Each tab lazy-loads its image list on first activation (fetch once, cache in a
   per-type ref). States: loading (spinner), empty ("No <label> images"), and a thumbnail
   grid (`<img :src="image.url">`, responsive, `overflow` guarded).
@@ -136,31 +145,39 @@ back_dev_home/afm
 - `"no files"` sentinel → excluded from the list (empty tab, not a broken entry).
 - Measurement not found / name not in dir-list → serve route 404.
 - Most mock measurements lack `align`/`tip` (only `index % 6 == 0` / `index % 7 == 0`); the
-  gallery must render empty tabs gracefully. `tiff` (Result) is common (`index % 4 != 1`).
+  gallery must render empty tabs gracefully. `tiff` (Result) is common (`index % 4 != 1`) and
+  `capture` is populated for every measurement (added by this spec), so those two tabs
+  always display at home.
 - Lightbox download failure (fetch error) is caught and silently no-ops (best-effort),
   matching `ProfileImage.vue`.
 
 ## Testing
 
-Backend (`unittest`, per repo convention — pytest is not installed):
+Backend — pytest (`.venv/bin/pytest back_dev_home/afm`; pytest 9.1.1 is installed and the
+existing `test_contract.py` already runs under it). Route tests use Flask's `test_client`,
+mirroring `back_dev_home/chat/tests/test_routes.py`.
 
-- `list_analysis_images`: returns entries for a measurement with `align`/`tip`/`tiff`
-  present; skips `"no files"`; returns `[]` for an unknown type and for a measurement whose
-  dir-list is the sentinel; URLs point at the serve route with the right type/name.
+- `list_analysis_images`: returns entries for a measurement with `capture`/`tiff` present
+  (always populated) and for one with `align`/`tip` present; skips `"no files"`; returns
+  `[]` for an unknown type and for a measurement whose dir-list is the sentinel; URLs point
+  at the serve route with the right type/name.
 - `get_analysis_image_svg`: returns an SVG string (starts with `<svg`) for a valid
-  `(measurement, type, name)`; `None` for unknown type, unknown measurement, and a name not
-  in the dir-list; output is deterministic across two calls with the same seed inputs.
-- Routes (contract test): list route 200 with `{success, data, count, tool}`; serve route
-  200 with `Content-Type: image/svg+xml`; unknown type and missing name → 404.
+  `(measurement, type, name)` across all four types; `None` for unknown type, unknown
+  measurement, and a name not in the dir-list; output is deterministic across two calls with
+  the same seed inputs.
+- `capture` population: every measurement row's `capture_dir_list` is non-sentinel (a
+  regression guard on the mock change).
+- Routes (`test_client`): list route 200 with `{success, data, count, tool}`; serve route
+  200 with `Content-Type: image/svg+xml`; unknown type → 404, missing name → 404.
 
 Frontend: `AnalysisImages.vue` is `.vue` wiring — gated by `npm run typecheck` +
-`npm run lint` + in-app verification (load a measurement known to have `tiff`/`align`
-images, confirm tabs, thumbnails, lightbox, and per-image download).
+`npm run lint` + in-app verification (load a measurement, confirm all four tabs, thumbnails
+on Capture/Result, lightbox, and per-image download).
 
 ## Files touched
 
 - `back_dev_home/afm/data.py` (2 seam functions + `__all__`)
-- `back_dev_home/afm/providers/mock.py` (2 implementations + type map + `__all__`)
+- `back_dev_home/afm/providers/mock.py` (2 implementations + type map + `capture_dir_list` population + `__all__`)
 - `back_dev_home/afm/providers/office.py` (2 stubs)
 - `back_dev_home/afm/routes.py` (2 routes + imports)
 - `back_dev_home/afm/tests/` (new backend tests)
