@@ -14,6 +14,8 @@ __all__ = [
     "get_afm_file_detail",
     "get_profile_points",
     "get_profile_image_svg",
+    "list_analysis_images",
+    "get_analysis_image_svg",
     "list_user_activities",
     "get_user_analytics",
 ]
@@ -61,6 +63,23 @@ def get_profile_image_svg(
     tool_name: str | None = None,
 ) -> str | None:
     return _provider().get_profile_image_svg(filename, point, tool_name)
+
+
+def list_analysis_images(
+    filename: str,
+    image_type: str,
+    tool_name: str | None = None,
+) -> list[dict[str, str]]:
+    return _provider().list_analysis_images(filename, image_type, tool_name)
+
+
+def get_analysis_image_svg(
+    filename: str,
+    image_type: str,
+    name: str,
+    tool_name: str | None = None,
+) -> str | None:
+    return _provider().get_analysis_image_svg(filename, image_type, name, tool_name)
 
 
 def list_user_activities(

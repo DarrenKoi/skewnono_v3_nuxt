@@ -16,6 +16,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any
+from urllib.parse import quote
 
 from back_dev_home.afm.contracts import AfmMeasurementRow
 
@@ -28,6 +29,8 @@ __all__ = [
     "get_afm_file_detail",
     "get_profile_points",
     "get_profile_image_svg",
+    "list_analysis_images",
+    "get_analysis_image_svg",
     "list_user_activities",
     "get_user_analytics",
 ]
@@ -39,6 +42,20 @@ BASE_TIME = datetime(2026, 4, 24, 9, 30, 0, tzinfo=timezone.utc)
 SITES = ("1_UL", "2_UR", "3_LL", "4_LR", "5_C", "6_L", "7_R", "8_T", "9_B")
 SUMMARY_ITEMS = ("MEAN", "STDEV", "MIN", "MAX", "RANGE")
 STATE_CODES = ("OK", "OK", "OK", "WARN", "NG")
+
+IMAGE_TYPE_FIELDS: dict[str, str] = {
+    "align": "align_dir_list",
+    "tip": "tip_dir_list",
+    "capture": "capture_dir_list",
+    "tiff": "tiff_dir_list",
+}
+
+_IMAGE_TYPE_ACCENT: dict[str, str] = {
+    "align": "#2563eb",
+    "tip": "#d97706",
+    "capture": "#7c3aed",
+    "tiff": "#0f766e",
+}
 
 SUMMARY_COLUMNS: tuple[tuple[str, float, tuple[float, float], tuple[float, float], tuple[float, float]], ...] = (
     ("Left_H (nm)", 1.0, (0.8, 4.5), (8, 20), (15, 35)),
@@ -291,6 +308,79 @@ def get_profile_image_svg(
 </svg>"""
 
 
+def list_analysis_images(
+    filename: str,
+    image_type: str,
+    tool_name: str | None = None,
+) -> list[dict[str, str]]:
+    field = IMAGE_TYPE_FIELDS.get(image_type)
+    if field is None:
+        return []
+
+    row = _find_measurement(filename, tool_name)
+    if row is None:
+        return []
+
+    tool = normalize_tool(tool_name)
+    encoded_filename = quote(row["filename"], safe="")
+    encoded_tool = quote(tool, safe="")
+
+    images: list[dict[str, str]] = []
+    for name in row.get(field, []):
+        if not name or name == "no files":
+            continue
+        encoded_name = quote(name, safe="")
+        images.append({
+            "name": name,
+            "url": (
+                f"/api/afm/files/{encoded_filename}/images/{image_type}/{encoded_name}"
+                f"?tool={encoded_tool}"
+            ),
+        })
+    return images
+
+
+def get_analysis_image_svg(
+    filename: str,
+    image_type: str,
+    name: str,
+    tool_name: str | None = None,
+) -> str | None:
+    field = IMAGE_TYPE_FIELDS.get(image_type)
+    if field is None:
+        return None
+
+    row = _find_measurement(filename, tool_name)
+    if row is None:
+        return None
+
+    names = [n for n in row.get(field, []) if n and n != "no files"]
+    if name not in names:
+        return None
+
+    rng = random.Random(
+        _seed_for("analysis-image", row["tool_name"], row["filename"], f"{image_type}:{name}")
+    )
+    accent = _IMAGE_TYPE_ACCENT.get(image_type, "#0f766e")
+    shapes = "\n".join(
+        "<circle "
+        f"cx=\"{rng.randint(30, 610)}\" cy=\"{rng.randint(45, 285)}\" "
+        f"r=\"{rng.randint(10, 46)}\" "
+        f"fill=\"rgba(255,255,255,{rng.uniform(0.04, 0.16):.2f})\" />"
+        for _ in range(18)
+    )
+    title = html.escape(f"{image_type.upper()} · {row['tool_name']} {row['lot_id']}")
+    subtitle = html.escape(name)
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0f172a" />
+  <rect x="20" y="20" width="600" height="280" rx="10" fill="{accent}" fill-opacity="0.85" />
+  {shapes}
+  <text x="32" y="330" fill="#f8fafc" font-family="Arial, sans-serif" font-size="18" font-weight="700">{title}</text>
+  <text x="32" y="351" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="12">{subtitle}</text>
+</svg>"""
+
+
 def list_user_activities(user: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     rows = list_afm_files("MAP608")[: min(max(limit, 0), 20)]
     now = BASE_TIME + timedelta(days=4)
@@ -403,7 +493,7 @@ def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
                 has_tip,
                 [f"{clean_filename}_{sites[0]}_tip.tiff"]
             ),
-            "capture_dir_list": ["no files"],
+            "capture_dir_list": [f"{clean_filename}_{sites[0]}_capture.png"],
             "has_profile": has_profile,
             "has_data": True,
             "has_image": has_image,
