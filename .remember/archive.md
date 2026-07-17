@@ -1,7 +1,7 @@
 # Archive
 
 ## Week of 2026-07-07
-Built office transition skills (/leave-office, /back-to-office); extended MSR file FDC mock with functional SkewvoirView integration and analysis visualization (FdcAnalysis, TimeSeriesChart, Scatter, SequenceTrend). Hardened useMsrFileApi with bounded concurrency and 429-retry handling. Verified 26 MSRs across 87 tests; saved architectural memories.
+Built office transition skills (/leave-office, /back-to-office); extended MSR file FDC mock with functional SkewvoirView integration. Swept design compliance: recipe-tat fonts (--sk-ink normalization), 장비상태 UI (40 NuxtUI tokens), echarts 6.1.0 CD outlier detection (97 tests). Designed BM/PM overlay + MDC time series redesign (10 subagent tasks); refactored recipe tables; switched to Tailscale remote dev.
 
 ## Week of 2026-06-30
 Shipped network_sharpness_cdsem service with quarterly/daily tab UI. Designed and implemented CD outlier detection using median+MAD for skewvoir TimeSeriesChart with per-point recoloring (flags mean/spread anomalies). Dead-code cleanup pass on hardware/device-statistics and skewvoir (4 stale/export removals). 97 tests, 2 commits.
