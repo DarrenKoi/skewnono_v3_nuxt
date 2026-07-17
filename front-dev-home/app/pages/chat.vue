@@ -94,7 +94,7 @@ onMounted(async () => {
           <ChatModelPicker v-model="selectedModel" :models="models" :disabled="!!active" />
         </div>
       </div>
-      <ChatSystemPromptField v-model="systemPrompt" />
+      <ChatSystemPromptField v-model="systemPrompt" :disabled="!!active" />
       <ChatThread
         :messages="active?.messages ?? []"
         :pending="pending"

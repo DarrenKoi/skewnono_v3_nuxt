@@ -70,6 +70,28 @@ def test_send_message_requires_content(client):
     assert r.status_code == 400
 
 
+def test_retry_after_failure_does_not_duplicate_user_message(client, monkeypatch):
+    tid = client.post("/api/chat/threads", json={"model": "m1"}).get_json()["data"]["id"]
+
+    def _boom(model, messages):
+        raise llm.ChatTimeout("slow")
+    monkeypatch.setattr(llm, "send_chat", _boom)
+    assert client.post(f"/api/chat/threads/{tid}/messages", json={"content": "ping"}).status_code == 504
+
+    captured = {}
+    def _ok(model, messages):
+        captured["messages"] = messages
+        return {"content": "pong", "prompt_tokens": 1, "completion_tokens": 1, "latency_ms": 5}
+    monkeypatch.setattr(llm, "send_chat", _ok)
+    r = client.post(f"/api/chat/threads/{tid}/messages", json={"content": "ping"})
+    assert r.status_code == 200
+
+    roles = [m["role"] for m in client.get(f"/api/chat/threads/{tid}").get_json()["data"]["messages"]]
+    assert roles == ["user", "assistant"]  # exactly one user row, not two
+    # the LLM payload contained the user turn exactly once
+    assert sum(1 for m in captured["messages"] if m["role"] == "user" and m["content"] == "ping") == 1
+
+
 def test_get_unknown_thread_404(client):
     assert client.get("/api/chat/threads/nope").status_code == 404
 

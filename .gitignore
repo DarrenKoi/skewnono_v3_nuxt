@@ -99,4 +99,4 @@ back_dev_home/access_control/state/access_exceptions.json
 
 # Chat feature local store (home/Phase 1)
 back_dev_home/chat/chat.db
-*.db
+back_dev_home/chat/*.db

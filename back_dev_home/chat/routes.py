@@ -71,15 +71,22 @@ def chat_send_message(thread_id):
     if thread is None:
         return error_json("not_found", "thread not found", 404)
 
-    # Persist the user message BEFORE the LLM call so a failure never loses it.
-    data.append_message(thread_id, "user", content)
+    history = thread["messages"]
+    last = history[-1] if history else None
+    already_persisted = (
+        last is not None and last["role"] == "user" and last["content"] == content
+    )
+    # On a retry the user turn is already stored; don't write it (or send it) twice.
+    if not already_persisted:
+        data.append_message(thread_id, "user", content)
 
     payload = []
     if thread.get("system_prompt"):
         payload.append({"role": "system", "content": thread["system_prompt"]})
-    for m in thread["messages"]:
+    for m in history:
         payload.append({"role": m["role"], "content": m["content"]})
-    payload.append({"role": "user", "content": content})
+    if not already_persisted:
+        payload.append({"role": "user", "content": content})
 
     try:
         reply = llm.send_chat(thread["model"], payload)

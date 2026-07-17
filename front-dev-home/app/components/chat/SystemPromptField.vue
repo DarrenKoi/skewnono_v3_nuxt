@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const value = defineModel<string>()
+defineProps<{ disabled?: boolean }>()
 const open = ref(false)
 </script>
 
@@ -19,6 +20,7 @@ const open = ref(false)
         :rows="3"
         class="w-full"
         placeholder="이 대화의 시스템 프롬프트 (선택)"
+        :disabled="disabled"
       />
     </div>
   </div>
