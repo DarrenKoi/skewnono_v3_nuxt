@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatMessage } from '~/composables/useChatApi'
 
-const props = defineProps<{ message: ChatMessage; pending?: boolean; error?: boolean }>()
+const props = defineProps<{ message: ChatMessage; pending?: boolean }>()
 
 const isUser = computed(() => props.message.role === 'user')
 const meta = computed(() => {
@@ -21,10 +21,7 @@ const meta = computed(() => {
   >
     <div
       class="max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
-      :class="[
-        isUser ? 'bg-sky-500 text-white' : 'bg-elevated text-default',
-        error ? 'ring-1 ring-error' : ''
-      ]"
+      :class="isUser ? 'bg-sky-500 text-white' : 'bg-elevated text-default'"
     >
       <span v-if="pending" class="opacity-70">…</span>
       <template v-else>{{ message.content }}</template>

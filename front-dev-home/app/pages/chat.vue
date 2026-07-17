@@ -37,15 +37,8 @@ const removeThread = async (id: string) => {
   await loadThreads()
 }
 
-const send = async (text: string) => {
-  if (!active.value) await newThread()
-  const thread = active.value!
+const deliver = async (thread: ThreadDetail, text: string) => {
   errorMessage.value = null
-  lastSent.value = text
-  active.value!.messages.push({
-    id: `local-${Date.now()}`, thread_id: thread.id, role: 'user',
-    content: text, created_at: new Date().toISOString()
-  })
   pending.value = true
   try {
     const reply: ChatMessage = await api.sendMessage(thread.id, text)
@@ -60,8 +53,19 @@ const send = async (text: string) => {
   }
 }
 
+const send = async (text: string) => {
+  if (!active.value) await newThread()
+  const thread = active.value!
+  lastSent.value = text
+  active.value!.messages.push({
+    id: `local-${Date.now()}`, thread_id: thread.id, role: 'user',
+    content: text, created_at: new Date().toISOString()
+  })
+  await deliver(thread, text)
+}
+
 const retry = () => {
-  if (lastSent.value) send(lastSent.value)
+  if (lastSent.value && active.value) deliver(active.value, lastSent.value)
 }
 
 onMounted(async () => {
