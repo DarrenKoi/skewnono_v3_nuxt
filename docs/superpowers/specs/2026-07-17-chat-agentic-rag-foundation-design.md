@@ -49,6 +49,20 @@ The current retry heuristic also treats equal message text as proof that a
 request is a retry. Repeating the same legitimate user question can therefore
 be misclassified.
 
+A retrospective review of the executed chat implementation plan added three
+operational findings that this design must carry forward:
+
+1. `purge_expired(30)` runs on every `GET /api/chat/threads` request. That is
+   acceptable for the single-user SQLite mock but must become a scheduled or
+   startup-time job before the office conversation store is activated.
+2. Retention compares `updated_at` as ISO-8601 strings. This is safe only
+   because every timestamp passes through the same `_now()` formatter; the
+   office adapter must use date-typed fields and range queries instead of
+   string comparison.
+3. The default `CHAT_MODELS` entries are free OpenRouter tiers that go stale.
+   Every deployment must set `CHAT_MODELS` explicitly, which this design
+   extends with per-model `supports_tools` and `supports_vision` flags.
+
 ## Design Principles
 
 - Flask owns authentication, HTTP behavior, conversation history, and the
@@ -353,6 +367,10 @@ Each configured chat model declares `supports_tools` and `supports_vision`.
 Deep Agent mode rejects a model without tool support before storing a new user
 turn. Page-image tools remain unavailable to models without vision support.
 
+`CHAT_MODELS` must be set explicitly per deployment. The built-in defaults are
+free OpenRouter tiers that go stale and declare no capability flags, so they
+are suitable only for first-run home experimentation in direct mode.
+
 ## Error Behavior
 
 Errors retain the repository's `{"error":{"code","message"}}` envelope.
@@ -388,6 +406,9 @@ must supply and validate:
 - approved OpenSearch index aliases, fields, projections, and query limits;
 - approved company read clients, methods, field projections, and timeouts;
 - maximum index memory, Flask worker count, and per-worker load budget;
+- a scheduled retention job replacing the mock's purge-on-list behavior, with
+  date-typed `updated_at` range queries instead of ISO-8601 string comparison;
+- an explicit `CHAT_MODELS` value with per-model capability flags;
 - acceptance commands using fake clients plus separate office smoke checks.
 
 Secrets, real company values, internal hosts, raw mappings, and sensitive sample
