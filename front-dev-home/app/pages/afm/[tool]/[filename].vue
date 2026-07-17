@@ -16,6 +16,21 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
+          <UDropdownMenu
+            :items="exportItems"
+            :content="{ align: 'end' }"
+            :ui="{ content: 'w-64' }"
+          >
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              trailing-icon="i-lucide-chevron-down"
+            >
+              내보내기
+            </UButton>
+          </UDropdownMenu>
           <UButton
             :to="`/afm/${toolId}`"
             size="sm"
@@ -85,6 +100,8 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
+import type { DropdownMenuItem } from '@nuxt/ui'
+import type { CsvTable } from '~/utils/afmExport'
 
 definePageMeta({
   layout: 'hub',
@@ -156,6 +173,62 @@ const profile = profileLoader.data
 const profilePending = profileLoader.pending
 const imageUrl = imageLoader.data
 const imagePending = imageLoader.pending
+
+const summaryRows = computed(() => payload.value?.summary ?? [])
+const detailRows = computed(() => payload.value?.data ?? [])
+const infoEntries = computed(() => Object.entries(information.value))
+const siteCount = computed(() => new Set(summaryRows.value.map(r => r.Site)).size)
+
+const safePoint = () => selectedPoint.value.replace(/[^a-zA-Z0-9]+/g, '_') || 'point'
+
+const downloadTable = (suffix: string, table: CsvTable) =>
+  downloadCsv(`${filename.value}-${suffix}.csv`, table.headers, table.rows)
+
+const downloadInfo = () => downloadTable('info', buildInfoCsv(information.value))
+const downloadSummary = () => downloadTable('summary', buildSummaryCsv(summaryRows.value))
+const downloadDetailed = () => downloadTable('detailed', buildDetailedCsv(detailRows.value))
+const downloadProfile = () =>
+  downloadTable(`profile-point${safePoint()}`, buildProfileCsv(profile.value))
+
+const downloadCombined = () => {
+  const content = buildCombinedContent([
+    { label: 'Measurement Info', table: buildInfoCsv(information.value) },
+    { label: 'Summary (by site)', table: buildSummaryCsv(summaryRows.value) },
+    { label: 'Detailed Points', table: buildDetailedCsv(detailRows.value) },
+    { label: `Profile (point ${selectedPoint.value || 'none'})`, table: buildProfileCsv(profile.value) }
+  ])
+  downloadCsvRaw(`${filename.value}-all.csv`, content)
+}
+
+const exportItems = computed<DropdownMenuItem[][]>(() => [
+  [{ label: 'Download All (CSV)', icon: 'i-lucide-download', onSelect: () => downloadCombined() }],
+  [
+    {
+      label: `Measurement Info (${infoEntries.value.length})`,
+      icon: 'i-lucide-info',
+      disabled: infoEntries.value.length === 0,
+      onSelect: () => downloadInfo()
+    },
+    {
+      label: `Summary (${siteCount.value} sites)`,
+      icon: 'i-lucide-table',
+      disabled: summaryRows.value.length === 0,
+      onSelect: () => downloadSummary()
+    },
+    {
+      label: `Detailed Points (${detailRows.value.length})`,
+      icon: 'i-lucide-list',
+      disabled: detailRows.value.length === 0,
+      onSelect: () => downloadDetailed()
+    },
+    {
+      label: `Profile — point ${selectedPoint.value || '—'} (${profile.value.length})`,
+      icon: 'i-lucide-line-chart',
+      disabled: profile.value.length === 0,
+      onSelect: () => downloadProfile()
+    }
+  ]
+])
 
 watch(selectedPoint, (point) => {
   profileLoader.run(point)
