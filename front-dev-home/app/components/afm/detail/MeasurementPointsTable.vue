@@ -44,45 +44,82 @@
       </div>
     </template>
 
+    <div class="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800/60">
+      <UInput
+        v-model="search"
+        icon="i-lucide-search"
+        size="xs"
+        placeholder="Search rows…"
+        class="w-44"
+      />
+      <USelectMenu
+        v-model="visibleKeys"
+        :items="columnItems"
+        value-key="value"
+        multiple
+        size="xs"
+        icon="i-lucide-columns-3"
+        placeholder="Columns"
+        class="min-w-40"
+        :search-input="{ placeholder: 'Filter columns…' }"
+      />
+      <div class="ml-auto flex items-center gap-3 sk-meta tabular-nums">
+        <span>Total <b class="text-(--sk-ink)">{{ summary.total }}</b></span>
+        <span>Valid <b class="text-(--sk-ink)">{{ summary.valid }}</b></span>
+        <span>Cols <b class="text-(--sk-ink)">{{ visibleColumns.length }}</b></span>
+      </div>
+    </div>
+
     <div
       v-if="filteredRows.length === 0"
       class="px-4 py-10 text-center sk-body"
     >
       No measurement rows
     </div>
-    <div
-      v-else
-      class="max-h-[480px] overflow-auto"
-    >
-      <table class="w-full text-[12px] font-mono">
-        <thead class="sticky top-0 z-10 bg-zinc-50/95 text-(--sk-ink-muted) backdrop-blur dark:bg-zinc-900/90">
-          <tr>
-            <th
-              v-for="col in columns"
-              :key="col.key"
-              class="px-2.5 py-1.5 text-right sk-label first:text-left"
+    <template v-else>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[12px] font-mono">
+          <thead class="bg-zinc-50/95 text-(--sk-ink-muted) dark:bg-zinc-900/90">
+            <tr>
+              <th
+                v-for="col in visibleColumns"
+                :key="col.key"
+                class="px-2.5 py-1.5 text-right sk-label first:text-left"
+              >
+                {{ col.label }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, i) in pagedRows"
+              :key="i"
+              class="border-t border-zinc-100 transition-colors hover:bg-zinc-50/80 dark:border-zinc-800/60 dark:hover:bg-zinc-800/30"
             >
-              {{ col.label }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(row, i) in filteredRows"
-            :key="i"
-            class="border-t border-zinc-100 transition-colors hover:bg-zinc-50/80 dark:border-zinc-800/60 dark:hover:bg-zinc-800/30"
-          >
-            <td
-              v-for="col in columns"
-              :key="col.key"
-              class="px-2.5 py-1 text-right sk-value-num first:text-left"
-            >
-              {{ formatCell(row[col.key]) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+              <td
+                v-for="col in visibleColumns"
+                :key="col.key"
+                class="px-2.5 py-1 text-right sk-value-num first:text-left"
+              >
+                {{ formatCell(row[col.key]) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div
+        v-if="filteredRows.length > PAGE_SIZE"
+        class="flex justify-center border-t border-zinc-100 px-4 py-2 dark:border-zinc-800/60"
+      >
+        <UPagination
+          v-model:page="page"
+          :total="filteredRows.length"
+          :items-per-page="PAGE_SIZE"
+          :sibling-count="1"
+          size="xs"
+        />
+      </div>
+    </template>
   </UCard>
 </template>
 
@@ -100,21 +137,58 @@ defineEmits<{
   (event: 'update:selectedPoint', point: string): void
 }>()
 
-const columns: ReadonlyArray<{ key: keyof AfmDetailRow, label: string }> = [
-  { key: 'measurement_point', label: 'Site' },
-  { key: 'Point No', label: '#' },
-  { key: 'X (um)', label: 'X (μm)' },
-  { key: 'Y (um)', label: 'Y (μm)' },
-  { key: 'Left_H (nm)', label: 'Left_H' },
-  { key: 'Right_H (nm)', label: 'Right_H' },
-  { key: 'Ref_H (nm)', label: 'Ref_H' },
-  { key: 'State', label: 'State' }
-]
+const PAGE_SIZE = 25
+const STORAGE_KEY = 'skewnono:afm.pointColumns'
 
-const filteredRows = computed(() => {
-  if (!props.selectedPoint) return props.data
-  return props.data.filter(r => r.measurement_point === props.selectedPoint)
-})
+const search = ref('')
+const page = ref(1)
+const visibleKeys = ref<string[]>([])
+
+const allColumns = computed(() => derivePointColumns(props.data))
+const columnItems = computed(() => allColumns.value.map(c => ({ label: c.label, value: c.key })))
+const visibleColumns = computed(() => allColumns.value.filter(c => visibleKeys.value.includes(c.key)))
+
+const loadStoredKeys = (): string[] | null => {
+  if (!import.meta.client) return null
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : null
+  } catch {
+    return null
+  }
+}
+
+let initialized = false
+watch(allColumns, (cols) => {
+  if (initialized || cols.length === 0) return
+  const present = new Set(cols.map(c => c.key))
+  const stored = (loadStoredKeys() ?? []).filter(k => present.has(k))
+  visibleKeys.value = stored.length
+    ? stored
+    : DEFAULT_POINT_COLUMN_KEYS.filter(k => present.has(k))
+  initialized = true
+}, { immediate: true })
+
+watch(visibleKeys, (keys) => {
+  if (!import.meta.client) return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(keys))
+  } catch {
+    // ignore persistence failures (private mode, quota)
+  }
+}, { deep: true })
+
+const filteredRows = computed(() =>
+  filterPointRows(props.data, props.selectedPoint, search.value, visibleKeys.value)
+)
+const pagedRows = computed(() => pagePointRows(filteredRows.value, page.value, PAGE_SIZE))
+const summary = computed(() => pointsSummary(filteredRows.value))
+
+watch([() => props.selectedPoint, search, visibleKeys], () => {
+  page.value = 1
+}, { deep: true })
 
 const formatCell = (v: unknown) => {
   if (v === null || v === undefined || v === '') return '–'
