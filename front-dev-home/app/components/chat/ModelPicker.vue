@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatModel } from '~/composables/useChatApi'
 
-defineProps<{ models: ChatModel[]; disabled?: boolean }>()
+defineProps<{ models: ChatModel[], disabled?: boolean }>()
 const model = defineModel<string>()
 </script>
 
