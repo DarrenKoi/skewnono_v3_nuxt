@@ -1,5 +1,8 @@
 # Archive
 
+## Week of 2026-07-14
+Shipped X-ID access control (spec, JSON exceptions, admin middleware; 14+ tests, 8-agent review). Shipped skewvoir search (9-task SDD, OpenSearch 60d, FAB/EQ/date facets, 177 tests). UI polish: nav fixes, RecipeStatusView styling, AFM date display. Switched to Tailscale remote dev (tablet .ts.net), configured tmux.
+
 ## Week of 2026-07-07
 Built office transition skills (/leave-office, /back-to-office); extended MSR file FDC mock with functional SkewvoirView integration. Swept design compliance: recipe-tat fonts (--sk-ink normalization), 장비상태 UI (40 NuxtUI tokens), echarts 6.1.0 CD outlier detection (97 tests). Designed BM/PM overlay + MDC time series redesign (10 subagent tasks); refactored recipe tables; switched to Tailscale remote dev.
 
