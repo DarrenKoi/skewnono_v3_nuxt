@@ -96,6 +96,20 @@ export interface AfmImageResponse {
   tool: string
 }
 
+export type AfmImageType = 'align' | 'tip' | 'capture' | 'tiff'
+
+export interface AfmAnalysisImage {
+  name: string
+  url: string
+}
+
+export interface AfmAnalysisImagesResponse {
+  success: boolean
+  data: AfmAnalysisImage[]
+  count: number
+  tool: string
+}
+
 export interface AfmSiteInfo {
   site_id?: string
   site_x?: string | number
@@ -116,6 +130,7 @@ const inFlightFiles = new Map<string, Promise<AfmFilesResponse>>()
 const inFlightDetail = new Map<string, Promise<AfmDetailResponse>>()
 const inFlightProfile = new Map<string, Promise<AfmProfileResponse>>()
 const inFlightImage = new Map<string, Promise<AfmImageResponse>>()
+const inFlightAnalysis = new Map<string, Promise<AfmAnalysisImagesResponse>>()
 
 export const useAfmDetailApi = () => {
   const config = useRuntimeConfig()
@@ -215,6 +230,25 @@ export const useAfmDetailApi = () => {
     return await request
   }
 
+  const fetchAnalysisImages = async (
+    toolName: string,
+    filename: string,
+    imageType: AfmImageType
+  ): Promise<AfmAnalysisImagesResponse> => {
+    const cacheKey = `${toolName}::${filename}::${imageType}`
+    const existing = inFlightAnalysis.get(cacheKey)
+    if (existing) return await existing
+
+    const path = `/afm/files/${encodeURIComponent(filename)}/images/${imageType}`
+    const request = $fetch<AfmAnalysisImagesResponse>(
+      joinApiPath(base, path),
+      { query: { tool: toolName } }
+    ).finally(() => inFlightAnalysis.delete(cacheKey))
+
+    inFlightAnalysis.set(cacheKey, request)
+    return await request
+  }
+
   const useAfmDetail = (toolName: string, filename: string) =>
     useAsyncData(
       `afm-detail:${toolName}:${filename}`,
@@ -227,6 +261,7 @@ export const useAfmDetailApi = () => {
     fetchDetail,
     fetchProfile,
     fetchImage,
+    fetchAnalysisImages,
     useAfmDetail
   }
 }

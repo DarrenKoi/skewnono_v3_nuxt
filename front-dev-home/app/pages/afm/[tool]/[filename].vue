@@ -97,6 +97,10 @@
             :filename="filename"
             :loading="imagePending"
           />
+          <AfmDetailAnalysisImages
+            :tool="toolName"
+            :filename="filename"
+          />
         </div>
       </div>
     </template>
