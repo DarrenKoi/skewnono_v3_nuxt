@@ -67,8 +67,8 @@
       </main>
     </div>
 
-    <!-- Readiness drawer — manifest groups, excluded MSRs, per-capability readiness. -->
-    <EbeamSkewvoirWorkspaceReadinessDrawer
+    <!-- Readiness modal — manifest groups, excluded MSRs, per-capability readiness. -->
+    <EbeamSkewvoirWorkspaceReadinessModal
       :analysis="analysis"
       :open="readinessOpen"
       @update:open="readinessOpen = $event"
@@ -93,7 +93,7 @@ const props = defineProps<{
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
 const analysis = useSkewvoirAnalysis(ws)
 
-// Readiness drawer open state (opened from the left rail's open-readiness emit).
+// Readiness modal open state (opened from the left rail's open-readiness emit).
 const readinessOpen = ref(false)
 
 // Shared links bypass the landing page, so the workspace records the opened

@@ -1,9 +1,9 @@
 <template>
-  <USlideover
+  <UModal
     :open="open"
     title="분석 준비 상태"
     description="호환 그룹 · 제외 측정 · 기능별 준비도"
-    :ui="{ content: 'w-[92vw] sm:max-w-[440px]' }"
+    :ui="{ content: 'w-[92vw] sm:max-w-xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -96,7 +96,7 @@
         </section>
       </div>
     </template>
-  </USlideover>
+  </UModal>
 </template>
 
 <script setup lang="ts">

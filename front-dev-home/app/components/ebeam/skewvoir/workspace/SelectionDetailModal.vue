@@ -2,7 +2,7 @@
   <UModal
     v-model:open="open"
     :title="scope === 'set' ? '세트 비교 · 상세' : '단일 측정 · 상세'"
-    :ui="{ content: 'w-[92vw] sm:max-w-[560px]' }"
+    :ui="{ content: 'w-[92vw] sm:max-w-3xl' }"
   >
     <template #body>
       <div

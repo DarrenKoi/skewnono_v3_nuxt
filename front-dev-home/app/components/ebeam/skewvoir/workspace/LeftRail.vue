@@ -60,11 +60,14 @@
     <!-- CURRENT SELECTION — scope, compact meta/counts, and the member list.
          Row click focuses an MSR (all views); the leading checkbox removes it
          from the compared set (the focused MSR is guarded, never removable).
-         Enlarge (⤢) opens the full-detail modal; 분석 준비 상태 opens the drawer. -->
+         Enlarge (⤢) opens the full-detail modal; 분석 준비 상태 opens the readiness modal. -->
     <section
       v-if="ws.selection.value"
       class="space-y-2 border-t border-(--sk-border-soft) pt-4"
     >
+      <p class="mb-2 px-1 sk-eyebrow">
+        SELECTION
+      </p>
       <div class="flex items-center justify-between gap-2 px-1">
         <span
           class="inline-flex items-center gap-1 rounded-(--sk-r-chip) px-1.5 py-0.5 text-[10.5px] font-semibold"
@@ -170,7 +173,7 @@
         </ul>
       </template>
 
-      <!-- Readiness drawer opener -->
+      <!-- Readiness modal opener -->
       <UButton
         block
         color="neutral"
