@@ -110,8 +110,6 @@ This is a single-context repository with `CONTEXT.md` and `docs/adr/` at the roo
 
 This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
 
-When unsure about a file's location or role, consult `openwiki/` first — `openwiki/source-map.md` maps paths to their runtime role, and the topic folders (`architecture/`, `domain/`, `workflows/`, etc.) explain how things work — before exploring the tree by hand.
-
 The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
 
 <!-- OPENWIKI:END -->
