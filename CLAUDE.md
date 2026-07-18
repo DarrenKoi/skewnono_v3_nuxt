@@ -43,9 +43,11 @@ Three-tier configuration management. Database connections, API base URLs, and se
 
 ### API Abstraction Layer
 - All phases: frontend calls Flask over `/api/*` via `$fetch`
-- Swap surface is **inside each feature folder**: `back_dev_home/<feature>/data.py` (home mock) vs. a real implementation querying OpenSearch/Redis (office). Routes in `<feature>/routes.py` import via `from .data import ...` and do not change between phases.
+- Swap surface is `back_dev_home/<feature>/providers/office.py` (fill in at the office) vs. `providers/mock.py` (home). `data.py` is a stable dispatcher that picks the adapter by env var — do **not** edit it. Routes import `from .data import ...` and never change between phases.
+- Adapter selected at runtime by `SKEWNONO_<FEATURE>_PROVIDER` (e.g. `SKEWNONO_SEM_LIST_PROVIDER`) or global `SKEWNONO_DATA_PROVIDER`, values `mock`|`office`, default `mock`. Selector lives in `_runtime/data_provider.py`.
 - Blueprints and response shapes stay identical across phases
 - Frontend code never branches on phase — only `NUXT_API_TARGET` changes
+- Exception: some features have more than one swap surface — `chat` swaps both storage and LLM config (env-driven), and file/image features (`msr_file`) also swap FTP/MinIO handlers. Check each feature's `MIGRATION.md`.
 
 ### Data Format Conventions
 - Prefer **dict** and **dataframe dict** format (`dataframe.to_dict()`)
@@ -53,10 +55,10 @@ Three-tier configuration management. Database connections, API base URLs, and se
 
 ### Feature-sliced Backend Layout
 - Each Nuxt feature tab has a matching top-level folder under `back_dev_home/` (e.g. `sem_list/`, `tool_inventory/`).
-- Each feature folder contains `routes.py` (the blueprint + handlers) and `data.py` (the data-access layer). Optional `__init__.py` re-exports `bp` for registration.
+- Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (env-var dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs.
 - `back_dev_home/health/` owns the backend service health API. Add shared backend helpers only when a concrete feature needs them.
 - `back_dev_home/__init__.py` is the app factory: it creates the Flask app, configures CORS, and registers each feature's blueprint under `/api`.
-- Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `<feature>/data.py`.
+- Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `providers/office.py`. Office adapters must normalize results to the `contracts.py` type — "resemble the mock" means match the contract shape, not the mock's data.
 
 ### Repository Layout
 - `front-dev-home/` — Nuxt 4 SPA (same code runs in all phases; `ssr: false`)
@@ -107,6 +109,8 @@ This is a single-context repository with `CONTEXT.md` and `docs/adr/` at the roo
 ## OpenWiki
 
 This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
+
+When unsure about a file's location or role, consult `openwiki/` first — `openwiki/source-map.md` maps paths to their runtime role, and the topic folders (`architecture/`, `domain/`, `workflows/`, etc.) explain how things work — before exploring the tree by hand.
 
 The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
 
