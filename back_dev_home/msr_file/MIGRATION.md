@@ -2,8 +2,11 @@
 
 ## Rules
 
+- FIRST copy the tracked skeleton, then work only in the copy:
+  `cp providers/office_example.py providers/office.py`. `office.py` is
+  gitignored and lives only at the office, so `git pull` never conflicts on it.
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, or `tests/`.
+  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - office MUST emit the canonical metadata keys that mock forbids
   (`site_layout_hash`, `recipe_revision`, `coordinate_transform_version`,

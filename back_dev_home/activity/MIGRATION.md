@@ -2,8 +2,11 @@
 
 ## Rules
 
+- FIRST copy the tracked skeleton, then work only in the copy:
+  `cp providers/office_example.py providers/office.py`. `office.py` is
+  gitignored and lives only at the office, so `git pull` never conflicts on it.
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, or `tests/`.
+  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
