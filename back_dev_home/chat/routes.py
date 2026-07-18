@@ -3,7 +3,7 @@
 from flask import Blueprint, g, request
 
 from back_dev_home._auth.errors import error_json
-from back_dev_home.chat import config, data, llm
+from back_dev_home.chat import config, data, guard, llm
 
 bp = Blueprint("chat", __name__)
 
@@ -90,6 +90,8 @@ def chat_send_message(thread_id):
 
     try:
         reply = llm.send_chat(thread["model"], payload)
+    except guard.ChatEgressBlocked as exc:
+        return error_json("egress_blocked", exc.message, 403)
     except llm.ChatTimeout as exc:
         return error_json("gateway_timeout", exc.message, 504)
     except llm.ChatUpstreamError as exc:

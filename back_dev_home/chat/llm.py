@@ -4,7 +4,7 @@ import time
 
 import httpx
 
-from back_dev_home.chat import config
+from back_dev_home.chat import config, guard
 
 
 class ChatError(Exception):
@@ -22,7 +22,9 @@ class ChatUpstreamError(ChatError):
 
 
 def send_chat(model: str, messages: list[dict]) -> dict:
-    url = f"{config.get_base_url()}/chat/completions"
+    base_url = config.get_base_url()
+    guard.enforce_egress_policy(base_url)
+    url = f"{base_url}/chat/completions"
     headers = {"Content-Type": "application/json"}
     api_key = config.get_api_key()
     if api_key:

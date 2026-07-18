@@ -1,7 +1,7 @@
 import pytest
 from flask import Flask, g
 
-from back_dev_home.chat import llm
+from back_dev_home.chat import guard, llm
 from back_dev_home.chat.routes import bp
 
 
@@ -62,6 +62,19 @@ def test_send_message_timeout_preserves_user_message(client, monkeypatch):
     assert r.status_code == 504
     msgs = client.get(f"/api/chat/threads/{tid}").get_json()["data"]["messages"]
     assert [m["role"] for m in msgs] == ["user"]  # user msg kept, no assistant
+
+
+def test_send_message_egress_blocked_returns_403(client, monkeypatch):
+    def _blocked(model, messages):
+        raise guard.ChatEgressBlocked("OpenRouter is blocked in office mode")
+    monkeypatch.setattr(llm, "send_chat", _blocked)
+    tid = client.post("/api/chat/threads", json={"model": "m1"}).get_json()["data"]["id"]
+    r = client.post(f"/api/chat/threads/{tid}/messages", json={"content": "ping"})
+    assert r.status_code == 403
+    assert r.get_json()["error"]["code"] == "egress_blocked"
+    # user turn preserved, no assistant appended
+    msgs = client.get(f"/api/chat/threads/{tid}").get_json()["data"]["messages"]
+    assert [m["role"] for m in msgs] == ["user"]
 
 
 def test_send_message_requires_content(client):
