@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office adapter for access-control policy data — NOT CONNECTED YET.
 
 Implement all six functions here against the office Redis exception store

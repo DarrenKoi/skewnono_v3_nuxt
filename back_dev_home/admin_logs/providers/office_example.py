@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office adapter for admin_logs — NOT CONNECTED YET.
 
 Implement query_logs in admin_logs/MIGRATION.md against the office

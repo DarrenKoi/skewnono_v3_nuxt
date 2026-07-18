@@ -100,3 +100,8 @@ back_dev_home/access_control/state/access_exceptions.json
 # Chat feature local store (home/Phase 1)
 back_dev_home/chat/chat.db
 back_dev_home/chat/*.db
+
+# Office data adapters (Phase 2/3): created per-environment by copying
+# providers/office_example.py -> providers/office.py, then implemented at the
+# office. Never tracked, so `git pull` at the office can never conflict on it.
+back_dev_home/*/providers/office.py

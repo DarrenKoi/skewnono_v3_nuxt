@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Phase 2/3 adapter for the office SEM equipment source.
 
 Replace the function body at the office with an OpenSearch, database, or

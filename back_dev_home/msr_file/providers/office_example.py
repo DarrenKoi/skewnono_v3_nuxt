@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office MSR-file adapter hookup point.
 
 CANONICAL METADATA CONTRACT (the entry gate downstream analysis tasks wait on).
