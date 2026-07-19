@@ -21,7 +21,7 @@ Browser
   -> cross-cutting middleware
   -> feature Blueprint
   -> data.py provider dispatcher
-  -> providers/mock.py or providers/office.py
+  -> providers/mock.py or the local providers/office.py
 ```
 
 The concrete startup entry is `index.py`, which exposes both `app` and `application`. `wsgi.ini` imports `index:application` for uWSGI.
@@ -58,9 +58,9 @@ A route should depend on functions exported by its sibling `data.py`, never on O
 - otherwise `SKEWNONO_DATA_PROVIDER`;
 - otherwise `mock`.
 
-The dispatcher calls `providers/mock.py` or `providers/office.py`. The office provider owns source-specific querying and normalization; routes and frontend composables retain the same shape. Runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
+The dispatcher calls `providers/mock.py` or a local `providers/office.py`. Home authors maintain the tracked `providers/office_example.py` contract skeleton; office engineers copy it to the gitignored `office.py` and implement source-specific querying and normalization there. A fresh clone therefore has no real office module until this copy step is performed. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
 
-This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. Many office providers currently raise `NotImplementedError`; this is intentional because empty placeholders previously made disconnected sources appear healthy.
+This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. Tracked office examples currently raise `NotImplementedError`; this is intentional because empty placeholders previously made disconnected sources appear healthy.
 
 ## Identity, authorization, and observability
 
@@ -88,5 +88,5 @@ In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/publi
 - **Add a page:** check route navigation, URL-state preservation, API calls, and access gate.
 - **Add an API feature:** add a scoped folder with `routes.py`, `data.py`, providers, contracts, and contract tests; no central registration edit is needed.
 - **Change a response:** update backend contracts, API-contract docs, composable types, consumers, fixtures, and [tests](../testing/guidance.md) together.
-- **Connect office data:** keep the route unchanged, implement and normalize in `providers/office.py`, then run that feature's active-provider contract gate.
+- **Connect office data:** copy tracked `providers/office_example.py` to ignored `providers/office.py`, keep the route unchanged, implement and normalize only in the local copy, then run that feature's active-provider contract gate.
 - **Change auth/logging:** inspect API tokens, blocked-member behavior, activity weighting, rate limits, and multi-worker consequences.

@@ -77,15 +77,15 @@ The standalone `afm_data_platform/` may explain old data and endpoints, but appl
 1. Select a model and optional system prompt before thread creation in `pages/chat.vue`.
 2. `useChatApi.ts` creates/updates per-user threads and sends messages.
 3. `back_dev_home/chat/routes.py` delegates persistence through `data.py` and completions through `llm.py`.
-4. The LLM client calls an environment-configured OpenAI-compatible `/chat/completions` endpoint.
+4. Before calling the configured OpenAI-compatible `/chat/completions` endpoint, `guard.py` blocks known public LLM hosts in office provider mode.
 
-Home persistence is SQLite with a 30-day thread lifetime. Token/configuration details belong in trusted environment configuration and must not be documented as values. The current path sends conversation history directly; [integration points](../integrations/integration-points.md#llm-gateway) marks retrieval/tool calling as future work.
+Home persistence is SQLite with a 30-day thread lifetime. In office mode, configure an approved internal `CHAT_BASE_URL`; a blocked destination returns `403 egress_blocked`, leaves the user message persisted for retry, and writes no assistant message. Token/configuration details belong in trusted environment configuration and must not be documented as values. The current path sends conversation history directly; [integration points](../integrations/integration-points.md#llm-gateway) defines the egress boundary and marks retrieval/tool calling as future work.
 
 ## Add or migrate a feature
 
 1. Decide scope: shared Hitachi feature, CD-SEM/HV-SEM-specific feature, or top-level product feature.
-2. Create `routes.py` exporting globally unique `bp`, `data.py`, `contracts.py`, and `providers/mock.py`/`office.py`.
-3. Keep route validation and HTTP behavior in `routes.py`; keep source selection in `data.py`; keep transport queries and normalization in providers.
+2. Create `routes.py` exporting globally unique `bp`, `data.py`, `contracts.py`, `providers/mock.py`, and tracked `providers/office_example.py`.
+3. Keep route validation and HTTP behavior in `routes.py`; keep source selection in `data.py`; keep transport queries and normalization in providers. At the office, copy `office_example.py` to ignored `office.py` and implement only that local file.
 4. Add the frontend composable and page/component consumers against `/api`, without environment branches.
 5. Add provider contract tests and representative route tests. For office migration, run the same gate with the feature override set to `office`.
 6. Update API contracts and migration notes, then follow [operations](../operations/runbook.md) and [testing guidance](../testing/guidance.md).

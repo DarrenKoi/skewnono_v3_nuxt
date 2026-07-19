@@ -41,12 +41,21 @@ Check the backend through `GET /api/health/services`. Local identity defaults to
 | Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Overrides global source |
 | Session secret | `SKEWNONO_SECRET_KEY` | Development-only fallback; set in production |
 | Admin users | `SKEWNONO_ADMIN_USERS` | Mode-specific source defaults |
+| Chat gateway | `CHAT_BASE_URL` | Public OpenRouter default is usable in mock mode but blocked in office mode |
+| Extra blocked chat hosts | `CHAT_BLOCKED_HOSTS` | Comma-separated additions to the built-in office blocklist |
 
-Never inspect or document live `.env` values. Configuration exists under backend/frontend environment files, but setup documentation should refer only to variable names and trusted secret-management procedures.
+Use the tracked `back_dev_home/.env.example` as the non-secret template and copy it to the ignored `back_dev_home/.env` for local values. Never inspect or document live `.env` values. Configuration exists under backend/frontend environment files, but setup documentation should refer only to variable names and trusted secret-management procedures.
 
 ## Incremental office migration
 
-Deployment mode and data provider are separate. Start with one connected feature rather than setting every adapter to office:
+Deployment mode and data provider are separate. On a fresh office checkout, first create the local adapter from its tracked skeleton, then implement only the ignored copy:
+
+```bash
+cp back_dev_home/meas_hist/providers/office_example.py \
+  back_dev_home/meas_hist/providers/office.py
+```
+
+Do not commit `office.py`; home-side contract changes belong in `office_example.py`. Start with one connected feature rather than setting every adapter to office:
 
 ```bash
 SKEWNONO_DATA_PROVIDER=mock \
@@ -117,7 +126,11 @@ Dynamic Blueprint discovery imports every non-private `routes.py`. Inspect the t
 
 ### Office feature returns 500/NotImplementedError
 
-Inspect the matching `providers/office.py` and feature `MIGRATION.md`. Many adapters intentionally fail until source mapping is complete. Use a feature-specific mock override while migrating other features.
+Confirm the matching ignored `providers/office.py` exists; on a fresh clone, copy it from `providers/office_example.py`. Then inspect the local adapter and feature `MIGRATION.md`. A copied skeleton intentionally fails until source mapping is complete. Use a feature-specific mock override while migrating other features.
+
+### Office chat returns `403 egress_blocked`
+
+The chat egress guard rejected `CHAT_BASE_URL` because its host matches a built-in public LLM gateway or an entry added through `CHAT_BLOCKED_HOSTS`. Configure an approved internal gateway; custom blocked hosts only tighten the policy and cannot remove defaults. The failed user turn remains stored so it can be retried without duplication after configuration is corrected.
 
 ### Gallery images receive 429
 

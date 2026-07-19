@@ -44,13 +44,13 @@ A likely clean split is searchable metadata in OpenSearch and large images/files
 
 ## LLM gateway
 
-`back_dev_home/chat/llm.py` sends stateless OpenAI-compatible chat-completion requests. Endpoint, API key, timeout, and model list are environment-driven through the chat config module. The [chat workflow](../workflows/key-workflows.md#chat) has active thread persistence and completion calls, but repository RAG/tool-calling documents describe future work only.
+`back_dev_home/chat/llm.py` sends stateless OpenAI-compatible chat-completion requests. Endpoint, API key, timeout, and model list are environment-driven through the chat config module. Before `httpx.post`, `chat/guard.py` applies an office-only egress blocklist: known public gateways and their subdomains are rejected, while mock mode is unchanged. `CHAT_BLOCKED_HOSTS` can add blocked hosts but cannot remove defaults. Office deployments must point `CHAT_BASE_URL` at an approved internal gateway; a blocked send returns `403` with error code `egress_blocked`, preserves the user turn, and appends no assistant reply.
 
-Office chat persistence is also unresolved: home mode uses SQLite, while an OpenSearch-backed provider is planned but not connected. Before production, define thread privacy, retention, access, and deletion behavior alongside the datastore.
+This is a known-public-host blocklist, not a general internal-host allowlist. The [chat workflow](../workflows/key-workflows.md#chat) has active thread persistence and completion calls, but repository RAG/tool-calling documents describe future work only. Office chat persistence is also unresolved: home mode uses SQLite, while an OpenSearch-backed provider is planned but not connected. Before production, define thread privacy, retention, access, and deletion behavior alongside the datastore.
 
 ## Provider readiness
 
-The active mock providers support home development. Representative unconnected office adapters include health, SEM list, measurement history, MSR file, storage, hardware, Device Statistics, AFM, chat, activity, and access control. Use feature-specific overrides during incremental rollout:
+The active mock providers support home development. For migrated top-level features, home development tracks `providers/office_example.py`; each office environment creates an ignored `providers/office.py` copy and implements the real source there, preventing `git pull` from overwriting office-only adapter code. Representative unconnected office examples include health, SEM list, measurement history, MSR file, AFM, activity, and access control; other areas have not all adopted this split. Use feature-specific overrides during incremental rollout:
 
 ```bash
 SKEWNONO_DATA_PROVIDER=office \
@@ -59,7 +59,14 @@ SKEWNONO_STORAGE_PROVIDER=mock \
 python index.py
 ```
 
-A provider is ready only when it:
+Create a local adapter before enabling its override:
+
+```bash
+cp back_dev_home/<feature>/providers/office_example.py \
+  back_dev_home/<feature>/providers/office.py
+```
+
+Never commit the resulting `office.py`; update the tracked example at home when contracts change. A provider is ready only when it:
 
 1. queries a confirmed production source;
 2. normalizes source fields into the existing contract;

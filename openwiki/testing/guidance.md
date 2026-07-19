@@ -107,7 +107,7 @@ A workflow nested under `front-dev-home/.github/workflows/` is not loaded by Git
 | Device Statistics | Recipe analytics tests, rule engine/drill utility tests, lot/bucket URL flow |
 | Skewvoir | Meas-hist/MSR backend tests, analysis/anomaly utilities, URL restoration, focus/set race behavior |
 | AFM | AFM backend tests, pure heatmap/histogram/table/export tests, measurement-switch reset, image failure states |
-| Chat | Route/store/LLM/config tests, Markdown and relative-time tests, retry/idempotency behavior |
+| Chat | Route/store/LLM/config tests, `chat/tests/test_guard.py`, office blocked-host and `403 egress_blocked` behavior, Markdown and relative-time tests, retry/idempotency behavior |
 | Nuxt config/build | Typecheck, test, lint, build or generate, offline icon rendering |
 | Documentation | `npm run lint:md`, internal-link and source-reference review |
 
