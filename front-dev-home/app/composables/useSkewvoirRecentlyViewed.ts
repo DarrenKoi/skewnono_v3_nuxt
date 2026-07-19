@@ -19,6 +19,8 @@ const STORAGE_KEY = 'skewvoir-recently-viewed'
 const MAX_ITEMS = 15
 const RETENTION_DAYS = 60
 
+// Kept alongside the usePersistedState watcher for refresh(): re-reads what
+// another tab may have written since this SPA instance last touched storage.
 const readAll = (): SkewvoirRecentItem[] => {
   if (!import.meta.client) return []
   try {
@@ -29,13 +31,6 @@ const readAll = (): SkewvoirRecentItem[] => {
   }
 }
 
-const writeAll = (items: SkewvoirRecentItem[]) => {
-  if (!import.meta.client) return
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  } catch { /* localStorage can be unavailable in restricted browser contexts */ }
-}
-
 const shiftIso = (iso: string, days: number): string => {
   const [y, m, d] = iso.split('-').map(Number)
   const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
@@ -44,7 +39,11 @@ const shiftIso = (iso: string, days: number): string => {
 }
 
 export const useSkewvoirRecentlyViewed = (toolType: MeasHistToolType) => {
-  const all = useState<SkewvoirRecentItem[]>('skewvoir-recently-viewed-store', () => readAll())
+  const all = usePersistedState<SkewvoirRecentItem[]>(
+    'skewvoir-recently-viewed-store',
+    STORAGE_KEY,
+    { default: () => [], normalize: normalizeSkewvoirRecentItems }
+  )
   // The retention floor comes from the backend's anchor, never wall clock —
   // the Phase 1 mock's clock is frozen well before today.
   const anchor = useState<string>('skewvoir-recent-anchor', () => '')
@@ -80,18 +79,15 @@ export const useSkewvoirRecentlyViewed = (toolType: MeasHistToolType) => {
     const item = buildSkewvoirRecentItem(toolType, mode, measurements, viewedAt)
     if (!item) return null
     all.value = addSkewvoirRecentItem(all.value, item, MAX_ITEMS)
-    writeAll(all.value)
     return item
   }
 
   const remove = (id: string) => {
     all.value = all.value.filter(item => item.id !== id)
-    writeAll(all.value)
   }
 
   const clear = () => {
     all.value = all.value.filter(item => item.toolType !== toolType)
-    writeAll(all.value)
   }
 
   const refresh = () => {

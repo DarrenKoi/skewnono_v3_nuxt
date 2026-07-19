@@ -1,52 +1,13 @@
 // Cart of selected device lots, shared between the device-statistics list page and its comparison
-// sub-page. Backed by useState so client-side navigation between the two pages reuses one ref;
+// sub-page. Backed by usePersistedState: one useState ref across client-side navigation,
 // localStorage persists across full reloads / direct URL hits.
 
-const SELECTED_DEVICE_LOTS_STORAGE_KEY = 'skewnono:deviceStatistics.selectedDeviceLots'
-
-// watch() inside <script setup> registers in the component's effect scope and dies on unmount.
-// We need the persistence watcher to survive client-side navigation between the list page and
-// the comparison sub-page, so host it inside a detached effect scope (one per app instance).
-const persistenceScope = effectScope(true)
-let persistenceWatcherAttached = false
-
-const readSavedDeviceLots = (): string[] => {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(SELECTED_DEVICE_LOTS_STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === 'string')
-      : []
-  } catch {
-    return []
-  }
-}
-
-const persistDeviceLots = (values: string[]) => {
-  if (typeof window === 'undefined') return
-  try {
-    if (values.length === 0) {
-      window.localStorage.removeItem(SELECTED_DEVICE_LOTS_STORAGE_KEY)
-    } else {
-      window.localStorage.setItem(SELECTED_DEVICE_LOTS_STORAGE_KEY, JSON.stringify(values))
-    }
-  } catch { /* noop */ }
-}
-
 export const useDeviceCart = () => {
-  const selectedDeviceLots = useState<string[]>(
+  const selectedDeviceLots = usePersistedState<string[]>(
     'device-cart:selectedLots',
-    () => readSavedDeviceLots()
+    'skewnono:deviceStatistics.selectedDeviceLots',
+    { default: () => [], normalize: normalizeStringArray }
   )
-
-  if (!persistenceWatcherAttached) {
-    persistenceWatcherAttached = true
-    persistenceScope.run(() => {
-      watch(selectedDeviceLots, next => persistDeviceLots(next))
-    })
-  }
 
   const selectedDeviceLotSet = computed(() => new Set(selectedDeviceLots.value))
 

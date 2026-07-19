@@ -11,45 +11,21 @@ import {
 const storageKey = (toolType: MeasHistToolType) =>
   `skewnono:skewvoir.selection.${toolType}`
 
-const persistenceScope = effectScope(true)
-const persistenceWatchers = new Set<MeasHistToolType>()
-
-const readRows = (key: string): MeasHistRow[] => {
-  if (typeof window === 'undefined') return []
-  try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? '[]')
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((item): item is MeasHistRow =>
-      typeof item === 'object'
-      && item !== null
-      && typeof (item as { msr?: unknown }).msr === 'string'
-    )
-  } catch {
-    return []
-  }
-}
-
-const writeRows = (key: string, rows: MeasHistRow[]) => {
-  if (typeof window === 'undefined') return
-  try {
-    if (rows.length) window.localStorage.setItem(key, JSON.stringify(rows))
-    else window.localStorage.removeItem(key)
-  } catch { /* localStorage can be unavailable in restricted browser contexts */ }
+const normalizeRows = (parsed: unknown): MeasHistRow[] => {
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter((item): item is MeasHistRow =>
+    typeof item === 'object'
+    && item !== null
+    && typeof (item as { msr?: unknown }).msr === 'string'
+  )
 }
 
 export const useSkewvoirSearchSelection = (toolType: MeasHistToolType) => {
-  const key = storageKey(toolType)
-  const selected = useState<MeasHistRow[]>(
+  const selected = usePersistedState<MeasHistRow[]>(
     `skewvoir:search-selection:${toolType}`,
-    () => readRows(key)
+    storageKey(toolType),
+    { default: () => [], normalize: normalizeRows }
   )
-
-  if (!persistenceWatchers.has(toolType)) {
-    persistenceWatchers.add(toolType)
-    persistenceScope.run(() => {
-      watch(selected, rows => writeRows(key, rows), { flush: 'sync' })
-    })
-  }
 
   const has = (msr: string) => selected.value.some(row => row.msr === msr)
 

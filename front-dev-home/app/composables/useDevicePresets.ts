@@ -1,4 +1,4 @@
-// Mirrors the localStorage-backed useState pattern in useDeviceCart.ts.
+// Saved device-lot presets, persisted via usePersistedState (see useDeviceCart).
 
 const STORAGE_KEY = 'skewnono:deviceStatistics.presets'
 
@@ -10,9 +10,6 @@ export interface DevicePreset {
   createdAt: string
   fab?: string
 }
-
-const persistenceScope = effectScope(true)
-let persistenceWatcherAttached = false
 
 const isPreset = (value: unknown): value is DevicePreset => {
   if (!value || typeof value !== 'object') return false
@@ -26,29 +23,6 @@ const isPreset = (value: unknown): value is DevicePreset => {
     && (record.fab === undefined || typeof record.fab === 'string')
 }
 
-const readSavedPresets = (): DevicePreset[] => {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter(isPreset) : []
-  } catch {
-    return []
-  }
-}
-
-const persistPresets = (values: DevicePreset[]) => {
-  if (typeof window === 'undefined') return
-  try {
-    if (values.length === 0) {
-      window.localStorage.removeItem(STORAGE_KEY)
-    } else {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values))
-    }
-  } catch { /* noop */ }
-}
-
 const generateId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -57,17 +31,14 @@ const generateId = (): string => {
 }
 
 export const useDevicePresets = () => {
-  const presets = useState<DevicePreset[]>(
+  const presets = usePersistedState<DevicePreset[]>(
     'device-presets:list',
-    () => readSavedPresets()
+    STORAGE_KEY,
+    {
+      default: () => [],
+      normalize: parsed => Array.isArray(parsed) ? parsed.filter(isPreset) : []
+    }
   )
-
-  if (!persistenceWatcherAttached) {
-    persistenceWatcherAttached = true
-    persistenceScope.run(() => {
-      watch(presets, next => persistPresets(next))
-    })
-  }
 
   const addPreset = (input: { name: string, comments: string, lots: string[], fab?: string }): DevicePreset => {
     const preset: DevicePreset = {

@@ -1,8 +1,7 @@
 // Per-tool AFM working set: viewed measurements, the current grouping cart, saved group
 // snapshots, and recent search terms. Keyed by toolId so each AFM tool keeps its own state.
-// Mirrors the useDeviceCart pattern: useState shares one ref across client-side navigation,
-// and watchers in a detached effect scope persist to localStorage across full reloads.
-// Watchers live for the lifetime of the SPA — bounded by tool count, no disposal needed.
+// Each slice is a usePersistedState ref: shared across client-side navigation, persisted
+// to localStorage across full reloads (one watcher per tool×slice for the SPA lifetime).
 
 export interface AfmMeasurement {
   filename: string
@@ -45,32 +44,14 @@ const MAX_RECENT_SEARCHES = 5
 type StorageKind = 'viewHistory' | 'groupedData' | 'savedGroups' | 'recentSearches'
 const storageKey = (kind: StorageKind, toolId: string) => `skewnono:afm.${kind}.${toolId}`
 
-const persistenceScope = effectScope(true)
-const persistenceWatchers = new Set<string>()
+const arrayOf = <T>(parsed: unknown): T[] => Array.isArray(parsed) ? parsed as T[] : []
 
-function readJSON<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return fallback
-    return JSON.parse(raw) as T
-  } catch {
-    return fallback
-  }
-}
-
-// Synchronous: an acknowledged user action (add/remove/save) must be durable before the
-// next event loop tick, otherwise a tab close mid-debounce silently drops the change.
-function writeJSON(key: string, value: unknown) {
-  if (typeof window === 'undefined') return
-  try {
-    if (Array.isArray(value) && value.length === 0) {
-      window.localStorage.removeItem(key)
-    } else {
-      window.localStorage.setItem(key, JSON.stringify(value))
-    }
-  } catch { /* noop */ }
-}
+const persistedSlice = <T>(kind: StorageKind, stateKind: string, toolId: string) =>
+  usePersistedState<T[]>(
+    `afm-cart:${stateKind}:${toolId}`,
+    storageKey(kind, toolId),
+    { default: () => [], normalize: arrayOf<T> }
+  )
 
 function generateId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -80,39 +61,10 @@ function generateId() {
 }
 
 export const useAfmCart = (toolId: string) => {
-  const historyKey = storageKey('viewHistory', toolId)
-  const groupedKey = storageKey('groupedData', toolId)
-  const savedKey = storageKey('savedGroups', toolId)
-  const recentKey = storageKey('recentSearches', toolId)
-
-  const viewHistory = useState<AfmHistoryEntry[]>(
-    `afm-cart:viewHistory:${toolId}`,
-    () => readJSON<AfmHistoryEntry[]>(historyKey, [])
-  )
-  const groupedData = useState<AfmGroupedEntry[]>(
-    `afm-cart:grouped:${toolId}`,
-    () => readJSON<AfmGroupedEntry[]>(groupedKey, [])
-  )
-  const savedGroups = useState<AfmSavedGroup[]>(
-    `afm-cart:saved:${toolId}`,
-    () => readJSON<AfmSavedGroup[]>(savedKey, [])
-  )
-  const recentSearches = useState<string[]>(
-    `afm-cart:recent:${toolId}`,
-    () => readJSON<string[]>(recentKey, [])
-  )
-
-  if (!persistenceWatchers.has(toolId)) {
-    persistenceWatchers.add(toolId)
-    persistenceScope.run(() => {
-      // flush: 'sync' fires the watcher in the same task as the mutation, so localStorage
-      // is durable before any subsequent unload/navigation could drop the change.
-      watch(viewHistory, next => writeJSON(historyKey, next), { flush: 'sync' })
-      watch(groupedData, next => writeJSON(groupedKey, next), { flush: 'sync' })
-      watch(savedGroups, next => writeJSON(savedKey, next), { flush: 'sync' })
-      watch(recentSearches, next => writeJSON(recentKey, next), { flush: 'sync' })
-    })
-  }
+  const viewHistory = persistedSlice<AfmHistoryEntry>('viewHistory', 'viewHistory', toolId)
+  const groupedData = persistedSlice<AfmGroupedEntry>('groupedData', 'grouped', toolId)
+  const savedGroups = persistedSlice<AfmSavedGroup>('savedGroups', 'saved', toolId)
+  const recentSearches = persistedSlice<string>('recentSearches', 'recent', toolId)
 
   const groupedFilenames = computed(() => new Set(groupedData.value.map(item => item.filename)))
   const isInGroup = (filename: string) => groupedFilenames.value.has(filename)
