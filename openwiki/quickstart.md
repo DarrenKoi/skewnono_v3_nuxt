@@ -87,7 +87,6 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 - Current home defaults are Flask `5050` (`index.py`) and Nuxt `3000` (`front-dev-home/nuxt.config.ts`); `wsgi.ini` listens on `5000`. Some READMEs still mention `3100` or `5000` for development.
 - `front-dev-home/README.md` retains Nuxt starter-template material.
 - `docs/development-workflow.md` describes an obsolete frontend mock-server switch. The current switch is backend provider selection via `SKEWNONO_DATA_PROVIDER` and feature overrides.
-- `app/stores/navigation.ts` uses Nuxt `useState`; Pinia is planned terminology, not the current implementation.
 
 ## Backlog
 

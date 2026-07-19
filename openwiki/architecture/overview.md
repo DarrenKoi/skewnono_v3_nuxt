@@ -30,7 +30,7 @@ The concrete startup entry is `index.py`, which exposes both `app` and `applicat
 
 Pages are file-routed under `front-dev-home/app/pages/`; reusable UI lives under `app/components/`, and API/state behavior generally lives under `app/composables/`. Composables use `$fetch` and Nuxt `useAsyncData`, not TanStack Query. `useSemListApi.ts` is the reference shared-resource pattern: one cache key, a module-scoped in-flight promise, and derived `computed` subsets.
 
-`app/stores/navigation.ts` is currently a Nuxt `useState` wrapper rather than Pinia. `useNavigation.ts` centralizes tool/fab/feature path changes and preserves URL query state where appropriate. This URL-state approach directly supports the shared-evidence workflows described in [key workflows](../workflows/key-workflows.md).
+Frontend state uses Nuxt built-ins rather than Pinia. `app/stores/navigation.ts` wraps `useState`, while `app/composables/usePersistedState.ts` is the canonical factory for state that must also survive a reload. The factory returns one shared `useState` ref per state key, validates stored values, and writes through a detached `flush: 'sync'` watcher so acknowledged cart, preset, preference, recent-search, and selection changes are durable before a tab can close. Existing storage keys and formats remain stable across the refactor; new composables should call the factory instead of duplicating localStorage watchers. `useNavigation.ts` separately centralizes path changes and preserves URL query state where shareability matters, directly supporting the [key workflows](../workflows/key-workflows.md).
 
 ## Flask composition
 
