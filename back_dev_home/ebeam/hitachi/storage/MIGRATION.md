@@ -2,8 +2,10 @@
 
 ## Rules
 
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, or `tests/`.
+- Author the adapter in the tracked `providers/office_example.py`; at the
+  office `cp office_example.py office.py` (office.py is gitignored) and run.
+  Never touch `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`,
+  or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
@@ -46,7 +48,14 @@
   below 1024 GB, else `"N.NT"`. `fac_ids` (when given) filters rows by exact
   `fac_id` match (case-insensitive, trimmed); an empty/absent filter returns
   the full fleet for that tool type.
-- Office data source: <!-- OFFICE: per-tool storage capacity + recipe-count collection agent output -->
+- Office data source: per-tool parquet `pandas.DataFrame` in Redis —
+  `v3_df_ppid_storage_cdsem` / `v3_df_ppid_storage_hvsem` (the "ppid" in the
+  key name is recipe/ppid **count** data, i.e. `rcp_counts`). Columns match
+  `StorageRow`; a failed capacity collection is a row whose `storage_mt`
+  (and capacity strings) are null/blank while `rcp_counts` still reports.
+  The adapter reads the tool's key, coerces nulls to `""`/`None` per the
+  contract, and filters by `fac_id`. Read via pyarrow; connection from
+  `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` in `back_dev_home/.env`.
 - Notes: an empty result (`[]`) is valid — a tool type with no matching
   sem_list entries returns no rows, not an error.
 
@@ -83,7 +92,17 @@
   excluded entirely (it does not appear as a stale/expired row). Rows are
   sorted by `(-missing_days_streak, eqp_ip)`. `fac_ids` filtering drops
   orphan rows outright, since they have no `fac_id` to match against.
-- Office data source: <!-- OFFICE: Redis hash 'v3_hitachi_sem_ppid_not_avail', keyed by YYYYMMDD, 30-day retention -->
+- Office data source: Redis **hash** `v3_hitachi_sem_ppid_not_avail`, field
+  `%Y%m%d` → list of unavailable equipment IPs that day (CD-SEM and HV-SEM
+  **combined**, 30-day retention; list value tolerates JSON / repr / CSV
+  encoding). The adapter reads the whole hash, takes the latest date's IPs,
+  joins each IP to the live `sem_list` (`sem_list.data.get_sem_list()`) to
+  recover `eqp_id`/`fac_id`/`fab_name`/`eqp_model_cd` and the tool type, and
+  keeps only IPs that resolve to the requested `tool_slug`. `missing_days_streak`
+  counts consecutive days the IP stays present, back from the latest date.
+  Behavior note vs. mock: an IP with **no** sem_list match can't be attributed
+  to a tool, so office mode drops it (the mock, which rolls per-tool snapshots,
+  surfaces synthetic orphans) — both still satisfy the contract.
 - Notes: `latest_date` is the max key of the snapshot dict (compact
   `YYYYMMDD` strings sort chronologically as plain strings) rendered as an
   ISO date, not necessarily "today" — office should preserve returning
@@ -91,5 +110,16 @@
   is, rather than always stamping the current date.
 
 ## Verify
+
+First copy the tracked skeleton to the gitignored runnable adapter:
+
+    cp back_dev_home/ebeam/hitachi/storage/providers/office_example.py \
+       back_dev_home/ebeam/hitachi/storage/providers/office.py
+
+Smoke test (prints row counts + a sample per tool; loads `.env` itself):
+
+    .venv/bin/python -m back_dev_home.ebeam.hitachi.storage.providers.office
+
+Contract gate (`.env` loaded by `back_dev_home/conftest.py`):
 
     SKEWNONO_STORAGE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/storage
