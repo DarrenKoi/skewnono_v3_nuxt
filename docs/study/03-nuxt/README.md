@@ -173,7 +173,7 @@ const state = useState<NavigationState>('navigation', () => ({ ...defaultState }
 
 **왜 평범한 `ref`가 아니라 `useState`인가?** SSR에서 서버와 클라이언트의 상태를 맞춰야 하기 때문입니다. 전역 모듈 레벨 `ref`는 서버 여러 요청 간에 공유되어 버그를 일으킵니다.
 
-이 프로젝트는 Pinia 대신 `useState`로 네비게이션 상태를 관리합니다. Phase 2에서 상태가 복잡해지면 Pinia 도입을 검토해도 됩니다.
+이 프로젝트는 Pinia 대신 `useState`로 네비게이션 상태를 관리합니다. 새로고침에도 살아남아야 하는 상태는 `useState` 위에 localStorage 영속을 얹은 `usePersistedState` 팩토리를 씁니다. **Pinia는 명시적으로 도입하지 않습니다**(CLAUDE.md "no Pinia"). 자세한 내용은 `07-code-patterns/persisted-state.md` 참고.
 
 ## 7. 라우팅 API
 
@@ -274,7 +274,7 @@ Phase 2/3에서는 Flask를 쓰기 때문에 거의 안 쓸 것이지만, 알아
 ## 12. 개발 명령어
 
 ```bash
-npm run dev           # 개발 서버 (http://localhost:3100)
+npm run dev           # 개발 서버 (http://localhost:3000)
 npm run dev:remote    # 0.0.0.0 바인딩 (원격 접속)
 npm run build         # 프로덕션 빌드 (.output/)
 npm run preview       # 빌드 결과 로컬 실행

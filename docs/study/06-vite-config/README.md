@@ -16,24 +16,26 @@ Nuxt가 Vite를 감싸기 때문에 직접 Vite 명령을 부를 일은 없습�
 
 ```ts
 const portFromEnv = Number.parseInt(import.meta.env.NUXT_PORT || '', 10)
-const apiTarget = import.meta.env.NUXT_API_TARGET || 'http://localhost:5000'
+const apiTarget = import.meta.env.NUXT_API_TARGET || 'http://localhost:5050'
 const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || '/api'
 const isDev = import.meta.dev
 ```
 
 **환경 변수 기반 config**. 실행 시점에 다음 env들을 읽습니다.
 
-- `NUXT_PORT` — dev 서버 포트 (기본 3100)
-- `NUXT_API_TARGET` — 백엔드 프록시 대상 (기본 `http://localhost:5000`, 즉 Flask)
+- `NUXT_PORT` — dev 서버 포트 (기본 **3000**)
+- `NUXT_API_TARGET` — 백엔드 프록시 대상 (기본 `http://localhost:5050`, 즉 Flask mock 서버)
 - `NUXT_PUBLIC_API_BASE` — 프론트엔드가 `$fetch` 할 때 쓰는 base path (기본 `/api`)
 - `isDev` — `import.meta.dev` (dev 서버일 때 `true`, build 산출물에서는 `false`)
+
+> **왜 5050인가?** macOS의 AirPlay 수신 기능이 `:5000`을 점유하기 때문에, 집(Phase 1) Flask mock 서버는 `:5050`을 기본값으로 씁니다(`PORT` env로 덮어쓸 수 있음). 회사(Phase 2)에서는 `:5000`을 그대로 씁니다.
 
 **현재 설계 — 단일 백엔드(Flask)**:
 
 이전 설계는 Phase 1에서 Nitro의 `server/routes/mock-api/sem-list.get.ts`가 mock 데이터를 서빙하고 Phase 2/3에서만 Flask를 붙이는 방식이었습니다. 지금은 **세 Phase 모두 Flask가 백엔드**이며, 바뀌는 것은 Flask 내부의 데이터 소스(mock dict → OpenSearch/Redis)뿐입니다. 이렇게 하면 `/api/*` 응답 형태가 Phase 간 100% 동일해지고, 프론트엔드는 설정 변경만으로 Phase를 바꿀 수 있습니다.
 
 **Phase 스위치**:
-- Phase 1 (집): `npm run dev` → Flask `back_dev_home/`를 `localhost:5000`에서 별도로 띄움 → Nitro devProxy가 `/api/*` → Flask로 프록시
+- Phase 1 (집): `npm run dev` → Flask `back_dev_home/`를 `localhost:5050`에서 별도로 띄움 → Nitro devProxy가 `/api/*` → Flask로 프록시
 - Phase 2 (회사): `NUXT_API_TARGET=http://company-host:5000 npm run dev` 또는 기본값 사용 → 같은 프록시 경로
 - Phase 3 (프로덕션): `npm run build` 후 `.output/public/`을 Flask가 직접 정적 서빙 → 같은 origin이라 프록시 불필요
 
@@ -97,11 +99,11 @@ routeRules: {
 
 ```ts
 devServer: {
-  port: Number.isFinite(portFromEnv) ? portFromEnv : 3100
+  port: Number.isFinite(portFromEnv) ? portFromEnv : 3000
 }
 ```
 
-dev 서버 포트. 기본 3100 (Nuxt 기본 3000을 피함 — 회사 다른 서비스와 충돌 방지 추정).
+dev 서버 포트. 기본 **3000**입니다. (예전에는 3100을 썼지만, 원격(Tailscale) 개발 환경으로 옮기며 표준 3000으로 되돌렸습니다.)
 
 ### 2.7 `compatibilityDate`
 
@@ -126,13 +128,13 @@ nitro: {
 }
 ```
 
-**모든 Phase의 dev 서버에서 핵심**. Nuxt dev 서버(`:3100`)가 받는 `/api/*` 요청을 Flask(`:5000`)로 투명 프록시합니다. 브라우저 입장에서는 same-origin fetch이므로 CORS preflight가 발생하지 않습니다.
+**모든 Phase의 dev 서버에서 핵심**. Nuxt dev 서버(`:3000`)가 받는 `/api/*` 요청을 Flask(집 `:5050` / 회사 `:5000`)로 투명 프록시합니다. 브라우저 입장에서는 same-origin fetch이므로 CORS preflight가 발생하지 않습니다.
 
 - `changeOrigin: true` — Host 헤더를 target으로 변경 (대상 서버가 vhost 기반이면 필요)
 - **target에 `/api`를 folding** — 이 부분이 직관적이지 않습니다. h3(Nitro의 HTTP 레이어)는 매칭된 mount prefix(`/api`)를 target으로 포워드하기 전에 **제거**합니다. 그래서 target이 그냥 `http://localhost:5000`이면 Flask는 `/api`가 사라진 `GET /sem-list`를 받게 됩니다. Flask의 Blueprint가 `/api` 하위에 마운트돼 있기 때문에 404가 납니다. 해결: target URL 자체에 `/api`를 붙여서 잘린 prefix를 복원합니다.
 - `prependPath`는 의도적으로 쓰지 않았습니다. `prependPath: true`는 "matched prefix도 보존"이라는 Nitro/h3 옵션이지만 버전 간 동작이 흔들리는 영역이라, target에 직접 박는 쪽이 더 예측 가능합니다.
 
-**중요 — Phase 1부터 이미 필요**: 이전 설계에서는 Phase 1이 Nitro `/mock-api` 라우트로 동작해서 프록시가 필요 없었습니다. 현재 설계는 Phase 1부터 Flask를 쓰기 때문에, dev 모드에서 `:3100`과 `:5000`을 잇는 이 프록시가 **Phase 1에서도 반드시 필요**합니다.
+**중요 — Phase 1부터 이미 필요**: 이전 설계에서는 Phase 1이 Nitro `/mock-api` 라우트로 동작해서 프록시가 필요 없었습니다. 현재 설계는 Phase 1부터 Flask를 쓰기 때문에, dev 모드에서 `:3000`(Nuxt)과 `:5050`(집 Flask)을 잇는 이 프록시가 **Phase 1에서도 반드시 필요**합니다.
 
 **Phase 3에서는 프록시가 필요 없음**: Phase 3은 Flask가 빌드된 SPA(`.output/public/`)를 직접 서빙하므로 HTML과 `/api/*`가 같은 origin입니다. `devProxy` 키는 이름 그대로 dev 전용 — prod에는 영향 없습니다.
 
@@ -141,12 +143,92 @@ nitro: {
 ```ts
 vite: {
   server: {
-    allowedHosts: ['.trycloudflare.com']
+    // Tailscale MagicDNS(.ts.net) + cloudflared 퀵 터널(.trycloudflare.com)
+    allowedHosts: ['.ts.net', '.trycloudflare.com']
   }
 }
 ```
 
-Vite dev 서버가 허용하는 Host 헤더. 원격에서 Cloudflare Tunnel(`trycloudflare.com`)로 접속할 때 필요합니다. 로컬에서만 쓰면 건드릴 필요 없음.
+Vite dev 서버는 DNS rebinding 공격을 막으려고 **모르는 Host 헤더를 거부**합니다. 원격 프리뷰용 호스트명을 허용 목록에 넣어야 합니다.
+
+- `.ts.net` — Tailscale MagicDNS. 이 프로젝트는 원격 기기(태블릿)에서 `npm run dev:remote`로 띄운 앱에 접속하는 방식으로 옮겨왔습니다(메모리: "Browser uses Tailscale IP"). 그래서 `http://100.x.x.x:3000`처럼 Tailscale IP로 스크린샷을 찍습니다.
+- `.trycloudflare.com` — cloudflared 임시 터널.
+- **Raw IP(예: `100.103.116.55`)는 Vite가 목록 없이도 허용**하므로 여기 적을 필요 없습니다. 호스트명으로 접속할 때만 필요합니다.
+
+### 2.10 `ui.fonts: false` — 폰트 오프라인 self-host
+
+```ts
+ui: {
+  fonts: false
+}
+```
+
+NuxtUI(그리고 `@nuxt/fonts`)는 기본적으로 빌드/개발 시점에 Google Fonts·Fontshare·Bunny 등 **외부 폰트 CDN에 접속**해 폰트를 자동 해석합니다. 이 프로젝트는 사내망(오프라인)에서 돌아가야 하므로 그 자동 해석을 **꺼 버리고**, 폰트를 `@fontsource/*` 패키지(woff2)와 Spoqa Han Sans Neo woff2로 직접 `@font-face`에 등록합니다. 자세한 폰트 설정은 `05-tailwind/`를 보세요.
+
+**교훈**: "오프라인/폐쇄망 배포"라는 제약은 프레임워크의 편의 기능(자동 폰트, 아이콘 API 등)이 조용히 외부 네트워크를 치는 지점을 하나씩 찾아 막는 작업으로 이어집니다. 아래 `icon` 설정도 같은 맥락입니다.
+
+### 2.11 `icon.clientBundle` — 아이콘 오프라인 번들링
+
+이 설정이 이 프로젝트에서 가장 실전적인 학습 포인트 중 하나입니다.
+
+```ts
+icon: {
+  fallbackToApi: false,          // 런타임 Iconify API 폴백을 완전히 끔
+  clientBundle: {
+    scan: {
+      // 우리 소스 + NuxtUI 컴파일된 컴포넌트까지 스캔
+      globInclude: ['app/**/*.{vue,ts,js}', 'node_modules/@nuxt/ui/dist/**/*.{vue,js,mjs}'],
+      globExclude: ['node_modules/**/node_modules/**']
+    },
+    sizeLimitKb: 2048,           // 기본 256KB로는 부족해서 상향
+    icons: [                     // 동적 이름이라 scan이 못 잡는 아이콘 수동 등록
+      'lucide:x', 'lucide:layout-dashboard', 'lucide:search', 'lucide:settings', ...
+    ]
+  }
+}
+```
+
+문제 상황: `ssr: false` SPA를 Phase 3에서 Flask가 **정적 파일로만** 서빙하므로 런타임 Node 서버가 없습니다. NuxtUI 컴포넌트는 아이콘을 못 찾으면 브라우저에서 네트워크 Iconify API(`api.iconify.design`)로 폴백하는데, **사내 폐쇄망에서는 이 요청이 조용히 실패**해서 아이콘이 빈칸으로 뜹니다.
+
+해결:
+
+1. `fallbackToApi: false` — 네트워크 폴백을 아예 금지. 번들에 없는 아이콘은 그냥 안 뜨지만(네트워크 호출도 안 함), 덕분에 **어떤 아이콘이 빠졌는지 개발 중에 바로 드러납니다.**
+2. `clientBundle.scan` — 소스뿐 아니라 `node_modules/@nuxt/ui/dist`까지 스캔해서, NuxtUI 컴포넌트가 기본으로 쓰는 아이콘(닫기 x, 검색, 메뉴, 해/달, chevron 등)을 빌드 타임에 JS로 인라인.
+3. `icons: [...]` — `` `i-lucide-${name}` ``처럼 **런타임에 이름이 조립되는** 아이콘은 정적 스캔이 문자열로 못 보므로 수동 등록. 형식은 `i-lucide-x`가 아니라 `lucide:x`입니다.
+
+**교훈**: 프레임워크의 "CDN에서 알아서 가져옴" 기능은 인터넷이 있는 개발 환경에서만 편합니다. 배포 대상이 오프라인이면 **모든 자원을 빌드 산출물 안에 인라인**하는 방향으로 설정을 뒤집어야 합니다.
+
+### 2.12 `typescript.tsConfig` — `node:test` 파일을 앱 타입체크에서 제외
+
+```ts
+typescript: {
+  tsConfig: {
+    exclude: ['../app/**/*.test.ts'],
+    compilerOptions: {
+      allowImportingTsExtensions: true
+    }
+  }
+}
+```
+
+이 프로젝트의 `*.test.ts` 파일은 **브라우저 앱 코드가 아니라 `node:test`로 돌리는 스크립트**입니다(`npm test` = `node --test "app/**/*.test.ts"`). 두 가지 조정이 필요합니다.
+
+- `exclude: ['../app/**/*.test.ts']` — `vue-tsc`(앱 타입체크)가 `import { test } from 'node:test'`나 `.ts` 확장자 import를 보고 에러 내지 않도록 테스트 파일을 제외. (경로가 `../app/**`인 이유: 이 설정은 `.nuxt/`에 생성된 config 기준 상대 경로이기 때문.)
+- `allowImportingTsExtensions: true` — `node --test`는 sibling 모듈을 `./foo.ts`처럼 **명시적 `.ts` 확장자**로 import해야 하므로 이를 허용. 테스트 전략은 `12-testing/`에서 자세히 다룹니다.
+
+### 2.13 `app.head` — favicon과 타이틀
+
+```ts
+app: {
+  head: {
+    title: 'SKEWNONO',
+    link: [ { rel: 'icon', href: '/favicon/favicon.ico', sizes: 'any' }, ... ],
+    meta: [ { name: 'theme-color', content: '#f0eee9' } ]
+  }
+}
+```
+
+`public/favicon/` 아래의 정적 파일들을 여러 포맷(ico/svg/png/apple-touch)으로 링크합니다. `theme-color`는 모바일 브라우저 상단 바 색.
 
 ### 2.10 `eslint`
 
@@ -223,13 +305,13 @@ Phase 3에서는 이 `.output/public/`을 Flask `static_folder`로 연결하거�
 
 ```bash
 # 터미널 1 — Flask mock 백엔드
-python index.py            # back_dev_home/__init__.py::create_app을 띄움, :5000
+python index.py            # back_dev_home/__init__.py::create_app을 띄움, :5050 (PORT로 덮어쓰기 가능)
 
 # 터미널 2 — Nuxt dev 서버
-npm run dev                # :3100
+npm run dev                # :3000
 ```
 
-→ 브라우저: `http://localhost:3100`. `apiBase='/api'`, devProxy가 `/api/*`를 `:5000`으로 포워드. 데이터는 `back_dev_home/<feature>/data.py`의 in-memory Python dict.
+→ 브라우저: `http://localhost:3000`. `apiBase='/api'`, devProxy가 `/api/*`를 `:5050`으로 포워드. 데이터는 `back_dev_home/<feature>/providers/mock.py`가 만드는 결정론적 mock(`10-backend-providers/`).
 
 ### Phase 2 — 회사 로컬
 
@@ -253,8 +335,8 @@ npm run build              # .output/public/ 생성
 
 | 변수 | 목적 | Phase 1 | Phase 2 | Phase 3 |
 | --- | --- | --- | --- | --- |
-| `NUXT_PORT` | Nuxt dev 서버 포트 | 3100(기본) | 자유 | N/A (build) |
-| `NUXT_API_TARGET` | devProxy 대상 Flask URL | (기본 `http://localhost:5000`) | `http://company-host:5000` | N/A |
+| `NUXT_PORT` | Nuxt dev 서버 포트 | 3000(기본) | 자유 | N/A (build) |
+| `NUXT_API_TARGET` | devProxy 대상 Flask URL | (기본 `http://localhost:5050`) | `http://company-host:5000` | N/A |
 | `NUXT_PUBLIC_API_BASE` | 프론트 `$fetch` base path | `/api`(기본) | `/api`(기본) | `/api`(기본) |
 
 **관찰**: 세 Phase 모두 `apiBase='/api'`로 고정. 바뀌는 것은 `NUXT_API_TARGET`(dev 때 proxy가 어디로 쏘는지) 하나뿐이고, Phase 3에서는 그마저도 dev가 아니라 의미 없음. 즉 **프론트엔드가 Phase를 구별할 방법이 없음** — 이게 의도된 설계입니다.

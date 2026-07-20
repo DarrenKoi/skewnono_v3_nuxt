@@ -270,15 +270,15 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 
 ## 8. 개선 아이디어 (다음 학습 주제)
 
-읽어본 코드 기반으로 정리한 "다음에 해볼 만한" 개선들.
+> **갱신 메모(2026-07):** 아래 목록은 이 노트를 처음 쓸 때의 것이며, 상당수가 이후 **구현되었습니다.** 각 항목에 현재 상태를 병기합니다.
 
-1. **Mock API endpoint 구현** — 위 3.Phase 1 미구현 이슈 해결.
-2. **`useNavigation` 타입 좁히기** — `useRoute().params.fab`의 타입이 `string | string[]`이라서 `as Fab` 없이 쓰려면 runtime guard 함수가 필요.
-3. **Favorites 영속화** — 현재 `useState`는 새로고침 시 초기화됩니다. localStorage 연동(`@vueuse/core`의 `useLocalStorage`) 또는 Pinia + `pinia-plugin-persistedstate` 도입 시 유지됩니다. 참고: `recent` 파이프라인은 미사용 코드여서 제거되었습니다(2026-04-26 세션).
-4. **Error boundary** — `useAsyncData`의 `error`를 받아 UI로 표시. 현재 코드엔 없음.
+1. **Mock API endpoint 구현** — ✅ **해결됨.** Phase 1도 Flask mock 서버(`back_dev_home/`)가 `/api/*`를 서빙합니다. Nitro mock 라우트로 분기하던 옛 설계는 폐기됐습니다(`06-vite-config/` 참고).
+2. **`useNavigation` 타입 좁히기** — `useRoute().params.fab`의 타입이 `string | string[]`이라서 `as Fab` 없이 쓰려면 runtime guard 함수가 필요. (`Fab`는 이제 `string` 별칭이 되어 상황이 조금 달라짐.)
+3. **Favorites 영속화** — ⚠️ **부분 완료.** localStorage 영속 인프라(`usePersistedState`)가 생겨 8개 컴포저블이 씁니다(`persisted-state.md`). 다만 `stores/navigation.ts`의 `favorites`는 **아직 그 팩토리에 연결되지 않아** 인메모리 전용입니다. (`recent` 필드는 제거됨 — 최근 본 항목은 전용 컴포저블로 이동.)
+4. **Error boundary** — `useAsyncData`의 `error`를 받아 UI로 표시.
 5. **Loading skeleton** — `pending` 값을 써서 스켈레톤 UI 표시.
-6. **Pinia 도입 검토** — store가 3개 이상으로 늘어나면 검토합니다. Pinia는 DevTools 통합, plugin 생태계 면에서 우수합니다.
-7. **단위 테스트 기반 마련** — Vitest + Vue Test Utils로 `summarizeRowsByFab`, `filterRows` 같은 pure function부터 시작합니다.
+6. **Pinia 도입 검토** — ❌ **명시적으로 거부됨.** CLAUDE.md가 "no Pinia"를 확정했고 설치돼 있지도 않습니다. `useState` + `usePersistedState`로 충분(`persisted-state.md` 7절).
+7. **단위 테스트 기반 마련** — ✅ **대규모로 구현됨.** 다만 Vitest가 아니라 **`node --test`(Node 내장 러너)**로, 순수 함수 옆에 57개의 `*.test.ts`가 있습니다(`13-testing/`).
 
 ## 9. 요약
 
@@ -298,3 +298,9 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 이 챕터에서 다 담기 어려운 주제는 별도 파일로 분리되어 있습니다.
 
 - [`sem-list-caching.md`](./sem-list-caching.md) — `useSemList()` 통합, Nuxt `useAsyncData` 중복 제거의 함정, TanStack Query 미도입 결정, 페이지 간 캐시 유지와 Pinia 도입 시점 (2026-04-26 세션 요약).
+- [`persisted-state.md`](./persisted-state.md) — `usePersistedState` localStorage 영속 팩토리(detached scope + `flush:'sync'`), 클라이언트 다중 선택 "카트" 관용구, Pinia 미도입 확정. **아래 8절의 옛 "개선 아이디어" 중 영속화·단위 테스트 항목은 이미 구현되었습니다.**
+
+관련 신규 챕터도 참고하세요.
+
+- `10-backend-providers/` — 백엔드 mock↔office Ports & Adapters (이 폴더가 말하는 "Phase 전환"의 백엔드 구현).
+- `11-echarts-dataviz/` · `12-statistics-wafer/` · `13-testing/` — 차트·통계·순수함수 테스트로 성장한 실제 코드베이스.

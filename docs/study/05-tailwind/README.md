@@ -21,17 +21,32 @@ Tailwind는 **유틸리티 CSS 프레임워크**입니다. `btn-primary` 같은 
 @import "tailwindcss";         /* Tailwind의 base + components + utilities */
 @import "@nuxt/ui";            /* NuxtUI의 테마 */
 
-@theme static {
-  --font-sans: 'Public Sans', 'Noto Sans KR', ...;
+/* 폰트는 외부 CDN이 아니라 self-host woff2를 @font-face로 직접 등록 */
+@font-face {
+  font-family: 'Spoqa Han Sans Neo';
+  src: url('...Bold.woff2') format('woff2');
+  font-weight: 700;
+}
+/* ... Regular(400)/Medium(500) 등 weight별로 반복 ... */
+
+@theme {
+  --font-sans: 'Spoqa Han Sans Neo', 'Public Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --font-korean: 'Spoqa Han Sans Neo', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
   --color-zinc-50: #FAFAFA;
-  --color-zinc-100: #F4F4F5;
   ...
 }
 ```
 
 - `@theme` 블록은 Tailwind v4의 테마 확장 문법입니다. 선언된 CSS 변수는 모든 유틸리티에 자동 반영됩니다.
 - `--color-zinc-500`을 여기서 정의했다면 `bg-zinc-500`, `text-zinc-500`, `border-zinc-500` 등이 모두 해당 색을 사용합니다.
-- `static`은 JIT 파싱 대신 정적 변수로 처리하라는 힌트입니다.
+
+### 폰트 설정의 배경 (중요한 학습 포인트)
+
+기본 sans 폰트는 **Spoqa Han Sans Neo**입니다(예전 Noto Sans KR을 대체). Latin 보조로 Public Sans, 모노스페이스는 JetBrains Mono를 씁니다. 세 가지 실전 결정이 있습니다.
+
+1. **CDN이 아니라 self-host.** 폰트는 `@fontsource/*` npm 패키지(woff2)와 `spoqa-han-sans` 패키지의 subset woff2를 `@font-face`로 직접 등록합니다. `nuxt.config.ts`의 `ui: { fonts: false }`로 NuxtUI/`@nuxt/fonts`의 **자동 폰트 해석을 꺼서** 빌드·개발 시점에 Google Fonts·Fontshare 같은 외부 CDN에 접속하지 않게 합니다. 이유: 사내 폐쇄망(오프라인)에서 돌아가야 하기 때문. (`06-vite-config/`의 `ui.fonts` 절 참고.)
+2. **Spoqa Han Sans Neo에는 SemiBold(600)가 없습니다.** 그래서 Medium(500) `@font-face`의 `font-weight` 범위를 `500 600`으로 지정해, `font-semibold`(600)를 요청해도 Medium이 커버하도록 했습니다. weight가 없는 폰트를 억지로 굵게(가짜 볼드) 렌더링하는 것을 막는 트릭입니다.
+3. **`--font-korean` 별도 정의.** 한글 전용 스택을 따로 두어, Latin 위주 컴포넌트와 한글 위주 화면의 폴백 순서를 다르게 제어할 수 있습니다.
 
 ## 3. 자주 쓰이는 유틸리티 범주
 
