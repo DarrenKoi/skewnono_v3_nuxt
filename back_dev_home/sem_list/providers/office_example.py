@@ -194,11 +194,11 @@ if __name__ == "__main__":
     # Standalone smoke test — run FROM THE REPO ROOT with:
     #     .venv/bin/python -m back_dev_home.sem_list.providers.office
     # (`python path/to/office.py` will NOT work: package imports need -m.)
-    from pathlib import Path
-
+    # The `-m` form already requires cwd == repo root, so load .env with a
+    # plain cwd-relative path instead of anything derived from __file__.
     from dotenv import load_dotenv
 
-    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+    load_dotenv("back_dev_home/.env")
     fleet = get_sem_list()
     print(f"{len(fleet)} rows from Redis key {_REDIS_KEY!r}")
     if fleet:
