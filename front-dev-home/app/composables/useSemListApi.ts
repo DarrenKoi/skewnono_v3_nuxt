@@ -23,7 +23,8 @@ export interface SemListRow {
   fab_name: string
   updt_dt: string
   available: 'On' | 'Off'
-  version: number
+  // Free-form string (digits + letters), e.g. '1A'; '' when unknown.
+  version: string
 }
 
 export type SemListResponse = SemListRow[]

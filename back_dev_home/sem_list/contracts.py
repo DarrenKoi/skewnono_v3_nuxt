@@ -16,4 +16,7 @@ class SemListRow(TypedDict):
     fab_name: str
     updt_dt: str
     available: Literal["On", "Off"]
-    version: int
+    # Free-form string (digits + letters), e.g. "1A". "" (empty) when the
+    # fleet row has no matching entry in the office version store
+    # (see sem_list/MIGRATION.md).
+    version: str

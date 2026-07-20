@@ -67,7 +67,10 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
             fab_name=fab_name,
             updt_dt=updt_dt,
             available=available,
-            version=rng.randint(1, 3)
+            # Free-form version string (digit + letter), e.g. "1A" — matches
+            # the office shape. Occasionally "" to mirror fleet rows that have
+            # no matching entry in the office version store.
+            version="" if rng.random() < 0.05 else f"{rng.randint(1, 3)}{rng.choice('AB')}"
         ))
 
     return rows

@@ -26,7 +26,7 @@
       fab_name: str
       updt_dt: str
       available: Literal["On", "Off"]
-      version: int
+      version: str  # digits+letters, e.g. "1A"; "" when unknown
   ```
 
 - Mock behavior: generates a deterministic 300-row fleet (`random.Random(42)`)
@@ -39,14 +39,22 @@
   agree with `vendor_nm`. `updt_dt` is an ISO-8601 UTC timestamp with a
   literal `Z` suffix, anchored at `2026-04-19T00:00:00Z` minus a random
   0–90 day offset. `available` is `"On"` 90% of the time.
-- Office data source: Redis key `v3_df_sem_list`, a `pandas.DataFrame` of the
-  SEM fleet serialized as **parquet** (`df.to_parquet()`, read back via the
-  pyarrow engine — `pyarrow` is in `requirements.txt`). Connection via
-  `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in `back_dev_home/.env`.
-  The skeleton detects the format by magic bytes (`PAR1` → parquet, with
-  JSON and pickle kept as fallbacks) and normalizes to the contract,
-  decoding any text as UTF-8. Confirm the DataFrame column names match the
-  contract; trim the unused fallback branches if you like.
+- Office data source: **two** Redis keys, each a `pandas.DataFrame`
+  serialized as **parquet** (`df.to_parquet()`, read via the pyarrow engine
+  — `pyarrow` is in `requirements.txt`). Connection via `REDIS_HOST` /
+  `REDIS_PORT` / `REDIS_PASSWORD` in `back_dev_home/.env`.
+  - `v3_df_sem_list` — the fleet, **without** a `version` column.
+  - `v3_df_sem_version` — columns `[eqp_ip, version]`; `version` is a
+    free-form string.
+
+  The adapter LEFT-merges `version` onto the fleet by `eqp_ip`
+  (`fleet.merge(right, on="eqp_ip", how="left")`), so every fleet row
+  survives exactly once; the version table is de-duplicated on `eqp_ip`
+  first so a repeated ip can't multiply fleet rows. A fleet row with no
+  matching version becomes `version=""`. Format is auto-detected by magic
+  bytes (`PAR1` → parquet, with JSON/pickle fallbacks) and all text is
+  decoded UTF-8. Confirm the column names match the contract; trim unused
+  fallback branches if you like.
 - Notes: the full list is unfiltered and unpaginated — the route returns
   every row every call. There is no empty-result case in the mock (always
   300 rows); the office adapter should still return `[]` gracefully if the

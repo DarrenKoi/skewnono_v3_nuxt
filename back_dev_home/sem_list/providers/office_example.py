@@ -2,11 +2,17 @@
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Phase 2/3 adapter for the office SEM equipment source (Redis).
 
-The office Redis stores the SEM fleet under the key ``v3_df_sem_list`` as a
-``pandas.DataFrame`` serialized to **parquet** (``df.to_parquet()``). This
-adapter fetches the raw bytes, deserializes them (parquet via pyarrow, with
-JSON/pickle fallbacks), and normalizes every row to ``SemListRow``; callers
-and routes must not need to know the source format.
+The office Redis stores the SEM fleet across two keys, each a
+``pandas.DataFrame`` serialized to **parquet** (``df.to_parquet()``):
+
+* ``v3_df_sem_list``    — the fleet, WITHOUT a ``version`` column.
+* ``v3_df_sem_version`` — columns ``[eqp_ip, version]``; ``version`` is a
+  free-form string (digits + letters, e.g. ``"1A"``).
+
+This adapter fetches both, LEFT-merges the version onto the fleet by
+``eqp_ip`` (keeping every fleet row exactly once — rows with no matching
+version get ``""``), and normalizes to ``SemListRow``; callers and routes
+must not need to know the source format.
 
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
 ``REDIS_PASSWORD`` in ``back_dev_home/.env`` (same vars the health feature
@@ -27,6 +33,8 @@ from redis.retry import Retry
 from back_dev_home.sem_list.contracts import SemListRow
 
 _REDIS_KEY = "v3_df_sem_list"
+_VERSION_KEY = "v3_df_sem_version"
+_MERGE_KEY = "eqp_ip"
 
 _REQUIRED_COLUMNS = frozenset(
     {
@@ -137,6 +145,17 @@ def _as_iso_string(value) -> str:
     return _to_text(value)
 
 
+def _version_str(value) -> str:
+    """Version as a string; "" when missing.
+
+    After the LEFT merge, fleet rows with no matching version row carry NaN
+    (pandas' missing-value marker), which must become an empty string.
+    """
+    if pd.isna(value):
+        return ""
+    return _to_text(value).strip()
+
+
 def _normalize(df: pd.DataFrame) -> list[SemListRow]:
     missing = _REQUIRED_COLUMNS - set(df.columns)
     if missing:
@@ -170,24 +189,57 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
                 fab_name=_to_text(rec["fab_name"]),
                 updt_dt=_as_iso_string(rec["updt_dt"]),
                 available=available,
-                version=int(rec["version"]),
+                version=_version_str(rec["version"]),
             )
         )
     return rows
 
 
-def get_sem_list() -> list[SemListRow]:
-    raw = _redis_client().get(_REDIS_KEY)
+def _load_dataframe(client: redis.Redis, key: str) -> pd.DataFrame:
+    raw = client.get(key)
     if raw is None:
         raise LookupError(
-            f"Redis key {_REDIS_KEY!r} not found — check REDIS_HOST/REDIS_PORT/"
+            f"Redis key {key!r} not found — check REDIS_HOST/REDIS_PORT/"
             "REDIS_PASSWORD in back_dev_home/.env and that the fleet job has "
             "populated the key."
         )
-    df = _deserialize_dataframe(raw)
-    if df.empty:
+    return _deserialize_dataframe(raw)
+
+
+def _attach_version(fleet: pd.DataFrame, versions: pd.DataFrame) -> pd.DataFrame:
+    """LEFT-merge the version string onto the fleet by ``eqp_ip``.
+
+    ``how="left"`` with the fleet on the left keeps every fleet row and never
+    drops one. To also stop a fleet row from being *duplicated* when the
+    version table has more than one row for the same ``eqp_ip``, collapse the
+    version table to one row per ``eqp_ip`` first (keep the last).
+    """
+    if "version" in fleet.columns:
+        return fleet  # already present — nothing to merge
+    if _MERGE_KEY not in fleet.columns:
+        raise ValueError(
+            f"Cannot attach version: {_REDIS_KEY!r} has no {_MERGE_KEY!r} "
+            f"column to merge on (got {sorted(fleet.columns)})."
+        )
+    if not {_MERGE_KEY, "version"} <= set(versions.columns):
+        raise ValueError(
+            f"{_VERSION_KEY!r} must have columns [{_MERGE_KEY!r}, 'version'], "
+            f"got {sorted(versions.columns)}."
+        )
+    right = versions[[_MERGE_KEY, "version"]].drop_duplicates(
+        subset=[_MERGE_KEY], keep="last"
+    )
+    return fleet.merge(right, on=_MERGE_KEY, how="left")
+
+
+def get_sem_list() -> list[SemListRow]:
+    client = _redis_client()
+    fleet = _load_dataframe(client, _REDIS_KEY)
+    versions = _load_dataframe(client, _VERSION_KEY)
+    fleet = _attach_version(fleet, versions)
+    if fleet.empty:
         return []
-    return _normalize(df)
+    return _normalize(fleet)
 
 
 if __name__ == "__main__":
