@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office adapter for recipe_search — NOT CONNECTED YET.
 
 Implement every function listed in recipe_search/MIGRATION.md against the

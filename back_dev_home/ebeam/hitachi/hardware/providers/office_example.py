@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office hardware provider — NOT CONNECTED YET.
 
 Wire OpenSearch, Redis, files, or internal APIs here per hardware/MIGRATION.md,

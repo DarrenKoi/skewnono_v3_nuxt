@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office adapter for pm_planning — NOT CONNECTED YET.
 
 Implement get_pm_planning_fleet in pm_planning/MIGRATION.md against the

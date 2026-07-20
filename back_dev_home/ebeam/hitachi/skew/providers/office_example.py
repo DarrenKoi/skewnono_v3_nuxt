@@ -1,3 +1,5 @@
+# TEMPLATE — copy to office.py at the office, then implement the function body.
+# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office skew provider — wired against real statistics during Phase-2/3 swap."""
 
 from back_dev_home.ebeam.hitachi.skew.contracts import SkewCheckPayload
