@@ -387,7 +387,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 {{ row.vendor_nm }} {{ row.eqp_model_cd }}
               </div>
               <div class="truncate font-mono text-[10px] text-(--sk-ink-subtle)">
-                {{ row.fab_name }} · {{ row.eqp_ip }} · v{{ row.version }}
+                {{ row.fab_name }} · {{ row.eqp_ip }} · {{ row.version }}
               </div>
             </div>
           </button>

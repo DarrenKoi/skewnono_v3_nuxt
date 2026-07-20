@@ -163,7 +163,7 @@
           </div>
         </template>
         <template #version-cell="{ row }">
-          <span class="sk-value-num">v{{ row.original.version }}</span>
+          <span class="sk-value-num">{{ row.original.version }}</span>
         </template>
       </UTable>
     </UCard>
