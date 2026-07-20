@@ -23,7 +23,9 @@ MIGRATION.md.
 
 import os
 import pickle
+import sys
 from io import BytesIO, StringIO
+from pathlib import Path
 
 import pandas as pd
 import redis
@@ -55,16 +57,31 @@ _VALID_VENDORS = {"HITACHI", "AMAT"}
 _AVAILABLE_MAP = {"on": "On", "off": "Off", "true": "On", "false": "Off", "1": "On", "0": "Off"}
 
 
+def _load_env_file() -> None:
+    """Load back_dev_home/.env for standalone / bare-import runs.
+
+    The Flask app factory and conftest.py already load it; this is the fallback
+    when the module is imported directly (script, ``python -c``, notebook).
+    Try the repo-root-relative path first (honors "run from the repo root"),
+    then the .env sitting next to the ``back_dev_home`` package — the latter
+    works no matter the current working directory. ``override=False`` (the
+    default) keeps any value already set by Flask/pytest.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv("back_dev_home/.env")
+    if os.environ.get("REDIS_HOST"):
+        return
+    pkg = sys.modules.get("back_dev_home")  # already imported by this module
+    pkg_file = getattr(pkg, "__file__", None)
+    if pkg_file:
+        load_dotenv(Path(pkg_file).with_name(".env"))
+
+
 def _redis_client() -> redis.Redis:
     host = os.environ.get("REDIS_HOST")
     if not host:
-        # The Flask app factory and conftest.py load back_dev_home/.env, but a
-        # bare import (standalone script, `python -c`, notebook) does not. Load
-        # it lazily from the repo root — override=False, so an env already set
-        # by Flask/pytest wins — then re-check. Cheap and idempotent.
-        from dotenv import load_dotenv
-
-        load_dotenv("back_dev_home/.env")
+        _load_env_file()
         host = os.environ.get("REDIS_HOST")
     if not host:
         raise RuntimeError(
@@ -91,8 +108,8 @@ def _looks_like_json(raw: bytes) -> bool:
     return raw.lstrip()[:1] in (b"{", b"[")
 
 
-def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
-    """Deserialize the DataFrame stored under ``v3_df_sem_list``.
+def _deserialize_dataframe(raw: bytes, key: str) -> pd.DataFrame:
+    """Deserialize a DataFrame stored under ``key``.
 
     The office writes the fleet as **parquet** (``df.to_parquet()``), read
     back here via the pyarrow engine. The JSON and pickle branches are kept
@@ -114,7 +131,7 @@ def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
         obj = pickle.loads(raw)
     except Exception as exc:
         raise RuntimeError(
-            f"Could not unpickle Redis key {_REDIS_KEY!r} "
+            f"Could not unpickle Redis key {key!r} "
             f"(first bytes: {raw[:16].hex(' ')!r}, length {len(raw)}). "
             f"Real error -> {type(exc).__name__}: {exc}. "
             "If this is a numpy/pandas version mismatch (e.g. "
@@ -129,7 +146,7 @@ def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
     if isinstance(obj, dict):  # e.g. df.to_dict() pickled
         return pd.DataFrame(obj)
     raise TypeError(
-        f"Redis key {_REDIS_KEY!r} unpickled to {type(obj).__name__}, "
+        f"Redis key {key!r} unpickled to {type(obj).__name__}, "
         "expected a DataFrame or dict"
     )
 
@@ -210,7 +227,7 @@ def _load_dataframe(client: redis.Redis, key: str) -> pd.DataFrame:
             "REDIS_PASSWORD in back_dev_home/.env and that the fleet job has "
             "populated the key."
         )
-    return _deserialize_dataframe(raw)
+    return _deserialize_dataframe(raw, key)
 
 
 def _attach_version(fleet: pd.DataFrame, versions: pd.DataFrame) -> pd.DataFrame:

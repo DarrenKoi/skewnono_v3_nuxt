@@ -25,11 +25,12 @@ At the office: ``cp office_example.py office.py``, then enable with
 
 import ast
 import json
-import math
 import os
 import pickle
+import sys
 from datetime import datetime, timedelta
 from io import BytesIO, StringIO
+from pathlib import Path
 
 import pandas as pd
 import redis
@@ -64,16 +65,31 @@ _STORAGE_COLUMNS = (
 # --------------------------------------------------------------------------
 # Redis + deserialization
 # --------------------------------------------------------------------------
+def _load_env_file() -> None:
+    """Load back_dev_home/.env for standalone / bare-import runs.
+
+    The Flask app factory and conftest.py already load it; this is the fallback
+    when the module is imported directly (script, ``python -c``, notebook).
+    Try the repo-root-relative path first (honors "run from the repo root"),
+    then the .env sitting next to the ``back_dev_home`` package — the latter
+    works no matter the current working directory. ``override=False`` (the
+    default) keeps any value already set by Flask/pytest.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv("back_dev_home/.env")
+    if os.environ.get("REDIS_HOST"):
+        return
+    pkg = sys.modules.get("back_dev_home")  # already imported by this module
+    pkg_file = getattr(pkg, "__file__", None)
+    if pkg_file:
+        load_dotenv(Path(pkg_file).with_name(".env"))
+
+
 def _redis_client() -> redis.Redis:
     host = os.environ.get("REDIS_HOST")
     if not host:
-        # The Flask app factory and conftest.py load back_dev_home/.env, but a
-        # bare import (standalone script, `python -c`, notebook) does not. Load
-        # it lazily from the repo root — override=False, so an env already set
-        # by Flask/pytest wins — then re-check. Cheap and idempotent.
-        from dotenv import load_dotenv
-
-        load_dotenv("back_dev_home/.env")
+        _load_env_file()
         host = os.environ.get("REDIS_HOST")
     if not host:
         raise RuntimeError(
