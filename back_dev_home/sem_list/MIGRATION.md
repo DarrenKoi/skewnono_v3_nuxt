@@ -39,7 +39,7 @@
   agree with `vendor_nm`. `updt_dt` is an ISO-8601 UTC timestamp with a
   literal `Z` suffix, anchored at `2026-04-19T00:00:00Z` minus a random
   0–90 day offset. `available` is `"On"` 90% of the time.
-- Office data source: Redis key `v3_sem_list`, a `pandas.DataFrame` of the
+- Office data source: Redis key `v3_df_sem_list`, a `pandas.DataFrame` of the
   SEM fleet serialized as **parquet** (`df.to_parquet()`, read back via the
   pyarrow engine — `pyarrow` is in `requirements.txt`). Connection via
   `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in `back_dev_home/.env`.

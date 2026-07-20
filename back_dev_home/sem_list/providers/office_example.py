@@ -2,11 +2,11 @@
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Phase 2/3 adapter for the office SEM equipment source (Redis).
 
-The office Redis stores the SEM fleet under the key ``v3_sem_list`` as a
-serialized ``pandas.DataFrame``. This adapter fetches the raw bytes,
-deserializes them (pickle first, JSON fallback), and normalizes every row
-to ``SemListRow``; callers and routes must not need to know the source
-format.
+The office Redis stores the SEM fleet under the key ``v3_df_sem_list`` as a
+``pandas.DataFrame`` serialized to **parquet** (``df.to_parquet()``). This
+adapter fetches the raw bytes, deserializes them (parquet via pyarrow, with
+JSON/pickle fallbacks), and normalizes every row to ``SemListRow``; callers
+and routes must not need to know the source format.
 
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
 ``REDIS_PASSWORD`` in ``back_dev_home/.env`` (same vars the health feature
@@ -26,7 +26,7 @@ from redis.retry import Retry
 
 from back_dev_home.sem_list.contracts import SemListRow
 
-_REDIS_KEY = "v3_sem_list"
+_REDIS_KEY = "v3_df_sem_list"
 
 _REQUIRED_COLUMNS = frozenset(
     {
@@ -77,7 +77,7 @@ def _looks_like_json(raw: bytes) -> bool:
 
 
 def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
-    """Deserialize the DataFrame stored under ``v3_sem_list``.
+    """Deserialize the DataFrame stored under ``v3_df_sem_list``.
 
     The office writes the fleet as **parquet** (``df.to_parquet()``), read
     back here via the pyarrow engine. The JSON and pickle branches are kept
