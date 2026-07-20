@@ -39,7 +39,13 @@
   agree with `vendor_nm`. `updt_dt` is an ISO-8601 UTC timestamp with a
   literal `Z` suffix, anchored at `2026-04-19T00:00:00Z` minus a random
   0–90 day offset. `available` is `"On"` 90% of the time.
-- Office data source: <!-- OFFICE: equipment master table / OpenSearch sem-fleet index -->
+- Office data source: Redis key `v3_sem_list`, a serialized
+  `pandas.DataFrame` of the SEM fleet. Connection via `REDIS_HOST` /
+  `REDIS_PORT` / `REDIS_PASSWORD` in `back_dev_home/.env`. The tracked
+  skeleton (`office_example.py`) already implements fetch → deserialize
+  (pickle first, JSON fallback) → normalize-to-contract; at the office,
+  confirm the actual serialization format and the DataFrame column names,
+  then trim the deserialization branches that don't apply.
 - Notes: the full list is unfiltered and unpaginated — the route returns
   every row every call. There is no empty-result case in the mock (always
   300 rows); the office adapter should still return `[]` gracefully if the
