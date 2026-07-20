@@ -5,7 +5,7 @@
 The office Redis stores the SEM fleet across two keys, each a
 ``pandas.DataFrame`` serialized to **parquet** (``df.to_parquet()``):
 
-* ``v3_df_sem_list``    — the fleet, WITHOUT a ``version`` column.
+* ``v3_df_sem_avail``    — the fleet, WITHOUT a ``version`` column.
 * ``v3_df_sem_version`` — columns ``[eqp_ip, version]``; ``version`` is a
   free-form string (digits + letters, e.g. ``"1A"``).
 
@@ -34,7 +34,7 @@ from redis.retry import Retry
 
 from back_dev_home.sem_list.contracts import SemListRow
 
-_REDIS_KEY = "v3_df_sem_list"
+_REDIS_KEY = "v3_df_sem_avail"
 _VERSION_KEY = "v3_df_sem_version"
 _MERGE_KEY = "eqp_ip"
 

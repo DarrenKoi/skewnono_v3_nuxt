@@ -43,7 +43,7 @@
   serialized as **parquet** (`df.to_parquet()`, read via the pyarrow engine
   — `pyarrow` is in `requirements.txt`). Connection via `REDIS_HOST` /
   `REDIS_PORT` / `REDIS_PASSWORD` in `back_dev_home/.env`.
-  - `v3_df_sem_list` — the fleet, **without** a `version` column.
+  - `v3_df_sem_avail` — the fleet, **without** a `version` column.
   - `v3_df_sem_version` — columns `[eqp_ip, version]`; `version` is a
     free-form string.
 

@@ -205,7 +205,7 @@ def get_sem_list() -> list[SemListRow]:
 
 office 어댑터는 **소스 포맷의 모든 지저분함을 흡수**합니다.
 
-- Redis에 두 개의 키(`v3_df_sem_list` = fleet, `v3_df_sem_version` = `[eqp_ip, version]`)가 각각 **parquet으로 직렬화된 DataFrame**으로 저장돼 있음.
+- Redis에 두 개의 키(`v3_df_sem_avail` = fleet, `v3_df_sem_version` = `[eqp_ip, version]`)가 각각 **parquet으로 직렬화된 DataFrame**으로 저장돼 있음.
 - parquet magic byte(`PAR1`) 감지, UTF-8 디코딩, `NaN → ""` 정규화, vendor/available 값 정규화.
 - 두 DataFrame을 `eqp_ip` 기준 **LEFT 조인**해서 version을 붙임.
 
