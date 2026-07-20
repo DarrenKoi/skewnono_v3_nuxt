@@ -17,7 +17,7 @@ MIGRATION.md.
 
 import os
 import pickle
-from io import StringIO
+from io import BytesIO, StringIO
 
 import pandas as pd
 import redis
@@ -72,17 +72,42 @@ def _redis_client() -> redis.Redis:
     )
 
 
-def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
-    """Accept the common ways a DataFrame lands in Redis.
+def _looks_like_json(raw: bytes) -> bool:
+    return raw.lstrip()[:1] in (b"{", b"[")
 
-    Adjust at the office once the actual serialization is confirmed —
-    delete the branches that don't apply.
+
+def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
+    """Deserialize the DataFrame stored under ``v3_sem_list``.
+
+    The office writes the fleet as **parquet** (``df.to_parquet()``), read
+    back here via the pyarrow engine. The JSON and pickle branches are kept
+    as fallbacks for other keys/writers; delete them if you never need them.
     """
+    # Parquet: magic bytes b"PAR1" at the head (and tail). This is the
+    # confirmed office format. Parquet stores text columns as UTF-8, so the
+    # strings come back as Python str already.
+    if raw[:4] == b"PAR1":
+        return pd.read_parquet(BytesIO(raw), engine="pyarrow")
+
+    # JSON: only when it actually looks like JSON. Do NOT fall back to
+    # raw.decode('utf-8') on arbitrary binary — that turns a real unpickling
+    # failure into a misleading UnicodeDecodeError and hides the true cause.
+    if _looks_like_json(raw):
+        return pd.read_json(StringIO(raw.decode("utf-8")))
+
     try:
         obj = pickle.loads(raw)
-    except Exception:
-        # Not pickle — assume a JSON payload (df.to_json() or df.to_dict()).
-        return pd.read_json(StringIO(raw.decode("utf-8")))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not unpickle Redis key {_REDIS_KEY!r} "
+            f"(first bytes: {raw[:16].hex(' ')!r}, length {len(raw)}). "
+            f"Real error -> {type(exc).__name__}: {exc}. "
+            "If this is a numpy/pandas version mismatch (e.g. "
+            "\"No module named 'numpy._core'\" means the writer used numpy>=2 "
+            "but this venv has numpy<2 — upgrade numpy), align versions. "
+            "If the value is compressed (gzip 1f8b / zlib 789c / zstd 28b52ffd) "
+            "or parquet (PAR1), add that branch before pickle.loads."
+        ) from exc
 
     if isinstance(obj, pd.DataFrame):
         return obj
@@ -94,10 +119,22 @@ def _deserialize_dataframe(raw: bytes) -> pd.DataFrame:
     )
 
 
+def _to_text(value) -> str:
+    """Coerce a cell to str, decoding raw bytes as UTF-8.
+
+    Parquet returns text as str, but a bytes/binary column would otherwise
+    stringify to "b'...'"; decode it as UTF-8 so Korean and other non-ASCII
+    values survive intact.
+    """
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).decode("utf-8")
+    return str(value)
+
+
 def _as_iso_string(value) -> str:
     if hasattr(value, "isoformat"):  # pandas Timestamp / datetime
         return value.isoformat()
-    return str(value)
+    return _to_text(value)
 
 
 def _normalize(df: pd.DataFrame) -> list[SemListRow]:
@@ -110,13 +147,13 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
 
     rows: list[SemListRow] = []
     for rec in df.to_dict(orient="records"):
-        vendor = str(rec["vendor_nm"]).strip().upper()
+        vendor = _to_text(rec["vendor_nm"]).strip().upper()
         if vendor not in _VALID_VENDORS:
             raise ValueError(
                 f"Unexpected vendor_nm {rec['vendor_nm']!r} for eqp_id "
                 f"{rec['eqp_id']!r}; contract allows {sorted(_VALID_VENDORS)}"
             )
-        available = _AVAILABLE_MAP.get(str(rec["available"]).strip().lower())
+        available = _AVAILABLE_MAP.get(_to_text(rec["available"]).strip().lower())
         if available is None:
             raise ValueError(
                 f"Unexpected available {rec['available']!r} for eqp_id "
@@ -124,13 +161,13 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
             )
         rows.append(
             SemListRow(
-                fac_id=str(rec["fac_id"]),
-                eqp_id=str(rec["eqp_id"]),
-                eqp_model_cd=str(rec["eqp_model_cd"]),
-                eqp_grp_id=str(rec["eqp_grp_id"]),
+                fac_id=_to_text(rec["fac_id"]),
+                eqp_id=_to_text(rec["eqp_id"]),
+                eqp_model_cd=_to_text(rec["eqp_model_cd"]),
+                eqp_grp_id=_to_text(rec["eqp_grp_id"]),
                 vendor_nm=vendor,
-                eqp_ip=str(rec["eqp_ip"]),
-                fab_name=str(rec["fab_name"]),
+                eqp_ip=_to_text(rec["eqp_ip"]),
+                fab_name=_to_text(rec["fab_name"]),
                 updt_dt=_as_iso_string(rec["updt_dt"]),
                 available=available,
                 version=int(rec["version"]),
