@@ -58,12 +58,19 @@ _AVAILABLE_MAP = {"on": "On", "off": "Off", "true": "On", "false": "Off", "1": "
 def _redis_client() -> redis.Redis:
     host = os.environ.get("REDIS_HOST")
     if not host:
+        # The Flask app factory and conftest.py load back_dev_home/.env, but a
+        # bare import (standalone script, `python -c`, notebook) does not. Load
+        # it lazily from the repo root — override=False, so an env already set
+        # by Flask/pytest wins — then re-check. Cheap and idempotent.
+        from dotenv import load_dotenv
+
+        load_dotenv("back_dev_home/.env")
+        host = os.environ.get("REDIS_HOST")
+    if not host:
         raise RuntimeError(
-            "REDIS_HOST is not set. back_dev_home/.env is only loaded by the "
-            "Flask app factory (and tests via conftest.py) — for standalone "
-            "runs use `python -m back_dev_home.sem_list.providers.office` "
-            "from the repo root, or call "
-            "load_dotenv('back_dev_home/.env') before importing this module."
+            "REDIS_HOST is not set. Run from the repo root so back_dev_home/.env "
+            "is found, or set REDIS_HOST/REDIS_PORT/REDIS_PASSWORD in the "
+            "environment before calling this adapter."
         )
     return redis.Redis(
         host=host,
@@ -246,11 +253,7 @@ if __name__ == "__main__":
     # Standalone smoke test — run FROM THE REPO ROOT with:
     #     .venv/bin/python -m back_dev_home.sem_list.providers.office
     # (`python path/to/office.py` will NOT work: package imports need -m.)
-    # The `-m` form already requires cwd == repo root, so load .env with a
-    # plain cwd-relative path instead of anything derived from __file__.
-    from dotenv import load_dotenv
-
-    load_dotenv("back_dev_home/.env")
+    # _redis_client loads back_dev_home/.env itself if the env isn't set.
     fleet = get_sem_list()
     print(f"{len(fleet)} rows from Redis key {_REDIS_KEY!r}")
     if fleet:

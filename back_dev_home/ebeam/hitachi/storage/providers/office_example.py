@@ -67,10 +67,19 @@ _STORAGE_COLUMNS = (
 def _redis_client() -> redis.Redis:
     host = os.environ.get("REDIS_HOST")
     if not host:
+        # The Flask app factory and conftest.py load back_dev_home/.env, but a
+        # bare import (standalone script, `python -c`, notebook) does not. Load
+        # it lazily from the repo root — override=False, so an env already set
+        # by Flask/pytest wins — then re-check. Cheap and idempotent.
+        from dotenv import load_dotenv
+
+        load_dotenv("back_dev_home/.env")
+        host = os.environ.get("REDIS_HOST")
+    if not host:
         raise RuntimeError(
-            "REDIS_HOST is not set. back_dev_home/.env is only loaded by the "
-            "Flask app factory (and tests via conftest.py). Set REDIS_HOST/"
-            "REDIS_PORT/REDIS_PASSWORD there before enabling office mode."
+            "REDIS_HOST is not set. Run from the repo root so back_dev_home/.env "
+            "is found, or set REDIS_HOST/REDIS_PORT/REDIS_PASSWORD in the "
+            "environment before calling this adapter."
         )
     return redis.Redis(
         host=host,
@@ -290,9 +299,7 @@ def get_ppid_unavailable(
 if __name__ == "__main__":
     # Standalone smoke test — run FROM THE REPO ROOT with:
     #     .venv/bin/python -m back_dev_home.ebeam.hitachi.storage.providers.office
-    from dotenv import load_dotenv
-
-    load_dotenv("back_dev_home/.env")
+    # (_redis_client loads back_dev_home/.env itself if the env isn't set.)
     for _slug in ("cdsem", "hvsem"):
         _storage = get_storage(_slug)
         _ppid = get_ppid_unavailable(_slug)
