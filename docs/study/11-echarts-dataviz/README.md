@@ -7,7 +7,7 @@
 - 테마: `composables/useEchartsTheme.ts` + `utils/echartsThemes.ts`
 - 팔레트: `utils/chartPalette.ts`
 
-핵심 철학 하나만 기억하세요: **"계산은 순수 TS 유틸에서, 그리기만 ECharts에서."** 통계·좌표 변환은 전부 `utils/*.ts`의 순수 함수가 하고(→ `12-testing/`, `13-statistics-wafer/`), ECharts는 이미 계산된 데이터를 받아 렌더만 합니다. 이 분리가 테스트 가능성과 유지보수성을 만듭니다.
+핵심 철학 하나만 기억하세요: **"계산은 순수 TS 유틸에서, 그리기만 ECharts에서."** 통계·좌표 변환은 전부 `utils/*.ts`의 순수 함수가 하고(→ `12-statistics-wafer/`, `13-testing/`), ECharts는 이미 계산된 데이터를 받아 렌더만 합니다. 이렇게 나눠 둬야 테스트와 유지보수가 쉬워집니다.
 
 ## 1. 왜 래퍼 컴포저블이 필요한가
 
@@ -147,7 +147,7 @@ const downloadChartImage = () => {
 - `<a download>` 엘리먼트를 만들고 `.click()`을 프로그램적으로 호출 → 브라우저 다운로드 발생.
 - 파일명은 **순수 함수** `chartExportFilename`이 생성(제목 slugify + `YYYY-MM-DD` + `.png`). DOM에 의존하지 않아 `node --test`로 테스트됩니다.
 
-> **SVG는 지원하지 않습니다.** ECharts 6은 SVG 렌더러도 있지만, 이 앱의 export 경로는 **PNG 래스터 전용**입니다. (CSV/Excel export는 별도 — `13-statistics-wafer/`와 `utils/csvDownload.ts` 참고.)
+> **SVG는 지원하지 않습니다.** ECharts 6은 SVG 렌더러도 있지만, 이 앱의 export 경로는 **PNG 래스터 전용**입니다. (CSV/Excel export는 별도 — `12-statistics-wafer/`와 `utils/csvDownload.ts` 참고.)
 
 ## 6. 차트를 추가할 때의 표준 절차
 
@@ -161,5 +161,5 @@ const downloadChartImage = () => {
 
 - ECharts 옵션 레퍼런스: https://echarts.apache.org/en/option.html
 - `useEchart.ts` — 이 프로젝트의 모든 차트가 통과하는 단일 관문
-- 통계 유틸의 상세: `13-statistics-wafer/`
-- 순수 함수 테스트 규율: `12-testing/`
+- 통계 유틸의 상세: `12-statistics-wafer/`
+- 순수 함수 테스트 규율: `13-testing/`

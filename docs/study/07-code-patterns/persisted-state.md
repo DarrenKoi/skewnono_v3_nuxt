@@ -10,7 +10,7 @@
 - 저장된 프리셋, 최근 검색어, 최근 본 항목
 - 화면 필터 선호 설정(선택한 fab, prod 카테고리 등)
 
-`useState`는 SPA 세션 동안만 살아있고 새로고침하면 리셋됩니다. 그래서 localStorage가 필요합니다. 문제는 **컴포넌트마다 read/watch/write 플러밍을 손으로 짜면** 미묘한 버그(SSR 가드 누락, 탭 닫힘 시 유실, 빈 값 축적)가 반복된다는 것입니다.
+`useState`는 SPA 세션 동안만 살아있고 새로고침하면 리셋됩니다. 그래서 localStorage가 필요합니다. 문제는 **컴포넌트마다 read/watch/write 플러밍을 손으로 짜다 보면** 미묘한 버그(SSR 가드 누락, 탭 닫힘 시 유실, 빈 값 축적)가 반복된다는 점입니다.
 
 CLAUDE.md의 규칙: *"Do not hand-roll new localStorage read/write/watch plumbing in a composable; call `usePersistedState` instead."*
 
@@ -98,7 +98,7 @@ persistenceScope.run(() => {
 })
 ```
 
-보통 `watch`는 그걸 부른 컴포넌트가 unmount되면 함께 정리됩니다. 그러면 그 컴포넌트를 떠난 뒤의 변경이 localStorage에 안 써질 수 있습니다. **모듈 레벨 `effectScope(true)`**에 watcher를 등록하면, 그 watcher는 특정 컴포넌트가 아니라 **SPA 수명 전체**에 묶입니다. `attachedStateKeys` Set으로 `stateKey`당 watcher가 정확히 하나만 붙게 가드합니다.
+보통 `watch`는 그걸 부른 컴포넌트가 unmount되면 함께 정리됩니다. 그러면 그 컴포넌트를 벗어난 뒤의 변경은 localStorage에 기록되지 않을 수 있습니다. **모듈 레벨 `effectScope(true)`**에 watcher를 등록하면, 그 watcher는 특정 컴포넌트가 아니라 **SPA 수명 전체**에 묶입니다. `attachedStateKeys` Set으로 `stateKey`당 watcher가 정확히 하나만 붙게 가드합니다.
 
 ### 3.3 `flush: 'sync'` — 클릭이 확인됐으면 즉시 durable
 
@@ -191,4 +191,4 @@ const toggle = (name: string) => { if (has(name)) remove(name); else add(name) }
 
 CLAUDE.md 원문: *"Pinia is **not** used — prefer Nuxt built-ins. ... Revisit Pinia only if a real need appears (e.g. devtools time-travel debugging or cross-store orchestration that composables can't express cleanly)."*
 
-즉 "나중에 도입 검토"가 아니라 **명시적으로 안 씀**이고, 아주 특정한 트리거(devtools 시간여행 디버깅, 컴포저블로 표현 안 되는 store 간 오케스트레이션)가 나타날 때만 재고합니다. 서버 데이터 캐시에는 `useAsyncData`(→ `sem-list-caching.md`), 영속 클라이언트 상태에는 `usePersistedState` — 이 둘로 현재 요구를 전부 덮습니다.
+즉 "나중에 도입 검토"가 아니라 **명시적으로 안 씀**이고, 아주 특정한 트리거(devtools 시간여행 디버깅, 컴포저블로 표현 안 되는 store 간 오케스트레이션)가 나타날 때만 재고합니다. 서버 데이터 캐시에는 `useAsyncData`(→ `sem-list-caching.md`), 영속 클라이언트 상태에는 `usePersistedState` — 이 둘로 현재 요구를 전부 감당합니다.

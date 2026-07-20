@@ -1,6 +1,6 @@
 # 10. 백엔드 Provider 아키텍처 (mock ↔ office)
 
-이 문서는 프론트엔드가 아니라 **`back_dev_home/`(Flask 백엔드)의 핵심 아키텍처**를 다룹니다. 백엔드 개발자에게는 가장 익숙한 영역이면서, 이 프로젝트에서 가장 많이 반복되는 패턴이므로 먼저 확실히 이해해 두는 것이 좋습니다.
+이 문서는 프론트엔드가 아니라 **`back_dev_home/`(Flask 백엔드)의 핵심 아키텍처**를 다룹니다. 백엔드 개발자에게 가장 익숙한 영역이자 이 프로젝트에서 가장 자주 반복되는 패턴이니, 먼저 확실히 익혀 두면 좋습니다.
 
 한 줄 요약: **"한 벌의 라우트/계약을 두고, 데이터 소스(집의 mock ↔ 회사의 office)만 런타임에 갈아끼운다."** 이것이 CLAUDE.md가 말하는 "설정 변경만으로 Phase를 바꾼다"의 백엔드 구현입니다.
 
@@ -11,7 +11,7 @@
 
 ## 1. 두 개의 독립된 축을 구분하라
 
-가장 먼저 잡아야 할 개념. 이 시스템에는 **서로 다른 두 개의 축**이 있고, 일부러 분리되어 있습니다.
+가장 먼저 잡아야 할 개념입니다. 이 시스템에는 **서로 다른 두 축**이 있고, 이 둘을 일부러 갈라놓았습니다.
 
 | 축 | 무엇을 결정하나 | 어떻게 선택되나 |
 | --- | --- | --- |
@@ -20,11 +20,11 @@
 
 `_runtime/data_provider.py`의 docstring이 이 원칙을 명시합니다: *"The deployment location and the data source are separate decisions."*
 
-**왜 분리하나?** 회사 노트북에서 실제 Redis를 붙이지 않고 mock으로 UI만 확인하고 싶을 수도 있고, 반대로 집에서 인증 로직(cloud identity)을 테스트하고 싶을 수도 있습니다. 두 축이 엮여 있으면 이런 조합이 불가능합니다.
+**왜 분리하나?** 회사 노트북에서 실제 Redis를 붙이지 않고 mock으로 UI만 확인하고 싶을 때가 있고, 반대로 집에서 인증 로직(cloud identity)을 테스트하고 싶을 때도 있습니다. 두 축이 엮여 있으면 이런 조합을 못 만듭니다.
 
 ## 2. Provider 셀렉터 — `_runtime/data_provider.py`
 
-데이터 소스 축의 심장. 전체가 35줄뿐입니다.
+데이터 소스 축의 심장입니다. 전체가 35줄밖에 안 됩니다.
 
 ```python
 DataProvider = Literal["mock", "office"]
@@ -100,7 +100,7 @@ def sem_list():
     return jsonify(rows)
 ```
 
-라우트는 `.data`에서 `get_sem_list`만 가져옵니다. `providers/`를 직접 import하지 **않습니다.** 그래서 이 파일은 mock/office 어느 Phase에서도 **한 글자도 안 바뀝니다.** 교체는 전부 `data.py` 뒤에서 일어납니다.
+라우트는 `.data`에서 `get_sem_list`만 가져오고, `providers/`를 직접 import하지 **않습니다.** 그래서 이 파일은 mock/office 어느 Phase에서도 **한 글자도 안 바뀝니다.** 교체는 전부 `data.py` 뒤에서 벌어집니다.
 
 ### 3.2 `data.py` — 디스패처 (교체 지점)
 
@@ -134,7 +134,7 @@ def get_sem_list() -> list[SemListRow]:
 핵심 두 가지:
 
 1. **`get_data_provider("sem_list")`로 축을 읽고** 분기합니다.
-2. **함수 내부 지연 import** (`from ...providers.office import ...`가 함수 안에 있음). 이게 의도적입니다 — office 어댑터는 `redis`, `pandas`, `pyarrow` 같은 무거운 의존성을 쓰는데, 이걸 모듈 최상단에서 import하면 **집에서 mock만 돌릴 때도 그 패키지들이 설치돼 있어야** 합니다. 지연 import + 빈 `providers/__init__.py` 덕분에, office가 선택될 때만 그 코드에 도달하고, gitignore된 `office.py`가 집에는 아예 없어도 됩니다.
+2. **함수 내부 지연 import** (`from ...providers.office import ...`가 함수 안에 있음). 일부러 이렇게 짰습니다. office 어댑터는 `redis`, `pandas`, `pyarrow` 같은 무거운 의존성을 쓰는데, 이걸 모듈 최상단에서 import하면 **집에서 mock만 돌릴 때조차 그 패키지들이 깔려 있어야** 합니다. 지연 import에 빈 `providers/__init__.py`가 더해진 덕분에, office가 선택될 때만 그 코드에 닿고, gitignore된 `office.py`는 집에 아예 없어도 됩니다.
 
 > **백엔드 관점 비유**: `data.py`는 Flask의 라우트와 실제 저장소 사이에 낀 **얇은 서비스 레이어**입니다. 라우트는 "장비 목록 줘"라고만 하고, 그게 in-memory dict에서 오는지 Redis에서 오는지는 이 레이어가 숨깁니다. 의존성 주입(DI)을 환경변수 + 지연 import로 가난하게 구현한 셈입니다.
 
@@ -154,7 +154,7 @@ class SemListRow(TypedDict):
     version: str
 ```
 
-이것이 **Port의 타입 계약**입니다. mock이든 office든, 결국 `list[SemListRow]`를 돌려줘야 합니다. 프론트엔드의 `SemListRow` 인터페이스(TS)와 이 TypedDict가 서로 거울처럼 대응됩니다.
+이것이 **Port의 타입 계약**입니다. mock이든 office든 결국 `list[SemListRow]`를 돌려줘야 합니다. 프론트엔드의 `SemListRow` 인터페이스(TS)와 이 TypedDict가 서로 거울처럼 맞물립니다.
 
 > "office가 mock을 닮게 만든다"는 말은 **데이터 값을 똑같이 만들라는 게 아니라 이 계약(shape)을 맞추라는 뜻**입니다. office는 실제 장비를, mock은 가짜 300대를 반환하지만, 둘 다 `SemListRow` 리스트여야 합니다.
 
@@ -179,7 +179,7 @@ def get_sem_list() -> list[SemListRow]:
     return _generate_rows()
 ```
 
-**`random.Random(42)`로 시드를 고정**한 것이 포인트입니다. mock은 매번 **똑같은 300대 fleet**을 만듭니다. 결정론적이라 프론트엔드 개발·테스트·스크린샷이 재현 가능합니다. (약 5%는 version을 빈 문자열로 두어 "버전 미상" 케이스도 UI가 처리하게 만듭니다.)
+**`random.Random(42)`로 시드를 고정**한 것이 포인트입니다. mock은 매번 **똑같은 300대 fleet**을 찍어냅니다. 결정론적이니 프론트엔드 개발·테스트·스크린샷을 그대로 재현할 수 있습니다. (약 5%는 version을 빈 문자열로 두어, "버전 미상" 케이스까지 UI가 처리하도록 유도합니다.)
 
 ### 3.5 `providers/office_example.py` — 회사(Phase 2/3) 어댑터 스켈레톤
 
@@ -209,13 +209,13 @@ office 어댑터는 **소스 포맷의 모든 지저분함을 흡수**합니다.
 - parquet magic byte(`PAR1`) 감지, UTF-8 디코딩, `NaN → ""` 정규화, vendor/available 값 정규화.
 - 두 DataFrame을 `eqp_ip` 기준 **LEFT 조인**해서 version을 붙임.
 
-이 모든 걸 어댑터가 처리하고 나면, 라우트와 프론트엔드는 소스가 Redis + parquet + pandas였다는 사실을 **전혀 모릅니다.** 이것이 좋은 어댑터의 정의입니다 — 경계 안쪽의 복잡함이 밖으로 새지 않습니다.
+이 모든 걸 어댑터가 처리하고 나면, 라우트와 프론트엔드는 소스가 Redis + parquet + pandas였다는 사실조차 **전혀 모릅니다.** 좋은 어댑터란 바로 이런 것입니다. 경계 안쪽의 복잡함이 밖으로 새어 나가지 않습니다.
 
 > 이 `sem_list`가 이 프로젝트에서 **회사 쪽에서 실제로 라이브 검증된 첫 기능**입니다(2026-07-20).
 
 ## 4. `office_example.py` vs `office.py` 컨벤션
 
-이 저장소는 **집과 회사가 직접 sync할 수 없습니다**(git 워크스페이스가 분리됨). 그래서 다음 규칙을 씁니다.
+이 저장소는 **집과 회사를 직접 sync할 수 없습니다**(git 워크스페이스가 분리됨). 그래서 다음 규칙을 둡니다.
 
 ```gitignore
 # providers/office_example.py -> providers/office.py, then implemented at the
@@ -226,13 +226,13 @@ back_dev_home/**/providers/office.py
 - `office_example.py` — **git에 추적되는 스켈레톤/템플릿**. 함수 시그니처와 구현 힌트가 들어 있음.
 - `office.py` — **gitignore됨.** 회사에서 `cp office_example.py office.py` 한 뒤 그 안을 실제 구현으로 채움.
 
-**왜 이렇게?** 만약 `office.py`가 추적된다면, 회사에서 실제 Redis 접속 코드를 짜 넣고 커밋한 뒤 집에서 `git pull` 할 때 **매번 충돌**합니다(또는 회사 비밀이 집 저장소로 흘러 들어옵니다). `office.py`를 ignore하면 `git pull`이 절대 이 파일에서 충돌하지 않고, 회사 전용 접속 로직이 공용 저장소에 노출되지 않습니다.
+**왜 이렇게?** `office.py`가 추적된다면, 회사에서 실제 Redis 접속 코드를 짜 넣고 커밋한 뒤 집에서 `git pull` 할 때 **매번 충돌**이 납니다(또는 회사 비밀이 집 저장소로 흘러 들어옵니다). `office.py`를 ignore하면 `git pull`이 이 파일에서 충돌할 일이 아예 없고, 회사 전용 접속 로직도 공용 저장소에 노출되지 않습니다.
 
-집 저장소에는 `office.py`가 아예 존재하지 않아도 됩니다. `data.py`의 지연 import는 env가 office를 고를 때만 그 줄에 도달하기 때문입니다.
+집 저장소에는 `office.py`가 아예 없어도 됩니다. `data.py`의 지연 import가 env에서 office를 고를 때만 그 줄에 닿기 때문입니다.
 
 ## 5. `MIGRATION.md` — office 어댑터가 지켜야 할 규칙
 
-각 기능 폴더의 `MIGRATION.md`가 회사에서 무엇을 해야 하는지 알려줍니다. `sem_list` 기준 요약:
+각 기능 폴더의 `MIGRATION.md`가 회사에서 무엇을 해야 하는지 짚어 줍니다. `sem_list` 기준 요약:
 
 1. **먼저 복사, 그다음 복사본만 수정** — `cp providers/office_example.py providers/office.py`.
 2. **`providers/office.py`만 건드린다.** `routes.py`, `data.py`, `office_example.py`, `mock.py`, `contracts.py`, `tests/`는 절대 수정 금지.
@@ -250,7 +250,7 @@ SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/pytest back_dev_home/sem_list
 
 ## 6. 앱 팩토리 — `back_dev_home/__init__.py`
 
-Blueprint를 **자동 발견**하는 방식이 인상적입니다. 각 기능의 `routes.py`를 손으로 등록하지 않습니다.
+Blueprint를 **자동 발견**하는 방식이 인상적입니다. 각 기능의 `routes.py`를 손으로 일일이 등록하지 않습니다.
 
 ```python
 def create_app() -> Flask:
@@ -290,13 +290,13 @@ def create_app() -> Flask:
 - 경로 조각이 `_`로 시작하는 폴더(`_auth`, `_runtime`, `_spa`, `_core` 등)는 **건너뜀** — 이들은 기능이 아니라 공용 인프라이므로.
 - `bp`를 export하지 않으면 **큰 소리로 실패**(`RuntimeError`). "규칙을 안 지킨 기능"이 조용히 누락되지 않습니다.
 
-**교훈**: 새 기능 추가 = 폴더 하나 만들고 그 안에 `routes.py`(+`bp`) 두면 끝. 중앙 등록 파일을 손댈 필요가 없습니다. 이것이 "대규모 리팩터링 없이 페이지/기능을 점진적으로 추가"라는 CLAUDE.md 목표의 실현입니다.
+**교훈**: 새 기능 추가 = 폴더 하나 만들고 그 안에 `routes.py`(+`bp`) 두면 끝. 중앙 등록 파일을 손댈 필요가 없습니다. "대규모 리팩터링 없이 페이지/기능을 점진적으로 추가"라는 CLAUDE.md 목표가 여기서 실현됩니다.
 
 > `is_cloud()`로 identity provider를 고르는 부분이 §1에서 말한 **배포 위치 축**입니다. 데이터 소스 축(`get_data_provider`)과 완전히 별개로 동작합니다.
 
 ## 7. 교체 지점이 둘 이상인 기능
 
-대부분의 기능은 교체 지점이 하나(`data.py`)지만, 일부는 여러 개입니다. `MIGRATION.md`를 항상 확인하세요.
+대부분의 기능은 교체 지점이 하나(`data.py`)지만, 일부는 여럿입니다. `MIGRATION.md`를 늘 확인하세요.
 
 ### `chat` — 저장소 seam + LLM 게이트웨이 seam (독립된 두 축)
 
