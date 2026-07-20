@@ -55,4 +55,13 @@
 
 ## Verify
 
+Quick smoke test (prints row count + first row; loads `.env` itself):
+
+    .venv/bin/python -m back_dev_home.sem_list.providers.office
+
+Contract gate (`.env` is loaded by `back_dev_home/conftest.py`):
+
     SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/pytest back_dev_home/sem_list
+
+Both must run from the repo root. Do NOT run the provider file by path
+(`python providers/office.py`) — package imports require the `-m` form.

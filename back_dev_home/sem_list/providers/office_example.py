@@ -21,6 +21,8 @@ from io import StringIO
 
 import pandas as pd
 import redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 
 from back_dev_home.sem_list.contracts import SemListRow
 
@@ -46,12 +48,27 @@ _AVAILABLE_MAP = {"on": "On", "off": "Off", "true": "On", "false": "Off", "1": "
 
 
 def _redis_client() -> redis.Redis:
+    host = os.environ.get("REDIS_HOST")
+    if not host:
+        raise RuntimeError(
+            "REDIS_HOST is not set. back_dev_home/.env is only loaded by the "
+            "Flask app factory (and tests via conftest.py) — for standalone "
+            "runs use `python -m back_dev_home.sem_list.providers.office` "
+            "from the repo root, or call "
+            "load_dotenv('back_dev_home/.env') before importing this module."
+        )
     return redis.Redis(
-        host=os.environ["REDIS_HOST"],
+        host=host,
         port=int(os.environ.get("REDIS_PORT", "6379")),
         password=os.environ.get("REDIS_PASSWORD"),
         # The value is a serialized DataFrame (binary), so keep raw bytes.
         decode_responses=False,
+        # Fail fast on a wrong host/port: 5s connect timeout, one retry.
+        # (redis-py 8 defaults to 3 retries with backoff — a bad config
+        # would otherwise hang ~60s before erroring.)
+        socket_connect_timeout=5,
+        socket_timeout=10,
+        retry=Retry(NoBackoff(), retries=1),
     )
 
 
@@ -134,3 +151,18 @@ def get_sem_list() -> list[SemListRow]:
     if df.empty:
         return []
     return _normalize(df)
+
+
+if __name__ == "__main__":
+    # Standalone smoke test — run FROM THE REPO ROOT with:
+    #     .venv/bin/python -m back_dev_home.sem_list.providers.office
+    # (`python path/to/office.py` will NOT work: package imports need -m.)
+    from pathlib import Path
+
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+    fleet = get_sem_list()
+    print(f"{len(fleet)} rows from Redis key {_REDIS_KEY!r}")
+    if fleet:
+        print("first row:", fleet[0])
