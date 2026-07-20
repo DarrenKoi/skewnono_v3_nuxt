@@ -272,13 +272,23 @@ const {
   }
 )
 
-const rows = computed(() => (data.value ?? []).filter(row => classifyToolType(row.eqp_model_cd) === props.toolType))
+// The backend aggregates storage at the fac level (fabNameToFacId collapses
+// e.g. M16A/M16B/M16C → fac M16), so a fac-only filter shows the same rows for
+// every fab under one fac. Narrow to the exact selected fab_name so the table
+// reacts to the fab in the URL — the composable leaves this to the page.
+const rows = computed(() => (data.value ?? []).filter(row =>
+  classifyToolType(row.eqp_model_cd) === props.toolType && row.fab_name === props.fab
+))
 
 const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? '')
 
-// Orphan rows (no sem_list match) have an empty eqp_model_cd; keep them so
+// Same fab_name narrowing as the storage table. Orphan rows (no sem_list
+// match) have an empty eqp_model_cd AND empty fab_name; keep them so
 // data-quality gaps stay visible rather than silently filtered out.
-const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? []).filter(row => row.eqp_model_cd === '' || classifyToolType(row.eqp_model_cd) === props.toolType))
+const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? []).filter(row =>
+  (row.eqp_model_cd === '' || classifyToolType(row.eqp_model_cd) === props.toolType)
+  && (row.fab_name === props.fab || row.fab_name === '')
+))
 
 const parsePercent = (label: string): number => {
   const parsed = Number.parseInt(label.replace('%', ''), 10)
