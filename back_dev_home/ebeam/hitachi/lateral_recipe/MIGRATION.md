@@ -80,4 +80,4 @@
 
 ## Verify
 
-    SKEWNONO_LATERAL_RECIPE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/lateral_recipe
+    SKEWNONO_LATERAL_RECIPE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/lateral_recipe

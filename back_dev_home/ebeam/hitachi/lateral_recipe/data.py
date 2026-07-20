@@ -1,4 +1,4 @@
-"""SWAP SURFACE for ebeam/lateral_recipe.
+"""SWAP SURFACE for ebeam/hitachi/lateral_recipe.
 
 Routes import only this module. The selected adapter lives in
 providers/mock.py or providers/office.py.
@@ -6,7 +6,7 @@ providers/mock.py or providers/office.py.
 
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
-from back_dev_home.ebeam.lateral_recipe.contracts import LateralRecipeResponse
+from back_dev_home.ebeam.hitachi.lateral_recipe.contracts import LateralRecipeResponse
 
 
 __all__ = [
@@ -16,9 +16,9 @@ __all__ = [
 
 def _provider():
     if get_data_provider("lateral_recipe") == "office":
-        from back_dev_home.ebeam.lateral_recipe.providers import office
+        from back_dev_home.ebeam.hitachi.lateral_recipe.providers import office
         return office
-    from back_dev_home.ebeam.lateral_recipe.providers import mock
+    from back_dev_home.ebeam.hitachi.lateral_recipe.providers import mock
     return mock
 
 

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
-from back_dev_home.ebeam.lateral_recipe.contracts import (
+from back_dev_home.ebeam.hitachi.lateral_recipe.contracts import (
     LateralRecipeResponse,
     LateralRecipeRow,
     LateralRecipeVersion,

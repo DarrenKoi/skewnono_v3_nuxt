@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from back_dev_home.ebeam.hitachi._tool_specs import resolve_tool_type_from_slug
-from back_dev_home.ebeam.lateral_recipe.data import get_lateral_recipe
+from back_dev_home.ebeam.hitachi.lateral_recipe.data import get_lateral_recipe
 
 
 bp = Blueprint("ebeam_lateral_recipe", __name__)
