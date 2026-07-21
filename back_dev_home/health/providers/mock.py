@@ -96,6 +96,8 @@ def _elapsed_ms(started: float) -> int:
 def _check_redis() -> ServiceHealth:
     try:
         import redis  # type: ignore[import-not-found]
+        from redis.backoff import NoBackoff
+        from redis.retry import Retry
 
         client = redis.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
@@ -103,6 +105,12 @@ def _check_redis() -> ServiceHealth:
             password=os.environ.get("REDIS_PASSWORD") or None,
             socket_timeout=2,
             socket_connect_timeout=2,
+            # redis-py 8 retries 3× with exponential backoff by default, so a
+            # host that silently drops SYNs (office REDIS_HOST reached from
+            # home) blocks ~26s despite the 2s timeouts — long enough that the
+            # landing page's health card never resolves. One attempt only:
+            # this is a liveness probe, a retry adds nothing.
+            retry=Retry(NoBackoff(), retries=0),
         )
         started = time.perf_counter()
         client.ping()
