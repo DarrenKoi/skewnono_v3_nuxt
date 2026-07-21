@@ -3,10 +3,20 @@
 The deployment location and the data source are separate decisions. In
 particular, an office-local Flask process is not a cloud process, but it still
 needs real office data.
+
+Resolution order (first hit wins):
+
+1. ``SKEWNONO_<FEATURE>_PROVIDER`` — explicit per-feature override.
+2. ``SKEWNONO_DATA_PROVIDER``      — explicit global override.
+3. Site auto-default — on a recognized office machine (see ``site.py``),
+   features in ``site.OFFICE_READY`` default to ``office``.
+4. ``mock`` — the home-safe default everywhere else.
 """
 
 import os
 from typing import Literal, cast
+
+from back_dev_home._runtime.site import OFFICE_READY, detect_site
 
 
 DataProvider = Literal["mock", "office"]
@@ -21,9 +31,13 @@ def _feature_env_name(feature: str) -> str:
 
 
 def get_data_provider(feature: str) -> DataProvider:
-    """Return a feature override, the global provider, or the home-safe default."""
+    """Return a feature override, the global provider, or the site default."""
     feature_env = _feature_env_name(feature)
-    raw = os.environ.get(feature_env) or os.environ.get(_GLOBAL_ENV) or "mock"
+    raw = os.environ.get(feature_env) or os.environ.get(_GLOBAL_ENV)
+    if raw is None:
+        if detect_site() == "office" and feature.strip().lower() in OFFICE_READY:
+            return "office"
+        return "mock"
     provider = raw.strip().lower()
 
     if provider not in _VALID_PROVIDERS:
