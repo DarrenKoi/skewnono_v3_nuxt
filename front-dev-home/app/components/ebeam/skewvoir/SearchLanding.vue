@@ -1,18 +1,5 @@
 <template>
   <div class="mx-auto flex w-full max-w-[1600px] flex-col gap-3 pb-20 xl:h-full xl:min-h-0 xl:pb-0">
-    <!-- Landing header -->
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-      <p class="sk-eyebrow">
-        {{ toolLabel }} · SKEWVOIR
-      </p>
-      <h1 class="sk-heading">
-        측정 검색
-      </h1>
-      <p class="sk-meta">
-        찾은 측정을 작업 세트에 모아 분석합니다.
-      </p>
-    </div>
-
     <div class="grid items-start gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-stretch">
       <main class="flex min-w-0 flex-col gap-3 xl:min-h-0">
         <!-- Search and the active measurement set share the master width
