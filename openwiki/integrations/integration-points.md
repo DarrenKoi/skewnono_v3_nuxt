@@ -1,9 +1,9 @@
 ---
 type: Integration Guide
 title: Integration Points and Office Migration Boundaries
-description: Live and planned SKEWNONO boundaries for Nuxt proxying, identity, OpenSearch, MinIO, FTP ingestion, LLM completion, and provider-by-provider office migration.
+description: Live and planned SKEWNONO boundaries for Nuxt proxying, identity, OpenSearch, MinIO, FTP ingestion, LLM completion, Redis-backed SEM-list data, and provider-by-provider office migration.
 resource: docs/back-end/office-data-adapters.md
-tags: [integrations, opensearch, minio, ftp, sso, llm]
+tags: [integrations, opensearch, minio, ftp, redis, sso, llm]
 ---
 
 # Integration points and office migration boundaries
@@ -50,7 +50,7 @@ This is a known-public-host blocklist, not a general internal-host allowlist. Th
 
 ## Provider readiness
 
-The active mock providers support home development. For migrated top-level features, home development tracks `providers/office_example.py`; each office environment creates an ignored `providers/office.py` copy and implements the real source there, preventing `git pull` from overwriting office-only adapter code. Representative unconnected office examples include health, SEM list, measurement history, MSR file, AFM, activity, and access control; other areas have not all adopted this split. Use feature-specific overrides during incremental rollout:
+The active mock providers support home development. For migrated top-level features, home development tracks `providers/office_example.py`; each office environment creates an ignored `providers/office.py` copy and implements or verifies the real source there, preventing `git pull` from overwriting office-only adapter code. Representative unconnected office examples still include health, measurement history, MSR file, AFM, activity, and access control; other areas have not all adopted this split. SEM list is further along: its tracked example now contains a concrete Redis adapter, but it still requires verification against the office instance. Use feature-specific overrides during incremental rollout:
 
 ```bash
 SKEWNONO_DATA_PROVIDER=office \
@@ -58,6 +58,12 @@ SKEWNONO_HEALTH_PROVIDER=mock \
 SKEWNONO_STORAGE_PROVIDER=mock \
 python index.py
 ```
+
+### SEM-list Redis adapter
+
+`back_dev_home/sem_list/providers/office_example.py` reads parquet-serialized DataFrames from `v3_df_sem_list` and `v3_df_sem_version` using `REDIS_HOST`, `REDIS_PORT`, and `REDIS_PASSWORD`. It de-duplicates the version table by `eqp_ip`, left-merges it onto the fleet so fleet rows are not dropped or multiplied, then normalizes the result to `SemListRow`. The public `version` field is a free-form string such as `"1A"`; an unmatched fleet row returns `version: ""`. Parquet is the confirmed format (`pyarrow`); JSON and pickle remain compatibility fallbacks, and malformed data raises rather than being hidden by a decode fallback.
+
+This adapter preserves the [provider seam](../architecture/overview.md#provider-seam-and-contracts): `/api/sem-list` remains unfiltered and unpaginated, and frontend consumers continue to share the response through `useSemListApi.ts`. Copy the tracked example to the ignored `office.py`, configure Redis without committing credentials, and use the focused checks in [testing guidance](../testing/guidance.md#feature-contract-gates) before enabling `SKEWNONO_SEM_LIST_PROVIDER=office`.
 
 Create a local adapter before enabling its override:
 

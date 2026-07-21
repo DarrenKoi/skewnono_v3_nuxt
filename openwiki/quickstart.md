@@ -90,7 +90,7 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 
 ## Backlog
 
-- **Office provider rollout** — `back_dev_home/**/providers/office_example.py` and office-local ignored `office.py` copies: connect and contract-gate real sources feature by feature; tracked skeletons currently fail honestly rather than return empty data.
+- **Office provider rollout** — `back_dev_home/**/providers/office_example.py` and office-local ignored `office.py` copies: connect and contract-gate real sources feature by feature. Most unconnected skeletons fail honestly rather than return empty data; the SEM-list example now implements its two-key Redis normalization path but still needs representative office verification before rollout.
 - **Rule persistence** — `back_dev_home/ebeam/cdsem/device_statistics/` and `useMeasurementRulesApi.ts`: implement save, history, rollback, and identity attribution after the datastore is chosen.
 - **Artifact source decisions** — `back_dev_home/msr_file/MIGRATION.md` and `back_dev_home/afm/providers/office_example.py`: decide whether images and large bodies come from live FTP, MinIO, or another service.
 - **Operational hardening** — `back_dev_home/_runtime/env.py`, `back_dev_home/__init__.py`, and `wsgi.ini`: replace path-derived cloud detection, configure a production secret, and assess shared rate-limit/state storage across workers.

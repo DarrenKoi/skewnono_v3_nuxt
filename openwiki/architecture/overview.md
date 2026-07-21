@@ -60,7 +60,7 @@ A route should depend on functions exported by its sibling `data.py`, never on O
 
 The dispatcher calls `providers/mock.py` or a local `providers/office.py`. Home authors maintain the tracked `providers/office_example.py` contract skeleton; office engineers copy it to the gitignored `office.py` and implement source-specific querying and normalization there. A fresh clone therefore has no real office module until this copy step is performed. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
 
-This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. Tracked office examples currently raise `NotImplementedError`; this is intentional because empty placeholders previously made disconnected sources appear healthy.
+This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. Most unconnected tracked office examples still raise `NotImplementedError`; this is intentional because empty placeholders previously made disconnected sources appear healthy. SEM list is the notable implemented skeleton: it reads and normalizes two Redis DataFrames behind the same provider seam, while still requiring office-side verification before rollout.
 
 ## Identity, authorization, and observability
 

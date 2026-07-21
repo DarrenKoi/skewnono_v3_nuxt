@@ -49,7 +49,17 @@ SKEWNONO_MEAS_HIST_PROVIDER=office \
   .venv/bin/python -m pytest back_dev_home/meas_hist -q
 ```
 
-An office adapter is not complete until this gate runs against representative office data and the corresponding [workflow](../workflows/key-workflows.md) is exercised.
+`back_dev_home/conftest.py` loads `back_dev_home/.env` for feature tests that import providers without creating the Flask app. This makes office-mode gates see the same connection variables as application startup; keep real values only in the ignored `.env`, never in tests or documentation.
+
+For the SEM-list Redis adapter, run both checks from the repository root after copying the tracked example to `providers/office.py`:
+
+```bash
+.venv/bin/python -m back_dev_home.sem_list.providers.office
+SKEWNONO_SEM_LIST_PROVIDER=office \
+  .venv/bin/python -m pytest back_dev_home/sem_list -q
+```
+
+The smoke command loads `back_dev_home/.env`, prints the row count and first normalized row, and uses the package `-m` form required by its imports. The contract gate permits an empty office fleet but requires the deterministic mock fleet to be non-empty. An office adapter is not complete until its gate runs against representative office data and the corresponding [workflow](../workflows/key-workflows.md) is exercised.
 
 ### Frontend tests
 
