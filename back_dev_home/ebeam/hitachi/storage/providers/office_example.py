@@ -121,7 +121,9 @@ def _deserialize_dataframe(raw: bytes, key: str) -> pd.DataFrame:
     try:
         obj = pickle.loads(raw)
     except Exception as exc:  # don't mask the real error behind a utf-8 decode
-        raise RuntimeError(
+        # Bare LookupError = upstream data problem -> JSON 502 (see the
+        # app-factory error handlers), not a 503 "backend unavailable".
+        raise LookupError(
             f"Could not deserialize Redis key {key!r} "
             f"(first bytes: {raw[:16].hex(' ')!r}). "
             f"Real error -> {type(exc).__name__}: {exc}."
@@ -130,7 +132,7 @@ def _deserialize_dataframe(raw: bytes, key: str) -> pd.DataFrame:
         return obj
     if isinstance(obj, dict):
         return pd.DataFrame(obj)
-    raise TypeError(
+    raise LookupError(
         f"Redis key {key!r} deserialized to {type(obj).__name__}, "
         "expected a DataFrame or dict"
     )

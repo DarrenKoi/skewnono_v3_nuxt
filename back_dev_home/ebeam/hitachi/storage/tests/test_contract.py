@@ -5,6 +5,7 @@ Office: SKEWNONO_STORAGE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hi
 """
 
 from back_dev_home._core.contract_check import assert_matches
+from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.storage import data
 from back_dev_home.ebeam.hitachi.storage.contracts import (
     PpidUnavailableSnapshot,
@@ -27,7 +28,11 @@ def test_get_storage_filters_by_fab_name():
     # must match the fab_name column exactly — not collapse to a parent fac_id.
     everything = data.get_storage("cdsem")
     fab_names = {row["fab_name"] for row in everything}
-    assert fab_names, "mock fleet should expose at least one fab_name"
+    if get_data_provider("storage") == "mock":
+        # Only the mock guarantees data; an empty office fleet is contract-valid.
+        assert fab_names, "mock fleet should expose at least one fab_name"
+    if not fab_names:
+        return
 
     target = sorted(fab_names)[0]
     filtered = data.get_storage("cdsem", [target])

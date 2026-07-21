@@ -335,12 +335,28 @@ def _read_dataframe(raw: bytes, key: str) -> pd.DataFrame:
     )
 
 
+# The office catalogs (device_desc, r3_device_grp) carry missing cells in
+# several spellings: real None/NaN/pd.NA, and sometimes the literal string
+# "None" written by the upstream loader. All must normalize to "" so they
+# fall out of lot_cd keys and metadata instead of surfacing as "None" text.
+_MISSING_TEXT = {"none", "nan", "null", "<na>"}
+
+
 def _text(value: Any) -> str:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
+    if value is None:
         return ""
     if isinstance(value, (bytes, bytearray)):
-        return bytes(value).decode("utf-8")
-    return str(value).strip()
+        value = bytes(value).decode("utf-8")
+    elif not isinstance(value, str):
+        try:
+            if pd.isna(value):  # float NaN, pd.NA, NaT
+                return ""
+        except (TypeError, ValueError):
+            pass  # non-scalar (list, ...) — fall through to str()
+    text = str(value).strip()
+    if text.lower() in _MISSING_TEXT:
+        return ""
+    return text
 
 
 @_ttl_cache
