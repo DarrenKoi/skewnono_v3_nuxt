@@ -10,8 +10,8 @@
 
       <main class="flex min-h-0 min-w-0 flex-1 flex-col">
         <!-- View body — the active analysis view, driven by the URL `view` param.
-             View actions (Annotate / Excel / Skew Check / Share) moved to the
-             left rail, under CURRENT SELECTION. -->
+             Selection actions (요약 복사 / Recipe 열어보기 / Share) live in the
+             left rail; Excel export stays on the data table. -->
         <div class="min-h-0 flex-1 overflow-auto p-3">
           <div
             v-if="!ws.selection.value"

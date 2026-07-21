@@ -213,7 +213,7 @@
           class="justify-start"
           :icon="action.icon"
           :label="action.label"
-          @click="action.onClick?.()"
+          @click="action.onClick()"
         />
       </div>
     </section>
@@ -225,6 +225,7 @@ import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { recipeDetailRoute } from '~/utils/recipeView'
 import { removeFromSet, clearToFocus } from '~/utils/skewvoirAnalysis/setEditing'
+import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis, fab: string }>()
 
@@ -270,20 +271,31 @@ const openRecipe = () => {
   window.open(router.resolve(route).href, '_blank', 'noopener')
 }
 
-const share = async () => {
-  const url = props.ws.shareUrl()
+const copyToClipboard = async (text: string, okTitle: string) => {
   try {
-    await navigator.clipboard.writeText(url)
-    toast.add({ title: '링크가 복사되었습니다', description: url, icon: 'i-lucide-link', color: 'success' })
+    await navigator.clipboard.writeText(text)
+    toast.add({ title: okTitle, description: text, icon: 'i-lucide-clipboard-check', color: 'success' })
   } catch {
-    toast.add({ title: '복사하지 못했습니다', description: url, icon: 'i-lucide-triangle-alert', color: 'warning' })
+    toast.add({ title: '복사하지 못했습니다', description: text, icon: 'i-lucide-triangle-alert', color: 'warning' })
   }
 }
 
-// Recipe 열어보기 + Share work today; Annotate is staged for the feature
-// discussion to follow. Excel export lives on the data table, not here.
+const share = () => copyToClipboard(props.ws.shareUrl(), '링크가 복사되었습니다')
+
+// Selection facts as paste-ready text (messenger / report hand-off).
+const copySummary = () => {
+  const sel = props.ws.selection.value
+  if (!sel) return
+  copyToClipboard(
+    formatSelectionSummary(sel, props.analysis.activeParam.value, props.ws.shareUrl()),
+    '요약이 복사되었습니다'
+  )
+}
+
+// Excel export lives on the data table, not here. Annotation (per-MSR triage
+// notes) is tracked in .scratch/skewvoir-annotation/ — no UI until it works.
 const actions = [
-  { label: '+ Annotate', icon: 'i-lucide-message-square-plus', onClick: undefined as (() => void) | undefined },
+  { label: '요약 복사', icon: 'i-lucide-clipboard-list', onClick: copySummary },
   { label: 'Recipe 열어보기', icon: 'i-lucide-file-search', onClick: openRecipe },
   { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
 ]
