@@ -4,12 +4,12 @@ import type { Fab } from '~/stores/navigation'
 const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 
-const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
+const fabName = computed(() => String(route.params.fab ?? '').toUpperCase())
 
 setToolType('cd-sem')
-setFab(fabId.value as Fab)
+setFab(fabName.value as Fab)
 
-watch(fabId, (next) => {
+watch(fabName, (next) => {
   setFab(next as Fab)
 })
 </script>
@@ -17,7 +17,7 @@ watch(fabId, (next) => {
 <template>
   <div class="space-y-3">
     <EbeamStorageView
-      :fab="fabId"
+      :fab="fabName"
       tool-label="CD-SEM"
       tool-type="cd-sem"
     />

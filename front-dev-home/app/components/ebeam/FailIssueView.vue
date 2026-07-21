@@ -323,7 +323,7 @@ const {
 
 const queryParams = computed(() => ({
   toolType: props.toolType,
-  fabId: props.fab || undefined,
+  fabName: props.fab || undefined,
   startDate: userDateRange.value.start || undefined,
   endDate: userDateRange.value.end || undefined,
   // No limit: the backend treats an omitted/0 limit as "all rows in range".
@@ -331,7 +331,7 @@ const queryParams = computed(() => ({
 }))
 
 const cacheKey = computed(
-  () => `fail-issue:${queryParams.value.toolType}:${queryParams.value.fabId ?? 'ALL'}`
+  () => `fail-issue:${queryParams.value.toolType}:${queryParams.value.fabName ?? 'ALL'}`
     + `:${queryParams.value.startDate ?? 'auto'}:${queryParams.value.endDate ?? 'auto'}`
     + `:${queryParams.value.lotCd ?? '*'}`
 )
@@ -354,7 +354,7 @@ const { data, status } = await useAsyncData(
 // source of truth for which lot_cds exist in scope, so a current selection
 // must not filter the picker itself.
 const devicesCacheKey = computed(
-  () => `fail-issue-devices:${queryParams.value.toolType}:${queryParams.value.fabId ?? 'ALL'}`
+  () => `fail-issue-devices:${queryParams.value.toolType}:${queryParams.value.fabName ?? 'ALL'}`
     + `:${queryParams.value.startDate ?? 'auto'}:${queryParams.value.endDate ?? 'auto'}`
 )
 const { data: devicesData } = await useAsyncData(

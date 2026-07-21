@@ -344,7 +344,7 @@ const {
 
 const queryParams = computed(() => ({
   toolType: props.toolType,
-  fabId: props.fab || undefined,
+  fabName: props.fab || undefined,
   startDate: userDateRange.value.start || undefined,
   endDate: userDateRange.value.end || undefined,
   // No limit: the backend treats an omitted/0 limit as "every recipe in the
@@ -355,7 +355,7 @@ const queryParams = computed(() => ({
 // `auto` placeholder keeps the cache key stable while the server resolves
 // the default window on first fetch.
 const cacheKey = computed(
-  () => `recipe-tat:${queryParams.value.toolType}:${queryParams.value.fabId ?? 'ALL'}`
+  () => `recipe-tat:${queryParams.value.toolType}:${queryParams.value.fabName ?? 'ALL'}`
     + `:${queryParams.value.startDate ?? 'auto'}:${queryParams.value.endDate ?? 'auto'}`
     + `:${queryParams.value.lotCd ?? '*'}`
 )
@@ -377,7 +377,7 @@ const { data, status } = await useAsyncData(
 // endpoint is the source of truth for which lot_cds exist in scope, so it
 // must not be filtered by the current selection.
 const devicesCacheKey = computed(
-  () => `recipe-tat-devices:${queryParams.value.toolType}:${queryParams.value.fabId ?? 'ALL'}`
+  () => `recipe-tat-devices:${queryParams.value.toolType}:${queryParams.value.fabName ?? 'ALL'}`
     + `:${queryParams.value.startDate ?? 'auto'}:${queryParams.value.endDate ?? 'auto'}`
 )
 const { data: devicesData } = await useAsyncData(

@@ -55,10 +55,10 @@ export const usePmPlanningApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  const fetchPmPlanningFleet = async (fabId: string): Promise<FleetResponse> => {
+  const fetchPmPlanningFleet = async (fabName: string): Promise<FleetResponse> => {
     return await $fetch<FleetResponse>(
       joinApiPath(base, '/cdsem/pm-planning/fleet'),
-      { query: { fab_name: fabId } }
+      { query: { fab_name: fabName } }
     )
   }
 

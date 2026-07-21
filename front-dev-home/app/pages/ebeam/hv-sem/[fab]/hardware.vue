@@ -4,7 +4,7 @@ import type { Fab } from '~/stores/navigation'
 const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 
-const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
+const fabName = computed(() => String(route.params.fab ?? '').toUpperCase())
 
 const applyFab = (next: string) => {
   if (!next) return
@@ -12,16 +12,16 @@ const applyFab = (next: string) => {
 }
 
 setToolType('hv-sem')
-applyFab(fabId.value)
+applyFab(fabName.value)
 
-watch(fabId, (next) => {
+watch(fabName, (next) => {
   applyFab(next)
 })
 </script>
 
 <template>
   <EbeamHardwareView
-    :fab="fabId"
+    :fab="fabName"
     tool-label="HV-SEM"
     tool-type="hv-sem"
   />

@@ -2,7 +2,7 @@
 const route = useRoute()
 const { setToolType, setFab } = useNavigation()
 
-const fabId = computed(() => String(route.params.fab ?? '').toUpperCase())
+const fabName = computed(() => String(route.params.fab ?? '').toUpperCase())
 
 const applyFab = (next: string) => {
   if (!next) return
@@ -10,7 +10,7 @@ const applyFab = (next: string) => {
 }
 
 setToolType('verity-sem')
-applyFab(fabId.value)
+applyFab(fabName.value)
 
 watch(() => route.params.fab, (newFab) => {
   applyFab(String(newFab ?? '').toUpperCase())
@@ -20,8 +20,8 @@ watch(() => route.params.fab, (newFab) => {
 <template>
   <EbeamToolInventoryView
     tool-type="verity-sem"
-    :fab="fabId"
-    :title="`VeritySEM - ${fabId}`"
+    :fab="fabName"
+    :title="`VeritySEM - ${fabName}`"
     subtitle="Mocked backend inventory filtered by fab."
   />
 </template>

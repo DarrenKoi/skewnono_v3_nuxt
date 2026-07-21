@@ -102,7 +102,7 @@ export interface FailIssueDevicesResponse {
 
 export interface FailIssueQuery {
   toolType: FailIssueToolType
-  fabId?: string
+  fabName?: string
   startDate?: string
   endDate?: string
   limit?: number
@@ -113,7 +113,7 @@ const buildQuery = (params: FailIssueQuery) => {
   const query: Record<string, string> = {}
   if (params.startDate) query.start_date = params.startDate
   if (params.endDate) query.end_date = params.endDate
-  if (params.fabId) query.fab_name = params.fabId
+  if (params.fabName) query.fab_name = params.fabName
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
   return query
@@ -170,7 +170,7 @@ export const useFailIssueApi = () => {
     // (this endpoint is the source of truth for which lot_cds exist).
     const scope: FailIssueQuery = {
       toolType: params.toolType,
-      fabId: params.fabId,
+      fabName: params.fabName,
       startDate: params.startDate,
       endDate: params.endDate
     }

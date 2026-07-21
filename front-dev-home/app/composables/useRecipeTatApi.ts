@@ -74,7 +74,7 @@ export interface RecipeTatDevicesResponse {
 
 export interface RecipeTatQuery {
   toolType: RecipeTatToolType
-  fabId?: string
+  fabName?: string
   // Both bounds optional. When omitted, the backend defaults to the last
   // 30 days ending at its data-anchor date — clients should prefer that
   // over guessing wall-clock today, which can drift past the mock ceiling.
@@ -92,7 +92,7 @@ const buildQuery = (params: RecipeTatQuery) => {
   }
   if (params.startDate) query.start_date = params.startDate
   if (params.endDate) query.end_date = params.endDate
-  if (params.fabId) query.fab_name = params.fabId
+  if (params.fabName) query.fab_name = params.fabName
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
   return query
@@ -145,7 +145,7 @@ export const useRecipeTatApi = () => {
     // shared query object without polluting the request.
     const scope: RecipeTatQuery = {
       toolType: params.toolType,
-      fabId: params.fabId,
+      fabName: params.fabName,
       startDate: params.startDate,
       endDate: params.endDate
     }

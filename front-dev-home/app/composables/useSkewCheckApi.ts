@@ -69,16 +69,16 @@ export const useSkewCheckApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  const fetchSkewCheck = (toolType: string, fabId: string, recipeId?: string) =>
+  const fetchSkewCheck = (toolType: string, fabName: string, recipeId?: string) =>
     $fetch<SkewCheckPayload>(
       joinApiPath(base, `/${toSlug(toolType)}/skew/check`),
-      { query: { fab_name: fabId, ...(recipeId ? { recipe_id: recipeId } : {}) } }
+      { query: { fab_name: fabName, ...(recipeId ? { recipe_id: recipeId } : {}) } }
     )
 
-  const useSkewCheck = (toolType: string, fabId: string, recipeId?: string) =>
+  const useSkewCheck = (toolType: string, fabName: string, recipeId?: string) =>
     useAsyncData(
-      `skew-check:${toolType}:${fabId}:${recipeId ?? 'all'}`,
-      () => fetchSkewCheck(toolType, fabId, recipeId)
+      `skew-check:${toolType}:${fabName}:${recipeId ?? 'all'}`,
+      () => fetchSkewCheck(toolType, fabName, recipeId)
     )
 
   return { fetchSkewCheck, useSkewCheck }
