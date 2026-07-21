@@ -5,6 +5,8 @@ definePageMeta({
 
 const { toolTypes } = useToolData()
 const { fabs: afmFabs, afmToolHref } = useAfmToolData()
+// AFM is hidden until the feature is ready — see useAfmAvailability.ts.
+const afmEnabled = useAfmEnabled()
 const { fab, setFab, toolTypeHref } = useNavigation()
 
 const { data: semRows } = await useSemList()
@@ -68,7 +70,7 @@ const systemStatus = computed(() => {
           <h1 class="sk-page-title">
             METROLOGY WORKSPACE
           </h1>
-          <div class="mt-5 flex w-full items-center gap-3 sm:w-80">
+          <div class="mt-5 flex items-center gap-2.5">
             <label
               for="landing-fab-select"
               class="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-(--sk-ink-muted)"
@@ -78,12 +80,12 @@ const systemStatus = computed(() => {
             <USelect
               id="landing-fab-select"
               v-model="selectedFab"
-              class="min-w-0 flex-1"
-              size="lg"
+              class="w-36"
+              size="md"
               color="neutral"
               variant="subtle"
               icon="i-lucide-factory"
-              placeholder="Select a FAB (default: R3)"
+              placeholder="R3 (기본)"
               :items="fabOptions"
             />
           </div>
@@ -96,7 +98,10 @@ const systemStatus = computed(() => {
     </section>
 
     <!-- Category Cards -->
-    <div class="grid md:grid-cols-2 gap-6">
+    <div
+      class="grid gap-6"
+      :class="afmEnabled ? 'md:grid-cols-2' : 'md:grid-cols-1'"
+    >
       <!-- E-Beam Metrology Card -->
       <UCard
         class="dashboard-surface rounded-3xl"
@@ -170,8 +175,9 @@ const systemStatus = computed(() => {
         </nav>
       </UCard>
 
-      <!-- AFM Metrology Card -->
+      <!-- AFM Metrology Card — hidden while the feature is under construction -->
       <UCard
+        v-if="afmEnabled"
         class="dashboard-surface rounded-3xl"
         :ui="{
           body: 'p-6'
