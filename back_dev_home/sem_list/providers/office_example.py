@@ -21,18 +21,13 @@ uses). At the office: fill in .env, `cp office_example.py office.py`, set
 MIGRATION.md.
 """
 
-import os
-import pickle
-import sys
-from functools import lru_cache
-from io import BytesIO, StringIO
-from pathlib import Path
-
 import pandas as pd
 import redis
-from redis.backoff import NoBackoff
-from redis.retry import Retry
 
+from back_dev_home._runtime.office_redis import (
+    read_dataframe as _deserialize_dataframe,
+    redis_client as _redis_client,
+)
 from back_dev_home.sem_list.contracts import SemListRow
 
 _REDIS_KEY = "v3_df_sem_avail"
@@ -56,104 +51,6 @@ _REQUIRED_COLUMNS = frozenset(
 
 _VALID_VENDORS = {"HITACHI", "AMAT"}
 _AVAILABLE_MAP = {"on": "On", "off": "Off", "true": "On", "false": "Off", "1": "On", "0": "Off"}
-
-
-def _load_env_file() -> None:
-    """Load back_dev_home/.env for standalone / bare-import runs.
-
-    The Flask app factory and conftest.py already load it; this is the fallback
-    when the module is imported directly (script, ``python -c``, notebook).
-    Try the repo-root-relative path first (honors "run from the repo root"),
-    then the .env sitting next to the ``back_dev_home`` package — the latter
-    works no matter the current working directory. ``override=False`` (the
-    default) keeps any value already set by Flask/pytest.
-    """
-    from dotenv import load_dotenv
-
-    load_dotenv("back_dev_home/.env")
-    if os.environ.get("REDIS_HOST"):
-        return
-    pkg = sys.modules.get("back_dev_home")  # already imported by this module
-    pkg_file = getattr(pkg, "__file__", None)
-    if pkg_file:
-        load_dotenv(Path(pkg_file).with_name(".env"))
-
-
-@lru_cache(maxsize=1)
-def _redis_client() -> redis.Redis:
-    # Cached: one client (and its connection pool) per process instead of a
-    # fresh TCP connect per request. redis-py re-establishes dropped pool
-    # connections per command, so reuse is safe across backend restarts.
-    host = os.environ.get("REDIS_HOST")
-    if not host:
-        _load_env_file()
-        host = os.environ.get("REDIS_HOST")
-    if not host:
-        raise RuntimeError(
-            "REDIS_HOST is not set. Run from the repo root so back_dev_home/.env "
-            "is found, or set REDIS_HOST/REDIS_PORT/REDIS_PASSWORD in the "
-            "environment before calling this adapter."
-        )
-    return redis.Redis(
-        host=host,
-        port=int(os.environ.get("REDIS_PORT", "6379")),
-        password=os.environ.get("REDIS_PASSWORD"),
-        # The value is a serialized DataFrame (binary), so keep raw bytes.
-        decode_responses=False,
-        # Fail fast on a wrong host/port: 5s connect timeout, one retry.
-        # (redis-py 8 defaults to 3 retries with backoff — a bad config
-        # would otherwise hang ~60s before erroring.)
-        socket_connect_timeout=5,
-        socket_timeout=10,
-        retry=Retry(NoBackoff(), retries=1),
-    )
-
-
-def _looks_like_json(raw: bytes) -> bool:
-    return raw.lstrip()[:1] in (b"{", b"[")
-
-
-def _deserialize_dataframe(raw: bytes, key: str) -> pd.DataFrame:
-    """Deserialize a DataFrame stored under ``key``.
-
-    The office writes the fleet as **parquet** (``df.to_parquet()``), read
-    back here via the pyarrow engine. The JSON and pickle branches are kept
-    as fallbacks for other keys/writers; delete them if you never need them.
-    """
-    # Parquet: magic bytes b"PAR1" at the head (and tail). This is the
-    # confirmed office format. Parquet stores text columns as UTF-8, so the
-    # strings come back as Python str already.
-    if raw[:4] == b"PAR1":
-        return pd.read_parquet(BytesIO(raw), engine="pyarrow")
-
-    # JSON: only when it actually looks like JSON. Do NOT fall back to
-    # raw.decode('utf-8') on arbitrary binary — that turns a real unpickling
-    # failure into a misleading UnicodeDecodeError and hides the true cause.
-    if _looks_like_json(raw):
-        return pd.read_json(StringIO(raw.decode("utf-8")))
-
-    try:
-        obj = pickle.loads(raw)
-    except Exception as exc:
-        raise RuntimeError(
-            f"Could not unpickle Redis key {key!r} "
-            f"(first bytes: {raw[:16].hex(' ')!r}, length {len(raw)}). "
-            f"Real error -> {type(exc).__name__}: {exc}. "
-            "If this is a numpy/pandas version mismatch (e.g. "
-            "\"No module named 'numpy._core'\" means the writer used numpy>=2 "
-            "but this venv has numpy<2 — upgrade numpy), align versions. "
-            "If the value is compressed (gzip 1f8b / zlib 789c / zstd 28b52ffd) "
-            "or parquet (PAR1), add that branch before pickle.loads."
-        ) from exc
-
-    if isinstance(obj, pd.DataFrame):
-        return obj
-    if isinstance(obj, dict):  # e.g. df.to_dict() pickled
-        return pd.DataFrame(obj)
-    raise TypeError(
-        f"Redis key {key!r} unpickled to {type(obj).__name__}, "
-        "expected a DataFrame or dict"
-    )
 
 
 def _to_text(value) -> str:

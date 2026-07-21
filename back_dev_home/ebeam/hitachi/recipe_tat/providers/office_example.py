@@ -48,23 +48,21 @@ the Redis ``r3_device_grp`` catalog.
 
 import logging
 import os
-import pickle
-import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache, wraps
-from io import BytesIO
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import redis
 from opensearchpy.exceptions import NotFoundError
-from redis.backoff import NoBackoff
-from redis.retry import Retry
 
 from ops_store import OSSearch, create_client
 
+from back_dev_home._runtime.office_redis import (
+    load_env_file as _load_env_file,
+    read_dataframe as _read_dataframe,
+    redis_client as _redis_client,
+)
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
@@ -131,27 +129,6 @@ _FAB_KW = "fab_name.keyword"        # fab selection filter
 _EQP_KW = "eqp_id.keyword"          # ranking sample_eqp_ids
 
 
-def _load_env_file() -> None:
-    """Load back_dev_home/.env for standalone / bare-import runs.
-
-    The Flask app factory and conftest.py already load it; this is the fallback
-    when the module is imported directly (script, ``python -m``, notebook).
-    Try the repo-root-relative path first (honors "run from the repo root"),
-    then the .env sitting next to the ``back_dev_home`` package — the latter
-    works no matter the current working directory. ``override=False`` (the
-    default) keeps any value already set by Flask/pytest.
-    """
-    from dotenv import load_dotenv
-
-    load_dotenv("back_dev_home/.env")
-    if os.environ.get("OPENSEARCH_HOST"):
-        return
-    pkg = sys.modules.get("back_dev_home")  # already imported by this module
-    pkg_file = getattr(pkg, "__file__", None)
-    if pkg_file:
-        load_dotenv(Path(pkg_file).with_name(".env"))
-
-
 @lru_cache(maxsize=1)
 def _client() -> Any:
     """Create the OpenSearch client once and reuse its connection pool.
@@ -161,7 +138,7 @@ def _client() -> Any:
     basic auth). We self-load .env first so a standalone run works.
     """
     if not os.environ.get("OPENSEARCH_HOST"):
-        _load_env_file()
+        _load_env_file("OPENSEARCH_HOST")
     if not os.environ.get("OPENSEARCH_HOST"):
         raise RuntimeError(
             "OPENSEARCH_HOST is not set. Run from the repo root so "
@@ -285,54 +262,6 @@ _R3_DEVICE_GRP_KEY = "r3_device_grp"      # Redis parquet DataFrame (R3/R&D cata
 _LOT_HIST_INDEX = "ebeam_tas_lot_hist"    # OpenSearch: fab-system measurement history
 _LOT_HIST_TIME_F = "event_tm"             # date field on the lot-history index
 _CURRENT_WINDOW_DAYS = 60                 # a lot_cd active within this window = current
-
-
-@lru_cache(maxsize=1)
-def _redis_client() -> redis.Redis:
-    # Cached: one client (and its connection pool) per process instead of a
-    # fresh TCP connect per request. redis-py re-establishes dropped pool
-    # connections per command, so reuse is safe across backend restarts.
-    host = os.environ.get("REDIS_HOST")
-    if not host:
-        _load_env_file()
-        host = os.environ.get("REDIS_HOST")
-    if not host:
-        raise RuntimeError(
-            "REDIS_HOST is not set (needed for the device_desc catalog). Run "
-            "from the repo root so back_dev_home/.env is found, or set "
-            "REDIS_HOST/REDIS_PORT/REDIS_PASSWORD in the environment."
-        )
-    return redis.Redis(
-        host=host,
-        port=int(os.environ.get("REDIS_PORT", "6379")),
-        password=os.environ.get("REDIS_PASSWORD"),
-        decode_responses=False,   # the value is a serialized DataFrame (binary)
-        socket_connect_timeout=5,
-        socket_timeout=10,
-        retry=Retry(NoBackoff(), retries=1),
-    )
-
-
-def _read_dataframe(raw: bytes, key: str) -> pd.DataFrame:
-    """Deserialize a DataFrame stored in Redis (parquet, else pickle)."""
-    try:
-        if raw[:4] == b"PAR1":
-            return pd.read_parquet(BytesIO(raw), engine="pyarrow")
-        obj = pickle.loads(raw)
-    except Exception as exc:
-        # LookupError (bare) = upstream data problem — the app-level handler
-        # turns it into a JSON 502 instead of an opaque traceback.
-        raise LookupError(
-            f"Redis key {key!r} holds bytes that deserialize as neither "
-            f"parquet nor pickle: {exc}"
-        ) from exc
-    if isinstance(obj, pd.DataFrame):
-        return obj
-    if isinstance(obj, dict):
-        return pd.DataFrame(obj)
-    raise LookupError(
-        f"Redis key {key!r} is a {type(obj).__name__}, expected DataFrame"
-    )
 
 
 # The office catalogs (device_desc, r3_device_grp) carry missing cells in

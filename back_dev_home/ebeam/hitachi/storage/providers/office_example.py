@@ -25,19 +25,15 @@ At the office: ``cp office_example.py office.py``, then enable with
 
 import ast
 import json
-import os
-import pickle
-import sys
 from datetime import datetime, timedelta
-from functools import lru_cache
-from io import BytesIO, StringIO
-from pathlib import Path
 
 import pandas as pd
 import redis
-from redis.backoff import NoBackoff
-from redis.retry import Retry
 
+from back_dev_home._runtime.office_redis import (
+    read_dataframe as _deserialize_dataframe,
+    redis_client as _redis_client,
+)
 from back_dev_home.ebeam.hitachi._tool_specs import (
     SLUG_TO_TOOL_TYPE,
     ToolSlug,
@@ -65,81 +61,6 @@ _STORAGE_COLUMNS = (
 
 # --------------------------------------------------------------------------
 # Redis + deserialization
-# --------------------------------------------------------------------------
-def _load_env_file() -> None:
-    """Load back_dev_home/.env for standalone / bare-import runs.
-
-    The Flask app factory and conftest.py already load it; this is the fallback
-    when the module is imported directly (script, ``python -c``, notebook).
-    Try the repo-root-relative path first (honors "run from the repo root"),
-    then the .env sitting next to the ``back_dev_home`` package — the latter
-    works no matter the current working directory. ``override=False`` (the
-    default) keeps any value already set by Flask/pytest.
-    """
-    from dotenv import load_dotenv
-
-    load_dotenv("back_dev_home/.env")
-    if os.environ.get("REDIS_HOST"):
-        return
-    pkg = sys.modules.get("back_dev_home")  # already imported by this module
-    pkg_file = getattr(pkg, "__file__", None)
-    if pkg_file:
-        load_dotenv(Path(pkg_file).with_name(".env"))
-
-
-@lru_cache(maxsize=1)
-def _redis_client() -> redis.Redis:
-    # Cached: one client (and its connection pool) per process instead of a
-    # fresh TCP connect per request. redis-py re-establishes dropped pool
-    # connections per command, so reuse is safe across backend restarts.
-    host = os.environ.get("REDIS_HOST")
-    if not host:
-        _load_env_file()
-        host = os.environ.get("REDIS_HOST")
-    if not host:
-        raise RuntimeError(
-            "REDIS_HOST is not set. Run from the repo root so back_dev_home/.env "
-            "is found, or set REDIS_HOST/REDIS_PORT/REDIS_PASSWORD in the "
-            "environment before calling this adapter."
-        )
-    return redis.Redis(
-        host=host,
-        port=int(os.environ.get("REDIS_PORT", "6379")),
-        password=os.environ.get("REDIS_PASSWORD"),
-        decode_responses=False,  # parquet is binary; hash values decoded by hand
-        socket_connect_timeout=5,
-        socket_timeout=10,
-        retry=Retry(NoBackoff(), retries=1),
-    )
-
-
-def _deserialize_dataframe(raw: bytes, key: str) -> pd.DataFrame:
-    if raw[:4] == b"PAR1":  # parquet — the confirmed office format
-        return pd.read_parquet(BytesIO(raw), engine="pyarrow")
-    if raw.lstrip()[:1] in (b"{", b"["):
-        return pd.read_json(StringIO(raw.decode("utf-8")))
-    try:
-        obj = pickle.loads(raw)
-    except Exception as exc:  # don't mask the real error behind a utf-8 decode
-        # Bare LookupError = upstream data problem -> JSON 502 (see the
-        # app-factory error handlers), not a 503 "backend unavailable".
-        raise LookupError(
-            f"Could not deserialize Redis key {key!r} "
-            f"(first bytes: {raw[:16].hex(' ')!r}). "
-            f"Real error -> {type(exc).__name__}: {exc}."
-        ) from exc
-    if isinstance(obj, pd.DataFrame):
-        return obj
-    if isinstance(obj, dict):
-        return pd.DataFrame(obj)
-    raise LookupError(
-        f"Redis key {key!r} deserialized to {type(obj).__name__}, "
-        "expected a DataFrame or dict"
-    )
-
-
-# --------------------------------------------------------------------------
-# cell coercion
 # --------------------------------------------------------------------------
 def _is_missing(value) -> bool:
     try:
