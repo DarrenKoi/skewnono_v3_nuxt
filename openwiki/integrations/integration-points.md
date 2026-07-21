@@ -50,22 +50,29 @@ This is a known-public-host blocklist, not a general internal-host allowlist. Th
 
 ## Provider readiness
 
-The active mock providers support home development. For migrated top-level features, home development tracks `providers/office_example.py`; each office environment creates an ignored `providers/office.py` copy and implements or verifies the real source there, preventing `git pull` from overwriting office-only adapter code. Representative unconnected office examples still include health, measurement history, MSR file, AFM, activity, and access control; other areas have not all adopted this split. SEM list is further along: its tracked example now contains a concrete Redis adapter, but it still requires verification against the office instance. Use feature-specific overrides during incremental rollout:
+The active mock providers support home development. Tracked `providers/office_example.py` files are the reviewable implementation source; office environments copy them to ignored `providers/office.py` modules for source-specific verification without exposing local details. `docs/office-migration/STATUS.md` is the rollout ledger: SEM list and storage are marked office-verified, health and Recipe TAT are implemented but not yet recorded as verified, and the remaining listed features stay mock.
+
+When no provider variable is set, the [runtime architecture](../architecture/overview.md#provider-seam-and-contracts) automatically selects office only for features in `_runtime/site.py:OFFICE_READY` on recognized office/cloud sites. The allowlist currently includes health and Recipe TAT despite their implemented-only ledger status; operators should reconcile that mismatch and can pin either feature back to mock during diagnosis. Explicit feature and global variables override the default:
 
 ```bash
-SKEWNONO_DATA_PROVIDER=office \
-SKEWNONO_HEALTH_PROVIDER=mock \
-SKEWNONO_STORAGE_PROVIDER=mock \
-python index.py
+SKEWNONO_STORAGE_PROVIDER=mock python index.py
 ```
 
 ### SEM-list Redis adapter
 
-`back_dev_home/sem_list/providers/office_example.py` reads parquet-serialized DataFrames from `v3_df_sem_list` and `v3_df_sem_version` using `REDIS_HOST`, `REDIS_PORT`, and `REDIS_PASSWORD`. It de-duplicates the version table by `eqp_ip`, left-merges it onto the fleet so fleet rows are not dropped or multiplied, then normalizes the result to `SemListRow`. The public `version` field is a free-form string such as `"1A"`; an unmatched fleet row returns `version: ""`. Parquet is the confirmed format (`pyarrow`); JSON and pickle remain compatibility fallbacks, and malformed data raises rather than being hidden by a decode fallback.
+`back_dev_home/sem_list/providers/office_example.py` reads parquet-serialized DataFrames from `v3_df_sem_avail` and `v3_df_sem_version` using the shared `_runtime/office_redis.py` client. It de-duplicates the version table by `eqp_ip`, left-merges it onto the fleet so rows are not dropped or multiplied, then normalizes the result to `SemListRow`. The public `version` field is a free-form string such as `"1A"`; an unmatched fleet row returns `version: ""`. Parquet is the confirmed format (`pyarrow`); JSON and pickle remain compatibility fallbacks, and malformed data raises a diagnosable upstream-data failure.
 
-This adapter preserves the [provider seam](../architecture/overview.md#provider-seam-and-contracts): `/api/sem-list` remains unfiltered and unpaginated, and frontend consumers continue to share the response through `useSemListApi.ts`. Copy the tracked example to the ignored `office.py`, configure Redis without committing credentials, and use the focused checks in [testing guidance](../testing/guidance.md#feature-contract-gates) before enabling `SKEWNONO_SEM_LIST_PROVIDER=office`.
+Storage shares that Redis plumbing. Its adapter reads per-tool storage DataFrames plus the combined `v3_hitachi_sem_ppid_not_avail` hash, then joins unavailable IPs through SEM list to recover equipment identity and split CD-SEM from HV-SEM. Storage therefore [depends on the SEM-list integration](#sem-list-redis-adapter), and both are office-verified in the migration ledger.
 
-Create a local adapter before enabling its override:
+These adapters preserve the [provider seam](../architecture/overview.md#provider-seam-and-contracts): routes and frontend consumers do not know the Redis format. Copy the tracked examples to ignored `office.py` files, configure Redis without committing credentials, and use the focused checks in [testing guidance](../testing/guidance.md#feature-contract-gates).
+
+### Recipe TAT office analytics
+
+`back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py` performs server-side ranking, summary, trend, and anchor aggregations over `meas_hist_cdsem` and `meas_hist_hvsem`. Because measurement documents do not carry `lot_cd`, it uses the `ebeam_tas_lot_hist` OpenSearch index as the `lot_id` bridge, then enriches active devices from Redis `device_desc` and `r3_device_grp` catalogs. Catalog and lot mappings use a 15-minute cache that serves the last good value after refresh failures; the first load still fails visibly. A ranking `limit=0` means all rows in range, implemented with paginated composite aggregations rather than an approximate fixed-size terms result.
+
+The adapter is implemented, but the migration ledger has not yet recorded office-mode contract and screen verification. Treat it as a verification target, not as fully rolled out.
+
+Create a local adapter before explicitly enabling its override:
 
 ```bash
 cp back_dev_home/<feature>/providers/office_example.py \

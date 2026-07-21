@@ -14,8 +14,9 @@ The repository combines backend route/integration tests, feature-local provider 
 
 ### Backend route and integration tests
 
-Root tests under `tests/` use Flask clients and cover provider precedence, route filtering, response behavior, and office delegation. High-value suites include:
+Root tests under `tests/` use Flask clients and cover provider precedence, route filtering, response behavior, and office delegation. Runtime tests under `back_dev_home/_runtime/tests/` cover site detection and provider defaults. High-value suites include:
 
+- `back_dev_home/_runtime/tests/test_site_provider.py`
 - `test_access_control.py`
 - `test_activity_home.py`
 - `test_afm_home.py`
@@ -51,15 +52,21 @@ SKEWNONO_MEAS_HIST_PROVIDER=office \
 
 `back_dev_home/conftest.py` loads `back_dev_home/.env` for feature tests that import providers without creating the Flask app. This makes office-mode gates see the same connection variables as application startup; keep real values only in the ignored `.env`, never in tests or documentation.
 
-For the SEM-list Redis adapter, run both checks from the repository root after copying the tracked example to `providers/office.py`:
+For Redis-backed SEM list and storage, run standalone smoke checks and their contract gates from the repository root after copying tracked examples to `providers/office.py`:
 
 ```bash
 .venv/bin/python -m back_dev_home.sem_list.providers.office
 SKEWNONO_SEM_LIST_PROVIDER=office \
   .venv/bin/python -m pytest back_dev_home/sem_list -q
+
+.venv/bin/python -m back_dev_home.ebeam.hitachi.storage.providers.office
+SKEWNONO_STORAGE_PROVIDER=office \
+  .venv/bin/python -m pytest back_dev_home/ebeam/hitachi/storage -q
 ```
 
-The smoke command loads `back_dev_home/.env`, prints the row count and first normalized row, and uses the package `-m` form required by its imports. The contract gate permits an empty office fleet but requires the deterministic mock fleet to be non-empty. An office adapter is not complete until its gate runs against representative office data and the corresponding [workflow](../workflows/key-workflows.md) is exercised.
+The smoke commands load `back_dev_home/.env` through shared Redis plumbing and use the package `-m` form required by imports. The contract gates allow an empty office fleet while deterministic mock gates require data; office verification must still use representative sources and the corresponding [workflow](../workflows/key-workflows.md).
+
+Provider-default changes must also run `.venv/bin/python -m pytest back_dev_home/_runtime/tests/test_site_provider.py -q`. The invariant is that feature/global variables win, unknown and home hosts remain mock, and only `OFFICE_READY` features flip on recognized office/cloud sites. For Recipe TAT, test both the default ranked limit and `limit=0` (all buckets), plus lot-code bridge and empty-result behavior.
 
 ### Frontend tests
 
@@ -111,7 +118,8 @@ A workflow nested under `front-dev-home/.github/workflows/` is not loaded by Git
 
 | Change area | Minimum focused verification |
 | --- | --- |
-| Flask app/auth/logging | App startup, relevant root tests, API-token/access tests, rate-limit behavior |
+| Flask app/auth/logging | App startup, relevant root tests, API-token/access tests, rate-limit and JSON 502/503 behavior |
+| Provider resolution/site detection | `_runtime/tests/test_site_provider.py`, explicit override precedence, unknown-host mock fallback |
 | Provider implementation | Feature contract test under mock and office, route tests, representative real-source sample |
 | API response | Contract test, fixture review, frontend typecheck and consuming workflow |
 | Device Statistics | Recipe analytics tests, rule engine/drill utility tests, lot/bucket URL flow |

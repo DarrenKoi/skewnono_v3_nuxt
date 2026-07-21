@@ -52,15 +52,18 @@ Shared CD-SEM/HV-SEM features belong under `back_dev_home/ebeam/hitachi/<feature
 
 ## Provider seam and contracts
 
-A route should depend on functions exported by its sibling `data.py`, never on OpenSearch, MinIO, FTP, or Redis directly. `back_dev_home/_runtime/data_provider.py` selects:
+A route should depend on functions exported by its sibling `data.py`, never on OpenSearch, MinIO, FTP, or Redis directly. `back_dev_home/_runtime/data_provider.py` resolves the provider in this order:
 
-- `SKEWNONO_<FEATURE>_PROVIDER` when set;
-- otherwise `SKEWNONO_DATA_PROVIDER`;
-- otherwise `mock`.
+1. `SKEWNONO_<FEATURE>_PROVIDER`;
+2. `SKEWNONO_DATA_PROVIDER`;
+3. `office` when `_runtime/site.py` recognizes an office/cloud site and the feature is in `OFFICE_READY`;
+4. otherwise `mock`.
 
-The dispatcher calls `providers/mock.py` or a local `providers/office.py`. Home authors maintain the tracked `providers/office_example.py` contract skeleton; office engineers copy it to the gitignored `office.py` and implement source-specific querying and normalization there. A fresh clone therefore has no real office module until this copy step is performed. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
+Site detection itself prefers `SKEWNONO_SITE`, then treats the path-derived cloud deployment as office, then checks normalized hostnames (`PC...` or `SKEWNONO_OFFICE_HOSTNAMES`). Unknown hosts stay mock. This lets office-ready features move without a blanket switch that would activate unfinished adapters, while explicit provider variables remain authoritative.
 
-This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. Most unconnected tracked office examples still raise `NotImplementedError`; this is intentional because empty placeholders previously made disconnected sources appear healthy. SEM list is the notable implemented skeleton: it reads and normalizes two Redis DataFrames behind the same provider seam, while still requiring office-side verification before rollout.
+The dispatcher calls `providers/mock.py` or a local `providers/office.py`. Home authors maintain tracked `providers/office_example.py`; office engineers copy it to the gitignored `office.py` and verify it against local sources. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
+
+This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. `_runtime/office_redis.py` now centralizes environment loading, one cached fail-fast Redis pool per process, and parquet-first DataFrame decoding; feature adapters still own normalization. Missing upstream data becomes JSON `502 upstream_data_error`, while bare configuration failures and Redis/OpenSearch connection or timeout failures become JSON `503` responses. Subclassed programming errors such as `KeyError` and `NotImplementedError` intentionally remain 500s.
 
 ## Identity, authorization, and observability
 
@@ -74,12 +77,13 @@ The default limit is `20 per 5 seconds`, keyed by user or remote address. MSR im
 
 ## Deployment modes
 
-Deployment mode and data provider are independent:
+Deployment mode and data provider remain separate, but deployment site contributes a safe provider default:
 
 - `_runtime/env.py:is_cloud()` decides cloud SSO, OpenSearch logging, SPA serving, and bind behavior based on installation path.
-- provider environment variables decide mock versus office data per feature.
+- `_runtime/site.py` classifies explicit, cloud, and recognized-host runs as home or office.
+- provider environment variables override that classification; only `OFFICE_READY` features auto-select office.
 
-An office-local process can therefore use office data without being in cloud mode. Path-derived cloud detection is brittle and should be treated as an operational risk, not a durable environment API.
+An office-local process can therefore use office data without cloud SSO or SPA serving. Path-derived cloud detection is still brittle for deployment behavior, though treating cloud as an office site prevents a production VM hostname change from silently selecting mock data.
 
 In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/public` and falls back to `index.html` for client routes, while refusing to swallow `api/*`. Missing output logs a warning and leaves an API-only service rather than failing startup. Build and deployment procedures live in the [operations runbook](../operations/runbook.md).
 
@@ -88,5 +92,5 @@ In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/publi
 - **Add a page:** check route navigation, URL-state preservation, API calls, and access gate.
 - **Add an API feature:** add a scoped folder with `routes.py`, `data.py`, providers, contracts, and contract tests; no central registration edit is needed.
 - **Change a response:** update backend contracts, API-contract docs, composable types, consumers, fixtures, and [tests](../testing/guidance.md) together.
-- **Connect office data:** copy tracked `providers/office_example.py` to ignored `providers/office.py`, keep the route unchanged, implement and normalize only in the local copy, then run that feature's active-provider contract gate.
+- **Connect office data:** implement the tracked `providers/office_example.py`, copy it to ignored `providers/office.py` for office verification, keep the route unchanged, and run that feature's active-provider contract gate. Add it to `OFFICE_READY` only after its rollout status justifies automatic office selection.
 - **Change auth/logging:** inspect API tokens, blocked-member behavior, activity weighting, rate limits, and multi-worker consequences.

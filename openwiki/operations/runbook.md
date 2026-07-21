@@ -37,8 +37,10 @@ Check the backend through `GET /api/health/services`. Local identity defaults to
 | Frontend dev port | `NUXT_PORT` | `3000` |
 | Nuxt proxy target | `NUXT_API_TARGET` | `http://localhost:5050` |
 | Browser API base | `NUXT_PUBLIC_API_BASE` | `/api` |
-| Global data source | `SKEWNONO_DATA_PROVIDER` | `mock` |
-| Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Overrides global source |
+| Runtime site | `SKEWNONO_SITE` | Explicit `home`/`office`; otherwise cloud path and hostname detection |
+| Extra office hosts | `SKEWNONO_OFFICE_HOSTNAMES` | Comma-separated hostnames outside the tracked `PC...` convention |
+| Global data source | `SKEWNONO_DATA_PROVIDER` | Overrides site-based defaults when set |
+| Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Highest-precedence provider override |
 | Session secret | `SKEWNONO_SECRET_KEY` | Development-only fallback; set in production |
 | Admin users | `SKEWNONO_ADMIN_USERS` | Mode-specific source defaults |
 | Chat gateway | `CHAT_BASE_URL` | Public OpenRouter default is usable in mock mode but blocked in office mode |
@@ -48,22 +50,23 @@ Use the tracked `back_dev_home/.env.example` as the non-secret template and copy
 
 ## Incremental office migration
 
-Deployment mode and data provider are separate. On a fresh office checkout, first create the local adapter from its tracked skeleton, then implement only the ignored copy:
+Deployment mode and data provider are separate. On a fresh office checkout, create each local adapter from its tracked implementation:
 
 ```bash
 cp back_dev_home/meas_hist/providers/office_example.py \
   back_dev_home/meas_hist/providers/office.py
 ```
 
-Do not commit `office.py`; home-side contract changes belong in `office_example.py`. Start with one connected feature rather than setting every adapter to office:
+Do not commit `office.py`; reviewable implementation and contract changes belong in `office_example.py`. With no explicit provider variables, home and unknown hosts use mock, while recognized office/cloud sites use office only for `_runtime/site.py:OFFICE_READY`; unfinished features stay mock. `SKEWNONO_SITE=office` is useful for VPN verification, and feature/global provider variables override the site default:
 
 ```bash
-SKEWNONO_DATA_PROVIDER=mock \
+SKEWNONO_SITE=office \
 SKEWNONO_MEAS_HIST_PROVIDER=office \
+SKEWNONO_STORAGE_PROVIDER=mock \
 PORT=5050 .venv/bin/python index.py
 ```
 
-Or use `SKEWNONO_DATA_PROVIDER=office` with explicit mock overrides for unconnected features. A `NotImplementedError` from an office provider usually means the adapter is intentionally unwired, not that the Flask route is missing. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
+Keep `docs/office-migration/STATUS.md` aligned with `OFFICE_READY`. At present health and Recipe TAT are allowlisted but still labeled implemented-only in the ledger, so verify or temporarily override them before relying on unattended office/cloud defaults. A `NotImplementedError` usually means a selected adapter remains intentionally unwired. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
 
 ## Build and production-style serving
 
@@ -126,7 +129,11 @@ Dynamic Blueprint discovery imports every non-private `routes.py`. Inspect the t
 
 ### Office feature returns 500/NotImplementedError
 
-Confirm the matching ignored `providers/office.py` exists; on a fresh clone, copy it from `providers/office_example.py`. Then inspect the local adapter and feature `MIGRATION.md`. A copied skeleton intentionally fails until source mapping is complete. Use a feature-specific mock override while migrating other features.
+Confirm the matching ignored `providers/office.py` exists and inspect its tracked `office_example.py` plus feature `MIGRATION.md`. Check `SKEWNONO_SITE`, global/feature provider variables, and whether the feature is in `OFFICE_READY`; an explicit global `office` can still select unfinished adapters. Use a feature-specific mock override while migrating other features.
+
+### Office feature returns JSON 502 or 503
+
+`502 upstream_data_error` means a backing key, alias, or serialized DataFrame is missing or malformed. `503 backend_unavailable`/`backend_unreachable` means required configuration is absent or Redis/OpenSearch could not connect or timed out. Correct the upstream source or non-secret environment configuration rather than treating these responses as route failures.
 
 ### Office chat returns `403 egress_blocked`
 
