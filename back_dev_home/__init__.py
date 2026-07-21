@@ -86,11 +86,17 @@ def _install_json_error_handlers(app: Flask) -> None:
     # required where office providers run.
     try:
         from redis.exceptions import ConnectionError as RedisConnectionError
+        from redis.exceptions import TimeoutError as RedisTimeoutError
 
         @app.errorhandler(RedisConnectionError)
         def _json_redis_conn_error(err: Exception):
             app.logger.exception("redis connection error")
             return error_json("backend_unreachable", str(err) or "Redis unreachable", 503)
+
+        @app.errorhandler(RedisTimeoutError)
+        def _json_redis_timeout_error(err: Exception):
+            app.logger.exception("redis timeout")
+            return error_json("backend_unreachable", str(err) or "Redis timeout", 503)
     except ImportError:
         pass
 
