@@ -17,5 +17,5 @@ def _provider():
     return mock
 
 
-def get_pm_planning_fleet(fab_id: str):
-    return _provider().get_pm_planning_fleet(fab_id)
+def get_pm_planning_fleet(fab_name: str):
+    return _provider().get_pm_planning_fleet(fab_name)

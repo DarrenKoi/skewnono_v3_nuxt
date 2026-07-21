@@ -62,7 +62,7 @@ class FleetDefaults(TypedDict):
 
 class FleetPayload(TypedDict):
     tool_type: str
-    fab_id: str
+    fab_name: str
     fetched_at: str
     anchor_date: str
     beam_conditions: list[BeamCondition]

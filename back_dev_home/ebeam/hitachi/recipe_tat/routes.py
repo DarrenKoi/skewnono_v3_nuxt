@@ -23,7 +23,7 @@ def recipe_tat_ranking(tool_slug: str):
 
     rows = get_ranking(
         scope.tool_type,
-        scope.fab_id,
+        scope.fab_name,
         scope.start_date,
         scope.end_date,
         limit=scope.limit,
@@ -31,7 +31,7 @@ def recipe_tat_ranking(tool_slug: str):
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_id": scope.fab_id,
+        "fab_name": scope.fab_name,
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "limit": scope.limit,
@@ -48,7 +48,7 @@ def recipe_tat_summary(tool_slug: str):
 
     return jsonify(get_summary(
         scope.tool_type,
-        scope.fab_id,
+        scope.fab_name,
         scope.start_date,
         scope.end_date,
         lot_cd=scope.lot_cd,
@@ -63,14 +63,14 @@ def recipe_tat_daily_trend(tool_slug: str):
 
     points = get_daily_trend(
         scope.tool_type,
-        scope.fab_id,
+        scope.fab_name,
         scope.start_date,
         scope.end_date,
         lot_cd=scope.lot_cd,
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_id": scope.fab_id,
+        "fab_name": scope.fab_name,
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "lot_cd": scope.lot_cd,
@@ -86,13 +86,13 @@ def recipe_tat_devices(tool_slug: str):
 
     devices = get_devices(
         scope.tool_type,
-        scope.fab_id,
+        scope.fab_name,
         scope.start_date,
         scope.end_date,
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_id": scope.fab_id,
+        "fab_name": scope.fab_name,
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "devices": devices

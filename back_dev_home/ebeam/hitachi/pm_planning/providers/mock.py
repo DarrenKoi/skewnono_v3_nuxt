@@ -58,10 +58,10 @@ def _seed_for(text: str) -> int:
     return int(digest[:8], 16)
 
 
-def _fleet_eqp_ids(fab_id: str) -> list[str]:
+def _fleet_eqp_ids(fab_name: str) -> list[str]:
     """Build a deterministic CD-SEM tool pool for a fab."""
-    rng = random.Random(_seed_for(f"fleet::{fab_id.upper()}"))
-    fab = fab_id.upper()
+    rng = random.Random(_seed_for(f"fleet::{fab_name.upper()}"))
+    fab = fab_name.upper()
     ids = [
         f"{_CD_PREFIXES[i % len(_CD_PREFIXES)]}-{fab}-{i + 1:02d}"
         for i in range(_FLEET_SIZE)
@@ -183,9 +183,9 @@ def _apply_fleet_median(tools: list[ToolBlock]) -> list[ConsensusCell]:
     return consensus
 
 
-def get_pm_planning_fleet(fab_id: str) -> FleetPayload:
+def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
     """Return a deterministic fab-scoped CD-SEM fleet snapshot."""
-    fab = fab_id.upper()
+    fab = fab_name.upper()
     tools: list[ToolBlock] = [
         {
             "eqp_id": eqp_id,
@@ -199,7 +199,7 @@ def get_pm_planning_fleet(fab_id: str) -> FleetPayload:
 
     return {
         "tool_type": "cd-sem",
-        "fab_id": fab,
+        "fab_name": fab,
         "fetched_at": FETCHED_AT,
         "anchor_date": NOW.date().isoformat(),
         "beam_conditions": BEAM_CONDITIONS,
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         assert tool["gate"]["verdict"] in ("up", "hold")
 
     print(
-        f"fab={a['fab_id']} tools={len(a['tools'])} "
+        f"fab={a['fab_name']} tools={len(a['tools'])} "
         f"beams={a['beam_conditions']} defaults={a['defaults']}"
     )
     sample = a["tools"][0]

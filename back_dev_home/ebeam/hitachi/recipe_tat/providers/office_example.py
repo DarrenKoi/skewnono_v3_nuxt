@@ -46,11 +46,13 @@ the Redis ``device_desc`` catalog; R3/R&D devices carry ``prod_catg_cd`` from
 the Redis ``r3_device_grp`` catalog.
 """
 
+import logging
 import os
 import pickle
 import sys
+import time
 from datetime import date, datetime, timedelta, timezone
-from functools import lru_cache
+from functools import lru_cache, wraps
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -70,6 +72,45 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     SummaryPayload,
     ToolType,
 )
+
+
+_LOG = logging.getLogger(__name__)
+
+_CACHE_TTL_SECONDS = 900  # backing catalogs refresh at most every 15 minutes
+
+
+def _ttl_cache(func):
+    """``lru_cache(maxsize=1)`` with expiry, serving stale on refresh failure.
+
+    A long-lived office Flask process must eventually see new lots, devices,
+    and data days without a restart — a plain ``lru_cache`` freezes them until
+    redeploy. When a refresh attempt fails but a previous value exists, the
+    stale value is served and the error logged: an upstream hiccup shouldn't
+    blank pages that worked a minute ago. The first-ever load still raises.
+    """
+    state: dict[str, Any] = {}
+
+    @wraps(func)
+    def wrapper():
+        now = time.monotonic()
+        if "value" in state and now - state["at"] < _CACHE_TTL_SECONDS:
+            return state["value"]
+        try:
+            value = func()
+        except Exception:
+            if "value" in state:
+                _LOG.exception(
+                    "refresh of %s failed; serving stale value", func.__name__
+                )
+                state["at"] = now  # back off a full TTL before retrying
+                return state["value"]
+            raise
+        state["value"] = value
+        state["at"] = now
+        return value
+
+    wrapper.cache_clear = state.clear  # parity with lru_cache, for tests
+    return wrapper
 
 
 # tool_type -> OpenSearch alias.
@@ -160,16 +201,16 @@ def _range_clause(start_date: str | None, end_date: str | None) -> dict[str, Any
 
 
 def _filter_clauses(
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     clauses: list[dict[str, Any]] = [_range_clause(start_date, end_date)]
-    if fab_id:
+    if fab_name:
         # fab_name is stored uppercase (M16A, R3, ...); the mock compares
         # case-insensitively, so uppercase the term for parity.
-        clauses.append({"term": {_FAB_KW: fab_id.strip().upper()}})
+        clauses.append({"term": {_FAB_KW: fab_name.strip().upper()}})
     if lot_ids is not None:
         clauses.append({"terms": {"lot_id.keyword": lot_ids}})
     return clauses
@@ -190,6 +231,48 @@ def _aggregate(index: str, aggs: dict[str, Any], query: dict[str, Any] | None) -
     return result.get("aggregations", {})
 
 
+_COMPOSITE_PAGE_SIZE = 1000
+
+
+def _composite_buckets(
+    index: str,
+    field: str,
+    sub_aggs: dict[str, Any],
+    query: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Every bucket for ``terms(field)`` via a paginated composite aggregation.
+
+    A plain ``terms`` agg has two problems here: it truncates at ``size`` (the
+    fleet has far more recipes/lots than any fixed cap over a wide date range),
+    and when ordered by a sub-agg sum it is *approximate* — each shard sends
+    its local top-N, so bucket totals can be wrong. ``composite`` walks every
+    bucket exactly, one page of ``after_key`` at a time; sums per bucket are
+    exact. Callers sort the complete list themselves.
+
+    Each page bucket carries ``key.group`` (the term), ``doc_count``, and the
+    requested ``sub_aggs`` results.
+    """
+    buckets: list[dict[str, Any]] = []
+    after: dict[str, Any] | None = None
+    while True:
+        composite: dict[str, Any] = {
+            "size": _COMPOSITE_PAGE_SIZE,
+            "sources": [{"group": {"terms": {"field": field}}}],
+        }
+        if after is not None:
+            composite["after"] = after
+        result = _aggregate(
+            index, {"comp": {"composite": composite, "aggs": sub_aggs}}, query
+        )
+        page = result.get("comp", {})
+        page_buckets = page.get("buckets", [])
+        buckets.extend(page_buckets)
+        after = page.get("after_key")
+        if not after or len(page_buckets) < _COMPOSITE_PAGE_SIZE:
+            break
+    return buckets
+
+
 # ─────────────────── device catalog + lot_id<->lot_cd bridge ────────────────
 # lot_cd is NOT a field on the meas_hist_* documents (and lot_id does not encode
 # lot_cd). The fab-system lot-history index (ebeam_tas_lot_hist) carries both,
@@ -204,7 +287,11 @@ _LOT_HIST_TIME_F = "event_tm"             # date field on the lot-history index
 _CURRENT_WINDOW_DAYS = 60                 # a lot_cd active within this window = current
 
 
+@lru_cache(maxsize=1)
 def _redis_client() -> redis.Redis:
+    # Cached: one client (and its connection pool) per process instead of a
+    # fresh TCP connect per request. redis-py re-establishes dropped pool
+    # connections per command, so reuse is safe across backend restarts.
     host = os.environ.get("REDIS_HOST")
     if not host:
         _load_env_file()
@@ -228,14 +315,24 @@ def _redis_client() -> redis.Redis:
 
 def _read_dataframe(raw: bytes, key: str) -> pd.DataFrame:
     """Deserialize a DataFrame stored in Redis (parquet, else pickle)."""
-    if raw[:4] == b"PAR1":
-        return pd.read_parquet(BytesIO(raw), engine="pyarrow")
-    obj = pickle.loads(raw)
+    try:
+        if raw[:4] == b"PAR1":
+            return pd.read_parquet(BytesIO(raw), engine="pyarrow")
+        obj = pickle.loads(raw)
+    except Exception as exc:
+        # LookupError (bare) = upstream data problem — the app-level handler
+        # turns it into a JSON 502 instead of an opaque traceback.
+        raise LookupError(
+            f"Redis key {key!r} holds bytes that deserialize as neither "
+            f"parquet nor pickle: {exc}"
+        ) from exc
     if isinstance(obj, pd.DataFrame):
         return obj
     if isinstance(obj, dict):
         return pd.DataFrame(obj)
-    raise TypeError(f"Redis key {key!r} is a {type(obj).__name__}, expected DataFrame")
+    raise LookupError(
+        f"Redis key {key!r} is a {type(obj).__name__}, expected DataFrame"
+    )
 
 
 def _text(value: Any) -> str:
@@ -246,7 +343,7 @@ def _text(value: Any) -> str:
     return str(value).strip()
 
 
-@lru_cache(maxsize=1)
+@_ttl_cache
 def _device_desc() -> dict[str, dict[str, str]]:
     """lot_cd -> device metadata, from the Redis ``device_desc`` DataFrame.
 
@@ -274,7 +371,7 @@ def _device_desc() -> dict[str, dict[str, str]]:
     return out
 
 
-@lru_cache(maxsize=1)
+@_ttl_cache
 def _r3_device_grp() -> dict[str, str]:
     """lot_cd -> prod_catg_cd, from the Redis ``r3_device_grp`` DataFrame.
 
@@ -298,43 +395,42 @@ def _r3_device_grp() -> dict[str, str]:
     return out
 
 
-@lru_cache(maxsize=1)
-def _lot_hist_df() -> pd.DataFrame:
-    """Last-60-day slice of ebeam_tas_lot_hist — the lot_id<->lot_cd bridge.
+@_ttl_cache
+def _lot_bridge() -> tuple[dict[str, str], dict[str, list[str]]]:
+    """(lot_id->lot_cd, lot_cd->[lot_id, ...]) from ebeam_tas_lot_hist.
 
     meas_hist_* documents carry ``lot_id``, not ``lot_cd``, and the two are not
-    derivable from each other. The fab-system lot history carries BOTH, so it is
-    the join table. Pulled once per process with
-    ``range_dataframe_all(time_field="event_tm", days=60)``. Because only lot_ids
-    seen in this window get a lot_cd, the bridge also bounds the device catalog
-    to recently-active lots (older lot_ids resolve to no device and drop out).
+    derivable from each other. The fab-system lot history carries BOTH, so it
+    is the join table (last-60-day slice via
+    ``range_dataframe_all(time_field="event_tm", days=60)``). Because only
+    lot_ids seen in this window get a lot_cd, the bridge also bounds the device
+    catalog to recently-active lots (older lot_ids resolve to no device and
+    drop out). Both directions are built from the same frame in one refresh so
+    they can never disagree with each other.
     """
-    return _search(_LOT_HIST_INDEX).range_dataframe_all(
+    df = _search(_LOT_HIST_INDEX).range_dataframe_all(
         time_field=_LOT_HIST_TIME_F, days=_CURRENT_WINDOW_DAYS
     )
+    forward: dict[str, str] = {}
+    if not df.empty and "lot_id" in df.columns and "lot_cd" in df.columns:
+        for lot_id, lot_cd in zip(df["lot_id"].tolist(), df["lot_cd"].tolist()):
+            lid, lcd = _text(lot_id), _text(lot_cd)
+            if lid and lcd:
+                forward[lid] = lcd
+    reverse: dict[str, list[str]] = {}
+    for lot_id, lot_cd in forward.items():
+        reverse.setdefault(lot_cd, []).append(lot_id)
+    return forward, reverse
 
 
-@lru_cache(maxsize=1)
 def _lot_id_to_lot_cd() -> dict[str, str]:
-    """lot_id -> lot_cd, from the lot-history bridge frame."""
-    df = _lot_hist_df()
-    if df.empty or "lot_id" not in df.columns or "lot_cd" not in df.columns:
-        return {}
-    out: dict[str, str] = {}
-    for lot_id, lot_cd in zip(df["lot_id"].tolist(), df["lot_cd"].tolist()):
-        lid, lcd = _text(lot_id), _text(lot_cd)
-        if lid and lcd:
-            out[lid] = lcd
-    return out
+    """lot_id -> lot_cd, from the lot-history bridge."""
+    return _lot_bridge()[0]
 
 
-@lru_cache(maxsize=1)
 def _lot_cd_to_lot_ids() -> dict[str, list[str]]:
     """lot_cd -> [lot_id, ...] (reverse of the bridge)."""
-    reverse: dict[str, list[str]] = {}
-    for lot_id, lot_cd in _lot_id_to_lot_cd().items():
-        reverse.setdefault(lot_cd, []).append(lot_id)
-    return reverse
+    return _lot_bridge()[1]
 
 
 def _try_bridge() -> dict[str, str]:
@@ -347,6 +443,7 @@ def _try_bridge() -> dict[str, str]:
     try:
         return _lot_id_to_lot_cd()
     except Exception:  # noqa: BLE001 — degrade sample_lot_cds, keep ranking alive
+        _LOG.exception("lot-history bridge unavailable; sample_lot_cds degraded to []")
         return {}
 
 
@@ -362,11 +459,12 @@ def _lot_ids_for_lot_cd(lot_cd: str) -> list[str]:
 
 # ─────────────────────────────── endpoints ──────────────────────────────────
 
-@lru_cache(maxsize=1)
+@_ttl_cache
 def get_anchor_time() -> datetime:
     """Latest ``timestamp`` across both aliases (the date-picker ceiling).
 
-    Cached once per process, mirroring the mock's import-time ANCHOR_TIME.
+    TTL-cached: stable within a burst of requests (like the mock's fixed
+    ANCHOR_TIME) but follows new ingestion days in a long-lived process.
     Falls back to wall-clock now only when neither alias has any rows.
     """
     aggs = {"max_ts": {"max": {"field": _TIME_F}}}
@@ -389,39 +487,35 @@ def get_meas_hist(*args: Any, **kwargs: Any) -> Any:
 
 def get_ranking(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
-    limit: int = 1000,
+    limit: int = 0,
     lot_cd: str | None = None,
 ) -> list[RankingRow]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_id, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
 
-    size = max(1, min(int(limit), 1000))
-    aggs = {
-        "by_recipe": {
-            "terms": {
-                "field": _FULL_KW,
-                "size": size,
-                "order": {"tat": "desc"},
-            },
-            "aggs": {
-                "tat": {"sum": {"field": _MEAS_F}},
-                "eqps": {"terms": {"field": _EQP_KW, "size": 5}},
-                # A handful of lot_ids per recipe, mapped to lot_cds below.
-                "lots": {"terms": {"field": "lot_id.keyword", "size": 25}},
-                "top": {
-                    "top_hits": {
-                        "size": 1,
-                        "_source": ["class_name", "recipe_name", "full_name"],
-                    }
-                },
-            },
-        }
+    # Composite (not terms) so the ranking covers EVERY recipe in the range:
+    # a terms agg both truncates at its size cap and, when ordered by the sum
+    # sub-agg, returns approximate totals. All buckets are fetched page by
+    # page, then ranked here; limit>0 trims only the final, complete ranking.
+    sub_aggs = {
+        "tat": {"sum": {"field": _MEAS_F}},
+        "eqps": {"terms": {"field": _EQP_KW, "size": 5}},
+        # A handful of lot_ids per recipe, mapped to lot_cds below.
+        "lots": {"terms": {"field": "lot_id.keyword", "size": 25}},
+        "top": {
+            "top_hits": {
+                "size": 1,
+                "_source": ["class_name", "recipe_name", "full_name"],
+            }
+        },
     }
-    result = _aggregate(_INDEX[tool_type], aggs, _query(clauses))
-    buckets = result.get("by_recipe", {}).get("buckets", [])
+    buckets = _composite_buckets(_INDEX[tool_type], _FULL_KW, sub_aggs, _query(clauses))
+    buckets.sort(key=lambda b: int(b.get("tat", {}).get("value") or 0), reverse=True)
+    if limit > 0:
+        buckets = buckets[:limit]
     # Nice-to-have: never let a lot-history hiccup break the ranking table.
     bridge = _try_bridge()
 
@@ -446,7 +540,7 @@ def get_ranking(
                 rank=index + 1,
                 class_name=str(source.get("class_name", "")),
                 recipe_name=str(source.get("recipe_name", "")),
-                full_name=str(source.get("full_name", bucket.get("key", ""))),
+                full_name=str(source.get("full_name") or bucket["key"].get("group", "")),
                 meas_counts=meas_counts,
                 total_meastime=total,
                 avg_meastime=avg,
@@ -459,13 +553,13 @@ def get_ranking(
 
 def get_summary(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> SummaryPayload:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_id, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
 
     aggs = {
         "tat": {"sum": {"field": _MEAS_F}},
@@ -481,7 +575,7 @@ def get_summary(
 
     return SummaryPayload(
         tool_type=tool_type,
-        fab_id=fab_id,
+        fab_name=fab_name,
         start_date=start_date,
         end_date=end_date,
         anchor_date=get_anchor_time().date().isoformat(),
@@ -494,13 +588,13 @@ def get_summary(
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> list[DailyTrendPoint]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_id, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
 
     histogram: dict[str, Any] = {
         "field": _TIME_F,
@@ -534,7 +628,7 @@ def get_daily_trend(
 
 def get_devices(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
 ) -> list[DeviceRow]:
@@ -551,19 +645,16 @@ def get_devices(
     rule: R3/R&D devices carry ``prod_catg_cd`` (from ``r3_device_grp``),
     M-fab devices carry ``tech_nm`` (from ``device_desc``).
     """
-    clauses = _filter_clauses(fab_id, start_date, end_date)
-    aggs = {
-        "by_lot": {
-            "terms": {
-                "field": "lot_id.keyword",
-                "size": 5000,   # top lot_ids by TAT; rolls up to far fewer devices
-                "order": {"tat": "desc"},
-            },
-            "aggs": {"tat": {"sum": {"field": _MEAS_F}}},
-        }
-    }
-    result = _aggregate(_INDEX[tool_type], aggs, _query(clauses))
-    lot_buckets = result.get("by_lot", {}).get("buckets", [])
+    clauses = _filter_clauses(fab_name, start_date, end_date)
+    # Composite pagination (see _composite_buckets): every in-scope lot_id,
+    # not a top-N — a capped terms agg would drop lots (and thus understate
+    # or lose whole devices) on fleet-wide date ranges.
+    lot_buckets = _composite_buckets(
+        _INDEX[tool_type],
+        "lot_id.keyword",
+        {"tat": {"sum": {"field": _MEAS_F}}},
+        _query(clauses),
+    )
 
     bridge = _lot_id_to_lot_cd()
     catalog = _device_desc()
@@ -571,7 +662,7 @@ def get_devices(
 
     rolled: dict[str, dict[str, int]] = {}
     for bucket in lot_buckets:
-        lot_cd = bridge.get(_text(bucket["key"]))
+        lot_cd = bridge.get(_text(bucket["key"]["group"]))
         if not lot_cd:              # lot_id not in the recent bridge -> drop
             continue
         agg = rolled.setdefault(lot_cd, {"exec": 0, "tat": 0})

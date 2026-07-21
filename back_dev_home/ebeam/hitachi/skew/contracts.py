@@ -93,7 +93,7 @@ class ToleranceRange(TypedDict):
 
 class SkewCheckPayload(TypedDict):
     tool_slug: ToolSlug
-    fab_id: str
+    fab_name: str
     recipe_id: str | None
     available: bool
     fetched_at: str

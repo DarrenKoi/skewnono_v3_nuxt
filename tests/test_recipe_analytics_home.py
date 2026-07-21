@@ -51,10 +51,10 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         self.assertEqual(ranking["limit"], 3)
         self.assertLessEqual(len(ranking["rows"]), 3)
         self.assertEqual(set(trend), {
-            "tool_type", "fab_id", "start_date", "end_date", "lot_cd", "points"
+            "tool_type", "fab_name", "start_date", "end_date", "lot_cd", "points"
         })
         self.assertEqual(set(devices), {
-            "tool_type", "fab_id", "start_date", "end_date", "devices"
+            "tool_type", "fab_name", "start_date", "end_date", "devices"
         })
 
     def test_fail_issue_routes_keep_their_wire_shapes(self):

@@ -7,9 +7,9 @@ from .data import get_storage, get_ppid_unavailable
 bp = Blueprint("hitachi_storage", __name__)
 
 
-def _parse_fac_ids() -> list[str]:
-    fac_id_param = request.args.get("fac_id", "")
-    return [value.strip() for value in fac_id_param.split(",") if value.strip()]
+def _parse_fab_names() -> list[str]:
+    fab_name_param = request.args.get("fab_name", "")
+    return [value.strip() for value in fab_name_param.split(",") if value.strip()]
 
 
 def _validate_slug(tool_slug: str) -> str | None:
@@ -22,7 +22,7 @@ def storage(tool_slug: str):
     if not slug:
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
 
-    rows = get_storage(slug, _parse_fac_ids())
+    rows = get_storage(slug, _parse_fab_names())
     return jsonify(rows)
 
 
@@ -32,5 +32,5 @@ def ppid_unavailable(tool_slug: str):
     if not slug:
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
 
-    rows = get_ppid_unavailable(slug, _parse_fac_ids())
+    rows = get_ppid_unavailable(slug, _parse_fab_names())
     return jsonify(rows)

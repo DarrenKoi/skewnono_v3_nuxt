@@ -61,7 +61,7 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/ranking
 
-- Handler: `routes.py` → `data.get_ranking(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_ranking(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date, limit=scope.limit, lot_cd=scope.lot_cd)`.
   `tool_slug` (`cdsem`/`hvsem`) resolves to `ToolType` (`cd-sem`/`hv-sem`); an
   unrecognized slug short-circuits to a 400 before `data.py` is called.
@@ -80,36 +80,41 @@ work without the bridge; the contract gate never passes `lot_cd`.
       sample_eqp_ids: list[str]
   ```
 
-- Mock behavior: filters meas_hist rows in scope (`tool_type` / `fab_id` /
+- Mock behavior: filters meas_hist rows in scope (`tool_type` / `fab_name` /
   date range / optional `lot_cd`), groups by `(class_name, recipe_name)`,
   sums `meastime` and execution counts per group, then ranks by
   `total_meastime` descending (ties keep dict-insertion order — not
-  explicitly tie-broken). Truncated to `limit` (default 1000).
+  explicitly tie-broken). Truncated to `limit` only when `limit > 0`
+  (default 0 = uncapped: every recipe in the date range is returned).
   `sample_lot_cds`/`sample_eqp_ids` are each capped to the first 5 distinct
   values (sorted), not the full set. (Office `sample_lot_cds` comes from a
   `lot_id` terms sub-agg mapped to lot_cds via the bridge; `sample_eqp_ids`
   from an `eqp_id.keyword` terms sub-agg.)
-- Office data source: `terms` aggregation on `full_name.keyword` (the
-  `class_name/recipe_name` composite = the group key), ordered by
-  `sum(meastime)` desc, `size = limit`. Per bucket: `doc_count` → `meas_counts`,
-  `sum(meastime)` → `total_meastime`, a `top_hits` (size 1) recovers
-  `class_name`/`recipe_name`/`full_name`, and a `terms` sub-agg on
-  `eqp_id.keyword` (size 5, then sorted) fills `sample_eqp_ids`.
-  `sample_lot_cds` stays `[]` until the Redis lot_cd source is wired.
-  Passing `lot_cd` resolves to `lot_id` terms via the (pending) Redis map.
+- Office data source: paginated `composite` aggregation on
+  `full_name.keyword` (the `class_name/recipe_name` composite = the group
+  key), walked page by page via `after_key` so **every** recipe in the range
+  is covered, then sorted by `sum(meastime)` desc in Python. (A plain `terms`
+  agg both truncates at its `size` cap and returns approximate sums when
+  ordered by a sub-agg — unacceptable for fleet-wide ranges.) Per bucket:
+  `doc_count` → `meas_counts`, `sum(meastime)` → `total_meastime`, a
+  `top_hits` (size 1) recovers `class_name`/`recipe_name`/`full_name`, and a
+  `terms` sub-agg on `eqp_id.keyword` (size 5, then sorted) fills
+  `sample_eqp_ids`. `sample_lot_cds` comes from a `lot_id` terms sub-agg
+  mapped through the `ebeam_tas_lot_hist` bridge; passing `lot_cd` resolves
+  to a `lot_id` terms filter via the same bridge.
 - Notes: `rank` is 1-indexed and reflects position after both sorting and
   `limit` truncation.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/summary
 
-- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`.
 - Contract: `SummaryPayload` —
 
   ```python
   class SummaryPayload(TypedDict):
       tool_type: ToolType
-      fab_id: str | None
+      fab_name: str | None
       start_date: str | None
       end_date: str | None
       anchor_date: str
@@ -135,7 +140,7 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/daily-trend
 
-- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`.
 - Contract: `list[DailyTrendPoint]` —
 
@@ -162,7 +167,7 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/devices
 
-- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date)` (no `lot_cd` — this endpoint enumerates
   the lot_cds, so it can't itself be scoped by one).
 - Contract: `list[DeviceRow]` —
@@ -183,14 +188,15 @@ work without the bridge; the contract gate never passes `lot_cd`.
   descending. Only lots with at least one measurement in scope are returned
   (no zero-count rows).
 - Office data source: aggregate meas_hist_* by `lot_id.keyword` within the
-  tool/fab/date scope (`sum(meastime)` + `doc_count`, top 5000 by TAT), map each
+  tool/fab/date scope (`sum(meastime)` + `doc_count`, paginated `composite`
+  aggregation covering every in-scope lot — no top-N cap), map each
   `lot_id` to its `lot_cd` through the `ebeam_tas_lot_hist` bridge, and roll the
   per-lot sums up per device. `lot_id`s absent from the last-60-day bridge (i.e.
   not recently active) are dropped, keeping retired/unknown lots out. `tech_nm`
   is joined from the Redis `device_desc` catalog (`fac_id, lot_cd, stn_desc,
   chg_tm, tech_nm, rnd_connector`). `exec_count`/`total_meastime` are the real
   in-scope execution count and summed `meastime`; rows are ordered by
-  `total_meastime` desc. `fab_id` filters via `fab_name.keyword` (fine-grained,
+  `total_meastime` desc. `fab_name` filters via `fab_name.keyword` (fine-grained,
   same as the other endpoints). Metadata follows the mock's exactly-one rule:
   M-fab devices carry `tech_nm` (from `device_desc`), R3/R&D devices carry
   `prod_catg_cd` (from the Redis `r3_device_grp` DataFrame, `lot_cd →

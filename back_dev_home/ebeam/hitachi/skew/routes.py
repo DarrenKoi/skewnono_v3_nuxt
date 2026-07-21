@@ -15,8 +15,8 @@ def _arg(name: str) -> str | None:
 def skew_check(tool_slug: str):
     if tool_slug not in VALID_TOOL_SLUGS:
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
-    fab_id = _arg("fab_id")
-    if fab_id is None:
-        return jsonify({"error": "fab_id is required"}), 400
-    payload = get_skew_check(tool_slug, fab_id, _arg("recipe_id"))
+    fab_name = _arg("fab_name")
+    if fab_name is None:
+        return jsonify({"error": "fab_name is required"}), 400
+    payload = get_skew_check(tool_slug, fab_name, _arg("recipe_id"))
     return jsonify(payload)

@@ -12,7 +12,7 @@ types:
     tool_type:
       type: string
       enum: ["cd-sem", "hv-sem"]
-    fab_id:
+    fab_name:
       type: string
       description: null when not filtered
     start_date:
@@ -129,7 +129,7 @@ endpoints:
     method: GET
     description: KPI counts and rates for the window. tool_slug is "cdsem" or "hvsem".
     query_params:
-      fab_id:
+      fab_name:
         type: string
         required: false
         description: Strict fab_name match (case-insensitive). R3/R4 do not collapse.
@@ -155,7 +155,7 @@ endpoints:
     method: GET
     description: Per-day counts of total executions, align fails, and meas fails. Backfills empty days so the chart x-axis stays continuous.
     query_params:
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -172,7 +172,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string
@@ -188,7 +188,7 @@ endpoints:
     method: GET
     description: Recipes ranked by align_fail_count descending. Only recipes with at least one align-fail in the window appear, so the table is a triage list, not an inventory.
     query_params:
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -209,7 +209,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string
@@ -227,7 +227,7 @@ endpoints:
     method: GET
     description: Recipes ranked by meas_fail_count descending. Same triage-only filter as align-ranking — recipes with zero meas-fails are omitted.
     query_params:
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -248,7 +248,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string
@@ -266,7 +266,7 @@ endpoints:
     method: GET
     description: Per-lot fail counts within the window, sorted by (align + meas) fail count descending. Drives the device-picker chip strip on the 디바이스별 view. Intentionally does not accept lot_cd — this endpoint is the source of truth for which lots exist in scope.
     query_params:
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -280,7 +280,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string

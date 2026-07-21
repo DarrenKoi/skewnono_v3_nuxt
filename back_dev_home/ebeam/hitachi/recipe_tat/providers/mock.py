@@ -311,7 +311,7 @@ def get_meas_hist() -> list[MeasHistRow]:
 @lru_cache(maxsize=256)
 def _filter_rows(
     tool_type: ToolType | None,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
@@ -323,19 +323,19 @@ def _filter_rows(
     # cycles through many devices.
     return filter_measurements(
         _generate_meas_hist(),
-        MeasurementScope(tool_type, fab_id, start_date, end_date, lot_cd),
+        MeasurementScope(tool_type, fab_name, start_date, end_date, lot_cd),
     )
 
 
 def get_ranking(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
-    limit: int = 1000,
+    limit: int = 0,
     lot_cd: str | None = None
 ) -> list[RankingRow]:
-    rows = _filter_rows(tool_type, fab_id, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
 
     grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
@@ -358,7 +358,9 @@ def get_ranking(
         grouped.values(),
         key=lambda b: b["total_meastime"],
         reverse=True
-    )[:limit]
+    )
+    if limit > 0:
+        ranked = ranked[:limit]
 
     out: list[RankingRow] = []
     for index, bucket in enumerate(ranked):
@@ -387,12 +389,12 @@ def get_ranking(
 
 def get_summary(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
 ) -> SummaryPayload:
-    rows = _filter_rows(tool_type, fab_id, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
 
     total_executions = len(rows)
     total_tat_seconds = sum(row["meastime"] for row in rows)
@@ -401,7 +403,7 @@ def get_summary(
 
     return {
         "tool_type": tool_type,
-        "fab_id": fab_id,
+        "fab_name": fab_name,
         "start_date": start_date,
         "end_date": end_date,
         "anchor_date": ANCHOR_TIME.date().isoformat(),
@@ -414,12 +416,12 @@ def get_summary(
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
 ) -> list[DailyTrendPoint]:
-    rows = _filter_rows(tool_type, fab_id, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
 
     bucket: dict[str, dict] = {}
     for row in rows:
@@ -451,7 +453,7 @@ def get_daily_trend(
 
 def get_devices(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None
 ) -> list[DeviceRow]:
@@ -461,7 +463,7 @@ def get_devices(
     devices that actually have data in the window keeps the picker honest
     (no zero-result chips).
     """
-    rows = _filter_rows(tool_type, fab_id, start_date, end_date)
+    rows = _filter_rows(tool_type, fab_name, start_date, end_date)
     metadata = lot_metadata()
 
     bucket: dict[str, dict] = {}

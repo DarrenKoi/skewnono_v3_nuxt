@@ -133,18 +133,18 @@ def _generate_rows(tool_slug: ToolSlug, seed: int = 42) -> list[StorageRow]:
 
 def get_storage(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None,
+    fab_names: list[str] | None = None,
 ) -> list[StorageRow]:
     rows = _generate_rows(tool_slug)
 
-    if not fac_ids:
+    if not fab_names:
         return rows
 
-    normalized = {fac_id.strip().upper() for fac_id in fac_ids if fac_id.strip()}
+    normalized = {fab_name.strip().upper() for fab_name in fab_names if fab_name.strip()}
     if not normalized:
         return rows
 
-    return [row for row in rows if row["fac_id"] in normalized]
+    return [row for row in rows if row["fab_name"].upper() in normalized]
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ def _ppid_streak(eqp_ip: str, latest_date: date, ip_by_date: dict[str, set[str]]
 
 def get_ppid_unavailable(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None,
+    fab_names: list[str] | None = None,
 ) -> PpidUnavailableSnapshot:
     snapshots = _generate_ppid_snapshots(tool_slug)
     latest_key = max(snapshots)  # compact YYYYMMDD sorts chronologically
@@ -229,9 +229,9 @@ def get_ppid_unavailable(
     sem_by_ip = {row["eqp_ip"]: row for row in get_sem_list()}
 
     normalized = {
-        fac_id.strip().upper()
-        for fac_id in (fac_ids or [])
-        if fac_id.strip()
+        fab_name.strip().upper()
+        for fab_name in (fab_names or [])
+        if fab_name.strip()
     }
 
     rows: list[PpidUnavailableRow] = []
@@ -242,8 +242,8 @@ def get_ppid_unavailable(
         eqp_id = match["eqp_id"] if match else ""
         eqp_model_cd = match["eqp_model_cd"] if match else ""
 
-        # A fac filter drops orphan rows (they have no fac_id to match).
-        if normalized and fac_id not in normalized:
+        # A fab_name filter drops orphan rows (they have no fab_name to match).
+        if normalized and fab_name.upper() not in normalized:
             continue
 
         rows.append(PpidUnavailableRow(

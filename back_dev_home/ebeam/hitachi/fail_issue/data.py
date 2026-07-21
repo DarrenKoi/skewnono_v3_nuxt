@@ -49,58 +49,58 @@ def get_anchor_time() -> datetime:
 
 def get_summary(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> SummaryPayload:
     return _provider().get_summary(
-        tool_type, fab_id, start_date, end_date, lot_cd
+        tool_type, fab_name, start_date, end_date, lot_cd
     )
 
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> list[DailyTrendPoint]:
     return _provider().get_daily_trend(
-        tool_type, fab_id, start_date, end_date, lot_cd
+        tool_type, fab_name, start_date, end_date, lot_cd
     )
 
 
 def get_align_ranking(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
-    limit: int = 1000,
+    limit: int = 0,
     lot_cd: str | None = None,
 ) -> list[AlignRankingRow]:
     return _provider().get_align_ranking(
-        tool_type, fab_id, start_date, end_date, limit, lot_cd
+        tool_type, fab_name, start_date, end_date, limit, lot_cd
     )
 
 
 def get_meas_ranking(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
-    limit: int = 1000,
+    limit: int = 0,
     lot_cd: str | None = None,
 ) -> list[MeasRankingRow]:
     return _provider().get_meas_ranking(
-        tool_type, fab_id, start_date, end_date, limit, lot_cd
+        tool_type, fab_name, start_date, end_date, limit, lot_cd
     )
 
 
 def get_devices(
     tool_type: ToolType,
-    fab_id: str | None,
+    fab_name: str | None,
     start_date: str | None,
     end_date: str | None,
 ) -> list[DeviceRow]:
-    return _provider().get_devices(tool_type, fab_id, start_date, end_date)
+    return _provider().get_devices(tool_type, fab_name, start_date, end_date)

@@ -16,16 +16,18 @@ export interface RecipeTatRow {
 
 export interface RecipeTatRankingResponse {
   tool_type: RecipeTatToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
+  // Echo of the requested cap. 0 means uncapped — the backend returned every
+  // recipe in the date range (the default; views no longer send a limit).
   limit: number
   rows: RecipeTatRow[]
 }
 
 export interface RecipeTatSummary {
   tool_type: RecipeTatToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string | null
   end_date: string | null
   // Latest UTC date for which the backend has data. The popover uses this
@@ -46,7 +48,7 @@ export interface RecipeTatDailyTrendPoint {
 
 export interface RecipeTatDailyTrendResponse {
   tool_type: RecipeTatToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
   points: RecipeTatDailyTrendPoint[]
@@ -64,7 +66,7 @@ export interface RecipeTatDeviceRow {
 
 export interface RecipeTatDevicesResponse {
   tool_type: RecipeTatToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
   devices: RecipeTatDeviceRow[]
@@ -90,7 +92,7 @@ const buildQuery = (params: RecipeTatQuery) => {
   }
   if (params.startDate) query.start_date = params.startDate
   if (params.endDate) query.end_date = params.endDate
-  if (params.fabId) query.fab_id = params.fabId
+  if (params.fabId) query.fab_name = params.fabId
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
   return query

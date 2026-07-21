@@ -272,17 +272,17 @@ const {
   }
 )
 
-// The backend aggregates storage at the fac level (fabNameToFacId collapses
-// e.g. M16A/M16B/M16C → fac M16), so a fac-only filter shows the same rows for
-// every fab under one fac. Narrow to the exact selected fab_name so the table
-// reacts to the fab in the URL — the composable leaves this to the page.
+// The backend now filters storage by the exact fab_name (the URL's fab
+// segment), so `data` already carries only this fab's rows. This filter is a
+// defensive guard: it re-asserts the tool type and fab_name in case the cached
+// payload and the current URL ever disagree.
 const rows = computed(() => (data.value ?? []).filter(row =>
   classifyToolType(row.eqp_model_cd) === props.toolType && row.fab_name === props.fab
 ))
 
 const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? '')
 
-// Same fab_name narrowing as the storage table. Orphan rows (no sem_list
+// Same defensive fab_name guard as the storage table. Orphan rows (no sem_list
 // match) have an empty eqp_model_cd AND empty fab_name; keep them so
 // data-quality gaps stay visible rather than silently filtered out.
 const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? []).filter(row =>

@@ -1,6 +1,6 @@
 {
   "tool_type": "cd-sem",
-  "fab_id": "M14",
+  "fab_name": "M14",
   "fetched_at": "2026-05-24T09:00:00Z",
   "anchor_date": "2026-05-24",
   "beam_conditions": [

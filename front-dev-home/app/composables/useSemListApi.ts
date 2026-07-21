@@ -60,13 +60,6 @@ export const extractFabNames = (rows: SemListRow[]): string[] => {
   return Array.from(names).sort(sortFabNames)
 }
 
-// device-statistics filters by fac_id, but the URL now carries a fab_name.
-// R-class fab_names (R3, R4) all live under fac_id R3; M{n}{A|B|C} → fac_id M{n}.
-export const fabNameToFacId = (fabName: string): string => {
-  if (fabName.startsWith('R')) return 'R3'
-  return fabName.slice(0, 3)
-}
-
 export const useSemListApi = () => {
   const config = useRuntimeConfig()
   const semListUrl = joinApiPath(config.public.apiBase, '/sem-list')

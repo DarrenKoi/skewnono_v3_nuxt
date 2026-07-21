@@ -41,7 +41,7 @@ export interface FleetDefaults {
 
 export interface FleetResponse {
   tool_type: 'cd-sem'
-  fab_id: string
+  fab_name: string
   fetched_at: string
   anchor_date: string
   beam_conditions: BeamCondition[]
@@ -58,7 +58,7 @@ export const usePmPlanningApi = () => {
   const fetchPmPlanningFleet = async (fabId: string): Promise<FleetResponse> => {
     return await $fetch<FleetResponse>(
       joinApiPath(base, '/cdsem/pm-planning/fleet'),
-      { query: { fab_id: fabId } }
+      { query: { fab_name: fabId } }
     )
   }
 

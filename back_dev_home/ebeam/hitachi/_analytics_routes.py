@@ -21,7 +21,7 @@ MAX_LIMIT = 1000
 @dataclass(frozen=True)
 class AnalyticsRequestScope:
     tool_type: ToolType
-    fab_id: str | None
+    fab_name: str | None
     start_date: str
     end_date: str
     lot_cd: str | None
@@ -49,7 +49,7 @@ def resolve_analytics_scope(
 
     return AnalyticsRequestScope(
         tool_type=tool_type,
-        fab_id=(request.args.get("fab_id") or "").strip() or None,
+        fab_name=(request.args.get("fab_name") or "").strip() or None,
         start_date=start_date,
         end_date=end_date,
         lot_cd=(request.args.get("lot_cd") or "").strip() or None,

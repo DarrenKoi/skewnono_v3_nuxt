@@ -88,7 +88,7 @@ rows = response.json()`
   {
     title: 'Nuxt / Vue',
     code: `const rows = await $fetch('/api/cdsem/storage', {
-  query: { fac_id: 'M11,M14' }
+  query: { fab_name: 'M16A,R3' }
 })`
   }
 ]
@@ -137,16 +137,16 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/storage',
         summary: 'tool_slug가 cdsem 또는 hvsem일 때 storage 현황 row를 반환합니다.',
-        params: 'fac_id=M11,M14 optional',
+        params: 'fab_name=M16A,R3 optional',
         response: 'StorageRow[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/storage?fac_id=M11,M14"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/storage?fab_name=M16A,R3"'
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/ppid-unavailable',
         summary: 'PPID(레시피) 접근 불가 장비 목록을 반환합니다. (sem_list와 IP 매칭)',
-        params: 'fac_id=M11,M14 optional',
+        params: 'fab_name=M16A,R3 optional',
         response: 'PpidUnavailableSnapshot',
         auth: '토큰 가능',
         example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/ppid-unavailable"'
@@ -232,16 +232,16 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/ranking',
         summary: 'recipe TAT ranking row를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd, limit optional',
+        params: 'fab_name, start_date, end_date, lot_cd, limit optional',
         response: 'RecipeTatRankingResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/ranking?fab_id=M11&limit=100"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/ranking?fab_name=M11&limit=100"'
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/summary',
         summary: 'recipe TAT summary 지표를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd optional',
+        params: 'fab_name, start_date, end_date, lot_cd optional',
         response: 'RecipeTatSummaryResponse',
         auth: '토큰 가능',
         example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/summary?lot_cd=LOT001"'
@@ -250,19 +250,19 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/daily-trend',
         summary: 'recipe TAT 일자별 trend point를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd optional',
+        params: 'fab_name, start_date, end_date, lot_cd optional',
         response: 'RecipeTatTrendResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/recipe-tat/daily-trend?fab_id=M14"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/recipe-tat/daily-trend?fab_name=M14"'
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/devices',
         summary: 'recipe TAT 화면에서 선택할 device 목록을 반환합니다.',
-        params: 'fab_id, start_date, end_date optional',
+        params: 'fab_name, start_date, end_date optional',
         response: 'RecipeTatDeviceResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/devices?fab_id=M11"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/devices?fab_name=M11"'
       }
     ]
   },
@@ -275,16 +275,16 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/summary',
         summary: 'fail issue summary 지표를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd optional',
+        params: 'fab_name, start_date, end_date, lot_cd optional',
         response: 'FailIssueSummaryResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/summary?fab_id=M11"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/summary?fab_name=M11"'
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/daily-trend',
         summary: 'fail issue 일자별 trend point를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd optional',
+        params: 'fab_name, start_date, end_date, lot_cd optional',
         response: 'FailIssueTrendResponse',
         auth: '토큰 가능',
         example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/daily-trend?lot_cd=LOT001"'
@@ -293,7 +293,7 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/align-ranking',
         summary: 'align fail ranking row를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd, limit optional',
+        params: 'fab_name, start_date, end_date, lot_cd, limit optional',
         response: 'FailIssueRankingResponse',
         auth: '토큰 가능',
         example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/fail-issue/align-ranking?limit=50"'
@@ -302,16 +302,16 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/meas-ranking',
         summary: 'measurement fail ranking row를 반환합니다.',
-        params: 'fab_id, start_date, end_date, lot_cd, limit optional',
+        params: 'fab_name, start_date, end_date, lot_cd, limit optional',
         response: 'FailIssueRankingResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/meas-ranking?fab_id=M11"'
+        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/meas-ranking?fab_name=M11"'
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/devices',
         summary: 'fail issue 화면에서 선택할 device 목록을 반환합니다.',
-        params: 'fab_id, start_date, end_date optional',
+        params: 'fab_name, start_date, end_date optional',
         response: 'FailIssueDeviceResponse',
         auth: '토큰 가능',
         example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/devices"'

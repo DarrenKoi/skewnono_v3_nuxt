@@ -10,9 +10,9 @@ from back_dev_home.ebeam.hitachi.pm_planning.contracts import FleetPayload
 
 
 def test_get_pm_planning_fleet_matches_contract():
-    # fab_id copied from routes.py's own call shape (a plain query-string
-    # fab_id, upper/lower-cased by the mock — see pm_planning_fleet() in
-    # routes.py, which just forwards request.args["fab_id"] unchanged).
+    # fab_name copied from routes.py's own call shape (a plain query-string
+    # fab_name, upper/lower-cased by the mock — see pm_planning_fleet() in
+    # routes.py, which just forwards request.args["fab_name"] unchanged).
     fleet = data.get_pm_planning_fleet("M14")
     assert fleet
     assert_matches(fleet, FleetPayload)

@@ -46,7 +46,7 @@ export interface MdcHistoryEntry {
 
 export interface SkewCheckPayload {
   tool_slug: string
-  fab_id: string
+  fab_name: string
   recipe_id: string | null
   available: boolean
   fetched_at: string
@@ -72,7 +72,7 @@ export const useSkewCheckApi = () => {
   const fetchSkewCheck = (toolType: string, fabId: string, recipeId?: string) =>
     $fetch<SkewCheckPayload>(
       joinApiPath(base, `/${toSlug(toolType)}/skew/check`),
-      { query: { fab_id: fabId, ...(recipeId ? { recipe_id: recipeId } : {}) } }
+      { query: { fab_name: fabId, ...(recipeId ? { recipe_id: recipeId } : {}) } }
     )
 
   const useSkewCheck = (toolType: string, fabId: string, recipeId?: string) =>

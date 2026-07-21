@@ -9,10 +9,10 @@
 
 ## Endpoint: GET /api/<tool_slug>/skew/check
 
-- Handler: `routes.py` → `data.get_skew_check(tool_slug, fab_id,
+- Handler: `routes.py` → `data.get_skew_check(tool_slug, fab_name,
   recipe_id)`. `tool_slug` is validated against `VALID_TOOL_SLUGS` (400 if
-  not `cdsem`/`hvsem`) before the data call. `fab_id` is a required query
-  param (`?fab_id=...`, 400 if missing); `recipe_id` is an optional query
+  not `cdsem`/`hvsem`) before the data call. `fab_name` is a required query
+  param (`?fab_name=...`, 400 if missing); `recipe_id` is an optional query
   param.
 - Contract: `SkewCheckPayload` (large nested tree — see `contracts.py` for
   the full `ToolRef`/`CellSkew`/`SkewMatrixBlock`/`ProductionCorroboration`/
@@ -21,7 +21,7 @@
   ```python
   class SkewCheckPayload(TypedDict):
       tool_slug: ToolSlug
-      fab_id: str
+      fab_name: str
       recipe_id: str | None
       available: bool
       fetched_at: str
@@ -39,7 +39,7 @@
   ```
 
 - Mock behavior: serves a static, deterministic fixture file per
-  `tool_slug`/`fab_id` pair from `__fixtures__/skew_{tool_slug}_{fab_id.lower()}.json`
+  `tool_slug`/`fab_name` pair from `__fixtures__/skew_{tool_slug}_{fab_name.lower()}.json`
   (only `skew_cdsem_r3.json` exists today). If the fixture file is missing,
   `get_skew_check` returns an `available: false` empty payload (`tools: []`,
   `occupied_cells: []`, all list fields empty, `current_tolerance: 0.05`,

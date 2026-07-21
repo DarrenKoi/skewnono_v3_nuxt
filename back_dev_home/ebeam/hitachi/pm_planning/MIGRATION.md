@@ -20,15 +20,15 @@
   'cdsem' or 'hvsem'"`) before `data.py` is ever called.
 - **CD-SEM only.** Even though `hvsem` is a valid slug elsewhere in this
   codebase, `routes.py` explicitly rejects it here with a second `400`
-  (`"pm-planning is available for CD-SEM only"`) before checking `fab_id`.
+  (`"pm-planning is available for CD-SEM only"`) before checking `fab_name`.
   `get_pm_planning_fleet` is therefore only ever called with a CD-SEM
   fleet in mind — office does not need an HV-SEM code path for this
   endpoint.
-- Handler: `routes.py` → `pm_planning_fleet(tool_slug)`. Reads `fab_id`
-  from the query string (`?fab_id=...`, stripped; a missing/blank value is
-  a `400` — `"fab_id query parameter is required"` — raised by the route
+- Handler: `routes.py` → `pm_planning_fleet(tool_slug)`. Reads `fab_name`
+  from the query string (`?fab_name=...`, stripped; a missing/blank value is
+  a `400` — `"fab_name query parameter is required"` — raised by the route
   itself, before `data.get_pm_planning_fleet` is called). On success,
-  calls `data.get_pm_planning_fleet(fab_id)` and returns the payload
+  calls `data.get_pm_planning_fleet(fab_name)` and returns the payload
   directly via `jsonify(...)`.
 - Contract: `FleetPayload` (see `contracts.py` for the full definitions of
   `GateBlock`, `CellSkew`, `EpochPoint`, `ToolBlock`, `ConsensusCell`, and
@@ -89,7 +89,7 @@
 
   class FleetPayload(TypedDict):
       tool_type: str
-      fab_id: str
+      fab_name: str
       fetched_at: str
       anchor_date: str
       beam_conditions: list[BeamCondition]
@@ -100,10 +100,10 @@
   ```
 
 - Mock behavior: `providers/mock.py` builds a deterministic **8-tool**
-  CD-SEM fleet for the given `fab_id`, seeded per-value via `_seed_for`
+  CD-SEM fleet for the given `fab_name`, seeded per-value via `_seed_for`
   (an md5-digest-derived RNG seed keyed on strings like
   `f"fleet::{fab.upper()}"`, `f"cells::{eqp_id}"`, `f"gate::{eqp_id}"`,
-  `f"epoch::{eqp_id}"`) — same `fab_id` always yields byte-identical
+  `f"epoch::{eqp_id}"`) — same `fab_name` always yields byte-identical
   output within a process (see the module's own `__main__` determinism
   assertion). `NOW`/`FETCHED_AT` are frozen constants
   (`2026-05-24T09:00:00Z`), not wall-clock time, so `fetched_at` and
@@ -144,7 +144,7 @@
   completed PM's job_end); per-tool MDC epoch history -->
 - Notes:
   - **No huge-payload concern** — a fleet snapshot is capped at 8 tools ×
-    4 cells regardless of `fab_id`, unlike device_statistics's
+    4 cells regardless of `fab_name`, unlike device_statistics's
     lot-fan-out endpoints.
   - Ranking, threshold filtering, and bottom-N tool selection are
     explicitly **client-side** concerns (per this feature's own contract
@@ -152,8 +152,8 @@
     (`focus_n`, `advisory_threshold`) instead of pre-ranked results.
     Office must keep shipping the same raw shape; do not pre-rank or
     pre-filter tools/cells before returning.
-  - `fab_id` in the response is the request's `fab_id` upper-cased
-    (`fab_id.upper()`), not validated against a known-fabs list by this
+  - `fab_name` in the response is the request's `fab_name` upper-cased
+    (`fab_name.upper()`), not validated against a known-fabs list by this
     endpoint — any string is accepted and echoed back upper-cased.
   - No external importer: nothing outside this feature folder imports
     from `pm_planning.data` or `pm_planning.providers.mock` (unlike
@@ -162,7 +162,7 @@
     `spec_range_mock.py` are consumed **by** this mock, not consumers of
     it, so nothing needs cross-feature care here.
   - The parity harness pins both `/api/cdsem/pm-planning/fleet` (`200`,
-    `?fab_id=D8` appended by `_parity_snapshot/capture.py`'s
+    `?fab_name=D8` appended by `_parity_snapshot/capture.py`'s
     endpoint-specific handling) and `/api/hvsem/pm-planning/fleet` (`400`,
     the CD-SEM-only rejection) — the `400` case is still valid parity
     (identical status+body before/after the seam cut), not a bug to fix.

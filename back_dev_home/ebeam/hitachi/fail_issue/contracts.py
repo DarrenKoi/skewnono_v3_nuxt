@@ -48,7 +48,7 @@ class FailRow(TypedDict):
 
 class SummaryPayload(TypedDict):
     tool_type: ToolType
-    fab_id: str | None
+    fab_name: str | None
     start_date: str | None
     end_date: str | None
     anchor_date: str

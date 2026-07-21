@@ -29,6 +29,7 @@ import os
 import pickle
 import sys
 from datetime import datetime, timedelta
+from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path
 
@@ -86,7 +87,11 @@ def _load_env_file() -> None:
         load_dotenv(Path(pkg_file).with_name(".env"))
 
 
+@lru_cache(maxsize=1)
 def _redis_client() -> redis.Redis:
+    # Cached: one client (and its connection pool) per process instead of a
+    # fresh TCP connect per request. redis-py re-establishes dropped pool
+    # connections per command, so reuse is safe across backend restarts.
     host = os.environ.get("REDIS_HOST")
     if not host:
         _load_env_file()
@@ -171,7 +176,7 @@ def _int(value, default: int = 0) -> int:
 # GET /api/<slug>/storage
 # --------------------------------------------------------------------------
 def _normalize_storage(
-    df: pd.DataFrame, key: str, fac_ids: list[str] | None
+    df: pd.DataFrame, key: str, fab_names: list[str] | None
 ) -> list[StorageRow]:
     missing = set(_STORAGE_COLUMNS) - set(df.columns)
     if missing:
@@ -180,11 +185,12 @@ def _normalize_storage(
             f"(got {sorted(df.columns)})"
         )
 
-    wanted = {f.strip().upper() for f in (fac_ids or []) if f.strip()}
+    wanted = {f.strip().upper() for f in (fab_names or []) if f.strip()}
     rows: list[StorageRow] = []
     for rec in df.to_dict(orient="records"):
         fac_id = _text(rec["fac_id"])
-        if wanted and fac_id.strip().upper() not in wanted:
+        fab_name = _text(rec["fab_name"])
+        if wanted and fab_name.strip().upper() not in wanted:
             continue
         rows.append(StorageRow(
             eqp_id=_text(rec["eqp_id"]),
@@ -198,7 +204,7 @@ def _normalize_storage(
             rcp_counts=_int(rec["rcp_counts"]),
             rcp_counts_mt=_text(rec["rcp_counts_mt"]),
             storage_mt_date=_text(rec["storage_mt_date"]),
-            fab_name=_text(rec["fab_name"]),
+            fab_name=fab_name,
             eqp_model_cd=_text(rec["eqp_model_cd"]),
         ))
     return rows
@@ -206,7 +212,7 @@ def _normalize_storage(
 
 def get_storage(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None,
+    fab_names: list[str] | None = None,
 ) -> list[StorageRow]:
     key = _STORAGE_KEY.get(tool_slug)
     if key is None:
@@ -223,7 +229,7 @@ def get_storage(
     df = _deserialize_dataframe(raw, key)
     if df.empty:
         return []
-    return _normalize_storage(df, key, fac_ids)
+    return _normalize_storage(df, key, fab_names)
 
 
 # --------------------------------------------------------------------------
@@ -268,7 +274,7 @@ def _streak(eqp_ip: str, latest_key: str, ip_by_date: dict[str, set[str]]) -> in
 
 def get_ppid_unavailable(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None,
+    fab_names: list[str] | None = None,
 ) -> PpidUnavailableSnapshot:
     tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)
     if tool_type is None:
@@ -286,7 +292,7 @@ def get_ppid_unavailable(
     ip_by_date = {key: set(ips) for key, ips in snapshots.items()}
 
     sem_by_ip = {row["eqp_ip"]: row for row in get_sem_list()}
-    wanted = {f.strip().upper() for f in (fac_ids or []) if f.strip()}
+    wanted = {f.strip().upper() for f in (fab_names or []) if f.strip()}
 
     rows: list[PpidUnavailableRow] = []
     for eqp_ip in dict.fromkeys(snapshots[latest_key]):  # de-dup, keep order
@@ -297,13 +303,14 @@ def get_ppid_unavailable(
         if match is None or model_to_tool_type(match["eqp_model_cd"]) != tool_type:
             continue
         fac_id = str(match["fac_id"])
-        if wanted and fac_id.strip().upper() not in wanted:
+        fab_name = str(match["fab_name"])
+        if wanted and fab_name.strip().upper() not in wanted:
             continue
         rows.append(PpidUnavailableRow(
             eqp_id=str(match["eqp_id"]),
             eqp_ip=eqp_ip,
             fac_id=fac_id,
-            fab_name=str(match["fab_name"]),
+            fab_name=fab_name,
             eqp_model_cd=str(match["eqp_model_cd"]),
             missing_days_streak=_streak(eqp_ip, latest_key, ip_by_date),
         ))

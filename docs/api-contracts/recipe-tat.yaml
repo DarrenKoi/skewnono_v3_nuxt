@@ -36,7 +36,7 @@ types:
     tool_type:
       type: string
       enum: ["cd-sem", "hv-sem"]
-    fab_id:
+    fab_name:
       type: string
       description: null when not filtered
     start_date:
@@ -86,7 +86,7 @@ endpoints:
         enum: ["cd-sem", "hv-sem"]
         required: true
         description: 400 if missing or not in the enum
-      fab_id:
+      fab_name:
         type: string
         required: false
         description: Strict fab_name match (case-insensitive). R3/R4 do not collapse.
@@ -113,7 +113,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string
@@ -135,7 +135,7 @@ endpoints:
         type: string
         enum: ["cd-sem", "hv-sem"]
         required: true
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -159,7 +159,7 @@ endpoints:
         type: string
         enum: ["cd-sem", "hv-sem"]
         required: true
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -176,7 +176,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string
@@ -196,7 +196,7 @@ endpoints:
         type: string
         enum: ["cd-sem", "hv-sem"]
         required: true
-      fab_id:
+      fab_name:
         type: string
         required: false
       start_date:
@@ -210,7 +210,7 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_id:
+        fab_name:
           type: string
         start_date:
           type: string
@@ -224,4 +224,4 @@ notes:
   - Office must anchor the date window on max(timestamp) from the source index — do NOT use wall-clock now(). Phase 1 mock anchors on import-time wall-clock (ANCHOR_TIME) which drifts; production should be deterministic per query.
   - Source schema is docs/datatables/meas_hist.txt. The TAT dashboard only needs timing fields; office should drop msr/align/image counts and idp paths just like the mock does, to keep payloads small.
   - The path prefix /cdsem/recipe-tat is used for both tool types — clients pass tool_type as a query param. Do not split into /cdsem/... and /hvsem/... paths in the office.
-  - lru_cache(maxsize=64) on _filter_rows in the mock keys on (tool_type, fab_id, start_date, end_date, lot_cd). Office should cache the filter result similarly since each page hit triggers ranking + summary + daily-trend + devices with identical filters.
+  - lru_cache(maxsize=64) on _filter_rows in the mock keys on (tool_type, fab_name, start_date, end_date, lot_cd). Office should cache the filter result similarly since each page hit triggers ranking + summary + daily-trend + devices with identical filters.

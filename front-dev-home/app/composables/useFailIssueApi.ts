@@ -4,7 +4,7 @@ export type FailIssueToolType = 'cd-sem' | 'hv-sem'
 
 export interface FailIssueSummary {
   tool_type: FailIssueToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string | null
   end_date: string | null
   // Latest UTC date the backend has data for. Used as the date-picker's
@@ -33,7 +33,7 @@ export interface FailIssueDailyTrendPoint {
 
 export interface FailIssueDailyTrendResponse {
   tool_type: FailIssueToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
   lot_cd: string | null
@@ -53,7 +53,7 @@ export interface FailIssueAlignRow {
 
 export interface FailIssueAlignRankingResponse {
   tool_type: FailIssueToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
   limit: number
@@ -75,7 +75,7 @@ export interface FailIssueMeasRow {
 
 export interface FailIssueMeasRankingResponse {
   tool_type: FailIssueToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
   limit: number
@@ -94,7 +94,7 @@ export interface FailIssueDeviceRow {
 
 export interface FailIssueDevicesResponse {
   tool_type: FailIssueToolType
-  fab_id: string | null
+  fab_name: string | null
   start_date: string
   end_date: string
   devices: FailIssueDeviceRow[]
@@ -113,7 +113,7 @@ const buildQuery = (params: FailIssueQuery) => {
   const query: Record<string, string> = {}
   if (params.startDate) query.start_date = params.startDate
   if (params.endDate) query.end_date = params.endDate
-  if (params.fabId) query.fab_id = params.fabId
+  if (params.fabId) query.fab_name = params.fabId
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
   return query

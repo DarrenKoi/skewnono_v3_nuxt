@@ -1,4 +1,3 @@
-import { fabNameToFacId } from '~/composables/useSemListApi'
 import { joinApiPath } from '~/utils/apiPath'
 
 export interface StorageRow {
@@ -51,29 +50,26 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
   const storageUrl = joinApiPath(config.public.apiBase, `/${slug}/storage`)
   const ppidUnavailableUrl = joinApiPath(config.public.apiBase, `/${slug}/ppid-unavailable`)
 
-  const fetchStorageRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<StorageRow[]> => {
-    const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
+  const fetchStorageRows = async (fabNames: string[] = [], signal?: AbortSignal): Promise<StorageRow[]> => {
+    const query = fabNames.length > 0 ? { fab_name: fabNames.join(',') } : undefined
 
     return await $fetch<StorageRow[]>(storageUrl, { query, signal })
   }
 
-  const fetchPpidUnavailableRows = async (facIds: string[] = [], signal?: AbortSignal): Promise<PpidUnavailableSnapshot> => {
-    const query = facIds.length > 0 ? { fac_id: facIds.join(',') } : undefined
+  const fetchPpidUnavailableRows = async (fabNames: string[] = [], signal?: AbortSignal): Promise<PpidUnavailableSnapshot> => {
+    const query = fabNames.length > 0 ? { fab_name: fabNames.join(',') } : undefined
 
     return await $fetch<PpidUnavailableSnapshot>(ppidUnavailableUrl, { query, signal })
   }
 
-  // Storage rows are aggregated at the fac level. The URL's fab segment may be a fab_name
-  // (e.g. "M16A", "R3", "R4"), but storage shows everything under its parent fac — same approach
-  // as device-statistics.vue. Pure fab_name filtering is left to the page if it ever needs it.
+  // The URL's fab segment IS a fab_name (e.g. "M16A", "R3", "R4"), which is exactly the
+  // granularity storage filters on — so pass it straight through, no fac_id collapse.
   const fetchByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<StorageRow[]> => {
-    const facId = fabNameToFacId(urlFab)
-    return await fetchStorageRows([facId], signal)
+    return await fetchStorageRows([urlFab], signal)
   }
 
   const fetchPpidUnavailableByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<PpidUnavailableSnapshot> => {
-    const facId = fabNameToFacId(urlFab)
-    return await fetchPpidUnavailableRows([facId], signal)
+    return await fetchPpidUnavailableRows([urlFab], signal)
   }
 
   return {

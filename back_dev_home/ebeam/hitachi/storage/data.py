@@ -25,7 +25,7 @@ __all__ = [
 
 def get_storage(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None,
+    fab_names: list[str] | None = None,
 ) -> list[StorageRow]:
     if get_data_provider("storage") == "office":
         from back_dev_home.ebeam.hitachi.storage.providers.office import (
@@ -36,12 +36,12 @@ def get_storage(
             get_storage as load_storage,
         )
 
-    return load_storage(tool_slug, fac_ids)
+    return load_storage(tool_slug, fab_names)
 
 
 def get_ppid_unavailable(
     tool_slug: ToolSlug,
-    fac_ids: list[str] | None = None,
+    fab_names: list[str] | None = None,
 ) -> PpidUnavailableSnapshot:
     if get_data_provider("storage") == "office":
         from back_dev_home.ebeam.hitachi.storage.providers.office import (
@@ -52,4 +52,4 @@ def get_ppid_unavailable(
             get_ppid_unavailable as load_ppid_unavailable,
         )
 
-    return load_ppid_unavailable(tool_slug, fac_ids)
+    return load_ppid_unavailable(tool_slug, fab_names)

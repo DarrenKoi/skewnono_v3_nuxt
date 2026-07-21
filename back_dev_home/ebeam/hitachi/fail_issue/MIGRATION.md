@@ -28,7 +28,7 @@
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/summary
 
-- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`. `tool_slug`
   (`cdsem`/`hvsem`) resolves to `ToolType`; an unrecognized slug short-circuits
   to a 400 before `data.py` is called.
@@ -37,7 +37,7 @@
   ```python
   class SummaryPayload(TypedDict):
       tool_type: ToolType
-      fab_id: str | None
+      fab_name: str | None
       start_date: str | None
       end_date: str | None
       anchor_date: str
@@ -66,7 +66,7 @@
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/daily-trend
 
-- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`.
 - Contract: `list[DailyTrendPoint]` —
 
@@ -90,7 +90,7 @@
 ## Endpoint: GET /api/<tool_slug>/fail-issue/align-ranking
 
 - Handler: `routes.py` → `data.get_align_ranking(scope.tool_type,
-  scope.fab_id, scope.start_date, scope.end_date, limit=scope.limit,
+  scope.fab_name, scope.start_date, scope.end_date, limit=scope.limit,
   lot_cd=scope.lot_cd)`.
 - Contract: `list[AlignRankingRow]` —
 
@@ -120,7 +120,7 @@
 ## Endpoint: GET /api/<tool_slug>/fail-issue/meas-ranking
 
 - Handler: `routes.py` → `data.get_meas_ranking(scope.tool_type,
-  scope.fab_id, scope.start_date, scope.end_date, limit=scope.limit,
+  scope.fab_name, scope.start_date, scope.end_date, limit=scope.limit,
   lot_cd=scope.lot_cd)`.
 - Contract: `list[MeasRankingRow]` —
 
@@ -149,7 +149,7 @@
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/devices
 
-- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_id,
+- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_name,
   scope.start_date, scope.end_date)` (no `lot_cd` — this endpoint enumerates
   the lot_cds).
 - Contract: `list[DeviceRow]` —

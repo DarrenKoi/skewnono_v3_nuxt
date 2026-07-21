@@ -10,7 +10,7 @@ from back_dev_home.ebeam.hitachi.skew.contracts import SkewCheckPayload
 
 def get_skew_check(
     tool_slug: str,
-    fab_id: str,
+    fab_name: str,
     recipe_id: str | None,
 ) -> SkewCheckPayload:
     if get_data_provider("skew") == "office":
@@ -22,4 +22,4 @@ def get_skew_check(
             get_skew_check as load_skew_check,
         )
 
-    return load_skew_check(tool_slug, fab_id, recipe_id)
+    return load_skew_check(tool_slug, fab_name, recipe_id)

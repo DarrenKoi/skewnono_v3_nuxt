@@ -1,6 +1,6 @@
 {
   "tool_slug": "cdsem",
-  "fab_id": "R3",
+  "fab_name": "R3",
   "recipe_id": "CD_MON_16",
   "available": true,
   "fetched_at": "2026-05-31T14:30:00",
