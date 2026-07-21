@@ -14,8 +14,10 @@ from back_dev_home.ebeam.hitachi._tool_specs import (
 
 
 DEFAULT_DAYS = 30
-DEFAULT_LIMIT = 1000
-MAX_LIMIT = 1000
+# limit bounds the number of ranking rows (distinct recipes), not raw
+# measurements. 0 means "no cap": every recipe in the date range is returned,
+# so fleet-wide ranges never silently drop the tail of the ranking.
+DEFAULT_LIMIT = 0
 
 
 @dataclass(frozen=True)
@@ -53,7 +55,7 @@ def resolve_analytics_scope(
         start_date=start_date,
         end_date=end_date,
         lot_cd=(request.args.get("lot_cd") or "").strip() or None,
-        limit=max(1, min(limit, MAX_LIMIT)),
+        limit=max(0, limit),
     )
 
 

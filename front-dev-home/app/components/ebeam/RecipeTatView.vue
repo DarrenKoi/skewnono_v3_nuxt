@@ -347,7 +347,8 @@ const queryParams = computed(() => ({
   fabId: props.fab || undefined,
   startDate: userDateRange.value.start || undefined,
   endDate: userDateRange.value.end || undefined,
-  limit: 1000,
+  // No limit: the backend treats an omitted/0 limit as "every recipe in the
+  // date range" — a fixed cap silently truncated fleet-wide rankings.
   lotCd: viewMode.value === 'by-device' ? (selectedLot.value ?? undefined) : undefined
 }))
 
