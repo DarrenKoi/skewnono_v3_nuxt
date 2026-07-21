@@ -1,0 +1,24 @@
+사무실(Office) OpenSearch index — 팹 시스템 측정 이력(lot 단위 이력)
+
+recipe_tat 등 대시보드에서 "현재 생산 중인 device(lot_cd)" 목록을 만드는 데
+사용합니다. device_desc(Redis) 는 폐기된 lot_cd 까지 모두 담고 있으므로, 최근
+활동이 있는 lot_cd 만 이 index 로 걸러냅니다.
+
+Index -> ebeam_tas_lot_hist
+
+핵심 사용 field
+  event_tm -> date: 이벤트 시각. 기간(range) 필터 기준 time_field
+  lot_cd   -> 측정된 lot 의 device 코드. unique 목록이 "현재 생산 중" 집합
+
+조회 방법(recipe_tat office adapter 기준)
+
+1. ops_store 의 OSSearch.range_dataframe_all(time_field="event_tm", days=60)
+   로 최근 60일 구간을 DataFrame 으로 받습니다.
+2. lot_cd 컬럼의 unique 값이 "현재 생산 중" device 집합입니다.
+3. 이 집합을 Redis "device_desc"(그리고 R3 는 r3_device_grp)와 join 해서
+   화면에 표시할 device 메타데이터를 붙입니다.
+4. lot_cd 별 row 수는 최근 60일 활동량(activity count)으로 쓸 수 있습니다.
+
+주의: 이 index 는 measurement 단위로 매우 클 수 있습니다. unique lot_cd 만
+필요하다면 lot_cd.keyword 에 대한 terms aggregation 이 전체 row 를 내려받는
+range_dataframe_all 보다 가볍습니다(인덱스 규모에 따라 선택).

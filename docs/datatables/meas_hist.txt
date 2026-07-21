@@ -51,3 +51,64 @@ Mock data 생성 규칙
 Recipe 검색 기본 검색 대상: Redis recipe_name 문자열
 스큐보아 기본 판단 대상: msr_check, align_fail, total_images, fail_images, fail_ratio, meastime, timestamp
 공통 필터 후보: fac_id, fab_name, tool_type, eqp_model_cd, lot_cd, class_name
+
+========================================================================
+사무실(Office) 실데이터 소스 — OpenSearch
+========================================================================
+
+위 스키마는 Phase 1(home) mock DataFrame 기준입니다. 사무실에서는 측정
+이력이 OpenSearch 에 tool_type 별 alias 로 저장됩니다 (recipe_tat office
+adapter 가 이 소스를 사용합니다).
+
+Index(alias)
+  meas_hist_cdsem -> tool_type "cd-sem" 측정 이력
+  meas_hist_hvsem -> tool_type "hv-sem" 측정 이력
+
+Field(mapping) -> Type: 설명
+  align_fail    -> text
+  align_offset  -> float
+  class_name    -> text: recipe class. 집계는 class_name.keyword 사용
+  end_time      -> date: 측정 종료 시각
+  eqp_id        -> text: 장비 ID. 집계는 eqp_id.keyword 사용
+  eqp_ip        -> text
+  eqp_model_cd  -> text
+  fab_name      -> text: 화면 fab 선택 필터. 필터는 fab_name.keyword(term) 사용
+  fac_id        -> text
+  fail_images   -> float
+  fail_ratio    -> float
+  full_name     -> text: class_name/recipe_name 조합. TAT 그룹 키 = full_name.keyword
+  idp_name      -> text
+  idw_name      -> text
+  lot_id        -> text: 실제 측정 lot ID (lot_cd + 숫자 suffix)
+  meastime      -> long: 측정 소요 시간(초). recipe TAT 의 핵심 지표(sum 대상)
+  minio_msr     -> text
+  minio_pkl     -> text
+  msr           -> text
+  msr_check     -> text
+  recipe_name   -> text: 집계는 recipe_name.keyword 사용
+  start_time    -> date: 측정 시작 시각
+  timestamp     -> date: 측정 대표 시각. 기간(range) 필터/일자 histogram/anchor 기준
+  total_images  -> float
+
+사무실 사용 주의사항
+
+1. text field 는 tokenize 되므로 exact match/aggregation 은 반드시 .keyword
+   서브필드를 사용합니다 (class_name.keyword, recipe_name.keyword,
+   full_name.keyword, fab_name.keyword, eqp_id.keyword).
+2. mock 과 달리 OpenSearch 문서에는 lot_cd, tool_type, vendor_nm, id 컬럼이
+   없습니다. tool_type 은 index(alias) 로 구분하고, lot_cd 는 별도 소스에서
+   해결합니다(아래 device 카탈로그 참고).
+3. recipe TAT 집계는 raw row 를 내려받지 않고 서버측 aggregation 으로
+   계산합니다: ranking = terms(full_name.keyword) + sum(meastime) + top_hits,
+   summary = sum(meastime)+value_count(meastime)+cardinality(full_name.keyword),
+   daily-trend = date_histogram(day, extended_bounds 로 빈 날 0 채움).
+4. anchor(날짜 선택 상한) = 두 alias 전체의 max(timestamp).
+
+device 카탈로그(디바이스별 화면)용 lot_cd 해결
+
+- meas_hist_* 에는 lot_cd 가 없습니다. 현재 생산 중인 device 목록은 아래
+  두 소스를 join 해서 만듭니다.
+  - Redis "device_desc" DataFrame -> lot_cd 카탈로그(메타데이터).
+  - OpenSearch "ebeam_tas_lot_hist" index 의 최근 60일(event_tm) unique
+    lot_cd -> "현재 생산 중" 판단(오래된 lot_cd 제거).
+  자세한 스키마는 device_desc.txt, ebeam_tas_lot_hist.txt 참고.

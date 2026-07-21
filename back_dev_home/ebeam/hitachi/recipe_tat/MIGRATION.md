@@ -2,10 +2,45 @@
 
 ## Rules
 
+- FIRST copy the tracked skeleton, then work only in the copy:
+  `cp providers/office_example.py providers/office.py`. `office.py` is
+  gitignored and lives only at the office, so `git pull` never conflicts on it.
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, or `tests/`.
+  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
+
+## Data source: OpenSearch `meas_hist_*` (+ pending Redis lot map)
+
+Measurement history lives in the office **OpenSearch** cluster (via
+`ops_store`, `opensearch-py`), one alias per tool family:
+
+- `meas_hist_cdsem` — `tool_type == "cd-sem"`
+- `meas_hist_hvsem` — `tool_type == "hv-sem"`
+
+The adapter never pulls raw rows — every endpoint is a **server-side
+aggregation** over `meastime` (per-execution TAT, seconds) sliced by
+`timestamp` (the date range) and optionally `fab_name`. Text fields are
+aggregated/filtered through their `.keyword` sub-fields (`text` is tokenized;
+exact match / aggregation needs `.keyword`). Connection via `OPENSEARCH_HOST`
+/ `OPENSEARCH_PORT` / `OPENSEARCH_USER` / `OPENSEARCH_PASSWORD` in
+`back_dev_home/.env` (port defaults to 443/SSL).
+
+**`lot_cd` is NOT a meas_hist field.** The device catalog (`/devices`) is built
+from a separate **Redis** `device_desc` DataFrame intersected with the lot_cds
+active in the OpenSearch `ebeam_tas_lot_hist` index over the last 60 days — so
+`/devices` also needs `REDIS_*` in `.env` (see the `/devices` section below).
+
+Still isolated behind an explicit `NotImplementedError` (needs the meas_hist_*
+↔ lot_cd link, not yet confirmed):
+
+- the optional `lot_cd` drill-down on ranking / summary / daily-trend
+  (`_lot_ids_for_lot_cd`)
+- `sample_lot_cds` on ranking rows (returns `[]` in the meantime)
+
+The OpenSearch-native paths (summary, daily-trend, core ranking, anchor) drive
+the main 전체 요약 dashboard on their own; the contract gate never passes
+`lot_cd`, so the drill-down stub does not block it.
 
 ## Shared: get_anchor_time()
 
@@ -17,7 +52,10 @@
   at process start (`datetime.now(timezone.utc)`), NOT a fixed mock date —
   the TAT dashboard's "last 30 days" default must always mean the real last
   30 days in every phase.
-- Office data source: <!-- OFFICE: max(timestamp) over the real meas_hist index, not wall-clock -->
+- Office data source: `max(timestamp)` aggregation across both aliases
+  (`meas_hist_cdsem,meas_hist_hvsem`), parsed to an aware-UTC `datetime` and
+  cached once per process (mirrors the mock pinning `ANCHOR_TIME` at import).
+  Falls back to wall-clock `now()` only when neither alias has any rows.
 - Notes: per the module docstring, an office implementation must anchor on
   the real index's latest timestamp, not wall-clock `now()` — the two only
   coincide if the office index is fully up to date.
@@ -50,7 +88,14 @@
   explicitly tie-broken). Truncated to `limit` (default 1000).
   `sample_lot_cds`/`sample_eqp_ids` are each capped to the first 5 distinct
   values (sorted), not the full set.
-- Office data source: <!-- OFFICE: OpenSearch meas_hist index, terms aggregation on (class_name, recipe_name) with sum(meastime) + cardinality/top-hits sub-aggs -->
+- Office data source: `terms` aggregation on `full_name.keyword` (the
+  `class_name/recipe_name` composite = the group key), ordered by
+  `sum(meastime)` desc, `size = limit`. Per bucket: `doc_count` → `meas_counts`,
+  `sum(meastime)` → `total_meastime`, a `top_hits` (size 1) recovers
+  `class_name`/`recipe_name`/`full_name`, and a `terms` sub-agg on
+  `eqp_id.keyword` (size 5, then sorted) fills `sample_eqp_ids`.
+  `sample_lot_cds` stays `[]` until the Redis lot_cd source is wired.
+  Passing `lot_cd` resolves to `lot_id` terms via the (pending) Redis map.
 - Notes: `rank` is 1-indexed and reflects position after both sorting and
   `limit` truncation.
 
@@ -78,7 +123,12 @@
   divides for `avg_meastime` (`0.0` when there are zero executions — no
   division-by-zero error). `anchor_date` echoes `ANCHOR_TIME.date()`, not the
   requested `end_date`.
-- Office data source: <!-- OFFICE: OpenSearch meas_hist index aggregation (sum + cardinality) over the same bool filter as /ranking -->
+- Office data source: a single aggregation over the same `bool.filter` as
+  /ranking — `sum(meastime)` → `total_tat_seconds`, `value_count(meastime)`
+  → `total_executions` (every doc has `meastime`), `cardinality(full_name.keyword)`
+  → `total_recipes` (exact at this cardinality). `avg_meastime` = `sum/count`
+  (`0.0` when count is 0 — no div-by-zero). `anchor_date` echoes
+  `get_anchor_time().date()`, independent of the requested `end_date`.
 - Notes: `anchor_date` is the date-picker ceiling, independent of whatever
   `start_date`/`end_date` the caller requested.
 
@@ -100,7 +150,11 @@
   backfills every calendar day between `start_date` and `end_date`
   (inclusive) with a zero-valued point so the trend chart has a continuous
   x-axis with no gaps. Sorted by `date` ascending.
-- Office data source: <!-- OFFICE: OpenSearch date-histogram aggregation (daily interval) over the same bool filter, zero-filled for empty buckets -->
+- Office data source: a `date_histogram` on `timestamp` (`calendar_interval:
+  day`, `format: yyyy-MM-dd`, UTC) with a `sum(meastime)` sub-agg over the same
+  `bool.filter`. `min_doc_count: 0` + `extended_bounds` (`start_date`..`end_date`)
+  zero-fills every empty calendar day, giving the same continuous x-axis the
+  mock backfills. Buckets come back date-ascending.
 - Notes: the backfill only runs when both `start_date`/`end_date` parse as
   valid dates — an office adapter should preserve the same zero-fill
   guarantee so the frontend never has to special-case missing days.
@@ -127,10 +181,36 @@
   pair is populated per lot in practice). Sorted by `total_meastime`
   descending. Only lots with at least one measurement in scope are returned
   (no zero-count rows).
-- Office data source: <!-- OFFICE: OpenSearch meas_hist index terms aggregation on lot_cd, joined with device/product metadata lookup -->
+- Office data source: the **device catalog** = Redis `device_desc` DataFrame
+  (lot_cd catalog: `fac_id, lot_cd, stn_desc, chg_tm, tech_nm, rnd_connector`)
+  intersected with the lot_cds active in OpenSearch `ebeam_tas_lot_hist` over
+  the last 60 days (`range_dataframe_all(time_field="event_tm", days=60)`,
+  unique `lot_cd`). Retired lot_cds (not seen in 60 days) and active lot_cds
+  not in the catalog are dropped. `fab_id` narrows at **fac_id** granularity
+  (device_desc has no fab_name; `M16A→M16`, `R3/R4→R3`). `tech_nm` comes from
+  the catalog; `exec_count` is the lot's 60-day activity count.
+  PENDING confirmation (asked): (1) a per-device TAT source for
+  `total_meastime` (currently `0`, rows ordered by `exec_count`); (2) the R3
+  `prod_catg_cd` source — the mock uses `r3_device_grp`, so if that
+  DataFrame is in office Redis too, R3 rows can populate `prod_catg_cd`
+  (currently `None`). `tool_type`/date range are not applied (catalog is not
+  tool-split; liveness is the fixed 60-day window).
 - Notes: drives the "디바이스별" quick-filter chip strip — an empty result is
   valid (no chips), not an error.
 
 ## Verify
 
+Standalone smoke test (prints anchor + per-tool summary/ranking/trend;
+loads `.env` itself, needs OpenSearch reachable):
+
+    .venv/bin/python -m back_dev_home.ebeam.hitachi.recipe_tat.providers.office
+
+Contract gate (`.env` loaded by `back_dev_home/conftest.py`):
+
     SKEWNONO_RECIPE_TAT_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_tat
+
+Both run from the repo root. All four contract cases should pass once
+OpenSearch (`meas_hist_*`, `ebeam_tas_lot_hist`) and Redis (`device_desc`) are
+reachable and populated — the gate never passes `lot_cd`, so the pending
+drill-down stub does not block it. `test_get_devices` additionally needs
+`REDIS_*` set.

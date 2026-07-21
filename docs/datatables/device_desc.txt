@@ -10,3 +10,25 @@ ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "
 chg_tm -> 개발 정보 등록 또는 변경된 시점 (예: 2019-09-30T17:30:33Z)
 tech_nm-> 테크 코드 (예, TP, 4G, AA, 7D), None
 rnd_connector -> 연구 개발에서 이용된 테크 코드명 (lot_cd가 R로 시작할 경우 tech_nm과 rnd_connector는 같은 value 사용)
+
+========================================================================
+사무실(Office) 실데이터 소스 — Redis
+========================================================================
+
+사무실에서는 이 카탈로그가 Redis 에 pandas DataFrame 으로 저장됩니다.
+
+Key   -> "device_desc" (DataFrame, parquet 직렬화)
+Column -> fac_id, lot_cd, stn_desc, chg_tm, tech_nm, rnd_connector
+  (mock 문서의 ctn_desc 는 사무실 컬럼명 기준 stn_desc 로 대응됩니다.
+   device 설명 컬럼이라는 의미는 동일합니다.)
+
+사용 방법(recipe_tat 디바이스별 화면)
+
+- device_desc 는 폐기된 lot_cd 까지 전부 포함하므로, OpenSearch
+  ebeam_tas_lot_hist 의 최근 60일 unique lot_cd 와 교집합을 취해 "현재 생산
+  중" device 만 표시합니다.
+- fab_name 컬럼이 없으므로 화면 fab 선택은 fac_id 단위로 좁힙니다
+  (M16A/B/C -> M16, R3/R4 -> R3).
+- M fab device 의 tech_nm 은 그대로 사용합니다. R3/R&D 의 prod_catg_cd 는
+  r3_device_grp 에서 가져옵니다(lot_cd 가 R 로 시작하면 tech_nm 과
+  rnd_connector 가 같은 값).
