@@ -24,6 +24,7 @@ MIGRATION.md.
 import os
 import pickle
 import sys
+from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path
 
@@ -78,7 +79,11 @@ def _load_env_file() -> None:
         load_dotenv(Path(pkg_file).with_name(".env"))
 
 
+@lru_cache(maxsize=1)
 def _redis_client() -> redis.Redis:
+    # Cached: one client (and its connection pool) per process instead of a
+    # fresh TCP connect per request. redis-py re-establishes dropped pool
+    # connections per command, so reuse is safe across backend restarts.
     host = os.environ.get("REDIS_HOST")
     if not host:
         _load_env_file()

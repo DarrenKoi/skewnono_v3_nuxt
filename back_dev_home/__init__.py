@@ -56,6 +56,56 @@ def _install_json_error_handlers(app: Flask) -> None:
         message = err.description or err.name or "error"
         return error_json(code, message, err.code or 500)
 
+    # Office adapters fail loudly on backing-store trouble: bare LookupError
+    # for a missing Redis key / OpenSearch alias, bare RuntimeError for unset
+    # env config. Without handlers those land as opaque HTML 500 tracebacks;
+    # map them to JSON 502 (bad upstream data) / 503 (backend unconfigured or
+    # unreachable) so the SPA can show the message. Only the *exact* base
+    # types are adapter signals — subclasses (KeyError, NotImplementedError,
+    # ...) are programming bugs and must stay real 500s.
+    def _internal_500(err: Exception):
+        app.logger.exception("unhandled error")
+        return error_json("internal_server_error", "internal server error", 500)
+
+    @app.errorhandler(LookupError)
+    def _json_upstream_data_error(err: LookupError):
+        if type(err) is not LookupError:
+            return _internal_500(err)
+        app.logger.exception("upstream data error")
+        return error_json("upstream_data_error", str(err) or "upstream data error", 502)
+
+    @app.errorhandler(RuntimeError)
+    def _json_backend_config_error(err: RuntimeError):
+        if type(err) is not RuntimeError:
+            return _internal_500(err)
+        app.logger.exception("backend configuration error")
+        return error_json("backend_unavailable", str(err) or "backend unavailable", 503)
+
+    # Driver-specific connection failures (redis/opensearch do NOT subclass
+    # the builtin ConnectionError). Imported lazily: the drivers are only
+    # required where office providers run.
+    try:
+        from redis.exceptions import ConnectionError as RedisConnectionError
+
+        @app.errorhandler(RedisConnectionError)
+        def _json_redis_conn_error(err: Exception):
+            app.logger.exception("redis connection error")
+            return error_json("backend_unreachable", str(err) or "Redis unreachable", 503)
+    except ImportError:
+        pass
+
+    try:
+        from opensearchpy.exceptions import ConnectionError as OSConnectionError
+
+        @app.errorhandler(OSConnectionError)
+        def _json_opensearch_conn_error(err: Exception):
+            app.logger.exception("opensearch connection error")
+            return error_json(
+                "backend_unreachable", str(err) or "OpenSearch unreachable", 503
+            )
+    except ImportError:
+        pass
+
 
 def create_app() -> Flask:
     load_dotenv(Path(__file__).parent / ".env")
