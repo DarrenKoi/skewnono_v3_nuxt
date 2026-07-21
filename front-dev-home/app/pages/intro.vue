@@ -88,10 +88,8 @@
                 흩어진 측정·장비 데이터를 연결해 더 신뢰할 수 있는 판단으로
               </p>
               <p class="mt-3 sk-body leading-7 md:text-base">
-                측정값 하나만으로는 공정이 제대로 진행되었는지, 문제의 원인이 어디에 있는지
-                판단하기 어렵습니다. SKEWNONO는 CD와 Recipe 이력뿐 아니라 FDC, Beam Calibration,
-                Hardware 설정값, BM/PM 일정 등 여러 데이터를 한곳에서 함께 확인해 엔지니어가
-                데이터의 맥락과 신뢰도를 판단하도록 돕는 Metrology Workspace입니다.
+                측정값 하나만으로는 문제의 원인을 판단하기 어렵습니다. SKEWNONO는 관련 데이터를
+                한곳에 모아 데이터의 맥락과 신뢰도를 함께 확인하는 Metrology Workspace입니다.
               </p>
             </div>
           </header>
@@ -108,9 +106,8 @@
                 </h2>
               </div>
               <p class="mt-3 sk-body leading-7">
-                장비에서 이상이 관찰되면 최근 해당 Recipe에서 오측정이 반복되었는지와 장비의
-                Hardware 상태를 함께 살펴야 합니다. SKEWNONO는 서로 떨어져 있던 정보를 연결해
-                장비, Wafer 상태, 공정 영향 중 어디에서 차이가 시작되었는지 관찰할 수 있게 합니다.
+                장비 이상이 관찰되면 Recipe 오측정 이력과 Hardware 상태를 함께 살펴야 합니다.
+                SKEWNONO는 떨어져 있던 정보를 연결해 차이가 시작된 지점을 좁혀 가도록 돕습니다.
               </p>
             </div>
 
@@ -131,26 +128,16 @@
                 </div>
               </div>
               <p class="mt-4 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
-                SKEW는 데이터가 한쪽으로 치우치거나 기준에서 어긋나는 현상입니다. 원인을 알 수 없는
-                SKEW는 판단을 흐리고 모두를 지치게 합니다. 그래서 SKEW는 있어서는 안 될 NO-NO입니다.
-              </p>
-              <p class="mt-3 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
-                SKEWNONO는 빠르고 정확한 분석으로 SKEW의 참원인을 찾아 없애고자 합니다.
-                나란히 기울어진 채 살짝 벌어진 두 개의 바는 CD Bar 측정과 그 사이에서 드러나는 SKEW를
-                함께 나타냅니다.
+                SKEW는 데이터가 기준에서 어긋나는 현상이고, 원인 모를 SKEW는 있어서는 안 될
+                NO-NO입니다. 나란히 기울어진 두 개의 바는 CD Bar와 그 사이의 SKEW를 나타냅니다.
               </p>
             </div>
           </section>
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
-            <div class="max-w-3xl">
-              <h2 class="sk-heading">
-                함께 확인하는 데이터
-              </h2>
-              <p class="mt-2 sk-body leading-6">
-                하나의 수치만 보는 대신 서로 다른 신호를 같은 맥락에서 연결해 확인합니다.
-              </p>
-            </div>
+            <h2 class="sk-heading">
+              함께 확인하는 데이터
+            </h2>
             <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div
                 v-for="source in dataSources"
@@ -172,15 +159,9 @@
           </section>
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
-            <div class="max-w-3xl">
-              <h2 class="sk-heading">
-                문제를 확인하는 흐름
-              </h2>
-              <p class="mt-2 sk-body leading-6">
-                SKEWNONO는 하나의 결과를 단정하기보다, 엔지니어가 근거를 넓혀 가며 원인에
-                접근하도록 돕습니다.
-              </p>
-            </div>
+            <h2 class="sk-heading">
+              문제를 확인하는 흐름
+            </h2>
             <ol class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <li
                 v-for="(step, index) in diagnosisSteps"
@@ -201,15 +182,9 @@
           </section>
 
           <section>
-            <div class="mb-4 max-w-3xl">
-              <h2 class="sk-heading">
-                주요 사용자
-              </h2>
-              <p class="mt-2 sk-body leading-6">
-                공정, 소자, MI Engineer가 같은 데이터를 각자의 업무 관점에서 확인할 수 있도록
-                개발하고 있습니다.
-              </p>
-            </div>
+            <h2 class="mb-4 sk-heading">
+              주요 사용자
+            </h2>
             <div class="grid gap-4 md:grid-cols-2">
               <div
                 v-for="audience in audiences"
@@ -265,9 +240,8 @@
                 </h2>
               </div>
               <p class="mt-3 sk-body leading-7">
-                현재 SKEWNONO는 여러 근거를 한곳에 모아 엔지니어가 직접 비교하고 판단하도록
-                지원합니다. 화면의 데이터는 최종 판정을 대신하는 결과가 아니라, 문제를 더 빠르고
-                넓게 살펴보기 위한 근거입니다.
+                화면의 데이터는 최종 판정이 아니라, 엔지니어가 직접 비교하고 판단하기 위한
+                근거입니다.
               </p>
             </div>
 
@@ -282,8 +256,8 @@
                 </h2>
               </div>
               <p class="mt-3 sk-body leading-7">
-                장기적으로는 이상 징후 감지, 원인 후보 제시, 점검 순서 추천, 보고서 생성을 수행하며
-                엔지니어와 함께 문제를 해결하는 AI Agent로 발전하는 것을 목표로 합니다.
+                이상 징후 감지, 원인 후보 제시, 보고서 생성까지 함께하는 AI Agent로 발전하는 것을
+                목표로 합니다.
               </p>
             </div>
           </section>
@@ -295,8 +269,8 @@
                   원하는 데이터부터 바로 확인하세요
                 </h2>
                 <p class="mt-2 sk-body leading-6">
-                  왼쪽 목록에서 페이지를 선택해 목적과 화면 구성을 확인한 뒤, 원하는 Navigation Tab으로
-                  이동하면 됩니다. 화면 없이 데이터를 직접 가져가려는 개발자는 API 리스트를 참고하십시오.
+                  왼쪽 목록에서 페이지별 안내를 확인하세요. 데이터를 직접 가져가려는 개발자는
+                  API 리스트를 참고하십시오.
                 </p>
                 <div class="mt-4 flex items-center gap-2 sk-meta">
                   <UIcon
@@ -500,12 +474,12 @@ const audiences = [
   {
     title: 'MI Engineer',
     icon: 'i-lucide-microscope',
-    description: '장비 관리가 우선인 사용자는 장비 목록, Storage 상태, Hardware 화면에서 장비의 현재 상태와 유지보수 맥락을 자주 확인합니다.'
+    description: '장비 목록, Storage, Hardware 화면에서 장비 상태와 유지보수 맥락을 확인합니다.'
   },
   {
     title: '공정·소자 Engineer',
     icon: 'i-lucide-chart-no-axes-combined',
-    description: 'Recipe와 측정 데이터, 분석 화면을 연결해 관찰된 차이가 Wafer 상태나 공정 영향과 관련되는지 살펴봅니다.'
+    description: 'Recipe와 측정 데이터를 연결해 관찰된 차이가 Wafer나 공정 영향인지 살펴봅니다.'
   }
 ]
 

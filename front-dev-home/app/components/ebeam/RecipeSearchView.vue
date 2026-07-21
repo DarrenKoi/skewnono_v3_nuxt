@@ -279,21 +279,15 @@ const openMeasHist = (recipeName: string) => {
             <p class="sk-eyebrow">
               RECIPE LOOKUP
             </p>
-            <div class="mt-0.5 flex items-baseline justify-between gap-2">
-              <h2 class="sk-title">
-                Recipe 검색
-              </h2>
-              <span class="font-mono text-[10px] text-(--sk-ink-subtle)">3자 이상</span>
-            </div>
+            <h2 class="mt-0.5 sk-title">
+              검색어 입력
+            </h2>
             <p class="mt-1 sk-meta">
-              Recipe 이름의 전체 또는 일부를 입력하여 DB를 조회합니다.
+              Recipe 이름의 전체 또는 일부를 입력해 조회합니다.
             </p>
           </header>
 
           <div class="flex flex-1 flex-col p-3">
-            <p class="mb-2 px-0.5 sk-meta">
-              검색 · <span class="font-semibold text-zinc-600 dark:text-zinc-300">Recipe 이름</span> · DB
-            </p>
             <form
               class="flex min-w-0 items-center gap-2"
               @submit.prevent="commitSearch"
@@ -346,12 +340,6 @@ const openMeasHist = (recipeName: string) => {
                 {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} / {{ refinedCount.toLocaleString() }}
               </span>
             </div>
-            <p
-              v-else
-              class="mt-2.5 text-[11px] text-(--sk-ink-muted)"
-            >
-              Recipe 이름을 3자 이상 입력하면 검색할 수 있습니다.
-            </p>
           </div>
         </section>
 
@@ -469,10 +457,10 @@ const openMeasHist = (recipeName: string) => {
               class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
             />
             <p class="mt-2 sk-body">
-              3자 이상 입력해주세요
+              검색어를 3자 이상 입력하면 결과가 표시됩니다.
             </p>
             <p class="mt-1 sk-meta">
-              Recipe 이름을 3자 이상 입력하면 검색이 시작됩니다. · 체크하면 여러 recipe를 한 번에 열거나 비교할 수 있습니다.
+              체크하면 여러 Recipe를 한 번에 열거나 비교할 수 있습니다.
             </p>
           </div>
 

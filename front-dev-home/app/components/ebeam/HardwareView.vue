@@ -32,7 +32,7 @@ const hardwareServices: HardwareService[] = [
   { key: 'fdc', label: 'FDC', title: 'Fault Detection & Classification', description: '실시간 fault signal, alarm trend, classification 상태를 장비 단위로 확인합니다.', icon: 'i-lucide-activity', category: '데일리' },
   { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-focus', category: '데일리' },
   { key: 'bm-pm', label: 'BM/PM', title: 'BM / PM Information', description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.', icon: 'i-lucide-wrench', category: '분기' },
-  { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: '장비 상태를 나타내는 지표 중 하나인 Beam Shape을 모니터링 합니다.', icon: 'i-lucide-radar', category: '분기' },
+  { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: 'Beam Shape 상태와 추이를 모니터링합니다.', icon: 'i-lucide-radar', category: '분기' },
   { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 focus sweep를 추적합니다.', icon: 'i-lucide-crosshair', category: '분기' },
   { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3', category: '분기' },
   { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' }
@@ -442,10 +442,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <section class="dashboard-surface flex-1 rounded-2xl p-4">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="sk-eyebrow">
-                {{ activeServiceDetail.label }}
-              </p>
-              <h2 class="mt-1 sk-heading">
+              <h2 class="sk-heading">
                 {{ activeServiceDetail.title }}
               </h2>
               <p class="mt-1 max-w-2xl sk-body">
@@ -479,46 +476,52 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
             </template>
             <template v-else-if="servicePayload">
               <div class="flex flex-col gap-2">
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
-                  <span
-                    class="inline-flex items-center gap-1.5 text-xs font-semibold"
-                    :class="servicePayload.available
-                      ? 'text-emerald-700 dark:text-emerald-300'
-                      : 'text-amber-700 dark:text-amber-300'"
-                  >
-                    <span class="h-1.5 w-1.5 rounded-full bg-current" />
-                    {{ servicePayload.available ? 'Available' : 'Not available' }}
-                  </span>
-                  <span class="font-mono text-xs text-(--sk-ink-muted)">
-                    {{ servicePayload.fetched_at }}
-                  </span>
-                </div>
-                <p>{{ servicePayload.summary }}</p>
-                <dl
-                  v-if="visibleCards.length"
-                  class="mt-1 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4"
-                >
-                  <div
-                    v-for="card in visibleCards"
-                    :key="card.key"
-                    class="rounded-xl bg-(--sk-surface) px-3 py-2.5 ring-1 ring-(--sk-border-soft)"
-                  >
-                    <dt class="sk-eyebrow">
-                      {{ card.label }}
-                    </dt>
-                    <dd
-                      class="mt-1 font-mono text-lg font-bold tabular-nums"
-                      :class="metricToneClass(card.tone)"
+                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span
+                      class="inline-flex items-center gap-1.5 text-xs font-semibold"
+                      :class="servicePayload.available
+                        ? 'text-emerald-700 dark:text-emerald-300'
+                        : 'text-amber-700 dark:text-amber-300'"
                     >
-                      {{ formatMetricValue(card.value) }}
-                      <span
-                        v-if="card.unit"
-                        class="ml-1 text-xs font-semibold text-(--sk-ink-muted)"
-                      >{{ card.unit }}</span>
-                    </dd>
+                      <span class="h-1.5 w-1.5 rounded-full bg-current" />
+                      {{ servicePayload.available ? 'Available' : 'Not available' }}
+                    </span>
+                    <span class="font-mono text-xs text-(--sk-ink-muted)">
+                      {{ servicePayload.fetched_at }}
+                    </span>
                   </div>
-                </dl>
+                  <!-- Compact metric strip (문서수 · 기준일 · 최신 측정 …) -->
+                  <dl
+                    v-if="visibleCards.length"
+                    class="flex flex-wrap items-baseline gap-x-4 gap-y-1"
+                  >
+                    <div
+                      v-for="card in visibleCards"
+                      :key="card.key"
+                      class="flex items-baseline gap-1.5"
+                    >
+                      <dt class="sk-eyebrow">
+                        {{ card.label }}
+                      </dt>
+                      <dd
+                        class="font-mono text-xs font-semibold tabular-nums"
+                        :class="metricToneClass(card.tone)"
+                      >
+                        {{ formatMetricValue(card.value) }}<span
+                          v-if="card.unit"
+                          class="ml-0.5 font-normal text-(--sk-ink-muted)"
+                        >{{ card.unit }}</span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <!-- Normal payloads carry a boilerplate summary that restates the
+                     tab description above; only hint/unavailable payloads (empty
+                     cards) say something the header doesn't. -->
+                <p v-if="!servicePayload.available || servicePayload.cards.length === 0">
+                  {{ servicePayload.summary }}
+                </p>
 
                 <!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
                 <EbeamHardwareBmPmTables
