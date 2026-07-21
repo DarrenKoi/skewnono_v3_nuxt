@@ -74,6 +74,9 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
 
 _LOG = logging.getLogger(__name__)
 
+# Korea has no DST — a fixed +09:00 offset is exact (mirrors mock.py's KST).
+_KST = timezone(timedelta(hours=9), "KST")
+
 _CACHE_TTL_SECONDS = 900  # backing catalogs refresh at most every 15 minutes
 
 
@@ -411,13 +414,20 @@ def get_anchor_time() -> datetime:
     TTL-cached: stable within a burst of requests (like the mock's fixed
     ANCHOR_TIME) but follows new ingestion days in a long-lived process.
     Falls back to wall-clock now only when neither alias has any rows.
+
+    Timezone: the office indices store KST wall-clock timestamps without an
+    offset, so OpenSearch treats them as UTC throughout — the range filter,
+    the daily histogram (no ``time_zone`` param), and this max all operate on
+    the same KST-as-UTC values, and ``.date()`` on the parsed anchor is the
+    Korean calendar day. Consistent as long as no component adds an offset;
+    the wall-clock fallback therefore uses KST, not UTC, to match.
     """
     aggs = {"max_ts": {"max": {"field": _TIME_F}}}
     result = _aggregate(_ALL_INDICES, aggs, query=None)
     value = result.get("max_ts", {}).get("value_as_string")
     if value:
         return _parse_dt(value)
-    return datetime.now(timezone.utc).replace(microsecond=0)
+    return datetime.now(_KST).replace(microsecond=0)
 
 
 def get_meas_hist(*args: Any, **kwargs: Any) -> Any:

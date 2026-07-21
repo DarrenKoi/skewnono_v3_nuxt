@@ -65,7 +65,14 @@ __all__ = [
 # "today minus 30 days" in any deployment phase per CLAUDE.md's cross-phase
 # principle — anchoring on a fixed mock date would force the frontend to
 # special-case Phase 1 vs 2/3.
-ANCHOR_TIME = datetime.now(timezone.utc).replace(microsecond=0)
+#
+# KST, not UTC: every deployment phase serves Korean fabs, and a UTC anchor
+# makes anchor_date (the 데이터 기준 badge and the default window's end) read
+# yesterday's date between 00:00 and 09:00 KST. Korea has no DST, so a fixed
+# +09:00 offset is exact and avoids zoneinfo/tzdata availability concerns on
+# Windows office hosts.
+KST = timezone(timedelta(hours=9), "KST")
+ANCHOR_TIME = datetime.now(KST).replace(microsecond=0)
 
 
 # Tool model -> tool type mapping. CG family is CD-SEM; TP / VERITYSEM /
