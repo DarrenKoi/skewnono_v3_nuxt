@@ -17,8 +17,9 @@ below self-load it for standalone runs):
                — via the shared fail-fast client in `_runtime/office_redis.py`
 - OpenSearch : `OPENSEARCH_*` (read by `ops_store`), index `meas_hist_cdsem`,
                "up" when the newest doc's `timestamp` is < 1h old
-- MinIO      : `MINIO_*` (read by `minio_handler`), stats the object named by
-               that newest doc's `minio_path` ("bucket/key"), "up" when its
+- MinIO      : `minio_handler/minio_config.py` (gitignored — NOT .env; env
+               vars would override that file), stats the object named by that
+               newest doc's `minio_path` ("bucket/key"), "up" when its
                `last_modified` is < 1h old
 
 Contract invariant preserved from mock: `get_services_health()` never raises
@@ -142,7 +143,8 @@ def _check_minio(latest_doc: dict[str, Any] | None) -> ServiceHealth:
 
         bucket, key = _parse_minio_path(str(path))
 
-        load_env_file("MINIO_ENDPOINT")
+        # No load_env_file here: MinIO reads no env at all — endpoint, keys and
+        # TLS flags come from minio_handler/minio_config.py.
         from minio.error import S3Error
         from minio_handler import MinioObject
 

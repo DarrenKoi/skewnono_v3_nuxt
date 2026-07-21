@@ -115,14 +115,19 @@ frame = search.search_dataframe_all(
 
 ### 3.2 `minio_handler`
 
-`MinioObject(bucket=..., prefix=...)`는 다음 `MINIO_*` 환경 변수를 읽습니다.
+MinIO 접속 설정은 `minio_handler/minio_config.py` 한 곳에서만 관리합니다. endpoint,
+access key, secret key, secure, region, cert_check와 기본 bucket·prefix가 모두 이
+파일에 들어갑니다. 이 파일은 `.gitignore`에 등록되어 있어 Git에 올라가지 않으며,
+home과 office가 각자의 사본을 유지합니다.
 
-- `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
-- `MINIO_SECURE`, `MINIO_REGION`, `MINIO_CERT_CHECK`
+`MINIO_*` 환경 변수는 사용하지 않습니다. `minio_handler/base.py`에서 환경 변수가
+`minio_config.py`보다 **높은** 우선순위를 가지므로, `.env`에 `MINIO_*` 한 줄만
+남아 있어도 실제로 관리하는 파일의 값을 조용히 덮어씁니다. 특히 값이 빈
+`MINIO_SECRET_KEY=`는 "설정하지 않음"이 아니라 `""`으로 읽혀 `None`으로 해석되므로,
+정상적인 secret key를 아무 오류 없이 무효화합니다. 그래서 `back_dev_home/.env.example`의
+MinIO 절에는 자격 증명을 두지 않습니다.
 
 bucket과 prefix는 피처 연결 명세에 기록하고 `MinioObject` 생성 시 명시합니다.
-`minio_handler/minio_config.py`는 로컬 전용으로 취급하고 Git에서 제외해야 합니다. office/production은
-환경 변수 또는 secret manager를 사용합니다.
 
 ```python
 from minio_handler import MinioObject
