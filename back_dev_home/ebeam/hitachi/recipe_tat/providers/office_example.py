@@ -32,17 +32,17 @@ same vars ``ops_store`` reads). At the office: fill in .env,
 ``cp office_example.py office.py``, set ``SKEWNONO_RECIPE_TAT_PROVIDER=office``,
 then run the Verify command in MIGRATION.md.
 
-DEVICE CATALOG (``get_devices``): ``lot_cd`` is not on the meas_hist_*
-documents. The device list is the Redis ``device_desc`` DataFrame
-(``lot_cd`` catalog) intersected with the lot_cds active in the
-``ebeam_tas_lot_hist`` OpenSearch index over the last 60 days (``event_tm``).
+DEVICE / lot_cd JOIN: ``lot_cd`` is not on the meas_hist_* documents, and
+``lot_id`` does not encode it. The fab-system lot-history index
+(``ebeam_tas_lot_hist``) carries both ``lot_id`` and ``lot_cd`` (its ``lot_id``
+matches meas_hist's), so it is the bridge — last-60-day slice, cached. It
+powers: ``get_devices`` (aggregate meas_hist by ``lot_id`` in scope → map to
+``lot_cd`` → roll up), the ``lot_cd`` drill-down on ranking/summary/daily-trend
+(``lot_cd`` → its ``lot_id`` set → ``terms(lot_id.keyword)`` filter), and
+``sample_lot_cds`` on ranking rows.
 
-STILL PENDING confirmation: (1) a per-device TAT source for
-``total_meastime`` (currently 0, ordered by activity count); (2) the R3/R&D
-``prod_catg_cd`` source (currently None); (3) how a meas_hist_* ``lot_id``
-relates to a ``lot_cd`` — needed for the ``lot_cd`` drill-down on
-ranking/summary/daily-trend and ``sample_lot_cds`` (which stays ``[]``).
-These are isolated in ``_lot_ids_for_lot_cd`` / ``get_devices`` below.
+STILL PENDING: the R3/R&D ``prod_catg_cd`` source (``r3_device_grp``) —
+``prod_catg_cd`` stays ``None`` until it is wired.
 """
 
 import os
@@ -189,11 +189,12 @@ def _aggregate(index: str, aggs: dict[str, Any], query: dict[str, Any] | None) -
     return result.get("aggregations", {})
 
 
-# ───────────────────────── device catalog (Redis + lot-history) ─────────────
-# lot_cd is NOT a field on the meas_hist_* documents. The device catalog comes
-# from a Redis DataFrame; the "currently manufactured" subset is defined by the
-# lot_cds seen in the fab-system lot-history OpenSearch index over the last 60
-# days. get_devices joins the two.
+# ─────────────────── device catalog + lot_id<->lot_cd bridge ────────────────
+# lot_cd is NOT a field on the meas_hist_* documents (and lot_id does not encode
+# lot_cd). The fab-system lot-history index (ebeam_tas_lot_hist) carries both,
+# so it is the bridge: it maps each meas_hist lot_id to a lot_cd AND, over the
+# last 60 days, defines the currently-active device set. device_desc (Redis)
+# supplies the per-lot_cd display metadata.
 
 _DEVICE_DESC_KEY = "device_desc"          # Redis parquet DataFrame (M-fab catalog)
 _LOT_HIST_INDEX = "ebeam_tas_lot_hist"    # OpenSearch: fab-system measurement history
@@ -243,18 +244,6 @@ def _text(value: Any) -> str:
     return str(value).strip()
 
 
-def _fab_to_fac(fab_name: str) -> str:
-    """Collapse a fab_name to its fac_id (device_desc only carries fac_id).
-
-    Mirrors the frontend ``fabNameToFacId``: M-fabs drop the A/B/C suffix
-    (M16A -> M16); R3/R4 both roll up to R3.
-    """
-    fab = fab_name.strip().upper()
-    if fab.startswith("R"):
-        return "R3"
-    return fab[:3]
-
-
 @lru_cache(maxsize=1)
 def _device_desc() -> dict[str, dict[str, str]]:
     """lot_cd -> device metadata, from the Redis ``device_desc`` DataFrame.
@@ -284,36 +273,65 @@ def _device_desc() -> dict[str, dict[str, str]]:
 
 
 @lru_cache(maxsize=1)
-def _current_lot_counts() -> dict[str, int]:
-    """lot_cd -> execution count over the last 60 days, from ebeam_tas_lot_hist.
+def _lot_hist_df() -> pd.DataFrame:
+    """Last-60-day slice of ebeam_tas_lot_hist — the lot_id<->lot_cd bridge.
 
-    Per the office spec: pull the last-60-day slice with range_dataframe_all
-    (time_field ``event_tm``) and take the lot_cd column. The unique lot_cds are
-    the "currently manufactured" set; the per-lot_cd row count is the activity
-    count. Cached once per process (the window is expensive to scan).
+    meas_hist_* documents carry ``lot_id``, not ``lot_cd``, and the two are not
+    derivable from each other. The fab-system lot history carries BOTH, so it is
+    the join table. Pulled once per process with
+    ``range_dataframe_all(time_field="event_tm", days=60)``. Because only lot_ids
+    seen in this window get a lot_cd, the bridge also bounds the device catalog
+    to recently-active lots (older lot_ids resolve to no device and drop out).
     """
-    df = _search(_LOT_HIST_INDEX).range_dataframe_all(
+    return _search(_LOT_HIST_INDEX).range_dataframe_all(
         time_field=_LOT_HIST_TIME_F, days=_CURRENT_WINDOW_DAYS
     )
-    if df.empty or "lot_cd" not in df.columns:
+
+
+@lru_cache(maxsize=1)
+def _lot_id_to_lot_cd() -> dict[str, str]:
+    """lot_id -> lot_cd, from the lot-history bridge frame."""
+    df = _lot_hist_df()
+    if df.empty or "lot_id" not in df.columns or "lot_cd" not in df.columns:
         return {}
-    counts: dict[str, int] = {}
-    for value in df["lot_cd"].dropna().tolist():
-        lot_cd = _text(value)
-        if lot_cd:
-            counts[lot_cd] = counts.get(lot_cd, 0) + 1
-    return counts
+    out: dict[str, str] = {}
+    for lot_id, lot_cd in zip(df["lot_id"].tolist(), df["lot_cd"].tolist()):
+        lid, lcd = _text(lot_id), _text(lot_cd)
+        if lid and lcd:
+            out[lid] = lcd
+    return out
 
 
-# lot_cd drill-down on ranking/summary/daily-trend still needs the meas_hist_*
-# <-> lot_cd link (lot_id prefix or a lot_cd field) — not yet confirmed.
+@lru_cache(maxsize=1)
+def _lot_cd_to_lot_ids() -> dict[str, list[str]]:
+    """lot_cd -> [lot_id, ...] (reverse of the bridge)."""
+    reverse: dict[str, list[str]] = {}
+    for lot_id, lot_cd in _lot_id_to_lot_cd().items():
+        reverse.setdefault(lot_cd, []).append(lot_id)
+    return reverse
+
+
+def _try_bridge() -> dict[str, str]:
+    """lot_id->lot_cd map, or {} if the lot-history index is unreachable.
+
+    Used where the map is a nice-to-have (ranking ``sample_lot_cds``) so a
+    lot-history hiccup never breaks the core aggregation. The essential paths
+    (/devices, lot_cd drill-down) call the raising helpers directly.
+    """
+    try:
+        return _lot_id_to_lot_cd()
+    except Exception:  # noqa: BLE001 — degrade sample_lot_cds, keep ranking alive
+        return {}
+
+
 def _lot_ids_for_lot_cd(lot_cd: str) -> list[str]:
-    raise NotImplementedError(
-        "Scoping meas_hist_* by a selected lot_cd is not wired yet: the "
-        "meas_hist documents carry lot_id, not lot_cd. Confirm how lot_id "
-        "relates to lot_cd (e.g. lot_id starts with lot_cd) and implement "
-        "this to return the lot_id filter values."
-    )
+    """The ``lot_id`` values to filter meas_hist_* by, for a selected device.
+
+    Resolved through the lot-history bridge. An unknown lot_cd yields ``[]`` so
+    the caller's ``terms(lot_id.keyword, [])`` matches nothing (an empty scope)
+    rather than silently matching every measurement.
+    """
+    return _lot_cd_to_lot_ids().get(lot_cd, [])
 
 
 # ─────────────────────────────── endpoints ──────────────────────────────────
@@ -365,6 +383,8 @@ def get_ranking(
             "aggs": {
                 "tat": {"sum": {"field": _MEAS_F}},
                 "eqps": {"terms": {"field": _EQP_KW, "size": 5}},
+                # A handful of lot_ids per recipe, mapped to lot_cds below.
+                "lots": {"terms": {"field": "lot_id.keyword", "size": 25}},
                 "top": {
                     "top_hits": {
                         "size": 1,
@@ -376,6 +396,8 @@ def get_ranking(
     }
     result = _aggregate(_INDEX[tool_type], aggs, _query(clauses))
     buckets = result.get("by_recipe", {}).get("buckets", [])
+    # Nice-to-have: never let a lot-history hiccup break the ranking table.
+    bridge = _try_bridge()
 
     rows: list[RankingRow] = []
     for index, bucket in enumerate(buckets):
@@ -387,6 +409,11 @@ def get_ranking(
         )
         eqp_buckets = bucket.get("eqps", {}).get("buckets", [])
         sample_eqps = sorted(str(b["key"]) for b in eqp_buckets)[:5]
+        # Map the recipe's sample lot_ids to their lot_cds (drop unmapped).
+        lot_buckets = bucket.get("lots", {}).get("buckets", [])
+        sample_lot_cds = sorted(
+            {bridge.get(_text(b["key"]), "") for b in lot_buckets} - {""}
+        )[:5]
 
         rows.append(
             RankingRow(
@@ -397,9 +424,7 @@ def get_ranking(
                 meas_counts=meas_counts,
                 total_meastime=total,
                 avg_meastime=avg,
-                # Filled once the Redis lot_cd source is wired; empty list is
-                # a valid RankingRow in the meantime.
-                sample_lot_cds=[],
+                sample_lot_cds=sample_lot_cds,
                 sample_eqp_ids=sample_eqps,
             )
         )
@@ -487,43 +512,54 @@ def get_devices(
     start_date: str | None,
     end_date: str | None,
 ) -> list[DeviceRow]:
-    """Currently-manufactured devices with catalog metadata.
+    """Devices (lot_cds) with measurements in scope, ranked by total TAT.
 
-    The set = lot_cds active in ``ebeam_tas_lot_hist`` over the last 60 days,
-    intersected with the ``device_desc`` Redis catalog (retired lot_cds are
-    dropped). Narrowed by ``fac_id`` when a fab is selected (``device_desc``
-    has no fab_name — only fac_id).
+    meas_hist_* is aggregated by ``lot_id`` within the tool/fab/date scope, each
+    ``lot_id`` is mapped to its ``lot_cd`` through the lot-history bridge, and
+    the per-lot sums are rolled up per device. Because the bridge only knows
+    recently-active lot_ids, an in-scope ``lot_id`` with no mapping is dropped
+    (keeps retired/unknown lots out). ``tech_nm`` comes from ``device_desc``.
 
-    ASSUMPTIONS pending confirmation (see MIGRATION.md):
-    - ``exec_count`` = the lot's 60-day activity count from the lot-history
-      index (meas_hist_* has no lot_cd to count per device).
-    - ``total_meastime`` = 0 until a per-device TAT source is confirmed;
-      rows are ordered by ``exec_count`` desc in the meantime.
-    - ``tech_nm`` comes from ``device_desc``; ``prod_catg_cd`` stays None until
-      the R3/R&D product-category source is provided.
-    - ``tool_type`` / date range are not applied — the catalog is not split by
-      tool family and liveness is the fixed 60-day window.
+    ``exec_count``/``total_meastime`` are the real in-scope execution count and
+    summed ``meastime`` per device. ``prod_catg_cd`` stays None until the
+    R3/R&D product-category source (``r3_device_grp``) is wired.
     """
-    catalog = _device_desc()
-    counts = _current_lot_counts()
-    fac = _fab_to_fac(fab_id) if fab_id else None
+    clauses = _filter_clauses(fab_id, start_date, end_date)
+    aggs = {
+        "by_lot": {
+            "terms": {
+                "field": "lot_id.keyword",
+                "size": 5000,   # top lot_ids by TAT; rolls up to far fewer devices
+                "order": {"tat": "desc"},
+            },
+            "aggs": {"tat": {"sum": {"field": _MEAS_F}}},
+        }
+    }
+    result = _aggregate(_INDEX[tool_type], aggs, _query(clauses))
+    lot_buckets = result.get("by_lot", {}).get("buckets", [])
 
-    rows: list[DeviceRow] = []
-    for lot_cd, exec_count in counts.items():
-        meta = catalog.get(lot_cd)
-        if meta is None:            # active but not in the catalog -> skip
+    bridge = _lot_id_to_lot_cd()
+    catalog = _device_desc()
+
+    rolled: dict[str, dict[str, int]] = {}
+    for bucket in lot_buckets:
+        lot_cd = bridge.get(_text(bucket["key"]))
+        if not lot_cd:              # lot_id not in the recent bridge -> drop
             continue
-        if fac and meta["fac_id"] != fac:
-            continue
-        rows.append(
-            DeviceRow(
-                lot_cd=lot_cd,
-                exec_count=exec_count,
-                total_meastime=0,
-                prod_catg_cd=None,
-                tech_nm=meta["tech_nm"] or None,
-            )
+        agg = rolled.setdefault(lot_cd, {"exec": 0, "tat": 0})
+        agg["exec"] += int(bucket["doc_count"])
+        agg["tat"] += int(bucket.get("tat", {}).get("value") or 0)
+
+    rows = [
+        DeviceRow(
+            lot_cd=lot_cd,
+            exec_count=agg["exec"],
+            total_meastime=agg["tat"],
+            prod_catg_cd=None,
+            tech_nm=(catalog.get(lot_cd, {}).get("tech_nm") or None),
         )
+        for lot_cd, agg in rolled.items()
+    ]
     rows.sort(key=lambda r: (r["total_meastime"], r["exec_count"]), reverse=True)
     return rows
 

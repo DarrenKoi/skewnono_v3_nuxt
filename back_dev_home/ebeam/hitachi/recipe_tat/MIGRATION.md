@@ -26,21 +26,20 @@ exact match / aggregation needs `.keyword`). Connection via `OPENSEARCH_HOST`
 / `OPENSEARCH_PORT` / `OPENSEARCH_USER` / `OPENSEARCH_PASSWORD` in
 `back_dev_home/.env` (port defaults to 443/SSL).
 
-**`lot_cd` is NOT a meas_hist field.** The device catalog (`/devices`) is built
-from a separate **Redis** `device_desc` DataFrame intersected with the lot_cds
-active in the OpenSearch `ebeam_tas_lot_hist` index over the last 60 days — so
-`/devices` also needs `REDIS_*` in `.env` (see the `/devices` section below).
+**`lot_cd` is NOT a meas_hist field** (and `lot_id` does not encode it). The
+**bridge** is OpenSearch `ebeam_tas_lot_hist`, which carries both `lot_id` and
+`lot_cd` (its `lot_id` matches meas_hist's) — pulled as a last-60-day frame and
+cached. It powers three things:
 
-Still isolated behind an explicit `NotImplementedError` (needs the meas_hist_*
-↔ lot_cd link, not yet confirmed):
+- `/devices` — aggregate meas_hist by `lot_id` in scope → map to `lot_cd` →
+  roll up (also needs Redis `device_desc` for `tech_nm`; see below).
+- the `lot_cd` drill-down on ranking / summary / daily-trend — `lot_cd` → its
+  `lot_id` set → `terms(lot_id.keyword)` filter (`_lot_ids_for_lot_cd`).
+- `sample_lot_cds` on ranking rows — a `lot_id` terms sub-agg mapped to lot_cds
+  (wrapped so a lot-history hiccup degrades it to `[]` without breaking ranking).
 
-- the optional `lot_cd` drill-down on ranking / summary / daily-trend
-  (`_lot_ids_for_lot_cd`)
-- `sample_lot_cds` on ranking rows (returns `[]` in the meantime)
-
-The OpenSearch-native paths (summary, daily-trend, core ranking, anchor) drive
-the main 전체 요약 dashboard on their own; the contract gate never passes
-`lot_cd`, so the drill-down stub does not block it.
+The OpenSearch-native paths (summary, daily-trend, core ranking, anchor) still
+work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Shared: get_anchor_time()
 
@@ -87,7 +86,9 @@ the main 전체 요약 dashboard on their own; the contract gate never passes
   `total_meastime` descending (ties keep dict-insertion order — not
   explicitly tie-broken). Truncated to `limit` (default 1000).
   `sample_lot_cds`/`sample_eqp_ids` are each capped to the first 5 distinct
-  values (sorted), not the full set.
+  values (sorted), not the full set. (Office `sample_lot_cds` comes from a
+  `lot_id` terms sub-agg mapped to lot_cds via the bridge; `sample_eqp_ids`
+  from an `eqp_id.keyword` terms sub-agg.)
 - Office data source: `terms` aggregation on `full_name.keyword` (the
   `class_name/recipe_name` composite = the group key), ordered by
   `sum(meastime)` desc, `size = limit`. Per bucket: `doc_count` → `meas_counts`,
@@ -181,20 +182,19 @@ the main 전체 요약 dashboard on their own; the contract gate never passes
   pair is populated per lot in practice). Sorted by `total_meastime`
   descending. Only lots with at least one measurement in scope are returned
   (no zero-count rows).
-- Office data source: the **device catalog** = Redis `device_desc` DataFrame
-  (lot_cd catalog: `fac_id, lot_cd, stn_desc, chg_tm, tech_nm, rnd_connector`)
-  intersected with the lot_cds active in OpenSearch `ebeam_tas_lot_hist` over
-  the last 60 days (`range_dataframe_all(time_field="event_tm", days=60)`,
-  unique `lot_cd`). Retired lot_cds (not seen in 60 days) and active lot_cds
-  not in the catalog are dropped. `fab_id` narrows at **fac_id** granularity
-  (device_desc has no fab_name; `M16A→M16`, `R3/R4→R3`). `tech_nm` comes from
-  the catalog; `exec_count` is the lot's 60-day activity count.
-  PENDING confirmation (asked): (1) a per-device TAT source for
-  `total_meastime` (currently `0`, rows ordered by `exec_count`); (2) the R3
-  `prod_catg_cd` source — the mock uses `r3_device_grp`, so if that
-  DataFrame is in office Redis too, R3 rows can populate `prod_catg_cd`
-  (currently `None`). `tool_type`/date range are not applied (catalog is not
-  tool-split; liveness is the fixed 60-day window).
+- Office data source: aggregate meas_hist_* by `lot_id.keyword` within the
+  tool/fab/date scope (`sum(meastime)` + `doc_count`, top 5000 by TAT), map each
+  `lot_id` to its `lot_cd` through the `ebeam_tas_lot_hist` bridge, and roll the
+  per-lot sums up per device. `lot_id`s absent from the last-60-day bridge (i.e.
+  not recently active) are dropped, keeping retired/unknown lots out. `tech_nm`
+  is joined from the Redis `device_desc` catalog (`fac_id, lot_cd, stn_desc,
+  chg_tm, tech_nm, rnd_connector`). `exec_count`/`total_meastime` are the real
+  in-scope execution count and summed `meastime`; rows are ordered by
+  `total_meastime` desc. `fab_id` filters via `fab_name.keyword` (fine-grained,
+  same as the other endpoints).
+  PENDING: the R3/R&D `prod_catg_cd` source — the mock uses `r3_device_grp`, so
+  if that DataFrame is in office Redis too, R3 rows can populate `prod_catg_cd`
+  (currently `None`).
 - Notes: drives the "디바이스별" quick-filter chip strip — an empty result is
   valid (no chips), not an error.
 
@@ -210,7 +210,7 @@ Contract gate (`.env` loaded by `back_dev_home/conftest.py`):
     SKEWNONO_RECIPE_TAT_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_tat
 
 Both run from the repo root. All four contract cases should pass once
-OpenSearch (`meas_hist_*`, `ebeam_tas_lot_hist`) and Redis (`device_desc`) are
-reachable and populated — the gate never passes `lot_cd`, so the pending
-drill-down stub does not block it. `test_get_devices` additionally needs
-`REDIS_*` set.
+OpenSearch (`meas_hist_*` + `ebeam_tas_lot_hist`) and Redis (`device_desc`) are
+reachable and populated. `test_get_devices` exercises the full bridge
+(meas_hist agg → lot_id→lot_cd map → device_desc join), so it needs both
+`OPENSEARCH_*` and `REDIS_*` set.
