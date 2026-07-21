@@ -99,9 +99,12 @@ Field(mapping) -> Type: 설명
    없습니다. tool_type 은 index(alias) 로 구분하고, lot_cd 는 별도 소스에서
    해결합니다(아래 device 카탈로그 참고).
 3. recipe TAT 집계는 raw row 를 내려받지 않고 서버측 aggregation 으로
-   계산합니다: ranking = terms(full_name.keyword) + sum(meastime) + top_hits,
+   계산합니다: ranking = composite(full_name.keyword) 를 after_key 로 전체
+   페이지 순회(+ sum(meastime), top_hits 서브집계) 후 Python 에서 정렬 —
+   terms 집계는 size 상한에서 잘리고 sum 정렬 시 근사치라 사용하지 않음,
    summary = sum(meastime)+value_count(meastime)+cardinality(full_name.keyword),
    daily-trend = date_histogram(day, extended_bounds 로 빈 날 0 채움).
+   /devices 의 lot_id 집계도 동일하게 composite 전체 순회입니다(top-N 없음).
 4. anchor(날짜 선택 상한) = 두 alias 전체의 max(timestamp).
 
 device 카탈로그(디바이스별 화면)용 lot_cd 해결

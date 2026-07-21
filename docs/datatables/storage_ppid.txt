@@ -1,7 +1,9 @@
 pd.DataFrame
 두개의 dataframe으로 cdsem, hvsem 각각 존재.
-실제 오피스에서는 redis에서 dataframe으로 저장 중.
-예시, df_result_cdsem, df_result_hvsem
+실제 오피스에서는 redis에서 dataframe으로 저장 중 (parquet 직렬화,
+df.to_parquet() 바이트 — 값 앞 4바이트가 b"PAR1").
+redis key: v3_df_ppid_storage_cdsem, v3_df_ppid_storage_hvsem
+(2026-07-21 office 검증. 과거 문서의 df_result_cdsem/hvsem 은 옛 이름.)
 
 DataTable 컬럼 정보
 columns: ['eqp_id', 'eqp_ip', 'fac_id', 'fab_name', 'eqp_model_cd', 'total', 'used', 
@@ -10,7 +12,7 @@ columns: ['eqp_id', 'eqp_ip', 'fac_id', 'fab_name', 'eqp_model_cd', 'total', 'us
 매일 오전 4시 30분에 업데이트하도록 스케줄러 작동 중
 
 
-스토리지 not available은 df_result_cdsem, df_result_hvsem에서 
+스토리지 not available은 v3_df_ppid_storage_cdsem/hvsem에서
 storage_mt가 None이거나 avail value가 없음.
 storage mt는 storage 정보 적재 timestamp
 
@@ -20,8 +22,11 @@ ppid는 recipe_id와 동의어.
 rcp_counts = ppid_counts
 
 ppid 접근 불가 ip 리스트는 cdsem, hvsem 모두 기록
-redis key : 'v3_hitachi_sem_ppid_not_avail'
-hget(key, today_str_compact like %Y%m%d, not_avail_ip_list)
-통해서 접근 = 날짜 별로 정보 기록. not_avail_ip_list는 리스트 형태로.
+redis key : 'v3_hitachi_sem_ppid_not_avail' (hash)
+field = 날짜(%Y%m%d compact str), value = not_avail_ip_list (리스트 형태).
+어댑터는 hgetall(key)로 전체 스냅샷을 읽고 max(날짜 field)를 최신으로
+사용 — "오늘" field 를 hget 하면 적재 전 시간대에 빈 결과가 나오므로
+최신 날짜 기준으로 조회하고, 과거 날짜 field 들로 연속 미접근 일수
+(missing_days_streak)를 계산.
 ip만 있기 때문에 sem_list과 매칭 필요.
 

@@ -3,6 +3,9 @@ R3, R4도 포함되어 있지만 R3, R4의 경우 r3_device_grp를 주로 사용
 
 Column -> Type: Value 설명
 모든 컬럼과 밸류는 string Type
+주의: 결측이 섞여 있습니다 — 실제 None/NaN 뿐 아니라 문자열 "None" 이
+그대로 들어 있는 cell 도 있습니다. 어댑터는 둘 다 빈 값("")으로
+정규화해야 합니다 (recipe_tat office adapter 의 _text 참고).
 
 fac_id -> fab 이름 (fab_name처럼 fab 내 세부적인 표현 없음)
 lot_cd -> 3 or 4 Alphabets and Numbers, normally Starts with RAEA, RAAJ, 4MJ, 7EC. 3글자인 경우 맨 앞 숫자는 Fab을 지칭 (M17), R은 연구개발 디바이스

@@ -45,7 +45,7 @@ Three-tier configuration management. Database connections, API base URLs, and se
 
 ### API Abstraction Layer
 - All phases: frontend calls Flask over `/api/*` via `$fetch`
-- Swap surface is `back_dev_home/<feature>/providers/office.py` (fill in at the office) vs. `providers/mock.py` (home). `data.py` is a stable dispatcher that picks the adapter by env var — do **not** edit it. Routes import `from .data import ...` and never change between phases.
+- Swap surface is `back_dev_home/<feature>/providers/office.py` vs. `providers/mock.py` (home). `office.py` is **gitignored**; the tracked template is `providers/office_example.py` — implement/update the template, then `cp office_example.py office.py` at the office (office.py may carry 사내 schema details that stay out of git). `data.py` is a stable dispatcher that picks the adapter by env var — do **not** edit it. Routes import `from .data import ...` and never change between phases.
 - Adapter selected at runtime by `SKEWNONO_<FEATURE>_PROVIDER` (e.g. `SKEWNONO_SEM_LIST_PROVIDER`) or global `SKEWNONO_DATA_PROVIDER`, values `mock`|`office`, default `mock`. Selector lives in `_runtime/data_provider.py`.
 - Blueprints and response shapes stay identical across phases
 - Frontend code never branches on phase — only `NUXT_API_TARGET` changes
