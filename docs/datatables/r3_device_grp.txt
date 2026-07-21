@@ -16,3 +16,21 @@ lake_load_tm -> datetime in string. yyyymmddhhmmss
 ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "풀" 단어 포함 여부 중요), t-EV, tev, p-EV, PV, TV 등 개발 phase 정보 포함. 개발코드 명도 포함되어 있음
 
 
+
+========================================================================
+사무실(Office) 실데이터 소스 — Redis
+========================================================================
+
+사무실에서는 이 R3/R&D 카탈로그가 Redis 에 pandas DataFrame 으로 저장됩니다.
+device_desc 와 형태가 비슷하며 fac_id 는 항상 "R3" 입니다.
+
+Key    -> "r3_device_grp" (DataFrame, parquet 직렬화)
+Column -> fac_id, plan_catg_typ, prod_catg_cd, tech_cd, den_typ,
+          prod_grp_typ, gen_typ, lot_cd, plan_grade_cd, lake_load_tm, ctn_desc
+
+사용 방법
+
+- recipe_tat 디바이스별 화면: lot_cd -> prod_catg_cd 로 R3/R&D device 의
+  제품 카테고리를 채웁니다. (M fab device 는 device_desc.tech_nm, R3/R&D
+  device 는 r3_device_grp.prod_catg_cd — device 당 둘 중 하나만 채워짐.)
+- device-statistics 기능에서도 이 DB 를 그대로 활용할 수 있습니다.

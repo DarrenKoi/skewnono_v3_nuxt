@@ -191,10 +191,10 @@ work without the bridge; the contract gate never passes `lot_cd`.
   chg_tm, tech_nm, rnd_connector`). `exec_count`/`total_meastime` are the real
   in-scope execution count and summed `meastime`; rows are ordered by
   `total_meastime` desc. `fab_id` filters via `fab_name.keyword` (fine-grained,
-  same as the other endpoints).
-  PENDING: the R3/R&D `prod_catg_cd` source — the mock uses `r3_device_grp`, so
-  if that DataFrame is in office Redis too, R3 rows can populate `prod_catg_cd`
-  (currently `None`).
+  same as the other endpoints). Metadata follows the mock's exactly-one rule:
+  M-fab devices carry `tech_nm` (from `device_desc`), R3/R&D devices carry
+  `prod_catg_cd` (from the Redis `r3_device_grp` DataFrame, `lot_cd →
+  prod_catg_cd`).
 - Notes: drives the "디바이스별" quick-filter chip strip — an empty result is
   valid (no chips), not an error.
 

@@ -41,8 +41,9 @@ powers: ``get_devices`` (aggregate meas_hist by ``lot_id`` in scope → map to
 (``lot_cd`` → its ``lot_id`` set → ``terms(lot_id.keyword)`` filter), and
 ``sample_lot_cds`` on ranking rows.
 
-STILL PENDING: the R3/R&D ``prod_catg_cd`` source (``r3_device_grp``) —
-``prod_catg_cd`` stays ``None`` until it is wired.
+Device metadata (exactly one per device): M-fab devices carry ``tech_nm`` from
+the Redis ``device_desc`` catalog; R3/R&D devices carry ``prod_catg_cd`` from
+the Redis ``r3_device_grp`` catalog.
 """
 
 import os
@@ -197,6 +198,7 @@ def _aggregate(index: str, aggs: dict[str, Any], query: dict[str, Any] | None) -
 # supplies the per-lot_cd display metadata.
 
 _DEVICE_DESC_KEY = "device_desc"          # Redis parquet DataFrame (M-fab catalog)
+_R3_DEVICE_GRP_KEY = "r3_device_grp"      # Redis parquet DataFrame (R3/R&D catalog)
 _LOT_HIST_INDEX = "ebeam_tas_lot_hist"    # OpenSearch: fab-system measurement history
 _LOT_HIST_TIME_F = "event_tm"             # date field on the lot-history index
 _CURRENT_WINDOW_DAYS = 60                 # a lot_cd active within this window = current
@@ -269,6 +271,30 @@ def _device_desc() -> dict[str, dict[str, str]]:
             "rnd_connector": _text(rec.get("rnd_connector")),
             "stn_desc": _text(rec.get("stn_desc")),
         }
+    return out
+
+
+@lru_cache(maxsize=1)
+def _r3_device_grp() -> dict[str, str]:
+    """lot_cd -> prod_catg_cd, from the Redis ``r3_device_grp`` DataFrame.
+
+    The R3/R&D catalog (fac_id is always "R3"). Only the product category is
+    needed for DeviceRow; other columns (tech_cd, den_type, prod_grp_typ, ...)
+    are ignored here. Empty prod_catg_cd values are skipped.
+    """
+    raw = _redis_client().get(_R3_DEVICE_GRP_KEY)
+    if raw is None:
+        raise LookupError(
+            f"Redis key {_R3_DEVICE_GRP_KEY!r} not found — check REDIS_* in "
+            "back_dev_home/.env and that the R3 device catalog is populated."
+        )
+    df = _read_dataframe(raw, _R3_DEVICE_GRP_KEY)
+    out: dict[str, str] = {}
+    for rec in df.to_dict(orient="records"):
+        lot_cd = _text(rec.get("lot_cd"))
+        prod_catg_cd = _text(rec.get("prod_catg_cd"))
+        if lot_cd and prod_catg_cd:
+            out[lot_cd] = prod_catg_cd
     return out
 
 
@@ -518,11 +544,12 @@ def get_devices(
     ``lot_id`` is mapped to its ``lot_cd`` through the lot-history bridge, and
     the per-lot sums are rolled up per device. Because the bridge only knows
     recently-active lot_ids, an in-scope ``lot_id`` with no mapping is dropped
-    (keeps retired/unknown lots out). ``tech_nm`` comes from ``device_desc``.
+    (keeps retired/unknown lots out).
 
     ``exec_count``/``total_meastime`` are the real in-scope execution count and
-    summed ``meastime`` per device. ``prod_catg_cd`` stays None until the
-    R3/R&D product-category source (``r3_device_grp``) is wired.
+    summed ``meastime`` per device. Metadata follows the mock's exactly-one
+    rule: R3/R&D devices carry ``prod_catg_cd`` (from ``r3_device_grp``),
+    M-fab devices carry ``tech_nm`` (from ``device_desc``).
     """
     clauses = _filter_clauses(fab_id, start_date, end_date)
     aggs = {
@@ -540,6 +567,7 @@ def get_devices(
 
     bridge = _lot_id_to_lot_cd()
     catalog = _device_desc()
+    r3 = _r3_device_grp()
 
     rolled: dict[str, dict[str, int]] = {}
     for bucket in lot_buckets:
@@ -550,16 +578,20 @@ def get_devices(
         agg["exec"] += int(bucket["doc_count"])
         agg["tat"] += int(bucket.get("tat", {}).get("value") or 0)
 
-    rows = [
-        DeviceRow(
-            lot_cd=lot_cd,
-            exec_count=agg["exec"],
-            total_meastime=agg["tat"],
-            prod_catg_cd=None,
-            tech_nm=(catalog.get(lot_cd, {}).get("tech_nm") or None),
+    rows: list[DeviceRow] = []
+    for lot_cd, agg in rolled.items():
+        # Exactly one of the pair: R3/R&D -> prod_catg_cd, M-fab -> tech_nm.
+        prod_catg_cd = r3.get(lot_cd)
+        tech_nm = None if prod_catg_cd else (catalog.get(lot_cd, {}).get("tech_nm") or None)
+        rows.append(
+            DeviceRow(
+                lot_cd=lot_cd,
+                exec_count=agg["exec"],
+                total_meastime=agg["tat"],
+                prod_catg_cd=prod_catg_cd,
+                tech_nm=tech_nm,
+            )
         )
-        for lot_cd, agg in rolled.items()
-    ]
     rows.sort(key=lambda r: (r["total_meastime"], r["exec_count"]), reverse=True)
     return rows
 
