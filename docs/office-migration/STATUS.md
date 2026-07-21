@@ -13,6 +13,18 @@
 3. Flask 실행 환경변수에 `SKEWNONO_<기능>_PROVIDER=office`를 추가하고 재시작한 뒤,
    아래 표의 상태/검증일을 갱신합니다.
 
+## 상태 값
+
+| 값 | 뜻 |
+| --- | --- |
+| mock | 아직 office 어댑터를 구현하지 않았습니다. `office_example.py`는 뼈대만 있습니다. |
+| 구현완료 | `office_example.py`에 조회 로직을 다 채웠지만 사내 데이터로 돌려보지 않았습니다. 위 절차의 2~3단계가 남았습니다. |
+| office | office 모드로 계약 테스트가 통과했고 화면에서 실데이터를 확인했습니다. 검증일을 함께 적습니다. |
+
+`구현완료`에서 `office`로 넘어가려면 `office_example.py`를 같은 폴더에
+`office.py`로 복사한 뒤(이 파일은 사내 스키마가 들어가므로 gitignore 대상입니다)
+계약 테스트를 office 모드로 실행합니다.
+
 msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데이터 키
 (`site_layout_hash`, `recipe_revision`, `coordinate_transform_version`,
 `sequence_timestamp`)를 반드시 함께 반환해야 합니다. 자세한 내용은
@@ -27,18 +39,18 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 | announcements | SKEWNONO_ANNOUNCEMENTS_PROVIDER | announcements/contracts.py | announcements/MIGRATION.md | mock | - |
 | api_tokens | SKEWNONO_API_TOKENS_PROVIDER | api_tokens/contracts.py | api_tokens/MIGRATION.md | mock | - |
 | access_control | SKEWNONO_ACCESS_CONTROL_PROVIDER | access_control/contracts.py | access_control/MIGRATION.md | mock | - |
-| health | SKEWNONO_HEALTH_PROVIDER | health/contracts.py | health/MIGRATION.md | mock | - |
+| health | SKEWNONO_HEALTH_PROVIDER | health/contracts.py | health/MIGRATION.md | 구현완료 | - |
 | device_statistics | SKEWNONO_DEVICE_STATISTICS_PROVIDER | ebeam/cdsem/device_statistics/contracts.py | ebeam/cdsem/device_statistics/MIGRATION.md | mock | - |
 | pm_planning | SKEWNONO_PM_PLANNING_PROVIDER | ebeam/hitachi/pm_planning/contracts.py | ebeam/hitachi/pm_planning/MIGRATION.md | mock | - |
 | recipe_search | SKEWNONO_RECIPE_SEARCH_PROVIDER | ebeam/hitachi/recipe_search/contracts.py | ebeam/hitachi/recipe_search/MIGRATION.md | mock | - |
-| lateral_recipe | SKEWNONO_LATERAL_RECIPE_PROVIDER | ebeam/lateral_recipe/contracts.py | ebeam/lateral_recipe/MIGRATION.md | mock | - |
-| sem_list | SKEWNONO_SEM_LIST_PROVIDER | sem_list/contracts.py | sem_list/MIGRATION.md | mock | - |
+| lateral_recipe | SKEWNONO_LATERAL_RECIPE_PROVIDER | ebeam/hitachi/lateral_recipe/contracts.py | ebeam/hitachi/lateral_recipe/MIGRATION.md | mock | - |
+| sem_list | SKEWNONO_SEM_LIST_PROVIDER | sem_list/contracts.py | sem_list/MIGRATION.md | office | 2026-07-20 |
 | hardware | SKEWNONO_HARDWARE_PROVIDER | ebeam/hitachi/hardware/contracts.py | ebeam/hitachi/hardware/MIGRATION.md | mock | - |
 | skew | SKEWNONO_SKEW_PROVIDER | ebeam/hitachi/skew/contracts.py | ebeam/hitachi/skew/MIGRATION.md | mock | - |
-| storage | SKEWNONO_STORAGE_PROVIDER | ebeam/hitachi/storage/contracts.py | ebeam/hitachi/storage/MIGRATION.md | mock | - |
+| storage | SKEWNONO_STORAGE_PROVIDER | ebeam/hitachi/storage/contracts.py | ebeam/hitachi/storage/MIGRATION.md | office | 2026-07-21 |
 | meas_hist | SKEWNONO_MEAS_HIST_PROVIDER | meas_hist/contracts.py | meas_hist/MIGRATION.md | mock | - |
 | afm | SKEWNONO_AFM_PROVIDER | afm/contracts.py | afm/MIGRATION.md | mock | - |
-| recipe_tat | SKEWNONO_RECIPE_TAT_PROVIDER | ebeam/hitachi/recipe_tat/contracts.py | ebeam/hitachi/recipe_tat/MIGRATION.md | mock | - |
+| recipe_tat | SKEWNONO_RECIPE_TAT_PROVIDER | ebeam/hitachi/recipe_tat/contracts.py | ebeam/hitachi/recipe_tat/MIGRATION.md | 구현완료 | - |
 | fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/hitachi/fail_issue/contracts.py | ebeam/hitachi/fail_issue/MIGRATION.md | mock | - |
 | msr_file | SKEWNONO_MSR_FILE_PROVIDER | msr_file/contracts.py | msr_file/MIGRATION.md | mock | - |
 
