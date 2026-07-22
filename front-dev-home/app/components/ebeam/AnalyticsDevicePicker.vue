@@ -50,24 +50,18 @@
         icon="i-lucide-search"
         placeholder="디바이스 검색"
       />
-      <div class="flex min-w-0 flex-wrap items-center gap-1">
+      <div class="flex max-h-28 min-w-0 flex-wrap items-center gap-1 overflow-y-auto">
         <button
-          v-for="device in chipStrip.chips"
+          v-for="device in chipStrip"
           :key="device.lot_cd"
           type="button"
-          class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
+          class="inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
           :class="chipClass(selectedLot === device.lot_cd)"
           :title="getTitle?.(device)"
           @click="toggleLot(device.lot_cd)"
         >
           {{ device.lot_cd }}
         </button>
-        <span
-          v-if="chipStrip.overflowCount > 0"
-          class="font-mono text-[10px] text-(--sk-ink-muted)"
-        >
-          +{{ chipStrip.overflowCount }}
-        </span>
         <span
           v-if="!devices.length"
           class="text-[11px] text-(--sk-ink-muted)"
@@ -93,12 +87,10 @@ const props = withDefaults(defineProps<{
   devices: readonly T[]
   getTitle?: (device: T) => string
   emptyMessage?: string
-  chipBudget?: number
   resetKey?: unknown
 }>(), {
   getTitle: undefined,
-  emptyMessage: '이 기간에 측정된 디바이스가 없습니다.',
-  chipBudget: 24
+  emptyMessage: '이 기간에 측정된 디바이스가 없습니다.'
 })
 
 const selectedLot = defineModel<string | null>('selectedLot', { required: true })
@@ -136,21 +128,13 @@ const chipStrip = computed(() => {
   const matches = query
     ? filteredDevices.value.filter(device => device.lot_cd.toLowerCase().includes(query))
     : filteredDevices.value
-  const visible = matches.slice(0, props.chipBudget)
-  const overflowCount = Math.max(0, matches.length - props.chipBudget)
 
-  if (!selectedLot.value || visible.some(device => device.lot_cd === selectedLot.value)) {
-    return { chips: visible, overflowCount }
+  if (!selectedLot.value || matches.some(device => device.lot_cd === selectedLot.value)) {
+    return matches
   }
 
   const selected = props.devices.find(device => device.lot_cd === selectedLot.value)
-  if (!selected) return { chips: visible, overflowCount }
-
-  const trimmed = visible.slice(0, props.chipBudget - 1)
-  return {
-    chips: [selected, ...trimmed],
-    overflowCount: overflowCount + (visible.length - trimmed.length)
-  }
+  return selected ? [selected, ...matches] : matches
 })
 
 const toggleLot = (lot: string) => {
