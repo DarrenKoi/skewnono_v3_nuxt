@@ -16,7 +16,7 @@ office-side yet — `providers/office.py` re-exports those two straight from
 
 That is a net improvement over leaving the whole feature on `mock` (the
 catalog becomes real, detail is synthetic either way), which is why
-`recipe_search` is in `_runtime/site.py`'s `OFFICE_READY`. The caveat worth
+`providers/office.py` is copied for `recipe_search` at all. The caveat worth
 remembering: **at the office, 열어보기 shows plausible-looking synthetic
 tables.** Anyone comparing them against the tool will find they do not match.
 

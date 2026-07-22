@@ -49,9 +49,8 @@ Create `back_dev_home/_runtime/tests/test_office_registry.py`:
 """Filesystem discovery of office adapters.
 
 Every test builds a fake package tree under tmp_path rather than reading the
-real repo: at home NO providers/office.py exists anywhere (it is gitignored
-and only ever created at the office), so the real tree cannot exercise the
-office-ready paths at all.
+real repo: which office.py files exist is a property of the MACHINE (they are
+gitignored), so only a fixed tree can assert exact resolution.
 """
 
 import pytest
@@ -151,7 +150,7 @@ def test_real_repo_finds_every_feature_and_no_office_adapter_at_home():
     office_registry.reset_cache()
     real = office_registry.features()
     assert {"sem_list", "storage", "hardware", "device_statistics"} <= set(real)
-    assert len(real) == 21
+    assert len(real) == 20
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -322,8 +321,8 @@ feature serves office data only when the process is in office MODE *and* that
 feature has a providers/office.py.
 
 Resolution tests point office_registry at a fake tree, because at home no
-office.py exists anywhere in the real repo — office.py is gitignored and only
-created at the office.
+which office.py files exist depends on the machine — they are gitignored, and
+this Mac mini carries six written while developing those adapters.
 """
 
 import pytest
@@ -924,7 +923,7 @@ Expected: 2 passed.
 
 Run: `.venv/bin/python -c "from back_dev_home import create_app; create_app()" 2>&1 | head -30`
 
-Expected: a `data providers: site=... mode=mock — 0/21 features on office` header followed by 21 indented rows, every one `mock  mode=mock` (this is the home Mac mini; no `office.py` exists here).
+Expected: a `data providers: site=home mode=mock — 0/20 features on office` header followed by 20 indented rows, every one `mock  mode=mock` (home is mock mode, so local adapters are ignored). Then re-run with `SKEWNONO_SITE=office` to confirm the six local adapters flip.
 
 Then verify boot refusal actually refuses:
 

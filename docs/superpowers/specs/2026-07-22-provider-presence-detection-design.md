@@ -213,9 +213,21 @@ implies readiness.
 ## 5. Testing
 
 `_runtime/tests/test_site_provider.py` requires a rewrite, not additions: its
-current assertions (office hostname → `sem_list == "office"`, line 45) become
-false at home, where no `office.py` exists anywhere. Registry tests build fake
-package trees under `tmp_path` with a monkeypatched root.
+current assertions (office hostname → `sem_list == "office"`, line 45) depend
+on `OFFICE_READY`, which is gone. Resolution tests build fake package trees
+under `tmp_path` with a monkeypatched root, because which adapters exist is a
+property of the machine running the tests, not a fixed list.
+
+**Correction, found during implementation.** This design was drafted assuming
+no `office.py` exists at home. That is false: this Mac mini carries six —
+`health`, `sem_list`, `storage`, `recipe_tat`, `recipe_search`,
+`lateral_recipe` — written while developing those adapters, invisible to
+`git status` because they are gitignored. That set is *exactly* the
+`OFFICE_READY` frozenset being deleted, which is direct confirmation that
+`OFFICE_READY` was caching a fact the filesystem already held. It changes no
+behavior at home (mode is `mock` there, so all six stay on mock), and it means
+safety rests on the mode rather than on the absence of adapters. Verified by
+booting with `SKEWNONO_SITE=office`: `6/20 features on office`, the same six.
 
 | Test | Asserts |
 | --- | --- |
