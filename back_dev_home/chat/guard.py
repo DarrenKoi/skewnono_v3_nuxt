@@ -15,7 +15,7 @@ import logging
 import os
 from urllib.parse import urlparse
 
-from back_dev_home._runtime.data_provider import get_data_provider
+from back_dev_home._runtime.data_provider import get_mode
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +64,18 @@ def host_is_blocked(host: str, blocked: set[str]) -> bool:
 
 
 def enforce_egress_policy(base_url: str) -> None:
-    """In office mode, raise ``ChatEgressBlocked`` if ``base_url``'s host is blocked."""
-    if get_data_provider("chat") != "office":
+    """In office mode, raise ``ChatEgressBlocked`` if ``base_url``'s host is blocked.
+
+    Keyed on the MODE, not on ``get_data_provider("chat")``. Egress is a
+    network question — am I on the company network? — not an adapter-readiness
+    question. Those were conflated before providers split the two, and the
+    conflation made this guard inert exactly where it matters: chat is parked,
+    so it was never in the old ``OFFICE_READY`` set, so at the office
+    ``get_data_provider("chat")`` returned ``mock`` and this function returned
+    early without checking anything. The mode is ``office`` on an office host
+    whether or not chat has a storage adapter.
+    """
+    if get_mode() != "office":
         return
     host = (urlparse(base_url).hostname or "").lower()
     if host and host_is_blocked(host, get_blocked_hosts()):

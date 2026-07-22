@@ -42,8 +42,7 @@ def test_send_chat_error_status_raises(monkeypatch):
 
 
 def test_send_chat_office_mode_blocks_before_post(monkeypatch):
-    monkeypatch.delenv("SKEWNONO_DATA_PROVIDER", raising=False)
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
     monkeypatch.delenv("CHAT_BASE_URL", raising=False)  # default -> openrouter.ai
 
     calls = {"n": 0}

@@ -12,11 +12,26 @@ def _clean_provider_env(monkeypatch):
 
 
 def _office(monkeypatch):
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
 
 
 def _mock(monkeypatch):
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "mock")
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+
+
+def test_guard_is_active_on_an_office_host_with_no_chat_config(monkeypatch):
+    """Regression: the guard must key on the MODE, not on chat's adapter.
+
+    chat is parked, so it never had an office adapter. While this function
+    checked get_data_provider("chat"), that returned "mock" on a real office
+    host — and the guard that exists to keep chat data on the company network
+    returned early and blocked nothing, in exactly the deployment it was
+    written for. Nothing sets SKEWNONO_CHAT_PROVIDER at the office, so this is
+    the default configuration, not an edge case.
+    """
+    monkeypatch.setattr(guard, "get_mode", lambda: "office")
+    with pytest.raises(guard.ChatEgressBlocked):
+        guard.enforce_egress_policy("https://openrouter.ai/api/v1")
 
 
 # --- pure helpers -----------------------------------------------------------
