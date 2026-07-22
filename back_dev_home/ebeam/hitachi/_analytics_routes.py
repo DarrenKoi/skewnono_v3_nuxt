@@ -13,7 +13,7 @@ from back_dev_home.ebeam.hitachi._tool_specs import (
 )
 
 
-DEFAULT_DAYS = 30
+DEFAULT_DAYS = 14
 # limit bounds the number of ranking rows (distinct recipes), not raw
 # measurements. 0 means "no cap": every recipe in the date range is returned,
 # so fleet-wide ranges never silently drop the tail of the ranking.

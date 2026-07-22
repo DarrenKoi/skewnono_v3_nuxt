@@ -18,8 +18,8 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
 
 
 # Mirrors resolve_analytics_scope's defaults (_analytics_routes.py):
-# end_date = anchor, start_date = anchor - 30 days, no fab/lot filter.
-DEFAULT_DAYS = 30
+# end_date = anchor, start_date = anchor - 14 days, no fab/lot filter.
+DEFAULT_DAYS = 14
 
 
 def _default_scope():

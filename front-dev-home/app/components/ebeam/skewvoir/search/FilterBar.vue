@@ -79,9 +79,8 @@ const patch = <K extends keyof MeasHistFilters>(key: K, value: MeasHistFilters[K
   emit('update:filters', { ...props.filters, [key]: value })
 }
 
-// The 60-day mock retention window makes "Last 90 days" a lie — it can only
-// return a clamped range. RecipeTatView/FailIssueView keep the shared
-// Today/7/30/90 default (their own data isn't bound to this 60-day window),
+// Skewvoir search wants retention-aware presets (7/30/full window), unlike
+// RecipeTatView/FailIssueView which use the shared Today/7/14/30 default —
 // so this list is passed in locally rather than changing DateRangePopover's
 // default for every consumer.
 const periodPresets = computed(() => {

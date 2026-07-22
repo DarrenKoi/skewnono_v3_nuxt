@@ -45,12 +45,12 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 - Called by `routes.py` before every endpoint to build an
   `AnalyticsRequestScope` (`_analytics_routes.resolve_analytics_scope`), which
-  supplies the default `end_date` (anchor) / `start_date` (anchor − 30 days)
+  supplies the default `end_date` (anchor) / `start_date` (anchor − 14 days)
   when the caller omits them.
 - Mock behavior: returns `ANCHOR_TIME`, a wall-clock timestamp captured once
   at process start (`datetime.now(timezone.utc)`), NOT a fixed mock date —
-  the TAT dashboard's "last 30 days" default must always mean the real last
-  30 days in every phase.
+  the TAT dashboard's "last 14 days" default must always mean the real last
+  14 days in every phase.
 - Office data source: `max(timestamp)` aggregation across both aliases
   (`meas_hist_cdsem,meas_hist_hvsem`), parsed to an aware-UTC `datetime` and
   cached once per process (mirrors the mock pinning `ANCHOR_TIME` at import).

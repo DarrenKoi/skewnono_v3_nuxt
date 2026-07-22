@@ -76,7 +76,7 @@ export interface RecipeTatQuery {
   toolType: RecipeTatToolType
   fabName?: string
   // Both bounds optional. When omitted, the backend defaults to the last
-  // 30 days ending at its data-anchor date — clients should prefer that
+  // 14 days ending at its data-anchor date — clients should prefer that
   // over guessing wall-clock today, which can drift past the mock ceiling.
   startDate?: string
   endDate?: string
