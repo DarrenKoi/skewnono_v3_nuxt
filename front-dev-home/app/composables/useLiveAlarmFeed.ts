@@ -57,10 +57,18 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
     events: [], ids: [], seenIds: [], newIds: [],
     feedStatus: 'live', polledAt: null, serverOffsetMs: 0
   }))
-  const error = useState<string | null>(`${key}:error`, () => null)
+  const errorState = useState<string | null>(`${key}:error`, () => null)
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let consecutiveFailures = 0
+  // A fired setTimeout's id is already spent, so stop() clearing `timer`
+  // can't reach a callback that is mid-`await poll()` when unmount or a
+  // tab hide lands. `active` is the guard the callback re-checks once the
+  // await settles — it means "keep the loop going": false while hidden,
+  // true again on show, and false for good after unmount (the removed
+  // visibilitychange listener is what stops it being flipped back true
+  // post-teardown).
+  let active = false
 
   const poll = async () => {
     try {
@@ -70,12 +78,12 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
       )
       state.value = applyPoll(state.value, payload, Date.now())
       consecutiveFailures = 0
-      error.value = null
+      errorState.value = null
     } catch {
       // One or two misses are ordinary; only sustained failure is worth
       // showing, and the previous board stays on screen meanwhile.
       consecutiveFailures += 1
-      if (consecutiveFailures >= 3) error.value = '연결이 불안정합니다'
+      if (consecutiveFailures >= 3) errorState.value = '연결이 불안정합니다'
     }
   }
 
@@ -83,7 +91,11 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
     stop()
     timer = setTimeout(async () => {
       await poll()
-      schedule()
+      // Re-checked after the await, not before: this is the only point
+      // that can observe a hide/unmount that landed mid-request, and
+      // skipping schedule() here is what actually ends the loop instead
+      // of just failing to clear a timer id that already fired.
+      if (active) schedule()
     }, nextDelay(Math.random()))
   }
 
@@ -94,22 +106,26 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
 
   const onVisibility = () => {
     if (document.visibilityState === 'hidden') {
+      active = false
       stop()
       return
     }
     // The server holds the whole board, so returning needs no catch-up
     // logic — one ordinary poll restores the full screen.
+    active = true
     void poll()
     schedule()
   }
 
   onMounted(() => {
+    active = true
     void poll()
     schedule()
     document.addEventListener('visibilitychange', onVisibility)
   })
 
   onUnmounted(() => {
+    active = false
     stop()
     document.removeEventListener('visibilitychange', onVisibility)
   })
@@ -124,7 +140,9 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
     polledAt: computed(() => state.value.polledAt),
     serverOffsetMs: computed(() => state.value.serverOffsetMs),
     newIds: computed(() => state.value.newIds),
-    error,
+    // computed, not the raw ref: writable error would let a consumer
+    // clear it directly and defeat the consecutive-failures debounce above.
+    error: computed(() => errorState.value),
     markSeen
   }
 }
