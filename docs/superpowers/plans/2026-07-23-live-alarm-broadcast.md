@@ -34,7 +34,7 @@
 | `contracts.py` | `AlarmEvent`, `LiveAlarmPayload`, constants, the retention invariant assert |
 | `board.py` | Pure functions: `feed_status_for`, `dedupe_by_id`, `parse_members` |
 | `data.py` | mock/office dispatcher — the stable seam, never edited afterwards |
-| `routes.py` | `GET /api/ebeam/<tool_slug>/live-alarm` |
+| `routes.py` | `GET /api/<tool_slug>/live-alarm` |
 | `providers/mock.py` | Phase 1 adapter, no Redis |
 | `providers/office_example.py` | Redis reader (tracked template; `office.py` is the gitignored copy) |
 | `writer/window.py` | Adaptive backfill window (pure) |
@@ -366,7 +366,7 @@ At the end of this task the endpoint answers with live-looking data at home, wit
 **Interfaces:**
 
 - Consumes: `contracts.LiveAlarmPayload`, `contracts.ALID_KIND`, `board` (Task 1); `get_data_provider` from `back_dev_home._runtime.data_provider`; `resolve_tool_type_from_slug` from `back_dev_home.ebeam.hitachi._tool_specs`.
-- Produces: `data.get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload`; blueprint `bp` serving `GET /api/ebeam/<tool_slug>/live-alarm?fab_name=<name>`.
+- Produces: `data.get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload`; blueprint `bp` serving `GET /api/<tool_slug>/live-alarm?fab_name=<name>`.
 
 - [ ] **Step 1: Write the failing contract test**
 
@@ -428,21 +428,21 @@ def client():
 
 
 def test_returns_a_board_for_a_valid_tool_slug(client):
-    response = client.get("/api/ebeam/cd-sem/live-alarm?fab_name=R3")
+    response = client.get("/api/cdsem/live-alarm?fab_name=R3")
     assert response.status_code == 200
     assert response.get_json()["fab_name"] == "R3"
 
 
 def test_hv_sem_url_exists_too(client):
-    assert client.get("/api/ebeam/hv-sem/live-alarm?fab_name=R3").status_code == 200
+    assert client.get("/api/hvsem/live-alarm?fab_name=R3").status_code == 200
 
 
 def test_unknown_tool_slug_is_400(client):
-    assert client.get("/api/ebeam/nope/live-alarm?fab_name=R3").status_code == 400
+    assert client.get("/api/nope/live-alarm?fab_name=R3").status_code == 400
 
 
 def test_missing_fab_name_is_400(client):
-    assert client.get("/api/ebeam/cd-sem/live-alarm").status_code == 400
+    assert client.get("/api/cdsem/live-alarm").status_code == 400
 ```
 
 - [ ] **Step 3: Run both to verify they fail**
@@ -575,7 +575,7 @@ from back_dev_home.ebeam.hitachi.live_alarm.data import get_board
 bp = Blueprint("ebeam_live_alarm", __name__)
 
 
-@bp.get("/ebeam/<tool_slug>/live-alarm")
+@bp.get("/<tool_slug>/live-alarm")
 def live_alarm_board(tool_slug: str):
     tool_type = resolve_tool_type_from_slug(tool_slug)
     if tool_type is None:
@@ -608,7 +608,7 @@ Expected: all pass, count increased by 18
 git add back_dev_home/ebeam/hitachi/live_alarm/
 git commit -m "feat(live-alarm): add mock provider, dispatcher, and route
 
-GET /api/ebeam/<tool_slug>/live-alarm?fab_name=R3 now answers from the
+GET /api/<tool_slug>/live-alarm?fab_name=R3 now answers from the
 mock adapter, so the page can be built and reviewed at home with no
 Redis. The mock varies its board by the current minute so the screen
 visibly changes during development, and SKEWNONO_LIVE_ALARM_MOCK_STALE
@@ -911,6 +911,12 @@ export const applyPoll = (
   }
 }
 
+// The page passes the route-native tool slug (cd-sem / hv-sem), but the
+// API path uses the no-hyphen slug (cdsem / hvsem) — same split every
+// sibling composable handles (see useFailIssueApi.ts's toolSlug()). There
+// is no /ebeam segment on the API path; sibling routes are /api/<slug>/...
+const apiSlug = (toolSlug: string): string => toolSlug.replace('-', '')
+
 export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
   const key = `live-alarm:${toolSlug}:${fabName}`
   const state = useState<FeedState>(key, () => ({
@@ -925,7 +931,7 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
   const poll = async () => {
     try {
       const payload = await $fetch<LiveAlarmPayload>(
-        `/api/ebeam/${toolSlug}/live-alarm`,
+        `/api/${apiSlug(toolSlug)}/live-alarm`,
         { params: { fab_name: fabName } }
       )
       state.value = applyPoll(state.value, payload, Date.now())
@@ -2492,7 +2498,7 @@ cp office_example.py office.py
 ```bash
 SKEWNONO_LIVE_ALARM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/live_alarm
 curl 'http://localhost:5000/api/health/providers' | grep live_alarm
-curl 'http://localhost:5000/api/ebeam/cd-sem/live-alarm?fab_name=R3'
+curl 'http://localhost:5000/api/cdsem/live-alarm?fab_name=R3'
 ```
 
 응답의 `feed_status` 를 확인합니다.

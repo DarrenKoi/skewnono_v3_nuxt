@@ -365,7 +365,7 @@ live_alarm/
 ├── contracts.py            # 스키마·상수·불변식 assert (SKEWNONO 측)
 ├── board.py                # 순수 함수: feed_status_for / dedupe_by_id / parse_members
 ├── data.py                 # mock|office 디스패처 (안정 층, 수정하지 않음)
-├── routes.py               # GET /api/ebeam/<tool_slug>/live-alarm
+├── routes.py               # GET /api/<tool_slug>/live-alarm
 ├── providers/
 │   ├── mock.py             # Phase 1 — Redis 없이 즉답
 │   └── office_example.py   # ZRANGEBYSCORE + dedupe + feed_status 판정
@@ -381,7 +381,7 @@ live_alarm/
 
 ## 7. SKEWNONO 백엔드 (읽기 전용)
 
-`GET /api/ebeam/<tool_slug>/live-alarm?fab_name=R3`
+`GET /api/<tool_slug>/live-alarm?fab_name=R3`
 
 ```python
 now, _ = r.time()                                       # 단일 시계 (§5)

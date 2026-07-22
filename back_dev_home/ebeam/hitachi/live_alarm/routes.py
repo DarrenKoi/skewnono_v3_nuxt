@@ -7,7 +7,7 @@ from back_dev_home.ebeam.hitachi.live_alarm.data import get_board
 bp = Blueprint("ebeam_live_alarm", __name__)
 
 
-@bp.get("/ebeam/<tool_slug>/live-alarm")
+@bp.get("/<tool_slug>/live-alarm")
 def live_alarm_board(tool_slug: str):
     tool_type = resolve_tool_type_from_slug(tool_slug)
     if tool_type is None:

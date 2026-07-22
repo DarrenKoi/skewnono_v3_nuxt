@@ -16,18 +16,18 @@ def test_returns_a_board_for_a_valid_tool_slug(client):
     # same convention every sibling ebeam route already uses (fail_issue,
     # recipe_tat, hardware, ...), and the one the frontend's own toolSlug()
     # translators (useFailIssueApi.ts, useStorageApi.ts) convert down to.
-    response = client.get("/api/ebeam/cdsem/live-alarm?fab_name=R3")
+    response = client.get("/api/cdsem/live-alarm?fab_name=R3")
     assert response.status_code == 200
     assert response.get_json()["fab_name"] == "R3"
 
 
 def test_hv_sem_url_exists_too(client):
-    assert client.get("/api/ebeam/hvsem/live-alarm?fab_name=R3").status_code == 200
+    assert client.get("/api/hvsem/live-alarm?fab_name=R3").status_code == 200
 
 
 def test_unknown_tool_slug_is_400(client):
-    assert client.get("/api/ebeam/nope/live-alarm?fab_name=R3").status_code == 400
+    assert client.get("/api/nope/live-alarm?fab_name=R3").status_code == 400
 
 
 def test_missing_fab_name_is_400(client):
-    assert client.get("/api/ebeam/cdsem/live-alarm").status_code == 400
+    assert client.get("/api/cdsem/live-alarm").status_code == 400
