@@ -2,7 +2,7 @@
 
 `bp` is exported lazily (PEP 562): the app factory reads it via
 `getattr(module, "bp")` during blueprint discovery, but importing a leaf
-submodule (e.g. `providers.beam_shape_mock`) no longer drags in the whole
+submodule (e.g. `providers.bsm.mock`) no longer drags in the whole
 `routes -> data -> providers` chain. This keeps provider/metrics modules
 independently importable.
 """

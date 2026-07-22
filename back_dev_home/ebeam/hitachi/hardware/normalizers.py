@@ -15,6 +15,59 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# bsm / reso-center / sce / sharpness are CD-SEM-only checks.
+CDSEM_ONLY_SERVICES: frozenset[str] = frozenset({"bsm", "reso-center", "sce", "sharpness"})
+
+_CDSEM_ONLY_MSG: dict[str, str] = {
+    "bsm": "BSM는 CD-SEM 장비에서만 제공됩니다.",
+    "reso-center": "Reso Center는 CD-SEM 장비에서만 제공됩니다.",
+    "sce": "SCE는 CD-SEM 장비에서만 제공됩니다.",
+    "sharpness": "Sharpness는 CD-SEM 장비에서만 제공됩니다.",
+}
+
+_EMPTY_HINT: dict[str, str] = {
+    "bsm": "장비를 선택하면 BSM 추세와 360° 빔 형상을 확인할 수 있습니다.",
+    "reso-center": "장비를 선택하면 Reso Center 추세를 확인할 수 있습니다.",
+    "fdc": "장비를 선택하면 FDC 신호/판정 추세를 확인할 수 있습니다.",
+    "mdc": "장비를 선택하면 MDC 보정 계수와 동일 fab skew를 확인할 수 있습니다.",
+    "sce": "장비를 선택하면 SCE 설정과 계수 곡선을 확인할 수 있습니다.",
+    "bm-pm": "장비를 선택하면 BM/PM 작업 이력과 예정 작업을 확인할 수 있습니다.",
+    "sharpness": "장비를 선택하면 chamber stub sharpness 추세와 360° 빔 형상을 확인할 수 있습니다.",
+}
+
+
+def service_gate(
+    tool_slug: str,
+    service: ServiceKey,
+    eqp_id: str | None,
+    fab_name: str | None,
+) -> HardwarePayload | None:
+    """Provider-independent short-circuits shared by mock and office.
+
+    Returns the finished payload when the request needs no data lookup
+    (CD-SEM-only service on a non-CD-SEM tool, or no tool selected yet),
+    else None so the provider dispatches per service.
+    """
+    if service in CDSEM_ONLY_SERVICES and tool_slug != "cdsem":
+        return unavailable_payload(
+            service, tool_slug, eqp_id, fab_name, _CDSEM_ONLY_MSG[service]
+        )
+    if eqp_id is None:
+        # No tool picked yet — available-but-empty so the page shows a hint.
+        return {
+            "tool_slug": tool_slug,
+            "service": service,
+            "eqp_id": None,
+            "fab_name": fab_name,
+            "available": True,
+            "fetched_at": now_iso(),
+            "summary": _EMPTY_HINT[service],
+            "cards": [],
+            "tables": [],
+        }
+    return None
+
+
 def unavailable_payload(
     service: ServiceKey,
     tool_slug: str,

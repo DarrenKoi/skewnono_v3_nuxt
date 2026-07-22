@@ -1,10 +1,37 @@
 # hardware — office migration
 
+## Layout: one subfolder per tab
+
+`providers/` has one subfolder per hardware tab, each with its own
+mock/office adapter pair, so the office wiring lands one tab at a time:
+
+| Tab folder | Builder(s) | Office source |
+| --- | --- | --- |
+| `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` |
+| `sharpness/` | `build_network_sharpness_docs` | OpenSearch `network_sharpness_cdsem` |
+| `bm_pm/` | `build_bm_pm_data` | BM/PM work-order table |
+| `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) |
+| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` |
+| `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection |
+| `sce/` | `build_sce_settings` | SCE settings collection |
+
+Shared helpers `_siblings.py` / `_mock_utils.py` stay at the `providers/`
+root (mock-only). `bsm_mock.py` / `spec_range_mock.py` also stay there — they
+belong to pm_planning's BM/PM gate, not to a hardware tab.
+
 ## Rules
 
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, `normalizers.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
+- At the office, first `cp providers/office_example.py providers/office.py`
+  (the dispatcher — usually needs no edits), then per tab
+  `cp providers/<tab>/office_example.py providers/<tab>/office.py` and
+  implement the builder(s). A tab without `office.py` fails fast with a
+  NotImplementedError naming that tab; connected tabs keep working.
+- Edit ONLY the `office.py` copies. Never touch `routes.py`, `data.py`,
+  `providers/mock.py`, `providers/<tab>/mock.py`, `contracts.py`,
+  `normalizers.py`, or `tests/`.
+- Each tab builder returns RAW data (docs list / settings dict / bm-pm rows)
+  matching its `<tab>/mock.py` counterpart's shape; the dispatcher normalizes
+  to `contracts.py` shapes via `normalizers.py`.
 - Definition of done: the Verify command at the bottom is green.
 
 ## Endpoint: GET /api/<tool_slug>/hardware/<eqp_id>/<service>

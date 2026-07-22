@@ -1,4 +1,10 @@
-"""Phase 1 hardware mock provider — dispatch all six services."""
+"""Phase 1 hardware mock provider — dispatch each tab to its subfolder.
+
+One subfolder per hardware tab (`fdc/`, `sharpness/`, `bm_pm/`, `bsm/`,
+`reso_center/`, `mdc/`, `sce/`), each holding `mock.py` plus the office
+adapter pair (`office_example.py` template → gitignored `office.py`). This
+dispatcher only routes and normalizes; the tab modules build the raw data.
+"""
 
 from datetime import datetime
 
@@ -6,59 +12,23 @@ from back_dev_home.ebeam.hitachi.hardware.contracts import HardwarePayload, Serv
 from back_dev_home.ebeam.hitachi.hardware.normalizers import (
     bm_pm_history_payload,
     docs_payload,
-    now_iso,
+    service_gate,
     settings_payload,
-    unavailable_payload,
 )
-from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm_mock import build_bm_pm_data
-from back_dev_home.ebeam.hitachi.hardware.providers.beam_shape_mock import build_beam_shape_docs
-from back_dev_home.ebeam.hitachi.hardware.providers.fdc_mock import build_fdc_docs
-from back_dev_home.ebeam.hitachi.hardware.providers.mdc_mock import (
+from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.mock import build_bm_pm_data
+from back_dev_home.ebeam.hitachi.hardware.providers.bsm.mock import build_beam_shape_docs
+from back_dev_home.ebeam.hitachi.hardware.providers.fdc.mock import build_fdc_docs
+from back_dev_home.ebeam.hitachi.hardware.providers.mdc.mock import (
     build_mdc_history,
     build_mdc_settings,
 )
-from back_dev_home.ebeam.hitachi.hardware.providers.network_sharpness_mock import (
+from back_dev_home.ebeam.hitachi.hardware.providers.reso_center.mock import (
+    build_reso_center_docs,
+)
+from back_dev_home.ebeam.hitachi.hardware.providers.sce.mock import build_sce_settings
+from back_dev_home.ebeam.hitachi.hardware.providers.sharpness.mock import (
     build_network_sharpness_docs,
 )
-from back_dev_home.ebeam.hitachi.hardware.providers.reso_center_mock import build_reso_center_docs
-from back_dev_home.ebeam.hitachi.hardware.providers.sce_mock import build_sce_settings
-
-
-# bsm / reso-center / sce / sharpness are CD-SEM-only checks.
-_CDSEM_ONLY: frozenset[str] = frozenset({"bsm", "reso-center", "sce", "sharpness"})
-
-_CDSEM_ONLY_MSG: dict[str, str] = {
-    "bsm": "BSM는 CD-SEM 장비에서만 제공됩니다.",
-    "reso-center": "Reso Center는 CD-SEM 장비에서만 제공됩니다.",
-    "sce": "SCE는 CD-SEM 장비에서만 제공됩니다.",
-    "sharpness": "Sharpness는 CD-SEM 장비에서만 제공됩니다.",
-}
-
-_EMPTY_HINT: dict[str, str] = {
-    "bsm": "장비를 선택하면 BSM 추세와 360° 빔 형상을 확인할 수 있습니다.",
-    "reso-center": "장비를 선택하면 Reso Center 추세를 확인할 수 있습니다.",
-    "fdc": "장비를 선택하면 FDC 신호/판정 추세를 확인할 수 있습니다.",
-    "mdc": "장비를 선택하면 MDC 보정 계수와 동일 fab skew를 확인할 수 있습니다.",
-    "sce": "장비를 선택하면 SCE 설정과 계수 곡선을 확인할 수 있습니다.",
-    "bm-pm": "장비를 선택하면 BM/PM 작업 이력과 예정 작업을 확인할 수 있습니다.",
-    "sharpness": "장비를 선택하면 chamber stub sharpness 추세와 360° 빔 형상을 확인할 수 있습니다.",
-}
-
-
-def _empty_available(
-    tool_slug: str, service: ServiceKey, fab_name: str | None
-) -> HardwarePayload:
-    return {
-        "tool_slug": tool_slug,
-        "service": service,
-        "eqp_id": None,
-        "fab_name": fab_name,
-        "available": True,
-        "fetched_at": now_iso(),
-        "summary": _EMPTY_HINT[service],
-        "cards": [],
-        "tables": [],
-    }
 
 
 def get_hardware_service(
@@ -69,15 +39,9 @@ def get_hardware_service(
     start: datetime,
     end: datetime,
 ) -> HardwarePayload:
-    # CD-SEM-only services are unavailable for hvsem.
-    if service in _CDSEM_ONLY and tool_slug != "cdsem":
-        return unavailable_payload(
-            service, tool_slug, eqp_id, fab_name, _CDSEM_ONLY_MSG[service]
-        )
-
-    if eqp_id is None:
-        # No tool picked yet — available-but-empty so the page shows a hint.
-        return _empty_available(tool_slug, service, fab_name)
+    gated = service_gate(tool_slug, service, eqp_id, fab_name)
+    if gated is not None:
+        return gated
 
     if service == "bm-pm":
         data = build_bm_pm_data(eqp_id, end)

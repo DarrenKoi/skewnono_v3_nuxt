@@ -105,4 +105,6 @@ back_dev_home/chat/*.db
 # providers/office_example.py -> providers/office.py, then implemented at the
 # office. Never tracked, so `git pull` at the office can never conflict on it.
 # `**` covers nested features too (e.g. ebeam/hitachi/<feature>/providers).
+# The second pattern covers per-tab adapters (e.g. hardware/providers/fdc/office.py).
 back_dev_home/**/providers/office.py
+back_dev_home/**/providers/**/office.py

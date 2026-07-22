@@ -1,7 +1,7 @@
 """Beam_shape metric registry — the single declaration of every beam_shape
 (`type: "total"`) measurement field, its kind, and its plausible value band.
 
-`providers/beam_shape_mock.py` fabricates each doc straight off this list, and
+`providers/bsm/mock.py` fabricates each doc straight off this list, and
 the hardware page reads the same keys off the returned docs (data-driven
 selectors). Adding a future field = one entry here; the mock emits it and the
 UI surfaces it with no further code change.
