@@ -3,10 +3,11 @@
 The deployment site decides the *default* data provider so the step-by-step
 mock→office transition needs no .env editing on either machine:
 
-* home Mac mini  -> everything defaults to mock (Phase 1)
-* office machine -> OFFICE_READY features default to office; the rest stay
-  mock until their adapter is wired (a blanket office default would 500
-  every stub feature)
+* home Mac mini  -> mock mode (Phase 1)
+* office machine -> office mode; WHICH features that actually flips is a
+  separate question, answered by whether each has a providers/office.py
+  (``office_registry``) — a blanket office default would 500 every feature
+  whose adapter is not written yet
 * unknown host   -> mock (safe: never assume office infrastructure exists)
 
 Detection order:
@@ -44,21 +45,6 @@ _HOME_HOSTNAMES = frozenset({"daeyoungs-mac-mini"})
 # remains for any office machine that breaks the naming convention.
 _OFFICE_HOST_PREFIX = "pc"
 _OFFICE_HOSTNAMES = frozenset()
-
-# Features whose office adapter is implemented AND live-verified enough to be
-# the office default. Mirrors docs/office-migration/STATUS.md — add a feature
-# here when its STATUS row leaves "mock". storage needs sem_list office-side
-# for its ppid join, so they move together.
-OFFICE_READY = frozenset(
-    {
-        "health",
-        "sem_list",
-        "storage",
-        "recipe_tat",
-        "recipe_search",
-        "lateral_recipe",
-    }
-)
 
 
 def _normalize_host(name: str) -> str:
