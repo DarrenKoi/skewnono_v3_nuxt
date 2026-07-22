@@ -273,7 +273,10 @@ const openMeasHist = (recipeName: string) => {
     />
 
     <div class="space-y-4">
-      <div class="grid gap-4 xl:grid-cols-12 xl:items-stretch">
+      <!-- items-start, not items-stretch: the lookup card holds one input and
+           would otherwise be stretched to the height of 최근 검색 beside it,
+           leaving dead space under the search bar. -->
+      <div class="grid gap-4 xl:grid-cols-12 xl:items-start">
         <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-8">
           <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
             <p class="sk-eyebrow">
@@ -287,7 +290,7 @@ const openMeasHist = (recipeName: string) => {
             </p>
           </header>
 
-          <div class="flex flex-1 flex-col p-3">
+          <div class="p-3">
             <form
               class="flex min-w-0 items-center gap-2"
               @submit.prevent="commitSearch"
