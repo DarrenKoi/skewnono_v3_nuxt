@@ -13,6 +13,7 @@ export const useNavigation = () => {
       || feature === 'recipe-search'
       || feature === 'recipe-status'
       || feature === 'hardware'
+      || feature === 'live-alarm'
       || feature === 'skewvoir'
     ) return toolType === 'cd-sem' || toolType === 'hv-sem'
     if (feature === 'device-statistics') return toolType === 'cd-sem'

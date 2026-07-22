@@ -6,19 +6,22 @@
 definePageMeta({ key: route => route.fullPath })
 
 const route = useRoute()
-const fab = computed(() => String(route.params.fab))
+// The URL fab segment is lowercase (r3); the API and the writer's Redis
+// registry use the canonical fab_name (R3), same as storage/index.vue.
+const fabName = computed(() => String(route.params.fab ?? '').toUpperCase())
+const fabSlug = computed(() => fabName.value.toLowerCase())
 const toolSlug = 'cd-sem'
 
 const { events, feedStatus, polledAt, serverOffsetMs, newIds, error, markSeen }
-  = useLiveAlarmFeed(toolSlug, fab.value)
+  = useLiveAlarmFeed(toolSlug, fabName.value)
 
 const newIdSet = computed(() => new Set(newIds.value))
 
 useHead({
   title: computed(() =>
     newIds.value.length
-      ? `(${newIds.value.length}) 라이브 알람 · ${fab.value}`
-      : `라이브 알람 · ${fab.value}`
+      ? `(${newIds.value.length}) 라이브 알람 · ${fabName.value}`
+      : `라이브 알람 · ${fabName.value}`
   )
 })
 </script>
@@ -27,7 +30,6 @@ useHead({
   <div
     class="space-y-4"
     @click="markSeen"
-    @scroll.passive="markSeen"
   >
     <LiveAlarmFeedStatusBar
       :feed-status="feedStatus"
@@ -48,7 +50,7 @@ useHead({
       color="neutral"
       variant="subtle"
       title="라이브 알람 미설정"
-      :description="`${fab} 팹은 아직 라이브 알람 수집 대상이 아닙니다.`"
+      :description="`${fabName} 팹은 아직 라이브 알람 수집 대상이 아닙니다.`"
     />
 
     <div
@@ -62,7 +64,7 @@ useHead({
         :server-offset-ms="serverOffsetMs"
         :is-new="newIdSet.has(event.id)"
         :tool-slug="toolSlug"
-        :fab="fab"
+        :fab="fabSlug"
       />
     </div>
 

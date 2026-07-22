@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useNavigationStore } from '~/stores/navigation'
+
 const route = useRoute()
 const colorMode = useColorMode()
+const nav = useNavigationStore()
 
 const isActivePath = (path: string) =>
   route.path === path || route.path.startsWith(`${path}/`)
@@ -15,6 +18,17 @@ const isDark = computed(() => colorMode.value === 'dark')
 const toggleColorMode = () => {
   colorMode.preference = isDark.value ? 'light' : 'dark'
 }
+
+// live-alarm is fab-scoped, so the top-nav icon jumps to the remembered
+// tool/fab (default cd-sem / R3 before any ebeam visit). Only cd-sem and
+// hv-sem have this board.
+const liveAlarmTarget = computed(() => {
+  const tt = nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem'
+  const fab = nav.fab.value && nav.fab.value !== 'all' ? nav.fab.value.toLowerCase() : 'r3'
+  return `/ebeam/${tt}/${fab}/live-alarm`
+})
+
+const isLiveAlarmActive = computed(() => route.path.includes('/live-alarm'))
 </script>
 
 <template>
@@ -57,6 +71,15 @@ const toggleColorMode = () => {
         aria-label="채팅"
         :aria-current="isActivePath('/chat') ? 'page' : undefined"
         :class="headerActionClass('/chat')"
+      />
+      <UButton
+        :to="liveAlarmTarget"
+        icon="i-lucide-radio"
+        color="neutral"
+        variant="ghost"
+        aria-label="라이브 알람"
+        :aria-current="isLiveAlarmActive ? 'page' : undefined"
+        :class="isLiveAlarmActive ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-nav-accent' : undefined"
       />
       <UButton
         to="/activity"
