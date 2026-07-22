@@ -25,10 +25,13 @@ canonical HardwarePayload via ``normalizers.py``, mirroring
 ``providers/mock.py`` exactly.
 """
 
-import logging
 from datetime import datetime
 from importlib import import_module
 
+# The module logger would inherit WARNING from root, silently swallowing the
+# fallback line below — the one record that a tab is serving mock under an
+# office switch. skewnono.providers carries its own INFO handler.
+from back_dev_home._runtime.boot import logger as _LOG
 from back_dev_home.ebeam.hitachi.hardware.contracts import HardwarePayload, ServiceKey
 from back_dev_home.ebeam.hitachi.hardware.normalizers import (
     bm_pm_history_payload,
@@ -37,8 +40,6 @@ from back_dev_home.ebeam.hitachi.hardware.normalizers import (
     settings_payload,
 )
 
-
-_LOG = logging.getLogger(__name__)
 
 
 def _tab(name: str):
