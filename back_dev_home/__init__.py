@@ -11,6 +11,8 @@ from ._auth.errors import error_json
 from ._auth.middleware import install_identity_middleware
 from ._auth.provider import CloudIdentityProvider, LocalIdentityProvider
 from ._logging.activity import install_activity_logging
+from ._runtime.boot import log_provider_table
+from ._runtime.data_provider import validate_env
 from ._runtime.env import is_cloud
 
 
@@ -117,6 +119,14 @@ def create_app() -> Flask:
     load_dotenv(Path(__file__).parent / ".env")
     app = Flask(__name__)
     app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", "dev-only-not-for-prod")
+
+    # Config must agree with the filesystem before we serve anything: an
+    # explicit SKEWNONO_<FEATURE>_PROVIDER=office with no providers/office.py
+    # is a promise of real fab data we cannot keep, so refuse to start rather
+    # than answer it with mock at 2am. Then record what actually resolved —
+    # presence detection leaves no .env line to read afterwards.
+    validate_env()
+    log_provider_table()
 
     CORS(
         app,
