@@ -12,12 +12,18 @@
   series) natively. `MEAS_FAIL_THRESHOLD` (`0.15`) is pinned by the YAML
   contract (`docs/api-contracts/fail-issue.yaml`) — do not change its value,
   or Phase 1/2 numbers will disagree.
+- OpenSearch plumbing (client, composite walker, lot_id↔lot_cd bridge,
+  device catalogs, shared anchor) lives in the TRACKED module
+  `back_dev_home/ebeam/hitachi/_office_meas_hist.py` — recipe_tat's office
+  adapter uses the same module, so after pulling this template both
+  `office.py` copies (fail_issue AND recipe_tat) must be re-`cp`'d from
+  their templates in the same deploy.
 
 ## Shared: get_anchor_time()
 
 - Called by `routes.py` before every endpoint to build an
   `AnalyticsRequestScope` (`_analytics_routes.resolve_analytics_scope`), which
-  supplies the default `end_date` (anchor) / `start_date` (anchor − 30 days)
+  supplies the default `end_date` (anchor) / `start_date` (anchor − 14 days)
   when the caller omits them.
 - Mock behavior: returns the same `ANCHOR_TIME` recipe_tat uses (a wall-clock
   timestamp captured once at process start), since fail_issue's mock reuses

@@ -105,7 +105,21 @@ Field(mapping) -> Type: 설명
    summary = sum(meastime)+value_count(meastime)+cardinality(full_name.keyword),
    daily-trend = date_histogram(day, extended_bounds 로 빈 날 0 채움).
    /devices 의 lot_id 집계도 동일하게 composite 전체 순회입니다(top-N 없음).
-4. anchor(날짜 선택 상한) = 두 alias 전체의 max(timestamp).
+4. anchor(날짜 선택 상한) = 두 alias 전체의 max(timestamp). recipe_tat 과
+   fail_issue office adapter 가 공유 모듈(_office_meas_hist.py)의 캐시된
+   anchor 를 함께 사용하므로 recipe-status 페이지의 탭 간 데이터 기준
+   날짜가 항상 일치합니다.
+5. fail_issue 집계도 raw row 없이 서버측 aggregation 으로 계산합니다:
+   align fail = term(align_fail.keyword == "Fail") filter 집계
+   (NA 는 별도 filter 집계), meas fail = range(fail_ratio > 0.15,
+   MEAS_FAIL_THRESHOLD — YAML 계약 고정값) filter 집계.
+   ranking = composite(full_name.keyword) 전체 순회 후 fail 0건 recipe 는
+   제외(triage 테이블), (fail count, fail rate) 내림차순 정렬.
+   sample_eqp_ids 는 fail filter 집계 안의 terms(eqp_id.keyword) — mock 과
+   동일하게 "실패한 row 의 장비"만 샘플링. meas ranking 의 avg_fail_ratio
+   는 전체 그룹 대상 avg(fail_ratio) (실패 subset 만의 평균이 아님).
+   /devices = composite(lot_id.keyword) + align/meas filter 집계를 bridge 로
+   lot_cd 별 roll-up, align+meas 합산 fail 순 정렬.
 
 device 카탈로그(디바이스별 화면)용 lot_cd 해결
 
