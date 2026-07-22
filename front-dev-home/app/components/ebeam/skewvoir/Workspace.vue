@@ -101,7 +101,9 @@ const readinessOpen = ref(false)
 // reuse its metadata; candidate rows can enrich a deep-link placeholder once
 // the measurement history finishes loading.
 const recent = useSkewvoirRecentlyViewed(props.toolType)
-const { anchor } = useMeasHistFacets(props.toolType)
+// No toolType: shares the both-indices facets cache with SearchLanding (the
+// retention anchor is global — computed across both aliases office-side).
+const { anchor } = useMeasHistFacets()
 const openedAt = new Date().toISOString()
 
 watch(anchor, value => recent.setAnchor(value), { immediate: true })

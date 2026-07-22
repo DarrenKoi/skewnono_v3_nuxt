@@ -1,15 +1,33 @@
-import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
+import type { MeasHistFacetValue, MeasHistRow } from '~/composables/useMeasHistApi'
+import {
+  buildCascadedOptions,
+  CATEGORY_TO_TOOL_TYPE,
+  pruneCascadedFilters,
+  type SkewvoirCategory
+} from '~/utils/measHistCascade'
 import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
 
 // No `recipe` field: recipes are found via the search bar only (there is no
 // RECIPE dropdown — see FilterBar.vue). Bare recipe fragments use `q`;
 // explicit `recipe:value` tokens still reach the recipe request field.
+// `category` holds 카테고리 display values ('CD-SEM' | 'HV-SEM'); exactly one
+// pick scopes the request to that index, anything else searches both.
 export interface MeasHistFilters {
   fab: string[]
+  category: string[]
   model: string[]
   eq: string[]
   from: string
   to: string
+}
+
+// The option lists FilterBar renders — facet values narrowed by the cascade
+// (FAB → 카테고리 → 장비 모델 → EQ, joined through sem_list).
+export interface MeasHistFilterOptions {
+  fab: MeasHistFacetValue[]
+  category: MeasHistFacetValue[]
+  model: MeasHistFacetValue[]
+  eq: MeasHistFacetValue[]
 }
 
 const PAGE_SIZE = 50
@@ -22,9 +40,15 @@ const shiftIso = (iso: string, days: number): string => {
   return dt.toISOString().slice(0, 10)
 }
 
-export const useMeasHistSearch = (toolType: MeasHistToolType) => {
+// No toolType parameter: skewvoir search always spans both SEM families
+// unless the 카테고리 filter narrows it (the per-route tool type only scopes
+// the workspace shell — recent items, selection — not the search itself).
+export const useMeasHistSearch = () => {
   const { searchMeasHist } = useMeasHistApi()
-  const { facets, pending: facetsPending, error: facetsError, known, anchor, retentionDays } = useMeasHistFacets(toolType)
+  const { facets, pending: facetsPending, error: facetsError, known, anchor, retentionDays } = useMeasHistFacets()
+  // Fleet table powering the dropdown cascade. Shares the app-wide 'sem-list'
+  // cache; an empty list just degrades the cascade to un-narrowed options.
+  const { data: semRows } = useSemList()
 
   // Fix 4: while `known.eq` is empty (facets still loading, or the fetch
   // failed outright), the parser's classify() has no eq list to match
@@ -48,7 +72,20 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     end: anchor.value
   }))
 
-  const filters = ref<MeasHistFilters>({ fab: [], model: [], eq: [], from: '', to: '' })
+  const filters = ref<MeasHistFilters>({ fab: [], category: [], model: [], eq: [], from: '', to: '' })
+
+  // Cascaded dropdown options: FAB stays the full facet list (top of the
+  // cascade); 카테고리/모델/EQ narrow as upstream picks land. The parser's
+  // `known.eq` deliberately stays the UN-narrowed facet list — a typed eq
+  // token must be recognized regardless of dropdown state.
+  const filterOptions = computed<MeasHistFilterOptions>(() => {
+    const cascaded = buildCascadedOptions(
+      { model: facets.value.model, eq: facets.value.eq },
+      semRows.value,
+      { fab: filters.value.fab, category: filters.value.category, model: filters.value.model }
+    )
+    return { fab: facets.value.fab, ...cascaded }
+  })
 
   // Chips render as you type — no round-trip needed to see how a token was read.
   const parsed = computed(() => parseMeasHistQuery(queryText.value, known.value))
@@ -64,6 +101,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
 
   const hasActiveFilters = computed(() =>
     filters.value.fab.length > 0
+    || filters.value.category.length > 0
     || filters.value.model.length > 0
     || filters.value.eq.length > 0
     || Boolean(filters.value.from)
@@ -94,8 +132,14 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     const p = parsed.value
     const { start: from, end: to } = resolvedRange.value
 
+    // Exactly one 카테고리 pick scopes to that index; zero or both means the
+    // backend searches meas_hist_cdsem AND meas_hist_hvsem together.
+    const pickedTools = filters.value.category
+      .map(category => CATEGORY_TO_TOOL_TYPE[category as SkewvoirCategory])
+      .filter(Boolean)
+
     return {
-      toolType,
+      toolType: pickedTools.length === 1 ? pickedTools[0] : undefined,
       fab: filters.value.fab,
       model: filters.value.model,
       eq: union(filters.value.eq, p.eq),
@@ -160,7 +204,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   })
 
   const resetFilters = () => {
-    filters.value = { fab: [], model: [], eq: [], from: '', to: '' }
+    filters.value = { fab: [], category: [], model: [], eq: [], from: '', to: '' }
   }
 
   // A 기간 dropdown edit is "last write wins": it must not merely set
@@ -188,8 +232,16 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   }
 
   // A dropdown change is one deliberate act, so it re-searches immediately —
-  // unlike typing, which waits for Enter.
+  // unlike typing, which waits for Enter. Before searching, prune downstream
+  // picks the cascade no longer offers (a CD-SEM model surviving a switch to
+  // HV-SEM would silently zero the search): the prune assignment re-fires
+  // this watcher once, and that second pass — now a no-op prune — searches.
   watch(() => filters.value, () => {
+    const pruned = pruneCascadedFilters(filters.value, filterOptions.value)
+    if (pruned) {
+      filters.value = pruned
+      return
+    }
     if (searched.value) void search()
   }, { deep: true })
 
@@ -213,6 +265,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     anchor,
     retentionDays,
     facets,
+    filterOptions,
     facetsPending,
     searchDisabled,
     search,

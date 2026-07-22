@@ -2,16 +2,20 @@ import type { MeasHistFacets, MeasHistToolType } from '~/composables/useMeasHist
 import type { KnownValues } from '~/utils/measHistQuery'
 
 // Facet options for the search filters. One shared useAsyncData cache key per
-// tool type, so every dropdown and the query parser read the same fetch.
-export const useMeasHistFacets = (toolType: MeasHistToolType) => {
+// scope, so every dropdown and the query parser read the same fetch.
+//
+// No toolType = the skewvoir default: facets across BOTH indices (the search
+// scopes to one family only when the 카테고리 dropdown is picked, so the
+// option universe and the parser's known-eq list must cover both).
+export const useMeasHistFacets = (toolType?: MeasHistToolType) => {
   const { fetchMeasHistFacets } = useMeasHistApi()
 
   const { data: facets, pending, error } = useAsyncData<MeasHistFacets>(
-    `meas-hist-facets:${toolType}`,
+    `meas-hist-facets:${toolType ?? 'all'}`,
     () => fetchMeasHistFacets(toolType),
     {
       default: () => ({
-        tool_type: toolType,
+        tool_type: toolType ?? null,
         anchor: '',
         retention_days: 60,
         fab: [],

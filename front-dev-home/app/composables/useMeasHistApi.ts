@@ -64,7 +64,9 @@ export interface MeasHistFacets {
 }
 
 export interface MeasHistSearchParams {
-  toolType: MeasHistToolType
+  // Absent = no 카테고리 picked: the backend searches BOTH indices
+  // (meas_hist_cdsem + meas_hist_hvsem) and derives each row's tool_type.
+  toolType?: MeasHistToolType
   fab?: string[]
   model?: string[]
   eq?: string[]
@@ -123,7 +125,8 @@ export const useMeasHistApi = () => {
 
   const searchMeasHist = async (params: MeasHistSearchParams): Promise<MeasHistSearchResponse> => {
     // Repeated params (?eq=A&eq=B) are how a field ORs its values.
-    const query: Record<string, string | string[] | number> = { tool_type: params.toolType }
+    const query: Record<string, string | string[] | number> = {}
+    if (params.toolType) query.tool_type = params.toolType
 
     for (const key of ['fab', 'model', 'eq', 'recipe', 'lot', 'msr', 'q'] as const) {
       const values = params[key]
@@ -137,9 +140,9 @@ export const useMeasHistApi = () => {
     return await $fetch<MeasHistSearchResponse>(joinApiPath(base, '/meas-hist/search'), { query })
   }
 
-  const fetchMeasHistFacets = async (toolType: MeasHistToolType): Promise<MeasHistFacets> =>
+  const fetchMeasHistFacets = async (toolType?: MeasHistToolType): Promise<MeasHistFacets> =>
     await $fetch<MeasHistFacets>(joinApiPath(base, '/meas-hist/facets'), {
-      query: { tool_type: toolType }
+      query: toolType ? { tool_type: toolType } : undefined
     })
 
   return { fetchMeasHist, searchMeasHist, fetchMeasHistFacets }

@@ -16,7 +16,7 @@
             />
             <EbeamSkewvoirSearchFilterBar
               :filters="search.filters.value"
-              :facets="search.facets.value!"
+              :options="search.filterOptions.value"
               :disabled="search.facetsPending.value"
               :anchor="search.anchor.value"
               :retention-days="search.retentionDays.value"
@@ -121,7 +121,10 @@ const props = defineProps<{
 }>()
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
-const search = useMeasHistSearch(props.toolType)
+// No toolType: the search spans both SEM families; the 카테고리 dropdown is
+// the only thing that narrows it to one index. The route's toolType keeps
+// scoping the workspace shell (recent items, selection) only.
+const search = useMeasHistSearch()
 const selection = useSkewvoirSearchSelection(props.toolType)
 const recent = useSkewvoirRecentlyViewed(props.toolType)
 const recentOpen = ref(false)

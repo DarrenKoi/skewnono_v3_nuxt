@@ -2,23 +2,33 @@
   <div class="mt-3 flex flex-wrap items-center gap-2">
     <span class="sk-eyebrow">FILTERS</span>
 
+    <!-- Cascade order: FAB → 카테고리 → 장비 모델 → EQ. Each pick narrows the
+         dropdowns to its right (sem_list is the join table); no 카테고리 pick
+         means the search spans both SEM indices. -->
     <EbeamSkewvoirSearchFacetSelect
       label="FAB"
-      :options="facets.fab"
+      :options="options.fab"
       :model-value="filters.fab"
       :disabled="disabled"
       @update:model-value="patch('fab', $event)"
     />
     <EbeamSkewvoirSearchFacetSelect
-      label="장비 종류"
-      :options="facets.model"
+      label="카테고리"
+      :options="options.category"
+      :model-value="filters.category"
+      :disabled="disabled"
+      @update:model-value="patch('category', $event)"
+    />
+    <EbeamSkewvoirSearchFacetSelect
+      label="장비 모델"
+      :options="options.model"
       :model-value="filters.model"
       :disabled="disabled"
       @update:model-value="patch('model', $event)"
     />
     <EbeamSkewvoirSearchFacetSelect
       label="EQ"
-      :options="facets.eq"
+      :options="options.eq"
       :model-value="filters.eq"
       :disabled="disabled"
       searchable
@@ -46,12 +56,13 @@
 </template>
 
 <script setup lang="ts">
-import type { MeasHistFacets } from '~/composables/useMeasHistApi'
-import type { MeasHistFilters } from '~/composables/useMeasHistSearch'
+import type { MeasHistFilterOptions, MeasHistFilters } from '~/composables/useMeasHistSearch'
 
 const props = defineProps<{
   filters: MeasHistFilters
-  facets: MeasHistFacets
+  // Cascade-narrowed option lists (useMeasHistSearch.filterOptions), not the
+  // raw facets response.
+  options: MeasHistFilterOptions
   disabled?: boolean
   // Backend-declared clock. Presets resolve against it, not wall-clock today.
   anchor: string
@@ -94,6 +105,7 @@ const periodPresets = computed(() => {
 
 const hasActive = computed(() =>
   props.filters.fab.length > 0
+  || props.filters.category.length > 0
   || props.filters.model.length > 0
   || props.filters.eq.length > 0
   || Boolean(props.filters.from)
