@@ -182,7 +182,7 @@ JSON 블롭 하나에 보드를 담으면 read-modify-write 가 되어 동시 �
 | --- | --- |
 | `ZADD` | 같은 이벤트는 member 문자열이 같아 자동으로 한 번만 남습니다 |
 | `ZREMRANGEBYSCORE` | 몇 번 실행해도 결과가 같습니다 |
-| `meta` 갱신 | Lua 스크립트로 **단조 증가** 만 허용합니다 (아래) |
+| `meta` 갱신 | 덮어써도 오차가 보수적 방향으로만 발생합니다 (아래) |
 
 부수 효과가 더 큽니다. **writer 가 이벤트를 읽지 않아도 됩니다.** 기존 보드를
 읽어 병합하는 단계가 사라지므로 writer 에는 병합 함수도 만료 함수도 필요 없습니다.
@@ -190,29 +190,25 @@ JSON 블롭 하나에 보드를 담으면 read-modify-write 가 되어 동시 �
 reader 쪽에서도 10분 절단이 `ZRANGEBYSCORE` 의 인자가 되어 파이썬 만료 코드가
 사라집니다.
 
-### `meta` 는 단조 증가로만 갱신합니다
+### `meta` 는 평범한 `SET` 으로 갱신합니다
 
-`SET polled_at` 을 그냥 쓰면 두 writer 가 동시에 돌 때 **느린 쪽이 나중에 도착해
-더 최신인 값을 덮어쓸 수 있습니다.** 시각을 되돌리는 쓰기는 하트비트를 거짓말하게
-만들므로, 갱신을 Lua 로 감싸 기존 값보다 클 때만 쓰도록 합니다.
+리뷰에서 "동시 실행 시 느린 writer 가 더 최신인 하트비트를 덮어쓸 수 있다" 는
+지적이 있었고, 사실입니다. 그러나 아래에서 **Redis 서버 시계를 단일 권한으로**
+삼으면 그 오차가 안전한 방향으로만 발생하므로 CAS 가 필요 없습니다.
 
-```lua
--- KEYS[1]=meta, ARGV[1]=polled_at_epoch, ARGV[2]=covered_since_epoch, ARGV[3]=ttl
-local cur = redis.call('get', KEYS[1])
-if cur then
-  local prev = cjson.decode(cur)
-  if prev.polled_at >= tonumber(ARGV[1]) then return 0 end
-  -- covered_since 는 뒤로 밀지 않는다: 더 이른 값이 더 넓은 커버리지다
-  if prev.covered_since < tonumber(ARGV[2]) then ARGV[2] = prev.covered_since end
-end
-redis.call('set', KEYS[1], cjson.encode({polled_at=tonumber(ARGV[1]),
-                                         covered_since=tonumber(ARGV[2])}), 'EX', ARGV[3])
-return 1
-```
+- 두 writer 가 같은 Redis 시계를 읽으므로, 누구도 미래 시각을 만들어낼 수 없습니다.
+  오차의 상한은 한 주기의 소요 시간(≤10초)입니다.
+- 덮어쓰기로 `polled_at` 이 **조금 과거** 가 되는 것은 보수적입니다 — 최악이
+  `stale` 을 잠깐 일찍 띄우는 것이고, `live` 를 거짓으로 띄우는 방향은 구조적으로
+  불가능합니다.
+- `covered_since` 도 마찬가지로, 덮어써서 좁아지는 것은 "덜 주장하는" 쪽입니다.
 
-`ZREMRANGEBYSCORE` 의 파괴성도 같은 맥락에서 문제가 되지만, 절단 기준을 writer 의
-로컬 시계가 아니라 **Redis 서버 시계**(아래)로 통일하므로 writer 가 여럿이어도
-같은 경계를 계산합니다.
+모니터링 시스템에서 **오차의 방향** 은 크기보다 중요합니다. 여기서는 모든 경합이
+"실제보다 덜 건강하다고 보고" 하는 쪽으로만 기울므로, Lua 스크립트와 그에 딸린
+Redis 버전 의존을 들이지 않습니다.
+
+`ZREMRANGEBYSCORE` 의 파괴성도 같은 이유로 안전합니다. 절단 기준이 writer 의 로컬
+시계가 아니라 Redis 서버 시계라서, writer 가 여럿이어도 같은 경계를 계산합니다.
 
 ### 시계 권한은 Redis 에 있습니다
 
@@ -295,7 +291,7 @@ if events:                                  # 빈 mapping 은 redis-py 가 거�
     pipe.zadd(events_key, {canonical_json(e): e["occurred_epoch"] for e in events})
 pipe.zremrangebyscore(events_key, "-inf", now - WRITER_PRUNE_SEC)
 pipe.expire(events_key, 86400)
-pipe.evalsha(META_ADVANCE, 1, meta_key, now, covered_since, 86400)
+pipe.set(meta_key, json.dumps({"polled_at": now, "covered_since": covered_since}), ex=86400)
 pipe.sadd(registry_key, f"{tool_slug}:{fab_name}")
 pipe.expire(registry_key, 86400)
 pipe.execute()
@@ -553,7 +549,6 @@ context(https, 또는 localhost)에서만 노출되는데, 프로덕션은
 - 전 팹 실패 → raise / 일부 실패 → raise 하지 않음
 - **멱등성** — 같은 응답으로 두 번 돌려도 ZSET 크기가 같음. 락 없는 호스트에 얹을 수
   있다는 주장의 근거이므로 반드시 테스트합니다
-- **`meta` 단조성** — 오래된 `polled_at` 으로 갱신을 시도해도 값이 되돌아가지 않음
 - 미래 이벤트 거부 — `now + 600` 인 이벤트가 버려짐
 - 계약 적합성 — writer 가 쓴 멤버를 reader 의 파싱이 그대로 읽어냄. 두 서비스가
   코드를 공유하지 않으므로, 이 테스트가 드리프트를 잡는 유일한 장치입니다
