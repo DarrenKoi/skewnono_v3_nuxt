@@ -9,6 +9,7 @@ export const FEATURE_SLUGS = [
   // the legacy slugs never appear in route.path and are not listed here.
   'recipe-status',
   'hardware',
+  'live-alarm',
   'device-statistics',
   'skewvoir',
   'skew-check'

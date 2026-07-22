@@ -13,7 +13,7 @@ const isInfoRoute = computed(() =>
   INFO_PATHS.some(path => route.path === path || route.path.startsWith(`${path}/`))
 )
 
-type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'device-statistics' | 'skewvoir' | 'skew-check'
+type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'live-alarm' | 'device-statistics' | 'skewvoir' | 'skew-check'
 
 type FeatureTab = {
   label: string
@@ -27,6 +27,7 @@ const features: FeatureTab[] = [
   { label: 'Recipe 현황', routeValue: 'recipe-status', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  { label: '라이브 알람', routeValue: 'live-alarm', icon: 'i-lucide-radio', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
   // 스큐 관리 (skew-check) is hidden from the nav while its design is reworked.
   // The route and page still exist and remain reachable by URL.
@@ -52,6 +53,7 @@ const activeFeature = computed<FeatureRouteValue | null>(() => {
   if (path.includes('/recipe-search')) return 'recipe-search'
   if (path.includes('/recipe-status')) return 'recipe-status'
   if (path.includes('/hardware')) return 'hardware'
+  if (path.includes('/live-alarm')) return 'live-alarm'
   if (path.includes('/device-statistics')) return 'device-statistics'
   if (path.includes('/skew-check')) return 'skew-check'
   if (path.includes('/skewvoir')) return 'skewvoir'
