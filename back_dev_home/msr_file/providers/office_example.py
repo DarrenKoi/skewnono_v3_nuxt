@@ -11,13 +11,15 @@ Data path (docs/datatables/meas_hist.txt + msr_file_pickle.txt):
   ``exe_detail_info`` + ``alignment`` + ``fixed_fdc`` + ``dynamic_fdc`` +
   ``spm_dict``); re-parsing the raw text here would duplicate the office
   post-processing pipeline.
-* ``minio_pkl`` is a path INSIDE the configured bucket — NOT ``"bucket/key"``.
-  Its first segment (``hitachi_sem/...``) is a folder; the bucket and key
-  prefix come from ``minio_handler/minio_config.py`` (``BUCKET``/``PREFIX``),
-  NOT from the path and NOT from .env (see the warning in
-  ``back_dev_home/.env.example``). Treating segment one as a bucket fails with
-  ``InvalidBucketName`` — S3 bucket names cannot contain underscores. Fetched
-  via ``minio_handler.MinioObject().get_pickle``; the import is lazy so this
+* ``minio_pkl`` is a key relative to the configured ``PREFIX`` — NOT
+  ``"bucket/key"``. Office-confirmed 2026-07-22: the stored
+  ``hitachi_sem/...`` resolves to ``user/2067928/hitachi_sem/...``, so the
+  bare key goes to a default-constructed client and both ``BUCKET`` and
+  ``PREFIX`` come from ``minio_handler/minio_config.py`` — not from the path,
+  and not from .env (see the warning in ``back_dev_home/.env.example``).
+  Treating segment one as a bucket fails with ``InvalidBucketName``: S3 bucket
+  names cannot contain underscores. Fetched via
+  ``minio_handler.MinioObject().get_pickle``; the import is lazy so this
   module loads fine on hosts without a MinIO config.
 
 Office-gated canonical metadata (contracts.ExeDetailInfo, enforced non-empty
@@ -149,37 +151,22 @@ def _find_parent(msr: str) -> dict[str, Any] | None:
     return hits[0].get("_source", {}) if hits else None
 
 
-_MISSING_KEY_CODES = {"NoSuchKey", "NoSuchObject", "NotFound"}
-
-
 def _fetch_payload(minio_pkl: str) -> Any:
-    """Fetch the pickle at ``minio_pkl`` from the CONFIGURED bucket.
+    """Fetch the pickle at ``minio_pkl`` from the configured bucket.
 
-    ``minio_pkl`` is a key inside that bucket, not a ``"bucket/key"`` pair:
-    its leading segment is a folder (``hitachi_sem/...``), and handing that to
-    the client as a bucket name fails with ``InvalidBucketName`` because S3
-    forbids underscores. Bucket and prefix therefore come from
-    ``minio_config.py``, exactly as the health probe resolves them.
-
-    The one thing config cannot settle is whether the stored path is already
-    relative to ``PREFIX`` or absolute from the bucket root, so this tries the
-    prefixed form first and falls back to the unprefixed one on a missing-key
-    error. Once the office confirms which it is, drop the fallback.
+    ``minio_pkl`` is a key RELATIVE TO the configured ``PREFIX``, not a
+    ``"bucket/key"`` pair — office-confirmed 2026-07-22: the stored
+    ``hitachi_sem/...`` resolves to ``user/2067928/hitachi_sem/...``. Its
+    leading segment is a folder, and handing that to the client as a bucket
+    fails with ``InvalidBucketName`` because S3 forbids underscores. Bucket
+    and prefix both come from ``minio_config.py``, which is exactly what
+    passing the bare key to a default-constructed client does.
     """
     # Lazy import: MinIO config is resolved at call time, module import stays
     # side-effect free (mirrors health/providers/office_example.py).
     from minio_handler import MinioObject
-    from minio.error import S3Error
 
-    store = MinioObject()
-    key = minio_pkl.lstrip("/")
-    try:
-        return store.get_pickle(key)
-    except S3Error as exc:
-        if exc.code not in _MISSING_KEY_CODES or not store.default_prefix:
-            raise
-        # Stored path is absolute from the bucket root; drop the prefix.
-        return store.use_prefix(None).get_pickle(key)
+    return MinioObject().get_pickle(minio_pkl.lstrip("/"))
 
 
 # ── normalization: pickle payload -> contract shapes ────────────────────────
@@ -492,15 +479,18 @@ if __name__ == "__main__":
     try:
         from minio_handler import MinioObject
 
+        probe_key = probe_path.lstrip("/")
         _probe_store = MinioObject()
+        # NOTE: MinioObject(prefix=None) does NOT disable the prefix — the
+        # constructor reads None as "use the configured default". Only
+        # prefix="" or .use_prefix(None) clears it. Getting this wrong makes
+        # the two lines below silently measure the same thing.
+        _unprefixed = MinioObject(prefix="")
         print(f"  configured bucket : {_probe_store.default_bucket!r}")
         print(f"  configured prefix : {_probe_store.default_prefix!r}")
-        print(f"  resolved key      : {_probe_store._resolve_key(probe_path.lstrip('/'))!r}")
-        print(f"  exists (prefixed) : {_probe_store.exists(probe_path.lstrip('/'))}")
-        print(
-            "  exists (raw)      : "
-            f"{MinioObject(prefix=None).exists(probe_path.lstrip('/'))}"
-        )
+        print(f"  resolved key      : {_probe_store._resolve_key(probe_key)!r}")
+        print(f"  exists (prefixed) : {_probe_store.exists(probe_key)}")
+        print(f"  exists (raw)      : {_unprefixed.exists(probe_key)}")
     except Exception as exc:  # diagnostics only — never block the smoke test
         print(f"  (minio probe unavailable: {type(exc).__name__}: {exc})")
 
