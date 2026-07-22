@@ -11,11 +11,14 @@ Data path (docs/datatables/meas_hist.txt + msr_file_pickle.txt):
   ``exe_detail_info`` + ``alignment`` + ``fixed_fdc`` + ``dynamic_fdc`` +
   ``spm_dict``); re-parsing the raw text here would duplicate the office
   post-processing pipeline.
-* Path format is ``"bucket/key..."`` (same convention as the health probe's
-  ``minio_path``); fetched via ``minio_handler.MinioObject().get_pickle``.
-  MinIO settings come from ``minio_handler/minio_config.py`` — NOT .env
-  (see the warning in ``back_dev_home/.env.example``). The import is lazy so
-  this module loads fine on hosts without a MinIO config.
+* ``minio_pkl`` is a path INSIDE the configured bucket — NOT ``"bucket/key"``.
+  Its first segment (``hitachi_sem/...``) is a folder; the bucket and key
+  prefix come from ``minio_handler/minio_config.py`` (``BUCKET``/``PREFIX``),
+  NOT from the path and NOT from .env (see the warning in
+  ``back_dev_home/.env.example``). Treating segment one as a bucket fails with
+  ``InvalidBucketName`` — S3 bucket names cannot contain underscores. Fetched
+  via ``minio_handler.MinioObject().get_pickle``; the import is lazy so this
+  module loads fine on hosts without a MinIO config.
 
 Office-gated canonical metadata (contracts.ExeDetailInfo, enforced non-empty
 by tests/test_contract_gate.py in office mode):
@@ -136,13 +139,6 @@ def _float_list(value: Any) -> list[float]:
 # ── fetchers (network — kept thin so build_response stays pure) ─────────────
 
 
-def _split_minio_path(path: str) -> tuple[str, str]:
-    bucket, _, key = path.partition("/")
-    if not bucket or not key:
-        raise ValueError(f"invalid minio_pkl path {path!r}; expected 'bucket/key'")
-    return bucket, key
-
-
 def _find_parent(msr: str) -> dict[str, Any] | None:
     """The meas_hist _source for this MSR — searched across BOTH aliases."""
     body = {
@@ -153,13 +149,37 @@ def _find_parent(msr: str) -> dict[str, Any] | None:
     return hits[0].get("_source", {}) if hits else None
 
 
+_MISSING_KEY_CODES = {"NoSuchKey", "NoSuchObject", "NotFound"}
+
+
 def _fetch_payload(minio_pkl: str) -> Any:
+    """Fetch the pickle at ``minio_pkl`` from the CONFIGURED bucket.
+
+    ``minio_pkl`` is a key inside that bucket, not a ``"bucket/key"`` pair:
+    its leading segment is a folder (``hitachi_sem/...``), and handing that to
+    the client as a bucket name fails with ``InvalidBucketName`` because S3
+    forbids underscores. Bucket and prefix therefore come from
+    ``minio_config.py``, exactly as the health probe resolves them.
+
+    The one thing config cannot settle is whether the stored path is already
+    relative to ``PREFIX`` or absolute from the bucket root, so this tries the
+    prefixed form first and falls back to the unprefixed one on a missing-key
+    error. Once the office confirms which it is, drop the fallback.
+    """
     # Lazy import: MinIO config is resolved at call time, module import stays
     # side-effect free (mirrors health/providers/office_example.py).
     from minio_handler import MinioObject
+    from minio.error import S3Error
 
-    bucket, key = _split_minio_path(minio_pkl)
-    return MinioObject().get_pickle(key, bucket=bucket)
+    store = MinioObject()
+    key = minio_pkl.lstrip("/")
+    try:
+        return store.get_pickle(key)
+    except S3Error as exc:
+        if exc.code not in _MISSING_KEY_CODES or not store.default_prefix:
+            raise
+        # Stored path is absolute from the bucket root; drop the prefix.
+        return store.use_prefix(None).get_pickle(key)
 
 
 # ── normalization: pickle payload -> contract shapes ────────────────────────
@@ -460,8 +480,30 @@ if __name__ == "__main__":
     if not hits:
         raise SystemExit("no meas_hist doc with a minio_pkl path — check ingestion")
 
-    probe_msr = _text(hits[0].get("_source", {}).get("msr"))
+    probe_src = hits[0].get("_source", {})
+    probe_msr = _text(probe_src.get("msr"))
+    probe_path = _text(probe_src.get("minio_pkl"))
     print(f"probe msr: {probe_msr!r}")
+
+    # Print where we are actually going to look. The stored path is a KEY, not
+    # a bucket/key pair — if this ever regresses to splitting on "/", the
+    # bucket line below shows a folder name and MinIO answers InvalidBucketName.
+    print(f"minio_pkl (stored): {probe_path!r}")
+    try:
+        from minio_handler import MinioObject
+
+        _probe_store = MinioObject()
+        print(f"  configured bucket : {_probe_store.default_bucket!r}")
+        print(f"  configured prefix : {_probe_store.default_prefix!r}")
+        print(f"  resolved key      : {_probe_store._resolve_key(probe_path.lstrip('/'))!r}")
+        print(f"  exists (prefixed) : {_probe_store.exists(probe_path.lstrip('/'))}")
+        print(
+            "  exists (raw)      : "
+            f"{MinioObject(prefix=None).exists(probe_path.lstrip('/'))}"
+        )
+    except Exception as exc:  # diagnostics only — never block the smoke test
+        print(f"  (minio probe unavailable: {type(exc).__name__}: {exc})")
+
     result = get_msr_file(probe_msr)
     if result is None:
         raise SystemExit("get_msr_file returned None for a doc that has minio_pkl")

@@ -62,8 +62,16 @@
 - Office data source: the meas_hist document found by `msr.keyword` (both
   aliases, `meas_hist_cdsem,meas_hist_hvsem`) carries two MinIO paths —
   `minio_msr` (RAW .MSR text) and `minio_pkl` (post-processed pickle). The
-  adapter reads ONLY `minio_pkl` (`"bucket/key"` format →
-  `minio_handler.MinioObject().get_pickle`); the pickle already holds the
+  adapter reads ONLY `minio_pkl`, which is a **key inside the configured
+  bucket** — not a `"bucket/key"` pair. Its first segment (`hitachi_sem/...`)
+  is a folder; the bucket (`BUCKET`) and key prefix (`PREFIX`) come from
+  `minio_handler/minio_config.py`, the same place the health probe reads them.
+  Passing that first segment as a bucket returns
+  `InvalidBucketName` — S3 bucket names cannot contain underscores. The
+  adapter tries the prefixed key first and retries without the prefix on a
+  missing-key error, since the stored path may be either prefix-relative or
+  absolute from the bucket root; **confirm which at the office and drop the
+  fallback**. The pickle already holds the
   parsed structure (`df_result_data` + `exe_detail_info` + `alignment` +
   `fixed_fdc` + `dynamic_fdc` + `spm_dict`, see
   `docs/datatables/msr_file_pickle.txt`). MinIO settings come from
