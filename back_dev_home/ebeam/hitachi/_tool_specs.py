@@ -19,7 +19,8 @@ class ToolSpec(TypedDict):
 
 
 # CD-SEM scope: Hitachi CG-series and GT-series.
-# HV-SEM scope: AMAT TP-series only (PROVISION_*/VERITYSEM_* deferred to 2027).
+# HV-SEM scope: Hitachi TP-series only. Both families in scope today are
+# Hitachi; AMAT enters only with PROVISION_*/VERITYSEM_*, deferred to 2027.
 TOOL_SPECS: dict[ToolSlug, ToolSpec] = {
     "cdsem": {
         "eqp_models": ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380", "GT2000", "GT2000S"],

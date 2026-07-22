@@ -7,6 +7,19 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
+## Status: partially wired
+
+`/recipes` reads the office Redis catalog. `/recipe-detail` and `/compare`
+still return mock IDP data, because the raw recipe-open data is not prepared
+office-side yet — `providers/office.py` re-exports those two straight from
+`providers/mock.py`.
+
+That is a net improvement over leaving the whole feature on `mock` (the
+catalog becomes real, detail is synthetic either way), which is why
+`recipe_search` is in `_runtime/site.py`'s `OFFICE_READY`. The caveat worth
+remembering: **at the office, 열어보기 shows plausible-looking synthetic
+tables.** Anyone comparing them against the tool will find they do not match.
+
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipes
 
 - Handler: `routes.py` → `data.get_recipe_catalog(tool_type, fab_name)`.
@@ -29,7 +42,18 @@
   rows (`@lru_cache`-memoized in `_generate_recipe_rows`). Names follow the
   shape `"<CLASS>/<BASE>_ABC123_<VARIANT>_<00001-suffix>"`, cycling through 10
   fixed `(class, base)` patterns.
-- Office data source: <!-- OFFICE: Redis-backed recipe-name list keyed by tool_type/fab_name -->
+- Office data source: **WIRED.** Redis hash per tool family —
+  `v3_cdsem_unique_rcp_list` (cd-sem) / `v3_hvsem_unique_rcp_list` (hv-sem).
+  Fields are **lowercase** fab names, values are that fab's recipe-name list
+  (`{"m14a": ["1/AC_M2_TAT", ...], "r3": [...]}`). `routes.py` uppercases
+  `fab_name`, so the adapter lowercases at the Redis boundary and echoes the
+  caller's uppercase spelling back in the response.
+  - Missing hash *field* (unknown fab) → empty `rows`, `total: 0`.
+  - Missing hash *key* → `LookupError` (JSON 502): the upstream job never ran.
+  - No `fab_name` → union of every field, de-duped. The frontend always sends
+    a fab, so this is the blank-query edge case only.
+  - Values parse as JSON, then Python `repr`, then comma-separated, so the
+    adapter does not care which the writer job used.
 - Notes: per the module docstring, "the office source is expected to return
   only a large Redis-backed recipe-name list" — the office implementation is
   expected to be a plain name lookup, not the full synthetic generator.
@@ -70,7 +94,12 @@
   image. `timestamp` is `datetime.now().isoformat()` — a volatile field
   scrubbed by the parity harness (`VOLATILE_KEYS`), so office does not need to
   match it byte-for-byte.
-- Office data source: <!-- OFFICE: IDP payload fetch for the chosen recipe (wafer MP/align tables + image filenames + AMP) -->
+- Office data source: **NOT WIRED — deliberately mock-backed.** The raw IDP
+  payload is not prepared office-side yet, so `providers/office.py`
+  re-exports the mock's `get_recipe_open_data`. This keeps 열어보기 clickable
+  and the contract gate green, at the cost of showing synthetic detail data
+  in the office UI. Replace with the real IDP fetch when the raw data lands.
+  <!-- OFFICE: IDP payload fetch for the chosen recipe (wafer MP/align tables + image filenames + AMP) -->
 - Notes: this endpoint mimics "the IDP payload the frontend will request
   after a user chooses one recipe" (module docstring) — unlike `/recipes`,
   the office implementation is expected to assemble real per-recipe detail
@@ -114,7 +143,10 @@
   `IMAGE_SLOTS` key to that parameter's filename; `amp` is that parameter's
   AMP rows grouped by `Parameter`. Duplicate `Parameter` values within one
   recipe's `idp_image_info` are de-duplicated (first occurrence wins).
-- Office data source: <!-- OFFICE: same IDP payload source as /recipe-detail, batched per recipe_names -->
+- Office data source: **NOT WIRED — deliberately mock-backed**, same reason
+  as `/recipe-detail`. Re-exported (not reimplemented) from the mock so the
+  "compare is derived from open" invariant below survives the swap.
+  <!-- OFFICE: same IDP payload source as /recipe-detail, batched per recipe_names -->
 - Notes: `get_recipe_compare_data` reuses `get_recipe_open_data` internally
   "so compare matches open" (source comment) — an office implementation
   should preserve that invariant (compare output for a recipe should be

@@ -70,20 +70,24 @@ const activeRows = computed<LateralRecipeRow[]>(() =>
   activeTab.value === 'ready' ? readyRows.value : notReadyRows.value
 )
 
+// Counts only versions some tool actually holds. `versions` also carries past
+// revisions with no holder (see the dimmed cards below), and counting those
+// would report "N개 version 혼재" for a fleet that is in fact all on one version.
 const versionStatus = computed(() => {
-  const totalVersions = data.value?.versions.length ?? 0
-  if (totalVersions === 0) return '보유 장비 없음'
-  if (totalVersions === 1) return '동일 version'
-  return `${totalVersions}개 version 혼재`
+  const heldVersions = (data.value?.versions ?? []).filter(v => v.ready_count > 0).length
+  if (heldVersions === 0) return '보유 장비 없음'
+  if (heldVersions === 1) return '동일 version'
+  return `${heldVersions}개 version 혼재`
 })
 
 const formatGeneratedAt = (iso: string | null | undefined) =>
   iso ? formatRecipeTimestamp(iso, { withSeconds: true }) : '—'
 
+// vendor is intentionally absent: every row in a lateral check is the same
+// tool family, so the column repeats one value down the whole table.
 const baseColumns: TableColumn<LateralRecipeRow>[] = [
   { accessorKey: 'eqp_id', header: 'eqp_id', size: 132 },
   { accessorKey: 'eqp_model_cd', header: 'model', size: 124 },
-  { accessorKey: 'vendor_nm', header: 'vendor', size: 100 },
   { accessorKey: 'available', header: 'avail', size: 90 }
 ]
 
@@ -215,10 +219,13 @@ const tableUi = recipeTableUi
           v-if="data.versions.length > 0"
           class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
         >
+          <!-- Versions with no current holder are past revisions kept for
+               history; dimmed so the live version stays findable at a glance. -->
           <div
             v-for="version in data.versions"
             :key="version.recipe_version"
             class="rounded-lg border border-(--sk-border) bg-white px-3 py-2 dark:bg-zinc-950"
+            :class="version.ready_count === 0 ? 'opacity-55' : ''"
           >
             <div class="flex items-center justify-between gap-3">
               <span class="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">

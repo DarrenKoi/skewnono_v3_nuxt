@@ -8,6 +8,15 @@ measurement executions. Connection plumbing, the lot_id<->lot_cd bridge, and
 the shared anchor come from ``back_dev_home/ebeam/hitachi/_office_meas_hist.py``
 (see its docstring for the data layout and the KST-as-UTC timezone contract).
 
+tool_type=None is the DEFAULT skewvoir request, not an edge case: the 검색 UI
+sends ``tool_type`` only when the user picks exactly one 카테고리 (CD-SEM /
+HV-SEM). Every other search hits BOTH aliases in one request
+(``meas_hist_cdsem,meas_hist_hvsem``), so office verification must cover the
+no-tool_type path — including that ``_hit_tool_type`` correctly recovers the
+family from each hit's ``_index`` name on the real cluster. The dropdown
+cascade (FAB → 카테고리 → 장비 모델 → EQ) is frontend-only via sem_list;
+facets stay a single un-cascaded aggregation per scope.
+
 Contract-gap derivations — the office documents lack four MeasHistRow fields
 (docs/datatables/meas_hist.txt office section):
 
@@ -20,8 +29,9 @@ Contract-gap derivations — the office documents lack four MeasHistRow fields
                   Unmapped lot_ids surface as ``""``, never dropped — this is
                   a row listing, not a device roll-up.
 * ``vendor_nm`` — NOT stored office-side; derived from the eqp_model_cd
-                  prefix (VERITY* -> AMAT, everything else -> HITACHI:
-                  CG/GT/TP families are Hitachi).
+                  prefix. AMAT is exactly VerityCEM + Provision; everything
+                  else is HITACHI, including BOTH in-scope families —
+                  CD-SEM CG/GT and HV-SEM TP are all Hitachi.
 
 Retention: the mock pins RETENTION_ANCHOR at import; office anchors the same
 60-day window at the shared ``get_anchor_time()`` (latest real data date,
@@ -75,6 +85,7 @@ from back_dev_home.meas_hist.opensearch_query import (
 from back_dev_home.meas_hist.providers.mock import (
     DEFAULT_LIMIT,
     MAX_RESULT_WINDOW,
+    RECIPE_HISTORY_DAYS,
     RETENTION_DAYS,
     ToolType,
 )
@@ -110,11 +121,20 @@ def _hit_tool_type(hit: dict[str, Any], tool_type: ToolType | None) -> ToolType:
     return "hv-sem" if "hvsem" in str(hit.get("_index", "")) else "cd-sem"
 
 
+_AMAT_MODEL_PREFIXES = ("VERITY", "PROVISION")
+
+
 def _vendor(eqp_model_cd: str) -> str:
-    # vendor_nm is not stored office-side. VERITY* is AMAT; the CG/GT/TP
-    # families (and anything unrecognized on these Hitachi-centric aliases)
-    # are HITACHI.
-    return "AMAT" if eqp_model_cd.upper().startswith("VERITY") else "HITACHI"
+    # vendor_nm is not stored office-side. AMAT is exactly VerityCEM and
+    # Provision; every other family here — CD-SEM CG/GT and HV-SEM TP — is
+    # HITACHI, as is anything unrecognized on these Hitachi-only aliases.
+    # (Neither AMAT family should reach meas_hist_cdsem/hvsem at all, since
+    # they are separate tool types; the check is defensive.)
+    return (
+        "AMAT"
+        if eqp_model_cd.upper().startswith(_AMAT_MODEL_PREFIXES)
+        else "HITACHI"
+    )
 
 
 def _int(value: Any) -> int:
@@ -294,7 +314,14 @@ def get_meas_hist(
 ) -> MeasHistResponse:
     fab_normalized = (fab_name or "").upper() or None
 
-    clauses: list[dict[str, Any]] = []
+    # Default window, mirroring the mock's RECIPE_HISTORY_DAYS. Anchored on the
+    # latest ingested data (not wall-clock) for the same reason retention is:
+    # an ingestion pause must not silently empty the view. Applied as a filter
+    # clause, so it also bounds the `total` count, not just the returned page.
+    floor = get_anchor_time() - timedelta(days=RECIPE_HISTORY_DAYS)
+    clauses: list[dict[str, Any]] = [
+        {"range": {_TIME_F: {"gte": floor.strftime("%Y-%m-%dT%H:%M:%S")}}}
+    ]
     if fab_normalized:
         clauses.append({"term": {_FAB_KW: fab_normalized}})
     if recipe_name:
@@ -314,7 +341,7 @@ def get_meas_hist(
         )
 
     body: dict[str, Any] = {
-        "query": {"bool": {"filter": clauses}} if clauses else {"match_all": {}},
+        "query": {"bool": {"filter": clauses}},
         "sort": [{_TIME_F: "desc"}],
         "size": MAX_RESULT_WINDOW,
         "track_total_hits": True,
@@ -464,9 +491,18 @@ if __name__ == "__main__":
     print(f"models: {[(f['value'], f['count']) for f in facets['model']][:8]}")
     print(f"eqs:    {len(facets['eq'])} distinct")
 
+    # The skewvoir default: no 카테고리 picked -> tool_type=None -> one request
+    # across BOTH aliases. Rows must come back with a per-hit tool_type.
+    both = search_meas_hist(limit=5)
+    families = {row["tool_type"] for row in both["rows"]}
+    print(
+        f"\nsearch BOTH indices: total={both['total']} families_seen={families} "
+        "(hvsem rows only appear if that alias has recent data)"
+    )
+
     page = search_meas_hist(tool_type="cd-sem", limit=5)
     print(
-        f"\nsearch (no filters): total={page['total']} capped={page['capped']} "
+        f"\nsearch (cd-sem only): total={page['total']} capped={page['capped']} "
         f"range={page['range']}"
     )
     for row in page["rows"]:

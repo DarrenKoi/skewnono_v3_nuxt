@@ -65,9 +65,40 @@
   `latest_generated_at` come from `versions[0]` (or `None` if no rows are
   ready). `total_tools_in_fab` is `len(rows)`; `ready_count` /
   `not_ready_count` partition that total.
-- Office data source: <!-- OFFICE: Redis hash `v3_tools_in_recipe_<fab>` keyed
-  by recipe_name → list[eqp_id], joined with an OpenSearch table providing
-  recipe_version per (eqp_id, recipe_name) -->
+- Office data source: **WIRED.** OpenSearch aliases `cdsem_idp_ver` /
+  `hvsem_idp_ver`, one document per **(recipe, version)**. Searching a
+  `full_name` returns the recipe's whole version history; the highest
+  `version` is the current one.
+  - Exact recipe match goes through `full_name.keyword`, and the fab filter
+    through `fab_name.keyword` (uppercase). The base mappings are `text`, so
+    a `term` on them matches nothing and a `match` matches on shared tokens
+    — `"1/AC_M2_TAT"` analyzes to `[1, ac, m2, tat]`.
+  - `eqp_id` (보유) / `not_found_eqp_id` (미보유) are arrays. A tool's row
+    version is the **highest** version doc listing it, i.e. what it runs now.
+  - `recipe_generated_at` ← `modified`, emitted with an explicit `+09:00`.
+    The office indices store KST wall-clock without an offset and the
+    frontend formats via `new Date(iso).getHours()` (local time), so a `Z`
+    suffix would tag 12:00 KST as 12:00 UTC and render it as 21:00 — 9 hours
+    late. **Verify on the first office run** that `modified` really does
+    arrive offset-less; if ingestion writes a `Z`-suffixed KST wall-clock,
+    `_kst_iso` converts it and lands 9 hours off in the other direction.
+  - `versions` lists **every** version doc, including ones no tool currently
+    holds, so the revision history stays browsable; the frontend dims
+    zero-holder cards. `ready_count` is counted from the assembled rows, not
+    from the documents' `no_of_eqp_id`, so a card's number always equals
+    what is countable in the table below it.
+  - `_source` is trimmed to the three fields read (`version`, `modified`,
+    `eqp_id`). `parameters` and `raw_data` are object blobs this endpoint
+    never touches, and `not_found_eqp_id` is not fetched either — readiness
+    is decided purely by presence in `eqp_id`.
+  - More than `MAX_VERSION_DOCS` (200) version docs raises rather than
+    silently truncating — a partial history would misreport which tools are
+    current.
+- Not yet used from the index: `parameters`, `para_loc`, `minio_path`,
+  `class_name`, `creator`, `created_tool`, `no_of_meas_point`. These are for
+  the planned version-card detail view (click a version → `modified` plus
+  `parameters` as a table), which needs a contract extension —
+  `LateralRecipeVersion` has nowhere to put them today.
 - Cross-feature note: the mock derives the EQP population from
   `sem_list.data.get_sem_list()` so the table always lists the same
   `eqp_id`s as the tool inventory view for the same

@@ -39,65 +39,32 @@ Connection settings come from ``OPENSEARCH_HOST`` / ``OPENSEARCH_PORT`` /
 """
 
 import logging
-import os
-import time
-from datetime import date, datetime, timedelta, timezone
-from functools import lru_cache, wraps
+from datetime import date, datetime, timedelta
 from typing import Any
 
-import pandas as pd
-from opensearchpy.exceptions import NotFoundError
-
-from ops_store import OSSearch, create_client
-
 from back_dev_home._runtime.office_redis import (
-    load_env_file,
     read_dataframe,
     redis_client,
+)
+# Generic OpenSearch mechanics live in _office_search.py. Re-exported here so
+# the adapters that predate the split (recipe_tat, fail_issue, meas_hist) keep
+# importing them from this module unchanged.
+from back_dev_home.ebeam.hitachi._office_search import (  # noqa: F401
+    CACHE_TTL_SECONDS,
+    KST,
+    aggregate,
+    client,
+    fetch_hits,
+    parse_dt,
+    query,
+    search,
+    text,
+    ttl_cache,
 )
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import ToolType
 
 
 _LOG = logging.getLogger(__name__)
-
-# Korea has no DST — a fixed +09:00 offset is exact (mirrors the mocks' KST).
-KST = timezone(timedelta(hours=9), "KST")
-
-CACHE_TTL_SECONDS = 900  # backing catalogs refresh at most every 15 minutes
-
-
-def ttl_cache(func):
-    """``lru_cache(maxsize=1)`` with expiry, serving stale on refresh failure.
-
-    A long-lived office Flask process must eventually see new lots, devices,
-    and data days without a restart — a plain ``lru_cache`` freezes them until
-    redeploy. When a refresh attempt fails but a previous value exists, the
-    stale value is served and the error logged: an upstream hiccup shouldn't
-    blank pages that worked a minute ago. The first-ever load still raises.
-    """
-    state: dict[str, Any] = {}
-
-    @wraps(func)
-    def wrapper():
-        now = time.monotonic()
-        if "value" in state and now - state["at"] < CACHE_TTL_SECONDS:
-            return state["value"]
-        try:
-            value = func()
-        except Exception:
-            if "value" in state:
-                _LOG.exception(
-                    "refresh of %s failed; serving stale value", func.__name__
-                )
-                state["at"] = now  # back off a full TTL before retrying
-                return state["value"]
-            raise
-        state["value"] = value
-        state["at"] = now
-        return value
-
-    wrapper.cache_clear = state.clear  # parity with lru_cache, for tests
-    return wrapper
 
 
 # tool_type -> OpenSearch alias.
@@ -117,38 +84,6 @@ FULL_NAME_KW = "full_name.keyword"   # class_name/recipe_name composite group ke
 FAB_NAME_KW = "fab_name.keyword"     # fab selection filter
 EQP_ID_KW = "eqp_id.keyword"         # sample_eqp_ids
 LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
-
-
-@lru_cache(maxsize=1)
-def client() -> Any:
-    """Create the OpenSearch client once and reuse its connection pool.
-
-    ``create_client()`` reads OPENSEARCH_* from the environment via
-    ``ops_store.load_config`` (host, port default 443, use_ssl, verify_certs,
-    basic auth). We self-load .env first so a standalone run works.
-    """
-    if not os.environ.get("OPENSEARCH_HOST"):
-        load_env_file("OPENSEARCH_HOST")
-    if not os.environ.get("OPENSEARCH_HOST"):
-        raise RuntimeError(
-            "OPENSEARCH_HOST is not set. Run from the repo root so "
-            "back_dev_home/.env is found, or set OPENSEARCH_HOST/"
-            "OPENSEARCH_PORT/OPENSEARCH_USER/OPENSEARCH_PASSWORD in the "
-            "environment before calling this adapter."
-        )
-    return create_client()
-
-
-def search(index: str) -> OSSearch:
-    return OSSearch(client=client(), index=index)
-
-
-def parse_dt(value: str) -> datetime:
-    """Parse an OpenSearch date string (``...Z`` / ``+00:00``) to aware UTC."""
-    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
 
 
 def _range_clause(start_date: str | None, end_date: str | None) -> dict[str, Any]:
@@ -181,23 +116,6 @@ def filter_clauses(
     if lot_ids is not None:
         clauses.append({"terms": {LOT_ID_KW: lot_ids}})
     return clauses
-
-
-def query(clauses: list[dict[str, Any]]) -> dict[str, Any]:
-    return {"bool": {"filter": clauses}}
-
-
-def aggregate(
-    index: str, aggs: dict[str, Any], query_body: dict[str, Any] | None
-) -> dict[str, Any]:
-    try:
-        result = search(index).aggregate(aggs, query=query_body)
-    except NotFoundError as exc:
-        raise LookupError(
-            f"OpenSearch index/alias {index!r} not found — check the alias "
-            "name and that ingestion has populated it."
-        ) from exc
-    return result.get("aggregations", {})
 
 
 _COMPOSITE_PAGE_SIZE = 1000
@@ -258,28 +176,10 @@ _LOT_HIST_TIME_F = "event_tm"             # date field on the lot-history index
 CURRENT_WINDOW_DAYS = 60                  # a lot_cd active within this window = current
 
 
-# The office catalogs (device_desc, r3_device_grp) carry missing cells in
-# several spellings: real None/NaN/pd.NA, and sometimes the literal string
-# "None" written by the upstream loader. All must normalize to "" so they
-# fall out of lot_cd keys and metadata instead of surfacing as "None" text.
-_MISSING_TEXT = {"none", "nan", "null", "<na>"}
-
-
-def text(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, (bytes, bytearray)):
-        value = bytes(value).decode("utf-8")
-    elif not isinstance(value, str):
-        try:
-            if pd.isna(value):  # float NaN, pd.NA, NaT
-                return ""
-        except (TypeError, ValueError):
-            pass  # non-scalar (list, ...) — fall through to str()
-    result = str(value).strip()
-    if result.lower() in _MISSING_TEXT:
-        return ""
-    return result
+# NOTE: ``text()`` (imported above) is what normalizes the office catalogs'
+# several spellings of "missing" — real None/NaN/pd.NA, and the literal string
+# "None" written by the upstream loader — to "" so they fall out of lot_cd keys
+# and metadata instead of surfacing as "None" text.
 
 
 @ttl_cache

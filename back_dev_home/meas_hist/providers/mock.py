@@ -138,7 +138,19 @@ def _make_msr(date_str: str, recipe_name: str, lot_id: str, eqp_id: str) -> str:
     return f"{date_str}_{recipe_name}_{lot_id}_{eqp_id}"
 
 
-def _build_row(eqp: SemListRow, rng: random.Random, index: int) -> MeasHistRow | None:
+def _build_row(
+    eqp: SemListRow,
+    rng: random.Random,
+    index: int,
+    max_age_days: int = HISTORY_DAYS
+) -> MeasHistRow | None:
+    """One measurement row aged 0..``max_age_days`` before ``NOW``.
+
+    ``max_age_days`` exists so recipe synthesis can land inside the narrower
+    측정 이력 window; the default keeps the 600-row universe spread across
+    full retention, and consumes the same one rng draw either way, so the
+    seeded universe is byte-identical.
+    """
     tool_type = model_to_tool_type(eqp["eqp_model_cd"])
     if tool_type is None:
         return None
@@ -151,7 +163,7 @@ def _build_row(eqp: SemListRow, rng: random.Random, index: int) -> MeasHistRow |
     full_name = f"{class_name}/{recipe_name}"
 
     end_time = NOW - timedelta(
-        days=rng.randint(0, HISTORY_DAYS),
+        days=rng.randint(0, max_age_days),
         hours=rng.randint(0, 23),
         minutes=rng.randint(0, 59)
     )
@@ -273,7 +285,10 @@ def _synthesize_for_recipe(
 
     for index in range(count):
         eqp = rng.choice(sem_rows)
-        base = _build_row(eqp, rng, 900_000 + index)
+        # Aged within the 측정 이력 window: synthesis exists so that view is
+        # never empty for an unknown recipe, and rows older than the window
+        # would be filtered straight back out by the caller.
+        base = _build_row(eqp, rng, 900_000 + index, max_age_days=RECIPE_HISTORY_DAYS)
         if base is None:
             continue
 
@@ -302,16 +317,22 @@ def get_meas_hist(
 ) -> MeasHistResponse:
     fab_normalized = (fab_name or "").upper() or None
 
-    rows: list[MeasHistRow] = [
+    matched: list[MeasHistRow] = [
         row for row in _all_rows()
         if (not tool_type or row["tool_type"] == tool_type)
         and (not fab_normalized or row["fab_name"].upper() == fab_normalized)
         and (not recipe_name or _matches_recipe(row, recipe_name))
     ]
 
-    if recipe_name and not rows:
-        rows = _synthesize_for_recipe(recipe_name, tool_type, fab_normalized)
+    # Synthesis is decided BEFORE the window, not after: it exists to cover a
+    # recipe the mock universe has never heard of. Deciding after would make a
+    # recipe whose real rows are merely old (31-60 days) look unknown, and
+    # fabricate fresh history on top of history that actually exists.
+    if recipe_name and not matched:
+        matched = _synthesize_for_recipe(recipe_name, tool_type, fab_normalized)
 
+    cutoff = RETENTION_ANCHOR - timedelta(days=RECIPE_HISTORY_DAYS)
+    rows = [row for row in matched if _row_time(row) >= cutoff]
     rows.sort(key=lambda r: r["timestamp"], reverse=True)
 
     return MeasHistResponse(
@@ -330,6 +351,13 @@ def get_meas_hist(
 # bool{must:[terms...]} + a terms aggregation). Routes and frontend do not change.
 
 RETENTION_DAYS = 60
+# The 측정 이력 tab's window. Narrower than retention on purpose: that view
+# answers "how has this recipe been running lately", and a recipe measured
+# every few minutes produces far more rows over 60 days than anyone reads.
+# The wider retention window still governs /meas-hist/search, where the user
+# has explicit date controls. Shared with the office adapter so the two
+# phases cannot disagree about how much history "default" means.
+RECIPE_HISTORY_DAYS = 30
 # OpenSearch index.max_result_window default. A retrieval ceiling, not a promise
 # to the browser: `total` may exceed it, in which case `capped` is True.
 MAX_RESULT_WINDOW = 10000

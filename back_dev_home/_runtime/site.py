@@ -49,7 +49,16 @@ _OFFICE_HOSTNAMES = frozenset()
 # the office default. Mirrors docs/office-migration/STATUS.md — add a feature
 # here when its STATUS row leaves "mock". storage needs sem_list office-side
 # for its ppid join, so they move together.
-OFFICE_READY = frozenset({"health", "sem_list", "storage", "recipe_tat"})
+OFFICE_READY = frozenset(
+    {
+        "health",
+        "sem_list",
+        "storage",
+        "recipe_tat",
+        "recipe_search",
+        "lateral_recipe",
+    }
+)
 
 
 def _normalize_host(name: str) -> str:

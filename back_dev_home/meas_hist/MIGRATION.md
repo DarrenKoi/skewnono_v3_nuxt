@@ -33,10 +33,25 @@
   existing rows, the mock synthesizes a small batch of plausible rows for
   that recipe (`_synthesize_for_recipe`) rather than returning an empty list —
   an office adapter should NOT reproduce synthesis; a genuinely empty result
-  set is fine. Rows are sorted by `timestamp` descending.
-- Office data source: <!-- OFFICE: OpenSearch meas_hist index, bool filter on tool_type/fab_name/recipe_name -->
+  set is fine. Rows are sorted by `timestamp` descending. Results are limited
+  to the last `RECIPE_HISTORY_DAYS` (30) — see the note below.
+- Office data source: **WIRED.** OpenSearch `meas_hist_{cdsem,hvsem}`, bool
+  filter: a `timestamp` range for the 30-day window, `fab_name.keyword` term,
+  and an exact `should` on `full_name.keyword` / `recipe_name.keyword`.
 - Notes: `fab_name` is compared uppercased on both sides. `recipe_name`
-  matches either the bare `recipe_name` or the `class/recipe` `full_name`.
+  matches either the bare `recipe_name` or the `class/recipe` `full_name`,
+  exactly — via the `.keyword` sub-fields office-side, because the base
+  mappings are analyzed `text` and would match on shared tokens.
+- **Default window:** this endpoint returns only the last
+  `RECIPE_HISTORY_DAYS` (30) days, narrower than the 60-day retention that
+  still governs `/meas-hist/search` (where the user has explicit date
+  controls). The constant lives in `providers/mock.py` and is imported by the
+  office adapter, so the two phases cannot disagree about how much history
+  "default" means. Office-side the window is anchored on `get_anchor_time()`
+  (latest ingested data), not wall-clock, so an ingestion pause does not
+  silently empty the view; it is a filter clause, so it bounds `total` too.
+  There is no per-request override yet — adding one means a `days` query
+  param through `routes.py` → `data.py` → both providers.
 
 ## Endpoint: GET /api/meas-hist/search
 
@@ -70,6 +85,15 @@
   before pagination (`capped: True` if `total` exceeds that ceiling), then
   paginated by `offset`/`limit` (`limit` clamped to `[1, DEFAULT_LIMIT * 10]`).
 - Office data source: <!-- OFFICE: OpenSearch meas_hist index, bool{must:[terms...]} + date range query -->
+- **카테고리 / tool_type:** the skewvoir 검색 UI sends `tool_type` only when
+  the user picks exactly one 카테고리 (CD-SEM → `cd-sem`, HV-SEM →
+  `hv-sem`). No pick (or both picked) omits the param, and the office
+  adapter must then search BOTH aliases in one request
+  (`meas_hist_cdsem,meas_hist_hvsem` — `ALL_INDICES` in
+  `_office_meas_hist.py`), deriving each row's `tool_type` from its
+  `_index` name. The FAB → 카테고리 → 장비 모델 → EQ dropdown cascade is
+  frontend-only (joined through `sem_list`), so it needs no office work
+  here.
 - Notes: `range.to` in the response is the caller-facing INCLUSIVE end date
   (clamped to the retention ceiling), distinct from the internal filtering
   bound which is shifted one day forward to make the day-granular comparison

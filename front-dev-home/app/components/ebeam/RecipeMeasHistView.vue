@@ -109,7 +109,7 @@ const tableUi = recipeTableUi
 
       <EbeamFeatureHeader
         :stats="data ? headerStats : []"
-        subtitle="최근 60일 측정 row 기준입니다. msr_check / align_fail / fail_ratio로 측정 상태를 판단합니다."
+        subtitle="최근 30일 측정 row 기준입니다. msr_check / align_fail / fail_ratio로 측정 상태를 판단합니다."
         title="측정 이력"
       />
     </div>
