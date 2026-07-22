@@ -3,6 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchResponse, RecipeSearchRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import { matchesRecipeQuery, tokenizeRecipeQuery } from '~/utils/recipeSearchMatch'
 
 const props = defineProps<{
   fab: Fab
@@ -65,6 +66,9 @@ const rows = computed<RecipeSearchRow[]>(() => recipeNames.value.map(recipeName 
 const totalRows = computed(() => data.value?.total ?? recipeNames.value.length)
 const normalizedQuery = computed(() => query.value.trim().toLowerCase())
 const canSearch = computed(() => normalizedQuery.value.length >= MIN_SEARCH_LENGTH)
+// `_` segments carry meaning (manufacturing tech codes), so the query is
+// tokenized on whitespace/underscores and AND-composed — see recipeSearchMatch.
+const queryTokens = computed(() => tokenizeRecipeQuery(query.value))
 
 type SearchableRecipe = {
   row: RecipeSearchRow
@@ -81,11 +85,11 @@ const searchableRows = computed<SearchableRecipe[]>(() => {
 const filteredRows = computed(() => {
   if (!canSearch.value) return []
 
-  const term = normalizedQuery.value
+  const tokens = queryTokens.value
   const matches: RecipeSearchRow[] = []
 
   for (const item of searchableRows.value) {
-    if (item.searchText.includes(term)) {
+    if (matchesRecipeQuery(item.searchText, tokens)) {
       matches.push(item.row)
     }
   }
@@ -96,13 +100,13 @@ const filteredRows = computed(() => {
 // In-table filter: live-narrows the coarse top-bar matches (AND composition),
 // so you can drill within a large result family without re-running the search.
 const tableFilter = ref('')
-const normalizedTableFilter = computed(() => tableFilter.value.trim().toLowerCase())
-const isRefining = computed(() => normalizedTableFilter.value.length > 0)
+const tableFilterTokens = computed(() => tokenizeRecipeQuery(tableFilter.value))
+const isRefining = computed(() => tableFilterTokens.value.length > 0)
 
 const refinedRows = computed(() => {
   if (!isRefining.value) return filteredRows.value
-  const term = normalizedTableFilter.value
-  return filteredRows.value.filter(row => row.recipe_name.toLowerCase().includes(term))
+  const tokens = tableFilterTokens.value
+  return filteredRows.value.filter(row => matchesRecipeQuery(row.recipe_name.toLowerCase(), tokens))
 })
 
 const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
@@ -151,7 +155,7 @@ watch([normalizedQuery, pageSize, cacheKey], () => {
   tableFilter.value = ''
 })
 
-watch(normalizedTableFilter, () => {
+watch(tableFilterTokens, () => {
   currentPage.value = 1
 })
 
@@ -302,7 +306,7 @@ const openMeasHist = (recipeName: string) => {
                 autocomplete="off"
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
-                placeholder="MONITOR"
+                placeholder="CD_MON"
                 size="md"
                 aria-label="Recipe 검색"
               >
@@ -342,6 +346,16 @@ const openMeasHist = (recipeName: string) => {
               >
                 {{ pageStart.toLocaleString() }}-{{ pageEnd.toLocaleString() }} / {{ refinedCount.toLocaleString() }}
               </span>
+            </div>
+            <div
+              v-else
+              class="mt-2.5 flex items-center gap-1.5 text-[11px] text-(--sk-ink-muted)"
+            >
+              <UIcon
+                name="i-lucide-keyboard"
+                class="h-3.5 w-3.5 shrink-0"
+              />
+              <span>검색어를 3자 이상 입력하면 결과가 표시됩니다 · 공백/_ 로 나눈 조각을 모두 포함하는 Recipe를 찾습니다.</span>
             </div>
           </div>
         </section>
@@ -451,21 +465,9 @@ const openMeasHist = (recipeName: string) => {
             />
           </div>
 
-          <div
-            v-else-if="!canSearch"
-            class="dashboard-surface rounded-2xl px-6 py-12 text-center"
-          >
-            <UIcon
-              name="i-lucide-keyboard"
-              class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
-            />
-            <p class="mt-2 sk-body">
-              검색어를 3자 이상 입력하면 결과가 표시됩니다.
-            </p>
-            <p class="mt-1 sk-meta">
-              체크하면 여러 Recipe를 한 번에 열거나 비교할 수 있습니다.
-            </p>
-          </div>
+          <!-- Before a query exists the guidance lives inline in the lookup
+               card above; render nothing here instead of a floating card. -->
+          <template v-else-if="!canSearch" />
 
           <div
             v-else-if="filteredCount === 0"
