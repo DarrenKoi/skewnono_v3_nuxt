@@ -7,6 +7,7 @@ import type {
   LateralRecipeToolType
 } from '~/composables/useLateralRecipeApi'
 import { formatRecipeTimestamp, readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
+import { groupReadyRowsByVersion } from '~/utils/lateralVersionGroups'
 
 const props = defineProps<{
   fab: Fab
@@ -70,6 +71,9 @@ const activeRows = computed<LateralRecipeRow[]>(() =>
   activeTab.value === 'ready' ? readyRows.value : notReadyRows.value
 )
 
+// 보유 tab renders one table per version instead of a single mixed list.
+const readyGroups = computed(() => groupReadyRowsByVersion(rows.value, data.value?.versions ?? []))
+
 // Counts only versions some tool actually holds. `versions` also carries past
 // revisions with no holder (see the dimmed cards below), and counting those
 // would report "N개 version 혼재" for a fleet that is in fact all on one version.
@@ -84,22 +88,14 @@ const formatGeneratedAt = (iso: string | null | undefined) =>
   iso ? formatRecipeTimestamp(iso, { withSeconds: true }) : '—'
 
 // vendor is intentionally absent: every row in a lateral check is the same
-// tool family, so the column repeats one value down the whole table.
-const baseColumns: TableColumn<LateralRecipeRow>[] = [
+// tool family, so the column repeats one value down the whole table. version and
+// generated_at are absent for the same reason — inside a version group they are
+// constant, so they live in the group header instead of every row.
+const toolColumns: TableColumn<LateralRecipeRow>[] = [
   { accessorKey: 'eqp_id', header: 'eqp_id', size: 132 },
   { accessorKey: 'eqp_model_cd', header: 'model', size: 124 },
   { accessorKey: 'available', header: 'avail', size: 90 }
 ]
-
-const readyColumns: TableColumn<LateralRecipeRow>[] = [
-  ...baseColumns,
-  { accessorKey: 'recipe_version', header: 'version', size: 96 },
-  { accessorKey: 'recipe_generated_at', header: 'generated_at', size: 172 }
-]
-
-const activeColumns = computed<TableColumn<LateralRecipeRow>[]>(() =>
-  activeTab.value === 'ready' ? readyColumns : baseColumns
-)
 
 const tableUi = recipeTableUi
 </script>
@@ -285,10 +281,66 @@ const tableUi = recipeTableUi
           </div>
         </div>
 
+        <!-- 보유: one table per recipe_version, latest first. Mixing revisions in
+             a single list buries the only question this page answers. -->
+        <div
+          v-if="activeTab === 'ready' && readyGroups.length > 0"
+          class="space-y-3"
+        >
+          <section
+            v-for="group in readyGroups"
+            :key="group.key"
+            class="overflow-hidden rounded-xl border border-(--sk-border)"
+          >
+            <header class="flex flex-wrap items-center justify-between gap-2 border-b border-(--sk-border) bg-zinc-50/70 px-3 py-2 dark:bg-zinc-900/40">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                  {{ group.version === null ? 'version 미상' : `v${group.version}` }}
+                </span>
+                <span
+                  v-if="group.version !== null && group.version === data.latest_recipe_version"
+                  class="inline-flex h-5 items-center rounded px-1.5 text-[10px] font-semibold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900"
+                >
+                  latest
+                </span>
+                <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+                  {{ formatGeneratedAt(group.generatedAt) }}
+                </span>
+              </div>
+              <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                {{ group.rows.length.toLocaleString() }} tools
+              </span>
+            </header>
+
+            <UTable
+              class="font-mono-ids"
+              :columns="toolColumns"
+              :data="group.rows"
+              :ui="tableUi"
+            >
+              <template #eqp_id-cell="{ row }">
+                <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {{ row.original.eqp_id }}
+                </span>
+              </template>
+
+              <template #available-cell="{ row }">
+                <span
+                  class="sk-lateral-badge"
+                  :class="row.original.available === 'On' ? 'sk-lateral-badge--ok' : 'sk-lateral-badge--bad'"
+                >
+                  {{ row.original.available }}
+                </span>
+              </template>
+            </UTable>
+          </section>
+        </div>
+
+        <!-- 미보유 tools hold no recipe, so there is no version to group by. -->
         <UTable
-          v-if="activeRows.length > 0"
+          v-else-if="activeTab === 'not-ready' && activeRows.length > 0"
           class="font-mono-ids"
-          :columns="activeColumns"
+          :columns="toolColumns"
           :data="activeRows"
           sticky="header"
           :ui="tableUi"
@@ -305,18 +357,6 @@ const tableUi = recipeTableUi
               :class="row.original.available === 'On' ? 'sk-lateral-badge--ok' : 'sk-lateral-badge--bad'"
             >
               {{ row.original.available }}
-            </span>
-          </template>
-
-          <template #recipe_version-cell="{ row }">
-            <span class="font-mono text-[12px] tabular-nums text-zinc-700 dark:text-zinc-200">
-              {{ row.original.recipe_version === null ? '—' : `v${row.original.recipe_version}` }}
-            </span>
-          </template>
-
-          <template #recipe_generated_at-cell="{ row }">
-            <span class="font-mono text-[11px] tabular-nums text-(--sk-ink)">
-              {{ formatGeneratedAt(row.original.recipe_generated_at) }}
             </span>
           </template>
         </UTable>
