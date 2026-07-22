@@ -132,6 +132,8 @@ const props = defineProps<{
 }>()
 
 // The three per-degree fields (dicts keyed "0.0".."337.5") usable as radars.
+// All three are offered rather than curated down — which profile is the useful
+// lever is still an open question, so the engineer picks.
 const PROFILE_KEYS = ['reso_eb', 'noise', 'reso_detector'] as const
 
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')

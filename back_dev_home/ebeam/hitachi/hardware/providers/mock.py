@@ -84,7 +84,7 @@ def get_hardware_service(
         return docs_payload(
             service, tool_slug, eqp_id, fab_name,
             docs=docs,
-            summary="network_sharpness_cdsem 원시 문서를 시간순으로 제공합니다.",
+            summary="sharpness_monitor_cdsem 원시 문서를 시간순으로 제공합니다.",
         )
 
     if service == "mdc":

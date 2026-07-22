@@ -1,0 +1,58 @@
+sharpness is to monitor beam quality. it is automatically done every 6~8 hours in a tool.
+The CD-SEM measures the sample placed on the stub in the chamber and check its beam quality.
+The sample vary between tools so that we cannot compare each other but,
+It indicates the tool condition itself.
+
+The data is stored in opensearch under the alias "sharpness_monitor_cdsem".
+("network_sharpness_cdsem" was a design-doc name and is NOT the alias.)
+
+mappings (user-confirmed 2026-07-22):
+
+ip:             keyword
+timestamp:      date
+os_inserted:    date
+beam_condition: object
+reso_detector:  object
+reso_eb:        object
+summ_beam:      object
+noise:          object
+
+ip is the ONLY tool identity here. there is no eqp_id / eqp_model_cd / fab_name,
+unlike network_fdc_cdsem. the value is the same as sem_list's eqp_ip, so a lookup
+goes eqp_id -> eqp_ip (sem_list roster) -> term query on ip.
+
+it has timestamp, os_inserted for date
+timestamp is from the tool and os_inserted is when the data is stored in opensearch
+timestamp is handled the same as every other index here: offset-less KST wall clock.
+os_inserted is for diagnosing ingest lag, never for filtering.
+
+beam_condition: object
+it contain Serial_No, SEM_Cond_No, Vacc, Vsup, Ip, Optics, Detector, AL3_x_offset, AL3_y_offset,
+..and so on (many key and values) We have not yet figured which parameter is used as lever to observe
+tool's condition.  We can monitor by grouping data based on "SEM_Cond_No" (normally 5 or 6)
+and "Vacc" (Normally 800, 500). We see "SEM_Cond_No" and "Vacc" are paired.
+"Vsup" is worth of watching
+
+
+reso_detector: object
+
+key : "0.0"~"337.5" step by 22.5
+value : for each degree, around 0.005 ish.
+
+
+noise: object
+key: same as reso_detector
+value : for each degree, around 6.10 ish
+offered as a radar metric alongside reso_eb / reso_detector — the engineers pick
+which profile to plot, so all three stay available.
+
+
+reso_eb: object
+key: same as reso_detector
+value: for each degree around 8.00 ish
+
+
+summ_beam: object
+summ_beam contain key and values (float)
+keys: "Ellipticity" "Major Axis", "Minor Axis", "Offset", "Tilt", "x_range", "y_range"
+

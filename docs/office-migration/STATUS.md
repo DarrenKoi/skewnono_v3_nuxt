@@ -60,11 +60,16 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 ## 비고
 
 - **hardware는 탭 단위로 전환합니다.** `providers/`가 탭별 하위 폴더로 나뉘어
-  있고, 디스패처가 `providers/<탭>/office.py`를 지연 임포트하면서 없는 탭은
-  이름을 붙여 `NotImplementedError`를 냅니다. 현재 office 어댑터가 있는 탭은
-  `fdc/`(OpenSearch `network_fdc_cdsem`) 하나뿐이므로, 지금
-  `SKEWNONO_HARDWARE_PROVIDER=office`로 두면 Daily FDC만 살고 나머지 6개 탭이
-  모두 실패합니다. 표의 상태를 `mock`으로 유지하는 이유입니다.
+  있고, 디스패처가 `providers/<탭>/office.py`를 지연 임포트합니다. `office.py`가
+  아직 없는 탭은 같은 폴더의 `mock.py`로 폴백하므로,
+  `SKEWNONO_HARDWARE_PROVIDER=office`를 한 번만 켜 두고 탭을 하나씩 연결하며
+  검증할 수 있습니다. 현재 office 어댑터가 있는 탭은 `fdc/` 하나이며, 나머지
+  6개 탭은 mock을 그대로 보여 줍니다.
+- 폴백은 **응답에 표시되지 않습니다**(mock 표식 없음). 어떤 탭이 실데이터인지는
+  `ls providers/*/office.py` 또는 디스패처가 폴백마다 남기는 INFO 로그로만
+  확인할 수 있으므로, office 화면을 사내 데이터로 읽기 전에 반드시 확인합니다.
+  `office.py`가 있는데 임포트에 실패하는 탭은 폴백하지 않고 예외를 냅니다.
+- 표의 hardware 상태는 7개 탭이 모두 연결될 때까지 `mock`으로 둡니다.
 - `.env.example`의 프로바이더 스위치는 세 묶음(`[1]` office 호스트에서 자동
   전환 · `[2]` 구현은 됐지만 자동 전환 제외 · `[3]` mock 스텁)으로 정리해
   두었고, `[1]` 묶음은 `_runtime/site.py`의 `OFFICE_READY` 집합과 정확히

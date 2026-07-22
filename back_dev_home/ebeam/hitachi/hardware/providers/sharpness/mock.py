@@ -1,13 +1,22 @@
-"""Phase 1 faithful network_sharpness_cdsem mock for the hardware sharpness panel.
+"""Phase 1 faithful sharpness_monitor_cdsem mock for the hardware sharpness panel.
 
-Raw doc shape from `docs/datatables/network_sharpness_cdsem.txt`: beam quality read
+Raw doc shape from `docs/datatables/sharpness_monitor_cdsem.txt`: beam quality read
 off the stub sample in the tool chamber, automatically every 6~8 hours. Unlike BSM
 (reference wafer, PM-tied), this is a high-cadence daily monitor, so it lives under
 the 데일리 service group.
 
+The index carries exactly eight fields — `ip`, `timestamp`, `os_inserted`,
+`beam_condition`, `reso_detector`, `noise`, `reso_eb`, `summ_beam`
+(user-confirmed 2026-07-22) — and this mock emits that set and nothing more. In
+particular there is no `eqp_id` here: `ip` is the only tool identity the index
+has, which is why the office adapter must resolve eqp_id -> eqp_ip through the
+sem_list roster before it can query at all. The payload's own `eqp_id`/`fab_name`
+come from `normalizers.docs_payload`, not from the docs.
+
 Faithful nesting (kept verbatim, NOT flattened to the BSM array shape):
   - `beam_condition`: object grouping `SEM_Cond_No` + `Vacc` (paired) plus Vsup etc.
-  - `reso_detector` / `noise` / `reso_eb`: dicts keyed "0.0"~"337.5" (step 22.5).
+  - `reso_detector` / `noise` / `reso_eb`: dicts keyed "0.0"~"337.5" (step 22.5),
+    all three selectable as the page's radar metric.
   - `summ_beam`: dict of scalar beam-shape summaries.
 
 Determinism mirrors the other providers: `random.Random` seeded from md5(eqp_id),
@@ -21,7 +30,6 @@ from datetime import datetime, timedelta
 
 from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
     eqp_ip_for,
-    fac_id_for,
     seed_for,
 )
 
@@ -103,17 +111,17 @@ def _beam_condition(
 def _build_doc(
     rng: random.Random,
     *,
-    eqp_id: str,
-    fab_name: str | None,
     eqp_ip: str,
-    fac_id: str,
     serial_no: str,
     moment: datetime,
     sem_cond_no: int,
     vacc: int,
 ) -> dict:
+    # os_inserted trails the tool clock by the ingest hop — seconds, not hours.
+    # It exists to diagnose ingest lag; nothing filters on it.
     inserted = moment + timedelta(seconds=rng.randint(20, 180))
     return {
+        "ip": eqp_ip,
         "beam_condition": _beam_condition(
             rng, serial_no=serial_no, sem_cond_no=sem_cond_no, vacc=vacc
         ),
@@ -123,12 +131,6 @@ def _build_doc(
         "summ_beam": _summ_beam(rng),
         "timestamp": moment.strftime("%Y-%m-%dT%H:%M:%S"),
         "os_inserted": inserted.strftime("%Y-%m-%dT%H:%M:%S"),
-        "timestamp_date": moment.strftime("%Y-%m-%d"),
-        "eqp_id": eqp_id,
-        "eqp_ip": eqp_ip,
-        "fac_id": fac_id,
-        "fab_name": fab_name,
-        "fdc_category": "network_sharpness_cdsem",
     }
 
 
@@ -138,13 +140,16 @@ def build_network_sharpness_docs(
     start: datetime,
     end: datetime,
 ) -> list[dict]:
-    """Ascending-time faithful network_sharpness docs across [start, end].
+    """Ascending-time faithful sharpness docs across [start, end].
 
     One doc per (timestamp, condition-pair). Deterministic per eqp_id.
+
+    `eqp_id` selects the deterministic stream and resolves to the doc's `ip`;
+    `fab_name` is accepted for dispatcher signature parity but unused, since
+    the index has no fab field to fill.
     """
     rng = random.Random(seed_for(eqp_id) ^ 0x4E53_4332)  # distinct stream
     eqp_ip = eqp_ip_for(eqp_id)
-    fac_id = fac_id_for(fab_name)
     serial_no = f"SN{seed_for(eqp_id) % 100000:05d}"
     docs: list[dict] = []
     for moment in _timestamps(rng, start, end):
@@ -152,10 +157,7 @@ def build_network_sharpness_docs(
             docs.append(
                 _build_doc(
                     rng,
-                    eqp_id=eqp_id,
-                    fab_name=fab_name,
                     eqp_ip=eqp_ip,
-                    fac_id=fac_id,
                     serial_no=serial_no,
                     moment=moment,
                     sem_cond_no=sem_cond_no,

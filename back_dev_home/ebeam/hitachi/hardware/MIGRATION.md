@@ -3,12 +3,14 @@
 ## Layout: one subfolder per tab
 
 `providers/` has one subfolder per hardware tab, each with its own
-mock/office adapter pair, so the office wiring lands one tab at a time:
+mock/office adapter pair, so the office wiring lands one tab at a time. The
+feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
+`office.py` serves its own mock until you connect it:
 
 | Tab folder | Builder(s) | Office source | Template |
 | --- | --- | --- | --- |
 | `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` | written — `cp` + verify |
-| `sharpness/` | `build_network_sharpness_docs` | OpenSearch `network_sharpness_cdsem` | stub |
+| `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
 | `bm_pm/` | `build_bm_pm_data` | BM/PM work-order table | stub |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) | stub |
 | `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` | stub |
@@ -23,6 +25,26 @@ two OFFICE-VERIFY checks in its docstring (offset-less `timestamp`, and
 matches no documents and renders an empty chart, which is the intended
 result until HV-SEM FDC is ingested.
 
+`sharpness/office_example.py` is likewise implemented, against
+`docs/datatables/sharpness_monitor_cdsem.txt`. It is the one adapter here that
+cannot query by `eqp_id`: `sharpness_monitor_cdsem` carries **`ip` only** as
+tool identity, so the adapter resolves `eqp_id → eqp_ip` through
+`sem_list.data.get_sem_list()` (the same roster `storage` and `lateral_recipe`
+use) and term-queries `ip`. Two consequences worth knowing before verifying:
+
+- **sem_list must also be on the office provider.** With sem_list on mock the
+  roster hands back fabricated IPs, which match zero documents and look exactly
+  like "no data". The adapter raises a named error rather than letting that
+  happen silently.
+- **An empty pull is unambiguous.** `sharpness` is in
+  `normalizers.CDSEM_ONLY_SERVICES`, so HV-SEM tools are turned away upstream
+  and never reach the adapter.
+
+Its OFFICE-VERIFY list adds one item beyond FDC's: confirm the stored `ip` is
+spelled the same as sem_list's `eqp_ip` (bare dotted quad, no port). Run the
+`__main__` smoke block — it prints the resolved IP separately from the query
+result, so a roster problem is distinguishable from an empty window.
+
 The shared helper `_siblings.py` stays at the `providers/` root (mock-only:
 stable seeds, sibling tool sets, and the metadata tail every faithful doc
 carries). `pm_gate_bsm_mock.py` / `spec_range_mock.py` also stay there — they
@@ -35,8 +57,19 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
 - At the office, first `cp providers/office_example.py providers/office.py`
   (the dispatcher — usually needs no edits), then per tab
   `cp providers/<tab>/office_example.py providers/<tab>/office.py` and
-  implement the builder(s). A tab without `office.py` fails fast with a
-  NotImplementedError naming that tab; connected tabs keep working.
+  implement the builder(s).
+- **Set `SKEWNONO_HARDWARE_PROVIDER=office` once, then wire tabs one at a
+  time.** A tab with no `office.py` falls back to its own `mock.py`, so the
+  page stays usable while you verify a single tab; each tab switches to real
+  data the moment its `office.py` lands. Nothing else needs flipping.
+- The fallback is silent in the response — a mock tab is NOT marked in the
+  payload. `ls providers/*/office.py` is the ledger of which tabs are real,
+  and the dispatcher logs one INFO line per tab that fell back. Read a chart
+  as 사내 data only after checking one of the two.
+- A tab whose `office.py` exists but FAILS TO IMPORT (missing dependency,
+  bad import line) does NOT fall back — it raises. Only the file's absence is
+  treated as "not wired yet"; a broken wired adapter must never quietly serve
+  fabricated data under an office switch.
 - Edit ONLY the `office.py` copies. Never touch `routes.py`, `data.py`,
   `providers/mock.py`, `providers/<tab>/mock.py`, `contracts.py`,
   `normalizers.py`, or `tests/`.
@@ -88,7 +121,7 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
   builds both a settings snapshot (as-of `end`) and a `docs` history list;
   `sce` builds only a settings snapshot (no `docs`). `mdc`/`sce` settings
   compare the selected `eqp_id` against in-fab siblings as of `end`.
-- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, network_sharpness_cdsem, MDC/SCE settings collections, BM/PM work-order table -->
+- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, sharpness_monitor_cdsem, MDC/SCE settings collections, BM/PM work-order table -->
 - Notes: `fetched_at` is stamped at request/build time and is volatile — a
   parity harness should scrub it rather than compare byte-for-byte. The
   `docs` vs. `settings` split is a discriminated-by-service convention (not

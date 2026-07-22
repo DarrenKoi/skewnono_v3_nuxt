@@ -5,15 +5,27 @@
 
 Each tab folder (`fdc/`, `sharpness/`, `bm_pm/`, `bsm/`, `reso_center/`,
 `mdc/`, `sce/`) carries its own `office_example.py` → `office.py` pair. A tab
-whose `office.py` has not been copied/implemented yet FAILS FAST with a
-NotImplementedError naming that tab, while already-connected tabs keep
-working — so the migration can land one tab at a time.
+whose `office.py` has not been copied yet falls back to that tab's `mock.py`,
+so `SKEWNONO_HARDWARE_PROVIDER=office` can be switched on once and each tab
+picks itself up as its adapter lands. The page stays usable throughout the
+migration instead of showing six errors while one tab is being verified.
+
+This works because a tab's `office.py` and `mock.py` expose the SAME builder
+names returning the SAME raw shapes — the contract that made the per-tab
+split possible in the first place — so either module drops into the call
+sites below unchanged.
+
+The fallback is deliberately silent in the RESPONSE (no "mock ·" marker), so
+the server log is the only record of which tabs are real: `_tab` logs one
+INFO line per fallback. Check it, or `ls providers/*/office.py`, before
+reading an office chart as 사내 data.
 
 Raw data comes from the tab modules; this dispatcher normalizes it to the
 canonical HardwarePayload via ``normalizers.py``, mirroring
 ``providers/mock.py`` exactly.
 """
 
+import logging
 from datetime import datetime
 from importlib import import_module
 
@@ -26,19 +38,31 @@ from back_dev_home.ebeam.hitachi.hardware.normalizers import (
 )
 
 
+_LOG = logging.getLogger(__name__)
+
+
 def _tab(name: str):
-    """Import providers/<name>/office.py, failing fast when not connected."""
+    """Import providers/<name>/office.py, or that tab's mock.py if absent.
+
+    The ``exc.name`` guard matters more than it looks: it separates "this tab
+    has no office.py yet" from "this tab's office.py is broken". Without it, a
+    wired adapter that fails to import — a missing ``ops_store``, a typo in an
+    import line — would quietly downgrade to mock and serve fabricated data
+    under an office switch. Only the tab module's own absence falls back;
+    anything else propagates.
+    """
     module = f"{__package__}.{name}.office"
     try:
         return import_module(module)
     except ModuleNotFoundError as exc:
         if exc.name != module:
             raise  # a real missing dependency inside the tab adapter
-        raise NotImplementedError(
-            f"hardware/{name} office adapter not connected yet — "
-            f"cp providers/{name}/office_example.py providers/{name}/office.py "
-            "and implement it (see hardware/MIGRATION.md)."
-        ) from exc
+    _LOG.info(
+        "hardware/%s has no providers/%s/office.py — serving MOCK for this tab. "
+        "cp providers/%s/office_example.py providers/%s/office.py to connect it.",
+        name, name, name, name,
+    )
+    return import_module(f"{__package__}.{name}.mock")
 
 
 def get_hardware_service(
@@ -96,7 +120,7 @@ def get_hardware_service(
         return docs_payload(
             service, tool_slug, eqp_id, fab_name,
             docs=docs,
-            summary="network_sharpness_cdsem 원시 문서를 시간순으로 제공합니다.",
+            summary="sharpness_monitor_cdsem 원시 문서를 시간순으로 제공합니다.",
         )
 
     if service == "mdc":
