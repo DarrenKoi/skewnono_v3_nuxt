@@ -19,7 +19,15 @@ def register_spa(app: Flask) -> None:
             abort(404)
         if path:
             try:
-                return send_from_directory(root_str, path)
+                resp = send_from_directory(root_str, path)
             except NotFound:
                 pass
+            else:
+                # Nuxt content-hashes everything under _nuxt/, so those files
+                # never change in place — cache hard. index.html and public/
+                # assets keep Flask's default conditional (ETag) caching so a
+                # fresh deploy is picked up on the next request.
+                if path.startswith("_nuxt/"):
+                    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                return resp
         return send_from_directory(root_str, "index.html")
