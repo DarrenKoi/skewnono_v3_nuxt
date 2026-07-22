@@ -48,8 +48,8 @@ loader indexes ``build_search_all_value(row)`` with ``SEARCH_ALL_MAPPING``,
 error). Every other filter works without it.
 
 At the office: fill in OPENSEARCH_* / REDIS_* in ``back_dev_home/.env``,
-``cp office_example.py office.py``, set ``SKEWNONO_MEAS_HIST_PROVIDER=office``,
-then run the Verify command in MIGRATION.md.
+then ``cp office_example.py office.py`` — that file's existence is the
+switch, no env var needed — and run the Verify command in MIGRATION.md.
 """
 
 from datetime import datetime, timedelta, timezone

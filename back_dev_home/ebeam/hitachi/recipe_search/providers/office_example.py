@@ -25,8 +25,8 @@ UI stays usable and the contract gate stays green. See the TODO there.
 
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
 ``REDIS_PASSWORD`` in ``back_dev_home/.env``. At the office: fill in .env,
-`cp office_example.py office.py`, set ``SKEWNONO_RECIPE_SEARCH_PROVIDER=office``,
-then run the Verify command in MIGRATION.md.
+then `cp office_example.py office.py` — that file's existence is the switch,
+no env var needed — and run the Verify command in MIGRATION.md.
 """
 
 import ast

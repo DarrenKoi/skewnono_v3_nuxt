@@ -58,10 +58,11 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
   (the dispatcher — usually needs no edits), then per tab
   `cp providers/<tab>/office_example.py providers/<tab>/office.py` and
   implement the builder(s).
-- **Set `SKEWNONO_HARDWARE_PROVIDER=office` once, then wire tabs one at a
-  time.** A tab with no `office.py` falls back to its own `mock.py`, so the
-  page stays usable while you verify a single tab; each tab switches to real
-  data the moment its `office.py` lands. Nothing else needs flipping.
+- **Copy the dispatcher once, then wire tabs one at a time.** The
+  dispatcher's own `office.py` is what puts hardware on office; no env var is
+  involved. A tab with no `office.py` falls back to its own `mock.py`, so the
+  page stays usable while you verify a single tab, and each tab switches to
+  real data the moment its `office.py` lands. Nothing else needs flipping.
 - The fallback is silent in the response — a mock tab is NOT marked in the
   payload. `ls providers/*/office.py` is the ledger of which tabs are real,
   and the dispatcher logs one INFO line per tab that fell back. Read a chart

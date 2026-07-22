@@ -127,8 +127,8 @@ for create_token/list_tokens/revoke_token.** If only the CRUD three are
 wired to office while these two stay pointed at the mock's in-memory
 store, a token created via office `create_token` becomes unfindable by
 `find_by_plaintext`, and bearer-token auth silently breaks for every
-office-created token the moment `SKEWNONO_API_TOKENS_PROVIDER=office` is
-set — this is not a hypothetical, it is the exact bug this section exists
+office-created token the moment `api_tokens` resolves to office — this is
+not a hypothetical, it is the exact bug this section exists
 to prevent.
 
 - `find_by_plaintext(plaintext) -> _TokenRow | None`: hashes the plaintext

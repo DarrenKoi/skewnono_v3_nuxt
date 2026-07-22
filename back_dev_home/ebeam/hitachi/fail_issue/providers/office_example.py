@@ -43,8 +43,8 @@ Aggregation shapes per endpoint:
                   M-fab ``tech_nm``), sorted by combined fail count.
 
 At the office: fill in OPENSEARCH_* / REDIS_* in ``back_dev_home/.env``,
-``cp office_example.py office.py``, set ``SKEWNONO_FAIL_ISSUE_PROVIDER=office``,
-then run the Verify command in MIGRATION.md. recipe_tat's office.py must be
+then ``cp office_example.py office.py`` — that file's existence is the
+switch, no env var needed — and run the Verify command in MIGRATION.md. recipe_tat's office.py must be
 re-copied from ITS template in the same pull (both now import the shared
 module).
 """

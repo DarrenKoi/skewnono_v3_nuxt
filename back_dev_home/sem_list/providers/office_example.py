@@ -16,9 +16,9 @@ must not need to know the source format.
 
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
 ``REDIS_PASSWORD`` in ``back_dev_home/.env`` (same vars the health feature
-uses). At the office: fill in .env, `cp office_example.py office.py`, set
-``SKEWNONO_SEM_LIST_PROVIDER=office``, then run the Verify command in
-MIGRATION.md.
+uses). At the office: fill in .env, then `cp office_example.py office.py` — that
+file's existence is the switch, no env var needed — and run the Verify
+command in MIGRATION.md.
 """
 
 import pandas as pd

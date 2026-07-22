@@ -7,7 +7,7 @@ Implement all six functions here against the office Redis exception store
 record_denied/list_denied. All six must read/write the SAME store:
 is_blocked must see a grant written by this module's add_exception, or the
 enforcement path (back_dev_home/_auth/middleware.py) breaks the moment
-SKEWNONO_ACCESS_CONTROL_PROVIDER=office is set. Normalize CRUD results to
+access_control resolves to office. Normalize CRUD results to
 access_control/contracts.py shapes; see access_control/MIGRATION.md's
 "Enforcement path" section for details.
 
