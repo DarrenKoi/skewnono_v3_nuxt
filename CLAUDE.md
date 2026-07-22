@@ -71,7 +71,8 @@ Three-tier configuration management. Database connections, API base URLs, and se
 
 ### Git Workflow
 - **Work directly on `main` by default.** Commit and push to `main` unless I explicitly ask for a separate branch. Do **not** auto-create a feature branch just because the change lands on the default branch.
-- Still only commit/push when I ask — working on `main` is not standing permission to commit unprompted.
+- **Commit and push whenever you judge it necessary** — no need to ask first. Use judgement: commit at coherent stopping points (a working feature, a passing test suite, a finished doc), not mid-edit.
+- **Every commit message must say what changed.** Subject line in the existing `type(scope): summary` style, plus a body explaining what was updated and why when the change is not self-evident from the subject.
 
 - Git-based workflow with separated workspaces per phase (home vs. office cannot sync directly)
 - Flask backend is only accessible on company network
