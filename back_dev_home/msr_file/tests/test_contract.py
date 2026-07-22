@@ -89,12 +89,7 @@ def test_office_gated_fields_are_absent(response):
         assert not leaked, f"office-gated key(s) leaked into the mock response: {leaked}"
 
 
-def test_office_adapter_raises_until_connected():
-    """The office adapter is the entry gate downstream tasks wait on: it must
-    refuse until the canonical layout/coordinate metadata source is connected."""
-    from back_dev_home.msr_file.providers import office
-
-    with pytest.raises(NotImplementedError):
-        office.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
-    with pytest.raises(NotImplementedError):
-        office.get_msr_image("anything.tif")
+# The former test_office_adapter_raises_until_connected is retired: the office
+# adapter is now CONNECTED — it reads the processed pickle at the meas_hist
+# doc's `minio_pkl` path (see providers/office_example.py). Its normalization
+# and gated-metadata derivations are pinned in tests/test_office_template.py.

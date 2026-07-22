@@ -1,3 +1,11 @@
+저장 위치(office): MinIO. 각 측정의 meas_hist 문서(meas_hist_cdsem/hvsem)가
+경로 필드 2개를 가짐 — minio_msr = MSR raw text 원본, minio_pkl = 후처리된
+pickle(이 문서의 구조). 화면/adapter 는 minio_pkl 만 사용 (raw text 재파싱
+금지 — 후처리 파이프라인 중복). 경로 형식은 "bucket/key",
+minio_handler.MinioObject().get_pickle 로 로드.
+
+=====
+
 "df_result_data" : pd.DataFrame
 
 columns : value (examples)

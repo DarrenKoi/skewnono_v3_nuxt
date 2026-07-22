@@ -1,5 +1,16 @@
 # msr_file — office migration
 
+## Status
+
+- `GET /api/msr-file`, `POST /api/msr-files`: 구현완료 — meas_hist 문서의
+  `minio_pkl` 경로에서 후처리 pickle을 읽어 계약 형태로 정규화합니다. 사내
+  데이터 검증 전입니다.
+- `GET /api/msr-image`: 미구현(의도적) — 이미지는 MinIO가 아니라 장비 FTP에서
+  가져오며, 그 계획은 별도 커밋된 스펙으로 Phase 2/3에서 실행합니다. office
+  모드에서 이 엔드포인트는 mock placeholder로 대체하지 않고
+  `NotImplementedError`를 발생시킵니다 — 가짜 현미경 이미지를 실데이터 화면에
+  섞지 않기 위해서입니다.
+
 ## Rules
 
 - FIRST copy the tracked skeleton, then work only in the copy:
@@ -48,7 +59,27 @@
   unhealthy tool shows correlated CD ↔ FDC excursions. `exe_detail_info`
   deliberately omits `site_layout_hash`, `recipe_revision`,
   `coordinate_transform_version` and `sequence_timestamp` — see below.
-- Office data source: <!-- OFFICE: MinIO-parsed msr pickle + canonical layout/coordinate metadata source -->
+- Office data source: the meas_hist document found by `msr.keyword` (both
+  aliases, `meas_hist_cdsem,meas_hist_hvsem`) carries two MinIO paths —
+  `minio_msr` (RAW .MSR text) and `minio_pkl` (post-processed pickle). The
+  adapter reads ONLY `minio_pkl` (`"bucket/key"` format →
+  `minio_handler.MinioObject().get_pickle`); the pickle already holds the
+  parsed structure (`df_result_data` + `exe_detail_info` + `alignment` +
+  `fixed_fdc` + `dynamic_fdc` + `spm_dict`, see
+  `docs/datatables/msr_file_pickle.txt`). MinIO settings come from
+  `minio_handler/minio_config.py`, NOT `.env`. Unknown MSR, missing
+  `minio_pkl` (e.g. `msr_check: No`), or a non-dict pickle all return `None`
+  → 404, same as the mock.
+- Normalization gaps handled by `build_response` (pure, pinned at home by
+  `tests/test_office_template.py`): spaced pickle columns
+  (`"mp_image_name 01"`, `"meas_condition mag"`) → underscore names,
+  `object` → `object_type`, `class` → `class_name`, `"None"` strings → real
+  `None`, `chip_coordinate` absent office-side → `""`. Gated-key derivations:
+  `site_layout_hash` = sha1 of layout geometry + site set (map_offset
+  excluded — verify at office it isn't per-run), `recipe_revision` = real
+  pickle key if present else `fp-` fingerprint, `coordinate_transform_version`
+  = pickle key or pinned `minio-pkl-v1`, `sequence_timestamp` = parent doc
+  `start_time`.
 - Notes: office MUST emit the canonical metadata keys that mock forbids
   (`site_layout_hash`, `recipe_revision`, `coordinate_transform_version`,
   `sequence_timestamp`) — they unlock the layout-dependent analyses; see
@@ -65,7 +96,10 @@
 - Contract: raw SVG string body (no TypedDict — the response is not JSON).
 - Mock behavior: a deterministic SVG placeholder generated from `name`, no
   actual image lookup.
-- Office data source: <!-- OFFICE: tool FTP image fetch by mp_image filename -->
+- Office data source: tool FTP fetch by mp_image filename — NOT MinIO (the
+  buckets hold measurement data, not micrographs). The FTP plan is committed
+  separately; until it executes, the office adapter keeps raising
+  `NotImplementedError` for this endpoint only.
 - Notes: the route + URL contract is identical across phases — only the data
   layer swaps. This route is rate-limit exempt.
 
@@ -86,9 +120,13 @@
 ## Verify
 
     SKEWNONO_MSR_FILE_PROVIDER=office .venv/bin/pytest back_dev_home/msr_file/tests/test_contract_gate.py
+    .venv/bin/python -m back_dev_home.msr_file.providers.office
 
 The provider key is `get_data_provider("msr_file")` → env var
-`SKEWNONO_MSR_FILE_PROVIDER`. The mock-pin test (`tests/test_contract.py`) is
-EXCLUDED from this office-mode gate — it asserts mock-only behavior (the
-office-gated keys are ABSENT and the office adapter raises
-`NotImplementedError`) and must keep running only in mock mode.
+`SKEWNONO_MSR_FILE_PROVIDER`. The second command is the standalone smoke test:
+it finds a recent doc with a `minio_pkl` path, fetches the pickle, and prints
+the normalized shape plus a gate check on the 4 canonical metadata keys. The
+mock-pin test (`tests/test_contract.py`) asserts mock-only behavior (the
+office-gated keys are ABSENT there) and must keep running only in mock mode;
+the template normalization itself is pinned by
+`tests/test_office_template.py`, which runs in every mode.
