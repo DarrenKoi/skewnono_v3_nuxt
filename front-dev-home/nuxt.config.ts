@@ -128,6 +128,7 @@ export default defineNuxtConfig({
         'lucide:triangle-alert',
         'lucide:search',
         'lucide:cpu',
+        'lucide:radio',
         'lucide:bar-chart-3',
         'lucide:git-compare',
         'lucide:eye',
