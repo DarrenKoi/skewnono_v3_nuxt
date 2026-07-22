@@ -108,3 +108,6 @@ back_dev_home/chat/*.db
 # The second pattern covers per-tab adapters (e.g. hardware/providers/fdc/office.py).
 back_dev_home/**/providers/office.py
 back_dev_home/**/providers/**/office.py
+# live_alarm's writer has a second swap surface OUTSIDE providers/ — its
+# office.py holds the in-house alarm API URLs and must never be tracked.
+back_dev_home/**/writer/office.py
