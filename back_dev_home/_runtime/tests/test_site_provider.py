@@ -4,53 +4,12 @@ The invariant: an explicit per-feature env var always wins; otherwise a
 feature serves office data only when the process is in office MODE *and* that
 feature has a providers/office.py.
 
-Resolution tests point office_registry at a fake tree rather than the real
-repo. office.py is gitignored, so which adapters exist is a property of the
-machine running the tests — this Mac mini happens to have six, written while
-developing them, and the office has a different set. A fixed tree is the only
-way to assert exact resolution.
+The `wired` fake tree and env scrubbing live in conftest.py.
 """
-
-import os
 
 import pytest
 
-from back_dev_home._runtime import data_provider, office_registry, site
-
-
-@pytest.fixture(autouse=True)
-def _clean_env(monkeypatch):
-    """Neutralize any real provider/site config leaking in from .env.
-
-    validate_env() scans EVERY SKEWNONO_*_PROVIDER variable, so a hardcoded
-    delenv list would let one stray office line in .env fail unrelated tests
-    here. Strip them all instead. This also covers SKEWNONO_DATA_PROVIDER.
-    """
-    monkeypatch.delenv("SKEWNONO_SITE", raising=False)
-    monkeypatch.delenv("SKEWNONO_OFFICE_HOSTNAMES", raising=False)
-    for name in list(os.environ):
-        if name.startswith("SKEWNONO_") and name.endswith("_PROVIDER"):
-            monkeypatch.delenv(name)
-
-
-@pytest.fixture
-def wired(tmp_path, monkeypatch):
-    """A fake tree where sem_list + storage have office.py and chat/skew do not."""
-    root = tmp_path / "back_dev_home"
-    for rel, filenames in {
-        "sem_list": ["mock.py", "office.py"],
-        "ebeam/hitachi/storage": ["mock.py", "office.py"],
-        "chat": ["mock.py", "office_example.py"],
-        "ebeam/hitachi/skew": ["mock.py", "office_example.py"],
-    }.items():
-        providers = root / rel / "providers"
-        providers.mkdir(parents=True)
-        for filename in filenames:
-            (providers / filename).write_text("")
-    monkeypatch.setattr(office_registry, "_ROOT", root)
-    office_registry.reset_cache()
-    yield root
-    office_registry.reset_cache()
+from back_dev_home._runtime import data_provider, site
 
 
 def _set_host(monkeypatch, name: str) -> None:
@@ -177,6 +136,48 @@ def test_invalid_feature_var_raises_naming_that_var(monkeypatch, wired):
     with pytest.raises(RuntimeError) as exc:
         data_provider.get_data_provider("sem_list")
     assert "SKEWNONO_SEM_LIST_PROVIDER" in str(exc.value)
+
+
+def test_office_without_an_adapter_raises_off_the_app_factory_path(
+    monkeypatch, wired
+):
+    """The refusal must hold wherever resolution happens, not only in
+    create_app().
+
+    Every MIGRATION.md tells you to verify an adapter with
+    `SKEWNONO_<F>_PROVIDER=office .venv/bin/pytest back_dev_home/<f>`, which
+    never builds an app and so never calls validate_env(). Without this check
+    that command dies on a bare ModuleNotFoundError from data.py instead of
+    the cp command — on precisely the path the docs send people down.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "office")
+    with pytest.raises(RuntimeError) as exc:
+        data_provider.get_data_provider("chat")
+    message = str(exc.value)
+    assert "cp back_dev_home/chat/providers/office_example.py" in message
+
+
+def test_the_two_paths_give_the_identical_message(monkeypatch, wired):
+    """validate_env() and get_data_provider() must not drift on diagnosis."""
+    monkeypatch.setenv("SKEWNONO_SKEW_PROVIDER", "office")
+
+    with pytest.raises(RuntimeError) as boot_exc:
+        data_provider.validate_env()
+    with pytest.raises(RuntimeError) as request_exc:
+        data_provider.get_data_provider("skew")
+
+    assert str(boot_exc.value) == str(request_exc.value)
+
+
+def test_hyphenated_and_cased_slugs_resolve_to_the_same_feature(
+    monkeypatch, wired
+):
+    """get_data_provider() normalizes its argument; resolve_all() feeds it raw
+    slugs. Both must land on the same env var and the same adapter."""
+    monkeypatch.setenv("SKEWNONO_SITE", "office")
+    assert data_provider.get_data_provider("SEM-List") == "office"
+    monkeypatch.setenv("SKEWNONO_SEM_LIST_PROVIDER", "mock")
+    assert data_provider.get_data_provider("SEM-List") == "mock"
 
 
 # --------------------------------------------------------------- resolve_all

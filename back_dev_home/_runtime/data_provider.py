@@ -47,9 +47,18 @@ class FeatureResolution(NamedTuple):
     reason: str
 
 
+def _slug(feature: str) -> str:
+    """Canonical feature key: the providers/ parent directory name.
+
+    Directory names use underscores, so a hyphenated caller ("sem-list") must
+    normalize the same way the env var does — otherwise the env lookup and the
+    registry lookup would disagree about the same feature.
+    """
+    return feature.strip().lower().replace("-", "_")
+
+
 def _feature_env_name(feature: str) -> str:
-    normalized = feature.strip().upper().replace("-", "_")
-    return f"{_PREFIX}{normalized}{_SUFFIX}"
+    return f"{_PREFIX}{_slug(feature).upper()}{_SUFFIX}"
 
 
 def _validated(raw: str, env_name: str) -> DataProvider:
@@ -74,15 +83,59 @@ def get_mode() -> DataProvider:
     return "office" if detect_site() == "office" else "mock"
 
 
-def get_data_provider(feature: str) -> DataProvider:
-    """The adapter this feature should use right now."""
-    env_name = _feature_env_name(feature)
+def _unhonorable(slug: str, env_name: str) -> RuntimeError:
+    """The one message for "=office cannot be served".
+
+    Shared by the request path and the boot check so the two can never
+    disagree about what went wrong or how to fix it.
+    """
+    known = features()
+    if slug not in known:
+        return RuntimeError(
+            f"{env_name}=office names an unknown feature {slug!r}. "
+            f"Known features: {', '.join(sorted(known))}."
+        )
+    directory = repo_path(known[slug])
+    return RuntimeError(
+        f"{env_name}=office, but {directory}/providers/office.py does not "
+        f"exist on this machine. Create it with:\n"
+        f"  cp {directory}/providers/office_example.py "
+        f"{directory}/providers/office.py\n"
+        f"Or remove {env_name} to let this feature stay on mock."
+    )
+
+
+def _resolve(feature: str, mode: DataProvider | None = None) -> FeatureResolution:
+    """The resolution cascade, written once.
+
+    ``mode`` is passed in by ``resolve_all`` so a 20-feature table does not
+    re-read the environment and re-run hostname detection per row.
+    """
+    slug = _slug(feature)
+    env_name = _feature_env_name(slug)
+
     raw = os.environ.get(env_name)
     if raw is not None:
-        return _validated(raw, env_name)
-    if get_mode() == "office" and feature.strip().lower() in office_ready():
-        return "office"
-    return "mock"
+        provider = _validated(raw, env_name)
+        if provider == "office" and slug not in office_ready():
+            # Checked here, not only at boot: the contract-test command in
+            # every MIGRATION.md runs pytest without an app factory, so this
+            # is the path most likely to hit a missing adapter. Raising the
+            # cp-command error beats a bare ModuleNotFoundError from data.py.
+            raise _unhonorable(slug, env_name)
+        return FeatureResolution(slug, provider, f"forced by {env_name}={provider}")
+
+    mode = get_mode() if mode is None else mode
+    if mode != "office":
+        return FeatureResolution(slug, "mock", f"mode={mode}")
+    if slug in office_ready():
+        return FeatureResolution(slug, "office", "providers/office.py found")
+    return FeatureResolution(slug, "mock", "no providers/office.py")
+
+
+def get_data_provider(feature: str) -> DataProvider:
+    """The adapter this feature should use right now."""
+    return _resolve(feature).provider
 
 
 def resolve_all() -> list[FeatureResolution]:
@@ -93,22 +146,7 @@ def resolve_all() -> list[FeatureResolution]:
     invisible. The reason string is what makes it visible.
     """
     mode = get_mode()
-    ready = office_ready()
-    rows: list[FeatureResolution] = []
-    for slug in sorted(features()):
-        env_name = _feature_env_name(slug)
-        raw = os.environ.get(env_name)
-        if raw is not None:
-            provider = _validated(raw, env_name)
-            reason = f"forced by {env_name}={provider}"
-        elif mode != "office":
-            provider, reason = "mock", f"mode={mode}"
-        elif slug in ready:
-            provider, reason = "office", "providers/office.py found"
-        else:
-            provider, reason = "mock", "no providers/office.py"
-        rows.append(FeatureResolution(slug, provider, reason))
-    return rows
+    return [_resolve(slug, mode) for slug in sorted(features())]
 
 
 def validate_env() -> None:
@@ -118,8 +156,11 @@ def validate_env() -> None:
     answered with fabricated numbers — the same principle as the ``exc.name``
     guard in hardware's per-tab dispatcher, applied to configuration instead
     of imports. Called by the app factory right after load_dotenv.
+
+    ``_resolve`` enforces the same rule per feature; this sweeps every
+    variable up front so a misconfigured feature fails at boot rather than
+    when someone first opens its page.
     """
-    known = features()
     ready = office_ready()
     for name in sorted(os.environ):
         if not (name.startswith(_PREFIX) and name.endswith(_SUFFIX)):
@@ -129,18 +170,5 @@ def validate_env() -> None:
         if _validated(os.environ[name], name) != "office":
             continue
         slug = name[len(_PREFIX):-len(_SUFFIX)].lower()
-        if slug in ready:
-            continue
-        if slug not in known:
-            raise RuntimeError(
-                f"{name}=office names an unknown feature {slug!r}. "
-                f"Known features: {', '.join(sorted(known))}."
-            )
-        directory = repo_path(known[slug])
-        raise RuntimeError(
-            f"{name}=office, but {directory}/providers/office.py does not "
-            f"exist on this machine. Create it with:\n"
-            f"  cp {directory}/providers/office_example.py "
-            f"{directory}/providers/office.py\n"
-            f"Or remove {name} to let this feature stay on mock."
-        )
+        if slug not in ready:
+            raise _unhonorable(slug, name)

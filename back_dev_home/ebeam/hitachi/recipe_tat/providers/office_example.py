@@ -25,7 +25,8 @@ needs the raw rows — every endpoint is a server-side aggregation over
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 ``cp office_example.py office.py``, set ``SKEWNONO_RECIPE_TAT_PROVIDER=office``
-(or just leave it unset — this file's existence is the switch), then run the Verify command in MIGRATION.md.
+(or just leave it unset — this file's
+existence is the switch), then run the Verify command in MIGRATION.md.
 """
 
 from typing import Any

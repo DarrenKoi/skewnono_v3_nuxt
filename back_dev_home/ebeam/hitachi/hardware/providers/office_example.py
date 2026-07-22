@@ -31,7 +31,7 @@ from importlib import import_module
 # The module logger would inherit WARNING from root, silently swallowing the
 # fallback line below — the one record that a tab is serving mock under an
 # office switch. skewnono.providers carries its own INFO handler.
-from back_dev_home._runtime.boot import logger as _LOG
+from back_dev_home._logging.providers import logger as _LOG
 from back_dev_home.ebeam.hitachi.hardware.contracts import HardwarePayload, ServiceKey
 from back_dev_home.ebeam.hitachi.hardware.normalizers import (
     bm_pm_history_payload,
@@ -39,7 +39,6 @@ from back_dev_home.ebeam.hitachi.hardware.normalizers import (
     service_gate,
     settings_payload,
 )
-
 
 
 def _tab(name: str):

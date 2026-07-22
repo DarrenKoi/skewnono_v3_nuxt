@@ -1,33 +1,11 @@
 """Filesystem discovery of office adapters.
 
-Every test builds a fake package tree under tmp_path rather than reading the
-real repo: at home NO providers/office.py exists anywhere (it is gitignored
-and only ever created at the office), so the real tree cannot exercise the
-office-ready paths at all.
+The fake_tree factory and env scrubbing live in conftest.py.
 """
 
 import pytest
 
 from back_dev_home._runtime import office_registry
-
-
-@pytest.fixture
-def fake_tree(tmp_path, monkeypatch):
-    """Build back_dev_home/<path>/providers/<files> trees and point _ROOT at it."""
-    root = tmp_path / "back_dev_home"
-
-    def build(spec: dict[str, list[str]]):
-        for rel, filenames in spec.items():
-            providers = root / rel / "providers"
-            providers.mkdir(parents=True, exist_ok=True)
-            for filename in filenames:
-                (providers / filename).write_text("")
-        monkeypatch.setattr(office_registry, "_ROOT", root)
-        office_registry.reset_cache()
-        return root
-
-    yield build
-    office_registry.reset_cache()
 
 
 def test_feature_slug_is_the_directory_name_at_any_depth(fake_tree):
@@ -109,8 +87,10 @@ def test_real_repo_scan_is_self_consistent():
     """
     office_registry.reset_cache()
     real = office_registry.features()
+    # Named features, not a count: adding a feature is routine and must not
+    # fail an unrelated test. These four span the nesting depths that exist
+    # (top level, ebeam/hitachi/, ebeam/cdsem/).
     assert {"sem_list", "storage", "hardware", "device_statistics"} <= set(real)
-    assert len(real) == 20
     # Whatever this machine has must at least be real features — an office.py
     # anywhere else would be a stray copy the orphan guard should have caught.
     assert set(office_registry.office_ready()) <= set(real)
