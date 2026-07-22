@@ -17,9 +17,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
-from back_dev_home.ebeam.hitachi.hardware.providers._mock_utils import (
-    seed_for_equipment,
-)
+from back_dev_home.ebeam.hitachi.hardware.providers._siblings import seed_for
 
 
 __all__ = ["build_bm_pm_data"]
@@ -170,7 +168,7 @@ def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
     mocks generate against, so BM/PM overlay markers land inside chart
     ranges. Same (eqp_id, anchor) → same data.
     """
-    rng = random.Random(seed_for_equipment(eqp_id))
+    rng = random.Random(seed_for(eqp_id))
     past = build_past_frame(eqp_id, rng, anchor)
     future = build_future_frame(eqp_id, rng, anchor)
     return {

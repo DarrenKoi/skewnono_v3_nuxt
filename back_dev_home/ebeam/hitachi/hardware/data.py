@@ -8,11 +8,7 @@ canonical contract in `contracts.py`.
 from datetime import datetime
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.ebeam.hitachi.hardware.contracts import (
-    HardwarePayload,
-    ServiceKey,
-    VALID_SERVICES,
-)
+from back_dev_home.ebeam.hitachi.hardware.contracts import HardwarePayload, ServiceKey
 
 
 def get_hardware_service(

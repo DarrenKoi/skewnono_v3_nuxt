@@ -5,19 +5,28 @@
 `providers/` has one subfolder per hardware tab, each with its own
 mock/office adapter pair, so the office wiring lands one tab at a time:
 
-| Tab folder | Builder(s) | Office source |
-| --- | --- | --- |
-| `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` |
-| `sharpness/` | `build_network_sharpness_docs` | OpenSearch `network_sharpness_cdsem` |
-| `bm_pm/` | `build_bm_pm_data` | BM/PM work-order table |
-| `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) |
-| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` |
-| `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection |
-| `sce/` | `build_sce_settings` | SCE settings collection |
+| Tab folder | Builder(s) | Office source | Template |
+| --- | --- | --- | --- |
+| `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` | written — `cp` + verify |
+| `sharpness/` | `build_network_sharpness_docs` | OpenSearch `network_sharpness_cdsem` | stub |
+| `bm_pm/` | `build_bm_pm_data` | BM/PM work-order table | stub |
+| `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) | stub |
+| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` | stub |
+| `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub |
+| `sce/` | `build_sce_settings` | SCE settings collection | stub |
 
-Shared helpers `_siblings.py` / `_mock_utils.py` stay at the `providers/`
-root (mock-only). `bsm_mock.py` / `spec_range_mock.py` also stay there — they
-belong to pm_planning's BM/PM gate, not to a hardware tab.
+`fdc/office_example.py` is implemented, not a stub: its body is written
+against the `network_fdc_cdsem` layout in
+`docs/datatables/network_fdc_cdsem.txt`, so the office step is `cp` plus the
+two OFFICE-VERIFY checks in its docstring (offset-less `timestamp`, and
+`eqp_id` carrying a `.keyword` subfield). FDC is CD-SEM only — an HV-SEM tool
+matches no documents and renders an empty chart, which is the intended
+result until HV-SEM FDC is ingested.
+
+The shared helper `_siblings.py` stays at the `providers/` root (mock-only:
+stable seeds, sibling tool sets, and the metadata tail every faithful doc
+carries). `bsm_mock.py` / `spec_range_mock.py` also stay there — they belong
+to pm_planning's BM/PM gate, not to a hardware tab.
 
 ## Rules
 

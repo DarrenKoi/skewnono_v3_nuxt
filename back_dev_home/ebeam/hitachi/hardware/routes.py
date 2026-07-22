@@ -3,10 +3,8 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 
 from back_dev_home.ebeam.hitachi._tool_specs import VALID_TOOL_SLUGS
-from back_dev_home.ebeam.hitachi.hardware.data import (
-    VALID_SERVICES,
-    get_hardware_service,
-)
+from back_dev_home.ebeam.hitachi.hardware.contracts import VALID_SERVICES
+from back_dev_home.ebeam.hitachi.hardware.data import get_hardware_service
 
 
 bp = Blueprint("ebeam_hardware", __name__)

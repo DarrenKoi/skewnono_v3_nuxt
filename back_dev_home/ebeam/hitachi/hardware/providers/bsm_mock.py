@@ -25,9 +25,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
-from back_dev_home.ebeam.hitachi.hardware.providers._mock_utils import (
-    seed_for_equipment,
-)
+from back_dev_home.ebeam.hitachi.hardware.providers._siblings import seed_for
 
 
 __all__ = ["build_bsm_data"]
@@ -142,7 +140,7 @@ def _pm_timestamps(rng: random.Random) -> list[datetime]:
 
 def build_bsm_data(eqp_id: str) -> dict[str, object]:
     """Deterministic daily + PM BSM categories for one tool."""
-    rng = random.Random(seed_for_equipment(eqp_id))
+    rng = random.Random(seed_for(eqp_id))
 
     daily_frame, daily_profiles = _build_category(eqp_id, rng, _daily_timestamps(rng))
     pm_frame, pm_profiles = _build_category(eqp_id, rng, _pm_timestamps(rng))
