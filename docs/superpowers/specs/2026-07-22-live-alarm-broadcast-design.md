@@ -71,19 +71,20 @@ writer 가 병합·만료까지 끝낸 완성된 보드를 저장하므로, SKEW
 
 ### writer 를 어디서 돌릴 것인가
 
-"정확히 하나의 writer" 를 얻는 방법이 셋 있었고, 기존 인프라가 세 번째를 이미
-운영 중이라 그것을 택했습니다.
-
 | 방식 | 인스턴스 수 | 배포 독립성 | 관측·복구 | 판단 |
 | --- | --- | --- | --- | --- |
 | SKEWNONO Flask 데몬 스레드 | 4 (`processes = 4`) | ✗ | 없음 | 채택 불가 |
 | SKEWNONO `wsgi.ini` 의 uWSGI mule | 1 | ✗ SKEWNONO 배포마다 끊김 | 직접 구축 | 폴백 (§12) |
-| `api_skewnono` 스케줄러 잡 | 1 | ✓ 별도 서비스 (포트 8000) | 기존 인프라 재사용 | **채택** |
+| 기존 Flask 스케줄러 서비스의 잡 | 1 | ✓ 별도 서비스 | 기존 인프라 재사용 | **채택** |
 
-데몬 스레드는 `lazy-apps = true` 때문에 워커마다 하나씩 생겨 4중 실행되고,
-Redis 블롭에 read-modify-write 를 하므로 lost update 가 발생합니다. mule 은
-프로세스가 정확히 하나라 그 문제는 없지만, SKEWNONO 웹의 배포 주기에 묶입니다.
-감시하는 쪽이 감시당하는 쪽의 배포에 흔들려서는 안 됩니다.
+데몬 스레드는 `lazy-apps = true` 때문에 워커마다 하나씩 생겨 사내 API 부하가 4배가
+되고, 워커가 재활용될 때 조용히 사라집니다. mule 은 프로세스가 정확히 하나라 그
+문제는 없지만, SKEWNONO 웹의 배포 주기에 묶입니다. 감시하는 쪽이 감시당하는 쪽의
+배포에 흔들려서는 안 됩니다.
+
+현재는 `api_skewnono`(포트 8000)에 등록하지만, **writer 는 특정 스케줄러에 종속되지
+않게 작성합니다**(§6). 다른 Flask 스케줄러 서버로 옮기거나 병행 운영할 수 있어야
+하며, 이 요구가 §5 의 저장 구조를 결정했습니다.
 
 ## 4. 데이터 계약
 
@@ -146,49 +147,108 @@ class LiveAlarmPayload(TypedDict):
 
 ## 5. Redis 스키마
 
-| 항목 | 값 |
+팹·tool 조합마다 키 두 개를 씁니다.
+
+| 키 | 자료형 | 내용 | TTL |
+| --- | --- | --- | --- |
+| `skewnono:live_alarm:{tool_slug}:{fab_name}:events` | ZSET | member = `AlarmEvent` 의 canonical JSON, score = `occurred_at` 의 epoch 초 | 24시간 |
+| `skewnono:live_alarm:{tool_slug}:{fab_name}:polled_at` | STRING | writer 의 마지막 **성공** 폴링 시각 | 24시간 |
+
+### 왜 ZSET 인가 — 락을 없애기 위해서입니다
+
+writer 는 어느 Flask 스케줄러 서버에도 꽂을 수 있어야 합니다(§6). 그 서버가 분산
+락을 제공하는지, 멀티 워커인지 알 수 없으므로 **writer 가 중복 실행돼도 안전해야
+합니다.**
+
+JSON 블롭 하나에 보드를 담으면 read-modify-write 가 되어 동시 실행 시 lost update
+가 발생하고, 이를 막으려면 호스트가 락을 제공해야 해서 이식성이 깨집니다. ZSET 은
+그 문제를 자료구조 수준에서 없앱니다.
+
+| 연산 | 멱등성 |
 | --- | --- |
-| 키 | `skewnono:live_alarm:{tool_slug}:{fab_name}` |
-| 값 | JSON — `{"polled_at": "YYYY-MM-DD HH:MM:SS", "events": [AlarmEvent, ...]}` |
-| TTL | 24시간 |
-| writer | 팹·tool 조합당 정확히 1개 |
+| `ZADD` | 같은 이벤트는 member 문자열이 같아 자동으로 한 번만 남습니다 |
+| `ZREMRANGEBYSCORE` | 몇 번 실행해도 결과가 같습니다 |
+| `SET polled_at` | 거의 같은 값으로 덮어쓰므로 마지막이 이겨도 무방합니다 |
 
-값을 키 하나에 JSON 블롭으로 저장합니다. 10분간 발생하는 align/meas fail 은 많아야
-수십 건이므로 통째로 읽고 쓰는 편이 단순하고, writer 가 조합당 하나뿐이라 경합이
-없습니다. 한 팹에서 10분에 수백 건이 발생하는 상황이 확인되면 ZSET 으로 바꾸며,
-그 변경은 writer 와 office 어댑터 안에서만 일어납니다.
+동시 실행·중복 실행·재시도가 모두 같은 상태로 수렴하므로 **락이 필요 없습니다.**
 
-TTL 24시간은 폐기된 팹의 키가 스스로 정리되게 하되, 하루 안에는 `polled_at` 을
-보존해 "언제부터 멈췄는가" 를 진단할 수 있게 하는 값입니다.
+부수 효과가 더 큽니다. **writer 가 Redis 를 읽지 않아도 됩니다.** 기존 보드를
+읽어 병합하는 단계가 사라지므로 writer 에는 병합 함수도 만료 함수도 필요 없습니다.
+저장 구조를 복잡하게 만든 것이 아니라 코드를 지운 것입니다.
+
+reader 쪽에서도 10분 절단이 `ZRANGEBYSCORE (now-600) +inf` 의 인자가 되어 파이썬
+만료 코드가 사라집니다.
+
+member 를 `id` 가 아닌 canonical JSON(키 정렬, 공백 없음)으로 두는 이유는 키를
+하나로 유지하기 위해서입니다. 대신 같은 `id` 인데 부가 필드만 다른 레코드가 두 벌
+남을 가능성이 생기므로, **reader 가 읽은 뒤 `id` 로 한 번 더 중복을 제거합니다.**
+어차피 reader 가 최종 권한을 갖는 구조이므로 그 자리에서 흡수합니다.
+
+### 네임스페이스와 계약
 
 키를 `api_skewnono:` 가 아닌 `skewnono:live_alarm:` 네임스페이스에 두는 것은
 의도된 선택입니다. `api_skewnono:` 는 스케줄러의 살림살이(잡 스토어, 락, 태스크
 로그)이고, 이 키는 SKEWNONO 가 소비하는 **애플리케이션 데이터** 입니다. writer 가
-언젠가 다른 프로세스로 옮겨가도 키 이름은 그대로여야 합니다.
+어느 스케줄러로 옮겨가도 키 이름은 그대로여야 합니다.
 
-**이 JSON 형태가 writer 와 reader 사이의 유일한 계약입니다.** 두 서비스는 Python
-코드를 공유하지 않으므로, 필드 이름 9개(`AlarmEvent`)와 봉투 2개(`polled_at`,
-`events`)가 합의의 전부입니다.
+**이 키 구조와 member JSON 형태가 writer 와 reader 사이의 유일한 계약입니다.** 두
+서비스는 Python 코드를 공유하지 않으므로, 키 이름 2개와 필드 이름 9개(`AlarmEvent`)
+가 합의의 전부입니다.
 
-> **배포 전 확인 사항:** writer 가 쓰는 Redis 와 SKEWNONO office 어댑터가 읽는
-> Redis(`back_dev_home/.env` 의 `REDIS_HOST`)가 같은 인스턴스·같은 DB 인지
-> 확인해야 합니다. 스케줄러의 `ApiRedisConfig` 는 잡 스토어에 `db=0`, 락에
-> `db=1` 을 쓰므로, 우리 데이터가 어느 DB 에 놓이는지 명시적으로 정해야 합니다.
+TTL 24시간은 폐기된 팹의 키가 스스로 정리되게 하되, 하루 안에는 `polled_at` 을
+보존해 "언제부터 멈췄는가" 를 진단할 수 있게 하는 값입니다. 두 키 모두 매 성공
+폴링마다 `EXPIRE` 를 갱신합니다.
 
-## 6. Writer — `api_skewnono` 스케줄러 잡
+### 어느 Redis 를 쓰는가
 
-기존 스케줄러 플랫폼(`flask_modules/api` 계열)에 잡 하나로 등록합니다. 다음 항목은
-플랫폼이 이미 제공하므로 이 스펙이 다시 만들지 않습니다.
+**SKEWNONO office 어댑터가 읽는 Redis** 를 그대로 씁니다 —
+`back_dev_home/.env` 의 `REDIS_HOST` / `REDIS_PORT` / `REDIS_DB` 가 가리키는 곳
+입니다. 스케줄러 자신의 Redis(`ApiRedisConfig` 의 잡 스토어 `db=0`, 락 `db=1`)가
+아닙니다.
 
-| 필요한 성질 | 플랫폼 제공 수단 |
+reader 가 읽을 수 있는 Redis 는 그곳뿐이므로, writer 가 다른 인스턴스에 쓰면
+reader 에 두 번째 Redis 설정을 추가해야 합니다. 같은 Redis 를 공유하는 데 따르는
+위험은 두 가지 장치로 이미 막혀 있습니다.
+
+- **키 네임스페이스** — `skewnono:live_alarm:` 접두사가 기존 `v3_df_*` 키와
+  겹치지 않습니다.
+- **모든 키에 TTL** — 24시간이 지나면 스스로 사라지므로, writer 가 잘못 돌아도
+  Redis 를 무한정 채우지 않습니다.
+
+데이터량은 팹 6개 × 수십 건의 작은 JSON 이라, 이미 저장 중인 parquet DataFrame 에
+비하면 무시할 수준입니다.
+
+> **배포 시 확인:** 스케줄러 서버에서 그 Redis 로의 네트워크 접근과 쓰기 권한이
+> 열려 있어야 합니다. writer 는 접속 정보를 환경 변수로 받습니다(§6).
+
+## 6. Writer — 이식 가능한 스케줄러 잡
+
+writer 는 **특정 스케줄러 서비스에 종속되지 않습니다.** 어느 Flask + APScheduler
+서버에도 파일을 놓고 잡 하나를 등록하면 동작해야 합니다. 그래야 지금은
+`api_skewnono` 에 붙이더라도 나중에 다른 스케줄러로 옮기거나 병행 운영할 수
+있습니다.
+
+이 요구가 설계를 지배합니다.
+
+### 호스트에 요구하는 것 — 주기 호출 하나뿐
+
+```python
+run_once()   # 인자 없음, 반환값 없음, 예외를 밖으로 던지지 않음
+```
+
+writer 가 호스트에 기대하는 것은 "15초마다 이 함수를 불러달라" 가 전부입니다.
+분산 락도, 잡 스토어도, 앱 컨텍스트도 요구하지 않습니다.
+
+| 흔히 호스트에 의존하는 것 | writer 가 대신 하는 것 |
 | --- | --- |
-| writer 인스턴스 정확히 1개 | `uwsgi.worker_id() == 1` 역할 선출 + `redis_lock` 이중 보장 |
-| 주기 실행 | `IntervalTrigger` (기존 잡이 이미 `seconds=30` 으로 운영 중) |
-| 프로세스 재기동 후 복구 | `RedisJobStore` + uWSGI master |
-| 실행 이력·오류 관측 | `TaskLogger` → `GET /jobs/logs` |
-| 겹침 방지 / 밀린 발화 병합 | `SCHEDULER_JOB_DEFAULTS` 의 `max_instances=1`, `coalesce=True` |
+| 분산 락으로 중복 실행 방지 | Redis 연산을 전부 멱등으로 설계 (§5) — 중복 실행이 무해 |
+| `app.config` 에서 설정 읽기 | 환경 변수에서 직접 읽음 |
+| 프레임워크 로거 | 표준 `logging` 모듈 |
+| 앱 컨텍스트 | 필요 없음 |
 
-### 등록
+의존성은 `redis` 와 `requests` 뿐이며, 스케줄러 서버라면 대개 이미 있습니다.
+
+### `api_skewnono` 에 등록하는 경우
 
 ```python
 "live_alarm_board": {
@@ -199,28 +259,74 @@ TTL 24시간은 폐기된 팹의 키가 스스로 정리되게 하되, 하루 �
 },
 ```
 
-`lock_ttl` 기본값 1200초를 **반드시** 덮어써야 합니다. `redis_lock` 은 `finally`
-에서 해제하지만 락을 쥔 채 프로세스가 죽으면 키가 TTL 까지 남고, 그동안 잡은 매번
-skip 됩니다. 워커는 `max-worker-lifetime = 3600` · `reload-on-rss = 1500` · 1시
-`restart_uwsgi` 로 자주 재활용되므로 실제로 일어나는 일입니다. 1200초면 화면이
-20분간 `stale` 이고, 45초(3주기)면 스스로 회복합니다.
+그 플랫폼은 `redis_lock` 을 모든 잡에 강제로 씌우므로 `lock_ttl` 을 **반드시**
+덮어써야 합니다. 기본값은 1200초인데, `redis_lock` 은 `finally` 에서 해제하지만
+락을 쥔 채 프로세스가 죽으면 키가 TTL 까지 남고 그동안 잡이 매번 skip 됩니다.
+워커는 `max-worker-lifetime = 3600` · `reload-on-rss = 1500` · 1시 `restart_uwsgi`
+로 자주 재활용되므로 실제로 일어나는 일입니다. 1200초면 화면이 20분간 `stale`
+이고, 45초(3주기)면 스스로 회복합니다.
 
 `misfire_grace_time` 도 이 잡에 한해 `10` 으로 낮춥니다. 10초 넘게 밀린 발화는
 버리는 편이 낫습니다 — 다음 주기가 5초 뒤입니다.
 
+**다만 정확성이 이 락에 의존하지는 않습니다.** 락은 사내 API 호출을 줄여주는
+최적화일 뿐이고, 락이 없는 스케줄러에 얹어도 결과는 같습니다. 그래야 이식 가능
+합니다.
+
+### 호스트가 이미 제공하면 재사용하는 것
+
+`api_skewnono` 기준으로, 다음은 플랫폼이 주므로 writer 가 다시 만들지 않습니다.
+다른 스케줄러에 옮겨가면 그 서버가 주는 만큼만 쓰면 되고, 없어도 writer 는
+동작합니다.
+
+| 성질 | `api_skewnono` 제공 수단 |
+| --- | --- |
+| 주기 실행 | `IntervalTrigger` (기존 잡이 이미 `seconds=30` 으로 운영 중) |
+| 프로세스 재기동 후 복구 | `RedisJobStore` + uWSGI master |
+| 실행 이력·오류 관측 | `TaskLogger` → `GET /jobs/logs` |
+| 겹침 방지 / 밀린 발화 병합 | `SCHEDULER_JOB_DEFAULTS` 의 `max_instances=1`, `coalesce=True` |
+| 단일 인스턴스 | `uwsgi.worker_id() == 1` 역할 선출 |
+
 ### 한 주기의 동작
 
-1. 대상 6개 팹에 대해 사내 알람 API 를 `POLL_WINDOW_SEC=60` 으로 조회합니다.
-   대상 팹 목록은 `fab_name → API 주소` 매핑의 키 집합이며, 별도 설정 파일을 두지
-   않습니다. 팹을 추가하는 행위와 주소를 등록하는 행위가 같은 한 번의 편집이 되어야
-   목록과 주소가 어긋나지 않습니다.
+팹마다 독립적으로, 아래를 수행합니다.
+
+1. 사내 알람 API 를 `POLL_WINDOW_SEC=60` 으로 조회합니다. 대상 팹 목록은
+   `fab_name → API 주소` 매핑의 키 집합이며, 별도 설정 파일을 두지 않습니다. 팹을
+   추가하는 행위와 주소를 등록하는 행위가 같은 한 번의 편집이 되어야 목록과 주소가
+   어긋나지 않습니다.
 2. 응답을 `AlarmEvent` 로 정규화합니다. `ALID_KIND` 에 없는 알람은 버립니다.
-3. Redis 에서 기존 보드를 읽어 `id` 기준으로 병합합니다.
-4. `occurred_at` 이 `WRITER_PRUNE_SEC=900` 을 넘긴 이벤트를 제거합니다.
-5. 병합된 보드와 **이번 폴링 시각** 을 `polled_at` 으로 함께 씁니다.
+3. 한 파이프라인으로 네 연산을 보냅니다.
+
+```python
+pipe.zadd(events_key, {canonical_json(e): epoch(e["occurred_at"]) for e in events})
+pipe.zremrangebyscore(events_key, "-inf", now_epoch - WRITER_PRUNE_SEC)
+pipe.expire(events_key, 86400)
+pipe.set(polled_key, now_text, ex=86400)
+pipe.execute()
+```
+
+**Redis 를 읽지 않습니다.** 병합은 `ZADD` 가, 만료는 `ZREMRANGEBYSCORE` 가 대신
+하므로 writer 에는 병합 함수도 만료 함수도 없습니다.
 
 조회 윈도우 60초가 주기 15초의 4배이므로, 스케줄러 지터나 일시적 실패가 몇 번
 발생해도 이벤트를 놓치지 않습니다.
+
+윈도우 안에 알람이 하나도 없을 때 `ZADD` 는 건너뛰되 **`polled_at` 은 갱신합니다.**
+"알람이 없었다" 는 폴링 성공이지 실패가 아니며, 이 구분이 §10 의 두 빈 상태를
+가릅니다.
+
+### 설정
+
+접속 정보와 튜닝 값은 전부 환경 변수로 받습니다. 호스트 프레임워크의 설정 체계에
+의존하지 않아야 이식됩니다.
+
+| 환경 변수 | 용도 |
+| --- | --- |
+| `LIVE_ALARM_REDIS_HOST` / `_PORT` / `_DB` / `_PASSWORD` | §5 의 Redis (SKEWNONO 가 읽는 것과 동일) |
+| `LIVE_ALARM_POLL_WINDOW_SEC` | 기본 60 |
+| `LIVE_ALARM_PRUNE_SEC` | 기본 900 |
+| `LIVE_ALARM_HTTP_TIMEOUT` | 기본 `3,7` |
 
 ### 스레드 풀 예산
 
@@ -244,17 +350,19 @@ skip 됩니다. 워커는 `max-worker-lifetime = 3600` · `reload-on-rss = 1500`
 기다립니다.
 
 팹별 예외는 잡 안에서 격리하여, 한 팹의 실패가 다른 팹의 갱신을 막지 않게 합니다.
-잡 전체가 던지면 `TaskLogger` 가 `error` 레코드로 남깁니다.
+**`run_once` 는 예외를 밖으로 던지지 않습니다** — 호스트 스케줄러가 무엇이든 잡
+하나의 실패로 스케줄러 스레드가 흔들리면 안 되기 때문입니다. 오류는 표준 `logging`
+으로 남기고, `TaskLogger` 를 가진 호스트에서는 그 로그가 함께 수집됩니다.
 
 ### 코드 배치
 
 writer 는 **SKEWNONO 코드를 하나도 import 하지 않는 자족 모듈** 로 작성합니다.
-의존성은 `redis` 와 `requests` 뿐이며, 둘 다 스케줄러 서비스에 이미 있습니다.
+의존성은 `redis` 와 `requests` 뿐입니다.
 
-원본과 테스트는 SKEWNONO 레포에 둡니다(진실의 원천). 배포 시 그 파일을 스케줄러
-서비스의 `api/tasks/` 에 놓고 `JOB_FUNCTIONS` 에 위 한 줄을 추가합니다. 나중에
-두 서비스 사이의 import 경로가 열리면 복사 대신 import 로 바꾸면 되고, 그것은
-순수한 개선일 뿐 설계 변경이 아닙니다 — 계약은 어차피 §5 의 JSON 이기 때문입니다.
+원본과 테스트는 SKEWNONO 레포에 둡니다(진실의 원천). 배포 시 그 디렉터리를 스케줄러
+서비스에 놓고 잡 하나를 등록합니다. 나중에 두 서비스 사이의 import 경로가 열리면
+복사 대신 import 로 바꾸면 되고, 그것은 순수한 개선일 뿐 설계 변경이 아닙니다 —
+계약은 어차피 §5 의 Redis 구조이기 때문입니다.
 
 사내 알람 API 주소는 기존 규약대로 gitignore 대상인 `office.py` 안에만 둡니다.
 `office_example.py` 를 구현해 두고 오피스에서 `cp office_example.py office.py` 로
@@ -265,17 +373,22 @@ writer 는 **SKEWNONO 코드를 하나도 import 하지 않는 자족 모듈** �
 ```text
 live_alarm/
 ├── contracts.py            # 스키마·상수 (SKEWNONO 측)
-├── board.py                # 순수 함수: merge_events / prune_events / feed_status_for
+├── board.py                # 순수 함수: feed_status_for / dedupe_by_id
 ├── data.py                 # mock|office 디스패처 (안정 층, 수정하지 않음)
 ├── routes.py               # GET /api/ebeam/<tool_slug>/live-alarm
 ├── providers/
 │   ├── mock.py             # Phase 1 — Redis 없이 즉답
-│   └── office_example.py   # Redis GET + prune + feed_status 판정
+│   └── office_example.py   # ZRANGEBYSCORE + dedupe + feed_status 판정
 ├── writer/                 # 스케줄러 서비스로 복사되는 자족 모듈
-│   ├── job.py              # run_once() — 위 5단계
+│   ├── job.py              # run_once() — SKEWNONO import 없음
+│   ├── normalize.py        # 사내 응답 → AlarmEvent + canonical JSON
 │   └── office_example.py   # 사내 알람 API 호출 + fab_name → 주소 매핑
 └── tests/
 ```
+
+`board.py` 에 병합·만료 함수가 없는 것은 Redis 가 그 일을 하기 때문입니다.
+`dedupe_by_id` 만 남는데, 이는 §5 에서 설명한 "같은 `id` 인데 부가 필드만 다른
+멤버" 를 reader 가 흡수하기 위한 것입니다.
 
 reader 쪽 Redis 접속은 `_runtime/office_redis.py` 의 `redis_client()` 를 재사용하며,
 어댑터마다 접속 코드를 다시 만들지 않습니다. writer 는 자족 모듈이므로 자체 클라이언트를
@@ -285,16 +398,21 @@ reader 쪽 Redis 접속은 `_runtime/office_redis.py` 의 `redis_client()` 를 �
 
 `GET /api/ebeam/<tool_slug>/live-alarm?fab_name=R3`
 
-`office.py` 의 동작은 다음 세 단계가 전부입니다.
+`office.py` 의 동작은 다음 네 단계가 전부입니다.
 
-1. Redis 에서 해당 팹의 보드를 읽습니다.
-2. `board.prune_events(events, now=server_now)` 로 10분 지평을 다시 적용합니다.
-3. `board.feed_status_for(polled_at, now=server_now)` 로 `live` / `stale` 을 판정합니다.
+```python
+now = server_now_epoch()
+events = r.zrangebyscore(events_key, now - BOARD_WINDOW_SEC, "+inf")  # 10분 절단
+polled_at = r.get(polled_key)
+events = board.dedupe_by_id(json.loads(m) for m in events)
+status = board.feed_status_for(polled_at, now=now)                    # live | stale
+```
 
 **시간 지평의 최종 권한은 reader 에게 있습니다.** writer 가 멈추면 보드가 얼어붙는데,
-40분 전 알람을 현재처럼 보여주면 안 되기 때문입니다. reader 가 매 응답마다
-`BOARD_WINDOW_SEC` 을 다시 적용하므로 writer 정지 후 10분 안에 보드가 자연히 비고,
-화면은 "알람 없음 + 마지막 갱신 34분 전 (지연)" 이라는 정확한 상태가 됩니다.
+40분 전 알람을 현재처럼 보여주면 안 되기 때문입니다. reader 가 매 응답마다 10분
+경계를 `ZRANGEBYSCORE` 의 하한으로 다시 계산하므로, writer 정지 후 10분 안에 보드가
+자연히 비고 화면은 "알람 없음 + 마지막 갱신 34분 전 (지연)" 이라는 정확한 상태가
+됩니다. 절단이 질의 인자라서 reader 에는 만료 코드 자체가 없습니다.
 
 writer 의 `WRITER_PRUNE_SEC=900` 은 저장 크기를 묶기 위한 것일 뿐 화면에 영향을 주지
 않습니다. 두 서비스가 이 숫자에 대해 의견이 달라져도 안전하도록 의도적으로 분리했습니다.
@@ -387,6 +505,7 @@ context(https, 또는 localhost)에서만 노출되는데, 프로덕션은
 | 보드 키 부재 | `polled_at = None`, `events = []` | `stale` + "피드 미가동" |
 | 스케줄러 워커 재활용 | `RedisJobStore` 에서 잡 복원, 수 초 공백 | 표시 없음 — `STALE_AFTER_SEC=90` 이 흡수 |
 | 락이 물린 채 프로세스 사망 | `lock_ttl=45` 만료 후 자동 회복 | 최대 45초간 `stale` |
+| writer 중복 실행 (락 없는 호스트) | Redis 연산이 멱등이라 같은 상태로 수렴 | 표시 없음 — 사내 API 호출만 늘어남 |
 | 브라우저 폴링 1~2회 실패 | 조용히 재시도 | 변화 없음 |
 | 브라우저 폴링 3회 연속 실패 | 재시도 유지 | "연결 불안정" 표시 |
 | 미지원 `fab_name` | 404 | 오류 페이지 |
@@ -415,18 +534,22 @@ context(https, 또는 localhost)에서만 노출되는데, 프로덕션은
 
 **백엔드**
 
-- `board.merge_events` — 중복 `id` 병합, 지연 보고된 과거 이벤트 수용
-- `board.prune_events` — 경계값(정확히 600초, 601초)
 - `board.feed_status_for` — 경계값(정확히 90초, 91초), `polled_at = None`
+- `board.dedupe_by_id` — 같은 `id` 의 멤버가 둘일 때 하나만 남음
 - 정규화 — `ALID_KIND` 매핑, `id` 조립, 미지원 ALID 제외
+- `canonical_json` — 필드 순서가 달라도 같은 문자열을 만듦 (ZSET 중복 제거의 전제)
 - reader — mock provider 가 `LiveAlarmPayload` 계약을 만족함
 
 **writer** (스케줄러 서비스로 복사되지만 테스트는 SKEWNONO 레포에 둡니다)
 
 - `run_once` 한 주기 — 사내 API 실패 시 `polled_at` 이 갱신되지 않음을 검증합니다.
   이 설계에서 가장 중요한 단일 테스트입니다
+- 알람 0건 — `polled_at` 은 **갱신되어야** 합니다 (실패와 구분되는 지점)
 - 팹 격리 — 한 팹의 예외가 다른 팹 갱신을 막지 않음을 검증합니다
-- 계약 적합성 — writer 가 쓴 JSON 을 reader 의 정규화가 그대로 읽어냄을 검증합니다.
+- `run_once` 가 예외를 밖으로 던지지 않음
+- **멱등성** — 같은 응답으로 `run_once` 를 두 번 돌려도 ZSET 크기가 같음. 락 없는
+  호스트에 얹을 수 있다는 주장의 근거이므로 반드시 테스트합니다
+- 계약 적합성 — writer 가 쓴 멤버를 reader 의 파싱이 그대로 읽어냄을 검증합니다.
   두 서비스가 코드를 공유하지 않으므로, 이 테스트가 드리프트를 잡는 유일한 장치입니다
 
 **프론트엔드**
@@ -451,12 +574,13 @@ reader, 프론트엔드는 영향받지 않습니다.
 
 **writer 를 import 로 전환.** 지금은 파일 복사로 스케줄러 서비스에 배치합니다.
 두 서비스 사이의 import 경로가 열리면 복사를 import 로 바꿉니다. 계약이 §5 의
-JSON 이므로 이 전환은 설계 변경이 아니라 배포 방식의 개선입니다.
+Redis 구조이므로 이 전환은 설계 변경이 아니라 배포 방식의 개선입니다.
 
-**폴백 — uWSGI mule.** `api_skewnono` 에 잡을 등록할 수 없는 상황이 되면, SKEWNONO
-자체 `wsgi.ini` 에 `mule = ...` 로 writer 를 띄우는 방법이 차선입니다. 프로세스는
-정확히 하나가 되고 마스터가 재기동해 주지만, `redis_lock` · `RedisJobStore` ·
-`TaskLogger` 를 직접 만들어야 하고 SKEWNONO 배포마다 감시가 끊깁니다.
+**폴백 — uWSGI mule.** 어느 Flask 스케줄러에도 잡을 등록할 수 없는 상황이 되면,
+SKEWNONO 자체 `wsgi.ini` 에 `mule = ...` 로 writer 를 띄우는 방법이 차선입니다.
+프로세스는 정확히 하나가 되고 마스터가 재기동해 주지만, 관측 수단을 직접 만들어야
+하고 SKEWNONO 배포마다 감시가 끊깁니다. writer 가 자족 모듈이라 이 전환에 코드
+수정은 필요 없습니다 — 호출해 주는 주체만 바뀝니다.
 
 ## 13. 확정된 값
 
@@ -468,11 +592,13 @@ JSON 이므로 이 전환은 설계 변경이 아니라 배포 방식의 개선�
 | 사내 API 조회 윈도우 | 1분 |
 | 사내 API HTTP 타임아웃 | connect 3초 / read 7초 |
 | stale 판정 임계 | 90초 (6주기) |
-| `redis_lock` TTL | 45초 (3주기) |
 | `misfire_grace_time` | 10초 |
+| `redis_lock` TTL (락을 강제하는 호스트에서만) | 45초 (3주기) |
 | 브라우저 폴링 주기 | 15초 |
-| Redis TTL | 24시간 |
+| Redis | SKEWNONO office 어댑터와 동일 인스턴스·DB |
+| Redis TTL | 24시간 (매 성공 폴링마다 갱신) |
 | 대상 ALID | `9006` (align), `9100` (meas) |
 | 대상 팹 수 | 6 |
 | 팹당 사내 API 부하 | 분당 4회 고정 |
-| 플랫폼 스레드 풀 점유 | 잡 1개 = 1칸 (팹 수와 무관) |
+| 호스트 스레드 풀 점유 | 잡 1개 = 1칸 (팹 수와 무관) |
+| writer 가 호스트에 요구하는 것 | 15초마다 `run_once()` 호출 (락·잡스토어·앱컨텍스트 불필요) |
