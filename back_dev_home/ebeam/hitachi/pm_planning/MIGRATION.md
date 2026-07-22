@@ -114,10 +114,10 @@
     target ± gaussian noise, checks it against that spec's
     `lower`/`upper`; separately reads the latest **daily** BSM
     sharpness/noise averages via
-    `hardware/providers/bsm_mock.build_bsm_data(eqp_id)` and validates
-    them with `spec_range_mock.bsm_in_spec`; `post_pm_at` comes from the
-    most recent `"PM"`-category row in
-    `hardware/providers/bm_pm_mock.build_bm_pm_data(eqp_id, NOW)`'s
+    `hardware/providers/pm_gate_bsm_mock.build_bsm_data(eqp_id)` and
+    validates them with `spec_range_mock.bsm_in_spec`; `post_pm_at` comes
+    from the most recent `"PM"`-category row in
+    `hardware/providers/bm_pm/mock.build_bm_pm_data(eqp_id, NOW)`'s
     `past` list. `verdict` is `"up"` only when both the CD value and the
     BSM readings are in spec, else `"hold"`.
   - **`cells`** (`_tool_cells`): one row per `(beam, axis)` pair (2 beam
@@ -158,7 +158,7 @@
   - No external importer: nothing outside this feature folder imports
     from `pm_planning.data` or `pm_planning.providers.mock` (unlike
     device_statistics, which recipe_tat's mock provider reaches into
-    directly). `hardware/providers/bm_pm_mock.py`/`bsm_mock.py`/
+    directly). `hardware/providers/bm_pm/mock.py`/`pm_gate_bsm_mock.py`/
     `spec_range_mock.py` are consumed **by** this mock, not consumers of
     it, so nothing needs cross-feature care here.
   - The parity harness pins both `/api/cdsem/pm-planning/fleet` (`200`,

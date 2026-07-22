@@ -17,7 +17,9 @@ from datetime import datetime, timedelta, timezone
 
 from back_dev_home.ebeam.hitachi._tool_specs import TOOL_SPECS
 from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.mock import build_bm_pm_data
-from back_dev_home.ebeam.hitachi.hardware.providers.bsm_mock import build_bsm_data
+from back_dev_home.ebeam.hitachi.hardware.providers.pm_gate_bsm_mock import (
+    build_bsm_data,
+)
 from back_dev_home.ebeam.hitachi.hardware.providers.spec_range_mock import (
     bsm_in_spec,
     get_cd_monitoring_spec,

@@ -6,8 +6,9 @@ Apature angle factor, Reso EB Focus) keyed alongside a 16-step `degree` axis,
 plus the scalar summary fields and the metadata tail. Fabricated straight off
 `metrics.BEAM_SHAPE_METRICS`, so a new registry entry appears in every doc.
 
-This is SEPARATE from `bsm_mock.py` (kept for pm_planning's BM/PM gate). Here
-we emit the faithful raw docs the hardware page reads directly.
+This is SEPARATE from `../pm_gate_bsm_mock.py`, which serves pm_planning's
+BM/PM Up-gate. Here we emit the faithful raw docs the hardware page reads
+directly.
 
 Determinism mirrors the other providers: `random.Random` seeded from md5(eqp_id),
 anchored to `_siblings.NOW`. `index2` docs are intentionally not emitted.
@@ -41,7 +42,8 @@ _CATEGORY_BY_COND: dict[str, str] = {
     "HR0500_IP0080": "I-diff_lp",
 }
 
-# Scheduled monitoring runs at roughly these slots each day (matches bsm_mock).
+# Scheduled monitoring runs at roughly these slots each day (matches
+# ../pm_gate_bsm_mock.py).
 _DAILY_HOURS: tuple[int, ...] = (6, 14, 22)
 
 

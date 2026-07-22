@@ -25,8 +25,10 @@ result until HV-SEM FDC is ingested.
 
 The shared helper `_siblings.py` stays at the `providers/` root (mock-only:
 stable seeds, sibling tool sets, and the metadata tail every faithful doc
-carries). `bsm_mock.py` / `spec_range_mock.py` also stay there — they belong
-to pm_planning's BM/PM gate, not to a hardware tab.
+carries). `pm_gate_bsm_mock.py` / `spec_range_mock.py` also stay there — they
+belong to pm_planning's BM/PM Up-gate, not to a hardware tab. The `pm_gate_`
+prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
+`pm_gate_bsm_mock.py` feeds pm_planning.
 
 ## Rules
 

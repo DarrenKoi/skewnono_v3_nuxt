@@ -1,11 +1,17 @@
-"""Phase 1 BSM (Beam Shape Matching) mock generator.
+"""Phase 1 BSM (Beam Shape Matching) mock generator for pm_planning's Up-gate.
+
+Owned by hardware but consumed by `pm_planning/providers/mock.py`, NOT by a
+hardware tab — which is why it sits at the `providers/` root instead of in a
+tab folder. The hardware page's own BSM panel is `bsm/mock.py`, a separate
+generator emitting faithful raw `beam_shape` docs; the `pm_gate_` prefix here
+keeps the two apart.
 
 BSM is a CD-SEM-only check: a beam profile is sampled across 16 angular steps
 (0deg -> 337.5deg, every 22.5deg) for two metrics, `sharpness` (~7.8-8.1) and
 `noise` (~6.6-7.0). Real office data arrives as one pandas DataFrame of summary
 rows per category plus the underlying per-measurement raw profiles. This module
 fabricates the same shape deterministically from the `eqp_id` (the same
-seed-from-id trick `bm_pm_mock.py` / `sem_list/data.py` use), so a given tool
+seed-from-id trick `bm_pm/mock.py` / `sem_list/data.py` use), so a given tool
 shows identical BSM history on every request without any stored fixture.
 
 Two categories use *different sample sets* and are therefore kept as two
