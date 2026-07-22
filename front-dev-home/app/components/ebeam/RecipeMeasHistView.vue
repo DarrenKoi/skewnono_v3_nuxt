@@ -76,21 +76,39 @@ const headerStats = computed(() => [
 
 const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso)
 
+// Column order encodes priority: identity → 측정 상태(signal) → 참고용 context.
+// The signal block (msr/align/images/fail/ratio) is what you actually scan for,
+// so it sits left of lot_id/class/meas(s), which are only needed once a row
+// already looks suspicious. Dividers mark the three blocks.
+const BLOCK_START = 'border-l border-(--sk-border)'
+const CONTEXT_COL = 'text-(--sk-ink-muted)'
+
 const columns: TableColumn<MeasHistRow>[] = [
   { accessorKey: 'timestamp', header: 'timestamp', size: 138 },
-  { accessorKey: 'eqp_id', header: 'eqp_id', size: 110 },
-  { accessorKey: 'lot_id', header: 'lot_id', size: 132 },
-  { accessorKey: 'class_name', header: 'class', size: 80 },
+  { accessorKey: 'eqp_id', header: 'eqp_id', size: 112 },
   { accessorKey: 'recipe_name', header: 'recipe', size: 240 },
-  { accessorKey: 'meastime', header: 'meas(s)', size: 86 },
-  { accessorKey: 'msr_check', header: 'msr', size: 76 },
-  { accessorKey: 'align_fail', header: 'align', size: 84 },
-  { accessorKey: 'total_images', header: 'images', size: 82 },
-  { accessorKey: 'fail_images', header: 'fail', size: 70 },
-  { accessorKey: 'fail_ratio', header: 'ratio', size: 84 }
+  { accessorKey: 'msr_check', header: 'msr', size: 82, meta: { class: { td: BLOCK_START, th: BLOCK_START } } },
+  { accessorKey: 'align_fail', header: 'align', size: 90 },
+  { accessorKey: 'total_images', header: 'images', size: 88 },
+  { accessorKey: 'fail_images', header: 'fail', size: 78 },
+  { accessorKey: 'fail_ratio', header: 'ratio', size: 92 },
+  {
+    accessorKey: 'lot_id',
+    header: 'lot_id',
+    size: 128,
+    meta: { class: { td: `${BLOCK_START} ${CONTEXT_COL}`, th: BLOCK_START } }
+  },
+  { accessorKey: 'class_name', header: 'class', size: 78, meta: { class: { td: CONTEXT_COL } } },
+  { accessorKey: 'meastime', header: 'meas(s)', size: 84, meta: { class: { td: CONTEXT_COL } } }
 ]
 
-const tableUi = recipeTableUi
+// Local override rather than editing `recipeTableUi` — that preset is shared with
+// 횡전개 and AlignPopup, which shouldn't inherit this view's larger body text.
+const tableUi = {
+  ...recipeTableUi,
+  td: 'py-2 px-3 text-[13px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
+  th: 'py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+}
 </script>
 
 <template>
@@ -204,32 +222,20 @@ const tableUi = recipeTableUi
         :ui="tableUi"
       >
         <template #timestamp-cell="{ row }">
-          <span class="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-[13px] tabular-nums text-zinc-700 dark:text-zinc-300">
             {{ formatTimestamp(row.original.timestamp) }}
           </span>
         </template>
 
         <template #eqp_id-cell="{ row }">
-          <span class="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">
+          <span class="font-mono text-[13px] font-semibold text-zinc-900 dark:text-zinc-50">
             {{ row.original.eqp_id }}
           </span>
         </template>
 
-        <template #lot_id-cell="{ row }">
-          <span class="font-mono text-xs text-zinc-700 dark:text-zinc-200">
-            {{ row.original.lot_id }}
-          </span>
-        </template>
-
         <template #recipe_name-cell="{ row }">
-          <span class="font-mono text-xs text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-[13px] text-zinc-800 dark:text-zinc-100">
             {{ row.original.recipe_name }}
-          </span>
-        </template>
-
-        <template #meastime-cell="{ row }">
-          <span class="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
-            {{ row.original.meastime }}
           </span>
         </template>
 
@@ -237,7 +243,7 @@ const tableUi = recipeTableUi
           <UBadge
             :label="row.original.msr_check"
             :color="row.original.msr_check === 'Yes' ? 'success' : 'error'"
-            size="xs"
+            size="sm"
             variant="subtle"
           />
         </template>
@@ -246,21 +252,21 @@ const tableUi = recipeTableUi
           <UBadge
             :label="row.original.align_fail"
             :color="row.original.align_fail === 'Pass' ? 'success' : row.original.align_fail === 'Fail' ? 'error' : 'neutral'"
-            size="xs"
+            size="sm"
             variant="subtle"
           />
         </template>
 
         <template #total_images-cell="{ row }">
-          <span class="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
+          <span class="font-mono text-[13px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
             {{ row.original.total_images }}
           </span>
         </template>
 
         <template #fail_images-cell="{ row }">
           <span
-            class="font-mono text-xs tabular-nums"
-            :class="row.original.fail_images > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-700 dark:text-zinc-200'"
+            class="font-mono text-[13px] font-semibold tabular-nums"
+            :class="row.original.fail_images > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-900 dark:text-zinc-50'"
           >
             {{ row.original.fail_images }}
           </span>
@@ -268,10 +274,28 @@ const tableUi = recipeTableUi
 
         <template #fail_ratio-cell="{ row }">
           <span
-            class="font-mono text-xs tabular-nums"
-            :class="row.original.fail_ratio >= 0.15 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-700 dark:text-zinc-200'"
+            class="font-mono text-[13px] font-semibold tabular-nums"
+            :class="row.original.fail_ratio >= 0.15 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-900 dark:text-zinc-50'"
           >
             {{ (row.original.fail_ratio * 100).toFixed(1) }}%
+          </span>
+        </template>
+
+        <template #lot_id-cell="{ row }">
+          <span class="font-mono text-[11px] text-(--sk-ink-muted)">
+            {{ row.original.lot_id }}
+          </span>
+        </template>
+
+        <template #class_name-cell="{ row }">
+          <span class="text-[11px] text-(--sk-ink-muted)">
+            {{ row.original.class_name }}
+          </span>
+        </template>
+
+        <template #meastime-cell="{ row }">
+          <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+            {{ row.original.meastime }}
           </span>
         </template>
       </UTable>
