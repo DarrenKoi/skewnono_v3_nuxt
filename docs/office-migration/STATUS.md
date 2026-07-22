@@ -52,7 +52,22 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 | meas_hist | SKEWNONO_MEAS_HIST_PROVIDER | meas_hist/contracts.py | meas_hist/MIGRATION.md | 구현완료 | - |
 | afm | SKEWNONO_AFM_PROVIDER | afm/contracts.py | afm/MIGRATION.md | mock | - |
 | recipe_tat | SKEWNONO_RECIPE_TAT_PROVIDER | ebeam/hitachi/recipe_tat/contracts.py | ebeam/hitachi/recipe_tat/MIGRATION.md | 구현완료 | - |
-| fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/hitachi/fail_issue/contracts.py | ebeam/hitachi/fail_issue/MIGRATION.md | mock | - |
+| fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/hitachi/fail_issue/contracts.py | ebeam/hitachi/fail_issue/MIGRATION.md | 구현완료 | - |
 | msr_file | SKEWNONO_MSR_FILE_PROVIDER | msr_file/contracts.py | msr_file/MIGRATION.md | 구현완료(부분) | - |
 
 (모든 계약/MIGRATION 경로는 `back_dev_home/` 기준 상대 경로입니다.)
+
+## 비고
+
+- **hardware는 탭 단위로 전환합니다.** `providers/`가 탭별 하위 폴더로 나뉘어
+  있고, 디스패처가 `providers/<탭>/office.py`를 지연 임포트하면서 없는 탭은
+  이름을 붙여 `NotImplementedError`를 냅니다. 현재 office 어댑터가 있는 탭은
+  `fdc/`(OpenSearch `network_fdc_cdsem`) 하나뿐이므로, 지금
+  `SKEWNONO_HARDWARE_PROVIDER=office`로 두면 Daily FDC만 살고 나머지 6개 탭이
+  모두 실패합니다. 표의 상태를 `mock`으로 유지하는 이유입니다.
+- `.env.example`의 프로바이더 스위치는 세 묶음(`[1]` office 호스트에서 자동
+  전환 · `[2]` 구현은 됐지만 자동 전환 제외 · `[3]` mock 스텁)으로 정리해
+  두었고, `[1]` 묶음은 `_runtime/site.py`의 `OFFICE_READY` 집합과 정확히
+  일치해야 합니다. 다만 그 묶음은 **무엇이 전환되는지**만 나타내며,
+  실데이터로 검증했는지 여부는 위 표의 `상태`/`검증일` 열이 유일한 기준입니다.
+  현재 `[1]`에 있는 기능 중 `office`인 것은 sem_list와 storage뿐입니다.
