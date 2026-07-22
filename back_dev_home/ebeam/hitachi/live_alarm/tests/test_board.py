@@ -1,0 +1,65 @@
+"""Pure board logic. No Redis, no Flask — every 'now' is injected."""
+
+from back_dev_home.ebeam.hitachi.live_alarm import board
+from back_dev_home.ebeam.hitachi.live_alarm.contracts import STALE_AFTER_SEC
+
+
+def _meta(polled_at: int, covered_since: int = 0) -> dict:
+    return {"polled_at": polled_at, "covered_since": covered_since}
+
+
+def test_unknown_fab_is_not_configured():
+    # Not in the writer's registry: this fab was never wired, which is a
+    # different fact from "the feed died" and must look different on screen.
+    assert board.feed_status_for(_meta(1000), known=False, now=1000) == "not_configured"
+
+
+def test_missing_meta_on_a_known_fab_is_stale():
+    assert board.feed_status_for(None, known=True, now=1000) == "stale"
+
+
+def test_fresh_meta_is_live():
+    assert board.feed_status_for(_meta(1000), known=True, now=1000) == "live"
+
+
+def test_exactly_at_threshold_is_still_live():
+    now = 1000 + STALE_AFTER_SEC
+    assert board.feed_status_for(_meta(1000), known=True, now=now) == "live"
+
+
+def test_one_second_past_threshold_is_stale():
+    now = 1000 + STALE_AFTER_SEC + 1
+    assert board.feed_status_for(_meta(1000), known=True, now=now) == "stale"
+
+
+def test_dedupe_keeps_one_row_per_id():
+    rows = [
+        {"id": "EQ1|9006|t", "alarm_name": "B"},
+        {"id": "EQ1|9006|t", "alarm_name": "A"},
+        {"id": "EQ2|9006|t", "alarm_name": "C"},
+    ]
+    out = board.dedupe_by_id(rows)
+    assert len(out) == 2
+
+
+def test_dedupe_is_deterministic_regardless_of_input_order():
+    # Two reader processes must render the same screen from the same ZSET.
+    a = {"id": "EQ1|9006|t", "alarm_name": "B"}
+    b = {"id": "EQ1|9006|t", "alarm_name": "A"}
+    assert board.dedupe_by_id([a, b]) == board.dedupe_by_id([b, a])
+
+
+def test_parse_members_decodes_bytes():
+    raw = [b'{"id":"EQ1|9006|t","eqp_id":"EQ1"}']
+    assert board.parse_members(raw) == [{"id": "EQ1|9006|t", "eqp_id": "EQ1"}]
+
+
+def test_parse_members_skips_a_broken_member():
+    # The writer is a separate deployment; a partial schema rollout must not
+    # take the whole endpoint down.
+    raw = [b'{"id":"ok"}', b'not json at all', b'{"id":"also-ok"}']
+    assert [e["id"] for e in board.parse_members(raw)] == ["ok", "also-ok"]
+
+
+def test_parse_members_survives_every_member_being_broken():
+    assert board.parse_members([b'{{{', b'}}}']) == []
