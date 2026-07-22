@@ -299,7 +299,7 @@ const openMeasHist = (recipeName: string) => {
                 autocomplete="off"
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
-                placeholder="예: ABC, 123, RACE/DEAE"
+                placeholder="MONITOR"
                 size="md"
                 aria-label="Recipe 검색"
               >
