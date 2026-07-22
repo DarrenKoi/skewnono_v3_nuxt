@@ -8,9 +8,11 @@ with ``normalizers.docs_payload``. The page's chart selectors read ``values``
 straight off each doc, so nothing here interprets the measurements — this
 adapter fetches, validates, and orders, and that is all.
 
-Doc layout (source of truth: ``docs/datatables/network_fdc_cdsem.txt``). One
-doc = one (eqp_id, timestamp, values); ``values[0]`` repeats ``fdc_key`` and
-the rest follows that key's own layout:
+Doc layout (source of truth: ``docs/datatables/network_fdc_cdsem.txt``). The
+index carries exactly seven fields — ``eqp_id``, ``eqp_model_cd``,
+``fab_name``, ``eqp_ip``, ``fdc_key``, ``timestamp``, ``values`` — and one doc
+= one (eqp_id, timestamp, values). ``values[0]`` repeats ``fdc_key`` and the
+rest follows that key's own layout:
 
 * ``TemperatureEchuck``        ``[key, '0', pos('1'|'2'|'3'), temp]`` — three
   chuck positions sampled on a cycle, each landing on its own timestamp.
@@ -89,15 +91,16 @@ KNOWN_FDC_KEYS = frozenset(
 # raises instead of silently drawing a partial history (see _check_cap).
 MAX_FDC_DOCS = 10_000
 
-# Trim the fetched fields to the mapped set the page carries. `values` is the
-# heavy one (SPMVoltages runs ~100 entries), so anything unmapped stays out.
+# The index's complete field set, user-confirmed 2026-07-22. Listed explicitly
+# rather than left as None so a new ingestion field cannot silently start
+# riding along in every doc — `values` alone runs ~100 entries on SPMVoltages,
+# and this payload is handed to the SPA whole.
 SOURCE_FIELDS = [
     "eqp_id",
-    "eqp_ip",
     "eqp_model_cd",
     "fab_name",
+    "eqp_ip",
     "fdc_key",
-    "os_inserted",
     "timestamp",
     "values",
 ]
@@ -205,21 +208,44 @@ def build_fdc_docs(
 
 if __name__ == "__main__":  # pragma: no cover
     # Office smoke check, no Flask / Nuxt / provider switch involved:
-    #   python -m back_dev_home.ebeam.hitachi.hardware.providers.fdc.office ECXDX301
+    #   python -m back_dev_home.ebeam.hitachi.hardware.providers.fdc.office
+    #   python -m ...providers.fdc.office MCD320 30
+    # MCD018 / MCD320 are the reference tools for this index (user-supplied).
+    # An eqp_id does NOT encode tool family — `MCD` spans CD-SEM, HV-SEM,
+    # VeritySEM and Provision — so an empty pull is ambiguous between "no data
+    # in this window" and "this tool is not a CD-SEM and is therefore absent
+    # from a _cdsem index". Resolve the family from the tool's sem_list row,
+    # never from its id. The output below spells that out.
+    #
+    # The window is relative to NOW, not to the mock's 2026-05-24 anchor: this
+    # runs against live ingestion, and a hardcoded historical window would
+    # report an empty pull that looks identical to a broken query.
+    #
     # Dumps the RAW pull per fdc_key. The contract response is a doc count and
     # one timestamp — far too small to reveal schema drift, so print the
     # timestamps verbatim and confirm they carry NO offset (see OFFICE-VERIFY
     # above): a `Z` suffix here means the range bounds slide 9 hours.
     import sys
     from collections import Counter
+    from datetime import timedelta
 
-    tool = sys.argv[1] if len(sys.argv) > 1 else "ECXDX301"
-    window_end = datetime(2026, 5, 24, 9, 0)
-    window_start = window_end.replace(day=1)
+    tool = sys.argv[1] if len(sys.argv) > 1 else "MCD018"
+    days = int(sys.argv[2]) if len(sys.argv) > 2 else 7
+    window_end = datetime.now()
+    window_start = window_end - timedelta(days=days)
 
     pulled = build_fdc_docs(tool, None, window_start, window_end)
-    print(f"{tool}  {window_start.isoformat()} .. {window_end.isoformat()}")
+    print(f"{tool}  last {days}d: {window_start.isoformat()} .. "
+          f"{window_end.isoformat()}")
     print(f"{len(pulled)} docs  by key: {dict(Counter(d['fdc_key'] for d in pulled))}")
+    if not pulled:
+        print(
+            f"\n  EMPTY. Either {tool} logged no FDC in the last {days}d, or it\n"
+            f"  is not a CD-SEM tool at all ({INDEX} is CD-SEM only, and an\n"
+            "  eqp_id does not encode the family). Look the tool up in sem_list\n"
+            "  and check its eqp_model_cd — CG*/GT* is CD-SEM — before assuming\n"
+            "  the query is wrong. Widen the window with: ... <tool> 90"
+        )
     for key in sorted(KNOWN_FDC_KEYS):
         first = next((d for d in pulled if d["fdc_key"] == key), None)
         print(f"\n--- {key} ---")

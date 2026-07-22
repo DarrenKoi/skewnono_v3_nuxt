@@ -29,7 +29,7 @@ Contract-gap derivations — the office documents lack four MeasHistRow fields
                   Unmapped lot_ids surface as ``""``, never dropped — this is
                   a row listing, not a device roll-up.
 * ``vendor_nm`` — NOT stored office-side; derived from the eqp_model_cd
-                  prefix. AMAT is exactly VerityCEM + Provision; everything
+                  prefix. AMAT is exactly VeritySEM + Provision; everything
                   else is HITACHI, including BOTH in-scope families —
                   CD-SEM CG/GT and HV-SEM TP are all Hitachi.
 
@@ -125,7 +125,7 @@ _AMAT_MODEL_PREFIXES = ("VERITY", "PROVISION")
 
 
 def _vendor(eqp_model_cd: str) -> str:
-    # vendor_nm is not stored office-side. AMAT is exactly VerityCEM and
+    # vendor_nm is not stored office-side. AMAT is exactly VeritySEM and
     # Provision; every other family here — CD-SEM CG/GT and HV-SEM TP — is
     # HITACHI, as is anything unrecognized on these Hitachi-only aliases.
     # (Neither AMAT family should reach meas_hist_cdsem/hvsem at all, since

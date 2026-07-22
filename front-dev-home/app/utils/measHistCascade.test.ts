@@ -9,7 +9,7 @@ const sem = (eqp_id: string, eqp_model_cd: string, fab_name: string): SemListRow
   eqp_id,
   eqp_model_cd,
   eqp_grp_id: 'GRP',
-  // CD-SEM (CG/GT) and HV-SEM (TP) are both Hitachi; AMAT is VerityCEM and
+  // CD-SEM (CG/GT) and HV-SEM (TP) are both Hitachi; AMAT is VeritySEM and
   // Provision only, neither of which appears in this fleet.
   vendor_nm: eqp_model_cd.startsWith('VERITYSEM') || eqp_model_cd.startsWith('PROVISION')
     ? 'AMAT'
