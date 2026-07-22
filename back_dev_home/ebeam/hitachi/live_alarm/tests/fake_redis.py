@@ -37,11 +37,22 @@ class FakePipeline:
             if op[0] == "zadd":
                 self.store.zsets.setdefault(op[1], {}).update(op[2])
             elif op[0] == "zremrangebyscore":
-                zset = self.store.zsets.get(op[1], {})
+                # Real Redis ZREMRANGEBYSCORE is a no-op on a missing key and
+                # never creates it; a ZSET emptied by the removal is deleted.
+                # Modelling both faithfully matters because job.py sizes its
+                # poll window off client.exists(events_key): a fake that
+                # fabricated the key on every prune would hide that a
+                # perpetually-quiet fab keeps cold-starting, and would lie to
+                # the reader (Task 9) about key presence.
+                zset = self.store.zsets.get(op[1])
+                if zset is None:
+                    continue
                 high = float(op[3])
-                self.store.zsets[op[1]] = {
-                    m: s for m, s in zset.items() if float(s) > high
-                }
+                remaining = {m: s for m, s in zset.items() if float(s) > high}
+                if remaining:
+                    self.store.zsets[op[1]] = remaining
+                else:
+                    self.store.zsets.pop(op[1], None)
             elif op[0] == "set":
                 self.store.strings[op[1]] = op[2].encode()
             elif op[0] == "sadd":
