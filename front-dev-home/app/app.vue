@@ -34,7 +34,10 @@ const accessDenied = computed(() => isAccessDeniedError(meError.value))
   <UApp>
     <AccessDeniedScreen v-if="accessDenied" />
     <template v-else>
-      <AnnouncementBanner />
+      <!-- The banner lives inside each layout, not here: the layouts size
+           themselves to the viewport (default.vue is h-screen), so a sibling
+           above them pushes the whole shell down by the banner's height and
+           the last rows fall below the fold. -->
       <NuxtLayout>
         <NuxtPage />
       </NuxtLayout>

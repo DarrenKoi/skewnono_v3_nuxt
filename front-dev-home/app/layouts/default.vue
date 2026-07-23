@@ -11,6 +11,7 @@ const lockDesktopPageScroll = computed(() => route.meta.lockDesktopPageScroll ==
       class="dashboard-bg-layer"
       aria-hidden="true"
     />
+    <AnnouncementBanner class="shrink-0" />
     <NavAppHeader />
 
     <div class="flex min-h-0 flex-1 gap-3 pr-4 md:gap-4 md:pr-6 lg:pr-8">

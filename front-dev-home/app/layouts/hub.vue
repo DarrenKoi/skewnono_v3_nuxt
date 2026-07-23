@@ -4,6 +4,7 @@
       class="dashboard-bg-layer"
       aria-hidden="true"
     />
+    <AnnouncementBanner class="shrink-0" />
     <NavAppHeader />
 
     <main class="flex-1">
