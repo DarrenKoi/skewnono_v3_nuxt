@@ -83,7 +83,7 @@
 | 캐시(사무실) | `MinioImageCache` — MinIO 공유 캐시 prefix. **모든 worker·사용자 공유** |
 | 캐시 보존 | 약 3일(`IMAGE_CACHE_TTL_HOURS`, 기본 72) |
 | cond 저장 | 홈=`<image>.cond` 사이드카, 사무실=MinIO **object metadata** |
-| 정리 방식 | APScheduler cron(기본 03:00). 홈=디스크 삭제, 사무실=`delete_older_than` |
+| 정리 방식 | APScheduler cron(기본 03:00). 홈=디스크 삭제, 사무실=`list`+`delete_many`(last_modified) |
 | MinIO 캐시 만료 | 나이 기반 app-side sweep(vendored 미수정·admin 불필요). native lifecycle은 §4.6 |
 | 전체 다운로드 | 비동기 — `POST /api/msr-images` → `202 {job_id}`, `GET .../<job_id>` 폴링 |
 | job 상태 저장 | 홈/단일 worker: 프로세스 메모리. 사무실 다중 worker: Redis 키(우리 관리) |
@@ -158,7 +158,7 @@ serve 합니다. 백엔드는 provider와 함께 선택됩니다.
 | 백엔드 | 환경 | 저장 | cond | 만료 |
 | --- | --- | --- | --- | --- |
 | `DiskImageCache` | 홈/mock | `IMAGE_CACHE_DIR` 로컬 디스크 | `<image>.cond` 사이드카 | APScheduler 디스크 삭제 |
-| `MinioImageCache` | 사무실 | MinIO 캐시 prefix(공유) | object **metadata** | `delete_older_than` sweep |
+| `MinioImageCache` | 사무실 | MinIO 캐시 prefix(공유) | object **metadata** | last_modified sweep |
 
 - **공유 이득**: 사무실에서 첫 사용자가 tool→MinIO로 채우면, 이후 **모든 worker·
   모든 사용자**가 MinIO에서 relay 받습니다(로컬 디스크는 서버 로컬이라 공유 안 됨).
@@ -174,13 +174,13 @@ serve 합니다. 백엔드는 provider와 함께 선택됩니다.
   사무실 다중 worker: Redis 키 + TTL). 실행기는 유계 풀(§4.4). 다운로드된 바이트는
   캐시 백엔드로 write.
 - **`scheduler.py`** — APScheduler cron이 `IMAGE_CACHE_TTL_HOURS`보다 오래된 캐시를
-  삭제(홈: 디스크 파일, 사무실: `MinioObject().delete_older_than`으로 캐시 prefix).
+  삭제(홈: 디스크 파일, 사무실: 캐시 prefix를 `list`로 훑어 last_modified 초과분을 `delete_many`).
   `create_app`에서 기동.
 
 ### 4.6 MinIO 만료 — app-side sweep (기본), native lifecycle (선택)
 
 - **기본(vendored 미수정·admin 불필요)**: 이미지를 전용 캐시 prefix 아래 저장하고,
-  APScheduler cron이 `delete_older_than`(last_modified 나이 기준, 기본 72시간)으로
+  APScheduler cron이 캐시 prefix를 `list`로 훑어 last_modified가 기준(기본 72시간)을 넘은 객체를 `delete_many`로
   정리합니다. 우리 코드가 만료를 전적으로 통제하며 `minio_handler`를 수정하지 않습니다.
 - **선택(사무실 확정)**: 팀이 `s3:PutBucketLifecycle` admin 권한을 갖고 있으면,
   객체에 tag를 달고 MinIO bucket lifecycle rule로 서버 측 만료(app cleanup 0)로
@@ -319,7 +319,7 @@ source 실패를 mock 이미지로 위장하지 않습니다.
   실제 서브넷·포트·버킷은 `.env`/office.py에서 확정.
 - 다중 worker(`gunicorn -w N`) 주의: **MinIO 공유 캐시라 worker·호스트 경계와
   무관하게 캐시를 공유**합니다(로컬 디스크의 서버 로컬 한계 해소). job 상태는 Redis 키
-  (우리 관리), 정리 cron 중복 `delete_older_than`은 멱등이라 무해.
+  (우리 관리), 정리 cron 중복 sweep은 멱등이라 무해.
 
 ## 11. 테스트
 
@@ -327,7 +327,7 @@ source 실패를 mock 이미지로 위장하지 않습니다.
 | --- | --- | --- |
 | mock 흐름 | 홈에서 목록/serve/miss/write/purge 단위 테스트 | 합성 목록·SVG 캐시·cond 헤더·만료 삭제 |
 | 디스크 캐시 | `DiskImageCache` 단위 테스트 | 키 결정성·cond 사이드카·나이 정리 |
-| MinIO 캐시 | `MinioImageCache` + fake MinioObject 주입 | put(metadata=cond)/get/exists·공유 hit·`delete_older_than` sweep |
+| MinIO 캐시 | `MinioImageCache` + fake MinioObject 주입 | put(metadata=cond)/get/exists·공유 hit·last_modified sweep |
 | 경로 조립 | office 순수 헬퍼 단위 테스트 | image/cond 경로 결정성, `.{name}/cond.txt` |
 | IP guard | 형식·서브넷 검증 테스트 | malformed→400, 서브넷 밖→400 |
 | office fetch | fake FtpClient 주입 | tool 없이 목록·fetch·부분 실패 보고 |
