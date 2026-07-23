@@ -8,6 +8,7 @@ export interface MeasHistRow {
   fab_name: string
   vendor_nm: 'HITACHI' | 'AMAT'
   eqp_id: string
+  eqp_ip: string
   eqp_model_cd: string
   tool_type: MeasHistToolType
   lot_cd: string
