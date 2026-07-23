@@ -117,11 +117,15 @@ and `BmPmTables.vue` renders the BM/PM chip on the same values. Real
 `pm_type`/`eq_event` values are not clean `BM`/`PM` strings — they carry other
 characters — so classification is defensive:
 
-1. Take `pm_type`; if empty, take `eq_event` (future rows: `event_name`, then
-   `work_item_nm`).
-2. Uppercase it. If it contains `PM`, the category is `PM`; else if it contains
-   `BM`, the category is `BM`.
-3. Otherwise the category is `""`.
+1. Walk the candidates in priority order — `pm_type` then `eq_event` for past
+   rows, `event_name` then `work_item_nm` for future rows.
+2. Uppercase each. The first candidate containing `PM` yields `PM`; the first
+   containing `BM` yields `BM`.
+3. If no candidate matches, the category is `""`.
+
+The walk continues past a candidate that is present but unrecognisable, rather
+than stopping at the first non-empty one: a `pm_type` of `기타` next to an
+`eq_event` of `PM_WEEKLY` should classify as `PM`, not fail.
 
 A row that fails to classify still appears in the table with its raw `pm_type`
 and `eq_event` visible. It only drops out of the chart overlay, which already
@@ -167,7 +171,7 @@ diagnostic prints raw stored values so this is visible immediately.
 | Condition | Behavior |
 | --- | --- |
 | Hit's `eqp_id` differs from the requested one | `ValueError` naming both |
-| Past row with empty `down_dt` | `ValueError` — it cannot be placed on the timeline |
+| Row with an empty range field (`down_dt` / `tool_start_tm`) | `ValueError` — it cannot be ordered or placed on the timeline |
 | Row count hits the 1000 cap | `LookupError` — a truncated history must not read as complete |
 | Missing index or alias | `LookupError` from `_office_search` |
 | Empty result for a valid tool | Valid: empty rows, zero counts, `"—"` cards |
