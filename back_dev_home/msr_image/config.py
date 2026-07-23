@@ -6,8 +6,17 @@ from dataclasses import dataclass, field
 
 
 def _int(env: Mapping[str, str], key: str, default: int) -> int:
-    raw = env.get(key, "").strip()
-    return int(raw) if raw.lstrip("-").isdigit() else default
+    try:
+        return int(env.get(key, "").strip())
+    except ValueError:
+        return default
+
+
+def _float(env: Mapping[str, str], key: str, default: float) -> float:
+    try:
+        return float(env.get(key, "").strip())
+    except ValueError:
+        return default
 
 
 @dataclass(frozen=True)
@@ -36,7 +45,7 @@ def load_config(env: Mapping[str, str] | None = None) -> ImageConfig:
         ftp_password=env.get("SKEWNONO_TOOL_FTP_PASSWORD", "").strip() or "hid",
         ftp_port=_int(env, "SKEWNONO_TOOL_FTP_PORT", 21),
         ftp_concurrency=_int(env, "SKEWNONO_TOOL_FTP_CONCURRENCY", 6),
-        ftp_timeout=float(env.get("SKEWNONO_TOOL_FTP_TIMEOUT", "8") or 8),
+        ftp_timeout=_float(env, "SKEWNONO_TOOL_FTP_TIMEOUT", 8.0),
         allowed_subnets=subnets,
         cache_dir=env.get("IMAGE_CACHE_DIR", "").strip() or "var/image_cache",
         cache_bucket=env.get("SKEWNONO_IMAGE_CACHE_BUCKET", "").strip() or None,

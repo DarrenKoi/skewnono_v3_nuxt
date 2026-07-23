@@ -26,3 +26,14 @@ def test_env_overrides():
     assert cfg.ftp_concurrency == 10
     assert cfg.ttl_hours == 48
     assert cfg.allowed_subnets == ["10.0.0.0/8", "192.168.0.0/16"]
+
+
+def test_blank_and_garbage_numeric_fall_back_to_defaults():
+    cfg = load_config({
+        "SKEWNONO_TOOL_FTP_TIMEOUT": "   ",
+        "SKEWNONO_TOOL_FTP_CONCURRENCY": "--3",
+        "IMAGE_CACHE_TTL_HOURS": "abc",
+    })
+    assert cfg.ftp_timeout == 8.0
+    assert cfg.ftp_concurrency == 6
+    assert cfg.ttl_hours == 72
