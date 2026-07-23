@@ -88,3 +88,82 @@ def test_purge_deletes_expired_by_last_modified():
     fake.store[key] = (data, meta, datetime.now(timezone.utc) - timedelta(hours=100))
     assert cache.purge(ttl_hours=72) == 1
     assert cache.get(LOC) is None
+
+
+class PrefixFake:
+    """Models MinioBase's real prefix composition (use_prefix/_resolve_key),
+    unlike FakeMinio above which stores by raw key. Used to prove
+    _default_client's use_prefix(None) passthrough actually prevents the
+    double/triple-prefixing bug end to end.
+    """
+
+    def __init__(self):
+        self.store = {}
+        self.default_prefix = None
+        self.default_bucket = None
+
+    def use_bucket(self, bucket):
+        self.default_bucket = bucket
+        return self
+
+    def use_prefix(self, prefix):
+        self.default_prefix = prefix.strip("/") if prefix else None
+        return self
+
+    def _resolve(self, key):
+        cleaned = key.lstrip("/")
+        if not self.default_prefix:
+            return cleaned
+        return f"{self.default_prefix}/{cleaned}"
+
+    def put(self, key, data, *, content_type="application/octet-stream", metadata=None, **kw):
+        self.store[self._resolve(key)] = (bytes(data), dict(metadata or {}), datetime.now(timezone.utc))
+
+    def exists(self, key, **kw):
+        return self._resolve(key) in self.store
+
+    def get(self, key, **kw):
+        return self.store[self._resolve(key)][0]
+
+    def stat(self, key, **kw):
+        _, metadata, lm = self.store[self._resolve(key)]
+        prefixed = {f"x-amz-meta-{k}": v for k, v in metadata.items()}
+        return _Stat(prefixed, lm)
+
+    def list(self, prefix=None, *, recursive=True, **kw):
+        scoped = self._resolve(prefix) if prefix else (self.default_prefix or "")
+        for key, (_, _, lm) in list(self.store.items()):
+            if key.startswith(scoped):
+                yield _Obj(key, lm)
+
+    def delete_many(self, keys, **kw):
+        for k in keys:
+            self.store.pop(self._resolve(k), None)
+        return []
+
+
+def test_default_client_path_single_prefix_and_purge_deletes(monkeypatch):
+    """Drives the REAL _default_client factory (not client_factory=), with a
+    fake that mimics MinioBase's own use_prefix/_resolve_key composition.
+    Guards against double/triple-prefixing regressions: with the fix,
+    _default_client clears the client prefix (use_prefix(None)), so
+    MinioImageCache._key() is the sole prefix source and purge's
+    list -> delete_many round trip actually removes the object.
+    """
+    fake = PrefixFake()
+    monkeypatch.setattr("minio_handler.MinioObject", lambda *a, **kw: fake, raising=False)
+
+    from back_dev_home.msr_image.minio_cache import MinioImageCache
+
+    cache = MinioImageCache(bucket="b", prefix="image_cache/")  # default client_factory -> _default_client
+
+    cache.put(LOC, IMG)
+    key = "image_cache/10.0.0.1/ADI/MSR_1/shot01.jpeg"
+    assert list(fake.store.keys()) == [key]  # single image_cache/ segment, not doubled/tripled
+    assert cache.get(LOC).data == IMG.data
+
+    # Age it past the TTL, then purge.
+    data, meta, _ = fake.store[key]
+    fake.store[key] = (data, meta, datetime.now(timezone.utc) - timedelta(hours=100))
+    assert cache.purge(ttl_hours=72) == 1
+    assert cache.get(LOC) is None  # actually deleted, not silently no-op'd

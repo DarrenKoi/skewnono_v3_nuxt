@@ -24,7 +24,13 @@ def _default_client(bucket, prefix):
     client = MinioObject()
     if bucket:
         client = client.use_bucket(bucket)
-    return client.use_prefix(prefix)
+    # Passthrough: MinioImageCache._key() is the SOLE prefix source. If the
+    # client also carried a default_prefix, MinioBase._resolve_key() would
+    # prepend it a second time on every put/get/exists/stat, and list()
+    # would hand purge() already-doubled object_names that delete_many()
+    # would then re-resolve a third time -- silently deleting nothing (S3
+    # delete of a missing key doesn't error). Keep this cleared.
+    return client.use_prefix(None)
 
 
 class MinioImageCache:
@@ -41,6 +47,12 @@ class MinioImageCache:
         return self._client
 
     def _key(self, locator: ImageLocator) -> str:
+        # Objects live at {self.prefix}{cache_key}; the client is a passthrough
+        # (use_prefix(None) in _default_client), so this is the sole prefix
+        # source. If office MinIO requires objects under a configured user
+        # namespace (e.g. "user/2067928/"), set SKEWNONO_IMAGE_CACHE_PREFIX to
+        # the FULL prefix (e.g. "user/2067928/image_cache/") -- this method
+        # applies it and the client adds nothing on top.
         return f"{self.prefix}{cache_key(locator)}"
 
     def get(self, locator: ImageLocator) -> FetchedImage | None:
@@ -52,7 +64,7 @@ class MinioImageCache:
         meta = _user_metadata(stat)
         cond_raw = meta.get(_COND_META)
         content_type = meta.get(_TYPE_META, "application/octet-stream")
-        return FetchedImage(data, content_type, unquote(cond_raw) if cond_raw else None)
+        return FetchedImage(data, content_type, unquote(cond_raw) if cond_raw is not None else None)
 
     def put(self, locator: ImageLocator, fetched: FetchedImage) -> None:
         metadata = {_TYPE_META: fetched.content_type}
