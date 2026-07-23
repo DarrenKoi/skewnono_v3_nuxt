@@ -3,9 +3,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseFdcValues, type LaserPowerValue, type SpmVoltagesValue, type ContactpinValue } from './fdcValues.ts'
 
-test('TemperatureEchuck → position + temp', () => {
-  const p = parseFdcValues(['TemperatureEchuck', '0', '1', '23.39053'])
-  assert.deepEqual(p, { key: 'TemperatureEchuck', data: { position: '1', temp: 23.39053 } })
+test('TemperatureEChuck → position + temp', () => {
+  const p = parseFdcValues(['TemperatureEChuck', '0', '1', '23.39053'])
+  assert.deepEqual(p, { key: 'TemperatureEChuck', data: { position: '1', temp: 23.39053 } })
 })
 
 test('LaserPower → two xy pairs', () => {

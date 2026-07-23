@@ -5,12 +5,12 @@ eqp_id:str,
 eqp_model_cd:str
 fab_name:str
 eqp_ip:str
-fdc_key:str -> "SPMVoltages", "LaserPower", "ContactpinConductionInfo", "TemperatureEchuck"
+fdc_key:str -> "SPMVoltages", "LaserPower", "ContactpinConductionInfo", "TemperatureEChuck"
 timestamp:str "2026-06-17T09:20:00"
 values:list (starts with fdc_key) -> 
-['TemperatureEchuck', '0', '1', '23.39053']
-['TemperatureEchuck', '0', '2', '23.35351']
-['TemperatureEcheck', '0', '3', '23.31353']
+['TemperatureEChuck', '0', '1', '23.39053']
+['TemperatureEChuck', '0', '2', '23.35351']
+['TemperatureEChuck', '0', '3', '23.31353']
 일정 시간 간격으로 1, 2, 3에서 여러 측정 값 존재 timestamp 모두 다름.
 주기적으로 장비의 세 위치에 대한 온도를 측정
 ===

@@ -2,7 +2,7 @@
 // into a typed shape per §6.3. The judgment token is the first non-numeric
 // string at/after index 3; numeric values after it form the profile.
 
-export type FdcKey = 'TemperatureEchuck' | 'LaserPower' | 'SPMVoltages' | 'ContactpinConductionInfo'
+export type FdcKey = 'TemperatureEChuck' | 'LaserPower' | 'SPMVoltages' | 'ContactpinConductionInfo'
 
 export interface TemperatureValue { position: string, temp: number }
 export interface LaserPowerValue { pairs: { x: number, y: number }[] }
@@ -10,7 +10,7 @@ export interface SpmVoltagesValue { channel: string, judgment: string, profile: 
 export interface ContactpinValue { channel: string, judgment: string, values: number[] }
 
 export type FdcParsed
-  = | { key: 'TemperatureEchuck', data: TemperatureValue }
+  = | { key: 'TemperatureEChuck', data: TemperatureValue }
     | { key: 'LaserPower', data: LaserPowerValue }
     | { key: 'SPMVoltages', data: SpmVoltagesValue }
     | { key: 'ContactpinConductionInfo', data: ContactpinValue }
@@ -31,7 +31,7 @@ const judgmentIndex = (values: unknown[], from: number): number => {
 export const parseFdcValues = (values: unknown[]): FdcParsed => {
   const key = String(values[0] ?? '')
 
-  if (key === 'TemperatureEchuck') {
+  if (key === 'TemperatureEChuck') {
     return { key, data: { position: String(values[2] ?? ''), temp: num(values[3]) } }
   }
 

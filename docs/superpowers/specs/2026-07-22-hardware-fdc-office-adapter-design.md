@@ -103,7 +103,7 @@ Every returned document must have:
 - the selected `eqp_id`;
 - a non-empty `timestamp`;
 - one of `SPMVoltages`, `ContactpinConductionInfo`, `LaserPower`, or
-  `TemperatureEchuck` as `fdc_key`;
+  `TemperatureEChuck` as `fdc_key`;
 - `values` as a list whose first item equals `fdc_key`.
 
 Unexpected or malformed documents raise `ValueError`. The adapter preserves

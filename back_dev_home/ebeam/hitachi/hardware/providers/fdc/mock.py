@@ -4,7 +4,7 @@ Raw doc shape from `docs/datatables/network_fdc_cdsem.txt`. One doc = one
 (eqp_id, timestamp, values) where `values` begins with the `fdc_key` and then
 follows that key's own layout:
 
-  TemperatureEchuck        [key, '0', pos('1'|'2'|'3'), temp]
+  TemperatureEChuck        [key, '0', pos('1'|'2'|'3'), temp]
   SPMVoltages              [key, '0', A/B/C, '7','1','1', judgment, ~100 nums]
   LaserPower               [key, '0', x1, y1, x2, y2]   (two differing scales)
   ContactpinConductionInfo [key, '0', A/B/C, n, judgment, 5 nums]
@@ -63,9 +63,9 @@ def _temperature_docs(
             out.append(
                 {
                     **base,
-                    "fdc_key": "TemperatureEchuck",
+                    "fdc_key": "TemperatureEChuck",
                     "timestamp": _fmt(moment),
-                    "values": ["TemperatureEchuck", "0", pos, f"{temp}"],
+                    "values": ["TemperatureEChuck", "0", pos, f"{temp}"],
                 }
             )
         cursor += timedelta(hours=rng.choice([4, 6, 8]))

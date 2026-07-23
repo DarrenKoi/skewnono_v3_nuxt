@@ -101,7 +101,7 @@
       />
     </div>
 
-    <!-- TemperatureEchuck / LaserPower → trend chart -->
+    <!-- TemperatureEChuck / LaserPower → trend chart -->
     <div
       v-else
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
@@ -235,11 +235,11 @@ const chartOption = computed<EChartsOption>(() => {
     }
   }
 
-  // TemperatureEchuck → one line per position (1/2/3)
+  // TemperatureEChuck → one line per position (1/2/3)
   const byPos: Record<string, { ts: string, temp: number }[]> = {}
   for (const d of activeDocs.value) {
     const p = parseFdcValues(valuesOf(d))
-    if (p.key !== 'TemperatureEchuck') continue
+    if (p.key !== 'TemperatureEChuck') continue
     const pos = (p.data as TemperatureValue).position
     ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as TemperatureValue).temp })
   }

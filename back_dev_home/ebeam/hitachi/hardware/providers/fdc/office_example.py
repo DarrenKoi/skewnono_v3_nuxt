@@ -14,7 +14,7 @@ index carries exactly seven fields — ``eqp_id``, ``eqp_model_cd``,
 = one (eqp_id, timestamp, values). ``values[0]`` repeats ``fdc_key`` and the
 rest follows that key's own layout:
 
-* ``TemperatureEchuck``        ``[key, '0', pos('1'|'2'|'3'), temp]`` — three
+* ``TemperatureEChuck``        ``[key, '0', pos('1'|'2'|'3'), temp]`` — three
   chuck positions sampled on a cycle, each landing on its own timestamp.
 * ``SPMVoltages``              ``[key, '0', A/B/C, n, n, n, judgment, ~100
   numbers]`` — the judgment is a string (``spline``, ``quartic``, …); the
@@ -111,7 +111,7 @@ TS_FIELD = "timestamp"
 # rendering as a blank chart.
 KNOWN_FDC_KEYS = frozenset(
     {
-        "TemperatureEchuck",
+        "TemperatureEChuck",
         "SPMVoltages",
         "LaserPower",
         "ContactpinConductionInfo",
