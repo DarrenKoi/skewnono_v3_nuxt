@@ -12,15 +12,15 @@ const fabName = computed(() => String(route.params.fab ?? '').toUpperCase())
 const fabSlug = computed(() => fabName.value.toLowerCase())
 const toolSlug = 'cd-sem'
 
-const { events, feedStatus, polledAt, serverOffsetMs, newIds, error, markSeen }
+const { events, hasLoaded, feedStatus, polledAt, serverOffsetMs, unseenCount, highlightIds, error, markSeen }
   = useLiveAlarmFeed(toolSlug, fabName.value)
 
-const newIdSet = computed(() => new Set(newIds.value))
+const highlightSet = computed(() => new Set(highlightIds.value))
 
 useHead({
   title: computed(() =>
-    newIds.value.length
-      ? `(${newIds.value.length}) 라이브 알람 · ${fabName.value}`
+    unseenCount.value
+      ? `(${unseenCount.value}) 라이브 알람 · ${fabName.value}`
       : `라이브 알람 · ${fabName.value}`
   )
 })
@@ -32,6 +32,7 @@ useHead({
     @click="markSeen"
   >
     <LiveAlarmFeedStatusBar
+      :has-loaded="hasLoaded"
       :feed-status="feedStatus"
       :polled-at="polledAt"
       :server-offset-ms="serverOffsetMs"
@@ -62,7 +63,7 @@ useHead({
         :key="event.id"
         :event="event"
         :server-offset-ms="serverOffsetMs"
-        :is-new="newIdSet.has(event.id)"
+        :is-new="highlightSet.has(event.id)"
         :tool-slug="toolSlug"
         :fab="fabSlug"
       />

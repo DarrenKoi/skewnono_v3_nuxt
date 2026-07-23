@@ -8,6 +8,10 @@ import type { LiveAlarmEvent, LiveAlarmPayload, FeedStatus } from '~/utils/liveA
 
 export const POLL_INTERVAL_MS = 15_000
 export const POLL_JITTER_MS = 3_000
+// How long a freshly-arrived row stays highlighted. The spec calls for a
+// *brief* highlight ("잠시"), distinct from the unread count, which persists
+// until the viewer acknowledges it.
+export const HIGHLIGHT_MS = 8_000
 
 // Jitter keeps many open tabs from hitting Flask in the same millisecond.
 // Exported (rather than calling Math.random inline) so it stays testable.
@@ -17,8 +21,19 @@ export const nextDelay = (random: number): number =>
 interface FeedState {
   events: LiveAlarmEvent[]
   ids: string[]
+  // Two id sets, deliberately separate:
+  //   seenIds    — acknowledged by the viewer (or seeded on first load).
+  //   unseenIds  — in the board but not yet acknowledged → drives the title
+  //                count, and persists until markSeen().
+  //   arrivedIds — new since the PREVIOUS poll → drives the brief row
+  //                highlight, which the composable expires on a timer.
   seenIds: string[]
-  newIds: string[]
+  unseenIds: string[]
+  arrivedIds: string[]
+  // First successful poll seeds seenIds so the initial board is neither
+  // "unread" nor "just arrived" — the viewer opened the page to a board that
+  // was already there, not to N alarms that fired the instant they looked.
+  initialized: boolean
   feedStatus: FeedStatus
   polledAt: string | null
   serverOffsetMs: number
@@ -33,12 +48,20 @@ export const applyPoll = (
   receivedAtMs: number
 ): FeedState => {
   const ids = payload.events.map(e => e.id)
-  const seenIds = prev.seenIds ?? []
+  const initialized = prev.initialized ?? false
+  // On the very first poll, treat the whole board as already-seen (seed) so
+  // nothing is flagged unread or highlighted; afterwards seenIds only changes
+  // via markSeen().
+  const seenIds = initialized ? (prev.seenIds ?? []) : ids
+  const arrivedIds = initialized ? diffNewIds(prev.ids ?? [], ids) : []
+  const seen = new Set(seenIds)
   return {
     events: payload.events,
     ids,
     seenIds,
-    newIds: diffNewIds(seenIds.length ? seenIds : (prev.ids ?? []), ids),
+    unseenIds: ids.filter(id => !seen.has(id)),
+    arrivedIds,
+    initialized: true,
     feedStatus: payload.feed_status,
     polledAt: payload.polled_at,
     serverOffsetMs: Date.parse(payload.server_now) - receivedAtMs
@@ -54,10 +77,30 @@ const apiSlug = (toolSlug: string): string => toolSlug.replace('-', '')
 export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
   const key = `live-alarm:${toolSlug}:${fabName}`
   const state = useState<FeedState>(key, () => ({
-    events: [], ids: [], seenIds: [], newIds: [],
-    feedStatus: 'live', polledAt: null, serverOffsetMs: 0
+    events: [], ids: [], seenIds: [], unseenIds: [], arrivedIds: [],
+    initialized: false, feedStatus: 'live', polledAt: null, serverOffsetMs: 0
   }))
   const errorState = useState<string | null>(`${key}:error`, () => null)
+  // Transient row emphasis, kept out of the reducer: a row highlights when it
+  // arrives and self-clears on a timer, independent of whether the viewer ever
+  // acknowledges (that is the persistent unseen count's job).
+  const highlightIds = ref<string[]>([])
+  const highlightTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+  const highlight = (id: string) => {
+    if (!highlightIds.value.includes(id)) highlightIds.value = [...highlightIds.value, id]
+    const existing = highlightTimers.get(id)
+    if (existing) clearTimeout(existing)
+    highlightTimers.set(id, setTimeout(() => {
+      highlightIds.value = highlightIds.value.filter(x => x !== id)
+      highlightTimers.delete(id)
+    }, HIGHLIGHT_MS))
+  }
+
+  const clearHighlights = () => {
+    highlightTimers.forEach(t => clearTimeout(t))
+    highlightTimers.clear()
+  }
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let consecutiveFailures = 0
@@ -77,6 +120,7 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
         { params: { fab_name: fabName } }
       )
       state.value = applyPoll(state.value, payload, Date.now())
+      state.value.arrivedIds.forEach(highlight)
       consecutiveFailures = 0
       errorState.value = null
     } catch {
@@ -127,19 +171,28 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
   onUnmounted(() => {
     active = false
     stop()
+    clearHighlights()
     document.removeEventListener('visibilitychange', onVisibility)
   })
 
+  // Acknowledge the unread count (title badge). Independent of the row
+  // highlight, which fades on its own timer.
   const markSeen = () => {
-    state.value = { ...state.value, seenIds: state.value.ids, newIds: [] }
+    state.value = { ...state.value, seenIds: state.value.ids, unseenIds: [] }
   }
 
   return {
     events: computed(() => state.value.events),
+    // Until the first successful poll lands, the badge must not claim "수신 중":
+    // that would sit next to a "연결 불안정" error and contradict it.
+    hasLoaded: computed(() => state.value.initialized),
     feedStatus: computed(() => state.value.feedStatus),
     polledAt: computed(() => state.value.polledAt),
     serverOffsetMs: computed(() => state.value.serverOffsetMs),
-    newIds: computed(() => state.value.newIds),
+    // Persistent unread count (drives the tab title); cleared by markSeen.
+    unseenCount: computed(() => state.value.unseenIds.length),
+    // Transient per-row emphasis (drives AlarmRow); fades on its own timer.
+    highlightIds: computed(() => highlightIds.value),
     // computed, not the raw ref: writable error would let a consumer
     // clear it directly and defeat the consecutive-failures debounce above.
     error: computed(() => errorState.value),

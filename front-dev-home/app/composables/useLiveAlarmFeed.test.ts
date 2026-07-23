@@ -36,24 +36,44 @@ describe('applyPoll', () => {
   it('replaces the list rather than merging', () => {
     // The server sends a complete board every time; merging client-side
     // would resurrect events the server already aged out.
-    const first = applyPoll({ ids: [], seenIds: [] }, payload(['a', 'b'], 1000), 1000)
+    const first = applyPoll({}, payload(['a', 'b'], 1000), 1000)
     const second = applyPoll(first, payload(['c'], 2000), 2000)
     assert.deepEqual(second.events.map(e => e.id), ['c'])
   })
 
-  it('reports ids that are new since the previous poll', () => {
-    const first = applyPoll({ ids: [], seenIds: ['a'] }, payload(['a'], 1000), 1000)
+  it('treats the whole initial board as already-seen, not new', () => {
+    // Opening the page to a board that was already there must not flag every
+    // row as "just arrived" or leave the tab title showing an unread count.
+    const first = applyPoll({}, payload(['a', 'b'], 1000), 1000)
+    assert.deepEqual(first.arrivedIds, [])
+    assert.deepEqual(first.unseenIds, [])
+    assert.equal(first.initialized, true)
+  })
+
+  it('flags only genuinely new ids as arrived on later polls', () => {
+    const first = applyPoll({}, payload(['a'], 1000), 1000)
     const second = applyPoll(first, payload(['a', 'b'], 2000), 2000)
-    assert.deepEqual(second.newIds, ['b'])
+    assert.deepEqual(second.arrivedIds, ['b'])
+    assert.deepEqual(second.unseenIds, ['b'])
+  })
+
+  it('keeps unseen ids across an unchanged poll until acknowledged', () => {
+    // arrivedIds is per-poll (drives the transient highlight); unseenIds
+    // persists (drives the tab-title count) until markSeen reseeds seenIds.
+    const first = applyPoll({}, payload(['a'], 1000), 1000)
+    const second = applyPoll(first, payload(['a', 'b'], 2000), 2000)
+    const third = applyPoll(second, payload(['a', 'b'], 3000), 3000)
+    assert.deepEqual(third.arrivedIds, [])
+    assert.deepEqual(third.unseenIds, ['b'])
   })
 
   it('derives the clock offset from server_now minus receive time', () => {
-    const state = applyPoll({ ids: [], seenIds: [] }, payload([], 5_000), 3_000)
+    const state = applyPoll({}, payload([], 5_000), 3_000)
     assert.equal(state.serverOffsetMs, 2_000)
   })
 
   it('handles a browser clock running ahead of the server', () => {
-    const state = applyPoll({ ids: [], seenIds: [] }, payload([], 3_000), 5_000)
+    const state = applyPoll({}, payload([], 3_000), 5_000)
     assert.equal(state.serverOffsetMs, -2_000)
   })
 })

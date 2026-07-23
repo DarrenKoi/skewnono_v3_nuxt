@@ -3,6 +3,9 @@ import { formatElapsed, boardCounts } from '~/utils/liveAlarm'
 import type { LiveAlarmEvent, FeedStatus } from '~/utils/liveAlarm'
 
 const props = defineProps<{
+  // False until the first successful poll: the badge shows "연결 중" instead of
+  // "수신 중", so it never contradicts a "연결 불안정" error during startup.
+  hasLoaded: boolean
   feedStatus: FeedStatus
   polledAt: string | null
   serverOffsetMs: number
@@ -20,11 +23,14 @@ const sinceLastPoll = computed(() => {
   return formatElapsed(now - Date.parse(props.polledAt))
 })
 
-const tone = computed(() => ({
-  live: { color: 'success' as const, label: '수신 중' },
-  stale: { color: 'warning' as const, label: '피드 지연' },
-  not_configured: { color: 'neutral' as const, label: '미설정' }
-}[props.feedStatus]))
+const tone = computed(() => {
+  if (!props.hasLoaded) return { color: 'neutral' as const, label: '연결 중' }
+  return {
+    live: { color: 'success' as const, label: '수신 중' },
+    stale: { color: 'warning' as const, label: '피드 지연' },
+    not_configured: { color: 'neutral' as const, label: '미설정' }
+  }[props.feedStatus]
+})
 </script>
 
 <template>

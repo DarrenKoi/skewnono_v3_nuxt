@@ -24,8 +24,8 @@ const recipeLink = computed(() =>
 
 <template>
   <div
-    class="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-default px-4 py-3"
-    :class="isNew ? 'bg-primary-50 dark:bg-primary-950' : ''"
+    class="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-default px-4 py-3 transition-colors duration-1000"
+    :class="isNew ? 'bg-primary-50 dark:bg-primary-950' : 'bg-transparent'"
   >
     <UBadge
       :color="event.kind === 'align' ? 'error' : 'warning'"
