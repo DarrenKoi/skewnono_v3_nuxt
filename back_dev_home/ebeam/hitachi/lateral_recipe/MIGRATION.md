@@ -2,8 +2,11 @@
 
 ## Rules
 
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, or `tests/`.
+- Edit the tracked `providers/office_example.py`, then keep the ignored
+  office-local `providers/office.py` copy in sync. Do not change `routes.py`,
+  `data.py`, `providers/mock.py`, or `contracts.py` for office wiring.
+- Keep pure office-adapter regression tests runnable at home; keep live
+  OpenSearch/Redis checks in a separate, environment-gated local test.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
@@ -83,6 +86,12 @@
     — `"1/AC_M2_TAT"` analyzes to `[1, ac, m2, tat]`.
   - `eqp_id` (보유) / `not_found_eqp_id` (미보유) are arrays. A tool's row
     version is the **highest** version doc listing it, i.e. what it runs now.
+  - Recent measurement history is a readiness floor. The adapter walks
+    distinct `eqp_id.keyword` buckets for the exact `full_name.keyword` and
+    `fab_name.keyword` in the same 30-day window used by 측정 이력. A measured
+    roster tool missing from every IDP `eqp_id` array receives the newest
+    discovered version; an explicit IDP version assignment always wins.
+    Equipment IDs are joined case-insensitively.
   - `recipe_generated_at` ← `modified`, emitted with an explicit `+09:00`.
     The office indices store KST wall-clock without an offset and the
     frontend formats via `new Date(iso).getHours()` (local time), so a `Z`
@@ -97,8 +106,8 @@
     what is countable in the table below it.
   - `_source` is trimmed to the three fields read (`version`, `modified`,
     `eqp_id`). `parameters` and `raw_data` are object blobs this endpoint
-    never touches, and `not_found_eqp_id` is not fetched either — readiness
-    is decided purely by presence in `eqp_id`.
+    never touches. `not_found_eqp_id` is not fetched because it cannot
+    override recent evidence that a tool executed the recipe.
   - More than `MAX_VERSION_DOCS` (200) version docs raises rather than
     silently truncating — a partial history would misreport which tools are
     current.

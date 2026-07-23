@@ -16,10 +16,13 @@ used here:
 * ``fab_name``          — fab filter, stored uppercase.
 * ``version`` (long)    — IDP version; higher is newer.
 * ``modified`` (date)   — when that version was generated.
-* ``eqp_id`` []         — tools holding this version (보유). This is the only
-                          readiness signal read; the index's companion
-                          ``not_found_eqp_id`` (미보유) is not fetched, since
-                          "absent from eqp_id" already means not ready.
+* ``eqp_id`` []         — tools explicitly holding this version (보유).
+
+Recent measurement history supplies a second readiness signal. Distinct
+``eqp_id.keyword`` values for the same fab/full_name in the latest 30-day
+``meas_hist_*`` window are a hard floor: a tool that executed the recipe
+cannot be shown as 미보유. When IDP history omits such a tool, it receives the
+newest discovered version; explicit IDP version assignments always win.
 
 The equipment roster (eqp_id / model / vendor / available) does NOT come from
 this index — it comes from ``sem_list.data.get_sem_list()``, the same source
@@ -47,9 +50,18 @@ At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 MIGRATION.md.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
+from back_dev_home.ebeam.hitachi._office_meas_hist import (
+    EQP_ID_KW as _MEAS_EQP_KW,
+    FAB_NAME_KW as _MEAS_FAB_KW,
+    FULL_NAME_KW as _MEAS_FULL_KW,
+    INDEX as _MEAS_INDEX,
+    TIME_FIELD as _MEAS_TIME_F,
+    composite_buckets as _composite_buckets,
+    get_anchor_time,
+)
 from back_dev_home.ebeam.hitachi._office_search import (
     KST,
     fetch_hits,
@@ -84,13 +96,13 @@ FAB_NAME_KW = "fab_name.keyword"
 # something the index is expected to hold; the cap exists so a mapping
 # surprise cannot pull an unbounded result set. Truncation is detected below.
 MAX_VERSION_DOCS = 200
+MEAS_HISTORY_DAYS = 30
 
 # Trim the fetched fields: `parameters` and `raw_data` are object blobs this
 # endpoint never reads, and 200 docs' worth of them would dwarf the response.
-# `not_found_eqp_id` (미보유) is deliberately NOT fetched — a tool is reported
-# ready purely by its presence in `eqp_id`, so the negative list would be dead
-# weight. It becomes necessary only if `recipe_ready` ever grows a third state
-# distinguishing "confirmed missing" from "never evaluated".
+# `not_found_eqp_id` (미보유) is deliberately NOT fetched. Readiness is the
+# union of explicit `eqp_id` membership and recent meas_hist execution; the
+# negative list cannot override evidence that a tool executed the recipe.
 SOURCE_FIELDS = ["version", "modified", "eqp_id"]
 
 
@@ -176,6 +188,43 @@ def _roster(tool_type: ToolType, fab_name: str | None):
     return rows
 
 
+def _eqp_key(value: Any) -> str:
+    return _text(value).upper()
+
+
+def _measured_eqp_ids(
+    tool_type: ToolType,
+    fab_name: str | None,
+    recipe_name: str,
+) -> set[str]:
+    """Tools that measured this recipe in the same 30-day history window."""
+    floor = get_anchor_time() - timedelta(days=MEAS_HISTORY_DAYS)
+    clauses: list[dict[str, Any]] = [
+        {
+            "range": {
+                _MEAS_TIME_F: {
+                    "gte": floor.strftime("%Y-%m-%dT%H:%M:%S"),
+                },
+            },
+        },
+        {"term": {_MEAS_FULL_KW: recipe_name}},
+    ]
+    if fab_name:
+        clauses.append({"term": {_MEAS_FAB_KW: fab_name.strip().upper()}})
+
+    buckets = _composite_buckets(
+        _MEAS_INDEX[tool_type],
+        _MEAS_EQP_KW,
+        {},
+        _query(clauses),
+    )
+    return {
+        eqp_id
+        for bucket in buckets
+        if (eqp_id := _eqp_key(bucket.get("key", {}).get("group")))
+    }
+
+
 def get_lateral_recipe(
     tool_type: ToolType,
     fab_name: str | None,
@@ -194,19 +243,29 @@ def get_lateral_recipe(
             continue  # a doc without a usable version cannot place a tool
         generated_at_by_version.setdefault(version, _kst_iso(doc.get("modified")))
         for eqp_id in _as_list(doc.get("eqp_id")):
+            eqp_key = _eqp_key(eqp_id)
             # Explicit None check, not a 0 sentinel: version is a `long` and a
             # legitimate version 0 would lose to `0 > 0` and silently report the
             # tool as not holding the recipe. Order-independent, so this does
             # not quietly depend on the caller's `sort` staying descending.
-            current = version_by_eqp.get(eqp_id)
+            current = version_by_eqp.get(eqp_key)
             if current is None or version > current:
-                version_by_eqp[eqp_id] = version
+                version_by_eqp[eqp_key] = version
+
+    # A recent measurement proves that the tool could execute the recipe even
+    # when the IDP version document's eqp_id list is empty or stale. Measurement
+    # history does not carry the IDP version, so only fill missing tools with the
+    # newest version discovered above; explicit version assignments still win.
+    if generated_at_by_version:
+        latest_version = max(generated_at_by_version)
+        for eqp_id in _measured_eqp_ids(tool_type, fab_name, recipe_name):
+            version_by_eqp.setdefault(eqp_id, latest_version)
 
     rows: list[LateralRecipeRow] = []
     ready_by_version: dict[int, int] = {}
     ready_count = 0
     for sem in _roster(tool_type, fab_name):
-        version = version_by_eqp.get(sem["eqp_id"])
+        version = version_by_eqp.get(_eqp_key(sem["eqp_id"]))
         # Not listed under any version means not ready. A tool absent from
         # both eqp_id and not_found_eqp_id ("never evaluated") lands here too
         # — recipe_ready is a bool, so there is nowhere else for it to go.

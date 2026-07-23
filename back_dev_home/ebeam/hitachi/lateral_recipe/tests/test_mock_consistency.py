@@ -1,10 +1,9 @@
 """MOCK-ONLY invariants for lateral_recipe. Imports providers.mock directly.
 
 The sibling test_contract.py is the provider-independent gate (runs via
-data.py) — do not merge these files. What is pinned here is a property of the
-Phase 1 fixture universe, not of the office indices: at the office a recipe
-really can be removed from a tool that measured it last week, so
-`measured ⊆ ready` is a mock guarantee only.
+data.py) — do not merge these files. The office adapter enforces the same
+`measured ⊆ ready` product invariant through a separate OpenSearch-backed
+implementation and its own home/local tests.
 """
 
 from back_dev_home.ebeam.hitachi.lateral_recipe.providers.mock import get_lateral_recipe
