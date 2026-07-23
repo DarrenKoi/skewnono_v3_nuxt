@@ -1,12 +1,31 @@
 import pytest
 
-from back_dev_home.msr_image.errors import InvalidToolIp
+from back_dev_home.msr_image.errors import InvalidLocator, InvalidToolIp
 from back_dev_home.msr_image.paths import (
     cond_path,
     image_dir,
     image_path,
+    validate_locator,
+    validate_segment,
     validate_tool_ip,
 )
+
+
+@pytest.mark.parametrize("bad", ["..", "../etc", "a/b", "a\\b", "", ".", " x", "x\n", "\x00"])
+def test_validate_segment_rejects_traversal_and_separators(bad):
+    with pytest.raises(InvalidLocator):
+        validate_segment(bad, "name")
+
+
+def test_validate_segment_accepts_normal_name():
+    assert validate_segment("MSR_1_shot01.jpeg", "name") == "MSR_1_shot01.jpeg"
+
+
+def test_validate_locator_rejects_traversal_in_any_segment():
+    with pytest.raises(InvalidLocator):
+        validate_locator("ADI", "MSR_1", "../../../etc/passwd")
+    with pytest.raises(InvalidLocator):
+        validate_locator("..", "MSR_1", "shot.jpeg")
 
 
 def test_image_dir_uses_hitachi_template():

@@ -15,6 +15,11 @@ class InvalidToolIp(MsrImageError):
     code = "invalid_tool_ip"
 
 
+class InvalidLocator(MsrImageError):
+    status = 400
+    code = "invalid_locator"
+
+
 class ConfigError(MsrImageError):
     status = 500
     code = "office_configuration_error"

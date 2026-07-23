@@ -12,7 +12,7 @@ from back_dev_home.msr_image.config import load_config
 from back_dev_home.msr_image.contracts import ImageListResponse, ImageLocator
 from back_dev_home.msr_image.errors import MsrImageError
 from back_dev_home.msr_image.jobs import default_registry
-from back_dev_home.msr_image.paths import validate_tool_ip
+from back_dev_home.msr_image.paths import validate_locator, validate_segment, validate_tool_ip
 
 bp = Blueprint("msr_image", __name__)
 
@@ -54,6 +54,8 @@ def list_images_route():
     cfg = load_config()
     try:
         validate_tool_ip(args["eqp_ip"], cfg.allowed_subnets)
+        validate_segment(args["class_name"], "class_name")
+        validate_segment(args["msr"], "msr")
         names = data.list_images(args["eqp_ip"], args["class_name"], args["msr"])
     except MsrImageError as exc:
         return _error(exc)
@@ -77,6 +79,7 @@ def serve_image_route():
     locator = ImageLocator(args["eqp_ip"], args["class_name"], args["msr"], args["name"])
     try:
         validate_tool_ip(args["eqp_ip"], cfg.allowed_subnets)
+        validate_locator(args["class_name"], args["msr"], args["name"])
         cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
         fetched = cache.get(locator)
         if fetched is None:
@@ -103,7 +106,11 @@ def _run_download(eqp_ip, class_name, msr, names, job_id, cache, concurrency):
 
     try:
         data.download_all(eqp_ip, class_name, msr, names, on_file, concurrency)
-    finally:
+    except Exception:
+        # A whole-download failure (not a per-file one, which on_file records)
+        # ends the job in "error", not "done" — the poll must not report success.
+        registry.mark_error(job_id)
+    else:
         registry.finish(job_id)
 
 
@@ -118,18 +125,22 @@ def download_all_route():
 
     cfg = load_config()
     registry = default_registry()
-    # Cap concurrent full-downloads (each spins up a pool of tool-FTP
-    # connections); spec §9 SKEWNONO_MSR_IMAGE_MAX_JOBS.
+    # Cheap fast-path: refuse before the (slow) FTP listing when already at cap.
+    # The authoritative gate is the atomic create_bounded below (spec §9).
     if registry.running_count() >= cfg.max_jobs:
         return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
     try:
         validate_tool_ip(eqp_ip, cfg.allowed_subnets)
+        validate_segment(class_name, "class_name")
+        validate_segment(msr, "msr")
         names = data.list_images(eqp_ip, class_name, msr)
         cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
     except MsrImageError as exc:
         return _error(exc)
 
-    job_id = registry.create(total=len(names))
+    job_id = registry.create_bounded(total=len(names), max_running=cfg.max_jobs)
+    if job_id is None:
+        return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
     thread = threading.Thread(
         target=_run_download,
         args=(eqp_ip, class_name, msr, names, job_id, cache, cfg.ftp_concurrency),

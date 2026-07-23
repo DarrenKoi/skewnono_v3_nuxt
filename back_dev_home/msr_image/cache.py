@@ -84,6 +84,13 @@ def make_cache(cfg, provider: str):
         if not cfg.cache_bucket:
             from back_dev_home.msr_image.errors import ConfigError
             raise ConfigError("SKEWNONO_IMAGE_CACHE_BUCKET is required in office mode")
+        # A root/empty prefix would make purge's list(prefix) enumerate the WHOLE
+        # bucket and delete_many wipe unrelated (measurement) data. Refuse it.
+        if (cfg.cache_prefix or "").strip("/ ") == "":
+            from back_dev_home.msr_image.errors import ConfigError
+            raise ConfigError(
+                "SKEWNONO_IMAGE_CACHE_PREFIX must be a non-root path (e.g. image_cache/)"
+            )
         from back_dev_home.msr_image.minio_cache import MinioImageCache
         return MinioImageCache(
             bucket=cfg.cache_bucket, prefix=cfg.cache_prefix

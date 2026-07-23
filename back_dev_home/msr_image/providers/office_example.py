@@ -10,6 +10,7 @@ image + cond over ftp_handler's FtpClient (vendored, instantiated only).
 import ftplib
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import PurePosixPath
 
 from ftp_handler.core.client import FtpClient
 
@@ -44,7 +45,15 @@ def list_images(eqp_ip, class_name, msr, _config: ImageConfig | None = None) -> 
             entries = ftp.list_dir(directory)
     except Exception as exc:  # dead host, auth, timeout
         raise SourceUnavailable(f"tool listing failed: {type(exc).__name__}") from exc
-    return [e for e in entries if e.lower().endswith((".jpeg", ".jpg"))]
+    # FtpClient.list_dir returns FULL remote paths (ftp_handler normalizes NLST
+    # output to paths RETR accepts). The contract here is BASENAMES — the
+    # frontend sends the basename back as `name`, and fetch_image rebuilds the
+    # full path via image_path(). So basename them here.
+    return [
+        PurePosixPath(e).name
+        for e in entries
+        if e.lower().endswith((".jpeg", ".jpg"))
+    ]
 
 
 def _fetch(ftp: FtpClient, class_name, msr, name) -> FetchedImage:

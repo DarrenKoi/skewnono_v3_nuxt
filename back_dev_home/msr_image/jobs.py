@@ -10,11 +10,13 @@ from back_dev_home.msr_image.contracts import DownloadJobStatus
 
 class JobRegistry(Protocol):
     def create(self, total: int) -> str: ...
+    def create_bounded(self, total: int, max_running: int) -> str | None: ...
     def get(self, job_id: str) -> DownloadJobStatus | None: ...
     def running_count(self) -> int: ...
     def record_ok(self, job_id: str) -> None: ...
     def record_failure(self, job_id: str, name: str, error: str) -> None: ...
     def finish(self, job_id: str) -> None: ...
+    def mark_error(self, job_id: str) -> None: ...
 
 
 class MemoryJobRegistry:
@@ -22,19 +24,34 @@ class MemoryJobRegistry:
         self._lock = threading.Lock()
         self._jobs: dict[str, DownloadJobStatus] = {}
 
-    def create(self, total: int) -> str:
+    def _new(self, total: int) -> DownloadJobStatus:
         job_id = uuid.uuid4().hex
+        return {
+            "job_id": job_id,
+            "status": "running",
+            "done": 0,
+            "total": total,
+            "ok": 0,
+            "ng": 0,
+            "failures": [],
+        }
+
+    def create(self, total: int) -> str:
         with self._lock:
-            self._jobs[job_id] = {
-                "job_id": job_id,
-                "status": "running",
-                "done": 0,
-                "total": total,
-                "ok": 0,
-                "ng": 0,
-                "failures": [],
-            }
-        return job_id
+            st = self._new(total)
+            self._jobs[st["job_id"]] = st
+        return st["job_id"]
+
+    def create_bounded(self, total: int, max_running: int) -> str | None:
+        """Atomically refuse when at the cap, else create. Closes the race a
+        separate running_count()+create() would leave open under concurrent POSTs."""
+        with self._lock:
+            running = sum(1 for s in self._jobs.values() if s["status"] == "running")
+            if running >= max_running:
+                return None
+            st = self._new(total)
+            self._jobs[st["job_id"]] = st
+            return st["job_id"]
 
     def get(self, job_id: str) -> DownloadJobStatus | None:
         with self._lock:
@@ -69,6 +86,12 @@ class MemoryJobRegistry:
             st = self._jobs.get(job_id)
             if st is not None:
                 st["status"] = "done"
+
+    def mark_error(self, job_id: str) -> None:
+        with self._lock:
+            st = self._jobs.get(job_id)
+            if st is not None:
+                st["status"] = "error"
 
 
 _DEFAULT_REGISTRY = MemoryJobRegistry()

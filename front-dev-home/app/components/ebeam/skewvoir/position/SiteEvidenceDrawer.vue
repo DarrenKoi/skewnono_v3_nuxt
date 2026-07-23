@@ -163,6 +163,10 @@ let loadToken = 0
 watch(
   () => `${focusCtx.value.eqp_ip}|${focusCtx.value.class_name}|${focusCtx.value.msr}|${imageName.value ?? ''}`,
   async () => {
+    // Bump the token FIRST so an in-flight request is invalidated even on the
+    // empty-context early returns below (else a slow prior fetch could resolve
+    // and install a stale blob after the drawer moved on).
+    const token = ++loadToken
     const name = imageName.value
     const ctx = focusCtx.value
     revokeBlob()
@@ -175,7 +179,6 @@ watch(
       imageFailed.value = true
       return
     }
-    const token = ++loadToken
     imageLoading.value = true
     try {
       const res = await fetchImageWithCond(ctx.eqp_ip, ctx.class_name, ctx.msr, name)

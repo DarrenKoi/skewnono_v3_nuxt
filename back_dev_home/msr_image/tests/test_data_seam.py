@@ -31,3 +31,10 @@ def test_make_cache_office_with_bucket_ok():
     # Constructs a MinioImageCache with a lazy client — no connection here.
     cache = make_cache(cfg, provider="office")
     assert cache is not None
+
+
+def test_make_cache_office_rejects_root_prefix():
+    # A root/empty prefix would make purge enumerate the whole bucket.
+    cfg = load_config({"SKEWNONO_IMAGE_CACHE_BUCKET": "b", "SKEWNONO_IMAGE_CACHE_PREFIX": "/"})
+    with pytest.raises(ConfigError):
+        make_cache(cfg, provider="office")

@@ -214,6 +214,10 @@ const revokeBlob = () => {
 let loadToken = 0
 
 const loadImage = async () => {
+  // Bump the token FIRST so any in-flight request is invalidated even when we
+  // early-return on an empty context (otherwise a slow prior fetch could
+  // resolve and install a stale blob after we've navigated to no image).
+  const token = ++loadToken
   const name = entry.value?.image
   revokeBlob()
   cond.value = null
@@ -224,7 +228,6 @@ const loadImage = async () => {
     if (name && !props.eqp_ip) failed.value = true
     return
   }
-  const token = ++loadToken
   loading.value = true
   try {
     const res = await fetchImageWithCond(props.eqp_ip, props.class_name, props.msr, name)

@@ -19,8 +19,10 @@ class FakeFtp:
         return False
 
     def list_dir(self, remote_dir, pattern=None):
+        # Real FtpClient.list_dir returns FULL remote paths, not basenames.
         self.listed = (remote_dir, pattern)
-        return ["shot01.jpeg", "shot02.jpeg", "notes.txt"]
+        base = remote_dir.rstrip("/")
+        return [f"{base}/shot01.jpeg", f"{base}/shot02.jpeg", f"{base}/notes.txt"]
 
     def download(self, remote_path):
         if remote_path.endswith("cond.txt"):

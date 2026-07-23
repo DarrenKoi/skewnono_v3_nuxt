@@ -15,6 +15,9 @@ from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
 
 _COND_META = "x-msr-cond"
 _TYPE_META = "x-msr-content-type"
+# S3/MinIO caps total user metadata around 2KB; keep cond well under that so an
+# oversized sidecar can't get the image PUT rejected. cond.txt is a few lines.
+_COND_META_MAX_BYTES = 1536
 
 
 def _default_client(bucket):
@@ -69,7 +72,13 @@ class MinioImageCache:
     def put(self, locator: ImageLocator, fetched: FetchedImage) -> None:
         metadata = {_TYPE_META: fetched.content_type}
         if fetched.cond is not None:
-            metadata[_COND_META] = quote(fetched.cond)
+            encoded = quote(fetched.cond)
+            # cond rides as MinIO user metadata, which S3/MinIO caps (~2KB total
+            # user-metadata). cond.txt is normally a few short lines; if an
+            # oversized one would get the whole PUT rejected, drop the cond
+            # rather than fail the image (image-first, cond best-effort — spec §6.2).
+            if len(encoded.encode("utf-8")) <= _COND_META_MAX_BYTES:
+                metadata[_COND_META] = encoded
         self.client.put(
             self._key(locator),
             fetched.data,
@@ -86,8 +95,10 @@ class MinioImageCache:
         ]
         if not stale:
             return 0
-        self.client.delete_many(stale)
-        return len(stale)
+        # delete_many returns per-object error entries; don't count those as
+        # removed, so a fully-failed sweep can't log as a success.
+        errors = self.client.delete_many(stale) or []
+        return len(stale) - len(errors)
 
 
 def _user_metadata(stat) -> dict[str, str]:

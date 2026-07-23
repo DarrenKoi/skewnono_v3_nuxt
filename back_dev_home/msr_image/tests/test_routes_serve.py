@@ -53,3 +53,16 @@ def test_bad_ip_400(client):
     r = client.get("/api/msr-images?eqp_ip=nope&class_name=ADI&msr=MSR_1")
     assert r.status_code == 400
     assert r.get_json()["code"] == "invalid_tool_ip"
+
+
+def test_serve_rejects_path_traversal_name(client):
+    # A ../ name would escape IMAGE_CACHE_DIR (and the tool image dir); reject it.
+    r = client.get("/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name=..%2f..%2fpasswd")
+    assert r.status_code == 400
+    assert r.get_json()["code"] == "invalid_locator"
+
+
+def test_list_rejects_path_traversal_class_name(client):
+    r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=..%2fADI&msr=MSR_1")
+    assert r.status_code == 400
+    assert r.get_json()["code"] == "invalid_locator"

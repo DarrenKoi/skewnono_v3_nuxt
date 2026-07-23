@@ -3,9 +3,30 @@
 import ipaddress
 from pathlib import PurePosixPath
 
-from back_dev_home.msr_image.errors import InvalidToolIp
+from back_dev_home.msr_image.errors import InvalidLocator, InvalidToolIp
 
 _ROOT = "/HITACHI/DEVICE/HD"
+
+
+def validate_segment(value: str, field: str) -> str:
+    """Guard a single path segment (class_name / msr / image name) before it is
+    interpolated into an FTP path OR a filesystem cache key. A ``..`` or ``/``
+    would escape both the tool's image dir and IMAGE_CACHE_DIR, so reject any
+    separator, parent ref, leading dot-dot, or control char."""
+    if not value or value in (".", ".."):
+        raise InvalidLocator(f"invalid {field}: {value!r}")
+    if "/" in value or "\\" in value or "\x00" in value:
+        raise InvalidLocator(f"invalid {field}: {value!r}")
+    if value.strip() != value or any(ord(c) < 32 for c in value):
+        raise InvalidLocator(f"invalid {field}: {value!r}")
+    return value
+
+
+def validate_locator(class_name: str, msr: str, name: str) -> None:
+    """Validate the three untrusted segments a client sends for an image."""
+    validate_segment(class_name, "class_name")
+    validate_segment(msr, "msr")
+    validate_segment(name, "name")
 
 
 def image_dir(class_name: str, msr: str) -> str:

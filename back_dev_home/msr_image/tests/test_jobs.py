@@ -64,3 +64,19 @@ def test_running_count_tracks_active_jobs():
     assert reg.running_count() == 1
     reg.finish(j2)
     assert reg.running_count() == 0
+
+
+def test_create_bounded_refuses_at_cap_atomically():
+    reg = MemoryJobRegistry()
+    a = reg.create_bounded(total=1, max_running=1)
+    assert a is not None
+    assert reg.create_bounded(total=1, max_running=1) is None  # at cap
+    reg.finish(a)
+    assert reg.create_bounded(total=1, max_running=1) is not None  # freed
+
+
+def test_mark_error_sets_error_status():
+    reg = MemoryJobRegistry()
+    j = reg.create(total=2)
+    reg.mark_error(j)
+    assert reg.get(j)["status"] == "error"
