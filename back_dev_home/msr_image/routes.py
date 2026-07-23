@@ -1,6 +1,7 @@
 """msr_image blueprint. Phase-agnostic: assembles locators, delegates bytes to
 the data seam, caches, and relays. Office knowledge is only in providers/office."""
 
+import threading
 from urllib.parse import quote
 
 from flask import Blueprint, Response, jsonify, request
@@ -10,6 +11,7 @@ from back_dev_home.msr_image.cache import make_cache
 from back_dev_home.msr_image.config import load_config
 from back_dev_home.msr_image.contracts import ImageListResponse, ImageLocator
 from back_dev_home.msr_image.errors import MsrImageError
+from back_dev_home.msr_image.jobs import default_registry
 from back_dev_home.msr_image.paths import validate_tool_ip
 
 bp = Blueprint("msr_image", __name__)
@@ -76,3 +78,56 @@ def serve_image_route():
     if fetched.cond is not None:
         headers["X-Msr-Cond"] = quote(fetched.cond)
     return Response(fetched.data, mimetype=fetched.content_type, headers=headers)
+
+
+def _run_download(app, eqp_ip, class_name, msr, names, job_id):
+    cfg = load_config()
+    cache = make_cache(cfg, data.provider_name())
+    registry = default_registry()
+
+    def on_file(name, fetched, error):
+        if fetched is not None:
+            cache.put(ImageLocator(eqp_ip, class_name, msr, name), fetched)
+            registry.record_ok(job_id)
+        else:
+            registry.record_failure(job_id, name, error or "unknown error")
+
+    try:
+        data.download_all(eqp_ip, class_name, msr, names, on_file, cfg.ftp_concurrency)
+    finally:
+        registry.finish(job_id)
+
+
+@bp.post("/msr-images")
+def download_all_route():
+    payload = request.get_json(silent=True) or {}
+    eqp_ip = str(payload.get("eqp_ip") or "").strip()
+    class_name = str(payload.get("class_name") or "").strip()
+    msr = str(payload.get("msr") or "").strip()
+    if not (eqp_ip and class_name and msr):
+        return jsonify({"error": "eqp_ip, class_name, msr are required"}), 400
+
+    cfg = load_config()
+    try:
+        validate_tool_ip(eqp_ip, cfg.allowed_subnets)
+        names = data.list_images(eqp_ip, class_name, msr)
+    except MsrImageError as exc:
+        return _error(exc)
+
+    registry = default_registry()
+    job_id = registry.create(total=len(names))
+    thread = threading.Thread(
+        target=_run_download,
+        args=(None, eqp_ip, class_name, msr, names, job_id),
+        daemon=True,
+    )
+    thread.start()
+    return jsonify({"job_id": job_id}), 202
+
+
+@bp.get("/msr-images/<job_id>")
+def poll_job_route(job_id: str):
+    st = default_registry().get(job_id)
+    if st is None:
+        return jsonify({"error": "unknown job", "code": "unknown_job"}), 404
+    return jsonify(st)
