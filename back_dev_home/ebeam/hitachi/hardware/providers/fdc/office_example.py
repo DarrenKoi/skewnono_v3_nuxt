@@ -41,18 +41,30 @@ like-for-like and the raw string reaches the frontend verbatim — exactly what
 the mock does. No ``+09:00`` tagging here, unlike ``lateral_recipe``, which
 had to tag because it emits a *parsed* field.
 
-OFFICE-VERIFY on the first real run:
-1. ``timestamp`` really is offset-less. If ingestion writes a ``Z`` suffix,
-   the range bounds below need the same spelling or the window silently
-   slides 9 hours.
-2. ``eqp_id`` is a bare ``keyword`` — queried with NO ``.keyword`` suffix, the
-   same convention the sibling ``sharpness_monitor_cdsem`` confirmed for its
-   ``ip`` field (user-confirmed 2026-07-22). An earlier ``eqp_id.keyword``
-   here returned empty on every tool: a term query against a subfield that the
-   mapping does not have matches zero docs with NO error. If this field ever
-   turns out to be analyzed ``text`` after all, restore the ``.keyword``
-   subfield. The smoke test below prints the live mapping so you can see which
-   it is rather than guess.
+MAPPING — the whole query hinges on this. ``network_fdc_cdsem`` is created by
+``ops_index_mgmt/network_fdc_cdsem.py``, whose ``build_mappings()`` declares NO
+explicit mapping for ``eqp_id`` / ``fab_name`` / ``fdc_key`` / ``timestamp``.
+They fall through to OpenSearch default dynamic mapping, which maps a string as
+``text`` WITH a ``keyword`` sub-field. So exact match goes through ``.keyword``.
+(Do NOT copy the sibling ``sharpness_monitor_cdsem``, whose ``ip`` is a bare
+``keyword`` — that index is externally managed with its own explicit mapping;
+its convention does not carry here.)
+
+OFFICE-VERIFY on the first real run — the smoke test prints the live mappings
+AND the doc count, so an empty pull is diagnosed, not guessed:
+1. ``eqp_id`` is ``text`` + ``.keyword`` (as above). If it comes back a bare
+   ``keyword``, drop the suffix from ``EQP_ID_KW``.
+2. ``timestamp`` — is it a real ``date`` or ``text`` + ``.keyword``? The index
+   script's own docstring says ISO-8601 strings are NOT date-detected, which
+   would make ``timestamp`` ``text`` — and then the range below MUST target
+   ``timestamp.keyword`` (a lexicographic range works because offset-less
+   ISO-8601 sorts chronologically). If it is a ``date``, the bare field is
+   right. This is the most likely cause of an empty pull that ``eqp_id.keyword``
+   alone does not explain. See TS_FIELD below.
+3. ``timestamp`` is offset-less. A stored ``Z`` suffix slides the window 9h.
+4. The index actually has documents. An empty index returns empty for every
+   tool regardless of field names — ingestion is a separate manual step (see
+   the reference block at the bottom of the index script).
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 ``cp providers/office_example.py providers/office.py`` (the dispatcher), then
@@ -76,14 +88,23 @@ __all__ = ["build_fdc_docs"]
 
 INDEX = "network_fdc_cdsem"
 
-# `eqp_id` on this index is a bare `keyword`, so exact match is a plain term
-# query with NO `.keyword` suffix. The sibling network-monitoring index
-# `sharpness_monitor_cdsem` fixes the convention (its `ip` field is mapped
-# `keyword`, user-confirmed 2026-07-22): these ingestion indices store string
-# identity fields as `keyword`, not analyzed `text`. Targeting a `.keyword`
-# subfield the mapping lacks matches zero docs with no error — the silent empty
-# pull that `eqp_id.keyword` produced before this fix.
-EQP_ID_FIELD = "eqp_id"
+# Exact match goes through the `.keyword` sub-field. `eqp_id` has no explicit
+# mapping in `ops_index_mgmt/network_fdc_cdsem.py`, so default dynamic mapping
+# makes it `text` + a `keyword` sub-field — `.keyword` is the exact-match field.
+# (NOT a bare `keyword` like the externally-managed sibling `sharpness_monitor_cdsem`.)
+EQP_ID_KW = "eqp_id.keyword"
+
+# The field used to BOTH range-filter and sort by time. `timestamp` has no
+# explicit mapping, so its type is whatever default dynamic mapping produced:
+#   * a real `date`   -> this bare field is correct for range and sort;
+#   * `text`+`.keyword` -> range must use `timestamp.keyword` (a bare range runs
+#     against analyzed tokens and matches almost nothing), AND sort must too
+#     (sorting on an analyzed `text` field ERRORS: fielddata is disabled).
+# One constant drives range + sort so the two never disagree. The index script's
+# docstring says ISO-8601 is NOT date-detected → `text` → `.keyword`, but that
+# depends on the live cluster. Left bare (original behavior); flip to
+# "timestamp.keyword" if the OFFICE-VERIFY smoke test reports `timestamp: text`.
+TS_FIELD = "timestamp"
 
 # The four documented FDC record shapes. An unknown key means the index grew a
 # shape the frontend parser has never seen — worth failing on rather than
@@ -128,7 +149,7 @@ def _validate(doc: dict[str, Any], eqp_id: str) -> dict[str, Any]:
     if doc_eqp != eqp_id:
         raise ValueError(
             f"{INDEX}: expected eqp_id {eqp_id!r} but a hit carries "
-            f"{doc_eqp!r} — check the {EQP_ID_FIELD} mapping."
+            f"{doc_eqp!r} — check the {EQP_ID_KW} mapping."
         )
 
     timestamp = _text(doc.get("timestamp"))
@@ -188,10 +209,10 @@ def build_fdc_docs(
     empty "pick a tool" payload before the dispatcher reaches this adapter.
     """
     clauses: list[dict[str, Any]] = [
-        {"term": {EQP_ID_FIELD: eqp_id}},
+        {"term": {EQP_ID_KW: eqp_id}},
         {
             "range": {
-                "timestamp": {
+                TS_FIELD: {
                     "gte": start.isoformat(),
                     "lte": end.isoformat(),
                 }
@@ -203,7 +224,7 @@ def build_fdc_docs(
         INDEX,
         _query(clauses),
         size=MAX_FDC_DOCS,
-        sort=[{"timestamp": {"order": "asc"}}],
+        sort=[{TS_FIELD: {"order": "asc"}}],
         source=SOURCE_FIELDS,
     )
     _check_cap(hits, eqp_id)
@@ -217,35 +238,41 @@ def build_fdc_docs(
     return docs
 
 
-def _describe_eqp_id_mapping() -> str:  # pragma: no cover — smoke-test only
-    """Live one-line report of how ``eqp_id`` is mapped on the index.
+def _describe_field_mappings() -> str:  # pragma: no cover — smoke-test only
+    """Live report of how ``eqp_id`` and ``timestamp`` are actually mapped.
 
-    This is the single fact that decides whether the term query needs a
-    ``.keyword`` suffix, so the smoke test prints it on every run: an empty
-    pull is then never ambiguous between "no data in the window" and "the
-    field name is wrong". ``keyword`` with no subfields → the bare
-    ``EQP_ID_FIELD`` above is right; ``text`` with a ``keyword`` subfield →
-    restore ``eqp_id.keyword``.
+    These two fields decide the whole query, so the smoke test prints them on
+    every run — an empty pull is then diagnosed, not guessed:
+
+    * ``eqp_id``    ``text``+``keyword`` → ``EQP_ID_KW`` (``.keyword``) is right;
+                    a bare ``keyword``     → drop the suffix.
+    * ``timestamp`` ``date``              → ``TS_FIELD`` bare is right;
+                    ``text``+``keyword``   → the range/sort MUST use
+                    ``timestamp.keyword`` — set ``TS_FIELD = "timestamp.keyword"``.
+
+    A field printed as ``(absent)`` means no document carries it yet, i.e. the
+    index is empty — the pull is empty for lack of data, not a field-name bug.
     """
     from back_dev_home.ebeam.hitachi._office_search import client
 
     try:
-        fm = client().indices.get_field_mapping(index=INDEX, fields="eqp_id")
+        fm = client().indices.get_field_mapping(
+            index=INDEX, fields="eqp_id,timestamp"
+        )
     except Exception as exc:  # noqa: BLE001 — diagnostic path, never fatal
         return f"(could not read mapping: {exc})"
     for per_index in fm.values():
-        spec = (
-            per_index.get("mappings", {})
-            .get("eqp_id", {})
-            .get("mapping", {})
-            .get("eqp_id", {})
-        )
-        if not spec:
-            continue
-        subfields = ", ".join((spec.get("fields") or {}).keys())
-        detail = f", subfields=[{subfields}]" if subfields else ", no subfields"
-        return f"type={spec.get('type')!r}{detail}"
-    return "(eqp_id absent from mapping — wrong index or empty)"
+        mappings = per_index.get("mappings", {})
+        parts = []
+        for field in ("eqp_id", "timestamp"):
+            spec = mappings.get(field, {}).get("mapping", {}).get(field, {})
+            if not spec:
+                parts.append(f"{field}=(absent — no docs?)")
+                continue
+            subs = ", ".join((spec.get("fields") or {}).keys())
+            parts.append(f"{field}={spec.get('type')}" + (f"+[{subs}]" if subs else ""))
+        return "  ".join(parts)
+    return "(no mapping returned — wrong index or empty)"
 
 
 if __name__ == "__main__":  # pragma: no cover
@@ -276,7 +303,7 @@ if __name__ == "__main__":  # pragma: no cover
     window_end = datetime.now()
     window_start = window_end - timedelta(days=days)
 
-    print(f"eqp_id mapping: {_describe_eqp_id_mapping()}")
+    print(f"mappings: {_describe_field_mappings()}")
     pulled = build_fdc_docs(tool, None, window_start, window_end)
     print(f"{tool}  last {days}d: {window_start.isoformat()} .. "
           f"{window_end.isoformat()}")

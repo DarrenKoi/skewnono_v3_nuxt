@@ -44,7 +44,8 @@ from ops_store import OSIndex, OSSearch, create_client
 
 
 INDEX = office_example.INDEX
-EQP_ID_FIELD = office_example.EQP_ID_FIELD
+EQP_ID_KW = office_example.EQP_ID_KW
+TS_FIELD = office_example.TS_FIELD
 
 
 def _rule(title: str) -> None:
@@ -163,18 +164,30 @@ def check_eqp_id_mapping(client: Any) -> None:
                 spec = props.get(field)
                 print(f"  [{name}] {field:<10}: {spec}")
             eqp = props.get("eqp_id", {})
-            has_kw = "keyword" in eqp.get("fields", {})
-            if eqp.get("type") == "keyword":
-                print(f"  >> eqp_id is a BARE keyword — the adapter queries "
-                      f"{EQP_ID_FIELD!r}, which is CORRECT for this mapping "
-                      "(OFFICE-VERIFY #2).")
-            elif has_kw:
+            if "keyword" in eqp.get("fields", {}):
                 print(f"  >> eqp_id is text with a .keyword subfield — the "
-                      f"adapter now queries the bare {EQP_ID_FIELD!r}, which "
-                      "matches NOTHING here. Restore the .keyword subfield.")
+                      f"adapter's {EQP_ID_KW!r} is CORRECT.")
+            elif eqp.get("type") == "keyword":
+                print(f"  >> eqp_id is a BARE keyword — {EQP_ID_KW!r} matches "
+                      "NOTHING. Drop the .keyword suffix.")
             else:
                 print(f"  >> eqp_id is {eqp.get('type')!r} with no keyword "
                       "subfield — it cannot be exact-matched as a term at all.")
+            # timestamp type decides the range/sort field (TS_FIELD). This is the
+            # prime suspect when eqp_id already resolves but the pull is empty.
+            ts = props.get("timestamp", {})
+            ts_type = ts.get("type")
+            if ts_type == "date":
+                print(f"  >> timestamp is a date — the adapter's bare "
+                      f"{TS_FIELD!r} range/sort is CORRECT.")
+            elif ts_type == "text":
+                print("  >> timestamp is TEXT, not date. The bare-field range "
+                      "under-matches AND the sort errors on fielddata — set "
+                      "TS_FIELD = 'timestamp.keyword' in fdc/office_example.py. "
+                      "THIS is the likely empty-pull cause.")
+            else:
+                print(f"  >> timestamp type is {ts_type!r} — unexpected; "
+                      "inspect the raw spec printed above.")
             break
     except Exception as exc:
         _fail("get_mapping", exc)
@@ -234,26 +247,34 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
     end = datetime.now()
     start = end - timedelta(days=days)
     clauses: list[dict[str, Any]] = [
-        {"term": {EQP_ID_FIELD: tool}},
-        {"range": {"timestamp": {"gte": start.isoformat(),
-                                 "lte": end.isoformat()}}},
+        {"term": {EQP_ID_KW: tool}},
+        {"range": {TS_FIELD: {"gte": start.isoformat(),
+                              "lte": end.isoformat()}}},
     ]
     # Narrow one clause at a time: whichever addition drops the count to zero
     # is the clause that is wrong. This is THE decisive test —
     #   "eqp_id only" > 0 and "both" == 0  -> the time clause is at fault
     #   "eqp_id only" == 0                 -> the eqp_id clause is at fault
-    #     (field-name mismatch — e.g. mapping is text+.keyword while the
-    #      adapter sends the bare field — or this tool has no FDC data)
+    #     (field-name mismatch — mapping is bare keyword while the adapter
+    #      sends .keyword — or this tool has no FDC data)
+    # The last probe ranges on timestamp.keyword: if "both" (bare TS_FIELD) is
+    # zero but this one is > 0, timestamp is TEXT and the fix is
+    # TS_FIELD = "timestamp.keyword".
     wide_start = end - timedelta(days=365)
     probes = [
         ("eqp_id only, NO time filter", [clauses[0]]),
         ("eqp_id + last 365d", [
             clauses[0],
-            {"range": {"timestamp": {"gte": wide_start.isoformat(),
-                                     "lte": end.isoformat()}}},
+            {"range": {TS_FIELD: {"gte": wide_start.isoformat(),
+                                  "lte": end.isoformat()}}},
         ]),
         ("timestamp range only", [clauses[1]]),
         ("both (what the adapter sends)", clauses),
+        ("eqp_id + time on timestamp.keyword", [
+            clauses[0],
+            {"range": {"timestamp.keyword": {"gte": start.isoformat(),
+                                             "lte": end.isoformat()}}},
+        ]),
     ]
     for label, body in probes:
         try:
