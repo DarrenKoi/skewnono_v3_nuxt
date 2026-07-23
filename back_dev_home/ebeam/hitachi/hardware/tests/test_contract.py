@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from back_dev_home._core.contract_check import assert_matches
+from back_dev_home._logging.providers import logger as provider_logger
 from back_dev_home.ebeam.hitachi.hardware import data
 from back_dev_home.ebeam.hitachi.hardware.contracts import (
     VALID_SERVICES,
@@ -70,9 +71,20 @@ def test_tab_falls_back_to_mock_when_office_absent(tab):
 def test_tab_fallback_logs_which_tab_went_mock(caplog):
     # The response carries no "mock ·" marker by design, so this log line is
     # the only signal distinguishing a real office tab from a fallback.
+    #
+    # _tab() logs on `skewnono.providers`, NOT this module's logger, and that
+    # logger sets propagate=False once the app boots (install_provider_logging).
+    # Capturing by module name missed the record entirely, and pytest's
+    # root-level capture would miss it too whenever another test booted the app
+    # first. Attach caplog's own handler straight to the provider logger so the
+    # assertion holds regardless of boot order.
     tab = _unwired_tab()
-    with caplog.at_level("INFO", logger=office_example.__name__):
-        office_example._tab(tab)
+    provider_logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level("INFO", logger=provider_logger.name):
+            office_example._tab(tab)
+    finally:
+        provider_logger.removeHandler(caplog.handler)
     assert f"hardware/{tab}" in caplog.text
     assert "MOCK" in caplog.text
 
