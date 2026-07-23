@@ -478,7 +478,18 @@ if __name__ == "__main__":
         print(f"  configured prefix : {_probe_store.default_prefix!r}")
         print(f"  resolved key      : {_probe_store._resolve_key(probe_key)!r}")
         print(f"  exists (prefixed) : {_probe_store.exists(probe_key)}")
-        print(f"  exists (raw)      : {_unprefixed.exists(probe_key)}")
+        # The raw line often CANNOT be answered at the office: credentials are
+        # scoped to the user prefix (user/<id>/...), and S3 answers AccessDenied
+        # (not NotFound) for keys outside the grant — office-confirmed
+        # 2026-07-24. That denial is itself the expected answer, so report it
+        # per-line instead of letting it mask the successful probes above.
+        try:
+            print(f"  exists (raw)      : {_unprefixed.exists(probe_key)}")
+        except Exception as raw_exc:
+            print(
+                f"  exists (raw)      : unanswerable"
+                f" ({type(raw_exc).__name__}: key outside the granted prefix?)"
+            )
     except Exception as exc:  # diagnostics only — never block the smoke test
         print(f"  (minio probe unavailable: {type(exc).__name__}: {exc})")
 

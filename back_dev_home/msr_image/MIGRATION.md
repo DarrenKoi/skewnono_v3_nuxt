@@ -146,19 +146,17 @@ home/mock은 단일 프로세스이므로 `MemoryJobRegistry`를 그대로 유�
   `done`은 클라이언트가 "이미지가 0장인 성공"으로 읽기 때문입니다.
 - IP 검증·경로 세그먼트 검증은 그대로 요청 경로에 남아 동기 400을 반환합니다.
 
-## 후속 과제 2 (선택): 태그 기반 native lifecycle
+## 후속 과제 2 (종결): 태그 기반 native lifecycle — office에서 불가
 
 - 현재 `purge()`는 애플리케이션 레벨에서 `last_modified`를 스캔해 TTL이
   지난 오브젝트를 `delete_many`로 지우는 방식입니다(스케줄러가 주기 호출).
-- MinIO/S3의 native lifecycle 규칙(태그 기반 만료)으로 대체하면 스캔 없이
-  버킷이 스스로 정리되지만, 이는 **선택 사항**이며 아래 두 가지가 모두
-  필요합니다.
-  - office 버킷에 `s3:PutBucketLifecycle` 권한이 있어야 합니다.
-  - `minio_handler`에 lifecycle 규칙 설정 API를 추가해야 하며, `minio_handler`는
-    vendored 코드이므로 이 저장소와 `flask_modules`의 두 사본을 모두
-    수정해야 합니다(`CLAUDE.md`의 vendored 규칙 참고).
-- 우선순위는 낮습니다. 애플리케이션 레벨 purge가 정상 동작하는 한 필수는
-  아닙니다.
+- MinIO/S3의 native lifecycle 규칙(태그 기반 만료)으로 대체하는 안은
+  **office에서 불가함이 확인되어 종결**되었습니다(2026-07-24). office
+  계정은 `user/<사번>/...` prefix 아래 오브젝트 접근만 허용되며, lifecycle
+  설정 등 버킷 수준 작업 권한이 없습니다. prefix 밖 키에 대한 조회는
+  `NotFound`가 아니라 `AccessDenied`로 응답됩니다(msr_file 스모크 테스트의
+  raw exists 프로브가 이렇게 실패하는 것이 정상입니다).
+- 따라서 애플리케이션 레벨 purge가 유일한 정리 수단이며, 계속 유지합니다.
 
 ## 확인
 
