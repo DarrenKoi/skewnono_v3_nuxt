@@ -30,17 +30,25 @@ Do not copy credential values into code or wiki pages. Production must set `SKEW
 
 The admin-logs feature currently performs configured OpenSearch querying inside its nominal mock provider while its office provider is a stub. Treat that as migration debt rather than a pattern to copy.
 
-## MinIO and large objects
+## Measurement-image delivery and cache
 
-`minio_handler/` wraps bucket/prefix CRUD, listing, presigned URLs, DataFrames, and images. It is an approved office-adapter dependency, but current feature integrations mostly stop at health probing. MSR and AFM office designs still need a firm choice among MinIO, live source access, or another artifact service.
+Measurement images now have a dedicated `back_dev_home/msr_image/` feature rather than an endpoint in `msr_file`. `GET /api/msr-images` lists names; `GET /api/msr-image` serves one cacheable response and optionally sends URL-encoded condition text in `X-Msr-Cond`; `POST /api/msr-images` starts a background download-all job; and `GET /api/msr-images/<job_id>` polls its snapshot. Measurement history supplies the required `eqp_ip`, class, and MSR identity. The [Skewvoir workflow](../workflows/key-workflows.md#skewvoir-search-and-analysis) has an API composable but no rendered gallery/download consumer yet.
 
-A likely clean split is searchable metadata in OpenSearch and large images/files in object storage, but this remains an architectural direction rather than confirmed runtime behavior.
+Mock mode uses `DiskImageCache`; office mode chooses `MinioImageCache`, storing content type and condition as object metadata. `create_app()` starts an APScheduler purge at `IMAGE_CACHE_PURGE_HOUR` and removes entries older than `IMAGE_CACHE_TTL_HOURS` (72 hours by default). The MinIO cache implementation and sweep are active code, but the real tool-FTP source is not: current HEAD has no tracked `msr_image/providers/office_example.py` or local office adapter. `ftp_handler/` remains a separate ingestion library and is not called by this Blueprint.
+
+Treat office rollout as unfinished. Configure `SKEWNONO_TOOL_SUBNETS` before enabling any adapter that connects to caller-supplied equipment IPs, add traversal-safe locator validation, and move download jobs out of the process-local in-memory registry before relying on them under multi-worker uWSGI. `SKEWNONO_MSR_IMAGE_JOB_TTL` and `SKEWNONO_MSR_IMAGE_MAX_JOBS` are parsed but not currently enforced.
+
+AFM large-object sourcing remains a separate unresolved decision; do not infer its storage path from the measurement-image cache.
+
+## Live alarm writer and reader
+
+The [live alarm workflow](../workflows/key-workflows.md#live-alarm-board) uses Redis as a bounded broadcast board, not a durable event store. A portable writer intended for the existing scheduler polls configured fab alarm APIs, normalizes ALID `9006` and `9100`, and updates per-tool/fab event ZSET and heartbeat metadata every 15 seconds. Flask's office reader uses Redis server time, returns only the last 600 seconds, tolerates malformed members, and reports `live`, `stale`, or `not_configured`.
+
+There are two machine-local swap surfaces: `writer/office.py` configures source addresses and scheduler-side Redis, while `providers/office.py` lets Flask read the board. Neither tracked example is itself the active local file, and the writer is not started by this Flask app. Follow [operations](../operations/runbook.md#live-alarm-office-deployment) so writer deployment precedes reader activation.
 
 ## FTP ingestion
 
 `ftp_handler/` is an ingestion library, not a Flask Blueprint. It supports direct and HTTP-proxied fleet downloads, listing/size passes, background jobs, and injected archive/parse/index callbacks. The package intentionally does not import MinIO or OpenSearch; callers provide those side effects.
-
-`back_dev_home/msr_file/MIGRATION.md` identifies tool FTP as a possible office image source. The operational decision still needs caching, timeouts, failure behavior, and a choice between serving live FTP content and archived objects.
 
 ## LLM gateway
 
@@ -74,6 +82,14 @@ These adapters preserve the [provider seam](../architecture/overview.md#provider
 
 The adapter is implemented, but the migration ledger has not yet recorded office-mode contract and screen verification. Treat it as a verification target, not as fully rolled out.
 
+### Hardware OpenSearch adapters
+
+Hardware's nested office adapters now pin several source contracts. FDC queries `network_fdc_cdsem` by exact `eqp_id.keyword`; its offset-less `timestamp` is interpreted as KST wall clock, and the exact discriminator is `TemperatureEChuck`. The query deliberately does not filter by fab so stale UI fab state cannot suppress a valid equipment result. `scripts/diagnose_fdc_standalone.py` reproduces field, timestamp, and clause diagnosis without repository imports for constrained office hosts.
+
+BM/PM combines `fab_inform_notes` past events (`down_dt`, 180-day lookback) with `tool_maintenance_plan` future work (`tool_start_tm`, 90-day horizon). Shared row logic classifies BM/PM by source text, preserves unclassified rows without chart overlays, formats chart timestamps as `YYYY-MM-DD HH:MM`, and keeps engineer-note fields available for tooltips. These mappings [surface through the hardware workflow](../workflows/key-workflows.md#recipe-and-hardware-operations), not through new public endpoints.
+
+Lateral recipe now queries `cdsem_idp_ver`/`hvsem_idp_ver` and uses `meas_hist_cdsem`/`meas_hist_hvsem` as a 30-day readiness floor. This resolves the aliases and exact-keyword joins for that workflow, but does not establish measurement-history mappings for every Skewvoir or artifact use case.
+
 Create a local adapter before explicitly enabling its override:
 
 ```bash
@@ -94,9 +110,9 @@ A provider is ready only when it:
 
 ## Migration questions
 
-- What are the authoritative aliases and joins for `meas_hist` and `msr_file`?
+- What are the authoritative joins for Skewvoir `meas_hist` and `msr_file` beyond the aliases now confirmed for lateral-recipe readiness?
 - Where do stable site-layout, recipe-revision, coordinate-transform, and sequence fields originate?
-- Will measurement and AFM images be served from FTP, MinIO, or presigned object URLs?
+- When will the measurement-image office FTP adapter and rendered UI land, and what source/cache serves AFM images?
 - What store backs editable measurement-rule versions and rollback?
 - Should Redis or another shared system replace process-local access, activity, token, and limiter state in production?
 - When can AFM compatibility aliases and `afm_data_platform/` be retired?

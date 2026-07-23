@@ -1,7 +1,7 @@
 # Archive
 
 ## Week of 2026-07-14
-Shipped X-ID (14+ tests, 8-agent review), skewvoir (177 tests), AFM Sub-proj A (415 tests E2E), Chat backend (102 tests). Infrastructure: major office/home provider refactor (11 SKEWNONO_*_PROVIDER vars, 3-layer CLAUDE.md, office_example.py pattern), Ports & Adapters analysis for provider layer, herdr hooks, TDD egress-guards (10 MIGRATION.md docs). Dashboard redesign (RadiusPlot, nav), skewvoir Phase B (wafer map, 236 tests), AFM A–D (458 tests). Pruned 42 specs, swept fonts, Tailscale remote.
+Shipped X-ID (14+ tests, 8-agent review), skewvoir (177 tests), AFM Sub-proj A (415 tests E2E), Chat backend (102 tests). Infrastructure: major office/home provider refactor (11 SKEWNONO_*_PROVIDER vars, 3-layer CLAUDE.md, office_example.py pattern), Ports & Adapters analysis, herdr hooks, TDD egress-guards (10 MIGRATION.md docs), openwiki cron (01:00, wrapper+launchd), localStorage consolidation (8 composables → factory), Redis adapter (office.py, env-based config), parquet fixes (5 commits), live office UI verified. Dashboard redesign (RadiusPlot, nav), skewvoir Phase B (wafer map, 236 tests), AFM A–D (458 tests). Pruned 42 specs, swept fonts, Tailscale remote.
 
 ## Week of 2026-07-07
 Built office transition skills (/leave-office, /back-to-office); extended MSR file FDC mock with functional SkewvoirView integration. Swept design compliance: recipe-tat fonts (--sk-ink normalization), 장비상태 UI (40 NuxtUI tokens), echarts 6.1.0 CD outlier detection (97 tests). Designed BM/PM overlay + MDC time series redesign (10 subagent tasks); refactored recipe tables; switched to Tailscale remote dev.
@@ -19,7 +19,7 @@ Locked skew-check terminology (fleet/consensus/residual/site-pool) and variance 
 Resolved compliance questions Q5/Q8 via grilling; drafted ADR 0004/0005 for memory class & permission rules. Fixed Nuxt port conflict (3100→3000) in dev setup. Completed Q7 matrix UI design and Q6/Q7-b monitoring spec.
 
 ## Week of 2026-04-28
-Modified index.py to read PORT env var, resolved macOS AirPlay :5000 conflict. Verified Flask :5050 ↔ Nuxt :3100 proxy E2E. Diagnosed statusline-command.sh; presented zsh PROMPT customization options.
+Modified index.py to read PORT env var, resolved macOS AirPlay :5000 conflict. Verified Flask :5050 ↔ Nuxt :3000 proxy E2E. Diagnosed statusline-command.sh; presented zsh PROMPT customization options.
 
 ## Week of 2026-04-21
 Created Flask+flask-cors venv for skewnono_v3_nuxt, started dev server :5000. Debugged macOS Python paths; resolved background task issues.

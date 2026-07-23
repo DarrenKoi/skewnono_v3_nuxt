@@ -10,7 +10,7 @@ tags: [skewnono, quickstart, nuxt, flask, metrology]
 
 ## What this repository is
 
-SKEWNONO v3 is an internal E-Beam metrology operations and analytics platform. Its current product scope combines CD-SEM and HV-SEM equipment management, recipe and parameter governance, measurement review through Skewvoir, integrated AFM analysis, and supporting activity, access, API-token, and chat surfaces. The product overview targets roughly 320 CD-SEM/HV-SEM tools and emphasizes Tool-to-Tool Matching, reduced measurement TAT, and faster investigation of questionable measurements (`docs/project-overview.md`).
+SKEWNONO v3 is an internal E-Beam metrology operations and analytics platform. Its current product scope combines CD-SEM and HV-SEM equipment management, recipe and parameter governance, measurement review through Skewvoir, live failure alarms, integrated AFM analysis, and supporting activity, access, API-token, and chat surfaces. The product overview targets roughly 320 CD-SEM/HV-SEM tools and emphasizes Tool-to-Tool Matching, reduced measurement TAT, and faster investigation of questionable measurements (`docs/project-overview.md`).
 
 The active application is a client-only Nuxt 4 SPA backed by Flask. The [architecture](architecture/overview.md) keeps frontend calls stable at `/api/*` while each Flask feature selects mock or office data behind its `data.py` boundary. Home and unknown hosts default safely to mock mode; in office/cloud mode, a feature selects office data only when that machine has an ignored `providers/office.py`. Per-feature overrides remain authoritative, while `SKEWNONO_DATA_PROVIDER=mock` is a whole-instance kill switch.
 
@@ -91,9 +91,10 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 ## Backlog
 
 - **Office provider verification** — `docs/office-migration/STATUS.md` and feature `MIGRATION.md` files: runtime selection now follows each machine's ignored `providers/office.py`; continue contract and screen verification for implemented/partial adapters and record results in the ledger. Use `/api/health/providers` to confirm selection, not the ledger.
-- **Live alarm board** — `docs/superpowers/specs/2026-07-22-live-alarm-broadcast-design.md`: implement the approved but currently design-only align/meas fail board, its 15-second writer, Redis-backed 10-minute feed, Flask reader, and CD-SEM/HV-SEM pages.
+- **Live alarm office deployment** — `back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md`: copy the reader and portable writer office templates, register the writer on the external 15-second scheduler, and verify Redis heartbeat/feed status; mock API and UI behavior are implemented.
 - **Rule persistence** — `back_dev_home/ebeam/cdsem/device_statistics/` and `useMeasurementRulesApi.ts`: implement save, history, rollback, and identity attribution after the datastore is chosen.
-- **Artifact source decisions** — `back_dev_home/msr_file/MIGRATION.md` and `back_dev_home/afm/providers/office_example.py`: decide whether images and large bodies come from live FTP, MinIO, or another service.
+- **Measurement image completion** — `back_dev_home/msr_image/` and `front-dev-home/app/composables/useMsrImageApi.ts`: add the real tool-FTP office adapter and rendered gallery/download consumer, then replace process-local jobs with shared bounded state; disk/MinIO cache implementations and backend routes already exist.
+- **AFM artifact source** — `back_dev_home/afm/providers/office_example.py`: decide whether large AFM bodies and images come from live source access, MinIO, or another service.
 - **Operational hardening** — `back_dev_home/_runtime/env.py`, `back_dev_home/__init__.py`, and `wsgi.ini`: replace path-derived cloud detection, configure a production secret, and assess shared rate-limit/state storage across workers.
 - **Legacy AFM retirement** — `afm_data_platform/` and AFM compatibility aliases: archive only after integrated office behavior and consumers are verified.
 - **Lower-priority surfaces** — `announcements/`, PM planning, and placeholder `thickness/`: documented only in the source map on this first pass; expand when those areas become the change target.

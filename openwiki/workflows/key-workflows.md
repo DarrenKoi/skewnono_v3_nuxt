@@ -1,9 +1,9 @@
 ---
 type: Workflow Guide
 title: Key Application and Engineering Workflows
-description: End-to-end paths for Device Statistics, Skewvoir, AFM, chat, and adding or migrating provider-backed SKEWNONO features.
+description: End-to-end paths for Device Statistics, recipe and hardware operations, live alarms, Skewvoir, AFM, chat, and adding or migrating provider-backed SKEWNONO features.
 resource: front-dev-home/app/pages
-tags: [workflows, device-statistics, skewvoir, afm, chat]
+tags: [workflows, device-statistics, hardware, live-alarm, skewvoir, afm, chat]
 ---
 
 # Key workflows
@@ -34,6 +34,20 @@ pages/.../device-statistics/*.vue
 
 When changing this flow, run `tests/test_recipe_analytics_home.py`, the backend feature contract tests, `ruleEngine.test.ts`, and device-drill utility tests.
 
+## Recipe and hardware operations
+
+Recipe search loads the daily Redis-backed catalog, ranks exact matches before prefix, substring, and unordered AND-token matches, and preserves search/page state in the URL. When a settled three-character-or-longer search returns nothing, `RecipeSearchView.vue` waits 600 ms and probes up to 200 recent `/api/meas-hist/*` rows. Measurement history is roughly 15 minutes fresh, so this advisory fallback distinguishes catalog lag from a typo without inserting history-only recipes into the catalog result table (`app/utils/recipeSearchMatch.ts`).
+
+The hardware page dispatches each tab through `back_dev_home/ebeam/hitachi/hardware/providers/<tab>/`. BM/PM combines past `fab_inform_notes` events with future `tool_maintenance_plan` work; FDC groups SPM channels into measurement cycles and offers multiple LaserPower interpretations; sharpness coordinates condition selection, scalar trends, and timestamp-specific 360-degree profiles. These user views [depend on exact office mappings](../integrations/integration-points.md#hardware-opensearch-adapters), while missing nested office adapters fall back to the tab mock.
+
+Lateral-recipe readiness has a cross-feature invariant: a tool observed executing the exact recipe in recent measurement history is ready even when the IDP version document omits it. Explicit IDP version assignment still wins, and the office adapter uses the newest discovered version only for measured tools absent from all assignments (`back_dev_home/ebeam/hitachi/lateral_recipe/providers/office_example.py`).
+
+## Live alarm board
+
+The CD-SEM and HV-SEM routes render `LiveAlarmView.vue`, which polls `GET /api/<tool_slug>/live-alarm?fab_name=...` every 15 seconds with jitter. The server returns the complete deduplicated 10-minute board, so the client replaces rather than accumulates events, pauses while hidden, refreshes on visibility return, and keeps the last good board until three consecutive request failures. First load is treated as already seen; later arrivals separately drive a persistent title count and an eight-second row highlight (`useLiveAlarmFeed.ts`).
+
+The Flask reader and mock provider are implemented. Office operation [depends on the Redis writer integration](../integrations/integration-points.md#live-alarm-writer-and-reader): an external scheduler must run the portable writer every 15 seconds, while Flask reads events and heartbeat state through a local `providers/office.py`. Feed status is `live`, `stale`, or `not_configured`; failed fab polls do not advance their heartbeat. Deployment and diagnosis are in the [operations runbook](../operations/runbook.md#live-alarm-office-deployment).
+
 ## Skewvoir search and analysis
 
 ### User path
@@ -54,12 +68,17 @@ Search and facets
 
 Focus and comparison analysis
   -> /api/msr-file/<id> or POST /api/msr-files
-  -> detailed rows, summaries, FDC/alignment, geometry, and images
+  -> detailed rows, summaries, FDC/alignment, and geometry
+
+Measurement image API
+  -> /api/msr-images and /api/msr-image
+  -> tool source through back_dev_home/msr_image/
+  -> disk cache in mock mode or MinIO cache in office mode
 ```
 
-Bulk detail loading is capped at 200 and avoids consuming one rate-limit slot per selected MSR. Dashboard mode fetches the focus record; set views lazily batch the curated set. MSR images are exempt from the general API limiter because galleries fan out many deterministic requests.
+Bulk detail loading is capped at 200 and avoids consuming one rate-limit slot per selected MSR. Dashboard mode fetches the focus record; set views lazily batch the curated set. Public measurement rows now derive `fail_ratio` from `fail_images / total_images` and expose `eqp_ip`; the latter joins class/MSR identity for the separate measurement-image API. `useMsrImageApi.ts` can list, fetch with `X-Msr-Cond`, start download-all, and poll a job, but no rendered page/component consumes it yet and no tracked office FTP provider exists. The `msr_image` Blueprint is limiter-exempt because future galleries fan out many requests.
 
-The [review model](../domain/concepts.md#skewvoir-review-model) requires official cohorts to remain distinct from exploratory sets. Office `msr_file` data must eventually provide stable layout/revision/coordinate/timestamp metadata before cross-MSR spatial comparisons can be considered authoritative.
+The [review model](../domain/concepts.md#skewvoir-review-model) requires official cohorts to remain distinct from exploratory sets. Office `msr_file` data must eventually provide stable layout/revision/coordinate/timestamp metadata before cross-MSR spatial comparisons can be considered authoritative; image delivery has moved out of `msr_file` into its own [integration boundary](../integrations/integration-points.md#measurement-image-delivery-and-cache).
 
 ## AFM detail and comparison
 

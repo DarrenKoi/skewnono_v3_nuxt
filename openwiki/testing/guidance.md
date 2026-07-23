@@ -24,7 +24,7 @@ Root tests under `tests/` use Flask clients and cover provider precedence, route
 - `test_activity_home.py`
 - `test_afm_home.py`
 - `test_meas_hist_search_home.py` and `test_meas_hist_search_local.py`
-- `test_msr_file.py`
+- `test_msr_file.py` and `test_lateral_recipe_local.py`
 - `test_office_provider_dispatch.py`
 - `test_recipe_analytics_home.py`
 - `test_sem_list_home.py`
@@ -71,6 +71,8 @@ The smoke commands load `back_dev_home/.env` through shared Redis plumbing and u
 
 Provider-resolution changes must run `.venv/bin/python -m pytest back_dev_home/_runtime/tests back_dev_home/health/tests/test_providers_route.py -q`. The invariants are: unknown/home hosts remain mock; office mode flips only features with a direct `providers/office.py`; global `mock` disables all non-overridden office adapters; feature overrides win; explicit feature `office` without an adapter fails consistently at boot and direct import; hyphenated slugs normalize consistently; and the boot table plus health route report each feature's provider and reason. Registry tests also pin duplicate-slug/orphan rejection and exclude hardware's nested per-tab adapters. For Recipe TAT, test both the default ranked limit and `limit=0` (all buckets), plus lot-code bridge and empty-result behavior.
 
+High-signal new feature suites are `back_dev_home/msr_image/tests/` for route/cache/job/scheduler behavior, `back_dev_home/ebeam/hitachi/live_alarm/tests/` for board and writer/reader semantics, hardware's `test_bm_pm.py` and `test_bm_pm_office.py`, `meas_hist/tests/test_ratio_normalization.py`, and lateral recipe's mock/office consistency tests. Run the live-alarm contract after any writer schema change; run the measurement-image app-wiring test when changing Blueprint registration, limiter exemption, or scheduler startup. The FDC office adapters provide `scripts/diagnose_fdc_office.py` and a repository-independent `scripts/diagnose_fdc_standalone.py` for source diagnosis, not as substitutes for contract tests.
+
 ### Frontend tests
 
 `front-dev-home/package.json` uses Node's native test runner for colocated `app/**/*.test.ts` files:
@@ -91,6 +93,7 @@ Recent implementation style deliberately extracts analytical logic into pure uti
 - Skewvoir: `app/utils/skewvoirAnalysis/*.test.ts`, `app/utils/anomaly/*.test.ts`, `overview.test.ts`
 - Focus caching: `app/composables/useSkewvoirAnalysis.focusCache.test.ts`
 - AFM: `afmExport.test.ts`, `afmHeatmap.test.ts`, `afmHistogram.test.ts`, `afmPointsTable.test.ts`
+- Recipe/hardware/live feeds: `recipeSearchMatch.test.ts`, `fdcValues.test.ts`, `liveAlarm.test.ts`, `useLiveAlarmFeed.test.ts`
 - Chat: `chatMarkdown.test.ts`, `relativeTime.test.ts`
 
 ## Frozen response fixtures
@@ -126,7 +129,9 @@ A workflow nested under `front-dev-home/.github/workflows/` is not loaded by Git
 | Provider implementation | Feature contract test under mock and office, route tests, representative real-source sample |
 | API response | Contract test, fixture review, frontend typecheck and consuming workflow |
 | Device Statistics | Recipe analytics tests, rule engine/drill utility tests, lot/bucket URL flow |
-| Skewvoir | Meas-hist/MSR backend tests, analysis/anomaly utilities, URL restoration, focus/set race behavior |
+| Recipe/hardware operations | Recipe ranking/history fallback tests, BM/PM mock and office mapping tests, FDC parser tests, lateral measured-implies-ready consistency, representative office diagnosis |
+| Live alarm | Board/route contracts, writer normalization/window/job tests, writer-reader schema compatibility, polling reducer/jitter/unread tests, office heartbeat and feed-status check |
+| Skewvoir/MSR images | Meas-hist ratio and `eqp_ip` contracts, MSR detail tests, msr-image route/cache/job/scheduler/app-wiring suites, analysis/anomaly utilities, URL restoration; note that UI consumption and office FTP are still absent |
 | AFM | AFM backend tests, pure heatmap/histogram/table/export tests, measurement-switch reset, image failure states |
 | Chat | Route/store/LLM/config tests, `chat/tests/test_guard.py`, office blocked-host and `403 egress_blocked` behavior, Markdown and relative-time tests, retry/idempotency behavior |
 | Nuxt config/build | Typecheck, test, lint, build or generate, offline icon rendering |

@@ -46,7 +46,7 @@ Frontend state uses Nuxt built-ins rather than Pinia. `app/stores/navigation.ts`
 8. In cloud mode, registers login and SPA serving.
 9. Installs a per-user/IP API rate limiter.
 
-Automatic route discovery makes a feature self-registering, but every discovered module is imported at startup. A broken import or a `routes.py` without `bp` prevents the entire app from booting.
+Automatic route discovery makes a feature self-registering, but every discovered module is imported at startup. A broken import or a `routes.py` without `bp` prevents the entire app from booting. After route and limiter setup, `create_app()` also starts the [measurement-image cache](../integrations/integration-points.md#measurement-image-delivery-and-cache) purge scheduler. Under multi-process serving this creates one idempotent nightly sweep per worker, not one cluster-wide scheduler.
 
 Shared CD-SEM/HV-SEM features belong under `back_dev_home/ebeam/hitachi/<feature>/`; genuinely tool-specific behavior belongs under `ebeam/cdsem/` or `ebeam/hvsem/`. `back_dev_home/README.md` documents this scope decision.
 
@@ -72,7 +72,7 @@ Blocked users may still receive the SPA shell so the client can render a denial 
 
 `_logging/activity.py` records request latency, feature mapping, exceptions, and human activity. API-token traffic is logged with zero human-activity weight, so automation does not inflate usage analytics. In cloud mode, structured logs can flow to OpenSearch as described in [integration points](../integrations/integration-points.md).
 
-The default limit is `20 per 5 seconds`, keyed by user or remote address. MSR image delivery is exempt because one gallery opens many cacheable image requests. Limiter state is currently process-local (`memory://`), which matters under the four-process uWSGI configuration.
+The default limit is `20 per 5 seconds`, keyed by user or remote address. The entire `msr_image` Blueprint is exempt because one gallery can open many cacheable requests. Limiter state is currently process-local (`memory://`), as is the image download-job registry; under the four-process uWSGI configuration, polling can reach a worker that does not know the job created by another worker. Treat async download-all as development-stage until its state and limits are shared and enforced.
 
 ## Deployment modes
 

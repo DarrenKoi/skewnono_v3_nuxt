@@ -33,8 +33,9 @@ The request path and change implications are detailed in [runtime architecture](
 
 - `back_dev_home/ebeam/hitachi/`: shared CD-SEM/HV-SEM features such as storage and hardware.
 - `back_dev_home/ebeam/cdsem/device_statistics/`: lot/recipe/parameter analytics and rule seed data.
-- `back_dev_home/meas_hist/`: Skewvoir measurement discovery, search, facets, and parent metadata.
-- `back_dev_home/msr_file/`: detailed MSR rows, summaries, FDC/alignment, geometry, and images.
+- `back_dev_home/meas_hist/`: Skewvoir measurement discovery, search, facets, parent metadata, derived image-failure ratio, and equipment IP handoff.
+- `back_dev_home/msr_file/`: detailed MSR rows, summaries, FDC/alignment, and geometry.
+- `back_dev_home/msr_image/`: measurement-image listing/serving, async cache-fill jobs, disk/MinIO caches, and purge scheduling; its office source and rendered UI consumer remain incomplete.
 - `back_dev_home/afm/`: integrated AFM tools, files, detail, artifacts, and compatibility routes.
 - `back_dev_home/chat/`: thread persistence and OpenAI-compatible completion boundary.
 - `back_dev_home/activity/`, `access_control/`, `admin_logs/`, `api_tokens/`: shared user/admin operations.
@@ -51,7 +52,7 @@ Most provider-backed features follow `routes.py -> data.py -> providers/{mock,of
 - `app/pages/afm/`: AFM hub, tool search, detail, and see-together.
 - `app/pages/chat.vue`: conversational assistant.
 - `app/pages/activity.vue`, `app/pages/admin/`, `app/pages/endpoints.vue`: usage, administration, and API-token documentation/management.
-- `app/pages/ebeam/`: storage, hardware, recipe search/TAT, PM planning, fail/issues, and other E-Beam operations.
+- `app/pages/ebeam/`: storage, hardware, recipe search/TAT, PM planning, fail/issues, and other E-Beam operations. CD-SEM/HV-SEM fab routes include the live-alarm board; its polling state lives in `useLiveAlarmFeed.ts`.
 - `app/pages/thickness/`: emerging/placeholder equipment area; confirm implementation depth before extending.
 
 ## Data and integration support

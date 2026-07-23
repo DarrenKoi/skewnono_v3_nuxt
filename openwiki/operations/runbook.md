@@ -73,6 +73,12 @@ Feature-specific `=office` remains useful for a home/VPN contract gate, but it i
 
 At every startup, `skewnono.providers` logs the detected site, effective mode, office-feature count, and each feature's provider/reason. `GET /api/health/providers` exposes the same live resolution. Use those outputs to learn what this machine serves; use `docs/office-migration/STATUS.md` separately to determine whether the real source passed contract and screen verification. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
 
+## Live alarm office deployment
+
+Live alarm has two independent local adapters. First copy `back_dev_home/ebeam/hitachi/live_alarm/writer/` to the external scheduler service, create its ignored `office.py`, configure fab alarm addresses and `LIVE_ALARM_REDIS_*`, and register `run_once` every 15 seconds on the dedicated fast executor with the lock and misfire settings in `live_alarm/MIGRATION.md`. The scheduler-side and Flask-side clients must use Redis DB 0.
+
+Confirm `skewnono:live_alarm:*` keys and that each `meta.polled_at` advances before copying `providers/office_example.py` to Flask's ignored `providers/office.py`. Restart Flask, confirm `live_alarm` through `/api/health/providers`, then inspect the endpoint's `feed_status`: `stale` means the registered writer heartbeat stopped; `not_configured` means the fab is absent from the writer address map. The writer is portable by design and must not import `back_dev_home`; reader/writer member compatibility is pinned by `test_written_members_are_readable_by_the_reader`.
+
 ## Build and production-style serving
 
 Build the client-only SPA:
@@ -148,13 +154,13 @@ Query `GET /api/health/providers` or inspect the startup table first. In office 
 
 The chat egress guard rejected `CHAT_BASE_URL` because its host matches a built-in public LLM gateway or an entry added through `CHAT_BLOCKED_HOSTS`. Configure an approved internal gateway; custom blocked hosts only tighten the policy and cannot remove defaults. The failed user turn remains stored so it can be retried without duplication after configuration is corrected.
 
-### Gallery images receive 429
+### Measurement images fail or receive 429
 
-`msr_file.msr_image` should be limiter-exempt. Confirm the Blueprint endpoint name has not changed. Other data requests are limited to 20 per 5 seconds per user/IP and can still expose runaway client loops.
+All endpoints named `msr_image.*` should be limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; a real office source cannot work until a local `msr_image/providers/office.py` exists. The API's disk/MinIO caches and mock source are implemented, but no rendered gallery currently consumes `useMsrImageApi.ts`.
 
 ### Rate limits or local state behave inconsistently across workers
 
-The limiter uses `memory://`, and several home providers are in-memory/SQLite oriented. uWSGI runs multiple lazy app processes, so process-local state is not a shared production store. Connect the intended office persistence or reduce the process model only for diagnosis.
+The limiter uses `memory://`, and several home providers are in-memory/SQLite oriented. Measurement-image download jobs are also process-local: a poll routed to another uWSGI worker can return `404 unknown_job`, and parsed job TTL/max settings are not enforced. The app starts one idempotent image-cache purge scheduler per process. Connect intended shared persistence or reduce the process model only for diagnosis.
 
 ### Icons disappear in the office network
 
