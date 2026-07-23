@@ -13,6 +13,7 @@ class JobRegistry(Protocol):
     def create_bounded(self, total: int, max_running: int) -> str | None: ...
     def get(self, job_id: str) -> DownloadJobStatus | None: ...
     def running_count(self) -> int: ...
+    def set_total(self, job_id: str, total: int) -> None: ...
     def record_ok(self, job_id: str) -> None: ...
     def record_failure(self, job_id: str, name: str, error: str) -> None: ...
     def finish(self, job_id: str) -> None: ...
@@ -65,6 +66,17 @@ class MemoryJobRegistry:
     def running_count(self) -> int:
         with self._lock:
             return sum(1 for st in self._jobs.values() if st["status"] == "running")
+
+    def set_total(self, job_id: str, total: int) -> None:
+        """Fill in the size once the listing knows it.
+
+        A job is minted before the directory listing runs (so the POST can
+        answer 202 without waiting on the tool), which means it starts at an
+        unknown total of 0 and learns the real count here."""
+        with self._lock:
+            st = self._jobs.get(job_id)
+            if st is not None:
+                st["total"] = total
 
     def record_ok(self, job_id: str) -> None:
         with self._lock:

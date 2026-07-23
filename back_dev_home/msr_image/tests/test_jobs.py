@@ -80,3 +80,19 @@ def test_mark_error_sets_error_status():
     j = reg.create(total=2)
     reg.mark_error(j)
     assert reg.get(j)["status"] == "error"
+
+
+def test_set_total_fills_in_an_unknown_total():
+    # The job is minted before the (slow) listing finishes, so it starts with an
+    # unknown total of 0 and the worker fills the real count in afterwards.
+    reg = MemoryJobRegistry()
+    j = reg.create(total=0)
+    assert reg.get(j)["total"] == 0
+    reg.set_total(j, 7)
+    assert reg.get(j)["total"] == 7
+
+
+def test_set_total_ignores_unknown_job():
+    # Same no-op-on-missing contract as the other mutators: a job that expired
+    # mid-download must not resurrect or explode in the worker thread.
+    MemoryJobRegistry().set_total("nope", 3)

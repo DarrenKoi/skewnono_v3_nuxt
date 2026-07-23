@@ -94,7 +94,13 @@ def serve_image_route():
     return Response(fetched.data, mimetype=fetched.content_type, headers=headers)
 
 
-def _run_download(eqp_ip, class_name, msr, names, job_id, cache, concurrency):
+def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency):
+    """Own the whole tool round-trip: list, then fetch.
+
+    The listing lives here rather than in the request handler because office-side
+    it is an FTP call to the tool — the slowest step — and the client should not
+    hold a connection open waiting for it. The job exists before this runs, so
+    both the size and any failure are reported through polling."""
     registry = default_registry()
 
     def on_file(name, fetched, error):
@@ -105,10 +111,13 @@ def _run_download(eqp_ip, class_name, msr, names, job_id, cache, concurrency):
             registry.record_failure(job_id, name, error or "unknown error")
 
     try:
+        names = data.list_images(eqp_ip, class_name, msr)
+        registry.set_total(job_id, len(names))
         data.download_all(eqp_ip, class_name, msr, names, on_file, concurrency)
     except Exception:
-        # A whole-download failure (not a per-file one, which on_file records)
-        # ends the job in "error", not "done" — the poll must not report success.
+        # A whole-job failure (the listing, or the download as a whole — not a
+        # per-file one, which on_file records) ends the job in "error", not
+        # "done": the poll must never report a failed job as a success.
         registry.mark_error(job_id)
     else:
         registry.finish(job_id)
@@ -129,21 +138,25 @@ def download_all_route():
     # The authoritative gate is the atomic create_bounded below (spec §9).
     if registry.running_count() >= cfg.max_jobs:
         return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
+    # Only the cheap, local checks run here — a malformed request still earns a
+    # synchronous 4xx/5xx. Anything that touches the tool is the worker's job.
     try:
         validate_tool_ip(eqp_ip, cfg.allowed_subnets)
         validate_segment(class_name, "class_name")
         validate_segment(msr, "msr")
-        names = data.list_images(eqp_ip, class_name, msr)
         cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
     except MsrImageError as exc:
         return _error(exc)
 
-    job_id = registry.create_bounded(total=len(names), max_running=cfg.max_jobs)
+    # total starts unknown (0): the listing that determines it has not run yet.
+    # The worker calls set_total once it lands, so a poll before then reports a
+    # running job of unknown size rather than a wrong one.
+    job_id = registry.create_bounded(total=0, max_running=cfg.max_jobs)
     if job_id is None:
         return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
     thread = threading.Thread(
         target=_run_download,
-        args=(eqp_ip, class_name, msr, names, job_id, cache, cfg.ftp_concurrency),
+        args=(eqp_ip, class_name, msr, job_id, cache, cfg.ftp_concurrency),
         daemon=True,
     )
     thread.start()
