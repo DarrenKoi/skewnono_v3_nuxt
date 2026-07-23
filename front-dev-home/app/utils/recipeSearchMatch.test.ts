@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { matchesRecipeQuery, tokenizeRecipeQuery } from './recipeSearchMatch.ts'
+import { matchesRecipeQuery, matchingHistoryNames, tokenizeRecipeQuery } from './recipeSearchMatch.ts'
 
 const NAME = 'ADI/CD_BIAS_ABC123_MON_00005'.toLowerCase()
 
@@ -42,4 +42,25 @@ test('still rejects names missing any token', () => {
 
 test('never matches on an empty token list', () => {
   assert.equal(matchesRecipeQuery(NAME, []), false)
+})
+
+test('history names re-apply AND semantics over the server OR results', () => {
+  const tokens = tokenizeRecipeQuery('CD_MON')
+  // The server ORs terms, so rows matching only "cd" or only "mon" come back.
+  const rows = [
+    'ADI/CD_BIAS_ABC123_STD_00001',
+    'ETC/GATE_MON_ABC123_STD_00002',
+    'ADI/CD_MON_ABC123_ENG_00003'
+  ]
+  assert.deepEqual(matchingHistoryNames(rows, tokens), ['ADI/CD_MON_ABC123_ENG_00003'])
+})
+
+test('history names are deduped, preserving first-seen order', () => {
+  const tokens = tokenizeRecipeQuery('CD')
+  const rows = ['ADI/CD_A', 'ADI/CD_B', 'ADI/CD_A']
+  assert.deepEqual(matchingHistoryNames(rows, tokens), ['ADI/CD_A', 'ADI/CD_B'])
+})
+
+test('history names are empty for an empty token list', () => {
+  assert.deepEqual(matchingHistoryNames(['ADI/CD_A'], []), [])
 })

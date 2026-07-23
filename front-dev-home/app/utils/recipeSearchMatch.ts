@@ -18,3 +18,20 @@ export const tokenizeRecipeQuery = (query: string): string[] =>
 /** `searchText` must already be lowercased (hoisted out of the match loop). */
 export const matchesRecipeQuery = (searchText: string, tokens: string[]): boolean =>
   tokens.length > 0 && tokens.every(token => searchText.includes(token))
+
+/**
+ * Distinct meas-hist full_names that satisfy the same AND-token match as the
+ * catalog lookup. The meas-hist search endpoint ORs its `recipe` terms
+ * server-side, so this client-side re-check restores AND semantics before the
+ * UI claims "found in measurement history".
+ */
+export const matchingHistoryNames = (fullNames: string[], tokens: string[]): string[] => {
+  const matched: string[] = []
+  const seen = new Set<string>()
+  for (const name of fullNames) {
+    if (seen.has(name)) continue
+    seen.add(name)
+    if (matchesRecipeQuery(name.toLowerCase(), tokens)) matched.push(name)
+  }
+  return matched
+}

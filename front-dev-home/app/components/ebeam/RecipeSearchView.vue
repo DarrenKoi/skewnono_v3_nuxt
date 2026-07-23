@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchResponse, RecipeSearchRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { matchesRecipeQuery, tokenizeRecipeQuery } from '~/utils/recipeSearchMatch'
+import { matchesRecipeQuery, matchingHistoryNames, tokenizeRecipeQuery } from '~/utils/recipeSearchMatch'
 
 const props = defineProps<{
   fab: Fab
@@ -189,6 +189,79 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 
   router.replace({ query: nextRouteQuery })
 })
+
+// --- 측정 이력 fallback -----------------------------------------------------
+// The redis recipe catalog refreshes daily, but the meas_hist_* indices are
+// ~15 min fresh. When a 3+ char lookup matches nothing, probe measurement
+// history so a just-created recipe isn't mistaken for a typo.
+const HISTORY_PROBE_DEBOUNCE_MS = 600
+// The endpoint pages by recency; 200 rows is plenty for an existence probe
+// and stays under the backend's limit clamp (DEFAULT_LIMIT * 10).
+const HISTORY_PROBE_LIMIT = 200
+
+const { searchMeasHist } = useMeasHistApi()
+const toast = useToast()
+
+const historyMatches = ref<string[]>([])
+
+const historyMatchesLabel = computed(() => {
+  const names = historyMatches.value
+  const shown = names.slice(0, 3).join(', ')
+  return names.length > 3 ? `${shown} 외 ${names.length - 3}건` : shown
+})
+
+// Non-empty exactly when a settled zero-result search is on screen; doubles
+// as the probe's identity so stale responses and repeat toasts can be culled.
+const historyProbeKey = computed(() =>
+  canSearch.value && !pending.value && !error.value && filteredCount.value === 0
+    ? `${props.toolType}:${props.fab || 'ALL'}:${normalizedQuery.value}`
+    : ''
+)
+
+let historyProbeTimer: ReturnType<typeof setTimeout> | undefined
+let historyProbeSeq = 0
+let lastHistoryToastKey = ''
+
+watch(historyProbeKey, (key) => {
+  clearTimeout(historyProbeTimer)
+  const seq = ++historyProbeSeq
+  historyMatches.value = []
+  if (!key) return
+
+  const tokens = queryTokens.value
+  historyProbeTimer = setTimeout(async () => {
+    try {
+      const response = await searchMeasHist({
+        toolType: props.toolType,
+        fab: props.fab ? [props.fab] : undefined,
+        recipe: tokens,
+        limit: HISTORY_PROBE_LIMIT
+      })
+      if (seq !== historyProbeSeq) return
+
+      const matches = matchingHistoryNames(response.rows.map(row => row.full_name), tokens)
+      historyMatches.value = matches
+
+      if (matches.length && lastHistoryToastKey !== key) {
+        lastHistoryToastKey = key
+        const first = matches[0] ?? ''
+        toast.add({
+          title: 'redis에는 없지만 측정 기록은 발견됩니다. (redis update 주기 1일)',
+          description: matches.length === 1 ? first : `${first} 외 ${matches.length - 1}건`,
+          icon: 'i-lucide-history',
+          color: 'warning'
+        })
+      }
+    } catch {
+      // Best-effort hint: a failed probe just means no notice, never an error UI.
+    }
+  }, HISTORY_PROBE_DEBOUNCE_MS)
+  // immediate: setup awaits the catalog fetch, so on a deep link (?q=...) the
+  // key is already settled by the time this watcher registers — without it the
+  // probe would only ever run after further typing.
+}, { immediate: true })
+
+onBeforeUnmount(() => clearTimeout(historyProbeTimer))
 
 const columns: TableColumn<RecipeSearchRow>[] = [
   { id: 'select', header: '', size: 36 },
@@ -416,6 +489,21 @@ const openMeasHist = (recipeName: string) => {
             <p class="mt-1 sk-meta">
               다른 recipe 이름 조각을 입력해주세요.
             </p>
+            <div
+              v-if="historyMatches.length"
+              class="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-left dark:border-amber-500/30 dark:bg-amber-500/10"
+            >
+              <p class="flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                <UIcon
+                  name="i-lucide-history"
+                  class="h-3.5 w-3.5 shrink-0"
+                />
+                redis에는 없지만 측정 기록은 발견됩니다. (redis update 주기 1일)
+              </p>
+              <p class="mt-1 font-mono text-[11px] text-amber-800/80 dark:text-amber-200/80">
+                {{ historyMatchesLabel }}
+              </p>
+            </div>
           </div>
 
           <section
