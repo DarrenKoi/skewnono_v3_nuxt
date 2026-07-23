@@ -1,8 +1,9 @@
 사무실(Office) OpenSearch index — 장비 정비(BM/PM) 예정 작업 계획
 
 BM/PM 중 "앞으로 할 일(future work)"을 담습니다. 실제 발생·수행 기록은
-fab_inform_notes 이고, 이 index 는 그 계획 쪽입니다. 두 index 는 짝을 이루므로
-화면에서 함께 다룰 때 어느 쪽이 계획이고 어느 쪽이 실적인지 구분해야 합니다.
+fab_inform_notes(docs/datatables/fab_inform_notes.txt) 이고, 이 index 는 그
+계획 쪽입니다. 두 index 는 짝을 이루므로 화면에서 함께 다룰 때 어느 쪽이
+계획이고 어느 쪽이 실적인지 구분해야 합니다.
 
 Index -> tool_maintenance_plan (alias)
   backing index  : tool_maintenance_plan-000001
@@ -14,42 +15,67 @@ Index -> tool_maintenance_plan (alias)
   _id            : doc_id (bulk_index_dataframe(id_field="doc_id",
                    op_type="create"))
 
-field 목록 (현재 ops mapping 기준, 7개)
+field 목록
 
-  tool_start_tm  -> date : 작업 시작 시각.
+  [장비·조직 식별]
+  det_fac_id     -> text : fab 구분. fab_inform_notes 의 fab_name 과 같은 값
+                          입니다(이름만 다름). fab 단위 조회·join 키.
+  fac_id         -> text : 상위 facility 구분으로 보이나 미확인. fab 단위
+                          선택에는 det_fac_id 를 씁니다.
+  eqp_id         -> text : 장비 ID. fab_inform_notes.eqp_id 와 같은 체계이므로
+                          장비 단위 join 키로 그대로 쓸 수 있습니다.
+  eqp_model_cd   -> text : 장비 model 코드.
+  maker_cd       -> text : vendor(제조사) 코드.
+
+  [시각]
+  chg_tm         -> date : 이 문서의 main timestamp. 기간(range) 필터 기준
+                          time_field 로 씁니다.
+  tool_start_tm  -> date : 작업 시작 시각. tool_end_tm 과 함께 계획 구간을
+                          이룹니다(정비 전후 구간 표시·overlay 용).
   tool_end_tm    -> date : 작업 종료 시각.
   ll_dt          -> date : 미확인.
   limit_dt       -> date : 미확인(기한으로 추정되나 확인 필요).
   org_dt         -> date : 미확인(최초 계획일로 추정되나 확인 필요).
-  chg_tm         -> date : 미확인(변경 시각으로 추정되나 확인 필요).
+
+  [작업 내용]
   work_item_nm   -> text : 작업 항목 이름. 엔지니어 서술이므로 nori analyzer +
                           .keyword subfield(ignore_above: 8192)로 mapping 되어
                           있습니다.
+  event_name     -> text : 이벤트 이름. fab_inform_notes 의 eq_event 에
+                          대응하는 것으로 보이나 값 체계 일치 여부는 미확인.
+  work_user_cd   -> text : 작업자 코드.
 
-주의 — 현재 mapping 은 template 선언 field 뿐입니다
+  doc_id 는 색인 시 _id 로 쓰입니다(fab_inform_notes 에서는 field 로도 노출).
 
-  위 7개는 ops_index_mgmt/tool_maintenance_plan.py 가 template 에 명시한 field 와
-  정확히 같고, 그 외에는 아무것도 없습니다. dynamic mapping 은 문서가 들어올 때
-  field 를 만들기 때문에, 이는 아직 이 index 에 적재가 이뤄지지 않았다는 신호로
-  읽힙니다(비교: fab_inform_notes 는 적재 후 dynamic field 12개가 함께 보임).
+fab_inform_notes 와의 연결
 
-  따라서 실제 column 집합은 아직 확정되지 않았습니다. 특히 다음이 없습니다.
+  장비 기준 join 은 eqp_id 로 그대로 됩니다. fab 기준은 이름이 어긋납니다 —
+  이 index 는 det_fac_id, fab_inform_notes 는 fab_name 이며 값은 같습니다.
+  join·필터 코드에서 가장 실수하기 쉬운 지점이므로, office adapter 에서
+  contracts 로 정규화할 때 det_fac_id 를 fab_name 으로 맞춰 내보내는 편이
+  안전합니다(프로젝트 규약상 fab_name 이 표준 키, fac_id 계열은 그대로
+  노출하지 않습니다).
 
-    - eqp_id / fab_name : 장비·fab 조회 키. fab_inform_notes 는 이 둘로
-      필터하므로, 계획과 실적을 같은 장비 기준으로 묶으려면 적재 dataframe 에
-      반드시 있어야 합니다.
-    - doc_id : _id 로 쓰이지만 field 로도 색인됩니다(fab_inform_notes 에는
-      존재). 적재 시 자동으로 생깁니다.
+  시간축은 두 index 의 의미가 다릅니다. 이쪽은 계획(chg_tm 기준 문서, 계획
+  구간 tool_start_tm~tool_end_tm), 저쪽은 실적(down_dt~equp_dt) 입니다. 같은
+  timeline 에 올릴 때 계획/실적을 시각적으로 구분해야 합니다.
 
-  적재 후에는 mapping 을 다시 확인해서 이 문서를 갱신해야 합니다.
+mapping 주의
 
-  새로 들어오는 ISO timestamp column 이 있으면 tool_maintenance_plan.py 의
-  DATE_FIELDS 에 추가하고 재색인해야 date 로 잡힙니다 — dynamic date detection
-  은 yyyy/MM/dd 계열만 인식하므로 그대로 두면 text 가 됩니다. 반대로 긴 서술형
-  column 이 생기면 NOTE_FIELDS 에 넣어 nori + .keyword(8192) 를 받게 합니다.
+  ops_index_mgmt/tool_maintenance_plan.py 가 template 에 명시한 것은 date 6종
+  (tool_start_tm, tool_end_tm, ll_dt, limit_dt, org_dt, chg_tm)과 note 1종
+  (work_item_nm) 뿐입니다. 나머지 text field 는 dynamic mapping(text +
+  .keyword, ignore_above 256)으로 생깁니다.
 
-조회 방법(적재 후 예상)
+  새로 들어오는 ISO timestamp column 이 있으면 DATE_FIELDS 에 추가하고
+  재색인해야 date 로 잡힙니다 — dynamic date detection 은 yyyy/MM/dd 계열만
+  인식하므로 그대로 두면 text 가 됩니다. 반대로 긴 서술형 column 이 생기면
+  NOTE_FIELDS 에 넣어 nori + .keyword(8192) 를 받게 합니다.
 
-  기간 필터의 time_field 는 tool_start_tm(작업 시작 예정) 입니다.
-  text field 의 정확 일치·집계에는 .keyword subfield 를 씁니다. dynamic 으로
-  생기는 text 는 ignore_above 256, work_item_nm 만 8192 입니다.
+조회 방법
+
+  기간 필터의 time_field 는 chg_tm 입니다. 특정 구간에 걸치는 정비 계획을
+  찾을 때는 tool_start_tm/tool_end_tm 에 대한 range 조합을 씁니다.
+  text field 의 정확 일치·집계에는 .keyword subfield 를 씁니다
+  (`det_fac_id.keyword`, `eqp_id.keyword`). dynamic 으로 생기는 text 는
+  ignore_above 256, work_item_nm 만 8192 입니다.
