@@ -1,0 +1,78 @@
+사무실(Office) OpenSearch index — 장비 BM/PM 정보 및 엔지니어 작업 note
+
+장비가 down 된 시점부터 up 될 때까지의 정비(BM/PM) 이벤트 한 건이 문서 한 개
+입니다. 정비 사유·조치 내용은 엔지니어가 직접 작성한 자유 서술 text 로 들어
+옵니다. 정비 "계획"은 별도 index(tool_maintenance_plan)에 있으며, 이 index 는
+실제 수행/발생 기록입니다.
+
+Index -> fab_inform_notes (alias)
+  backing index  : fab_inform_notes-000001 (rollover family fab_inform_notes-*)
+  shards/replicas: 2 / 1
+  rollover       : write index 가 1,000,000 docs 도달 시
+  retention      : backing index 를 1095d(3년) 후 삭제
+  setup script   : ops_index_mgmt/fab_inform_notes.py
+  _id            : doc_id (bulk_index_dataframe(id_field="doc_id",
+                   op_type="create") — 재적재 시 중복이 에러로 드러납니다)
+
+field 목록 (ops mapping 기준, 19개)
+
+  aufnr          -> text : 이 note 의 고유 번호. 문서를 사람이 식별·추적하는
+                          기준 키입니다.
+  doc_id         -> text : 색인 시 _id 로 사용되는 dedup 키.
+  down_dt        -> date : 장비 down 시각 (정비 시작).
+  equp_dt        -> date : 장비 up 시각 (정비 종료, 실제).
+  up_dt          -> date : up 예정 시각. 채워질 수도, None 일 수도 있습니다.
+                          (실제 up 시각은 equp_dt 이며 up_dt 와 혼동 금지)
+  hub_load_tm    -> date : 시스템(HUB)에 적재된 시각. 이벤트 발생 시각이 아니라
+                          수집 시각이므로 기간 필터 기준으로 쓰지 않습니다.
+  eq_event       -> text : 장비 이벤트 구분. pm_type 이 비어 있는 경우가 있어
+                          화면에 함께 표시해야 합니다.
+  pm_type        -> text : PM 유형. 비어 있을 수 있습니다(eq_event 로 보완).
+  eqp_id         -> text : 장비 ID. 조회(필터) 키.
+  fab_name       -> text : fab 이름. 조회(필터) 키.
+  fac_id         -> text : 미확인. 선택 필터로는 fab_name 을 씁니다
+                          (docs/adr 및 타 feature 규칙과 동일).
+  lot_id         -> text : 관련 lot ID. 화면 표시 대상.
+  last_recipe_id -> text : 직전 recipe ID. 화면 표시 대상.
+  note_comment   -> text : 엔지니어 자유 서술 note. 화면 표시 대상.
+  zzproblem      -> text : 엔지니어 자유 서술 note(문제 현상). 화면 표시 대상.
+  hltext         -> text : 엔지니어 자유 서술 note. 화면 표시 대상.
+  interval_a     -> text : 미확인.
+  noti_no        -> text : 미확인(통지 번호로 추정되나 확인 필요).
+  oper           -> text : 미확인(공정 oper 로 추정되나 확인 필요).
+
+조회 방법
+
+  검색·필터는 fab_name 과 eqp_id 를 기준으로 겁니다. 두 field 모두 dynamic
+  mapping 으로 들어온 text 이므로, 정확 일치(term)·집계에는 .keyword subfield
+  (`fab_name.keyword`, `eqp_id.keyword`)를 사용합니다. 부분 검색이 필요할 때만
+  분석된 본 field 를 씁니다.
+
+  기간 필터의 time_field 는 down_dt(정비 시작) 입니다. hub_load_tm 은 적재
+  시각이라 "언제 정비했는가"와 어긋납니다.
+
+  진행 중(아직 up 안 된) 건은 equp_dt 가 비어 있는 문서로 판별하고, up_dt 가
+  있으면 "예정 시각"으로 표시합니다.
+
+화면 표시 field
+
+  lot_id, pm_type, last_recipe_id, note_comment, zzproblem, hltext 가 주 표시
+  대상이고, pm_type 이 비는 경우가 있으므로 eq_event 도 함께 표시합니다.
+
+주의
+
+  note_comment / zzproblem / hltext 는 엔지니어가 직접 쓴 자유 서술이라 길이가
+  길고 개행(newline)이 많이 섞여 있습니다. 표(table) 셀에 그대로 넣으면 행 높이
+  가 무너지므로 요약/펼치기 또는 pre-wrap 처리가 필요합니다.
+
+  이 세 field 는 mapping 에서 nori analyzer 가 걸린 text 이고 .keyword subfield
+  는 ignore_above: 8192 입니다(한글 UTF-8 3 bytes 기준 Lucene 32766 byte term
+  한도 회피). 8192자를 넘는 note 는 .keyword 값이 아예 생성되지 않으므로,
+  정렬·정확 일치·중복 제거를 이 field 로 하면 긴 note 가 조용히 누락됩니다.
+  그런 용도에는 aufnr / doc_id 를 쓰십시오.
+
+  date 4종(down_dt, equp_dt, up_dt, hub_load_tm)만 명시 mapping 되어 있고,
+  나머지 column 은 dynamic mapping(text + .keyword, ignore_above 256)입니다.
+  새로 추가되는 ISO timestamp column 이 생기면 fab_inform_notes.py 의
+  DATE_FIELDS 에 넣고 재색인해야 date 로 잡힙니다 — dynamic date detection 은
+  yyyy/MM/dd 계열만 인식하므로 그대로 두면 text 가 됩니다.
