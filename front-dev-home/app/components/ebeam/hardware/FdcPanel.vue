@@ -88,11 +88,11 @@
           >{{ b.channel }}: {{ b.judgment }}</span>
         </div>
         <USelect
-          v-model="spmTs"
-          :items="spmTimestampItems"
+          v-model="spmCycleKey"
+          :items="spmCycleItems"
           size="xs"
           icon="i-lucide-clock"
-          class="w-56"
+          class="w-72"
         />
       </div>
       <div
@@ -148,7 +148,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { parseFdcValues, type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue } from '~/utils/fdcValues'
-import { stableYRange } from '~/utils/chartRange'
+import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -426,7 +426,11 @@ const chartOption = computed<EChartsOption>(() => {
     ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as TemperatureValue).temp })
   }
   const colors = [c0.value, c1.value, c2.value]
-  const tempAxis = stableYRange(Object.values(byPos).flat().map(r => r.temp)) ?? { scale: true }
+  // °C is an offset scale, so stableYRange's magnitude-based min span (~5°C
+  // around 23) drowns the ~0.6°C of real drift. tightYRange hugs the data
+  // (falling through to scale:true when it varies) and only guards the
+  // flat-series case, so trend changes stay legible.
+  const tempAxis = tightYRange(Object.values(byPos).flat().map(r => r.temp)) ?? { scale: true }
   return {
     grid: { left: 56, right: 16, top: 24, bottom: 52 },
     tooltip: { trigger: 'axis' },
