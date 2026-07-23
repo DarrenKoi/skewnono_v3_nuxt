@@ -38,3 +38,17 @@ def test_concurrent_increments_are_atomic():
     for t in threads:
         t.join()
     assert reg.get(jid)["done"] == 200 and reg.get(jid)["ok"] == 200
+
+
+def test_get_returns_isolated_snapshot():
+    reg = MemoryJobRegistry()
+    jid = reg.create(total=1)
+    reg.record_failure(jid, "a.jpeg", "boom")
+    snap = reg.get(jid)
+    snap["failures"].append({"name": "x", "error": "y"})
+    snap["failures"][0]["error"] = "mutated"
+    snap["done"] = 999
+    fresh = reg.get(jid)
+    assert len(fresh["failures"]) == 1
+    assert fresh["failures"][0]["error"] == "boom"
+    assert fresh["done"] == 1

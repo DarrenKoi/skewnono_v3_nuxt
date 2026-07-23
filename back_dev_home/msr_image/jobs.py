@@ -38,7 +38,11 @@ class MemoryJobRegistry:
     def get(self, job_id: str) -> DownloadJobStatus | None:
         with self._lock:
             st = self._jobs.get(job_id)
-            return dict(st) if st is not None else None  # copy: caller can't mutate state
+            if st is None:
+                return None
+            # Full snapshot: copy the nested failures list + each entry so a
+            # caller can't mutate internal state through the returned dict.
+            return {**st, "failures": [dict(f) for f in st["failures"]]}  # type: ignore[return-value]
 
     def record_ok(self, job_id: str) -> None:
         with self._lock:
