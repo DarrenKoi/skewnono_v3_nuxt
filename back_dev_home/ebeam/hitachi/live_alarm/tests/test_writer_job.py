@@ -168,3 +168,24 @@ def test_written_members_are_readable_by_the_reader():
     assert len(parsed) == 1
     assert parsed[0]["kind"] == "align"
     assert parsed[0]["id"] == parsed[0]["eqp_id"] + "|9006|" + parsed[0]["occurred_at"]
+
+
+def test_prune_below_board_window_is_refused(monkeypatch):
+    # The env override that actually takes effect must honour the same
+    # invariant contracts.py only asserts for the fixed constant: a prune
+    # horizon shorter than the reader's board window silently deletes visible
+    # history. run_once refuses rather than corrupt the board.
+    monkeypatch.setattr(job, "PRUNE_SEC", job.BOARD_WINDOW_SEC - 1)
+    client = FakeRedis()
+    with pytest.raises(ValueError):
+        job.run_once(fetch=lambda t, f, w: [_row()], client=client, fabs=FABS)
+    # And it refuses BEFORE writing anything.
+    events_key, meta_key = job.keys("cd-sem", "R3")
+    assert client.store_zset(events_key) == {}
+    assert client.get(meta_key) is None
+
+
+def test_prune_at_the_board_window_is_allowed(monkeypatch):
+    monkeypatch.setattr(job, "PRUNE_SEC", job.BOARD_WINDOW_SEC)
+    client = FakeRedis()
+    job.run_once(fetch=lambda t, f, w: [], client=client, fabs=FABS)  # must not raise

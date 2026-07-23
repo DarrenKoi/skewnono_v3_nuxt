@@ -17,7 +17,7 @@ from .normalize import (
     canonical_json,
     to_events,
 )
-from .window import compute_window
+from .window import BOARD_WINDOW_SEC, compute_window
 
 
 log = logging.getLogger(__name__)
@@ -87,6 +87,18 @@ def run_once(fetch=None, client=None, fabs=None) -> None:
     Total failure raises: the host's run log would otherwise record a
     successful execution while every fab is down.
     """
+    # A prune horizon shorter than the reader's board window would delete
+    # events the reader is still meant to show — silent gaps. The contracts.py
+    # assert only guards the fixed constant; this guards the env override that
+    # actually takes effect. Checked here, not at import, so a writer-only
+    # misconfiguration cannot break the reader's import of keys()/REGISTRY_KEY.
+    if PRUNE_SEC < BOARD_WINDOW_SEC:
+        raise ValueError(
+            f"LIVE_ALARM_PRUNE_SEC={PRUNE_SEC} is below the board window "
+            f"{BOARD_WINDOW_SEC}; the writer would delete events the reader "
+            f"still shows. Set it >= {BOARD_WINDOW_SEC}."
+        )
+
     if fetch is None or client is None or fabs is None:
         from . import office
         fetch = fetch or office.fetch_alarms

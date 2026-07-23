@@ -418,9 +418,16 @@ status = board.feed_status_for(meta, known, now=now)
 `STALE_AFTER_SEC` 보다 훨씬 길므로, writer 가 죽어도 레지스트리는 남아 `stale` 로
 올바르게 판정됩니다.
 
-`fab_name` 이 미지원이면 404 를 반환합니다. `tool_slug` 는 기존
-`resolve_tool_type_from_slug` 를 재사용하므로 CD-SEM 과 HV-SEM URL 이 함께
-생성되며, HV-SEM 피드가 사내에 없으면 `not_configured` 가 나옵니다.
+**미지원 `fab_name` 은 404 가 아니라 200 + `not_configured` 로 응답합니다**(개정).
+초안은 404 를 명시했지만, 그러려면 "존재하는 팹인지" 를 판정할 팹 로스터가 필요한데
+이 앱에는 그런 백엔드 로스터가 없고, 다른 팹 단위 기능들도 팹을 검증하지 않습니다.
+그리고 `not_configured` 상태가 404 보다 낫습니다 — 오류 페이지 대신, 내비게이션이
+유지된 채 "라이브 알람 미설정" 패널을 그려서 오타난 팹인지 아직 안 붙은 팹인지를
+사용자가 바로 알 수 있습니다. mock 과 office 어댑터가 이 동작을 동일하게 구현하여
+(mock 은 `_CONFIGURED_FABS`, office 는 레지스트리 멤버십으로 판정), 집과 사내에서
+같은 화면이 나옵니다. `tool_slug` 는 기존 `resolve_tool_type_from_slug` 를 재사용하므로
+CD-SEM 과 HV-SEM URL 이 함께 생성되며, HV-SEM 피드가 사내에 없어도 `not_configured`
+가 나옵니다. (400 은 여전히 두 경우에만: 미지원 `tool_slug`, 빈 `fab_name`.)
 
 ## 8. 프론트엔드
 

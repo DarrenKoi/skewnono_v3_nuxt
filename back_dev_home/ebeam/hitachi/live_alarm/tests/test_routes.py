@@ -31,3 +31,14 @@ def test_unknown_tool_slug_is_400(client):
 
 def test_missing_fab_name_is_400(client):
     assert client.get("/api/cdsem/live-alarm").status_code == 400
+
+
+def test_unconfigured_fab_is_200_not_configured(client):
+    # An unknown/unwired fab is not a 404: the endpoint answers 200 with
+    # feed_status="not_configured", so the page renders a clear "미설정" panel
+    # (nav intact) instead of an error page. Mock and office agree on this.
+    response = client.get("/api/cdsem/live-alarm?fab_name=ZZZ")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["feed_status"] == "not_configured"
+    assert body["events"] == []

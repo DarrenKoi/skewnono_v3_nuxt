@@ -56,18 +56,29 @@ def dedupe_by_id(events: Iterable[AlarmEvent]) -> list[AlarmEvent]:
 
 
 def parse_members(raw: Iterable[bytes]) -> list[AlarmEvent]:
-    """Decode ZSET members, skipping anything unreadable.
+    """Decode ZSET members, skipping anything unreadable OR wrong-shaped.
 
     The writer is deployed separately, so a partial rollout can leave a
     member this build cannot parse. Dropping that one member beats 500ing
     the endpoint — same leniency `flask_modules`' read_task_logs applies
     to malformed log entries.
+
+    Valid JSON is not enough: a member that decodes to a list, or to a dict
+    missing ``id``/``occurred_epoch``, would later raise in dedupe_by_id
+    (``.get`` on a list) or in the reader's sort (``e["occurred_epoch"]``).
+    Requiring those two keys here keeps the 500 from ever reaching the
+    endpoint; other absent fields degrade to blanks in the UI, not a crash.
     """
     out: list[AlarmEvent] = []
     for member in raw:
         try:
             text = member.decode("utf-8") if isinstance(member, bytes) else member
-            out.append(json.loads(text))
+            event = json.loads(text)
         except (UnicodeDecodeError, ValueError, TypeError):
             log.warning("dropping unparseable live_alarm member: %r", member[:120])
+            continue
+        if not isinstance(event, dict) or "id" not in event or "occurred_epoch" not in event:
+            log.warning("dropping wrong-shaped live_alarm member: %r", str(event)[:120])
+            continue
+        out.append(event)
     return out

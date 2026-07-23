@@ -50,16 +50,38 @@ def test_dedupe_is_deterministic_regardless_of_input_order():
 
 
 def test_parse_members_decodes_bytes():
-    raw = [b'{"id":"EQ1|9006|t","eqp_id":"EQ1"}']
-    assert board.parse_members(raw) == [{"id": "EQ1|9006|t", "eqp_id": "EQ1"}]
+    raw = [b'{"id":"EQ1|9006|t","occurred_epoch":1,"eqp_id":"EQ1"}']
+    assert board.parse_members(raw) == [
+        {"id": "EQ1|9006|t", "occurred_epoch": 1, "eqp_id": "EQ1"}
+    ]
 
 
 def test_parse_members_skips_a_broken_member():
     # The writer is a separate deployment; a partial schema rollout must not
     # take the whole endpoint down.
-    raw = [b'{"id":"ok"}', b'not json at all', b'{"id":"also-ok"}']
+    raw = [
+        b'{"id":"ok","occurred_epoch":1}',
+        b'not json at all',
+        b'{"id":"also-ok","occurred_epoch":2}',
+    ]
     assert [e["id"] for e in board.parse_members(raw)] == ["ok", "also-ok"]
 
 
 def test_parse_members_survives_every_member_being_broken():
     assert board.parse_members([b'{{{', b'}}}']) == []
+
+
+def test_parse_members_drops_a_non_dict_member():
+    # Valid JSON, wrong shape: a list would raise in dedupe_by_id's .get().
+    raw = [b'[1,2,3]', b'{"id":"ok","occurred_epoch":1}']
+    assert [e["id"] for e in board.parse_members(raw)] == ["ok"]
+
+
+def test_parse_members_drops_a_dict_missing_required_keys():
+    # Missing occurred_epoch would raise in the reader's sort key.
+    raw = [
+        b'{"id":"no-epoch"}',
+        b'{"occurred_epoch":1}',
+        b'{"id":"ok","occurred_epoch":1}',
+    ]
+    assert [e["id"] for e in board.parse_members(raw)] == ["ok"]

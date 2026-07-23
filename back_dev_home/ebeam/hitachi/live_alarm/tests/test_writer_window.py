@@ -2,6 +2,7 @@
 stalls longer than that window, and the heartbeat still reads fresh —
 so the loss is invisible. These tests pin the recovery behaviour."""
 
+from back_dev_home.ebeam.hitachi.live_alarm.writer import window
 from back_dev_home.ebeam.hitachi.live_alarm.writer.window import (
     BOARD_WINDOW_SEC,
     POLL_WINDOW_SEC,
@@ -53,3 +54,12 @@ def test_a_missing_events_key_forces_a_cold_start():
 def test_covered_since_matches_the_window():
     window, covered_since = compute_window(NOW - 75, events_key_exists=True, now=NOW)
     assert covered_since == NOW - window
+
+
+def test_poll_window_is_configurable(monkeypatch):
+    # POLL_WINDOW_SEC is read from LIVE_ALARM_POLL_WINDOW_SEC at import; the
+    # steady-state floor must reflect whatever value that produced, not a
+    # hardcoded 60. Patching the module constant proves it flows into the math.
+    monkeypatch.setattr(window, "POLL_WINDOW_SEC", 30)
+    steady, _ = compute_window(NOW - 5, events_key_exists=True, now=NOW)
+    assert steady == 30

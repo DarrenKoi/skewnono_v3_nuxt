@@ -8,8 +8,14 @@ not Python imports.
 
 from __future__ import annotations
 
+import os
+
 BOARD_WINDOW_SEC = 600
-POLL_WINDOW_SEC = 60
+# The steady-state poll window, overridable per deployment (documented in
+# .env.example). Read at import like job.py's LIVE_ALARM_PRUNE_SEC — this
+# module is copied to the scheduler service, so it reads its own env rather
+# than taking config from a host framework.
+POLL_WINDOW_SEC = int(os.environ.get("LIVE_ALARM_POLL_WINDOW_SEC", "60"))
 SLACK_SEC = 15  # one extra interval, so scheduler jitter cannot shave the edge
 
 __all__ = ["compute_window", "BOARD_WINDOW_SEC", "POLL_WINDOW_SEC"]

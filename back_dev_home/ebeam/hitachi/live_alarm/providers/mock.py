@@ -28,6 +28,14 @@ _ALIDS = ("9006", "9100")
 # Set SKEWNONO_LIVE_ALARM_MOCK_STALE=1 to see the "feed died" screen at home.
 _STALE_ENV = "SKEWNONO_LIVE_ALARM_MOCK_STALE"
 
+# Fabs the mock pretends have a live-alarm feed. A fab outside this set
+# resolves to "not_configured" — same status-body model the office reader
+# uses for a fab absent from the writer's registry. Keeping the mock and
+# office consistent here is the point: a typo'd or unwired fab must look the
+# same at home as at the office (a clear "미설정" panel), not a healthy board.
+# Visiting e.g. /ebeam/cd-sem/ZZZ/live-alarm renders that state at home.
+_CONFIGURED_FABS = frozenset({"R3", "M11", "M12", "M14", "M15", "M16A", "M16B"})
+
 
 def _text(epoch: int) -> str:
     return datetime.fromtimestamp(epoch, KST).strftime("%Y-%m-%d %H:%M:%S%z")
@@ -63,6 +71,21 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     import os
 
     now = int(time.time())
+
+    # An unconfigured fab: no feed, no heartbeat — the panel says "미설정",
+    # not a healthy empty board. This is how a typo'd fab surfaces.
+    if fab_name.upper() not in _CONFIGURED_FABS:
+        return {
+            "fab_name": fab_name,
+            "tool_type": tool_type,
+            "feed_status": "not_configured",
+            "polled_at": None,
+            "covered_since": None,
+            "server_now": _iso(now),
+            "board_window_sec": BOARD_WINDOW_SEC,
+            "events": [],
+        }
+
     stale = os.environ.get(_STALE_ENV, "").strip().lower() in {"1", "true", "yes"}
     # Vary the count by minute so the board visibly changes during development.
     count = (now // 60) % 4
