@@ -15,8 +15,9 @@ selected differently — do not conflate them:
   OpenRouter(home) ↔ 사내 게이트웨이(office)가 동일한 `llm.send_chat` 경로를
   사용하므로, 기능 검증은 게이트웨이와 무관합니다. 2026-07-23 로컬에서 OpenRouter로
   기능 전체(모델 목록·스레드 CRUD·멀티턴 기억·재시작 후 영속성·업스트림 오류 처리)를
-  검증 완료했습니다. 사내 게이트웨이 실연결은 사내망에서만 확인할 수 있습니다(집
-  네트워크에서는 호스트가 DNS에 없어 도달 불가).
+  검증 완료했습니다. **2026-07-23 사내망에서 사내 게이트웨이(HCP) 실연결도 검증
+  완료했습니다** — API 연결과 채팅 응답 모두 정상 동작합니다. Surface A는 이제
+  home(OpenRouter)·office(HCP) 양쪽에서 실검증된 상태입니다.
 - **스레드 저장소(Surface B):** 미구현입니다. `providers/office_example.py`는 아직
   모든 함수가 `NotImplementedError`를 던지는 뼈대입니다. 승인된 데이터 플랫폼에
   연결하기 전에는 office 저장소 모드를 선택하지 마십시오. chat 페이지는 현재 parked
