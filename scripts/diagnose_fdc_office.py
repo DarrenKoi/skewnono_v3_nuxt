@@ -209,7 +209,13 @@ def check_eqp_ids(search: OSSearch, tool: str) -> None:
                 continue
             keys = [b["key"] for b in buckets]
             print(f"  terms on {field!r}: {len(keys)} values")
-            print(f"    {', '.join(f'{b['key']}({b['doc_count']})' for b in buckets[:15])}")
+            # Built outside the f-string: a nested f-string reusing the same
+            # quote type is a SyntaxError before Python 3.12, and the office
+            # interpreter is older than that.
+            preview = ", ".join(
+                f"{b['key']}({b['doc_count']})" for b in buckets[:15]
+            )
+            print(f"    {preview}")
             print(f"    {tool!r} present: {tool in keys}")
         except Exception as exc:
             _fail(f"terms agg on {field}", exc)
