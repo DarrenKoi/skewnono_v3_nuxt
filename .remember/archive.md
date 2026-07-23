@@ -1,7 +1,7 @@
 # Archive
 
 ## Week of 2026-07-14
-Shipped X-ID (14+ tests, 8-agent review), skewvoir (177 tests), AFM Sub-proj A (415 tests E2E), Chat backend (102 tests). Infrastructure: major office/home provider refactor (11 SKEWNONO_*_PROVIDER vars, 3-layer CLAUDE.md, office_example.py pattern), herdr hooks, TDD egress-guards (10 MIGRATION.md docs). Dashboard redesign (RadiusPlot, nav), skewvoir Phase B (wafer map, 236 tests), AFM A–D (458 tests). Pruned 42 specs, swept fonts, Tailscale remote.
+Shipped X-ID (14+ tests, 8-agent review), skewvoir (177 tests), AFM Sub-proj A (415 tests E2E), Chat backend (102 tests). Infrastructure: major office/home provider refactor (11 SKEWNONO_*_PROVIDER vars, 3-layer CLAUDE.md, office_example.py pattern), Ports & Adapters analysis for provider layer, herdr hooks, TDD egress-guards (10 MIGRATION.md docs). Dashboard redesign (RadiusPlot, nav), skewvoir Phase B (wafer map, 236 tests), AFM A–D (458 tests). Pruned 42 specs, swept fonts, Tailscale remote.
 
 ## Week of 2026-07-07
 Built office transition skills (/leave-office, /back-to-office); extended MSR file FDC mock with functional SkewvoirView integration. Swept design compliance: recipe-tat fonts (--sk-ink normalization), 장비상태 UI (40 NuxtUI tokens), echarts 6.1.0 CD outlier detection (97 tests). Designed BM/PM overlay + MDC time series redesign (10 subagent tasks); refactored recipe tables; switched to Tailscale remote dev.
