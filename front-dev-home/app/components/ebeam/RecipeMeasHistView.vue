@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import type { SortingFn, SortingState } from '@tanstack/vue-table'
 import type { Fab } from '~/stores/navigation'
 import type {
   MeasHistResponse,
@@ -78,29 +79,66 @@ const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso)
 
 // Column order encodes priority: identity → 측정 상태(signal) → 참고용 context.
 // The signal block (msr/align/images/fail/ratio) is what you actually scan for,
-// so it sits left of lot_id/class/meas(s), which are only needed once a row
-// already looks suspicious. Dividers mark the three blocks.
+// so it sits left of lot_id/meas(s), which are only needed once a row already
+// looks suspicious. Dividers mark the three blocks.
+//
+// class sits immediately left of recipe because the two are one name split in
+// half — full_name is literally `class/recipe` (ADI/ADI_CD_BIAS_001). Parking
+// class over in the context block made the reader reassemble it across the
+// whole table width.
 const BLOCK_START = 'border-l border-(--sk-border)'
 const CONTEXT_COL = 'text-(--sk-ink-muted)'
+
+// Fail is the reason anyone sorts this column, so rank by severity rather than
+// alphabetically — 'Fail' < 'NA' < 'Pass' as strings would bury it in the middle.
+const ALIGN_SEVERITY: Record<string, number> = { Fail: 2, NA: 1, Pass: 0 }
+const sortAlignBySeverity: SortingFn<MeasHistRow> = (rowA, rowB) =>
+  (ALIGN_SEVERITY[rowA.original.align_fail] ?? -1) - (ALIGN_SEVERITY[rowB.original.align_fail] ?? -1)
+
+// Sortable columns are the measurement outcome ones: you sort them to find the
+// worst rows, never the best, so the first click goes descending
+// (`sortDescFirst`). A third click drops the sort and restores 최신순.
+const SORTABLE_IDS = ['align_fail', 'total_images', 'fail_images', 'fail_ratio', 'meastime'] as const
 
 const columns: TableColumn<MeasHistRow>[] = [
   { accessorKey: 'timestamp', header: 'timestamp', size: 138 },
   { accessorKey: 'eqp_id', header: 'eqp_id', size: 112 },
+  { accessorKey: 'class_name', header: 'class', size: 74 },
   { accessorKey: 'recipe_name', header: 'recipe', size: 240 },
   { accessorKey: 'msr_check', header: 'msr', size: 82, meta: { class: { td: BLOCK_START, th: BLOCK_START } } },
-  { accessorKey: 'align_fail', header: 'align', size: 90 },
-  { accessorKey: 'total_images', header: 'images', size: 88 },
-  { accessorKey: 'fail_images', header: 'fail', size: 78 },
-  { accessorKey: 'fail_ratio', header: 'ratio', size: 92 },
+  { accessorKey: 'align_fail', header: 'align', size: 96, sortDescFirst: true, sortingFn: sortAlignBySeverity },
+  { accessorKey: 'total_images', header: 'images', size: 96, sortDescFirst: true },
+  { accessorKey: 'fail_images', header: 'fail', size: 88, sortDescFirst: true },
+  { accessorKey: 'fail_ratio', header: 'ratio', size: 100, sortDescFirst: true },
   {
     accessorKey: 'lot_id',
     header: 'lot_id',
     size: 128,
     meta: { class: { td: `${BLOCK_START} ${CONTEXT_COL}`, th: BLOCK_START } }
   },
-  { accessorKey: 'class_name', header: 'class', size: 78, meta: { class: { td: CONTEXT_COL } } },
-  { accessorKey: 'meastime', header: 'meas(s)', size: 84, meta: { class: { td: CONTEXT_COL } } }
+  { accessorKey: 'meastime', header: 'meas(s)', size: 96, sortDescFirst: true, meta: { class: { td: CONTEXT_COL } } }
 ]
+
+// Empty by default so rows keep the API's 최신순 order until the user sorts.
+const sorting = ref<SortingState>([])
+
+const getSortIcon = (direction: false | 'asc' | 'desc') => {
+  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
+  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
+  return 'i-lucide-arrow-up-down'
+}
+
+// The section title used to read "(최신순)" unconditionally, which stops being
+// true the moment a column is sorted. Header text is read back off the column
+// defs so the title can never drift from what the header button says.
+const sortLabel = computed(() => {
+  const active = sorting.value[0]
+  if (!active) return '최신순'
+
+  const column = columns.find(candidate => 'accessorKey' in candidate && candidate.accessorKey === active.id)
+  const header = typeof column?.header === 'string' ? column.header : active.id
+  return `${header} ${active.desc ? '내림차순' : '오름차순'}`
+})
 
 // Local override rather than editing `recipeTableUi` — that preset is shared with
 // 횡전개 and AlignPopup, which shouldn't inherit this view's larger body text.
@@ -207,7 +245,7 @@ const tableUi = {
     >
       <div class="mb-3 flex items-center justify-between gap-3">
         <h2 class="sk-title">
-          측정 이력 (최신순)
+          측정 이력 ({{ sortLabel }})
         </h2>
         <span class="sk-meta">
           {{ rows.length.toLocaleString() }} rows
@@ -215,12 +253,31 @@ const tableUi = {
       </div>
 
       <UTable
+        v-model:sorting="sorting"
         class="font-mono-ids"
         :columns="columns"
         :data="rows"
+        :sorting-options="{ enableMultiSort: false }"
         sticky="header"
         :ui="tableUi"
       >
+        <template
+          v-for="id in SORTABLE_IDS"
+          :key="id"
+          #[`${id}-header`]="{ column }"
+        >
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted) hover:text-(--sk-ink)"
+            :trailing-icon="getSortIcon(column.getIsSorted())"
+            @click="column.toggleSorting()"
+          >
+            {{ column.columnDef.header }}
+          </UButton>
+        </template>
+
         <template #timestamp-cell="{ row }">
           <span class="font-mono text-[13px] tabular-nums text-zinc-700 dark:text-zinc-300">
             {{ formatTimestamp(row.original.timestamp) }}
@@ -230,6 +287,12 @@ const tableUi = {
         <template #eqp_id-cell="{ row }">
           <span class="font-mono text-[13px] font-semibold text-zinc-900 dark:text-zinc-50">
             {{ row.original.eqp_id }}
+          </span>
+        </template>
+
+        <template #class_name-cell="{ row }">
+          <span class="font-mono text-[13px] text-(--sk-ink-muted)">
+            {{ row.original.class_name }}
           </span>
         </template>
 
@@ -284,12 +347,6 @@ const tableUi = {
         <template #lot_id-cell="{ row }">
           <span class="font-mono text-[11px] text-(--sk-ink-muted)">
             {{ row.original.lot_id }}
-          </span>
-        </template>
-
-        <template #class_name-cell="{ row }">
-          <span class="text-[11px] text-(--sk-ink-muted)">
-            {{ row.original.class_name }}
           </span>
         </template>
 
