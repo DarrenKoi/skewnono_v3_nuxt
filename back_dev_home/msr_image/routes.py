@@ -11,7 +11,7 @@ from back_dev_home.msr_image.cache import make_cache
 from back_dev_home.msr_image.config import load_config
 from back_dev_home.msr_image.contracts import ImageListResponse, ImageLocator
 from back_dev_home.msr_image.errors import MsrImageError
-from back_dev_home.msr_image.jobs import default_registry
+from back_dev_home.msr_image.jobs import make_registry
 from back_dev_home.msr_image.paths import validate_locator, validate_segment, validate_tool_ip
 
 bp = Blueprint("msr_image", __name__)
@@ -94,14 +94,16 @@ def serve_image_route():
     return Response(fetched.data, mimetype=fetched.content_type, headers=headers)
 
 
-def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency):
+def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency, registry):
     """Own the whole tool round-trip: list, then fetch.
 
     The listing lives here rather than in the request handler because office-side
     it is an FTP call to the tool — the slowest step — and the client should not
     hold a connection open waiting for it. The job exists before this runs, so
-    both the size and any failure are reported through polling."""
-    registry = default_registry()
+    both the size and any failure are reported through polling.
+
+    ``registry`` is handed in rather than resolved here: this thread has no app
+    context, and the poll must read back the very store the POST wrote to."""
 
     def on_file(name, fetched, error):
         if fetched is not None:
@@ -133,7 +135,7 @@ def download_all_route():
         return jsonify({"error": "eqp_ip, class_name, msr are required"}), 400
 
     cfg = load_config()
-    registry = default_registry()
+    registry = make_registry(cfg, data.provider_name())
     # Cheap fast-path: refuse before the (slow) FTP listing when already at cap.
     # The authoritative gate is the atomic create_bounded below (spec §9).
     if registry.running_count() >= cfg.max_jobs:
@@ -156,7 +158,7 @@ def download_all_route():
         return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
     thread = threading.Thread(
         target=_run_download,
-        args=(eqp_ip, class_name, msr, job_id, cache, cfg.ftp_concurrency),
+        args=(eqp_ip, class_name, msr, job_id, cache, cfg.ftp_concurrency, registry),
         daemon=True,
     )
     thread.start()
@@ -165,7 +167,7 @@ def download_all_route():
 
 @bp.get("/msr-images/<job_id>")
 def poll_job_route(job_id: str):
-    st = default_registry().get(job_id)
+    st = make_registry(load_config(), data.provider_name()).get(job_id)
     if st is None:
         return jsonify({"error": "unknown job", "code": "unknown_job"}), 404
     return jsonify(st)

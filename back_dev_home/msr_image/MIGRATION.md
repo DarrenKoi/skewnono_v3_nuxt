@@ -48,6 +48,9 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | `SKEWNONO_TOOL_SUBNETS` | 허용 서브넷 CIDR 목록(쉼표 구분); SSRF 가드용 IP 검증에 사용 | 빈 값(제한 없음) |
 | `SKEWNONO_IMAGE_CACHE_BUCKET` | MinIO 캐시 버킷 | 없음(office에서 필수 설정) |
 | `SKEWNONO_IMAGE_CACHE_PREFIX` | MinIO 캐시 오브젝트 키 prefix | `image_cache/` |
+| `SKEWNONO_MSR_IMAGE_MAX_JOBS` | 동시 실행 가능한 다운로드 job 수 | `2` |
+| `SKEWNONO_MSR_IMAGE_JOB_TTL` | job 상태 보존 시간(초); Redis 키 TTL로도 사용 | `3600` |
+| `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` | multi-worker job 상태 저장소; 설정 시에만 Redis 레지스트리 선택 | 없음 |
 
 ## MinIO 캐시 prefix 주의사항
 
@@ -71,18 +74,69 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
   재차 잘못 resolve해 아무것도 지우지 못하는(에러 없이 조용히 실패하는)
   상황이 생깁니다. `msr_file` MIGRATION.md에 기록된 동일 함정을 참고하십시오.
 
-## 후속 과제 1: Redis 기반 JobRegistry (multi-worker)
+## job 상태 저장소 (multi-worker)
 
-- `jobs.py`의 `MemoryJobRegistry`는 프로세스 메모리에 job 상태를 보관합니다.
-  home(단일 프로세스)에서는 문제가 없지만, office가 `gunicorn -w N`으로
-  여러 워커 프로세스를 띄우면 `download_all` job을 생성한 워커와 상태를
-  폴링하는 워커가 다를 수 있어 상태가 유실됩니다.
-- office 전용 후속 작업으로 `JobRegistry` Protocol을 구현하는
-  Redis 기반 레지스트리(`RedisJobRegistry` 등)를 추가해야 합니다. 키는
-  `job_id`로 네임스페이스하고, `job_ttl`(`SKEWNONO_MSR_IMAGE_JOB_TTL`)을
-  Redis TTL로도 걸어 두어 오래된 job 상태가 무한히 쌓이지 않도록 합니다.
-- 이 작업은 **office 전용**입니다. mock/home은 단일 프로세스이므로
-  `MemoryJobRegistry`를 그대로 유지합니다.
+`POST /api/msr-images`가 만든 job의 상태를 어디에 두는지는 `jobs.py`의
+`make_registry(cfg, provider)`가 결정합니다. 선택 조건은 **두 가지가 모두**
+참일 때만 Redis입니다.
+
+| 조건 | 저장소 | 이유 |
+| --- | --- | --- |
+| provider가 `office`이고 `REDIS_HOST`가 설정됨 | `RedisJobRegistry` | 요청이 다른 프로세스에 도달할 수 있음 |
+| 그 외 전부 | `MemoryJobRegistry` | 단일 프로세스이므로 외부 의존성이 불필요함 |
+
+office라는 사실만으로는 부족합니다. Redis 없이 단일 워커로 띄운 office
+인스턴스도 그대로 동작해야 하기 때문입니다. 반대로 `REDIS_HOST`만 있는 것도
+근거가 되지 못합니다. home에서도 다른 기능 때문에 `REDIS_*`가 설정되어 있을 수
+있기 때문입니다.
+
+`gunicorn -w N`으로 띄우면 `POST`를 받은 워커와 폴링을 받는 워커가 서로 다른
+프로세스일 수 있습니다. 이때 job 상태가 프로세스 메모리에 있으면 옆 워커에서
+정상 실행 중인 job을 폴링이 404로 응답하게 됩니다. `RedisJobRegistry`는 그
+상태를 모든 워커가 이미 공유하는 Redis로 옮깁니다.
+
+### 키 레이아웃
+
+```text
+skewnono:msr_image:job:<job_id>    HASH   job_id status total done ok ng
+skewnono:msr_image:fail:<job_id>   LIST   실패 건당 JSON {name, error}
+```
+
+- 실패 목록은 `:failures` 접미사가 아니라 **별도 prefix**를 씁니다.
+  `running_count()`의 job 스캔이 리스트 키를 집어 들면 `HGET`이 WRONGTYPE
+  오류를 내기 때문입니다.
+- 카운터는 read-modify-write가 아니라 `HINCRBY`로 증가시킵니다. bounded
+  다운로드 풀의 여러 스레드가 같은 job을 동시에 갱신하므로, get/put 경합이
+  생기면 진행 카운트가 조용히 유실됩니다.
+- 모든 키에 `SKEWNONO_MSR_IMAGE_JOB_TTL`(기본 3600초)을 걸고 갱신할 때마다
+  다시 설정합니다. 따라서 완료된 job은 스스로 사라지고, 다운로드 도중 죽은
+  워커가 `max_jobs` 슬롯을 영구히 점유하지 못합니다.
+
+### 주의: `create_bounded`는 원자적이지 않습니다
+
+메모리 구현과 달리 Redis 쪽 `create_bounded`는 "개수 확인 → 생성"이 한 번의
+원자적 연산이 아닙니다. 두 워커가 같은 순간에 `POST`를 받으면 둘 다 통과할 수
+있습니다. 이는 soft 자원 가드로서 **허용된 초과**입니다. 최악의 경우 동시
+다운로드가 몇 개 늘어날 뿐이고, job 키가 TTL로 만료되므로 슬롯이 새지 않고
+스스로 복구됩니다. 엄밀한 원자성은 Lua 스크립트가 필요한데, 얻는 것에 비해
+home에서 검증할 수 없다는 비용이 큽니다.
+
+home/mock은 단일 프로세스이므로 `MemoryJobRegistry`를 그대로 유지합니다.
+
+## 비동기 다운로드 시작 (202)
+
+`POST /api/msr-images`는 디렉터리 리스팅을 **기다리지 않고** 즉시
+`202 {job_id}`를 반환합니다. 리스팅은 장비 FTP 왕복이라 요청 경로에서 가장
+느린 단계이기 때문입니다. office 어댑터를 만들 때 다음을 유의하십시오.
+
+- `list_images`는 요청 스레드가 아니라 백그라운드 워커에서 호출됩니다.
+- job은 리스팅 **전에** 생성되므로 `total`이 `0`(미확정)으로 시작하고,
+  리스팅이 끝난 뒤 워커가 실제 개수로 채웁니다.
+- 따라서 `list_images`가 `SourceUnavailable`을 던져도 `POST`가 503을 주지
+  않습니다. 클라이언트는 이미 `job_id`를 받았기 때문에, 그 실패는 폴링
+  응답의 `status: "error"`로 드러납니다. 절대 `done`으로 끝나서는 안 됩니다.
+  `done`은 클라이언트가 "이미지가 0장인 성공"으로 읽기 때문입니다.
+- IP 검증·경로 세그먼트 검증은 그대로 요청 경로에 남아 동기 400을 반환합니다.
 
 ## 후속 과제 2 (선택): 태그 기반 native lifecycle
 

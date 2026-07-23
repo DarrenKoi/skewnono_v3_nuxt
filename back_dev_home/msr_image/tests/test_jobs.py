@@ -1,6 +1,7 @@
 import threading
 
-from back_dev_home.msr_image.jobs import MemoryJobRegistry
+from back_dev_home.msr_image.config import load_config
+from back_dev_home.msr_image.jobs import MemoryJobRegistry, default_registry, make_registry
 
 
 def test_lifecycle_counts():
@@ -96,3 +97,41 @@ def test_set_total_ignores_unknown_job():
     # Same no-op-on-missing contract as the other mutators: a job that expired
     # mid-download must not resurrect or explode in the worker thread.
     MemoryJobRegistry().set_total("nope", 3)
+
+
+# ── Registry selection ───────────────────────────────────────────────────────
+# Shared job state is only needed where requests can land on different
+# processes. Home is one process, so it stays on memory and needs no Redis.
+
+
+def test_make_registry_home_is_the_process_memory_singleton(monkeypatch):
+    monkeypatch.delenv("REDIS_HOST", raising=False)
+    reg = make_registry(load_config({}), provider="mock")
+    # Same object as default_registry(): the POST handler, the worker thread and
+    # the poll handler must all observe one dict.
+    assert reg is default_registry()
+
+
+def test_make_registry_office_without_redis_stays_memory(monkeypatch):
+    # Readiness is two questions. An office adapter alone doesn't imply a
+    # multi-worker deploy, and inventing a Redis dependency would break a
+    # single-worker office run that has none configured.
+    monkeypatch.delenv("REDIS_HOST", raising=False)
+    assert make_registry(load_config({}), provider="office") is default_registry()
+
+
+def test_make_registry_office_with_redis_is_redis_backed(monkeypatch):
+    from back_dev_home.msr_image.redis_jobs import RedisJobRegistry
+
+    monkeypatch.setenv("REDIS_HOST", "redis.invalid")
+    cfg = load_config({"SKEWNONO_MSR_IMAGE_JOB_TTL": "900"})
+    reg = make_registry(cfg, provider="office")
+    assert isinstance(reg, RedisJobRegistry)
+    assert reg.job_ttl == 900  # SKEWNONO_MSR_IMAGE_JOB_TTL drives key expiry
+
+
+def test_selecting_the_redis_registry_does_not_connect(monkeypatch):
+    # Construction must stay lazy (same contract as MinioImageCache): an
+    # unreachable host may not blow up until something is actually stored.
+    monkeypatch.setenv("REDIS_HOST", "redis.invalid")
+    make_registry(load_config({}), provider="office")

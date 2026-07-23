@@ -1,6 +1,7 @@
 """Download-all job state. We own the observable state (memory at home / single
 worker; Redis keys across office workers); ftp_handler/threads only execute."""
 
+import os
 import threading
 import uuid
 from typing import Protocol
@@ -111,4 +112,23 @@ _DEFAULT_REGISTRY = MemoryJobRegistry()
 
 def default_registry() -> MemoryJobRegistry:
     """Process-wide registry so route handlers and the worker thread share state."""
+    return _DEFAULT_REGISTRY
+
+
+def make_registry(cfg, provider: str) -> JobRegistry:
+    """Pick the job store that matches how this instance is deployed.
+
+    Job state only has to leave the process when requests can land on a
+    different one. That needs both halves to be true: an office adapter is
+    active AND Redis is configured. Office alone is not enough — a single-worker
+    office run with no Redis must keep working — and Redis alone says nothing,
+    since a home instance may have REDIS_* set for other features.
+
+    ``cfg`` is an ImageConfig, typed loosely to avoid a config import cycle.
+    """
+    if provider == "office" and os.environ.get("REDIS_HOST"):
+        # Office-only import: the home boot path never pulls this in.
+        from back_dev_home.msr_image.redis_jobs import RedisJobRegistry
+
+        return RedisJobRegistry(job_ttl=cfg.job_ttl)
     return _DEFAULT_REGISTRY

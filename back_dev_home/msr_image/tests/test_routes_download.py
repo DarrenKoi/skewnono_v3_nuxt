@@ -124,6 +124,34 @@ def test_listing_failure_ends_the_job_in_error(app, monkeypatch):
     assert _wait_settled(client, job_id)["status"] == "error"
 
 
+def test_routes_use_the_selected_registry(app, monkeypatch):
+    """Every route must resolve its registry through make_registry.
+
+    Hardcoding the process-memory singleton would leave the office Redis
+    registry unreachable no matter how the instance is configured. Swapping in
+    a distinct registry proves all three touch points route through the
+    selector: the POST that mints the job, the worker thread that counts, and
+    the poll that reads it back.
+    """
+    from back_dev_home.msr_image import routes as routes_mod
+    from back_dev_home.msr_image.jobs import MemoryJobRegistry
+
+    selected = MemoryJobRegistry()
+    monkeypatch.setattr(routes_mod, "make_registry", lambda cfg, provider: selected)
+
+    client = app.test_client()
+    r = client.post(
+        "/api/msr-images", json={"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1"}
+    )
+    assert r.status_code == 202
+    job_id = r.get_json()["job_id"]
+
+    assert selected.get(job_id) is not None, "job was minted somewhere else"
+    st = _wait_done(client, job_id)  # polled back out of the selected registry
+    assert st["ok"] >= 1
+    assert selected.get(job_id)["status"] == "done"  # worker counted here too
+
+
 def test_download_all_rejects_at_max_jobs(app, monkeypatch):
     # max_jobs=0 → running_count() (>=0) always trips the cap, so a new job is
     # refused with 429 (spec §9 SKEWNONO_MSR_IMAGE_MAX_JOBS).
