@@ -17,7 +17,7 @@ _COND_META = "x-msr-cond"
 _TYPE_META = "x-msr-content-type"
 
 
-def _default_client(bucket, prefix):
+def _default_client(bucket):
     # Lazy: office-only dependency, keeps home boot free of minio_handler.
     from minio_handler import MinioObject
 
@@ -37,7 +37,7 @@ class MinioImageCache:
     def __init__(self, bucket, prefix="image_cache/", client_factory: Callable[[], object] | None = None):
         self.bucket = bucket
         self.prefix = prefix if prefix.endswith("/") else prefix + "/"
-        self._factory = client_factory or (lambda: _default_client(bucket, self.prefix))
+        self._factory = client_factory or (lambda: _default_client(bucket))
         self._client = None
 
     @property

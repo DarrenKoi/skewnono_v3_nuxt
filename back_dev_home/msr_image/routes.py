@@ -4,7 +4,7 @@ the data seam, caches, and relays. Office knowledge is only in providers/office.
 import threading
 from urllib.parse import quote
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
 from back_dev_home.msr_image import data
 from back_dev_home.msr_image.cache import make_cache
@@ -19,6 +19,21 @@ bp = Blueprint("msr_image", __name__)
 
 def _error(exc: MsrImageError):
     return jsonify({"error": str(exc) or exc.code, "code": exc.code}), exc.status
+
+
+def _get_cache(cfg):
+    """One ImageCache per (app, provider). The gallery fans out many image GETs;
+    rebuilding the backend — and, office-side, a fresh MinIO SDK client with its
+    own connection pool — on every request is wasted work. Cached on
+    ``current_app.extensions`` so it's per-app-instance (test-isolated)."""
+    provider = data.provider_name()
+    key = f"msr_image_cache::{provider}"
+    ext = current_app.extensions
+    cache = ext.get(key)
+    if cache is None:
+        cache = make_cache(cfg, provider)
+        ext[key] = cache
+    return cache
 
 
 def _require(*names: str) -> dict[str, str] | None:
@@ -65,7 +80,7 @@ def serve_image_route():
         return _error(exc)
 
     locator = ImageLocator(args["eqp_ip"], args["class_name"], args["msr"], args["name"])
-    cache = make_cache(cfg, data.provider_name())
+    cache = _get_cache(cfg)
     fetched = cache.get(locator)
     if fetched is None:
         try:
@@ -80,9 +95,7 @@ def serve_image_route():
     return Response(fetched.data, mimetype=fetched.content_type, headers=headers)
 
 
-def _run_download(app, eqp_ip, class_name, msr, names, job_id):
-    cfg = load_config()
-    cache = make_cache(cfg, data.provider_name())
+def _run_download(eqp_ip, class_name, msr, names, job_id, cache, concurrency):
     registry = default_registry()
 
     def on_file(name, fetched, error):
@@ -93,7 +106,7 @@ def _run_download(app, eqp_ip, class_name, msr, names, job_id):
             registry.record_failure(job_id, name, error or "unknown error")
 
     try:
-        data.download_all(eqp_ip, class_name, msr, names, on_file, cfg.ftp_concurrency)
+        data.download_all(eqp_ip, class_name, msr, names, on_file, concurrency)
     finally:
         registry.finish(job_id)
 
@@ -114,11 +127,12 @@ def download_all_route():
     except MsrImageError as exc:
         return _error(exc)
 
+    cache = _get_cache(cfg)
     registry = default_registry()
     job_id = registry.create(total=len(names))
     thread = threading.Thread(
         target=_run_download,
-        args=(None, eqp_ip, class_name, msr, names, job_id),
+        args=(eqp_ip, class_name, msr, names, job_id, cache, cfg.ftp_concurrency),
         daemon=True,
     )
     thread.start()

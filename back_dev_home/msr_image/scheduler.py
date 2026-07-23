@@ -19,6 +19,13 @@ def purge_now(cfg: ImageConfig | None = None) -> int:
 
 
 def start_purge_scheduler(app):
+    # Idempotent + test-safe: create_app() runs many times across a test suite
+    # (and under the dev reloader). Starting a fresh BackgroundScheduler each
+    # time would accumulate live threads all firing purge_now. Skip under
+    # testing, and never start a second one on the same app.
+    if app.testing or "msr_image_scheduler" in app.extensions:
+        return app.extensions.get("msr_image_scheduler")
+
     from apscheduler.schedulers.background import BackgroundScheduler
 
     cfg = load_config()

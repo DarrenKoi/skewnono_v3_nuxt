@@ -17,15 +17,8 @@ export const useMsrImageApi = () => {
   const q = (eqp_ip: string, class_name: string, msr: string) =>
     `eqp_ip=${encodeURIComponent(eqp_ip)}&class_name=${encodeURIComponent(class_name)}&msr=${encodeURIComponent(msr)}`
 
-  const imageListUrl = (eqp_ip: string, class_name: string, msr: string) =>
-    `${joinApiPath(base, '/msr-images')}?${q(eqp_ip, class_name, msr)}`
-
   const imageUrl = (eqp_ip: string, class_name: string, msr: string, name: string) =>
     `${joinApiPath(base, '/msr-image')}?${q(eqp_ip, class_name, msr)}&name=${encodeURIComponent(name)}`
-
-  const fetchImageList = async (eqp_ip: string, class_name: string, msr: string) => {
-    return await $fetch<{ images: string[], total: number }>(imageListUrl(eqp_ip, class_name, msr))
-  }
 
   const fetchImageWithCond = async (eqp_ip: string, class_name: string, msr: string, name: string) => {
     const res = await fetch(imageUrl(eqp_ip, class_name, msr, name))
@@ -46,5 +39,5 @@ export const useMsrImageApi = () => {
   const pollJob = async (job_id: string) =>
     await $fetch<DownloadJobStatus>(`${joinApiPath(base, '/msr-images')}/${encodeURIComponent(job_id)}`)
 
-  return { imageListUrl, imageUrl, fetchImageList, fetchImageWithCond, startDownloadAll, pollJob }
+  return { imageUrl, fetchImageWithCond, startDownloadAll, pollJob }
 }

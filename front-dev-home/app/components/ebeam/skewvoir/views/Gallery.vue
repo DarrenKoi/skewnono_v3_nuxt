@@ -215,7 +215,7 @@ watch(focusCtx, () => {
   stopPolling()
   downloadStatus.value = null
   downloading.value = false
-}, { deep: true })
+})
 
 // ── SINGLE scope: the review queue ───────────────────────────────────────────
 const queue = computed(() =>
