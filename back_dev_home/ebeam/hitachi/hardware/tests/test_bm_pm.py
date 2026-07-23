@@ -71,3 +71,74 @@ def test_derive_cards_uses_the_most_recent_past_bm():
         {"category": "BM", "job_starts": "2026-05-01 08:00", "job_end": "2026-05-01 12:00"},
     ]
     assert derive_cards(past, [])["last_bm"] == "2026-05-11 12:00"
+
+
+import re
+
+from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm import mock as bm_pm_mock
+
+ANCHOR = datetime(2026, 5, 20, 9, 0)
+
+PAST_KEYS = {
+    "eqp_id", "job_starts", "job_end", "category", "pm_type", "eq_event",
+    "lot_id", "last_recipe_id", "note_comment", "zzproblem", "hltext",
+    "timestamp", "engr_note",
+}
+FUTURE_KEYS = {
+    "eqp_id", "job_starts", "job_end", "category", "event_name",
+    "work_item_nm", "work_user_cd", "timestamp",
+}
+
+
+def test_mock_past_rows_carry_the_full_key_set():
+    data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    assert data["past"], "mock should fabricate past work for any tool"
+    for row in data["past"]:
+        assert set(row) == PAST_KEYS
+
+
+def test_mock_future_rows_carry_the_full_key_set():
+    # Seeded so this tool has planned work; build_future_frame can return none.
+    data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    for row in data["future"]:
+        assert set(row) == FUTURE_KEYS
+
+
+def test_mock_rows_use_the_chart_timestamp_format():
+    # bmPmMarkers.ts matches these against the charts' x-axis values.
+    data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    for row in data["past"]:
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", row["job_starts"])
+        assert row["job_end"] == "" or re.fullmatch(
+            r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", row["job_end"]
+        )
+
+
+def test_mock_past_is_newest_first_and_future_is_soonest_first():
+    data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    starts = [row["job_starts"] for row in data["past"]]
+    assert starts == sorted(starts, reverse=True)
+    plans = [row["job_starts"] for row in data["future"]]
+    assert plans == sorted(plans)
+
+
+def test_mock_is_deterministic_for_a_tool_and_anchor():
+    first = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    second = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    assert first == second
+
+
+def test_mock_produces_some_unclassifiable_rows_for_the_ui_to_render():
+    # Real pm_type/eq_event do not always say BM or PM. The mock must exercise
+    # that path so the "" category is visible at home, not only at the office.
+    seen = set()
+    for tool in ("CDX001", "CDX002", "CDX003", "HVX010", "HVX011"):
+        for row in bm_pm_mock.build_bm_pm_data(tool, ANCHOR)["past"]:
+            seen.add(row["category"])
+    assert seen >= {"BM", "PM", ""}
+
+
+def test_mock_engr_note_merges_the_populated_notes():
+    data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
+    row = next(r for r in data["past"] if r["note_comment"])
+    assert "[Comment]" in row["engr_note"]
