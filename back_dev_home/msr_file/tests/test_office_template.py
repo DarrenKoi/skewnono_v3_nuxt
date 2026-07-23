@@ -193,11 +193,6 @@ def test_parameter_summaries_use_measured_rows_only(response):
     assert by_param["CD_TOP"]["unit"] == "nm"
 
 
-def test_get_msr_image_stays_ftp_deferred():
-    with pytest.raises(NotImplementedError):
-        office_example.get_msr_image("anything.tif")
-
-
 def test_office_copy_stays_in_sync_with_template():
     """office.py exists only at the office (cp office_example.py office.py).
 
@@ -209,4 +204,3 @@ def test_office_copy_stays_in_sync_with_template():
         reason="office.py is created at the office from office_example.py",
     )
     assert callable(office.get_msr_file)
-    assert callable(office.get_msr_image)

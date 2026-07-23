@@ -45,10 +45,6 @@ by tests/test_contract_gate.py in office mode):
                                acquisition start; the pickle carries no
                                per-sequence clock).
 
-``get_msr_image`` stays ``NotImplementedError``: micrographs are NOT in MinIO —
-they come from the tool over FTP, and that fetch is a separate committed plan
-(execution deferred to Phase 2/3; see the msr-image section of MIGRATION.md).
-
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env`` and
 ``minio_handler/minio_config.py``, ``cp office_example.py office.py``, set
 ``SKEWNONO_MSR_FILE_PROVIDER=office``, then run the Verify command in
@@ -85,7 +81,7 @@ from back_dev_home.msr_file.providers.mock import (
 )
 
 
-__all__ = ["get_msr_file", "get_msr_image", "build_response"]
+__all__ = ["get_msr_file", "build_response"]
 
 _MSR_KW = "msr.keyword"
 
@@ -443,14 +439,6 @@ def get_msr_file(
         return None
 
     return build_response(msr, parent, payload, class_name, total_images)
-
-
-def get_msr_image(*args, **kwargs):
-    raise NotImplementedError(
-        "MSR micrographs are not stored in MinIO — they are fetched from the "
-        "tool over FTP, and that plan is deferred to office/cloud execution "
-        "(see the msr-image section of MIGRATION.md)."
-    )
 
 
 if __name__ == "__main__":

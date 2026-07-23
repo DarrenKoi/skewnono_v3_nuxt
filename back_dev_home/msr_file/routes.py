@@ -1,6 +1,6 @@
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, jsonify, request
 
-from back_dev_home.msr_file.data import get_msr_file, get_msr_image
+from back_dev_home.msr_file.data import get_msr_file
 
 
 bp = Blueprint("msr_file", __name__)
@@ -26,30 +26,6 @@ def msr_file_index():
         return jsonify({"error": f"MSR not found: {msr}"}), 404
 
     return jsonify(result)
-
-
-@bp.get("/msr-image")
-def msr_image():
-    """Serve a SEM micrograph for an mp_image filename.
-
-    Office: the backend fetches the real image from the tool by this filename.
-    Home: a deterministic SVG placeholder (see get_msr_image). The route + URL
-    contract is identical across phases — only the data layer swaps.
-    """
-    name = (request.args.get("name") or "").strip()
-    if not name:
-        return jsonify({"error": "name query param is required"}), 400
-    # The route is rate-limit exempt; cap the name so it can't be used to fan out
-    # huge-string hashing / cache keys (only the first chars are ever displayed).
-    if len(name) > 256:
-        return jsonify({"error": "name too long"}), 400
-
-    svg = get_msr_image(name)
-    return Response(
-        svg,
-        mimetype="image/svg+xml",
-        headers={"Cache-Control": "public, max-age=3600"},
-    )
 
 
 @bp.post("/msr-files")

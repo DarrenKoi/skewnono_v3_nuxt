@@ -5,11 +5,6 @@
 - `GET /api/msr-file`, `POST /api/msr-files`: 구현완료 — meas_hist 문서의
   `minio_pkl` 경로에서 후처리 pickle을 읽어 계약 형태로 정규화합니다. 사내
   데이터 검증 전입니다.
-- `GET /api/msr-image`: 미구현(의도적) — 이미지는 MinIO가 아니라 장비 FTP에서
-  가져오며, 그 계획은 별도 커밋된 스펙으로 Phase 2/3에서 실행합니다. office
-  모드에서 이 엔드포인트는 mock placeholder로 대체하지 않고
-  `NotImplementedError`를 발생시킵니다 — 가짜 현미경 이미지를 실데이터 화면에
-  섞지 않기 위해서입니다.
 
 ## Rules
 
@@ -100,22 +95,6 @@
   `tests/test_contract.py` docstring. These 4 keys live on `exe_detail_info`
   and are declared `NotRequired` in `contracts.py` precisely so that mock
   (absent) and office (present) responses both pass the gate.
-
-## Endpoint: GET /api/msr-image
-
-- Handler: `routes.py` → `data.get_msr_image(name)`, where `name` is the
-  required `name` query param (400 if blank, 400 if longer than 256 chars).
-  Returns an `image/svg+xml` response with `Cache-Control: public,
-  max-age=3600`.
-- Contract: raw SVG string body (no TypedDict — the response is not JSON).
-- Mock behavior: a deterministic SVG placeholder generated from `name`, no
-  actual image lookup.
-- Office data source: tool FTP fetch by mp_image filename — NOT MinIO (the
-  buckets hold measurement data, not micrographs). The FTP plan is committed
-  separately; until it executes, the office adapter keeps raising
-  `NotImplementedError` for this endpoint only.
-- Notes: the route + URL contract is identical across phases — only the data
-  layer swaps. This route is rate-limit exempt.
 
 ## Endpoint: POST /api/msr-files
 

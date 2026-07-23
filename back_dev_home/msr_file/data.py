@@ -22,7 +22,6 @@ __all__ = [
     "SpmDict",
     "MsrFileResponse",
     "get_msr_file",
-    "get_msr_image",
 ]
 
 
@@ -41,13 +40,8 @@ def get_msr_file(
     return _provider().get_msr_file(msr, class_name, total_images)
 
 
-def get_msr_image(name: str) -> str:
-    return _provider().get_msr_image(name)
-
-
 # Preserve the established test/debug hook while keeping routes on this façade.
 get_msr_file.cache_clear = mock_provider.get_msr_file.cache_clear  # type: ignore[attr-defined]
-get_msr_image.cache_clear = mock_provider.get_msr_image.cache_clear  # type: ignore[attr-defined]
 
 # Kept temporarily for existing characterization tests. Application code should
 # consume summaries through ``get_msr_file`` rather than this mock detail.
