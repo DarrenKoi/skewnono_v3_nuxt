@@ -229,10 +229,5 @@ export const useMsrFileApi = () => {
       .filter((res): res is MsrFileResponse => res != null)
   }
 
-  // URL for a SEM micrograph by its mp_image filename. Home returns a mock SVG;
-  // office returns the real image fetched from the tool — same URL either way.
-  const msrImageUrl = (name: string): string =>
-    `${joinApiPath(base, '/msr-image')}?name=${encodeURIComponent(name)}`
-
-  return { fetchMsrFile, fetchMsrFiles, msrImageUrl }
+  return { fetchMsrFile, fetchMsrFiles }
 }

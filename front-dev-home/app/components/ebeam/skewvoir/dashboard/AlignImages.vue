@@ -49,10 +49,10 @@
               class="space-y-1"
             >
               <img
-                :src="msrImageUrl(img.name)"
+                :src="resolveImageUrl(img.name) ?? undefined"
                 :alt="img.label"
                 class="w-full cursor-zoom-in rounded-(--sk-r-chip) border border-(--sk-border) transition hover:ring-2 hover:ring-(--sk-brand)"
-                @click="zoomSrc = msrImageUrl(img.name)"
+                @click="zoomSrc = resolveImageUrl(img.name)"
               >
               <figcaption class="sk-meta">
                 {{ img.label }} · score {{ img.score }}
@@ -78,10 +78,25 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const { msrImageUrl } = useMsrFileApi()
+const { imageUrl } = useMsrImageApi()
 
 const open = ref(false)
 const zoomSrc = ref<string | null>(null)
+
+// Alignment images belong to the FOCUS MSR — same context as the gallery.
+const focusCtx = computed(() => {
+  const row = props.analysis.focusRow.value
+  return {
+    eqp_ip: row?.eqp_ip ?? '',
+    class_name: row?.class_name ?? '',
+    msr: props.analysis.focusMsr.value ?? ''
+  }
+})
+
+const resolveImageUrl = (name: string): string | null => {
+  const ctx = focusCtx.value
+  return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name) : null
+}
 
 // The alignment step images (OM / SEM), labelled with method + score.
 const images = computed(() => {

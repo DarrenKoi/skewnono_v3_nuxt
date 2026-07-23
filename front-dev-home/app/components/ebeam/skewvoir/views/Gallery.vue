@@ -4,6 +4,48 @@
     :meta="frameMeta"
     icon="i-lucide-images"
   >
+    <template #actions>
+      <div class="flex items-center gap-2">
+        <span
+          v-if="downloadStatus"
+          class="font-mono text-[11px] text-(--sk-ink-muted)"
+        >
+          {{ downloadStatus.done }}/{{ downloadStatus.total }}
+          <span v-if="downloadStatus.failures.length" class="text-(--sk-bad)">
+            · 실패 {{ downloadStatus.failures.length }}
+          </span>
+        </span>
+        <UButton
+          color="neutral"
+          variant="subtle"
+          size="xs"
+          icon="i-lucide-download"
+          label="전체 다운로드"
+          :loading="downloading"
+          :disabled="!focusCtx.eqp_ip || downloading"
+          @click="startDownload"
+        />
+      </div>
+    </template>
+
+    <!-- Download-all failures — always surfaced, never hidden. -->
+    <div
+      v-if="downloadStatus?.failures.length"
+      class="mb-2 rounded-(--sk-r-nav) border border-(--sk-bad)/40 bg-(--sk-bad)/10 px-3 py-2 sk-meta"
+    >
+      <p class="font-medium text-(--sk-bad)">
+        다운로드 실패 {{ downloadStatus.failures.length }}건
+      </p>
+      <ul class="mt-1 space-y-0.5 font-mono text-[10px] text-(--sk-ink-muted)">
+        <li
+          v-for="f in downloadStatus.failures"
+          :key="f.name"
+        >
+          {{ f.name }} — {{ f.error }}
+        </li>
+      </ul>
+    </div>
+
     <!-- Loading -->
     <div
       v-if="analysis.focusPending.value"
@@ -41,7 +83,7 @@
           v-for="entry in filteredEntries"
           :key="`${entry.chip}#${entry.sequence}`"
           :entry="entry"
-          :src="entry.image ? msrImageUrl(entry.image) : null"
+          :src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image) : null"
           :focused="entry.chip === analysis.focusedSite.value"
           @open="openViewer(entry)"
           @focus="focusSite(entry)"
@@ -66,7 +108,7 @@
         class="overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
       >
         <img
-          :src="msrImageUrl(img.name)"
+          :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
           :alt="img.name"
           class="aspect-square w-full object-cover"
           loading="lazy"
@@ -89,6 +131,9 @@
       :entries="filteredEntries"
       :index="viewerIndex"
       :geo="analysis.waferGeo.value"
+      :eqp_ip="focusCtx.eqp_ip"
+      :class_name="focusCtx.class_name"
+      :msr="focusCtx.msr"
       @update:index="viewerIndex = $event"
       @close="viewerOpen = false"
       @move-to-site="onMoveToSite"
@@ -104,12 +149,66 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFilters.vue'
+import type { DownloadJobStatus } from '~/composables/useMsrImageApi'
 import { measuredRows } from '~/utils/msrRows'
 import { buildReviewQueue, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const { msrImageUrl } = useMsrFileApi()
+const { imageUrl, startDownloadAll, pollJob } = useMsrImageApi()
+
+// Every image in this single-scope gallery belongs to the FOCUS MSR, so its
+// image-API context is the focus row's eqp_ip/class_name + the focus msr id.
+// Empty strings (never undefined) when the focus row hasn't resolved yet —
+// callers gate on `focusCtx.eqp_ip` before building a URL/job.
+const focusCtx = computed(() => {
+  const row = props.analysis.focusRow.value
+  return {
+    eqp_ip: row?.eqp_ip ?? '',
+    class_name: row?.class_name ?? '',
+    msr: props.analysis.focusMsr.value ?? ''
+  }
+})
+
+// ── Download-all ─────────────────────────────────────────────────────────────
+const downloading = ref(false)
+const downloadStatus = ref<DownloadJobStatus | null>(null)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+const stopPolling = () => {
+  if (pollTimer != null) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+const startDownload = async () => {
+  const ctx = focusCtx.value
+  if (!ctx.eqp_ip) return
+  downloading.value = true
+  downloadStatus.value = null
+  try {
+    const jobId = await startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr)
+    stopPolling()
+    pollTimer = setInterval(async () => {
+      try {
+        const status = await pollJob(jobId)
+        downloadStatus.value = status
+        if (status.status !== 'running') {
+          stopPolling()
+          downloading.value = false
+        }
+      } catch {
+        stopPolling()
+        downloading.value = false
+      }
+    }, 1000)
+  } catch {
+    downloading.value = false
+  }
+}
+
+onBeforeUnmount(() => stopPolling())
 
 // ── SINGLE scope: the review queue ───────────────────────────────────────────
 const queue = computed(() =>

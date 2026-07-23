@@ -66,21 +66,37 @@
             SEM 미리보기
           </p>
           <div
-            v-if="imageName"
+            v-if="imageName && blobUrl"
             class="relative aspect-square w-full overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
           >
             <EbeamSkewvoirZoomableImage
               :key="imageName"
-              :src="msrImageUrl(imageName)"
+              :src="blobUrl"
               :alt="imageName"
               class="h-full w-full"
+            />
+          </div>
+          <div
+            v-else-if="imageName && imageLoading"
+            class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="h-5 w-5 animate-spin"
             />
           </div>
           <div
             v-else
             class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
           >
-            측정 이미지가 없습니다.
+            {{ imageFailed ? '이미지 로드 실패' : '측정 이미지가 없습니다.' }}
+          </div>
+
+          <div v-if="imageCond">
+            <p class="mt-2 mb-1 sk-eyebrow">
+              취득 조건
+            </p>
+            <pre class="max-h-32 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2 font-mono text-[10px] whitespace-pre-wrap text-(--sk-ink-muted)">{{ imageCond }}</pre>
           </div>
         </section>
       </div>
@@ -107,7 +123,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
-const { msrImageUrl } = useMsrFileApi()
+const { fetchImageWithCond } = useMsrImageApi()
 
 // The focused site (by chip_number) — first measured site on that die.
 const site = computed(() => {
@@ -125,4 +141,65 @@ const imageName = computed(() => {
   )
   return row?.mp_image_name_01 || null
 })
+
+// Every image in this drawer belongs to the FOCUS MSR — same context as the
+// gallery (focusRow's eqp_ip/class_name + focusMsr).
+const focusCtx = computed(() => {
+  const row = props.analysis.focusRow.value
+  return {
+    eqp_ip: row?.eqp_ip ?? '',
+    class_name: row?.class_name ?? '',
+    msr: props.analysis.focusMsr.value ?? ''
+  }
+})
+
+const blobUrl = ref<string | null>(null)
+const imageCond = ref<string | null>(null)
+const imageLoading = ref(false)
+const imageFailed = ref(false)
+
+const revokeBlob = () => {
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value)
+    blobUrl.value = null
+  }
+}
+
+let loadToken = 0
+
+watch(
+  () => `${focusCtx.value.eqp_ip}|${focusCtx.value.class_name}|${focusCtx.value.msr}|${imageName.value ?? ''}`,
+  async () => {
+    const name = imageName.value
+    const ctx = focusCtx.value
+    revokeBlob()
+    imageCond.value = null
+    imageFailed.value = false
+    if (!name) return
+    if (!ctx.eqp_ip) {
+      // Context not resolved yet (e.g. focus row still pending) — treat as a
+      // load failure rather than silently rendering a broken image.
+      imageFailed.value = true
+      return
+    }
+    const token = ++loadToken
+    imageLoading.value = true
+    try {
+      const res = await fetchImageWithCond(ctx.eqp_ip, ctx.class_name, ctx.msr, name)
+      if (token !== loadToken) {
+        URL.revokeObjectURL(res.blobUrl)
+        return
+      }
+      blobUrl.value = res.blobUrl
+      imageCond.value = res.cond
+    } catch {
+      if (token === loadToken) imageFailed.value = true
+    } finally {
+      if (token === loadToken) imageLoading.value = false
+    }
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => revokeBlob())
 </script>

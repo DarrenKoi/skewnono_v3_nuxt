@@ -18,12 +18,12 @@
         불러오는 중…
       </div>
       <div
-        v-else-if="measuredName"
+        v-else-if="measuredName && focusCtx.eqp_ip"
         class="relative min-h-0 flex-1 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
       >
         <EbeamSkewvoirZoomableImage
           :key="measuredName"
-          :src="msrImageUrl(measuredName)"
+          :src="resolveImageUrl(measuredName)!"
           :alt="measuredName"
           class="h-full w-full"
         />
@@ -31,7 +31,7 @@
           type="button"
           class="absolute top-2 right-2 rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface)/90 p-1.5 text-(--sk-ink-muted) shadow-sm backdrop-blur-sm transition-colors duration-200 hover:text-(--sk-ink)"
           aria-label="전체 화면"
-          @click="zoomSrc = msrImageUrl(measuredName)"
+          @click="zoomSrc = resolveImageUrl(measuredName)"
         >
           <UIcon
             name="i-lucide-maximize-2"
@@ -57,9 +57,24 @@ import { measuredRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const { msrImageUrl } = useMsrFileApi()
+const { imageUrl } = useMsrImageApi()
 
 const zoomSrc = ref<string | null>(null)
+
+// The SEM micrograph belongs to the FOCUS MSR — same context as the gallery.
+const focusCtx = computed(() => {
+  const row = props.analysis.focusRow.value
+  return {
+    eqp_ip: row?.eqp_ip ?? '',
+    class_name: row?.class_name ?? '',
+    msr: props.analysis.focusMsr.value ?? ''
+  }
+})
+
+const resolveImageUrl = (name: string): string | null => {
+  const ctx = focusCtx.value
+  return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name) : null
+}
 
 // The measured micrograph for the active parameter — the focused point's image
 // leads, else the first measured point's.

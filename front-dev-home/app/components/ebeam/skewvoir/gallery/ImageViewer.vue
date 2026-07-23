@@ -11,12 +11,21 @@
       <div class="relative flex min-w-0 flex-1 flex-col">
         <div class="relative min-h-0 flex-1">
           <EbeamSkewvoirZoomableImage
-            v-if="entry.image && !failed"
+            v-if="entry.image && !failed && blobUrl"
             :key="entry.image + nonce"
-            :src="src!"
+            :src="blobUrl"
             :alt="entry.image"
             class="h-full w-full"
           />
+          <div
+            v-else-if="entry.image && loading"
+            class="flex h-full items-center justify-center gap-2 text-white/70"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="h-6 w-6 animate-spin"
+            />
+          </div>
           <div
             v-else
             class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
@@ -124,6 +133,13 @@
           </div>
         </dl>
 
+        <div v-if="cond">
+          <p class="mb-1 sk-eyebrow">
+            취득 조건
+          </p>
+          <pre class="max-h-32 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2 font-mono text-[10px] whitespace-pre-wrap text-(--sk-ink-muted)">{{ cond }}</pre>
+        </div>
+
         <button
           type="button"
           class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-accent)/40 bg-(--sk-accent)/10 px-3 py-1.5 font-mono text-[11px] font-medium text-(--sk-accent) transition-colors hover:bg-(--sk-accent)/20"
@@ -165,6 +181,9 @@ const props = defineProps<{
   entries: ReviewEntry[]
   index: number
   geo: WaferGeometry
+  eqp_ip: string
+  class_name: string
+  msr: string
 }>()
 const emit = defineEmits<{
   'close': []
@@ -173,21 +192,58 @@ const emit = defineEmits<{
   'evidence': [entry: ReviewEntry]
 }>()
 
-const { msrImageUrl } = useMsrFileApi()
+const { fetchImageWithCond } = useMsrImageApi()
 
 const entry = computed<ReviewEntry | null>(() => props.entries[props.index] ?? null)
 
 const failed = ref(false)
+const loading = ref(false)
 const nonce = ref(0)
-const src = computed(() => {
+const blobUrl = ref<string | null>(null)
+const cond = ref<string | null>(null)
+
+const revokeBlob = () => {
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value)
+    blobUrl.value = null
+  }
+}
+
+// Guards against a slow, superseded fetch (retry / rapid prev-next) clobbering
+// a newer one's result.
+let loadToken = 0
+
+const loadImage = async () => {
   const name = entry.value?.image
-  if (!name) return null
-  const base = msrImageUrl(name)
-  return nonce.value > 0 ? `${base}${base.includes('?') ? '&' : '?'}_r=${nonce.value}` : base
-})
-const retry = () => {
+  revokeBlob()
+  cond.value = null
   failed.value = false
+  if (!name || !props.eqp_ip) {
+    // A missing context (no focus row resolved yet) is a load failure, same
+    // as a missing image name — never silently render a broken image.
+    if (name && !props.eqp_ip) failed.value = true
+    return
+  }
+  const token = ++loadToken
+  loading.value = true
+  try {
+    const res = await fetchImageWithCond(props.eqp_ip, props.class_name, props.msr, name)
+    if (token !== loadToken) {
+      URL.revokeObjectURL(res.blobUrl)
+      return
+    }
+    blobUrl.value = res.blobUrl
+    cond.value = res.cond
+  } catch {
+    if (token === loadToken) failed.value = true
+  } finally {
+    if (token === loadToken) loading.value = false
+  }
+}
+
+const retry = () => {
   nonce.value++
+  loadImage()
 }
 
 const step = (delta: number) => {
@@ -196,11 +252,17 @@ const step = (delta: number) => {
   emit('update:index', next)
 }
 
-// A new image resets the per-image error state.
-watch(() => entry.value?.image, () => {
-  failed.value = false
-  nonce.value = 0
-})
+// A new image (or a changed MSR context) reloads the blob.
+watch(
+  () => `${props.eqp_ip}|${props.class_name}|${props.msr}|${entry.value?.image ?? ''}`,
+  () => {
+    nonce.value = 0
+    loadImage()
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => revokeBlob())
 
 // Physical scale bar. Phase-1 metadata carries image RESOLUTION
 // (meas_condition_pixel) but no field-of-view, so a true nm/pixel calibration
