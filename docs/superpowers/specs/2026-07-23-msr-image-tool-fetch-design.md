@@ -35,7 +35,7 @@
 | host 내 동시성 | 병렬 RETR 금지(비목표) | **유계 병렬 풀**(속도 요구 반영) |
 | 자격 증명 | 환경 변수 이름만 기록 | 환경 변수 + 기본값 `hitachi`/`hid`(비기밀) |
 | 캐시 매체 | 서버 로컬 디스크(전 phase) | 홈=로컬 디스크, **사무실=MinIO 공유 캐시**(만료 있는 임시 저장) |
-| 캐시 만료 | 로컬 디스크 야간 정리 | 홈=디스크 정리, 사무실=**MinIO 나이 기반 sweep**(~2일) |
+| 캐시 만료 | 로컬 디스크 야간 정리 | 홈=디스크 정리, 사무실=**MinIO 나이 기반 sweep**(약 3일) |
 
 ## 2. 목표와 비목표
 
@@ -44,7 +44,7 @@
 - MSR 이미지를 tool FTP 서버에서 가져와 프런트엔드로 relay 합니다.
 - 이미지 갤러리가 한 MSR의 **모든** 이미지를 보여 줄 수 있도록 tool 디렉터리를
   나열해 이미지 집합을 확정합니다.
-- 한 번 받은 이미지는 캐시에 **약 2일** 남겨 다음 요청을 빠르게 relay 합니다.
+- 한 번 받은 이미지는 캐시에 **약 3일** 남겨 다음 요청을 빠르게 relay 합니다.
   사무실 캐시는 **MinIO 공유 저장**이라 첫 사용자가 채우면 이후 모든 worker·모든
   사용자가 tool을 다시 거치지 않고 빠르게 받습니다.
 - MSR 한 건의 이미지(보통 수백 장)를 **최대한 빠르게** 받는 "전체 다운로드"
@@ -56,7 +56,7 @@
 ### 비목표
 
 - 이미지를 **영구** 저장소로 적재하지 않습니다. 사무실 MinIO 캐시는 나이 기반
-  sweep으로 ~2일 후 삭제되는 **임시** 저장입니다(측정 데이터 버킷과 분리된 캐시
+  sweep으로 약 3일 후 삭제되는 **임시** 저장입니다(측정 데이터 버킷과 분리된 캐시
   prefix). 캐시가 사라져도 tool에서 다시 받으면 되므로 source of truth는 tool입니다.
 - **무제한** 병렬 RETR은 하지 않습니다. tool FTP 세션 한도 보호를 위해 host당
   동시 연결 수를 환경 변수로 **유계**로 둡니다(§4.4).
@@ -81,7 +81,7 @@
 | 캐시 인터페이스 | `ImageCache` — 백엔드 2종을 provider가 선택 |
 | 캐시(홈/mock) | `DiskImageCache` — 로컬 디스크(`IMAGE_CACHE_DIR`, Git 제외) |
 | 캐시(사무실) | `MinioImageCache` — MinIO 공유 캐시 prefix. **모든 worker·사용자 공유** |
-| 캐시 보존 | 약 2일(`IMAGE_CACHE_TTL_HOURS`, 기본 48) |
+| 캐시 보존 | 약 3일(`IMAGE_CACHE_TTL_HOURS`, 기본 72) |
 | cond 저장 | 홈=`<image>.cond` 사이드카, 사무실=MinIO **object metadata** |
 | 정리 방식 | APScheduler cron(기본 03:00). 홈=디스크 삭제, 사무실=`delete_older_than` |
 | MinIO 캐시 만료 | 나이 기반 app-side sweep(vendored 미수정·admin 불필요). native lifecycle은 §4.6 |
@@ -180,7 +180,7 @@ serve 합니다. 백엔드는 provider와 함께 선택됩니다.
 ### 4.6 MinIO 만료 — app-side sweep (기본), native lifecycle (선택)
 
 - **기본(vendored 미수정·admin 불필요)**: 이미지를 전용 캐시 prefix 아래 저장하고,
-  APScheduler cron이 `delete_older_than`(last_modified 나이 기준, 기본 48시간)으로
+  APScheduler cron이 `delete_older_than`(last_modified 나이 기준, 기본 72시간)으로
   정리합니다. 우리 코드가 만료를 전적으로 통제하며 `minio_handler`를 수정하지 않습니다.
 - **선택(사무실 확정)**: 팀이 `s3:PutBucketLifecycle` admin 권한을 갖고 있으면,
   객체에 tag를 달고 MinIO bucket lifecycle rule로 서버 측 만료(app cleanup 0)로
@@ -300,7 +300,7 @@ source 실패를 mock 이미지로 위장하지 않습니다.
 | `IMAGE_CACHE_DIR` | `<project>/var/image_cache` | 홈 디스크 캐시 루트(Git 제외) |
 | `SKEWNONO_IMAGE_CACHE_BUCKET` | (기존 MinIO 버킷) | 사무실 MinIO 캐시 버킷 |
 | `SKEWNONO_IMAGE_CACHE_PREFIX` | `image_cache/` | 사무실 MinIO 캐시 prefix(측정 데이터와 분리) |
-| `IMAGE_CACHE_TTL_HOURS` | `48` | 정리 기준 나이(약 2일) |
+| `IMAGE_CACHE_TTL_HOURS` | `72` | 정리 기준 나이(약 3일) |
 | `IMAGE_CACHE_PURGE_HOUR` | `3` | 야간 정리 cron 시각 |
 | `SKEWNONO_MSR_IMAGE_MAX_JOBS` | `2` | 동시 전체 다운로드 job 수 |
 | `SKEWNONO_MSR_IMAGE_JOB_TTL` | `3600` | job 상태 보존(초). Redis 키 만료에도 사용 |
@@ -345,7 +345,7 @@ source 실패를 mock 이미지로 위장하지 않습니다.
 - 홈에서 `GET /api/msr-images`가 합성 목록을, `GET /api/msr-image`가 SVG + cond
   헤더를 반환하고, 재요청은 디스크 캐시에서 relay 됩니다.
 - 사무실에서 첫 요청이 tool→MinIO 캐시 prefix에 이미지(+cond metadata)를 적재하고,
-  이후 **다른 worker·다른 사용자**의 요청이 MinIO에서 relay 되며, ~2일 후 나이 기반
+  이후 **다른 worker·다른 사용자**의 요청이 MinIO에서 relay 되며, 약 3일 후 나이 기반
   sweep으로 삭제됩니다.
 - 홈에서 "전체 다운로드"가 `202 {job_id}`를 즉시 반환하고, 폴링이 진행률과 최종
   `{ok, ng, failures}`를 보고하며, 완료 후 갤러리가 캐시에서 relay 됩니다.
