@@ -9,7 +9,8 @@
   요구)을 반영해 갱신한 판본입니다.
 - Scope: `back_dev_home/msr_image/` (신규 feature), `back_dev_home/meas_hist/`
   (`eqp_ip` row 추가), `back_dev_home/msr_file/` (이미지 코드 제거),
-  `ftp_handler/` (수정 없이 사용), `front-dev-home/app/` (이미지 소비 경로)
+  `ftp_handler/`·`minio_handler/` (수정 없이 사용), `front-dev-home/app/` (이미지
+  소비 경로)
 
 ## 1. 배경과 이번 판본의 변경점
 
@@ -33,6 +34,8 @@
 | 이미지 집합 출처 | 프런트가 파일명 목록 전송 | **백엔드가 tool dir를 나열** |
 | host 내 동시성 | 병렬 RETR 금지(비목표) | **유계 병렬 풀**(속도 요구 반영) |
 | 자격 증명 | 환경 변수 이름만 기록 | 환경 변수 + 기본값 `hitachi`/`hid`(비기밀) |
+| 캐시 매체 | 서버 로컬 디스크(전 phase) | 홈=로컬 디스크, **사무실=MinIO 공유 캐시**(만료 있는 임시 저장) |
+| 캐시 만료 | 로컬 디스크 야간 정리 | 홈=디스크 정리, 사무실=**MinIO 나이 기반 sweep**(~2일) |
 
 ## 2. 목표와 비목표
 
@@ -41,8 +44,9 @@
 - MSR 이미지를 tool FTP 서버에서 가져와 프런트엔드로 relay 합니다.
 - 이미지 갤러리가 한 MSR의 **모든** 이미지를 보여 줄 수 있도록 tool 디렉터리를
   나열해 이미지 집합을 확정합니다.
-- 한 번 받은 이미지는 Flask 서버 디스크에 **약 1일** 남겨 다음 요청을 빠르게
-  relay 합니다.
+- 한 번 받은 이미지는 캐시에 **약 2일** 남겨 다음 요청을 빠르게 relay 합니다.
+  사무실 캐시는 **MinIO 공유 저장**이라 첫 사용자가 채우면 이후 모든 worker·모든
+  사용자가 tool을 다시 거치지 않고 빠르게 받습니다.
 - MSR 한 건의 이미지(보통 수백 장)를 **최대한 빠르게** 받는 "전체 다운로드"
   액션을 제공합니다(유계 병렬 풀).
 - 각 이미지의 측정 조건(`cond.txt`)을 이미지와 함께 전달합니다.
@@ -51,7 +55,9 @@
 
 ### 비목표
 
-- 이미지를 MinIO 등 영구 저장소에 적재하지 않습니다(캐시는 임시입니다).
+- 이미지를 **영구** 저장소로 적재하지 않습니다. 사무실 MinIO 캐시는 나이 기반
+  sweep으로 ~2일 후 삭제되는 **임시** 저장입니다(측정 데이터 버킷과 분리된 캐시
+  prefix). 캐시가 사라져도 tool에서 다시 받으면 되므로 source of truth는 tool입니다.
 - **무제한** 병렬 RETR은 하지 않습니다. tool FTP 세션 한도 보호를 위해 host당
   동시 연결 수를 환경 변수로 **유계**로 둡니다(§4.4).
 - 자동 프리페치(MSR 열자마자 전체 수집)는 하지 않습니다. 수백 장이 무겁기 때문에
@@ -72,9 +78,13 @@
 | 이미지 집합 | 백엔드가 tool dir를 FTP 나열(`list_dir`) |
 | 전체 다운로드 속도 | 유계 병렬 풀 `SKEWNONO_TOOL_FTP_CONCURRENCY`(기본 6) |
 | 자격 증명 | `SKEWNONO_TOOL_FTP_USER`/`_PASSWORD`, 기본 `hitachi`/`hid`(비기밀) |
-| 캐시 매체·보존 | Flask 서버 로컬 디스크, 약 1일(`IMAGE_CACHE_TTL_HOURS`, 기본 24) |
-| 캐시 위치 | `IMAGE_CACHE_DIR`(기본 `<project>/var/image_cache`, Git 제외) |
-| 정리 방식 | APScheduler `BackgroundScheduler` cron(기본 03:00) |
+| 캐시 인터페이스 | `ImageCache` — 백엔드 2종을 provider가 선택 |
+| 캐시(홈/mock) | `DiskImageCache` — 로컬 디스크(`IMAGE_CACHE_DIR`, Git 제외) |
+| 캐시(사무실) | `MinioImageCache` — MinIO 공유 캐시 prefix. **모든 worker·사용자 공유** |
+| 캐시 보존 | 약 2일(`IMAGE_CACHE_TTL_HOURS`, 기본 48) |
+| cond 저장 | 홈=`<image>.cond` 사이드카, 사무실=MinIO **object metadata** |
+| 정리 방식 | APScheduler cron(기본 03:00). 홈=디스크 삭제, 사무실=`delete_older_than` |
+| MinIO 캐시 만료 | 나이 기반 app-side sweep(vendored 미수정·admin 불필요). native lifecycle은 §4.6 |
 | 전체 다운로드 | 비동기 — `POST /api/msr-images` → `202 {job_id}`, `GET .../<job_id>` 폴링 |
 | job 상태 저장 | 홈/단일 worker: 프로세스 메모리. 사무실 다중 worker: Redis 키(우리 관리) |
 | provider 선택 | `get_data_provider("msr_image")`(`SKEWNONO_MSR_IMAGE_PROVIDER`) |
@@ -138,17 +148,45 @@ host **간** 동시성만 제공하므로, host **내** 속도를 위해 SKEWNON
   기록. **바이트는 상태에 넣지 않습니다.**
 - `ftp_handler`는 **수정하지 않습니다** — vendored `FtpClient`를 인스턴스로만 사용.
 
-### 4.5 Phase 무관 기계 (두 환경 공통)
+### 4.5 캐시 인터페이스와 백엔드 2종
 
-- **`ImageCache`** (`cache.py`) — `IMAGE_CACHE_DIR` 아래 디스크 캐시.
-  `(host, remote_path)`를 결정적 로컬 경로로 매핑해 캐시 키로 사용합니다. 이미지
-  파일 옆에 `<image>.cond` 사이드카로 조건 텍스트를 저장합니다.
-  `get_or_serve(locator)`는 디스크에 있으면 그대로, 없으면 `source.fetch` → write
-  → serve.
-- **`jobs.py`** — 전체 다운로드 job 실행/상태. 관측 상태는 우리 측에서 소유(홈:
-  메모리, 사무실 다중 worker: Redis 키 + TTL). 실행기는 유계 풀(§4.4).
-- **`scheduler.py`** — APScheduler cron이 `IMAGE_CACHE_TTL_HOURS`보다 오래된 파일
-  삭제. `create_app`에서 기동(단일 프로세스 가정).
+`ImageCache`(`cache.py`)는 "바이트 + cond를 어디에 두고 어떻게 만료하는가"를
+캡슐화하는 인터페이스입니다. `(host, remote_path)`를 결정적 캐시 키로 매핑하고,
+`get_or_serve(locator)`는 캐시에 있으면 그대로, 없으면 `source.fetch` → write →
+serve 합니다. 백엔드는 provider와 함께 선택됩니다.
+
+| 백엔드 | 환경 | 저장 | cond | 만료 |
+| --- | --- | --- | --- | --- |
+| `DiskImageCache` | 홈/mock | `IMAGE_CACHE_DIR` 로컬 디스크 | `<image>.cond` 사이드카 | APScheduler 디스크 삭제 |
+| `MinioImageCache` | 사무실 | MinIO 캐시 prefix(공유) | object **metadata** | `delete_older_than` sweep |
+
+- **공유 이득**: 사무실에서 첫 사용자가 tool→MinIO로 채우면, 이후 **모든 worker·
+  모든 사용자**가 MinIO에서 relay 받습니다(로컬 디스크는 서버 로컬이라 공유 안 됨).
+- serve(사무실): 캐시 키로 MinIO `exists`? → `get`(바이트) + `stat`(cond metadata)
+  → `X-Msr-Cond` 헤더로 relay. miss → tool FTP fetch → MinIO `put`(image bytes +
+  `metadata={cond}`) → serve. Flask가 relay 경로에 있으므로 cond 헤더가 유지됩니다.
+- cond는 작아 object metadata로 충분합니다. 한도를 넘으면 `<key>.cond` 형제 객체로
+  fallback(구현 시 크기 가드).
+
+기타 phase 무관 기계:
+
+- **`jobs.py`** — 전체 다운로드 job 실행/상태. 관측 상태는 우리 측 소유(홈: 메모리,
+  사무실 다중 worker: Redis 키 + TTL). 실행기는 유계 풀(§4.4). 다운로드된 바이트는
+  캐시 백엔드로 write.
+- **`scheduler.py`** — APScheduler cron이 `IMAGE_CACHE_TTL_HOURS`보다 오래된 캐시를
+  삭제(홈: 디스크 파일, 사무실: `MinioObject().delete_older_than`으로 캐시 prefix).
+  `create_app`에서 기동.
+
+### 4.6 MinIO 만료 — app-side sweep (기본), native lifecycle (선택)
+
+- **기본(vendored 미수정·admin 불필요)**: 이미지를 전용 캐시 prefix 아래 저장하고,
+  APScheduler cron이 `delete_older_than`(last_modified 나이 기준, 기본 48시간)으로
+  정리합니다. 우리 코드가 만료를 전적으로 통제하며 `minio_handler`를 수정하지 않습니다.
+- **선택(사무실 확정)**: 팀이 `s3:PutBucketLifecycle` admin 권한을 갖고 있으면,
+  객체에 tag를 달고 MinIO bucket lifecycle rule로 서버 측 만료(app cleanup 0)로
+  업그레이드할 수 있습니다. 단 `minio_handler.put`이 tags를 노출하도록 **양쪽 copy**
+  (`minio_handler` + `flask_modules`)를 함께 수정해야 하므로 이번 기본안에서는 제외하고,
+  `MIGRATION.md`에 후속 항목으로 남깁니다.
 
 ## 5. 컴포넌트와 파일
 
@@ -162,7 +200,7 @@ host **간** 동시성만 제공하므로, host **내** 속도를 위해 SKEWNON
 | `providers/__init__.py` | provider lazy import 안 함(홈 기동 보호) |
 | `providers/mock.py` | SVG 생성 + 합성 목록 + 합성 cond |
 | `providers/office_example.py` | `ftp_handler` 기반 목록/단건/다건 fetch + 경로 조립 + IP 검증. **tracked 스켈레톤**, 사무실에서 `cp office_example.py office.py` |
-| `cache.py` | `ImageCache` — 경로 매핑, get/write/serve, purge, cond 사이드카 |
+| `cache.py` | `ImageCache` 인터페이스 + `DiskImageCache`(홈) / `MinioImageCache`(사무실). 키 매핑·get/write/serve·purge·cond |
 | `jobs.py` | 전체 다운로드 job 실행/상태(메모리/Redis) |
 | `scheduler.py` | APScheduler cron 등록 헬퍼 |
 | `MIGRATION.md` | office 어댑터 확정 항목·Verify 커맨드 |
@@ -202,7 +240,9 @@ serve 응답은 이미지 바이트를 본문으로, 그 이미지의 조건을 
 함께 전달합니다. `cond.txt`는 여러 줄·비ASCII일 수 있어 헤더 안전을 위해
 URL-encoding 합니다. cond가 없으면(파일 부재) 헤더를 생략하고 이미지만 serve 합니다
 (cond는 best-effort, 이미지 존재가 우선). 캐시는 이미지와 cond를 함께 저장해
-재요청 시 헤더를 캐시에서 채웁니다.
+재요청 시 헤더를 캐시에서 채웁니다(홈: `<image>.cond` 사이드카, 사무실: MinIO object
+metadata). 사무실 캐시가 MinIO 공유 저장이므로 **첫 사용자 이후 모든 사용자**가
+cond 포함 응답을 MinIO에서 빠르게 받습니다.
 
 ### 6.3 `MeasHistRow.eqp_ip`
 
@@ -257,8 +297,10 @@ source 실패를 mock 이미지로 위장하지 않습니다.
 | `SKEWNONO_TOOL_FTP_PORT` | `21` | tool FTP 포트 |
 | `SKEWNONO_TOOL_FTP_CONCURRENCY` | `6` | 전체 다운로드 host당 동시 연결 수(유계) |
 | `SKEWNONO_TOOL_SUBNETS` | — | 허용 tool 서브넷 CIDR 목록(미설정 시 형식 검증만) |
-| `IMAGE_CACHE_DIR` | `<project>/var/image_cache` | 디스크 캐시 루트(Git 제외) |
-| `IMAGE_CACHE_TTL_HOURS` | `24` | 정리 기준 나이 |
+| `IMAGE_CACHE_DIR` | `<project>/var/image_cache` | 홈 디스크 캐시 루트(Git 제외) |
+| `SKEWNONO_IMAGE_CACHE_BUCKET` | (기존 MinIO 버킷) | 사무실 MinIO 캐시 버킷 |
+| `SKEWNONO_IMAGE_CACHE_PREFIX` | `image_cache/` | 사무실 MinIO 캐시 prefix(측정 데이터와 분리) |
+| `IMAGE_CACHE_TTL_HOURS` | `48` | 정리 기준 나이(약 2일) |
 | `IMAGE_CACHE_PURGE_HOUR` | `3` | 야간 정리 cron 시각 |
 | `SKEWNONO_MSR_IMAGE_MAX_JOBS` | `2` | 동시 전체 다운로드 job 수 |
 | `SKEWNONO_MSR_IMAGE_JOB_TTL` | `3600` | job 상태 보존(초). Redis 키 만료에도 사용 |
@@ -269,19 +311,23 @@ source 실패를 mock 이미지로 위장하지 않습니다.
 
 ## 10. 홈/사무실 동작
 
-- **홈(Phase 1)**: `mock` provider. 합성 목록·SVG·합성 cond를 실제 캐시에 기록하고
-  serve 하므로 목록→갤러리→cond 표시→전체 다운로드→진행→야간 정리까지 **오프라인
-  전 흐름 검증** 가능합니다. tool·OpenSearch 불필요.
-- **사무실(Phase 2/3)**: `SKEWNONO_MSR_IMAGE_PROVIDER=office`. `providers/office.py`가
-  `ftp_handler`로 실제 tool에서 fetch. 실제 서브넷·포트는 `.env`/office.py에서 확정.
-- 다중 worker(`gunicorn -w N`) 주의: job 상태는 Redis 키(우리 관리), 캐시 디스크는
-  공유 파일시스템 공유, 정리 cron 중복 삭제는 무해.
+- **홈(Phase 1)**: `mock` provider + `DiskImageCache`. 합성 목록·SVG·합성 cond를
+  로컬 디스크 캐시에 기록·serve 하므로 목록→갤러리→cond 표시→전체 다운로드→진행→
+  야간 정리까지 **오프라인 전 흐름 검증** 가능합니다. tool·OpenSearch·MinIO 불필요.
+- **사무실(Phase 2/3)**: `SKEWNONO_MSR_IMAGE_PROVIDER=office` + `MinioImageCache`.
+  `providers/office.py`가 `ftp_handler`로 tool에서 fetch, MinIO 캐시 prefix에 저장.
+  실제 서브넷·포트·버킷은 `.env`/office.py에서 확정.
+- 다중 worker(`gunicorn -w N`) 주의: **MinIO 공유 캐시라 worker·호스트 경계와
+  무관하게 캐시를 공유**합니다(로컬 디스크의 서버 로컬 한계 해소). job 상태는 Redis 키
+  (우리 관리), 정리 cron 중복 `delete_older_than`은 멱등이라 무해.
 
 ## 11. 테스트
 
 | 층 | 방법 | 확인 |
 | --- | --- | --- |
 | mock 흐름 | 홈에서 목록/serve/miss/write/purge 단위 테스트 | 합성 목록·SVG 캐시·cond 헤더·만료 삭제 |
+| 디스크 캐시 | `DiskImageCache` 단위 테스트 | 키 결정성·cond 사이드카·나이 정리 |
+| MinIO 캐시 | `MinioImageCache` + fake MinioObject 주입 | put(metadata=cond)/get/exists·공유 hit·`delete_older_than` sweep |
 | 경로 조립 | office 순수 헬퍼 단위 테스트 | image/cond 경로 결정성, `.{name}/cond.txt` |
 | IP guard | 형식·서브넷 검증 테스트 | malformed→400, 서브넷 밖→400 |
 | office fetch | fake FtpClient 주입 | tool 없이 목록·fetch·부분 실패 보고 |
@@ -297,7 +343,10 @@ source 실패를 mock 이미지로 위장하지 않습니다.
 ## 12. 인수 기준
 
 - 홈에서 `GET /api/msr-images`가 합성 목록을, `GET /api/msr-image`가 SVG + cond
-  헤더를 반환하고, 재요청은 디스크에서 relay 됩니다.
+  헤더를 반환하고, 재요청은 디스크 캐시에서 relay 됩니다.
+- 사무실에서 첫 요청이 tool→MinIO 캐시 prefix에 이미지(+cond metadata)를 적재하고,
+  이후 **다른 worker·다른 사용자**의 요청이 MinIO에서 relay 되며, ~2일 후 나이 기반
+  sweep으로 삭제됩니다.
 - 홈에서 "전체 다운로드"가 `202 {job_id}`를 즉시 반환하고, 폴링이 진행률과 최종
   `{ok, ng, failures}`를 보고하며, 완료 후 갤러리가 캐시에서 relay 됩니다.
 - office 어댑터가 tool dir를 나열하고, 이미지 + `.{name}/cond.txt`를 fetch 하며,
