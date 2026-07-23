@@ -7,6 +7,7 @@ locator here. This module assembles the /HITACHI path, lists the dir, and fetche
 image + cond over ftp_handler's FtpClient (vendored, instantiated only).
 """
 
+import ftplib
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
@@ -50,8 +51,10 @@ def _fetch(ftp: FtpClient, class_name, msr, name) -> FetchedImage:
     img_path = image_path(class_name, msr, name)
     try:
         data = ftp.download(img_path)
-    except Exception as exc:
+    except ftplib.error_perm as exc:
         raise ImageNotFound(f"image not found: {name}") from exc
+    except Exception as exc:
+        raise SourceUnavailable(f"tool fetch failed: {type(exc).__name__}") from exc
     cond = None
     try:
         cond_bytes = ftp.download(cond_path(img_path))

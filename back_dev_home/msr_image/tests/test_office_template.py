@@ -54,3 +54,37 @@ def test_download_all_reports_each(monkeypatch):
     )
     assert sorted(n for n, _, _ in seen) == ["shot01.jpeg", "shot02.jpeg"]
     assert all(ok and err is None for _, ok, err in seen)
+
+
+def test_fetch_image_missing_raises_not_found(monkeypatch):
+    import ftplib
+
+    import pytest
+
+    from back_dev_home.msr_image.errors import ImageNotFound
+
+    class MissingFtp(FakeFtp):
+        def download(self, remote_path):
+            raise ftplib.error_perm("550 No such file")
+
+    monkeypatch.setattr(office, "FtpClient", MissingFtp)
+    with pytest.raises(ImageNotFound):
+        office.fetch_image(
+            ImageLocator("10.0.0.1", "ADI", "MSR_1", "shot01.jpeg"), _config=office._test_config()
+        )
+
+
+def test_fetch_image_tool_down_raises_source_unavailable(monkeypatch):
+    import pytest
+
+    from back_dev_home.msr_image.errors import SourceUnavailable
+
+    class DeadFtp(FakeFtp):
+        def download(self, remote_path):
+            raise TimeoutError("connection timed out")
+
+    monkeypatch.setattr(office, "FtpClient", DeadFtp)
+    with pytest.raises(SourceUnavailable):
+        office.fetch_image(
+            ImageLocator("10.0.0.1", "ADI", "MSR_1", "shot01.jpeg"), _config=office._test_config()
+        )
