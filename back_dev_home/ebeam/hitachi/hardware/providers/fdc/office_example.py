@@ -50,21 +50,22 @@ They fall through to OpenSearch default dynamic mapping, which maps a string as
 ``keyword`` — that index is externally managed with its own explicit mapping;
 its convention does not carry here.)
 
-OFFICE-VERIFY on the first real run — the smoke test prints the live mappings
-AND the doc count, so an empty pull is diagnosed, not guessed:
-1. ``eqp_id`` is ``text`` + ``.keyword`` (as above). If it comes back a bare
-   ``keyword``, drop the suffix from ``EQP_ID_KW``.
-2. ``timestamp`` — is it a real ``date`` or ``text`` + ``.keyword``? The index
-   script's own docstring says ISO-8601 strings are NOT date-detected, which
-   would make ``timestamp`` ``text`` — and then the range below MUST target
-   ``timestamp.keyword`` (a lexicographic range works because offset-less
-   ISO-8601 sorts chronologically). If it is a ``date``, the bare field is
-   right. This is the most likely cause of an empty pull that ``eqp_id.keyword``
-   alone does not explain. See TS_FIELD below.
-3. ``timestamp`` is offset-less. A stored ``Z`` suffix slides the window 9h.
-4. The index actually has documents. An empty index returns empty for every
-   tool regardless of field names — ingestion is a separate manual step (see
-   the reference block at the bottom of the index script).
+CONFIRMED AT THE OFFICE (2026-07-23), so these are settled, not open questions:
+1. ``eqp_id`` is ``text`` + ``.keyword`` — a terms agg on the bare field errors
+   (fielddata disabled), so ``EQP_ID_KW`` (``eqp_id.keyword``) is REQUIRED.
+2. ``timestamp`` is a real ``date`` — the bare ``TS_FIELD`` range/sort is
+   correct; there is no ``.keyword`` on it.
+3. The index holds data, and real stored eqp_ids look like ``6MCDE305`` — NOT
+   the ``MCD018`` shape earlier comments assumed. The long-running "empty pull"
+   was simply a tool id that does not exist in this index; querying a real
+   eqp_id returns documents. The Hardware tool selector must therefore hand
+   ``build_fdc_docs`` an eqp_id in the index's own spelling (its sem_list row),
+   or the term matches nothing.
+
+The smoke test still prints the live mappings and doc count on every run, so a
+future ingestion change that alters either mapping is caught immediately.
+Remaining watch item: ``timestamp`` stays offset-less — a stored ``Z`` suffix
+would slide the window 9h.
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 ``cp providers/office_example.py providers/office.py`` (the dispatcher), then
@@ -365,7 +366,10 @@ def _diagnose(eqp_id: str, start: datetime, end: datetime) -> None:  # pragma: n
 if __name__ == "__main__":  # pragma: no cover
     # Office diagnosis, no Flask / Nuxt / provider switch involved:
     #   python -m back_dev_home.ebeam.hitachi.hardware.providers.fdc.office
-    #   python -m ...providers.fdc.office MCD320 30
+    #   python -m ...providers.fdc.office 6MCDE305 30
+    #
+    # Real stored eqp_ids look like `6MCDE305` (confirmed at the office
+    # 2026-07-23) -- NOT `MCD018`. Use one from the [3] value list below.
     #
     # Runs the query ONE CLAUSE AT A TIME (see _diagnose) so an empty pull says
     # WHICH clause is at fault, then runs the real build_fdc_docs and dumps the
@@ -392,8 +396,8 @@ if __name__ == "__main__":  # pragma: no cover
     # ============================ EDIT HERE ============================
     # Set the tool and window right here, then just run the file — no
     # command-line args needed (Run button, `python office.py`, REPL).
-    # Passing args still overrides: `... office MCD320 90`.
-    TOOL = "MCD018"
+    # Passing args still overrides: `... office 6MCDE305 90`.
+    TOOL = "6MCDE305"   # a real eqp_id in network_fdc_cdsem (confirmed 2026-07-23)
     DAYS = 30
     # ==================================================================
     tool = sys.argv[1] if len(sys.argv) > 1 else TOOL
