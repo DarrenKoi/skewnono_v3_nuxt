@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { stableYRange, tightYRange } from '~/utils/chartRange'
+import { stableYRange, tightYRange, type StableYRangeOptions } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -32,6 +32,9 @@ const props = defineProps<{
   // 'tight' skips stableYRange's magnitude-relative floor (which would
   // flatten the series) and lets the axis hug the data.
   yMode?: 'stable' | 'tight'
+  // Tuning for 'stable' mode (e.g. a smaller minSpanRatio hugs the data more
+  // closely). Omitted → stableYRange defaults; ignored in 'tight' mode.
+  yOptions?: StableYRangeOptions
   // BM/PM maintenance timestamps drawn as vertical markLines (empty → none).
   events?: BmPmEvent[]
   // Optional comparison tools drawn as thin extra lines (empty/omitted → the
@@ -81,7 +84,7 @@ const chartOption = computed<EChartsOption>(() => ({
     type: 'value',
     ...(props.yMode === 'tight'
       ? (tightYRange(yValues.value) ?? { scale: true })
-      : (stableYRange(yValues.value) ?? { scale: true })),
+      : (stableYRange(yValues.value, props.yOptions) ?? { scale: true })),
     axisLabel: { fontSize: 10 }
   },
   dataZoom: [

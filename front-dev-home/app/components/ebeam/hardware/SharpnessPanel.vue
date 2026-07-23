@@ -1,86 +1,76 @@
 <template>
   <div class="mt-3 space-y-3">
-    <!-- Filter row: beam condition (SEM_Cond_No · Vacc) -->
+    <!-- Filter row: beam condition (SEM_Cond_No · Vacc) as segmented buttons -->
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <span class="sk-label">Beam Condition</span>
-        <USelect
-          v-model="condition"
-          :items="conditionItems"
-          size="xs"
-          icon="i-lucide-filter"
-          class="w-52"
-        />
+        <div class="flex overflow-hidden rounded-lg border border-(--sk-border)">
+          <button
+            v-for="[value, label] in conditions"
+            :key="value"
+            type="button"
+            class="px-2.5 py-1 text-[11px] font-semibold transition-colors"
+            :class="value === condition
+              ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
+              : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
+            @click="condition = value"
+          >
+            {{ label }}
+          </button>
+        </div>
         <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
       </div>
-      <UTooltip text="클립보드 복사">
+      <div class="flex items-center gap-2">
+        <UTooltip text="클립보드 복사">
+          <UButton
+            icon="i-lucide-clipboard"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            aria-label="표를 클립보드에 복사"
+            :disabled="filteredDocs.length === 0"
+            @click="copyScalarsTable"
+          />
+        </UTooltip>
         <UButton
-          icon="i-lucide-clipboard"
+          icon="i-lucide-download"
           size="xs"
           color="neutral"
           variant="outline"
-          aria-label="표를 클립보드에 복사"
           :disabled="filteredDocs.length === 0"
-          @click="copyScalarsTable"
-        />
-      </UTooltip>
-      <UButton
-        icon="i-lucide-download"
-        size="xs"
-        color="neutral"
-        variant="outline"
-        :disabled="filteredDocs.length === 0"
-        @click="downloadScalarsCsv"
-      >
-        CSV 다운로드
-      </UButton>
+          @click="downloadScalarsCsv"
+        >
+          CSV 다운로드
+        </UButton>
+      </div>
     </div>
 
-    <!-- Header cards: summ_beam scalars of the selected measurement -->
-    <dl
-      v-if="selectedScalarCards.length"
-      class="grid gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-5"
-    >
-      <div
-        v-for="card in selectedScalarCards"
-        :key="card.key"
-        class="rounded-xl bg-(--sk-surface) px-3 py-2 ring-1 ring-(--sk-border-soft)"
-      >
-        <dt class="truncate sk-eyebrow">
-          {{ card.label }}
-        </dt>
-        <dd class="mt-0.5 font-mono text-sm font-bold tabular-nums text-(--sk-ink)">
-          {{ card.value }}
-        </dd>
-      </div>
-    </dl>
-
-    <!-- Two stacked summ_beam trend panes, each its own scalar dropdown -->
-    <div class="grid gap-3 lg:grid-cols-2">
-      <div
-        v-for="pane in trendPanes"
-        :key="pane.id"
-        class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
-      >
-        <div class="mb-1 flex items-center justify-between gap-2 px-1">
-          <USelect
-            v-model="pane.metric.value"
-            :items="scalarItems"
-            size="xs"
-            class="w-44"
-          />
+    <!-- summ_beam scalar trend over time: one chart, category picked here -->
+    <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+      <div class="mb-1 flex items-center justify-between gap-2 px-1">
+        <div class="sk-title">
+          Beam Summary Trend
         </div>
-        <EbeamHardwareBsmTrendChart
-          :label="pane.metric.value"
-          :points="trendPoints(pane.metric.value)"
-          :selected="selectedTs"
-          :events="maintenanceEvents"
-          @select="selectedTs = $event"
+        <USelect
+          v-model="trendMetric"
+          :items="scalarItems"
+          size="xs"
+          icon="i-lucide-activity"
+          class="w-44"
         />
       </div>
+      <EbeamHardwareBsmTrendChart
+        :label="trendMetric"
+        :points="trendPoints(trendMetric)"
+        :selected="selectedTs"
+        :events="maintenanceEvents"
+        :y-options="TREND_Y_OPTIONS"
+        @select="selectedTs = $event"
+      />
     </div>
 
-    <!-- Dual 360° radars for the selected measurement (per-degree fields) -->
+    <!-- All three per-degree profiles of the selected measurement, together:
+         reso_eb / noise as radars, reso_detector as a 0~360° line chart. -->
     <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
         <div class="sk-title">
@@ -95,27 +85,26 @@
           class="w-56"
         />
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div
-          v-for="radar in radarPanes"
-          :key="radar.id"
-          class="flex flex-col"
-        >
-          <USelect
-            v-model="radar.metric.value"
-            :items="profileItems"
-            size="xs"
-            class="mx-auto mb-1 w-44"
-          />
-          <EbeamHardwareBsmRadarChart
-            :title="radar.metric.value"
-            :color-index="radar.colorIndex"
-            :angles="angles"
-            :values="profileValues(radar.metric.value)"
-            :min="radialRange(radar.metric.value).min"
-            :max="radialRange(radar.metric.value).max"
-          />
-        </div>
+      <div class="grid gap-2 lg:grid-cols-3">
+        <EbeamHardwareBsmRadarChart
+          v-for="(key, i) in radarKeys"
+          :key="key"
+          :title="key"
+          :color-index="i"
+          :angles="angles"
+          :values="profileValues(key)"
+          :min="profileRange(key).min"
+          :max="profileRange(key).max"
+        />
+        <EbeamHardwareSharpnessProfileChart
+          v-if="hasDetector"
+          title="reso_detector"
+          :color-index="2"
+          :angles="angles"
+          :values="profileValues('reso_detector')"
+          :min="profileRange('reso_detector').min"
+          :max="profileRange('reso_detector').max"
+        />
       </div>
     </div>
   </div>
@@ -123,7 +112,7 @@
 
 <script setup lang="ts">
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-import { stableRadialRange } from '~/utils/chartRange'
+import { stableRadialRange, type StableYRangeOptions } from '~/utils/chartRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -131,10 +120,18 @@ const props = defineProps<{
   maintenanceEvents?: BmPmEvent[]
 }>()
 
-// The three per-degree fields (dicts keyed "0.0".."337.5") usable as radars.
-// All three are offered rather than curated down — which profile is the useful
-// lever is still an open question, so the engineer picks.
-const PROFILE_KEYS = ['reso_eb', 'noise', 'reso_detector'] as const
+// The three per-degree fields (dicts keyed "0.0".."337.5"), all shown at once:
+// reso_eb and noise read well as radar shapes; reso_detector's tiny magnitudes
+// read better on a cartesian 0~360° axis.
+const RADAR_KEYS = ['reso_eb', 'noise'] as const
+const DETECTOR_KEY = 'reso_detector'
+
+// The profiles wobble a fraction of a percent around a stable operating point;
+// the stable-range default (minSpanRatio 0.25) reserves a quarter of the
+// magnitude and flattens that wobble to invisibility. A small floor keeps the
+// axis hugging the data while still padding degenerate near-flat profiles.
+const PROFILE_RANGE_OPTIONS: StableYRangeOptions = { minSpanRatio: 0.02 }
+const TREND_Y_OPTIONS: StableYRangeOptions = { minSpanRatio: 0.05 }
 
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
 const numOf = (v: unknown): number => {
@@ -154,7 +151,8 @@ const condLabelOf = (d: Record<string, unknown>): string => {
   return `Cond ${String(bc.SEM_Cond_No ?? '—')} · ${String(bc.Vacc ?? '—')}V`
 }
 
-// Condition filter options (data-driven, stable order).
+// Condition options (data-driven, stable order) — usually just two, so they
+// render as segmented buttons rather than a dropdown.
 const conditions = computed(() => {
   const seen = new Map<string, string>()
   for (const d of props.docs) {
@@ -163,49 +161,43 @@ const conditions = computed(() => {
   }
   return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0]))
 })
-const condition = ref('all')
-const conditionItems = computed(() => [
-  { label: 'All conditions', value: 'all' },
-  ...conditions.value.map(([value, label]) => ({ label, value }))
-])
 
-const filteredDocs = computed(() =>
-  condition.value === 'all'
-    ? props.docs
-    : props.docs.filter(d => condKeyOf(d) === condition.value)
-)
+// Default to the 800V condition (matched on the label so it tracks whatever
+// SEM_Cond_No the office index pairs it with — Cond 6 in practice).
+const condition = ref('')
+watch(conditions, (conds) => {
+  if (conds.some(([key]) => key === condition.value)) return
+  const preferred = conds.find(([, label]) => label.includes('800V'))
+  condition.value = (preferred ?? conds[0])?.[0] ?? ''
+}, { immediate: true })
 
-// summ_beam scalar keys + per-degree profile fields, discovered off the first doc.
+const filteredDocs = computed(() => props.docs.filter(d => condKeyOf(d) === condition.value))
+
+// summ_beam scalar keys discovered off the first doc (office and mock differ).
 const scalarKeys = computed(() => Object.keys(asRecord(props.docs[0]?.summ_beam)))
-const profileKeys = computed<string[]>(() =>
-  PROFILE_KEYS.filter(k => Object.keys(asRecord(props.docs[0]?.[k])).length > 0)
-)
 const scalarItems = computed(() => scalarKeys.value.map(k => ({ label: k, value: k })))
-const profileItems = computed(() => profileKeys.value.map(k => ({ label: k, value: k })))
+
+const radarKeys = computed<string[]>(() =>
+  RADAR_KEYS.filter(k => Object.keys(asRecord(props.docs[0]?.[k])).length > 0)
+)
+const hasDetector = computed(() =>
+  Object.keys(asRecord(props.docs[0]?.[DETECTOR_KEY])).length > 0
+)
 
 // Degree axis: numerically-sorted keys of a per-degree dict ("0.0".."337.5").
 const angles = computed(() => {
-  const dict = asRecord(props.docs.find(d => Object.keys(asRecord(d[PROFILE_KEYS[0]])).length)?.[PROFILE_KEYS[0]])
-  return Object.keys(dict).sort((a, b) => Number(a) - Number(b))
+  const source = [...RADAR_KEYS, DETECTOR_KEY]
+    .map(k => asRecord(props.docs.find(d => Object.keys(asRecord(d[k])).length)?.[k]))
+    .find(dict => Object.keys(dict).length > 0) ?? {}
+  return Object.keys(source).sort((a, b) => Number(a) - Number(b))
 })
 
-// Two trend metrics + two radar metrics, seeded from known keys when present.
-const pick = (keys: string[], preferred: string, fallbackIdx: number) =>
-  keys.includes(preferred) ? preferred : (keys[fallbackIdx] ?? keys[0] ?? '')
-
-const trendA = ref(pick(scalarKeys.value, 'Ellipticity', 0))
-const trendB = ref(pick(scalarKeys.value, 'Tilt', 1))
-const radarA = ref(pick([...profileKeys.value], 'reso_eb', 0))
-const radarB = ref(pick([...profileKeys.value], 'noise', 1))
-
-const trendPanes = [
-  { id: 'a', metric: trendA },
-  { id: 'b', metric: trendB }
-]
-const radarPanes = [
-  { id: 'a', metric: radarA, colorIndex: 0 },
-  { id: 'b', metric: radarB, colorIndex: 1 }
-]
+// Trend metric, seeded from a known key when present.
+const trendMetric = ref('')
+watch(scalarKeys, (keys) => {
+  if (keys.includes(trendMetric.value)) return
+  trendMetric.value = keys.includes('Ellipticity') ? 'Ellipticity' : (keys[0] ?? '')
+}, { immediate: true })
 
 // Trend points (ascending time) for a summ_beam scalar key.
 const trendPoints = (key: string) =>
@@ -214,7 +206,7 @@ const trendPoints = (key: string) =>
     .filter(p => p.ts && Number.isFinite(p.value))
     .sort((a, b) => a.ts.localeCompare(b.ts))
 
-// Timestamps (desc, newest first) for the radar selector dropdown.
+// Timestamps (desc, newest first) for the profile selector dropdown.
 const timestampItems = computed(() =>
   Array.from(new Set(filteredDocs.value.map(tsOf).filter(Boolean))).sort((a, b) => b.localeCompare(a))
 )
@@ -232,26 +224,16 @@ const profileValues = (key: string): number[] => {
   return angles.value.map(a => numOf(dict[a]))
 }
 
-// Fixed radial scale per metric across the filtered docs, with a stable
-// magnitude-relative span so a near-constant profile reads as a near-circle.
-const radialRange = (key: string): { min: number, max: number } => {
+// Fixed scale per metric across the filtered docs, so switching timestamps
+// doesn't rescale the chart under the reader.
+const profileRange = (key: string): { min: number, max: number } => {
   const vals: number[] = []
   for (const d of filteredDocs.value) {
     const dict = asRecord(d[key])
     for (const a of angles.value) vals.push(numOf(dict[a]))
   }
-  return stableRadialRange(vals) ?? { min: 0, max: 1 }
+  return stableRadialRange(vals, PROFILE_RANGE_OPTIONS) ?? { min: 0, max: 1 }
 }
-
-const selectedScalarCards = computed(() => {
-  const sb = asRecord(selectedDoc.value?.summ_beam)
-  if (!selectedDoc.value) return []
-  return scalarKeys.value.map(k => ({
-    key: k,
-    label: k,
-    value: Number.isFinite(numOf(sb[k])) ? numOf(sb[k]).toFixed(4) : '-'
-  }))
-})
 
 const toast = useToast()
 

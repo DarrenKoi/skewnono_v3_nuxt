@@ -44,7 +44,9 @@ _DEGREE_KEYS: list[str] = [f"{round(i * 22.5, 1)}" for i in range(16)]
 _DAILY_HOURS: tuple[int, ...] = (2, 9, 16, 22)
 
 # Paired (SEM_Cond_No, Vacc) — the spec notes the two are locked together.
-_CONDITION_PAIRS: tuple[tuple[int, int], ...] = ((5, 800), (6, 500))
+# Cond 6 carries 800V to mirror the office index, where "Cond 6 · 800V" is the
+# panel's default condition (matched on the "800V" label substring).
+_CONDITION_PAIRS: tuple[tuple[int, int], ...] = ((5, 500), (6, 800))
 
 # Stable per-tool serial used inside beam_condition.
 _OPTICS: tuple[str, ...] = ("Optics_A", "Optics_B")
