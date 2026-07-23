@@ -144,14 +144,7 @@ const imageName = computed(() => {
 
 // Every image in this drawer belongs to the FOCUS MSR — same context as the
 // gallery (focusRow's eqp_ip/class_name + focusMsr).
-const focusCtx = computed(() => {
-  const row = props.analysis.focusRow.value
-  return {
-    eqp_ip: row?.eqp_ip ?? '',
-    class_name: row?.class_name ?? '',
-    msr: props.analysis.focusMsr.value ?? ''
-  }
-})
+const focusCtx = useFocusImageCtx(props.analysis)
 
 const blobUrl = ref<string | null>(null)
 const imageCond = ref<string | null>(null)

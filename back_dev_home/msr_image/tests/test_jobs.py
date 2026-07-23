@@ -52,3 +52,15 @@ def test_get_returns_isolated_snapshot():
     assert len(fresh["failures"]) == 1
     assert fresh["failures"][0]["error"] == "boom"
     assert fresh["done"] == 1
+
+
+def test_running_count_tracks_active_jobs():
+    reg = MemoryJobRegistry()
+    assert reg.running_count() == 0
+    j1 = reg.create(total=1)
+    j2 = reg.create(total=1)
+    assert reg.running_count() == 2
+    reg.finish(j1)
+    assert reg.running_count() == 1
+    reg.finish(j2)
+    assert reg.running_count() == 0

@@ -62,14 +62,7 @@ const { imageUrl } = useMsrImageApi()
 const zoomSrc = ref<string | null>(null)
 
 // The SEM micrograph belongs to the FOCUS MSR — same context as the gallery.
-const focusCtx = computed(() => {
-  const row = props.analysis.focusRow.value
-  return {
-    eqp_ip: row?.eqp_ip ?? '',
-    class_name: row?.class_name ?? '',
-    msr: props.analysis.focusMsr.value ?? ''
-  }
-})
+const focusCtx = useFocusImageCtx(props.analysis)
 
 const resolveImageUrl = (name: string): string | null => {
   const ctx = focusCtx.value

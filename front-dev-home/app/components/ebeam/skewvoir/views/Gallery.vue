@@ -161,14 +161,7 @@ const { imageUrl, startDownloadAll, pollJob } = useMsrImageApi()
 // image-API context is the focus row's eqp_ip/class_name + the focus msr id.
 // Empty strings (never undefined) when the focus row hasn't resolved yet —
 // callers gate on `focusCtx.eqp_ip` before building a URL/job.
-const focusCtx = computed(() => {
-  const row = props.analysis.focusRow.value
-  return {
-    eqp_ip: row?.eqp_ip ?? '',
-    class_name: row?.class_name ?? '',
-    msr: props.analysis.focusMsr.value ?? ''
-  }
-})
+const focusCtx = useFocusImageCtx(props.analysis)
 
 // ── Download-all ─────────────────────────────────────────────────────────────
 const downloading = ref(false)

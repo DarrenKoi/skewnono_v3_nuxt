@@ -74,20 +74,16 @@ def serve_image_route():
     if len(args["name"]) > 256:
         return jsonify({"error": "name too long"}), 400
     cfg = load_config()
+    locator = ImageLocator(args["eqp_ip"], args["class_name"], args["msr"], args["name"])
     try:
         validate_tool_ip(args["eqp_ip"], cfg.allowed_subnets)
+        cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
+        fetched = cache.get(locator)
+        if fetched is None:
+            fetched = data.fetch_image(locator)
+            cache.put(locator, fetched)
     except MsrImageError as exc:
         return _error(exc)
-
-    locator = ImageLocator(args["eqp_ip"], args["class_name"], args["msr"], args["name"])
-    cache = _get_cache(cfg)
-    fetched = cache.get(locator)
-    if fetched is None:
-        try:
-            fetched = data.fetch_image(locator)
-        except MsrImageError as exc:
-            return _error(exc)
-        cache.put(locator, fetched)
 
     headers = {"Cache-Control": "public, max-age=3600"}
     if fetched.cond is not None:
@@ -121,14 +117,18 @@ def download_all_route():
         return jsonify({"error": "eqp_ip, class_name, msr are required"}), 400
 
     cfg = load_config()
+    registry = default_registry()
+    # Cap concurrent full-downloads (each spins up a pool of tool-FTP
+    # connections); spec §9 SKEWNONO_MSR_IMAGE_MAX_JOBS.
+    if registry.running_count() >= cfg.max_jobs:
+        return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
     try:
         validate_tool_ip(eqp_ip, cfg.allowed_subnets)
         names = data.list_images(eqp_ip, class_name, msr)
+        cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
     except MsrImageError as exc:
         return _error(exc)
 
-    cache = _get_cache(cfg)
-    registry = default_registry()
     job_id = registry.create(total=len(names))
     thread = threading.Thread(
         target=_run_download,

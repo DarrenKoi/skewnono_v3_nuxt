@@ -77,6 +77,13 @@ def make_cache(cfg, provider: str):
     ``cfg`` is an ImageConfig (typed loosely to avoid a config import cycle).
     """
     if provider == "office":
+        # Fail loud (spec §7: 필수 환경 변수 누락 → 500) rather than silently
+        # falling back to minio_handler's default bucket — the office cache must
+        # write to an explicitly-configured bucket, kept separate from the
+        # measurement-data buckets (see MIGRATION.md).
+        if not cfg.cache_bucket:
+            from back_dev_home.msr_image.errors import ConfigError
+            raise ConfigError("SKEWNONO_IMAGE_CACHE_BUCKET is required in office mode")
         from back_dev_home.msr_image.minio_cache import MinioImageCache
         return MinioImageCache(
             bucket=cfg.cache_bucket, prefix=cfg.cache_prefix

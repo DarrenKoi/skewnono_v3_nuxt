@@ -54,3 +54,14 @@ def test_download_missing_body_400(app):
 def test_bad_ip_400(app):
     r = app.test_client().post("/api/msr-images", json={"eqp_ip": "nope", "class_name": "ADI", "msr": "MSR_1"})
     assert r.status_code == 400
+
+
+def test_download_all_rejects_at_max_jobs(app, monkeypatch):
+    # max_jobs=0 → running_count() (>=0) always trips the cap, so a new job is
+    # refused with 429 (spec §9 SKEWNONO_MSR_IMAGE_MAX_JOBS).
+    monkeypatch.setenv("SKEWNONO_MSR_IMAGE_MAX_JOBS", "0")
+    r = app.test_client().post(
+        "/api/msr-images", json={"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1"}
+    )
+    assert r.status_code == 429
+    assert r.get_json()["code"] == "too_many_jobs"
