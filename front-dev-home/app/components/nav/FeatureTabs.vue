@@ -27,7 +27,8 @@ const features: FeatureTab[] = [
   { label: 'Recipe 현황', routeValue: 'recipe-status', icon: 'i-lucide-timer', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'Recipe 검색', routeValue: 'recipe-search', icon: 'i-lucide-search', enabledToolTypes: ['cd-sem', 'hv-sem'] },
   { label: 'H/W 관리', routeValue: 'hardware', icon: 'i-lucide-cpu', enabledToolTypes: ['cd-sem', 'hv-sem'] },
-  { label: '라이브 알람', routeValue: 'live-alarm', icon: 'i-lucide-radio', enabledToolTypes: ['cd-sem', 'hv-sem'] },
+  // 라이브 알람 is reachable via the icon-only header button (AppHeader), like /chat —
+  // no feature tab. Keep 'live-alarm' in activeFeature so no tab highlights on that page.
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
   // 스큐 관리 (skew-check) is hidden from the nav while its design is reworked.
   // The route and page still exist and remain reachable by URL.
