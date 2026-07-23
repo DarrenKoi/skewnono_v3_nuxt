@@ -19,6 +19,7 @@ from back_dev_home.meas_hist.contracts import (
     MeasHistSearchResponse,
 )
 from back_dev_home.meas_hist.opensearch_query import SEARCHABLE_SOURCE_FIELDS
+from back_dev_home.meas_hist.providers._shared import derive_fail_ratio
 from back_dev_home.sem_list.contracts import SemListRow
 from back_dev_home.sem_list.providers.mock import get_sem_list
 
@@ -187,7 +188,7 @@ def _build_row(
 
     total_images = rng.randint(40, 400)
     fail_images = int(total_images * fail_ratio)
-    fail_ratio = round(fail_images / total_images, 4) if total_images else 0.0
+    fail_ratio = derive_fail_ratio(fail_images, total_images)
 
     date_str = end_time.strftime("%Y%m%d")
     msr = _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])

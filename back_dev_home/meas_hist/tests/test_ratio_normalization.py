@@ -1,42 +1,40 @@
-"""Regression tests for measurement-history ratio normalization."""
+"""Regression tests for measurement-history ratio normalization.
+
+The derivation lives in `providers/_shared.py` and is applied by each adapter,
+not by `data.py` — the dispatcher stays a dispatcher. These tests therefore
+pin the shared helper directly, plus the invariant it exists to guarantee on
+real mock rows.
+"""
 
 import pytest
 
-from back_dev_home.meas_hist import data
+from back_dev_home.meas_hist.data import get_meas_hist
+from back_dev_home.meas_hist.providers._shared import derive_fail_ratio
 
 
-class _Provider:
-    def __init__(self, total_images: int, fail_images: int, fail_ratio: float):
-        self.row = {
-            "msr": "MSR-RATIO-001",
-            "total_images": total_images,
-            "fail_images": fail_images,
-            "fail_ratio": fail_ratio,
-        }
-
-    def get_meas_hist(self, *_args):
-        return {
-            "tool_type": "cd-sem",
-            "fab_name": "M11",
-            "recipe_name": "ADI_CD_BIAS_001",
-            "total": 1,
-            "rows": [self.row],
-        }
+def test_derives_fail_ratio_from_image_counts():
+    # The source's own fail_ratio is ignored; 10/40 is the answer even when
+    # the index reports 25.0 (a percentage where a fraction is expected).
+    assert derive_fail_ratio(fail_images=10, total_images=40) == pytest.approx(0.25)
 
 
-def test_get_meas_hist_derives_fail_ratio_from_image_counts(monkeypatch):
-    provider = _Provider(total_images=40, fail_images=10, fail_ratio=25.0)
-    monkeypatch.setattr(data, "_provider", lambda: provider)
-
-    response = data.get_meas_hist()
-
-    assert response["rows"][0]["fail_ratio"] == pytest.approx(0.25)
+def test_caps_impossible_fail_ratio_at_one():
+    assert derive_fail_ratio(fail_images=50, total_images=40) == 1.0
 
 
-def test_get_meas_hist_caps_impossible_fail_ratio_at_one(monkeypatch):
-    provider = _Provider(total_images=40, fail_images=50, fail_ratio=1.25)
-    monkeypatch.setattr(data, "_provider", lambda: provider)
+def test_zero_total_images_yields_zero_not_a_division_error():
+    assert derive_fail_ratio(fail_images=0, total_images=0) == 0.0
 
-    response = data.get_meas_hist()
 
-    assert response["rows"][0]["fail_ratio"] == 1.0
+def test_negative_fail_count_floors_at_zero():
+    assert derive_fail_ratio(fail_images=-5, total_images=40) == 0.0
+
+
+def test_mock_rows_carry_a_ratio_consistent_with_their_counts():
+    rows = get_meas_hist()["rows"]
+    assert rows, "mock provider returned no rows to check"
+    for row in rows:
+        assert 0.0 <= row["fail_ratio"] <= 1.0
+        assert row["fail_ratio"] == derive_fail_ratio(
+            row["fail_images"], row["total_images"]
+        )
