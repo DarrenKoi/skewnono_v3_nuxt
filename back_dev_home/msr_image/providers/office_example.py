@@ -4,15 +4,27 @@
 
 The frontend sends eqp_ip/class_name/msr/name; routes validate the IP and pass a
 locator here. This module assembles the /HITACHI path, lists the dir, and fetches
-image + cond over ftp_handler's FtpClient (vendored, instantiated only).
+image + cond over ftp_handler's FtpFleetDownloader (vendored, instantiated only).
+
+Transport is platform-selected at import time. The office local PC (Windows)
+cannot open FTP connections to tools directly — every call must go through the
+HTTP proxy on a firewall-free host. The cloud deploy (Linux) downloads directly.
+Both classes expose the same surface and share the same dataclasses, so only
+the import line differs.
 """
 
-import ftplib
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import PurePosixPath
+from platform import system
 
-from ftp_handler.core.client import FtpClient
+if system() == "Windows":
+    # Office local PC: direct FTP egress to tools is blocked; route through the
+    # HTTP proxy (location/auth are PROXY_URL/PROXY_TOKEN module constants in
+    # ftp_handler/proxy/proxy_downloader.py — edit once per deployment).
+    from ftp_handler.proxy import FtpFleetDownloader, HostSpec, ListDir
+else:
+    # Cloud (Phase 3) and any host with direct reach to the tools.
+    from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec, ListDir
 
 from back_dev_home.msr_image.config import ImageConfig, load_config
 from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
@@ -27,83 +39,123 @@ def _test_config() -> ImageConfig:
     return load_config({})
 
 
-def _client(eqp_ip: str, cfg: ImageConfig) -> FtpClient:
-    return FtpClient(
-        host=eqp_ip,
+def _downloader(cfg: ImageConfig) -> FtpFleetDownloader:
+    return FtpFleetDownloader(
         user=cfg.ftp_user,
         password=cfg.ftp_password,
         port=cfg.ftp_port,
-        timeout=cfg.ftp_timeout,
+        connect_timeout=cfg.ftp_timeout,
     )
 
 
 def list_images(eqp_ip, class_name, msr, _config: ImageConfig | None = None) -> list[str]:
     cfg = _config or load_config()
     directory = image_dir(class_name, msr)
-    try:
-        with _client(eqp_ip, cfg) as ftp:
-            entries = ftp.list_dir(directory)
-    except Exception as exc:  # dead host, auth, timeout
-        raise SourceUnavailable(f"tool listing failed: {type(exc).__name__}") from exc
-    # FtpClient.list_dir returns FULL remote paths (ftp_handler normalizes NLST
-    # output to paths RETR accepts). The contract here is BASENAMES — the
-    # frontend sends the basename back as `name`, and fetch_image rebuilds the
-    # full path via image_path(). So basename them here.
+    report = _downloader(cfg).list_dirs([HostSpec(eqp_ip, listings=[ListDir(directory)])])
+    if report.failures:  # dead host, auth, or the one listing dir failed
+        raise SourceUnavailable(f"tool listing failed: {report.failures[0].error}")
+    # Listing paths are FULL remote paths (ftp_handler normalizes NLST output
+    # to paths RETR accepts). The contract here is BASENAMES — the frontend
+    # sends the basename back as `name`, and fetch_image rebuilds the full
+    # path via image_path(). So basename them here.
     return [
-        PurePosixPath(e).name
-        for e in entries
-        if e.lower().endswith((".jpeg", ".jpg"))
+        PurePosixPath(p).name
+        for listing in report.listings
+        for p in listing.paths
+        if p.lower().endswith((".jpeg", ".jpg"))
     ]
 
 
-def _fetch(ftp: FtpClient, class_name, msr, name) -> FetchedImage:
-    img_path = image_path(class_name, msr, name)
-    try:
-        data = ftp.download(img_path)
-    except ftplib.error_perm as exc:
-        raise ImageNotFound(f"image not found: {name}") from exc
-    except Exception as exc:
-        raise SourceUnavailable(f"tool fetch failed: {type(exc).__name__}") from exc
-    cond = None
-    try:
-        cond_bytes = ftp.download(cond_path(img_path))
-        cond = cond_bytes.decode("utf-8", errors="replace")
-    except Exception:
-        cond = None  # cond is best-effort; image already present
-    return FetchedImage(data, "image/jpeg", cond)
+def _image_error(report, img: str) -> str:
+    # Prefer the per-file failure; fall back to the host-level one
+    # (connect/login failures carry remote_path=None).
+    for f in report.failures:
+        if f.remote_path == img:
+            return f.error
+    for f in report.failures:
+        if f.remote_path is None:
+            return f.error
+    return "unknown"
 
 
 def fetch_image(locator: ImageLocator, _config: ImageConfig | None = None) -> FetchedImage:
     cfg = _config or load_config()
-    try:
-        with _client(locator.eqp_ip, cfg) as ftp:
-            return _fetch(ftp, locator.class_name, locator.msr, locator.name)
-    except (ImageNotFound, SourceUnavailable):
-        raise
-    except Exception as exc:
-        raise SourceUnavailable(f"tool fetch failed: {type(exc).__name__}") from exc
+    img = image_path(locator.class_name, locator.msr, locator.name)
+    report = _downloader(cfg).download(
+        [HostSpec(locator.eqp_ip, files=[img, cond_path(img)])]
+    )
+    data = {f.remote_path: f.data for f in report.files}
+    if img not in data:
+        err = _image_error(report, img)
+        # ftp_handler formats per-file failures as "<ExcName>: <msg>", so a 550
+        # from the tool surfaces as "error_perm: ..." -> the file is not there.
+        if err.startswith("error_perm"):
+            raise ImageNotFound(f"image not found: {locator.name}")
+        raise SourceUnavailable(f"tool fetch failed: {err}")
+    cond_bytes = data.get(cond_path(img))
+    cond = cond_bytes.decode("utf-8", errors="replace") if cond_bytes is not None else None
+    return FetchedImage(data[img], "image/jpeg", cond)
 
 
 def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6, _config=None) -> None:
-    """Bounded pool of FtpClient connections to the one tool. Each worker owns
-    one login and pulls a slice of the files. Progress is reported per file via
-    on_file; the caller (the job worker) writes to cache and counts."""
+    """One fleet call fans the files out over n connections to the one tool:
+    ftp_handler runs each HostSpec on its own connection, so n same-host specs
+    replace the old bounded ThreadPool of FtpClient logins. Progress is
+    reported per image via on_file; the caller (the job worker) writes to
+    cache and counts."""
     cfg = _config or load_config()
     n = max(1, min(concurrency, cfg.ftp_concurrency))
+    chunks = [c for c in (names[i::n] for i in range(n)) if c]
 
-    def worker(chunk: list[str]) -> None:
-        try:
-            with _client(eqp_ip, cfg) as ftp:
-                for name in chunk:
-                    try:
-                        on_file(name, _fetch(ftp, class_name, msr, name), None)
-                    except Exception as exc:
-                        on_file(name, None, f"{type(exc).__name__}: {exc}")
-        except Exception as exc:
-            for name in chunk:
-                on_file(name, None, f"connection failed: {type(exc).__name__}")
+    specs: list[HostSpec] = []
+    name_of_image: dict[str, str] = {}
+    image_of_cond: dict[str, str] = {}
+    chunk_of: dict[str, int] = {}
+    for idx, chunk in enumerate(chunks):
+        files: list[str] = []
+        for name in chunk:
+            img = image_path(class_name, msr, name)
+            files += [img, cond_path(img)]
+            name_of_image[img] = name
+            image_of_cond[cond_path(img)] = img
+            chunk_of[img] = chunk_of[cond_path(img)] = idx
+        specs.append(HostSpec(eqp_ip, files=files))
 
-    chunks: list[list[str]] = [names[i::n] for i in range(n)]
-    chunks = [c for c in chunks if c]
-    with ThreadPoolExecutor(max_workers=len(chunks) or 1) as pool:
-        list(pool.map(worker, chunks))
+    # Streamed pairing keeps RAM flat and progress live. Each chunk is one
+    # connection fetching [img1, cond1, img2, cond2, ...] in order, so an image
+    # is emitted the moment its cond arrives — or, when the cond RETR failed
+    # and thus never calls back, the moment the NEXT image on the same
+    # connection proves the cond phase is over. Leftovers flush after the call.
+    pending: dict[int, tuple[str, bytes]] = {}  # chunk idx -> (image path, bytes)
+    done: set[str] = set()  # image paths already reported to on_file
+
+    def emit(img: str, data: bytes, cond_bytes: bytes | None) -> None:
+        done.add(img)
+        cond = cond_bytes.decode("utf-8", errors="replace") if cond_bytes is not None else None
+        on_file(name_of_image[img], FetchedImage(data, "image/jpeg", cond), None)
+
+    def stream(_host: str, remote_path: str, data: bytes) -> None:
+        idx = chunk_of[remote_path]
+        prev = pending.pop(idx, None)
+        if remote_path in name_of_image:  # an image arrived
+            if prev is not None:
+                emit(prev[0], prev[1], None)  # its cond never called back
+            pending[idx] = (remote_path, data)
+        elif prev is not None:  # a cond arrived
+            if prev[0] == image_of_cond[remote_path]:
+                emit(prev[0], prev[1], data)
+            else:  # cond of a failed image; keep waiting for prev's own cond
+                pending[idx] = prev
+
+    report = _downloader(cfg).download(specs, on_file=stream)
+
+    for img, data in pending.values():  # last image per chunk, cond missing
+        emit(img, data, None)
+    errors = {f.remote_path: f.error for f in report.failures if f.remote_path}
+    host_error = next((f.error for f in report.failures if f.remote_path is None), None)
+    for name in names:
+        img = image_path(class_name, msr, name)
+        if img in done:
+            continue
+        err = errors.get(img)
+        on_file(name, None, err or f"connection failed: {host_error or 'unknown'}")

@@ -16,9 +16,17 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 - `providers/office.py`만 수정합니다. `routes.py`, `data.py`,
   `providers/office_example.py`, `providers/mock.py`, `contracts.py`,
   `tests/`는 건드리지 않습니다.
-- `ftp_handler`(vendored)는 절대 수정하지 않고 `FtpClient`를 인스턴스화만
-  합니다. 코드 안에서 모듈 수준 이름 `FtpClient`로 참조해야 테스트가
-  monkeypatch로 대체할 수 있습니다.
+- `ftp_handler`(vendored)는 절대 수정하지 않고 `FtpFleetDownloader`를
+  인스턴스화만 합니다. 코드 안에서 모듈 수준 이름 `FtpFleetDownloader`로
+  참조해야 테스트가 monkeypatch로 대체할 수 있습니다.
+- 전송 계층은 import 시점에 플랫폼으로 선택됩니다. office 로컬 PC(Windows)는
+  장비로의 직접 FTP가 차단되어 있으므로 `ftp_handler.proxy`(HTTP 프록시 경유)를,
+  그 외(Phase 3 클라우드 등 직접 접속 가능한 호스트)는
+  `ftp_handler.direct_downloader`를 import합니다. 두 클래스는 생성자·메서드
+  표면이 동일하고 dataclass(`HostSpec`/`ListDir`/report류)도 공유하므로 import
+  한 줄만 다릅니다. 프록시의 위치와 인증(`PROXY_URL`/`PROXY_TOKEN`)은
+  `ftp_handler/proxy/proxy_downloader.py` 상단의 모듈 상수이며 배포마다 한 번만
+  수정합니다.
 - 완료 기준: 아래 확인 명령이 모두 초록색으로 통과하는 것입니다.
 
 ## 엔드포인트별 동작
@@ -27,7 +35,7 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | --- | --- | --- |
 | `list_images` | `(eqp_ip, class_name, msr, _config=None) -> list[str]` | FTP로 디렉터리를 리스팅하고 `.jpeg`/`.jpg`만 필터링합니다 |
 | `fetch_image` | `(locator, _config=None) -> FetchedImage` | 이미지 바이트를 내려받아 `image/jpeg`로 반환하고, cond 사이드카는 best-effort로 붙입니다 |
-| `download_all` | `(eqp_ip, class_name, msr, names, on_file, concurrency=6, _config=None)` | `FtpClient` 연결의 bounded ThreadPool로 파일별 진행 상황을 `on_file` 콜백에 보고합니다 |
+| `download_all` | `(eqp_ip, class_name, msr, names, on_file, concurrency=6, _config=None)` | 같은 장비를 가리키는 `HostSpec` n개를 한 번의 fleet 호출로 넘겨 연결 n개로 분산하고, 파일별 진행 상황을 `on_file` 콜백에 스트리밍으로 보고합니다 |
 
 - 경로 조립은 `paths.py`(`image_dir`/`image_path`/`cond_path`)가 전담하며,
   office 어댑터는 이를 그대로 재사용합니다. `_ROOT`(`/HITACHI/DEVICE/HD`)가
@@ -160,6 +168,6 @@ SKEWNONO_MSR_IMAGE_PROVIDER=office .venv/bin/python -c "from back_dev_home.msr_i
 ```
 
 두 명령 모두 저장소 루트에서 실행해야 합니다. 첫 번째는 템플릿 로직(경로
-조립 + FTP 클라이언트 사용법)이 fake `FtpClient`로 검증되는지 확인하는
+조립 + fleet downloader 사용법)이 fake `FtpFleetDownloader`로 검증되는지 확인하는
 회귀 테스트이고, 두 번째는 `office.py`를 실제로 만든 뒤 실 장비 IP로 붙여
 보는 스모크 테스트입니다.
