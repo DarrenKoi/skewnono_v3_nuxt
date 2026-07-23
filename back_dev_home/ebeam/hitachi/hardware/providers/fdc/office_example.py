@@ -267,63 +267,159 @@ def _describe_field_mappings() -> str:  # pragma: no cover — smoke-test only
         for field in ("eqp_id", "timestamp"):
             spec = mappings.get(field, {}).get("mapping", {}).get(field, {})
             if not spec:
-                parts.append(f"{field}=(absent — no docs?)")
+                parts.append(f"{field}=(absent - no docs?)")
                 continue
             subs = ", ".join((spec.get("fields") or {}).keys())
             parts.append(f"{field}={spec.get('type')}" + (f"+[{subs}]" if subs else ""))
         return "  ".join(parts)
-    return "(no mapping returned — wrong index or empty)"
+    return "(no mapping returned - wrong index or empty)"
+
+
+def _diagnose(eqp_id: str, start: datetime, end: datetime) -> None:  # pragma: no cover
+    """Step-by-step: why does this tool's pull come back empty?
+
+    Runs against the live index through the adapter's own client and prints
+    ASCII only, so a Korean Windows console (cp949) never raises on output.
+    Each line isolates one hypothesis, so a single run names the culprit --
+    a wrong eqp_id value, a too-narrow window, or a mapping/field-name drift --
+    with no separate diagnostic script.
+    """
+    from datetime import timedelta
+    from back_dev_home.ebeam.hitachi._office_search import client
+
+    os_client = client()
+
+    def _count(filters: list) -> Any:
+        body = {"size": 0, "query": {"bool": {"filter": filters}}}
+        res = os_client.search(index=INDEX, body=body)
+        total = res.get("hits", {}).get("total", {})
+        return total.get("value") if isinstance(total, dict) else total
+
+    def _rng(field: str, lo: datetime, hi: datetime) -> dict:
+        return {"range": {field: {"gte": lo.isoformat(), "lte": hi.isoformat()}}}
+
+    print("=== FDC diagnosis: index=%s tool=%s ===" % (INDEX, eqp_id))
+
+    # [1] does the index hold anything at all?
+    try:
+        print("[1] total docs in index: %s" % _count([]))
+    except Exception as exc:  # noqa: BLE001 — diagnostic path, never fatal
+        print("[1] count FAILED: %s" % exc)
+
+    # [2] how eqp_id and timestamp are ACTUALLY mapped (decides the fields).
+    print("[2] mappings: %s" % _describe_field_mappings())
+
+    # [3] which eqp_id values exist, and is this tool among them, spelled how?
+    #     A terms agg on a bare `text` field errors (fielddata off); that error
+    #     is itself the signal that the value lives under `.keyword`.
+    for field in (EQP_ID_KW, "eqp_id"):
+        try:
+            body = {"size": 0,
+                    "aggs": {"ids": {"terms": {"field": field, "size": 50}}}}
+            buckets = (os_client.search(index=INDEX, body=body)
+                       .get("aggregations", {}).get("ids", {}).get("buckets", []))
+            names = [b["key"] for b in buckets]
+            print("[3] terms on %r: %d values; %r present exactly: %s"
+                  % (field, len(names), eqp_id, eqp_id in names))
+            if names:
+                print("    " + ", ".join("%s(%s)" % (b["key"], b["doc_count"])
+                                         for b in buckets[:20]))
+        except Exception as exc:  # noqa: BLE001
+            print("[3] terms on %r FAILED: %s" % (field, exc))
+
+    # [4] the timestamp span, so you can see if the window even overlaps data.
+    try:
+        body = {"size": 0, "aggs": {
+            "lo": {"min": {"field": TS_FIELD}},
+            "hi": {"max": {"field": TS_FIELD}}}}
+        aggs = os_client.search(index=INDEX, body=body).get("aggregations", {})
+        print("[4] timestamp span: %s .. %s"
+              % (aggs.get("lo", {}).get("value_as_string"),
+                 aggs.get("hi", {}).get("value_as_string")))
+    except Exception as exc:  # noqa: BLE001
+        print("[4] timestamp span FAILED: %s" % exc)
+
+    # [5] THE decisive test: which single clause drops the count to zero?
+    wide = end - timedelta(days=365)
+    probes = [
+        ("eqp_id.keyword only (no time)", [{"term": {EQP_ID_KW: eqp_id}}]),
+        ("eqp_id bare only (no time)", [{"term": {"eqp_id": eqp_id}}]),
+        ("time range only (this window)", [_rng(TS_FIELD, start, end)]),
+        ("eqp_id.keyword + this window [adapter]",
+         [{"term": {EQP_ID_KW: eqp_id}}, _rng(TS_FIELD, start, end)]),
+        ("eqp_id.keyword + last 365 days",
+         [{"term": {EQP_ID_KW: eqp_id}}, _rng(TS_FIELD, wide, end)]),
+    ]
+    print("[5] clause isolation (window %s .. %s):"
+          % (start.isoformat(), end.isoformat()))
+    for label, filters in probes:
+        try:
+            print("    %-40s: %s docs" % (label, _count(filters)))
+        except Exception as exc:  # noqa: BLE001
+            print("    %-40s: ERROR %s" % (label, exc))
+    print("    reading: both eqp_id rows 0 -> tool id not stored (see [3] spelling);")
+    print("             eqp_id>0 but this-window 0 and 365d>0 -> data older than window;")
+    print("             this-window>0 -> query is fine (empty page = validate/frontend).")
 
 
 if __name__ == "__main__":  # pragma: no cover
-    # Office smoke check, no Flask / Nuxt / provider switch involved:
+    # Office diagnosis, no Flask / Nuxt / provider switch involved:
     #   python -m back_dev_home.ebeam.hitachi.hardware.providers.fdc.office
     #   python -m ...providers.fdc.office MCD320 30
-    # MCD018 / MCD320 are the reference tools for this index (user-supplied).
-    # An eqp_id does NOT encode tool family — `MCD` spans CD-SEM, HV-SEM,
-    # VeritySEM and Provision — so an empty pull is ambiguous between "no data
-    # in this window" and "this tool is not a CD-SEM and is therefore absent
-    # from a _cdsem index". Resolve the family from the tool's sem_list row,
-    # never from its id. The output below spells that out.
     #
-    # The window is relative to NOW, not to the mock's 2026-05-24 anchor: this
-    # runs against live ingestion, and a hardcoded historical window would
-    # report an empty pull that looks identical to a broken query.
+    # Runs the query ONE CLAUSE AT A TIME (see _diagnose) so an empty pull says
+    # WHICH clause is at fault, then runs the real build_fdc_docs and dumps the
+    # raw pull per fdc_key. The window is relative to NOW (live ingestion), so a
+    # hardcoded historical window cannot masquerade as a broken query.
     #
-    # Dumps the RAW pull per fdc_key. The contract response is a doc count and
-    # one timestamp — far too small to reveal schema drift, so print the
-    # timestamps verbatim and confirm they carry NO offset (see OFFICE-VERIFY
-    # above): a `Z` suffix here means the range bounds slide 9 hours.
+    # An eqp_id does NOT encode tool family -- an empty pull can also mean the
+    # tool is not a CD-SEM (this index is CD-SEM only). Resolve the family from
+    # the tool's sem_list row, not its id.
+    #
+    # All output is ASCII and stdout is switched to UTF-8, so a Korean Windows
+    # console (cp949) never raises on print. This file reads no source files, so
+    # the cp949 *decode* error the separate scripts hit cannot occur here.
     import sys
     from collections import Counter
     from datetime import timedelta
 
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     tool = sys.argv[1] if len(sys.argv) > 1 else "MCD018"
-    days = int(sys.argv[2]) if len(sys.argv) > 2 else 7
+    days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
     window_end = datetime.now()
     window_start = window_end - timedelta(days=days)
 
-    print(f"mappings: {_describe_field_mappings()}")
-    pulled = build_fdc_docs(tool, None, window_start, window_end)
-    print(f"{tool}  last {days}d: {window_start.isoformat()} .. "
-          f"{window_end.isoformat()}")
-    print(f"{len(pulled)} docs  by key: {dict(Counter(d['fdc_key'] for d in pulled))}")
+    _diagnose(tool, window_start, window_end)
+
+    print("\n=== build_fdc_docs (term + range + sort + validate) ===")
+    try:
+        pulled = build_fdc_docs(tool, None, window_start, window_end)
+    except Exception as exc:  # noqa: BLE001 — show the error, keep the diagnosis
+        print("build_fdc_docs raised: %s: %s" % (type(exc).__name__, exc))
+        pulled = []
+    print("%s  last %dd: %s .. %s"
+          % (tool, days, window_start.isoformat(), window_end.isoformat()))
+    print("%d docs  by key: %s"
+          % (len(pulled), dict(Counter(d["fdc_key"] for d in pulled))))
     if not pulled:
         print(
-            f"\n  EMPTY. Either {tool} logged no FDC in the last {days}d, or it\n"
-            f"  is not a CD-SEM tool at all ({INDEX} is CD-SEM only, and an\n"
-            "  eqp_id does not encode the family). Look the tool up in sem_list\n"
-            "  and check its eqp_model_cd — CG*/GT* is CD-SEM — before assuming\n"
-            "  the query is wrong. Widen the window with: ... <tool> 90"
+            "  EMPTY -- read the [5] clause table above for which filter is at\n"
+            "  fault. If this-window > 0 there but 0 docs here, it is validate or\n"
+            "  the sort, and the exception (if any) is printed just above."
         )
     for key in sorted(KNOWN_FDC_KEYS):
         first = next((d for d in pulled if d["fdc_key"] == key), None)
-        print(f"\n--- {key} ---")
+        print("\n--- %s ---" % key)
         if first is None:
             print("  (no documents in this window)")
             continue
-        print(f"  timestamp raw : {first['timestamp']!r}")
-        print(f"  fab_name      : {first.get('fab_name')!r}")
-        print(f"  eqp_model_cd  : {first.get('eqp_model_cd')!r}")
-        print(f"  values[:12]   : {first['values'][:12]}")
-        print(f"  len(values)   : {len(first['values'])}")
+        print("  timestamp raw : %r" % first["timestamp"])
+        print("  fab_name      : %r" % first.get("fab_name"))
+        print("  eqp_model_cd  : %r" % first.get("eqp_model_cd"))
+        print("  values[:12]   : %s" % first["values"][:12])
+        print("  len(values)   : %s" % len(first["values"]))
