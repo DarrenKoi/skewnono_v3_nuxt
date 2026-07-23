@@ -22,6 +22,7 @@ class MeasHistRow(TypedDict):
     fab_name: str
     vendor_nm: Literal["HITACHI", "AMAT"]
     eqp_id: str
+    eqp_ip: str
     eqp_model_cd: str
     tool_type: ToolType
     lot_cd: str

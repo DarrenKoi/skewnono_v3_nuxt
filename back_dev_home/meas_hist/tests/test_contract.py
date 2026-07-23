@@ -43,3 +43,19 @@ def test_find_meas_hist_by_msr_matches_contract():
 
 def test_find_meas_hist_by_unknown_msr_returns_none():
     assert data.find_meas_hist_by_msr("MSR-DOES-NOT-EXIST-000000") is None
+
+
+def test_row_eqp_ip_is_dotted_quad():
+    """msr_image needs eqp_ip to fetch a tool's images; every row must carry
+    a well-formed IPv4 address, not just a truthy string."""
+    search_result = data.search_meas_hist()
+    rows = search_result["rows"]
+    if not rows:
+        rows = data.get_meas_hist()["rows"]
+    assert rows, "expected at least one row to check eqp_ip on"
+
+    row = rows[0]
+    parts = row["eqp_ip"].split(".")
+    assert len(parts) == 4 and all(p.isdigit() for p in parts), (
+        f"eqp_ip {row['eqp_ip']!r} is not a dotted-quad IPv4 address"
+    )

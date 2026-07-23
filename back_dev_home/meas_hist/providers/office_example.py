@@ -170,6 +170,7 @@ def _row(
         fab_name=_text(src.get("fab_name")),
         vendor_nm=_vendor(eqp_model_cd),  # type: ignore[typeddict-item]
         eqp_id=_text(src.get("eqp_id")),
+        eqp_ip=_text(src.get("eqp_ip")),
         eqp_model_cd=eqp_model_cd,
         tool_type=_hit_tool_type(hit, tool_type),
         lot_cd=bridge.get(lot_id, ""),
