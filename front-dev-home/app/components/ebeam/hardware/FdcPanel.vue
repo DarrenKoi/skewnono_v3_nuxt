@@ -222,27 +222,52 @@ const contactpinRows = computed(() =>
 )
 
 // --- SPMVoltages ---
-const spmTimestampItems = computed(() =>
-  Array.from(new Set(activeDocs.value.map(tsOf))).filter(Boolean).reverse()
+// A/B/C are logged a few minutes apart within one measurement cycle, and
+// cycles repeat periodically (hours–days apart). Filtering on an exact
+// timestamp therefore surfaced only the single channel logged at that instant.
+// Cluster docs into cycles (a gap > 30 min starts a new cycle) so one
+// selection shows the whole A/B/C set.
+const spmCycles = computed(() => {
+  const docs = activeDocs.value
+    .map(d => ({ ts: tsOf(d), epoch: toEpoch(tsOf(d)), parsed: parseFdcValues(valuesOf(d)) }))
+    .filter(d => d.parsed.key === 'SPMVoltages')
+    .sort((a, b) => a.epoch - b.epoch)
+  const GAP_MS = 30 * 60 * 1000
+  const cycles: { key: string, items: typeof docs }[] = []
+  let prev = Number.NEGATIVE_INFINITY
+  for (const d of docs) {
+    const last = cycles[cycles.length - 1]
+    if (last && Number.isFinite(d.epoch) && d.epoch - prev < GAP_MS) last.items.push(d)
+    else cycles.push({ key: d.ts, items: [d] })
+    prev = d.epoch
+  }
+  return cycles.reverse() // newest cycle first
+})
+const spmCycleItems = computed(() =>
+  spmCycles.value.map(c => ({
+    value: c.key,
+    label: `${c.key.replace('T', ' ')} · ${c.items.map(i => (i.parsed.data as SpmVoltagesValue).channel).join('/')}`
+  }))
 )
-const spmTs = ref('')
-watch(spmTimestampItems, (items) => {
-  if (!items.includes(spmTs.value)) spmTs.value = items[0] ?? ''
+const spmCycleKey = ref('')
+watch(spmCycleItems, (items) => {
+  if (!items.some(i => i.value === spmCycleKey.value)) spmCycleKey.value = items[0]?.value ?? ''
 }, { immediate: true })
-const spmAtTs = computed(() =>
-  activeDocs.value
-    .filter(d => tsOf(d) === spmTs.value)
-    .map(d => parseFdcValues(valuesOf(d)))
+const spmSelected = computed(() => {
+  const cycle = spmCycles.value.find(c => c.key === spmCycleKey.value)
+  return (cycle?.items ?? [])
+    .map(i => i.parsed)
     .filter(p => p.key === 'SPMVoltages')
-)
+    .sort((a, b) => (a.data as SpmVoltagesValue).channel.localeCompare((b.data as SpmVoltagesValue).channel))
+})
 const spmJudgments = computed(() =>
-  spmAtTs.value.map(p => ({ channel: (p.data as SpmVoltagesValue).channel, judgment: (p.data as SpmVoltagesValue).judgment }))
+  spmSelected.value.map(p => ({ channel: (p.data as SpmVoltagesValue).channel, judgment: (p.data as SpmVoltagesValue).judgment }))
 )
 
 const chartOption = computed<EChartsOption>(() => {
   if (activeKey.value === 'SPMVoltages') {
     const colors = [c0.value, c1.value, c2.value]
-    const spmAxis = stableYRange(spmAtTs.value.flatMap(p => (p.data as SpmVoltagesValue).profile)) ?? { scale: true }
+    const spmAxis = stableYRange(spmSelected.value.flatMap(p => (p.data as SpmVoltagesValue).profile)) ?? { scale: true }
     return {
       grid: { left: 48, right: 16, top: 24, bottom: 52 },
       tooltip: { trigger: 'axis' },
@@ -251,7 +276,8 @@ const chartOption = computed<EChartsOption>(() => {
       yAxis: { type: 'value', ...spmAxis, axisLabel: { fontSize: 10 } },
       // Zoom the ~100-point profile — the whole reason SPM needs a range slider.
       dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
-      series: spmAtTs.value.map((p, i) => ({
+      // One line per channel (A/B/C) in the selected cycle.
+      series: spmSelected.value.map((p, i) => ({
         name: (p.data as SpmVoltagesValue).channel,
         type: 'line', smooth: true, showSymbol: false,
         lineStyle: { color: colors[i % colors.length] },
