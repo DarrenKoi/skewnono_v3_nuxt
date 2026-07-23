@@ -1319,7 +1319,7 @@ git commit -m "feat(msr_image): async download-all job routes + worker"
 
 Append to `back_dev_home/requirements.txt`:
 
-```
+```text
 apscheduler>=3.10
 ```
 
@@ -2031,7 +2031,7 @@ git commit -m "feat(skewvoir): gallery via tool image list, cond in detail views
 
 Append to `.gitignore`:
 
-```
+```text
 var/
 back_dev_home/msr_image/providers/office.py
 ```
@@ -2217,7 +2217,7 @@ Expected: PASS (3 tests).
 
 `back_dev_home/msr_image/MIGRATION.md` (Korean, formal endings, MD060 tables) covering: office is pure-FTP (no OpenSearch); `cp office_example.py office.py`; env keys (`SKEWNONO_TOOL_FTP_*`, `SKEWNONO_TOOL_SUBNETS`, `SKEWNONO_IMAGE_CACHE_BUCKET`/`_PREFIX`); the MinIO cache prefix must be separate from measurement-data buckets; Redis-backed `JobRegistry` is an office follow-up for multi-worker (`gunicorn -w N`); native lifecycle-by-tag is an optional upgrade (needs `s3:PutBucketLifecycle` + extending `minio_handler` in both copies); Verify commands:
 
-```
+```bash
 SKEWNONO_MSR_IMAGE_PROVIDER=office .venv/bin/pytest back_dev_home/msr_image/tests/test_office_template.py
 SKEWNONO_MSR_IMAGE_PROVIDER=office .venv/bin/python -c "from back_dev_home.msr_image import data; print(data.list_images('<tool-ip>', '<class>', '<msr>'))"
 ```
