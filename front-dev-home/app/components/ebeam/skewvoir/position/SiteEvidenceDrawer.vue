@@ -201,5 +201,8 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(() => revokeBlob())
+onBeforeUnmount(() => {
+  loadToken++
+  revokeBlob()
+})
 </script>

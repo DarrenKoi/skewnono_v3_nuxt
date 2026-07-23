@@ -210,6 +210,13 @@ const startDownload = async () => {
 
 onBeforeUnmount(() => stopPolling())
 
+// Reset download state when focused MSR changes
+watch(focusCtx, () => {
+  stopPolling()
+  downloadStatus.value = null
+  downloading.value = false
+}, { deep: true })
+
 // ── SINGLE scope: the review queue ───────────────────────────────────────────
 const queue = computed(() =>
   buildReviewQueue(

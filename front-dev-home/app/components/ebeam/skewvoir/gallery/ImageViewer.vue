@@ -262,7 +262,10 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(() => revokeBlob())
+onBeforeUnmount(() => {
+  loadToken++
+  revokeBlob()
+})
 
 // Physical scale bar. Phase-1 metadata carries image RESOLUTION
 // (meas_condition_pixel) but no field-of-view, so a true nm/pixel calibration
