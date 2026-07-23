@@ -69,3 +69,16 @@ class DiskImageCache:
                         sidecar.unlink()
                 removed += 1
         return removed
+
+
+def make_cache(cfg, provider: str):
+    """Pick the cache backend that matches the byte source.
+
+    ``cfg`` is an ImageConfig (typed loosely to avoid a config import cycle).
+    """
+    if provider == "office":
+        from back_dev_home.msr_image.minio_cache import MinioImageCache
+        return MinioImageCache(
+            bucket=cfg.cache_bucket, prefix=cfg.cache_prefix
+        )
+    return DiskImageCache(cfg.cache_dir)
