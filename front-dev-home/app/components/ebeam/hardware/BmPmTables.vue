@@ -36,9 +36,11 @@
                 class="px-3 py-1.5"
                 :class="column.expandable ? 'min-w-[16rem]' : 'whitespace-nowrap'"
               >
-                <!-- BM/PM category chip -->
+                <!-- BM/PM category chip: only for an exact BM/PM value. An
+                     empty (unclassified) category must fall through to the
+                     default cell below rather than render as a bogus BM. -->
                 <span
-                  v-if="column.key === 'category'"
+                  v-if="column.key === 'category' && (row[column.key] === 'BM' || row[column.key] === 'PM')"
                   class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold"
                   :class="row[column.key] === 'PM'
                     ? 'bg-(--sk-ok-soft) text-(--sk-ok)'

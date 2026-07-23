@@ -1,9 +1,9 @@
 """Row-value logic shared by the bm_pm mock and office adapters.
 
-The dispatcher (`providers/office_example.py`) swaps `mock.py` and `office.py`
-by module name, so both must produce rows with the same keys, the same
-timestamp format, and the same BM/PM classification. That logic lives here,
-imported by both, instead of being written twice and drifting.
+The top-level `providers/office_example.py` dispatcher swaps `mock.py` and
+`office.py` by module name, so both must produce rows with the same keys, the
+same timestamp format, and the same BM/PM classification. That logic lives
+here, imported by both, instead of being written twice and drifting.
 """
 
 from __future__ import annotations

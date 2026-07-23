@@ -29,8 +29,11 @@ In scope:
 
 Out of scope:
 
-- Any frontend change. `BmPmTables.vue` renders whatever `columns` the payload
-  declares, so new columns need no Vue edit.
+- ~~Any frontend change.~~ Correction: no Vue edit was needed for the new
+  columns — `BmPmTables.vue` renders whatever `columns` the payload declares —
+  but the widened row shape introduced `""` as a possible `category` value,
+  which required guarding the BM/PM chip in `BmPmTables.vue` so an
+  unclassified row does not render as a false BM.
 - `pm_planning`, the separate fleet-level PM Up-gate feature. Its office
   adapter stays stubbed.
 - The other hardware tabs.

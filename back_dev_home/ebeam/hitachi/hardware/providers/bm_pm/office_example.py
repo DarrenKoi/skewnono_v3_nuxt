@@ -25,6 +25,14 @@ KST wall clock like ``network_fdc_cdsem``. A stored ``Z`` suffix would slide
 every window by nine hours. Run this module's ``__main__`` — it prints raw
 stored values next to the reformatted ones — before trusting the tab.
 
+There is a second, independent timezone hazard on the request side, shared
+with the sibling ``fdc`` adapter and not introduced here: this module sends
+``anchor.isoformat()`` treating the route's naive datetime as a KST wall
+clock, but the frontend sends ``new Date().toISOString()`` and the route only
+strips the ``Z`` — so the anchor it receives is actually a UTC wall clock,
+nine hours behind KST. Symptom: the most recent ~9 hours of maintenance
+appears to be missing from the tab.
+
 At the office: fill OPENSEARCH_* in ``back_dev_home/.env``, ``cp`` this file
 and ``providers/office_example.py`` to ``office.py``, set
 ``SKEWNONO_HARDWARE_PROVIDER=office``, and run hardware/MIGRATION.md's Verify.

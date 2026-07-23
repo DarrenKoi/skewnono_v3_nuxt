@@ -56,7 +56,7 @@ def test_derive_cards_falls_back_to_job_starts_when_tool_is_still_down():
     assert cards["planned_count"] == 0
 
 
-def test_derive_cards_takes_the_soonest_future_pm():
+def test_derive_cards_takes_the_first_future_pm():
     future = [
         {"category": "BM", "job_starts": "2026-05-02 08:00"},
         {"category": "PM", "job_starts": "2026-05-10 08:00"},
