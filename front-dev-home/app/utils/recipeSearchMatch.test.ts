@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { matchesRecipeQuery, matchingHistoryNames, tokenizeRecipeQuery } from './recipeSearchMatch.ts'
+import {
+  matchesRecipeQuery,
+  matchingHistoryNames,
+  rankRecipeMatches,
+  tokenizeRecipeQuery
+} from './recipeSearchMatch.ts'
 
 const NAME = 'ADI/CD_BIAS_ABC123_MON_00005'.toLowerCase()
 
@@ -42,6 +47,32 @@ test('still rejects names missing any token', () => {
 
 test('never matches on an empty token list', () => {
   assert.equal(matchesRecipeQuery(NAME, []), false)
+})
+
+test('ranks exact, prefix, substring and token-only matches while preserving ties', () => {
+  const exactName = 'RJ1BXXX_CG6300/RJ1B_SN2SP_M_SE'
+  const query = exactName.toLowerCase()
+  const names = [
+    `PREFIX_${exactName}`,
+    `Z_SE_M_SN2SP_${exactName.split('_').slice(0, 2).join('_')}`,
+    `A_SE_M_SN2SP_${exactName.split('_').slice(0, 2).join('_')}`,
+    `${exactName}_BACKUP`,
+    exactName
+  ]
+
+  assert.deepEqual(
+    rankRecipeMatches(
+      names.map(name => ({ value: name, searchText: name.toLowerCase() })),
+      query
+    ),
+    [
+      exactName,
+      `${exactName}_BACKUP`,
+      `PREFIX_${exactName}`,
+      `Z_SE_M_SN2SP_${exactName.split('_').slice(0, 2).join('_')}`,
+      `A_SE_M_SN2SP_${exactName.split('_').slice(0, 2).join('_')}`
+    ]
+  )
 })
 
 test('history names re-apply AND semantics over the server OR results', () => {

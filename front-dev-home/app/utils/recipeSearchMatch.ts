@@ -20,6 +20,37 @@ export const matchesRecipeQuery = (searchText: string, tokens: string[]): boolea
   tokens.length > 0 && tokens.every(token => searchText.includes(token))
 
 /**
+ * Filter and rank recipe identifiers in one stable linear pass:
+ * exact → prefix → substring → unordered token-only.
+ * Candidate searchText values must already be trimmed and lowercased so a
+ * catalog can cache normalization independently of query changes.
+ */
+export const rankRecipeMatches = <T>(
+  candidates: Array<{ value: T, searchText: string }>,
+  query: string
+): T[] => {
+  const normalizedQuery = query.trim().toLowerCase()
+  const tokens = tokenizeRecipeQuery(query)
+  const buckets: T[][] = [[], [], [], []]
+
+  for (const candidate of candidates) {
+    const searchText = candidate.searchText
+    if (!matchesRecipeQuery(searchText, tokens)) continue
+
+    const rank = searchText === normalizedQuery
+      ? 0
+      : searchText.startsWith(normalizedQuery)
+        ? 1
+        : searchText.includes(normalizedQuery)
+          ? 2
+          : 3
+    buckets[rank]!.push(candidate.value)
+  }
+
+  return buckets.flat()
+}
+
+/**
  * Distinct meas-hist full_names that satisfy the same AND-token match as the
  * catalog lookup. The meas-hist search endpoint ORs its `recipe` terms
  * server-side, so this client-side re-check restores AND semantics before the

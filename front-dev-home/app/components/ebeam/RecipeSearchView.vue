@@ -3,7 +3,12 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchResponse, RecipeSearchRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { matchesRecipeQuery, matchingHistoryNames, tokenizeRecipeQuery } from '~/utils/recipeSearchMatch'
+import {
+  matchesRecipeQuery,
+  matchingHistoryNames,
+  rankRecipeMatches,
+  tokenizeRecipeQuery
+} from '~/utils/recipeSearchMatch'
 
 const props = defineProps<{
   fab: Fab
@@ -62,7 +67,6 @@ const { data, pending, error, refresh } = await useAsyncData(
 )
 
 const recipeNames = computed(() => data.value?.rows ?? [])
-const rows = computed<RecipeSearchRow[]>(() => recipeNames.value.map(recipeName => ({ recipe_name: recipeName })))
 const totalRows = computed(() => data.value?.total ?? recipeNames.value.length)
 const normalizedQuery = computed(() => query.value.trim().toLowerCase())
 const canSearch = computed(() => normalizedQuery.value.length >= MIN_SEARCH_LENGTH)
@@ -70,31 +74,17 @@ const canSearch = computed(() => normalizedQuery.value.length >= MIN_SEARCH_LENG
 // tokenized on whitespace/underscores and AND-composed — see recipeSearchMatch.
 const queryTokens = computed(() => tokenizeRecipeQuery(query.value))
 
-type SearchableRecipe = {
-  row: RecipeSearchRow
-  searchText: string
-}
-
-const searchableRows = computed<SearchableRecipe[]>(() => {
-  return rows.value.map(row => ({
-    row,
-    searchText: row.recipe_name.toLowerCase()
+const searchableRows = computed(() => {
+  return recipeNames.value.map(recipeName => ({
+    value: { recipe_name: recipeName } satisfies RecipeSearchRow,
+    searchText: recipeName.trim().toLowerCase()
   }))
 })
 
-const filteredRows = computed(() => {
+const filteredRows = computed<RecipeSearchRow[]>(() => {
   if (!canSearch.value) return []
 
-  const tokens = queryTokens.value
-  const matches: RecipeSearchRow[] = []
-
-  for (const item of searchableRows.value) {
-    if (matchesRecipeQuery(item.searchText, tokens)) {
-      matches.push(item.row)
-    }
-  }
-
-  return matches
+  return rankRecipeMatches(searchableRows.value, query.value)
 })
 
 // In-table filter: live-narrows the coarse top-bar matches (AND composition),
