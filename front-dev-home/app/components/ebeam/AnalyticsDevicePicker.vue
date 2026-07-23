@@ -55,7 +55,7 @@
           v-for="device in chipStrip"
           :key="device.lot_cd"
           type="button"
-          class="inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
+          class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
           :class="chipClass(selectedLot === device.lot_cd)"
           :title="getTitle?.(device)"
           @click="toggleLot(device.lot_cd)"
