@@ -111,3 +111,8 @@ back_dev_home/**/providers/**/office.py
 # live_alarm's writer has a second swap surface OUTSIDE providers/ — its
 # office.py holds the in-house alarm API URLs and must never be tracked.
 back_dev_home/**/writer/office.py
+
+# msr_image office FTP cache dir + explicit office adapter (already matched by
+# the glob above; listed explicitly for clarity on this feature).
+var/
+back_dev_home/msr_image/providers/office.py
