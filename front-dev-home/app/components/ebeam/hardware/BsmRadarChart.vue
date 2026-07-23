@@ -1,20 +1,9 @@
 <template>
-  <div class="flex flex-col">
-    <div class="mb-1 text-center sk-eyebrow">
-      {{ title }}
-    </div>
-    <div
-      v-if="values.length === 0"
-      class="flex h-80 items-center justify-center sk-body"
-    >
-      측정을 선택하세요.
-    </div>
-    <div
-      v-else
-      ref="chartEl"
-      class="h-80 w-full"
-    />
-  </div>
+  <EbeamHardwareChartFrame
+    :title="title"
+    :empty="values.length === 0"
+    :option="chartOption"
+  />
 </template>
 
 <script setup lang="ts">
@@ -34,8 +23,6 @@ const props = defineProps<{
   min: number
   max: number
 }>()
-
-const chartEl = ref<HTMLDivElement | null>(null)
 
 const { palette } = useEchartsTheme()
 const color = computed(() => palette.value[props.colorIndex] ?? palette.value[0] ?? '#6366f1')
@@ -66,6 +53,4 @@ const chartOption = computed<EChartsOption>(() => ({
     }
   ]
 }))
-
-useEchart(chartEl, chartOption)
 </script>
