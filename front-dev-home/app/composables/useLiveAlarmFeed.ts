@@ -11,7 +11,7 @@ export const POLL_JITTER_MS = 3_000
 // How long a freshly-arrived row stays highlighted. The spec calls for a
 // *brief* highlight ("잠시"), distinct from the unread count, which persists
 // until the viewer acknowledges it.
-export const HIGHLIGHT_MS = 8_000
+const HIGHLIGHT_MS = 8_000
 
 // Jitter keeps many open tabs from hitting Flask in the same millisecond.
 // Exported (rather than calling Math.random inline) so it stays testable.
