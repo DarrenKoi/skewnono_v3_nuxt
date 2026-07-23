@@ -109,7 +109,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="sk-chat-shell">
+  <div class="sk-chat-shell dashboard-surface rounded-[var(--sk-r-card)]">
     <!-- Mobile backdrop -->
     <div
       v-if="sidebarOpen"
@@ -185,10 +185,14 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Fills the layout's padded slot exactly. A viewport-relative height
+   (calc(100vh - 4rem)) ignores that padding, so the panel overflowed by the
+   slot's own p-8 and pushed the composer below the fold. */
 .sk-chat-shell {
   position: relative;
   display: flex;
-  height: calc(100vh - 4rem);
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 

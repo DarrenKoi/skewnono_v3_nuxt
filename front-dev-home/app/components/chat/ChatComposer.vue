@@ -75,9 +75,11 @@ const onKeydown = (e: KeyboardEvent) => {
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
+/* A filled halo, not an outline — so it sits softer than --sk-focus-ring (45%),
+   which is tuned for the 2px :focus-visible ring elsewhere in the app. */
 .sk-composer-card:focus-within {
   border-color: var(--sk-accent-border);
-  box-shadow: 0 0 0 3px var(--sk-focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--sk-accent) 18%, transparent);
 }
 
 .sk-composer-input {

@@ -143,7 +143,7 @@ const copy = async () => {
   border-radius: 0.3rem;
   background: var(--sk-muted-surface);
   border: 1px solid var(--sk-border-soft);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.85em;
 }
 
@@ -157,7 +157,7 @@ const copy = async () => {
 }
 
 .sk-chat-prose :deep(.sk-chat-code-block code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   line-height: 1.5;
   color: var(--sk-ink);
