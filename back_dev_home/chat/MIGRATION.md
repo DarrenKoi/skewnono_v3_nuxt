@@ -98,20 +98,32 @@ created_at`).
 Ownership invariant: every read/write is scoped by `user_id`. `get`/`rename`/
 `delete` must never touch another user's thread.
 
-## Critical operational note — the master switch
+## Critical operational note — testing chat at the office
 
-When `SKEWNONO_DATA_PROVIDER=office` (master switch) is set to give OTHER features
-office data, chat **storage** also flips to `providers/office.py` — currently the
-`_not_connected` stub — so every thread call raises `NotImplementedError` and the
-page breaks. Until Surface B is implemented, pin chat storage to mock:
+Presence detection (`_runtime/data_provider.py`) keeps this safe by default:
+office mode alone does **not** flip chat storage. As long as
+`chat/providers/office.py` does not exist, chat storage resolves to mock
+(SQLite `chat.db`) even when the machine is in office mode — so chat works at
+the office with **zero storage configuration**. Only Surface A needs setting:
 
 ```bash
-SKEWNONO_DATA_PROVIDER=office   # other features → office
-SKEWNONO_CHAT_PROVIDER=mock     # chat storage stays on SQLite (works today)
-CHAT_BASE_URL=<internal gateway>   # Surface A — generation still uses the env gateway
+# back_dev_home/.env at the office — Surface A only
+CHAT_BASE_URL=<internal gateway>/v1   # required: office mode BLOCKS the OpenRouter default
+CHAT_API_KEY=<internal gateway key>
+CHAT_MODELS=[{"id":"<model-id>","label":"<picker text>"}]
 ```
 
-Surface A is unaffected by the provider switch; the two surfaces are orthogonal.
+The two remaining traps:
+
+- Do **not** run `cp providers/office_example.py providers/office.py` for chat
+  until Surface B is actually implemented. For every other feature that cp IS
+  the switch-on; for chat it flips storage onto the `_not_connected` stubs and
+  every thread call raises `NotImplementedError`.
+- Do **not** set `SKEWNONO_CHAT_PROVIDER=office` — with no `office.py` present,
+  Flask refuses to boot (by design: an explicit office request is never
+  silently served mock).
+
+Surface A is unaffected by any provider switch; the two surfaces are orthogonal.
 
 ## Endpoints
 
