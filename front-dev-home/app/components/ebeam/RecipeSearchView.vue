@@ -188,6 +188,9 @@ const HISTORY_PROBE_DEBOUNCE_MS = 600
 // The endpoint pages by recency; 200 rows is plenty for an existence probe
 // and stays under the backend's limit clamp (DEFAULT_LIMIT * 10).
 const HISTORY_PROBE_LIMIT = 200
+// Shown in both the toast and the empty-state banner when the probe finds a
+// recipe redis hasn't caught up to yet — keep the wording in one place.
+const HISTORY_HINT = 'redis에는 없지만 측정 기록은 발견됩니다. (redis update 주기 1일)'
 
 const { searchMeasHist } = useMeasHistApi()
 const toast = useToast()
@@ -236,7 +239,7 @@ watch(historyProbeKey, (key) => {
         lastHistoryToastKey = key
         const first = matches[0] ?? ''
         toast.add({
-          title: 'redis에는 없지만 측정 기록은 발견됩니다. (redis update 주기 1일)',
+          title: HISTORY_HINT,
           description: matches.length === 1 ? first : `${first} 외 ${matches.length - 1}건`,
           icon: 'i-lucide-history',
           color: 'warning'
@@ -488,7 +491,7 @@ const openMeasHist = (recipeName: string) => {
                   name="i-lucide-history"
                   class="h-3.5 w-3.5 shrink-0"
                 />
-                redis에는 없지만 측정 기록은 발견됩니다. (redis update 주기 1일)
+                {{ HISTORY_HINT }}
               </p>
               <p class="mt-1 font-mono text-[11px] text-amber-800/80 dark:text-amber-200/80">
                 {{ historyMatchesLabel }}
