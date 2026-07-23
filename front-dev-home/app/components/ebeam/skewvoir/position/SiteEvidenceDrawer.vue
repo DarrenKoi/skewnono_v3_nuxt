@@ -160,42 +160,60 @@ const revokeBlob = () => {
 
 let loadToken = 0
 
-watch(
-  () => `${focusCtx.value.eqp_ip}|${focusCtx.value.class_name}|${focusCtx.value.msr}|${imageName.value ?? ''}`,
-  async () => {
-    // Bump the token FIRST so an in-flight request is invalidated even on the
-    // empty-context early returns below (else a slow prior fetch could resolve
-    // and install a stale blob after the drawer moved on).
-    const token = ++loadToken
-    const name = imageName.value
-    const ctx = focusCtx.value
-    revokeBlob()
-    imageCond.value = null
-    imageFailed.value = false
-    if (!name) return
-    if (!ctx.eqp_ip) {
-      // Context not resolved yet (e.g. focus row still pending) — treat as a
-      // load failure rather than silently rendering a broken image.
-      imageFailed.value = true
+const loadImage = async () => {
+  // Bump the token FIRST so an in-flight request is invalidated even on the
+  // empty-context early returns below (else a slow prior fetch could resolve
+  // and install a stale blob after the drawer moved on).
+  const token = ++loadToken
+  const name = imageName.value
+  const ctx = focusCtx.value
+  revokeBlob()
+  imageCond.value = null
+  imageFailed.value = false
+  if (!name) return
+  if (!ctx.eqp_ip) {
+    // Context not resolved yet (e.g. focus row still pending) — treat as a
+    // load failure rather than silently rendering a broken image.
+    imageFailed.value = true
+    return
+  }
+  imageLoading.value = true
+  try {
+    const res = await fetchImageWithCond(ctx.eqp_ip, ctx.class_name, ctx.msr, name)
+    if (token !== loadToken) {
+      URL.revokeObjectURL(res.blobUrl)
       return
     }
-    imageLoading.value = true
-    try {
-      const res = await fetchImageWithCond(ctx.eqp_ip, ctx.class_name, ctx.msr, name)
-      if (token !== loadToken) {
-        URL.revokeObjectURL(res.blobUrl)
-        return
-      }
-      blobUrl.value = res.blobUrl
-      imageCond.value = res.cond
-    } catch {
-      if (token === loadToken) imageFailed.value = true
-    } finally {
-      if (token === loadToken) imageLoading.value = false
-    }
-  },
+    blobUrl.value = res.blobUrl
+    imageCond.value = res.cond
+  } catch {
+    if (token === loadToken) imageFailed.value = true
+  } finally {
+    if (token === loadToken) imageLoading.value = false
+  }
+}
+
+watch(
+  () => `${focusCtx.value.eqp_ip}|${focusCtx.value.class_name}|${focusCtx.value.msr}|${imageName.value ?? ''}`,
+  () => loadImage(),
   { immediate: true }
 )
+
+watch(() => props.open, (isOpen) => {
+  if (isOpen) {
+    // Reopening on the same site: the key watcher above won't refire, so the
+    // blob a previous close released has to be re-fetched.
+    if (!blobUrl.value) loadImage()
+    return
+  }
+  // The slideover stays mounted when closed, so releasing the blob here is what
+  // keeps a closed drawer from holding a full-resolution micrograph.
+  loadToken++
+  revokeBlob()
+  imageCond.value = null
+  imageFailed.value = false
+  imageLoading.value = false
+})
 
 onBeforeUnmount(() => {
   loadToken++

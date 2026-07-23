@@ -311,9 +311,24 @@ const onKey = (e: KeyboardEvent) => {
   else if (e.key === 'ArrowRight') step(1)
 }
 watch(() => props.open, (isOpen) => {
-  if (!import.meta.client) return
-  if (isOpen) window.addEventListener('keydown', onKey)
-  else window.removeEventListener('keydown', onKey)
+  if (import.meta.client) {
+    if (isOpen) window.addEventListener('keydown', onKey)
+    else window.removeEventListener('keydown', onKey)
+  }
+  if (isOpen) {
+    // Reopening on the same image: the key watcher below won't refire (nothing
+    // changed), so the blob a previous close released has to be re-fetched.
+    if (!blobUrl.value) loadImage()
+    return
+  }
+  // Closing releases the decoded micrograph immediately. This viewer is a
+  // persistent Teleport, so deferring to unmount — or to the next image change
+  // — would pin a full-resolution image in memory for the rest of the session.
+  loadToken++
+  revokeBlob()
+  cond.value = null
+  failed.value = false
+  loading.value = false
 })
 onBeforeUnmount(() => {
   if (import.meta.client) window.removeEventListener('keydown', onKey)

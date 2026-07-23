@@ -10,10 +10,20 @@
           v-if="downloadStatus"
           class="font-mono text-[11px] text-(--sk-ink-muted)"
         >
-          {{ downloadStatus.done }}/{{ downloadStatus.total }}
-          <span v-if="downloadStatus.failures.length" class="text-(--sk-bad)">
-            · 실패 {{ downloadStatus.failures.length }}
-          </span>
+          <!-- total is 0 until the tool directory listing lands; showing "0/0"
+               would read as an empty MSR rather than "still counting". -->
+          <template v-if="downloadStatus.status === 'running' && downloadStatus.total === 0">
+            목록 조회 중…
+          </template>
+          <template v-else>
+            {{ downloadStatus.done }}/{{ downloadStatus.total }}
+            <span
+              v-if="downloadStatus.failures.length"
+              class="text-(--sk-bad)"
+            >
+              · 실패 {{ downloadStatus.failures.length }}
+            </span>
+          </template>
         </span>
         <UButton
           color="neutral"
@@ -27,6 +37,18 @@
         />
       </div>
     </template>
+
+    <!-- Download-all error — a request that threw, or a job that failed as a
+         whole (e.g. the tool listing failed, so there are no per-file
+         failures below to explain it). -->
+    <div
+      v-if="downloadError"
+      class="mb-2 rounded-(--sk-r-nav) border border-(--sk-bad)/40 bg-(--sk-bad)/10 px-3 py-2 sk-meta"
+    >
+      <p class="font-medium text-(--sk-bad)">
+        {{ downloadError }}
+      </p>
+    </div>
 
     <!-- Download-all failures — always surfaced, never hidden. -->
     <div
@@ -149,7 +171,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFilters.vue'
-import type { DownloadJobStatus } from '~/composables/useMsrImageApi'
+import { downloadErrorMessage, type DownloadJobStatus } from '~/composables/useMsrImageApi'
 import { measuredRows } from '~/utils/msrRows'
 import { buildReviewQueue, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
@@ -166,6 +188,7 @@ const focusCtx = useFocusImageCtx(props.analysis)
 // ── Download-all ─────────────────────────────────────────────────────────────
 const downloading = ref(false)
 const downloadStatus = ref<DownloadJobStatus | null>(null)
+const downloadError = ref<string | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const stopPolling = () => {
@@ -180,6 +203,7 @@ const startDownload = async () => {
   if (!ctx.eqp_ip) return
   downloading.value = true
   downloadStatus.value = null
+  downloadError.value = null
   try {
     const jobId = await startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr)
     stopPolling()
@@ -190,14 +214,24 @@ const startDownload = async () => {
         if (status.status !== 'running') {
           stopPolling()
           downloading.value = false
+          // The job can fail as a whole — the tool listing failed, say — in
+          // which case there are no per-file failures to render and staying
+          // silent would look like a clean finish.
+          if (status.status === 'error') {
+            downloadError.value = '다운로드를 끝내지 못했습니다. 장비 연결 상태를 확인해 주세요.'
+          }
         }
-      } catch {
+      } catch (err) {
+        // Swallowing this used to end the download in silence: the button
+        // simply re-enabled itself and nothing said why.
         stopPolling()
         downloading.value = false
+        downloadError.value = downloadErrorMessage(err)
       }
     }, 1000)
-  } catch {
+  } catch (err) {
     downloading.value = false
+    downloadError.value = downloadErrorMessage(err)
   }
 }
 
@@ -207,6 +241,7 @@ onBeforeUnmount(() => stopPolling())
 watch(focusCtx, () => {
   stopPolling()
   downloadStatus.value = null
+  downloadError.value = null
   downloading.value = false
 })
 
