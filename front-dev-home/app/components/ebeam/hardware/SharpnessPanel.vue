@@ -162,13 +162,19 @@ const conditions = computed(() => {
   return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0]))
 })
 
-// Default to the 800V condition (matched on the label so it tracks whatever
-// SEM_Cond_No the office index pairs it with — Cond 6 in practice).
+// Default to the 800V accelerating-voltage condition, tested on the raw
+// beam_condition.Vacc field rather than the formatted label — a label reformat
+// (e.g. "800 V") can no longer silently break the default and fall through to
+// conds[0]. Whatever SEM_Cond_No the office pairs with 800V (Cond 6 in
+// practice) is selected; falls back to the first condition when none match.
+const DEFAULT_VACC = '800'
 const condition = ref('')
 watch(conditions, (conds) => {
   if (conds.some(([key]) => key === condition.value)) return
-  const preferred = conds.find(([, label]) => label.includes('800V'))
-  condition.value = (preferred ?? conds[0])?.[0] ?? ''
+  const preferredDoc = props.docs.find(
+    d => String(asRecord(d.beam_condition).Vacc ?? '') === DEFAULT_VACC
+  )
+  condition.value = (preferredDoc ? condKeyOf(preferredDoc) : conds[0]?.[0]) ?? ''
 }, { immediate: true })
 
 const filteredDocs = computed(() => props.docs.filter(d => condKeyOf(d) === condition.value))
