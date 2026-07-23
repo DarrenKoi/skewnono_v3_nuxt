@@ -276,12 +276,14 @@ const openMeasHist = (recipeName: string) => {
       :stats="metaStats"
     />
 
-    <div class="space-y-4">
-      <!-- items-start, not items-stretch: the lookup card holds one input and
-           would otherwise be stretched to the height of 최근 검색 beside it,
-           leaving dead space under the search bar. -->
-      <div class="grid gap-4 xl:grid-cols-12 xl:items-start">
-        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-8">
+    <!-- One 12-col grid with two stacked columns, not two full-width grid rows.
+         Results must sit directly under the lookup card; when they lived in a
+         separate grid row the tall 최근 검색 panel set the first row's height and
+         pushed the results down, opening a gap beneath the search bar. items-start
+         still keeps the short lookup card from stretching to the panel beside it. -->
+    <div class="grid gap-4 xl:grid-cols-12 xl:items-start">
+      <div class="flex min-w-0 flex-col gap-4 xl:col-span-8">
+        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card)">
           <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
             <p class="sk-eyebrow">
               RECIPE LOOKUP
@@ -360,76 +362,7 @@ const openMeasHist = (recipeName: string) => {
           </div>
         </section>
 
-        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card) xl:col-span-4">
-          <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
-            <p class="sk-eyebrow">
-              RECENT SEARCHES
-            </p>
-            <div class="mt-0.5 flex items-center justify-between gap-2">
-              <div class="flex items-baseline gap-2">
-                <h2 class="sk-title">
-                  최근 검색
-                </h2>
-                <span class="font-mono text-[10px] text-(--sk-ink-subtle)">{{ recentSearches.length }}</span>
-              </div>
-              <UButton
-                v-if="recentSearches.length"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                label="전체 삭제"
-                @click="clearRecentSearches"
-              />
-            </div>
-            <p class="mt-1 sk-meta">
-              최근 검색어를 선택하여 동일한 Recipe 목록을 다시 조회합니다.
-            </p>
-          </header>
-
-          <div
-            v-if="recentSearches.length"
-            class="grid flex-1 content-start gap-1.5 p-3 sm:grid-cols-2"
-          >
-            <div
-              v-for="term in recentSearches"
-              :key="term"
-              class="group flex min-w-0 items-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 py-1.5 transition-colors hover:border-(--sk-brand)/35 hover:bg-(--sk-brand)/5"
-            >
-              <button
-                type="button"
-                class="flex min-w-0 flex-1 items-center gap-2 text-left"
-                @click="applyRecentSearch(term)"
-              >
-                <UIcon
-                  name="i-lucide-history"
-                  class="h-3.5 w-3.5 shrink-0 text-(--sk-ink-subtle)"
-                />
-                <span class="truncate font-mono text-[11px] font-semibold text-(--sk-ink)">{{ term }}</span>
-              </button>
-              <button
-                type="button"
-                class="shrink-0 rounded p-0.5 text-(--sk-ink-subtle) opacity-60 transition hover:bg-(--sk-bad)/10 hover:text-(--sk-bad) group-hover:opacity-100"
-                :aria-label="`${term} 최근 검색어 삭제`"
-                @click.stop="removeRecentSearch(term)"
-              >
-                <UIcon
-                  name="i-lucide-x"
-                  class="h-3.5 w-3.5"
-                />
-              </button>
-            </div>
-          </div>
-          <p
-            v-else
-            class="px-4 py-10 text-center sk-meta"
-          >
-            Recipe를 검색하면<br>최근 검색어가 여기에 표시됩니다.
-          </p>
-        </section>
-      </div>
-
-      <div class="grid min-w-0 gap-4 xl:grid-cols-12 xl:items-start">
-        <main class="min-w-0 xl:col-span-8">
+        <main class="min-w-0">
           <div
             v-if="pending"
             class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
@@ -634,8 +567,77 @@ const openMeasHist = (recipeName: string) => {
             </div>
           </section>
         </main>
+      </div>
 
-        <aside class="min-w-0 xl:col-span-4">
+      <div class="flex min-w-0 flex-col gap-4 xl:col-span-4">
+        <section class="dashboard-surface flex min-w-0 flex-col overflow-hidden rounded-(--sk-r-card)">
+          <header class="border-b border-(--sk-border-soft) px-3 py-2.5">
+            <p class="sk-eyebrow">
+              RECENT SEARCHES
+            </p>
+            <div class="mt-0.5 flex items-center justify-between gap-2">
+              <div class="flex items-baseline gap-2">
+                <h2 class="sk-title">
+                  최근 검색
+                </h2>
+                <span class="font-mono text-[10px] text-(--sk-ink-subtle)">{{ recentSearches.length }}</span>
+              </div>
+              <UButton
+                v-if="recentSearches.length"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                label="전체 삭제"
+                @click="clearRecentSearches"
+              />
+            </div>
+            <p class="mt-1 sk-meta">
+              최근 검색어를 선택하여 동일한 Recipe 목록을 다시 조회합니다.
+            </p>
+          </header>
+
+          <div
+            v-if="recentSearches.length"
+            class="grid flex-1 content-start gap-1.5 p-3 sm:grid-cols-2"
+          >
+            <div
+              v-for="term in recentSearches"
+              :key="term"
+              class="group flex min-w-0 items-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 py-1.5 transition-colors hover:border-(--sk-brand)/35 hover:bg-(--sk-brand)/5"
+            >
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 items-center gap-2 text-left"
+                @click="applyRecentSearch(term)"
+              >
+                <UIcon
+                  name="i-lucide-history"
+                  class="h-3.5 w-3.5 shrink-0 text-(--sk-ink-subtle)"
+                />
+                <span class="truncate font-mono text-[11px] font-semibold text-(--sk-ink)">{{ term }}</span>
+              </button>
+              <button
+                type="button"
+                class="shrink-0 rounded p-0.5 text-(--sk-ink-subtle) opacity-60 transition hover:bg-(--sk-bad)/10 hover:text-(--sk-bad) group-hover:opacity-100"
+                :aria-label="`${term} 최근 검색어 삭제`"
+                @click.stop="removeRecentSearch(term)"
+              >
+                <UIcon
+                  name="i-lucide-x"
+                  class="h-3.5 w-3.5"
+                />
+              </button>
+            </div>
+          </div>
+          <p
+            v-else
+            class="px-4 py-10 text-center sk-meta"
+          >
+            Recipe를 검색하면<br>최근 검색어가 여기에 표시됩니다.
+          </p>
+        </section>
+
+        <aside class="min-w-0">
           <EbeamRecipeCompareSearchSelectTray
             :selected="selected"
             @remove="remove"
