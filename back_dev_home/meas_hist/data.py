@@ -41,16 +41,30 @@ def _provider():
     return mock
 
 
+def _normalize_row(row: MeasHistRow) -> MeasHistRow:
+    total_images = row["total_images"]
+    fail_images = row["fail_images"]
+    ratio = fail_images / total_images if total_images > 0 else 0.0
+
+    normalized = row.copy()
+    normalized["fail_ratio"] = round(max(0.0, min(1.0, ratio)), 4)
+    return normalized
+
+
 def get_meas_hist(
     tool_type: ToolType | None = None,
     fab_name: str | None = None,
     recipe_name: str | None = None,
 ) -> MeasHistResponse:
-    return _provider().get_meas_hist(tool_type, fab_name, recipe_name)
+    response = _provider().get_meas_hist(tool_type, fab_name, recipe_name)
+    normalized = response.copy()
+    normalized["rows"] = [_normalize_row(row) for row in response["rows"]]
+    return normalized
 
 
 def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
-    return _provider().find_meas_hist_by_msr(msr)
+    row = _provider().find_meas_hist_by_msr(msr)
+    return _normalize_row(row) if row is not None else None
 
 
 def search_meas_hist(
@@ -67,7 +81,7 @@ def search_meas_hist(
     offset: int = 0,
     limit: int = DEFAULT_LIMIT,
 ) -> MeasHistSearchResponse:
-    return _provider().search_meas_hist(
+    response = _provider().search_meas_hist(
         tool_type,
         fab,
         model,
@@ -81,6 +95,9 @@ def search_meas_hist(
         offset,
         limit,
     )
+    normalized = response.copy()
+    normalized["rows"] = [_normalize_row(row) for row in response["rows"]]
+    return normalized
 
 
 def get_meas_hist_facets(
