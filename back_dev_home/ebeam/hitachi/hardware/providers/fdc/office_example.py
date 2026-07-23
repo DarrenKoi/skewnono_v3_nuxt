@@ -389,8 +389,15 @@ if __name__ == "__main__":  # pragma: no cover
         except Exception:
             pass
 
-    tool = sys.argv[1] if len(sys.argv) > 1 else "MCD018"
-    days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+    # ============================ EDIT HERE ============================
+    # Set the tool and window right here, then just run the file — no
+    # command-line args needed (Run button, `python office.py`, REPL).
+    # Passing args still overrides: `... office MCD320 90`.
+    TOOL = "MCD018"
+    DAYS = 30
+    # ==================================================================
+    tool = sys.argv[1] if len(sys.argv) > 1 else TOOL
+    days = int(sys.argv[2]) if len(sys.argv) > 2 else DAYS
     window_end = datetime.now()
     window_start = window_end - timedelta(days=days)
 
