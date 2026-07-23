@@ -297,10 +297,10 @@ const chartOption = computed<EChartsOption>(() => {
         yAxis: { type: 'value', name: '% vs baseline', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true },
         dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
         series: [
-          { name: 'x1', type: 'line', showSymbol: false, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pct('x1'), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] } },
-          { name: 'y1', type: 'line', showSymbol: false, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: pct('y1'), markLine: maintenanceMarkLine.value },
-          { name: 'x2', type: 'line', showSymbol: false, lineStyle: { color: c2.value }, itemStyle: { color: c2.value }, data: pct('x2') },
-          { name: 'y2', type: 'line', showSymbol: false, lineStyle: { color: c3.value, type: 'dashed' }, itemStyle: { color: c3.value }, data: pct('y2') }
+          { name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value }, data: pct('x1'), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] } },
+          { name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value }, data: pct('y1'), markLine: maintenanceMarkLine.value },
+          { name: 'x2', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c2.value }, data: pct('x2') },
+          { name: 'y2', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c3.value }, data: pct('y2') }
         ]
       }
     }
@@ -383,10 +383,10 @@ const chartOption = computed<EChartsOption>(() => {
         { type: 'value', gridIndex: 1, name: 'y2', position: 'right', nameTextStyle: { fontSize: 10 }, ...y2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } }
       ],
       series: [
-        { name: 'x1', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: timeLine('x1'), markLine: maintenanceMarkLine.value },
-        { name: 'y1', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: timeLine('y1') },
-        { name: 'x2', type: 'line', xAxisIndex: 1, yAxisIndex: 1, showSymbol: false, lineStyle: { color: c2.value }, itemStyle: { color: c2.value }, data: timeLine('x2'), markLine: maintenanceMarkLine.value },
-        { name: 'y2', type: 'line', xAxisIndex: 1, yAxisIndex: 2, showSymbol: false, lineStyle: { color: c3.value, type: 'dashed' }, itemStyle: { color: c3.value }, data: timeLine('y2') }
+        { name: 'x1', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value }, data: timeLine('x1'), markLine: maintenanceMarkLine.value },
+        { name: 'y1', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value }, data: timeLine('y1') },
+        { name: 'x2', type: 'scatter', xAxisIndex: 1, yAxisIndex: 1, symbol: 'circle', symbolSize: 6, itemStyle: { color: c2.value }, data: timeLine('x2'), markLine: maintenanceMarkLine.value },
+        { name: 'y2', type: 'scatter', xAxisIndex: 1, yAxisIndex: 2, symbol: 'triangle', symbolSize: 6, itemStyle: { color: c3.value }, data: timeLine('y2') }
       ]
     }
   }
