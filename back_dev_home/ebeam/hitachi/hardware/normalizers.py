@@ -169,8 +169,9 @@ def bm_pm_history_payload(
 ) -> HardwarePayload:
     """Build the BM/PM payload from generated past/future work records.
 
-    Rows arrive pre-sorted (timestamp desc) from the provider; this only maps
-    them onto the canonical two-section table shape plus data-driven cards.
+    Rows arrive pre-sorted from the provider — past newest-first, future
+    soonest-first; this only maps them onto the canonical two-section table
+    shape plus data-driven cards.
     """
     metric_cards: list[HardwareMetricCard] = [
         {
@@ -206,12 +207,18 @@ def bm_pm_history_payload(
             "key": "past_work",
             "title": "최근 작업 이력 (Past Work)",
             "columns": [
-                {"key": "timestamp", "label": "Uploaded"},
                 {"key": "eqp_id", "label": "EQP ID"},
+                {"key": "job_starts", "label": "Down"},
+                {"key": "job_end", "label": "Up"},
                 {"key": "category", "label": "Category"},
-                {"key": "job_starts", "label": "Job Start"},
-                {"key": "job_end", "label": "Job End"},
-                {"key": "engr_note", "label": "Engineer Note", "expandable": True},
+                {"key": "pm_type", "label": "PM Type"},
+                {"key": "eq_event", "label": "Event"},
+                {"key": "lot_id", "label": "Lot"},
+                {"key": "last_recipe_id", "label": "Last Recipe"},
+                {"key": "note_comment", "label": "Comment", "expandable": True},
+                {"key": "zzproblem", "label": "Problem", "expandable": True},
+                {"key": "hltext", "label": "Highlight", "expandable": True},
+                {"key": "timestamp", "label": "Uploaded"},
             ],
             "rows": past_rows,
         },
@@ -220,10 +227,13 @@ def bm_pm_history_payload(
             "title": "예정 작업 (Future Work)",
             "columns": [
                 {"key": "eqp_id", "label": "EQP ID"},
+                {"key": "job_starts", "label": "Start"},
+                {"key": "job_end", "label": "End"},
                 {"key": "category", "label": "Category"},
-                {"key": "job_starts", "label": "Job Start"},
-                {"key": "job_end", "label": "Job End"},
-                {"key": "timestamp", "label": "Uploaded"},
+                {"key": "event_name", "label": "Event"},
+                {"key": "work_item_nm", "label": "Work Item", "expandable": True},
+                {"key": "work_user_cd", "label": "Worker"},
+                {"key": "timestamp", "label": "Registered"},
             ],
             "rows": future_rows,
         },

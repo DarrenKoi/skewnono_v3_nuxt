@@ -1,7 +1,8 @@
 """BM/PM row-shape tests: shared value logic, mock parity, declared columns."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from back_dev_home.ebeam.hitachi.hardware import data as hardware_data
 from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm._shared import (
     classify_category,
     derive_cards,
@@ -142,3 +143,36 @@ def test_mock_engr_note_merges_the_populated_notes():
     data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
     row = next(r for r in data["past"] if r["note_comment"])
     assert "[Comment]" in row["engr_note"]
+
+
+def _bm_pm_payload():
+    end = ANCHOR
+    start = end - timedelta(days=14)
+    return hardware_data.get_hardware_service("cdsem", "bm-pm", "CDX001", "R3", start, end)
+
+
+def test_every_declared_column_exists_on_every_row():
+    # A typo in either list shows up as a blank column, never as an error.
+    payload = _bm_pm_payload()
+    for section in payload["tables"]:
+        declared = {column["key"] for column in section["columns"]}
+        for row in section["rows"]:
+            missing = declared - set(row)
+            assert not missing, f"{section['key']} row is missing {sorted(missing)}"
+
+
+def test_past_table_declares_the_three_note_columns_as_expandable():
+    payload = _bm_pm_payload()
+    past = next(s for s in payload["tables"] if s["key"] == "past_work")
+    labels = {c["key"]: c for c in past["columns"]}
+    for key, label in (("note_comment", "Comment"), ("zzproblem", "Problem"), ("hltext", "Highlight")):
+        assert labels[key]["label"] == label
+        assert labels[key]["expandable"] is True
+
+
+def test_engr_note_rides_along_without_being_a_column():
+    # bmPmMarkers.ts reads row.engr_note; BmPmTables.vue must not show it.
+    payload = _bm_pm_payload()
+    past = next(s for s in payload["tables"] if s["key"] == "past_work")
+    assert "engr_note" not in {c["key"] for c in past["columns"]}
+    assert all("engr_note" in row for row in past["rows"])
