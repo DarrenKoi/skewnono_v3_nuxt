@@ -50,9 +50,17 @@
 - Mock behavior: the tool population comes from `sem_list.data.get_sem_list()`
   filtered to rows whose `eqp_model_cd` maps to the requested `tool_type`
   (via `model_to_tool_type`) and, if `fab_name` is given, whose `fab_name`
-  matches (case-insensitive), sorted by `eqp_id`. For each matching EQP, a
+  matches (case-insensitive), sorted by `eqp_id`. Readiness has a hard floor:
+  every EQP that `meas_hist.providers.mock.get_meas_hist(tool_type, fab_name,
+  recipe_name)` reports a row for is `recipe_ready=True`, because a tool cannot
+  have 측정 이력 for a recipe it does not hold. The remaining tools fall to a
   deterministic RNG seeded from `sha256(tool_type:fab_name:recipe_name)`
-  decides `recipe_ready` (`READY_RATIO = 0.65`) and, when ready, a
+  (`UNMEASURED_READY_RATIO = 0.35`, low because the measured floor already
+  carries most of the readiness — a flat 0.65 on top of it emptied the 미보유
+  tab on nearly half the fab/recipe pairs). Both RNG draws (readiness,
+  version) are consumed for every tool regardless of the measurement set, so
+  the set decides only *who* is ready and never reshuffles its neighbours'
+  versions. A ready tool gets a
   `recipe_version` in `RECIPE_VERSION_RANGE = (1, 7)`. Each `(tool_type,
   fab_name, recipe_name, version)` combination maps to a fixed
   `recipe_generated_at` derived from a base timestamp

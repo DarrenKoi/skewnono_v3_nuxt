@@ -5,7 +5,8 @@ Production sources (deferred):
   - OpenSearch table providing recipe_version per (eqp_id, recipe_name)
 
 Phase 1 mock derives both from `sem_list` so the table is always self-consistent
-with the rest of the app (장비 리스트 shows the same eqp_ids).
+with the rest of the app (장비 리스트 shows the same eqp_ids), and seeds readiness
+from `meas_hist` so it never contradicts 측정 이력 (see `_measured_eqp_ids`).
 """
 
 import hashlib
@@ -19,6 +20,7 @@ from back_dev_home.ebeam.hitachi.lateral_recipe.contracts import (
     LateralRecipeRow,
     LateralRecipeVersion,
 )
+from back_dev_home.meas_hist.providers.mock import get_meas_hist
 from back_dev_home.sem_list.contracts import SemListRow
 from back_dev_home.sem_list.providers.mock import get_sem_list
 
@@ -32,7 +34,12 @@ __all__ = [
 ]
 
 
-READY_RATIO = 0.65
+# Applies ONLY to tools with no 측정 이력 for the recipe — a tool that measured
+# it is ready unconditionally (see `_measured_eqp_ids`). Lower than the flat 0.65
+# this used to be because that floor now carries most of the readiness on its own:
+# at 0.65 nearly half the fab/recipe pairs came out 100% 보유 and left the 미보유
+# tab empty, which is a view worth keeping populated in the Phase 1 fixture.
+UNMEASURED_READY_RATIO = 0.35
 RECIPE_VERSION_RANGE = (1, 7)
 RECIPE_GENERATED_AT_BASE = datetime(2026, 5, 20, 9, 0, tzinfo=timezone.utc)
 
@@ -63,6 +70,24 @@ def _all_rows() -> tuple[SemListRow, ...]:
     return tuple(get_sem_list())
 
 
+def _measured_eqp_ids(
+    tool_type: ToolType,
+    fab_name: str | None,
+    recipe_name: str
+) -> frozenset[str]:
+    """Tools that actually ran this recipe inside the 측정 이력 window.
+
+    측정했으면 보유 — a tool cannot have measurement history for a recipe it
+    does not hold. Without this, readiness was an independent coin flip over
+    the same fleet and 횡전개 happily listed a tool as 미보유 while 측정 이력
+    showed its runs; the two views disagreed on half of all recipe/fab pairs.
+
+    Same arguments the 측정 이력 view passes, so the two screens read the same
+    rows (including the synthesized ones an unknown recipe gets).
+    """
+    return frozenset(row["eqp_id"] for row in get_meas_hist(tool_type, fab_name, recipe_name)["rows"])
+
+
 def _filter_rows(tool_type: ToolType, fab_name: str | None) -> list[SemListRow]:
     rows: list[SemListRow] = []
     fab_normalized = (fab_name or "").upper() or None
@@ -84,6 +109,7 @@ def get_lateral_recipe(
     recipe_name: str
 ) -> LateralRecipeResponse:
     fab_rows = _filter_rows(tool_type, fab_name)
+    measured = _measured_eqp_ids(tool_type, fab_name, recipe_name)
     rng = random.Random(_seed(tool_type, fab_name, recipe_name))
 
     rows: list[LateralRecipeRow] = []
@@ -92,8 +118,14 @@ def get_lateral_recipe(
     version_generated_at: dict[int, str] = {}
 
     for sem in fab_rows:
-        is_ready = rng.random() < READY_RATIO
-        version = rng.randint(*RECIPE_VERSION_RANGE) if is_ready else None
+        # Both draws happen for every tool, measured or not, so the measurement
+        # set decides only WHO is ready — it never shifts the rng stream and
+        # reshuffles the versions of the tools around it.
+        ready_draw = rng.random()
+        version_draw = rng.randint(*RECIPE_VERSION_RANGE)
+
+        is_ready = sem["eqp_id"] in measured or ready_draw < UNMEASURED_READY_RATIO
+        version = version_draw if is_ready else None
         generated_at = (
             _version_generated_at(tool_type, fab_name, recipe_name, version)
             if version is not None
