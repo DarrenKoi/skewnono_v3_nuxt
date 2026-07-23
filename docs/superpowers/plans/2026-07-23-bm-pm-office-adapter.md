@@ -282,6 +282,8 @@ git commit -m "feat(hardware): shared BM/PM row-value logic for both providers"
 Append to `back_dev_home/ebeam/hitachi/hardware/tests/test_bm_pm.py`:
 
 ```python
+import re
+
 from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm import mock as bm_pm_mock
 
 ANCHOR = datetime(2026, 5, 20, 9, 0)
@@ -312,9 +314,13 @@ def test_mock_future_rows_carry_the_full_key_set():
 
 
 def test_mock_rows_use_the_chart_timestamp_format():
+    # bmPmMarkers.ts matches these against the charts' x-axis values.
     data = bm_pm_mock.build_bm_pm_data("CDX001", ANCHOR)
     for row in data["past"]:
-        datetime.strptime(row["job_starts"], "%Y-%m-%d %H:%M")
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", row["job_starts"])
+        assert row["job_end"] == "" or re.fullmatch(
+            r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", row["job_end"]
+        )
 
 
 def test_mock_past_is_newest_first_and_future_is_soonest_first():
