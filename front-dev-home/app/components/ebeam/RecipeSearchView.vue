@@ -601,7 +601,7 @@ const openMeasHist = (recipeName: string) => {
             class="grid flex-1 content-start gap-1.5 p-3 sm:grid-cols-2"
           >
             <div
-              v-for="term in recentSearches"
+              v-for="(term, index) in recentSearches"
               :key="term"
               class="group flex min-w-0 items-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 py-1.5 transition-colors hover:border-(--sk-brand)/35 hover:bg-(--sk-brand)/5"
             >
@@ -610,10 +610,9 @@ const openMeasHist = (recipeName: string) => {
                 class="flex min-w-0 flex-1 items-center gap-2 text-left"
                 @click="applyRecentSearch(term)"
               >
-                <UIcon
-                  name="i-lucide-history"
-                  class="h-3.5 w-3.5 shrink-0 text-(--sk-ink-subtle)"
-                />
+                <span
+                  class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--sk-brand)/10 font-mono text-[10px] font-semibold tabular-nums text-(--sk-brand)"
+                >{{ index + 1 }}</span>
                 <span class="truncate font-mono text-[11px] font-semibold text-(--sk-ink)">{{ term }}</span>
               </button>
               <button
