@@ -30,15 +30,17 @@ field 목록 (ops mapping 기준, 19개)
   hub_load_tm    -> date : 시스템(HUB)에 적재된 시각. 이벤트 발생 시각이 아니라
                           수집 시각이므로 기간 필터 기준으로 쓰지 않습니다.
   eq_event       -> text : 장비 이벤트 구분. pm_type 이 비어 있는 경우가 있어
-                          화면에 함께 표시해야 합니다.
+                          화면에 함께 표시해야 합니다. tool_maintenance_plan 의
+                          event_name 과 같은 성격의 정보이며 field 이름만
+                          다릅니다.
   pm_type        -> text : PM 유형. 비어 있을 수 있습니다(eq_event 로 보완).
   eqp_id         -> text : 장비 ID. 조회(필터) 키.
   fab_name       -> text : fab 이름. 조회(필터) 키.
-  fac_id         -> text : 미확인. tool_maintenance_plan 에는 fac_id 와
-                          det_fac_id(= fab_name 과 같은 값)가 쌍으로 있어
-                          fac_id 가 상위 구분일 가능성이 있으나 확인 전입니다.
-                          선택 필터로는 fab_name 을 씁니다(타 feature 규칙과
-                          동일).
+  fac_id         -> text : tool_maintenance_plan 에도 같은 이름으로 있는
+                          field 입니다. 다만 그쪽의 det_fac_id(= 이 index 의
+                          fab_name)에 해당하는 field 는 이 index 에 없습니다.
+                          fab 단위보다 상위 구분으로 보이므로 필터·join 에는
+                          쓰지 않고 fab_name 을 씁니다(타 feature 규칙과 동일).
   lot_id         -> text : 관련 lot ID. 화면 표시 대상.
   last_recipe_id -> text : 직전 recipe ID. 화면 표시 대상.
   note_comment   -> text : 엔지니어 자유 서술 note. 화면 표시 대상.
