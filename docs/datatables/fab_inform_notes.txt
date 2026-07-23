@@ -2,8 +2,9 @@
 
 장비가 down 된 시점부터 up 될 때까지의 정비(BM/PM) 이벤트 한 건이 문서 한 개
 입니다. 정비 사유·조치 내용은 엔지니어가 직접 작성한 자유 서술 text 로 들어
-옵니다. 정비 "계획"은 별도 index(tool_maintenance_plan)에 있으며, 이 index 는
-실제 수행/발생 기록입니다.
+옵니다. 정비 "계획"(future work)은 별도 index tool_maintenance_plan 에 있으며
+(docs/datatables/tool_maintenance_plan.txt), 이 index 는 실제 수행/발생
+기록입니다.
 
 Index -> fab_inform_notes (alias)
   backing index  : fab_inform_notes-000001 (rollover family fab_inform_notes-*)
@@ -21,8 +22,11 @@ field 목록 (ops mapping 기준, 19개)
   doc_id         -> text : 색인 시 _id 로 사용되는 dedup 키.
   down_dt        -> date : 장비 down 시각 (정비 시작).
   equp_dt        -> date : 장비 up 시각 (정비 종료, 실제).
-  up_dt          -> date : up 예정 시각. 채워질 수도, None 일 수도 있습니다.
-                          (실제 up 시각은 equp_dt 이며 up_dt 와 혼동 금지)
+  up_dt          -> date : 쓰지 않습니다. 비워 둔 채로 두고 화면·조회 어디에도
+                          쓰지 않습니다. 값이 채워져 있는 문서가 있어도
+                          신뢰하지 않습니다. 장비의 실제 up 시각은 equp_dt 이고,
+                          앞으로의 정비 계획은 tool_maintenance_plan index 에
+                          있습니다.
   hub_load_tm    -> date : 시스템(HUB)에 적재된 시각. 이벤트 발생 시각이 아니라
                           수집 시각이므로 기간 필터 기준으로 쓰지 않습니다.
   eq_event       -> text : 장비 이벤트 구분. pm_type 이 비어 있는 경우가 있어
@@ -51,8 +55,8 @@ field 목록 (ops mapping 기준, 19개)
   기간 필터의 time_field 는 down_dt(정비 시작) 입니다. hub_load_tm 은 적재
   시각이라 "언제 정비했는가"와 어긋납니다.
 
-  진행 중(아직 up 안 된) 건은 equp_dt 가 비어 있는 문서로 판별하고, up_dt 가
-  있으면 "예정 시각"으로 표시합니다.
+  진행 중(아직 up 안 된) 건은 equp_dt 가 비어 있는 문서로 판별합니다. 예정
+  시각은 이 index 에서 얻지 않습니다(up_dt 사용 안 함).
 
 화면 표시 field
 
