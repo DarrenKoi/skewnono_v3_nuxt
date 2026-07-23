@@ -197,11 +197,13 @@ const toast = useToast()
 
 const historyMatches = ref<string[]>([])
 
-const historyMatchesLabel = computed(() => {
-  const names = historyMatches.value
-  const shown = names.slice(0, 3).join(', ')
-  return names.length > 3 ? `${shown} 외 ${names.length - 3}건` : shown
-})
+// One summary format for both the toast and the empty-state banner: up to
+// `max` names joined by ', ', with any remainder rolled into a '외 N건' tail.
+const summarizeMatches = (names: string[], max = 3): string => {
+  const shown = names.slice(0, max).join(', ')
+  return names.length > max ? `${shown} 외 ${names.length - max}건` : shown
+}
+const historyMatchesLabel = computed(() => summarizeMatches(historyMatches.value))
 
 // Non-empty exactly when a settled zero-result search is on screen; doubles
 // as the probe's identity so stale responses and repeat toasts can be culled.
@@ -237,10 +239,9 @@ watch(historyProbeKey, (key) => {
 
       if (matches.length && lastHistoryToastKey !== key) {
         lastHistoryToastKey = key
-        const first = matches[0] ?? ''
         toast.add({
           title: HISTORY_HINT,
-          description: matches.length === 1 ? first : `${first} 외 ${matches.length - 1}건`,
+          description: summarizeMatches(matches),
           icon: 'i-lucide-history',
           color: 'warning'
         })
