@@ -226,3 +226,118 @@ def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
     past = [past_row(hit, eqp_id) for hit in past_hits]
     future = [future_row(hit, eqp_id) for hit in future_hits]
     return {"past": past, "future": future, "cards": derive_cards(past, future)}
+
+
+# --------------------------------------------------------------------------- #
+# Office smoke test / diagnosis — run this module directly (see __main__).
+# --------------------------------------------------------------------------- #
+def _diagnose(eqp_id: str, anchor: datetime) -> None:  # pragma: no cover
+    """Answer the three questions an empty BM/PM tab raises, in order: is the
+    tool spelled this way, is the window right, and is the stored timestamp
+    the wall clock we assume? ASCII-only output, so a cp949 Windows console
+    never raises."""
+    from back_dev_home.ebeam.hitachi._office_search import client
+
+    os_client = client()
+
+    def _count(index: str, filters: list) -> Any:
+        res = os_client.search(
+            index=index, body={"size": 0, "query": {"bool": {"filter": filters}}}
+        )
+        total = res.get("hits", {}).get("total", {})
+        return total.get("value") if isinstance(total, dict) else total
+
+    def _rng(field: str, lo: datetime, hi: datetime) -> dict:
+        return {"range": {field: {"gte": lo.isoformat(), "lte": hi.isoformat()}}}
+
+    eqp = {"term": {EQP_ID_KW: eqp_id}}
+    sides = [
+        (INDEX_PAST, DOWN_DT, anchor - timedelta(days=PAST_DAYS), anchor),
+        (INDEX_FUTURE, PLAN_START, anchor, anchor + timedelta(days=FUTURE_DAYS)),
+    ]
+
+    for index, field, lo, hi in sides:
+        print("\n=== %s (tool=%s) ===" % (index, eqp_id))
+
+        # [1] Which eqp_id values exist, spelled how?
+        try:
+            body = {"size": 0,
+                    "aggs": {"ids": {"terms": {"field": EQP_ID_KW, "size": 50}}}}
+            buckets = (os_client.search(index=index, body=body)
+                       .get("aggregations", {}).get("ids", {}).get("buckets", []))
+            names = [b["key"] for b in buckets]
+            print("[1] %d eqp_ids; %r present: %s"
+                  % (len(names), eqp_id, eqp_id in names))
+            if names:
+                print("    " + ", ".join("%s(%s)" % (b["key"], b["doc_count"])
+                                         for b in buckets[:20]))
+        except Exception as exc:  # noqa: BLE001 — diagnostic path, never fatal
+            print("[1] eqp_id terms FAILED: %s" % exc)
+
+        # [2] Which single clause drops the count to zero?
+        probes = [
+            ("eqp_id only (no time)", [eqp]),
+            ("time range only", [_rng(field, lo, hi)]),
+            ("eqp_id + window [adapter]", [eqp, _rng(field, lo, hi)]),
+        ]
+        print("[2] clause isolation on %s (%s .. %s):"
+              % (field, lo.isoformat(), hi.isoformat()))
+        for label, filters in probes:
+            try:
+                print("    %-28s: %s docs" % (label, _count(index, filters)))
+            except Exception as exc:  # noqa: BLE001
+                print("    %-28s: ERROR %s" % (label, exc))
+
+        # [3] The timezone check: raw stored value next to what the row shows.
+        try:
+            sample = fetch_hits(index, _query([eqp]), size=1,
+                                sort=[{field: {"order": "desc"}}])
+            if sample:
+                raw = sample[0].get(field)
+                print("[3] stored %s=%r -> row shows %r"
+                      % (field, raw, _fmt_stored(raw)))
+                print("    A 'Z'/offset suffix here means the window and the "
+                      "displayed clock are 9h apart from KST. Compare against "
+                      "a job you know the real time of before trusting the tab.")
+            else:
+                print("[3] no docs for this tool; cannot check the stored format")
+        except Exception as exc:  # noqa: BLE001
+            print("[3] sample FAILED: %s" % exc)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    #   python -m back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.office
+    # Diagnoses both indices one clause at a time, then runs build_bm_pm_data.
+    # Edit TOOL below and run with no args; passing args overrides.
+    import sys
+    from collections import Counter
+
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+    # ---- EDIT: real eqp_ids look like "6MCDE305" (NOT "MCD018") ----
+    TOOL = "6MCDE305"
+    tool = sys.argv[1] if len(sys.argv) > 1 else TOOL
+    now = datetime.now()
+
+    _diagnose(tool, now)
+
+    print("\n=== build_bm_pm_data (both indices + map + cards) ===")
+    try:
+        pulled = build_bm_pm_data(tool, now)
+    except Exception as exc:  # noqa: BLE001 — show the error, keep the diagnosis
+        print("build_bm_pm_data raised: %s: %s" % (type(exc).__name__, exc))
+    else:
+        print("past=%d future=%d cards=%s"
+              % (len(pulled["past"]), len(pulled["future"]), pulled["cards"]))
+        print("past categories: %s"
+              % dict(Counter(r["category"] or "(unclassified)"
+                             for r in pulled["past"])))
+        if pulled["past"]:
+            first = pulled["past"][0]
+            print("newest past row: down=%r up=%r pm_type=%r eq_event=%r"
+                  % (first["job_starts"], first["job_end"],
+                     first["pm_type"], first["eq_event"]))

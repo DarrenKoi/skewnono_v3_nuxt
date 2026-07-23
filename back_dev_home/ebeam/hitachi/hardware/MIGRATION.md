@@ -11,7 +11,7 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | --- | --- | --- | --- |
 | `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` | written — `cp` + verify |
 | `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
-| `bm_pm/` | `build_bm_pm_data` | BM/PM work-order table | stub |
+| `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) | stub |
 | `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` | stub |
 | `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub |
@@ -24,6 +24,13 @@ two OFFICE-VERIFY checks in its docstring (offset-less `timestamp`, and
 `eqp_id` carrying a `.keyword` subfield). FDC is CD-SEM only — an HV-SEM tool
 matches no documents and renders an empty chart, which is the intended
 result until HV-SEM FDC is ingested.
+
+`bm_pm/office_example.py` is implemented too, over two indices: `fab_inform_notes`
+for the past-work table (`down_dt`/`equp_dt` plus the three engineer notes)
+and `tool_maintenance_plan` for the planned-work table. Run its `__main__` before
+`cp`-ing it — the diagnostic prints the raw stored timestamps, which is the one
+thing about these indices that is still unverified (see the module docstring).
+Schema: `docs/datatables/fab_inform_notes.txt`, `docs/datatables/tool_maintenance_plan.txt`.
 
 `sharpness/office_example.py` is likewise implemented, against
 `docs/datatables/sharpness_monitor_cdsem.txt`. It is the one adapter here that
@@ -122,7 +129,7 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
   builds both a settings snapshot (as-of `end`) and a `docs` history list;
   `sce` builds only a settings snapshot (no `docs`). `mdc`/`sce` settings
   compare the selected `eqp_id` against in-fab siblings as of `end`.
-- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, sharpness_monitor_cdsem, MDC/SCE settings collections, BM/PM work-order table -->
+- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, sharpness_monitor_cdsem, MDC/SCE settings collections, fab_inform_notes + tool_maintenance_plan -->
 - Notes: `fetched_at` is stamped at request/build time and is volatile — a
   parity harness should scrub it rather than compare byte-for-byte. The
   `docs` vs. `settings` split is a discriminated-by-service convention (not
