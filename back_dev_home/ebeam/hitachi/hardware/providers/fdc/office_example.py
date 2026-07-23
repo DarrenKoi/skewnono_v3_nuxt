@@ -45,8 +45,14 @@ OFFICE-VERIFY on the first real run:
 1. ``timestamp`` really is offset-less. If ingestion writes a ``Z`` suffix,
    the range bounds below need the same spelling or the window silently
    slides 9 hours.
-2. ``eqp_id`` is ``text`` with a ``.keyword`` subfield. If it is mapped as a
-   bare ``keyword``, drop the ``.keyword`` suffix from ``EQP_ID_KW``.
+2. ``eqp_id`` is a bare ``keyword`` — queried with NO ``.keyword`` suffix, the
+   same convention the sibling ``sharpness_monitor_cdsem`` confirmed for its
+   ``ip`` field (user-confirmed 2026-07-22). An earlier ``eqp_id.keyword``
+   here returned empty on every tool: a term query against a subfield that the
+   mapping does not have matches zero docs with NO error. If this field ever
+   turns out to be analyzed ``text`` after all, restore the ``.keyword``
+   subfield. The smoke test below prints the live mapping so you can see which
+   it is rather than guess.
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 ``cp providers/office_example.py providers/office.py`` (the dispatcher), then
@@ -70,9 +76,14 @@ __all__ = ["build_fdc_docs"]
 
 INDEX = "network_fdc_cdsem"
 
-# Exact match goes through the .keyword subfield: the base `eqp_id` mapping is
-# `text` (analyzed), so a term query on it matches nothing.
-EQP_ID_KW = "eqp_id.keyword"
+# `eqp_id` on this index is a bare `keyword`, so exact match is a plain term
+# query with NO `.keyword` suffix. The sibling network-monitoring index
+# `sharpness_monitor_cdsem` fixes the convention (its `ip` field is mapped
+# `keyword`, user-confirmed 2026-07-22): these ingestion indices store string
+# identity fields as `keyword`, not analyzed `text`. Targeting a `.keyword`
+# subfield the mapping lacks matches zero docs with no error — the silent empty
+# pull that `eqp_id.keyword` produced before this fix.
+EQP_ID_FIELD = "eqp_id"
 
 # The four documented FDC record shapes. An unknown key means the index grew a
 # shape the frontend parser has never seen — worth failing on rather than
@@ -117,7 +128,7 @@ def _validate(doc: dict[str, Any], eqp_id: str) -> dict[str, Any]:
     if doc_eqp != eqp_id:
         raise ValueError(
             f"{INDEX}: expected eqp_id {eqp_id!r} but a hit carries "
-            f"{doc_eqp!r} — check the {EQP_ID_KW} mapping."
+            f"{doc_eqp!r} — check the {EQP_ID_FIELD} mapping."
         )
 
     timestamp = _text(doc.get("timestamp"))
@@ -177,7 +188,7 @@ def build_fdc_docs(
     empty "pick a tool" payload before the dispatcher reaches this adapter.
     """
     clauses: list[dict[str, Any]] = [
-        {"term": {EQP_ID_KW: eqp_id}},
+        {"term": {EQP_ID_FIELD: eqp_id}},
         {
             "range": {
                 "timestamp": {
@@ -204,6 +215,37 @@ def build_fdc_docs(
     # exact key so both providers hand the chart the same sequence.
     docs.sort(key=lambda d: (d["timestamp"], d["fdc_key"], str(d["values"][2:3])))
     return docs
+
+
+def _describe_eqp_id_mapping() -> str:  # pragma: no cover — smoke-test only
+    """Live one-line report of how ``eqp_id`` is mapped on the index.
+
+    This is the single fact that decides whether the term query needs a
+    ``.keyword`` suffix, so the smoke test prints it on every run: an empty
+    pull is then never ambiguous between "no data in the window" and "the
+    field name is wrong". ``keyword`` with no subfields → the bare
+    ``EQP_ID_FIELD`` above is right; ``text`` with a ``keyword`` subfield →
+    restore ``eqp_id.keyword``.
+    """
+    from back_dev_home.ebeam.hitachi._office_search import client
+
+    try:
+        fm = client().indices.get_field_mapping(index=INDEX, fields="eqp_id")
+    except Exception as exc:  # noqa: BLE001 — diagnostic path, never fatal
+        return f"(could not read mapping: {exc})"
+    for per_index in fm.values():
+        spec = (
+            per_index.get("mappings", {})
+            .get("eqp_id", {})
+            .get("mapping", {})
+            .get("eqp_id", {})
+        )
+        if not spec:
+            continue
+        subfields = ", ".join((spec.get("fields") or {}).keys())
+        detail = f", subfields=[{subfields}]" if subfields else ", no subfields"
+        return f"type={spec.get('type')!r}{detail}"
+    return "(eqp_id absent from mapping — wrong index or empty)"
 
 
 if __name__ == "__main__":  # pragma: no cover
@@ -234,6 +276,7 @@ if __name__ == "__main__":  # pragma: no cover
     window_end = datetime.now()
     window_start = window_end - timedelta(days=days)
 
+    print(f"eqp_id mapping: {_describe_eqp_id_mapping()}")
     pulled = build_fdc_docs(tool, None, window_start, window_end)
     print(f"{tool}  last {days}d: {window_start.isoformat()} .. "
           f"{window_end.isoformat()}")

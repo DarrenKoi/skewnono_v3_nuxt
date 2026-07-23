@@ -44,7 +44,7 @@ from ops_store import OSIndex, OSSearch, create_client
 
 
 INDEX = office_example.INDEX
-EQP_ID_KW = office_example.EQP_ID_KW
+EQP_ID_FIELD = office_example.EQP_ID_FIELD
 
 
 def _rule(title: str) -> None:
@@ -165,12 +165,16 @@ def check_eqp_id_mapping(client: Any) -> None:
             eqp = props.get("eqp_id", {})
             has_kw = "keyword" in eqp.get("fields", {})
             if eqp.get("type") == "keyword":
-                print(f"  >> eqp_id is a BARE keyword — the adapter's "
-                      f"{EQP_ID_KW!r} matches NOTHING. Drop the .keyword "
-                      "suffix (this is OFFICE-VERIFY #2).")
+                print(f"  >> eqp_id is a BARE keyword — the adapter queries "
+                      f"{EQP_ID_FIELD!r}, which is CORRECT for this mapping "
+                      "(OFFICE-VERIFY #2).")
             elif has_kw:
-                print(f"  >> eqp_id is text with a .keyword subfield — "
-                      f"{EQP_ID_KW!r} is correct.")
+                print(f"  >> eqp_id is text with a .keyword subfield — the "
+                      f"adapter now queries the bare {EQP_ID_FIELD!r}, which "
+                      "matches NOTHING here. Restore the .keyword subfield.")
+            else:
+                print(f"  >> eqp_id is {eqp.get('type')!r} with no keyword "
+                      "subfield — it cannot be exact-matched as a term at all.")
             break
     except Exception as exc:
         _fail("get_mapping", exc)
@@ -178,7 +182,10 @@ def check_eqp_id_mapping(client: Any) -> None:
 
 def check_eqp_ids(search: OSSearch, tool: str) -> None:
     _rule(f"[7] which eqp_id values exist? (and is {tool!r} among them?)")
-    for field in (EQP_ID_KW, "eqp_id"):
+    # Query BOTH field forms so the buckets themselves reveal the mapping:
+    # a bare-keyword index answers on "eqp_id" and returns nothing on
+    # "eqp_id.keyword"; a text+.keyword index does the reverse.
+    for field in ("eqp_id", "eqp_id.keyword"):
         try:
             aggs = {"ids": {"terms": {"field": field, "size": 40}}}
             buckets = (search.aggregate(aggs, query=None)
@@ -227,7 +234,7 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
     end = datetime.now()
     start = end - timedelta(days=days)
     clauses: list[dict[str, Any]] = [
-        {"term": {EQP_ID_KW: tool}},
+        {"term": {EQP_ID_FIELD: tool}},
         {"range": {"timestamp": {"gte": start.isoformat(),
                                  "lte": end.isoformat()}}},
     ]
@@ -235,7 +242,8 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
     # is the clause that is wrong. This is THE decisive test —
     #   "eqp_id only" > 0 and "both" == 0  -> the time clause is at fault
     #   "eqp_id only" == 0                 -> the eqp_id clause is at fault
-    #     (bare-keyword mapping, or this tool has no FDC data)
+    #     (field-name mismatch — e.g. mapping is text+.keyword while the
+    #      adapter sends the bare field — or this tool has no FDC data)
     wide_start = end - timedelta(days=365)
     probes = [
         ("eqp_id only, NO time filter", [clauses[0]]),
