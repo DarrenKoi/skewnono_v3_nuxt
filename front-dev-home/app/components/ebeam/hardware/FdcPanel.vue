@@ -101,7 +101,35 @@
       />
     </div>
 
-    <!-- TemperatureEChuck / LaserPower → trend chart -->
+    <!-- LaserPower → multi-view explorer (원본 / 편차% / Pair 산점도) -->
+    <div
+      v-else-if="activeKey === 'LaserPower'"
+      class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
+    >
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+        <span class="sk-title">LaserPower</span>
+        <div class="flex overflow-hidden rounded-lg border border-(--sk-border)">
+          <button
+            v-for="m in laserViews"
+            :key="m.value"
+            type="button"
+            class="px-2.5 py-1 text-[11px] font-semibold transition-colors"
+            :class="m.value === laserView
+              ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
+              : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
+            @click="laserView = m.value"
+          >
+            {{ m.label }}
+          </button>
+        </div>
+      </div>
+      <div
+        ref="chartEl"
+        class="h-[26rem] w-full"
+      />
+    </div>
+
+    <!-- TemperatureEChuck → trend chart -->
     <div
       v-else
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
@@ -135,6 +163,17 @@ const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
 const c1 = computed(() => palette.value[1] ?? '#3F5D52')
 const c2 = computed(() => palette.value[2] ?? '#7B6CC4')
+const c3 = computed(() => palette.value[3] ?? '#6E7074')
+
+// LaserPower counts reach ~3×10^8; abbreviate axis ticks / tooltips so the
+// magnitudes fit the narrow gutters instead of overflowing as raw integers.
+const abbr = (v: number): string => {
+  if (!Number.isFinite(v)) return '-'
+  const a = Math.abs(v)
+  if (a >= 1e6) return `${(v / 1e6).toFixed(a >= 1e8 ? 0 : 1)}M`
+  if (a >= 1e3) return `${(v / 1e3).toFixed(0)}k`
+  return `${v}`
+}
 
 const colorMode = useColorMode()
 const maintenanceMarkLine = computed(() =>
@@ -161,6 +200,17 @@ const activeDocs = computed(() => grouped.value[activeKey.value] ?? [])
 const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
 
 const chartEl = ref<HTMLDivElement | null>(null)
+
+// LaserPower carries four numbers of two scales (two ~0.8 ratios x1/y1, two
+// ~10^8 counts x2/y2) whose physical meaning is still unconfirmed, so we offer
+// several lenses on the same series rather than commit to one fixed layout.
+type LaserView = 'raw' | 'deviation' | 'scatter'
+const laserViews: { value: LaserView, label: string }[] = [
+  { value: 'raw', label: '원본 · 스케일별' },
+  { value: 'deviation', label: '기준선 대비 %' },
+  { value: 'scatter', label: 'Pair 산점도' }
+]
+const laserView = ref<LaserView>('raw')
 
 // --- ContactpinConductionInfo ---
 const contactpinRows = computed(() =>
@@ -194,11 +244,13 @@ const chartOption = computed<EChartsOption>(() => {
     const colors = [c0.value, c1.value, c2.value]
     const spmAxis = stableYRange(spmAtTs.value.flatMap(p => (p.data as SpmVoltagesValue).profile)) ?? { scale: true }
     return {
-      grid: { left: 48, right: 16, top: 24, bottom: 36 },
+      grid: { left: 48, right: 16, top: 24, bottom: 52 },
       tooltip: { trigger: 'axis' },
       legend: { top: 0, textStyle: { fontSize: 10 } },
       xAxis: { type: 'category', name: 'index', axisLabel: { fontSize: 10 } },
       yAxis: { type: 'value', ...spmAxis, axisLabel: { fontSize: 10 } },
+      // Zoom the ~100-point profile — the whole reason SPM needs a range slider.
+      dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
       series: spmAtTs.value.map((p, i) => ({
         name: (p.data as SpmVoltagesValue).channel,
         type: 'line', smooth: true, showSymbol: false,
@@ -210,27 +262,131 @@ const chartOption = computed<EChartsOption>(() => {
   }
 
   if (activeKey.value === 'LaserPower') {
-    const pts = activeDocs.value.map(d => ({ ts: tsOf(d), parsed: parseFdcValues(valuesOf(d)) }))
-    const pairY = (p: (typeof pts)[number], i: number) => (p.parsed.data as LaserPowerValue)?.pairs?.[i]?.x ?? NaN
-    const pair = (i: number) => pts.map(p => ({
-      name: p.ts,
-      value: [toEpoch(p.ts), pairY(p, i)]
-    }))
-    const pairAxis = (i: number) => stableYRange(pts.map(p => pairY(p, i))) ?? { scale: true }
+    type Ch = 'x1' | 'y1' | 'x2' | 'y2'
+    const rows = activeDocs.value.map((d) => {
+      const p = parseFdcValues(valuesOf(d))
+      const lp = p.key === 'LaserPower' ? (p.data as LaserPowerValue) : null
+      return {
+        ts: tsOf(d),
+        epoch: toEpoch(tsOf(d)),
+        x1: lp?.pairs[0]?.x ?? NaN,
+        y1: lp?.pairs[0]?.y ?? NaN,
+        x2: lp?.pairs[1]?.x ?? NaN,
+        y2: lp?.pairs[1]?.y ?? NaN
+      }
+    })
+    const val = (r: (typeof rows)[number], k: Ch) => r[k]
+    const timeLine = (k: Ch) => rows.map(r => ({ name: r.ts, value: [r.epoch, val(r, k)] }))
+
+    // --- Deviation %: each channel normalized to its first finite sample, so
+    //     all four share one axis and relative drift is comparable across the
+    //     scale gap. ---
+    if (laserView.value === 'deviation') {
+      const pct = (k: Ch) => {
+        const base = rows.map(r => val(r, k)).find(Number.isFinite)
+        return rows.map(r => ({
+          name: r.ts,
+          value: [r.epoch, Number.isFinite(val(r, k)) && base ? (val(r, k) / base - 1) * 100 : NaN]
+        }))
+      }
+      return {
+        grid: { left: 52, right: 18, top: 28, bottom: 56 },
+        tooltip: { trigger: 'axis', valueFormatter: v => Number.isFinite(v as number) ? `${(v as number).toFixed(2)}%` : '-' },
+        legend: { top: 2, textStyle: { fontSize: 10 } },
+        xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', name: '% vs baseline', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true },
+        dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
+        series: [
+          { name: 'x1', type: 'line', showSymbol: false, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pct('x1'), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] } },
+          { name: 'y1', type: 'line', showSymbol: false, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: pct('y1'), markLine: maintenanceMarkLine.value },
+          { name: 'x2', type: 'line', showSymbol: false, lineStyle: { color: c2.value }, itemStyle: { color: c2.value }, data: pct('x2') },
+          { name: 'y2', type: 'line', showSymbol: false, lineStyle: { color: c3.value, type: 'dashed' }, itemStyle: { color: c3.value }, data: pct('y2') }
+        ]
+      }
+    }
+
+    // --- Pair scatter: x vs y within each pair, points colored oldest→newest.
+    //     Reveals per-pair correlation/structure the time-series hides. ---
+    if (laserView.value === 'scatter') {
+      const finiteEpochs = rows.map(r => r.epoch).filter(Number.isFinite)
+      const minE = finiteEpochs.length ? Math.min(...finiteEpochs) : 0
+      const maxE = finiteEpochs.length ? Math.max(...finiteEpochs) : 1
+      const pairPts = (kx: Ch, ky: Ch) => rows
+        .filter(r => Number.isFinite(val(r, kx)) && Number.isFinite(val(r, ky)))
+        .map(r => ({ name: r.ts, value: [val(r, kx), val(r, ky), r.epoch] }))
+      return {
+        title: [
+          { text: 'pair 1 · x1×y1', left: '26%', top: 6, textAlign: 'center', textStyle: { fontSize: 11, fontWeight: 'normal' } },
+          { text: 'pair 2 · x2×y2', left: '77%', top: 6, textAlign: 'center', textStyle: { fontSize: 11, fontWeight: 'normal' } }
+        ],
+        grid: [
+          { left: 52, right: '54%', top: 40, bottom: 40 },
+          { left: '52%', right: 62, top: 40, bottom: 40 }
+        ],
+        tooltip: {
+          trigger: 'item',
+          formatter: (params) => {
+            const item = Array.isArray(params) ? params[0] : params
+            const d = item?.data as { name: string, value: number[] } | undefined
+            return d ? `${d.name}<br/>x ${abbr(d.value[0]!)}<br/>y ${abbr(d.value[1]!)}` : ''
+          }
+        },
+        // Continuous time→color ramp shared by both scatters (older=c1, newer=c0).
+        visualMap: {
+          type: 'continuous', dimension: 2, min: minE, max: maxE, seriesIndex: [0, 1],
+          inRange: { color: [c1.value, c0.value] }, calculable: false, show: false
+        },
+        xAxis: [
+          { type: 'value', gridIndex: 0, name: 'x1', nameLocation: 'middle', nameGap: 22, nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9 } },
+          { type: 'value', gridIndex: 1, name: 'x2', nameLocation: 'middle', nameGap: 26, nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9, formatter: (v: number) => abbr(v) } }
+        ],
+        yAxis: [
+          { type: 'value', gridIndex: 0, name: 'y1', nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9 } },
+          { type: 'value', gridIndex: 1, name: 'y2', nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9, formatter: (v: number) => abbr(v) } }
+        ],
+        dataZoom: [
+          { type: 'inside', xAxisIndex: [0, 1], filterMode: 'none' },
+          { type: 'inside', yAxisIndex: [0, 1], filterMode: 'none' }
+        ],
+        series: [
+          { name: 'pair 1', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, symbolSize: 7, data: pairPts('x1', 'y1') },
+          { name: 'pair 2', type: 'scatter', xAxisIndex: 1, yAxisIndex: 1, symbolSize: 7, data: pairPts('x2', 'y2') }
+        ]
+      }
+    }
+
+    // --- Raw · by scale (default): ratios (x1,y1) share one axis on top;
+    //     counts (x2,y2) get a dual axis below (x2 ≈ 7× y2). All four visible. ---
+    const ratioAxis = stableYRange(rows.flatMap(r => [r.x1, r.y1])) ?? { scale: true }
+    const x2Axis = stableYRange(rows.map(r => r.x2)) ?? { scale: true }
+    const y2Axis = stableYRange(rows.map(r => r.y2)) ?? { scale: true }
     return {
-      grid: { left: 56, right: 56, top: 24, bottom: 36 },
-      tooltip: { trigger: 'axis' },
-      legend: { top: 0, textStyle: { fontSize: 10 } },
-      xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-      // Dual y-axes: hide both splitLine sets — they use independent
-      // intervals and never align.
+      grid: [
+        { left: 58, right: 64, top: '9%', height: '34%' },
+        { left: 58, right: 64, top: '57%', height: '30%' }
+      ],
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+      axisPointer: { link: [{ xAxisIndex: 'all' }] },
+      legend: { top: 2, textStyle: { fontSize: 10 } },
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0, 1] },
+        { type: 'slider', xAxisIndex: [0, 1], bottom: 6, height: 16 }
+      ],
+      xAxis: [
+        { type: 'time', gridIndex: 0, axisLabel: { show: false } },
+        { type: 'time', gridIndex: 1, axisLabel: { fontSize: 10 } }
+      ],
+      // Dual count axes hide their splitLines — independent intervals never align.
       yAxis: [
-        { type: 'value', name: 'pair 1', ...pairAxis(0), axisLabel: { fontSize: 10 }, splitLine: { show: false } },
-        { type: 'value', name: 'pair 2', ...pairAxis(1), axisLabel: { fontSize: 10 }, splitLine: { show: false } }
+        { type: 'value', gridIndex: 0, name: 'ratio', nameTextStyle: { fontSize: 10 }, ...ratioAxis, axisLabel: { fontSize: 10 } },
+        { type: 'value', gridIndex: 1, name: 'x2', position: 'left', nameTextStyle: { fontSize: 10 }, ...x2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } },
+        { type: 'value', gridIndex: 1, name: 'y2', position: 'right', nameTextStyle: { fontSize: 10 }, ...y2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } }
       ],
       series: [
-        { name: 'pair 1 (x)', type: 'line', yAxisIndex: 0, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: pair(0), markLine: maintenanceMarkLine.value },
-        { name: 'pair 2 (x)', type: 'line', yAxisIndex: 1, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: pair(1) }
+        { name: 'x1', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: timeLine('x1'), markLine: maintenanceMarkLine.value },
+        { name: 'y1', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value }, data: timeLine('y1') },
+        { name: 'x2', type: 'line', xAxisIndex: 1, yAxisIndex: 1, showSymbol: false, lineStyle: { color: c2.value }, itemStyle: { color: c2.value }, data: timeLine('x2'), markLine: maintenanceMarkLine.value },
+        { name: 'y2', type: 'line', xAxisIndex: 1, yAxisIndex: 2, showSymbol: false, lineStyle: { color: c3.value, type: 'dashed' }, itemStyle: { color: c3.value }, data: timeLine('y2') }
       ]
     }
   }
@@ -246,11 +402,12 @@ const chartOption = computed<EChartsOption>(() => {
   const colors = [c0.value, c1.value, c2.value]
   const tempAxis = stableYRange(Object.values(byPos).flat().map(r => r.temp)) ?? { scale: true }
   return {
-    grid: { left: 56, right: 16, top: 24, bottom: 36 },
+    grid: { left: 56, right: 16, top: 24, bottom: 52 },
     tooltip: { trigger: 'axis' },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 } },
+    dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
     series: Object.keys(byPos).sort().map((pos, i) => ({
       name: `pos ${pos}`, type: 'line', showSymbol: true,
       lineStyle: { color: colors[i % colors.length] }, itemStyle: { color: colors[i % colors.length] },

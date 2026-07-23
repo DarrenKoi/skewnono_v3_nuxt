@@ -294,7 +294,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
       <!-- LEFT · search + equipment list -->
       <UCard
         class="dashboard-surface flex max-h-[36rem] flex-col overflow-hidden rounded-2xl lg:max-h-[calc(100vh-13rem)]"
-        :ui="{ body: 'p-0 sm:p-0', header: 'p-0 sm:px-0' }"
+        :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0', header: 'shrink-0 p-0 sm:px-0' }"
       >
         <template #header>
           <div class="space-y-2.5 border-b border-zinc-200/70 px-3 py-3 dark:border-zinc-800/70">
