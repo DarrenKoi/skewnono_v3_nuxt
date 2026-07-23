@@ -50,13 +50,15 @@ This is a known-public-host blocklist, not a general internal-host allowlist. Th
 
 ## Provider readiness
 
-The active mock providers support home development. Tracked `providers/office_example.py` files are the reviewable implementation source; office environments copy them to ignored `providers/office.py` modules for source-specific verification without exposing local details. `docs/office-migration/STATUS.md` is the rollout ledger: SEM list and storage are marked office-verified, health and Recipe TAT are implemented but not yet recorded as verified, and the remaining listed features stay mock.
+The active mock providers support home development. Tracked `providers/office_example.py` files are the reviewable implementation source; office environments copy them to ignored `providers/office.py` modules for source-specific verification without exposing local details. `docs/office-migration/STATUS.md` records whether real office data passed contract and screen verification; it does not drive runtime selection. SEM list and storage are recorded as office-verified, while health, measurement history, Recipe TAT, fail issue, lateral recipe, recipe search, and MSR file have implemented or partial adapters still awaiting full verification.
 
-When no provider variable is set, the [runtime architecture](../architecture/overview.md#provider-seam-and-contracts) automatically selects office only for features in `_runtime/site.py:OFFICE_READY` on recognized office/cloud sites. The allowlist currently includes health and Recipe TAT despite their implemented-only ledger status; operators should reconcile that mismatch and can pin either feature back to mock during diagnosis. Explicit feature and global variables override the default:
+When no feature override is set, the [runtime architecture](../architecture/overview.md#provider-seam-and-contracts) selects office only when the process is in office mode and that machine has a direct `providers/office.py` for the feature. `SKEWNONO_DATA_PROVIDER=office` selects mode but does not force missing adapters; `SKEWNONO_DATA_PROVIDER=mock` returns all non-overridden features to mock. A feature-specific mock override isolates a broken adapter:
 
 ```bash
 SKEWNONO_STORAGE_PROVIDER=mock python index.py
 ```
+
+An explicit feature `=office` is a promise of real data: startup and direct provider resolution reject it when `office.py` is absent and include the required copy command. After copying an adapter, restart because the registry scan is process-cached, then confirm the actual resolution through the boot table or `GET /api/health/providers`.
 
 ### SEM-list Redis adapter
 
@@ -64,7 +66,7 @@ SKEWNONO_STORAGE_PROVIDER=mock python index.py
 
 Storage shares that Redis plumbing. Its adapter reads per-tool storage DataFrames plus the combined `v3_hitachi_sem_ppid_not_avail` hash, then joins unavailable IPs through SEM list to recover equipment identity and split CD-SEM from HV-SEM. Storage therefore [depends on the SEM-list integration](#sem-list-redis-adapter), and both are office-verified in the migration ledger.
 
-These adapters preserve the [provider seam](../architecture/overview.md#provider-seam-and-contracts): routes and frontend consumers do not know the Redis format. Copy the tracked examples to ignored `office.py` files, configure Redis without committing credentials, and use the focused checks in [testing guidance](../testing/guidance.md#feature-contract-gates).
+These adapters preserve the [provider seam](../architecture/overview.md#provider-seam-and-contracts): routes and frontend consumers do not know the Redis format. Copy the tracked examples to ignored `office.py` files, configure Redis without committing credentials, restart the process, confirm the provider row, and use the focused checks in [testing guidance](../testing/guidance.md#feature-contract-gates).
 
 ### Recipe TAT office analytics
 
@@ -79,7 +81,9 @@ cp back_dev_home/<feature>/providers/office_example.py \
   back_dev_home/<feature>/providers/office.py
 ```
 
-Never commit the resulting `office.py`; update the tracked example at home when contracts change. A provider is ready only when it:
+Never commit the resulting `office.py`; update the tracked example at home when contracts change. Hardware is a deliberate nested exception: the feature-level `hardware/providers/office.py` participates in global resolution, while `hardware/providers/<tab>/office.py` is private to the hardware dispatcher. A missing tab adapter falls back to that tab's mock and logs the fallback; an existing tab adapter that fails to import does not silently fall back.
+
+A provider is ready only when it:
 
 1. queries a confirmed production source;
 2. normalizes source fields into the existing contract;

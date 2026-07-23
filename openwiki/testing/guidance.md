@@ -14,9 +14,12 @@ The repository combines backend route/integration tests, feature-local provider 
 
 ### Backend route and integration tests
 
-Root tests under `tests/` use Flask clients and cover provider precedence, route filtering, response behavior, and office delegation. Runtime tests under `back_dev_home/_runtime/tests/` cover site detection and provider defaults. High-value suites include:
+Root tests under `tests/` use Flask clients and cover provider precedence, route filtering, response behavior, and office delegation. Runtime tests under `back_dev_home/_runtime/tests/` cover site detection, filesystem adapter discovery, resolution precedence, boot validation, and provider-table logging; `back_dev_home/health/tests/test_providers_route.py` covers live introspection. High-value suites include:
 
 - `back_dev_home/_runtime/tests/test_site_provider.py`
+- `back_dev_home/_runtime/tests/test_office_registry.py`
+- `back_dev_home/_runtime/tests/test_boot_providers.py`
+- `back_dev_home/health/tests/test_providers_route.py`
 - `test_access_control.py`
 - `test_activity_home.py`
 - `test_afm_home.py`
@@ -66,7 +69,7 @@ SKEWNONO_STORAGE_PROVIDER=office \
 
 The smoke commands load `back_dev_home/.env` through shared Redis plumbing and use the package `-m` form required by imports. The contract gates allow an empty office fleet while deterministic mock gates require data; office verification must still use representative sources and the corresponding [workflow](../workflows/key-workflows.md).
 
-Provider-default changes must also run `.venv/bin/python -m pytest back_dev_home/_runtime/tests/test_site_provider.py -q`. The invariant is that feature/global variables win, unknown and home hosts remain mock, and only `OFFICE_READY` features flip on recognized office/cloud sites. For Recipe TAT, test both the default ranked limit and `limit=0` (all buckets), plus lot-code bridge and empty-result behavior.
+Provider-resolution changes must run `.venv/bin/python -m pytest back_dev_home/_runtime/tests back_dev_home/health/tests/test_providers_route.py -q`. The invariants are: unknown/home hosts remain mock; office mode flips only features with a direct `providers/office.py`; global `mock` disables all non-overridden office adapters; feature overrides win; explicit feature `office` without an adapter fails consistently at boot and direct import; hyphenated slugs normalize consistently; and the boot table plus health route report each feature's provider and reason. Registry tests also pin duplicate-slug/orphan rejection and exclude hardware's nested per-tab adapters. For Recipe TAT, test both the default ranked limit and `limit=0` (all buckets), plus lot-code bridge and empty-result behavior.
 
 ### Frontend tests
 
@@ -119,7 +122,7 @@ A workflow nested under `front-dev-home/.github/workflows/` is not loaded by Git
 | Change area | Minimum focused verification |
 | --- | --- |
 | Flask app/auth/logging | App startup, relevant root tests, API-token/access tests, rate-limit and JSON 502/503 behavior |
-| Provider resolution/site detection | `_runtime/tests/test_site_provider.py`, explicit override precedence, unknown-host mock fallback |
+| Provider resolution/site detection | All `_runtime/tests`, health provider-route test, adapter-presence cascade, explicit-override refusal, boot table/reasons, unknown-host mock fallback |
 | Provider implementation | Feature contract test under mock and office, route tests, representative real-source sample |
 | API response | Contract test, fixture review, frontend typecheck and consuming workflow |
 | Device Statistics | Recipe analytics tests, rule engine/drill utility tests, lot/bucket URL flow |

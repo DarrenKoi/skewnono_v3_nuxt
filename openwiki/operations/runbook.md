@@ -27,7 +27,7 @@ NUXT_API_TARGET=http://localhost:5050 npm run dev
 
 Current defaults are Flask `5050` and Nuxt `3000`. Use the Nitro `/api` proxy; do not build frontend URLs from backend hosts. On Windows, activate `.venv\Scripts\activate` and prefer `npm.cmd` if PowerShell blocks `npm.ps1`.
 
-Check the backend through `GET /api/health/services`. Local identity defaults to a development user; do not infer cloud authentication behavior from local mode.
+Check backing services through `GET /api/health/services` and resolved feature providers through `GET /api/health/providers`. The latter returns `site`, effective `mode`, and one `{feature, provider, reason}` row per discovered feature. Local identity defaults to a development user; do not infer cloud authentication behavior from local mode.
 
 ## Configuration model
 
@@ -39,8 +39,8 @@ Check the backend through `GET /api/health/services`. Local identity defaults to
 | Browser API base | `NUXT_PUBLIC_API_BASE` | `/api` |
 | Runtime site | `SKEWNONO_SITE` | Explicit `home`/`office`; otherwise cloud path and hostname detection |
 | Extra office hosts | `SKEWNONO_OFFICE_HOSTNAMES` | Comma-separated hostnames outside the tracked `PC...` convention |
-| Global data source | `SKEWNONO_DATA_PROVIDER` | Overrides site-based defaults when set |
-| Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Highest-precedence provider override |
+| Provider mode | `SKEWNONO_DATA_PROVIDER` | `mock` is a whole-instance kill switch; `office` enables only adapters present on this machine |
+| Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Highest precedence; explicit `office` fails if that adapter is absent |
 | Session secret | `SKEWNONO_SECRET_KEY` | Development-only fallback; set in production |
 | Admin users | `SKEWNONO_ADMIN_USERS` | Mode-specific source defaults |
 | Chat gateway | `CHAT_BASE_URL` | Public OpenRouter default is usable in mock mode but blocked in office mode |
@@ -57,16 +57,21 @@ cp back_dev_home/meas_hist/providers/office_example.py \
   back_dev_home/meas_hist/providers/office.py
 ```
 
-Do not commit `office.py`; reviewable implementation and contract changes belong in `office_example.py`. With no explicit provider variables, home and unknown hosts use mock, while recognized office/cloud sites use office only for `_runtime/site.py:OFFICE_READY`; unfinished features stay mock. `SKEWNONO_SITE=office` is useful for VPN verification, and feature/global provider variables override the site default:
+Do not commit `office.py`; reviewable implementation and contract changes belong in `office_example.py`. Restart Flask after adding or removing one because adapter discovery is cached per process. With no feature overrides, home and unknown hosts use mock mode; recognized office/cloud sites use office only for features whose direct `providers/office.py` exists. `SKEWNONO_SITE=office` is useful for VPN verification without changing adapter selection rules.
+
+Use mock overrides as rollback controls:
 
 ```bash
-SKEWNONO_SITE=office \
-SKEWNONO_MEAS_HIST_PROVIDER=office \
-SKEWNONO_STORAGE_PROVIDER=mock \
-PORT=5050 .venv/bin/python index.py
+# Disable one broken adapter.
+SKEWNONO_STORAGE_PROVIDER=mock PORT=5050 .venv/bin/python index.py
+
+# Disable all non-overridden office adapters.
+SKEWNONO_DATA_PROVIDER=mock PORT=5050 .venv/bin/python index.py
 ```
 
-Keep `docs/office-migration/STATUS.md` aligned with `OFFICE_READY`. At present health and Recipe TAT are allowlisted but still labeled implemented-only in the ledger, so verify or temporarily override them before relying on unattended office/cloud defaults. A `NotImplementedError` usually means a selected adapter remains intentionally unwired. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
+Feature-specific `=office` remains useful for a home/VPN contract gate, but it is accepted only when that feature's `office.py` exists; otherwise both application startup and direct provider imports fail with a copy command rather than silently serving mock. `SKEWNONO_DATA_PROVIDER=office` selects office mode but does not force unwired features.
+
+At every startup, `skewnono.providers` logs the detected site, effective mode, office-feature count, and each feature's provider/reason. `GET /api/health/providers` exposes the same live resolution. Use those outputs to learn what this machine serves; use `docs/office-migration/STATUS.md` separately to determine whether the real source passed contract and screen verification. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
 
 ## Build and production-style serving
 
@@ -127,9 +132,13 @@ The current Flask allowlist names `http://localhost:3100`, while Nuxt defaults t
 
 Dynamic Blueprint discovery imports every non-private `routes.py`. Inspect the traceback for a feature import failure, missing optional dependency imported too early, or a module that does not export Blueprint `bp`.
 
-### Office feature returns 500/NotImplementedError
+### Application refuses to start for provider configuration
 
-Confirm the matching ignored `providers/office.py` exists and inspect its tracked `office_example.py` plus feature `MIGRATION.md`. Check `SKEWNONO_SITE`, global/feature provider variables, and whether the feature is in `OFFICE_READY`; an explicit global `office` can still select unfinished adapters. Use a feature-specific mock override while migrating other features.
+The app validates provider settings before registering routes. Invalid values fail immediately. A feature-specific `SKEWNONO_<FEATURE>_PROVIDER=office` also fails when its ignored `providers/office.py` is absent; use the copy command in the error or remove the override. Duplicate feature directory slugs and office adapters without mock siblings also fail registry validation.
+
+### Office feature is unexpectedly mock or returns NotImplementedError
+
+Query `GET /api/health/providers` or inspect the startup table first. In office mode, reason `no providers/office.py` means the machine-local adapter is absent; copy the tracked `office_example.py`, restart, and rerun its contract gate. A selected adapter that raises `NotImplementedError` remains intentionally unwired. Use a feature-specific mock override while diagnosing it. Hardware is the exception: its feature-level adapter dispatches each tab separately, and a missing nested tab `office.py` falls back to that tab's mock with an INFO log.
 
 ### Office feature returns JSON 502 or 503
 

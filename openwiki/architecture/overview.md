@@ -52,16 +52,15 @@ Shared CD-SEM/HV-SEM features belong under `back_dev_home/ebeam/hitachi/<feature
 
 ## Provider seam and contracts
 
-A route should depend on functions exported by its sibling `data.py`, never on OpenSearch, MinIO, FTP, or Redis directly. `back_dev_home/_runtime/data_provider.py` resolves the provider in this order:
+A route should depend on functions exported by its sibling `data.py`, never on OpenSearch, MinIO, FTP, or Redis directly. Provider selection combines machine mode with adapter presence:
 
-1. `SKEWNONO_<FEATURE>_PROVIDER`;
-2. `SKEWNONO_DATA_PROVIDER`;
-3. `office` when `_runtime/site.py` recognizes an office/cloud site and the feature is in `OFFICE_READY`;
-4. otherwise `mock`.
+1. `SKEWNONO_<FEATURE>_PROVIDER` explicitly selects that feature; `office` is accepted only when its adapter exists.
+2. Otherwise, `SKEWNONO_DATA_PROVIDER` selects the process mode, or mode follows `_runtime/site.py`.
+3. Office mode selects `office` only for features with a local `providers/office.py`; all other features remain `mock`. Mock mode selects mock for every non-overridden feature.
 
-Site detection itself prefers `SKEWNONO_SITE`, then treats the path-derived cloud deployment as office, then checks normalized hostnames (`PC...` or `SKEWNONO_OFFICE_HOSTNAMES`). Unknown hosts stay mock. This lets office-ready features move without a blanket switch that would activate unfinished adapters, while explicit provider variables remain authoritative.
+Site detection prefers `SKEWNONO_SITE`, then treats the path-derived cloud deployment as office, then checks normalized hostnames (`PC...` or `SKEWNONO_OFFICE_HOSTNAMES`). Unknown hosts stay mock. `_runtime/office_registry.py` discovers features from direct `providers/mock.py` children and readiness from direct `providers/office.py` children; the scan is cached, so adding an adapter requires a restart. Duplicate feature slugs and office adapters without mock siblings fail validation. Hardware's nested tab adapters are deliberately excluded and use their own fallback.
 
-The dispatcher calls `providers/mock.py` or a local `providers/office.py`. Home authors maintain tracked `providers/office_example.py`; office engineers copy it to the gitignored `office.py` and verify it against local sources. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
+The dispatcher calls `providers/mock.py` or the ignored, machine-local `providers/office.py`. Home authors maintain tracked `providers/office_example.py`; office engineers copy it to `office.py` and verify it against local sources. `create_app()` rejects invalid provider values and any explicit feature `=office` that cannot be honored, then logs every feature's provider and reason through `skewnono.providers`. The same resolution is exposed by `GET /api/health/providers`, which reads runtime state directly rather than through the swappable health provider. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
 
 This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. `_runtime/office_redis.py` now centralizes environment loading, one cached fail-fast Redis pool per process, and parquet-first DataFrame decoding; feature adapters still own normalization. Missing upstream data becomes JSON `502 upstream_data_error`, while bare configuration failures and Redis/OpenSearch connection or timeout failures become JSON `503` responses. Subclassed programming errors such as `KeyError` and `NotImplementedError` intentionally remain 500s.
 
@@ -77,13 +76,13 @@ The default limit is `20 per 5 seconds`, keyed by user or remote address. MSR im
 
 ## Deployment modes
 
-Deployment mode and data provider remain separate, but deployment site contributes a safe provider default:
+Deployment mode and data provider remain separate, but deployment site contributes a safe provider mode:
 
 - `_runtime/env.py:is_cloud()` decides cloud SSO, OpenSearch logging, SPA serving, and bind behavior based on installation path.
 - `_runtime/site.py` classifies explicit, cloud, and recognized-host runs as home or office.
-- provider environment variables override that classification; only `OFFICE_READY` features auto-select office.
+- `SKEWNONO_DATA_PROVIDER` can override that mode; each feature still needs a local office adapter before office mode selects it.
 
-An office-local process can therefore use office data without cloud SSO or SPA serving. Path-derived cloud detection is still brittle for deployment behavior, though treating cloud as an office site prevents a production VM hostname change from silently selecting mock data.
+An office-local process can therefore use office data without cloud SSO or SPA serving. Path-derived cloud detection is still brittle for deployment behavior, though treating cloud as office mode prevents a production VM hostname change from silently selecting mock for adapters that are present.
 
 In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/public` and falls back to `index.html` for client routes, while refusing to swallow `api/*`. Missing output logs a warning and leaves an API-only service rather than failing startup. Build and deployment procedures live in the [operations runbook](../operations/runbook.md).
 
@@ -92,5 +91,5 @@ In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/publi
 - **Add a page:** check route navigation, URL-state preservation, API calls, and access gate.
 - **Add an API feature:** add a scoped folder with `routes.py`, `data.py`, providers, contracts, and contract tests; no central registration edit is needed.
 - **Change a response:** update backend contracts, API-contract docs, composable types, consumers, fixtures, and [tests](../testing/guidance.md) together.
-- **Connect office data:** implement the tracked `providers/office_example.py`, copy it to ignored `providers/office.py` for office verification, keep the route unchanged, and run that feature's active-provider contract gate. Add it to `OFFICE_READY` only after its rollout status justifies automatic office selection.
+- **Connect office data:** implement the tracked `providers/office_example.py`, copy it to ignored `providers/office.py`, restart so presence is rescanned, keep the route unchanged, run that feature's active-provider contract gate, and verify its row through the boot table or `/api/health/providers`. Update the migration ledger only after representative real-data and screen verification.
 - **Change auth/logging:** inspect API tokens, blocked-member behavior, activity weighting, rate limits, and multi-worker consequences.

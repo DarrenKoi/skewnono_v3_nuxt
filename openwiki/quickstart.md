@@ -12,7 +12,7 @@ tags: [skewnono, quickstart, nuxt, flask, metrology]
 
 SKEWNONO v3 is an internal E-Beam metrology operations and analytics platform. Its current product scope combines CD-SEM and HV-SEM equipment management, recipe and parameter governance, measurement review through Skewvoir, integrated AFM analysis, and supporting activity, access, API-token, and chat surfaces. The product overview targets roughly 320 CD-SEM/HV-SEM tools and emphasizes Tool-to-Tool Matching, reduced measurement TAT, and faster investigation of questionable measurements (`docs/project-overview.md`).
 
-The active application is a client-only Nuxt 4 SPA backed by Flask. The [architecture](architecture/overview.md) keeps frontend calls stable at `/api/*` while each Flask feature selects mock or office data behind its `data.py` boundary. Home and unknown hosts default safely to mock data; recognized office/cloud sites automatically select office data only for the allowlisted ready features, while explicit feature or global provider variables still take precedence.
+The active application is a client-only Nuxt 4 SPA backed by Flask. The [architecture](architecture/overview.md) keeps frontend calls stable at `/api/*` while each Flask feature selects mock or office data behind its `data.py` boundary. Home and unknown hosts default safely to mock mode; in office/cloud mode, a feature selects office data only when that machine has an ignored `providers/office.py`. Per-feature overrides remain authoritative, while `SKEWNONO_DATA_PROVIDER=mock` is a whole-instance kill switch.
 
 ## Start locally
 
@@ -74,25 +74,26 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 
 ## Engineering rules of thumb
 
-1. Preserve API shapes. Reviewable adapter implementations and migration contracts belong in tracked `back_dev_home/<feature>/providers/office_example.py`; office-local copies and environment-specific details belong in gitignored `office.py`, never in frontend phase branches.
+1. Preserve API shapes. Reviewable adapter implementations and migration contracts belong in tracked `back_dev_home/<feature>/providers/office_example.py`; office-local copies and environment-specific details belong in gitignored `office.py`, whose presence enables that feature in office mode after restart. Verify live selection through `/api/health/providers`, never through frontend phase branches.
 2. Treat `contracts.py`, `docs/api-contracts/`, feature `MIGRATION.md` files, and frontend composables as a single boundary that must evolve together.
 3. Use one `useAsyncData` key per shared frontend resource; do not introduce a second fetching framework without a demonstrated need.
 4. Keep page-wide analysis state shareable in URL queries where the workflow is intended to be forwarded between engineers.
 5. Distinguish official review state from exploratory comparisons; Skewvoir must not turn a user-curated set into an official assessment.
 6. Do not treat `afm_data_platform/` as a second active frontend. It is migration/reference and data-generation material; the integrated AFM runtime lives in `front-dev-home/app/pages/afm/` and `back_dev_home/afm/`.
-7. Inspect recent git history for active areas. The July 2026 sequence moved computation into pure tested utilities, expanded AFM detail controls, standardized chat tests on Node's runner, and intentionally hardened provider/contract migration behavior.
+7. Inspect recent git history for active areas. The July 2026 sequence moved computation into pure tested utilities, expanded office adapters and frontend analysis workflows, and replaced the tracked provider allowlist with machine-local adapter-presence discovery plus boot/health introspection.
 
 ## Known documentation drift
 
 - Current home defaults are Flask `5050` (`index.py`) and Nuxt `3000` (`front-dev-home/nuxt.config.ts`); `wsgi.ini` listens on `5000`. Some READMEs still mention `3100` or `5000` for development.
 - `front-dev-home/README.md` retains Nuxt starter-template material.
-- `docs/development-workflow.md` describes an obsolete frontend mock-server switch. The current switch is backend provider selection via `SKEWNONO_DATA_PROVIDER` and feature overrides.
+- `docs/development-workflow.md` describes an obsolete frontend mock-server switch. Current selection combines backend mode, machine-local `providers/office.py` presence, and optional feature overrides.
 
 ## Backlog
 
-- **Office provider rollout** — `docs/office-migration/STATUS.md` and `_runtime/site.py:OFFICE_READY`: SEM list and storage are office-verified, while health and Recipe TAT are still labeled implemented-only even though the runtime allowlist currently auto-selects them at office/cloud sites. Reconcile that status/allowlist mismatch, then continue connecting the remaining mock adapters feature by feature.
+- **Office provider verification** — `docs/office-migration/STATUS.md` and feature `MIGRATION.md` files: runtime selection now follows each machine's ignored `providers/office.py`; continue contract and screen verification for implemented/partial adapters and record results in the ledger. Use `/api/health/providers` to confirm selection, not the ledger.
+- **Live alarm board** — `docs/superpowers/specs/2026-07-22-live-alarm-broadcast-design.md`: implement the approved but currently design-only align/meas fail board, its 15-second writer, Redis-backed 10-minute feed, Flask reader, and CD-SEM/HV-SEM pages.
 - **Rule persistence** — `back_dev_home/ebeam/cdsem/device_statistics/` and `useMeasurementRulesApi.ts`: implement save, history, rollback, and identity attribution after the datastore is chosen.
 - **Artifact source decisions** — `back_dev_home/msr_file/MIGRATION.md` and `back_dev_home/afm/providers/office_example.py`: decide whether images and large bodies come from live FTP, MinIO, or another service.
 - **Operational hardening** — `back_dev_home/_runtime/env.py`, `back_dev_home/__init__.py`, and `wsgi.ini`: replace path-derived cloud detection, configure a production secret, and assess shared rate-limit/state storage across workers.
 - **Legacy AFM retirement** — `afm_data_platform/` and AFM compatibility aliases: archive only after integrated office behavior and consumers are verified.
-- **Lower-priority surfaces** — `announcements/`, `fail-issue`, PM planning, hardware, and placeholder `thickness/`: documented only in the source map on this first pass; expand when those areas become the change target.
+- **Lower-priority surfaces** — `announcements/`, PM planning, and placeholder `thickness/`: documented only in the source map on this first pass; expand when those areas become the change target.
