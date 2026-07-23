@@ -95,3 +95,84 @@ def test_rows_match_the_mock_key_set_exactly():
     mock_data = mock.build_bm_pm_data("CDX001", ANCHOR)
     assert set(office.past_row(PAST_HIT, "CDX001")) == set(mock_data["past"][0])
     assert set(office.future_row(FUTURE_HIT, "CDX001")) == set(mock_data["future"][0])
+
+
+def _capture(monkeypatch, past_hits=(), future_hits=()):
+    """Record each fetch_hits call and serve canned hits per index."""
+    calls = []
+
+    def fake_fetch_hits(index, query_body, size, sort=None, source=None):
+        calls.append(
+            {"index": index, "query": query_body, "size": size,
+             "sort": sort, "source": source}
+        )
+        return list(past_hits if index == office.INDEX_PAST else future_hits)
+
+    monkeypatch.setattr(office, "fetch_hits", fake_fetch_hits)
+    return calls
+
+
+def test_build_queries_both_indices_with_the_documented_windows(monkeypatch):
+    calls = _capture(monkeypatch)
+    office.build_bm_pm_data("CDX001", ANCHOR)
+
+    past = next(c for c in calls if c["index"] == office.INDEX_PAST)
+    clauses = past["query"]["bool"]["filter"]
+    assert {"term": {office.EQP_ID_KW: "CDX001"}} in clauses
+    rng = next(c["range"][office.DOWN_DT] for c in clauses if "range" in c)
+    assert rng["gte"] == "2025-11-21T09:00:00"   # anchor - 180d
+    assert rng["lte"] == "2026-05-20T09:00:00"
+    assert past["sort"] == [{office.DOWN_DT: {"order": "desc"}}]
+
+    future = next(c for c in calls if c["index"] == office.INDEX_FUTURE)
+    clauses = future["query"]["bool"]["filter"]
+    rng = next(c["range"][office.PLAN_START] for c in clauses if "range" in c)
+    assert rng["gte"] == "2026-05-20T09:00:00"
+    assert rng["lte"] == "2026-08-18T09:00:00"    # anchor + 90d
+    assert future["sort"] == [{office.PLAN_START: {"order": "asc"}}]
+
+
+def test_build_does_not_filter_on_fab(monkeypatch):
+    # eqp_id is the identity; a stale fab label must not empty the table.
+    calls = _capture(monkeypatch)
+    office.build_bm_pm_data("CDX001", ANCHOR)
+    for call in calls:
+        rendered = repr(call["query"])
+        assert "fab_name" not in rendered
+        assert "det_fac_id" not in rendered
+        assert "fac_id" not in rendered
+
+
+def test_build_requests_only_the_documented_source_fields(monkeypatch):
+    calls = _capture(monkeypatch)
+    office.build_bm_pm_data("CDX001", ANCHOR)
+    past = next(c for c in calls if c["index"] == office.INDEX_PAST)
+    assert "up_dt" not in past["source"]
+    assert set(past["source"]) == set(office.PAST_SOURCE)
+
+
+def test_build_returns_mapped_rows_and_cards(monkeypatch):
+    _capture(monkeypatch, past_hits=[PAST_HIT], future_hits=[FUTURE_HIT])
+    data = office.build_bm_pm_data("CDX001", ANCHOR)
+    assert data["past"][0]["category"] == "BM"
+    assert data["future"][0]["category"] == "PM"
+    assert data["cards"] == {
+        "last_bm": "2026-05-11 12:30",
+        "next_pm": "2026-06-02 08:00",
+        "planned_count": 1,
+        "recent_count": 1,
+    }
+
+
+def test_build_is_an_empty_result_not_an_error_for_a_tool_with_no_work(monkeypatch):
+    _capture(monkeypatch)
+    data = office.build_bm_pm_data("CDX001", ANCHOR)
+    assert data["past"] == []
+    assert data["future"] == []
+    assert data["cards"]["last_bm"] == "—"
+
+
+def test_build_raises_when_a_side_fills_the_row_cap(monkeypatch):
+    _capture(monkeypatch, past_hits=[PAST_HIT] * office.MAX_ROWS)
+    with pytest.raises(LookupError, match="cap"):
+        office.build_bm_pm_data("CDX001", ANCHOR)

@@ -165,3 +165,64 @@ def future_row(doc: dict[str, Any], eqp_id: str) -> dict[str, Any]:
         "work_user_cd": _text(doc.get("work_user_cd")),
         "timestamp": _fmt_stored(doc.get("chg_tm")),
     }
+
+
+def _fetch(
+    index: str,
+    eqp_id: str,
+    range_field: str,
+    gte: datetime,
+    lte: datetime,
+    order: str,
+    source: list[str],
+) -> list[dict[str, Any]]:
+    """One capped, sorted, tool-scoped pull from one index.
+
+    ``fab_name`` is deliberately NOT a filter: ``eqp_id`` is already the lookup
+    identity and a tool belongs to one fab, so filtering on both would let a
+    stale fab label silently empty the table. The two indices also spell fab
+    differently (``fab_name`` vs ``det_fac_id``), which is exactly the kind of
+    mismatch that empties a result without erroring.
+    """
+    clauses: list[dict[str, Any]] = [
+        {"term": {EQP_ID_KW: eqp_id}},
+        {"range": {range_field: {"gte": gte.isoformat(), "lte": lte.isoformat()}}},
+    ]
+    hits = fetch_hits(
+        index,
+        _query(clauses),
+        size=MAX_ROWS,
+        sort=[{range_field: {"order": order}}],
+        source=source,
+    )
+    if len(hits) >= MAX_ROWS:
+        raise LookupError(
+            f"{index}: {eqp_id} returned the full {MAX_ROWS}-row cap, so the "
+            "result is probably truncated. Narrow the window, or add "
+            "pagination before raising the cap."
+        )
+    return hits
+
+
+def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
+    """Past/future BM/PM rows + summary cards for one tool.
+
+    Past covers ``anchor - PAST_DAYS .. anchor`` by ``down_dt`` (newest first);
+    future covers ``anchor .. anchor + FUTURE_DAYS`` by ``tool_start_tm``
+    (soonest first). ``eqp_id`` is never None here — ``normalizers.service_gate``
+    returns the "pick a tool" payload before the dispatcher reaches this call.
+
+    A tool with no maintenance in either window is a valid empty result, not an
+    error: empty tables and "—" cards.
+    """
+    past_hits = _fetch(
+        INDEX_PAST, eqp_id, DOWN_DT,
+        anchor - timedelta(days=PAST_DAYS), anchor, "desc", PAST_SOURCE,
+    )
+    future_hits = _fetch(
+        INDEX_FUTURE, eqp_id, PLAN_START,
+        anchor, anchor + timedelta(days=FUTURE_DAYS), "asc", FUTURE_SOURCE,
+    )
+    past = [past_row(hit, eqp_id) for hit in past_hits]
+    future = [future_row(hit, eqp_id) for hit in future_hits]
+    return {"past": past, "future": future, "cards": derive_cards(past, future)}
