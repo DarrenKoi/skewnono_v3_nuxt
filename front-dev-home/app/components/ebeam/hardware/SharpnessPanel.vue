@@ -205,10 +205,14 @@ watch(scalarKeys, (keys) => {
   trendMetric.value = keys.includes('Ellipticity') ? 'Ellipticity' : (keys[0] ?? '')
 }, { immediate: true })
 
-// Trend points (ascending time) for a summ_beam scalar key.
-const trendPoints = (key: string) =>
+// Trend points (ascending time) for a summ_beam scalar metric. Each point's
+// identity (`key`, surfaced as the ECharts data `name` and thus the value a
+// click emits) is the measurement's timestamp — so clicking a point drives the
+// 360° profile selector to that time. The metric only picks which scalar
+// supplies the y-value; changing it must not move the selected timestamp.
+const trendPoints = (metric: string) =>
   filteredDocs.value
-    .map(d => ({ ts: tsOf(d), key, value: numOf(asRecord(d.summ_beam)[key]) }))
+    .map(d => ({ ts: tsOf(d), key: tsOf(d), value: numOf(asRecord(d.summ_beam)[metric]) }))
     .filter(p => p.ts && Number.isFinite(p.value))
     .sort((a, b) => a.ts.localeCompare(b.ts))
 
