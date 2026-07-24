@@ -92,7 +92,8 @@
       "Skill(update-config)",
       "PowerShell(Get-NetTCPConnection *)",
       "Skill(generate-mock)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(pwd *)"
     ]
   },
   "spinnerTipsEnabled": true,
