@@ -48,7 +48,21 @@
               :key="img.key"
               class="space-y-1"
             >
+              <!-- TIFF originals can't render in <img>; offer the download. -->
+              <a
+                v-if="isTiffName(img.name)"
+                :href="resolveImageUrl(img.name) ?? undefined"
+                :download="img.name"
+                class="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) text-center"
+              >
+                <UIcon
+                  name="i-lucide-file-image"
+                  class="h-5 w-5 text-(--sk-ink-subtle)"
+                />
+                <span class="sk-meta">TIFF · 다운로드</span>
+              </a>
               <img
+                v-else
                 :src="resolveImageUrl(img.name) ?? undefined"
                 :alt="img.label"
                 class="w-full cursor-zoom-in rounded-(--sk-r-chip) border border-(--sk-border) transition hover:ring-2 hover:ring-(--sk-brand)"
@@ -75,6 +89,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { isTiffName } from '~/utils/imageKind'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 

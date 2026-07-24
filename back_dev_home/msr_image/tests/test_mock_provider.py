@@ -2,12 +2,12 @@ from back_dev_home.msr_image.contracts import ImageLocator
 from back_dev_home.msr_image.providers import mock
 
 
-def test_list_is_deterministic_and_jpeg():
+def test_list_is_deterministic_and_image_typed():
     a = mock.list_images("10.0.0.1", "ADI", "MSR_1")
     b = mock.list_images("10.0.0.1", "ADI", "MSR_1")
     assert a == b
     assert len(a) >= 1
-    assert all(n.endswith(".jpeg") for n in a)
+    assert all(n.endswith((".jpeg", ".tif")) for n in a)
 
 
 def test_fetch_returns_svg_and_synthetic_cond():

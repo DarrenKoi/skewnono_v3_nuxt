@@ -21,10 +21,11 @@ class FakeFleet:
         return b"\xff\xd8jpeg:" + remote_path.encode()
 
     def list_dirs(self, specs):
-        # Real listings return FULL remote paths, not basenames.
+        # Real listings return FULL remote paths, not basenames. Tools mix JPEG
+        # previews with TIFF originals; both must survive the filter.
         spec = specs[0]
         base = spec.listings[0].remote_dir.rstrip("/")
-        paths = [f"{base}/shot01.jpeg", f"{base}/shot02.jpeg", f"{base}/notes.txt"]
+        paths = [f"{base}/shot01.jpeg", f"{base}/shot02.jpeg", f"{base}/shot03.tif", f"{base}/notes.txt"]
         return SimpleNamespace(
             listings=[SimpleNamespace(host=spec.host, paths=paths)], failures=[]
         )
@@ -56,10 +57,18 @@ class FakeFleet:
         return SimpleNamespace(files=files, failures=failures)
 
 
-def test_list_images_filters_jpeg(monkeypatch):
+def test_list_images_filters_to_image_extensions(monkeypatch):
     monkeypatch.setattr(office, "FtpFleetDownloader", FakeFleet)
     names = office.list_images("10.0.0.1", "ADI", "MSR_1", _config=office._test_config())
-    assert names == ["shot01.jpeg", "shot02.jpeg"]
+    assert names == ["shot01.jpeg", "shot02.jpeg", "shot03.tif"]
+
+
+def test_fetch_image_tif_gets_tiff_content_type(monkeypatch):
+    monkeypatch.setattr(office, "FtpFleetDownloader", FakeFleet)
+    img = office.fetch_image(
+        ImageLocator("10.0.0.1", "ADI", "MSR_1", "shot03.tif"), _config=office._test_config()
+    )
+    assert img.content_type == "image/tiff"
 
 
 def test_fetch_image_reads_image_and_cond(monkeypatch):

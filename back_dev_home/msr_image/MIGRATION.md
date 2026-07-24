@@ -33,8 +33,8 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 
 | 함수 | 시그니처 | 동작 |
 | --- | --- | --- |
-| `list_images` | `(eqp_ip, class_name, msr, _config=None) -> list[str]` | FTP로 디렉터리를 리스팅하고 `.jpeg`/`.jpg`만 필터링합니다 |
-| `fetch_image` | `(locator, _config=None) -> FetchedImage` | 이미지 바이트를 내려받아 `image/jpeg`로 반환하고, cond 사이드카는 best-effort로 붙입니다 |
+| `list_images` | `(eqp_ip, class_name, msr, _config=None) -> list[str]` | FTP로 디렉터리를 리스팅하고 `.jpeg`/`.jpg`/`.tif`/`.tiff`만 필터링합니다 (tool 은 JPEG 프리뷰와 TIFF 원본을 함께 저장 — 2026-07-24 office 확인) |
+| `fetch_image` | `(locator, _config=None) -> FetchedImage` | 이미지 바이트를 내려받아 확장자 기준 content-type(`image/jpeg` 또는 `image/tiff`)으로 반환하고, cond 사이드카는 best-effort로 붙입니다. 브라우저는 TIFF 를 `<img>` 로 렌더링하지 못하므로 frontend 는 TIFF 에 다운로드 fallback 을 보여줍니다 |
 | `download_all` | `(eqp_ip, class_name, msr, names, on_file, concurrency=6, _config=None)` | 같은 장비를 가리키는 `HostSpec` n개를 한 번의 fleet 호출로 넘겨 연결 n개로 분산하고, 파일별 진행 상황을 `on_file` 콜백에 스트리밍으로 보고합니다 |
 
 - 경로 조립은 `paths.py`(`image_dir`/`image_path`/`cond_path`)가 전담하며,
@@ -68,13 +68,19 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
   측정 원본 데이터와 같은 prefix를 공유하면 원본이 함께 지워질 수 있습니다.
 - `minio_cache.py`의 `MinioImageCache`는 클라이언트를 `use_prefix(None)`로
   passthrough 상태로 두고 `_key()`만을 유일한 prefix 소스로 사용합니다.
-  office MinIO가 사용자 네임스페이스 prefix를 요구한다면(예:
-  `user/2067928/...`), 클라이언트 쪽 기본 prefix에 기대지 말고
-  `SKEWNONO_IMAGE_CACHE_PREFIX`에 **전체 prefix**를 넣어야 합니다. 예:
+  따라서 `minio_config.py`의 기본 PREFIX(`2067928/`)는 적용되지 않으며,
+  `SKEWNONO_IMAGE_CACHE_PREFIX`에 사용자 네임스페이스를 포함한 **전체
+  prefix**를 넣어야 합니다. office 레이아웃(bucket=`user`,
+  네임스페이스=`2067928/` — `minio_config.py`와 동일, 2026-07-24 확인)
+  기준 설정:
 
   ```text
-  SKEWNONO_IMAGE_CACHE_PREFIX=user/2067928/image_cache/
+  SKEWNONO_IMAGE_CACHE_BUCKET=user
+  SKEWNONO_IMAGE_CACHE_PREFIX=2067928/image_cache/
   ```
+
+  측정 데이터는 `2067928/hitachi_sem/...` 아래에 있으므로 두 prefix 는
+  겹치지 않고, purge 는 `2067928/image_cache/` 아래만 지웁니다.
 
   클라이언트에 별도 default prefix까지 설정하면 `_resolve_key()`가 prefix를
   두 번 붙이게 되어 `put`/`get`/`exists`/`stat` 모두 어긋나고, `purge`가

@@ -85,6 +85,29 @@
               class="h-5 w-5 animate-spin"
             />
           </div>
+          <!-- TIFF originals have no browser preview — hand off to download. -->
+          <div
+            v-else-if="imageName && isTiffName(imageName) && !imageFailed"
+            class="flex h-40 flex-col items-center justify-center gap-1.5 rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
+          >
+            <UIcon
+              name="i-lucide-file-image"
+              class="h-5 w-5 text-(--sk-ink-subtle)"
+            />
+            <span>TIFF 원본 · 미리보기 미지원</span>
+            <a
+              v-if="downloadUrl"
+              :href="downloadUrl"
+              :download="imageName"
+              class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+            >
+              <UIcon
+                name="i-lucide-download"
+                class="h-3 w-3"
+              />
+              원본 다운로드
+            </a>
+          </div>
           <div
             v-else
             class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
@@ -113,6 +136,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SpatialResult } from '~/utils/skewvoirAnalysis/spatial'
+import { isTiffName } from '~/utils/imageKind'
 import { isMeasuredRow } from '~/utils/msrRows'
 
 const props = defineProps<{
@@ -123,7 +147,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
-const { fetchImageWithCond } = useMsrImageApi()
+const { fetchImageWithCond, imageUrl } = useMsrImageApi()
 
 // The focused site (by chip_number) — first measured site on that die.
 const site = computed(() => {
@@ -145,6 +169,12 @@ const imageName = computed(() => {
 // Every image in this drawer belongs to the FOCUS MSR — same context as the
 // gallery (focusRow's eqp_ip/class_name + focusMsr).
 const focusCtx = useFocusImageCtx(props.analysis)
+
+const downloadUrl = computed(() => {
+  const name = imageName.value
+  const ctx = focusCtx.value
+  return name && ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name) : null
+})
 
 const blobUrl = ref<string | null>(null)
 const imageCond = ref<string | null>(null)
@@ -184,7 +214,13 @@ const loadImage = async () => {
       URL.revokeObjectURL(res.blobUrl)
       return
     }
-    blobUrl.value = res.blobUrl
+    if (isTiffName(name)) {
+      // No browser can render the blob; the fetch still warmed the server
+      // cache (instant 다운로드 click) and delivered the cond.
+      URL.revokeObjectURL(res.blobUrl)
+    } else {
+      blobUrl.value = res.blobUrl
+    }
     imageCond.value = res.cond
   } catch {
     if (token === loadToken) imageFailed.value = true

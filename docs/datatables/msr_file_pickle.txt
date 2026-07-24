@@ -19,7 +19,8 @@ columns : value (examples)
 "parameter": "WAFER",..
 "cd_value" :43.14, None
 "no_of_mp_image": 1, 0
-"mp_image_name 01": image file name
+"mp_image_name 01": image file name — .jpeg 프리뷰와 .tif 원본이 섞여 있음
+                    (office 확인 2026-07-24: 한 MSR 에서 26 jpeg / 13 tif)
 "meas_condition mag": magnification value (0, 250030, 250044)
 "meas_condition vac": voltage acceleration (0, 500,..)
 "meas_condition pixel": "0,0", "512,512"

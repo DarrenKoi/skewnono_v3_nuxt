@@ -21,7 +21,7 @@ def test_list_returns_names(client):
     body = r.get_json()
     assert body["msr"] == "MSR_1"
     assert body["total"] == len(body["images"])
-    assert all(n.endswith(".jpeg") for n in body["images"])
+    assert all(n.endswith((".jpeg", ".tif")) for n in body["images"])
 
 
 def test_serve_returns_svg_with_cond_header(client):

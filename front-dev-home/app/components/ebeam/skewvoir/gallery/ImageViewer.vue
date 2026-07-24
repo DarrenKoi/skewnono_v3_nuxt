@@ -26,6 +26,30 @@
               class="h-6 w-6 animate-spin"
             />
           </div>
+          <!-- TIFF originals: no browser preview exists (Chromium can't decode
+               TIFF), so the honest render is a download hand-off. -->
+          <div
+            v-else-if="entry.image && isTiff && !failed"
+            class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
+          >
+            <UIcon
+              name="i-lucide-file-image"
+              class="h-8 w-8"
+            />
+            <span class="text-sm">TIFF 원본 — 브라우저 미리보기가 지원되지 않습니다</span>
+            <a
+              v-if="downloadUrl"
+              :href="downloadUrl"
+              :download="entry.image"
+              class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-[11px] text-white/80 hover:text-white"
+            >
+              <UIcon
+                name="i-lucide-download"
+                class="h-3.5 w-3.5"
+              />
+              원본 다운로드
+            </a>
+          </div>
           <div
             v-else
             class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
@@ -174,6 +198,7 @@
 
 <script setup lang="ts">
 import type { WaferGeometry } from '~/utils/waferGeometry'
+import { isTiffName } from '~/utils/imageKind'
 import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
@@ -192,9 +217,15 @@ const emit = defineEmits<{
   'evidence': [entry: ReviewEntry]
 }>()
 
-const { fetchImageWithCond } = useMsrImageApi()
+const { fetchImageWithCond, imageUrl } = useMsrImageApi()
 
 const entry = computed<ReviewEntry | null>(() => props.entries[props.index] ?? null)
+
+const isTiff = computed(() => isTiffName(entry.value?.image))
+const downloadUrl = computed(() => {
+  const name = entry.value?.image
+  return name && props.eqp_ip ? imageUrl(props.eqp_ip, props.class_name, props.msr, name) : null
+})
 
 const failed = ref(false)
 const loading = ref(false)
@@ -235,7 +266,13 @@ const loadImage = async () => {
       URL.revokeObjectURL(res.blobUrl)
       return
     }
-    blobUrl.value = res.blobUrl
+    if (isTiffName(name)) {
+      // No browser can render the blob; the fetch still warmed the server
+      // cache (so the 다운로드 click is instant) and delivered the cond.
+      URL.revokeObjectURL(res.blobUrl)
+    } else {
+      blobUrl.value = res.blobUrl
+    }
     cond.value = res.cond
   } catch {
     if (token === loadToken) failed.value = true

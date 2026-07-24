@@ -17,6 +17,28 @@
         />
         불러오는 중…
       </div>
+      <!-- TIFF originals have no browser preview — hand off to download. -->
+      <div
+        v-else-if="measuredName && focusCtx.eqp_ip && isTiffName(measuredName)"
+        class="flex flex-1 flex-col items-center justify-center gap-2 rounded-(--sk-r-chip) border border-(--sk-border) sk-body"
+      >
+        <UIcon
+          name="i-lucide-file-image"
+          class="h-6 w-6 text-(--sk-ink-subtle)"
+        />
+        <span>TIFF 원본 — 브라우저 미리보기 미지원</span>
+        <a
+          :href="resolveImageUrl(measuredName)!"
+          :download="measuredName"
+          class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+        >
+          <UIcon
+            name="i-lucide-download"
+            class="h-3 w-3"
+          />
+          원본 다운로드
+        </a>
+      </div>
       <div
         v-else-if="measuredName && focusCtx.eqp_ip"
         class="relative min-h-0 flex-1 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
@@ -53,6 +75,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { isTiffName } from '~/utils/imageKind'
 import { measuredRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()

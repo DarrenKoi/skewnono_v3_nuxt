@@ -33,6 +33,16 @@ from back_dev_home.msr_image.paths import cond_path, image_dir, image_path
 
 OnFile = Callable[[str, FetchedImage | None, str | None], None]
 
+# Office-confirmed 2026-07-24: tools serve JPEG previews alongside TIFF
+# originals, and the minio_pkl's mp_image_name columns reference BOTH — a
+# jpeg-only filter makes the TIFFs invisible (13/39 "missing" in the first
+# office smoke run).
+_IMAGE_EXTS = (".jpeg", ".jpg", ".tif", ".tiff")
+
+
+def _content_type(name: str) -> str:
+    return "image/tiff" if name.lower().endswith((".tif", ".tiff")) else "image/jpeg"
+
 
 def _test_config() -> ImageConfig:
     # Convenience for the tracked-template tests; real calls load env config.
@@ -62,7 +72,7 @@ def list_images(eqp_ip, class_name, msr, _config: ImageConfig | None = None) -> 
         PurePosixPath(p).name
         for listing in report.listings
         for p in listing.paths
-        if p.lower().endswith((".jpeg", ".jpg"))
+        if p.lower().endswith(_IMAGE_EXTS)
     ]
 
 
@@ -94,7 +104,7 @@ def fetch_image(locator: ImageLocator, _config: ImageConfig | None = None) -> Fe
         raise SourceUnavailable(f"tool fetch failed: {err}")
     cond_bytes = data.get(cond_path(img))
     cond = cond_bytes.decode("utf-8", errors="replace") if cond_bytes is not None else None
-    return FetchedImage(data[img], "image/jpeg", cond)
+    return FetchedImage(data[img], _content_type(locator.name), cond)
 
 
 def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6, _config=None) -> None:
@@ -132,7 +142,8 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
     def emit(img: str, data: bytes, cond_bytes: bytes | None) -> None:
         done.add(img)
         cond = cond_bytes.decode("utf-8", errors="replace") if cond_bytes is not None else None
-        on_file(name_of_image[img], FetchedImage(data, "image/jpeg", cond), None)
+        name = name_of_image[img]
+        on_file(name, FetchedImage(data, _content_type(name), cond), None)
 
     def stream(_host: str, remote_path: str, data: bytes) -> None:
         idx = chunk_of[remote_path]

@@ -129,7 +129,21 @@
         :key="img.name"
         class="overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
       >
+        <!-- TIFF originals can't render in <img>; offer the download instead. -->
+        <a
+          v-if="isTiffName(img.name)"
+          :href="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
+          :download="img.name"
+          class="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-(--sk-chip-bg) text-center"
+        >
+          <UIcon
+            name="i-lucide-file-image"
+            class="h-5 w-5 text-(--sk-ink-subtle)"
+          />
+          <span class="sk-meta">TIFF · 다운로드</span>
+        </a>
         <img
+          v-else
           :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
           :alt="img.name"
           class="aspect-square w-full object-cover"
@@ -172,6 +186,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFilters.vue'
 import { downloadErrorMessage, type DownloadJobStatus } from '~/composables/useMsrImageApi'
+import { isTiffName } from '~/utils/imageKind'
 import { measuredRows } from '~/utils/msrRows'
 import { buildReviewQueue, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 

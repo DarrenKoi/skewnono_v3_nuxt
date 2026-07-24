@@ -8,8 +8,26 @@
     <!-- Image well — each card owns its own load/error state, so one failed URL
          never blocks the rest of the grid. -->
     <div class="relative aspect-square w-full bg-(--sk-chip-bg)">
+      <!-- TIFF originals can't render in <img> (Chromium); attempting one would
+           always land in the "로드 실패" branch. Open the viewer instead — it
+           offers the download. -->
       <button
-        v-if="entry.image && !failed"
+        v-if="entry.image && isTiff"
+        type="button"
+        class="flex h-full w-full flex-col items-center justify-center gap-1.5 text-center"
+        :aria-label="`${entry.chip} TIFF 원본 열기`"
+        @click="emit('open')"
+      >
+        <UIcon
+          name="i-lucide-file-image"
+          class="h-5 w-5 text-(--sk-ink-subtle)"
+        />
+        <span class="sk-meta">TIFF 원본</span>
+        <span class="font-mono text-[9px] text-(--sk-ink-subtle)">미리보기 없음 · 열어서 다운로드</span>
+      </button>
+
+      <button
+        v-else-if="entry.image && !failed"
         type="button"
         class="block h-full w-full"
         :aria-label="`${entry.chip} 이미지 열기`"
@@ -118,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTiffName } from '~/utils/imageKind'
 import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
@@ -126,6 +145,8 @@ const props = defineProps<{
   focused?: boolean
 }>()
 const emit = defineEmits<{ open: [], focus: [] }>()
+
+const isTiff = computed(() => isTiffName(props.entry.image))
 
 // Per-image load state. `nonce` cache-busts a retry so the browser re-requests a
 // URL it previously cached as failed. All state is LOCAL to this card, so a

@@ -570,9 +570,14 @@ def _build_rows(
                     outliers_by_param[parameter].get(sequence, 0.0),
                 ),
                 no_of_mp_image=0 if empty else 1 + rng.randint(0, 4),
+                # Office tools mix JPEG previews with TIFF originals (confirmed
+                # 2026-07-24: 26 jpeg / 13 tif in one real MSR). TIFF has no
+                # browser preview, so keeping the mix exercises both the render
+                # path and the download fallback at home.
                 mp_image_name_01=(
                     "" if empty
-                    else f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}.tif"
+                    else f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}"
+                    f".{'tif' if rng.random() < 0.3 else 'jpeg'}"
                 ),
                 meas_condition_mag=meas_mag,
                 meas_condition_vac=meas_vac,

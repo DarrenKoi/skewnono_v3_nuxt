@@ -19,7 +19,13 @@ def _seed(*parts: str) -> int:
 
 def list_images(eqp_ip: str, class_name: str, msr: str) -> list[str]:
     count = 3 + _seed(eqp_ip, class_name, msr) % 6  # 3..8 images
-    return [f"{msr}_shot{i:02d}.jpeg" for i in range(1, count + 1)]
+    # Office tools serve JPEG previews alongside TIFF originals (confirmed
+    # 2026-07-24) — every 4th shot is a .tif so the frontend's no-preview
+    # fallback stays exercised at home.
+    return [
+        f"{msr}_shot{i:02d}.{'tif' if i % 4 == 0 else 'jpeg'}"
+        for i in range(1, count + 1)
+    ]
 
 
 def _svg(locator: ImageLocator) -> bytes:
@@ -39,6 +45,10 @@ def _cond(locator: ImageLocator) -> str:
 
 
 def fetch_image(locator: ImageLocator) -> FetchedImage:
+    # Bytes are always the SVG placeholder, but .tif names carry image/tiff so
+    # the frontend's TIFF download-fallback path is reachable offline.
+    if locator.name.lower().endswith((".tif", ".tiff")):
+        return FetchedImage(_svg(locator), "image/tiff", _cond(locator))
     return FetchedImage(_svg(locator), "image/svg+xml", _cond(locator))
 
 
