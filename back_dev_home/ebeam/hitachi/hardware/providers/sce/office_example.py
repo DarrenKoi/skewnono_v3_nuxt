@@ -224,8 +224,11 @@ if __name__ == "__main__":
     import sys
     from datetime import timedelta
 
-    eqp = sys.argv[1] if len(sys.argv) > 1 else ""
-    fab = sys.argv[2] if len(sys.argv) > 2 else None
+    # Default to a real M-fab SCE tool so a no-arg run prints actual data
+    # instead of empty (build_sce_settings needs a fab, build_sce_history
+    # returns [] without one). Override by passing <eqp_id> <fab_name>.
+    eqp = sys.argv[1] if len(sys.argv) > 1 else "6MCD1201"
+    fab = sys.argv[2] if len(sys.argv) > 2 else "M16A"
     now = datetime.now()
 
     settings = build_sce_settings(eqp, fab, now)
