@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
-  buildMagPixelTable, recommend, MARGIN_PRESETS, DEFAULT_MARGIN,
-  DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, type MagSeries
+  buildMagPixelTable, fovNm, recommend, MARGIN_PRESETS, DEFAULT_MARGIN,
+  DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, type CalcInput, type MagSeries
 } from '~/utils/magPixel'
 
 useHead({ title: 'Mag/Pixel 가이드 | SKEWNONO' })
@@ -46,6 +46,19 @@ const result = computed(() => {
 })
 
 const marginLabel = (r: number) => `${Math.round(r * 100)}%`
+
+const showSim = ref(false)
+
+/** 모식도/시뮬레이션/추천 패널이 공유하는 계산 입력. 정규화된 computed만 담는다 —
+ *  raw ref(cdNm 등)는 UInput type="number"가 지운 값일 때 ''를 들고 있을 수 있다. */
+const calcInput = computed<CalcInput>(() => ({
+  series: series.value,
+  cdNm: cdValue.value ?? 0,
+  pitchNm: pitchValue.value,
+  patternCount: patternValue.value,
+  marginRatio: marginRatio.value,
+  minPxPerCd: thresholdValue.value
+}))
 </script>
 
 <template>
@@ -160,6 +173,53 @@ const marginLabel = (r: number) => `${Math.round(r * 100)}%`
       Pitch를 비워서 CD × 2 = {{ result.effectivePitchNm }} nm로 가정했습니다 ·
       기준 px/CD는 사내 기준 확정 전까지 잠정값입니다
     </p>
+
+    <!-- 모식도 + 추천 -->
+    <section
+      v-if="result"
+      class="flex flex-wrap items-start gap-4 rounded-(--sk-r-sidebar) border border-(--sk-border) p-4"
+    >
+      <div class="min-w-80 flex-1">
+        <MagpixelPatternSchematic
+          v-if="result.mag && result.nmPerPx"
+          :cd-nm="calcInput.cdNm"
+          :pitch-nm="result.effectivePitchNm"
+          :pattern-count="patternValue"
+          :margin-ratio="marginRatio"
+          :fov-nm="fovNm(result.mag) ?? 0"
+          :nm-per-px="result.nmPerPx"
+        />
+
+        <UButton
+          class="mt-3"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          :icon="showSim ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+          label="SEM 이미지 미리보기"
+          @click="showSim = !showSim"
+        />
+        <div
+          v-if="showSim && result.pixels && result.nmPerPx"
+          class="mt-3"
+        >
+          <MagpixelSemSimulation
+            :cd-nm="calcInput.cdNm"
+            :pitch-nm="result.effectivePitchNm"
+            :pattern-count="patternValue"
+            :margin-ratio="marginRatio"
+            :pixels="result.pixels"
+            :nm-per-px="result.nmPerPx"
+          />
+        </div>
+      </div>
+
+      <MagpixelRecommendationPanel
+        class="min-w-80 flex-1"
+        :rec="result"
+        :calc="calcInput"
+      />
+    </section>
 
     <!-- 테이블 -->
     <section class="rounded-(--sk-r-sidebar) border border-(--sk-border) p-4">
