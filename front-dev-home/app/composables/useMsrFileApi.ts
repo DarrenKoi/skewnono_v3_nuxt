@@ -205,23 +205,25 @@ export const useMsrFileApi = () => {
       }))
     }
 
-    let responses: MsrFileResponse[] = []
-    for (let i = 0; ; i++) {
-      try {
-        const res = await $fetch<{ results: MsrFileResponse[] }>(
-          joinApiPath(base, '/msr-files'),
-          { method: 'POST', body }
-        )
-        responses = res.results
-        break
-      } catch (err) {
-        if (statusOf(err) === 429 && i < MAX_RETRIES) {
-          await sleep(700 * 2 ** i)
-          continue
+    const attempt = async (): Promise<MsrFileResponse[]> => {
+      for (let i = 0; ; i++) {
+        try {
+          const res = await $fetch<{ results: MsrFileResponse[] }>(
+            joinApiPath(base, '/msr-files'),
+            { method: 'POST', body }
+          )
+          return res.results
+        } catch (err) {
+          if (statusOf(err) === 429 && i < MAX_RETRIES) {
+            await sleep(700 * 2 ** i)
+            continue
+          }
+          throw err
         }
-        throw err
       }
     }
+
+    const responses = await attempt()
 
     const byMsr = new Map(responses.map(res => [res.msr, res]))
     return list
