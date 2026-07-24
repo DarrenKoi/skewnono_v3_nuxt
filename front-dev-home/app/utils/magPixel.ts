@@ -71,3 +71,78 @@ export const pxPerCd = (mag: number, pixels: number, cdNm: number): number | nul
 /** 512 px 대비 상대 스캔 시간. 시간 ∝ X×Y이므로 픽셀 수의 제곱에 비례한다. */
 export const scanTimeFactor = (pixels: number): number | null =>
   isPositive(pixels) ? (pixels / BASE_PIXELS) ** 2 : null
+
+// ── Series (CG / GT) ────────────────────────────────────────────────────────
+//
+// MAG 범위가 계열마다 다르다. 판정은 반드시 모델코드 **접두사**로 한다 —
+// back_dev_home/ebeam/hitachi/_tool_specs.py의 model_to_tool_type()과
+// composables/useSemListApi.ts의 classifyToolType()이 쓰는 방식이다.
+// TOOL_SPECS.eqp_models 목록은 mock 재료이지 분류기가 아니다: 그 목록으로
+// 분류했다가 목록에 없는 실장비 8대가 오피스 화면에서 조용히 사라진 적이
+// 있다(2026-07-24).
+
+export type MagSeries = 'CG' | 'GT'
+
+/** CG 계열 MAG (23개). 확인된 전 구간. */
+const MAG_CG: readonly number[] = [
+  1000, 2000, 5000, 8000, 10_000, 20_000, 50_000, 60_000, 70_000, 80_000,
+  100_000, 120_000, 150_000, 180_000, 200_000, 220_000, 250_000, 300_000,
+  350_000, 400_000, 420_000, 450_000, 500_000
+]
+
+/**
+ * GT 계열이 500K 위로 더 갖는 구간 (5개).
+ * 원본 문서가 "확인 안되지만 100000단위로 가정"이라고 명시한 값이므로
+ * isAssumedMag()로 표시해 확정값과 구분한다.
+ */
+const MAG_GT_ASSUMED: readonly number[] = [600_000, 700_000, 800_000, 900_000, 1_000_000]
+
+const MAG_GT: readonly number[] = [...MAG_CG, ...MAG_GT_ASSUMED]
+
+const SERIES_PREFIXES: readonly MagSeries[] = ['CG', 'GT']
+
+/** 모델코드 접두사로 계열을 판정한다. CD-SEM이 아니면 null. */
+export const seriesFromModel = (eqpModelCd: string | null | undefined): MagSeries | null => {
+  if (typeof eqpModelCd !== 'string') return null
+  const code = eqpModelCd.trim().toUpperCase()
+  return SERIES_PREFIXES.find(prefix => code.startsWith(prefix)) ?? null
+}
+
+export const magRange = (series: MagSeries): readonly number[] =>
+  series === 'GT' ? MAG_GT : MAG_CG
+
+/** 원본 문서에서 확인되지 않아 가정한 구간인지. */
+export const isAssumedMag = (series: MagSeries, mag: number): boolean =>
+  series === 'GT' && MAG_GT_ASSUMED.includes(mag)
+
+export interface MagPixelCell {
+  pixels: number
+  nmPerPx: number
+  /** 512 px 대비 상대 스캔 시간. */
+  scanFactor: number
+}
+
+export interface MagPixelRow {
+  mag: number
+  fovNm: number
+  /** true면 원본 문서 미확인 구간 — 화면에서 `가정` 배지를 붙인다. */
+  assumed: boolean
+  cells: MagPixelCell[]
+}
+
+/** 계열 전체의 Mag × Pixel 참조표. 입력이 없을 때 그대로 렌더된다. */
+export const buildMagPixelTable = (series: MagSeries): MagPixelRow[] => {
+  const rows: MagPixelRow[] = []
+  for (const mag of magRange(series)) {
+    const fov = fovNm(mag)
+    if (fov === null) continue
+    const cells: MagPixelCell[] = []
+    for (const pixels of PIXEL_SETTINGS) {
+      const factor = scanTimeFactor(pixels)
+      if (factor === null) continue
+      cells.push({ pixels, nmPerPx: fov / pixels, scanFactor: factor })
+    }
+    rows.push({ mag, fovNm: fov, assumed: isAssumedMag(series, mag), cells })
+  }
+  return rows
+}

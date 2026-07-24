@@ -1,7 +1,10 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fovUm, fovNm, parsePixelSetting, pixelSizeNm, pxPerCd, scanTimeFactor } from './magPixel.ts'
+import {
+  fovUm, fovNm, parsePixelSetting, pixelSizeNm, pxPerCd, scanTimeFactor,
+  seriesFromModel, magRange, isAssumedMag, buildMagPixelTable
+} from './magPixel.ts'
 
 const near = (actual: number | null, expected: number, tol = 1e-6) => {
   assert.notEqual(actual, null)
@@ -68,4 +71,67 @@ test('scanTimeFactor is quadratic in pixel count', () => {
   assert.equal(scanTimeFactor(2048), 16)
   assert.equal(scanTimeFactor(4096), 64)
   assert.equal(scanTimeFactor(0), null)
+})
+
+test('seriesFromModel classifies on the model-code PREFIX', () => {
+  assert.equal(seriesFromModel('CG6300'), 'CG')
+  assert.equal(seriesFromModel('GT2000'), 'GT')
+  assert.equal(seriesFromModel('GT2000S'), 'GT')
+})
+
+test('seriesFromModel normalises case and surrounding whitespace', () => {
+  // parquet/Redis text cells carry both; a stray space must not drop a tool
+  assert.equal(seriesFromModel(' cg6320 '), 'CG')
+  assert.equal(seriesFromModel('gt2000'), 'GT')
+})
+
+test('seriesFromModel returns null for non-CD-SEM families', () => {
+  assert.equal(seriesFromModel('TP3000'), null)
+  assert.equal(seriesFromModel('VERITYSEM_1'), null)
+  assert.equal(seriesFromModel(''), null)
+  assert.equal(seriesFromModel(null), null)
+})
+
+test('seriesFromModel accepts codes absent from the mock roster', () => {
+  // eqp_models in _tool_specs.py is mock fodder, NOT a classifier: judging real
+  // tools against it silently dropped 8 office tools on 2026-07-24
+  assert.equal(seriesFromModel('CG9999'), 'CG')
+  assert.equal(seriesFromModel('GT7777'), 'GT')
+})
+
+test('magRange covers CG to 500K and GT to 1000K', () => {
+  const cg = magRange('CG')
+  const gt = magRange('GT')
+  assert.equal(cg.length, 23)
+  assert.equal(gt.length, 28)
+  assert.equal(cg[0], 1000)
+  assert.equal(cg[cg.length - 1], 500_000)
+  assert.equal(gt[gt.length - 1], 1_000_000)
+})
+
+test('magRange carries the corrected 5000, not the 4900 typo', () => {
+  assert.ok(magRange('CG').includes(5000))
+  assert.ok(!magRange('CG').includes(4900))
+})
+
+test('isAssumedMag flags only the unverified GT tail above 500K', () => {
+  // the source doc says "500000 이후 단위가 어떻게 되는지 확인 안되지만,
+  // 100000단위로 가정" — those rows must not read as confirmed
+  assert.equal(isAssumedMag('GT', 600_000), true)
+  assert.equal(isAssumedMag('GT', 1_000_000), true)
+  assert.equal(isAssumedMag('GT', 500_000), false)
+  assert.equal(isAssumedMag('CG', 500_000), false)
+})
+
+test('buildMagPixelTable emits one row per mag with all four pixel settings', () => {
+  const rows = buildMagPixelTable('CG')
+  assert.equal(rows.length, 23)
+  const row = rows.find(r => r.mag === 180_000)
+  assert.notEqual(row, undefined)
+  near(row!.fovNm, 750)
+  assert.equal(row!.assumed, false)
+  assert.equal(row!.cells.length, 4)
+  assert.deepEqual(row!.cells.map(c => c.pixels), [512, 1024, 2048, 4096])
+  near(row!.cells[0]!.nmPerPx, 1.46484375)
+  assert.equal(row!.cells[1]!.scanFactor, 4)
 })
