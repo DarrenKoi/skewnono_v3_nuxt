@@ -758,6 +758,24 @@ const themeBackgrounds: Record<EchartThemeName, string> = {
 export const getEchartThemeBackground = (name: EchartThemeName): string =>
   themeBackgrounds[name]
 
+// Primary text tone per theme, matching each option card's textColor. Charts
+// that draw their own labels onto the canvas (skewvoir's wafer maps, chart
+// titles) mix against this and themeBackgrounds to build furniture tones that
+// stay legible on whichever surface the theme implies -- see
+// utils/chartPalette.ts. Without it those labels were a hardcoded near-black
+// and vanished under the dark theme.
+const themeInks: Record<EchartThemeName, string> = {
+  vintage: '#3f3a34',
+  dark: '#EEF1FA',
+  macarons: '#1f2937',
+  infographic: '#1f2937',
+  shine: '#1f2937',
+  roma: '#1f2937',
+  matlab: '#262626'
+}
+
+export const getEchartThemeInk = (name: EchartThemeName): string => themeInks[name]
+
 let registered = false
 
 export const isEchartThemeSelection = (value: unknown): value is EchartThemeSelection =>

@@ -47,7 +47,8 @@ const data = computed(() => {
   return props.sequences.map(s => bySeq.get(s) ?? null)
 })
 
-const color = computed(() => props.color ?? '#2563eb')
+const sk = useChartPalette()
+const color = computed(() => props.color ?? sk.value.series)
 
 // Screen-reader text alternative: the pane's own N/start/end, mirroring the
 // numbers the panel's meta line already shows sighted users.
@@ -105,7 +106,7 @@ const option = computed<EChartsOption>(() => ({
           : []),
         // Nominal baseline (dynamic-FDC panes only), when provided.
         ...(props.nominal != null && Number.isFinite(props.nominal)
-          ? [{ yAxis: props.nominal, lineStyle: { color: '#94a3b8', type: 'dashed' as const }, label: { fontSize: 9, formatter: 'nominal' } }]
+          ? [{ yAxis: props.nominal, lineStyle: { color: sk.value.muted, type: 'dashed' as const }, label: { fontSize: 9, formatter: 'nominal' } }]
           : [])
       ]
     }

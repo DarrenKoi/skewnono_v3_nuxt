@@ -15,7 +15,6 @@ import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { PairedPoint } from '~/utils/skewvoirAnalysis/relationships'
 import { measuredRows } from '~/utils/msrRows'
 import { pearson, spearman, fitLine } from '~/utils/stats'
-import { SK_CHART } from '~/utils/chartPalette'
 
 // Param-vs-param correlation within one measurement.
 //
@@ -39,6 +38,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ focus: [chip: string] }>()
+
+const sk = useChartPalette()
 
 // Legacy rows path: pair the two parameters by (chip + sequence) here.
 const legacyPairs = computed<[number, number][]>(() => {
@@ -108,9 +109,9 @@ const option = computed<EChartsOption>(() => ({
         text: `R² = ${r2.value.toFixed(3)} · n = ${sampleN.value}${rho.value != null ? ` · ρ = ${rho.value.toFixed(3)}` : ''}`,
         right: 8,
         top: 4,
-        textStyle: { fontSize: 11, color: SK_CHART.brand }
+        textStyle: { fontSize: 11, color: sk.value.brand }
       }
-    : { text: `${noAnswerLabel.value} · n = ${sampleN.value}`, right: 8, top: 4, textStyle: { fontSize: 11, color: SK_CHART.muted } },
+    : { text: `${noAnswerLabel.value} · n = ${sampleN.value}`, right: 8, top: 4, textStyle: { fontSize: 11, color: sk.value.muted } },
   grid: { left: 44, right: 16, top: 24, bottom: 36, containLabel: true },
   xAxis: {
     type: 'value',
@@ -132,14 +133,14 @@ const option = computed<EChartsOption>(() => ({
     {
       type: 'scatter',
       symbolSize: 7,
-      itemStyle: { color: SK_CHART.seriesSoft, opacity: 0.7 },
+      itemStyle: { color: sk.value.seriesSoft, opacity: 0.7 },
       data: scatterData.value
     },
     {
       type: 'line',
       smooth: false,
       showSymbol: false,
-      lineStyle: { color: SK_CHART.brand, width: 2 },
+      lineStyle: { color: sk.value.brand, width: 2 },
       data: fitLinePoints.value,
       tooltip: { show: false },
       silent: true

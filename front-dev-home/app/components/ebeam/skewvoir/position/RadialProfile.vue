@@ -78,13 +78,14 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { SpatialResult } from '~/utils/skewvoirAnalysis/spatial'
-import { SK_CHART } from '~/utils/chartPalette'
 
 const props = defineProps<{
   spatial: SpatialResult
   parameter: string
   unit: string
 }>()
+
+const sk = useChartPalette()
 
 const bins = computed(() => props.spatial.radiusBins)
 
@@ -155,12 +156,12 @@ const option = computed<EChartsOption>(() => ({
     },
     {
       type: 'line', stack: 'iqr', symbol: 'none', silent: true, tooltip: { show: false },
-      lineStyle: { opacity: 0 }, areaStyle: { color: SK_CHART.sand, opacity: 0.35 },
+      lineStyle: { opacity: 0 }, areaStyle: { color: sk.value.sand, opacity: 0.35 },
       data: bins.value.map(b => [b.radiusMm, b.q3 - b.q1]), z: 1
     },
     {
       type: 'line', name: 'median', symbolSize: 6, showSymbol: true,
-      lineStyle: { color: SK_CHART.series, width: 2 }, itemStyle: { color: SK_CHART.series },
+      lineStyle: { color: sk.value.series, width: 2 }, itemStyle: { color: sk.value.series },
       data: bins.value.map(b => [b.radiusMm, b.median]), z: 3
     }
   ]

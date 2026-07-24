@@ -207,7 +207,6 @@ import { summaryToRecipeInfoBucket, type RecipeInfoRow, type SummaryBucketKey, t
 import { augmentSummaryRow, type HealthAugmentedRow } from '~/composables/useLotHealthMock'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
-import { SK_CHART } from '~/utils/chartPalette'
 
 definePageMeta({
   hideFabSidebar: true
@@ -216,6 +215,7 @@ definePageMeta({
 const { setToolType } = useNavigation()
 const { fetchRecipeStatistics, fetchRecipeTrend } = useRecipeStatisticsApi()
 const colorMode = useColorMode()
+const sk = useChartPalette()
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
 
@@ -484,7 +484,7 @@ const availRecipeOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'avail_recipe',
     type: 'bar',
-    itemStyle: { color: SK_CHART.series },
+    itemStyle: { color: sk.value.series },
     data: sortedRows.value.map(r => r.avail_recipe),
     markLine: buildStatsMarkLine(avgAvailRecipe.value, stdAvailRecipe.value)
   }]

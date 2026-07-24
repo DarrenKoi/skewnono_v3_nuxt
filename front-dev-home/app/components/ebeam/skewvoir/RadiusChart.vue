@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { radialYExtent, type RadialBandMode, type RadialProfileResult } from '~/utils/radialAnalysis'
-import { SK_CHART } from '~/utils/chartPalette'
+import { SK_STATE } from '~/utils/chartPalette'
 
 const props = withDefaults(defineProps<{
   profile: RadialProfileResult
@@ -45,12 +45,16 @@ interface ValueAxisConfig {
   gridIndex?: number
 }
 
-const SECTOR_COLORS: Record<string, string> = {
-  E: SK_CHART.series,
-  N: SK_CHART.brand,
-  W: SK_CHART.warn,
-  S: SK_CHART.ok
-}
+const sk = useChartPalette()
+
+// Wafer sector identities. E/N take theme colors because they only need to be
+// told apart; W/S keep the semantic amber and green they have always used.
+const sectorColors = computed<Record<string, string>>(() => ({
+  E: sk.value.series,
+  N: sk.value.brand,
+  W: SK_STATE.warn,
+  S: SK_STATE.ok
+}))
 
 const scatterData = computed(() => props.profile.points.map(point => ({
   name: String(point.sequence),
@@ -59,8 +63,8 @@ const scatterData = computed(() => props.profile.points.map(point => ({
   residual: point.residual,
   sector: point.sector,
   itemStyle: props.colorBySector && point.sector
-    ? { color: SECTOR_COLORS[point.sector] ?? SK_CHART.seriesSoft, opacity: 0.78 }
-    : { color: SK_CHART.seriesSoft, opacity: 0.72 }
+    ? { color: sectorColors.value[point.sector] ?? sk.value.seriesSoft, opacity: 0.78 }
+    : { color: sk.value.seriesSoft, opacity: 0.72 }
 })))
 
 const focused = computed(() => scatterData.value.filter(point => Number(point.name) === props.focusedSequence))
@@ -109,7 +113,7 @@ const bandSeries = computed(() => {
       stack: 'radial-band',
       data: bandPoints.value.map(point => [point.radius, point.upper - point.lower]),
       lineStyle: { opacity: 0 },
-      areaStyle: { color: props.band === 'iqr' ? SK_CHART.sand : SK_CHART.series, opacity: 0.2 },
+      areaStyle: { color: props.band === 'iqr' ? sk.value.sand : sk.value.series, opacity: 0.2 },
       symbol: 'none',
       tooltip: { show: false },
       silent: true,
@@ -125,8 +129,8 @@ const medianSeries = computed(() => props.profile.bins.length
       smooth: false,
       showSymbol: true,
       symbolSize: 4,
-      lineStyle: { color: SK_CHART.muted, width: 1, type: 'dashed' as const },
-      itemStyle: { color: SK_CHART.muted },
+      lineStyle: { color: sk.value.muted, width: 1, type: 'dashed' as const },
+      itemStyle: { color: sk.value.muted },
       data: props.profile.bins.map(bin => [bin.radius, bin.median]),
       tooltip: { show: false },
       silent: true,
@@ -151,14 +155,14 @@ const residualSeries = computed(() => {
           residual: point.residual,
           sector: point.sector,
           itemStyle: props.colorBySector && point.sector
-            ? { color: SECTOR_COLORS[point.sector] ?? SK_CHART.series }
-            : { color: SK_CHART.series }
+            ? { color: sectorColors.value[point.sector] ?? sk.value.series }
+            : { color: sk.value.series }
         }]),
     markLine: {
       silent: true,
       symbol: 'none',
       label: { show: false },
-      lineStyle: { color: SK_CHART.muted, width: 1 },
+      lineStyle: { color: sk.value.muted, width: 1 },
       data: [{ yAxis: 0 }]
     },
     z: 3
@@ -257,7 +261,7 @@ const option = computed<EChartsOption>(() => {
         type: 'line',
         smooth: false,
         showSymbol: false,
-        lineStyle: { color: SK_CHART.brand, width: 2 },
+        lineStyle: { color: sk.value.brand, width: 2 },
         data: props.profile.curve.map(point => [point.radius, point.value]),
         tooltip: { show: false },
         silent: true,
@@ -268,7 +272,7 @@ const option = computed<EChartsOption>(() => {
         type: 'scatter',
         symbolSize: 18,
         data: selectedPts.value,
-        itemStyle: { color: SK_CHART.series, opacity: 0.18, borderColor: SK_CHART.series, borderWidth: 1.5 },
+        itemStyle: { color: sk.value.series, opacity: 0.18, borderColor: sk.value.series, borderWidth: 1.5 },
         tooltip: { show: false },
         silent: true,
         z: 5
@@ -278,7 +282,7 @@ const option = computed<EChartsOption>(() => {
         type: 'scatter',
         symbolSize: 16,
         data: focused.value,
-        itemStyle: { color: 'transparent', borderColor: SK_CHART.ink, borderWidth: 3 },
+        itemStyle: { color: 'transparent', borderColor: sk.value.ink, borderWidth: 3 },
         tooltip: { show: false },
         silent: true,
         z: 6

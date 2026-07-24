@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { SK_CHART } from '~/utils/chartPalette'
+import { SK_SCALE } from '~/utils/chartPalette'
 
 const props = withDefaults(defineProps<{
   min: number
@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<{
   unit: string
   colors?: string[]
 }>(), {
-  colors: () => [...SK_CHART.scale]
+  colors: () => [...SK_SCALE]
 })
 
 const gradientStyle = computed(() => ({

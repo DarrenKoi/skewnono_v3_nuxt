@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { SK_CHART } from '~/utils/chartPalette'
+import { SK_STATE } from '~/utils/chartPalette'
 
 export interface TimeSeriesPoint {
   msr: string
@@ -33,18 +33,25 @@ const labels = computed(() => props.points.map(p => p.label))
 // then a translucent area of height (max - min) on top of it.
 const floor = computed(() => props.points.map(p => p.min))
 const bandHeight = computed(() => props.points.map(p => Number((p.max - p.min).toFixed(3))))
+const sk = useChartPalette()
+
 // Per-datum styling by severity (status first): insufficient grey, watch amber,
-// abnormal red, normal blue.
-const SEV_HEX: Record<string, string> = {
-  abnormal: SK_CHART.bad, watch: SK_CHART.warn, insufficient: SK_CHART.muted, normal: SK_CHART.series
-}
+// abnormal red, normal in the theme's series color. The three severity tones
+// are semantic and stay put across themes; only `normal` -- which says nothing
+// beyond "this is the series" -- follows the palette.
+const sevHex = computed<Record<string, string>>(() => ({
+  abnormal: SK_STATE.bad,
+  watch: SK_STATE.warn,
+  insufficient: sk.value.muted,
+  normal: sk.value.series
+}))
 const sevKey = (p: TimeSeriesPoint): string =>
   !p.verdict ? 'normal' : p.verdict.status === 'insufficient' ? 'insufficient' : p.verdict.severity
 const meanData = computed(() =>
   props.points.map((p) => {
     const key = sevKey(p)
     const symbolSize = key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 7 : 6
-    return { value: p.mean, itemStyle: { color: SEV_HEX[key] }, symbolSize }
+    return { value: p.mean, itemStyle: { color: sevHex.value[key] }, symbolSize }
   })
 )
 
@@ -65,7 +72,7 @@ const option = computed<EChartsOption>(() => ({
       ]
       const v = p.verdict
       if (v && (v.status === 'insufficient' || v.severity !== 'normal')) {
-        const color = v.severity === 'abnormal' ? SK_CHART.bad : v.severity === 'watch' ? SK_CHART.warn : SK_CHART.muted
+        const color = v.severity === 'abnormal' ? SK_STATE.bad : v.severity === 'watch' ? SK_STATE.warn : sk.value.muted
         for (const x of v.verdicts) {
           if (x.status === 'evaluated' && x.severity === 'normal') continue
           lines.push(`<span style="color:${color}">⚠ ${x.reason}</span>`)
@@ -106,7 +113,7 @@ const option = computed<EChartsOption>(() => ({
       stack: 'band',
       data: bandHeight.value,
       lineStyle: { opacity: 0 },
-      areaStyle: { color: SK_CHART.series, opacity: 0.12 },
+      areaStyle: { color: sk.value.series, opacity: 0.12 },
       symbol: 'none',
       silent: true,
       z: 1
@@ -118,8 +125,8 @@ const option = computed<EChartsOption>(() => ({
       smooth: false,
       showSymbol: true,
       symbolSize: 6,
-      lineStyle: { width: 2, color: SK_CHART.series },
-      itemStyle: { color: SK_CHART.series },
+      lineStyle: { width: 2, color: sk.value.series },
+      itemStyle: { color: sk.value.series },
       z: 3
     }
   ]

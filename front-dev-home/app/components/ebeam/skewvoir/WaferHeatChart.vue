@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { SK_CHART } from '~/utils/chartPalette'
+import { SK_SCALE } from '~/utils/chartPalette'
 
 // A wafer heat map from PRE-COMPUTED points [chipX, chipY, value]. Unlike
 // WaferMap (which aggregates raw MsrFileRows), this renders whatever the caller
@@ -77,7 +77,7 @@ const option = computed<EChartsOption>(() => ({
     itemHeight: 120,
     textStyle: { fontSize: 11 },
     // Diverging navy → tan → red (the sample's signature wafer colormap).
-    inRange: { color: [...SK_CHART.scale] }
+    inRange: { color: [...SK_SCALE] }
   },
   series: [{
     type: 'scatter',

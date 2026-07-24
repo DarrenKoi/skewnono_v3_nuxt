@@ -82,7 +82,7 @@
 import type { EChartsOption } from 'echarts'
 import type { SpatialResult, SpatialLayerKey } from '~/utils/skewvoirAnalysis/spatial'
 import type { WaferGeometry } from '~/utils/waferGeometry'
-import { SK_CHART } from '~/utils/chartPalette'
+import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 
 const props = defineProps<{
   spatial: SpatialResult
@@ -91,6 +91,8 @@ const props = defineProps<{
   unit: string
 }>()
 const emit = defineEmits<{ focus: [chip: string] }>()
+
+const sk = useChartPalette()
 
 type Layer = SpatialLayerKey
 const layer = ref<Layer>('raw')
@@ -204,7 +206,7 @@ const option = computed<EChartsOption>(() => ({
     max: range.value.max,
     dimension: 2,
     seriesIndex: 0,
-    inRange: { color: [...SK_CHART.scale] }
+    inRange: { color: [...SK_SCALE] }
   },
   series: [
     {
@@ -222,7 +224,7 @@ const option = computed<EChartsOption>(() => ({
             distance: 3,
             fontSize: 10,
             fontFamily: 'monospace',
-            color: SK_CHART.ink,
+            color: sk.value.ink,
             formatter: (params) => {
               const v = (params.value as number[])[2]
               if (v == null) return ''
@@ -234,27 +236,27 @@ const option = computed<EChartsOption>(() => ({
     },
     {
       type: 'line', data: waferOutline.value, showSymbol: false, silent: true,
-      lineStyle: { color: SK_CHART.muted, width: 1.25, opacity: 0.55 }, tooltip: { show: false }, z: 0
+      lineStyle: { color: sk.value.muted, width: 1.25, opacity: 0.55 }, tooltip: { show: false }, z: 0
     },
     {
       type: 'scatter', symbol: 'triangle', symbolSize: 9,
-      data: [[0, -waferRadius.value]], itemStyle: { color: SK_CHART.muted },
+      data: [[0, -waferRadius.value]], itemStyle: { color: sk.value.muted },
       silent: true, z: 1, tooltip: { show: false }
     },
     {
       type: 'line', data: scanPathData.value, showSymbol: false, silent: true,
-      lineStyle: { color: SK_CHART.brand, width: 1, opacity: 0.7, type: 'dashed' as const },
+      lineStyle: { color: sk.value.brand, width: 1, opacity: 0.7, type: 'dashed' as const },
       tooltip: { show: false }, z: 2
     },
     {
       type: 'scatter', symbolSize: 14, data: failurePoints.value,
       itemStyle: { color: 'transparent' },
-      label: { show: true, formatter: '✕', color: SK_CHART.bad, fontSize: 13, fontWeight: 'bold' },
+      label: { show: true, formatter: '✕', color: SK_STATE.bad, fontSize: 13, fontWeight: 'bold' },
       z: 4, tooltip: { show: false }
     },
     {
       type: 'scatter', symbol: 'circle', symbolSize: 22, data: focusPoint.value,
-      itemStyle: { color: 'transparent', borderColor: SK_CHART.series, borderWidth: 3 }, silent: true, z: 5, tooltip: { show: false }
+      itemStyle: { color: 'transparent', borderColor: sk.value.series, borderWidth: 3 }, silent: true, z: 5, tooltip: { show: false }
     }
   ]
 }))

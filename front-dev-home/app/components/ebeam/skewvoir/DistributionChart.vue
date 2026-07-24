@@ -14,7 +14,6 @@ import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { paramValues } from '~/utils/msrRows'
 import { mean as meanOf, quantileSorted, iqrFences } from '~/utils/stats'
-import { SK_CHART } from '~/utils/chartPalette'
 
 // One group's raw values for the grouped box/violin comparison.
 export interface DistributionGroup {
@@ -47,6 +46,8 @@ const props = withDefaults(defineProps<{
   mode: 'Hist',
   heightClass: 'h-72'
 })
+
+const sk = useChartPalette()
 
 const BIN_COUNT = 12
 
@@ -133,7 +134,7 @@ const histOption = computed<EChartsOption>(() => ({
     type: 'bar',
     data: bins.value.counts,
     barWidth: '90%',
-    itemStyle: { color: SK_CHART.seriesSoft, borderRadius: [2, 2, 0, 0] }
+    itemStyle: { color: sk.value.seriesSoft, borderRadius: [2, 2, 0, 0] }
   }]
 }))
 
@@ -161,8 +162,8 @@ const ecdfOption = computed<EChartsOption>(() => ({
     type: 'line',
     step: 'end',
     showSymbol: false,
-    lineStyle: { color: SK_CHART.series, width: 1.5 },
-    areaStyle: { color: SK_CHART.seriesSoft, opacity: 0.35 },
+    lineStyle: { color: sk.value.series, width: 1.5 },
+    areaStyle: { color: sk.value.seriesSoft, opacity: 0.35 },
     data: ecdfPoints.value
   }]
 }))
@@ -199,12 +200,12 @@ const boxOption = computed<EChartsOption>(() => {
       {
         type: 'boxplot',
         data: boxData,
-        itemStyle: { color: SK_CHART.sand, borderColor: SK_CHART.series }
+        itemStyle: { color: sk.value.sand, borderColor: sk.value.series }
       },
       {
         type: 'scatter',
         symbolSize: 4,
-        itemStyle: { color: SK_CHART.brand, opacity: 0.35 },
+        itemStyle: { color: sk.value.brand, opacity: 0.35 },
         data: rawPoints,
         tooltip: { show: false }
       }
@@ -220,7 +221,7 @@ const violinOption = computed<EChartsOption>(() => {
   const bottom = centers.map((c, i) => [c, -counts[i]! / 2])
   return {
     tooltip: { trigger: 'axis' },
-    title: { text: `n = ${values.value.length}`, right: 8, top: 4, textStyle: { fontSize: 11, color: SK_CHART.muted } },
+    title: { text: `n = ${values.value.length}`, right: 8, top: 4, textStyle: { fontSize: 11, color: sk.value.muted } },
     grid: { left: 36, right: 16, top: 24, bottom: 28, containLabel: true },
     xAxis: {
       type: 'value',
@@ -233,8 +234,8 @@ const violinOption = computed<EChartsOption>(() => {
     },
     yAxis: { type: 'value', axisLabel: { show: false }, splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } },
     series: [
-      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: SK_CHART.series, width: 1 }, areaStyle: { color: SK_CHART.seriesSoft, opacity: 0.5 }, data: top },
-      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: SK_CHART.series, width: 1 }, areaStyle: { color: SK_CHART.seriesSoft, opacity: 0.5 }, data: bottom }
+      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: top },
+      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: bottom }
     ]
   }
 })

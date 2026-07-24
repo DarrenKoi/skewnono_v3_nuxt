@@ -281,6 +281,8 @@ const props = defineProps<{
   section: 'align' | 'meas'
 }>()
 
+const sk = useChartPalette()
+
 const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
 const showAlign = computed(() => props.section === 'align')
 const showMeas = computed(() => props.section === 'meas')
@@ -539,7 +541,7 @@ const buildTrendOption = (
             smooth: true,
             symbol: 'none',
             data: baseline,
-            lineStyle: { color: '#a1a1aa', type: 'dashed', width: 1 },
+            lineStyle: { color: sk.value.muted, type: 'dashed', width: 1 },
             yAxisIndex: 1
           }
         ]
@@ -550,7 +552,7 @@ const alignTrendOption = computed<EChartsOption>(() =>
   buildTrendOption(
     'Align fails',
     trendPoints.value.map(p => p.align_fail_count),
-    '#ef4444',
+    sk.value.series,
     trendPoints.value.map(p => p.exec_count)
   ))
 
@@ -558,7 +560,7 @@ const measTrendOption = computed<EChartsOption>(() =>
   buildTrendOption(
     'Meas fails',
     trendPoints.value.map(p => p.meas_fail_count),
-    '#f59e0b',
+    sk.value.brand,
     trendPoints.value.map(p => p.exec_count)
   ))
 

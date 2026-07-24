@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { SK_CHART } from '~/utils/chartPalette'
+import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 import type { WaferGeometry } from '~/utils/waferGeometry'
 import { buildWaferPoints, type WaferPoint } from '~/utils/waferPoints'
 import { buildWaferAxis } from '~/utils/waferAxis'
@@ -43,6 +43,8 @@ const emit = defineEmits<{
   /** Auto (data) color range so the panel can seed its manual inputs + legend. */
   rangechange: [range: { min: number, max: number }]
 }>()
+
+const sk = useChartPalette()
 
 const forParam = computed(() => props.rows.filter(r => r.parameter === props.parameter))
 
@@ -173,7 +175,7 @@ const valueSeries = computed(() =>
               show: true,
               position: 'top' as const,
               fontSize: 9,
-              color: SK_CHART.ink,
+              color: sk.value.ink,
               formatter: (p: { name?: string }) => {
                 const m = metaBySeq.value.get(p.name ?? '')
                 return m ? String(m.mp) : ''
@@ -209,13 +211,13 @@ const option = computed<EChartsOption>(() => ({
     left: gridMargin.value, right: gridMargin.value, top: gridMargin.value, bottom: gridMargin.value,
     containLabel: false
   },
-  xAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchXmm, SK_CHART.muted, props.geo.offsetXmm) as EChartsOption['xAxis'],
-  yAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchYmm, SK_CHART.muted, props.geo.offsetYmm) as EChartsOption['yAxis'],
+  xAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchXmm, sk.value.muted, props.geo.offsetXmm) as EChartsOption['xAxis'],
+  yAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchYmm, sk.value.muted, props.geo.offsetYmm) as EChartsOption['yAxis'],
   visualMap: {
     // Bar hidden — the panel renders a separate DOM legend from `rangechange`.
     show: false,
     min: effMin.value, max: effMax.value,
-    dimension: 2, seriesIndex: 0, inRange: { color: [...SK_CHART.scale] }
+    dimension: 2, seriesIndex: 0, inRange: { color: [...SK_SCALE] }
   },
   series: [
     valueSeries.value,
@@ -223,18 +225,18 @@ const option = computed<EChartsOption>(() => ({
       ? [{
           type: 'line' as const, data: dieGridData.value, showSymbol: false, silent: true,
           connectNulls: false,
-          lineStyle: { color: SK_CHART.muted, width: 0.75, opacity: 0.3 },
+          lineStyle: { color: sk.value.muted, width: 0.75, opacity: 0.3 },
           tooltip: { show: false }, z: 0
         }]
       : []),
     {
       type: 'line', data: waferOutline.value, showSymbol: false, silent: true,
-      lineStyle: { color: SK_CHART.muted, width: 1.25, opacity: 0.55 }, tooltip: { show: false }, z: 0,
+      lineStyle: { color: sk.value.muted, width: 1.25, opacity: 0.55 }, tooltip: { show: false }, z: 0,
       ...(props.options.crosshair
         ? {
             markLine: {
               silent: true, symbol: 'none',
-              lineStyle: { color: SK_CHART.muted, type: 'dashed' as const, width: 1, opacity: 0.5 },
+              lineStyle: { color: sk.value.muted, type: 'dashed' as const, width: 1, opacity: 0.5 },
               label: { show: false },
               data: [{ xAxis: 0 }, { yAxis: 0 }]
             }
@@ -244,20 +246,20 @@ const option = computed<EChartsOption>(() => ({
     ...(props.options.notch
       ? [{
           type: 'scatter' as const, symbol: 'triangle', symbolSize: 9,
-          data: [[0, -waferRadius.value]], itemStyle: { color: SK_CHART.muted },
+          data: [[0, -waferRadius.value]], itemStyle: { color: sk.value.muted },
           silent: true, z: 1, tooltip: { show: false }
         }]
       : []),
     { type: 'scatter', symbol: 'circle', symbolSize: 22, data: selectedPoints.value,
-      itemStyle: { color: SK_CHART.series, opacity: 0.18, borderColor: SK_CHART.series, borderWidth: 1.5 },
+      itemStyle: { color: sk.value.series, opacity: 0.18, borderColor: sk.value.series, borderWidth: 1.5 },
       silent: true, z: 3 },
     { type: 'scatter', symbol: 'circle', symbolSize: 24, data: outlierPoints.value,
-      itemStyle: { color: 'transparent', borderColor: SK_CHART.bad, borderWidth: 2 }, silent: true, z: 4 },
+      itemStyle: { color: 'transparent', borderColor: SK_STATE.bad, borderWidth: 2 }, silent: true, z: 4 },
     { type: 'scatter', symbolSize: 13, data: failurePoints.value,
       itemStyle: { color: 'transparent' },
-      label: { show: true, formatter: '✕', color: SK_CHART.bad, fontSize: 13, fontWeight: 'bold' }, z: 4 },
+      label: { show: true, formatter: '✕', color: SK_STATE.bad, fontSize: 13, fontWeight: 'bold' }, z: 4 },
     { type: 'scatter', symbol: 'circle', symbolSize: 19, data: focusPoint.value,
-      itemStyle: { color: 'transparent', borderColor: SK_CHART.series, borderWidth: 3 }, silent: true, z: 5 }
+      itemStyle: { color: 'transparent', borderColor: sk.value.series, borderWidth: 3 }, silent: true, z: 5 }
   ]
 }))
 
