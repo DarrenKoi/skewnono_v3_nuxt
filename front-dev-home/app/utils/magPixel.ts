@@ -146,3 +146,191 @@ export const buildMagPixelTable = (series: MagSeries): MagPixelRow[] => {
   }
   return rows
 }
+
+// ── 셋업 역산 ───────────────────────────────────────────────────────────────
+//
+// 제약이 둘이고 서로 반대 방향으로 당긴다.
+//   ① FOV 제약  — 패턴 N개 + 여유 마진이 화면에 다 들어와야 한다 → 배율 상한
+//   ② 픽셀 제약 — CD 하나에 픽셀이 충분히 얹혀야 측정된다      → 픽셀 하한
+// 그래서 답은 하나가 아니라 성립 구간이고, 추천은 그 구간의 한 점이다.
+
+/** 여유 마진 프리셋 (각 변 기준). 배율이 이산값이라 자유 입력은 없는 정밀도를 시사한다. */
+export const MARGIN_PRESETS = [0, 0.05, 0.10, 0.15, 0.20] as const
+export const DEFAULT_MARGIN = 0.10
+export const DEFAULT_PATTERN_COUNT = 8
+
+/**
+ * CD 하나를 신뢰성 있게 측정하기 위한 최소 픽셀 수 — **잠정값**.
+ * 사내 계측 기준이 아직 정해지지 않았다(사용자 확인 2026-07-25). 화면에서
+ * 조정 가능하게 열어두었으므로, 기준이 확정되면 이 상수만 바꾸면 된다.
+ */
+export const DEFAULT_MIN_PX_PER_CD = 8
+
+/**
+ * 패턴 span과 여유 마진을 담기 위해 필요한 FOV(nm).
+ *
+ * 패턴은 화면 가운데에 놓이고 각 변에 marginRatio만큼 빈 공간이 필요하므로,
+ * 패턴이 차지하는 비율은 (1 − 2r)이다. 마진 10%면 패턴은 FOV의 80%.
+ *
+ * 이 값은 렌더링용이 아니라 **배율 선택을 구속하는 값**이다. 마진을 빼면
+ * 패턴이 화면 끝에 붙는 배율이 추천된다.
+ */
+export const requiredFovNm = (
+  patternCount: number,
+  pitchNm: number,
+  marginRatio: number
+): number | null => {
+  if (!isPositive(patternCount) || !isPositive(pitchNm)) return null
+  if (typeof marginRatio !== 'number' || !Number.isFinite(marginRatio)) return null
+  if (marginRatio < 0 || marginRatio >= 0.5) return null
+  return (patternCount * pitchNm) / (1 - 2 * marginRatio)
+}
+
+export type CellVerdict = 'ok' | 'under-pixel' | 'over-fov'
+
+/** 표의 한 칸 판정. FOV 실패와 픽셀 실패는 원인이 달라 구분해서 표시한다. */
+export const cellVerdict = (
+  mag: number,
+  pixels: number,
+  cdNm: number,
+  requiredFov: number,
+  minPxPerCd: number
+): CellVerdict | null => {
+  const fov = fovNm(mag)
+  if (fov === null) return null
+  if (fov < requiredFov) return 'over-fov'
+  const ratio = pxPerCd(mag, pixels, cdNm)
+  if (ratio === null) return null
+  return ratio >= minPxPerCd ? 'ok' : 'under-pixel'
+}
+
+export interface CalcInput {
+  series: MagSeries
+  cdNm: number
+  /** null이면 CD × 2 (bar:space 1:1)로 가정한다. */
+  pitchNm: number | null
+  patternCount: number
+  marginRatio: number
+  minPxPerCd: number
+}
+
+export interface Recommendation {
+  requiredFovNm: number
+  effectivePitchNm: number
+  /** true면 pitch를 CD × 2로 가정했다 — 화면에 밝힌다. */
+  pitchAssumed: boolean
+  mag: number | null
+  pixels: number | null
+  nmPerPx: number | null
+  pxPerCd: number | null
+  scanFactor: number | null
+  reason: 'ok' | 'no-mag' | 'no-pixels'
+}
+
+/**
+ * 배율은 높을수록 FOV가 좁아 px/CD가 커지므로, 패턴이 들어오는 한도 안에서
+ * **가장 높은 배율**이 해상도상 최적이다. 픽셀 수는 기준만 넘으면 더 키울
+ * 이유가 없고 스캔 시간만 제곱으로 늘어나므로 **가장 작은 값**을 고른다.
+ */
+export const recommend = (calc: CalcInput): Recommendation | null => {
+  const { series, cdNm, patternCount, marginRatio, minPxPerCd } = calc
+  if (!isPositive(cdNm) || !isPositive(minPxPerCd)) return null
+
+  const pitchAssumed = calc.pitchNm === null
+  const effectivePitchNm = pitchAssumed ? cdNm * 2 : calc.pitchNm
+  if (!isPositive(effectivePitchNm) || effectivePitchNm <= cdNm) return null
+
+  const required = requiredFovNm(patternCount, effectivePitchNm, marginRatio)
+  if (required === null) return null
+
+  const base = { requiredFovNm: required, effectivePitchNm, pitchAssumed }
+  const empty = { nmPerPx: null, pxPerCd: null, scanFactor: null }
+
+  const fitting = magRange(series).filter((mag) => {
+    const fov = fovNm(mag)
+    return fov !== null && fov >= required
+  })
+  if (fitting.length === 0) {
+    return { ...base, ...empty, mag: null, pixels: null, reason: 'no-mag' }
+  }
+
+  const mag = Math.max(...fitting)
+  const pixels = PIXEL_SETTINGS.find((p) => {
+    const ratio = pxPerCd(mag, p, cdNm)
+    return ratio !== null && ratio >= minPxPerCd
+  })
+  if (pixels === undefined) {
+    return { ...base, ...empty, mag, pixels: null, reason: 'no-pixels' }
+  }
+
+  return {
+    ...base,
+    mag,
+    pixels,
+    nmPerPx: pixelSizeNm(mag, pixels),
+    pxPerCd: pxPerCd(mag, pixels, cdNm),
+    scanFactor: scanTimeFactor(pixels),
+    reason: 'ok'
+  }
+}
+
+export interface MarginSensitivityRow {
+  marginRatio: number
+  requiredFovNm: number | null
+  mag: number | null
+}
+
+/**
+ * 마진 프리셋별 결과. 배율이 이산값이라 마진이 연속적으로 반응하지 않는다 —
+ * 5%와 10%가 같은 배율로 떨어지는 구간이 있다. 지금 마진에 여유가 얼마나
+ * 남았는지 보여주는 것이 목적이다.
+ */
+export const marginSensitivity = (calc: CalcInput): MarginSensitivityRow[] =>
+  MARGIN_PRESETS.map((marginRatio) => {
+    const rec = recommend({ ...calc, marginRatio })
+    return {
+      marginRatio,
+      requiredFovNm: rec?.requiredFovNm ?? null,
+      mag: rec?.mag ?? null
+    }
+  })
+
+export interface PixelGuidance {
+  tone: 'ok' | 'warn' | 'error'
+  headline: string
+  detail: string
+}
+
+/**
+ * 실사용은 512·1024 둘뿐이고 그 사이가 스캔 시간 4배 차이다. 이 화면이 실제로
+ * 답하는 질문은 "512로 되나, 1024로 올려야 하나"이므로 결론과 근거를 함께 낸다.
+ */
+export const pixelGuidance = (rec: Recommendation, minPxPerCd: number): PixelGuidance => {
+  if (rec.reason === 'no-mag') {
+    return {
+      tone: 'error',
+      headline: '성립하는 배율이 없습니다',
+      detail: `최저 배율에서도 필요 FOV ${Math.round(rec.requiredFovNm).toLocaleString()} nm를 담을 수 없습니다. 패턴 수나 여유 마진을 줄이세요.`
+    }
+  }
+  if (rec.reason === 'no-pixels') {
+    return {
+      tone: 'error',
+      headline: '픽셀이 부족합니다',
+      detail: `${(rec.mag ?? 0).toLocaleString()}× 에서는 4096 px로도 기준 ${minPxPerCd} px/CD에 미달합니다. 패턴 수를 줄이거나 기준을 재검토하세요.`
+    }
+  }
+  const ratio = rec.pxPerCd ?? 0
+  if (rec.pixels === 512) {
+    return {
+      tone: 'ok',
+      headline: '512로 충분합니다',
+      detail: `${ratio.toFixed(1)} px/CD로 기준 ${minPxPerCd}의 ${(ratio / minPxPerCd).toFixed(1)}배입니다. 1024로 올리면 스캔 시간만 4배가 됩니다.`
+    }
+  }
+  return {
+    tone: 'warn',
+    headline: `${rec.pixels} px가 필요합니다`,
+    detail: `512로는 기준 ${minPxPerCd} px/CD에 미달합니다. 스캔 시간 ×${rec.scanFactor ?? '—'}를 감수해야 합니다.`
+  }
+}
