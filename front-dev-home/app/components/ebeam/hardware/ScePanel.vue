@@ -1,97 +1,170 @@
 <template>
   <div class="mt-3 space-y-3">
     <div
-      v-if="!hasSelected"
+      v-if="!hasSelected && docs.length === 0"
       class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
     >
-      SCE 설정 데이터가 없습니다.
+      SCE 설정 데이터가 없습니다. (R3/R4 등 일부 fab은 SCE를 사용하지 않습니다)
     </div>
 
     <template v-else>
-      <!-- Shared comparison-tool picker (drives both the table and the curve) -->
-      <EbeamHardwareCompareToolPicker
-        v-model="compareIds"
-        :sibling-ids="siblingIds"
-        :selected-eqp="selectedEqp"
-      />
-
-      <!-- Settings compare table: selected vs picked tools, diffs flagged -->
-      <div class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)">
-        <table class="min-w-full text-left text-xs">
-          <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
-            <tr>
-              <th class="px-3 py-2 sk-eyebrow">
-                Setting
-              </th>
-              <th class="px-3 py-2 sk-eyebrow">
-                {{ selectedEqp }} (선택)
-              </th>
-              <th
-                v-for="id in compareIds"
-                :key="id"
-                class="px-3 py-2 sk-eyebrow"
-              >
-                <span class="inline-flex items-center gap-1.5">
-                  <span
-                    class="h-2 w-2 rounded-full"
-                    :style="{ background: compareColors[id] }"
-                  />
-                  {{ id }}
-                </span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in rows"
-              :key="row.path"
-              class="border-t border-(--sk-border-soft)"
-              :class="row.differs ? 'bg-amber-50 dark:bg-amber-950/30' : ''"
-            >
-              <td class="px-3 py-2 font-mono text-(--sk-ink-muted)">
-                {{ row.path }}
-              </td>
-              <td class="px-3 py-2 font-mono font-bold text-(--sk-ink)">
-                {{ row.selected !== '' ? row.selected : '-' }}
-              </td>
-              <td
-                v-for="id in compareIds"
-                :key="id"
-                class="px-3 py-2 font-mono"
-                :class="row.siblings[id] !== row.selected ? 'text-(--sk-bad) font-bold' : 'text-(--sk-ink)'"
-              >
-                {{ row.siblings[id] !== '' && row.siblings[id] !== undefined ? row.siblings[id] : '-' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p
-          v-if="compareIds.length === 0"
-          class="border-t border-(--sk-border-soft) px-3 py-3 text-center sk-body"
+      <!-- 비교 | 시계열 sub-tabs (same pattern as the MDC tabs) -->
+      <div class="flex w-fit overflow-hidden rounded-[10px] border border-(--sk-border)">
+        <button
+          v-for="tab in TABS"
+          :key="tab"
+          type="button"
+          class="px-3.5 py-1.5 text-xs font-semibold transition-colors"
+          :class="tab === activeTab
+            ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
+            : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
+          @click="activeTab = tab"
         >
-          위 드롭박스에서 비교할 장비를 선택하면 열이 추가됩니다.
-        </p>
+          {{ tab }}
+        </button>
       </div>
 
-      <!-- Coefficients[0..359] overlay: values[0] / values[1] in stacked
-           per-type panels, selected vs every picked tool -->
-      <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-        <div class="mb-1 flex items-center justify-between gap-2 px-1">
-          <div class="sk-title">
-            Coefficients (0–359)
+      <!-- ===== 시계열: bidaily archive — param trend + coefficient evolution ===== -->
+      <template v-if="activeTab === '시계열'">
+        <div
+          v-if="docs.length === 0"
+          class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
+        >
+          SCE 이력 데이터가 없습니다.
+        </div>
+        <template v-else>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <SkChip
+              v-for="key in paramKeys"
+              :key="key"
+              size="sm"
+              :active="key === activeParamKey"
+              @click="activeParamKey = key"
+            >
+              {{ sceParamLabel(key) }}
+            </SkChip>
           </div>
-          <UTabs
-            v-model="viewMode"
-            :items="viewTabs"
-            variant="pill"
-            size="xs"
+
+          <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+            <EbeamHardwareBsmTrendChart
+              :label="`${sceParamLabel(activeParamKey)} · ${selectedEqp}`"
+              :points="paramPoints"
+              selected=""
+              y-mode="tight"
+              :events="maintenanceEvents"
+            />
+          </div>
+
+          <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+            <div class="mb-1 flex items-center justify-between gap-2 px-1">
+              <div class="sk-title">
+                Coefficients 변화 (0–359) · 수집일별
+              </div>
+              <span class="font-mono text-[11px] text-(--sk-ink-muted)">
+                {{ docs.length }}회 · 진할수록 최신
+              </span>
+            </div>
+            <div
+              ref="evolutionEl"
+              class="h-96 w-full"
+            />
+          </div>
+        </template>
+      </template>
+
+      <!-- ===== 비교: latest snapshot — settings table + curve overlay ===== -->
+      <div
+        v-else-if="!hasSelected"
+        class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
+      >
+        SCE 설정 데이터가 없습니다. (R3/R4 등 일부 fab은 SCE를 사용하지 않습니다)
+      </div>
+      <template v-else>
+        <!-- Shared comparison-tool picker (drives both the table and the curve) -->
+        <EbeamHardwareCompareToolPicker
+          v-model="compareIds"
+          :sibling-ids="siblingIds"
+          :selected-eqp="selectedEqp"
+        />
+
+        <!-- Settings compare table: selected vs picked tools, diffs flagged -->
+        <div class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)">
+          <table class="min-w-full text-left text-xs">
+            <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
+              <tr>
+                <th class="px-3 py-2 sk-eyebrow">
+                  Setting
+                </th>
+                <th class="px-3 py-2 sk-eyebrow">
+                  {{ selectedEqp }} (선택)
+                </th>
+                <th
+                  v-for="id in compareIds"
+                  :key="id"
+                  class="px-3 py-2 sk-eyebrow"
+                >
+                  <span class="inline-flex items-center gap-1.5">
+                    <span
+                      class="h-2 w-2 rounded-full"
+                      :style="{ background: compareColors[id] }"
+                    />
+                    {{ id }}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in rows"
+                :key="row.path"
+                class="border-t border-(--sk-border-soft)"
+                :class="row.differs ? 'bg-amber-50 dark:bg-amber-950/30' : ''"
+              >
+                <td class="px-3 py-2 font-mono text-(--sk-ink-muted)">
+                  {{ row.path }}
+                </td>
+                <td class="px-3 py-2 font-mono font-bold text-(--sk-ink)">
+                  {{ row.selected !== '' ? row.selected : '-' }}
+                </td>
+                <td
+                  v-for="id in compareIds"
+                  :key="id"
+                  class="px-3 py-2 font-mono"
+                  :class="row.siblings[id] !== row.selected ? 'text-(--sk-bad) font-bold' : 'text-(--sk-ink)'"
+                >
+                  {{ row.siblings[id] !== '' && row.siblings[id] !== undefined ? row.siblings[id] : '-' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p
+            v-if="compareIds.length === 0"
+            class="border-t border-(--sk-border-soft) px-3 py-3 text-center sk-body"
+          >
+            위 드롭박스에서 비교할 장비를 선택하면 열이 추가됩니다.
+          </p>
+        </div>
+
+        <!-- Coefficients[0..359] overlay: values[0] / values[1] in stacked
+             per-type panels, selected vs every picked tool -->
+        <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+          <div class="mb-1 flex items-center justify-between gap-2 px-1">
+            <div class="sk-title">
+              Coefficients (0–359)
+            </div>
+            <UTabs
+              v-model="viewMode"
+              :items="viewTabs"
+              variant="pill"
+              size="xs"
+            />
+          </div>
+          <div
+            ref="chartEl"
+            class="h-96 w-full"
           />
         </div>
-        <div
-          ref="chartEl"
-          class="h-96 w-full"
-        />
-      </div>
+      </template>
     </template>
   </div>
 </template>
@@ -99,16 +172,35 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
+import { sceParamKeys, sceParamLabel, sceParamSeries } from '~/utils/sceHistory'
 import { assignCompareColors } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
+import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   settings: Record<string, Record<string, unknown>>
+  // Bidaily archive snapshots of the selected tool ({date, ...blocks}, asc).
+  docs?: Record<string, unknown>[]
   selectedEqp: string
+  maintenanceEvents?: BmPmEvent[]
 }>()
+
+const TABS = ['비교', '시계열'] as const
+const activeTab = ref<(typeof TABS)[number]>('비교')
+
+const docs = computed(() => props.docs ?? [])
+const maintenanceEvents = computed(() => props.maintenanceEvents ?? [])
 
 const hasSelected = computed(() => Boolean(props.settings[props.selectedEqp]))
 const siblingIds = computed(() => Object.keys(props.settings).filter(id => id !== props.selectedEqp).sort())
+
+// --- 시계열: SCEParam trend ---
+const paramKeys = computed(() => sceParamKeys(docs.value))
+const activeParamKey = ref('')
+watch(paramKeys, (keys) => {
+  if (!keys.includes(activeParamKey.value)) activeParamKey.value = keys[0] ?? ''
+}, { immediate: true })
+const paramPoints = computed(() => sceParamSeries(docs.value, activeParamKey.value))
 
 // Page-scoped selection shared with the MDC panel (see HardwareView). Prune to
 // the current cohort so a stale id from a previous tool never lingers.
@@ -241,4 +333,45 @@ const chartOption = computed<EChartsOption>(() => {
 })
 
 useEchart(chartEl, chartOption)
+
+// --- 시계열: coefficient-curve evolution ---
+// One curve per collection date in the same v0/v1 stacked grids as the
+// compare view, opacity ramping oldest → newest so drift reads as a fade
+// toward the solid latest curve. No legend — the date rides in the tooltip.
+const evolutionEl = ref<HTMLDivElement | null>(null)
+const evolutionOption = computed<EChartsOption>(() => {
+  const n = docs.value.length
+  const fade = (i: number) => (n <= 1 ? 1 : 0.15 + 0.85 * (i / (n - 1)))
+  const line = (name: string, data: number[], opacity: number, gridIndex: number) => ({
+    name, type: 'line' as const, showSymbol: false, smooth: false,
+    xAxisIndex: gridIndex, yAxisIndex: gridIndex,
+    lineStyle: { color: c0.value, width: 1.2, opacity },
+    itemStyle: { color: c0.value, opacity }, data
+  })
+  const catAxis = (gridIndex: number, showLabels: boolean) => ({
+    type: 'category' as const, gridIndex, data: indices,
+    axisLabel: { fontSize: 10, show: showLabels },
+    ...(showLabels ? { name: 'index' } : {})
+  })
+  const valAxis = (gridIndex: number, name: string) => ({
+    type: 'value' as const, gridIndex, name, scale: true,
+    nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 }
+  })
+  return {
+    grid: [
+      { left: 56, right: 16, top: 30, height: '36%' },
+      { left: 56, right: 16, bottom: 40, height: '36%' }
+    ],
+    tooltip: { trigger: 'axis' },
+    axisPointer: { link: [{ xAxisIndex: 'all' }] },
+    xAxis: [catAxis(0, false), catAxis(1, true)],
+    yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
+    series: docs.value.flatMap((doc, i) => {
+      const pair = coefficientSeries(doc)
+      const name = typeof doc.date === 'string' ? doc.date : `#${i}`
+      return [line(name, pair.v0, fade(i), 0), line(name, pair.v1, fade(i), 1)]
+    })
+  }
+})
+useEchart(evolutionEl, evolutionOption)
 </script>

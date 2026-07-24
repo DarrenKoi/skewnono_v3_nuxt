@@ -15,235 +15,231 @@
       "value": 4
     }
   ],
-  "eqp_id": "ECXDX204",
-  "fab_name": "M16B",
-  "fetched_at": "2026-06-18T21:47:38+00:00",
-  "service": "sce",
-  "settings": {
-    "ECXDX132": {
+  "docs": [
+    {
       "Coefficients": [
         {
           "index": 0,
           "values": [
-            -0.009652,
-            0.953308
+            -0.005673,
+            0.937984
           ]
         },
         {
           "index": 1,
           "values": [
-            -0.01443,
-            0.979605
+            -0.007135,
+            0.940862
           ]
         },
         {
           "index": 2,
           "values": [
-            -0.019028,
-            0.946825
+            -0.006992,
+            0.940577
           ]
         },
         {
           "index": 3,
           "values": [
-            0.01779,
-            0.935632
+            -0.008851,
+            0.942134
           ]
         },
         {
           "index": 4,
           "values": [
-            -0.005475,
-            0.990108
+            -0.008355,
+            0.943759
           ]
         },
         {
           "index": 5,
           "values": [
-            0.014585,
-            0.931265
+            -0.009898,
+            0.943336
           ]
         },
         {
           "index": 6,
           "values": [
-            0.006845,
-            0.994591
+            -0.010124,
+            0.94483
           ]
         },
         {
           "index": 7,
           "values": [
-            -0.016856,
-            0.955699
+            -0.01106,
+            0.944357
           ]
         },
         {
           "index": 8,
           "values": [
-            -0.004427,
-            0.967337
+            -0.01097,
+            0.947393
           ]
         },
         {
           "index": 9,
           "values": [
-            0.003734,
-            0.911932
+            -0.0118,
+            0.947749
           ]
         },
         {
           "index": 10,
           "values": [
-            -0.000203,
-            0.926095
+            -0.012213,
+            0.947895
           ]
         },
         {
           "index": 11,
           "values": [
-            -0.005435,
-            0.914727
+            -0.012904,
+            0.949697
           ]
         },
         {
           "index": 12,
           "values": [
-            -0.005062,
-            0.960656
+            -0.011949,
+            0.949461
           ]
         },
         {
           "index": 13,
           "values": [
-            0.001037,
-            0.953544
+            -0.011746,
+            0.95176
           ]
         },
         {
           "index": 14,
           "values": [
-            0.002234,
-            0.997963
+            -0.012756,
+            0.953551
           ]
         },
         {
           "index": 15,
           "values": [
-            -0.008818,
-            0.919818
+            -0.013227,
+            0.953483
           ]
         },
         {
           "index": 16,
           "values": [
-            0.012142,
-            0.969793
+            -0.013055,
+            0.957287
           ]
         },
         {
           "index": 17,
           "values": [
-            -0.013199,
-            0.940806
+            -0.012663,
+            0.957475
           ]
         },
         {
           "index": 18,
           "values": [
-            0.019728,
-            0.911063
+            -0.013164,
+            0.959676
           ]
         },
         {
           "index": 19,
           "values": [
-            0.00437,
-            0.940992
+            -0.01277,
+            0.959177
           ]
         },
         {
           "index": 20,
           "values": [
-            -0.007058,
-            0.959053
+            -0.012668,
+            0.961642
           ]
         },
         {
           "index": 21,
           "values": [
-            0.01717,
-            0.91271
+            -0.011671,
+            0.963068
           ]
         },
         {
           "index": 22,
           "values": [
-            0.01867,
-            0.990946
+            -0.011972,
+            0.964388
           ]
         },
         {
           "index": 23,
           "values": [
-            -0.003141,
-            0.945634
+            -0.011165,
+            0.96494
           ]
         },
         {
           "index": 24,
           "values": [
-            -0.017129,
-            0.935503
+            -0.01038,
+            0.969651
           ]
         },
         {
           "index": 25,
           "values": [
-            -0.01607,
-            0.995203
+            -0.010716,
+            0.968106
           ]
         },
         {
           "index": 26,
           "values": [
-            0.003266,
-            0.982339
+            -0.009207,
+            0.973108
           ]
         },
         {
           "index": 27,
           "values": [
-            0.01691,
-            0.957564
+            -0.009139,
+            0.971111
           ]
         },
         {
           "index": 28,
           "values": [
-            -0.001663,
-            0.915211
+            -0.008271,
+            0.972219
           ]
         },
         {
           "index": 29,
           "values": [
-            -0.004023,
-            0.954377
+            -0.007752,
+            0.973428
           ]
         }
       ],
       "FileInfo": {
-        "FileName": "SCE_ECXDX132_20260508.dat",
-        "Updated": "2026-03-08"
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260527.dat"
       },
       "ImgCond": {
         "ImgCond_FocusOffset": [
-          "-2"
+          "0"
         ],
         "ImgCond_Mag": [
-          "150001470",
-          "150001470"
+          "150007962",
+          "150007962"
         ],
         "ImgCond_Pixel": [
           "1024",
@@ -251,239 +247,3726 @@
         ]
       },
       "SCEParam": {
-        "SCEParam_CorrCoefLimit": "0.27839",
-        "SCEParam_CycleLowerTh": "21.061588",
-        "SCEParam_CycleUpperTh": "5.331",
+        "SCEParam_CorrCoefLimit": "0.12010",
+        "SCEParam_CycleLowerTh": "23.791585",
+        "SCEParam_CycleUpperTh": "6.336",
         "SCEParam_FitRangeEd": "75",
-        "SCEParam_FitRangeSt": "35",
-        "SCEParam_SmoothRadius": "9",
-        "SCEParam_SmoothTheta": "7"
+        "SCEParam_FitRangeSt": "43",
+        "SCEParam_SmoothRadius": "7",
+        "SCEParam_SmoothTheta": "9"
       },
       "SemCond": {
-        "SemCond_Detector": "EF",
-        "SemCond_Ip": "7.6837",
-        "SemCond_IpMode": "Middle",
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "8.5746",
+        "SemCond_IpMode": "Low",
         "SemCond_No": "2",
         "SemCond_Optics": "Standard",
-        "SemCond_Vacc": "500"
-      }
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-04-24"
     },
-    "ECXDX204": {
+    {
       "Coefficients": [
         {
           "index": 0,
           "values": [
-            -0.010285,
-            0.978597
+            -0.004181,
+            0.9541
           ]
         },
         {
           "index": 1,
           "values": [
-            -0.006496,
-            0.904586
+            -0.004792,
+            0.95467
           ]
         },
         {
           "index": 2,
           "values": [
-            -0.018359,
-            0.964948
+            -0.004849,
+            0.955559
           ]
         },
         {
           "index": 3,
           "values": [
-            0.008771,
-            0.926296
+            -0.006855,
+            0.956344
           ]
         },
         {
           "index": 4,
           "values": [
-            0.008518,
-            0.907453
+            -0.007753,
+            0.954831
           ]
         },
         {
           "index": 5,
           "values": [
-            -0.007167,
-            0.993626
+            -0.007231,
+            0.956631
           ]
         },
         {
           "index": 6,
           "values": [
-            -0.001429,
-            0.905018
+            -0.008384,
+            0.960102
           ]
         },
         {
           "index": 7,
           "values": [
-            -0.016812,
-            0.964494
+            -0.009874,
+            0.957977
           ]
         },
         {
           "index": 8,
           "values": [
-            0.013021,
-            0.902326
+            -0.010022,
+            0.961609
           ]
         },
         {
           "index": 9,
           "values": [
-            0.017413,
-            0.903011
+            -0.010328,
+            0.96237
           ]
         },
         {
           "index": 10,
           "values": [
-            -0.011469,
-            0.918622
+            -0.01163,
+            0.961271
           ]
         },
         {
           "index": 11,
           "values": [
-            -0.017291,
-            0.936572
+            -0.012618,
+            0.964155
           ]
         },
         {
           "index": 12,
           "values": [
-            -0.002928,
-            0.937387
+            -0.01248,
+            0.965155
           ]
         },
         {
           "index": 13,
           "values": [
-            0.019653,
-            0.958518
+            -0.013207,
+            0.965661
           ]
         },
         {
           "index": 14,
           "values": [
-            0.00741,
-            0.982388
+            -0.013388,
+            0.964861
           ]
         },
         {
           "index": 15,
           "values": [
-            0.011827,
-            0.929674
+            -0.013642,
+            0.966239
           ]
         },
         {
           "index": 16,
           "values": [
-            0.014961,
-            0.924902
+            -0.014487,
+            0.965307
           ]
         },
         {
           "index": 17,
           "values": [
-            -0.012803,
-            0.932778
+            -0.016104,
+            0.968022
           ]
         },
         {
           "index": 18,
           "values": [
-            0.016702,
-            0.900366
+            -0.01549,
+            0.966416
           ]
         },
         {
           "index": 19,
           "values": [
-            0.019266,
-            0.990708
+            -0.016232,
+            0.967522
           ]
         },
         {
           "index": 20,
           "values": [
-            -0.015137,
-            0.925497
+            -0.016868,
+            0.968545
           ]
         },
         {
           "index": 21,
           "values": [
-            -0.011368,
-            0.957588
+            -0.016446,
+            0.968161
           ]
         },
         {
           "index": 22,
           "values": [
-            -0.009459,
-            0.965698
+            -0.01764,
+            0.968633
           ]
         },
         {
           "index": 23,
           "values": [
-            0.007945,
-            0.978992
+            -0.017758,
+            0.970607
           ]
         },
         {
           "index": 24,
           "values": [
-            -0.004422,
-            0.963267
+            -0.016955,
+            0.969071
           ]
         },
         {
           "index": 25,
           "values": [
-            -0.011762,
-            0.938503
+            -0.017048,
+            0.972272
           ]
         },
         {
           "index": 26,
           "values": [
-            -0.017103,
-            0.997316
+            -0.018338,
+            0.972601
           ]
         },
         {
           "index": 27,
           "values": [
-            -0.010888,
-            0.936714
+            -0.018423,
+            0.971763
           ]
         },
         {
           "index": 28,
           "values": [
-            0.007329,
-            0.972258
+            -0.017565,
+            0.970125
           ]
         },
         {
           "index": 29,
           "values": [
-            -0.016407,
-            0.91461
+            -0.018649,
+            0.970054
           ]
         }
       ],
       "FileInfo": {
-        "FileName": "SCE_ECXDX204_20260114.dat",
-        "Updated": "2026-03-14"
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260508.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-1"
+        ],
+        "ImgCond_Mag": [
+          "150008306",
+          "150008306"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.17840",
+        "SCEParam_CycleLowerTh": "23.126852",
+        "SCEParam_CycleUpperTh": "5.949",
+        "SCEParam_FitRangeEd": "83",
+        "SCEParam_FitRangeSt": "45",
+        "SCEParam_SmoothRadius": "8",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "EF",
+        "SemCond_Ip": "6.2519",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "1",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
+      },
+      "date": "2026-04-26"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.000623,
+            0.933098
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.000639,
+            0.931466
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.000526,
+            0.932518
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.000777,
+            0.934009
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.001064,
+            0.93639
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.000148,
+            0.938499
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            4.1e-05,
+            0.938937
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.000932,
+            0.939233
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.00018,
+            0.938658
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.000167,
+            0.942756
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.001047,
+            0.940952
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.001632,
+            0.943872
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.001444,
+            0.943469
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.00266,
+            0.945699
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.001755,
+            0.948026
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.001941,
+            0.94954
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.003331,
+            0.950558
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.003493,
+            0.952408
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.003519,
+            0.955192
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.004687,
+            0.955524
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.004863,
+            0.954685
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.004386,
+            0.958288
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.006054,
+            0.958685
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.005232,
+            0.959372
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.006242,
+            0.96019
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.006967,
+            0.965146
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.006611,
+            0.963158
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.007062,
+            0.967275
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.006588,
+            0.968977
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.007416,
+            0.967811
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260120.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150009484",
+          "150009484"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.11756",
+        "SCEParam_CycleLowerTh": "21.804476",
+        "SCEParam_CycleUpperTh": "6.866",
+        "SCEParam_FitRangeEd": "76",
+        "SCEParam_FitRangeSt": "35",
+        "SCEParam_SmoothRadius": "7",
+        "SCEParam_SmoothTheta": "5"
+      },
+      "SemCond": {
+        "SemCond_Detector": "EF",
+        "SemCond_Ip": "8.2712",
+        "SemCond_IpMode": "Low",
+        "SemCond_No": "6",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-04-28"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.002536,
+            0.949202
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.001835,
+            0.946335
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.003238,
+            0.947098
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.002747,
+            0.942465
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.002849,
+            0.943665
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.002,
+            0.940528
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.002132,
+            0.937721
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.002375,
+            0.936659
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.002571,
+            0.9375
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.003882,
+            0.935463
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.002755,
+            0.932607
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.004092,
+            0.932646
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.003677,
+            0.928342
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.003937,
+            0.927445
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.003983,
+            0.925587
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.004665,
+            0.923716
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.004319,
+            0.924152
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.004336,
+            0.923354
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.005513,
+            0.921408
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.004872,
+            0.921125
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.006189,
+            0.920265
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.006448,
+            0.918688
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.006711,
+            0.91778
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.005795,
+            0.916865
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.006169,
+            0.913094
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.007603,
+            0.912637
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.007224,
+            0.91408
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.006963,
+            0.913079
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.007242,
+            0.91065
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.007988,
+            0.91066
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260319.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "1"
+        ],
+        "ImgCond_Mag": [
+          "150003783",
+          "150003783"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.29197",
+        "SCEParam_CycleLowerTh": "23.140973",
+        "SCEParam_CycleUpperTh": "5.131",
+        "SCEParam_FitRangeEd": "79",
+        "SCEParam_FitRangeSt": "40",
+        "SCEParam_SmoothRadius": "7",
+        "SCEParam_SmoothTheta": "9"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "7.4018",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "1",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-04-30"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.010002,
+            0.942872
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.009412,
+            0.941814
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            0.008529,
+            0.94374
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.008554,
+            0.943913
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.008051,
+            0.943976
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.007768,
+            0.945719
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.007195,
+            0.943306
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.007271,
+            0.945788
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.005806,
+            0.94735
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.006248,
+            0.944888
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.005938,
+            0.946956
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.003796,
+            0.945675
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.003869,
+            0.949757
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.003039,
+            0.950914
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.002947,
+            0.95117
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.002315,
+            0.949908
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.001154,
+            0.95074
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.000582,
+            0.950867
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            9.3e-05,
+            0.954506
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.001573,
+            0.954955
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.002039,
+            0.954137
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.003404,
+            0.955853
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.003882,
+            0.957596
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.004444,
+            0.956006
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.004218,
+            0.956089
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.005559,
+            0.957893
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.005942,
+            0.957242
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.005662,
+            0.958554
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.006792,
+            0.959491
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.007566,
+            0.960624
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260411.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-2"
+        ],
+        "ImgCond_Mag": [
+          "150009041",
+          "150009041"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.22188",
+        "SCEParam_CycleLowerTh": "23.748849",
+        "SCEParam_CycleUpperTh": "5.058",
+        "SCEParam_FitRangeEd": "80",
+        "SCEParam_FitRangeSt": "42",
+        "SCEParam_SmoothRadius": "9",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "6.0567",
+        "SemCond_IpMode": "Low",
+        "SemCond_No": "1",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
+      },
+      "date": "2026-05-02"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.002494,
+            0.981824
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.002349,
+            0.982514
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            0.002229,
+            0.982993
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.001909,
+            0.985754
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.001581,
+            0.987313
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.002776,
+            0.985483
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.00258,
+            0.986717
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.001596,
+            0.987212
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.002209,
+            0.985863
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.001711,
+            0.989374
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.000837,
+            0.989219
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.001687,
+            0.989275
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.000522,
+            0.988445
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.0002,
+            0.989047
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.000543,
+            0.98646
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.000572,
+            0.990125
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.000418,
+            0.988436
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.000605,
+            0.987278
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.000163,
+            0.988056
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.00024,
+            0.988234
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.000367,
+            0.988898
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.000504,
+            0.989007
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.000477,
+            0.985273
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.000402,
+            0.984893
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.000181,
+            0.986056
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.000662,
+            0.983839
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            9.6e-05,
+            0.98478
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            9.8e-05,
+            0.982571
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.001146,
+            0.9832
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.000701,
+            0.984459
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260211.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "0"
+        ],
+        "ImgCond_Mag": [
+          "150006070",
+          "150006070"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.26250",
+        "SCEParam_CycleLowerTh": "21.333763",
+        "SCEParam_CycleUpperTh": "5.698",
+        "SCEParam_FitRangeEd": "77",
+        "SCEParam_FitRangeSt": "42",
+        "SCEParam_SmoothRadius": "5",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "7.6545",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "1",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-04"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.000873,
+            0.988771
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.001171,
+            0.986751
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.001142,
+            0.988427
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.001669,
+            0.986727
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.003605,
+            0.989755
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.003289,
+            0.987156
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.003539,
+            0.986754
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.005238,
+            0.98675
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.005492,
+            0.985999
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.005007,
+            0.987114
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.005437,
+            0.985724
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.006005,
+            0.984297
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.007076,
+            0.986599
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.007535,
+            0.981931
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.008201,
+            0.981892
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.007962,
+            0.981772
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.009321,
+            0.982097
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.010289,
+            0.978825
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.00931,
+            0.976522
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.010205,
+            0.975713
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.010022,
+            0.974192
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.010045,
+            0.975048
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.011526,
+            0.972294
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.011688,
+            0.97213
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.010214,
+            0.970873
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.011002,
+            0.966966
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.010316,
+            0.964785
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.011464,
+            0.963785
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.009874,
+            0.962093
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.009465,
+            0.959574
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260423.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-1"
+        ],
+        "ImgCond_Mag": [
+          "150005793",
+          "150005793"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.14078",
+        "SCEParam_CycleLowerTh": "21.527910",
+        "SCEParam_CycleUpperTh": "6.189",
+        "SCEParam_FitRangeEd": "79",
+        "SCEParam_FitRangeSt": "39",
+        "SCEParam_SmoothRadius": "7",
+        "SCEParam_SmoothTheta": "5"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "7.6946",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "2",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
+      },
+      "date": "2026-05-06"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.011585,
+            0.93375
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.010994,
+            0.934662
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            0.012399,
+            0.936488
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.011891,
+            0.936758
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.012294,
+            0.93665
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.012545,
+            0.939361
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.013249,
+            0.938884
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.014161,
+            0.940452
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.013448,
+            0.939538
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.014035,
+            0.941591
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.014996,
+            0.94317
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.014733,
+            0.943505
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.014183,
+            0.943292
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.015007,
+            0.943199
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.015024,
+            0.944707
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.015949,
+            0.945342
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.015206,
+            0.94447
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.015036,
+            0.947629
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.014553,
+            0.948096
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.014811,
+            0.948805
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.014178,
+            0.94758
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.014021,
+            0.946909
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.01384,
+            0.949743
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.014645,
+            0.94906
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.013768,
+            0.948291
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.013925,
+            0.949311
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.013296,
+            0.948642
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.012934,
+            0.94911
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.012472,
+            0.94983
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.011339,
+            0.950286
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260113.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150001645",
+          "150001645"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.11803",
+        "SCEParam_CycleLowerTh": "22.405631",
+        "SCEParam_CycleUpperTh": "5.106",
+        "SCEParam_FitRangeEd": "78",
+        "SCEParam_FitRangeSt": "39",
+        "SCEParam_SmoothRadius": "5",
+        "SCEParam_SmoothTheta": "7"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "8.4427",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "2",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-08"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.007095,
+            0.94701
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.007802,
+            0.943439
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.007983,
+            0.941077
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.007686,
+            0.940166
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.009625,
+            0.940413
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.009882,
+            0.93774
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.009123,
+            0.937152
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.010823,
+            0.937978
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.010924,
+            0.936784
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.011055,
+            0.934376
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.011347,
+            0.934829
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.012372,
+            0.934374
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.012205,
+            0.935075
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.012639,
+            0.934025
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.013528,
+            0.932417
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.014115,
+            0.930524
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.014913,
+            0.93213
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.015404,
+            0.930717
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.014758,
+            0.930607
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.015227,
+            0.929256
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.01569,
+            0.932705
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.016687,
+            0.932059
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.016394,
+            0.930155
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.016401,
+            0.93087
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.01706,
+            0.931438
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.016905,
+            0.933626
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.01703,
+            0.932156
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.016822,
+            0.933854
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.016848,
+            0.931026
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.016954,
+            0.933698
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260510.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "0"
+        ],
+        "ImgCond_Mag": [
+          "150008147",
+          "150008147"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.17140",
+        "SCEParam_CycleLowerTh": "21.295041",
+        "SCEParam_CycleUpperTh": "5.964",
+        "SCEParam_FitRangeEd": "83",
+        "SCEParam_FitRangeSt": "45",
+        "SCEParam_SmoothRadius": "5",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "6.1352",
+        "SemCond_IpMode": "Middle",
+        "SemCond_No": "6",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-10"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.01358,
+            0.985849
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.014462,
+            0.98589
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.014564,
+            0.983446
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.015197,
+            0.985775
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.015211,
+            0.984158
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.016853,
+            0.985118
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.016716,
+            0.985398
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.016098,
+            0.983534
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.017165,
+            0.983349
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.017409,
+            0.983466
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.016968,
+            0.983155
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.017961,
+            0.983997
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.018366,
+            0.982176
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.017229,
+            0.984488
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.017428,
+            0.982071
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.018217,
+            0.981467
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.018632,
+            0.98006
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.017959,
+            0.980043
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.017406,
+            0.97796
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.018143,
+            0.979787
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.016897,
+            0.978695
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.016916,
+            0.97757
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.016702,
+            0.973536
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.016865,
+            0.974986
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.016204,
+            0.971995
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.01708,
+            0.972564
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.015851,
+            0.972514
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.016374,
+            0.968477
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.015518,
+            0.969
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.01532,
+            0.965276
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260201.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150007571",
+          "150007571"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.16029",
+        "SCEParam_CycleLowerTh": "22.024993",
+        "SCEParam_CycleUpperTh": "5.916",
+        "SCEParam_FitRangeEd": "84",
+        "SCEParam_FitRangeSt": "43",
+        "SCEParam_SmoothRadius": "6",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "7.7577",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "7",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-12"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.013015,
+            0.937349
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.012294,
+            0.937001
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            0.012519,
+            0.937917
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.012778,
+            0.936665
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.012984,
+            0.94021
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.012241,
+            0.940264
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.011062,
+            0.939901
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.01065,
+            0.940992
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.01135,
+            0.941395
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.01133,
+            0.941695
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.0108,
+            0.943298
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.010133,
+            0.942722
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.009475,
+            0.94301
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.009454,
+            0.945149
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.009431,
+            0.942443
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.009587,
+            0.944724
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.008357,
+            0.94324
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.008201,
+            0.947003
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.007718,
+            0.944567
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.007524,
+            0.946051
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.007863,
+            0.946437
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.008052,
+            0.946455
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.007837,
+            0.949651
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.006676,
+            0.950843
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.006835,
+            0.949762
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.007923,
+            0.94999
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.007763,
+            0.953043
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.007539,
+            0.953473
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.007559,
+            0.951587
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.006807,
+            0.954157
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260522.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "1"
+        ],
+        "ImgCond_Mag": [
+          "150009705",
+          "150009705"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.17861",
+        "SCEParam_CycleLowerTh": "22.676486",
+        "SCEParam_CycleUpperTh": "5.285",
+        "SCEParam_FitRangeEd": "80",
+        "SCEParam_FitRangeSt": "37",
+        "SCEParam_SmoothRadius": "6",
+        "SCEParam_SmoothTheta": "9"
+      },
+      "SemCond": {
+        "SemCond_Detector": "EF",
+        "SemCond_Ip": "6.2993",
+        "SemCond_IpMode": "Middle",
+        "SemCond_No": "2",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-14"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.015599,
+            0.924393
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.015417,
+            0.920543
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.016506,
+            0.919239
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.015938,
+            0.91989
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.015952,
+            0.915685
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.015063,
+            0.915955
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.015271,
+            0.911452
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.013836,
+            0.910591
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.014557,
+            0.911523
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.013161,
+            0.909363
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.013889,
+            0.907785
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.012918,
+            0.908672
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.012728,
+            0.906627
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.012541,
+            0.903529
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.011207,
+            0.905838
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.010409,
+            0.902701
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.010027,
+            0.901555
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.009087,
+            0.902788
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.008315,
+            0.901712
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.008101,
+            0.9
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.007446,
+            0.901835
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.007974,
+            0.900823
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.007196,
+            0.903239
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.006663,
+            0.903605
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.00473,
+            0.903366
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.005002,
+            0.901458
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.003713,
+            0.901135
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.004215,
+            0.905687
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.002462,
+            0.903314
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.002748,
+            0.905933
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260421.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150001621",
+          "150001621"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.26521",
+        "SCEParam_CycleLowerTh": "21.986310",
+        "SCEParam_CycleUpperTh": "6.207",
+        "SCEParam_FitRangeEd": "81",
+        "SCEParam_FitRangeSt": "37",
+        "SCEParam_SmoothRadius": "6",
+        "SCEParam_SmoothTheta": "9"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "8.0912",
+        "SemCond_IpMode": "Low",
+        "SemCond_No": "2",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "500"
+      },
+      "date": "2026-05-16"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.008845,
+            0.95445
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.009767,
+            0.956558
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.008823,
+            0.956931
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.010335,
+            0.957662
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.009471,
+            0.957201
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.009444,
+            0.955723
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.009845,
+            0.954858
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.009746,
+            0.954844
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.009201,
+            0.957155
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.008546,
+            0.954274
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.009251,
+            0.952945
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.008816,
+            0.955932
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.009365,
+            0.951966
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.008329,
+            0.953545
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.009178,
+            0.95324
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.008905,
+            0.95303
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.008657,
+            0.948772
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.007281,
+            0.951256
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.007916,
+            0.947377
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.00653,
+            0.945984
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.007026,
+            0.948226
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.006073,
+            0.945361
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.006739,
+            0.94493
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.006465,
+            0.943879
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.005229,
+            0.941855
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.004328,
+            0.941802
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.004836,
+            0.941643
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.003964,
+            0.939313
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.003218,
+            0.938563
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.004224,
+            0.938361
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260202.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150008528",
+          "150008528"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.29252",
+        "SCEParam_CycleLowerTh": "23.040110",
+        "SCEParam_CycleUpperTh": "6.696",
+        "SCEParam_FitRangeEd": "81",
+        "SCEParam_FitRangeSt": "36",
+        "SCEParam_SmoothRadius": "6",
+        "SCEParam_SmoothTheta": "5"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "7.4279",
+        "SemCond_IpMode": "Low",
+        "SemCond_No": "1",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-18"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.003988,
+            0.963276
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.005053,
+            0.963463
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            0.003267,
+            0.962278
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.004056,
+            0.96529
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.003641,
+            0.96358
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.003939,
+            0.962011
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.002543,
+            0.963741
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.003165,
+            0.963944
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.002176,
+            0.96212
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.001832,
+            0.964053
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.00182,
+            0.961589
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.003096,
+            0.960503
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.0027,
+            0.962356
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.0026,
+            0.960921
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.003092,
+            0.96244
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.002257,
+            0.961839
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.002351,
+            0.959325
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.002821,
+            0.961384
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.002837,
+            0.959345
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.003149,
+            0.956566
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.00374,
+            0.957358
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.002692,
+            0.956656
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.003603,
+            0.958199
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.003628,
+            0.956888
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.003586,
+            0.95431
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.00378,
+            0.953977
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.004221,
+            0.956551
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.005127,
+            0.953604
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.005104,
+            0.953728
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.005718,
+            0.956643
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260314.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "1"
+        ],
+        "ImgCond_Mag": [
+          "150007238",
+          "150007238"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.20511",
+        "SCEParam_CycleLowerTh": "22.550057",
+        "SCEParam_CycleUpperTh": "6.695",
+        "SCEParam_FitRangeEd": "79",
+        "SCEParam_FitRangeSt": "43",
+        "SCEParam_SmoothRadius": "8",
+        "SCEParam_SmoothTheta": "5"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "7.0572",
+        "SemCond_IpMode": "Middle",
+        "SemCond_No": "3",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "500"
+      },
+      "date": "2026-05-20"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.005565,
+            0.965504
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.005918,
+            0.964854
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.005293,
+            0.965897
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.003576,
+            0.965193
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.003408,
+            0.964992
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.002819,
+            0.965471
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.001481,
+            0.968808
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.001815,
+            0.967226
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.001106,
+            0.96965
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.000703,
+            0.969792
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.000545,
+            0.967304
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.001269,
+            0.970687
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.001771,
+            0.967418
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.003035,
+            0.969833
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.004437,
+            0.967795
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.004591,
+            0.969904
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.005326,
+            0.967393
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.005854,
+            0.970281
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.00727,
+            0.968806
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.007268,
+            0.969747
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.007434,
+            0.96939
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.007887,
+            0.967131
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.009449,
+            0.969796
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.010209,
+            0.966677
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.010426,
+            0.9676
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.01159,
+            0.9674
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.011261,
+            0.964401
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.011345,
+            0.966767
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.011817,
+            0.965093
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.013046,
+            0.964311
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260315.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-1"
+        ],
+        "ImgCond_Mag": [
+          "150004356",
+          "150004356"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.13759",
+        "SCEParam_CycleLowerTh": "22.520448",
+        "SCEParam_CycleUpperTh": "6.731",
+        "SCEParam_FitRangeEd": "75",
+        "SCEParam_FitRangeSt": "43",
+        "SCEParam_SmoothRadius": "6",
+        "SCEParam_SmoothTheta": "7"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "7.1482",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "8",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "800"
+      },
+      "date": "2026-05-22"
+    },
+    {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.015862,
+            0.942363
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.016709,
+            0.942202
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.016668,
+            0.94295
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.016367,
+            0.945889
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.017413,
+            0.948773
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.016605,
+            0.950259
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.017899,
+            0.950318
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.018172,
+            0.953425
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.017473,
+            0.957377
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.01796,
+            0.95915
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.018211,
+            0.957882
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.017582,
+            0.961654
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.017334,
+            0.962143
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.017705,
+            0.96348
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.016933,
+            0.966377
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.016503,
+            0.96761
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.017016,
+            0.969805
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.016648,
+            0.971014
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.017064,
+            0.969598
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.01577,
+            0.97176
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.016341,
+            0.974078
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.016078,
+            0.975424
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.015298,
+            0.974899
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.015605,
+            0.97897
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.015183,
+            0.976744
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.013928,
+            0.976974
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.014078,
+            0.978322
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.013265,
+            0.980778
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.012823,
+            0.978739
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.011971,
+            0.980758
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260114.dat"
       },
       "ImgCond": {
         "ImgCond_FocusOffset": [
@@ -508,12 +3991,515 @@
         "SCEParam_SmoothTheta": "6"
       },
       "SemCond": {
-        "SemCond_Detector": "EF",
-        "SemCond_Ip": "8.0021",
-        "SemCond_IpMode": "Middle",
-        "SemCond_No": "7",
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "7.8841",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "6",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
+      },
+      "date": "2026-05-24"
+    }
+  ],
+  "eqp_id": "ECXDX204",
+  "fab_name": "M16B",
+  "fetched_at": "2026-07-24T05:45:00+00:00",
+  "service": "sce",
+  "settings": {
+    "ECXDX132": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            0.013843,
+            0.931971
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            0.013371,
+            0.930248
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            0.013839,
+            0.930094
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            0.015143,
+            0.928985
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            0.015513,
+            0.930677
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            0.015043,
+            0.92725
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            0.016013,
+            0.929153
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            0.016831,
+            0.929807
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            0.015804,
+            0.928302
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            0.01691,
+            0.925703
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            0.016963,
+            0.926867
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            0.017717,
+            0.925231
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            0.017867,
+            0.928882
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            0.017364,
+            0.92533
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            0.018198,
+            0.927554
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            0.018032,
+            0.927065
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            0.018382,
+            0.92698
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            0.018195,
+            0.928302
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            0.018691,
+            0.929797
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            0.019173,
+            0.929402
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            0.019127,
+            0.929391
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            0.019198,
+            0.930508
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            0.01926,
+            0.929784
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            0.019941,
+            0.929793
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            0.018796,
+            0.933289
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            0.018615,
+            0.933336
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            0.019504,
+            0.934057
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            0.019229,
+            0.935426
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            0.018252,
+            0.933585
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            0.018472,
+            0.93542
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX132.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX132_20260508.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "-3"
+        ],
+        "ImgCond_Mag": [
+          "150008915",
+          "150008915"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.10038",
+        "SCEParam_CycleLowerTh": "23.265650",
+        "SCEParam_CycleUpperTh": "5.445",
+        "SCEParam_FitRangeEd": "75",
+        "SCEParam_FitRangeSt": "40",
+        "SCEParam_SmoothRadius": "9",
+        "SCEParam_SmoothTheta": "9"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "6.6994",
+        "SemCond_IpMode": "Low",
+        "SemCond_No": "5",
         "SemCond_Optics": "High Reso.",
         "SemCond_Vacc": "800"
+      }
+    },
+    "ECXDX204": {
+      "Coefficients": [
+        {
+          "index": 0,
+          "values": [
+            -0.015862,
+            0.942363
+          ]
+        },
+        {
+          "index": 1,
+          "values": [
+            -0.016709,
+            0.942202
+          ]
+        },
+        {
+          "index": 2,
+          "values": [
+            -0.016668,
+            0.94295
+          ]
+        },
+        {
+          "index": 3,
+          "values": [
+            -0.016367,
+            0.945889
+          ]
+        },
+        {
+          "index": 4,
+          "values": [
+            -0.017413,
+            0.948773
+          ]
+        },
+        {
+          "index": 5,
+          "values": [
+            -0.016605,
+            0.950259
+          ]
+        },
+        {
+          "index": 6,
+          "values": [
+            -0.017899,
+            0.950318
+          ]
+        },
+        {
+          "index": 7,
+          "values": [
+            -0.018172,
+            0.953425
+          ]
+        },
+        {
+          "index": 8,
+          "values": [
+            -0.017473,
+            0.957377
+          ]
+        },
+        {
+          "index": 9,
+          "values": [
+            -0.01796,
+            0.95915
+          ]
+        },
+        {
+          "index": 10,
+          "values": [
+            -0.018211,
+            0.957882
+          ]
+        },
+        {
+          "index": 11,
+          "values": [
+            -0.017582,
+            0.961654
+          ]
+        },
+        {
+          "index": 12,
+          "values": [
+            -0.017334,
+            0.962143
+          ]
+        },
+        {
+          "index": 13,
+          "values": [
+            -0.017705,
+            0.96348
+          ]
+        },
+        {
+          "index": 14,
+          "values": [
+            -0.016933,
+            0.966377
+          ]
+        },
+        {
+          "index": 15,
+          "values": [
+            -0.016503,
+            0.96761
+          ]
+        },
+        {
+          "index": 16,
+          "values": [
+            -0.017016,
+            0.969805
+          ]
+        },
+        {
+          "index": 17,
+          "values": [
+            -0.016648,
+            0.971014
+          ]
+        },
+        {
+          "index": 18,
+          "values": [
+            -0.017064,
+            0.969598
+          ]
+        },
+        {
+          "index": 19,
+          "values": [
+            -0.01577,
+            0.97176
+          ]
+        },
+        {
+          "index": 20,
+          "values": [
+            -0.016341,
+            0.974078
+          ]
+        },
+        {
+          "index": 21,
+          "values": [
+            -0.016078,
+            0.975424
+          ]
+        },
+        {
+          "index": 22,
+          "values": [
+            -0.015298,
+            0.974899
+          ]
+        },
+        {
+          "index": 23,
+          "values": [
+            -0.015605,
+            0.97897
+          ]
+        },
+        {
+          "index": 24,
+          "values": [
+            -0.015183,
+            0.976744
+          ]
+        },
+        {
+          "index": 25,
+          "values": [
+            -0.013928,
+            0.976974
+          ]
+        },
+        {
+          "index": 26,
+          "values": [
+            -0.014078,
+            0.978322
+          ]
+        },
+        {
+          "index": 27,
+          "values": [
+            -0.013265,
+            0.980778
+          ]
+        },
+        {
+          "index": 28,
+          "values": [
+            -0.012823,
+            0.978739
+          ]
+        },
+        {
+          "index": 29,
+          "values": [
+            -0.011971,
+            0.980758
+          ]
+        }
+      ],
+      "FileInfo": {
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX204.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX204_20260114.dat"
+      },
+      "ImgCond": {
+        "ImgCond_FocusOffset": [
+          "1"
+        ],
+        "ImgCond_Mag": [
+          "150000742",
+          "150000742"
+        ],
+        "ImgCond_Pixel": [
+          "1024",
+          "1024"
+        ]
+      },
+      "SCEParam": {
+        "SCEParam_CorrCoefLimit": "0.13373",
+        "SCEParam_CycleLowerTh": "21.472465",
+        "SCEParam_CycleUpperTh": "6.286",
+        "SCEParam_FitRangeEd": "85",
+        "SCEParam_FitRangeSt": "35",
+        "SCEParam_SmoothRadius": "9",
+        "SCEParam_SmoothTheta": "6"
+      },
+      "SemCond": {
+        "SemCond_Detector": "SE",
+        "SemCond_Ip": "7.8841",
+        "SemCond_IpMode": "High",
+        "SemCond_No": "6",
+        "SemCond_Optics": "Standard",
+        "SemCond_Vacc": "500"
       }
     },
     "ECXDX588": {
@@ -521,217 +4507,217 @@
         {
           "index": 0,
           "values": [
-            -0.013244,
-            0.912721
+            0.008637,
+            0.951561
           ]
         },
         {
           "index": 1,
           "values": [
-            0.001304,
-            0.946723
+            0.009194,
+            0.956357
           ]
         },
         {
           "index": 2,
           "values": [
-            -0.007698,
-            0.924798
+            0.009793,
+            0.955466
           ]
         },
         {
           "index": 3,
           "values": [
-            -0.010027,
-            0.920625
+            0.009961,
+            0.959563
           ]
         },
         {
           "index": 4,
           "values": [
-            0.002183,
-            0.992531
+            0.009378,
+            0.961026
           ]
         },
         {
           "index": 5,
           "values": [
-            0.007039,
-            0.928476
+            0.010178,
+            0.960295
           ]
         },
         {
           "index": 6,
           "values": [
-            -0.008871,
-            0.936678
+            0.009981,
+            0.962802
           ]
         },
         {
           "index": 7,
           "values": [
-            -0.016844,
-            0.902763
+            0.010571,
+            0.963691
           ]
         },
         {
           "index": 8,
           "values": [
-            0.006466,
-            0.966079
+            0.009671,
+            0.966528
           ]
         },
         {
           "index": 9,
           "values": [
-            0.010047,
-            0.987835
+            0.009247,
+            0.96703
           ]
         },
         {
           "index": 10,
           "values": [
-            0.017018,
-            0.924983
+            0.010675,
+            0.969304
           ]
         },
         {
           "index": 11,
           "values": [
-            0.00135,
-            0.953682
+            0.010365,
+            0.971588
           ]
         },
         {
           "index": 12,
           "values": [
-            0.019333,
-            0.927143
+            0.010214,
+            0.971238
           ]
         },
         {
           "index": 13,
           "values": [
-            0.018139,
-            0.921058
+            0.009243,
+            0.975395
           ]
         },
         {
           "index": 14,
           "values": [
-            0.000793,
-            0.956639
+            0.009592,
+            0.972795
           ]
         },
         {
           "index": 15,
           "values": [
-            -0.008085,
-            0.982288
+            0.009989,
+            0.974632
           ]
         },
         {
           "index": 16,
           "values": [
-            -0.00363,
-            0.978684
+            0.009048,
+            0.975726
           ]
         },
         {
           "index": 17,
           "values": [
-            0.002101,
-            0.91188
+            0.009086,
+            0.978035
           ]
         },
         {
           "index": 18,
           "values": [
-            -0.004269,
-            0.907855
+            0.009339,
+            0.981092
           ]
         },
         {
           "index": 19,
           "values": [
-            -0.014049,
-            0.94429
+            0.008351,
+            0.98136
           ]
         },
         {
           "index": 20,
           "values": [
-            0.011908,
-            0.906104
+            0.009538,
+            0.981304
           ]
         },
         {
           "index": 21,
           "values": [
-            -0.01317,
-            0.987541
+            0.00854,
+            0.982374
           ]
         },
         {
           "index": 22,
           "values": [
-            -0.002385,
-            0.990991
+            0.007974,
+            0.984364
           ]
         },
         {
           "index": 23,
           "values": [
-            0.002655,
-            0.900772
+            0.008278,
+            0.985818
           ]
         },
         {
           "index": 24,
           "values": [
-            0.013273,
-            0.955813
+            0.008411,
+            0.985781
           ]
         },
         {
           "index": 25,
           "values": [
-            -0.018559,
-            0.993166
+            0.008281,
+            0.984931
           ]
         },
         {
           "index": 26,
           "values": [
-            0.014957,
-            0.963506
+            0.006696,
+            0.985591
           ]
         },
         {
           "index": 27,
           "values": [
-            0.004777,
-            0.963866
+            0.007405,
+            0.986008
           ]
         },
         {
           "index": 28,
           "values": [
-            -0.006316,
-            0.98916
+            0.006199,
+            0.986487
           ]
         },
         {
           "index": 29,
           "values": [
-            0.015395,
-            0.947186
+            0.007108,
+            0.987025
           ]
         }
       ],
       "FileInfo": {
-        "FileName": "SCE_ECXDX588_20260409.dat",
-        "Updated": "2026-05-09"
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX588.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX588_20260409.dat"
       },
       "ImgCond": {
         "ImgCond_FocusOffset": [
@@ -769,217 +4755,217 @@
         {
           "index": 0,
           "values": [
-            0.014421,
-            0.945465
+            0.002629,
+            0.90764
           ]
         },
         {
           "index": 1,
           "values": [
-            -0.008643,
-            0.917438
+            0.004023,
+            0.907854
           ]
         },
         {
           "index": 2,
           "values": [
-            -0.002661,
-            0.992567
+            0.004905,
+            0.911519
           ]
         },
         {
           "index": 3,
           "values": [
-            0.012726,
-            0.910331
+            0.006038,
+            0.911288
           ]
         },
         {
           "index": 4,
           "values": [
-            0.002131,
-            0.967347
+            0.005744,
+            0.910304
           ]
         },
         {
           "index": 5,
           "values": [
-            0.017737,
-            0.931752
+            0.006785,
+            0.913757
           ]
         },
         {
           "index": 6,
           "values": [
-            0.00107,
-            0.997406
+            0.008202,
+            0.914328
           ]
         },
         {
           "index": 7,
           "values": [
-            -0.006904,
-            0.985087
+            0.007858,
+            0.914233
           ]
         },
         {
           "index": 8,
           "values": [
-            0.004893,
-            0.946218
+            0.009368,
+            0.915347
           ]
         },
         {
           "index": 9,
           "values": [
-            0.01439,
-            0.982622
+            0.009653,
+            0.920172
           ]
         },
         {
           "index": 10,
           "values": [
-            -0.009535,
-            0.90571
+            0.01002,
+            0.918701
           ]
         },
         {
           "index": 11,
           "values": [
-            0.001671,
-            0.901405
+            0.011247,
+            0.923503
           ]
         },
         {
           "index": 12,
           "values": [
-            -0.016119,
-            0.981324
+            0.011745,
+            0.925645
           ]
         },
         {
           "index": 13,
           "values": [
-            0.013398,
-            0.989103
+            0.011352,
+            0.925779
           ]
         },
         {
           "index": 14,
           "values": [
-            -0.018361,
-            0.94997
+            0.011487,
+            0.927177
           ]
         },
         {
           "index": 15,
           "values": [
-            0.002631,
-            0.989483
+            0.012673,
+            0.931309
           ]
         },
         {
           "index": 16,
           "values": [
-            -0.006478,
-            0.916595
+            0.012184,
+            0.932616
           ]
         },
         {
           "index": 17,
           "values": [
-            0.003426,
-            0.98984
+            0.012614,
+            0.934455
           ]
         },
         {
           "index": 18,
           "values": [
-            0.008104,
-            0.93312
+            0.013995,
+            0.93515
           ]
         },
         {
           "index": 19,
           "values": [
-            0.000655,
-            0.969076
+            0.0142,
+            0.935062
           ]
         },
         {
           "index": 20,
           "values": [
-            0.010378,
-            0.931058
+            0.014393,
+            0.939744
           ]
         },
         {
           "index": 21,
           "values": [
-            0.007457,
-            0.99798
+            0.013068,
+            0.942245
           ]
         },
         {
           "index": 22,
           "values": [
-            -0.014272,
-            0.946584
+            0.013767,
+            0.942298
           ]
         },
         {
           "index": 23,
           "values": [
-            -0.017353,
-            0.980852
+            0.013768,
+            0.945721
           ]
         },
         {
           "index": 24,
           "values": [
-            -0.002334,
-            0.934116
+            0.014118,
+            0.94455
           ]
         },
         {
           "index": 25,
           "values": [
-            -0.012558,
-            0.942109
+            0.012981,
+            0.949731
           ]
         },
         {
           "index": 26,
           "values": [
-            -0.000821,
-            0.903382
+            0.012389,
+            0.949868
           ]
         },
         {
           "index": 27,
           "values": [
-            -0.018863,
-            0.949768
+            0.012675,
+            0.950681
           ]
         },
         {
           "index": 28,
           "values": [
-            0.016031,
-            0.925886
+            0.012722,
+            0.955135
           ]
         },
         {
           "index": 29,
           "values": [
-            0.006441,
-            0.996335
+            0.011891,
+            0.953547
           ]
         }
       ],
       "FileInfo": {
-        "FileName": "SCE_ECXDX734_20260224.dat",
-        "Updated": "2026-05-24"
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX734.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX734_20260224.dat"
       },
       "ImgCond": {
         "ImgCond_FocusOffset": [
@@ -1017,225 +5003,225 @@
         {
           "index": 0,
           "values": [
-            -0.001862,
-            0.942206
+            0.001714,
+            0.987246
           ]
         },
         {
           "index": 1,
           "values": [
-            -0.001057,
-            0.997958
+            0.000302,
+            0.988287
           ]
         },
         {
           "index": 2,
           "values": [
-            -0.019154,
-            0.943349
+            0.00045,
+            0.990321
           ]
         },
         {
           "index": 3,
           "values": [
-            0.018803,
-            0.938406
+            4.2e-05,
+            0.987857
           ]
         },
         {
           "index": 4,
           "values": [
-            -0.009817,
-            0.93565
+            -0.000203,
+            0.988785
           ]
         },
         {
           "index": 5,
           "values": [
-            -0.015306,
-            0.915082
+            -0.00102,
+            0.989045
           ]
         },
         {
           "index": 6,
           "values": [
-            -0.008047,
-            0.968294
+            -0.001063,
+            0.988352
           ]
         },
         {
           "index": 7,
           "values": [
-            0.001291,
-            0.960428
+            -0.000853,
+            0.987585
           ]
         },
         {
           "index": 8,
           "values": [
-            -0.002179,
-            0.90395
+            -0.001357,
+            0.985777
           ]
         },
         {
           "index": 9,
           "values": [
-            0.013684,
-            0.907294
+            -0.001426,
+            0.983032
           ]
         },
         {
           "index": 10,
           "values": [
-            0.003059,
-            0.916429
+            -0.001134,
+            0.981093
           ]
         },
         {
           "index": 11,
           "values": [
-            0.010808,
-            0.900647
+            -0.002112,
+            0.983126
           ]
         },
         {
           "index": 12,
           "values": [
-            0.013194,
-            0.9188
+            -0.001911,
+            0.982765
           ]
         },
         {
           "index": 13,
           "values": [
-            0.001329,
-            0.959247
+            -0.001676,
+            0.981219
           ]
         },
         {
           "index": 14,
           "values": [
-            -0.010244,
-            0.940825
+            -0.001394,
+            0.977764
           ]
         },
         {
           "index": 15,
           "values": [
-            0.001546,
-            0.99227
+            -0.001021,
+            0.977097
           ]
         },
         {
           "index": 16,
           "values": [
-            0.015021,
-            0.996777
+            -0.000818,
+            0.976516
           ]
         },
         {
           "index": 17,
           "values": [
-            -0.019923,
-            0.916233
+            -0.000913,
+            0.973905
           ]
         },
         {
           "index": 18,
           "values": [
-            -0.009146,
-            0.916116
+            -0.000147,
+            0.973509
           ]
         },
         {
           "index": 19,
           "values": [
-            -0.012396,
-            0.960063
+            -0.00089,
+            0.971512
           ]
         },
         {
           "index": 20,
           "values": [
-            0.002029,
-            0.945237
+            0.000715,
+            0.972463
           ]
         },
         {
           "index": 21,
           "values": [
-            0.017697,
-            0.993406
+            0.00081,
+            0.970514
           ]
         },
         {
           "index": 22,
           "values": [
-            -0.010067,
-            0.941246
+            0.001658,
+            0.969226
           ]
         },
         {
           "index": 23,
           "values": [
-            -0.004915,
-            0.947722
+            0.001163,
+            0.965962
           ]
         },
         {
           "index": 24,
           "values": [
-            -0.001444,
-            0.918752
+            0.002111,
+            0.964341
           ]
         },
         {
           "index": 25,
           "values": [
-            -0.014911,
-            0.943278
+            0.003279,
+            0.963993
           ]
         },
         {
           "index": 26,
           "values": [
-            -0.007014,
-            0.910579
+            0.004165,
+            0.961368
           ]
         },
         {
           "index": 27,
           "values": [
-            0.002982,
-            0.928966
+            0.004307,
+            0.962796
           ]
         },
         {
           "index": 28,
           "values": [
-            -0.01697,
-            0.940892
+            0.005833,
+            0.961273
           ]
         },
         {
           "index": 29,
           "values": [
-            -0.010427,
-            0.95396
+            0.005409,
+            0.959835
           ]
         }
       ],
       "FileInfo": {
-        "FileName": "SCE_ECXDX923_20260509.dat",
-        "Updated": "2026-04-09"
+        "BaseSharpCharFile": "/HITACHI/SCE/BaseSharpChar_ECXDX923.dat",
+        "SharpCharFile": "/HITACHI/SCE/SharpChar_ECXDX923_20260509.dat"
       },
       "ImgCond": {
         "ImgCond_FocusOffset": [
-          "-3"
+          "1"
         ],
         "ImgCond_Mag": [
-          "150009998",
-          "150009998"
+          "150008891",
+          "150008891"
         ],
         "ImgCond_Pixel": [
           "1024",
@@ -1243,25 +5229,25 @@
         ]
       },
       "SCEParam": {
-        "SCEParam_CorrCoefLimit": "0.20985",
-        "SCEParam_CycleLowerTh": "20.692956",
-        "SCEParam_CycleUpperTh": "6.502",
+        "SCEParam_CorrCoefLimit": "0.11331",
+        "SCEParam_CycleLowerTh": "23.003329",
+        "SCEParam_CycleUpperTh": "6.631",
         "SCEParam_FitRangeEd": "76",
-        "SCEParam_FitRangeSt": "36",
+        "SCEParam_FitRangeSt": "37",
         "SCEParam_SmoothRadius": "6",
         "SCEParam_SmoothTheta": "5"
       },
       "SemCond": {
-        "SemCond_Detector": "EF",
-        "SemCond_Ip": "6.3744",
+        "SemCond_Detector": "SE+EF",
+        "SemCond_Ip": "8.0552",
         "SemCond_IpMode": "Low",
-        "SemCond_No": "3",
-        "SemCond_Optics": "Standard",
-        "SemCond_Vacc": "500"
+        "SemCond_No": "8",
+        "SemCond_Optics": "High Reso.",
+        "SemCond_Vacc": "800"
       }
     }
   },
-  "summary": "선택 장비와 동일 fab 장비의 SCE 설정/계수 스냅샷(as-of)을 제공합니다. SCE는 양산(M-fab)에서 활용됩니다.",
+  "summary": "선택 장비와 동일 fab 장비의 SCE 설정/계수 스냅샷(최신)과 격일 수집 이력(시계열)을 제공합니다. SCE는 양산(M-fab)에서 활용됩니다.",
   "tables": [],
   "tool_slug": "cdsem"
 }

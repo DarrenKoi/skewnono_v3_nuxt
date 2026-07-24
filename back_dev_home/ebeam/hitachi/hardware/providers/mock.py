@@ -25,7 +25,10 @@ from back_dev_home.ebeam.hitachi.hardware.providers.mdc.mock import (
 from back_dev_home.ebeam.hitachi.hardware.providers.reso_center.mock import (
     build_reso_center_docs,
 )
-from back_dev_home.ebeam.hitachi.hardware.providers.sce.mock import build_sce_settings
+from back_dev_home.ebeam.hitachi.hardware.providers.sce.mock import (
+    build_sce_history,
+    build_sce_settings,
+)
 from back_dev_home.ebeam.hitachi.hardware.providers.sharpness.mock import (
     build_network_sharpness_docs,
 )
@@ -101,10 +104,12 @@ def get_hardware_service(
 
     # service == "sce"
     settings = build_sce_settings(eqp_id, fab_name, end)
+    history = build_sce_history(eqp_id, fab_name, start, end)
     return settings_payload(
         service, tool_slug, eqp_id, fab_name,
         settings=settings,
         as_of=end.strftime("%Y-%m-%d"),
-        summary="선택 장비와 동일 fab 장비의 SCE 설정/계수 스냅샷(as-of)을 제공합니다. "
-                "SCE는 양산(M-fab)에서 활용됩니다.",
+        summary="선택 장비와 동일 fab 장비의 SCE 설정/계수 스냅샷(최신)과 "
+                "격일 수집 이력(시계열)을 제공합니다. SCE는 양산(M-fab)에서 활용됩니다.",
+        docs=history,
     )

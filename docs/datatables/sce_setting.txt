@@ -44,3 +44,16 @@ dict of dict 형태
 }
 
 indice in Coefficients are 360 (0~359)
+
+
+저장 위치 (사내)
+
+1) 최신 스냅샷 — Redis hash, key = "sce_info"
+   - field: fab_name ("M15A", "M14B", ...), value: 해당 fab의 dict of dict (위 형태)
+   - 수집 시 매번 덮어써지므로 항상 최신 데이터
+   - R3/R4 는 SCE 미사용이라 field 없음; "M10" 도 현재 데이터 없음 (2026-07 기준)
+
+2) 이력 (trend) — MinIO, 기본 bucket/prefix (minio_handler/minio_config.py)
+   - path: hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab_name}.json  (예: .../2026/07/24/M16E.json)
+   - 격일 수준 수집 (07/17, 07/22, 07/24 처럼 완전히 규칙적이지는 않음) — 날짜 폴더를 탐색해서 사용
+   - 각 JSON = 그 날짜의 fab 전체 dict of dict (Redis field 값과 동일 형태)

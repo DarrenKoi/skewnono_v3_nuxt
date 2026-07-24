@@ -1,17 +1,19 @@
-"""Phase 1 faithful sce_setting mock (fleet dict-of-dict, as-of snapshot).
+"""Phase 1 faithful sce_setting mock (fleet dict-of-dict + bidaily history).
 
 Shape from `docs/datatables/sce_setting.txt`: per eqp a FileInfo/SemCond/
 ImgCond/SCEParam block plus a 360-entry Coefficients curve (`{index, values:
-[2 floats]}`, indices 0..359). Returned for the requested eqp + in-fab
-siblings. SCE is an M-fab production feature (R3/R4 don't use it); we emit for
-any CD-SEM eqp in the mock and let `normalizers.settings_payload` note usage.
+[2 floats]}`, indices 0..359). The snapshot is returned for the requested eqp
++ in-fab siblings; the history is the office's bidaily MinIO archive mirrored
+as one snapshot doc per collection date for the selected tool only. SCE is an
+M-fab production feature (R3/R4 don't use it); we emit for any CD-SEM eqp in
+the mock and let `normalizers.settings_payload` note usage.
 """
 
 from __future__ import annotations
 
 import math
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
     seed_for,
@@ -19,14 +21,15 @@ from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
 )
 
 
-__all__ = ["build_sce_settings"]
+__all__ = ["build_sce_history", "build_sce_settings"]
 
 
 def _file_info(rng: random.Random, eqp_id: str) -> dict[str, str]:
     day = rng.randint(1, 28)
+    stamp = f"2026{rng.randint(1, 5):02d}{day:02d}"
     return {
-        "FileName": f"SCE_{eqp_id}_2026{rng.randint(1, 5):02d}{day:02d}.dat",
-        "Updated": f"2026-{rng.randint(1, 5):02d}-{day:02d}",
+        "SharpCharFile": f"/HITACHI/SCE/SharpChar_{eqp_id}_{stamp}.dat",
+        "BaseSharpCharFile": f"/HITACHI/SCE/BaseSharpChar_{eqp_id}.dat",
     }
 
 
@@ -100,6 +103,24 @@ def _coefficients(rng: random.Random) -> list[dict]:
     ]
 
 
+def _tool_snapshot(tool: str, date_salt: int) -> dict:
+    """One tool's full settings block for one collection date.
+
+    Shared by the snapshot and the history so a history doc for date D is
+    IDENTICAL to a snapshot taken as-of D — the invariant the office side
+    has for free (the latest MinIO file and the Redis hash hold the same
+    collection).
+    """
+    rng = random.Random(seed_for(tool) ^ 0x5343_4532 ^ date_salt)
+    return {
+        "FileInfo": _file_info(rng, tool),
+        "SemCond": _sem_cond(rng),
+        "ImgCond": _img_cond(rng),
+        "SCEParam": _sce_param(rng),
+        "Coefficients": _coefficients(rng),
+    }
+
+
 def build_sce_settings(
     eqp_id: str,
     fab_name: str | None,
@@ -107,14 +128,31 @@ def build_sce_settings(
 ) -> dict[str, dict]:
     eqp_ids = sibling_eqp_ids(eqp_id, fab_name)
     as_of_salt = int(as_of.strftime("%Y%m%d"))
-    out: dict[str, dict] = {}
-    for tool in eqp_ids:
-        rng = random.Random(seed_for(tool) ^ 0x5343_4532 ^ as_of_salt)
-        out[tool] = {
-            "FileInfo": _file_info(rng, tool),
-            "SemCond": _sem_cond(rng),
-            "ImgCond": _img_cond(rng),
-            "SCEParam": _sce_param(rng),
-            "Coefficients": _coefficients(rng),
-        }
-    return out
+    return {tool: _tool_snapshot(tool, as_of_salt) for tool in eqp_ids}
+
+
+def build_sce_history(
+    eqp_id: str,
+    fab_name: str | None,
+    start: datetime,
+    end: datetime,
+) -> list[dict]:
+    """Bidaily SCE snapshots for the selected tool across [start, end], ascending.
+
+    The office archives one {fab_name}.json per collection day (roughly every
+    other day) in MinIO; this mirrors that cadence with a date-parity schedule
+    so the same dates exist regardless of the requested window. Each doc is
+    the tool's settings block for that date plus the collection ``date``.
+    ``fab_name`` is unused here but part of the builder signature — the office
+    adapter needs it to pick the per-fab archive file.
+    """
+    del fab_name
+    docs: list[dict] = []
+    day = start.date()
+    last = end.date()
+    while day <= last:
+        if day.toordinal() % 2 == 0:
+            salt = int(day.strftime("%Y%m%d"))
+            docs.append({"date": day.isoformat(), **_tool_snapshot(eqp_id, salt)})
+        day += timedelta(days=1)
+    return docs

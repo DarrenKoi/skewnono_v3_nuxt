@@ -304,7 +304,7 @@ def settings_payload(
 
     Thin cards: as-of date + sibling count. `tables` optional (e.g. the sce
     settings-compare is built frontend-side off `settings`). `docs` optionally
-    carries the selected tool's timestamped history (mdc 시계열), ascending.
+    carries the selected tool's timestamped history (mdc/sce 시계열), ascending.
     """
     sibling_count = max(0, len(settings) - 1)
     cards: list[HardwareMetricCard] = [

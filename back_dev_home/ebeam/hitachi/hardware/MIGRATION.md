@@ -15,7 +15,7 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) | written — `cp` + verify |
 | `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` | stub |
 | `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub |
-| `sce/` | `build_sce_settings` | SCE settings collection | stub |
+| `sce/` | `build_sce_settings` + `build_sce_history` | Redis `sce_info` hash + MinIO `hitachi_sem/cdsem/sce_info/` | written — `cp` + verify |
 
 `fdc/office_example.py` is implemented, not a stub: its body is written
 against the `network_fdc_cdsem` layout in
@@ -67,6 +67,24 @@ alias is `beam_shape`; `type`/`fdc_category`/`eqp_id`/`fab_name` match through
 `.keyword` sub-fields; `fab_name` is uppercased for the term. Run its `__main__`
 smoke block after `cp`. The pure normalizers are unit-tested at home in
 `tests/test_bsm_office.py`.
+
+`sce/office_example.py` is implemented against
+`docs/datatables/sce_setting.txt`, and is the one hardware adapter that reads
+neither OpenSearch nor one source: the LATEST snapshot comes from the Redis
+hash `sce_info` (one field per `fab_name` — `M15A`, `M14B`, ... — each value
+the fab's `{eqp_id: {FileInfo, SemCond, ImgCond, SCEParam, Coefficients}}`
+dict, JSON with a pickle fallback), and the bidaily TREND comes from MinIO:
+one `{fab_name}.json` per collection date under
+`hitachi_sem/cdsem/sce_info/YYYY/MM/DD/` (default bucket/prefix from
+`minio_handler/minio_config.py`). Collection dates are discovered via
+`list_date_folders` — the cadence is bidaily-ish, not strictly regular — so
+the adapter never computes expected dates. Coverage caveat baked into the
+adapter: R3/R4 don't run SCE and M10 has no data yet, so an absent hash field
+or archive file returns `{}`/`[]` (the page's graceful empty state), never a
+502; only a missing `sce_info` key altogether raises. The pure
+parse/normalize helpers are unit-tested at home in `tests/test_sce.py`. Run
+its `__main__` smoke block (`... .providers.sce.office <eqp_id> <fab_name>`)
+after `cp`.
 
 The shared helper `_siblings.py` stays at the `providers/` root (mock-only:
 stable seeds, sibling tool sets, and the metadata tail every faithful doc
@@ -126,7 +144,7 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
       summary: str
       cards: list[HardwareMetricCard]
       tables: list[HardwareTableSection]
-      docs: NotRequired[list[dict]]        # bsm / reso-center / fdc / sharpness
+      docs: NotRequired[list[dict]]        # bsm / reso-center / fdc / sharpness / mdc / sce
       settings: NotRequired[dict[str, dict]]  # mdc / sce
       raw: NotRequired[dict]
   ```
@@ -142,14 +160,14 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
   past/future work-order rows + summary cards
   (`bm_pm_history_payload`); `bsm`/`reso-center`/`fdc`/`sharpness` build a
   time-ordered `docs` list scoped to `[start, end]` (`docs_payload`); `mdc`
-  builds both a settings snapshot (as-of `end`) and a `docs` history list;
-  `sce` builds only a settings snapshot (no `docs`). `mdc`/`sce` settings
-  compare the selected `eqp_id` against in-fab siblings as of `end`.
-- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, sharpness_monitor_cdsem, MDC/SCE settings collections, fab_inform_notes + tool_maintenance_plan -->
+  and `sce` build both a settings snapshot (as-of `end` for mdc; latest for
+  sce) and a `docs` history list. `mdc`/`sce` settings compare the selected
+  `eqp_id` against in-fab siblings.
+- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, sharpness_monitor_cdsem, MDC settings collection, fab_inform_notes + tool_maintenance_plan; SCE: Redis sce_info hash (latest) + MinIO hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab}.json (bidaily trend) -->
 - Notes: `fetched_at` is stamped at request/build time and is volatile — a
   parity harness should scrub it rather than compare byte-for-byte. The
   `docs` vs. `settings` split is a discriminated-by-service convention (not
-  enforced by the TypedDict): `bsm`/`reso-center`/`fdc`/`sharpness`/`mdc`
+  enforced by the TypedDict): `bsm`/`reso-center`/`fdc`/`sharpness`/`mdc`/`sce`
   populate `docs`; `mdc`/`sce` populate `settings`; `bm-pm` populates neither
   and relies on `cards`/`tables` only. Office implementations must preserve
   which optional keys are present per service, since the frontend branches

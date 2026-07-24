@@ -35,7 +35,7 @@ const hardwareServices: HardwareService[] = [
   { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: 'Beam Shape 상태와 추이를 모니터링합니다.', icon: 'i-lucide-radar', category: '분기' },
   { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 BestReso·ResoIScenter 추세를 beam condition별로 추적합니다.', icon: 'i-lucide-crosshair', category: '분기' },
   { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3', category: '분기' },
-  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' }
+  { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교하고, 격일 수집 이력의 변화를 추적합니다.', icon: 'i-lucide-spline', category: '분기' }
 ]
 const defaultHardwareService = hardwareServices[0]!
 
@@ -192,7 +192,7 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
 
 // ---- BM/PM overlay (spec Part B) ----
 // Tabs whose charts have a time x-axis; the toggle only shows there.
-const OVERLAY_SERVICES: HardwareServiceKey[] = ['bsm', 'reso-center', 'mdc', 'fdc', 'sharpness']
+const OVERLAY_SERVICES: HardwareServiceKey[] = ['bsm', 'reso-center', 'mdc', 'fdc', 'sharpness', 'sce']
 // Page-scoped like `hw-section`: keeps its state across tab switches/visits.
 const showBmPmOverlay = useState('hw-bmpm-overlay', () => true)
 const overlayToggleVisible = computed(() => OVERLAY_SERVICES.includes(activeService.value))
@@ -567,11 +567,13 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   :maintenance-events="overlayEvents"
                 />
 
-                <!-- SCE: settings compare + coefficient curve -->
+                <!-- SCE: 비교 (settings + coefficient curve) / 시계열 (bidaily archive) sub-tabs -->
                 <EbeamHardwareScePanel
                   v-else-if="activeService === 'sce'"
                   :settings="servicePayload.settings ?? {}"
+                  :docs="servicePayload.docs ?? []"
                   :selected-eqp="selectedTool?.eqp_id ?? ''"
+                  :maintenance-events="overlayEvents"
                 />
 
                 <!-- Generic table renderer (excluded for all dedicated panel services) -->

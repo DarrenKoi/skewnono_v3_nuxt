@@ -51,7 +51,8 @@ class HardwarePayload(TypedDict):
     summary: str
     cards: list[HardwareMetricCard]
     tables: list[HardwareTableSection]
-    # Faithful time-series raw docs (bsm / reso-center / fdc), ascending time.
+    # Faithful time-series raw docs (bsm / reso-center / fdc / sharpness /
+    # mdc / sce history), ascending time.
     docs: NotRequired[list[dict]]
     # Faithful dict-of-dict (mdc / sce): selected eqp + in-fab siblings.
     settings: NotRequired[dict[str, dict]]
