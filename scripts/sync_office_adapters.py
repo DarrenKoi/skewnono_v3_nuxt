@@ -25,13 +25,24 @@ Statuses:
 
     MISSING  no office.py yet -> feature still serves mock data
     SYNCED   office.py is byte-identical to the template
-    EDITED   office.py differs from the template (in-house schema details
-             live only there) -- never overwritten without --force
+    STALE    office.py matches an OLDER committed template -- the template
+             moved ahead (a git pull) and this copy was never refreshed
+    EDITED   office.py differs from the template and matches no committed
+             version, so it holds local changes -- never overwritten
+             without --force
 
-EDITED is the state worth protecting: `office.py` may carry company schema
-details that are deliberately kept out of git, so a copy that clobbered it
-would destroy the only copy. Overwriting therefore always requires --force,
-and --force takes a .bak first.
+STALE vs EDITED is the distinction that matters, and only git can tell them
+apart. Both merely "differ from the template", but:
+
+  * STALE  is provably just an out-of-date copy -- its exact bytes exist in
+           git history, so refreshing it loses nothing. Treated as safe to
+           overwrite. This is the state after `git pull` updates a template,
+           and a stale office.py silently runs OLD adapter code against live
+           office data (it once produced a phantom recipe_tat bug report).
+  * EDITED matches no committed template version, so someone changed it here.
+           office.py is gitignored, meaning those changes exist NOWHERE else
+           -- clobbering them is unrecoverable. Requires --force, which takes
+           a .bak first.
 """
 
 from __future__ import annotations
@@ -50,7 +61,16 @@ BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 
 MISSING = "MISSING"
 SYNCED = "SYNCED"
+STALE = "STALE"
 EDITED = "EDITED"
+
+# Statuses a copy may overwrite freely: either there is nothing there, or
+# what is there is provably recoverable from git history.
+SAFE_TO_WRITE = (MISSING, STALE)
+
+# How far back to look for a matching historical template. Deep enough to
+# cover a long-neglected copy, shallow enough to stay fast.
+_HISTORY_DEPTH = 40
 
 
 @dataclass(frozen=True)
@@ -68,11 +88,76 @@ class Adapter:
 
     @property
     def status(self) -> str:
-        if not self.target.exists():
-            return MISSING
-        # shallow=False: compare contents, not just size+mtime. A copied file
-        # keeps its own mtime, so a shallow compare would report false drift.
-        return SYNCED if filecmp.cmp(self.template, self.target, shallow=False) else EDITED
+        return classify(self)[0]
+
+    @property
+    def note(self) -> str:
+        """Human detail for the status (e.g. which commit a STALE copy is from)."""
+        return classify(self)[1]
+
+
+_classify_cache: dict[Path, tuple[str, str]] = {}
+
+
+def classify(adapter: Adapter) -> tuple[str, str]:
+    """Return (status, note), consulting git only when a copy differs.
+
+    Cached per target: a status run asks for every adapter, and the git
+    history walk below is the only expensive part.
+    """
+    cached = _classify_cache.get(adapter.target)
+    if cached is None:
+        cached = _classify(adapter)
+        _classify_cache[adapter.target] = cached
+    return cached
+
+
+def _classify(adapter: Adapter) -> tuple[str, str]:
+    if not adapter.target.exists():
+        return MISSING, ""
+    # shallow=False: compare contents, not just size+mtime. A copied file
+    # keeps its own mtime, so a shallow compare would report false drift.
+    if filecmp.cmp(adapter.template, adapter.target, shallow=False):
+        return SYNCED, ""
+    # It differs -- but "differs" alone can't tell an out-of-date copy from a
+    # deliberate local edit, and the two want opposite handling. If these
+    # exact bytes were ever a committed template, it is just an old copy.
+    origin = _committed_template_origin(adapter)
+    if origin:
+        return STALE, f"copy of {origin}"
+    return EDITED, ""
+
+
+def _committed_template_origin(adapter: Adapter) -> str | None:
+    """Find the commit whose office_example.py matches this office.py.
+
+    Returns "<short-sha> (<date>)" when office.py is byte-identical to some
+    historical version of its template, else None.
+    """
+    try:
+        current = adapter.target.read_bytes()
+    except OSError:
+        return None
+
+    relative = adapter.template.relative_to(REPO_ROOT).as_posix()
+    log = subprocess.run(
+        ["git", "log", f"-{_HISTORY_DEPTH}", "--format=%h %ad", "--date=short",
+         "--", relative],
+        cwd=REPO_ROOT, capture_output=True, text=True,
+    )
+    if log.returncode != 0:
+        return None
+
+    for line in log.stdout.splitlines():
+        sha, _, date = line.partition(" ")
+        if not sha:
+            continue
+        blob = subprocess.run(
+            ["git", "show", f"{sha}:{relative}"], cwd=REPO_ROOT, capture_output=True,
+        )
+        if blob.returncode == 0 and blob.stdout == current:
+            return f"{sha} ({date.strip()})"
+    return None
 
 
 def discover() -> list[Adapter]:
@@ -137,37 +222,49 @@ def git_ignores(path: Path) -> bool:
 
 def print_status(adapters: list[Adapter]) -> None:
     width = max(len(a.slug) for a in adapters)
-    counts = {MISSING: 0, SYNCED: 0, EDITED: 0}
+    counts = {MISSING: 0, SYNCED: 0, STALE: 0, EDITED: 0}
 
     print(f"{'ADAPTER'.ljust(width)}  STATUS")
     print(f"{'-' * width}  {'-' * 7}")
     for adapter in adapters:
-        status = adapter.status
+        status, note = classify(adapter)
         counts[status] += 1
-        print(f"{adapter.slug.ljust(width)}  {status}")
+        suffix = f"   {note}" if note else ""
+        print(f"{adapter.slug.ljust(width)}  {status}{suffix}")
 
     total = len(adapters)
-    live = counts[SYNCED] + counts[EDITED]
+    copied = counts[SYNCED] + counts[STALE] + counts[EDITED]
     print(
-        f"\n{total} adapters: {live} copied "
-        f"({counts[SYNCED]} synced, {counts[EDITED]} edited), "
+        f"\n{total} adapters: {copied} copied "
+        f"({counts[SYNCED]} synced, {counts[STALE]} stale, {counts[EDITED]} edited), "
         f"{counts[MISSING]} missing."
     )
+    if counts[STALE]:
+        print(
+            f"\n{counts[STALE]} STALE: the template moved ahead and these copies still run\n"
+            "OLD code against live office data. Refresh with --all (safe -- their\n"
+            "exact contents are in git history), then restart Flask."
+        )
     if counts[MISSING]:
         print("Copy the missing ones with: --all, or by name (e.g. storage).")
+    if counts[EDITED]:
+        print("EDITED copies have local changes that exist nowhere else; "
+              "inspect with --diff before using --force.")
 
 
 def show_diff(adapters: list[Adapter]) -> int:
     """Show how each copied office.py drifted from its template."""
     shown = 0
     for adapter in adapters:
-        if adapter.status != EDITED:
+        status, note = classify(adapter)
+        if status not in (STALE, EDITED):
             continue
         shown += 1
         # flush: our stdout is block-buffered when piped, but the git
         # subprocess writes straight to the fd -- without this the header
         # lands after the diff it labels.
-        print(f"\n=== {adapter.slug} ===", flush=True)
+        header = f"{adapter.slug} [{status}]" + (f" {note}" if note else "")
+        print(f"\n=== {header} ===", flush=True)
         subprocess.run(
             [
                 "git", "diff", "--no-index", "--",
@@ -177,7 +274,7 @@ def show_diff(adapters: list[Adapter]) -> int:
             cwd=REPO_ROOT,
         )
     if not shown:
-        print("No EDITED adapters -- every copied office.py matches its template.")
+        print("Nothing to diff -- every copied office.py matches its template.")
     return 0
 
 
@@ -211,7 +308,7 @@ def copy(adapters: list[Adapter], *, force: bool, dry_run: bool) -> int:
     copied = skipped = 0
 
     for adapter in adapters:
-        status = adapter.status
+        status, note = classify(adapter)
         target = adapter.target.relative_to(REPO_ROOT)
 
         if status == SYNCED and not force:
@@ -221,16 +318,19 @@ def copy(adapters: list[Adapter], *, force: bool, dry_run: bool) -> int:
 
         if status == EDITED and not force:
             print(
-                f"  SKIP   {adapter.slug} -- office.py was edited locally.\n"
-                f"         Its changes are not in git. Review with "
-                f"--diff {adapter.slug}, then re-run with --force to overwrite."
+                f"  SKIP   {adapter.slug} -- office.py has local changes and "
+                f"matches no committed template.\n"
+                f"         They exist nowhere else (office.py is gitignored). "
+                f"Review with\n"
+                f"         --diff {adapter.slug}, then re-run with --force to overwrite."
             )
             skipped += 1
             continue
 
         if dry_run:
-            action = "overwrite" if status != MISSING else "create"
-            print(f"  [dry-run] would {action} {target}")
+            action = "create" if status == MISSING else "refresh" if status == STALE else "overwrite"
+            detail = f" ({note})" if note else ""
+            print(f"  [dry-run] would {action} {target}{detail}")
             copied += 1
             continue
 
@@ -313,11 +413,13 @@ def main() -> int:
             print("Nothing selected.")
             return 0
     elif args.all:
-        # --all means "finish the job": every adapter not yet copied. With
-        # --force it also refreshes the ones already there.
-        selected = [a for a in adapters if a.status == MISSING or args.force]
+        # --all means "bring this machine up to date": adapters with nothing
+        # there yet, plus stale copies whose bytes are recoverable from git.
+        # EDITED is excluded -- only --force may clobber unrecoverable edits.
+        selected = [a for a in adapters if a.status in SAFE_TO_WRITE or args.force]
         if not selected:
-            print("Every adapter already has an office.py. Use --force to refresh them.")
+            print("Every adapter is already up to date. "
+                  "Use --force to also overwrite EDITED copies.")
             return 0
     elif not args.names:
         print_status(adapters)
