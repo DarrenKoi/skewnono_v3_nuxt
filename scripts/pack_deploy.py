@@ -20,6 +20,7 @@ that boots cleanly and serves mock data in production — the worst available
 failure mode, because nothing announces it.
 """
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -180,3 +181,64 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
 
 def blocking_failures(checks: list[Check]) -> list[Check]:
     return [c for c in checks if not c.ok and c.blocking]
+
+
+def _ignore(directory: str, names: list[str]) -> set[str]:
+    """shutil.copytree callback — drop pruned entries during the walk."""
+    parent = Path(directory)
+    return {name for name in names if should_prune(parent / name)}
+
+
+# The Nuxt build output is already exactly what should ship, and it is opaque
+# to our naming rules: a content file could legitimately be called tests/ or
+# end in .md, and pruning it would break the SPA silently — the page would
+# 404 an asset at runtime with nothing failing at pack time. So it is copied
+# verbatim. Everything else goes through should_prune().
+VERBATIM_ROOTS = frozenset({"front-dev-home/.output/public"})
+
+
+def copy_bundle(repo_root: Path, dest: Path) -> int:
+    """Copy every included root into `dest`, preserving relative depth."""
+    dest.mkdir(parents=True, exist_ok=True)
+
+    for rel in INCLUDED_ROOTS:
+        source = repo_root / rel
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            ignore = None if rel in VERBATIM_ROOTS else _ignore
+            shutil.copytree(source, target, ignore=ignore, dirs_exist_ok=True)
+        elif source.is_file():
+            shutil.copy2(source, target)
+
+    return sum(1 for p in dest.rglob("*") if p.is_file())
+
+
+def verify_bundle(dest: Path) -> list[str]:
+    """Check the bundle we just wrote, rather than trusting the copy logic.
+
+    Catching a layout mistake here costs seconds; catching it on the cloud
+    costs a full transfer round-trip.
+    """
+    failures = []
+
+    env_py = dest / "back_dev_home" / "_runtime" / "env.py"
+    if not env_py.is_file():
+        failures.append(f"missing {env_py}")
+    elif env_py.resolve().parents[2] != dest.resolve():
+        failures.append(
+            f"{env_py} is not 2 levels below the bundle root; spa_dir() will miss"
+        )
+
+    index_html = dest / "front-dev-home" / ".output" / "public" / "index.html"
+    if not index_html.is_file():
+        failures.append(f"missing {index_html}")
+
+    for name in ("index.py", "wsgi.ini"):
+        if not (dest / name).is_file():
+            failures.append(f"missing {dest / name}")
+
+    if list(dest.rglob("__pycache__")):
+        failures.append("__pycache__ survived the prune")
+
+    return failures

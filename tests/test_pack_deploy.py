@@ -114,3 +114,86 @@ def test_default_secret_key_is_advisory(tmp_path):
     secret = next(c for c in checks if c.name == "secret_key")
     assert not secret.ok
     assert not secret.blocking
+
+
+def test_copy_preserves_the_depth_invariant(tmp_path):
+    """env.py exactly 2 levels below root, or spa_dir() resolves wrong."""
+    repo = _make_repo(tmp_path)
+    dest = tmp_path / "bundle"
+
+    pack_deploy.copy_bundle(repo, dest)
+
+    env_py = dest / "back_dev_home" / "_runtime" / "env.py"
+    assert env_py.is_file()
+    assert env_py.resolve().parents[2] == dest.resolve()
+
+
+def test_copy_places_the_spa_at_its_exact_path(tmp_path):
+    repo = _make_repo(tmp_path)
+    dest = tmp_path / "bundle"
+
+    pack_deploy.copy_bundle(repo, dest)
+
+    assert (dest / "front-dev-home" / ".output" / "public" / "index.html").is_file()
+
+
+def test_copy_prunes_pycache_and_tests(tmp_path):
+    repo = _make_repo(tmp_path)
+    (repo / "back_dev_home" / "__pycache__").mkdir()
+    (repo / "back_dev_home" / "__pycache__" / "x.pyc").write_text("")
+    (repo / "back_dev_home" / "sem_list" / "tests").mkdir(parents=True)
+    (repo / "back_dev_home" / "sem_list" / "tests" / "test_x.py").write_text("")
+    dest = tmp_path / "bundle"
+
+    pack_deploy.copy_bundle(repo, dest)
+
+    assert not list(dest.rglob("__pycache__"))
+    assert not list(dest.rglob("test_x.py"))
+
+
+def test_copy_keeps_gitignored_files_that_must_ship(tmp_path):
+    repo = _make_repo(tmp_path)
+    adapter = repo / "back_dev_home" / "sem_list" / "providers"
+    adapter.mkdir(parents=True)
+    (adapter / "office.py").write_text("# real adapter\n")
+    dest = tmp_path / "bundle"
+
+    pack_deploy.copy_bundle(repo, dest)
+
+    assert (dest / "back_dev_home" / "sem_list" / "providers" / "office.py").is_file()
+    assert (dest / "back_dev_home" / ".env").is_file()
+
+
+def test_spa_output_is_copied_verbatim(tmp_path):
+    """Nuxt output is opaque to our naming rules — a build asset named
+    tests/ or ending in .md must not be pruned, or the SPA 404s at runtime
+    with nothing failing at pack time."""
+    repo = _make_repo(tmp_path)
+    spa = repo / "front-dev-home" / ".output" / "public"
+    (spa / "tests").mkdir()
+    (spa / "tests" / "fixture.json").write_text("{}")
+    (spa / "readme.md").write_text("# content")
+    dest = tmp_path / "bundle"
+
+    pack_deploy.copy_bundle(repo, dest)
+
+    out = dest / "front-dev-home" / ".output" / "public"
+    assert (out / "tests" / "fixture.json").is_file()
+    assert (out / "readme.md").is_file()
+
+
+def test_verify_passes_on_a_well_formed_bundle(tmp_path):
+    repo = _make_repo(tmp_path)
+    dest = tmp_path / "bundle"
+    pack_deploy.copy_bundle(repo, dest)
+
+    assert pack_deploy.verify_bundle(dest) == []
+
+
+def test_verify_catches_a_mangled_bundle(tmp_path):
+    repo = _make_repo(tmp_path)
+    dest = tmp_path / "bundle"
+    pack_deploy.copy_bundle(repo, dest)
+    (dest / "front-dev-home" / ".output" / "public" / "index.html").unlink()
+
+    assert pack_deploy.verify_bundle(dest) != []
