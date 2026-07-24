@@ -185,80 +185,114 @@ const matlabColors = [...matlabBaseColors, ...matlabExtendedColors] as const
 // would overflow the card. The swatch is a taste sample, not the full palette.
 const swatch = (colors: readonly string[]): readonly string[] => colors.slice(0, 6)
 
-export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
-  {
-    value: 'default',
-    label: 'Default',
-    fileName: 'MATLAB colororder / dark.js',
-    description: '밝은 화면에서는 MATLAB, 어두운 화면에서는 Dark 테마를 자동으로 사용합니다.',
-    colors: ['#0072BD', '#D95319', '#EDB120', '#100C2A', '#4992ff', '#7cffb2'],
-    backgroundColor: '#ffffff',
-    textColor: '#262626'
-  },
-  {
-    value: 'vintage',
+// One descriptor per theme, and the single place any of this is written down.
+// Everything below derives from it: the picker cards, the PNG export
+// background, and the furniture tones utils/chartPalette.ts mixes. These used
+// to be three hand-maintained tables (themePalettes / themeBackgrounds /
+// themeInks) plus a fourth copy inside each option card, so adding a theme
+// meant four coordinated edits and a missed one drifted silently -- the card
+// would advertise a text color the charts never drew with.
+//
+// `surface` is the canvas tone the theme implies, not a color it paints:
+// themes render transparent so charts inherit their card, but a PNG export
+// needs a solid backdrop or it comes out see-through.
+const THEME_DESCRIPTORS = {
+  vintage: {
     label: 'Vintage',
     fileName: 'vintage.js',
     description: '종이처럼 따뜻한 배경에 차분한 빨강, 초록, 황토색을 사용합니다.',
-    colors: swatch(vintageColors),
-    backgroundColor: '#fef8ef',
-    textColor: '#3f3a34'
+    palette: vintageColors,
+    surface: '#fef8ef',
+    ink: '#3f3a34'
   },
-  {
-    value: 'dark',
+  dark: {
     label: 'Dark',
     fileName: 'dark.js',
     description: '어두운 배경에 밝은 파랑, 초록, 노랑, 빨강을 사용합니다.',
-    colors: swatch(darkColors),
-    backgroundColor: '#100C2A',
-    textColor: '#EEF1FA'
+    palette: darkColors,
+    surface: '#100C2A',
+    ink: '#EEF1FA'
   },
-  {
-    value: 'macarons',
+  macarons: {
     label: 'Macarons',
     fileName: 'macarons.js',
     description: '밝고 부드러운 느낌의 연한 색을 사용하며, 꺾은선을 부드럽게 그립니다.',
-    colors: swatch(macaronsColors),
-    backgroundColor: '#ffffff',
-    textColor: '#1f2937'
+    palette: macaronsColors,
+    surface: '#ffffff',
+    ink: '#1f2937'
   },
-  {
-    value: 'infographic',
+  infographic: {
     label: 'Infographic',
     fileName: 'infographic.js',
     description: '발표용 차트에 어울리는 선명한 빨강, 청록, 노랑, 주황을 사용합니다.',
-    colors: swatch(infographicColors),
-    backgroundColor: '#ffffff',
-    textColor: '#1f2937'
+    palette: infographicColors,
+    surface: '#ffffff',
+    ink: '#1f2937'
   },
-  {
-    value: 'shine',
+  shine: {
     label: 'Shine',
     fileName: 'shine.js',
     description: '업무 보고서에 어울리는 또렷한 기본 색을 사용합니다.',
-    colors: swatch(shineColors),
-    backgroundColor: '#ffffff',
-    textColor: '#1f2937'
+    palette: shineColors,
+    surface: '#ffffff',
+    ink: '#1f2937'
   },
-  {
-    value: 'roma',
+  roma: {
     label: 'Roma',
     fileName: 'roma.js',
     description: '짙은 빨강과 남색에 차분한 크림색과 초록을 함께 사용합니다.',
-    colors: swatch(romaColors),
-    backgroundColor: '#ffffff',
-    textColor: '#1f2937'
+    palette: romaColors,
+    surface: '#ffffff',
+    ink: '#1f2937'
   },
-  {
-    value: 'matlab',
+  matlab: {
     label: 'MATLAB',
     fileName: 'MATLAB colororder (R2014b+) · +3',
     description: 'MATLAB R2014b 이후의 기본 색 순서 7색에 3색을 더해 10색으로 사용합니다.',
-    colors: swatch(matlabColors),
-    backgroundColor: '#ffffff',
-    textColor: '#262626'
+    palette: matlabColors,
+    surface: '#ffffff',
+    ink: '#262626'
   }
-] as const
+} as const satisfies Record<EchartThemeName, {
+  label: string
+  fileName: string
+  description: string
+  palette: readonly string[]
+  surface: string
+  ink: string
+}>
+
+const themeCard = (name: EchartThemeName): ThemeOption => {
+  const d = THEME_DESCRIPTORS[name]
+  return {
+    value: name,
+    label: d.label,
+    fileName: d.fileName,
+    description: d.description,
+    colors: swatch(d.palette),
+    backgroundColor: d.surface,
+    textColor: d.ink
+  }
+}
+
+// 'default' is the only card not built from one descriptor, because it stands
+// for a pair: the light theme's opening colors, then the dark theme's. Derived
+// rather than written out so retuning either palette cannot leave the card
+// advertising colors Default no longer renders.
+const DEFAULT_CARD: ThemeOption = {
+  value: 'default',
+  label: 'Default',
+  fileName: `${THEME_DESCRIPTORS.matlab.fileName.split(' ·')[0]} / ${THEME_DESCRIPTORS.dark.fileName}`,
+  description: '밝은 화면에서는 MATLAB, 어두운 화면에서는 Dark 테마를 자동으로 사용합니다.',
+  colors: [...matlabColors.slice(0, 3), THEME_DESCRIPTORS.dark.surface, ...darkColors.slice(0, 2)],
+  backgroundColor: THEME_DESCRIPTORS.matlab.surface,
+  textColor: THEME_DESCRIPTORS.matlab.ink
+}
+
+export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
+  DEFAULT_CARD,
+  ...(Object.keys(THEME_DESCRIPTORS) as EchartThemeName[]).map(themeCard)
+]
 
 // Axis furniture for the two themes whose upstream file says nothing about axes
 // (shine, roma). Kept from the first port so every theme draws a tinted axis
@@ -725,56 +759,24 @@ const themes: Record<EchartThemeName, object> = {
   }
 }
 
-const themePalettes: Record<EchartThemeName, readonly string[]> = {
-  vintage: vintageColors,
-  dark: darkColors,
-  macarons: macaronsColors,
-  infographic: infographicColors,
-  shine: shineColors,
-  roma: romaColors,
-  matlab: matlabColors
-}
-
 // The color array a given theme cycles through for its series. Components that
 // must hardcode a color reference (tooltip HTML, axis-name text) read from here
 // so those literals track the same palette ECharts auto-assigns to the series.
 export const getEchartThemePalette = (name: EchartThemeName): readonly string[] =>
-  themePalettes[name]
+  THEME_DESCRIPTORS[name].palette
 
-// Themes render on a transparent canvas so charts inherit their card surface.
-// A PNG export, however, needs a solid backdrop or it comes out transparent and
-// looks broken on light backgrounds. These match each theme's intended tone:
-// vintage's warm paper, dark's navy, and white for the light alt-themes.
-const themeBackgrounds: Record<EchartThemeName, string> = {
-  vintage: '#fef8ef',
-  dark: '#100C2A',
-  macarons: '#ffffff',
-  infographic: '#ffffff',
-  shine: '#ffffff',
-  roma: '#ffffff',
-  matlab: '#ffffff'
-}
-
+// The solid backdrop a PNG export needs -- see THEME_DESCRIPTORS on why the
+// canvas itself stays transparent.
 export const getEchartThemeBackground = (name: EchartThemeName): string =>
-  themeBackgrounds[name]
+  THEME_DESCRIPTORS[name].surface
 
-// Primary text tone per theme, matching each option card's textColor. Charts
-// that draw their own labels onto the canvas (skewvoir's wafer maps, chart
-// titles) mix against this and themeBackgrounds to build furniture tones that
-// stay legible on whichever surface the theme implies -- see
-// utils/chartPalette.ts. Without it those labels were a hardcoded near-black
-// and vanished under the dark theme.
-const themeInks: Record<EchartThemeName, string> = {
-  vintage: '#3f3a34',
-  dark: '#EEF1FA',
-  macarons: '#1f2937',
-  infographic: '#1f2937',
-  shine: '#1f2937',
-  roma: '#1f2937',
-  matlab: '#262626'
-}
-
-export const getEchartThemeInk = (name: EchartThemeName): string => themeInks[name]
+// Primary text tone. Charts that draw their own labels onto the canvas
+// (skewvoir's wafer maps, chart titles) mix this against the surface to build
+// furniture that stays legible on whichever background the theme implies --
+// see utils/chartPalette.ts. Without it those labels were a hardcoded
+// near-black and vanished under the dark theme.
+export const getEchartThemeInk = (name: EchartThemeName): string =>
+  THEME_DESCRIPTORS[name].ink
 
 let registered = false
 

@@ -1,4 +1,4 @@
-import { buildChartPalette, type ChartPalette } from '~/utils/chartPalette'
+import { buildChartPalette } from '~/utils/chartPalette'
 import { getEchartThemeBackground, getEchartThemeInk } from '~/utils/echartsThemes'
 
 /**
@@ -17,11 +17,18 @@ import { getEchartThemeBackground, getEchartThemeInk } from '~/utils/echartsThem
  *
  * Data-encoding and semantic colors do NOT belong here; import SK_SCALE and
  * SK_STATE directly, they are the same in every theme by design.
+ *
+ * Note the older idiom this overlaps: several hardware panels do
+ * `const { palette } = useEchartsTheme()` then index `palette.value[n]`
+ * directly. That is still correct for "give me N distinguishable colors" (see
+ * assignCompareColors in utils/hardwareCompare.ts). Reach for this composable
+ * instead when the color has a ROLE — primary series, contrasting overlay,
+ * furniture — so the role is named once rather than spelled as an index.
  */
 export const useChartPalette = () => {
   const { palette, resolvedThemeName } = useEchartsTheme()
 
-  return computed<ChartPalette>(() => buildChartPalette(
+  return computed(() => buildChartPalette(
     palette.value,
     getEchartThemeInk(resolvedThemeName.value),
     getEchartThemeBackground(resolvedThemeName.value)

@@ -66,7 +66,7 @@
           :name="analysis.activeParam.value"
           :unit="model.unit"
           :focused="analysis.focusedSequence.value"
-          color="#2563eb"
+          :color="cdColor"
           @select="onSelect"
         />
       </EbeamSkewvoirPanelFrame>
@@ -118,6 +118,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
 import { analyzeSequence, type FdcSeqSeries } from '~/utils/skewvoirAnalysis/sequence'
+import { SK_SCALE } from '~/utils/chartPalette'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -154,9 +155,17 @@ const fdcMeta = (series: FdcSeqSeries): string => {
   return `start ${fmt(s.start)} · end ${fmt(s.end)} · range ${fmt(s.range)} ${s.unit} · slope ${signed(s.slope)} ${s.slopeUnit}`
 }
 
-// Distinct accents per FDC pane (its own unit, its own colour).
-const FDC_COLORS = ['#7c3aed', '#0891b2', '#c026d3', '#ca8a04', '#0d9488']
-const fdcColor = (i: number): string => FDC_COLORS[i % FDC_COLORS.length]!
+// Distinct accents per pane. Each pane is a SEPARATE chart instance, so ECharts
+// would hand every one of them palette[0] — the colors have to be assigned here
+// or the panes become indistinguishable. Cycling the theme palette keeps that
+// working while still following the picker; index 0 is reserved for the CD pane
+// below, so the FDC panes start at 1.
+const { palette } = useEchartsTheme()
+const cdColor = computed(() => palette.value[0] ?? SK_SCALE[0])
+const fdcColor = (i: number): string =>
+  palette.value.length > 1
+    ? palette.value[1 + (i % (palette.value.length - 1))]!
+    : cdColor.value
 
 // SHARED CURSOR: one move sets the focused sequence AND the focused site (chip)
 // for that sequence — so CD, every FDC pane, the wafer scan-path (focusedSite)

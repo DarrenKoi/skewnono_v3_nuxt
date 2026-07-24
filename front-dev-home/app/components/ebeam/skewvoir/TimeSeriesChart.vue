@@ -72,7 +72,9 @@ const option = computed<EChartsOption>(() => ({
       ]
       const v = p.verdict
       if (v && (v.status === 'insufficient' || v.severity !== 'normal')) {
-        const color = v.severity === 'abnormal' ? SK_STATE.bad : v.severity === 'watch' ? SK_STATE.warn : sk.value.muted
+        // Same table and same precedence as the dot itself, so the warning text
+        // can't come out red under a point that was drawn insufficient-grey.
+        const color = sevHex.value[sevKey(p)]
         for (const x of v.verdicts) {
           if (x.status === 'evaluated' && x.severity === 'normal') continue
           lines.push(`<span style="color:${color}">⚠ ${x.reason}</span>`)

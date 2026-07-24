@@ -164,12 +164,9 @@
   --sk-warn-soft: oklch(0.94 0.06 85);
   --sk-warn-border: oklch(0.70 0.15 75 / 0.32);
 
-  /* No --sk-chart-* tokens here on purpose. They used to mirror the diverging
-     ramp for "the SVG/DOM bits", but nothing ever read them — every chart color
-     goes through utils/chartPalette.ts, because ECharts draws to canvas and
-     cannot resolve custom properties. A DOM swatch that must match a chart
-     should bind the value from there rather than reintroduce a second copy that
-     drifts. */
+  /* No --sk-chart-* here: ECharts draws to canvas and can't read custom
+     properties, so chart color lives in utils/chartPalette.ts. Bind from there
+     rather than add a second copy that drifts. */
 
   /* Bolder selection system (Implementation Brief v1.0, 2026.05).
      Two semantic families: BLACK = navigation, TERRACOTTA = filter.

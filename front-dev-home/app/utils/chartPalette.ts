@@ -81,7 +81,7 @@ export const buildChartPalette = (
   ink: string,
   surface: string
 ): ChartPalette => {
-  const series = palette[0] ?? '#5C86AE'
+  const series = palette[0] ?? SK_SCALE[0]
   return {
     series,
     seriesSoft: mix(series, surface, 0.42),

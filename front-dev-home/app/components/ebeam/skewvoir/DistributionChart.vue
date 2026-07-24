@@ -162,7 +162,8 @@ const ecdfOption = computed<EChartsOption>(() => ({
     type: 'line',
     step: 'end',
     showSymbol: false,
-    lineStyle: { color: sk.value.series, width: 1.5 },
+    // Sole series ⇒ the line already gets palette[0]; only the fill deviates.
+    lineStyle: { width: 1.5 },
     areaStyle: { color: sk.value.seriesSoft, opacity: 0.35 },
     data: ecdfPoints.value
   }]

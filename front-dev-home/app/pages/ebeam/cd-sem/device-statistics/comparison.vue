@@ -404,7 +404,11 @@ const baseDataZoom = [
   { type: 'slider' as const, xAxisIndex: 0, height: 21, bottom: 6, brushSelect: false }
 ]
 
-const markLineColor = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
+// Mark-line + label furniture. Follows the chart theme's own ink rather than
+// branching on colorMode, so it tracks the theme picker like the rest of the
+// chart. (The para palette below deliberately does NOT — those colors are
+// per-parameter identity shared with the StackedBar table cells.)
+const markLineColor = computed(() => sk.value.ink)
 
 // Same para palette as the table's StackedBar cells (dark-aware), so the
 // stacked chart, table, and detail modal all read as one color system.
@@ -484,7 +488,7 @@ const availRecipeOption = computed<EChartsOption>(() => ({
   series: [{
     name: 'avail_recipe',
     type: 'bar',
-    itemStyle: { color: sk.value.series },
+    // No itemStyle.color: sole series, so ECharts already assigns palette[0].
     data: sortedRows.value.map(r => r.avail_recipe),
     markLine: buildStatsMarkLine(avgAvailRecipe.value, stdAvailRecipe.value)
   }]

@@ -66,26 +66,6 @@ test('matlab palette carries ten colors and no duplicates', () => {
   assert.deepEqual(palette.slice(7), ['#148F81', '#E72784', '#285D38'])
 })
 
-// The three additions were chosen to clear MATLAB's OWN worst pair under
-// simulated dichromacy (dE00 6.5 deutan / 5.6 protan), not an absolute bar the
-// base seven would themselves fail. Anyone retuning them should re-derive
-// against that relative floor rather than swapping in a color that merely looks
-// distinct on a healthy monitor. Guarded here as the hue/lightness spread the
-// derivation produced: three separate families, none a near-neighbor of a base
-// color, so a regression shows up as a failing assertion and not as two
-// indistinguishable lines in a ten-tool comparison.
-test('matlab extensions occupy their own hue families', () => {
-  const [teal, rose, green] = getEchartThemePalette('matlab').slice(7)
-  // channel dominance is a cheap proxy for "is this still the color we derived"
-  const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
-  const [tr, tg, tb] = rgb(teal!)
-  assert.ok(tg > tr && tb > tr, 'teal must stay green-blue dominant')
-  const [rr, rg, rb] = rgb(rose!)
-  assert.ok(rr > rg && rb > rg, 'rose must stay red-blue dominant')
-  const [gr, gg, gb] = rgb(green!)
-  assert.ok(gg > gr && gg > gb, 'forest green must stay green dominant')
-})
-
 test('the first six of a palette are unchanged by the length extension', () => {
   assert.deepEqual(getEchartThemePalette('vintage').slice(0, 6), [
     '#d87c7c',
@@ -138,5 +118,4 @@ test('matlab is both selectable and what the default selection resolves to', () 
 // follow the light one over to matlab, or the axes vanish into the background.
 test('the default selection stays on the dark theme in dark mode', () => {
   assert.equal(resolveEchartThemeName('default', 'dark'), 'dark')
-  assert.notEqual(resolveEchartThemeName('default', 'dark'), 'matlab')
 })

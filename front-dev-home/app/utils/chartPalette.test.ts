@@ -10,9 +10,11 @@ const MATLAB = ['#0072BD', '#D95319', '#EDB120'] as const
 const LIGHT = { ink: '#262626', surface: '#ffffff' }
 const DARK = { ink: '#EEF1FA', surface: '#100C2A' }
 
+const rgb = (hex: string) =>
+  [0, 2, 4].map(i => parseInt(hex.replace('#', '').slice(i, i + 2), 16)) as [number, number, number]
+
 const luminance = (hex: string) => {
-  const h = hex.replace('#', '')
-  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number]
+  const [r, g, b] = rgb(hex).map(c => c / 255) as [number, number, number]
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
@@ -28,7 +30,9 @@ test('series and brand come straight off the theme palette', () => {
 test('switching the palette moves every presentation token', () => {
   const a = buildChartPalette(MATLAB, LIGHT.ink, LIGHT.surface)
   const b = buildChartPalette(['#d87c7c', '#919e8b'], '#3f3a34', '#fef8ef')
-  for (const key of ['series', 'seriesSoft', 'brand', 'sand', 'muted', 'ink'] as const) {
+  // Only the DERIVED tokens are interesting here: series/brand/ink are verbatim
+  // pass-throughs, so asserting those differ would just restate the fixtures.
+  for (const key of ['seriesSoft', 'sand', 'muted'] as const) {
     assert.notEqual(a[key], b[key], `${key} did not follow the theme`)
   }
 })
@@ -41,7 +45,7 @@ test('furniture tracks the surface, so dark themes stay legible', () => {
 
   // On a light canvas the furniture must be darker than the canvas; on a dark
   // canvas it must be lighter. Anything else means it vanished.
-  for (const key of ['sand', 'muted', 'ink'] as const) {
+  for (const key of ['sand', 'muted'] as const) {
     assert.ok(luminance(light[key]) < luminance(LIGHT.surface), `light ${key} is not darker than its surface`)
     assert.ok(luminance(dark[key]) > luminance(DARK.surface), `dark ${key} is not lighter than its surface`)
   }
@@ -58,8 +62,7 @@ test('seriesSoft is a softened series, not a different hue', () => {
   const sk = buildChartPalette(MATLAB, LIGHT.ink, LIGHT.surface)
   assert.notEqual(sk.seriesSoft, sk.series)
   // #0072BD is blue-dominant; softening toward white must not change that
-  const h = sk.seriesSoft.replace('#', '')
-  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)) as [number, number, number]
+  const [r, g, b] = rgb(sk.seriesSoft)
   assert.ok(b > r && b > g, 'seriesSoft drifted off the series hue')
   assert.ok(luminance(sk.seriesSoft) > luminance(sk.series), 'seriesSoft is not softer')
 })
@@ -75,7 +78,6 @@ test('an empty palette still yields usable color rather than undefined', () => {
 // a low→high ramp must stay comparable across screenshots and "bad" must stay
 // red, whichever theme is active.
 test('scale and state are fixed and carry no theme input', () => {
-  assert.equal(SK_SCALE.length, 5)
   assert.deepEqual([...SK_SCALE], ['#5C86AE', '#9BB6CD', '#E4D9C4', '#DB9A6B', '#C75A3C'])
   assert.deepEqual(SK_STATE, { ok: '#3E8E5E', warn: '#C98A2E', bad: '#C4453B' })
 })
