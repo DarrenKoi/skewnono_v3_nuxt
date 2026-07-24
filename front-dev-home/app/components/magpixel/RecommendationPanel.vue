@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fovNm, marginSensitivity, pixelGuidance, type CalcInput, type Recommendation } from '~/utils/magPixel'
+import { fovNm, isAssumedMag, marginSensitivity, pixelGuidance, type CalcInput, type Recommendation } from '~/utils/magPixel'
 
 const props = defineProps<{
   rec: Recommendation
@@ -18,6 +18,11 @@ const toneClass = computed(() => ({
 }[guidance.value.tone]))
 
 const magLabel = (mag: number | null) => mag === null ? '—' : `${mag / 1000}K`
+
+/** 원본 문서에서 확인되지 않아 가정한 GT 600K+ 구간인지. ResultTable.vue의 `가정`
+ *  배지와 같은 판정을 헤드라인·민감도 표에도 적용해, 표와 추천 카드가 서로
+ *  다른 신뢰도를 말하지 않게 한다. */
+const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.calc.series, mag)
 </script>
 
 <template>
@@ -31,6 +36,10 @@ const magLabel = (mag: number | null) => mag === null ? '—' : `${mag / 1000}K`
       </div>
       <div class="font-mono text-2xl font-bold">
         {{ magLabel(rec.mag) }}
+        <span
+          v-if="isMagAssumed(rec.mag)"
+          class="ml-1 rounded px-1 align-middle text-[9px] text-amber-600 ring-1 ring-amber-500/40 dark:text-amber-400"
+        >가정</span>
       </div>
       <div class="mb-3 font-mono text-[15px] font-bold opacity-80">
         {{ rec.pixels ?? '—' }} px
@@ -88,6 +97,10 @@ const magLabel = (mag: number | null) => mag === null ? '—' : `${mag / 1000}K`
             </td>
             <td class="py-0.5 text-right">
               {{ magLabel(row.mag) }}
+              <span
+                v-if="isMagAssumed(row.mag)"
+                class="ml-1 rounded px-1 text-[9px] text-amber-600 ring-1 ring-amber-500/40 dark:text-amber-400"
+              >가정</span>
             </td>
           </tr>
         </tbody>
