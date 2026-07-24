@@ -27,6 +27,7 @@
 // Runs under raw `node --test` (no Nuxt, no bundler) — sibling imports carry an
 // explicit `.ts` extension.
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
+import { parsePixelSetting, pixelSizeNm } from '../magPixel.ts'
 import { isMeasuredRow } from '../msrRows.ts'
 import { iqrFences } from '../stats.ts'
 import type { WaferGeometry } from '../waferGeometry.ts'
@@ -75,6 +76,9 @@ export interface ReviewEntry {
   mag: number
   pixel: string
   vac: number
+  // Physical scale derived from mag + pixel (utils/magPixel.ts). null for an
+  // empty row (mag 0 / pixel "0,0") rather than Infinity.
+  nmPerPx: number | null
 }
 
 export interface ReviewQueue {
@@ -236,7 +240,12 @@ export const buildReviewQueue = (
       evidenceBacked,
       mag: r.meas_condition_mag,
       pixel: r.meas_condition_pixel,
-      vac: r.meas_condition_vac
+      vac: r.meas_condition_vac,
+      // FOV는 폭이므로 가로 픽셀 수(x)를 쓴다. 빈 row(mag 0 / "0,0")는 null.
+      nmPerPx: pixelSizeNm(
+        r.meas_condition_mag,
+        parsePixelSetting(r.meas_condition_pixel)?.x ?? 0
+      )
     }
   })
 

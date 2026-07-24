@@ -307,16 +307,24 @@ onBeforeUnmount(() => {
   revokeBlob()
 })
 
-// Physical scale bar. Phase-1 metadata carries image RESOLUTION
-// (meas_condition_pixel) but no field-of-view, so a true nm/pixel calibration
-// cannot be derived — we render a pixel ruler and disclose that, rather than
-// fabricate a physical length.
+// Physical scale bar. The image RESOLUTION comes from meas_condition_pixel and
+// the FIELD OF VIEW is derived from meas_condition_mag (FOV = 135000/Mag, see
+// utils/magPixel.ts), so a real nm/pixel calibration is now available.
+//
+// The bar itself stays a pixel ruler on purpose: it is a fixed 64 CSS px while
+// the image sits inside ZoomableImage, so claiming the BAR spans N nm would be
+// wrong at every zoom level but one. nm/px is a property of the acquisition,
+// not of the display, so it goes in the note and the metadata rail instead.
 const pixelDims = computed(() => entry.value?.pixel ?? '')
 const scaleLabel = computed(() => {
   const w = Number(pixelDims.value.split(',')[0])
   return Number.isFinite(w) && w > 0 ? `${Math.round(w / 8)} px` : '— px'
 })
-const scaleNote = computed(() => `해상도 ${pixelDims.value || '—'} · 물리 보정 미제공`)
+const scaleNote = computed(() => {
+  const nmPerPx = entry.value?.nmPerPx
+  const res = `해상도 ${pixelDims.value || '—'}`
+  return nmPerPx != null ? `${res} · ${nmPerPx.toFixed(3)} nm/px` : `${res} · 배율 정보 없음`
+})
 
 const meta = computed(() => {
   const e = entry.value
@@ -328,6 +336,7 @@ const meta = computed(() => {
   ]
   if (e.residual != null) items.push({ k: '국소 잔차', v: `${e.residual >= 0 ? '+' : ''}${e.residual.toFixed(2)}${e.unit ? ' ' + e.unit : ''}` })
   items.push({ k: '배율', v: e.mag ? `${e.mag.toLocaleString()}x` : '—' })
+  items.push({ k: '픽셀 크기', v: e.nmPerPx != null ? `${e.nmPerPx.toFixed(3)} nm/px` : '—' })
   items.push({ k: '진공', v: e.vac ? String(e.vac) : '—' })
   if (e.monitor) {
     items.push({ k: '측정 점수', v: e.monitor.measurementScore != null ? String(e.monitor.measurementScore) : '—' })

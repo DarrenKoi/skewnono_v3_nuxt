@@ -166,3 +166,20 @@ test('§0.5 — gallery.ts never references the mock health scalar or placeholde
   assert.ok(!/\bhealth\b/.test(code), 'gallery.ts must not read the mock health scalar')
   assert.ok(!/spm_dict/.test(code), 'gallery.ts must not read the placeholder spm_dict')
 })
+
+test('gallery entries carry a derived nm-per-pixel', () => {
+  // row() defaults: meas_condition_mag: 250030, meas_condition_pixel: '512,512'.
+  // FOV 135000000/250030 = 539.9352nm, / 512 = 1.0545609 nm/px.
+  const q = buildReviewQueue([row({})], 'CD_TOP', geo())
+  const [entry] = q.entries
+  assert.notEqual(entry!.nmPerPx, null)
+  assert.ok(Math.abs(entry!.nmPerPx! - 1.0545609) < 1e-6)
+})
+
+test('an empty row derives no scale rather than Infinity', () => {
+  // mock writes mag 0 / pixel "0,0" on empty rows.
+  const rows = [row({ meas_condition_mag: 0, meas_condition_pixel: '0,0' })]
+  const q = buildReviewQueue(rows, 'CD_TOP', geo())
+  const [entry] = q.entries
+  assert.equal(entry!.nmPerPx, null)
+})
