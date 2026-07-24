@@ -28,3 +28,15 @@ test('grid on without pitch: no interval, rounded-mm label fallback', () => {
   assert.equal(a.interval, undefined)
   assert.equal(a.axisLabel.formatter!(50.4), '50')
 })
+
+test('buildWaferAxis labels ticks by die index using the grid offset', () => {
+  // With pitchMm = 10 and offsetMm = 4: die index = round((v - 4) / 10).
+  // Chosen values discriminate against offset being dropped:
+  // v=8: with offset → (8-4)/10 = 0.4 → 0; without offset → 8/10 = 0.8 → 1
+  // v=18: with offset → (18-4)/10 = 1.4 → 1; without offset → 18/10 = 1.8 → 2
+  // v=-2: with offset → (-2-4)/10 = -0.6 → -1; without offset → -2/10 = -0.2 → 0
+  const a = buildWaferAxis(true, 100, 10, '#9A8E7C', 4)
+  assert.equal(a.axisLabel.formatter!(8), '0')
+  assert.equal(a.axisLabel.formatter!(18), '1')
+  assert.equal(a.axisLabel.formatter!(-2), '-1')
+})
