@@ -28,10 +28,10 @@ const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.
 <template>
   <div class="flex flex-wrap gap-4">
     <div
-      class="min-w-52 flex-1 rounded-(--sk-r-sidebar) border-2 p-4"
+      class="min-w-52 flex-1 rounded-lg border-2 p-4"
       :class="toneClass"
     >
-      <div class="mb-2 font-mono text-[10px] tracking-wide">
+      <div class="sk-eyebrow mb-2">
         ★ 추천 조합
       </div>
       <div class="font-mono text-2xl font-bold">
@@ -46,28 +46,48 @@ const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.
       </div>
       <dl class="font-mono text-[11.5px] leading-relaxed">
         <div class="flex justify-between">
-          <dt>FOV</dt>
-          <dd>{{ recFovNm !== null ? Math.round(recFovNm).toLocaleString() : '—' }} nm</dd>
+          <dt class="sk-meta">
+            FOV
+          </dt>
+          <dd class="sk-value-num">
+            {{ recFovNm !== null ? Math.round(recFovNm).toLocaleString() : '—' }} nm
+          </dd>
         </div>
         <div class="flex justify-between opacity-60">
-          <dt>필요</dt>
-          <dd>{{ Math.round(rec.requiredFovNm).toLocaleString() }} nm</dd>
+          <dt class="sk-meta">
+            필요
+          </dt>
+          <dd class="sk-value-num">
+            {{ Math.round(rec.requiredFovNm).toLocaleString() }} nm
+          </dd>
         </div>
         <div class="flex justify-between">
-          <dt>nm/px</dt>
-          <dd>{{ rec.nmPerPx?.toFixed(3) ?? '—' }}</dd>
+          <dt class="sk-meta">
+            nm/px
+          </dt>
+          <dd class="sk-value-num">
+            {{ rec.nmPerPx?.toFixed(3) ?? '—' }}
+          </dd>
         </div>
-        <div class="flex justify-between font-semibold">
-          <dt>px/CD</dt>
-          <dd>{{ rec.pxPerCd?.toFixed(1) ?? '—' }}</dd>
+        <div class="flex justify-between">
+          <dt class="sk-meta font-semibold">
+            px/CD
+          </dt>
+          <dd class="sk-value-num font-semibold">
+            {{ rec.pxPerCd?.toFixed(1) ?? '—' }}
+          </dd>
         </div>
-        <div class="mt-1 flex justify-between border-t border-(--sk-border) pt-1.5 font-semibold">
-          <dt>스캔 시간</dt>
-          <dd>×{{ rec.scanFactor ?? '—' }}</dd>
+        <div class="mt-1 flex justify-between border-t border-(--sk-border) pt-1.5">
+          <dt class="sk-meta font-semibold">
+            스캔 시간
+          </dt>
+          <dd class="sk-value-num font-semibold">
+            ×{{ rec.scanFactor ?? '—' }}
+          </dd>
         </div>
       </dl>
       <div
-        class="mt-3 rounded p-2 text-[11px] leading-relaxed"
+        class="mt-3 rounded-lg p-2 text-[11px] leading-relaxed"
         :class="toneClass"
       >
         <strong>{{ guidance.headline }}</strong><br>
@@ -75,11 +95,11 @@ const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.
       </div>
     </div>
 
-    <div class="min-w-52 flex-1 rounded-(--sk-r-sidebar) border border-(--sk-border) p-4">
-      <div class="mb-2 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+    <div class="min-w-52 flex-1 rounded-lg border border-(--sk-border) p-4">
+      <div class="sk-eyebrow mb-2">
         마진 민감도
       </div>
-      <p class="mb-2 text-[11px] leading-relaxed text-(--sk-ink-muted)">
+      <p class="mb-2 sk-meta leading-relaxed">
         배율이 이산값이라 마진이 연속적으로 반응하지 않습니다. 지금 마진에 여유가 얼마나 남았는지 보세요.
       </p>
       <table class="w-full font-mono text-[11.5px]">

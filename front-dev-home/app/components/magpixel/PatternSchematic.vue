@@ -34,10 +34,10 @@ const barFill = 'linear-gradient(90deg,#e8eef7,#9aa8bd 55%,#e8eef7)'
 
 <template>
   <div>
-    <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+    <div class="mb-1.5 sk-eyebrow">
       ① 전체 FOV {{ Math.round(fovNm).toLocaleString() }} nm — 패턴 {{ patternCount }}개 · 마진 {{ Math.round(marginNm) }} nm
     </div>
-    <div class="flex h-14 overflow-hidden rounded bg-slate-900">
+    <div class="flex h-14 overflow-hidden rounded-lg bg-slate-900">
       <div
         :style="{ width: `${marginPct}%`, background: hatch }"
         class="border-r border-dashed border-indigo-400/70"
@@ -82,10 +82,10 @@ const barFill = 'linear-gradient(90deg,#e8eef7,#9aa8bd 55%,#e8eef7)'
       </div>
     </div>
 
-    <div class="mb-1.5 mt-4 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+    <div class="mb-1.5 mt-4 sk-eyebrow">
       ② Pitch {{ pitchNm }} nm 확대 — 픽셀 경계 {{ pxPerPitch.toFixed(1) }} px
     </div>
-    <div class="relative h-16 overflow-hidden rounded bg-slate-900">
+    <div class="relative h-16 overflow-hidden rounded-lg bg-slate-900">
       <div class="absolute inset-0 flex">
         <div :style="{ width: `${barPct}%`, background: barFill }" />
         <div :style="{ width: `${spacePct}%` }" />

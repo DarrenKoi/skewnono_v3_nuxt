@@ -55,7 +55,7 @@ const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
   <div class="overflow-x-auto">
     <table class="w-full border-collapse font-mono text-[12px]">
       <thead>
-        <tr class="text-[10px] tracking-wide text-(--sk-ink-muted)">
+        <tr class="sk-eyebrow">
           <th class="border-b border-(--sk-border) px-2 py-1.5 text-left">
             MAG
           </th>
@@ -99,7 +99,7 @@ const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
       </tbody>
     </table>
 
-    <p class="mt-3 font-mono text-[10.5px] leading-relaxed text-(--sk-ink-muted)">
+    <p class="mt-3 font-mono sk-meta leading-relaxed">
       <template v-if="requiredFovNm === null">
         셀 값 = 픽셀당 길이(nm/px) · 헤더 ×N = 512 대비 상대 스캔 시간
       </template>
