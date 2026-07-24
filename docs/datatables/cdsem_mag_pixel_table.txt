@@ -1,0 +1,26 @@
+mag - fov - pixel size table
+FOV (um)
+
+CG 장비 MAG Range
+Mag (1000, 2000, 4900, 8000, 10000, 20000, 50000, 60000, 70000, 80000, 100000, 120000, 150000, 180000
+200000, 220000, 250000, 300000, 350000, 400000, 420000, 450000, 500000)
+
+GT 장비 MAG Range는 1000000 까지 확장 (1000 단위 -> K로 치환 가능) 500000 이후 단위가 어떻게 되는지 확인 안되지만, 100000단위로 가정
+
+CG, GT 모두 pixel size 512, 1024, 2048, 4096 사용 
+
+methematical relationships
+
+FOV (Field of View) in micrometers
+
+FOV = 135000 / Mag
+
+135000 is constant (screen width in nm at 1x magnification of the tool)
+
+Pixel Size in nanometers
+
+Pixel Size = FOV X 1000 / N_pixels
+
+
+In datatable, the columns are
+Mag, Fov, pixels (512, 1024, 2048, 4096)
