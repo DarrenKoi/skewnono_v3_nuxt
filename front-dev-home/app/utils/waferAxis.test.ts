@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { buildWaferAxis } from './waferAxis.ts'
 
 test('grid off: all furniture hidden, no interval', () => {
-  const a = buildWaferAxis(false, 154.5, 6.818182, '#9A8E7C')
+  const a = buildWaferAxis(false, 154.5, 6.818182, '#9A8E7C', 0)
   assert.equal(a.splitLine.show, false)
   assert.equal(a.axisLabel.show, false)
   assert.equal(a.axisTick.show, false)
@@ -14,7 +14,7 @@ test('grid off: all furniture hidden, no interval', () => {
 })
 
 test('grid on with pitch: die-pitch interval + die-index labels', () => {
-  const a = buildWaferAxis(true, 154.5, 6.818182, '#9A8E7C')
+  const a = buildWaferAxis(true, 154.5, 6.818182, '#9A8E7C', 0)
   assert.equal(a.splitLine.show, true)
   assert.equal(a.axisLabel.show, true)
   assert.ok(Math.abs((a.interval ?? 0) - 6.818182) < 1e-6)
@@ -24,7 +24,7 @@ test('grid on with pitch: die-pitch interval + die-index labels', () => {
 })
 
 test('grid on without pitch: no interval, rounded-mm label fallback', () => {
-  const a = buildWaferAxis(true, 154.5, 0, '#9A8E7C')
+  const a = buildWaferAxis(true, 154.5, 0, '#9A8E7C', 0)
   assert.equal(a.interval, undefined)
   assert.equal(a.axisLabel.formatter!(50.4), '50')
 })

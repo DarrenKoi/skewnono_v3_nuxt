@@ -17,12 +17,16 @@ from back_dev_home.msr_file.providers import mock
 _CLASS = "ADI"
 _TOTAL_IMAGES = 40
 
-# Swept, not single. A one-MSR version of this test passes against a mock that
-# ignores map_offset entirely: snapping tolerates error up to 0.5*pitch, and a
-# lucky seed (MSR-CONTRACT-0001 draws 0.11*pitch) stays inside that basin even
-# with the +-0.3*pitch within-die jitter on top. Only seeds whose offset/pitch
-# ratio exceeds the basin expose the incoherence, so the sweep is what gives
-# this test its teeth -- 0013 (0.56*pitch_y) and 0021 (0.50) are the detectors.
+# Swept, not single -- the sweep is what gives this test its teeth.
+#
+# Snapping rounds, so it absorbs any placement error below 0.5*pitch. A mock
+# that reports map_offset without encoding it is therefore invisible to any MSR
+# whose offset (<=0.3*pitch) plus that row's within-die jitter (<=0.3*pitch)
+# happens to stay inside that basin. Only the seeds where the two compound past
+# 0.5*pitch expose the incoherence, and which seeds those are is pure luck of
+# the draw: re-running the broken generator against the current geometry, 15 of
+# these 30 MSRs catch it and 15 do not. A single-MSR version of this test would
+# be a coin flip.
 _MSRS = tuple(f"MSR-CONTRACT-{i:04d}" for i in range(1, 31))
 
 

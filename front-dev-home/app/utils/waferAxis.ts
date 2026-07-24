@@ -26,7 +26,9 @@ export const buildWaferAxis = (
   color: string,
   // Required, deliberately: an `= 0` default let the only production call site
   // omit the offset silently, so the axis indexed the unshifted grid while the
-  // die-grid overlay drew the shifted one. Omission must be a type error.
+  // die-grid overlay drew the shifted one. Dropping the default makes that
+  // omission a type error in app code. NOTE it does not in *.test.ts, which
+  // nuxt typecheck excludes -- the tests pass 0 explicitly by convention.
   offsetMm: number
 ): WaferAxisConfig => {
   if (!grid) {
