@@ -41,9 +41,12 @@ test('palettes keep their full upstream length', () => {
 })
 
 // Every entry is round(v * 255) of the R2014b-onward RGB triplets published at
-// math.loyola.edu/~loberbro/matlab/html/colorsInMatlab.html.
-test('matlab palette is the R2014b default color order', () => {
-  assert.deepEqual(getEchartThemePalette('matlab'), [
+// math.loyola.edu/~loberbro/matlab/html/colorsInMatlab.html. Sliced, because we
+// append three of our own past index 6 -- but the head must stay verbatim, so a
+// chart with <= 7 series is colored exactly as MATLAB would color it. This is
+// the test that keeps the theme's name honest.
+test('matlab palette opens with the R2014b default color order, verbatim', () => {
+  assert.deepEqual(getEchartThemePalette('matlab').slice(0, 7), [
     '#0072BD',
     '#D95319',
     '#EDB120',
@@ -52,6 +55,35 @@ test('matlab palette is the R2014b default color order', () => {
     '#4DBEEE',
     '#A2142F'
   ])
+})
+
+// assignCompareColors() withholds index 0 for the selected tool, so covering
+// ten series takes ten colors, not nine.
+test('matlab palette carries ten colors and no duplicates', () => {
+  const palette = getEchartThemePalette('matlab')
+  assert.equal(palette.length, 10)
+  assert.equal(new Set(palette).size, 10)
+  assert.deepEqual(palette.slice(7), ['#148F81', '#E72784', '#285D38'])
+})
+
+// The three additions were chosen to clear MATLAB's OWN worst pair under
+// simulated dichromacy (dE00 6.5 deutan / 5.6 protan), not an absolute bar the
+// base seven would themselves fail. Anyone retuning them should re-derive
+// against that relative floor rather than swapping in a color that merely looks
+// distinct on a healthy monitor. Guarded here as the hue/lightness spread the
+// derivation produced: three separate families, none a near-neighbor of a base
+// color, so a regression shows up as a failing assertion and not as two
+// indistinguishable lines in a ten-tool comparison.
+test('matlab extensions occupy their own hue families', () => {
+  const [teal, rose, green] = getEchartThemePalette('matlab').slice(7)
+  // channel dominance is a cheap proxy for "is this still the color we derived"
+  const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
+  const [tr, tg, tb] = rgb(teal!)
+  assert.ok(tg > tr && tb > tr, 'teal must stay green-blue dominant')
+  const [rr, rg, rb] = rgb(rose!)
+  assert.ok(rr > rg && rb > rg, 'rose must stay red-blue dominant')
+  const [gr, gg, gb] = rgb(green!)
+  assert.ok(gg > gr && gg > gb, 'forest green must stay green dominant')
 })
 
 test('the first six of a palette are unchanged by the length extension', () => {

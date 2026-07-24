@@ -137,7 +137,11 @@ const romaColors = [
 // [0, 0.4470, 0.7410] -> rgb(0, 114, 189) -> #0072BD. The pre-R2014b order on
 // the same page is deliberately not used: its third and fifth entries are both
 // pure red, so two series would be indistinguishable.
-const matlabColors = [
+//
+// Kept separate from the extension below so the boundary is structural rather
+// than a comment someone can drift past: indices 0-6 are MATLAB's, verbatim, so
+// any chart with <= 7 series is colored exactly as MATLAB would color it.
+const matlabBaseColors = [
   '#0072BD',
   '#D95319',
   '#EDB120',
@@ -146,6 +150,36 @@ const matlabColors = [
   '#4DBEEE',
   '#A2142F'
 ] as const
+
+// OURS, not MATLAB's -- MathWorks publishes no 8th, 9th or 10th entry for this
+// order. Needed because assignCompareColors() withholds index 0 for the
+// selected tool, so a 7-color palette could only tell 6 compared tools apart.
+//
+// Picked by measurement, not by eye (CIEDE2000 in CIELAB, plus Vienot-Brettel-
+// Mollon dichromat simulation). Two findings shaped the result:
+//
+//   1. MATLAB's own closest pair is only dE00 6.5 apart under deuteranopia and
+//      5.6 under protanopia. So the bar for an addition is relative -- don't be
+//      closer to an existing color than MATLAB already is to itself -- not some
+//      absolute ideal these seven would fail. All three clear it: the tightest
+//      pair involving an addition is 9.0 (deutan) and 11.3 (protan).
+//   2. Only two hue arcs are genuinely free inside MATLAB's own L*/C* envelope:
+//      124-243 (the big one, 119 degrees) and 322-24. Everything between
+//      #0072BD and #7E2F8E is already covered -- nothing there clears dE00 20
+//      from both. Hence two colors out of the wide arc at different lightness
+//      (dark forest green, mid teal) and one out of the narrow one (rose).
+//
+// In normal vision the closest pair drops from 24.0 to 20.8. That is not a
+// regression to fix: adding three colors to an already-covered wheel must
+// tighten the minimum, and dE00 20 is still a large, unambiguous difference.
+// Ordered so each is far from the one before it: red -> teal -> rose -> green.
+const matlabExtendedColors = [
+  '#148F81',
+  '#E72784',
+  '#285D38'
+] as const
+
+const matlabColors = [...matlabBaseColors, ...matlabExtendedColors] as const
 
 // The picker paints one dot per entry at a fixed 16px, so a 20-color palette
 // would overflow the card. The swatch is a taste sample, not the full palette.
@@ -218,8 +252,8 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
   {
     value: 'matlab',
     label: 'MATLAB',
-    fileName: 'MATLAB colororder (R2014b+)',
-    description: 'MATLAB R2014b 이후의 기본 색 순서를 그대로 사용합니다.',
+    fileName: 'MATLAB colororder (R2014b+) · +3',
+    description: 'MATLAB R2014b 이후의 기본 색 순서 7색에 3색을 더해 10색으로 사용합니다.',
     colors: swatch(matlabColors),
     backgroundColor: '#ffffff',
     textColor: '#262626'
