@@ -54,6 +54,7 @@ then run the Verify command in ``hardware/MIGRATION.md``.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any
 
@@ -61,6 +62,10 @@ from back_dev_home.ebeam.hitachi._office_search import (
     fetch_hits,
     query as _query,
     text as _text,
+)
+from back_dev_home.ebeam.hitachi.hardware.metrics import (
+    PROFILE16_KEYS,
+    SCALAR_KEYS,
 )
 
 
@@ -87,31 +92,14 @@ TIME_FIELD = "timestamp"  # date field: drives the range filter and the sort
 # surprise cannot pull an unbounded result set. Truncation is detected below.
 MAX_DOCS = 10_000
 
-# Keys carrying per-degree arrays. `Reso EB Focus` rides here too — it is a
-# length-16 profile once flattened. The frontend derives the metric list from
-# the doc, so this only governs coercion, not what the UI shows.
-_PROFILE_KEYS = frozenset({
-    "Reso EB",
-    "Reso Detector",
-    "Noise",
-    "Focus offset",
-    "Apature angle factor",
-    "Reso EB Focus",
-})
-
-# Scalar summary keys (one float each).
-_SCALAR_KEYS = frozenset({
-    "Major Axis",
-    "Minor Axis",
-    "Ellipicity",
-    "Tilt",
-    "X range",
-    "Y range",
-    "Area",
-    "Ave. Reso Detector",
-    "Ave. Noise",
-    "Ave. Apature angle factor",
-})
+# Keys carrying per-degree arrays / scalars, sourced from the metric registry
+# so a new registry field flows to the office path automatically — the same
+# single-source-of-truth the mock (which iterates the registry) and the
+# frontend (value-driven) already honor. `Reso EB Focus` is a length-16 profile
+# once flattened but lives outside the registry (its source shape is
+# irregular), so it is added explicitly.
+_PROFILE_KEYS = frozenset(PROFILE16_KEYS) | {"Reso EB Focus"}
+_SCALAR_KEYS = frozenset(SCALAR_KEYS)
 
 # Metadata passed through verbatim (strings / already-correct types).
 _META_KEYS = (
@@ -146,7 +134,7 @@ def _as_float(value: Any) -> float | None:
             return None
     else:
         return None
-    return f if f == f and f not in (float("inf"), float("-inf")) else None
+    return f if math.isfinite(f) else None
 
 
 def _flatten16(value: Any) -> list[float] | None:
@@ -206,10 +194,10 @@ def _normalize(doc: dict[str, Any]) -> dict[str, Any]:
         if f is not None:
             out[_RANGE_KEY] = f
 
-    # Metadata tail, verbatim (strings normalized so "None"/NaN fall out).
+    # Metadata tail (strings normalized so "None"/NaN fall out).
     for key in _META_KEYS:
         if key in doc:
-            out[key] = _text(doc.get(key)) if key != "fab_name" else doc.get(key)
+            out[key] = _text(doc.get(key))
     return out
 
 
@@ -257,7 +245,8 @@ def build_beam_shape_docs(
 
     docs = [_normalize(hit) for hit in hits]
     # Match the mock's ordering exactly: (timestamp, beam_condition) ascending.
-    docs.sort(key=lambda d: (_text(d.get("timestamp")), _text(d.get("beam_condition"))))
+    # _normalize already stringified both keys, so read them directly.
+    docs.sort(key=lambda d: (d.get("timestamp", ""), d.get("beam_condition", "")))
     return docs
 
 
