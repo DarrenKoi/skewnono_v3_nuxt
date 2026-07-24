@@ -34,11 +34,13 @@ test('die boundaries shift with the die-grid offset', () => {
   assert.ok(!xs.includes(5)) // the unshifted boundary must be gone
 })
 
-test('a zero offset reproduces the unshifted grid', () => {
-  const shifted = buildDieGridSegments(geo(10, 10, 0, 0), 150)
-  const xs = shifted.filter(([a, b]) => a[0] === b[0]).map(([a]) => a[0])
-  assert.ok(xs.includes(5))
-  assert.ok(xs.includes(-5))
+test('an explicit zero offset is identical to omitting it', () => {
+  // Pins that the offset-free path really is the offset=0 path, so the grid
+  // above (which asserts the unshifted boundaries) still covers both.
+  assert.deepEqual(
+    buildDieGridSegments(geo(12.52, 10.34, 0, 0), 150),
+    buildDieGridSegments(geo(12.52, 10.34), 150)
+  )
 })
 
 test('every segment is a chord of the wafer circle', () => {

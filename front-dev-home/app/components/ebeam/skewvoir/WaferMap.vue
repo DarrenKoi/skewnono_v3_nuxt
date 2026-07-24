@@ -198,8 +198,8 @@ const option = computed<EChartsOption>(() => ({
     left: gridMargin.value, right: gridMargin.value, top: gridMargin.value, bottom: gridMargin.value,
     containLabel: false
   },
-  xAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchXmm, SK_CHART.muted) as EChartsOption['xAxis'],
-  yAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchYmm, SK_CHART.muted) as EChartsOption['yAxis'],
+  xAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchXmm, SK_CHART.muted, props.geo.offsetXmm) as EChartsOption['xAxis'],
+  yAxis: buildWaferAxis(props.options.grid, axisMax.value, props.geo.pitchYmm, SK_CHART.muted, props.geo.offsetYmm) as EChartsOption['yAxis'],
   visualMap: {
     // Bar hidden — the panel renders a separate DOM legend from `rangechange`.
     show: false,

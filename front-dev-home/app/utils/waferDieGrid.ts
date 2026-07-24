@@ -3,9 +3,9 @@
 // The msr file's exe_detail_info carries the die pitch (chip_pitch, nm), and
 // die centres sit on the offset die grid (chip_number (col,row) ↔
 // map_offset + col·pitch from the wafer centre — see waferGeometry.dieCenterMm).
-// Die BOUNDARIES therefore run at map_offset + (k + 0.5)·pitch. Each boundary line is clipped
-// to its chord across the wafer circle so the grid reads as the wafer's real
-// die layout, not a square mesh over the bounding box.
+// Die BOUNDARIES therefore run at map_offset + (k + 0.5)·pitch. Each boundary
+// line is clipped to its chord across the wafer circle so the grid reads as the
+// wafer's real die layout, not a square mesh over the bounding box.
 //
 // Pure (geometry in, segments out) so it runs under raw `node --test`.
 import type { WaferGeometry } from './waferGeometry.ts'
@@ -26,8 +26,10 @@ const boundaries = (pitch: number, radius: number, offset: number): number[] => 
   if (!(pitch > 0) || !(radius > 0)) return []
   if (radius / pitch > MAX_LINES_PER_AXIS) return []
   const out: number[] = []
+  // One extra ring beyond the wafer covers any |offset| < pitch, so a shifted
+  // grid cannot clip its outermost boundary line off either edge.
   const kMax = Math.ceil(radius / pitch) + 1
-  for (let k = -kMax - 1; k <= kMax; k++) {
+  for (let k = -kMax; k <= kMax; k++) {
     const c = offset + (k + 0.5) * pitch
     if (Math.abs(c) < radius) out.push(c)
   }

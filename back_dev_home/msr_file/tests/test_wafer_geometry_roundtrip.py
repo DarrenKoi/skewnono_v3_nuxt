@@ -46,11 +46,11 @@ def test_stage_coordinate_snaps_back_to_chip_number(msr):
     measured = [r for r in payload["rows"] if r["cd_value"] is not None]
     assert measured, "fixture must contain measured rows"
 
-    mismatched = [
+    snapped = [
         (r["chip_number"], _snap(r["stage_coordinate"], center_nm, pitch, offset))
         for r in measured
-        if _snap(r["stage_coordinate"], center_nm, pitch, offset) != r["chip_number"]
     ]
+    mismatched = [(chip, got) for chip, got in snapped if got != chip]
     assert not mismatched, f"{len(mismatched)}/{len(measured)} rows snap to the wrong die: {mismatched[:5]}"
 
 

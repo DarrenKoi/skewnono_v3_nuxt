@@ -258,14 +258,19 @@ def _die_center_nm(col: int, row: int, geom: WaferGeom) -> tuple[float, float]:
 def _measured_dies(msr: str) -> tuple[tuple[int, int], ...]:
     """Die (col, row) indices whose centre lies within the wafer (minus an edge
     exclusion), shuffled so a sequence→die walk spreads across the whole wafer
-    instead of marching down one column."""
+    instead of marching down one column.
+
+    Eligibility is measured on the SHIFTED grid (via _die_center_nm), not on
+    col*pitch: the die-grid offset moves every die by up to 0.3*pitch, so an
+    unshifted test would eat into the edge exclusion and let a die's measured
+    point land off the wafer once the within-die jitter is added on top."""
     geom = _wafer_geometry(msr)
     limit = _WAFER_RADIUS_NM - _EDGE_EXCLUSION_NM
     dies = [
         (col, row)
         for col in range(-(geom.cols // 2), geom.cols // 2 + 1)
         for row in range(-(geom.rows // 2), geom.rows // 2 + 1)
-        if math.hypot(col * geom.pitch_x_nm, row * geom.pitch_y_nm) <= limit
+        if math.hypot(*(c - _WAFER_CENTER_NM for c in _die_center_nm(col, row, geom))) <= limit
     ]
     random.Random(_seed(msr, 971)).shuffle(dies)
     return tuple(dies)
@@ -534,9 +539,12 @@ def _build_rows(
         stage_coordinate = f"{int(center_x_nm + off_x)},{int(center_y_nm + off_y)}"
         chip_coordinate = f"{int(center_x_nm)},{int(center_y_nm)}"
         # Physical radius from wafer centre, normalised to the wafer radius, drives
-        # the centre→edge CD trend seen in the radius plot.
+        # the centre→edge CD trend seen in the radius plot. Derived from the stage
+        # position rather than from col*pitch so it includes the die-grid offset --
+        # the frontend's siteRadiusMm reads the same stage_coordinate, and the two
+        # radii have to agree or the CD trend is drawn against the wrong radius.
         radius_norm = math.hypot(
-            chip_x * geom.pitch_x_nm + off_x, chip_y * geom.pitch_y_nm + off_y
+            center_x_nm + off_x - _WAFER_CENTER_NM, center_y_nm + off_y - _WAFER_CENTER_NM
         ) / _WAFER_RADIUS_NM
 
         # Every 20th sequence carries point METADATA but no point DATA (spec rule 9).

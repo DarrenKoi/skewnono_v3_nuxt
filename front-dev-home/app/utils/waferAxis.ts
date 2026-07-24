@@ -24,7 +24,10 @@ export const buildWaferAxis = (
   axisMax: number,
   pitchMm: number,
   color: string,
-  offsetMm = 0
+  // Required, deliberately: an `= 0` default let the only production call site
+  // omit the offset silently, so the axis indexed the unshifted grid while the
+  // die-grid overlay drew the shifted one. Omission must be a type error.
+  offsetMm: number
 ): WaferAxisConfig => {
   if (!grid) {
     return {
