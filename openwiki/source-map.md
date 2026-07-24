@@ -35,7 +35,7 @@ The request path and change implications are detailed in [runtime architecture](
 - `back_dev_home/ebeam/cdsem/device_statistics/`: lot/recipe/parameter analytics and rule seed data.
 - `back_dev_home/meas_hist/`: Skewvoir measurement discovery, search, facets, parent metadata, derived image-failure ratio, and equipment IP handoff.
 - `back_dev_home/msr_file/`: detailed MSR rows, summaries, FDC/alignment, and geometry.
-- `back_dev_home/msr_image/`: measurement-image listing/serving, async cache-fill jobs, disk/MinIO caches, and purge scheduling; its office source and rendered UI consumer remain incomplete.
+- `back_dev_home/msr_image/`: measurement-image listing/serving, safe async cache-fill jobs, memory/Redis job registries, disk/MinIO caches, purge scheduling, and a tracked tool-FTP adapter; Skewvoir consumes it, while local office activation and representative verification remain incomplete.
 - `back_dev_home/afm/`: integrated AFM tools, files, detail, artifacts, and compatibility routes.
 - `back_dev_home/chat/`: thread persistence and OpenAI-compatible completion boundary.
 - `back_dev_home/activity/`, `access_control/`, `admin_logs/`, `api_tokens/`: shared user/admin operations.
@@ -63,7 +63,7 @@ Most provider-backed features follow `routes.py -> data.py -> providers/{mock,of
 | `minio_handler/` | Shared transport library | MinIO object, DataFrame, image, and presigned URL operations |
 | `ftp_handler/` | Ingestion support | Direct/proxied fleet downloads and injected processing callbacks |
 | `ops_index_mgmt/` | Operational tooling | OpenSearch templates, aliases, lifecycle policies, and migrations |
-| `scripts/` | Engineering/operations helpers | Fixture capture and contract checks |
+| `scripts/` | Engineering/operations helpers | Fixture/contract checks, office-adapter setup/sync, source diagnostics, and cloud packaging/preflight |
 
 These packages [support office integrations](integrations/integration-points.md) but should not leak source-specific behavior into feature routes.
 
@@ -84,6 +84,7 @@ See [testing guidance](testing/guidance.md) before choosing a verification comma
 - `docs/adr/`: durable product/architecture decisions such as lot-first analysis, shared audience URLs, and sampling design.
 - `docs/project-overview.md`: product scope, equipment coverage, and roadmap.
 - `docs/back-end/office-data-adapters.md`: office-provider boundary and migration guidance.
+- `docs/deployment.md`: authoritative office-to-cloud packaging, transfer, preflight, permissions, and startup procedure.
 - `docs/superpowers/specs/` and `plans/`: design rationale and implementation sequencing; many completed plans were recently pruned, so use git history when a deleted plan matters.
 - `docs/handoff/`: recent work state for multi-step analyses.
 - `AGENTS.md` and `CLAUDE.md`: development conventions; verify port/state details against code because parts have drifted.

@@ -50,14 +50,16 @@ Use the tracked `back_dev_home/.env.example` as the non-secret template and copy
 
 ## Incremental office migration
 
-Deployment mode and data provider are separate. On a fresh office checkout, create each local adapter from its tracked implementation:
+Deployment mode and data provider are separate. On a fresh office checkout—or after pulling template changes—initialize every runnable local adapter with the safe setup command:
 
 ```bash
-cp back_dev_home/meas_hist/providers/office_example.py \
-  back_dev_home/meas_hist/providers/office.py
+.venv/bin/python -m scripts.setup_office_adapters --dry-run
+.venv/bin/python -m scripts.setup_office_adapters
 ```
 
-Do not commit `office.py`; reviewable implementation and contract changes belong in `office_example.py`. Restart Flask after adding or removing one because adapter discovery is cached per process. With no feature overrides, home and unknown hosts use mock mode; recognized office/cloud sites use office only for features whose direct `providers/office.py` exists. `SKEWNONO_SITE=office` is useful for VPN verification without changing adapter selection rules.
+The setup tool creates missing runnable adapters and refreshes copies proven stale against Git history. It skips stub templates, because merely creating `office.py` would switch a working mock feature to an intentional `NotImplementedError`, and skips locally edited copies because their ignored changes may exist nowhere else. Stale copies are backed up as `office.py.bak` before replacement. Use `.venv/bin/python -m scripts.sync_office_adapters` for status-only inspection; add `--diff <name>`, select adapter names, or use `--all --dry-run` before a broader refresh. Statuses are `MISSING`, `SYNCED`, `STALE`, and `EDITED`; force-overwrite an edited copy only after reviewing and preserving its local changes.
+
+Do not commit `office.py`; reviewable implementation and contract changes belong in `office_example.py`. Restart Flask after setup or synchronization because adapter discovery is cached per process. With no feature overrides, home and unknown hosts use mock mode; recognized office/cloud sites use office only for features whose direct `providers/office.py` exists. `SKEWNONO_SITE=office` is useful for VPN verification without changing adapter selection rules.
 
 Use mock overrides as rollback controls:
 
@@ -71,7 +73,7 @@ SKEWNONO_DATA_PROVIDER=mock PORT=5050 .venv/bin/python index.py
 
 Feature-specific `=office` remains useful for a home/VPN contract gate, but it is accepted only when that feature's `office.py` exists; otherwise both application startup and direct provider imports fail with a copy command rather than silently serving mock. `SKEWNONO_DATA_PROVIDER=office` selects office mode but does not force unwired features.
 
-At every startup, `skewnono.providers` logs the detected site, effective mode, office-feature count, and each feature's provider/reason. `GET /api/health/providers` exposes the same live resolution. Use those outputs to learn what this machine serves; use `docs/office-migration/STATUS.md` separately to determine whether the real source passed contract and screen verification. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
+At every startup, `skewnono.providers` logs the detected site, effective mode, office-feature count, and each feature's provider/reason. When Git history proves an active `office.py` matches an older template, startup also emits a `STALE office.py` warning with the synchronization command; locally edited copies are intentionally not warned about. This check is best-effort and cannot normally prove staleness in a deployment bundle without `.git`. `GET /api/health/providers` exposes live provider resolution, not freshness. Use those outputs to learn what this machine serves; use `docs/office-migration/STATUS.md` separately to determine whether the real source passed contract and screen verification. Follow the readiness criteria in [integration points](../integrations/integration-points.md#provider-readiness).
 
 ## Live alarm office deployment
 
@@ -79,29 +81,35 @@ Live alarm has two independent local adapters. First copy `back_dev_home/ebeam/h
 
 Confirm `skewnono:live_alarm:*` keys and that each `meta.polled_at` advances before copying `providers/office_example.py` to Flask's ignored `providers/office.py`. Restart Flask, confirm `live_alarm` through `/api/health/providers`, then inspect the endpoint's `feed_status`: `stale` means the registered writer heartbeat stopped; `not_configured` means the fab is absent from the writer address map. The writer is portable by design and must not import `back_dev_home`; reader/writer member compatibility is pinned by `test_written_members_are_readable_by_the_reader`.
 
-## Build and production-style serving
+## Build, package, and cloud deployment
 
-Build the client-only SPA:
+Build and package the client-only SPA from the office working tree:
 
 ```bash
-cd front-dev-home
-npm ci
-npm run generate
+npm --prefix front-dev-home run build
+.venv/bin/python -m scripts.pack_deploy
+# Equivalent: .venv/bin/python -m scripts.pack_deploy --build
 ```
 
-The output must exist at `front-dev-home/.output/public`. In cloud mode, Flask serves real assets and falls back to `index.html` for Nuxt client routes. It does not route `api/*` to the SPA.
+The default bundle is `dist/skewnono-<timestamp>/`. Packaging deliberately reads the working tree rather than `git archive`, so ignored `providers/office.py`, `back_dev_home/.env`, and `minio_handler/minio_config.py` are retained. It also writes `preflight.py`, `DEPLOY.md`, and `MANIFEST.txt`; the manifest records source provenance, dirty state, adapter roster, and pack-time warnings. Use `--strict` only when every advisory should block packaging; the current feasibility deployment permits a runnable mock-backed bundle. See `docs/deployment.md` for the authoritative transfer procedure.
 
-Serve Flask through:
+Copy the bundle's contents directly under `/project/workSpace`, restore restrictive permissions because transfer may discard them, then preflight both before and after dependency installation:
 
 ```bash
+chmod 700 /project/workSpace
+chmod 600 /project/workSpace/back_dev_home/.env
+chmod 600 /project/workSpace/minio_handler/minio_config.py
+cd /project/workSpace
+python preflight.py
+pip install -r back_dev_home/requirements.txt
+python preflight.py
 uwsgi --ini wsgi.ini
-# or an equivalent
-gunicorn index:application
+curl localhost:5000/api/health/providers
 ```
 
-`wsgi.ini` currently exposes HTTP on `0.0.0.0:5000`, with four processes, two threads per process, 60-second harakiri, and worker recycle after 1,000 requests. Missing SPA output only produces a warning and leaves an API-only server; deployment automation should verify the directory explicitly.
+Path and directory depth are runtime configuration: `_runtime/env.py` recognizes cloud mode only below `/project/workSpace`, and SPA lookup assumes the packaged depth. An extra wrapper directory or another installation path can leave the process returning HTTP while silently disabling cloud SSO, SPA mounting, and office-mode site classification. The standard-library-only preflight catches these layout errors and reports whether `hcputil.auth.sso` or `hcputil.auto.sso` is available from the cloud image.
 
-The [architecture overview](../architecture/overview.md#deployment-modes) explains that cloud mode is inferred from installation path. Confirm the expected path before assuming SSO, SPA serving, or cloud logging is enabled.
+`wsgi.ini` exposes HTTP on `0.0.0.0:5000`, with four processes, two threads per process, 60-second harakiri, and worker recycle after 1,000 requests. The SPA uses relative `/api`, so the feasibility and production hostnames can use the same bundle. Current deployment URLs are HTTP-only; follow `docs/deployment.md` rather than enabling secure-cookie/HSTS settings that would break those sessions. The [architecture overview](../architecture/overview.md#deployment-modes) explains the underlying mode coupling.
 
 ## Pre-deployment checks
 
@@ -144,7 +152,7 @@ The app validates provider settings before registering routes. Invalid values fa
 
 ### Office feature is unexpectedly mock or returns NotImplementedError
 
-Query `GET /api/health/providers` or inspect the startup table first. In office mode, reason `no providers/office.py` means the machine-local adapter is absent; copy the tracked `office_example.py`, restart, and rerun its contract gate. A selected adapter that raises `NotImplementedError` remains intentionally unwired. Use a feature-specific mock override while diagnosing it. Hardware is the exception: its feature-level adapter dispatches each tab separately, and a missing nested tab `office.py` falls back to that tab's mock with an INFO log.
+Query `GET /api/health/providers` or inspect the startup table first. In office mode, reason `no providers/office.py` means the machine-local adapter is absent; use the setup/sync workflow, restart, and rerun its contract gate. A selected adapter that raises `NotImplementedError` remains intentionally unwired; remove that stub copy or use a feature-specific mock override while diagnosing it. Hardware is the exception: its feature-level adapter dispatches each tab separately, and a missing nested tab `office.py` falls back to that tab's mock with an INFO log.
 
 ### Office feature returns JSON 502 or 503
 
@@ -156,11 +164,11 @@ The chat egress guard rejected `CHAT_BASE_URL` because its host matches a built-
 
 ### Measurement images fail or receive 429
 
-All endpoints named `msr_image.*` should be limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; a real office source cannot work until a local `msr_image/providers/office.py` exists. The API's disk/MinIO caches and mock source are implemented, but no rendered gallery currently consumes `useMsrImageApi.ts`.
+All endpoints named `msr_image.*` are limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; unsafe class, MSR, and image-name path segments are also rejected before FTP access. `429 too_many_jobs` means the configured active-job cap was reached. The tracked office adapter selects the HTTP-proxy downloader on Windows and direct FTP elsewhere, but real office operation still requires an ignored `msr_image/providers/office.py`, a distinct MinIO cache prefix, and representative source verification. Gallery polling exposes whole-job listing errors separately from per-file failures; TIFF originals intentionally render as download links.
 
 ### Rate limits or local state behave inconsistently across workers
 
-The limiter uses `memory://`, and several home providers are in-memory/SQLite oriented. Measurement-image download jobs are also process-local: a poll routed to another uWSGI worker can return `404 unknown_job`, and parsed job TTL/max settings are not enforced. The app starts one idempotent image-cache purge scheduler per process. Connect intended shared persistence or reduce the process model only for diagnosis.
+The limiter uses `memory://`, and several home providers are in-memory/SQLite oriented. Measurement-image jobs use Redis only when the selected provider is office and `REDIS_HOST` is configured; otherwise they use process memory. Multi-worker office deployment therefore needs Redis to prevent valid polls reaching another worker as `404 unknown_job`. Job TTL and maximum-active settings are enforced, although Redis admission is a soft cross-worker guard rather than a fully atomic global cap. The app starts one idempotent image-cache purge scheduler per process. Connect intended shared persistence for other local state or reduce the process model only for diagnosis.
 
 ### Icons disappear in the office network
 
