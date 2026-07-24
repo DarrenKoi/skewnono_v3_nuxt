@@ -7,7 +7,11 @@
   >
     <div
       v-if="summaries.length"
-      class="min-h-0 flex-1 overflow-auto"
+      ref="scrollEl"
+      tabindex="0"
+      role="grid"
+      class="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-(--sk-brand)/40"
+      @keydown="onKeydown"
     >
       <!-- Backend-computed stats (MsrParamSummary): the numbers come from the
            office pickle's full per-parameter population, not the rows the
@@ -41,11 +45,13 @@
           <tr
             v-for="s in summaries"
             :key="s.parameter"
+            :data-row-key="s.parameter"
+            :aria-selected="selectedSet.has(s.parameter)"
             class="cursor-pointer border-b border-(--sk-border-soft) transition-colors duration-150 hover:bg-(--sk-chip-bg)"
             :class="s.parameter === activeParam
               ? 'bg-(--sk-chip-bg)'
               : selectedSet.has(s.parameter) ? 'bg-(--sk-brand)/10' : ''"
-            @click="analysis.toggleParam(s.parameter, $event.metaKey || $event.ctrlKey || $event.shiftKey)"
+            @click="onRowClick(s.parameter, $event.metaKey || $event.ctrlKey || $event.shiftKey)"
           >
             <td
               class="px-1.5 py-1 font-mono whitespace-nowrap"
@@ -88,6 +94,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -99,4 +106,38 @@ const selectedSet = computed(() => new Set(props.analysis.selectedParams.value))
 
 // CD values are a few tens of nm — 2 decimals matches StatBar/Distribution.
 const fmt = (v: number): string => (Number.isFinite(v) ? v.toFixed(2) : '—')
+
+const scrollEl = ref<HTMLElement | null>(null)
+
+const cursorIndex = computed(() =>
+  summaries.value.findIndex(s => s.parameter === activeParam.value))
+
+const focusRowAt = (index: number) => {
+  const s = summaries.value[index]
+  if (!s) return
+  props.analysis.setParam(s.parameter) // move primary; extras (비교셋) preserved
+  nextTick(() => {
+    scrollEl.value
+      ?.querySelector(`[data-row-key="${CSS.escape(s.parameter)}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+const onRowClick = (parameter: string, additive: boolean) => {
+  props.analysis.toggleParam(parameter, additive)
+  scrollEl.value?.focus()
+}
+
+const onKeydown = (e: KeyboardEvent) => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault()
+    props.analysis.toggleParam(activeParam.value, true) // toggle comparison membership
+    return
+  }
+  const nav = ['ArrowDown', 'ArrowUp', 'Home', 'End']
+  if (!nav.includes(e.key)) return
+  e.preventDefault()
+  const next = nextCursorIndex(e.key as CursorKey, cursorIndex.value, summaries.value.length)
+  if (next != null) focusRowAt(next)
+}
 </script>
