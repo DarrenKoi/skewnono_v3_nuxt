@@ -223,22 +223,34 @@ class WaferGeom(NamedTuple):
     rows: int
     pitch_x_nm: int
     pitch_y_nm: int
+    # Die-grid offset (nm). The SINGLE source for both the stage_coordinate this
+    # module generates and the map_offset it reports, so the two can never
+    # disagree -- the bug this replaces was a random map_offset that nothing
+    # encoded, which only looked fine because nothing read it.
+    offset_x_nm: int
+    offset_y_nm: int
 
 
 @lru_cache(maxsize=256)
 def _wafer_geometry(msr: str) -> WaferGeom:
-    """Per-MSR die array + pitch. Pitch = wafer diameter / array count, so the
-    array physically spans the wafer and stage coordinates land inside it."""
+    """Per-MSR die array, pitch and die-grid offset. Pitch = wafer diameter /
+    array count, so the array physically spans the wafer and stage coordinates
+    land inside it. The offset is kept under 0.3*pitch: a real, visible shift
+    that still never pushes a die off the wafer."""
     rng = random.Random(_seed(msr, 313))
     cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
-    return WaferGeom(cols, rows_n, round(_WAFER_NM / cols), round(_WAFER_NM / rows_n))
+    pitch_x, pitch_y = round(_WAFER_NM / cols), round(_WAFER_NM / rows_n)
+    offset_x = round(rng.uniform(-0.3, 0.3) * pitch_x)
+    offset_y = round(rng.uniform(-0.3, 0.3) * pitch_y)
+    return WaferGeom(cols, rows_n, pitch_x, pitch_y, offset_x, offset_y)
 
 
 def _die_center_nm(col: int, row: int, geom: WaferGeom) -> tuple[float, float]:
-    """Physical centre (nm, corner origin) of die (col, row)."""
+    """Physical centre (nm, corner origin) of die (col, row), on the die grid
+    shifted off the wafer centre by the map_offset this MSR reports."""
     return (
-        _WAFER_CENTER_NM + col * geom.pitch_x_nm,
-        _WAFER_CENTER_NM + row * geom.pitch_y_nm,
+        _WAFER_CENTER_NM + geom.offset_x_nm + col * geom.pitch_x_nm,
+        _WAFER_CENTER_NM + geom.offset_y_nm + row * geom.pitch_y_nm,
     )
 
 
@@ -345,7 +357,6 @@ def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> E
     """Acquisition context. Sourced from the parent meas_hist row wherever
     possible so the MSR detail can never contradict the measurement history it
     hangs off; only the wafer geometry (absent upstream) is seeded."""
-    rng = random.Random(_seed(msr, 313))
     recipe_name = parent["recipe_name"] if parent else f"{class_name}_UNKNOWN"
     lot_id = parent["lot_id"] if parent else f"LOT{_seed(msr) % 1_000_000:06d}"
     idp_name = parent["idp_name"] if parent else f"/Recipe/{class_name}/{recipe_name}.idp"
@@ -370,7 +381,10 @@ def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> E
         # = 300 mm), and map_origin is the ARRAY index of the origin die — the
         # die the centred chip_number (0,0) maps to — not an nm pair.
         wafer_size=str(_WAFER_NM),
-        map_offset=f"{rng.randrange(-3_000_000, 3_000_000)},{rng.randrange(-3_000_000, 3_000_000)}",
+        # map_offset is the die-grid offset actually encoded in stage_coordinate
+        # (see _die_center_nm) -- read from the shared geometry so the reported
+        # value and the generated coordinates cannot drift apart.
+        map_offset=f"{geom.offset_x_nm},{geom.offset_y_nm}",
         map_origin=f"{geom.cols // 2},{geom.rows // 2}",
     )
 
