@@ -13,11 +13,13 @@ Two of those steps are the usual suspects:
   * sem_list join     -- office drops an IP with no sem_list match entirely
                          (the mock keeps it as an orphan row), so a format
                          mismatch in eqp_ip empties the table.
-  * tool-type filter  -- `model_to_tool_type()` is an EXACT-match allowlist of
-                         model codes in `_tool_specs.py`. A real model code
-                         outside that list classifies as None and is dropped
-                         under both tabs. The mock cannot catch this because it
-                         fabricates its IPs from those same listed codes.
+  * tool-type filter  -- `model_to_tool_type()` in `_tool_specs.py` classifies
+                         by series prefix (CG/GT -> cd-sem, TP -> hv-sem). A
+                         code matching no prefix is dropped under both tabs.
+                         Until 2026-07-24 this matched an exact list of
+                         mock-invented codes instead, which is what emptied the
+                         panel for 8 real tools; the mock could not catch it
+                         because it fabricates its IPs from that same list.
 
 Run FROM THE REPO ROOT at the office (reads REDIS_* from back_dev_home/.env
 exactly like the adapter does):
@@ -33,8 +35,8 @@ from datetime import datetime
 
 from back_dev_home._runtime.office_redis import redis_client
 from back_dev_home.ebeam.hitachi._tool_specs import (
+    _TOOL_TYPE_BY_PREFIX,
     SLUG_TO_TOOL_TYPE,
-    TOOL_SPECS,
     model_to_tool_type,
 )
 
@@ -132,7 +134,7 @@ def main() -> int:
 
     # -- 4. the tool-type filter --------------------------------------------
     rule("4. Tool-type classification (model_to_tool_type)")
-    print(f"allowlist: {sorted(m for spec in TOOL_SPECS.values() for m in spec['eqp_models'])}\n")
+    print(f"prefix rules: {[f'{p}* -> {t}' for p, t in _TOOL_TYPE_BY_PREFIX]}\n")
 
     models = Counter(str(sem_by_ip[ip]["eqp_model_cd"]) for ip in matched)
     unknown_total = 0
@@ -145,10 +147,11 @@ def main() -> int:
 
     if unknown_total:
         print(f"\n!! {unknown_total}/{len(matched)} matched IPs classify as None.")
-        print("   Fix by adding the real model codes to TOOL_SPECS in")
-        print("   back_dev_home/ebeam/hitachi/_tool_specs.py (the frontend's")
-        print("   classifyToolType() is prefix-based, so it already accepts them).")
-        findings.append(f"{unknown_total} IPs have model codes outside TOOL_SPECS")
+        print("   These codes match no known series prefix. Add the series to")
+        print("   _TOOL_TYPE_BY_PREFIX in back_dev_home/ebeam/hitachi/_tool_specs.py")
+        print("   AND to classifyToolType() in app/composables/useSemListApi.ts --")
+        print("   the two must agree or the frontend re-drops what the API returns.")
+        findings.append(f"{unknown_total} IPs match no series prefix")
 
     # -- 5. per-tab outcome --------------------------------------------------
     rule("5. Rows the API will actually return")
