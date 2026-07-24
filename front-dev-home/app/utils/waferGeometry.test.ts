@@ -112,3 +112,14 @@ test('dieCenterMm applies the offset per axis (X and Y are not transposed)', () 
   assert.ok(Math.abs(x - (3 + 2 * g.pitchXmm)) < 1e-9)
   assert.ok(Math.abs(y - (4.61 + -3 * g.pitchYmm)) < 1e-9)
 })
+
+test('mmToDieIndex accounts for the die-grid offset', () => {
+  const pitch = 6.818182
+  assert.equal(mmToDieIndex(4.61, pitch, 4.61), 0)
+  assert.equal(mmToDieIndex(4.61 + pitch, pitch, 4.61), 1)
+  assert.equal(mmToDieIndex(4.61 - 2 * pitch, pitch, 4.61), -2)
+})
+
+test('mmToDieIndex offset defaults to zero for existing callers', () => {
+  assert.equal(mmToDieIndex(6.9, 6.818182), 1)
+})

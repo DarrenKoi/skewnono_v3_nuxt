@@ -99,7 +99,9 @@ export const siteRadiusMm = (stage: string, geo: WaferGeometry): number | null =
   return p ? Math.hypot(p[0], p[1]) : null
 }
 
-// Convert a physical mm coordinate to its die-grid index (col or row). Returns
-// null when the pitch is unknown so callers can fall back to mm labels.
-export const mmToDieIndex = (mm: number, pitchMm: number): number | null =>
-  pitchMm > 0 ? Math.round(mm / pitchMm) : null
+// Convert a physical mm coordinate to its die-grid index (col or row). The grid
+// is shifted by map_offset, so the offset is removed before dividing by pitch.
+// Returns null when the pitch is unknown so callers can fall back to mm labels —
+// never guess die 0.
+export const mmToDieIndex = (mm: number, pitchMm: number, offsetMm = 0): number | null =>
+  pitchMm > 0 ? Math.round((mm - offsetMm) / pitchMm) : null

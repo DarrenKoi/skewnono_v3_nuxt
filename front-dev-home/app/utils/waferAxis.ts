@@ -23,7 +23,8 @@ export const buildWaferAxis = (
   grid: boolean,
   axisMax: number,
   pitchMm: number,
-  color: string
+  color: string,
+  offsetMm = 0
 ): WaferAxisConfig => {
   if (!grid) {
     return {
@@ -46,7 +47,7 @@ export const buildWaferAxis = (
       color,
       fontSize: 9,
       formatter: (v: number) => {
-        const i = mmToDieIndex(v, pitchMm)
+        const i = mmToDieIndex(v, pitchMm, offsetMm)
         return i == null ? String(Math.round(v)) : String(i)
       }
     },
