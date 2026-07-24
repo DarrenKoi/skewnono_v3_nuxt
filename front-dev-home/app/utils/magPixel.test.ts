@@ -32,6 +32,7 @@ test('invalid magnification yields null, never Infinity', () => {
   assert.equal(fovUm(-1), null)
   assert.equal(fovUm(Number.NaN), null)
   assert.equal(fovUm(Number.POSITIVE_INFINITY), null)
+  assert.equal(fovUm(Number.NEGATIVE_INFINITY), null)
 })
 
 test('invalid pixel counts yield null', () => {
@@ -43,6 +44,12 @@ test('invalid pixel counts yield null', () => {
 test('parsePixelSetting reads the "512,512" string form', () => {
   assert.deepEqual(parsePixelSetting('512,512'), { x: 512, y: 512 })
   assert.deepEqual(parsePixelSetting(' 1024 , 1024 '), { x: 1024, y: 1024 })
+})
+
+test('parsePixelSetting keeps x and y distinct', () => {
+  // symmetric fixtures would pass even if the parser transposed x and y;
+  // FOV is a WIDTH, so callers depend on x being the first component
+  assert.deepEqual(parsePixelSetting('640,480'), { x: 640, y: 480 })
 })
 
 test('parsePixelSetting rejects the empty-row sentinel and malformed input', () => {
