@@ -23,6 +23,7 @@ import {
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
 import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
+import { toggleSeq } from '~/utils/mpSelection'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -254,6 +255,26 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   }
   watch([() => ws.selection.value?.msr, activeParam], () => {
     focusedSequence.value = null
+  })
+
+  // Measurement-point multi-selection (checkboxes in the points table). A set
+  // of measurement sequences the user has checked to highlight on the wafer map
+  // / radius plot and to scope the copy/Excel export. Independent of
+  // focusedSequence (the single keyboard/SEM cursor). useState so it survives
+  // remounts; cleared when the focus MSR (wafer) changes, KEPT across
+  // activeParam changes since a selection may span parameters.
+  const selectedSequences = useState<number[]>(`skewvoir-selected-seqs-${ws.toolType}`, () => [])
+  const toggleSelectedSequence = (seq: number) => {
+    selectedSequences.value = toggleSeq(selectedSequences.value, seq)
+  }
+  const setSelectedSequences = (list: number[]) => {
+    selectedSequences.value = list
+  }
+  const clearSelectedSequences = () => {
+    selectedSequences.value = []
+  }
+  watch(() => ws.selection.value?.msr, () => {
+    selectedSequences.value = []
   })
 
   // Focused canonical site key — shared linked-site state across the analysis
@@ -560,6 +581,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     waferGeo,
     focusedSequence,
     setFocusedSequence,
+    selectedSequences,
+    toggleSelectedSequence,
+    setSelectedSequences,
+    clearSelectedSequences,
     focusedSite,
     setFocusedSite,
     setFocusedMsr,
