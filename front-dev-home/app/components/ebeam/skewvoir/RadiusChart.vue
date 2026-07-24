@@ -16,12 +16,14 @@ const props = withDefaults(defineProps<{
   parameter: string
   unit: string
   focusedSequence: number | null
+  selectedSeqs?: number[]
   band?: RadialBandMode
   colorBySector?: boolean
   showResiduals?: boolean
   heightClass?: string
 }>(), {
   band: 'iqr',
+  selectedSeqs: () => [],
   colorBySector: false,
   showResiduals: false,
   heightClass: 'h-full min-h-[9rem]'
@@ -62,6 +64,11 @@ const scatterData = computed(() => props.profile.points.map(point => ({
 })))
 
 const focused = computed(() => scatterData.value.filter(point => Number(point.name) === props.focusedSequence))
+
+const selectedPts = computed(() => {
+  const picked = new Set(props.selectedSeqs)
+  return scatterData.value.filter(point => picked.has(Number(point.name)))
+})
 
 const bandPoints = computed(() => {
   if (props.band === 'iqr') {
@@ -255,6 +262,16 @@ const option = computed<EChartsOption>(() => {
         tooltip: { show: false },
         silent: true,
         z: 4
+      },
+      {
+        name: 'selected',
+        type: 'scatter',
+        symbolSize: 18,
+        data: selectedPts.value,
+        itemStyle: { color: SK_CHART.series, opacity: 0.18, borderColor: SK_CHART.series, borderWidth: 1.5 },
+        tooltip: { show: false },
+        silent: true,
+        z: 5
       },
       {
         name: 'focused',
