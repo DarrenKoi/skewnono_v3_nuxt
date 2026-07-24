@@ -99,7 +99,7 @@ const calcInput = computed<CalcInput>(() => ({
           v-model.number="cdNm"
           type="number"
           size="xs"
-          placeholder="40"
+          placeholder="20"
           class="w-24"
         />
       </div>
@@ -112,7 +112,7 @@ const calcInput = computed<CalcInput>(() => ({
           v-model.number="pitchNm"
           type="number"
           size="xs"
-          placeholder="CD × 2"
+          placeholder="35"
           class="w-28"
         />
       </div>

@@ -238,6 +238,10 @@ export const recommend = (calc: CalcInput): Recommendation | null => {
 
   const pitchAssumed = calc.pitchNm === null
   const effectivePitchNm = pitchAssumed ? cdNm * 2 : calc.pitchNm
+  // Domain rule (user-confirmed 2026-07-25): pitch can never be smaller than CD --
+  // a bar cannot be wider than the repeat unit it sits in. Equality is rejected
+  // too, deliberately: pitch == CD means zero space between bars, which is
+  // physically meaningless for a line/space pattern. Do not relax this guard.
   if (!isPositive(effectivePitchNm) || effectivePitchNm <= cdNm) return null
 
   const required = requiredFovNm(patternCount, effectivePitchNm, marginRatio)
