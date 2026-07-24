@@ -25,7 +25,7 @@
         size="xs"
         icon="i-lucide-download"
         label="Excel"
-        :disabled="!rows.length"
+        :disabled="!exportRows.length"
         @click="exportCsv"
       />
     </template>
