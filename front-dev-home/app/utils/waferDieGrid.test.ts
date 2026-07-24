@@ -3,12 +3,16 @@ import assert from 'node:assert/strict'
 import { buildDieGridSegments, dieGridLineData } from './waferDieGrid.ts'
 import type { WaferGeometry } from './waferGeometry.ts'
 
-const geo = (pitchXmm: number, pitchYmm: number): WaferGeometry => ({
+const geo = (pitchXmm: number, pitchYmm: number, offsetXmm = 0, offsetYmm = 0): WaferGeometry => ({
   sizeMm: 300,
   radiusMm: 150,
   centerNm: 150_000_000,
   pitchXmm,
-  pitchYmm
+  pitchYmm,
+  offsetXmm,
+  offsetYmm,
+  originCol: 0,
+  originRow: 0
 })
 
 test('boundaries sit on half-pitch offsets between die centres', () => {

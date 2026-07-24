@@ -71,3 +71,29 @@ test('mmToDieIndex rounds mm to the nearest die column/row', () => {
 test('mmToDieIndex returns null when pitch is unknown', () => {
   assert.equal(mmToDieIndex(50, 0), null)
 })
+
+test('parseWaferGeometry reads map_offset (nm → mm) and map_origin', () => {
+  const g = parseWaferGeometry(info({ map_offset: '0,4610000', map_origin: '12,15' }))
+  assert.equal(g.offsetXmm, 0)
+  assert.ok(Math.abs(g.offsetYmm - 4.61) < 1e-9)
+  assert.equal(g.originCol, 12)
+  assert.equal(g.originRow, 15)
+})
+
+test('parseWaferGeometry defaults map_offset/map_origin to 0 when blank or absent', () => {
+  const g = parseWaferGeometry(info({ map_offset: '', map_origin: '' }))
+  assert.equal(g.offsetXmm, 0)
+  assert.equal(g.offsetYmm, 0)
+  assert.equal(g.originCol, 0)
+  assert.equal(g.originRow, 0)
+  const none = parseWaferGeometry(null)
+  assert.equal(none.offsetXmm, 0)
+  assert.equal(none.originCol, 0)
+})
+
+// Regression pin: map_offset shifts the DIE GRID, not the wafer. A point's
+// position from the wafer centre must not move, or radius/sector would drift.
+test('stagePosMm is measured from the wafer centre, unaffected by map_offset', () => {
+  const g = parseWaferGeometry(info({ map_offset: '3000000,4610000' }))
+  assert.deepEqual(stagePosMm('160000000,170000000', g), [10, 20])
+})

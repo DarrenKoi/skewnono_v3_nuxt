@@ -23,6 +23,17 @@ export interface WaferGeometry {
   centerNm: number // nm coordinate of the wafer centre (corner origin)
   pitchXmm: number // die pitch x (mm); 0 when unknown
   pitchYmm: number // die pitch y (mm); 0 when unknown
+  // Die-grid offset (mm) from map_offset: the die array is shifted this far off
+  // the wafer centre. Applies to DIE-INDEXED geometry only (die centres, grid
+  // boundaries, die-index labels) — never to stagePosMm, whose origin is the
+  // physical wafer centre that centre→edge effects reference.
+  offsetXmm: number
+  offsetYmm: number
+  // map_origin — the ARRAY index of the origin die. chip_number is already
+  // expressed relative to it, so this is informational and never enters the
+  // placement math. Exposed so the office can verify the assumption.
+  originCol: number
+  originRow: number
 }
 
 const num = (s: string | undefined): number => {
@@ -35,18 +46,33 @@ const num = (s: string | undefined): number => {
 // value ≥ 1000 must be nm — there is no wafer between 450 mm and 100 m.
 const sizeToMm = (raw: number): number => (raw >= 1000 ? raw / NM_PER_MM : raw)
 
+// "x,y" pair of numbers; each component falls back to 0 when absent/unparseable
+// so a missing geometry field degrades to "no offset" rather than NaN.
+const pairNm = (raw: string | undefined): [number, number] => {
+  const [a, b] = (raw ?? '').split(',')
+  const x = num(a)
+  const y = num(b)
+  return [Number.isFinite(x) ? x : 0, Number.isFinite(y) ? y : 0]
+}
+
 export const parseWaferGeometry = (info?: ExeDetailInfo | null): WaferGeometry => {
   const sizeRaw = num(info?.wafer_size)
   const sizeMm = sizeRaw > 0 ? sizeToMm(sizeRaw) : 300
   const [px, py] = (info?.chip_pitch ?? '').split(',')
   const pxNm = num(px)
   const pyNm = num(py)
+  const [offXnm, offYnm] = pairNm(info?.map_offset)
+  const [originCol, originRow] = pairNm(info?.map_origin)
   return {
     sizeMm,
     radiusMm: sizeMm / 2,
     centerNm: (sizeMm / 2) * NM_PER_MM,
     pitchXmm: pxNm > 0 ? pxNm / NM_PER_MM : 0,
-    pitchYmm: pyNm > 0 ? pyNm / NM_PER_MM : 0
+    pitchYmm: pyNm > 0 ? pyNm / NM_PER_MM : 0,
+    offsetXmm: offXnm / NM_PER_MM,
+    offsetYmm: offYnm / NM_PER_MM,
+    originCol,
+    originRow
   }
 }
 

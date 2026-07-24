@@ -6,7 +6,10 @@ import type { WaferGeometry } from './waferGeometry.ts'
 import { buildWaferPoints } from './waferPoints.ts'
 
 // 1 mm pitch, centre at 150 mm → stage "150000000,150000000" is wafer centre (0,0).
-const geo: WaferGeometry = { sizeMm: 300, radiusMm: 150, centerNm: 150_000_000, pitchXmm: 1, pitchYmm: 1 }
+const geo: WaferGeometry = {
+  sizeMm: 300, radiusMm: 150, centerNm: 150_000_000, pitchXmm: 1, pitchYmm: 1,
+  offsetXmm: 0, offsetYmm: 0, originCol: 0, originRow: 0
+}
 
 const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
   msr: 'M', sequence: 1, chip_number: '0,0', chip_coordinate: '', stage_coordinate: '150000000,150000000',
