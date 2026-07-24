@@ -447,13 +447,17 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   })
 
   // Watch/abnormal counts across the curated trend, for the panel meta.
+  // NB: the local counter is `watchCount`, not `watch` — a bare `let watch`
+  // declaration makes Nuxt's unimport treat `watch` as user-provided and skip
+  // auto-importing Vue's `watch`, which then throws ReferenceError at every
+  // watcher above. The returned key stays `watch` (public shape unchanged).
   const trendSummary = computed(() => {
-    let watch = 0, abnormal = 0
+    let watchCount = 0, abnormal = 0
     for (const p of trendPoints.value) {
       if (p.verdict?.severity === 'abnormal') abnormal++
-      else if (p.verdict?.severity === 'watch') watch++
+      else if (p.verdict?.severity === 'watch') watchCount++
     }
-    return { watch, abnormal }
+    return { watch: watchCount, abnormal }
   })
 
   // Verdict for the focused measurement (if it is in the curated trend set), for the badge.
