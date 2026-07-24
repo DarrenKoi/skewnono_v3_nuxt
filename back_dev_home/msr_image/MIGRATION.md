@@ -162,10 +162,15 @@ home/mock은 단일 프로세스이므로 `MemoryJobRegistry`를 그대로 유�
 
 ```bash
 SKEWNONO_MSR_IMAGE_PROVIDER=office .venv/bin/pytest back_dev_home/msr_image/tests/test_office_template.py
-SKEWNONO_MSR_IMAGE_PROVIDER=office .venv/bin/python -c "from back_dev_home.msr_image import data; print(data.list_images('<tool-ip>', '<class>', '<msr>'))"
+.venv/bin/python -m back_dev_home.msr_image.providers.office
 ```
 
 두 명령 모두 저장소 루트에서 실행해야 합니다. 첫 번째는 템플릿 로직(경로
 조립 + fleet downloader 사용법)이 fake `FtpFleetDownloader`로 검증되는지 확인하는
-회귀 테스트이고, 두 번째는 `office.py`를 실제로 만든 뒤 실 장비 IP로 붙여
-보는 스모크 테스트입니다.
+회귀 테스트입니다. 두 번째는 self-contained 스모크 테스트로, meas_hist에서
+최신 문서(msr/class_name/eqp_ip/minio_pkl)를 찾아 pickle의
+`mp_image_name NN` 컬럼(정답 목록)과 `list_images()`의 FTP 리스팅을 대조하고
+이미지 1장을 `fetch_image()`로 실제로 내려받습니다. 요청 경로는 순수 FTP
+그대로이며 OpenSearch/MinIO 는 `__main__` 진단 블록에서만 import 됩니다.
+pickle 이름이 tool FTP 에 없으면 `MISSING`, tool 에만 있는 파일은 `extra`
+(대개 정상)로 출력됩니다.

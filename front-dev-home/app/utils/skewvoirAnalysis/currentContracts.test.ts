@@ -330,8 +330,8 @@ test('wantSet: under single scope no view triggers the batch fetch (no compariso
 // LIMITATION: Position Stack (views/PositionStack.vue:96-117) synthesizes
 // chip coordinates directly from `chip_number` via parseChipXY
 // (utils/waferChip.ts:5-12) — a plain "x, y" grid-string parse — rather than
-// going through the physical wafer coordinate model (stage_coordinate in
-// nm + wafer_size in mm via utils/waferGeometry.ts) that the Dashboard's
+// going through the physical wafer coordinate model (stage_coordinate and
+// wafer_size in nm via utils/waferGeometry.ts) that the Dashboard's
 // RadiusChart/MeasurementPoints use. This mirror pins that current, cruder
 // coordinate synthesis so a later task that unifies it onto the physical
 // model produces a visible diff here.

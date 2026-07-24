@@ -27,7 +27,7 @@ const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
 const exe = (): ExeDetailInfo => ({
   class_name: 'C1', recipe_name: 'RCP_A', idp_name: '/Recipe/RCP_A.idp', lot_id: 'LOT1',
   process: 'P1', wafer_id: 'W1', idw_name: '/Recipe/RCP_A.idw', chip_array: '40,56',
-  chip_pitch: '7500000,5357142', wafer_size: '300', map_offset: '0,0', map_origin: '150000000,150000000'
+  chip_pitch: '7500000,5357142', wafer_size: '300000000', map_offset: '0,0', map_origin: '20,28'
 })
 
 const paramSummary = (over: Partial<MsrParamSummary> = {}): MsrParamSummary => ({

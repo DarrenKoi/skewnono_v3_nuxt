@@ -34,11 +34,11 @@ const source = (msr: string, opts: Opts = {}): SignatureSource => {
       recipe_name: opts.noRecipe ? undefined : (opts.recipe ?? 'RCP_A'),
       idp_name: opts.noRecipe ? undefined : `/Recipe/${opts.recipe ?? 'RCP_A'}.idp`,
       idw_name: opts.noRecipe ? undefined : `/Recipe/${opts.recipe ?? 'RCP_A'}.idw`,
-      wafer_size: '300',
+      wafer_size: '300000000',
       chip_array: '40,56',
       chip_pitch: '7500000,5357142',
       map_offset: '0,0',
-      map_origin: '150000000,150000000',
+      map_origin: '20,28',
       recipe_revision: opts.revision,
       site_layout_hash: opts.layoutHash
     },

@@ -27,11 +27,18 @@
         />
       </div>
 
-      <!-- Linked cluster, middle: measurement points + 이상·실패 filter -->
-      <EbeamSkewvoirDashboardMeasurementPoints
-        class="min-h-0 xl:col-span-4"
-        :analysis="analysis"
-      />
+      <!-- Linked cluster, middle: measurement points + 이상·실패 filter, with
+           the per-parameter stat table (backend MsrParamSummary) beneath it -->
+      <div class="flex min-h-0 flex-col gap-2.5 xl:col-span-4">
+        <EbeamSkewvoirDashboardMeasurementPoints
+          class="min-h-0 flex-1"
+          :analysis="analysis"
+        />
+        <EbeamSkewvoirDashboardParamSummary
+          class="max-h-64 shrink-0"
+          :analysis="analysis"
+        />
+      </div>
 
       <!-- Right: SEM image (top) over distribution (bottom) -->
       <div class="flex min-h-0 flex-col gap-2.5 xl:col-span-4">

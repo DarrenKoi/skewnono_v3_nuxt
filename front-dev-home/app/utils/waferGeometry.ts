@@ -4,7 +4,12 @@
 // keeps three coherent fields:
 //   • chip_number      — die INDEX "(col,row)", centred on the wafer
 //   • stage_coordinate — physical position "(x,y)" in nm, corner origin
-//   • exe_detail_info  — wafer_size (mm) + chip_pitch (nm per die)
+//   • exe_detail_info  — all STRINGS, office-confirmed 2026-07-24:
+//       chip_array  "26,33"              die array (cols,rows)
+//       chip_pitch  "12520000,10340000"  die pitch in nm (x,y)
+//       wafer_size  "300000000"          wafer diameter in nm (= 300 mm)
+//       map_offset  "0,4610000"          die-grid offset in nm (x,y)
+//       map_origin  "12,15"              ARRAY index of the origin die
 // The wafer centre sits at (wafer_size/2, wafer_size/2) in nm, so a point's
 // position relative to centre is (stage − centre). Everything below converts to
 // millimetres so the plots read in real units.
@@ -25,8 +30,14 @@ const num = (s: string | undefined): number => {
   return Number.isFinite(n) ? n : NaN
 }
 
+// wafer_size arrives in nm from the office pickle ("300000000") but legacy
+// fixtures/stored values said mm ("300"). Diameters are 100–450 mm, so any
+// value ≥ 1000 must be nm — there is no wafer between 450 mm and 100 m.
+const sizeToMm = (raw: number): number => (raw >= 1000 ? raw / NM_PER_MM : raw)
+
 export const parseWaferGeometry = (info?: ExeDetailInfo | null): WaferGeometry => {
-  const sizeMm = num(info?.wafer_size) || 300
+  const sizeRaw = num(info?.wafer_size)
+  const sizeMm = sizeRaw > 0 ? sizeToMm(sizeRaw) : 300
   const [px, py] = (info?.chip_pitch ?? '').split(',')
   const pxNm = num(px)
   const pyNm = num(py)

@@ -77,11 +77,13 @@ def _payload(result_rows: list[dict] | None = None) -> dict:
             "process": "PHOTO",
             "wafer_id": "RAEA240031_07",
             "idw_name": "/Recipe/ADI/ADI_CD_BIAS_001.idw",
-            "chip_array": "24,26",
-            "chip_pitch": "12500000,11538461",
-            "wafer_size": "300",
-            "map_offset": "-1250000,2270000",
-            "map_origin": "150000000,150000000",
+            # Office-confirmed formats (2026-07-24): all strings; wafer_size in
+            # nm; map_origin is the array index of the origin die.
+            "chip_array": "26,33",
+            "chip_pitch": "12520000,10340000",
+            "wafer_size": "300000000",
+            "map_offset": "0,4610000",
+            "map_origin": "12,15",
         },
         "alignment": {
             "image_file": {"1": "align_1.tif", "2": "align_2.tif"},

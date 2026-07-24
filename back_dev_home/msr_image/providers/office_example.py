@@ -159,3 +159,68 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
             continue
         err = errors.get(img)
         on_file(name, None, err or f"connection failed: {host_error or 'unknown'}")
+
+
+if __name__ == "__main__":
+    # Standalone smoke test — run FROM THE REPO ROOT with:
+    #     .venv/bin/python -m back_dev_home.msr_image.providers.office
+    # Cross-checks the FTP listing against the minio_pkl ground truth: the
+    # pickle's df_result_data carries "mp_image_name NN" columns naming every
+    # image the run produced, while list_images() reports what the tool's FTP
+    # dir actually serves. The request path stays pure FTP — OpenSearch/MinIO
+    # are imported HERE only, to find a real (msr, class, eqp_ip) to probe.
+    from minio_handler import MinioObject
+
+    from back_dev_home.ebeam.hitachi._office_meas_hist import ALL_INDICES, search, text
+
+    body = {
+        "query": {"bool": {"filter": [
+            {"exists": {"field": "minio_pkl"}},
+            {"exists": {"field": "eqp_ip"}},
+        ]}},
+        "sort": [{"timestamp": "desc"}],
+        "size": 1,
+    }
+    hits = search(ALL_INDICES).search_raw(body).get("hits", {}).get("hits", [])
+    if not hits:
+        raise SystemExit("no meas_hist doc with minio_pkl + eqp_ip — check ingestion")
+    src = hits[0].get("_source", {})
+    probe_msr = text(src.get("msr"))
+    probe_class = text(src.get("class_name"))
+    probe_ip = text(src.get("eqp_ip"))
+    print(f"probe msr: {probe_msr!r}  class: {probe_class!r}  eqp_ip: {probe_ip!r}")
+    print(f"ftp dir  : {image_dir(probe_class, probe_msr)!r}")
+
+    payload = MinioObject().get_pickle(text(src.get("minio_pkl")).lstrip("/"))
+    df = payload.get("df_result_data")
+    records = df.to_dict(orient="records") if hasattr(df, "to_dict") else list(df or [])
+    expected = {
+        str(v).strip()
+        for rec in records
+        for col, v in rec.items()
+        if str(col).lower().startswith("mp_image_name")
+        and v is not None and str(v).strip() not in ("", "None", "nan")
+    }
+    listed = set(list_images(probe_ip, probe_class, probe_msr))
+    print(f"pickle names: {len(expected)}   ftp names: {len(listed)}")
+
+    # Tolerate case differences; a pickle name may also omit the extension,
+    # so fall back to matching the listed file's stem.
+    by_name = {n.lower(): n for n in listed}
+    by_stem = {PurePosixPath(n).name.lower().rsplit(".", 1)[0]: n for n in sorted(listed)}
+    matched = {by_name.get(e.lower()) or by_stem.get(e.lower()) for e in expected}
+    matched.discard(None)
+    missing = sorted(e for e in expected if e.lower() not in by_name and e.lower() not in by_stem)
+    extra = sorted(listed - matched)
+    print(f"matched: {len(matched)}")
+    if missing:
+        print(f"MISSING on tool ({len(missing)}): {missing[:10]}{' …' if len(missing) > 10 else ''}")
+    if extra:
+        print(f"extra on tool, not in pickle (usually fine): {len(extra)}")
+
+    probe_name = min(matched, default=None) or min(listed, default=None)
+    if probe_name is None:
+        raise SystemExit("tool dir has no images to fetch")
+    fetched = fetch_image(ImageLocator(probe_ip, probe_class, probe_msr, probe_name))
+    print(f"fetch_image({probe_name!r}): {len(fetched.data)} bytes, cond={'yes' if fetched.cond else 'none'}")
+    print("smoke:", "OK" if not missing else f"CHECK — {len(missing)} pickle names not on tool FTP")

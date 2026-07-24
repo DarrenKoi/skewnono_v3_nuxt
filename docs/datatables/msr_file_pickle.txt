@@ -32,7 +32,7 @@ columns : value (examples)
 
 =====
 
-"exe_detail_info": dict
+"exe_detail_info": dict — 값은 전부 문자열 (office 확인 2026-07-24)
 "class"
 "recipe_name"
 "idp_name"
@@ -40,11 +40,11 @@ columns : value (examples)
 "process"
 "wafer_id"
 "idw_name"
-"chip_array"
-"chip_pitch"
-"wafer_size"
-"map_offset"
-"map_origin"
+"chip_array" : "26,33" — die array (cols,rows)
+"chip_pitch" : "12520000,10340000" — die pitch nm (x,y)
+"wafer_size" : "300000000" — wafer 지름 nm (= 300 mm; mm 아님)
+"map_offset" : "0,4610000" — die grid offset nm (x,y)
+"map_origin" : "12,15" — 원점 die 의 array index (nm 좌표쌍 아님)
 
 ====
 

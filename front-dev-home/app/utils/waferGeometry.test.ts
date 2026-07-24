@@ -4,10 +4,12 @@ import assert from 'node:assert/strict'
 import { parseWaferGeometry, stagePosMm, dieCenterMm, siteRadiusMm, mmToDieIndex } from './waferGeometry.ts'
 import type { ExeDetailInfo } from '~/composables/useMsrFileApi'
 
+// Office-confirmed formats (2026-07-24): all strings, wafer_size in nm,
+// map_origin = array index of the origin die.
 const info = (over: Partial<ExeDetailInfo> = {}): ExeDetailInfo => ({
   class_name: 'CD', recipe_name: '', idp_name: '', lot_id: '', process: '',
   wafer_id: '', idw_name: '', chip_array: '44,52', chip_pitch: '6818182,5769231',
-  wafer_size: '300', map_offset: '0,0', map_origin: '150000000,150000000',
+  wafer_size: '300000000', map_offset: '0,0', map_origin: '22,26',
   ...over
 })
 
@@ -18,6 +20,12 @@ test('parseWaferGeometry reads size, radius, centre and pitch (nm → mm)', () =
   assert.equal(g.centerNm, 150_000_000)
   assert.ok(Math.abs(g.pitchXmm - 6.818182) < 1e-6)
   assert.ok(Math.abs(g.pitchYmm - 5.769231) < 1e-6)
+})
+
+test('parseWaferGeometry accepts a legacy mm wafer_size', () => {
+  const g = parseWaferGeometry(info({ wafer_size: '300' }))
+  assert.equal(g.sizeMm, 300)
+  assert.equal(g.centerNm, 150_000_000)
 })
 
 test('parseWaferGeometry falls back to a 300 mm wafer when info is missing', () => {

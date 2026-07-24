@@ -366,10 +366,12 @@ def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> E
         idw_name=idw_name,
         chip_array=f"{geom.cols},{geom.rows}",
         chip_pitch=f"{geom.pitch_x_nm},{geom.pitch_y_nm}",
-        wafer_size=str(WAFER_SIZE_MM),
-        # Origin at the wafer centre (corner-origin system: centre = size/2).
+        # Office formats (confirmed 2026-07-24): wafer_size is nm ("300000000"
+        # = 300 mm), and map_origin is the ARRAY index of the origin die — the
+        # die the centred chip_number (0,0) maps to — not an nm pair.
+        wafer_size=str(_WAFER_NM),
         map_offset=f"{rng.randrange(-3_000_000, 3_000_000)},{rng.randrange(-3_000_000, 3_000_000)}",
-        map_origin=f"{_WAFER_CENTER_NM},{_WAFER_CENTER_NM}",
+        map_origin=f"{geom.cols // 2},{geom.rows // 2}",
     )
 
 
