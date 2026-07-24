@@ -262,20 +262,64 @@ def build_beam_shape_docs(
 
 
 if __name__ == "__main__":
-    # Standalone smoke test — run FROM THE REPO ROOT with:
-    #   .venv/bin/python -m back_dev_home.ebeam.hitachi.hardware.providers.bsm.office
+    # Staged diagnostic — run FROM THE REPO ROOT with a REAL eqp_id (and fab):
+    #   .venv/bin/python -m back_dev_home.ebeam.hitachi.hardware.providers.bsm.office_example ECXDX1234 R3
+    #
+    # It adds one filter at a time and prints the surviving doc count + the
+    # timestamp span, so the stage where the count drops to 0 IS the bug: an
+    # eqp_id.keyword mismatch, a fab_name.keyword mismatch, or an empty
+    # last-30-day window. The app passes eqp_id + fab_name over a today-anchored
+    # window; a bare `build_beam_shape_docs("")` smoke never exercises those.
     import sys
     from datetime import timedelta
 
+    from back_dev_home.ebeam.hitachi._office_search import (
+        fetch_hits as _fh,
+        query as _q,
+    )
+
     eqp = sys.argv[1] if len(sys.argv) > 1 else ""
-    now = datetime(2026, 5, 24, 9, 0)
-    result = build_beam_shape_docs(eqp, None, now - timedelta(days=30), now)
-    print(f"{len(result)} docs for eqp_id={eqp!r}")
+    fab = sys.argv[2] if len(sys.argv) > 2 else None
+
+    base = [
+        {"term": {TYPE_KW: DOC_TYPE}},
+        {"term": {FDC_CATEGORY_KW: FDC_CATEGORY}},
+    ]
+
+    def _count(clauses: list, label: str) -> list:
+        hits = _fh(INDEX, _q(clauses), size=MAX_DOCS, sort=[{TIME_FIELD: "asc"}])
+        span = f"  [{hits[0].get('timestamp')} .. {hits[-1].get('timestamp')}]" if hits else ""
+        print(f"  {label:<44} {len(hits):>6} docs{span}")
+        return hits
+
+    print(f"\nindex={INDEX!r}  eqp_id={eqp!r}  fab_name={fab!r}\n")
+    base_hits = _count(base, "type+fdc_category only (no eqp/window)")
+    sample = sorted({str(h.get("eqp_id")) for h in base_hits})[:12]
+    print(f"    distinct eqp_id in index (sample): {sample}")
+    print(f"    distinct fab_name: {sorted({str(h.get('fab_name')) for h in base_hits})[:8]}\n")
+
+    if eqp:
+        _count(base + [{"term": {EQP_ID_KW: eqp}}], f"+ {EQP_ID_KW} == {eqp!r}")
+    if fab:
+        _count(base + [{"term": {FAB_NAME_KW: fab.strip().upper()}}],
+               f"+ {FAB_NAME_KW} == {fab.strip().upper()!r}")
+
+    # The app's actual query: eqp + fab + a today-anchored 30-day window.
+    now = datetime.now().replace(microsecond=0)
+    app_clauses = list(base)
+    if eqp:
+        app_clauses.append({"term": {EQP_ID_KW: eqp}})
+    if fab:
+        app_clauses.append({"term": {FAB_NAME_KW: fab.strip().upper()}})
+    app_clauses.append({"range": {TIME_FIELD: {
+        "gte": (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%S"),
+        "lte": now.strftime("%Y-%m-%dT%H:%M:%S"),
+    }}})
+    result = _count(app_clauses, "= APP query (eqp+fab+last 30 days)")
     if result:
-        d = result[0]
-        conds = sorted({r.get("beam_condition") for r in result})
-        print("beam_conditions:", conds)
-        print("first ts:", d.get("timestamp"), "| category:", d.get("category"))
-        print("Reso EB len:", len(d.get("Reso EB", [])),
-              "| Reso EB Focus len:", len(d.get("Reso EB Focus", [])))
-        print("Reso EB Focus Range:", d.get("Reso EB Focus Range"))
+        d = _normalize(result[0])
+        print("\n  first normalized doc:")
+        print("    beam_conditions:", sorted({str(r.get("beam_condition")) for r in result})[:8])
+        print("    Reso EB len:", len(d.get("Reso EB", [])),
+              "| Reso EB Focus len:", len(d.get("Reso EB Focus", [])),
+              "| Range:", d.get("Reso EB Focus Range"))
