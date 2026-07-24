@@ -39,7 +39,7 @@
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
       :focused-sequence="analysis.focusedSequence.value"
-      :selected-seqs="analysis.selectedSequences.value"
+      :selected-seqs="analysis.selectedSeqsForActiveParam.value"
       band="iqr"
       @focus="analysis.setFocusedSequence"
     />

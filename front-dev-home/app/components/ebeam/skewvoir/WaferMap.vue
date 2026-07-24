@@ -251,7 +251,7 @@ const option = computed<EChartsOption>(() => ({
         }]
       : []),
     { type: 'scatter', symbol: 'circle', symbolSize: 22, data: selectedPoints.value,
-      itemStyle: { color: sk.value.series, opacity: 0.18, borderColor: sk.value.series, borderWidth: 1.5 },
+      itemStyle: { color: sk.value.brand, opacity: 0.18, borderColor: sk.value.brand, borderWidth: 1.5 },
       silent: true, z: 3 },
     { type: 'scatter', symbol: 'circle', symbolSize: 24, data: outlierPoints.value,
       itemStyle: { color: 'transparent', borderColor: SK_STATE.bad, borderWidth: 2 }, silent: true, z: 4 },

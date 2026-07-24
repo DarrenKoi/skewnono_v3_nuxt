@@ -15,7 +15,7 @@
           size="xs"
           icon="i-lucide-clipboard"
           aria-label="표를 클립보드에 복사"
-          :disabled="!rows.length"
+          :disabled="!exportRows.length"
           @click="copyPoints"
         />
       </UTooltip>
@@ -127,8 +127,8 @@
               <UCheckbox
                 size="xs"
                 :aria-label="`측정점 ${p.seq} 선택`"
-                :model-value="selectedSet.has(p.seq)"
-                @update:model-value="analysis.toggleSelectedSequence(p.seq)"
+                :model-value="selectedSet.has(keyOf(p))"
+                @update:model-value="onCheckboxToggle(p)"
               />
             </td>
             <td class="px-1.5 py-1.5 font-mono">
@@ -173,7 +173,7 @@ import type { SiteKind } from '~/utils/overview'
 import { siteRadiusMm } from '~/utils/waferGeometry'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
-import { headerState, pickExportRows } from '~/utils/mpSelection'
+import { headerState, pickExportRows, siteKey } from '~/utils/mpSelection'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -317,31 +317,45 @@ const onRowClick = (p: Point) => {
   scrollEl.value?.focus()
 }
 
-// Selection: derived off the visible rows so the header checkbox and export
-// scoping always agree with what's currently on screen.
-const selectedSet = computed(() => new Set(props.analysis.selectedSequences.value))
-const visibleSeqs = computed(() => rows.value.map(r => r.seq))
-const headerCheck = computed(() => headerState(visibleSeqs.value, selectedSet.value))
+// Selection: keyed by (param, seq) so the same seq under two compared params
+// stays distinct. Derived off the visible rows so the header checkbox and
+// export scoping always agree with what's currently on screen.
+const keyOf = (p: Point) => siteKey(p.param, p.seq)
+const selectedSet = computed(() => new Set(props.analysis.selectedSites.value))
+const visibleKeys = computed(() => rows.value.map(keyOf))
+const headerCheck = computed(() => headerState(visibleKeys.value, selectedSet.value))
+
+// Export target rows (checked ∩ visible, or all visible when nothing checked).
+// Also gates the copy/Excel buttons so a selection disjoint from the current
+// filter can't produce a header-only file.
+const exportRows = computed(() => pickExportRows(rows.value, selectedSet.value, keyOf))
 
 const toggleAllVisible = () => {
   if (headerCheck.value === 'all') {
     // Clear only the visible rows from the selection (keep off-screen picks).
-    const visible = new Set(visibleSeqs.value)
-    props.analysis.setSelectedSequences(
-      props.analysis.selectedSequences.value.filter(s => !visible.has(s)))
+    const visible = new Set(visibleKeys.value)
+    props.analysis.setSelectedSites(
+      props.analysis.selectedSites.value.filter(k => !visible.has(k)))
   } else {
-    // Add every visible seq (union with any off-screen picks).
-    const union = new Set(props.analysis.selectedSequences.value)
-    for (const s of visibleSeqs.value) union.add(s)
-    props.analysis.setSelectedSequences([...union])
+    // Add every visible key (union with any off-screen picks).
+    const union = new Set(props.analysis.selectedSites.value)
+    for (const k of visibleKeys.value) union.add(k)
+    props.analysis.setSelectedSites([...union])
   }
+}
+
+// A checkbox click moves the keyboard cursor onto that row, so a following Space
+// (handled by the container keydown) toggles the same row the user just clicked.
+const onCheckboxToggle = (p: Point) => {
+  cursorKey.value = p.key
+  props.analysis.toggleSelectedSite(p.param, p.seq)
 }
 
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key === ' ') {
     e.preventDefault()
     const row = rows.value[cursorIndex.value]
-    if (row) props.analysis.toggleSelectedSequence(row.seq)
+    if (row) props.analysis.toggleSelectedSite(row.param, row.seq)
     return
   }
   const nav = ['ArrowDown', 'ArrowUp', 'Home', 'End']
@@ -357,7 +371,7 @@ const toast = useToast()
 // shared by CSV download and clipboard copy.
 const pointsTable = () => ({
   headers: ['PARAM', 'MP', 'SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS'],
-  rows: pickExportRows(rows.value, selectedSet.value).map(p => [
+  rows: exportRows.value.map(p => [
     p.param,
     p.mp,
     p.seq,

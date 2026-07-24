@@ -23,7 +23,7 @@ import {
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
 import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
-import { toggleSeq } from '~/utils/mpSelection'
+import { toggleKey, siteKey } from '~/utils/mpSelection'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -257,24 +257,41 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusedSequence.value = null
   })
 
-  // Measurement-point multi-selection (checkboxes in the points table). A set
-  // of measurement sequences the user has checked to highlight on the wafer map
-  // / radius plot and to scope the copy/Excel export. Independent of
-  // focusedSequence (the single keyboard/SEM cursor). useState so it survives
-  // remounts; cleared when the focus MSR (wafer) changes, KEPT across
-  // activeParam changes since a selection may span parameters.
-  const selectedSequences = useState<number[]>(`skewvoir-selected-seqs-${ws.toolType}`, () => [])
-  const toggleSelectedSequence = (seq: number) => {
-    selectedSequences.value = toggleSeq(selectedSequences.value, seq)
+  // Measurement-point multi-selection (checkboxes in the points table). Keyed by
+  // a composite (parameter, sequence) so the same sequence number under two
+  // compared parameters never collides. Highlights sites on the wafer map /
+  // radius plot and scopes the copy/Excel export. Independent of focusedSequence
+  // (the single keyboard/SEM cursor). useState so it survives remounts; cleared
+  // when the focus MSR (wafer) changes, KEPT across activeParam changes since a
+  // selection may span parameters.
+  const selectedSites = useState<string[]>(`skewvoir-selected-sites-${ws.toolType}`, () => [])
+  const toggleSelectedSite = (param: string, seq: number) => {
+    selectedSites.value = toggleKey(selectedSites.value, siteKey(param, seq))
   }
-  const setSelectedSequences = (list: number[]) => {
-    selectedSequences.value = list
+  const setSelectedSites = (list: string[]) => {
+    selectedSites.value = list
   }
-  const clearSelectedSequences = () => {
-    selectedSequences.value = []
+  const clearSelectedSites = () => {
+    selectedSites.value = []
   }
   watch(() => ws.selection.value?.msr, () => {
-    selectedSequences.value = []
+    selectedSites.value = []
+  })
+
+  // The selected sequences BELONGING TO the active parameter - what the wafer map
+  // and radius plot (single-parameter views) highlight. Membership-only (never
+  // parses a key): reconstructs each candidate key via siteKey() from the known
+  // (parameter, sequence) of each row and tests membership, so a separator char
+  // inside a parameter name can never cause a mis-parse. After a parameter switch
+  // only that parameter's picks light up.
+  const selectedSeqsForActiveParam = computed<number[]>(() => {
+    const p = activeParam.value
+    const sel = new Set(selectedSites.value)
+    const seqs = new Set<number>()
+    for (const r of siteRows.value) {
+      if (r.parameter === p && sel.has(siteKey(p, r.sequence))) seqs.add(r.sequence)
+    }
+    return [...seqs]
   })
 
   // Focused canonical site key — shared linked-site state across the analysis
@@ -581,10 +598,11 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     waferGeo,
     focusedSequence,
     setFocusedSequence,
-    selectedSequences,
-    toggleSelectedSequence,
-    setSelectedSequences,
-    clearSelectedSequences,
+    selectedSites,
+    toggleSelectedSite,
+    setSelectedSites,
+    clearSelectedSites,
+    selectedSeqsForActiveParam,
     focusedSite,
     setFocusedSite,
     setFocusedMsr,

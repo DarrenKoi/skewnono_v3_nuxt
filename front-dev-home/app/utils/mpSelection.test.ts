@@ -1,29 +1,35 @@
 // Pure-logic tests for mpSelection. Run: node --test app/utils/mpSelection.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { toggleSeq, headerState, pickExportRows } from './mpSelection.ts'
+import { siteKey, toggleKey, headerState, pickExportRows } from './mpSelection.ts'
 
-test('toggleSeq adds a missing seq and removes a present one', () => {
-  assert.deepEqual(toggleSeq([1, 2], 3), [1, 2, 3])
-  assert.deepEqual(toggleSeq([1, 2, 3], 2), [1, 3])
+test('siteKey composes param and seq and disambiguates same seq across params', () => {
+  assert.notEqual(siteKey('CD_A', 1), siteKey('CD_B', 1))
+  assert.equal(siteKey('CD_A', 1), siteKey('CD_A', 1))
 })
 
-test('toggleSeq returns a new array (no mutation)', () => {
-  const src = [1, 2]
-  const out = toggleSeq(src, 3)
-  assert.deepEqual(src, [1, 2])
-  assert.notEqual(out, src)
+test('toggleKey adds a missing key and removes a present one, without mutating', () => {
+  const src = [siteKey('P', 1)]
+  const added = toggleKey(src, siteKey('P', 2))
+  assert.deepEqual(added, [siteKey('P', 1), siteKey('P', 2)])
+  assert.deepEqual(src, [siteKey('P', 1)]) // unmutated
+  assert.deepEqual(toggleKey(added, siteKey('P', 1)), [siteKey('P', 2)])
 })
 
-test('headerState reflects the visible rows only', () => {
-  assert.equal(headerState([], new Set([1])), 'none')
-  assert.equal(headerState([1, 2, 3], new Set()), 'none')
-  assert.equal(headerState([1, 2, 3], new Set([2])), 'some')
-  assert.equal(headerState([1, 2, 3], new Set([1, 2, 3, 9])), 'all')
+test('headerState reflects the visible keys only', () => {
+  const k = n => siteKey('P', n)
+  assert.equal(headerState([], new Set([k(1)])), 'none')
+  assert.equal(headerState([k(1), k(2), k(3)], new Set()), 'none')
+  assert.equal(headerState([k(1), k(2), k(3)], new Set([k(2)])), 'some')
+  assert.equal(headerState([k(1), k(2), k(3)], new Set([k(1), k(2), k(3), k(9)])), 'all')
 })
 
-test('pickExportRows: empty selection → all rows; otherwise checked ∩ visible', () => {
-  const rows = [{ seq: 1 }, { seq: 2 }, { seq: 3 }]
-  assert.deepEqual(pickExportRows(rows, new Set()), rows)
-  assert.deepEqual(pickExportRows(rows, new Set([2, 9])), [{ seq: 2 }])
+test('pickExportRows: empty selection = all rows; otherwise checked ∩ visible by key', () => {
+  const rows = [{ param: 'P', seq: 1 }, { param: 'P', seq: 2 }, { param: 'Q', seq: 1 }]
+  const keyOf = r => siteKey(r.param, r.seq)
+  assert.deepEqual(pickExportRows(rows, new Set(), keyOf), rows)
+  // Selecting P/1 must NOT drag in Q/1 (same seq, different param).
+  assert.deepEqual(
+    pickExportRows(rows, new Set([siteKey('P', 1)]), keyOf),
+    [{ param: 'P', seq: 1 }])
 })
