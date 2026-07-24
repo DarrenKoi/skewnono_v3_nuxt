@@ -211,15 +211,19 @@ const trendPoints = (key: string) =>
     .sort((a, b) => a.ts.localeCompare(b.ts))
 
 // Measurements (desc, newest first) for the radar selector dropdown. Under
-// "All conditions" the label disambiguates by appending the beam_condition.
+// "All conditions" the label disambiguates by appending the beam_condition;
+// the category (when present) is appended after that. Parts are joined so an
+// absent field never leaves a dangling separator.
 const measurementItems = computed(() =>
   [...filteredDocs.value]
     .filter(d => tsOf(d))
     .sort((a, b) => keyOf(b).localeCompare(keyOf(a)))
-    .map(d => ({
-      label: beamCondition.value === 'all' ? `${tsOf(d)} · ${condOf(d)}` : tsOf(d),
-      value: keyOf(d)
-    }))
+    .map((d) => {
+      const parts = [tsOf(d)]
+      if (beamCondition.value === 'all') parts.push(condOf(d))
+      parts.push(catOf(d))
+      return { label: parts.filter(Boolean).join(' · '), value: keyOf(d) }
+    })
 )
 
 const selectedKey = ref('')
