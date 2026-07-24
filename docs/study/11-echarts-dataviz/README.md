@@ -101,23 +101,30 @@ export const registerEchartsThemes = (echarts: EchartsModule) => {
 }
 ```
 
-- 사용자가 고른 테마 + Nuxt `useColorMode()`를 조합해 최종 테마 이름을 결정. 선택이 `'default'`면 다크모드에서 `dark`, 아니면 `vintage`.
+- 사용자가 고른 테마 + Nuxt `useColorMode()`를 조합해 최종 테마 이름을 결정합니다. 선택이 `'default'`면 다크모드에서 `dark`, 아니면 `matlab`입니다.
 - 선택값은 `localStorage`의 `skewnono:echarts-theme`에 저장(이것도 `usePersistedState` 패턴군 — `07-code-patterns/persisted-state.md`).
 
 **투명 배경 트릭**: 등록된 테마는 `backgroundColor: 'transparent'`라서 차트가 자기 카드 표면색을 그대로 투과합니다. 하지만 PNG로 export할 땐 투명 배경이 곤란하므로, `getEchartThemeBackground(name)`이 테마별 불투명 색(`vintage → #fef8ef`, `dark → #100C2A`, 그 외 `#ffffff`)을 제공해 export 시에만 깔아 줍니다.
 
-## 4. 팔레트 — CSS 변수를 캔버스가 못 읽는 문제
+## 4. 팔레트 — 색이 CSS가 아니라 TS에 있는 이유
 
-`utils/chartPalette.ts`에 5-stop diverging 팔레트가 있습니다.
+`utils/chartPalette.ts`는 색을 **존재 이유** 기준으로 둘로 나눠 둡니다. 이 구분이 이 파일의 핵심입니다.
 
 ```ts
-export const SK_CHART = ['#5C86AE', '#9BB6CD', '#E4D9C4', '#DB9A6B', '#C75A3C']
+// 뜻이 고정된 색 — 테마가 바뀌어도 절대 따라 움직이면 안 됩니다.
+export const SK_SCALE = ['#5C86AE', '#9BB6CD', '#E4D9C4', '#DB9A6B', '#C75A3C']
+export const SK_STATE = { ok: '#3E8E5E', warn: '#C98A2E', bad: '#C4453B' }
+
+// 보여 주기용 색 — 활성 테마를 따라갑니다.
+const sk = useChartPalette()
+sk.value.series      // 주 계열
+sk.value.brand       // 대비가 필요한 오버레이(회귀선 등)
+sk.value.muted       // 축 라벨, 보조선 같은 부속 요소
 ```
 
-**왜 CSS 토큰(`--sk-chart-*`)이 아니라 하드코딩 색이 코드에 있나?** ECharts는 `<canvas>`에 그리는데, 캔버스 렌더링 컨텍스트는 CSS custom property(`var(--sk-chart-1)`)를 **해석하지 못합니다.** DOM/SVG는 CSS 변수를 읽지만 캔버스는 실제 색 리터럴이 필요합니다. 그래서:
+**왜 이렇게 나누나?** low→high 램프와 "spec 위반" 색은 **데이터를 인코딩**합니다. 테마를 바꿨다고 웨이퍼 맵의 색 의미가 달라지면 어제 캡처한 이미지와 비교할 수 없고, `bad`는 어떤 테마에서든 빨강이어야 합니다. 반면 계열 색은 "이건 1번, 저건 2번"이라는 뜻밖에 없으므로 테마를 따라가는 편이 자연스럽습니다.
 
-- 캔버스(ECharts)가 색이 필요할 때 → `SK_CHART` 같은 JS 리터럴 사용
-- DOM/SVG 조각(뱃지, 범례 dot 등) → `--sk-chart-*` CSS 토큰 사용(같은 값을 미러링)
+**왜 CSS 토큰이 아니라 TS 리터럴인가?** ECharts는 `<canvas>`에 그리는데, 캔버스 렌더링 컨텍스트는 CSS custom property(`var(--sk-chart-1)`)를 **해석하지 못합니다.** DOM/SVG는 CSS 변수를 읽지만 캔버스는 실제 색 리터럴이 필요합니다. 그래서 차트 색의 단일 출처는 `chartPalette.ts`이고, `main.css`에는 대응하는 `--sk-chart-*` 토큰을 두지 않습니다. DOM 조각(뱃지, 범례 dot 등)이 차트와 색을 맞춰야 한다면 CSS에 값을 복사하지 말고 `chartPalette.ts`에서 바인딩하십시오. 사본을 두면 반드시 어긋납니다.
 
 이건 캔버스 기반 시각화에서 자주 만나는 함정이니 기억해 두세요.
 
@@ -154,7 +161,7 @@ const downloadChartImage = () => {
 1. **데이터 변환 로직을 `utils/`에 순수 함수로 작성** (+ `.test.ts`). 예: `boxplotStats.ts`, `mdcHistory.ts`, `waferPoints.ts`.
 2. 컴포넌트에서 그 함수 결과를 `computed<EChartsOption>`으로 조립.
 3. `useEchart(elRef, optionRef, { exportName })` 호출.
-4. 색이 필요하면 캔버스용은 `SK_CHART`, DOM용은 `--sk-chart-*`.
+4. 색은 되도록 지정하지 마십시오 — 계열 색은 ECharts가 테마 팔레트에서 자동으로 배정합니다. 꼭 직접 써야 할 때만 뜻이 고정된 색은 `SK_SCALE`/`SK_STATE`, 테마를 따라갈 색은 `useChartPalette()`를 사용합니다.
 5. 다크/라이트 대비를 두 모드에서 모두 확인.
 
 ## 7. 참고

@@ -215,7 +215,6 @@ definePageMeta({
 const { setToolType } = useNavigation()
 const { fetchRecipeStatistics, fetchRecipeTrend } = useRecipeStatisticsApi()
 const colorMode = useColorMode()
-const sk = useChartPalette()
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
 
@@ -404,11 +403,12 @@ const baseDataZoom = [
   { type: 'slider' as const, xAxisIndex: 0, height: 21, bottom: 6, brushSelect: false }
 ]
 
-// Mark-line + label furniture. Follows the chart theme's own ink rather than
-// branching on colorMode, so it tracks the theme picker like the rest of the
-// chart. (The para palette below deliberately does NOT — those colors are
-// per-parameter identity shared with the StackedBar table cells.)
-const markLineColor = computed(() => sk.value.ink)
+// Deliberately keyed to colorMode, NOT to the chart theme. These lines are
+// drawn onto a transparent canvas over the app's card, so what they must
+// contrast with is the CARD -- and the theme picker is independent of color
+// mode, so a light theme (matlab, vintage, ...) can be active in dark mode.
+// Sourcing this from the theme's ink renders #262626 on a dark card.
+const markLineColor = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
 
 // Same para palette as the table's StackedBar cells (dark-aware), so the
 // stacked chart, table, and detail modal all read as one color system.
