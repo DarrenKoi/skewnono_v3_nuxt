@@ -104,3 +104,11 @@ test('dieCenterMm shifts die centres by the die-grid offset', () => {
   assert.ok(Math.abs(x - 2 * g.pitchXmm) < 1e-9) // offsetXmm is 0 here
   assert.ok(Math.abs(y - (4.61 + -3 * g.pitchYmm)) < 1e-9)
 })
+
+test('dieCenterMm applies the offset per axis (X and Y are not transposed)', () => {
+  const g = parseWaferGeometry(info({ map_offset: '3000000,4610000' }))
+  const [x, y] = dieCenterMm(2, -3, g)
+  // offsetXmm=3, offsetYmm=4.61; dies at (2,-3) should have distinct coords
+  assert.ok(Math.abs(x - (3 + 2 * g.pitchXmm)) < 1e-9)
+  assert.ok(Math.abs(y - (4.61 + -3 * g.pitchYmm)) < 1e-9)
+})
