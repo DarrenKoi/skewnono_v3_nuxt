@@ -8,7 +8,7 @@ const isEbeamRoute = useEbeamRoute()
 
 // Header-right info pages keep the feature tabs so the user can jump back to the main
 // pages; outside ebeam routes the tool type falls back to the store's remembered value.
-const INFO_PATHS = ['/intro', '/endpoints', '/activity', '/settings']
+const INFO_PATHS = ['/intro', '/endpoints', '/activity', '/settings', '/mag-pixel']
 const isInfoRoute = computed(() =>
   INFO_PATHS.some(path => route.path === path || route.path.startsWith(`${path}/`))
 )

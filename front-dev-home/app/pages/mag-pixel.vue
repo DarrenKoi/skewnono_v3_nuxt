@@ -1,0 +1,175 @@
+<script setup lang="ts">
+import {
+  buildMagPixelTable, recommend, MARGIN_PRESETS, DEFAULT_MARGIN,
+  DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, type MagSeries
+} from '~/utils/magPixel'
+
+useHead({ title: 'Mag/Pixel 가이드 | SKEWNONO' })
+
+const series = ref<MagSeries>('CG')
+const cdNm = ref<number | null>(null)
+const pitchNm = ref<number | null>(null)
+const patternCount = ref(DEFAULT_PATTERN_COUNT)
+const marginRatio = ref<number>(DEFAULT_MARGIN)
+const minPxPerCd = ref(DEFAULT_MIN_PX_PER_CD)
+const showWide = ref(false)
+
+const rows = computed(() => buildMagPixelTable(series.value))
+
+/** CD가 없으면 판정하지 않고 순수 참조표로 둔다. */
+const pitchError = computed(() =>
+  cdNm.value != null && pitchNm.value != null && pitchNm.value <= cdNm.value
+    ? 'Pitch는 CD보다 커야 합니다.'
+    : null
+)
+
+const result = computed(() => {
+  if (cdNm.value == null || cdNm.value <= 0 || pitchError.value) return null
+  return recommend({
+    series: series.value,
+    cdNm: cdNm.value,
+    pitchNm: pitchNm.value,
+    patternCount: patternCount.value,
+    marginRatio: marginRatio.value,
+    minPxPerCd: minPxPerCd.value
+  })
+})
+
+const marginLabel = (r: number) => `${Math.round(r * 100)}%`
+</script>
+
+<template>
+  <div class="mx-auto flex max-w-6xl flex-col gap-5 p-5">
+    <header>
+      <h1 class="sk-title text-lg">
+        CD-SEM Mag / Pixel 가이드
+      </h1>
+      <p class="mt-1 text-sm text-(--sk-ink-muted)">
+        목표 패턴 크기에서 적정 배율과 픽셀 수를 역산합니다. FOV = 135,000 µm ÷ Mag.
+      </p>
+    </header>
+
+    <!-- 입력 -->
+    <section class="flex flex-wrap items-end gap-3 rounded-(--sk-r-sidebar) border border-(--sk-border) p-4">
+      <div>
+        <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          SERIES
+        </div>
+        <UFieldGroup size="xs">
+          <UButton
+            v-for="s in (['CG', 'GT'] as MagSeries[])"
+            :key="s"
+            :label="s"
+            :color="series === s ? 'primary' : 'neutral'"
+            :variant="series === s ? 'solid' : 'outline'"
+            @click="series = s"
+          />
+        </UFieldGroup>
+      </div>
+
+      <div>
+        <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          CD (nm)
+        </div>
+        <UInput
+          v-model.number="cdNm"
+          type="number"
+          size="xs"
+          placeholder="40"
+          class="w-24"
+        />
+      </div>
+
+      <div>
+        <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          PITCH (nm) · 선택
+        </div>
+        <UInput
+          v-model.number="pitchNm"
+          type="number"
+          size="xs"
+          placeholder="CD × 2"
+          class="w-28"
+        />
+      </div>
+
+      <div>
+        <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          패턴 수
+        </div>
+        <UInput
+          v-model.number="patternCount"
+          type="number"
+          size="xs"
+          class="w-20"
+        />
+      </div>
+
+      <div>
+        <div class="mb-1.5 font-mono text-[10px] tracking-wide text-primary">
+          여유 마진 (각 변)
+        </div>
+        <UFieldGroup size="xs">
+          <UButton
+            v-for="m in MARGIN_PRESETS"
+            :key="m"
+            :label="marginLabel(m)"
+            :color="marginRatio === m ? 'primary' : 'neutral'"
+            :variant="marginRatio === m ? 'solid' : 'outline'"
+            @click="marginRatio = m"
+          />
+        </UFieldGroup>
+      </div>
+
+      <div>
+        <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          기준 px/CD <span class="text-amber-500">·잠정</span>
+        </div>
+        <UInput
+          v-model.number="minPxPerCd"
+          type="number"
+          size="xs"
+          class="w-20"
+        />
+      </div>
+    </section>
+
+    <p
+      v-if="pitchError"
+      class="rounded-(--sk-r-sidebar) bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
+    >
+      {{ pitchError }}
+    </p>
+
+    <p
+      v-else-if="result?.pitchAssumed"
+      class="font-mono text-[11px] text-(--sk-ink-muted)"
+    >
+      Pitch를 비워서 CD × 2 = {{ result.effectivePitchNm }} nm로 가정했습니다 ·
+      기준 px/CD는 사내 기준 확정 전까지 잠정값입니다
+    </p>
+
+    <!-- 테이블 -->
+    <section class="rounded-(--sk-r-sidebar) border border-(--sk-border) p-4">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
+          {{ series }} SERIES · MAG × PIXEL
+        </h2>
+        <USwitch
+          v-model="showWide"
+          size="xs"
+          label="2048 · 4096 표시"
+        />
+      </div>
+      <MagpixelResultTable
+        :rows="rows"
+        :show-wide="showWide"
+        :required-fov-nm="result?.requiredFovNm ?? null"
+        :cd-nm="cdNm ?? 0"
+        :min-px-per-cd="minPxPerCd"
+        :recommended-mag="result?.mag ?? null"
+        :recommended-pixels="result?.pixels ?? null"
+      />
+    </section>
+  </div>
+</template>

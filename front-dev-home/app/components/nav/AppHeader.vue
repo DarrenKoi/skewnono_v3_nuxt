@@ -64,6 +64,15 @@ const isLiveAlarmActive = computed(() => route.path.includes('/live-alarm'))
         :class="headerActionClass('/endpoints')"
       />
       <UButton
+        to="/mag-pixel"
+        icon="i-lucide-ruler"
+        color="neutral"
+        variant="ghost"
+        aria-label="Mag/Pixel 가이드"
+        :aria-current="isActivePath('/mag-pixel') ? 'page' : undefined"
+        :class="headerActionClass('/mag-pixel')"
+      />
+      <UButton
         to="/chat"
         icon="i-lucide-message-square"
         color="neutral"
