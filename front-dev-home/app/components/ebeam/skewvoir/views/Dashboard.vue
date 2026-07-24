@@ -13,15 +13,18 @@
     <!-- Parameter navigator — switching it syncs every panel below -->
     <EbeamSkewvoirDashboardParamNav :analysis="analysis" />
 
-    <!-- Inspection zone. On xl the single row is at least 46rem and grows to the
-         TALLEST column's content (auto, not 1fr) — the wafer scales with column
-         width, so col 1 (wafer over radius) is usually the tallest. `auto` lets
-         the row track that height and stretch carries it to cols 2–3, so all
-         three columns bottom-align instead of the radius plot spilling below a
-         1fr-capped row. Below xl it stacks and the workspace scroll takes over.
+    <!-- Inspection zone. On xl the single row is at least 49rem and fills a taller
+         viewport (1fr). The floor is 49rem, not 46rem, because col 1 stacks the
+         wafer (~477px at this column width) over the radius plot (min 18rem/288px):
+         together ~775px, which a 46rem/736px row can't hold, so the radius plot
+         used to spill ~38px below cols 2–3. `auto` can't fix this — the wafer's
+         height is width-derived, so it contributes nothing to max-content track
+         sizing and the row collapses back to its floor. Raising the floor to 49rem
+         lets col 1 fit; stretch then carries that height to cols 2–3 so all three
+         bottom-align. Below xl it stacks and the workspace scroll takes over.
          Wafer + Radius + Measurement Points are adjacent so the shared
          focusedSequence selection is visible at once. -->
-    <div class="grid min-h-0 flex-1 grid-cols-1 gap-2.5 xl:grid-cols-12 xl:grid-rows-[minmax(46rem,auto)]">
+    <div class="grid min-h-0 flex-1 grid-cols-1 gap-2.5 xl:grid-cols-12 xl:grid-rows-[minmax(49rem,1fr)]">
       <!-- Linked cluster, left: wafer over radius -->
       <div class="flex min-h-0 flex-col gap-2.5 xl:col-span-4">
         <EbeamSkewvoirDashboardWaferMap :analysis="analysis" />
