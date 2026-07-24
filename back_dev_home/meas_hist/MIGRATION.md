@@ -8,6 +8,10 @@
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
   `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
+- `fail_ratio` is a PERCENTAGE, 0..100 (`4.57` = 4.57%). It is computed at
+  ingestion and stored on the document, so read the field — do not re-derive
+  it from `fail_images` / `total_images`, and do not rescale it. Nothing
+  downstream multiplies by 100; the UI appends `%` to the number as it stands.
 - Definition of done: the Verify command at the bottom is green.
 
 ## Endpoint: GET /api/meas-hist

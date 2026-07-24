@@ -7,9 +7,14 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 - IMPORTANT: do NOT reimplement this by joining on recipe_tat's mock output.
+  `fail_ratio` is a PERCENTAGE (0..100) already computed at ingestion — read
+  the stored field, never re-derive it from `fail_images` / `total_images`,
+  and never rescale it. The rate fields (`align_fail_rate`, `meas_fail_rate`)
+  are 0..1 fractions of rows; the two scales are not interchangeable.
+
   Read `align_fail` / `fail_ratio` / `msr_check` directly from the OpenSearch
   meas_hist index and perform the same aggregations (count, rate, daily
-  series) natively. `MEAS_FAIL_THRESHOLD` (`0.15`) is pinned by the YAML
+  series) natively. `MEAS_FAIL_THRESHOLD` (`15.0`, percent scale) is pinned by the YAML
   contract (`docs/api-contracts/fail-issue.yaml`) — do not change its value,
   or Phase 1/2 numbers will disagree.
 - OpenSearch plumbing (client, composite walker, lot_id↔lot_cd bridge,
@@ -67,7 +72,7 @@
   count unique `eqp_id` / `(class_name, recipe_name)` / `lot_cd` respectively.
   `anchor_date` echoes `ANCHOR_TIME.date()`, not the requested `end_date`.
 - Office data source: <!-- OFFICE: OpenSearch meas_hist index aggregation (filters + cardinality) over align_fail/fail_ratio -->
-- Notes: `meas_fail_threshold` is echoed back verbatim (`0.15`) so the
+- Notes: `meas_fail_threshold` is echoed back verbatim (`15.0`) so the
   frontend can label the KPI without hard-coding it.
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/daily-trend

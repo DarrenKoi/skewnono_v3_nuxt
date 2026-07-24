@@ -51,6 +51,9 @@ from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import (
     ToolType,
     get_meas_hist,
 )
+# fail_ratio's scale (percent, 0..100) is defined once, by meas_hist — this
+# feature reads the same column off the same index.
+from back_dev_home.meas_hist.providers._shared import fail_ratio_percent
 
 
 __all__ = [
@@ -68,9 +71,11 @@ __all__ = [
 
 # Threshold that promotes a meas_hist row to a "meas fail". Pinned to the
 # datatable spec (docs/datatables/meas_hist.txt rule #9 — "정상 row는 보통
-# 0.0 ~ 0.15"). The YAML contract repeats this constant; office must keep
+# 0 ~ 15%"). The YAML contract repeats this constant; office must keep
 # it in sync.
-MEAS_FAIL_THRESHOLD = 0.15
+#
+# Same scale as fail_ratio itself: PERCENT, 0..100. 15 means 15%.
+MEAS_FAIL_THRESHOLD = 15.0
 
 
 # Per-fab fail-rate personalities. Without this, switching fab in the
@@ -139,8 +144,8 @@ def _enrich(row: MeasHistRow) -> FailRow:
     msr_check: MsrCheck = "No" if rng.random() < MSR_MISSING_RATE else "Yes"
 
     # Per datatable rule #9: rows with align Fail or missing MSR get an
-    # elevated fail_ratio band; otherwise stay below 0.15. We use the
-    # MEAS_FAIL_THRESHOLD anchor instead of hard-coding 0.15 so the band
+    # elevated fail_ratio band; otherwise stay below 15%. We use the
+    # MEAS_FAIL_THRESHOLD anchor instead of hard-coding 15 so the band
     # logic and the threshold can't drift out of sync.
     is_problem = align_fail == "Fail" or msr_check == "No"
     # Also independently roll a fab-specific meas-fail event so the meas
@@ -149,13 +154,13 @@ def _enrich(row: MeasHistRow) -> FailRow:
         is_problem = True
 
     if is_problem:
-        fail_ratio = round(rng.uniform(MEAS_FAIL_THRESHOLD, 0.8), 4)
+        fail_ratio = round(rng.uniform(MEAS_FAIL_THRESHOLD, 80.0), 4)
     else:
         fail_ratio = round(rng.uniform(0.0, MEAS_FAIL_THRESHOLD), 4)
 
     total_images = rng.randint(40, 400)
-    fail_images = int(total_images * fail_ratio)
-    fail_ratio = round(fail_images / total_images, 4) if total_images else 0.0
+    fail_images = int(total_images * fail_ratio / 100)
+    fail_ratio = fail_ratio_percent(fail_images, total_images)
 
     return FailRow(
         id=row["id"],

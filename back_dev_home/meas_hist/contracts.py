@@ -39,7 +39,7 @@ class MeasHistRow(TypedDict):
     align_fail: Literal["Pass", "Fail", "NA"]
     total_images: int
     fail_images: int
-    fail_ratio: float
+    fail_ratio: float  # PERCENT, 0..100 — 4.57 means 4.57%. Never a fraction.
     idp_name: str
     idw_name: str
 

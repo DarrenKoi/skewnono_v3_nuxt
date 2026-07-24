@@ -72,10 +72,16 @@ const headerStats = computed(() => [
     value: aggregates.value.alignFail.toLocaleString(),
     tone: aggregates.value.alignFail > 0 ? 'bad' as const : 'neutral' as const
   },
-  { label: 'Avg fail ratio', value: `${(aggregates.value.avgFailRatio * 100).toFixed(1)}%`, tone: 'neutral' as const }
+  { label: 'Avg fail ratio', value: `${aggregates.value.avgFailRatio.toFixed(1)}%`, tone: 'neutral' as const }
 ])
 
 const formatTimestamp = (iso: string) => formatRecipeTimestamp(iso)
+
+// fail_ratio is a PERCENTAGE (0..100) — it arrives already computed in the
+// office OpenSearch documents, so nothing here multiplies by 100. The
+// threshold is on the same scale: 15 means 15%, matching the fail-issue
+// contract's MEAS_FAIL_THRESHOLD.
+const MEAS_FAIL_THRESHOLD = 15
 
 // Column order encodes priority: identity → 측정 상태(signal) → 참고용 context.
 // The signal block (msr/align/images/fail/ratio) is what you actually scan for,
@@ -338,9 +344,9 @@ const tableUi = {
         <template #fail_ratio-cell="{ row }">
           <span
             class="font-mono text-[13px] font-semibold tabular-nums"
-            :class="row.original.fail_ratio >= 0.15 ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-900 dark:text-zinc-50'"
+            :class="row.original.fail_ratio >= MEAS_FAIL_THRESHOLD ? 'text-rose-600 dark:text-rose-300' : 'text-zinc-900 dark:text-zinc-50'"
           >
-            {{ (row.original.fail_ratio * 100).toFixed(1) }}%
+            {{ row.original.fail_ratio.toFixed(1) }}%
           </span>
         </template>
 

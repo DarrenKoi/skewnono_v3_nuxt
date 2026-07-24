@@ -25,6 +25,7 @@ export interface MeasHistRow {
   align_fail: 'Pass' | 'Fail' | 'NA'
   total_images: number
   fail_images: number
+  /** Percent, 0..100 (4.57 means 4.57%). Computed upstream — never multiply by 100. */
   fail_ratio: number
   idp_name: string
   idw_name: string

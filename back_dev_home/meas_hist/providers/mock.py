@@ -19,7 +19,7 @@ from back_dev_home.meas_hist.contracts import (
     MeasHistSearchResponse,
 )
 from back_dev_home.meas_hist.opensearch_query import SEARCHABLE_SOURCE_FIELDS
-from back_dev_home.meas_hist.providers._shared import derive_fail_ratio
+from back_dev_home.meas_hist.providers._shared import fail_ratio_percent
 from back_dev_home.sem_list.contracts import SemListRow
 from back_dev_home.sem_list.providers.mock import get_sem_list
 
@@ -111,7 +111,7 @@ MOCK_SEARCH_FIXTURES: tuple[MeasHistRow, ...] = (
         align_fail="Pass",
         total_images=180,
         fail_images=1,
-        fail_ratio=0.0056,
+        fail_ratio=0.5556,  # 1/180 images, as a percent
         idp_name="/Recipe/CNT/CNT_CONTACT_CHECK_001.idp",
         idw_name="/Recipe/CNT/CNT_CONTACT_CHECK_001.idw"
     )
@@ -181,14 +181,16 @@ def _build_row(
         k=1
     )[0]
 
+    # Percent, 0..100 — the office scale (see providers/_shared.py). The
+    # bands come from docs/datatables/meas_hist.txt rule #9.
     if msr_check == "No" or align_fail == "Fail":
-        fail_ratio = round(rng.uniform(0.15, 0.8), 4)
+        fail_ratio = round(rng.uniform(15.0, 80.0), 4)
     else:
-        fail_ratio = round(rng.uniform(0.0, 0.15), 4)
+        fail_ratio = round(rng.uniform(0.0, 15.0), 4)
 
     total_images = rng.randint(40, 400)
-    fail_images = int(total_images * fail_ratio)
-    fail_ratio = derive_fail_ratio(fail_images, total_images)
+    fail_images = int(total_images * fail_ratio / 100)
+    fail_ratio = fail_ratio_percent(fail_images, total_images)
 
     date_str = end_time.strftime("%Y%m%d")
     msr = _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])

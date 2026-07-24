@@ -4,8 +4,8 @@ base_path: /api/<tool_slug>/fail-issue
 
 constants:
   MEAS_FAIL_THRESHOLD:
-    value: 0.15
-    description: fail_ratio strictly greater than this value counts as a meas-fail. Pinned to docs/datatables/meas_hist.txt rule #9 — office must keep in sync.
+    value: 15.0
+    description: fail_ratio strictly greater than this value counts as a meas-fail. Percent scale, matching fail_ratio itself (15.0 means 15%). Pinned to docs/datatables/meas_hist.txt rule #9 — office must keep in sync.
 
 types:
   Summary:
@@ -104,7 +104,7 @@ types:
       type: number
     avg_fail_ratio:
       type: number
-      description: Mean fail_ratio across all executions of this recipe in the window (not only the failing ones). Useful for distinguishing "always slightly dirty" recipes from "occasionally catastrophic".
+      description: Mean fail_ratio across all executions of this recipe in the window (not only the failing ones). Percent, 0..100 — unlike meas_fail_rate, which is a 0..1 fraction of rows. Useful for distinguishing "always slightly dirty" recipes from "occasionally catastrophic".
     sample_eqp_ids:
       type: array
 
@@ -292,7 +292,8 @@ endpoints:
 
 notes:
   - Two aspects per row are independent — a measurement can be both align-fail AND meas-fail. Office should not collapse them into a single "fail" boolean.
-  - MEAS_FAIL_THRESHOLD is pinned at 0.15 to match the datatable spec. The summary endpoint echoes it so clients can render tooltips like "fail_ratio > 15%" without hard-coding.
+  - MEAS_FAIL_THRESHOLD is pinned at 15.0 to match the datatable spec. The summary endpoint echoes it so clients can render tooltips like "fail_ratio > 15%" without hard-coding.
+  - fail_ratio and avg_fail_ratio are PERCENTAGES (0..100), the scale the office index stores; the rate fields (align_fail_rate, meas_fail_rate) are 0..1 fractions of rows. Renderers must not multiply the former by 100.
   - Path slug routes the request to CD-SEM vs HV-SEM data — /cdsem and /hvsem are separate paths (unlike recipe-tat which uses /cdsem for both and disambiguates by query string).
   - Office should anchor the date window on max(timestamp) from the source index, not wall-clock now(). Phase 1 mock anchors on import-time wall-clock for the same reason recipe-tat does.
   - Align-ranking and meas-ranking both filter out zero-fail entries before applying limit. Office implementations should do the same so the table only shows triage targets.

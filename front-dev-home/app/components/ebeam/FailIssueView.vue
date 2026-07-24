@@ -259,6 +259,7 @@ import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
 import {
   formatPercent,
+  formatRate,
   useFailIssueApi,
   type FailIssueAlignRow,
   type FailIssueDeviceRow,
@@ -400,7 +401,7 @@ const alignSummaryItems = computed(() => buildFailSummaryItems({
   ),
   failRatio: resolveRecipeStatusSummaryValue(
     status.value === 'pending',
-    summary.value ? formatPercent(summary.value.align_fail_rate) : undefined
+    summary.value ? formatRate(summary.value.align_fail_rate) : undefined
   )
 }))
 
@@ -416,7 +417,7 @@ const measSummaryItems = computed(() => buildFailSummaryItems({
   ),
   failRatio: resolveRecipeStatusSummaryValue(
     status.value === 'pending',
-    summary.value ? formatPercent(summary.value.meas_fail_rate) : undefined
+    summary.value ? formatRate(summary.value.meas_fail_rate) : undefined
   )
 }))
 
@@ -458,7 +459,7 @@ const buildTrendOption = (
         return [
           `<b>${point.date}</b>`,
           isRatio
-            ? `${ratioSeriesName}: <b>${formatPercent(totalCount > 0 ? failCount / totalCount : 0)}</b>`
+            ? `${ratioSeriesName}: <b>${formatRate(totalCount > 0 ? failCount / totalCount : 0)}</b>`
             : `${seriesName}: <b>${failCount.toLocaleString()}</b>`,
           `${totalLabel}: ${totalCount.toLocaleString()}`
         ].join('<br/>')
@@ -600,7 +601,7 @@ const alignColumns: TableColumn<FailIssueAlignRow>[] = [
     accessorKey: 'align_fail_rate',
     header: 'rate',
     size: 80,
-    cell: ({ row }) => formatPercent(row.original.align_fail_rate)
+    cell: ({ row }) => formatRate(row.original.align_fail_rate)
   }
 ]
 
@@ -625,7 +626,7 @@ const measColumns: TableColumn<FailIssueMeasRow>[] = [
     accessorKey: 'meas_fail_rate',
     header: 'rate',
     size: 80,
-    cell: ({ row }) => formatPercent(row.original.meas_fail_rate)
+    cell: ({ row }) => formatRate(row.original.meas_fail_rate)
   },
   {
     accessorKey: 'avg_fail_ratio',
@@ -674,7 +675,8 @@ const measTable = (rows: FailIssueMeasRow[]) => ({
     r.exec_count,
     r.meas_fail_count,
     (r.meas_fail_rate * 100).toFixed(2),
-    (r.avg_fail_ratio * 100).toFixed(2)
+    // Already a percentage from OpenSearch — see useFailIssueApi's formatters.
+    r.avg_fail_ratio.toFixed(2)
   ])
 })
 

@@ -21,6 +21,8 @@ Fail criteria (identical to the mock, pinned by the YAML contract
   the third state ``"NA"`` is counted separately for the summary KPI).
 * meas fail  — ``fail_ratio > MEAS_FAIL_THRESHOLD`` (strict ``gt`` range;
   the threshold is imported from the mock so Phase 1/2 can never disagree).
+  Both are PERCENT, 0..100 — the scale the index stores and the contract
+  carries, so the stored field is used as-is with no conversion.
 
 Aggregation shapes per endpoint:
 
@@ -102,7 +104,9 @@ _ALIGN_KW = "align_fail.keyword"
 
 _ALIGN_FAIL_FILTER = {"term": {_ALIGN_KW: "Fail"}}
 _ALIGN_NA_FILTER = {"term": {_ALIGN_KW: "NA"}}
-# Strict gt, matching the mock's `fail_ratio > MEAS_FAIL_THRESHOLD`.
+# Strict gt, matching the mock's `fail_ratio > MEAS_FAIL_THRESHOLD`. Both
+# sides are percentages (0..100), so the stored field compares directly —
+# see meas_hist/providers/_shared.py for why the scale is what it is.
 _MEAS_FAIL_FILTER = {"range": {"fail_ratio": {"gt": MEAS_FAIL_THRESHOLD}}}
 
 

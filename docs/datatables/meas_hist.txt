@@ -27,7 +27,7 @@ msr_check -> string: MSR 파일 존재 여부. Yes, No
 align_fail -> string: align 결과. Pass, Fail, NA
 total_images -> int64: 측정 대상 image 전체 개수
 fail_images -> int64: 실패 image 개수
-fail_ratio -> float64: fail_images / total_images 값. 0.0 ~ 1.0
+fail_ratio -> float64: fail_images / total_images 를 백분율로 나타낸 값. 0.0 ~ 100.0 (4.57 은 4.57%)
 idp_name -> string: recipe idp 파일 경로. 예: /Recipe/ADI/ADI_CD_BIAS_001.idp
 idw_name -> string: recipe idw 파일 경로. 예: /Recipe/ADI/ADI_CD_BIAS_001.idw
 minio_msr -> minio에 msr data 원본 저장 경로 
@@ -43,8 +43,8 @@ Mock data 생성 규칙
 6. timestamp는 최근 60일 안에서 생성합니다. meastime은 end_time - start_time입니다. timestamp는 기본적으로 end_time과 같게 둡니다.
 7. msr은 날짜, recipe_name, lot_id, eqp_id를 포함해서 unique하게 만듭니다.
 8. msr_check가 No이면 측정 raw data가 없는 상태이므로 스큐보아에서 문제가 있는 row로 보여줄 수 있어야 합니다.
-9. align_fail이 Fail이거나 msr_check가 No이면 fail_ratio를 높게 생성합니다. 정상 row는 보통 0.0 ~ 0.15 범위, 문제 row는 0.15 ~ 0.8 범위로 둡니다.
-10. fail_images는 int(total_images * fail_ratio)로 계산하고, fail_ratio는 최종적으로 fail_images / total_images로 다시 계산합니다.
+9. align_fail이 Fail이거나 msr_check가 No이면 fail_ratio를 높게 생성합니다. 정상 row는 보통 0 ~ 15% 범위, 문제 row는 15 ~ 80% 범위로 둡니다.
+10. fail_images는 int(total_images * fail_ratio / 100)으로 계산하고, fail_ratio는 최종적으로 fail_images / total_images * 100으로 다시 계산합니다.
 
 검색/화면 사용 기준
 
@@ -75,7 +75,8 @@ Field(mapping) -> Type: 설명
   fab_name      -> text: 화면 fab 선택 필터. 필터는 fab_name.keyword(term) 사용
   fac_id        -> text
   fail_images   -> float
-  fail_ratio    -> float
+  fail_ratio    -> float: 백분율 0.0 ~ 100.0. 적재 시점에 이미 계산되어 저장되므로
+                   office adapter 는 개수에서 다시 파생하지 않고 이 값을 그대로 읽습니다.
   full_name     -> text: class_name/recipe_name 조합. TAT 그룹 키 = full_name.keyword
   idp_name      -> text
   idw_name      -> text
@@ -111,7 +112,7 @@ Field(mapping) -> Type: 설명
    날짜가 항상 일치합니다.
 5. fail_issue 집계도 raw row 없이 서버측 aggregation 으로 계산합니다:
    align fail = term(align_fail.keyword == "Fail") filter 집계
-   (NA 는 별도 filter 집계), meas fail = range(fail_ratio > 0.15,
+   (NA 는 별도 filter 집계), meas fail = range(fail_ratio > 15.0,
    MEAS_FAIL_THRESHOLD — YAML 계약 고정값) filter 집계.
    ranking = composite(full_name.keyword) 전체 순회 후 fail 0건 recipe 는
    제외(triage 테이블), (fail count, fail rate) 내림차순 정렬.

@@ -16,8 +16,9 @@ export interface FailIssueSummary {
   align_na_count: number
   meas_fail_count: number
   meas_fail_rate: number
-  // Echoed from the server — frontend reads it instead of hard-coding 0.15,
+  // Echoed from the server — frontend reads it instead of hard-coding 15,
   // so a backend change to the threshold automatically updates UI copy.
+  // Percent, 0..100, same scale as fail_ratio: 15 means 15%.
   meas_fail_threshold: number
   distinct_equipment: number
   distinct_recipes: number
@@ -190,8 +191,21 @@ export const useFailIssueApi = () => {
 }
 
 // Format helpers
+//
+// Two formatters because the API carries two scales on purpose, and picking
+// the wrong one is a silent 100x error that still renders as a believable
+// percentage. Match the formatter to the field:
+//
+//   formatRate     — 0..1 fractions of ROWS: align_fail_rate, meas_fail_rate
+//   formatPercent  — 0..100 image percentages: fail_ratio, avg_fail_ratio
+//                    (already computed at that scale in OpenSearch)
+
+export const formatRate = (value: number, fractionDigits = 2): string => {
+  if (!Number.isFinite(value) || value <= 0) return '0%'
+  return `${(value * 100).toFixed(fractionDigits)}%`
+}
 
 export const formatPercent = (value: number, fractionDigits = 2): string => {
   if (!Number.isFinite(value) || value <= 0) return '0%'
-  return `${(value * 100).toFixed(fractionDigits)}%`
+  return `${value.toFixed(fractionDigits)}%`
 }

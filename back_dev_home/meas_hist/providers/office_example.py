@@ -82,7 +82,7 @@ from back_dev_home.meas_hist.opensearch_query import (
 )
 # Single source for the cross-phase constants — importing them (instead of
 # redefining) makes Phase 1/2 disagreement impossible.
-from back_dev_home.meas_hist.providers._shared import derive_fail_ratio
+from back_dev_home.meas_hist.providers._shared import normalize_fail_ratio
 from back_dev_home.meas_hist.providers.mock import (
     DEFAULT_LIMIT,
     MAX_RESULT_WINDOW,
@@ -157,9 +157,11 @@ def _row(
     msr_check = "Yes" if _text(src.get("msr_check")).lower() == "yes" else "No"
     align_raw = _text(src.get("align_fail")).lower()
     align_fail = {"pass": "Pass", "fail": "Fail"}.get(align_raw, "NA")
-    # The index's own `fail_ratio` is not read: it has been seen carrying a
-    # percentage (25.0) where the contract wants a 0..1 fraction. The counts
-    # are the source of truth — see providers/_shared.derive_fail_ratio.
+    # All three image fields are computed upstream at ingestion and stored on
+    # the document, so they are read, not recalculated. fail_ratio is already
+    # a percentage (4.57 = 4.57%), which is the contract's scale — see
+    # providers/_shared.py. Deriving it from the counts here would only let
+    # this app disagree with every other consumer of the same index.
     total_images = _int(src.get("total_images"))
     fail_images = _int(src.get("fail_images"))
 
@@ -186,7 +188,7 @@ def _row(
         align_fail=align_fail,  # type: ignore[typeddict-item]
         total_images=total_images,
         fail_images=fail_images,
-        fail_ratio=derive_fail_ratio(fail_images, total_images),
+        fail_ratio=normalize_fail_ratio(src.get("fail_ratio")),
         idp_name=_text(src.get("idp_name")),
         idw_name=_text(src.get("idw_name")),
     )

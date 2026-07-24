@@ -43,7 +43,7 @@ class FailRow(TypedDict):
     msr_check: MsrCheck
     total_images: int
     fail_images: int
-    fail_ratio: float
+    fail_ratio: float  # PERCENT, 0..100 — same scale as MeasHistRow.fail_ratio
 
 
 class SummaryPayload(TypedDict):
@@ -91,8 +91,8 @@ class MeasRankingRow(TypedDict):
     full_name: str
     exec_count: int
     meas_fail_count: int
-    meas_fail_rate: float
-    avg_fail_ratio: float
+    meas_fail_rate: float   # fraction, 0..1 — failing rows / all rows
+    avg_fail_ratio: float   # PERCENT, 0..100 — mean of the per-row fail_ratio
     sample_eqp_ids: list[str]
 
 
