@@ -21,7 +21,7 @@
 
 ## File Structure
 
-- `app/utils/tableCursor.ts` — **new.** Pure cursor math shared by both tables (`nextCursorIndex`, `clampIndex`).
+- `app/utils/tableCursor.ts` — **new.** Pure cursor math shared by both tables (`nextCursorIndex`).
 - `app/utils/tableCursor.test.ts` — **new.** Unit tests for the cursor math.
 - `app/utils/mpSelection.ts` — **new.** Pure selection helpers (`toggleSeq`, `headerState`, `pickExportRows`).
 - `app/utils/mpSelection.test.ts` — **new.** Unit tests for the selection helpers.
@@ -46,8 +46,7 @@
 - Consumes: nothing.
 - Produces:
   - `type CursorKey = 'ArrowDown' | 'ArrowUp' | 'Home' | 'End'`
-  - `nextCursorIndex(key: CursorKey, current: number, len: number): number | null` — new index, or `null` for no-op (empty list). `current < 0` or out of range means "no row focused yet": ArrowDown → 0, ArrowUp → last.
-  - `clampIndex(index: number, len: number): number | null` — clamp into `[0, len-1]`, or `null` if `len === 0`.
+  - `nextCursorIndex(key: CursorKey, current: number, len: number): number | null` — new index, or `null` for no-op (empty list). `current < 0` or out of range means "no row focused yet": ArrowDown → 0, ArrowUp → last. (A shrinking list is handled by callers deriving `current` from a stable row key via `findIndex`, which returns -1 when the row is gone — so no separate clamp helper is needed.)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -57,7 +56,7 @@ Create `app/utils/tableCursor.test.ts`:
 // Pure-logic tests for tableCursor. Run: node --test app/utils/tableCursor.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextCursorIndex, clampIndex } from './tableCursor.ts'
+import { nextCursorIndex } from './tableCursor.ts'
 
 test('empty list is a no-op for every key', () => {
   for (const k of ['ArrowDown', 'ArrowUp', 'Home', 'End'] as const) {
@@ -86,13 +85,6 @@ test('Home/End jump to the ends', () => {
 test('an out-of-range current index is treated as unfocused', () => {
   assert.equal(nextCursorIndex('ArrowDown', 9, 5), 0)
   assert.equal(nextCursorIndex('ArrowUp', 9, 5), 4)
-})
-
-test('clampIndex keeps the index inside the list, null when empty', () => {
-  assert.equal(clampIndex(3, 5), 3)
-  assert.equal(clampIndex(9, 5), 4)
-  assert.equal(clampIndex(-2, 5), 0)
-  assert.equal(clampIndex(0, 0), null)
 })
 ```
 
@@ -125,12 +117,6 @@ export function nextCursorIndex(key: CursorKey, current: number, len: number): n
     case 'Home': return 0
     case 'End': return len - 1
   }
-}
-
-/** Clamp an index into [0, len-1]; null when the list is empty. */
-export function clampIndex(index: number, len: number): number | null {
-  if (len <= 0) return null
-  return Math.min(Math.max(index, 0), len - 1)
 }
 ```
 
