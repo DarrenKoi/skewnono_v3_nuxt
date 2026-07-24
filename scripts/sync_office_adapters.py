@@ -48,6 +48,7 @@ apart. Both merely "differ from the template", but:
 from __future__ import annotations
 
 import argparse
+import ast
 import filecmp
 import shutil
 import subprocess
@@ -208,6 +209,88 @@ def resolve(adapters: list[Adapter], query: str) -> list[Adapter]:
             "       Use a longer path to disambiguate."
         )
     return matches
+
+
+# --------------------------------------------------------------------------
+# Stub detection
+#
+# Many templates are still placeholders whose functions only raise
+# NotImplementedError. Copying one is worse than doing nothing: office.py
+# existing IS the switch (see _runtime/office_registry.py), so it flips that
+# feature to office mode and turns a working mock page into a 500.
+# --------------------------------------------------------------------------
+def _calls(node: ast.AST, names: set[str]) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in names
+    )
+
+
+def _raises_not_implemented(statement: ast.stmt, helpers: set[str]) -> bool:
+    """True when this single statement unconditionally fails."""
+    if isinstance(statement, ast.Raise):
+        exc = statement.exc
+        if isinstance(exc, ast.Call) and isinstance(exc.func, ast.Name):
+            return exc.func.id == "NotImplementedError"
+        return isinstance(exc, ast.Name) and exc.id == "NotImplementedError"
+    # `_not_connected()` or `return _not_connected()`
+    if isinstance(statement, ast.Expr):
+        return _calls(statement.value, helpers)
+    if isinstance(statement, ast.Return) and statement.value is not None:
+        return _calls(statement.value, helpers)
+    return False
+
+
+def _function_is_unimplemented(func: ast.FunctionDef, helpers: set[str]) -> bool:
+    """True when the function's FIRST real statement already fails.
+
+    Checking only the first statement (after any docstring) is what keeps
+    real adapters out: they compute before they can fail, so a raise deeper
+    in the body never marks them unimplemented. The hardware dispatcher, for
+    instance, raises NotImplementedError for tabs that are not wired yet, but
+    only inside a conditional -- it is a real adapter and must be copied.
+    """
+    body = [
+        statement for statement in func.body
+        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant))
+    ]
+    return bool(body) and _raises_not_implemented(body[0], helpers)
+
+
+def is_stub(template: Path) -> bool:
+    """True when EVERY public export of the template is unimplemented."""
+    try:
+        tree = ast.parse(template.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return False
+
+    functions = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    # Private helpers that exist only to raise (e.g. `_not_connected`).
+    helpers = {
+        f.name for f in functions
+        if f.name.startswith("_") and _function_is_unimplemented(f, set())
+    }
+
+    # A template exports its API either as `def get_x(...)` or, as chat does,
+    # by aliasing at module level: `get_x = _not_connected`. Both count.
+    exports: list[bool] = [
+        _function_is_unimplemented(f, helpers)
+        for f in functions if not f.name.startswith("_")
+    ]
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and not target.id.startswith("_"):
+                exports.append(
+                    isinstance(node.value, ast.Name) and node.value.id in helpers
+                )
+
+    return bool(exports) and all(exports)
 
 
 def git_ignores(path: Path) -> bool:
@@ -391,6 +474,10 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="show what would happen, copy nothing")
     parser.add_argument(
+        "--include-stubs", action="store_true",
+        help="with --all, also copy not-yet-implemented templates (breaks those pages)",
+    )
+    parser.add_argument(
         "--diff", action="store_true",
         help="show how edited office.py files differ from their templates",
     )
@@ -416,9 +503,18 @@ def main() -> int:
         # --all means "bring this machine up to date": adapters with nothing
         # there yet, plus stale copies whose bytes are recoverable from git.
         # EDITED is excluded -- only --force may clobber unrecoverable edits.
+        # Stubs are excluded because copying one BREAKS a working page.
         selected = [a for a in adapters if a.status in SAFE_TO_WRITE or args.force]
+        stubs = [a for a in selected if is_stub(a.template)]
+        if stubs and not args.include_stubs:
+            selected = [a for a in selected if a not in stubs]
+            print(
+                f"Skipping {len(stubs)} not-yet-implemented template(s); copying one\n"
+                "would flip that feature to office mode and 500 a working mock page.\n"
+                "Pass --include-stubs to override.\n"
+            )
         if not selected:
-            print("Every adapter is already up to date. "
+            print("Every implemented adapter is already up to date. "
                   "Use --force to also overwrite EDITED copies.")
             return 0
     elif not args.names:
