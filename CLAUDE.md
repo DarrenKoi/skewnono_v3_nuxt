@@ -82,6 +82,20 @@ Three-tier configuration management. Database connections, API base URLs, and se
 - Architecture prioritizes clean separation and maintainability over immediate feature complexity
 - Extensible design: support incremental page/feature additions without major refactoring
 
+### Deployment (Phase 3)
+
+Pack at the office, from the repo root, after building the frontend:
+
+```bash
+npm --prefix front-dev-home run build
+.venv/bin/python -m scripts.pack_deploy
+```
+
+Produces `dist/skewnono-<stamp>/`. Copy it to `/project/workSpace/` on the
+cloud host — that exact path, because `is_cloud()` is a filesystem check, not
+a config flag — then follow the bundle's `DEPLOY.md`. Run its `preflight.py`
+before starting uwsgi. See `docs/deployment.md`.
+
 ## Playwright Screenshots
 
 Save all Playwright MCP screenshots under `.playwright-mcp/screenshots/`. When calling `browser_take_screenshot`, always pass a relative `filename` like `.playwright-mcp/screenshots/<descriptive-name>.png` — the MCP server resolves relative paths from the project cwd, so omitting the prefix dumps PNGs at the repo root.
