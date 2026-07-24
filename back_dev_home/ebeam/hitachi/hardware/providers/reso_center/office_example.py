@@ -3,10 +3,26 @@
 """Office Reso Center adapter — NOT CONNECTED YET.
 
 Source: OpenSearch ``reso_center_log`` (CD-SEM only). Return raw docs
-ascending by timestamp scoped to ``[start, end]``; the top-level
+ascending by ``timestamp`` scoped to ``[start, end]``; the top-level
 ``providers/office.py`` dispatcher wraps them with
-``normalizers.docs_payload``. Match ``reso_center/mock.py``'s doc shape
-(sweep curves + best-focus scalars).
+``normalizers.docs_payload``.
+
+Match ``reso_center/mock.py``'s flat doc shape — the 13 scalar/metadata
+fields, no focus-sweep objects:
+
+    category, CenterX, CenterY, BestReso, ResoIScenter, ResoDelta,
+    beam_condition, timestamp, timestamp_date, eqp_ip, eqp_id, fac_id, fab_name
+
+``ResoDelta`` is the stored difference ``ResoIScenter - BestReso`` (>= 0) —
+pass it through as indexed; do not recompute. The wide ``Resolution_Range`` /
+``Resolution_Range_Raw`` / ``Resolution_Range_Smooth`` objects and
+``fdc_category`` are intentionally NOT returned (Focus Sweep was removed);
+even though they still ride along in ``_source`` (mapped ``enabled: false``),
+drop them from each doc so the office payload matches the mock.
+
+Resolve ``eqp_id -> eqp_ip`` the same way the other hardware adapters do (the
+index is keyed on ``eqp_ip``), and filter on ``fab_name`` when given. See
+``hardware/MIGRATION.md`` and ``bsm/office_example.py`` for the query pattern.
 """
 
 from datetime import datetime

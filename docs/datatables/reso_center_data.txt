@@ -1,21 +1,28 @@
 장비의 상태 모니터링. bm/pm시에 체크하고 data로 남기게 되어있다.
-beam_shape, reso_center에 해당
+beam_shape, reso_center에 해당. reso_center는 CD-SEM 장비에서만 제공된다.
+
+OpenSearch index alias: reso_center_cdsem (category "reso_center_log").
 
 doc 하나에는 다음과 같은 필드가 있다.
 'category': str "reso_center_log"
 'CenterX': float 예 = 1.15
 'CenterY': float -0.99
-'BestReso' : float 2.98
-'ResoIScenter': float 2.98
-'ResoDelta': float 0.06
-'Resolution_Range': list ['-10', '-5', '0', '5', '10']
-'Resolution_Range_Raw': dict {'-10':[five numbers], '-5':[five numbers'], '0',..}
-'Resolution_Range_Smooth': dict {'-10',.. }
+'BestReso': float 2.98         # best-focus resolution (focus sweep의 최소값)
+'ResoIScenter': float 3.04     # 중심 focus에서의 resolution (>= BestReso)
+'ResoDelta': float 0.06        # ResoIScenter - BestReso 의 차이 (>= 0)
 'beam_condition': str 'HR0500_IP0080'
-'timestamp':str '2026-04-20T12:55:16'
-'timestamp_date' str = '2026-04-20'
+'timestamp': str '2026-04-20T12:55:16'
+'timestamp_date': str '2026-04-20'
 'eqp_id'
 'eqp_ip'
 'fac_id'
 'fab_name'
-'fdc_category' same as category
+
+표시 방식:
+- fab_name -> 해당 fab의 eqp_ip(장비)를 고르고, beam_condition별로 시계열을
+  표시한다.
+- 시계열 차트는 BestReso와 ResoIScenter 두 선을 같은 y축(nm)에 그리며, 두 선의
+  간격이 곧 ResoDelta 이다.
+- Focus Sweep은 Resolution Center에서 사용하지 않는다. 따라서 이전에 있던
+  Resolution_Range / Resolution_Range_Raw / Resolution_Range_Smooth 와
+  fdc_category 필드는 더 이상 사용하지 않는다.

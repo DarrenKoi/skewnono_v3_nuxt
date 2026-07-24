@@ -1,9 +1,15 @@
 """Phase 1 faithful reso_center (`category: "reso_center_log"`) mock.
 
-Raw doc shape from `docs/datatables/reso_center_data.txt`: center coordinates +
-resolution scalars, a 5-offset `Resolution_Range`, and `Raw`/`Smooth` focus
-sweeps (dict keyed by the 5 offsets, each -> 5 numbers), plus the metadata tail.
-Deterministic per eqp_id; ascending time.
+Raw doc shape from `docs/datatables/reso_center_data.txt`: center coordinates
+(`CenterX`/`CenterY`) plus three resolution scalars, then the metadata tail.
+`BestReso` is the best-focus resolution (the minimum over the focus sweep);
+`ResoIScenter` is the resolution at center focus, so it sits at or above
+`BestReso`. `ResoDelta` is their difference (`ResoIScenter - BestReso`, >= 0),
+derived here rather than rolled independently so the three stay consistent.
+
+Focus Sweep is intentionally not modeled — the wide `Resolution_Range*` objects
+were dropped along with the sweep chart. Deterministic per eqp_id; ascending
+time.
 """
 
 from __future__ import annotations
@@ -21,7 +27,6 @@ from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
 __all__ = ["build_reso_center_docs"]
 
 
-_OFFSETS: list[str] = ["-10", "-5", "0", "5", "10"]
 _BEAM_CONDITIONS: tuple[str, ...] = ("HR0800_IP0080", "HR0500_IP0080")
 _DAILY_HOURS: tuple[int, ...] = (7, 19)
 
@@ -39,30 +44,6 @@ def _timestamps(rng: random.Random, start: datetime, end: datetime) -> list[date
     return moments
 
 
-def _sweep(rng: random.Random, best: float) -> dict[str, list[float]]:
-    """Per-offset 5-number resolution curve, minimised near offset 0."""
-    out: dict[str, list[float]] = {}
-    for off in _OFFSETS:
-        penalty = abs(int(off)) * 0.012
-        base = best + penalty
-        out[off] = [round(base + rng.uniform(-0.02, 0.02), 4) for _ in range(5)]
-    return out
-
-
-def _smooth(raw: dict[str, list[float]]) -> dict[str, list[float]]:
-    """Lightly smoothed copy (3-pt moving mean per offset series)."""
-    out: dict[str, list[float]] = {}
-    for off, values in raw.items():
-        sm: list[float] = []
-        for i in range(len(values)):
-            lo = max(0, i - 1)
-            hi = min(len(values), i + 2)
-            window = values[lo:hi]
-            sm.append(round(sum(window) / len(window), 4))
-        out[off] = sm
-    return out
-
-
 def _build_doc(
     rng: random.Random,
     *,
@@ -74,17 +55,17 @@ def _build_doc(
     beam_condition: str,
 ) -> dict:
     best = round(rng.uniform(2.90, 3.10), 2)
-    raw = _sweep(rng, best)
+    # Center focus is at or worse than best focus, so ResoIScenter >= BestReso
+    # and ResoDelta (their difference) is a small non-negative degradation.
+    reso_is_center = round(best + rng.uniform(0.0, 0.12), 2)
+    reso_delta = round(reso_is_center - best, 2)
     doc: dict = {
         "category": "reso_center_log",
         "CenterX": round(rng.uniform(-1.5, 1.5), 2),
         "CenterY": round(rng.uniform(-1.5, 1.5), 2),
         "BestReso": best,
-        "ResoIScenter": round(best + rng.uniform(-0.02, 0.02), 2),
-        "ResoDelta": round(rng.uniform(0.02, 0.12), 2),
-        "Resolution_Range": list(_OFFSETS),
-        "Resolution_Range_Raw": raw,
-        "Resolution_Range_Smooth": _smooth(raw),
+        "ResoIScenter": reso_is_center,
+        "ResoDelta": reso_delta,
         "beam_condition": beam_condition,
         "timestamp": moment.strftime("%Y-%m-%dT%H:%M:%S"),
         "timestamp_date": moment.strftime("%Y-%m-%d"),
@@ -92,7 +73,6 @@ def _build_doc(
         "eqp_ip": eqp_ip,
         "fac_id": fac_id,
         "fab_name": fab_name,
-        "fdc_category": "reso_center_log",
     }
     return doc
 

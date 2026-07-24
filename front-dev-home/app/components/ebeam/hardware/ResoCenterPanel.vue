@@ -9,15 +9,6 @@
         icon="i-lucide-filter"
         class="w-48"
       />
-      <span class="ml-auto" />
-      <USelect
-        v-model="selectedKey"
-        :items="measurementItems"
-        size="xs"
-        icon="i-lucide-clock"
-        placeholder="측정 시각 선택"
-        class="w-64"
-      />
     </div>
 
     <div class="grid gap-3 lg:grid-cols-2">
@@ -31,27 +22,16 @@
           class="h-72 w-full"
         />
       </div>
-      <!-- BestReso / ResoDelta trend (click → select) -->
+      <!-- Resolution trend: BestReso + ResoIScenter share one axis; gap = ResoDelta -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
         <div class="mb-1 px-1 sk-title">
-          BestReso · ResoDelta
+          BestReso · ResoIScenter <span class="font-normal text-(--sk-ink-muted)">(gap = ResoDelta)</span>
         </div>
         <div
           ref="trendEl"
           class="h-72 w-full"
         />
       </div>
-    </div>
-
-    <!-- Focus-sweep curve for the selected measurement (Raw vs Smooth) -->
-    <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-      <div class="mb-1 px-1 text-xs font-bold text-(--sk-ink)">
-        Focus Sweep (Raw vs Smooth)
-      </div>
-      <div
-        ref="sweepEl"
-        class="h-64 w-full"
-      />
     </div>
   </div>
 </template>
@@ -70,11 +50,11 @@ const num = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : NaN
 }
+const fmt = (v: unknown): string => {
+  const n = num(v)
+  return Number.isFinite(n) ? n.toFixed(2) : '—'
+}
 const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
-// One doc per (timestamp, beam_condition), so timestamp alone is ambiguous under
-// "All conditions". Identify a measurement by the composite key.
-const condOf = (d: Record<string, unknown>) => String(d.beam_condition ?? '')
-const keyOf = (d: Record<string, unknown>) => `${tsOf(d)}|${condOf(d)}`
 
 const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
@@ -85,41 +65,26 @@ const maintenanceMarkLine = computed(() =>
   bmPmMarkLine(props.maintenanceEvents ?? [], { dark: colorMode.value === 'dark' })
 )
 
+// One measurement per (timestamp, beam_condition). Merging conditions into one
+// timeseries produces a meaningless zig-zag, so the panel always scopes to a
+// single beam_condition (default: the first one).
 const beamConditions = computed(() =>
   Array.from(new Set(props.docs.map(d => String(d.beam_condition ?? '')).filter(Boolean))).sort()
 )
-const beamCondition = ref('all')
-const beamConditionItems = computed(() => [
-  { label: 'All conditions', value: 'all' },
-  ...beamConditions.value.map(c => ({ label: c, value: c }))
-])
-const filtered = computed(() =>
-  beamCondition.value === 'all'
-    ? props.docs
-    : props.docs.filter(d => String(d.beam_condition ?? '') === beamCondition.value)
-)
-const ordered = computed(() => [...filtered.value].sort((a, b) => tsOf(a).localeCompare(tsOf(b))))
-
-// Measurements (newest first). Under "All conditions" the label disambiguates
-// by appending the beam_condition; the value is always the composite key.
-const measurementItems = computed(() =>
-  [...ordered.value]
-    .filter(d => tsOf(d))
-    .reverse()
-    .map(d => ({
-      label: beamCondition.value === 'all' ? `${tsOf(d)} · ${condOf(d)}` : tsOf(d),
-      value: keyOf(d)
-    }))
-)
-const selectedKey = ref('')
-watch(measurementItems, (items) => {
-  if (!items.some(i => i.value === selectedKey.value)) selectedKey.value = items[0]?.value ?? ''
+const beamCondition = ref('')
+watch(beamConditions, (conds) => {
+  if (!conds.includes(beamCondition.value)) beamCondition.value = conds[0] ?? ''
 }, { immediate: true })
-const selectedDoc = computed(() => ordered.value.find(d => keyOf(d) === selectedKey.value))
+const beamConditionItems = computed(() => beamConditions.value.map(c => ({ label: c, value: c })))
+
+const ordered = computed(() =>
+  props.docs
+    .filter(d => String(d.beam_condition ?? '') === beamCondition.value)
+    .sort((a, b) => tsOf(a).localeCompare(tsOf(b)))
+)
 
 const scatterEl = ref<HTMLDivElement | null>(null)
 const trendEl = ref<HTMLDivElement | null>(null)
-const sweepEl = ref<HTMLDivElement | null>(null)
 
 const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
 
@@ -157,62 +122,45 @@ const scatterOption = computed<EChartsOption>(() => {
 
 const trendOption = computed<EChartsOption>(() => {
   const rows = ordered.value
-  // ResoDelta is a magnitude-of-error metric: anchor its axis at 0 so the
-  // noisy near-zero series sits low instead of filling a centred band.
-  const axisFor = (key: 'BestReso' | 'ResoDelta') =>
-    stableYRange(rows.map(d => num(d[key])), { zeroMin: key === 'ResoDelta' }) ?? { scale: true }
+  // BestReso and ResoIScenter are the same physical quantity (resolution, nm),
+  // so they share one y-axis — the visible vertical gap between them IS
+  // ResoDelta. Fit the range over both series together.
+  const yRange = stableYRange(rows.flatMap(d => [num(d.BestReso), num(d.ResoIScenter)])) ?? { scale: true }
+  const bestData = rows.map(d => [toEpoch(tsOf(d)), num(d.BestReso)])
+  const iscData = rows.map(d => [toEpoch(tsOf(d)), num(d.ResoIScenter)])
   return {
-    grid: { left: 56, right: 56, top: 24, bottom: 36 },
-    tooltip: { trigger: 'axis' },
+    grid: { left: 56, right: 16, top: 24, bottom: 36 },
+    tooltip: {
+      trigger: 'axis',
+      // Both series are in row order, so dataIndex maps straight back to the
+      // source doc — read Best / ISCenter / Δ off it rather than off the
+      // loosely-typed echarts params.
+      formatter: (params) => {
+        const arr = Array.isArray(params) ? params : [params]
+        const d = rows[arr[0]?.dataIndex ?? -1]
+        if (!d) return ''
+        return `${tsOf(d)}<br/>Best ${fmt(d.BestReso)} · ISCenter ${fmt(d.ResoIScenter)} · Δ ${fmt(d.ResoDelta)}`
+      }
+    },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-    // Dual y-axes have independent tick intervals, so their splitLines never
-    // align — hide them both instead of drawing a misaligned double grid.
-    yAxis: [
-      { type: 'value', name: 'BestReso', ...axisFor('BestReso'), axisLabel: { fontSize: 10 }, splitLine: { show: false } },
-      { type: 'value', name: 'ResoDelta', ...axisFor('ResoDelta'), axisLabel: { fontSize: 10 }, splitLine: { show: false } }
-    ],
+    yAxis: { type: 'value', name: 'nm', ...yRange, axisLabel: { fontSize: 10 } },
     series: [
       {
-        name: 'BestReso', type: 'line', yAxisIndex: 0,
+        name: 'BestReso', type: 'line', symbolSize: 5,
         lineStyle: { color: c0.value }, itemStyle: { color: c0.value },
-        data: rows.map(d => ({ name: keyOf(d), value: [toEpoch(tsOf(d)), num(d.BestReso)], symbolSize: keyOf(d) === selectedKey.value ? 12 : 5 })),
+        data: bestData,
         markLine: maintenanceMarkLine.value
       },
       {
-        name: 'ResoDelta', type: 'line', yAxisIndex: 1,
+        name: 'ResoIScenter', type: 'line', symbolSize: 5,
         lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value },
-        data: rows.map(d => ({ name: keyOf(d), value: [toEpoch(tsOf(d)), num(d.ResoDelta)], symbolSize: keyOf(d) === selectedKey.value ? 11 : 4 }))
+        data: iscData
       }
     ]
   }
 })
 
-const sweepOption = computed<EChartsOption>(() => {
-  const d = selectedDoc.value
-  const offsets = Array.isArray(d?.Resolution_Range) ? (d!.Resolution_Range as unknown[]).map(String) : []
-  const raw = (d?.Resolution_Range_Raw ?? {}) as Record<string, unknown>
-  const smooth = (d?.Resolution_Range_Smooth ?? {}) as Record<string, unknown>
-  const lead = (bag: Record<string, unknown>, off: string): number => {
-    const a = bag[off]
-    return Array.isArray(a) ? num(a[0]) : NaN
-  }
-  return {
-    grid: { left: 48, right: 16, top: 24, bottom: 36 },
-    tooltip: { trigger: 'axis' },
-    legend: { top: 0, textStyle: { fontSize: 10 } },
-    xAxis: { type: 'category', data: offsets, name: 'offset', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
-    series: [
-      { name: 'Raw', type: 'line', smooth: false, lineStyle: { color: c0.value }, itemStyle: { color: c0.value }, data: offsets.map(o => lead(raw, o)) },
-      { name: 'Smooth', type: 'line', smooth: true, lineStyle: { color: c1.value }, itemStyle: { color: c1.value }, data: offsets.map(o => lead(smooth, o)) }
-    ]
-  }
-})
-
 useEchart(scatterEl, scatterOption)
-useEchart(trendEl, trendOption, {
-  onClick: (key) => { selectedKey.value = key }
-})
-useEchart(sweepEl, sweepOption)
+useEchart(trendEl, trendOption)
 </script>

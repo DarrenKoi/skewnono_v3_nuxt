@@ -33,7 +33,7 @@ const hardwareServices: HardwareService[] = [
   { key: 'sharpness', label: 'Sharpness', title: 'Beam Sharpness (Chamber Stub)', description: 'Chamber stub 샘플로 6~8시간 주기 자동 측정한 빔 품질을 모니터링합니다.', icon: 'i-lucide-focus', category: '데일리' },
   { key: 'bm-pm', label: 'BM/PM', title: 'BM / PM Information', description: '장비별 BM 이력, PM 일정, maintenance window를 함께 확인합니다.', icon: 'i-lucide-wrench', category: '분기' },
   { key: 'bsm', label: 'BSM', title: 'Beam Shape Matching', description: 'Beam Shape 상태와 추이를 모니터링합니다.', icon: 'i-lucide-radar', category: '분기' },
-  { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 focus sweep를 추적합니다.', icon: 'i-lucide-crosshair', category: '분기' },
+  { key: 'reso-center', label: 'Reso Center', title: 'Resolution Center', description: 'Resolution center drift와 BestReso·ResoIScenter 추세를 beam condition별로 추적합니다.', icon: 'i-lucide-crosshair', category: '분기' },
   { key: 'mdc', label: 'MDC', title: 'Meas Data Correction', description: '장비별 MDC 보정값을 비교하여 tool-to-tool skew를 확인합니다.', icon: 'i-lucide-grid-3x3', category: '분기' },
   { key: 'sce', label: 'SCE', title: 'Sharpness Characteristic Equalizer', description: 'SCE 설정값과 Coefficient 곡선을 sibling 장비와 비교합니다.', icon: 'i-lucide-spline', category: '분기' }
 ]
