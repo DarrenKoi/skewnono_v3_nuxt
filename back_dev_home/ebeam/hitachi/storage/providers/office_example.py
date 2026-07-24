@@ -10,7 +10,13 @@ Two data sources, both in the office Redis:
   the ``StorageRow`` contract; a failed capacity collection is a row whose
   ``storage_mt`` (and capacity strings) are null/blank while ``rcp_counts``
   still reports. ("ppid" in the key name = recipe/ppid *count* data, i.e.
-  ``rcp_counts`` — not the unavailability below.)
+  ``rcp_counts`` — not the unavailability below.) The DataFrame's own
+  ``fab_name``/``fac_id`` columns are NOT trusted: the collection pipeline
+  wrote fac-level names (``M16``), so the sidebar's fab_name filter
+  (``M16A``) matched nothing and every fab except R3 rendered an empty
+  스토리지 table. Each row is re-keyed against the live ``sem_list`` (the
+  fleet source of truth) by ``eqp_ip``, falling back to the DF's values
+  only when the fleet has no match.
 * ``get_ppid_unavailable`` — a Redis **hash** ``v3_hitachi_sem_ppid_not_avail``
   whose field is a compact date (``%Y%m%d``) and whose value is the list of
   equipment IPs that were unreachable that day (CD-SEM and HV-SEM combined).
@@ -98,6 +104,16 @@ def _int(value, default: int = 0) -> int:
 # --------------------------------------------------------------------------
 # GET /api/<slug>/storage
 # --------------------------------------------------------------------------
+def _fleet_by_ip() -> dict[str, dict]:
+    """sem_list rows keyed by eqp_ip — the same join get_ppid_unavailable uses."""
+    fleet: dict[str, dict] = {}
+    for row in get_sem_list():
+        ip = str(row.get("eqp_ip", "")).strip()
+        if ip:
+            fleet.setdefault(ip, row)
+    return fleet
+
+
 def _normalize_storage(
     df: pd.DataFrame, key: str, fab_names: list[str] | None
 ) -> list[StorageRow]:
@@ -108,11 +124,18 @@ def _normalize_storage(
             f"(got {sorted(df.columns)})"
         )
 
+    fleet_by_ip = _fleet_by_ip()
     wanted = {f.strip().upper() for f in (fab_names or []) if f.strip()}
     rows: list[StorageRow] = []
     for rec in df.to_dict(orient="records"):
         fac_id = _text(rec["fac_id"])
         fab_name = _text(rec["fab_name"])
+        # The storage pipeline's fab_name is fac-level; sem_list carries the
+        # sidebar-grade fab_name (M16A vs M16), so the fleet match wins.
+        match = fleet_by_ip.get(_text(rec["eqp_ip"]).strip())
+        if match is not None:
+            fab_name = str(match.get("fab_name") or "").strip() or fab_name
+            fac_id = str(match.get("fac_id") or "").strip() or fac_id
         if wanted and fab_name.strip().upper() not in wanted:
             continue
         rows.append(StorageRow(
@@ -246,6 +269,8 @@ if __name__ == "__main__":
     # Standalone smoke test — run FROM THE REPO ROOT with:
     #     .venv/bin/python -m back_dev_home.ebeam.hitachi.storage.providers.office
     # (_redis_client loads back_dev_home/.env itself if the env isn't set.)
+    from collections import Counter
+
     for _slug in ("cdsem", "hvsem"):
         _storage = get_storage(_slug)
         _ppid = get_ppid_unavailable(_slug)
@@ -254,6 +279,10 @@ if __name__ == "__main__":
             f"ppid latest_date={_ppid['latest_date']!r}, "
             f"{len(_ppid['rows'])} unavailable"
         )
+        # Per-fab distribution — every sidebar fab should appear here, not
+        # just R3. A fac-level name (e.g. plain "M16") means a row whose IP
+        # is missing from sem_list kept the pipeline's raw label.
+        print(f"  fabs: {dict(Counter(_row['fab_name'] for _row in _storage))}")
         if _storage:
             print("  storage[0]:", _storage[0])
         if _ppid["rows"]:

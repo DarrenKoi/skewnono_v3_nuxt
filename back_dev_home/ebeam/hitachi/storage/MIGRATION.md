@@ -58,6 +58,14 @@
   The adapter reads the tool's key, coerces nulls to `""`/`None` per the
   contract, and filters by `fab_name`. Read via pyarrow; connection from
   `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` in `back_dev_home/.env`.
+  **The DF's own `fab_name`/`fac_id` columns are not trusted**: the office
+  collection pipeline wrote fac-level names (`M16`), so the sidebar's
+  fab_name filter (`M16A`) matched nothing and every fab except R3 rendered
+  an empty 스토리지 table. Each row is re-keyed against the live sem_list by
+  `eqp_ip` (the same join `get_ppid_unavailable` uses); the DF's values
+  survive only for IPs the fleet doesn't know. The adapter's `__main__`
+  smoke test prints the per-fab row distribution — every sidebar fab should
+  appear there, not just R3.
 - Notes: an empty result (`[]`) is valid — a tool type with no matching
   sem_list entries returns no rows, not an error.
 
