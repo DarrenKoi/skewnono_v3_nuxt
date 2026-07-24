@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <div class="flex min-w-0 flex-wrap items-start gap-2">
+    <div class="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2">
       <span class="mt-1.5 shrink-0 font-mono text-[10px] text-(--sk-ink-muted)">lot_cd</span>
       <UInput
         v-model="lotSearch"
@@ -50,7 +50,7 @@
         icon="i-lucide-search"
         placeholder="디바이스 검색"
       />
-      <div class="flex max-h-28 min-w-0 flex-wrap items-center gap-1 overflow-y-auto">
+      <div class="flex max-h-28 min-w-0 flex-1 flex-wrap items-center gap-1.5 overflow-y-auto border-l border-(--sk-border-soft) pl-3">
         <button
           v-for="device in chipStrip"
           :key="device.lot_cd"
