@@ -14,24 +14,34 @@ const marginRatio = ref<number>(DEFAULT_MARGIN)
 const minPxPerCd = ref(DEFAULT_MIN_PX_PER_CD)
 const showWide = ref(false)
 
+/** UInput type="number" keeps a raw '' when the field is cleared, so `!= null`
+ *  is not enough — normalise to a real number or null before any comparison. */
+const numOrNull = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) ? v : null
+
+const cdValue = computed(() => numOrNull(cdNm.value))
+const pitchValue = computed(() => numOrNull(pitchNm.value))
+const patternValue = computed(() => numOrNull(patternCount.value) ?? DEFAULT_PATTERN_COUNT)
+const thresholdValue = computed(() => numOrNull(minPxPerCd.value) ?? DEFAULT_MIN_PX_PER_CD)
+
 const rows = computed(() => buildMagPixelTable(series.value))
 
 /** CD가 없으면 판정하지 않고 순수 참조표로 둔다. */
 const pitchError = computed(() =>
-  cdNm.value != null && pitchNm.value != null && pitchNm.value <= cdNm.value
+  cdValue.value != null && pitchValue.value != null && pitchValue.value <= cdValue.value
     ? 'Pitch는 CD보다 커야 합니다.'
     : null
 )
 
 const result = computed(() => {
-  if (cdNm.value == null || cdNm.value <= 0 || pitchError.value) return null
+  if (cdValue.value == null || cdValue.value <= 0 || pitchError.value) return null
   return recommend({
     series: series.value,
-    cdNm: cdNm.value,
-    pitchNm: pitchNm.value,
-    patternCount: patternCount.value,
+    cdNm: cdValue.value,
+    pitchNm: pitchValue.value,
+    patternCount: patternValue.value,
     marginRatio: marginRatio.value,
-    minPxPerCd: minPxPerCd.value
+    minPxPerCd: thresholdValue.value
   })
 })
 
@@ -41,7 +51,7 @@ const marginLabel = (r: number) => `${Math.round(r * 100)}%`
 <template>
   <div class="mx-auto flex max-w-6xl flex-col gap-5 p-5">
     <header>
-      <h1 class="sk-title text-lg">
+      <h1 class="sk-page-title">
         CD-SEM Mag / Pixel 가이드
       </h1>
       <p class="mt-1 text-sm text-(--sk-ink-muted)">
@@ -62,6 +72,7 @@ const marginLabel = (r: number) => `${Math.round(r * 100)}%`
             :label="s"
             :color="series === s ? 'primary' : 'neutral'"
             :variant="series === s ? 'solid' : 'outline'"
+            :aria-pressed="series === s"
             @click="series = s"
           />
         </UFieldGroup>
@@ -116,6 +127,7 @@ const marginLabel = (r: number) => `${Math.round(r * 100)}%`
             :label="marginLabel(m)"
             :color="marginRatio === m ? 'primary' : 'neutral'"
             :variant="marginRatio === m ? 'solid' : 'outline'"
+            :aria-pressed="marginRatio === m"
             @click="marginRatio = m"
           />
         </UFieldGroup>
@@ -165,9 +177,9 @@ const marginLabel = (r: number) => `${Math.round(r * 100)}%`
         :rows="rows"
         :show-wide="showWide"
         :required-fov-nm="result?.requiredFovNm ?? null"
-        :cd-nm="cdNm ?? 0"
-        :min-px-per-cd="minPxPerCd"
-        :recommended-mag="result?.mag ?? null"
+        :cd-nm="cdValue ?? 0"
+        :min-px-per-cd="thresholdValue"
+        :recommended-mag="result?.reason === 'ok' ? result.mag : null"
         :recommended-pixels="result?.pixels ?? null"
       />
     </section>

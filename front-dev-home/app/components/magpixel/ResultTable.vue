@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { cellVerdict, type MagPixelRow } from '~/utils/magPixel'
+import { cellVerdict, scanTimeFactor, type MagPixelRow } from '~/utils/magPixel'
 
 const props = defineProps<{
   rows: MagPixelRow[]
@@ -15,7 +15,10 @@ const props = defineProps<{
 
 const visiblePixels = computed(() => props.showWide ? [512, 1024, 2048, 4096] : [512, 1024])
 
-const scanFactorLabel = (pixels: number) => `×${(pixels / 512) ** 2}`
+const scanFactorLabel = (pixels: number) => {
+  const factor = scanTimeFactor(pixels)
+  return factor === null ? '' : `×${factor}`
+}
 
 const verdictOf = (mag: number, pixels: number) =>
   props.requiredFovNm === null
