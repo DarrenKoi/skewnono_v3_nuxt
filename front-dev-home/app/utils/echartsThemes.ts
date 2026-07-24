@@ -155,11 +155,11 @@ export const ECHART_THEME_OPTIONS: readonly ThemeOption[] = [
   {
     value: 'default',
     label: 'Default',
-    fileName: 'vintage.js / dark.js',
-    description: '밝은 화면에서는 Vintage, 어두운 화면에서는 Dark 테마를 자동으로 사용합니다.',
-    colors: ['#d87c7c', '#919e8b', '#fef8ef', '#100C2A', '#4992ff', '#7cffb2'],
-    backgroundColor: '#fef8ef',
-    textColor: '#3f3a34'
+    fileName: 'MATLAB colororder / dark.js',
+    description: '밝은 화면에서는 MATLAB, 어두운 화면에서는 Dark 테마를 자동으로 사용합니다.',
+    colors: ['#0072BD', '#D95319', '#EDB120', '#100C2A', '#4992ff', '#7cffb2'],
+    backgroundColor: '#ffffff',
+    textColor: '#262626'
   },
   {
     value: 'vintage',
@@ -729,12 +729,18 @@ let registered = false
 export const isEchartThemeSelection = (value: unknown): value is EchartThemeSelection =>
   ECHART_THEME_OPTIONS.some(option => option.value === value)
 
+// 'default' is the only selection that is not itself a theme: it defers to the
+// color mode. Light resolves to MATLAB -- the project default, chosen because
+// its color order is what the metrology plots it sits next to already use.
+// Dark cannot: these themes draw on a transparent canvas that inherits the card
+// surface, and MATLAB's furniture (#262626 axes, ticks and title) assumes a
+// white one, so on a dark card it would be black on black.
 export const resolveEchartThemeName = (
   selection: EchartThemeSelection,
   colorMode: string
 ): EchartThemeName => {
   if (selection !== 'default') return selection
-  return colorMode === 'dark' ? 'dark' : 'vintage'
+  return colorMode === 'dark' ? 'dark' : 'matlab'
 }
 
 export const registerEchartsThemes = (echarts: EchartsModule) => {

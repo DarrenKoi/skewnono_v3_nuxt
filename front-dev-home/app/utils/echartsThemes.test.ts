@@ -94,10 +94,17 @@ test('every selectable theme has a palette and an export background', () => {
   }
 })
 
-test('matlab is selectable and never stands in for the default selection', () => {
+test('matlab is both selectable and what the default selection resolves to', () => {
   assert.ok(isEchartThemeSelection('matlab'))
   assert.equal(resolveEchartThemeName('matlab', 'light'), 'matlab')
   assert.equal(resolveEchartThemeName('matlab', 'dark'), 'matlab')
-  assert.equal(resolveEchartThemeName('default', 'light'), 'vintage')
+  assert.equal(resolveEchartThemeName('default', 'light'), 'matlab')
+})
+
+// MATLAB's axis furniture is #262626 on an assumed white canvas, but themes
+// render transparent over the card surface -- so the dark branch must not
+// follow the light one over to matlab, or the axes vanish into the background.
+test('the default selection stays on the dark theme in dark mode', () => {
   assert.equal(resolveEchartThemeName('default', 'dark'), 'dark')
+  assert.notEqual(resolveEchartThemeName('default', 'dark'), 'matlab')
 })
