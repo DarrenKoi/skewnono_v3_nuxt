@@ -20,6 +20,7 @@ from back_dev_home.ebeam.hitachi.storage import data
 from back_dev_home.ebeam.hitachi.storage.providers import mock as mock_provider
 from back_dev_home.ebeam.hitachi.storage.providers import office as office_provider
 from back_dev_home.ebeam.hitachi.storage.routes import bp
+from tests._office_state import has_office_adapter, skip_reason
 
 
 _PROVIDER_ENV_NAMES = (
@@ -99,10 +100,14 @@ class TestStorageAdapters(ProviderEnvironmentTestCase):
         self.assertGreater(len(first), 0)
         self.assertEqual(set(first[0]), _STORAGE_FIELDS)
 
-    def test_mock_storage_keeps_fac_filtering(self):
-        rows = mock_provider.get_storage("cdsem", [" m14 "])
+    def test_mock_storage_keeps_fab_name_filtering(self):
+        # fab_name is the canonical filter key and is GRANULAR ("M14A"), not
+        # the coarse fac_id ("M14") this test used to pass. Filtering by the
+        # coarse value matches nothing.
+        rows = mock_provider.get_storage("cdsem", [" m14a "])
 
         self.assertGreater(len(rows), 0)
+        self.assertEqual({row["fab_name"] for row in rows}, {"M14A"})
         self.assertEqual({row["fac_id"] for row in rows}, {"M14"})
 
     def test_mock_ppid_snapshot_is_deterministic_and_matches_the_contract(self):
@@ -141,6 +146,10 @@ class TestStorageAdapters(ProviderEnvironmentTestCase):
         load_storage.assert_called_once_with("cdsem", fac_ids)
         load_ppid.assert_called_once_with("cdsem", fac_ids)
 
+    @unittest.skipIf(
+        has_office_adapter("ebeam/hitachi/storage"),
+        skip_reason("ebeam/hitachi/storage"),
+    )
     def test_unconnected_office_adapter_fails_clearly(self):
         with self.assertRaisesRegex(NotImplementedError, "not been connected"):
             office_provider.get_storage("cdsem")
@@ -157,21 +166,23 @@ class TestStorageRoutes(ProviderEnvironmentTestCase):
         self.client = app.test_client()
 
     def test_storage_route_keeps_returning_a_bare_filtered_array(self):
-        response = self.client.get("/api/cdsem/storage?fac_id=M14")
+        # The query param is fab_name, not fac_id — routes._parse_fab_names
+        # reads request.args["fab_name"], so ?fac_id=... is silently unfiltered.
+        response = self.client.get("/api/cdsem/storage?fab_name=M14A")
 
         rows = response.get_json()
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(rows, list)
         self.assertGreater(len(rows), 0)
-        self.assertEqual({row["fac_id"] for row in rows}, {"M14"})
+        self.assertEqual({row["fab_name"] for row in rows}, {"M14A"})
 
     def test_ppid_route_keeps_returning_a_snapshot(self):
-        response = self.client.get("/api/cdsem/ppid-unavailable?fac_id=M14")
+        response = self.client.get("/api/cdsem/ppid-unavailable?fab_name=M14A")
 
         payload = response.get_json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(set(payload), {"latest_date", "rows"})
-        self.assertTrue(all(row["fac_id"] == "M14" for row in payload["rows"]))
+        self.assertTrue(all(row["fab_name"] == "M14A" for row in payload["rows"]))
 
 
 if __name__ == "__main__":

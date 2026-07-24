@@ -10,6 +10,7 @@ from flask import Flask
 
 from back_dev_home.afm.data import list_afm_files
 from back_dev_home.afm.routes import bp
+from tests._office_state import MISSING_ADAPTER_MESSAGE
 
 
 class TestAfmRoutes(unittest.TestCase):
@@ -69,7 +70,7 @@ class TestAfmRoutes(unittest.TestCase):
     def test_office_provider_fails_explicitly_until_connected(self):
         os.environ["SKEWNONO_AFM_PROVIDER"] = "office"
 
-        with self.assertRaisesRegex(NotImplementedError, "AFM office adapter"):
+        with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
             list_afm_files("MAP608")
 
 

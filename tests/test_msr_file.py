@@ -4,7 +4,9 @@ import os
 import pytest
 
 from back_dev_home.msr_file.data import _summaries, get_msr_file
+from back_dev_home.msr_file.providers import mock
 from back_dev_home.meas_hist.data import get_meas_hist
+from tests._office_state import MISSING_ADAPTER_MESSAGE
 
 
 @pytest.fixture(scope="module")
@@ -127,7 +129,10 @@ def test_exe_detail_info_is_sourced_from_the_parent_meas_hist(sample_msr):
 
 def test_exe_detail_info_has_wafer_geometry(sample_msr):
     info = get_msr_file(sample_msr)["exe_detail_info"]
-    assert info["wafer_size"] == "300"
+    # nm, not mm: ec704a4 adopted the office-confirmed format ("300000000" =
+    # 300 mm) and this assertion was left behind. Derived from the module's own
+    # constant so the two cannot drift apart again.
+    assert info["wafer_size"] == str(mock._WAFER_NM)
     assert info["wafer_id"].startswith(info["lot_id"])
     for key in ("chip_array", "chip_pitch", "map_offset", "map_origin", "process"):
         assert info[key]
@@ -174,7 +179,7 @@ def test_unconnected_office_adapter_fails_explicitly(sample_msr):
     previous = os.environ.get("SKEWNONO_MSR_FILE_PROVIDER")
     os.environ["SKEWNONO_MSR_FILE_PROVIDER"] = "office"
     try:
-        with pytest.raises(NotImplementedError, match="msr_file office adapter"):
+        with pytest.raises(RuntimeError, match=MISSING_ADAPTER_MESSAGE):
             get_msr_file(sample_msr)
     finally:
         if previous is None:

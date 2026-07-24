@@ -20,6 +20,7 @@ from back_dev_home.sem_list import data
 from back_dev_home.sem_list.providers import mock as mock_provider
 from back_dev_home.sem_list.providers import office as office_provider
 from back_dev_home.sem_list.routes import bp
+from tests._office_state import has_office_adapter, skip_reason
 
 
 _PROVIDER_ENV_NAMES = (
@@ -93,6 +94,7 @@ class TestSemListAdapters(ProviderEnvironmentTestCase):
 
         load.assert_called_once_with()
 
+    @unittest.skipIf(has_office_adapter("sem_list"), skip_reason("sem_list"))
     def test_unconnected_office_adapter_fails_clearly(self):
         with self.assertRaisesRegex(NotImplementedError, "not been connected"):
             office_provider.get_sem_list()

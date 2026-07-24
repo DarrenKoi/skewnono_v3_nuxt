@@ -1,4 +1,11 @@
-"""Tests for provider-backed features that follow the sem_list dispatch seam."""
+"""Tests for provider-backed features that follow the sem_list dispatch seam.
+
+Requires `hardware` and `skew` office adapters. Both `providers/office.py`
+files are gitignored (created at the office with
+`cp office_example.py office.py`), so on a checkout without them this module
+SKIPS rather than failing collection — a missing adapter is the documented
+default state, not a broken test.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +13,20 @@ import os
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
+
+import pytest
+
+from tests._office_state import has_office_adapter
+
+_REQUIRED = ("ebeam/hitachi/hardware", "ebeam/hitachi/skew")
+_missing = [feature for feature in _REQUIRED if not has_office_adapter(feature)]
+if _missing:
+    pytest.skip(
+        "no providers/office.py for: "
+        + ", ".join(_missing)
+        + " (gitignored; created at the office)",
+        allow_module_level=True,
+    )
 
 from back_dev_home.ebeam.hitachi.hardware import data as hardware_data
 from back_dev_home.ebeam.hitachi.hardware.providers import mock as hardware_mock

@@ -21,6 +21,7 @@ from back_dev_home.meas_hist.opensearch_query import (
     build_search_all_value,
 )
 from back_dev_home.meas_hist.routes import bp
+from tests._office_state import MISSING_ADAPTER_MESSAGE
 
 
 class TestMeasHistFallbackSearch(unittest.TestCase):
@@ -105,7 +106,7 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
     def test_unconnected_office_adapter_fails_explicitly(self):
         os.environ["SKEWNONO_MEAS_HIST_PROVIDER"] = "office"
 
-        with self.assertRaisesRegex(NotImplementedError, "meas_hist office adapter"):
+        with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
             search_meas_hist(tool_type="cd-sem")
 
 

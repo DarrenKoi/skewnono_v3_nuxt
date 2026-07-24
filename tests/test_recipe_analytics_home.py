@@ -15,6 +15,7 @@ from back_dev_home.ebeam.hitachi.recipe_tat.data import (
     get_anchor_time as get_recipe_tat_anchor_time,
 )
 from back_dev_home.ebeam.hitachi.recipe_tat.routes import bp as recipe_tat_bp
+from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 
 class TestRecipeAnalyticsRoutes(unittest.TestCase):
@@ -82,8 +83,12 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         ).get_json()
         bad_slug = self.client.get("/api/unknown/recipe-tat/summary")
 
-        self.assertEqual(invalid_limit["limit"], 1000)
-        self.assertEqual(capped_limit["limit"], 1000)
+        # limit is no longer capped at 1000. DEFAULT_LIMIT is 0, which means
+        # "no cap" (_analytics_routes.py:16-18) so a fleet-wide range never
+        # silently drops the tail of the ranking. An unparseable limit falls
+        # back to that default; a large one is honoured rather than clamped.
+        self.assertEqual(invalid_limit["limit"], 0)
+        self.assertEqual(capped_limit["limit"], 999999)
         self.assertEqual(bad_slug.status_code, 400)
         self.assertEqual(
             bad_slug.get_json(),
@@ -107,14 +112,21 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         self.assertGreater(summary["total_executions"], 0)
         self.assertGreater(fail_summary["total_executions"], 0)
 
-    def test_unconnected_office_adapters_fail_explicitly(self):
+    # Split in two: recipe_tat has a real adapter on some checkouts and
+    # fail_issue does not, so they assert different halves of the contract and
+    # cannot share a skip guard.
+    @unittest.skipIf(
+        has_office_adapter("ebeam/hitachi/recipe_tat"),
+        skip_reason("ebeam/hitachi/recipe_tat"),
+    )
+    def test_unconnected_recipe_tat_adapter_fails_explicitly(self):
         os.environ["SKEWNONO_RECIPE_TAT_PROVIDER"] = "office"
-        with self.assertRaisesRegex(NotImplementedError, "recipe_tat office adapter"):
+        with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
             get_recipe_tat_anchor_time()
 
-        os.environ.pop("SKEWNONO_RECIPE_TAT_PROVIDER")
+    def test_unconnected_fail_issue_adapter_fails_explicitly(self):
         os.environ["SKEWNONO_FAIL_ISSUE_PROVIDER"] = "office"
-        with self.assertRaisesRegex(NotImplementedError, "fail_issue office adapter"):
+        with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
             get_fail_issue_anchor_time()
 
 
