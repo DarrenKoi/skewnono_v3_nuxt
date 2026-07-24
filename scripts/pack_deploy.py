@@ -20,8 +20,14 @@ that boots cleanly and serves mock data in production — the worst available
 failure mode, because nothing announces it.
 """
 
+import argparse
+import os
 import shutil
+import socket
+import subprocess
+import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
@@ -242,3 +248,183 @@ def verify_bundle(dest: Path) -> list[str]:
         failures.append("__pycache__ survived the prune")
 
     return failures
+
+
+RUNBOOK = """# Deploy this bundle
+
+1. Copy this whole folder to `/project/workSpace/` on the cloud host.
+   The path matters: `is_cloud()` tests whether `back_dev_home/_runtime/env.py`
+   resolves under `/project/workSpace`. Anywhere else and the app starts with
+   no SSO auth, no SPA mount, and mock data — while still answering HTTP 200.
+
+2. Check the transfer landed correctly, before installing anything:
+
+       cd /project/workSpace && python preflight.py
+
+3. Install dependencies:
+
+       pip install -r back_dev_home/requirements.txt
+
+4. Run preflight again. Imports should now resolve, and it reports which
+   `hcputil` module spelling this image provides:
+
+       python preflight.py
+
+5. Start the app:
+
+       uwsgi --ini wsgi.ini        # or: python index.py
+
+6. Verify which data providers actually engaged:
+
+       curl localhost:5000/api/health/providers
+
+   This endpoint deliberately bypasses the provider swap mechanism, so it is
+   the honest answer to whether office mode is on.
+
+`MANIFEST.txt` records what this bundle contains and any warnings raised
+when it was packed.
+"""
+
+
+def git_provenance(repo_root: Path) -> dict[str, str]:
+    """Best-effort. A bundle packed from a non-git export still packs."""
+
+    def run(*args):
+        try:
+            result = subprocess.run(
+                ["git", *args],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return "unknown"
+        return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+    status = run("status", "--porcelain")
+    return {
+        "sha": run("rev-parse", "HEAD"),
+        "branch": run("rev-parse", "--abbrev-ref", "HEAD"),
+        "dirty": "yes" if status not in ("", "unknown") else "no",
+    }
+
+
+def write_manifest(dest, repo_root, checks, file_count, stamp) -> Path:
+    """Provenance record. The adapter roster is the point.
+
+    Presence detection leaves no configuration line to read afterwards, so
+    without this file there is no way to answer "what is actually running up
+    there?" without shell access to the cloud host.
+    """
+    git = git_provenance(repo_root)
+    adapters = office_adapters(repo_root)
+    total_bytes = sum(p.stat().st_size for p in dest.rglob("*") if p.is_file())
+    warnings = [c for c in checks if not c.ok]
+
+    lines = [
+        "SKEWNONO deployment bundle",
+        f"packed:      {stamp}",
+        f"host:        {socket.gethostname()}",
+        f"git sha:     {git['sha']}",
+        f"git branch:  {git['branch']}",
+        f"uncommitted: {git['dirty']}",
+        f"files:       {file_count}",
+        f"size:        {total_bytes / 1_048_576:.1f} MiB",
+        "",
+        f"office adapters ({len(adapters)}) — these features serve real data:",
+    ]
+    lines += [f"  {name}" for name in adapters] or ["  (none — all mock)"]
+
+    lines += ["", f"warnings at pack time ({len(warnings)}):"]
+    lines += [f"  {c.name}: {c.message}" for c in warnings] or ["  (none)"]
+
+    path = dest / "MANIFEST.txt"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def write_runbook(dest: Path) -> Path:
+    path = dest / "DEPLOY.md"
+    path.write_text(RUNBOOK, encoding="utf-8")
+    return path
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Pack the working tree into a cloud deployment folder."
+    )
+    parser.add_argument("--out", type=Path, default=Path("dist"))
+    parser.add_argument(
+        "--build",
+        action="store_true",
+        help="run `npm run build` in front-dev-home/ first",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="promote every advisory check to blocking",
+    )
+    args = parser.parse_args(argv)
+
+    repo_root = Path.cwd()
+
+    if args.build:
+        print("building the frontend...")
+        result = subprocess.run(
+            ["npm", "--prefix", str(repo_root / "front-dev-home"), "run", "build"]
+        )
+        if result.returncode != 0:
+            print("FAIL frontend build failed")
+            return 1
+
+    checks = run_preflight(repo_root, strict=args.strict)
+    for check in checks:
+        if not check.ok:
+            label = "FAIL" if check.blocking else "WARN"
+            print(f"  {label} {check.name}: {check.message}")
+
+    failures = blocking_failures(checks)
+    if failures:
+        print(f"\nFAIL — {len(failures)} blocking problem(s); nothing written.")
+        return 1
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    dest = args.out / f"skewnono-{stamp}"
+    if dest.exists():
+        shutil.rmtree(dest)
+
+    file_count = copy_bundle(repo_root, dest)
+
+    checker = repo_root / "scripts" / "preflight_cloud.py"
+    if checker.is_file():
+        shutil.copy2(checker, dest / "preflight.py")
+
+    problems = verify_bundle(dest)
+    if problems:
+        print("\nFAIL — the bundle written is not well formed:")
+        for problem in problems:
+            print(f"  {problem}")
+        return 1
+
+    write_manifest(dest, repo_root, checks, file_count, stamp)
+    write_runbook(dest)
+
+    os.chmod(dest, 0o700)
+
+    warned = [c for c in checks if not c.ok]
+    print(f"\nPASS — {file_count} files -> {dest}")
+    if warned:
+        print(f"  {len(warned)} warning(s) recorded in MANIFEST.txt:")
+        for check in warned:
+            print(f"    - {check.name}")
+    print("\n  This bundle contains credentials:")
+    print("    back_dev_home/.env")
+    print("    minio_handler/minio_config.py")
+    print("  The folder is chmod 700. Do not place it on shared storage.")
+    print(f"\n  Next: copy {dest}/ to /project/workSpace/ then read DEPLOY.md")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

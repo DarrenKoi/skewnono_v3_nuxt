@@ -197,3 +197,62 @@ def test_verify_catches_a_mangled_bundle(tmp_path):
     (dest / "front-dev-home" / ".output" / "public" / "index.html").unlink()
 
     assert pack_deploy.verify_bundle(dest) != []
+
+
+def test_manifest_records_the_adapter_roster(tmp_path):
+    repo = _make_repo(tmp_path)
+    adapter = repo / "back_dev_home" / "sem_list" / "providers"
+    adapter.mkdir(parents=True)
+    (adapter / "office.py").write_text("")
+    dest = tmp_path / "bundle"
+    pack_deploy.copy_bundle(repo, dest)
+
+    path = pack_deploy.write_manifest(
+        dest, repo, pack_deploy.run_preflight(repo), 10, "20260724-1530"
+    )
+
+    assert "sem_list" in path.read_text()
+
+
+def test_manifest_records_advisory_warnings(tmp_path):
+    repo = _make_repo(tmp_path)
+    dest = tmp_path / "bundle"
+    pack_deploy.copy_bundle(repo, dest)
+
+    path = pack_deploy.write_manifest(
+        dest, repo, pack_deploy.run_preflight(repo), 10, "20260724-1530"
+    )
+
+    assert "office_adapters" in path.read_text()
+
+
+def test_runbook_names_preflight_before_uwsgi(tmp_path):
+    dest = tmp_path / "bundle"
+    dest.mkdir()
+
+    text = pack_deploy.write_runbook(dest).read_text()
+
+    assert text.index("preflight.py") < text.index("uwsgi --ini")
+
+
+def test_main_exits_nonzero_when_a_blocking_check_fails(tmp_path, monkeypatch):
+    repo = _make_repo(tmp_path)
+    (repo / "back_dev_home" / ".env").unlink()
+    monkeypatch.chdir(repo)
+
+    assert pack_deploy.main(["--out", str(tmp_path / "out")]) != 0
+
+
+def test_main_writes_a_complete_bundle(tmp_path, monkeypatch):
+    repo = _make_repo(tmp_path)
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "preflight_cloud.py").write_text("# checker\n")
+    monkeypatch.chdir(repo)
+    out = tmp_path / "out"
+
+    assert pack_deploy.main(["--out", str(out)]) == 0
+
+    bundle = next(out.iterdir())
+    assert (bundle / "preflight.py").is_file()
+    assert (bundle / "MANIFEST.txt").is_file()
+    assert (bundle / "DEPLOY.md").is_file()
