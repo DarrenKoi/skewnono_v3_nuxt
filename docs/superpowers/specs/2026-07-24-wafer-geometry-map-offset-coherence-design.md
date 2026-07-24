@@ -45,6 +45,15 @@ row = round((stage_y_nm − wafer_center_nm − map_offset_y_nm) / pitch_y_nm)
 
 Within-die measurement offset is < 0.5·pitch, so `round` recovers the exact die.
 
+**Empirically confirmed, not assumed.** The offset's *sign* and per-axis convention
+(whether office `map_offset` adds to or subtracts from the grid origin, and whether
+its y agrees with the wafer map's y direction) are settled by trial and error against
+the rendered wafer map, not derived on paper. Keep the application in ONE place
+(`parseWaferGeometry` → `stagePosMm`) so flipping a sign is a one-line change, and
+verify visually before locking it with tests. The mock round-trip test
+(`snapToDieCell(stage_coordinate) == chip_number`) is the objective check that
+whichever convention we pick is self-consistent.
+
 ## Design
 
 ### `utils/waferGeometry.ts`
