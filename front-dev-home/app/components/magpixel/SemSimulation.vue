@@ -5,13 +5,20 @@ const props = defineProps<{
   cdNm: number
   pitchNm: number
   patternCount: number
-  marginRatio: number
   pixels: number
   nmPerPx: number
 }>()
 
-const insetPct = computed(() => props.marginRatio * 100)
-const bandPct = computed(() => (1 - 2 * props.marginRatio) * 100)
+/** The chosen magnification's FOV is the smallest available one that is at
+ *  least the required FOV, and magnifications are discrete — so the real
+ *  margin is usually WIDER than the ratio the user asked for. Derive it from
+ *  the actual span (pixels × nmPerPx recovers the FOV this preview draws)
+ *  so the drawing always matches the numbers printed next to it. */
+const fovNm = computed(() => props.pixels * props.nmPerPx)
+const spanNm = computed(() => props.patternCount * props.pitchNm)
+const marginNm = computed(() => Math.max(0, (fovNm.value - spanNm.value) / 2))
+const insetPct = computed(() => (fovNm.value > 0 ? (marginNm.value / fovNm.value) * 100 : 0))
+const bandPct = computed(() => Math.max(0, 100 - 2 * insetPct.value))
 const unitPct = computed(() => 100 / props.patternCount)
 const barPct = computed(() => (props.cdNm / props.pitchNm) * 100)
 const spacePct = computed(() => 100 - barPct.value)
@@ -66,7 +73,7 @@ const barFill = 'linear-gradient(90deg,#f2f6fc,#93a3ba 55%,#f2f6fc)'
         />
       </div>
       <div class="mt-1.5 font-mono text-[10px] text-indigo-400">
-        빗금 = 여유 마진 (상하좌우 각 {{ Math.round(marginRatio * 100) }}%)
+        빗금 = 여유 마진 (상하좌우 각 {{ Math.round(insetPct) }}%)
       </div>
     </div>
 

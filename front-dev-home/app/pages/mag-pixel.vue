@@ -185,12 +185,12 @@ const calcInput = computed<CalcInput>(() => ({
           :cd-nm="calcInput.cdNm"
           :pitch-nm="result.effectivePitchNm"
           :pattern-count="patternValue"
-          :margin-ratio="marginRatio"
           :fov-nm="fovNm(result.mag) ?? 0"
           :nm-per-px="result.nmPerPx"
         />
 
         <UButton
+          v-if="result.pixels && result.nmPerPx"
           class="mt-3"
           size="xs"
           color="neutral"
@@ -207,7 +207,6 @@ const calcInput = computed<CalcInput>(() => ({
             :cd-nm="calcInput.cdNm"
             :pitch-nm="result.effectivePitchNm"
             :pattern-count="patternValue"
-            :margin-ratio="marginRatio"
             :pixels="result.pixels"
             :nm-per-px="result.nmPerPx"
           />

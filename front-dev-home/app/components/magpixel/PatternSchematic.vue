@@ -6,16 +6,17 @@ const props = defineProps<{
   cdNm: number
   pitchNm: number
   patternCount: number
-  marginRatio: number
   fovNm: number
   nmPerPx: number
 }>()
 
-/** 패턴 밴드가 FOV에서 차지하는 비율. 나머지는 좌우 마진으로 나뉜다. */
-const bandPct = computed(() => (1 - 2 * props.marginRatio) * 100)
-const marginPct = computed(() => props.marginRatio * 100)
-const marginNm = computed(() => Math.round(props.fovNm * props.marginRatio))
-const spanNm = computed(() => Math.round(props.patternCount * props.pitchNm))
+/** 선택된 배율의 FOV는 필요 FOV 이상인 가장 작은 이산값이라, 실제 마진은
+ *  대개 사용자가 지정한 비율보다 넓다. 요청 비율이 아니라 실제 span에서
+ *  마진을 역산해야 그림이 헤더의 FOV와 항상 일치한다. */
+const spanNm = computed(() => props.patternCount * props.pitchNm)
+const marginNm = computed(() => Math.max(0, (props.fovNm - spanNm.value) / 2))
+const marginPct = computed(() => (props.fovNm > 0 ? (marginNm.value / props.fovNm) * 100 : 0))
+const bandPct = computed(() => Math.max(0, 100 - 2 * marginPct.value))
 
 const barPct = computed(() => (props.cdNm / props.pitchNm) * 100)
 const spacePct = computed(() => 100 - barPct.value)
@@ -34,7 +35,7 @@ const barFill = 'linear-gradient(90deg,#e8eef7,#9aa8bd 55%,#e8eef7)'
 <template>
   <div>
     <div class="mb-1.5 font-mono text-[10px] tracking-wide text-(--sk-ink-muted)">
-      ① 전체 FOV {{ Math.round(fovNm).toLocaleString() }} nm — 패턴 {{ patternCount }}개 · 마진 {{ marginNm }} nm
+      ① 전체 FOV {{ Math.round(fovNm).toLocaleString() }} nm — 패턴 {{ patternCount }}개 · 마진 {{ Math.round(marginNm) }} nm
     </div>
     <div class="flex h-14 overflow-hidden rounded bg-slate-900">
       <div
@@ -65,7 +66,7 @@ const barFill = 'linear-gradient(90deg,#e8eef7,#9aa8bd 55%,#e8eef7)'
         class="text-center text-indigo-400"
         :style="{ width: `${marginPct}%` }"
       >
-        {{ marginNm }}
+        {{ Math.round(marginNm) }}
       </div>
       <div
         class="text-center text-(--sk-ink-muted)"
@@ -77,7 +78,7 @@ const barFill = 'linear-gradient(90deg,#e8eef7,#9aa8bd 55%,#e8eef7)'
         class="text-center text-indigo-400"
         :style="{ width: `${marginPct}%` }"
       >
-        {{ marginNm }}
+        {{ Math.round(marginNm) }}
       </div>
     </div>
 
