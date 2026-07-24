@@ -176,6 +176,21 @@ test('gallery entries carry a derived nm-per-pixel', () => {
   assert.ok(Math.abs(entry!.nmPerPx! - 1.0545609) < 1e-6)
 })
 
+test('nm-per-pixel divides by the x (horizontal) pixel count, not y', () => {
+  // Deliberately non-square resolution: every other fixture in this file uses
+  // '512,512', which cannot distinguish dividing by x vs. y. Field of view is
+  // a width, so the horizontal pixel count (x) is the correct divisor — pin
+  // that here so a future .x -> .y slip fails loudly instead of passing.
+  // FOV 135000000/250030 = 539.9352... nm.
+  // x path (correct): 539.9352... / 640 = 0.84364...
+  // y path (wrong):   539.9352... / 480 = 1.12486...
+  const rows = [row({ meas_condition_mag: 250030, meas_condition_pixel: '640,480' })]
+  const q = buildReviewQueue(rows, 'CD_TOP', geo())
+  const [entry] = q.entries
+  assert.notEqual(entry!.nmPerPx, null)
+  assert.ok(Math.abs(entry!.nmPerPx! - 0.84364) < 1e-4)
+})
+
 test('an empty row derives no scale rather than Infinity', () => {
   // mock writes mag 0 / pixel "0,0" on empty rows.
   const rows = [row({ meas_condition_mag: 0, meas_condition_pixel: '0,0' })]
