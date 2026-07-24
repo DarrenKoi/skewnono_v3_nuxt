@@ -130,7 +130,7 @@ export interface MagPixelRow {
   cells: MagPixelCell[]
 }
 
-/** 계열 전체의 Mag × Pixel 참조표. 입력이 없을 때 그대로 렌더된다. */
+/** 계열 전체의 Mag × Pixel 참조표. 순수 데이터이며 렌더링은 호출부가 한다. */
 export const buildMagPixelTable = (series: MagSeries): MagPixelRow[] => {
   const rows: MagPixelRow[] = []
   for (const mag of magRange(series)) {

@@ -135,3 +135,15 @@ test('buildMagPixelTable emits one row per mag with all four pixel settings', ()
   near(row!.cells[0]!.nmPerPx, 1.46484375)
   assert.equal(row!.cells[1]!.scanFactor, 4)
 })
+
+test('buildMagPixelTable flags the unconfirmed GT tail through to the row data', () => {
+  // isAssumedMag is tested in isolation, but the table's `assumed` wiring is
+  // what the UI badges — drive it through buildMagPixelTable, and pin BOTH
+  // sides of the 500K boundary so `assumed: false` cannot pass.
+  const rows = buildMagPixelTable('GT')
+  assert.equal(rows.length, 28)
+  assert.equal(rows.find(r => r.mag === 500_000)?.assumed, false)
+  assert.equal(rows.find(r => r.mag === 600_000)?.assumed, true)
+  assert.equal(rows.find(r => r.mag === 1_000_000)?.assumed, true)
+  assert.equal(rows.filter(r => r.assumed).length, 5)
+})
