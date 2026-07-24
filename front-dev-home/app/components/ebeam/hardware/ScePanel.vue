@@ -101,37 +101,40 @@
           <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
             <div class="mb-1 flex flex-wrap items-center justify-between gap-2 px-1">
               <div class="sk-title">
-                Coefficients 변화 (0–359) · 수집일별
+                Coefficients 변화 (0–359) · 설정 버전별
                 <span class="font-normal text-(--sk-ink-muted)">— 클릭하면 해당 index 추세로</span>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
+                <span class="font-mono text-[11px] text-(--sk-ink-muted) tabular-nums">
+                  {{ evolutionDates.length }}회 수집 · {{ revisions.length }}개 버전
+                </span>
                 <USelectMenu
-                  v-model="selectedDates"
-                  v-model:open="dateMenuOpen"
+                  v-model="selectedRevisions"
+                  v-model:open="revisionMenuOpen"
                   multiple
                   value-key="value"
-                  :items="dateItems"
+                  :items="revisionItems"
                   :search-input="{ placeholder: '수집일 검색…' }"
-                  placeholder="수집일 선택"
+                  placeholder="버전 선택"
                   icon="i-lucide-calendar-days"
                   size="xs"
-                  class="min-w-[13rem]"
+                  class="min-w-[15rem]"
                   :ui="{ itemTrailingIcon: 'hidden' }"
                 >
                   <template #default>
                     <span class="truncate">
-                      {{ selectedDates.length > 0 ? `수집일 ${selectedDates.length}/${evolutionDates.length}회` : '수집일 선택' }}
+                      {{ selectedRevisions.length > 0 ? `버전 ${selectedRevisions.length}/${revisions.length}개` : '버전 선택' }}
                     </span>
                   </template>
                   <template #item-leading="{ item }">
                     <span
                       class="flex h-4 w-4 items-center justify-center rounded border"
-                      :class="selectedDates.includes(item.value)
+                      :class="selectedRevisions.includes(item.value)
                         ? 'border-(--sk-ink) bg-(--sk-ink) text-white dark:text-zinc-900'
                         : 'border-(--sk-border)'"
                     >
                       <UIcon
-                        v-if="selectedDates.includes(item.value)"
+                        v-if="selectedRevisions.includes(item.value)"
                         name="i-lucide-check"
                         class="h-3 w-3"
                       />
@@ -147,37 +150,38 @@
                         color="neutral"
                         variant="soft"
                         icon="i-lucide-check"
-                        @click="dateMenuOpen = false"
+                        @click="revisionMenuOpen = false"
                       >
                         닫기
                       </UButton>
                     </div>
                   </template>
                 </USelectMenu>
+                <!-- The way back from 전체 on a window with many re-tunes. -->
                 <UButton
                   size="xs"
                   color="neutral"
                   variant="ghost"
-                  @click="selectedDates = sceLatestDates(evolutionDates, DEFAULT_EVOLUTION_DATES)"
+                  @click="selectedRevisions = sceLatestDates(revisionKeys, DEFAULT_REVISIONS)"
                 >
-                  최근 {{ DEFAULT_EVOLUTION_DATES }}회
+                  최근 {{ DEFAULT_REVISIONS }}개
                 </UButton>
                 <UButton
                   size="xs"
                   color="neutral"
                   variant="ghost"
-                  :disabled="selectedDates.length === evolutionDates.length"
-                  @click="selectedDates = [...evolutionDates]"
+                  :disabled="selectedRevisions.length === revisions.length"
+                  @click="selectedRevisions = [...revisionKeys]"
                 >
                   전체
                 </UButton>
               </div>
             </div>
             <div
-              v-if="selectedDates.length === 0"
+              v-if="selectedRevisions.length === 0"
               class="flex h-96 w-full items-center justify-center text-center sk-body"
             >
-              비교할 수집일을 선택하세요.
+              비교할 설정 버전을 선택하세요.
             </div>
             <div
               v-else
@@ -288,7 +292,11 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
-import { sceCoeffIndexSeries, sceDocDates, sceLatestDates, sceParamLabel, sceParamSeries, sceTrendKeys, type SceTrendKey } from '~/utils/sceHistory'
+import {
+  sceCoeffIndexSeries, sceCoeffRevisions, sceDocDates, sceLatestDates, sceParamLabel,
+  sceParamSeries, sceRevisionLabel, sceTrendKeys,
+  type SceCoeffRevision, type SceTrendKey
+} from '~/utils/sceHistory'
 import { assignCompareColors, assignSeriesColors } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
@@ -516,46 +524,59 @@ const coeffTrendOption = computed<EChartsOption>(() => {
 useEchart(coeffTrendEl, coeffTrendOption)
 
 // --- 시계열: coefficient-curve evolution ---
-// One curve per PICKED collection date, in the same v0/v1 stacked grids as the
-// compare view. The archive is bidaily, so drawing the whole window at once was
-// a thicket: a same-hue opacity ramp says "older", never "which one". Picking a
-// few dates and giving each its own color + legend entry makes every curve
-// identifiable; the default is the newest few.
-const DEFAULT_EVOLUTION_DATES = 3
+// One curve per PICKED settings REVISION, in the same v0/v1 stacked grids as
+// the compare view. Two problems forced this shape:
+//   1. SCE is re-tuned at PM, not per collection, so a window of ~16 bidaily
+//      docs is typically 2-3 distinct curves — the rest draw the same line on
+//      top of itself. sceCoeffRevisions collapses each run of identical curves
+//      into one entry carrying its date span.
+//   2. Even across distinct curves, a same-hue opacity ramp says "older",
+//      never "which one". Each picked revision gets its own color + legend
+//      entry instead.
+// The default is the newest few revisions.
+const DEFAULT_REVISIONS = 3
 const evolutionDates = computed(() => sceDocDates(docs.value))
-// Newest first in the menu — recent dates are what a reader reaches for, and
-// this list runs long enough that scrolling to the bottom is a real cost.
-const dateItems = computed(() =>
-  [...evolutionDates.value].reverse().map(d => ({ label: d, value: d }))
+const revisions = computed(() => sceCoeffRevisions(docs.value))
+// A revision is identified by its FIRST date — stable across re-fetches, and
+// already the label's leading text.
+const revisionKeys = computed(() => revisions.value.map(r => r.date))
+// Newest first in the menu — recent re-tunes are what a reader reaches for.
+const revisionItems = computed(() =>
+  [...revisions.value].reverse().map(r => ({ label: sceRevisionLabel(r), value: r.date }))
 )
-const selectedDates = ref<string[]>([])
+const selectedRevisions = ref<string[]>([])
 // Controlled open state so the 닫기 button can close the menu; Esc and
 // outside-click still work because Reka emits update:open through this binding.
-const dateMenuOpen = ref(false)
-watch(evolutionDates, (dates) => {
+const revisionMenuOpen = ref(false)
+watch(revisionKeys, (keys) => {
   // Keep whatever the reader picked that still exists in the new window, and
   // re-seed to the newest few only when nothing carried over (first load, or a
   // tool/range switch that replaced the window wholesale).
-  const kept = selectedDates.value.filter(d => dates.includes(d))
-  selectedDates.value = kept.length > 0 ? kept : sceLatestDates(dates, DEFAULT_EVOLUTION_DATES)
+  const kept = selectedRevisions.value.filter(d => keys.includes(d))
+  selectedRevisions.value = kept.length > 0 ? kept : sceLatestDates(keys, DEFAULT_REVISIONS)
 }, { immediate: true })
 
-// Filter the docs rather than the dates: draw order stays ascending no matter
-// what order the boxes were ticked in, so the newest curve is always drawn
-// last — i.e. on top.
-const evolutionDocs = computed(() => {
-  const picked = new Set(selectedDates.value)
-  return docs.value.filter(d => typeof d.date === 'string' && picked.has(d.date))
+// Every doc in a revision carries the same curve by construction, so the
+// revision's first doc is a complete stand-in for the run. Filtering in
+// revision order keeps the draw order ascending no matter what order the boxes
+// were ticked in, so the newest curve is always drawn last — i.e. on top.
+const evolutionSeries = computed(() => {
+  const picked = new Set(selectedRevisions.value)
+  const byDate = new Map(docs.value.filter(d => typeof d.date === 'string').map(d => [String(d.date), d]))
+  return revisions.value
+    .filter(r => picked.has(r.date))
+    .map(r => ({ rev: r, doc: byDate.get(r.date) }))
+    .filter((s): s is { rev: SceCoeffRevision, doc: Record<string, unknown> } => Boolean(s.doc))
 })
 // Newest gets palette[0] — it is the curve the others are read against, so it
 // wears the primary accent, the same color the selected tool has in 비교.
 const evolutionColors = computed(() =>
-  assignSeriesColors(evolutionDocs.value.map(d => String(d.date)).reverse(), palette.value)
+  assignSeriesColors(evolutionSeries.value.map(s => s.rev.date).reverse(), palette.value)
 )
 
 const evolutionEl = ref<HTMLDivElement | null>(null)
 const evolutionOption = computed<EChartsOption>(() => {
-  const picked = evolutionDocs.value
+  const picked = evolutionSeries.value
   const line = (name: string, data: number[], color: string, latest: boolean, gridIndex: number) => ({
     name, type: 'line' as const, showSymbol: false, smooth: false,
     xAxisIndex: gridIndex, yAxisIndex: gridIndex,
@@ -578,15 +599,17 @@ const evolutionOption = computed<EChartsOption>(() => {
     ],
     tooltip: { trigger: 'axis' },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    // Both panels' series share one name per date, so each date is a single
-    // legend entry that toggles its v0 and v1 curves together.
+    // Both panels' series share one name per revision, so each revision is a
+    // single legend entry that toggles its v0 and v1 curves together.
     legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
     xAxis: [catAxis(0, false), catAxis(1, true)],
     yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
-    series: picked.flatMap((doc, i) => {
+    series: picked.flatMap(({ rev, doc }, i) => {
       const pair = coefficientSeries(doc)
-      const name = String(doc.date)
-      const color = evolutionColors.value[name] ?? c0.value
+      // The legend has to fit several of these, so it carries the span without
+      // the 회 count the menu shows.
+      const name = rev.dates.length > 1 ? `${rev.date} ~ ${rev.through.slice(5)}` : rev.date
+      const color = evolutionColors.value[rev.date] ?? c0.value
       const latest = i === picked.length - 1
       return [line(name, pair.v0, color, latest, 0), line(name, pair.v1, color, latest, 1)]
     })

@@ -87,6 +87,70 @@ export const sceDocDates = (docs: Record<string, unknown>[]): string[] =>
 export const sceLatestDates = (dates: string[], count: number): string[] =>
   count <= 0 ? [] : dates.slice(Math.max(0, dates.length - count))
 
+export interface SceCoeffRevision {
+  /** First collection date this curve appeared on — the revision's identity. */
+  date: string
+  /** Last collection date it was still in force. */
+  through: string
+  /** Every collection date the curve was read back unchanged, ascending. */
+  dates: string[]
+}
+
+// Coefficients equality between two docs. Compares structurally and bails on
+// the first difference rather than fingerprinting: a curve is 360 entries, and
+// only ADJACENT docs are ever compared, so the common "it changed" case costs
+// one comparison instead of building two ~8KB keys. It also cannot collide the
+// way a hash can — two genuinely different re-tunes must never merge.
+const sameCoefficients = (a: unknown, b: unknown): boolean => {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const ea = a[i] as { index?: unknown, values?: unknown }
+    const eb = b[i] as { index?: unknown, values?: unknown }
+    if (ea?.index !== eb?.index) return false
+    const va = ea?.values
+    const vb = eb?.values
+    if (!Array.isArray(va) || !Array.isArray(vb) || va.length !== vb.length) return false
+    for (let j = 0; j < va.length; j++) if (va[j] !== vb[j]) return false
+  }
+  return true
+}
+
+// Collapse consecutive collection dates carrying the SAME curve into one
+// revision. SCE is re-tuned at PM, not per collection, so a 2-week window is
+// typically one or two distinct curves read back a dozen times — plotting all
+// of them draws the same line on top of itself and tells the reader nothing.
+//
+// Only CONSECUTIVE runs merge. A curve that reverts to an earlier value is a
+// new revision, not a re-join: "it went back" is a real event and folding it
+// into the older entry would hide it.
+export const sceCoeffRevisions = (docs: Record<string, unknown>[]): SceCoeffRevision[] => {
+  const out: SceCoeffRevision[] = []
+  let prev: Record<string, unknown> | null = null
+  for (const doc of docs) {
+    const date = typeof doc.date === 'string' ? doc.date : ''
+    if (!date) continue
+    const last = out[out.length - 1]
+    if (last && prev && sameCoefficients(prev.Coefficients, doc.Coefficients)) {
+      last.dates.push(date)
+      last.through = date
+    } else {
+      out.push({ date, through: date, dates: [date] })
+    }
+    prev = doc
+  }
+  return out
+}
+
+// Picker label. A revision read back once is just its date; a run shows the
+// span and how many collections confirmed it — that count IS the "이 값이
+// 유지된 기간" signal. The end date drops its year: same-year spans are the
+// norm and the repetition costs width in a narrow menu.
+export const sceRevisionLabel = (rev: SceCoeffRevision): string => {
+  if (rev.dates.length <= 1) return rev.date
+  const sameYear = rev.through.slice(0, 4) === rev.date.slice(0, 4)
+  return `${rev.date} ~ ${sameYear ? rev.through.slice(5) : rev.through} · ${rev.dates.length}회`
+}
+
 // values[0] / values[1] at a single Coefficients index across the window —
 // "how did this one point of the curve move?". Reads only the target entry, so
 // no 360-array is built per doc.

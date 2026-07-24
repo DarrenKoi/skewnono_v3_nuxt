@@ -13,12 +13,15 @@
     <!-- Parameter navigator — switching it syncs every panel below -->
     <EbeamSkewvoirDashboardParamNav :analysis="analysis" />
 
-    <!-- Inspection zone. On xl the single row spans at least 46rem (the page
-         scrolls when the viewport is shorter — the reading panels asked for
-         real height); below xl it stacks and the workspace scroll takes over.
+    <!-- Inspection zone. On xl the single row is at least 46rem and grows to the
+         TALLEST column's content (auto, not 1fr) — the wafer scales with column
+         width, so col 1 (wafer over radius) is usually the tallest. `auto` lets
+         the row track that height and stretch carries it to cols 2–3, so all
+         three columns bottom-align instead of the radius plot spilling below a
+         1fr-capped row. Below xl it stacks and the workspace scroll takes over.
          Wafer + Radius + Measurement Points are adjacent so the shared
          focusedSequence selection is visible at once. -->
-    <div class="grid min-h-0 flex-1 grid-cols-1 gap-2.5 xl:grid-cols-12 xl:grid-rows-[minmax(46rem,1fr)]">
+    <div class="grid min-h-0 flex-1 grid-cols-1 gap-2.5 xl:grid-cols-12 xl:grid-rows-[minmax(46rem,auto)]">
       <!-- Linked cluster, left: wafer over radius -->
       <div class="flex min-h-0 flex-col gap-2.5 xl:col-span-4">
         <EbeamSkewvoirDashboardWaferMap :analysis="analysis" />

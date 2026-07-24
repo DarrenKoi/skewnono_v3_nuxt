@@ -15,12 +15,14 @@ from `_shared.py`, so the office adapter derives them identically.
 """
 
 import random
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from functools import lru_cache
 
 import pandas as pd
 
 from back_dev_home.ebeam.hitachi.hardware.providers._siblings import seed_for
 from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm._shared import (
+    TS_FMT,
     classify_category,
     derive_cards,
     fmt_dt,
@@ -28,7 +30,7 @@ from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm._shared import (
 )
 
 
-__all__ = ["build_bm_pm_data"]
+__all__ = ["build_bm_pm_data", "completed_pm_dates"]
 
 # Raw maintenance-type values in the office's own dirty shapes — qualified,
 # sometimes empty, sometimes neither BM nor PM. Generating clean "BM"/"PM"
@@ -224,3 +226,26 @@ def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
         "future": future,
         "cards": derive_cards(past, future),
     }
+
+
+@lru_cache(maxsize=256)
+def completed_pm_dates(eqp_id: str, anchor: datetime) -> tuple[date, ...]:
+    """Dates of this tool's completed PMs before `anchor`, ascending.
+
+    Exposed for mocks whose values step at PM rather than drifting per
+    collection — `sce/mock.py` seeds its settings revision from these. It reads
+    the SAME rows `build_bm_pm_data` serves rather than re-deriving a schedule,
+    which is the whole point: a value that steps on 05-04 must step on the date
+    the BM/PM overlay draws its marker, or the chart tells two stories.
+
+    Cached because a caller typically wants one tool's PM list once per request
+    but asks per collection date; the generator is deterministic, so a cache
+    hit and a fresh build are indistinguishable.
+    """
+    rows = build_bm_pm_data(eqp_id, anchor)["past"]
+    days = {
+        datetime.strptime(str(row["job_starts"]), TS_FMT).date()
+        for row in rows  # type: ignore[union-attr]
+        if row.get("category") == "PM" and row.get("job_starts")
+    }
+    return tuple(sorted(days))

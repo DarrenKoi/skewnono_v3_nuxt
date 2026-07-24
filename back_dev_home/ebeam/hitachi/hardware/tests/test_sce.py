@@ -11,6 +11,7 @@ office-side both views come from the same collection run.
 import json
 from datetime import datetime, timedelta
 
+from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.mock import completed_pm_dates
 from back_dev_home.ebeam.hitachi.hardware.providers.sce import mock, office_example
 
 
@@ -61,21 +62,53 @@ def test_history_dates_stable_across_windows():
     assert short <= long
 
 
-def test_config_blocks_stable_across_dates_but_outputs_drift():
+def _fingerprint(doc: dict, block: str) -> str:
+    return json.dumps(doc[block], sort_keys=True)
+
+
+def test_config_blocks_stable_for_the_tools_whole_life():
     # SemCond/ImgCond are tool configuration: in production they hold the same
-    # values collection after collection, so the 시계열 param trend must render
-    # them as a flat "stable" line rather than re-rolled noise. SCEParam and
-    # Coefficients are the tuning outputs — those are what actually drift.
+    # values collection after collection AND across re-tunes, so the 시계열
+    # param trend must render them as a flat "stable" line, not re-rolled noise.
     docs = _history(days=30)
     assert len(docs) >= 3, "need several collection dates to compare"
+    for block in ("SemCond", "ImgCond"):
+        assert len({_fingerprint(doc, block) for doc in docs}) == 1
 
-    def distinct(block: str) -> int:
-        return len({json.dumps(doc[block], sort_keys=True) for doc in docs})
 
-    assert distinct("SemCond") == 1
-    assert distinct("ImgCond") == 1
-    assert distinct("SCEParam") > 1
-    assert distinct("Coefficients") > 1
+def test_retune_outputs_step_at_pm_rather_than_drifting_per_collection():
+    # SCE is re-tuned at PM: between two PMs the tool serves the same
+    # SharpChar file, so consecutive collections read back identical. A value
+    # that changed on every collection date would be the old (wrong) model —
+    # and would make the 수집일 revision picker collapse nothing.
+    docs = _history(days=120)
+    assert len(docs) >= 10, "need a long window to span more than one PM"
+
+    pm_days = {
+        day.isoformat()
+        for day in completed_pm_dates("CDX001", ANCHOR)
+    }
+    for block in ("FileInfo", "SCEParam", "Coefficients"):
+        prints = [_fingerprint(doc, block) for doc in docs]
+        assert len(set(prints)) > 1, f"{block} must step at least once"
+        assert len(set(prints)) < len(prints), f"{block} must hold between PMs"
+        # Every step lands on a collection date whose era changed — i.e. a PM
+        # happened in the gap since the previous collection.
+        for prev, cur in zip(docs, docs[1:]):
+            if _fingerprint(prev, block) == _fingerprint(cur, block):
+                continue
+            assert any(
+                prev["date"] < pm <= cur["date"] for pm in pm_days
+            ), f"{block} changed on {cur['date']} with no PM since {prev['date']}"
+
+
+def test_siblings_are_re_tuned_on_their_own_schedules():
+    # The 비교 tab exists to show curves of differing ages side by side, which
+    # only works if siblings do not all share one revision.
+    settings = mock.build_sce_settings("CDX001", "R3", ANCHOR)
+    assert len(settings) > 2
+    curves = {_fingerprint(entry, "Coefficients") for entry in settings.values()}
+    assert len(curves) > 1
 
 
 def test_history_doc_matches_snapshot_for_same_date():

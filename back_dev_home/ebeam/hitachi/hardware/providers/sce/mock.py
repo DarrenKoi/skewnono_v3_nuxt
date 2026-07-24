@@ -13,11 +13,14 @@ from __future__ import annotations
 
 import math
 import random
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
     seed_for,
     sibling_eqp_ids,
+)
+from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.mock import (
+    completed_pm_dates,
 )
 
 
@@ -103,8 +106,24 @@ def _coefficients(rng: random.Random) -> list[dict]:
     ]
 
 
-def _tool_snapshot(tool: str, date_salt: int) -> dict:
-    """One tool's full settings block for one collection date.
+def _revision_salt(tool: str, on: date, anchor: datetime) -> int:
+    """Salt naming the SCE settings revision in force on `on`.
+
+    SCE is re-tuned at PM, not per collection: between two PMs the tool keeps
+    serving the same SharpChar file, so every collection in that span reads
+    back byte-identical. Seeding from the most recent completed PM at or before
+    the date models exactly that — values hold flat, then step.
+
+    The PM dates come from the bm_pm mock rather than a schedule of our own, so
+    a step in the 시계열 curve lands on the same day the BM/PM overlay draws its
+    marker. A tool with no PM yet in the window gets salt 0 (one flat era).
+    """
+    prior = [day for day in completed_pm_dates(tool, anchor) if day <= on]
+    return int(prior[-1].strftime("%Y%m%d")) if prior else 0
+
+
+def _tool_snapshot(tool: str, revision_salt: int) -> dict:
+    """One tool's full settings block for one settings revision.
 
     Shared by the snapshot and the history so a history doc for date D is
     IDENTICAL to a snapshot taken as-of D — the invariant the office side
@@ -112,21 +131,21 @@ def _tool_snapshot(tool: str, date_salt: int) -> dict:
     collection).
 
     Two streams, because the blocks differ in nature. SemCond/ImgCond are tool
-    CONFIGURATION (optics, accelerating voltage, pixel count): in production
-    they hold steady between collections, so they seed from the tool alone and
-    read as a flat "stable" line in the 시계열 trend rather than re-rolled
-    noise. SCEParam/Coefficients are the tuning OUTPUTS that actually drift, so
-    they seed from tool+date. FileInfo rides with the date — each collection
-    writes a fresh SharpChar file.
+    CONFIGURATION (optics, accelerating voltage, pixel count): they hold steady
+    across re-tunes too, so they seed from the tool alone and read as a flat
+    line for the tool's whole life. FileInfo/SCEParam/Coefficients are the
+    re-tune OUTPUTS — a PM writes a fresh SharpChar file with fresh parameters
+    and a fresh curve — so they seed from tool+revision and step at PM. See
+    `_revision_salt`.
     """
     config_rng = random.Random(seed_for(tool) ^ 0x5343_4532)
-    date_rng = random.Random(seed_for(tool) ^ 0x5343_4532 ^ date_salt)
+    rev_rng = random.Random(seed_for(tool) ^ 0x5343_4532 ^ revision_salt)
     return {
-        "FileInfo": _file_info(date_rng, tool),
+        "FileInfo": _file_info(rev_rng, tool),
         "SemCond": _sem_cond(config_rng),
         "ImgCond": _img_cond(config_rng),
-        "SCEParam": _sce_param(date_rng),
-        "Coefficients": _coefficients(date_rng),
+        "SCEParam": _sce_param(rev_rng),
+        "Coefficients": _coefficients(rev_rng),
     }
 
 
@@ -136,8 +155,13 @@ def build_sce_settings(
     as_of: datetime,
 ) -> dict[str, dict]:
     eqp_ids = sibling_eqp_ids(eqp_id, fab_name)
-    as_of_salt = int(as_of.strftime("%Y%m%d"))
-    return {tool: _tool_snapshot(tool, as_of_salt) for tool in eqp_ids}
+    # Per tool, not per request: siblings are re-tuned on their own PM
+    # schedules, so the 비교 tab shows curves of differing ages — which is the
+    # thing that tab exists to make visible.
+    return {
+        tool: _tool_snapshot(tool, _revision_salt(tool, as_of.date(), as_of))
+        for tool in eqp_ids
+    }
 
 
 def build_sce_history(
@@ -154,6 +178,11 @@ def build_sce_history(
     the tool's settings block for that date plus the collection ``date``.
     ``fab_name`` is unused here but part of the builder signature — the office
     adapter needs it to pick the per-fab archive file.
+
+    Every collection date gets a doc, including the ones whose settings are
+    unchanged from the previous collection — "we collected and nothing moved"
+    is itself the reading, and the param trend needs the point. Collapsing the
+    repeats is the frontend's job (`sceCoeffRevisions`).
     """
     del fab_name
     docs: list[dict] = []
@@ -161,7 +190,7 @@ def build_sce_history(
     last = end.date()
     while day <= last:
         if day.toordinal() % 2 == 0:
-            salt = int(day.strftime("%Y%m%d"))
+            salt = _revision_salt(eqp_id, day, end)
             docs.append({"date": day.isoformat(), **_tool_snapshot(eqp_id, salt)})
         day += timedelta(days=1)
     return docs
