@@ -12,6 +12,13 @@
           class="w-48"
         />
         <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
+        <span
+          v-if="selectedCategory"
+          class="inline-flex items-center gap-1.5 rounded-full bg-(--sk-surface) px-2.5 py-0.5 ring-1 ring-(--sk-border-soft)"
+        >
+          <span class="sk-eyebrow">Category</span>
+          <span class="font-mono text-[11px] font-bold text-(--sk-ink)">{{ selectedCategory }}</span>
+        </span>
       </div>
       <UTooltip text="클립보드 복사">
         <UButton
@@ -144,6 +151,10 @@ const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
 // The mock emits one doc per (timestamp, beam_condition), so timestamp alone is
 // ambiguous under "All conditions". Identify a measurement by the composite key.
 const condOf = (d: Record<string, unknown>) => String(d.beam_condition ?? '')
+// `category` (e.g. "I-diff", "I-diff_hp") is a per-doc classification from
+// OpenSearch — measurement metadata like beam_condition, surfaced for the
+// selected measurement and exported alongside it.
+const catOf = (d: Record<string, unknown>) => String(d.category ?? '')
 const keyOf = (d: Record<string, unknown>) => `${tsOf(d)}|${condOf(d)}`
 const numOf = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)
@@ -217,6 +228,7 @@ watch(measurementItems, (items) => {
 }, { immediate: true })
 
 const selectedDoc = computed(() => filteredDocs.value.find(d => keyOf(d) === selectedKey.value))
+const selectedCategory = computed(() => (selectedDoc.value ? catOf(selectedDoc.value) : ''))
 
 const profileValues = (key: string): number[] => {
   const v = selectedDoc.value?.[key]
@@ -245,10 +257,10 @@ const toast = useToast()
 
 const scalarsTable = () => {
   const keys = scalarOptions.value.map(o => o.key)
-  const headers = ['timestamp', 'beam_condition', ...keys]
+  const headers = ['timestamp', 'beam_condition', 'category', ...keys]
   const rows = [...filteredDocs.value]
     .sort((a, b) => tsOf(a).localeCompare(tsOf(b)))
-    .map(d => [tsOf(d), String(d.beam_condition ?? ''), ...keys.map(k => numOf(d[k]))])
+    .map(d => [tsOf(d), condOf(d), catOf(d), ...keys.map(k => numOf(d[k]))])
   return { headers, rows }
 }
 
