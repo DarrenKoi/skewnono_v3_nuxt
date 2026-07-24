@@ -2,7 +2,7 @@
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Office BSM adapter — faithful ``beam_shape`` (``type: "total"``) docs.
 
-Source: OpenSearch ``beam_shape`` index, the ``type:"total"`` /
+Source: OpenSearch ``beam_shape_cdsem`` alias, the ``type:"total"`` /
 ``fdc_category:"bsi_beam_shape"`` documents (CD-SEM only). Return the raw docs
 ascending by ``(timestamp, beam_condition)`` scoped to ``[start, end]``; the
 top-level ``providers/office.py`` dispatcher wraps them with
@@ -39,8 +39,7 @@ anchors to ``datetime(2026, 5, 24, 9, 0)``, so both sides compare KST-as-UTC
 wall-clock and line up.
 
 OFFICE-VERIFY (check once on the first office run):
-* Index/alias name is ``beam_shape`` (``INDEX`` below). Adjust if the alias
-  differs.
+* Alias name is ``beam_shape_cdsem`` (``INDEX`` below). Adjust if it differs.
 * ``type`` / ``fdc_category`` / ``eqp_id`` / ``fab_name`` are matched through
   their ``.keyword`` sub-fields (the convention for analyzed ``text`` mappings
   here). If these are mapped as bare ``keyword`` the ``.keyword`` suffix must
@@ -68,8 +67,8 @@ from back_dev_home.ebeam.hitachi._office_search import (
 __all__ = ["build_beam_shape_docs"]
 
 
-# OpenSearch index/alias holding the beam_shape documents (CD-SEM only).
-INDEX = "beam_shape"
+# OpenSearch alias holding the beam_shape documents (CD-SEM only).
+INDEX = "beam_shape_cdsem"
 
 # Fixed selectors for the faithful "total" docs (per docs/datatables/beam_shape.txt).
 DOC_TYPE = "total"

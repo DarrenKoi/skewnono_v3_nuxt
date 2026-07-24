@@ -12,7 +12,7 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` | written — `cp` + verify |
 | `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
 | `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
-| `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape` (type:total) | written — `cp` + verify |
+| `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape_cdsem` (type:total) | written — `cp` + verify |
 | `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` | stub |
 | `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub |
 | `sce/` | `build_sce_settings` + `build_sce_history` | Redis `sce_info` hash + MinIO `hitachi_sem/cdsem/sce_info/` | written — `cp` + verify |
@@ -53,7 +53,7 @@ spelled the same as sem_list's `eqp_ip` (bare dotted quad, no port). Run the
 result, so a roster problem is distinguishable from an empty window.
 
 `bsm/office_example.py` is implemented against `docs/datatables/beam_shape.txt`.
-It queries the `beam_shape` index for the `type:"total"` /
+It queries the `beam_shape_cdsem` alias for the `type:"total"` /
 `fdc_category:"bsi_beam_shape"` documents and normalizes each doc's SHAPE (not
 its field names) to match `bsm/mock.py`, because two source shapes would
 otherwise drop metrics silently: `Reso EB Focus` arrives doubly-nested
@@ -62,8 +62,8 @@ Range` arrives as a one-element list (`['8.0000']`) and is unwrapped to a
 scalar float so the panel surfaces it as a trend/KPI metric (the mock emits the
 same float). Per-degree arrays and scalars are coerced to floats (the source
 mixes floats and numeric strings within one array); anything that will not form
-a clean length-16 numeric array is dropped. Its OFFICE-VERIFY list: the index
-alias is `beam_shape`; `type`/`fdc_category`/`eqp_id`/`fab_name` match through
+a clean length-16 numeric array is dropped. Its OFFICE-VERIFY list: the alias
+is `beam_shape_cdsem`; `type`/`fdc_category`/`eqp_id`/`fab_name` match through
 `.keyword` sub-fields; `fab_name` is uppercased for the term. Run its `__main__`
 smoke block after `cp`. The pure normalizers are unit-tested at home in
 `tests/test_bsm_office.py`.
