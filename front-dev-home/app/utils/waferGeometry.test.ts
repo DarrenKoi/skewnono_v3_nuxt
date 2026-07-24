@@ -97,3 +97,10 @@ test('stagePosMm is measured from the wafer centre, unaffected by map_offset', (
   const g = parseWaferGeometry(info({ map_offset: '3000000,4610000' }))
   assert.deepEqual(stagePosMm('160000000,170000000', g), [10, 20])
 })
+
+test('dieCenterMm shifts die centres by the die-grid offset', () => {
+  const g = parseWaferGeometry(info({ map_offset: '0,4610000' }))
+  const [x, y] = dieCenterMm(2, -3, g)
+  assert.ok(Math.abs(x - 2 * g.pitchXmm) < 1e-9) // offsetXmm is 0 here
+  assert.ok(Math.abs(y - (4.61 + -3 * g.pitchYmm)) < 1e-9)
+})

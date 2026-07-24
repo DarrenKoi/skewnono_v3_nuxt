@@ -86,10 +86,12 @@ export const stagePosMm = (stage: string, geo: WaferGeometry): [number, number] 
   return [(x - geo.centerNm) / NM_PER_MM, (y - geo.centerNm) / NM_PER_MM]
 }
 
-// Die centre (mm, relative to wafer centre) from a chip_number "(col,row)". Uses
-// the pitch, so tiles land on the die grid regardless of the measured offset.
+// Die centre (mm, relative to the WAFER centre) from a chip_number "(col,row)".
+// The die array is shifted off the wafer centre by map_offset, so a die centre
+// is offset + col·pitch — this is what makes die tiles land on the measured
+// points instead of sitting map_offset away from them.
 export const dieCenterMm = (col: number, row: number, geo: WaferGeometry): [number, number] =>
-  [col * geo.pitchXmm, row * geo.pitchYmm]
+  [geo.offsetXmm + col * geo.pitchXmm, geo.offsetYmm + row * geo.pitchYmm]
 
 // Distance from wafer centre (mm) for a stage_coordinate — the radius-plot x.
 export const siteRadiusMm = (stage: string, geo: WaferGeometry): number | null => {
