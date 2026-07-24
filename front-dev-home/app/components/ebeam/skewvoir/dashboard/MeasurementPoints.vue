@@ -52,27 +52,43 @@
       <table class="w-full border-collapse text-xs">
         <thead class="sticky top-0 z-10 bg-(--sk-surface)">
           <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
-            <th
+            <template
               v-for="col in columns"
               :key="col.key"
-              scope="col"
-              :aria-sort="ariaSort(col.key)"
-              class="cursor-pointer select-none px-1.5 py-1.5 font-semibold whitespace-nowrap hover:text-(--sk-ink)"
-              :class="col.align === 'right' ? 'text-right' : 'text-left'"
-              @click="sortBy(col.key)"
             >
-              <span
-                class="inline-flex items-center gap-0.5"
-                :class="col.align === 'right' ? 'flex-row-reverse' : ''"
+              <th
+                scope="col"
+                :aria-sort="ariaSort(col.key)"
+                class="cursor-pointer select-none px-1.5 py-1.5 font-semibold whitespace-nowrap hover:text-(--sk-ink)"
+                :class="col.align === 'right' ? 'text-right' : 'text-left'"
+                @click="sortBy(col.key)"
               >
-                {{ col.label }}
-                <UIcon
-                  :name="sortIcon(col.key)"
-                  class="h-3 w-3"
-                  :class="sortKey === col.key ? 'text-(--sk-brand)' : 'text-(--sk-ink-subtle)'"
+                <span
+                  class="inline-flex items-center gap-0.5"
+                  :class="col.align === 'right' ? 'flex-row-reverse' : ''"
+                >
+                  {{ col.label }}
+                  <UIcon
+                    :name="sortIcon(col.key)"
+                    class="h-3 w-3"
+                    :class="sortKey === col.key ? 'text-(--sk-brand)' : 'text-(--sk-ink-subtle)'"
+                  />
+                </span>
+              </th>
+              <th
+                v-if="col.key === 'mp'"
+                scope="col"
+                class="px-1.5 py-1.5 text-center font-semibold"
+              >
+                <UCheckbox
+                  size="xs"
+                  aria-label="보이는 측정점 전체 선택"
+                  :model-value="headerCheck === 'all'"
+                  :indeterminate="headerCheck === 'some'"
+                  @update:model-value="toggleAllVisible"
                 />
-              </span>
-            </th>
+              </th>
+            </template>
             <th
               scope="col"
               class="px-1.5 py-1.5 text-right font-semibold"
@@ -103,6 +119,17 @@
             </td>
             <td class="px-1.5 py-1.5 text-right font-mono tabular-nums">
               {{ p.mp >= 0 ? p.mp : '—' }}
+            </td>
+            <td
+              class="px-1.5 py-1.5 text-center"
+              @click.stop
+            >
+              <UCheckbox
+                size="xs"
+                :aria-label="`측정점 ${p.seq} 선택`"
+                :model-value="selectedSet.has(p.seq)"
+                @update:model-value="analysis.toggleSelectedSequence(p.seq)"
+              />
             </td>
             <td class="px-1.5 py-1.5 font-mono">
               {{ p.seq }}
@@ -146,6 +173,7 @@ import type { SiteKind } from '~/utils/overview'
 import { siteRadiusMm } from '~/utils/waferGeometry'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
+import { headerState, pickExportRows } from '~/utils/mpSelection'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -289,7 +317,33 @@ const onRowClick = (p: Point) => {
   scrollEl.value?.focus()
 }
 
+// Selection: derived off the visible rows so the header checkbox and export
+// scoping always agree with what's currently on screen.
+const selectedSet = computed(() => new Set(props.analysis.selectedSequences.value))
+const visibleSeqs = computed(() => rows.value.map(r => r.seq))
+const headerCheck = computed(() => headerState(visibleSeqs.value, selectedSet.value))
+
+const toggleAllVisible = () => {
+  if (headerCheck.value === 'all') {
+    // Clear only the visible rows from the selection (keep off-screen picks).
+    const visible = new Set(visibleSeqs.value)
+    props.analysis.setSelectedSequences(
+      props.analysis.selectedSequences.value.filter(s => !visible.has(s)))
+  } else {
+    // Add every visible seq (union with any off-screen picks).
+    const union = new Set(props.analysis.selectedSequences.value)
+    for (const s of visibleSeqs.value) union.add(s)
+    props.analysis.setSelectedSequences([...union])
+  }
+}
+
 const onKeydown = (e: KeyboardEvent) => {
+  if (e.key === ' ') {
+    e.preventDefault()
+    const row = rows.value[cursorIndex.value]
+    if (row) props.analysis.toggleSelectedSequence(row.seq)
+    return
+  }
   const nav = ['ArrowDown', 'ArrowUp', 'Home', 'End']
   if (!nav.includes(e.key)) return
   e.preventDefault()
@@ -303,7 +357,7 @@ const toast = useToast()
 // shared by CSV download and clipboard copy.
 const pointsTable = () => ({
   headers: ['PARAM', 'MP', 'SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS'],
-  rows: rows.value.map(p => [
+  rows: pickExportRows(rows.value, selectedSet.value).map(p => [
     p.param,
     p.mp,
     p.seq,
@@ -338,9 +392,10 @@ const copyPoints = async () => {
 const flaggedCount = computed(() => allPoints.value.filter(p => p.kind !== 'normal').length)
 const meta = computed(() => {
   const paramNote = multiParam.value ? `${selectedParams.value.length} params · ` : ''
-  return filter.value === '전체'
+  const selNote = selectedSet.value.size ? ` · ${selectedSet.value.size} 선택` : ''
+  return (filter.value === '전체'
     ? `${paramNote}${allPoints.value.length} sites · ${flaggedCount.value} 이상·실패`
-    : `${paramNote}${flaggedCount.value} 이상·실패`
+    : `${paramNote}${flaggedCount.value} 이상·실패`) + selNote
 })
 
 const emptyLabel = computed(() => {
