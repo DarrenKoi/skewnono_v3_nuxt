@@ -105,8 +105,12 @@
                 <span class="font-normal text-(--sk-ink-muted)">— 클릭하면 해당 index 추세로</span>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="font-mono text-[11px] text-(--sk-ink-muted) tabular-nums">
-                  {{ evolutionDates.length }}회 수집 · {{ revisions.length }}개 버전
+                <span
+                  class="font-mono text-[11px] tabular-nums"
+                  :class="nothingCollapsed ? 'text-(--sk-warn)' : 'text-(--sk-ink-muted)'"
+                >
+                  {{ collectionCount }}회 수집 · {{ revisions.length }}개 버전
+                  <template v-if="nothingCollapsed">· 중복 없음</template>
                 </span>
                 <USelectMenu
                   v-model="selectedRevisions"
@@ -162,7 +166,7 @@
                   size="xs"
                   color="neutral"
                   variant="ghost"
-                  @click="selectedRevisions = sceLatestDates(revisionKeys, DEFAULT_REVISIONS)"
+                  @click="selectedRevisions = revisionKeys.slice(-DEFAULT_REVISIONS)"
                 >
                   최근 {{ DEFAULT_REVISIONS }}개
                 </UButton>
@@ -293,9 +297,8 @@
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
 import {
-  sceCoeffIndexSeries, sceCoeffRevisions, sceDocDates, sceLatestDates, sceParamLabel,
-  sceParamSeries, sceRevisionLabel, sceTrendKeys,
-  type SceCoeffRevision, type SceTrendKey
+  sceCoeffIndexSeries, sceCoeffRevisions, sceParamLabel, sceParamSeries,
+  sceRevisionLabel, sceRevisionSpan, sceTrendKeys, type SceTrendKey
 } from '~/utils/sceHistory'
 import { assignCompareColors, assignSeriesColors } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
@@ -382,18 +385,32 @@ const indices = Array.from({ length: 360 }, (_, i) => i)
 interface CoeffPair { v0: number[], v1: number[] }
 interface CompareCoeff { id: string, pair: CoeffPair, color: string }
 
-// values[0] (~±0.02) and values[1] (~0.9–1.0) live on different scales, so a
-// shared y-axis flattens both into disjoint bands. Plot each value type in
-// its own grid (v0 top, v1 bottom) with a linked x-axis crosshair; the
-// selected/picked tools share one series name per eqp so each equipment gets
-// a single legend entry toggling both panels.
-const lineOption = (sel: CoeffPair, cmp: CompareCoeff[]): EChartsOption => {
-  const line = (name: string, data: number[], color: string, gridIndex: number, dashed = false) => ({
-    name, type: 'line' as const, showSymbol: false, smooth: false,
-    xAxisIndex: gridIndex, yAxisIndex: gridIndex,
-    lineStyle: { color, width: 1.2, type: dashed ? ('dashed' as const) : ('solid' as const) },
-    itemStyle: { color }, data
-  })
+// One curve on one of the stacked panels. `gridIndex` picks the panel (0 = v0,
+// 1 = v1); series sharing a `name` across both panels collapse into a single
+// legend entry that toggles the pair.
+const coeffLine = (
+  name: string,
+  data: number[],
+  gridIndex: number,
+  style: { color: string, width?: number, dashed?: boolean }
+) => ({
+  name, type: 'line' as const, showSymbol: false, smooth: false,
+  xAxisIndex: gridIndex, yAxisIndex: gridIndex,
+  lineStyle: {
+    color: style.color,
+    width: style.width ?? 1.2,
+    type: style.dashed ? ('dashed' as const) : ('solid' as const)
+  },
+  itemStyle: { color: style.color }, data
+})
+
+// The stacked-grid scaffold BOTH coefficient charts draw on. values[0] (~±0.02)
+// and values[1] (~0.9–1.0) live on different scales, so a shared y-axis
+// flattens both into disjoint bands; each value type gets its own grid (v0 top,
+// v1 bottom) with a linked x-axis crosshair. Callers supply only their series —
+// the 비교 overlay and the 시계열 evolution chart differ in nothing else, and
+// keeping two copies meant every axis tweak had to be made twice.
+const stackedCoeffOption = (series: EChartsOption['series']): EChartsOption => {
   const catAxis = (gridIndex: number, showLabels: boolean) => ({
     type: 'category' as const, gridIndex, data: indices,
     axisLabel: { fontSize: 10, show: showLabels },
@@ -413,16 +430,20 @@ const lineOption = (sel: CoeffPair, cmp: CompareCoeff[]): EChartsOption => {
     legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
     xAxis: [catAxis(0, false), catAxis(1, true)],
     yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
-    series: [
-      line(props.selectedEqp, sel.v0, c0.value, 0),
-      line(props.selectedEqp, sel.v1, c0.value, 1),
-      ...cmp.flatMap(c => [
-        line(c.id, c.pair.v0, c.color, 0, true),
-        line(c.id, c.pair.v1, c.color, 1, true)
-      ])
-    ]
+    series
   }
 }
+
+// Selected tool solid, every picked sibling dashed in its own color.
+const lineOption = (sel: CoeffPair, cmp: CompareCoeff[]): EChartsOption =>
+  stackedCoeffOption([
+    coeffLine(props.selectedEqp, sel.v0, 0, { color: c0.value }),
+    coeffLine(props.selectedEqp, sel.v1, 1, { color: c0.value }),
+    ...cmp.flatMap(c => [
+      coeffLine(c.id, c.pair.v0, 0, { color: c.color, dashed: true }),
+      coeffLine(c.id, c.pair.v1, 1, { color: c.color, dashed: true })
+    ])
+  ])
 
 // Radar view: the index IS an angle (0–359°), so each value type gets its own
 // polar system (v0 left, v1 right) drawn as a closed 360° profile. A true
@@ -535,7 +556,6 @@ useEchart(coeffTrendEl, coeffTrendOption)
 //      entry instead.
 // The default is the newest few revisions.
 const DEFAULT_REVISIONS = 3
-const evolutionDates = computed(() => sceDocDates(docs.value))
 const revisions = computed(() => sceCoeffRevisions(docs.value))
 // A revision is identified by its FIRST date — stable across re-fetches, and
 // already the label's leading text.
@@ -543,6 +563,17 @@ const revisionKeys = computed(() => revisions.value.map(r => r.date))
 // Newest first in the menu — recent re-tunes are what a reader reaches for.
 const revisionItems = computed(() =>
   [...revisions.value].reverse().map(r => ({ label: sceRevisionLabel(r), value: r.date }))
+)
+// Collections in the window, counted off the revisions so there is one source.
+const collectionCount = computed(() =>
+  revisions.value.reduce((n, r) => n + r.dates.length, 0)
+)
+// Nothing collapsed. Office data whose per-collection float jitter defeats the
+// curve comparison lands here, and it looks identical to a genuinely churning
+// tool — so say it outright rather than leaving a sparse-looking picker as the
+// only symptom. See hardware/MIGRATION.md's sce section.
+const nothingCollapsed = computed(() =>
+  revisions.value.length > 1 && revisions.value.length === collectionCount.value
 )
 const selectedRevisions = ref<string[]>([])
 // Controlled open state so the 닫기 button can close the menu; Esc and
@@ -553,67 +584,39 @@ watch(revisionKeys, (keys) => {
   // re-seed to the newest few only when nothing carried over (first load, or a
   // tool/range switch that replaced the window wholesale).
   const kept = selectedRevisions.value.filter(d => keys.includes(d))
-  selectedRevisions.value = kept.length > 0 ? kept : sceLatestDates(keys, DEFAULT_REVISIONS)
+  selectedRevisions.value = kept.length > 0 ? kept : keys.slice(-DEFAULT_REVISIONS)
 }, { immediate: true })
 
-// Every doc in a revision carries the same curve by construction, so the
-// revision's first doc is a complete stand-in for the run. Filtering in
-// revision order keeps the draw order ascending no matter what order the boxes
-// were ticked in, so the newest curve is always drawn last — i.e. on top.
+// Filtering in revision order keeps the draw order ascending no matter what
+// order the boxes were ticked in, so the newest curve is always drawn last —
+// i.e. on top. Each revision carries its own stand-in doc, so there is no
+// re-join here.
 const evolutionSeries = computed(() => {
   const picked = new Set(selectedRevisions.value)
-  const byDate = new Map(docs.value.filter(d => typeof d.date === 'string').map(d => [String(d.date), d]))
-  return revisions.value
-    .filter(r => picked.has(r.date))
-    .map(r => ({ rev: r, doc: byDate.get(r.date) }))
-    .filter((s): s is { rev: SceCoeffRevision, doc: Record<string, unknown> } => Boolean(s.doc))
+  return revisions.value.filter(r => picked.has(r.date))
 })
 // Newest gets palette[0] — it is the curve the others are read against, so it
 // wears the primary accent, the same color the selected tool has in 비교.
 const evolutionColors = computed(() =>
-  assignSeriesColors(evolutionSeries.value.map(s => s.rev.date).reverse(), palette.value)
+  assignSeriesColors(evolutionSeries.value.map(r => r.date).reverse(), palette.value)
 )
 
 const evolutionEl = ref<HTMLDivElement | null>(null)
+// The legend carries the bare span — it has to fit several entries side by
+// side, so the menu's `· N회` suffix is dropped here (same formatter, so the
+// year rule for a span crossing new year cannot drift between the two).
 const evolutionOption = computed<EChartsOption>(() => {
   const picked = evolutionSeries.value
-  const line = (name: string, data: number[], color: string, latest: boolean, gridIndex: number) => ({
-    name, type: 'line' as const, showSymbol: false, smooth: false,
-    xAxisIndex: gridIndex, yAxisIndex: gridIndex,
-    lineStyle: { color, width: latest ? 1.8 : 1.2 },
-    itemStyle: { color }, data
-  })
-  const catAxis = (gridIndex: number, showLabels: boolean) => ({
-    type: 'category' as const, gridIndex, data: indices,
-    axisLabel: { fontSize: 10, show: showLabels },
-    ...(showLabels ? { name: 'index' } : {})
-  })
-  const valAxis = (gridIndex: number, name: string) => ({
-    type: 'value' as const, gridIndex, name, scale: true,
-    nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 }
-  })
-  return {
-    grid: [
-      { left: 56, right: 16, top: 30, height: '36%' },
-      { left: 56, right: 16, bottom: 40, height: '36%' }
-    ],
-    tooltip: { trigger: 'axis' },
-    axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    // Both panels' series share one name per revision, so each revision is a
-    // single legend entry that toggles its v0 and v1 curves together.
-    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
-    xAxis: [catAxis(0, false), catAxis(1, true)],
-    yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
-    series: picked.flatMap(({ rev, doc }, i) => {
-      const pair = coefficientSeries(doc)
-      // The legend has to fit several of these, so it carries the span without
-      // the 회 count the menu shows.
-      const name = rev.dates.length > 1 ? `${rev.date} ~ ${rev.through.slice(5)}` : rev.date
-      const color = evolutionColors.value[rev.date] ?? c0.value
-      const latest = i === picked.length - 1
-      return [line(name, pair.v0, color, latest, 0), line(name, pair.v1, color, latest, 1)]
-    })
-  }
+  return stackedCoeffOption(picked.flatMap((rev, i) => {
+    const pair = coefficientSeries(rev.doc)
+    const name = sceRevisionSpan(rev)
+    const style = {
+      color: evolutionColors.value[rev.date] ?? c0.value,
+      // The newest curve is the one the others are read against.
+      width: i === picked.length - 1 ? 1.8 : 1.2
+    }
+    return [coeffLine(name, pair.v0, 0, style), coeffLine(name, pair.v1, 1, style)]
+  }))
 })
 // Clicking anywhere in either panel picks that index for the trend above. It
 // has to be onGridClick rather than onClick: these curves draw with

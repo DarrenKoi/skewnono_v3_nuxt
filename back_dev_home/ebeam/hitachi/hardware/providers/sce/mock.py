@@ -19,9 +19,6 @@ from back_dev_home.ebeam.hitachi.hardware.providers._siblings import (
     seed_for,
     sibling_eqp_ids,
 )
-from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.mock import (
-    completed_pm_dates,
-)
 
 
 __all__ = ["build_sce_history", "build_sce_settings"]
@@ -106,20 +103,53 @@ def _coefficients(rng: random.Random) -> list[dict]:
     ]
 
 
-def _revision_salt(tool: str, on: date, anchor: datetime) -> int:
+# Walk origin for the re-tune schedule, far enough back to cover any plausible
+# request window (same trick as `mdc/mock.py`'s `_WALK_ANCHOR`).
+_RETUNE_ORIGIN = date(2025, 1, 1)
+
+
+def _retune_dates(eqp_id: str, until: date) -> list[date]:
+    """This tool's SCE re-tune dates from a FIXED origin through `until`, asc.
+
+    Walks a per-tool cadence (~2-4 weeks) forward from `_RETUNE_ORIGIN` rather
+    than back from the caller's window, which is what makes the schedule a
+    PREFIX: extending `until` only appends, so the re-tune in force on a past
+    date is the same answer no matter what range was requested. That property
+    is what keeps history reproducible — the office archive file for a
+    collection date is immutable, and a mock that rewrote the past when you
+    widened the window would contradict it.
+
+    Deliberately SCE's OWN schedule rather than `bm_pm`'s PM rows, even though
+    a real re-tune happens at PM. Those rows are generated relative to the
+    caller's anchor and the page sends a live clock, so anything seeded from
+    them slides with wall time: stability and marker-alignment cannot both
+    hold. Stability wins, and office-side nothing couples the two either — see
+    hardware/MIGRATION.md.
+    """
+    rng = random.Random(seed_for(eqp_id) ^ 0x5245_5455)
+    days: list[date] = []
+    day = _RETUNE_ORIGIN
+    while day <= until:
+        day += timedelta(days=rng.randint(14, 28))
+        if day <= until:
+            days.append(day)
+    return days
+
+
+def _revision_salt(retunes: list[date], on: date) -> int:
     """Salt naming the SCE settings revision in force on `on`.
 
-    SCE is re-tuned at PM, not per collection: between two PMs the tool keeps
-    serving the same SharpChar file, so every collection in that span reads
-    back byte-identical. Seeding from the most recent completed PM at or before
-    the date models exactly that — values hold flat, then step.
+    SCE is re-tuned at PM, not per collection: between two re-tunes the tool
+    keeps serving the same SharpChar file, so every collection in that span
+    reads back byte-identical. Seeding from the most recent re-tune at or
+    before the date models exactly that — values hold flat, then step.
 
-    The PM dates come from the bm_pm mock rather than a schedule of our own, so
-    a step in the 시계열 curve lands on the same day the BM/PM overlay draws its
-    marker. A tool with no PM yet in the window gets salt 0 (one flat era).
+    Takes the schedule rather than looking it up, so callers hoist the walk out
+    of their loop and this stays a pure function of (schedule, date). A date
+    before the tool's first re-tune gets salt 0 — one flat era.
     """
-    prior = [day for day in completed_pm_dates(tool, anchor) if day <= on]
-    return int(prior[-1].strftime("%Y%m%d")) if prior else 0
+    prior = max((day for day in retunes if day <= on), default=None)
+    return int(prior.strftime("%Y%m%d")) if prior else 0
 
 
 def _tool_snapshot(tool: str, revision_salt: int) -> dict:
@@ -159,7 +189,7 @@ def build_sce_settings(
     # schedules, so the 비교 tab shows curves of differing ages — which is the
     # thing that tab exists to make visible.
     return {
-        tool: _tool_snapshot(tool, _revision_salt(tool, as_of.date(), as_of))
+        tool: _tool_snapshot(tool, _revision_salt(_retune_dates(tool, as_of.date()), as_of.date()))
         for tool in eqp_ids
     }
 
@@ -185,12 +215,22 @@ def build_sce_history(
     repeats is the frontend's job (`sceCoeffRevisions`).
     """
     del fab_name
+    retunes = _retune_dates(eqp_id, end.date())
+    # One built snapshot per REVISION, not per date. A 30-day window is ~16
+    # collections over 1-2 revisions, so rebuilding per date regenerated the
+    # same 360-entry curve a dozen times (measured: 9.3ms -> 1.1ms). The
+    # `**snap` spread gives each doc its own top-level dict; the nested blocks
+    # are shared, which is safe because nothing downstream mutates a doc.
+    snapshots: dict[int, dict] = {}
     docs: list[dict] = []
     day = start.date()
     last = end.date()
     while day <= last:
         if day.toordinal() % 2 == 0:
-            salt = _revision_salt(eqp_id, day, end)
-            docs.append({"date": day.isoformat(), **_tool_snapshot(eqp_id, salt)})
+            salt = _revision_salt(retunes, day)
+            snap = snapshots.get(salt)
+            if snap is None:
+                snap = snapshots[salt] = _tool_snapshot(eqp_id, salt)
+            docs.append({"date": day.isoformat(), **snap})
         day += timedelta(days=1)
     return docs

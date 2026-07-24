@@ -11,7 +11,6 @@ office-side both views come from the same collection run.
 import json
 from datetime import datetime, timedelta
 
-from back_dev_home.ebeam.hitachi.hardware.providers.bm_pm.mock import completed_pm_dates
 from back_dev_home.ebeam.hitachi.hardware.providers.sce import mock, office_example
 
 
@@ -76,30 +75,39 @@ def test_config_blocks_stable_for_the_tools_whole_life():
         assert len({_fingerprint(doc, block) for doc in docs}) == 1
 
 
-def test_retune_outputs_step_at_pm_rather_than_drifting_per_collection():
-    # SCE is re-tuned at PM: between two PMs the tool serves the same
+def test_retune_outputs_step_at_retunes_rather_than_drifting_per_collection():
+    # SCE is re-tuned at PM: between two re-tunes the tool serves the same
     # SharpChar file, so consecutive collections read back identical. A value
     # that changed on every collection date would be the old (wrong) model —
-    # and would make the 수집일 revision picker collapse nothing.
+    # and would make the 버전 revision picker collapse nothing.
     docs = _history(days=120)
-    assert len(docs) >= 10, "need a long window to span more than one PM"
+    assert len(docs) >= 10, "need a long window to span more than one re-tune"
 
-    pm_days = {
-        day.isoformat()
-        for day in completed_pm_dates("CDX001", ANCHOR)
-    }
+    retunes = {day.isoformat() for day in mock._retune_dates("CDX001", ANCHOR.date())}
     for block in ("FileInfo", "SCEParam", "Coefficients"):
         prints = [_fingerprint(doc, block) for doc in docs]
         assert len(set(prints)) > 1, f"{block} must step at least once"
-        assert len(set(prints)) < len(prints), f"{block} must hold between PMs"
-        # Every step lands on a collection date whose era changed — i.e. a PM
-        # happened in the gap since the previous collection.
+        assert len(set(prints)) < len(prints), f"{block} must hold between re-tunes"
+        # Every step lands on a collection date whose era changed — i.e. a
+        # re-tune happened in the gap since the previous collection.
         for prev, cur in zip(docs, docs[1:]):
             if _fingerprint(prev, block) == _fingerprint(cur, block):
                 continue
             assert any(
-                prev["date"] < pm <= cur["date"] for pm in pm_days
-            ), f"{block} changed on {cur['date']} with no PM since {prev['date']}"
+                prev["date"] < day <= cur["date"] for day in retunes
+            ), f"{block} changed on {cur['date']} with no re-tune since {prev['date']}"
+
+
+def test_retune_schedule_is_a_prefix_so_the_past_never_changes():
+    # The property that makes history reproducible: extending the horizon only
+    # APPENDS re-tunes, it never re-rolls earlier ones.
+    short = mock._retune_dates("CDX001", ANCHOR.date())
+    long = mock._retune_dates("CDX001", ANCHOR.date() + timedelta(days=400))
+    assert len(long) > len(short), "a later horizon must reveal more re-tunes"
+    assert long[: len(short)] == short
+    # Every window a caller can ask for contains re-tunes, so the picker always
+    # has something to collapse — the origin sits far enough back.
+    assert [d for d in long if d > ANCHOR.date()]
 
 
 def test_siblings_are_re_tuned_on_their_own_schedules():
@@ -111,11 +119,38 @@ def test_siblings_are_re_tuned_on_their_own_schedules():
     assert len(curves) > 1
 
 
-def test_history_doc_matches_snapshot_for_same_date():
-    doc = _history()[-1]
-    as_of = datetime.fromisoformat(doc["date"])
-    snapshot = mock.build_sce_settings("CDX001", "R3", as_of)["CDX001"]
-    assert {k: v for k, v in doc.items() if k != "date"} == snapshot
+def test_history_doc_matches_snapshot_for_every_date():
+    # EVERY doc, not just the last. Checking only the newest hid a real
+    # regression: when the revision salt was derived from the request window's
+    # end, the two builders disagreed on every doc except the one whose date
+    # happened to equal that end.
+    docs = _history(days=60)
+    assert len(docs) >= 10
+    for doc in docs:
+        as_of = datetime.fromisoformat(doc["date"])
+        snapshot = mock.build_sce_settings("CDX001", "R3", as_of)["CDX001"]
+        assert {k: v for k, v in doc.items() if k != "date"} == snapshot, doc["date"]
+
+
+def test_history_values_do_not_change_when_the_window_moves():
+    # The office archive file for a collection date is immutable — asking for a
+    # different range must not rewrite the past. Guards the salt against being
+    # re-derived from anything window-shaped.
+    wide = {d["date"]: d for d in _history(days=120)}
+    narrow = {d["date"]: d for d in _history(days=14)}
+    later = {
+        d["date"]: d
+        for d in mock.build_sce_history(
+            "CDX001", "R3", ANCHOR - timedelta(days=30), ANCHOR + timedelta(days=10)
+        )
+    }
+    assert narrow and set(narrow) <= set(wide)
+    for date_key, doc in narrow.items():
+        assert doc == wide[date_key], date_key
+    overlap = set(narrow) & set(later)
+    assert overlap
+    for date_key in overlap:
+        assert narrow[date_key] == later[date_key], date_key
 
 
 # --- office_example: pure normalization helpers -----------------------------

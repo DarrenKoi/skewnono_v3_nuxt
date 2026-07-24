@@ -86,6 +86,27 @@ parse/normalize helpers are unit-tested at home in `tests/test_sce.py`. Run
 its `__main__` smoke block (`... .providers.sce.office <eqp_id> <fab_name>`)
 after `cp`.
 
+**Mock-only fiction — do not expect it office-side.** `sce/mock.py` makes
+`FileInfo`/`SCEParam`/`Coefficients` hold flat between re-tunes and step at
+one, so the home mock exercises the frontend's revision collapse
+(`sceCoeffRevisions`). The re-tune calendar is SCE's OWN — a ~2-4 week cadence
+walked forward from a fixed origin (`_retune_dates`), NOT `bm_pm`'s PM rows.
+Those rows are generated relative to the caller's anchor and the page sends a
+live clock, so seeding from them would make a past collection date's curve
+change whenever the window moved; the archive file for a date is immutable, so
+stability wins over lining the step up with a BM/PM marker. **Steps therefore
+do not coincide with PM markers, by design, in the mock or at the office** —
+office-side the snapshot is a Redis hash, the trend is per-date MinIO JSON,
+and markers come from `fab_inform_notes`, with nothing coupling the three.
+Office parity is SHAPE only.
+
+Two more things worth knowing before reading the 시계열 tab at the office.
+Per-collection float or serialization jitter defeats the curve-equality
+collapse, in which case every collection becomes its own 버전 — the panel's
+`N회 수집 · M개 버전` counter appends `중복 없음` when `N == M`, which is the
+tell. And a `SCEParam` change that leaves the curve untouched will NOT open a
+new 버전, because the collapse keys on `Coefficients` alone.
+
 The shared helper `_siblings.py` stays at the `providers/` root (mock-only:
 stable seeds, sibling tool sets, and the metadata tail every faithful doc
 carries). `pm_gate_bsm_mock.py` / `spec_range_mock.py` also stay there — they

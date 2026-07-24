@@ -74,26 +74,18 @@ export const sceParamSeries = (
   return out
 }
 
-// Collection dates present in the window, in doc order (asc). Docs without a
-// usable `date` are dropped — a snapshot with no date can neither be labelled
-// nor picked, so it must not occupy a slot in the date picker.
-export const sceDocDates = (docs: Record<string, unknown>[]): string[] =>
-  docs.map(d => (typeof d.date === 'string' ? d.date : '')).filter(Boolean)
-
-// The `count` most recent dates, still in ascending order. Used as the default
-// selection for the evolution overlay: the whole bidaily window drawn at once
-// is an unreadable thicket, so it opens on the newest few and the user widens
-// from there.
-export const sceLatestDates = (dates: string[], count: number): string[] =>
-  count <= 0 ? [] : dates.slice(Math.max(0, dates.length - count))
-
 export interface SceCoeffRevision {
   /** First collection date this curve appeared on — the revision's identity. */
   date: string
-  /** Last collection date it was still in force. */
-  through: string
   /** Every collection date the curve was read back unchanged, ascending. */
   dates: string[]
+  /**
+   * The doc that opened the run. Every doc in `dates` carries the same curve
+   * by construction, so this one stands in for all of them — carried here so
+   * callers never re-join revisions back to docs and get the stand-in rule
+   * wrong (a wrong doc still renders a plausible curve, silently).
+   */
+  doc: Record<string, unknown>
 }
 
 // Coefficients equality between two docs. Compares structurally and bails on
@@ -120,36 +112,41 @@ const sameCoefficients = (a: unknown, b: unknown): boolean => {
 // typically one or two distinct curves read back a dozen times — plotting all
 // of them draws the same line on top of itself and tells the reader nothing.
 //
+// Keys on `Coefficients` ALONE, deliberately: it is the thing the chart draws,
+// so this is the observable definition of "same line". A settings change that
+// leaves the curve untouched therefore does not open a new revision.
+//
 // Only CONSECUTIVE runs merge. A curve that reverts to an earlier value is a
 // new revision, not a re-join: "it went back" is a real event and folding it
 // into the older entry would hide it.
 export const sceCoeffRevisions = (docs: Record<string, unknown>[]): SceCoeffRevision[] => {
   const out: SceCoeffRevision[] = []
-  let prev: Record<string, unknown> | null = null
   for (const doc of docs) {
     const date = typeof doc.date === 'string' ? doc.date : ''
     if (!date) continue
     const last = out[out.length - 1]
-    if (last && prev && sameCoefficients(prev.Coefficients, doc.Coefficients)) {
-      last.dates.push(date)
-      last.through = date
-    } else {
-      out.push({ date, through: date, dates: [date] })
-    }
-    prev = doc
+    if (last && sameCoefficients(last.doc.Coefficients, doc.Coefficients)) last.dates.push(date)
+    else out.push({ date, dates: [date], doc })
   }
   return out
 }
 
-// Picker label. A revision read back once is just its date; a run shows the
-// span and how many collections confirmed it — that count IS the "이 값이
-// 유지된 기간" signal. The end date drops its year: same-year spans are the
-// norm and the repetition costs width in a narrow menu.
-export const sceRevisionLabel = (rev: SceCoeffRevision): string => {
+// The span a revision covers. Single-collection revisions are just their date;
+// a run shows first ~ last. The end date drops its year when it matches the
+// start's — same-year spans are the norm and the repetition costs width — but
+// keeps it across a new year, where dropping it would read as a date eleven
+// months earlier.
+export const sceRevisionSpan = (rev: SceCoeffRevision): string => {
+  const through = rev.dates[rev.dates.length - 1] ?? rev.date
   if (rev.dates.length <= 1) return rev.date
-  const sameYear = rev.through.slice(0, 4) === rev.date.slice(0, 4)
-  return `${rev.date} ~ ${sameYear ? rev.through.slice(5) : rev.through} · ${rev.dates.length}회`
+  return `${rev.date} ~ ${through.slice(0, 4) === rev.date.slice(0, 4) ? through.slice(5) : through}`
 }
+
+// Picker label: the span plus how many collections confirmed it — that count
+// IS the "이 값이 유지된 기간" signal. The chart legend uses the bare span
+// (see sceRevisionSpan) because it has to fit several entries side by side.
+export const sceRevisionLabel = (rev: SceCoeffRevision): string =>
+  rev.dates.length <= 1 ? rev.date : `${sceRevisionSpan(rev)} · ${rev.dates.length}회`
 
 // values[0] / values[1] at a single Coefficients index across the window —
 // "how did this one point of the curve move?". Reads only the target entry, so

@@ -2,8 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  sceCoeffIndexSeries, sceCoeffRevisions, sceDocDates, sceLatestDates,
-  sceParamLabel, sceParamSeries, sceRevisionLabel, sceTrendKeys
+  sceCoeffIndexSeries, sceCoeffRevisions, sceParamLabel, sceParamSeries,
+  sceRevisionLabel, sceRevisionSpan, sceTrendKeys, type SceCoeffRevision
 } from './sceHistory.ts'
 
 const docs = [
@@ -77,20 +77,6 @@ test('sceParamSeries: list-valued ImgCond fields use the first element', () => {
   ])
 })
 
-test('sceDocDates: collection dates in doc order, dateless docs dropped', () => {
-  assert.deepEqual(sceDocDates(docs), ['2026-07-17', '2026-07-22', '2026-07-24', '2026-07-26'])
-  assert.deepEqual(sceDocDates([]), [])
-})
-
-test('sceLatestDates: the newest N, still ascending', () => {
-  const dates = ['2026-07-17', '2026-07-22', '2026-07-24', '2026-07-26']
-  assert.deepEqual(sceLatestDates(dates, 3), ['2026-07-22', '2026-07-24', '2026-07-26'])
-  // Asking for more than exist yields everything, not padding.
-  assert.deepEqual(sceLatestDates(dates, 9), dates)
-  assert.deepEqual(sceLatestDates(dates, 0), [])
-  assert.deepEqual(sceLatestDates([], 3), [])
-})
-
 const curve = (a: number, b: number) => [
   { index: 0, values: [a, b] },
   { index: 1, values: [a + 0.01, b + 0.01] }
@@ -106,10 +92,20 @@ test('sceCoeffRevisions: consecutive identical curves collapse into one run', ()
     { date: '2026-05-10', Coefficients: curve(0.02, 0.93) }
   ]
   assert.deepEqual(sceCoeffRevisions(held), [
-    { date: '2026-05-02', through: '2026-05-06', dates: ['2026-05-02', '2026-05-04', '2026-05-06'] },
-    { date: '2026-05-08', through: '2026-05-10', dates: ['2026-05-08', '2026-05-10'] }
+    { date: '2026-05-02', dates: ['2026-05-02', '2026-05-04', '2026-05-06'], doc: held[0] },
+    { date: '2026-05-08', dates: ['2026-05-08', '2026-05-10'], doc: held[3] }
   ])
   assert.deepEqual(sceCoeffRevisions([]), [])
+})
+
+test('sceCoeffRevisions: the carried doc is the one that OPENED the run', () => {
+  // The chart draws rev.doc, so a stand-in from the wrong run renders a
+  // plausible-but-wrong curve — silently. Pin it with distinguishable docs.
+  const held = [
+    { date: '2026-05-02', tag: 'first', Coefficients: curve(0.01, 0.95) },
+    { date: '2026-05-04', tag: 'second', Coefficients: curve(0.01, 0.95) }
+  ]
+  assert.equal(sceCoeffRevisions(held)[0]?.doc.tag, 'first')
 })
 
 test('sceCoeffRevisions: a revert is a new revision, not a re-join', () => {
@@ -156,25 +152,23 @@ test('sceCoeffRevisions: dateless docs are skipped, not merged blindly', () => {
   // The undated doc contributes no date; the two dated ones still carry the
   // same curve, so they stay one revision.
   assert.deepEqual(sceCoeffRevisions(docs), [
-    { date: '2026-05-02', through: '2026-05-06', dates: ['2026-05-02', '2026-05-06'] }
+    { date: '2026-05-02', dates: ['2026-05-02', '2026-05-06'], doc: docs[0] }
   ])
 })
 
-test('sceRevisionLabel: single date bare, run shows span and count', () => {
-  assert.equal(
-    sceRevisionLabel({ date: '2026-05-08', through: '2026-05-08', dates: ['2026-05-08'] }),
-    '2026-05-08'
-  )
-  assert.equal(
-    sceRevisionLabel({ date: '2026-05-02', through: '2026-05-24', dates: ['a', 'b', 'c'] }),
-    '2026-05-02 ~ 05-24 · 3회'
-  )
-  // A span across new year keeps the end year — dropping it would read as
-  // an 11-month-earlier date.
-  assert.equal(
-    sceRevisionLabel({ date: '2025-12-28', through: '2026-01-06', dates: ['a', 'b'] }),
-    '2025-12-28 ~ 2026-01-06 · 2회'
-  )
+const rev = (date: string, dates: string[]): SceCoeffRevision => ({ date, dates, doc: {} })
+
+test('sceRevisionLabel / Span: single date bare, run shows span, label adds count', () => {
+  assert.equal(sceRevisionLabel(rev('2026-05-08', ['2026-05-08'])), '2026-05-08')
+  const run = rev('2026-05-02', ['2026-05-02', '2026-05-14', '2026-05-24'])
+  assert.equal(sceRevisionSpan(run), '2026-05-02 ~ 05-24')
+  assert.equal(sceRevisionLabel(run), '2026-05-02 ~ 05-24 · 3회')
+  // A span across new year keeps the end year — dropping it would read as an
+  // 11-month-earlier date. The chart legend uses sceRevisionSpan directly, so
+  // this rule has exactly one implementation to get right.
+  const crossing = rev('2025-12-28', ['2025-12-28', '2026-01-06'])
+  assert.equal(sceRevisionSpan(crossing), '2025-12-28 ~ 2026-01-06')
+  assert.equal(sceRevisionLabel(crossing), '2025-12-28 ~ 2026-01-06 · 2회')
 })
 
 test('sceCoeffIndexSeries: values[0]/values[1] at one index across dates', () => {
