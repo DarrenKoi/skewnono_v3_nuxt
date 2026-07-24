@@ -43,7 +43,11 @@
 
     <div
       v-else-if="rows.length"
-      class="min-h-0 flex-1 overflow-auto"
+      ref="scrollEl"
+      tabindex="0"
+      role="grid"
+      class="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-(--sk-brand)/40"
+      @keydown="onKeydown"
     >
       <table class="w-full border-collapse text-xs">
         <thead class="sticky top-0 z-10 bg-(--sk-surface)">
@@ -81,12 +85,14 @@
           <tr
             v-for="p in rows"
             :key="p.key"
+            :data-row-key="p.key"
+            :aria-selected="p.seq === analysis.focusedSequence.value"
             class="cursor-pointer border-b border-(--sk-border-soft) transition-colors duration-200 last:border-0"
             :class="[
               p.kind === 'failed' ? 'text-(--sk-ink-muted)' : 'text-(--sk-ink)',
               p.seq === analysis.focusedSequence.value ? 'bg-(--sk-brand)/15' : 'hover:bg-(--sk-chip-bg)'
             ]"
-            @click="analysis.setFocusedSequence(p.seq)"
+            @click="onRowClick(p)"
           >
             <td
               v-if="multiParam"
@@ -139,6 +145,7 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SiteKind } from '~/utils/overview'
 import { siteRadiusMm } from '~/utils/waferGeometry'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -248,6 +255,47 @@ const rows = computed(() => {
     compareOn(a, b, key, dir) || compareOn(a, b, 'mp', 1) || compareOn(a, b, 'seq', 1)
   )
 })
+
+// Keyboard cursor: identify the focused row by its stable `key` so sort/filter
+// changes don't desync it. Current index is re-derived from the visible rows.
+const scrollEl = ref<HTMLElement | null>(null)
+const cursorKey = ref<string | null>(null)
+
+const cursorIndex = computed(() => {
+  if (cursorKey.value) {
+    const i = rows.value.findIndex(r => r.key === cursorKey.value)
+    if (i >= 0) return i
+  }
+  // Fall back to the first row matching the shared focused sequence.
+  const fseq = props.analysis.focusedSequence.value
+  return fseq == null ? -1 : rows.value.findIndex(r => r.seq === fseq)
+})
+
+const focusRowAt = (index: number) => {
+  const row = rows.value[index]
+  if (!row) return
+  cursorKey.value = row.key
+  props.analysis.setFocusedSequence(row.seq)
+  nextTick(() => {
+    scrollEl.value
+      ?.querySelector(`[data-row-key="${CSS.escape(row.key)}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+const onRowClick = (p: Point) => {
+  cursorKey.value = p.key
+  props.analysis.setFocusedSequence(p.seq)
+  scrollEl.value?.focus()
+}
+
+const onKeydown = (e: KeyboardEvent) => {
+  const nav = ['ArrowDown', 'ArrowUp', 'Home', 'End']
+  if (!nav.includes(e.key)) return
+  e.preventDefault()
+  const next = nextCursorIndex(e.key as CursorKey, cursorIndex.value, rows.value.length)
+  if (next != null) focusRowAt(next)
+}
 
 const toast = useToast()
 
