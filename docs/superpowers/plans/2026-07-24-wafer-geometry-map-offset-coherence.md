@@ -510,128 +510,24 @@ map_offset + col*pitch, so the grid was misaligned by exactly map_offset."
 
 ---
 
-### Task 6: Make the mock's `map_offset` coherent
+### Task 6: Make the mock's `map_offset` coherent (red → green)
 
-The mock emits `map_offset` as random noise that its own `stage_coordinate` does not encode. Make one seeded value the single source for both.
+The mock emits `map_offset` as random noise its own `stage_coordinate` does not encode. Write the round-trip test first so the incoherence fails visibly, then make one seeded value the single source for both.
 
 **Files:**
 
+- Create: `back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py`
 - Modify: `back_dev_home/msr_file/providers/mock.py:221-241` (`WaferGeom`, `_wafer_geometry`, `_die_center_nm`)
 - Modify: `back_dev_home/msr_file/providers/mock.py:344-374` (`_exe_detail_info`)
 
 **Interfaces:**
 
-- Consumes: nothing from earlier tasks (backend-only).
-- Produces: `WaferGeom` gains `offset_x_nm: int`, `offset_y_nm: int`. `exe_detail_info.map_offset` now equals those values, and `stage_coordinate` encodes them. Task 7 asserts the round-trip.
-
-- [ ] **Step 1: Add the offset to `WaferGeom` and `_wafer_geometry`**
-
-In `back_dev_home/msr_file/providers/mock.py`, replace the `WaferGeom` class and `_wafer_geometry`:
-
-```python
-class WaferGeom(NamedTuple):
-    cols: int
-    rows: int
-    pitch_x_nm: int
-    pitch_y_nm: int
-    # Die-grid offset (nm). The SINGLE source for both the stage_coordinate this
-    # module generates and the map_offset it reports, so the two can never
-    # disagree — the bug this replaces was a random map_offset that nothing
-    # encoded, which only looked fine because nothing read it.
-    offset_x_nm: int
-    offset_y_nm: int
-
-
-@lru_cache(maxsize=256)
-def _wafer_geometry(msr: str) -> WaferGeom:
-    """Per-MSR die array, pitch and die-grid offset. Pitch = wafer diameter /
-    array count, so the array physically spans the wafer and stage coordinates
-    land inside it. The offset is kept under 0.3·pitch: a real, visible shift
-    that still never pushes a die off the wafer."""
-    rng = random.Random(_seed(msr, 313))
-    cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
-    pitch_x, pitch_y = round(_WAFER_NM / cols), round(_WAFER_NM / rows_n)
-    offset_x = round(rng.uniform(-0.3, 0.3) * pitch_x)
-    offset_y = round(rng.uniform(-0.3, 0.3) * pitch_y)
-    return WaferGeom(cols, rows_n, pitch_x, pitch_y, offset_x, offset_y)
-
-
-def _die_center_nm(col: int, row: int, geom: WaferGeom) -> tuple[float, float]:
-    """Physical centre (nm, corner origin) of die (col, row), on the die grid
-    shifted off the wafer centre by the map_offset this MSR reports."""
-    return (
-        _WAFER_CENTER_NM + geom.offset_x_nm + col * geom.pitch_x_nm,
-        _WAFER_CENTER_NM + geom.offset_y_nm + row * geom.pitch_y_nm,
-    )
-```
-
-- [ ] **Step 2: Emit the same offset from `_exe_detail_info`**
-
-In `_exe_detail_info` (line 344), delete the now-unused `rng` line — after this change `map_offset` was its only consumer (`recipe_name`, `lot_id` and `wafer_id` all come from `parent` or `_seed`):
-
-```python
-    rng = random.Random(_seed(msr, 313))
-```
-
-and replace the `map_offset` field:
-
-```python
-        # map_offset is the die-grid offset actually encoded in stage_coordinate
-        # (see _die_center_nm) — read from the shared geometry so the reported
-        # value and the generated coordinates cannot drift apart.
-        map_offset=f"{geom.offset_x_nm},{geom.offset_y_nm}",
-```
-
-- [ ] **Step 3: Verify the mock still builds a payload**
-
-Run:
-
-```bash
-.venv/bin/python -c "
-from back_dev_home.msr_file.providers import mock
-d = mock.get_msr_file('MSR-CONTRACT-0001', 'ADI', 40)
-e = d['exe_detail_info']
-print('map_offset', e['map_offset'], 'pitch', e['chip_pitch'])
-r = [x for x in d['rows'] if x['cd_value'] is not None][0]
-print('chip_number', r['chip_number'], 'stage', r['stage_coordinate'])
-"
-```
-
-Expected: `map_offset` prints two non-zero integers whose magnitudes are below 0.3 × the corresponding `chip_pitch` component, and a sample row prints a `chip_number` / `stage_coordinate` pair.
+- Consumes: nothing from earlier tasks (backend-only). Mirrors the `snapToDieCell` math from Task 4 in Python — the two languages cannot share code, so the test re-derives the same formula deliberately.
+- Produces: `WaferGeom` gains `offset_x_nm: int`, `offset_y_nm: int`. `exe_detail_info.map_offset` equals those values, and `stage_coordinate` encodes them.
 
 `get_msr_file(msr, class_name=None, total_images=None)` returns an `MsrFileResponse` TypedDict (plain dict access) or `None` when the MSR is unknown.
 
-- [ ] **Step 4: Run the backend suite**
-
-Run: `.venv/bin/python -m pytest back_dev_home/msr_file -q 2>&1 | tail -15`
-Expected: PASS. If a test pins a literal `stage_coordinate` or `map_offset`, update it to derive the value from `mock._wafer_geometry(msr)` rather than hard-coding.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add back_dev_home/msr_file/providers/mock.py
-git commit -m "fix(msr_file/mock): make map_offset coherent with stage_coordinate
-
-map_offset was random noise that _die_center_nm never applied, so the field only
-looked correct because nothing read it. Move the offset into WaferGeom so the
-generated stage_coordinate and the reported map_offset come from one seeded
-source, and the geometry round-trips."
-```
-
----
-
-### Task 7: Pin the mock round-trip and verify visually
-
-**Files:**
-
-- Create: `back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py`
-
-**Interfaces:**
-
-- Consumes: `mock._wafer_geometry`, `mock.get_msr_file` (Task 6); mirrors the `snapToDieCell` math from Task 4.
-- Produces: the Phase-1 proof that `snap(stage_coordinate) == chip_number`.
-
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the round-trip test**
 
 Create `back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py`:
 
@@ -640,10 +536,10 @@ Create `back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py`:
 
 Every measured row's stage_coordinate must snap back to the chip_number the mock
 assigned it, using ONLY the geometry the payload reports (chip_pitch, wafer_size,
-map_offset). This is the mock-side mirror of waferGeometry.snapToDieCell, and it
-is what makes Spec 2's Position pairing key trustworthy offline: if map_offset
-were reported but not encoded (the bug this pins), the snap would land on the
-wrong die for points near a die edge.
+map_offset). This is the mock-side mirror of utils/waferGeometry.ts snapToDieCell
+-- the two languages cannot share code, so the formula is re-derived here on
+purpose. It is what makes Spec 2's Position pairing key trustworthy offline: if
+map_offset is reported but not encoded, the snap lands on the wrong die.
 
 Run from repo root:  .venv/bin/python -m pytest back_dev_home/msr_file
 """
@@ -667,65 +563,194 @@ def test_stage_coordinate_snaps_back_to_chip_number():
     payload = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
     info = payload["exe_detail_info"]
 
-    wafer_nm = float(info["wafer_size"])
-    center_nm = wafer_nm / 2
+    center_nm = float(info["wafer_size"]) / 2
     pitch = tuple(int(v) for v in info["chip_pitch"].split(","))
     offset = tuple(int(v) for v in info["map_offset"].split(","))
 
     measured = [r for r in payload["rows"] if r["cd_value"] is not None]
     assert measured, "fixture must contain measured rows"
 
-    for row in measured:
-        assert _snap(row["stage_coordinate"], center_nm, pitch, offset) == row["chip_number"]
+    mismatched = [
+        (r["chip_number"], _snap(r["stage_coordinate"], center_nm, pitch, offset))
+        for r in measured
+        if _snap(r["stage_coordinate"], center_nm, pitch, offset) != r["chip_number"]
+    ]
+    assert not mismatched, f"{len(mismatched)}/{len(measured)} rows snap to the wrong die: {mismatched[:5]}"
+```
+
+- [ ] **Step 2: Run it and watch it FAIL**
+
+Run: `.venv/bin/python -m pytest back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py -q 2>&1 | tail -12`
+
+Expected: **FAIL** — the reported `map_offset` is random and is not encoded in `stage_coordinate`, so subtracting it pushes points near a die edge into the neighbouring die. The assertion message lists the mismatched `(chip_number, snapped)` pairs.
+
+If it unexpectedly PASSES, stop and report: that would mean the offset is already encoded, and the premise of this task is wrong.
+
+- [ ] **Step 3: Add the offset to `WaferGeom` and `_wafer_geometry`**
+
+In `back_dev_home/msr_file/providers/mock.py`, replace the `WaferGeom` class, `_wafer_geometry` and `_die_center_nm`:
+
+```python
+class WaferGeom(NamedTuple):
+    cols: int
+    rows: int
+    pitch_x_nm: int
+    pitch_y_nm: int
+    # Die-grid offset (nm). The SINGLE source for both the stage_coordinate this
+    # module generates and the map_offset it reports, so the two can never
+    # disagree -- the bug this replaces was a random map_offset that nothing
+    # encoded, which only looked fine because nothing read it.
+    offset_x_nm: int
+    offset_y_nm: int
 
 
+@lru_cache(maxsize=256)
+def _wafer_geometry(msr: str) -> WaferGeom:
+    """Per-MSR die array, pitch and die-grid offset. Pitch = wafer diameter /
+    array count, so the array physically spans the wafer and stage coordinates
+    land inside it. The offset is kept under 0.3*pitch: a real, visible shift
+    that still never pushes a die off the wafer."""
+    rng = random.Random(_seed(msr, 313))
+    cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
+    pitch_x, pitch_y = round(_WAFER_NM / cols), round(_WAFER_NM / rows_n)
+    offset_x = round(rng.uniform(-0.3, 0.3) * pitch_x)
+    offset_y = round(rng.uniform(-0.3, 0.3) * pitch_y)
+    return WaferGeom(cols, rows_n, pitch_x, pitch_y, offset_x, offset_y)
+
+
+def _die_center_nm(col: int, row: int, geom: WaferGeom) -> tuple[float, float]:
+    """Physical centre (nm, corner origin) of die (col, row), on the die grid
+    shifted off the wafer centre by the map_offset this MSR reports."""
+    return (
+        _WAFER_CENTER_NM + geom.offset_x_nm + col * geom.pitch_x_nm,
+        _WAFER_CENTER_NM + geom.offset_y_nm + row * geom.pitch_y_nm,
+    )
+```
+
+The `cols`/`rows_n` draws stay first, so existing seeded array/pitch values are unchanged — only the two new draws are added.
+
+- [ ] **Step 4: Emit the same offset from `_exe_detail_info`**
+
+In `_exe_detail_info` (line 344), delete the now-unused `rng` line — after this change `map_offset` was its only consumer (`recipe_name`, `lot_id` and `wafer_id` all come from `parent` or `_seed`):
+
+```python
+    rng = random.Random(_seed(msr, 313))
+```
+
+and replace the `map_offset` field:
+
+```python
+        # map_offset is the die-grid offset actually encoded in stage_coordinate
+        # (see _die_center_nm) -- read from the shared geometry so the reported
+        # value and the generated coordinates cannot drift apart.
+        map_offset=f"{geom.offset_x_nm},{geom.offset_y_nm}",
+```
+
+- [ ] **Step 5: Run the round-trip test and watch it PASS**
+
+Run: `.venv/bin/python -m pytest back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py -q 2>&1 | tail -8`
+Expected: PASS.
+
+- [ ] **Step 6: Add the offset-identity regression test**
+
+Now that `WaferGeom` carries the offset, append to `back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py`:
+
+```python
 def test_map_offset_is_the_offset_actually_encoded():
-    """The reported map_offset must equal the shared geometry's offset — the
+    """The reported map_offset must equal the shared geometry's offset -- the
     regression guard against reintroducing a decorative random value."""
     payload = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
     geom = mock._wafer_geometry(_MSR)
     assert payload["exe_detail_info"]["map_offset"] == f"{geom.offset_x_nm},{geom.offset_y_nm}"
 ```
 
-- [ ] **Step 2: Run it against the pre-Task-6 behaviour to confirm it would have caught the bug**
+- [ ] **Step 7: Run the full backend suite**
 
-Run:
+Run: `.venv/bin/python -m pytest back_dev_home/msr_file -q 2>&1 | tail -15`
+Expected: PASS. If a test pins a literal `stage_coordinate` or `map_offset`, update it to derive the value from `mock._wafer_geometry(msr)` rather than hard-coding.
+
+Also sanity-check the emitted values:
 
 ```bash
-git stash push back_dev_home/msr_file/providers/mock.py 2>/dev/null || true
-.venv/bin/python -m pytest back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py -q 2>&1 | tail -8
-git stash pop 2>/dev/null || true
+.venv/bin/python -c "
+from back_dev_home.msr_file.providers import mock
+e = mock.get_msr_file('MSR-CONTRACT-0001', 'ADI', 40)['exe_detail_info']
+print('map_offset', e['map_offset'], 'pitch', e['chip_pitch'])
+"
 ```
 
-Expected: FAIL while the old mock is restored (the reported offset is not encoded, so `_snap` lands on the wrong die for points near a die edge, and the second test fails outright). If the stash is empty because Task 6 is already committed, skip this step — it is a confidence check, not a gate.
+Expected: two non-zero integers whose magnitudes are below 0.3 x the corresponding `chip_pitch` component.
 
-- [ ] **Step 3: Run the test against the fixed mock**
+- [ ] **Step 8: Commit**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_file -q 2>&1 | tail -10`
-Expected: PASS — all msr_file tests including both new ones.
+```bash
+git add back_dev_home/msr_file/providers/mock.py back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py
+git commit -m "fix(msr_file/mock): make map_offset coherent with stage_coordinate
 
-- [ ] **Step 4: Verify the sign convention visually**
+map_offset was random noise that _die_center_nm never applied, so the field only
+looked correct because nothing read it. Move the offset into WaferGeom so the
+generated stage_coordinate and the reported map_offset come from one seeded
+source, and pin the stage_coordinate -> chip_number round-trip that proves it."
+```
 
-The spec requires the offset's sign/axis convention be confirmed against the rendered map, not derived on paper.
+---
 
-Start the app (see the `verify` skill for the project recipe — Flask mock on `:5050`, Nuxt with `NUXT_API_TARGET=http://localhost:5050`), open a Skewvoir measurement, and on the wafer map turn the **die grid** on.
+### Task 7: Verify the sign convention on screen
 
-Confirm: **every measured point sits inside a die cell**, not straddling a boundary line, and the grid as a whole is visibly shifted off-centre by a fraction of a die.
+The spec requires the offset's sign/axis convention be confirmed against the rendered wafer map, not derived on paper. This task has no code of its own — it either confirms Tasks 1-6 or sends back a one-line sign flip.
 
-If points straddle boundaries, the sign is inverted — flip it in ONE place, `parseWaferGeometry` (negate `offsetXmm`/`offsetYmm`), re-run `npm --prefix front-dev-home test` and the pytest round-trip, and re-check. Do not patch the sign in individual consumers.
+**Files:**
+
+- Modify (only if the check fails): `front-dev-home/app/utils/waferGeometry.ts` (`parseWaferGeometry`)
+
+**Interfaces:**
+
+- Consumes: everything from Tasks 1-6.
+- Produces: a confirmed sign convention, plus a screenshot.
+
+- [ ] **Step 1: Launch the app**
+
+Start the Flask mock and Nuxt per the project recipe (see the `verify` skill): Flask on `http://localhost:5050`, Nuxt with `NUXT_API_TARGET=http://localhost:5050`.
+
+- [ ] **Step 2: Inspect the wafer map with the die grid on**
+
+Open a Skewvoir measurement, show the wafer map, and enable the **die grid** toggle.
+
+Confirm both:
+
+1. **Every measured point sits inside a die cell** — no point straddles a boundary line.
+2. The grid is visibly shifted off-centre by a fraction of a die (the offset is under 0.3·pitch, so it is a partial-cell shift, not a whole-cell one).
+
+- [ ] **Step 3: If points straddle boundaries, flip the sign in ONE place**
+
+Negate `offsetXmm` / `offsetYmm` in `parseWaferGeometry` only — never patch individual consumers:
+
+```ts
+    offsetXmm: -offXnm / NM_PER_MM,
+    offsetYmm: -offYnm / NM_PER_MM,
+```
+
+Then re-run BOTH suites and re-check the screen:
+
+```bash
+npm --prefix front-dev-home test 2>&1 | tail -8
+.venv/bin/python -m pytest back_dev_home/msr_file -q 2>&1 | tail -8
+```
+
+Note: the mock round-trip test passes under either sign (the mock and the parser agree either way), so the screen is the only arbiter here. That is exactly why this task exists.
+
+- [ ] **Step 4: Capture the evidence**
 
 Screenshot to `.playwright-mcp/screenshots/wafer-die-grid-map-offset.png`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Commit (only if the sign was flipped)**
 
 ```bash
-git add back_dev_home/msr_file/tests/test_wafer_geometry_roundtrip.py
-git commit -m "test(msr_file): pin the stage_coordinate → chip_number round-trip
-
-Proves the mock's reported map_offset is the one actually encoded in
-stage_coordinate, which is what makes Spec 2's Position pairing key trustworthy
-in Phase 1."
+git add front-dev-home/app/utils/waferGeometry.ts
+git commit -m "fix(wafer-geometry): correct the map_offset sign against the rendered map"
 ```
+
+If no flip was needed, there is nothing to commit — report the confirmation and the screenshot path.
 
 ---
 
