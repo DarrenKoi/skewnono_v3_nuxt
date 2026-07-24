@@ -105,3 +105,20 @@ export const siteRadiusMm = (stage: string, geo: WaferGeometry): number | null =
 // never guess die 0.
 export const mmToDieIndex = (mm: number, pitchMm: number, offsetMm = 0): number | null =>
   pitchMm > 0 ? Math.round((mm - offsetMm) / pitchMm) : null
+
+// The die cell "(col,row)" a physical stage_coordinate falls in — the inverse of
+// dieCenterMm. A measured point sits inside its die (offset < 0.5·pitch), so
+// rounding recovers the die exactly. Format matches chip_number so the two are
+// directly comparable.
+//
+// Returns null when the pitch is unknown or the coordinate is unparseable. The
+// caller MUST treat null as "cannot place this point" — never as die (0,0),
+// which would silently pile unplaceable points onto the wafer centre.
+export const snapToDieCell = (stage: string, geo: WaferGeometry): string | null => {
+  if (!(geo.pitchXmm > 0) || !(geo.pitchYmm > 0)) return null
+  const pos = stagePosMm(stage, geo)
+  if (!pos) return null
+  const col = Math.round((pos[0] - geo.offsetXmm) / geo.pitchXmm)
+  const row = Math.round((pos[1] - geo.offsetYmm) / geo.pitchYmm)
+  return `${col},${row}`
+}

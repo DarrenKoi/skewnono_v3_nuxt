@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseWaferGeometry, stagePosMm, dieCenterMm, siteRadiusMm, mmToDieIndex } from './waferGeometry.ts'
+import { parseWaferGeometry, stagePosMm, dieCenterMm, siteRadiusMm, mmToDieIndex, snapToDieCell } from './waferGeometry.ts'
 import type { ExeDetailInfo } from '~/composables/useMsrFileApi'
 
 // Office-confirmed formats (2026-07-24): all strings, wafer_size in nm,
@@ -122,4 +122,39 @@ test('mmToDieIndex accounts for the die-grid offset', () => {
 
 test('mmToDieIndex offset defaults to zero for existing callers', () => {
   assert.equal(mmToDieIndex(6.9, 6.818182), 1)
+})
+
+// A stage_coordinate string (corner-origin nm) for a point at (xMm, yMm) from
+// the wafer centre — the inverse of stagePosMm, used to build round-trip cases.
+const stageAt = (xMm: number, yMm: number, g: ReturnType<typeof parseWaferGeometry>): string =>
+  `${xMm * 1_000_000 + g.centerNm},${yMm * 1_000_000 + g.centerNm}`
+
+test('snapToDieCell round-trips a die centre plus sub-half-pitch jitter', () => {
+  const g = parseWaferGeometry(info({ map_offset: '0,4610000' }))
+  const [cx, cy] = dieCenterMm(3, -4, g)
+  // Measured points sit within their die: the mock jitters up to 0.3·pitch.
+  assert.equal(snapToDieCell(stageAt(cx + 0.3 * g.pitchXmm, cy - 0.3 * g.pitchYmm, g), g), '3,-4')
+  assert.equal(snapToDieCell(stageAt(cx, cy, g), g), '3,-4')
+})
+
+test('snapToDieCell ignoring the offset would land on the wrong die', () => {
+  // Guard the offset actually participates: a die centre one full pitch of
+  // offset away must not snap to the unshifted cell.
+  const g = parseWaferGeometry(info({ map_offset: '0,5769231' })) // = 1·pitchY
+  const [cx, cy] = dieCenterMm(0, 0, g)
+  assert.equal(snapToDieCell(stageAt(cx, cy, g), g), '0,0')
+})
+
+test('snapToDieCell applies the offset per axis (X and Y are not transposed or dropped)', () => {
+  // Both axes non-zero and distinct, so a sign/axis error on either one is
+  // caught here even if a same-named test elsewhere happens to zero one out.
+  const g = parseWaferGeometry(info({ map_offset: '3000000,4610000' }))
+  const [cx, cy] = dieCenterMm(2, -3, g)
+  assert.equal(snapToDieCell(stageAt(cx, cy, g), g), '2,-3')
+})
+
+test('snapToDieCell returns null without a pitch or on a bad coordinate', () => {
+  assert.equal(snapToDieCell('160000000,170000000', parseWaferGeometry(info({ chip_pitch: '' }))), null)
+  assert.equal(snapToDieCell('nope', parseWaferGeometry(info())), null)
+  assert.equal(snapToDieCell('1,2,3', parseWaferGeometry(info())), null)
 })
