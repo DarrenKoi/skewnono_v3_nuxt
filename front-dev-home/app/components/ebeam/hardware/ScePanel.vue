@@ -102,6 +102,7 @@
             <div class="mb-1 flex items-center justify-between gap-2 px-1">
               <div class="sk-title">
                 Coefficients 변화 (0–359) · 수집일별
+                <span class="font-normal text-(--sk-ink-muted)">— 클릭하면 해당 index 추세로</span>
               </div>
               <span class="font-mono text-[11px] text-(--sk-ink-muted)">
                 {{ docs.length }}회 · 진할수록 최신
@@ -481,8 +482,12 @@ const evolutionOption = computed<EChartsOption>(() => {
     })
   }
 })
-// No click-to-pick here: useEchart only forwards clicks that land on a series
-// element, and these curves draw with showSymbol:false, so a grid click never
-// fires. The index slider above is the reliable selector.
-useEchart(evolutionEl, evolutionOption)
+// Clicking anywhere in either panel picks that index for the trend above. It
+// has to be onGridClick rather than onClick: these curves draw with
+// showSymbol:false, so there is no series element to hit. The x-axis is a
+// category axis of 0..359, so the converted value IS the index (setCoeffIndex
+// rounds and clamps it).
+useEchart(evolutionEl, evolutionOption, {
+  onGridClick: x => setCoeffIndex(x)
+})
 </script>

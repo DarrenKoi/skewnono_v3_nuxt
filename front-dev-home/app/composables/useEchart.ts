@@ -10,6 +10,14 @@ interface UseEchartOptions {
   // x-axis category for category-bucketed series — for our charts that's
   // the lot_cd, since xAxis.data is built from lot labels.
   onClick?: (name: string) => void
+  // Fired when the user clicks anywhere inside a plot area — including empty
+  // space no series covers. `onClick` only fires on a hit against a series
+  // element, so it never fires for curves drawn with `showSymbol: false`
+  // (nothing to hit) — use this instead for "pick the x position I clicked".
+  // Receives the x-axis value under the cursor: a fractional category position
+  // for a category axis (round it to get the index), the data value for a
+  // value/time axis. Both callbacks fire if both are supplied.
+  onGridClick?: (xValue: number) => void
   // Preferred base name for the downloaded PNG (before the date stamp). Falls
   // back to the chart's title text, then 'chart'.
   exportName?: string
@@ -75,6 +83,29 @@ export const useEchart = (
     })
   }
 
+  // Series clicks come from ECharts' own dispatcher, which requires a hit on a
+  // rendered element. Grid clicks have to come from the underlying ZRender
+  // canvas instead, then be converted from pixels back to axis space.
+  const bindGridClick = () => {
+    const callback = options.onGridClick
+    if (!chart || !callback) return
+    chart.getZr().on('click', (event) => {
+      if (!chart) return
+      const point: [number, number] = [event.offsetX, event.offsetY]
+      // A chart may stack several grids (e.g. one panel per value type), so
+      // find the one the click landed in and convert against its axes.
+      const grids = (chart.getOption() as { grid?: unknown[] }).grid
+      const gridCount = Array.isArray(grids) ? Math.max(grids.length, 1) : 1
+      for (let gridIndex = 0; gridIndex < gridCount; gridIndex++) {
+        if (!chart.containPixel({ gridIndex }, point)) continue
+        const converted = chart.convertFromPixel({ gridIndex }, point)
+        const xValue = Array.isArray(converted) ? Number(converted[0]) : NaN
+        if (Number.isFinite(xValue)) callback(xValue)
+        return
+      }
+    })
+  }
+
   const downloadChartImage = () => {
     if (!chart) return
     const url = chart.getDataURL({
@@ -120,6 +151,7 @@ export const useEchart = (
     chart = echarts.init(elRef.value, resolvedThemeName.value)
     chart.setOption(optionRef.value)
     bindClick()
+    bindGridClick()
     mountDownloadButton()
     if (!resizeHandler) {
       resizeHandler = () => chart?.resize()
