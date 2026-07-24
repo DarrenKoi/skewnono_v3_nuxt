@@ -10,7 +10,7 @@ dict of dict 형태
 
 {eqp_id: 
     {
-        'FileInfo': {...},
+        'FileInfo': {"SharpCharFile": "/HITACHI/...", "BaseSharpCharFile":"/HITACHI/..."},
         'SemCond': {
             'SemCond_No': '6',
             'SemCond_Optics' : 'High Reso.',
