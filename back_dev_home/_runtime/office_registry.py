@@ -83,6 +83,16 @@ def office_ready() -> dict[str, Path]:
     return _scan()[1]
 
 
+def backend_root() -> Path:
+    """The back_dev_home package directory this process is scanning.
+
+    Read through a function, not imported as a constant: tests monkeypatch
+    ``_ROOT`` to a fake tree, and a second module holding its own copy would
+    keep scanning the real one. ``office_template`` is that second module.
+    """
+    return _ROOT
+
+
 def repo_path(feature_dir: Path) -> str:
     """Repo-relative POSIX path, for error messages a human can paste."""
     return feature_dir.relative_to(_ROOT.parent).as_posix()

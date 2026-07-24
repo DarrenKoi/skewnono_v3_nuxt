@@ -55,6 +55,59 @@ def test_table_counts_only_the_features_actually_on_office(
     assert "2/4 features on office" in captured[0]
 
 
+def test_stale_office_copy_is_named_at_boot(monkeypatch, wired, captured):
+    """The gap the provider table cannot see.
+
+    office.py is gitignored, so `git pull` moves office_example.py forward and
+    leaves the running copy behind — the feature still resolves to "office"
+    and still answers 200 while executing last week's adapter. Boot has to say
+    so, because nothing else will.
+    """
+    monkeypatch.setenv("SKEWNONO_SITE", "office")
+    monkeypatch.setattr(
+        boot, "stale_adapters",
+        lambda: [(_FakeAdapter("sem_list"), "copy of abc1234 (2026-07-21)")],
+    )
+    boot.log_provider_table()
+    text = "\n".join(captured)
+
+    assert "STALE office.py: sem_list" in text
+    assert "copy of abc1234 (2026-07-21)" in text
+    assert "sync_office_adapters sem_list" in text
+
+
+def test_home_instance_does_not_run_the_stale_check(monkeypatch, wired, captured):
+    """No feature serves office data at home, so an old copy changes nothing —
+    and the check costs git subprocesses to say so."""
+    monkeypatch.setenv("SKEWNONO_SITE", "home")
+    called = []
+    monkeypatch.setattr(
+        boot, "stale_adapters", lambda: called.append(1) or [],
+    )
+    boot.log_provider_table()
+
+    assert called == []
+    assert "STALE" not in "\n".join(captured)
+
+
+def test_a_broken_stale_check_never_stops_boot(monkeypatch, wired, captured):
+    monkeypatch.setenv("SKEWNONO_SITE", "office")
+
+    def explode():
+        raise RuntimeError("git went missing")
+
+    monkeypatch.setattr(boot, "stale_adapters", explode)
+    boot.log_provider_table()  # must not raise
+
+    assert "features on office" in captured[0]
+
+
+class _FakeAdapter:
+    def __init__(self, slug: str) -> None:
+        self.slug = slug
+        self.name = slug.rsplit("/", 1)[-1]
+
+
 def test_install_is_idempotent_and_configures_the_logger():
     """The logger must carry its own handler and level like skewnono.activity —
     app.logger defaults to WARNING, which would make the table invisible in

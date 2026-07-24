@@ -49,29 +49,22 @@ from __future__ import annotations
 
 import argparse
 import ast
-import filecmp
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from back_dev_home._runtime import office_template
+from back_dev_home._runtime.office_template import EDITED, MISSING, STALE, SYNCED
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 
-MISSING = "MISSING"
-SYNCED = "SYNCED"
-STALE = "STALE"
-EDITED = "EDITED"
-
 # Statuses a copy may overwrite freely: either there is nothing there, or
 # what is there is provably recoverable from git history.
 SAFE_TO_WRITE = (MISSING, STALE)
-
-# How far back to look for a matching historical template. Deep enough to
-# cover a long-neglected copy, shallow enough to stay fast.
-_HISTORY_DEPTH = 40
 
 
 @dataclass(frozen=True)
@@ -114,51 +107,12 @@ def classify(adapter: Adapter) -> tuple[str, str]:
 
 
 def _classify(adapter: Adapter) -> tuple[str, str]:
-    if not adapter.target.exists():
-        return MISSING, ""
-    # shallow=False: compare contents, not just size+mtime. A copied file
-    # keeps its own mtime, so a shallow compare would report false drift.
-    if filecmp.cmp(adapter.template, adapter.target, shallow=False):
-        return SYNCED, ""
-    # It differs -- but "differs" alone can't tell an out-of-date copy from a
-    # deliberate local edit, and the two want opposite handling. If these
-    # exact bytes were ever a committed template, it is just an old copy.
-    origin = _committed_template_origin(adapter)
-    if origin:
-        return STALE, f"copy of {origin}"
-    return EDITED, ""
-
-
-def _committed_template_origin(adapter: Adapter) -> str | None:
-    """Find the commit whose office_example.py matches this office.py.
-
-    Returns "<short-sha> (<date>)" when office.py is byte-identical to some
-    historical version of its template, else None.
-    """
-    try:
-        current = adapter.target.read_bytes()
-    except OSError:
-        return None
-
-    relative = adapter.template.relative_to(REPO_ROOT).as_posix()
-    log = subprocess.run(
-        ["git", "log", f"-{_HISTORY_DEPTH}", "--format=%h %ad", "--date=short",
-         "--", relative],
-        cwd=REPO_ROOT, capture_output=True, text=True,
-    )
-    if log.returncode != 0:
-        return None
-
-    for line in log.stdout.splitlines():
-        sha, _, date = line.partition(" ")
-        if not sha:
-            continue
-        blob = subprocess.run(
-            ["git", "show", f"{sha}:{relative}"], cwd=REPO_ROOT, capture_output=True,
-        )
-        if blob.returncode == 0 and blob.stdout == current:
-            return f"{sha} ({date.strip()})"
-    return None
+    # The classification itself lives in back_dev_home/_runtime/office_template.py
+    # so the app can warn about its own stale copies at boot without depending
+    # on scripts/ (which a cloud deploy need not ship). This module keeps only
+    # the CLI around it. office_template.classify() reads .template/.target,
+    # which this Adapter carries under the same names.
+    return office_template.classify(adapter, repo_root=REPO_ROOT)
 
 
 def discover() -> list[Adapter]:
