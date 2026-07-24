@@ -99,16 +99,88 @@
           </div>
 
           <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-            <div class="mb-1 flex items-center justify-between gap-2 px-1">
+            <div class="mb-1 flex flex-wrap items-center justify-between gap-2 px-1">
               <div class="sk-title">
                 Coefficients 변화 (0–359) · 수집일별
                 <span class="font-normal text-(--sk-ink-muted)">— 클릭하면 해당 index 추세로</span>
               </div>
-              <span class="font-mono text-[11px] text-(--sk-ink-muted)">
-                {{ docs.length }}회 · 진할수록 최신
-              </span>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <USelectMenu
+                  v-model="selectedDates"
+                  v-model:open="dateMenuOpen"
+                  multiple
+                  value-key="value"
+                  :items="dateItems"
+                  :search-input="{ placeholder: '수집일 검색…' }"
+                  placeholder="수집일 선택"
+                  icon="i-lucide-calendar-days"
+                  size="xs"
+                  class="min-w-[13rem]"
+                  :ui="{ itemTrailingIcon: 'hidden' }"
+                >
+                  <template #default>
+                    <span class="truncate">
+                      {{ selectedDates.length > 0 ? `수집일 ${selectedDates.length}/${evolutionDates.length}회` : '수집일 선택' }}
+                    </span>
+                  </template>
+                  <template #item-leading="{ item }">
+                    <span
+                      class="flex h-4 w-4 items-center justify-center rounded border"
+                      :class="selectedDates.includes(item.value)
+                        ? 'border-(--sk-ink) bg-(--sk-ink) text-white dark:text-zinc-900'
+                        : 'border-(--sk-border)'"
+                    >
+                      <UIcon
+                        v-if="selectedDates.includes(item.value)"
+                        name="i-lucide-check"
+                        class="h-3 w-3"
+                      />
+                    </span>
+                  </template>
+                  <!-- Same explicit close affordance as the 비교 장비 picker
+                       (click-outside / Esc also close the menu). -->
+                  <template #content-bottom>
+                    <div class="border-t border-(--sk-border-soft) p-1">
+                      <UButton
+                        block
+                        size="xs"
+                        color="neutral"
+                        variant="soft"
+                        icon="i-lucide-check"
+                        @click="dateMenuOpen = false"
+                      >
+                        닫기
+                      </UButton>
+                    </div>
+                  </template>
+                </USelectMenu>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="selectedDates = sceLatestDates(evolutionDates, DEFAULT_EVOLUTION_DATES)"
+                >
+                  최근 {{ DEFAULT_EVOLUTION_DATES }}회
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :disabled="selectedDates.length === evolutionDates.length"
+                  @click="selectedDates = [...evolutionDates]"
+                >
+                  전체
+                </UButton>
+              </div>
             </div>
             <div
+              v-if="selectedDates.length === 0"
+              class="flex h-96 w-full items-center justify-center text-center sk-body"
+            >
+              비교할 수집일을 선택하세요.
+            </div>
+            <div
+              v-else
               ref="evolutionEl"
               class="h-96 w-full"
             />
@@ -216,8 +288,8 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
-import { sceCoeffIndexSeries, sceParamLabel, sceParamSeries, sceTrendKeys, type SceTrendKey } from '~/utils/sceHistory'
-import { assignCompareColors } from '~/utils/hardwareCompare'
+import { sceCoeffIndexSeries, sceDocDates, sceLatestDates, sceParamLabel, sceParamSeries, sceTrendKeys, type SceTrendKey } from '~/utils/sceHistory'
+import { assignCompareColors, assignSeriesColors } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
@@ -444,18 +516,51 @@ const coeffTrendOption = computed<EChartsOption>(() => {
 useEchart(coeffTrendEl, coeffTrendOption)
 
 // --- 시계열: coefficient-curve evolution ---
-// One curve per collection date in the same v0/v1 stacked grids as the
-// compare view, opacity ramping oldest → newest so drift reads as a fade
-// toward the solid latest curve. No legend — the date rides in the tooltip.
+// One curve per PICKED collection date, in the same v0/v1 stacked grids as the
+// compare view. The archive is bidaily, so drawing the whole window at once was
+// a thicket: a same-hue opacity ramp says "older", never "which one". Picking a
+// few dates and giving each its own color + legend entry makes every curve
+// identifiable; the default is the newest few.
+const DEFAULT_EVOLUTION_DATES = 3
+const evolutionDates = computed(() => sceDocDates(docs.value))
+// Newest first in the menu — recent dates are what a reader reaches for, and
+// this list runs long enough that scrolling to the bottom is a real cost.
+const dateItems = computed(() =>
+  [...evolutionDates.value].reverse().map(d => ({ label: d, value: d }))
+)
+const selectedDates = ref<string[]>([])
+// Controlled open state so the 닫기 button can close the menu; Esc and
+// outside-click still work because Reka emits update:open through this binding.
+const dateMenuOpen = ref(false)
+watch(evolutionDates, (dates) => {
+  // Keep whatever the reader picked that still exists in the new window, and
+  // re-seed to the newest few only when nothing carried over (first load, or a
+  // tool/range switch that replaced the window wholesale).
+  const kept = selectedDates.value.filter(d => dates.includes(d))
+  selectedDates.value = kept.length > 0 ? kept : sceLatestDates(dates, DEFAULT_EVOLUTION_DATES)
+}, { immediate: true })
+
+// Filter the docs rather than the dates: draw order stays ascending no matter
+// what order the boxes were ticked in, so the newest curve is always drawn
+// last — i.e. on top.
+const evolutionDocs = computed(() => {
+  const picked = new Set(selectedDates.value)
+  return docs.value.filter(d => typeof d.date === 'string' && picked.has(d.date))
+})
+// Newest gets palette[0] — it is the curve the others are read against, so it
+// wears the primary accent, the same color the selected tool has in 비교.
+const evolutionColors = computed(() =>
+  assignSeriesColors(evolutionDocs.value.map(d => String(d.date)).reverse(), palette.value)
+)
+
 const evolutionEl = ref<HTMLDivElement | null>(null)
 const evolutionOption = computed<EChartsOption>(() => {
-  const n = docs.value.length
-  const fade = (i: number) => (n <= 1 ? 1 : 0.15 + 0.85 * (i / (n - 1)))
-  const line = (name: string, data: number[], opacity: number, gridIndex: number) => ({
+  const picked = evolutionDocs.value
+  const line = (name: string, data: number[], color: string, latest: boolean, gridIndex: number) => ({
     name, type: 'line' as const, showSymbol: false, smooth: false,
     xAxisIndex: gridIndex, yAxisIndex: gridIndex,
-    lineStyle: { color: c0.value, width: 1.2, opacity },
-    itemStyle: { color: c0.value, opacity }, data
+    lineStyle: { color, width: latest ? 1.8 : 1.2 },
+    itemStyle: { color }, data
   })
   const catAxis = (gridIndex: number, showLabels: boolean) => ({
     type: 'category' as const, gridIndex, data: indices,
@@ -473,12 +578,17 @@ const evolutionOption = computed<EChartsOption>(() => {
     ],
     tooltip: { trigger: 'axis' },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
+    // Both panels' series share one name per date, so each date is a single
+    // legend entry that toggles its v0 and v1 curves together.
+    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
     xAxis: [catAxis(0, false), catAxis(1, true)],
     yAxis: [valAxis(0, 'values[0]'), valAxis(1, 'values[1]')],
-    series: docs.value.flatMap((doc, i) => {
+    series: picked.flatMap((doc, i) => {
       const pair = coefficientSeries(doc)
-      const name = typeof doc.date === 'string' ? doc.date : `#${i}`
-      return [line(name, pair.v0, fade(i), 0), line(name, pair.v1, fade(i), 1)]
+      const name = String(doc.date)
+      const color = evolutionColors.value[name] ?? c0.value
+      const latest = i === picked.length - 1
+      return [line(name, pair.v0, color, latest, 0), line(name, pair.v1, color, latest, 1)]
     })
   }
 })

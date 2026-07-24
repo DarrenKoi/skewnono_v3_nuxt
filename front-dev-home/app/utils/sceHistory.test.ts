@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sceCoeffIndexSeries, sceParamLabel, sceParamSeries, sceTrendKeys } from './sceHistory.ts'
+import { sceCoeffIndexSeries, sceDocDates, sceLatestDates, sceParamLabel, sceParamSeries, sceTrendKeys } from './sceHistory.ts'
 
 const docs = [
   {
@@ -72,6 +72,20 @@ test('sceParamSeries: list-valued ImgCond fields use the first element', () => {
     { ts: '2026-07-17', key: '2026-07-17', value: -2 },
     { ts: '2026-07-22', key: '2026-07-22', value: -2 }
   ])
+})
+
+test('sceDocDates: collection dates in doc order, dateless docs dropped', () => {
+  assert.deepEqual(sceDocDates(docs), ['2026-07-17', '2026-07-22', '2026-07-24', '2026-07-26'])
+  assert.deepEqual(sceDocDates([]), [])
+})
+
+test('sceLatestDates: the newest N, still ascending', () => {
+  const dates = ['2026-07-17', '2026-07-22', '2026-07-24', '2026-07-26']
+  assert.deepEqual(sceLatestDates(dates, 3), ['2026-07-22', '2026-07-24', '2026-07-26'])
+  // Asking for more than exist yields everything, not padding.
+  assert.deepEqual(sceLatestDates(dates, 9), dates)
+  assert.deepEqual(sceLatestDates(dates, 0), [])
+  assert.deepEqual(sceLatestDates([], 3), [])
 })
 
 test('sceCoeffIndexSeries: values[0]/values[1] at one index across dates', () => {

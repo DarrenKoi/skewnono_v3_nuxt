@@ -74,6 +74,19 @@ export const sceParamSeries = (
   return out
 }
 
+// Collection dates present in the window, in doc order (asc). Docs without a
+// usable `date` are dropped — a snapshot with no date can neither be labelled
+// nor picked, so it must not occupy a slot in the date picker.
+export const sceDocDates = (docs: Record<string, unknown>[]): string[] =>
+  docs.map(d => (typeof d.date === 'string' ? d.date : '')).filter(Boolean)
+
+// The `count` most recent dates, still in ascending order. Used as the default
+// selection for the evolution overlay: the whole bidaily window drawn at once
+// is an unreadable thicket, so it opens on the newest few and the user widens
+// from there.
+export const sceLatestDates = (dates: string[], count: number): string[] =>
+  count <= 0 ? [] : dates.slice(Math.max(0, dates.length - count))
+
 // values[0] / values[1] at a single Coefficients index across the window —
 // "how did this one point of the curve move?". Reads only the target entry, so
 // no 360-array is built per doc.

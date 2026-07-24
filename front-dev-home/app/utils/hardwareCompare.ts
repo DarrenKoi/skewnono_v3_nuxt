@@ -10,19 +10,30 @@ const FALLBACK_COMPARE_COLORS = [
   '#6D6875', '#0F766E', '#9A6D3F', '#5B6C8F'
 ]
 
+const cycle = (keys: readonly string[], ramp: readonly string[]): Record<string, string> => {
+  const out: Record<string, string> = {}
+  keys.forEach((key, i) => {
+    out[key] = ramp[i % ramp.length]!
+  })
+  return out
+}
+
 // palette[0] is reserved for the selected (primary) tool everywhere, so picked
 // tools cycle palette[1..]; if the theme has < 2 entries, fall back to the ramp.
 export const assignCompareColors = (
   ids: readonly string[],
   palette: readonly string[]
-): Record<string, string> => {
-  const ramp = palette.length > 1 ? palette.slice(1) : FALLBACK_COMPARE_COLORS
-  const out: Record<string, string> = {}
-  ids.forEach((id, i) => {
-    out[id] = ramp[i % ramp.length]!
-  })
-  return out
-}
+): Record<string, string> =>
+  cycle(ids, palette.length > 1 ? palette.slice(1) : FALLBACK_COMPARE_COLORS)
+
+// Same deterministic cycling, but starting at palette[0]. For series whose
+// identity is NOT a tool — SCE collection dates, say — nothing is competing for
+// palette[0], so withholding it would only cost a distinct hue.
+export const assignSeriesColors = (
+  keys: readonly string[],
+  palette: readonly string[]
+): Record<string, string> =>
+  cycle(keys, palette.length > 0 ? palette : FALLBACK_COMPARE_COLORS)
 
 const toNum = (v: unknown): number | null => {
   const n = typeof v === 'number' ? v : Number(v)

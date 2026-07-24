@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assignCompareColors, compareBoxPoints } from './hardwareCompare.ts'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints } from './hardwareCompare.ts'
 
 test('assignCompareColors: reserves palette[0], cycles palette[1..]', () => {
   const palette = ['#sel', '#a', '#b']
@@ -19,6 +19,16 @@ test('assignCompareColors: falls back to ramp when palette has < 2 entries', () 
 
 test('assignCompareColors: empty ids → empty map', () => {
   assert.deepEqual(assignCompareColors([], ['#a', '#b']), {})
+})
+
+test('assignSeriesColors: cycles from palette[0] — nothing reserved', () => {
+  const colors = assignSeriesColors(['2026-07-26', '2026-07-24', '2026-07-22'], ['#a', '#b'])
+  assert.equal(colors['2026-07-26'], '#a')
+  assert.equal(colors['2026-07-24'], '#b')
+  assert.equal(colors['2026-07-22'], '#a')
+  // No palette at all still yields a usable color per key.
+  assert.ok(assignSeriesColors(['x'], [])['x'])
+  assert.deepEqual(assignSeriesColors([], ['#a']), {})
 })
 
 test('compareBoxPoints: aligns values to the condition axis, omits missing modes', () => {
