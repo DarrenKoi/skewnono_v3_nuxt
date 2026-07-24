@@ -37,6 +37,7 @@
             :color-max="effectiveRange.colorMax"
             :focused-sequence="focusedSequence"
             :outlier-seqs="outlierSeqs"
+            :selected-seqs="selectedSeqs"
             @focus="$emit('focus', $event)"
             @rangechange="autoRange = $event"
           />
@@ -64,6 +65,7 @@ defineProps<{
   geo: WaferGeometry
   focusedSequence: number | null
   outlierSeqs: number[]
+  selectedSeqs?: number[]
 }>()
 defineEmits<{ focus: [sequence: number] }>()
 

@@ -23,6 +23,8 @@ const props = withDefaults(defineProps<{
   geo: WaferGeometry
   focusedSequence: number | null
   outlierSeqs: number[]
+  /** Sequences the user multi-selected in the points table (highlight halo). */
+  selectedSeqs?: number[]
   /** 'Field' = a dot per measured point (site); 'Die' = filled die tiles. */
   mode?: 'Field' | 'Die'
   options?: WaferMapOptions
@@ -30,6 +32,7 @@ const props = withDefaults(defineProps<{
   colorMin?: number | null
   colorMax?: number | null
 }>(), {
+  selectedSeqs: () => [],
   mode: 'Field',
   options: () => defaultWaferMapOptions(),
   colorMin: null,
@@ -72,6 +75,14 @@ const outlierPoints = computed(() => {
   const flagged = new Set(props.outlierSeqs)
   return activePoints.value
     .filter(p => p.seqs.some(s => flagged.has(s)))
+    .map(p => ({ name: String(p.seq), value: [p.x, p.y] }))
+})
+
+// Halo on any active point whose sequence is in the multi-selection set.
+const selectedPoints = computed(() => {
+  const picked = new Set(props.selectedSeqs)
+  return activePoints.value
+    .filter(p => p.seqs.some(s => picked.has(s)))
     .map(p => ({ name: String(p.seq), value: [p.x, p.y] }))
 })
 
@@ -237,6 +248,9 @@ const option = computed<EChartsOption>(() => ({
           silent: true, z: 1, tooltip: { show: false }
         }]
       : []),
+    { type: 'scatter', symbol: 'circle', symbolSize: 22, data: selectedPoints.value,
+      itemStyle: { color: SK_CHART.series, opacity: 0.18, borderColor: SK_CHART.series, borderWidth: 1.5 },
+      silent: true, z: 3 },
     { type: 'scatter', symbol: 'circle', symbolSize: 24, data: outlierPoints.value,
       itemStyle: { color: 'transparent', borderColor: SK_CHART.bad, borderWidth: 2 }, silent: true, z: 4 },
     { type: 'scatter', symbolSize: 13, data: failurePoints.value,

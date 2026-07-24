@@ -46,6 +46,7 @@
             :color-max="effectiveRange.colorMax"
             :focused-sequence="analysis.focusedSequence.value"
             :outlier-seqs="outlierSeqs"
+            :selected-seqs="analysis.selectedSequences.value"
             @focus="analysis.setFocusedSequence"
             @rangechange="autoRange = $event"
           />
@@ -80,6 +81,7 @@
       :geo="analysis.waferGeo.value"
       :focused-sequence="analysis.focusedSequence.value"
       :outlier-seqs="outlierSeqs"
+      :selected-seqs="analysis.selectedSequences.value"
       @focus="analysis.setFocusedSequence"
     />
   </EbeamSkewvoirPanelFrame>
