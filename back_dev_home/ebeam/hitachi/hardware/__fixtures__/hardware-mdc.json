@@ -15,9 +15,161 @@
       "value": 4
     }
   ],
+  "docs": [
+    {
+      "beam_condition": "800V_HR_0Deg",
+      "mdc_value": 1.005476,
+      "timestamp": "2026-04-27 03:00"
+    },
+    {
+      "beam_condition": "800V_HR_90Deg",
+      "mdc_value": 1.005238,
+      "timestamp": "2026-04-27 03:00"
+    },
+    {
+      "beam_condition": "500V_HR_0Deg",
+      "mdc_value": 0.995304,
+      "timestamp": "2026-04-27 03:00"
+    },
+    {
+      "beam_condition": "500V_HR_90Deg",
+      "mdc_value": 1.003229,
+      "timestamp": "2026-04-27 03:00"
+    },
+    {
+      "beam_condition": "3000V_HR_0Deg",
+      "mdc_value": 1.00407,
+      "timestamp": "2026-04-27 03:00"
+    },
+    {
+      "beam_condition": "800V_HR_0Deg",
+      "mdc_value": 1.006,
+      "timestamp": "2026-04-30 04:00"
+    },
+    {
+      "beam_condition": "800V_HR_90Deg",
+      "mdc_value": 1.00499,
+      "timestamp": "2026-04-30 04:00"
+    },
+    {
+      "beam_condition": "500V_HR_0Deg",
+      "mdc_value": 0.995,
+      "timestamp": "2026-04-30 04:00"
+    },
+    {
+      "beam_condition": "500V_HR_90Deg",
+      "mdc_value": 1.00519,
+      "timestamp": "2026-04-30 04:00"
+    },
+    {
+      "beam_condition": "3000V_HR_0Deg",
+      "mdc_value": 1.003291,
+      "timestamp": "2026-04-30 04:00"
+    },
+    {
+      "beam_condition": "800V_HR_0Deg",
+      "mdc_value": 1.006,
+      "timestamp": "2026-05-03 05:00"
+    },
+    {
+      "beam_condition": "800V_HR_90Deg",
+      "mdc_value": 1.004128,
+      "timestamp": "2026-05-03 05:00"
+    },
+    {
+      "beam_condition": "500V_HR_0Deg",
+      "mdc_value": 0.995,
+      "timestamp": "2026-05-03 05:00"
+    },
+    {
+      "beam_condition": "500V_HR_90Deg",
+      "mdc_value": 1.004692,
+      "timestamp": "2026-05-03 05:00"
+    },
+    {
+      "beam_condition": "3000V_HR_0Deg",
+      "mdc_value": 1.004524,
+      "timestamp": "2026-05-03 05:00"
+    },
+    {
+      "beam_condition": "800V_HR_0Deg",
+      "mdc_value": 1.005129,
+      "timestamp": "2026-05-07 05:00"
+    },
+    {
+      "beam_condition": "800V_HR_90Deg",
+      "mdc_value": 1.004476,
+      "timestamp": "2026-05-07 05:00"
+    },
+    {
+      "beam_condition": "500V_HR_0Deg",
+      "mdc_value": 0.995,
+      "timestamp": "2026-05-07 05:00"
+    },
+    {
+      "beam_condition": "500V_HR_90Deg",
+      "mdc_value": 1.005746,
+      "timestamp": "2026-05-07 05:00"
+    },
+    {
+      "beam_condition": "3000V_HR_0Deg",
+      "mdc_value": 1.004072,
+      "timestamp": "2026-05-07 05:00"
+    },
+    {
+      "beam_condition": "800V_HR_0Deg",
+      "mdc_value": 1.005472,
+      "timestamp": "2026-05-10 06:00"
+    },
+    {
+      "beam_condition": "800V_HR_90Deg",
+      "mdc_value": 1.00203,
+      "timestamp": "2026-05-10 06:00"
+    },
+    {
+      "beam_condition": "500V_HR_0Deg",
+      "mdc_value": 0.995,
+      "timestamp": "2026-05-10 06:00"
+    },
+    {
+      "beam_condition": "500V_HR_90Deg",
+      "mdc_value": 1.006,
+      "timestamp": "2026-05-10 06:00"
+    },
+    {
+      "beam_condition": "3000V_HR_0Deg",
+      "mdc_value": 1.004922,
+      "timestamp": "2026-05-10 06:00"
+    },
+    {
+      "beam_condition": "800V_HR_0Deg",
+      "mdc_value": 1.005686,
+      "timestamp": "2026-05-18 09:00"
+    },
+    {
+      "beam_condition": "800V_HR_90Deg",
+      "mdc_value": 1.003829,
+      "timestamp": "2026-05-18 09:00"
+    },
+    {
+      "beam_condition": "500V_HR_0Deg",
+      "mdc_value": 0.995924,
+      "timestamp": "2026-05-18 09:00"
+    },
+    {
+      "beam_condition": "500V_HR_90Deg",
+      "mdc_value": 1.006,
+      "timestamp": "2026-05-18 09:00"
+    },
+    {
+      "beam_condition": "3000V_HR_0Deg",
+      "mdc_value": 1.002955,
+      "timestamp": "2026-05-18 09:00"
+    }
+  ],
   "eqp_id": "ECXDX204",
   "fab_name": "M16B",
-  "fetched_at": "2026-06-18T21:47:36+00:00",
+  "fetched_at": "2026-07-24T11:52:36+00:00",
   "service": "mdc",
   "settings": {
     "ECXDX132": {
@@ -56,7 +208,7 @@
       "800V_HR_90Deg": "0.998356"
     }
   },
-  "summary": "선택 장비와 동일 fab 장비의 MDC 보정 계수 스냅샷(as-of)을 제공합니다.",
+  "summary": "선택 장비의 MDC 보정 이력(시계열)과 동일 fab 장비의 스냅샷(as-of) 비교를 제공합니다.",
   "tables": [],
   "tool_slug": "cdsem"
 }
