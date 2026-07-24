@@ -67,9 +67,13 @@ Index selection:
 
 - A native `range` input (0–359) plus a number input for exact entry, following
   the existing `ToleranceKnob.vue` precedent. Default index `0`.
-- Clicking the evolution chart also sets the index: its x-axis is a category
-  axis of `0..359`, and `useEchart`'s `onClick` passes `params.name` (the
-  category), so the click maps straight to an index.
+- Click-to-pick on the evolution chart was tried and **dropped**: `useEchart`
+  only forwards clicks whose `params.componentType === 'series'`, and the
+  evolution curves draw with `showSymbol: false`, so a grid click never fires
+  one. Landing a click on a 1.2px line among 15 overlapping curves is not a
+  usable affordance, so the slider is the sole selector. Adding grid-click
+  support would mean teaching `useEchart` to use `convertFromPixel` — a change
+  to a shared composable, out of scope here.
 
 시계열 tab order: param trend → **coefficient @ index trend (new)** →
 coefficients evolution (existing).

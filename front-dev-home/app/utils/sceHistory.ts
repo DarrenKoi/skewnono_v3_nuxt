@@ -4,33 +4,55 @@
 // per eqp, plus `date`.
 
 export interface SceTrendPoint { ts: string, key: string, value: number }
+export interface SceTrendKey { block: string, key: string, label: string }
+
+// Blocks holding trendable settings, in display order. FileInfo is excluded —
+// it carries file paths, not measurements.
+const TREND_BLOCKS = ['SCEParam', 'SemCond', 'ImgCond'] as const
 
 const toNum = (v: unknown): number | null => {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : null
 }
 
-const paramBlock = (doc: Record<string, unknown>): Record<string, unknown> => {
-  const sub = doc.SCEParam
+// A field is trendable if it parses as a number, or is a non-empty list whose
+// first element does — ImgCond stores its values boxed (['1024','1024'], ['-2']).
+const fieldNum = (v: unknown): number | null => {
+  if (Array.isArray(v)) return v.length > 0 ? toNum(v[0]) : null
+  return toNum(v)
+}
+
+const blockOf = (doc: Record<string, unknown>, name: string): Record<string, unknown> => {
+  const sub = doc[name]
   return sub && typeof sub === 'object' && !Array.isArray(sub)
     ? (sub as Record<string, unknown>)
     : {}
 }
 
-// Union of SCEParam keys across the window (a mid-window settings-file swap
-// may add/remove keys), stripped of the `SCEParam_` prefix for chip labels.
-export const sceParamKeys = (docs: Record<string, unknown>[]): string[] => {
-  const keys = new Set<string>()
+export const sceParamLabel = (key: string): string =>
+  key.replace(/^(SCEParam|SemCond|ImgCond)_/, '')
+
+// Union of numeric field keys across the window (a mid-window settings-file
+// swap may add/remove keys), each tagged with its block so the chip strip can
+// group them. Ordered by block, then key.
+export const sceTrendKeys = (docs: Record<string, unknown>[]): SceTrendKey[] => {
+  const found = new Map<string, string>()
   for (const doc of docs) {
-    for (const k of Object.keys(paramBlock(doc))) keys.add(k)
+    for (const block of TREND_BLOCKS) {
+      for (const [k, v] of Object.entries(blockOf(doc, block))) {
+        if (!found.has(k) && fieldNum(v) !== null) found.set(k, block)
+      }
+    }
   }
-  return [...keys].sort()
+  const rank = (b: string) => TREND_BLOCKS.indexOf(b as (typeof TREND_BLOCKS)[number])
+  return [...found.entries()]
+    .map(([key, block]) => ({ block, key, label: sceParamLabel(key) }))
+    .sort((a, b) => rank(a.block) - rank(b.block) || a.key.localeCompare(b.key))
 }
 
-export const sceParamLabel = (key: string): string => key.replace(/^SCEParam_/, '')
-
 // One point per collection date carrying a numeric value for `key`; the date
-// doubles as the point key (BsmTrendChart contract, same as MDC).
+// doubles as the point key (BsmTrendChart contract, same as MDC). Field names
+// are block-prefixed, so a key resolves in exactly one block.
 export const sceParamSeries = (
   docs: Record<string, unknown>[],
   key: string
@@ -38,8 +60,46 @@ export const sceParamSeries = (
   const out: SceTrendPoint[] = []
   for (const doc of docs) {
     const ts = typeof doc.date === 'string' ? doc.date : ''
-    const value = toNum(paramBlock(doc)[key])
-    if (ts && value !== null) out.push({ ts, key: ts, value })
+    if (!ts) continue
+    let value: number | null = null
+    for (const block of TREND_BLOCKS) {
+      const sub = blockOf(doc, block)
+      if (key in sub) {
+        value = fieldNum(sub[key])
+        break
+      }
+    }
+    if (value !== null) out.push({ ts, key: ts, value })
   }
   return out
+}
+
+// values[0] / values[1] at a single Coefficients index across the window —
+// "how did this one point of the curve move?". Reads only the target entry, so
+// no 360-array is built per doc.
+export const sceCoeffIndexSeries = (
+  docs: Record<string, unknown>[],
+  index: number
+): { v0: SceTrendPoint[], v1: SceTrendPoint[] } => {
+  const v0: SceTrendPoint[] = []
+  const v1: SceTrendPoint[] = []
+  for (const doc of docs) {
+    const ts = typeof doc.date === 'string' ? doc.date : ''
+    if (!ts) continue
+    const coeffs = doc.Coefficients
+    if (!Array.isArray(coeffs)) continue
+    for (const entry of coeffs) {
+      const c = entry as Record<string, unknown>
+      if (Number(c?.index) !== index) continue
+      const vals = c?.values
+      if (Array.isArray(vals)) {
+        const a = toNum(vals[0])
+        const b = toNum(vals[1])
+        if (a !== null) v0.push({ ts, key: ts, value: a })
+        if (b !== null) v1.push({ ts, key: ts, value: b })
+      }
+      break
+    }
+  }
+  return { v0, v1 }
 }

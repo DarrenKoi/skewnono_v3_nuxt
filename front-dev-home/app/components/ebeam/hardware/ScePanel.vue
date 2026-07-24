@@ -33,16 +33,25 @@
           SCE 이력 데이터가 없습니다.
         </div>
         <template v-else>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <SkChip
-              v-for="key in paramKeys"
-              :key="key"
-              size="sm"
-              :active="key === activeParamKey"
-              @click="activeParamKey = key"
+          <div class="space-y-1.5">
+            <div
+              v-for="group in trendGroups"
+              :key="group.block"
+              class="flex flex-wrap items-center gap-1.5"
             >
-              {{ sceParamLabel(key) }}
-            </SkChip>
+              <span class="w-[4.5rem] shrink-0 sk-eyebrow text-(--sk-ink-muted)">
+                {{ group.block }}
+              </span>
+              <SkChip
+                v-for="k in group.keys"
+                :key="k.key"
+                size="sm"
+                :active="k.key === activeParamKey"
+                @click="activeParamKey = k.key"
+              >
+                {{ k.label }}
+              </SkChip>
+            </div>
           </div>
 
           <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
@@ -52,6 +61,40 @@
               selected=""
               y-mode="tight"
               :events="maintenanceEvents"
+            />
+          </div>
+
+          <!-- One coefficient index tracked over the collection dates -->
+          <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+            <div class="mb-1 flex flex-wrap items-center justify-between gap-2 px-1">
+              <div class="sk-title">
+                Coefficient 추세 · index {{ coeffIndex }}
+              </div>
+              <div class="flex items-center gap-2">
+                <input
+                  :value="coeffIndex"
+                  type="range"
+                  min="0"
+                  max="359"
+                  step="1"
+                  class="w-40 accent-(--sk-accent)"
+                  aria-label="Coefficient index"
+                  @input="setCoeffIndex(($event.target as HTMLInputElement).value)"
+                >
+                <input
+                  :value="coeffIndex"
+                  type="number"
+                  min="0"
+                  max="359"
+                  class="w-16 rounded-md border border-(--sk-border) bg-(--sk-surface) px-1.5 py-0.5 text-right font-mono text-[11px] text-(--sk-ink)"
+                  aria-label="Coefficient index (number)"
+                  @change="setCoeffIndex(($event.target as HTMLInputElement).value)"
+                >
+              </div>
+            </div>
+            <div
+              ref="coeffTrendEl"
+              class="h-64 w-full"
             />
           </div>
 
@@ -172,10 +215,10 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
-import { sceParamKeys, sceParamLabel, sceParamSeries } from '~/utils/sceHistory'
+import { sceCoeffIndexSeries, sceParamLabel, sceParamSeries, sceTrendKeys, type SceTrendKey } from '~/utils/sceHistory'
 import { assignCompareColors } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
-import type { BmPmEvent } from '~/utils/bmPmMarkers'
+import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   settings: Record<string, Record<string, unknown>>
@@ -194,13 +237,36 @@ const maintenanceEvents = computed(() => props.maintenanceEvents ?? [])
 const hasSelected = computed(() => Boolean(props.settings[props.selectedEqp]))
 const siblingIds = computed(() => Object.keys(props.settings).filter(id => id !== props.selectedEqp).sort())
 
-// --- 시계열: SCEParam trend ---
-const paramKeys = computed(() => sceParamKeys(docs.value))
+// --- 시계열: setting-param trend (SCEParam / SemCond / ImgCond) ---
+const trendKeys = computed(() => sceTrendKeys(docs.value))
 const activeParamKey = ref('')
-watch(paramKeys, (keys) => {
-  if (!keys.includes(activeParamKey.value)) activeParamKey.value = keys[0] ?? ''
+watch(trendKeys, (keys) => {
+  if (!keys.some(k => k.key === activeParamKey.value)) activeParamKey.value = keys[0]?.key ?? ''
 }, { immediate: true })
 const paramPoints = computed(() => sceParamSeries(docs.value, activeParamKey.value))
+
+// Chip strip grouped by block. sceTrendKeys already orders block-then-key, so
+// one pass collects each run of a block into its own group.
+const trendGroups = computed(() => {
+  const groups: { block: string, keys: SceTrendKey[] }[] = []
+  for (const k of trendKeys.value) {
+    const last = groups[groups.length - 1]
+    if (last && last.block === k.block) last.keys.push(k)
+    else groups.push({ block: k.block, keys: [k] })
+  }
+  return groups
+})
+
+// --- 시계열: coefficient trend at one index ---
+// The evolution chart below shows every index at once; this tracks a single
+// index over the collection dates. Clicking the evolution chart sets it.
+const coeffIndex = ref(0)
+const setCoeffIndex = (v: number | string) => {
+  const n = Math.round(Number(v))
+  coeffIndex.value = Number.isFinite(n) ? Math.min(359, Math.max(0, n)) : 0
+}
+const coeffTrendEl = ref<HTMLDivElement | null>(null)
+const coeffPoints = computed(() => sceCoeffIndexSeries(docs.value, coeffIndex.value))
 
 // Page-scoped selection shared with the MDC panel (see HardwareView). Prune to
 // the current cohort so a stale id from a previous tool never lingers.
@@ -214,6 +280,12 @@ const rows = computed(() => compareSettings(props.settings, props.selectedEqp, c
 
 const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0] ?? '#C75A3C')
+const c1 = computed(() => palette.value[1] ?? '#3F5D52')
+
+const colorMode = useColorMode()
+const maintenanceMarkLine = computed(() =>
+  bmPmMarkLine(maintenanceEvents.value, { dark: colorMode.value === 'dark' })
+)
 // One stable color per picked tool, reused by the table dots and the curves.
 const compareColors = computed(() => assignCompareColors(compareIds.value, palette.value))
 
@@ -334,6 +406,42 @@ const chartOption = computed<EChartsOption>(() => {
 
 useEchart(chartEl, chartOption)
 
+// One index's two values across the collection dates. values[0] (~±0.02) and
+// values[1] (~0.9–1.0) sit on different scales, so each gets its own axis;
+// their ticks never align, hence no split lines. `scale: true` rather than
+// stableYRange — at this magnitude the drift IS the signal (same reasoning as
+// BsmTrendChart's 'tight' mode).
+const coeffTrendOption = computed<EChartsOption>(() => {
+  const { v0, v1 } = coeffPoints.value
+  const epoch = (ts: string) => new Date(ts).getTime()
+  const axis = (name: string) => ({
+    type: 'value' as const, name, scale: true,
+    nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 },
+    splitLine: { show: false }
+  })
+  return {
+    grid: { left: 64, right: 64, top: 24, bottom: 36 },
+    tooltip: { trigger: 'axis' },
+    legend: { top: 0, textStyle: { fontSize: 10 } },
+    xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+    yAxis: [axis('values[0]'), axis('values[1]')],
+    series: [
+      {
+        name: 'values[0]', type: 'line', yAxisIndex: 0, symbolSize: 5,
+        lineStyle: { color: c0.value }, itemStyle: { color: c0.value },
+        data: v0.map(p => [epoch(p.ts), p.value]),
+        markLine: maintenanceMarkLine.value
+      },
+      {
+        name: 'values[1]', type: 'line', yAxisIndex: 1, symbolSize: 5,
+        lineStyle: { color: c1.value, type: 'dashed' }, itemStyle: { color: c1.value },
+        data: v1.map(p => [epoch(p.ts), p.value])
+      }
+    ]
+  }
+})
+useEchart(coeffTrendEl, coeffTrendOption)
+
 // --- 시계열: coefficient-curve evolution ---
 // One curve per collection date in the same v0/v1 stacked grids as the
 // compare view, opacity ramping oldest → newest so drift reads as a fade
@@ -373,5 +481,8 @@ const evolutionOption = computed<EChartsOption>(() => {
     })
   }
 })
+// No click-to-pick here: useEchart only forwards clicks that land on a series
+// element, and these curves draw with showSymbol:false, so a grid click never
+// fires. The index slider above is the reliable selector.
 useEchart(evolutionEl, evolutionOption)
 </script>

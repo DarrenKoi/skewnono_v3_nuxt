@@ -110,14 +110,23 @@ def _tool_snapshot(tool: str, date_salt: int) -> dict:
     IDENTICAL to a snapshot taken as-of D — the invariant the office side
     has for free (the latest MinIO file and the Redis hash hold the same
     collection).
+
+    Two streams, because the blocks differ in nature. SemCond/ImgCond are tool
+    CONFIGURATION (optics, accelerating voltage, pixel count): in production
+    they hold steady between collections, so they seed from the tool alone and
+    read as a flat "stable" line in the 시계열 trend rather than re-rolled
+    noise. SCEParam/Coefficients are the tuning OUTPUTS that actually drift, so
+    they seed from tool+date. FileInfo rides with the date — each collection
+    writes a fresh SharpChar file.
     """
-    rng = random.Random(seed_for(tool) ^ 0x5343_4532 ^ date_salt)
+    config_rng = random.Random(seed_for(tool) ^ 0x5343_4532)
+    date_rng = random.Random(seed_for(tool) ^ 0x5343_4532 ^ date_salt)
     return {
-        "FileInfo": _file_info(rng, tool),
-        "SemCond": _sem_cond(rng),
-        "ImgCond": _img_cond(rng),
-        "SCEParam": _sce_param(rng),
-        "Coefficients": _coefficients(rng),
+        "FileInfo": _file_info(date_rng, tool),
+        "SemCond": _sem_cond(config_rng),
+        "ImgCond": _img_cond(config_rng),
+        "SCEParam": _sce_param(date_rng),
+        "Coefficients": _coefficients(date_rng),
     }
 
 

@@ -8,6 +8,7 @@ bidaily collection date for the selected tool, ascending, each carrying
 office-side both views come from the same collection run.
 """
 
+import json
 from datetime import datetime, timedelta
 
 from back_dev_home.ebeam.hitachi.hardware.providers.sce import mock, office_example
@@ -58,6 +59,23 @@ def test_history_dates_stable_across_windows():
     short = {d["date"] for d in _history(days=7)}
     long = {d["date"] for d in _history(days=21)}
     assert short <= long
+
+
+def test_config_blocks_stable_across_dates_but_outputs_drift():
+    # SemCond/ImgCond are tool configuration: in production they hold the same
+    # values collection after collection, so the 시계열 param trend must render
+    # them as a flat "stable" line rather than re-rolled noise. SCEParam and
+    # Coefficients are the tuning outputs — those are what actually drift.
+    docs = _history(days=30)
+    assert len(docs) >= 3, "need several collection dates to compare"
+
+    def distinct(block: str) -> int:
+        return len({json.dumps(doc[block], sort_keys=True) for doc in docs})
+
+    assert distinct("SemCond") == 1
+    assert distinct("ImgCond") == 1
+    assert distinct("SCEParam") > 1
+    assert distinct("Coefficients") > 1
 
 
 def test_history_doc_matches_snapshot_for_same_date():
