@@ -3,7 +3,7 @@
 _Updated: 2026-07-24 · branch: main_
 
 ## In progress
-- [ ] Wafer geometry `map_offset` coherence (Spec 1 of 2) — Tasks 1–4/7 done & reviewed; STOPPED at user request. Next: Task 5 = shift die-grid boundaries to `offset + (k+0.5)·pitch` (`front-dev-home/app/utils/waferDieGrid.ts:22`); get the brief via `scripts/task-brief docs/superpowers/plans/2026-07-24-wafer-geometry-map-offset-coherence.md 5`; ledger `.superpowers/sdd/progress.md`, Task 5 BASE `7e2781f` · since 2026-07-24
+- [x] ~~Wafer geometry `map_offset` coherence (Spec 1 of 2)~~ — **DONE 2026-07-24**, all 7 tasks. Commits `e81227c` (Task 5 grid), `5a50542` (Task 6 mock coherence), `aef33da` (call-site wiring found by /simplify), `0ef5579` (comment fixes found by /code-review). Task 7 verified on screen: 0/74 points outside their die cell, 0/74 snapToDieCell mismatches, grid shifted 1.985 mm of a 6.977 mm pitch — **sign convention correct, no flip needed**. Screenshot `.playwright-mcp/screenshots/wafer-die-grid-map-offset.png` · Spec 2 is now unblocked
 - [ ] Deploy packaging — plan written & committed (`1a7d33a`), NOT executed. Next: run Task 1 (hcputil fix, `back_dev_home/_auth/provider.py:32`) from `docs/superpowers/plans/2026-07-24-deploy-packaging.md`; user was choosing subagent-driven vs inline when session ended · since 2026-07-24
 - [ ] Office verify recipe_tat + health (STATUS.md says 구현완료, never run on office data) — next: at office `cp office_example.py office.py` for sem_list/storage/recipe_tat; site auto-detects (PC* → office; sanity-check `python -c "from back_dev_home._runtime.site import detect_site; print(detect_site())"`), run office-mode contract tests, eyeball recipe 현황 (ranking composite/uncapped — watch first-load latency), bump STATUS.md → office + date · since 2026-07-21
 
@@ -24,6 +24,7 @@ _Updated: 2026-07-24 · branch: main_
 - [ ] B3 — FDC inline: connect orphan `Fdc*` components, CD↔`dynamic_fdc` on shared sequence axis, reuse `focusedSequence` (spec §12) · since 2026-07-15
 - [ ] B3.2 — 하드웨어 timestamp popup: `useHardwareApi` eqp_id + start~end window → anchored slideover (spec §12) · since 2026-07-15
 - [ ] §10.3 adaptive views (single-MSR variants of 위치/Time-Series/상관 panels) · since 2026-07-15
+- [ ] **Wafer map draws TWO disagreeing die grids** (found by /code-review 2026-07-24, confirmed on screen). `waferAxis.ts` sets `cfg.interval = pitchMm`, so ECharts steps split-lines from the axis ORIGIN and cannot be phase-shifted — they sit on the UNSHIFTED grid while `buildDieGridSegments` draws the shifted boundaries, ~17–20 px apart at 1400 px. Labels are still correct (`round((k·pitch − offset)/pitch) = k` holds while `|offset| ≤ 0.3·pitch`), so this is display coherence, not wrong data. Needs a UX call: turn the axis splitLine off when the die-grid overlay is on, or stop treating the axis as a die grid · since 2026-07-24
 - [ ] B1 minors: keyboard/ARIA on clickable rows; stale comment `WaferMap.vue:26` · since 2026-07-15
 - [ ] Mock realism: `cd_value` uniform [15,45] flags ~80% sites; tighten spread (`back_dev_home/msr_file/data.py`) · since 2026-07-15
 - [ ] Optional: skill-creator eval on `/leave-office`+`/back-to-office` · since 2026-06-30
