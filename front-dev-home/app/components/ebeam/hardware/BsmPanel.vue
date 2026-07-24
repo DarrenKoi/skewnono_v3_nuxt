@@ -112,8 +112,14 @@
             :color-index="radar.colorIndex"
             :angles="angles"
             :values="profileValues(radar.metric.value)"
-            :min="radialRange(filteredDocs, radar.metric.value).min"
-            :max="radialRange(filteredDocs, radar.metric.value).max"
+            :min="radarRange(radar.metric.value).min"
+            :max="radarRange(radar.metric.value).max"
+          />
+          <EbeamHardwareAxisRangeControl
+            :model-value="rangeFor(radar.metric.value)"
+            :default-range="defaultRangeFor(radar.metric.value, derivedRange(radar.metric.value))"
+            :label="prettyLabel(radar.metric.value)"
+            @update:model-value="setRange(radar.metric.value, $event)"
           />
         </div>
       </div>
@@ -126,6 +132,7 @@ import {
   profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel
 } from '~/utils/beamMetrics'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { defaultRangeFor, resolveAxisRange } from '~/utils/profileAxisRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -215,6 +222,14 @@ const profileValues = (key: string): number[] => {
   const v = selectedDoc.value?.[key]
   return Array.isArray(v) ? v.map(numOf) : []
 }
+
+// The radial scale the radar draws at: a user override if one is stored, else
+// the metric's operating band, else the data-derived range. Overrides are
+// keyed by canonical metric, so a range set here on `Reso EB` is the same one
+// the 데일리 Sharpness tab uses for `reso_eb` — the same measurement.
+const { rangeFor, setRange } = useProfileAxisRange()
+const derivedRange = (key: string) => radialRange(filteredDocs.value, key)
+const radarRange = (key: string) => resolveAxisRange(key, rangeFor(key), derivedRange(key))
 
 const selectedScalarCards = computed(() => {
   const d = selectedDoc.value

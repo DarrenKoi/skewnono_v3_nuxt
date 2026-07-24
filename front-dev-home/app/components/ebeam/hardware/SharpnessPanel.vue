@@ -86,16 +86,26 @@
         />
       </div>
       <div class="grid gap-2 lg:grid-cols-3">
-        <EbeamHardwareBsmRadarChart
+        <div
           v-for="(key, i) in radarKeys"
           :key="key"
-          :title="key"
-          :color-index="i"
-          :angles="angles"
-          :values="profileValues(key)"
-          :min="profileRange(key).min"
-          :max="profileRange(key).max"
-        />
+          class="flex flex-col"
+        >
+          <EbeamHardwareBsmRadarChart
+            :title="key"
+            :color-index="i"
+            :angles="angles"
+            :values="profileValues(key)"
+            :min="radarRange(key).min"
+            :max="radarRange(key).max"
+          />
+          <EbeamHardwareAxisRangeControl
+            :model-value="rangeFor(key)"
+            :default-range="defaultRangeFor(key, profileRange(key))"
+            :label="key"
+            @update:model-value="setRange(key, $event)"
+          />
+        </div>
         <EbeamHardwareSharpnessProfileChart
           v-if="hasDetector"
           title="reso_detector"
@@ -113,6 +123,7 @@
 <script setup lang="ts">
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { stableRadialRange, type StableYRangeOptions } from '~/utils/chartRange'
+import { defaultRangeFor, resolveAxisRange } from '~/utils/profileAxisRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -244,6 +255,13 @@ const profileRange = (key: string): { min: number, max: number } => {
   }
   return stableRadialRange(vals, PROFILE_RANGE_OPTIONS) ?? { min: 0, max: 1 }
 }
+
+// The radial scale the radar actually draws at: a user override if one is
+// stored, else the metric's operating band, else the data-derived range above.
+// The detector line chart keeps the derived range — its magnitudes (~0.005)
+// have no band engineers read against.
+const { rangeFor, setRange } = useProfileAxisRange()
+const radarRange = (key: string) => resolveAxisRange(key, rangeFor(key), profileRange(key))
 
 const toast = useToast()
 

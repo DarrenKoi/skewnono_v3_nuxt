@@ -3,6 +3,7 @@ import type { ComputedRef, Ref } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { registerEchartsThemes, getEchartThemeBackground } from '~/utils/echartsThemes'
 import { chartExportFilename } from '~/utils/chartExport'
+import { withPreservedZoom, type ZoomWindow } from '~/utils/chartZoom'
 
 interface UseEchartOptions {
   // Fired when a series element (e.g. a bar) is clicked. Receives the
@@ -142,8 +143,15 @@ export const useEchart = (
     if (next) ensureChart()
   })
 
+  // Rebuilding with `notMerge` is what keeps stale series/axes from lingering,
+  // but it also drops the user's zoom window — and a new option arrives on any
+  // change, including a click that merely restyles the selected symbol. Carry
+  // the live window over so an interaction can't yank the view back to the
+  // full range under the reader.
   watch(optionRef, (next) => {
-    chart?.setOption(next, true)
+    if (!chart) return
+    const live = (chart.getOption() as { dataZoom?: ZoomWindow[] }).dataZoom
+    chart.setOption(withPreservedZoom(next, live), true)
   })
 
   // ECharts binds a theme at init time; swapping themes requires dispose +
