@@ -1,9 +1,9 @@
 // Die-boundary grid for the wafer map, at TRUE die size.
 //
 // The msr file's exe_detail_info carries the die pitch (chip_pitch, nm), and
-// die centres sit on integer multiples of it (chip_number (col,row) ↔
-// col·pitch from the wafer centre — see waferGeometry.dieCenterMm). Die
-// BOUNDARIES therefore run at (k + 0.5)·pitch. Each boundary line is clipped
+// die centres sit on the offset die grid (chip_number (col,row) ↔
+// map_offset + col·pitch from the wafer centre — see waferGeometry.dieCenterMm).
+// Die BOUNDARIES therefore run at map_offset + (k + 0.5)·pitch. Each boundary line is clipped
 // to its chord across the wafer circle so the grid reads as the wafer's real
 // die layout, not a square mesh over the bounding box.
 //
@@ -18,14 +18,17 @@ const MAX_LINES_PER_AXIS = 200
 
 const round3 = (n: number): number => Number(n.toFixed(3))
 
-// Boundary coordinates (k + 0.5)·pitch strictly inside (−radius, radius).
-const boundaries = (pitch: number, radius: number): number[] => {
+// Boundary coordinates offset + (k + 0.5)·pitch strictly inside (−radius, radius).
+// The die array is shifted off the wafer centre by map_offset, so boundaries are
+// measured from the shifted grid — otherwise the lines sit map_offset away from
+// the points they are supposed to enclose.
+const boundaries = (pitch: number, radius: number, offset: number): number[] => {
   if (!(pitch > 0) || !(radius > 0)) return []
   if (radius / pitch > MAX_LINES_PER_AXIS) return []
   const out: number[] = []
-  const kMax = Math.ceil(radius / pitch)
+  const kMax = Math.ceil(radius / pitch) + 1
   for (let k = -kMax - 1; k <= kMax; k++) {
-    const c = (k + 0.5) * pitch
+    const c = offset + (k + 0.5) * pitch
     if (Math.abs(c) < radius) out.push(c)
   }
   return out
@@ -33,11 +36,11 @@ const boundaries = (pitch: number, radius: number): number[] => {
 
 export const buildDieGridSegments = (geo: WaferGeometry, radiusMm: number): DieGridSegment[] => {
   const segments: DieGridSegment[] = []
-  for (const x of boundaries(geo.pitchXmm, radiusMm)) {
+  for (const x of boundaries(geo.pitchXmm, radiusMm, geo.offsetXmm)) {
     const chord = Math.sqrt(radiusMm * radiusMm - x * x)
     segments.push([[round3(x), round3(-chord)], [round3(x), round3(chord)]])
   }
-  for (const y of boundaries(geo.pitchYmm, radiusMm)) {
+  for (const y of boundaries(geo.pitchYmm, radiusMm, geo.offsetYmm)) {
     const chord = Math.sqrt(radiusMm * radiusMm - y * y)
     segments.push([[round3(-chord), round3(y)], [round3(chord), round3(y)]])
   }

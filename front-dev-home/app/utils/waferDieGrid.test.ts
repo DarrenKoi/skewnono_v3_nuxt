@@ -25,6 +25,22 @@ test('boundaries sit on half-pitch offsets between die centres', () => {
   assert.ok(!xs.some(x => x % 10 === 0)) // never through a die centre
 })
 
+test('die boundaries shift with the die-grid offset', () => {
+  // Pitch 10, offset 2 → die centres at 2 + k·10, boundaries at 7, -3, 17, …
+  const segments = buildDieGridSegments(geo(10, 10, 2, 0), 150)
+  const xs = segments.filter(([a, b]) => a[0] === b[0]).map(([a]) => a[0])
+  assert.ok(xs.includes(7))
+  assert.ok(xs.includes(-3))
+  assert.ok(!xs.includes(5)) // the unshifted boundary must be gone
+})
+
+test('a zero offset reproduces the unshifted grid', () => {
+  const shifted = buildDieGridSegments(geo(10, 10, 0, 0), 150)
+  const xs = shifted.filter(([a, b]) => a[0] === b[0]).map(([a]) => a[0])
+  assert.ok(xs.includes(5))
+  assert.ok(xs.includes(-5))
+})
+
 test('every segment is a chord of the wafer circle', () => {
   for (const [start, end] of buildDieGridSegments(geo(12.52, 10.34), 150)) {
     for (const [x, y] of [start, end]) {
