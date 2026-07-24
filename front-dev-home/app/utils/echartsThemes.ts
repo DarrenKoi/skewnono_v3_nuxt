@@ -247,7 +247,8 @@ const THEME_DESCRIPTORS = {
   },
   matlab: {
     label: 'MATLAB',
-    fileName: 'MATLAB colororder (R2014b+) · +3',
+    fileName: 'MATLAB colororder (R2014b+)',
+    fileNameSuffix: ' · +3',
     description: 'MATLAB R2014b 이후의 기본 색 순서 7색에 3색을 더해 10색으로 사용합니다.',
     palette: matlabColors,
     surface: '#ffffff',
@@ -255,7 +256,10 @@ const THEME_DESCRIPTORS = {
   }
 } as const satisfies Record<EchartThemeName, {
   label: string
+  /** Where the theme came from. Names an upstream file, except for MATLAB. */
   fileName: string
+  /** Appended on the card only. Its own field so nothing has to parse it back off. */
+  fileNameSuffix?: string
   description: string
   palette: readonly string[]
   surface: string
@@ -267,7 +271,7 @@ const themeCard = (name: EchartThemeName): ThemeOption => {
   return {
     value: name,
     label: d.label,
-    fileName: d.fileName,
+    fileName: d.fileName + ('fileNameSuffix' in d ? d.fileNameSuffix : ''),
     description: d.description,
     colors: swatch(d.palette),
     backgroundColor: d.surface,
@@ -282,7 +286,7 @@ const themeCard = (name: EchartThemeName): ThemeOption => {
 const DEFAULT_CARD: ThemeOption = {
   value: 'default',
   label: 'Default',
-  fileName: `${THEME_DESCRIPTORS.matlab.fileName.split(' ·')[0]} / ${THEME_DESCRIPTORS.dark.fileName}`,
+  fileName: `${THEME_DESCRIPTORS.matlab.fileName} / ${THEME_DESCRIPTORS.dark.fileName}`,
   description: '밝은 화면에서는 MATLAB, 어두운 화면에서는 Dark 테마를 자동으로 사용합니다.',
   colors: [...matlabColors.slice(0, 3), THEME_DESCRIPTORS.dark.surface, ...darkColors.slice(0, 2)],
   backgroundColor: THEME_DESCRIPTORS.matlab.surface,

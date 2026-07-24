@@ -118,7 +118,6 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
 import { analyzeSequence, type FdcSeqSeries } from '~/utils/skewvoirAnalysis/sequence'
-import { SK_SCALE } from '~/utils/chartPalette'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -161,11 +160,12 @@ const fdcMeta = (series: FdcSeqSeries): string => {
 // working while still following the picker; index 0 is reserved for the CD pane
 // below, so the FDC panes start at 1.
 const { palette } = useEchartsTheme()
-const cdColor = computed(() => palette.value[0] ?? SK_SCALE[0])
+const sk = useChartPalette()
+const cdColor = computed(() => sk.value.series)
 const fdcColor = (i: number): string =>
   palette.value.length > 1
     ? palette.value[1 + (i % (palette.value.length - 1))]!
-    : cdColor.value
+    : sk.value.series
 
 // SHARED CURSOR: one move sets the focused sequence AND the focused site (chip)
 // for that sequence — so CD, every FDC pane, the wafer scan-path (focusedSite)
