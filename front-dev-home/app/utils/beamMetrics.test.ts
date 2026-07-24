@@ -11,7 +11,7 @@ const doc = (overrides: Record<string, unknown> = {}): Record<string, unknown> =
   'degree': [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5],
   'Reso EB': arr16(8.0),
   'Reso Detector': arr16(0.005),
-  'Reso EB Focus Range': ['8.0000'],
+  'Reso EB Focus Range': 8.0, // scalar (focus scan/operating window) → trend/KPI
   'Ellipicity': 1.023,
   'Major Axis': 8.12,
   'Ave. Noise': '6.277', // numeric string scalar
@@ -21,7 +21,7 @@ const doc = (overrides: Record<string, unknown> = {}): Record<string, unknown> =
   ...overrides
 })
 
-test('profileMetricKeys: only length-16 numeric arrays, degree + Focus Range excluded', () => {
+test('profileMetricKeys: only length-16 numeric arrays; degree + scalar Focus Range excluded', () => {
   const keys = profileMetricKeys([doc()]).map(o => o.key).sort()
   assert.deepEqual(keys, ['Reso Detector', 'Reso EB'])
 })
@@ -31,9 +31,9 @@ test('profileMetricKeys: rejects a short array', () => {
   assert.ok(!keys.includes('Reso EB'))
 })
 
-test('scalarMetricKeys: numbers and numeric strings, no arrays/metadata', () => {
+test('scalarMetricKeys: numbers and numeric strings (incl. Reso EB Focus Range), no arrays/metadata', () => {
   const keys = scalarMetricKeys([doc()]).map(o => o.key).sort()
-  assert.deepEqual(keys, ['Ave. Noise', 'Ellipicity', 'Major Axis'])
+  assert.deepEqual(keys, ['Ave. Noise', 'Ellipicity', 'Major Axis', 'Reso EB Focus Range'])
 })
 
 test('radialRange: global min/max across docs, padded, never zero span', () => {
