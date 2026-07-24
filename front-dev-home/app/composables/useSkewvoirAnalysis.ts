@@ -22,6 +22,7 @@ import {
   type MsrFeatureRow,
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
+import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -175,7 +176,11 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
   const retryFocus = () => loadFocus(ws.selection.value?.msr)
 
-  const paramSummaries = computed<MsrParamSummary[]>(() => focusFile.value?.parameters ?? [])
+  // Presentation order everywhere (navigator chips, 파라미터 요약, fallback
+  // param) follows the rows' mp_number → sequence, not the backend array order.
+  const paramSummaries = computed<MsrParamSummary[]>(() =>
+    sortByRowMpOrder(focusFile.value?.parameters ?? [], focusFile.value?.rows ?? [])
+  )
   const availableParams = computed(() => paramSummaries.value.map(p => p.parameter))
 
   // Effective parameter: honor the URL `mp` when the focus file actually has it,
@@ -187,6 +192,46 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     if (want && params.includes(want)) return want
     return params[0] ?? want ?? ''
   })
+
+  // --- Parameter multi-selection (compare several params side by side) ---
+  // The URL `mp` stays the PRIMARY parameter (drives the single-param panels:
+  // wafer map, radius, SEM image, distribution). This extra set holds the
+  // parameters compared alongside it; tables that can show several params at
+  // once (Measurement Points, 파라미터 요약 highlight) read `selectedParams`.
+  // useState so it survives remounts; membership is re-validated against the
+  // loaded file, so a param from a different recipe never lingers.
+  const extraParams = useState<string[]>(`skewvoir-extra-params-${ws.toolType}`, () => [])
+
+  // Effective selection: primary + extras, in the mp-ordered availableParams
+  // order (so "display together" follows the same mp_number sort as the chips).
+  const selectedParams = computed<string[]>(() => {
+    const chosen = new Set(extraParams.value)
+    chosen.add(activeParam.value)
+    return availableParams.value.filter(p => chosen.has(p))
+  })
+
+  // Chip/row click contract: a plain click focuses ONE parameter (clears the
+  // comparison), a modifier click (⌘/Ctrl/⇧) toggles membership. The primary
+  // can only be removed when another selected param remains to take over.
+  const toggleParam = (parameter: string, additive = false) => {
+    if (!additive) {
+      extraParams.value = []
+      ws.setParam(parameter)
+      return
+    }
+    const current = new Set(selectedParams.value)
+    if (current.has(parameter)) {
+      if (current.size <= 1) return // never empty the selection
+      current.delete(parameter)
+      if (parameter === activeParam.value) {
+        const next = availableParams.value.find(p => current.has(p))
+        if (next) ws.setParam(next)
+      }
+    } else {
+      current.add(parameter)
+    }
+    extraParams.value = [...current]
+  }
 
   const activeSummary = computed<MsrParamSummary | null>(() =>
     paramSummaries.value.find(p => p.parameter === activeParam.value) ?? null
@@ -502,6 +547,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     // Re-exported so the Data Summary rows can switch the plotted parameter.
     // It replaced the header's parameter select, which read as dead chrome.
     setParam: ws.setParam,
+    selectedParams,
+    toggleParam,
     paramSummaries,
     activeSummary,
     activeUnit,

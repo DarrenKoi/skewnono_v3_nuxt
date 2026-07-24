@@ -88,6 +88,16 @@
             ]"
             @click="analysis.setFocusedSequence(p.seq)"
           >
+            <td
+              v-if="multiParam"
+              class="max-w-32 truncate px-1.5 py-1.5 font-mono"
+              :class="p.param === analysis.activeParam.value ? 'text-(--sk-brand)' : ''"
+            >
+              {{ p.param }}
+            </td>
+            <td class="px-1.5 py-1.5 text-right font-mono tabular-nums">
+              {{ p.mp >= 0 ? p.mp : '—' }}
+            </td>
             <td class="px-1.5 py-1.5 font-mono">
               {{ p.seq }}
             </td>
@@ -134,15 +144,24 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const filter = ref<'전체' | '이상·실패'>('전체')
 
-type SortKey = 'seq' | 'x' | 'y' | 'cd' | 'radius'
-const columns: { key: SortKey, label: string, align: 'left' | 'right' }[] = [
+// Multi-selection: one table over every selected parameter, so they can be
+// read together. The PARAM column only appears once ≥2 params are selected.
+const selectedParams = computed(() => props.analysis.selectedParams.value)
+const multiParam = computed(() => selectedParams.value.length > 1)
+
+type SortKey = 'param' | 'mp' | 'seq' | 'x' | 'y' | 'cd' | 'radius'
+const columns = computed<{ key: SortKey, label: string, align: 'left' | 'right' }[]>(() => [
+  ...(multiParam.value ? [{ key: 'param' as const, label: 'PARAM', align: 'left' as const }] : []),
+  { key: 'mp', label: 'MP', align: 'right' },
   { key: 'seq', label: 'SEQ', align: 'left' },
   { key: 'x', label: 'X', align: 'right' },
   { key: 'y', label: 'Y', align: 'right' },
   { key: 'cd', label: 'DATA', align: 'right' },
   { key: 'radius', label: 'R (mm)', align: 'right' }
-]
-const sortKey = ref<SortKey>('seq')
+])
+// mp_number is the primary sort key (row order convention), sequence the
+// tie-break — matches the parameter chips/summary ordering.
+const sortKey = ref<SortKey>('mp')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const sortBy = (key: SortKey) => {
   if (sortKey.value === key) sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
@@ -158,32 +177,66 @@ const sortIcon = (key: SortKey) =>
 const ariaSort = (key: SortKey): 'none' | 'ascending' | 'descending' =>
   sortKey.value !== key ? 'none' : sortDir.value === 'asc' ? 'ascending' : 'descending'
 
-// Severity per sequence, from the single overview source — so a row's badge here
-// agrees with the wafer ◎ rings and the parameter chip's dot.
-const flagBySeq = computed(() => {
-  const m = new Map<number, SiteKind>()
-  for (const r of props.analysis.activeOverview.value.tableRows) m.set(r.sequence, r.kind)
-  return m
+// Severity per (parameter, sequence), from the single overview source — so a
+// row's badge here agrees with the wafer ◎ rings and each parameter chip's dot.
+// One map per selected parameter, since the overview evaluates per parameter.
+const flagByParamSeq = computed(() => {
+  const byParam = new Map<string, Map<number, SiteKind>>()
+  for (const param of selectedParams.value) {
+    const m = new Map<number, SiteKind>()
+    for (const r of props.analysis.overviewFor(param).tableRows) m.set(r.sequence, r.kind)
+    byParam.set(param, m)
+  }
+  return byParam
 })
 
-// EVERY point for the active parameter — measured AND failed (cd_value: null) —
-// so 전체 genuinely means all sites, including the 이상·실패 ones.
-const allPoints = computed(() =>
-  props.analysis.siteRows.value
-    .filter(r => r.parameter === props.analysis.activeParam.value)
+interface Point {
+  key: string
+  param: string
+  mp: number
+  seq: number
+  x: number | null
+  y: number | null
+  cd: number | null
+  radius: number
+  kind: SiteKind | 'normal'
+}
+
+// EVERY point for every SELECTED parameter — measured AND failed (cd_value:
+// null) — so 전체 genuinely means all sites, including the 이상·실패 ones.
+const allPoints = computed<Point[]>(() => {
+  const chosen = new Set(selectedParams.value)
+  return props.analysis.siteRows.value
+    .filter(r => chosen.has(r.parameter))
     .map((r, i) => {
       const xy = parseChipXY(r.chip_number)
       return {
-        key: `${r.msr}-${r.sequence}-${i}`,
+        key: `${r.msr}-${r.parameter}-${r.sequence}-${i}`,
+        param: r.parameter,
+        mp: r.mp_number,
         seq: r.sequence,
         x: xy ? xy[0] : null,
         y: xy ? xy[1] : null,
         cd: r.cd_value,
         radius: siteRadiusMm(r.stage_coordinate, props.analysis.waferGeo.value) ?? 0,
-        kind: (flagBySeq.value.get(r.sequence) ?? 'normal') as SiteKind | 'normal'
+        kind: (flagByParamSeq.value.get(r.parameter)?.get(r.sequence) ?? 'normal') as SiteKind | 'normal'
       }
     })
-)
+})
+
+// Compare on one key with `dir` applied to real values only, so nulls (and the
+// negative-mp no-measurement sentinel, which is not a real MP) stay last in
+// both directions. Ties fall through mp → seq — always ascending, matching the
+// parameter-info reading order.
+const compareOn = (a: Point, b: Point, key: SortKey, dir: number): number => {
+  if (key === 'param') return a.param.localeCompare(b.param) * dir
+  const av = key === 'mp' && a.mp < 0 ? null : a[key]
+  const bv = key === 'mp' && b.mp < 0 ? null : b[key]
+  if (av == null && bv == null) return 0
+  if (av == null) return 1 // nulls last regardless of direction
+  if (bv == null) return -1
+  return (av - bv) * dir
+}
 
 const rows = computed(() => {
   const base = filter.value === '전체'
@@ -191,14 +244,9 @@ const rows = computed(() => {
     : allPoints.value.filter(p => p.kind !== 'normal')
   const dir = sortDir.value === 'asc' ? 1 : -1
   const key = sortKey.value
-  return [...base].sort((a, b) => {
-    const av = a[key]
-    const bv = b[key]
-    if (av == null && bv == null) return 0
-    if (av == null) return 1 // nulls last regardless of direction
-    if (bv == null) return -1
-    return (av - bv) * dir
-  })
+  return [...base].sort((a, b) =>
+    compareOn(a, b, key, dir) || compareOn(a, b, 'mp', 1) || compareOn(a, b, 'seq', 1)
+  )
 })
 
 const toast = useToast()
@@ -206,8 +254,10 @@ const toast = useToast()
 // Build the current (filtered + sorted) rows as headers + a value matrix,
 // shared by CSV download and clipboard copy.
 const pointsTable = () => ({
-  headers: ['SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS'],
+  headers: ['PARAM', 'MP', 'SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS'],
   rows: rows.value.map(p => [
+    p.param,
+    p.mp,
     p.seq,
     p.x ?? '',
     p.y ?? '',
@@ -217,8 +267,10 @@ const pointsTable = () => ({
   ])
 })
 
-const exportFileName = () =>
-  `${props.analysis.focusFile.value?.msr ?? 'msr'}_${props.analysis.activeParam.value}_points.csv`
+const exportFileName = () => {
+  const paramPart = multiParam.value ? `${selectedParams.value.length}params` : props.analysis.activeParam.value
+  return `${props.analysis.focusFile.value?.msr ?? 'msr'}_${paramPart}_points.csv`
+}
 
 const exportCsv = () => {
   const { headers, rows: data } = pointsTable()
@@ -236,11 +288,12 @@ const copyPoints = async () => {
 }
 
 const flaggedCount = computed(() => allPoints.value.filter(p => p.kind !== 'normal').length)
-const meta = computed(() =>
-  filter.value === '전체'
-    ? `${allPoints.value.length} sites · ${flaggedCount.value} 이상·실패`
-    : `${flaggedCount.value} 이상·실패`
-)
+const meta = computed(() => {
+  const paramNote = multiParam.value ? `${selectedParams.value.length} params · ` : ''
+  return filter.value === '전체'
+    ? `${paramNote}${allPoints.value.length} sites · ${flaggedCount.value} 이상·실패`
+    : `${paramNote}${flaggedCount.value} 이상·실패`
+})
 
 const emptyLabel = computed(() => {
   if (filter.value === '이상·실패') {
@@ -248,7 +301,7 @@ const emptyLabel = computed(() => {
       ? '이상·실패 사이트가 없습니다.'
       : '측정 site 부족 — 이상 평가 불가'
   }
-  return `${props.analysis.activeParam.value} 측정점이 없습니다.`
+  return `${selectedParams.value.join(', ') || props.analysis.activeParam.value} 측정점이 없습니다.`
 })
 
 const badgeLabel = (kind: SiteKind | 'normal') =>

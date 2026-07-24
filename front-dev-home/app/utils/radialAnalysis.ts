@@ -383,3 +383,38 @@ export const analyzeRadialProfile = (
     metrics
   }
 }
+
+// The y-axis window for a rendered radial profile: the extent of everything the
+// chart actually draws for the given band mode — scatter values, fit curve,
+// radial-median line, and the active band's bounds — padded so points don't sit
+// on the frame. Explicit min/max (instead of ECharts `scale: true`) guarantees
+// the axis re-fits every new data selection; a rebuilt option can never carry a
+// previous selection's window along.
+export const radialYExtent = (
+  profile: RadialProfileResult,
+  band: RadialBandMode
+): { min: number, max: number } | null => {
+  const values: number[] = []
+  for (const p of profile.points) values.push(p.value)
+  for (const c of profile.curve) {
+    values.push(c.value)
+    if (band === 'confidence' && c.confidenceLower != null && c.confidenceUpper != null) {
+      values.push(c.confidenceLower, c.confidenceUpper)
+    }
+    if (band === 'prediction' && c.predictionLower != null && c.predictionUpper != null) {
+      values.push(c.predictionLower, c.predictionUpper)
+    }
+  }
+  for (const b of profile.bins) {
+    values.push(b.median)
+    if (band === 'iqr') values.push(b.q1, b.q3)
+  }
+
+  const finite = values.filter(v => Number.isFinite(v))
+  if (finite.length === 0) return null
+  const lo = Math.min(...finite)
+  const hi = Math.max(...finite)
+  // 6% headroom each side; a flat profile still gets a visible window.
+  const pad = (hi - lo) * 0.06 || Math.max(Math.abs(hi) * 0.05, 0.5)
+  return { min: lo - pad, max: hi + pad }
+}

@@ -4,6 +4,7 @@
 export interface WaferMapOptions {
   crosshair: boolean // X=0 / Y=0 lines through wafer centre
   grid: boolean // die-index gridlines + axis labels
+  dieGrid: boolean // die-boundary lines at true die size (chip_pitch), clipped to the wafer
   mpLabels: boolean // print mp_number on each point (Field mode)
   notch: boolean // wafer notch marker (orientation)
   colorMode: 'auto' | 'manual'
@@ -14,6 +15,9 @@ export interface WaferMapOptions {
 export const defaultWaferMapOptions = (): WaferMapOptions => ({
   crosshair: false,
   grid: false,
+  // On by default: the msr file carries real die info, so the map should show
+  // the die layout at its true size out of the box.
+  dieGrid: true,
   mpLabels: false,
   notch: true,
   colorMode: 'auto',

@@ -24,6 +24,11 @@
             size="xs"
           />
           <UCheckbox
+            v-model="model.dieGrid"
+            label="Die 경계 (실제 크기)"
+            size="xs"
+          />
+          <UCheckbox
             v-model="model.mpLabels"
             label="MP 번호 표시"
             size="xs"

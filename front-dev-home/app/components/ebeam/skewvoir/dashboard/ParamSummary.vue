@@ -42,12 +42,16 @@
             v-for="s in summaries"
             :key="s.parameter"
             class="cursor-pointer border-b border-(--sk-border-soft) transition-colors duration-150 hover:bg-(--sk-chip-bg)"
-            :class="s.parameter === activeParam ? 'bg-(--sk-chip-bg)' : ''"
-            @click="analysis.setParam(s.parameter)"
+            :class="s.parameter === activeParam
+              ? 'bg-(--sk-chip-bg)'
+              : selectedSet.has(s.parameter) ? 'bg-(--sk-brand)/10' : ''"
+            @click="analysis.toggleParam(s.parameter, $event.metaKey || $event.ctrlKey || $event.shiftKey)"
           >
             <td
               class="px-1.5 py-1 font-mono whitespace-nowrap"
-              :class="s.parameter === activeParam ? 'font-semibold text-(--sk-brand)' : 'text-(--sk-ink)'"
+              :class="s.parameter === activeParam
+                ? 'font-semibold text-(--sk-brand)'
+                : selectedSet.has(s.parameter) ? 'font-medium text-(--sk-brand)' : 'text-(--sk-ink)'"
             >
               {{ s.parameter }}
             </td>
@@ -91,6 +95,7 @@ const statColumns = ['Count', 'Mean', 'Std', 'Min', 'Max']
 
 const summaries = computed(() => props.analysis.paramSummaries.value)
 const activeParam = computed(() => props.analysis.activeParam.value)
+const selectedSet = computed(() => new Set(props.analysis.selectedParams.value))
 
 // CD values are a few tens of nm — 2 decimals matches StatBar/Distribution.
 const fmt = (v: number): string => (Number.isFinite(v) ? v.toFixed(2) : '—')

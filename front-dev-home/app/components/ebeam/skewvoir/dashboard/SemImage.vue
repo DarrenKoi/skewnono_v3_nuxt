@@ -40,7 +40,7 @@
         </a>
       </div>
       <div
-        v-else-if="measuredName && focusCtx.eqp_ip"
+        v-else-if="measuredName && focusCtx.eqp_ip && !loadFailed"
         class="relative min-h-0 flex-1 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
       >
         <EbeamSkewvoirZoomableImage
@@ -48,6 +48,7 @@
           :src="resolveImageUrl(measuredName)!"
           :alt="measuredName"
           class="h-full w-full"
+          @error="loadFailed = true"
         />
         <button
           type="button"
@@ -61,11 +62,22 @@
           />
         </button>
       </div>
+      <!-- Explicit missing-image state: the selected point has no image (failed
+           measurement, no file, or the file itself failed to load). Never fall
+           back to a DIFFERENT point's image — that would misattribute it. -->
       <div
         v-else
-        class="flex flex-1 items-center justify-center sk-body"
+        class="flex flex-1 flex-col items-center justify-center gap-2 rounded-(--sk-r-chip) border border-dashed border-(--sk-border)"
       >
-        측정 이미지가 없습니다.
+        <UIcon
+          name="i-lucide-image-off"
+          class="h-7 w-7 text-(--sk-ink-subtle)"
+        />
+        <span class="font-medium text-(--sk-ink-muted) sk-body">이미지 없음 · No Image</span>
+        <span
+          v-if="missingReason"
+          class="sk-meta"
+        >{{ missingReason }}</span>
       </div>
     </EbeamSkewvoirPanelFrame>
 
@@ -92,17 +104,37 @@ const resolveImageUrl = (name: string): string | null => {
   return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name) : null
 }
 
-// The measured micrograph for the active parameter — the focused point's image
-// leads, else the first measured point's.
+// The micrograph for the active parameter. With a focused point, ONLY that
+// point's image qualifies — a focused point with a failed/missing image shows
+// the 이미지 없음 state instead of silently borrowing another point's image.
+// With no focus, the first measured point's image leads.
 const measuredName = computed(() => {
   const rows = measuredRows(props.analysis.siteRows.value).filter(r => r.parameter === props.analysis.activeParam.value)
   const focused = props.analysis.focusedSequence.value
-  const focusedRow = focused != null ? rows.find(r => r.sequence === focused) : null
-  return (focusedRow ?? rows[0])?.mp_image_name_01 || null
+  if (focused != null) {
+    return rows.find(r => r.sequence === focused)?.mp_image_name_01 || null
+  }
+  return rows[0]?.mp_image_name_01 || null
+})
+
+// A failed load is per-image: switching to another image retries cleanly.
+const loadFailed = ref(false)
+watch(measuredName, () => {
+  loadFailed.value = false
+})
+
+// Why the placeholder is showing, for the small line under 이미지 없음.
+const missingReason = computed(() => {
+  const focused = props.analysis.focusedSequence.value
+  if (loadFailed.value) return '이미지를 불러오지 못했습니다'
+  if (measuredName.value && !focusCtx.value.eqp_ip) return '장비 정보 없음'
+  if (focused != null) return `seq ${focused} — 측정 실패 또는 이미지 누락`
+  return null
 })
 
 const meta = computed(() => {
   const seq = props.analysis.focusedSequence.value
-  return seq != null && measuredName.value ? `seq ${seq}` : (measuredName.value ? '측정 이미지' : '없음')
+  const ok = measuredName.value && !loadFailed.value
+  return seq != null && ok ? `seq ${seq}` : (ok ? '측정 이미지' : '없음')
 })
 </script>

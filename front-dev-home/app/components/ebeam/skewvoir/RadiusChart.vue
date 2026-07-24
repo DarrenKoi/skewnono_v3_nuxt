@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { RadialBandMode, RadialProfileResult } from '~/utils/radialAnalysis'
+import { radialYExtent, type RadialBandMode, type RadialProfileResult } from '~/utils/radialAnalysis'
 import { SK_CHART } from '~/utils/chartPalette'
 
 const props = withDefaults(defineProps<{
@@ -27,6 +27,21 @@ const props = withDefaults(defineProps<{
   heightClass: 'h-full min-h-[9rem]'
 })
 const emit = defineEmits<{ focus: [sequence: number] }>()
+
+// Shared shape for the main + residual value axes (both x and y), so the
+// residual push doesn't fight the main axis's literal type.
+interface ValueAxisConfig {
+  type: 'value'
+  scale?: boolean
+  min?: number
+  max?: number
+  name?: string
+  nameLocation?: 'middle'
+  nameGap?: number
+  nameTextStyle?: { fontSize: number }
+  axisLabel?: { fontSize: number, formatter?: (value: number) => string }
+  gridIndex?: number
+}
 
 const SECTOR_COLORS: Record<string, string> = {
   E: SK_CHART.series,
@@ -148,19 +163,25 @@ const option = computed<EChartsOption>(() => {
   const mainGrid = hasResiduals
     ? { left: 52, right: 20, top: 20, height: '55%', containLabel: true }
     : { left: 40, right: 44, top: 30, bottom: 36, containLabel: true }
-  const xAxes = [{
-    type: 'value' as const,
+  const xAxes: ValueAxisConfig[] = [{
+    type: 'value',
     min: props.profile.metrics.n ? props.profile.metrics.radiusMin : 0,
     max: props.profile.metrics.n ? props.profile.metrics.radiusMax : undefined,
     name: hasResiduals ? '' : 'distance from center (mm)',
-    nameLocation: 'middle' as const,
+    nameLocation: 'middle',
     nameGap: 24,
     nameTextStyle: { fontSize: 11 },
     axisLabel: { fontSize: 10, formatter: (value: number) => String(Math.round(value)) }
   }]
-  const yAxes = [{
-    type: 'value' as const,
+  // Explicit y window from the plotted data (points + band + curve) so a new
+  // data selection ALWAYS re-fits the axis — `scale: true` alone left the
+  // window pinned across selections.
+  const yExtent = radialYExtent(props.profile, props.band ?? 'none')
+  const yAxes: ValueAxisConfig[] = [{
+    type: 'value',
     scale: true,
+    min: yExtent?.min,
+    max: yExtent?.max,
     name: props.unit || props.parameter,
     nameTextStyle: { fontSize: 10 },
     axisLabel: { fontSize: 10, formatter: (value: number) => value.toFixed(2) }
@@ -176,7 +197,7 @@ const option = computed<EChartsOption>(() => {
       nameTextStyle: { fontSize: 10 },
       axisLabel: { fontSize: 10 },
       gridIndex: 1
-    } as typeof xAxes[number])
+    })
     yAxes.push({
       type: 'value',
       scale: true,
@@ -184,7 +205,7 @@ const option = computed<EChartsOption>(() => {
       nameTextStyle: { fontSize: 10 },
       axisLabel: { fontSize: 10 },
       gridIndex: 1
-    } as typeof yAxes[number])
+    })
   }
 
   return {

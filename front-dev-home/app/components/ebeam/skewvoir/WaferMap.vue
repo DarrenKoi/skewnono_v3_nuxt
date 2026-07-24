@@ -12,6 +12,7 @@ import { SK_CHART } from '~/utils/chartPalette'
 import type { WaferGeometry } from '~/utils/waferGeometry'
 import { buildWaferPoints, type WaferPoint } from '~/utils/waferPoints'
 import { buildWaferAxis } from '~/utils/waferAxis'
+import { dieGridLineData } from '~/utils/waferDieGrid'
 import { formatWaferTooltip } from '~/utils/waferTooltip'
 import { defaultWaferMapOptions, type WaferMapOptions } from '~/utils/waferMapOptions'
 
@@ -103,6 +104,12 @@ watch(valueRange, r => emit('rangechange', r), { immediate: true })
 // axes + a square body keep it a true circle. Axis just clears the edge.
 const waferRadius = computed(() => props.geo.radiusMm || 150)
 const axisMax = computed(() => waferRadius.value * 1.03)
+
+// Die boundaries at true die size (chip_pitch), clipped to the wafer circle —
+// one line series, segments separated by null gaps.
+const dieGridData = computed(() =>
+  props.options.dieGrid ? dieGridLineData(props.geo, waferRadius.value) : []
+)
 
 const waferOutline = computed<[number, number][]>(() => {
   const R = waferRadius.value
@@ -201,6 +208,14 @@ const option = computed<EChartsOption>(() => ({
   },
   series: [
     valueSeries.value,
+    ...(dieGridData.value.length
+      ? [{
+          type: 'line' as const, data: dieGridData.value, showSymbol: false, silent: true,
+          connectNulls: false,
+          lineStyle: { color: SK_CHART.muted, width: 0.75, opacity: 0.3 },
+          tooltip: { show: false }, z: 0
+        }]
+      : []),
     {
       type: 'line', data: waferOutline.value, showSymbol: false, silent: true,
       lineStyle: { color: SK_CHART.muted, width: 1.25, opacity: 0.55 }, tooltip: { show: false }, z: 0,

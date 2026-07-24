@@ -16,6 +16,7 @@
       draggable="false"
       class="pointer-events-none absolute inset-0 h-full w-full object-contain"
       :style="imgStyle"
+      @error="emit('error')"
     >
 
     <!-- Zoom controls -->
@@ -67,6 +68,9 @@
 // toggles. transform-origin is the top-left so the cursor-anchored math is
 // simple: keep the point under the cursor fixed while scaling.
 const props = withDefaults(defineProps<{ src: string, alt?: string }>(), { alt: '' })
+// Bubbled when the image itself fails to load (missing/failed file on the
+// server) so the host can swap in an explicit "이미지 없음" placeholder.
+const emit = defineEmits<{ error: [] }>()
 
 const MIN = 1
 const MAX = 6
