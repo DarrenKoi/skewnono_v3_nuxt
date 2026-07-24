@@ -74,6 +74,26 @@ test('both date forms normalize to YYYY-MM-DD', () => {
   assert.deepEqual(parseMeasHistQuery('20260510', KNOWN).date, ['2026-05-10'])
 })
 
+// A 6-digit YYMMDD (260723) is how the fab writes dates day-to-day; the
+// 2-digit year is the current century (metrology retention is a rolling recent
+// window, never 1926/2126). Without this it fell through to cross-field `q`
+// and — at the office, where q hits nothing — returned honest-looking zero
+// rows for a perfectly valid date.
+test('a 6-digit YYMMDD date normalizes to a 20YY-MM-DD date', () => {
+  assert.deepEqual(parseMeasHistQuery('260723', KNOWN).date, ['2026-07-23'])
+  assert.deepEqual(parseMeasHistQuery('date:260723', KNOWN).date, ['2026-07-23'])
+})
+
+// The same calendar-validity guard applies to the short form: 260732 (day 32)
+// and 261301 (month 13) match the 6-digit shape but are not real dates, so
+// they must fall through to `q`, never widen the backend range as a bogus
+// bound.
+test('an invalid 6-digit YYMMDD is not a date', () => {
+  assert.deepEqual(parseMeasHistQuery('260732', KNOWN).date, [])
+  assert.deepEqual(parseMeasHistQuery('260732', KNOWN).q, ['260732'])
+  assert.deepEqual(parseMeasHistQuery('261301', KNOWN).date, [])
+})
+
 // Fix 1: a digit-shape match alone is not enough — 2026-13-45, 2026-02-30 and
 // 99999999 all match the DASHED/COMPACT shape but are not real calendar
 // dates. Classifying them as `date` sends an unparseable from/to bound to

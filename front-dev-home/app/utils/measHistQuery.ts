@@ -45,6 +45,12 @@ const PREFIXED = /^(lot|recipe|eq|msr|date|q):(.*)$/i
 const MSR = /^\d{8}_.+_.+_.+$/
 const DATE_DASHED = /^(\d{4})-(\d{2})-(\d{2})$/
 const DATE_COMPACT = /^(\d{4})(\d{2})(\d{2})$/
+// 260723 -> 2026-07-23. The fab writes dates as 6-digit YYMMDD every day, so
+// the search bar must accept it. The 2-digit year is the current century:
+// measurement retention is a rolling recent window (never 1926/2126), so
+// 20YY is unambiguous. Length alone disambiguates this from DATE_COMPACT's
+// 8-digit form — a token is one or the other, never both.
+const DATE_YY_COMPACT = /^(\d{2})(\d{2})(\d{2})$/
 // 6LD257421 (3 alnum + 6 digits), RKPB240012 (4 alnum + 6 digits). Spec §4.2
 // widens the tail to 6-8 digits — the office index carries lot ids longer
 // than the mock's uniformly-6-digit ones, and a 7-8 digit lot id must not
@@ -68,10 +74,16 @@ const emptyQuery = (): ParsedQuery => ({ eq: [], lot: [], recipe: [], msr: [], d
 // explicit y/m/d is not wall-clock "now" — no violation of the no-wall-clock
 // rule.
 const normalizeDate = (token: string): string | null => {
-  const m = DATE_DASHED.exec(token) ?? DATE_COMPACT.exec(token)
+  // Full-year forms (dashed or 8-digit) keep the 4-digit year verbatim; the
+  // 6-digit form's 2-digit year expands to the current century (see
+  // DATE_YY_COMPACT). Once the year is resolved to 4 digits the calendar-
+  // validity round-trip below is identical for all three shapes.
+  const full = DATE_DASHED.exec(token) ?? DATE_COMPACT.exec(token)
+  const yy = full ? null : DATE_YY_COMPACT.exec(token)
+  const m = full ?? yy
   if (!m) return null
 
-  const year = Number(m[1])
+  const year = full ? Number(m[1]) : 2000 + Number(m[1])
   const month = Number(m[2])
   const day = Number(m[3])
   const dt = new Date(Date.UTC(year, month - 1, day))
@@ -80,7 +92,8 @@ const normalizeDate = (token: string): string | null => {
     && dt.getUTCDate() === day
   if (!roundTrips) return null
 
-  return `${m[1]}-${m[2]}-${m[3]}`
+  const yyyy = String(year).padStart(4, '0')
+  return `${yyyy}-${m[2]}-${m[3]}`
 }
 
 const classify = (token: string, known?: KnownValues): { field: ParsedField, value: string } => {

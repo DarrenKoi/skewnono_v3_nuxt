@@ -40,12 +40,19 @@ window-resolution semantics are copied from the mock verbatim: a present-but-
 unparseable date or a fully-out-of-window range reports ``out_of_retention``
 with zero rows; it never silently widens.
 
-INGESTION PREREQUISITE (q free-text search): the ``q`` fallback is contractually
-a ``wildcard`` query on a dedicated ``search_all`` field (mapping + clause in
-``meas_hist/opensearch_query.py``). That field is NOT ingested yet — until the
-loader indexes ``build_search_all_value(row)`` with ``SEARCH_ALL_MAPPING``,
-``q`` terms match nothing (an unmapped field matches no documents; it does not
-error). Every other filter works without it.
+q free-text search: the ``q`` fallback is a case-insensitive substring
+(``*term*`` wildcard) OR'd across the real source ``.keyword`` fields
+(``_Q_FIELDS`` below), the same shape ``_recipe_clause`` already uses. An
+earlier design routed ``q`` to a denormalized ``search_all`` wildcard field
+(``build_q_fallback_clause`` in ``meas_hist/opensearch_query.py``), but that
+field is NOT ingested on the office cluster, so every ``q`` term matched
+nothing — a recipe name, an unusually-shaped lot id, or any free text typed in
+the search bar returned honest-looking zero rows, and only an exact ``eqp_id``
+facet value (which takes the ``eq`` term path) ever worked. Searching the
+source fields directly needs no ingestion step this repo can't run. Leading
+wildcards are the same ``search.allow_expensive_queries`` cost the recipe
+clause already pays; if that ever bites, re-introduce ``search_all`` in the
+loader and swap ``_wildcard_or`` back for ``build_q_fallback_clause``.
 
 At the office: fill in OPENSEARCH_* / REDIS_* in ``back_dev_home/.env``,
 then ``cp office_example.py office.py`` — that file's existence is the
@@ -76,10 +83,7 @@ from back_dev_home.meas_hist.contracts import (
     MeasHistRow,
 )
 from back_dev_home.meas_hist.contracts import MeasHistSearchResponse
-from back_dev_home.meas_hist.opensearch_query import (
-    _escape_wildcard_literal,
-    build_q_fallback_clause,
-)
+from back_dev_home.meas_hist.opensearch_query import _escape_wildcard_literal
 # Single source for the cross-phase constants — importing them (instead of
 # redefining) makes Phase 1/2 disagreement impossible.
 from back_dev_home.meas_hist.providers._shared import normalize_fail_ratio
@@ -277,10 +281,28 @@ def _time_range_clause(start: datetime, end: datetime) -> dict[str, Any]:
     return {"range": {_TIME_F: {"gte": _ts(start), "lte": _ts(end)}}}
 
 
-def _recipe_clause(terms: list[str]) -> dict[str, Any] | None:
-    """Substring match on recipe_name/full_name — the search bar accepts
-    fragments. case_insensitive wildcards on the .keyword subfields, OR
-    across (term x field), mirroring the mock's any()-of-substrings."""
+# Fields the free-text `q` fallback searches — the office-available subset of
+# opensearch_query.SEARCHABLE_SOURCE_FIELDS (no vendor_nm/lot_cd/id: those are
+# not stored office-side, they are derived per-row). recipe_name/full_name/
+# lot_id/eqp_id/msr cover every token the search-bar parser routes to `q`.
+_Q_FIELDS = (
+    _RECIPE_KW,
+    _FULL_KW,
+    _LOT_ID_KW,
+    _EQP_KW,
+    _MODEL_KW,
+    _MSR_KW,
+    "class_name.keyword",
+    _FAB_KW,
+    "fac_id.keyword",
+)
+
+
+def _wildcard_or(terms: list[str], fields: tuple[str, ...]) -> dict[str, Any] | None:
+    """case_insensitive substring (``*term*``) match, OR'd across
+    (term x field). The .keyword subfields dodge tokenization; constant_score
+    skips scoring on what is a pure filter. Mirrors the mock's
+    any()-of-substrings."""
     patterns = [
         f"*{_escape_wildcard_literal(term.strip())}*" for term in terms if term.strip()
     ]
@@ -299,11 +321,17 @@ def _recipe_clause(terms: list[str]) -> dict[str, Any] | None:
                     }
                 }
                 for pattern in patterns
-                for field in (_RECIPE_KW, _FULL_KW)
+                for field in fields
             ],
             "minimum_should_match": 1,
         }
     }
+
+
+def _recipe_clause(terms: list[str]) -> dict[str, Any] | None:
+    """Substring match on recipe_name/full_name — the search bar accepts
+    fragments."""
+    return _wildcard_or(terms, (_RECIPE_KW, _FULL_KW))
 
 
 # --- Endpoints ----------------------------------------------------------------
@@ -412,9 +440,9 @@ def search_meas_hist(
         recipe_clause = _recipe_clause(recipe or [])
         if recipe_clause:
             clauses.append(recipe_clause)
-        # q fallback: wildcard over the denormalized search_all field — see
-        # the module docstring's INGESTION PREREQUISITE.
-        q_clause = build_q_fallback_clause(q or [])
+        # q fallback: substring wildcard across the real source fields — see
+        # the module docstring's "q free-text search" note.
+        q_clause = _wildcard_or(q or [], _Q_FIELDS)
         if q_clause:
             clauses.append(q_clause)
 
