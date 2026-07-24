@@ -88,6 +88,19 @@ const props = defineProps<{
 
 const bins = computed(() => props.spatial.radiusBins)
 
+// Explicit y window over everything the chart draws (median line + IQR band),
+// padded so the profile sits in the middle of the plot instead of riding the
+// frame — `scale: true` alone still lets the extreme bins touch the edges.
+const yExtent = computed(() => {
+  const values = bins.value.flatMap(b => [b.median, b.q1, b.q3]).filter(v => Number.isFinite(v))
+  if (values.length === 0) return null
+  const lo = Math.min(...values)
+  const hi = Math.max(...values)
+  // 15% headroom each side; a flat profile still gets a visible window.
+  const pad = (hi - lo) * 0.15 || Math.max(Math.abs(hi) * 0.05, 0.5)
+  return { min: lo - pad, max: hi + pad }
+})
+
 const meta = computed(() => `${bins.value.length} bins · ${props.unit || props.parameter}`)
 
 // Screen-reader text alternative for the canvas chart: bin count plus the
@@ -128,9 +141,11 @@ const option = computed<EChartsOption>(() => ({
   yAxis: {
     type: 'value',
     scale: true,
+    min: yExtent.value?.min,
+    max: yExtent.value?.max,
     name: props.unit || props.parameter,
     nameTextStyle: { fontSize: 10 },
-    axisLabel: { fontSize: 10 }
+    axisLabel: { fontSize: 10, formatter: (value: number) => value.toFixed(2) }
   },
   series: [
     // IQR band via stacked transparent lower + filled span.

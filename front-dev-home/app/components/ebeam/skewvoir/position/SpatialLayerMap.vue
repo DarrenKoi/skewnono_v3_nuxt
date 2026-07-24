@@ -211,6 +211,25 @@ const option = computed<EChartsOption>(() => ({
       type: 'scatter',
       symbolSize: layer.value === 'failure' ? 9 : 14,
       itemStyle: layer.value === 'failure' ? { opacity: 0.25 } : {},
+      // Measured value printed at each site (hidden on the failure layer, where
+      // the dots are context, not readings). Overlapping labels drop out
+      // instead of stacking — the tooltip still carries the exact number.
+      label: layer.value === 'failure'
+        ? { show: false }
+        : {
+            show: true,
+            position: 'top',
+            distance: 3,
+            fontSize: 10,
+            fontFamily: 'monospace',
+            color: SK_CHART.ink,
+            formatter: (params) => {
+              const v = (params.value as number[])[2]
+              if (v == null) return ''
+              return layer.value === 'raw' ? v.toFixed(1) : `${v > 0 ? '+' : ''}${v.toFixed(2)}`
+            }
+          },
+      labelLayout: { hideOverlap: true },
       data: points.value.map(p => ({ name: p.chip, value: [p.x, p.y, p.value] }))
     },
     {

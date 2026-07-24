@@ -41,22 +41,25 @@
           :key="chip.key"
           class="dashboard-surface rounded-(--sk-r-card) px-3 py-2.5"
         >
-          <p class="sk-eyebrow">
+          <p class="sk-eyebrow text-[12px]">
             {{ chip.label }}
           </p>
           <p
             v-if="chip.status === 'ok'"
-            class="mt-0.5 font-mono text-[15px] font-semibold text-(--sk-ink) tabular-nums"
+            class="mt-0.5 font-mono text-lg font-semibold text-(--sk-ink) tabular-nums"
           >
             {{ formatValue(chip) }}
           </p>
           <p
             v-else
-            class="mt-0.5 font-mono text-[13px] font-semibold text-(--sk-ink-subtle)"
+            class="mt-0.5 font-mono text-[15px] font-semibold text-(--sk-ink-subtle)"
           >
             평가 불가
           </p>
-          <p class="mt-0.5 truncate text-[11px] text-(--sk-ink-muted)">
+          <p
+            class="mt-0.5 text-[13px] text-(--sk-ink-muted)"
+            :title="chip.detail"
+          >
             {{ chip.detail }}
           </p>
         </div>

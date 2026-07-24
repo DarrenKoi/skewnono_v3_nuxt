@@ -3,7 +3,7 @@
     :open="open"
     :title="site ? `Site ${site.chip}` : '측정점 상세'"
     description="선택한 측정점의 값 · 잔차 · 순서 · SEM"
-    :ui="{ content: 'w-[92vw] sm:max-w-[420px]' }"
+    :ui="{ content: 'w-[92vw] sm:min-w-[420px] sm:max-w-[50vw]' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -13,45 +13,45 @@
       >
         <dl class="grid grid-cols-2 gap-2">
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow">
+            <dt class="sk-eyebrow text-[11px]">
               chip · seq
             </dt>
-            <dd class="mt-0.5 font-mono text-[13px] font-semibold text-(--sk-ink)">
+            <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
               {{ site.chip }} · {{ site.sequence }}
             </dd>
           </div>
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow">
+            <dt class="sk-eyebrow text-[11px]">
               sector · R
             </dt>
-            <dd class="mt-0.5 font-mono text-[13px] font-semibold text-(--sk-ink)">
+            <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
               {{ site.sector ?? '—' }} · {{ site.radiusMm != null ? `${site.radiusMm.toFixed(1)} mm` : '—' }}
             </dd>
           </div>
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow">
+            <dt class="sk-eyebrow text-[11px]">
               raw ({{ unit }})
             </dt>
-            <dd class="mt-0.5 font-mono text-[13px] font-semibold text-(--sk-ink)">
+            <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
               {{ site.raw.toFixed(3) }}
             </dd>
           </div>
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow">
+            <dt class="sk-eyebrow text-[11px]">
               중앙값 대비
             </dt>
             <dd
-              class="mt-0.5 font-mono text-[13px] font-semibold"
+              class="mt-0.5 font-mono text-sm font-semibold"
               :class="site.centered >= 0 ? 'text-(--sk-bad)' : 'text-(--sk-ok)'"
             >
               {{ site.centered >= 0 ? '+' : '' }}{{ site.centered.toFixed(3) }}
             </dd>
           </div>
           <div class="col-span-2 rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow">
+            <dt class="sk-eyebrow text-[11px]">
               추세 잔차 (residual)
             </dt>
-            <dd class="mt-0.5 font-mono text-[13px] font-semibold text-(--sk-ink)">
+            <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
               <span v-if="site.residual != null">{{ site.residual >= 0 ? '+' : '' }}{{ site.residual.toFixed(3) }} {{ unit }}</span>
               <span
                 v-else
@@ -62,64 +62,73 @@
         </dl>
 
         <section>
-          <p class="mb-1.5 sk-eyebrow">
+          <p class="mb-1.5 sk-eyebrow text-[12px]">
             SEM 미리보기
           </p>
+          <!-- Image + 취득 조건 side by side once the drawer is at half-browser
+               width; stacked again on narrow screens. -->
           <div
-            v-if="imageName && blobUrl"
-            class="relative aspect-square w-full overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
+            class="grid grid-cols-1 gap-3"
+            :class="imageCond ? 'lg:grid-cols-2' : ''"
           >
-            <EbeamSkewvoirZoomableImage
-              :key="imageName"
-              :src="blobUrl"
-              :alt="imageName"
-              class="h-full w-full"
-            />
-          </div>
-          <div
-            v-else-if="imageName && imageLoading"
-            class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="h-5 w-5 animate-spin"
-            />
-          </div>
-          <!-- TIFF originals have no browser preview — hand off to download. -->
-          <div
-            v-else-if="imageName && isTiffName(imageName) && !imageFailed"
-            class="flex h-40 flex-col items-center justify-center gap-1.5 rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
-          >
-            <UIcon
-              name="i-lucide-file-image"
-              class="h-5 w-5 text-(--sk-ink-subtle)"
-            />
-            <span>TIFF 원본 · 미리보기 미지원</span>
-            <a
-              v-if="downloadUrl"
-              :href="downloadUrl"
-              :download="imageName"
-              class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-            >
-              <UIcon
-                name="i-lucide-download"
-                class="h-3 w-3"
-              />
-              원본 다운로드
-            </a>
-          </div>
-          <div
-            v-else
-            class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
-          >
-            {{ imageFailed ? '이미지 로드 실패' : '측정 이미지가 없습니다.' }}
-          </div>
+            <div>
+              <div
+                v-if="imageName && blobUrl"
+                class="relative aspect-square w-full overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
+              >
+                <EbeamSkewvoirZoomableImage
+                  :key="imageName"
+                  :src="blobUrl"
+                  :alt="imageName"
+                  class="h-full w-full"
+                />
+              </div>
+              <div
+                v-else-if="imageName && imageLoading"
+                class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
+              >
+                <UIcon
+                  name="i-lucide-loader-circle"
+                  class="h-5 w-5 animate-spin"
+                />
+              </div>
+              <!-- TIFF originals have no browser preview — hand off to download. -->
+              <div
+                v-else-if="imageName && isTiffName(imageName) && !imageFailed"
+                class="flex h-40 flex-col items-center justify-center gap-1.5 rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
+              >
+                <UIcon
+                  name="i-lucide-file-image"
+                  class="h-5 w-5 text-(--sk-ink-subtle)"
+                />
+                <span>TIFF 원본 · 미리보기 미지원</span>
+                <a
+                  v-if="downloadUrl"
+                  :href="downloadUrl"
+                  :download="imageName"
+                  class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+                >
+                  <UIcon
+                    name="i-lucide-download"
+                    class="h-3 w-3"
+                  />
+                  원본 다운로드
+                </a>
+              </div>
+              <div
+                v-else
+                class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
+              >
+                {{ imageFailed ? '이미지 로드 실패' : '측정 이미지가 없습니다.' }}
+              </div>
+            </div>
 
-          <div v-if="imageCond">
-            <p class="mt-2 mb-1 sk-eyebrow">
-              취득 조건
-            </p>
-            <pre class="max-h-32 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2 font-mono text-[10px] whitespace-pre-wrap text-(--sk-ink-muted)">{{ imageCond }}</pre>
+            <div v-if="imageCond">
+              <p class="mb-1 sk-eyebrow text-[12px]">
+                취득 조건
+              </p>
+              <pre class="max-h-96 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2.5 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-(--sk-ink)">{{ imageCond }}</pre>
+            </div>
           </div>
         </section>
       </div>
