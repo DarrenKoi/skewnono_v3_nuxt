@@ -55,17 +55,34 @@ PRUNE_SUFFIXES = (".pyc", ".pyo", ".md", ".log")
 PRUNE_NAMES = frozenset({"conftest.py", ".DS_Store", "Thumbs.db"})
 
 
+def prunes_by_name(name: str) -> bool:
+    """Prune decision for a single directory entry, from its name alone.
+
+    Deliberately name-only. The walk is top-down, so pruning a directory by
+    name is enough — nothing below it is ever visited. Anything that consults
+    ancestors would inherit whatever the bundle happens to be checked out
+    under, which is not ours to interpret.
+    """
+    return (
+        name in PRUNE_NAMES
+        or name in PRUNE_DIRS
+        or Path(name).suffix in PRUNE_SUFFIXES
+    )
+
+
 def should_prune(path: Path) -> bool:
-    """True when this path must not appear in the bundle."""
-    if path.name in PRUNE_NAMES:
-        return True
-    if path.name in PRUNE_DIRS:
-        return True
-    if any(part in PRUNE_DIRS for part in path.parts):
-        return True
-    return path.suffix in PRUNE_SUFFIXES
+    """True when this REPO-RELATIVE path must not appear in the bundle.
+
+    Takes a relative path: the ancestor check below reads every component, so
+    an absolute path would test the directories the checkout happens to live
+    in. Use prunes_by_name() when all you have is one entry's name.
+    """
+    return prunes_by_name(path.name) or any(part in PRUNE_DIRS for part in path.parts)
 
 
+# Keep in sync with the fallback in back_dev_home/__init__.py's
+# app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", ...). Not imported:
+# packing must work without importing the app.
 DEFAULT_SECRET_KEY = "dev-only-not-for-prod"
 
 
@@ -190,9 +207,15 @@ def blocking_failures(checks: list[Check]) -> list[Check]:
 
 
 def _ignore(directory: str, names: list[str]) -> set[str]:
-    """shutil.copytree callback — drop pruned entries during the walk."""
-    parent = Path(directory)
-    return {name for name in names if should_prune(parent / name)}
+    """shutil.copytree callback — drop pruned entries during the walk.
+
+    Matches on the entry NAME only. copytree passes `directory` as an absolute
+    source path, so joining it and testing every component would prune the
+    whole tree whenever the checkout lives under a directory called `tests`,
+    `__pycache__`, or similar — a real office-PC path, not a hypothetical.
+    """
+    del directory  # the walk is top-down; ancestors are already decided
+    return {name for name in names if prunes_by_name(name)}
 
 
 # The Nuxt build output is already exactly what should ship, and it is opaque
@@ -257,6 +280,15 @@ RUNBOOK = """# Deploy this bundle
    resolves under `/project/workSpace`. Anywhere else and the app starts with
    no SSO auth, no SPA mount, and mock data — while still answering HTTP 200.
 
+   This folder carries credentials (`back_dev_home/.env`,
+   `minio_handler/minio_config.py`). It is mode 700 here, but `scp -r` without
+   `-p`, SFTP clients and tar-extract all recreate directories under the
+   destination umask, so re-apply it after the copy:
+
+       chmod 700 /project/workSpace
+       chmod 600 /project/workSpace/back_dev_home/.env
+       chmod 600 /project/workSpace/minio_handler/minio_config.py
+
 2. Check the transfer landed correctly, before installing anything:
 
        cd /project/workSpace && python preflight.py
@@ -303,10 +335,16 @@ def git_provenance(repo_root: Path) -> dict[str, str]:
         return result.stdout.strip() if result.returncode == 0 else "unknown"
 
     status = run("status", "--porcelain")
+    if status == "unknown":
+        # Never report a clean tree because git failed -- this is a provenance
+        # record, and "no" next to sha=unknown reads as a verified-clean build.
+        dirty = "unknown"
+    else:
+        dirty = "yes" if status else "no"
     return {
         "sha": run("rev-parse", "HEAD"),
         "branch": run("rev-parse", "--abbrev-ref", "HEAD"),
-        "dirty": "yes" if status not in ("", "unknown") else "no",
+        "dirty": dirty,
     }
 
 

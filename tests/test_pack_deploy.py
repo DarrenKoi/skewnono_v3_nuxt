@@ -256,3 +256,47 @@ def test_main_writes_a_complete_bundle(tmp_path, monkeypatch):
     assert (bundle / "preflight.py").is_file()
     assert (bundle / "MANIFEST.txt").is_file()
     assert (bundle / "DEPLOY.md").is_file()
+
+
+def test_ignore_callback_is_not_poisoned_by_the_checkout_path():
+    """copytree passes an ABSOLUTE source dir. If the prune decision consulted
+    ancestors, a checkout living under any directory named `tests` (or
+    __pycache__, .pytest_cache, .ruff_cache) would prune every file in the
+    bundle. Regression: this emptied back_dev_home down to 3 files."""
+    pruned = pack_deploy._ignore(
+        "/Users/someone/tests/skewnono_v3_nuxt/back_dev_home/sem_list",
+        ["routes.py", "data.py", "contracts.py", "__init__.py", "providers"],
+    )
+
+    assert pruned == set()
+
+
+def test_ignore_callback_still_prunes_by_entry_name():
+    pruned = pack_deploy._ignore(
+        "/anywhere/back_dev_home",
+        ["routes.py", "__pycache__", "tests", "MIGRATION.md", "conftest.py"],
+    )
+
+    assert pruned == {"__pycache__", "tests", "MIGRATION.md", "conftest.py"}
+
+
+def test_copy_survives_a_checkout_under_a_directory_named_tests(tmp_path):
+    """End-to-end guard for the same bug, at the path shape that triggers it."""
+    nest = tmp_path / "tests"
+    nest.mkdir()
+    repo = _make_repo(nest)
+    (repo / "back_dev_home" / "sem_list").mkdir(parents=True)
+    (repo / "back_dev_home" / "sem_list" / "routes.py").write_text("# real code\n")
+    dest = tmp_path / "bundle"
+
+    pack_deploy.copy_bundle(repo, dest)
+
+    assert (dest / "back_dev_home" / "sem_list" / "routes.py").is_file()
+    assert pack_deploy.verify_bundle(dest) == []
+
+
+def test_git_provenance_does_not_claim_a_clean_tree_when_git_fails(tmp_path):
+    """sha=unknown next to uncommitted=no reads as a verified-clean build."""
+    provenance = pack_deploy.git_provenance(tmp_path / "not-a-repo")
+
+    assert provenance["dirty"] != "no"

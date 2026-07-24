@@ -86,6 +86,16 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 
 > **주의:** 번들에는 자격 증명이 포함됩니다. 출력 폴더는 `chmod 700` 으로
 > 생성되며, 공유 스토리지에 두지 않아야 합니다.
+>
+> 다만 이 권한은 **전송 과정에서 유지되지 않습니다.** `scp -r` 을 `-p` 없이
+> 쓰거나 SFTP 클라이언트, tar 압축 해제를 거치면 대상 서버의 umask 로 디렉터리가
+> 새로 만들어집니다. 복사 직후 다음을 다시 적용해 주십시오.
+>
+> ```bash
+> chmod 700 /project/workSpace
+> chmod 600 /project/workSpace/back_dev_home/.env
+> chmod 600 /project/workSpace/minio_handler/minio_config.py
+> ```
 
 ## 4. 클라우드 쪽에서 준비해야 하는 것
 
