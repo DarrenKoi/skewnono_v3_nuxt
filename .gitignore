@@ -124,6 +124,7 @@ back_dev_home/**/writer/office.py.bak
 var/
 back_dev_home/msr_image/providers/office.py
 
-# Playwright test runner artifacts (the MCP session dumps live in .playwright-mcp/)
-front-dev-home/test-results/
+# Playwright test runner artifacts (the MCP session dumps live in .playwright-mcp/).
+# No leading slash, so this matches at any depth -- front-dev-home/test-results/
+# and any future workspace's included.
 test-results/
