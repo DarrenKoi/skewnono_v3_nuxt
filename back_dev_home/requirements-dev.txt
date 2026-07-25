@@ -2,7 +2,12 @@
 # install (private cloud) does not ship a test runner.
 #
 #   .venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt
-#   .venv/bin/python -m pytest tests/ -q
+#   .venv/bin/python -m pytest tests back_dev_home -q
+#
+# Both paths matter: `tests/` alone omits every back_dev_home/<feature>/tests/
+# provider contract suite, which is most of the suite and the part that guards
+# the mock->office swap. Verify one feature's office adapter with
+#   SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q
 
 -r requirements.txt
 
