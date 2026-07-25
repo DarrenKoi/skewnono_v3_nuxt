@@ -258,7 +258,13 @@ def build_network_sharpness_docs(
     # OpenSearch orders by timestamp alone, which leaves the condition-pair docs
     # sharing a second in arbitrary order. Re-sort on the mock's exact key so
     # both providers hand the page the same sequence.
-    docs.sort(key=lambda d: (d["timestamp"], str(d["beam_condition"]["SEM_Cond_No"])))
+    #
+    # NUMERIC, matching sharpness/mock.py. This used to coerce with str(), which
+    # sorts "10" before "5" — so a two-digit SEM_Cond_No made the two providers
+    # emit different orders for identical data, defeating the very purpose of
+    # this line. _validate() has already coerced SEM_Cond_No to an int, so the
+    # str() was not guarding against a None or a stringified value either.
+    docs.sort(key=lambda d: (d["timestamp"], d["beam_condition"]["SEM_Cond_No"]))
     return docs
 
 

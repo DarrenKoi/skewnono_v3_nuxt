@@ -306,34 +306,33 @@ def test_build_breaks_timestamp_ties_on_the_condition_number(
     ]
 
 
-def test_condition_tiebreak_is_lexicographic_and_diverges_from_the_mock(
+def test_condition_tiebreak_is_numeric_and_agrees_with_the_mock(
     monkeypatch, office_roster
 ):
-    """KNOWN DEFECT, characterized here so it cannot change unnoticed.
+    """The tie-break must order conditions numerically, as the mock does.
 
-    The adapter's tie-break is `str(d["beam_condition"]["SEM_Cond_No"])` while
-    `sharpness/mock.py` sorts the same field NUMERICALLY. `"10" < "5"`, so on a
-    two-digit condition number the two providers hand the page different doc
-    orders for identical data — which is precisely what the adapter's own
-    comment says it re-sorts to prevent ("the mock's exact key"). It is
-    harmless only while the index holds conditions 5 and 6, as the docstring
-    expects, and it is invisible from either provider alone.
+    This was a real defect: the adapter coerced with
+    `str(d["beam_condition"]["SEM_Cond_No"])` while `sharpness/mock.py` sorted
+    the same field numerically. Since `"10" < "5"`, a two-digit condition number
+    made the two providers hand the page different doc orders for identical
+    data — defeating the exact purpose the adapter's own comment states ("the
+    mock's exact key"). It stayed dormant because the index holds conditions 5
+    and 6, and it was invisible from either provider alone.
 
-    This asserts the CURRENT behaviour rather than the desired one so the suite
-    stays green. When the two sort keys are made numeric on both sides, flip
-    the expectation below to `[5, 10]` and rename the test.
+    Two digits are the whole point of the fixture: with 5 and 6 the two sort
+    keys agree and this test cannot fail.
     """
     office_roster([_sem_row()])
     cond10 = {**RAW_HIT["beam_condition"], "SEM_Cond_No": 10}
     cond5 = {**RAW_HIT["beam_condition"], "SEM_Cond_No": 5}
-    _capture(monkeypatch, hits=[_hit(beam_condition=cond5), _hit(beam_condition=cond10)])
+    _capture(monkeypatch, hits=[_hit(beam_condition=cond10), _hit(beam_condition=cond5)])
     docs = office.build_network_sharpness_docs(
         "MCD018", None, ANCHOR - timedelta(days=5), ANCHOR
     )
 
     office_order = [d["beam_condition"]["SEM_Cond_No"] for d in docs]
-    assert office_order == [10, 5]                      # lexicographic, today
-    assert office_order != sorted(office_order)         # what the mock would do
+    assert office_order == [5, 10]
+    assert office_order == sorted(office_order)  # i.e. what the mock produces
 
 
 def test_build_raises_when_the_result_fills_the_cap(monkeypatch, office_roster):
