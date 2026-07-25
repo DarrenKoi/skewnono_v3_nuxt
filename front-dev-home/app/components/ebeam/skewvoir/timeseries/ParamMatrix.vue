@@ -34,7 +34,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [sequence: number], drill: [param: string] }>()
 
-const ROW_HEIGHT = 78
+const ROW_HEIGHT = 86
 const HEADER = 22
 const ZOOM = 44
 
@@ -89,7 +89,8 @@ const option = computed<EChartsOption>(() => {
         coord: row.kind === 'cd' ? [[colKey(0), colKey(cols - 1)], row.label] : [colKey(colIdx), row.label],
         left: 4,
         right: 4,
-        top: 15,
+        // Room above the plot for the per-cell param label (yAxis.name below).
+        top: 26,
         bottom: 5,
         containLabel: true
       })
@@ -111,6 +112,17 @@ const option = computed<EChartsOption>(() => {
         gridId: id,
         type: 'value',
         scale: true,
+        // The cell's own caption. Row headers only say which CATEGORY you are
+        // looking at, so without this you cannot tell StigmaX from StigmaY —
+        // which would defeat the ranking entirely.
+        name: `${cell.param}  ${rBadge(cell)}`,
+        nameLocation: 'end',
+        nameGap: 9,
+        nameTextStyle: {
+          fontSize: 9,
+          align: 'left',
+          color: cell.readiness === 'ready' ? undefined : '#f59e0b'
+        },
         // One label only — the max. A tiny cell cannot carry a full scale.
         interval: Number.MAX_SAFE_INTEGER,
         axisLabel: { showMaxLabel: true, fontSize: 8, opacity: 0.55 },
@@ -167,17 +179,26 @@ const option = computed<EChartsOption>(() => {
     },
     tooltip: {
       trigger: 'axis',
+      // axisPointer.link makes every cell's axis fire together, so one hover
+      // reports the whole matrix at that sequence — the cross-param readout
+      // this view exists for. Confine it so the tall list cannot escape the
+      // chart box.
+      confine: true,
+      textStyle: { fontSize: 11 },
       formatter: (params) => {
         const list = Array.isArray(params) ? params : [params]
-        const first = list[0] as { seriesIndex?: number, dataIndex: number } | undefined
+        const first = list[0] as { dataIndex: number } | undefined
         if (!first) return ''
         const seq = props.model.sequences[first.dataIndex]
-        const lines = [`sequence ${seq ?? '—'}`]
-        for (const item of list as { seriesName: string, value: number | null }[]) {
-          lines.push(`${item.seriesName}: <b>${item.value == null ? '결측' : item.value}</b>`)
+        const lines = [`<b>sequence ${seq ?? '—'}</b>`]
+        for (const item of list as { seriesIndex: number, value: number | null }[]) {
+          const cell = cellByIndex.value[item.seriesIndex]
+          // The suspects row holds COPIES of cells from the category rows, so
+          // without this every suspect would be listed twice in one tooltip.
+          if (!cell || cell.duplicated) continue
+          const v = item.value == null ? '결측' : item.value
+          lines.push(`${cell.param}: <b>${v}</b> ${cell.unit}`)
         }
-        const cell = first.seriesIndex == null ? undefined : cellByIndex.value[first.seriesIndex]
-        if (cell?.reason) lines.push(`<span style="opacity:.7">${cell.reason}</span>`)
         return lines.join('<br/>')
       }
     },

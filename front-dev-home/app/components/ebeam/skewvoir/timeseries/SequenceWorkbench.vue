@@ -54,6 +54,28 @@
         />
       </EbeamSkewvoirPanelFrame>
 
+      <!-- Overview: every param at once, each in its own unit. The panes below
+           stay the detailed reading; this is the scan layer. -->
+      <EbeamSkewvoirPanelFrame
+        title="파라미터 매트릭스"
+        :meta="`${matrix.rows.length} rows · ${matrix.columns} cols · CD 대비 상관`"
+        icon="i-lucide-grid-3x3"
+      >
+        <template #actions>
+          <span
+            v-if="matrix.demoCoupled"
+            class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
+          >
+            데모 데이터 · 방법 검증 불가
+          </span>
+        </template>
+        <EbeamSkewvoirTimeseriesParamMatrix
+          :model="matrix"
+          @select="onSelect"
+          @drill="drillTo"
+        />
+      </EbeamSkewvoirPanelFrame>
+
       <!-- CD pane — always present. Different units go in SEPARATE panes. -->
       <EbeamSkewvoirPanelFrame
         :title="`CD · ${analysis.activeParam.value}`"
@@ -73,29 +95,34 @@
 
       <!-- Dynamic-FDC panes — one per param, each its own Y unit. -->
       <template v-if="model.hasFdc">
-        <EbeamSkewvoirPanelFrame
+        <!-- The id is the matrix's drill-down scroll target. -->
+        <div
           v-for="(series, i) in model.fdc"
+          :id="`fdc-pane-${series.param}`"
           :key="series.param"
-          :title="`Dynamic FDC · ${series.param}`"
-          :meta="fdcMeta(series)"
-          icon="i-lucide-waves"
         >
-          <template #actions>
-            <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
-              데모 데이터 · 방법 검증 불가
-            </span>
-          </template>
-          <EbeamSkewvoirFdcSequenceTrend
-            :points="series.points"
-            :sequences="model.sequences"
-            :name="series.param"
-            :unit="series.unit"
-            :nominal="series.nominal"
-            :focused="analysis.focusedSequence.value"
-            :color="fdcColor(i)"
-            @select="onSelect"
-          />
-        </EbeamSkewvoirPanelFrame>
+          <EbeamSkewvoirPanelFrame
+            :title="`Dynamic FDC · ${series.param}`"
+            :meta="fdcMeta(series)"
+            icon="i-lucide-waves"
+          >
+            <template #actions>
+              <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
+                데모 데이터 · 방법 검증 불가
+              </span>
+            </template>
+            <EbeamSkewvoirFdcSequenceTrend
+              :points="series.points"
+              :sequences="model.sequences"
+              :name="series.param"
+              :unit="series.unit"
+              :nominal="series.nominal"
+              :focused="analysis.focusedSequence.value"
+              :color="fdcColor(i)"
+              @select="onSelect"
+            />
+          </EbeamSkewvoirPanelFrame>
+        </div>
       </template>
 
       <!-- No dynamic FDC — CD pane only, with the reason. -->
@@ -118,6 +145,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
 import { analyzeSequence, type FdcSeqSeries } from '~/utils/skewvoirAnalysis/sequence'
+import { buildParamMatrix } from '~/utils/skewvoirAnalysis/paramMatrix'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -139,6 +167,33 @@ const model = computed(() =>
     props.analysis.activeUnit.value
   )
 )
+
+// The matrix reads the SAME SequenceModel the panes below already use, so the
+// overview and the detail can never disagree about what was measured.
+const matrix = computed(() =>
+  buildParamMatrix(
+    model.value,
+    props.analysis.siteRows.value,
+    props.analysis.focusFile.value?.dynamic_fdc ?? {},
+    props.analysis.focusFile.value?.fdc_params ?? [],
+    props.analysis.activeParam.value
+  )
+)
+
+// Drill-down: bring the clicked param's full-size pane into view. `nearest` is
+// deliberate — it is a no-op when the pane is already on screen, so a click
+// meant only to move the cursor does not yank the page around. The nextTick
+// wrapper follows MeasurementPoints.vue: the same click also moves the cursor,
+// so let the resulting DOM settle before measuring scroll position.
+const drillTo = (param: string): void => {
+  if (!import.meta.client) return
+  nextTick(() => {
+    document.getElementById(`fdc-pane-${param}`)?.scrollIntoView({
+      block: 'nearest',
+      behavior: 'smooth'
+    })
+  })
+}
 
 const fmt = (v: number): string => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const signed = (v: number): string => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(3)}` : '—')
