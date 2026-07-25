@@ -23,13 +23,12 @@ import {
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
 import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
+import { resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
+import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
+import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
 import { assignSiteColors } from '~/utils/siteColors'
 import { SK_SITE, SK_SITE_OVERFLOW } from '~/utils/chartPalette'
-
-// Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
-// hundreds of MsrFile fetches; we take the most recent N around the selection.
-const TREND_LIMIT = 30
 
 // The analysis route's data layer. Given the URL-pinned selection (focus `msr`)
 // and the curated comparison set (URL `msrs`), it resolves two shapes of data:
@@ -88,42 +87,23 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // that first synchronous loadFocus call runs.
   const setFiles = ref<Map<string, MsrFileResponse>>(new Map())
 
-  // Session cache for focus MsrFile responses, keyed by msr. Bounded at
-  // TREND_LIMIT (30) with insertion-order eviction (oldest key dropped first),
-  // so a chip strip switching among the curated set (also capped at
-  // TREND_LIMIT) fits entirely without evicting anything mid-session. A
-  // cache hit lets a chip switch back to a just-viewed msr render with 0
-  // network requests. Module-scope Map (not a ref) — it's a resolution-order
-  // optimization, not reactive UI state.
+  // Session cache for focus MsrFile responses, keyed by msr — bounded and
+  // evicted by cacheFocusFile (utils/skewvoirAnalysis/focusCache.ts, which owns
+  // that rule). A plain Map (not a ref): it's a resolution-order optimization,
+  // not reactive UI state.
   const focusCache = new Map<string, MsrFileResponse>()
-
-  const cacheFocusFile = (msr: string, file: MsrFileResponse) => {
-    // Delete-then-set moves an existing key to the most-recently-inserted
-    // position (Map iteration order), so re-touching a cached msr counts as
-    // fresh recency rather than aging out first.
-    focusCache.delete(msr)
-    focusCache.set(msr, file)
-    if (focusCache.size > TREND_LIMIT) {
-      const oldest = focusCache.keys().next().value
-      if (oldest !== undefined) focusCache.delete(oldest)
-    }
-  }
 
   // Key on the URL msr itself (not the meas-hist row): the backend resolves the
   // parent class_name/total_images on its own, so a deep/shared link still loads
   // even when the row isn't in the currently-loaded meas-hist list. When the row
   // IS known, pass its fields to skip that backend lookup.
   //
-  // Resolution order: session cache → the curated set's already-fetched
-  // `setFiles` → `fetchMsrFile` (the only network path). A chip switch to an
-  // msr already resolved by either of the first two costs 0 requests.
-  //
-  // Stale-response guard: A→B→A genuinely races because fetchMsrFile has only
-  // in-flight dedupe, no completed-response cache. We capture the requested msr
-  // before the await and DISCARD the result if the URL focus has moved on. The
-  // two synchronous cache-hit paths below are race-free (nothing to await) but
-  // still only ASSIGN when the requested msr still matches the current
-  // selection — populating focusCache happens unconditionally either way.
+  // lookupFocusFile owns the resolution order (session cache → the curated set's
+  // `setFiles`) and isFocusStillCurrent the stale-response guard; this function
+  // owns the refs, the await, and the network fetch — the only path left when
+  // the lookup misses. Note the synchronous in-memory hit is race-free (nothing
+  // to await) but still only ASSIGNS when the focus hasn't moved on; populating
+  // focusCache happens unconditionally either way.
   const loadFocus = async (msr: string | undefined) => {
     if (!msr) {
       focusFile.value = null
@@ -132,22 +112,11 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     const requestedMsr = msr
 
-    const cached = focusCache.get(msr)
-    if (cached) {
-      cacheFocusFile(msr, cached) // touch recency
-      if (ws.selection.value?.msr === requestedMsr) {
-        focusFile.value = cached
-        focusPending.value = false
-        focusError.value = null
-      }
-      return
-    }
-
-    const fromSet = setFiles.value.get(msr)
-    if (fromSet) {
-      cacheFocusFile(msr, fromSet)
-      if (ws.selection.value?.msr === requestedMsr) {
-        focusFile.value = fromSet
+    const hit = lookupFocusFile(msr, focusCache, setFiles.value)
+    if (hit) {
+      cacheFocusFile(focusCache, msr, hit.file) // touch recency
+      if (isFocusStillCurrent(ws.selection.value?.msr, requestedMsr)) {
+        focusFile.value = hit.file
         focusPending.value = false
         focusError.value = null
       }
@@ -163,15 +132,15 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
         className: row?.class_name,
         totalImages: row?.total_images
       })
-      cacheFocusFile(msr, res)
-      if (ws.selection.value?.msr !== requestedMsr) return
+      cacheFocusFile(focusCache, msr, res)
+      if (!isFocusStillCurrent(ws.selection.value?.msr, requestedMsr)) return
       focusFile.value = res
     } catch (err) {
-      if (ws.selection.value?.msr !== requestedMsr) return
+      if (!isFocusStillCurrent(ws.selection.value?.msr, requestedMsr)) return
       focusError.value = err instanceof Error ? err : new Error('focus load failed')
       focusFile.value = null
     } finally {
-      if (ws.selection.value?.msr === requestedMsr) focusPending.value = false
+      if (isFocusStillCurrent(ws.selection.value?.msr, requestedMsr)) focusPending.value = false
     }
   }
 
@@ -390,13 +359,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // --- Curated set (Time-Series + Position Stack), fetched lazily ---
   // Both views consume the same batch-fetched MsrFiles of the URL `msrs` set:
   // Time-Series builds the trend, Position Stack builds the composite map.
-  // The curated comparison set is shared across ALL non-dashboard detail views
-  // under `set` scope (position / time-series / correlation / gallery), so a set
-  // edited in one view is present in the others. Dashboard stays excluded to
-  // preserve the single-measurement lazy-load invariant (no set fan-out).
-  const wantSet = computed(() =>
-    ws.scope.value === 'set' && ws.activeKind.value !== 'dashboard'
-  )
+  // shouldLoadSet owns the rule (see utils/skewvoirAnalysis/curatedSet.ts).
+  const wantSet = computed(() => shouldLoadSet(ws.scope.value, ws.activeKind.value))
 
   // meas_hist row lookup by msr, for resolving the curated set + picker labels.
   const rowByMsr = computed(() => new Map(rows.value.map(r => [r.msr, r])))
@@ -417,13 +381,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // `msrs`/`view`/`mp`. A deep-link MSR with no row keeps the existing identity.
   const setFocusedMsr = (msr: string) => {
     if (!msr || msr === ws.selection.value?.msr) return
-    const row = rowByMsr.value.get(msr)
-    ws.setFocus({
-      msr,
-      lot: row?.lot_id,
-      eq: row?.eqp_id,
-      cap: row?.timestamp
-    })
+    ws.setFocus(focusIdentityFromRow(msr, rowByMsr.value.get(msr)))
   }
 
   // All analyzable measurements — the candidate pool for the Time-Series picker.
@@ -432,12 +390,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
 
   // The EXPLICIT curated comparison set, resolved from the URL `msrs` list (in
-  // its authored order, capped defensively).
+  // its authored order, capped defensively at TREND_LIMIT).
   const setRows = computed<MeasHistRow[]>(() =>
-    ws.msrList.value
-      .map(id => rowByMsr.value.get(id))
-      .filter((r): r is MeasHistRow => r != null)
-      .slice(0, TREND_LIMIT)
+    resolveSetRows(ws.msrList.value, rowByMsr.value)
   )
 
   // setFiles itself is declared earlier (ahead of loadFocus's TDZ boundary);

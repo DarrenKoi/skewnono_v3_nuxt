@@ -4,6 +4,11 @@
 // coordinate. Physical position comes from `stage_coordinate` (nm) via
 // utils/waferGeometry.ts; parseChipXY is the cruder text parse used by Position
 // Stack and the spatial helpers.
+//
+// So two coordinate sources coexist: views/PositionStack.vue and Measurement
+// Points synthesize positions from this grid string, while the Dashboard's
+// RadiusChart uses the physical model. A later task that unifies them should
+// produce a visible diff in this file.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseChipXY } from './waferChip.ts'

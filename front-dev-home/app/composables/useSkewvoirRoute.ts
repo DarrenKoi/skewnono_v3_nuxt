@@ -1,27 +1,27 @@
-import type { LocationQueryRaw } from 'vue-router'
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
 import type { AnalysisScope } from '~/utils/skewvoirAnalysis/types'
+import {
+  DEFAULT_VIEW,
+  applyQueryPatch,
+  parseMsrList,
+  parseScope,
+  parseSelection,
+  parseView,
+  qstr,
+  toAnalysisQuery,
+  type FocusIdentity,
+  type QueryPatch
+} from '~/utils/skewvoirAnalysis/routeQuery'
 
 // URL <-> analysis-state bridge. The analysis workspace keeps no private copy
 // of "what am I looking at" — the URL query is the single source of truth, which
 // is exactly what makes an analysis screen shareable: paste the link, get the
 // same screen (live re-query, not a frozen snapshot).
-
-const DEFAULT_VIEW: SkewvoirViewKind = 'dashboard'
-const VIEW_KINDS: readonly SkewvoirViewKind[] = [
-  'dashboard',
-  'position-stack',
-  'time-series',
-  'correlation',
-  'gallery'
-]
-
-// A LocationQueryValue may be string | string[] | null; collapse to a usable string.
-const qstr = (v: unknown): string | undefined => {
-  const first = Array.isArray(v) ? v[0] : v
-  return typeof first === 'string' && first.length > 0 ? first : undefined
-}
+//
+// Every parsing / serialisation / patching rule lives in
+// utils/skewvoirAnalysis/routeQuery.ts (pure, unit-tested); this composable only
+// binds those rules to the router.
 
 export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const route = useRoute()
@@ -31,45 +31,16 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const basePath = `/ebeam/${tool}/skewvoir`
   const analysisPath = `${basePath}/analysis`
 
-  // Rebuild the selection from the query. No lot => no selection (empty state).
-  const selection = computed<SkewvoirSelection | null>(() => {
-    const lot = qstr(route.query.lot)
-    if (!lot) return null
-    return {
-      lot,
-      recipe: qstr(route.query.recipe) ?? '',
-      eq: qstr(route.query.eq) ?? '',
-      mp: qstr(route.query.mp) ?? 'WAFER',
-      msr: qstr(route.query.msr) ?? '',
-      capturedAt: qstr(route.query.cap) ?? '—'
-    }
-  })
+  const selection = computed<SkewvoirSelection | null>(() => parseSelection(route.query))
 
-  const view = computed<SkewvoirViewKind>(() => {
-    const v = qstr(route.query.view) as SkewvoirViewKind | undefined
-    return v && VIEW_KINDS.includes(v) ? v : DEFAULT_VIEW
-  })
+  const view = computed<SkewvoirViewKind>(() => parseView(route.query.view))
 
   // The Time-Series comparison set — an EXPLICIT, user-curated list of msr ids
-  // carried in the URL (?msrs=a,b,c). The focus `msr` is always a member; an
-  // empty list falls back to just the focus so a single-pick still renders.
-  const msrList = computed<string[]>(() => {
-    const raw = qstr(route.query.msrs)
-    const ids = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
-    const fallback = qstr(route.query.msr)
-    return ids.length ? ids : (fallback ? [fallback] : [])
-  })
+  // carried in the URL (?msrs=a,b,c).
+  const msrList = computed<string[]>(() => parseMsrList(route.query))
 
-  // Analysis scope — held in the URL SEPARATELY from the selection count so a
-  // single-focus screen can still be an explicit `set` (comparison-ready) and a
-  // multi-msr link can be forced back to `single`. Normalisation: an explicit
-  // `scope=single|set` always wins; when ABSENT (every link authored before this
-  // param existed) it is DERIVED from the set size so old links keep working.
-  const scope = computed<AnalysisScope>(() => {
-    const explicit = qstr(route.query.scope)
-    if (explicit === 'single' || explicit === 'set') return explicit
-    return msrList.value.length > 1 ? 'set' : 'single'
-  })
+  // Analysis scope (single | set), normalised from the URL.
+  const scope = computed<AnalysisScope>(() => parseScope(route.query))
 
   // New shareable params — Task 3 only PARSES/NORMALISES/PRESERVES them; their
   // consumers are later tasks. `site` = focused canonical site key; `ref` =
@@ -85,28 +56,9 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   // site/ref/metric/grain above.
   const filterParam = computed<string | undefined>(() => qstr(route.query.filter))
 
-  // Serialize a selection (+ view + explicit set) into an analysis-link query.
-  // `msrs` defaults to the focus alone; pass a curated list for the trend set.
-  const toQuery = (
-    sel: SkewvoirSelection,
-    v: SkewvoirViewKind = DEFAULT_VIEW,
-    msrs?: string[],
-    scopeValue?: AnalysisScope
-  ) => ({
-    lot: sel.lot,
-    recipe: sel.recipe,
-    eq: sel.eq,
-    mp: sel.mp,
-    msr: sel.msr,
-    msrs: (msrs && msrs.length ? msrs : [sel.msr]).filter(Boolean).join(','),
-    cap: sel.capturedAt,
-    view: v,
-    ...(scopeValue ? { scope: scopeValue } : {})
-  })
-
   // Navigate from search into analysis for a single picked measurement.
   const openAnalysis = (sel: SkewvoirSelection, v: SkewvoirViewKind = DEFAULT_VIEW) =>
-    navigateTo({ path: analysisPath, query: toQuery(sel, v) })
+    navigateTo({ path: analysisPath, query: toAnalysisQuery(sel, v) })
 
   // Navigate from search into analysis with a curated comparison set (focus +
   // the explicit msr list); defaults to the Time-Series view.
@@ -114,7 +66,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     focus: SkewvoirSelection,
     msrs: string[],
     v: SkewvoirViewKind = 'time-series'
-  ) => navigateTo({ path: analysisPath, query: toQuery(focus, v, msrs, 'set') })
+  ) => navigateTo({ path: analysisPath, query: toAnalysisQuery(focus, v, msrs, 'set') })
 
   // Switch the active view without losing the rest of the selection. replace()
   // keeps view changes out of the back-stack so Back returns to search.
@@ -130,32 +82,16 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     router.replace({ path: analysisPath, query: { ...route.query, mp } })
 
   // Low-level in-place query patch (same replace/no-history pattern as the
-  // setters above). Three-valued per key:
-  //   • string    → write the value
-  //   • null       → CLEAR the param from the URL (e.g. removing `site`)
-  //   • undefined  → leave the existing value UNTOUCHED (so a deep-link focus
-  //                  with no meas_hist row keeps its lot/eq/cap)
-  const patchQuery = (patch: Record<string, string | null | undefined>) => {
-    const cleared = new Set(
-      Object.entries(patch).filter(([, v]) => v === null).map(([k]) => k)
-    )
-    const next: LocationQueryRaw = {}
-    for (const [key, value] of Object.entries(route.query)) {
-      if (!cleared.has(key)) next[key] = value
-    }
-    for (const [key, value] of Object.entries(patch)) {
-      if (typeof value === 'string') next[key] = value
-    }
-    router.replace({ path: analysisPath, query: next })
-  }
+  // setters above). Three-valued per key — see QueryPatch.
+  const patchQuery = (patch: QueryPatch) =>
+    router.replace({ path: analysisPath, query: applyQueryPatch(route.query, patch) })
 
   // Move the focus MSR in place — rewrites `msr` and the focus identity fields
   // `lot`/`eq`/`cap`, while PRESERVING `msrs`/`view`/`mp` (and everything else).
   // A no-history replace, so Back still returns to search. Identity fields that
   // are absent (deep-link MSR with no meas_hist row) are left untouched so we
   // never blank a still-correct lot/eq/cap.
-  const setFocus = (focus: { msr: string, lot?: string, eq?: string, cap?: string }) =>
-    patchQuery({ msr: focus.msr, lot: focus.lot, eq: focus.eq, cap: focus.cap })
+  const setFocus = (focus: FocusIdentity) => patchQuery(focus)
 
   // Setters for the new shareable params (consumed by later tasks). `null`
   // clears the param from the URL.
