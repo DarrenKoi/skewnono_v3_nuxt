@@ -60,7 +60,9 @@ for a variable N; and a CSS grid of N independent chart instances — smallest d
 
 Rows are FDC categories; columns are params within a category.
 
-`columns = min(MAX_COLUMNS, widestRow)` with `MAX_COLUMNS = 4`. The cap is load-bearing,
+`columns` is the widest row, and `MAX_COLUMNS = 4` bounds it *structurally*: categories
+wrap at `MAX_COLUMNS` and the evidence row is sliced by it, so no row can exceed the cap
+and no clamp is needed at the end. The cap is load-bearing,
 not cosmetic: rows are categories, so their count is small and fixed, and letting
 `columns` track the widest row means a single fat category dictates cell width for the
 *entire* matrix. If the office catalog puts 15 params in `stage_drift`, an uncapped
@@ -72,14 +74,14 @@ the matrix. Cell size therefore stays bounded for any N the office adapter retur
 | Row | Contents |
 | --- | --- |
 | 0 | `CD` — the active CD parameter, spanning the full matrix width |
-| 1 | `주요 용의자` — the `min(4, evaluable)` highest-\|r\| params, **duplicated** from below, never moved |
+| 1 | `주요 검토 근거` — the `min(MAX_EVIDENCE, MAX_COLUMNS, evaluable)` highest-\|r\| params, **duplicated** from below, never moved |
 | 2+ | one row per category present; cells ordered by \|r\| descending within the row |
 
-"Evaluable" means `readiness === 'ready'`; see "Honesty constraints". Ties in |r| break
-by param name so the order is stable across renders.
+"Evaluable" means the cell's `rState === 'value'`; see "Honesty constraints". Ties in
+|r| break by param name so the order is stable across renders.
 
 Ranking and category grouping pull against each other: a global sort by |r| would
-scramble the category rows, since the strongest suspects come from different
+scramble the category rows, since the strongest evidence comes from different
 categories. Duplicating them into a fixed row resolves that without destroying either
 structure — the categories below stay complete and in their normal order.
 
@@ -92,11 +94,14 @@ example's trick for one label in a tiny cell).
 ### `app/utils/skewvoirAnalysis/paramMatrix.ts` (new, pure)
 
 ```text
-buildParamMatrix(model, rows, dynamicFdc, fdcParams, cdParam) -> ParamMatrixModel
+buildParamMatrix(model, source) -> ParamMatrixModel
 ```
 
 Owns all judgement: correlating each FDC param against CD, resolving Korean row
-labels, ordering cells within a row, selecting suspects, computing column count.
+labels, ordering cells within a row, selecting the lead evidence, computing column
+count. `source` is the same `SequenceSource` fed to `analyzeSequence`, and the CD
+parameter is read from `model.parameter` — passing either twice would let the CD
+reference disagree with itself.
 Returns a flat `{ columns, rows: MatrixRow[], sequences, demoCoupled }`. Knows nothing
 about ECharts or Vue.
 
@@ -113,7 +118,7 @@ existing test file untouched.
 
 ### `app/components/ebeam/skewvoir/timeseries/ParamMatrix.vue` (new, presentational)
 
-Props `model: ParamMatrixModel` and `focused: number | null`; emits `select(sequence)`
+Props `model: ParamMatrixModel` and `colors: Record<string, string>`; emits `select(sequence)`
 and `drill(param)`. Builds the ECharts option and nothing else. It takes the **model,
 not the `analysis` object**, so it stays reusable for the `set` scope later without
 dragging the composable along.
@@ -186,13 +191,13 @@ data both CD drift and FDC drift derive from one per-MSR `health` scalar
 (`mock.py:637-646`), so every correlation is a manufactured artifact. A confident
 ranked suspect list built on that would be fiction.
 
-- The suspects row header reuses the **existing** chip from
+- The panel header reuses the **existing** chip from
   `SequenceWorkbench.vue:84-86` — 「데모 데이터 · 방법 검증 불가」. Do not invent new
   wording.
 - Cells with `readiness === 'unavailable'` show `평가 불가`, never a number, and are
-  excluded from the suspects row. `assess()` (`relationships.ts:79-90`) already
+  excluded from the evidence row. `assess()` (`relationships.ts:79-90`) already
   distinguishes *no pairs* / *n<3* / *constant axis*; that `reason` goes in the tooltip.
-- When no param is evaluable, omit the suspects row entirely rather than render it
+- When no param is evaluable, omit the evidence row entirely rather than render it
   empty.
 
 ## Failure and empty states
@@ -233,8 +238,8 @@ out of progressive rendering (`LineSeries.js:135`), so there is no incremental-d
 
 - row grouping and Korean label resolution from `fdc_params`
 - within-row ordering by |r| descending, with name as a stable tie-break
-- suspects row caps at 4 and excludes unevaluable params
-- suspects row omitted when nothing is evaluable
+- evidence row caps at `min(MAX_EVIDENCE, MAX_COLUMNS)` and excludes unevaluable params
+- evidence row omitted when nothing is evaluable
 - column count equals `min(MAX_COLUMNS, widestRow)`
 - a category exceeding `MAX_COLUMNS` wraps onto continuation rows without widening the
   matrix, and every one of its params still appears exactly once

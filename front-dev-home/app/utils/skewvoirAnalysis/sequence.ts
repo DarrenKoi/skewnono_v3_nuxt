@@ -104,6 +104,18 @@ const slopeUnitLabel = (unit: string): string =>
   unit ? `${unit} per sequence` : 'per sequence'
 
 // Reduce a sequence→value series (nulls allowed) to start/end/range/slope/missing.
+/** Project a value series onto the shared sequence axis: one slot per sequence,
+ * null where the point is absent or was not measured. Owned here because both
+ * the per-pane charts and the matrix model need the identical rule, and a gap
+ * must never be interpolated into a measurement. */
+export const alignToSequences = (
+  points: SeqPoint[],
+  sequences: number[]
+): (number | null)[] => {
+  const bySeq = new Map(points.map(p => [p.sequence, p.measured ? p.value : null]))
+  return sequences.map(s => bySeq.get(s) ?? null)
+}
+
 const statsOf = (points: SeqPoint[], unit: string): SeqStats => {
   const measured = points.filter((p): p is SeqPoint & { value: number } =>
     p.measured && p.value != null && Number.isFinite(p.value))

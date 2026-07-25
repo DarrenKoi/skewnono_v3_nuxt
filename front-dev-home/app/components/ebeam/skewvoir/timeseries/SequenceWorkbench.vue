@@ -121,7 +121,7 @@
             :unit="series.unit"
             :nominal="series.nominal"
             :focused="analysis.focusedSequence.value"
-            :color="fdcColor(series.param)"
+            :color="fdcColorByParam[series.param] ?? cdColor"
             @select="onSelect"
           />
         </EbeamSkewvoirPanelFrame>
@@ -221,7 +221,6 @@ const cdColor = computed(() => sk.value.series)
 const fdcColorByParam = computed(() =>
   assignCompareColors(model.value.fdc.map(s => s.param), palette.value)
 )
-const fdcColor = (param: string): string => fdcColorByParam.value[param] ?? sk.value.series
 
 // SHARED CURSOR: one move sets the focused sequence AND the focused site (chip)
 // for that sequence — so CD, every FDC pane, the wafer scan-path (focusedSite)

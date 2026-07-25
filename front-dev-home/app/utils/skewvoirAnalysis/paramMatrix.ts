@@ -1,13 +1,13 @@
 // The layout + ranking model behind the single-MSR FDC sparkline matrix.
 //
 // Pure: no Vue, no ECharts. Everything the matrix decides — which row a param
-// sits in, how cells are ordered, which params count as suspects, how wide the
+// sits in, how cells are ordered, which params lead the ranking, how wide the
 // grid is, and what verdict a cell's CD relation carries — is decided here so it
 // can be tested with `node --test`. The component that consumes this only turns
 // the model into an ECharts option.
 import type { FdcCategory, FdcParamSummary } from '~/composables/useMsrFileApi'
-import type { SeqPoint, SequenceModel, SequenceSource } from './sequence.ts'
-import { buildCdFdcRelationship, type RelationshipReadiness } from './relationships.ts'
+import { alignToSequences, type SequenceModel, type SequenceSource } from './sequence.ts'
+import { buildCdFdcRelationship } from './relationships.ts'
 
 /** Hard cap on matrix width. Rows are CATEGORIES, so their count is small and
  * fixed; letting the column count track the widest row would let one fat
@@ -15,7 +15,10 @@ import { buildCdFdcRelationship, type RelationshipReadiness } from './relationsh
  * whole matrix and shrink every cell to illegibility. Oversized categories wrap
  * onto continuation rows instead. */
 export const MAX_COLUMNS = 4
-export const MAX_SUSPECTS = 4
+
+/** How many params the lead 검토 근거 row holds. Clamped by MAX_COLUMNS at use,
+ * so raising this can never silently widen the matrix. */
+export const MAX_EVIDENCE = 4
 
 /** What a cell's CD relation means, decided here rather than inferred by the
  * view. `reference` is the CD cell itself, where correlation is not applicable
@@ -35,22 +38,20 @@ export interface MatrixCell {
   /** Pearson r against cd_value. Non-null only when `rState === 'value'`. */
   r: number | null
   rState: CellRelationState
-  readiness: RelationshipReadiness
-  /** Why r is unavailable; null when ready. Surfaced in the tooltip so the
-   * three honest failures `assess()` distinguishes are not flattened away. */
+  /** Why r is unavailable; null otherwise. Surfaced in the tooltip so the three
+   * honest failures `assess()` distinguishes are not flattened away. */
   reason: string | null
-  /** True for the copy that lives in the suspects row. */
+  /** True for the copy that lives in the lead 검토 근거 row. */
   duplicated: boolean
 }
 
-export type MatrixRowKind = 'cd' | 'suspects' | 'category'
+export type MatrixRowKind = 'cd' | 'evidence' | 'category'
 
 export interface MatrixRow {
   kind: MatrixRowKind
   /** Row header text, and the matrix y-dimension ordinal value. Unique by
    * construction — duplicates would make `coord` lookups ambiguous. */
   label: string
-  continuation: boolean
   cells: MatrixCell[]
 }
 
@@ -90,7 +91,6 @@ const wrapCategory = (label: string, cells: MatrixCell[]): MatrixRow[] => {
     out.push({
       kind: 'category',
       label: part === 0 ? label : `${label} (${part + 1})`,
-      continuation: part > 0,
       cells: cells.slice(start, start + MAX_COLUMNS)
     })
   }
@@ -103,15 +103,6 @@ export const buildParamMatrix = (
 ): ParamMatrixModel => {
   const sequences = model.sequences
   const cdParam = model.parameter
-
-  // CD points follow the CD rows, which may not cover every sequence on the
-  // shared axis, so they genuinely need padding. FDC points do NOT:
-  // `analyzeSequence` already builds them by mapping over this same axis.
-  const alignCd = (points: SeqPoint[]): (number | null)[] => {
-    const bySeq = new Map(points.map(p => [p.sequence, p.measured ? p.value : null]))
-    return sequences.map(s => bySeq.get(s) ?? null)
-  }
-
   const labels = labelsByCategory(source.fdc_params)
 
   const cdCell: MatrixCell = {
@@ -119,10 +110,11 @@ export const buildParamMatrix = (
     category: 'cd',
     unit: model.unit,
     nominal: null,
-    values: alignCd(model.cd.points),
+    // CD points follow the CD rows, which may not cover every sequence on the
+    // shared axis, so they genuinely need projecting onto it.
+    values: alignToSequences(model.cd.points, sequences),
     r: null,
     rState: 'reference',
-    readiness: 'ready',
     reason: null,
     duplicated: false
   }
@@ -137,17 +129,18 @@ export const buildParamMatrix = (
       category: series.category,
       unit: series.unit,
       nominal: series.nominal,
+      // NOT alignToSequences: analyzeSequence already builds FDC points by
+      // mapping over this same axis, so they arrive one-per-slot in order.
       values: series.points.map(p => (p.measured ? p.value : null)),
       r: ready ? rel.pearson : null,
       rState: ready ? 'value' : 'unavailable',
-      readiness: rel.readiness,
       reason: rel.reason,
       duplicated: false
     }
   })
 
   const rows: MatrixRow[] = [
-    { kind: 'cd', label: 'CD', continuation: false, cells: [cdCell] }
+    { kind: 'cd', label: 'CD', cells: [cdCell] }
   ]
 
   for (const category of new Set(fdcCells.map(c => c.category))) {
@@ -155,27 +148,24 @@ export const buildParamMatrix = (
     rows.push(...wrapCategory(labels.get(category) ?? category, cells))
   }
 
-  // Suspects are COPIES — the originals never move, so the category rows stay
-  // complete. Ranking an unevaluable param would mean ranking on a number
-  // `assess()` explicitly refused to produce, so those are excluded outright.
-  const suspects = fdcCells
+  // The lead row holds COPIES — the originals never move, so the category rows
+  // stay complete. A param whose relationship is 평가 불가 is excluded outright:
+  // ranking it would mean ranking on a number `assess()` refused to produce.
+  //
+  // Per the domain glossary (CONTEXT.md), FDC drift is 검토 근거 — evidence that
+  // raises verification priority — never a verdict that a param is at fault.
+  const evidence = fdcCells
     .filter(c => c.rState === 'value')
     .sort(byCdRelation)
-    .slice(0, MAX_SUSPECTS)
+    .slice(0, Math.min(MAX_EVIDENCE, MAX_COLUMNS))
     .map(c => ({ ...c, duplicated: true }))
 
-  if (suspects.length) {
-    rows.splice(1, 0, {
-      kind: 'suspects',
-      label: '주요 용의자',
-      continuation: false,
-      cells: suspects
-    })
+  if (evidence.length) {
+    rows.splice(1, 0, { kind: 'evidence', label: '주요 검토 근거', cells: evidence })
   }
 
-  // No clamp to MAX_COLUMNS here: categories are already wrapped and suspects
-  // already capped, so a row wider than the cap would be a bug worth seeing
-  // rather than one worth silently cropping.
+  // No clamp needed here: categories are wrapped at MAX_COLUMNS and the evidence
+  // row is capped by it too, so the width is bounded by construction.
   const widest = rows
     .filter(r => r.kind !== 'cd')
     .reduce((max, r) => Math.max(max, r.cells.length), 0)

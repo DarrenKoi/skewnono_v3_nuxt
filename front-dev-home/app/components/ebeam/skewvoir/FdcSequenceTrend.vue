@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { SeqPoint } from '~/utils/skewvoirAnalysis/sequence'
+import { alignToSequences, type SeqPoint } from '~/utils/skewvoirAnalysis/sequence'
 
 // A single SHARED-CURSOR sequence pane. Repurposed from the old FDC-only trend
 // into a generic measurement-order line so the CD pane and every dynamic-FDC
@@ -42,10 +42,7 @@ const emit = defineEmits<{ select: [sequence: number] }>()
 const categories = computed(() => props.sequences.map(s => String(s)))
 
 // Align this pane's points onto the shared axis; missing sequences → null gap.
-const data = computed(() => {
-  const bySeq = new Map(props.points.map(p => [p.sequence, p.measured ? p.value : null]))
-  return props.sequences.map(s => bySeq.get(s) ?? null)
-})
+const data = computed(() => alignToSequences(props.points, props.sequences))
 
 const sk = useChartPalette()
 const color = computed(() => props.color ?? sk.value.series)

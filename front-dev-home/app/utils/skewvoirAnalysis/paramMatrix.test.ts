@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { analyzeSequence, type SequenceSource } from './sequence.ts'
-import { buildParamMatrix, MAX_COLUMNS, MAX_SUSPECTS } from './paramMatrix.ts'
+import { buildParamMatrix, MAX_COLUMNS, MAX_EVIDENCE } from './paramMatrix.ts'
 import type { MsrFileRow, FdcParamSummary } from '~/composables/useMsrFileApi'
 
 // ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ test('a sequence with no CD measurement becomes a gap, not an interpolation', ()
   assert.deepEqual(cd?.values, [100, null, 104, 106])
 })
 
-test('every FDC param appears exactly once outside the suspects row', () => {
+test('every FDC param appears exactly once outside the evidence row', () => {
   const names = build(source()).rows
     .filter(r => r.kind === 'category')
     .flatMap(r => r.cells)
@@ -125,7 +125,7 @@ test('a CD-only MSR with no dynamic FDC yields just the CD row', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Ranking: ordering by |r| to CD, and the suspects row
+// Ranking: ordering by |r| to CD, and the evidence row
 // ---------------------------------------------------------------------------
 
 // Up tracks CD exactly (r = +1.000); Down inverts it imperfectly (r ≈ -0.981);
@@ -144,7 +144,6 @@ const orderedSource = (): SequenceSource => ({
 test('a constant param is 평가 불가 and carries no r, with a reason', () => {
   const flat = build(orderedSource()).rows.flatMap(r => r.cells).find(c => c.param === 'Flat')
   assert.equal(flat?.rState, 'unavailable')
-  assert.equal(flat?.readiness, 'unavailable')
   assert.equal(flat?.r, null)
   assert.ok(flat?.reason)
 })
@@ -154,13 +153,13 @@ test('category cells order by |r| descending with unevaluable last', () => {
   assert.deepEqual(catRow?.cells.map(c => c.param), ['Up', 'Down', 'Flat'])
 })
 
-test('the suspects row sits at index 1 and holds only evaluable params', () => {
+test('the evidence row sits at index 1 and holds only evaluable params', () => {
   const m = build(orderedSource())
-  assert.equal(m.rows[1]?.kind, 'suspects')
+  assert.equal(m.rows[1]?.kind, 'evidence')
   assert.deepEqual(m.rows[1]?.cells.map(c => c.param), ['Up', 'Down'])
 })
 
-test('suspects are copies, flagged duplicated, and originals stay in place', () => {
+test('evidence cells are copies, flagged duplicated, and originals stay in place', () => {
   const m = build(orderedSource())
   assert.ok(m.rows[1]!.cells.every(c => c.duplicated))
   const catRow = m.rows.find(r => r.kind === 'category')
@@ -168,16 +167,16 @@ test('suspects are copies, flagged duplicated, and originals stay in place', () 
   assert.equal(catRow!.cells.length, 3)
 })
 
-test('the suspects row is omitted entirely when nothing is evaluable', () => {
+test('the evidence row is omitted entirely when nothing is evaluable', () => {
   const src = orderedSource()
   src.dynamic_fdc = {
     1: { Flat: 5 }, 2: { Flat: 5 }, 3: { Flat: 5 }, 4: { Flat: 5 }
   } as unknown as Record<string, Record<string, number>>
   src.fdc_params = oneCategory(['Flat'])
-  assert.ok(!build(src).rows.some(r => r.kind === 'suspects'))
+  assert.ok(!build(src).rows.some(r => r.kind === 'evidence'))
 })
 
-test('the suspects row caps at MAX_SUSPECTS', () => {
+test('the evidence row caps at MAX_EVIDENCE', () => {
   const src = orderedSource()
   src.dynamic_fdc = {
     1: { A: 1, B: 2, C: 3, D: 4, E: 5 },
@@ -186,7 +185,7 @@ test('the suspects row caps at MAX_SUSPECTS', () => {
     4: { A: 8, B: 9, C: 13, D: 15, E: 21 }
   } as unknown as Record<string, Record<string, number>>
   src.fdc_params = oneCategory(['A', 'B', 'C', 'D', 'E'])
-  assert.equal(build(src).rows.find(r => r.kind === 'suspects')!.cells.length, MAX_SUSPECTS)
+  assert.equal(build(src).rows.find(r => r.kind === 'evidence')!.cells.length, MAX_EVIDENCE)
 })
 
 test('equal |r| breaks by param name so order is stable', () => {
@@ -231,8 +230,10 @@ test('an oversized category wraps onto continuation rows', () => {
   assert.equal(catRows.length, 2)
   assert.equal(catRows[0]?.cells.length, 4)
   assert.equal(catRows[1]?.cells.length, 2)
-  assert.equal(catRows[0]?.continuation, false)
-  assert.equal(catRows[1]?.continuation, true)
+  // The continuation is visible in the label suffix, which is what the matrix
+  // renders and what keeps the ordinal coord unique.
+  assert.ok(!catRows[0]?.label.endsWith('(2)'))
+  assert.ok(catRows[1]?.label.endsWith('(2)'))
 })
 
 test('wrapping loses no param and duplicates none', () => {

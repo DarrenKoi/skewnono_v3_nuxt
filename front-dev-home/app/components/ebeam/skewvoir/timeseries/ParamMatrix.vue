@@ -11,7 +11,13 @@
 </template>
 
 <script setup lang="ts">
-import type { EChartsOption } from 'echarts'
+import type {
+  EChartsOption,
+  GridComponentOption,
+  LineSeriesOption,
+  XAXisComponentOption,
+  YAXisComponentOption
+} from 'echarts'
 import type { MatrixCell, MatrixRow, ParamMatrixModel } from '~/utils/skewvoirAnalysis/paramMatrix'
 import { SK_STATE } from '~/utils/chartPalette'
 
@@ -20,8 +26,9 @@ import { SK_STATE } from '~/utils/chartPalette'
 // its OWN scaled y-axis, so every param keeps its native unit — the reason this
 // exists rather than reusing the σ-normalised multi-MSR trend chart.
 //
-// Presentational only. Row composition, ordering, suspects, the column cap and
-// each cell's relation verdict are decided in utils/skewvoirAnalysis/paramMatrix.ts.
+// Presentational only. Row composition, ordering, the 검토 근거 ranking, the
+// column cap and each cell's relation verdict are all decided in
+// utils/skewvoirAnalysis/paramMatrix.ts.
 //
 // DELIBERATELY not focus-aware. useEchart rebuilds with `notMerge` on any option
 // change and hands back no chart instance, so taking the focused sequence as a
@@ -80,10 +87,10 @@ const rBadge = (cell: MatrixCell): string => {
 }
 
 const option = computed<EChartsOption>(() => {
-  const grids: Record<string, unknown>[] = []
-  const xAxis: Record<string, unknown>[] = []
-  const yAxis: Record<string, unknown>[] = []
-  const series: Record<string, unknown>[] = []
+  const grids: GridComponentOption[] = []
+  const xAxis: XAXisComponentOption[] = []
+  const yAxis: YAXisComponentOption[] = []
+  const series: LineSeriesOption[] = []
 
   const cols = props.model.columns
 
@@ -125,7 +132,7 @@ const option = computed<EChartsOption>(() => {
       // The cell's own caption. Row headers only say which CATEGORY you are
       // looking at, so without this you cannot tell StigmaX from StigmaY —
       // which would defeat the ranking.
-      name: `${cell.param}  ${rBadge(cell)}`,
+      name: `${cell.param} (${cell.unit})  ${rBadge(cell)}`,
       nameLocation: 'end',
       nameGap: 9,
       nameTextStyle: {
@@ -144,7 +151,10 @@ const option = computed<EChartsOption>(() => {
     // Nominal only. A focus marker here would make the option focus-dependent.
     const marks = cell.nominal == null
       ? []
-      : [{ yAxis: cell.nominal, lineStyle: { color: sk.value.muted, type: 'dashed', opacity: 0.7 } }]
+      : [{
+          yAxis: cell.nominal,
+          lineStyle: { color: sk.value.muted, type: 'dashed' as const, opacity: 0.7 }
+        }]
 
     series.push({
       id,
@@ -202,7 +212,7 @@ const option = computed<EChartsOption>(() => {
         const lines = [`<b>sequence ${seq ?? '—'}</b>`]
         for (const item of list as { seriesIndex: number, value: number | null }[]) {
           const cell = flatCells.value[item.seriesIndex]?.cell
-          // The suspects row holds COPIES of cells from the category rows, so
+          // The 검토 근거 row holds COPIES of cells from the category rows, so
           // without this every suspect would be listed twice in one tooltip.
           if (!cell || cell.duplicated) continue
           const v = item.value == null ? '결측' : item.value
@@ -224,16 +234,16 @@ const option = computed<EChartsOption>(() => {
     xAxis,
     yAxis,
     series
-  } as EChartsOption
+  }
 })
 
 // Screen-reader alternative: what the grid is and where the ranking points.
 const ariaLabel = computed(() => {
   const n = flatCells.value.length
-  const suspects = props.model.rows.find(r => r.kind === 'suspects')
-  const top = suspects?.cells.map(c => c.param).join(', ')
+  const evidence = props.model.rows.find(r => r.kind === 'evidence')
+  const top = evidence?.cells.map(c => c.param).join(', ')
   return `FDC 파라미터 매트릭스: ${n}개 셀, ${props.model.sequences.length}개 측정 순서`
-    + (top ? `. 주요 용의자: ${top}` : '')
+    + (top ? `. 주요 검토 근거: ${top}` : '')
 })
 
 const chartEl = ref<HTMLDivElement | null>(null)
