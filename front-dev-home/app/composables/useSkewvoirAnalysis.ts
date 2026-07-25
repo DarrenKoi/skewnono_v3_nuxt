@@ -24,6 +24,8 @@ import {
 } from '~/utils/skewvoirAnalysis/features'
 import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
+import { assignSiteColors } from '~/utils/siteColors'
+import { SK_SITE } from '~/utils/chartPalette'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -293,6 +295,15 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     return [...seqs]
   })
+
+  // Identity color per selected site — one deterministic source shared by the
+  // wafer map, radius plot, distribution and points table (see utils/siteColors).
+  // Keyed by the same (param, seq) key as selectedSites; picks past the palette
+  // cap return null so each consumer can paint them its own neutral tone.
+  const siteColorMap = computed<Record<string, string>>(() =>
+    assignSiteColors(selectedSites.value, SK_SITE))
+  const siteColor = (param: string, seq: number): string | null =>
+    siteColorMap.value[siteKey(param, seq)] ?? null
 
   // Focused canonical site key — shared linked-site state across the analysis
   // views, carried in the URL `site` param so a shared link restores it. useState
@@ -603,6 +614,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     setSelectedSites,
     clearSelectedSites,
     selectedSeqsForActiveParam,
+    siteColor,
     focusedSite,
     setFocusedSite,
     setFocusedMsr,
