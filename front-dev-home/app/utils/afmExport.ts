@@ -5,7 +5,6 @@ import { buildCsvContent } from './csvDownload.ts'
 import type {
   AfmInformation,
   AfmSummaryRow,
-  AfmDetailRow,
   AfmProfilePoint
 } from '~/composables/useAfmDetailApi'
 
@@ -52,9 +51,20 @@ export const buildSummaryCsv = (summary: AfmSummaryRow[]): CsvTable => {
   return tableFromRows(summary as unknown as Record<string, unknown>[], ['Site', 'ITEM'])
 }
 
-export const buildDetailedCsv = (data: AfmDetailRow[]): CsvTable => {
+// Takes any record rows, not AfmDetailRow[]: this is a shape-agnostic
+// serializer whose whole job is unioning keys across RAGGED rows, and the
+// backend contract for the AFM detail payload is `list[dict[str, Any]]`
+// (back_dev_home/afm/contracts.py) — the per-recipe column set genuinely
+// varies, so two rows of the same response need not carry the same keys.
+// AfmDetailRow's 20 required fields describe only what the mock happens to
+// emit; the office adapter is still an unimplemented stub, so pinning this
+// signature to them would assert a guarantee no backend has ever made.
+// Nothing is lost by widening: the backend-shape claim lives on
+// AfmDetailPayload.data, the sole caller still passes an AfmDetailRow[]
+// through here, and afmPointsTable.test.ts pins the full row shape.
+export const buildDetailedCsv = (data: Record<string, unknown>[]): CsvTable => {
   if (data.length === 0) return { headers: [], rows: [] }
-  return tableFromRows(data as unknown as Record<string, unknown>[], [])
+  return tableFromRows(data, [])
 }
 
 export const buildProfileCsv = (points: AfmProfilePoint[]): CsvTable => ({

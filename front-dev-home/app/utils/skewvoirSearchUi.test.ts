@@ -24,6 +24,7 @@ const row = (msr: string, recipe: string, lot: string, eq: string): MeasHistRow 
   fab_name: 'M11A',
   vendor_nm: 'HITACHI',
   eqp_id: eq,
+  eqp_ip: '10.41.12.87',
   eqp_model_cd: 'CG6300',
   tool_type: 'cd-sem',
   lot_cd: lot,

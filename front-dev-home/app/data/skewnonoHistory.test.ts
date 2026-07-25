@@ -1,6 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { skewnonoHistory } from './skewnonoHistory.ts'
+import type { SkewnonoHistoryVersion } from './skewnonoHistory.ts'
+import { skewnonoHistory as rawHistory } from './skewnonoHistory.ts'
+
+// The source uses `satisfies`, which keeps each literal's narrow shape (v1/v2
+// features have no `description` key at all). Assert against the declared
+// public contract instead, where `description` is an optional field.
+const skewnonoHistory: SkewnonoHistoryVersion[] = rawHistory
 
 test('lists SKEWNONO releases from v1 through the current v3', () => {
   assert.deepEqual(

@@ -17,7 +17,7 @@ test('toggleKey adds a missing key and removes a present one, without mutating',
 })
 
 test('headerState reflects the visible keys only', () => {
-  const k = n => siteKey('P', n)
+  const k = (n: number) => siteKey('P', n)
   assert.equal(headerState([], new Set([k(1)])), 'none')
   assert.equal(headerState([k(1), k(2), k(3)], new Set()), 'none')
   assert.equal(headerState([k(1), k(2), k(3)], new Set([k(2)])), 'some')
@@ -26,7 +26,7 @@ test('headerState reflects the visible keys only', () => {
 
 test('pickExportRows: empty selection = all rows; otherwise checked ∩ visible by key', () => {
   const rows = [{ param: 'P', seq: 1 }, { param: 'P', seq: 2 }, { param: 'Q', seq: 1 }]
-  const keyOf = r => siteKey(r.param, r.seq)
+  const keyOf = (r: { param: string, seq: number }) => siteKey(r.param, r.seq)
   assert.deepEqual(pickExportRows(rows, new Set(), keyOf), rows)
   // Selecting P/1 must NOT drag in Q/1 (same seq, different param).
   assert.deepEqual(

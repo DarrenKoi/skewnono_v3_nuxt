@@ -39,12 +39,14 @@ test('buildOverlap marks shared, partial, unique parameters', () => {
     recipe('B', ['WAFER', 'P5']),
     recipe('C', ['WAFER', 'P12'])
   ])
+  // `!` throughout: Object.fromEntries widens the key set to `string`, so every
+  // lookup reads as possibly-undefined. The row type itself is still checked.
   const byName = Object.fromEntries(rows.map(r => [r.parameter, r]))
-  assert.equal(byName.WAFER.coverage, 'all')
-  assert.deepEqual(byName.WAFER.presentIn, ['A', 'B', 'C'])
-  assert.equal(byName.P5.coverage, 'partial')
-  assert.equal(byName.P8.coverage, 'unique')
-  assert.equal(byName.P12.coverage, 'unique')
+  assert.equal(byName.WAFER!.coverage, 'all')
+  assert.deepEqual(byName.WAFER!.presentIn, ['A', 'B', 'C'])
+  assert.equal(byName.P5!.coverage, 'partial')
+  assert.equal(byName.P8!.coverage, 'unique')
+  assert.equal(byName.P12!.coverage, 'unique')
 })
 
 test('buildOverlap dedupes a repeated parameter within one recipe', () => {
@@ -142,9 +144,9 @@ test('groupFieldValues flags a small minority as outlier', () => {
   ]
   const buckets = groupFieldValues(pairs)
   const byValue = Object.fromEntries(buckets.map(b => [b.value, b]))
-  assert.equal(byValue['50K'].isOutlier, false) // largest
-  assert.equal(byValue['80K'].isOutlier, false) // 0.31 share > 0.25
-  assert.equal(byValue['100K'].isOutlier, true) // 0.07 share <= 0.25
+  assert.equal(byValue['50K']!.isOutlier, false) // largest
+  assert.equal(byValue['80K']!.isOutlier, false) // 0.31 share > 0.25
+  assert.equal(byValue['100K']!.isOutlier, true) // 0.07 share <= 0.25
 })
 
 test('groupFieldValues flags nothing on a tie for largest', () => {
