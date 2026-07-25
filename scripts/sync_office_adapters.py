@@ -52,11 +52,16 @@ import ast
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 from back_dev_home._runtime import office_template
-from back_dev_home._runtime.office_template import EDITED, MISSING, STALE, SYNCED
+from back_dev_home._runtime.office_template import (
+    EDITED,
+    MISSING,
+    STALE,
+    SYNCED,
+    Adapter,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -65,29 +70,6 @@ BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 # Statuses a copy may overwrite freely: either there is nothing there, or
 # what is there is provably recoverable from git history.
 SAFE_TO_WRITE = (MISSING, STALE)
-
-
-@dataclass(frozen=True)
-class Adapter:
-    """One office_example.py template and the office.py it copies to."""
-
-    template: Path
-    target: Path
-    slug: str  # e.g. "ebeam/hitachi/storage" or "ebeam/hitachi/hardware/fdc"
-
-    @property
-    def name(self) -> str:
-        """Short label: last path segment (e.g. "storage", "fdc")."""
-        return self.slug.rsplit("/", 1)[-1]
-
-    @property
-    def status(self) -> str:
-        return classify(self)[0]
-
-    @property
-    def note(self) -> str:
-        """Human detail for the status (e.g. which commit a STALE copy is from)."""
-        return classify(self)[1]
 
 
 _classify_cache: dict[Path, tuple[str, str]] = {}
@@ -101,34 +83,38 @@ def classify(adapter: Adapter) -> tuple[str, str]:
     """
     cached = _classify_cache.get(adapter.target)
     if cached is None:
-        cached = _classify(adapter)
+        # The Adapter type and the classification both live in
+        # back_dev_home/_runtime/office_template.py so the app can warn about
+        # its own stale copies at boot without depending on scripts/ (which a
+        # cloud deploy need not ship). This module keeps only the CLI around
+        # them.
+        cached = office_template.classify(adapter, repo_root=REPO_ROOT)
         _classify_cache[adapter.target] = cached
     return cached
 
 
-def _classify(adapter: Adapter) -> tuple[str, str]:
-    # The classification itself lives in back_dev_home/_runtime/office_template.py
-    # so the app can warn about its own stale copies at boot without depending
-    # on scripts/ (which a cloud deploy need not ship). This module keeps only
-    # the CLI around it. office_template.classify() reads .template/.target,
-    # which this Adapter carries under the same names.
-    return office_template.classify(adapter, repo_root=REPO_ROOT)
+def status_of(adapter: Adapter) -> str:
+    """Just the status, for the callers that have no use for the note."""
+    return classify(adapter)[0]
+
+
+def reset_cache() -> None:
+    """Drop the memoized statuses. Tests only — one CLI run classifies once.
+
+    Mirrors ``office_registry.reset_cache()``; the CLI itself classifies each
+    adapter once per run and never needs to invalidate.
+    """
+    _classify_cache.clear()
 
 
 def discover() -> list[Adapter]:
-    """Every office_example.py under back_dev_home, sorted by slug."""
-    adapters: list[Adapter] = []
-    for template in BACKEND_ROOT.rglob("office_example.py"):
-        relative = template.relative_to(BACKEND_ROOT).parent
-        # Drop the "providers" segment so slugs read as feature paths:
-        # ebeam/hitachi/hardware/providers/fdc -> ebeam/hitachi/hardware/fdc
-        parts = [part for part in relative.parts if part != "providers"]
-        adapters.append(Adapter(
-            template=template,
-            target=template.with_name("office.py"),
-            slug="/".join(parts),
-        ))
-    return sorted(adapters, key=lambda adapter: adapter.slug)
+    """Every office_example.py under this checkout's back_dev_home.
+
+    Pinned to BACKEND_ROOT rather than the runtime default: every path this
+    CLI prints is made relative to REPO_ROOT, so the scan root and REPO_ROOT
+    must come from the same ``__file__``.
+    """
+    return office_template.discover(BACKEND_ROOT)
 
 
 def resolve(adapters: list[Adapter], query: str) -> list[Adapter]:
@@ -200,10 +186,10 @@ def _function_is_unimplemented(func: ast.FunctionDef, helpers: set[str]) -> bool
     """True when the function's FIRST real statement already fails.
 
     Checking only the first statement (after any docstring) is what keeps
-    real adapters out: they compute before they can fail, so a raise deeper
-    in the body never marks them unimplemented. The hardware dispatcher, for
-    instance, raises NotImplementedError for tabs that are not wired yet, but
-    only inside a conditional -- it is a real adapter and must be copied.
+    real adapters out of the stub set: they compute before they can fail, so a
+    raise further down the body -- a guard clause, a branch for an input shape
+    that is not wired yet -- never marks them unimplemented. Only a body that
+    fails before doing anything at all counts.
     """
     body = [
         statement for statement in func.body
@@ -213,7 +199,12 @@ def _function_is_unimplemented(func: ast.FunctionDef, helpers: set[str]) -> bool
 
 
 def is_stub(template: Path) -> bool:
-    """True when EVERY public export of the template is unimplemented."""
+    """True when EVERY public export of the template is unimplemented.
+
+    Every, not any: recipe_tat's office adapter is real and must be copied,
+    yet it deliberately leaves get_meas_hist raising because the TAT routes
+    only call the aggregation endpoints.
+    """
     try:
         tree = ast.parse(template.read_text(encoding="utf-8"))
     except (OSError, SyntaxError):
@@ -319,7 +310,7 @@ def choose_interactively(adapters: list[Adapter]) -> list[Adapter]:
     """Numbered menu; blank input selects every MISSING adapter."""
     print("Select adapters to copy (comma-separated numbers, or blank for all MISSING):\n")
     for index, adapter in enumerate(adapters, start=1):
-        print(f"  {index:>2}. [{adapter.status:^7}] {adapter.slug}")
+        print(f"  {index:>2}. [{status_of(adapter):^7}] {adapter.slug}")
 
     try:
         raw = input("\n> ").strip()
@@ -328,7 +319,7 @@ def choose_interactively(adapters: list[Adapter]) -> list[Adapter]:
         return []
 
     if not raw:
-        return [a for a in adapters if a.status == MISSING]
+        return [a for a in adapters if status_of(a) == MISSING]
 
     chosen: list[Adapter] = []
     for token in raw.split(","):
@@ -399,7 +390,7 @@ def copy(adapters: list[Adapter], *, force: bool, dry_run: bool) -> int:
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="sync_office_adapters",
         description="Copy providers/office_example.py templates to office.py.",
@@ -435,7 +426,7 @@ def main() -> int:
         "--diff", action="store_true",
         help="show how edited office.py files differ from their templates",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     adapters = discover()
     if not adapters:
@@ -458,7 +449,7 @@ def main() -> int:
         # there yet, plus stale copies whose bytes are recoverable from git.
         # EDITED is excluded -- only --force may clobber unrecoverable edits.
         # Stubs are excluded because copying one BREAKS a working page.
-        selected = [a for a in adapters if a.status in SAFE_TO_WRITE or args.force]
+        selected = [a for a in adapters if status_of(a) in SAFE_TO_WRITE or args.force]
         stubs = [a for a in selected if is_stub(a.template)]
         if stubs and not args.include_stubs:
             selected = [a for a in selected if a not in stubs]

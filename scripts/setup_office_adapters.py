@@ -45,7 +45,7 @@ from scripts.sync_office_adapters import (
 )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="setup_office_adapters",
         description="Create/refresh every runnable providers/office.py. No arguments needed.",
@@ -57,7 +57,7 @@ def main() -> int:
         "--include-stubs", action="store_true",
         help="also copy not-yet-implemented templates (flips those features to a 500)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     created = refreshed = 0
     skipped_stub: list[str] = []
