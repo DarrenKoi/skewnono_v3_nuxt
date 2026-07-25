@@ -1,26 +1,38 @@
 """Home-safe tests for the storage mock/office adapter seam.
 
 Run only this file:
-    .venv/bin/python -m unittest tests.test_storage_home
+    .venv/bin/python -m pytest tests/test_storage_home.py -q
 
 Run the complete backend suite:
-    .venv/bin/python -m unittest discover tests
+    .venv/bin/python -m pytest tests back_dev_home -q
+
+`unittest discover tests` also runs this file, but it is NOT the suite: it
+sees nothing under `back_dev_home/**/tests/`, where most of the backend tests
+now live as pytest functions.
+
+Nothing here imports `providers.office`: that module is gitignored, so a
+module-level import fails collection on every clean checkout. The office
+dispatch branch goes through `_office_state`'s fakes instead, which assert
+the same thing on a wired machine and an unwired one.
 """
 
 from __future__ import annotations
 
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from flask import Flask
 
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.storage import data
 from back_dev_home.ebeam.hitachi.storage.providers import mock as mock_provider
-from back_dev_home.ebeam.hitachi.storage.providers import office as office_provider
 from back_dev_home.ebeam.hitachi.storage.routes import bp
-from tests._office_state import has_office_adapter, skip_reason
+from tests._office_state import (
+    MISSING_ADAPTER_MESSAGE,
+    fake_office_adapter,
+    without_office_adapter,
+)
 
 
 _PROVIDER_ENV_NAMES = (
@@ -122,40 +134,36 @@ class TestStorageAdapters(ProviderEnvironmentTestCase):
     def test_office_selection_delegates_to_the_office_adapter(self):
         storage_rows = mock_provider.get_storage("cdsem")[:1]
         ppid_snapshot = mock_provider.get_ppid_unavailable("cdsem")
-        fac_ids = ["M14"]
+        fab_names = ["M14A"]
+        load_storage = MagicMock(return_value=storage_rows)
+        load_ppid = MagicMock(return_value=ppid_snapshot)
         os.environ["SKEWNONO_STORAGE_PROVIDER"] = "office"
 
-        with (
-            patch.object(
-                office_provider,
-                "get_storage",
-                return_value=storage_rows,
-            ) as load_storage,
-            patch.object(
-                office_provider,
-                "get_ppid_unavailable",
-                return_value=ppid_snapshot,
-            ) as load_ppid,
+        with fake_office_adapter(
+            "storage",
+            get_storage=load_storage,
+            get_ppid_unavailable=load_ppid,
         ):
-            self.assertEqual(data.get_storage("cdsem", fac_ids), storage_rows)
+            self.assertEqual(data.get_storage("cdsem", fab_names), storage_rows)
             self.assertEqual(
-                data.get_ppid_unavailable("cdsem", fac_ids),
+                data.get_ppid_unavailable("cdsem", fab_names),
                 ppid_snapshot,
             )
 
-        load_storage.assert_called_once_with("cdsem", fac_ids)
-        load_ppid.assert_called_once_with("cdsem", fac_ids)
+        load_storage.assert_called_once_with("cdsem", fab_names)
+        load_ppid.assert_called_once_with("cdsem", fab_names)
 
-    @unittest.skipIf(
-        has_office_adapter("ebeam/hitachi/storage"),
-        skip_reason("ebeam/hitachi/storage"),
-    )
-    def test_unconnected_office_adapter_fails_clearly(self):
-        with self.assertRaisesRegex(NotImplementedError, "not been connected"):
-            office_provider.get_storage("cdsem")
+    def test_office_without_an_adapter_refuses_instead_of_serving_mock(self):
+        # The one thing that must never happen at the office: an explicit
+        # request for real fab data answered with fabricated numbers.
+        os.environ["SKEWNONO_STORAGE_PROVIDER"] = "office"
 
-        with self.assertRaisesRegex(NotImplementedError, "not been connected"):
-            office_provider.get_ppid_unavailable("cdsem")
+        with without_office_adapter("storage"):
+            with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
+                data.get_storage("cdsem")
+
+            with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
+                data.get_ppid_unavailable("cdsem")
 
 
 class TestStorageRoutes(ProviderEnvironmentTestCase):
