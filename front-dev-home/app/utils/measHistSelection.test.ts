@@ -14,6 +14,7 @@ const row = (msr: string, recipeName: string): MeasHistRow => ({
   fab_name: 'M11A',
   vendor_nm: 'HITACHI',
   eqp_id: 'ECXDX925',
+  eqp_ip: '10.41.12.87',
   eqp_model_cd: 'CG6300',
   tool_type: 'cd-sem',
   lot_cd: '6LD257421',

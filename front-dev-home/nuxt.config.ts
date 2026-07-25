@@ -75,14 +75,18 @@ export default defineNuxtConfig({
     }
   },
 
-  // *.test.ts files are node:test scripts (run via `npm test`), not browser app
-  // code. Exclude them from the app typecheck so vue-tsc doesn't error on
-  // `node:test` imports and `.ts` import extensions.
+  // *.test.ts files are node:test scripts (run via `npm test`), but they are
+  // deliberately kept INSIDE the typecheck: many of them build inline
+  // snake_case fixtures typed as real backend row types imported from the
+  // use*Api composables (MeasHistRow, AfmDetailRow, AmpRow, …), so vue-tsc is
+  // the only automated guard we have against a Phase 2 office adapter drifting
+  // away from the shape the frontend expects. Excluding them, as we used to,
+  // silently switched that guard off. `@types/node` is a devDependency so
+  // `node:test`/`node:assert` resolve; it is picked up via TypeScript's
+  // automatic @types inclusion rather than an explicit `types` array, which
+  // would shadow Nuxt's own generated globals.
   typescript: {
     tsConfig: {
-      // Path is relative to the generated config in `.nuxt/`, mirroring its
-      // `../app/**/*` include — a bare `**/*.test.ts` would only match `.nuxt/`.
-      exclude: ['../app/**/*.test.ts'],
       compilerOptions: {
         // anomaly utils/tests import siblings with explicit .ts extensions (node --test needs them)
         allowImportingTsExtensions: true

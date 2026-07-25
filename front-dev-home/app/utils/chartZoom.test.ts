@@ -26,7 +26,10 @@ test('the incoming option is never mutated (it comes from a computed)', () => {
 })
 
 test('a chart with no dataZoom is returned untouched', () => {
-  const next = { series: [] }
+  // Annotated because `{ dataZoom?: unknown }` is a weak type: a literal with
+  // no property in common is rejected outright. The point of the case is that
+  // `dataZoom` is genuinely absent, so it stays absent from the value.
+  const next: { series: unknown[], dataZoom?: unknown } = { series: [] }
   assert.equal(withPreservedZoom(next, [{ start: 10, end: 20 }]), next)
 })
 
