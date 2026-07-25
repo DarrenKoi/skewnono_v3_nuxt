@@ -121,9 +121,15 @@
               {{ p.mp >= 0 ? p.mp : '—' }}
             </td>
             <td
-              class="px-1.5 py-1.5 text-center"
+              class="px-1.5 py-1.5 text-center whitespace-nowrap"
               @click.stop
             >
+              <span
+                v-if="selectedSet.has(keyOf(p))"
+                class="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle"
+                :style="{ backgroundColor: swatchColor(p) }"
+                aria-hidden="true"
+              />
               <UCheckbox
                 size="xs"
                 :aria-label="`측정점 ${p.seq} 선택`"
@@ -322,6 +328,11 @@ const onRowClick = (p: Point) => {
 // export scoping always agree with what's currently on screen.
 const keyOf = (p: Point) => siteKey(p.param, p.seq)
 const selectedSet = computed(() => new Set(props.analysis.selectedSites.value))
+
+// Legend swatch color for a selected row = its identity color across the charts;
+// a pick past the palette cap has no color and shows the neutral CSS token.
+const swatchColor = (p: Point): string =>
+  props.analysis.siteColor(p.param, p.seq) ?? 'var(--sk-ink-subtle)'
 const visibleKeys = computed(() => rows.value.map(keyOf))
 const headerCheck = computed(() => headerState(visibleKeys.value, selectedSet.value))
 
