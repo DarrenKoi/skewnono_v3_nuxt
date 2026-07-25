@@ -1,5 +1,7 @@
 """Packing rules for the office → cloud bundle."""
 
+import os
+import stat
 from pathlib import Path
 
 from scripts import pack_deploy
@@ -114,6 +116,128 @@ def test_default_secret_key_is_advisory(tmp_path):
     secret = next(c for c in checks if c.name == "secret_key")
     assert not secret.ok
     assert not secret.blocking
+
+
+def test_read_env_ignores_comments_blanks_and_non_assignments(tmp_path):
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "# a comment\n"
+        "\n"
+        "just-a-word\n"
+        "  SKEWNONO_SECRET_KEY = real  \n"
+    )
+
+    assert pack_deploy._read_env(env_path) == {"SKEWNONO_SECRET_KEY": "real"}
+
+
+def test_read_env_splits_on_the_first_equals_only(tmp_path):
+    """Redis/MinIO credentials routinely contain '=' (base64 padding)."""
+    env_path = tmp_path / ".env"
+    env_path.write_text("SKEWNONO_REDIS_PASSWORD=pa==ss=\n")
+
+    assert pack_deploy._read_env(env_path) == {"SKEWNONO_REDIS_PASSWORD": "pa==ss="}
+
+
+def test_read_env_of_a_missing_file_is_empty(tmp_path):
+    """run_preflight() reads .env unconditionally, before env_present blocks."""
+    assert pack_deploy._read_env(tmp_path / "nope.env") == {}
+
+
+def test_read_env_keeps_quotes_in_the_value(tmp_path):
+    """A deliberate 3-line reader — packing must work without importing the app
+    — so it is not python-dotenv and does not strip quotes.
+
+    back_dev_home/.env.example states the format ("no quotes, no `export`, no
+    spaces around `=`"), so this is the documented shape, not a parser bug. The
+    next test is what it costs when the format is ignored.
+    """
+    env_path = tmp_path / ".env"
+    env_path.write_text('SKEWNONO_SECRET_KEY="dev-only-not-for-prod"\n')
+
+    assert pack_deploy._read_env(env_path) == {
+        "SKEWNONO_SECRET_KEY": '"dev-only-not-for-prod"'
+    }
+
+
+def test_a_quoted_default_secret_key_slips_past_the_advisory(tmp_path):
+    """The one asymmetry worth knowing about: create_app() reads this file with
+    load_dotenv(), which DOES strip quotes, so a quoted default key signs
+    sessions with the key published in this repo while packing reports nothing.
+
+    Pinned, not fixed: the quotes violate the documented .env format, and a
+    reader that guesses at shell quoting would then have to agree with
+    load_dotenv() on escapes, `${}` and multi-line values too. If _read_env()
+    ever does learn to unquote, this assertion is the one to invert.
+    """
+    root = _make_repo(tmp_path)
+    (root / "back_dev_home" / ".env").write_text(
+        'SKEWNONO_SECRET_KEY="dev-only-not-for-prod"\n'
+    )
+
+    checks = pack_deploy.run_preflight(root)
+
+    assert next(c for c in checks if c.name == "secret_key").ok
+
+
+def test_read_env_does_not_understand_the_export_prefix(tmp_path):
+    """`export FOO=bar` yields the key "export FOO", so a shell-style .env
+    reads as having no SKEWNONO_SECRET_KEY at all — the advisory fires. Also
+    out of the documented format, and failing loudly is the right direction."""
+    env_path = tmp_path / ".env"
+    env_path.write_text("export SKEWNONO_SECRET_KEY=real\n")
+
+    assert pack_deploy._read_env(env_path) == {"export SKEWNONO_SECRET_KEY": "real"}
+
+
+def _set_build_times(root: Path, source: float, build: float) -> None:
+    """Give front-dev-home/app one source file, then pin both sides' mtimes.
+
+    Absolute epochs, minutes apart: build_fresh compares mtimes with >=, so
+    writing the files in order and trusting the clock would ride on filesystem
+    timestamp granularity.
+    """
+    source_file = root / "front-dev-home" / "app" / "pages" / "index.vue"
+    source_file.parent.mkdir(parents=True, exist_ok=True)
+    source_file.write_text("<template />")
+    os.utime(source_file, (source, source))
+
+    spa_index = root / "front-dev-home" / ".output" / "public" / "index.html"
+    os.utime(spa_index, (build, build))
+
+
+def test_a_build_older_than_the_sources_is_advisory(tmp_path):
+    """You ship yesterday's UI silently: the SPA is present and every blocking
+    check passes, so only this advisory stands between a stale .output/ and
+    production."""
+    root = _make_repo(tmp_path)
+    _set_build_times(root, source=2_000_000_000, build=1_999_999_000)
+
+    checks = pack_deploy.run_preflight(root)
+
+    fresh = next(c for c in checks if c.name == "build_fresh")
+    assert not fresh.ok
+    assert not fresh.blocking
+    assert pack_deploy.blocking_failures(checks) == []
+
+
+def test_a_build_newer_than_the_sources_passes(tmp_path):
+    root = _make_repo(tmp_path)
+    _set_build_times(root, source=2_000_000_000, build=2_000_000_060)
+
+    checks = pack_deploy.run_preflight(root)
+
+    assert next(c for c in checks if c.name == "build_fresh").ok
+
+
+def test_no_app_directory_is_not_reported_as_a_stale_build(tmp_path):
+    """Packing from an export that carries only .output/ must not warn about a
+    freshness it cannot measure."""
+    root = _make_repo(tmp_path)
+    (root / "front-dev-home" / "app").rmdir()
+
+    checks = pack_deploy.run_preflight(root)
+
+    assert next(c for c in checks if c.name == "build_fresh").ok
 
 
 def test_copy_preserves_the_depth_invariant(tmp_path):
@@ -256,6 +380,25 @@ def test_main_writes_a_complete_bundle(tmp_path, monkeypatch):
     assert (bundle / "preflight.py").is_file()
     assert (bundle / "MANIFEST.txt").is_file()
     assert (bundle / "DEPLOY.md").is_file()
+
+
+def test_main_locks_down_the_bundle_folder(tmp_path, monkeypatch):
+    """The bundle carries back_dev_home/.env and minio_handler/minio_config.py.
+
+    main() prints three lines telling the operator so, and DEPLOY.md tells them
+    to re-apply mode 700 after the copy — both of which read as reassurance
+    that the folder written here is already locked down. If the chmod were
+    dropped, a bundle sitting on an office PC under the default umask would be
+    world-readable with nothing announcing it.
+    """
+    repo = _make_repo(tmp_path)
+    monkeypatch.chdir(repo)
+    out = tmp_path / "out"
+
+    assert pack_deploy.main(["--out", str(out)]) == 0
+
+    bundle = next(out.iterdir())
+    assert stat.S_IMODE(bundle.stat().st_mode) == 0o700
 
 
 def test_ignore_callback_is_not_poisoned_by_the_checkout_path():
