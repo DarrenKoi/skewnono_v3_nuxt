@@ -15,7 +15,7 @@
           inputmode="search"
           autocomplete="off"
           placeholder="Search by Lot ID, Recipe, Date (e.g. CMP, T7HQR42TA, 250609)"
-          class="min-w-0 flex-1 bg-transparent text-sm text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+          class="sk-no-native-clear min-w-0 flex-1 bg-transparent text-sm text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
           aria-label="Search AFM measurements"
         >
         <UButton
