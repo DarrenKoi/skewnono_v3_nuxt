@@ -89,6 +89,39 @@ def _looks_like_json(raw: bytes) -> bool:
     return raw.lstrip()[:1] in (b"{", b"[")
 
 
+def _undeserializable(
+    raw: bytes, key: str, exc: Exception, codec: str
+) -> LookupError:
+    """The one diagnostic every failed decode raises.
+
+    Bare ``LookupError``, never a subclass: ``back_dev_home/__init__.py`` maps
+    it to a JSON 502 with ``type(err) is not LookupError``, so a subclass would
+    fall through to an opaque 500.
+
+    The pickle wording is reproduced verbatim from when this was inlined in
+    that branch — the hints are the ones that actually come up off a bad Redis
+    value — and the codec is named only for the other decoders, so the pickle
+    message stays byte-identical.
+    """
+    message = (
+        f"Could not deserialize Redis key {key!r} "
+        f"(first bytes: {raw[:16].hex(' ')!r}, length {len(raw)}). "
+        f"Real error -> {type(exc).__name__}: {exc}. "
+        "If this is a numpy/pandas version mismatch (e.g. "
+        "\"No module named 'numpy._core'\" means the writer used numpy>=2 "
+        "but this venv has numpy<2 — upgrade numpy), align versions. "
+        "If the value is compressed (gzip 1f8b / zlib 789c / zstd 28b52ffd) "
+        "add that branch before pickle.loads."
+    )
+    if codec != "pickle":
+        message += (
+            f" The value was routed to the {codec} decoder by its leading "
+            "bytes, so a truncated or partially-written value fails here "
+            "rather than reaching pickle."
+        )
+    return LookupError(message)
+
+
 def read_dataframe(raw: bytes, key: str) -> pd.DataFrame:
     """Deserialize a DataFrame stored under ``key``.
 
@@ -99,28 +132,31 @@ def read_dataframe(raw: bytes, key: str) -> pd.DataFrame:
     """
     # Parquet: magic bytes b"PAR1" at the head (and tail). Parquet stores
     # text columns as UTF-8, so strings come back as Python str already.
+    #
+    # Guarded like the pickle branch below: a truncated or partially-written
+    # value still starts with PAR1, and pyarrow raises ArrowInvalid, which is
+    # neither LookupError nor RuntimeError. The app factory matches those two
+    # types exactly (see back_dev_home/__init__.py), so an unguarded raise here
+    # escaped as an opaque 500 rather than the 502 this docstring promises.
     if raw[:4] == b"PAR1":
-        return pd.read_parquet(BytesIO(raw), engine="pyarrow")
+        try:
+            return pd.read_parquet(BytesIO(raw), engine="pyarrow")
+        except Exception as exc:
+            raise _undeserializable(raw, key, exc, "parquet") from exc
 
     # JSON: only when it actually looks like JSON. Do NOT fall back to
     # raw.decode('utf-8') on arbitrary binary — that turns a real unpickling
     # failure into a misleading UnicodeDecodeError and hides the true cause.
     if _looks_like_json(raw):
-        return pd.read_json(StringIO(raw.decode("utf-8")))
+        try:
+            return pd.read_json(StringIO(raw.decode("utf-8")))
+        except Exception as exc:
+            raise _undeserializable(raw, key, exc, "JSON") from exc
 
     try:
         obj = pickle.loads(raw)
     except Exception as exc:
-        raise LookupError(
-            f"Could not deserialize Redis key {key!r} "
-            f"(first bytes: {raw[:16].hex(' ')!r}, length {len(raw)}). "
-            f"Real error -> {type(exc).__name__}: {exc}. "
-            "If this is a numpy/pandas version mismatch (e.g. "
-            "\"No module named 'numpy._core'\" means the writer used numpy>=2 "
-            "but this venv has numpy<2 — upgrade numpy), align versions. "
-            "If the value is compressed (gzip 1f8b / zlib 789c / zstd 28b52ffd) "
-            "add that branch before pickle.loads."
-        ) from exc
+        raise _undeserializable(raw, key, exc, "pickle") from exc
 
     if isinstance(obj, pd.DataFrame):
         return obj
