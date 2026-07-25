@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { analyzeSequence } from './sequence.ts'
-import { buildParamMatrix } from './paramMatrix.ts'
+import { buildParamMatrix, MAX_SUSPECTS } from './paramMatrix.ts'
 import type { MsrFileRow, FdcParamSummary } from '~/composables/useMsrFileApi'
 
 // ---------------------------------------------------------------------------
@@ -107,4 +107,97 @@ test('a CD-only MSR with no dynamic FDC yields just the CD row', () => {
   assert.equal(m.rows.length, 1)
   assert.equal(m.rows[0]?.kind, 'cd')
   assert.equal(m.columns, 1)
+})
+
+// ---------------------------------------------------------------------------
+// Ranking: ordering by |r| to CD, and the suspects row
+// ---------------------------------------------------------------------------
+
+// Three params in ONE category with distinct |r| so ordering is observable.
+// Up tracks CD exactly (r = +1.000); Down inverts it imperfectly (r ≈ -0.981);
+// Flat is constant, so it has zero variance → 평가 불가, never rankable.
+const orderedSource = () => ({
+  rows: cdRows(),
+  dynamic_fdc: {
+    1: { Up: 1, Down: 40, Flat: 5 },
+    2: { Up: 2, Down: 30, Flat: 5 },
+    3: { Up: 3, Down: 25, Flat: 5 },
+    4: { Up: 4, Down: 10, Flat: 5 }
+  } as unknown as Record<string, Record<string, number>>,
+  fdc_params: ['Up', 'Down', 'Flat'].map(n =>
+    fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
+})
+
+const buildOrdered = () => {
+  const src = orderedSource()
+  const model = analyzeSequence(src, 'CD_TOP', 'nm')
+  return buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
+}
+
+test('a constant param is 평가 불가 and carries no r', () => {
+  const m = buildOrdered()
+  const flat = m.rows.flatMap(r => r.cells).find(c => c.param === 'Flat')
+  assert.equal(flat?.readiness, 'unavailable')
+  assert.equal(flat?.r, null)
+  assert.ok(flat?.reason)
+})
+
+test('category cells order by |r| descending with unevaluable last', () => {
+  const catRow = buildOrdered().rows.find(r => r.kind === 'category')
+  assert.deepEqual(catRow?.cells.map(c => c.param), ['Up', 'Down', 'Flat'])
+})
+
+test('the suspects row sits at index 1 and holds only evaluable params', () => {
+  const m = buildOrdered()
+  assert.equal(m.rows[1]?.kind, 'suspects')
+  assert.deepEqual(m.rows[1]?.cells.map(c => c.param), ['Up', 'Down'])
+})
+
+test('suspects are copies, flagged duplicated, and originals stay in place', () => {
+  const m = buildOrdered()
+  assert.ok(m.rows[1]!.cells.every(c => c.duplicated))
+  const catRow = m.rows.find(r => r.kind === 'category')
+  assert.ok(catRow!.cells.every(c => !c.duplicated))
+  assert.equal(catRow!.cells.length, 3)
+})
+
+test('the suspects row is omitted entirely when nothing is evaluable', () => {
+  const src = orderedSource()
+  src.dynamic_fdc = {
+    1: { Flat: 5 }, 2: { Flat: 5 }, 3: { Flat: 5 }, 4: { Flat: 5 }
+  } as unknown as Record<string, Record<string, number>>
+  src.fdc_params = [fdcParam({ name: 'Flat', category: 'defocus', category_label: 'defocus' })]
+  const model = analyzeSequence(src, 'CD_TOP', 'nm')
+  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
+  assert.ok(!m.rows.some(r => r.kind === 'suspects'))
+})
+
+test('the suspects row caps at MAX_SUSPECTS', () => {
+  const src = orderedSource()
+  src.dynamic_fdc = {
+    1: { A: 1, B: 2, C: 3, D: 4, E: 5 },
+    2: { A: 2, B: 4, C: 6, D: 8, E: 10 },
+    3: { A: 4, B: 7, C: 9, D: 11, E: 14 },
+    4: { A: 8, B: 9, C: 13, D: 15, E: 21 }
+  } as unknown as Record<string, Record<string, number>>
+  src.fdc_params = ['A', 'B', 'C', 'D', 'E'].map(n =>
+    fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
+  const model = analyzeSequence(src, 'CD_TOP', 'nm')
+  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
+  assert.equal(m.rows.find(r => r.kind === 'suspects')!.cells.length, MAX_SUSPECTS)
+})
+
+test('equal |r| breaks by param name so order is stable', () => {
+  const src = orderedSource()
+  // Zeta and Alpha both track CD exactly → identical |r| = 1.
+  src.dynamic_fdc = {
+    1: { Zeta: 1, Alpha: 1 }, 2: { Zeta: 2, Alpha: 2 },
+    3: { Zeta: 3, Alpha: 3 }, 4: { Zeta: 4, Alpha: 4 }
+  } as unknown as Record<string, Record<string, number>>
+  src.fdc_params = ['Zeta', 'Alpha'].map(n =>
+    fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
+  const model = analyzeSequence(src, 'CD_TOP', 'nm')
+  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
+  const catRow = m.rows.find(r => r.kind === 'category')
+  assert.deepEqual(catRow!.cells.map(c => c.param), ['Alpha', 'Zeta'])
 })

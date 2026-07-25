@@ -67,6 +67,15 @@ const labelsByCategory = (fdcParams: FdcParamSummary[]): Map<string, string> => 
   return out
 }
 
+/** Strongest CD relation first; unevaluable cells last; name as a stable
+ * tie-break so identical |r| never reorders between renders. */
+const byCdRelation = (a: MatrixCell, b: MatrixCell): number => {
+  const ra = a.r == null ? -1 : Math.abs(a.r)
+  const rb = b.r == null ? -1 : Math.abs(b.r)
+  if (ra !== rb) return rb - ra
+  return a.param.localeCompare(b.param)
+}
+
 export const buildParamMatrix = (
   model: SequenceModel,
   rows: MsrFileRow[],
@@ -124,7 +133,26 @@ export const buildParamMatrix = (
       kind: 'category',
       label: labels.get(category) ?? category,
       continuation: false,
-      cells: fdcCells.filter(c => c.category === category)
+      cells: fdcCells.filter(c => c.category === category).sort(byCdRelation)
+    })
+  }
+
+  // Suspects are COPIES — the originals never move, so the category rows stay
+  // complete. Ranking an unevaluable param would mean ranking on a number
+  // `assess()` explicitly refused to produce, so those are excluded outright.
+  const suspects = fdcCells
+    .filter(c => c.readiness === 'ready' && c.r != null)
+    .sort(byCdRelation)
+    .slice(0, MAX_SUSPECTS)
+    .map(c => ({ ...c, duplicated: true }))
+
+  if (suspects.length) {
+    matrixRows.splice(1, 0, {
+      key: 'suspects',
+      kind: 'suspects',
+      label: '주요 용의자',
+      continuation: false,
+      cells: suspects
     })
   }
 
