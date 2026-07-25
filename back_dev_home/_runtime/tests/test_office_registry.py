@@ -5,7 +5,7 @@ The fake_tree factory and env scrubbing live in conftest.py.
 
 import pytest
 
-from back_dev_home._runtime import office_registry
+from back_dev_home._runtime import data_provider, office_registry
 
 
 def test_feature_slug_is_the_directory_name_at_any_depth(fake_tree):
@@ -59,6 +59,38 @@ def test_duplicate_slug_raises_with_both_paths(fake_tree):
     assert "hardware" in message
     assert "ebeam/hitachi/hardware" in message
     assert "ebeam/cdsem/hardware" in message
+
+
+def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(
+    fake_tree, monkeypatch
+):
+    """The guard above is only useful if boot walks into it.
+
+    Before serving anything, create_app() calls validate_env() and then the
+    resolve_all() behind the boot table — both reach this scan, and neither may
+    reduce the diagnosis to something the reader cannot act on. Adding a second
+    `hardware/` under another vendor is how this happens in practice, and the
+    two directories are indistinguishable by slug, so the message has to name
+    both paths; anything less leaves someone grepping for a directory name that
+    matches twice. Refusing to start is the right outcome rather than a wrong
+    guess: resolution has no correct answer here.
+    """
+    fake_tree({
+        "ebeam/hitachi/hardware": ["mock.py"],
+        "ebeam/cdsem/hardware": ["mock.py"],
+    })
+    # Set so the failure is essential to validate_env(), not incidental: this
+    # variable can only mean one of the two directories, so the scan error is
+    # what it must report however the readiness lookup is ordered.
+    monkeypatch.setenv("SKEWNONO_HARDWARE_PROVIDER", "office")
+
+    for boot_call in (data_provider.validate_env, data_provider.resolve_all):
+        with pytest.raises(RuntimeError) as exc:
+            boot_call()
+        message = str(exc.value)
+        assert "Duplicate feature slug 'hardware'" in message
+        assert "back_dev_home/ebeam/hitachi/hardware" in message
+        assert "back_dev_home/ebeam/cdsem/hardware" in message
 
 
 def test_office_adapter_without_a_mock_sibling_raises(fake_tree):
