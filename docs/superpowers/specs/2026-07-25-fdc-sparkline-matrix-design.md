@@ -58,9 +58,16 @@ for a variable N; and a CSS grid of N independent chart instances — smallest d
 
 ## Layout model
 
-Rows are FDC categories; columns are params within a category. `columns` is computed
-from the widest row — including the suspects row — and never hardcoded, because N is
-not ours to assume.
+Rows are FDC categories; columns are params within a category.
+
+`columns = min(MAX_COLUMNS, widestRow)` with `MAX_COLUMNS = 4`. The cap is load-bearing,
+not cosmetic: rows are categories, so their count is small and fixed, and letting
+`columns` track the widest row means a single fat category dictates cell width for the
+*entire* matrix. If the office catalog puts 15 params in `stage_drift`, an uncapped
+matrix becomes 15 columns wide and every cell shrinks to roughly 60 px — illegible,
+which defeats the point. A category with more than `MAX_COLUMNS` params **wraps onto
+continuation rows** (row header repeated with a continuation marker) instead of widening
+the matrix. Cell size therefore stays bounded for any N the office adapter returns.
 
 | Row | Contents |
 | --- | --- |
@@ -120,6 +127,16 @@ The existing implementation (`useEchart.ts:89-107`) already iterates every grid,
 converts back to axis space — it just discards which grid it was. Every current caller
 (`FdcSequenceTrend.vue:117`, others) ignores a second argument, so this breaks nothing.
 
+Matrix placement does not disturb that hit-testing, which was the main risk to this
+mechanism. `containPixel` resolves the finder to `gridModel.coordinateSystem`
+(`echarts.js:775-780`), and that property holds the **Grid** instance
+(`Grid.js:388`), while the Matrix used for layout is stored separately as
+`boxCoordinateSystem` (`CoordinateSystem.js:304`). So the hit test runs against the
+individual cell's rect via `Grid.prototype.containPoint` → `Cartesian2D.containPoint`
+(`Grid.js:274-277`, `Cartesian2D.js:107`), not against the whole matrix. Had
+`coordinateSystem: 'matrix'` redirected that property, every click would have resolved
+to grid 0.
+
 ### `app/components/ebeam/skewvoir/timeseries/SequenceWorkbench.vue` (changed)
 
 Mount the matrix above the CD pane; keep all existing panels. Add one `computed`
@@ -175,23 +192,35 @@ ranked suspect list built on that would be fiction.
 - within-row ordering by |r| descending, with name as a stable tie-break
 - suspects row caps at 4 and excludes unevaluable params
 - suspects row omitted when nothing is evaluable
-- column count equals the widest row
+- column count equals `min(MAX_COLUMNS, widestRow)`
+- a category exceeding `MAX_COLUMNS` wraps onto continuation rows without widening the
+  matrix, and every one of its params still appears exactly once
 - CD row present even when `hasFdc` is false
 
 The component gets no unit test. The repo has zero component tests; this change does
 not start that convention. Verify it visually through the `/verify` skill.
 
-## Verification item before implementation
+## Resolved: a grid can span multiple matrix cells
 
-The CD row spans the full matrix width. `MatrixCoordRangeOption`
-(`echarts.d.ts:10390-10400`) documents range coords such as `[[2, 5], 8]`, and `grid`
-inherits `coord` from `ComponentOption` — but the upstream example only ever places
-grids at single cells, so **grid spanning is unverified**. Make this the first task: a
-short spike against the real API.
+The CD row spans the full matrix width via a range coord — `coord: [[0, columns - 1], 0]`.
+This was traced through the installed source rather than assumed, because the upstream
+example only ever places grids at single cells:
 
-Fallback if grid range coords are unsupported: render the CD row as a plain
-non-matrix grid pinned above the matrix. The shared `dataZoom: { xAxisIndex: 'all' }`
-covers it either way, so the interaction model is unaffected.
+1. `lib/coord/cartesian/Grid.js:152` calls `createBoxLayoutReference(gridModel, api)`,
+   so a grid does participate in box layout.
+2. `lib/util/layout.js:357-361` calls `boxCoordSys.dataToLayout(coord)` and takes
+   `result.contentRect || result.rect` as the grid's reference container.
+3. `lib/coord/matrix/Matrix.js:151-173` — `dataToLayout` runs the coord through
+   `parseCoordRangeOption`, then `xyLocatorRangeToRectOneDim` for both dimensions.
+
+`parseCoordRangeOption` is the same function that resolves `[[2, 5], 8]`-style ranges
+for matrix body cells, so a range coord on a grid resolves to a rect spanning those
+cells. `lib/core/CoordinateSystem.js:162` states the intent directly: *"grid rect
+(cartesian rect) is calculate based on matrix/calendar coord sys"*.
+
+No fallback is needed. Should the range coord still misbehave at runtime, the CD row
+degrades to a single-cell grid at column 0 without affecting anything else — the shared
+`dataZoom: { xAxisIndex: 'all' }` is indifferent to grid placement.
 
 ## Deferred
 
