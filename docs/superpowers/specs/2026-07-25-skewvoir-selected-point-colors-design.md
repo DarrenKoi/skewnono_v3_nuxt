@@ -106,18 +106,30 @@ export const SK_SITE = [ ~10 hues ] as const
   semantic red (`SK_STATE.bad`). Warm/red-adjacent hues, if included at all, come
   last. This prevents an identity halo from being misread as severity on the
   wafer map, where red rings already mean "outlier/bad."
-- **Neutral overflow** = the theme's muted tone (`sk.muted`), resolved at render
-  time in each chart, used for any selected point past the cap.
+- **Neutral overflow** = a single fixed constant `SK_SITE_OVERFLOW` beside
+  `SK_SITE`, used for any selected point past the cap. It is theme-independent
+  for the same reason `SK_SITE` is — a theme-varying overflow sitting beside
+  fixed identity hues would be *less* coherent — and having one owner keeps the
+  canvas charts and the DOM swatch from drifting apart. (The design first used
+  the theme's `sk.muted` per consumer; the `/simplify` pass unified it to one
+  constant resolved once in the composable — see Post-review refinements.)
 
 ### 3. Composable exposure
 
-`useSkewvoirAnalysis.ts` adds a derived map and accessor:
+`useSkewvoirAnalysis.ts` adds a derived map and two accessors:
 
 - `siteColorMap = computed(() => assignSiteColors(selectedSites.value, SK_SITE))`
 - `siteColor(param, seq): string | null` → `siteColorMap.value[siteKey(param, seq)] ?? null`
-  (`null` = overflow; consumer paints it `sk.muted`).
+  (`null` = overflow). Used by the points table, which spans *all* selected
+  parameters, so it resolves overflow itself as `?? SK_SITE_OVERFLOW`.
+- `seqColorsForActiveParam: computed<Record<number, string>>` → the active
+  parameter's selected sequences as a **finished** `seq → color` map, every pick
+  already resolved to its identity hue or `SK_SITE_OVERFLOW`. The wafer map,
+  radius plot and distribution all read this one source instead of each
+  re-deriving the loop and re-deciding the neutral. (Added during the
+  `/simplify` pass — see Post-review refinements.)
 
-Both are returned from the composable so every surface reads the same source.
+All are returned from the composable so every surface reads the same source.
 
 ### 4. Per-panel rendering
 
@@ -128,19 +140,22 @@ Each panel keeps its single active parameter.
   in `selectedSeqsForActiveParam`, its identity color and passes a
   `seq → color` map to the leaf (additive prop; existing `selectedSeqs` stays as
   the membership set). The halo **ring/border** takes the identity color; the
-  point's heat-ramp *fill* is untouched. Overflow seqs → `sk.muted` ring.
+  point's heat-ramp *fill* is untouched. The map is `seqColorsForActiveParam`, so
+  overflow seqs already carry `SK_SITE_OVERFLOW` — no per-leaf fallback.
   The **WaferDetailModal** (the expand view sharing the same leaf) gets the same
   prop for consistency.
 - **Radius Plot** (`RadiusChart.vue` leaf + `RadiusPlot.vue` wrapper): the
   selected-overlay dot (`RadiusChart.vue:270`) takes the identity color per seq
-  via the same `seq → color` map. Also resolves today's brand/series mismatch.
+  via the same `seqColorsForActiveParam` map. Also resolves today's brand/series
+  mismatch.
 - **Distribution** (`Distribution.vue` wrapper + `DistributionChart.vue` leaf):
   the wrapper computes the selected points' `(value, color)` pairs for the active
-  parameter (from `siteRows` ∩ `selectedSeqsForActiveParam` + `siteColor`) and
-  passes them to the leaf. Per the chosen scope — **Box + Violin only**:
-  - **Box** — color and enlarge the selected values' raw dots (the jittered
-    raw-point overlay at `DistributionChart.vue:200-213` already plots every
-    value; selected ones switch from the shared brand to their identity color).
+  parameter (joining `siteRows` values with `seqColorsForActiveParam`) and passes
+  them to the leaf. Per the chosen scope — **Box + Violin only**:
+  - **Box** — the jittered raw-point overlay already plots every value; a
+    selected value's dot **switches in place** to its identity color (opaque,
+    enlarged) rather than drawing a second dot. Values come from the same rows as
+    the highlights, so the value match is exact.
   - **Violin** — a colored rug tick per selected value along the value axis (the
     violin's x-axis is `type: 'value'`, so ticks sit at true positions).
   - **Hist** — **no true rug** (its x-axis is categorical bin-centers). Instead,
@@ -175,8 +190,8 @@ seq → color (active param) ──► WaferMap wrapper ──► WaferMap leaf 
 
 ## Edge cases
 
-- **> cap (~10) selected:** overflow points render in `sk.muted` everywhere
-  (ring, dot, box dot, rug, swatch). No hue repeats.
+- **> cap (~10) selected:** overflow points render in `SK_SITE_OVERFLOW`
+  everywhere (ring, dot, box dot, rug, swatch). No hue repeats.
 - **Cross-parameter selection:** `selectedSites` can span parameters, but each
   chart only draws the active parameter's subset; the swatch legend covers all.
   Keying by `(param, seq)` keeps identity global and collision-free.
@@ -186,6 +201,26 @@ seq → color (active param) ──► WaferMap wrapper ──► WaferMap leaf 
   (`sk.ink`, `WaferMap.vue:261`) and outlier ring (`SK_STATE.bad`) are separate
   z-layers and keep their current styling; the identity ring is the existing
   selected-halo layer, only its color changes. Ordering/precedence unchanged.
+
+## Post-review refinements
+
+Changes made during the `/simplify` and `/code-review` passes, folded back here
+so this document matches the shipped code:
+
+- **One neutral owner.** The overflow tone moved from a per-consumer `sk.muted`
+  to a single fixed `SK_SITE_OVERFLOW` constant, resolved once in the composable.
+  This removed a four-way split (`muted` / `--sk-ink-subtle` / `brand` / `series`
+  — the last two are *not* neutral) and keeps overflow theme-independent, like
+  `SK_SITE` itself.
+- **One derivation owner.** `seqColorsForActiveParam` was added to the composable
+  so the wafer map, radius plot and distribution stop re-deriving an identical
+  `seq → color` loop (and stop re-importing `useChartPalette` just for the
+  fallback). The leaves lost their now-dead `?? brand` / `?? series` fallbacks.
+- **Box highlight switches in place.** The first cut drew a *separate* highlight
+  scatter at a different jitter seed (two dots per selected value); it now recolors
+  the raw dot itself, matching the spec's "switch."
+- **Shared bin index.** `binIndexOf` was extracted so `bins` and the Hist tint
+  agree on where a value lands.
 
 ## Testing
 

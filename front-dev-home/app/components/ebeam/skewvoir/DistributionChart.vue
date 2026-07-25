@@ -21,6 +21,12 @@ export interface DistributionGroup {
   values: number[]
 }
 
+// A selected point to mark, carrying its identity color (see utils/siteColors).
+export interface DistributionHighlight {
+  value: number
+  color: string
+}
+
 // CD distribution for one parameter, in four shapes: histogram, ECDF, box plot,
 // or a (mirrored-density) violin. The active shape is driven by the panel toggle.
 //
@@ -44,7 +50,7 @@ const props = withDefaults(defineProps<{
   heightClass?: string
   // Selected points to mark, each with its identity color (active param only).
   // Box: colored raw dots; Violin: value-axis rug; Hist: tinted containing bin.
-  highlights?: { value: number, color: string }[]
+  highlights?: DistributionHighlight[]
 }>(), {
   mode: 'Hist',
   heightClass: 'h-72',
@@ -206,17 +212,19 @@ const boxOption = computed<EChartsOption>(() => {
   // Jittered raw points per category index — the honest overlay of every value.
   // Jitter is a deterministic hash of (category index, point index) rather than
   // Math.random(), so points hold their horizontal position across reactive
-  // recomputes instead of reshuffling on every re-render.
-  const rawPoints: [number, number][] = []
-  cats.forEach((c, i) => {
-    c.values.forEach((v, j) => rawPoints.push([i + (jitterHash(i, j) - 0.5) * 0.3, v]))
-  })
-  // Selected points drawn on top of the raw cloud in their identity color. The
-  // dashboard's single-param box sits at category x=0; jitter keeps them apart.
-  const highlightPts = props.highlights.map((h, i) => ({
-    value: [(jitterHash(1, i) - 0.5) * 0.3, h.value],
-    itemStyle: { color: h.color }
-  }))
+  // recomputes instead of reshuffling on every re-render. A selected value's dot
+  // switches IN PLACE to its identity color (opaque, larger) — no second dot.
+  // Values come from the same rows as the highlights, so the match is exact.
+  const highlightByValue = new Map(props.highlights.map(h => [h.value, h.color]))
+  const rawPoints = cats.flatMap((c, i) =>
+    c.values.map((v, j) => {
+      const x = i + (jitterHash(i, j) - 0.5) * 0.3
+      const color = highlightByValue.get(v)
+      return color
+        ? { value: [x, v], symbolSize: 9, itemStyle: { color, opacity: 1 } }
+        : [x, v]
+    })
+  )
   return {
     tooltip: { trigger: 'item' },
     grid: { left: 48, right: 16, top: 24, bottom: 34, containLabel: true },
@@ -237,12 +245,6 @@ const boxOption = computed<EChartsOption>(() => {
         symbolSize: 4,
         itemStyle: { color: sk.value.brand, opacity: 0.35 },
         data: rawPoints,
-        tooltip: { show: false }
-      },
-      {
-        type: 'scatter',
-        symbolSize: 9,
-        data: highlightPts,
         z: 3,
         tooltip: { show: false }
       }

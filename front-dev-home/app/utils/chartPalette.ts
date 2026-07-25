@@ -41,10 +41,10 @@ export const SK_SITE = [
   '#0E7C86', // teal
   '#2F6DB5', // blue
   '#7A5EC4', // violet
-  '#3E8E5E', // green
-  '#B2568B', // magenta
-  '#5B6C8F', // slate
   '#1F9E8F', // sea green
+  '#3E8E5E', // green
+  '#5B6C8F', // slate
+  '#B2568B', // magenta
   '#8A6D3F', // brown
   '#C98A2E', // amber
   '#B0413A' // brick (warm — last slot, only reached with many picks)

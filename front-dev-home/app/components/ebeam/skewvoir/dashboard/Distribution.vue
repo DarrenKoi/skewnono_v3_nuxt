@@ -37,6 +37,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import type { DistributionHighlight } from '~/components/ebeam/skewvoir/DistributionChart.vue'
 import { isMeasuredRow } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
@@ -50,10 +51,10 @@ const hasData = computed(() =>
 // Selected points of the active parameter as (value, identity color) pairs — the
 // value from the row, the color from the composable's finished seq → color map.
 // The chart marks them per its active shape (Box dots / Violin rug / Hist bin).
-const highlights = computed<{ value: number, color: string }[]>(() => {
+const highlights = computed<DistributionHighlight[]>(() => {
   const param = props.analysis.activeParam.value
   const colors = props.analysis.seqColorsForActiveParam.value
-  const out: { value: number, color: string }[] = []
+  const out: DistributionHighlight[] = []
   for (const r of props.analysis.siteRows.value) {
     const color = r.parameter === param ? colors[r.sequence] : undefined
     if (!color || !isMeasuredRow(r) || r.cd_value == null) continue
