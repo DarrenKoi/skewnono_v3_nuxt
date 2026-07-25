@@ -111,6 +111,13 @@ back_dev_home/**/providers/**/office.py
 # live_alarm's writer has a second swap surface OUTSIDE providers/ — its
 # office.py holds the in-house alarm API URLs and must never be tracked.
 back_dev_home/**/writer/office.py
+# `scripts.sync_office_adapters --force` writes office.py.bak beside the
+# adapter before overwriting it. That backup holds the same 사내 details as the
+# adapter, so an untracked one at the office is a `git add -A` away from being
+# committed. Ignore it wherever office.py itself is ignored.
+back_dev_home/**/providers/office.py.bak
+back_dev_home/**/providers/**/office.py.bak
+back_dev_home/**/writer/office.py.bak
 
 # msr_image office FTP cache dir + explicit office adapter (already matched by
 # the glob above; listed explicitly for clarity on this feature).
