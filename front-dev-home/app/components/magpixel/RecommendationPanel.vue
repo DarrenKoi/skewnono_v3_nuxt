@@ -100,7 +100,7 @@ const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.
         마진 민감도
       </div>
       <p class="mb-2 sk-meta leading-relaxed">
-        배율이 이산값이라 마진이 연속적으로 반응하지 않습니다. 지금 마진에 여유가 얼마나 남았는지 보세요.
+        배율이 정해진 단계로만 바뀌어서 마진이 연속적으로 반응하지 않습니다. 지금 여유 마진이 얼마나 남았는지 보세요.
       </p>
       <table class="w-full font-mono text-[11.5px]">
         <tbody>

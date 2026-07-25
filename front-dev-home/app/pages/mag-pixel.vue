@@ -167,8 +167,14 @@ const calcInput = computed<CalcInput>(() => ({
         </div>
 
         <div>
-          <div class="mb-1.5 sk-eyebrow">
+          <div class="mb-1.5 flex items-center gap-1 sk-eyebrow">
             기준 px/CD <span class="text-amber-500">· 잠정</span>
+            <UTooltip text="CD 하나 폭에 픽셀이 최소 몇 개는 얹혀야 하는지 — 측정을 신뢰할 수 있다고 볼 합격선입니다.">
+              <UIcon
+                name="i-lucide-circle-help"
+                class="h-3.5 w-3.5 cursor-help text-(--sk-ink-muted)"
+              />
+            </UTooltip>
           </div>
           <UInput
             v-model.number="minPxPerCd"
@@ -179,19 +185,29 @@ const calcInput = computed<CalcInput>(() => ({
         </div>
       </div>
 
+      <!-- px/CD는 이 화면의 합격선이자 가장 낯선 입력이다. 레이블의 툴팁은
+           입력 옆에서 즉시 확인하는 용도이고, 이 문단은 그 기준이 아래 표의
+           ● / ✗ 로 어떻게 이어지는지를 설명한다 — 툴팁 안에 넣으면 호버해야만
+           읽히는데, 이 페이지 자체가 가이드이므로 항상 보이는 쪽이 맞다. -->
+      <p class="mt-4 max-w-3xl sk-meta">
+        <span class="font-semibold text-(--sk-ink)">기준 px/CD</span>는 CD 하나 폭에 픽셀이 최소 몇 개는 얹혀야
+        측정을 신뢰할 수 있다고 볼지, 그 합격선입니다. 아래 표에서 이 값을 넘긴 조합만 <span class="text-emerald-600 dark:text-emerald-400">●</span>,
+        미달한 조합은 <span class="text-red-600 dark:text-red-400">✗</span>로 표시됩니다.
+        <span class="text-amber-600 dark:text-amber-500">사내 기준이 확정되기 전까지는 잠정값입니다.</span>
+      </p>
+
       <p
         v-if="pitchError"
-        class="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
+        class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
       >
         {{ pitchError }}
       </p>
 
       <p
         v-else-if="result?.pitchAssumed"
-        class="mt-4 sk-meta"
+        class="mt-1.5 sk-meta"
       >
-        Pitch를 비워서 CD × 2 = {{ result.effectivePitchNm }} nm로 가정했습니다 ·
-        기준 px/CD는 사내 기준 확정 전까지 잠정값입니다
+        Pitch가 비어 있어 CD × 2 = {{ result.effectivePitchNm }} nm로 가정했습니다.
       </p>
     </section>
 

@@ -321,7 +321,7 @@ export const pixelGuidance = (rec: Recommendation, minPxPerCd: number): PixelGui
     return {
       tone: 'error',
       headline: '픽셀이 부족합니다',
-      detail: `${(rec.mag ?? 0).toLocaleString()}× 에서는 4096 px로도 기준 ${minPxPerCd} px/CD에 미달합니다. 패턴 수를 줄이거나 기준을 재검토하세요.`
+      detail: `${(rec.mag ?? 0).toLocaleString()}×에서는 4096 px로도 기준 ${minPxPerCd} px/CD에 미달합니다. 패턴 수를 줄이거나 기준을 재검토하세요.`
     }
   }
   const ratio = rec.pxPerCd ?? 0
@@ -329,7 +329,7 @@ export const pixelGuidance = (rec: Recommendation, minPxPerCd: number): PixelGui
     return {
       tone: 'ok',
       headline: '512로 충분합니다',
-      detail: `${ratio.toFixed(1)} px/CD로 기준 ${minPxPerCd}의 ${(ratio / minPxPerCd).toFixed(1)}배입니다. 1024로 올리면 스캔 시간만 4배가 됩니다.`
+      detail: `${ratio.toFixed(1)} px/CD로, 기준 ${minPxPerCd}의 ${(ratio / minPxPerCd).toFixed(1)}배입니다. 1024로 올리면 스캔 시간만 4배가 됩니다.`
     }
   }
   return {

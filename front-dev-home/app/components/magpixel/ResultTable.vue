@@ -171,7 +171,7 @@ const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
 
     <p class="mt-3 max-w-2xl font-mono sk-meta leading-relaxed">
       <span class="text-(--sk-ink)">px 크기(nm)</span> = 1 px가 덮는 실제 길이 (FOV ÷ 픽셀 수) ·
-      헤더 스캔 ×N = 512 px 대비 상대 스캔 시간 (픽셀 총량 X×Y 비례)
+      헤더 스캔 ×N = 512 px 대비 상대 스캔 시간 (픽셀 총량 X×Y에 비례)
       <template v-if="hasVerdict">
         <br>
         <span class="text-(--sk-ink)">CD당 px 수</span> = CD 한 개 폭에 얹히는 픽셀 개수 (CD ÷ px 크기) ·

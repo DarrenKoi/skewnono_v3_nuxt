@@ -132,14 +132,14 @@ const insetCells = computed(() => Array.from({ length: insetCellCount.value }, (
           />
         </div>
         <div class="mt-1.5 max-w-52 sk-meta">
-          실제 픽셀 하나하나를 그린 확대 뷰입니다. 512와 1024를 비교하면 경계가 몇 칸에 걸쳐 퍼지는지가 달라집니다 — 칸이 많을수록(픽셀이 클수록) 경계가 더 촘촘하게, 즉 더 또렷하게 잡힙니다.
+          실제 픽셀 하나하나를 그린 확대 뷰입니다. 512와 1024는 경계가 몇 칸에 걸쳐 퍼지는지가 다릅니다 — 칸이 많을수록(픽셀 하나가 작을수록) 경계가 더 촘촘하게, 즉 더 또렷하게 잡힙니다.
         </div>
       </div>
 
       <dl class="min-w-40 flex-1 font-mono text-[11.5px] leading-relaxed">
         <div class="flex justify-between">
           <dt class="sk-meta">
-            픽셀 크기
+            px 크기
           </dt>
           <dd class="sk-value-num">
             {{ nmPerPx.toFixed(3) }} nm
@@ -147,7 +147,7 @@ const insetCells = computed(() => Array.from({ length: insetCellCount.value }, (
         </div>
         <div class="flex justify-between">
           <dt class="sk-meta">
-            CD당 픽셀
+            CD당 px 수
           </dt>
           <dd class="sk-value-num">
             {{ pxPerCdValue.toFixed(1) }}
