@@ -112,9 +112,8 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         self.assertGreater(summary["total_executions"], 0)
         self.assertGreater(fail_summary["total_executions"], 0)
 
-    # Split in two: recipe_tat has a real adapter on some checkouts and
-    # fail_issue does not, so they assert different halves of the contract and
-    # cannot share a skip guard.
+    # Split in two, each guarded on its own feature: a checkout can have
+    # recipe_tat wired and fail_issue not, so the two cannot share one skipIf.
     @unittest.skipIf(
         has_office_adapter("ebeam/hitachi/recipe_tat"),
         skip_reason("ebeam/hitachi/recipe_tat"),
@@ -124,6 +123,10 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
             get_recipe_tat_anchor_time()
 
+    @unittest.skipIf(
+        has_office_adapter("ebeam/hitachi/fail_issue"),
+        skip_reason("ebeam/hitachi/fail_issue"),
+    )
     def test_unconnected_fail_issue_adapter_fails_explicitly(self):
         os.environ["SKEWNONO_FAIL_ISSUE_PROVIDER"] = "office"
         with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):

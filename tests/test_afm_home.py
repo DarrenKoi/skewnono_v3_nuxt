@@ -10,7 +10,7 @@ from flask import Flask
 
 from back_dev_home.afm.data import list_afm_files
 from back_dev_home.afm.routes import bp
-from tests._office_state import MISSING_ADAPTER_MESSAGE
+from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 
 class TestAfmRoutes(unittest.TestCase):
@@ -67,6 +67,7 @@ class TestAfmRoutes(unittest.TestCase):
         self.assertEqual(response.get_json()["error"], "Measurement file not found")
         self.assertFalse(response.get_json()["success"])
 
+    @unittest.skipIf(has_office_adapter("afm"), skip_reason("afm"))
     def test_office_provider_fails_explicitly_until_connected(self):
         os.environ["SKEWNONO_AFM_PROVIDER"] = "office"
 
