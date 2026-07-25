@@ -1,0 +1,91 @@
+"""Route → feature-slug classification.
+
+The slugs this returns are written into the OpenSearch usage_events index and
+the Redis HINCRBY hashes, so they are not an implementation detail: renaming
+one splits the historical series, and mapping two tool families to different
+slugs turns one popular page into two unpopular ones. The module says both in
+prose; these pin them.
+"""
+
+import pytest
+
+from back_dev_home._logging.feature_map import (
+    _FEATURE_RULES,
+    _TOOL_PAGE_RULES,
+    route_to_feature,
+)
+
+
+@pytest.mark.parametrize("page,slug", _TOOL_PAGE_RULES)
+def test_cdsem_and_hvsem_share_one_page_slug(page, slug):
+    """Granularity is per Nuxt page, not per tool family: the ranking answers
+    "which page is popular". A page wired for only one tool would silently
+    halve its own count."""
+    assert route_to_feature(f"/api/cdsem/{page}") == slug
+    assert route_to_feature(f"/api/hvsem/{page}") == slug
+
+
+def test_aliases_collapse_into_the_slug_they_belong_to():
+    """ppid-unavailable is StorageView's side panel, not a page of its own."""
+    assert route_to_feature("/api/cdsem/ppid-unavailable") == "storage"
+    assert route_to_feature("/api/cdsem/storage") == "storage"
+
+
+def test_the_msr_apis_all_count_as_skewvoir():
+    for path in ("/api/msr-file", "/api/msr-files", "/api/msr-image"):
+        assert route_to_feature(path) == "skewvoir", path
+
+
+def test_a_rule_matches_its_own_subtree():
+    assert route_to_feature("/api/sem-list") == "sem_list"
+    assert route_to_feature("/api/sem-list/detail") == "sem_list"
+    assert route_to_feature("/api/account/api-tokens/abc") == "api_tokens"
+
+
+def test_a_rule_does_not_match_a_merely_similar_path():
+    """The lookup is prefix-based, so the boundary check is the whole safety of
+    it: /api/sem-listing is a different endpoint and must not inherit
+    sem_list's series."""
+    assert route_to_feature("/api/sem-listing") == "sem-listing"
+    assert route_to_feature("/api/healthz") == "healthz"
+
+
+def test_unknown_api_paths_group_by_their_first_segment():
+    """A new endpoint lands in a reasonable bucket instead of a nameless one,
+    which keeps the dashboard usable between "route shipped" and "rule added"."""
+    assert route_to_feature("/api/brand-new/thing") == "brand-new"
+    assert route_to_feature("/api/brand-new") == "brand-new"
+
+
+def test_non_api_and_degenerate_paths_are_tagged_not_dropped():
+    """SPA and asset requests pass through the same middleware in cloud mode;
+    they get a label the dashboard can filter out rather than a slug that
+    inflates a real feature."""
+    assert route_to_feature("/sem-list") == "(non-api)"
+    assert route_to_feature("/login") == "(non-api)"
+    assert route_to_feature("/") == "(non-api)"
+    assert route_to_feature("") == "(empty)"
+    assert route_to_feature("/api/") == "(root)"
+
+
+def test_every_rule_is_an_api_prefix_mapped_to_a_stable_slug():
+    """Structural guard for rules added later: a prefix without /api/ can never
+    match (the middleware only sees request paths), and a slug with a slash or
+    a dash breaks the index field and the Redis hash key convention."""
+    for prefix, slug in _FEATURE_RULES:
+        assert prefix.startswith("/api/"), prefix
+        assert not prefix.endswith("/"), prefix
+        assert slug.replace("_", "").isalnum() and slug.islower(), slug
+
+
+def test_more_specific_rules_are_ordered_first():
+    """Longest prefix wins is implemented by ORDER, not by length — the first
+    match returns. Any rule that is a prefix of an earlier one is unreachable."""
+    for i, (prefix, slug) in enumerate(_FEATURE_RULES):
+        for earlier_prefix, earlier_slug in _FEATURE_RULES[:i]:
+            shadowed = prefix == earlier_prefix or prefix.startswith(
+                earlier_prefix + "/"
+            )
+            assert not shadowed or slug == earlier_slug, (
+                f"{prefix} is unreachable behind {earlier_prefix}"
+            )
