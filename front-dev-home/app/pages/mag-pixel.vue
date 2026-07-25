@@ -193,7 +193,7 @@ const calcInput = computed<CalcInput>(() => ({
         <span class="font-semibold text-(--sk-ink)">기준 px/CD</span>는 CD 하나 폭에 픽셀이 최소 몇 개는 얹혀야
         측정을 신뢰할 수 있다고 볼지, 그 합격선입니다. 아래 표에서 이 값을 넘긴 조합만 <span class="text-emerald-600 dark:text-emerald-400">●</span>,
         미달한 조합은 <span class="text-red-600 dark:text-red-400">✗</span>로 표시됩니다.
-        <span class="text-amber-600 dark:text-amber-500">사내 기준이 확정되기 전까지는 잠정값입니다.</span>
+        <span class="text-amber-600 dark:text-amber-500">표준안 확정되기 전까지는 잠정값입니다.</span>
       </p>
 
       <p

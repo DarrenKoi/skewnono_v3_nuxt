@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { scanTimeFactor } from '~/utils/magPixel'
+import {
+  scanTimeFactor, edgeComparePair, edgeWindowHalfNm, edgeStrip,
+  SEM_EDGE_WIDTH_NM, SEM_LEVELS
+} from '~/utils/magPixel'
 
 const props = defineProps<{
   cdNm: number
@@ -31,41 +34,61 @@ const hatch = 'repeating-linear-gradient(45deg,rgba(99,102,241,.14) 0 4px,transp
 // SEM line-scan brightness, dark field with a bright rim where the beam
 // catches the sidewall and a duller top/interior. Hard stops rather than a
 // soft gradient so the rim reads as an edge, not a shading trick.
-const RIM = '#f4f7ff'
-const CORE = '#4c5666'
-const BG = '#0a0e16'
+// Kept as RGB triples, not hex, because the zoom strip below interpolates
+// between them — one palette, two renderers.
+const RGB = { bg: [10, 14, 22], core: [76, 86, 102], rim: [244, 247, 255] } as const
+const css = (c: readonly number[]) => `rgb(${c[0]} ${c[1]} ${c[2]})`
+const RIM = css(RGB.rim)
+const CORE = css(RGB.core)
 const RIM_PCT = 14
 const barFill = `linear-gradient(90deg, ${RIM} 0%, ${RIM} ${RIM_PCT}%, ${CORE} ${RIM_PCT}%, ${CORE} ${100 - RIM_PCT}%, ${RIM} ${100 - RIM_PCT}%, ${RIM} 100%)`
 
-// ── Zoom inset: the one place pixels are actually drawn ────────────────────
+// ── Edge zoom: the one place pixels are actually drawn ─────────────────────
 //
 // The full-FOV panel above cannot honestly show individual pixels — 512 to
 // 4096 samples across a ~200px box is always sub-pixel, so drawing a "pixel
-// grid" there would be pretending. Instead this crops to exactly ONE pitch
-// period and renders every real pixel that lands on it. Pixel count here is
-// pitchNm / nmPerPx, which DOES move with the pixel setting — unlike the
-// panel above, whose geometry is pixel-count-invariant (fovNm = pixels ×
-// nmPerPx cancels pixels out of every percentage used there). This is the one
-// place stepping 512 → 1024 is actually visible.
-const MAX_INSET_CELLS = 240
-const rawInsetCells = computed(() => props.nmPerPx > 0 ? props.pitchNm / props.nmPerPx : 0)
-const insetCellCount = computed(() => Math.min(MAX_INSET_CELLS, Math.max(1, Math.round(rawInsetCells.value))))
-const insetClamped = computed(() => rawInsetCells.value > MAX_INSET_CELLS)
-const insetCellWidthNm = computed(() => props.pitchNm / insetCellCount.value)
-const insetCellPct = computed(() => 100 / insetCellCount.value)
+// grid" there would be pretending. (Its geometry is pixel-count-invariant
+// anyway: fovNm = pixels × nmPerPx cancels `pixels` out of every percentage
+// it uses.) So this crops to a narrow window around ONE bar edge and renders
+// each real pixel as a countable cell.
+//
+// Two rules make it honest, and both were broken before:
+//   ① the window is fixed in **nm**, so both rows show the same physical
+//      region and only the sampling differs — the actual comparison;
+//   ② the edge profile comes from magPixel.ts and never sees nmPerPx, so a
+//      finer pixel setting cannot make the physical edge look thinner. What
+//      it does is land more samples on the same fixed edge.
+const comparePair = computed(() => edgeComparePair(props.pixels))
+/** FOV is fixed by the magnification, so the other pixel setting's pixel size
+ *  follows from it — no extra prop needed, and the two rows cannot drift apart. */
+const nmPerPxFor = (pixels: number) => fovNm.value / pixels
+const halfWindowNm = computed(() =>
+  edgeWindowHalfNm(props.cdNm, props.pitchNm, nmPerPxFor(comparePair.value[0])))
+const strips = computed(() => {
+  const half = halfWindowNm.value
+  if (half === null) return []
+  return comparePair.value
+    .map(pixels => edgeStrip(pixels, nmPerPxFor(pixels), half))
+    .filter((s): s is NonNullable<typeof s> => s !== null)
+})
+/** Cells are drawn at their true nm width against the shared window scale —
+ *  never stretched to make an integer count fill the box. A grid that does not
+ *  divide the window evenly overflows and gets clipped, exactly as a real one
+ *  would; stretching would quietly redefine what a pixel is. */
+const cellPct = (nmPerPx: number) =>
+  halfWindowNm.value ? (nmPerPx / (2 * halfWindowNm.value)) * 100 : 0
 
-/** One cell's brightness: bright rim near a bar/space boundary, mid-tone bar
- *  interior, dark background — same three-colour palette as the panel above,
- *  but assigned per pixel instead of per bar, so the grid is what's visible. */
-const insetCellColor = (index: number) => {
-  const x = (index + 0.5) * insetCellWidthNm.value
-  const spaceNm = props.pitchNm - props.cdNm
-  const bloomNm = Math.min(insetCellWidthNm.value * 1.5, props.cdNm / 2, spaceNm / 2)
-  const edgeDist = Math.min(x, Math.abs(x - props.cdNm), Math.abs(props.pitchNm - x))
-  if (bloomNm > 0 && edgeDist <= bloomNm) return RIM
-  return x < props.cdNm ? CORE : BG
+const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t)
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+const mix = (a: readonly number[], b: readonly number[], t: number) => {
+  const k = clamp01(t)
+  return css([lerp(a[0]!, b[0]!, k), lerp(a[1]!, b[1]!, k), lerp(a[2]!, b[2]!, k)])
 }
-const insetCells = computed(() => Array.from({ length: insetCellCount.value }, (_, i) => insetCellColor(i)))
+/** Intensity 0..1 → the same three-stop palette the panel above uses. */
+const rampColor = (v: number) =>
+  v <= SEM_LEVELS.core
+    ? mix(RGB.bg, RGB.core, (v - SEM_LEVELS.space) / (SEM_LEVELS.core - SEM_LEVELS.space))
+    : mix(RGB.core, RGB.rim, (v - SEM_LEVELS.core) / (SEM_LEVELS.rim - SEM_LEVELS.core))
 </script>
 
 <template>
@@ -120,19 +143,62 @@ const insetCells = computed(() => Array.from({ length: insetCellCount.value }, (
         </div>
       </div>
 
-      <div>
+      <div
+        v-if="strips.length && halfWindowNm"
+        class="w-72"
+      >
         <div class="sk-eyebrow">
-          1 Pitch 확대(zoom) · 픽셀 {{ insetCellCount }}개{{ insetClamped ? ` · 최대 ${MAX_INSET_CELLS}개만 표시` : '' }}
+          경계 확대(zoom) · 가로 {{ (2 * halfWindowNm).toFixed(1) }} nm
         </div>
-        <div class="mt-1.5 flex h-24 w-52 overflow-hidden rounded-lg bg-slate-950">
-          <div
-            v-for="(color, i) in insetCells"
-            :key="i"
-            :style="{ width: `${insetCellPct}%`, background: color }"
-          />
+
+        <div
+          v-for="strip in strips"
+          :key="strip.pixels"
+          class="mt-2"
+        >
+          <div class="flex items-baseline justify-between font-mono text-[11px]">
+            <span :class="strip.pixels === pixels ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'sk-meta'">
+              {{ strip.pixels }} px<template v-if="strip.pixels === pixels"> · 추천</template>
+            </span>
+            <span class="sk-meta">
+              {{ strip.nmPerPx.toFixed(3) }} nm/px · 경계에 {{ strip.pxOnEdge.toFixed(1) }} px
+            </span>
+          </div>
+          <div class="relative mt-1 h-14 w-full overflow-hidden rounded bg-slate-950">
+            <div class="flex h-full">
+              <!-- shrink-0 is load-bearing: flex children default to
+                   flex-shrink:1, so a grid that overshoots the window would be
+                   squeezed to fit — silently making cells narrower than the
+                   pixel they stand for. Clipping is the honest overflow. -->
+              <div
+                v-for="(value, i) in strip.samples"
+                :key="i"
+                class="h-full shrink-0"
+                :style="{
+                  width: `${cellPct(strip.nmPerPx)}%`,
+                  background: rampColor(value),
+                  boxShadow: 'inset -1px 0 rgba(255,255,255,.16)'
+                }"
+              />
+            </div>
+            <!-- 경계 중심은 창의 정중앙이다. 밝은 rim만으로는 "어디가 경계인지"가
+                 픽셀이 커질수록 흐려지므로 기준선을 따로 긋는다. -->
+            <div class="absolute inset-y-0 left-1/2 w-px bg-amber-400/70" />
+          </div>
         </div>
-        <div class="mt-1.5 max-w-52 sk-meta">
-          실제 픽셀 하나하나를 그린 확대 뷰입니다. 512와 1024는 경계가 몇 칸에 걸쳐 퍼지는지가 다릅니다 — 칸이 많을수록(픽셀 하나가 작을수록) 경계가 더 촘촘하게, 즉 더 또렷하게 잡힙니다.
+
+        <div class="mt-1 flex justify-between font-mono text-[10.5px] text-(--sk-ink-muted)">
+          <span>← bar 안쪽</span>
+          <span>space →</span>
+        </div>
+
+        <div class="mt-2 sk-meta">
+          두 줄은 <span class="font-semibold text-(--sk-ink)">같은 물리 구간</span>을 그린 것이고, 칸 하나가 픽셀 하나입니다.
+          경계 번짐 폭 {{ SEM_EDGE_WIDTH_NM }} nm는 픽셀 설정과 무관하게 고정입니다 —
+          픽셀이 작아질수록 그 고정된 경계 위에 샘플이 더 많이 얹혀
+          ({{ strips[0]!.pxOnEdge.toFixed(1) }} px → {{ strips[1]?.pxOnEdge.toFixed(1) ?? '—' }} px)
+          경계 위치를 더 정밀하게 잡습니다.
+          <span class="text-amber-600 dark:text-amber-500">{{ SEM_EDGE_WIDTH_NM }} nm는 설명용 대표값이며, 표준안 확정 전까지는 잠정값입니다.</span>
         </div>
       </div>
 

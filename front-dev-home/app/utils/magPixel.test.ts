@@ -5,7 +5,9 @@ import {
   fovUm, fovNm, parsePixelSetting, pixelSizeNm, pxPerCd, scanTimeFactor,
   seriesFromModel, magRange, isAssumedMag, buildMagPixelTable,
   requiredFovNm, recommend, cellVerdict, marginSensitivity, pixelGuidance,
-  MARGIN_PRESETS, DEFAULT_MARGIN, DEFAULT_MIN_PX_PER_CD
+  MARGIN_PRESETS, DEFAULT_MARGIN, DEFAULT_MIN_PX_PER_CD,
+  edgeIntensity, samplePixelNm, edgeWindowHalfNm, edgeStrip, edgeComparePair,
+  SEM_EDGE_WIDTH_NM, SEM_LEVELS
 } from './magPixel.ts'
 import type { CalcInput } from './magPixel.ts'
 
@@ -255,4 +257,65 @@ test('pixelGuidance warns when a larger pixel count is actually required', () =>
 
 test('pixelGuidance escalates when nothing works', () => {
   assert.equal(pixelGuidance(recommend(input({ patternCount: 20_000 }))!, 8).tone, 'error')
+})
+
+// ── 경계 확대 뷰의 신호 모델 ────────────────────────────────────────────────
+
+test('edgeIntensity is a specimen-side profile: peak at the edge, plateaus away from it', () => {
+  const peak = edgeIntensity(0)
+  assert.ok(peak > edgeIntensity(SEM_EDGE_WIDTH_NM), 'rim must be brighter than the bar interior')
+  assert.ok(peak > edgeIntensity(-SEM_EDGE_WIDTH_NM), 'rim must be brighter than the space')
+  near(edgeIntensity(-50), SEM_LEVELS.core, 1e-3)
+  near(edgeIntensity(50), SEM_LEVELS.space, 1e-3)
+  // 프로파일은 대칭 구간 밖에서 평평하다 — 창을 넓혀도 새 구조가 생기지 않는다.
+  near(edgeIntensity(-50), edgeIntensity(-500), 1e-9)
+})
+
+test('samplePixelNm averages the peak away as the pixel grows', () => {
+  const fine = samplePixelNm(0, 0.2)!
+  const coarse = samplePixelNm(0, 4)!
+  assert.ok(fine > coarse, `fine ${fine} must retain more peak than coarse ${coarse}`)
+  near(samplePixelNm(0, 1e-6), edgeIntensity(0), 1e-6)
+  assert.equal(samplePixelNm(0, 0), null)
+  assert.equal(samplePixelNm(Number.NaN, 1), null)
+})
+
+test('edgeWindowHalfNm fixes the window in nm and clips at the neighbouring edge', () => {
+  // 900 nm FOV / 512 px = 1.7578 nm/px -> 12 px 창
+  near(edgeWindowHalfNm(45, 90, 900 / 512), 6 * (900 / 512))
+  // CD가 좁으면 CD/2가 창을 자른다 — 옆 경계를 넘어가지 않게.
+  near(edgeWindowHalfNm(4, 90, 900 / 512), 2)
+  assert.equal(edgeWindowHalfNm(45, 45, 1.75), null, 'pitch <= CD leaves no space')
+  assert.equal(edgeWindowHalfNm(45, 90, 0), null)
+})
+
+test('edgeStrip keeps cells at their true pixel width and never stretches them', () => {
+  const half = edgeWindowHalfNm(45, 90, 900 / 512)!
+  const strip = edgeStrip(512, 900 / 512, half)!
+  assert.equal(strip.samples.length, 12)
+  near(strip.nmPerPx, 900 / 512)
+  near(strip.pxOnEdge, SEM_EDGE_WIDTH_NM / (900 / 512))
+  assert.equal(edgeStrip(512, 0, half), null)
+})
+
+test('a finer pixel setting lands MORE samples on the same fixed edge', () => {
+  // 회귀 테스트. 이전 구현은 번짐 폭을 픽셀 크기에서 유도해서(bloom = px × 1.5)
+  // 경계에 걸리는 칸 수가 어떤 설정에서도 6으로 고정이었다 — 이 화면이 보여주려던
+  // 바로 그 차이가 정의상 사라져 있었다. 물리 경계폭을 nm으로 고정한 지금은
+  // 픽셀을 반으로 줄일 때마다 경계 위 샘플이 배가되어야 한다.
+  const half = edgeWindowHalfNm(45, 90, 900 / 512)!
+  const onEdge = (pixels: number) =>
+    edgeStrip(pixels, 900 / pixels, half)!.samples.filter(v => v > 0.5).length
+  assert.deepEqual([onEdge(512), onEdge(1024), onEdge(2048)], [2, 4, 8])
+
+  // 큰 픽셀은 피크 자체도 평균으로 깎는다.
+  const peak = (pixels: number) => Math.max(...edgeStrip(pixels, 900 / pixels, half)!.samples)
+  assert.ok(peak(512) < peak(1024) && peak(1024) < peak(2048))
+})
+
+test('edgeComparePair pits the recommended setting against the next step up', () => {
+  assert.deepEqual(edgeComparePair(512), [512, 1024])
+  assert.deepEqual(edgeComparePair(2048), [2048, 4096])
+  // 이미 최상단이면 위가 없으므로 한 단계 아래와 비교한다.
+  assert.deepEqual(edgeComparePair(4096), [2048, 4096])
 })
