@@ -1,5 +1,4 @@
 import { buildChartPalette } from '~/utils/chartPalette'
-import { getEchartThemeBackground, getEchartThemeInk } from '~/utils/echartsThemes'
 
 /**
  * The active theme's presentation colors, for charts that must name a color
@@ -26,11 +25,11 @@ import { getEchartThemeBackground, getEchartThemeInk } from '~/utils/echartsThem
  * furniture — so the role is named once rather than spelled as an index.
  */
 export const useChartPalette = () => {
-  const { palette, resolvedThemeName } = useEchartsTheme()
+  const { palette, surface } = useEchartsTheme()
 
   return computed(() => buildChartPalette(
     palette.value,
-    getEchartThemeInk(resolvedThemeName.value),
-    getEchartThemeBackground(resolvedThemeName.value)
+    surface.value.ink,
+    surface.value.surface
   ))
 }

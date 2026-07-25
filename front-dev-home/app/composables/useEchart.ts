@@ -1,7 +1,7 @@
 import * as echarts from 'echarts'
 import type { ComputedRef, Ref } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
-import { registerEchartsThemes, getEchartThemeBackground } from '~/utils/echartsThemes'
+import { registerEchartsThemes } from '~/utils/echartsThemes'
 import { chartExportFilename } from '~/utils/chartExport'
 import { withPreservedZoom, type ZoomWindow } from '~/utils/chartZoom'
 
@@ -67,7 +67,7 @@ export const useEchart = (
 ) => {
   registerEchartsThemes(echarts)
 
-  const { resolvedThemeName } = useEchartsTheme()
+  const { themeId, surface } = useEchartsTheme()
 
   let chart: ECharts | null = null
   let resizeHandler: (() => void) | null = null
@@ -111,7 +111,7 @@ export const useEchart = (
     const url = chart.getDataURL({
       type: 'png',
       pixelRatio: 2,
-      backgroundColor: getEchartThemeBackground(resolvedThemeName.value)
+      backgroundColor: surface.value.surface
     })
     const title = (optionRef.value.title as { text?: string } | undefined)?.text
     const filename = chartExportFilename(options.exportName, title, new Date())
@@ -148,7 +148,7 @@ export const useEchart = (
 
   const ensureChart = () => {
     if (chart || !elRef.value) return
-    chart = echarts.init(elRef.value, resolvedThemeName.value)
+    chart = echarts.init(elRef.value, themeId.value)
     chart.setOption(optionRef.value)
     bindClick()
     bindGridClick()
@@ -190,7 +190,7 @@ export const useEchart = (
   // re-init on the same DOM node. dispose() clears the host div's children,
   // detaching the download button, so it must be torn down and re-mounted
   // rather than assumed to persist.
-  watch(resolvedThemeName, () => {
+  watch(themeId, () => {
     if (!elRef.value) return
     chart?.dispose()
     chart = null

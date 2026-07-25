@@ -2,7 +2,9 @@ import {
   DEFAULT_ECHART_THEME_SELECTION,
   ECHART_THEME_OPTIONS,
   ECHART_THEME_STORAGE_KEY,
+  echartThemeId,
   getEchartThemePalette,
+  getEchartThemeSurface,
   isEchartThemeSelection,
   resolveEchartThemeName,
   type EchartThemeSelection
@@ -40,10 +42,23 @@ export const useEchartsTheme = () => {
   // ECharts assigns from the same palette.
   const palette = computed(() => getEchartThemePalette(resolvedThemeName.value))
 
+  // What echarts.init() must be handed. Each theme is registered once per color
+  // mode, so this changes when EITHER the picked theme or the color mode
+  // changes -- which is what lets useEchart's single dispose/re-init watch
+  // cover both without knowing that color modes exist.
+  const themeId = computed(() => echartThemeId(resolvedThemeName.value, colorMode.value))
+
+  // Tone of the surface the chart is actually drawn on: the theme's own in its
+  // native mode, the mode's neutral furniture when the picker and the color
+  // mode disagree.
+  const surface = computed(() => getEchartThemeSurface(resolvedThemeName.value, colorMode.value))
+
   return {
     selectedTheme,
     resolvedThemeName,
+    themeId,
     palette,
+    surface,
     themeOptions: ECHART_THEME_OPTIONS
   }
 }

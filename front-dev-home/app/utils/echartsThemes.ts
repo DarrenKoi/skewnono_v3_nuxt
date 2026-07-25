@@ -207,6 +207,7 @@ const THEME_DESCRIPTORS = {
   },
   dark: {
     label: 'Dark',
+    isDark: true,
     fileName: 'dark.js',
     description: '어두운 배경에 밝은 파랑, 초록, 노랑, 빨강을 사용합니다.',
     palette: darkColors,
@@ -256,6 +257,8 @@ const THEME_DESCRIPTORS = {
   }
 } as const satisfies Record<EchartThemeName, {
   label: string
+  /** Authored for a dark canvas. Only `dark` is; everything else assumes light. */
+  isDark?: boolean
   /** Where the theme came from. Names an upstream file, except for MATLAB. */
   fileName: string
   /** Appended on the card only. Its own field so nothing has to parse it back off. */
@@ -317,6 +320,130 @@ const darkAxisCommon = () => ({
   },
   minorSplitLine: { lineStyle: { color: '#20203B' } }
 })
+
+// ---------------------------------------------------------------------------
+// Color-mode furniture
+//
+// A theme is two separable things. Its PALETTE is its identity -- MATLAB's
+// blue/orange is the reason anyone picks it, and it means the same on any
+// background. Its FURNITURE -- axis lines, ticks, grid, labels, tooltip -- has
+// no identity at all; it exists only to be legible against the surface the
+// chart sits on.
+//
+// Every registered theme draws on a TRANSPARENT canvas so it inherits the
+// app card, and the card is decided by colorMode. But the theme picker is
+// independent of colorMode, so picking a light theme (matlab, vintage, ...)
+// while the app is dark left MATLAB's #262626 axes on a dark card, and picking
+// `dark` in light mode leaves its #B9B8CE axes on white. Each theme's authored
+// furniture is only right for the mode its own surface implies.
+//
+// So each theme is registered TWICE, once per mode. In its native mode it is
+// registered as authored (keeping its character); in the opposite mode the
+// layer below is merged over it, replacing furniture and nothing else. The
+// palette is never touched, so a theme stays recognisably itself either way.
+// ---------------------------------------------------------------------------
+
+interface Furniture {
+  darkMode: boolean
+  /** Primary on-canvas text: titles. */
+  ink: string
+  /** Secondary text: axis labels, subtitles, legend. */
+  inkSoft: string
+  /** Axis lines and ticks. */
+  line: string
+  /** Grid split lines. */
+  split: string
+  tooltipBg: string
+  tooltipInk: string
+}
+
+// Matches ECharts' own light defaults.
+const LIGHT_FURNITURE: Furniture = {
+  darkMode: false,
+  ink: '#1f2937',
+  inkSoft: '#6E7079',
+  line: '#6E7079',
+  split: '#E0E6F1',
+  tooltipBg: 'rgba(50,50,50,0.72)',
+  tooltipInk: '#fff'
+}
+
+// Lifted from dark.js, which is the one theme in this file authored for a dark
+// canvas -- so these tones are upstream's answer, not ours.
+const DARK_FURNITURE: Furniture = {
+  darkMode: true,
+  ink: '#EEF1FA',
+  inkSoft: '#B9B8CE',
+  line: '#B9B8CE',
+  split: '#484753',
+  tooltipBg: 'rgba(50,50,50,0.86)',
+  tooltipInk: '#EEF1FA'
+}
+
+const furnitureLayer = (f: Furniture): Record<string, unknown> => {
+  const axis = {
+    axisLine: { lineStyle: { color: f.line } },
+    axisTick: { lineStyle: { color: f.line } },
+    axisLabel: { color: f.inkSoft },
+    splitLine: { lineStyle: { color: f.split } }
+  }
+  return {
+    darkMode: f.darkMode,
+    backgroundColor: 'transparent',
+    textStyle: { color: f.inkSoft },
+    title: { textStyle: { color: f.ink }, subtextStyle: { color: f.inkSoft } },
+    legend: { textStyle: { color: f.inkSoft } },
+    toolbox: { iconStyle: { borderColor: f.inkSoft } },
+    tooltip: {
+      backgroundColor: f.tooltipBg,
+      textStyle: { color: f.tooltipInk },
+      axisPointer: { lineStyle: { color: f.line }, crossStyle: { color: f.line } }
+    },
+    axisPointer: {
+      lineStyle: { color: f.line },
+      crossStyle: { color: f.line },
+      label: { color: f.tooltipInk }
+    },
+    categoryAxis: axis,
+    valueAxis: axis,
+    logAxis: axis,
+    timeAxis: axis,
+    dataZoom: {
+      borderColor: f.split,
+      textStyle: { color: f.inkSoft },
+      handleStyle: { borderColor: f.line },
+      moveHandleStyle: { color: f.inkSoft },
+      dataBackground: {
+        lineStyle: { color: f.split },
+        areaStyle: { color: f.split }
+      }
+    },
+    timeline: {
+      lineStyle: { color: f.inkSoft },
+      label: { color: f.inkSoft },
+      controlStyle: { color: f.inkSoft, borderColor: f.inkSoft }
+    }
+  }
+}
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+
+// Overlay wins on leaves; arrays are replaced wholesale (a palette is one
+// value, not a thing to merge element-wise). Keys the overlay never mentions
+// survive untouched, which is what preserves `color`, `visualMap`, `gauge`,
+// `candlestick` and each theme's other identity settings.
+const deepMerge = (
+  base: Record<string, unknown>,
+  overlay: Record<string, unknown>
+): Record<string, unknown> => {
+  const out: Record<string, unknown> = { ...base }
+  for (const [key, value] of Object.entries(overlay)) {
+    const prev = out[key]
+    out[key] = isPlainObject(prev) && isPlainObject(value) ? deepMerge(prev, value) : value
+  }
+  return out
+}
 
 // Registered themes render with a transparent canvas so each chart inherits its
 // card's --sk-surface. The theme's own backgroundColor (kept in the theme-picker
@@ -769,18 +896,11 @@ const themes: Record<EchartThemeName, object> = {
 export const getEchartThemePalette = (name: EchartThemeName): readonly string[] =>
   THEME_DESCRIPTORS[name].palette
 
-// The solid backdrop a PNG export needs -- see THEME_DESCRIPTORS on why the
-// canvas itself stays transparent.
-export const getEchartThemeBackground = (name: EchartThemeName): string =>
-  THEME_DESCRIPTORS[name].surface
-
-// Primary text tone. Charts that draw their own labels onto the canvas
-// (skewvoir's wafer maps, chart titles) mix this against the surface to build
-// furniture that stays legible on whichever background the theme implies --
-// see utils/chartPalette.ts. Without it those labels were a hardcoded
-// near-black and vanished under the dark theme.
-export const getEchartThemeInk = (name: EchartThemeName): string =>
-  THEME_DESCRIPTORS[name].ink
+// Ink and backdrop both come from getEchartThemeSurface(name, colorMode) below,
+// which is color-mode aware. There is deliberately no name-only accessor for
+// either: a theme's own ink is correct only in its native mode, and every
+// caller (canvas labels, PNG export backdrop) needs the tone of the surface the
+// chart is actually sitting on.
 
 let registered = false
 
@@ -801,10 +921,68 @@ export const resolveEchartThemeName = (
   return colorMode === 'dark' ? 'dark' : 'matlab'
 }
 
+export type EchartColorMode = 'light' | 'dark'
+
+const asColorMode = (colorMode: string): EchartColorMode =>
+  colorMode === 'dark' ? 'dark' : 'light'
+
+// `satisfies` keeps the literal types, so only the one descriptor that declares
+// isDark has the key at all -- hence the `in` guard rather than a plain read.
+const themeIsDark = (name: EchartThemeName): boolean => {
+  const d = THEME_DESCRIPTORS[name]
+  return 'isDark' in d && d.isDark === true
+}
+
+const isNativeMode = (name: EchartThemeName, mode: EchartColorMode): boolean =>
+  themeIsDark(name) === (mode === 'dark')
+
+/**
+ * The id a theme is registered under for a given color mode.
+ *
+ * Every theme is registered twice, so this is what `echarts.init` should be
+ * handed -- NOT the bare theme name. Because the id changes when either the
+ * theme or the color mode changes, the dispose/re-init watch in useEchart
+ * already reacts to both without knowing anything about modes.
+ */
+export const echartThemeId = (name: EchartThemeName, colorMode: string): string =>
+  `${name}@${asColorMode(colorMode)}`
+
+/**
+ * Ink and canvas tone for the surface a chart is ACTUALLY drawn on.
+ *
+ * In its native mode a theme keeps its own tones, which is what preserves
+ * vintage's warm paper and MATLAB's near-black. In the opposite mode those
+ * tones would be invisible, so the mode's neutral furniture stands in -- the
+ * same values the registered theme variant is drawing with, so canvas-side
+ * labels from utils/chartPalette.ts match ECharts' own axis text.
+ */
+export const getEchartThemeSurface = (
+  name: EchartThemeName,
+  colorMode: string
+): { ink: string, surface: string } => {
+  const mode = asColorMode(colorMode)
+  if (isNativeMode(name, mode)) {
+    const d = THEME_DESCRIPTORS[name]
+    return { ink: d.ink, surface: d.surface }
+  }
+  const f = mode === 'dark' ? DARK_FURNITURE : LIGHT_FURNITURE
+  return { ink: f.ink, surface: mode === 'dark' ? THEME_DESCRIPTORS.dark.surface : '#ffffff' }
+}
+
 export const registerEchartsThemes = (echarts: EchartsModule) => {
   if (registered) return
-  Object.entries(themes).forEach(([name, theme]) => {
-    echarts.registerTheme(name, theme)
-  })
+  for (const [name, theme] of Object.entries(themes) as [EchartThemeName, object][]) {
+    for (const mode of ['light', 'dark'] as const) {
+      echarts.registerTheme(
+        echartThemeId(name, mode),
+        isNativeMode(name, mode)
+          ? theme
+          : deepMerge(
+              theme as Record<string, unknown>,
+              furnitureLayer(mode === 'dark' ? DARK_FURNITURE : LIGHT_FURNITURE)
+            )
+      )
+    }
+  }
   registered = true
 }

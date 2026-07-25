@@ -6,26 +6,33 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ECHART_THEME_OPTIONS,
-  getEchartThemeBackground,
+  echartThemeId,
   getEchartThemePalette,
+  getEchartThemeSurface,
   isEchartThemeSelection,
+  registerEchartsThemes,
   resolveEchartThemeName
 } from './echartsThemes.ts'
 
+// Backdrop in each theme's NATIVE mode, which is what the old name-only
+// getEchartThemeBackground returned before it became color-mode aware.
+const nativeBackground = (name: Parameters<typeof getEchartThemeSurface>[0]) =>
+  getEchartThemeSurface(name, name === 'dark' ? 'dark' : 'light').surface
+
 test('vintage export background is warm paper', () => {
-  assert.equal(getEchartThemeBackground('vintage'), '#fef8ef')
+  assert.equal(nativeBackground('vintage'), '#fef8ef')
 })
 
 test('dark export background is deep navy', () => {
-  assert.equal(getEchartThemeBackground('dark'), '#100C2A')
+  assert.equal(nativeBackground('dark'), '#100C2A')
 })
 
 test('light alt-themes export on white', () => {
-  assert.equal(getEchartThemeBackground('macarons'), '#ffffff')
-  assert.equal(getEchartThemeBackground('infographic'), '#ffffff')
-  assert.equal(getEchartThemeBackground('shine'), '#ffffff')
-  assert.equal(getEchartThemeBackground('roma'), '#ffffff')
-  assert.equal(getEchartThemeBackground('matlab'), '#ffffff')
+  assert.equal(nativeBackground('macarons'), '#ffffff')
+  assert.equal(nativeBackground('infographic'), '#ffffff')
+  assert.equal(nativeBackground('shine'), '#ffffff')
+  assert.equal(nativeBackground('roma'), '#ffffff')
+  assert.equal(nativeBackground('matlab'), '#ffffff')
 })
 
 // The palettes were once ported six-deep regardless of how long upstream was,
@@ -102,7 +109,7 @@ test('every selectable theme has a palette and an export background', () => {
     assert.ok(isEchartThemeSelection(option.value))
     const name = resolveEchartThemeName(option.value, 'light')
     assert.ok(getEchartThemePalette(name).length > 0, `${option.value} has no palette`)
-    assert.match(getEchartThemeBackground(name), /^#[0-9a-fA-F]{6}$/)
+    assert.match(nativeBackground(name), /^#[0-9a-fA-F]{6}$/)
   }
 })
 
@@ -118,4 +125,78 @@ test('matlab is both selectable and what the default selection resolves to', () 
 // follow the light one over to matlab, or the axes vanish into the background.
 test('the default selection stays on the dark theme in dark mode', () => {
   assert.equal(resolveEchartThemeName('default', 'dark'), 'dark')
+})
+
+// ---------------------------------------------------------------------------
+// Color-mode furniture
+//
+// The picker and the color mode are independent, so any of the six light
+// themes can be active while the app is dark (and `dark` while it is light).
+// Charts draw on a transparent canvas over the app card, so furniture has to
+// answer to the CARD; only the palette belongs to the theme.
+// ---------------------------------------------------------------------------
+
+test('a theme keeps its own tones in its native mode', () => {
+  assert.deepEqual(getEchartThemeSurface('matlab', 'light'), { ink: '#262626', surface: '#ffffff' })
+  assert.deepEqual(getEchartThemeSurface('vintage', 'light'), { ink: '#3f3a34', surface: '#fef8ef' })
+  assert.deepEqual(getEchartThemeSurface('dark', 'dark'), { ink: '#EEF1FA', surface: '#100C2A' })
+})
+
+// The bug: MATLAB's #262626 ink on a dark card is black on black.
+test('a light theme in dark mode takes dark furniture, not its own', () => {
+  for (const name of ['matlab', 'vintage', 'macarons', 'infographic', 'shine', 'roma'] as const) {
+    const { ink, surface } = getEchartThemeSurface(name, 'dark')
+    assert.equal(ink, '#EEF1FA', `${name} kept a light ink on a dark card`)
+    assert.equal(surface, '#100C2A', `${name} kept a light backdrop on a dark card`)
+  }
+})
+
+// And the mirror case, which was equally broken: dark's #EEF1FA on white.
+test('the dark theme in light mode takes light furniture', () => {
+  const { ink, surface } = getEchartThemeSurface('dark', 'light')
+  assert.equal(ink, '#1f2937')
+  assert.equal(surface, '#ffffff')
+})
+
+test('the palette is mode-independent — only furniture flips', () => {
+  for (const name of ['matlab', 'dark', 'vintage'] as const) {
+    assert.deepEqual(getEchartThemePalette(name), getEchartThemePalette(name))
+  }
+  // matlab stays matlab-colored on a dark card; that is the point of the split.
+  assert.equal(getEchartThemePalette('matlab')[0], '#0072BD')
+})
+
+test('theme id encodes both theme and mode, so one watch covers both', () => {
+  assert.equal(echartThemeId('matlab', 'light'), 'matlab@light')
+  assert.equal(echartThemeId('matlab', 'dark'), 'matlab@dark')
+  assert.notEqual(echartThemeId('matlab', 'light'), echartThemeId('matlab', 'dark'))
+  // anything not 'dark' is light — useColorMode also emits 'system'
+  assert.equal(echartThemeId('matlab', 'system'), 'matlab@light')
+})
+
+test('every theme registers one variant per mode, and the overlay keeps the palette', () => {
+  const seen = new Map<string, Record<string, unknown>>()
+  registerEchartsThemes({ registerTheme: (n, t) => void seen.set(n, t as Record<string, unknown>) })
+
+  assert.equal(seen.size, 14, 'expected 7 themes x 2 modes')
+
+  const light = seen.get('matlab@light')!
+  const dark = seen.get('matlab@dark')!
+  // identity survives the overlay
+  assert.deepEqual(light.color, dark.color)
+  assert.deepEqual(dark.color, [...getEchartThemePalette('matlab')])
+  // furniture does not
+  assert.equal(dark.darkMode, true)
+  assert.deepEqual((dark.title as { textStyle: { color: string } }).textStyle.color, '#EEF1FA')
+  assert.deepEqual((light.title as { textStyle: { color: string } }).textStyle.color, '#262626')
+
+  // deep merge must not drop sibling keys the overlay never mentions: matlab's
+  // categoryAxis says splitLine.show=false, and the overlay only sets its color.
+  const axis = dark.categoryAxis as { splitLine: { show?: boolean, lineStyle: { color: string } } }
+  assert.equal(axis.splitLine.show, false, 'overlay clobbered a sibling key')
+  assert.equal(axis.splitLine.lineStyle.color, '#484753')
+
+  // and non-furniture identity settings survive untouched
+  assert.deepEqual(dark.visualMap, light.visualMap)
+  assert.deepEqual(dark.candlestick, light.candlestick)
 })
