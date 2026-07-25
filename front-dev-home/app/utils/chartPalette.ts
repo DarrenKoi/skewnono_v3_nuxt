@@ -50,6 +50,14 @@ export const SK_SITE = [
   '#B0413A' // brick (warm — last slot, only reached with many picks)
 ] as const
 
+/**
+ * The single neutral tone for a selected point past the SK_SITE cap. One owner
+ * for "overflow has no identity" so the wafer halo, radius dot, distribution
+ * mark and table swatch all agree — a fixed gray (not the theme's muted/brand),
+ * matching SK_SITE's own theme-independence, and legible on light and dark.
+ */
+export const SK_SITE_OVERFLOW = '#9AA0A6'
+
 export interface ChartPalette {
   /** Primary series: lines, bars, scatter points. */
   series: string

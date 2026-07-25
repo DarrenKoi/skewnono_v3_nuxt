@@ -180,6 +180,7 @@ import { siteRadiusMm } from '~/utils/waferGeometry'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
 import { headerState, pickExportRows, siteKey } from '~/utils/mpSelection'
+import { SK_SITE_OVERFLOW } from '~/utils/chartPalette'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -330,9 +331,11 @@ const keyOf = (p: Point) => siteKey(p.param, p.seq)
 const selectedSet = computed(() => new Set(props.analysis.selectedSites.value))
 
 // Legend swatch color for a selected row = its identity color across the charts;
-// a pick past the palette cap has no color and shows the neutral CSS token.
+// a pick past the palette cap shows the shared overflow neutral. Uses siteColor
+// directly (not seqColorsForActiveParam) because the table spans all selected
+// parameters, not only the active one.
 const swatchColor = (p: Point): string =>
-  props.analysis.siteColor(p.param, p.seq) ?? 'var(--sk-ink-subtle)'
+  props.analysis.siteColor(p.param, p.seq) ?? SK_SITE_OVERFLOW
 const visibleKeys = computed(() => rows.value.map(keyOf))
 const headerCheck = computed(() => headerState(visibleKeys.value, selectedSet.value))
 

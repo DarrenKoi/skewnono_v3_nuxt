@@ -25,7 +25,7 @@ import {
 import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
 import { assignSiteColors } from '~/utils/siteColors'
-import { SK_SITE } from '~/utils/chartPalette'
+import { SK_SITE, SK_SITE_OVERFLOW } from '~/utils/chartPalette'
 
 // Cap the multi-measurement trend so a high-volume recipe doesn't fan out into
 // hundreds of MsrFile fetches; we take the most recent N around the selection.
@@ -304,6 +304,20 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     assignSiteColors(selectedSites.value, SK_SITE))
   const siteColor = (param: string, seq: number): string | null =>
     siteColorMap.value[siteKey(param, seq)] ?? null
+
+  // The active-parameter selection as a finished seq → color map — every pick
+  // resolved to its identity color or the shared overflow neutral. The wafer
+  // map, radius plot and distribution all read this one source rather than each
+  // re-deriving it (and re-deciding the neutral). The points table stays on the
+  // raw siteColor() because it spans parameters, not just the active one.
+  const seqColorsForActiveParam = computed<Record<number, string>>(() => {
+    const param = activeParam.value
+    const out: Record<number, string> = {}
+    for (const seq of selectedSeqsForActiveParam.value) {
+      out[seq] = siteColor(param, seq) ?? SK_SITE_OVERFLOW
+    }
+    return out
+  })
 
   // Focused canonical site key — shared linked-site state across the analysis
   // views, carried in the URL `site` param so a shared link restores it. useState
@@ -615,6 +629,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     clearSelectedSites,
     selectedSeqsForActiveParam,
     siteColor,
+    seqColorsForActiveParam,
     focusedSite,
     setFocusedSite,
     setFocusedMsr,

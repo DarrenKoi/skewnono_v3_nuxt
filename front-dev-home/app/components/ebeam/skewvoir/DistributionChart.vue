@@ -80,19 +80,21 @@ const mean = computed<number | null>(() => {
   return v.length ? meanOf(v) : null
 })
 
+// Which of the BIN_COUNT bins a value falls in, given the bin geometry. Shared
+// by the histogram counting loop and the highlight tint so both agree on the
+// bin a value lands in. Clamped so an out-of-range value can't index past 0/end.
+const binIndexOf = (v: number, min: number, width: number): number =>
+  Math.min(BIN_COUNT - 1, Math.max(0, Math.floor((v - min) / width)))
+
 // Shared binning for histogram + violin.
 const bins = computed(() => {
   const vals = values.value
   if (vals.length === 0) return { centers: [] as number[], counts: [] as number[], min: 0, width: 1 }
   const min = Math.min(...vals)
   const max = Math.max(...vals)
-  const span = max - min || 1
-  const width = span / BIN_COUNT
+  const width = (max - min || 1) / BIN_COUNT
   const counts = new Array(BIN_COUNT).fill(0)
-  for (const v of vals) {
-    const idx = Math.min(BIN_COUNT - 1, Math.floor((v - min) / width))
-    counts[idx] += 1
-  }
+  for (const v of vals) counts[binIndexOf(v, min, width)] += 1
   const centers = counts.map((_, i) => min + width * (i + 0.5))
   return { centers, counts, min, width }
 })
@@ -105,7 +107,7 @@ const histHighlightBins = computed<Map<number, string>>(() => {
   const { counts, min, width } = bins.value
   if (!counts.length || !props.highlights.length) return map
   for (const h of props.highlights) {
-    const idx = Math.min(BIN_COUNT - 1, Math.max(0, Math.floor((h.value - min) / width)))
+    const idx = binIndexOf(h.value, min, width)
     if (!map.has(idx)) map.set(idx, h.color)
   }
   return map
@@ -237,15 +239,13 @@ const boxOption = computed<EChartsOption>(() => {
         data: rawPoints,
         tooltip: { show: false }
       },
-      ...(highlightPts.length
-        ? [{
-            type: 'scatter' as const,
-            symbolSize: 9,
-            data: highlightPts,
-            z: 3,
-            tooltip: { show: false }
-          }]
-        : [])
+      {
+        type: 'scatter',
+        symbolSize: 9,
+        data: highlightPts,
+        z: 3,
+        tooltip: { show: false }
+      }
     ]
   }
 })
@@ -279,17 +279,15 @@ const violinOption = computed<EChartsOption>(() => {
     series: [
       { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: top },
       { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: bottom },
-      ...(rugPts.length
-        ? [{
-            type: 'scatter' as const,
-            symbol: 'rect',
-            symbolSize: [2, 10] as [number, number],
-            data: rugPts,
-            silent: true,
-            z: 3,
-            tooltip: { show: false }
-          }]
-        : [])
+      {
+        type: 'scatter',
+        symbol: 'rect',
+        symbolSize: [2, 10] as [number, number],
+        data: rugPts,
+        silent: true,
+        z: 3,
+        tooltip: { show: false }
+      }
     ]
   }
 })

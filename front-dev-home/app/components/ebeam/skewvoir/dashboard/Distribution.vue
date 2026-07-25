@@ -42,22 +42,22 @@ import { isMeasuredRow } from '~/utils/msrRows'
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const mode = ref('Hist')
-const sk = useChartPalette()
 
 const hasData = computed(() =>
   props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r))
 )
 
-// Selected points of the active parameter as (value, identity color) pairs;
-// overflow picks use the muted tone. The chart marks them per its active shape.
+// Selected points of the active parameter as (value, identity color) pairs — the
+// value from the row, the color from the composable's finished seq → color map.
+// The chart marks them per its active shape (Box dots / Violin rug / Hist bin).
 const highlights = computed<{ value: number, color: string }[]>(() => {
   const param = props.analysis.activeParam.value
-  const picked = new Set(props.analysis.selectedSeqsForActiveParam.value)
+  const colors = props.analysis.seqColorsForActiveParam.value
   const out: { value: number, color: string }[] = []
   for (const r of props.analysis.siteRows.value) {
-    if (r.parameter !== param || !picked.has(r.sequence)) continue
-    if (!isMeasuredRow(r) || r.cd_value == null) continue
-    out.push({ value: r.cd_value, color: props.analysis.siteColor(param, r.sequence) ?? sk.value.muted })
+    const color = r.parameter === param ? colors[r.sequence] : undefined
+    if (!color || !isMeasuredRow(r) || r.cd_value == null) continue
+    out.push({ value: r.cd_value, color })
   }
   return out
 })

@@ -85,14 +85,15 @@ const outlierPoints = computed(() => {
 })
 
 // Halo on any active point whose sequence is in the multi-selection set, colored
-// by that point's identity color (falling back to the shared brand halo).
+// by that point's identity color (the caller passes a fully-resolved seqColors
+// map — identity hue or the shared overflow neutral — so no local fallback).
 const selectedPoints = computed(() => {
   const picked = new Set(props.selectedSeqs)
   return activePoints.value
     .filter(p => p.seqs.some(s => picked.has(s)))
     .map((p) => {
       const hitSeq = p.seqs.find(s => picked.has(s)) ?? p.seq
-      const color = props.seqColors[hitSeq] ?? sk.value.brand
+      const color = props.seqColors[hitSeq]
       return { name: String(p.seq), value: [p.x, p.y], itemStyle: { color, borderColor: color } }
     })
 })

@@ -75,10 +75,12 @@ const focused = computed(() => scatterData.value.filter(point => Number(point.na
 
 const selectedPts = computed(() => {
   const picked = new Set(props.selectedSeqs)
+  // The caller passes a fully-resolved seqColors map (identity hue or the shared
+  // overflow neutral) for every selected seq, so there is no local fallback.
   return scatterData.value
     .filter(point => picked.has(Number(point.name)))
     .map((point) => {
-      const color = props.seqColors[Number(point.name)] ?? sk.value.series
+      const color = props.seqColors[Number(point.name)]
       return { ...point, itemStyle: { color, borderColor: color } }
     })
 })

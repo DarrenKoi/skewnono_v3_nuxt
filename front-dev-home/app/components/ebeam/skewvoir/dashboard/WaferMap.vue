@@ -47,7 +47,7 @@
             :focused-sequence="analysis.focusedSequence.value"
             :outlier-seqs="outlierSeqs"
             :selected-seqs="analysis.selectedSeqsForActiveParam.value"
-            :seq-colors="seqColors"
+            :seq-colors="analysis.seqColorsForActiveParam.value"
             @focus="analysis.setFocusedSequence"
             @rangechange="autoRange = $event"
           />
@@ -83,7 +83,7 @@
       :focused-sequence="analysis.focusedSequence.value"
       :outlier-seqs="outlierSeqs"
       :selected-seqs="analysis.selectedSeqsForActiveParam.value"
-      :seq-colors="seqColors"
+      :seq-colors="analysis.seqColorsForActiveParam.value"
       @focus="analysis.setFocusedSequence"
     />
   </EbeamSkewvoirPanelFrame>
@@ -99,18 +99,6 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 const mode = ref<'Field' | 'Die'>('Field')
 const detailOpen = ref(false)
 const options = ref(defaultWaferMapOptions())
-const sk = useChartPalette()
-
-// Active-parameter selected sequences → identity color, with the neutral muted
-// tone for any pick past the palette cap. Fed to both the inline map and modal.
-const seqColors = computed<Record<number, string>>(() => {
-  const param = props.analysis.activeParam.value
-  const out: Record<number, string> = {}
-  for (const seq of props.analysis.selectedSeqsForActiveParam.value) {
-    out[seq] = props.analysis.siteColor(param, seq) ?? sk.value.muted
-  }
-  return out
-})
 
 // The leaf publishes its auto (data) range via @rangechange; the manual override
 // from the popover is applied here and fed back to the leaf's visualMap + bar.
