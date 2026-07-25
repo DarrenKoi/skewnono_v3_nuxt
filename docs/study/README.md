@@ -13,9 +13,9 @@
 - **ECharts 6.1.0** (데이터 시각화) + **ExcelJS 4.4.0** (엑셀 export)
 - **Vite** (Nuxt 내부 번들러. `nuxt.config.ts`의 `vite` 키로 조정)
 - **ESLint 9.39.2** + `@nuxt/eslint` (린팅 + 스타일 강제)
-- 테스트: **`node --test`**(순수 함수 단위) + **Playwright**(E2E)
+- 테스트: **`node --test`**(순수 함수 단위) — 프론트엔드에서 자동화된 테스트는 이것뿐입니다. Vitest·Jest·jsdom은 쓰지 않으며, 자동화된 E2E 스위트도 없습니다(자세히는 `13-testing/`).
 
-> **갱신 메모(2026-07):** 이 학습 노트들은 처음에 초기 ebeam/sem-list 단계(2026-04)를 기준으로 작성됐습니다. 이후 프로젝트가 크게 성장하여(55+ 컴포저블, 57개 테스트, 백엔드 provider 아키텍처, 차트·웨이퍼 분석 등), 일부 문서를 갱신하고 `10`~`13` 챕터를 새로 추가했습니다. 갱신된 문서에는 이 메모나 "갱신" 표시가 붙어 있습니다.
+> **갱신 메모(2026-07):** 이 학습 노트들은 처음에 초기 ebeam/sem-list 단계(2026-04)를 기준으로 작성됐습니다. 이후 프로젝트가 크게 성장하여(55+ 컴포저블, 프론트 테스트 파일 77개, 백엔드 provider 아키텍처, 차트·웨이퍼 분석 등), 일부 문서를 갱신하고 `10`~`13` 챕터를 새로 추가했습니다. 갱신된 문서에는 이 메모나 "갱신" 표시가 붙어 있습니다.
 
 **데이터 소스에 대한 정정:** 예전 노트는 "Phase 1에는 백엔드가 없고 `app/mock-data/`의 TS 모듈에서 데이터가 온다"고 적었지만, **현재는 세 Phase 모두 Flask 백엔드**(`back_dev_home/`)가 `/api/*`를 서빙합니다. 집(Phase 1)에서는 Flask가 `providers/mock.py`의 결정론적 mock을, 회사(Phase 2/3)에서는 `providers/office.py`가 실제 Redis/OpenSearch를 반환합니다. 프론트엔드 코드는 Phase를 구별하지 않습니다. 백엔드 구조는 `10-backend-providers/`를 보세요.
 
@@ -36,7 +36,7 @@ docs/study/
 ├── 10-backend-providers/        ★ 백엔드 mock↔office Ports & Adapters (Python/Flask)
 ├── 11-echarts-dataviz/          ECharts 래퍼·테마·클라이언트 export
 ├── 12-statistics-wafer/         로버스트 통계(median/MAD)·웨이퍼 물리 좌표 모델
-└── 13-testing/                  node:test 순수 함수 규율 + pytest + Playwright 3계층
+└── 13-testing/                  node:test 순수 함수 규율 + 백엔드 pytest, 그리고 자동화되지 않은 계층
 ```
 
 ## 학습 순서 추천

@@ -34,6 +34,20 @@ lsof -iTCP -sTCP:LISTEN -P | grep -E ":3000|:5050"
 
 - Rate limit: 20 req / 5 s per user on `/api/*` — space out curl loops or
   vary `LASTUSER`.
-- Backend unit tests: `.venv/bin/python -m unittest discover tests`
-  (stdlib unittest; pytest is not installed).
-- Frontend checks: `npm run lint` / `npm run typecheck` in `front-dev-home/`.
+- Backend tests: `.venv/bin/python -m pytest tests back_dev_home -q` from the
+  repo root (~990 tests, ~15 s). Both roots are required — `tests/` alone
+  skips every `back_dev_home/<feature>/tests/` provider contract suite, which
+  is the larger half of the suite. A bare `.venv/bin/python -m pytest -q`
+  collects the same set (`testpaths` in root `pyproject.toml`).
+- Office gate for one feature (Phase 2, at the office):
+  `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q`
+  With no `providers/office.py` it fails with a `RuntimeError` naming the
+  `cp office_example.py office.py` command — it never falls back to mock, so
+  a green run really did hit the office adapter.
+- Frontend checks: `npm test` / `npm run lint` / `npm run typecheck` in
+  `front-dev-home/`. `npm test` is `node --test "app/**/*.test.ts"` over pure
+  functions only.
+- There is no automated E2E suite — no Playwright config, no spec files.
+  `npx playwright test` ends in `Error: No tests found` (and confusingly
+  side-effect-runs the `node:test` files it collected first). Browser
+  verification means driving Playwright MCP by hand, as above.

@@ -40,32 +40,37 @@ Cross-phase rule:
 ## Build, Test, and Development Commands
 Use the command set that matches the workspace you are editing.
 
+Development happens on macOS: `npm` on PATH, and a CPython 3.14 virtualenv at
+`.venv/` driven as `.venv/bin/python` (no activation step needed).
+
 From the repo root:
-- `npm.cmd install`: install repo-level Markdown tooling on this Windows setup.
-- `npm.cmd run lint:md`: lint Markdown files.
-- `npm.cmd run lint:md:fix`: auto-fix supported Markdown issues.
+- `npm install`: install repo-level Markdown tooling.
+- `npm run lint:md`: lint Markdown files.
+- `npm run lint:md:fix`: auto-fix supported Markdown issues.
 
 From `front-dev-home/`:
-- `npm.cmd install`: install frontend dependencies.
-- `npm.cmd run dev`: start Nuxt at `http://localhost:3000`.
-- `npm.cmd run dev:remote`: start Nuxt bound to `0.0.0.0`.
-- `npm.cmd run build`: create a production build.
-- `npm.cmd run preview`: preview the production build.
-- `npm.cmd run lint`: run ESLint.
-- `npm.cmd run typecheck`: run Nuxt/Vue TypeScript checks.
+- `npm install`: install frontend dependencies.
+- `npm run dev`: start Nuxt at `http://localhost:3000`.
+- `npm run dev:remote`: start Nuxt bound to `0.0.0.0`.
+- `npm run build`: create a production build (`nuxt generate`).
+- `npm run preview`: preview the production build.
+- `npm run lint`: run ESLint.
+- `npm run typecheck`: run Nuxt/Vue TypeScript checks.
+- `npm test`: run the Node test runner over `app/**/*.test.ts`.
 
 Backend (run from the repo root):
-- `python -m venv .venv`: create a local virtual environment.
-- `.venv\Scripts\activate`: activate the virtual environment in PowerShell.
-- `python -m pip install -r back_dev_home/requirements.txt`: install Flask backend dependencies.
-- `python index.py`: start the Flask dev server on `http://localhost:5000`.
+- `python3 -m venv .venv`: create a local virtual environment.
+- `.venv/bin/python -m pip install -r back_dev_home/requirements.txt`: install Flask backend dependencies.
+- `.venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt`: same plus pytest, for running tests.
+- `.venv/bin/python index.py`: start the Flask dev server on `http://localhost:5050`.
+- `.venv/bin/python -m pytest tests back_dev_home -q`: run the backend test suite.
 - `uwsgi --ini wsgi.ini`: serve via uWSGI (production-style).
 
 Environment notes:
-- `NUXT_API_TARGET` controls where Nuxt proxies `/api/*`; default is `http://localhost:5000`.
+- `NUXT_API_TARGET` controls where Nuxt proxies `/api/*`; `nuxt.config.ts` already defaults it to `http://localhost:5050`, matching the home Flask port.
 - `NUXT_PUBLIC_API_BASE` defaults to `/api`.
 - `NUXT_PORT` overrides the frontend dev port; default is `3000`.
-- On this Windows machine, prefer `npm.cmd` over `npm` in PowerShell because `npm.ps1` may be blocked by execution policy.
+- `PORT` overrides the Flask port; the default is `5050` because `5000` conflicts with macOS AirPlay.
 
 ## Coding Style & Naming Conventions
 - Use Vue 3 + TypeScript patterns with Nuxt file-based routing in `front-dev-home/`.
@@ -79,7 +84,7 @@ Environment notes:
 - Preserve API response shapes when moving from mock data to real backends.
 
 ## Markdown Conventions
-- Run `npm.cmd run lint:md` after editing Markdown files.
+- Run `npm run lint:md` after editing Markdown files.
 - Avoid markdownlint `MD060` by using the `compact` table style consistently.
 - Write tables like `| Column | Value |` with delimiter rows like `| --- | --- |`.
 - Do not vertically align pipes with extra hyphens or mix table styles in the same file.
@@ -87,12 +92,32 @@ Environment notes:
 - In those documents, use formal sentence endings such as `~입니다.` and `~합니다.` consistently.
 
 ## Testing Guidelines
-There is no dedicated unit or E2E runner configured at the repo root yet.
+Both workspaces have a working test runner, and `.github/workflows/ci.yml` gates
+both on every push: a `pytest` job for the backend and a `typecheck + test` job
+for the frontend. `npm run lint` is deliberately not gated yet, because `main`
+still carries pre-existing lint errors in untouched files.
 
-- Frontend minimum quality gate: `npm.cmd run lint` and `npm.cmd run typecheck` from `front-dev-home/`.
-- Backend changes should be verified by running the Flask server and checking the affected `/api/*` routes directly.
-- For docs-only changes, rerun `npm.cmd run lint:md`.
-- When adding tests later, colocate them near the feature they cover and keep them focused on critical UI logic, composables, stores, or backend route behavior.
+Backend — pytest on CPython 3.14, installed from `back_dev_home/requirements-dev.txt`
+(kept out of `requirements.txt` so the Phase 3 production install ships no test
+runner). Always run from the repo root, in the `python -m pytest` form: `-m` is
+what puts the repo root on `sys.path` so tests can import `back_dev_home.*`.
+
+- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~990 tests, ~15 s). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
+- `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "back_dev_home"]`, so the bare form and the explicit one are interchangeable.
+- `.venv/bin/python -m pytest back_dev_home/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
+- `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp back_dev_home/<feature>/providers/office_example.py back_dev_home/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
+
+Frontend — Node's built-in test runner (`node --test "app/**/*.test.ts"`). There
+is no Vitest, Jest, jsdom, or `@vue/test-utils` in the tree.
+
+- `npm test` from `front-dev-home/`: colocated `*.test.ts` files next to the code they cover.
+- `npm run typecheck` and `npm run lint` remain the other frontend gates.
+- Only pure functions are covered. Without a mounting harness, `.vue` components have no unit tests, and there is **no automated E2E suite** — no Playwright config and no spec files exist. `@playwright/test` is present only as a devDependency behind the Playwright MCP server, which is an interactive tool a developer or agent drives by hand, not a suite CI can run.
+
+Other notes:
+
+- For docs-only changes, rerun `npm run lint:md` from the repo root.
+- Colocate new tests with the code they cover: `X.test.ts` beside `X.ts`, and `back_dev_home/<feature>/tests/` beside the feature.
 
 ## Commit & Pull Request Guidelines
 - Use short, imperative commit messages scoped to one change.

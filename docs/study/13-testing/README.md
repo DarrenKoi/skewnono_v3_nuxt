@@ -1,6 +1,6 @@
 # 13. 테스트 전략 (`node:test` 순수 함수 규율)
 
-예전 학습 노트(`07-code-patterns/`)는 "단위 테스트 기반 마련"을 *다음에 해볼 일*로 적어 두었습니다. 그 일이 **현실이 되어** 지금 프론트엔드에는 57개의 `*.test.ts` 파일이 있습니다. 이 문서는 그 테스트 규율을 다룹니다.
+예전 학습 노트(`07-code-patterns/`)는 "단위 테스트 기반 마련"을 *다음에 해볼 일*로 적어 두었습니다. 그 일이 **현실이 되어** 지금 프론트엔드에는 77개의 `*.test.ts` 파일이 있습니다. 이 문서는 그 테스트 규율을 다룹니다.
 
 핵심 결정 하나: **Vitest도 Jest도 쓰지 않습니다. Node 내장 테스트 러너(`node --test`)만 씁니다.**
 
@@ -86,40 +86,92 @@ export const downloadCsvRaw = (filename: string, content: string): void => {
 
 ## 4. 백엔드 테스트 — `pytest`
 
-프론트가 `node --test`라면, 백엔드(`back_dev_home/`)는 `pytest`입니다. Provider 아키텍처(`10-backend-providers/`)의 완료 기준이 곧 테스트 green입니다.
+프론트가 `node --test`라면, 백엔드(`back_dev_home/`)는 `pytest`입니다. Provider 아키텍처(`10-backend-providers/`)의 완료 기준이 곧 테스트 green입니다. 테스트 러너는 `back_dev_home/requirements-dev.txt`로만 설치합니다 — Phase 3 운영 설치(`requirements.txt`)에는 테스트 러너가 들어가지 않도록 분리해 둔 것입니다.
 
 ```bash
-# mock provider로 테스트 (집에서 기본)
-.venv/bin/pytest back_dev_home/sem_list
+# 백엔드 전체 (레포 루트에서, 약 990개)
+.venv/bin/python -m pytest tests back_dev_home -q
 
-# office provider로 테스트 (회사에서 실제 소스 연결 검증)
-SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/pytest back_dev_home/sem_list
+# 위와 완전히 같은 수집 범위. 루트 pyproject.toml의 testpaths 설정 덕분입니다
+.venv/bin/python -m pytest -q
+
+# 기능 하나만 (집에서는 mock provider로 해석됩니다)
+.venv/bin/python -m pytest back_dev_home/sem_list -q
 ```
 
-각 기능의 `tests/`와 `__fixtures__/`가 계약(`contracts.py`) 준수를 강제합니다. 예: `msr_file/tests/test_contract.py`는 mock이 특정 메타데이터 필드를 **지어내지 못하게** 막습니다.
+명령 형태에서 세 가지가 중요합니다.
 
-## 5. E2E — Playwright (별도 계층)
+1. **경로 두 개를 모두 적어야 합니다.** `tests/`만 돌리면 `back_dev_home/<feature>/tests/`에 있는 provider 계약 스위트가 전부 빠집니다. 그쪽이 오히려 더 큰 절반이고, mock↔office 교체를 지키는 부분도 그쪽입니다.
+2. **`python -m pytest` 형태를 씁니다.** `-m`이 레포 루트를 `sys.path`에 올려 주기 때문에 테스트가 `back_dev_home.*`를 import할 수 있습니다. 항상 레포 루트에서 실행합니다.
+3. **`tests/` 디렉토리가 28개 있습니다.** 기능 폴더 23개(`sem_list/`, `msr_image/`, `ebeam/hitachi/*/` 등)와 공용 인프라 5개(`_auth/`, `_core/`, `_logging/`, `_runtime/`, `_spa/`)입니다. 각 기능의 `tests/`와 `__fixtures__/`가 계약(`contracts.py`) 준수를 강제합니다. 예: `msr_file/tests/test_contract.py`는 mock이 특정 메타데이터 필드를 **지어내지 못하게** 막습니다. 한편 `_runtime/tests/`는 provider 해석 규칙 자체(어느 어댑터가 왜 선택됐는지)를 검증하므로, Phase 2 작업 중에 가장 자주 깨지는 곳입니다.
 
-`@playwright/test`는 devDependency로, 순수 단위 테스트와는 **다른 계층**입니다. 실제 브라우저에서 앱을 띄워 UI 흐름을 검증합니다(예: `useSemList()` 통합 후 네트워크 요청이 3건→1건으로 줄었는지 측정 — `07-code-patterns/sem-list-caching.md` 4.3절).
+### Phase 2(office) 게이트
 
-- 스크린샷은 `.playwright-mcp/screenshots/`에 저장(루트 `CLAUDE.md` 규칙).
+회사에서 실제 소스 연결을 검증할 때는 기능 단위로 provider를 강제합니다.
+
+```bash
+SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest back_dev_home/sem_list -q
+```
+
+이 명령은 `back_dev_home/sem_list/providers/office.py`가 **있을 때만** 의미가 있습니다. `office.py`는 gitignore 대상이라 회사에서 직접 만들어야 합니다.
+
+```bash
+cp back_dev_home/sem_list/providers/office_example.py back_dev_home/sem_list/providers/office.py
+```
+
+어댑터가 없는 상태에서 위 게이트를 돌리면 조용히 mock으로 돌아가지 않고, 위 `cp` 명령을 그대로 알려 주는 `RuntimeError`로 **실패**합니다. 이 설계 덕분에 "green이면 진짜로 office 어댑터를 통과한 것"이라고 믿을 수 있습니다.
+
+## 5. 브라우저 확인 — Playwright MCP (자동화 스위트가 아닙니다)
+
+여기서 오해가 자주 생기므로 분명히 해 둡니다. **이 레포에는 자동화된 E2E 스위트가 없습니다.**
+
+- `playwright.config.ts`가 없고, `*.spec.ts` 파일도 0개입니다.
+- `npx playwright test`를 실행하면 `Error: No tests found`로 끝납니다. (설정이 없어 기본 `testMatch`가 `app/**/*.test.ts`를 주워 오는 바람에, 수집 과정에서 `node:test` 파일들이 부수효과로 실행된 뒤 "테스트 없음"이 뜹니다. 실행 로그만 보면 E2E가 도는 것처럼 보이지만 아닙니다.)
+- `package.json`에 `@playwright/test`가 devDependency로 들어 있는 것은 **Playwright MCP 서버**를 위해서입니다.
+
+즉 Playwright는 이 프로젝트에서 **개발자나 에이전트가 손으로 조종하는 대화형 도구**이지, CI가 돌릴 수 있는 스위트가 아닙니다. 실제 브라우저로 UI 흐름을 확인하는 일(예: `useSemList()` 통합 후 네트워크 요청이 3건→1건으로 줄었는지 측정 — `07-code-patterns/sem-list-caching.md` 4.3절)은 지금도 이 방식으로 **수동 검증**합니다.
+
+- 스크린샷은 `.playwright-mcp/screenshots/`에 저장합니다(루트 `CLAUDE.md` 규칙).
 - 원격 개발 환경에서는 Tailscale IP로 접속해 스크린샷을 찍습니다.
+- 브라우저 검증 절차 전체는 `verify` 스킬(`.claude/skills/verify/SKILL.md`)에 정리돼 있습니다.
 
-## 6. 테스트 3계층 정리
+E2E를 진짜 자동화하려면 `playwright.config.ts`와 `*.spec.ts`를 새로 만들어야 하며, 그건 아직 하지 않은 일입니다.
 
-| 계층 | 도구 | 대상 | 명령 |
-| --- | --- | --- | --- |
-| 순수 단위 (프론트) | `node --test` | `utils/*.ts` 순수 함수 | `npm test` |
-| 단위/통합 (백엔드) | `pytest` | provider 어댑터, 계약 준수 | `pytest back_dev_home/<feature>` |
-| E2E (브라우저) | Playwright | 실제 UI 흐름·네트워크 | `npx playwright test` |
+## 6. 테스트 계층 정리 (자동화 여부 포함)
+
+| 계층 | 도구 | 대상 | 명령 | 자동화 |
+| --- | --- | --- | --- | --- |
+| 순수 단위 (프론트) | `node --test` | `app/**/*.ts` 순수 함수 | `npm test` | CI 게이트 |
+| 단위/통합 (백엔드) | `pytest` | provider 어댑터, 계약 준수, 라우트 | `.venv/bin/python -m pytest tests back_dev_home -q` | CI 게이트 |
+| Phase 2 office 게이트 | `pytest` | 실제 사내 소스 연결 | `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q` | 회사에서 수동 |
+| 컴포넌트 (`.vue`) | 없음 | — | — | 없음 |
+| E2E (브라우저) | Playwright MCP | 실제 UI 흐름·네트워크 | 에이전트/개발자가 대화형으로 조종 | 없음 (수동) |
+
+`.vue` 컴포넌트 계층이 비어 있는 것은 사고가 아니라 선택입니다. 마운트 하네스(jsdom, `@vue/test-utils`)를 들이지 않는 대신, 검증할 가치가 있는 로직을 컴포넌트 밖 순수 함수로 밀어내는 3절의 규율로 대신하고 있습니다.
+
+CI(`.github/workflows/ci.yml`)는 두 잡을 돌립니다 — 백엔드 `pytest`와 프론트 `typecheck + test`입니다. `npm run lint`는 아직 게이트가 아닙니다(손대지 않은 파일들에 기존 lint 부채가 남아 있어서 의도적으로 빼 둔 상태입니다).
 
 ## 7. 커밋 전 체크리스트 (갱신판)
+
+프론트엔드를 건드렸다면 `front-dev-home/`에서:
 
 ```bash
 npm run lint        # ESLint (스타일 + 정적 분석)
 npm run typecheck   # vue-tsc 타입 체크 (테스트 파일은 제외됨)
 npm test            # node --test 순수 단위 테스트
-npm run build       # 빌드 통과 확인
+npm run build       # 빌드 통과 확인 (nuxt generate)
+```
+
+백엔드를 건드렸다면 레포 루트에서:
+
+```bash
+.venv/bin/python -m pytest tests back_dev_home -q
+```
+
+문서만 고쳤다면 레포 루트에서:
+
+```bash
+npm run lint:md
 ```
 
 ## 8. 이 챕터의 큰 교훈
