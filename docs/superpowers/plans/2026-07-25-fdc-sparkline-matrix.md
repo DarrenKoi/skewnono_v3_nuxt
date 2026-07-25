@@ -14,6 +14,8 @@
 - **No Pinia.** Shared state flows through the existing `SkewvoirAnalysis` composable.
 - **`MAX_COLUMNS = 4`** and **`MAX_SUSPECTS = 4`**.
 - **`connectNulls: false`** — gaps must read as gaps, matching `FdcSequenceTrend.vue:93`.
+- **The matrix ECharts option must never depend on the focused sequence.** `useEchart.ts:183-187` does `setOption(..., true)` (`notMerge`) on any option change and exposes no chart handle, so a `focused` dependency would rebuild every grid/axis/series per cursor move — measured 19.4 ms at N=40, 38.6 ms at N=80, against a 16.7 ms frame.
+- Scrolling must happen inside `nextTick`, matching `MeasurementPoints.vue:314-318`.
 - Test files import **values** relatively with an explicit extension (`'./paramMatrix.ts'`) and **types** via the alias (`'~/composables/useMsrFileApi'`). A value import through `~/` breaks `node --test`.
 - **Zero component tests exist in this repo** (72 util tests, 0 component tests). Do not add the first one.
 - Korean UI copy, formal endings. The demo-data warning must reuse the existing wording verbatim: `데모 데이터 · 방법 검증 불가` (from `SequenceWorkbench.vue:84-86`).
@@ -692,12 +694,12 @@ y-dimension ordinal values, where duplicates make coord lookups ambiguous."
 - Consumes: nothing new.
 - Produces: `onGridClick?: (xValue: number, gridIndex: number) => void`. Task 5 relies on the second argument to map a click to a matrix cell.
 
-**Why this is safe:** the loop at `useEchart.ts:99-105` already computes `gridIndex` and discards it. Every current caller declares a one-parameter arrow function, and JavaScript ignores extra arguments, so widening the signature cannot break them.
+**Why this is safe:** the loop at `useEchart.ts:99-105` already computes `gridIndex` and discards it. `onGridClick` has exactly **one** caller in the app — `ScePanel.vue:627`, `onGridClick: x => setCoeffIndex(x)` — which passes a unary arrow function, and JavaScript ignores extra arguments. (`FdcSequenceTrend.vue:117` uses `onClick`, a different option, and is unaffected.)
 
-- [ ] **Step 1: Confirm no caller destructures or arity-checks the callback**
+- [ ] **Step 1: Confirm the caller inventory is still exactly one**
 
 Run: `cd front-dev-home && grep -rn "onGridClick" app/`
-Expected: the definition plus call sites that all pass a single-parameter arrow function. If any caller passes a named function used elsewhere, stop and reassess.
+Expected: the type at `composables/useEchart.ts:20`, the internal use at `:90`, and the single call site at `components/ebeam/hardware/ScePanel.vue:627`. If a caller now passes a named function used elsewhere, stop and reassess.
 
 - [ ] **Step 2: Widen the type**
 
@@ -748,7 +750,7 @@ JavaScript ignores extra arguments."
 
 **Interfaces:**
 - Consumes: `ParamMatrixModel`, `MatrixCell`, `MatrixRow` from `~/utils/skewvoirAnalysis/paramMatrix`; `useEchart(elRef, option, opts)` with the Task 4 signature; `useChartPalette()` and `useEchartsTheme()` as used in `SequenceWorkbench.vue:162-168`.
-- Produces: component auto-imported as `EbeamSkewvoirTimeseriesParamMatrix`, props `model: ParamMatrixModel` and `focused: number | null`, emits `select: [sequence: number]` and `drill: [param: string]`. Task 6 consumes both events.
+- Produces: component auto-imported as `EbeamSkewvoirTimeseriesParamMatrix`, prop `model: ParamMatrixModel` (and **no** `focused` prop — see Global Constraints), emits `select: [sequence: number]` and `drill: [param: string]`. Task 6 consumes both events.
 
 **Placement mechanics.** Each cell is an ordinary cartesian grid positioned into a matrix cell with `coordinateSystem: 'matrix'` and `coord: [columnIndex, rowIndex]`. The CD row spans the full width with a range coord, `coord: [[0, columns - 1], 0]` — verified supported: `Grid.js:152` → `layout.js:357-361` → `Matrix.js:151-173`, where `dataToLayout` runs the coord through the same `parseCoordRangeOption` that handles matrix body-cell ranges. Grids, axes and series are pushed in one flat pass so `gridIndex` equals the position in a parallel `cellByGrid` array.
 
@@ -778,9 +780,15 @@ import type { MatrixCell, ParamMatrixModel } from '~/utils/skewvoirAnalysis/para
 //
 // Presentational only. Row composition, ordering, suspects and the column cap
 // are all decided in utils/skewvoirAnalysis/paramMatrix.ts.
+//
+// DELIBERATELY not focus-aware. useEchart rebuilds with `notMerge` on any option
+// change and hands back no chart instance, so taking `focused` as a prop would
+// tear down every grid/axis/series on each cursor move (19.4 ms at N=40,
+// 38.6 ms at N=80). The option is a function of the model alone; the hover
+// crosshair still spans cells via axisPointer.link, and the detail panes below
+// carry the persisted cursor.
 const props = defineProps<{
   model: ParamMatrixModel
-  focused?: number | null
 }>()
 
 const emit = defineEmits<{ select: [sequence: number], drill: [param: string] }>()
@@ -823,9 +831,6 @@ const option = computed<EChartsOption>(() => {
   const series: Record<string, unknown>[] = []
 
   const cols = props.model.columns
-  const focusIdx = props.focused == null
-    ? -1
-    : props.model.sequences.indexOf(props.focused)
 
   props.model.rows.forEach((row, rowIdx) => {
     row.cells.forEach((cell, colIdx) => {
@@ -869,13 +874,10 @@ const option = computed<EChartsOption>(() => {
         splitLine: { show: false }
       })
 
-      const marks: Record<string, unknown>[] = []
-      if (cell.nominal != null) {
-        marks.push({ yAxis: cell.nominal, lineStyle: { color: '#94a3b8', type: 'dashed', opacity: 0.5 } })
-      }
-      if (focusIdx >= 0) {
-        marks.push({ xAxis: focusIdx, lineStyle: { color, type: 'solid', opacity: 0.45 } })
-      }
+      // Nominal only. A focus marker here would make the option focus-dependent.
+      const marks: Record<string, unknown>[] = cell.nominal == null
+        ? []
+        : [{ yAxis: cell.nominal, lineStyle: { color: '#94a3b8', type: 'dashed', opacity: 0.5 } }]
 
       series.push({
         id,
@@ -1018,12 +1020,16 @@ const matrix = computed(() =>
 
 // Drill-down: bring the clicked param's full-size pane into view. `nearest` is
 // deliberate — it is a no-op when the pane is already on screen, so a click
-// meant only to move the cursor does not yank the page around.
+// meant only to move the cursor does not yank the page around. The nextTick
+// wrapper follows MeasurementPoints.vue:314-318: the same click also moves the
+// cursor, so let the resulting DOM settle before measuring scroll position.
 const drillTo = (param: string): void => {
   if (!import.meta.client) return
-  document.getElementById(`fdc-pane-${param}`)?.scrollIntoView({
-    block: 'nearest',
-    behavior: 'smooth'
+  nextTick(() => {
+    document.getElementById(`fdc-pane-${param}`)?.scrollIntoView({
+      block: 'nearest',
+      behavior: 'smooth'
+    })
   })
 }
 ```
@@ -1050,7 +1056,6 @@ Immediately after the `</EbeamSkewvoirPanelFrame>` that closes the 측정 순서
         </template>
         <EbeamSkewvoirTimeseriesParamMatrix
           :model="matrix"
-          :focused="analysis.focusedSequence.value"
           @select="onSelect"
           @drill="drillTo"
         />
@@ -1084,7 +1089,14 @@ Start the stack per the project's `/verify` skill (Flask on `:5050`, Nuxt with `
 - the 주요 용의자 row appears with the demo-data chip
 - dragging the dataZoom slider reframes every cell together
 - clicking a cell moves the cursor in the CD pane *and* scrolls that param's pane into view
+- the matrix shows **no** persisted cursor marker — that is intended, not a bug; the hover
+  crosshair spans cells and the detail panes carry the persisted cursor
 - a browser console with no ECharts warnings
+
+Then record a real browser timing, since the spec's numbers are CPU-side SVG-SSR only:
+with devtools Performance recording, click a cell and confirm the interaction stays
+under one frame's budget at the mock's 10 params. Note the measured figure in the commit
+body. A 40-param gate is only possible against office data and stays open until then.
 
 Screenshot to `.playwright-mcp/screenshots/fdc-param-matrix.png`.
 

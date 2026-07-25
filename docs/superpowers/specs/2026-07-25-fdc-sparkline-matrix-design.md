@@ -124,8 +124,13 @@ Widen `onGridClick` from `(xValue: number)` to `(xValue: number, gridIndex: numb
 
 The existing implementation (`useEchart.ts:89-107`) already iterates every grid, uses
 `chart.containPixel({ gridIndex }, point)` to find the one the click landed in, and
-converts back to axis space — it just discards which grid it was. Every current caller
-(`FdcSequenceTrend.vue:117`, others) ignores a second argument, so this breaks nothing.
+converts back to axis space — it just discards which grid it was.
+
+`onGridClick` has exactly **one** caller in the whole app: `ScePanel.vue:627`
+(`onGridClick: x => setCoeffIndex(x)`). It passes a unary arrow function, and JavaScript
+ignores extra arguments, so the widening breaks nothing. (An earlier draft of this spec
+cited `FdcSequenceTrend.vue:117` as a caller; that line supplies `onClick`, not
+`onGridClick`.)
 
 Matrix placement does not disturb that hit-testing, which was the main risk to this
 mechanism. `containPixel` resolves the finder to `gridModel.coordinateSystem`
@@ -154,8 +159,25 @@ visible. No second gesture is invented.
 - `dataZoom: [{ type: 'inside', xAxisIndex: 'all' }, { type: 'slider', xAxisIndex: 'all' }]`
 - `axisPointer: { link: [{ xAxisIndex: 'all' }] }` for a hover crosshair across cells,
   the same wiring as `FdcPanel.vue:308`
-- The persisted focus renders as a vertical `markLine` per cell, so the selected
-  sequence stays visible in every cell while the pointer is elsewhere
+- The scroll must run inside `nextTick`, matching the existing focus-and-scroll
+  precedent at `MeasurementPoints.vue:314-318`, so the target exists before scrolling.
+
+**The matrix option must not depend on the focused sequence.** An earlier draft specified
+a per-cell `markLine` marking the persisted cursor. That is unaffordable here:
+`useEchart.ts:183-187` watches the option ref and calls
+`chart.setOption(withPreservedZoom(next, live), true)` — `notMerge`, a full rebuild — and
+the composable returns no chart handle, so there is no targeted-update escape hatch. A
+`focused`-dependent option therefore rebuilds every grid, axis and series on every cursor
+move. Measured cost of that rebuild: **19.4 ms at N=40, 38.6 ms at N=80** (SVG-SSR probe),
+against a 16.7 ms frame and on top of the ~25.7 ms the retained detail panes already
+spend on the same focus change.
+
+Dropping the persisted marker makes the option a function of the model alone, so the
+matrix rebuilds only when the underlying data changes and adds **no per-click cost at
+all**. The hover crosshair still crosses every cell via `axisPointer.link`, and the
+detail panes below still show the focused sequence. If a persisted marker later proves
+necessary, the correct fix is to have `useEchart` expose its chart instance for partial
+updates — not to reintroduce the option dependency.
 
 ## Honesty constraints
 
@@ -182,6 +204,27 @@ ranked suspect list built on that would be fiction.
 - Missing per-sequence values render as gaps (`connectNulls: false`), matching
   `FdcSequenceTrend.vue:93` and `WaferMap.vue:237`. Only the multi-MSR trend connects
   across gaps.
+
+## Performance
+
+The column cap bounds cell *width*, not the number of grids. N grids + N axes + N line
+series in one instance, rebuilt with `notMerge`, costs (SVG-SSR probe, five runs):
+
+| N params | Initial render | Rebuild on option change | Heap delta |
+| --- | --- | --- | --- |
+| 10 | 11.0 ms | 7.8 ms | — |
+| 40 | 19.0 ms | 19.4 ms | 20.9 MB |
+| 80 | 37.3 ms | 38.6 ms | 54.2 MB |
+
+Mock runs already reach 80 sequences (`mock.py:503`), so the point count per cell is not
+small either. With the focus dependency removed (see Interaction), a rebuild happens only
+on a genuine data change — a new MSR or a new active parameter — where 20-40 ms is
+acceptable and matches what the existing panel stack already costs.
+
+**Unproven:** these are CPU-side SVG-SSR numbers, not browser canvas numbers. Office-scale
+smoothness at 40+ params is not verified. Treat a browser performance check at N=40 as a
+gate before declaring this ready for office data, and note that ECharts line series opt
+out of progressive rendering (`LineSeries.js:135`), so there is no incremental-draw relief.
 
 ## Testing
 
