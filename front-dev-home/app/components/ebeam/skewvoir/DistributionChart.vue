@@ -42,9 +42,13 @@ const props = withDefaults(defineProps<{
   // Chart height utility. Defaults to a fixed h-72; the dashboard passes h-full
   // so the chart fills a flex panel.
   heightClass?: string
+  // Selected points to mark, each with its identity color (active param only).
+  // Box: colored raw dots; Violin: value-axis rug; Hist: tinted containing bin.
+  highlights?: { value: number, color: string }[]
 }>(), {
   mode: 'Hist',
-  heightClass: 'h-72'
+  heightClass: 'h-72',
+  highlights: () => []
 })
 
 const sk = useChartPalette()
@@ -79,7 +83,7 @@ const mean = computed<number | null>(() => {
 // Shared binning for histogram + violin.
 const bins = computed(() => {
   const vals = values.value
-  if (vals.length === 0) return { centers: [] as number[], counts: [] as number[] }
+  if (vals.length === 0) return { centers: [] as number[], counts: [] as number[], min: 0, width: 1 }
   const min = Math.min(...vals)
   const max = Math.max(...vals)
   const span = max - min || 1
@@ -90,7 +94,21 @@ const bins = computed(() => {
     counts[idx] += 1
   }
   const centers = counts.map((_, i) => min + width * (i + 0.5))
-  return { centers, counts }
+  return { centers, counts, min, width }
+})
+
+// Bin index → identity color for any bin holding a selected value (first wins).
+// Reuses the shared bin geometry (min/width) so it lands in the same bin as the
+// histogram bars — the Hist highlight, since a category axis can't take a rug.
+const histHighlightBins = computed<Map<number, string>>(() => {
+  const map = new Map<number, string>()
+  const { counts, min, width } = bins.value
+  if (!counts.length || !props.highlights.length) return map
+  for (const h of props.highlights) {
+    const idx = Math.min(BIN_COUNT - 1, Math.max(0, Math.floor((h.value - min) / width)))
+    if (!map.has(idx)) map.set(idx, h.color)
+  }
+  return map
 })
 
 // Five-number summary with Tukey-fenced whiskers for a set of values.
@@ -132,7 +150,10 @@ const histOption = computed<EChartsOption>(() => ({
   yAxis: { type: 'value', axisLabel: { fontSize: 11 }, splitLine: { show: false }, name: 'count', nameTextStyle: { fontSize: 11 } },
   series: [{
     type: 'bar',
-    data: bins.value.counts,
+    data: bins.value.counts.map((c, i) => {
+      const color = histHighlightBins.value.get(i)
+      return color ? { value: c, itemStyle: { color, borderRadius: [2, 2, 0, 0] } } : c
+    }),
     barWidth: '90%',
     itemStyle: { color: sk.value.seriesSoft, borderRadius: [2, 2, 0, 0] }
   }]
@@ -188,6 +209,12 @@ const boxOption = computed<EChartsOption>(() => {
   cats.forEach((c, i) => {
     c.values.forEach((v, j) => rawPoints.push([i + (jitterHash(i, j) - 0.5) * 0.3, v]))
   })
+  // Selected points drawn on top of the raw cloud in their identity color. The
+  // dashboard's single-param box sits at category x=0; jitter keeps them apart.
+  const highlightPts = props.highlights.map((h, i) => ({
+    value: [(jitterHash(1, i) - 0.5) * 0.3, h.value],
+    itemStyle: { color: h.color }
+  }))
   return {
     tooltip: { trigger: 'item' },
     grid: { left: 48, right: 16, top: 24, bottom: 34, containLabel: true },
@@ -209,7 +236,16 @@ const boxOption = computed<EChartsOption>(() => {
         itemStyle: { color: sk.value.brand, opacity: 0.35 },
         data: rawPoints,
         tooltip: { show: false }
-      }
+      },
+      ...(highlightPts.length
+        ? [{
+            type: 'scatter' as const,
+            symbolSize: 9,
+            data: highlightPts,
+            z: 3,
+            tooltip: { show: false }
+          }]
+        : [])
     ]
   }
 })
@@ -220,6 +256,12 @@ const violinOption = computed<EChartsOption>(() => {
   const { centers, counts } = bins.value
   const top = centers.map((c, i) => [c, counts[i]! / 2])
   const bottom = centers.map((c, i) => [c, -counts[i]! / 2])
+  // Colored rug ticks along the value axis, just below the mirrored density.
+  const rugY = -Math.max(1, ...counts) / 2 * 1.12
+  const rugPts = props.highlights.map(h => ({
+    value: [h.value, rugY],
+    itemStyle: { color: h.color }
+  }))
   return {
     tooltip: { trigger: 'axis' },
     title: { text: `n = ${values.value.length}`, right: 8, top: 4, textStyle: { fontSize: 11, color: sk.value.muted } },
@@ -236,7 +278,18 @@ const violinOption = computed<EChartsOption>(() => {
     yAxis: { type: 'value', axisLabel: { show: false }, splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } },
     series: [
       { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: top },
-      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: bottom }
+      { type: 'line', smooth: true, showSymbol: false, lineStyle: { color: sk.value.series, width: 1 }, areaStyle: { color: sk.value.seriesSoft, opacity: 0.5 }, data: bottom },
+      ...(rugPts.length
+        ? [{
+            type: 'scatter' as const,
+            symbol: 'rect',
+            symbolSize: [2, 10] as [number, number],
+            data: rugPts,
+            silent: true,
+            z: 3,
+            tooltip: { show: false }
+          }]
+        : [])
     ]
   }
 })

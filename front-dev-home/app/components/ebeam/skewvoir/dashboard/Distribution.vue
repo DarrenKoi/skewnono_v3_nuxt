@@ -23,6 +23,7 @@
       :parameter="analysis.activeParam.value"
       :unit="analysis.activeUnit.value"
       :mode="mode"
+      :highlights="highlights"
       height-class="h-full min-h-[8rem]"
     />
     <div
@@ -41,10 +42,25 @@ import { isMeasuredRow } from '~/utils/msrRows'
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const mode = ref('Hist')
+const sk = useChartPalette()
 
 const hasData = computed(() =>
   props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r))
 )
+
+// Selected points of the active parameter as (value, identity color) pairs;
+// overflow picks use the muted tone. The chart marks them per its active shape.
+const highlights = computed<{ value: number, color: string }[]>(() => {
+  const param = props.analysis.activeParam.value
+  const picked = new Set(props.analysis.selectedSeqsForActiveParam.value)
+  const out: { value: number, color: string }[] = []
+  for (const r of props.analysis.siteRows.value) {
+    if (r.parameter !== param || !picked.has(r.sequence)) continue
+    if (!isMeasuredRow(r) || r.cd_value == null) continue
+    out.push({ value: r.cd_value, color: props.analysis.siteColor(param, r.sequence) ?? sk.value.muted })
+  }
+  return out
+})
 
 const meta = computed(() => {
   const s = props.analysis.activeSummary.value
