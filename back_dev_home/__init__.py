@@ -116,7 +116,13 @@ def _install_json_error_handlers(app: Flask) -> None:
 
 def create_app() -> Flask:
     load_dotenv(Path(__file__).parent / ".env")
-    app = Flask(__name__)
+    # static_folder=None: Flask otherwise registers /static/<filename> against
+    # back_dev_home/static/, a directory that does not exist. That rule is more
+    # specific than the SPA catch-all, so in Phase 3 anything the SPA shipped
+    # under /static/ answered 404 while the real file sat unread in the build.
+    # Nothing collides today; the SPA owns every non-/api path, so the mount in
+    # _spa/serving.py should be the only thing claiming them.
+    app = Flask(__name__, static_folder=None)
     app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", "dev-only-not-for-prod")
 
     # Config must agree with the filesystem before we serve anything: an

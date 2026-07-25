@@ -42,7 +42,11 @@ def build(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client(build):
-    app = Flask(__name__)
+    # static_folder=None mirrors create_app: Flask's default /static/<filename>
+    # rule outranks the SPA catch-all and would shadow anything the build ships
+    # under /static/. Keep this in step with the factory or these tests stop
+    # describing production.
+    app = Flask(__name__, static_folder=None)
 
     @app.get("/api/sem-list")
     def _sem_list():
@@ -166,23 +170,44 @@ def test_a_half_built_tree_404s_rather_than_500s(tmp_path, monkeypatch):
     assert app.test_client().get("/sem-list").status_code == 404
 
 
-def test_the_public_dir_must_not_grow_a_static_subdir(client, build):
-    """create_app builds Flask(__name__), which always registers
-    /static/<filename> against back_dev_home/static/ — a directory that does
-    not exist. That rule is more specific than the catch-all, so anything the
-    SPA ships under /static/ is unreachable in Phase 3 and answers 404.
+def test_create_app_claims_no_static_route_of_its_own():
+    """The SPA owns every non-/api path, so Flask must not claim /static/.
 
-    Nothing collides today, and this guards that: keep public/ free of a
-    static/ directory (and no Nuxt page at /static/*), or serve the mount a
-    static_folder=None app.
+    `Flask(__name__)` registers /static/<filename> against back_dev_home/static/
+    — a directory that does not exist — and that rule outranks the SPA
+    catch-all. Anything the SPA shipped under /static/ answered 404 in Phase 3
+    while the real file sat unread in the build. `create_app` now passes
+    static_folder=None; this fails if that ever comes back.
+
+    Asserted against the real `create_app` rather than a hand-built Flask app,
+    because the bug lived in how the factory constructs Flask — a stand-in
+    would have kept passing while production stayed broken.
     """
-    shipped_public = env.project_root() / "front-dev-home" / "public"
-    assert not (shipped_public / "static").exists()
+    from back_dev_home import create_app
 
-    # Demonstrate the shadowing that makes the guard above necessary.
+    rules = [str(rule) for rule in create_app().url_map.iter_rules()]
+    assert not [rule for rule in rules if rule.startswith("/static/")]
+
+
+def test_a_static_path_in_the_build_is_served_not_shadowed(client, build):
+    """The behaviour the fix buys: /static/* reaches the SPA mount.
+
+    The `client` fixture mirrors the factory (static_folder=None), so this
+    exercises the same construction production uses.
+    """
     (build / "static").mkdir()
     (build / "static" / "a.txt").write_text("PUBLIC-STATIC", encoding="utf-8")
-    assert client.get("/static/a.txt").status_code == 404
+
+    response = client.get("/static/a.txt")
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == "PUBLIC-STATIC"
+
+
+def test_the_public_dir_has_no_static_subdir_to_collide_with():
+    """Belt and braces: nothing ships under public/static today either."""
+    shipped_public = env.project_root() / "front-dev-home" / "public"
+    assert not (shipped_public / "static").exists()
 
 
 def test_spa_dir_matches_the_path_the_deploy_tooling_hardcodes():
