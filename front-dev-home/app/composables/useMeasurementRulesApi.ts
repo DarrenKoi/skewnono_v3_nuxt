@@ -8,10 +8,10 @@ export const useMeasurementRulesApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  const fetchRules = async (fab: string): Promise<RuleVersion> => {
+  const fetchRules = async (facId: string): Promise<RuleVersion> => {
     return await $fetch<RuleVersion>(
       joinApiPath(base, '/cdsem/device-statistics/rules'),
-      { query: { fab } }
+      { query: { fac_id: facId } }
     )
   }
 

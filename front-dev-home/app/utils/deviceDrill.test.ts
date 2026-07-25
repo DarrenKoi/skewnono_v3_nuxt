@@ -44,7 +44,7 @@ test('no outliers → every recipe unflagged, counts zero', () => {
 
 const coreEarlyDram: RuleCell = {
   id: 'r3-core-tev-dram',
-  selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [{ patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains', cap: 13 }]
 }

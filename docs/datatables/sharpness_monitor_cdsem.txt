@@ -31,6 +31,10 @@ it contain Serial_No, SEM_Cond_No, Vacc, Vsup, Ip, Optics, Detector, AL3_x_offse
 ..and so on (many key and values) We have not yet figured which parameter is used as lever to observe
 tool's condition.  We can monitor by grouping data based on "SEM_Cond_No" (normally 5 or 6)
 and "Vacc" (Normally 800, 500). We see "SEM_Cond_No" and "Vacc" are paired.
+The pairing is SEM_Cond_No 5 -> Vacc 500, SEM_Cond_No 6 -> Vacc 800.
+(Stated explicitly because the two lists above are not in matching order, and
+reading them positionally gives 5/800 + 6/500, which is backwards. That misread
+had already reached the sharpness office adapter's docstring.)
 "Vsup" is worth of watching
 
 

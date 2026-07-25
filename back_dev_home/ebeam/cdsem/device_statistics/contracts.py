@@ -148,7 +148,7 @@ class SelectorBase(TypedDict):
     # Always present. Split out so total=False below applies only to the
     # optional keying axes — fab/recipe_class stay structurally required
     # (ruleEngine.selectorMatches compares both and a missing fab never matches).
-    fab: str
+    fac_id: str
     recipe_class: Literal["Main", "Sample"]
 
 
@@ -172,7 +172,7 @@ class Thresholds(TypedDict):
 
 
 class RuleVersion(TypedDict):
-    fab: str
+    fac_id: str
     version: int
     edited_by: str
     edited_at: str

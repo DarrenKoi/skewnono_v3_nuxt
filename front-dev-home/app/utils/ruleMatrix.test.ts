@@ -13,7 +13,7 @@ import type { NameOverride, RuleCell } from './ruleEngine.ts'
 const cell = (over: Partial<RuleCell> = {}): RuleCell => ({
   id: 'r3-core-ev-dram',
   selector: {
-    fab: 'R3', recipe_class: 'Main', family: 'Core',
+    fac_id: 'R3', recipe_class: 'Main', family: 'Core',
     phase_in: ['t-EV', 'EV'], memory_class: 'DRAM'
   },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
@@ -82,19 +82,19 @@ test('familyLabel renders a missing family as empty, not "undefined"', () => {
 test('vehicleLabel collapses a Core phase set to EV or TV', () => {
   assert.deepEqual(vehicleLabel(cell()), { main: 'EV', hint: '포함 이전' })
   assert.deepEqual(
-    vehicleLabel(cell({ selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV', 'PV'] } })),
+    vehicleLabel(cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV', 'PV'] } })),
     { main: 'TV', hint: '포함 이후' }
   )
 })
 
 test('vehicleLabel reads PV alone as TV-and-after', () => {
-  const pvOnly = cell({ selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['PV'] } })
+  const pvOnly = cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['PV'] } })
   assert.deepEqual(vehicleLabel(pvOnly), { main: 'TV', hint: '포함 이후' })
 })
 
 test('vehicleLabel keeps the Pool yield split', () => {
   const pool = (yieldCheck: 'before' | 'after') => cell({
-    selector: { fab: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: yieldCheck }
+    selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: yieldCheck }
   })
   assert.deepEqual(vehicleLabel(pool('before')), { main: '수율 전' })
   assert.deepEqual(vehicleLabel(pool('after')), { main: '수율 후' })
@@ -102,19 +102,19 @@ test('vehicleLabel keeps the Pool yield split', () => {
 
 test('vehicleLabel prefers the phase set when a cell carries both axes', () => {
   const both = cell({
-    selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV'], yield_check: 'before' }
+    selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV'], yield_check: 'before' }
   })
   assert.deepEqual(vehicleLabel(both), { main: 'TV', hint: '포함 이후' })
 })
 
 test('vehicleLabel is blank when neither axis keys the cell (Sample)', () => {
   assert.deepEqual(
-    vehicleLabel(cell({ selector: { fab: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' } })),
+    vehicleLabel(cell({ selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' } })),
     { main: '' }
   )
   // An empty phase_in array must fall through rather than claim EV.
   assert.deepEqual(
-    vehicleLabel(cell({ selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: [] } })),
+    vehicleLabel(cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: [] } })),
     { main: '' }
   )
 })
@@ -123,7 +123,7 @@ test('vehicleLabel is blank when neither axis keys the cell (Sample)', () => {
 
 test('isExpandedCell highlights the phases and yield state that open the caps', () => {
   const sel = (over: Partial<RuleCell['selector']>): RuleCell =>
-    cell({ selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', ...over } })
+    cell({ selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', ...over } })
   assert.equal(isExpandedCell(sel({ phase_in: ['TV', 'PV'] })), true)
   assert.equal(isExpandedCell(sel({ phase_in: ['PV'] })), true)
   assert.equal(isExpandedCell(sel({ phase_in: ['t-EV', 'EV'] })), false)
@@ -136,8 +136,8 @@ test('isExpandedCell highlights the phases and yield state that open the caps', 
 
 test('memoryOf returns the split class, or null for an unsplit cell', () => {
   assert.equal(memoryOf(cell()), 'DRAM')
-  assert.equal(memoryOf(cell({ selector: { fab: 'R3', recipe_class: 'Main', memory_class: 'NAND' } })), 'NAND')
-  assert.equal(memoryOf(cell({ selector: { fab: 'R3', recipe_class: 'Main' } })), null)
+  assert.equal(memoryOf(cell({ selector: { fac_id: 'R3', recipe_class: 'Main', memory_class: 'NAND' } })), 'NAND')
+  assert.equal(memoryOf(cell({ selector: { fac_id: 'R3', recipe_class: 'Main' } })), null)
 })
 
 // --- capValue ---

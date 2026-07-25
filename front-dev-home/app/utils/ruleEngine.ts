@@ -23,7 +23,7 @@ export type CapMap = Partial<Record<Exclude<ParamType, 'OTHER'>, number>> & { _o
 export interface RuleCell {
   id: string
   selector: {
-    fab: string
+    fac_id: string
     recipe_class: RecipeClass
     family?: Family
     phase_in?: Phase[] // Core keys on this (D8)
@@ -142,7 +142,7 @@ export const applyAnnotation = (recipe: RecipeInput, ann?: Annotation): MergedRe
 
 const selectorMatches = (cell: RuleCell, r: MergedRecipe): boolean => {
   const s = cell.selector
-  if (s.fab !== r.fac_id) return false // D15 — fab is a real axis
+  if (s.fac_id !== r.fac_id) return false // D15 — fab is a real axis
   if (s.recipe_class !== r.recipe_class) return false
   if (s.family != null && s.family !== r.family) return false
   if (s.phase_in && !(r.phase && s.phase_in.includes(r.phase))) return false
@@ -158,7 +158,7 @@ export type CellResolution
 /** D8 + D14 — find the cell, or classify why it's gray (A=룰미정, B=어노테이션미설정). */
 export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolution => {
   const byClassFam = cells.filter(
-    c => c.selector.fab === r.fac_id // D15 — gray detection is fab-scoped
+    c => c.selector.fac_id === r.fac_id // D15 — gray detection is fab-scoped
       && c.selector.recipe_class === r.recipe_class
       && (c.selector.family == null || c.selector.family === r.family)
   )
@@ -227,7 +227,7 @@ export const SEED_THRESHOLDS: Thresholds = { yellow_at: 0.1, red_at: 0.2 }
 /** D12/D16 — one fab's current rule version: cells + shared thresholds + attribution.
  * The container type for what GET /rules ships (rule-editor-structure.md §2). */
 export interface RuleVersion {
-  fab: string
+  fac_id: string
   version: number
   edited_by: string
   edited_at: string

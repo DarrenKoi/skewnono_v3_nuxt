@@ -54,13 +54,13 @@ def recipe_params():
 def measurement_rules():
     # Current rule version for a fab (D8/D15 seed). The frontend ruleEngine
     # consumes these cells client-side; this endpoint ships raw rules only.
-    fab = request.args.get("fab", "").strip()
-    if not fab:
-        abort(400, description="fab query parameter is required")
+    fac_id = request.args.get("fac_id", "").strip()
+    if not fac_id:
+        abort(400, description="fac_id query parameter is required")
 
-    rules = get_rules(fab)
+    rules = get_rules(fac_id)
     if rules is None:
-        abort(404, description=f"no rules for fab '{fab}'")
+        abort(404, description=f"no rules for fac_id '{fac_id}'")
 
     return jsonify(rules)
 

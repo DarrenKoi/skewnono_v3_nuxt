@@ -51,5 +51,5 @@ def get_weekly_trend_data(
     return _provider().get_weekly_trend_data(lot_cds, points, interval_days, include_recipes)
 
 
-def get_rules(fab: str):
-    return _provider().get_rules(fab)
+def get_rules(fac_id: str):
+    return _provider().get_rules(fac_id)

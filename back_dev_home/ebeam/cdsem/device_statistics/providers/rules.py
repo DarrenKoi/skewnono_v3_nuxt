@@ -51,10 +51,10 @@ def _main_cell(cell_id: str, selector: Selector, edge: int, edge_ex: int) -> Rul
     }
 
 
-def _sample_cell(cell_id: str, fab: str, memory_class: Literal["DRAM", "NAND"], edge: int) -> RuleCell:
+def _sample_cell(cell_id: str, fac_id: str, memory_class: Literal["DRAM", "NAND"], edge: int) -> RuleCell:
     return {
         "id": cell_id,
-        "selector": {"fab": fab, "recipe_class": "Sample", "memory_class": memory_class},
+        "selector": {"fac_id": fac_id, "recipe_class": "Sample", "memory_class": memory_class},
         "caps": {"WAFER": 13, "LEVEL": 4, "EDGE": edge, "EDGE_EX": 0, "_other": 0},
         "name_overrides": list(_SAMPLE_OVERRIDES),
     }
@@ -66,36 +66,36 @@ def _r3_cells() -> list[RuleCell]:
     return [
         # Core — phase 로 키잉 (t-EV·EV vs TV·PV)
         _main_cell("r3-core-early-dram",
-                   {"fab": f, "recipe_class": "Main", "family": "Core",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Core",
                     "phase_in": ["t-EV", "EV"], "memory_class": "DRAM"}, edge=10, edge_ex=0),
         _main_cell("r3-core-early-nand",
-                   {"fab": f, "recipe_class": "Main", "family": "Core",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Core",
                     "phase_in": ["t-EV", "EV"], "memory_class": "NAND"}, edge=8, edge_ex=0),
         # TV·PV 는 EDGE 16 고정 — memory_class 분기 없음 (D8)
         _main_cell("r3-core-tvpv",
-                   {"fab": f, "recipe_class": "Main", "family": "Core",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Core",
                     "phase_in": ["TV", "PV"]}, edge=16, edge_ex=16),
         # Pool — yield_check 로 키잉, phase 무시 (D8)
         _main_cell("r3-pool-before-dram",
-                   {"fab": f, "recipe_class": "Main", "family": "Pool",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
                     "yield_check": "before", "memory_class": "DRAM"}, edge=10, edge_ex=0),
         _main_cell("r3-pool-before-nand",
-                   {"fab": f, "recipe_class": "Main", "family": "Pool",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
                     "yield_check": "before", "memory_class": "NAND"}, edge=8, edge_ex=0),
         _main_cell("r3-pool-after-dram",
-                   {"fab": f, "recipe_class": "Main", "family": "Pool",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
                     "yield_check": "after", "memory_class": "DRAM"}, edge=10, edge_ex=10),
         _main_cell("r3-pool-after-nand",
-                   {"fab": f, "recipe_class": "Main", "family": "Pool",
+                   {"fac_id": f, "recipe_class": "Main", "family": "Pool",
                     "yield_check": "after", "memory_class": "NAND"}, edge=8, edge_ex=8),
         # VG·RTC·Cubic — 잠정 DRAM-side/Core 차용 (D7). 자체 cap 분기는 추후.
         # memory_class 생략: VG 는 항상 DRAM-side 라 EDGE 분기 불필요(ruleEngine 가
         # family=VG → memory_class DRAM 으로 환원하므로 Gray-B 도 안 남).
         _main_cell("r3-vg-early",
-                   {"fab": f, "recipe_class": "Main", "family": "VG_RTC_Cubic",
+                   {"fac_id": f, "recipe_class": "Main", "family": "VG_RTC_Cubic",
                     "phase_in": ["t-EV", "EV"]}, edge=10, edge_ex=0),
         _main_cell("r3-vg-tvpv",
-                   {"fab": f, "recipe_class": "Main", "family": "VG_RTC_Cubic",
+                   {"fac_id": f, "recipe_class": "Main", "family": "VG_RTC_Cubic",
                     "phase_in": ["TV", "PV"]}, edge=16, edge_ex=16),
         # Sample — fab 공통, memory_class 로 분기 (D2·D6).
         # D19: Core TV·PV 만 EDGE 16 으로 상향 (ground_rules.txt L40). memory-blind
@@ -104,7 +104,7 @@ def _r3_cells() -> list[RuleCell]:
         # 앞서면 EDGE 10/8 로 잡혀 D19 가 무력화됨).
         {
             "id": "r3-sample-core-tvpv",
-            "selector": {"fab": f, "recipe_class": "Sample", "family": "Core", "phase_in": ["TV", "PV"]},
+            "selector": {"fac_id": f, "recipe_class": "Sample", "family": "Core", "phase_in": ["TV", "PV"]},
             "caps": {"WAFER": 13, "LEVEL": 4, "EDGE": 16, "EDGE_EX": 0, "_other": 0},
             "name_overrides": list(_SAMPLE_OVERRIDES),
         },
@@ -116,12 +116,12 @@ def _r3_cells() -> list[RuleCell]:
 # 현재 버전 seed. R3 전용 (D22 — M-fab 룰 폐기, D15 supersede).
 _SEED: dict[str, RuleVersion] = {
     "R3": {
-        "fab": "R3", "version": 1, "edited_by": "seed", "edited_at": "2026-05-20T10:00:00Z",
+        "fac_id": "R3", "version": 1, "edited_by": "seed", "edited_at": "2026-05-20T10:00:00Z",
         "cells": _r3_cells(), "thresholds": dict(_SEED_THRESHOLDS),
     },
 }
 
 
-def get_rules(fab: str) -> RuleVersion | None:
-    """현재 룰 버전(seed). 알 수 없는 fab 이면 None — 라우터가 404 로 변환."""
-    return _SEED.get(fab.strip().upper())
+def get_rules(fac_id: str) -> RuleVersion | None:
+    """현재 룰 버전(seed). 알 수 없는 fac_id 이면 None — 라우터가 404 로 변환."""
+    return _SEED.get(fac_id.strip().upper())

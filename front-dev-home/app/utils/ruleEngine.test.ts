@@ -11,13 +11,13 @@ import {
 // --- fixtures ---
 const coreEarlyDram: RuleCell = {
   id: 'r3-core-tev-dram',
-  selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [{ patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains', cap: 13 }]
 }
 const sampleDram: RuleCell = {
   id: 'r3-sample-dram',
-  selector: { fab: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 0 },
   name_overrides: [{ patterns: ['WAFER', 'WF'], match: 'affix', cap: null }]
 }
@@ -25,39 +25,39 @@ const wfOverride = { patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains' as con
 // D8 — Core early NAND (EDGE 8), Core TV/PV (EDGE/EDGE_EX 16, no memory split)
 const coreEarlyNand: RuleCell = {
   id: 'r3-core-tev-nand',
-  selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'NAND' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'NAND' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 8, EDGE_EX: 0, _other: 9 },
   name_overrides: [wfOverride]
 }
 const coreTvPv: RuleCell = {
   id: 'r3-core-tvpv',
-  selector: { fab: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV', 'PV'] },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['TV', 'PV'] },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
   name_overrides: [wfOverride]
 }
 // D8 — Pool keys on yield_check (phase ignored); after-yield opens EDGE_EX
 const poolBeforeDram: RuleCell = {
   id: 'r3-pool-before-dram',
-  selector: { fab: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'before', memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'before', memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
   name_overrides: [wfOverride]
 }
 const poolAfterDram: RuleCell = {
   id: 'r3-pool-after-dram',
-  selector: { fab: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'after', memory_class: 'DRAM' },
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'after', memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 10, _other: 9 },
   name_overrides: [wfOverride]
 }
 const sampleNand: RuleCell = {
   id: 'r3-sample-nand',
-  selector: { fab: 'R3', recipe_class: 'Sample', memory_class: 'NAND' },
+  selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'NAND' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 8, EDGE_EX: 0, _other: 0 },
   name_overrides: [{ patterns: ['WAFER', 'WF'], match: 'affix', cap: null }]
 }
 // D15 — same selector shape, different fab (M-fab recipe_class × memory_class)
 const mfabMainDram: RuleCell = {
   id: 'm14-main-dram',
-  selector: { fab: 'M14', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
+  selector: { fac_id: 'M14', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 99, EDGE_EX: 99, _other: 99 },
   name_overrides: []
 }
@@ -192,7 +192,7 @@ test('resolveRuleCell: cross-fab cell is ignored (D15)', () => {
 test('D19 Sample Core TV/PV EDGE 16 beats phase-blind Sample (order = precedence)', () => {
   const sampleCoreTvpv: RuleCell = {
     id: 'r3-sample-core-tvpv',
-    selector: { fab: 'R3', recipe_class: 'Sample', family: 'Core', phase_in: ['TV', 'PV'] },
+    selector: { fac_id: 'R3', recipe_class: 'Sample', family: 'Core', phase_in: ['TV', 'PV'] },
     caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 0, _other: 0 },
     name_overrides: [{ patterns: ['WAFER', 'WF'], match: 'affix', cap: null }]
   }

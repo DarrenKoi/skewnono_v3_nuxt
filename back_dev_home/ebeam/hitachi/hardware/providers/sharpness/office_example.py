@@ -62,8 +62,12 @@ OFFICE-VERIFY on the first real run:
 2. ``ip`` matches sem_list's ``eqp_ip`` character-for-character — a bare dotted
    quad on both sides, no port, no hostname, no zero-padding difference. A
    mismatch here returns zero hits, not an error.
-3. ``beam_condition.SEM_Cond_No`` / ``Vacc`` really are paired (expected 5/800
-   and 6/500). The page's condition selector is built from that pair.
+3. ``beam_condition.SEM_Cond_No`` / ``Vacc`` really are paired: **5 -> 500 and
+   6 -> 800**. The page's condition selector is built from that pair, and the
+   panel defaults to the condition whose ``Vacc == 800`` — i.e. cond 6.
+   (This line previously said 5/800 and 6/500, a positional misreading of
+   docs/datatables/sharpness_monitor_cdsem.txt, which lists the two value sets
+   in opposite order. ``sharpness/mock.py`` had it right all along.)
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 ``cp providers/office_example.py providers/office.py`` (the dispatcher), then
