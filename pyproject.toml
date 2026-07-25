@@ -1,0 +1,66 @@
+# Root pytest configuration.
+#
+# `[tool.pytest.ini_options]` is deliberately the ONLY table in this file.
+# SKEWNONO is not an installable package — Flask runs from the repo root via
+# index.py (Phase 3 copies the tree to /project/workSpace/), and npm builds the
+# Nuxt SPA separately. A `[project]` or `[build-system]` table here would make
+# pip/uv/hatch treat the repo as a distribution and try to build it.
+#
+# The backend run documented in openwiki/ and docs/ is:
+#
+#   .venv/bin/python -m pytest tests back_dev_home -q
+#
+# `testpaths` below makes a bare `.venv/bin/python -m pytest -q` collect that
+# exact set, so the two forms are interchangeable.
+
+[tool.pytest.ini_options]
+
+# The two Python test roots: the root Flask/integration tests, plus the
+# per-feature provider contract suites colocated under `back_dev_home/**/tests/`.
+# Nothing else in the tree holds Python tests — front-dev-home/ runs node:test,
+# and scripts/ and afm_data_platform/ have none — so this pins the documented
+# invocation rather than widening it.
+#
+# Not set: `norecursedirs`. pytest's default already excludes `node_modules` and,
+# via `.*`, `.venv/` (which carries ~1300 third-party `test_*.py` files).
+# Inheriting that default beats copying it here, where the copy would silently
+# suppress any entry a future pytest adds. `testpaths` is the real guard for the
+# bare run anyway — it never walks either directory in the first place.
+testpaths = ["tests", "back_dev_home"]
+
+# --- import mode: load-bearing, please do not "clean this up" ---------------
+# Nothing in this repo is pip-installed, yet tests import its top-level packages
+# by absolute path — `back_dev_home.*` and `tests._office_state`, but also
+# `scripts`, `ops_store` and `ftp_handler`. That resolves only because the repo
+# root ends up on `sys.path`, which two independent mechanisms arrange:
+#
+#   1. `python -m pytest` — the form used throughout docs/ and openwiki/ — puts
+#      the CWD on `sys.path` as a plain side effect of `-m`.
+#   2. `prepend` import mode walks up from a test module past every consecutive
+#      `__init__.py` (`tests/__init__.py`, plus one in each `back_dev_home/**/
+#      tests/` dir) to find the package root, then inserts THAT directory at
+#      `sys.path[0]` — again the repo root.
+#
+# Only (2) covers the bare `pytest` console script, which is what IDE test
+# runners and `uv run pytest` invoke. Measured on this tree, switching the
+# console script to `--import-mode=importlib` drops 81 tests and adds 7
+# collection errors: `No module named 'ops_store'` (x4), `'scripts'` (x2),
+# `'ftp_handler'` (x1). Note that `back_dev_home.*` keeps importing fine there —
+# loading `back_dev_home/conftest.py` registers that package as a side effect —
+# so a spot check makes `importlib` look harmless when it is not.
+#
+# `prepend` is pinned not because it is today's default, but because a future
+# pytest changing that default would break the console script while
+# `python -m pytest` kept passing. Deleting `tests/__init__.py` costs the same
+# `sys.path` insertion; deleting one of the nested `back_dev_home/**/tests/
+# __init__.py` files instead collides test basenames (many of those dirs share a
+# `test_contract.py`). Neither is a cleanup.
+addopts = ["--import-mode=prepend"]
+
+# No `markers` key on purpose: the only marker used anywhere in the suite is the
+# builtin `@pytest.mark.parametrize`. Likewise no `-q`, no `--strict-*` and no
+# coverage in `addopts`, so ad-hoc and CI runs behave exactly as they did before
+# this file existed. `back_dev_home/conftest.py` — which loads
+# `back_dev_home/.env` so office-mode gates (`SKEWNONO_<FEATURE>_PROVIDER=office`)
+# see the same connection vars as app startup — is still discovered the usual
+# way; it is not registered here.
