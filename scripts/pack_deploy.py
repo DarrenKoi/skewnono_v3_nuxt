@@ -120,6 +120,28 @@ def _read_env(path: Path) -> dict[str, str]:
     return values
 
 
+def _as_the_app_reads_it(value: str) -> str:
+    """What create_app() will actually see for a `.env` value this reader got.
+
+    `_read_env` is deliberately three lines — packing must work without
+    importing the app — so it does not strip quotes. `create_app()` reads the
+    same file with `load_dotenv()`, which does. That gap made
+    `SKEWNONO_SECRET_KEY="dev-only-not-for-prod"` compare unequal to the
+    default here and pass the advisory silently, while the running app signed
+    real sessions with the key published in this repo.
+
+    Only the unambiguous case is handled: one matching pair of surrounding
+    quotes. Escapes, `${}` interpolation and multi-line values are left alone
+    rather than half-guessed — `back_dev_home/.env.example` documents the
+    format as "no quotes, no `export`, no spaces around `=`", so anything
+    fancier is already outside it. This narrows the blind spot to shapes the
+    packer cannot be sure about instead of leaving the common one open.
+    """
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
 def office_adapters(repo_root: Path) -> list[str]:
     """Feature slugs that have a providers/office.py, i.e. serve real data."""
     backend = repo_root / "back_dev_home"
@@ -184,7 +206,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     secret = _read_env(env_path).get("SKEWNONO_SECRET_KEY", "")
     add(
         "secret_key",
-        bool(secret) and secret != DEFAULT_SECRET_KEY,
+        bool(secret) and _as_the_app_reads_it(secret) != DEFAULT_SECRET_KEY,
         "SKEWNONO_SECRET_KEY is unset or still the default; sessions are "
         "signed with a known key. Fine for a feasibility deploy, not for "
         "skewnono.skhynix.com",

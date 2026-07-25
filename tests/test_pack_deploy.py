@@ -159,19 +159,33 @@ def test_read_env_keeps_quotes_in_the_value(tmp_path):
     }
 
 
-def test_a_quoted_default_secret_key_slips_past_the_advisory(tmp_path):
-    """The one asymmetry worth knowing about: create_app() reads this file with
-    load_dotenv(), which DOES strip quotes, so a quoted default key signs
-    sessions with the key published in this repo while packing reports nothing.
+def test_a_quoted_default_secret_key_is_caught_by_the_advisory(tmp_path):
+    """The asymmetry this closes: create_app() reads this file with
+    load_dotenv(), which DOES strip quotes, so a quoted default key signed
+    sessions with the key published in this repo while packing reported
+    nothing — the one check meant to catch exactly that.
 
-    Pinned, not fixed: the quotes violate the documented .env format, and a
-    reader that guesses at shell quoting would then have to agree with
-    load_dotenv() on escapes, `${}` and multi-line values too. If _read_env()
-    ever does learn to unquote, this assertion is the one to invert.
+    `_read_env` still keeps quotes (it stays a three-line reader; see the test
+    above). The comparison is what changed: it now asks what the app will
+    actually see. Escapes, `${}` and multi-line values remain unhandled by
+    design — outside the documented .env format.
     """
     root = _make_repo(tmp_path)
     (root / "back_dev_home" / ".env").write_text(
         'SKEWNONO_SECRET_KEY="dev-only-not-for-prod"\n'
+    )
+
+    checks = pack_deploy.run_preflight(root)
+
+    assert not next(c for c in checks if c.name == "secret_key").ok
+
+
+def test_a_quoted_real_secret_key_still_passes(tmp_path):
+    """The fix must not fire on a genuine key that merely carries quotes —
+    otherwise it trades a false negative for a false positive."""
+    root = _make_repo(tmp_path)
+    (root / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY='a-real-production-key'\n"
     )
 
     checks = pack_deploy.run_preflight(root)
