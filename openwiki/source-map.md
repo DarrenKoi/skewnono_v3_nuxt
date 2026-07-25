@@ -48,7 +48,8 @@ Most provider-backed features follow `routes.py -> data.py -> providers/{mock,of
 ## Frontend feature entrypoints
 
 - `app/pages/ebeam/cd-sem/device-statistics/`: Device Statistics selection, comparison, profile, and rule editor.
-- `app/pages/ebeam/*/skewvoir/`: measurement search and analysis.
+- `app/pages/ebeam/*/skewvoir/`: measurement search and analysis; `app/components/ebeam/skewvoir/`, `useSkewvoirAnalysis.ts`, and `app/utils/skewvoirAnalysis/` hold its interaction, state, and pure analysis layers.
+- `app/pages/mag-pixel.vue`: CD-SEM magnification/pixel reference and recommendation page; `app/components/magpixel/` renders guidance while `app/utils/magPixel.ts` owns FOV, resolution, and recommendation calculations shared with Skewvoir gallery calibration.
 - `app/pages/afm/`: AFM hub, tool search, detail, and see-together.
 - `app/pages/chat.vue`: conversational assistant.
 - `app/pages/activity.vue`, `app/pages/admin/`, `app/pages/endpoints.vue`: usage, administration, and API-token documentation/management.

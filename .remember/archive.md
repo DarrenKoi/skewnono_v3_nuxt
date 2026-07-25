@@ -1,5 +1,8 @@
 # Archive
 
+## Week of 2026-07-21
+Office provider layer wiring complete: sem_list→office Redis (v3_df_sem_list+version merge, parquet), storage adapter (ppid+unavail hash), recipe_tat OpenSearch (meas_hist 15-field schema). Code quality: dedup −121L, fabId→fabName TS types, TimeoutError + pagination handlers. Docs: 4 new chapters + Korean humanization, progress_report generated (50pg/175comp/598test/636commit grade A); 143 backend tests pass; 2 agent reviews → 5 quick-fixes.
+
 ## Week of 2026-07-14
 Shipped X-ID (14+ tests, 8-agent review), skewvoir (177 tests), AFM Sub-proj A (415 tests E2E), Chat backend (102 tests). Infrastructure: major office/home provider refactor (11 SKEWNONO_*_PROVIDER vars, 3-layer CLAUDE.md, office_example.py pattern), Ports & Adapters analysis, herdr hooks, TDD egress-guards (10 MIGRATION.md docs), openwiki cron (01:00, wrapper+launchd), localStorage consolidation (8 composables → factory), Redis adapter (office.py, env-based config), parquet fixes (5 commits), live office UI verified. Dashboard redesign (RadiusPlot, nav), skewvoir Phase B (wafer map, 236 tests), AFM A–D (458 tests). Pruned 42 specs, swept fonts, Tailscale remote.
 

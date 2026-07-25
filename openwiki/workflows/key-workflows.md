@@ -3,7 +3,7 @@ type: Workflow Guide
 title: Key Application and Engineering Workflows
 description: End-to-end paths for Device Statistics, recipe and hardware operations, live alarms, Skewvoir, AFM, chat, and adding or migrating provider-backed SKEWNONO features.
 resource: front-dev-home/app/pages
-tags: [workflows, device-statistics, hardware, live-alarm, skewvoir, afm, chat]
+tags: [workflows, device-statistics, hardware, live-alarm, skewvoir, mag-pixel, afm, chat]
 ---
 
 # Key workflows
@@ -38,7 +38,7 @@ When changing this flow, run `tests/test_recipe_analytics_home.py`, the backend 
 
 Recipe search loads the daily Redis-backed catalog, ranks exact matches before prefix, substring, and unordered AND-token matches, and preserves search/page state in the URL. When a settled three-character-or-longer search returns nothing, `RecipeSearchView.vue` waits 600 ms and probes up to 200 recent `/api/meas-hist/*` rows. Measurement history is roughly 15 minutes fresh, so this advisory fallback distinguishes catalog lag from a typo without inserting history-only recipes into the catalog result table (`app/utils/recipeSearchMatch.ts`).
 
-The hardware page dispatches each tab through `back_dev_home/ebeam/hitachi/hardware/providers/<tab>/`. BM/PM combines past `fab_inform_notes` events with future `tool_maintenance_plan` work; FDC groups SPM channels into measurement cycles and offers multiple LaserPower interpretations; sharpness coordinates condition selection, scalar trends, and timestamp-specific 360-degree profiles. BSM normalizes beam-shape profiles and category labels, SCE compares the latest selected tool with siblings and trends every numeric setting plus coefficient indices, and Reso Center plots flat center fields with the visible Best/IS-center gap equal to `ResoDelta`. These user views [depend on exact office mappings](../integrations/integration-points.md#hardware-opensearch-adapters), while missing nested office adapters fall back to the tab mock; Reso Center's tracked office adapter remains a stub.
+The hardware page dispatches each tab through `back_dev_home/ebeam/hitachi/hardware/providers/<tab>/`. BM/PM combines past `fab_inform_notes` events with future `tool_maintenance_plan` work; FDC groups SPM channels into measurement cycles and offers multiple LaserPower interpretations; sharpness coordinates condition selection, scalar trends, and timestamp-specific 360-degree profiles. BSM normalizes beam-shape profiles and category labels. SCE compares the selected tool with siblings and trends numeric settings plus coefficient indices; its Coefficients overlay collapses consecutive collection documents with structurally identical `Coefficients` arrays into one settings revision, keeps reverted curves as new revisions, and defaults the newest three revisions while allowing recent/all/manual selection. Reso Center plots flat center fields with the visible Best/IS-center gap equal to `ResoDelta`. These user views [depend on exact office mappings](../integrations/integration-points.md#hardware-opensearch-adapters), while missing nested office adapters fall back to the tab mock; Reso Center's tracked office adapter remains a stub.
 
 Lateral-recipe readiness has a cross-feature invariant: a tool observed executing the exact recipe in recent measurement history is ready even when the IDP version document omits it. Explicit IDP version assignment still wins, and the office adapter uses the newest discovered version only for measured tools absent from all assignments (`back_dev_home/ebeam/hitachi/lateral_recipe/providers/office_example.py`).
 
@@ -112,3 +112,17 @@ Home persistence is SQLite with a 30-day thread lifetime. In office mode, config
 6. Update API contracts and migration notes, then follow [operations](../operations/runbook.md) and [testing guidance](../testing/guidance.md).
 
 Blueprint registration is automatic. Verify application startup because discovery imports every route module. Prefer a clear `NotImplementedError` over an office adapter returning plausible empty data.
+ empty data.
+egration-points.md#llm-gateway) defines the egress boundary and marks retrieval/tool calling as future work.
+
+## Add or migrate a feature
+
+1. Decide scope: shared Hitachi feature, CD-SEM/HV-SEM-specific feature, or top-level product feature.
+2. Create `routes.py` exporting globally unique `bp`, `data.py`, `contracts.py`, `providers/mock.py`, and tracked `providers/office_example.py`.
+3. Keep route validation and HTTP behavior in `routes.py`; keep source selection in `data.py`; keep transport queries and normalization in providers. At the office, use `scripts.setup_office_adapters` or targeted `scripts.sync_office_adapters` rather than blindly overwriting ignored `office.py`; stub and locally edited copies require deliberate handling.
+4. Restart Flask after adapter changes, add the frontend composable and page/component consumers against `/api` without environment branches, and confirm actual selection through `/api/health/providers`.
+5. Add provider contract tests and representative route tests. For office migration, run the same gate with the feature override set to `office` and exercise representative real data on-site.
+6. Update API contracts and migration notes, then follow [operations](../operations/runbook.md) and [testing guidance](../testing/guidance.md).
+
+Blueprint registration is automatic. Verify application startup because discovery imports every route module. Prefer a clear `NotImplementedError` over an office adapter returning plausible empty data.
+ empty data.

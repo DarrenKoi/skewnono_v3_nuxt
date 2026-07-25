@@ -1,7 +1,7 @@
 ---
 type: Codebase Guide
 title: SKEWNONO Repository Quickstart
-description: Entry point for the SKEWNONO v3 codebase, covering its Nuxt and Flask runtime, metrology product domains, local setup, engineering navigation, and current office-migration status.
+description: Entry point for the SKEWNONO v3 codebase, covering its Nuxt and Flask runtime, metrology analytics and Mag/Pixel setup domains, local setup, engineering navigation, and current office-migration status.
 resource: README.md
 tags: [skewnono, quickstart, nuxt, flask, metrology]
 ---
@@ -99,3 +99,4 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 - **Operational hardening** — `back_dev_home/_runtime/env.py`, `back_dev_home/__init__.py`, and `wsgi.ini`: replace path-derived cloud detection, configure a production secret, and assess shared rate-limit/state storage across workers.
 - **Legacy AFM retirement** — `afm_data_platform/` and AFM compatibility aliases: archive only after integrated office behavior and consumers are verified.
 - **Lower-priority surfaces** — `announcements/`, PM planning, and placeholder `thickness/`: documented only in the source map on this first pass; expand when those areas become the change target.
+e target.

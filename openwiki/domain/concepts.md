@@ -1,7 +1,7 @@
 ---
 type: Domain Guide
 title: Product and Metrology Concepts
-description: Canonical engineering summary of SKEWNONO metrology language, Device Statistics rules, Skewvoir review semantics, AFM analysis, and cross-cutting product surfaces.
+description: Canonical engineering summary of SKEWNONO metrology language, Device Statistics rules, Skewvoir review semantics, CD-SEM Mag/Pixel setup constraints, AFM analysis, and cross-cutting product surfaces.
 resource: CONTEXT.md
 tags: [domain, metrology, device-statistics, skewvoir, afm]
 ---
@@ -51,6 +51,14 @@ Evidence is grouped into:
 An **official review assessment** uses a versioned, reproducible **reference cohort**. Compatibility requires the same fab, equipment type/model, exact recipe, parameter, and measurement/site layout; lot and individual tool may differ so those variations remain detectable. Too few compatible references means *unevaluated*, not normal.
 
 A user-curated **comparison set** produces an exploratory assessment only. It may visualize differences but must not modify official status. The [Skewvoir workflow](../workflows/key-workflows.md#skewvoir-search-and-analysis) preserves focus, set, parameter, site, metric, and related analysis state in the URL so evidence can be shared and reproduced.
+
+A **focused sequence/site** is the current inspection cursor; **selected measurement points** are a separate comparison set keyed by `(parameter, sequence)`. Selection order assigns stable identity colors across the table, wafer map, radius plot, and distribution. Those colors identify the same point across views and must not be confused with severity or heat-scale colors. Filtering may hide selected points but does not discard them.
+
+## CD-SEM Mag/Pixel setup
+
+The [Mag/Pixel workflow](../workflows/key-workflows.md#cd-sem-magpixel-setup) balances two opposing constraints. The field of view must contain the requested pattern span plus a per-edge margin, which places an upper bound on magnification; the CD must occupy at least the chosen pixels-per-CD threshold, which places a lower bound on pixel density. The recommendation therefore chooses the highest available discrete magnification that still fits the pattern and then the smallest pixel setting that meets the threshold, because scan cost grows with the square of the pixel dimension.
+
+FOV is width-based: `FOV_nm = 135,000 × 1,000 / magnification`, and `nm/px = FOV_nm / horizontal_pixels`. For non-square acquisition settings, the X component is authoritative. Missing pitch is disclosed as an assumed `CD × 2`; pitch must be strictly greater than CD so a line/space pattern retains nonzero space. The GT 600K–1M magnification tail is also explicitly assumed, and the default minimum px/CD remains provisional rather than an approved metrology standard. The same calculation [calibrates Skewvoir gallery metadata](../workflows/key-workflows.md#skewvoir-search-and-analysis), so setup guidance and acquired-image interpretation must evolve together (`app/utils/magPixel.ts`).
 
 ## AFM
 
