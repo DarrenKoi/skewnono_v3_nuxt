@@ -25,6 +25,9 @@ const props = withDefaults(defineProps<{
   outlierSeqs: number[]
   /** Sequences the user multi-selected in the points table (highlight halo). */
   selectedSeqs?: number[]
+  /** Per-sequence identity color for the multi-selection (active param). A seq
+   *  absent from this map falls back to the shared brand halo. */
+  seqColors?: Record<number, string>
   /** 'Field' = a dot per measured point (site); 'Die' = filled die tiles. */
   mode?: 'Field' | 'Die'
   options?: WaferMapOptions
@@ -33,6 +36,7 @@ const props = withDefaults(defineProps<{
   colorMax?: number | null
 }>(), {
   selectedSeqs: () => [],
+  seqColors: () => ({}),
   mode: 'Field',
   options: () => defaultWaferMapOptions(),
   colorMin: null,
@@ -80,12 +84,17 @@ const outlierPoints = computed(() => {
     .map(p => ({ name: String(p.seq), value: [p.x, p.y] }))
 })
 
-// Halo on any active point whose sequence is in the multi-selection set.
+// Halo on any active point whose sequence is in the multi-selection set, colored
+// by that point's identity color (falling back to the shared brand halo).
 const selectedPoints = computed(() => {
   const picked = new Set(props.selectedSeqs)
   return activePoints.value
     .filter(p => p.seqs.some(s => picked.has(s)))
-    .map(p => ({ name: String(p.seq), value: [p.x, p.y] }))
+    .map((p) => {
+      const hitSeq = p.seqs.find(s => picked.has(s)) ?? p.seq
+      const color = props.seqColors[hitSeq] ?? sk.value.brand
+      return { name: String(p.seq), value: [p.x, p.y], itemStyle: { color, borderColor: color } }
+    })
 })
 
 // Focus ring at the focused sequence's point (measured) or its ✕ (failure).
@@ -251,7 +260,7 @@ const option = computed<EChartsOption>(() => ({
         }]
       : []),
     { type: 'scatter', symbol: 'circle', symbolSize: 22, data: selectedPoints.value,
-      itemStyle: { color: sk.value.brand, opacity: 0.18, borderColor: sk.value.brand, borderWidth: 1.5 },
+      itemStyle: { opacity: 0.18, borderWidth: 1.5 },
       silent: true, z: 3 },
     { type: 'scatter', symbol: 'circle', symbolSize: 24, data: outlierPoints.value,
       itemStyle: { color: 'transparent', borderColor: SK_STATE.bad, borderWidth: 2 }, silent: true, z: 4 },

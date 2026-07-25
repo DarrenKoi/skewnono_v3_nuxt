@@ -38,6 +38,7 @@
             :focused-sequence="focusedSequence"
             :outlier-seqs="outlierSeqs"
             :selected-seqs="selectedSeqs"
+            :seq-colors="seqColors"
             @focus="$emit('focus', $event)"
             @rangechange="autoRange = $event"
           />
@@ -66,6 +67,7 @@ defineProps<{
   focusedSequence: number | null
   outlierSeqs: number[]
   selectedSeqs?: number[]
+  seqColors?: Record<number, string>
 }>()
 defineEmits<{ focus: [sequence: number] }>()
 
