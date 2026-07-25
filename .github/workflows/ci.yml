@@ -1,9 +1,10 @@
 name: CI
 
-# Guards the frontend on every push (and manual runs). Keeps `nuxt typecheck`
-# and the node:test suite green. ESLint is intentionally NOT gated yet — main
-# still carries pre-existing lint errors in untouched files; add `npm run lint`
-# here once those are cleaned.
+# Guards the frontend and the Flask backend on every push (and manual runs).
+# Keeps `nuxt typecheck`, the node:test suite, and the backend pytest suite
+# green. ESLint is intentionally NOT gated yet — main still carries
+# pre-existing lint errors in untouched files; add `npm run lint` here once
+# those are cleaned.
 on:
   push:
   workflow_dispatch:
@@ -43,3 +44,37 @@ jobs:
 
       - name: Test
         run: npm test
+
+  backend:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Must match local dev (.venv is CPython 3.14).
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: back_dev_home/requirements*.txt
+
+      # requirements-dev.txt pulls in requirements.txt and adds pytest, so the
+      # Phase 3 production install never ships a test runner.
+      - name: Install
+        run: pip install -r back_dev_home/requirements-dev.txt
+
+      # Both roots are needed: `tests/` holds the cross-feature suites, and
+      # most per-feature tests live in back_dev_home/**/tests/. There is no
+      # pytest config file, so discovery relies on the __init__.py in every
+      # test package plus the default `prepend` import mode putting the repo
+      # root on sys.path — which requires running from the repo root.
+      #
+      # A runner checkout has no providers/office.py (gitignored, created at
+      # the office with `cp office_example.py office.py`), so this gates
+      # exactly the clean-checkout state — the one an office machine is in
+      # before its adapters are copied in. An unguarded module-level import of
+      # that module breaks collection for the whole suite, not just its own
+      # file; guarded ones (pytest.skip(allow_module_level=True),
+      # pytest.importorskip) are fine and simply skip here.
+      - name: Test
+        run: python -m pytest tests back_dev_home -q
