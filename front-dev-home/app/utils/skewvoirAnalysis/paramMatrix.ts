@@ -76,6 +76,24 @@ const byCdRelation = (a: MatrixCell, b: MatrixCell): number => {
   return a.param.localeCompare(b.param)
 }
 
+/** Split one category's cells into rows of at most MAX_COLUMNS. Continuation
+ * rows carry a ` (n)` suffix on BOTH label and key: those double as the matrix
+ * y-dimension ordinal values, and duplicates would make `coord` ambiguous. */
+const wrapCategory = (category: string, label: string, cells: MatrixCell[]): MatrixRow[] => {
+  const out: MatrixRow[] = []
+  for (let start = 0; start < cells.length; start += MAX_COLUMNS) {
+    const part = start / MAX_COLUMNS
+    out.push({
+      key: part === 0 ? category : `${category}#${part + 1}`,
+      kind: 'category',
+      label: part === 0 ? label : `${label} (${part + 1})`,
+      continuation: part > 0,
+      cells: cells.slice(start, start + MAX_COLUMNS)
+    })
+  }
+  return out
+}
+
 export const buildParamMatrix = (
   model: SequenceModel,
   rows: MsrFileRow[],
@@ -128,13 +146,8 @@ export const buildParamMatrix = (
   const seen: string[] = []
   for (const cell of fdcCells) if (!seen.includes(cell.category)) seen.push(cell.category)
   for (const category of seen) {
-    matrixRows.push({
-      key: category,
-      kind: 'category',
-      label: labels.get(category) ?? category,
-      continuation: false,
-      cells: fdcCells.filter(c => c.category === category).sort(byCdRelation)
-    })
+    const cells = fdcCells.filter(c => c.category === category).sort(byCdRelation)
+    matrixRows.push(...wrapCategory(category, labels.get(category) ?? category, cells))
   }
 
   // Suspects are COPIES — the originals never move, so the category rows stay

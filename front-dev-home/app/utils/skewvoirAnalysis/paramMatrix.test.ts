@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { analyzeSequence } from './sequence.ts'
-import { buildParamMatrix, MAX_SUSPECTS } from './paramMatrix.ts'
+import { buildParamMatrix, MAX_COLUMNS, MAX_SUSPECTS } from './paramMatrix.ts'
 import type { MsrFileRow, FdcParamSummary } from '~/composables/useMsrFileApi'
 
 // ---------------------------------------------------------------------------
@@ -200,4 +200,67 @@ test('equal |r| breaks by param name so order is stable', () => {
   const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
   const catRow = m.rows.find(r => r.kind === 'category')
   assert.deepEqual(catRow!.cells.map(c => c.param), ['Alpha', 'Zeta'])
+})
+
+// ---------------------------------------------------------------------------
+// Column cap and continuation-row wrapping
+// ---------------------------------------------------------------------------
+
+// Six params in ONE category — two past MAX_COLUMNS = 4.
+const wideSource = () => {
+  const names = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
+  const dynamic_fdc: Record<string, Record<string, number>> = {}
+  for (let seq = 1; seq <= 4; seq++) {
+    const channels: Record<string, number> = {}
+    for (const [i, n] of names.entries()) channels[n] = seq * (i + 1)
+    dynamic_fdc[String(seq)] = channels
+  }
+  return {
+    rows: cdRows(),
+    dynamic_fdc,
+    fdc_params: names.map(n =>
+      fdcParam({ name: n, category: 'stage_drift', category_label: '스테이지 드리프트' }))
+  }
+}
+
+const buildWide = () => {
+  const src = wideSource()
+  const model = analyzeSequence(src, 'CD_TOP', 'nm')
+  return buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
+}
+
+test('columns never exceed MAX_COLUMNS however many params a category has', () => {
+  assert.equal(buildWide().columns, MAX_COLUMNS)
+})
+
+test('an oversized category wraps onto continuation rows', () => {
+  const catRows = buildWide().rows.filter(r => r.kind === 'category')
+  assert.equal(catRows.length, 2)
+  assert.equal(catRows[0]?.cells.length, 4)
+  assert.equal(catRows[1]?.cells.length, 2)
+  assert.equal(catRows[0]?.continuation, false)
+  assert.equal(catRows[1]?.continuation, true)
+})
+
+test('wrapping loses no param and duplicates none', () => {
+  const names = buildWide().rows
+    .filter(r => r.kind === 'category')
+    .flatMap(r => r.cells)
+    .map(c => c.param)
+  assert.equal(names.length, 6)
+  assert.equal(new Set(names).size, 6)
+})
+
+test('continuation row labels stay unique for use as ordinal coords', () => {
+  const m = buildWide()
+  const labels = m.rows.map(r => r.label)
+  assert.equal(new Set(labels).size, labels.length)
+  const catRows = m.rows.filter(r => r.kind === 'category')
+  assert.equal(catRows[0]?.label, '스테이지 드리프트')
+  assert.equal(catRows[1]?.label, '스테이지 드리프트 (2)')
+})
+
+test('continuation row keys stay unique too', () => {
+  const keys = buildWide().rows.map(r => r.key)
+  assert.equal(new Set(keys).size, keys.length)
 })
