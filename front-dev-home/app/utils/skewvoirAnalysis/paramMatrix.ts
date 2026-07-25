@@ -2,10 +2,11 @@
 //
 // Pure: no Vue, no ECharts. Everything the matrix decides — which row a param
 // sits in, how cells are ordered, which params count as suspects, how wide the
-// grid is — is decided here so it can be tested with `node --test`. The
-// component that consumes this only turns the model into an ECharts option.
-import type { FdcCategory, FdcParamSummary, MsrFileRow } from '~/composables/useMsrFileApi'
-import type { SeqPoint, SequenceModel } from './sequence.ts'
+// grid is, and what verdict a cell's CD relation carries — is decided here so it
+// can be tested with `node --test`. The component that consumes this only turns
+// the model into an ECharts option.
+import type { FdcCategory, FdcParamSummary } from '~/composables/useMsrFileApi'
+import type { SeqPoint, SequenceModel, SequenceSource } from './sequence.ts'
 import { buildCdFdcRelationship, type RelationshipReadiness } from './relationships.ts'
 
 /** Hard cap on matrix width. Rows are CATEGORIES, so their count is small and
@@ -15,6 +16,11 @@ import { buildCdFdcRelationship, type RelationshipReadiness } from './relationsh
  * onto continuation rows instead. */
 export const MAX_COLUMNS = 4
 export const MAX_SUSPECTS = 4
+
+/** What a cell's CD relation means, decided here rather than inferred by the
+ * view. `reference` is the CD cell itself, where correlation is not applicable
+ * rather than unavailable — a distinction a comment cannot enforce. */
+export type CellRelationState = 'reference' | 'unavailable' | 'value'
 
 export interface MatrixCell {
   /** Param name. For the CD cell, the active CD parameter. */
@@ -26,12 +32,12 @@ export interface MatrixCell {
   nominal: number | null
   /** Values aligned onto `ParamMatrixModel.sequences`; null marks a gap. */
   values: (number | null)[]
-  /** Pearson r against cd_value. Null when not evaluable, and always null for
-   * the CD cell itself, where correlation is not applicable rather than
-   * unavailable — consumers detect that via `category === 'cd'`. */
+  /** Pearson r against cd_value. Non-null only when `rState === 'value'`. */
   r: number | null
+  rState: CellRelationState
   readiness: RelationshipReadiness
-  /** Why r is unavailable; null when ready. */
+  /** Why r is unavailable; null when ready. Surfaced in the tooltip so the
+   * three honest failures `assess()` distinguishes are not flattened away. */
   reason: string | null
   /** True for the copy that lives in the suspects row. */
   duplicated: boolean
@@ -40,11 +46,9 @@ export interface MatrixCell {
 export type MatrixRowKind = 'cd' | 'suspects' | 'category'
 
 export interface MatrixRow {
-  /** Unique ordinal key. Doubles as the matrix y-dimension value, so it must
-   * never repeat — duplicate ordinal keys make `coord` lookups ambiguous. */
-  key: string
   kind: MatrixRowKind
-  /** Row header text. Continuation rows carry a ` (n)` suffix to stay unique. */
+  /** Row header text, and the matrix y-dimension ordinal value. Unique by
+   * construction — duplicates would make `coord` lookups ambiguous. */
   label: string
   continuation: boolean
   cells: MatrixCell[]
@@ -77,14 +81,13 @@ const byCdRelation = (a: MatrixCell, b: MatrixCell): number => {
 }
 
 /** Split one category's cells into rows of at most MAX_COLUMNS. Continuation
- * rows carry a ` (n)` suffix on BOTH label and key: those double as the matrix
- * y-dimension ordinal values, and duplicates would make `coord` ambiguous. */
-const wrapCategory = (category: string, label: string, cells: MatrixCell[]): MatrixRow[] => {
+ * rows carry a ` (n)` suffix, because the label doubles as the matrix
+ * y-dimension ordinal value and a repeat would make `coord` ambiguous. */
+const wrapCategory = (label: string, cells: MatrixCell[]): MatrixRow[] => {
   const out: MatrixRow[] = []
   for (let start = 0; start < cells.length; start += MAX_COLUMNS) {
     const part = start / MAX_COLUMNS
     out.push({
-      key: part === 0 ? category : `${category}#${part + 1}`,
       kind: 'category',
       label: part === 0 ? label : `${label} (${part + 1})`,
       continuation: part > 0,
@@ -96,26 +99,29 @@ const wrapCategory = (category: string, label: string, cells: MatrixCell[]): Mat
 
 export const buildParamMatrix = (
   model: SequenceModel,
-  rows: MsrFileRow[],
-  dynamicFdc: Record<string, Record<string, number>>,
-  fdcParams: FdcParamSummary[],
-  cdParam: string
+  source: SequenceSource
 ): ParamMatrixModel => {
   const sequences = model.sequences
-  const align = (points: SeqPoint[]): (number | null)[] => {
+  const cdParam = model.parameter
+
+  // CD points follow the CD rows, which may not cover every sequence on the
+  // shared axis, so they genuinely need padding. FDC points do NOT:
+  // `analyzeSequence` already builds them by mapping over this same axis.
+  const alignCd = (points: SeqPoint[]): (number | null)[] => {
     const bySeq = new Map(points.map(p => [p.sequence, p.measured ? p.value : null]))
     return sequences.map(s => bySeq.get(s) ?? null)
   }
 
-  const labels = labelsByCategory(fdcParams)
+  const labels = labelsByCategory(source.fdc_params)
 
   const cdCell: MatrixCell = {
     param: cdParam,
     category: 'cd',
     unit: model.unit,
     nominal: null,
-    values: align(model.cd.points),
+    values: alignCd(model.cd.points),
     r: null,
+    rState: 'reference',
     readiness: 'ready',
     reason: null,
     duplicated: false
@@ -123,45 +129,43 @@ export const buildParamMatrix = (
 
   let demoCoupled = false
   const fdcCells: MatrixCell[] = model.fdc.map((series) => {
-    const rel = buildCdFdcRelationship(rows, cdParam, series.param, dynamicFdc)
+    const rel = buildCdFdcRelationship(source.rows, cdParam, series.param, source.dynamic_fdc)
     if (rel.demoCoupled) demoCoupled = true
+    const ready = rel.readiness === 'ready' && rel.pearson != null
     return {
       param: series.param,
       category: series.category,
       unit: series.unit,
       nominal: series.nominal,
-      values: align(series.points),
-      r: rel.readiness === 'ready' ? rel.pearson : null,
+      values: series.points.map(p => (p.measured ? p.value : null)),
+      r: ready ? rel.pearson : null,
+      rState: ready ? 'value' : 'unavailable',
       readiness: rel.readiness,
       reason: rel.reason,
       duplicated: false
     }
   })
 
-  const matrixRows: MatrixRow[] = [
-    { key: 'cd', kind: 'cd', label: 'CD', continuation: false, cells: [cdCell] }
+  const rows: MatrixRow[] = [
+    { kind: 'cd', label: 'CD', continuation: false, cells: [cdCell] }
   ]
 
-  // One row per category, in first-seen order from the sequence model.
-  const seen: string[] = []
-  for (const cell of fdcCells) if (!seen.includes(cell.category)) seen.push(cell.category)
-  for (const category of seen) {
+  for (const category of new Set(fdcCells.map(c => c.category))) {
     const cells = fdcCells.filter(c => c.category === category).sort(byCdRelation)
-    matrixRows.push(...wrapCategory(category, labels.get(category) ?? category, cells))
+    rows.push(...wrapCategory(labels.get(category) ?? category, cells))
   }
 
   // Suspects are COPIES — the originals never move, so the category rows stay
   // complete. Ranking an unevaluable param would mean ranking on a number
   // `assess()` explicitly refused to produce, so those are excluded outright.
   const suspects = fdcCells
-    .filter(c => c.readiness === 'ready' && c.r != null)
+    .filter(c => c.rState === 'value')
     .sort(byCdRelation)
     .slice(0, MAX_SUSPECTS)
     .map(c => ({ ...c, duplicated: true }))
 
   if (suspects.length) {
-    matrixRows.splice(1, 0, {
-      key: 'suspects',
+    rows.splice(1, 0, {
       kind: 'suspects',
       label: '주요 용의자',
       continuation: false,
@@ -169,14 +173,12 @@ export const buildParamMatrix = (
     })
   }
 
-  const widest = matrixRows
+  // No clamp to MAX_COLUMNS here: categories are already wrapped and suspects
+  // already capped, so a row wider than the cap would be a bug worth seeing
+  // rather than one worth silently cropping.
+  const widest = rows
     .filter(r => r.kind !== 'cd')
     .reduce((max, r) => Math.max(max, r.cells.length), 0)
 
-  return {
-    columns: Math.max(1, Math.min(MAX_COLUMNS, widest)),
-    rows: matrixRows,
-    sequences,
-    demoCoupled
-  }
+  return { columns: Math.max(1, widest), rows, sequences, demoCoupled }
 }

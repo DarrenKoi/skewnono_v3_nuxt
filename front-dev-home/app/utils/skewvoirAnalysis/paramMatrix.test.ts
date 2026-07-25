@@ -3,7 +3,7 @@
 // Run: cd front-dev-home && node --test app/utils/skewvoirAnalysis/paramMatrix.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { analyzeSequence } from './sequence.ts'
+import { analyzeSequence, type SequenceSource } from './sequence.ts'
 import { buildParamMatrix, MAX_COLUMNS, MAX_SUSPECTS } from './paramMatrix.ts'
 import type { MsrFileRow, FdcParamSummary } from '~/composables/useMsrFileApi'
 
@@ -34,9 +34,16 @@ const cdRows = () => [
   row({ sequence: 4, cd_value: 106 })
 ]
 
+/** Params sharing one category, so ordering within a row is observable. */
+const oneCategory = (names: string[]) =>
+  names.map(n => fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
+
+const build = (src: SequenceSource) =>
+  buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src)
+
 // CD rises +2/sequence. StigmaX tracks it exactly, Brightness inverts it.
 // Two categories, one param each.
-const source = () => ({
+const source = (): SequenceSource => ({
   rows: cdRows(),
   dynamic_fdc: {
     1: { StigmaX: 10, Brightness: 40 },
@@ -50,18 +57,12 @@ const source = () => ({
   ]
 })
 
-const build = () => {
-  const src = source()
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  return buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
-}
-
 // ---------------------------------------------------------------------------
 // Foundation: CD row, category rows, alignment
 // ---------------------------------------------------------------------------
 
 test('row 0 is the CD reference row carrying the active CD parameter', () => {
-  const m = build()
+  const m = build(source())
   assert.equal(m.rows[0]?.kind, 'cd')
   assert.equal(m.rows[0]?.cells.length, 1)
   assert.equal(m.rows[0]?.cells[0]?.param, 'CD_TOP')
@@ -69,41 +70,55 @@ test('row 0 is the CD reference row carrying the active CD parameter', () => {
   assert.equal(m.rows[0]?.cells[0]?.nominal, null)
 })
 
+test('the CD cell is a reference, not an unavailable relation', () => {
+  const cd = build(source()).rows[0]?.cells[0]
+  assert.equal(cd?.rState, 'reference')
+  assert.equal(cd?.r, null)
+})
+
 test('category rows use the Korean label resolved from fdc_params', () => {
-  const m = build()
-  const labels = m.rows.filter(r => r.kind === 'category').map(r => r.label)
+  const labels = build(source()).rows.filter(r => r.kind === 'category').map(r => r.label)
   assert.ok(labels.includes('비점수차'))
   assert.ok(labels.includes('이미지 품질'))
 })
 
 test('cell values are aligned onto the shared sequence axis', () => {
-  const m = build()
+  const m = build(source())
   const stigma = m.rows.flatMap(r => r.cells).find(c => c.param === 'StigmaX')
   assert.deepEqual(m.sequences, [1, 2, 3, 4])
   assert.deepEqual(stigma?.values, [10, 12, 14, 16])
 })
 
+test('a sequence with no CD measurement becomes a gap, not an interpolation', () => {
+  const src = source()
+  src.rows = [
+    row({ sequence: 1, cd_value: 100 }),
+    row({ sequence: 2, cd_value: null, mp_number: -1 }),
+    row({ sequence: 3, cd_value: 104 }),
+    row({ sequence: 4, cd_value: 106 })
+  ]
+  const cd = build(src).rows[0]?.cells[0]
+  assert.deepEqual(cd?.values, [100, null, 104, 106])
+})
+
 test('every FDC param appears exactly once outside the suspects row', () => {
-  const m = build()
-  const names = m.rows
+  const names = build(source()).rows
     .filter(r => r.kind === 'category')
     .flatMap(r => r.cells)
     .map(c => c.param)
   assert.deepEqual([...names].sort(), ['Brightness', 'StigmaX'])
 })
 
-test('row keys are unique so they can be used as ordinal matrix coords', () => {
-  const m = build()
-  const keys = m.rows.map(r => r.key)
-  assert.equal(new Set(keys).size, keys.length)
+test('row labels are unique so they can be used as ordinal matrix coords', () => {
+  const labels = build(source()).rows.map(r => r.label)
+  assert.equal(new Set(labels).size, labels.length)
 })
 
 test('a CD-only MSR with no dynamic FDC yields just the CD row', () => {
   const src = source()
   src.dynamic_fdc = {}
   src.fdc_params = []
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
+  const m = build(src)
   assert.equal(m.rows.length, 1)
   assert.equal(m.rows[0]?.kind, 'cd')
   assert.equal(m.columns, 1)
@@ -113,10 +128,9 @@ test('a CD-only MSR with no dynamic FDC yields just the CD row', () => {
 // Ranking: ordering by |r| to CD, and the suspects row
 // ---------------------------------------------------------------------------
 
-// Three params in ONE category with distinct |r| so ordering is observable.
 // Up tracks CD exactly (r = +1.000); Down inverts it imperfectly (r ≈ -0.981);
 // Flat is constant, so it has zero variance → 평가 불가, never rankable.
-const orderedSource = () => ({
+const orderedSource = (): SequenceSource => ({
   rows: cdRows(),
   dynamic_fdc: {
     1: { Up: 1, Down: 40, Flat: 5 },
@@ -124,37 +138,30 @@ const orderedSource = () => ({
     3: { Up: 3, Down: 25, Flat: 5 },
     4: { Up: 4, Down: 10, Flat: 5 }
   } as unknown as Record<string, Record<string, number>>,
-  fdc_params: ['Up', 'Down', 'Flat'].map(n =>
-    fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
+  fdc_params: oneCategory(['Up', 'Down', 'Flat'])
 })
 
-const buildOrdered = () => {
-  const src = orderedSource()
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  return buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
-}
-
-test('a constant param is 평가 불가 and carries no r', () => {
-  const m = buildOrdered()
-  const flat = m.rows.flatMap(r => r.cells).find(c => c.param === 'Flat')
+test('a constant param is 평가 불가 and carries no r, with a reason', () => {
+  const flat = build(orderedSource()).rows.flatMap(r => r.cells).find(c => c.param === 'Flat')
+  assert.equal(flat?.rState, 'unavailable')
   assert.equal(flat?.readiness, 'unavailable')
   assert.equal(flat?.r, null)
   assert.ok(flat?.reason)
 })
 
 test('category cells order by |r| descending with unevaluable last', () => {
-  const catRow = buildOrdered().rows.find(r => r.kind === 'category')
+  const catRow = build(orderedSource()).rows.find(r => r.kind === 'category')
   assert.deepEqual(catRow?.cells.map(c => c.param), ['Up', 'Down', 'Flat'])
 })
 
 test('the suspects row sits at index 1 and holds only evaluable params', () => {
-  const m = buildOrdered()
+  const m = build(orderedSource())
   assert.equal(m.rows[1]?.kind, 'suspects')
   assert.deepEqual(m.rows[1]?.cells.map(c => c.param), ['Up', 'Down'])
 })
 
 test('suspects are copies, flagged duplicated, and originals stay in place', () => {
-  const m = buildOrdered()
+  const m = build(orderedSource())
   assert.ok(m.rows[1]!.cells.every(c => c.duplicated))
   const catRow = m.rows.find(r => r.kind === 'category')
   assert.ok(catRow!.cells.every(c => !c.duplicated))
@@ -166,10 +173,8 @@ test('the suspects row is omitted entirely when nothing is evaluable', () => {
   src.dynamic_fdc = {
     1: { Flat: 5 }, 2: { Flat: 5 }, 3: { Flat: 5 }, 4: { Flat: 5 }
   } as unknown as Record<string, Record<string, number>>
-  src.fdc_params = [fdcParam({ name: 'Flat', category: 'defocus', category_label: 'defocus' })]
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
-  assert.ok(!m.rows.some(r => r.kind === 'suspects'))
+  src.fdc_params = oneCategory(['Flat'])
+  assert.ok(!build(src).rows.some(r => r.kind === 'suspects'))
 })
 
 test('the suspects row caps at MAX_SUSPECTS', () => {
@@ -180,11 +185,8 @@ test('the suspects row caps at MAX_SUSPECTS', () => {
     3: { A: 4, B: 7, C: 9, D: 11, E: 14 },
     4: { A: 8, B: 9, C: 13, D: 15, E: 21 }
   } as unknown as Record<string, Record<string, number>>
-  src.fdc_params = ['A', 'B', 'C', 'D', 'E'].map(n =>
-    fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
-  assert.equal(m.rows.find(r => r.kind === 'suspects')!.cells.length, MAX_SUSPECTS)
+  src.fdc_params = oneCategory(['A', 'B', 'C', 'D', 'E'])
+  assert.equal(build(src).rows.find(r => r.kind === 'suspects')!.cells.length, MAX_SUSPECTS)
 })
 
 test('equal |r| breaks by param name so order is stable', () => {
@@ -194,11 +196,8 @@ test('equal |r| breaks by param name so order is stable', () => {
     1: { Zeta: 1, Alpha: 1 }, 2: { Zeta: 2, Alpha: 2 },
     3: { Zeta: 3, Alpha: 3 }, 4: { Zeta: 4, Alpha: 4 }
   } as unknown as Record<string, Record<string, number>>
-  src.fdc_params = ['Zeta', 'Alpha'].map(n =>
-    fdcParam({ name: n, category: 'defocus', category_label: 'defocus' }))
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  const m = buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
-  const catRow = m.rows.find(r => r.kind === 'category')
+  src.fdc_params = oneCategory(['Zeta', 'Alpha'])
+  const catRow = build(src).rows.find(r => r.kind === 'category')
   assert.deepEqual(catRow!.cells.map(c => c.param), ['Alpha', 'Zeta'])
 })
 
@@ -207,7 +206,7 @@ test('equal |r| breaks by param name so order is stable', () => {
 // ---------------------------------------------------------------------------
 
 // Six params in ONE category — two past MAX_COLUMNS = 4.
-const wideSource = () => {
+const wideSource = (): SequenceSource => {
   const names = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
   const dynamic_fdc: Record<string, Record<string, number>> = {}
   for (let seq = 1; seq <= 4; seq++) {
@@ -223,18 +222,12 @@ const wideSource = () => {
   }
 }
 
-const buildWide = () => {
-  const src = wideSource()
-  const model = analyzeSequence(src, 'CD_TOP', 'nm')
-  return buildParamMatrix(model, src.rows, src.dynamic_fdc, src.fdc_params, 'CD_TOP')
-}
-
 test('columns never exceed MAX_COLUMNS however many params a category has', () => {
-  assert.equal(buildWide().columns, MAX_COLUMNS)
+  assert.equal(build(wideSource()).columns, MAX_COLUMNS)
 })
 
 test('an oversized category wraps onto continuation rows', () => {
-  const catRows = buildWide().rows.filter(r => r.kind === 'category')
+  const catRows = build(wideSource()).rows.filter(r => r.kind === 'category')
   assert.equal(catRows.length, 2)
   assert.equal(catRows[0]?.cells.length, 4)
   assert.equal(catRows[1]?.cells.length, 2)
@@ -243,7 +236,7 @@ test('an oversized category wraps onto continuation rows', () => {
 })
 
 test('wrapping loses no param and duplicates none', () => {
-  const names = buildWide().rows
+  const names = build(wideSource()).rows
     .filter(r => r.kind === 'category')
     .flatMap(r => r.cells)
     .map(c => c.param)
@@ -252,15 +245,10 @@ test('wrapping loses no param and duplicates none', () => {
 })
 
 test('continuation row labels stay unique for use as ordinal coords', () => {
-  const m = buildWide()
+  const m = build(wideSource())
   const labels = m.rows.map(r => r.label)
   assert.equal(new Set(labels).size, labels.length)
   const catRows = m.rows.filter(r => r.kind === 'category')
   assert.equal(catRows[0]?.label, '스테이지 드리프트')
   assert.equal(catRows[1]?.label, '스테이지 드리프트 (2)')
-})
-
-test('continuation row keys stay unique too', () => {
-  const keys = buildWide().rows.map(r => r.key)
-  assert.equal(new Set(keys).size, keys.length)
 })

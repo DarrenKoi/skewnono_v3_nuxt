@@ -98,8 +98,11 @@ export const useEchart = (
       if (!chart) return
       const point: [number, number] = [event.offsetX, event.offsetY]
       // A chart may stack several grids (e.g. one panel per value type), so
-      // find the one the click landed in and convert against its axes.
-      const grids = (chart.getOption() as { grid?: unknown[] }).grid
+      // find the one the click landed in and convert against its axes. Read the
+      // grid count off the option we were handed, not chart.getOption() — that
+      // deep-clones the whole option (axis category arrays and all series data
+      // included) on every click just to read an array length.
+      const grids = (optionRef.value as { grid?: unknown[] }).grid
       const gridCount = Array.isArray(grids) ? Math.max(grids.length, 1) : 1
       for (let gridIndex = 0; gridIndex < gridCount; gridIndex++) {
         if (!chart.containPixel({ gridIndex }, point)) continue

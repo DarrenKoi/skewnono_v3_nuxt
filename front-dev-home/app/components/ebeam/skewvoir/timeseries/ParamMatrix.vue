@@ -12,15 +12,16 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { MatrixCell, ParamMatrixModel } from '~/utils/skewvoirAnalysis/paramMatrix'
+import type { MatrixCell, MatrixRow, ParamMatrixModel } from '~/utils/skewvoirAnalysis/paramMatrix'
+import { SK_STATE } from '~/utils/chartPalette'
 
 // The FDC sparkline matrix: one mini line chart per param, laid out by the
 // ECharts 6 `matrix` coordinate system. Each cell is a full cartesian grid with
 // its OWN scaled y-axis, so every param keeps its native unit — the reason this
 // exists rather than reusing the σ-normalised multi-MSR trend chart.
 //
-// Presentational only. Row composition, ordering, suspects and the column cap
-// are all decided in utils/skewvoirAnalysis/paramMatrix.ts.
+// Presentational only. Row composition, ordering, suspects, the column cap and
+// each cell's relation verdict are decided in utils/skewvoirAnalysis/paramMatrix.ts.
 //
 // DELIBERATELY not focus-aware. useEchart rebuilds with `notMerge` on any option
 // change and hands back no chart instance, so taking the focused sequence as a
@@ -30,6 +31,11 @@ import type { MatrixCell, ParamMatrixModel } from '~/utils/skewvoirAnalysis/para
 // axisPointer.link, and the detail panes below carry the persisted cursor.
 const props = defineProps<{
   model: ParamMatrixModel
+  /** param name → colour, assigned ONCE by the parent and shared with the detail
+   * panes. Passed in rather than derived here because two independent
+   * assignments drift the moment their input ordering differs, and then the cell
+   * you click and the pane you land on disagree. */
+  colors: Record<string, string>
 }>()
 
 const emit = defineEmits<{ select: [sequence: number], drill: [param: string] }>()
@@ -47,26 +53,31 @@ const categories = computed(() => props.model.sequences.map(String))
 const colKey = (i: number): string => `c${i + 1}`
 const colKeys = computed(() => Array.from({ length: props.model.columns }, (_, i) => colKey(i)))
 
+interface FlatCell { cell: MatrixCell, row: MatrixRow, rowIdx: number, colIdx: number }
+
+// ONE traversal drives both the option builder and the click/tooltip lookups, so
+// `gridIndex` and `seriesIndex` correspond to a cell structurally rather than by
+// two loops agreeing to stay in step.
+const flatCells = computed<FlatCell[]>(() =>
+  props.model.rows.flatMap((row, rowIdx) =>
+    row.cells.map((cell, colIdx) => ({ cell, row, rowIdx, colIdx }))
+  )
+)
+
 const sk = useChartPalette()
-const { palette } = useEchartsTheme()
 
-// Distinct accent per row so neighbouring cells never read as one series. Index
-// 0 is reserved for CD, matching the CD pane below the matrix.
-const colorFor = (rowIdx: number, kind: string): string => {
-  if (kind === 'cd') return sk.value.series
-  if (palette.value.length < 2) return sk.value.series
-  return palette.value[1 + (rowIdx % (palette.value.length - 1))]!
-}
+// The CD reference keeps palette[0] (sk.series); every FDC param takes the
+// colour its detail pane already uses.
+const colorFor = (cell: MatrixCell): string =>
+  cell.category === 'cd' ? sk.value.series : (props.colors[cell.param] ?? sk.value.series)
 
+// The verdict itself comes from the model; only the glyphs are chosen here.
 const rBadge = (cell: MatrixCell): string => {
-  if (cell.category === 'cd') return 'ref'
-  if (cell.readiness !== 'ready' || cell.r == null) return '평가 불가'
-  return `r ${cell.r >= 0 ? '+' : '−'}${Math.abs(cell.r).toFixed(2)}`
+  if (cell.rState === 'reference') return 'ref'
+  if (cell.rState === 'unavailable') return '평가 불가'
+  const r = cell.r ?? 0
+  return `r ${r >= 0 ? '+' : '−'}${Math.abs(r).toFixed(2)}`
 }
-
-// Flat cell list in the SAME order grids/axes/series are pushed below, so both
-// `gridIndex` from a grid click and `seriesIndex` from a tooltip index into it.
-const cellByIndex = computed<MatrixCell[]>(() => props.model.rows.flatMap(r => r.cells))
 
 const option = computed<EChartsOption>(() => {
   const grids: Record<string, unknown>[] = []
@@ -76,84 +87,82 @@ const option = computed<EChartsOption>(() => {
 
   const cols = props.model.columns
 
-  props.model.rows.forEach((row, rowIdx) => {
-    row.cells.forEach((cell, colIdx) => {
-      const id = `${rowIdx}|${colIdx}`
-      const color = colorFor(rowIdx, row.kind)
+  for (const { cell, row, rowIdx, colIdx } of flatCells.value) {
+    const id = `${rowIdx}|${colIdx}`
+    const color = colorFor(cell)
 
-      grids.push({
-        id,
-        coordinateSystem: 'matrix',
-        // The CD row spans every column; all other cells occupy one. Grid range
-        // coords resolve through Matrix.dataToLayout → parseCoordRangeOption.
-        coord: row.kind === 'cd' ? [[colKey(0), colKey(cols - 1)], row.label] : [colKey(colIdx), row.label],
-        left: 4,
-        right: 4,
-        // Room above the plot for the per-cell param label (yAxis.name below).
-        top: 26,
-        bottom: 5,
-        containLabel: true
-      })
-
-      xAxis.push({
-        id,
-        gridId: id,
-        type: 'category',
-        data: categories.value,
-        boundaryGap: false,
-        axisTick: { show: false },
-        axisLabel: { show: false },
-        axisLine: { show: false },
-        splitLine: { show: false }
-      })
-
-      yAxis.push({
-        id,
-        gridId: id,
-        type: 'value',
-        scale: true,
-        // The cell's own caption. Row headers only say which CATEGORY you are
-        // looking at, so without this you cannot tell StigmaX from StigmaY —
-        // which would defeat the ranking entirely.
-        name: `${cell.param}  ${rBadge(cell)}`,
-        nameLocation: 'end',
-        nameGap: 9,
-        nameTextStyle: {
-          fontSize: 9,
-          align: 'left',
-          color: cell.readiness === 'ready' ? undefined : '#f59e0b'
-        },
-        // One label only — the max. A tiny cell cannot carry a full scale.
-        interval: Number.MAX_SAFE_INTEGER,
-        axisLabel: { showMaxLabel: true, fontSize: 8, opacity: 0.55 },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { show: false }
-      })
-
-      // Nominal only. A focus marker here would make the option focus-dependent.
-      const marks = cell.nominal == null
-        ? []
-        : [{ yAxis: cell.nominal, lineStyle: { color: '#94a3b8', type: 'dashed', opacity: 0.5 } }]
-
-      series.push({
-        id,
-        name: `${cell.param} · ${rBadge(cell)}`,
-        xAxisId: id,
-        yAxisId: id,
-        type: 'line',
-        symbol: 'none',
-        // Gaps must read as gaps, never as interpolated measurements.
-        connectNulls: false,
-        lineStyle: { width: 1.15, color },
-        itemStyle: { color },
-        data: cell.values,
-        markLine: marks.length
-          ? { silent: true, symbol: 'none', label: { show: false }, data: marks }
-          : undefined
-      })
+    grids.push({
+      id,
+      coordinateSystem: 'matrix',
+      // The CD row spans every column; all other cells occupy one. Grid range
+      // coords resolve through Matrix.dataToLayout → parseCoordRangeOption.
+      coord: row.kind === 'cd' ? [[colKey(0), colKey(cols - 1)], row.label] : [colKey(colIdx), row.label],
+      left: 4,
+      right: 4,
+      // Room above the plot for the per-cell param label (yAxis.name below).
+      top: 26,
+      bottom: 5,
+      containLabel: true
     })
-  })
+
+    xAxis.push({
+      id,
+      gridId: id,
+      type: 'category',
+      data: categories.value,
+      boundaryGap: false,
+      axisTick: { show: false },
+      axisLabel: { show: false },
+      axisLine: { show: false },
+      splitLine: { show: false }
+    })
+
+    yAxis.push({
+      id,
+      gridId: id,
+      type: 'value',
+      scale: true,
+      // The cell's own caption. Row headers only say which CATEGORY you are
+      // looking at, so without this you cannot tell StigmaX from StigmaY —
+      // which would defeat the ranking.
+      name: `${cell.param}  ${rBadge(cell)}`,
+      nameLocation: 'end',
+      nameGap: 9,
+      nameTextStyle: {
+        fontSize: 9,
+        align: 'left',
+        color: cell.rState === 'unavailable' ? SK_STATE.warn : undefined
+      },
+      // One label only — the max. A tiny cell cannot carry a full scale.
+      interval: Number.MAX_SAFE_INTEGER,
+      axisLabel: { showMaxLabel: true, fontSize: 8, opacity: 0.55 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false }
+    })
+
+    // Nominal only. A focus marker here would make the option focus-dependent.
+    const marks = cell.nominal == null
+      ? []
+      : [{ yAxis: cell.nominal, lineStyle: { color: sk.value.muted, type: 'dashed', opacity: 0.7 } }]
+
+    series.push({
+      id,
+      name: cell.param,
+      xAxisId: id,
+      yAxisId: id,
+      type: 'line',
+      symbol: 'none',
+      // Gaps must read as gaps, never as interpolated measurements.
+      connectNulls: false,
+      lineStyle: { width: 1.15, color },
+      itemStyle: { color },
+      data: cell.values,
+      markLine: marks.length
+        ? { silent: true, symbol: 'none', label: { show: false }, data: marks }
+        : undefined
+    })
+  }
 
   return {
     matrix: {
@@ -161,7 +170,7 @@ const option = computed<EChartsOption>(() => {
         data: colKeys.value,
         levelSize: 2,
         // The column position carries no meaning of its own — the param name
-        // lives in each cell's series name, so a header here would be noise.
+        // lives in each cell's caption, so a header here would be noise.
         label: { show: false }
       },
       y: {
@@ -192,12 +201,16 @@ const option = computed<EChartsOption>(() => {
         const seq = props.model.sequences[first.dataIndex]
         const lines = [`<b>sequence ${seq ?? '—'}</b>`]
         for (const item of list as { seriesIndex: number, value: number | null }[]) {
-          const cell = cellByIndex.value[item.seriesIndex]
+          const cell = flatCells.value[item.seriesIndex]?.cell
           // The suspects row holds COPIES of cells from the category rows, so
           // without this every suspect would be listed twice in one tooltip.
           if (!cell || cell.duplicated) continue
           const v = item.value == null ? '결측' : item.value
-          lines.push(`${cell.param}: <b>${v}</b> ${cell.unit}`)
+          // The reason `assess()` produced is the honest distinction between
+          // "no pairs", "too few" and "constant" — surface it rather than
+          // flattening all three into the caption's 평가 불가.
+          const why = cell.reason ? ` <span style="opacity:.65">${cell.reason}</span>` : ''
+          lines.push(`${cell.param}: <b>${v}</b> ${cell.unit}${why}`)
         }
         return lines.join('<br/>')
       }
@@ -216,7 +229,7 @@ const option = computed<EChartsOption>(() => {
 
 // Screen-reader alternative: what the grid is and where the ranking points.
 const ariaLabel = computed(() => {
-  const n = cellByIndex.value.length
+  const n = flatCells.value.length
   const suspects = props.model.rows.find(r => r.kind === 'suspects')
   const top = suspects?.cells.map(c => c.param).join(', ')
   return `FDC 파라미터 매트릭스: ${n}개 셀, ${props.model.sequences.length}개 측정 순서`
@@ -232,7 +245,7 @@ useEchart(chartEl, option, {
   onGridClick: (xValue, gridIndex) => {
     const seq = props.model.sequences[Math.round(xValue)]
     if (seq != null) emit('select', seq)
-    const cell = cellByIndex.value[gridIndex]
+    const cell = flatCells.value[gridIndex]?.cell
     if (cell && cell.category !== 'cd') emit('drill', cell.param)
   }
 })

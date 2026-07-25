@@ -1,5 +1,8 @@
 <template>
-  <div class="space-y-3">
+  <div
+    ref="rootEl"
+    class="space-y-3"
+  >
     <div
       v-if="analysis.focusPending.value"
       class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) sk-body"
@@ -71,6 +74,7 @@
         </template>
         <EbeamSkewvoirTimeseriesParamMatrix
           :model="matrix"
+          :colors="fdcColorByParam"
           @select="onSelect"
           @drill="drillTo"
         />
@@ -95,34 +99,32 @@
 
       <!-- Dynamic-FDC panes — one per param, each its own Y unit. -->
       <template v-if="model.hasFdc">
-        <!-- The id is the matrix's drill-down scroll target. -->
-        <div
-          v-for="(series, i) in model.fdc"
-          :id="`fdc-pane-${series.param}`"
+        <!-- data-fdc-param is the matrix's drill-down scroll target. It falls
+             through to PanelFrame's root <section>, so no wrapper is needed. -->
+        <EbeamSkewvoirPanelFrame
+          v-for="series in model.fdc"
           :key="series.param"
+          :data-fdc-param="series.param"
+          :title="`Dynamic FDC · ${series.param}`"
+          :meta="fdcMeta(series)"
+          icon="i-lucide-waves"
         >
-          <EbeamSkewvoirPanelFrame
-            :title="`Dynamic FDC · ${series.param}`"
-            :meta="fdcMeta(series)"
-            icon="i-lucide-waves"
-          >
-            <template #actions>
-              <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
-                데모 데이터 · 방법 검증 불가
-              </span>
-            </template>
-            <EbeamSkewvoirFdcSequenceTrend
-              :points="series.points"
-              :sequences="model.sequences"
-              :name="series.param"
-              :unit="series.unit"
-              :nominal="series.nominal"
-              :focused="analysis.focusedSequence.value"
-              :color="fdcColor(i)"
-              @select="onSelect"
-            />
-          </EbeamSkewvoirPanelFrame>
-        </div>
+          <template #actions>
+            <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
+              데모 데이터 · 방법 검증 불가
+            </span>
+          </template>
+          <EbeamSkewvoirFdcSequenceTrend
+            :points="series.points"
+            :sequences="model.sequences"
+            :name="series.param"
+            :unit="series.unit"
+            :nominal="series.nominal"
+            :focused="analysis.focusedSequence.value"
+            :color="fdcColor(series.param)"
+            @select="onSelect"
+          />
+        </EbeamSkewvoirPanelFrame>
       </template>
 
       <!-- No dynamic FDC — CD pane only, with the reason. -->
@@ -144,8 +146,9 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
-import { analyzeSequence, type FdcSeqSeries } from '~/utils/skewvoirAnalysis/sequence'
+import { analyzeSequence, type FdcSeqSeries, type SequenceSource } from '~/utils/skewvoirAnalysis/sequence'
 import { buildParamMatrix } from '~/utils/skewvoirAnalysis/paramMatrix'
+import { assignCompareColors } from '~/utils/hardwareCompare'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -155,43 +158,38 @@ const hasData = computed(() =>
   )
 )
 
+// One source feeds both the panes and the matrix, so "the overview and the
+// detail cannot disagree about what was measured" is true by construction
+// rather than by two call sites spelling the same fallbacks identically.
+const source = computed<SequenceSource>(() => ({
+  rows: props.analysis.siteRows.value,
+  dynamic_fdc: props.analysis.focusFile.value?.dynamic_fdc ?? {},
+  fdc_params: props.analysis.focusFile.value?.fdc_params ?? []
+}))
+
 // The shared-cursor sequence model for the FOCUS file + active parameter.
 const model = computed(() =>
-  analyzeSequence(
-    {
-      rows: props.analysis.siteRows.value,
-      dynamic_fdc: props.analysis.focusFile.value?.dynamic_fdc ?? {},
-      fdc_params: props.analysis.focusFile.value?.fdc_params ?? []
-    },
-    props.analysis.activeParam.value,
-    props.analysis.activeUnit.value
-  )
+  analyzeSequence(source.value, props.analysis.activeParam.value, props.analysis.activeUnit.value)
 )
 
-// The matrix reads the SAME SequenceModel the panes below already use, so the
-// overview and the detail can never disagree about what was measured.
-const matrix = computed(() =>
-  buildParamMatrix(
-    model.value,
-    props.analysis.siteRows.value,
-    props.analysis.focusFile.value?.dynamic_fdc ?? {},
-    props.analysis.focusFile.value?.fdc_params ?? [],
-    props.analysis.activeParam.value
-  )
-)
+const matrix = computed(() => buildParamMatrix(model.value, source.value))
 
 // Drill-down: bring the clicked param's full-size pane into view. `nearest` is
 // deliberate — it is a no-op when the pane is already on screen, so a click
 // meant only to move the cursor does not yank the page around. The nextTick
 // wrapper follows MeasurementPoints.vue: the same click also moves the cursor,
 // so let the resulting DOM settle before measuring scroll position.
+//
+// Scoped to this workbench's own root rather than a document-wide id: FDC param
+// names come from an open office catalog and may contain spaces, and two
+// workbenches on one page would otherwise fight over the same ids.
+const rootEl = ref<HTMLElement | null>(null)
+
 const drillTo = (param: string): void => {
-  if (!import.meta.client) return
   nextTick(() => {
-    document.getElementById(`fdc-pane-${param}`)?.scrollIntoView({
-      block: 'nearest',
-      behavior: 'smooth'
-    })
+    rootEl.value
+      ?.querySelector(`[data-fdc-param="${CSS.escape(param)}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 }
 
@@ -211,16 +209,19 @@ const fdcMeta = (series: FdcSeqSeries): string => {
 
 // Distinct accents per pane. Each pane is a SEPARATE chart instance, so ECharts
 // would hand every one of them palette[0] — the colors have to be assigned here
-// or the panes become indistinguishable. Cycling the theme palette keeps that
-// working while still following the picker; index 0 is reserved for the CD pane
-// below, so the FDC panes start at 1.
-const { palette } = useEchartsTheme()
+// or the panes become indistinguishable.
+//
+// Keyed by PARAM NAME, not pane position, and by the same helper the matrix
+// above uses: a param must be one colour in both, or clicking a cell would drop
+// you on a differently-coloured pane. assignCompareColors reserves palette[0],
+// which stays with the CD pane.
 const sk = useChartPalette()
+const { palette } = useEchartsTheme()
 const cdColor = computed(() => sk.value.series)
-const fdcColor = (i: number): string =>
-  palette.value.length > 1
-    ? palette.value[1 + (i % (palette.value.length - 1))]!
-    : sk.value.series
+const fdcColorByParam = computed(() =>
+  assignCompareColors(model.value.fdc.map(s => s.param), palette.value)
+)
+const fdcColor = (param: string): string => fdcColorByParam.value[param] ?? sk.value.series
 
 // SHARED CURSOR: one move sets the focused sequence AND the focused site (chip)
 // for that sequence — so CD, every FDC pane, the wafer scan-path (focusedSite)
