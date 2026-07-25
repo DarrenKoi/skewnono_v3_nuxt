@@ -6,6 +6,12 @@ Office: SKEWNONO_API_TOKENS_PROVIDER=office .venv/bin/pytest back_dev_home/api_t
 Provider-safe roundtrip: create_token/revoke_token create and then revoke
 their own token, so this test cleans up after itself regardless of which
 provider is active.
+
+Nothing here is fenced behind the provider. The roundtrip supplies its own data
+instead of reading fabricated rows, so every assertion below is a rule
+MIGRATION.md requires of the office adapter too — an owner's list shape, the
+one-time-plaintext response shape, find_by_plaintext resolving a freshly created
+secret (and missing on both rejection paths), and revoke returning True once.
 """
 
 from back_dev_home._core.contract_check import assert_matches
@@ -33,7 +39,12 @@ def test_create_then_revoke_roundtrip():
         # must not raise. A CRUD-only gate would miss that these enforcement
         # functions were switched alongside create/revoke.
         assert data.find_by_plaintext(plaintext) is not None
-        assert data.find_by_plaintext("sknn_not-a-real-token") is None
+        # Both rejection paths: a wrong prefix short-circuits before any lookup,
+        # while a secret carrying the real prefix ("skn_", MIGRATION.md) must
+        # actually miss the hash index — a store that resolves either one is
+        # broken, and only the second case exercises the lookup at all.
+        assert data.find_by_plaintext("nope_not-a-real-token") is None
+        assert data.find_by_plaintext("skn_not-a-real-token") is None
         data.touch_last_used(view["id"])
     finally:
         token_id = view["id"]
