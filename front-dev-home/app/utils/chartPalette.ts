@@ -28,6 +28,28 @@ export const SK_STATE = {
   bad: '#C4453B'
 } as const
 
+/**
+ * Identity palette for multi-selected measurement points. Like SK_SCALE and
+ * SK_STATE this is a FIXED constant, not theme-driven: a selected point's color
+ * IS its identity across the wafer map, radius plot, distribution and points
+ * table, so it must stay stable across themes and screenshots. Ordered
+ * cool-first so the earliest picks sit farthest from the heat ramp's warm end
+ * and the semantic red (SK_STATE.bad) — an identity halo must never read as
+ * severity. Capped: a selection past this length falls back to a neutral tone.
+ */
+export const SK_SITE = [
+  '#0E7C86', // teal
+  '#2F6DB5', // blue
+  '#7A5EC4', // violet
+  '#3E8E5E', // green
+  '#B2568B', // magenta
+  '#5B6C8F', // slate
+  '#1F9E8F', // sea green
+  '#8A6D3F', // brown
+  '#C98A2E', // amber
+  '#B0413A' // brick (warm — last slot, only reached with many picks)
+] as const
+
 export interface ChartPalette {
   /** Primary series: lines, bars, scatter points. */
   series: string
