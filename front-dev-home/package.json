@@ -28,6 +28,7 @@
     "@fontsource/public-sans": "^5.2.7",
     "@nuxt/eslint": "^1.13.0",
     "@playwright/test": "^1.61.1",
+    "@types/node": "^24.13.3",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.2.4"

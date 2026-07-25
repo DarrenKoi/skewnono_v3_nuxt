@@ -11,6 +11,13 @@
     "**/node_modules/**",
     "**/.nuxt/**",
     "**/.output/**",
-    "**/.git/**"
+    "**/.git/**",
+    // Vendored upstream doc (bento.page, carries its own "Guide version").
+    // Its 8 MD031/MD040 violations are upstream's, and reformatting them here
+    // would diverge our copy from the source it gets refreshed from -- the same
+    // reason ftp_handler/ and minio_handler/ are not edited locally. Ignoring it
+    // is what makes `npm run lint:md` pass, which CLAUDE.md requires after any
+    // Markdown edit; before this it failed for everyone regardless of their change.
+    "bento_agents.md"
   ]
 }

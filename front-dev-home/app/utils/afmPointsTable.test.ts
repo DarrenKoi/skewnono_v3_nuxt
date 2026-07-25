@@ -1,6 +1,7 @@
 // Pure-logic tests for afmPointsTable. Run: node --test app/utils/afmPointsTable.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
 import {
   derivePointColumns,
   filterPointRows,
@@ -9,10 +10,42 @@ import {
   DEFAULT_POINT_COLUMN_KEYS
 } from './afmPointsTable.ts'
 
-const rows: Array<Record<string, string | number | boolean>> = [
-  { 'measurement_point': '1_UL', 'Point No': 1, 'X (um)': 10, 'State': 'OK', 'Valid': true, 'CD (nm)': 5, 'Mileage': 3 },
-  { 'measurement_point': '1_UL', 'Point No': 2, 'X (um)': 11, 'State': 'NG', 'Valid': false, 'CD (nm)': 6, 'Mileage': 4 },
-  { 'measurement_point': '2_UR', 'Point No': 1, 'X (um)': 20, 'State': 'OK', 'Valid': true, 'CD (nm)': 7, 'Mileage': 5 }
+// Full AfmDetailRow rows, not partials: this fixture is the one place that
+// pins the AFM detail row shape, so dropping or renaming a backend field
+// breaks the typecheck here. (An *added* field would not — AfmDetailRow ends
+// in an `[extra: string]` index signature, which absorbs new keys silently.)
+// `overrides` is Partial only in its role as a patch — every row the factory
+// returns is complete. Key order matters: derivePointColumns orders
+// unrecognised columns by first appearance, so the extra 'CD (nm)' supplied
+// via overrides lands after the base keys.
+const row = (overrides: Partial<AfmDetailRow>): AfmDetailRow => ({
+  'measurement_point': '1_UL',
+  'Site ID': '1_UL',
+  'Site X': -30000,
+  'Site Y': 15000,
+  'Point No': 1,
+  'X (um)': 10,
+  'Y (um)': 12,
+  'Method ID': 1,
+  'State': 'OK',
+  'Valid': true,
+  'Left_H (nm)': 88.4,
+  'Left_H_Valid': true,
+  'Right_H (nm)': 86.1,
+  'Right_H_Valid': true,
+  'Ref_H (nm)': 79.7,
+  'Ref_H_Valid': true,
+  'Pick Up Count': 2,
+  'Sample Count': 1,
+  'Approach Count': 1,
+  'Mileage': 3,
+  ...overrides
+})
+
+const rows: AfmDetailRow[] = [
+  row({ 'measurement_point': '1_UL', 'Point No': 1, 'X (um)': 10, 'State': 'OK', 'Valid': true, 'CD (nm)': 5, 'Mileage': 3 }),
+  row({ 'measurement_point': '1_UL', 'Point No': 2, 'X (um)': 11, 'State': 'NG', 'Valid': false, 'CD (nm)': 6, 'Mileage': 4 }),
+  row({ 'measurement_point': '2_UR', 'Point No': 1, 'X (um)': 20, 'State': 'OK', 'Valid': true, 'CD (nm)': 7, 'Mileage': 5 })
 ]
 
 test('derivePointColumns: preferred first, then (nm), then others; labels applied', () => {
@@ -51,7 +84,7 @@ test('pointsSummary: total and valid', () => {
 })
 
 test('pagePointRows: slices and clamps', () => {
-  const many: Array<Record<string, number>> = Array.from({ length: 60 }, (_, i) => ({ n: i }))
+  const many: AfmDetailRow[] = Array.from({ length: 60 }, (_, i) => row({ 'Point No': i }))
   assert.equal(pagePointRows(many, 1, 25).length, 25)
   assert.equal(pagePointRows(many, 3, 25).length, 10) // last partial page
   assert.equal(pagePointRows(many, 99, 25).length, 10) // clamped to last page
