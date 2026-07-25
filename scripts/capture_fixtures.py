@@ -77,6 +77,15 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     ("ebeam/hitachi/recipe_tat", "daily-trend-cdsem.json", "/api/cdsem/recipe-tat/daily-trend"),
     ("ebeam/hitachi/recipe_tat", "devices-cdsem.json", "/api/cdsem/recipe-tat/devices"),
 
+    # hitachi pm-planning (CD-SEM only; fab_name is required, not defaulted)
+    ("ebeam/hitachi/pm_planning", "fleet-cdsem-m14.json",
+     "/api/cdsem/pm-planning/fleet?fab_name=M14"),
+
+    # hitachi skew (fab_name required; recipe_id optional but pinned so the
+    # captured shape stays the recipe-scoped one)
+    ("ebeam/hitachi/skew", "skew_cdsem_r3.json",
+     "/api/cdsem/skew/check?fab_name=R3&recipe_id=CD_MON_16"),
+
     # hitachi hardware (equipment-first path; tool_slug + eqp_id + service)
     ("ebeam/hitachi/hardware", "hardware-bsm.json",
      "/api/cdsem/hardware/ECXDX204/bsm?fab_name=M16B&start=2026-04-24&end=2026-05-24"),

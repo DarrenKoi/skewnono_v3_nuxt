@@ -545,21 +545,20 @@ def test_no_two_endpoints_share_an_api_path():
     assert len(paths) == len(set(paths))
 
 
-def test_the_set_of_features_exempt_from_the_shape_guard_is_pinned():
-    """These features have frozen fixtures but no ENDPOINTS entry, so
-    check_contract never looks at them — a real Phase 2 gap, pinned rather
-    than silently tolerated. Add the endpoint to ENDPOINTS (preferred) or
-    update this list, but do not let it grow unnoticed.
+def test_no_feature_with_fixtures_is_exempt_from_the_shape_guard():
+    """A feature with frozen fixtures but no ENDPOINTS entry is invisible to
+    check_contract — it looks covered and is not.
+
+    pm_planning and skew were exactly that until their endpoints were added;
+    both need a required fab_name, which is why they were easy to skip. If this
+    fails, add the endpoint to ENDPOINTS rather than relaxing the assertion.
     """
     listed = {feature for feature, _n, _p in capture_fixtures.ENDPOINTS}
     with_fixtures = {
         str(d.parent.relative_to(BACKEND)) for d in BACKEND.rglob("__fixtures__")
     }
 
-    assert sorted(with_fixtures - listed) == [
-        "ebeam/hitachi/pm_planning",
-        "ebeam/hitachi/skew",
-    ]
+    assert sorted(with_fixtures - listed) == []
 
 
 def test_every_listed_api_path_starts_at_the_api_prefix():
