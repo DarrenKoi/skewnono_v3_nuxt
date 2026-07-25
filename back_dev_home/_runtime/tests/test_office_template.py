@@ -157,7 +157,8 @@ def test_no_git_on_the_path_degrades_to_edited_instead_of_raising(
     """
     adapter.target.write_bytes(adapter.template.read_bytes())
     adapter.template.write_text("VERSION = 2\n")
-    _git(repo, "commit", "-qam", "template moves ahead")  # would classify STALE
+    _git(repo, "commit", "-qam", "template moves ahead")
+    assert _classify(adapter, repo)[0] == STALE  # git can be asked, for now
 
     monkeypatch.setenv("PATH", str(tmp_path / "there-is-no-git-here"))
     assert _classify(adapter, repo) == (EDITED, "")
@@ -170,18 +171,24 @@ def test_a_repo_root_the_template_does_not_live_under_is_not_asked_about(
 
     The repo root is inferred from where the package sits, so a deploy that
     unpacks back_dev_home beside (or inside) an unrelated clone hands us a
-    root the template is not under. `git log -- <path>` outside the work tree
-    would either error or, worse, match a same-named file in that other repo
-    and report a commit from it — so the relative_to() guard bails out before
-    git is consulted at all.
+    root the template is not under. The relative_to() guard bails out before
+    git is consulted at all — which is what stops the neighbour's identically
+    named file from being mistaken for our template's history, so the decoy
+    below is committed to make that failure mode reachable if the guard ever
+    softens into a best-effort path computation.
     """
     adapter.target.write_bytes(adapter.template.read_bytes())
     adapter.template.write_text("VERSION = 2\n")
     _git(repo, "commit", "-qam", "template moves ahead")
+    assert _classify(adapter, repo)[0] == STALE  # asked against the right root
 
     unrelated = tmp_path / "unrelated-clone"
-    unrelated.mkdir()
-    _git(unrelated, "init", "-q", "-b", "main")  # has .git, lacks our template
+    decoy = unrelated / adapter.template.relative_to(repo)
+    decoy.parent.mkdir(parents=True)
+    decoy.write_text("VERSION = 1\n")  # exactly what our copy holds
+    _git(unrelated, "init", "-q", "-b", "main")
+    _git(unrelated, "add", "-A")
+    _git(unrelated, "commit", "-qm", "another repo's office_example.py")
 
     assert _classify(adapter, unrelated) == (EDITED, "")
 

@@ -61,27 +61,34 @@ def test_duplicate_slug_raises_with_both_paths(fake_tree):
     assert "ebeam/cdsem/hardware" in message
 
 
-def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(fake_tree):
+def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(
+    fake_tree, monkeypatch
+):
     """The guard above is only useful if boot walks into it.
 
-    create_app() makes exactly two provider calls before serving anything —
-    validate_env(), then the resolve_all() behind the boot table — and both go
-    through the scan. Neither may reduce the diagnosis to something a reader
-    cannot act on: adding a second `hardware/` under another vendor is the way
-    this happens in practice, and the two directories look identical from the
-    outside, so the message has to name both. Failing at boot is the point too;
-    resolution has no correct answer here, since SKEWNONO_HARDWARE_PROVIDER
-    can only mean one of them.
+    Before serving anything, create_app() calls validate_env() and then the
+    resolve_all() behind the boot table — both reach this scan, and neither may
+    reduce the diagnosis to something the reader cannot act on. Adding a second
+    `hardware/` under another vendor is how this happens in practice, and the
+    two directories are indistinguishable by slug, so the message has to name
+    both paths; anything less leaves someone grepping for a directory name that
+    matches twice. Refusing to start is the right outcome rather than a wrong
+    guess: resolution has no correct answer here.
     """
     fake_tree({
         "ebeam/hitachi/hardware": ["mock.py"],
         "ebeam/cdsem/hardware": ["mock.py"],
     })
+    # Set so the failure is essential to validate_env(), not incidental: this
+    # variable can only mean one of the two directories, so the scan error is
+    # what it must report however the readiness lookup is ordered.
+    monkeypatch.setenv("SKEWNONO_HARDWARE_PROVIDER", "office")
+
     for boot_call in (data_provider.validate_env, data_provider.resolve_all):
         with pytest.raises(RuntimeError) as exc:
             boot_call()
         message = str(exc.value)
-        assert "hardware" in message
+        assert "Duplicate feature slug 'hardware'" in message
         assert "back_dev_home/ebeam/hitachi/hardware" in message
         assert "back_dev_home/ebeam/cdsem/hardware" in message
 
