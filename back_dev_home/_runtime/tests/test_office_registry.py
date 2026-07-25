@@ -5,7 +5,7 @@ The fake_tree factory and env scrubbing live in conftest.py.
 
 import pytest
 
-from back_dev_home._runtime import office_registry
+from back_dev_home._runtime import data_provider, office_registry
 
 
 def test_feature_slug_is_the_directory_name_at_any_depth(fake_tree):
@@ -59,6 +59,31 @@ def test_duplicate_slug_raises_with_both_paths(fake_tree):
     assert "hardware" in message
     assert "ebeam/hitachi/hardware" in message
     assert "ebeam/cdsem/hardware" in message
+
+
+def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(fake_tree):
+    """The guard above is only useful if boot walks into it.
+
+    create_app() makes exactly two provider calls before serving anything —
+    validate_env(), then the resolve_all() behind the boot table — and both go
+    through the scan. Neither may reduce the diagnosis to something a reader
+    cannot act on: adding a second `hardware/` under another vendor is the way
+    this happens in practice, and the two directories look identical from the
+    outside, so the message has to name both. Failing at boot is the point too;
+    resolution has no correct answer here, since SKEWNONO_HARDWARE_PROVIDER
+    can only mean one of them.
+    """
+    fake_tree({
+        "ebeam/hitachi/hardware": ["mock.py"],
+        "ebeam/cdsem/hardware": ["mock.py"],
+    })
+    for boot_call in (data_provider.validate_env, data_provider.resolve_all):
+        with pytest.raises(RuntimeError) as exc:
+            boot_call()
+        message = str(exc.value)
+        assert "hardware" in message
+        assert "back_dev_home/ebeam/hitachi/hardware" in message
+        assert "back_dev_home/ebeam/cdsem/hardware" in message
 
 
 def test_office_adapter_without_a_mock_sibling_raises(fake_tree):

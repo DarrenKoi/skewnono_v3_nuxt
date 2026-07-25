@@ -19,11 +19,14 @@ from back_dev_home._runtime.office_template import (
 
 
 def _git(repo, *args):
-    subprocess.run(
+    # env is built from scratch (not inherited), so these fixture calls keep
+    # working even in the test that hides git from the PATH under test.
+    return subprocess.run(
         ["git", *args],
         cwd=repo,
         check=True,
         capture_output=True,
+        text=True,
         env={
             "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
             "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
@@ -31,6 +34,10 @@ def _git(repo, *args):
             "HOME": str(repo),
         },
     )
+
+
+def _head_sha(repo):
+    return _git(repo, "rev-parse", "--short", "HEAD").stdout.strip()
 
 
 @pytest.fixture
@@ -97,6 +104,34 @@ def test_stale_survives_more_history_than_one_commit(adapter, repo):
     assert _classify(adapter, repo)[0] == STALE
 
 
+def test_the_history_window_ends_at_history_depth_and_then_says_edited(adapter, repo):
+    """Past HISTORY_DEPTH commits the honest answer is EDITED, and that costs.
+
+    The walk is bounded (`git log -HISTORY_DEPTH`) so boot stays cheap, which
+    means "provably a copy of an old template" fades out at a fixed distance:
+    beyond it, a pristine copy is indistinguishable from one carrying 사내
+    edits and gets the safe label. Safe, not free — `sync_office_adapters`
+    skips EDITED without --force, so the most neglected copies are exactly the
+    ones it stops refreshing. Pinning the boundary keeps that trade visible if
+    anyone tunes the constant.
+
+    The commit that created the template is itself one of the HISTORY_DEPTH
+    the walk sees, so HISTORY_DEPTH - 1 further commits leave it on the last
+    line and one more pushes it off.
+    """
+    adapter.target.write_bytes(adapter.template.read_bytes())
+    for version in range(2, office_template.HISTORY_DEPTH + 1):
+        adapter.template.write_text(f"VERSION = {version}\n")
+        _git(repo, "commit", "-qam", f"v{version}")
+
+    assert _classify(adapter, repo)[0] == STALE  # last commit inside the window
+
+    adapter.template.write_text("VERSION = one commit too many\n")
+    _git(repo, "commit", "-qam", "the creating commit falls off the window")
+
+    assert _classify(adapter, repo) == (EDITED, "")
+
+
 def test_outside_a_git_checkout_nothing_is_reported_stale(adapter, repo, tmp_path):
     """A tarball deploy must not have every adapter shouted about."""
     adapter.target.write_bytes(adapter.template.read_bytes())
@@ -106,6 +141,78 @@ def test_outside_a_git_checkout_nothing_is_reported_stale(adapter, repo, tmp_pat
     not_a_checkout = tmp_path / "elsewhere"
     not_a_checkout.mkdir()
     assert _classify(adapter, not_a_checkout) == (EDITED, "")
+
+
+def test_no_git_on_the_path_degrades_to_edited_instead_of_raising(
+    adapter, repo, monkeypatch, tmp_path
+):
+    """Being unable to ask git must read as "cannot tell", not as a crash.
+
+    This runs inside create_app() via boot's stale-adapter warning, and the
+    PATH a uwsgi worker inherits is whatever the service definition gave it —
+    frequently not the interactive one. A diagnostic that can stop Phase 3
+    from booting is worse than no diagnostic, so the OSError from a missing
+    git binary is swallowed here rather than relying on boot.py's blanket
+    except, which is the second line of defence and only covers boot.
+    """
+    adapter.target.write_bytes(adapter.template.read_bytes())
+    adapter.template.write_text("VERSION = 2\n")
+    _git(repo, "commit", "-qam", "template moves ahead")  # would classify STALE
+
+    monkeypatch.setenv("PATH", str(tmp_path / "there-is-no-git-here"))
+    assert _classify(adapter, repo) == (EDITED, "")
+
+
+def test_a_repo_root_the_template_does_not_live_under_is_not_asked_about(
+    adapter, repo, tmp_path
+):
+    """A .git next door is not this adapter's history.
+
+    The repo root is inferred from where the package sits, so a deploy that
+    unpacks back_dev_home beside (or inside) an unrelated clone hands us a
+    root the template is not under. `git log -- <path>` outside the work tree
+    would either error or, worse, match a same-named file in that other repo
+    and report a commit from it — so the relative_to() guard bails out before
+    git is consulted at all.
+    """
+    adapter.target.write_bytes(adapter.template.read_bytes())
+    adapter.template.write_text("VERSION = 2\n")
+    _git(repo, "commit", "-qam", "template moves ahead")
+
+    unrelated = tmp_path / "unrelated-clone"
+    unrelated.mkdir()
+    _git(unrelated, "init", "-q", "-b", "main")  # has .git, lacks our template
+
+    assert _classify(adapter, unrelated) == (EDITED, "")
+
+
+def test_a_template_deleted_and_re_added_still_resolves_to_the_right_commit(
+    adapter, repo
+):
+    """`git log -- <path>` includes the commit that DELETED the template.
+
+    Asking `cat-file --batch-check` for <that commit>:<path> prints
+    "<input> missing" instead of a blob id. The lookup pairs output lines with
+    input revisions by position, so treating that line as anything other than
+    one non-matching line would shift every older commit onto the wrong sha —
+    silently downgrading a STALE copy to EDITED, or crediting it to a commit
+    it never came from. Features do get moved around under ebeam/, which
+    deletes and re-adds a template, so this is an ordinary history, not a
+    pathological one.
+    """
+    adapter.target.write_bytes(adapter.template.read_bytes())  # copy of VERSION = 1
+    created_in = _head_sha(repo)
+
+    relative = adapter.template.relative_to(repo).as_posix()
+    _git(repo, "rm", "-q", "--", relative)
+    _git(repo, "commit", "-qm", "template deleted")
+    adapter.template.write_text("VERSION = 2\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "template re-added, moved ahead")
+
+    status, note = _classify(adapter, repo)
+    assert status == STALE
+    assert note.startswith(f"copy of {created_in}")
 
 
 def test_stale_adapters_lists_only_the_stale_ones(repo):

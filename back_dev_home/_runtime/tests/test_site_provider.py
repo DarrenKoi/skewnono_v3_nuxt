@@ -9,7 +9,7 @@ The `wired` fake tree and env scrubbing live in conftest.py.
 
 import pytest
 
-from back_dev_home._runtime import data_provider, site
+from back_dev_home._runtime import data_provider, office_registry, site
 
 
 def _set_host(monkeypatch, name: str) -> None:
@@ -178,6 +178,30 @@ def test_hyphenated_and_cased_slugs_resolve_to_the_same_feature(
     assert data_provider.get_data_provider("SEM-List") == "office"
     monkeypatch.setenv("SKEWNONO_SEM_LIST_PROVIDER", "mock")
     assert data_provider.get_data_provider("SEM-List") == "mock"
+
+
+def test_a_new_office_py_only_takes_effect_after_a_restart(monkeypatch, wired):
+    """Readiness is scanned once per process, deliberately.
+
+    `cp office_example.py office.py` is done by hand at the office, sometimes
+    while Flask is running. The env vars above are re-read on every call, but
+    this one is not: a feature that flipped mid-process would make the boot
+    table and /api/health/providers describe a state that no longer holds, and
+    two requests seconds apart would read from different backends — with only
+    one of them exercised by whatever verification followed the cp.
+
+    So the scan is memoized and a restart is the way in (Flask's dev reloader
+    and every cloud deploy restart anyway). Anyone who "fixes" the cache to
+    pick up new files must break this test first.
+    """
+    monkeypatch.setenv("SKEWNONO_SITE", "office")
+    assert data_provider.get_data_provider("chat") == "mock"
+
+    (wired / "chat" / "providers" / "office.py").write_text("")
+    assert data_provider.get_data_provider("chat") == "mock"  # not until restart
+
+    office_registry.reset_cache()  # what a restart amounts to
+    assert data_provider.get_data_provider("chat") == "office"
 
 
 # --------------------------------------------------------------- resolve_all
