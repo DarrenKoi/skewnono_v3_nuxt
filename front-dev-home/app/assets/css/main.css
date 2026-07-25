@@ -385,6 +385,22 @@ body {
   color: var(--sk-off-fg);
 }
 
+/* `type="search"` makes WebKit draw its own ✕ (::-webkit-search-cancel-button)
+   inside the field whenever it is focused and non-empty. Where we already render
+   a styled clear button, that native glyph is a SECOND X sitting next to ours.
+   Hiding it — rather than downgrading the field to type="text" — keeps the search
+   semantics (inputmode="search", Esc-to-clear) and makes Chrome agree with
+   Firefox, which never drew one. Apply only to fields that have their own clear
+   control; a search field without one still needs the native button.
+   The two selectors cover both a raw <input> carrying the class and a NuxtUI
+   <UInput>, whose class prop lands on the wrapper element. */
+.sk-no-native-clear::-webkit-search-cancel-button,
+.sk-no-native-clear input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 /* ── Semantic typography ──────────────────────────────────────────────────────
    Type styled by ROLE (purpose + location), not ad-hoc utilities. Each class
    bundles size + weight + colour + family, so the whole app stays consistent and

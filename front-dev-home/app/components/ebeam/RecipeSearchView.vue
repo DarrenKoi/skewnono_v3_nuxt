@@ -373,7 +373,7 @@ const openMeasHist = (recipeName: string) => {
                 type="search"
                 inputmode="search"
                 autocomplete="off"
-                class="min-w-0 flex-1"
+                class="sk-no-native-clear min-w-0 flex-1"
                 icon="i-lucide-search"
                 placeholder="CD_MON"
                 size="md"
@@ -525,7 +525,7 @@ const openMeasHist = (recipeName: string) => {
                     v-model="tableFilter"
                     type="search"
                     autocomplete="off"
-                    class="w-40 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-(--sk-ink-muted) dark:text-zinc-50"
+                    class="sk-no-native-clear w-40 min-w-0 bg-transparent text-xs text-zinc-950 outline-none placeholder:text-(--sk-ink-muted) dark:text-zinc-50"
                     aria-label="Filter results"
                     placeholder="결과 내 필터"
                   >
