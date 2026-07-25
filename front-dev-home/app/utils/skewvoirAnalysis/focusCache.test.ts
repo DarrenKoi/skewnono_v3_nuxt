@@ -1,34 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-
-// CHARACTERIZATION TESTS — see currentContracts.test.ts for why: the Nuxt
-// runtime (useState, useAsyncData, computed, watch, …) is undefined under the
-// raw `node --test` harness this repo runs, so useSkewvoirAnalysis.ts cannot
-// be imported and driven directly here. Each test below mirrors ONE rule of
-// Task 3b's focus-file session cache as a small local pure function, cited by
-// exact source file:line, and asserted against fixtures.
-//
-// Task 3b — overview focus-switcher chip strip. Rules mirrored:
-//   • TREND_LIMIT (useSkewvoirAnalysis.ts:14) bounds the cache size.
-//   • cacheFocusFile (useSkewvoirAnalysis.ts:82-88) — insertion-order
-//     eviction: delete-then-set moves a re-touched key to most-recent, and
-//     the OLDEST key (Map iteration order) is dropped once size > 30.
-//   • loadFocus's resolution order (useSkewvoirAnalysis.ts:109-155):
-//     session cache → setFiles → fetchMsrFile (the only network path).
-
-const TREND_LIMIT = 30
+import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile, type FocusFileSource } from './focusCache.ts'
+import { TREND_LIMIT } from './curatedSet.ts'
 
 interface FileFixture { msr: string }
-
-// Mirrors useSkewvoirAnalysis.ts:82-88 (cacheFocusFile).
-const cacheFocusFile = (cache: Map<string, FileFixture>, msr: string, file: FileFixture) => {
-  cache.delete(msr)
-  cache.set(msr, file)
-  if (cache.size > TREND_LIMIT) {
-    const oldest = cache.keys().next().value
-    if (oldest !== undefined) cache.delete(oldest)
-  }
-}
 
 test('cacheFocusFile bounds the cache at TREND_LIMIT (30), evicting the oldest key first', () => {
   const cache = new Map<string, FileFixture>()
@@ -60,33 +35,25 @@ test('cacheFocusFile re-touching an existing key refreshes its recency instead o
   assert.equal(cache.has('msr-1'), false)
 })
 
-// Mirrors useSkewvoirAnalysis.ts:109-155 (loadFocus) — session cache → setFiles
-// → network resolution order. Each source returns a tag so callers can assert
-// exactly which path resolved (and therefore whether a network call happened).
-type Source = 'cache' | 'set-files' | 'network'
-
-const resolveFocusFile = (
+// loadFocus (useSkewvoirAnalysis.ts) falls back to the network only when
+// lookupFocusFile misses, and caches whatever it ends up with. `resolve` below
+// is a TEST DRIVER for exactly that fallback — it deliberately omits loadFocus's
+// ref/pending/staleness handling — so a fake fetcher can count how many focus
+// switches actually reach the network. The resolution ORDER under test is the
+// imported lookupFocusFile's, not this driver's.
+const resolve = (
   msr: string,
   focusCache: Map<string, FileFixture>,
   setFiles: Map<string, FileFixture>,
   networkFetch: (msr: string) => FileFixture
-): { file: FileFixture, source: Source } => {
-  const cached = focusCache.get(msr)
-  if (cached) {
-    cacheFocusFile(focusCache, msr, cached)
-    return { file: cached, source: 'cache' }
-  }
-  const fromSet = setFiles.get(msr)
-  if (fromSet) {
-    cacheFocusFile(focusCache, msr, fromSet)
-    return { file: fromSet, source: 'set-files' }
-  }
-  const res = networkFetch(msr)
-  cacheFocusFile(focusCache, msr, res)
-  return { file: res, source: 'network' }
+): { file: FileFixture, source: FocusFileSource | 'network' } => {
+  const hit = lookupFocusFile(msr, focusCache, setFiles)
+  const file = hit?.file ?? networkFetch(msr)
+  cacheFocusFile(focusCache, msr, file)
+  return { file, source: hit?.source ?? 'network' }
 }
 
-test('resolveFocusFile hits the session cache with 0 network calls once a msr has been resolved', () => {
+test('a focus file resolves from the session cache with 0 network calls once a msr has been resolved', () => {
   const focusCache = new Map<string, FileFixture>()
   const setFiles = new Map<string, FileFixture>()
   let networkCalls = 0
@@ -95,16 +62,16 @@ test('resolveFocusFile hits the session cache with 0 network calls once a msr ha
     return { msr }
   }
 
-  const first = resolveFocusFile('msr-a', focusCache, setFiles, networkFetch)
+  const first = resolve('msr-a', focusCache, setFiles, networkFetch)
   assert.equal(first.source, 'network')
   assert.equal(networkCalls, 1)
 
-  const second = resolveFocusFile('msr-a', focusCache, setFiles, networkFetch)
+  const second = resolve('msr-a', focusCache, setFiles, networkFetch)
   assert.equal(second.source, 'cache')
   assert.equal(networkCalls, 1, 'a repeat switch to an already-resolved msr must not hit the network')
 })
 
-test('resolveFocusFile falls back to the already-fetched setFiles map (curated set) with 0 network calls', () => {
+test('a focus file falls back to the already-fetched setFiles map (curated set) with 0 network calls', () => {
   const focusCache = new Map<string, FileFixture>()
   const setFiles = new Map<string, FileFixture>([['msr-b', { msr: 'msr-b' }]])
   let networkCalls = 0
@@ -113,7 +80,7 @@ test('resolveFocusFile falls back to the already-fetched setFiles map (curated s
     return { msr }
   }
 
-  const result = resolveFocusFile('msr-b', focusCache, setFiles, networkFetch)
+  const result = resolve('msr-b', focusCache, setFiles, networkFetch)
   assert.equal(result.source, 'set-files')
   assert.equal(networkCalls, 0)
   // The setFiles hit also seeds the session cache, so a later switch back is
@@ -121,7 +88,7 @@ test('resolveFocusFile falls back to the already-fetched setFiles map (curated s
   assert.equal(focusCache.has('msr-b'), true)
 })
 
-test('resolveFocusFile only calls the network when both the cache and setFiles miss', () => {
+test('the network is the only path left when both the cache and setFiles miss', () => {
   const focusCache = new Map<string, FileFixture>()
   const setFiles = new Map<string, FileFixture>()
   let networkCalls = 0
@@ -130,8 +97,26 @@ test('resolveFocusFile only calls the network when both the cache and setFiles m
     return { msr }
   }
 
-  const result = resolveFocusFile('msr-c', focusCache, setFiles, networkFetch)
+  assert.equal(lookupFocusFile('msr-c', focusCache, setFiles), null)
+  const result = resolve('msr-c', focusCache, setFiles, networkFetch)
   assert.equal(result.source, 'network')
   assert.equal(networkCalls, 1)
   assert.equal(focusCache.get('msr-c')?.msr, 'msr-c')
+})
+
+test('lookupFocusFile prefers the session cache over setFiles when both hold the msr', () => {
+  const focusCache = new Map<string, FileFixture>([['msr-d', { msr: 'msr-d' }]])
+  const setFiles = new Map<string, FileFixture>([['msr-d', { msr: 'msr-d' }]])
+  assert.equal(lookupFocusFile('msr-d', focusCache, setFiles)?.source, 'cache')
+})
+
+test('the stale-guard discards a focus result whose requested msr is no longer the current URL msr', () => {
+  // Requested B, but the URL is back on A by the time B resolves → discard B.
+  assert.equal(isFocusStillCurrent('msr-a', 'msr-b'), false)
+  // No selection at all is never a match either.
+  assert.equal(isFocusStillCurrent(undefined, 'msr-b'), false)
+})
+
+test('the stale-guard keeps a focus result whose requested msr still matches the current URL msr', () => {
+  assert.equal(isFocusStillCurrent('msr-b', 'msr-b'), true)
 })
