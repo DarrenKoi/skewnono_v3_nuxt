@@ -17,7 +17,12 @@ interface UseEchartOptions {
   // Receives the x-axis value under the cursor: a fractional category position
   // for a category axis (round it to get the index), the data value for a
   // value/time axis. Both callbacks fire if both are supplied.
-  onGridClick?: (xValue: number) => void
+  //
+  // Also receives the index of the grid that was hit. That matters for
+  // multi-grid charts — small multiples, matrix cells — where the same x value
+  // means a different series depending on which pane was clicked. Single-grid
+  // callers can ignore it.
+  onGridClick?: (xValue: number, gridIndex: number) => void
   // Preferred base name for the downloaded PNG (before the date stamp). Falls
   // back to the chart's title text, then 'chart'.
   exportName?: string
@@ -100,7 +105,7 @@ export const useEchart = (
         if (!chart.containPixel({ gridIndex }, point)) continue
         const converted = chart.convertFromPixel({ gridIndex }, point)
         const xValue = Array.isArray(converted) ? Number(converted[0]) : NaN
-        if (Number.isFinite(xValue)) callback(xValue)
+        if (Number.isFinite(xValue)) callback(xValue, gridIndex)
         return
       }
     })
