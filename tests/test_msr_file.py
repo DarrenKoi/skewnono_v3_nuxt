@@ -6,7 +6,7 @@ import pytest
 from back_dev_home.msr_file.data import _summaries, get_msr_file
 from back_dev_home.msr_file.providers import mock
 from back_dev_home.meas_hist.data import get_meas_hist
-from tests._office_state import MISSING_ADAPTER_MESSAGE
+from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 
 @pytest.fixture(scope="module")
@@ -175,6 +175,7 @@ def test_same_msr_always_yields_identical_data(sample_msr):
     assert first == second
 
 
+@pytest.mark.skipif(has_office_adapter("msr_file"), reason=skip_reason("msr_file"))
 def test_unconnected_office_adapter_fails_explicitly(sample_msr):
     previous = os.environ.get("SKEWNONO_MSR_FILE_PROVIDER")
     os.environ["SKEWNONO_MSR_FILE_PROVIDER"] = "office"

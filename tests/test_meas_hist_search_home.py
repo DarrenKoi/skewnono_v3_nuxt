@@ -21,7 +21,7 @@ from back_dev_home.meas_hist.opensearch_query import (
     build_search_all_value,
 )
 from back_dev_home.meas_hist.routes import bp
-from tests._office_state import MISSING_ADAPTER_MESSAGE
+from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 
 class TestMeasHistFallbackSearch(unittest.TestCase):
@@ -103,6 +103,7 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
         self.assertIn("ADI_CD_BIAS_001", value)
         self.assertNotIn("120 0 0.0", value)
 
+    @unittest.skipIf(has_office_adapter("meas_hist"), skip_reason("meas_hist"))
     def test_unconnected_office_adapter_fails_explicitly(self):
         os.environ["SKEWNONO_MEAS_HIST_PROVIDER"] = "office"
 
