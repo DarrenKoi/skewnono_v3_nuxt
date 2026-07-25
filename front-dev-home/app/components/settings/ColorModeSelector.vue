@@ -42,7 +42,7 @@ const resolvedLabel = computed(() => colorMode.value === 'dark' ? 'Dark' : 'Ligh
       </div>
       <div class="inline-flex items-center gap-2 self-start rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
         <UIcon
-          name="i-lucide-circle-half"
+          name="i-lucide-contrast"
           class="h-3.5 w-3.5"
         />
         <span class="whitespace-nowrap">적용 중: {{ resolvedLabel }}</span>
