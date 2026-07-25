@@ -1,4 +1,4 @@
-"""Verify that running Flask :5000 returns shapes matching frozen fixtures.
+"""Verify that a running Flask returns shapes matching the frozen fixtures.
 
 사무실 스왑 직후 실 Flask 가 댁 측 기대 형태를 깨뜨리지 않았는지 검증합니다.
 구체적으로 다음을 확인합니다.
@@ -12,7 +12,10 @@
 구조만 봅니다.
 
 사용법:
-    python scripts/check_contract.py
+    python -m scripts.check_contract              # 기본 :5050
+    PORT=5000 python -m scripts.check_contract    # Flask 를 :5000 으로 띄운 경우
+
+포트는 Flask 를 어떻게 띄웠는지에 맞춥니다 — index.py 기본값도 :5050 입니다.
 """
 
 from __future__ import annotations
@@ -20,19 +23,24 @@ from __future__ import annotations
 import json
 import sys
 import urllib.error
-import urllib.request
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-# capture_fixtures.py 와 동일한 엔드포인트 목록을 공유합니다.
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from capture_fixtures import ENDPOINTS, FLASK_BASE, REPO_ROOT  # noqa: E402
-
-
-def _fetch(url: str) -> Any:
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+# capture_fixtures.py 와 엔드포인트 목록·포트 해석·픽스처 경로·fetch 를 모두
+# 공유합니다 — 두 스크립트가 같은 서버의 같은 파일을 보아야 비교가 의미 있습니다.
+# 리포 뿌리를 넣어 `python scripts/check_contract.py` 로 직접 실행해도
+# `scripts` 패키지로 한 번만 import 되게 합니다 — 최상위 `capture_fixtures`
+# 로 import 하면 모듈이 두 벌 생겨 테스트의 monkeypatch 가 새 나갑니다.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from scripts.capture_fixtures import (  # noqa: E402
+    ENDPOINTS,
+    _fetch,
+    display_path,
+    fixture_path,
+    flask_base,
+)
 
 
 def _type_name(value: Any) -> str:
@@ -91,40 +99,81 @@ def _diff_shape(expected: Any, actual: Any, path: str = "$") -> list[str]:
     return issues
 
 
-def main() -> int:
-    total = 0
-    fails = 0
-    for feature_dir, fixture_name, path in ENDPOINTS:
-        fixture_path = (
-            REPO_ROOT / "back_dev_home" / feature_dir / "__fixtures__" / fixture_name
-        )
-        if not fixture_path.exists():
-            print(f"[SKIP] {path} (픽스처 없음: {fixture_path.relative_to(REPO_ROOT)})")
+@dataclass(frozen=True)
+class Outcome:
+    """One endpoint's verdict.
+
+    `skip` 은 통과도 실패도 아닙니다 — 픽스처가 없는 엔드포인트는 분모에서
+    빠지므로, "28 / 28 통과" 가 실제로는 두 피처를 건너뛴 결과일 수 있습니다.
+    그 사실이 요약에 드러나야 하므로 상태를 세 가지로 구분합니다.
+    """
+
+    path: str
+    status: str  # "ok" | "fail" | "skip"
+    reason: str = ""  # skip 사유 또는 응답 실패 메시지
+    issues: tuple[str, ...] = field(default_factory=tuple)
+
+
+def check_endpoints(
+    endpoints: list[tuple[str, str, str]],
+    fetch: Callable[[str], Any] | None = None,
+) -> Iterator[Outcome]:
+    """Compare every endpoint against its fixture, yielding as it goes.
+
+    제너레이터인 이유는 CLI 가 결과를 한 줄씩 흘려 보여주기 때문입니다 —
+    응답이 30초씩 걸리는 사무실 Flask 를 상대로 마지막에 몰아 찍으면
+    어디서 멈췄는지 알 수 없습니다. `fetch=None` 은 실제 HTTP 이며, 주입은
+    라이브 Flask 없이 이 오케스트레이션(픽스처 누락 → skip, 응답 실패 →
+    fail)을 테스트하려는 것입니다 — 기본 인자로 굳히지 않는 이유는 main()
+    경로도 `_fetch` monkeypatch 로 검증할 수 있어야 하기 때문입니다.
+    """
+    fetch = fetch or _fetch
+    base = flask_base()
+    for feature_dir, fixture_name, path in endpoints:
+        target = fixture_path(feature_dir, fixture_name)
+        if not target.exists():
+            yield Outcome(path, "skip", f"픽스처 없음: {display_path(target)}")
             continue
 
-        total += 1
-        url = f"{FLASK_BASE}{path}"
         try:
-            actual = _fetch(url)
+            actual = fetch(f"{base}{path}")
         except urllib.error.URLError as exc:
-            print(f"[FAIL] {path}: 응답 실패 {exc}")
-            fails += 1
+            yield Outcome(path, "fail", f"응답 실패 {exc}")
             continue
 
-        expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+        expected = json.loads(target.read_text(encoding="utf-8"))
         issues = _diff_shape(expected, actual)
+        yield Outcome(path, "fail" if issues else "ok", issues=tuple(issues))
 
-        if issues:
-            print(f"[FAIL] {path}")
-            for issue in issues[:20]:
-                print(f"       - {issue}")
-            if len(issues) > 20:
-                print(f"       ... ({len(issues) - 20} 개 추가)")
-            fails += 1
-        else:
-            print(f"[ OK ] {path}")
 
-    print(f"\n{total - fails} / {total} 통과")
+def _report(outcome: Outcome) -> None:
+    if outcome.status == "skip":
+        print(f"[SKIP] {outcome.path} ({outcome.reason})")
+        return
+    if outcome.status == "ok":
+        print(f"[ OK ] {outcome.path}")
+        return
+
+    suffix = f": {outcome.reason}" if outcome.reason else ""
+    print(f"[FAIL] {outcome.path}{suffix}")
+    for issue in outcome.issues[:20]:
+        print(f"       - {issue}")
+    if len(outcome.issues) > 20:
+        print(f"       ... ({len(outcome.issues) - 20} 개 추가)")
+
+
+def main() -> int:
+    outcomes: list[Outcome] = []
+    for outcome in check_endpoints(ENDPOINTS):
+        outcomes.append(outcome)
+        _report(outcome)
+
+    fails = sum(1 for o in outcomes if o.status == "fail")
+    total = sum(1 for o in outcomes if o.status != "skip")
+    skipped = len(outcomes) - total
+
+    tail = f" ({skipped} 개 건너뜀)" if skipped else ""
+    print(f"\n{total - fails} / {total} 통과{tail}")
     return 1 if fails else 0
 
 
