@@ -17,6 +17,9 @@ const props = withDefaults(defineProps<{
   unit: string
   focusedSequence: number | null
   selectedSeqs?: number[]
+  /** Per-sequence identity color for the multi-selection (active param). A seq
+   *  absent from this map falls back to the shared series color. */
+  seqColors?: Record<number, string>
   band?: RadialBandMode
   colorBySector?: boolean
   showResiduals?: boolean
@@ -24,6 +27,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   band: 'iqr',
   selectedSeqs: () => [],
+  seqColors: () => ({}),
   colorBySector: false,
   showResiduals: false,
   heightClass: 'h-full min-h-[9rem]'
@@ -71,7 +75,12 @@ const focused = computed(() => scatterData.value.filter(point => Number(point.na
 
 const selectedPts = computed(() => {
   const picked = new Set(props.selectedSeqs)
-  return scatterData.value.filter(point => picked.has(Number(point.name)))
+  return scatterData.value
+    .filter(point => picked.has(Number(point.name)))
+    .map((point) => {
+      const color = props.seqColors[Number(point.name)] ?? sk.value.series
+      return { ...point, itemStyle: { color, borderColor: color } }
+    })
 })
 
 const bandPoints = computed(() => {
@@ -272,7 +281,7 @@ const option = computed<EChartsOption>(() => {
         type: 'scatter',
         symbolSize: 18,
         data: selectedPts.value,
-        itemStyle: { color: sk.value.series, opacity: 0.18, borderColor: sk.value.series, borderWidth: 1.5 },
+        itemStyle: { opacity: 0.18, borderWidth: 1.5 },
         tooltip: { show: false },
         silent: true,
         z: 5

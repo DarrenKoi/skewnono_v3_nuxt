@@ -40,6 +40,7 @@
       :unit="analysis.activeUnit.value"
       :focused-sequence="analysis.focusedSequence.value"
       :selected-seqs="analysis.selectedSeqsForActiveParam.value"
+      :seq-colors="seqColors"
       band="iqr"
       @focus="analysis.setFocusedSequence"
     />
@@ -76,6 +77,18 @@ const model = computed<RadialModel>(() => {
   if (degreeToggle.value === '2°') return 'quadratic'
   if (degreeToggle.value === '3°') return 'cubic'
   return 'linear'
+})
+
+const sk = useChartPalette()
+
+// Active-parameter selected sequences → identity color, muted past the cap.
+const seqColors = computed<Record<number, string>>(() => {
+  const param = props.analysis.activeParam.value
+  const out: Record<number, string> = {}
+  for (const seq of props.analysis.selectedSeqsForActiveParam.value) {
+    out[seq] = props.analysis.siteColor(param, seq) ?? sk.value.muted
+  }
+  return out
 })
 
 const sectorOf = (x: number, y: number): string => {
