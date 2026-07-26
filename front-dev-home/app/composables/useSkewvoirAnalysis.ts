@@ -15,7 +15,7 @@ import {
   type MsrFeatureRow,
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
-import { sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
+import { namedParams, sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
 import { resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
@@ -143,14 +143,17 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
   // Presentation order everywhere (navigator chips, 파라미터 요약, fallback
   // param) follows the rows' mp_number → sequence, not the backend array order.
+  // namedParams first: an unnamed dummy MP leads many measurements and must not
+  // become a chip or the default pick (see utils/skewvoirAnalysis/paramOrder.ts).
   const paramSummaries = computed<MsrParamSummary[]>(() =>
-    sortByRowMpOrder(focusFile.value?.parameters ?? [], focusFile.value?.rows ?? [])
+    sortByRowMpOrder(namedParams(focusFile.value?.parameters ?? []), focusFile.value?.rows ?? [])
   )
   const availableParams = computed(() => paramSummaries.value.map(p => p.parameter))
 
   // Effective parameter: honor the URL `mp` when the focus file actually has it,
-  // else fall back to the file's first parameter (recipes differ — the sample's
-  // WAFER param doesn't exist in a GATE_CD recipe).
+  // else fall back to the file's first NAMED parameter — the dummy settling MP
+  // sorts ahead of it and is already filtered out above (recipes differ too, so
+  // the sample's WAFER param doesn't exist in a GATE_CD recipe).
   const activeParam = computed(() => {
     const want = ws.selection.value?.mp
     const params = availableParams.value

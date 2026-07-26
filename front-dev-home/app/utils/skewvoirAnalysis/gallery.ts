@@ -121,6 +121,28 @@ export const REASON_META: Record<GalleryReason, { label: string, role: 'bad' | '
   sequence: { label: '측정 순서', role: 'muted', evidence: false }
 }
 
+/** The `이상·실패 우선` toggle's state, resolved from the reviewer's explicit
+ * choice and the queue itself.
+ *
+ * The queue is PRE-ARMED: the gallery exists to work through 이상·실패 evidence,
+ * so opening it filtered is the useful landing state — the reviewer sees the
+ * sites that need eyes without a first click.
+ *
+ * `null` means the reviewer has not touched the toggle, so the default decides,
+ * and the default checks there is actually evidence to show. On a clean wafer
+ * (nothing evidence-backed — the common case for a healthy tool) arming would
+ * land on "필터에 해당하는 항목이 없습니다" while every good site sits hidden
+ * behind a filter the reviewer never set, so the default relaxes to the full
+ * queue. Once the reviewer sets the toggle, that choice always wins.
+ *
+ * Pure, and takes the count rather than the queue, so the caller can resolve it
+ * against a queue that is still loading (an empty queue reads as "no evidence
+ * yet" and re-resolves the moment rows arrive). */
+export const resolveEvidenceOnly = (
+  choice: boolean | null,
+  evidenceBackedCount: number
+): boolean => choice ?? evidenceBackedCount > 0
+
 /** Artifact-suspicion review TAGS — a SEPARATE axis from any pattern verdict. The
  * reviewer picks these by eye; Phase-1 provides no algorithmic backing for them,
  * so they are review prompts, never machine classifications. */

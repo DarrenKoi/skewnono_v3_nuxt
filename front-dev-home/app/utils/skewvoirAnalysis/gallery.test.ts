@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { buildReviewQueue } from './gallery.ts'
+import { buildReviewQueue, resolveEvidenceOnly } from './gallery.ts'
 import { parseWaferGeometry } from '../waferGeometry.ts'
 import type { MsrFileRow, ExeDetailInfo } from '~/composables/useMsrFileApi'
 
@@ -197,4 +197,30 @@ test('an empty row derives no scale rather than Infinity', () => {
   const q = buildReviewQueue(rows, 'CD_TOP', geo())
   const [entry] = q.entries
   assert.equal(entry!.nmPerPx, null)
+})
+
+// ---------------------------------------------------------------------------
+// resolveEvidenceOnly — the PRE-ARMED 이상·실패 우선 default
+// ---------------------------------------------------------------------------
+
+test('resolveEvidenceOnly: pre-arms when the queue has evidence to review', () => {
+  assert.equal(resolveEvidenceOnly(null, 3), true)
+})
+
+test('resolveEvidenceOnly: relaxes to the full queue on a clean wafer', () => {
+  // Arming here would land the reviewer on "필터에 해당하는 항목이 없습니다"
+  // with every good site hidden behind a filter they never set.
+  assert.equal(resolveEvidenceOnly(null, 0), false)
+})
+
+test('resolveEvidenceOnly: an explicit choice always beats the default', () => {
+  assert.equal(resolveEvidenceOnly(false, 5), false) // turned off despite evidence
+  assert.equal(resolveEvidenceOnly(true, 0), true) // kept on despite an empty result
+})
+
+test('resolveEvidenceOnly: a still-loading queue reads as no-evidence and re-resolves', () => {
+  // Callers resolve against a live count, so the same untouched choice flips to
+  // armed as soon as rows arrive — no setup-time snapshot to go stale.
+  assert.equal(resolveEvidenceOnly(null, 0), false)
+  assert.equal(resolveEvidenceOnly(null, 1), true)
 })

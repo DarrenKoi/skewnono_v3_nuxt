@@ -18,6 +18,26 @@ interface ParamOrderRow {
   sequence: number
 }
 
+// A measurement often OPENS with an unnamed dummy point — a settling shot that
+// stabilises the tool before the real MPs start. It is important to the tool but
+// carries no parameter name (''), so it is not something you analyse: it has no
+// unit, no spec, and the URL `mp` key cannot even represent it (routeQuery's
+// qstr reads '' back as absent), which makes a chip for it a DEAD control —
+// clicking it would silently land on a different parameter.
+//
+// So blank-named parameters are dropped from the parameter list every selection
+// surface reads (chips, 파라미터 요약, availableParams, the default pick, the
+// Correlation axis pickers). Because the dummy sorts FIRST by mp_number, this is
+// also what makes the default parameter "the next coming one" — the first REAL
+// parameter — instead of a nameless blank.
+//
+// Only the parameter LIST is filtered; the file's rows are untouched, so nothing
+// is hidden from the raw data.
+export const isNamedParam = (parameter: string): boolean => parameter.trim().length > 0
+
+export const namedParams = <T extends { parameter: string }>(items: T[]): T[] =>
+  items.filter(item => isNamedParam(item.parameter))
+
 type ParamRank = [mp: number, seq: number]
 
 const better = (a: ParamRank, b: ParamRank): boolean =>

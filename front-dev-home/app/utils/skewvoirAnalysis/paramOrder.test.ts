@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sortByRowMpOrder } from './paramOrder.ts'
+import { isNamedParam, namedParams, sortByRowMpOrder } from './paramOrder.ts'
 
 const row = (parameter: string, mp_number: number, sequence: number) =>
   ({ parameter, mp_number, sequence })
@@ -47,4 +47,33 @@ test('parameters absent from rows keep incoming order at the end', () => {
 test('empty rows leave the incoming order untouched', () => {
   const items = [{ parameter: 'B' }, { parameter: 'A' }]
   assert.deepEqual(names(sortByRowMpOrder(items, [])), ['B', 'A'])
+})
+
+test('isNamedParam: a real name is named, blank/whitespace is not', () => {
+  assert.equal(isNamedParam('CD_TOP'), true)
+  assert.equal(isNamedParam(''), false)
+  assert.equal(isNamedParam('   '), false)
+})
+
+test('namedParams drops the unnamed dummy parameter and keeps the rest in order', () => {
+  const items = [{ parameter: '' }, { parameter: 'CD_TOP' }, { parameter: 'CD_BOTTOM' }]
+  assert.deepEqual(names(namedParams(items)), ['CD_TOP', 'CD_BOTTOM'])
+})
+
+test('namedParams is a no-op when every parameter is named', () => {
+  const items = [{ parameter: 'CD_TOP' }, { parameter: 'CD_BOTTOM' }]
+  assert.deepEqual(names(namedParams(items)), ['CD_TOP', 'CD_BOTTOM'])
+})
+
+// The reason the two helpers compose: the dummy settling MP is measured FIRST,
+// so it sorts first and would otherwise become the default parameter. Filtering
+// before sorting makes the default "the next coming parameter".
+test('the dummy MP leads the mp order, so filtering it hands the default to the next param', () => {
+  const items = [{ parameter: '' }, { parameter: 'CD_TOP' }, { parameter: 'SIDEWALL_ANGLE' }]
+  const rows = [row('', 0, 1), row('CD_TOP', 1, 2), row('SIDEWALL_ANGLE', 2, 3)]
+
+  // Unfiltered, the nameless dummy wins the first slot.
+  assert.deepEqual(names(sortByRowMpOrder(items, rows)), ['', 'CD_TOP', 'SIDEWALL_ANGLE'])
+  // Filtered, the first slot is the first real parameter.
+  assert.deepEqual(names(sortByRowMpOrder(namedParams(items), rows)), ['CD_TOP', 'SIDEWALL_ANGLE'])
 })

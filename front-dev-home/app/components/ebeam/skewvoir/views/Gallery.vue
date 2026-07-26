@@ -86,8 +86,9 @@
       class="flex flex-col gap-3"
     >
       <EbeamSkewvoirGalleryReviewFilters
-        v-model="filter"
+        :model-value="filter"
         :counts="filterCounts"
+        @update:model-value="onFilterUpdate"
       />
 
       <p
@@ -188,7 +189,7 @@ import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFil
 import { downloadErrorMessage, type DownloadJobStatus } from '~/composables/useMsrImageApi'
 import { isTiffName } from '~/utils/imageKind'
 import { measuredRows } from '~/utils/msrRows'
-import { buildReviewQueue, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import { buildReviewQueue, resolveEvidenceOnly, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -270,21 +271,46 @@ const queue = computed(() =>
   )
 )
 
-// Seed the 이상·실패 우선 toggle from the URL `filter` key (e.g. the overview's
-// "검토할 이미지" hand-off writes `filter=priority`) so the queue opens
-// pre-filtered; absent/unrecognised values fall back to the existing default
-// (both filters off).
-const filter = ref<ReviewFilter>({
-  evidenceOnly: props.analysis.filterParam.value === 'priority',
-  imageOnly: false,
-  query: ''
-})
+// The reviewer's EXPLICIT 이상·실패 우선 choice, seeded from the URL `filter`
+// key; null = untouched, which hands the decision to resolveEvidenceOnly's
+// pre-armed default. Both values round-trip, so an absent key means "default"
+// rather than "off" — that distinction is what lets the default arm the toggle
+// while a link shared with it deliberately off still reopens off.
+const evidenceOnlyChoice = ref<boolean | null>(
+  props.analysis.filterParam.value === 'priority'
+    ? true
+    : props.analysis.filterParam.value === 'all' ? false : null
+)
 
-// Write the toggle back to the URL so the queue's filtered state is shareable.
-// Only the evidence-priority toggle round-trips through `filter` (the value
-// the hand-off writes); image-only/text search stay local-only, unchanged.
-watch(() => filter.value.evidenceOnly, (evidenceOnly) => {
-  props.analysis.setFilter(evidenceOnly ? 'priority' : null)
+// PRE-ARMED unless the reviewer says otherwise — see resolveEvidenceOnly. This
+// reads the live queue rather than a setup-time snapshot because siteRows arrive
+// async: a seed taken during setup would always see 0 evidence and never arm.
+const evidenceOnly = computed(() =>
+  resolveEvidenceOnly(evidenceOnlyChoice.value, queue.value.counts.evidenceBacked)
+)
+const imageOnly = ref(false)
+const searchQuery = ref('')
+
+const filter = computed<ReviewFilter>(() => ({
+  evidenceOnly: evidenceOnly.value,
+  imageOnly: imageOnly.value,
+  query: searchQuery.value
+}))
+
+// ReviewFilters emits the whole filter object; split it back into the pieces
+// that own their state. Touching 이상·실패 우선 records an explicit choice, so
+// the pre-armed default stops applying from then on.
+const onFilterUpdate = (next: ReviewFilter) => {
+  if (next.evidenceOnly !== evidenceOnly.value) evidenceOnlyChoice.value = next.evidenceOnly
+  imageOnly.value = next.imageOnly
+  searchQuery.value = next.query
+}
+
+// Write the reviewer's choice back to the URL so a filtered queue is shareable.
+// Only this toggle round-trips through `filter`; image-only/text search stay
+// local-only, unchanged.
+watch(evidenceOnlyChoice, (choice) => {
+  props.analysis.setFilter(choice == null ? null : choice ? 'priority' : 'all')
 })
 
 const filteredEntries = computed<ReviewEntry[]>(() => {
