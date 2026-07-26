@@ -11,7 +11,13 @@ minio_config.py 가 공급). minio_handler.MinioObject().get_pickle 로 로드.
 "df_result_data" : pd.DataFrame
 
 columns : value (examples)
-"sequence": 1,2,3...
+"sequence": 1,2,3... — 첫 측정부터 마지막 측정까지 이어지는 전역 일련번호입니다
+                    (office 확인 2026-07-27). row 1개 = 측정 1건 = sequence 1개이며,
+                    같은 parameter 가 여러 번 측정되어도 매번 새 번호를 받습니다.
+                    따라서 연속한 두 sequence 는 보통 서로 다른 parameter 에
+                    속하고, 특정 parameter 를 고르면 sequence 는 항상 띄엄띄엄한
+                    부분집합이 됩니다 — dynamic_fdc 를 그 parameter 의 cd_value 와
+                    함께 볼 때는 반드시 이 부분집합으로 잘라야 합니다.
 "chip_number" : "1,1", "-5,0", "0,-5"
 "stage_coordinate: "161395915,169086859"
 "dnum_group": "-1,-1", "2,-1", "7,-1"
@@ -96,6 +102,15 @@ they key can be varied based on models.
 
 keys : "1", "2", "3",.. matching with sequence
 stored for each measurement
+
+불변식 (office 확인 2026-07-27): len(df_result_data) == len(dynamic_fdc) 입니다.
+row 1건이 측정 1건이고 dynamic_fdc 는 그 측정 시점의 장비 상태를 담으므로 두 개수는
+항상 같아야 합니다. 어긋나면 데이터가 잘못된 것이므로 조용히 넘어가지 말고 드러내야
+합니다 — office adapter 는 build_response 에서 warning 을 남기고(중단하지는 않습니다),
+프런트는 FDC 분석 화면에 불일치 배지를 띄웁니다.
+
+이 불변식 덕분에 "이 cd_value 에 대응하는 FDC 값" 이 언제나 유일하게 정해집니다.
+후보가 둘이거나 없는 경우가 생기지 않습니다.
 
 values: all floats
 "AIp",
