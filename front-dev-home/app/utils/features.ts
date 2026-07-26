@@ -40,3 +40,21 @@ export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
   const match = path.match(FEATURE_SLUG_REGEX)
   return (match?.[1] as FeatureSlug | undefined) ?? ''
 }
+
+// Top-level pages reached from the header's right-hand icon row. They sit outside the
+// `/ebeam` tree but still show the feature tabs, because the icon is the only way in —
+// without the tabs there is no way back to the main pages. Every static `to="/…"` in
+// AppHeader.vue belongs here; features.test.ts fails if one is missing.
+export const HEADER_INFO_PATHS = [
+  '/intro',
+  '/endpoints',
+  '/mag-pixel',
+  '/chat',
+  '/activity',
+  '/settings'
+] as const
+
+// Matches the page itself and anything nested under it, but never a longer sibling
+// segment (`/chatroom` is not `/chat`).
+export const isHeaderInfoPath = (path: string): boolean =>
+  HEADER_INFO_PATHS.some(base => path === base || path.startsWith(`${base}/`))

@@ -2,12 +2,16 @@
 // Feature slugs are the segment after the tool type in `/ebeam/{toolType}/…`.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   FEATURE_SLUGS,
   FEATURE_SLUG_REGEX,
   FEATURE_SLUG_SUFFIX_REGEX,
   FABLESS_FEATURES,
+  HEADER_INFO_PATHS,
   isFablessFeature,
+  isHeaderInfoPath,
   matchFeatureFromPath
 } from './features.ts'
 
@@ -111,5 +115,52 @@ test('isFablessFeature answers for live slugs and unknown strings alike', () => 
 test('every fabless entry is a real slug', () => {
   for (const slug of FABLESS_FEATURES) {
     assert.ok(FEATURE_SLUGS.includes(slug), `${slug} is fabless but not a feature slug`)
+  }
+})
+
+test('isHeaderInfoPath covers every page the header icons lead to', () => {
+  for (const path of HEADER_INFO_PATHS) {
+    assert.equal(isHeaderInfoPath(path), true, `${path} should keep the feature tabs`)
+  }
+  // /chat regressed twice: it is reachable only from the header icon, so losing
+  // the tabs there leaves no way back to the main pages without the browser's back button.
+  assert.equal(isHeaderInfoPath('/chat'), true)
+})
+
+test('isHeaderInfoPath matches sub-routes but not partial segments', () => {
+  assert.equal(isHeaderInfoPath('/settings/profile'), true)
+  assert.equal(isHeaderInfoPath('/chat/'), true)
+  assert.equal(isHeaderInfoPath('/chatroom'), false)
+  assert.equal(isHeaderInfoPath('/intro-video'), false)
+})
+
+test('isHeaderInfoPath excludes the hub index and the ebeam tree', () => {
+  // The hub index and ebeam routes have their own tab handling — the hub shows none,
+  // ebeam routes match on isEbeamRoute instead.
+  assert.equal(isHeaderInfoPath('/'), false)
+  assert.equal(isHeaderInfoPath('/ebeam/cd-sem/r3'), false)
+  assert.equal(isHeaderInfoPath('/afm'), false)
+})
+
+// Guard against the drift that caused this bug three times: AppHeader's icon row and
+// HEADER_INFO_PATHS are separate lists, so a new header icon silently loses its tabs.
+test('every static header-icon target is a header info path', () => {
+  const header = readFileSync(
+    join(import.meta.dirname, '..', 'components', 'nav', 'AppHeader.vue'),
+    'utf8'
+  )
+  // Static `to="/x"` only — the logo's `/` and the computed `:to` live-alarm target are
+  // ebeam routes or the hub, both of which resolve their tabs elsewhere.
+  const targets = [...header.matchAll(/\bto="(\/[^"]*)"/g)]
+    .map(m => m[1]!)
+    .filter(path => path !== '/')
+
+  assert.ok(targets.length > 0, 'found no header icon targets — did the regex go stale?')
+  for (const path of targets) {
+    assert.equal(
+      isHeaderInfoPath(path),
+      true,
+      `${path} is a header icon target but is missing from HEADER_INFO_PATHS, so its page renders no feature tabs`
+    )
   }
 })
