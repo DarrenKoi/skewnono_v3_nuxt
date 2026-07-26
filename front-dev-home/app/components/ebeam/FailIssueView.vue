@@ -123,29 +123,37 @@
                   Align fail · daily trend
                 </h3>
               </div>
-              <div
-                role="radiogroup"
-                aria-label="Align fail chart type"
-                class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
-              >
-                <button
-                  v-for="chartOption in CHART_TYPES"
-                  :key="chartOption.value"
-                  type="button"
-                  role="radio"
-                  :aria-checked="chartType === chartOption.value"
-                  class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
-                  :class="chartType === chartOption.value
-                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
-                    : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-                  @click="chartType = chartOption.value"
+              <div class="flex flex-wrap items-center justify-end gap-3">
+                <div
+                  role="radiogroup"
+                  aria-label="Align fail chart type"
+                  class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
                 >
-                  <UIcon
-                    :name="chartOption.icon"
-                    class="h-3.5 w-3.5"
-                  />
-                  {{ chartOption.label }}
-                </button>
+                  <button
+                    v-for="chartOption in CHART_TYPES"
+                    :key="chartOption.value"
+                    type="button"
+                    role="radio"
+                    :aria-checked="chartType === chartOption.value"
+                    class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
+                    :class="chartType === chartOption.value
+                      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
+                      : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+                    @click="chartType = chartOption.value"
+                  >
+                    <UIcon
+                      :name="chartOption.icon"
+                      class="h-3.5 w-3.5"
+                    />
+                    {{ chartOption.label }}
+                  </button>
+                </div>
+                <USwitch
+                  v-model="includeToday"
+                  size="sm"
+                  label="오늘 데이터"
+                  class="shrink-0"
+                />
               </div>
             </div>
           </template>
@@ -170,29 +178,37 @@
                   Meas fail · daily trend
                 </h3>
               </div>
-              <div
-                role="radiogroup"
-                aria-label="Meas fail chart type"
-                class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
-              >
-                <button
-                  v-for="chartOption in CHART_TYPES"
-                  :key="chartOption.value"
-                  type="button"
-                  role="radio"
-                  :aria-checked="chartType === chartOption.value"
-                  class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
-                  :class="chartType === chartOption.value
-                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
-                    : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-                  @click="chartType = chartOption.value"
+              <div class="flex flex-wrap items-center justify-end gap-3">
+                <div
+                  role="radiogroup"
+                  aria-label="Meas fail chart type"
+                  class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
                 >
-                  <UIcon
-                    :name="chartOption.icon"
-                    class="h-3.5 w-3.5"
-                  />
-                  {{ chartOption.label }}
-                </button>
+                  <button
+                    v-for="chartOption in CHART_TYPES"
+                    :key="chartOption.value"
+                    type="button"
+                    role="radio"
+                    :aria-checked="chartType === chartOption.value"
+                    class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
+                    :class="chartType === chartOption.value
+                      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
+                      : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+                    @click="chartType = chartOption.value"
+                  >
+                    <UIcon
+                      :name="chartOption.icon"
+                      class="h-3.5 w-3.5"
+                    />
+                    {{ chartOption.label }}
+                  </button>
+                </div>
+                <USwitch
+                  v-model="includeToday"
+                  size="sm"
+                  label="오늘 데이터"
+                  class="shrink-0"
+                />
               </div>
             </div>
           </template>
@@ -271,6 +287,7 @@ import {
   buildFailSummaryItems,
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
+import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 
 const props = defineProps<{
   fab: string
@@ -280,6 +297,8 @@ const props = defineProps<{
   // as its own tab on one shared instance (data + filters survive flips).
   section: 'align' | 'meas'
 }>()
+
+const includeToday = defineModel<boolean>('includeToday', { required: true })
 
 const sk = useChartPalette()
 
@@ -368,6 +387,11 @@ const { data: devicesData } = await useAsyncData(
 
 const summary = computed(() => data.value?.summary)
 const trendPoints = computed(() => data.value?.daily.points ?? [])
+const visibleTrendPoints = computed(() => filterRecipeStatusTrendPoints(
+  trendPoints.value,
+  summary.value?.anchor_date,
+  includeToday.value
+))
 const alignRows = computed<FailIssueAlignRow[]>(() => data.value?.align.rows ?? [])
 const measRows = computed<FailIssueMeasRow[]>(() => data.value?.meas.rows ?? [])
 const deviceList = computed(() => devicesData.value?.devices ?? [])
@@ -431,7 +455,7 @@ const measSummaryItems = computed(() => buildFailSummaryItems({
 const alignTrendEl = ref<HTMLDivElement | null>(null)
 const measTrendEl = ref<HTMLDivElement | null>(null)
 
-const xAxisDates = computed(() => trendPoints.value.map(p => p.date))
+const xAxisDates = computed(() => visibleTrendPoints.value.map(p => p.date))
 
 const buildTrendOption = (
   seriesName: string,
@@ -454,7 +478,7 @@ const buildTrendOption = (
         const arr = Array.isArray(params) ? params : [params]
         const first = arr[0] as { dataIndex?: number }
         const idx = typeof first.dataIndex === 'number' ? first.dataIndex : 0
-        const point = trendPoints.value[idx]
+        const point = visibleTrendPoints.value[idx]
         if (!point) return ''
         const failCount = values[idx] ?? 0
         const totalCount = baseline[idx] ?? 0
@@ -551,17 +575,17 @@ const buildTrendOption = (
 const alignTrendOption = computed<EChartsOption>(() =>
   buildTrendOption(
     'Align fails',
-    trendPoints.value.map(p => p.align_fail_count),
+    visibleTrendPoints.value.map(p => p.align_fail_count),
     sk.value.series,
-    trendPoints.value.map(p => p.exec_count)
+    visibleTrendPoints.value.map(p => p.exec_count)
   ))
 
 const measTrendOption = computed<EChartsOption>(() =>
   buildTrendOption(
     'Meas fails',
-    trendPoints.value.map(p => p.meas_fail_count),
+    visibleTrendPoints.value.map(p => p.meas_fail_count),
     sk.value.brand,
-    trendPoints.value.map(p => p.exec_count)
+    visibleTrendPoints.value.map(p => p.exec_count)
   ))
 
 useEchart(alignTrendEl, alignTrendOption)
