@@ -111,7 +111,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 9. providers/office.py 구현 → 실 Flask에 배치
 
 [사무실 세션 종료 시]
-10. python scripts/check_contract.py          # 픽스처와 구조 일치 확인
+10. PORT=5000 python -m scripts.check_contract  # 픽스처와 구조 일치 확인
 11. 드리프트가 있으면 docs/swap-drift/ 에 기록
 12. 새 필드/제약은 docs/api-contracts/에 반영
 13. git commit (사무실 분기 또는 patch 파일)

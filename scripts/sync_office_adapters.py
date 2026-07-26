@@ -386,7 +386,9 @@ def copy(adapters: list[Adapter], *, force: bool, dry_run: bool) -> int:
     print(f"\n{verb} {copied}, skipped {skipped}.")
     if not dry_run and copied:
         print("Restart Flask so the new adapters are picked up, then verify with:")
-        print("  curl -s localhost:5000/api/health/providers")
+        # 5000 at the office, 5050 at home (5000 is macOS AirPlay). PORT overrides
+        # both, and index.py reads the same knob.
+        print("  curl -s localhost:${PORT:-5000}/api/health/providers")
     return 0
 
 

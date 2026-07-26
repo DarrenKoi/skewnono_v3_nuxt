@@ -359,11 +359,17 @@ def get_sem_list() -> list[SemListRow]:
 
 ```bash
 SKEWNONO_SEM_LIST_PROVIDER=office python index.py
-python -m unittest tests.test_sem_list_home
-python scripts/check_contract.py
+SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest back_dev_home/sem_list -q
+PORT=5000 .venv/bin/python -m scripts.check_contract
 ```
 
-실제 unit test module 이름은 사무실에서 추가한 파일에 맞게 함께 실행합니다.
+두 번째 줄이 해당 기능의 office 게이트입니다. `unittest` 로는 `back_dev_home/**/tests/`
+아래의 contract 테스트가 수집되지 않으므로 `pytest` 를 사용합니다. 기능 이름만 바꾸면
+다른 기능에도 그대로 적용됩니다.
+
+`check_contract` 는 살아 있는 Flask 에 붙어 픽스처와 구조를 비교합니다. `PORT` 로 대상을
+지정하며 기본값은 댁 기준 5050 이므로, 사무실 Flask(5000)에 붙일 때는 위와 같이 명시해야
+합니다.
 
 ## 8. 현재 전환 현황과 순서
 

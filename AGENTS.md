@@ -12,7 +12,10 @@ Key frontend paths:
 - `front-dev-home/app/pages/`: route-driven views.
 - `front-dev-home/app/components/`: reusable UI components.
 - `front-dev-home/app/composables/`: shared Composition API logic.
-- `front-dev-home/app/stores/`: Pinia stores.
+- `front-dev-home/app/stores/`: shared client state. **Not Pinia** — Pinia is not
+  a dependency of this project. `navigation.ts` is a `useState`-backed store in
+  the Nuxt-built-ins style described in CLAUDE.md; anything that must survive a
+  reload goes through `composables/usePersistedState.ts`.
 - `front-dev-home/app/assets/css/`: global styles.
 - `front-dev-home/public/`: static assets.
 - `front-dev-home/app/mock-data/`: local reference content used by the frontend.

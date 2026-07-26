@@ -112,7 +112,9 @@ def main(argv: list[str] | None = None) -> int:
         for path in warnings:
             print(f"  {path}")
     if (created or refreshed) and not args.dry_run:
-        print("\nRestart Flask, then verify: curl -s localhost:5000/api/health/providers")
+        # 5000 at the office, 5050 at home (5000 is macOS AirPlay).
+        print("\nRestart Flask, then verify: "
+              "curl -s localhost:${PORT:-5000}/api/health/providers")
     return 0
 
 
