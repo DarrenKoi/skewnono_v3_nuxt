@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
-import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature, isHeaderInfoPath } from '~/utils/features'
+import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature } from '~/utils/features'
 import { fabSegment } from '~/utils/fab'
+import { isHeaderInfoPath } from '~/utils/headerNav'
 
 const route = useRoute()
 const { fab, toolType: storeToolType } = useNavigation()
@@ -9,7 +10,8 @@ const isEbeamRoute = useEbeamRoute()
 
 // Header-right info pages keep the feature tabs so the user can jump back to the main
 // pages; outside ebeam routes the tool type falls back to the store's remembered value.
-// The path list lives in utils/features so a test can hold it against AppHeader's icons.
+// The path list is derived from the header's own icon row (utils/headerNav), so a page
+// cannot be reachable from the header while rendering no tabs.
 const isInfoRoute = computed(() => isHeaderInfoPath(route.path))
 
 type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'live-alarm' | 'device-statistics' | 'skewvoir' | 'skew-check'

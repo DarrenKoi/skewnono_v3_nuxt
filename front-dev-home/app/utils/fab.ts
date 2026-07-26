@@ -22,9 +22,11 @@ export const NO_FAB = 'all'
 export const normalizeFab = (fab: string | null | undefined): string =>
   (fab ?? '').trim().toUpperCase()
 
+const NO_FAB_CANONICAL = NO_FAB.toUpperCase()
+
 export const hasFab = (fab: string | null | undefined): boolean => {
   const normalized = normalizeFab(fab)
-  return normalized !== '' && normalized !== normalizeFab(NO_FAB)
+  return normalized !== '' && normalized !== NO_FAB_CANONICAL
 }
 
 // Case-insensitive equality — use this instead of `===` for anything that touches a
@@ -34,20 +36,19 @@ export const sameFab = (a: string | null | undefined, b: string | null | undefin
   return left !== '' && left === normalizeFab(b)
 }
 
-// The remembered fab in canonical form, or R3 when there is nothing to remember.
-export const resolveFab = (fab: string | null | undefined): string =>
-  hasFab(fab) ? normalizeFab(fab) : DEFAULT_FAB
-
-// The same value as a URL segment. Fab names are stored uppercase but routed lowercase.
+// The remembered fab as a URL segment, or R3's when there is nothing to remember.
+// Fab names are stored uppercase but routed lowercase.
 export const fabSegment = (fab: string | null | undefined): string =>
-  resolveFab(fab).toLowerCase()
+  (hasFab(fab) ? normalizeFab(fab) : DEFAULT_FAB).toLowerCase()
 
 // Sort: R fabs first (ascending), then M fabs (newest fac first — M16 before M11),
 // with letter suffixes ascending within the same fac. Parses case-insensitively so a
 // lowercase name cannot fall through to localeCompare and land in the wrong group.
+const FAB_LABEL_PATTERN = /^([RM])(\d+)([A-Z]?)$/
+
 export const sortFabNames = (a: string, b: string): number => {
   const parse = (label: string) => {
-    const match = normalizeFab(label).match(/^([RM])(\d+)([A-Z]?)$/)
+    const match = normalizeFab(label).match(FAB_LABEL_PATTERN)
     return match ? { prefix: match[1] as 'R' | 'M', num: Number(match[2]), suffix: match[3] ?? '' } : null
   }
 

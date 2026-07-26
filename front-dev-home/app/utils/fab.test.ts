@@ -6,7 +6,6 @@ import {
   DEFAULT_FAB,
   NO_FAB,
   hasFab,
-  resolveFab,
   fabSegment,
   normalizeFab,
   sameFab,
@@ -33,32 +32,22 @@ test('hasFab is true only for a real remembered fab', () => {
   assert.equal(hasFab(null), false)
 })
 
-test('resolveFab keeps a remembered fab as-is', () => {
-  assert.equal(resolveFab('R3'), 'R3')
-  assert.equal(resolveFab('R4'), 'R4')
-  assert.equal(resolveFab('M16B'), 'M16B')
-})
-
-test('resolveFab falls back to R3 when nothing is remembered', () => {
-  // Every shape "no memory" can take: the sentinel, an empty string, or an
-  // unset store value before the persist plugin has run.
-  assert.equal(resolveFab(NO_FAB), DEFAULT_FAB)
-  assert.equal(resolveFab(''), DEFAULT_FAB)
-  assert.equal(resolveFab(undefined), DEFAULT_FAB)
-  assert.equal(resolveFab(null), DEFAULT_FAB)
-})
-
-test('fabSegment lowercases for the URL', () => {
-  // Fab names are stored uppercase (fab_name from the API) but URLs are lowercase.
+test('fabSegment keeps a remembered fab, lowercased for the URL', () => {
+  // Fab names are stored uppercase (fab_name from the API) but routed lowercase.
   assert.equal(fabSegment('R3'), 'r3')
+  assert.equal(fabSegment('R4'), 'r4')
   assert.equal(fabSegment('M16B'), 'm16b')
   assert.equal(fabSegment('r4'), 'r4')
 })
 
-test('fabSegment applies the R3 fallback before lowercasing', () => {
-  assert.equal(fabSegment(NO_FAB), 'r3')
-  assert.equal(fabSegment(''), 'r3')
-  assert.equal(fabSegment(undefined), 'r3')
+test('fabSegment falls back to R3 when nothing is remembered', () => {
+  // Every shape "no memory" can take: the sentinel, an empty string, or an
+  // unset store value before the persist plugin has run.
+  const fallback = DEFAULT_FAB.toLowerCase()
+  assert.equal(fabSegment(NO_FAB), fallback)
+  assert.equal(fabSegment(''), fallback)
+  assert.equal(fabSegment(undefined), fallback)
+  assert.equal(fabSegment(null), fallback)
 })
 
 // The backend returns fab_name in whichever case its source DB stores it — 'R3' from one,
@@ -87,22 +76,17 @@ test('sameFab compares across the casings the backend mixes', () => {
   assert.equal(sameFab(undefined, 'R3'), false)
 })
 
+test('fabSegment produces the same URL whatever case it is handed', () => {
+  assert.equal(fabSegment('R3'), fabSegment('r3'))
+  assert.equal(fabSegment('M16B'), fabSegment('m16b'))
+})
+
 test('the sentinel is recognised in any casing', () => {
   // A lowercase-only check would let 'ALL' through and build /ebeam/cd-sem/all.
   assert.equal(hasFab('ALL'), false)
   assert.equal(hasFab('All'), false)
-  assert.equal(resolveFab('ALL'), DEFAULT_FAB)
-  assert.equal(resolveFab('All'), DEFAULT_FAB)
-})
-
-test('resolveFab canonicalizes a lowercase remembered fab', () => {
-  assert.equal(resolveFab('r3'), 'R3')
-  assert.equal(resolveFab('m16b'), 'M16B')
-})
-
-test('fabSegment produces the same URL whatever case it is handed', () => {
-  assert.equal(fabSegment('R3'), fabSegment('r3'))
-  assert.equal(fabSegment('M16B'), 'm16b')
+  assert.equal(fabSegment('ALL'), DEFAULT_FAB.toLowerCase())
+  assert.equal(fabSegment('All'), DEFAULT_FAB.toLowerCase())
 })
 
 test('sortFabNames keeps R-before-M ordering regardless of case', () => {
@@ -136,10 +120,10 @@ test('extractFabNames drops rows with no fab name', () => {
   assert.deepEqual(extractFabNames([]), [])
 })
 
-test('resolveFab never yields a value that would build a broken URL', () => {
+test('fabSegment never yields a value that would build a broken URL', () => {
   for (const input of [NO_FAB, '', undefined, null, 'R3', 'M11']) {
-    const resolved = resolveFab(input)
-    assert.notEqual(resolved, '', `resolveFab(${String(input)}) produced an empty segment`)
-    assert.notEqual(resolved, NO_FAB, `resolveFab(${String(input)}) leaked the sentinel into a URL`)
+    const segment = fabSegment(input)
+    assert.notEqual(segment, '', `fabSegment(${String(input)}) produced an empty segment`)
+    assert.notEqual(segment, NO_FAB, `fabSegment(${String(input)}) leaked the sentinel into a URL`)
   }
 })

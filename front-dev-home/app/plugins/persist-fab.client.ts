@@ -1,5 +1,5 @@
 import { useNavigationStore } from '~/stores/navigation'
-import { NO_FAB, hasFab, normalizeFab } from '~/utils/fab'
+import { NO_FAB, normalizeFab } from '~/utils/fab'
 
 // New key (was 'skewnono:fab') — old fac_id values like "R3"/"M11" are no longer valid
 // fab_names, so dropping the old key avoids redirecting users to no-data URLs after deploy.
@@ -14,8 +14,9 @@ const FAB_NAME_PATTERN = /^[RM]\d{1,2}[A-C]?$/
 export default defineNuxtPlugin(() => {
   const store = useNavigationStore()
 
+  // The pattern already rejects '' and the sentinel — both fail the leading [RM].
   const saved = normalizeFab(window.localStorage.getItem(STORAGE_KEY))
-  if (hasFab(saved) && FAB_NAME_PATTERN.test(saved)) {
+  if (FAB_NAME_PATTERN.test(saved)) {
     store.setFab(saved)
   }
 

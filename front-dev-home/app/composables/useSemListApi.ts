@@ -1,6 +1,6 @@
 import type { Fab, ToolType } from '~/stores/navigation'
 import { joinApiPath } from '~/utils/apiPath'
-import { hasFab, sameFab } from '~/utils/fab'
+import { NO_FAB, hasFab, normalizeFab } from '~/utils/fab'
 
 // One shared cache key for /api/sem-list. Every consumer (hub page, tool-type
 // tabs, fab sidebar, inventory view) calls useSemList() and derives its view
@@ -38,10 +38,6 @@ export const classifyToolType = (eqpModelCd: string): ToolType | null => {
   return null
 }
 
-// sortFabNames / extractFabNames moved to ~/utils/fab, with the rest of the fab-name rules
-// (canonical casing, comparison, URL segments), so they can be unit-tested and the
-// mixed-casing handling has one home. Call sites pick them up via Nuxt's utils auto-import.
-
 export const useSemListApi = () => {
   const config = useRuntimeConfig()
   const semListUrl = joinApiPath(config.public.apiBase, '/sem-list')
@@ -50,12 +46,13 @@ export const useSemListApi = () => {
     return await $fetch<SemListResponse>(semListUrl)
   }
 
-  const filterRows = (rows: SemListRow[], toolType: ToolType, fab: Fab = 'all'): SemListRow[] => {
+  const filterRows = (rows: SemListRow[], toolType: ToolType, fab: Fab = NO_FAB): SemListRow[] => {
+    // Normalized once, not per row: row.fab_name carries whatever casing its source DB used,
+    // so the comparison has to be case-insensitive — a raw `===` empties the whole list.
+    const target = hasFab(fab) ? normalizeFab(fab) : ''
     return rows.filter((row) => {
       if (classifyToolType(row.eqp_model_cd) !== toolType) return false
-      // sameFab, not `===`: row.fab_name carries whatever casing its source DB used, while
-      // `fab` is the store's canonical uppercase. A raw compare empties the whole list.
-      if (hasFab(fab) && !sameFab(row.fab_name, fab)) return false
+      if (target !== '' && normalizeFab(row.fab_name) !== target) return false
       return true
     })
   }

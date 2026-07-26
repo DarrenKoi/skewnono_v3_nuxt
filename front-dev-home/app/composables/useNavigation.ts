@@ -71,10 +71,10 @@ export const useNavigation = () => {
     // Same feature, new fab: keep the feature's query params (e.g.
     // recipe-status ?tab=) so the visible state stays URL-encoded.
     if (featureEnabled) {
-      router.push({ path: `/ebeam/${toolType}/${fab.toLowerCase()}/${feature}`, query: route.query })
+      router.push({ path: `/ebeam/${toolType}/${fabSegment(fab)}/${feature}`, query: route.query })
       return
     }
-    router.push(`/ebeam/${toolType}/${fab.toLowerCase()}`)
+    router.push(`/ebeam/${toolType}/${fabSegment(fab)}`)
   }
 
   return {

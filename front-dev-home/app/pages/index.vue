@@ -18,8 +18,8 @@ const fabOptions = computed(() => extractFabNames(semRows.value ?? []).map(name 
 })))
 
 const selectedFab = computed<string | undefined>({
-  get: () => fab.value === 'all' ? undefined : fab.value,
-  set: value => setFab(value ?? 'all')
+  get: () => hasFab(fab.value) ? fab.value : undefined,
+  set: value => setFab(value ?? NO_FAB)
 })
 
 const rowsByToolType = computed(() => {
