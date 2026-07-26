@@ -130,17 +130,10 @@ Playwright MCP by hand; see the `verify` skill.
 
 ### Deployment (Phase 3)
 
-Pack at the office, from the repo root, after building the frontend:
-
-```bash
-npm --prefix front-dev-home run build
-.venv/bin/python -m scripts.pack_deploy
-```
-
-Produces `dist/skewnono-<stamp>/`. Copy it to `/project/workSpace/` on the
-cloud host — that exact path, because `is_cloud()` is a filesystem check, not
-a config flag — then follow the bundle's `DEPLOY.md`. Run its `preflight.py`
-before starting uwsgi. See `docs/deployment.md`.
+Pack at the office with `scripts.pack_deploy` (after building the frontend), then
+deploy to `/project/workSpace/` on the cloud host — that exact path, because
+`is_cloud()` is a filesystem check, not a config flag. Full steps, including the
+bundle's `preflight.py`: `docs/deployment.md`.
 
 ## Playwright Screenshots
 
