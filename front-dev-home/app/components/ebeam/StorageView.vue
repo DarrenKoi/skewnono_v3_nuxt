@@ -225,6 +225,7 @@ import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composa
 import { isStorageUnavailable } from '~/composables/useStorageApi'
 import { copyTextToClipboard } from '~/utils/csvDownload'
 import { storageUsageTier } from '~/utils/storageUsage'
+import { sameFab } from '~/utils/fab'
 import type { MetaBarStat } from './MetaBar.vue'
 
 const props = defineProps<{
@@ -277,7 +278,7 @@ const {
 // defensive guard: it re-asserts the tool type and fab_name in case the cached
 // payload and the current URL ever disagree.
 const rows = computed(() => (data.value ?? []).filter(row =>
-  classifyToolType(row.eqp_model_cd) === props.toolType && row.fab_name === props.fab
+  classifyToolType(row.eqp_model_cd) === props.toolType && sameFab(row.fab_name, props.fab)
 ))
 
 const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? '')
@@ -287,7 +288,7 @@ const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? 
 // data-quality gaps stay visible rather than silently filtered out.
 const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? []).filter(row =>
   (row.eqp_model_cd === '' || classifyToolType(row.eqp_model_cd) === props.toolType)
-  && (row.fab_name === props.fab || row.fab_name === '')
+  && (sameFab(row.fab_name, props.fab) || row.fab_name === '')
 ))
 
 const parsePercent = (label: string): number => {

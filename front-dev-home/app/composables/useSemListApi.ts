@@ -1,5 +1,6 @@
 import type { Fab, ToolType } from '~/stores/navigation'
 import { joinApiPath } from '~/utils/apiPath'
+import { hasFab, sameFab } from '~/utils/fab'
 
 // One shared cache key for /api/sem-list. Every consumer (hub page, tool-type
 // tabs, fab sidebar, inventory view) calls useSemList() and derives its view
@@ -37,28 +38,9 @@ export const classifyToolType = (eqpModelCd: string): ToolType | null => {
   return null
 }
 
-// Sort: R fabs first (ascending), then M fabs (newest fac first — M16 before M11),
-// with letter suffixes ascending within the same fac.
-export const sortFabNames = (a: string, b: string): number => {
-  const parse = (label: string) => {
-    const match = label.match(/^([RM])(\d+)([A-Z]?)$/)
-    return match ? { prefix: match[1] as 'R' | 'M', num: Number(match[2]), suffix: match[3] ?? '' } : null
-  }
-
-  const pa = parse(a)
-  const pb = parse(b)
-  if (!pa || !pb) return a.localeCompare(b)
-
-  if (pa.prefix !== pb.prefix) return pa.prefix === 'R' ? -1 : 1
-  if (pa.num !== pb.num) return pa.prefix === 'R' ? pa.num - pb.num : pb.num - pa.num
-  return pa.suffix.localeCompare(pb.suffix)
-}
-
-export const extractFabNames = (rows: SemListRow[]): string[] => {
-  const names = new Set<string>()
-  for (const row of rows) names.add(row.fab_name)
-  return Array.from(names).sort(sortFabNames)
-}
+// sortFabNames / extractFabNames moved to ~/utils/fab, with the rest of the fab-name rules
+// (canonical casing, comparison, URL segments), so they can be unit-tested and the
+// mixed-casing handling has one home. Call sites pick them up via Nuxt's utils auto-import.
 
 export const useSemListApi = () => {
   const config = useRuntimeConfig()
@@ -71,7 +53,9 @@ export const useSemListApi = () => {
   const filterRows = (rows: SemListRow[], toolType: ToolType, fab: Fab = 'all'): SemListRow[] => {
     return rows.filter((row) => {
       if (classifyToolType(row.eqp_model_cd) !== toolType) return false
-      if (fab !== 'all' && row.fab_name !== fab) return false
+      // sameFab, not `===`: row.fab_name carries whatever casing its source DB used, while
+      // `fab` is the store's canonical uppercase. A raw compare empties the whole list.
+      if (hasFab(fab) && !sameFab(row.fab_name, fab)) return false
       return true
     })
   }
