@@ -147,6 +147,14 @@
   --sk-on-fg: #0f5132;
   --sk-off-bg: oklch(0.95 0.014 80);
   --sk-off-fg: oklch(0.45 0.014 60);
+  /* Dark field — SEM imagery only. Real CD-SEM images are dark-field, so these
+     three do NOT invert with the theme: they describe a photograph, not chrome.
+     Declared in :root and deliberately absent from .dark for that reason.
+     Toned to the walnut canvas + cream ink rather than raw slate, so the
+     simulation still reads as part of this system in light mode. */
+  --sk-field: oklch(0.21 0.008 70);
+  --sk-field-ink: oklch(0.94 0.008 80);
+  --sk-field-core: oklch(0.40 0.014 60);
   /* Warm crimson accent — same identity as the favicon slash, retoned to sit on cream. */
   --sk-accent: oklch(0.58 0.13 35);
   --sk-accent-soft: oklch(0.95 0.025 60);

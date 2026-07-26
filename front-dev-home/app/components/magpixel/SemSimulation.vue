@@ -29,14 +29,17 @@ const patterns = computed(() => Array.from({ length: props.patternCount }, (_, i
 const pxPerCdValue = computed(() => props.cdNm / props.nmPerPx)
 /** 스캔 시간은 magPixel.ts의 scanTimeFactor()로만 구한다 — 512 상수를 컴포넌트에 복제하지 않는다. */
 const scanFactor = computed(() => scanTimeFactor(props.pixels))
-const hatch = 'repeating-linear-gradient(45deg,rgba(99,102,241,.14) 0 4px,transparent 4px 8px)'
+/** 마진 빗금은 테라코타 — 여유 마진 필터가 만들어내는 값이라 같은 계열로 묶는다. */
+const hatch = 'repeating-linear-gradient(45deg,color-mix(in srgb,var(--sk-brand) 26%,transparent) 0 4px,transparent 4px 8px)'
 
 // SEM line-scan brightness, dark field with a bright rim where the beam
 // catches the sidewall and a duller top/interior. Hard stops rather than a
 // soft gradient so the rim reads as an edge, not a shading trick.
 // Kept as RGB triples, not hex, because the zoom strip below interpolates
-// between them — one palette, two renderers.
-const RGB = { bg: [10, 14, 22], core: [76, 86, 102], rim: [244, 247, 255] } as const
+// between them — one palette, two renderers. The triples are the sRGB
+// resolution of --sk-field / --sk-field-core / --sk-field-ink: the same warm
+// dark field the CSS uses, spelled numerically because these get mixed in JS.
+const RGB = { bg: [27, 24, 20], core: [78, 70, 64], rim: [238, 235, 229] } as const
 const css = (c: readonly number[]) => `rgb(${c[0]} ${c[1]} ${c[2]})`
 const RIM = css(RGB.rim)
 const CORE = css(RGB.core)
@@ -102,7 +105,7 @@ const rampColor = (v: number) =>
         <div class="sk-eyebrow">
           전체 FOV · {{ pixels }} px · {{ nmPerPx.toFixed(3) }} nm/px
         </div>
-        <div class="relative mt-1.5 h-52 w-52 overflow-hidden rounded-lg bg-slate-950">
+        <div class="relative mt-1.5 h-52 w-52 overflow-hidden rounded-[var(--sk-r-nav)] bg-(--sk-field)">
           <div
             class="absolute flex"
             :style="{ left: `${insetPct}%`, top: `${insetPct}%`, width: `${bandPct}%`, height: `${bandPct}%` }"
@@ -118,7 +121,7 @@ const rampColor = (v: number) =>
             </div>
           </div>
           <div
-            class="absolute border border-dashed border-indigo-400/70"
+            class="absolute border border-dashed border-(--sk-brand)"
             :style="{ left: `${insetPct}%`, top: `${insetPct}%`, width: `${bandPct}%`, height: `${bandPct}%` }"
           />
           <div
@@ -138,7 +141,7 @@ const rampColor = (v: number) =>
             :style="{ top: `${insetPct}%`, height: `${bandPct}%`, width: `${insetPct}%`, background: hatch }"
           />
         </div>
-        <div class="mt-1.5 sk-meta text-indigo-500 dark:text-indigo-400">
+        <div class="mt-1.5 sk-meta text-(--sk-brand-ink)">
           빗금 = 여유 마진 (상하좌우 각 {{ Math.round(insetPct) }}%)
         </div>
       </div>
@@ -156,15 +159,15 @@ const rampColor = (v: number) =>
           :key="strip.pixels"
           class="mt-2"
         >
-          <div class="flex items-baseline justify-between font-mono text-[11px]">
-            <span :class="strip.pixels === pixels ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'sk-meta'">
+          <div class="flex items-baseline justify-between font-mono text-xs">
+            <span :class="strip.pixels === pixels ? 'font-semibold text-(--sk-brand-ink)' : 'sk-meta'">
               {{ strip.pixels }} px<template v-if="strip.pixels === pixels"> · 추천</template>
             </span>
             <span class="sk-meta">
               {{ strip.nmPerPx.toFixed(3) }} nm/px · 경계에 {{ strip.pxOnEdge.toFixed(1) }} px
             </span>
           </div>
-          <div class="relative mt-1 h-14 w-full overflow-hidden rounded bg-slate-950">
+          <div class="relative mt-1 h-14 w-full overflow-hidden rounded-[var(--sk-r-nav)] bg-(--sk-field)">
             <div class="flex h-full">
               <!-- shrink-0 is load-bearing: flex children default to
                    flex-shrink:1, so a grid that overshoots the window would be
@@ -183,11 +186,11 @@ const rampColor = (v: number) =>
             </div>
             <!-- 경계 중심은 창의 정중앙이다. 밝은 rim만으로는 "어디가 경계인지"가
                  픽셀이 커질수록 흐려지므로 기준선을 따로 긋는다. -->
-            <div class="absolute inset-y-0 left-1/2 w-px bg-amber-400/70" />
+            <div class="absolute inset-y-0 left-1/2 w-px bg-(--sk-warn)" />
           </div>
         </div>
 
-        <div class="mt-1 flex justify-between font-mono text-[10.5px] text-(--sk-ink-muted)">
+        <div class="mt-1 flex justify-between font-mono text-[10px] text-(--sk-ink-muted)">
           <span>← bar 안쪽</span>
           <span>space →</span>
         </div>
@@ -198,11 +201,11 @@ const rampColor = (v: number) =>
           픽셀이 작아질수록 그 고정된 경계 위에 샘플이 더 많이 얹혀
           ({{ strips[0]!.pxOnEdge.toFixed(1) }} px → {{ strips[1]?.pxOnEdge.toFixed(1) ?? '—' }} px)
           경계 위치를 더 정밀하게 잡습니다.
-          <span class="text-amber-600 dark:text-amber-500">{{ SEM_EDGE_WIDTH_NM }} nm는 설명용 대표값이며, 표준안 확정 전까지는 잠정값입니다.</span>
+          <span class="text-(--sk-warn)">{{ SEM_EDGE_WIDTH_NM }} nm는 설명용 대표값이며, 표준안 확정 전까지는 잠정값입니다.</span>
         </div>
       </div>
 
-      <dl class="min-w-40 flex-1 font-mono text-[11.5px] leading-relaxed">
+      <dl class="min-w-40 flex-1 font-mono text-xs leading-relaxed">
         <div class="flex justify-between">
           <dt class="sk-meta">
             px 크기

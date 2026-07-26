@@ -60,6 +60,16 @@ All colors are defined as light/dark pairs on `:root` and `.dark` and must be co
 - **On pill** (`--sk-on-bg`/`--sk-on-fg` — `#d9f5e8`/`#0f5132` / `#052e16`/`#bbf7d0`): Equipment running state, via `.sk-pill-on`.
 - **Off pill** (`--sk-off-bg`/`--sk-off-fg` — warm gray pair): Idle/maintenance, via `.sk-pill-off`.
 - **Error text** (`text-rose-600 dark:text-rose-400`): Message lines only.
+
+### Dark Field (SEM imagery only)
+
+Real CD-SEM images are dark-field, so a simulated micrograph cannot invert with the theme — a "light mode" SEM image would be a different photograph, not the same one relit. These three are therefore declared in `:root` **and deliberately omitted from `.dark`**, the one place in the system where that asymmetry is correct rather than a bug.
+
+- **Field** (`--sk-field` — `oklch(0.21 0.008 70)`): The dark canvas of any simulated SEM view. Deliberately the *walnut* dark-mode canvas value rather than a raw slate/near-black, so the imagery still reads as part of this system when it sits on cream.
+- **Field Ink** (`--sk-field-ink` — `oklch(0.94 0.008 80)`): The bright sidewall rim — cream, not cool white.
+- **Field Core** (`--sk-field-core` — `oklch(0.40 0.014 60)`): The duller line top/interior between rims.
+
+Scope is exactly the simulated imagery (`magpixel/PatternSchematic.vue`, `magpixel/SemSimulation.vue`). Chrome around the image — captions, legends, margin labels — stays on the normal inverting tokens. Margin hatching over the field uses **terracotta** (`--sk-brand`), because the margin is the value the 여유 마진 filter produces; crimson stays trim-only and is not used here. `SemSimulation.vue` additionally hard-codes the sRGB resolution of these three (`27,24,20` / `78,70,64` / `238,235,229`) because it interpolates between them in JS; if a value here changes, that triple changes with it.
 - **Focus ring** (`--sk-focus-ring` — accent at 45% alpha): `outline: 2px solid; outline-offset: 2px` on `:focus-visible`, one ring color for both selection families.
 
 ### NuxtUI Token Bridge
@@ -131,7 +141,7 @@ Rules that fall out of the table, enforced by which class you pick: **values are
 
 ### Grid & Container
 - **Max content width:** `max-w-7xl mx-auto` (1280px), centered. **The target screen is FHD (1920×1080) but content does not fill it** — the side margins are a deliberate calm-first decision bounding the reading width of metrology data. Full-bleed optimization is not adopted; widening at the `2xl` breakpoint requires explicit agreement.
-- **Dense exception (1440px):** list-plus-detail pages may widen one step to `max-w-[1440px]`. Current member: H/W management (`ebeam/HardwareView.vue`, 320px list rail + `1fr` detail). Device Statistics and Time-Series are candidates. Agreed pattern — do not revert.
+- **Dense exception (1440px):** list-plus-detail pages may widen one step to `max-w-[1440px]`. Current members: H/W management (`ebeam/HardwareView.vue`, 320px list rail + `1fr` detail) and Mag/Pixel 가이드 (`pages/mag-pixel.vue`, 392px sticky input-and-answer rail + `1fr` drawings and reference table). Device Statistics and Time-Series are candidates. Agreed pattern — do not revert.
 - **Breakpoints:** Tailwind v4 defaults (`sm 640 / md 768 / lg 1024 / xl 1280 / 2xl 1536`); no custom screens in `main.css`.
 - Pages with a sidebar apply `flex` + `min-w-0` on the main pane to prevent horizontal scroll.
 - `html { scrollbar-gutter: stable }` globally, so centered content doesn't shift ~8px between scrolling and non-scrolling pages.
@@ -314,4 +324,5 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 - 2026-05-24: Ink text hierarchy codified — data values get `--sk-ink`, muted ink for labels only.
 - 2026-07-13: Full polish — translated to English, promoted to source of truth, token values synced to the Paper/Walnut theme, missing tokens documented, focus ring + type refinements added.
 - 2026-07-13: **Reformatted to the standard design-system document format** (Overview / Colors / Typography / Layout / Elevation & Depth / Shapes / Components / Do's and Don'ts / Responsive Behavior / Iteration Guide / Known Gaps). Voice & tone and accessibility rules folded into Do's and Don'ts; code-drift items moved to Known Gaps.
+- 2026-07-26: **Mag/Pixel 가이드 aligned to the system** (design option 2a). The page adopts `meta-bar` as its first body component, joins the 1440px dense exception with a 392px sticky input-and-answer rail, and moves its cards to `dashboard-surface` + `--sk-r-card` (they were `rounded-lg` + `bg-white dark:bg-zinc-950`, i.e. off the radius scale and outside the bridge). Series and 여유 마진 became `SkChip` by the litmus test — they narrow data, they don't change the view. Raw `emerald`/`amber`/`red`/`indigo` were replaced by the `--sk-ok/warn/bad` families and terracotta. Added the **Dark Field** token family (§Colors) for simulated SEM imagery, the one sanctioned non-inverting set in the system.
 - 2026-07-13: **NuxtUI token bridge** — `app.config.ts` now genuinely implements the mapping this document always claimed it did. NuxtUI's `primary`/`neutral` point at a new warm `paper` ramp instead of cool zinc, and the `--ui-*` semantic tokens are bridged to `--sk-*` (unlayered, `:root`-only, so dark mode follows the `--sk-*` inversion automatically). NuxtUI components now inherit the design system with no call-site classes. Resolved three doc↔code conflicts: **(1)** the §Shapes-vs-§Inputs radius contradiction — components are pinned to the 6/8/10/14 scale by slot in `app.config.ts`, since NuxtUI's geometric `--ui-radius` ramp cannot express a non-geometric scale; **(2)** the 12px floor, which the code broke 311× — two sub-12px tiers (10px mono eyebrow, 11px micro-label) are now sanctioned for *labels only*, with data values still hard-floored at 12px; **(3)** the cool-zinc neutral underlying every NuxtUI component on a warm page. Also landed the previously-missing `--sk-focus-ring` and removed the duplicate `--sk-ink` definition.

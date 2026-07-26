@@ -68,10 +68,10 @@ const pxPerCdMark = (row: MagPixelRow, pixels: number) => {
 
 const pxPerCdClass = (row: MagPixelRow, pixels: number) => {
   if (!fovFits(row)) return 'text-(--sk-ink-muted) opacity-50'
-  if (verdictOf(row.mag, pixels) === 'under-pixel') return 'text-red-600 dark:text-red-400'
+  if (verdictOf(row.mag, pixels) === 'under-pixel') return 'text-(--sk-bad)'
   return isRecommended(row.mag, pixels)
-    ? 'text-emerald-600 font-bold dark:text-emerald-400'
-    : 'text-emerald-600 dark:text-emerald-400'
+    ? 'text-(--sk-ok) font-bold'
+    : 'text-(--sk-ok)'
 }
 
 const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
@@ -128,18 +128,18 @@ const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
         <tr
           v-for="row in rows"
           :key="row.mag"
-          :class="recommendedMag === row.mag ? 'bg-emerald-500/10' : undefined"
+          :class="recommendedMag === row.mag ? 'bg-(--sk-ok-soft)' : undefined"
         >
           <td class="whitespace-nowrap px-2 py-1">
             {{ magLabel(row.mag) }}
             <span
               v-if="row.assumed"
-              class="ml-1 rounded px-1 text-[9px] text-amber-600 ring-1 ring-amber-500/40 dark:text-amber-400"
+              class="ml-1 rounded-[var(--sk-r-chip)] bg-(--sk-warn-soft) px-1 text-[10px] font-semibold text-(--sk-warn)"
             >가정</span>
           </td>
           <td
             class="whitespace-nowrap px-2 py-1 text-right"
-            :class="fovFits(row) ? 'text-(--sk-ink)' : 'text-red-600 dark:text-red-400'"
+            :class="fovFits(row) ? 'text-(--sk-ink)' : 'text-(--sk-bad)'"
           >
             {{ Math.round(row.fovNm).toLocaleString() }}
             <span
