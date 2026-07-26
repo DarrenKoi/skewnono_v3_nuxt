@@ -39,12 +39,14 @@
     <KeepAlive>
       <EbeamRecipeTatView
         v-if="activeTab === 'tat'"
+        v-model:include-today="includeToday"
         :fab="fab"
         :tool-label="toolLabel"
         :tool-type="toolType"
       />
       <EbeamFailIssueView
         v-else
+        v-model:include-today="includeToday"
         :fab="fab"
         :tool-label="toolLabel"
         :tool-type="toolType"
@@ -82,6 +84,10 @@ const router = useRouter()
 // remembers the last-viewed tab (same policy as the hardware page's section
 // tabs) as the fallback when a navigation arrives without ?tab=.
 const lastTab = useState<RecipeStatusTab>('recipe-status-tab', () => 'tat')
+
+// Chart-only display preference. It is shared across the three kept-alive
+// views for this page visit but deliberately resets on reload/re-entry.
+const includeToday = ref(false)
 
 const queryTab = computed(() => {
   const raw = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab

@@ -142,14 +142,22 @@
 
           <UCard class="dashboard-surface rounded-2xl">
             <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-trending-up"
-                  class="h-4 w-4 text-(--sk-ink-muted)"
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-lucide-trending-up"
+                    class="h-4 w-4 text-(--sk-ink-muted)"
+                  />
+                  <h3 class="sk-title">
+                    Daily TAT trend
+                  </h3>
+                </div>
+                <USwitch
+                  v-model="includeToday"
+                  size="sm"
+                  label="오늘 데이터"
+                  class="shrink-0"
                 />
-                <h3 class="sk-title">
-                  Daily TAT trend
-                </h3>
               </div>
             </template>
             <div
@@ -295,12 +303,15 @@ import {
   buildTatSummaryItems,
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
+import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 
 const props = defineProps<{
   fab: string
   toolLabel: string
   toolType: RecipeTatToolType
 }>()
+
+const includeToday = defineModel<boolean>('includeToday', { required: true })
 
 const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
 
@@ -394,6 +405,11 @@ const rankingRows = computed<RecipeTatRow[]>(() => data.value?.ranking.rows ?? [
 const rankingLimit = computed(() => data.value?.ranking.limit ?? 0)
 const summary = computed(() => data.value?.summary)
 const trendPoints = computed(() => data.value?.daily.points ?? [])
+const visibleTrendPoints = computed(() => filterRecipeStatusTrendPoints(
+  trendPoints.value,
+  summary.value?.anchor_date,
+  includeToday.value
+))
 
 // Falling back to the server-resolved window only inside the getter (vs.
 // mirroring it into a ref) keeps echoed dates out of `userDateRange` and
@@ -449,7 +465,7 @@ const trendOption = computed<EChartsOption>(() => ({
       const arr = Array.isArray(params) ? params : [params]
       const first = arr[0] as { name?: string, dataIndex?: number }
       const idx = typeof first.dataIndex === 'number' ? first.dataIndex : 0
-      const point = trendPoints.value[idx]
+      const point = visibleTrendPoints.value[idx]
       if (!point) return ''
       return [
         `<b>${point.date}</b>`,
@@ -461,10 +477,10 @@ const trendOption = computed<EChartsOption>(() => ({
   grid: { left: 8, right: 24, top: 12, bottom: 28, containLabel: true },
   xAxis: {
     type: 'category',
-    data: trendPoints.value.map(p => p.date),
+    data: visibleTrendPoints.value.map(p => p.date),
     axisLabel: {
       fontSize: 10,
-      interval: Math.max(0, Math.floor(trendPoints.value.length / 8) - 1)
+      interval: Math.max(0, Math.floor(visibleTrendPoints.value.length / 8) - 1)
     }
   },
   yAxis: {
@@ -481,7 +497,7 @@ const trendOption = computed<EChartsOption>(() => ({
     itemStyle: { color: palette.value[1] },
     lineStyle: { color: palette.value[1] },
     areaStyle: { color: palette.value[1], opacity: 0.18 },
-    data: trendPoints.value.map(p => p.total_meastime)
+    data: visibleTrendPoints.value.map(p => p.total_meastime)
   }]
 }))
 
