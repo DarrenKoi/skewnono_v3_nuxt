@@ -32,8 +32,7 @@ from pathlib import Path
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
 # Only ops_store, minio_handler and ftp_handler are actually imported by the
-# app; ops_index_mgmt (index-creation tooling) and afm_data_platform (1.8MB,
-# referenced only in a mock docstring) are deliberately absent.
+# app; ops_index_mgmt (index-creation tooling) is deliberately absent.
 INCLUDED_ROOTS = (
     "index.py",
     "wsgi.ini",

@@ -27,7 +27,7 @@ def _load_sso_class():
     """Return the cloud image's SSO class, accepting either module spelling.
 
     `hcputil` is supplied by the cloud image, never by requirements.txt. The
-    in-house doc this code was written from (afm_data_platform/개발요구.txt:31)
+    in-house doc this code was written from (docs/afm/개발요구.txt:31)
     spells the module `auto`; the library spells it `auth`. Trying both costs
     one failed import and removes an entire class of boot failure from a
     deploy that cannot be iterated on quickly -- create_app() builds

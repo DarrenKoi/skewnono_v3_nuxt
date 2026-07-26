@@ -1,5 +1,12 @@
 # AFM Data Platform 통합 마이그레이션 계획
 
+> **완료 기록입니다.** 이 계획의 기능은 모두 `back_dev_home/afm/` 과
+> `front-dev-home/` 으로 흡수되었고, 원본 `afm_data_platform/` 폴더는
+> 2026-07-26 에 저장소에서 제거되었습니다. 따라서 아래에서 `afm_data_platform/`
+> 경로를 가리키는 표와 설명은 제거 이전의 원본 구조를 기록한 이력이며, 현재
+> 트리에는 존재하지 않습니다. 사내 규격 문서 두 건은 `docs/afm/` 으로
+> 옮겨 보존했습니다. 삭제 이전 상태는 git 이력에서 확인할 수 있습니다.
+
 ## 1. 개요
 
 본 문서는 별도 URL에서 동작하는 `afm_data_platform/` (Vue 3 + Vuetify 3 + Flask) 애플리케이션을 SKEWNONO Nuxt 4 + Flask 통합 환경 (`back_dev_home/` + `front-dev-home/`) 으로 흡수하기 위한 마이그레이션 전략입니다.

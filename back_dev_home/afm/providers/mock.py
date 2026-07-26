@@ -1,6 +1,6 @@
 """SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
 
-원본 데이터: AFM 데이터 플랫폼 (afm_data_platform 명세 — docs/afm-migration-plan.md)
+원본 데이터: AFM 데이터 플랫폼 (명세 — docs/afm/, 이관 이력 — docs/afm-migration-plan.md)
 계약:        docs/api-contracts/afm.yaml
 픽스처:      back_dev_home/afm/__fixtures__/
 

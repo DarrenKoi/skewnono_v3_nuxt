@@ -2,7 +2,7 @@
 modules into sys.modules rather than importing the real library.
 
 The module path is genuinely uncertain: the in-house requirements doc
-(afm_data_platform/개발요구.txt:31) spells it `auto`, the library spells it
+(docs/afm/개발요구.txt:31) spells it `auto`, the library spells it
 `auth`. The loader accepts either, and these tests pin that behaviour.
 """
 

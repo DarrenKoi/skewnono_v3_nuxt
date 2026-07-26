@@ -61,7 +61,6 @@ SPA 경로가 어긋납니다.
 
 | 제외 | 이유 |
 | --- | --- |
-| `afm_data_platform/` | 1.8MB 규격 문서이며 mock docstring 에서만 언급됩니다. |
 | `ops_index_mgmt/` | 인덱스 생성 도구로, 런타임에 사용되지 않습니다. |
 | `docs/`, `openwiki/` | 문서이며 런타임 역할이 없습니다. |
 | `__pycache__/`, `tests/`, `conftest.py`, `*.md` | 실행에 불필요합니다. |
@@ -107,7 +106,7 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 | 실제 `SKEWNONO_SECRET_KEY` 설정 | `preflight.py` 의 경고가 사라지는지 | 배포자 |
 
 `hcputil` 은 requirements.txt 가 아니라 **클라우드 이미지가 제공**합니다.
-사내 요구사항 문서(`afm_data_platform/개발요구.txt:31`)에는 `auto` 로,
+사내 요구사항 문서(`docs/afm/개발요구.txt:31`)에는 `auto` 로,
 라이브러리 실제 철자는 `auth` 로 적혀 있어 양쪽 모두를 시도하도록 되어 있습니다.
 어느 쪽이 실제로 존재하는지는 `preflight.py` 가 첫 실행에서 알려줍니다.
 
