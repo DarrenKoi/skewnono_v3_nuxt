@@ -85,17 +85,23 @@ target-version = "py314"
 # gate. The excluded trees are real code that must keep working, just not code a
 # lint failure here should block:
 #
-#   ops_store / ftp_handler / minio_handler / ops_index_mgmt — vendored copies of
-#   the shared 사내 flask_modules. back_dev_home imports them (7 / 1 / 6 call
-#   sites), but a fix applied only here would silently drift from the upstream
-#   copy, so the rule is "change both or neither" — which a CI gate cannot
-#   enforce. 8 findings live here.
+#   ops_store, ftp_handler — vendored copies of the shared 사내 flask_modules
+#   (confirmed 2026-07-26). back_dev_home imports them (6 and 1 call sites), but
+#   a fix applied only here would silently drift from the upstream copy, so the
+#   rule is "change both or neither" — which a CI gate cannot enforce. These
+#   hold 1 and 7 findings respectively.
+#
+#   minio_handler (7 call sites), ops_index_mgmt (0) — excluded on the same
+#   presumption, NOT independently confirmed. Both currently lint clean, so the
+#   exclusion costs nothing either way; if one is actually owned code, gating it
+#   is a no-op today and the right move is to delete it from this list.
 #
 #   afm_data_platform — a standalone sub-project: no tests, not imported by
 #   back_dev_home, its own api/ and front-end/. 42 findings.
 #
-# Dropping either exclusion means adopting 50 findings in code the backend gate
-# has no business failing on. Re-scope deliberately, not by widening this list.
+# Dropping the vendored or afm exclusions means adopting 50 findings in code the
+# backend gate has no business failing on. Re-scope deliberately, not by
+# widening this list.
 exclude = [
     "ops_store",
     "ftp_handler",
