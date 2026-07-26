@@ -346,7 +346,7 @@ if __name__ == "__main__":
     multi = get_weekly_trend_data(["R000", "R001", "100", "1001", "60B2"])
     latest_multi = list(multi.keys())[-1]
     print(f"Latest date: {latest_multi}")
-    print(f"\nall_rcp_info rows (one per selected lot):")
+    print("\nall_rcp_info rows (one per selected lot):")
     for row in multi[latest_multi]["all_rcp_info"]:
         print(f"  lot_cd={row['lot_cd']:<6} fac_id={row['fac_id']:<4} "
               f"recipe={row['recipe_id']:<14} para_all={row['para_all']}")
@@ -361,5 +361,5 @@ if __name__ == "__main__":
             total_rows += len(rows)
     print(f"Lots:      {len(index)}")
     print(f"Dates:     {len(full)}")
-    print(f"Buckets per date: 8 (4 rcp_info + 4 summary)")
+    print("Buckets per date: 8 (4 rcp_info + 4 summary)")
     print(f"Total rows across the whole payload: {total_rows:,}")

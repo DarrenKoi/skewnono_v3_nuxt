@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
 from back_dev_home.msr_image.minio_cache import MinioImageCache

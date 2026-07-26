@@ -46,11 +46,13 @@ try:
         _load_ppid_snapshots,
     )
 except ModuleNotFoundError:
+    # from None: the message below IS the diagnosis, so the ImportError
+    # traceback would only bury it.
     raise SystemExit(
         "error: storage providers/office.py not found (it is gitignored).\n"
         "       Create it first:\n"
         "         .venv/bin/python -m scripts.sync_office_adapters storage"
-    )
+    ) from None
 
 
 SAMPLE = 5
@@ -67,7 +69,7 @@ def main() -> int:
     rule(f"1. Redis hash {_PPID_HASH!r}")
     client = redis_client()
     if not client.exists(_PPID_HASH):
-        print(f"NOT FOUND. The adapter returns an empty snapshot for a missing key.")
+        print("NOT FOUND. The adapter returns an empty snapshot for a missing key.")
         print("Check the key name against docs/datatables/storage_ppid.txt.")
         return 1
 

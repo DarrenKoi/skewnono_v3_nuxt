@@ -90,7 +90,8 @@ def test_retune_outputs_step_at_retunes_rather_than_drifting_per_collection():
         assert len(set(prints)) < len(prints), f"{block} must hold between re-tunes"
         # Every step lands on a collection date whose era changed — i.e. a
         # re-tune happened in the gap since the previous collection.
-        for prev, cur in zip(docs, docs[1:]):
+        # strict=False: the pairwise idiom — docs[1:] is one shorter by design.
+        for prev, cur in zip(docs, docs[1:], strict=False):
             if _fingerprint(prev, block) == _fingerprint(cur, block):
                 continue
             assert any(

@@ -115,7 +115,8 @@ def test_running_twice_on_the_same_response_is_idempotent():
     # This is the evidence for "safe on a scheduler with no distributed
     # lock". If it ever fails, that claim is void.
     client = FakeRedis()
-    fetch = lambda t, f, w: [_row(), _row(eqp_id="MXCD204")]
+    def fetch(t, f, w):
+        return [_row(), _row(eqp_id="MXCD204")]
 
     job.run_once(fetch=fetch, client=client, fabs=FABS)
     first = dict(_events(client))

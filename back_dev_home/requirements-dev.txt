@@ -12,3 +12,8 @@
 -r requirements.txt
 
 pytest>=8
+
+# Static gate for the Python side, run as `ruff check .` from the repo root
+# (scope and rule set live in [tool.ruff] in pyproject.toml). Pinned loosely: a
+# ruff minor release can add rules, and the gate should pick those up.
+ruff>=0.14

@@ -1,10 +1,10 @@
-# Root pytest configuration.
+# Root pytest + ruff configuration.
 #
-# `[tool.pytest.ini_options]` is deliberately the ONLY table in this file.
-# SKEWNONO is not an installable package — Flask runs from the repo root via
-# index.py (Phase 3 copies the tree to /project/workSpace/), and npm builds the
-# Nuxt SPA separately. A `[project]` or `[build-system]` table here would make
-# pip/uv/hatch treat the repo as a distribution and try to build it.
+# `[tool.*]` tables ONLY. SKEWNONO is not an installable package — Flask runs
+# from the repo root via index.py (Phase 3 copies the tree to
+# /project/workSpace/), and npm builds the Nuxt SPA separately. A `[project]`
+# or `[build-system]` table here would make pip/uv/hatch treat the repo as a
+# distribution and try to build it; a tool table carries no such effect.
 #
 # The backend run documented in openwiki/ and docs/ is:
 #
@@ -64,3 +64,60 @@ addopts = ["--import-mode=prepend"]
 # `back_dev_home/.env` so office-mode gates (`SKEWNONO_<FEATURE>_PROVIDER=office`)
 # see the same connection vars as app startup — is still discovered the usual
 # way; it is not registered here.
+
+
+# --- ruff: the Python static gate ------------------------------------------
+# The backend had no static checking at all — pytest was the only Python gate,
+# so a symbol renamed in one place and not another was caught only on a covered
+# path. ruff runs the whole tree in ~0.02s, which is what makes it worth wiring
+# into CI next to pytest.
+#
+# Scope is deliberately narrow: ruff's default rules (pyflakes `F` + the core
+# `E4`/`E7`/`E9` pycodestyle subset) plus flake8-bugbear `B`. No formatter — a
+# `ruff format` pass would rewrite all ~350 files in one commit and bury
+# `git blame` for no correctness gain. No import sorting (`I`) for the same
+# reason.
+
+[tool.ruff]
+target-version = "py314"
+
+# Scope is the code this repo DEVELOPS, so a bare `ruff check .` equals the CI
+# gate. The excluded trees are real code that must keep working, just not code a
+# lint failure here should block:
+#
+#   ops_store / ftp_handler / minio_handler / ops_index_mgmt — vendored copies of
+#   the shared 사내 flask_modules. back_dev_home imports them (7 / 1 / 6 call
+#   sites), but a fix applied only here would silently drift from the upstream
+#   copy, so the rule is "change both or neither" — which a CI gate cannot
+#   enforce. 8 findings live here.
+#
+#   afm_data_platform — a standalone sub-project: no tests, not imported by
+#   back_dev_home, its own api/ and front-end/. 42 findings.
+#
+# Dropping either exclusion means adopting 50 findings in code the backend gate
+# has no business failing on. Re-scope deliberately, not by widening this list.
+exclude = [
+    "ops_store",
+    "ftp_handler",
+    "minio_handler",
+    "ops_index_mgmt",
+    "afm_data_platform",
+]
+
+[tool.ruff.lint]
+extend-select = ["B"]
+
+# Two intentional conventions that ruff's defaults read as mistakes. Both are
+# suppressions of a house style, not of a finding:
+#
+#   F401 in `__init__.py` — a feature package re-exports its blueprint
+#   (`from .routes import bp`) so `back_dev_home/__init__.py`'s auto-discovery
+#   can find it. The import IS the point; it is never referenced locally.
+#
+#   E402 in tests — several suites arrange `sys.path` or set
+#   `SKEWNONO_*_PROVIDER` before importing the module under test, so the
+#   import genuinely cannot sit at the top of the file.
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"**/tests/*.py" = ["E402"]
+"tests/*.py" = ["E402"]

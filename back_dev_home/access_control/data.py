@@ -38,6 +38,7 @@ __all__ = [
     "record_denied",
     "list_denied",
     "reset_for_tests",
+    "_store_path",
 ]
 
 

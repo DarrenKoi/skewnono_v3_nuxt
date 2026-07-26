@@ -276,7 +276,7 @@ def get_profile_image_svg(
         ("100%", "#f4f0e6")
     ]
     circles = []
-    for index in range(28):
+    for _ in range(28):
         circles.append(
             "<circle "
             f"cx=\"{rng.randint(35, 605)}\" "
@@ -536,7 +536,7 @@ def _summary_records(
     bases = (left_base, right_base, ref_base)
     column_values: dict[str, dict[str, float]] = {}
 
-    for base, (key, drift_factor, stdev_range, offset_range, range_range) in zip(bases, SUMMARY_COLUMNS):
+    for base, (key, drift_factor, stdev_range, offset_range, range_range) in zip(bases, SUMMARY_COLUMNS, strict=True):
         column_values[key] = {
             "MEAN": base + drift * drift_factor,
             "STDEV": rng.uniform(*stdev_range) * process_noise,

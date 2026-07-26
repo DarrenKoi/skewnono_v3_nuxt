@@ -208,7 +208,7 @@ def committed_template_origin(
 
     # One output line per input revision, in order. A revision that does not
     # resolve prints "<input> missing", which can never equal a blob id.
-    for (_, short, date), line in zip(commits, names.splitlines()):
+    for (_, short, date), line in zip(commits, names.splitlines(), strict=True):
         if line.strip() == want:
             return f"{short} ({date.strip()})"
     return None

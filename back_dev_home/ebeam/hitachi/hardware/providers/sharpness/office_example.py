@@ -295,7 +295,7 @@ if __name__ == "__main__":  # pragma: no cover
     window_end = datetime.now()
     window_start = window_end - timedelta(days=days)
 
-    print(f"--- identity ---")
+    print("--- identity ---")
     resolved_ip = _resolve_ip(tool)
     print(f"  {tool} -> ip {resolved_ip!r}  (from sem_list roster)")
     print(f"  roster size: {len(_ip_by_eqp_id())} tools with an eqp_ip")

@@ -58,16 +58,23 @@ jobs:
           cache: pip
           cache-dependency-path: back_dev_home/requirements*.txt
 
-      # requirements-dev.txt pulls in requirements.txt and adds pytest, so the
-      # Phase 3 production install never ships a test runner.
+      # requirements-dev.txt pulls in requirements.txt and adds pytest + ruff,
+      # so the Phase 3 production install never ships either.
       - name: Install
         run: pip install -r back_dev_home/requirements-dev.txt
 
+      # Before pytest, because it costs ~0.02s against the whole tree: a symbol
+      # renamed in one place and not another fails here immediately, where
+      # pytest would catch it only on a covered path. Scope and rules are in
+      # [tool.ruff] in pyproject.toml, so this matches a local `ruff check .`.
+      - name: Lint
+        run: ruff check .
+
       # Both roots are needed: `tests/` holds the cross-feature suites, and
-      # most per-feature tests live in back_dev_home/**/tests/. There is no
-      # pytest config file, so discovery relies on the __init__.py in every
-      # test package plus the default `prepend` import mode putting the repo
-      # root on sys.path — which requires running from the repo root.
+      # most per-feature tests live in back_dev_home/**/tests/. Discovery also
+      # relies on the __init__.py in every test package plus the `prepend`
+      # import mode (pinned in pyproject.toml) putting the repo root on
+      # sys.path — which requires running from the repo root.
       #
       # A runner checkout has no providers/office.py (gitignored, created at
       # the office with `cp office_example.py office.py`), so this gates

@@ -252,7 +252,7 @@ def _lot_bridge() -> tuple[dict[str, str], dict[str, list[str]]]:
     )
     forward: dict[str, str] = {}
     if not df.empty and "lot_id" in df.columns and "lot_cd" in df.columns:
-        for lot_id, lot_cd in zip(df["lot_id"].tolist(), df["lot_cd"].tolist()):
+        for lot_id, lot_cd in zip(df["lot_id"].tolist(), df["lot_cd"].tolist(), strict=True):
             lid, lcd = text(lot_id), text(lot_cd)
             if lid and lcd:
                 forward[lid] = lcd

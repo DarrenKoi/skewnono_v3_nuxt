@@ -6,7 +6,6 @@ content-type and cond travel as tiny sidecars (``<file>.type`` / ``<file>.cond``
 so a bytes-only medium needs no metadata channel.
 """
 
-import os
 import time
 from pathlib import Path
 from typing import Protocol
