@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useNavigationStore } from '~/stores/navigation'
+import { fabSegment } from '~/utils/fab'
 
 const route = useRoute()
 const colorMode = useColorMode()
@@ -24,8 +25,7 @@ const toggleColorMode = () => {
 // hv-sem have this board.
 const liveAlarmTarget = computed(() => {
   const tt = nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem'
-  const fab = nav.fab.value && nav.fab.value !== 'all' ? nav.fab.value.toLowerCase() : 'r3'
-  return `/ebeam/${tt}/${fab}/live-alarm`
+  return `/ebeam/${tt}/${fabSegment(nav.fab.value)}/live-alarm`
 })
 
 const isLiveAlarmActive = computed(() => route.path.includes('/live-alarm'))

@@ -1,9 +1,11 @@
 import { useState } from 'nuxt/app'
 import { computed, readonly } from 'vue'
+import { NO_FAB } from '~/utils/fab'
 
 export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
 // Fab holds a fab_name value from the Flask sem-list response (e.g. "R3", "R4", "M16B").
-// The literal 'all' is reserved as an internal "no fab selected" sentinel and is never rendered in the sidebar.
+// NO_FAB ('all') is reserved as an internal "no fab selected" sentinel and is never rendered
+// in the sidebar; utils/fab resolves it to R3 wherever a URL needs a fab segment.
 export type Fab = string
 
 export interface NavigationState {
@@ -15,7 +17,7 @@ export interface NavigationState {
 
 const defaultState: NavigationState = {
   toolType: 'cd-sem',
-  fab: 'all',
+  fab: NO_FAB,
   favorites: [],
   selectedToolId: ''
 }

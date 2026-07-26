@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
 import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature, isHeaderInfoPath } from '~/utils/features'
+import { fabSegment } from '~/utils/fab'
 
 const route = useRoute()
 const { fab, toolType: storeToolType } = useNavigation()
@@ -67,17 +68,15 @@ const getFeatureRoute = (feature: string) => {
     return `/ebeam/${toolType}/${feature}`
   }
 
-  // For fab-dependent features we need a fab segment in the URL. If the current path
-  // doesn't have one (we're on a fabless feature page), fall back to the store's last fab,
-  // and finally to the tool-type index — which redirects to the user's last-visited fab.
+  // For fab-dependent features we need a fab segment in the URL. Prefer the one already in
+  // the path; on a fabless feature page there is none, so fall back to the store's last fab
+  // and finally to R3.
   const basePath = route.path.replace(FEATURE_SLUG_SUFFIX_REGEX, '')
   const pathFab = basePath.split('/')[3]
-  const storeFab = fab.value && fab.value !== 'all' ? fab.value.toLowerCase() : ''
-  const fabSegment = pathFab || storeFab
+  const segment = pathFab || fabSegment(fab.value)
 
-  if (!fabSegment) return `/ebeam/${toolType}`
-  if (feature === 'index') return `/ebeam/${toolType}/${fabSegment}`
-  return `/ebeam/${toolType}/${fabSegment}/${feature}`
+  if (feature === 'index') return `/ebeam/${toolType}/${segment}`
+  return `/ebeam/${toolType}/${segment}/${feature}`
 }
 
 const isFeatureEnabled = (feature: FeatureTab) => {

@@ -1,6 +1,7 @@
 import type { ToolType, Fab } from '~/stores/navigation'
 import { useNavigationStore } from '~/stores/navigation'
 import { isFablessFeature, matchFeatureFromPath } from '~/utils/features'
+import { NO_FAB, fabSegment } from '~/utils/fab'
 
 export const useNavigation = () => {
   const store = useNavigationStore()
@@ -31,11 +32,8 @@ export const useNavigation = () => {
       return `/ebeam/${toolType}/${feature}`
     }
 
-    const fab = store.fab.value
     const featureSuffix = enabled ? `/${feature}` : ''
-    return fab && fab !== 'all'
-      ? `/ebeam/${toolType}/${fab.toLowerCase()}${featureSuffix}`
-      : `/ebeam/${toolType}`
+    return `/ebeam/${toolType}/${fabSegment(store.fab.value)}${featureSuffix}`
   }
 
   const navigateToToolType = (toolType: ToolType) => {
@@ -52,7 +50,9 @@ export const useNavigation = () => {
   const navigateToFab = (fab: Fab) => {
     store.setFab(fab)
     const toolType = store.toolType.value
-    if (fab === 'all') {
+    // Clearing the selection resets through the tool-type index, which re-applies
+    // the no-fab-remembered rule and lands on R3.
+    if (fab === NO_FAB) {
       router.push(`/ebeam/${toolType}`)
       return
     }

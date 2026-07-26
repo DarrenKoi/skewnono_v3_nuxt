@@ -1,4 +1,5 @@
 import { useNavigationStore } from '~/stores/navigation'
+import { NO_FAB } from '~/utils/fab'
 
 // New key (was 'skewnono:fab') — old fac_id values like "R3"/"M11" are no longer valid
 // fab_names, so dropping the old key avoids redirecting users to no-data URLs after deploy.
@@ -12,12 +13,12 @@ export default defineNuxtPlugin(() => {
   const store = useNavigationStore()
 
   const saved = window.localStorage.getItem(STORAGE_KEY)
-  if (saved && saved !== 'all' && FAB_NAME_PATTERN.test(saved)) {
+  if (saved && saved !== NO_FAB && FAB_NAME_PATTERN.test(saved)) {
     store.setFab(saved)
   }
 
   watch(() => store.fab.value, (next) => {
-    if (next === 'all') {
+    if (next === NO_FAB) {
       window.localStorage.removeItem(STORAGE_KEY)
     } else {
       window.localStorage.setItem(STORAGE_KEY, next)
