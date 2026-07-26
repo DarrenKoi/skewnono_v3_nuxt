@@ -63,9 +63,14 @@ const isLiveAlarmActive = computed(() => route.path.includes('/live-alarm'))
         :aria-current="isActivePath('/endpoints') ? 'page' : undefined"
         :class="headerActionClass('/endpoints')"
       />
+      <!-- scan-search: 스캔 프레임(FOV) 안의 돋보기(배율) — 이 페이지가 답하는
+           "패턴이 화면에 들어오는 한도에서 가장 높은 배율" 그 자체다. 자(ruler)는
+           길이를 재는 뜻이라 배율·픽셀 선택과는 어긋났다. 헤더의 다른 돋보기
+           (search)는 항상 'Recipe 검색' 텍스트 필 안에 있어 아이콘만 있는 이
+           묶음과 헷갈리지 않는다. -->
       <UButton
         to="/mag-pixel"
-        icon="i-lucide-ruler"
+        icon="i-lucide-scan-search"
         color="neutral"
         variant="ghost"
         aria-label="Mag/Pixel 가이드"
