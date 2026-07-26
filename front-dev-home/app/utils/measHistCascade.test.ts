@@ -112,3 +112,27 @@ test('prune returns null when nothing changed', () => {
   const filters = { fab: [], category: [], model: ['CG6300'], eq: ['ECDX999'], from: '', to: '' }
   assert.equal(pruneCascadedFilters(filters, options), null)
 })
+
+// The FAB picks come from the meas-hist facets endpoint (OpenSearch) while fab_name comes
+// from sem_list (Redis). Those two DBs report casing differently, so the fleet join has to
+// compare case-insensitively or both dropdowns empty out on a mismatch.
+test('the fleet join tolerates the two backends disagreeing on fab casing', () => {
+  const rows = [
+    sem('EQP1', 'CG1000', 'R3'),
+    sem('EQP2', 'TP2000', 'M16A')
+  ]
+  const facets = {
+    model: [{ value: 'CG1000', count: 5 }, { value: 'TP2000', count: 3 }],
+    eq: [{ value: 'EQP1', count: 5 }, { value: 'EQP2', count: 3 }]
+  }
+
+  // Facets say 'r3', sem_list says 'R3' — the same fab.
+  const lower = buildCascadedOptions(facets, rows, { fab: ['r3'], category: [], model: [] })
+  assert.deepEqual(lower.model.map(o => o.value), ['CG1000'])
+  assert.deepEqual(lower.eq.map(o => o.value), ['EQP1'])
+
+  // And the reverse, in case sem_list is the lowercase side.
+  const upper = buildCascadedOptions(facets, rows, { fab: ['M16A'], category: [], model: [] })
+  assert.deepEqual(upper.model.map(o => o.value), ['TP2000'])
+  assert.deepEqual(upper.eq.map(o => o.value), ['EQP2'])
+})

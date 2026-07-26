@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import { normalizeFab } from '~/utils/fab'
 
 export type LateralRecipeToolType = 'cd-sem' | 'hv-sem'
 
@@ -50,7 +51,7 @@ export const useLateralRecipeApi = () => {
 
   const fetchLateralRecipe = async (params: LateralRecipeParams): Promise<LateralRecipeResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const fabName = params.fabName?.trim().toUpperCase()
+    const fabName = normalizeFab(params.fabName)
     const recipeName = params.recipeName.trim()
     const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${recipeName}`
     const existing = inFlight.get(cacheKey)

@@ -72,10 +72,11 @@ const getFeatureRoute = (feature: string) => {
 
   // For fab-dependent features we need a fab segment in the URL. Prefer the one already in
   // the path; on a fabless feature page there is none, so fall back to the store's last fab
-  // and finally to R3.
+  // and finally to R3. Both go through fabSegment, so a hand-typed uppercase URL does not
+  // propagate uppercase into the links we build.
   const basePath = route.path.replace(FEATURE_SLUG_SUFFIX_REGEX, '')
   const pathFab = basePath.split('/')[3]
-  const segment = pathFab || fabSegment(fab.value)
+  const segment = fabSegment(pathFab || fab.value)
 
   if (feature === 'index') return `/ebeam/${toolType}/${segment}`
   return `/ebeam/${toolType}/${segment}/${feature}`

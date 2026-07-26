@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import { normalizeFab } from '~/utils/fab'
 
 export type MeasHistToolType = 'cd-sem' | 'hv-sem'
 
@@ -100,7 +101,7 @@ export const useMeasHistApi = () => {
 
   const fetchMeasHist = async (params: MeasHistParams = {}): Promise<MeasHistResponse> => {
     const toolType = params.toolType
-    const fabName = params.fabName?.trim().toUpperCase()
+    const fabName = normalizeFab(params.fabName)
     const recipeName = params.recipeName?.trim()
     const cacheKey = `${toolType || 'ALL'}:${fabName || 'ALL'}:${recipeName || 'ALL'}`
     const existing = inFlight.get(cacheKey)

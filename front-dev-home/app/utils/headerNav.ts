@@ -16,6 +16,11 @@ export interface HeaderLink {
   to: string | null
   icon: string
   label: string
+  // Only for `to: null` entries: the path fragment that marks this link as the current page.
+  // It lives on the record so a dynamic link's identity and its active test stay together —
+  // splitting them across headerNav and AppHeader would reintroduce the drift this file exists
+  // to prevent.
+  activeMatch?: string
 }
 
 export const HEADER_LINKS: HeaderLink[] = [
@@ -28,7 +33,7 @@ export const HEADER_LINKS: HeaderLink[] = [
   // 묶음과 헷갈리지 않습니다.
   { to: '/mag-pixel', icon: 'i-lucide-scan-search', label: 'Mag/Pixel 가이드' },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅' },
-  { to: null, icon: 'i-lucide-radio', label: '라이브 알람' },
+  { to: null, icon: 'i-lucide-radio', label: '라이브 알람', activeMatch: '/live-alarm' },
   { to: '/activity', icon: 'i-lucide-bar-chart-3', label: '사용 통계' },
   { to: '/settings', icon: 'i-lucide-settings', label: '세팅' }
 ]

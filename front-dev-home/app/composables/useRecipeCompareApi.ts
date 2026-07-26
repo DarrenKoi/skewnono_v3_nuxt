@@ -1,6 +1,7 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { AmpRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { ImageSlotKey } from '~/utils/recipeView'
+import { normalizeFab } from '~/utils/fab'
 
 export interface CompareIdpFields {
   Addressing: string
@@ -49,7 +50,7 @@ export const useRecipeCompareApi = () => {
 
   const fetchCompare = async (params: RecipeCompareParams): Promise<RecipeCompareResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const fabName = params.fabName?.trim().toUpperCase()
+    const fabName = normalizeFab(params.fabName)
     const names = params.recipeNames.map(name => name.trim()).filter(Boolean)
     const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${[...names].sort().join('|')}`
     const existing = inFlightCompares.get(cacheKey)

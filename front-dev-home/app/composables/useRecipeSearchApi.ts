@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import { normalizeFab } from '~/utils/fab'
 
 export type RecipeSearchToolType = 'cd-sem' | 'hv-sem'
 
@@ -121,7 +122,7 @@ export const useRecipeSearchApi = () => {
 
   const fetchRecipeList = async (params: RecipeSearchParams): Promise<RecipeSearchResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const fabName = params.fabName?.trim().toUpperCase()
+    const fabName = normalizeFab(params.fabName)
     const cacheKey = `${params.toolType}:${fabName || 'ALL'}`
     const existing = inFlightRecipeLists.get(cacheKey)
 
@@ -143,7 +144,7 @@ export const useRecipeSearchApi = () => {
 
   const fetchRecipeDetail = async (params: RecipeDetailParams): Promise<RecipeDetailResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const fabName = params.fabName?.trim().toUpperCase()
+    const fabName = normalizeFab(params.fabName)
     const recipeName = params.recipeName.trim()
     const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${recipeName}`
     const existing = inFlightRecipeDetails.get(cacheKey)

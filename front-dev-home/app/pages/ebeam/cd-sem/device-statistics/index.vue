@@ -331,9 +331,10 @@ import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStati
 import type { DevicePreset } from '~/composables/useDevicePresets'
 import {
   DEFAULT_DEVICE_FAB,
-  isDeviceFab,
+  toDeviceFab,
   type DeviceFab
 } from '~/composables/useDeviceStatisticsPreferences'
+import { sameFab } from '~/utils/fab'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { chipClass } from '~/utils/chipClass'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
@@ -444,13 +445,15 @@ const filterOptions = (options: string[], search: string) => {
 // Narrow `rows` for each branch. Filtering by fac_id guards against the brief
 // transition window where useAsyncData still holds the previous fab's rows
 // while the new fetch is in flight.
+// sameFab, not `===`: fac_id arrives from the backend in whichever case its source DB uses,
+// while selectedFab is the canonical uppercase DeviceFab. A raw compare empties the table.
 const r3Rows = computed<R3DeviceGrpRow[]>(() => {
   if (!hasRSelection.value) return []
-  return (rows.value as R3DeviceGrpRow[]).filter(row => row.fac_id === 'R3')
+  return (rows.value as R3DeviceGrpRow[]).filter(row => sameFab(row.fac_id, 'R3'))
 })
 const mRows = computed<DeviceDescRow[]>(() => {
   if (!hasMSelection.value || !selectedFab.value) return []
-  return (rows.value as DeviceDescRow[]).filter(row => row.fac_id === selectedFab.value)
+  return (rows.value as DeviceDescRow[]).filter(row => sameFab(row.fac_id, selectedFab.value))
 })
 
 const prodCategoryOptions = computed(() => uniqueSorted(r3Rows.value.map(row => row.prod_catg_cd)))
@@ -709,8 +712,9 @@ const toast = useToast()
 // so we diff the preset's lots against the current sortedRows: assign only the surviving lots and
 // raise a toast naming the missing ones so the user sees explicitly what didn't load.
 const applyPreset = async (preset: DevicePreset) => {
-  if (preset.fab && isDeviceFab(preset.fab) && preset.fab !== selectedFab.value) {
-    selectedFab.value = preset.fab
+  const presetFab = toDeviceFab(preset.fab)
+  if (presetFab && presetFab !== selectedFab.value) {
+    selectedFab.value = presetFab
     await nextTick()
     if (unmounted) return
   }

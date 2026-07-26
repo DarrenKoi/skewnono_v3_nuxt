@@ -14,6 +14,8 @@
 
 import type { MeasHistFacetValue, MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SemListRow } from '~/composables/useSemListApi'
+// Import-free util, so it does not break this module's node:test-runnability.
+import { normalizeFab } from './fab.ts'
 
 // Display labels are the filter values ('CD-SEM'), tool types are the wire
 // values ('cd-sem'). Exactly one picked category scopes the search to one
@@ -56,7 +58,9 @@ export const buildCascadedOptions = (
   semRows: SemListRow[],
   picked: CascadeSelections
 ): CascadedOptions => {
-  const fabs = new Set(picked.fab)
+  // The FAB picks come from the facets endpoint and fab_name from sem_list — different DBs,
+  // which report casing differently. Both sides are canonicalized so the join still matches.
+  const fabs = new Set(picked.fab.map(normalizeFab))
   const categories = pickedCategories(picked.category)
   const models = new Set(picked.model)
   const hasFleet = semRows.length > 0
@@ -85,7 +89,7 @@ export const buildCascadedOptions = (
     byEqpId.set(row.eqp_id, row)
     let set = modelFabs.get(row.eqp_model_cd)
     if (!set) modelFabs.set(row.eqp_model_cd, set = new Set())
-    set.add(row.fab_name)
+    set.add(normalizeFab(row.fab_name))
   }
 
   const model = facets.model.filter((opt) => {
@@ -105,7 +109,7 @@ export const buildCascadedOptions = (
     if (!eqNeedsMapping || !hasFleet) return true
     const row = byEqpId.get(opt.value)
     if (!row) return false
-    if (fabs.size && !fabs.has(row.fab_name)) return false
+    if (fabs.size && !fabs.has(normalizeFab(row.fab_name))) return false
     if (categories.size) {
       const family = categoryOfModel(row.eqp_model_cd)
       if (!family || !categories.has(family)) return false

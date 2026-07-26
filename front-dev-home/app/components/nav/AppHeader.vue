@@ -28,7 +28,7 @@ const linkTarget = (link: HeaderLink) => link.to ?? liveAlarmTarget.value
 
 const isLinkActive = (link: HeaderLink) =>
   link.to === null
-    ? route.path.includes('/live-alarm')
+    ? !!link.activeMatch && route.path.includes(link.activeMatch)
     : route.path === link.to || route.path.startsWith(`${link.to}/`)
 </script>
 
