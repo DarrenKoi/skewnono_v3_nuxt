@@ -1,6 +1,6 @@
 """msr_file — MSR raw measurement detail mock for 스큐보아 (Skewvoir).
 
-Spec: docs/datatables/msr_file.txt + docs/datatables/msr_file_pickle.txt
+Spec: docs/datatables/msr_file_pickle.txt
 Each row = "하나의 MSR 안에서 특정 sequence, 특정 parameter로 측정된 1개 측정값".
 
 Beyond per-measurement CD values, the MinIO-parsed pickle carries FDC telemetry

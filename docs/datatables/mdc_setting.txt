@@ -26,3 +26,21 @@ MDC는 절대 수치로 다른 장비의 수치와 같다고 해서 그 두 장�
 
 MinIO에는 날짜별로 기록하여 추적 가능하도록 함
 redis에는 가장 최근 mdc 값들을 fab_name 별로 저장
+
+★ 미연결 (2026-07-27 기준). hardware/mdc 의 office 어댑터는 템플릿만 있고 본문이
+  NotImplementedError 입니다. hardware 를 office 로 켜도 이 sub-tab 은 동작하지
+  않습니다.
+
+  연결하려면 아래 두 가지를 확정해야 합니다.
+    - Redis key 이름 (최신 스냅샷, field = fab_name)
+    - MinIO 경로 규칙 (날짜별 이력)
+
+  "Redis 최신 스냅샷 + MinIO 날짜별 이력" 이라는 구조 자체는 SCE 와 동일하므로,
+  이미 연결된 sce_setting.txt 의 형태를 그대로 따르는 것이 안전합니다
+  (Redis hash key = "sce_info", field = fab_name /
+   MinIO = hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab_name}.json).
+  수집 주기가 규칙적이지 않다면 SCE 처럼 날짜를 계산하지 말고 폴더를 탐색합니다.
+
+  builder 2개가 필요합니다 — build_mdc_settings(선택 장비 + 같은 fab 형제 장비의
+  as-of 스냅샷, 비교 sub-tab 용)와 build_mdc_history(선택 장비만, 기간 내 오름차순
+  long format, 시계열 sub-tab 용).

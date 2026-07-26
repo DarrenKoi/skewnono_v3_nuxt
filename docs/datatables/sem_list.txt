@@ -1,0 +1,56 @@
+사무실(Office) Redis — SEM 장비 fleet 명부(roster)
+
+전사 SEM 장비 목록입니다. 이 프로젝트에서 **가장 먼저 사무실에 연결된 소스**이며
+(office 확인 2026-07-20), 장비 identity 의 단일 진실 원천입니다. storage,
+lateral_recipe, sharpness 어댑터가 모두 여기로 eqp_id <-> eqp_ip 를 해결합니다.
+각 feature 가 자기만의 명부를 들고 있으면 같은 fab 인데 화면마다 장비 수가 달라지고
+어느 쪽이 맞는지 판별할 방법이 없으므로, 명부는 반드시 이 소스 하나만 씁니다.
+
+저장 형태: Redis, pandas DataFrame 을 parquet 직렬화(df.to_parquet(), 값 선두
+4바이트가 b"PAR1"). 두 개의 key 로 나뉘어 있습니다.
+
+Key 1 -> "v3_df_sem_avail"   : fleet 본체. version 컬럼이 **없습니다**.
+Key 2 -> "v3_df_sem_version" : 컬럼 [eqp_ip, version] 두 개짜리 보조 table.
+
+두 key 는 eqp_ip 를 기준으로 LEFT merge 합니다(fleet 이 왼쪽). fleet row 는 한 건도
+버리지 않으며, version 이 없는 row 는 빈 문자열("")이 됩니다. version table 에 같은
+eqp_ip 가 여러 건 있으면 fleet row 가 복제되므로, merge 전에 eqp_ip 기준으로
+중복 제거(마지막 값 유지)합니다.
+
+컬럼 정보 (merge 후 기준, 10개 전부 필수 — 하나라도 없으면 어댑터가 에러)
+
+fac_id -> string: fab 대표 코드. 예: M11, M14, M15, M16, R3
+eqp_id -> string: 장비 ID. 예: 6MCDE305, 4CCD6701
+eqp_model_cd -> string: 장비 모델. 예: CG6300, CG6380, GT2000, TP4000
+eqp_grp_id -> string: 장비 그룹 ID
+vendor_nm -> string: vendor. HITACHI 또는 AMAT 두 값만 허용됩니다.
+                     그 외 값이 오면 어댑터가 에러를 냅니다(조용히 넘기지 않음).
+eqp_ip -> string: 장비 IP. 두 key 의 merge 기준이자 타 feature 의 join 기준입니다.
+fab_name -> string: 화면에서 선택하는 세부 fab 이름. 예: M16A, M16B, R3, R4
+                    fac_id 보다 granular 하며, 필터의 정식 키입니다.
+updt_dt -> string(ISO): 명부 갱신 시각. pandas Timestamp 로 오면 isoformat() 으로
+                        변환합니다.
+available -> string: 장비 사용 가능 여부. 소스는 on/off/true/false/1/0 중 아무
+                     표기나 올 수 있고, 어댑터가 "On"/"Off" 로 정규화합니다.
+                     정규화 불가 값이면 에러를 냅니다.
+version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 문자열입니다
+                   (예: "1A"). **숫자가 아니라 문자열입니다** — 비교·정렬 시
+                   주의합니다. v3_df_sem_version 에서 붙습니다.
+
+주의
+
+1. version 은 별도 key 이므로, v3_df_sem_avail 만 읽으면 KeyError 가 납니다.
+   두 key 를 함께 읽어 merge 하는 것까지가 이 소스의 계약입니다.
+2. 텍스트가 bytes 로 돌아올 수 있습니다. str() 로 감싸면 "b'...'" 가 되어 한글이
+   깨지므로 UTF-8 로 decode 합니다.
+3. TP 계열(HV-SEM) 장비는 **HITACHI** 입니다. 홈 mock 데이터와 프론트 fixture
+   일부에 AMAT 으로 적힌 곳이 있는데 그것은 잘못된 값입니다. 실데이터를 기준으로
+   판단합니다.
+4. tool_type(cd-sem / hv-sem)은 이 명부에 컬럼으로 없습니다. eqp_model_cd 로
+   판별합니다 — CG/GT 계열은 cd-sem, TP 계열은 hv-sem
+   (back_dev_home/ebeam/hitachi/_tool_specs.py 의 model_to_tool_type).
+
+연결 설정
+
+REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (back_dev_home/.env).
+_runtime/office_redis.py 가 .env 를 self-load 하므로 어댑터에서 따로 읽지 않습니다.

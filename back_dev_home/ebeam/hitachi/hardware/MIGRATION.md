@@ -13,7 +13,7 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
 | `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape_cdsem` (type:total) | written — `cp` + verify |
-| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_log` | stub |
+| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_cdsem` (category:reso_center_log) | stub |
 | `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub |
 | `sce/` | `build_sce_settings` + `build_sce_history` | Redis `sce_info` hash + MinIO `hitachi_sem/cdsem/sce_info/` | written — `cp` + verify |
 
@@ -184,7 +184,7 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
   and `sce` build both a settings snapshot (as-of `end` for mdc; latest for
   sce) and a `docs` history list. `mdc`/`sce` settings compare the selected
   `eqp_id` against in-fab siblings.
-- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_log, network_fdc_cdsem, sharpness_monitor_cdsem, MDC settings collection, fab_inform_notes + tool_maintenance_plan; SCE: Redis sce_info hash (latest) + MinIO hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab}.json (bidaily trend) -->
+- Office data source: <!-- OFFICE: per-service OpenSearch indices — beam_shape, reso_center_cdsem, network_fdc_cdsem, sharpness_monitor_cdsem, MDC settings collection, fab_inform_notes + tool_maintenance_plan; SCE: Redis sce_info hash (latest) + MinIO hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab}.json (bidaily trend) -->
 - Notes: `fetched_at` is stamped at request/build time and is volatile — a
   parity harness should scrub it rather than compare byte-for-byte. The
   `docs` vs. `settings` split is a discriminated-by-service convention (not

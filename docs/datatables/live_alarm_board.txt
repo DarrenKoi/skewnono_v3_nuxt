@@ -1,0 +1,82 @@
+사무실(Office) Redis — 실시간 알람 보드
+
+장비 실시간 알람입니다. 다른 feature 와 달리 **읽기 소스가 원천이 아닙니다.**
+별도 스케줄러가 사내 alarm API 를 주기적으로 polling 해서 Redis 보드에 적재하고,
+SKEWNONO 는 그 보드만 읽습니다. 화면이 열릴 때마다 사내 API 를 때리지 않기 위한
+구조입니다.
+
+  사내 alarm API  --(writer job, 스케줄러)-->  Redis 보드  --(reader)-->  화면
+
+writer 는 back_dev_home 을 일절 import 하지 않습니다. writer 디렉터리는 그 패키지가
+없는 스케줄러 서비스로 통째로 복사되기 때문입니다. reader 는 SKEWNONO 안에서 도므로
+writer 패키지를 import 해도 됩니다 — key 이름을 양쪽이 따로 적어두면 어긋나므로,
+key 조립 함수는 writer 쪽 하나만 씁니다.
+
+Key 구조
+
+  prefix   : skewnono:live_alarm
+  events   : skewnono:live_alarm:{tool_slug}:{fab_name}:events   (ZSET)
+  meta     : skewnono:live_alarm:{tool_slug}:{fab_name}:meta     (string, JSON)
+  registry : skewnono:live_alarm:registry                        (SET)
+
+  tool_slug -> "cd-sem" / "hv-sem" (tool_type 과 같은 표기를 씁니다)
+  fab_name  -> "R3", "M11", "M16A" 등 대문자 표기
+  registry  -> "{tool_slug}:{fab_name}" 문자열의 집합. 한 번이라도 적재된 적 있는
+               조합인지 판별해 "설정 안 됨" 과 "설정됐는데 조용함" 을 구분합니다.
+
+events ZSET
+
+  member -> 알람 이벤트 1건의 JSON
+  score  -> occurred_epoch (epoch seconds). writer 가 한 번만 파싱해 넣습니다.
+
+이벤트 field
+
+  id -> string: "{eqp_id}|{alid}|{occurred_at}" 조합. 중복 제거 키입니다.
+  eqp_id -> string: 장비 ID
+  alid -> string: 알람 ID
+  alarm_name -> string: 알람 이름
+  occurred_at -> string: "YYYY-MM-DD HH:MM:SS+09:00" (offset 명시)
+  occurred_epoch -> int: ZSET score 와 같은 값
+  recipe_id -> string
+  operation_desc -> string
+  lot_type_cd -> string
+
+meta (JSON)
+
+  polled_at -> writer 가 마지막으로 사내 API 를 조회한 시각(epoch). 이 값으로 피드가
+               살아 있는지 판정합니다.
+
+시간 창
+
+  BOARD_WINDOW_SEC = 600      : 화면이 보여주는 구간(최근 10분)
+  FUTURE_TOLERANCE_SEC = 300  : 미래로 이만큼 넘게 찍힌 이벤트는 버립니다
+  PRUNE_SEC = 900 (기본)      : writer 가 이보다 오래된 member 를 삭제
+  TTL_SEC = 86400             : key 자체의 만료
+
+  PRUNE_SEC 은 반드시 BOARD_WINDOW_SEC 이상이어야 합니다. 더 짧으면 writer 가
+  reader 가 아직 보여주고 있는 이벤트를 지웁니다 — writer 가 부팅 시 이를 검사해
+  거부합니다.
+
+  조회 구간은 [now - BOARD_WINDOW_SEC, now + FUTURE_TOLERANCE_SEC] 입니다. 상한을
+  +inf 로 두지 않는 이유는, 상위 시스템 시계가 앞서 있으면 먼 미래로 찍힌 이벤트
+  하나가 보드 맨 위에 영구히 고정되기 때문입니다.
+
+시계(clock)
+
+  now 는 Redis 의 TIME 을 씁니다. writer 의 prune 도 같은 시계를 기준으로 하므로 두
+  쪽이 경계에 대해 이견을 가질 수 없습니다. 애플리케이션 서버 시각을 쓰면 두 서버의
+  시차만큼 어긋납니다.
+
+주소 정보
+
+사내 alarm API 의 주소 map 은 writer 의 office.py 에만 있고 git 에 올리지 않습니다.
+map 의 key 집합이 곧 지원 fab 목록입니다 — fab 을 추가하는 것과 주소를 등록하는 것이
+같은 편집이라 둘이 어긋날 수 없습니다.
+
+연결 설정
+
+writer: LIVE_ALARM_REDIS_HOST / _PORT / _PASSWORD / _DB, LIVE_ALARM_HTTP_TIMEOUT
+reader: REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (back_dev_home/.env)
+
+두 쪽 모두 db 는 기본값 0 입니다. 한쪽만 바꾸면 writer 와 reader 가 서로 다른
+데이터베이스에 앉아 조용히 빈 보드가 됩니다.

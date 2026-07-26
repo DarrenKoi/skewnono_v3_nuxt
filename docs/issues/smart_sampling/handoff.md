@@ -81,7 +81,7 @@ MTX(설계된 gradient 보존)는 CDU 와 통계 구조가 반대라 별도 엔�
 - 방법론 ADR: `docs/adr/0005-metrology-sampling-two-mode-engine.md`
 - 원문 아이디어: `docs/issues/smart_sampling/smart_sampling.txt`
 - 용어집(갱신됨): `CONTEXT.md` §계측-포인트-샘플링 / §계측-정합성 / §CDU·MTX
-- 데이터: `docs/datatables/meas_hist.txt`(run·풀링 축), `docs/datatables/msr_file.txt`(포인트),
+- 데이터: `docs/datatables/meas_hist.txt`(run·풀링 축), `docs/datatables/msr_file_pickle.txt`(포인트),
   `docs/datatables/recipe_idp.txt`(`wafer_mp_info` = site plan)
 - 계약 패턴 참고: `docs/api-contracts/README.md`, `cdsem-device-statistics.yaml`
 

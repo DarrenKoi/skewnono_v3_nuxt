@@ -6,7 +6,7 @@
 // Time-Series `single` scope (SequenceWorkbench.vue).
 //
 // TIME IS NOT A DIMENSION HERE. The Phase-1 MsrFile carries NO per-sequence
-// timestamp (docs/datatables/msr_file.txt), so this module deliberately exposes
+// timestamp (docs/datatables/msr_file_pickle.txt), so this module deliberately exposes
 // no per-second rate and no time lag — every slope is value-per-SEQUENCE-STEP
 // and every unit label ends with "per sequence". sequence.test.ts pins this:
 // any per-second / time-lag output would be a fabricated number.

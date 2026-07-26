@@ -1,0 +1,57 @@
+사무실(Office) OpenSearch index — recipe IDP 버전 이력
+
+"Lateral check"(횡전개 점검) 화면의 소스입니다. 답하려는 질문은 하나입니다 —
+**이 recipe 를 fab 안의 어느 장비가, 어떤 IDP 버전으로 보유하고 있는가.**
+
+Index(alias)
+  cdsem_idp_ver -> tool_type "cd-sem"
+  hvsem_idp_ver -> tool_type "hv-sem"
+
+문서 1건 = **(recipe, version) 한 쌍** 입니다. 한 recipe 의 full_name 을 검색하면 그
+recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 현재 버전입니다.
+
+사용 field
+
+  full_name -> text: 사용자가 검색한 recipe 이름. 정확 일치는 full_name.keyword 로
+                     겁니다. 기본 mapping 은 analyzed text 라 term 은 아무것도
+                     매칭하지 않고 match 는 토큰이 겹치는 다른 recipe 까지 잡습니다.
+  fab_name -> text: fab 필터. **대문자로 저장**되어 있습니다. fab_name.keyword 사용.
+  version -> long: IDP 버전. 클수록 최신입니다.
+  modified -> date: 해당 버전이 생성된 시각.
+  eqp_id -> text(다중값): 이 버전을 명시적으로 보유한 장비 목록(보유).
+                          값이 1개면 list 가 아니라 bare string 으로 돌아오므로
+                          두 형태를 모두 받아야 합니다.
+
+가져오지 않는 field
+
+  parameters, raw_data -> 이 화면이 읽지 않는 object blob 입니다. 버전 200건치를
+                          함께 내리면 응답이 그것만으로 커집니다.
+  not_found_eqp_id -> 미보유 목록. **의도적으로 읽지 않습니다.** 보유 판정은
+                      "명시적 eqp_id 등재" 와 "최근 측정 실행 이력" 의 합집합인데,
+                      recipe 를 실제로 실행한 장비를 미보유로 표시할 수는 없으므로
+                      이 부정 목록이 실행 증거를 뒤집게 두지 않습니다.
+
+조회 방법
+
+1. full_name.keyword + fab_name.keyword 로 버전 문서를 최대 200건(MAX_VERSION_DOCS)
+   가져옵니다. 한 recipe 가 이보다 많은 버전을 가지는 것은 예상 밖이므로, 상한에
+   걸리면 조용히 자르지 않고 truncation 을 감지합니다.
+2. 두 번째 신호로 meas_hist_* 의 최근 30일(MEAS_HISTORY_DAYS) 창에서 같은
+   fab/full_name 의 eqp_id.keyword distinct 값을 구합니다. 이것이 하한선입니다 —
+   recipe 를 실행한 장비는 미보유로 표시될 수 없습니다. IDP 이력에 없는 장비는
+   발견된 최신 버전을 받고, 명시적 IDP 버전 등재가 항상 우선합니다.
+3. 장비 명부(eqp_id / model / vendor / available)는 **이 index 에서 오지 않습니다.**
+   sem_list 로 해결합니다(docs/datatables/sem_list.txt). 이 index 는 장비별
+   보유/버전/시점만 결정합니다. 명부를 자체 공급하면 같은 fab 인데 장비 재고 화면과
+   장비 수가 달라지고, 어느 쪽이 맞는지 판별할 수 없게 됩니다.
+
+시각(timezone)
+
+사무실 index 공통으로 offset 없는 KST wall-clock 입니다. 프론트가 로컬 시각으로
+포맷하므로, 응답의 recipe_generated_at 에는 명시적으로 +09:00 을 붙입니다. Z 로
+붙이면 12:00 KST 가 12:00 UTC 로 태깅되어 KST 브라우저에서 21:00 으로 — 9시간 늦게
+표시됩니다.
+
+OFFICE-VERIFY: modified 가 offset 없이 저장된다는 것은 meas_hist index 의 관례를
+따른 **가정**입니다. 적재 쪽이 Z 접미사를 붙여 쓰고 있으면 9시간 어긋납니다.
+사무실 첫 실행 때 실제 modified 값 하나를 눈으로 확인합니다.

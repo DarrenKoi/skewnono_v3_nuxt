@@ -1,1 +1,30 @@
 recipe를 열었을 때 파라미터 정보 추출
+
+★ 아직 사무실 소스가 정해지지 않은 항목입니다 (2026-07-27 기준).
+
+무엇이 필요한가
+
+Recipe 검색 결과에서 "자세히 보기"를 눌렀을 때, 그 recipe 가 **어떤 파라미터를 몇
+개의 point 에서 측정하는지** 보여주기 위한 정보입니다. recipe_idp.txt 의
+idp_image_info(파라미터 <-> image 연결)와 wafer_mp_info(point 별 parameter)에서
+파생될 가능성이 높으므로, 같은 IDP 원본을 파싱하는 문제로 보고 있습니다.
+
+현재 상태
+
+- recipe_search 의 office 어댑터는 recipe **이름 목록**만 Redis 에 연결되어 있습니다
+  (docs/datatables/recipe_name_list.txt). 열람/비교는 mock 을 그대로 re-export
+  합니다.
+- 따라서 이 파일이 채워지기 전까지 화면에 보이는 파라미터 정보는 전부 생성된
+  mock 값입니다.
+
+연결하려면 무엇을 찾아야 하는가
+
+1. IDP 원본(.idp 파일)이 사무실 어디에 있는지 — 장비 FTP 인지, 별도 수집 저장소인지.
+   meas_hist 문서의 idp_name 은 경로 문자열(/Recipe/ADI/....idp)만 가지고 있고 내용은
+   담고 있지 않습니다.
+2. 파싱된 형태로 이미 적재된 곳이 있는지 — 있다면 원본 파싱보다 그쪽이 우선입니다.
+   (msr_file 이 raw MSR 대신 후처리 pickle 을 쓰는 것과 같은 판단입니다.)
+3. 파라미터 이름 체계가 measurement 쪽(msr_file_pickle 의 parameter 컬럼)과 같은지.
+   같다면 두 화면이 같은 이름으로 join 될 수 있습니다.
+
+참고: docs/datatables/recipe_idp.txt, docs/datatables/msr_file_pickle.txt

@@ -445,7 +445,7 @@ physical site key, time point, stratum, reference version을 담아 분석 결�
 | Tool matching | reference artifact ID, repeat/reload, tool, calibration regime | production MSR과 tool ID는 있으나 reference study 계약은 없습니다. | tool별 차이를 process와 metrology로 분해하지 않습니다. |
 | LER/LWR | edge trace, sample interval·length, detrending과 metric definition | 현재 scalar CD 중심입니다. | 기능을 숨기고 필요한 계약을 안내합니다. |
 
-현재 계약의 자세한 근거는 [MSR 파일 설명](../../datatables/msr_file.txt),
+현재 계약의 자세한 근거는 [MSR 파일 설명](../../datatables/msr_file_pickle.txt),
 [pickle 구조](../../datatables/msr_file_pickle.txt),
 [프런트 MSR API](../../../front-dev-home/app/composables/useMsrFileApi.ts)에 있습니다.
 

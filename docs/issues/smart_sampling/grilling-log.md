@@ -9,7 +9,7 @@
 - 원문 아이디어: `docs/issues/smart_sampling/smart_sampling.txt`
 - 방법론 결정(핵심): `docs/adr/0005-metrology-sampling-two-mode-engine.md`
 - 도메인 용어집: `CONTEXT.md` (계측 포인트 샘플링 / CDU·MTX / 계측 정합성)
-- 데이터 substrate: `docs/datatables/msr_file.txt`(포인트 단위), `docs/datatables/meas_hist.txt`(측정 이력·풀링 축)
+- 데이터 substrate: `docs/datatables/msr_file_pickle.txt`(포인트 단위), `docs/datatables/meas_hist.txt`(측정 이력·풀링 축)
 
 ## 핵심 통찰
 

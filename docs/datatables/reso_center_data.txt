@@ -3,6 +3,13 @@ beam_shape, reso_center에 해당. reso_center는 CD-SEM 장비에서만 제공�
 
 OpenSearch index alias: reso_center_cdsem (category "reso_center_log").
 
+★ alias 와 category 를 혼동하지 말 것.
+  조회하는 index(alias)  = reso_center_cdsem
+  문서 안의 category 값  = reso_center_log
+  "reso_center_log" 는 index 이름이 **아니다**. 이것을 index 로 조회하면 사무실에서
+  index_not_found 가 난다. (2026-07-27 기준 back_dev_home 의 reso_center 템플릿·
+  MIGRATION.md 는 reso_center_log 를 index 이름처럼 적고 있었고, 그것이 잘못이다.)
+
 doc 하나에는 다음과 같은 필드가 있다.
 'category': str "reso_center_log"
 'CenterX': float 예 = 1.15

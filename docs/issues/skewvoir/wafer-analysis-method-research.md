@@ -50,7 +50,7 @@ Skewvoir 분석 워크스페이스는 선택한 MSR 수에 따라 같은 차트�
 | BM/PM table | 장비 정비 작업 | 작업 시작·종료, category, engineer note | 정비 전후 구간 표시, regime 분할, 해석 문맥 |
 
 저장소 근거는 [meas_hist 설명](../../datatables/meas_hist.txt),
-[msr_file 설명](../../datatables/msr_file.txt),
+[msr_file 설명](../../datatables/msr_file_pickle.txt),
 [MSR pickle 구조](../../datatables/msr_file_pickle.txt),
 [프런트 MSR 계약](../../../front-dev-home/app/composables/useMsrFileApi.ts),
 [Hardware API 계약](../../api-contracts/hardware.yaml)에 있습니다.
