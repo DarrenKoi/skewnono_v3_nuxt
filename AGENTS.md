@@ -122,12 +122,17 @@ Other notes:
 - For docs-only changes, rerun `npm run lint:md` from the repo root.
 - Colocate new tests with the code they cover: `X.test.ts` beside `X.ts`, and `back_dev_home/<feature>/tests/` beside the feature.
 
-## Commit & Pull Request Guidelines
-- Use short, imperative commit messages scoped to one change.
-- Keep commits reviewable and avoid mixing unrelated frontend, backend, and docs changes unless they are part of the same feature.
-- PRs should state purpose, key changes, impacted routes or APIs, and manual verification steps.
-- Include screenshots or recordings for UI changes.
-- Note any environment variables or phase-specific assumptions when relevant.
+## Commit Guidelines
+
+This is a solo project developed directly on `main`: no pull requests, no
+feature branches (see CLAUDE.md's Git Workflow). Everything a PR description
+would have carried goes in the commit body instead, because the commit log is
+the only record anyone reads later.
+
+- Subject line in the existing `type(scope): summary` style, scoped to one change.
+- Add a body whenever the subject alone is not self-evident, covering what changed and why. Impacted routes or APIs, environment variables, and phase-specific assumptions belong here.
+- Keep commits reviewable: avoid mixing unrelated frontend, backend, and docs changes unless they are part of the same feature.
+- Verify UI changes in the running app before committing — see the `verify` skill. There is no reviewer downstream to catch a regression.
 
 <!-- OPENWIKI:START -->
 
