@@ -44,30 +44,76 @@ Web application for metrology, specified for tool management and data analytics.
 Three-tier configuration management. Database connections, API base URLs, and service configs change per environment. Frontend code stays the same across phases.
 
 ### API Abstraction Layer
-- All phases: frontend calls Flask over `/api/*` via `$fetch`
-- Routes import `from .data import ...` and never change between phases. **One carve-out:** an endpoint that *reports on the swap mechanism itself* must not go through it — `/api/health/providers` reads `_runtime` directly, because a swappable introspection endpoint could misreport in exactly the situation you would query it.
-- Swap surface is `back_dev_home/<feature>/providers/office.py` vs. `providers/mock.py` (home). `office.py` is **gitignored**; the tracked template is `providers/office_example.py` — implement/update the template, then `cp office_example.py office.py` at the office (office.py may carry 사내 schema details that stay out of git). `data.py` is a stable dispatcher that picks the adapter via `get_data_provider()` — do **not** edit it.
-- Adapter selection is two independent questions. **Mode** — is this process at the office? — comes from `SKEWNONO_DATA_PROVIDER` (`mock`|`office`) when set, else from site detection (`_runtime/site.py`: the Phase 3 cloud deploy path via `is_cloud()`, or a `PC*` hostname, is office; home Mac mini and unknown hosts are home). **Readiness** — is this feature wired? — is whether `<feature>/providers/office.py` exists (`_runtime/office_registry.py`). A feature serves office data only when both hold, so **the `cp office_example.py office.py` that creates an adapter is the same act that switches it on** — there is no list to maintain. `SKEWNONO_<FEATURE>_PROVIDER` still overrides one feature either way; `=office` with no adapter present refuses to boot. `SKEWNONO_DATA_PROVIDER=mock` is a whole-instance kill switch. Inspect what actually resolved via `GET /api/health/providers` or the boot log.
-- Because `office.py` is a copy, a `git pull` that moves `office_example.py` leaves the running adapter behind — it keeps serving 200s from old code. An office instance's boot log names any copy that is provably out of date (`STALE office.py: <feature> (copy of <sha>)`, from `_runtime/office_template.py`); refresh it with `python -m scripts.sync_office_adapters <feature>`. A copy carrying local 사내 changes is `EDITED`, never reported, and never overwritten without `--force`.
-- Blueprints and response shapes stay identical across phases
-- Frontend code never branches on phase — only `NUXT_API_TARGET` changes
-- Exception: some features have more than one swap surface — `chat` swaps both storage and LLM config (env-driven), and file/image features (`msr_file`) also swap FTP/MinIO handlers. Check each feature's `MIGRATION.md`.
+- All phases: frontend calls Flask over `/api/*` via `$fetch`. Blueprints and response shapes stay identical across phases, and frontend code never branches on phase — only `NUXT_API_TARGET` changes.
+- Routes import `from .data import ...` and never change between phases.
+- The swap surface is `providers/office.py` vs. `providers/mock.py`. **Do not edit `data.py`** — it is a stable dispatcher that picks the adapter via `get_data_provider()`. `office.py` is **gitignored**; the tracked template is `providers/office_example.py`, so you implement the template and `cp office_example.py office.py` at the office (the copy may carry 사내 schema details that stay out of git).
+- Because `office.py` is a copy, a `git pull` that moves the template leaves the running adapter serving 200s from old code. The office boot log names any provably outdated copy (`STALE office.py: <feature>`); refresh with `python -m scripts.sync_office_adapters <feature>`.
+
+Which adapter answers is the logical AND of two independent questions:
+
+| Question | Meaning | Decided by |
+| --- | --- | --- |
+| Mode | Is this process at the office? | `SKEWNONO_DATA_PROVIDER`, else site detection (`_runtime/site.py`) |
+| Readiness | Is this feature's adapter written? | Whether `<feature>/providers/office.py` exists |
+
+So **the `cp` that creates an adapter is the same act that switches it on** — there is no activation list to maintain. `SKEWNONO_<FEATURE>_PROVIDER` overrides one feature either way (`=office` with no adapter refuses to boot); `SKEWNONO_DATA_PROVIDER=mock` is a whole-instance kill switch. Inspect what actually resolved via `GET /api/health/providers` or the boot log.
+
+Full rules — site-detection order, the `/api/health/providers` carve-out, `EDITED` copies, and the features with more than one swap surface (`chat`, `msr_file`, `msr_image`) — are in [`docs/back-end/provider-selection.md`](docs/back-end/provider-selection.md). Per-feature specifics live in each `<feature>/MIGRATION.md`.
 
 ### Data Format Conventions
 - Prefer **dict** and **dataframe dict** format (`dataframe.to_dict()`)
 - Backend responses converted to dict/dataframe shape before returning JSON
 
 ### Feature-sliced Backend Layout
-- Each Nuxt feature tab has a matching top-level folder under `back_dev_home/` (e.g. `sem_list/`, `tool_inventory/`).
-- Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (env-var dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs.
+- Each Nuxt feature tab has a matching folder under `back_dev_home/`. Most are top-level (`sem_list/`, `msr_file/`, `msr_image/`, `afm/`, `meas_hist/`, `chat/`, …); the e-beam tabs nest by vendor — `ebeam/hitachi/<feature>/` (`storage`, `skew`, `recipe_tat`, `recipe_search`, `pm_planning`, `fail_issue`, `hardware`, `lateral_recipe`, `live_alarm`) and `ebeam/cdsem/device_statistics/`.
+- Underscore-prefixed folders (`_runtime/`, `_auth/`, `_core/`, `_logging/`, `_spa/`) are shared plumbing, **not** features — the app factory skips them.
+- Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs.
 - `back_dev_home/health/` owns the backend service health API. Add shared backend helpers only when a concrete feature needs them.
-- `back_dev_home/__init__.py` is the app factory: it creates the Flask app, configures CORS, and registers each feature's blueprint under `/api`.
+- `back_dev_home/__init__.py` is the app factory. Blueprints are **auto-discovered**: it rglobs for `routes.py`, skips any `_`-prefixed path, and registers each module's `bp` under `/api` — raising if a `routes.py` does not export a `Blueprint` named `bp`. Adding a feature means adding the folder; never edit the factory to register it.
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `providers/office.py`. Office adapters must normalize results to the `contracts.py` type — "resemble the mock" means match the contract shape, not the mock's data.
 
 ### Repository Layout
-- `front-dev-home/` — Nuxt 4 SPA (same code runs in all phases; `ssr: false`)
+- `front-dev-home/` — Nuxt 4 SPA (same code runs in all phases; `ssr: false`). Under `app/`: `pages/` (file-based routes), `components/`, `composables/`, `stores/` (`useState`-backed, not Pinia), `utils/`, `data/`, `assets/css/`.
 - `back_dev_home/` — Flask mock backend for Phase 1; mirrors office Flask structure
 - WSGI entry is root `index.py` (exposes `app` and `application`), which imports `create_app` from `back_dev_home`
+- **`DESIGN.md` is the single source of truth for the frontend's visual language** — read it before any UI change. Colors come from `--sk-*` tokens only, never inline hex; where the code and `DESIGN.md` disagree, the code is what gets corrected.
+
+## Commands
+
+Backend, from the repo root (CPython 3.14 venv; no activation step needed):
+
+```bash
+.venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
+.venv/bin/python -m pytest -q                          # full suite (~1320 tests, ~17 s)
+.venv/bin/python -m pytest back_dev_home/<feature> -q  # one feature
+```
+
+Run pytest as `python -m pytest` from the root — `-m` is what puts the root on
+`sys.path` so tests can import `back_dev_home.*`. The bare `-q` form and
+`pytest tests back_dev_home -q` collect the same set (`testpaths` in
+`pyproject.toml`); `tests/` **alone** silently skips every
+`back_dev_home/**/tests/` provider-contract suite, which is the larger half and
+the part that guards the mock→office swap.
+
+Frontend, from `front-dev-home/`:
+
+```bash
+npm run dev        # Nuxt on :3000, Nitro proxies /api/* to :5050
+npm test           # node --test over app/**/*.test.ts — pure functions only
+npm run typecheck
+npm run lint
+```
+
+From the repo root: `npm run lint:md` after any Markdown edit.
+
+There is **no automated E2E suite** — no Playwright config, no spec files, and
+no component tests (no mounting harness). Browser verification means driving
+Playwright MCP by hand; see the `verify` skill.
+
+### Runtime gotchas
+- `/api/*` is rate-limited to 20 req / 5 s per user — space out curl loops or vary the identity.
+- Identity at home is the `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix = blocked by access control.
+- `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaults on macOS/Python 3.14 when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
 
 ## Development Notes
 
@@ -110,6 +156,14 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 - Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.
 
 ## Agent skills
+
+### Project skills (`.claude/skills/`)
+
+| Skill | Use for |
+| --- | --- |
+| `verify` | Launch/drive recipe for the running app (Flask + Nuxt), identities, browser checks |
+| `home-to-office` | Audit features against the mock→office provider convention before conveying work |
+| `generate-mock` | Scaffold a mock data composable for a new endpoint |
 
 ### Issue tracker
 

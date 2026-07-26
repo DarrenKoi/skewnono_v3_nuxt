@@ -59,9 +59,11 @@ export SKEWNONO_DATA_PROVIDER=office
 export SKEWNONO_STORAGE_PROVIDER=mock
 ```
 
-`is_cloud()` 결과로 데이터 provider를 선택하지 않습니다. 현재 공통 선택기는
-`back_dev_home/_runtime/data_provider.py`이며, 피처별 환경 변수가 전역 설정보다
-우선합니다. Phase 3의 SSO, SPA 서빙, 로깅 활성화는 데이터 연결과 별도로 검증합니다.
+공통 선택기는 `back_dev_home/_runtime/data_provider.py`이며, 피처별 환경 변수가 전역
+설정보다 우선합니다. 환경 변수를 지정하지 않으면 `_runtime/site.py`의 site 감지가
+기본값을 정하고, 이때 Phase 3 클라우드 배포 경로(`is_cloud()`)는 office로 판정됩니다.
+전체 규칙은 [`docs/back-end/provider-selection.md`](provider-selection.md)를 참고합니다.
+Phase 3의 SSO, SPA 서빙, 로깅 활성화는 데이터 연결과 별도로 검증합니다.
 
 ## 3. 승인된 사무실 데이터 모듈
 

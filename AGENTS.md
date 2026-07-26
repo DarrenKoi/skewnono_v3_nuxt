@@ -18,7 +18,7 @@ Key frontend paths:
   reload goes through `composables/usePersistedState.ts`.
 - `front-dev-home/app/assets/css/`: global styles.
 - `front-dev-home/public/`: static assets.
-- `front-dev-home/app/mock-data/`: local reference content used by the frontend.
+- `front-dev-home/app/data/`: local reference content used by the frontend.
 
 Key backend paths:
 - `index.py` (repo root): WSGI entry that exposes `app` and `application`; imports `create_app` from `back_dev_home`.
@@ -26,12 +26,12 @@ Key backend paths:
 - `back_dev_home/__init__.py`: Flask app factory; registers each feature's blueprint under `/api`.
 - `back_dev_home/health/`: service health API for backend dependencies.
 - `back_dev_home/<feature>/routes.py`: blueprint + route handlers for one Nuxt-tab-aligned feature.
-- `back_dev_home/<feature>/data.py`: data-access layer for that feature — Phase 1 mock, swapped for a real implementation in Phase 2/3.
+- `back_dev_home/<feature>/data.py`: stable dispatcher that picks the feature's adapter — do **not** edit it. The Phase 2/3 swap surface is `providers/office.py`; see `docs/back-end/provider-selection.md`.
 
 ## Deployment Phases
 The repo is structured around configuration-only environment switching.
 
-- Phase 1, home/offline: run `back_dev_home/` locally on `http://localhost:5000` with in-memory mock data.
+- Phase 1, home/offline: run `back_dev_home/` locally on `http://localhost:5050` with in-memory mock data.
 - Phase 2, company/localhost: keep the same Flask API shape but swap to company-local data sources.
 - Phase 3, company/production: Flask serves the built frontend and uses production infrastructure.
 
@@ -105,7 +105,7 @@ Backend — pytest on CPython 3.14, installed from `back_dev_home/requirements-d
 runner). Always run from the repo root, in the `python -m pytest` form: `-m` is
 what puts the repo root on `sys.path` so tests can import `back_dev_home.*`.
 
-- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~990 tests, ~15 s). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
+- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~1320 tests, ~17 s). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
 - `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "back_dev_home"]`, so the bare form and the explicit one are interchangeable.
 - `.venv/bin/python -m pytest back_dev_home/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
 - `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp back_dev_home/<feature>/providers/office_example.py back_dev_home/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
