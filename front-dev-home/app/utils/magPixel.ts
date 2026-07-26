@@ -108,6 +108,17 @@ export const seriesFromModel = (eqpModelCd: string | null | undefined): MagSerie
   return SERIES_PREFIXES.find(prefix => code.startsWith(prefix)) ?? null
 }
 
+/**
+ * 계열을 대표하는 실제 장비 모델명. 현장에서 'CG'/'GT'라는 접두사보다 모델명으로
+ * 부르므로 UI 레이블은 이쪽을 쓴다. 판정 키는 접두사 그대로 두고 표시만 바꾸는
+ * 것이라, seriesFromModel()이 접두사 매칭인 한 두 값은 어긋날 수 없다 —
+ * 그 불변식은 테스트가 지킨다.
+ */
+export const SERIES_MODEL: Readonly<Record<MagSeries, string>> = {
+  CG: 'CG6300',
+  GT: 'GT2000'
+}
+
 export const magRange = (series: MagSeries): readonly number[] =>
   series === 'GT' ? MAG_GT : MAG_CG
 

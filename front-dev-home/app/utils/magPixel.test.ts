@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fovUm, fovNm, parsePixelSetting, pixelSizeNm, pxPerCd, scanTimeFactor,
-  seriesFromModel, magRange, isAssumedMag, buildMagPixelTable,
+  seriesFromModel, magRange, isAssumedMag, buildMagPixelTable, SERIES_MODEL,
   requiredFovNm, recommend, cellVerdict, marginSensitivity, pixelGuidance,
   MARGIN_PRESETS, DEFAULT_MARGIN, DEFAULT_MIN_PX_PER_CD,
   edgeIntensity, samplePixelNm, edgeWindowHalfNm, edgeStrip, edgeComparePair,
@@ -88,6 +88,17 @@ test('seriesFromModel normalises case and surrounding whitespace', () => {
   // parquet/Redis text cells carry both; a stray space must not drop a tool
   assert.equal(seriesFromModel(' cg6320 '), 'CG')
   assert.equal(seriesFromModel('gt2000'), 'GT')
+})
+
+/**
+ * UI가 계열 칩에 'CG'가 아니라 'CG6300'을 찍는다. 그 레이블이 접두사 판정과
+ * 어긋나면 화면은 CG6300이라 부르는데 시스템은 그 문자열을 CG로 못 읽는 상태가
+ * 되므로, 레이블은 반드시 자기 계열로 되돌아와야 한다.
+ */
+test('SERIES_MODEL labels round-trip back through seriesFromModel', () => {
+  for (const series of ['CG', 'GT'] as const) {
+    assert.equal(seriesFromModel(SERIES_MODEL[series]), series)
+  }
 })
 
 test('seriesFromModel returns null for non-CD-SEM families', () => {

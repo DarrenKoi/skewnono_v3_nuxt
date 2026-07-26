@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {
-  buildMagPixelTable, fovNm, recommend, MARGIN_PRESETS, DEFAULT_MARGIN,
-  DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, type CalcInput, type MagSeries
+  buildMagPixelTable, fovNm, recommend, magRange, MARGIN_PRESETS, DEFAULT_MARGIN,
+  DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, SERIES_MODEL,
+  type CalcInput, type MagSeries
 } from '~/utils/magPixel'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 
@@ -37,6 +38,19 @@ const patternValue = computed(() => numOrNull(patternCount.value) ?? DEFAULT_PAT
 const thresholdValue = computed(() => numOrNull(minPxPerCd.value) ?? DEFAULT_MIN_PX_PER_CD)
 
 const rows = computed(() => buildMagPixelTable(series.value))
+
+/** 계열마다 배율 구간이 다르다 — GT는 500K 위로 5단을 더 갖는다. 캡션을
+ *  고정 문자열로 두면 GT를 고른 순간 거짓말이 되므로 실제 표에서 읽는다. */
+const magStepLabel = (mag: number) =>
+  mag >= 1_000_000 ? `${mag / 1_000_000}M` : `${mag / 1000}K`
+
+const seriesRangeLabel = computed(() => {
+  const range = magRange(series.value)
+  const first = range[0]
+  const last = range[range.length - 1]
+  if (first == null || last == null) return ''
+  return `${magStepLabel(first)}–${magStepLabel(last)} · ${range.length}단`
+})
 
 /** CD가 없으면 판정하지 않고 순수 참조표로 둔다. */
 const pitchError = computed(() =>
@@ -180,12 +194,12 @@ const calcInput = computed<CalcInput>(() => ({
                   v-for="s in (['CG', 'GT'] as MagSeries[])"
                   :key="s"
                   size="sm"
-                  :label="s"
+                  :label="SERIES_MODEL[s]"
                   :active="series === s"
                   @click="series = s"
                 />
               </div>
-              <span class="ml-auto sk-meta">1K–500K · 23단</span>
+              <span class="ml-auto whitespace-nowrap sk-meta">{{ seriesRangeLabel }}</span>
             </div>
 
             <div class="flex items-center gap-3">
@@ -275,17 +289,17 @@ const calcInput = computed<CalcInput>(() => ({
                    위의 계열·마진 칩과 같은 필터 계열이다 (DESIGN.md 리트머스). -->
               <USlider
                 v-model="minPxPerCd"
-                :min="2"
-                :max="30"
+                :min="4"
+                :max="20"
                 :step="1"
                 size="sm"
                 aria-label="기준 px/CD"
                 :ui="{ range: 'bg-(--sk-brand)', thumb: 'ring-(--sk-brand)' }"
               />
               <div class="mt-1 flex justify-between font-mono text-[10px] text-(--sk-ink-subtle)">
-                <span>2</span>
+                <span>4</span>
                 <span class="font-semibold text-(--sk-ok)">통상 6–10</span>
-                <span>30</span>
+                <span>20</span>
               </div>
               <p class="mt-2 sk-meta leading-relaxed">
                 CD 하나 폭에 픽셀이 최소 몇 개는 얹혀야 측정을 신뢰할 수 있다고 볼지,
@@ -334,7 +348,7 @@ const calcInput = computed<CalcInput>(() => ({
           </div>
 
           <div class="flex flex-wrap items-start gap-5">
-            <div class="min-w-80 flex-1">
+            <div class="min-w-[260px] flex-1">
               <MagpixelPatternSchematic
                 v-if="result.mag && result.nmPerPx"
                 :cd-nm="calcInput.cdNm"
@@ -346,10 +360,11 @@ const calcInput = computed<CalcInput>(() => ({
             </div>
 
             <!-- 시뮬레이션은 접지 않는다 — "512로 되나?"에 답하는 그림이라
-                 펼쳐야만 보이면 질문에 답하지 않은 화면이 된다. -->
+                 펼쳐야만 보이면 질문에 답하지 않은 화면이 된다. 클래스를 주지
+                 않는 이유는 이 컴포넌트가 display:contents라서, 폭은 그 안의
+                 각 블록이 스스로 정하기 때문이다. -->
             <MagpixelSemSimulation
               v-if="result.pixels && result.nmPerPx"
-              class="min-w-80 flex-1"
               :cd-nm="calcInput.cdNm"
               :pitch-nm="result.effectivePitchNm"
               :pattern-count="patternValue"
@@ -363,7 +378,7 @@ const calcInput = computed<CalcInput>(() => ({
           <div class="mb-3.5 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
               <h2 class="sk-heading">
-                {{ series }} Series 참조표
+                {{ SERIES_MODEL[series] }} 참조표
               </h2>
               <span class="sk-meta">FOV에 담기는 배율과, 각 픽셀 설정의 px 크기입니다</span>
             </div>

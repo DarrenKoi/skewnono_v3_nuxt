@@ -95,13 +95,14 @@ const rampColor = (v: number) =>
 </script>
 
 <template>
-  <div class="space-y-3">
-    <p class="sk-meta italic">
-      시뮬레이션 — 실제로 촬영된 이미지가 아니라, 설정값으로 예상한 이미지입니다.
-    </p>
-
-    <div class="flex flex-wrap items-start gap-5">
-      <div>
+  <!-- display:contents — 아래 네 블록은 부모 카드의 flex 행에 **직접** 참여해야
+       한다. 감싸는 상자를 두면 이 컴포넌트가 카드의 오른쪽 절반에 갇히고, 그
+       안에서 설명 문단이 세로로 길어지면서 왼쪽 모식도 아래에 큰 빈 공간이
+       남는다. 블록을 풀어 두면 모식도와 한 줄로 늘어서고, 설명만 basis-full로
+       아래 줄 전체를 차지한다. -->
+  <div class="contents">
+    <div class="contents">
+      <div class="w-52">
         <div class="sk-eyebrow">
           전체 FOV · {{ pixels }} px · {{ nmPerPx.toFixed(3) }} nm/px
         </div>
@@ -194,18 +195,9 @@ const rampColor = (v: number) =>
           <span>← bar 안쪽</span>
           <span>space →</span>
         </div>
-
-        <div class="mt-2 sk-meta">
-          두 줄은 <span class="font-semibold text-(--sk-ink)">같은 물리 구간</span>을 그린 것이고, 칸 하나가 픽셀 하나입니다.
-          경계 번짐 폭 {{ SEM_EDGE_WIDTH_NM }} nm는 픽셀 설정과 무관하게 고정입니다 —
-          픽셀이 작아질수록 그 고정된 경계 위에 샘플이 더 많이 얹혀
-          ({{ strips[0]!.pxOnEdge.toFixed(1) }} px → {{ strips[1]?.pxOnEdge.toFixed(1) ?? '—' }} px)
-          경계 위치를 더 정밀하게 잡습니다.
-          <span class="text-(--sk-warn)">{{ SEM_EDGE_WIDTH_NM }} nm는 설명용 대표값이며, 표준안 확정 전까지는 잠정값입니다.</span>
-        </div>
       </div>
 
-      <dl class="min-w-40 flex-1 font-mono text-xs leading-relaxed">
+      <dl class="w-36 font-mono text-xs leading-relaxed">
         <div class="flex justify-between">
           <dt class="sk-meta">
             px 크기
@@ -231,6 +223,20 @@ const rampColor = (v: number) =>
           </dd>
         </div>
       </dl>
+
+      <!-- basis-full: 설명은 카드 아래 줄 전체를 쓴다. 좁은 칸에 두면 그 칸만
+           세로로 길어져 옆 칸들 아래가 통째로 비므로, 문단은 행을 바꾼다. -->
+      <p class="basis-full sk-meta leading-relaxed">
+        <span class="italic">시뮬레이션 — 실제로 촬영된 이미지가 아니라, 설정값으로 예상한 이미지입니다.</span>
+        <template v-if="strips.length">
+          경계 확대의 두 줄은 <span class="font-semibold text-(--sk-ink)">같은 물리 구간</span>을 그린 것이고, 칸 하나가 픽셀 하나입니다.
+          경계 번짐 폭 {{ SEM_EDGE_WIDTH_NM }} nm는 픽셀 설정과 무관하게 고정입니다 —
+          픽셀이 작아질수록 그 고정된 경계 위에 샘플이 더 많이 얹혀
+          ({{ strips[0]!.pxOnEdge.toFixed(1) }} px → {{ strips[1]?.pxOnEdge.toFixed(1) ?? '—' }} px)
+          경계 위치를 더 정밀하게 잡습니다.
+          <span class="text-(--sk-warn)">{{ SEM_EDGE_WIDTH_NM }} nm는 설명용 대표값이며, 표준안 확정 전까지는 잠정값입니다.</span>
+        </template>
+      </p>
     </div>
   </div>
 </template>
