@@ -22,7 +22,21 @@ columns : value (examples)
 "stage_coordinate: "161395915,169086859"
 "dnum_group": "-1,-1", "2,-1", "7,-1"
 "mp_number": 1,2,3,...7,2,3,4,5
-"parameter": "WAFER",..
+"parameter": "WAFER",.. — 빈 문자열("")인 row 가 존재합니다 (office 확인
+                    2026-07-27). 측정 초반에 장비를 안정시키기 위해 먼저 찍는
+                    이름 없는 dummy 측정점입니다. dummy 라고 해서 비어 있는
+                    row 는 아니며, cd_value 와 SEM 이미지를 정상적으로 가집니다
+                    — 검토자가 실제로 열어 보는 이미지이므로 화면에서 선택할 수
+                    있어야 합니다.
+                    주의 2가지가 있습니다. (1) 이 row 가 가장 먼저 측정되므로
+                    mp_number/sequence 순으로 정렬하면 맨 앞에 옵니다. 따라서
+                    "첫 번째 parameter"를 기본값으로 고르면 이름 없는 dummy 가
+                    선택되므로, 기본값은 이름이 있는 첫 parameter 로 골라야
+                    합니다. (2) 이름이 ""이라 URL 쿼리로 그대로 실을 수 없습니다
+                    (빈 값은 "없음"으로 읽힘). 프런트엔드는 mp 키에 한해
+                    "(unnamed)" 예약 토큰으로 인코딩합니다 —
+                    app/utils/skewvoirAnalysis/routeQuery.ts 를 참고하시기
+                    바랍니다.
 "cd_value" :43.14, None
 "no_of_mp_image": 1, 0
 "mp_image_name 01": image file name — .jpeg 프리뷰와 .tif 원본이 섞여 있음

@@ -30,7 +30,7 @@
       v-else
       class="flex flex-1 items-center justify-center sk-body"
     >
-      {{ analysis.activeParam.value }} 데이터가 없습니다.
+      {{ analysis.activeParamLabel.value }} 데이터가 없습니다.
     </div>
   </EbeamSkewvoirPanelFrame>
 </template>
@@ -65,6 +65,6 @@ const highlights = computed<DistributionHighlight[]>(() => {
 
 const meta = computed(() => {
   const s = props.analysis.activeSummary.value
-  return s ? `μ ${s.mean.toFixed(2)} · 3σ ${(s.std * 3).toFixed(2)}` : props.analysis.activeParam.value
+  return s ? `μ ${s.mean.toFixed(2)} · 3σ ${(s.std * 3).toFixed(2)}` : props.analysis.activeParamLabel.value
 })
 </script>

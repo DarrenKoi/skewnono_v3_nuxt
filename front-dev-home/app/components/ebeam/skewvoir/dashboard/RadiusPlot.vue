@@ -48,7 +48,7 @@
       v-else
       class="flex flex-1 items-center justify-center sk-body"
     >
-      {{ analysis.activeParam.value }} 데이터가 없습니다.
+      {{ analysis.activeParamLabel.value }} 데이터가 없습니다.
     </div>
 
     <EbeamSkewvoirDashboardRadiusAnalysisDialog

@@ -75,12 +75,22 @@ def test_parameter_with_no_valid_rows_is_omitted():
 
 
 def test_summary_count_matches_valid_row_count(sample_msr):
+    """EVERY summary counts exactly its parameter's measured rows.
+
+    Checked across all parameters rather than `parameters[0]`: summaries sort by
+    name, so the first entry is the UNNAMED dummy MP whenever the measurement
+    opens with settling shots — and those are all measured, which used to trip
+    the "fixture has no invalid rows" precondition. That precondition belongs to
+    the fixture as a whole, not to whichever parameter happens to sort first.
+    """
     payload = get_msr_file(sample_msr)
-    summary = payload["parameters"][0]
-    raw = [r for r in payload["rows"] if r["parameter"] == summary["parameter"]]
-    valid = [r for r in raw if r["cd_value"] is not None]
-    assert len(valid) < len(raw), "fixture has no invalid rows"
-    assert summary["count"] == len(valid)
+    saw_invalid = False
+    for summary in payload["parameters"]:
+        raw = [r for r in payload["rows"] if r["parameter"] == summary["parameter"]]
+        valid = [r for r in raw if r["cd_value"] is not None]
+        assert summary["count"] == len(valid)
+        saw_invalid = saw_invalid or len(valid) < len(raw)
+    assert saw_invalid, "fixture has no invalid rows"
 
 
 # ── new row columns ──────────────────────────────────────────────────────────

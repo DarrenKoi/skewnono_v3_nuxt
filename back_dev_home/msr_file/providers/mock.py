@@ -512,6 +512,19 @@ def _build_rows(
     rows: list[MsrFileRow] = []
     span = max(1, num_measurements - 1)
 
+    # ── Unnamed dummy MPs (settling shots) ───────────────────────────────────
+    # Many recipes OPEN with one or more measurement points that carry no
+    # parameter name. They are dummies in the sense that nobody analyses their
+    # value, but they are real measurements: they run first so the tool is
+    # stable by the time the recipe's actual parameters are measured, and they
+    # produce SEM images that reviewers do look at.
+    #
+    # Seeded per-MSR so some measurements carry them and some do not — that is
+    # what keeps BOTH paths exercised at home, which is the whole point of
+    # teaching the mock this shape (see docs/datatables/msr_file_pickle.txt).
+    dummy_rng = random.Random(_seed(msr, 911))
+    num_dummy = dummy_rng.choice((0, 0, 0, 1, 1, 2, 3))
+
     # Per-parameter wafer CD model + a handful of injected outliers, so most sites
     # sit tight (few flags) while the 이상 UI still has genuine excursions to show.
     fields = {p: _cd_field(msr, p, health) for p in selected_params}
@@ -525,13 +538,55 @@ def _build_rows(
             for s in picks
         }
 
-    for sequence in range(1, num_measurements + 1):
-        seq_frac = (sequence - 1) / span
+    # The settling shots themselves: sequences 1..num_dummy, all on the same die
+    # (the tool does not move between them), each with a real image and real
+    # acquisition conditions. mp_number 0 plus the lowest sequences puts them at
+    # the head of the measurement order, which is what makes them the parameter a
+    # naive "first parameter" default would land on.
+    dummy_x, dummy_y = dies[0]
+    dummy_center_x_nm, dummy_center_y_nm = _die_center_nm(dummy_x, dummy_y, geom)
+    for sequence in range(1, num_dummy + 1):
+        rows.append(MsrFileRow(
+            msr=msr,
+            sequence=sequence,
+            chip_number=f"{dummy_x},{dummy_y}",
+            chip_coordinate=f"{int(dummy_center_x_nm)},{int(dummy_center_y_nm)}",
+            stage_coordinate=f"{int(dummy_center_x_nm)},{int(dummy_center_y_nm)}",
+            dnum_group="0, -1",
+            mp_number=0,
+            # The defining trait: measured, imaged — and NAMELESS.
+            parameter="",
+            cd_value=round(dummy_rng.uniform(10.0, 50.0), 3),
+            no_of_mp_image=1,
+            # No parameter segment in the filename — there is no name to put there.
+            mp_image_name_01=(
+                f"{msr}_{sequence:03d}_{dummy_rng.randint(0, 9999):04d}"
+                f".{'tif' if dummy_rng.random() < 0.3 else 'jpeg'}"
+            ),
+            meas_condition_mag=_MAGNIFICATIONS[(sequence + seed) % len(_MAGNIFICATIONS)],
+            meas_condition_vac=_VOLTAGES[(sequence + seed) % len(_VOLTAGES)],
+            meas_condition_pixel=_PIXELS[(sequence + seed) % len(_PIXELS)],
+            addressing1_score=int(round(dummy_rng.uniform(600, 950) - 200 * health)),
+            addressing2_score=int(round(dummy_rng.uniform(600, 950) - 200 * health)),
+            measurement_score=int(round(dummy_rng.uniform(820, 990) - 220 * health)),
+            meas_method=_MEAS_METHODS[(sequence + seed) % len(_MEAS_METHODS)],
+            object_type=_OBJECT_TYPES[(sequence + seed) % len(_OBJECT_TYPES)],
+            meas_kind=_MEAS_KINDS[(sequence + seed) % len(_MEAS_KINDS)],
+        ))
+
+    # `step` is the point's position within the RECIPE's own run (1..N) and drives
+    # every generated value; `sequence` is its position in the measurement as a
+    # whole, which the dummy settling shots above occupy the front of. Keeping the
+    # two apart means adding dummies shifts the emitted sequence numbers without
+    # disturbing any other value the generator produces.
+    for step in range(1, num_measurements + 1):
+        sequence = num_dummy + step
+        seq_frac = (step - 1) / span
 
         # Die index (chip_number) + its physical stage position (nm, corner
         # origin). A small within-die offset keeps stage_coordinate from being an
         # exact multiple of the pitch — the point is measured somewhere in the die.
-        chip_x, chip_y = dies[(sequence - 1) % len(dies)]
+        chip_x, chip_y = dies[(step - 1) % len(dies)]
         chip_number = f"{chip_x},{chip_y}"
         center_x_nm, center_y_nm = _die_center_nm(chip_x, chip_y, geom)
         off_x = rng.uniform(-0.3, 0.3) * geom.pitch_x_nm
@@ -550,12 +605,12 @@ def _build_rows(
         # Every 20th sequence carries point METADATA but no point DATA (spec rule 9).
         # Such a row has no measurement, so it has no cd_value, no image and no
         # score. Emitting a float here is the bug this rewrite exists to kill.
-        empty = sequence % 20 == 0
+        empty = step % 20 == 0
 
         if empty:
             dnum_group, mp_number = "-1, -1", -1
         else:
-            mp_number = (sequence - 1) % 30
+            mp_number = (step - 1) % 30
             dnum_group = f"{mp_number}, -1"
 
         if empty:
@@ -564,18 +619,18 @@ def _build_rows(
             addressing1 = addressing2 = None
             meas_kind = None
         else:
-            meas_mag = _MAGNIFICATIONS[(sequence + seed) % len(_MAGNIFICATIONS)]
-            meas_vac = _VOLTAGES[(sequence + seed) % len(_VOLTAGES)]
-            meas_pixel = _PIXELS[(sequence + seed) % len(_PIXELS)]
+            meas_mag = _MAGNIFICATIONS[(step + seed) % len(_MAGNIFICATIONS)]
+            meas_vac = _VOLTAGES[(step + seed) % len(_VOLTAGES)]
+            meas_pixel = _PIXELS[(step + seed) % len(_PIXELS)]
             # Quality scores fall as health rises; ~health fraction fail to score.
             scored = rng.random() > (0.05 + 0.35 * health)
             measurement_score = int(round(rng.uniform(820, 990) - 220 * health)) if scored else None
             addressing1 = int(round(rng.uniform(600, 950) - 200 * health)) if scored else None
             addressing2 = int(round(rng.uniform(600, 950) - 200 * health)) if scored else None
-            meas_kind = _MEAS_KINDS[(sequence + seed) % len(_MEAS_KINDS)]
+            meas_kind = _MEAS_KINDS[(step + seed) % len(_MEAS_KINDS)]
 
-        meas_method = _MEAS_METHODS[(sequence + seed) % len(_MEAS_METHODS)]
-        object_type = _OBJECT_TYPES[(sequence + seed) % len(_OBJECT_TYPES)]
+        meas_method = _MEAS_METHODS[(step + seed) % len(_MEAS_METHODS)]
+        object_type = _OBJECT_TYPES[(step + seed) % len(_OBJECT_TYPES)]
 
         for parameter in selected_params:
             rows.append(MsrFileRow(
@@ -589,7 +644,7 @@ def _build_rows(
                 parameter=parameter,
                 cd_value=None if empty else _cd_value(
                     fields[parameter], radius_norm, health, seq_frac, rng,
-                    outliers_by_param[parameter].get(sequence, 0.0),
+                    outliers_by_param[parameter].get(step, 0.0),
                 ),
                 no_of_mp_image=0 if empty else 1 + rng.randint(0, 4),
                 # Office tools mix JPEG previews with TIFF originals (confirmed

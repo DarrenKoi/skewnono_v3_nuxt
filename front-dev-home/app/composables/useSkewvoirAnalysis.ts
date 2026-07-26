@@ -15,7 +15,7 @@ import {
   type MsrFeatureRow,
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
-import { namedParams, sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
+import { isNamedParam, paramLabel, sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
 import { resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
@@ -143,23 +143,35 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
   // Presentation order everywhere (navigator chips, 파라미터 요약, fallback
   // param) follows the rows' mp_number → sequence, not the backend array order.
-  // namedParams first: an unnamed dummy MP leads many measurements and must not
-  // become a chip or the default pick (see utils/skewvoirAnalysis/paramOrder.ts).
+  // The unnamed dummy MP is measured first, so it legitimately leads this list —
+  // it is selectable (it has images to review), just never the default below.
   const paramSummaries = computed<MsrParamSummary[]>(() =>
-    sortByRowMpOrder(namedParams(focusFile.value?.parameters ?? []), focusFile.value?.rows ?? [])
+    sortByRowMpOrder(focusFile.value?.parameters ?? [], focusFile.value?.rows ?? [])
   )
   const availableParams = computed(() => paramSummaries.value.map(p => p.parameter))
 
   // Effective parameter: honor the URL `mp` when the focus file actually has it,
-  // else fall back to the file's first NAMED parameter — the dummy settling MP
-  // sorts ahead of it and is already filtered out above (recipes differ too, so
-  // the sample's WAFER param doesn't exist in a GATE_CD recipe).
+  // else fall back to the file's first NAMED parameter (recipes differ — the
+  // sample's WAFER param doesn't exist in a GATE_CD recipe).
+  //
+  // `want != null` rather than a truthiness test: the unnamed dummy MP's name IS
+  // the empty string, and a truthy check would reject the reviewer's explicit
+  // pick and bounce them to another parameter. Defaulting still skips it — you
+  // land on the first real parameter and choose the dummy deliberately — but a
+  // file whose ONLY parameter is the dummy falls back to it rather than to
+  // nothing.
   const activeParam = computed(() => {
     const want = ws.selection.value?.mp
     const params = availableParams.value
-    if (want && params.includes(want)) return want
-    return params[0] ?? want ?? ''
+    if (want != null && params.includes(want)) return want
+    const named = params.filter(isNamedParam)
+    return named[0] ?? params[0] ?? want ?? ''
   })
+
+  // Display form of the active parameter — the unnamed MP renders as a stand-in
+  // label instead of an empty string. Components interpolating the parameter
+  // into user-facing text use this; row filtering always uses activeParam.
+  const activeParamLabel = computed(() => paramLabel(activeParam.value))
 
   // --- Parameter multi-selection (compare several params side by side) ---
   // The URL `mp` stays the PRIMARY parameter (drives the single-param panels:
@@ -534,6 +546,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusError,
     retryFocus,
     activeParam,
+    activeParamLabel,
     availableParams,
     // Re-exported so the Data Summary rows can switch the plotted parameter.
     // It replaced the header's parameter select, which read as dead chrome.

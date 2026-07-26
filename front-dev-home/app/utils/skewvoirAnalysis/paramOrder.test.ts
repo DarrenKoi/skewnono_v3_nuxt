@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isNamedParam, namedParams, sortByRowMpOrder } from './paramOrder.ts'
+import { UNNAMED_PARAM_LABEL, isNamedParam, namedParams, paramLabel, sortByRowMpOrder } from './paramOrder.ts'
 
 const row = (parameter: string, mp_number: number, sequence: number) =>
   ({ parameter, mp_number, sequence })
@@ -76,4 +76,33 @@ test('the dummy MP leads the mp order, so filtering it hands the default to the 
   assert.deepEqual(names(sortByRowMpOrder(items, rows)), ['', 'CD_TOP', 'SIDEWALL_ANGLE'])
   // Filtered, the first slot is the first real parameter.
   assert.deepEqual(names(sortByRowMpOrder(namedParams(items), rows)), ['CD_TOP', 'SIDEWALL_ANGLE'])
+})
+
+test('paramLabel renders a real name as itself', () => {
+  assert.equal(paramLabel('CD_TOP'), 'CD_TOP')
+})
+
+test('paramLabel gives the unnamed MP a visible stand-in, never an empty chip', () => {
+  assert.equal(paramLabel(''), UNNAMED_PARAM_LABEL)
+  assert.notEqual(paramLabel(''), '')
+})
+
+// The default-pick rule the composable applies: prefer the first NAMED param,
+// but fall back to the unnamed one rather than to nothing.
+const pickDefault = (params: string[]): string => {
+  const named = params.filter(isNamedParam)
+  return named[0] ?? params[0] ?? ''
+}
+
+test('default pick skips the leading unnamed MP', () => {
+  assert.equal(pickDefault(['', 'CD_TOP', 'SIDEWALL_ANGLE']), 'CD_TOP')
+})
+
+test('default pick falls back to the unnamed MP when it is the only parameter', () => {
+  assert.equal(pickDefault(['']), '')
+})
+
+test('default pick is unchanged when no unnamed MP is present', () => {
+  assert.equal(pickDefault(['CD_TOP', 'CD_BOTTOM']), 'CD_TOP')
+  assert.equal(pickDefault([]), '')
 })

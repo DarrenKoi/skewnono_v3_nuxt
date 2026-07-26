@@ -116,7 +116,7 @@
         v-else
         class="flex h-72 items-center justify-center sk-body"
       >
-        {{ queue.entries.length ? '필터에 해당하는 항목이 없습니다.' : `${analysis.activeParam.value} 근거 항목이 없습니다.` }}
+        {{ queue.entries.length ? '필터에 해당하는 항목이 없습니다.' : `${analysis.activeParamLabel.value} 근거 항목이 없습니다.` }}
       </div>
     </div>
 
@@ -159,7 +159,7 @@
       v-else
       class="flex h-96 items-center justify-center sk-body"
     >
-      {{ analysis.activeParam.value }} 이미지가 없습니다.
+      {{ analysis.activeParamLabel.value }} 이미지가 없습니다.
     </div>
 
     <!-- Enlarged viewer + measurement-evidence drawer (single scope). -->
@@ -334,9 +334,9 @@ const filterCounts = computed(() => ({
 const frameMeta = computed(() => {
   if (props.analysis.scope.value === 'single') {
     const c = queue.value.counts
-    return `${c.total} sites · 근거 ${c.evidenceBacked} · MP: ${props.analysis.activeParam.value}`
+    return `${c.total} sites · 근거 ${c.evidenceBacked} · MP: ${props.analysis.activeParamLabel.value}`
   }
-  return `${images.value.length} sites · MP: ${props.analysis.activeParam.value}`
+  return `${images.value.length} sites · MP: ${props.analysis.activeParamLabel.value}`
 })
 
 // ── Viewer + drawer state ────────────────────────────────────────────────────

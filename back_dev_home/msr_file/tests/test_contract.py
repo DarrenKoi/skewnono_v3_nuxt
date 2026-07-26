@@ -93,3 +93,63 @@ def test_office_gated_fields_are_absent(response):
 # adapter is now CONNECTED — it reads the processed pickle at the meas_hist
 # doc's `minio_pkl` path (see providers/office_example.py). Its normalization
 # and gated-metadata derivations are pinned in tests/test_office_template.py.
+
+
+# ── Unnamed dummy MP (settling shots) ────────────────────────────────────────
+# Real measurements often open with measurement points that carry NO parameter
+# name. They are real rows with real images, so the mock has to produce them or
+# the home phase can never exercise the frontend paths that handle them (the
+# default-parameter pick, the selection sentinel, the stand-in chip label).
+
+
+def _msr_with_dummy() -> str:
+    """The first synthetic MSR whose seeded draw includes settling shots."""
+    for i in range(60):
+        msr = f"MSR-DUMMY-{i:04d}"
+        payload = mock.get_msr_file(msr, _CLASS, _TOTAL_IMAGES)
+        assert payload is not None
+        if any(row["parameter"] == "" for row in payload["rows"]):
+            return msr
+    pytest.fail("no synthetic MSR drew a dummy MP — the generator stopped emitting them")
+
+
+def test_some_measurements_carry_unnamed_dummy_mps_and_some_do_not():
+    """Both paths must exist at home, or one of them is never exercised."""
+    with_dummy, without_dummy = 0, 0
+    for i in range(40):
+        payload = mock.get_msr_file(f"MSR-DUMMY-MIX-{i:04d}", _CLASS, _TOTAL_IMAGES)
+        assert payload is not None
+        if any(row["parameter"] == "" for row in payload["rows"]):
+            with_dummy += 1
+        else:
+            without_dummy += 1
+    assert with_dummy, "no measurement carried a dummy MP"
+    assert without_dummy, "every measurement carried a dummy MP"
+
+
+def test_dummy_mp_is_measured_first_and_carries_an_image():
+    payload = mock.get_msr_file(_msr_with_dummy(), _CLASS, _TOTAL_IMAGES)
+    assert payload is not None
+    dummies = [row for row in payload["rows"] if row["parameter"] == ""]
+    named = [row for row in payload["rows"] if row["parameter"] != ""]
+
+    # Measured FIRST — this is what makes it the trap a naive "first parameter"
+    # default falls into, so the ordering is part of the contract.
+    assert max(row["sequence"] for row in dummies) < min(row["sequence"] for row in named)
+    assert all(row["mp_number"] == 0 for row in dummies)
+
+    for row in dummies:
+        assert row["cd_value"] is not None, "a settling shot is measured, not empty"
+        assert row["mp_image_name_01"], "the reviewer's reason to open it is the image"
+        assert row["no_of_mp_image"] == 1
+        assert row["meas_condition_mag"] > 0
+        assert row["meas_condition_pixel"] != "0,0"
+
+
+def test_dummy_mp_gets_its_own_unnamed_summary():
+    payload = mock.get_msr_file(_msr_with_dummy(), _CLASS, _TOTAL_IMAGES)
+    assert payload is not None
+    summary = next(s for s in payload["parameters"] if s["parameter"] == "")
+    dummies = [row for row in payload["rows"] if row["parameter"] == ""]
+    assert summary["count"] == len(dummies)
+    assert summary["unit"] == "", "an unnamed point has no unit to report"

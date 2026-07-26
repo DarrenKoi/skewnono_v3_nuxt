@@ -40,6 +40,35 @@ export const qstr = (v: unknown): string | undefined => {
   return typeof first === 'string' && first.length > 0 ? first : undefined
 }
 
+/** The UNNAMED dummy MP: a settling point measured before the real MPs, so the
+ *  tool is stable by the time the recipe's parameters are measured. It carries
+ *  real rows and real IMAGES to review, so it has to be selectable like any
+ *  other parameter — but its name is the empty string, and `qstr` (correctly)
+ *  reads a blank query value as ABSENT. Selecting it would therefore be
+ *  unrepresentable in the URL, which is the single source of truth for what the
+ *  workspace is looking at.
+ *
+ *  So `mp` carries a reserved SENTINEL for it. The token is parenthesised, and
+ *  tool parameter names are bare identifiers (CD_TOP, SIDEWALL_ANGLE, WAFER…),
+ *  so it cannot collide with a real parameter name.
+ *
+ *  Scope: `mp` only. The Correlation `x`/`y` axes keep '' meaning "unset", and
+ *  their pickers list named parameters only — pairing a one-shot dummy against
+ *  a real parameter has no meaning, and conflating "unset" with "the unnamed
+ *  one" is exactly the bug this sentinel exists to avoid. */
+export const UNNAMED_PARAM = ''
+export const UNNAMED_PARAM_TOKEN = '(unnamed)'
+
+/** URL value → parameter name (the sentinel becomes the empty name). */
+export const decodeParam = (raw: unknown): string | undefined => {
+  const v = qstr(raw)
+  return v === UNNAMED_PARAM_TOKEN ? UNNAMED_PARAM : v
+}
+
+/** Parameter name → URL value (the empty name becomes the sentinel). */
+export const encodeParam = (parameter: string): string =>
+  parameter === UNNAMED_PARAM ? UNNAMED_PARAM_TOKEN : parameter
+
 const isViewKind = (v: string): v is SkewvoirViewKind =>
   (VIEW_KINDS as readonly string[]).includes(v)
 
@@ -52,7 +81,10 @@ export const parseView = (raw: unknown): SkewvoirViewKind => {
 }
 
 /** Rebuild the selection from the query. No `lot` => no selection (empty
- *  state). `mp` defaults to WAFER and `cap` to the em-dash placeholder. */
+ *  state). `mp` defaults to WAFER and `cap` to the em-dash placeholder.
+ *  `mp` goes through decodeParam, so the unnamed-MP sentinel comes back as the
+ *  empty name (and only the sentinel does — a genuinely absent `mp` still
+ *  defaults to WAFER). */
 export const parseSelection = (query: LocationQuery): SkewvoirSelection | null => {
   const lot = qstr(query.lot)
   if (!lot) return null
@@ -60,7 +92,7 @@ export const parseSelection = (query: LocationQuery): SkewvoirSelection | null =
     lot,
     recipe: qstr(query.recipe) ?? '',
     eq: qstr(query.eq) ?? '',
-    mp: qstr(query.mp) ?? 'WAFER',
+    mp: decodeParam(query.mp) ?? 'WAFER',
     msr: qstr(query.msr) ?? '',
     capturedAt: qstr(query.cap) ?? '—'
   }
@@ -101,7 +133,7 @@ export const toAnalysisQuery = (
   lot: sel.lot,
   recipe: sel.recipe,
   eq: sel.eq,
-  mp: sel.mp,
+  mp: encodeParam(sel.mp),
   msr: sel.msr,
   msrs: (msrs && msrs.length ? msrs : [sel.msr]).filter(Boolean).join(','),
   cap: sel.capturedAt,

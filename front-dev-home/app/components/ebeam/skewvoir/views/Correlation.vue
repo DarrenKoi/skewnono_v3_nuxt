@@ -159,11 +159,16 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { FactorQuery } from '~/components/ebeam/skewvoir/factor/QueryBuilder.vue'
 import type { DistributionGroup } from '~/components/ebeam/skewvoir/DistributionChart.vue'
 import { analyzeSpatial } from '~/utils/skewvoirAnalysis/spatial'
+import { isNamedParam } from '~/utils/skewvoirAnalysis/paramOrder'
 import { buildCdCdRelationship, buildCdFdcRelationship } from '~/utils/skewvoirAnalysis/relationships'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const params = computed(() => props.analysis.availableParams.value)
+// Named parameters only. The unnamed dummy MP is selectable as the active `mp`
+// (it has images to review) but not as a correlation axis: it is a one-shot
+// settling point with nothing to pair against, and the axis state uses '' to
+// mean "unset" — the very conflation routeQuery's sentinel exists to avoid.
+const params = computed(() => props.analysis.availableParams.value.filter(isNamedParam))
 const fdcParams = computed(() => props.analysis.focusFile.value?.fdc_params.map(p => p.name) ?? [])
 
 const unitOf = (param: string) =>

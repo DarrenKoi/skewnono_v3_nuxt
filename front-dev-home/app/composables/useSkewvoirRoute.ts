@@ -4,6 +4,7 @@ import type { AnalysisScope } from '~/utils/skewvoirAnalysis/types'
 import {
   DEFAULT_VIEW,
   applyQueryPatch,
+  encodeParam,
   parseMsrList,
   parseScope,
   parseSelection,
@@ -77,9 +78,11 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setMsrs = (list: string[]) =>
     router.replace({ path: analysisPath, query: { ...route.query, msrs: list.filter(Boolean).join(',') } })
 
-  // Change the active parameter (URL `mp`) in place.
+  // Change the active parameter (URL `mp`) in place. encodeParam so the unnamed
+  // dummy MP is selectable too — its empty name would otherwise write a blank
+  // `mp` that reads straight back as absent.
   const setParam = (mp: string) =>
-    router.replace({ path: analysisPath, query: { ...route.query, mp } })
+    router.replace({ path: analysisPath, query: { ...route.query, mp: encodeParam(mp) } })
 
   // Low-level in-place query patch (same replace/no-history pattern as the
   // setters above). Three-valued per key — see QueryPatch.

@@ -69,7 +69,7 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const ov = computed(() => props.analysis.activeOverview.value)
 const cov = computed(() => ov.value.coverage)
-const param = computed(() => props.analysis.activeParam.value)
+const param = computed(() => props.analysis.activeParamLabel.value)
 const unit = computed(() => props.analysis.activeUnit.value)
 const summary = computed(() => props.analysis.activeSummary.value)
 const align = computed(() => {

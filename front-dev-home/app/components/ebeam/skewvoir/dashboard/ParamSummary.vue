@@ -59,7 +59,7 @@
                 ? 'font-semibold text-(--sk-brand)'
                 : selectedSet.has(s.parameter) ? 'font-medium text-(--sk-brand)' : 'text-(--sk-ink)'"
             >
-              {{ s.parameter }}
+              {{ paramLabel(s.parameter) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink)">
               {{ s.count }}
@@ -95,6 +95,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
+import { paramLabel } from '~/utils/skewvoirAnalysis/paramOrder'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 

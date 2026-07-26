@@ -19,24 +19,29 @@ interface ParamOrderRow {
 }
 
 // A measurement often OPENS with an unnamed dummy point — a settling shot that
-// stabilises the tool before the real MPs start. It is important to the tool but
-// carries no parameter name (''), so it is not something you analyse: it has no
-// unit, no spec, and the URL `mp` key cannot even represent it (routeQuery's
-// qstr reads '' back as absent), which makes a chip for it a DEAD control —
-// clicking it would silently land on a different parameter.
+// stabilises the tool before the real MPs start. It carries no parameter name
+// (''), but it DOES carry rows and SEM images, so it stays in the parameter list
+// and stays selectable; routeQuery's UNNAMED_PARAM_TOKEN is what makes it
+// addressable in the URL despite the blank name.
 //
-// So blank-named parameters are dropped from the parameter list every selection
-// surface reads (chips, 파라미터 요약, availableParams, the default pick, the
-// Correlation axis pickers). Because the dummy sorts FIRST by mp_number, this is
-// also what makes the default parameter "the next coming one" — the first REAL
-// parameter — instead of a nameless blank.
-//
-// Only the parameter LIST is filtered; the file's rows are untouched, so nothing
-// is hidden from the raw data.
+// What it must never be is the DEFAULT: it is measured first, so it sorts to the
+// head of the mp order and would otherwise be the parameter you land on. These
+// helpers separate "named" from "present" so a default pick can prefer the first
+// REAL parameter — the next coming one — while an explicit pick of the dummy is
+// still honoured.
 export const isNamedParam = (parameter: string): boolean => parameter.trim().length > 0
 
 export const namedParams = <T extends { parameter: string }>(items: T[]): T[] =>
   items.filter(item => isNamedParam(item.parameter))
+
+// What to show wherever a parameter NAME is rendered. A blank chip is an
+// unreadable click target, so the unnamed MP gets an explicit stand-in rather
+// than rendering as nothing. Deliberately descriptive rather than "DUMMY": the
+// data says the name is empty, not what the point is for.
+export const UNNAMED_PARAM_LABEL = '(이름 없음)'
+
+export const paramLabel = (parameter: string): string =>
+  isNamedParam(parameter) ? parameter : UNNAMED_PARAM_LABEL
 
 type ParamRank = [mp: number, seq: number]
 

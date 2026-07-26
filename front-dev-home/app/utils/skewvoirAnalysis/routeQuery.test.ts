@@ -1,7 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  UNNAMED_PARAM,
+  UNNAMED_PARAM_TOKEN,
   applyQueryPatch,
+  decodeParam,
+  encodeParam,
   focusIdentityFromRow,
   parseMsrList,
   parseScope,
@@ -173,4 +177,50 @@ test('applyQueryPatch clears a param on null and leaves untouched keys alone', (
   assert.equal(next.mp, 'WAFER')
   assert.equal(next.view, 'gallery')
   assert.equal(next.filter, 'priority')
+})
+
+// ── The unnamed dummy MP's URL sentinel ──────────────────────────────────────
+// Its name is '', which qstr reads as absent, so without a sentinel the reviewer
+// could never select it — and it has images worth reviewing.
+
+test('encodeParam swaps the empty name for the sentinel and leaves names alone', () => {
+  assert.equal(encodeParam(UNNAMED_PARAM), UNNAMED_PARAM_TOKEN)
+  assert.equal(encodeParam('CD_TOP'), 'CD_TOP')
+})
+
+test('decodeParam turns the sentinel back into the empty name', () => {
+  assert.equal(decodeParam(UNNAMED_PARAM_TOKEN), UNNAMED_PARAM)
+  assert.equal(decodeParam('CD_TOP'), 'CD_TOP')
+})
+
+test('decodeParam keeps a genuinely absent mp absent (not the unnamed param)', () => {
+  // The distinction the sentinel exists to preserve: "no selection" and "the
+  // parameter whose name is empty" must not collapse into each other.
+  assert.equal(decodeParam(undefined), undefined)
+  assert.equal(decodeParam(''), undefined)
+})
+
+test('encode → decode round-trips the unnamed parameter', () => {
+  assert.equal(decodeParam(encodeParam(UNNAMED_PARAM)), UNNAMED_PARAM)
+  assert.equal(decodeParam(encodeParam('SIDEWALL_ANGLE')), 'SIDEWALL_ANGLE')
+})
+
+test('parseSelection resolves the sentinel to the unnamed parameter', () => {
+  const sel = parseSelection({ lot: 'L1', mp: UNNAMED_PARAM_TOKEN })
+  assert.equal(sel?.mp, UNNAMED_PARAM)
+})
+
+test('parseSelection still defaults a missing mp to WAFER', () => {
+  assert.equal(parseSelection({ lot: 'L1' })?.mp, 'WAFER')
+  // A blank mp is absent, not the unnamed parameter — only the sentinel means that.
+  assert.equal(parseSelection({ lot: 'L1', mp: '' })?.mp, 'WAFER')
+})
+
+test('toAnalysisQuery writes the sentinel so an unnamed-MP link survives a share', () => {
+  const sel = {
+    lot: 'L1', recipe: 'R1', eq: 'EQ1', mp: UNNAMED_PARAM, msr: 'M1', capturedAt: '2026-05-09'
+  }
+  const query = toAnalysisQuery(sel)
+  assert.equal(query.mp, UNNAMED_PARAM_TOKEN)
+  assert.equal(parseSelection(query as never)?.mp, UNNAMED_PARAM)
 })

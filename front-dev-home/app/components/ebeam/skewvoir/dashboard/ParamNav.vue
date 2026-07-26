@@ -16,7 +16,7 @@
       :aria-pressed="c.selected"
       @click="onChipClick(c.parameter, $event)"
     >
-      {{ c.parameter }}
+      {{ paramLabel(c.parameter) }}
       <span
         class="text-[11px] tabular-nums"
         :class="c.parameter === activeParam
@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { paramLabel } from '~/utils/skewvoirAnalysis/paramOrder'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 

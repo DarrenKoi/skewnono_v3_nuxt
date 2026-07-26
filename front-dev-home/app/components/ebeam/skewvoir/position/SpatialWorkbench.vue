@@ -30,7 +30,7 @@
       v-else-if="!hasData"
       class="dashboard-surface flex h-72 items-center justify-center px-4 text-center sk-body"
     >
-      “{{ analysis.activeParam.value }}” 측정점이 없습니다. 다른 파라미터를 선택하세요.
+      “{{ analysis.activeParamLabel.value }}” 측정점이 없습니다. 다른 파라미터를 선택하세요.
     </div>
 
     <template v-else>

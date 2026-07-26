@@ -33,7 +33,7 @@
       v-else-if="!hasData"
       class="dashboard-surface flex h-72 items-center justify-center px-4 text-center sk-body"
     >
-      “{{ analysis.activeParam.value }}” 측정점이 없습니다. 다른 파라미터를 선택하세요.
+      “{{ analysis.activeParamLabel.value }}” 측정점이 없습니다. 다른 파라미터를 선택하세요.
     </div>
 
     <template v-else>
@@ -41,7 +41,7 @@
            sharing the panes' cursor. -->
       <EbeamSkewvoirPanelFrame
         title="측정 순서 (Sequence)"
-        :meta="`${model.sequences.length} points · ${analysis.activeParam.value}`"
+        :meta="`${model.sequences.length} points · ${analysis.activeParamLabel.value}`"
         icon="i-lucide-git-commit-horizontal"
       >
         <template #actions>
@@ -82,7 +82,7 @@
 
       <!-- CD pane — always present. Different units go in SEPARATE panes. -->
       <EbeamSkewvoirPanelFrame
-        :title="`CD · ${analysis.activeParam.value}`"
+        :title="`CD · ${analysis.activeParamLabel.value}`"
         :meta="cdMeta"
         icon="i-lucide-activity"
       >

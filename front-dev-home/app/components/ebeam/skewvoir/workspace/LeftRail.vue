@@ -106,7 +106,7 @@
             Param
           </dt>
           <dd class="truncate font-mono text-(--sk-ink)">
-            {{ analysis.activeParam.value || '—' }}
+            {{ analysis.activeParamLabel.value || '—' }}
           </dd>
         </div>
         <div class="flex items-baseline justify-between gap-2">
@@ -287,7 +287,7 @@ const copySummary = () => {
   const sel = props.ws.selection.value
   if (!sel) return
   copyToClipboard(
-    formatSelectionSummary(sel, props.analysis.activeParam.value, props.ws.shareUrl()),
+    formatSelectionSummary(sel, props.analysis.activeParamLabel.value, props.ws.shareUrl()),
     '요약이 복사되었습니다'
   )
 }
