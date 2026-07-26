@@ -18,8 +18,8 @@
 # The two Python test roots: the root Flask/integration tests, plus the
 # per-feature provider contract suites colocated under `back_dev_home/**/tests/`.
 # Nothing else in the tree holds Python tests — front-dev-home/ runs node:test,
-# and scripts/ and afm_data_platform/ have none — so this pins the documented
-# invocation rather than widening it.
+# and scripts/ has none — so this pins the documented invocation rather than
+# widening it.
 #
 # Not set: `norecursedirs`. pytest's default already excludes `node_modules` and,
 # via `.*`, `.venv/` (which carries ~1300 third-party `test_*.py` files).
@@ -72,14 +72,27 @@ addopts = ["--import-mode=prepend"]
 # path. ruff runs the whole tree in ~0.02s, which is what makes it worth wiring
 # into CI next to pytest.
 #
-# Scope is deliberately narrow: ruff's default rules (pyflakes `F` + the core
-# `E4`/`E7`/`E9` pycodestyle subset) plus flake8-bugbear `B`. No formatter — a
-# `ruff format` pass would rewrite all ~350 files in one commit and bury
-# `git blame` for no correctness gain. No import sorting (`I`) for the same
-# reason.
+# Scope is deliberately narrow: pyflakes `F` + the core `E4`/`E7`/`E9`
+# pycodestyle subset + flake8-bugbear `B`. No formatter — a `ruff format` pass
+# would rewrite all ~350 files in one commit and bury `git blame` for no
+# correctness gain. No import sorting (`I`) for the same reason.
+#
+# The list is written out with `select` rather than inherited as "ruff's defaults
+# plus B", because ruff's DEFAULTS ARE NOT STABLE ACROSS RELEASES: 0.15 defaulted
+# to `E4,E7,E9,F`, and 0.16 widened that to include I, UP, RUF, BLE, DTZ, S, PL
+# and FURB — 444 findings on this tree, i.e. an instantly red CI on an unrelated
+# PR. An explicit `select` makes the gate mean the same thing on every ruff
+# version, so upgrading ruff brings speed and bug fixes but never a surprise
+# rule. Widening the gate should be a deliberate commit that also fixes whatever
+# the new rules find.
 
 [tool.ruff]
-target-version = "py314"
+# The LOWEST Python this code must run on, which is the office's 3.11 — not the
+# 3.14 the home .venv uses. Targeting 3.14 here would tell ruff that 3.12+
+# syntax and stdlib APIs are fair game, so office-breaking code would lint clean
+# at home and fail only after it is conveyed. Raise this only when the office
+# interpreter moves.
+target-version = "py311"
 
 # Scope is the code this repo DEVELOPS, so a bare `ruff check .` equals the CI
 # gate. The excluded trees are real code that must keep working, just not code a
@@ -96,22 +109,22 @@ target-version = "py314"
 #   exclusion costs nothing either way; if one is actually owned code, gating it
 #   is a no-op today and the right move is to delete it from this list.
 #
-#   afm_data_platform — a standalone sub-project: no tests, not imported by
-#   back_dev_home, its own api/ and front-end/. 42 findings.
+# (afm_data_platform was also excluded, carrying 42 findings. The folder was
+# removed in 2026-07 once its features had been absorbed into back_dev_home/afm
+# and front-dev-home; its two 사내 spec docs live on in docs/afm/.)
 #
-# Dropping the vendored or afm exclusions means adopting 50 findings in code the
-# backend gate has no business failing on. Re-scope deliberately, not by
-# widening this list.
+# Dropping the vendored exclusions means adopting 8 findings in code the backend
+# gate has no business failing on. Re-scope deliberately, not by widening this
+# list.
 exclude = [
     "ops_store",
     "ftp_handler",
     "minio_handler",
     "ops_index_mgmt",
-    "afm_data_platform",
 ]
 
 [tool.ruff.lint]
-extend-select = ["B"]
+select = ["E4", "E7", "E9", "F", "B"]
 
 # Two intentional conventions that ruff's defaults read as mistakes. Both are
 # suppressions of a house style, not of a finding:
