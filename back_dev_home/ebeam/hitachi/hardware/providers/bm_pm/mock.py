@@ -1,10 +1,29 @@
 """Phase 1 BM/PM mock generator.
 
-Real office BM/PM data arrives as two pandas DataFrames per tool — completed
-maintenance ("past work") and planned maintenance ("future work"). This module
-fabricates the same shape deterministically from the `eqp_id` and the caller's
-`anchor`, so a given tool shows the same history for a given window on every
-request without any stored fixture (the same seed-from-id trick
+Office counterpart — schema of record: `docs/datatables/hardware_bm_pm.txt`.
+The two sides are TWO OPENSEARCH INDICES, queried once each per tool (an earlier
+version of this docstring called them "two pandas DataFrames", which described
+the shape after loading, not the source):
+
+    fab_inform_notes        실적 — maintenance that HAPPENED.
+                            window down_dt ~ equp_dt, time_field = down_dt,
+                            past 180d. Carries the three free-form engineer
+                            notes (note_comment / zzproblem / hltext) that are
+                            the substance of the tab.
+    tool_maintenance_plan   계획 — maintenance that is SCHEDULED.
+                            window tool_start_tm ~ tool_end_tm,
+                            time_field = tool_start_tm, next 90d.
+
+THE NAMING TRAP between them, worth knowing before touching any join: the fab
+field is `fab_name` on the past index and `det_fac_id` on the plan index — same
+values, different names — while `fac_id` exists on BOTH under one name and is
+the WRONG granularity. The field that matches by name doesn't match by meaning,
+and vice versa. Likewise the event field is `eq_event` (past) vs `event_name`
+(plan), shown as one column.
+
+This module fabricates the same shape deterministically from the `eqp_id` and
+the caller's `anchor`, so a given tool shows the same history for a given window
+on every request without any stored fixture (the same seed-from-id trick
 `sem_list/data.py` uses).
 
 `build_bm_pm_data()` is the only public entry point; it returns plain dict

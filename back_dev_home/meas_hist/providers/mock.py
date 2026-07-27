@@ -2,6 +2,42 @@
 
 Spec: docs/datatables/meas_hist.txt
 Each row = "장비가 특정 lot에 특정 recipe를 실행한 1회 측정 이력".
+
+Office counterpart: OpenSearch, one alias per tool family — `meas_hist_cdsem`
+and `meas_hist_hvsem`, one document per measurement execution. This is the most
+widely read office source in the project (`meas_hist`, `recipe_tat`,
+`fail_issue`, `msr_file`, `lateral_recipe`), so the mock↔office gaps below
+matter well beyond this module.
+
+FOUR CONTRACT FIELDS DO NOT EXIST IN THE OFFICE DOCUMENTS and are derived at
+query time. A row here carries them natively, which is exactly why they are easy
+to forget:
+
+    id         = msr
+    tool_type  = which alias the hit came from (its `_index`), not a field
+    lot_cd     = resolved through `ebeam_tas_lot_hist` (the only lot_id -> lot_cd
+                 bridge); unmapped becomes "", the row is never dropped
+    vendor_nm  = derived from the eqp_model_cd prefix (VERITY* -> AMAT,
+                 otherwise HITACHI)
+
+Other office properties this mock cannot demonstrate:
+
+* `fail_ratio` is a PERCENT (0..100) already computed at ingest. Office adapters
+  read it as stored and never re-derive it from the image counts.
+* text fields are analyzed, so exact match and aggregation go through `.keyword`
+  (class_name/recipe_name/full_name/fab_name/eqp_id/lot_id).
+* timestamps are offset-less KST wall clock, treated as UTC consistently
+  throughout — range filters, day histograms (no `time_zone`), and the max-
+  timestamp anchor all operate on the same values.
+* the date-picker ceiling is the anchor = max(timestamp) across BOTH aliases —
+  the latest data date, not wall clock — and recipe_tat and fail_issue share one
+  cached anchor so the recipe-status tabs always agree on 데이터 기준 날짜.
+* pagination is from/size with from+size <= 10000 (index.max_result_window).
+
+★ INGESTION PREREQUISITE for `q` free-text search: it queries the `search_all`
+wildcard field (`meas_hist/opensearch_query.py`). If the loader has not indexed
+that field, a `q` condition matches NOTHING and raises no error — an empty
+result indistinguishable from "no such measurement".
 """
 
 import hashlib

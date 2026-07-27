@@ -1,4 +1,32 @@
-"""Deterministic Phase 1 adapter for the SEM equipment list."""
+"""Deterministic Phase 1 adapter for the SEM equipment list.
+
+Office counterpart — schema of record: `docs/datatables/sem_list.txt`.
+Two Redis keys, each a pandas DataFrame serialized to parquet:
+
+    v3_df_sem_avail     the fleet, WITHOUT a `version` column
+    v3_df_sem_version   columns [eqp_ip, version]
+
+The office adapter LEFT-merges the second onto the first by `eqp_ip` (fleet on
+the left, so no fleet row is ever dropped; unmatched rows get ""), then
+normalizes to `SemListRow`. Contract details worth mirroring here:
+
+* `version` is a FREE-FORM STRING ("1A"), not a number — do not sort it
+  numerically anywhere.
+* `vendor_nm` is HITACHI or AMAT and nothing else; the office adapter raises on
+  a third value rather than passing it through.
+* `available` arrives as any of on/off/true/false/1/0 and is normalized to
+  "On"/"Off". This mock emits the normalized form directly.
+* the fleet carries no `tool_type` column — it is derived from `eqp_model_cd`
+  (`_tool_specs.model_to_tool_type`), which is why that mapping, not a stored
+  field, is authoritative in both phases.
+
+THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
+`storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
+`hardware/mdc` all resolve eqp_id -> eqp_ip / fab_name through this roster, so
+those office adapters REFUSE to run while sem_list is on mock: a fabricated IP
+matches zero documents and is indistinguishable from "no data". Turning one of
+them onto office therefore means turning sem_list on too.
+"""
 
 import random
 from datetime import datetime, timedelta, timezone

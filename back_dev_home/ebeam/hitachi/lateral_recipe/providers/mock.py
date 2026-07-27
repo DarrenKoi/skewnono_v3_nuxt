@@ -1,12 +1,37 @@
 """횡전개(lateral) — recipe ↔ tools mapping mock.
 
-Production sources (deferred):
-  - Redis hash `v3_tools_in_recipe_<fab>` keyed by recipe_name → list[eqp_id]
-  - OpenSearch table providing recipe_version per (eqp_id, recipe_name)
+Office counterpart — schema of record: `docs/datatables/idp_ver.txt`. CONNECTED
+(2026-07-27); the Redis `v3_tools_in_recipe_<fab>` hash this docstring used to
+name as the deferred production source was never the source and is not used.
+What the office adapter actually reads:
 
-Phase 1 mock derives both from `sem_list` so the table is always self-consistent
-with the rest of the app (장비 리스트 shows the same eqp_ids), and seeds readiness
-from `meas_hist` so it never contradicts 측정 이력 (see `_measured_eqp_ids`).
+    cdsem_idp_ver / hvsem_idp_ver   OpenSearch, ONE DOC PER (recipe, version)
+
+so searching a `full_name` returns that recipe's whole version history and the
+highest `version` (a long) is current. Fields used: full_name, fab_name (stored
+uppercase), version, modified (date), eqp_id (multi-valued — the tools that
+explicitly hold that version).
+
+Two office rules this mock already mirrors structurally, which is why it is
+built the way it is:
+
+* the equipment roster does NOT come from the version index. It comes from
+  `sem_list`, the same source behind 장비 리스트 — so this page can never show a
+  different tool count for a fab than the inventory view does.
+* recent measurement history is a HARD FLOOR on readiness: a tool that executed
+  the recipe in the last 30 days cannot be displayed as 미보유, even when the
+  IDP index omits it (such a tool is assigned the newest discovered version).
+  Explicit IDP assignments always win. `_measured_eqp_ids` is the home stand-in
+  for that 30-day `meas_hist_*` window.
+
+The office adapter deliberately does NOT read the index's `not_found_eqp_id`
+(미보유) list: readiness is the union of explicit membership and execution
+evidence, and a negative list must not override proof that a tool ran the
+recipe.
+
+Timestamps: the office index stores KST wall clock with no offset, so
+`recipe_generated_at` is emitted with an explicit +09:00. Tagging it `Z` would
+render 12:00 KST as 21:00 in a KST browser.
 """
 
 import hashlib

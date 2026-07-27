@@ -3,6 +3,32 @@
 Seeded from the locator so the same MSR always yields the same gallery. Lets the
 whole flow (list → serve → cond → download-all → cache → purge) run with no tool,
 no OpenSearch, no MinIO.
+
+Office counterpart — schema of record: `docs/datatables/msr_image_ftp.txt`.
+Measurement images are NOT in any database: they live only on the TOOL'S OWN FTP
+server, and the backend opens a session to it per request.
+
+    dir   /HITACHI/DEVICE/HD/{class_name}/images/{msr}
+    image {dir}/{name}
+    cond  {dir}/.{name}/cond.txt      ← hidden per-image sidecar, a DOT-PREFIXED
+                                        FOLDER containing cond.txt, not a file
+
+`class_name` and `msr` come from the parent meas_hist doc. Extensions are
+.jpeg/.jpg/.tif/.tiff — tools serve JPEG previews alongside TIFF originals and
+the pickle's mp_image_name columns reference BOTH, so a jpeg-only filter makes
+every TIFF invisible (13 of 39 "missing" on the first office run). `list_images`
+below keeps that split alive at home for the same reason.
+
+Transport is chosen at import time by platform: the office Windows PC cannot
+open FTP to tools directly and routes through an HTTP proxy, while the Linux
+cloud deploy downloads directly. Both expose the same surface, so only the
+import line differs.
+
+SECURITY, and the reason `paths.validate_*` exists: the backend connects to
+whatever IP the client sends, making the eqp_ip check an SSRF guard, and
+class_name/msr/name are interpolated into both an FTP path and a filesystem
+cache key — so a `/` or `..` escapes both. That validation is phase-independent
+and runs at home too.
 """
 
 import hashlib

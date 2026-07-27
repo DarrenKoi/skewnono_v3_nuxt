@@ -1,8 +1,29 @@
 """Recipe Search mock catalog and recipe-open payloads.
 
-The office source is expected to return only a large Redis-backed recipe-name
-list. Recipe-open detail data is generated separately to mimic the IDP payload
-the frontend will request after a user chooses one recipe.
+Office counterpart — schema of record: `docs/datatables/recipe_name_list.txt`.
+Only the recipe NAME LIST is wired office-side, as one Redis hash per family:
+
+    v3_cdsem_unique_rcp_list / v3_hvsem_unique_rcp_list
+
+field = the fab name in LOWERCASE ("m14a", "r3"), value = that fab's list of
+recipe names. Two office quirks the adapter absorbs so nothing above it has to:
+routes uppercase `?fab_name=` and the lowercasing happens only at the Redis
+boundary (the response echoes the caller's uppercase spelling), and the stored
+list may be JSON (`["a","b"]`) or a Python repr (`['a','b']`) depending on the
+writer, with a comma-split as a last resort (recipe names carry `/` and `_` but
+never commas).
+
+Searching the name list rather than 측정 이력 is deliberate: a recipe that has
+never been measured still exists and must be findable.
+
+★ RECIPE-OPEN AND COMPARE HAVE NO OFFICE SOURCE (2026-07-27). The raw IDP
+payload is not prepared office-side, so `recipe_search/providers/office*.py`
+RE-EXPORTS `get_recipe_open_data` / `get_recipe_compare_data` from THIS module.
+That means these two generators run in production at the office, and their
+output there is fabricated, not 사내 data. Compare is re-exported rather than
+reimplemented so it stays derived from open — the invariant this module
+guarantees. See `docs/datatables/recipe_idp.txt` and `parameter_info.txt` for
+what has to be found before either can be connected.
 """
 
 import hashlib

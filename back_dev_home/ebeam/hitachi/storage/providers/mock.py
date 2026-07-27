@@ -1,4 +1,32 @@
-"""Deterministic Phase 1 adapter for storage-page information."""
+"""Deterministic Phase 1 adapter for storage-page information.
+
+Office counterpart — schema of record: `docs/datatables/storage_ppid.txt`.
+Two Redis sources, refreshed by a 04:30 daily collector:
+
+    v3_df_ppid_storage_cdsem   parquet DataFrame, one row per CD-SEM tool
+    v3_df_ppid_storage_hvsem   same for HV-SEM
+    v3_hitachi_sem_ppid_not_avail   HASH, field = %Y%m%d, value = list of IPs
+                                    unreachable that day (both families mixed)
+
+Vocabulary the office data assumes: "ppid" is a synonym for recipe_id, and the
+key's `rcp_counts` is the ppid count — the hash above is a separate concern
+despite the shared name. A failed capacity collection is a row whose
+`storage_mt` and capacity strings are blank while `rcp_counts` still reports.
+
+TWO OFFICE BEHAVIOURS THIS MOCK CANNOT SHOW, both worth knowing before reading
+home output as representative:
+
+* the DataFrame's own `fab_name`/`fac_id` are NOT trusted. The collector wrote
+  fac-level names ("M16") into the fab column, so the sidebar's fab filter
+  ("M16A") matched nothing and every fab except R3 rendered an empty table. The
+  office adapter re-keys each row against the live `sem_list` roster by
+  `eqp_ip`, falling back to the DF only when the fleet has no match. This mock
+  builds its rows from sem_list already, so the bug has no home equivalent.
+* the unavailable-IP hash is read via `hgetall` + max(date field), never by
+  fetching "today". Fetching today returns empty before the day's collection
+  runs, which reads as "nothing was unreachable" — the opposite of unknown.
+  Older date fields then give the consecutive-miss streak.
+"""
 
 import random
 from datetime import date, datetime, timedelta, timezone

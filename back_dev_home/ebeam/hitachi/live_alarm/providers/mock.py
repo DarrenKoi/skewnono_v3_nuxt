@@ -4,6 +4,36 @@ An always-empty mock makes the page impossible to develop against, so
 this emits a small deterministic set of alarms derived from the current
 minute. The same minute always produces the same board, which keeps
 tests stable while the screen still visibly changes as time passes.
+
+Office counterpart — schema of record: `docs/datatables/live_alarm_board.txt`.
+Unlike every other feature here, the office READ SOURCE IS NOT THE SYSTEM OF
+RECORD. A separate scheduler job polls the in-house alarm API and writes a
+Redis board; SKEWNONO only ever reads that board, so opening the page never
+hits the alarm API:
+
+    사내 alarm API --(writer job)--> Redis board --(reader)--> page
+
+    skewnono:live_alarm:{tool_slug}:{fab_name}:events   ZSET, score =
+                                                        occurred_epoch
+    skewnono:live_alarm:{tool_slug}:{fab_name}:meta     JSON, polled_at
+    skewnono:live_alarm:registry                        SET of known
+                                                        "{slug}:{fab}" pairs
+
+The registry is what separates "this fab was never configured" from "configured
+and currently quiet" — two states that look identical from an empty board and
+need different responses.
+
+Windows come from `contracts.py` and are shared with this mock, so home and
+office cut the board the same way: BOARD_WINDOW_SEC (600) back, and only
+FUTURE_TOLERANCE_SEC (300) forward — not +inf, because one upstream clock
+running fast would otherwise pin a far-future alarm to the top of the board
+permanently. The writer's prune interval must be >= the board window or it
+deletes events the reader still shows; the writer refuses to start otherwise.
+
+Office reads take `now` from REDIS's clock, not the app server's, because the
+writer prunes against that same clock — the two can then never disagree about
+the boundary. This mock uses the local clock, which is the honest home
+equivalent and the reason its output shifts by the minute.
 """
 
 from __future__ import annotations
