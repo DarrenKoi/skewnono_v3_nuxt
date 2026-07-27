@@ -71,19 +71,29 @@ export const formatAmpValue = (value: AmpRow[keyof AmpRow] | undefined): string 
 
 export type RecipeDetailScreen = 'open' | 'lateral' | 'meas-hist'
 
+export const isRecipeDetailScreenSupported = (
+  screen: RecipeDetailScreen,
+  source: RecipeSearchSource
+): boolean => source === 'redis' || screen !== 'open'
+
 export const recipeDetailRoute = (
   toolType: string,
   fab: string,
   screen: RecipeDetailScreen,
   recipeName: string,
   source: RecipeSearchSource = 'redis'
-) => ({
-  path: `/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search/${screen}`,
-  query: {
-    recipe_name: recipeName,
-    ...(source === 'opensearch' ? { source } : {})
+) => {
+  if (!isRecipeDetailScreenSupported(screen, source)) {
+    throw new RangeError('OpenSearch recipes do not support the open detail view')
   }
-})
+  return {
+    path: `/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search/${screen}`,
+    query: {
+      recipe_name: recipeName,
+      ...(source === 'opensearch' ? { source } : {})
+    }
+  }
+}
 
 export interface RecipeRowAction {
   screen: RecipeDetailScreen
@@ -105,7 +115,7 @@ export const buildRecipeDetailNavItems = (
   setFlag: unknown,
   source: RecipeSearchSource = 'redis'
 ) => RECIPE_ROW_ACTIONS
-  .filter(action => source === 'redis' || action.screen !== 'open')
+  .filter(action => isRecipeDetailScreenSupported(action.screen, source))
   .map((action) => {
     const target = recipeDetailRoute(toolType, fab, action.screen, recipeName, source)
     return {

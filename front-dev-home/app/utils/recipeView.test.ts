@@ -147,6 +147,21 @@ test('OpenSearch detail routes carry source while Redis routes keep legacy URLs'
   )
 })
 
+test('OpenSearch cannot construct an unsupported open detail route', () => {
+  assert.throws(
+    () => recipeDetailRoute('cdsem', 'R3', 'open', 'CD_A', 'opensearch'),
+    /OpenSearch recipes do not support the open detail view/
+  )
+  assert.deepEqual(
+    recipeDetailRoute('cdsem', 'R3', 'open', 'CD_A', 'redis').query,
+    { recipe_name: 'CD_A' }
+  )
+  assert.deepEqual(
+    recipeDetailRoute('cdsem', 'R3', 'meas-hist', 'CD_A', 'opensearch').query,
+    { recipe_name: 'CD_A', source: 'opensearch' }
+  )
+})
+
 test('the row actions are the three detail screens, each with a label and icon', () => {
   assert.deepEqual(RECIPE_ROW_ACTIONS.map(a => a.screen), ['open', 'lateral', 'meas-hist'])
   for (const action of RECIPE_ROW_ACTIONS) {

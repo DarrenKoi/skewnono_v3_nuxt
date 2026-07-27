@@ -170,8 +170,10 @@ import type {
 } from '~/composables/useRecipeSearchApi'
 import {
   IMAGE_SLOTS,
+  isRecipeDetailScreenSupported,
   type ImageSlotKey,
-  readRecipeNameQuery
+  readRecipeNameQuery,
+  readRecipeSourceQuery
 } from '~/utils/recipeView'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
 
@@ -182,16 +184,25 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 const { fetchRecipeDetail } = useRecipeSearchApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
+const source = computed(() => readRecipeSourceQuery(route))
+const isSupportedSource = computed(() => isRecipeDetailScreenSupported('open', source.value))
 const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
-const cacheKey = computed(() => `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
+const cacheKey = computed(() => (
+  `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${source.value}:${recipeName.value}`
+))
+
+watch(isSupportedSource, (supported) => {
+  if (!supported) void router.replace(backRoute.value)
+}, { immediate: true })
 
 const { data, pending, error, refresh } = await useAsyncData<RecipeDetailResponse | null>(
   () => cacheKey.value,
   () => {
-    if (!recipeName.value) return Promise.resolve(null)
+    if (!recipeName.value || !isSupportedSource.value) return Promise.resolve(null)
     return fetchRecipeDetail({
       toolType: props.toolType,
       fabName: props.fab,
