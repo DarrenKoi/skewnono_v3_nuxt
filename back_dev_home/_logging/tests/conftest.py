@@ -24,6 +24,7 @@ def _clean_opensearch_env(monkeypatch):
     for name in list(os.environ):
         if name.startswith("OPENSEARCH_"):
             monkeypatch.delenv(name)
+    monkeypatch.delenv("SKEWNONO_LOG_ENV", raising=False)
 
 
 @pytest.fixture

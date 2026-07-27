@@ -1,8 +1,6 @@
-"""The buffered OpenSearch log shipper.
+"""The environment-selected internal OpenSearch log shipper.
 
-Production-only code: ``install_activity_logging`` builds this handler solely
-when ``is_cloud()`` is true, and the cluster is unreachable from anywhere else.
-So every test here replaces the network hop — ``_flush`` is overridden, or the
+Every test replaces the network hop — ``_flush`` is overridden, or the
 ``client_factory`` is one that fails the test if anyone calls it. Nothing in
 this file may dial OpenSearch.
 
@@ -26,14 +24,22 @@ def _never_dial():
     raise AssertionError("the tests must never construct an OpenSearch client")
 
 
-def _record(msg="hello %s", args=("world",), level=logging.INFO, **extra):
+def _record(
+    msg="hello %s",
+    args=("world",),
+    level=logging.INFO,
+    message: str | None = None,
+    **extra,
+):
+    actual_message = message if message is not None else msg
+    actual_args = () if message is not None else args
     record = logging.LogRecord(
         name="skewnono.activity",
         level=level,
         pathname=__file__,
         lineno=1,
-        msg=msg,
-        args=args,
+        msg=actual_message,
+        args=actual_args,
         exc_info=None,
     )
     for key, value in extra.items():
@@ -47,6 +53,7 @@ class _Shipper(OpenSearchBulkHandler):
     def __init__(self, **kwargs):
         self.flushed: list[dict] = []
         kwargs.setdefault("client_factory", _never_dial)
+        kwargs.setdefault("deployment", "test")
         kwargs.setdefault("flush_interval", 0.01)
         kwargs.setdefault("host", "test-host")
         super().__init__(**kwargs)
@@ -111,12 +118,44 @@ def test_a_document_carries_the_fields_the_index_template_maps(parked):
     assert doc["activity_weight"] == 1
 
 
+def test_document_has_identity_environment_and_bounded_fields(parked):
+    parked._deployment = "local"
+    doc = parked._record_to_doc(
+        _record(
+            message="x" * 5000,
+            request_id="req-1",
+            activity_kind="entry",
+            fab_name_list=["M14", "M16"],
+            error_name="e" * 2000,
+        )
+    )
+    assert doc["event_id"]
+    assert doc["service"] == "skewnono"
+    assert doc["deployment"] == "local"
+    assert doc["request_id"] == "req-1"
+    assert doc["activity_kind"] == "entry"
+    assert doc["fab_name_list"] == ["M14", "M16"]
+    assert len(doc["message"]) == 4096
+    assert len(doc["error_name"]) == 1024
+
+
 def test_unmapped_extras_are_dropped_and_absent_ones_omitted(parked):
     """Anything outside _KNOWN_EXTRA_KEYS would arrive as a dynamically mapped
     field, and one bad type there poisons the mapping for the whole index."""
-    doc = parked._record_to_doc(_record(surprise={"nested": "thing"}))
+    doc = parked._record_to_doc(
+        _record(
+            surprise={"nested": "thing"},
+            authorization="Bearer secret",
+            cookie="session=secret",
+            request_body={"password": "secret"},
+        )
+    )
 
     assert "surprise" not in doc
+    assert "authorization" not in doc
+    assert "cookie" not in doc
+    assert "request_body" not in doc
+    assert "secret" not in repr(doc)
     assert "user_id" not in doc  # None extras never become null columns
 
 
@@ -155,15 +194,19 @@ def test_an_unformattable_record_is_dropped_not_raised(parked, monkeypatch):
     assert "Logging error" in stderr.getvalue()
 
 
-def test_a_full_queue_drops_instead_of_back_pressuring_the_request():
+def test_full_queue_increments_drop_count_without_blocking():
     """The alternative is a blocking put on the Flask worker thread: an
     OpenSearch outage would then stall every request that logs."""
     handler = _ParkedShipper(queue_size=1)
     try:
-        for _ in range(3):
-            handler.emit(_record())  # must not raise, must not block
-
-        assert handler._queue.qsize() == 1
+        handler.emit(_record())
+        handler.emit(_record())
+        snapshot = handler.snapshot()
+        assert snapshot.enqueued == 1
+        assert snapshot.queue_full_dropped == 1
+        assert snapshot.bulk_dropped == 0
+        assert snapshot.dropped == 1
+        assert snapshot.queue_depth == 1
     finally:
         handler.close()
 
@@ -186,7 +229,163 @@ def test_the_default_index_is_the_alias_ops_index_mgmt_provisions():
     OpenSearch auto-creates with no template and no retention policy."""
     provisioning = pytest.importorskip("ops_index_mgmt.skewnono_logging")
 
-    assert osh.DEFAULT_INDEX == provisioning.INDEX_ALIAS
+    assert osh.DEFAULT_INDEX == provisioning.target_for("production").alias
+
+
+# -- bulk preflight and retry ------------------------------------------------
+
+
+class _ParkedBulkShipper(OpenSearchBulkHandler):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("client_factory", lambda: object())
+        kwargs.setdefault("deployment", "local")
+        kwargs.setdefault("host", "test-host")
+        super().__init__(**kwargs)
+
+    def _run(self):
+        self._stopped.wait()
+
+
+class _BulkRecorder:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def bulk(self, actions, **_kwargs):
+        self.calls.append(list(actions))
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+class _IndexDescription:
+    def __init__(self, description):
+        self.description = description
+
+    def describe(self, _index):
+        return self.description
+
+
+def _ready_index_factory(_client, _index):
+    return _IndexDescription(
+        {
+            "is_alias": True,
+            "rollover": {"ready": True, "uses_numbered_suffix": True},
+        }
+    )
+
+
+def _plain_index_factory(_client, _index):
+    return _IndexDescription(
+        {
+            "is_alias": False,
+            "rollover": {"ready": False, "uses_numbered_suffix": False},
+        }
+    )
+
+
+def test_bulk_actions_use_event_id_as_opensearch_id():
+    docs = _BulkRecorder(responses=[(1, [])])
+    handler = _ParkedBulkShipper(
+        index_service_factory=_ready_index_factory,
+        doc_service_factory=lambda _client, _index: docs,
+    )
+    try:
+        doc = handler._record_to_doc(_record())
+        handler._flush([doc])
+        action = docs.calls[0][0]
+        assert action["_id"] == doc["event_id"]
+        assert action["_source"] == doc
+    finally:
+        handler.close()
+
+
+def test_transport_failure_retries_twice_then_succeeds():
+    docs = _BulkRecorder(
+        responses=[ConnectionError("one"), ConnectionError("two"), (1, [])]
+    )
+    sleeps = []
+    handler = _ParkedBulkShipper(
+        index_service_factory=_ready_index_factory,
+        doc_service_factory=lambda _client, _index: docs,
+        sleep_fn=sleeps.append,
+    )
+    try:
+        handler._flush([handler._record_to_doc(_record())])
+        snapshot = handler.snapshot()
+        assert sleeps == [0.5, 1.0]
+        assert snapshot.indexed == 1
+        assert snapshot.retries == 2
+        assert snapshot.queue_full_dropped == 0
+        assert snapshot.bulk_dropped == 0
+        assert snapshot.dropped == 0
+    finally:
+        handler.close()
+
+
+def test_non_rollover_alias_is_never_bulk_written():
+    docs = _BulkRecorder(responses=[])
+    handler = _ParkedBulkShipper(
+        index_service_factory=_plain_index_factory,
+        doc_service_factory=lambda _client, _index: docs,
+    )
+    try:
+        handler._flush([handler._record_to_doc(_record())])
+        snapshot = handler.snapshot()
+        assert snapshot.indexed == 0
+        assert snapshot.bulk_dropped == 1
+        assert snapshot.dropped == 1
+        assert docs.calls == []
+    finally:
+        handler.close()
+
+
+def test_only_retryable_partial_failures_are_sent_again():
+    handler = _ParkedBulkShipper(
+        index_service_factory=_ready_index_factory,
+        sleep_fn=lambda _seconds: None,
+    )
+    try:
+        retry_doc = handler._record_to_doc(_record(message="retry"))
+        reject_doc = handler._record_to_doc(_record(message="reject"))
+        docs = _BulkRecorder(
+            responses=[
+                (
+                    0,
+                    [
+                        {
+                            "index": {
+                                "_id": retry_doc["event_id"],
+                                "status": 429,
+                                "error": {"type": "too_many_requests"},
+                            }
+                        },
+                        {
+                            "index": {
+                                "_id": reject_doc["event_id"],
+                                "status": 400,
+                                "error": {"type": "mapper_parsing_exception"},
+                            }
+                        },
+                    ],
+                ),
+                (1, []),
+            ]
+        )
+        handler._doc_service_factory = lambda _client, _index: docs
+
+        handler._flush([retry_doc, reject_doc])
+
+        assert [item["_id"] for item in docs.calls[1]] == [
+            retry_doc["event_id"]
+        ]
+        snapshot = handler.snapshot()
+        assert snapshot.indexed == 1
+        assert snapshot.bulk_dropped == 1
+        assert snapshot.retries == 1
+    finally:
+        handler.close()
 
 
 # -- install_opensearch_logging ---------------------------------------------
@@ -200,6 +399,8 @@ class _StubHandler(logging.Handler):
     def __init__(self, **kwargs):
         super().__init__(level=kwargs.get("level", logging.INFO))
         self.kwargs = kwargs
+        self.index = kwargs["index"]
+        self.deployment = kwargs["deployment"]
         _StubHandler.made.append(self)
 
     def emit(self, record):  # pragma: no cover - never exercised
@@ -248,6 +449,7 @@ def test_it_attaches_to_the_root_and_to_the_activity_logger(
     ship everything EXCEPT the request records that are the point of the index.
     The explicit second attach is load-bearing."""
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    monkeypatch.setenv("SKEWNONO_LOG_ENV", "local")
     root = preserve_logger("")
     activity = preserve_logger("skewnono.activity")
 
@@ -255,21 +457,25 @@ def test_it_attaches_to_the_root_and_to_the_activity_logger(
 
     assert handler in root.handlers
     assert handler in activity.handlers
-    assert handler.kwargs["index"] == osh.DEFAULT_INDEX
+    assert handler.kwargs["index"] == "skewnono_logging_local"
+    assert handler.kwargs["deployment"] == "local"
 
 
 def test_installing_twice_does_not_double_ship(
     monkeypatch, preserve_logger, stub_handler
 ):
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    monkeypatch.setenv("SKEWNONO_LOG_ENV", "production")
     root = preserve_logger("")
     activity = preserve_logger("skewnono.activity")
 
-    osh.install_opensearch_logging()
-    osh.install_opensearch_logging()
+    first = osh.install_opensearch_logging()
+    second = osh.install_opensearch_logging()
 
     assert sum(isinstance(h, _StubHandler) for h in root.handlers) == 1
     assert sum(isinstance(h, _StubHandler) for h in activity.handlers) == 1
+    assert first is second
+    assert len(_StubHandler.made) == 1
 
 
 def test_a_quiet_root_is_lowered_to_the_shipping_level(
@@ -277,6 +483,7 @@ def test_a_quiet_root_is_lowered_to_the_shipping_level(
 ):
     """uwsgi leaves the root at WARNING; the index would then hold only errors."""
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    monkeypatch.setenv("SKEWNONO_LOG_ENV", "production")
     root = preserve_logger("")
     preserve_logger("skewnono.activity")
     root.setLevel(logging.WARNING)
@@ -289,6 +496,7 @@ def test_a_quiet_root_is_lowered_to_the_shipping_level(
 def test_a_chattier_root_is_left_alone(monkeypatch, preserve_logger, stub_handler):
     """Someone debugging at DEBUG must not be quietly turned back down."""
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    monkeypatch.setenv("SKEWNONO_LOG_ENV", "production")
     root = preserve_logger("")
     preserve_logger("skewnono.activity")
     root.setLevel(logging.DEBUG)
@@ -296,3 +504,35 @@ def test_a_chattier_root_is_left_alone(monkeypatch, preserve_logger, stub_handle
     osh.install_opensearch_logging()
 
     assert root.level == logging.DEBUG
+
+
+def test_configured_password_without_target_fails_closed(
+    monkeypatch, preserve_logger, stub_handler
+):
+    monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    preserve_logger("")
+    preserve_logger("skewnono.activity")
+
+    with pytest.raises(osh.LoggingConfigurationError, match="SKEWNONO_LOG_ENV"):
+        osh.install_opensearch_logging()
+
+    assert stub_handler.made == []
+
+
+def test_existing_handler_for_another_target_is_rejected(
+    monkeypatch, preserve_logger, stub_handler
+):
+    monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    monkeypatch.setenv("SKEWNONO_LOG_ENV", "local")
+    root = preserve_logger("")
+    preserve_logger("skewnono.activity")
+    root.addHandler(
+        _StubHandler(
+            index="skewnono_logging",
+            deployment="production",
+            level=logging.INFO,
+        )
+    )
+
+    with pytest.raises(osh.LoggingConfigurationError, match="does not match"):
+        osh.install_opensearch_logging()
