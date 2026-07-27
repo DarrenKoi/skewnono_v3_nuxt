@@ -5,16 +5,9 @@ import { fabSegment } from '~/utils/fab'
 import { HEADER_LINKS } from '~/utils/headerNav'
 
 const route = useRoute()
-const colorMode = useColorMode()
 const nav = useNavigationStore()
 
 const ACTIVE_CLASS = 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-nav-accent'
-
-const isDark = computed(() => colorMode.value === 'dark')
-
-const toggleColorMode = () => {
-  colorMode.preference = isDark.value ? 'light' : 'dark'
-}
 
 // live-alarm is fab-scoped, so the top-nav icon jumps to the remembered
 // tool/fab (default cd-sem / R3 before any ebeam visit). Only cd-sem and
@@ -56,13 +49,6 @@ const isLinkActive = (link: HeaderLink) =>
         :aria-label="link.label"
         :aria-current="isLinkActive(link) ? 'page' : undefined"
         :class="isLinkActive(link) ? ACTIVE_CLASS : undefined"
-      />
-      <UButton
-        :icon="isDark ? 'i-lucide-moon' : 'i-lucide-sun'"
-        color="neutral"
-        variant="ghost"
-        :aria-label="isDark ? '다크 모드' : '밝은 모드'"
-        @click="toggleColorMode"
       />
     </template>
   </UHeader>
