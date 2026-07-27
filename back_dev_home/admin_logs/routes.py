@@ -18,10 +18,10 @@ def admin_logs():
         return jsonify(query_logs(request.args))
     except ValueError as exc:
         return error_json("invalid_log_query", str(exc), 400)
-    except Exception as exc:  # noqa: BLE001 - admin view must fail closed.
+    except Exception:  # Admin view must fail closed without leaking details.
         logger.exception("Failed to query OpenSearch logs")
         return error_json(
             "log_query_failed",
-            f"Could not query OpenSearch logs: {exc}",
+            "Could not query OpenSearch logs",
             503,
         )

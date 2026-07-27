@@ -1,122 +1,102 @@
-# admin_logs — office migration
+# admin_logs 사무실 이전
 
-## Rules
+## 경계
 
-- FIRST copy the tracked skeleton, then work only in the copy:
-  `cp providers/office_example.py providers/office.py`. `office.py` is
-  gitignored and lives only at the office, so `git pull` never conflicts on it.
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
-- Definition of done: the Verify command at the bottom is green.
+`GET /api/admin/logs`는 선택된 provider에 따라 다음처럼 동작합니다.
 
-## Endpoint: GET /api/admin/logs
+| Provider | 데이터 소스 | 네트워크 사용 |
+| --- | --- | --- |
+| `mock` | 고정된 인메모리 데모 로그 | 사용하지 않음 |
+| `office` | `SKEWNONO_LOG_ENV`로 선택한 OpenSearch logging alias | 사용함 |
 
-- Handler: `routes.py` → `data.query_logs(request.args)`. The route sits
-  behind the `require_admin` decorator (`back_dev_home/_auth/admin.py`) —
-  a non-admin `g.user_id` gets a `403 forbidden` before `data.query_logs`
-  is ever called, so the provider itself does not need to re-check admin
-  status. The route also translates a `ValueError` raised while parsing
-  query params into a `400 invalid_log_query` response, and any other
-  exception into a `503 log_query_failed` response — both happen at the
-  route layer, not inside the provider.
-- Contract: `LogQueryResponse` (with row shape `LogItem`) —
+`mock` provider는 `OPENSEARCH_PASSWORD`, 클라우드 감지 결과와 관계없이 항상 데모
+데이터만 반환합니다. `office` provider는 자격 증명 유무에 따라 mock으로
+되돌아가지 않으며, 설정이나 OpenSearch 조회에 실패하면 라우트가
+`503 log_query_failed`를 반환합니다.
 
-  ```python
-  class LogItem(TypedDict, total=False):
-      id: str
-      index: str
-      timestamp: str | None
-      level: str | None
-      event: str | None
-      logger: str | None
-      user_id: str | None
-      method: str | None
-      path: str | None
-      status: int | None
-      latency_ms: int | None
-      feature: str | None
-      message: str | None
-      exception: dict[str, Any] | None
-      raw: dict[str, Any]
+## Office adapter 준비
 
+사무실에서 추적된 템플릿을 복사합니다.
 
-  class LogQueryResponse(TypedDict):
-      generated_at: str
-      page: int
-      page_size: int
-      total: int
-      filters: dict[str, Any]
-      items: list[LogItem]
-  ```
+```bash
+cp back_dev_home/admin_logs/providers/office_example.py \
+  back_dev_home/admin_logs/providers/office.py
+```
 
-- Mock behavior: `query_logs(params)` first builds a normalized query +
-  filter dict from the raw `Mapping` of query-string params
-  (`_build_query`), then dispatches on data source:
-  - If `OPENSEARCH_PASSWORD` is unset and the process is not cloud
-    (`is_cloud()` false — always true in home/dev), it serves from a
-    fixed, in-memory 5-row demo dataset (`_demo_source`) filtered in
-    Python (`_matches_demo`) rather than querying OpenSearch at all.
-  - If `OPENSEARCH_PASSWORD` is unset and the process IS cloud, it raises
-    `RuntimeError("OPENSEARCH_PASSWORD is not configured")` — this is a
-    genuine misconfiguration, not a valid response shape.
-  - Otherwise it queries the real `ops_store.OSSearch` index
-    (`INDEX_ALIAS = "skewnono_logging"`) via `search_raw`, sorted
-    `@timestamp` descending, and maps hits through `_item_from_hit`.
-  - Time range: `from`/`to` default to the trailing 24 hours
-    (`now - 24h` .. `now`) when neither is supplied by the caller;
-    supplying only one of the two still yields a partial default (each
-    side is defaulted independently, they're read as a pair only when
-    both are present).
-  - Pagination: `page` defaults to `1`, clamped to a minimum of `1`.
-    `page_size` defaults to `50` (`DEFAULT_PAGE_SIZE`), clamped to
-    `[1, 200]` (`MAX_PAGE_SIZE`). Unparsable integers raise `ValueError`
-    (caught by `routes.py` and turned into the 400 response).
-  - Filters accepted: `level` (comma-separated, upper-cased, OR'd via
-    `terms`), `event`, `method` (upper-cased), `user_id`, `feature`,
-    `path` (substring/wildcard match, case-sensitive in the OpenSearch
-    query but case-insensitive in demo mode via `.lower()`),
-    `status_min`/`status_max` (inclusive range), and `q` (free-text —
-    OR'd across `message`, `exception.message`, `exception.stack`,
-    `error_name`, and wildcard `path`/`user_id` in the real query; in demo
-    mode it's a case-insensitive substring check over a concatenation of
-    `message`, `path`, `user_id`, `error_name`, and every value in
-    `exception` if present).
-  - Sort order: real OpenSearch query requests `@timestamp` descending
-    server-side; the demo dataset is defined newest-first already and is
-    not re-sorted after filtering, so it stays newest-first as long as
-    `_demo_source` itself is authored in that order.
-  - Row shape: `_item_from_hit` maps an OpenSearch hit to `LogItem` —
-    `id` from `_id`, `index` from `_index`, and the rest read from
-    `_source` (`@timestamp` → `timestamp`, `path` falls back to
-    `request_path` if `path` is absent, `raw` is the full untouched
-    `_source` dict for callers that need fields not in the narrow
-    `LogItem` shape). Demo-mode hits are synthesized with the same
-    `_id`/`_index`/`_source` envelope (`_id: "demo-<n>"`,
-    `_index: "skewnono_logging-demo"`) so `_item_from_hit` handles both
-    paths identically.
-  - Empty handling: no rows matching the filters is a valid response —
-    `items: []`, `total: 0` — not an error.
-  - `generated_at` is stamped at request time, UTC ISO-8601 with seconds
-    precision and a literal `Z` suffix (`_iso_z`), and is volatile
-    (scrubbed by the parity harness — office does not need to match it
-    byte-for-byte).
-  - `filters` in the response is the same normalized filter dict used to
-    build the query (echoes back the effective `from`/`to`/`level`/etc.,
-    plus `demo_mode: true` when the demo path was used) — it reflects
-    defaults actually applied, not just what the caller passed in.
-- Office data source: <!-- OFFICE: confirm the `skewnono_logging` OpenSearch
-  index alias and `ops_store.OSSearch` connection are already live for this
-  feature (the mock's OpenSearch branch is real code, not a stub — it may
-  already be office-ready once `OPENSEARCH_PASSWORD` is configured) -->
-- Notes: the parity harness pins `GET /api/admin/logs` as a `403` response
-  (no admin cookie in the harness client), which is a legitimate parity
-  value per the harness's own policy — non-200 responses are still valid
-  pins. The contract test in `tests/test_contract.py` calls
-  `data.query_logs({})` directly (bypassing `require_admin`, since that
-  check lives in `routes.py`), so it always exercises the real
-  `LogQueryResponse` shape regardless of the harness's admin-gating.
+`office.py`는 gitignore 대상입니다. 공통 조회 파서나 응답 계약은 수정하지 않고,
+사내 연결에 추가 조정이 필요한 경우에만 이 복사본을 수정합니다.
 
-## Verify
+다음 환경 변수를 설정합니다.
 
-    SKEWNONO_ADMIN_LOGS_PROVIDER=office .venv/bin/pytest back_dev_home/admin_logs
+```dotenv
+SKEWNONO_ADMIN_LOGS_PROVIDER=office
+SKEWNONO_LOG_ENV=local
+```
+
+`SKEWNONO_LOG_ENV`는 필수이며 다음 alias를 선택합니다.
+
+| 값 | 조회 alias |
+| --- | --- |
+| `local` | `skewnono_logging_local` |
+| `production` | `skewnono_logging` |
+
+OpenSearch 접속 정보는 `ops_store`가 사용하는 `OPENSEARCH_*` 환경 변수로
+제공합니다. provider 내부에는 자격 증명 기반 분기나 `is_cloud()` 기반 분기가
+없습니다.
+
+## 저장소 준비
+
+회사 네트워크에서 먼저 dry-run 결과를 검토한 뒤 실제 반영 명령을 실행합니다.
+
+```bash
+.venv/bin/python ops_index_mgmt/skewnono_logging.py \
+  --environment all \
+  --dry-run
+.venv/bin/python ops_index_mgmt/skewnono_logging.py \
+  --environment all
+```
+
+두 번째 명령은 정책, 템플릿, 매핑, 초기 인덱스와 alias를 멱등하게 준비하지만
+공유 클러스터를 변경합니다. 상세 절차와 확인 항목은
+[`docs/back-end/office-data-adapters.md`](../../docs/back-end/office-data-adapters.md)를
+따릅니다.
+
+## HTTP 계약
+
+라우트는 `require_admin`으로 보호됩니다. 관리자가 아니면 provider 호출 전에
+`403 forbidden`을 반환합니다.
+
+지원하는 query parameter는 다음과 같습니다.
+
+- `from`, `to`: UTC ISO-8601 시간 범위이며, 생략 시 최근 24시간입니다.
+- `page`, `page_size`: 기본값은 각각 `1`, `50`이며 최대 page size는 `200`입니다.
+- `level`, `event`, `method`, `user_id`, `feature`, `path`
+- `status_min`, `status_max`
+- `q`: 메시지, 예외, 오류 이름, 경로, 사용자 식별자를 검색합니다.
+
+잘못된 숫자 값은 라우트에서 `400 invalid_log_query`로 변환합니다. 설정 오류나
+OpenSearch 조회 오류는 내부 상세 내용을 노출하지 않고
+`503 log_query_failed`와 `Could not query OpenSearch logs` 메시지로 변환합니다.
+
+성공 응답은 `contracts.py`의 `LogQueryResponse`를 따릅니다. office 응답의
+`filters`에는 실제로 조회한 `deployment`와 `index_alias`가 포함됩니다. 결과가
+없는 경우는 오류가 아니라 `items: []`, `total: 0`인 정상 응답입니다.
+
+## 검증
+
+홈의 deterministic mock 계약을 검증합니다.
+
+```bash
+.venv/bin/python -m pytest back_dev_home/admin_logs -q
+```
+
+사무실에서 복사한 adapter와 실제 OpenSearch 연결을 검증합니다.
+
+```bash
+SKEWNONO_ADMIN_LOGS_PROVIDER=office \
+SKEWNONO_LOG_ENV=local \
+.venv/bin/python -m pytest back_dev_home/admin_logs -q
+```
+
+`office.py`가 없으면 provider 선택기가 정확한 복사 명령을 포함한
+`RuntimeError`로 실패합니다. office 모드에는 mock fallback이 없습니다.
