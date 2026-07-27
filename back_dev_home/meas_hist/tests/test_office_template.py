@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from back_dev_home.ebeam.hitachi import _office_meas_hist
+from back_dev_home.ebeam.hitachi import _office_meas_hist, _office_search
 from back_dev_home.meas_hist.providers import office_example
 
 
@@ -15,6 +15,26 @@ class _FakeSearch:
     def search_raw(self, body):
         self._captured["raw_body"] = body
         return {"hits": {"total": {"value": 0}, "hits": []}}
+
+
+class _PartialAggregateSearch:
+    def aggregate(self, _aggs, *, query):
+        return {
+            "timed_out": False,
+            "_shards": {
+                "total": 2,
+                "successful": 1,
+                "skipped": 0,
+                "failed": 1,
+            },
+            "aggregations": {
+                "comp": {
+                    "buckets": [
+                        {"key": {"group": "UNSAFE/PARTIAL_RECIPE"}},
+                    ],
+                },
+            },
+        }
 
 
 def _stable_window(monkeypatch):
@@ -126,6 +146,30 @@ def test_malformed_mapping_after_key_propagates_instead_of_marking_complete(
     )
 
     with pytest.raises(RuntimeError, match="after_key.*exactly.*group"):
+        office_example.search_meas_hist(
+            tool_type="cd-sem",
+            recipe=["CD_BIAS"],
+            limit=1,
+        )
+
+
+def test_partial_raw_aggregation_propagates_through_shared_validation(
+    monkeypatch,
+):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(
+        office_example,
+        "_os_search",
+        lambda index: captured.setdefault("raw_index", index) and _FakeSearch(captured),
+    )
+    monkeypatch.setattr(
+        _office_search,
+        "search",
+        lambda _index: _PartialAggregateSearch(),
+    )
+
+    with pytest.raises(RuntimeError, match=r"meas_hist_cdsem.*failed.*1"):
         office_example.search_meas_hist(
             tool_type="cd-sem",
             recipe=["CD_BIAS"],

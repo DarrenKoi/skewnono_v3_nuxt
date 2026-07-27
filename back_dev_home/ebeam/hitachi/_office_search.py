@@ -22,6 +22,7 @@ Connection settings come from ``OPENSEARCH_HOST`` / ``OPENSEARCH_PORT`` /
 import logging
 import os
 import time
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache, wraps
 from typing import Any
@@ -140,7 +141,47 @@ def aggregate(
         result = search(index).aggregate(aggs, query=query_body)
     except NotFoundError as exc:
         raise _missing_index_error(index, exc) from exc
-    return result.get("aggregations", {})
+    if not isinstance(result, Mapping):
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} must be a mapping; "
+            f"got {type(result).__name__}."
+        )
+    timed_out = result.get("timed_out")
+    if timed_out is not False:
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} has invalid "
+            f"'timed_out' metadata: expected exactly false, got {timed_out!r}."
+        )
+    shards = result.get("_shards")
+    if not isinstance(shards, Mapping):
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} '_shards' metadata "
+            f"must be a mapping; got {type(shards).__name__}."
+        )
+    failed = shards.get("failed")
+    if isinstance(failed, bool) or not isinstance(failed, int):
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} '_shards.failed' "
+            "must be a non-negative integer (boolean is not valid); "
+            f"got {failed!r}."
+        )
+    if failed < 0:
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} '_shards.failed' "
+            f"must be non-negative; got {failed}."
+        )
+    if failed != 0:
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} reports "
+            f"_shards.failed={failed}; refusing partial aggregation results."
+        )
+    aggregations = result.get("aggregations")
+    if not isinstance(aggregations, Mapping):
+        raise RuntimeError(
+            f"OpenSearch aggregate response for {index!r} 'aggregations' "
+            f"must be a mapping; got {type(aggregations).__name__}."
+        )
+    return dict(aggregations)
 
 
 def fetch_hits(
