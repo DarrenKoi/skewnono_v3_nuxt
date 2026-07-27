@@ -24,13 +24,12 @@ def _install_rate_limit(app: Flask) -> None:
     from flask_limiter import Limiter
 
     # 5/5s was so tight that any page mounting 2+ composables + a user pill
-    # click would 429. 10/5s still tolerates normal interactive navigation
-    # (msr_image, the real fan-out source, is exempted below) while keeping
-    # scripted loops in check.
+    # click would 429. 20/5s still catches runaway loops but tolerates
+    # normal interactive navigation.
     limiter = Limiter(
         key_func=_rate_limit_key,
         storage_uri="memory://",
-        default_limits=["10 per 5 seconds"],
+        default_limits=["20 per 5 seconds"],
         application_limits_exempt_when=lambda: not request.path.startswith("/api/"),
     )
     limiter.init_app(app)

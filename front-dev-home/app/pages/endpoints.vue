@@ -58,7 +58,7 @@ const tokenSteps = [
 
 const authNotes = [
   '토큰은 계정과 같은 읽기 권한을 가집니다. 유출되면 Settings의 API Tokens에서 즉시 Revoke 하십시오.',
-  'API는 사용자당 5초에 10회로 rate limit이 걸려 있습니다. 배치 스크립트에서 반복 호출할 때는 호출 사이에 간격을 두십시오.',
+  'API는 사용자당 5초에 20회로 rate limit이 걸려 있습니다. 배치 스크립트에서 반복 호출할 때는 호출 사이에 간격을 두십시오.',
   '토큰 인증 요청은 사용자 활동 점수에는 반영되지 않지만, 운영 로그에는 api_token_id와 함께 남습니다.',
   'POST/DELETE /api/account/api-tokens는 사람 세션 전용입니다. 이미 발급된 토큰으로 새 토큰을 만들거나 폐기할 수 없습니다.'
 ]
