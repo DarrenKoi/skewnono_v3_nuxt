@@ -19,10 +19,19 @@ export const TREND_LIMIT = 30
 /** Whether the curated set's MsrFiles should be batch-fetched.
  *
  *  The set is shared across ALL non-dashboard detail views (position-stack /
- *  time-series / correlation / gallery) whenever the analysis is in `set`
- *  scope, so a set edited in one view is present in the others. Dashboard stays
- *  excluded to preserve the single-measurement lazy-load invariant (no set
- *  fan-out), and a `single`-scope screen never triggers the batch fetch either. */
+ *  time-series / correlation / gallery / fdc) whenever the analysis is in
+ *  `set` scope, so a set edited in one view is present in the others.
+ *  Dashboard stays excluded to preserve the single-measurement lazy-load
+ *  invariant (no set fan-out), and a `single`-scope screen never triggers the
+ *  batch fetch either.
+ *
+ *  `fdc` included is deliberate, not an oversight of the exclusion-by-default
+ *  shape below: the FDC view renders only its empty state under `set` scope
+ *  (single-MSR sequence workbench moved out to be `fdc`'s single-scope
+ *  content — see views/Fdc.vue), so the fetch itself goes unused there. But
+ *  `manifest.counts` feeds the left rail in EVERY view regardless of which
+ *  one is active, so excluding `fdc` here would starve the rail the one time
+ *  a user opens that tab under `set` scope. */
 export const shouldLoadSet = (scope: AnalysisScope, activeKind: SkewvoirViewKind): boolean =>
   scope === 'set' && activeKind !== 'dashboard'
 

@@ -27,6 +27,10 @@ test('shouldLoadSet: under set scope, every non-dashboard detail view triggers t
   assert.equal(shouldLoadSet('set', 'time-series'), true)
   assert.equal(shouldLoadSet('set', 'correlation'), true)
   assert.equal(shouldLoadSet('set', 'gallery'), true)
+  // fdc renders only its empty state under set scope (its single-scope
+  // content is the sequence workbench), but manifest.counts still feeds the
+  // left rail there, so the batch fetch must still fire.
+  assert.equal(shouldLoadSet('set', 'fdc'), true)
 })
 
 test('shouldLoadSet lazy-load invariant: Dashboard NEVER triggers the batch fetch, even under set scope', () => {
