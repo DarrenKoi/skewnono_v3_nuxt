@@ -38,18 +38,27 @@ redis에는 가장 최근 mdc 값들을 fab_name 별로 저장
   ※ 템플릿(office_example.py)에 구현을 역반영하지 않으면 다음 사람은 stub 에서
      다시 시작하게 됩니다.
 
-■ 아직 이 문서에 기록되지 않은 것 (사무실 구현에서 확정된 값 — 채워 주십시오)
+저장 위치 (담당자 확인 2026-07-27)
 
-  - Redis key 이름 — 최신 스냅샷. field = fab_name
-  - MinIO 경로 규칙 — 날짜별 이력
+  1) 최신 스냅샷 — Redis hash, key = "mdc_setting"
+     - field: fab_name ("M15A", "M14B", ...)
+     - value: 해당 fab 의 {eqp_id: {beam_condition: value}} dict (위 형태)
+     - 수집 시 덮어써지므로 항상 최신 값입니다.
 
-  ※ 이 두 값은 사무실 office.py 안에만 있고 집에서는 확인할 수 없어 비워 둡니다.
-    추정해서 적으면 문서가 어댑터의 진실 원천 역할을 못 하므로 일부러 비워 둡니다.
+  2) 이력 (trend) — MinIO, 기본 bucket/prefix (minio_handler/minio_config.py)
+     - path: hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json
+     - 각 JSON = 그 날짜의 fab 전체 dict of dict (Redis field 값과 같은 형태)
 
-  구조 자체는 SCE 와 같습니다(hardware_sce_setting.txt). 참고 형태:
-    Redis : hash key "sce_info", field = fab_name
-    MinIO : hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab_name}.json
-  수집 주기가 규칙적이지 않다면 SCE 처럼 날짜를 계산하지 말고 폴더를 탐색합니다.
+  ★ SCE 와 완전히 같은 2단 구조이며 이름만 다릅니다
+    (hardware_sce_setting.txt: Redis "sce_info" + hitachi_sem/cdsem/sce_info/...).
+    따라서 날짜 폴더를 **탐색**하고 기대 날짜를 계산하지 않는 규칙,
+    없는 fab field / 없는 아카이브 파일을 에러가 아니라 정상적인 빈 상태로
+    다루는 규칙도 그대로 적용됩니다.
+
+    커버리지는 확인이 필요합니다. SCE 는 R3/R4 미사용·M10 무데이터라는 제약이
+    명시되어 있지만, MDC 에 같은 제약이 있는지는 아직 기록된 바가 없습니다.
+    빈 fab 을 "미사용" 으로 볼지 "수집 실패" 로 볼지가 달라지므로, 사무실에서
+    hgetall("mdc_setting") 의 field 목록을 한 번 확인해 여기에 적어 두십시오.
 
 builder 2개
 

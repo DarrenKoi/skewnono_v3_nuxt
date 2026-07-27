@@ -14,7 +14,7 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape_cdsem` (type:total) | written — `cp` + verify |
 | `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_cdsem` (category:reso_center_log) | stub — office.py written at the office, back-port pending |
-| `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub — office.py written at the office, back-port pending |
+| `mdc/` | `build_mdc_settings` + `build_mdc_history` | Redis `mdc_setting` hash + MinIO `hitachi_sem/cdsem/mdc_setting/` | stub — office.py written at the office, back-port pending |
 | `sce/` | `build_sce_settings` + `build_sce_history` | Redis `sce_info` hash + MinIO `hitachi_sem/cdsem/sce_info/` | written — `cp` + verify |
 
 `reso_center/` and `mdc/` are a special case as of 2026-07-27: a working
@@ -23,9 +23,11 @@ tracked templates here are still `NotImplementedError` stubs. Anyone pulling
 this repo starts from the stub. Back-port those two bodies into their
 `office_example.py` when convenient; until then the only record of what they do
 is `docs/datatables/hardware_reso_center_data.txt` and
-`docs/datatables/hardware_mdc_setting.txt`. The mdc doc is still missing the two
-values that live only in the office copy — the Redis key name and the MinIO path
-rule.
+`docs/datatables/hardware_mdc_setting.txt`. Both now carry the concrete sources,
+so a back-port is transcription, not rediscovery: mdc reads the Redis hash
+`mdc_setting` (field = `fab_name`) plus dated MinIO JSON under
+`hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json` — the same two-tier
+shape as `sce/`, which is already implemented here and worth copying from.
 
 `fdc/office_example.py` is implemented, not a stub: its body is written
 against the `network_fdc_cdsem` layout in

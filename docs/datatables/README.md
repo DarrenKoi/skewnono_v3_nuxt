@@ -34,7 +34,7 @@
 | `hardware_sce_setting.txt` | Redis `sce_info` + MinIO `hitachi_sem/cdsem/sce_info/` | `hardware/sce` | 연결 |
 | `hardware_bm_pm.txt` | OpenSearch `fab_inform_notes`(실적) + `tool_maintenance_plan`(계획) | `hardware/bm_pm` | 연결 |
 | `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | 연결 |
-| `hardware_mdc_setting.txt` | Redis(fab별 최신) + MinIO(날짜별 이력) | `hardware/mdc` | 연결 |
+| `hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc` | 연결 |
 | `recipe_idp.txt` | 미정 — IDP 원본 파싱 필요 | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `parameter_info.txt` | 미정 — `recipe_idp` 와 같은 소스로 추정 | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `recipe_params.txt` | 미정 | `device_statistics` | **미연결**(mock) |
