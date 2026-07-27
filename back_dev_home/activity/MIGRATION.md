@@ -1,178 +1,125 @@
-# activity — office migration
+# activity office 전환
 
-## Rules
+## 현재 구현
 
-- FIRST copy the tracked skeleton, then work only in the copy:
-  `cp providers/office_example.py providers/office.py`. `office.py` is
-  gitignored and lives only at the office, so `git pull` never conflicts on it.
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
-- Definition of done: the Verify command at the bottom is green.
+`activity` office adapter는 canonical request log를 사내 OpenSearch에서
+집계합니다. Redis counter와 별도 `usage_events` index를 사용하지 않습니다.
+office 조회 실패 시 mock으로 폴백하지 않으며 route가
+`503 activity_query_failed`를 반환합니다.
 
-## Endpoint: GET /api/activity/me
+환경별 source alias는 `SKEWNONO_LOG_ENV`로 선택합니다.
 
-- Handler: `routes.py` → `data.get_me(user_id)` (user id from LASTUSER cookie,
-  passed in as `g.user_id`)
-- Contract: `MeResponse` —
+- `local`: `skewnono_logging_local`
+- `production`: `skewnono_logging`
 
-  ```python
-  class MeResponse(TypedDict):
-      user_id: str
-      is_admin: bool
-      this_month: MeThisMonth        # {requests: int, days_active: int}
-      top_features: list[FeatureCount]  # [{feature: str, count: int}]
-      daily: list[DailyCount]         # [{date: str, count: int}]
-      first_seen: str | None
-      last_seen: str | None
-  ```
+두 alias는 같은 사내 cluster에 있고
+`back_dev_home/_logging/target.py`가 writer와 reader에 같은 target을
+제공합니다. 연결 설정은 `OPENSEARCH_*` 환경변수에서 읽습니다.
 
-- Mock behavior: looks up the in-memory `_users[user_id]` state. `is_admin` is
-  computed independently via `_auth.admin.is_admin(user_id)`, not stored on
-  the user state. `this_month` sums only days from the 1st of the current
-  calendar month through today with `count > 0`. `top_features` is the top 10
-  lifetime `by_feature` counts, sorted by `(-count, feature)` (count
-  descending, feature name ascending as tie-break). `daily` is always exactly
-  30 entries (oldest → newest, today last), one per calendar day, missing
-  days filled with `count: 0`.
-- Office data source: <!-- OFFICE: OpenSearch activity index name + query -->
-- Notes: `get_me` never 404s — an unknown `user_id` returns a fully-zeroed
-  response (`this_month: {requests: 0, days_active: 0}`, `top_features: []`,
-  `daily` still the 30-day zero series, `first_seen`/`last_seen: null`), not
-  an error. Dates in `daily[].date` are `YYYY-MM-DD` (`date.isoformat()`).
-  `first_seen`/`last_seen` are UTC ISO-8601 with seconds precision and a
-  literal `Z` suffix (`"+00:00"` replaced with `"Z"` — see `_iso()`), or
-  `null` if the user has never been recorded.
+## 데이터 의미
 
-## Endpoint: GET /api/activity/summary
+활동 집계 대상은 다음 조건을 모두 만족하는 request document입니다.
 
-- Handler: `routes.py` → `data.get_summary()`
-- Contract: `SummaryResponse` —
+- `event=request`
+- `activity_weight=1`
+- `activity_kind`가 `entry` 또는 `feature`입니다.
+- 식별된 사람의 `user_id`가 있습니다.
 
-  ```python
-  class SummaryResponse(TypedDict):
-      generated_at: str
-      dau: int
-      wau: int
-      mau: int
-      top_features_7d: list[FeatureCount]
-      top_features_30d: list[FeatureCount]
-  ```
+`entry`는 `/api/sem-list` 진입 요청입니다. active user, request 수,
+first/last seen에는 포함하지만 top feature와 FAB page 순위에는 포함하지
+않습니다. `feature`만 feature 순위와 page count에 포함합니다.
 
-- Mock behavior: iterates every user in memory. `dau` counts users with
-  `count > 0` on the exact current date. `wau` counts users with any activity
-  in the trailing 7-day window (today − 6 days through today). `mau` counts
-  users active at any point since the 1st of the current calendar month.
-  `top_features_7d`/`top_features_30d` are NOT true per-window feature
-  tallies — the mock only stores lifetime `by_feature` totals per user, so it
-  *approximates* the window breakdown by scaling each user's lifetime feature
-  map by that user's share of activity in the window (`_scale_features`).
-  Each is capped to the top 10 by `(-count, feature)`.
-- Office data source: <!-- OFFICE: OpenSearch usage_events aggregation query / Redis HINCRBY counters -->
-- Notes: `generated_at` is stamped at request time (UTC ISO-8601 + `Z`) and is
-  a volatile field scrubbed by the parity harness — office does not need to
-  match it byte-for-byte, only produce the same shape. The office
-  implementation can and should replace the scaling approximation with real
-  per-day feature counters (e.g. Redis HINCRBY keyed by day+feature) since
-  that data is not available in the home mock.
+문서 timestamp는 UTC로 저장합니다. 다음 calendar window는
+`Asia/Seoul` 기준으로 계산합니다.
 
-## Endpoint: GET /api/activity/fabs
+- DAU: 오늘 00:00부터 현재까지입니다.
+- WAU와 7일 순위: 오늘을 포함한 최근 7 calendar days입니다.
+- MAU, 30일 순위, 사용자 목록, FAB 30일 집계: 오늘을 포함한 최근
+  30 calendar days입니다.
+- 개인 `this_month`: 이번 달 1일 00:00부터 현재까지입니다.
+- 개인 daily series: 오늘을 포함한 30개 날짜이며 빈 날짜는 0입니다.
 
-- Handler: `routes.py` → `data.get_fab_page_usage()`
-- Contract: `FabUsageResponse` —
+`first_seen`은 alias가 실제로 보존하는 기간 안에서 가장 이른
+활동입니다. production은 약 365~372일, local은 약 30~37일 범위이므로
+계정의 영구적인 최초 사용일을 의미하지 않습니다.
 
-  ```python
-  class FabUsageResponse(TypedDict):
-      generated_at: str
-      fabs_7d: list[FabUsageRow]   # {fab: str, total: int, pages: list[FabPageCount]}
-      fabs_30d: list[FabUsageRow]
-  ```
+## Endpoint 계약
 
-- Mock behavior: buckets users by `state.fab` (falling back to the literal
-  string `"미지정"` — "unassigned" — for users with no fab set), then applies
-  the same 7-day/30-day windowing and lifetime-scaling approximation as
-  `/summary` per fab bucket. Fabs whose windowed total is `<= 0` are dropped
-  entirely (not returned as zero rows). Rows are sorted by
-  `(-total, fab)` (total descending, fab name ascending as tie-break); each
-  row's `pages` list is the same top-10 `(-count, feature)` shape used
-  elsewhere.
-- Office data source: <!-- OFFICE: OpenSearch usage_events aggregated by fab + feature -->
-- Notes: the `"미지정"` placeholder string must be preserved verbatim if the
-  frontend renders it directly — do not translate or rename it without
-  checking `front-dev-home` usages first. `generated_at` is volatile
-  (scrubbed by the parity harness).
+### `GET /api/activity/me`
 
-## Endpoint: GET /api/activity/users
+현재 로그인 사용자의 이번 달 request 수, active days, feature 순위,
+30일 daily series, retained-window first/last seen을 반환합니다. 알려지지
+않은 사용자는 404가 아니라 동일한 shape의 zero response를 반환합니다.
+`is_admin`은 `_auth.admin.is_admin()`에서 계산합니다.
 
-- Handler: `routes.py` → `data.get_users_list()`
-- Contract: `UserListResponse` —
+### `GET /api/activity/summary`
 
-  ```python
-  class UserListResponse(TypedDict):
-      generated_at: str
-      users: list[UserListRow]  # {user_id, requests_30d, days_active_30d, last_seen, favorite_feature}
-  ```
+KST 기준 DAU, 최근 7일 WAU, 최근 30일 MAU와 7일·30일 feature 순위를
+반환합니다. active user 수는 `user_id` cardinality로 계산합니다.
 
-- Mock behavior: iterates every user in memory, sums requests and counts
-  active days over the trailing 30-day window (today − 29 through today).
-  Users whose 30-day total is exactly `0` are **excluded from the list
-  entirely** (not returned as zero rows), even if they exist in the
-  in-memory user table. `favorite_feature` is the single feature with the
-  highest lifetime count (`None` if the user has no feature counts at all).
-  Rows are sorted by `(-requests_30d, user_id)` (requests descending, user id
-  ascending as tie-break).
-- Office data source: <!-- OFFICE: OpenSearch usage_events aggregation by user_id, 30-day window -->
-- Notes: `last_seen` uses the same UTC ISO-8601 + `Z` format as `/me`. An
-  empty result is a valid response: `{"generated_at": ..., "users": []}`, not
-  an error. A freshly-connected office backend may legitimately have no users
-  yet; the `/me`+history contract check derives its user id from this list, so
-  it exercises identity only when at least one user is present.
+### `GET /api/activity/fabs`
 
-## Endpoint: GET /api/activity/users/<user_id>
+최근 7일·30일 FAB별 활동을 반환합니다. `total`은 request 수가 아니라
+distinct active user 수입니다. 하나의 request에 여러 FAB가 있으면 각
+FAB bucket에 한 번씩 기여합니다. FAB가 없거나 빈 값이면 `"미지정"`으로
+정규화합니다. `pages`에는 `feature` document만 포함합니다.
 
-- Handler: `routes.py` → `data.get_user_history(user_id)`; a `None` result is
-  translated to a `404 not_found` JSON error by the route (not by
-  `data.py`/the provider itself).
-- Contract: `UserHistoryResponse` —
+### `GET /api/activity/users`
 
-  ```python
-  class UserHistoryResponse(TypedDict):
-      user_id: str
-      this_month: MeThisMonth
-      top_features: list[FeatureCount]
-      daily: list[DailyCount]
-      first_seen: str | None
-      last_seen: str | None
-  ```
+최근 30일 user composite aggregation을 page 단위로 모두 읽습니다.
+`requests_30d`, `days_active_30d`, `last_seen`, feature-only
+`favorite_feature`를 반환하고 `(-requests_30d, user_id)`로 정렬합니다.
 
-- Mock behavior: identical field derivation to `/me` (same `_history_fields`
-  helper), minus `is_admin`. Unlike `/me`, an unknown `user_id` returns
-  `None` from the provider (not a zeroed object) — the 404 happens at the
-  route layer, so the office adapter must also return `None` for unknown
-  users rather than raising or fabricating a response.
-- Office data source: <!-- OFFICE: OpenSearch usage_events filtered by user_id -->
-- Notes: same date/timestamp formats as `/me`. Returning `None` (not an
-  empty dict or `{}`) is required so the existing 404 branch in `routes.py`
-  keeps working unmodified.
+### `GET /api/activity/users/<user_id>`
 
-## Write path: record_request(...)
+개인 history shape를 반환합니다. 조회 결과가 없으면 `404 not_found`,
+OpenSearch 조회 실패면 `503 activity_query_failed`를 반환합니다.
 
-- Called by `_logging` middleware (`back_dev_home/_logging/activity.py`) on
-  every recordable request, after checking `data.is_recordable(user_id, path,
-  status)` — a user_id of `None`/`"-"`, non-`/api/` paths, the
-  `/api/activity/*` and `/api/admin/logs` prefixes (to avoid the dashboard
-  inflating its own counters), and any `status >= 400` are all excluded.
-- Mock behavior: `record_request(user_id, method, path, status, feature)`
-  unconditionally updates the in-memory `_users[user_id]` state (creates the
-  user on first sight, bumps `total`, `by_feature[feature]`,
-  `daily[today]`, and `last_seen`) — it does **not** re-check
-  `is_recordable` itself despite what `is_recordable`'s docstring claims; the
-  middleware's pre-call check is the only gate. Any office reimplementation
-  should preserve that division of responsibility rather than double-gating.
-- `is_recordable` policy lives in `data.py` (provider-independent) and is
-  NOT reimplemented per-provider.
-- Office data source: <!-- OFFICE: index/pipeline name -->
+## Write path
 
-## Verify
+`back_dev_home/_logging/activity.py`가 request마다 classification과 FAB
+정규화를 수행하고 `OpenSearchBulkHandler`가 canonical document 한 건을
+저장합니다.
 
-    SKEWNONO_ACTIVITY_PROVIDER=office .venv/bin/pytest back_dev_home/activity
+office adapter의 `record_request()`는 의도적인 no-op입니다. provider
+adapter에서 다시 쓰면 같은 요청이 두 번 저장되므로 writer를 추가하지
+않습니다. mock adapter만 process-local 상태를 갱신합니다.
+
+## Office 연결
+
+회사 network에서 다음 tracked adapter를 복사합니다.
+
+```bash
+cp back_dev_home/activity/providers/office_example.py \
+  back_dev_home/activity/providers/office.py
+```
+
+`.env`에 OpenSearch 연결 설정과 target을 지정합니다.
+
+```dotenv
+SKEWNONO_ACTIVITY_PROVIDER=office
+SKEWNONO_LOG_ENV=local
+OPENSEARCH_HOST=...
+OPENSEARCH_PORT=443
+OPENSEARCH_USER=...
+OPENSEARCH_PASSWORD=...
+```
+
+production 배포에서는 같은 cluster 설정을 유지하고
+`SKEWNONO_LOG_ENV=production`만 사용합니다.
+
+## 검증
+
+먼저 `ops_index_mgmt/skewnono_logging.py`로 alias를 준비한 뒤 office
+provider gate를 실행합니다.
+
+```bash
+SKEWNONO_ACTIVITY_PROVIDER=office \
+SKEWNONO_LOG_ENV=local \
+  .venv/bin/python -m pytest back_dev_home/activity -q
+```
+
+그다음 Flask를 실행하여 `/api/activity/me`, `/summary`, `/fabs`,
+`/users`를 확인합니다. OpenSearch 연결을 잠시 차단했을 때 raw cluster
+오류가 response에 노출되지 않고 `503 activity_query_failed`가 반환되는지도
+확인합니다.

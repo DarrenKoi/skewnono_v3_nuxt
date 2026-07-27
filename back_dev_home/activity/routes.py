@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, g, jsonify
 
 from .._auth.errors import error_json
@@ -10,31 +12,52 @@ from .data import (
 )
 
 bp = Blueprint("activity", __name__)
+logger = logging.getLogger(__name__)
+
+
+def _query(loader):
+    try:
+        return jsonify(loader())
+    except Exception:
+        logger.exception("Failed to query OpenSearch activity")
+        return error_json(
+            "activity_query_failed",
+            "Could not query OpenSearch activity",
+            503,
+        )
 
 
 @bp.get("/activity/me")
 def activity_me():
-    return jsonify(get_me(g.user_id))
+    return _query(lambda: get_me(g.user_id))
 
 
 @bp.get("/activity/summary")
 def activity_summary():
-    return jsonify(get_summary())
+    return _query(get_summary)
 
 
 @bp.get("/activity/fabs")
 def activity_fabs():
-    return jsonify(get_fab_page_usage())
+    return _query(get_fab_page_usage)
 
 
 @bp.get("/activity/users")
 def activity_users():
-    return jsonify(get_users_list())
+    return _query(get_users_list)
 
 
 @bp.get("/activity/users/<user_id>")
 def activity_user_detail(user_id: str):
-    payload = get_user_history(user_id)
+    try:
+        payload = get_user_history(user_id)
+    except Exception:
+        logger.exception("Failed to query OpenSearch activity")
+        return error_json(
+            "activity_query_failed",
+            "Could not query OpenSearch activity",
+            503,
+        )
     if payload is None:
         return error_json("not_found", f"no activity for user {user_id!r}", 404)
     return jsonify(payload)

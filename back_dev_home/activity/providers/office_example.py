@@ -1,38 +1,19 @@
-# TEMPLATE — copy to office.py at the office, then implement the function body.
-# office.py is gitignored; this file (office_example.py) is the tracked skeleton.
-"""Office adapter for activity tracking — NOT CONNECTED YET.
+"""Tracked office adapter for OpenSearch-backed activity aggregation."""
 
-Implement every function listed in activity/MIGRATION.md against the office
-OpenSearch activity index. Normalize results to activity/contracts.py shapes.
-"""
+from back_dev_home.activity.providers.opensearch_reader import (
+    ActivityOpenSearchReader,
+)
 
+_reader = ActivityOpenSearchReader()
 
-def _not_connected():
-    raise NotImplementedError(
-        "The activity office adapter has not been connected yet. "
-        "Set SKEWNONO_ACTIVITY_PROVIDER=mock until it is ready."
-    )
-
-
-def get_me(user_id):
-    return _not_connected()
+get_me = _reader.get_me
+get_summary = _reader.get_summary
+get_fab_page_usage = _reader.get_fab_page_usage
+get_users_list = _reader.get_users_list
+get_user_history = _reader.get_user_history
 
 
-def get_summary():
-    return _not_connected()
+def record_request(*_args, **_kwargs) -> None:
+    """Do not duplicate the canonical document written by logging middleware."""
 
-
-def get_fab_page_usage():
-    return _not_connected()
-
-
-def get_users_list():
-    return _not_connected()
-
-
-def get_user_history(user_id):
-    return _not_connected()
-
-
-def record_request(*args, **kwargs):
-    return _not_connected()
+    return None

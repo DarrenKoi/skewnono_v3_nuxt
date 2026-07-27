@@ -1,12 +1,12 @@
-"""Contract gate for activity. Runs against the ACTIVE provider via data.py.
+"""Contract gate for the selected mock or OpenSearch activity provider.
 
 Home:   .venv/bin/pytest back_dev_home/activity
 Office: SKEWNONO_ACTIVITY_PROVIDER=office .venv/bin/pytest back_dev_home/activity
 
-Every shape check here runs under both providers. The one mock-only step is the
-demo seeding in test_me_and_history_match_contract — data.py wires
-``seed_demo_users`` to the mock unconditionally, so it can never populate an
-office backend and is fenced accordingly.
+The tracked office template aggregates the environment-selected logging alias;
+the copied ``office.py`` exercises that implementation on the company network.
+The one mock-only step is demo seeding in
+``test_me_and_history_match_contract``.
 """
 
 import pytest
