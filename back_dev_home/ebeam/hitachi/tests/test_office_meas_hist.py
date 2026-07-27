@@ -111,6 +111,107 @@ def test_composite_buckets_rejects_malformed_after_key(
         )
 
 
+@pytest.mark.parametrize(
+    "after_key",
+    [
+        {},
+        {"cursor": "A"},
+        {"group": "A", "cursor": "B"},
+    ],
+)
+def test_composite_buckets_rejects_after_key_with_wrong_schema(
+    monkeypatch,
+    after_key,
+):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [], "after_key": after_key}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"page 1.*meas_hist_cdsem.*after_key.*exactly.*group",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            "full_name.keyword",
+            {},
+            None,
+        )
+
+
+@pytest.mark.parametrize(
+    "group",
+    [
+        None,
+        {},
+        [],
+        (),
+        set(),
+    ],
+)
+def test_composite_buckets_rejects_non_scalar_after_key_group(
+    monkeypatch,
+    group,
+):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [], "after_key": {"group": group}}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"page 1.*meas_hist_cdsem.*after_key\.group.*JSON scalar",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            "full_name.keyword",
+            {},
+            None,
+        )
+
+
+@pytest.mark.parametrize(
+    "group",
+    [
+        "B",
+        "",
+        0,
+        -7,
+        1.5,
+        True,
+        False,
+    ],
+)
+def test_composite_buckets_preserves_valid_scalar_after_key_group(
+    monkeypatch,
+    group,
+):
+    calls = _stub_composite_pages(
+        monkeypatch,
+        [
+            {
+                "comp": {
+                    "buckets": [{"key": {"group": group}}],
+                    "after_key": {"group": group},
+                },
+            },
+            {"comp": {"buckets": []}},
+        ],
+        page_size=1,
+    )
+
+    assert _office_meas_hist.composite_buckets(
+        "meas_hist_cdsem",
+        "full_name.keyword",
+        {},
+        None,
+    ) == [{"key": {"group": group}}]
+    sent_group = calls[1][1]["comp"]["composite"]["after"]["group"]
+    assert sent_group == group
+    assert type(sent_group) is type(group)
+
+
 def test_composite_buckets_rejects_a_repeated_after_key(monkeypatch):
     _stub_composite_pages(
         monkeypatch,

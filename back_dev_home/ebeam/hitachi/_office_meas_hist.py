@@ -192,6 +192,19 @@ def composite_buckets(
                 f"OpenSearch composite page {page_number} for {index!r} "
                 "'after_key' must be a mapping when present."
             )
+        if set(next_after) != {"group"}:
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "'after_key' must contain exactly one key named 'group'; "
+                f"got keys {list(next_after)!r}."
+            )
+        group = next_after["group"]
+        if group is None or not isinstance(group, (str, int, float, bool)):
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "'after_key.group' must be a non-null JSON scalar "
+                f"(string, number, or boolean); got {type(group).__name__}."
+            )
         after_key = dict(next_after)
         if any(after_key == seen for seen in seen_after_keys):
             raise RuntimeError(

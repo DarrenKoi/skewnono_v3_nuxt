@@ -104,6 +104,35 @@ def test_malformed_recipe_aggregation_propagates_instead_of_marking_complete(
         )
 
 
+def test_malformed_mapping_after_key_propagates_instead_of_marking_complete(
+    monkeypatch,
+):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(
+        office_example,
+        "_os_search",
+        lambda index: captured.setdefault("raw_index", index) and _FakeSearch(captured),
+    )
+    monkeypatch.setattr(
+        _office_meas_hist,
+        "aggregate",
+        lambda *_args: {
+            "comp": {
+                "buckets": [],
+                "after_key": {},
+            },
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="after_key.*exactly.*group"):
+        office_example.search_meas_hist(
+            tool_type="cd-sem",
+            recipe=["CD_BIAS"],
+            limit=1,
+        )
+
+
 def test_recipe_name_composite_is_not_called_without_recipe_filter(monkeypatch):
     captured = {}
     _stable_window(monkeypatch)
