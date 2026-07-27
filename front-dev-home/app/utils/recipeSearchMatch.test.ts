@@ -4,6 +4,7 @@ import {
   activeRecipeResults,
   matchesRecipeQuery,
   matchingHistoryNames,
+  normalizeRecipeNameSnapshot,
   rankRecipeMatches,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
@@ -98,6 +99,31 @@ test('history names are deduped, preserving first-seen order', () => {
 
 test('history names are empty for an empty token list', () => {
   assert.deepEqual(matchingHistoryNames(['ADI/CD_A'], []), [])
+})
+
+test('recipe-name snapshot falls back safely when additive fields are unavailable', () => {
+  const rows = [{ full_name: 'RAW/A' }, { full_name: 'RAW/B' }]
+
+  assert.deepEqual(normalizeRecipeNameSnapshot({ rows }), {
+    names: ['RAW/A', 'RAW/B'],
+    complete: false
+  })
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: 'not-an-array',
+    recipe_names_complete: true,
+    rows
+  }), {
+    names: ['RAW/A', 'RAW/B'],
+    complete: false
+  })
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: ['SNAPSHOT/B', 'SNAPSHOT/A'],
+    recipe_names_complete: true,
+    rows
+  }), {
+    names: ['SNAPSHOT/B', 'SNAPSHOT/A'],
+    complete: true
+  })
 })
 
 test('fallback probing waits for Redis and runs only for a searchable zero match', () => {

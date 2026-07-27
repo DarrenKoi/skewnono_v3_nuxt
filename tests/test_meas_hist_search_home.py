@@ -108,6 +108,20 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
         self.assertEqual(result["recipe_names"], [])
         self.assertFalse(result["recipe_names_complete"])
 
+    def test_recipe_names_are_incomplete_for_rejected_date_ranges(self):
+        cases = (
+            {"date_from": "not-a-date"},
+            {"date_to": "2020-01-01"},
+            {"date_from": "2099-01-01"},
+        )
+        for params in cases:
+            with self.subTest(params=params):
+                result = search_meas_hist(recipe=["CD_BIAS"], **params)
+
+                self.assertTrue(result["out_of_retention"])
+                self.assertEqual(result["recipe_names"], [])
+                self.assertFalse(result["recipe_names_complete"])
+
     def test_route_accepts_repeated_q_parameters(self):
         app = Flask(__name__)
         app.register_blueprint(bp, url_prefix="/api")

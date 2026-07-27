@@ -425,7 +425,7 @@ def search_meas_hist(
     rows: list[MeasHistRow] = []
     recipe_names: list[str] = []
     recipe_terms = [value for value in (recipe or []) if value.strip()]
-    recipe_names_complete = bool(recipe_terms)
+    recipe_names_complete = False
     if not out_of_retention:
         # Values within a field OR together (terms); fields AND together
         # (filter context). List values are uppercased to match the stored
@@ -478,6 +478,7 @@ def search_meas_hist(
                 if (value := bucket.get("key", {}).get("group"))
                 and str(value).strip()
             })
+            recipe_names_complete = True
 
     return MeasHistSearchResponse(
         total=total,

@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from back_dev_home.meas_hist.providers import office_example
 
 
@@ -98,5 +100,44 @@ def test_recipe_name_composite_is_not_called_without_recipe_filter(monkeypatch):
 
     result = office_example.search_meas_hist(limit=1)
 
+    assert result["recipe_names"] == []
+    assert result["recipe_names_complete"] is False
+
+
+@pytest.mark.parametrize(
+    "date_params",
+    [
+        {"date_from": "not-a-date"},
+        {"date_to": "2020-01-01"},
+        {"date_from": "2099-01-01"},
+    ],
+)
+def test_recipe_names_are_incomplete_when_date_range_is_rejected(
+    monkeypatch,
+    date_params,
+):
+    start = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    monkeypatch.setattr(office_example, "_retention_window", lambda: (start, end))
+
+    def unexpected_search(*_args, **_kwargs):
+        raise AssertionError("raw search must not run outside retention")
+
+    def unexpected_composite(*_args, **_kwargs):
+        raise AssertionError("recipe aggregation must not run outside retention")
+
+    monkeypatch.setattr(office_example, "_os_search", unexpected_search)
+    monkeypatch.setattr(
+        office_example,
+        "_composite_buckets",
+        unexpected_composite,
+    )
+
+    result = office_example.search_meas_hist(
+        recipe=["CD_BIAS"],
+        **date_params,
+    )
+
+    assert result["out_of_retention"] is True
     assert result["recipe_names"] == []
     assert result["recipe_names_complete"] is False

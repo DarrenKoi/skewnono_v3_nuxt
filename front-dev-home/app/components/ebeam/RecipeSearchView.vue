@@ -7,6 +7,7 @@ import {
   activeRecipeResults,
   matchesRecipeQuery,
   matchingHistoryNames,
+  normalizeRecipeNameSnapshot,
   rankRecipeMatches,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
@@ -281,7 +282,8 @@ watch(historyProbeKey, (key) => {
         limit: HISTORY_PROBE_RAW_LIMIT
       })
       if (seq !== historyProbeSeq) return
-      const matchedNames = matchingHistoryNames(response.recipe_names, tokens)
+      const recipeNameSnapshot = normalizeRecipeNameSnapshot(response)
+      const matchedNames = matchingHistoryNames(recipeNameSnapshot.names, tokens)
       const rankedNames = rankRecipeMatches(
         matchedNames.map(name => ({
           value: name,
@@ -289,7 +291,7 @@ watch(historyProbeKey, (key) => {
         })),
         queryAtProbe
       )
-      const incomplete = !response.recipe_names_complete
+      const incomplete = !recipeNameSnapshot.complete
       // Same-scope Redis retries revalidate in the background but never erase
       // a previously usable fallback snapshot. A query/scope change or a Redis
       // match is the explicit invalidation boundary above.

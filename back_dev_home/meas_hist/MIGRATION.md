@@ -71,6 +71,8 @@
   class MeasHistSearchResponse(TypedDict):
       total: int
       capped: bool
+      recipe_names: list[str]
+      recipe_names_complete: bool
       offset: int
       limit: int
       range: dict[str, str]   # {from, to, anchor} — all YYYY-MM-DD
@@ -89,6 +91,21 @@
   before pagination (`capped: True` if `total` exceeds that ceiling), then
   paginated by `offset`/`limit` (`limit` clamped to `[1, DEFAULT_LIMIT * 10]`).
 - Office data source: <!-- OFFICE: OpenSearch meas_hist index, bool{must:[terms...]} + date range query -->
+- **레시피 이름 스냅샷:** 유효한 구조화 `recipe` 검색어가 있는 요청만
+  `recipe_names` 열거를 수행합니다. Mock provider는 모든 필터를 적용한 전체
+  후보에서 raw row 페이지를 자르기 전에 중복 없는 `full_name`을 계산합니다.
+  Office provider는 raw search와 동일한 bool query 및
+  `full_name.keyword` composite aggregation을 사용하여 전체 이름을
+  열거합니다. 따라서 열거가 정상 완료된 보존 기간 내 요청은 raw row의
+  `offset`/`limit` 및 `MAX_RESULT_WINDOW`와 관계없이
+  `recipe_names_complete: true`를 반환합니다.
+- 구조화 `recipe` 검색어가 없으면 열거를 요청하지 않으므로
+  `recipe_names: []`, `recipe_names_complete: false`를 반환합니다. 날짜가
+  잘못되었거나 요청 범위가 보존 기간보다 완전히 과거 또는 미래이면
+  `out_of_retention: true`, `recipe_names: []`,
+  `recipe_names_complete: false`를 반환하며 OpenSearch 검색과 이름 열거를
+  수행하지 않습니다. 소비자는 `recipe_names_complete: false`를 완전한
+  빈 결과로 해석하면 안 됩니다.
 - **카테고리 / tool_type:** the skewvoir 검색 UI sends `tool_type` only when
   the user picks exactly one 카테고리 (CD-SEM → `cd-sem`, HV-SEM →
   `hv-sem`). No pick (or both picked) omits the param, and the office

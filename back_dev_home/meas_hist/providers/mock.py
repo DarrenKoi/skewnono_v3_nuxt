@@ -575,7 +575,7 @@ def search_meas_hist(
         total=total,
         capped=capped,
         recipe_names=recipe_names,
-        recipe_names_complete=bool(recipe_terms),
+        recipe_names_complete=bool(recipe_terms) and not out_of_retention,
         offset=offset,
         limit=limit,
         range={

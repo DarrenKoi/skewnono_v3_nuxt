@@ -69,6 +69,30 @@ export const matchingHistoryNames = (fullNames: string[], tokens: string[]): str
   return matched
 }
 
+export const normalizeRecipeNameSnapshot = (input: {
+  recipe_names?: unknown
+  recipe_names_complete?: unknown
+  rows: Array<{ full_name?: unknown }>
+}): { names: string[], complete: boolean } => {
+  if (!Array.isArray(input.recipe_names)) {
+    return {
+      names: input.rows
+        .map(row => row.full_name)
+        .filter((name): name is string => typeof name === 'string' && name.trim().length > 0),
+      complete: false
+    }
+  }
+
+  const names = input.recipe_names.filter(
+    (name): name is string => typeof name === 'string' && name.trim().length > 0
+  )
+  return {
+    names,
+    complete: names.length === input.recipe_names.length
+      && input.recipe_names_complete === true
+  }
+}
+
 export interface RecipeSearchResult {
   recipe_name: string
   source: RecipeSearchSource

@@ -86,8 +86,8 @@ export interface MeasHistSearchParams {
 export interface MeasHistSearchResponse {
   total: number
   capped: boolean
-  recipe_names: string[]
-  recipe_names_complete: boolean
+  recipe_names?: unknown
+  recipe_names_complete?: unknown
   offset: number
   limit: number
   range: { from: string, to: string, anchor: string }
