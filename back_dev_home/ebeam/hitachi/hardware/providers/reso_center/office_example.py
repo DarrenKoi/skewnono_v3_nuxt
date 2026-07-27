@@ -1,15 +1,23 @@
 # TEMPLATE — copy to office.py at the office, then implement the function body.
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
-"""Office Reso Center adapter — NOT CONNECTED YET.
+"""Office Reso Center adapter — THIS TEMPLATE IS STILL A STUB.
 
-Source: OpenSearch alias ``reso_center_cdsem`` (CD-SEM only). Return raw docs
-ascending by ``timestamp`` scoped to ``[start, end]``; the top-level
-``providers/office.py`` dispatcher wraps them with
-``normalizers.docs_payload``.
+A working ``office.py`` exists AT THE OFFICE (2026-07-27); it is gitignored, so
+this tracked skeleton never received the body. Anyone starting from this repo
+starts from the stub below. Back-port the office body here when convenient —
+until then ``docs/datatables/hardware_reso_center_data.txt`` is the only record
+of what it does.
 
-NOTE ``reso_center_log`` is the value of each doc's ``category`` field, NOT
-the index name — querying it as an index gets index_not_found at the office.
-Source of truth: ``docs/datatables/hardware_reso_center_data.txt``.
+Source: OpenSearch alias ``reso_center_cdsem`` (CD-SEM only), office-confirmed
+2026-07-27. Return raw docs ascending by ``timestamp`` scoped to
+``[start, end]``; the top-level ``providers/office.py`` dispatcher wraps them
+with ``normalizers.docs_payload``.
+
+NOTE ``reso_center_log`` is the value of each doc's ``category`` field, NOT the
+index name — it names no index, so querying it as one fails. Every .py and .md
+in this repo said otherwise until 2026-07-27; the datatables doc was the only
+thing that had it right, and it is the source of truth when the two disagree:
+``docs/datatables/hardware_reso_center_data.txt``.
 
 Match ``reso_center/mock.py``'s flat doc shape — the 13 scalar/metadata
 fields, no focus-sweep objects:

@@ -2,13 +2,19 @@
 beam_shape, reso_center에 해당. reso_center는 CD-SEM 장비에서만 제공된다.
 
 OpenSearch index alias: reso_center_cdsem (category "reso_center_log").
+(office 확인 2026-07-27 — 사무실 어댑터가 이 alias 로 실제 조회에 성공)
 
 ★ alias 와 category 를 혼동하지 말 것.
   조회하는 index(alias)  = reso_center_cdsem
   문서 안의 category 값  = reso_center_log
-  "reso_center_log" 는 index 이름이 **아니다**. 이것을 index 로 조회하면 사무실에서
-  index_not_found 가 난다. (2026-07-27 기준 back_dev_home 의 reso_center 템플릿·
-  MIGRATION.md 는 reso_center_log 를 index 이름처럼 적고 있었고, 그것이 잘못이다.)
+  "reso_center_log" 는 index 이름이 **아니다**. 이것을 index 로 조회하면 존재하지
+  않는 index 이므로 조회가 실패한다.
+
+  이것은 실제로 있었던 오류다. 2026-07-27 이전까지 back_dev_home 의 reso_center
+  템플릿과 hardware/MIGRATION.md, 그리고 설계 문서까지 모두 reso_center_log 를
+  index 이름처럼 적고 있었다. 코드 전체가 한 가지로 일치했지만 그 일치가 곧
+  정확함은 아니었고, 옳게 적혀 있던 것은 이 문서 하나뿐이었다. 코드와 이 문서가
+  어긋나면 이 문서가 기준이다.
 
 doc 하나에는 다음과 같은 필드가 있다.
 'category': str "reso_center_log"
