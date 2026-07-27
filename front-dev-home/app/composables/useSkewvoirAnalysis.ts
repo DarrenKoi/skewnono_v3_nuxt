@@ -434,6 +434,14 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     points.sort((a, b) => a.ts - b.ts)
 
+    // Same rule the overview applies: no peer judgement on an unnamed settling
+    // MP. Comparing one measurement's warm-up shots against another's says
+    // nothing about either wafer. Points carry no verdict, which the chart
+    // already treats as normal — so the trend still draws, unflagged.
+    if (!isNamedParam(activeParam.value)) {
+      return points.map(({ ts: _ts, ...rest }) => rest)
+    }
+
     // Peer verdicts under the active method: level (mean) and spread (std), each
     // judged leave-one-out against the rest of the curated set, then combined.
     const meanV = peerVerdicts(points.map(p => p.mean), { config: anomalyCfg.value, metric: 'mean' })

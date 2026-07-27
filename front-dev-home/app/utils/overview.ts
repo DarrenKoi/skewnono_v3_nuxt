@@ -12,6 +12,7 @@ import type { EvalStatus, MethodConfig } from './anomaly/types.ts'
 import { DEFAULT_METHOD_CONFIG } from './anomaly/types.ts'
 import { siteVerdicts } from './anomaly/site.ts'
 import { isMeasuredRow } from './msrRows.ts'
+import { isNamedParam } from './skewvoirAnalysis/paramOrder.ts'
 
 export interface ParamCoverage {
   total: number // rows attempted for this parameter
@@ -51,7 +52,16 @@ export const overviewSites = (
     failed: forParam.length - measured.length
   }
 
-  const verdicts = siteVerdicts(rows, parameter, config)
+  // An UNNAMED dummy MP is a settling shot, not something anyone judges: it has
+  // no spec and no unit, and its values describe the tool warming up rather than
+  // the wafer. Peer detection over a handful of those reliably reports ordinary
+  // settling spread as wafer anomalies — a red flag on a point nobody analyses.
+  // So detection does not run for it, and the status stays 'insufficient', which
+  // is the honest "not evaluated" the UI already renders as 평가 불가.
+  //
+  // Failures are NOT suppressed: a shot that produced no value is a fact, not a
+  // judgement, so it still reaches coverage.failed and the table below.
+  const verdicts = isNamedParam(parameter) ? siteVerdicts(rows, parameter, config) : []
   // siteVerdicts assigns one shared status across the pool (peer-based), so the
   // first verdict's status represents the whole parameter. Empty → insufficient.
   const status: EvalStatus = verdicts[0]?.verdict.status ?? 'insufficient'

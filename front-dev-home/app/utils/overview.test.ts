@@ -111,3 +111,51 @@ test('multiple failed rows sort by sequence', () => {
   const failed = overviewSites(rows, 'CD_TOP', DEFAULT_METHOD_CONFIG).tableRows.filter(r => r.kind === 'failed')
   assert.deepEqual(failed.map(r => r.sequence), [5, 9])
 })
+
+// ── Unnamed dummy MP: no anomaly judgement ───────────────────────────────────
+// Settling shots have no spec and no unit, and their spread describes the tool
+// warming up. Judging them would put a red flag on a point nobody analyses.
+
+// The same shape as `sample()` but with no parameter name: an outlier-looking
+// value plus a failure. Whether these get flagged is exactly what is under test.
+const unnamedSample = (): MsrFileRow[] => [
+  row({ parameter: '', sequence: 1, cd_value: 100 }),
+  row({ parameter: '', sequence: 2, cd_value: 100 }),
+  row({ parameter: '', sequence: 3, cd_value: 100 }),
+  row({ parameter: '', sequence: 4, cd_value: 100 }),
+  row({ parameter: '', sequence: 5, cd_value: 100 }),
+  row({ parameter: '', sequence: 6, cd_value: 160, chip_number: '9, 9' }),
+  row({ parameter: '', sequence: 7, cd_value: null, mp_number: -1, chip_number: '7, 2' })
+]
+
+test('the same values ARE flagged when the parameter has a name', () => {
+  // Guards the test below: proves the suppression is what changes the outcome,
+  // not a sample too tame to flag in the first place.
+  const ov = overviewSites(sample(), 'CD_TOP', DEFAULT_METHOD_CONFIG)
+  assert.equal(ov.status, 'evaluated')
+  assert.ok(ov.outlierCount > 0)
+})
+
+test('an unnamed MP is never evaluated, so it reports no outliers', () => {
+  const ov = overviewSites(unnamedSample(), '', DEFAULT_METHOD_CONFIG)
+  assert.equal(ov.outlierCount, 0)
+  assert.equal(ov.status, 'insufficient') // "not evaluated", rendered as 평가 불가
+})
+
+test('suppression covers judgement only — an unnamed MP still reports failures', () => {
+  const ov = overviewSites(unnamedSample(), '', DEFAULT_METHOD_CONFIG)
+  assert.equal(ov.coverage.total, 7)
+  assert.equal(ov.coverage.measured, 6)
+  assert.equal(ov.coverage.failed, 1, 'a shot that produced no value is a fact, not a judgement')
+  // The table carries the failure and nothing else — no abnormal/watch rows.
+  assert.deepEqual(ov.tableRows.map(r => r.kind), ['failed'])
+})
+
+test('an unnamed MP with no failures produces an entirely empty flag set', () => {
+  // The chip badge is coverage.failed + outlierCount, so this is what makes the
+  // settling MP render without a red flag at all.
+  const rows = unnamedSample().filter(r => r.cd_value !== null)
+  const ov = overviewSites(rows, '', DEFAULT_METHOD_CONFIG)
+  assert.equal(ov.coverage.failed + ov.outlierCount, 0)
+  assert.deepEqual(ov.tableRows, [])
+})
