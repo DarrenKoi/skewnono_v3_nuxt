@@ -64,7 +64,7 @@ The dispatcher calls `providers/mock.py` or the ignored, machine-local `provider
 
 `create_app()` rejects invalid provider values and any explicit feature `=office` that cannot be honored, then logs every feature's provider and reason through `skewnono.providers`. The same resolution is exposed by `GET /api/health/providers`, which reads runtime state directly rather than through the swappable health provider. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
 
-This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. `_runtime/office_redis.py` now centralizes environment loading, one cached fail-fast Redis pool per process, and parquet-first DataFrame decoding; feature adapters still own normalization. Missing upstream data becomes JSON `502 upstream_data_error`, while bare configuration failures and Redis/OpenSearch connection or timeout failures become JSON `503` responses. Subclassed programming errors such as `KeyError` and `NotImplementedError` intentionally remain 500s.
+This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. `_runtime/office_redis.py` now centralizes environment loading, one cached fail-fast Redis pool per process, and parquet-first DataFrame decoding; feature adapters still own normalization. Missing upstream data generally becomes JSON `502 upstream_data_error`, while configuration and backing-service failures become JSON `503` responses. Activity and admin-log readers deliberately use endpoint-specific `activity_query_failed` and `log_query_failed` 503 contracts rather than falling back to mock or empty data; asynchronous log delivery instead drops on failure and exposes diagnostics through `/api/health/logging`. Subclassed programming errors such as `KeyError` and `NotImplementedError` intentionally remain 500s.
 
 ## Identity, authorization, and observability
 
@@ -72,7 +72,7 @@ This architecture [depends on integration adapters](../integrations/integration-
 
 Blocked users may still receive the SPA shell so the client can render a denial experience, but `/api/*` requests are rejected. The frontend gate in `app/app.vue` loads the current activity/user record before rendering protected content.
 
-`_logging/activity.py` records request latency, feature mapping, exceptions, and human activity. API-token traffic is logged with zero human-activity weight, so automation does not inflate usage analytics. In cloud mode, structured logs can flow to OpenSearch as described in [integration points](../integrations/integration-points.md).
+`_logging/activity.py` records a canonical request document with request ID, latency, feature, normalized FAB context, sanitized query, identity, status, exception correlation, and human-activity classification. Anonymous, API-token, failed, administrative, health, and registered background requests carry zero activity weight; authenticated successful entry/feature requests drive analytics. When OpenSearch credentials are configured and logging is not explicitly disabled, `_logging/target.py` requires `SKEWNONO_LOG_ENV=local|production` and the bounded asynchronous handler ships to the corresponding alias described in [integration points](../integrations/integration-points.md). Request bodies, headers, cookies, and authorization values are not captured.
 
 The default limit is `20 per 5 seconds`, keyed by user or remote address. The entire `msr_image` Blueprint is exempt because one gallery can open many cacheable requests. Limiter state remains process-local (`memory://`). Image download jobs select Redis shared state only when the provider is office and `REDIS_HOST` is configured; other runs use memory. Job TTL and active-job limits are enforced in both implementations, although Redis admission can briefly exceed the cap under simultaneous cross-worker creation. Multi-worker office serving therefore depends on the [measurement-image integration](../integrations/integration-points.md#measurement-image-delivery-and-cache) being configured with Redis.
 
@@ -80,7 +80,7 @@ The default limit is `20 per 5 seconds`, keyed by user or remote address. The en
 
 Deployment mode and data provider remain separate, but deployment site contributes a safe provider mode:
 
-- `_runtime/env.py:is_cloud()` decides cloud SSO, OpenSearch logging, SPA serving, and bind behavior based on installation path.
+- `_runtime/env.py:is_cloud()` decides cloud SSO, SPA serving, and bind behavior based on installation path; OpenSearch logging target selection is independent and explicit.
 - `_runtime/site.py` classifies explicit, cloud, and recognized-host runs as home or office.
 - `SKEWNONO_DATA_PROVIDER` can override that mode; each feature still needs a local office adapter before office mode selects it.
 
@@ -94,4 +94,6 @@ In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/publi
 - **Add an API feature:** add a scoped folder with `routes.py`, `data.py`, providers, contracts, and contract tests; no central registration edit is needed.
 - **Change a response:** update backend contracts, API-contract docs, composable types, consumers, fixtures, and [tests](../testing/guidance.md) together.
 - **Connect office data:** implement the tracked `providers/office_example.py`, copy it to ignored `providers/office.py`, restart so presence is rescanned, keep the route unchanged, run that feature's active-provider contract gate, and verify its row through the boot table or `/api/health/providers`. Update the migration ledger only after representative real-data and screen verification.
+- **Change auth/logging:** inspect API tokens, blocked-member behavior, activity weighting, rate limits, and multi-worker consequences.
+rescanned, keep the route unchanged, run that feature's active-provider contract gate, and verify its row through the boot table or `/api/health/providers`. Update the migration ledger only after representative real-data and screen verification.
 - **Change auth/logging:** inspect API tokens, blocked-member behavior, activity weighting, rate limits, and multi-worker consequences.

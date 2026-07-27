@@ -24,11 +24,9 @@ Do not copy credential values into code or wiki pages. Production must set `SKEW
 
 ## OpenSearch
 
-`ops_store/` is a generic OpenSearch wrapper for search, document, and index operations. Product office providers should own domain queries and normalization while reusing this transport layer. Current integrated uses include cloud request logging, optional admin-log querying, and health probes.
+`ops_store/` is a generic OpenSearch wrapper for search, document, and index operations. Product office providers own domain queries and normalization while reusing this transport layer. Canonical request logs are shipped asynchronously to the alias selected by `SKEWNONO_LOG_ENV`: `skewnono_logging_local` for `local` or `skewnono_logging` for `production`. The activity and admin-log office readers use the same selector, while their mock providers remain deterministic and network-free. Delivery is best-effort and observable through `/api/health/logging`; reader failures remain visible as endpoint-specific 503 responses instead of empty analytics.
 
-`ops_index_mgmt/` contains one-shot templates, aliases, ISM policies, rollover setup, and reindex scripts. It is operational provisioning, not request-time application code. Measurement-history aliases are likely Skewvoir office sources, but exact joins, mappings, and retention configuration remain unresolved.
-
-The admin-logs feature currently performs configured OpenSearch querying inside its nominal mock provider while its office provider is a stub. Treat that as migration debt rather than a pattern to copy.
+`ops_index_mgmt/` contains one-shot templates, aliases, ISM policies, rollover setup, and reindex scripts. It is operational provisioning, not request-time application code. `ops_index_mgmt/skewnono_logging.py` provisions both explicit-mapping rollover families at 20 GB or seven days, with 30-day local and 365-day production retention. Measurement-history aliases now back Skewvoir search, complete distinct-recipe fallback, and recipe-open location lookup, although stable joins and mappings for every MSR artifact use remain unresolved.
 
 ## Measurement-image delivery and cache
 
@@ -51,6 +49,8 @@ There are two machine-local swap surfaces: `writer/office.py` configures source 
 ## FTP ingestion
 
 `ftp_handler/` is an ingestion library, not a Flask Blueprint. It supports direct and HTTP-proxied fleet downloads, listing/size passes, background jobs, and injected archive/parse/index callbacks. The package intentionally does not import MinIO or OpenSearch; callers provide those side effects.
+
+Recipe open now [uses this boundary from the recipe workflow](../workflows/key-workflows.md#recipe-and-hardware-operations): the office adapter locates the newest valid recipe path in `meas_hist_{cdsem,hvsem}`, applies the tool-IP/subnet guard, downloads the `.idp` from tool FTP, parses it with office-only `office_utils.read_idp_info`, and normalizes the stable detail contract. `align_images` and `amp_info` remain synthetic because the parser has no source for them, and office compare remains mock-backed; only Redis-origin selections may open or compare, so OpenSearch fallback entries cannot enter those inconsistent paths.
 
 ## LLM gateway
 
@@ -88,7 +88,7 @@ The adapter is implemented, but the migration ledger has not yet recorded office
 
 Hardware's nested office adapters now pin several source contracts. FDC queries `network_fdc_cdsem` by exact `eqp_id.keyword`; its offset-less `timestamp` is interpreted as KST wall clock, and the exact discriminator is `TemperatureEChuck`. The query deliberately does not filter by fab so stale UI fab state cannot suppress a valid equipment result. `scripts/diagnose_fdc_standalone.py` reproduces field, timestamp, and clause diagnosis without repository imports for constrained office hosts.
 
-BSM's implemented adapter queries `beam_shape_cdsem` and normalizes nested 16-point `Reso EB Focus` profiles plus scalar `Reso EB Focus Range`; malformed profiles are dropped and a result exactly at the 10,000-document cap fails rather than presenting a silently truncated trend. SCE's implemented adapter combines the current Redis `sce_info` snapshot with bidaily MinIO archives and treats unsupported fabs as valid empty states. Reso Center's UI and flat 13-field contract are implemented, including derived `ResoDelta = ResoIScenter - BestReso`, but its office adapter remains a stub. These tabs remain CD-SEM-only, and tracked implementation does not equal local activation.
+BSM's implemented adapter queries `beam_shape_cdsem` and normalizes nested 16-point `Reso EB Focus` profiles plus scalar `Reso EB Focus Range`; malformed profiles are dropped and a result exactly at the 10,000-document cap fails rather than presenting a silently truncated trend. SCE's implemented adapter combines the current Redis `sce_info` snapshot with bidaily MinIO archives and treats unsupported fabs as valid empty states. MDC and Reso Center now have reconstructed tracked adapters and contract suites; Reso Center normalizes its flat 13-field source and derives `ResoDelta = ResoIScenter - BestReso`. Existing office-local copies may contain unique code, so merge these examples deliberately rather than overwriting them. These tabs remain CD-SEM-only, and tracked implementation does not equal local activation or office verification.
 
 BM/PM combines `fab_inform_notes` past events (`down_dt`, 180-day lookback) with `tool_maintenance_plan` future work (`tool_start_tm`, 90-day horizon). Shared row logic classifies BM/PM by source text, preserves unclassified rows without chart overlays, formats chart timestamps as `YYYY-MM-DD HH:MM`, and keeps engineer-note fields available for tooltips. These mappings [surface through the hardware workflow](../workflows/key-workflows.md#recipe-and-hardware-operations), not through new public endpoints.
 
@@ -118,6 +118,6 @@ A provider is ready only when it:
 - Where do stable site-layout, recipe-revision, coordinate-transform, and sequence fields originate?
 - When will the implemented measurement-image FTP/gallery path complete on-site activation and representative verification, and what authoritative office sources will serve AFM registry, detail/profile bodies, images/artifacts, activity, and analytics?
 - What store backs editable measurement-rule versions and rollback?
-- Should Redis or another shared system replace process-local access, activity, token, and limiter state in production?
+- Should Redis or another shared system replace process-local access, token, and limiter state in production? Office activity is now derived from the shared canonical OpenSearch log stream.
 
 Track startup and provider failures through the [operations runbook](../operations/runbook.md), and verify adapters using [testing guidance](../testing/guidance.md).

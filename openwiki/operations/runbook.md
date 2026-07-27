@@ -43,6 +43,8 @@ Check backing services through `GET /api/health/services` and resolved feature p
 | Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Highest precedence; explicit `office` fails if that adapter is absent |
 | Session secret | `SKEWNONO_SECRET_KEY` | Development-only fallback; set in production |
 | Admin users | `SKEWNONO_ADMIN_USERS` | Mode-specific source defaults |
+| Logging target | `SKEWNONO_LOG_ENV` | Required as `local` or `production` when OpenSearch logging credentials are configured; selects the shared writer/reader alias |
+| Logging kill switch | `OPENSEARCH_LOGGING_DISABLED` | `1`, `true`, or `yes` skips the asynchronous log shipper without changing reader/provider selection |
 | Chat gateway | `CHAT_BASE_URL` | Public OpenRouter default is usable in mock mode but blocked in office mode |
 | Extra blocked chat hosts | `CHAT_BLOCKED_HOSTS` | Comma-separated additions to the built-in office blocklist |
 
@@ -87,8 +89,8 @@ Build and package the client-only SPA from the office working tree:
 
 ```bash
 npm --prefix front-dev-home run build
-.venv/bin/python -m scripts.pack_deploy
-# Equivalent: .venv/bin/python -m scripts.pack_deploy --build
+.venv/bin/python -m scripts.deploy
+# Equivalent: .venv/bin/python -m scripts.deploy --build
 ```
 
 The default bundle is `dist/skewnono-<timestamp>/`. Packaging deliberately reads the working tree rather than `git archive`, so ignored `providers/office.py`, `back_dev_home/.env`, and `minio_handler/minio_config.py` are retained. It also writes `preflight.py`, `DEPLOY.md`, and `MANIFEST.txt`; the manifest records source provenance, dirty state, adapter roster, and pack-time warnings. Use `--strict` only when every advisory should block packaging; the current feasibility deployment permits a runnable mock-backed bundle. See `docs/deployment.md` for the authoritative transfer procedure.
@@ -130,6 +132,18 @@ npm run lint:md
 ```
 
 For a provider migration, rerun the feature contract gate with its office override. See [testing guidance](../testing/guidance.md).
+
+## OpenSearch logging rollout and diagnosis
+
+Logging writes and activity/admin-log reads share the target resolved from `SKEWNONO_LOG_ENV`; provider selection alone does not choose an alias. Before office activation, copy the tracked activity and admin-log adapters, review the read-only provisioning plan, then apply it only from an authorized company-network environment:
+
+```bash
+.venv/bin/python ops_index_mgmt/skewnono_logging.py --environment all --dry-run
+# Mutates templates, policies, backing indices, and aliases after review:
+.venv/bin/python ops_index_mgmt/skewnono_logging.py --environment all
+```
+
+The expected write aliases are `skewnono_logging_local-000001 -> skewnono_logging_local` and `skewnono_logging-000001 -> skewnono_logging`. Restart Flask and inspect `GET /api/health/logging`: `installed: false` means the shipper was disabled or credentials were absent; an installed response exposes target, queue depth, retry/failure/drop totals, and last success/failure timestamps. Delivery failures never fail the originating request, so rising drops or a stale success timestamp are the operational alarm. By contrast, `/activity` and `/admin/logs` surface OpenSearch/configuration failures as `503 activity_query_failed` and `503 log_query_failed`; do not treat those as valid empty datasets. This rollout [activates the shared OpenSearch integration](../integrations/integration-points.md#opensearch), and real-data verification remains required before the migration ledger moves from implemented to office.
 
 ## Troubleshooting
 
