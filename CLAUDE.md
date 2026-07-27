@@ -169,7 +169,14 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 
 ## Markdown Notes
 
-- Run `npm run lint:md` after editing Markdown files.
+- Run `npm run lint:md` after editing Markdown files. It covers the root `*.md`,
+  `docs/`, `back_dev_home/` (the per-feature `MIGRATION.md` files) and
+  `front-dev-home/` — every tree whose Markdown we author.
+- Deliberately **not** linted, so do not widen the glob to reach them: vendored
+  copies (`ftp_handler/`, `minio_handler/`, `ops_store/`, `ops_index_mgmt/`,
+  `bento_agents.md`) must stay byte-identical to their upstream, generated
+  `openwiki/` pages get rewritten by the refresh job, and `.remember/`,
+  `.scratch/` and `.superpowers/` are scratch.
 - Use markdownlint `MD060` `compact` table style for every Markdown table.
 - Write `docs/` and study Markdown in Korean when it is intended for teammate sharing.
 - Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.
