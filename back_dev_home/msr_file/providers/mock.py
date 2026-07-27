@@ -1,7 +1,13 @@
 """msr_file — MSR raw measurement detail mock for 스큐보아 (Skewvoir).
 
 Spec: docs/datatables/msr_file_pickle.txt
-Each row = "하나의 MSR 안에서 특정 sequence, 특정 parameter로 측정된 1개 측정값".
+Each row is one measurement, and one measurement owns exactly one sequence
+number: row 1건 = 측정 1건 = sequence 1개입니다 (office 확인 2026-07-27,
+docs/datatables/msr_file_pickle.txt). 같은 지점에서 여러 parameter가 측정되어도
+parameter마다 서로 다른 sequence를 가지므로, row와 sequence는 항상 1:1로
+대응합니다 — 예전 표현("특정 sequence, 특정 parameter로 측정된 1개 측정값")은
+sequence와 parameter를 각각 독립된 축처럼 보이게 해, 실제로는 row 하나에
+sequence 하나만 대응한다는 사실을 가렸습니다.
 
 Beyond per-measurement CD values, the MinIO-parsed pickle carries FDC telemetry
 (fixed_fdc / dynamic_fdc) that lets 스큐보아 cross-check CD drift against tool
@@ -580,7 +586,8 @@ def _build_rows(
 
     # A STEP is one measurement point (one die). Each parameter measured there is
     # its own measurement and takes the next global sequence number — so two
-    # parameters at one point share chip/stage but never share a sequence.
+    # parameters at one point share chip/stage but never share a sequence
+    # (office 확인 2026-07-27, docs/datatables/msr_file_pickle.txt).
     # A distinct name from the dummy loop's own `sequence` above: this counter
     # STARTS at num_dummy (the settling shots already claimed 1..num_dummy) and
     # is not a reset of that binding, it is a continuation of it.
@@ -787,7 +794,8 @@ def get_msr_file(
     rows = _build_rows(msr, class_name, total_images, health)
 
     # One row is one measurement and each carries its own sequence, so this set
-    # is simply every row — the office invariant len(rows) == len(dynamic_fdc).
+    # is simply every row — the office invariant len(rows) == len(dynamic_fdc)
+    # (office 확인 2026-07-27, docs/datatables/msr_file_pickle.txt).
     sequences = sorted({row["sequence"] for row in rows})
     fixed_fdc, dynamic_fdc, fdc_params = _build_fdc(msr, sequences, health)
 
