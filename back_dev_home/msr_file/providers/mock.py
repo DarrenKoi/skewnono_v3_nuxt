@@ -512,7 +512,11 @@ def _build_rows(
     # Deliberately still bounded by total_images // 2 rather than that product —
     # dividing by num_params drops low-image MSRs (min total_images is 42) below
     # 20 steps, and the every-20th-step failure rule would then never fire, so
-    # those MSRs would carry no null-cd_value rows at all.
+    # those MSRs would carry no null-cd_value rows at all. Note this bound no
+    # longer caps total row count the way it once did: rows = num_measurements *
+    # num_params, so a 3-parameter MSR can claim ~1.5x more measurement points
+    # than the parent's total_images ever produced — total_images // 2 only
+    # bounds the STEP count now, not the point count it used to approximate.
     num_measurements = min(rng.randint(20, 80), max(1, total_images // 2))
     num_params = min(rng.randint(1, 3), len(params_pool))
     selected_params = rng.sample(params_pool, num_params)
