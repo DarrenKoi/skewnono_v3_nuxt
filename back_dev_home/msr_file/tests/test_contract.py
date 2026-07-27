@@ -153,3 +153,40 @@ def test_dummy_mp_gets_its_own_unnamed_summary():
     dummies = [row for row in payload["rows"] if row["parameter"] == ""]
     assert summary["count"] == len(dummies)
     assert summary["unit"] == "", "an unnamed point has no unit to report"
+
+
+def test_sequence_is_unique_per_row():
+    """`sequence` is a global running counter: one number per measurement."""
+    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
+    assert result is not None
+    sequences = [row["sequence"] for row in result["rows"]]
+    assert len(sequences) == len(set(sequences)), "a sequence number is reused across rows"
+    assert sequences == sorted(sequences), "rows are not in measurement order"
+
+
+def test_row_count_matches_dynamic_fdc_count():
+    """The office invariant: one row, one measurement, one dynamic_fdc entry."""
+    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
+    assert result is not None
+    assert len(result["rows"]) == len(result["dynamic_fdc"])
+
+
+def test_dynamic_fdc_keys_are_exactly_the_row_sequences():
+    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
+    assert result is not None
+    assert {str(row["sequence"]) for row in result["rows"]} == set(result["dynamic_fdc"])
+
+
+def test_parameters_measured_at_one_point_share_its_die():
+    """Consecutive sequences at the same measurement point keep that point's
+    chip/stage coordinates — only the parameter differs."""
+    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
+    assert result is not None
+    params = {row["parameter"] for row in result["rows"]}
+    if len(params) < 2:
+        return  # single-parameter MSR — nothing to pair up
+    by_chip: dict[str, set[str]] = {}
+    for row in result["rows"]:
+        by_chip.setdefault(row["chip_number"], set()).add(row["parameter"])
+    assert any(len(v) > 1 for v in by_chip.values()), \
+        "no die carries more than one parameter — points are not shared"

@@ -501,8 +501,12 @@ def _build_rows(
     rng = random.Random(seed)
 
     params_pool = _resolve_params(class_name)
-    # num_measurements stays under total_images // 2 so detail never claims
-    # more measurement points than the parent measurement produced images.
+    # STEP count, not measurement-point count: each step now emits one row (one
+    # sequence) PER PARAMETER, so points are num_measurements * num_params.
+    # Deliberately still bounded by total_images // 2 rather than that product —
+    # dividing by num_params drops low-image MSRs (min total_images is 42) below
+    # 20 steps, and the every-20th-step failure rule would then never fire, so
+    # those MSRs would carry no null-cd_value rows at all.
     num_measurements = min(rng.randint(20, 80), max(1, total_images // 2))
     num_params = min(rng.randint(1, 3), len(params_pool))
     selected_params = rng.sample(params_pool, num_params)
@@ -528,11 +532,11 @@ def _build_rows(
     # Per-parameter wafer CD model + a handful of injected outliers, so most sites
     # sit tight (few flags) while the 이상 UI still has genuine excursions to show.
     fields = {p: _cd_field(msr, p, health) for p in selected_params}
-    measured_seqs = [s for s in range(1, num_measurements + 1) if s % 20 != 0]
+    measured_steps = [s for s in range(1, num_measurements + 1) if s % 20 != 0]
     outliers_by_param: dict[str, dict[int, float]] = {}
     for p in selected_params:
         prng = random.Random(_seed(f"{msr}:{p}:outliers", 733))
-        picks = prng.sample(measured_seqs, min(prng.choice((0, 0, 1, 1, 2)), len(measured_seqs)))
+        picks = prng.sample(measured_steps, min(prng.choice((0, 0, 1, 1, 2)), len(measured_steps)))
         outliers_by_param[p] = {
             s: (1.0 if prng.random() < 0.5 else -1.0) * abs(fields[p].mean) * prng.uniform(0.24, 0.40)
             for s in picks
@@ -574,13 +578,13 @@ def _build_rows(
             meas_kind=_MEAS_KINDS[(sequence + seed) % len(_MEAS_KINDS)],
         ))
 
-    # `step` is the point's position within the RECIPE's own run (1..N) and drives
-    # every generated value; `sequence` is its position in the measurement as a
-    # whole, which the dummy settling shots above occupy the front of. Keeping the
-    # two apart means adding dummies shifts the emitted sequence numbers without
-    # disturbing any other value the generator produces.
+    # A STEP is one measurement point (one die). Each parameter measured there is
+    # its own measurement and takes the next global sequence number — so two
+    # parameters at one point share chip/stage but never share a sequence.
+    # Starts at num_dummy, not 0: the settling shots above already claimed
+    # sequences 1..num_dummy, and the running counter must not repeat them.
+    sequence = num_dummy
     for step in range(1, num_measurements + 1):
-        sequence = num_dummy + step
         seq_frac = (step - 1) / span
 
         # Die index (chip_number) + its physical stage position (nm, corner
@@ -602,9 +606,8 @@ def _build_rows(
             center_x_nm + off_x - _WAFER_CENTER_NM, center_y_nm + off_y - _WAFER_CENTER_NM
         ) / _WAFER_RADIUS_NM
 
-        # Every 20th sequence carries point METADATA but no point DATA (spec rule 9).
-        # Such a row has no measurement, so it has no cd_value, no image and no
-        # score. Emitting a float here is the bug this rewrite exists to kill.
+        # Every 20th STEP carries point METADATA but no point DATA (spec rule 9).
+        # The whole point failed, so every parameter measured there fails with it.
         empty = step % 20 == 0
 
         if empty:
@@ -633,6 +636,7 @@ def _build_rows(
         object_type = _OBJECT_TYPES[(step + seed) % len(_OBJECT_TYPES)]
 
         for parameter in selected_params:
+            sequence += 1
             rows.append(MsrFileRow(
                 msr=msr,
                 sequence=sequence,
@@ -781,8 +785,8 @@ def get_msr_file(
     health = _health(msr)
     rows = _build_rows(msr, class_name, total_images, health)
 
-    # FDC is sampled once per sequence, so collapse the (sequence × parameter)
-    # rows down to the distinct sequence list before building telemetry.
+    # One row is one measurement and each carries its own sequence, so this set
+    # is simply every row — the office invariant len(rows) == len(dynamic_fdc).
     sequences = sorted({row["sequence"] for row in rows})
     fixed_fdc, dynamic_fdc, fdc_params = _build_fdc(msr, sequences, health)
 
