@@ -3,6 +3,15 @@
 // (this pass) and, later, a recipe switcher in open/lateral/meas-hist.
 
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
+import {
+  capabilitiesForRecipeSelection,
+  normalizeRecipeSelectionEntries,
+  promoteRecipeSelectionsToRedis,
+  removeRecipeSelection,
+  upsertRecipeSelection,
+  type RecipeSearchSource,
+  type RecipeSelectionEntry
+} from '~/utils/recipeSelection'
 
 const storageKey = (toolType: string, fab: string) =>
   `skewnono:recipe-search.selection.${toolType}.${fab || 'ALL'}`
@@ -10,34 +19,52 @@ const storageKey = (toolType: string, fab: string) =>
 export const useRecipeSelectionSet = (toolType: RecipeSearchToolType, fab: string) => {
   const scope = `${toolType}:${fab || 'ALL'}`
 
-  const selected = usePersistedState<string[]>(
+  const entries = usePersistedState<RecipeSelectionEntry[]>(
     `recipe-search:selection:${scope}`,
     storageKey(toolType, fab),
-    { default: () => [], normalize: normalizeStringArray }
+    { default: () => [], normalize: normalizeRecipeSelectionEntries }
   )
 
-  const has = (name: string) => selected.value.includes(name)
+  const selected = computed(() => entries.value.map(entry => entry.name))
+  const capabilities = computed(() => capabilitiesForRecipeSelection(entries.value))
+  const has = (name: string) => entries.value.some(entry => entry.name === name)
+  const sourceOf = (name: string): RecipeSearchSource =>
+    entries.value.find(entry => entry.name === name)?.source ?? 'redis'
 
-  const add = (name: string) => {
-    const trimmed = name.trim()
-    if (!trimmed || has(trimmed)) return
-    selected.value = [...selected.value, trimmed]
+  const add = (name: string, source: RecipeSearchSource = 'redis') => {
+    entries.value = upsertRecipeSelection(entries.value, name, source)
   }
 
   const remove = (name: string) => {
-    selected.value = selected.value.filter(existing => existing !== name)
+    entries.value = removeRecipeSelection(entries.value, name)
   }
 
-  const toggle = (name: string) => {
+  const toggle = (name: string, source: RecipeSearchSource = 'redis') => {
     if (has(name)) remove(name)
-    else add(name)
+    else add(name, source)
   }
 
   const clear = () => {
-    selected.value = []
+    entries.value = []
   }
 
-  const count = computed(() => selected.value.length)
+  const promoteRedis = (names: string[]) => {
+    entries.value = promoteRecipeSelectionsToRedis(entries.value, names)
+  }
 
-  return { selected, has, add, remove, toggle, clear, count }
+  const count = computed(() => entries.value.length)
+
+  return {
+    entries,
+    selected,
+    capabilities,
+    count,
+    has,
+    sourceOf,
+    add,
+    remove,
+    toggle,
+    clear,
+    promoteRedis
+  }
 }
