@@ -33,10 +33,11 @@ redis에는 가장 최근 mdc 값들을 fab_name 별로 저장
 
 ★ 연결됨 — 사무실에서 구현 완료 (2026-07-27, 담당자 확인).
   구현체는 providers/mdc/office.py 이며 gitignore 대상이라 집(home) workspace 에는
-  없습니다. 집에 있는 office_example.py 는 아직 stub 이므로, 이 문서가 사무실
-  구현의 내용을 확인할 수 있는 유일한 기록입니다.
-  ※ 템플릿(office_example.py)에 구현을 역반영하지 않으면 다음 사람은 stub 에서
-     다시 시작하게 됩니다.
+  없습니다.
+  ※ 2026-07-27: 집의 템플릿(office_example.py)은 이제 stub 이 아닙니다. 이 문서와
+     형제 어댑터를 근거로 본문을 **재구성**해 채웠습니다. 사무실 사본과 같다는
+     보장은 없으므로, 사무실에서 `cp` 하기 전에 기존 office.py 와 반드시 diff
+     하십시오. 자세한 것은 hardware/MIGRATION.md.
 
 저장 위치 (담당자 확인 2026-07-27)
 

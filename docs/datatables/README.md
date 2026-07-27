@@ -55,21 +55,26 @@
   (`get_recipe_open_data` / `get_recipe_compare_data`)는 mock 을 re-export 합니다.
   IDP 원본이 사무실에서 준비되어야 연결할 수 있습니다.
 
-## 사무실에만 있고 git 에 없는 구현
+## 사무실 구현과 집 템플릿이 갈라진 항목
 
 `providers/office.py` 는 gitignore 대상이라 사무실에서 구현해도 git 에 남지
 않습니다. 프로젝트 규약은 **`office_example.py`(추적됨)를 구현하고 `cp` 해서
 `office.py` 를 만드는 것**이므로, 템플릿에 역반영되지 않은 구현은 다음 사람이
 stub 에서 다시 시작하게 만듭니다.
 
-2026-07-27 기준 아래 두 어댑터가 이 상태입니다 — 사무실에서는 동작하지만 집의
-템플릿은 아직 `NotImplementedError` stub 입니다.
+`hardware/mdc` 와 `hardware/reso_center` 가 2026-07-27 에 이 상태였습니다 —
+사무실에서는 동작하는데 집의 템플릿은 stub 이었습니다. 템플릿 본문을 이 문서들과
+형제 어댑터(mdc↔sce, reso_center↔bsm/sharpness)를 근거로 **집에서 재구성**해
+채웠습니다.
 
-- `hardware/mdc` — `providers/mdc/office_example.py`
-- `hardware/reso_center` — `providers/reso_center/office_example.py`
+★ 따라서 이 두 개는 사무실에서 `cp` 하기 전에 기존 office.py 와 **반드시 diff**
+  해야 합니다. 사무실 사본은 실데이터로 검증된 코드이고 재구성본은 아닙니다.
+  둘이 다르면 대체로 — 데이터에 관한 것은 사무실 사본이, 계약(field 이름,
+  long format, 에러 처리)에 관한 것은 템플릿이 맞습니다. 한쪽을 고르지 말고
+  합친 뒤 결과를 템플릿으로 되돌려 주십시오.
 
-두 문서(`hardware_mdc_setting.txt`, `hardware_reso_center_data.txt`)의 "어댑터
-소비 규약" 절이 현재 그 구현을 확인할 수 있는 유일한 기록입니다.
+재구성이 근거로 삼은 것과 확인이 필요한 지점은 각 문서의 "어댑터 소비 규약" 절과
+템플릿 docstring 의 OFFICE-VERIFY 항목에 적혀 있습니다.
 
 ## 파일 이름 규칙
 

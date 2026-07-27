@@ -46,10 +46,11 @@ doc 하나에는 다음과 같은 필드가 있다.
 
 ★ 연결됨 — 사무실에서 구현 완료 (2026-07-27, 담당자 확인).
   구현체는 providers/reso_center/office.py 이며 gitignore 대상이라 집(home)
-  workspace 에는 없습니다. 집에 있는 office_example.py 는 아직 stub 이므로,
-  이 문서가 사무실 구현의 내용을 확인할 수 있는 유일한 기록입니다.
-  ※ 템플릿(office_example.py)에 구현을 역반영하지 않으면 다음 사람은 stub 에서
-     다시 시작하게 됩니다 — 아래 "템플릿 역반영" 참고.
+  workspace 에는 없습니다.
+  ※ 2026-07-27: 집의 템플릿(office_example.py)은 이제 stub 이 아닙니다. 이 문서와
+     형제 어댑터를 근거로 본문을 **재구성**해 채웠습니다. 사무실 사본과 같다는
+     보장은 없으므로, 사무실에서 `cp` 하기 전에 기존 office.py 와 반드시 diff
+     하십시오. 자세한 것은 hardware/MIGRATION.md.
 
 build_reso_center_docs(eqp_id, fab_name, start, end) -> list[dict]
 
@@ -73,9 +74,14 @@ build_reso_center_docs(eqp_id, fab_name, start, end) -> list[dict]
 
 CD-SEM 전용입니다.
 
-템플릿 역반영 (집에서 할 일)
+템플릿 재구성에서 확인이 필요한 지점 (OFFICE-VERIFY)
 
-  office.py 는 gitignored 이므로 사무실 구현이 git 에 남지 않습니다. 이 프로젝트의
-  규약은 "office_example.py 를 구현하고 cp 해서 office.py 를 만든다" 이므로,
-  사무실 구현 내용이 템플릿으로 돌아와야 다음 pull 이후에도 보존됩니다.
-  현재 집의 office_example.py 는 아직 NotImplementedError stub 입니다.
+  아래 두 가지는 집에서 확인할 수 없어 형제 index 의 관례를 따라 가정했습니다.
+  사무실 office.py 와 다르면 사무실 쪽이 맞습니다.
+
+  1. eqp_ip / fab_name 을 .keyword subfield 로 매칭한다고 가정했습니다.
+     beam_shape 가 그렇게 하기 때문인데, 형제 index 끼리 규칙이 갈립니다 —
+     sharpness_monitor_cdsem 의 ip 는 bare keyword 로 명시 매핑되어 있습니다.
+     이 index 도 bare keyword 라면 .keyword 를 떼야 term 이 매칭됩니다.
+  2. timestamp 가 offset 없는 KST wall clock 이라고 가정했습니다. Z 접미사가
+     붙어 저장되면 조회 창이 9시간 밀립니다.

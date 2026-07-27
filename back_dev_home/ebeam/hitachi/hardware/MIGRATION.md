@@ -13,26 +13,36 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
 | `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape_cdsem` (type:total) | written — `cp` + verify |
-| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_cdsem` (category:reso_center_log) | stub — office.py written at the office, back-port pending |
-| `mdc/` | `build_mdc_settings` + `build_mdc_history` | Redis `mdc_setting` hash + MinIO `hitachi_sem/cdsem/mdc_setting/` | stub — office.py written at the office, back-port pending |
+| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_cdsem` (category:reso_center_log) | written (reconstructed) — `cp` + **diff vs the office copy** |
+| `mdc/` | `build_mdc_settings` + `build_mdc_history` | Redis `mdc_setting` hash + MinIO `hitachi_sem/cdsem/mdc_setting/` | written (reconstructed) — `cp` + **diff vs the office copy** |
 | `sce/` | `build_sce_settings` + `build_sce_history` | Redis `sce_info` hash + MinIO `hitachi_sem/cdsem/sce_info/` | written — `cp` + verify |
 
-`reso_center/` and `mdc/` are a special case as of 2026-07-27: a working
-`office.py` exists **at the office**, but `office.py` is gitignored, so the
-tracked templates here are still `NotImplementedError` stubs. Anyone pulling
-this repo starts from the stub. Back-port those two bodies into their
-`office_example.py` when convenient; until then the only record of what they do
-is `docs/datatables/hardware_reso_center_data.txt` and
-`docs/datatables/hardware_mdc_setting.txt`. Both now carry the concrete sources,
-so a back-port is transcription, not rediscovery: mdc reads the Redis hash
-`mdc_setting` (field = `fab_name`) plus dated MinIO JSON under
-`hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json` — the same two-tier
-shape as `sce/`, which is already implemented here and worth copying from, with
-one thing that must NOT be copied: `sce/` treats a missing hash field or archive
-file as a legitimate empty, because R3/R4 don't run SCE and M10 has no data yet.
-MDC covers every fab including R3/R4, so the same absence is a collection
-failure. Render empty if you like, but surface it — silently reusing SCE's
-graceful-empty path would hide a real outage behind a blank tab.
+`reso_center/` and `mdc/` need one extra step the others do not. A working
+`office.py` for both has existed **at the office** since 2026-07-27, but
+`office.py` is gitignored and never reached this repo. Rather than leave the
+tracked templates as stubs, their bodies were **reconstructed at home** from
+`docs/datatables/hardware_reso_center_data.txt` and
+`docs/datatables/hardware_mdc_setting.txt` plus the sibling adapters
+(`sce/` for mdc's two-tier Redis+MinIO shape, `bsm/`+`sharpness/` for
+reso_center's query and identity hop).
+
+**So `cp` is not automatically safe for these two.** Diff the template against
+the existing `office.py` first: the office copy is verified against real data,
+the reconstruction is not. Where they disagree, the office copy is probably
+right about the data and the template is probably right about the contract
+(field names, long-format shape, error behaviour) — merge rather than pick a
+side, then bring the result back here so the next pull starts from it.
+
+Two specifics worth knowing before that diff. mdc's history builder receives no
+`fab_name` (the dispatcher calls it `(eqp_id, start, end)`) while the MinIO
+archive is filed per fab, so the template recovers the fab from the `sem_list`
+roster — check whether the office copy does the same or takes another route.
+And `sce/` treats a missing hash field or archive file as a legitimate empty,
+because R3/R4 don't run SCE and M10 has no data yet; MDC covers every fab
+including R3/R4, so the same absence is a collection failure. The template logs
+a warning and returns empty. Silently reusing SCE's graceful-empty path would
+hide a real outage behind a blank tab, and `tests/test_mdc_office.py` pins
+against exactly that.
 
 `fdc/office_example.py` is implemented, not a stub: its body is written
 against the `network_fdc_cdsem` layout in

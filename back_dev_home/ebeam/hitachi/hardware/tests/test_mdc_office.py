@@ -5,16 +5,11 @@ gitignored `mdc/office.py`, and never touch a cluster: every test either calls
 the template directly or hands the dispatcher a fabricated tab module. A test
 here that takes measurable time has opened a socket and is wrong.
 
-`mdc/office_example.py` is still a STUB — both builders raise
-`NotImplementedError` (hardware/MIGRATION.md lists it as such). So unlike the
-FDC and sharpness suites there is no mapping logic to feed documents to yet,
-and pretending otherwise would just pin an empty file. What IS pinnable, and
-what this file pins, is everything the eventual implementation has to land
-inside:
+`mdc/office_example.py` was a STUB until 2026-07-27 and is now implemented
+(Redis `mdc_setting` snapshot + dated MinIO archive). The suite kept every
+structural check it had and gained tests for the mapping the implementation
+brought with it. What it pins:
 
-* the refusal itself — a stub must raise, never return `{}` or `[]`, because
-  an empty settings snapshot renders as "this tool has no MDC calibration"
-  rather than as "nobody wired this yet";
 * the call shape the dispatcher uses — both builders are called
   POSITIONALLY, and `build_mdc_history` takes no `fab_name` while
   `build_mdc_settings` does. An implementation that "helpfully" adds a fab
@@ -22,16 +17,33 @@ inside:
 * which window bound becomes the as-of date (`end`, not `start`);
 * the raw shapes the two builders must return, pinned against `mdc/mock.py`
   and against `HardwarePayload` — "resemble the mock" meaning the contract
-  shape, never the mock's fabricated numbers.
+  shape, never the mock's fabricated numbers;
+* the pure parsers, the way `test_sce.py` pins its sibling's — Redis blob
+  deserialization and condition normalization, no cluster involved;
+* **that an empty result is never silent.** This replaces the old
+  "the stub must raise" test and preserves its point. MDC covers every fab
+  including R3/R4, so an absent snapshot is a collection failure, not a fab
+  that skips MDC — if it returned `{}` quietly, the tab would render as
+  "this tool has no MDC calibration" and an engineer would believe it. SCE
+  may return a quiet empty; MDC may not.
 
-Together these are the checks that would have caught the two mistakes an
+Together these are the checks that would have caught the three mistakes an
 office implementation of this tab is most likely to make: returning a wide
-per-condition record instead of the long format the 시계열 sub-tab reads, and
-dropping the in-fab siblings the 비교 sub-tab exists for.
+per-condition record instead of the long format the 시계열 sub-tab reads,
+dropping the in-fab siblings the 비교 sub-tab exists for, and copying SCE's
+graceful-empty path into a tab where empty means broken.
+
+Every test here exercises the TRACKED template and never opens a socket: the
+I/O paths are driven with fabricated Redis/MinIO doubles. A test that takes
+measurable time has opened a connection and is wrong.
 """
 
 import inspect
-from datetime import datetime, timedelta
+import json
+import logging
+import pickle
+import sys
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -71,28 +83,198 @@ OFFICE_HISTORY = [
 ]
 
 
-# ──────────────────────────── the stub's refusal ────────────────────────────
+# ───────────────────── pure parsers (no Redis, no MinIO) ────────────────────
 
-@pytest.mark.parametrize("builder", BUILDERS)
-def test_the_stub_refuses_by_name_rather_than_returning_empty_data(builder):
-    """An unwired builder must raise, and say which builder and where to look.
+def test_parse_fab_blob_reads_json_and_falls_back_to_pickle():
+    # The collector writes JSON; the pickle branch covers a fab that lands via
+    # pickle.dumps instead. Both must yield the same map rather than one of
+    # them blanking the 비교 table.
+    payload = {"ECDX100": {"800V_HR_0Deg": "1.000431"}}
+    assert office._parse_fab_blob(json.dumps(payload).encode(), "M16A") == payload
+    assert office._parse_fab_blob(pickle.dumps(payload), "M16A") == payload
 
-    The alternative — returning `{}` / `[]` — is the failure mode this whole
-    per-tab design is meant to avoid: the tab renders successfully, shows no
-    calibration, and an engineer concludes the tool has none. Only the ABSENCE
-    of `mdc/office.py` may fall back to mock (pinned in test_contract.py);
-    a present-but-unimplemented adapter must fail loudly.
-    """
-    args = {
-        "build_mdc_settings": ("ECDX100", "M16A", ANCHOR),
-        "build_mdc_history": ("ECDX100", START, ANCHOR),
-    }[builder]
-    with pytest.raises(NotImplementedError) as excinfo:
-        getattr(office, builder)(*args)
 
-    message = str(excinfo.value)
-    assert builder in message
-    assert "MIGRATION.md" in message
+def test_parse_fab_blob_rejects_a_non_mapping_with_a_named_lookup_error():
+    with pytest.raises(LookupError) as excinfo:
+        office._parse_fab_blob(json.dumps(["not", "a", "map"]).encode(), "M16A")
+    assert "M16A" in str(excinfo.value)
+
+
+def test_normalize_conditions_keeps_strings_and_stringifies_numbers():
+    # Values are SETTINGS, compared across tools character-for-character, so
+    # they stay strings. A writer-side type change (str -> float) must not blank
+    # the row, so a numeric cell is stringified rather than dropped.
+    out = office._normalize_conditions(
+        {"800V_HR_0Deg": "1.004984", "500V_HR_0Deg": 1.004096}
+    )
+    assert out == {"800V_HR_0Deg": "1.004984", "500V_HR_0Deg": "1.004096"}
+    assert all(isinstance(v, str) for v in out.values())
+
+
+def test_normalize_conditions_drops_null_and_nested_values():
+    # `None` rendered into a settings cell reads as the literal text "None",
+    # which an engineer sees as a calibration value rather than as missing data.
+    out = office._normalize_conditions(
+        {"good": "1.0001", "null": None, "nested": {"x": 1}, "listy": [1, 2]}
+    )
+    assert out == {"good": "1.0001"}
+
+
+def test_normalize_fab_map_drops_tools_whose_entries_are_all_unusable():
+    out = office._normalize_fab_map(
+        {"ECDX100": {"800V_HR_0Deg": "1.0004"}, "ECDX214": {"800V_HR_0Deg": None}}
+    )
+    assert set(out) == {"ECDX100"}
+
+
+# ──────────────── an empty result is reported, never silent ─────────────────
+#
+# This section replaces the old "the stub must raise" test. Same point, moved
+# forward: MDC covers every fab including R3/R4 (docs/datatables/
+# hardware_mdc_setting.txt), so an absent snapshot is a collection failure. If
+# it came back as a quiet `{}` the tab would render "no MDC calibration" and be
+# believed. SCE may return a quiet empty for R3/R4; MDC may not.
+
+class _FakeRedis:
+    def __init__(self, fields=None, exists=True):
+        self._fields = fields or {}
+        self._exists = exists
+
+    def hkeys(self, _key):
+        return [f.encode() for f in self._fields]
+
+    def hget(self, _key, field):
+        return self._fields.get(field)
+
+    def exists(self, _key):
+        return 1 if self._exists else 0
+
+
+def test_a_fab_missing_from_the_snapshot_returns_empty_but_logs_a_warning(
+    monkeypatch, caplog
+):
+    monkeypatch.setattr(office, "redis_client", lambda: _FakeRedis(fields={}))
+    with caplog.at_level(logging.WARNING):
+        out = office.build_mdc_settings("ECDX100", "M16A", ANCHOR)
+
+    assert out == {}  # the tab still renders; blanking it helps nobody
+    assert "M16A" in caplog.text
+    # The message must say WHY this is abnormal, or the next reader re-derives
+    # the SCE comparison from scratch.
+    assert "every fab" in caplog.text
+
+
+def test_a_missing_redis_key_raises_because_the_collector_never_ran(monkeypatch):
+    # Distinct from one absent fab: no key at all means the MDC collector has
+    # not populated this instance, which is an outage, not a data gap.
+    monkeypatch.setattr(
+        office, "redis_client", lambda: _FakeRedis(fields={}, exists=False)
+    )
+    with pytest.raises(LookupError) as excinfo:
+        office.build_mdc_settings("ECDX100", "M16A", ANCHOR)
+    assert office.REDIS_KEY in str(excinfo.value)
+
+
+def test_settings_returns_the_whole_fab_map_as_the_comparison_cohort(monkeypatch):
+    # The 비교 sub-tab compares the selected tool against its in-fab siblings,
+    # and the fab map IS that cohort — filtering it down to the selected tool
+    # would leave nothing to compare against.
+    blob = json.dumps(OFFICE_SETTINGS).encode()
+    monkeypatch.setattr(
+        office, "redis_client", lambda: _FakeRedis(fields={"M16A": blob})
+    )
+    out = office.build_mdc_settings("ECDX100", "M16A", ANCHOR)
+    assert set(out) == set(OFFICE_SETTINGS)
+    assert "ECDX100" in out
+
+
+# ──────────────────── history: long format from the archive ─────────────────
+
+class _FakeFolder:
+    def __init__(self, day):
+        self.date = day
+
+
+class _FakeStore:
+    """A MinIO double: date folders plus a {date: payload} archive."""
+
+    def __init__(self, archive):
+        self._archive = archive
+
+    def list_date_folders(self, _base):
+        return [_FakeFolder(day) for day in sorted(self._archive)]
+
+    def get_json(self, key):
+        day = date.fromisoformat("/".join(key.split("/")[-4:-1]).replace("/", "-"))
+        return self._archive[day]
+
+
+def _wire_archive(monkeypatch, archive, fab="M16A"):
+    monkeypatch.setattr(office, "_resolve_fab", lambda _eqp: fab)
+    monkeypatch.setitem(
+        sys.modules, "minio_handler",
+        SimpleNamespace(MinioObject=lambda: _FakeStore(archive)),
+    )
+
+
+def test_history_emits_one_record_per_date_and_condition_in_long_format(monkeypatch):
+    """LONG format is the contract: the 시계열 chart reads one row per
+    (timestamp, beam_condition). A wide row per date would need it rewritten."""
+    _wire_archive(monkeypatch, {
+        date(2026, 5, 11): {"ECDX100": {"800V_HR_0Deg": "1.0001",
+                                        "800V_HR_90Deg": "0.9993"}},
+        date(2026, 5, 18): {"ECDX100": {"800V_HR_0Deg": "1.0004",
+                                        "800V_HR_90Deg": "0.9982"}},
+    })
+    out = office.build_mdc_history("ECDX100", START, ANCHOR)
+
+    assert len(out) == 4
+    assert set(out[0]) == {"timestamp", "beam_condition", "mdc_value"}
+    assert all(isinstance(r["mdc_value"], float) for r in out)
+    # Ascending by (timestamp, condition), matching the mock's ordering.
+    assert [r["timestamp"] for r in out] == [
+        "2026-05-11 00:00", "2026-05-11 00:00",
+        "2026-05-18 00:00", "2026-05-18 00:00",
+    ]
+    assert out[0]["beam_condition"] < out[1]["beam_condition"]
+
+
+def test_history_skips_dates_outside_the_window(monkeypatch):
+    _wire_archive(monkeypatch, {
+        date(2026, 1, 2): {"ECDX100": {"800V_HR_0Deg": "1.0"}},   # before START
+        date(2026, 5, 18): {"ECDX100": {"800V_HR_0Deg": "1.0004"}},
+    })
+    out = office.build_mdc_history("ECDX100", START, ANCHOR)
+    assert [r["timestamp"] for r in out] == ["2026-05-18 00:00"]
+
+
+def test_history_reports_archive_gaps_rather_than_returning_a_short_series(
+    monkeypatch, caplog
+):
+    # A date whose file lacks the tool is skipped — but for MDC that is not a
+    # tool that skips collection, so the gap goes on the record.
+    _wire_archive(monkeypatch, {
+        date(2026, 5, 11): {"OTHER_TOOL": {"800V_HR_0Deg": "1.0"}},
+        date(2026, 5, 18): {"ECDX100": {"800V_HR_0Deg": "1.0004"}},
+    })
+    with caplog.at_level(logging.WARNING):
+        out = office.build_mdc_history("ECDX100", START, ANCHOR)
+
+    assert len(out) == 1
+    assert "ECDX100" in caplog.text
+
+
+def test_history_drops_a_non_numeric_value_instead_of_charting_it_as_zero(
+    monkeypatch,
+):
+    # Coercing junk to 0.0 would draw a correction factor of zero — a
+    # catastrophic-looking calibration where the truth is just bad data.
+    _wire_archive(monkeypatch, {
+        date(2026, 5, 18): {"ECDX100": {"800V_HR_0Deg": "1.0004",
+                                        "800V_HR_90Deg": "n/a"}},
+    })
+    out = office.build_mdc_history("ECDX100", START, ANCHOR)
+    assert [r["beam_condition"] for r in out] == ["800V_HR_0Deg"]
 
 
 # ───────────────────── the call shape the office must fit ───────────────────
@@ -241,11 +423,11 @@ def test_settings_must_key_on_eqp_id_and_carry_the_selected_tool(monkeypatch):
 # ─────────────── raw shape parity with the mock (contract shape) ────────────
 #
 # These two compare this file's OFFICE_* fixtures against `mdc/mock.py`. They
-# assert nothing about the office adapter — there is none yet — and are not
-# meant to: they keep the fixtures the dispatcher tests above are built on
-# honest, so a change to the mock's record shape cannot leave those tests
-# green while pinning a shape the page no longer reads. They double as the
-# written-down target for whoever implements `mdc/office.py`.
+# assert nothing about the adapter and are not meant to: they keep the fixtures
+# the dispatcher tests above are built on honest, so a change to the mock's
+# record shape cannot leave those tests green while pinning a shape the page no
+# longer reads. They remain the written-down target for the office `office.py`,
+# which this repo still cannot see (it is gitignored).
 
 def test_office_shaped_settings_match_the_mocks_dict_of_dict_shape():
     # Shape only: {eqp_id: {beam_condition: value}} with STRING values, per
