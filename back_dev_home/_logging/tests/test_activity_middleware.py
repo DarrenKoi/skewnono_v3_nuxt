@@ -60,13 +60,15 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
         def emit(self, record: logging.LogRecord) -> None:
             records.append(record)
 
-    def build(**identity):
+    def build(*, early_status=None, **identity):
         app = Flask(__name__)
 
         @app.before_request
         def _identity():
             for key, value in identity.items():
                 setattr(g, key, value)
+            if early_status is not None:
+                return "IDENTITY REJECTED", early_status
 
         @app.get("/api/sem-list")
         def _ok():
@@ -217,6 +219,22 @@ def test_an_anonymous_request_is_logged_but_not_recorded(make_app, records, reco
     client.get("/api/sem-list")
 
     assert _only(records, "request").user_id is None
+    assert recorded == []
+
+
+def test_early_identity_response_gets_request_id_and_operation_semantics(
+    make_app, records, recorded
+):
+    """A before_request gate (rate limiter, blocked user) that answers before
+    _stamp_start still produces a log document; it must carry a correlation id
+    and never count as activity."""
+    client = make_app(user_id="2067928", early_status=403)
+
+    assert client.get("/api/sem-list").status_code == 403
+
+    record = _only(records, "request")
+    assert record.request_id
+    assert (record.activity_kind, record.activity_weight) == ("operation", 0)
     assert recorded == []
 
 

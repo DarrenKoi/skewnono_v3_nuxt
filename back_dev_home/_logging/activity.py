@@ -26,6 +26,17 @@ def _status_error_name(status: int) -> str | None:
     return _STATUS_PHRASE.get(status, "HTTP error")
 
 
+def _request_id() -> str:
+    # A before_request handler registered ahead of this middleware (rate
+    # limiter, identity gate) can answer before _stamp_start runs; the log
+    # document still needs a correlation id.
+    request_id = getattr(g, "_activity_request_id", None)
+    if not request_id:
+        request_id = str(uuid4())
+        g._activity_request_id = request_id
+    return request_id
+
+
 def promote_request_fab_names(*values: str | None) -> None:
     existing = getattr(g, "_activity_fab_name_list", [])
     g._activity_fab_name_list = normalize_fab_name_list([*existing, *values])
@@ -61,7 +72,7 @@ def _build_extra(
         "event": event,
         "user_id": str(user_id) if user_id not in (None, "-") else None,
         "api_token_id": getattr(g, "api_token_id", None),
-        "request_id": getattr(g, "_activity_request_id", None),
+        "request_id": _request_id(),
         "method": request.method,
         "path": path,
         "query_string": (
@@ -94,7 +105,7 @@ def install_activity_logging(app: Flask) -> None:
     @app.before_request
     def _stamp_start():
         g._activity_t0 = time.perf_counter()
-        g._activity_request_id = str(uuid4())
+        _request_id()
         g._activity_fab_name_list = []
 
     @app.after_request
