@@ -12,7 +12,7 @@ tags: [domain, metrology, device-statistics, skewvoir, afm]
 
 ## Equipment and analysis scope
 
-SKEWNONO v3 expands CD-SEM operations to a wider E-Beam platform including HV-SEM, with AFM already integrated and Thickness represented as an emerging route area. Analyses are generally closed within one fab: crossing R3 and M-fab boundaries is not considered a valid Device Statistics comparison.
+SKEWNONO v3 expands CD-SEM operations to a wider E-Beam platform including HV-SEM, with AFM code integrated but currently hidden from users and Thickness represented as an emerging route area. Analyses are generally closed within one fab: crossing R3 and M-fab boundaries is not considered a valid Device Statistics comparison.
 
 A **lot** is both a device identifier and the primary ownership axis. Users recognize team ownership from `lot_cd`, so Device Statistics starts at lots rather than recipes. ADR `docs/adr/0001-lot-as-primary-axis.md` records this decision.
 
@@ -30,7 +30,7 @@ The page-wide bucket selects how recipe steps are interpreted for rule evaluatio
 
 A measurement rule is a parameter-type point-count cap plus optional name overrides. Compliance means every parameter is at or below its cap; under-measurement is not a violation because the goal is suppressing measurement bloat. Raw parameter rows are the source of truth. Legacy `para_16/13/9/5` bins are derived summaries and cannot express rules such as `EDGE_EX=0`.
 
-Recipe classification is Main, Sample, or additional measurement. R3 rule resolution uses recipe class, product family, phase or yield-check status, and memory class. M-fab rules use recipe class and memory class without the R3 development axes. Product family and development phase are orthogonal and are derived by the backend from source text.
+Recipe classification is Main, Sample, or additional measurement. The rules API and every selector call this feature's factory axis `fac_id`, intentionally differing from the repository-wide `fab_name` convention. The current seed publishes rules only for R3: resolution uses recipe class, product family, phase or yield-check status, and memory class. Product family and development phase are orthogonal and are derived by the backend from source text.
 
 A **lot health signal** rolls recipe violations into green/yellow/red using editable thresholds. It is a shared cross-team truth, not a personal override. The active UI can read seed rules and evaluate them client-side; persistence, history, and rollback remain incomplete.
 
@@ -64,7 +64,7 @@ FOV is width-based: `FOV_nm = 135,000 × 1,000 / magnification`, and `nm/px = FO
 
 The integrated AFM area organizes measurements by tool and file, then exposes point tables, summary scatter, wafer heatmaps, height histograms, profile images, and analysis artifacts. A cart drives multi-measurement “see together” analysis.
 
-`front-dev-home/app/pages/afm/` and `back_dev_home/afm/` are the active application. `afm_data_platform/` is the standalone source system retained for migration semantics, dummy-data/cache utilities, and compatibility reference. Recent history moved heatmap, histogram, and table calculations into pure tested utilities before layering controls into Vue components.
+`front-dev-home/app/pages/afm/` and `back_dev_home/afm/` contain the integrated implementation, but `useAfmAvailability.ts` currently disables product exposure and global middleware redirects `/afm/*`. The former standalone `afm_data_platform/` was removed after migration; `docs/afm-migration-plan.md`, `docs/afm/`, and Git history preserve its design context. Recent history moved heatmap, histogram, and table calculations into pure tested utilities before layering controls into Vue components. The workflow [still depends on an unconnected office source](../integrations/integration-points.md#afm-office-source), so integrated code does not imply live office AFM data.
 
 ## Chat and cross-cutting administration
 

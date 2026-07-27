@@ -30,7 +30,7 @@ pages/.../device-statistics/*.vue
   -> selected provider
 ```
 
-`useDeviceCart.ts`, `useDevicePresets.ts`, and preferences composables coordinate selection state. Rule reads flow through `useMeasurementRulesApi.ts`; write/history/rollback methods are not yet implemented. The [domain guide](../domain/concepts.md#device-statistics-and-measurement-governance) defines the non-negotiable lot, bucket, rule, and health semantics.
+`useDeviceCart.ts`, `useDevicePresets.ts`, and preferences composables coordinate selection state. Rule reads flow through `useMeasurementRulesApi.ts` to `/api/cdsem/device-statistics/rules?fac_id=...`; `fac_id` is the rule contract's deliberate name for this feature axis. Write/history/rollback methods are not yet implemented. The [domain guide](../domain/concepts.md#device-statistics-and-measurement-governance) defines the non-negotiable lot, bucket, rule, and health semantics.
 
 When changing this flow, run `tests/test_recipe_analytics_home.py`, the backend feature contract tests, `ruleEngine.test.ts`, and device-drill utility tests.
 
@@ -82,7 +82,15 @@ Wafer position logic keeps physical stage coordinates centered on the wafer whil
 
 The [review model](../domain/concepts.md#skewvoir-review-model) requires official cohorts to remain distinct from exploratory sets. Office `msr_file` data must still establish stable revision and compatibility metadata before cross-MSR spatial comparisons can be considered authoritative; image delivery has moved out of `msr_file` into its own integration boundary.
 
+## CD-SEM Mag/Pixel setup
+
+The `/mag-pixel` guide starts with a labeled CG example and recalculates as the engineer chooses a CG/GT series, CD, pitch, pattern count, edge margin, and minimum pixels per CD. `app/utils/magPixel.ts` first derives the required FOV, chooses the highest discrete magnification that still contains the pattern, then chooses the smallest pixel setting that satisfies the provisional sampling threshold. Invalid or cleared fields remain unevaluated, pitch must exceed CD, and the unverified GT range above 500K stays visibly marked as assumed.
+
+`SemSimulation.vue` shows both the full FOV and a fixed-physical-width edge zoom. The zoom compares real pixel samples without stretching cells or changing the physical edge width, so increasing the pixel setting changes sample density rather than pretending to change the specimen. Keep this workflow aligned with the [metrology constraints](../domain/concepts.md#cd-sem-magpixel-setup) and Skewvoir's gallery-scale calculation. Changes should run `app/utils/magPixel.test.ts`, including FOV, recommendation, orientation, invalid-input, and edge-sampling cases, followed by frontend typecheck and a browser check of cleared inputs and assumption badges.
+
 ## AFM detail and comparison
+
+The implementation path below is currently gated off: `useAfmAvailability.ts` sets `AFM_ENABLED = false`, and `afm-hidden.global.ts` redirects `/afm/*` to the home page. When enabled:
 
 1. Enter `pages/afm/index.vue`, choose a fab/tool, and search files through `pages/afm/[tool]/index.vue`.
 2. Open `[filename].vue` for measurement metadata, point table, scatter, heatmap, histogram, profile, and captured analysis images.
@@ -91,7 +99,7 @@ The [review model](../domain/concepts.md#skewvoir-review-model) requires officia
 
 `useAfmDetailApi.ts` dispatches to `back_dev_home/afm/routes.py` through its provider seam. The active API retains legacy aliases and duplicate naming in some payloads for migration compatibility. Reset component-local pagination/filter state when the measurement changes; recent fixes explicitly addressed stale points-table pages.
 
-The standalone `afm_data_platform/` may explain old data and endpoints, but application changes should target the integrated paths mapped in the [source map](../source-map.md#active-application).
+The former standalone `afm_data_platform/` was removed after this migration completed. Use `docs/afm-migration-plan.md` and targeted Git history when old data or endpoints matter; application changes belong in the integrated paths mapped in the [source map](../source-map.md#active-application).
 
 ## Chat
 
@@ -112,17 +120,3 @@ Home persistence is SQLite with a 30-day thread lifetime. In office mode, config
 6. Update API contracts and migration notes, then follow [operations](../operations/runbook.md) and [testing guidance](../testing/guidance.md).
 
 Blueprint registration is automatic. Verify application startup because discovery imports every route module. Prefer a clear `NotImplementedError` over an office adapter returning plausible empty data.
- empty data.
-egration-points.md#llm-gateway) defines the egress boundary and marks retrieval/tool calling as future work.
-
-## Add or migrate a feature
-
-1. Decide scope: shared Hitachi feature, CD-SEM/HV-SEM-specific feature, or top-level product feature.
-2. Create `routes.py` exporting globally unique `bp`, `data.py`, `contracts.py`, `providers/mock.py`, and tracked `providers/office_example.py`.
-3. Keep route validation and HTTP behavior in `routes.py`; keep source selection in `data.py`; keep transport queries and normalization in providers. At the office, use `scripts.setup_office_adapters` or targeted `scripts.sync_office_adapters` rather than blindly overwriting ignored `office.py`; stub and locally edited copies require deliberate handling.
-4. Restart Flask after adapter changes, add the frontend composable and page/component consumers against `/api` without environment branches, and confirm actual selection through `/api/health/providers`.
-5. Add provider contract tests and representative route tests. For office migration, run the same gate with the feature override set to `office` and exercise representative real data on-site.
-6. Update API contracts and migration notes, then follow [operations](../operations/runbook.md) and [testing guidance](../testing/guidance.md).
-
-Blueprint registration is automatic. Verify application startup because discovery imports every route module. Prefer a clear `NotImplementedError` over an office adapter returning plausible empty data.
- empty data.

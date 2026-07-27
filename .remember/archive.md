@@ -1,7 +1,7 @@
 # Archive
 
 ## Week of 2026-07-21
-Office provider layer wiring complete: sem_list→office Redis (v3_df_sem_list+version merge, parquet), storage adapter (ppid+unavail hash), recipe_tat OpenSearch (meas_hist 15-field schema). Code quality: dedup −121L, fabId→fabName TS types, TimeoutError + pagination handlers. Docs: 4 new chapters + Korean humanization, progress_report generated (50pg/175comp/598test/636commit grade A); 143 backend tests pass; 2 agent reviews → 5 quick-fixes.
+Live-alarm broadcast (35 files, 1926 LOC, 746 tests, Redis ZSET + APScheduler), Chat LLM HCP gateway (3 models, E2E verified), Bento deck (Vue→Nuxt conversion). MSR image tool-FTP fetch (360+ tests, MinIO cache), BM/PM office adapter (57-58 tests, datatables), critical bugs fixed (PPID silent-drop, meas-hist >100%, chart zoom, beam-trend zoom, fdc_key casing). Provider layer infra: office Redis wiring, recipe_tat OpenSearch (15-field schema), storage adapter; skewvoir search bug, field-location Spec 1&2, deploy packer (Python allowlist). Code quality: dedup −121L, TS types, UI polish; Codex review (11 → 9-task SDD).
 
 ## Week of 2026-07-14
 Shipped X-ID (14+ tests, 8-agent review), skewvoir (177 tests), AFM Sub-proj A (415 tests E2E), Chat backend (102 tests). Infrastructure: major office/home provider refactor (11 SKEWNONO_*_PROVIDER vars, 3-layer CLAUDE.md, office_example.py pattern), Ports & Adapters analysis, herdr hooks, TDD egress-guards (10 MIGRATION.md docs), openwiki cron (01:00, wrapper+launchd), localStorage consolidation (8 composables → factory), Redis adapter (office.py, env-based config), parquet fixes (5 commits), live office UI verified. Dashboard redesign (RadiusPlot, nav), skewvoir Phase B (wafer map, 236 tests), AFM A–D (458 tests). Pruned 42 specs, swept fonts, Tailscale remote.
@@ -26,4 +26,3 @@ Modified index.py to read PORT env var, resolved macOS AirPlay :5000 conflict. V
 
 ## Week of 2026-04-21
 Created Flask+flask-cors venv for skewnono_v3_nuxt, started dev server :5000. Debugged macOS Python paths; resolved background task issues.
-```

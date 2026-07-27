@@ -1,7 +1,7 @@
 ---
 type: Source Map
 title: Repository Source Map
-description: Practical map of SKEWNONO active application code, feature domains, shared infrastructure, tests, operational tooling, design evidence, and legacy or transitional modules.
+description: Practical map of SKEWNONO active application code, feature domains, shared infrastructure, tests, operational tooling, design evidence, and historical or transitional modules.
 resource: .
 tags: [source-map, repository, navigation, modules]
 ---
@@ -75,7 +75,7 @@ These packages [support office integrations](integrations/integration-points.md)
 - `front-dev-home/app/**/*.test.ts`: pure frontend tests run by Node.
 - `docs/api-contracts/`: human-readable API schemas; useful primary evidence but verify against current routes/contracts.
 - `back_dev_home/**/__fixtures__/`: frozen response structures where present.
-- `.github/workflows/ci.yml`: active frontend typecheck/test CI.
+- `.github/workflows/ci.yml`: active frontend typecheck/test and backend Ruff/full-pytest CI.
 
 See [testing guidance](testing/guidance.md) before choosing a verification command.
 
@@ -92,9 +92,9 @@ See [testing guidance](testing/guidance.md) before choosing a verification comma
 
 Recent July 2026 history is especially relevant for AFM controls and exports, chat behavior/testing, Skewvoir analysis evolution, and provider/contract hardening. Use targeted `git log -- <path>` and `git show <commit> -- <path>` rather than reading old plans indiscriminately.
 
-## Transitional and legacy code
+## Transitional and historical code
 
-`afm_data_platform/` is the clearest legacy/source implementation. It contains a standalone Flask/Vue AFM app plus generators and cache tooling. The integrated runtime [depends on migrated semantics](domain/concepts.md#afm), not on a second user-facing frontend. `docs/afm-migration-plan.md` describes that transition.
+The standalone Flask/Vue `afm_data_platform/` was removed after its features were absorbed. The integrated AFM runtime lives in `back_dev_home/afm/`, `front-dev-home/app/pages/afm/`, `front-dev-home/app/components/afm/`, and `front-dev-home/app/utils/afm*.ts`; it [preserves migrated semantics](domain/concepts.md#afm) without a second frontend. `docs/afm-migration-plan.md` is the completed transition record, `docs/afm/` preserves the two source documents, and deleted implementation details are available through targeted Git history.
 
 Other caution areas:
 

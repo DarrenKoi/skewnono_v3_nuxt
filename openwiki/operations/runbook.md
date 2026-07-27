@@ -122,6 +122,7 @@ npm run lint
 npm run build
 
 # Backend, from root
+.venv/bin/ruff check .
 .venv/bin/python -m pytest tests back_dev_home -q
 
 # Documentation

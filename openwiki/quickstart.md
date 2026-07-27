@@ -10,7 +10,7 @@ tags: [skewnono, quickstart, nuxt, flask, metrology]
 
 ## What this repository is
 
-SKEWNONO v3 is an internal E-Beam metrology operations and analytics platform. Its current product scope combines CD-SEM and HV-SEM equipment management, recipe and parameter governance, measurement review through Skewvoir, live failure alarms, integrated AFM analysis, and supporting activity, access, API-token, and chat surfaces. The product overview targets roughly 320 CD-SEM/HV-SEM tools and emphasizes Tool-to-Tool Matching, reduced measurement TAT, and faster investigation of questionable measurements (`docs/project-overview.md`).
+SKEWNONO v3 is an internal E-Beam metrology operations and analytics platform. Its current product scope combines CD-SEM and HV-SEM equipment management, recipe and parameter governance, measurement review through Skewvoir, live failure alarms, an integrated but currently hidden AFM area, and supporting activity, access, API-token, and chat surfaces. The product overview targets roughly 320 CD-SEM/HV-SEM tools and emphasizes Tool-to-Tool Matching, reduced measurement TAT, and faster investigation of questionable measurements (`docs/project-overview.md`).
 
 The active application is a client-only Nuxt 4 SPA backed by Flask. The [architecture](architecture/overview.md) keeps frontend calls stable at `/api/*` while each Flask feature selects mock or office data behind its `data.py` boundary. Home and unknown hosts default safely to mock mode; in office/cloud mode, a feature selects office data only when that machine has an ignored `providers/office.py`. Per-feature overrides remain authoritative, while `SKEWNONO_DATA_PROVIDER=mock` is a whole-instance kill switch.
 
@@ -41,6 +41,7 @@ npm run lint
 npm run build
 
 # repository root
+.venv/bin/ruff check .
 .venv/bin/python -m pytest tests back_dev_home -q
 npm run lint:md
 ```
@@ -79,7 +80,7 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 3. Use one `useAsyncData` key per shared frontend resource; do not introduce a second fetching framework without a demonstrated need.
 4. Keep page-wide analysis state shareable in URL queries where the workflow is intended to be forwarded between engineers.
 5. Distinguish official review state from exploratory comparisons; Skewvoir must not turn a user-curated set into an official assessment.
-6. Do not treat `afm_data_platform/` as a second active frontend. It is migration/reference and data-generation material; the integrated AFM runtime lives in `front-dev-home/app/pages/afm/` and `back_dev_home/afm/`.
+6. The standalone `afm_data_platform/` was removed after migration. Change AFM only in `front-dev-home/app/pages/afm/` and `back_dev_home/afm/`; use `docs/afm-migration-plan.md`, `docs/afm/`, and Git history for historical context.
 7. Inspect recent git history for active areas. The July 2026 sequence moved computation into pure tested utilities, expanded office adapters and frontend analysis workflows, and replaced the tracked provider allowlist with machine-local adapter-presence discovery plus boot/health introspection.
 
 ## Known documentation drift
@@ -90,13 +91,11 @@ In production, Flask serves both `/api/*` and the generated SPA from `front-dev-
 
 ## Backlog
 
-- **Office provider verification** — `docs/office-migration/STATUS.md` and feature `MIGRATION.md` files: the local contract baseline is green, but the 28-adapter representative office run remains on-site work. Use the setup/sync tools before verification, record contract and screen results in the ledger, and use `/api/health/providers` to confirm selection rather than readiness.
+- **Office provider verification** — `docs/office-migration/STATUS.md` and feature `MIGRATION.md` files: the local contract baseline is green, but representative runs across the feature-level and nested office adapters remain on-site work. Use the setup/sync tools before verification, record contract and screen results in the ledger, and use `/api/health/providers` to confirm selection rather than readiness.
 - **First cloud deployment** — `docs/deployment.md` and `scripts/pack_deploy.py`: packaging and preflight are implemented and locally tested; perform the first `/project/workSpace` feasibility deployment, SSO registration, permission restoration, and post-start provider check.
 - **Live alarm office deployment** — `back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md`: copy the reader and portable writer office templates, register the writer on the external 15-second scheduler, and verify Redis heartbeat/feed status; mock API and UI behavior are implemented.
 - **Rule persistence** — `back_dev_home/ebeam/cdsem/device_statistics/` and `useMeasurementRulesApi.ts`: implement save, history, rollback, and identity attribution after the datastore is chosen.
 - **Measurement image office activation** — `back_dev_home/msr_image/MIGRATION.md`: the FTP adapter, rendered gallery/TIFF fallback, path guards, bounded jobs, and optional Redis shared state are implemented; create the ignored office copy, configure an isolated MinIO cache prefix and Redis for multi-worker use, then complete representative on-site FTP/cache verification.
 - **AFM artifact source** — `back_dev_home/afm/providers/office_example.py`: decide whether large AFM bodies and images come from live source access, MinIO, or another service.
 - **Operational hardening** — `back_dev_home/_runtime/env.py`, `back_dev_home/__init__.py`, and `wsgi.ini`: replace path-derived cloud detection, configure a production secret, and assess shared rate-limit/state storage across workers.
-- **Legacy AFM retirement** — `afm_data_platform/` and AFM compatibility aliases: archive only after integrated office behavior and consumers are verified.
 - **Lower-priority surfaces** — `announcements/`, PM planning, and placeholder `thickness/`: documented only in the source map on this first pass; expand when those areas become the change target.
-e target.

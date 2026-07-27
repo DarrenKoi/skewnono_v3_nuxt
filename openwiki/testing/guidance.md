@@ -1,7 +1,7 @@
 ---
 type: Testing Guide
 title: Testing and Quality Guidance
-description: Test layers, commands, contract gates, fixture checks, CI coverage, and change-specific verification for the SKEWNONO Flask and Nuxt codebase.
+description: Test layers, Python Ruff checks, commands, contract gates, fixture checks, CI coverage, and change-specific verification for the SKEWNONO Flask and Nuxt codebase.
 resource: tests
 tags: [testing, pytest, node-test, contracts, ci]
 ---
@@ -10,7 +10,7 @@ tags: [testing, pytest, node-test, contracts, ci]
 
 ## Test layers
 
-The repository combines backend route/integration tests, feature-local provider contracts, and frontend pure-TypeScript tests. There is no single root command that runs every meaningful gate.
+The repository combines backend route/integration tests, feature-local provider contracts, frontend pure-TypeScript tests, and a Python static gate. There is no single root command that runs every meaningful gate.
 
 ### Backend route and integration tests
 
@@ -87,13 +87,13 @@ npm run lint
 npm run build
 ```
 
-Nuxt excludes test files from Vue application typechecking because they import `node:test` and may use explicit `.ts` extensions. CI uses a Node version that supports native TypeScript stripping.
+Nuxt deliberately keeps test files inside Vue application typechecking: many tests import real composable row types and build snake_case fixtures, so typecheck guards frontend/backend response-shape drift. `@types/node` resolves `node:test` and `node:assert`, `allowImportingTsExtensions` supports explicit test imports, and CI uses Node 24 for native TypeScript stripping.
 
 Recent implementation style deliberately extracts analytical logic into pure utilities before wiring Vue controls. Representative suites include:
 
 - Device rules and drilldowns: `app/utils/ruleEngine.test.ts`, `deviceDrill.test.ts`
 - Skewvoir: `app/utils/skewvoirAnalysis/*.test.ts`, `app/utils/anomaly/*.test.ts`, `overview.test.ts`
-- Focus caching: `app/composables/useSkewvoirAnalysis.focusCache.test.ts`
+- Focus caching: `app/utils/skewvoirAnalysis/focusCache.test.ts`
 - AFM: `afmExport.test.ts`, `afmHeatmap.test.ts`, `afmHistogram.test.ts`, `afmPointsTable.test.ts`
 - Recipe/hardware/live feeds: `recipeSearchMatch.test.ts`, `fdcValues.test.ts`, `liveAlarm.test.ts`, `useLiveAlarmFeed.test.ts`
 - Chat: `chatMarkdown.test.ts`, `relativeTime.test.ts`
@@ -109,18 +109,19 @@ These scripts expect a running backend and may assume port 5000; inspect their c
 
 ## Current CI coverage
 
-The active root workflow is `.github/workflows/ci.yml`. It installs frontend dependencies, runs Nuxt typecheck, and runs frontend Node tests. Existing lint debt means ESLint is not currently an active root CI gate.
+The active root workflow is `.github/workflows/ci.yml`. Its frontend job installs dependencies, runs Nuxt typecheck, and runs the Node tests. Its backend job runs `ruff check .` and the full `python -m pytest tests back_dev_home -q` suite on a clean checkout. Existing lint debt means ESLint is not currently an active root CI gate.
+
+Ruff targets the office's minimum Python 3.11 and pins `E4`, `E7`, `E9`, `F`, and Bugbear `B` explicitly so a Ruff release cannot silently widen the gate. It excludes `ops_store`, `ftp_handler`, `minio_handler`, and `ops_index_mgmt` because they are confirmed or presumed vendored/shared trees; there is no formatter or import-sorting gate (`pyproject.toml`).
 
 Not fully gated by active CI:
 
-- backend pytest suites;
 - frontend lint and build/generate;
 - Markdown lint;
 - fixture contract checks;
 - browser/E2E flows;
-- operational support packages and office-to-cloud deployment tests.
+- representative office-provider and deployment checks.
 
-A workflow nested under `front-dev-home/.github/workflows/` is not loaded by GitHub for this repository. The scheduled OpenWiki workflow is documentation automation, not an application quality gate.
+The scheduled OpenWiki workflow is documentation automation, not an application quality gate.
 
 ## Change-specific matrix
 

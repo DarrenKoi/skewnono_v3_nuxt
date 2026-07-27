@@ -1,17 +1,10 @@
 # Recent
 
-```
-
-# Recent
+## 2026-07-26
+Executed 18-parallel backend audit: recovered from clean-checkout regression (gitignored providers.office), merged 18 PRs fixing 4 prod bugs (parquet guards, static folder, SECRET_KEY quoting, ENDPOINTS gaps), validated 1321 backend + 765 frontend tests (7 ebeam gates). Completed FDC sparkline matrix (10-param CD-corr-rank, SequenceWorkbench, browser-verified). Refined mag-pixel SEM simulation edge-rendering; fixed i18n strings ("사내 기준" → "표준안"); DesignSync mag-pixel 2a (MetaBar, 1440px dense). Infrastructure: CLAUDE.md audit, provider-selection.md created, 34 skills disabled, typescript-lsp uninstalled.
 
 ## 2026-07-25
 Shipped skewvoir KB nav (↑/↓/Home/End/Space) + checkbox multi-select; ECharts theme standardization (MATLAB default light, palette 7→10 CIELAB/CVD, SK_CHART→useChartPalette). CD-SEM mag/pixel delivered (FOV margins 0–20%, recommendation engine); SCE UI improved (revision dedup, perf 9.27→1.11ms). Designed ECharts 6 matrix sparklines for FDC timeseries; implemented site-aware point coloring (SK_SITE palette) across 3 charts. 638–648 tests; 6+ commits to main.
-
-## 2026-07-24
-MSR image tool-FTP fetch shipped (360+ tests, MinIO 72h cache, FTP IPv4 guards, multi-backend support), BM/PM office adapter built (57-58 tests, fab_inform_notes/tool_maintenance_plan datatables, office_example.py), Bento deck delivered (15 slides, Vue→TS+Nuxt conversion, 60+ color remaps). Fixed critical bugs: PPID silent-drop (model_to_tool_type prefix-matching), meas-hist >100% ratio (fail_ratio normalization refactored), chart zoom point-click (notMerge state loss), beam-trend zoom (withPreservedZoom). Extended features: msr_image TIFF adapter + wafer geometry nm-scale, radar axis-range control (reso_eb 7.5–8.5, noise 5.7–6.7, cross-tab-persisted), field-location CD pairing (chip_coordinate join design). Infrastructure: diagnosed skewvoir search bug (search_all missing from OpenSearch), designed field-location Spec 1&2 with geom mapping, specified deploy packer (Python allowlist + preflight, 7 TDD tasks).
-
-## 2026-07-23
-Live-alarm broadcast: specification→implementation complete (35 files, 1926 LOC, 746 tests passing), Redis ZSET backend with APScheduler writer (15s poll), incorporated Codex review (11 issues), executed via 9-task SDD. Chat LLM: HCP gateway integration (3 models), environment-driven configuration, E2E verified, MIGRATION.md documented. UI improvements: LaserPower 3-view (raw/pct/scatter), RecipeSearchView spacing, RecipeMeasHistView sorting, SharpnessPanel timestamp→ID, FeatureTabs label removal, AnnouncementBanner viewport fix. Infrastructure: BM/PM adapter built (6 SDD tasks), msr_image fetch designed (MinIO cache, IPv4 validation), fdc_key casing bug fixed (7 files).
 
 ## Identity Candidates
 - IDENTITY CANDIDATE: Spec-driven sub-project sequencing with TDD + comprehensive testing (AFM A–D roadmap, Chat feature paired with dashboard polish)

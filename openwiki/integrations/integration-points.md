@@ -38,7 +38,9 @@ Mock mode uses `DiskImageCache`; office mode chooses `MinioImageCache`, storing 
 
 The boundary now validates IPv4 plus optional `SKEWNONO_TOOL_SUBNETS` and rejects unsafe class/MSR/name segments before source access. Job TTL and maximum-active settings are enforced. Office plus `REDIS_HOST` selects shared `RedisJobRegistry`; other runs use process memory, so Redis is required for reliable polling behind multi-worker uWSGI. Use a cache prefix distinct from measurement originals because application-level purge is the only available office lifecycle mechanism. Office rollout is still incomplete until the tracked adapter is copied to ignored `providers/office.py` and representative FTP/cache behavior passes on-site verification.
 
-AFM large-object sourcing remains a separate unresolved decision; do not infer its storage path from the measurement-image cache.
+## AFM office source
+
+AFM sourcing remains a separate unresolved decision; do not infer its storage path from the measurement-image cache. Every function in `back_dev_home/afm/providers/office_example.py` is still an explicit `NotImplementedError`, so the integrated [AFM workflow](../workflows/key-workflows.md#afm-detail-and-comparison) has no connected office registry, file/detail/profile, artifact, activity, or analytics source.
 
 ## Live alarm writer and reader
 
@@ -114,9 +116,8 @@ A provider is ready only when it:
 
 - What are the authoritative joins for Skewvoir `meas_hist` and `msr_file` beyond the aliases now confirmed for lateral-recipe readiness?
 - Where do stable site-layout, recipe-revision, coordinate-transform, and sequence fields originate?
-- When will the implemented measurement-image FTP/gallery path complete on-site activation and representative verification, and what source/cache serves AFM images?
+- When will the implemented measurement-image FTP/gallery path complete on-site activation and representative verification, and what authoritative office sources will serve AFM registry, detail/profile bodies, images/artifacts, activity, and analytics?
 - What store backs editable measurement-rule versions and rollback?
 - Should Redis or another shared system replace process-local access, activity, token, and limiter state in production?
-- When can AFM compatibility aliases and `afm_data_platform/` be retired?
 
 Track startup and provider failures through the [operations runbook](../operations/runbook.md), and verify adapters using [testing guidance](../testing/guidance.md).

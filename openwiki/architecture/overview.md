@@ -68,7 +68,7 @@ This architecture [depends on integration adapters](../integrations/integration-
 
 ## Identity, authorization, and observability
 
-`_auth/middleware.py` accepts a `Bearer skn_...` API token first, then the selected user identity provider. Local mode reads development identity values; cloud mode lazily imports the internal SSO library. Admin membership is centralized in `_auth/admin.py` and can be configured with `SKEWNONO_ADMIN_USERS`.
+`_auth/middleware.py` accepts a `Bearer skn_...` API token first, then the selected user identity provider. Identity selection follows `_runtime/env.py:is_cloud()` independently of mock/office data-provider mode: local identity reads `LASTUSER` or `LAST_USER` cookies and otherwise uses `local-dev`, while cloud identity lazily tries `hcputil.auth.sso` and then the documented `hcputil.auto.sso` compatibility spelling. Admin membership is centralized in `_auth/admin.py` and can be configured with `SKEWNONO_ADMIN_USERS`.
 
 Blocked users may still receive the SPA shell so the client can render a denial experience, but `/api/*` requests are rejected. The frontend gate in `app/app.vue` loads the current activity/user record before rendering protected content.
 
