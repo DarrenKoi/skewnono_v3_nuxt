@@ -253,3 +253,43 @@ test('continuation row labels stay unique for use as ordinal coords', () => {
   assert.equal(catRows[0]?.label, '스테이지 드리프트')
   assert.equal(catRows[1]?.label, '스테이지 드리프트 (2)')
 })
+
+// ---------------------------------------------------------------------------
+// The matrix inherits the scoped axis (Task 1). Before that fix the CD row was
+// mostly null while every FDC row was dense, so the picture and the r badge
+// printed beside it were computed on different samples.
+// ---------------------------------------------------------------------------
+
+const interleavedSource = (): SequenceSource => ({
+  rows: [
+    row({ sequence: 1, parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 2, parameter: 'SPACE', cd_value: 50 }),
+    row({ sequence: 3, parameter: 'CD_TOP', cd_value: 104 }),
+    row({ sequence: 4, parameter: 'SPACE', cd_value: 52 }),
+    row({ sequence: 5, parameter: 'CD_TOP', cd_value: 108 }),
+    row({ sequence: 6, parameter: 'SPACE', cd_value: 54 })
+  ],
+  dynamic_fdc: {
+    1: { StigmaX: 10 }, 2: { StigmaX: 11 }, 3: { StigmaX: 12 },
+    4: { StigmaX: 13 }, 5: { StigmaX: 14 }, 6: { StigmaX: 15 }
+  },
+  fdc_params: [fdcParam({})]
+})
+
+test('matrix cells span the active parameter axis, not the whole MSR', () => {
+  const src = interleavedSource()
+  const matrix = buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src)
+  assert.deepEqual(matrix.sequences, [1, 3, 5])
+  for (const r of matrix.rows) {
+    for (const c of r.cells) {
+      assert.equal(c.values.length, 3, `${c.param} has ${c.values.length} values for a 3-sequence axis`)
+    }
+  }
+})
+
+test('the CD row has no manufactured gaps once the axis is scoped', () => {
+  const src = interleavedSource()
+  const matrix = buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src)
+  const cd = matrix.rows.find(r => r.kind === 'cd')!.cells[0]!
+  assert.deepEqual(cd.values, [100, 104, 108])
+})
