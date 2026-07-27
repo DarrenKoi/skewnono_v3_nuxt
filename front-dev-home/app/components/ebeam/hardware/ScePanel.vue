@@ -115,14 +115,17 @@
                 <USelectMenu
                   v-model="selectedRevisions"
                   v-model:open="revisionMenuOpen"
+                  v-model:search-term="revisionSearch"
                   multiple
+                  ignore-filter
+                  :reset-search-term-on-select="false"
                   value-key="value"
-                  :items="revisionItems"
+                  :items="revisionMatches"
                   :search-input="{ placeholder: '수집일 검색…' }"
                   placeholder="버전 선택"
                   icon="i-lucide-calendar-days"
                   size="xs"
-                  class="min-w-[15rem]"
+                  class="min-w-[17rem]"
                   :ui="{ itemTrailingIcon: 'hidden' }"
                 >
                   <template #default>
@@ -144,12 +147,46 @@
                       />
                     </span>
                   </template>
-                  <!-- Same explicit close affordance as the 비교 장비 picker
-                       (click-outside / Esc also close the menu). -->
+                  <!-- Bulk actions live in the footer for the same reasons as
+                       the 비교 장비 picker: they read against the list they act
+                       on, and Enter/Space must be stopped here or Reka cancels
+                       the button and toggles the highlighted row instead. -->
                   <template #content-bottom>
-                    <div class="border-t border-(--sk-border-soft) p-1">
+                    <!-- Two rows, unlike the 비교 장비 picker's single one: that
+                         trigger is flex-1 and wide, this menu is 17rem, and
+                         three Korean labels on one row wrap mid-word there. -->
+                    <div
+                      class="border-t border-(--sk-border-soft) p-1"
+                      @keydown.enter.stop
+                      @keydown.space.stop
+                    >
+                      <div class="flex items-center gap-1">
+                        <UButton
+                          class="flex-1 justify-center whitespace-nowrap"
+                          size="xs"
+                          color="neutral"
+                          variant="soft"
+                          icon="i-lucide-list-checks"
+                          :disabled="revisionUnpicked.length === 0"
+                          @click="selectRevisionMatches"
+                        >
+                          {{ isRevisionSearching ? `검색 ${revisionMatches.length}개` : `전체 ${revisionMatches.length}개` }}
+                        </UButton>
+                        <!-- The way back from 전체 on a window with many re-tunes. -->
+                        <UButton
+                          class="flex-1 justify-center whitespace-nowrap"
+                          size="xs"
+                          color="neutral"
+                          variant="soft"
+                          icon="i-lucide-rotate-ccw"
+                          @click="selectedRevisions = revisionKeys.slice(-DEFAULT_REVISIONS)"
+                        >
+                          최근 {{ DEFAULT_REVISIONS }}개
+                        </UButton>
+                      </div>
                       <UButton
                         block
+                        class="mt-1"
                         size="xs"
                         color="neutral"
                         variant="soft"
@@ -161,24 +198,6 @@
                     </div>
                   </template>
                 </USelectMenu>
-                <!-- The way back from 전체 on a window with many re-tunes. -->
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="selectedRevisions = revisionKeys.slice(-DEFAULT_REVISIONS)"
-                >
-                  최근 {{ DEFAULT_REVISIONS }}개
-                </UButton>
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :disabled="selectedRevisions.length === revisions.length"
-                  @click="selectedRevisions = [...revisionKeys]"
-                >
-                  전체
-                </UButton>
               </div>
             </div>
             <div
@@ -300,7 +319,7 @@ import {
   sceCoeffIndexSeries, sceCoeffRevisions, sceParamLabel, sceParamSeries,
   sceRevisionLabel, sceRevisionSpan, sceTrendKeys, type SceTrendKey
 } from '~/utils/sceHistory'
-import { assignCompareColors, assignSeriesColors } from '~/utils/hardwareCompare'
+import { assignCompareColors, assignSeriesColors, filterByTerm } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
@@ -576,6 +595,24 @@ const nothingCollapsed = computed(() =>
   revisions.value.length > 1 && revisions.value.length === collectionCount.value
 )
 const selectedRevisions = ref<string[]>([])
+
+// We filter, not USelectMenu (`ignore-filter`) — see filterByTerm for why. The
+// match is on the LABEL, which is the field USelectMenu would have used and the
+// only one a reader can see; the value is a bare first-date key.
+const revisionSearch = ref('')
+const isRevisionSearching = computed(() => revisionSearch.value.trim().length > 0)
+const revisionMatches = computed(() =>
+  filterByTerm(revisionItems.value, revisionSearch.value, r => r.label)
+)
+// 전체 선택 unions the matches into the existing picks, so revisions chosen
+// under an earlier search survive. 최근 N개 stays the way back — this picker has
+// no 해제, because an empty selection only draws the "select a version" placard.
+const revisionUnpicked = computed(() =>
+  revisionMatches.value.filter(r => !selectedRevisions.value.includes(r.value))
+)
+const selectRevisionMatches = () => {
+  selectedRevisions.value = [...selectedRevisions.value, ...revisionUnpicked.value.map(r => r.value)]
+}
 // Controlled open state so the 닫기 button can close the menu; Esc and
 // outside-click still work because Reka emits update:open through this binding.
 const revisionMenuOpen = ref(false)

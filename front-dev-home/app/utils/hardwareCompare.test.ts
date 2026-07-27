@@ -1,7 +1,10 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assignCompareColors, assignSeriesColors, compareBoxPoints, filterToolIds } from './hardwareCompare.ts'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints, filterByTerm } from './hardwareCompare.ts'
+
+// The tool picker's items are their own label, so it filters on identity.
+const filterToolIds = (ids: readonly string[], term: string) => filterByTerm(ids, term, id => id)
 
 test('assignCompareColors: reserves palette[0], cycles palette[1..]', () => {
   const palette = ['#sel', '#a', '#b']
@@ -74,4 +77,16 @@ test('filterToolIds: no match → empty array', () => {
 test('filterToolIds: returns a copy, never the caller\'s array', () => {
   const ids = ['TP0301']
   assert.notEqual(filterToolIds(ids, ''), ids)
+})
+
+test('filterByTerm: matches the field `text` picks, not the whole object', () => {
+  // Shaped like the SCE revision picker, where label !== value.
+  const revs = [
+    { label: '2026-07-17', value: '2026-07-17' },
+    { label: '2026-07-03~2026-07-10 · 3회', value: '2026-07-10' }
+  ]
+  assert.deepEqual(filterByTerm(revs, '3회', r => r.label), [revs[1]])
+  // The value is not searched, so a term only present there matches nothing.
+  assert.deepEqual(filterByTerm(revs, '07-03', r => r.value), [])
+  assert.deepEqual(filterByTerm(revs, '', r => r.label), revs)
 })

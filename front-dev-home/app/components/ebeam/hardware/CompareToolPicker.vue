@@ -104,7 +104,7 @@
 // Shared multi-tool selector for the MDC/SCE comparison views. The picked set
 // is owned by the parent (page-scoped state), so this component is a controlled
 // input: it reads `modelValue` and emits changes, never mutating anything.
-import { filterToolIds } from '~/utils/hardwareCompare'
+import { filterByTerm } from '~/utils/hardwareCompare'
 
 const props = defineProps<{
   siblingIds: string[]
@@ -118,7 +118,7 @@ const emit = defineEmits<{ 'update:modelValue': [ids: string[]] }>()
 // Esc still close it because Reka emits update:open through this binding.
 const menuOpen = ref(false)
 
-// We filter, not USelectMenu (`ignore-filter`) — see filterToolIds for why.
+// We filter, not USelectMenu (`ignore-filter`) — see filterByTerm for why.
 // `reset-search-term-on-select` follows from the same requirement: the default
 // wipes the search after every click, which would drop the filter halfway
 // through picking a family of tools.
@@ -127,7 +127,7 @@ const isSearching = computed(() => searchTerm.value.trim().length > 0)
 
 // Items are plain ids: USelectMenu renders a string item as its own label and
 // value, so there is nothing for a {label, value} wrapper to add here.
-const matches = computed(() => filterToolIds(props.siblingIds, searchTerm.value))
+const matches = computed(() => filterByTerm(props.siblingIds, searchTerm.value, id => id))
 
 // Both bulk actions are scoped to the matches: 전체 선택 unions them into the
 // existing picks so tools chosen under an earlier search survive, and 해제

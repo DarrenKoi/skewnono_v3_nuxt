@@ -35,15 +35,25 @@ export const assignSeriesColors = (
 ): Record<string, string> =>
   cycle(keys, palette.length > 0 ? palette : FALLBACK_COMPARE_COLORS)
 
-// The picker filters its own list rather than letting USelectMenu do it, so the
-// 전체 선택/해제 buttons act on exactly the rows on screen -- one filter is the
-// only way the visible set and the bulk-action target cannot drift apart.
-// Nuxt UI's own matcher is not a public composable, so mirroring it would mean
-// importing from dist/runtime; a substring match is equivalent for ASCII tool ids.
+// Both hardware pickers filter their own list rather than letting USelectMenu
+// do it, so their bulk-action buttons act on exactly the rows on screen -- one
+// filter is the only way the visible set and the bulk-action target cannot
+// drift apart. Nuxt UI's own matcher is not a public composable, so mirroring
+// it would mean importing from dist/runtime; a substring match over the field
+// it would have used is equivalent for this data.
+//
+// `text` picks that field, because the two callers disagree on it: tool ids are
+// their own label, while an SCE revision's label ("2026-07-10~2026-07-17 · 3회")
+// is not its value (a bare date key). Matching the label is what USelectMenu
+// does by default (filterFields = [labelKey]), so this preserves its behaviour.
 // A blank term needs no special case: every string contains ''.
-export const filterToolIds = (ids: readonly string[], term: string): string[] => {
+export const filterByTerm = <T>(
+  items: readonly T[],
+  term: string,
+  text: (item: T) => string
+): T[] => {
   const needle = term.trim().toLowerCase()
-  return ids.filter(id => id.toLowerCase().includes(needle))
+  return items.filter(item => text(item).toLowerCase().includes(needle))
 }
 
 const toNum = (v: unknown): number | null => {
