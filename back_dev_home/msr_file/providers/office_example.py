@@ -52,6 +52,7 @@ MIGRATION.md.
 """
 
 import hashlib
+import logging
 import math
 from statistics import fmean, pstdev
 from typing import Any
@@ -82,6 +83,8 @@ from back_dev_home.msr_file.providers.mock import (
 
 
 __all__ = ["get_msr_file", "build_response"]
+
+_log = logging.getLogger(__name__)
 
 _MSR_KW = "msr.keyword"
 
@@ -380,6 +383,16 @@ def build_response(
     sequences = sorted({row["sequence"] for row in rows})
 
     fixed_fdc, dynamic_fdc, fdc_params = _fdc(payload)
+    # One row is one measurement and dynamic_fdc holds that measurement's tool
+    # state, so the counts must agree. Warn rather than raise: a diagnosable data
+    # fault should be named in the log, not turned into a 500 for the whole page.
+    # The frontend surfaces the same mismatch as a badge (SequenceModel.integrity).
+    if len(rows) != len(dynamic_fdc):
+        _log.warning(
+            "msr_file %s: %d rows but %d dynamic_fdc entries — "
+            "expected one FDC entry per measurement row",
+            msr, len(rows), len(dynamic_fdc),
+        )
     # Office health is DERIVED from the telemetry it summarizes: the worst
     # drift, scaled so 3.5 sigma (the "bad" threshold) saturates to 1.0 — the
     # same [0, 1] reading the mock's synthetic scalar feeds the UI.

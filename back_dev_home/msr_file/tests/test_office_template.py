@@ -11,6 +11,8 @@ template, so what passes here is what runs there.
 Run from repo root:  .venv/bin/python -m pytest back_dev_home/msr_file
 """
 
+import logging
+
 import pandas as pd
 import pytest
 
@@ -193,6 +195,25 @@ def test_parameter_summaries_use_measured_rows_only(response):
     by_param = {s["parameter"]: s for s in response["parameters"]}
     assert by_param["CD_TOP"]["count"] == 1  # the mp_number -1 row is excluded
     assert by_param["CD_TOP"]["unit"] == "nm"
+
+
+def test_mismatched_row_and_fdc_counts_warn_without_raising(caplog):
+    """The office guarantees len(rows) == len(dynamic_fdc). A mismatch is a data
+    fault worth naming in the log — but serving flagged data beats serving
+    nothing, so it must not raise."""
+    payload = {
+        "df_result_data": [
+            {"sequence": 1, "parameter": "CD_TOP", "cd_value": 10.0},
+            {"sequence": 2, "parameter": "SPACE", "cd_value": 20.0},
+        ],
+        "dynamic_fdc": {"1": {"StigmaX": 0.1}},
+        "exe_detail_info": {},
+    }
+    with caplog.at_level(logging.WARNING):
+        response = office_example.build_response("MSR-X", {}, payload)
+    assert response["total"] == 2
+    assert len(response["dynamic_fdc"]) == 1
+    assert any("2 rows" in r.message and "1 dynamic_fdc" in r.message for r in caplog.records)
 
 
 def test_office_copy_stays_in_sync_with_template():

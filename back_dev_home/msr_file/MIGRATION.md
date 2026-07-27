@@ -47,6 +47,19 @@
       rows: list[MsrFileRow]
   ```
 
+### Invariant: `len(rows) == len(dynamic_fdc)`
+
+`sequence` is a global running counter over the whole MSR — one number per
+measurement row — and `dynamic_fdc` is keyed by that sequence, holding the tool
+state captured for it. The two counts must therefore agree.
+
+`build_response` logs a warning when they do not; it does not raise, because
+serving flagged data beats serving nothing. The frontend reports the same
+mismatch as a badge on the FDC 분석 view (`SequenceModel.integrity`).
+
+A mismatch means the pickle's `df_result_data` and `dynamic_fdc` disagree about
+what was measured — investigate the post-processing pipeline, not the adapter.
+
 - Mock behavior: deterministic per-MSR generation seeded from `md5(msr)`, so
   the same MSR always opens to identical detail data. A single per-MSR
   `health` scalar (0 = nominal, 1 = strongly abnormal) biases both the
