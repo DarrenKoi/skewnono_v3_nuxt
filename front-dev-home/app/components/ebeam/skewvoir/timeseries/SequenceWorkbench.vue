@@ -232,7 +232,7 @@ const signed = (v: number): string => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''
 // A scoped axis is a SUBSET of the MSR, so it says so — otherwise a subset
 // reads as the whole run.
 const sequenceMeta = computed(() => {
-  const base = `${model.value.sequences.length} points · ${props.analysis.activeParam.value}`
+  const base = `${model.value.sequences.length} points · ${props.analysis.activeParamLabel.value}`
   return model.value.excludedFdc > 0
     ? `${base} · 타 parameter ${model.value.excludedFdc} 제외`
     : base
