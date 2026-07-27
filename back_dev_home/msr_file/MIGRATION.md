@@ -49,6 +49,7 @@
 
 ### Invariant: `len(rows) == len(dynamic_fdc)`
 
+Office-confirmed 2026-07-27 (`docs/datatables/msr_file_pickle.txt`):
 `sequence` is a global running counter over the whole MSR — one number per
 measurement row — and `dynamic_fdc` is keyed by that sequence, holding the tool
 state captured for it. The two counts must therefore agree.

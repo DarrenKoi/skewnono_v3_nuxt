@@ -384,9 +384,11 @@ def build_response(
 
     fixed_fdc, dynamic_fdc, fdc_params = _fdc(payload)
     # One row is one measurement and dynamic_fdc holds that measurement's tool
-    # state, so the counts must agree. Warn rather than raise: a diagnosable data
-    # fault should be named in the log, not turned into a 500 for the whole page.
-    # The frontend surfaces the same mismatch as a badge (SequenceModel.integrity).
+    # state, so the counts must agree. Office-confirmed 2026-07-27
+    # (docs/datatables/msr_file_pickle.txt). Warn rather than raise: a
+    # diagnosable data fault should be named in the log, not turned into a 500
+    # for the whole page. The frontend surfaces the same mismatch as a badge
+    # (SequenceModel.integrity).
     if len(rows) != len(dynamic_fdc):
         _log.warning(
             "msr_file %s: %d rows but %d dynamic_fdc entries — "

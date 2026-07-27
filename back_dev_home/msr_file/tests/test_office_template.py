@@ -93,9 +93,16 @@ def _payload(result_rows: list[dict] | None = None) -> dict:
             "score": {"1": "896", "2": "899"},
         },
         # Mixed catalog-known and unknown params; values arrive as float OR str.
+        # One entry per row, INCLUDING sequence 2 (the degenerate "no point
+        # data" row): the tool still went there and recorded its state, so it
+        # IS a measurement -- len(dynamic_fdc) must equal len(rows)
+        # (office-confirmed 2026-07-27, docs/datatables/msr_file_pickle.txt).
+        # A golden fixture that itself violated this would make build_response
+        # warn on every test run instead of only the one that means to.
         "fixed_fdc": {"SEMCondVsup": 1502.0, "ESCD": "23.44", "MysteryFixed": "7.5"},
         "dynamic_fdc": {
             "1": {"Brightness": 130.0, "StigmaX": 0.1, "MysteryDyn": 3.3},
+            "2": {"Brightness": 130.8, "StigmaX": 0.15, "MysteryDyn": 3.35},
             "3": {"Brightness": 131.5, "StigmaX": "0.2", "MysteryDyn": 3.4},
         },
         "spm_dict": {"vave": [1.2], "Vol": [1.55, -0.43], "wf_len": [-148.0, 144.19]},
@@ -195,6 +202,18 @@ def test_parameter_summaries_use_measured_rows_only(response):
     by_param = {s["parameter"]: s for s in response["parameters"]}
     assert by_param["CD_TOP"]["count"] == 1  # the mp_number -1 row is excluded
     assert by_param["CD_TOP"]["unit"] == "nm"
+
+
+def test_golden_payload_satisfies_row_fdc_invariant(caplog):
+    """The golden fixture itself must honor len(rows) == len(dynamic_fdc)
+    (office-confirmed 2026-07-27, docs/datatables/msr_file_pickle.txt) -- a
+    fixture that violated the rule it exists to demonstrate would fire the
+    mismatch warning on every test run, not just the one below that means to,
+    turning a diagnosable-fault signal into routine noise."""
+    with caplog.at_level(logging.WARNING):
+        result = office_example.build_response(_MSR, _parent(), _payload())
+    assert len(result["rows"]) == len(result["dynamic_fdc"])
+    assert not any("dynamic_fdc entries" in r.message for r in caplog.records)
 
 
 def test_mismatched_row_and_fdc_counts_warn_without_raising(caplog):
