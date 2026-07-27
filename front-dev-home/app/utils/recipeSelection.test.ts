@@ -99,3 +99,10 @@ test('compare request names exist only for a Redis-only set of at least two', ()
     { name: 'A', source: 'redis' }
   ]), null)
 })
+
+test('compare request names reject a multi-entry OpenSearch-only set', () => {
+  assert.equal(recipeNamesForCompare([
+    { name: 'A', source: 'opensearch' },
+    { name: 'B', source: 'opensearch' }
+  ]), null)
+})
