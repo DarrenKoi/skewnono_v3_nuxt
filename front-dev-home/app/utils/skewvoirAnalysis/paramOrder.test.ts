@@ -87,6 +87,15 @@ test('paramLabel gives the unnamed MP a visible stand-in, never an empty chip', 
   assert.notEqual(paramLabel(''), '')
 })
 
+test('the stand-in cannot be mistaken for a real parameter name', () => {
+  // "DUMMY" is a real parameter name in office data, which is why the stand-in
+  // is a placeholder rather than a word: a real DUMMY must render as itself and
+  // stay distinguishable from the point that has no name at all.
+  assert.equal(paramLabel('DUMMY'), 'DUMMY')
+  assert.notEqual(paramLabel('DUMMY'), UNNAMED_PARAM_LABEL)
+  assert.equal(isNamedParam('DUMMY'), true)
+})
+
 // The default-pick rule the composable applies: prefer the first NAMED param,
 // but fall back to the unnamed one rather than to nothing.
 const pickDefault = (params: string[]): string => {

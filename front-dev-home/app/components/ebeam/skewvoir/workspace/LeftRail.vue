@@ -106,7 +106,7 @@
             Param
           </dt>
           <dd class="truncate font-mono text-(--sk-ink)">
-            {{ analysis.activeParamLabel.value || '—' }}
+            {{ analysis.activeParamLabel.value }}
           </dd>
         </div>
         <div class="flex items-baseline justify-between gap-2">

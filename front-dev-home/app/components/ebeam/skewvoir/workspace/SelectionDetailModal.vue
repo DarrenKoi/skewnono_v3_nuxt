@@ -29,7 +29,7 @@
           </span>
           <span class="flex items-baseline gap-1.5">
             <span class="sk-label">Parameter</span>
-            <span class="font-mono text-[12px] text-(--sk-ink)">{{ analysis.activeParamLabel.value || '—' }}</span>
+            <span class="font-mono text-[12px] text-(--sk-ink)">{{ analysis.activeParamLabel.value }}</span>
           </span>
         </div>
 

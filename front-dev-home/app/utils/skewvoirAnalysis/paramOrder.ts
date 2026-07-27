@@ -35,10 +35,15 @@ export const namedParams = <T extends { parameter: string }>(items: T[]): T[] =>
   items.filter(item => isNamedParam(item.parameter))
 
 // What to show wherever a parameter NAME is rendered. A blank chip is an
-// unreadable click target, so the unnamed MP gets an explicit stand-in rather
-// than rendering as nothing. Deliberately descriptive rather than "DUMMY": the
-// data says the name is empty, not what the point is for.
-export const UNNAMED_PARAM_LABEL = '(이름 없음)'
+// unreadable click target, so the unnamed MP gets a stand-in rather than
+// rendering as nothing.
+//
+// A PLACEHOLDER, not a word. Descriptive labels ("DUMMY", "이름 없음") are the
+// wrong shape here: "DUMMY" is itself a real parameter name that turns up in
+// office data, so a label that reads like a name invites confusion with an
+// actual parameter that happens to be called that. "-" cannot be mistaken for
+// one, and it matches how the rest of the UI already renders an absent value.
+export const UNNAMED_PARAM_LABEL = '-'
 
 export const paramLabel = (parameter: string): string =>
   isNamedParam(parameter) ? parameter : UNNAMED_PARAM_LABEL
