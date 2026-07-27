@@ -9,6 +9,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
     assert classify_activity(
         user_id="u1",
         api_token_id="tok",
+        method="GET",
         path="/api/sem-list",
         status=200,
         feature="sem_list",
@@ -16,6 +17,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
     assert classify_activity(
         user_id="u1",
         api_token_id=None,
+        method="GET",
         path="/api/cdsem/live-alarm",
         status=200,
         feature="live_alarm",
@@ -23,6 +25,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
     assert classify_activity(
         user_id="u1",
         api_token_id=None,
+        method="GET",
         path="/api/sem-list",
         status=200,
         feature="sem_list",
@@ -30,6 +33,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
     assert classify_activity(
         user_id="u1",
         api_token_id=None,
+        method="GET",
         path="/api/cdsem/recipe-search",
         status=200,
         feature="recipe_search",
@@ -38,17 +42,20 @@ def test_activity_precedence_is_operation_background_entry_feature():
 
 def test_failed_anonymous_and_internal_requests_are_operation():
     cases = [
-        (None, None, "/api/cdsem/storage", 200),
-        ("u1", None, "/api/cdsem/storage", 404),
-        ("u1", None, "/api/activity/summary", 200),
-        ("u1", None, "/api/admin/logs", 200),
-        ("u1", None, "/api/health/services", 200),
-        ("u1", None, "/login", 200),
+        (None, None, "GET", "/api/cdsem/storage", 200),
+        ("u1", None, "GET", "/api/cdsem/storage", 404),
+        ("u1", None, "OPTIONS", "/api/cdsem/storage", 200),
+        ("u1", None, "HEAD", "/api/sem-list", 200),
+        ("u1", None, "GET", "/api/activity/summary", 200),
+        ("u1", None, "GET", "/api/admin/logs", 200),
+        ("u1", None, "GET", "/api/health/services", 200),
+        ("u1", None, "GET", "/login", 200),
     ]
-    for user_id, token_id, path, status in cases:
+    for user_id, token_id, method, path, status in cases:
         assert classify_activity(
             user_id=user_id,
             api_token_id=token_id,
+            method=method,
             path=path,
             status=status,
             feature="x",

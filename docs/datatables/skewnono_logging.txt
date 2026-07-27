@@ -1,0 +1,61 @@
+skewnono_logging / skewnono_logging_local — 제품 활동·운영 로그 (OpenSearch)
+
+출처: SKEWNONO 자체 생성 인덱스입니다. 외부 팀 소스가 아니라 우리 Flask
+middleware(OpenSearchBulkHandler)가 쓰는 canonical log document이며, 스키마의
+진실 원천은 ops_index_mgmt/skewnono_logging.py 의 LOG_MAPPING_PROPERTIES 와
+docs/api-contracts/usage-events.yaml 입니다. 이 문서는 datatables 규약에 따라
+reader/writer가 함께 보는 요약본입니다. (user-confirmed 2026-07-27, cluster
+반영은 OFFICE-VERIFY — 회사에서 --environment all 실행 전)
+
+환경과 alias
+- office PC localhost -> alias skewnono_logging_local, 보존 rollover 후 30일
+- production cloud    -> alias skewnono_logging,       보존 rollover 후 365일
+- 두 family 는 같은 mapping/shard/rollover(20GB 또는 7일)이며 보존 기간만 다릅니다.
+- 쓰기/읽기 alias 는 모두 SKEWNONO_LOG_ENV 를 back_dev_home/_logging/target.py 가
+  해석해 결정합니다. 코드에 alias 문자열을 직접 쓰지 않습니다.
+
+mapping (dynamic: false — 아래 필드만 색인됩니다)
+event_id -> keyword: 문서 _id 로도 사용합니다. bulk retry 가 중복 문서를 만들지 않습니다.
+@timestamp -> date: UTC ISO-8601 (offset 포함). 사무실 다른 인덱스의 KST wall-clock
+  관행과 다르므로 주의 — calendar 집계는 time_zone Asia/Seoul 을 명시해 계산합니다.
+event -> keyword: request | request_exception | 일반 application event
+level -> keyword: Python logging level (INFO/WARNING/ERROR/...)
+logger -> keyword: logger 이름 (요청 로그는 skewnono.activity)
+message -> text: bounded 사람용 메시지 (최대 4,096자)
+service -> keyword: 고정값 skewnono
+deployment -> keyword: local | production
+host -> keyword: 실행 host 이름
+request_id -> keyword: 요청 correlation ID (request 와 request_exception 을 잇습니다)
+user_id -> keyword: 인증 사용자 ID. 없으면 필드 자체를 생략합니다 (null 컬럼 없음).
+api_token_id -> keyword: token 자동화 요청 식별자. 없으면 생략합니다.
+method -> keyword: HTTP method
+path -> keyword: query 제외 request path
+query_string -> keyword(ignore_above 2048): 민감 key 는 [REDACTED] 치환, 2,048자 제한
+status -> integer: HTTP status
+latency_ms -> integer: 요청 처리 시간
+remote_addr -> keyword: 내부 client/proxy 주소
+feature -> keyword: page-level feature slug (_logging/feature_map.py 가 결정)
+activity_kind -> keyword: entry | feature | background | operation
+activity_weight -> integer: 활동 집계 대상이면 1, 아니면 0
+fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M14"] 형태이며
+  context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
+error_code -> keyword: HTTP status 또는 예외 타입 이름
+error_name -> keyword(최대 1,024자): bounded 오류 이름
+exception.type -> keyword / exception.message -> text / exception.stack -> text(32,768자)
+
+어댑터 소비 규약
+- 활동 지표(activity reader)는 event=request AND activity_weight=1 AND
+  activity_kind IN (entry, feature) 만 셉니다. top feature / FAB page 순위는
+  activity_kind=feature 만 씁니다. entry(sem_list 진입)는 DAU/WAU/MAU 에는
+  포함하고 순위에는 넣지 않습니다.
+- OPTIONS/HEAD 요청은 분류 단계에서 operation/0 이므로 활동 지표에 나타나지
+  않습니다 (CORS preflight 오염 방지, 2026-07-27 수정).
+- 날짜 경계는 반드시 time_zone: Asia/Seoul 로 집계합니다. @timestamp 를 UTC 로
+  저장하므로 KST 자정 전후 9시간 구간에서 수동 date() 절단은 하루가 어긋납니다.
+- pagination 은 from+size <= 10,000 (index.max_result_window) 안에서만 동작합니다.
+  admin_logs 는 이 한도를 넘는 page 를 400 invalid_log_query 로 거부합니다.
+- error_name 은 keyword 이므로 부분 일치 검색은 wildcard 를 씁니다. match_phrase
+  는 전체 값 정확 일치로 조용히 축소되므로 금지합니다.
+- 요청·응답 body, Authorization header, cookie 는 저장하지 않습니다. 새 query
+  field 가 필요하면 이 파일과 ops_index_mgmt mapping 에 함께 추가한 뒤
+  회사에서 additive mapping update 를 실행합니다.

@@ -147,6 +147,7 @@ request_activity_classification:
       when:
         - 인증되지 않은 사용자이거나 user_id가 "-"
         - api_token_id가 있는 자동화 요청
+        - OPTIONS 또는 HEAD 요청 (CORS preflight, probe)
         - HTTP status가 400 이상
         - /api/ 밖의 요청
         - /api/activity, /api/admin, /api/health 하위 요청
@@ -213,6 +214,13 @@ delivery:
   request_behavior: >-
     queue나 OpenSearch 오류를 Flask 요청에 전파하지 않습니다. 제한된 retry 후
     문서가 drop될 수 있으며 handler diagnostics와 제한된 stderr 경고로 관찰합니다.
+  startup_preflight: >-
+    handler 설치 직후 별도 daemon thread가 alias 상태를 한 번 확인하고, 준비되지
+    않았거나 접근할 수 없으면 bounded stderr 경고를 남깁니다. 시작을 막거나
+    index를 생성하지 않습니다.
+  diagnostics_endpoint: >-
+    GET /api/health/logging 이 설치 여부, 대상 alias, enqueued/indexed/dropped/
+    retries/queue_depth 누적값을 반환합니다.
 
 notes:
   - UTC로 저장하고 activity calendar 집계만 Asia/Seoul timezone을 사용합니다.

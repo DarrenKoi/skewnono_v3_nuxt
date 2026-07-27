@@ -70,9 +70,16 @@ OpenSearch 접속 정보는 `ops_store`가 사용하는 `OPENSEARCH_*` 환경 �
 
 - `from`, `to`: UTC ISO-8601 시간 범위이며, 생략 시 최근 24시간입니다.
 - `page`, `page_size`: 기본값은 각각 `1`, `50`이며 최대 page size는 `200`입니다.
+  `page * page_size`가 OpenSearch result window(10,000)를 넘으면
+  `400 invalid_log_query`로 거부합니다.
 - `level`, `event`, `method`, `user_id`, `feature`, `path`
+- `activity_kind`: `entry`/`feature`/`background`/`operation` 중 하나로
+  활동 분류를 좁힙니다.
+- `fab_name`: FAB 이름으로 좁힙니다. 쉼표로 여러 개를 줄 수 있으며 writer와
+  같은 `normalize_fab_name_list` 정규화를 거쳐 `fab_name_list`에 terms 일치합니다.
 - `status_min`, `status_max`
-- `q`: 메시지, 예외, 오류 이름, 경로, 사용자 식별자를 검색합니다.
+- `q`: 메시지, 예외, 오류 이름, 경로, 사용자 식별자를 검색합니다. `error_name`은
+  keyword field이므로 wildcard 부분 일치를 사용합니다.
 
 잘못된 숫자 값은 라우트에서 `400 invalid_log_query`로 변환합니다. 설정 오류나
 OpenSearch 조회 오류는 내부 상세 내용을 노출하지 않고
@@ -81,6 +88,8 @@ OpenSearch 조회 오류는 내부 상세 내용을 노출하지 않고
 성공 응답은 `contracts.py`의 `LogQueryResponse`를 따릅니다. office 응답의
 `filters`에는 실제로 조회한 `deployment`와 `index_alias`가 포함됩니다. 결과가
 없는 경우는 오류가 아니라 `items: []`, `total: 0`인 정상 응답입니다.
+`page_count`는 result window로 clamp된 마지막 제공 가능 page이며 프론트
+pagination은 이 값만 사용합니다 (10,000 한도를 프론트에 복제하지 않습니다).
 
 ## 검증
 

@@ -7,10 +7,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from back_dev_home._logging.policy import normalize_fab_name_list
 from back_dev_home.admin_logs.contracts import LogItem, LogQueryResponse
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
+# OpenSearch rejects from+size beyond index.max_result_window (default 10k);
+# fail as a 400 up front instead of surfacing a generic 503 at query time.
+MAX_RESULT_WINDOW = 10_000
 
 
 @dataclass(frozen=True)
@@ -99,6 +103,16 @@ def _build_filter_query(
     if feature:
         filters.append({"term": {"feature": feature}})
 
+    activity_kind = _read_str(params, "activity_kind")
+    if activity_kind:
+        filters.append({"term": {"activity_kind": activity_kind}})
+
+    # The writer indexes fab_name_list through the same normalization, so a
+    # hand-rolled .upper() here could never match comma-separated input.
+    fab_names = normalize_fab_name_list([_read_str(params, "fab_name")])
+    if fab_names:
+        filters.append({"terms": {"fab_name_list": fab_names}})
+
     path = _read_str(params, "path")
     if path:
         filters.append({"wildcard": {"path": f"*{path}*"}})
@@ -123,7 +137,9 @@ def _build_filter_query(
                         {"match_phrase": {"message": q}},
                         {"match_phrase": {"exception.message": q}},
                         {"match_phrase": {"exception.stack": q}},
-                        {"match_phrase": {"error_name": q}},
+                        # error_name is keyword-mapped: match_phrase would only
+                        # hit exact full values, so substring-match like path.
+                        {"wildcard": {"error_name": f"*{q}*"}},
                         {"wildcard": {"path": f"*{q}*"}},
                         {"wildcard": {"user_id": f"*{q}*"}},
                     ],
@@ -143,6 +159,8 @@ def _build_filter_query(
         "method": method,
         "user_id": user_id,
         "feature": feature,
+        "activity_kind": activity_kind,
+        "fab_name": ",".join(fab_names),
         "path": path,
         "status_min": status_min,
         "status_max": status_max,
@@ -160,6 +178,12 @@ def parse_log_query(params: Mapping[str, Any]) -> ParsedLogQuery:
             _read_int(params, "page_size", DEFAULT_PAGE_SIZE),
         ),
     )
+    if page * page_size > MAX_RESULT_WINDOW:
+        raise ValueError(
+            f"page {page} with page_size {page_size} is beyond the "
+            f"{MAX_RESULT_WINDOW}-document result window; "
+            "narrow the time range or filters instead"
+        )
     query, filters = _build_filter_query(params, from_value, to_value)
     return ParsedLogQuery(
         query=query,
@@ -167,6 +191,12 @@ def parse_log_query(params: Mapping[str, Any]) -> ParsedLogQuery:
         page=page,
         page_size=page_size,
     )
+
+
+def page_count_for(total: int, page_size: int) -> int:
+    """Last servable page: total-derived, clamped to the result window."""
+    by_total = -(-total // page_size)
+    return max(1, min(by_total, MAX_RESULT_WINDOW // page_size))
 
 
 def _total_from_response(response: dict[str, Any]) -> int:
@@ -209,11 +239,13 @@ def response_from_result(
     if extra_filters:
         filters.update(extra_filters)
     hits = result.get("hits", {}).get("hits", [])
+    total = _total_from_response(result)
     return {
         "generated_at": _iso_z(_utc_now()),
         "page": parsed.page,
         "page_size": parsed.page_size,
-        "total": _total_from_response(result),
+        "total": total,
+        "page_count": page_count_for(total, parsed.page_size),
         "filters": filters,
         "items": [
             item_from_hit(hit)

@@ -10,6 +10,8 @@ export interface AdminLogQuery {
   user_id?: string
   feature?: string
   method?: string
+  activity_kind?: string
+  fab_name?: string
   path?: string
   q?: string
   page?: number
@@ -45,6 +47,9 @@ export interface AdminLogsResponse {
   page: number
   page_size: number
   total: number
+  /** Last servable page: total-derived, clamped server-side to the
+   * OpenSearch result window. The pager must use this, not recompute it. */
+  page_count: number
   filters: Record<string, unknown>
   items: AdminLogItem[]
 }

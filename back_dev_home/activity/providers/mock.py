@@ -2,7 +2,10 @@
 
 The mock stores the same request-scoped semantics the OpenSearch office reader
 will aggregate: entry requests count active users, feature requests also count
-page usage, and each request can belong to multiple FAB buckets.
+page usage, and each request can belong to multiple FAB buckets. Timestamps
+stay UTC but day buckets follow ``Asia/Seoul``, matching the office reader's
+``time_zone`` aggregations — a UTC calendar here would disagree with
+production about "today" for nine hours a day.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 
 from ..._auth.admin import is_admin
+from .opensearch_reader import KST
 from back_dev_home.activity.contracts import (
     DailyCount,
     FabPageCount,
@@ -75,8 +79,12 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _kst_date(value: datetime) -> date:
+    return value.astimezone(KST).date()
+
+
 def _today() -> date:
-    return _now().date()
+    return _kst_date(_now())
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -146,7 +154,7 @@ def record_request(
         return
 
     now = _now()
-    today = now.date()
+    today = _kst_date(now)
     fabs = fab_name_list or ["미지정"]
 
     with _lock:

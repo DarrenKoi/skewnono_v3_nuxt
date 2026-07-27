@@ -15,9 +15,9 @@ bp = Blueprint("activity", __name__)
 logger = logging.getLogger(__name__)
 
 
-def _query(loader):
+def _query(loader, *, not_found: str | None = None):
     try:
-        return jsonify(loader())
+        payload = loader()
     except Exception:
         logger.exception("Failed to query OpenSearch activity")
         return error_json(
@@ -25,6 +25,9 @@ def _query(loader):
             "Could not query OpenSearch activity",
             503,
         )
+    if payload is None and not_found is not None:
+        return error_json("not_found", not_found, 404)
+    return jsonify(payload)
 
 
 @bp.get("/activity/me")
@@ -49,15 +52,7 @@ def activity_users():
 
 @bp.get("/activity/users/<user_id>")
 def activity_user_detail(user_id: str):
-    try:
-        payload = get_user_history(user_id)
-    except Exception:
-        logger.exception("Failed to query OpenSearch activity")
-        return error_json(
-            "activity_query_failed",
-            "Could not query OpenSearch activity",
-            503,
-        )
-    if payload is None:
-        return error_json("not_found", f"no activity for user {user_id!r}", 404)
-    return jsonify(payload)
+    return _query(
+        lambda: get_user_history(user_id),
+        not_found=f"no activity for user {user_id!r}",
+    )

@@ -33,6 +33,29 @@ types:
       items: ServiceHealth
 
 endpoints:
+  - path: /api/health/logging
+    method: GET
+    description: Delivery diagnostics for the OpenSearch log shipper. Runtime introspection like /api/health/providers — reads the installed handler directly, so silent document loss (queue-full or bulk drops) is observable instead of only shrinking the activity metrics.
+    response:
+      status: 200
+      body: "installed: bool, target: {alias, deployment} | null, diagnostics: {enqueued, indexed, queue_full_dropped, bulk_dropped, dropped, retries, bulk_failures, last_success_at, last_failure_at, queue_depth} | null"
+    example_request: "GET /api/health/logging"
+    example_response:
+      installed: true
+      target:
+        alias: "skewnono_logging_local"
+        deployment: "local"
+      diagnostics:
+        enqueued: 1240
+        indexed: 1240
+        queue_full_dropped: 0
+        bulk_dropped: 0
+        dropped: 0
+        retries: 2
+        bulk_failures: 1
+        last_success_at: "2026-07-27T12:00:05+00:00"
+        last_failure_at: "2026-07-27T11:59:58+00:00"
+        queue_depth: 3
   - path: /api/health/services
     method: GET
     description: Snapshot of liveness for the three backing services. Cheap to call; frontend fetches once on page mount.

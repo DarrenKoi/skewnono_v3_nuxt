@@ -10,6 +10,7 @@ from back_dev_home.admin_logs.query import (
     _split_csv,
     _utc_now,
     item_from_hit,
+    page_count_for,
     parse_log_query,
 )
 
@@ -32,7 +33,9 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "latency_ms": 842,
             "remote_addr": "10.20.30.11",
             "feature": "ebeam",
+            "activity_kind": "operation",
             "activity_weight": 0,
+            "fab_name_list": ["M14"],
             "error_code": "TimeoutError",
             "error_name": "OpenSearch request timed out",
             "exception": {
@@ -57,7 +60,9 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "latency_ms": 38,
             "remote_addr": "10.20.30.12",
             "feature": "afm",
+            "activity_kind": "operation",
             "activity_weight": 0,
+            "fab_name_list": [],
             "error_code": "404",
             "error_name": "Not Found",
         },
@@ -77,7 +82,9 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "latency_ms": 14,
             "remote_addr": "10.20.30.13",
             "feature": "activity",
+            "activity_kind": "operation",
             "activity_weight": 0,
+            "fab_name_list": [],
         },
         {
             "@timestamp": _iso_z(now - timedelta(minutes=31)),
@@ -95,7 +102,9 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "latency_ms": 126,
             "remote_addr": "10.20.30.14",
             "feature": "ebeam",
+            "activity_kind": "feature",
             "activity_weight": 1,
+            "fab_name_list": ["M16B"],
         },
         {
             "@timestamp": _iso_z(now - timedelta(hours=2, minutes=8)),
@@ -113,7 +122,9 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "latency_ms": 24,
             "remote_addr": "10.20.30.15",
             "feature": "admin",
+            "activity_kind": "operation",
             "activity_weight": 0,
+            "fab_name_list": [],
             "error_code": "503",
             "error_name": "Service Unavailable",
         },
@@ -143,10 +154,17 @@ def _matches_demo(row: dict[str, Any], filters: dict[str, Any]) -> bool:
     if level and str(row.get("level")) not in _split_csv(level):
         return False
 
-    for key in ("event", "method", "user_id", "feature"):
+    for key in ("event", "method", "user_id", "feature", "activity_kind"):
         value = str(filters.get(key) or "")
         if value and str(row.get(key) or "") != value:
             return False
+
+    fab_name = str(filters.get("fab_name") or "")
+    if fab_name and not any(
+        fab in (row.get("fab_name_list") or [])
+        for fab in _split_csv(fab_name)
+    ):
+        return False
 
     path = str(filters.get("path") or "").lower()
     if path and path not in str(row.get("path") or "").lower():
@@ -200,6 +218,7 @@ def query_logs(params: Mapping[str, Any]) -> LogQueryResponse:
         "page": parsed.page,
         "page_size": parsed.page_size,
         "total": len(rows),
+        "page_count": page_count_for(len(rows), parsed.page_size),
         "filters": filters,
         "items": [item_from_hit(hit) for hit in hits],
     }

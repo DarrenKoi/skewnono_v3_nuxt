@@ -1,3 +1,4 @@
+import pytest
 from flask import Flask, g
 
 import ops_store
@@ -68,6 +69,7 @@ def test_office_queries_the_resolved_local_alias(monkeypatch):
     assert seen["body"]["sort"] == [{"@timestamp": {"order": "desc"}}]
     assert result["filters"]["deployment"] == "local"
     assert result["filters"]["index_alias"] == "skewnono_logging_local"
+    assert result["page_count"] == 1
 
 
 def test_mock_never_constructs_opensearch(monkeypatch):
@@ -103,3 +105,47 @@ def test_route_returns_stable_503_without_backend_details(monkeypatch):
     assert body["error"]["code"] == "log_query_failed"
     assert body["error"]["message"] == "Could not query OpenSearch logs"
     assert "secret-internal-host" not in str(body)
+
+
+def test_parse_log_query_rejects_pages_beyond_the_result_window():
+    """OpenSearch rejects from+size past 10k with an opaque 400-class error the
+    route would relabel as a 503 outage; refusing up front keeps it a 400."""
+    with pytest.raises(ValueError, match="result window"):
+        parse_log_query({"page": "51", "page_size": "200"})
+
+    assert parse_log_query({"page": "50", "page_size": "200"}).page == 50
+
+
+def test_free_text_matches_error_name_as_substring():
+    """error_name is keyword-mapped, so match_phrase would need the exact full
+    value; the free-text box promises substring semantics like path."""
+    should = parse_log_query({"q": "timeout"}).query["bool"]["must"][0]["bool"]["should"]
+
+    assert {"wildcard": {"error_name": "*timeout*"}} in should
+    assert {"match_phrase": {"error_name": "timeout"}} not in should
+
+
+def test_activity_kind_and_fab_name_narrow_the_query():
+    """fab_name goes through the writer's normalize_fab_name_list, so casing
+    and comma-separated input match what was actually indexed."""
+    parsed = parse_log_query({"activity_kind": "feature", "fab_name": "m16b, m14"})
+
+    filters = parsed.query["bool"]["filter"]
+    assert {"term": {"activity_kind": "feature"}} in filters
+    assert {"terms": {"fab_name_list": ["M16B", "M14"]}} in filters
+    assert parsed.filters["activity_kind"] == "feature"
+    assert parsed.filters["fab_name"] == "M16B,M14"
+
+
+def test_mock_filters_by_activity_kind_and_fab_name():
+    by_kind = mock.query_logs({"activity_kind": "feature"})
+    assert by_kind["items"]
+    assert all(
+        item["raw"]["activity_kind"] == "feature" for item in by_kind["items"]
+    )
+
+    by_fab = mock.query_logs({"fab_name": "M16B"})
+    assert by_fab["items"]
+    assert all(
+        "M16B" in item["raw"]["fab_name_list"] for item in by_fab["items"]
+    )

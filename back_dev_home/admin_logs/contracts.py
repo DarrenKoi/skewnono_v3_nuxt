@@ -34,5 +34,9 @@ class LogQueryResponse(TypedDict):
     page: int
     page_size: int
     total: int
+    # Last page the backend will serve: ceil(total / page_size) clamped to the
+    # OpenSearch result window. The pager derives from this, never from its
+    # own copy of the window constant.
+    page_count: int
     filters: dict[str, Any]
     items: list[LogItem]

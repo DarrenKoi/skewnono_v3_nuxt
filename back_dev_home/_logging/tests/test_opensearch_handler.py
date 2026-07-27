@@ -411,6 +411,7 @@ class _StubHandler(logging.Handler):
 def stub_handler(monkeypatch):
     _StubHandler.made = []
     monkeypatch.setattr(osh, "OpenSearchBulkHandler", _StubHandler)
+    monkeypatch.setattr(osh, "_startup_preflight", lambda _handler: None)
     return _StubHandler
 
 
@@ -536,3 +537,82 @@ def test_existing_handler_for_another_target_is_rejected(
 
     with pytest.raises(osh.LoggingConfigurationError, match="does not match"):
         osh.install_opensearch_logging()
+
+
+# -- _startup_preflight ------------------------------------------------------
+
+
+class _Describer:
+    """Index-service fake whose describe() answer is fixed at construction."""
+
+    def __init__(self, description):
+        self._description = description
+
+    def describe(self, _index):
+        return self._description
+
+
+def _preflight_stderr(monkeypatch, handler):
+    stderr = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", stderr)
+    osh._startup_preflight(handler)
+    return stderr.getvalue()
+
+
+def _preflight_handler(description=None, client_factory=None):
+    handler = _ParkedShipper(
+        index="skewnono_logging_local",
+        index_service_factory=lambda _client, _index: _Describer(description),
+    )
+    if client_factory is not None:
+        handler._client_factory = client_factory
+    else:
+        handler._client_factory = lambda: object()
+    return handler
+
+
+def test_preflight_warns_when_the_alias_is_not_ready(monkeypatch):
+    """The spec promises a startup warning, not a first-flush one: an operator
+    who forgot the ops_index_mgmt run should learn it from the boot log, hours
+    before the first request would have tried to ship."""
+    handler = _preflight_handler(description={"is_alias": False})
+    try:
+        out = _preflight_stderr(monkeypatch, handler)
+    finally:
+        handler.close()
+
+    assert "skewnono_logging_local is not a ready numbered rollover alias" in out
+
+
+def test_preflight_is_silent_when_the_alias_is_ready(monkeypatch):
+    handler = _preflight_handler(
+        description={
+            "is_alias": True,
+            "rollover": {"ready": True, "uses_numbered_suffix": True},
+        }
+    )
+    try:
+        out = _preflight_stderr(monkeypatch, handler)
+    finally:
+        handler.close()
+
+    assert out == ""
+
+
+def test_preflight_bounds_a_connection_failure_to_its_type_name(monkeypatch):
+    """No host, no credentials, no exception text — the boot log line must be
+    safe to paste anywhere."""
+
+    def _refuse():
+        raise ConnectionError("opensearch://user:secret@10.0.0.1 refused")
+
+    handler = _preflight_handler(client_factory=_refuse)
+    try:
+        out = _preflight_stderr(monkeypatch, handler)
+    finally:
+        handler.close()
+
+    assert "cannot reach skewnono_logging_local at startup: ConnectionError" in out
+    assert "secret" not in out
+    assert "10.0.0.1" not in out
+

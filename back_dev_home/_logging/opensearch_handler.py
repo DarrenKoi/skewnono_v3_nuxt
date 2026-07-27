@@ -14,7 +14,8 @@ import socket
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from contextlib import suppress
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 from uuid import uuid4
@@ -56,6 +57,20 @@ class AliasNotReadyError(RuntimeError):
     """Raised when the configured write target is not a rollover alias."""
 
 
+def _verify_rollover_alias(index_service: Any, index: str) -> None:
+    description = index_service.describe(index)
+    rollover = description.get("rollover", {})
+    if (
+        not description.get("is_alias")
+        or not rollover.get("ready")
+        or not rollover.get("uses_numbered_suffix")
+    ):
+        raise AliasNotReadyError(
+            f"{index} is not a ready numbered rollover alias; "
+            "run ops_index_mgmt/skewnono_logging.py at the office"
+        )
+
+
 @dataclass(frozen=True)
 class HandlerDiagnostics:
     enqueued: int
@@ -71,6 +86,9 @@ class HandlerDiagnostics:
     @property
     def dropped(self) -> int:
         return self.queue_full_dropped + self.bulk_dropped
+
+    def as_dict(self) -> dict[str, Any]:
+        return {**asdict(self), "dropped": self.dropped}
 
 
 def _bounded(value: Any, limit: int) -> str:
@@ -339,17 +357,7 @@ class OpenSearchBulkHandler(logging.Handler):
 
         client = self._client_factory()
         index_service = self._index_service_factory(client, self._index)
-        description = index_service.describe(self._index)
-        rollover = description.get("rollover", {})
-        if (
-            not description.get("is_alias")
-            or not rollover.get("ready")
-            or not rollover.get("uses_numbered_suffix")
-        ):
-            raise AliasNotReadyError(
-                f"{self._index} is not a ready numbered rollover alias; "
-                "run ops_index_mgmt/skewnono_logging.py at the office"
-            )
+        _verify_rollover_alias(index_service, self._index)
         self._client = client
         self._doc_service = self._doc_service_factory(client, self._index)
         return self._doc_service
@@ -406,6 +414,29 @@ def _stderr(message: str) -> None:
     sys.stderr.write(f"[opensearch-log] {message}\n")
 
 
+def _startup_preflight(handler: OpenSearchBulkHandler) -> None:
+    """Warn at boot when the configured alias is unusable, without blocking.
+
+    Runs off-thread with its own client so it can never delay startup or race
+    the worker's cached services; the only side effect is a bounded stderr
+    line.
+    """
+    client = None
+    try:
+        client = handler._client_factory()
+        index_service = handler._index_service_factory(client, handler.index)
+        _verify_rollover_alias(index_service, handler.index)
+    except AliasNotReadyError as exc:
+        _stderr(str(exc))
+    except Exception as exc:  # noqa: BLE001 - preflight must never raise
+        _stderr(f"cannot reach {handler.index} at startup: {type(exc).__name__}")
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            with suppress(Exception):
+                close()
+
+
 def install_opensearch_logging(
     *,
     target: LoggingTarget | None = None,
@@ -443,6 +474,12 @@ def install_opensearch_logging(
             level=level,
         )
         root.addHandler(handler)
+        threading.Thread(
+            target=_startup_preflight,
+            args=(handler,),
+            name="skewnono-os-log-preflight",
+            daemon=True,
+        ).start()
 
     if root.level == logging.NOTSET or root.level > level:
         root.setLevel(level)
@@ -463,3 +500,8 @@ def _find_handler(
         (handler for handler in logger_obj.handlers if isinstance(handler, handler_cls)),
         None,
     )
+
+
+def installed_handler() -> OpenSearchBulkHandler | None:
+    """The process-wide shipper install() attached to root, if any."""
+    return _find_handler(logging.getLogger(), OpenSearchBulkHandler)

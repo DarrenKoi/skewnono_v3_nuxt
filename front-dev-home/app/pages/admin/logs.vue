@@ -80,6 +80,13 @@
           :items="methodOptions"
         />
         <USelect
+          v-model="draft.activity_kind"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          :items="activityKindOptions"
+        />
+        <USelect
           :model-value="pageSize"
           size="xs"
           color="neutral"
@@ -105,6 +112,14 @@
           color="neutral"
           variant="subtle"
           placeholder="Feature"
+        />
+        <UInput
+          v-model="draft.fab_name"
+          size="xs"
+          icon="i-lucide-factory"
+          color="neutral"
+          variant="subtle"
+          placeholder="FAB"
         />
         <UInput
           v-model="draft.status_min"
@@ -181,6 +196,15 @@
           class="h-4 w-4 animate-spin"
         />
         Loading logs...
+      </div>
+
+      <!-- On error, logs still holds the previous page's rows; rendering them
+           under the newly requested page number would mislabel stale data. -->
+      <div
+        v-else-if="loadError"
+        class="px-4 py-12 text-center sk-body"
+      >
+        로그를 조회하지 못해 결과를 표시하지 않습니다.
       </div>
 
       <div
@@ -348,8 +372,10 @@ type DraftFilters = {
   level: string
   event: string
   method: string
+  activity_kind: string
   user_id: string
   feature: string
+  fab_name: string
   status_min: string
   status_max: string
   path: string
@@ -382,8 +408,10 @@ const makeDefaultFilters = (): DraftFilters => {
     level: ALL_SENTINEL,
     event: ALL_SENTINEL,
     method: ALL_SENTINEL,
+    activity_kind: ALL_SENTINEL,
     user_id: '',
     feature: '',
+    fab_name: '',
     status_min: '',
     status_max: '',
     path: '',
@@ -422,6 +450,14 @@ const methodOptions = [
   { label: 'DELETE', value: 'DELETE' }
 ]
 
+const activityKindOptions = [
+  { label: 'All activity', value: ALL_SENTINEL },
+  { label: 'Entry', value: 'entry' },
+  { label: 'Feature', value: 'feature' },
+  { label: 'Background', value: 'background' },
+  { label: 'Operation', value: 'operation' }
+]
+
 const fromAll = (value: string) => (value === ALL_SENTINEL ? '' : value)
 
 const pageSizeOptions = [
@@ -437,8 +473,10 @@ const query = computed<AdminLogQuery>(() => ({
   level: fromAll(applied.value.level),
   event: fromAll(applied.value.event),
   method: fromAll(applied.value.method),
+  activity_kind: fromAll(applied.value.activity_kind),
   user_id: applied.value.user_id,
   feature: applied.value.feature,
+  fab_name: applied.value.fab_name,
   status_min: applied.value.status_min,
   status_max: applied.value.status_max,
   path: applied.value.path,
@@ -462,11 +500,7 @@ const {
 
 const rows = computed<AdminLogItem[]>(() => logs.value?.items ?? [])
 const isDemoMode = computed(() => logs.value?.filters?.demo_mode === true)
-const pageCount = computed(() => {
-  const total = logs.value?.total ?? 0
-  const size = logs.value?.page_size ?? pageSize.value
-  return Math.max(1, Math.ceil(total / size))
-})
+const pageCount = computed(() => logs.value?.page_count ?? 1)
 
 const loadError = computed(() => {
   if (!error.value) return ''

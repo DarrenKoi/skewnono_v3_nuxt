@@ -43,6 +43,7 @@ def classify_activity(
     *,
     user_id: str | None,
     api_token_id: str | None,
+    method: str,
     path: str,
     status: int,
     feature: str,
@@ -51,6 +52,9 @@ def classify_activity(
         not user_id
         or user_id == "-"
         or api_token_id
+        # CORS preflights and probes run the full middleware pipeline but are
+        # browser plumbing, not a person using the product.
+        or method in ("OPTIONS", "HEAD")
         or status >= 400
         or not path.startswith("/api/")
         or any(_at_or_below(path, prefix) for prefix in _OPERATION_PREFIXES)

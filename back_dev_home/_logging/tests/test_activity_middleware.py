@@ -198,6 +198,19 @@ def test_only_weighted_requests_become_usage_events(make_app, recorded):
     ]
 
 
+def test_a_cors_preflight_is_logged_but_not_recorded(make_app, records, recorded):
+    """Browsers send OPTIONS preflights without cookies, so at home they carry
+    the fallback admin identity; counting them would inflate DAU and feature
+    usage with traffic no human initiated."""
+    client = make_app(user_id="local-dev")
+
+    client.options("/api/sem-list")
+
+    record = _only(records, "request")
+    assert (record.activity_kind, record.activity_weight) == ("operation", 0)
+    assert recorded == []
+
+
 def test_an_anonymous_request_is_logged_but_not_recorded(make_app, records, recorded):
     client = make_app()  # no g.user_id, as before identity middleware resolves one
 

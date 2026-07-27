@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 
+from back_dev_home._logging.opensearch_handler import installed_handler
 from back_dev_home._runtime.data_provider import get_mode, resolve_all
 from back_dev_home._runtime.site import detect_site
 from back_dev_home.health.data import get_services_health
@@ -25,5 +26,35 @@ def providers_health():
             "site": detect_site() or "unknown",
             "mode": get_mode(),
             "features": [row._asdict() for row in resolve_all()],
+        }
+    )
+
+
+@bp.get("/health/logging")
+def logging_health():
+    """Delivery diagnostics for the OpenSearch log shipper.
+
+    Same introspection carve-out as /health/providers: reads the installed
+    handler directly. The shipper drops documents rather than fail requests,
+    so without this endpoint sustained loss only shows up as quietly shrinking
+    activity metrics.
+    """
+    handler = installed_handler()
+    if handler is None:
+        return jsonify(
+            {
+                "installed": False,
+                "target": None,
+                "diagnostics": None,
+            }
+        )
+    return jsonify(
+        {
+            "installed": True,
+            "target": {
+                "alias": handler.index,
+                "deployment": handler.deployment,
+            },
+            "diagnostics": handler.snapshot().as_dict(),
         }
     )

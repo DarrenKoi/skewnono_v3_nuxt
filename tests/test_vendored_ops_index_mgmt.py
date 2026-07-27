@@ -17,8 +17,13 @@ on them:
   families the office adapters read.
 
 Nothing here contacts a cluster: the ``build_*`` functions are pure, and the
-``ensure_*`` guard rails are driven with a fake client. ``ops_index_mgmt/`` is a
-**vendored copy** of an upstream ``flask_modules`` package and is not edited.
+``ensure_*`` guard rails are driven with a fake client.
+
+Vendoring status is per-file: most of ``ops_index_mgmt/`` is a **vendored
+copy** of the upstream ``flask_modules`` package and is not edited here, but
+``skewnono_logging.py`` is **project-owned** — it does not exist upstream and
+carries this repo's local/production logging families, so it is edited here
+like any other backend module.
 """
 
 import pytest
@@ -409,3 +414,19 @@ def test_the_backend_log_handler_and_this_script_agree_on_the_alias():
         opensearch_handler.DEFAULT_INDEX
         == logging_setup.target_for("production").alias
     )
+
+
+# ── writer/reader alias agreement ────────────────────────────────────────────
+
+
+def test_provisioned_aliases_match_the_runtime_logging_targets():
+    """The environment→alias map exists twice on purpose — the provisioning
+    script must not import Flask plumbing — but if the strings drift, requests
+    silently land in an auto-created index the readers never query."""
+    from back_dev_home._logging.target import resolve_logging_target
+
+    for environment in ("local", "production"):
+        runtime = resolve_logging_target({"SKEWNONO_LOG_ENV": environment})
+        provisioned = logging_setup.target_for(environment)
+        assert runtime.alias == provisioned.alias
+        assert runtime.deployment == environment
