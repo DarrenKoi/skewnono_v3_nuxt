@@ -74,11 +74,13 @@ export const normalizeRecipeNameSnapshot = (input: {
   recipe_names_complete?: unknown
   rows: Array<{ full_name?: unknown }>
 }): { names: string[], complete: boolean } => {
+  const rowNames = input.rows
+    .map(row => row.full_name)
+    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+
   if (!Array.isArray(input.recipe_names)) {
     return {
-      names: input.rows
-        .map(row => row.full_name)
-        .filter((name): name is string => typeof name === 'string' && name.trim().length > 0),
+      names: rowNames,
       complete: false
     }
   }
@@ -86,10 +88,16 @@ export const normalizeRecipeNameSnapshot = (input: {
   const names = input.recipe_names.filter(
     (name): name is string => typeof name === 'string' && name.trim().length > 0
   )
+  if (names.length !== input.recipe_names.length) {
+    return {
+      names: [...new Set([...names, ...rowNames])],
+      complete: false
+    }
+  }
+
   return {
     names,
-    complete: names.length === input.recipe_names.length
-      && input.recipe_names_complete === true
+    complete: input.recipe_names_complete === true
   }
 }
 

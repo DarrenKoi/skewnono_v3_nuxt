@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from back_dev_home.ebeam.hitachi import _office_meas_hist
 from back_dev_home.meas_hist.providers import office_example
 
 
@@ -77,6 +78,30 @@ def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_names(monkey
         "sub_aggs": {},
         "query": captured["raw_body"]["query"],
     }
+
+
+def test_malformed_recipe_aggregation_propagates_instead_of_marking_complete(
+    monkeypatch,
+):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(
+        office_example,
+        "_os_search",
+        lambda index: captured.setdefault("raw_index", index) and _FakeSearch(captured),
+    )
+    monkeypatch.setattr(
+        _office_meas_hist,
+        "aggregate",
+        lambda *_args: {"comp": {}},
+    )
+
+    with pytest.raises(RuntimeError, match="missing.*buckets"):
+        office_example.search_meas_hist(
+            tool_type="cd-sem",
+            recipe=["CD_BIAS"],
+            limit=1,
+        )
 
 
 def test_recipe_name_composite_is_not_called_without_recipe_filter(monkeypatch):

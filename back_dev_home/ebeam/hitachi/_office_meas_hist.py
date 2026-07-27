@@ -39,6 +39,7 @@ Connection settings come from ``OPENSEARCH_HOST`` / ``OPENSEARCH_PORT`` /
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -142,6 +143,8 @@ def composite_buckets(
     """
     buckets: list[dict[str, Any]] = []
     after: dict[str, Any] | None = None
+    seen_after_keys: list[dict[str, Any]] = []
+    page_number = 1
     while True:
         composite: dict[str, Any] = {
             "size": _COMPOSITE_PAGE_SIZE,
@@ -153,12 +156,53 @@ def composite_buckets(
         if sub_aggs:
             body["comp"]["aggs"] = sub_aggs
         result = aggregate(index, body, query_body)
-        page = result.get("comp", {})
-        page_buckets = page.get("buckets", [])
+        if not isinstance(result, Mapping):
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "must be a mapping."
+            )
+        if "comp" not in result:
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "is missing the 'comp' aggregation."
+            )
+        page = result["comp"]
+        if not isinstance(page, Mapping):
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "'comp' must be a mapping."
+            )
+        if "buckets" not in page:
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "is missing 'buckets'."
+            )
+        page_buckets = page["buckets"]
+        if not isinstance(page_buckets, list):
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "'buckets' must be a list."
+            )
         buckets.extend(page_buckets)
-        after = page.get("after_key")
-        if not after or len(page_buckets) < _COMPOSITE_PAGE_SIZE:
+        if "after_key" not in page:
             break
+        next_after = page["after_key"]
+        if not isinstance(next_after, Mapping):
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "'after_key' must be a mapping when present."
+            )
+        after_key = dict(next_after)
+        if any(after_key == seen for seen in seen_after_keys):
+            raise RuntimeError(
+                f"OpenSearch composite page {page_number} for {index!r} "
+                "returned a repeated 'after_key'."
+            )
+        seen_after_keys.append(after_key)
+        if len(page_buckets) < _COMPOSITE_PAGE_SIZE:
+            break
+        after = after_key
+        page_number += 1
     return buckets
 
 

@@ -101,7 +101,7 @@ test('history names are empty for an empty token list', () => {
   assert.deepEqual(matchingHistoryNames(['ADI/CD_A'], []), [])
 })
 
-test('recipe-name snapshot falls back safely when additive fields are unavailable', () => {
+test('recipe-name snapshot uses raw rows when additive fields are unavailable', () => {
   const rows = [{ full_name: 'RAW/A' }, { full_name: 'RAW/B' }]
 
   assert.deepEqual(normalizeRecipeNameSnapshot({ rows }), {
@@ -116,10 +116,65 @@ test('recipe-name snapshot falls back safely when additive fields are unavailabl
     names: ['RAW/A', 'RAW/B'],
     complete: false
   })
+})
+
+test('recipe-name snapshot uses raw rows when an array has no valid members', () => {
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: [null],
+    recipe_names_complete: true,
+    rows: [{ full_name: 'RAW/A' }, { full_name: 'RAW/B' }]
+  }), {
+    names: ['RAW/A', 'RAW/B'],
+    complete: false
+  })
+})
+
+test('recipe-name snapshot merges valid partial members with raw rows', () => {
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: ['SNAPSHOT/A', null, 'SNAPSHOT/B'],
+    recipe_names_complete: true,
+    rows: [
+      { full_name: 'RAW/A' },
+      { full_name: 'SNAPSHOT/A' }
+    ]
+  }), {
+    names: ['SNAPSHOT/A', 'SNAPSHOT/B', 'RAW/A'],
+    complete: false
+  })
+})
+
+test('recipe-name snapshot removes blanks and duplicates from partial data', () => {
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: ['SNAPSHOT/A', '', 'SNAPSHOT/A'],
+    recipe_names_complete: true,
+    rows: [
+      { full_name: 'SNAPSHOT/A' },
+      { full_name: 'RAW/A' },
+      { full_name: ' ' },
+      { full_name: 'RAW/A' }
+    ]
+  }), {
+    names: ['SNAPSHOT/A', 'RAW/A'],
+    complete: false
+  })
+})
+
+test('recipe-name snapshot preserves an intentionally empty complete array', () => {
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: [],
+    recipe_names_complete: true,
+    rows: [{ full_name: 'RAW/A' }]
+  }), {
+    names: [],
+    complete: true
+  })
+})
+
+test('recipe-name snapshot preserves fully valid names', () => {
   assert.deepEqual(normalizeRecipeNameSnapshot({
     recipe_names: ['SNAPSHOT/B', 'SNAPSHOT/A'],
     recipe_names_complete: true,
-    rows
+    rows: [{ full_name: 'RAW/A' }]
   }), {
     names: ['SNAPSHOT/B', 'SNAPSHOT/A'],
     complete: true
