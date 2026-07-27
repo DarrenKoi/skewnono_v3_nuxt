@@ -34,7 +34,7 @@
         <span
           class="flex h-4 w-4 items-center justify-center rounded border"
           :class="modelValue.includes(item)
-            ? 'border-(--sk-ink) bg-(--sk-ink) text-white dark:text-zinc-900'
+            ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
             : 'border-(--sk-border)'"
         >
           <UIcon
@@ -47,9 +47,19 @@
 
       <!-- Bulk actions act on the matches, so they belong below the list they
            describe — #content-top renders above the search input. 닫기 is an
-           explicit close affordance (click-outside / Esc also close the menu). -->
+           explicit close affordance (click-outside / Esc also close the menu).
+
+           The footer sits INSIDE the listbox, so Enter/Space on a focused
+           button bubbles to Reka, which cancels the native activation and
+           toggles the highlighted option instead — Tab here and press Enter
+           and you would pick one tool rather than all matches. Stopping the
+           key at the footer lets the buttons behave like buttons. -->
       <template #content-bottom>
-        <div class="flex items-center gap-1 border-t border-(--sk-border-soft) p-1">
+        <div
+          class="flex items-center gap-1 border-t border-(--sk-border-soft) p-1"
+          @keydown.enter.stop
+          @keydown.space.stop
+        >
           <UButton
             size="xs"
             color="neutral"
@@ -127,8 +137,5 @@ const unpicked = computed(() => matches.value.filter(id => !props.modelValue.inc
 const hasPickedMatch = computed(() => matches.value.some(id => props.modelValue.includes(id)))
 
 const selectMatches = () => emit('update:modelValue', [...props.modelValue, ...unpicked.value])
-const clearMatches = () => {
-  const dropped = matches.value
-  emit('update:modelValue', props.modelValue.filter(id => !dropped.includes(id)))
-}
+const clearMatches = () => emit('update:modelValue', props.modelValue.filter(id => !matches.value.includes(id)))
 </script>

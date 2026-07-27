@@ -89,7 +89,7 @@ furniture(`echartsThemes.ts`)에서 `splitLine`을 물려받으므로 기본값�
 
 | 파일 | 위치 | 차트 |
 | --- | --- | --- |
-| `BsmTrendChart.vue` | yAxis | BSM · MDC 시계열 · Sharpness 추세 (공유 컴포넌트) |
+| `BsmTrendChart.vue` | yAxis | BSM · MDC 시계열 · SCE · Sharpness 추세 (공유 컴포넌트) |
 | `FdcPanel.vue` | ratio 축 (grid 0) | FDC 비율 시계열 |
 | `FdcPanel.vue` | % vs baseline | FDC 기준선 대비 |
 | `FdcPanel.vue` | 온도 축 | FDC 온도 시계열 |
@@ -127,6 +127,19 @@ Sharpness 프로파일, ResoCenter CenterX/Y 산점도, FDC 쌍 산점도, FDC S
 
 항목은 `{label, value}` 객체가 아니라 장비 ID 문자열 배열을 그대로
 넘깁니다. 라벨과 값이 같으므로 객체로 감쌀 이유가 없습니다.
+
+셋째, 동작 버튼이 listbox 안에 있으므로 키보드 입력을 막아야 합니다. 버튼에
+포커스를 두고 Enter 를 누르면 이벤트가 Reka 로 올라가 버튼의 기본 동작이
+취소되고 하이라이트된 항목이 대신 토글됩니다. 실제로 `전체 5대 선택` 버튼에서
+Enter 를 눌렀을 때 5대가 아니라 하이라이트된 1대만 선택되는 것을 브라우저에서
+확인하였습니다. 푸터에서 `@keydown.enter.stop` 과 `@keydown.space.stop` 으로
+키를 멈춰 버튼이 버튼답게 동작하게 합니다. 마우스 클릭으로는 드러나지 않는
+경로입니다.
+
+알려진 상위 라이브러리 문제(수정하지 않음): 검색 결과가 0건이면 Reka 가
+이전 하이라이트를 지우지 않아 `aria-activedescendant` 가 사라진 요소를
+가리킵니다. 필터를 누가 계산했는지와 무관하게 렌더링된 목록이 비면 동일하게
+발생하므로 이번 변경으로 생긴 문제가 아닙니다.
 
 ## 검증
 
