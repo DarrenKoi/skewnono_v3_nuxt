@@ -9,16 +9,23 @@
 
 ## Status: partially wired
 
-`/recipes` reads the office Redis catalog. `/recipe-detail` and `/compare`
-still return mock IDP data, because the raw recipe-open data is not prepared
-office-side yet — `providers/office.py` re-exports those two straight from
-`providers/mock.py`.
+| Endpoint | Office source | State |
+| --- | --- | --- |
+| `/recipes` | Redis hash per tool family | wired |
+| `/recipe-detail` | tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
+| `/compare` | — | mock (re-exported) |
 
-That is a net improvement over leaving the whole feature on `mock` (the
-catalog becomes real, detail is synthetic either way), which is why
-`providers/office.py` is copied for `recipe_search` at all. The caveat worth
-remembering: **at the office, 열어보기 shows plausible-looking synthetic
-tables.** Anyone comparing them against the tool will find they do not match.
+**The "compare is derived from open" invariant is knowingly broken office-side
+right now.** `/recipe-detail` returns parsed IDP data while `/compare` returns
+the mock's generator output for the same recipe, so the two disagree. Closing
+that means one FTP session per distinct `eqp_ip` with every requested recipe's
+`.idp` batched into a single `HostSpec(files=[...])` — compare accepts up to
+200 names, and 200 sequential downloads would hold a worker for minutes.
+
+Two fields stay **fabricated even at the office** because the parser does not
+return them: `align_images` and `amp_info`. They are isolated in
+`_sourceless_extras()` so there is one place to delete when a source lands; the
+candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
 
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipes
 
@@ -94,23 +101,41 @@ tables.** Anyone comparing them against the tool will find they do not match.
   image. `timestamp` is `datetime.now().isoformat()` — a volatile field
   scrubbed by the parity harness (`VOLATILE_KEYS`), so office does not need to
   match it byte-for-byte.
-- Office data source: **NOT WIRED — deliberately mock-backed.** `providers/office.py`
-  re-exports the mock's `get_recipe_open_data`. This keeps 열어보기 clickable
-  and the contract gate green, at the cost of showing synthetic detail data
-  in the office UI. The source itself is no longer unknown, though: the IDP
-  file sits on the measuring tool's FTP server and `office_utils.read_idp_info`
-  parses it into three DataFrames — chain, paths and full column contract in
+- Office data source: **WIRED — tool FTP, via one meas_hist document.** Four
+  steps, one function each, because only the middle two need the office:
+
+  | Step | Function | Source | Runs at home? |
+  | --- | --- | --- | --- |
+  | locate | `_locate_idp` | `meas_hist_{cdsem,hvsem}` | no |
+  | fetch | `_download_idp` | tool FTP (`SKEWNONO_TOOL_FTP_*`) | no |
+  | parse | `_parse_idp` | `office_utils.read_idp_info` | via stand-in |
+  | map | `_to_detail_response` | pure | yes |
+
+  `recipe_id` is the catalog's `"class/recipe"` string, which is meas_hist's
+  `full_name` — so the id the search table hands back is already the lookup
+  key. The newest matching document wins; up to `_LOCATE_CANDIDATES` are
+  fetched so a document missing one of the four path fields falls through to
+  the next instead of 502-ing. `idp_name`/`idw_name` are **paths** and the FTP
+  tree wants their **stems**. Full chain and column contract:
   `docs/datatables/recipe_idp.txt`.
-  <!-- OFFICE: IDP payload fetch for the chosen recipe (wafer MP/align tables + image filenames + AMP) -->
+  - Recipe never measured → `LookupError` (502): no run, no `.idp` location.
+  - `eqp_ip` outside `SKEWNONO_TOOL_SUBNETS` → `InvalidToolIp`. The IP comes
+    from OpenSearch rather than a client, but the backend still opens a socket
+    to it, so the SSRF guard applies.
+  - `office_utils` not importable → `RuntimeError` (503, unconfigured).
+  - Parser returns the wrong keys → `LookupError` (502).
+  - A documented column the parser stopped emitting is **nulled, not dropped**
+    (WARNING logged); an undocumented one it started emitting is **dropped**
+    (INFO logged). Neither changes the response shape.
 - **Writing this adapter at home:** `office_utils` exists only on office
   machines, so a stand-in package of the same name lives at the repo root and
   is **gitignored** (`/office_utils/`) — never commit it, or it shadows the
   real parser at the office and serves fabricated data at HTTP 200. It matches
-  the signature, the three keys, and the column names/order/dtypes, so the
-  DataFrame → `RecipeDetailResponse` mapping is fully runnable here; only the
-  OpenSearch lookup and the FTP fetch are unreachable from home. Keep those two
-  and the pure mapping in separate functions so the mapping stays testable
-  without either. Details: `docs/datatables/recipe_idp.txt` §집에서의 대역.
+  the signature, the three keys, and the column names/order/dtypes, so
+  everything below the parse is runnable here. `tests/test_idp_mapping.py`
+  covers the mapping with hand-built DataFrames and needs neither
+  `office_utils` nor `office.py`, so it also runs on a clean checkout.
+  Details: `docs/datatables/recipe_idp.txt` §집에서의 대역.
 - Notes: this endpoint mimics "the IDP payload the frontend will request
   after a user chooses one recipe" (module docstring) — unlike `/recipes`,
   the office implementation is expected to assemble real per-recipe detail
@@ -154,9 +179,11 @@ tables.** Anyone comparing them against the tool will find they do not match.
   `IMAGE_SLOTS` key to that parameter's filename; `amp` is that parameter's
   AMP rows grouped by `Parameter`. Duplicate `Parameter` values within one
   recipe's `idp_image_info` are de-duplicated (first occurrence wins).
-- Office data source: **NOT WIRED — deliberately mock-backed**, same reason
-  as `/recipe-detail`. Re-exported (not reimplemented) from the mock so the
-  "compare is derived from open" invariant below survives the swap.
+- Office data source: **NOT WIRED — mock-backed**, and now the only endpoint
+  that is. Re-exported (not reimplemented) so that when the batched IDP fetch
+  lands it can be derived from open rather than growing a second data path.
+  Until then compare disagrees with `/recipe-detail` for the same recipe;
+  see Status above.
   <!-- OFFICE: same IDP payload source as /recipe-detail, batched per recipe_names -->
 - Notes: `get_recipe_compare_data` reuses `get_recipe_open_data` internally
   "so compare matches open" (source comment) — an office implementation
