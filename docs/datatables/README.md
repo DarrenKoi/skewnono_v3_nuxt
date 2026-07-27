@@ -32,10 +32,9 @@
 | `hardware_network_fdc_cdsem.txt` | OpenSearch `network_fdc_cdsem` | `hardware/fdc` | 연결 |
 | `hardware_sharpness_monitor_cdsem.txt` | OpenSearch `sharpness_monitor_cdsem` | `hardware/sharpness` | 연결 |
 | `hardware_sce_setting.txt` | Redis `sce_info` + MinIO `hitachi_sem/cdsem/sce_info/` | `hardware/sce` | 연결 |
-| `hardware_fab_inform_notes.txt` | OpenSearch `fab_inform_notes` | `hardware/bm_pm` (실적) | 연결 |
-| `hardware_tool_maintenance_plan.txt` | OpenSearch `tool_maintenance_plan` | `hardware/bm_pm` (계획) | 연결 |
-| `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | **미연결** |
-| `hardware_mdc_setting.txt` | Redis(fab별 최신) + MinIO(날짜별 이력) | `hardware/mdc` | **미연결** |
+| `hardware_bm_pm.txt` | OpenSearch `fab_inform_notes`(실적) + `tool_maintenance_plan`(계획) | `hardware/bm_pm` | 연결 |
+| `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | 연결 |
+| `hardware_mdc_setting.txt` | Redis(fab별 최신) + MinIO(날짜별 이력) | `hardware/mdc` | 연결 |
 | `recipe_idp.txt` | 미정 — IDP 원본 파싱 필요 | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `parameter_info.txt` | 미정 — `recipe_idp` 와 같은 소스로 추정 | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `recipe_params.txt` | 미정 | `device_statistics` | **미연결**(mock) |
@@ -55,9 +54,22 @@
   office 어댑터는 recipe **이름 목록**만 Redis 에 연결되어 있고, 열람/비교
   (`get_recipe_open_data` / `get_recipe_compare_data`)는 mock 을 re-export 합니다.
   IDP 원본이 사무실에서 준비되어야 연결할 수 있습니다.
-- **hardware/mdc, hardware/reso_center** — 템플릿은 있으나 본문이
-  `NotImplementedError` 입니다. `hardware` 를 office 로 켜도 이 두 sub-tab 은 동작하지
-  않습니다.
+
+## 사무실에만 있고 git 에 없는 구현
+
+`providers/office.py` 는 gitignore 대상이라 사무실에서 구현해도 git 에 남지
+않습니다. 프로젝트 규약은 **`office_example.py`(추적됨)를 구현하고 `cp` 해서
+`office.py` 를 만드는 것**이므로, 템플릿에 역반영되지 않은 구현은 다음 사람이
+stub 에서 다시 시작하게 만듭니다.
+
+2026-07-27 기준 아래 두 어댑터가 이 상태입니다 — 사무실에서는 동작하지만 집의
+템플릿은 아직 `NotImplementedError` stub 입니다.
+
+- `hardware/mdc` — `providers/mdc/office_example.py`
+- `hardware/reso_center` — `providers/reso_center/office_example.py`
+
+두 문서(`hardware_mdc_setting.txt`, `hardware_reso_center_data.txt`)의 "어댑터
+소비 규약" 절이 현재 그 구현을 확인할 수 있는 유일한 기록입니다.
 
 ## 파일 이름 규칙
 

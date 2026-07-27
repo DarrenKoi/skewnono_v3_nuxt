@@ -28,26 +28,30 @@ MinIO에는 날짜별로 기록하여 추적 가능하도록 함
 redis에는 가장 최근 mdc 값들을 fab_name 별로 저장
 
 ========================================================================
-어댑터 상태 및 구현 지침 (hardware/mdc)
+어댑터 소비 규약 (hardware/mdc office adapter)
 ========================================================================
 
-★ 미연결 (2026-07-27 기준). providers/mdc/office_example.py 는 함수 서명만 있고
-  본문이 NotImplementedError 입니다. hardware 를 office 로 켜도 이 sub-tab 은
-  동작하지 않습니다.
+★ 연결됨 — 사무실에서 구현 완료 (2026-07-27, 담당자 확인).
+  구현체는 providers/mdc/office.py 이며 gitignore 대상이라 집(home) workspace 에는
+  없습니다. 집에 있는 office_example.py 는 아직 stub 이므로, 이 문서가 사무실
+  구현의 내용을 확인할 수 있는 유일한 기록입니다.
+  ※ 템플릿(office_example.py)에 구현을 역반영하지 않으면 다음 사람은 stub 에서
+     다시 시작하게 됩니다.
 
-아직 확정되지 않은 것 (이것부터 채워야 구현할 수 있습니다)
+■ 아직 이 문서에 기록되지 않은 것 (사무실 구현에서 확정된 값 — 채워 주십시오)
 
-  - Redis key 이름 — 최신 스냅샷, field = fab_name
+  - Redis key 이름 — 최신 스냅샷. field = fab_name
   - MinIO 경로 규칙 — 날짜별 이력
 
-  "Redis 최신 스냅샷 + MinIO 날짜별 이력" 이라는 구조 자체는 SCE 와 같습니다.
-  이미 연결된 hardware_sce_setting.txt 의 형태를 그대로 따르는 것이 가장 안전
-  합니다.
+  ※ 이 두 값은 사무실 office.py 안에만 있고 집에서는 확인할 수 없어 비워 둡니다.
+    추정해서 적으면 문서가 어댑터의 진실 원천 역할을 못 하므로 일부러 비워 둡니다.
+
+  구조 자체는 SCE 와 같습니다(hardware_sce_setting.txt). 참고 형태:
     Redis : hash key "sce_info", field = fab_name
     MinIO : hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab_name}.json
   수집 주기가 규칙적이지 않다면 SCE 처럼 날짜를 계산하지 말고 폴더를 탐색합니다.
 
-구현할 것: builder 2개
+builder 2개
 
   build_mdc_settings(eqp_id, fab_name, as_of) -> {eqp_id: {beam_condition: str}}
     선택 장비 **와 같은 fab 의 형제 장비들**의 as-of 스냅샷입니다(비교 sub-tab).

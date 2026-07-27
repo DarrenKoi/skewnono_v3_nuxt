@@ -13,9 +13,19 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 | `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
 | `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape_cdsem` (type:total) | written — `cp` + verify |
-| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_cdsem` (category:reso_center_log) | stub |
-| `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub |
+| `reso_center/` | `build_reso_center_docs` | OpenSearch `reso_center_cdsem` (category:reso_center_log) | stub — office.py written at the office, back-port pending |
+| `mdc/` | `build_mdc_settings` + `build_mdc_history` | MDC settings collection | stub — office.py written at the office, back-port pending |
 | `sce/` | `build_sce_settings` + `build_sce_history` | Redis `sce_info` hash + MinIO `hitachi_sem/cdsem/sce_info/` | written — `cp` + verify |
+
+`reso_center/` and `mdc/` are a special case as of 2026-07-27: a working
+`office.py` exists **at the office**, but `office.py` is gitignored, so the
+tracked templates here are still `NotImplementedError` stubs. Anyone pulling
+this repo starts from the stub. Back-port those two bodies into their
+`office_example.py` when convenient; until then the only record of what they do
+is `docs/datatables/hardware_reso_center_data.txt` and
+`docs/datatables/hardware_mdc_setting.txt`. The mdc doc is still missing the two
+values that live only in the office copy — the Redis key name and the MinIO path
+rule.
 
 `fdc/office_example.py` is implemented, not a stub: its body is written
 against the `network_fdc_cdsem` layout in
@@ -30,7 +40,7 @@ for the past-work table (`down_dt`/`equp_dt` plus the three engineer notes)
 and `tool_maintenance_plan` for the planned-work table. Run its `__main__` before
 `cp`-ing it — the diagnostic prints the raw stored timestamps, which is the one
 thing about these indices that is still unverified (see the module docstring).
-Schema: `docs/datatables/hardware_fab_inform_notes.txt`, `docs/datatables/hardware_tool_maintenance_plan.txt`.
+Schema: `docs/datatables/hardware_bm_pm.txt`.
 
 `sharpness/office_example.py` is likewise implemented, against
 `docs/datatables/hardware_sharpness_monitor_cdsem.txt`. It is the one adapter here that
