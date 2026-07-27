@@ -67,6 +67,140 @@ def test_composite_buckets_walks_valid_multiple_pages(monkeypatch):
     assert calls[1][1]["comp"]["composite"]["after"] == {"group": "B"}
 
 
+def test_composite_buckets_preserves_valid_scalar_buckets_and_sub_aggs(monkeypatch):
+    page_buckets = [
+        {
+            "key": {"group": "A"},
+            "doc_count": 3,
+            "total": {"value": 12.5},
+        },
+        {
+            "key": {"group": 7},
+            "doc_count": 2,
+            "sample": {"hits": {"hits": [{"_source": {"name": "seven"}}]}},
+        },
+        {
+            "key": {"group": 1.5},
+            "doc_count": 1,
+            "latest": {"value_as_string": "2026-07-27T00:00:00"},
+        },
+        {
+            "key": {"group": False},
+            "doc_count": 4,
+            "metric": {"value": 0},
+        },
+    ]
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": page_buckets}}],
+    )
+
+    assert _office_meas_hist.composite_buckets(
+        "meas_hist_cdsem",
+        "full_name.keyword",
+        {"total": {"sum": {"field": "meastime"}}},
+        None,
+    ) == page_buckets
+
+
+@pytest.mark.parametrize("bucket", [None, [], "bucket"])
+def test_composite_buckets_rejects_non_mapping_bucket(monkeypatch, bucket):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": {"group": "A"}}, bucket]}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"bucket 2.*page 1.*meas_hist_cdsem.*mapping",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            "full_name.keyword",
+            {},
+            None,
+        )
+
+
+@pytest.mark.parametrize("bucket", [{}, {"key": None}, {"key": []}])
+def test_composite_buckets_rejects_missing_or_non_mapping_bucket_key(
+    monkeypatch,
+    bucket,
+):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": {"group": "A"}}, bucket]}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"bucket 2.*page 1.*meas_hist_cdsem.*key.*mapping",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            "full_name.keyword",
+            {},
+            None,
+        )
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        {},
+        {"other": "A"},
+        {"group": "A", "other": "B"},
+    ],
+)
+def test_composite_buckets_rejects_bucket_key_with_wrong_schema(monkeypatch, key):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": {"group": "A"}}, {"key": key}]}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"bucket 2.*page 1.*meas_hist_cdsem.*key.*exactly.*group",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            "full_name.keyword",
+            {},
+            None,
+        )
+
+
+@pytest.mark.parametrize("group", [None, {}, []])
+def test_composite_buckets_rejects_null_or_collection_bucket_group(
+    monkeypatch,
+    group,
+):
+    _stub_composite_pages(
+        monkeypatch,
+        [
+            {
+                "comp": {
+                    "buckets": [
+                        {"key": {"group": "A"}},
+                        {"key": {"group": group}},
+                    ]
+                }
+            }
+        ],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"bucket 2.*page 1.*meas_hist_cdsem.*key\.group.*JSON scalar",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            "full_name.keyword",
+            {},
+            None,
+        )
+
+
 @pytest.mark.parametrize(
     ("response", "message"),
     [

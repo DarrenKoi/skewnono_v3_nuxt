@@ -17,6 +17,9 @@ import type { RecipeSearchSource } from '~/utils/recipeSelection'
 export const tokenizeRecipeQuery = (query: string): string[] =>
   query.trim().toLowerCase().split(/[\s_]+/).filter(Boolean)
 
+export const isRecipeQueryEligible = (query: string): boolean =>
+  tokenizeRecipeQuery(query).reduce((count, token) => count + token.length, 0) >= 3
+
 /** `searchText` must already be lowercased (hoisted out of the match loop). */
 export const matchesRecipeQuery = (searchText: string, tokens: string[]): boolean =>
   tokens.length > 0 && tokens.every(token => searchText.includes(token))

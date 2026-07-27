@@ -122,6 +122,36 @@ def filter_clauses(
 _COMPOSITE_PAGE_SIZE = 1000
 
 
+def _validated_composite_bucket(
+    bucket: Any,
+    *,
+    index: str,
+    page_number: int,
+    bucket_position: int,
+) -> dict[str, Any]:
+    location = (
+        f"OpenSearch composite bucket {bucket_position} on page {page_number} "
+        f"for {index!r}"
+    )
+    if not isinstance(bucket, Mapping):
+        raise RuntimeError(f"{location} must be a mapping.")
+    key = bucket.get("key")
+    if not isinstance(key, Mapping):
+        raise RuntimeError(f"{location} 'key' must be a mapping.")
+    if set(key) != {"group"}:
+        raise RuntimeError(
+            f"{location} 'key' must contain exactly one key named 'group'; "
+            f"got keys {list(key)!r}."
+        )
+    group = key["group"]
+    if group is None or not isinstance(group, (str, int, float, bool)):
+        raise RuntimeError(
+            f"{location} 'key.group' must be a non-null JSON scalar "
+            f"(string, number, or boolean); got {type(group).__name__}."
+        )
+    return dict(bucket)
+
+
 def composite_buckets(
     index: str,
     field: str,
@@ -183,7 +213,15 @@ def composite_buckets(
                 f"OpenSearch composite page {page_number} for {index!r} "
                 "'buckets' must be a list."
             )
-        buckets.extend(page_buckets)
+        for bucket_position, bucket in enumerate(page_buckets, start=1):
+            buckets.append(
+                _validated_composite_bucket(
+                    bucket,
+                    index=index,
+                    page_number=page_number,
+                    bucket_position=bucket_position,
+                )
+            )
         if "after_key" not in page:
             break
         next_after = page["after_key"]

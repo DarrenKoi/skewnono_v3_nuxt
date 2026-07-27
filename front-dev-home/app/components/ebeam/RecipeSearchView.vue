@@ -5,6 +5,7 @@ import type { RecipeSearchResponse, RecipeSearchToolType } from '~/composables/u
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import {
   activeRecipeResults,
+  isRecipeQueryEligible,
   matchesRecipeQuery,
   matchingHistoryNames,
   normalizeRecipeNameSnapshot,
@@ -22,7 +23,6 @@ const props = defineProps<{
   toolType: RecipeSearchToolType
 }>()
 
-const MIN_SEARCH_LENGTH = 3
 const DEFAULT_PAGE_SIZE = '50'
 
 const { fetchRecipeList } = useRecipeSearchApi()
@@ -75,7 +75,7 @@ const { data, pending, error, refresh } = await useAsyncData(
 const recipeNames = computed(() => data.value?.rows ?? [])
 const totalRows = computed(() => data.value?.total ?? recipeNames.value.length)
 const normalizedQuery = computed(() => query.value.trim().toLowerCase())
-const canSearch = computed(() => normalizedQuery.value.length >= MIN_SEARCH_LENGTH)
+const canSearch = computed(() => isRecipeQueryEligible(query.value))
 // `_` segments carry meaning (manufacturing tech codes), so the query is
 // tokenized on whitespace/underscores and AND-composed — see recipeSearchMatch.
 const queryTokens = computed(() => tokenizeRecipeQuery(query.value))

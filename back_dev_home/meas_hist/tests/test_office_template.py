@@ -71,7 +71,7 @@ def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_names(monkey
         return [
             {"key": {"group": "Z/Z_RECIPE"}},
             {"key": {"group": "A/A_RECIPE"}},
-            {"key": {"group": ""}},
+            {"key": {"group": "A/A_RECIPE"}},
         ]
 
     monkeypatch.setattr(
@@ -98,6 +98,35 @@ def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_names(monkey
         "sub_aggs": {},
         "query": captured["raw_body"]["query"],
     }
+
+
+@pytest.mark.parametrize("group", ["", "   ", 7, False])
+def test_invalid_full_name_bucket_group_propagates_instead_of_marking_complete(
+    monkeypatch,
+    group,
+):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(
+        office_example,
+        "_os_search",
+        lambda index: captured.setdefault("raw_index", index) and _FakeSearch(captured),
+    )
+    monkeypatch.setattr(
+        office_example,
+        "_composite_buckets",
+        lambda *_args: [{"key": {"group": group}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"full_name.*bucket 1.*nonblank string",
+    ):
+        office_example.search_meas_hist(
+            tool_type="cd-sem",
+            recipe=["CD_BIAS"],
+            limit=1,
+        )
 
 
 def test_malformed_recipe_aggregation_propagates_instead_of_marking_complete(

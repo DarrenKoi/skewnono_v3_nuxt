@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   activeRecipeResults,
+  isRecipeQueryEligible,
   matchesRecipeQuery,
   matchingHistoryNames,
   normalizeRecipeNameSnapshot,
@@ -27,6 +28,25 @@ test('tokenize drops empty fragments from repeated separators', () => {
 test('tokenize returns no tokens for blank or separator-only input', () => {
   assert.deepEqual(tokenizeRecipeQuery(''), [])
   assert.deepEqual(tokenizeRecipeQuery(' _ _ '), [])
+})
+
+test('query eligibility rejects blank and separator-only input', () => {
+  assert.equal(isRecipeQueryEligible(''), false)
+  assert.equal(isRecipeQueryEligible('   '), false)
+  assert.equal(isRecipeQueryEligible('___'), false)
+  assert.equal(isRecipeQueryEligible(' _ _ '), false)
+})
+
+test('query eligibility counts meaningful characters instead of separator padding', () => {
+  assert.equal(isRecipeQueryEligible('a__'), false)
+  assert.equal(isRecipeQueryEligible('__ab__'), false)
+  assert.equal(isRecipeQueryEligible('_a_b_'), false)
+})
+
+test('query eligibility accepts three or more meaningful characters across tokens', () => {
+  assert.equal(isRecipeQueryEligible('abc'), true)
+  assert.equal(isRecipeQueryEligible('a_b_c'), true)
+  assert.equal(isRecipeQueryEligible('__a_bc__'), true)
 })
 
 test('every contiguous-substring match keeps working (relaxation guarantee)', () => {
@@ -193,6 +213,17 @@ test('fallback probing waits for Redis and runs only for a searchable zero match
   }), false)
   assert.equal(shouldProbeRecipeFallback({
     canSearch: false, catalogPending: false, redisMatchCount: 0
+  }), false)
+})
+
+test('separator-only input cannot become eligible for fallback probing', () => {
+  const canSearch = isRecipeQueryEligible('___')
+
+  assert.equal(canSearch, false)
+  assert.equal(shouldProbeRecipeFallback({
+    canSearch,
+    catalogPending: false,
+    redisMatchCount: 0
   }), false)
 })
 

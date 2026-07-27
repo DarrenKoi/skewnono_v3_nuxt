@@ -472,12 +472,18 @@ def search_meas_hist(
                 {},
                 query,
             )
-            recipe_names = sorted({
-                str(value).strip()
-                for bucket in buckets
-                if (value := bucket.get("key", {}).get("group"))
-                and str(value).strip()
-            })
+            recipe_name_set: set[str] = set()
+            for bucket_position, bucket in enumerate(buckets, start=1):
+                value = bucket["key"]["group"]
+                if not isinstance(value, str) or not value.strip():
+                    raise RuntimeError(
+                        "OpenSearch full_name composite "
+                        f"bucket {bucket_position} for {_indices(tool_type)!r} "
+                        "'key.group' must be a nonblank string; "
+                        f"got {type(value).__name__}."
+                    )
+                recipe_name_set.add(value.strip())
+            recipe_names = sorted(recipe_name_set)
             recipe_names_complete = True
 
     return MeasHistSearchResponse(
