@@ -11,6 +11,12 @@
 // and every unit label ends with "per sequence". sequence.test.ts pins this:
 // any per-second / time-lag output would be a fabricated number.
 //
+// AXIS: by default the sequence axis is the ACTIVE PARAMETER's own measurement
+// rows. `sequence` is a global running counter over the whole MSR — one number
+// per row, consecutive numbers belonging to DIFFERENT parameters — so a
+// parameter owns an interleaved subset and `dynamic_fdc` always holds strictly
+// more entries than the CD axis. Pass axisMode 'all' for the whole-MSR union.
+//
 // CD ↔ dynamic-FDC coupling is DEMO-ONLY: the home mock biases both by a single
 // per-MSR `health` scalar (useMsrFileApi.ts), so any apparent correlation is not
 // method-validated. That caveat is surfaced by the component (pane meta), not
@@ -28,8 +34,12 @@
 // Runs under raw `node --test` (no Nuxt, no bundler) — sibling imports carry an
 // explicit `.ts` extension.
 import type { MsrFileRow, FdcParamSummary, FdcCategory } from '~/composables/useMsrFileApi'
+import type { SequenceAxisMode } from './types.ts'
 import { isMeasuredRow } from '../msrRows.ts'
 import { linearFit } from '../stats.ts'
+
+// Re-exported so consumers have one import surface for the axis-mode type.
+export type { SequenceAxisMode } from './types.ts'
 
 // ── Public types ───────────────────────────────────────────────────────────
 
@@ -76,6 +86,16 @@ export interface SeqEvent {
   alignment: boolean // the point carries addressing/alignment scores
 }
 
+/** The §Invariant check: one row is one measurement and `dynamic_fdc` holds
+ * that measurement's tool state, so the two counts must agree. Reported rather
+ * than absorbed — a mismatch means the data is wrong, not that the axis should
+ * quietly cope. */
+export interface SequenceIntegrity {
+  rows: number
+  fdc: number
+  matched: boolean
+}
+
 /** The shared-cursor sequence model for one focus MSR + active parameter. */
 export interface SequenceModel {
   parameter: string
@@ -89,6 +109,13 @@ export interface SequenceModel {
   events: SeqEvent[]
   /** sequence → chip (chip_number), so moving the cursor can set focusedSite. */
   siteBySequence: Record<number, string>
+  /** Which rule produced `sequences`. */
+  axisMode: SequenceAxisMode
+  /** dynamic_fdc sequences that fell OFF the axis — other parameters'
+   * measurements. Always 0 when axisMode is 'all'. */
+  excludedFdc: number
+  /** len(rows) vs len(dynamic_fdc). See SequenceIntegrity. */
+  integrity: SequenceIntegrity
 }
 
 // Structural subset of MsrFileResponse — accepts a real API response directly.
@@ -146,7 +173,8 @@ const hasAlignment = (r: MsrFileRow): boolean =>
 export const analyzeSequence = (
   source: SequenceSource,
   parameter: string,
-  unit: string
+  unit: string,
+  axisMode: SequenceAxisMode = 'param'
 ): SequenceModel => {
   // CD rows for the active parameter, in measurement order.
   const cdRows = source.rows
@@ -168,19 +196,34 @@ export const analyzeSequence = (
     .filter(([seq]) => Number.isFinite(seq))
     .sort((a, b) => a[0] - b[0])
 
-  // The shared cursor axis: union of CD sequences and FDC sequences, sorted.
+  // The shared cursor axis.
+  //
+  // 'param' — the ACTIVE PARAMETER's own rows, and nothing else. `sequence` is a
+  // global counter over the whole MSR with consecutive numbers belonging to
+  // DIFFERENT parameters, so the old union-with-dynamic_fdc axis plotted other
+  // parameters' measurements in every FDC pane and computed each pane's stats
+  // over the whole MSR under a parameter-scoped heading.
+  // 'all' — the union, kept verbatim so the opt-out is a real comparison.
   const axis = new Set<number>()
   for (const r of cdRows) axis.add(r.sequence)
-  for (const [seq] of fdcSeqEntries) axis.add(seq)
+  if (axisMode === 'all') {
+    for (const [seq] of fdcSeqEntries) axis.add(seq)
+  }
   const sequences = [...axis].sort((a, b) => a - b)
 
-  // Which dynamic FDC params actually appear (across all sequences).
+  // FDC entries that fall off the axis belong to other parameters' measurements.
+  const onAxis = fdcSeqEntries.filter(([seq]) => axis.has(seq))
+  const excludedFdc = fdcSeqEntries.length - onAxis.length
+
+  // Which dynamic FDC params appear ON THE AXIS. Deriving this from every
+  // sequence instead would render an all-null pane for a param that was only
+  // sampled during another parameter's measurements.
   const fdcKeys = new Set<string>()
-  for (const [, params] of fdcSeqEntries) {
+  for (const [, params] of onAxis) {
     for (const k of Object.keys(params)) fdcKeys.add(k)
   }
 
-  const fdcBySeq = new Map(fdcSeqEntries)
+  const fdcBySeq = new Map(onAxis)
   const summaryOf = (name: string): FdcParamSummary | undefined =>
     source.fdc_params.find(p => p.name === name)
 
@@ -217,6 +260,13 @@ export const analyzeSequence = (
     ? null
     : '이 측정에는 sequence별 dynamic FDC 데이터가 없습니다.'
 
+  const fdcCount = Object.keys(source.dynamic_fdc).length
+  const integrity: SequenceIntegrity = {
+    rows: source.rows.length,
+    fdc: fdcCount,
+    matched: source.rows.length === fdcCount
+  }
+
   return {
     parameter,
     unit,
@@ -226,6 +276,9 @@ export const analyzeSequence = (
     hasFdc,
     fdcReason,
     events,
-    siteBySequence
+    siteBySequence,
+    axisMode,
+    excludedFdc,
+    integrity
   }
 }

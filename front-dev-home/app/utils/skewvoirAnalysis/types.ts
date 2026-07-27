@@ -164,3 +164,15 @@ export interface ReferenceDescriptor {
   scope: AnalysisScope
   signature: CompatibilitySignature
 }
+
+/** Which rule produced the sequence axis of a single-MSR FDC model.
+ *
+ * `param` — the ACTIVE PARAMETER's own measurement rows. `sequence` is a global
+ * running counter over the whole MSR, so a parameter owns an interleaved subset
+ * of it; scoping to that subset is what keeps a CD point and the FDC point
+ * beside it describing the SAME measurement.
+ *
+ * `all` — every sequence in the MSR, including other parameters' measurements.
+ * Answers "what did the tool do BETWEEN my points", at the cost of a CD line
+ * that is mostly gaps. */
+export type SequenceAxisMode = 'param' | 'all'
