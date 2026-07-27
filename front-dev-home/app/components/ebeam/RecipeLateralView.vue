@@ -105,6 +105,7 @@ const tableUi = recipeTableUi
     <EbeamRecipeSwitcher
       :tool-type="toolType"
       :fab="fab"
+      active-screen="lateral"
     />
     <div class="space-y-3">
       <EbeamRecipeDetailNav

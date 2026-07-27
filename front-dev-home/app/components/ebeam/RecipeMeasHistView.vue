@@ -160,6 +160,7 @@ const tableUi = {
     <EbeamRecipeSwitcher
       :tool-type="toolType"
       :fab="fab"
+      active-screen="meas-hist"
     />
     <div class="space-y-3">
       <EbeamRecipeDetailNav

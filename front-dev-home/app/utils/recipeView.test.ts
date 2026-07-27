@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   recipeTableUi, IMAGE_SLOTS, AMP_FIELDS_ADDR, AMP_FIELDS_MEAS, ampFieldsForRole,
   formatAmpValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
-  readRecipeNameQuery, formatRecipeTimestamp
+  readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
@@ -133,6 +133,20 @@ test('recipeDetailRoute leaves the tool type and recipe name untouched', () => {
   assert.ok(route.path.includes('/ebeam/cdsem/'))
 })
 
+test('OpenSearch detail routes carry source while Redis routes keep legacy URLs', () => {
+  assert.deepEqual(
+    recipeDetailRoute('cdsem', 'R3', 'lateral', 'CD_A', 'opensearch'),
+    {
+      path: '/ebeam/cdsem/r3/recipe-search/lateral',
+      query: { recipe_name: 'CD_A', source: 'opensearch' }
+    }
+  )
+  assert.deepEqual(
+    recipeDetailRoute('cdsem', 'R3', 'lateral', 'CD_A', 'redis').query,
+    { recipe_name: 'CD_A' }
+  )
+})
+
 test('the row actions are the three detail screens, each with a label and icon', () => {
   assert.deepEqual(RECIPE_ROW_ACTIONS.map(a => a.screen), ['open', 'lateral', 'meas-hist'])
   for (const action of RECIPE_ROW_ACTIONS) {
@@ -177,6 +191,17 @@ test('buildRecipeDetailNavItems keeps each action label and icon', () => {
   assert.deepEqual(items.map(i => i.icon), RECIPE_ROW_ACTIONS.map(a => a.icon))
 })
 
+test('OpenSearch detail navigation excludes open and preserves source plus set', () => {
+  const items = buildRecipeDetailNavItems(
+    'cdsem', 'R3', 'CD_A', 'lateral', '1', 'opensearch'
+  )
+  assert.deepEqual(items.map(item => item.screen), ['lateral', 'meas-hist'])
+  assert.deepEqual(items.map(item => item.to.query), [
+    { recipe_name: 'CD_A', source: 'opensearch', set: '1' },
+    { recipe_name: 'CD_A', source: 'opensearch', set: '1' }
+  ])
+})
+
 // --- readRecipeNameQuery ---
 
 test('readRecipeNameQuery reads and trims the recipe_name query', () => {
@@ -194,6 +219,13 @@ test('readRecipeNameQuery is empty when the query is missing or valueless', () =
   assert.equal(readRecipeNameQuery(routeWith({ recipe_name: [] })), '')
   assert.equal(readRecipeNameQuery(routeWith({ recipe_name: [null] })), '')
   assert.equal(readRecipeNameQuery(routeWith({ other: 'CD_A' })), '')
+})
+
+test('readRecipeSourceQuery accepts only the explicit OpenSearch marker', () => {
+  assert.equal(readRecipeSourceQuery(routeWith({ source: 'opensearch' })), 'opensearch')
+  assert.equal(readRecipeSourceQuery(routeWith({ source: 'redis' })), 'redis')
+  assert.equal(readRecipeSourceQuery(routeWith({ source: ['opensearch'] })), 'redis')
+  assert.equal(readRecipeSourceQuery(routeWith({})), 'redis')
 })
 
 // --- formatRecipeTimestamp ---

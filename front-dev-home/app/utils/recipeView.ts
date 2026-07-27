@@ -1,5 +1,6 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import type { AmpRole, AmpRow, IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
+import type { RecipeSearchSource } from '~/utils/recipeSelection'
 
 export const recipeTableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
@@ -74,10 +75,14 @@ export const recipeDetailRoute = (
   toolType: string,
   fab: string,
   screen: RecipeDetailScreen,
-  recipeName: string
+  recipeName: string,
+  source: RecipeSearchSource = 'redis'
 ) => ({
   path: `/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search/${screen}`,
-  query: { recipe_name: recipeName }
+  query: {
+    recipe_name: recipeName,
+    ...(source === 'opensearch' ? { source } : {})
+  }
 })
 
 export interface RecipeRowAction {
@@ -97,23 +102,30 @@ export const buildRecipeDetailNavItems = (
   fab: string,
   recipeName: string,
   activeScreen: RecipeDetailScreen,
-  setFlag: unknown
-) => RECIPE_ROW_ACTIONS.map((action) => {
-  const target = recipeDetailRoute(toolType, fab, action.screen, recipeName)
-  return {
-    ...action,
-    active: action.screen === activeScreen,
-    to: setFlag === '1'
-      ? { ...target, query: { ...target.query, set: '1' } }
-      : target
-  }
-})
+  setFlag: unknown,
+  source: RecipeSearchSource = 'redis'
+) => RECIPE_ROW_ACTIONS
+  .filter(action => source === 'redis' || action.screen !== 'open')
+  .map((action) => {
+    const target = recipeDetailRoute(toolType, fab, action.screen, recipeName, source)
+    return {
+      ...action,
+      active: action.screen === activeScreen,
+      to: setFlag === '1'
+        ? { ...target, query: { ...target.query, set: '1' } }
+        : target
+    }
+  })
 
 export const readRecipeNameQuery = (route: RouteLocationNormalizedLoaded): string => {
   const raw = route.query.recipe_name
   const value = Array.isArray(raw) ? raw[0] : raw
   return typeof value === 'string' ? value.trim() : ''
 }
+
+export const readRecipeSourceQuery = (
+  route: RouteLocationNormalizedLoaded
+): RecipeSearchSource => route.query.source === 'opensearch' ? 'opensearch' : 'redis'
 
 export const formatRecipeTimestamp = (iso: string, opts: { withSeconds?: boolean } = {}): string => {
   const date = new Date(iso)

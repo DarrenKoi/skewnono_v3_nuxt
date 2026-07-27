@@ -3,6 +3,7 @@
     <EbeamRecipeSwitcher
       :tool-type="toolType"
       :fab="fab"
+      active-screen="open"
     />
     <EbeamRecipeDetailNav
       :tool-type="toolType"

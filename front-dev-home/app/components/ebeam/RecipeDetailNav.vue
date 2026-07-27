@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   buildRecipeDetailNavItems,
+  readRecipeSourceQuery,
   type RecipeDetailScreen
 } from '~/utils/recipeView'
 
@@ -14,6 +15,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const source = computed(() => readRecipeSourceQuery(route))
 // Always route straight back to the recipe-search list — never rely on
 // browser history, which may have landed the user here from elsewhere.
 const backRoute = computed(() => (
@@ -24,7 +26,8 @@ const items = computed(() => buildRecipeDetailNavItems(
   props.fab,
   props.recipeName,
   props.activeScreen,
-  route.query.set
+  route.query.set,
+  source.value
 ))
 </script>
 
