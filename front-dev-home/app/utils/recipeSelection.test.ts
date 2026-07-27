@@ -5,6 +5,7 @@ import {
   capabilitiesForRecipeSelection,
   normalizeRecipeSelectionEntries,
   promoteRecipeSelectionsToRedis,
+  recipeNamesForCompare,
   upsertRecipeSelection
 } from './recipeSelection.ts'
 
@@ -83,4 +84,18 @@ test('compare requires at least two selections and every source to be Redis', ()
     { name: 'A', source: 'redis' },
     { name: 'B', source: 'opensearch' }
   ]), false)
+})
+
+test('compare request names exist only for a Redis-only set of at least two', () => {
+  assert.deepEqual(recipeNamesForCompare([
+    { name: 'A', source: 'redis' },
+    { name: 'B', source: 'redis' }
+  ]), ['A', 'B'])
+  assert.equal(recipeNamesForCompare([
+    { name: 'A', source: 'redis' },
+    { name: 'B', source: 'opensearch' }
+  ]), null)
+  assert.equal(recipeNamesForCompare([
+    { name: 'A', source: 'redis' }
+  ]), null)
 })

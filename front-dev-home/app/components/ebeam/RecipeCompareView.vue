@@ -8,15 +8,30 @@
     />
 
     <div
-      v-if="selected.length < 2"
+      v-if="!compareAllowed"
       class="dashboard-surface rounded-2xl px-6 py-12 text-center"
     >
       <UIcon
         name="i-lucide-scale"
         class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
       />
-      <p class="mt-2 sk-body">
+      <p
+        v-if="containsFallback"
+        class="mt-2 sk-body"
+      >
+        OpenSearch fallback Recipe는 아직 비교하기를 지원하지 않습니다.
+      </p>
+      <p
+        v-else
+        class="mt-2 sk-body"
+      >
         비교하려면 recipe를 2개 이상 선택하세요.
+      </p>
+      <p
+        v-if="containsFallback"
+        class="mt-1 sk-meta"
+      >
+        횡전개 또는 측정 이력을 이용해주세요.
       </p>
       <UButton
         class="mt-3"
@@ -175,6 +190,7 @@ import {
 } from '~/utils/recipeCompare'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import { renderSemNoisePng } from '~/utils/semNoiseImage'
+import { recipeNamesForCompare } from '~/utils/recipeSelection'
 
 const props = defineProps<{
   fab: Fab
@@ -182,17 +198,32 @@ const props = defineProps<{
   toolType: RecipeSearchToolType
 }>()
 
-const { selected, remove } = useRecipeSelectionSet(props.toolType, props.fab)
+const { entries, selected, remove } = useRecipeSelectionSet(props.toolType, props.fab)
 const { fetchCompare } = useRecipeCompareApi()
 
 const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
-const cacheKey = computed(() => `recipe-compare:${props.toolType}:${props.fab || 'ALL'}:${[...selected.value].sort().join('|')}`)
+const containsFallback = computed(() =>
+  entries.value.some(entry => entry.source === 'opensearch')
+)
+const compareNames = computed(() => recipeNamesForCompare(entries.value))
+const compareAllowed = computed(() => compareNames.value !== null)
+const cacheKey = computed(() =>
+  compareNames.value
+    ? `recipe-compare:${props.toolType}:${props.fab || 'ALL'}:${[...compareNames.value].sort().join('|')}`
+    : `recipe-compare:unsupported:${props.toolType}:${props.fab || 'ALL'}`
+)
 
 const { data, pending, error, refresh } = await useAsyncData<RecipeCompareResponse | null>(
   () => cacheKey.value,
   () => {
-    if (selected.value.length < 2) return Promise.resolve(null)
-    return fetchCompare({ toolType: props.toolType, fabName: props.fab, recipeNames: selected.value })
+    const names = compareNames.value
+    return names
+      ? fetchCompare({
+          toolType: props.toolType,
+          fabName: props.fab,
+          recipeNames: names
+        })
+      : Promise.resolve(null)
   },
   {
     watch: [cacheKey],

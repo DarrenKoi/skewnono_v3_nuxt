@@ -90,3 +90,10 @@ export const capabilitiesForRecipeSelection = (
 export const canCompareRecipeSelection = (
   entries: RecipeSelectionEntry[]
 ): boolean => entries.length >= 2 && capabilitiesForRecipeSelection(entries).compare
+
+export const recipeNamesForCompare = (
+  entries: RecipeSelectionEntry[]
+): string[] | null =>
+  canCompareRecipeSelection(entries)
+    ? entries.map(entry => entry.name)
+    : null
