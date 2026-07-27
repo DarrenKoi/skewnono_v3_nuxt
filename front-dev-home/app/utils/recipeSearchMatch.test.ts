@@ -1,9 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  activeRecipeResults,
   matchesRecipeQuery,
   matchingHistoryNames,
   rankRecipeMatches,
+  resolveRecipeSearchViewState,
+  shouldProbeRecipeFallback,
+  toRecipeSearchResults,
   tokenizeRecipeQuery
 } from './recipeSearchMatch.ts'
 
@@ -94,4 +98,90 @@ test('history names are deduped, preserving first-seen order', () => {
 
 test('history names are empty for an empty token list', () => {
   assert.deepEqual(matchingHistoryNames(['ADI/CD_A'], []), [])
+})
+
+test('fallback probing waits for Redis and runs only for a searchable zero match', () => {
+  assert.equal(shouldProbeRecipeFallback({
+    canSearch: true, catalogPending: false, redisMatchCount: 0
+  }), true)
+  assert.equal(shouldProbeRecipeFallback({
+    canSearch: true, catalogPending: true, redisMatchCount: 0
+  }), false)
+  assert.equal(shouldProbeRecipeFallback({
+    canSearch: true, catalogPending: false, redisMatchCount: 1
+  }), false)
+  assert.equal(shouldProbeRecipeFallback({
+    canSearch: false, catalogPending: false, redisMatchCount: 0
+  }), false)
+})
+
+test('source-aware results dedupe names and Redis results always win', () => {
+  const redis = toRecipeSearchResults(['A', 'B'], 'redis')
+  const fallback = toRecipeSearchResults(['B', 'C', 'C'], 'opensearch')
+  assert.deepEqual(fallback, [
+    { recipe_name: 'B', source: 'opensearch' },
+    { recipe_name: 'C', source: 'opensearch' }
+  ])
+  assert.equal(activeRecipeResults(redis, fallback), redis)
+  assert.equal(activeRecipeResults([], fallback), fallback)
+})
+
+test('view state distinguishes fallback loading, results, empty and both-source failure', () => {
+  const base = {
+    canSearch: true,
+    catalogPending: false,
+    catalogFailed: false,
+    resultCount: 0,
+    fallbackPending: false,
+    fallbackSettled: false,
+    fallbackFailed: false
+  }
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, fallbackPending: true
+  }), 'fallback-loading')
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, resultCount: 2
+  }), 'results')
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, fallbackSettled: true
+  }), 'empty')
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, catalogFailed: true, fallbackSettled: true, fallbackFailed: true
+  }), 'sources-error')
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, fallbackSettled: true, fallbackFailed: true
+  }), 'fallback-error')
+})
+
+test('view state preserves catalog loading and pre-search idle behavior', () => {
+  assert.equal(resolveRecipeSearchViewState({
+    canSearch: true,
+    catalogPending: true,
+    catalogFailed: false,
+    resultCount: 0,
+    fallbackPending: false,
+    fallbackSettled: false,
+    fallbackFailed: false
+  }), 'catalog-loading')
+  assert.equal(resolveRecipeSearchViewState({
+    canSearch: false,
+    catalogPending: false,
+    catalogFailed: true,
+    resultCount: 0,
+    fallbackPending: false,
+    fallbackSettled: false,
+    fallbackFailed: false
+  }), 'idle')
+})
+
+test('view state keeps an empty query idle while the catalog is pending', () => {
+  assert.equal(resolveRecipeSearchViewState({
+    canSearch: false,
+    catalogPending: true,
+    catalogFailed: false,
+    resultCount: 0,
+    fallbackPending: false,
+    fallbackSettled: false,
+    fallbackFailed: false
+  }), 'idle')
 })

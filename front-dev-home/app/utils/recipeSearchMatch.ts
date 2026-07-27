@@ -1,3 +1,5 @@
+import type { RecipeSearchSource } from '~/utils/recipeSelection'
+
 /**
  * Recipe-name search matching.
  *
@@ -65,4 +67,66 @@ export const matchingHistoryNames = (fullNames: string[], tokens: string[]): str
     if (matchesRecipeQuery(name.toLowerCase(), tokens)) matched.push(name)
   }
   return matched
+}
+
+export interface RecipeSearchResult {
+  recipe_name: string
+  source: RecipeSearchSource
+}
+
+export const toRecipeSearchResults = (
+  names: string[],
+  source: RecipeSearchSource
+): RecipeSearchResult[] => {
+  const seen = new Set<string>()
+  const results: RecipeSearchResult[] = []
+  for (const raw of names) {
+    const recipeName = raw.trim()
+    if (!recipeName || seen.has(recipeName)) continue
+    seen.add(recipeName)
+    results.push({ recipe_name: recipeName, source })
+  }
+  return results
+}
+
+export const shouldProbeRecipeFallback = (input: {
+  canSearch: boolean
+  catalogPending: boolean
+  redisMatchCount: number
+}): boolean =>
+  input.canSearch && !input.catalogPending && input.redisMatchCount === 0
+
+export const activeRecipeResults = (
+  redisResults: RecipeSearchResult[],
+  fallbackResults: RecipeSearchResult[]
+): RecipeSearchResult[] => {
+  return redisResults.length ? redisResults : fallbackResults
+}
+
+export type RecipeSearchViewState
+  = | 'idle'
+    | 'catalog-loading'
+    | 'fallback-loading'
+    | 'results'
+    | 'empty'
+    | 'fallback-error'
+    | 'sources-error'
+
+export const resolveRecipeSearchViewState = (input: {
+  canSearch: boolean
+  catalogPending: boolean
+  catalogFailed: boolean
+  resultCount: number
+  fallbackPending: boolean
+  fallbackSettled: boolean
+  fallbackFailed: boolean
+}): RecipeSearchViewState => {
+  if (!input.canSearch) return 'idle'
+  if (input.catalogPending) return 'catalog-loading'
+  if (input.resultCount > 0) return 'results'
+  if (input.fallbackPending || !input.fallbackSettled) return 'fallback-loading'
+  if (input.fallbackFailed) {
+    return input.catalogFailed ? 'sources-error' : 'fallback-error'
+  }
+  return 'empty'
 }
