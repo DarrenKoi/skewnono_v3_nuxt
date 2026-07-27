@@ -16,14 +16,30 @@ never commas).
 Searching the name list rather than 측정 이력 is deliberate: a recipe that has
 never been measured still exists and must be findable.
 
-★ RECIPE-OPEN AND COMPARE HAVE NO OFFICE SOURCE (2026-07-27). The raw IDP
-payload is not prepared office-side, so `recipe_search/providers/office*.py`
-RE-EXPORTS `get_recipe_open_data` / `get_recipe_compare_data` from THIS module.
-That means these two generators run in production at the office, and their
-output there is fabricated, not 사내 data. Compare is re-exported rather than
-reimplemented so it stays derived from open — the invariant this module
-guarantees. See `docs/datatables/recipe_idp.txt` and `parameter_info.txt` for
-what has to be found before either can be connected.
+★ RECIPE-OPEN AND COMPARE STILL RUN OFF THIS MOCK AT THE OFFICE (2026-07-27).
+`recipe_search/providers/office*.py` RE-EXPORTS `get_recipe_open_data` /
+`get_recipe_compare_data` from THIS module, so these generators run in
+production and their output there is fabricated, not 사내 data. Compare is
+re-exported rather than reimplemented so it stays derived from open — the
+invariant this module guarantees.
+
+The SOURCE is no longer unknown, though: the IDP file lives on the measuring
+tool's FTP server and a 사내 parser turns it into exactly the three tables
+below (`docs/datatables/recipe_idp.txt`):
+
+    meas_hist_* -> eqp_ip + class_name + idw_name + idp_name
+        -> /HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp
+        -> office_utils.read_idp_info.combined_idp_info(path)
+        -> {"wafer_mp_info": df, "wafer_align_info": df, "idp_image_info": df}
+
+So the COLUMN NAMES here are a contract, not a convenience — `office_utils`
+exists only at the office, and a name that drifts passes at home and fails
+there. Two were wrong until 2026-07-27 and are now corrected: `Rel_MoveY`
+(was RelMoveY), and `img_meas2`, which carries P_No's value rather than a
+filename.
+
+`align_images` and `amp_info` are NOT among the parser's keys and remain
+sourceless — see `parameter_info.txt`.
 """
 
 import hashlib
@@ -130,25 +146,30 @@ def generate_wafer_mp_info(
     active_rng = rng or random.Random()
     data: list[WaferMpInfoRow] = []
 
-    for index in range(num_records):
+    for _ in range(num_records):
         chip_x = active_rng.randint(1, 10)
         chip_y = active_rng.randint(1, 10)
+        p_no = active_rng.randint(1, 20)
 
         data.append({
             "ChipNo_X": chip_x,
             "ChipNo_Y": chip_y,
             "Coordinate_X": round(active_rng.uniform(-50.0, 50.0), 3),
             "Coordinate_Y": round(active_rng.uniform(-50.0, 50.0), 3),
-            "P_No": active_rng.randint(1, 20),
+            "P_No": p_no,
             "D_No": active_rng.randint(1, 100),
             "Diff": active_rng.choice([True, False]),
             "Rel": active_rng.choice([True, False]),
             "Rel_MoveX": round(active_rng.uniform(-5.0, 5.0), 3),
-            "RelMoveY": round(active_rng.uniform(-5.0, 5.0), 3),
+            "Rel_MoveY": round(active_rng.uniform(-5.0, 5.0), 3),
             "Coordinate_X_r": round(active_rng.uniform(-50.0, 50.0), 3),
             "Coordinate_Y_r": round(active_rng.uniform(-50.0, 50.0), 3),
             "Parameter": f"Para_{active_rng.randint(1, 20)}",
-            "img_meas2": f"IMG_MEAS_{index + 1:04d}.jpg"
+            # NOT a filename: the real parser emits P_No's value here
+            # (user-confirmed 2026-07-27). This mock previously fabricated
+            # "IMG_MEAS_0001.jpg", which taught the frontend to expect a
+            # string that office data never produces.
+            "img_meas2": p_no
         })
 
     return data

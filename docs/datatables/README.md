@@ -35,8 +35,8 @@
 | `hardware_bm_pm.txt` | OpenSearch `fab_inform_notes`(실적) + `tool_maintenance_plan`(계획) | `hardware/bm_pm` | 연결 |
 | `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | 연결 |
 | `hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc` | 연결 |
-| `recipe_idp.txt` | 미정 — IDP 원본 파싱 필요 | `recipe_search` 자세히 보기 | **미연결**(mock) |
-| `parameter_info.txt` | 미정 — `recipe_idp` 와 같은 소스로 추정 | `recipe_search` 자세히 보기 | **미연결**(mock) |
+| `recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 소스 확인, **어댑터 미연결** |
+| `parameter_info.txt` | 미정 — IDP 파서가 돌려주지 않음(`amp_info`) | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `recipe_params.txt` | 미정 | `device_statistics` | **미연결**(mock) |
 | `device_info.txt` | 파생 — `device_desc` 의 요약 view | `device_statistics` | 파생(원천 아님) |
 | `hardware.txt` | 데이터 소스 아님 — FDC 파라미터 해설 | `msr_file` mock, 스큐보아 | 참고 |
@@ -52,8 +52,12 @@
 
 - **recipe 자세히 보기** (`recipe_idp.txt`, `parameter_info.txt`) — `recipe_search` 의
   office 어댑터는 recipe **이름 목록**만 Redis 에 연결되어 있고, 열람/비교
-  (`get_recipe_open_data` / `get_recipe_compare_data`)는 mock 을 re-export 합니다.
-  IDP 원본이 사무실에서 준비되어야 연결할 수 있습니다.
+  (`get_recipe_open_data` / `get_recipe_compare_data`)는 여전히 mock 을 re-export
+  합니다. 다만 **소스는 2026-07-27 에 확인되었습니다** — 장비 FTP 의 `.idp` 파일을
+  `office_utils.read_idp_info.combined_idp_info()` 로 파싱하면 `wafer_mp_info` /
+  `wafer_align_info` / `idp_image_info` 3개 DataFrame 이 나옵니다. 남은 일은
+  어댑터 연결이며, `align_images` 와 `amp_info` 두 항목은 이 파서가 돌려주지 않아
+  **여전히 소스가 없습니다**. 자세한 내용은 `recipe_idp.txt`.
 
 ## 사무실 구현과 집 템플릿이 갈라진 항목
 

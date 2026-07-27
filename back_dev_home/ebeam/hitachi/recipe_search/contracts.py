@@ -34,11 +34,14 @@ WaferMpInfoRow = TypedDict("WaferMpInfoRow", {
     "Diff": bool,
     "Rel": bool,
     "Rel_MoveX": float,
-    "RelMoveY": float,
+    "Rel_MoveY": float,
     "Coordinate_X_r": float,
     "Coordinate_Y_r": float,
     "Parameter": str,
-    "img_meas2": str
+    # Named like an image but it is NOT a filename — it carries the same value
+    # as P_No (user-confirmed 2026-07-27). The identically-named column on
+    # IdpImageInfoRow *is* an image slot; the two are unrelated.
+    "img_meas2": int
 })
 
 WaferAlignInfoRow = TypedDict("WaferAlignInfoRow", {

@@ -60,7 +60,7 @@ withDefaults(defineProps<{
     'Coordinate_X', 'Coordinate_Y',
     'P_No', 'D_No',
     'Diff', 'Rel',
-    'Rel_MoveX', 'RelMoveY',
+    'Rel_MoveX', 'Rel_MoveY',
     'img_meas2'
   ]
 })

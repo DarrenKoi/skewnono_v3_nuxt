@@ -33,11 +33,13 @@ export interface WaferMpInfoRow {
   Diff: boolean
   Rel: boolean
   Rel_MoveX: number
-  RelMoveY: number
+  Rel_MoveY: number
   Coordinate_X_r: number
   Coordinate_Y_r: number
   Parameter: string
-  img_meas2: string
+  /** Not a filename despite the name — carries the same value as P_No. The
+   *  identically-named field on IdpImageInfoRow IS an image slot. */
+  img_meas2: number
 }
 
 export interface WaferAlignInfoRow {
