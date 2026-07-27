@@ -1,6 +1,6 @@
 """Phase 1 faithful sce_setting mock (fleet dict-of-dict + bidaily history).
 
-Shape from `docs/datatables/sce_setting.txt`: per eqp a FileInfo/SemCond/
+Shape from `docs/datatables/hardware_sce_setting.txt`: per eqp a FileInfo/SemCond/
 ImgCond/SCEParam block plus a 360-entry Coefficients curve (`{index, values:
 [2 floats]}`, indices 0..359). The snapshot is returned for the requested eqp
 + in-fab siblings; the history is the office's bidaily MinIO archive mirrored

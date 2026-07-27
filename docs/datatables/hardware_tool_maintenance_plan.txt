@@ -1,7 +1,7 @@
 사무실(Office) OpenSearch index — 장비 정비(BM/PM) 예정 작업 계획
 
 BM/PM 중 "앞으로 할 일(future work)"을 담습니다. 실제 발생·수행 기록은
-fab_inform_notes(docs/datatables/fab_inform_notes.txt) 이고, 이 index 는 그
+fab_inform_notes(docs/datatables/hardware_fab_inform_notes.txt) 이고, 이 index 는 그
 계획 쪽입니다. 두 index 는 짝을 이루므로 화면에서 함께 다룰 때 어느 쪽이
 계획이고 어느 쪽이 실적인지 구분해야 합니다.
 
@@ -92,3 +92,26 @@ mapping 주의
   text field 의 정확 일치·집계에는 .keyword subfield 를 씁니다
   (`det_fac_id.keyword`, `eqp_id.keyword`). dynamic 으로 생기는 text 는
   ignore_above 256, work_item_nm 만 8192 입니다.
+
+========================================================================
+어댑터 소비 규약 (hardware/bm_pm office adapter — 계획 쪽)
+========================================================================
+
+조회
+  index      -> tool_maintenance_plan
+  term       -> eqp_id.keyword
+  time_field -> tool_start_tm (작업 시작). 문서 자체의 timestamp 인 chg_tm 이 아니라
+                계획 구간의 시작으로 거릅니다 — 화면이 묻는 것은 "언제 작업하는가"
+                이지 "언제 등록됐는가" 가 아니기 때문입니다.
+  창          -> anchor 기준 미래 90일 (FUTURE_DAYS)
+  상한        -> MAX_ROWS = 1000, 페이지네이션 없이 1회 요청.
+
+가져오는 field (명시 목록)
+  eqp_id, tool_start_tm, tool_end_tm, chg_tm, event_name,
+  work_item_nm, work_user_cd
+
+fab 단위 구분은 det_fac_id 입니다(fab_inform_notes 의 fab_name 과 같은 값). fac_id
+는 두 index 에 같은 이름으로 있지만 더 상위 구분이므로 선택에 쓰지 않습니다.
+
+시각 취급(재포맷만, 변환 없음)과 anchor 함정은 실적 쪽과 같습니다 —
+docs/datatables/hardware_fab_inform_notes.txt 의 같은 절을 참고하십시오.

@@ -45,7 +45,7 @@ def _profile(center: float) -> dict[str, float]:
     return {deg: round(center + i * 0.001, 6) for i, deg in enumerate(DEGREE_KEYS)}
 
 
-# A raw `_source` doc mirroring docs/datatables/sharpness_monitor_cdsem.txt:
+# A raw `_source` doc mirroring docs/datatables/hardware_sharpness_monitor_cdsem.txt:
 # exactly the eight ingested fields, nesting kept verbatim (NOT flattened).
 RAW_HIT = {
     "ip": IP,

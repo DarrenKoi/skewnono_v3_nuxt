@@ -75,7 +75,7 @@ __all__ = ["build_beam_shape_docs"]
 # OpenSearch alias holding the beam_shape documents (CD-SEM only).
 INDEX = "beam_shape_cdsem"
 
-# Fixed selectors for the faithful "total" docs (per docs/datatables/beam_shape.txt).
+# Fixed selectors for the faithful "total" docs (per docs/datatables/hardware_beam_shape.txt).
 DOC_TYPE = "total"
 FDC_CATEGORY = "bsi_beam_shape"
 

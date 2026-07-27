@@ -9,7 +9,7 @@ ascending by ``timestamp`` scoped to ``[start, end]``; the top-level
 
 NOTE ``reso_center_log`` is the value of each doc's ``category`` field, NOT
 the index name — querying it as an index gets index_not_found at the office.
-Source of truth: ``docs/datatables/reso_center_data.txt``.
+Source of truth: ``docs/datatables/hardware_reso_center_data.txt``.
 
 Match ``reso_center/mock.py``'s flat doc shape — the 13 scalar/metadata
 fields, no focus-sweep objects:

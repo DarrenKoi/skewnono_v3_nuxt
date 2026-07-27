@@ -57,3 +57,47 @@ indice in Coefficients are 360 (0~359)
    - path: hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab_name}.json  (예: .../2026/07/24/M16E.json)
    - 격일 수준 수집 (07/17, 07/22, 07/24 처럼 완전히 규칙적이지는 않음) — 날짜 폴더를 탐색해서 사용
    - 각 JSON = 그 날짜의 fab 전체 dict of dict (Redis field 값과 동일 형태)
+
+========================================================================
+어댑터 소비 규약 (hardware/sce office adapter)
+========================================================================
+
+builder 2개
+
+  build_sce_settings -> Redis hash "sce_info" 의 최신 스냅샷. field = fab_name,
+                        value = 그 fab 의 {eqp_id: {...}} 전체입니다.
+                        **fab map 전체가 곧 "선택 장비 + 같은 fab 형제 장비" 비교
+                        집단**이므로 따로 골라낼 필요가 없습니다.
+  build_sce_history  -> MinIO 의 격일 아카이브. 수집 날짜당 {fab_name}.json 한 개.
+
+  상위 dispatcher 가 둘을 normalizers.settings_payload(settings + docs)로 묶습니다.
+  mdc 와 같은 구조입니다.
+
+block key 4종: FileInfo, SemCond, ImgCond, SCEParam (+ Coefficients)
+값 직렬화: JSON 우선, pickle fallback.
+
+날짜는 계산하지 않고 **탐색**합니다
+
+  수집 주기가 격일 "쯤" 이라 규칙적이지 않습니다(07/17, 07/22, 07/24 ...). 기대
+  날짜를 계산해 조회하면 없는 파일을 계속 찾게 되므로, 날짜 폴더를 나열해서 실제
+  존재하는 것만 씁니다.
+
+빈 결과는 에러가 아닙니다
+
+  SCE 는 양산 M-fab 에서만 돕니다. R3/R4 는 미사용이고 M10 은 아직 데이터가
+  없습니다(2026-07 기준). hash field 나 아카이브 파일이 없는 것은 **정상적인 빈
+  상태**이므로 {} / [] 를 돌려주고 화면의 빈 상태를 보여줍니다. 502 를 내지
+  않습니다. 다만 sce_info key 자체가 통째로 없으면 그것은 에러입니다.
+
+버전(revision) 접기에 대해 알아둘 것
+
+  화면은 Coefficients 곡선이 같은 수집들을 한 버전으로 접습니다.
+  - 수집마다 float 나 직렬화 jitter 가 생기면 접기가 실패해 모든 수집이 각자
+    버전이 됩니다. 패널의 "N회 수집 · M개 버전" 에서 N == M 이면 "중복 없음" 이
+    붙는데, 그것이 신호입니다.
+  - 곡선을 건드리지 않는 SCEParam 변경은 새 버전을 열지 **않습니다**. 접기가
+    Coefficients 만 보기 때문입니다.
+
+  또한 SCE 의 재튜닝 시점은 BM/PM marker 와 일치하지 않습니다 — 사무실에서도
+  스냅샷은 Redis hash, 추이는 날짜별 MinIO JSON, marker 는 fab_inform_notes 로
+  서로를 묶는 것이 없습니다. 설계상 그렇습니다.

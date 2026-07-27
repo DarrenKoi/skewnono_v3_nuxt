@@ -36,7 +36,7 @@ from back_dev_home.ebeam.hitachi.hardware.providers.fdc import (
 
 ANCHOR = datetime(2026, 5, 20, 9, 0)
 
-# A raw `_source` doc mirroring docs/datatables/network_fdc_cdsem.txt: exactly
+# A raw `_source` doc mirroring docs/datatables/hardware_network_fdc_cdsem.txt: exactly
 # the seven ingested fields, `values[0]` repeating `fdc_key`.
 RAW_HIT = {
     "eqp_id": "6MCDE305",

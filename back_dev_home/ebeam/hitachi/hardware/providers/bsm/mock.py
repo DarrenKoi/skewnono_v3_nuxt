@@ -1,6 +1,6 @@
 """Phase 1 faithful beam_shape (`type: "total"`) mock for the hardware bsm panel.
 
-Produces the raw doc shape documented in `docs/datatables/beam_shape.txt`:
+Produces the raw doc shape documented in `docs/datatables/hardware_beam_shape.txt`:
 per-degree length-16 arrays (Reso EB, Reso Detector, Noise, Focus offset,
 Apature angle factor, Reso EB Focus) keyed alongside a 16-step `degree` axis,
 plus the scalar summary fields and the metadata tail. Fabricated straight off

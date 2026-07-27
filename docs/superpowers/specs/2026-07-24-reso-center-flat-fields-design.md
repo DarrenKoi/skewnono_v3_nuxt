@@ -18,7 +18,7 @@ In scope:
 - Backend `providers/reso_center/office_example.py` — docstring only (still a
   `NotImplementedError` template).
 - `__fixtures__/hardware-reso-center.json` — regenerate to the new shape.
-- `docs/datatables/reso_center_data.txt` — rewrite to the 13-field list.
+- `docs/datatables/hardware_reso_center_data.txt` — rewrite to the 13-field list.
 - Frontend `app/components/ebeam/hardware/ResoCenterPanel.vue` — drop sweep +
   time selector, two-line per-condition timeseries.
 

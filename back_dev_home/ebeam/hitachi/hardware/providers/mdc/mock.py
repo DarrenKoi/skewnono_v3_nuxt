@@ -1,6 +1,6 @@
 """Phase 1 faithful mdc_setting mock (fleet dict-of-dict, as-of snapshot).
 
-Shape from `docs/datatables/mdc_setting.txt`: `{eqp_id: {beam_condition: value}}`
+Shape from `docs/datatables/hardware_mdc_setting.txt`: `{eqp_id: {beam_condition: value}}`
 for the requested eqp + in-fab siblings. Values are correction-factor strings
 near 1.0 (`result = MDC * raw`). Some tools carry extra conditions (3000V,
 Valley). `as_of` perturbs values (snapshot-by-date) while the tool/condition

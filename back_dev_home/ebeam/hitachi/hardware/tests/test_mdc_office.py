@@ -249,7 +249,7 @@ def test_settings_must_key_on_eqp_id_and_carry_the_selected_tool(monkeypatch):
 
 def test_office_shaped_settings_match_the_mocks_dict_of_dict_shape():
     # Shape only: {eqp_id: {beam_condition: value}} with STRING values, per
-    # docs/datatables/mdc_setting.txt. Values are compared by TYPE, never by
+    # docs/datatables/hardware_mdc_setting.txt. Values are compared by TYPE, never by
     # magnitude — the mock's numbers are a Phase-1 fabrication.
     reference = mock.build_mdc_settings("ECDX100", "M16A", ANCHOR)
 

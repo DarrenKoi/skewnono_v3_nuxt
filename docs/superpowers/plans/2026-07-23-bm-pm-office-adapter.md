@@ -9,7 +9,7 @@
 **Tech Stack:** Python 3.11+, Flask, pandas (mock only), `opensearch-py` via the vendored `ops_store`, pytest. Frontend is Nuxt 4 but needs no change.
 
 **Spec:** `docs/superpowers/specs/2026-07-23-bm-pm-office-adapter-design.md`
-**Schema references:** `docs/datatables/fab_inform_notes.txt`, `docs/datatables/tool_maintenance_plan.txt`
+**Schema references:** `docs/datatables/hardware_fab_inform_notes.txt`, `docs/datatables/hardware_tool_maintenance_plan.txt`
 
 ## Global Constraints
 
@@ -1383,7 +1383,7 @@ for the past-work table (`down_dt`/`equp_dt` plus the three engineer notes) and
 `tool_maintenance_plan` for the planned-work table. Run its `__main__` before
 `cp`-ing it — the diagnostic prints the raw stored timestamps, which is the one
 thing about these indices that is still unverified (see the module docstring).
-Schema: `docs/datatables/fab_inform_notes.txt`, `docs/datatables/tool_maintenance_plan.txt`.
+Schema: `docs/datatables/hardware_fab_inform_notes.txt`, `docs/datatables/hardware_tool_maintenance_plan.txt`.
 ```
 
 - [ ] **Step 4: Lint the docs and run the suite**

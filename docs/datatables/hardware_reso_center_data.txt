@@ -33,3 +33,32 @@ doc 하나에는 다음과 같은 필드가 있다.
 - Focus Sweep은 Resolution Center에서 사용하지 않는다. 따라서 이전에 있던
   Resolution_Range / Resolution_Range_Raw / Resolution_Range_Smooth 와
   fdc_category 필드는 더 이상 사용하지 않는다.
+
+========================================================================
+어댑터 상태 및 구현 지침 (hardware/reso_center)
+========================================================================
+
+★ 미연결 (2026-07-27 기준). providers/reso_center/office_example.py 는 함수 서명만
+  있고 본문이 NotImplementedError 입니다. hardware 를 office 로 켜도 이 sub-tab 은
+  동작하지 않습니다.
+
+구현할 것: build_reso_center_docs(eqp_id, fab_name, start, end) -> list[dict]
+
+  - alias reso_center_cdsem 에서 [start, end] 구간을 timestamp 오름차순으로 raw doc
+    그대로 돌려줍니다. 상위 dispatcher 가 normalizers.docs_payload 로 감쌉니다.
+  - 이 index 는 eqp_ip 로 키가 걸려 있으므로, 다른 hardware 어댑터와 같은 방식으로
+    eqp_id -> eqp_ip 를 해결합니다. 명부는 sem_list 입니다
+    (docs/datatables/sem_list.txt). sharpness 어댑터가 같은 문제를 이미 풀어
+    두었으니 그 방식을 그대로 따릅니다.
+  - fab_name 이 주어지면 필터에 겁니다.
+  - query 형태는 bsm/office_example.py 를 본으로 삼습니다.
+
+돌려줄 field 는 위에 적힌 13개뿐입니다.
+
+  ResoDelta 는 저장된 값을 그대로 통과시킵니다. 다시 계산하지 않습니다.
+  Focus Sweep 은 제거되었으므로 Resolution_Range / Resolution_Range_Raw /
+  Resolution_Range_Smooth 와 fdc_category 는 돌려주지 않습니다. mapping 이
+  enabled:false 라 _source 에는 여전히 따라오므로, doc 에서 **떼어내야** office
+  payload 가 mock 과 같은 모양이 됩니다.
+
+CD-SEM 전용입니다.

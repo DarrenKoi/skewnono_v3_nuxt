@@ -1,6 +1,6 @@
 """Phase 1 faithful reso_center (`category: "reso_center_log"`) mock.
 
-Raw doc shape from `docs/datatables/reso_center_data.txt`: center coordinates
+Raw doc shape from `docs/datatables/hardware_reso_center_data.txt`: center coordinates
 (`CenterX`/`CenterY`) plus three resolution scalars, then the metadata tail.
 `BestReso` is the best-focus resolution (the minimum over the focus sweep);
 `ResoIScenter` is the resolution at center focus, so it sits at or above

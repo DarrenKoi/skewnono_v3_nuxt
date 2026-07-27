@@ -122,7 +122,7 @@ def check_alias(client: Any) -> bool:
     if not resolved:
         print(f"\n  >> {INDEX!r} DOES NOT RESOLVE. Everything below will be")
         print("     empty for that reason alone. Compare the real names above")
-        print("     against docs/datatables/network_fdc_cdsem.txt.")
+        print("     against docs/datatables/hardware_network_fdc_cdsem.txt.")
     return resolved
 
 

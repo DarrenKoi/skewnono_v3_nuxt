@@ -42,8 +42,8 @@ Out of scope:
 
 ## Data Sources
 
-Schema references: `docs/datatables/fab_inform_notes.txt` and
-`docs/datatables/tool_maintenance_plan.txt`.
+Schema references: `docs/datatables/hardware_fab_inform_notes.txt` and
+`docs/datatables/hardware_tool_maintenance_plan.txt`.
 
 `past` rows come from `fab_inform_notes`:
 

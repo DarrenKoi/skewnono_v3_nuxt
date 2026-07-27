@@ -28,14 +28,14 @@
 | `idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe` | 연결 |
 | `recipe_name_list.txt` | Redis `v3_cdsem_unique_rcp_list` / `v3_hvsem_unique_rcp_list` | `recipe_search` (목록만) | 연결 |
 | `live_alarm_board.txt` | 사내 alarm API → Redis ZSET 보드 | `live_alarm` | 연결 |
-| `beam_shape.txt` | OpenSearch `beam_shape_cdsem` | `hardware/bsm` | 연결 |
-| `network_fdc_cdsem.txt` | OpenSearch `network_fdc_cdsem` | `hardware/fdc` | 연결 |
-| `sharpness_monitor_cdsem.txt` | OpenSearch `sharpness_monitor_cdsem` | `hardware/sharpness` | 연결 |
-| `sce_setting.txt` | Redis `sce_info` + MinIO `hitachi_sem/cdsem/sce_info/` | `hardware/sce` | 연결 |
-| `fab_inform_notes.txt` | OpenSearch `fab_inform_notes` | `hardware/bm_pm` (실적) | 연결 |
-| `tool_maintenance_plan.txt` | OpenSearch `tool_maintenance_plan` | `hardware/bm_pm` (계획) | 연결 |
-| `reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | **미연결** |
-| `mdc_setting.txt` | Redis(fab별 최신) + MinIO(날짜별 이력) | `hardware/mdc` | **미연결** |
+| `hardware_beam_shape.txt` | OpenSearch `beam_shape_cdsem` | `hardware/bsm` | 연결 |
+| `hardware_network_fdc_cdsem.txt` | OpenSearch `network_fdc_cdsem` | `hardware/fdc` | 연결 |
+| `hardware_sharpness_monitor_cdsem.txt` | OpenSearch `sharpness_monitor_cdsem` | `hardware/sharpness` | 연결 |
+| `hardware_sce_setting.txt` | Redis `sce_info` + MinIO `hitachi_sem/cdsem/sce_info/` | `hardware/sce` | 연결 |
+| `hardware_fab_inform_notes.txt` | OpenSearch `fab_inform_notes` | `hardware/bm_pm` (실적) | 연결 |
+| `hardware_tool_maintenance_plan.txt` | OpenSearch `tool_maintenance_plan` | `hardware/bm_pm` (계획) | 연결 |
+| `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | **미연결** |
+| `hardware_mdc_setting.txt` | Redis(fab별 최신) + MinIO(날짜별 이력) | `hardware/mdc` | **미연결** |
 | `recipe_idp.txt` | 미정 — IDP 원본 파싱 필요 | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `parameter_info.txt` | 미정 — `recipe_idp` 와 같은 소스로 추정 | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `recipe_params.txt` | 미정 | `device_statistics` | **미연결**(mock) |
@@ -58,6 +58,20 @@
 - **hardware/mdc, hardware/reso_center** — 템플릿은 있으나 본문이
   `NotImplementedError` 입니다. `hardware` 를 office 로 켜도 이 두 sub-tab 은 동작하지
   않습니다.
+
+## 파일 이름 규칙
+
+`hardware` feature 는 sub-tab 마다 소스가 따로입니다(bsm, fdc, sharpness, sce,
+bm_pm, reso_center, mdc — 8개 문서). 폴더 목록에서 흩어지지 않도록 **`hardware_`
+접두사**로 묶습니다. 접두사 없는 `hardware.txt` 는 데이터 소스 문서가 아니라 장비
+변곡점 판단에 쓰는 FDC 파라미터 해설이며, 정렬상 그 그룹의 머리에 옵니다.
+
+다른 feature 도 소스가 여러 개로 늘어나면 같은 방식으로 묶습니다.
+
+각 `hardware_*` 문서는 스키마 뒤에 **"어댑터 소비 규약"** 절을 답니다 — 어느 field
+를 어떤 조건으로 읽고, 무엇을 일부러 읽지 않으며, 어떤 값을 정규화하는지입니다.
+스키마만 있고 이 절이 없으면 사무실에서 같은 함정(예: analyzed text 에 term 걸기,
+길이 16이 아닌 배열이 조용히 사라지기)을 매번 다시 밟게 됩니다.
 
 ## 표기 규칙
 

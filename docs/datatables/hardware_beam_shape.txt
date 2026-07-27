@@ -41,3 +41,58 @@ for the type 'index2' we have like this,
 'type': str 'index2'
 
 if not 16 numbers, we ignore as they lose the credibility.
+
+========================================================================
+어댑터 소비 규약 (hardware/bsm office adapter)
+========================================================================
+
+Index(alias) -> beam_shape_cdsem
+조회 조건    -> type.keyword = "total" AND fdc_category.keyword = "bsi_beam_shape"
+                + eqp_id.keyword + fab_name.keyword(대문자) + timestamp range
+정렬         -> (timestamp, beam_condition) 오름차순
+상한         -> MAX_DOCS = 10000. 30일 창에 조건 몇 개 x 하루 3회면 한참 아래이며,
+                mapping 이 어긋나 결과가 폭주하는 것을 막는 용도입니다. 상한에
+                닿으면 조용히 자르지 않고 감지합니다.
+
+이 화면은 type "total" 문서만 씁니다. 위에 적힌 type "index2"(RR00/RR90 Reso EB)는
+현재 어느 화면도 읽지 않습니다.
+
+.keyword 를 쓰는 이유: type / fdc_category / eqp_id / fab_name 은 analyzed text 라
+bare field 에 term 을 걸면 아무것도 매칭하지 않습니다.
+
+값 shape 정규화 (field 이름은 그대로, 모양만 고침)
+
+  프론트는 "길이 16짜리 숫자 배열" 인지로 radar metric 을 판별합니다. 아래 둘은
+  원본 모양 그대로 통과시키면 조용히 metric 목록에서 사라집니다.
+
+  "Reso EB Focus"       -> [[...16개...]] 이중 중첩으로 옵니다. 평탄화해서 길이 16
+                           배열로 만들어야 다른 per-degree key 처럼 radar 로
+                           분류됩니다.
+  "Reso EB Focus Range" -> ['8.0000'] 처럼 원소 1개짜리 list 로 옵니다. 길이 16도
+                           아니고 scalar 도 아니라 패널이 통째로 무시합니다. bare
+                           float 로 벗겨서 scalar 추이(focus range drift)로
+                           노출합니다. mock 도 같은 float scalar 를 내보내므로 집과
+                           사무실이 같게 렌더됩니다.
+
+  per-degree 배열과 scalar 는 모두 float 로 강제 변환합니다 — 원본은 한 배열 안에
+  float 와 숫자 문자열('6.118456')이 섞여 있습니다. 깨끗한 길이 16 숫자 배열을 만들
+  수 없는 값은 malformed 로 내보내지 않고 **버립니다**(위의 "16개가 아니면 신뢰를
+  잃으므로 무시" 규칙과 같은 판단입니다).
+
+  metadata 는 그대로 통과합니다:
+    category, type, beam_condition, fdc_category, timestamp, timestamp_date,
+    eqp_ip, eqp_id, fac_id, fab_name
+
+  degree 는 16단계 각도 축입니다. profile 처럼 실려 나가지만 metric 은 아닙니다.
+
+  per-degree / scalar key 목록은 metric registry 에서 가져옵니다. registry 에 field
+  를 추가하면 mock·프론트와 함께 office 경로에도 자동으로 반영됩니다.
+  "Reso EB Focus" 만 원본 shape 이 불규칙해 registry 밖에서 명시적으로 더합니다.
+
+시각: offset 없는 KST wall-clock 입니다. 라우트가 넘기는 naive start/end 와 같은
+기준으로 비교되므로 어긋나지 않습니다.
+
+OFFICE-VERIFY (첫 실행 때 확인)
+  - alias 이름이 beam_shape_cdsem 인지.
+  - type / fdc_category / eqp_id / fab_name 이 .keyword 로 매칭되는지. bare keyword
+    로 명시 매핑되어 있다면 .keyword 접미사를 빼야 합니다.

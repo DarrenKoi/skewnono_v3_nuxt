@@ -1,6 +1,6 @@
 """Phase 1 faithful sharpness_monitor_cdsem mock for the hardware sharpness panel.
 
-Raw doc shape from `docs/datatables/sharpness_monitor_cdsem.txt`: beam quality read
+Raw doc shape from `docs/datatables/hardware_sharpness_monitor_cdsem.txt`: beam quality read
 off the stub sample in the tool chamber, automatically every 6~8 hours. Unlike BSM
 (reference wafer, PM-tied), this is a high-cadence daily monitor, so it lives under
 the 데일리 service group.

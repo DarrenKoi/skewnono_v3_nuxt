@@ -6,7 +6,7 @@ the hardware page reads the same keys off the returned docs (data-driven
 selectors). Adding a future field = one entry here; the mock emits it and the
 UI surfaces it with no further code change.
 
-Ranges are anchored to the sample doc in `docs/datatables/beam_shape.txt`.
+Ranges are anchored to the sample doc in `docs/datatables/hardware_beam_shape.txt`.
 `profile16` keys produce a length-16 per-degree array; `scalar` keys produce
 one float. The `degree` axis and the `Reso EB Focus` / `Reso EB Focus Range`
 fields are emitted by the generator directly (not range-driven), so they are

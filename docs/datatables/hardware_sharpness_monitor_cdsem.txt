@@ -60,3 +60,53 @@ summ_beam: object
 summ_beam contain key and values (float)
 keys: "Ellipticity" "Major Axis", "Minor Axis", "Offset", "Tilt", "x_range", "y_range"
 
+
+========================================================================
+어댑터 소비 규약 (hardware/sharpness office adapter)
+========================================================================
+
+Index -> sharpness_monitor_cdsem   (CD-SEM 전용)
+조회   -> ip term + timestamp range, timestamp 오름차순
+상한   -> MAX_SHARPNESS_DOCS = 10000. 모니터가 6~8시간마다 조건쌍당 1건을 남기므로
+          한 장비 30일치는 ~250건, 상한보다 세 자릿수 아래입니다. 닿으면 가정이
+          깨진 것이므로 자르지 않고 에러를 냅니다.
+
+ip 는 keyword 로 **명시** 매핑되어 있으므로 .keyword 접미사를 붙이지 않습니다.
+형제 index 인 network_fdc_cdsem(dynamic mapping, eqp_id.keyword 필요)과 반대입니다.
+
+장비 identity 해결
+
+  이 index 에는 eqp_id 가 아예 없습니다. Hardware 화면은 eqp_id 로 장비를 고르므로
+  eqp_id -> eqp_ip -> ip 두 단계를 거칩니다. eqp_id/eqp_ip 짝은 sem_list 명부에서
+  옵니다(docs/datatables/sem_list.txt) — 장비 재고 화면, storage, lateral_recipe 가
+  쓰는 바로 그 소스입니다. eqp_id 를 파싱하거나 별도 표를 두어 IP 를 만들어내면 이
+  화면이 재고 화면과 다른 답을 내놓고, 어느 쪽이 맞는지 판별할 방법이 없어집니다.
+
+  ★ 따라서 sem_list 도 office provider 여야 합니다. sem_list 가 mock 이면 명부가
+  가짜 IP 를 돌려주고, 그 IP 는 0건을 매칭해서 "데이터 없음" 과 똑같아 보입니다.
+  어댑터는 이 상황을 조용히 넘기지 않고 이름 붙은 에러를 냅니다.
+
+가져오는 field (명시 목록, 위의 8개 전부)
+  ip, timestamp, os_inserted, beam_condition, reso_detector, noise, reso_eb,
+  summ_beam
+
+  명시 목록으로 두는 이유: doc 하나가 이미 16-key object 3개를 담고 있고 이
+  payload 가 그대로 SPA 로 넘어가므로, 새 적재 field 가 조용히 얹히면 안 됩니다.
+
+세 개의 per-degree object(reso_eb / noise / reso_detector)는 하나로 추리지 않고
+**전부** 내려보냅니다. 어느 profile 이 장비 상태의 진짜 지표인지 아직 정해지지
+않았으므로 화면이 셋 다 radar metric 으로 제공하고 엔지니어가 고릅니다. doc 당
+16-key object 3개면 30일 창에서 수천 개 float 수준이라, 누군가 필요로 하는 비교를
+미리 막는 것보다 쌉니다.
+
+검증: beam_condition 의 SEM_Cond_No/Vacc 와 세 profile object 가 비어 있지 않은지
+doc 마다 확인합니다. 빈 object 는 에러 없이 빈 차트로 렌더되어 적재 문제로
+되짚기가 훨씬 어렵기 때문입니다.
+
+CD-SEM 전용은 상위에서 이미 강제됩니다(normalizers.CDSEM_ONLY_SERVICES). HV-SEM
+장비는 어댑터까지 도달하지 않으므로, 빈 결과가 나왔다면 그 원인은 HV-SEM 이
+아닙니다.
+
+OFFICE-VERIFY: 저장된 ip 의 표기가 sem_list 의 eqp_ip 와 같은지(포트 없는 점4쿼드)
+첫 실행 때 확인합니다. __main__ 이 해결된 IP 와 조회 결과를 따로 출력하므로 명부
+문제와 빈 창을 구분할 수 있습니다.

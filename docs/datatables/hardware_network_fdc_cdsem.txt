@@ -29,3 +29,48 @@ values:list (starts with fdc_key) ->
 A, B, C들은 주기적으로 한번씩 측정되기 때문에 timestamp상 서로 근접한 상태
 
 doc 하나는 고유의 eqp_id, timestamp, values를 가짐. 
+
+========================================================================
+어댑터 소비 규약 (hardware/fdc office adapter)
+========================================================================
+
+Index -> network_fdc_cdsem   (CD-SEM 전용)
+조회   -> eqp_id.keyword term + timestamp range, timestamp 오름차순
+상한   -> MAX_FDC_DOCS = 10000. 한 장비 30일치는 수천 건이므로 상한에 닿으면 가정이
+          깨진 것입니다. 부분 이력을 조용히 그리지 않고 에러를 냅니다.
+
+가져오는 field (명시 목록 — 새 적재 컬럼이 모든 doc 에 딸려오지 못하게)
+  eqp_id, eqp_model_cd, fab_name, eqp_ip, fdc_key, timestamp, values
+
+.keyword 를 쓰는 이유 (office 확인 2026-07-23)
+
+  이 index 는 ops_index_mgmt/network_fdc_cdsem.py 가 **명시 mapping 없이** 만듭니다.
+  따라서 dynamic mapping 이 모든 문자열을 text + .keyword 로 잡습니다. 정확 일치는
+  eqp_id.keyword 를 써야 하고, bare field 에 terms 집계를 걸면 fielddata 에러가
+  납니다.
+
+  ★ 형제 index 인 sharpness_monitor_cdsem 을 따라하지 마십시오. 그쪽은 외부에서
+  관리되며 ip 가 bare keyword 로 명시 매핑되어 있어 규칙이 정반대입니다.
+
+timestamp
+
+  진짜 date 타입이라 bare field 로 range·sort 가 됩니다. offset 없는 KST wall clock
+  이며 라우트의 naive start/end 와 같은 기준이라 양쪽이 like-for-like 로 비교되고,
+  원본 문자열이 차트까지 그대로 도달합니다. Z 접미사가 붙어 저장되면 창이 9시간
+  밀립니다.
+
+fdc_key 검증
+
+  위에 적힌 4종(TemperatureEChuck, SPMVoltages, LaserPower,
+  ContactpinConductionInfo)만 통과시킵니다. 모르는 key 가 오면 프론트 파서가 본 적
+  없는 shape 이 index 에 늘어난 것이므로, 빈 차트를 그리지 않고 에러를 냅니다.
+
+eqp_id 표기
+
+  실제 저장된 값은 6MCDE305 형태입니다. Hardware 화면의 장비 선택기가 이 index 와
+  같은 철자(= 그 장비의 sem_list row 값)를 넘기지 않으면 term 이 아무것도 잡지
+  못합니다. 어댑터의 __main__ 을 돌리면 실제 mapping, 존재하는 eqp_id 값, 그리고
+  어느 절이 결과를 비우는지 확인할 수 있습니다.
+
+CD-SEM 전용: fdc 는 normalizers.CDSEM_ONLY_SERVICES 에 없으므로, HV-SEM 장비는
+에러가 아니라 "매칭 0건" 이라는 정상적인 빈 결과가 됩니다.
