@@ -3,7 +3,7 @@
 // ONE MSR, ONE parameter, measured in a fixed order. This module describes how
 // the CD and the per-sequence dynamic FDC evolve ALONG THE MEASUREMENT ORDER —
 // the sequence index — and nothing else. It is the data layer behind the
-// Time-Series `single` scope (SequenceWorkbench.vue).
+// FDC 분석 view's sequence workbench (SequenceWorkbench.vue).
 //
 // TIME IS NOT A DIMENSION HERE. The Phase-1 MsrFile carries NO per-sequence
 // timestamp (docs/datatables/msr_file_pickle.txt), so this module deliberately exposes

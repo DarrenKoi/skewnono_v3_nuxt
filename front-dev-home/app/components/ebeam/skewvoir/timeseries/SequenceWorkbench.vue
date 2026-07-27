@@ -41,13 +41,28 @@
            sharing the panes' cursor. -->
       <EbeamSkewvoirPanelFrame
         title="측정 순서 (Sequence)"
-        :meta="`${model.sequences.length} points · ${analysis.activeParamLabel.value}`"
+        :meta="sequenceMeta"
         icon="i-lucide-git-commit-horizontal"
       >
         <template #actions>
-          <span class="sk-meta tabular-nums">
-            cursor: {{ analysis.focusedSequence.value ?? '—' }}
-          </span>
+          <div class="flex items-center gap-2">
+            <span
+              v-if="!model.integrity.matched && model.integrity.fdc > 0"
+              class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
+              :title="`측정 row ${model.integrity.rows}개 · dynamic FDC ${model.integrity.fdc}개 — 측정마다 FDC 1건이 있어야 합니다.`"
+            >
+              데이터 불일치 · row {{ model.integrity.rows }} / FDC {{ model.integrity.fdc }}
+            </span>
+            <USelect
+              v-model="axisMode"
+              size="xs"
+              :items="axisItems"
+              class="min-w-[8.5rem]"
+            />
+            <span class="sk-meta tabular-nums">
+              cursor: {{ analysis.focusedSequence.value ?? '—' }}
+            </span>
+          </div>
         </template>
         <EbeamSkewvoirTimeseriesSequenceEventLane
           :sequences="model.sequences"
@@ -146,7 +161,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
-import { analyzeSequence, type FdcSeqSeries, type SequenceSource } from '~/utils/skewvoirAnalysis/sequence'
+import { analyzeSequence, type FdcSeqSeries, type SequenceAxisMode, type SequenceSource } from '~/utils/skewvoirAnalysis/sequence'
 import { buildParamMatrix } from '~/utils/skewvoirAnalysis/paramMatrix'
 import { assignCompareColors } from '~/utils/hardwareCompare'
 
@@ -167,10 +182,28 @@ const source = computed<SequenceSource>(() => ({
   fdc_params: props.analysis.focusFile.value?.fdc_params ?? []
 }))
 
-// The shared-cursor sequence model for the FOCUS file + active parameter.
+// The shared-cursor sequence model for the FOCUS file + active parameter, on the
+// axis the URL asks for.
 const model = computed(() =>
-  analyzeSequence(source.value, props.analysis.activeParam.value, props.analysis.activeUnit.value)
+  analyzeSequence(
+    source.value,
+    props.analysis.activeParam.value,
+    props.analysis.activeUnit.value,
+    props.analysis.fdcAxis.value
+  )
 )
+
+const axisItems = [
+  { label: '파라미터 정렬', value: 'param' },
+  { label: '전체 sequence', value: 'all' }
+]
+
+// v-model on a computed with an explicit setter, so the URL stays the single
+// source of truth rather than a local ref shadowing it.
+const axisMode = computed({
+  get: () => props.analysis.fdcAxis.value,
+  set: (v: SequenceAxisMode) => props.analysis.setFdcAxis(v)
+})
 
 const matrix = computed(() => buildParamMatrix(model.value, source.value))
 
@@ -195,6 +228,15 @@ const drillTo = (param: string): void => {
 
 const fmt = (v: number): string => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const signed = (v: number): string => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(3)}` : '—')
+
+// A scoped axis is a SUBSET of the MSR, so it says so — otherwise a subset
+// reads as the whole run.
+const sequenceMeta = computed(() => {
+  const base = `${model.value.sequences.length} points · ${props.analysis.activeParam.value}`
+  return model.value.excludedFdc > 0
+    ? `${base} · 타 parameter ${model.value.excludedFdc} 제외`
+    : base
+})
 
 // Per-sequence stat meta — slope labelled "per sequence", never per second.
 const cdMeta = computed(() => {
