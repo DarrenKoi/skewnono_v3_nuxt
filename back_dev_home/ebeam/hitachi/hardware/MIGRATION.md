@@ -27,7 +27,12 @@ is `docs/datatables/hardware_reso_center_data.txt` and
 so a back-port is transcription, not rediscovery: mdc reads the Redis hash
 `mdc_setting` (field = `fab_name`) plus dated MinIO JSON under
 `hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json` — the same two-tier
-shape as `sce/`, which is already implemented here and worth copying from.
+shape as `sce/`, which is already implemented here and worth copying from, with
+one thing that must NOT be copied: `sce/` treats a missing hash field or archive
+file as a legitimate empty, because R3/R4 don't run SCE and M10 has no data yet.
+MDC covers every fab including R3/R4, so the same absence is a collection
+failure. Render empty if you like, but surface it — silently reusing SCE's
+graceful-empty path would hide a real outage behind a blank tab.
 
 `fdc/office_example.py` is implemented, not a stub: its body is written
 against the `network_fdc_cdsem` layout in
