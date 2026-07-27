@@ -2,7 +2,7 @@
   <!-- Single-MSR only. The workbench plots MEASUREMENT ORDER, not time — the MSR
        file carries no per-sequence timestamp — so it has nothing to say about a
        multi-measurement set. That comparison is the Time-Series view. -->
-  <EbeamSkewvoirTimeseriesSequenceWorkbench
+  <EbeamSkewvoirFdcSequenceWorkbench
     v-if="analysis.scope.value === 'single'"
     :analysis="analysis"
   />

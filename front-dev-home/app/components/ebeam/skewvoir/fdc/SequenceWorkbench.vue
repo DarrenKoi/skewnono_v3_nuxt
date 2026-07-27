@@ -64,7 +64,7 @@
             </span>
           </div>
         </template>
-        <EbeamSkewvoirTimeseriesSequenceEventLane
+        <EbeamSkewvoirFdcSequenceEventLane
           :sequences="model.sequences"
           :events="model.events"
           :focused="analysis.focusedSequence.value"
@@ -87,7 +87,7 @@
             데모 데이터 · 방법 검증 불가
           </span>
         </template>
-        <EbeamSkewvoirTimeseriesParamMatrix
+        <EbeamSkewvoirFdcParamMatrix
           :model="matrix"
           :colors="fdcColorByParam"
           @select="onSelect"
