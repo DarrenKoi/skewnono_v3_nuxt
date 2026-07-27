@@ -60,6 +60,32 @@ So **the `cp` that creates an adapter is the same act that switches it on** — 
 
 Full rules — site-detection order, the `/api/health/providers` carve-out, `EDITED` copies, and the features with more than one swap surface (`chat`, `msr_file`, `msr_image`) — are in [`docs/back-end/provider-selection.md`](docs/back-end/provider-selection.md). Per-feature specifics live in each `<feature>/MIGRATION.md`.
 
+### Office DB knowledge lands in TWO places, always
+
+The office databases are unreachable from home, so **mock data is the only
+carrier of what we know about them**. Whenever I tell you something new about an
+office DB — a key name, an index alias, a field, a value convention, coverage,
+a gotcha — update **both** of these in the same change:
+
+1. `docs/datatables/<source>.txt` — the schema of record (see that folder's
+   `README.md` for the file→source→feature map).
+2. the feature's `providers/mock.py` — so home development is standing in for
+   the real thing rather than drifting from it.
+
+Updating only the doc is the failure mode to avoid: the doc is read when someone
+writes an office adapter, but `mock.py` is what every home session actually runs
+against. A fact recorded in one and not the other is a fact the next home session
+will contradict.
+
+"Update mock.py" usually means the **docstring** — what the mock stands in for,
+and where it deliberately differs (grain, ranges, fabricated correlations).
+Change generated values only when the current ones would teach something false
+about the real data. Never make a mock imitate office values it cannot know.
+
+Where an office fact came from matters, so mark it: `office 확인 YYYY-MM-DD`
+(verified by a real run), `user-confirmed`, or `OFFICE-VERIFY` (still an
+assumption).
+
 ### Data Format Conventions
 - Prefer **dict** and **dataframe dict** format (`dataframe.to_dict()`)
 - Backend responses converted to dict/dataframe shape before returning JSON

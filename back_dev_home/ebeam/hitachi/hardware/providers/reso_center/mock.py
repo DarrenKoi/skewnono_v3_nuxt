@@ -10,6 +10,19 @@ derived here rather than rolled independently so the three stay consistent.
 Focus Sweep is intentionally not modeled — the wide `Resolution_Range*` objects
 were dropped along with the sweep chart. Deterministic per eqp_id; ascending
 time.
+
+Office counterpart (office-confirmed 2026-07-27): OpenSearch alias
+`reso_center_cdsem`, keyed on `eqp_ip` (so the office adapter resolves
+eqp_id -> eqp_ip through the sem_list roster). `reso_center_log` above is the
+doc's `category` VALUE and names no index — every .py and .md in this repo
+conflated the two until 2026-07-27. CD-SEM only, enforced upstream by
+`normalizers.CDSEM_ONLY_SERVICES`.
+
+Office `_source` still carries the dropped `Resolution_Range*` and
+`fdc_category` fields (mapped `enabled: false`), which is why the office adapter
+projects an explicit field list. This mock emits only the 13 that survive, so
+`set(mock_doc) == set(office_doc)` is a live test
+(tests/test_reso_center_office.py).
 """
 
 from __future__ import annotations

@@ -5,6 +5,25 @@ for the requested eqp + in-fab siblings. Values are correction-factor strings
 near 1.0 (`result = MDC * raw`). Some tools carry extra conditions (3000V,
 Valley). `as_of` perturbs values (snapshot-by-date) while the tool/condition
 set stays stable per (eqp_id, fab_name).
+
+Office counterpart (office-confirmed 2026-07-27), so home development knows what
+it is standing in for: the snapshot is the Redis hash `mdc_setting` (field =
+fab_name, value = that fab's whole map) and the history is dated MinIO JSON at
+`hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json` — the same two-tier
+shape as SCE, different names.
+
+COVERAGE: MDC applies to EVERY fab, R3/R4 included. Do NOT copy the R3/R4
+exclusion from `sce/mock.py` by analogy — the two differ exactly here, and the
+consequence is not cosmetic: for SCE an absent fab is normal, for MDC it means
+collection failed (`mdc/office_example.py` logs rather than returning a quiet
+empty, pinned in tests/test_mdc_office.py). `sibling_eqp_ids` is fab-agnostic,
+so this mock already emits for R3/R4 tools — deliberate, not an oversight.
+
+TIMESTAMP GRAIN differs from the office on purpose. This mock places
+recalibration events at real hours (`2026-05-11 04:00`) so the 시계열 chart has
+something to lay out; the office archive is filed per DATE and its adapter emits
+`00:00`. Same format string, different resolution — a time-of-day pattern here
+is a Phase-1 fabrication, never an office property.
 """
 
 from __future__ import annotations
