@@ -47,10 +47,10 @@ pandas DataFrame 입니다.
   wafer_align_info  -> wafer alignment point table
   idp_image_info    -> parameter 별 image 정의 table
 
-★ `office_utils` 는 **사무실에만 있는 폴더**입니다. 집(Phase 1)에서는 같은 3개
-  key 와 같은 컬럼 구성을 만들어 내는 mock 이 이 자리를 대신합니다. 따라서 컬럼
-  이름이 어긋나면 집에서는 통과하고 사무실에서만 깨집니다 — 이 문서의 컬럼 이름이
-  계약입니다.
+★ `office_utils` 는 **사무실에만 있는 폴더**입니다. 따라서 컬럼 이름이 어긋나면
+  집에서는 통과하고 사무실에서만 깨집니다 — 이 문서의 컬럼 이름이 계약입니다.
+  집(Phase 1)에서는 저장소 root 의 `office_utils/` 가 같은 이름으로 이 자리를
+  대신합니다. 아래 "집에서의 대역" 절을 참고하십시오.
 
 wafer_mp_info
 -------------
@@ -131,6 +131,64 @@ dnumber_removed -> int64: 제외된 d-number 개수
 OFFICE-VERIFY: img_* 컬럼이 실제로 무엇을 담는지(파일명인지, 번호인지, 경로인지)는
 파싱 결과를 눈으로 확인해야 합니다. wafer_mp_info.img_meas2 가 이름과 달리 숫자였던
 전례가 있으므로 이름만 보고 파일명이라고 단정하지 않습니다.
+
+집에서의 대역 (home stand-in, 2026-07-27)
+=========================================
+
+`office_utils` 가 없으면 office adapter 는 집에서 import 조차 되지 않고, 파싱
+이후의 모든 매핑 판단이 사무실에 앉기 전까지 검증 불가능한 추측으로 남습니다.
+그래서 저장소 root 에 같은 이름의 **대역 package** 를 두었습니다.
+
+  위치    office_utils/read_idp_info.py
+  추적    **gitignore 됨**(`/office_utils/`). 절대 commit·push 하지 않습니다.
+
+push 하면 안 되는 이유는 단순한 위생 문제가 아닙니다. 추적되는 순간 사무실에서
+진짜 package 를 가려(shadow) 운영 화면이 **HTTP 200 을 유지한 채 조작된 recipe
+데이터**를 내려보내게 됩니다. `providers/office.py` 를 추적하지 않는 것과 같은
+규칙이며 이유도 같습니다.
+
+대역이 맞추는 것
+----------------
+
+  signature   `combined_idp_info(idp_file_path)` — 위치 인자 1개
+  반환        key 3개 dict, 각 value 는 pandas DataFrame
+  컬럼        이 문서의 이름·순서·dtype 그대로
+
+값은 그럴듯한 placeholder 이며 사무실 분포를 흉내 내지 않습니다. 파일 내용은 한
+byte 도 읽지 않습니다 — .idp format 은 집에서 알 수 없고, 파싱하는 척하는 편이
+파싱한 척하는 것보다 뒤끝이 깁니다. 같은 경로면 같은 값이 나오도록 경로 문자열로
+seed 를 만듭니다(compare 가 open 에서 파생되기 때문입니다).
+
+일부러 재현한 함정 (사무실에서만 터지는 것들)
+---------------------------------------------
+
+1. `wafer_align_info` 의 dot 컬럼(`Chip.X`, `P.No`) — 속성 접근이 아니라 key
+   접근이어야 한다는 것이 집에서 바로 드러납니다.
+2. `wafer_mp_info.img_meas2` 는 int(=P_No), `idp_image_info.img_meas2` 는
+   파일명 str. 같은 이름, 다른 의미.
+3. `image_add3` 의 이름 불규칙.
+4. 진짜 pandas dtype — `.to_dict()` 결과의 JSON 직렬화 가능 여부가 실제로
+   검증됩니다(numpy scalar 가 새어 나오면 사무실에서만 500 이 납니다).
+5. 경로가 없으면 `FileNotFoundError`. 진짜 파서는 파일을 읽으므로, adapter 는
+   FTP 다운로드를 실제 디스크에 내린 **뒤에** 호출해야 합니다. 집에서도 그
+   순서를 강제하기 위한 장치입니다.
+
+일부러 재현하지 않은 것
+-----------------------
+
+* NaN/결측값의 유무 — 진짜 파서가 내는지 모릅니다. 대역은 만들지 않되 adapter 는
+  견디도록 작성하고, 그 경로는 추적되는 contract test 로 덮습니다.
+* `Parameter` 가 두 table 사이에서 정확히 일치하는지 — 대역은 항상 일치시켜서
+  join 이 돌아가게 합니다. 사무실에서는 여전히 OFFICE-VERIFY 항목입니다.
+
+확인
+----
+
+  .venv/bin/python -c "from office_utils.read_idp_info import combined_idp_info"
+
+사무실에서는 진짜가, 집에서는 대역이 잡힙니다. 대역은 호출될 때마다 "HOME
+STAND-IN — 파싱하지 않았음" WARNING log 를 남기므로, 사무실 log 에 이 줄이
+보인다면 대역이 잘못 배포된 것입니다.
 
 사무실 소스가 없는 응답 항목
 ============================

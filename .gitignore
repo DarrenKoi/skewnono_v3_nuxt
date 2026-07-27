@@ -128,6 +128,16 @@ back_dev_home/msr_image/providers/office.py
 # Real recipe payloads -- never committed.
 .ftp-probe/
 
+# `office_utils` is an 사내 package that exists ONLY on office machines; the
+# recipe_search adapter imports it to parse .idp recipe files. At home a
+# fabricated stand-in of the same name sits here so that adapter can be written
+# and run -- and it must NEVER be tracked, in either direction:
+#   pushed  -> it would shadow the real package at the office and serve
+#              fabricated recipe data from production, at HTTP 200.
+#   pulled  -> a tracked copy would carry 사내 parser details out of the office.
+# Same rule, same reason, as providers/office.py above.
+/office_utils/
+
 # Playwright test runner artifacts (the MCP session dumps live in .playwright-mcp/).
 # No leading slash, so this matches at any depth -- front-dev-home/test-results/
 # and any future workspace's included.

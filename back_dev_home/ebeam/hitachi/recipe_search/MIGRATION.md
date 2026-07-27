@@ -94,12 +94,23 @@ tables.** Anyone comparing them against the tool will find they do not match.
   image. `timestamp` is `datetime.now().isoformat()` — a volatile field
   scrubbed by the parity harness (`VOLATILE_KEYS`), so office does not need to
   match it byte-for-byte.
-- Office data source: **NOT WIRED — deliberately mock-backed.** The raw IDP
-  payload is not prepared office-side yet, so `providers/office.py`
+- Office data source: **NOT WIRED — deliberately mock-backed.** `providers/office.py`
   re-exports the mock's `get_recipe_open_data`. This keeps 열어보기 clickable
   and the contract gate green, at the cost of showing synthetic detail data
-  in the office UI. Replace with the real IDP fetch when the raw data lands.
+  in the office UI. The source itself is no longer unknown, though: the IDP
+  file sits on the measuring tool's FTP server and `office_utils.read_idp_info`
+  parses it into three DataFrames — chain, paths and full column contract in
+  `docs/datatables/recipe_idp.txt`.
   <!-- OFFICE: IDP payload fetch for the chosen recipe (wafer MP/align tables + image filenames + AMP) -->
+- **Writing this adapter at home:** `office_utils` exists only on office
+  machines, so a stand-in package of the same name lives at the repo root and
+  is **gitignored** (`/office_utils/`) — never commit it, or it shadows the
+  real parser at the office and serves fabricated data at HTTP 200. It matches
+  the signature, the three keys, and the column names/order/dtypes, so the
+  DataFrame → `RecipeDetailResponse` mapping is fully runnable here; only the
+  OpenSearch lookup and the FTP fetch are unreachable from home. Keep those two
+  and the pure mapping in separate functions so the mapping stays testable
+  without either. Details: `docs/datatables/recipe_idp.txt` §집에서의 대역.
 - Notes: this endpoint mimics "the IDP payload the frontend will request
   after a user chooses one recipe" (module docstring) — unlike `/recipes`,
   the office implementation is expected to assemble real per-recipe detail
