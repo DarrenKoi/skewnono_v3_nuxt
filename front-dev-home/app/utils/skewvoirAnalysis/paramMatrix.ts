@@ -121,6 +121,16 @@ export const buildParamMatrix = (
 
   let demoCoupled = false
   const fdcCells: MatrixCell[] = model.fdc.map((series) => {
+    // ALWAYS the parameter-scoped inner join, regardless of the sequence
+    // axis mode: `source.rows` here is unscoped (every parameter's rows),
+    // and buildCdFdcRelationship inner-joins CD against dynamic_fdc on its
+    // own terms. Under axisMode 'param' this matches the sparkline
+    // (series.points) exactly. Under 'all' it does NOT: the sparkline then
+    // spans the whole MSR (the shared 'all' axis) while `r` beside it stays
+    // computed from the narrower parameter-scoped join — a real divergence,
+    // not a bug. Preserving `all` verbatim (a real, user-selectable
+    // whole-MSR comparison) was the deliberate call, and this mismatch under
+    // it is a known, accepted gap rather than an oversight.
     const rel = buildCdFdcRelationship(source.rows, cdParam, series.param, source.dynamic_fdc)
     if (rel.demoCoupled) demoCoupled = true
     const ready = rel.readiness === 'ready' && rel.pearson != null
