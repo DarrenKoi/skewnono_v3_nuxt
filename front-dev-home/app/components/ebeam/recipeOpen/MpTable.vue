@@ -55,12 +55,18 @@ withDefaults(defineProps<{
   rows: WaferMpInfoRow[]
   columns?: readonly MpColumn[]
 }>(), {
+  // Every wafer_mp_info column except Parameter, which is omitted because the
+  // caller has already filtered these rows to one Parameter (see the caption
+  // above the table in RecipeOpenView). Coordinate_*_r is the position after
+  // Rel_Move* is applied — showing the offsets without the resulting
+  // coordinate told half the story.
   columns: () => [
     'ChipNo_X', 'ChipNo_Y',
     'Coordinate_X', 'Coordinate_Y',
     'P_No', 'D_No',
     'Diff', 'Rel',
     'Rel_MoveX', 'Rel_MoveY',
+    'Coordinate_X_r', 'Coordinate_Y_r',
     'img_meas2'
   ]
 })
