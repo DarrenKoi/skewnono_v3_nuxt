@@ -581,9 +581,10 @@ def _build_rows(
     # A STEP is one measurement point (one die). Each parameter measured there is
     # its own measurement and takes the next global sequence number — so two
     # parameters at one point share chip/stage but never share a sequence.
-    # Starts at num_dummy, not 0: the settling shots above already claimed
-    # sequences 1..num_dummy, and the running counter must not repeat them.
-    sequence = num_dummy
+    # A distinct name from the dummy loop's own `sequence` above: this counter
+    # STARTS at num_dummy (the settling shots already claimed 1..num_dummy) and
+    # is not a reset of that binding, it is a continuation of it.
+    running_sequence = num_dummy
     for step in range(1, num_measurements + 1):
         seq_frac = (step - 1) / span
 
@@ -636,10 +637,10 @@ def _build_rows(
         object_type = _OBJECT_TYPES[(step + seed) % len(_OBJECT_TYPES)]
 
         for parameter in selected_params:
-            sequence += 1
+            running_sequence += 1
             rows.append(MsrFileRow(
                 msr=msr,
-                sequence=sequence,
+                sequence=running_sequence,
                 chip_number=chip_number,
                 chip_coordinate=chip_coordinate,
                 stage_coordinate=stage_coordinate,
@@ -657,7 +658,7 @@ def _build_rows(
                 # path and the download fallback at home.
                 mp_image_name_01=(
                     "" if empty
-                    else f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}"
+                    else f"{msr}_{running_sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}"
                     f".{'tif' if rng.random() < 0.3 else 'jpeg'}"
                 ),
                 meas_condition_mag=meas_mag,

@@ -155,38 +155,85 @@ def test_dummy_mp_gets_its_own_unnamed_summary():
     assert summary["unit"] == "", "an unnamed point has no unit to report"
 
 
+# ── sequence is a global per-row counter (Task 3) ────────────────────────────
+# `_MSR`'s seeded draw happens to select exactly ONE parameter (verified: seed
+# 1471759110 draws num_params=1 for ("MSR-CONTRACT-0001", "ADI", 40)). With one
+# parameter, a step's parameter loop runs once, so the old cartesian bug (one
+# sequence number shared across a step's parameter rows) and the fix produce
+# IDENTICAL output — testing only against _MSR asserts nothing about this fix.
+# _msr_with_multi_param() finds an MSR whose draw selects 2+ parameters, which
+# is the only shape where a step's parameter loop runs more than once and the
+# bug (or the fix) is observable at all.
+
+
+def _msr_with_multi_param() -> str:
+    """The first synthetic MSR whose seeded draw selects 2+ parameters."""
+    for i in range(60):
+        msr = f"MSR-MULTI-PARAM-{i:04d}"
+        payload = mock.get_msr_file(msr, _CLASS, _TOTAL_IMAGES)
+        assert payload is not None
+        params = {row["parameter"] for row in payload["rows"] if row["parameter"] != ""}
+        if len(params) >= 2:
+            return msr
+    pytest.fail("no synthetic MSR drew 2+ parameters — the generator stopped varying num_params")
+
+
+def _sequence_test_msrs() -> list[str]:
+    """A handful of MSRs covering different draws (single-param, multi-param,
+    with dummy settling shots) so the invariant is checked across shapes
+    rather than one seed that may or may not exercise the bug."""
+    return [_MSR, _msr_with_multi_param(), _msr_with_dummy()]
+
+
 def test_sequence_is_unique_per_row():
     """`sequence` is a global running counter: one number per measurement."""
-    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
-    assert result is not None
-    sequences = [row["sequence"] for row in result["rows"]]
-    assert len(sequences) == len(set(sequences)), "a sequence number is reused across rows"
-    assert sequences == sorted(sequences), "rows are not in measurement order"
+    for msr in _sequence_test_msrs():
+        result = mock.get_msr_file(msr, _CLASS, _TOTAL_IMAGES)
+        assert result is not None
+        sequences = [row["sequence"] for row in result["rows"]]
+        assert len(sequences) == len(set(sequences)), \
+            f"{msr}: a sequence number is reused across rows"
+        assert sequences == sorted(sequences), f"{msr}: rows are not in measurement order"
 
 
 def test_row_count_matches_dynamic_fdc_count():
     """The office invariant: one row, one measurement, one dynamic_fdc entry."""
-    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
-    assert result is not None
-    assert len(result["rows"]) == len(result["dynamic_fdc"])
+    for msr in _sequence_test_msrs():
+        result = mock.get_msr_file(msr, _CLASS, _TOTAL_IMAGES)
+        assert result is not None
+        assert len(result["rows"]) == len(result["dynamic_fdc"]), \
+            f"{msr}: len(rows) != len(dynamic_fdc)"
 
 
 def test_dynamic_fdc_keys_are_exactly_the_row_sequences():
-    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
-    assert result is not None
-    assert {str(row["sequence"]) for row in result["rows"]} == set(result["dynamic_fdc"])
+    for msr in _sequence_test_msrs():
+        result = mock.get_msr_file(msr, _CLASS, _TOTAL_IMAGES)
+        assert result is not None
+        assert {str(row["sequence"]) for row in result["rows"]} == set(result["dynamic_fdc"]), \
+            f"{msr}: dynamic_fdc keys do not match row sequences"
 
 
 def test_parameters_measured_at_one_point_share_its_die():
-    """Consecutive sequences at the same measurement point keep that point's
-    chip/stage coordinates — only the parameter differs."""
-    result = mock.get_msr_file(_MSR, _CLASS, _TOTAL_IMAGES)
+    """Parameters measured at the same point (die) share its chip/stage
+    coordinates, but each is still its own measurement — so two parameters at
+    one die must never share a sequence number either.
+
+    Runs against _msr_with_multi_param(), not _MSR: this property has nothing
+    to pair up under a single-parameter draw, and previously the test silently
+    returned without asserting anything for exactly that reason. The sequence
+    check (not just the parameter-name check) is what actually fails if the
+    mock reverts to sharing one sequence number across a step's parameters —
+    a die carrying two DIFFERENT parameter names was already true before this
+    fix, so asserting only that would prove nothing about the fix itself.
+    """
+    result = mock.get_msr_file(_msr_with_multi_param(), _CLASS, _TOTAL_IMAGES)
     assert result is not None
-    params = {row["parameter"] for row in result["rows"]}
-    if len(params) < 2:
-        return  # single-parameter MSR — nothing to pair up
-    by_chip: dict[str, set[str]] = {}
+    by_chip: dict[str, list[dict]] = {}
     for row in result["rows"]:
-        by_chip.setdefault(row["chip_number"], set()).add(row["parameter"])
-    assert any(len(v) > 1 for v in by_chip.values()), \
-        "no die carries more than one parameter — points are not shared"
+        by_chip.setdefault(row["chip_number"], []).append(row)
+    shared = [rows for rows in by_chip.values() if len({r["parameter"] for r in rows}) > 1]
+    assert shared, "no die carries more than one parameter — points are not shared"
+    for rows in shared:
+        seqs = [row["sequence"] for row in rows]
+        assert len(seqs) == len(set(seqs)), \
+            "rows sharing a die must not share a sequence number"
