@@ -50,6 +50,10 @@
               v-else-if="ws.activeKind.value === 'position-stack'"
               :analysis="analysis"
             />
+            <EbeamSkewvoirViewsFdc
+              v-else-if="ws.activeKind.value === 'fdc'"
+              :analysis="analysis"
+            />
             <EbeamSkewvoirViewsTimeSeries
               v-else-if="ws.activeKind.value === 'time-series'"
               :analysis="analysis"
@@ -159,7 +163,7 @@ const selectorFocused = (): boolean => {
     || !!el.closest('[role="listbox"]')
 }
 
-// Keys 1-5 jump to the matching left-rail view mode.
+// Keys 1-6 jump to the matching left-rail view mode.
 defineShortcuts(
   Object.fromEntries(
     ws.viewModes.map(mode => [String(mode.index), () => {

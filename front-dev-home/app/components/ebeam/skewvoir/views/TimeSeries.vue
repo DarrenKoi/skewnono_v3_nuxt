@@ -1,15 +1,9 @@
 <template>
-  <!-- Branch-by-abstraction on analysis scope:
-       • single → the single-MSR measurement-order + dynamic-FDC workbench (Task 7)
-       • set    → the existing multi-measurement trend + sequence-trend panels
-                  (kept until the multi-MSR run chart of Task 8). -->
-  <EbeamSkewvoirTimeseriesSequenceWorkbench
-    v-if="analysis.scope.value === 'single'"
-    :analysis="analysis"
-  />
-
+  <!-- Multi-measurement comparison only. The single-MSR sequence workbench moved
+       to the FDC 분석 view: it plots measurement ORDER, which is a different
+       axis from this view's across-measurement trend, not a narrower one. -->
   <div
-    v-else
+    v-if="analysis.scope.value === 'set'"
     class="space-y-3"
   >
     <!-- Multi-measurement trend (mean ± min/max band) -->
@@ -122,6 +116,18 @@
         focus 측정의 sequence 데이터가 없습니다.
       </div>
     </EbeamSkewvoirPanelFrame>
+  </div>
+
+  <div
+    v-else
+    class="dashboard-surface flex h-72 flex-col items-center justify-center gap-1 rounded-(--sk-r-card) px-4 text-center"
+  >
+    <p class="sk-title">
+      Time-Series
+    </p>
+    <p class="sk-body">
+      MSR을 2개 이상 선택하면 측정 간 추이를 비교합니다.
+    </p>
   </div>
 </template>
 
