@@ -55,6 +55,8 @@ class MeasHistResponse(TypedDict):
 class MeasHistSearchResponse(TypedDict):
     total: int
     capped: bool
+    recipe_names: list[str]
+    recipe_names_complete: bool
     offset: int
     limit: int
     range: dict[str, str]

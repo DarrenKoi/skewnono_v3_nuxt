@@ -71,6 +71,7 @@ from back_dev_home.ebeam.hitachi._office_meas_hist import (
     LOT_ID_KW as _LOT_ID_KW,
     TIME_FIELD as _TIME_F,
     aggregate as _aggregate,
+    composite_buckets as _composite_buckets,
     get_anchor_time,
     search as _os_search,
     text as _text,
@@ -422,6 +423,9 @@ def search_meas_hist(
 
     total = 0
     rows: list[MeasHistRow] = []
+    recipe_names: list[str] = []
+    recipe_terms = [value for value in (recipe or []) if value.strip()]
+    recipe_names_complete = bool(recipe_terms)
     if not out_of_retention:
         # Values within a field OR together (terms); fields AND together
         # (filter context). List values are uppercased to match the stored
@@ -437,7 +441,7 @@ def search_meas_hist(
             clauses.append({"terms": {_LOT_ID_KW: [v.upper() for v in lot]}})
         if msr:
             clauses.append({"terms": {_MSR_KW: list(msr)}})
-        recipe_clause = _recipe_clause(recipe or [])
+        recipe_clause = _recipe_clause(recipe_terms)
         if recipe_clause:
             clauses.append(recipe_clause)
         # q fallback: substring wildcard across the real source fields — see
@@ -450,8 +454,9 @@ def search_meas_hist(
         # the mock truncates to); a page starting past it is legally empty.
         from_ = min(offset, MAX_RESULT_WINDOW)
         size = max(min(limit, MAX_RESULT_WINDOW - from_), 0)
+        query = {"bool": {"filter": clauses}}
         body: dict[str, Any] = {
-            "query": {"bool": {"filter": clauses}},
+            "query": query,
             "sort": [{_TIME_F: "desc"}],
             "from": from_,
             "size": size,
@@ -460,10 +465,25 @@ def search_meas_hist(
         result = _os_search(_indices(tool_type)).search_raw(body)
         total = _total(result)
         rows = _rows(result, tool_type) if size > 0 else []
+        if recipe_terms:
+            buckets = _composite_buckets(
+                _indices(tool_type),
+                _FULL_KW,
+                {},
+                query,
+            )
+            recipe_names = sorted({
+                str(value).strip()
+                for bucket in buckets
+                if (value := bucket.get("key", {}).get("group"))
+                and str(value).strip()
+            })
 
     return MeasHistSearchResponse(
         total=total,
         capped=total > MAX_RESULT_WINDOW,
+        recipe_names=recipe_names,
+        recipe_names_complete=recipe_names_complete,
         offset=offset,
         limit=limit,
         range={

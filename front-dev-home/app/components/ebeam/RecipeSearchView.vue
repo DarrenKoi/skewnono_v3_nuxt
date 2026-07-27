@@ -208,10 +208,9 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 // ~15 min fresh. When a 3+ char lookup matches nothing, probe measurement
 // history so a just-created recipe isn't mistaken for a typo.
 const HISTORY_PROBE_DEBOUNCE_MS = 600
-// The backend clamps each page to DEFAULT_LIMIT * 10 and OpenSearch retrieval
-// to index.max_result_window. Scan that retrievable window deterministically.
-const HISTORY_PROBE_PAGE_SIZE = 500
-const HISTORY_PROBE_MAX_ROWS = 10_000
+// Raw rows are irrelevant to fallback discovery. The additive recipe_names
+// contract returns the complete distinct full_name snapshot in one request.
+const HISTORY_PROBE_RAW_LIMIT = 1
 
 const { searchMeasHist } = useMeasHistApi()
 
@@ -275,53 +274,14 @@ watch(historyProbeKey, (key) => {
   fallbackFailed.value = false
   historyProbeTimer = setTimeout(async () => {
     try {
-      const fullNames = new Set<string>()
-      let offset = 0
-      let truncated = false
-
-      while (offset < HISTORY_PROBE_MAX_ROWS) {
-        const response = await searchMeasHist({
-          toolType: props.toolType,
-          fab: props.fab ? [props.fab] : undefined,
-          recipe: tokens,
-          offset,
-          limit: HISTORY_PROBE_PAGE_SIZE
-        })
-        if (seq !== historyProbeSeq) return
-
-        const retrievableTotal = Math.min(
-          Math.max(response.total, 0),
-          HISTORY_PROBE_MAX_ROWS
-        )
-        truncated ||= response.capped || response.total > HISTORY_PROBE_MAX_ROWS
-
-        if (!response.rows.length) {
-          // An early empty page means the retrievable window was not fully
-          // inspected, so a zero-match outcome is incomplete rather than empty.
-          if (offset < retrievableTotal) truncated = true
-          break
-        }
-
-        response.rows.forEach(row => fullNames.add(row.full_name))
-        const matchedNames = matchingHistoryNames([...fullNames], tokens)
-        const rankedNames = rankRecipeMatches(
-          matchedNames.map(name => ({
-            value: name,
-            searchText: name.trim().toLowerCase()
-          })),
-          queryAtProbe
-        )
-        if (!retainedResults && rankedNames.length) {
-          historyMatches.value = rankedNames
-          fallbackTruncated.value = truncated
-        }
-
-        offset += response.rows.length
-        if (offset >= retrievableTotal) break
-      }
-
+      const response = await searchMeasHist({
+        toolType: props.toolType,
+        fab: props.fab ? [props.fab] : undefined,
+        recipe: tokens,
+        limit: HISTORY_PROBE_RAW_LIMIT
+      })
       if (seq !== historyProbeSeq) return
-      const matchedNames = matchingHistoryNames([...fullNames], tokens)
+      const matchedNames = matchingHistoryNames(response.recipe_names, tokens)
       const rankedNames = rankRecipeMatches(
         matchedNames.map(name => ({
           value: name,
@@ -329,13 +289,14 @@ watch(historyProbeKey, (key) => {
         })),
         queryAtProbe
       )
+      const incomplete = !response.recipe_names_complete
       // Same-scope Redis retries revalidate in the background but never erase
       // a previously usable fallback snapshot. A query/scope change or a Redis
       // match is the explicit invalidation boundary above.
       if (!retainedResults || rankedNames.length) {
         historyMatches.value = rankedNames
-        fallbackTruncated.value = truncated
-      } else if (truncated) {
+        fallbackTruncated.value = incomplete
+      } else if (incomplete) {
         fallbackTruncated.value = true
       }
     } catch {

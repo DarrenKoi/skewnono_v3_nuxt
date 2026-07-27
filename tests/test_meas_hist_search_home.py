@@ -71,6 +71,43 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
         self.assertGreater(result["total"], 0)
         self.assertTrue(all(row["eqp_id"] == "ECXDX925" for row in result["rows"]))
 
+    def test_recipe_names_are_complete_even_when_raw_rows_use_a_small_limit(self):
+        result = search_meas_hist(recipe=["CD_BIAS"], limit=1)
+
+        self.assertIn("recipe_names", result)
+        self.assertIn("recipe_names_complete", result)
+        self.assertEqual(len(result["rows"]), 1)
+        self.assertEqual(
+            result["recipe_names"],
+            [
+                "ADI/ADI_CD_BIAS_001",
+                "ADI/ADI_CD_BIAS_ABC123_PROD_00006",
+                "ADI/ADI_CD_BIAS_ABC123_STD_00001",
+            ],
+        )
+        self.assertTrue(result["recipe_names_complete"])
+
+    def test_recipe_names_keep_the_broad_or_candidate_set_for_multiple_terms(self):
+        result = search_meas_hist(recipe=["CD_BIAS", "GATE_PITCH"], limit=1)
+
+        self.assertEqual(
+            result["recipe_names"],
+            [
+                "ADI/ADI_CD_BIAS_001",
+                "ADI/ADI_CD_BIAS_ABC123_PROD_00006",
+                "ADI/ADI_CD_BIAS_ABC123_STD_00001",
+                "GATE/GATE_PITCH_001",
+                "GATE/GATE_PITCH_MON_ABC123_ENG_00009",
+            ],
+        )
+        self.assertTrue(result["recipe_names_complete"])
+
+    def test_recipe_names_are_not_requested_without_a_recipe_filter(self):
+        result = search_meas_hist(limit=1)
+
+        self.assertEqual(result["recipe_names"], [])
+        self.assertFalse(result["recipe_names_complete"])
+
     def test_route_accepts_repeated_q_parameters(self):
         app = Flask(__name__)
         app.register_blueprint(bp, url_prefix="/api")

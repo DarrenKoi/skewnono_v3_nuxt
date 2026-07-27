@@ -555,6 +555,12 @@ def search_meas_hist(
 
             rows.append(row)
 
+    recipe_names = (
+        sorted({row["full_name"] for row in rows})
+        if recipe_terms
+        else []
+    )
+
     rows.sort(key=lambda r: r["timestamp"], reverse=True)
 
     total = len(rows)
@@ -568,6 +574,8 @@ def search_meas_hist(
     return MeasHistSearchResponse(
         total=total,
         capped=capped,
+        recipe_names=recipe_names,
+        recipe_names_complete=bool(recipe_terms),
         offset=offset,
         limit=limit,
         range={
