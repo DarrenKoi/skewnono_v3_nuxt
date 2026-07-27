@@ -109,6 +109,7 @@ export type RecipeSearchViewState
     | 'fallback-loading'
     | 'results'
     | 'empty'
+    | 'fallback-incomplete'
     | 'fallback-error'
     | 'sources-error'
 
@@ -120,13 +121,15 @@ export const resolveRecipeSearchViewState = (input: {
   fallbackPending: boolean
   fallbackSettled: boolean
   fallbackFailed: boolean
+  fallbackTruncated: boolean
 }): RecipeSearchViewState => {
   if (!input.canSearch) return 'idle'
-  if (input.catalogPending) return 'catalog-loading'
   if (input.resultCount > 0) return 'results'
+  if (input.catalogPending) return 'catalog-loading'
   if (input.fallbackPending || !input.fallbackSettled) return 'fallback-loading'
   if (input.fallbackFailed) {
     return input.catalogFailed ? 'sources-error' : 'fallback-error'
   }
+  if (input.fallbackTruncated) return 'fallback-incomplete'
   return 'empty'
 }

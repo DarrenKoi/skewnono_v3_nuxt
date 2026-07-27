@@ -134,7 +134,8 @@ test('view state distinguishes fallback loading, results, empty and both-source 
     resultCount: 0,
     fallbackPending: false,
     fallbackSettled: false,
-    fallbackFailed: false
+    fallbackFailed: false,
+    fallbackTruncated: false
   }
   assert.equal(resolveRecipeSearchViewState({
     ...base, fallbackPending: true
@@ -151,6 +152,12 @@ test('view state distinguishes fallback loading, results, empty and both-source 
   assert.equal(resolveRecipeSearchViewState({
     ...base, fallbackSettled: true, fallbackFailed: true
   }), 'fallback-error')
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, catalogPending: true, resultCount: 2
+  }), 'results')
+  assert.equal(resolveRecipeSearchViewState({
+    ...base, fallbackSettled: true, fallbackTruncated: true
+  }), 'fallback-incomplete')
 })
 
 test('view state preserves catalog loading and pre-search idle behavior', () => {
@@ -161,7 +168,8 @@ test('view state preserves catalog loading and pre-search idle behavior', () => 
     resultCount: 0,
     fallbackPending: false,
     fallbackSettled: false,
-    fallbackFailed: false
+    fallbackFailed: false,
+    fallbackTruncated: false
   }), 'catalog-loading')
   assert.equal(resolveRecipeSearchViewState({
     canSearch: false,
@@ -170,7 +178,8 @@ test('view state preserves catalog loading and pre-search idle behavior', () => 
     resultCount: 0,
     fallbackPending: false,
     fallbackSettled: false,
-    fallbackFailed: false
+    fallbackFailed: false,
+    fallbackTruncated: false
   }), 'idle')
 })
 
@@ -182,6 +191,7 @@ test('view state keeps an empty query idle while the catalog is pending', () => 
     resultCount: 0,
     fallbackPending: false,
     fallbackSettled: false,
-    fallbackFailed: false
+    fallbackFailed: false,
+    fallbackTruncated: false
   }), 'idle')
 })
