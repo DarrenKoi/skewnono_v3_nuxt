@@ -40,7 +40,7 @@ def recorded(monkeypatch):
 
 @pytest.fixture
 def make_app(monkeypatch, preserve_logger, records, recorded):
-    """Factory: an app with the middleware installed, in home (non-cloud) mode.
+    """Factory: an app with the middleware installed in network-free mode.
 
     `identity` is what install_identity_middleware would have put on `g`; pass
     api_token_id to stand in for a token-authenticated caller.
@@ -50,7 +50,7 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
     no-op once handlers exist — without this the suite order would decide
     whether INFO records are emitted at all.
     """
-    monkeypatch.setattr(activity_mod, "is_cloud", lambda: False)
+    monkeypatch.setattr(activity_mod, "install_opensearch_logging", lambda: None)
     logger = preserve_logger("skewnono.activity")
     logger.handlers[:] = []
     logger.setLevel(logging.NOTSET)
@@ -75,6 +75,10 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
         @app.get("/api/cdsem/ppid-unavailable")
         def _side_panel():
             return {"ppids": []}
+
+        @app.get("/api/cdsem/live-alarm")
+        def _live_alarm():
+            return {"alarms": []}
 
         @app.get("/api/nope")
         def _missing():
@@ -113,7 +117,7 @@ def test_a_request_is_logged_with_the_fields_the_dashboard_reads(make_app, recor
     assert record.user_id == "2067928"
     assert record.method == "GET"
     assert record.path == "/api/sem-list"
-    assert record.request_path == "/api/sem-list"
+    assert not hasattr(record, "request_path")
     assert record.query_string == "fab_name=M16"
     assert record.status == 200
     assert record.feature == "sem_list"
@@ -121,7 +125,32 @@ def test_a_request_is_logged_with_the_fields_the_dashboard_reads(make_app, recor
     assert record.remote_addr
     assert record.error_code is None
     assert record.error_name is None
+    assert record.request_id
+    assert record.activity_kind == "entry"
     assert record.activity_weight == 1
+    assert record.fab_name_list == ["M16"]
+
+
+def test_multi_fab_query_is_normalized(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/cdsem/ppid-unavailable?fab_name=M14,m16,M14")
+    assert _only(records, "request").fab_name_list == ["M14", "M16"]
+
+
+def test_sensitive_query_values_are_redacted(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/sem-list?fab_name=M14&access_token=secret")
+    query = _only(records, "request").query_string
+    assert "secret" not in query
+    assert "%5BREDACTED%5D" in query
+
+
+def test_background_poll_is_logged_but_not_recorded(make_app, records, recorded):
+    client = make_app(user_id="2067928")
+    client.get("/api/cdsem/live-alarm?fab_name=M14")
+    record = _only(records, "request")
+    assert (record.activity_kind, record.activity_weight) == ("background", 0)
+    assert recorded == []
 
 
 def test_the_level_tracks_the_status_class(make_app, records):
@@ -149,17 +178,24 @@ def test_an_error_status_is_labelled_with_its_reason_phrase(make_app, records):
     assert record.error_name == "Not Found"
 
 
-def test_only_recordable_requests_become_usage_events(make_app, recorded):
-    """is_recordable is the single gate: no identified user, a non-API path or
-    an error status all mean "traffic, not usage". Counting a 404 would let a
-    broken page climb the popularity ranking."""
+def test_only_weighted_requests_become_usage_events(make_app, recorded):
     client = make_app(user_id="2067928")
 
-    client.get("/api/sem-list")
+    client.get("/api/sem-list?fab_name=M16")
     client.get("/api/nope")
     client.get("/login")
 
-    assert recorded == [("2067928", "GET", "/api/sem-list", 200, "sem_list")]
+    assert recorded == [
+        (
+            "2067928",
+            "GET",
+            "/api/sem-list",
+            200,
+            "sem_list",
+            "entry",
+            ["M16"],
+        )
+    ]
 
 
 def test_an_anonymous_request_is_logged_but_not_recorded(make_app, records, recorded):
@@ -167,7 +203,7 @@ def test_an_anonymous_request_is_logged_but_not_recorded(make_app, records, reco
 
     client.get("/api/sem-list")
 
-    assert _only(records, "request").user_id == "-"
+    assert _only(records, "request").user_id is None
     assert recorded == []
 
 
@@ -194,7 +230,7 @@ def test_the_middleware_shares_one_feature_computation_with_the_writer(
     client.get("/api/cdsem/ppid-unavailable")
 
     assert _only(records, "request").feature == "storage"
-    assert recorded[0][-1] == "storage"
+    assert recorded[0][4] == "storage"
 
 
 def test_an_unhandled_exception_is_logged_with_its_traceback(make_app, records):
@@ -205,12 +241,15 @@ def test_an_unhandled_exception_is_logged_with_its_traceback(make_app, records):
 
     assert client.get("/api/boom").status_code == 500
 
-    record = _only(records, "request_exception")
-    assert record.levelno == logging.ERROR
-    assert record.status == 500
-    assert record.error_code == "RuntimeError"
-    assert record.error_name == "kaboom"
-    assert record.exc_info and record.exc_info[0] is RuntimeError
+    exception_record = _only(records, "request_exception")
+    request_record = _only(records, "request")
+    assert exception_record.levelno == logging.ERROR
+    assert exception_record.status == 500
+    assert exception_record.error_code == "RuntimeError"
+    assert exception_record.error_name == "kaboom"
+    assert exception_record.exc_info and exception_record.exc_info[0] is RuntimeError
+    assert exception_record.request_id
+    assert exception_record.request_id == request_record.request_id
 
 
 def test_installing_twice_does_not_duplicate_the_handler(make_app):
@@ -226,20 +265,12 @@ def test_installing_twice_does_not_duplicate_the_handler(make_app):
     assert logger.propagate is False
 
 
-def test_opensearch_shipping_is_cloud_only(monkeypatch, preserve_logger):
-    """The buffered handler dials the production cluster. Home and office
-    localhost have no OpenSearch to dial, and a background thread retrying one
-    on every boot is noise at best."""
+def test_install_always_delegates_shipping_decision(monkeypatch, preserve_logger):
     preserve_logger("skewnono.activity")
     installs: list[int] = []
     monkeypatch.setattr(
         activity_mod, "install_opensearch_logging", lambda: installs.append(1)
     )
 
-    monkeypatch.setattr(activity_mod, "is_cloud", lambda: False)
-    activity_mod.install_activity_logging(Flask(__name__))
-    assert installs == []
-
-    monkeypatch.setattr(activity_mod, "is_cloud", lambda: True)
     activity_mod.install_activity_logging(Flask(__name__))
     assert len(installs) == 1

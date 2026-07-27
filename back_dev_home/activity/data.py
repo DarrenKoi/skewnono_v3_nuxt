@@ -2,15 +2,11 @@
 
 Routes, _logging middleware, and the app factory import only this module.
 The selected adapter lives in providers/mock.py or providers/office.py.
-``is_recordable`` is provider-independent policy and lives here.
 ``seed_demo_users`` is demo seeding and always uses mock.
 """
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.activity.providers.mock import (
-    is_recordable,       # pure predicate: same rule in both modes
-    seed_demo_users,     # dev/demo seeding: mock-only by design
-)
+from back_dev_home.activity.providers.mock import seed_demo_users
 
 
 __all__ = [
@@ -19,7 +15,6 @@ __all__ = [
     "get_fab_page_usage",
     "get_users_list",
     "get_user_history",
-    "is_recordable",
     "record_request",
     "seed_demo_users",
 ]
@@ -59,5 +54,15 @@ def record_request(
     path: str,
     status: int,
     feature: str,
+    activity_kind: str,
+    fab_name_list: list[str],
 ) -> None:
-    return _provider().record_request(user_id, method, path, status, feature)
+    return _provider().record_request(
+        user_id,
+        method,
+        path,
+        status,
+        feature,
+        activity_kind,
+        fab_name_list,
+    )

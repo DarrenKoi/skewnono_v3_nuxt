@@ -1,21 +1,8 @@
-"""SWAP SURFACE — usage statistics data layer.
+"""Network-free activity aggregation for home and automated tests.
 
-원본:        (사무실 측 Redis 카운터 + OpenSearch usage_events 인덱스)
-계약:        docs/api-contracts/activity.yaml + docs/api-contracts/usage-events.yaml
-픽스처:      없음 — 라이브 카운터라 픽스처 캡처는 무의미합니다.
-
-동작 규칙:
-- 홈 (is_cloud()=False): 모든 호출이 메모리 내 `_users` 딕셔너리만 사용합니다.
-  record_request() 가 라이브 요청을 받아 집계하고, get_* 함수들이 같은 딕셔너리를
-  순회해서 응답을 만듭니다. Redis / OpenSearch 는 호출하지 않습니다.
-- 사무실 (is_cloud()=True): record_request() 가 Redis 에 HINCRBY/SADD 를 쏘고
-  OpenSearch usage_events 에 도큐먼트 한 건을 인덱싱합니다. get_summary /
-  get_user_history 는 라이브 카운터를 읽고, 실패 시 메모리 폴백을 사용합니다
-  (health/data.py 와 동일한 try/except 패턴).
-
-이 파일은 게임화 (tier / score / streak) 로직을 더 이상 다루지 않습니다.
-이전 버전과 호환되어야 하는 외부 임포트는 없습니다 (라우트는 이 파일과 함께
-교체됨).
+The mock stores the same request-scoped semantics the OpenSearch office reader
+will aggregate: entry requests count active users, feature requests also count
+page usage, and each request can belong to multiple FAB buckets.
 """
 
 from __future__ import annotations
@@ -25,7 +12,6 @@ from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 
 from ..._auth.admin import is_admin
-from ..._runtime.env import is_cloud
 from back_dev_home.activity.contracts import (
     DailyCount,
     FabPageCount,
@@ -39,7 +25,6 @@ from back_dev_home.activity.contracts import (
     UserListResponse,
     UserListRow,
 )
-
 
 __all__ = [
     "FeatureCount",
@@ -63,32 +48,27 @@ __all__ = [
     "seed_demo_users",
 ]
 
-
-# Skip the usage API itself and the admin log viewer so the dashboard doesn't
-# inflate its own counters.
-_SKIP_PATH_PREFIXES = ("/api/activity/", "/api/admin/logs")
-# Sparkline window for personal / per-user views.
 _SPARKLINE_DAYS = 30
-# Cap top-features lists in the response payload.
 _TOP_FEATURES_CAP = 10
 
 
 @dataclass
 class _UserState:
     user_id: str
-    fab: str | None = None
     total: int = 0
     by_feature: dict[str, int] = field(default_factory=dict)
     daily: dict[date, int] = field(default_factory=dict)
+    daily_features: dict[date, dict[str, int]] = field(default_factory=dict)
+    daily_fabs: dict[date, set[str]] = field(default_factory=dict)
+    daily_fab_features: dict[date, dict[str, dict[str, int]]] = field(
+        default_factory=dict
+    )
     first_seen: datetime | None = None
     last_seen: datetime | None = None
 
 
 _users: dict[str, _UserState] = {}
 _lock = RLock()
-
-
-# ------- helpers ------------------------------------------------------------
 
 
 def _now() -> datetime:
@@ -105,61 +85,50 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def _top_features(counts: dict[str, int], cap: int = _TOP_FEATURES_CAP) -> list[FeatureCount]:
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:cap]
-    return [{"feature": feat, "count": n} for feat, n in ranked]
+def _top_features(
+    counts: dict[str, int],
+    cap: int = _TOP_FEATURES_CAP,
+) -> list[FeatureCount]:
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:cap]
+    return [{"feature": feature, "count": count} for feature, count in ranked]
 
 
-def _daily_series(daily: dict[date, int], today: date, days: int) -> list[DailyCount]:
-    out: list[DailyCount] = []
-    for offset in range(days - 1, -1, -1):
-        d = today - timedelta(days=offset)
-        out.append({"date": d.isoformat(), "count": daily.get(d, 0)})
-    return out
+def _daily_series(
+    daily: dict[date, int],
+    today: date,
+    days: int,
+) -> list[DailyCount]:
+    return [
+        {
+            "date": (day := today - timedelta(days=offset)).isoformat(),
+            "count": daily.get(day, 0),
+        }
+        for offset in range(days - 1, -1, -1)
+    ]
 
 
-def _this_month_stats(daily: dict[date, int], today: date) -> MeThisMonth:
+def _this_month_stats(
+    daily: dict[date, int],
+    today: date,
+) -> MeThisMonth:
     first = today.replace(day=1)
-    requests = 0
-    days_active = 0
-    for d, n in daily.items():
-        if d >= first and d <= today and n > 0:
-            requests += n
-            days_active += 1
-    return {"requests": requests, "days_active": days_active}
+    active = {
+        day: count
+        for day, count in daily.items()
+        if first <= day <= today and count > 0
+    }
+    return {
+        "requests": sum(active.values()),
+        "days_active": len(active),
+    }
 
 
-def _scale_features(by_feature: dict[str, int], window_sum: int, total: int, into: dict[str, int]) -> None:
-    """Approximate per-window feature counts by scaling the lifetime by_feature
-    map by the user's share-of-activity in the window. The in-memory mock
-    only carries lifetime feature totals, so true per-day slicing requires
-    Redis HINCRBY counters (the office implementation).
-    """
-    if window_sum <= 0 or total <= 0:
-        return
-    scale = window_sum / total
-    for feat, n in by_feature.items():
-        into[feat] = into.get(feat, 0) + int(round(n * scale))
-
-
-# ------- record_request -----------------------------------------------------
-
-
-def is_recordable(user_id: str | None, path: str, status: int) -> bool:
-    """Single source of truth for usage-event gating.
-
-    Used by both the middleware (to decide whether to call record_request at
-    all) and as a defensive re-check inside record_request itself.
-    """
-    if not user_id or user_id == "-":
-        return False
-    if not path.startswith("/api/"):
-        return False
-    if any(path.startswith(prefix) for prefix in _SKIP_PATH_PREFIXES):
-        return False
-    if status >= 400:
-        return False
-    return True
+def _merge_counts(
+    target: dict[str, int],
+    source: dict[str, int],
+) -> None:
+    for key, count in source.items():
+        target[key] = target.get(key, 0) + count
 
 
 def record_request(
@@ -168,45 +137,48 @@ def record_request(
     path: str,
     status: int,
     feature: str,
+    activity_kind: str,
+    fab_name_list: list[str],
 ) -> None:
-    """Tap point invoked from _logging/activity.py after each request.
+    """Record one already-classified human entry or feature request."""
 
-    Caller is expected to have already checked `is_recordable(...)`. Feature
-    slug is passed in so the middleware and the writer share one computation.
-    """
+    if activity_kind not in {"entry", "feature"}:
+        return
+
     now = _now()
     today = now.date()
+    fabs = fab_name_list or ["미지정"]
 
     with _lock:
         state = _users.get(user_id)
         if state is None:
-            state = _UserState(user_id=user_id, first_seen=now)
+            state = _UserState(
+                user_id=user_id,
+                first_seen=now,
+            )
             _users[user_id] = state
+
         state.total += 1
-        state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
         state.daily[today] = state.daily.get(today, 0) + 1
+        state.daily_fabs.setdefault(today, set()).update(fabs)
         state.last_seen = now
 
-    if is_cloud():
-        try:
-            from .._office_writer import record_request_to_backends
-            record_request_to_backends(
-                user_id=user_id,
-                method=method,
-                path=path,
-                status=status,
-                feature=feature,
-                now=now,
-            )
-        except Exception:
-            # Never let analytics break a real request.
-            pass
+        if activity_kind != "feature":
+            return
+
+        state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
+        daily_features = state.daily_features.setdefault(today, {})
+        daily_features[feature] = daily_features.get(feature, 0) + 1
+        daily_fab_features = state.daily_fab_features.setdefault(today, {})
+        for fab in fabs:
+            fab_features = daily_fab_features.setdefault(fab, {})
+            fab_features[feature] = fab_features.get(feature, 0) + 1
 
 
-# ------- read APIs ----------------------------------------------------------
-
-
-def _history_fields(state: _UserState | None, today: date) -> dict:
+def _history_fields(
+    state: _UserState | None,
+    today: date,
+) -> dict:
     if state is None:
         return {
             "this_month": {"requests": 0, "days_active": 0},
@@ -240,178 +212,229 @@ def get_user_history(user_id: str) -> UserHistoryResponse | None:
         return {"user_id": user_id, **_history_fields(state, today)}
 
 
-def _summary_from_mock(today: date) -> SummaryResponse:
+def get_summary() -> SummaryResponse:
+    today = _today()
     week_start = today - timedelta(days=6)
-    month_first = today.replace(day=1)
     last30_start = today - timedelta(days=29)
-    dau = wau = mau = 0
-    feat_7d: dict[str, int] = {}
-    feat_30d: dict[str, int] = {}
+    dau = 0
+    wau = 0
+    mau = 0
+    feature_7d: dict[str, int] = {}
+    feature_30d: dict[str, int] = {}
+
     with _lock:
         for state in _users.values():
-            sum_7d = 0
-            sum_30d = 0
-            today_count = 0
-            active_month = False
-            for d, n in state.daily.items():
-                if n <= 0:
-                    continue
-                if d == today:
-                    today_count = n
-                if d >= week_start:
-                    sum_7d += n
-                if d >= last30_start:
-                    sum_30d += n
-                if d >= month_first:
-                    active_month = True
-            if today_count > 0:
+            if state.daily.get(today, 0) > 0:
                 dau += 1
-            if sum_7d > 0:
+            if any(
+                week_start <= day <= today and count > 0
+                for day, count in state.daily.items()
+            ):
                 wau += 1
-            if active_month:
+            if any(
+                last30_start <= day <= today and count > 0
+                for day, count in state.daily.items()
+            ):
                 mau += 1
-            _scale_features(state.by_feature, sum_7d, state.total, feat_7d)
-            _scale_features(state.by_feature, sum_30d, state.total, feat_30d)
+            for day, counts in state.daily_features.items():
+                if week_start <= day <= today:
+                    _merge_counts(feature_7d, counts)
+                if last30_start <= day <= today:
+                    _merge_counts(feature_30d, counts)
+
     return {
         "generated_at": _iso(_now()) or "",
         "dau": dau,
         "wau": wau,
         "mau": mau,
-        "top_features_7d": _top_features(feat_7d),
-        "top_features_30d": _top_features(feat_30d),
+        "top_features_7d": _top_features(feature_7d),
+        "top_features_30d": _top_features(feature_30d),
     }
-
-
-def get_summary() -> SummaryResponse:
-    today = _today()
-    if is_cloud():
-        try:
-            from .._office_reader import summary_from_backends
-            return summary_from_backends(today)
-        except Exception:
-            pass
-    return _summary_from_mock(today)
-
-
-def _users_list_from_mock(today: date) -> UserListResponse:
-    cutoff = today - timedelta(days=29)
-    rows: list[UserListRow] = []
-    with _lock:
-        for state in _users.values():
-            requests_30d = 0
-            days_active_30d = 0
-            for d, n in state.daily.items():
-                if d >= cutoff and n > 0:
-                    requests_30d += n
-                    days_active_30d += 1
-            if requests_30d == 0:
-                continue
-            favorite = max(state.by_feature.items(), key=lambda kv: kv[1])[0] if state.by_feature else None
-            rows.append({
-                "user_id": state.user_id,
-                "requests_30d": requests_30d,
-                "days_active_30d": days_active_30d,
-                "last_seen": _iso(state.last_seen),
-                "favorite_feature": favorite,
-            })
-    rows.sort(key=lambda r: (-r["requests_30d"], r["user_id"]))
-    return {"generated_at": _iso(_now()) or "", "users": rows}
 
 
 def get_users_list() -> UserListResponse:
     today = _today()
-    if is_cloud():
-        try:
-            from .._office_reader import users_list_from_backends
-            return users_list_from_backends(today)
-        except Exception:
-            pass
-    return _users_list_from_mock(today)
+    cutoff = today - timedelta(days=29)
+    rows: list[UserListRow] = []
+
+    with _lock:
+        for state in _users.values():
+            active = {
+                day: count
+                for day, count in state.daily.items()
+                if cutoff <= day <= today and count > 0
+            }
+            if not active:
+                continue
+            favorite = (
+                sorted(
+                    state.by_feature.items(),
+                    key=lambda item: (-item[1], item[0]),
+                )[0][0]
+                if state.by_feature
+                else None
+            )
+            rows.append(
+                {
+                    "user_id": state.user_id,
+                    "requests_30d": sum(active.values()),
+                    "days_active_30d": len(active),
+                    "last_seen": _iso(state.last_seen),
+                    "favorite_feature": favorite,
+                }
+            )
+
+    rows.sort(key=lambda row: (-row["requests_30d"], row["user_id"]))
+    return {"generated_at": _iso(_now()) or "", "users": rows}
 
 
-def _fab_rows(fab_feat: dict[str, dict[str, int]]) -> list[FabUsageRow]:
-    rows: list[FabUsageRow] = []
-    for fab, feats in fab_feat.items():
-        total = sum(feats.values())
-        if total <= 0:
-            continue
-        rows.append({"fab": fab, "total": total, "pages": _top_features(feats)})
-    rows.sort(key=lambda r: (-r["total"], r["fab"]))
+def _fab_rows(
+    active_users: dict[str, set[str]],
+    page_counts: dict[str, dict[str, int]],
+) -> list[FabUsageRow]:
+    rows = [
+        {
+            "fab": fab,
+            "total": len(users),
+            "pages": _top_features(page_counts.get(fab, {})),
+        }
+        for fab, users in active_users.items()
+        if users
+    ]
+    rows.sort(key=lambda row: (-row["total"], row["fab"]))
     return rows
 
 
-def _fab_page_usage_from_mock(today: date) -> FabUsageResponse:
-    week_start = today - timedelta(days=6)
-    last30_start = today - timedelta(days=29)
-    fab_feat_7d: dict[str, dict[str, int]] = {}
-    fab_feat_30d: dict[str, dict[str, int]] = {}
-    with _lock:
-        for state in _users.values():
-            sum_7d = 0
-            sum_30d = 0
-            for d, n in state.daily.items():
-                if n <= 0:
-                    continue
-                if d >= week_start:
-                    sum_7d += n
-                if d >= last30_start:
-                    sum_30d += n
-            fab = state.fab or "미지정"
-            _scale_features(state.by_feature, sum_7d, state.total, fab_feat_7d.setdefault(fab, {}))
-            _scale_features(state.by_feature, sum_30d, state.total, fab_feat_30d.setdefault(fab, {}))
-    return {
-        "generated_at": _iso(_now()) or "",
-        "fabs_7d": _fab_rows(fab_feat_7d),
-        "fabs_30d": _fab_rows(fab_feat_30d),
-    }
+def _fab_window(
+    today: date,
+    cutoff: date,
+) -> list[FabUsageRow]:
+    active_users: dict[str, set[str]] = {}
+    page_counts: dict[str, dict[str, int]] = {}
+
+    for state in _users.values():
+        for day, fabs in state.daily_fabs.items():
+            if not cutoff <= day <= today:
+                continue
+            for fab in fabs:
+                active_users.setdefault(fab, set()).add(state.user_id)
+        for day, fab_features in state.daily_fab_features.items():
+            if not cutoff <= day <= today:
+                continue
+            for fab, counts in fab_features.items():
+                _merge_counts(page_counts.setdefault(fab, {}), counts)
+
+    return _fab_rows(active_users, page_counts)
 
 
 def get_fab_page_usage() -> FabUsageResponse:
     today = _today()
-    if is_cloud():
-        try:
-            from .._office_reader import fab_page_usage_from_backends
-            return fab_page_usage_from_backends(today)
-        except Exception:
-            pass
-    return _fab_page_usage_from_mock(today)
-
-
-# ------- demo seed ----------------------------------------------------------
+    with _lock:
+        rows_7d = _fab_window(today, today - timedelta(days=6))
+        rows_30d = _fab_window(today, today - timedelta(days=29))
+    return {
+        "generated_at": _iso(_now()) or "",
+        "fabs_7d": rows_7d,
+        "fabs_30d": rows_30d,
+    }
 
 
 def seed_demo_users() -> None:
-    """Populate a few mock peers so the dashboard has shape in home/dev mode.
+    """Populate deterministic mock peers without ranking entry traffic."""
 
-    Idempotent: only seeds users that don't already exist. Real activity from
-    record_request() coexists with these (the viewer's own user_id will
-    typically be `local-dev`, not in this list).
-    """
     today = _today()
-    # Page-level slugs from _logging/feature_map.py. The mix is shaped so the
-    # global Top 10 reads like real traffic: everyone lands on SEM List first
-    # (the basic tool-list request), engineers live in Recipe 검색/TAT, and
-    # niche pages (Skewvoir, AFM, 디바이스 통계) trail behind.
-    demo: list[tuple[str, str, dict[str, int], int, int]] = [
-        ("kim.minju",   "M14",  {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},         14, 35),
-        ("park.jinho",  "M16B", {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},           12, 28),
-        ("lee.soyoung", "M11",  {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},                  9, 22),
-        ("choi.eunwoo", "R3",   {"recipe_tat": 70, "sem_list": 60, "recipe_search": 40, "device_statistics": 25},    6, 18),
-        ("jung.hari",   "M15",  {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},                        4, 14),
+    demo: list[tuple[str, str, dict[str, int], int]] = [
+        (
+            "kim.minju",
+            "M14",
+            {
+                "sem_list": 220,
+                "recipe_search": 160,
+                "meas_hist": 45,
+                "fail_issue": 30,
+            },
+            14,
+        ),
+        (
+            "park.jinho",
+            "M16B",
+            {
+                "recipe_search": 190,
+                "sem_list": 120,
+                "recipe_tat": 65,
+                "storage": 25,
+            },
+            12,
+        ),
+        (
+            "lee.soyoung",
+            "M11",
+            {
+                "sem_list": 140,
+                "storage": 80,
+                "fail_issue": 55,
+                "hardware": 20,
+            },
+            9,
+        ),
+        (
+            "choi.eunwoo",
+            "R3",
+            {
+                "recipe_tat": 70,
+                "sem_list": 60,
+                "recipe_search": 40,
+                "device_statistics": 25,
+            },
+            6,
+        ),
+        (
+            "jung.hari",
+            "M15",
+            {
+                "skewvoir": 90,
+                "sem_list": 30,
+                "afm": 25,
+                "meas_hist": 15,
+            },
+            4,
+        ),
     ]
     now = _now()
+
     with _lock:
-        for user_id, fab, features, days_back, peak in demo:
+        for user_id, fab, features, days_back in demo:
             if user_id in _users:
                 continue
-            state = _UserState(user_id=user_id, fab=fab)
-            state.total = sum(features.values())
-            state.by_feature = dict(features)
-            # Triangle distribution peaking midweek so the sparkline has shape.
-            middle = days_back / 2
-            for offset in range(days_back):
-                d = today - timedelta(days=offset)
-                state.daily[d] = max(1, peak - int(abs(offset - middle) * 2))
-            state.first_seen = now - timedelta(days=days_back)
-            state.last_seen = now - timedelta(hours=(days_back - 1) * 3 + 1)
+            state = _UserState(
+                user_id=user_id,
+                first_seen=now - timedelta(days=days_back),
+                last_seen=now - timedelta(hours=1),
+            )
+            for feature, total in features.items():
+                if feature != "sem_list":
+                    state.by_feature[feature] = total
+                for offset in range(days_back):
+                    count = total // days_back
+                    if offset < total % days_back:
+                        count += 1
+                    if count == 0:
+                        continue
+                    day = today - timedelta(days=offset)
+                    state.total += count
+                    state.daily[day] = state.daily.get(day, 0) + count
+                    state.daily_fabs.setdefault(day, set()).add(fab)
+                    if feature == "sem_list":
+                        continue
+                    day_features = state.daily_features.setdefault(day, {})
+                    day_features[feature] = (
+                        day_features.get(feature, 0) + count
+                    )
+                    fab_features = state.daily_fab_features.setdefault(
+                        day,
+                        {},
+                    ).setdefault(fab, {})
+                    fab_features[feature] = (
+                        fab_features.get(feature, 0) + count
+                    )
             _users[user_id] = state

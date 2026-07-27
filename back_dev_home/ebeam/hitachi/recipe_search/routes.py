@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from back_dev_home._logging.activity import promote_request_fab_names
 from back_dev_home.ebeam.hitachi.recipe_search.data import (
     ToolType,
     get_recipe_catalog,
@@ -66,6 +67,7 @@ def recipe_search_compare(tool_slug: str):
         return jsonify({"error": "recipe_names exceeds the 200-recipe limit"}), 400
 
     fab_name = (payload.get("fab_name") or "").strip().upper() or None
+    promote_request_fab_names(fab_name)
     return jsonify(
         get_recipe_compare_data(tool_type, fab_name, [str(name) for name in recipe_names])
     )
