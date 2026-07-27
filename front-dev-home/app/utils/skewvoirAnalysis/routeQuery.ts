@@ -14,7 +14,7 @@
 // extension, and every framework import is type-only (erased at runtime).
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
-import type { AnalysisScope } from './types.ts'
+import type { AnalysisScope, SequenceAxisMode } from './types.ts'
 
 export const DEFAULT_VIEW: SkewvoirViewKind = 'dashboard'
 
@@ -119,6 +119,13 @@ export const parseScope = (query: LocationQuery): AnalysisScope => {
   if (explicit === 'single' || explicit === 'set') return explicit
   return parseMsrList(query).length > 1 ? 'set' : 'single'
 }
+
+/** Which sequence axis the FDC 분석 panes use. Absent means the default
+ *  parameter-scoped axis, so a plain analysis link stays free of the param;
+ *  `all` opts into the whole-MSR union. An unrecognised value falls back to the
+ *  default rather than rendering an axis nobody implemented. */
+export const parseFdcAxis = (raw: unknown): SequenceAxisMode =>
+  qstr(raw) === 'all' ? 'all' : 'param'
 
 /** Serialize a selection (+ view + explicit set + scope) into an analysis-link
  *  query. `msrs` defaults to the focus alone; pass a curated list for the

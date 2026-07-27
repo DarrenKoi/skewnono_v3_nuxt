@@ -585,6 +585,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     xParam: ws.xParam,
     yParam: ws.yParam,
     setXY: ws.setXY,
+    // FDC 분석 axis mode — same opaque URL-passthrough treatment as xParam/setXY
+    // above; SequenceWorkbench reads it and writes back on toggle.
+    fdcAxis: ws.fdcAxis,
+    setFdcAxis: ws.setFdcAxis,
     filterParam: ws.filterParam,
     setFilter: ws.setFilter,
     // For the overview focus-switcher chip strip: chip order comes from

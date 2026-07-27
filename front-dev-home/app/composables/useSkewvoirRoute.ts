@@ -1,10 +1,11 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
-import type { AnalysisScope } from '~/utils/skewvoirAnalysis/types'
+import type { AnalysisScope, SequenceAxisMode } from '~/utils/skewvoirAnalysis/types'
 import {
   DEFAULT_VIEW,
   applyQueryPatch,
   encodeParam,
+  parseFdcAxis,
   parseMsrList,
   parseScope,
   parseSelection,
@@ -50,6 +51,10 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const refParam = computed<string | undefined>(() => qstr(route.query.ref))
   const metricParam = computed<string | undefined>(() => qstr(route.query.metric))
   const grainParam = computed<string | undefined>(() => qstr(route.query.grain))
+  // FDC 분석 sequence axis: 'param' (default, the active parameter's own rows)
+  // or 'all' (the whole-MSR union). In the URL so the axis a screenshot was
+  // taken on travels with the link.
+  const fdcAxis = computed<SequenceAxisMode>(() => parseFdcAxis(route.query.fdcaxis))
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
   // Gallery review-queue filter preset (e.g. 'priority' — the 이상·실패 우선
@@ -102,6 +107,10 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setRef = (msr: string | null) => patchQuery({ ref: msr })
   const setMetric = (metric: string | null) => patchQuery({ metric })
   const setGrain = (grain: string | null) => patchQuery({ grain })
+  // Writing `null` for the default ('param') keeps a default screen's URL clean;
+  // only the 'all' opt-out is ever written.
+  const setFdcAxis = (mode: SequenceAxisMode) =>
+    patchQuery({ fdcaxis: mode === 'all' ? 'all' : null })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
   const setFilter = (filter: string | null) => patchQuery({ filter })
 
@@ -121,6 +130,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     refParam,
     metricParam,
     grainParam,
+    fdcAxis,
     xParam,
     yParam,
     filterParam,
@@ -135,6 +145,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     setRef,
     setMetric,
     setGrain,
+    setFdcAxis,
     setXY,
     setFilter,
     goSearch,

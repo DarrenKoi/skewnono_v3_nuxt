@@ -7,6 +7,7 @@ import {
   decodeParam,
   encodeParam,
   focusIdentityFromRow,
+  parseFdcAxis,
   parseMsrList,
   parseScope,
   parseSelection,
@@ -223,4 +224,18 @@ test('toAnalysisQuery writes the sentinel so an unnamed-MP link survives a share
   const query = toAnalysisQuery(sel)
   assert.equal(query.mp, UNNAMED_PARAM_TOKEN)
   assert.equal(parseSelection(query as never)?.mp, UNNAMED_PARAM)
+})
+
+test('fdcaxis defaults to the parameter-scoped axis and accepts only known modes', () => {
+  assert.equal(parseFdcAxis(undefined), 'param')
+  assert.equal(parseFdcAxis(''), 'param')
+  assert.equal(parseFdcAxis('param'), 'param')
+  assert.equal(parseFdcAxis('all'), 'all')
+  // A hand-edited link must not render an axis nobody implemented.
+  assert.equal(parseFdcAxis('whole-msr'), 'param')
+})
+
+test('clearing fdcaxis drops it from the query rather than writing the default', () => {
+  const next = applyQueryPatch({ view: 'fdc', fdcaxis: 'all' }, { fdcaxis: null })
+  assert.deepEqual(next, { view: 'fdc' })
 })

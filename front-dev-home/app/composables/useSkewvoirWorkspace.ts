@@ -69,6 +69,8 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     refParam: skRoute.refParam,
     metricParam: skRoute.metricParam,
     grainParam: skRoute.grainParam,
+    fdcAxis: skRoute.fdcAxis,
+    setFdcAxis: skRoute.setFdcAxis,
     xParam: skRoute.xParam,
     yParam: skRoute.yParam,
     filterParam: skRoute.filterParam,
