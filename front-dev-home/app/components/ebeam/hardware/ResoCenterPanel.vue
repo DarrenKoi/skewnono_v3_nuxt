@@ -144,7 +144,7 @@ const trendOption = computed<EChartsOption>(() => {
     },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: 'nm', ...yRange, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: 'nm', ...yRange, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
     series: [
       {
         name: 'BestReso', type: 'line', symbolSize: 5,

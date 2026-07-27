@@ -315,9 +315,11 @@ const laserRawOption = (): EChartsOption => {
       { type: 'time', gridIndex: 0, axisLabel: { show: false } },
       { type: 'time', gridIndex: 1, axisLabel: { fontSize: 10 } }
     ],
-    // Dual count axes hide their splitLines — independent intervals never align.
+    // No horizontal splitLines on any of these: the dual count axes have
+    // independent intervals that never align, and on the ratio axis a flat
+    // series sits so close to the lines that they read as data.
     yAxis: [
-      { type: 'value', gridIndex: 0, name: 'ratio', nameTextStyle: { fontSize: 10 }, ...ratioAxis, axisLabel: { fontSize: 10 } },
+      { type: 'value', gridIndex: 0, name: 'ratio', nameTextStyle: { fontSize: 10 }, ...ratioAxis, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
       { type: 'value', gridIndex: 1, name: 'x2', position: 'left', nameTextStyle: { fontSize: 10 }, ...x2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } },
       { type: 'value', gridIndex: 1, name: 'y2', position: 'right', nameTextStyle: { fontSize: 10 }, ...y2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } }
     ],
@@ -346,7 +348,7 @@ const laserDeviationOption = (): EChartsOption => {
     tooltip: { trigger: 'axis', valueFormatter: v => Number.isFinite(v as number) ? `${(v as number).toFixed(2)}%` : '-' },
     legend: { top: 2, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '% vs baseline', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true },
+    yAxis: { type: 'value', name: '% vs baseline', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true, splitLine: { show: false } },
     dataZoom: sliderZoom(),
     series: [
       { name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value }, data: pct('x1'), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] } },
@@ -456,7 +458,7 @@ const chartOption = computed<EChartsOption>(() => {
     tooltip: { trigger: 'axis' },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
     dataZoom: sliderZoom(),
     series: Object.keys(byPos).sort().map((pos, i) => ({
       name: `pos ${pos}`, type: 'line', showSymbol: true,
