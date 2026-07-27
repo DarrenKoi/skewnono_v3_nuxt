@@ -1,12 +1,13 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 
-// The analysis workspace exposes 5 view modes in the left rail. Search is no
+// The analysis workspace exposes 6 view modes in the left rail. Search is no
 // longer one of them — it is a separate landing route. The active view is
 // driven by the URL `view` query param via useSkewvoirRoute (single source of
 // truth), so an analysis screen is fully reproducible from its link.
 export type SkewvoirViewKind
   = | 'dashboard'
     | 'position-stack'
+    | 'fdc'
     | 'time-series'
     | 'correlation'
     | 'gallery'
@@ -35,9 +36,10 @@ export interface SkewvoirSelection {
 export const SKEWVOIR_VIEW_MODES: readonly SkewvoirViewMode[] = [
   { kind: 'dashboard', index: 1, label: '측정 개요', sub: 'Measurement Overview', icon: 'i-lucide-clipboard-check' },
   { kind: 'position-stack', index: 2, label: '위치 비교', sub: 'Position Stack', icon: 'i-lucide-layers' },
-  { kind: 'time-series', index: 3, label: 'Time-Series', sub: 'Multi-measurement Trend', icon: 'i-lucide-trending-up' },
-  { kind: 'correlation', index: 4, label: '상관 / 분포', sub: 'Correlation & Distribution', icon: 'i-lucide-scatter-chart' },
-  { kind: 'gallery', index: 5, label: '이미지 갤러리', sub: 'SEM Gallery', icon: 'i-lucide-images' }
+  { kind: 'fdc', index: 3, label: 'FDC 분석', sub: 'Sequence & Dynamic FDC', icon: 'i-lucide-waves' },
+  { kind: 'time-series', index: 4, label: 'Time-Series', sub: 'Multi-measurement Trend', icon: 'i-lucide-trending-up' },
+  { kind: 'correlation', index: 5, label: '상관 / 분포', sub: 'Correlation & Distribution', icon: 'i-lucide-scatter-chart' },
+  { kind: 'gallery', index: 6, label: '이미지 갤러리', sub: 'SEM Gallery', icon: 'i-lucide-images' }
 ] as const
 
 export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: string) => {

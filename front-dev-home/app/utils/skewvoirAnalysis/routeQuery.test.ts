@@ -246,3 +246,10 @@ test('encodeFdcAxis / parseFdcAxis round-trip, and the default stays out of the 
   assert.equal(encodeFdcAxis('param'), null) // default stays out of the URL
   assert.equal(encodeFdcAxis('all'), 'all')
 })
+
+test('the fdc view kind parses and survives a round trip', () => {
+  assert.equal(parseView('fdc'), 'fdc')
+  assert.equal(parseView('time-series'), 'time-series')
+  // Still whitelisted — a hand-edited link falls back to the Dashboard.
+  assert.equal(parseView('fdc-analysis'), 'dashboard')
+})

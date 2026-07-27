@@ -21,6 +21,7 @@ export const DEFAULT_VIEW: SkewvoirViewKind = 'dashboard'
 const VIEW_KINDS: readonly SkewvoirViewKind[] = [
   'dashboard',
   'position-stack',
+  'fdc',
   'time-series',
   'correlation',
   'gallery'
