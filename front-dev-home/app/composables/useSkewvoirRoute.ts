@@ -4,6 +4,7 @@ import type { AnalysisScope, SequenceAxisMode } from '~/utils/skewvoirAnalysis/t
 import {
   DEFAULT_VIEW,
   applyQueryPatch,
+  encodeFdcAxis,
   encodeParam,
   parseFdcAxis,
   parseMsrList,
@@ -107,10 +108,9 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setRef = (msr: string | null) => patchQuery({ ref: msr })
   const setMetric = (metric: string | null) => patchQuery({ metric })
   const setGrain = (grain: string | null) => patchQuery({ grain })
-  // Writing `null` for the default ('param') keeps a default screen's URL clean;
-  // only the 'all' opt-out is ever written.
-  const setFdcAxis = (mode: SequenceAxisMode) =>
-    patchQuery({ fdcaxis: mode === 'all' ? 'all' : null })
+  // The mapping itself (default → null, so the URL stays clean) lives in
+  // encodeFdcAxis, tested as a pure round-trip with parseFdcAxis.
+  const setFdcAxis = (mode: SequenceAxisMode) => patchQuery({ fdcaxis: encodeFdcAxis(mode) })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
   const setFilter = (filter: string | null) => patchQuery({ filter })
 

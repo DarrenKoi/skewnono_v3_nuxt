@@ -5,6 +5,7 @@ import {
   UNNAMED_PARAM_TOKEN,
   applyQueryPatch,
   decodeParam,
+  encodeFdcAxis,
   encodeParam,
   focusIdentityFromRow,
   parseFdcAxis,
@@ -238,4 +239,10 @@ test('fdcaxis defaults to the parameter-scoped axis and accepts only known modes
 test('clearing fdcaxis drops it from the query rather than writing the default', () => {
   const next = applyQueryPatch({ view: 'fdc', fdcaxis: 'all' }, { fdcaxis: null })
   assert.deepEqual(next, { view: 'fdc' })
+})
+
+test('encodeFdcAxis / parseFdcAxis round-trip, and the default stays out of the URL', () => {
+  assert.equal(parseFdcAxis(encodeFdcAxis('all')), 'all')
+  assert.equal(encodeFdcAxis('param'), null) // default stays out of the URL
+  assert.equal(encodeFdcAxis('all'), 'all')
 })

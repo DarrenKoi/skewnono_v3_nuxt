@@ -127,6 +127,13 @@ export const parseScope = (query: LocationQuery): AnalysisScope => {
 export const parseFdcAxis = (raw: unknown): SequenceAxisMode =>
   qstr(raw) === 'all' ? 'all' : 'param'
 
+/** SequenceAxisMode → URL value, the write-side mirror of parseFdcAxis (same
+ *  shape as encodeParam/decodeParam above). The default `'param'` maps to
+ *  `null` — a RULE, not an implementation detail: the default must leave the
+ *  URL clean, so only the `'all'` opt-out is ever written. */
+export const encodeFdcAxis = (mode: SequenceAxisMode): string | null =>
+  mode === 'all' ? 'all' : null
+
 /** Serialize a selection (+ view + explicit set + scope) into an analysis-link
  *  query. `msrs` defaults to the focus alone; pass a curated list for the
  *  comparison set. `scope` is emitted only when given, so a plain single-pick
