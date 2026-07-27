@@ -117,6 +117,15 @@ const recordCurrentAnalysis = () => {
   if (!sel?.msr) return
 
   const msrs = ws.msrList.value.length ? ws.msrList.value : [sel.msr]
+  // The `activeKind === 'time-series'` half of this OR is residue from before
+  // the fdc split: the single-MSR sequence workbench that used to live on
+  // this tab (and could reach here with msrs.length <= 1) moved to the `fdc`
+  // view. Time-Series now renders real content only under `set` scope
+  // (views/TimeSeries.vue), so with msrs.length <= 1 this branch is reachable
+  // only from that view's EMPTY state — and records a Time-Series comparison
+  // of one MSR, which is not what happened. Left as-is: recording is still
+  // harmless (msrs.length <= 1 + empty state is a rare, low-stakes path), but
+  // a future cleanup could drop this clause once nothing needs it.
   const mode: SkewvoirRecentMode = msrs.length > 1 || ws.activeKind.value === 'time-series'
     ? 'time-series'
     : 'single'
