@@ -35,6 +35,17 @@ export const assignSeriesColors = (
 ): Record<string, string> =>
   cycle(keys, palette.length > 0 ? palette : FALLBACK_COMPARE_COLORS)
 
+// The picker filters its own list rather than letting USelectMenu do it, so the
+// 전체 선택/해제 buttons act on exactly the rows on screen -- one filter is the
+// only way the visible set and the bulk-action target cannot drift apart.
+// Nuxt UI's own matcher is not a public composable, so mirroring it would mean
+// importing from dist/runtime; a substring match is equivalent for ASCII tool ids.
+export const filterToolIds = (ids: readonly string[], term: string): string[] => {
+  const needle = term.trim().toLowerCase()
+  if (!needle) return [...ids]
+  return ids.filter(id => id.toLowerCase().includes(needle))
+}
+
 const toNum = (v: unknown): number | null => {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : null

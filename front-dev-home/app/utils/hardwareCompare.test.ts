@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assignCompareColors, assignSeriesColors, compareBoxPoints } from './hardwareCompare.ts'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints, filterToolIds } from './hardwareCompare.ts'
 
 test('assignCompareColors: reserves palette[0], cycles palette[1..]', () => {
   const palette = ['#sel', '#a', '#b']
@@ -47,4 +47,31 @@ test('compareBoxPoints: aligns values to the condition axis, omits missing modes
 test('compareBoxPoints: unknown tool id → empty values, no throw', () => {
   const series = compareBoxPoints({}, ['ghost'], ['c0'])
   assert.deepEqual(series, [{ id: 'ghost', values: [] }])
+})
+
+test('filterToolIds: blank or whitespace term → every id, order preserved', () => {
+  const ids = ['TP0302', 'TP0301', 'CD1101']
+  assert.deepEqual(filterToolIds(ids, ''), ids)
+  assert.deepEqual(filterToolIds(ids, '   '), ids)
+})
+
+test('filterToolIds: case-insensitive substring match', () => {
+  const ids = ['TP0301', 'TP0302', 'CD1101']
+  assert.deepEqual(filterToolIds(ids, 'tp03'), ['TP0301', 'TP0302'])
+  assert.deepEqual(filterToolIds(ids, 'TP03'), ['TP0301', 'TP0302'])
+  // Matches anywhere in the id, not just the prefix.
+  assert.deepEqual(filterToolIds(ids, '1101'), ['CD1101'])
+})
+
+test('filterToolIds: surrounding whitespace on the term is ignored', () => {
+  assert.deepEqual(filterToolIds(['TP0301', 'CD1101'], '  tp  '), ['TP0301'])
+})
+
+test('filterToolIds: no match → empty array', () => {
+  assert.deepEqual(filterToolIds(['TP0301'], 'zzz'), [])
+})
+
+test('filterToolIds: returns a copy, never the caller\'s array', () => {
+  const ids = ['TP0301']
+  assert.notEqual(filterToolIds(ids, ''), ids)
 })
