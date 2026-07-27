@@ -9,7 +9,7 @@
 ```bash
 # 사무실 PC, 저장소 루트에서
 npm --prefix front-dev-home run build
-.venv/bin/python -m scripts.pack_deploy
+.venv/bin/python -m scripts.deploy
 ```
 
 `dist/skewnono-<타임스탬프>/` 폴더가 생성됩니다. 이 폴더를 통째로 클라우드
@@ -19,7 +19,7 @@ npm --prefix front-dev-home run build
 | 단계 | 실행 위치 | 명령 |
 | --- | --- | --- |
 | 1 | 사무실 | `npm --prefix front-dev-home run build` |
-| 2 | 사무실 | `.venv/bin/python -m scripts.pack_deploy` |
+| 2 | 사무실 | `.venv/bin/python -m scripts.deploy` |
 | 3 | 사무실 → 클라우드 | 번들 폴더를 `/project/workSpace/` 로 복사 |
 | 4 | 클라우드 | `python preflight.py` (설치 전) |
 | 5 | 클라우드 | `pip install -r back_dev_home/requirements.txt` |

@@ -37,7 +37,7 @@ ENV_PY_REL = Path("back_dev_home") / "_runtime" / "env.py"
 def _relocate(root: Path, prefix: Path):
     """Copy the real env.py to root/back_dev_home/_runtime/env.py and load it.
 
-    Mirrors what pack_deploy.copy_bundle() writes, so the loaded module sees
+    Mirrors what scripts.deploy.pack.copy_bundle() writes, so the loaded module sees
     exactly the depth a deployed bundle has. env.py imports nothing from the
     package, so loading it standalone is faithful.
     """
@@ -77,7 +77,7 @@ def test_the_cloud_prefix_agrees_with_the_bundles_own_preflight():
     without auth, or the reverse. Imported locally: back_dev_home must not
     depend on scripts/ anywhere but here.
     """
-    from scripts import preflight_cloud
+    from scripts.deploy import preflight_cloud
 
     assert preflight_cloud.CLOUD_PREFIX == env.CLOUD_PREFIX
 
@@ -151,7 +151,7 @@ def test_project_root_is_the_repo_root():
 
 
 def test_spa_dir_is_the_nuxt_output_under_the_repo_root():
-    """The path pack_deploy.INCLUDED_ROOTS ships verbatim; both must name the
+    """The path scripts.deploy.pack.INCLUDED_ROOTS ships verbatim; both must name the
     same three segments or the bundle mounts nothing."""
     assert env.spa_dir().relative_to(env.project_root()) == Path(
         "front-dev-home/.output/public"

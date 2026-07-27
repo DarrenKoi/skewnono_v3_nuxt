@@ -212,8 +212,8 @@ def test_the_public_dir_has_no_static_subdir_to_collide_with():
 
 def test_spa_dir_matches_the_path_the_deploy_tooling_hardcodes():
     """spa_dir() is project_root()/front-dev-home/.output/public, and
-    project_root() is parents[2] of _runtime/env.py. scripts/pack_deploy.py and
-    scripts/preflight_cloud.py both spell that path out literally, so moving
+    project_root() is parents[2] of _runtime/env.py. scripts/deploy/pack.py and
+    scripts/deploy/preflight_cloud.py both spell that path out literally, so moving
     env.py one directory would make Flask look somewhere the bundle never
     puts the build — a UI that 404s on a host whose preflight passed."""
     root = env.project_root()

@@ -13,7 +13,7 @@ _Updated: 2026-07-24 · branch: main_
   **At the office, run:** `detect_site()` should print `office` (prints `home` here) → start Flask → `.venv/bin/python scripts/check_contract.py` (any FAIL is now a genuine office-side shape difference) → eyeball recipe 현황 (ranking is uncapped, `DEFAULT_LIMIT = 0` — watch first-load latency) → bump STATUS.md → office + date · since 2026-07-21
 
 ## Blocked
-- [ ] First cloud feasibility deploy → `http://skewnono-v3-webapp.aipp01.skhynix.com` — packaging script now SHIPPED (2026-07-24), so this is unblocked on our side. Remaining: pack from the office PC (`npm --prefix front-dev-home run build && .venv/bin/python -m scripts.pack_deploy`), copy to `/project/workSpace/`, follow the bundle's `DEPLOY.md` · since 2026-07-24
+- [ ] First cloud feasibility deploy → `http://skewnono-v3-webapp.aipp01.skhynix.com` — packaging script now SHIPPED (2026-07-24), so this is unblocked on our side. Remaining: pack from the office PC (`npm --prefix front-dev-home run build && .venv/bin/python -m scripts.deploy`), copy to `/project/workSpace/`, follow the bundle's `DEPLOY.md` · since 2026-07-24
 - [ ] Confirm which `hcputil` SSO spelling the cloud image provides (`auth` vs `auto`) — no longer urgent: `_load_sso_class()` now tries BOTH (`374432a`), so either works. The bundled `preflight.py` still reports which one resolved, for the record · since 2026-07-24
 - [ ] Register `skewnono-v3-webapp.aipp01.skhynix.com` with SSO as a valid service/callback URL — blocked on: infra/SSO team; repeat for `skewnono.skhynix.com` at cutover · since 2026-07-24
 

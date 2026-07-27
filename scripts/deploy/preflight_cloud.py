@@ -41,6 +41,8 @@ RUNTIME_PACKAGES = (
     ("opensearchpy", "opensearch-py"),
     ("apscheduler", "apscheduler"),
     ("dotenv", "python-dotenv"),
+    ("httpx", "httpx"),
+    ("requests", "requests"),
 )
 
 # The cloud image supplies these; requirements.txt deliberately does not.

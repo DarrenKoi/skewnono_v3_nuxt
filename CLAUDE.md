@@ -130,7 +130,7 @@ Playwright MCP by hand; see the `verify` skill.
 
 ### Deployment (Phase 3)
 
-Pack at the office with `scripts.pack_deploy` (after building the frontend), then
+Pack at the office with `python -m scripts.deploy` (after building the frontend), then
 deploy to `/project/workSpace/` on the cloud host — that exact path, because
 `is_cloud()` is a filesystem check, not a config flag. Full steps, including the
 bundle's `preflight.py`: `docs/deployment.md`.

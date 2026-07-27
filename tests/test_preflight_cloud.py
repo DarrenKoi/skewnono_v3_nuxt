@@ -4,13 +4,16 @@ Its whole job is to run on a host where things are broken, so any check that
 raises instead of returning a failure string is a bug.
 """
 
+import re
 import sys
 import types
 from pathlib import Path
 
 import pytest
 
-from scripts import preflight_cloud
+from scripts.deploy import preflight_cloud
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _make_bundle(tmp_path: Path) -> Path:
@@ -120,3 +123,56 @@ def test_config_fails_when_env_missing(bundle):
     failures, _warnings = preflight_cloud.check_config(root)
 
     assert any(".env" in f for f in failures)
+
+
+def _requirement_names(text: str) -> set[str]:
+    """PEP 503-normalized distribution names from a requirements.txt body."""
+    names = set()
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line or line.startswith("-"):
+            continue
+        name = re.split(r"[<>=!~;\[]", line, maxsplit=1)[0].strip()
+        if name:
+            names.add(re.sub(r"[-_.]+", "-", name).lower())
+    return names
+
+
+def test_every_declared_dependency_is_preflight_checked():
+    """The whole point of check_imports() is to catch a missing dependency on
+    the cloud host BEFORE uwsgi crashes on it. A package that requirements.txt
+    installs but RUNTIME_PACKAGES omits is invisible to that check: preflight
+    reports PASS and the app then dies at request time on the one code path
+    that imports it.
+
+    Pinning the containment here rather than adding literals to the tuple
+    means a future requirements.txt entry cannot silently reopen the gap.
+    """
+    reqs = REPO_ROOT / "back_dev_home" / "requirements.txt"
+    declared = _requirement_names(reqs.read_text(encoding="utf-8"))
+    checked = {
+        re.sub(r"[-_.]+", "-", pip_name).lower()
+        for _import_name, pip_name in preflight_cloud.RUNTIME_PACKAGES
+    }
+
+    assert declared <= checked, (
+        "declared in requirements.txt but not checked by preflight: "
+        f"{sorted(declared - checked)}"
+    )
+
+
+def test_preflight_checked_packages_are_all_declared():
+    """The converse: a RUNTIME_PACKAGES entry with no requirements.txt line
+    tells the operator to `pip install -r requirements.txt` to fix an import
+    that command will never fix."""
+    reqs = REPO_ROOT / "back_dev_home" / "requirements.txt"
+    declared = _requirement_names(reqs.read_text(encoding="utf-8"))
+    checked = {
+        re.sub(r"[-_.]+", "-", pip_name).lower()
+        for _import_name, pip_name in preflight_cloud.RUNTIME_PACKAGES
+    }
+
+    assert checked <= declared, (
+        "checked by preflight but absent from requirements.txt: "
+        f"{sorted(checked - declared)}"
+    )

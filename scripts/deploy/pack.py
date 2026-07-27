@@ -3,7 +3,7 @@
 Run FROM THE REPO ROOT, at the office, after building the frontend:
 
     npm --prefix front-dev-home run build
-    .venv/bin/python -m scripts.pack_deploy
+    .venv/bin/python -m scripts.deploy
 
 Two properties of this repository shape everything here.
 
@@ -455,9 +455,15 @@ def main(argv: list[str] | None = None) -> int:
 
     file_count = copy_bundle(repo_root, dest)
 
-    checker = repo_root / "scripts" / "preflight_cloud.py"
-    if checker.is_file():
-        shutil.copy2(checker, dest / "preflight.py")
+    # A sibling module, deliberately not a working-tree path: the checker that
+    # ships must be the one this packer was written against. Reading it out of
+    # the tree being packed would let a stale checkout ship a checker that
+    # disagrees with the bundle it is meant to validate -- and no exception
+    # here means a bundle that silently arrives with no preflight.py at all.
+    shutil.copy2(
+        Path(__file__).resolve().parent / "preflight_cloud.py",
+        dest / "preflight.py",
+    )
 
     problems = verify_bundle(dest)
     if problems:
