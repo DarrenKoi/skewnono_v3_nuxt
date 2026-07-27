@@ -7,10 +7,10 @@
             name="i-lucide-file-search"
             class="text-sky-500"
           />
-          Production Logs
+          운영 로그
         </h1>
         <p class="mt-1 sk-meta">
-          skewnono_logging
+          {{ logs?.filters?.index_alias ?? 'OpenSearch logging' }}
           <UBadge
             v-if="isDemoMode"
             class="ml-2"
@@ -164,11 +164,11 @@
     </section>
 
     <UAlert
-      v-if="errorMessage"
+      v-if="loadError"
       color="error"
       variant="soft"
       icon="i-lucide-triangle-alert"
-      :title="errorMessage"
+      :title="loadError"
     />
 
     <section class="dashboard-surface overflow-hidden rounded-lg border border-(--sk-border)">
@@ -184,10 +184,10 @@
       </div>
 
       <div
-        v-else-if="!rows.length"
+        v-else-if="logs?.items?.length === 0"
         class="px-4 py-12 text-center sk-body"
       >
-        No logs matched the current filters.
+        일치하는 로그가 없습니다.
       </div>
 
       <div
@@ -337,9 +337,10 @@ import {
   type AdminLogItem,
   type AdminLogQuery
 } from '~/composables/useAdminLogsApi'
+import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
 definePageMeta({ layout: 'hub' })
-useHead({ title: 'Production Logs | SKEWNONO' })
+useHead({ title: '운영 로그 | SKEWNONO' })
 
 type DraftFilters = {
   from: string
@@ -467,19 +468,12 @@ const pageCount = computed(() => {
   return Math.max(1, Math.ceil(total / size))
 })
 
-const errorMessage = computed(() => {
+const loadError = computed(() => {
   if (!error.value) return ''
-  // The backend now require_admin-gates this endpoint; show the same notice
-  // as /admin/access instead of the raw FetchError text.
-  const err = error.value as {
-    statusCode?: number
-    data?: { error?: { code?: string }, data?: { error?: { code?: string } } }
-  }
-  const code = err.data?.error?.code ?? err.data?.data?.error?.code
-  if (err.statusCode === 403 || code === 'forbidden') {
-    return '관리자만 접근할 수 있는 페이지입니다.'
-  }
-  return error.value.message || 'Failed to load logs.'
+  return operationalDataErrorMessage(
+    error.value,
+    '로그를 불러오지 못했습니다.'
+  )
 })
 
 const rangeLabel = computed(() => {

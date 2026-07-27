@@ -258,7 +258,9 @@
               @click="selectedFab = row.fab"
             >
               <span class="font-semibold tracking-wide truncate">{{ row.fab }}</span>
-              <span class="tabular-nums text-xs shrink-0 opacity-80">{{ row.total.toLocaleString() }}</span>
+              <span class="tabular-nums text-xs shrink-0 opacity-80">
+                활성 {{ row.total.toLocaleString() }}명
+              </span>
             </button>
           </nav>
           <ActivityFeatureBarList
@@ -493,6 +495,7 @@ import {
   type FabUsageRow
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
+import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
 useHead({ title: '사용 통계 | SKEWNONO' })
 
@@ -523,7 +526,10 @@ const loadError = computed(() => {
     ?? sharedQueries.users.error.value
     ?? sharedQueries.fabs.error.value
   if (!error) return null
-  return error instanceof Error ? error.message : String(error)
+  return operationalDataErrorMessage(
+    error,
+    '활동 데이터를 불러오지 못했습니다.'
+  )
 })
 
 const refreshing = computed(() => {
@@ -587,14 +593,14 @@ const kpiCards = computed(() => {
     {
       label: 'WAU',
       value: summary.value.wau,
-      hint: '이번 주 활동한 사용자',
+      hint: '최근 7일 활동한 사용자',
       icon: 'i-lucide-users',
       color: 'text-violet-500'
     },
     {
       label: 'MAU',
       value: summary.value.mau,
-      hint: '이번 달 활동한 사용자',
+      hint: '최근 30일 활동한 사용자',
       icon: 'i-lucide-user-check',
       color: 'text-emerald-500'
     },

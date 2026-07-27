@@ -40,8 +40,8 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 
 | 기능 | 환경변수 | 계약 | MIGRATION | 상태 | 검증일 |
 | --- | --- | --- | --- | --- | --- |
-| activity | SKEWNONO_ACTIVITY_PROVIDER | activity/contracts.py | activity/MIGRATION.md | mock | - |
-| admin_logs | SKEWNONO_ADMIN_LOGS_PROVIDER | admin_logs/contracts.py | admin_logs/MIGRATION.md | mock | - |
+| activity | SKEWNONO_ACTIVITY_PROVIDER | activity/contracts.py | activity/MIGRATION.md | 구현완료 | - |
+| admin_logs | SKEWNONO_ADMIN_LOGS_PROVIDER | admin_logs/contracts.py | admin_logs/MIGRATION.md | 구현완료 | - |
 | announcements | SKEWNONO_ANNOUNCEMENTS_PROVIDER | announcements/contracts.py | announcements/MIGRATION.md | mock | - |
 | api_tokens | SKEWNONO_API_TOKENS_PROVIDER | api_tokens/contracts.py | api_tokens/MIGRATION.md | mock | - |
 | access_control | SKEWNONO_ACCESS_CONTROL_PROVIDER | access_control/contracts.py | access_control/MIGRATION.md | mock | - |

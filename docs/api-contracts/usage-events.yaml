@@ -1,78 +1,221 @@
 resource: usage-events
-description: Event schema for raw request-level usage logs (the cold-tier source feeding the activity dashboard). Each non-bot, non-error API request emits one doc into the OpenSearch index `usage_events`. Hot counters in Redis are derived from the same emit point; this file documents the event shape so the home mock, the office writer, and any downstream consumer share one contract.
-base_path: (no HTTP surface — internal event)
+description: >-
+  제품 활동과 운영 조사가 함께 사용하는 canonical OpenSearch log document
+  계약입니다. 별도 HTTP endpoint나 usage_events index는 없습니다.
+base_path: null
 
 storage:
-  opensearch_index: usage_events
-  index_pattern: usage_events-{YYYY-MM}
-  rollover: monthly
-  retention: 13 months
-  redis_keys:
-    daily_feature_counts:
-      key: "usage:counts:YYYY-MM-DD"
-      type: HASH
-      field: "<feature>"
-      op: HINCRBY
-      ttl: 35d
-    daily_user_feature_counts:
-      key: "usage:counts:YYYY-MM-DD:<user_id>"
-      type: HASH
-      field: "<feature>"
-      op: HINCRBY
-      ttl: 35d
-    dau:
-      key: "usage:dau:YYYY-MM-DD"
-      type: SET
-      member: "<user_id>"
-      op: SADD
-      ttl: 35d
-    wau:
-      key: "usage:wau:YYYY-WW"
-      type: SET
-      member: "<user_id>"
-      op: SADD
-      ttl: 90d
-    mau:
-      key: "usage:mau:YYYY-MM"
-      type: SET
-      member: "<user_id>"
-      op: SADD
-      ttl: 400d
+  local_alias: skewnono_logging_local
+  production_alias: skewnono_logging
+  local_backing_pattern: skewnono_logging_local-*
+  production_backing_pattern: skewnono_logging-*
+  first_index_suffix: "-000001"
+  rollover:
+    min_size: 20gb
+    min_index_age: 7d
+  local_retention: 30d after rollover
+  production_retention: 365d after rollover
+  mapping_dynamic: false
 
-types:
-  UsageEvent:
-    ts:
-      type: string
-      format: "ISO 8601 UTC"
-      description: Server timestamp at the moment the after_request hook fired.
-    user_id:
-      type: string
-      description: g.user_id from the identity middleware. Never empty in this index (bots and anonymous requests are filtered out before emit).
-    feature:
-      type: string
-      description: Slug returned by _logging/feature_map.route_to_feature(path). Stable across renames inside a feature folder — the map is the rename surface.
-    route:
-      type: string
-      description: Raw request.path (no query string). Useful for drill-down beyond feature-level grouping.
-    method:
-      type: string
-      enum: ["GET", "POST", "PUT", "PATCH", "DELETE"]
-    status:
-      type: integer
-      description: HTTP response status. Only 2xx and 3xx are emitted; 4xx and 5xx are dropped at the writer.
-    latency_ms:
-      type: integer
-      description: Wall-clock time spent in the Flask request, in milliseconds.
+target_selection:
+  environment_variable: SKEWNONO_LOG_ENV
+  local:
+    deployment: local
+    alias: skewnono_logging_local
+  production:
+    deployment: production
+    alias: skewnono_logging
+  inference: >-
+    is_cloud 또는 자격 증명 유무로 추론하지 않습니다. 값이 없거나 유효하지 않으면
+    명시적인 설정 오류입니다.
 
-emit_rules:
-  - Only non-bot requests (g.api_token_id is None) are emitted. Token-auth API calls are silently dropped.
-  - Anonymous requests (user_id == "-" or None) are dropped.
-  - Non-/api/ paths are dropped (SPA assets, /login).
-  - 4xx and 5xx responses are dropped — they do not represent successful feature usage.
-  - The activity API itself (/api/activity/*) and /api/admin/logs are dropped to avoid the dashboard inflating its own counters.
+writer: back_dev_home/_logging/opensearch_handler.py via ops_store.OSDoc
+readers:
+  - back_dev_home/activity/providers/opensearch_reader.py
+  - back_dev_home/admin_logs/providers/office_example.py
+index_management: ops_index_mgmt/skewnono_logging.py via ops_store.OSIndex
+
+mapping:
+  event_id:
+    type: keyword
+    description: UUID이며 OpenSearch _id에도 사용하여 bulk retry를 멱등하게 만듭니다.
+  "@timestamp":
+    type: date
+    description: UTC ISO-8601 발생 시각입니다.
+  level:
+    type: keyword
+    description: Python logging level입니다.
+  logger:
+    type: keyword
+    description: logger 이름입니다.
+  message:
+    type: text
+    description: 최대 4096자의 사람이 읽는 메시지입니다.
+  service:
+    type: keyword
+    description: 고정값 skewnono입니다.
+  deployment:
+    type: keyword
+    enum:
+      - local
+      - production
+  host:
+    type: keyword
+    description: 실행 host 이름입니다.
+  event:
+    type: keyword
+    description: request, request_exception 또는 application event입니다.
+  user_id:
+    type: keyword
+    optional: true
+  api_token_id:
+    type: keyword
+    optional: true
+  request_id:
+    type: keyword
+    optional: true
+    description: 한 Flask 요청의 request와 request_exception을 연결합니다.
+  method:
+    type: keyword
+    optional: true
+  path:
+    type: keyword
+    optional: true
+    description: query string을 제외한 Flask request path입니다.
+  query_string:
+    type: keyword
+    ignore_above: 2048
+    optional: true
+    description: 민감 값 redaction과 2048자 제한을 적용한 query입니다.
+  status:
+    type: integer
+    optional: true
+  latency_ms:
+    type: integer
+    optional: true
+  remote_addr:
+    type: keyword
+    optional: true
+  feature:
+    type: keyword
+    optional: true
+    description: route_to_feature가 만든 안정적인 feature slug입니다.
+  activity_kind:
+    type: keyword
+    optional: true
+    enum:
+      - entry
+      - feature
+      - background
+      - operation
+  activity_weight:
+    type: integer
+    optional: true
+    enum:
+      - 0
+      - 1
+  fab_name_list:
+    type: keyword
+    optional: true
+    description: >-
+      FAB 이름을 trim, uppercase, 중복 제거한 JSON list입니다. 단일 FAB도
+      list이며 요청 context가 없으면 빈 list입니다.
+  error_code:
+    type: keyword
+    optional: true
+  error_name:
+    type: keyword
+    optional: true
+    description: 최대 1024자입니다.
+  exception:
+    optional: true
+    properties:
+      type:
+        type: keyword
+      message:
+        type: text
+        description: 최대 4096자입니다.
+      stack:
+        type: text
+        description: 최대 32768자입니다.
+
+request_activity_classification:
+  precedence:
+    - order: 1
+      kind: operation
+      weight: 0
+      when:
+        - 인증되지 않은 사용자이거나 user_id가 "-"
+        - api_token_id가 있는 자동화 요청
+        - HTTP status가 400 이상
+        - /api/ 밖의 요청
+        - /api/activity, /api/admin, /api/health 하위 요청
+        - /api/account/api-tokens 하위 요청
+    - order: 2
+      kind: background
+      weight: 0
+      when:
+        - 등록된 polling, prefetch 또는 자동 refresh 요청
+    - order: 3
+      kind: entry
+      weight: 1
+      when:
+        - feature가 sem_list인 인증된 사용자의 성공 요청
+    - order: 4
+      kind: feature
+      weight: 1
+      when:
+        - 그 밖의 인증된 사용자의 성공한 product API 요청
+  rule: 먼저 일치한 단계가 최종 결과이며 뒤 단계로 진행하지 않습니다.
+
+event_rules:
+  - 모든 Flask 요청은 activity 포함 여부와 관계없이 event=request 문서가 됩니다.
+  - 처리 중 예외는 같은 request_id의 별도 event=request_exception 문서가 될 수 있습니다.
+  - activity reader는 event=request만 읽어 예외 문서를 중복 활동으로 세지 않습니다.
+  - 일반 application log는 request 전용 필드를 생략할 수 있습니다.
+  - office activity record_request는 별도 문서를 쓰지 않으며 canonical writer만 기록합니다.
+  - mock activity provider만 UI와 계약 검증용 인메모리 기록을 유지합니다.
+
+data_minimization:
+  stored:
+    - 정규화된 query string
+    - 명시적으로 승격된 FAB context
+  never_stored:
+    - request body
+    - response body
+    - Authorization header
+    - cookie
+    - 그 밖의 request header
+  redacted_query_key_fragments:
+    - password
+    - passwd
+    - token
+    - api_key
+    - secret
+    - authorization
+    - cookie
+  redacted_value: "[REDACTED]"
+
+delivery:
+  queue_size: 10000
+  batch_size: 100
+  flush_interval_seconds: 5
+  total_attempts: 3
+  retry_backoff_seconds:
+    - 0.5
+    - 1.0
+  retryable_statuses:
+    - 429
+    - 500
+    - 502
+    - 503
+    - 504
+  request_behavior: >-
+    queue나 OpenSearch 오류를 Flask 요청에 전파하지 않습니다. 제한된 retry 후
+    문서가 drop될 수 있으며 handler diagnostics와 제한된 stderr 경고로 관찰합니다.
 
 notes:
-  - The home phase does NOT write to Redis or OpenSearch. All emits are routed to the in-memory _users dict in back_dev_home/activity/data.py instead. The is_cloud() gate in record_request() decides which path runs.
-  - Renames: if a route moves (e.g. /api/recipe-search → /api/ebeam/cdsem/recipe-search), update _logging/feature_map.py so that both old and new paths map to the same feature slug. This preserves continuity across the OpenSearch index. Do NOT rename a feature slug after it has been written — that creates a split between old and new docs.
-  - Why an index per month: 13-month rolling retention is the v1 target. Monthly rollover keeps individual shards small enough for fast date_histogram aggregations over the full retention window.
-  - Why drop 4xx/5xx: a misclicked URL or a transient backend error is not "usage". Errors are still captured by the existing _logging/activity.py logger output (and ship to OpenSearch via the separate request-log index), just not into the usage_events index.
+  - UTC로 저장하고 activity calendar 집계만 Asia/Seoul timezone을 사용합니다.
+  - 별도 월별 usage_events index, Redis activity counter, 13개월 보존 정책은 없습니다.
+  - writer와 reader는 동일한 resolve_logging_target 결과를 사용합니다.
+  - 읽기 실패는 office 모드에서 mock이나 빈 성공 응답으로 숨기지 않고 503으로 반환합니다.

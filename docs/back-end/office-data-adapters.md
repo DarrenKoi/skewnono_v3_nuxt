@@ -115,6 +115,47 @@ frame = search.search_dataframe_all(
 - feature query와 source mapping은 `providers/office.py`에 두며 `ops_store`에
   feature-specific 메서드를 추가하지 않습니다.
 
+#### OpenSearch logging family 준비
+
+`activity`와 `admin_logs` office adapter는 같은 cluster에서
+`SKEWNONO_LOG_ENV`가 선택한 alias를 읽습니다.
+
+| 실행 위치 | `SKEWNONO_LOG_ENV` | Alias |
+| --- | --- | --- |
+| 사무실 PC localhost | `local` | `skewnono_logging_local` |
+| 회사 production cloud | `production` | `skewnono_logging` |
+
+회사 네트워크와 `OPENSEARCH_*` 자격 증명이 준비된 환경에서만 다음 명령을
+실행합니다.
+
+```bash
+.venv/bin/python ops_index_mgmt/skewnono_logging.py \
+  --environment all \
+  --dry-run
+.venv/bin/python ops_index_mgmt/skewnono_logging.py \
+  --environment all
+```
+
+첫 번째 명령은 cluster에 접속하거나 변경하지 않고 policy, template, mapping,
+초기 index 요청을 출력하는 read-only 검토 단계입니다. 두 번째 명령은 멱등하지만
+공유 cluster의 ISM policy, index template, mapping, backing index와 alias를
+생성하거나 갱신합니다. dry-run 결과를 검토하지 않고 두 번째 명령을 실행하지
+않습니다.
+
+반영 후 다음 write alias 연결을 확인합니다.
+
+```text
+skewnono_logging_local-000001 → skewnono_logging_local
+skewnono_logging-000001       → skewnono_logging
+```
+
+기존 alias가 numbered rollover write index가 아니거나 첫 index가 충돌하면 script는
+자동 삭제나 재색인 없이 실패합니다. Flask writer와 reader는 index를 자동 생성하지
+않습니다. cluster smoke test 전에는
+[`docs/office-migration/STATUS.md`](../office-migration/STATUS.md)의 상태를
+`구현완료`로 유지하며, 실제 office 데이터와 화면까지 확인한 뒤에만 `office`로
+변경합니다.
+
 ### 3.2 `minio_handler`
 
 MinIO 접속 설정은 `minio_handler/minio_config.py` 한 곳에서만 관리합니다. endpoint,
