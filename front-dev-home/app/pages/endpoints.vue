@@ -3,16 +3,31 @@ useHead({
   title: 'API 리스트 | SKEWNONO'
 })
 
+const BASE_URL = 'http://sknn.skhynix.com/api'
+
 type ApiMethod = 'GET' | 'POST' | 'DELETE'
+
+type ApiArg = {
+  name: string
+  kind: 'path' | 'query' | 'body'
+  required: boolean
+  note: string
+}
+
+type ApiExample = {
+  path: string
+  query?: Record<string, string>
+  body?: unknown
+}
 
 type ApiEndpoint = {
   method: ApiMethod
   path: string
   summary: string
-  params: string
+  args: ApiArg[]
   response: string
   auth: '토큰 가능' | '사람 세션만' | '관리자'
-  example: string
+  example: ApiExample
 }
 
 type ApiGroup = {
@@ -21,24 +36,6 @@ type ApiGroup = {
   icon: string
   endpoints: ApiEndpoint[]
 }
-
-const baseUrlRows = [
-  {
-    label: '프론트엔드 내부 호출',
-    value: '/api',
-    detail: 'Nuxt 화면과 composable에서 사용하는 기본 경로입니다.'
-  },
-  {
-    label: '로컬 Flask 직접 호출',
-    value: 'http://localhost:5000/api',
-    detail: '개인 개발 환경에서 백엔드만 띄워 확인할 때 사용합니다.'
-  },
-  {
-    label: '회사/운영 환경',
-    value: 'http://sknn.skhynix.com/api',
-    detail: '회사망에서 개인 스크립트나 배치가 데이터를 가져갈 때 사용하는 기준입니다.'
-  }
-]
 
 const tokenSteps = [
   {
@@ -61,37 +58,79 @@ const tokenSteps = [
 
 const authNotes = [
   '토큰은 계정과 같은 읽기 권한을 가집니다. 유출되면 Settings의 API Tokens에서 즉시 Revoke 하십시오.',
+  'API는 사용자당 5초에 20회로 rate limit이 걸려 있습니다. 배치 스크립트에서 반복 호출할 때는 호출 사이에 간격을 두십시오.',
   '토큰 인증 요청은 사용자 활동 점수에는 반영되지 않지만, 운영 로그에는 api_token_id와 함께 남습니다.',
   'POST/DELETE /api/account/api-tokens는 사람 세션 전용입니다. 이미 발급된 토큰으로 새 토큰을 만들거나 폐기할 수 없습니다.'
 ]
 
 const examples = [
   {
+    title: 'Python — 공통 준비 코드',
+    code: `import requests
+
+BASE_URL = "${BASE_URL}"
+HEADERS = {"Authorization": "Bearer skn_your_token"}`
+  },
+  {
+    title: 'Python — 데이터 조회',
+    code: `resp = requests.get(
+    f"{BASE_URL}/cdsem/storage",
+    headers=HEADERS,
+    params={"fab_name": "M16A,R3"},
+    timeout=10,
+)
+resp.raise_for_status()
+rows = resp.json()`
+  },
+  {
+    title: 'Python — pandas DataFrame으로 변환',
+    code: `import pandas as pd
+
+df = pd.DataFrame(rows)
+print(df.head())`
+  },
+  {
     title: 'curl',
-    code: `BASE_URL="http://sknn.skhynix.com/api"
+    code: `BASE_URL="${BASE_URL}"
 SKEWNONO_TOKEN="skn_your_token"
 
 curl -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
   "$BASE_URL/sem-list"`
-  },
-  {
-    title: 'Python requests',
-    code: `import requests
-
-base_url = "http://sknn.skhynix.com/api"
-headers = {"Authorization": "Bearer skn_your_token"}
-
-response = requests.get(f"{base_url}/cdsem/storage", headers=headers, timeout=10)
-response.raise_for_status()
-rows = response.json()`
-  },
-  {
-    title: 'Nuxt / Vue',
-    code: `const rows = await $fetch('/api/cdsem/storage', {
-  query: { fab_name: 'M16A,R3' }
-})`
   }
 ]
+
+const TOOL_SLUG_ARG: ApiArg = {
+  name: 'tool_slug',
+  kind: 'path',
+  required: true,
+  note: 'cdsem 또는 hvsem'
+}
+
+const FAB_NAME_ARG: ApiArg = {
+  name: 'fab_name',
+  kind: 'query',
+  required: false,
+  note: '쉼표로 여러 fab 지정 (예: M16A,R3). 생략하면 전체 fab'
+}
+
+const PERIOD_ARGS: ApiArg[] = [
+  { name: 'start_date', kind: 'query', required: false, note: 'YYYY-MM-DD. 생략 시 기본 조회 기간' },
+  { name: 'end_date', kind: 'query', required: false, note: 'YYYY-MM-DD. 생략 시 오늘' }
+]
+
+const LOT_CD_ARG: ApiArg = {
+  name: 'lot_cd',
+  kind: 'query',
+  required: false,
+  note: 'lot 코드로 필터'
+}
+
+const LIMIT_ARG: ApiArg = {
+  name: 'limit',
+  kind: 'query',
+  required: false,
+  note: '반환 row 수 제한'
+}
 
 const apiGroups: ApiGroup[] = [
   {
@@ -103,28 +142,28 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/health/services',
         summary: 'OpenSearch, Redis, MinIO 같은 백엔드 의존 서비스 상태를 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'ServicesHealthResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/health/services"'
+        example: { path: '/health/services' }
       },
       {
         method: 'GET',
         path: '/api/sem-list',
         summary: 'E-Beam 장비 목록과 fab, model, vendor, IP, online/offline 기준 필드를 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'SemListRow[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/sem-list"'
+        example: { path: '/sem-list' }
       },
       {
         method: 'GET',
         path: '/api/announcements',
         summary: '홈 화면 공지 목록을 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'Announcement[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/announcements"'
+        example: { path: '/announcements' }
       }
     ]
   },
@@ -137,28 +176,35 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/storage',
         summary: 'tool_slug가 cdsem 또는 hvsem일 때 storage 현황 row를 반환합니다.',
-        params: 'fab_name=M16A,R3 optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG],
         response: 'StorageRow[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/storage?fab_name=M16A,R3"'
+        example: { path: '/cdsem/storage', query: { fab_name: 'M16A,R3' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/ppid-unavailable',
         summary: 'PPID(레시피) 접근 불가 장비 목록을 반환합니다. (sem_list와 IP 매칭)',
-        params: 'fab_name=M16A,R3 optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG],
         response: 'PpidUnavailableSnapshot',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/ppid-unavailable"'
+        example: { path: '/hvsem/ppid-unavailable' }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/hardware/{eqp_id}/{service}',
         summary: 'BSM, FDC, BM/PM 같은 hardware 보조 서비스 payload를 반환합니다.',
-        params: 'fab_name optional, start/end optional (ISO-8601)',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'eqp_id', kind: 'path', required: true, note: '장비 ID (sem-list의 eqp_id)' },
+          { name: 'service', kind: 'path', required: true, note: 'bsm, reso-center, fdc, mdc, sce, bm-pm, sharpness 중 하나' },
+          FAB_NAME_ARG,
+          { name: 'start', kind: 'query', required: false, note: 'ISO-8601 시각. 생략 시 기본 조회 기간' },
+          { name: 'end', kind: 'query', required: false, note: 'ISO-8601 시각. 생략 시 현재 시각' }
+        ],
         response: 'HardwareServicePayload',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/hardware/EQP01/bsm?fab_name=M11"'
+        example: { path: '/cdsem/hardware/EQP01/bsm', query: { fab_name: 'M11' } }
       }
     ]
   },
@@ -171,55 +217,73 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/recipe-search/recipes',
         summary: 'CD-SEM/HV-SEM recipe 목록을 fab 기준으로 조회합니다.',
-        params: 'fab_name optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG],
         response: 'RecipeCatalogRow[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-search/recipes?fab_name=M11"'
+        example: { path: '/cdsem/recipe-search/recipes', query: { fab_name: 'M11' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-search/recipe-detail',
         summary: 'recipe_name에 해당하는 open recipe 상세 데이터를 반환합니다.',
-        params: 'recipe_name required, fab_name optional',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름' },
+          FAB_NAME_ARG
+        ],
         response: 'RecipeOpenPayload',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-search/recipe-detail?recipe_name=RCP_001"'
+        example: { path: '/cdsem/recipe-search/recipe-detail', query: { recipe_name: 'RCP_001' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-search/lateral',
         summary: 'recipe_name에 해당하는 lateral recipe 데이터를 반환합니다.',
-        params: 'recipe_name required, fab_name optional',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름' },
+          FAB_NAME_ARG
+        ],
         response: 'LateralRecipePayload',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-search/lateral?recipe_name=RCP_001"'
+        example: { path: '/cdsem/recipe-search/lateral', query: { recipe_name: 'RCP_001' } }
       },
       {
         method: 'GET',
         path: '/api/meas-hist',
         summary: 'tool_type, fab_name, recipe_name 기준 measurement history를 조회합니다.',
-        params: 'tool_type optional, fab_name optional, recipe_name optional',
+        args: [
+          { name: 'tool_type', kind: 'query', required: false, note: 'cd-sem 또는 hv-sem' },
+          { name: 'fab_name', kind: 'query', required: false, note: 'fab 이름 하나 (예: M11)' },
+          { name: 'recipe_name', kind: 'query', required: false, note: 'recipe 이름으로 필터' }
+        ],
         response: 'MeasHistPayload',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/meas-hist?tool_type=cd-sem&fab_name=M11"'
+        example: { path: '/meas-hist', query: { tool_type: 'cd-sem', fab_name: 'M11' } }
       },
       {
         method: 'GET',
         path: '/api/msr-file',
         summary: 'MSR identifier로 raw measurement file 정보를 조회합니다.',
-        params: 'msr required, class_name optional, total_images optional',
+        args: [
+          { name: 'msr', kind: 'query', required: true, note: 'MSR identifier' },
+          { name: 'class_name', kind: 'query', required: false, note: 'measurement class 이름' },
+          { name: 'total_images', kind: 'query', required: false, note: '이미지 수 힌트 (정수)' }
+        ],
         response: 'MsrFilePayload',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/msr-file?msr=MSR_001"'
+        example: { path: '/msr-file', query: { msr: 'MSR_001' } }
       },
       {
         method: 'POST',
         path: '/api/msr-files',
         summary: '여러 MSR의 raw measurement file 정보를 한 번에 조회합니다 (스큐보아 다중 선택).',
-        params: 'body: { items: [{ msr, class_name?, total_images? }] } — 최대 200건',
+        args: [
+          { name: 'items', kind: 'body', required: true, note: '[{ msr, class_name?, total_images? }] — 최대 200건' }
+        ],
         response: '{ results: MsrFilePayload[] }',
         auth: '토큰 가능',
-        example: 'curl -X POST -H "Content-Type: application/json" -d \'{"items":[{"msr":"MSR_001"}]}\' "$BASE_URL/msr-files"'
+        example: { path: '/msr-files', body: { items: [{ msr: 'MSR_001' }, { msr: 'MSR_002' }] } }
       }
     ]
   },
@@ -232,37 +296,37 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/ranking',
         summary: 'recipe TAT ranking row를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd, limit optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG, LIMIT_ARG],
         response: 'RecipeTatRankingResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/ranking?fab_name=M11&limit=100"'
+        example: { path: '/cdsem/recipe-tat/ranking', query: { fab_name: 'M11', limit: '100' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/summary',
         summary: 'recipe TAT summary 지표를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG],
         response: 'RecipeTatSummaryResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/summary?lot_cd=LOT001"'
+        example: { path: '/cdsem/recipe-tat/summary', query: { lot_cd: 'LOT001' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/daily-trend',
         summary: 'recipe TAT 일자별 trend point를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG],
         response: 'RecipeTatTrendResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/recipe-tat/daily-trend?fab_name=M14"'
+        example: { path: '/hvsem/recipe-tat/daily-trend', query: { fab_name: 'M14' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-tat/devices',
         summary: 'recipe TAT 화면에서 선택할 device 목록을 반환합니다.',
-        params: 'fab_name, start_date, end_date optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS],
         response: 'RecipeTatDeviceResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/recipe-tat/devices?fab_name=M11"'
+        example: { path: '/cdsem/recipe-tat/devices', query: { fab_name: 'M11' } }
       }
     ]
   },
@@ -275,46 +339,46 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/summary',
         summary: 'fail issue summary 지표를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG],
         response: 'FailIssueSummaryResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/summary?fab_name=M11"'
+        example: { path: '/cdsem/fail-issue/summary', query: { fab_name: 'M11' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/daily-trend',
         summary: 'fail issue 일자별 trend point를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG],
         response: 'FailIssueTrendResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/daily-trend?lot_cd=LOT001"'
+        example: { path: '/cdsem/fail-issue/daily-trend', query: { lot_cd: 'LOT001' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/align-ranking',
         summary: 'align fail ranking row를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd, limit optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG, LIMIT_ARG],
         response: 'FailIssueRankingResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/hvsem/fail-issue/align-ranking?limit=50"'
+        example: { path: '/hvsem/fail-issue/align-ranking', query: { limit: '50' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/meas-ranking',
         summary: 'measurement fail ranking row를 반환합니다.',
-        params: 'fab_name, start_date, end_date, lot_cd, limit optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, LOT_CD_ARG, LIMIT_ARG],
         response: 'FailIssueRankingResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/meas-ranking?fab_name=M11"'
+        example: { path: '/cdsem/fail-issue/meas-ranking', query: { fab_name: 'M11' } }
       },
       {
         method: 'GET',
         path: '/api/{tool_slug}/fail-issue/devices',
         summary: 'fail issue 화면에서 선택할 device 목록을 반환합니다.',
-        params: 'fab_name, start_date, end_date optional',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS],
         response: 'FailIssueDeviceResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/fail-issue/devices"'
+        example: { path: '/cdsem/fail-issue/devices' }
       }
     ]
   },
@@ -327,37 +391,44 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/cdsem/device-statistics/r3-device-grp',
         summary: 'R3 device group 기준 row를 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'R3DeviceGroupRow[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/r3-device-grp"'
+        example: { path: '/cdsem/device-statistics/r3-device-grp' }
       },
       {
         method: 'GET',
         path: '/api/cdsem/device-statistics/device-desc',
         summary: 'fac_id 기준 device description row를 반환합니다.',
-        params: 'fac_id=M11,M14 optional',
+        args: [
+          { name: 'fac_id', kind: 'query', required: false, note: '쉼표로 여러 fac 지정 (예: M11,M14). 생략하면 전체' }
+        ],
         response: 'DeviceDescRow[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/device-desc?fac_id=M11,M14"'
+        example: { path: '/cdsem/device-statistics/device-desc', query: { fac_id: 'M11,M14' } }
       },
       {
         method: 'GET',
         path: '/api/cdsem/device-statistics/recipe-statistics',
         summary: 'lot_cds 기준 최신 주차 recipe statistics bucket을 반환합니다.',
-        params: 'lot_cds comma-separated optional',
+        args: [
+          { name: 'lot_cds', kind: 'query', required: false, note: '쉼표로 lot 코드 여러 개 (예: R001,R002)' }
+        ],
         response: 'RecipeStatisticsResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/recipe-statistics?lot_cds=R001,R002"'
+        example: { path: '/cdsem/device-statistics/recipe-statistics', query: { lot_cds: 'R001,R002' } }
       },
       {
         method: 'GET',
         path: '/api/cdsem/device-statistics/recipe-trend',
         summary: 'lot_cds와 기간 기준 주차별 recipe statistics trend를 반환합니다.',
-        params: 'lot_cds, start_date, end_date optional',
+        args: [
+          { name: 'lot_cds', kind: 'query', required: false, note: '쉼표로 lot 코드 여러 개' },
+          ...PERIOD_ARGS
+        ],
         response: 'RecipeTrendResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/cdsem/device-statistics/recipe-trend?lot_cds=R001"'
+        example: { path: '/cdsem/device-statistics/recipe-trend', query: { lot_cds: 'R001' } }
       }
     ]
   },
@@ -370,73 +441,99 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/afm/tools',
         summary: 'AFM tool 목록을 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'AfmTool[]',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/tools"'
+        example: { path: '/afm/tools' }
       },
       {
         method: 'GET',
         path: '/api/afm/files',
         summary: 'AFM measurement file 목록을 반환합니다.',
-        params: 'tool optional',
+        args: [
+          { name: 'tool', kind: 'query', required: false, note: 'AFM tool 이름 (/afm/tools 참조). 생략 시 기본 tool' }
+        ],
         response: 'AfmFileListResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files?tool=AFM01"'
+        example: { path: '/afm/files', query: { tool: 'AFM01' } }
       },
       {
         method: 'GET',
         path: '/api/afm/files/{filename}',
         summary: 'AFM measurement file 상세 정보를 반환합니다.',
-        params: 'tool optional',
+        args: [
+          { name: 'filename', kind: 'path', required: true, note: 'AFM measurement file 이름' },
+          { name: 'tool', kind: 'query', required: false, note: 'AFM tool 이름' }
+        ],
         response: 'AfmFileDetailResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat"'
+        example: { path: '/afm/files/sample.dat' }
       },
       {
         method: 'GET',
         path: '/api/afm/files/{filename}/profile/{point}',
         summary: 'AFM profile point 데이터를 반환합니다.',
-        params: 'tool, site_id, site_x, site_y, point_no optional',
+        args: [
+          { name: 'filename', kind: 'path', required: true, note: 'AFM measurement file 이름' },
+          { name: 'point', kind: 'path', required: true, note: 'profile point 라벨 (예: P1)' },
+          { name: 'tool', kind: 'query', required: false, note: 'AFM tool 이름' },
+          { name: 'site_id', kind: 'query', required: false, note: '측정 site ID' },
+          { name: 'site_x', kind: 'query', required: false, note: 'site X 좌표' },
+          { name: 'site_y', kind: 'query', required: false, note: 'site Y 좌표' },
+          { name: 'point_no', kind: 'query', required: false, note: 'point 번호 (정수)' }
+        ],
         response: 'AfmProfileResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat/profile/P1"'
+        example: { path: '/afm/files/sample.dat/profile/P1' }
       },
       {
         method: 'GET',
         path: '/api/afm/files/{filename}/image/{point}',
         summary: 'AFM image metadata와 image-file URL을 반환합니다.',
-        params: 'tool optional',
+        args: [
+          { name: 'filename', kind: 'path', required: true, note: 'AFM measurement file 이름' },
+          { name: 'point', kind: 'path', required: true, note: 'profile point 라벨' },
+          { name: 'tool', kind: 'query', required: false, note: 'AFM tool 이름' }
+        ],
         response: 'AfmImageResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat/image/P1"'
+        example: { path: '/afm/files/sample.dat/image/P1' }
       },
       {
         method: 'GET',
         path: '/api/afm/files/{filename}/image-file/{point}',
         summary: 'AFM profile image file을 SVG로 반환합니다.',
-        params: 'tool optional',
+        args: [
+          { name: 'filename', kind: 'path', required: true, note: 'AFM measurement file 이름' },
+          { name: 'point', kind: 'path', required: true, note: 'profile point 라벨' },
+          { name: 'tool', kind: 'query', required: false, note: 'AFM tool 이름' }
+        ],
         response: 'image/svg+xml',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/files/sample.dat/image-file/P1"'
+        example: { path: '/afm/files/sample.dat/image-file/P1' }
       },
       {
         method: 'GET',
         path: '/api/afm/activities',
         summary: 'AFM 사용자 활동 목록을 반환합니다.',
-        params: 'user, limit optional',
+        args: [
+          { name: 'user', kind: 'query', required: false, note: '특정 사용자로 필터' },
+          { name: 'limit', kind: 'query', required: false, note: '반환 건수 (기본 100)' }
+        ],
         response: 'AfmActivityResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/activities?limit=50"'
+        example: { path: '/afm/activities', query: { limit: '50' } }
       },
       {
         method: 'GET',
         path: '/api/afm/analytics',
         summary: 'AFM activity analytics를 반환합니다.',
-        params: 'days optional',
+        args: [
+          { name: 'days', kind: 'query', required: false, note: '조회 기간 일수 (기본 7)' }
+        ],
         response: 'AfmAnalyticsResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/afm/analytics?days=7"'
+        example: { path: '/afm/analytics', query: { days: '7' } }
       }
     ]
   },
@@ -449,55 +546,67 @@ const apiGroups: ApiGroup[] = [
         method: 'GET',
         path: '/api/account/api-tokens',
         summary: '내 API token 목록을 반환합니다.',
-        params: '없음',
+        args: [],
         response: '{ tokens: ApiTokenView[] }',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/account/api-tokens"'
+        example: { path: '/account/api-tokens' }
       },
       {
         method: 'POST',
         path: '/api/account/api-tokens',
         summary: '새 API token을 발급합니다. 토큰 인증으로는 호출할 수 없습니다.',
-        params: 'JSON body: { label: string }',
+        args: [
+          { name: 'label', kind: 'body', required: true, note: '토큰 용도를 구분할 이름' }
+        ],
         response: '{ token: ApiTokenView, plaintext: string }',
         auth: '사람 세션만',
-        example: 'curl -X POST -H "Content-Type: application/json" -d "{\\"label\\":\\"my-script\\"}" "$BASE_URL/account/api-tokens"'
+        example: { path: '/account/api-tokens', body: { label: 'my-script' } }
       },
       {
         method: 'DELETE',
         path: '/api/account/api-tokens/{token_id}',
         summary: '내 API token을 폐기합니다. 토큰 인증으로는 호출할 수 없습니다.',
-        params: 'token_id path parameter',
+        args: [
+          { name: 'token_id', kind: 'path', required: true, note: '폐기할 token의 ID (GET 목록의 id)' }
+        ],
         response: '{ revoked: string }',
         auth: '사람 세션만',
-        example: 'curl -X DELETE "$BASE_URL/account/api-tokens/<token_id>"'
+        example: { path: '/account/api-tokens/<token_id>' }
       },
       {
         method: 'GET',
         path: '/api/activity/me',
         summary: '현재 사용자 활동 요약을 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'ActivityMeResponse',
         auth: '토큰 가능',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/activity/me"'
+        example: { path: '/activity/me' }
       },
       {
         method: 'GET',
         path: '/api/activity/summary',
         summary: '전체 사용자 활동 summary를 반환합니다.',
-        params: '없음',
+        args: [],
         response: 'ActivitySummaryResponse',
         auth: '관리자',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/activity/summary"'
+        example: { path: '/activity/summary' }
       },
       {
         method: 'GET',
         path: '/api/admin/logs',
         summary: '운영 로그를 조건별로 조회합니다.',
-        params: 'level, path, user_id, limit optional',
+        args: [
+          { name: 'level', kind: 'query', required: false, note: '쉼표로 여러 level (예: ERROR,WARNING)' },
+          { name: 'path', kind: 'query', required: false, note: '요청 경로 부분 일치' },
+          { name: 'user_id', kind: 'query', required: false, note: '사용자 ID 정확히 일치' },
+          { name: 'q', kind: 'query', required: false, note: '메시지, 경로, 예외 내용 전문 검색' },
+          { name: 'from', kind: 'query', required: false, note: 'ISO-8601 시각 이후 로그만' },
+          { name: 'to', kind: 'query', required: false, note: 'ISO-8601 시각 이전 로그만' },
+          { name: 'limit', kind: 'query', required: false, note: '반환 건수 제한' }
+        ],
         response: 'AdminLogQueryResponse',
         auth: '관리자',
-        example: 'curl -H "Authorization: Bearer $SKEWNONO_TOKEN" "$BASE_URL/admin/logs?level=ERROR&limit=50"'
+        example: { path: '/admin/logs', query: { level: 'ERROR', limit: '50' } }
       }
     ]
   }
@@ -516,6 +625,45 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
   if (method === 'POST') return 'success'
   if (method === 'DELETE') return 'error'
   return 'primary'
+}
+
+const toQueryString = (query?: Record<string, string>): string => {
+  if (!query) return ''
+  const parts = Object.entries(query).map(([key, value]) => `${key}=${value}`)
+  return parts.length ? `?${parts.join('&')}` : ''
+}
+
+const curlExample = (endpoint: ApiEndpoint): string => {
+  const url = `$BASE_URL${endpoint.example.path}${toQueryString(endpoint.example.query)}`
+  if (endpoint.method === 'POST') {
+    return `curl -X POST \\
+  -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '${JSON.stringify(endpoint.example.body)}' \\
+  "${url}"`
+  }
+  if (endpoint.method === 'DELETE') {
+    return `curl -X DELETE -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
+  "${url}"`
+  }
+  return `curl -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
+  "${url}"`
+}
+
+const pythonExample = (endpoint: ApiEndpoint): string => {
+  const lines = [
+    `resp = requests.${endpoint.method.toLowerCase()}(`,
+    `    f"{BASE_URL}${endpoint.example.path}",`,
+    '    headers=HEADERS,'
+  ]
+  if (endpoint.example.query) {
+    lines.push(`    params=${JSON.stringify(endpoint.example.query)},`)
+  }
+  if (endpoint.example.body !== undefined) {
+    lines.push(`    json=${JSON.stringify(endpoint.example.body)},`)
+  }
+  lines.push('    timeout=10,', ')', 'resp.raise_for_status()', 'data = resp.json()')
+  return lines.join('\n')
 }
 </script>
 
@@ -621,26 +769,11 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                   Base URL
                 </h2>
               </div>
-              <div class="overflow-hidden rounded-lg border border-(--sk-border)">
-                <table class="min-w-full divide-y divide-(--sk-border) text-sm">
-                  <tbody class="divide-y divide-(--sk-border)">
-                    <tr
-                      v-for="row in baseUrlRows"
-                      :key="row.label"
-                      class="bg-white dark:bg-zinc-950"
-                    >
-                      <th class="w-44 px-4 py-4 text-left align-top font-semibold">
-                        {{ row.label }}
-                      </th>
-                      <td class="px-4 py-4 align-top">
-                        <code class="sk-value-num">{{ row.value }}</code>
-                        <p class="mt-2 sk-body leading-6">
-                          {{ row.detail }}
-                        </p>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
+                <code class="sk-value-num text-base">{{ BASE_URL }}</code>
+                <p class="mt-3 sk-body leading-6">
+                  모든 endpoint는 이 base URL 뒤에 경로를 붙여 호출합니다. 발급받은 토큰을 Authorization: Bearer 헤더에 넣으면 사내망 어느 개발 환경에서든 동일하게 동작합니다.
+                </p>
               </div>
             </div>
 
@@ -750,6 +883,9 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                 <p class="mt-3 sk-body leading-7 md:text-base">
                   {{ selectedApiGroup.description }}
                 </p>
+                <p class="mt-2 text-xs text-(--sk-ink-muted)">
+                  Python 예시는 'API Token 사용법' 탭의 공통 준비 코드(BASE_URL, HEADERS)를 먼저 선언한 뒤 실행합니다.
+                </p>
               </div>
               <div class="grid grid-cols-2 gap-3 sm:flex">
                 <div class="rounded-lg border border-(--sk-border) bg-white px-4 py-3 dark:bg-zinc-950">
@@ -801,13 +937,36 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                 </div>
               </div>
 
-              <dl class="mt-4 grid gap-3 md:grid-cols-2">
+              <dl class="mt-4 grid gap-3">
                 <div class="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
                   <dt class="sk-label">
-                    Parameter
+                    Parameters
                   </dt>
-                  <dd class="mt-1">
-                    <code class="break-words sk-value-num">{{ endpoint.params }}</code>
+                  <dd class="mt-2">
+                    <p
+                      v-if="endpoint.args.length === 0"
+                      class="sk-body"
+                    >
+                      없음
+                    </p>
+                    <ul
+                      v-else
+                      class="space-y-1.5"
+                    >
+                      <li
+                        v-for="arg in endpoint.args"
+                        :key="`${arg.kind}:${arg.name}`"
+                        class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
+                      >
+                        <code class="sk-value-num">{{ arg.name }}</code>
+                        <span class="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ arg.kind }}</span>
+                        <span
+                          class="text-[10px] font-semibold"
+                          :class="arg.required ? 'text-zinc-900 dark:text-zinc-100' : 'text-(--sk-ink-muted)'"
+                        >{{ arg.required ? 'required' : 'optional' }}</span>
+                        <span class="sk-body">{{ arg.note }}</span>
+                      </li>
+                    </ul>
                   </dd>
                 </div>
                 <div class="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
@@ -820,12 +979,29 @@ const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
                 </div>
               </dl>
 
-              <div class="mt-4 overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
-                <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
-                  Example
+              <div
+                v-if="endpoint.auth !== '사람 세션만'"
+                class="mt-4 grid gap-3"
+              >
+                <div class="overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
+                  <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
+                    curl
+                  </div>
+                  <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ curlExample(endpoint) }}</code></pre>
                 </div>
-                <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ endpoint.example }}</code></pre>
+                <div class="overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
+                  <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
+                    Python
+                  </div>
+                  <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ pythonExample(endpoint) }}</code></pre>
+                </div>
               </div>
+              <p
+                v-else
+                class="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-(--sk-ink-muted) dark:bg-zinc-900"
+              >
+                이 endpoint는 브라우저 세션 전용입니다. Settings의 API Tokens 화면에서 발급/폐기를 수행하십시오.
+              </p>
             </article>
           </div>
         </section>
