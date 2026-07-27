@@ -245,6 +245,10 @@ root mapping은 `dynamic: false`로 설정하고 query에 사용하는 모든 �
 만드는 것을 막고, 새 query field는 index-management mapping을 통해
 의도적으로 추가합니다.
 
+`event=request` 또는 `event=request_exception`이 아닌 일반 application
+log는 `method`, `path`, `status`, `activity_kind`, `activity_weight`,
+`fab_name_list` 같은 request 전용 필드를 생략할 수 있습니다.
+
 ### 8.2 FAB 정규화
 
 middleware는 임의의 request body나 response를 읽어 FAB를 추론하지
@@ -271,8 +275,9 @@ middleware는 임의의 request body나 response를 읽어 FAB를 추론하지
   `token`, `access_token`, `api_key`, `secret`, `authorization`, `cookie`
   계열 값을 `[REDACTED]`로 바꿉니다.
 - 정규화된 query string은 최대 2,048자로 제한합니다.
-- message, error text, exception message와 stack에도 개별 최대 길이를
-  적용하여 비정상적으로 큰 문서를 막습니다.
+- `message`와 `exception.message`는 각각 4,096자, `error_name`은
+  1,024자, `exception.stack`은 32,768자로 제한하여 비정상적으로 큰
+  문서를 막습니다.
 - logging 변환 실패 시 원본 body나 header를 fallback으로 출력하지
   않습니다.
 
@@ -293,14 +298,16 @@ middleware는 임의의 request body나 response를 읽어 FAB를 추론하지
 feature를 입력으로 받아 두 필드를 결정합니다. middleware, mock recorder,
 office reader가 같은 정책 의미를 공유하고 각자 조건을 복사하지 않습니다.
 
-다음 요청은 활동 집계에서 제외합니다.
+분류 우선순위는 다음과 같이 고정합니다. 먼저 앞 단계에서 결정되면 뒤
+단계로 넘어가지 않습니다.
 
-- 인증되지 않은 요청
-- API token으로 인증된 자동화 요청
-- 4xx와 5xx 요청
-- `/api/activity`, `/api/admin`, `/api/health`
-- static asset와 non-API 요청
-- 명시적으로 등록된 polling, prefetch, 자동 refresh 요청
+1. 인증되지 않은 요청, API token 요청, 4xx/5xx, `/api/activity`,
+   `/api/admin`, `/api/health`, static asset, non-API 요청은
+   `operation/0`입니다.
+2. 명시적으로 등록된 polling, prefetch, 자동 refresh 요청은
+   `background/0`입니다.
+3. 명시적으로 등록된 필수 진입 요청은 `entry/1`입니다.
+4. 그 밖의 인증된 사람의 성공한 product API 요청은 `feature/1`입니다.
 
 모든 제외 요청도 canonical log document로 남으며 `/admin/logs`에서
 조회할 수 있습니다.
