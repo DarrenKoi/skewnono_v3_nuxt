@@ -147,6 +147,18 @@ Playwright MCP by hand; see the `verify` skill.
 - **Work directly on `main` by default.** Commit and push to `main` unless I explicitly ask for a separate branch. Do **not** auto-create a feature branch just because the change lands on the default branch.
 - **Commit and push whenever you judge it necessary** — no need to ask first. Use judgement: commit at coherent stopping points (a working feature, a passing test suite, a finished doc), not mid-edit.
 - **Every commit message must say what changed.** Subject line in the existing `type(scope): summary` style, plus a body explaining what was updated and why when the change is not self-evident from the subject.
+- **Never stage broadly — commit only the files you personally edited.** Always pass explicit pathspecs: `git commit -- path/a path/b`, or `git add <exact paths>` followed by `git commit`. `git add -A`, `git add .`, `git commit -a`, and bare `git stash` are **banned**: I run several agent sessions against this one working tree, so a broad stage sweeps another session's half-finished edits into your commit under an unrelated subject line. Nothing errors — the log just gets corrupted. The same reason bans whole-tree `git checkout` / `git restore` / `git stash pop`.
+- **Multi-file work goes in a `git worktree`.** If a task will touch more than a single file, create an isolated worktree first and do the whole change there, so concurrent sessions never share an index:
+
+  ```bash
+  git worktree add ../skewnono-<task> -b work/<task>   # from the repo root
+  # ...edit, test, and commit inside ../skewnono-<task>...
+  git -C . merge --ff-only work/<task> && git push      # back on main
+  git worktree remove ../skewnono-<task> && git branch -d work/<task>
+  ```
+
+  This is the one sanctioned exception to "work directly on `main`" — the branch exists only to carry the worktree and is deleted on merge, so it is not a feature branch. Single-file edits stay in the main tree; the worktree setup is not worth it there.
+- **Always tear the worktree down once the work is on `main`.** Merging and pushing is not the end of the task: run `git worktree remove` and `git branch -d` in the same session, immediately after the push succeeds. A task is only done when `git worktree list` shows the main tree alone. Leftover worktrees accumulate stale checkouts, hold onto merged branches, and mislead the next session about what work is still open.
 
 - Git-based workflow with separated workspaces per phase (home vs. office cannot sync directly)
 - Flask backend is only accessible on company network

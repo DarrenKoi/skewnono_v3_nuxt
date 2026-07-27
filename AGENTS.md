@@ -134,6 +134,26 @@ the only record anyone reads later.
 - Keep commits reviewable: avoid mixing unrelated frontend, backend, and docs changes unless they are part of the same feature.
 - Verify UI changes in the running app before committing — see the `verify` skill. There is no reviewer downstream to catch a regression.
 
+### Staging and isolation (several sessions share one tree)
+
+More than one agent session usually runs against this single working tree, so
+staging is not a private act — a broad stage picks up whatever another session
+has mid-edit.
+
+- **Stage only the files you edited yourself, by explicit path**: `git commit -- path/a path/b`, or `git add <exact paths>` then `git commit`.
+- **Banned outright**: `git add -A`, `git add .`, `git commit -a`, bare `git stash`, and whole-tree `git checkout` / `git restore`. These fail silently rather than loudly — the commit succeeds and carries someone else's unfinished work.
+- **Touching more than one file? Work in a `git worktree`** so your index is your own:
+
+  ```bash
+  git worktree add ../skewnono-<task> -b work/<task>
+  # edit / test / commit inside ../skewnono-<task>
+  git merge --ff-only work/<task> && git push      # back in the main tree
+  git worktree remove ../skewnono-<task> && git branch -d work/<task>
+  ```
+
+- **Remove the worktree as soon as the work is pushed to `main`** — the last two commands above are part of the task, not cleanup for later. Confirm with `git worktree list` that only the main tree remains.
+- `work/<task>` is scaffolding for the worktree, not a feature branch; it is deleted on merge, so this does not contradict "developed directly on `main`" above.
+
 <!-- OPENWIKI:START -->
 
 ## OpenWiki
