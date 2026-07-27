@@ -88,9 +88,13 @@ test('FDC stats are computed over the SCOPED sample, not the whole MSR', () => {
   assert.equal(s.end, 14)
   assert.equal(s.range, 4)
   assert.equal(s.n, 3)
-  // OLS of (1,10)(3,12)(5,14) = +0.5 per sequence. The unscoped axis would
-  // have given +1.0 — the number this task exists to correct.
-  assert.ok(Math.abs(s.slope - 0.5) < 1e-9)
+  // OLS of (1,10)(3,12)(5,14) = +1 per sequence step. What actually differs
+  // from the unscoped axis here is start/end/range/n (10..15, n=6) — this
+  // fixture's dynamic_fdc values are a perfect arithmetic progression across
+  // all six sequences, so an evenly-spaced subsample preserves the same slope;
+  // it does NOT preserve n, end, or range, which is the contamination this
+  // task exists to correct.
+  assert.ok(Math.abs(s.slope - 1) < 1e-9)
 })
 
 test('the SPACE parameter gets its own disjoint axis from the same source', () => {
