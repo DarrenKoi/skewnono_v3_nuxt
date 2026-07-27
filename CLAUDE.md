@@ -137,7 +137,7 @@ no component tests (no mounting harness). Browser verification means driving
 Playwright MCP by hand; see the `verify` skill.
 
 ### Runtime gotchas
-- `/api/*` is rate-limited to 20 req / 5 s per user — space out curl loops or vary the identity.
+- `/api/*` is rate-limited to 10 req / 5 s per user — space out curl loops or vary the identity.
 - Identity at home is the `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix = blocked by access control.
 - `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaults on macOS/Python 3.14 when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
 

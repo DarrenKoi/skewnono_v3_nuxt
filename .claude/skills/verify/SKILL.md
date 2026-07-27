@@ -32,7 +32,7 @@ lsof -iTCP -sTCP:LISTEN -P | grep -E ":3000|:5050"
 
 ## Gotchas
 
-- Rate limit: 20 req / 5 s per user on `/api/*` — space out curl loops or
+- Rate limit: 10 req / 5 s per user on `/api/*` — space out curl loops or
   vary `LASTUSER`.
 - Backend tests: `.venv/bin/python -m pytest tests back_dev_home -q` from the
   repo root (~1320 tests, ~17 s). Both roots are required — `tests/` alone
