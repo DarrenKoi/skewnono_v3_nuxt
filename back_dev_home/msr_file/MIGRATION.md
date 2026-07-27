@@ -47,16 +47,23 @@
       rows: list[MsrFileRow]
   ```
 
-### Invariant: `len(rows) == len(dynamic_fdc)`
+### Invariant: `{row sequences} == {dynamic_fdc keys}`
 
 Office-confirmed 2026-07-27 (`docs/datatables/msr_file_pickle.txt`):
 `sequence` is a global running counter over the whole MSR — one number per
 measurement row — and `dynamic_fdc` is keyed by that sequence, holding the tool
-state captured for it. The two counts must therefore agree.
+state captured for it. The two must therefore agree as SETS, not merely as
+counts: the frontend's scoped FDC axis (`utils/skewvoirAnalysis/sequence.ts`)
+builds `fdcBySeq` — and derives `fdcKeys`, which gates whether any FDC pane
+renders at all — from entries keyed by the on-axis sequence set. A payload
+whose `dynamic_fdc` keys have the right COUNT but the wrong SET (off-by-one
+keying, a re-indexed pipeline, dummy rows keyed differently) would pass a
+count-only check silently and then render "FDC 없음" for a measurement that
+actually has FDC data.
 
-`build_response` logs a warning when they do not; it does not raise, because
-serving flagged data beats serving nothing. The frontend reports the same
-mismatch as a badge on the FDC 분석 view (`SequenceModel.integrity`).
+`build_response` logs a warning when the sets disagree; it does not raise,
+because serving flagged data beats serving nothing. The frontend reports the
+same mismatch as a badge on the FDC 분석 view (`SequenceModel.integrity`).
 
 A mismatch means the pickle's `df_result_data` and `dynamic_fdc` disagree about
 what was measured — investigate the post-processing pipeline, not the adapter.

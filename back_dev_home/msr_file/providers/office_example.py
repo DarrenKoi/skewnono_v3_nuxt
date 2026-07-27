@@ -384,16 +384,27 @@ def build_response(
 
     fixed_fdc, dynamic_fdc, fdc_params = _fdc(payload)
     # One row is one measurement and dynamic_fdc holds that measurement's tool
-    # state, so the counts must agree. Office-confirmed 2026-07-27
-    # (docs/datatables/msr_file_pickle.txt). Warn rather than raise: a
-    # diagnosable data fault should be named in the log, not turned into a 500
-    # for the whole page. The frontend surfaces the same mismatch as a badge
-    # (SequenceModel.integrity).
-    if len(rows) != len(dynamic_fdc):
+    # state keyed by that row's sequence, so the two must agree on IDENTITY,
+    # not just count. Office-confirmed 2026-07-27
+    # (docs/datatables/msr_file_pickle.txt). This has to be a SET comparison,
+    # not len(rows) != len(dynamic_fdc): the frontend's scoped FDC axis
+    # (utils/skewvoirAnalysis/sequence.ts) builds fdcBySeq — and derives
+    # fdcKeys, which gates whether any FDC pane renders at all — from entries
+    # keyed by the on-axis sequence set. A payload with the right COUNT but
+    # the wrong SET of keys (off-by-one keying, a re-indexed pipeline, dummy
+    # rows keyed differently) would pass a count check silently and then
+    # render "FDC 없음" for a measurement that actually has FDC data. Warn
+    # rather than raise: a diagnosable data fault should be named in the log,
+    # not turned into a 500 for the whole page. The frontend surfaces the
+    # same mismatch as a badge (SequenceModel.integrity).
+    expected = {str(r["sequence"]) for r in rows}
+    actual = set(dynamic_fdc)
+    if expected != actual:
         _log.warning(
-            "msr_file %s: %d rows but %d dynamic_fdc entries — "
-            "expected one FDC entry per measurement row",
+            "msr_file %s: dynamic_fdc keys do not match the row sequences — "
+            "%d rows, %d dynamic_fdc entries, %d rows without an entry, %d entries without a row",
             msr, len(rows), len(dynamic_fdc),
+            len(expected - actual), len(actual - expected),
         )
     # Office health is DERIVED from the telemetry it summarizes: the worst
     # drift, scaled so 3.5 sigma (the "bad" threshold) saturates to 1.0 — the

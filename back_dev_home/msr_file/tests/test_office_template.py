@@ -217,7 +217,9 @@ def test_golden_payload_satisfies_row_fdc_invariant(caplog):
 
 
 def test_mismatched_row_and_fdc_counts_warn_without_raising(caplog):
-    """The office guarantees len(rows) == len(dynamic_fdc). A mismatch is a data
+    """The office guarantees the SET of row sequences equals the SET of
+    dynamic_fdc keys (not just their counts — see
+    test_disjoint_keys_same_count_still_warn below). A mismatch is a data
     fault worth naming in the log — but serving flagged data beats serving
     nothing, so it must not raise."""
     payload = {
@@ -233,6 +235,29 @@ def test_mismatched_row_and_fdc_counts_warn_without_raising(caplog):
     assert response["total"] == 2
     assert len(response["dynamic_fdc"]) == 1
     assert any("2 rows" in r.message and "1 dynamic_fdc" in r.message for r in caplog.records)
+
+
+def test_disjoint_keys_same_count_still_warn(caplog):
+    """The case a COUNT-only check misses: rows {1, 2} and dynamic_fdc keys
+    {"1", "3"} have the SAME COUNT (2 each) but a DIFFERENT SET — e.g. an
+    off-by-one keying or a re-indexed pipeline that still emits one entry per
+    row, just under the wrong sequence. The frontend's scoped FDC axis
+    (utils/skewvoirAnalysis/sequence.ts) is KEYED, not counted, so a
+    same-count/disjoint-keys payload must still warn, and build_response must
+    still return normally rather than raising."""
+    payload = {
+        "df_result_data": [
+            {"sequence": 1, "parameter": "CD_TOP", "cd_value": 10.0},
+            {"sequence": 2, "parameter": "SPACE", "cd_value": 20.0},
+        ],
+        "dynamic_fdc": {"1": {"StigmaX": 0.1}, "3": {"StigmaX": 0.2}},
+        "exe_detail_info": {},
+    }
+    with caplog.at_level(logging.WARNING):
+        response = office_example.build_response("MSR-Y", {}, payload)
+    assert response["total"] == 2
+    assert len(response["dynamic_fdc"]) == 2
+    assert any("do not match the row sequences" in r.message for r in caplog.records)
 
 
 def test_office_copy_stays_in_sync_with_template():
