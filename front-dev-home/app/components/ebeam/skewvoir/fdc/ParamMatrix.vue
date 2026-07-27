@@ -162,7 +162,14 @@ const option = computed<EChartsOption>(() => {
       xAxisId: id,
       yAxisId: id,
       type: 'line',
-      symbol: 'none',
+      // The CD reference row alone gets a visible marker. Under the 'all'
+      // sequence axis, the active parameter occupies only alternating
+      // sequences, so with connectNulls:false and symbol:'none' no two
+      // adjacent CD points are ever both non-null and the line draws
+      // nothing at all — an isolated point needs its own mark to be seen,
+      // or "gapped" reads as "absent". FDC cells stay symbol:'none': they
+      // are dense, and per-point marks there would just add visual noise.
+      ...(row.kind === 'cd' ? { symbol: 'circle', symbolSize: 2 } : { symbol: 'none' }),
       // Gaps must read as gaps, never as interpolated measurements.
       connectNulls: false,
       lineStyle: { width: 1.15, color },
