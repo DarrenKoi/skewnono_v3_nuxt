@@ -330,6 +330,12 @@ if __name__ == "__main__":  # pragma: no cover
     # Exercises THREE systems: the Redis snapshot, the sem_list roster (which
     # supplies history's fab), and the MinIO archive. The output separates them,
     # because an empty 시계열 chart looks the same whichever one is at fault.
+    #
+    # Each section catches its OWN failure and the run continues. Letting the
+    # first exception kill the process would defeat the separation entirely:
+    # run from home, where none of the three is reachable, an unguarded version
+    # prints one redis traceback and never reveals that the other two are also
+    # unreachable. One run should diagnose all three.
     import sys
     from datetime import timedelta
 
@@ -337,38 +343,79 @@ if __name__ == "__main__":  # pragma: no cover
     fab_arg = sys.argv[2] if len(sys.argv) > 2 else "M16A"
     days = int(sys.argv[3]) if len(sys.argv) > 3 else 60
     now = datetime.now()
+    _failed: list[str] = []
 
-    print("--- 1. Redis snapshot (비교 sub-tab) ---")
-    snapshot = build_mdc_settings(eqp, fab_arg, now)
-    print(f"  {len(snapshot)} tools for fab={fab_arg!r}")
-    if snapshot:
-        tool, conditions = next(iter(snapshot.items()))
-        print(f"  first tool: {tool}  conditions: {sorted(conditions)}")
-        print(f"  values    : {conditions}")
-        print("  (values are STRINGS by contract — compare, do not average)")
-    else:
-        print("  EMPTY — for MDC that is a collection problem, not a fab that")
-        print("  skips MDC. Check the collector and this instance's Redis.")
+    def _fail(section: str, exc: Exception, hint: str) -> None:
+        _failed.append(section)
+        print(f"  FAILED — {type(exc).__name__}: {exc}")
+        print(f"  {hint}")
+
+    print(f"target: eqp={eqp!r} fab={fab_arg!r} window={days}d")
+
+    print("\n--- 1. Redis snapshot (비교 sub-tab) ---")
+    try:
+        snapshot = build_mdc_settings(eqp, fab_arg, now)
+        print(f"  {len(snapshot)} tools for fab={fab_arg!r}")
+        if snapshot:
+            tool, conditions = next(iter(snapshot.items()))
+            print(f"  first tool: {tool}  conditions: {sorted(conditions)}")
+            print(f"  values    : {conditions}")
+            print("  (values are STRINGS by contract — compare, do not average)")
+        else:
+            print("  EMPTY — for MDC that is a collection problem, not a fab that")
+            print("  skips MDC. Check the collector and this instance's Redis.")
+    except Exception as exc:  # noqa: BLE001 — a diagnostic, not a control path
+        _fail("Redis", exc, "Check REDIS_HOST/REDIS_PORT/REDIS_PASSWORD in "
+                            "back_dev_home/.env. Expected at home: unreachable.")
 
     print("\n--- 2. sem_list roster (history's fab source) ---")
-    resolved = _resolve_fab(eqp)
-    print(f"  {eqp} -> fab_name {resolved!r}  (roster: {len(_fab_by_eqp_id())} tools)")
-    if fab_arg and resolved != fab_arg.strip().upper():
-        print(f"  NOTE the page passed fab={fab_arg!r} but the roster says "
-              f"{resolved!r}; history reads the roster's path.")
+    roster_ok = True
+    try:
+        resolved = _resolve_fab(eqp)
+        print(f"  {eqp} -> fab_name {resolved!r}  "
+              f"(roster: {len(_fab_by_eqp_id())} tools)")
+        if fab_arg and resolved != fab_arg.strip().upper():
+            print(f"  NOTE the page passed fab={fab_arg!r} but the roster says "
+                  f"{resolved!r}; history reads the roster's path.")
+    except Exception as exc:  # noqa: BLE001
+        roster_ok = False
+        _fail("sem_list", exc, "history cannot build its MinIO path without a "
+                               "fab. sem_list must be on the office provider.")
 
     print("\n--- 3. MinIO archive (시계열 sub-tab) ---")
-    series = build_mdc_history(eqp, now - timedelta(days=days), now)
-    print(f"  {len(series)} records over the last {days}d")
-    if series:
-        dates = sorted({str(r["timestamp"])[:10] for r in series})
-        conds = sorted({str(r["beam_condition"]) for r in series})
-        print(f"  collection dates ({len(dates)}): {dates}")
-        print(f"  conditions: {conds}")
-        print(f"  first record: {series[0]}")
-        # OFFICE-VERIFY: 00:00 here stands in for a time the archive path does
-        # not carry. If the JSON has a real collection time, use it.
-        print(f"  (time-of-day is {_ARCHIVE_TIME} — the path is date-only)")
+    if not roster_ok:
+        # build_mdc_history resolves the fab BEFORE touching MinIO, so running
+        # it now would re-raise section 2's error under a MinIO heading and send
+        # the reader to minio_config.py for a roster problem. Say what is
+        # actually true: this section never ran.
+        print("  SKIPPED — blocked by section 2. The archive path is "
+              f"{MINIO_BASE}/YYYY/MM/DD/<fab>.json and the fab is unknown, so "
+              "MinIO was not contacted and is NOT implicated here.")
+        _failed.append("MinIO (not reached)")
     else:
-        print("  EMPTY — check the prefix walk first:")
-        print(f"    MinioObject().list_date_folders({MINIO_BASE!r})")
+        try:
+            series = build_mdc_history(eqp, now - timedelta(days=days), now)
+            print(f"  {len(series)} records over the last {days}d")
+            if series:
+                dates = sorted({str(r["timestamp"])[:10] for r in series})
+                conds = sorted({str(r["beam_condition"]) for r in series})
+                print(f"  collection dates ({len(dates)}): {dates}")
+                print(f"  conditions: {conds}")
+                print(f"  first record: {series[0]}")
+                # OFFICE-VERIFY: 00:00 stands in for a time the archive path
+                # does not carry. If the JSON has a real collection time, use it.
+                print(f"  (time-of-day is {_ARCHIVE_TIME} — the path is date-only)")
+            else:
+                print("  EMPTY — check the prefix walk first:")
+                print(f"    MinioObject().list_date_folders({MINIO_BASE!r})")
+        except Exception as exc:  # noqa: BLE001
+            _fail("MinIO", exc, "Check minio_handler/minio_config.py "
+                                "(bucket/prefix come from there, NOT from .env).")
+
+    print()
+    if _failed:
+        print(f"UNREACHABLE: {', '.join(_failed)}")
+        print("At home all three are expected to fail — that is not a code "
+              "problem. At the office, each line above names its own cause.")
+        sys.exit(1)
+    print("OK — all three systems answered.")

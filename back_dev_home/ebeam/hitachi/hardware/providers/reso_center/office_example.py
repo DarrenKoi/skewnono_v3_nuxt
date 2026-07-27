@@ -261,6 +261,7 @@ if __name__ == "__main__":  # pragma: no cover
     # Like sharpness, this exercises TWO systems: the sem_list roster lookup and
     # the OpenSearch query. The output separates them, because "no data" and
     # "wrong IP" look identical from the chart and are fixed in different places.
+    # Each section reports its own failure so one run diagnoses both.
     import sys
     from collections import Counter
     from datetime import timedelta
@@ -270,27 +271,45 @@ if __name__ == "__main__":  # pragma: no cover
     window_end = datetime.now()
     window_start = window_end - timedelta(days=days)
 
-    print("--- identity ---")
-    resolved_ip = _resolve_ip(tool)
-    print(f"  {tool} -> eqp_ip {resolved_ip!r}  (from sem_list roster)")
-    print(f"  roster size: {len(_ip_by_eqp_id())} tools with an eqp_ip")
+    print(f"target: eqp={tool!r} window={days}d  index={INDEX}")
 
-    pulled = build_reso_center_docs(tool, None, window_start, window_end)
-    print(f"\n{tool}  last {days}d: {len(pulled)} docs")
-    print("by beam_condition:", dict(Counter(d["beam_condition"] for d in pulled)))
+    print("\n--- 1. sem_list roster (identity) ---")
+    try:
+        resolved_ip = _resolve_ip(tool)
+        print(f"  {tool} -> eqp_ip {resolved_ip!r}")
+        print(f"  roster size: {len(_ip_by_eqp_id())} tools with an eqp_ip")
+    except Exception as exc:  # noqa: BLE001 — a diagnostic, not a control path
+        print(f"  FAILED — {type(exc).__name__}: {exc}")
+        print("  This index keys on eqp_ip only, so the query cannot be built.")
+        print("  Expected at home; at the office put sem_list on office.")
+        sys.exit(1)
+
+    print(f"\n--- 2. {INDEX} query ---")
+    try:
+        pulled = build_reso_center_docs(tool, None, window_start, window_end)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAILED — {type(exc).__name__}: {exc}")
+        print("  Check OPENSEARCH_* in back_dev_home/.env, and that the alias is")
+        print(f"  really {INDEX!r} (NOT {CATEGORY!r}, which is a category value).")
+        sys.exit(1)
+
+    print(f"  {len(pulled)} docs in the last {days}d")
+    print("  by beam_condition:",
+          dict(Counter(d["beam_condition"] for d in pulled)))
 
     if not pulled:
         print(
             f"\n  EMPTY. The ip resolved fine, so either {tool} logged no reso\n"
             f"  center in the last {days}d, or the stored eqp_ip is spelled\n"
             f"  differently from sem_list's ({resolved_ip!r}), or the .keyword\n"
-            "  suffixes are wrong for this index (OFFICE-VERIFY #1). Check a raw\n"
-            "  doc in OpenSearch Dashboards before assuming the former."
+            "  suffixes are wrong for this index (OFFICE-VERIFY #1 — the sibling\n"
+            "  indices genuinely disagree on this). Check a raw doc in OpenSearch\n"
+            "  Dashboards before assuming the former."
         )
         sys.exit(0)
 
     first = pulled[0]
-    print("\n--- first doc ---")
+    print("\n--- 3. first doc ---")
     # Print the timestamp verbatim and confirm it carries NO offset
     # (OFFICE-VERIFY #2): a `Z` suffix means the range bounds slide 9 hours.
     print(f"  timestamp raw : {first['timestamp']!r}")
@@ -302,3 +321,4 @@ if __name__ == "__main__":  # pragma: no cover
     print(f"  ResoDelta stored={delta!r}  vs ResoIScenter-BestReso={derived:.2f}")
     print("  (stored value is passed through as indexed; a mismatch here is an")
     print("   ingestion bug to report, NOT something this adapter should fix)")
+    print("\nOK — roster and index both answered.")
