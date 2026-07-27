@@ -95,6 +95,7 @@ const historyMatches = ref<string[]>([])
 const fallbackPending = ref(false)
 const fallbackSettled = ref(false)
 const fallbackFailed = ref(false)
+const fallbackTruncated = ref(false)
 
 const redisResults = computed(() =>
   toRecipeSearchResults(redisMatchedNames.value, 'redis')
@@ -207,11 +208,18 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 // ~15 min fresh. When a 3+ char lookup matches nothing, probe measurement
 // history so a just-created recipe isn't mistaken for a typo.
 const HISTORY_PROBE_DEBOUNCE_MS = 600
-// The endpoint pages by recency; 200 rows is plenty for an existence probe
-// and stays under the backend's limit clamp (DEFAULT_LIMIT * 10).
-const HISTORY_PROBE_LIMIT = 200
+// The backend clamps each page to DEFAULT_LIMIT * 10 and OpenSearch retrieval
+// to index.max_result_window. Scan that retrievable window deterministically.
+const HISTORY_PROBE_PAGE_SIZE = 500
+const HISTORY_PROBE_MAX_ROWS = 10_000
 
 const { searchMeasHist } = useMeasHistApi()
+
+const fallbackScopeKey = computed(() =>
+  canSearch.value
+    ? `${props.toolType}:${props.fab || 'ALL'}:${normalizedQuery.value}`
+    : ''
+)
 
 const historyProbeKey = computed(() =>
   shouldProbeRecipeFallback({
@@ -219,36 +227,117 @@ const historyProbeKey = computed(() =>
     catalogPending: pending.value,
     redisMatchCount: redisMatchedNames.value.length
   })
-    ? `${props.toolType}:${props.fab || 'ALL'}:${normalizedQuery.value}:${error.value ? 'redis-error' : 'redis-miss'}`
+    ? `${fallbackScopeKey.value}:${error.value ? 'redis-error' : 'redis-miss'}`
     : ''
 )
 
 let historyProbeTimer: ReturnType<typeof setTimeout> | undefined
 let historyProbeSeq = 0
 
+const clearFallbackResults = () => {
+  historyMatches.value = []
+  fallbackPending.value = false
+  fallbackSettled.value = false
+  fallbackFailed.value = false
+  fallbackTruncated.value = false
+}
+
+// A successful fallback belongs to one exact tool/fab/query scope. Redis
+// refreshes keep that snapshot visible; only a scope change invalidates it.
+watch(fallbackScopeKey, () => {
+  clearTimeout(historyProbeTimer)
+  ++historyProbeSeq
+  clearFallbackResults()
+})
+
+// Redis always wins. Once the refreshed catalog contains a match, discard the
+// fallback snapshot and cancel any logically stale OpenSearch scan.
+watch(redisMatchedNames, (names) => {
+  if (!names.length) return
+  clearTimeout(historyProbeTimer)
+  ++historyProbeSeq
+  clearFallbackResults()
+})
+
 watch(historyProbeKey, (key) => {
   clearTimeout(historyProbeTimer)
   const seq = ++historyProbeSeq
-  historyMatches.value = []
-  fallbackPending.value = Boolean(key)
-  fallbackSettled.value = false
-  fallbackFailed.value = false
-  if (!key) return
+  if (!key) {
+    fallbackPending.value = false
+    return
+  }
 
   const tokens = queryTokens.value
+  const queryAtProbe = query.value
+  const retainedResults = historyMatches.value.length > 0
+  fallbackPending.value = true
+  fallbackSettled.value = false
+  fallbackFailed.value = false
   historyProbeTimer = setTimeout(async () => {
     try {
-      const response = await searchMeasHist({
-        toolType: props.toolType,
-        fab: props.fab ? [props.fab] : undefined,
-        recipe: tokens,
-        limit: HISTORY_PROBE_LIMIT
-      })
+      const fullNames = new Set<string>()
+      let offset = 0
+      let truncated = false
+
+      while (offset < HISTORY_PROBE_MAX_ROWS) {
+        const response = await searchMeasHist({
+          toolType: props.toolType,
+          fab: props.fab ? [props.fab] : undefined,
+          recipe: tokens,
+          offset,
+          limit: HISTORY_PROBE_PAGE_SIZE
+        })
+        if (seq !== historyProbeSeq) return
+
+        const retrievableTotal = Math.min(
+          Math.max(response.total, 0),
+          HISTORY_PROBE_MAX_ROWS
+        )
+        truncated ||= response.capped || response.total > HISTORY_PROBE_MAX_ROWS
+
+        if (!response.rows.length) {
+          // An early empty page means the retrievable window was not fully
+          // inspected, so a zero-match outcome is incomplete rather than empty.
+          if (offset < retrievableTotal) truncated = true
+          break
+        }
+
+        response.rows.forEach(row => fullNames.add(row.full_name))
+        const matchedNames = matchingHistoryNames([...fullNames], tokens)
+        const rankedNames = rankRecipeMatches(
+          matchedNames.map(name => ({
+            value: name,
+            searchText: name.trim().toLowerCase()
+          })),
+          queryAtProbe
+        )
+        if (!retainedResults && rankedNames.length) {
+          historyMatches.value = rankedNames
+          fallbackTruncated.value = truncated
+        }
+
+        offset += response.rows.length
+        if (offset >= retrievableTotal) break
+      }
+
       if (seq !== historyProbeSeq) return
-      historyMatches.value = matchingHistoryNames(
-        response.rows.map(row => row.full_name),
-        tokens
+      const matchedNames = matchingHistoryNames([...fullNames], tokens)
+      const rankedNames = rankRecipeMatches(
+        matchedNames.map(name => ({
+          value: name,
+          searchText: name.trim().toLowerCase()
+        })),
+        queryAtProbe
       )
+      // Same-scope Redis retries revalidate in the background but never erase
+      // a previously usable fallback snapshot. A query/scope change or a Redis
+      // match is the explicit invalidation boundary above.
+      if (!retainedResults || rankedNames.length) {
+        historyMatches.value = rankedNames
+        fallbackTruncated.value = truncated
+      } else if (truncated) {
+        fallbackTruncated.value = true
+      }
     } catch {
       if (seq !== historyProbeSeq) return
       fallbackFailed.value = true
@@ -270,15 +359,43 @@ const viewState = computed(() => resolveRecipeSearchViewState({
   resultCount: filteredCount.value,
   fallbackPending: fallbackPending.value,
   fallbackSettled: fallbackSettled.value,
-  fallbackFailed: fallbackFailed.value
+  fallbackFailed: fallbackFailed.value,
+  fallbackTruncated: fallbackTruncated.value
 }))
 
-const fallbackMode = computed(() =>
-  !pending.value && (
-    Boolean(error.value)
-    || totalRows.value === 0
+const fallbackNoticeVisible = computed(() =>
+  canSearch.value
+  && redisResults.value.length === 0
+  && (
+    fallbackPending.value
+    || fallbackSettled.value
+    || fallbackFailed.value
+    || fallbackTruncated.value
     || activeSource.value === 'opensearch'
   )
+)
+
+const fallbackPartial = computed(() =>
+  activeSource.value === 'opensearch'
+  && (fallbackPending.value || fallbackTruncated.value || fallbackFailed.value)
+)
+
+const fallbackNoticeText = computed(() => {
+  if (activeSource.value === 'opensearch') {
+    return fallbackPartial.value
+      ? 'OpenSearch fallback 일부 결과를 표시합니다.'
+      : 'OpenSearch fallback 결과를 표시합니다.'
+  }
+  if (fallbackPending.value) return 'Redis 결과가 없어 OpenSearch fallback을 검색합니다.'
+  if (fallbackFailed.value) return 'OpenSearch fallback 검색을 완료하지 못했습니다.'
+  if (fallbackTruncated.value) return 'OpenSearch fallback 검색 범위가 제한되었습니다.'
+  return 'Redis 결과가 없어 OpenSearch fallback 검색을 완료했습니다.'
+})
+
+const fallbackBadgeLabel = computed(() =>
+  fallbackPartial.value
+    ? 'OpenSearch fallback · 일부 결과'
+    : 'OpenSearch fallback'
 )
 
 const columns: TableColumn<RecipeSearchResult>[] = [
@@ -318,6 +435,16 @@ const {
 } = useRecipeSelectionSet(props.toolType, props.fab)
 
 watch(recipeNames, names => promoteRedis(names), { immediate: true })
+
+const selectionGuidance = computed(() => {
+  if (
+    fallbackNoticeVisible.value
+    || (selected.value.length && (!capabilities.value.open || !capabilities.value.compare))
+  ) {
+    return '체크한 Recipe를 횡전개 또는 측정 이력에서 함께 볼 수 있습니다.'
+  }
+  return '체크한 Recipe를 한 번에 열거나 비교할 수 있습니다.'
+})
 
 const togglePageSelection = () => {
   const allSelected = pagedRows.value.length > 0
@@ -451,7 +578,11 @@ const openMeasHist = (row: RecipeSearchResult) => {
               v-if="canSearch"
               class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-(--sk-ink-muted)"
             >
-              <span>{{ filteredCount.toLocaleString() }}개 검색됨 · 체크한 Recipe를 한 번에 열거나 비교할 수 있습니다.</span>
+              <span>
+                {{ filteredCount.toLocaleString() }}개 검색됨
+                <template v-if="fallbackPartial"> (일부 결과)</template>
+                · {{ selectionGuidance }}
+              </span>
               <span
                 v-if="refinedCount > 0"
                 class="font-mono tabular-nums text-(--sk-ink-subtle)"
@@ -470,7 +601,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
               <span>검색어를 3자 이상 입력하면 결과가 표시됩니다 · 공백/_ 로 나눈 조각을 모두 포함하는 Recipe를 찾습니다.</span>
             </div>
             <div
-              v-if="fallbackMode"
+              v-if="fallbackNoticeVisible"
               class="mt-2.5 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
             >
               <span class="flex items-center gap-1.5">
@@ -478,10 +609,10 @@ const openMeasHist = (row: RecipeSearchResult) => {
                   name="i-lucide-database-zap"
                   class="h-3.5 w-3.5"
                 />
-                Redis 결과를 사용할 수 없어 OpenSearch fallback을 사용합니다.
+                {{ fallbackNoticeText }}
               </span>
               <UButton
-                v-if="error"
+                v-if="error && !pending"
                 size="xs"
                 color="neutral"
                 variant="ghost"
@@ -553,6 +684,22 @@ const openMeasHist = (row: RecipeSearchResult) => {
           </div>
 
           <div
+            v-else-if="viewState === 'fallback-incomplete'"
+            class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+          >
+            <UIcon
+              name="i-lucide-scan-search"
+              class="mx-auto h-6 w-6 text-amber-500"
+            />
+            <p class="mt-2 sk-body text-amber-700 dark:text-amber-300">
+              OpenSearch 검색 범위가 제한되어 결과 유무를 확정할 수 없습니다.
+            </p>
+            <p class="mt-1 sk-meta">
+              Recipe 이름을 더 구체적으로 입력해주세요.
+            </p>
+          </div>
+
+          <div
             v-else-if="viewState === 'sources-error'"
             class="dashboard-surface rounded-2xl px-6 py-12 text-center"
           >
@@ -588,7 +735,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
                   size="xs"
                   color="warning"
                   variant="soft"
-                  label="OpenSearch fallback"
+                  :label="fallbackBadgeLabel"
                 />
                 <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   <template v-if="isRefining">{{ refinedCount.toLocaleString() }} / {{ filteredCount.toLocaleString() }}</template>
