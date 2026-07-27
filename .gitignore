@@ -124,6 +124,10 @@ back_dev_home/**/writer/office.py.bak
 var/
 back_dev_home/msr_image/providers/office.py
 
+# scripts/probe_recipe_ftp.py dumps the .idp files it pulls off tool FTP here.
+# Real recipe payloads -- never committed.
+.ftp-probe/
+
 # Playwright test runner artifacts (the MCP session dumps live in .playwright-mcp/).
 # No leading slash, so this matches at any depth -- front-dev-home/test-results/
 # and any future workspace's included.
