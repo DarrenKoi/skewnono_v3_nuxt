@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Fab } from '~/stores/navigation'
-import type { RecipeSearchResponse, RecipeSearchRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
+import type { RecipeSearchResponse, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import {
+  activeRecipeResults,
   matchesRecipeQuery,
   matchingHistoryNames,
   rankRecipeMatches,
-  tokenizeRecipeQuery
+  resolveRecipeSearchViewState,
+  shouldProbeRecipeFallback,
+  toRecipeSearchResults,
+  tokenizeRecipeQuery,
+  type RecipeSearchResult
 } from '~/utils/recipeSearchMatch'
 
 const props = defineProps<{
@@ -76,16 +81,33 @@ const queryTokens = computed(() => tokenizeRecipeQuery(query.value))
 
 const searchableRows = computed(() => {
   return recipeNames.value.map(recipeName => ({
-    value: { recipe_name: recipeName } satisfies RecipeSearchRow,
+    value: recipeName,
     searchText: recipeName.trim().toLowerCase()
   }))
 })
 
-const filteredRows = computed<RecipeSearchRow[]>(() => {
+const redisMatchedNames = computed<string[]>(() => {
   if (!canSearch.value) return []
-
   return rankRecipeMatches(searchableRows.value, query.value)
 })
+
+const historyMatches = ref<string[]>([])
+const fallbackPending = ref(false)
+const fallbackSettled = ref(false)
+const fallbackFailed = ref(false)
+
+const redisResults = computed(() =>
+  toRecipeSearchResults(redisMatchedNames.value, 'redis')
+)
+const fallbackResults = computed(() =>
+  toRecipeSearchResults(historyMatches.value, 'opensearch')
+)
+const filteredRows = computed(() =>
+  activeRecipeResults(redisResults.value, fallbackResults.value)
+)
+const activeSource = computed(() =>
+  redisResults.value.length ? 'redis' : fallbackResults.value.length ? 'opensearch' : null
+)
 
 // In-table filter: live-narrows the coarse top-bar matches (AND composition),
 // so you can drill within a large result family without re-running the search.
@@ -188,39 +210,29 @@ const HISTORY_PROBE_DEBOUNCE_MS = 600
 // The endpoint pages by recency; 200 rows is plenty for an existence probe
 // and stays under the backend's limit clamp (DEFAULT_LIMIT * 10).
 const HISTORY_PROBE_LIMIT = 200
-// Shown in both the toast and the empty-state banner when the probe finds a
-// recipe redis hasn't caught up to yet — keep the wording in one place.
-const HISTORY_HINT = 'redis에는 없지만 측정 기록은 발견됩니다. (redis update 주기 1일)'
 
 const { searchMeasHist } = useMeasHistApi()
-const toast = useToast()
 
-const historyMatches = ref<string[]>([])
-
-// One summary format for both the toast and the empty-state banner: up to
-// `max` names joined by ', ', with any remainder rolled into a '외 N건' tail.
-const summarizeMatches = (names: string[], max = 3): string => {
-  const shown = names.slice(0, max).join(', ')
-  return names.length > max ? `${shown} 외 ${names.length - max}건` : shown
-}
-const historyMatchesLabel = computed(() => summarizeMatches(historyMatches.value))
-
-// Non-empty exactly when a settled zero-result search is on screen; doubles
-// as the probe's identity so stale responses and repeat toasts can be culled.
 const historyProbeKey = computed(() =>
-  canSearch.value && !pending.value && !error.value && filteredCount.value === 0
-    ? `${props.toolType}:${props.fab || 'ALL'}:${normalizedQuery.value}`
+  shouldProbeRecipeFallback({
+    canSearch: canSearch.value,
+    catalogPending: pending.value,
+    redisMatchCount: redisMatchedNames.value.length
+  })
+    ? `${props.toolType}:${props.fab || 'ALL'}:${normalizedQuery.value}:${error.value ? 'redis-error' : 'redis-miss'}`
     : ''
 )
 
 let historyProbeTimer: ReturnType<typeof setTimeout> | undefined
 let historyProbeSeq = 0
-let lastHistoryToastKey = ''
 
 watch(historyProbeKey, (key) => {
   clearTimeout(historyProbeTimer)
   const seq = ++historyProbeSeq
   historyMatches.value = []
+  fallbackPending.value = Boolean(key)
+  fallbackSettled.value = false
+  fallbackFailed.value = false
   if (!key) return
 
   const tokens = queryTokens.value
@@ -233,31 +245,43 @@ watch(historyProbeKey, (key) => {
         limit: HISTORY_PROBE_LIMIT
       })
       if (seq !== historyProbeSeq) return
-
-      const matches = matchingHistoryNames(response.rows.map(row => row.full_name), tokens)
-      historyMatches.value = matches
-
-      if (matches.length && lastHistoryToastKey !== key) {
-        lastHistoryToastKey = key
-        toast.add({
-          title: HISTORY_HINT,
-          description: summarizeMatches(matches),
-          icon: 'i-lucide-history',
-          color: 'warning'
-        })
-      }
+      historyMatches.value = matchingHistoryNames(
+        response.rows.map(row => row.full_name),
+        tokens
+      )
     } catch {
-      // Best-effort hint: a failed probe just means no notice, never an error UI.
+      if (seq !== historyProbeSeq) return
+      fallbackFailed.value = true
+    } finally {
+      if (seq === historyProbeSeq) {
+        fallbackPending.value = false
+        fallbackSettled.value = true
+      }
     }
   }, HISTORY_PROBE_DEBOUNCE_MS)
-  // immediate: setup awaits the catalog fetch, so on a deep link (?q=...) the
-  // key is already settled by the time this watcher registers — without it the
-  // probe would only ever run after further typing.
 }, { immediate: true })
 
 onBeforeUnmount(() => clearTimeout(historyProbeTimer))
 
-const columns: TableColumn<RecipeSearchRow>[] = [
+const viewState = computed(() => resolveRecipeSearchViewState({
+  canSearch: canSearch.value,
+  catalogPending: pending.value,
+  catalogFailed: Boolean(error.value),
+  resultCount: filteredCount.value,
+  fallbackPending: fallbackPending.value,
+  fallbackSettled: fallbackSettled.value,
+  fallbackFailed: fallbackFailed.value
+}))
+
+const fallbackMode = computed(() =>
+  !pending.value && (
+    Boolean(error.value)
+    || totalRows.value === 0
+    || activeSource.value === 'opensearch'
+  )
+)
+
+const columns: TableColumn<RecipeSearchResult>[] = [
   { id: 'select', header: '', size: 36 },
   { accessorKey: 'recipe_name', header: 'recipe_name', size: 500 },
   { id: 'open', header: '', size: 380 }
@@ -271,33 +295,46 @@ const tableUi = {
 
 const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/${subpath}`
 
-const getRecipeDetailRoute = (recipeName: string) =>
-  recipeDetailRoute(props.toolType, props.fab, 'open', recipeName)
+const getRecipeDetailRoute = (recipeName: string, source = sourceOf(recipeName)) =>
+  recipeDetailRoute(props.toolType, props.fab, 'open', recipeName, source)
 
-const getLateralRoute = (recipeName: string) =>
-  recipeDetailRoute(props.toolType, props.fab, 'lateral', recipeName)
+const getLateralRoute = (recipeName: string, source = sourceOf(recipeName)) =>
+  recipeDetailRoute(props.toolType, props.fab, 'lateral', recipeName, source)
 
-const getMeasHistRoute = (recipeName: string) =>
-  recipeDetailRoute(props.toolType, props.fab, 'meas-hist', recipeName)
+const getMeasHistRoute = (recipeName: string, source = sourceOf(recipeName)) =>
+  recipeDetailRoute(props.toolType, props.fab, 'meas-hist', recipeName, source)
 
-const { selected, has, toggle, remove, clear, count } = useRecipeSelectionSet(props.toolType, props.fab)
+const {
+  entries,
+  selected,
+  capabilities,
+  has,
+  toggle,
+  remove,
+  clear,
+  count,
+  sourceOf,
+  promoteRedis
+} = useRecipeSelectionSet(props.toolType, props.fab)
+
+watch(recipeNames, names => promoteRedis(names), { immediate: true })
 
 const togglePageSelection = () => {
-  const pageNames = pagedRows.value.map(row => row.recipe_name)
-  const allSelected = pageNames.length > 0 && pageNames.every(name => has(name))
+  const allSelected = pagedRows.value.length > 0
+    && pagedRows.value.every(row => has(row.recipe_name))
   if (allSelected) {
-    pageNames.forEach(name => remove(name))
+    pagedRows.value.forEach(row => remove(row.recipe_name))
   } else {
-    pageNames.forEach((name) => {
-      if (!has(name)) toggle(name)
+    pagedRows.value.forEach((row) => {
+      if (!has(row.recipe_name)) toggle(row.recipe_name, row.source)
     })
   }
 }
 
-const firstSelected = computed(() => selected.value[0] ?? '')
+const firstSelectedEntry = computed(() => entries.value[0] ?? null)
 
 const openSetCompare = () => {
-  if (count.value < 1) return
+  if (count.value < 1 || !capabilities.value.compare) return
   router.push({ path: recipeSubpath('compare') })
 }
 // Set-mode entry: tag the navigation with set=1 so the target view shows the
@@ -308,28 +345,34 @@ const withSetFlag = (target: { path: string, query: Record<string, string> }) =>
   query: { ...target.query, set: '1' }
 })
 const openSetDetail = () => {
-  if (firstSelected.value) router.push(withSetFlag(getRecipeDetailRoute(firstSelected.value)))
+  const first = firstSelectedEntry.value
+  if (first && capabilities.value.open) {
+    router.push(withSetFlag(getRecipeDetailRoute(first.name, first.source)))
+  }
 }
 const openSetLateral = () => {
-  if (firstSelected.value) router.push(withSetFlag(getLateralRoute(firstSelected.value)))
+  const first = firstSelectedEntry.value
+  if (first) router.push(withSetFlag(getLateralRoute(first.name, first.source)))
 }
 const openSetMeasHist = () => {
-  if (firstSelected.value) router.push(withSetFlag(getMeasHistRoute(firstSelected.value)))
+  const first = firstSelectedEntry.value
+  if (first) router.push(withSetFlag(getMeasHistRoute(first.name, first.source)))
 }
 
-const openRecipeDetail = (recipeName: string) => {
+const openRecipeDetail = (row: RecipeSearchResult) => {
+  if (row.source !== 'redis') return
   recordRecentSearch(query.value.trim())
-  router.push(getRecipeDetailRoute(recipeName))
+  router.push(getRecipeDetailRoute(row.recipe_name, row.source))
 }
 
-const openLateral = (recipeName: string) => {
+const openLateral = (row: RecipeSearchResult) => {
   recordRecentSearch(query.value.trim())
-  router.push(getLateralRoute(recipeName))
+  router.push(getLateralRoute(row.recipe_name, row.source))
 }
 
-const openMeasHist = (recipeName: string) => {
+const openMeasHist = (row: RecipeSearchResult) => {
   recordRecentSearch(query.value.trim())
-  router.push(getMeasHistRoute(recipeName))
+  router.push(getMeasHistRoute(row.recipe_name, row.source))
 }
 </script>
 
@@ -426,12 +469,32 @@ const openMeasHist = (recipeName: string) => {
               />
               <span>검색어를 3자 이상 입력하면 결과가 표시됩니다 · 공백/_ 로 나눈 조각을 모두 포함하는 Recipe를 찾습니다.</span>
             </div>
+            <div
+              v-if="fallbackMode"
+              class="mt-2.5 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              <span class="flex items-center gap-1.5">
+                <UIcon
+                  name="i-lucide-database-zap"
+                  class="h-3.5 w-3.5"
+                />
+                Redis 결과를 사용할 수 없어 OpenSearch fallback을 사용합니다.
+              </span>
+              <UButton
+                v-if="error"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                label="Redis Retry"
+                @click="refresh()"
+              />
+            </div>
           </div>
         </section>
 
         <main class="min-w-0">
           <div
-            v-if="pending"
+            v-if="viewState === 'catalog-loading'"
             class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
           >
             <UIcon
@@ -443,34 +506,25 @@ const openMeasHist = (recipeName: string) => {
             </p>
           </div>
 
-          <div
-            v-else-if="error"
-            class="dashboard-surface rounded-2xl px-6 py-12 text-center"
-          >
-            <UIcon
-              name="i-lucide-circle-alert"
-              class="mx-auto h-6 w-6 text-rose-500"
-            />
-            <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
-              Recipe 목록을 불러오지 못했습니다.
-            </p>
-            <UButton
-              class="mt-3"
-              size="sm"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-refresh-cw"
-              label="Retry"
-              @click="refresh()"
-            />
-          </div>
-
           <!-- Before a query exists the guidance lives inline in the lookup
                card above; render nothing here instead of a floating card. -->
-          <template v-else-if="!canSearch" />
+          <template v-else-if="viewState === 'idle'" />
 
           <div
-            v-else-if="filteredCount === 0"
+            v-else-if="viewState === 'fallback-loading'"
+            class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
+            />
+            <p class="mt-2">
+              OpenSearch에서 Recipe를 검색하는 중입니다.
+            </p>
+          </div>
+
+          <div
+            v-else-if="viewState === 'empty'"
             class="dashboard-surface rounded-2xl px-6 py-12 text-center"
           >
             <UIcon
@@ -478,30 +532,50 @@ const openMeasHist = (recipeName: string) => {
               class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
             />
             <p class="mt-2 sk-body">
-              검색 결과가 없습니다.
+              Redis와 OpenSearch에서 검색 결과를 찾지 못했습니다.
             </p>
             <p class="mt-1 sk-meta">
               다른 recipe 이름 조각을 입력해주세요.
             </p>
-            <div
-              v-if="historyMatches.length"
-              class="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-left dark:border-amber-500/30 dark:bg-amber-500/10"
-            >
-              <p class="flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                <UIcon
-                  name="i-lucide-history"
-                  class="h-3.5 w-3.5 shrink-0"
-                />
-                {{ HISTORY_HINT }}
-              </p>
-              <p class="mt-1 font-mono text-[11px] text-amber-800/80 dark:text-amber-200/80">
-                {{ historyMatchesLabel }}
-              </p>
-            </div>
+          </div>
+
+          <div
+            v-else-if="viewState === 'fallback-error'"
+            class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+          >
+            <UIcon
+              name="i-lucide-circle-alert"
+              class="mx-auto h-6 w-6 text-amber-500"
+            />
+            <p class="mt-2 sk-body text-amber-700 dark:text-amber-300">
+              OpenSearch fallback 검색을 완료하지 못했습니다.
+            </p>
+          </div>
+
+          <div
+            v-else-if="viewState === 'sources-error'"
+            class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+          >
+            <UIcon
+              name="i-lucide-circle-alert"
+              class="mx-auto h-6 w-6 text-rose-500"
+            />
+            <p class="mt-2 sk-body text-rose-600 dark:text-rose-300">
+              Redis와 OpenSearch 검색을 모두 사용할 수 없습니다.
+            </p>
+            <UButton
+              class="mt-3"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-refresh-cw"
+              label="Redis Retry"
+              @click="refresh()"
+            />
           </div>
 
           <section
-            v-else
+            v-else-if="viewState === 'results'"
             class="dashboard-surface rounded-2xl px-3.5 py-3"
           >
             <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -509,6 +583,13 @@ const openMeasHist = (recipeName: string) => {
                 <h2 class="sk-title">
                   Recipe results
                 </h2>
+                <UBadge
+                  v-if="activeSource === 'opensearch'"
+                  size="xs"
+                  color="warning"
+                  variant="soft"
+                  label="OpenSearch fallback"
+                />
                 <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   <template v-if="isRefining">{{ refinedCount.toLocaleString() }} / {{ filteredCount.toLocaleString() }}</template>
                   <template v-else>{{ filteredCount.toLocaleString() }}</template>
@@ -581,25 +662,34 @@ const openMeasHist = (recipeName: string) => {
                 <UCheckbox
                   :model-value="has(row.original.recipe_name)"
                   :aria-label="`${row.original.recipe_name} 선택`"
-                  @update:model-value="toggle(row.original.recipe_name)"
+                  @update:model-value="toggle(row.original.recipe_name, row.original.source)"
                 />
               </template>
 
               <template #recipe_name-cell="{ row }">
-                <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-                  {{ row.original.recipe_name }}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    {{ row.original.recipe_name }}
+                  </span>
+                  <span
+                    v-if="row.original.source === 'opensearch'"
+                    class="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                  >
+                    OpenSearch
+                  </span>
+                </div>
               </template>
 
               <template #open-cell="{ row }">
                 <div class="flex flex-wrap items-center gap-2.5">
                   <UButton
+                    v-if="row.original.source === 'redis'"
                     size="sm"
                     color="neutral"
                     variant="outline"
                     icon="i-lucide-file-search"
                     label="열어 보기"
-                    @click="openRecipeDetail(row.original.recipe_name)"
+                    @click="openRecipeDetail(row.original)"
                   />
                   <UButton
                     size="sm"
@@ -607,7 +697,7 @@ const openMeasHist = (recipeName: string) => {
                     variant="outline"
                     icon="i-lucide-network"
                     label="횡전개"
-                    @click="openLateral(row.original.recipe_name)"
+                    @click="openLateral(row.original)"
                   />
                   <UButton
                     size="sm"
@@ -615,7 +705,7 @@ const openMeasHist = (recipeName: string) => {
                     variant="outline"
                     icon="i-lucide-history"
                     label="측정 이력"
-                    @click="openMeasHist(row.original.recipe_name)"
+                    @click="openMeasHist(row.original)"
                   />
                 </div>
               </template>
@@ -721,6 +811,7 @@ const openMeasHist = (recipeName: string) => {
         <aside class="min-w-0">
           <EbeamRecipeCompareSearchSelectTray
             :selected="selected"
+            :capabilities="capabilities"
             @remove="remove"
             @clear="clear"
             @compare="openSetCompare"

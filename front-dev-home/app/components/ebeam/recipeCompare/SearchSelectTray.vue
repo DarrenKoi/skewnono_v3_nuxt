@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import type { RecipeSelectionCapabilities } from '~/utils/recipeSelection'
+
 defineProps<{
   selected: string[]
+  capabilities: RecipeSelectionCapabilities
 }>()
 
 const emit = defineEmits<{
@@ -80,6 +83,7 @@ const emit = defineEmits<{
 
     <div class="mt-4 grid grid-cols-2 gap-2">
       <UButton
+        v-if="!selected.length || capabilities.open"
         color="neutral"
         variant="outline"
         icon="i-lucide-file-search"
@@ -107,6 +111,7 @@ const emit = defineEmits<{
         @click="emit('measHist')"
       />
       <UButton
+        v-if="!selected.length || capabilities.compare"
         color="primary"
         variant="solid"
         icon="i-lucide-scale"
