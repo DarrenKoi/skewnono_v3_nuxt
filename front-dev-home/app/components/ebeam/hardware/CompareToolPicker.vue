@@ -18,9 +18,9 @@
       multiple
       ignore-filter
       :reset-search-term-on-select="false"
-      value-key="value"
-      :items="items"
+      :items="matches"
       :search-input="{ placeholder: '장비 ID 검색…' }"
+      placeholder="비교할 장비 선택"
       icon="i-lucide-plus"
       size="xs"
       class="min-w-[16rem] flex-1"
@@ -28,36 +28,17 @@
       :ui="{ itemTrailingIcon: 'hidden' }"
       @update:model-value="emit('update:modelValue', $event)"
     >
-      <!-- The stock trigger label resolves each picked value against `items`,
-           which is now the FILTERED list — so with a search active any pick
-           that doesn't match would silently drop out of the label, and if none
-           matched the trigger would fall back to the placeholder and read as
-           "nothing selected" while tools are in fact picked. Labelling straight
-           from modelValue sidesteps that; label === value === eqp id, so the
-           text is identical. `selectUi` is the component's own resolved class
-           set, so this restyles nothing. -->
-      <template #default="{ ui: selectUi }">
-        <span
-          v-if="modelValue.length > 0"
-          :class="selectUi.value()"
-        >{{ modelValue.join(', ') }}</span>
-        <span
-          v-else
-          :class="selectUi.placeholder()"
-        >비교할 장비 선택</span>
-      </template>
-
       <!-- Leading checkbox sits right before the tool name (no far-right gap);
            the default trailing check is hidden via :ui above. -->
       <template #item-leading="{ item }">
         <span
           class="flex h-4 w-4 items-center justify-center rounded border"
-          :class="modelValue.includes(item.value)
+          :class="modelValue.includes(item)
             ? 'border-(--sk-ink) bg-(--sk-ink) text-white dark:text-zinc-900'
             : 'border-(--sk-border)'"
         >
           <UIcon
-            v-if="modelValue.includes(item.value)"
+            v-if="modelValue.includes(item)"
             name="i-lucide-check"
             class="h-3 w-3"
           />
@@ -77,14 +58,14 @@
             :disabled="unpicked.length === 0"
             @click="selectMatches"
           >
-            {{ isSearching ? `검색 결과 ${matches.length}대 선택` : `전체 선택 ${matches.length}` }}
+            {{ isSearching ? `검색 결과 ${matches.length}대 선택` : `전체 ${matches.length}대 선택` }}
           </UButton>
           <UButton
             size="xs"
             color="neutral"
             variant="soft"
             icon="i-lucide-eraser"
-            :disabled="pickedMatches.length === 0"
+            :disabled="!hasPickedMatch"
             @click="clearMatches"
           >
             해제
@@ -127,24 +108,27 @@ const emit = defineEmits<{ 'update:modelValue': [ids: string[]] }>()
 // Esc still close it because Reka emits update:open through this binding.
 const menuOpen = ref(false)
 
-// Filtering is ours (`ignore-filter`), not USelectMenu's. The bulk buttons have
-// to act on exactly the rows on screen, and the only way those two sets cannot
-// disagree is for one array to be both. `reset-search-term-on-select` is off for
-// the same reason: the default wipes the search after every click, which would
-// drop the filter halfway through picking a family of tools.
+// We filter, not USelectMenu (`ignore-filter`) — see filterToolIds for why.
+// `reset-search-term-on-select` follows from the same requirement: the default
+// wipes the search after every click, which would drop the filter halfway
+// through picking a family of tools.
 const searchTerm = ref('')
 const isSearching = computed(() => searchTerm.value.trim().length > 0)
 
+// Items are plain ids: USelectMenu renders a string item as its own label and
+// value, so there is nothing for a {label, value} wrapper to add here.
 const matches = computed(() => filterToolIds(props.siblingIds, searchTerm.value))
-const items = computed(() => matches.value.map(id => ({ label: id, value: id })))
 
 // Both bulk actions are scoped to the matches: 전체 선택 unions them into the
 // existing picks so tools chosen under an earlier search survive, and 해제
 // subtracts only them. With an empty box the matches are every sibling, so 해제
 // still reads as a plain "clear all".
 const unpicked = computed(() => matches.value.filter(id => !props.modelValue.includes(id)))
-const pickedMatches = computed(() => matches.value.filter(id => props.modelValue.includes(id)))
+const hasPickedMatch = computed(() => matches.value.some(id => props.modelValue.includes(id)))
 
 const selectMatches = () => emit('update:modelValue', [...props.modelValue, ...unpicked.value])
-const clearMatches = () => emit('update:modelValue', props.modelValue.filter(id => !matches.value.includes(id)))
+const clearMatches = () => {
+  const dropped = matches.value
+  emit('update:modelValue', props.modelValue.filter(id => !dropped.includes(id)))
+}
 </script>

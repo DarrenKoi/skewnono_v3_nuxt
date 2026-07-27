@@ -86,10 +86,8 @@ const chartOption = computed<EChartsOption>(() => ({
       ? (tightYRange(yValues.value) ?? { scale: true })
       : (stableYRange(yValues.value, props.yOptions) ?? { scale: true })),
     axisLabel: { fontSize: 10 },
-    // Hardware parameters are mostly flat, so the y-range is tight and the
-    // theme's horizontal splitLines end up packed right behind a near-flat
-    // series, where they read as data. The time axis keeps its vertical lines:
-    // those anchor timestamps rather than competing with the values.
+    // Flat parameters + a tight y-range packs horizontal splitLines right
+    // behind the series, where they read as data. Vertical (time) lines stay.
     splitLine: { show: false }
   },
   dataZoom: [

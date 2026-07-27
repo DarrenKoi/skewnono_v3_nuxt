@@ -40,9 +40,9 @@ export const assignSeriesColors = (
 // only way the visible set and the bulk-action target cannot drift apart.
 // Nuxt UI's own matcher is not a public composable, so mirroring it would mean
 // importing from dist/runtime; a substring match is equivalent for ASCII tool ids.
+// A blank term needs no special case: every string contains ''.
 export const filterToolIds = (ids: readonly string[], term: string): string[] => {
   const needle = term.trim().toLowerCase()
-  if (!needle) return [...ids]
   return ids.filter(id => id.toLowerCase().includes(needle))
 }
 
