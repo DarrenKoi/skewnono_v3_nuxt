@@ -418,6 +418,10 @@ def build_response(
     return MsrFileResponse(
         msr=msr,
         class_name=resolved_class,
+        # The meas_hist _source carries eqp_ip (docs/datatables/meas_hist.txt),
+        # and _find_parent returns the whole _source — so the tool address the
+        # msr_image FTP session needs rides along at no extra query.
+        eqp_ip=_text(parent.get("eqp_ip")),
         total_images=_int(parent.get("total_images"), default=total_images or 0),
         sequence_count=sequences[-1] if sequences else 0,
         health=health,

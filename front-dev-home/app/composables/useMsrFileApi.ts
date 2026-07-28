@@ -113,6 +113,11 @@ export interface FdcParamSummary {
 export interface MsrFileResponse {
   msr: string
   class_name: string
+  // The measuring tool's IPv4 address — the third leg of the
+  // (eqp_ip, class_name, msr) address msr_image is fetched by. Resolved
+  // server-side from the parent meas_hist row, so an msr alone is enough to
+  // build an image URL. '' when the MSR has no parent row (unknown tool).
+  eqp_ip: string
   total_images: number
   sequence_count: number
   // Per-MSR abnormality scalar in [0, 1]; biases both CD drift and FDC drift.

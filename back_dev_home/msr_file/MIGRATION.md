@@ -33,6 +33,7 @@
   class MsrFileResponse(TypedDict):
       msr: str
       class_name: str
+      eqp_ip: str
       total_images: int
       sequence_count: int
       health: float
@@ -110,6 +111,16 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   pickle key if present else `fp-` fingerprint, `coordinate_transform_version`
   = pickle key or pinned `minio-pkl-v1`, `sequence_timestamp` = parent doc
   `start_time`.
+- `eqp_ip` is NOT in the pickle — it comes straight off the parent meas_hist
+  `_source` (`docs/datatables/meas_hist.txt`), which `_find_parent` already
+  fetches whole for `class_name`/`total_images`, so it costs no extra query.
+  It is the third leg of the `(eqp_ip, class_name, msr)` address `msr_image`
+  serves by, and it rides on this response so a caller holding only an `msr`
+  can still build an image URL — a measurement opened from a search hit or a
+  shared link is not in the meas_hist list the frontend caches, and reading
+  the tool address from that list is what used to blank every image on the
+  스큐보아 analysis page. `""` when the MSR has no parent row: an unknown tool
+  must read as unknown, never as a fabricated address.
 - Notes: office MUST emit the canonical metadata keys that mock forbids
   (`site_layout_hash`, `recipe_revision`, `coordinate_transform_version`,
   `sequence_timestamp`) — they unlock the layout-dependent analyses; see

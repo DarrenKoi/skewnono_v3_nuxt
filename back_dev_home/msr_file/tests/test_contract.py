@@ -14,6 +14,7 @@ Run from repo root:  .venv/bin/python -m pytest back_dev_home/msr_file
 
 import pytest
 
+from back_dev_home.meas_hist.providers import mock as meas_hist_mock
 from back_dev_home.msr_file.providers import mock
 
 
@@ -22,6 +23,10 @@ from back_dev_home.msr_file.providers import mock
 _MSR = "MSR-CONTRACT-0001"
 _CLASS = "ADI"
 _TOTAL_IMAGES = 40
+
+# A hand-seeded meas_hist row (providers/mock.py), so the parent lookup that
+# supplies the tool address has something stable to resolve against.
+_REAL_MSR = "20260509_ADI_CD_BIAS_001_6LD257421_ECXDX925"
 
 # Keys that must NEVER appear in the mock response — the office-gated canonical
 # metadata the analysis waits on. Checked against every dict in the payload.
@@ -70,6 +75,35 @@ def test_per_row_acquisition_fields_are_emitted(response):
     )
     for field in fields:
         assert field in response["rows"][0], f"rows[].{field} must be present"
+
+
+# ── The image-request tuple ──────────────────────────────────────────────────
+# msr_image is addressed by (eqp_ip, class_name, msr). The frontend used to read
+# eqp_ip off the meas_hist row it had cached from the landing list, so opening a
+# measurement that was NOT in that list (a search hit, a shared deep link) left
+# eqp_ip empty and every image on the analysis page rendered "이미지 없음". Both
+# adapters already load the parent meas_hist row to resolve class_name /
+# total_images, so the tool address rides along with it and the msr_file response
+# answers the whole tuple on its own.
+
+
+def test_tool_address_is_emitted_for_a_real_msr():
+    """eqp_ip completes the (eqp_ip, class_name, msr) msr_image address."""
+    parent = meas_hist_mock.find_meas_hist_by_msr(_REAL_MSR)
+    assert parent is not None, "fixture drift: _REAL_MSR is not a mock meas_hist row"
+
+    payload = mock.get_msr_file(_REAL_MSR)
+    assert payload is not None
+    assert payload["eqp_ip"] == parent["eqp_ip"], (
+        "msr_file must carry the parent row's eqp_ip so the image URL can be "
+        "built from the msr alone"
+    )
+    assert payload["class_name"] == parent["class_name"]
+
+
+def test_tool_address_is_empty_when_the_msr_has_no_parent(response):
+    """Synthesized MSRs have no meas_hist row — say so rather than inventing one."""
+    assert response["eqp_ip"] == ""
 
 
 def _iter_dicts(node):

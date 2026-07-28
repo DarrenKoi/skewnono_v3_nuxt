@@ -160,6 +160,10 @@ class SpmDict(TypedDict):
 class MsrFileResponse(TypedDict):
     msr: str
     class_name: str
+    # The measuring tool's IPv4 address, from the parent meas_hist row — the
+    # third leg of the (eqp_ip, class_name, msr) address msr_image is fetched
+    # by. "" when the MSR has no parent row. Mirrors contracts.MsrFileResponse.
+    eqp_ip: str
     total_images: int
     sequence_count: int
     health: float
@@ -806,6 +810,9 @@ def get_msr_file(
     return MsrFileResponse(
         msr=msr,
         class_name=class_name,
+        # Straight off the parent row (docs/datatables/meas_hist.txt: eqp_ip).
+        # A synthesized MSR has no parent, so no tool — "" is the honest answer.
+        eqp_ip=parent["eqp_ip"] if parent else "",
         total_images=total_images,
         sequence_count=rows[-1]["sequence"] if rows else 0,
         health=health,

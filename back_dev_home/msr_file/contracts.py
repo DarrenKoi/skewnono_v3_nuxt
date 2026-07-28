@@ -120,6 +120,14 @@ class SpmDict(TypedDict):
 class MsrFileResponse(TypedDict):
     msr: str
     class_name: str
+    # The tool that ran this measurement, as an IPv4 string — the third leg of
+    # the (eqp_ip, class_name, msr) address msr_image is fetched by. Carried
+    # here because both adapters already resolve the parent meas_hist row for
+    # class_name/total_images, so a caller holding only the msr can still build
+    # an image URL (a shared deep link, or a search hit that was never in the
+    # landing list the frontend caches). Empty string when the MSR has no parent
+    # row — an unknown tool must read as unknown, never as a fabricated address.
+    eqp_ip: str
     total_images: int
     sequence_count: int
     health: float
