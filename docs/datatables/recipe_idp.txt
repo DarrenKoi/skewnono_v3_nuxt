@@ -118,18 +118,53 @@ SEQ -> int64: image definition 순번
 Last_SEQ -> int64: 연결된 마지막 sequence 번호
 Region -> int64: region 번호
 image_add3 -> string: addressing image 3
-Addressing -> string: addressing 사용 여부
-Mother_Para -> string: 기준(parent) parameter 이름
+Addressing -> bool: addressing 사용 여부 (office 확인 2026-07-28)
+Mother_Para -> bool: **이 row 의 parameter 자신이 mother 인지** (office 확인 2026-07-28)
 Double_Addressing -> bool: double addressing 사용 여부
 Meas_Counting -> int64: 해당 parameter 의 측정 반복 수
-dnumber_removed -> int64: 제외된 d-number 개수
+dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-28)
+
+★ bool 3개 주의 (office 확인 2026-07-28) — Addressing, Mother_Para,
+  dnumber_removed 는 **진짜 bool dtype** 이며 cell 값은 True/False 입니다.
+  2026-07-28 이전 문서는 Addressing 을 "Yes"/"No" 문자열로, Mother_Para 를
+  parameter 이름 문자열로, dnumber_removed 를 int64 개수로 적어 두었고 mock 과
+  화면도 그렇게 만들어져 있었습니다. 셋 다 잘못된 기록이었습니다. 실제 파서를
+  돌려 보기 전까지 아무도 확인한 적이 없었기 때문이며, img_meas2 와 같은 종류의
+  사고가 이름이 아니라 **dtype** 을 통해 재현된 것입니다.
+
+★ Mother_Para 의 의미 (office 확인 2026-07-28) — 다른 parameter 를 가리키는
+  이름이 아닙니다. True 면 그 row 의 parameter 가 mother 이고, 보통 SEQ = 1 인
+  row 입니다. son parameter 들은 **mother 와 같은 image** 에서 자기 cd_value 를
+  얻습니다. 그래서 son 은 자기 image 를 따로 갖지 않아도 되고, img_* 슬롯이
+  parameter 수보다 적게 나올 수 있습니다.
+
+  OFFICE-VERIFY: "보통 SEQ = 1" 이 불변식인지 경향인지는 recipe 여러 건을 봐야
+  합니다. 불변식이 아니면 화면에서 son 을 mother 밑에 묶는 UI 는 쓸 수 없습니다.
+
+★ Region = wafer_mp_info.P_No (office 확인 2026-07-28) — 두 table 을 잇는 정수
+  key 가 이미 존재합니다. 현재 화면은 Parameter 문자열로 잇고 있습니다(아래
+  "wafer_mp_info ↔ idp_image_info 연결 key" 절 참고).
+
+★ D_No = -1 ⟺ dnumber_removed = True (office 확인 2026-07-28) — 같은 사실을
+  wafer_mp_info 는 measurement point 단위로, idp_image_info 는 parameter 단위로
+  적어 둔 것입니다. dnumber_removed = True 는 **d-number 가 제거되어 legacy
+  시스템으로 아무것도 보내지 않는다**는 뜻이며, 개수가 아닙니다. 화면에서 이
+  값을 정상(초록)으로 칠하면 운영자에게 정반대를 알려 주게 되므로 pill 은
+  ok-when=false 로 그립니다.
+
+★ img_* 5개는 내부용입니다 (office 확인 2026-07-28) — img_add1, img_add2,
+  img_meas1, img_meas2, image_add3 는 raw recipe / AMP(auto measurement
+  parameter) 데이터를 꺼내기 위한 **key** 이지 화면에 그대로 보여줄 컬럼이
+  아닙니다. 그래서 recipe open 의 parameter table 은 이 5개를 빼고 나머지
+  8개만 보여줍니다.
 
 ★ image 슬롯 컬럼 이름이 규칙적이지 않습니다 — `img_add1`, `img_add2` 다음이
   `img_add3` 이 아니라 **`image_add3`** 이고, 목록 순서상으로도 img_meas2 뒤에
   떨어져 있습니다. IDP 원본 표기이므로 그대로 씁니다.
 
-OFFICE-VERIFY: img_* 컬럼이 실제로 무엇을 담는지(파일명인지, 번호인지, 경로인지)는
-파싱 결과를 눈으로 확인해야 합니다. wafer_mp_info.img_meas2 가 이름과 달리 숫자였던
+OFFICE-VERIFY: img_* 컬럼이 담는 문자열이 파일명 그대로인지, 조립이 필요한
+key 인지는 아직 눈으로 확인하지 않았습니다. {idp_name}/ raw recipe 폴더를 실제로
+내려받아 대조해야 답이 나옵니다. wafer_mp_info.img_meas2 가 이름과 달리 숫자였던
 전례가 있으므로 이름만 보고 파일명이라고 단정하지 않습니다.
 
 집에서의 대역 (home stand-in, 2026-07-27)
@@ -232,8 +267,9 @@ wafer map 표시: wafer_mp_info 의 ChipNo_X, ChipNo_Y, P_No, D_No
 좌표 표시: Coordinate_X, Coordinate_Y, Coordinate_X_r, Coordinate_Y_r,
            Coordinate.X, Coordinate.Y
 align 표시: wafer_align_info 의 Align_No, Chip.X, Chip.Y, P.No
-parameter 표시: Parameter, Mother_Para, Region, Meas_Counting, Addressing,
-                Double_Addressing
+parameter 표시: Parameter, SEQ, Last_SEQ, Region, Addressing, Mother_Para,
+                Double_Addressing, Meas_Counting, dnumber_removed
+                (img_* 5개는 내부 key 이므로 제외 — idp_image_info 절 참고)
 
 wafer_mp_info ↔ idp_image_info 연결 key
 =======================================
@@ -242,12 +278,18 @@ wafer_mp_info ↔ idp_image_info 연결 key
 idp_image_info 에서 고른 row 의 Parameter 와 같은 값을 가진 wafer_mp_info row 만
 걸러 MP table 에 보여줍니다.
 
-대안이었던 "wafer_mp_info.img_meas2(=P_No) ↔ idp_image_info.Region" 은 쓰지
-않습니다. 두 컬럼이 같은 의미를 가리키는 것으로 보이지만, Parameter 로 이미
-연결되는 이상 숫자 key 를 추가로 신뢰할 이유가 없습니다.
+대안인 "wafer_mp_info.P_No ↔ idp_image_info.Region" 은 2026-07-28 에 **같은
+값임이 확인되었습니다**(office 확인). 2026-07-28 이전에는 "같은 의미로 보이지만
+Parameter 로 이미 연결되는 이상 숫자 key 를 추가로 신뢰할 이유가 없다"는 이유로
+쓰지 않기로 했었고, 그 판단의 전제(확인되지 않은 추측)가 사라진 셈입니다.
+
+아직 바꾸지 않았습니다. 정수 join 은 공백·대소문자로 어긋나지 않는다는 장점이
+있지만, 표본 recipe 1건이 아니라 모든 row 에서 Region↔P_No 가 성립하는지 먼저
+확인해야 하고, 바꿀지 둘 다로 이을지는 결정 사항입니다.
 
 OFFICE-VERIFY: 실제 파싱 결과에서 Parameter 값이 두 table 사이에 정확히 일치하는지
 (공백·대소문자 차이가 없는지) 확인합니다. 어긋나면 MP table 이 조용히 비어 보입니다.
+office adapter 는 이 경우를 이미 warning 으로 남기지만, 화면은 빈 table 로만 보입니다.
 
 MP table 표시 컬럼
 

@@ -160,7 +160,10 @@ export function buildIdpRows(recipes: CompareRecipe[], parameter: string): Matri
       const p = findParameter(recipe, parameter)
       if (!p) return MISSING
       const v = p.idp[field.key]
-      return v === null || v === undefined || v === '' ? '—' : String(v)
+      if (v === null || v === undefined) return '—'
+      // String(true) is 'true', but the open screen's BoolPill says 'True'.
+      // Format explicitly so one value does not read two ways across screens.
+      return typeof v === 'boolean' ? (v ? 'True' : 'False') : String(v)
     })
     return { key: String(field.key), label: field.label, values, differs: cellsDiffer(values) }
   })

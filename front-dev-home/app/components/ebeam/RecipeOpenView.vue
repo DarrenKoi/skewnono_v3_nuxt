@@ -89,13 +89,13 @@
               <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
                 {{ selectedIdp.Parameter }}
               </span>
-              <EbeamRecipeOpenYesNoPill :value="selectedIdp.Addressing" />
+              <EbeamRecipeOpenBoolPill :value="selectedIdp.Addressing" />
+              <!-- Mother_Para 는 다른 parameter 이름이 아니라 이 parameter 자신이
+                   mother 인지를 나타내는 flag 입니다. 참일 때만 표시합니다. -->
               <span
-                v-if="selectedIdp.Mother_Para && selectedIdp.Mother_Para !== '—'"
-                class="font-mono text-[11px] text-(--sk-ink-muted)"
-              >
-                ← {{ selectedIdp.Mother_Para }}
-              </span>
+                v-if="selectedIdp.Mother_Para"
+                class="inline-block rounded bg-(--sk-brand-soft) px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-(--sk-brand-ink)"
+              >MOTHER</span>
             </div>
             <div class="flex flex-wrap gap-1.5">
               <SkNavPill

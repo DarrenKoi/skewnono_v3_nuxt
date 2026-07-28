@@ -60,8 +60,8 @@ test('every IMAGE_SLOTS key resolves on a real idp_image_info row', () => {
     img_add1: 'a1.jpg', img_add2: 'a2.jpg', image_add3: 'a3.jpg',
     img_meas1: 'm1.jpg', img_meas2: 'm2.jpg',
     SEQ: 1, Last_SEQ: 3, Region: 0,
-    Addressing: 'Y', Mother_Para: 'CD', Double_Addressing: false,
-    Meas_Counting: 2, dnumber_removed: 0
+    Addressing: true, Mother_Para: true, Double_Addressing: false,
+    Meas_Counting: 2, dnumber_removed: false
   }
   assert.deepEqual(IMAGE_SLOTS.map(s => row[s.key]), [
     'a1.jpg', 'a2.jpg', 'a3.jpg', 'm1.jpg', 'm2.jpg'

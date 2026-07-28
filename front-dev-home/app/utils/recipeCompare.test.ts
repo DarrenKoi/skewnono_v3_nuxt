@@ -16,8 +16,8 @@ import type { AmpRow } from '../composables/useRecipeSearchApi.ts'
 const param = (name: string): CompareParameter => ({
   Parameter: name,
   idp: {
-    Addressing: 'Yes', Double_Addressing: false, Mother_Para: 'Para_1',
-    Region: 1, Meas_Counting: 1, dnumber_removed: 0
+    Addressing: true, Double_Addressing: false, Mother_Para: true,
+    Region: 1, Meas_Counting: 1, dnumber_removed: false
   },
   images: { img_add1: 'a1', img_add2: 'a2', image_add3: 'a3', img_meas1: 'm1', img_meas2: 'm2' },
   amp: []
@@ -74,7 +74,7 @@ const recipeWithAmp = (id: string, amp: AmpRow[]): CompareRecipe => ({
   recipe_id: id, fac_id: 'R3',
   parameters: [{
     Parameter: 'WAFER',
-    idp: { Addressing: 'Yes', Double_Addressing: false, Mother_Para: 'P1', Region: 5, Meas_Counting: 3, dnumber_removed: 0 },
+    idp: { Addressing: true, Double_Addressing: false, Mother_Para: true, Region: 5, Meas_Counting: 3, dnumber_removed: false },
     images: { img_add1: 'a1', img_add2: 'a2', image_add3: 'a3', img_meas1: `${id}_m1`, img_meas2: 'm2' },
     amp
   }]
@@ -110,13 +110,19 @@ test('buildIdpRows compares per-parameter fields', () => {
     recipeWithAmp('A', []),
     { recipe_id: 'B', fac_id: 'R3', parameters: [{
       Parameter: 'WAFER',
-      idp: { Addressing: 'Yes', Double_Addressing: false, Mother_Para: 'P1', Region: 8, Meas_Counting: 3, dnumber_removed: 0 },
+      idp: { Addressing: true, Double_Addressing: false, Mother_Para: true, Region: 8, Meas_Counting: 3, dnumber_removed: false },
       images: { img_add1: '', img_add2: '', image_add3: '', img_meas1: '', img_meas2: '' },
       amp: []
     }] }
   ], 'WAFER')
   assert.equal(rows.find(r => r.key === 'Region')!.differs, true)
   assert.equal(rows.find(r => r.key === 'Addressing')!.differs, false)
+})
+
+test('buildIdpRows spells booleans the way BoolPill does, not as String(true)', () => {
+  const rows = buildIdpRows([recipeWithAmp('A', [])], 'WAFER')
+  assert.deepEqual(rows.find(r => r.key === 'Addressing')!.values, ['True'])
+  assert.deepEqual(rows.find(r => r.key === 'dnumber_removed')!.values, ['False'])
 })
 
 test('imageFilenames returns per-recipe slot filename or null', () => {

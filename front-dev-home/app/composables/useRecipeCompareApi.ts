@@ -4,12 +4,12 @@ import type { ImageSlotKey } from '~/utils/recipeView'
 import { normalizeFab } from '~/utils/fab'
 
 export interface CompareIdpFields {
-  Addressing: string
+  Addressing: boolean
   Double_Addressing: boolean
-  Mother_Para: string
+  Mother_Para: boolean
   Region: number
   Meas_Counting: number
-  dnumber_removed: number
+  dnumber_removed: boolean
 }
 
 export interface CompareParameter {

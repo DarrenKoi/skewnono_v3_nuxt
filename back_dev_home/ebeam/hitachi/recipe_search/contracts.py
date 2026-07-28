@@ -69,11 +69,15 @@ IdpImageInfoRow = TypedDict("IdpImageInfoRow", {
     "Last_SEQ": int,
     "Region": int,
     "image_add3": str,
-    "Addressing": str,
-    "Mother_Para": str,
+    # Three real ``bool`` columns in the parser output (office 확인
+    # 2026-07-28). ``Mother_Para`` is NOT a parameter name: True means this
+    # row's own parameter is a mother, whose image its sons measure from.
+    # ``dnumber_removed`` True means the parameter's data is suppressed.
+    "Addressing": bool,
+    "Mother_Para": bool,
     "Double_Addressing": bool,
     "Meas_Counting": int,
-    "dnumber_removed": int
+    "dnumber_removed": bool
 })
 
 

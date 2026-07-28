@@ -14,12 +14,14 @@
     </div>
     <div :class="rowClass">
       <span :class="labelClass">Mother_Para</span>
-      <span :class="[valueClass, 'font-mono']">{{ row.Mother_Para }}</span>
+      <span :class="valueClass">
+        <EbeamRecipeOpenBoolPill :value="row.Mother_Para" />
+      </span>
     </div>
     <div :class="rowClass">
       <span :class="labelClass">Addressing</span>
       <span :class="valueClass">
-        <EbeamRecipeOpenYesNoPill :value="row.Addressing" />
+        <EbeamRecipeOpenBoolPill :value="row.Addressing" />
       </span>
     </div>
     <div :class="rowClass">
@@ -34,7 +36,12 @@
     </div>
     <div :class="rowClass">
       <span :class="labelClass">dnumber_removed</span>
-      <span :class="[valueClass, 'font-mono']">{{ row.dnumber_removed }}</span>
+      <span :class="valueClass">
+        <EbeamRecipeOpenBoolPill
+          :value="row.dnumber_removed"
+          :ok-when="false"
+        />
+      </span>
     </div>
   </div>
 </template>

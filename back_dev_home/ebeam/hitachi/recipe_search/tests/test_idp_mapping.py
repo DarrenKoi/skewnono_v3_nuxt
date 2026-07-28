@@ -95,11 +95,14 @@ def _image_frame(rows: int = 3) -> pd.DataFrame:
         "Last_SEQ": np.arange(2, rows + 2, dtype="int64"),
         "Region": np.arange(1, rows + 1, dtype="int64"),
         "image_add3": [f"IMG_ADD3_{i:04d}.jpg" for i in range(rows)],
-        "Addressing": (["Yes", "No"] * rows)[:rows],
-        "Mother_Para": ["Para_1"] * rows,
+        # numpy bools, not Python ones — that is what the parser hands back,
+        # and turning them into JSON-safe values is _scalar()'s job.
+        "Addressing": np.array([True, False] * rows, dtype="bool")[:rows],
+        # True means this row IS a mother, usually the SEQ 1 row.
+        "Mother_Para": np.arange(1, rows + 1, dtype="int64") == 1,
         "Double_Addressing": np.array([True, False] * rows, dtype="bool")[:rows],
         "Meas_Counting": np.arange(1, rows + 1, dtype="int64"),
-        "dnumber_removed": np.zeros(rows, dtype="int64"),
+        "dnumber_removed": np.array([False, True] * rows, dtype="bool")[:rows],
     })
 
 

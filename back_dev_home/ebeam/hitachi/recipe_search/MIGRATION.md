@@ -127,6 +127,18 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
   - A documented column the parser stopped emitting is **nulled, not dropped**
     (WARNING logged); an undocumented one it started emitting is **dropped**
     (INFO logged). Neither changes the response shape.
+- **`idp_image_info` dtypes corrected 2026-07-28** (office 확인, first real
+  `combined_idp_info()` output). `Addressing`, `Mother_Para` and
+  `dnumber_removed` are `bool`; they had been documented and mocked as a
+  `"Yes"`/`"No"` string, a parent parameter *name*, and an int64 count
+  respectively. `Mother_Para == True` means the row's own parameter is a
+  mother (usually `SEQ == 1`) whose image its sons measure from — it never
+  carried another parameter's name. `dnumber_removed == True` means the
+  parameter's data is suppressed and reaches no legacy system. The adapter
+  needed **no logic change**: `_scalar` already converts `numpy.bool_` via
+  `.item()`. Two cross-table invariants were confirmed at the same time and
+  are recorded but **not yet acted on**: `Region == wafer_mp_info.P_No`, and
+  `D_No == -1` ⟺ `dnumber_removed == True`.
 - **Writing this adapter at home:** `office_utils` exists only on office
   machines, so a stand-in package of the same name lives at the repo root and
   is **gitignored** (`/office_utils/`) — never commit it, or it shadows the

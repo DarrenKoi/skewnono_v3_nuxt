@@ -9,9 +9,9 @@ import {
 
 const row = (overrides: Partial<IdpImageInfoRow> = {}): IdpImageInfoRow => ({
   Parameter: 'P1', img_add1: '', img_add2: '', img_meas1: '', img_meas2: '',
-  SEQ: 1, Last_SEQ: 3, Region: 1, image_add3: '', Addressing: 'No',
-  Mother_Para: '—', Double_Addressing: false, Meas_Counting: 1,
-  dnumber_removed: 0, ...overrides
+  SEQ: 1, Last_SEQ: 3, Region: 1, image_add3: '', Addressing: false,
+  Mother_Para: false, Double_Addressing: false, Meas_Counting: 1,
+  dnumber_removed: false, ...overrides
 })
 
 test('defaults to stable SEQ ascending order and preserves source indices', () => {

@@ -229,11 +229,13 @@ def generate_idp_image_info(
             "Last_SEQ": seq + active_rng.randint(0, 5),
             "Region": p_no,
             "image_add3": f"IMG_ADD3_{seq:04d}.jpg",
-            "Addressing": active_rng.choice(["Yes", "No"]),
-            "Mother_Para": f"Para_{active_rng.randint(1, 5)}",
+            "Addressing": active_rng.choice([True, False]),
+            # A mother is the parameter whose image its sons measure from —
+            # usually the SEQ 1 row (office 확인 2026-07-28), not a name.
+            "Mother_Para": seq == 1,
             "Double_Addressing": active_rng.choice([True, False]),
             "Meas_Counting": active_rng.randint(1, 10),
-            "dnumber_removed": active_rng.randint(0, 3)
+            "dnumber_removed": active_rng.choice([True, False])
         })
 
     return data

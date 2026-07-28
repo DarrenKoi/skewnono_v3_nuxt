@@ -79,10 +79,10 @@
               {{ item.row.Region }}
             </td>
             <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 dark:border-zinc-800/60">
-              <EbeamRecipeOpenYesNoPill :value="item.row.Addressing" />
+              <EbeamRecipeOpenBoolPill :value="item.row.Addressing" />
             </td>
-            <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">
-              {{ item.row.Mother_Para }}
+            <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 dark:border-zinc-800/60">
+              <EbeamRecipeOpenBoolPill :value="item.row.Mother_Para" />
             </td>
             <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 dark:border-zinc-800/60">
               <EbeamRecipeOpenBoolPill :value="item.row.Double_Addressing" />
@@ -90,8 +90,13 @@
             <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">
               {{ item.row.Meas_Counting }}
             </td>
-            <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">
-              {{ item.row.dnumber_removed }}
+            <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 dark:border-zinc-800/60">
+              <!-- True = 데이터가 legacy 로 나가지 않음. ok-when=false 라야 그 행이
+                   컬럼에서 눈에 띄는 예외로 읽힙니다. -->
+              <EbeamRecipeOpenBoolPill
+                :value="item.row.dnumber_removed"
+                :ok-when="false"
+              />
             </td>
           </tr>
         </tbody>
@@ -131,7 +136,7 @@ const columns: readonly { key: RecipeOpenSortKey, label: string }[] = [
   { key: 'Mother_Para', label: 'Mother' },
   { key: 'Double_Addressing', label: 'Double' },
   { key: 'Meas_Counting', label: 'Cnt' },
-  { key: 'dnumber_removed', label: 'd#_rm' }
+  { key: 'dnumber_removed', label: 'd# 제거' }
 ]
 
 const sortKey = ref<RecipeOpenSortKey>(DEFAULT_RECIPE_OPEN_SORT.key)

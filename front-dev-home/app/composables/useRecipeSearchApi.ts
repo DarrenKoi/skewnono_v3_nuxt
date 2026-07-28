@@ -66,11 +66,13 @@ export interface IdpImageInfoRow {
   Last_SEQ: number
   Region: number
   image_add3: string
-  Addressing: string
-  Mother_Para: string
+  Addressing: boolean
+  /** True when this row's own parameter is a mother — sons measure from its image. */
+  Mother_Para: boolean
   Double_Addressing: boolean
   Meas_Counting: number
-  dnumber_removed: number
+  /** True when the parameter's data is suppressed and never reaches the legacy system. */
+  dnumber_removed: boolean
 }
 
 export type AmpRole = 'address' | 'measure'

@@ -36,11 +36,18 @@ instead of two: unlike lateral check (which resolves ``eqp_id -> eqp_ip``
 through sem_list), the measurement row already names the tool that ran the
 recipe, so the host it must be readable from is the host we just proved ran it.
 
-Column names are the contract, not a convenience — see
+Column names *and dtypes* are the contract, not a convenience — see
 ``docs/datatables/recipe_idp.txt``, which is the schema of record for all three
-tables and for this module's two known traps: ``wafer_align_info`` uses
-dot-columns (``Chip.X``, ``P.No``), and ``img_meas2`` means different things in
-``wafer_mp_info`` (P_No's integer) and ``idp_image_info`` (a filename).
+tables and for this module's three known traps: ``wafer_align_info`` uses
+dot-columns (``Chip.X``, ``P.No``); ``img_meas2`` means different things in
+``wafer_mp_info`` (P_No's integer) and ``idp_image_info`` (a filename); and
+``idp_image_info``'s ``Addressing``, ``Mother_Para`` and ``dnumber_removed``
+are ``bool`` (office 확인 2026-07-28) — until then they were documented as a
+``"Yes"``/``"No"`` string, a parameter name and an int64 count, and the screen
+was built on all three guesses. ``_scalar`` below turns the parser's
+``numpy.bool_`` into a Python ``bool``, so no coercion belongs here: if the
+parser's shape ever changes, it should break loudly rather than be normalised
+into plausible-looking wrong data.
 
 WRITING THIS AT HOME: ``office_utils`` exists only on office machines, so a
 gitignored stand-in of the same name sits at the repo root matching its
