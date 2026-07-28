@@ -314,13 +314,33 @@ class FakeIndices:
         self.created: list[tuple[str, dict]] = []
 
     def exists(self, index=None):
-        return index in self.payload
+        # `HEAD /<target>` resolves aliases as well as concrete indices --
+        # opensearch-py documents the argument as "data streams, indexes, and
+        # aliases". Answering False for an alias here (as this fake used to)
+        # hid a real failure: OSIndex.describe skips its exists_alias call
+        # whenever exists() is True, so against a live cluster a healthy
+        # rollover alias came back with is_alias=False and an empty rollover
+        # summary, and both the writer preflight and this script's own re-run
+        # guard rejected the alias they had just created.
+        return index in self.payload or index in self.alias_names
 
     def exists_alias(self, name=None):
         return name in self.alias_names
 
     def get(self, index=None):
-        return {name: self.payload[name] for name in index.split(",")}
+        resolved = {}
+        for name in index.split(","):
+            if name in self.payload:
+                resolved[name] = self.payload[name]
+                continue
+            resolved.update(
+                {
+                    idx: details
+                    for idx, details in self.payload.items()
+                    if name in details.get("aliases", {})
+                }
+            )
+        return resolved
 
     def get_alias(self, name=None, index=None):
         if name is not None:

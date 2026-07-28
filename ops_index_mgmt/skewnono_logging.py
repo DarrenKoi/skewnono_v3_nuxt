@@ -16,10 +16,15 @@ Every step is idempotent, so re-running is a safe no-op.
 import argparse
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
+
+# ISM computes the next backing index by incrementing a zero-padded suffix, so
+# a write index that does not end in digits can never be rolled over.
+NUMBERED_SUFFIX = re.compile(r".*-\d+$")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -247,16 +252,36 @@ def put_index_template(
     )
 
 
+def rollover_write_index(index_service: Any, alias: str) -> str | None:
+    """Return the alias's numbered write index, or None if it is not usable.
+
+    Deliberately avoids ``describe()["rollover"]``. ``OSIndex.describe`` only
+    consults ``exists_alias`` when ``indices.exists`` already said False -- but
+    ``HEAD /<target>`` resolves aliases too, so for a *healthy* rollover alias
+    ``indices.exists`` returns True, ``is_alias`` never moves off its ``False``
+    default, and the rollover summary comes back empty. That made a second run
+    of this script report the alias it had just created as unusable. The
+    per-alias entry under ``aliases`` is built from real cluster metadata and
+    is correct.
+    """
+    if not index_service.alias_exists(alias):
+        return None
+    summary = index_service.describe(alias).get("aliases", {}).get(alias, {})
+    write_index = summary.get("write_index")
+    if isinstance(write_index, str) and NUMBERED_SUFFIX.fullmatch(write_index):
+        return write_index
+    return None
+
+
 def ensure_rollover_index(
     client: Any,
     target: LoggingIndexTarget,
 ) -> dict[str, Any]:
     index_service = OSIndex(client=client, index=target.alias)
 
-    if index_service.exists(target.alias):
-        description = index_service.describe(target.alias)
-        rollover = description["rollover"]
-        if not rollover["ready"] or not rollover["uses_numbered_suffix"]:
+    if index_service.alias_exists(target.alias):
+        write_index = rollover_write_index(index_service, target.alias)
+        if write_index is None:
             raise RuntimeError(
                 f"{target.alias} already exists, but is not a rollover alias "
                 "with a numbered write index. Move or reindex it before "
@@ -265,8 +290,8 @@ def ensure_rollover_index(
         return {
             "created": False,
             "alias": target.alias,
-            "write_index": rollover["write_index"],
-            "description": description,
+            "write_index": write_index,
+            "description": index_service.describe(target.alias),
         }
 
     if index_service.exists(target.first_index, include_aliases=False):

@@ -10,6 +10,7 @@ import atexit
 import logging
 import os
 import queue
+import re
 import socket
 import sys
 import threading
@@ -57,14 +58,32 @@ class AliasNotReadyError(RuntimeError):
     """Raised when the configured write target is not a rollover alias."""
 
 
+_NUMBERED_SUFFIX = re.compile(r".*-\d+$")
+
+
+def rollover_write_index(index_service: Any, index: str) -> str | None:
+    """Return the alias's numbered write index, or None if it is not usable.
+
+    Deliberately avoids ``describe()["is_alias"]`` and its ``rollover``
+    summary. ``OSIndex.describe`` only consults ``exists_alias`` when
+    ``indices.exists`` already said False -- but ``HEAD /<target>`` resolves
+    aliases too, so for a *healthy* rollover alias ``indices.exists`` returns
+    True, ``is_alias`` is never computed off its ``False`` default, and the
+    rollover summary comes back empty. Asking ``exists_alias`` directly and
+    reading the per-alias entry (which ``_summarize_aliases`` builds from real
+    cluster metadata) gets the right answer on the same two round trips.
+    """
+    if not index_service.alias_exists(index):
+        return None
+    summary = index_service.describe(index).get("aliases", {}).get(index, {})
+    write_index = summary.get("write_index")
+    if isinstance(write_index, str) and _NUMBERED_SUFFIX.fullmatch(write_index):
+        return write_index
+    return None
+
+
 def _verify_rollover_alias(index_service: Any, index: str) -> None:
-    description = index_service.describe(index)
-    rollover = description.get("rollover", {})
-    if (
-        not description.get("is_alias")
-        or not rollover.get("ready")
-        or not rollover.get("uses_numbered_suffix")
-    ):
+    if rollover_write_index(index_service, index) is None:
         raise AliasNotReadyError(
             f"{index} is not a ready numbered rollover alias; "
             "run ops_index_mgmt/skewnono_logging.py at the office"

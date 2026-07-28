@@ -260,28 +260,46 @@ class _BulkRecorder:
 
 
 class _IndexDescription:
-    def __init__(self, description):
+    def __init__(self, description, *, is_alias=True):
         self.description = description
+        self._is_alias = is_alias
+
+    def alias_exists(self, _alias=None):
+        return self._is_alias
 
     def describe(self, _index):
         return self.description
 
 
-def _ready_index_factory(_client, _index):
+def _ready_index_factory(_client, index):
+    """A healthy rollover alias, described the way real ops_store describes it.
+
+    Note ``is_alias`` is False and the ``rollover`` summary is empty even
+    though this alias IS ready: ``OSIndex.describe`` only evaluates
+    ``exists_alias`` when ``indices.exists`` returned False, and ``HEAD
+    /<target>`` resolves aliases, so those two keys are unreliable for exactly
+    the healthy case. Encoded here so a preflight that trusts them fails this
+    test instead of failing at the office.
+    """
     return _IndexDescription(
         {
-            "is_alias": True,
-            "rollover": {"ready": True, "uses_numbered_suffix": True},
-        }
+            "is_alias": False,
+            "aliases": {
+                index: {
+                    "backing_indices": [f"{index}-000001"],
+                    "write_index": f"{index}-000001",
+                }
+            },
+            "rollover": {"ready": False, "uses_numbered_suffix": False},
+        },
+        is_alias=True,
     )
 
 
 def _plain_index_factory(_client, _index):
     return _IndexDescription(
-        {
-            "is_alias": False,
-            "rollover": {"ready": False, "uses_numbered_suffix": False},
-        }
+        {"is_alias": False, "aliases": {}, "rollover": {}},
+        is_alias=False,
     )
 
 
@@ -545,8 +563,12 @@ def test_existing_handler_for_another_target_is_rejected(
 class _Describer:
     """Index-service fake whose describe() answer is fixed at construction."""
 
-    def __init__(self, description):
+    def __init__(self, description, *, is_alias=True):
         self._description = description
+        self._is_alias = is_alias
+
+    def alias_exists(self, _alias=None):
+        return self._is_alias
 
     def describe(self, _index):
         return self._description
@@ -559,10 +581,12 @@ def _preflight_stderr(monkeypatch, handler):
     return stderr.getvalue()
 
 
-def _preflight_handler(description=None, client_factory=None):
+def _preflight_handler(description=None, client_factory=None, is_alias=True):
     handler = _ParkedShipper(
         index="skewnono_logging_local",
-        index_service_factory=lambda _client, _index: _Describer(description),
+        index_service_factory=lambda _client, _index: _Describer(
+            description, is_alias=is_alias
+        ),
     )
     if client_factory is not None:
         handler._client_factory = client_factory
@@ -575,7 +599,10 @@ def test_preflight_warns_when_the_alias_is_not_ready(monkeypatch):
     """The spec promises a startup warning, not a first-flush one: an operator
     who forgot the ops_index_mgmt run should learn it from the boot log, hours
     before the first request would have tried to ship."""
-    handler = _preflight_handler(description={"is_alias": False})
+    handler = _preflight_handler(
+        description={"is_alias": False, "aliases": {}, "rollover": {}},
+        is_alias=False,
+    )
     try:
         out = _preflight_stderr(monkeypatch, handler)
     finally:
@@ -585,11 +612,22 @@ def test_preflight_warns_when_the_alias_is_not_ready(monkeypatch):
 
 
 def test_preflight_is_silent_when_the_alias_is_ready(monkeypatch):
+    """Fed the description real ops_store returns for a healthy alias, which
+    reports `is_alias: False` and an empty rollover summary (see
+    `_ready_index_factory`). A preflight reading those keys warns here, which
+    is exactly what happened at the office on 2026-07-28."""
     handler = _preflight_handler(
         description={
-            "is_alias": True,
-            "rollover": {"ready": True, "uses_numbered_suffix": True},
-        }
+            "is_alias": False,
+            "aliases": {
+                "skewnono_logging_local": {
+                    "backing_indices": ["skewnono_logging_local-000001"],
+                    "write_index": "skewnono_logging_local-000001",
+                }
+            },
+            "rollover": {"ready": False, "uses_numbered_suffix": False},
+        },
+        is_alias=True,
     )
     try:
         out = _preflight_stderr(monkeypatch, handler)
@@ -597,6 +635,30 @@ def test_preflight_is_silent_when_the_alias_is_ready(monkeypatch):
         handler.close()
 
     assert out == ""
+
+
+def test_preflight_rejects_an_alias_whose_write_index_is_not_numbered(monkeypatch):
+    """ISM rolls by incrementing a zero-padded suffix, so an alias pointing at
+    a non-numbered write index can never roll no matter how healthy it looks."""
+    handler = _preflight_handler(
+        description={
+            "is_alias": False,
+            "aliases": {
+                "skewnono_logging_local": {
+                    "backing_indices": ["skewnono_logging_plain"],
+                    "write_index": "skewnono_logging_plain",
+                }
+            },
+            "rollover": {"ready": False, "uses_numbered_suffix": False},
+        },
+        is_alias=True,
+    )
+    try:
+        out = _preflight_stderr(monkeypatch, handler)
+    finally:
+        handler.close()
+
+    assert "not a ready numbered rollover alias" in out
 
 
 def test_preflight_bounds_a_connection_failure_to_its_type_name(monkeypatch):

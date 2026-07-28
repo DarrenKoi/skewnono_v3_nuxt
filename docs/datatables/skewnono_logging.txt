@@ -4,8 +4,8 @@ skewnono_logging / skewnono_logging_local — 제품 활동·운영 로그 (Open
 middleware(OpenSearchBulkHandler)가 쓰는 canonical log document이며, 스키마의
 진실 원천은 ops_index_mgmt/skewnono_logging.py 의 LOG_MAPPING_PROPERTIES 와
 docs/api-contracts/usage-events.yaml 입니다. 이 문서는 datatables 규약에 따라
-reader/writer가 함께 보는 요약본입니다. (user-confirmed 2026-07-27, cluster
-반영은 OFFICE-VERIFY — 회사에서 --environment all 실행 전)
+reader/writer가 함께 보는 요약본입니다. (mapping 은 user-confirmed 2026-07-27,
+cluster 반영은 office 확인 2026-07-28 — 회사에서 두 alias 를 실제로 생성했습니다)
 
 환경과 alias
 - office PC localhost -> alias skewnono_logging_local, 보존 rollover 후 30일
@@ -42,6 +42,28 @@ fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M1
 error_code -> keyword: HTTP status 또는 예외 타입 이름
 error_name -> keyword(최대 1,024자): bounded 오류 이름
 exception.type -> keyword / exception.message -> text / exception.stack -> text(32,768자)
+
+alias 판정 시 주의 (office 확인 2026-07-28)
+- OpenSearch 의 HEAD /<target> (indices.exists) 는 concrete index 뿐 아니라
+  alias 도 resolve 해서 200 을 돌려줍니다. ops_store.OSIndex.describe() 는
+  exists() 가 False 일 때만 exists_alias() 를 호출하므로, 정상적인 rollover
+  alias 에 대해 is_alias=False 와 빈 rollover 요약을 반환합니다.
+- 따라서 alias 건강성은 describe()["is_alias"] 나 describe()["rollover"] 로
+  판정하면 안 됩니다. exists_alias() 를 직접 부르고
+  describe()["aliases"][alias]["write_index"] 를 읽어야 정확합니다.
+  (_summarize_aliases 가 실제 cluster metadata 로 만든 값이라 정확합니다.)
+- 이 함정 때문에 2026-07-28 회사에서 alias 생성 직후 python index.py 가
+  "skewnono_logging_local is not a ready numbered rollover alias" 로 실패했고,
+  같은 원인으로 provisioning script 재실행도 거부되었습니다. 두 호출부
+  (_logging/opensearch_handler.py, ops_index_mgmt/skewnono_logging.py) 는
+  수정했지만 vendored ops_store.OSIndex.describe() 자체는 그대로이므로,
+  alias 를 다루는 새 코드는 같은 방식으로 우회해야 합니다.
+
+레거시 필드 (mapping 에 없음)
+- request_path 는 c11fbc2 이전 스키마가 쓰던 필드로 mapping 에 없습니다
+  (dynamic:false 이므로 색인되지 않고 _source 에만 남습니다). admin_logs 의
+  item_from_hit 은 path or request_path 순서로 fallback 하므로 과거 문서도
+  화면에는 정상 표시됩니다. 새 문서에는 절대 쓰지 않습니다.
 
 어댑터 소비 규약
 - 활동 지표(activity reader)는 event=request AND activity_weight=1 AND

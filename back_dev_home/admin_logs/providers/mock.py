@@ -1,3 +1,18 @@
+"""Network-free /admin/logs rows for home and automated tests.
+
+Stands in for a query against the ``skewnono_logging_local`` alias. The rows
+carry the same document shape ``_logging/opensearch_handler._record_to_doc``
+writes, because ``item_from_hit`` copies the whole ``_source`` into
+``LogItem["raw"]`` — a field missing here is a field the raw panel never shows
+at home but always shows at the office.
+
+Deliberate differences from real data: ``event_id`` and ``request_id`` are
+readable ``demo-*`` strings rather than UUIDs, timestamps are relative to now
+so the default time window always has hits, and one row carries the legacy
+``request_path`` field to exercise ``item_from_hit``'s fallback for documents
+written before ``c11fbc2``. See ``docs/datatables/skewnono_logging.txt``.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -129,6 +144,14 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "error_name": "Service Unavailable",
         },
     ]
+    # _record_to_doc puts these on EVERY document unconditionally, and
+    # request_id on every request log. Injected here rather than repeated in
+    # each literal above so the two lists cannot drift apart.
+    for position, row in enumerate(rows, start=1):
+        row.setdefault("event_id", f"demo-event-{position:04d}")
+        row.setdefault("service", "skewnono")
+        row.setdefault("deployment", "local")
+        row.setdefault("request_id", f"demo-req-{position:04d}")
     return rows
 
 
