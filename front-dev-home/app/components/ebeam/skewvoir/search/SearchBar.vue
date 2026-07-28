@@ -1,7 +1,7 @@
 <template>
   <div>
     <p class="mb-2 px-0.5 sk-meta">
-      검색<span v-if="retentionDays"> · 최근 {{ retentionDays }}일 보존</span>
+      검색
     </p>
     <div class="flex max-w-xl items-center gap-2">
       <UInput
@@ -80,10 +80,6 @@ const props = defineProps<{
   modelValue: string
   parsed: ParsedQuery
   pending?: boolean
-  // Optional: when the caller has the facets response in hand, show the
-  // retention window next to the search hint. Omitted, the hint just drops
-  // that segment rather than lying with a stale/hardcoded day count.
-  retentionDays?: number
   // True while facets haven't loaded (pending or errored) — see the Fix 4
   // comment below. Blocks the search action so it can't run against a
   // parser with no `known.eq` to check tokens against.

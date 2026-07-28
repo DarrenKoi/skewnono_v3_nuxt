@@ -10,7 +10,6 @@
               v-model="search.queryText.value"
               :parsed="search.parsed.value"
               :pending="search.pending.value"
-              :retention-days="search.retentionDays.value"
               :disabled="search.searchDisabled.value"
               @search="search.search"
             />
