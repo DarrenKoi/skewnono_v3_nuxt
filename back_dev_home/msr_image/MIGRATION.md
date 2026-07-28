@@ -56,6 +56,9 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | `SKEWNONO_TOOL_SUBNETS` | 허용 서브넷 CIDR 목록(쉼표 구분); SSRF 가드용 IP 검증에 사용 | 빈 값(제한 없음) |
 | `SKEWNONO_IMAGE_CACHE_BUCKET` | MinIO 캐시 버킷 | 없음(office에서 필수 설정) |
 | `SKEWNONO_IMAGE_CACHE_PREFIX` | MinIO 캐시 오브젝트 키 prefix | `image_cache/` |
+| `IMAGE_CACHE_DIR` | 홈/mock 디스크 캐시 루트(office에서는 사용하지 않음) | `var/image_cache` |
+| `IMAGE_CACHE_TTL_HOURS` | 캐시 보존 시간; 이보다 오래된 항목을 purge가 삭제 | `72` |
+| `IMAGE_CACHE_PURGE_HOUR` | 야간 purge cron 실행 시각(0–23) | `3` |
 | `SKEWNONO_MSR_IMAGE_MAX_JOBS` | 동시 실행 가능한 다운로드 job 수 | `2` |
 | `SKEWNONO_MSR_IMAGE_JOB_TTL` | job 상태 보존 시간(초); Redis 키 TTL로도 사용 | `3600` |
 | `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` | multi-worker job 상태 저장소; 설정 시에만 Redis 레지스트리 선택 | 없음 |
@@ -163,6 +166,12 @@ home/mock은 단일 프로세스이므로 `MemoryJobRegistry`를 그대로 유�
   `NotFound`가 아니라 `AccessDenied`로 응답됩니다(msr_file 스모크 테스트의
   raw exists 프로브가 이렇게 실패하는 것이 정상입니다).
 - 따라서 애플리케이션 레벨 purge가 유일한 정리 수단이며, 계속 유지합니다.
+- 혼동 주의: `IMAGE_CACHE_TTL_HOURS`/`IMAGE_CACHE_PURGE_HOUR`는 **MinIO 설정이
+  아니라 Flask 프로세스가 읽는 앱 환경 변수**입니다. MinIO 권한과 무관하므로
+  `.env`만 고치면 보존 기간을 조정할 수 있습니다. 저장 시각을 우리가 따로
+  기록할 필요도 없습니다 — `last_modified`는 PUT 시점에 MinIO 서버가 찍어
+  주고 일반 `list_objects` 응답으로 돌아오며, 이는 prefix 범위의 오브젝트
+  읽기 권한만 있으면 되는 작업입니다.
 
 ## 확인
 

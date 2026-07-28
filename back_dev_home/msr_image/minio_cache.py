@@ -91,7 +91,12 @@ class MinioImageCache:
         stale = [
             obj.object_name
             for obj in self.client.list(prefix=self.prefix, recursive=True)
-            if _as_utc(obj.last_modified) < cutoff
+            # An S3 "directory" entry (CommonPrefixes) carries last_modified=None.
+            # recursive=True means MinIO returns none of them today, so this is
+            # belt-and-braces -- but an ageless entry must be skipped, never
+            # deleted: without the guard _as_utc(None) raises and the whole
+            # nightly sweep dies before deleting anything.
+            if obj.last_modified is not None and _as_utc(obj.last_modified) < cutoff
         ]
         if not stale:
             return 0

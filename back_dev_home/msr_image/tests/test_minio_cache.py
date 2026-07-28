@@ -90,6 +90,27 @@ def test_purge_deletes_expired_by_last_modified():
     assert cache.get(LOC) is None
 
 
+def test_purge_skips_entries_without_last_modified():
+    """S3 "directory" entries (CommonPrefixes) carry last_modified=None.
+
+    purge() passes recursive=True so MinIO returns none of them today, but the
+    comprehension must not crash -- or delete a prefix marker -- if a listing
+    ever yields one.
+    """
+    cache, fake = _cache()
+    cache.put(LOC, IMG)
+    key = "image_cache/10.0.0.1/ADI/MSR_1/shot01.jpeg"
+    data, meta, _ = fake.store[key]
+    fake.store[key] = (data, meta, datetime.now(timezone.utc) - timedelta(hours=100))
+    real_list = fake.list
+    fake.list = lambda *a, **kw: (
+        obj for obj in [_Obj("image_cache/10.0.0.1/", None), *real_list(*a, **kw)]
+    )
+
+    assert cache.purge(ttl_hours=72) == 1
+    assert "image_cache/10.0.0.1/" not in fake.store
+
+
 class PrefixFake:
     """Models MinioBase's real prefix composition (use_prefix/_resolve_key),
     unlike FakeMinio above which stores by raw key. Used to prove
