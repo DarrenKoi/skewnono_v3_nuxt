@@ -180,11 +180,24 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     }
   }
 
+  // Which request currently owns the session refs. Needed because those refs
+  // now outlive the component: a response that arrives after the user opened a
+  // measurement no longer lands in a discarded ref, it lands in the one the
+  // next visit is reading. The damaging case is a `loadMore` still in flight
+  // when a row is opened — its `[...rows.value, ...res.rows]` would splice
+  // old-query rows onto whatever the next search returned, under that search's
+  // total. Every run claims a token; only the run still holding the newest one
+  // is allowed to write.
+  const requestToken = useState(key('request-token'), () => 0)
+
   const run = async (offset: number) => {
+    const token = requestToken.value + 1
+    requestToken.value = token
     pending.value = true
     error.value = null
     try {
       const res = await searchMeasHist(buildParams(offset))
+      if (token !== requestToken.value) return
       rows.value = offset === 0 ? res.rows : [...rows.value, ...res.rows]
       total.value = res.total
       capped.value = res.capped
@@ -192,9 +205,12 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     } catch {
       // Keep the current rows on failure — losing results to a transient blip
       // is worse than showing stale ones next to a retry.
+      if (token !== requestToken.value) return
       error.value = '검색에 실패했습니다.'
     } finally {
-      pending.value = false
+      // Only the newest request owns the spinner. A superseded one clearing it
+      // would report "done" while its replacement is still running.
+      if (token === requestToken.value) pending.value = false
     }
   }
 
@@ -244,6 +260,10 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   }
 
   const reset = () => {
+    // Supersede any in-flight request first, so its response can't repopulate
+    // the rows we are about to clear (and so its spinner stops with them).
+    requestToken.value += 1
+    pending.value = false
     queryText.value = ''
     narrowText.value = ''
     resetFilters()
