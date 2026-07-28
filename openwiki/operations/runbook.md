@@ -83,6 +83,18 @@ Live alarm has two independent local adapters. First copy `back_dev_home/ebeam/h
 
 Confirm `skewnono:live_alarm:*` keys and that each `meta.polled_at` advances before copying `providers/office_example.py` to Flask's ignored `providers/office.py`. Restart Flask, confirm `live_alarm` through `/api/health/providers`, then inspect the endpoint's `feed_status`: `stale` means the registered writer heartbeat stopped; `not_configured` means the fab is absent from the writer address map. The writer is portable by design and must not import `back_dev_home`; reader/writer member compatibility is pinned by `test_written_members_are_readable_by_the_reader`.
 
+## Recipe IDP office probe
+
+From the repository root, run the diagnostic without filters to inspect the newest measurement document and maximize the chance of reaching a real recipe file:
+
+```bash
+.venv/bin/python -m scripts.probe_recipe_ftp
+# Narrow deliberately when required:
+.venv/bin/python -m scripts.probe_recipe_ftp --tool hvsem --eqp MHV101 --date 2026-07-26
+```
+
+The probe queries measurement history, validates the tool IP, derives and lists the FTP path, downloads the `.idp`, parses `wafer_mp_info`, `wafer_align_info`, and `idp_image_info`, prints their columns and dtypes, and lists the raw-recipe directory. A parser failure preserves the downloaded file and traceback but returns a nonzero status. In a Python console, call `probe = main([])` or pass an explicit argument list; the returned `Probe` retains successful-stage evidence for inspection (`scripts/probe_recipe_ftp.py`). This procedure exercises the [recipe FTP integration](../integrations/integration-points.md#ftp-ingestion) without replacing its contract tests.
+
 ## Build, package, and cloud deployment
 
 Build and package the client-only SPA from the office working tree:
@@ -138,12 +150,14 @@ For a provider migration, rerun the feature contract gate with its office overri
 Logging writes and activity/admin-log reads share the target resolved from `SKEWNONO_LOG_ENV`; provider selection alone does not choose an alias. Before office activation, copy the tracked activity and admin-log adapters, review the read-only provisioning plan, then apply it only from an authorized company-network environment:
 
 ```bash
-.venv/bin/python ops_index_mgmt/skewnono_logging.py --environment all --dry-run
+.venv/bin/python ops_index_mgmt/skewnono_logging.py --dry-run
 # Mutates templates, policies, backing indices, and aliases after review:
-.venv/bin/python ops_index_mgmt/skewnono_logging.py --environment all
+.venv/bin/python ops_index_mgmt/skewnono_logging.py
 ```
 
-The expected write aliases are `skewnono_logging_local-000001 -> skewnono_logging_local` and `skewnono_logging-000001 -> skewnono_logging`. Restart Flask and inspect `GET /api/health/logging`: `installed: false` means the shipper was disabled or credentials were absent; an installed response exposes target, queue depth, retry/failure/drop totals, and last success/failure timestamps. Delivery failures never fail the originating request, so rising drops or a stale success timestamp are the operational alarm. By contrast, `/activity` and `/admin/logs` surface OpenSearch/configuration failures as `503 activity_query_failed` and `503 log_query_failed`; do not treat those as valid empty datasets. This rollout [activates the shared OpenSearch integration](../integrations/integration-points.md#opensearch), and real-data verification remains required before the migration ledger moves from implemented to office.
+A no-argument run provisions both local and production families; use `--environment local|production|all` only to target the run deliberately. The script best-effort loads the ignored backend environment when `OPENSEARCH_HOST` is not already exported.
+
+The expected write aliases are `skewnono_logging_local-000001 -> skewnono_logging_local` and `skewnono_logging-000001 -> skewnono_logging`. Validate an existing rollover target with `exists_alias()` plus the alias entry's numbered `write_index`; a generic `HEAD /<target>` also resolves aliases, so `OSIndex.describe()` may misreport a healthy alias as an index. Restart Flask and inspect `GET /api/health/logging`: `installed: false` means the shipper was disabled or credentials were absent; an installed response exposes target, queue depth, retry/failure/drop totals, and last success/failure timestamps. Delivery failures never fail the originating request, so rising drops or a stale success timestamp are the operational alarm. By contrast, `/activity` and `/admin/logs` surface OpenSearch/configuration failures as `503 activity_query_failed` and `503 log_query_failed`; do not treat those as valid empty datasets. This rollout [activates the shared OpenSearch integration](../integrations/integration-points.md#opensearch), and real-data verification remains required before the migration ledger moves from implemented to office.
 
 ## Troubleshooting
 
@@ -179,7 +193,7 @@ The chat egress guard rejected `CHAT_BASE_URL` because its host matches a built-
 
 ### Measurement images fail or receive 429
 
-All endpoints named `msr_image.*` are limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; unsafe class, MSR, and image-name path segments are also rejected before FTP access. `429 too_many_jobs` means the configured active-job cap was reached. The tracked office adapter selects the HTTP-proxy downloader on Windows and direct FTP elsewhere, but real office operation still requires an ignored `msr_image/providers/office.py`, a distinct MinIO cache prefix, and representative source verification. Gallery polling exposes whole-job listing errors separately from per-file failures; TIFF originals intentionally render as download links.
+All endpoints named `msr_image.*` are limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; unsafe class, MSR, and image-name path segments are also rejected before FTP access. `429 too_many_jobs` means the configured active-job cap was reached. The tracked office adapter selects the HTTP-proxy downloader on Windows and direct FTP elsewhere, but real office operation still requires an ignored `msr_image/providers/office.py`, a distinct MinIO cache prefix, and representative source verification. Gallery polling exposes whole-job listing errors separately from per-file failures; TIFF originals intentionally render as download links. Keep the external Airflow cache sweep's retention equal to `IMAGE_CACHE_TTL_HOURS` (168 hours by default); changing only the app window defeats the sweep's role as an app-downtime safety net.
 
 ### Rate limits or local state behave inconsistently across workers
 
