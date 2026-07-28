@@ -97,8 +97,9 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
         @app.get("/_nuxt/<name>")
         def _bundle(name):
             # Stands in for _spa/serving.py's found-a-real-file branch, which
-            # only ever runs on the cloud host.
-            setattr(g, "_spa_static_file", True)
+            # only ever runs on the cloud host. Spelled literally, like
+            # activity.py's own read, so this test needs no _spa import.
+            g._spa_static_file = True
             return "BUNDLE"
 
         @app.get("/deep/link")
