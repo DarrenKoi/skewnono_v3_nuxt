@@ -37,7 +37,8 @@ Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* and SKEWNONO_TOOL_FTP_*
 from back_dev_home/.env, like the adapters do):
 
     .venv/bin/python -m scripts.probe_recipe_ftp
-    .venv/bin/python -m scripts.probe_recipe_ftp --pick 2
+    .venv/bin/python -m scripts.probe_recipe_ftp --latest      # newest doc, no filters
+    .venv/bin/python -m scripts.probe_recipe_ftp --latest --pick 2
     .venv/bin/python -m scripts.probe_recipe_ftp --tool hvsem --eqp MHV101 --date 2026-07-26
 """
 
@@ -293,6 +294,8 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--eqp", default="MCD719", help="eqp_id.keyword term (default: MCD719)")
     p.add_argument("--date", default=today, help=f"KST day for the timestamp range (default: {today})")
     p.add_argument("--any-date", action="store_true", help="drop the timestamp range entirely")
+    p.add_argument("--latest", action="store_true",
+                   help="ignore --fab/--eqp/--date and take the newest document in the index")
     p.add_argument("--recipe", default=None, help="optional recipe_name substring filter")
     p.add_argument("--candidates", type=int, default=5, help="documents to fetch and print (default: 5)")
     p.add_argument("--pick", type=int, default=0, help="which candidate to probe (default: 0)")
@@ -308,14 +311,20 @@ def main() -> int:
         load_env_file("OPENSEARCH_HOST")
 
     index = _INDEX[args.tool]
-    date = None if args.any_date else args.date
-    print(f"index={index} fab={args.fab!r} eqp={args.eqp!r} date={date}")
+    # The three filters are ANDed and all defaulted, so the stock query is the
+    # narrow R3+MCD719+today. --latest drops all three: the sort is already
+    # timestamp desc, so candidate 0 becomes "whatever ran most recently", which
+    # is the highest-odds row when the goal is just to hold a real .idp.
+    fab = "" if args.latest else args.fab
+    eqp = "" if args.latest else args.eqp
+    date = None if (args.latest or args.any_date) else args.date
+    print(f"index={index} fab={fab!r} eqp={eqp!r} date={date}")
 
     client = create_client()
-    hits = _search(client, index, _query(args.fab, args.eqp, date, args.recipe), args.candidates)
+    hits = _search(client, index, _query(fab, eqp, date, args.recipe), args.candidates)
     if not hits:
         print(f"\nNo documents matched in {index}.")
-        _explain_no_hits(client, index, args.fab, args.eqp, date)
+        _explain_no_hits(client, index, fab, eqp, date)
         return 1
 
     _print_candidates(hits)
