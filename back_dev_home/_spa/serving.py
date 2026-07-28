@@ -1,7 +1,13 @@
-from flask import Flask, abort, send_from_directory
+from flask import Flask, abort, g, send_from_directory
 from werkzeug.exceptions import NotFound
 
 from .._runtime.env import spa_dir
+
+# Set on `g` when this mount answers with a real file out of the build dir.
+# `_logging/activity.py` reads it to skip logging asset traffic, and spells the
+# name literally rather than importing it, so `create_app` can keep deferring
+# this module's import behind `is_cloud()`. A test pins the two spellings.
+STATIC_FILE_FLAG = "_spa_static_file"
 
 
 def register_spa(app: Flask) -> None:
@@ -23,6 +29,7 @@ def register_spa(app: Flask) -> None:
             except NotFound:
                 pass
             else:
+                setattr(g, STATIC_FILE_FLAG, True)
                 # Nuxt content-hashes everything under _nuxt/, so those files
                 # never change in place — cache hard. index.html and public/
                 # assets keep Flask's default conditional (ETag) caching so a

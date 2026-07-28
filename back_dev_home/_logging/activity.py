@@ -110,6 +110,20 @@ def install_activity_logging(app: Flask) -> None:
 
     @app.after_request
     def _emit(response):
+        # Static files off the Phase 3 SPA mount are not activity. A cold load
+        # is 50-100+ bundle, font and icon requests that say nothing the API
+        # calls beside them do not, and on the cloud host they would sit in the
+        # index for the full 365-day retention.
+        #
+        # `_spa/serving.py` sets this ONLY when it served a real file, so the
+        # index.html fallback still logs — that covers app boot, a deep-link
+        # reload, and an unknown path. A *missing* asset takes the fallback
+        # too (send_from_directory raises NotFound, which the mount swallows),
+        # so nothing that could indicate a broken deploy is dropped here. The
+        # flag is only ever set on cloud, where register_spa is mounted.
+        if getattr(g, "_spa_static_file", False):
+            return response
+
         t0 = getattr(g, "_activity_t0", None)
         ms = round((time.perf_counter() - t0) * 1000) if t0 else -1
         user_id = getattr(g, "user_id", None)

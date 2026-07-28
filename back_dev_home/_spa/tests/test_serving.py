@@ -15,7 +15,7 @@ path must answer index.html, and ``/api/*`` must never be answered with it.
 import re
 
 import pytest
-from flask import Flask
+from flask import Flask, g
 
 from back_dev_home._runtime import env
 from back_dev_home._spa import serving
@@ -221,6 +221,77 @@ def test_spa_dir_matches_the_path_the_deploy_tooling_hardcodes():
     assert (root / "back_dev_home" / "_runtime" / "env.py").is_file()
     assert (root / "front-dev-home").is_dir()
     assert env.spa_dir() == root / "front-dev-home" / ".output" / "public"
+
+
+def _flag_capturing_client(build):
+    """A client that reports whether the mount flagged the request static.
+
+    The flag lives on `g`, so it has to be read inside the request — an
+    after_request hook registered after the mount is the same position the
+    real activity middleware occupies.
+    """
+    app = Flask(__name__, static_folder=None)
+
+    @app.get("/api/sem-list")
+    def _sem_list():
+        return {"rows": []}
+
+    serving.register_spa(app)
+    seen: list[bool] = []
+
+    @app.after_request
+    def _capture(response):
+        seen.append(getattr(g, serving.STATIC_FILE_FLAG, False))
+        return response
+
+    return app.test_client(), seen
+
+
+def test_only_a_real_file_is_flagged_static(build):
+    """What the logging skip keys on. Assets are flagged; everything answered
+    with index.html is not, so app boot and deep-link reloads keep logging."""
+    client, seen = _flag_capturing_client(build)
+
+    for path in ("/_nuxt/entry.abc12345.js", "/favicon.ico"):
+        client.get(path)
+        assert seen.pop() is True, path
+
+    for path in ("/", "/sem-list", "/ebeam/hitachi/storage"):
+        client.get(path)
+        assert seen.pop() is False, path
+
+
+def test_a_missing_asset_is_not_flagged_so_a_broken_deploy_stays_visible(build):
+    """send_from_directory raises NotFound for an absent file and the mount
+    swallows it into the index.html fallback — a 200, not a 404. Flagging that
+    as static would hide the one symptom a bad deploy produces."""
+    client, seen = _flag_capturing_client(build)
+
+    response = client.get("/_nuxt/never-built.99999999.js")
+
+    assert response.status_code == 200
+    assert INDEX_MARK in response.get_data(as_text=True)
+    assert seen.pop() is False
+
+
+def test_api_routes_are_never_flagged_static(build):
+    client, seen = _flag_capturing_client(build)
+
+    client.get("/api/sem-list")
+
+    assert seen.pop() is False
+
+
+def test_the_logging_middleware_reads_the_same_flag_name():
+    """Cross-module pin. `_logging/activity.py` spells the attribute literally
+    instead of importing it, so that `create_app` can keep deferring this
+    module behind is_cloud(). If the two drift, the skip silently stops
+    working and the cloud index fills with bundle requests again."""
+    source = (
+        env.project_root() / "back_dev_home" / "_logging" / "activity.py"
+    ).read_text(encoding="utf-8")
+
+    assert f'"{serving.STATIC_FILE_FLAG}"' in source
 
 
 def test_cache_control_year_is_a_real_max_age(client):

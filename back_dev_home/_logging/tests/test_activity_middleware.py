@@ -94,6 +94,18 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
         def _login():
             return "LOGIN"
 
+        @app.get("/_nuxt/<name>")
+        def _bundle(name):
+            # Stands in for _spa/serving.py's found-a-real-file branch, which
+            # only ever runs on the cloud host.
+            setattr(g, "_spa_static_file", True)
+            return "BUNDLE"
+
+        @app.get("/deep/link")
+        def _index_fallback():
+            # The other SPA branch: answered with index.html, flag NOT set.
+            return "INDEX"
+
         activity_mod.install_activity_logging(app)
         logger.addHandler(_Sink())
         return app.test_client()
@@ -305,3 +317,50 @@ def test_install_always_delegates_shipping_decision(monkeypatch, preserve_logger
 
     activity_mod.install_activity_logging(Flask(__name__))
     assert len(installs) == 1
+
+
+def test_a_static_file_from_the_spa_mount_is_not_logged_at_all(
+    make_app, records, recorded
+):
+    """Phase 3 only: on the cloud host Flask serves the built SPA, so one cold
+    page load is 50-100+ bundle, font and icon requests on top of the API
+    calls. They carry no information the API calls do not, and would occupy
+    the production index for its full 365-day retention.
+
+    Nothing at all is emitted — not the OpenSearch document and not the
+    stderr line — so the saving is index volume AND boot-log noise.
+    """
+    client = make_app(user_id="2067928")
+
+    client.get("/_nuxt/entry.abc12345.js")
+
+    assert records == []
+    assert recorded == []
+
+
+def test_the_index_html_fallback_is_still_logged(make_app, records):
+    """The other half of the cut. Everything answered with index.html keeps
+    logging: app boot, a deep-link reload, an unknown path, and — because the
+    mount swallows NotFound into the same fallback — a missing asset after a
+    bad deploy. Skipping by path prefix instead would have lost all four."""
+    client = make_app(user_id="2067928")
+
+    client.get("/deep/link")
+
+    record = _only(records, "request")
+    assert record.path == "/deep/link"
+    assert record.status == 200
+
+
+def test_the_skip_does_not_leak_into_the_next_request(make_app, records):
+    """`g` is request-scoped, but the flag is read with a bare getattr default
+    — assert a static request cannot suppress the API call that follows it on
+    the same client."""
+    client = make_app(user_id="2067928")
+
+    client.get("/_nuxt/entry.abc12345.js")
+    client.get("/api/sem-list?fab_name=M16")
+
+    record = _only(records, "request")
+    assert record.path == "/api/sem-list"
+    assert record.activity_weight == 1
