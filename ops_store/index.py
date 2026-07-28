@@ -113,10 +113,18 @@ class OSIndex(OSBase):
     ) -> dict[str, Any]:
         name = self._resolve_index(index)
         is_index = self.client.indices.exists(index=name)
-        is_alias = False
+        is_alias = self.client.indices.exists_alias(name=name)
 
-        if not is_index:
-            is_alias = self.client.indices.exists_alias(name=name)
+        if is_alias:
+            # `HEAD /<target>` resolves aliases as well as concrete indices,
+            # so `exists` above answers True for a healthy alias too. The
+            # alias API is the authoritative answer, and OpenSearch forbids an
+            # alias sharing a name with an index, so the two cannot both hold.
+            # Asking only when `exists` was False (as this did) left `is_alias`
+            # False for every existing alias, which in turn made
+            # `_build_rollover_summary` take its index branch and report a
+            # working rollover alias as `ready: False`.
+            is_index = False
 
         if not is_index and not is_alias:
             return {

@@ -255,14 +255,17 @@ def put_index_template(
 def rollover_write_index(index_service: Any, alias: str) -> str | None:
     """Return the alias's numbered write index, or None if it is not usable.
 
-    Deliberately avoids ``describe()["rollover"]``. ``OSIndex.describe`` only
-    consults ``exists_alias`` when ``indices.exists`` already said False -- but
-    ``HEAD /<target>`` resolves aliases too, so for a *healthy* rollover alias
-    ``indices.exists`` returns True, ``is_alias`` never moves off its ``False``
-    default, and the rollover summary comes back empty. That made a second run
-    of this script report the alias it had just created as unusable. The
-    per-alias entry under ``aliases`` is built from real cluster metadata and
-    is correct.
+    Reads the per-alias entry rather than ``describe()["rollover"]``. That
+    summary was wrong for every *existing* alias until ops_store was fixed:
+    ``describe`` consulted ``exists_alias`` only when ``indices.exists`` had
+    said False, but ``HEAD /<target>`` resolves aliases, so a healthy rollover
+    alias came back ``ready: False`` -- which made a second run of this script
+    reject the alias it had just created.
+
+    Fixed upstream in flask_modules ``56cff99`` and synced into this repo's
+    vendored copy. This stays because the script is meant to run standalone
+    from anywhere, including next to an older ops_store, and the per-alias
+    entry is correct under both versions.
     """
     if not index_service.alias_exists(alias):
         return None

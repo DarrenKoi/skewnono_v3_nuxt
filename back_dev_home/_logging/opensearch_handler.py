@@ -64,14 +64,19 @@ _NUMBERED_SUFFIX = re.compile(r".*-\d+$")
 def rollover_write_index(index_service: Any, index: str) -> str | None:
     """Return the alias's numbered write index, or None if it is not usable.
 
-    Deliberately avoids ``describe()["is_alias"]`` and its ``rollover``
-    summary. ``OSIndex.describe`` only consults ``exists_alias`` when
-    ``indices.exists`` already said False -- but ``HEAD /<target>`` resolves
-    aliases too, so for a *healthy* rollover alias ``indices.exists`` returns
-    True, ``is_alias`` is never computed off its ``False`` default, and the
-    rollover summary comes back empty. Asking ``exists_alias`` directly and
-    reading the per-alias entry (which ``_summarize_aliases`` builds from real
-    cluster metadata) gets the right answer on the same two round trips.
+    Reads the per-alias entry rather than ``describe()["is_alias"]`` or its
+    ``rollover`` summary. Those two were wrong for every *existing* alias
+    until ops_store was fixed: ``describe`` consulted ``exists_alias`` only
+    when ``indices.exists`` had said False, but ``HEAD /<target>`` resolves
+    aliases, so ``is_alias`` never left its ``False`` default and the rollover
+    summary came back empty for a perfectly healthy alias. That blocked Flask
+    boot at the office on 2026-07-28.
+
+    Fixed upstream in flask_modules ``56cff99`` and synced into this repo's
+    vendored copy, so ``describe()["rollover"]`` is now correct too. This stays
+    because it gives the same answer against either version of ops_store, on
+    the same two round trips -- worth keeping while home, office and cloud can
+    be running vendored copies taken at different times.
     """
     if not index_service.alias_exists(index):
         return None
