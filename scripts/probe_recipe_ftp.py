@@ -13,8 +13,17 @@ The chain, all from ONE meas_hist document:
       ├── eqp_ip      ────────────►  the FTP host
       ├── class_name  ──┐
       ├── idw_name    ──┼──────────► /HITACHI/DEVICE/HD/{class}/data/{idw}
-      └── idp_name    ──┘                 ├── {idp}.idp        ← downloaded
+      └── idp_name    ──┘                 ├── {idp}.idp        ← downloaded, then parsed
                                           └── {idp}/           ← listed only
+
+The downloaded file is then handed to the office parser, which is the only
+thing that can say what a .idp actually contains::
+
+    office_utils.read_idp_info.combined_idp_info(path) -> {
+        "wafer_mp_info":    DataFrame,   # one row per measurement point
+        "wafer_align_info": DataFrame,   # one row per wafer-align point
+        "idp_image_info":   DataFrame,   # one row per parameter/image definition
+    }
 
 ``eqp_ip`` living on the measurement document is what makes this a single query:
 unlike lateral check (which resolves ``eqp_id -> eqp_ip`` through sem_list), the
@@ -29,9 +38,10 @@ as a wrong string rather than an unexplained 550. When the primary path misses,
 ``_fallback_dirs`` re-probes plausible alternates and finally lists the parent
 ``data/`` directory, which reveals the real naming convention outright.
 
-Scope: download the .idp, LIST the raw-recipe folder. Parsing the .idp and
-mapping it onto RecipeDetailResponse is the next step, deliberately not here —
-we look at real bytes before committing to a shape.
+Scope: download the .idp, parse it, LIST the raw-recipe folder. Mapping the
+parsed frames onto RecipeDetailResponse stays out — that is the adapter's job
+(recipe_search/providers/office_example.py), and it wants real frames to be
+written against rather than assumed ones.
 
 Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* and SKEWNONO_TOOL_FTP_*
 from back_dev_home/.env, like the adapters do). Bare, it probes the newest
@@ -44,8 +54,10 @@ document in the index; every filter is opt-in:
 Nothing the run saw is thrown away: ``main()`` returns a ``Probe`` and
 ``__main__`` binds its fields at module scope, so breakpointing the closing
 ``sys.exit`` (or running the file with PyCharm's "Run with Python Console")
-hands the IDE ``hits``, ``doc``, ``idp_bytes``, ``idp_text`` and the listings
-rather than making you re-read stdout. Importable for the same reason:
+hands the IDE ``hits``, ``doc``, ``idp_bytes``, ``idp_text``, the listings and
+the three parsed frames — ``wafer_mp_info``, ``wafer_align_info`` and
+``idp_image_info`` are bound separately so "View as DataFrame" reaches them in
+one click. Importable for the same reason:
 
     from scripts.probe_recipe_ftp import main
     probe = main()          # sys.argv still supplies the filters
@@ -56,6 +68,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -305,6 +318,56 @@ def _preview(data: bytes, lines: int = 25) -> str:
     return "    binary (not text in utf-8/cp949/cp932); first 256 bytes:\n" + "\n".join(rows)
 
 
+# ── parse ─────────────────────────────────────────────────────────────────
+
+# What combined_idp_info() is documented to return (docs/datatables/recipe_idp.txt).
+# Named here only to notice a difference, never to enforce one — if the office
+# parser hands back something else, that IS the finding and the script says so.
+_IDP_TABLES = ("wafer_mp_info", "wafer_align_info", "idp_image_info")
+
+
+def _parse_idp(path: Path) -> tuple[dict[str, Any], str]:
+    """(tables, error) from the office parser; ({}, message) when it cannot run.
+
+    Imported inside the function on purpose: ``office_utils`` is gitignored and
+    exists only on the office PC (at home the repo-root copy is a fabricating
+    stand-in), so a module-scope import would make this whole script
+    unimportable anywhere else, cloud box included. Same rule the adapter in
+    recipe_search/providers/office_example.py follows.
+
+    Takes a path rather than the bytes we already hold because that is the
+    parser's signature — which forces the download to land on disk first, the
+    same ordering the adapter will have.
+
+    The error is returned instead of raised so a parser that blows up on a real
+    .idp still leaves the bytes, the path and the traceback on the Probe. A
+    traceback you can read beside the file that caused it is the whole point.
+    """
+    try:
+        from office_utils.read_idp_info import combined_idp_info
+    except ImportError as exc:
+        return {}, f"office_utils not importable ({exc}) — office PC only."
+    try:
+        return combined_idp_info(path), ""
+    except Exception:
+        return {}, traceback.format_exc()
+
+
+def _print_tables(tables: dict[str, Any], rows: int = 3) -> None:
+    """Shape, every column with its dtype, and the first few rows per table.
+
+    The dtype list is printed in full rather than summarised because column
+    names are the office contract: a drifted name passes at home against the
+    stand-in and only fails here, so this listing is the thing being checked.
+    """
+    for name, frame in tables.items():
+        print(f"\n    {name}  —  {len(frame)} rows x {len(frame.columns)} cols")
+        for column, dtype in frame.dtypes.items():
+            print(f"      {str(column):<20} {dtype}")
+        head = frame.head(rows).to_string(max_colwidth=20)
+        print("\n".join(f"      | {line}" for line in head.splitlines()))
+
+
 # ── result ────────────────────────────────────────────────────────────────
 
 
@@ -337,6 +400,8 @@ class Probe:
     encoding: str = ""                                        # "" when the payload is not text
     idp_text: str = ""                                        # decoded idp_bytes; "" when binary
     dest: Path | None = None                                  # where the .idp was written
+    tables: dict[str, Any] = field(default_factory=dict)      # combined_idp_info's three DataFrames
+    parse_error: str = ""                                     # traceback, if the parser raised
     raw_listing: list[str] | None = None                      # None = listing failed, [] = empty dir
     code: int = 1                                             # 0 only when the whole chain ran
 
@@ -452,7 +517,17 @@ def main() -> Probe:
     print(f"    OK {len(probe.idp_bytes):,} bytes -> {probe.dest}")
     print(_preview(probe.idp_bytes))
 
-    print(f"\n  [3] list raw_dir   {probe.raw_dir}   (listing only, no download)")
+    print(f"\n  [3] parse idp      combined_idp_info({probe.dest})")
+    probe.tables, probe.parse_error = _parse_idp(probe.dest)
+    if probe.parse_error:
+        print("\n".join(f"    {line}" for line in probe.parse_error.splitlines()))
+    else:
+        unexpected = set(probe.tables) ^ set(_IDP_TABLES)
+        if unexpected:
+            print(f"    NOTE: keys differ from the documented three: {sorted(unexpected)}")
+        _print_tables(probe.tables)
+
+    print(f"\n  [4] list raw_dir   {probe.raw_dir}   (listing only, no download)")
     probe.raw_listing = _list(dl, HostSpec, ListDir, probe.ip, probe.raw_dir)
     if probe.raw_listing is None:
         print("    listing failed — the raw-recipe folder may be named differently.")
@@ -460,7 +535,9 @@ def main() -> Probe:
         _print_listing(probe.raw_dir, probe.raw_listing, args.limit)
 
     print(f"\nDone. .idp saved under {args.out}/")
-    probe.code = 0
+    # A failed parse still leaves a downloaded file and three stages of findings,
+    # so the run is reported rather than aborted — but it is not a clean run.
+    probe.code = 1 if probe.parse_error else 0
     return probe
 
 
@@ -479,5 +556,14 @@ if __name__ == "__main__":
     idp_bytes = probe.idp_bytes
     idp_text = probe.idp_text
     dest = probe.dest
+
+    # The three parsed frames, each under its combined_idp_info key. Separate
+    # names because a DataFrame nested in a dict is two clicks deep in the
+    # variable pane, and these are what "View as DataFrame" is for. None when
+    # the run stopped before the parse.
+    tables = probe.tables
+    wafer_mp_info = tables.get("wafer_mp_info")
+    wafer_align_info = tables.get("wafer_align_info")
+    idp_image_info = tables.get("idp_image_info")
 
     sys.exit(probe.code)
