@@ -1,15 +1,14 @@
 <template>
   <div>
     <p class="mb-2 px-0.5 sk-meta">
-      검색 · <span class="font-semibold text-zinc-600 dark:text-zinc-300">장비 / Recipe / Lot / 날짜 / MSR</span>
-      · OpenSearch<span v-if="retentionDays"> · 최근 {{ retentionDays }}일 보존</span>
+      검색<span v-if="retentionDays"> · 최근 {{ retentionDays }}일 보존</span>
     </p>
     <div class="flex max-w-xl items-center gap-2">
       <UInput
         :model-value="modelValue"
         class="flex-1"
         icon="i-lucide-search"
-        placeholder="검색어를 입력하세요."
+        placeholder="장비 / Recipe / Lot / 날짜 / MSR"
         size="md"
         :loading="pending"
         :disabled="disabled"
