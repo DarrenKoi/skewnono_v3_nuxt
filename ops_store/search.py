@@ -4,9 +4,16 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 
-from opensearchpy.exceptions import NotFoundError
-
 from .base import OSBase
+
+
+def _is_not_found_error(error: Exception) -> bool:
+    try:
+        from opensearchpy.exceptions import NotFoundError
+    except ModuleNotFoundError:
+        return False
+
+    return isinstance(error, NotFoundError)
 
 
 @lru_cache(maxsize=1)
@@ -416,8 +423,10 @@ class OSSearch(OSBase):
         resolved_index = self._resolve_index(index)
         try:
             self._require_date_field(resolved_index, time_field)
-        except NotFoundError:
-            return None
+        except Exception as exc:
+            if _is_not_found_error(exc):
+                return None
+            raise
         body: dict[str, Any] = {
             "sort": [{time_field: {"order": "desc"}}],
             "size": size,
@@ -426,8 +435,10 @@ class OSSearch(OSBase):
             body["query"] = query
         try:
             return self.search_raw(body, index=resolved_index)
-        except NotFoundError:
-            return None
+        except Exception as exc:
+            if _is_not_found_error(exc):
+                return None
+            raise
 
     def latest_match_dataframe(
         self,

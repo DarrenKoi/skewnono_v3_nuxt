@@ -128,16 +128,22 @@ def test_injecting_a_client_never_constructs_a_real_one(monkeypatch):
         OSSearch(index="idx")
 
 
-def test_importing_the_package_eagerly_imports_opensearchpy():
-    """Import-time side effect, pinned deliberately — this one is real.
+def test_importing_the_package_does_not_require_opensearchpy():
+    """No import-time SDK dependency — matching ``minio_handler``.
 
-    Unlike ``minio_handler`` (which defers its SDK into a factory),
-    ``ops_store/search.py`` does ``from opensearchpy.exceptions import
-    NotFoundError`` at module scope, and ``ops_store/__init__.py`` imports
-    ``search``. So ``import ops_store`` hard-requires ``opensearchpy`` even for
-    a caller that only wants ``OSConfig`` or ``normalize_document``. No client
-    is constructed — the cost is a dependency, not a connection — but a home
-    process without the package installed cannot import ``ops_store`` at all.
+    This used to assert the opposite. ``ops_store/search.py`` did ``from
+    opensearchpy.exceptions import NotFoundError`` at module scope and
+    ``ops_store/__init__.py`` imports ``search``, so ``import ops_store``
+    hard-required ``opensearchpy`` even for a caller that only wanted
+    ``OSConfig`` or ``normalize_document``. Upstream moved that import into
+    ``_is_not_found_error``, which returns False when the package is absent
+    rather than exploding at import; ``base._opensearch_class`` and
+    ``document``'s ``helpers`` import were already deferred the same way.
+
+    So the whole package is now importable without the SDK, and only the calls
+    that actually talk to a cluster need it. Pinned in this direction so a
+    future edit that reintroduces a module-scope ``opensearchpy`` import — and
+    with it a hard dependency for every consumer — fails here.
 
     Run in a subprocess because this module imports ``ops_store`` at the top,
     so ``sys.modules`` is already populated in-process.
@@ -147,7 +153,7 @@ def test_importing_the_package_eagerly_imports_opensearchpy():
         [sys.executable, "-c", probe],
         cwd=_REPO_ROOT, capture_output=True, text=True, check=True,
     )
-    assert result.stdout.strip() == "True"
+    assert result.stdout.strip() == "False"
 
 
 def test_client_and_connection_overrides_are_mutually_exclusive():
