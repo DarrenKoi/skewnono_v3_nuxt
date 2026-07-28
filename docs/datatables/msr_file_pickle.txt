@@ -6,6 +6,27 @@ pickle(이 문서의 구조). 화면/adapter 는 minio_pkl 만 사용 (raw text 
 해석; 선두 세그먼트는 폴더이지 bucket 이 아님 — bucket/prefix 는
 minio_config.py 가 공급). minio_handler.MinioObject().get_pickle 로 로드.
 
+키 레이아웃 (user-confirmed 2026-07-28):
+
+    user / 2067928/hitachi_sem/{cdsem,hvsem}/{raw_msr,dict_pkl}/YYYY/MM/DD/<files>
+
+  - bucket 은 "user", "2067928/" 는 그 안의 prefix 입니다. bucket="2067928"
+    으로 접근하면 존재하지 않는 bucket 이므로 InvalidBucketName 이 납니다.
+  - 후처리 pickle 은 dict_pkl, raw text 원본은 raw_msr — 확장자가 아니라
+    **형제 폴더**로 갈립니다. 따라서 pickle 만 다루려는 작업은 파일명
+    필터가 아니라 폴더 단위로 범위를 잡아야 합니다.
+  - sensor(cdsem/hvsem) x kind(raw_msr/dict_pkl) = 부모 폴더 4개이며,
+    각각 그 아래가 YYYY/MM/DD 로 날짜 파티션되어 있습니다. 날짜가 키에
+    들어 있으므로 나이 기반 정리는 오브젝트를 전수 조회할 필요 없이
+    파티션 폴더 목록만 훑으면 됩니다 (flask_modules 의
+    airflow_mgmt/scripts/hitachi_sem_partition_purge.py).
+
+보존(retention): flask_modules 의 Airflow DAG `minio_purge_old_pickles` 가
+매일 04:05 KST 에 dict_pkl 파티션만 61일 기준으로 지웁니다. raw_msr 은
+건드리지 않습니다. 61 은 meas_hist 의 60일 조회 창에서 나온 값이며, 그 창은
+now 가 아니라 anchor=max(timestamp) 기준이라 적재 지연 L일이면 실질 여유가
+1-L일로 줄어듭니다 — 자세한 내용은 back_dev_home/msr_file/MIGRATION.md.
+
 =====
 
 "df_result_data" : pd.DataFrame

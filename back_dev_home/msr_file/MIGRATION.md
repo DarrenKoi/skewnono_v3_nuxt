@@ -149,19 +149,31 @@ what was measured — investigate the post-processing pipeline, not the adapter.
 `.MSR` 텍스트에서 되만드는 것은 금지되어 있습니다(후처리 파이프라인 중복).
 따라서 잘못 지운 픽클의 복구 수단은 상위 파이프라인 재실행뿐입니다.
 
-`flask_modules` 저장소의 Airflow DAG `minio_purge_old_pickles`(매일 04:05 KST)가
-`hitachi_sem/` 아래 **61일** 이상 된 픽클을 지웁니다. 61이라는 값은
-meas_hist 의 60일 조회 창(`RETENTION_DAYS`)에서 나온 것으로, 여유가 하루뿐인
-데다 그 창은 `now` 가 아니라 **anchor = max(timestamp)** 기준입니다. 적재가 L일
-밀리면 실질 여유는 `1 - L`일이 되므로, 적재 지연이 하루라도 상시화되면
-`RETENTION_DAYS` 를 반드시 올려야 합니다.
+키 레이아웃은 `user / 2067928/hitachi_sem/{cdsem,hvsem}/{raw_msr,dict_pkl}/
+YYYY/MM/DD/` 입니다(user-confirmed 2026-07-28, `docs/datatables/msr_file_pickle.txt`).
+pickle 과 raw 원본은 확장자가 아니라 **형제 폴더**로 갈리고, 그 아래가 날짜
+파티션이라는 두 가지가 정리 방식을 결정합니다.
 
-DAG 는 dry-run 기본값(`msr_pickle_purge_dry_run`)으로 배포되어 있습니다.
-`hitachi_sem/` 에는 raw `.MSR` 원본이 픽클과 함께 있으므로 prefix 자체가 보존
-단위가 아니며, DAG 의 `SUFFIX=".pkl"` 는 **아직 실제 저장소로 검증되지 않은
-placeholder** 입니다. dry-run 로그에 찍힌 실제 object 이름을 보고 값을 확정한
-뒤에 Variable 을 끄십시오. 이미지 캐시(7일, `2067928/image_cache/`)와는 prefix
-가 분리되어 있어 서로 건드리지 않습니다 — `msr_image/MIGRATION.md` 참고.
+`flask_modules` 저장소의 Airflow DAG `minio_purge_old_pickles`(매일 04:05 KST)가
+`dict_pkl` 파티션만 **61일** 기준으로 지웁니다. `kinds=("dict_pkl",)` 로 범위를
+잡으므로 `raw_msr` 원본은 필터로 걸러지는 것이 아니라 **애초에 순회 대상이
+아닙니다**. 또 날짜가 키에 들어 있으므로 오브젝트 전수 조회 없이 파티션 폴더만
+훑습니다.
+
+61이라는 값은 meas_hist 의 60일 조회 창(`RETENTION_DAYS`)에서 나온 것으로,
+여유가 하루뿐인 데다 그 창은 `now` 가 아니라 **anchor = max(timestamp)**
+기준입니다. 적재가 L일 밀리면 실질 여유는 `1 - L`일이 되므로, 적재 지연이
+하루라도 상시화되면 DAG 의 `RETENTION_DAYS` 를 반드시 올려야 합니다.
+
+주의 2가지가 있습니다. (1) DAG 는 dry-run 기본값(Airflow Variable
+`msr_pickle_purge_dry_run`)으로 배포되어 있으므로, 후보 목록을 확인한 뒤에
+Variable 을 끄십시오. (2) 같은 모듈의 일회성 스크립트
+(`hitachi_sem_partition_purge.py` 의 `__main__`)는 기본값이 **30일 · 두 kind
+전부**입니다. 그대로 실행하면 60일 창이 아직 서비스하는 픽클과 raw 원본까지
+지웁니다 — 회수(reclaim)용이지 이 정책이 아닙니다.
+
+이미지 캐시(7일, `2067928/image_cache/`)와는 prefix 가 분리되어 있어 서로
+건드리지 않습니다 — `msr_image/MIGRATION.md` 참고.
 
 ## Verify
 
