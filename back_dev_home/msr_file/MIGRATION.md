@@ -142,6 +142,27 @@ what was measured — investigate the post-processing pipeline, not the adapter.
 - Notes: same office metadata obligation as `/api/msr-file` applies to every
   item in `results`.
 
+## 픽클 보존(retention) — 이 앱은 읽기만 합니다
+
+`minio_pkl` 픽클은 **캐시가 아니라 원천 데이터**입니다. 이 어댑터는
+`MinioObject().get_pickle` 로 읽기만 하고 쓰지 않으며, 삭제된 픽클을 raw
+`.MSR` 텍스트에서 되만드는 것은 금지되어 있습니다(후처리 파이프라인 중복).
+따라서 잘못 지운 픽클의 복구 수단은 상위 파이프라인 재실행뿐입니다.
+
+`flask_modules` 저장소의 Airflow DAG `minio_purge_old_pickles`(매일 04:05 KST)가
+`hitachi_sem/` 아래 **61일** 이상 된 픽클을 지웁니다. 61이라는 값은
+meas_hist 의 60일 조회 창(`RETENTION_DAYS`)에서 나온 것으로, 여유가 하루뿐인
+데다 그 창은 `now` 가 아니라 **anchor = max(timestamp)** 기준입니다. 적재가 L일
+밀리면 실질 여유는 `1 - L`일이 되므로, 적재 지연이 하루라도 상시화되면
+`RETENTION_DAYS` 를 반드시 올려야 합니다.
+
+DAG 는 dry-run 기본값(`msr_pickle_purge_dry_run`)으로 배포되어 있습니다.
+`hitachi_sem/` 에는 raw `.MSR` 원본이 픽클과 함께 있으므로 prefix 자체가 보존
+단위가 아니며, DAG 의 `SUFFIX=".pkl"` 는 **아직 실제 저장소로 검증되지 않은
+placeholder** 입니다. dry-run 로그에 찍힌 실제 object 이름을 보고 값을 확정한
+뒤에 Variable 을 끄십시오. 이미지 캐시(7일, `2067928/image_cache/`)와는 prefix
+가 분리되어 있어 서로 건드리지 않습니다 — `msr_image/MIGRATION.md` 참고.
+
 ## Verify
 
     SKEWNONO_MSR_FILE_PROVIDER=office .venv/bin/pytest back_dev_home/msr_file/tests/test_contract_gate.py
