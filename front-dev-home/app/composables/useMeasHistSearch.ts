@@ -40,10 +40,14 @@ const shiftIso = (iso: string, days: number): string => {
   return dt.toISOString().slice(0, 10)
 }
 
-// No toolType parameter: skewvoir search always spans both SEM families
-// unless the 카테고리 filter narrows it (the per-route tool type only scopes
-// the workspace shell — recent items, selection — not the search itself).
-export const useMeasHistSearch = () => {
+// `toolType` keys the session state and NOTHING else — it never reaches
+// buildParams. The search itself still always spans both SEM families unless
+// the 카테고리 filter narrows it (the per-route tool type only scopes the
+// workspace shell — recent items, selection — not the search itself). It is
+// taken here for the same reason useSkewvoirSearchSelection takes it: the
+// CD-SEM and HV-SEM landings are separate screens, and arriving at one should
+// not show a session the user built on the other.
+export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   const { searchMeasHist } = useMeasHistApi()
   const { facets, pending: facetsPending, error: facetsError, known, anchor, retentionDays } = useMeasHistFacets()
   // Fleet table powering the dropdown cascade. Shares the app-wide 'sem-list'
@@ -62,8 +66,22 @@ export const useMeasHistSearch = () => {
   // from ever silently misclassifying an eq token while facets aren't ready.
   const searchDisabled = computed(() => facetsPending.value || Boolean(facetsError.value))
 
-  const queryText = ref('')
-  const narrowText = ref('')
+  // A search session is SPA-scoped, not component-scoped. Opening a row
+  // navigates to the analysis route, which unmounts SearchLanding — with plain
+  // `ref`s every part of the session (typed query, dropdown picks, the rows
+  // themselves) was rebuilt from scratch on the way back, so returning to pick
+  // a second measurement meant retyping and re-searching. `useState` keeps
+  // exactly one ref per key for the lifetime of the SPA, so the landing
+  // re-mounts onto the session it left.
+  //
+  // Session state, not persisted: a reload starts clean. The curated selection
+  // next door earns its localStorage (usePersistedState) by being a set the
+  // user assembled deliberately; a result page is just the last thing the
+  // backend said.
+  const key = (name: string) => `meas-hist-search:${toolType}:${name}`
+
+  const queryText = useState(key('query-text'), () => '')
+  const narrowText = useState(key('narrow-text'), () => '')
 
   // The retention window is anchored to the backend's declared clock, never to
   // wall-clock today — the Phase 1 mock's data ends at a frozen NOW.
@@ -72,7 +90,10 @@ export const useMeasHistSearch = () => {
     end: anchor.value
   }))
 
-  const filters = ref<MeasHistFilters>({ fab: [], category: [], model: [], eq: [], from: '', to: '' })
+  const filters = useState<MeasHistFilters>(
+    key('filters'),
+    () => ({ fab: [], category: [], model: [], eq: [], from: '', to: '' })
+  )
 
   // Cascaded dropdown options: FAB stays the full facet list (top of the
   // cascade); 카테고리/모델/EQ narrow as upstream picks land. The parser's
@@ -90,14 +111,17 @@ export const useMeasHistSearch = () => {
   // Chips render as you type — no round-trip needed to see how a token was read.
   const parsed = computed(() => parseMeasHistQuery(queryText.value, known.value))
 
-  const rows = ref<MeasHistRow[]>([])
-  const total = ref(0)
-  const capped = ref(false)
-  const outOfRetention = ref(false)
-  const pending = ref(false)
-  const error = ref<string | null>(null)
+  const rows = useState<MeasHistRow[]>(key('rows'), () => [])
+  const total = useState(key('total'), () => 0)
+  const capped = useState(key('capped'), () => false)
+  const outOfRetention = useState(key('out-of-retention'), () => false)
+  // A search still in flight when the user opens a row resolves into these
+  // shared refs, not a discarded component's — so it keeps its spinner and
+  // still lands its rows when they come back.
+  const pending = useState(key('pending'), () => false)
+  const error = useState<string | null>(key('error'), () => null)
   // False until the first search runs — drives the "type something" empty state.
-  const searched = ref(false)
+  const searched = useState(key('searched'), () => false)
 
   const hasActiveFilters = computed(() =>
     filters.value.fab.length > 0
@@ -236,6 +260,11 @@ export const useMeasHistSearch = () => {
   // picks the cascade no longer offers (a CD-SEM model surviving a switch to
   // HV-SEM would silently zero the search): the prune assignment re-fires
   // this watcher once, and that second pass — now a no-op prune — searches.
+  //
+  // The watcher stays bound to the calling component's scope even though the
+  // state above is now SPA-scoped: it is a side effect of a *mounted* search
+  // screen, and disposing it on unmount is what stops a dropdown change from
+  // firing a search into a page nobody is looking at.
   watch(() => filters.value, () => {
     const pruned = pruneCascadedFilters(filters.value, filterOptions.value)
     if (pruned) {

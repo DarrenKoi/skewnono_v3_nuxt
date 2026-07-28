@@ -121,10 +121,11 @@ const props = defineProps<{
 }>()
 
 const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
-// No toolType: the search spans both SEM families; the 카테고리 dropdown is
-// the only thing that narrows it to one index. The route's toolType keeps
-// scoping the workspace shell (recent items, selection) only.
-const search = useMeasHistSearch()
+// The toolType keys the search session so the CD-SEM and HV-SEM landings each
+// keep their own; it does NOT narrow the query. The search still spans both
+// SEM families, and the 카테고리 dropdown is the only thing that scopes it to
+// one index.
+const search = useMeasHistSearch(props.toolType)
 const selection = useSkewvoirSearchSelection(props.toolType)
 const recent = useSkewvoirRecentlyViewed(props.toolType)
 const recentOpen = ref(false)
