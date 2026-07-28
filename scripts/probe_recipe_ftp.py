@@ -40,6 +40,15 @@ document in the index; every filter is opt-in:
     .venv/bin/python -m scripts.probe_recipe_ftp
     .venv/bin/python -m scripts.probe_recipe_ftp --pick 2
     .venv/bin/python -m scripts.probe_recipe_ftp --tool hvsem --eqp MHV101 --date 2026-07-26
+
+Nothing the run saw is thrown away: ``main()`` returns a ``Probe`` and
+``__main__`` binds its fields at module scope, so breakpointing the closing
+``sys.exit`` (or running the file with PyCharm's "Run with Python Console")
+hands the IDE ``hits``, ``doc``, ``idp_bytes``, ``idp_text`` and the listings
+rather than making you re-read stdout. Importable for the same reason:
+
+    from scripts.probe_recipe_ftp import main
+    probe = main()          # sys.argv still supplies the filters
 """
 
 from __future__ import annotations
@@ -47,6 +56,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from platform import system
@@ -257,13 +267,17 @@ def _print_listing(remote_dir: str, paths: list[str], limit: int) -> None:
         print(f"      ... {len(paths) - limit} more (raise --limit to see all)")
 
 
-def _preview(data: bytes, lines: int = 25) -> str:
-    """Best-effort text view; hexdump when the bytes are not text.
+def _decode(data: bytes) -> tuple[str, str]:
+    """(encoding, text) for the first codec that reads as text; ("", "") if none.
 
     The .idp format is unknown — it may be an INI-ish text file, a Windows
     codepage text file (Hitachi tools are Japanese/Korean Windows), or a binary
     blob. Trying utf-8 then cp949 then cp932 before giving up means one run
     tells us which, instead of printing mojibake and looking like a failure.
+
+    Kept separate from _preview because the two answer different questions:
+    printing 25 lines is for reading the file now, the returned string is for
+    parsing it next, and only the second is worth keeping past the run.
     """
     for encoding in ("utf-8", "cp949", "cp932", "latin-1"):
         try:
@@ -272,8 +286,16 @@ def _preview(data: bytes, lines: int = 25) -> str:
             continue
         printable = sum(c.isprintable() or c in "\r\n\t" for c in text[:2000])
         if printable / max(1, len(text[:2000])) > 0.85:
-            head = "\n".join(f"      | {line}" for line in text.splitlines()[:lines])
-            return f"    decoded as {encoding}, {len(text.splitlines())} lines\n{head}"
+            return encoding, text
+    return "", ""
+
+
+def _preview(data: bytes, lines: int = 25) -> str:
+    """Best-effort text view; hexdump when the bytes are not text."""
+    encoding, text = _decode(data)
+    if encoding:
+        head = "\n".join(f"      | {line}" for line in text.splitlines()[:lines])
+        return f"    decoded as {encoding}, {len(text.splitlines())} lines\n{head}"
     dump = data[:256]
     rows = [
         f"      {i:04x}  {dump[i:i+16].hex(' '):<47}  "
@@ -281,6 +303,42 @@ def _preview(data: bytes, lines: int = 25) -> str:
         for i in range(0, len(dump), 16)
     ]
     return "    binary (not text in utf-8/cp949/cp932); first 256 bytes:\n" + "\n".join(rows)
+
+
+# ── result ────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class Probe:
+    """Everything one run touched, kept alive past main() so an IDE can open it.
+
+    A recon script's real output is not its stdout — it is the values behind it,
+    and each of those used to be a local that died on return. The fields below
+    are the run in the order it happened; ``__main__`` binds them at module
+    scope, so a breakpoint on the final ``sys.exit`` puts the whole chain in
+    PyCharm's variable pane.
+
+    Partially filled is the normal case, not an error: every early exit returns
+    the probe as far as it got, so a run that dies deriving a path still hands
+    back the candidates it derived it from.
+    """
+
+    index: str
+    query: dict[str, Any] = field(default_factory=dict)
+    hits: list[dict[str, Any]] = field(default_factory=list)  # Stage A, raw OpenSearch hits
+    doc: dict[str, Any] = field(default_factory=dict)         # _source of the picked candidate
+    ip: str = ""                                              # doc's eqp_ip, the FTP host
+    data_dir: str = ""                                        # Stage B derivations
+    idp_file: str = ""
+    raw_dir: str = ""
+    listing: list[str] = field(default_factory=list)          # entries under data_dir
+    fallback: str = ""                                        # _fallback_dirs label, if one saved the run
+    idp_bytes: bytes = b""                                    # Stage C, what RETR returned
+    encoding: str = ""                                        # "" when the payload is not text
+    idp_text: str = ""                                        # decoded idp_bytes; "" when binary
+    dest: Path | None = None                                  # where the .idp was written
+    raw_listing: list[str] | None = None                      # None = listing failed, [] = empty dir
+    code: int = 1                                             # 0 only when the whole chain ran
 
 
 # ── main ──────────────────────────────────────────────────────────────────
@@ -306,7 +364,7 @@ def _parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def main() -> int:
+def main() -> Probe:
     args = _parse_args()
     if not os.environ.get("OPENSEARCH_HOST"):
         load_env_file("OPENSEARCH_HOST")
@@ -318,82 +376,108 @@ def main() -> int:
     date = args.date or None
     print(f"index={index} fab={args.fab!r} eqp={args.eqp!r} date={date}")
 
+    # Built before the first call and returned from every exit below, so the
+    # values are inspectable at whichever stage the run actually stopped at.
+    probe = Probe(index=index, query=_query(args.fab, args.eqp, date, args.recipe))
+
     client = create_client()
-    hits = _search(client, index, _query(args.fab, args.eqp, date, args.recipe), args.candidates)
-    if not hits:
+    probe.hits = _search(client, index, probe.query, args.candidates)
+    if not probe.hits:
         print(f"\nNo documents matched in {index}.")
         _explain_no_hits(client, index, args.fab, args.eqp, date)
-        return 1
+        return probe
 
-    _print_candidates(hits)
-    if not 0 <= args.pick < len(hits):
-        print(f"\n--pick {args.pick} out of range (0..{len(hits) - 1})")
-        return 1
-    src = hits[args.pick].get("_source", {})
+    _print_candidates(probe.hits)
+    if not 0 <= args.pick < len(probe.hits):
+        print(f"\n--pick {args.pick} out of range (0..{len(probe.hits) - 1})")
+        return probe
+    probe.doc = src = probe.hits[args.pick].get("_source", {})
 
-    data_dir, idp_file, raw_dir = _derive(src)
+    probe.data_dir, probe.idp_file, probe.raw_dir = _derive(src)
 
-    ip = str(src.get("eqp_ip") or "").strip()
-    if not ip:
+    probe.ip = str(src.get("eqp_ip") or "").strip()
+    if not probe.ip:
         print("\neqp_ip missing on the document — cannot open an FTP session.")
-        return 1
+        return probe
     try:
         # The IP comes from OpenSearch rather than a client here, but the adapter
         # will apply this same guard, so a value that fails it is a finding now.
-        validate_tool_ip(ip)
+        validate_tool_ip(probe.ip)
     except Exception as exc:
-        print(f"\neqp_ip {ip!r} rejected by the tool-IP guard: {exc}")
-        return 1
+        print(f"\neqp_ip {probe.ip!r} rejected by the tool-IP guard: {exc}")
+        return probe
 
     cfg = load_config()
     FtpFleetDownloader, HostSpec, ListDir, mode = _transport(args.direct)
     dl = _downloader(FtpFleetDownloader, cfg)
-    print(f"\n=== Stage C: FTP {ip} (transport: {mode}, user={cfg.ftp_user}) ===")
+    print(f"\n=== Stage C: FTP {probe.ip} (transport: {mode}, user={cfg.ftp_user}) ===")
 
-    print(f"\n  [1] list data_dir  {data_dir}")
-    paths = _list(dl, HostSpec, ListDir, ip, data_dir)
+    print(f"\n  [1] list data_dir  {probe.data_dir}")
+    paths = _list(dl, HostSpec, ListDir, probe.ip, probe.data_dir)
     if paths:
-        _print_listing(data_dir, paths, args.limit)
+        probe.listing = paths
+        _print_listing(probe.data_dir, paths, args.limit)
     else:
         print("    nothing here — trying fallbacks")
         for label, alt in _fallback_dirs(src):
-            if alt == data_dir:
+            if alt == probe.data_dir:
                 continue
             print(f"    [fallback: {label}] {alt}")
-            alt_paths = _list(dl, HostSpec, ListDir, ip, alt)
+            alt_paths = _list(dl, HostSpec, ListDir, probe.ip, alt)
             if alt_paths:
+                probe.fallback, probe.listing = label, alt_paths
                 _print_listing(alt, alt_paths, args.limit)
                 print(f"    ^ THIS ONE WORKED — data_dir should be derived as: {label}")
                 break
         print("\n  Stopping before download: the derived data_dir was wrong.")
-        return 1
+        return probe
 
-    print(f"\n  [2] download idp   {idp_file}")
-    report = dl.download([HostSpec(ip, files=[idp_file])])
+    print(f"\n  [2] download idp   {probe.idp_file}")
+    report = dl.download([HostSpec(probe.ip, files=[probe.idp_file])])
     fetched = {f.remote_path: f.data for f in report.files}
-    if idp_file not in fetched:
+    if probe.idp_file not in fetched:
         for f in report.failures:
-            print(f"    FAIL {f.remote_path or idp_file}: {f.error}")
+            print(f"    FAIL {f.remote_path or probe.idp_file}: {f.error}")
         print("    .idp not retrieved — compare the name against the listing above.")
-        return 1
+        return probe
 
-    data = fetched[idp_file]
-    dest = Path(args.out) / str(src.get("eqp_id") or ip) / PurePosixPath(idp_file).relative_to("/")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
-    print(f"    OK {len(data):,} bytes -> {dest}")
-    print(_preview(data))
+    probe.idp_bytes = fetched[probe.idp_file]
+    probe.encoding, probe.idp_text = _decode(probe.idp_bytes)
+    probe.dest = (
+        Path(args.out) / str(src.get("eqp_id") or probe.ip)
+        / PurePosixPath(probe.idp_file).relative_to("/")
+    )
+    probe.dest.parent.mkdir(parents=True, exist_ok=True)
+    probe.dest.write_bytes(probe.idp_bytes)
+    print(f"    OK {len(probe.idp_bytes):,} bytes -> {probe.dest}")
+    print(_preview(probe.idp_bytes))
 
-    print(f"\n  [3] list raw_dir   {raw_dir}   (listing only, no download)")
-    raw_paths = _list(dl, HostSpec, ListDir, ip, raw_dir)
-    if raw_paths is None:
+    print(f"\n  [3] list raw_dir   {probe.raw_dir}   (listing only, no download)")
+    probe.raw_listing = _list(dl, HostSpec, ListDir, probe.ip, probe.raw_dir)
+    if probe.raw_listing is None:
         print("    listing failed — the raw-recipe folder may be named differently.")
     else:
-        _print_listing(raw_dir, raw_paths, args.limit)
+        _print_listing(probe.raw_dir, probe.raw_listing, args.limit)
 
     print(f"\nDone. .idp saved under {args.out}/")
-    return 0
+    probe.code = 0
+    return probe
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    probe = main()
+
+    # Unpacked at module scope for the IDE. In PyCharm, put a breakpoint on the
+    # sys.exit below and Debug: the pane then holds the whole run, and the
+    # Evaluate box can slice it (idp_text.splitlines()[:40], doc["idp_name"]).
+    # Ticking "Run with Python Console" in the run configuration leaves the same
+    # names at a live >>> prompt instead.
+    hits = probe.hits
+    doc = probe.doc
+    listing = probe.listing
+    raw_listing = probe.raw_listing
+    idp_bytes = probe.idp_bytes
+    idp_text = probe.idp_text
+    dest = probe.dest
+
+    sys.exit(probe.code)
