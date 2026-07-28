@@ -9,7 +9,7 @@
         :model-value="modelValue"
         class="flex-1"
         icon="i-lucide-search"
-        placeholder="예: ECXDX (장비 일부) 또는 6LD257421"
+        placeholder="검색어를 입력하세요."
         size="md"
         :loading="pending"
         :disabled="disabled"
