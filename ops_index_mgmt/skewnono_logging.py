@@ -4,14 +4,34 @@ Both aliases live on the same company OpenSearch cluster, use the connection
 settings loaded by :func:`ops_store.create_client`, and share one canonical
 mapping. Their retention policies differ so office-local diagnostics never
 mix with production activity.
+
+Run it as a plain script — no arguments provisions both environments::
+
+    .venv/bin/python ops_index_mgmt/skewnono_logging.py            # local + production
+    .venv/bin/python ops_index_mgmt/skewnono_logging.py --dry-run  # review first
+
+Every step is idempotent, so re-running is a safe no-op.
 """
 
 import argparse
 import json
+import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
-from ops_store import OSIndex, create_client
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+try:
+    from ops_store import OSIndex, create_client
+except ModuleNotFoundError:
+    # `python ops_index_mgmt/skewnono_logging.py` puts THIS file's directory on
+    # sys.path, not the repo root, so the sibling `ops_store` package is
+    # invisible. (`python -m ops_index_mgmt.skewnono_logging` gets the repo root
+    # for free from `-m`.) Add it back so both invocations work.
+    sys.path.insert(0, str(REPO_ROOT))
+    from ops_store import OSIndex, create_client
 
 Environment = Literal["local", "production"]
 
@@ -183,7 +203,25 @@ def build_initial_index_body(target: LoggingIndexTarget) -> dict[str, Any]:
     }
 
 
+def load_env_file() -> None:
+    """Load ``back_dev_home/.env`` so a bare script run finds OPENSEARCH_*.
+
+    The credentials this script needs live in the same .env the Flask app
+    factory loads, but nothing loads it for a standalone run. Best-effort:
+    an already-exported OPENSEARCH_HOST wins (``override=False``), and a
+    missing python-dotenv or .env just leaves the environment as it was.
+    """
+    if os.environ.get("OPENSEARCH_HOST"):
+        return
+    try:
+        from dotenv import load_dotenv
+    except ModuleNotFoundError:
+        return
+    load_dotenv(REPO_ROOT / "back_dev_home" / ".env")
+
+
 def create_skewnono_client() -> Any:
+    load_env_file()
     return create_client()
 
 
@@ -318,9 +356,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--environment",
-        required=True,
+        default="all",
         choices=("local", "production", "all"),
-        help="Logging index family to provision.",
+        help=(
+            "Logging index family to provision. Defaults to 'all' so a bare "
+            "run provisions both local and production."
+        ),
     )
     parser.add_argument(
         "--dry-run",

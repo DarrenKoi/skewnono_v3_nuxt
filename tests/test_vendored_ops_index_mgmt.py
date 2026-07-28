@@ -26,6 +26,8 @@ carries this repo's local/production logging families, so it is edited here
 like any other backend module.
 """
 
+import os
+
 import pytest
 
 from ops_index_mgmt import hitachi_sem_msr_info as sem_msr
@@ -224,7 +226,19 @@ def test_the_first_index_is_created_as_the_alias_write_index():
 def test_client_configuration_comes_only_from_ops_store(monkeypatch):
     sentinel = object()
     monkeypatch.setattr(logging_setup, "create_client", lambda: sentinel)
+    monkeypatch.setattr(logging_setup, "load_env_file", lambda: None)
     assert logging_setup.create_skewnono_client() is sentinel
+
+
+def test_an_exported_opensearch_host_is_never_overwritten_by_the_env_file(
+    monkeypatch,
+):
+    """The script self-loads ``back_dev_home/.env`` so a bare run finds
+    credentials, but an operator who exported a host on the command line is
+    pointing at a specific cluster on purpose."""
+    monkeypatch.setenv("OPENSEARCH_HOST", "exported.example")
+    logging_setup.load_env_file()
+    assert os.environ["OPENSEARCH_HOST"] == "exported.example"
 
 
 def test_the_dry_run_plan_lists_exactly_the_requests_the_real_run_sends():
@@ -263,9 +277,18 @@ def test_sem_msr_client_refuses_to_run_with_an_unset_password():
         sem_msr.create_skewnono_client()
 
 
-def test_environment_is_required_before_any_cluster_call():
+def test_a_bare_run_provisions_both_environments():
+    """The script is run by hand at the office as a plain file path. Requiring
+    ``--environment`` there bought nothing — both families live on the same
+    cluster and every step is idempotent — so the no-argument run is the one
+    the runbook actually wants."""
+    assert logging_setup.parse_args([]).environment == "all"
+    assert logging_setup.parse_args([]).dry_run is False
+
+
+def test_an_unknown_environment_is_still_refused():
     with pytest.raises(SystemExit):
-        logging_setup.parse_args([])
+        logging_setup.parse_args(["--environment", "staging"])
 
 
 def test_all_selects_local_then_production():
