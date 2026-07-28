@@ -30,7 +30,7 @@ class ImageConfig:
     cache_dir: str = "var/image_cache"
     cache_bucket: str | None = None
     cache_prefix: str = "image_cache/"
-    ttl_hours: int = 72
+    ttl_hours: int = 168
     purge_hour: int = 3
     job_ttl: int = 3600
     max_jobs: int = 2
@@ -50,7 +50,7 @@ def load_config(env: Mapping[str, str] | None = None) -> ImageConfig:
         cache_dir=env.get("IMAGE_CACHE_DIR", "").strip() or "var/image_cache",
         cache_bucket=env.get("SKEWNONO_IMAGE_CACHE_BUCKET", "").strip() or None,
         cache_prefix=env.get("SKEWNONO_IMAGE_CACHE_PREFIX", "").strip() or "image_cache/",
-        ttl_hours=_int(env, "IMAGE_CACHE_TTL_HOURS", 72),
+        ttl_hours=_int(env, "IMAGE_CACHE_TTL_HOURS", 168),
         purge_hour=_int(env, "IMAGE_CACHE_PURGE_HOUR", 3),
         job_ttl=_int(env, "SKEWNONO_MSR_IMAGE_JOB_TTL", 3600),
         max_jobs=_int(env, "SKEWNONO_MSR_IMAGE_MAX_JOBS", 2),
