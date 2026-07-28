@@ -57,10 +57,19 @@ Nothing the run saw is thrown away: ``main()`` returns a ``Probe`` and
 hands the IDE ``hits``, ``doc``, ``idp_bytes``, ``idp_text``, the listings and
 the three parsed frames — ``wafer_mp_info``, ``wafer_align_info`` and
 ``idp_image_info`` are bound separately so "View as DataFrame" reaches them in
-one click. Importable for the same reason:
+one click.
+
+To drive it by hand instead, pass the flags as a list — ``main()`` takes argv
+explicitly so a console session never has to own ``sys.argv``:
 
     from scripts.probe_recipe_ftp import main
-    probe = main()          # sys.argv still supplies the filters
+    probe = main([])                            # no filters, newest document
+    probe = main(["--eqp", "MCD719", "--pick", "1"])
+    mp = probe.wafer_mp_info                    # .wafer_align_info, .idp_image_info
+
+Running the whole file inside PyCharm's console works too: it detects the
+console, ignores pydevconsole's own argv, and skips the closing sys.exit so the
+names are simply left at the prompt.
 """
 
 from __future__ import annotations
@@ -405,11 +414,45 @@ class Probe:
     raw_listing: list[str] | None = None                      # None = listing failed, [] = empty dir
     code: int = 1                                             # 0 only when the whole chain ran
 
+    # The three frames by name. Worth the six lines because this is what a
+    # console session reaches for constantly: probe.wafer_mp_info autocompletes
+    # and reads as the parser's own key, where probe.tables["wafer_mp_info"] is
+    # a string literal you have to spell right. All None before the parse stage.
+
+    @property
+    def wafer_mp_info(self) -> Any:
+        """Measurement-point table, or None if the run stopped before parsing."""
+        return self.tables.get("wafer_mp_info")
+
+    @property
+    def wafer_align_info(self) -> Any:
+        """Wafer-align point table, or None if the run stopped before parsing."""
+        return self.tables.get("wafer_align_info")
+
+    @property
+    def idp_image_info(self) -> Any:
+        """Parameter/image definition table, or None if the run stopped before parsing."""
+        return self.tables.get("idp_image_info")
+
 
 # ── main ──────────────────────────────────────────────────────────────────
 
 
-def _parse_args() -> argparse.Namespace:
+def _in_pydev_console() -> bool:
+    """Are we running inside PyCharm's Python console rather than a shell?
+
+    It matters because sys.argv there belongs to pydevconsole, not to us
+    (``--mode=client --host=... --port=...``), so argparse rejects it and exits
+    2 before the probe starts — reported as ``pydevconsole.py: error:
+    unrecognized arguments``. Sniffing argv[0] is crude, but the alternative,
+    parse_known_args(), would also swallow a mistyped flag at a real shell and
+    silently run unfiltered, which is a worse failure than this one.
+    """
+    return Path(sys.argv[0]).name in ("pydevconsole.py", "pydev_run_in_console.py")
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse argv; None means read sys.argv, [] means "no flags, all defaults"."""
     today = datetime.now(_KST).date().isoformat()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--tool", choices=sorted(_INDEX), default="cdsem")
@@ -426,11 +469,16 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=40, help="max listing entries to print (default: 40)")
     p.add_argument("--direct", action="store_true", help="force direct FTP even on Windows")
     p.add_argument("--out", default=".ftp-probe", help="download destination (default: .ftp-probe)")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
-def main() -> Probe:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> Probe:
+    """Run the whole chain and return what it saw. ``main([])`` = no filters.
+
+    argv is explicit so the console can drive this without sys.argv: from a
+    shell, None lets argparse read the command line as usual.
+    """
+    args = _parse_args(argv)
     if not os.environ.get("OPENSEARCH_HOST"):
         load_env_file("OPENSEARCH_HOST")
 
@@ -542,13 +590,14 @@ def main() -> Probe:
 
 
 if __name__ == "__main__":
-    probe = main()
+    _console = _in_pydev_console()
+    probe = main([] if _console else None)
 
     # Unpacked at module scope for the IDE. In PyCharm, put a breakpoint on the
     # sys.exit below and Debug: the pane then holds the whole run, and the
     # Evaluate box can slice it (idp_text.splitlines()[:40], doc["idp_name"]).
-    # Ticking "Run with Python Console" in the run configuration leaves the same
-    # names at a live >>> prompt instead.
+    # Running the file in the Python console leaves the same names at the >>>
+    # prompt instead, to carry on with by hand.
     hits = probe.hits
     doc = probe.doc
     listing = probe.listing
@@ -566,4 +615,8 @@ if __name__ == "__main__":
     wafer_align_info = tables.get("wafer_align_info")
     idp_image_info = tables.get("idp_image_info")
 
-    sys.exit(probe.code)
+    # Only a shell run has an exit status worth setting. Raising SystemExit into
+    # a console session would print a traceback over output that is otherwise
+    # fine, so there the module simply ends and leaves the names behind.
+    if not _console:
+        sys.exit(probe.code)
