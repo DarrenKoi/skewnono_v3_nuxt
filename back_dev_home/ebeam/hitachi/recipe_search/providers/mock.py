@@ -59,15 +59,22 @@ from functools import lru_cache
 
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
+    AlignDetailResponse,
     AlignImageRow,
+    AlignPoint,
     AmpRow,
     CompareParameter,
     CompareRecipe,
     IdpImageInfoRow,
+    IdpLocator,
+    ParamDetailRequestItem,
+    ParamDetailResponse,
+    ParamImage,
     RecipeCompareResponse,
     RecipeDetailResponse,
     RecipeSearchResponse,
     RecipeSearchRow,
+    SettingBlock,
     ToolType,
     WaferAlignInfoRow,
     WaferMpInfoRow,
@@ -87,6 +94,9 @@ __all__ = [
     "ToolType",
     "WaferAlignInfoRow",
     "WaferMpInfoRow",
+    "fetch_recipe_image",
+    "get_align_detail",
+    "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
     "get_recipe_open_data"
@@ -359,6 +369,130 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
         "total": len(rows),
         "rows": rows
     }
+
+
+# ── raw-recipe folder (spec 2026-07-29) ───────────────────────────────────
+
+
+def _block(source: str | None, reader) -> SettingBlock | None:
+    """A SettingBlock from a reader, or None when the slot names no file.
+
+    The mock feeds the reader the file's NAME where the office feeds it the
+    file's BYTES. Both are accepted by ``idp_amp_reader`` (path | bytes | str),
+    and the name is the only recipe-stable identity available at home — so the
+    same parameter yields the same settings on every refresh, which is what
+    keeps a recipe compared against itself from showing differences.
+    """
+    if source is None:
+        return None
+    return {
+        "source": source,
+        "rows": [
+            {"key": str(key), "value": str(value)}
+            for key, value in reader(source).items()
+        ]
+    }
+
+
+def _cond_source(image_file_name: str) -> str:
+    """The sidecar path as shown on screen: ``.IMMP0001.jpeg/cond.txt``.
+
+    Relative, not absolute: office-side this is the remote path under the raw
+    folder, and keeping the tail identical means both providers put the same
+    string in ``SettingBlock.source``.
+    """
+    return f".{image_file_name}/cond.txt"
+
+
+def get_param_detail(
+    items: list[ParamDetailRequestItem]
+) -> list[ParamDetailResponse]:
+    """Settings and image names for each requested (recipe, parameter).
+
+    List-shaped because compare fans out across recipes and ``/api/*`` allows
+    only 20 requests per 5 s per user — as N separate calls a 20-recipe compare
+    would trip the limit on the first cell a user looked at.
+    """
+    from office_utils.idp_amp_reader import (
+        read_af_pr_condition,
+        read_amp_info,
+        read_meas_image_condition,
+    )
+
+    stage_of = {slot["key"]: slot["stage"] for slot in IMAGE_SLOTS}
+    out: list[ParamDetailResponse] = []
+    for item in items:
+        slots = item.get("slots") or {}
+        images: list[ParamImage] = []
+        for slot in rawfiles.IMAGE_SLOT_KEYS:
+            name = rawfiles.image_name(slots.get(slot))
+            if name is None:
+                continue
+            images.append({
+                "slot": slot,
+                "stage": stage_of.get(slot, slot),
+                "name": name,
+                "cond": _block(_cond_source(name), read_meas_image_condition)
+            })
+        out.append({
+            "parameter": item.get("parameter", ""),
+            "amp": _block(
+                rawfiles.setting_name(slots.get("img_meas2")), read_amp_info
+            ),
+            "af_pr": _block(
+                rawfiles.setting_name(slots.get("img_add2"), pr_to_en=True),
+                read_af_pr_condition
+            ),
+            "images": images
+        })
+    return out
+
+
+def get_align_detail(
+    locator: IdpLocator,
+    p_numbers: list[int]
+) -> AlignDetailResponse:
+    """Wafer-align image, beam condition and AF/PR setting per align point.
+
+    Points are the sorted unique ``P.No`` values — the align table repeats a
+    P.No across rows, and each distinct one names exactly one file set.
+    """
+    from office_utils.idp_amp_reader import (
+        read_af_pr_condition,
+        read_meas_image_condition,
+    )
+
+    points: list[AlignPoint] = []
+    for p_no in sorted({int(p) for p in p_numbers}):
+        image, setting = rawfiles.align_names(p_no)
+        points.append({
+            "P_No": p_no,
+            "image": image,
+            "cond": _block(_cond_source(image), read_meas_image_condition),
+            "setting": _block(setting, read_af_pr_condition)
+        })
+    return {"points": points}
+
+
+def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
+    """A seeded SVG placeholder, exactly as msr_image's mock does it.
+
+    An SVG renders in the same ``<img>`` the office JPEG will, without
+    pretending to be a SEM photograph — a fabricated micrograph is the one kind
+    of mock data that could be mistaken for a measurement.
+    """
+    hue = _seed_for_values("recipe-image", name) % 360
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240">'
+        f'<rect width="320" height="240" fill="hsl({hue} 30% 18%)"/>'
+        f'<text x="160" y="118" fill="hsl({hue} 55% 80%)" font-size="15" '
+        'font-family="monospace" text-anchor="middle">'
+        f'{name}</text>'
+        f'<text x="160" y="140" fill="hsl({hue} 40% 60%)" font-size="11" '
+        'font-family="monospace" text-anchor="middle">mock placeholder</text>'
+        '</svg>'
+    )
+    return svg.encode("utf-8"), "image/svg+xml"
 
 
 def get_recipe_open_data(
