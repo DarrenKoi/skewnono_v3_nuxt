@@ -227,3 +227,64 @@ class TestLocateViaRedis:
         with caplog.at_level(logging.INFO, logger=oe.__name__):
             assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
         assert "has an empty path component" in caplog.text
+
+
+def _hit(eqp_id, ts, **overrides):
+    hit = {
+        "eqp_id": eqp_id,
+        "eqp_ip": f"10.9.9.{eqp_id[-1]}",
+        "class_name": "ADI",
+        "idw_name": "/Recipe/ADI/ADI_CD_BIAS_001.idw",
+        "idp_name": "/Recipe/ADI/ADI_CD_BIAS_001.idp",
+        "timestamp": ts,
+    }
+    hit.update(overrides)
+    return hit
+
+
+class TestLocateViaMeasHist:
+    def test_returns_every_complete_hit_newest_first(self, monkeypatch):
+        monkeypatch.setattr(oe, "fetch_hits", lambda *a, **k: [
+            _hit("CG6300_1", "2026-07-28T10:00:00"),
+            _hit("CG6300_2", "2026-07-27T10:00:00"),
+        ])
+        locations = oe._locate_via_meas_hist("cd-sem", RECIPE, "R3")
+        assert [location.eqp_id for location in locations] == [
+            "CG6300_1", "CG6300_2",
+        ]
+
+    def test_incomplete_documents_are_skipped_not_fatal(self, monkeypatch):
+        monkeypatch.setattr(oe, "fetch_hits", lambda *a, **k: [
+            _hit("CG6300_1", "2026-07-28T10:00:00", eqp_ip=""),
+            _hit("CG6300_2", "2026-07-27T10:00:00"),
+        ])
+        locations = oe._locate_via_meas_hist("cd-sem", RECIPE, "R3")
+        assert [location.eqp_id for location in locations] == ["CG6300_2"]
+
+    def test_no_document_is_a_lookup_error(self, monkeypatch):
+        monkeypatch.setattr(oe, "fetch_hits", lambda *a, **k: [])
+        with pytest.raises(LookupError, match="has never been measured"):
+            oe._locate_via_meas_hist("cd-sem", RECIPE, "R3")
+
+    def test_all_documents_incomplete_is_a_lookup_error(self, monkeypatch):
+        monkeypatch.setattr(oe, "fetch_hits", lambda *a, **k: [
+            _hit("CG6300_1", "2026-07-28T10:00:00", eqp_ip=""),
+        ])
+        with pytest.raises(LookupError, match="none carries every field"):
+            oe._locate_via_meas_hist("cd-sem", RECIPE, "R3")
+
+
+class TestLocateIdpDispatch:
+    def test_redis_wins_and_opensearch_is_never_queried(self, monkeypatch):
+        sentinel = [oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A")]
+        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a: sentinel)
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a: pytest.fail(
+            "meas_hist must not be queried when the registry answered"
+        ))
+        assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel
+
+    def test_registry_miss_falls_through_to_meas_hist(self, monkeypatch):
+        sentinel = [oe._IdpLocation("CG6300_02", "10.9.9.2", "ADI", "A", "A")]
+        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a: None)
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a: sentinel)
+        assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel

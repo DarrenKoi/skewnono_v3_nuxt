@@ -464,12 +464,18 @@ def _locate_via_redis(
     ]
 
 
-def _locate_idp(
+def _locate_via_meas_hist(
     tool_type: ToolType,
     recipe_id: str,
     fab_name: str | None,
-) -> _IdpLocation:
-    """Find the tool and path that hold this recipe's .idp file.
+) -> list[_IdpLocation]:
+    """Candidate locations from measurement history, newest run first.
+
+    The fallback for anything the Redis registry cannot answer, and still the
+    only source for a fab the registry does not cover. Every complete document
+    becomes a candidate rather than only the newest: if the tool that ran the
+    recipe most recently is unreachable, the tool that ran it the time before
+    holds the same file.
 
     Raises:
         LookupError: no measurement document names this recipe, or none of the
@@ -497,9 +503,11 @@ def _locate_idp(
             f"No document in {index} has full_name={recipe_id!r}"
             + (f" for fab {fab_name!r}" if fab_name else "")
             + ". A recipe that exists in the catalog but has never been measured "
-            "has no .idp location to derive — recipe open needs one run."
+            "has no .idp location to derive — recipe open needs one run, or an "
+            "entry in the Redis recipe registry."
         )
 
+    complete: list[_IdpLocation] = []
     incomplete: list[str] = []
     for hit in hits:
         location = _IdpLocation(
@@ -520,13 +528,33 @@ def _locate_idp(
             if not value
         ]
         if not missing:
-            return location
+            complete.append(location)
+            continue
         incomplete.append(f"{hit.get('timestamp')}: missing {', '.join(missing)}")
+
+    if complete:
+        return complete
 
     raise LookupError(
         f"Found {len(hits)} document(s) in {index} for full_name={recipe_id!r}, "
         "but none carries every field the FTP path needs — "
         + " | ".join(incomplete)
+    )
+
+
+def _locate_idp(
+    tool_type: ToolType,
+    recipe_id: str,
+    fab_name: str | None,
+) -> list[_IdpLocation]:
+    """Where this recipe's .idp can be fetched from, best candidate first.
+
+    The Redis registry knows this directly and answers without a query to
+    measurement history; meas_hist is the fallback. Both return an ordered
+    list rather than one answer so the download can walk it.
+    """
+    return _locate_via_redis(tool_type, recipe_id, fab_name) or _locate_via_meas_hist(
+        tool_type, recipe_id, fab_name
     )
 
 
