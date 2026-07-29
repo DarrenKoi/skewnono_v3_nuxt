@@ -20,9 +20,16 @@ routes. The response echoes the caller's (uppercase) spelling so the contract
 matches the mock.
 
 **Recipe open** (``get_recipe_open_data``) — the measuring tool's own FTP
-server, via one meas_hist document::
+server. The path is assembled from the Redis recipe registry when it can be,
+and from one meas_hist document when it cannot::
 
-    meas_hist_{cdsem,hvsem}                       (OpenSearch)
+    v3_{cdsem,hvsem}_rcp_loc_{fab}        full_name -> [idw_name, idp_name]
+    v3_{cdsem,hvsem}_tools_in_rcp_{fab}   full_name -> [eqp_id, ...]
+                                                          │
+                          sem_list roster: eqp_id ────────┴──►  FTP host
+                          full_name's "/" prefix ──────────►  {class}
+
+    (fallback) meas_hist_{cdsem,hvsem}            (OpenSearch)
       ├── eqp_ip      ─────────────────────────►  FTP host
       ├── class_name  ──┐
       ├── idw_name    ──┼───────────────────────►  /HITACHI/DEVICE/HD/{class}/data/{idw}
@@ -31,10 +38,15 @@ server, via one meas_hist document::
         office_utils.read_idp_info.combined_idp_info(path) ◄─┘
           -> {"wafer_mp_info": df, "wafer_align_info": df, "idp_image_info": df}
 
-``eqp_ip`` riding on the measurement document is what makes this one query
-instead of two: unlike lateral check (which resolves ``eqp_id -> eqp_ip``
-through sem_list), the measurement row already names the tool that ran the
-recipe, so the host it must be readable from is the host we just proved ran it.
+The two are all-or-nothing rather than blended: a location assembled half from
+each would be untraceable the day the path it produces turns out wrong. Both
+yield an ORDERED LIST of candidates and ``_download_first`` walks it, so one
+unreachable tool no longer fails a recipe several tools hold.
+
+On the registry path the ``eqp_id -> eqp_ip`` join through sem_list IS needed —
+the same one lateral check makes. Only on the meas_hist path is it avoidable,
+because there the measurement row already names the tool that ran the recipe,
+so the host it must be readable from is the host we just proved ran it.
 
 Column names *and dtypes* are the contract, not a convenience — see
 ``docs/datatables/recipe_idp.txt``, which is the schema of record for all three
@@ -52,10 +64,11 @@ into plausible-looking wrong data.
 WRITING THIS AT HOME: ``office_utils`` exists only on office machines, so a
 gitignored stand-in of the same name sits at the repo root matching its
 signature, keys, columns and dtypes. That makes everything below the parse
-runnable here; only ``_locate_idp`` (OpenSearch) and ``_download_idp`` (FTP)
-are genuinely unreachable. They are separate functions from
-``_to_detail_response`` for exactly that reason — the mapping is covered by a
-tracked test that needs neither.
+runnable here; only ``_locate_via_redis`` (Redis), ``_locate_via_meas_hist``
+(OpenSearch), and ``_download_first``/``_download_idp`` (FTP) are genuinely
+unreachable. They are separate functions from ``_to_detail_response`` for
+exactly that reason — the mapping is covered by a tracked test that needs
+neither.
 
 STILL NOT WIRED:
 

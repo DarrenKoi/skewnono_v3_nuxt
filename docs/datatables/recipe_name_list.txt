@@ -26,13 +26,42 @@ hash value -> 그 fab 의 recipe 이름 list
 3. recipe 이름은 "class/recipe" 형태를 포함합니다. meas_hist 의 full_name 과 같은
    체계입니다.
 
-recipe 자세히 보기 / 비교는 이 소스가 아닙니다
+Recipe 위치 registry (user-confirmed 2026-07-29)
+================================================
 
-Recipe 검색 결과에서 "자세히 보기"를 누르면 IDP 원본 구조가 필요합니다
-(docs/datatables/recipe_idp.txt). 그 원본은 아직 사무실에서 준비되지 않아,
-office 어댑터의 get_recipe_open_data / get_recipe_compare_data 는 mock 을 그대로
-re-export 하고 있습니다. 비교(compare)는 열람(open)에서 파생되는 관계이므로
-재구현하지 않고 re-export 하여 그 불변식을 유지합니다.
+Recipe 이름 목록과 별개로, recipe 파일의 **위치**와 **보유 장비**를 fab 별 hash
+2개가 직접 들고 있습니다. recipe open 이 이 둘로 .idp 경로를 조립하므로,
+측정된 적 없는 recipe 도 열어볼 수 있습니다.
+
+Key -> "v3_{cdsem|hvsem}_rcp_loc_{fab}"       : recipe 파일 위치
+Key -> "v3_{cdsem|hvsem}_tools_in_rcp_{fab}"  : 그 recipe 를 보유한 장비 목록
+
+  {fab} 은 fab 이름의 **소문자** 표기입니다(unique_rcp_list 의 hash field 와
+  같은 규칙이지만, 여기서는 field 가 아니라 **key 이름**의 일부입니다).
+
+hash field -> full_name ("class_name/recipe_name")
+hash value -> rcp_loc      : [idw_name, idp_name]  (경로 문자열 2개, 순서 고정)
+              tools_in_rcp : [eqp_id, ...]
+
+주의
+
+1. rcp_loc 의 value 는 **위치로 읽습니다**(0번 idw, 1번 idp). 항목이 2개보다
+   적으면 어댑터는 이 소스를 포기하고 meas_hist 로 넘어갑니다.
+2. class_name 은 두 hash 어디에도 없습니다. full_name 의 "/" 앞부분이 곧
+   class_name 이므로(meas_hist.txt), 조회에 쓴 key 에서 그대로 떼어 씁니다.
+3. tools_in_rcp 는 eqp_id 를 주지만 FTP 는 eqp_ip 로 접속합니다. sem_list
+   roster 로 eqp_id -> eqp_ip 를 해석하며, 두 소스의 eqp_id 표기는 동일합니다
+   (user-confirmed 2026-07-29). roster 에 없는 eqp_id 는 "표기가 다르다"가
+   아니라 "roster 에 그 장비가 없다"는 뜻입니다.
+4. value 직렬화 형식은 unique_rcp_list 와 같은 규칙으로 파싱합니다(JSON ->
+   Python repr -> 콤마 분리).
+
+recipe 자세히 보기 / 비교
+
+자세히 보기(recipe open)는 위 registry 2개로 .idp 경로를 조립해 장비 FTP 에서
+파일을 받아 파싱합니다(docs/datatables/recipe_idp.txt). 비교(compare)는 아직
+mock 을 그대로 re-export 하고 있습니다 — 열람에서 파생되는 관계를 유지하기
+위해 재구현하지 않았습니다.
 
 연결 설정
 

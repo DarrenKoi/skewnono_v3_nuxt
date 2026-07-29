@@ -12,7 +12,7 @@
 | Endpoint | Office source | State |
 | --- | --- | --- |
 | `/recipes` | Redis hash per tool family | wired |
-| `/recipe-detail` | tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
+| `/recipe-detail` | Redis recipe registry (fallback: meas_hist) → tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
 
 **The "compare is derived from open" invariant is knowingly broken office-side
@@ -106,27 +106,29 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
 
   | Step | Function | Source | Runs at home? |
   | --- | --- | --- | --- |
-  | locate | `_locate_idp` | `meas_hist_{cdsem,hvsem}` | no |
-  | fetch | `_download_idp` | tool FTP (`SKEWNONO_TOOL_FTP_*`) | no |
+  | locate (1st) | `_locate_via_redis` | `v3_*_rcp_loc_*` + `v3_*_tools_in_rcp_*` + sem_list | no |
+  | locate (2nd) | `_locate_via_meas_hist` | `meas_hist_{cdsem,hvsem}` | no |
+  | fetch | `_download_first` → `_download_idp` | tool FTP (`SKEWNONO_TOOL_FTP_*`) | no |
   | parse | `_parse_idp` | `office_utils.read_idp_info` | via stand-in |
   | map | `_to_detail_response` | pure | yes |
 
-  `recipe_id` is the catalog's `"class/recipe"` string, which is meas_hist's
-  `full_name` — so the id the search table hands back is already the lookup
-  key. The newest matching document wins; up to `_LOCATE_CANDIDATES` are
-  fetched so a document missing one of the four path fields falls through to
-  the next instead of 502-ing. `idp_name`/`idw_name` are **paths** and the FTP
-  tree wants their **stems**. Full chain and column contract:
-  `docs/datatables/recipe_idp.txt`.
-  - Recipe never measured → `LookupError` (502): no run, no `.idp` location.
-  - `eqp_ip` outside `SKEWNONO_TOOL_SUBNETS` → `InvalidToolIp`. The IP comes
-    from OpenSearch rather than a client, but the backend still opens a socket
-    to it, so the SSRF guard applies.
+  `recipe_id` is the catalog's `"class/recipe"` string, which is both the
+  registry hash field and meas_hist's `full_name` — so the id the search table
+  hands back is already the lookup key, and its `/` prefix is the FTP class
+  directory. The Redis registry is tried first and is all-or-nothing: if either
+  hash misses, or `fac_id` is blank, the whole location falls to meas_hist rather
+  than blending the two. Both paths return tool candidates in preference order
+  (registry: `available == "On"` first; meas_hist: newest run first) and
+  `_download_first` walks them until one serves the file.
+  - Recipe in neither the registry nor meas_hist → `LookupError` (502).
+  - Every candidate tool refused or lacked the file → `LookupError` (502)
+    naming each tool tried and why.
+  - `eqp_ip` outside `SKEWNONO_TOOL_SUBNETS` → that candidate is skipped with a
+    WARNING; if **every** candidate is outside, `InvalidToolIp` is raised. The
+    IP comes from Redis or OpenSearch rather than a client, but the backend
+    still opens a socket to it, so the SSRF guard applies.
   - `office_utils` not importable → `RuntimeError` (503, unconfigured).
   - Parser returns the wrong keys → `LookupError` (502).
-  - A documented column the parser stopped emitting is **nulled, not dropped**
-    (WARNING logged); an undocumented one it started emitting is **dropped**
-    (INFO logged). Neither changes the response shape.
 - **`idp_image_info` dtypes corrected 2026-07-28** (office 확인, first real
   `combined_idp_info()` output). `Addressing`, `Mother_Para` and
   `dnumber_removed` are `bool`; they had been documented and mocked as a

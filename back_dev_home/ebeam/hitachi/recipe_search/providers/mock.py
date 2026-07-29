@@ -16,18 +16,21 @@ never commas).
 Searching the name list rather than 측정 이력 is deliberate: a recipe that has
 never been measured still exists and must be findable.
 
-★ RECIPE-OPEN AND COMPARE STILL RUN OFF THIS MOCK AT THE OFFICE (2026-07-27).
-`recipe_search/providers/office*.py` RE-EXPORTS `get_recipe_open_data` /
-`get_recipe_compare_data` from THIS module, so these generators run in
-production and their output there is fabricated, not 사내 data. Compare is
-re-exported rather than reimplemented so it stays derived from open — the
-invariant this module guarantees.
+★ COMPARE STILL RUNS OFF THIS MOCK AT THE OFFICE.
+`recipe_search/providers/office*.py` RE-EXPORTS `get_recipe_compare_data` from
+THIS module, so that generator runs in production and its output there is
+fabricated, not 사내 data. It is re-exported rather than reimplemented so it
+stays derived from open — the invariant this module guarantees. Recipe open
+itself is wired (2026-07-27) and returns parsed IDP data, so open and compare
+DISAGREE office-side until the batched fetch lands; see MIGRATION.md.
 
 The SOURCE is no longer unknown, though: the IDP file lives on the measuring
 tool's FTP server and a 사내 parser turns it into exactly the three tables
 below (`docs/datatables/recipe_idp.txt`):
 
-    meas_hist_* -> eqp_ip + class_name + idw_name + idp_name
+    v3_{cdsem,hvsem}_rcp_loc_{fab}       -> [idw_name, idp_name]
+    v3_{cdsem,hvsem}_tools_in_rcp_{fab}  -> [eqp_id, ...] -> sem_list -> eqp_ip
+      (fallback: meas_hist_* -> eqp_ip + class_name + idw_name + idp_name)
         -> /HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp
         -> office_utils.read_idp_info.combined_idp_info(path)
         -> {"wafer_mp_info": df, "wafer_align_info": df, "idp_image_info": df}
