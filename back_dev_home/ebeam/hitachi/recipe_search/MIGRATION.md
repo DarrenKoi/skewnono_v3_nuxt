@@ -120,7 +120,10 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
   hash misses, or `fac_id` is blank, the whole location falls to meas_hist rather
   than blending the two. Both paths return tool candidates in preference order
   (registry: `available == "On"` first; meas_hist: newest run first) and
-  `_download_first` walks them until one serves the file.
+  `_download_first` walks them until one serves the file. On the meas_hist
+  path, up to `_LOCATE_CANDIDATES` documents are fetched (newest first) and
+  any one missing an `eqp_ip`, `class_name`, `idw_name`, or `idp_name` is
+  skipped in favor of the next rather than failing the request.
   - Recipe in neither the registry nor meas_hist → `LookupError` (502).
   - Every candidate tool refused or lacked the file → `LookupError` (502)
     naming each tool tried and why.

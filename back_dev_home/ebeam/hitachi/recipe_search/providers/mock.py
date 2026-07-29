@@ -28,8 +28,10 @@ The SOURCE is no longer unknown, though: the IDP file lives on the measuring
 tool's FTP server and a 사내 parser turns it into exactly the three tables
 below (`docs/datatables/recipe_idp.txt`):
 
-    v3_{cdsem,hvsem}_rcp_loc_{fab}       -> [idw_name, idp_name]
-    v3_{cdsem,hvsem}_tools_in_rcp_{fab}  -> [eqp_id, ...] -> sem_list -> eqp_ip
+    v3_{cdsem,hvsem}_rcp_loc_{fab}       field full_name -> [idw_name, idp_name]
+    v3_{cdsem,hvsem}_tools_in_rcp_{fab}  field full_name -> [eqp_id, ...]
+                                           -> sem_list roster -> eqp_ip
+      full_name's "/" prefix -> {class}   (neither hash carries class_name)
       (fallback: meas_hist_* -> eqp_ip + class_name + idw_name + idp_name)
         -> /HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp
         -> office_utils.read_idp_info.combined_idp_info(path)
