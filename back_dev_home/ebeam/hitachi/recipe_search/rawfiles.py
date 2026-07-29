@@ -61,16 +61,16 @@ EMPTY_SLOT = "non"
 # image, which is exactly why it is listed rather than derived from a prefix.
 IMAGE_SLOT_KEYS: tuple[str, ...] = ("img_add1", "image_add3", "img_meas1")
 
-# The {kind}{stage} prefix each column's value carries. Exported so the mock
-# generates values on the same convention this module parses, rather than a
-# second hand-written table that could drift onto a branch the office never
-# takes (a slot not starting with "PR" makes setting_name return None).
 # Which optic took an align image, by align point number (user-confirmed
 # 2026-07-29). Align points are not scattered positions on the wafer so much as
 # the same alignment seen through two optics, which is why there are usually
 # exactly two and why the number alone identifies the instrument.
 ALIGN_OPTICS: dict[int, str] = {1: "OM", 2: "SEM"}
 
+# The {kind}{stage} prefix each column's value carries. Exported so the mock
+# generates values on the same convention this module parses, rather than a
+# second hand-written table that could drift onto a branch the office never
+# takes (a slot not starting with "PR" makes setting_name return None).
 SLOT_PREFIX: dict[str, str] = {
     "img_add1": "IMMP",
     "img_add2": "PRMP",
