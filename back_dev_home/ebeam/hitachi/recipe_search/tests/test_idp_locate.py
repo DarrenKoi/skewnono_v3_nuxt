@@ -10,6 +10,8 @@ It imports `providers/office_example.py` — the tracked template — never
 Redis, OpenSearch, sem_list and FTP are all stubbed; nothing here does I/O.
 """
 
+import logging
+
 import pytest
 
 from back_dev_home.ebeam.hitachi.recipe_search.providers import office_example as oe
@@ -213,11 +215,15 @@ class TestLocateViaRedis:
         })
         assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is not None
 
-    def test_empty_path_component_falls_back(self, wired):
-        # _stem("") is "" — assembling a path from it would produce a malformed
-        # FTP path like data//B.idp, a plausible path to nothing.
+    def test_empty_path_component_falls_back(self, wired, caplog):
+        # "/" survives the parse filter (it is not empty) but PurePosixPath("/")
+        # has an empty stem, so the assembled path would be data//B.idp — a
+        # plausible path to nothing. Asserting on the log pins WHICH of the
+        # seven bail paths fired; a bare `is None` cannot tell them apart.
         wired({
-            LOC_KEY: {RECIPE: '["", "/Recipe/ADI/B.idp"]'},
+            LOC_KEY: {RECIPE: '["/", "/Recipe/ADI/B.idp"]'},
             TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
         })
-        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+        with caplog.at_level(logging.INFO, logger=oe.__name__):
+            assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+        assert "has an empty path component" in caplog.text
