@@ -892,7 +892,7 @@ Append to `tests/test_idp_locate.py`. No new stdlib import is needed — `tmp_pa
 is already a `Path`.
 
 ```python
-from back_dev_home.msr_image.paths import InvalidToolIp
+from back_dev_home.msr_image.errors import InvalidToolIp
 
 THREE = [
     oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A"),
@@ -973,7 +973,11 @@ def _download_first(candidates: list[_IdpLocation], dest_dir: Path) -> Path:
         InvalidToolIp: EVERY candidate was refused by the tool-IP guard.
         LookupError: candidates were dialable but none served the file.
     """
-    from back_dev_home.msr_image.paths import InvalidToolIp
+    # Imported here, not at module scope, to match _download_idp's deferral of
+    # the msr_image imports. InvalidToolIp is NOT a LookupError subclass
+    # (msr_image/errors.py: it descends from MsrImageError), so the two except
+    # clauses below are disjoint.
+    from back_dev_home.msr_image.errors import InvalidToolIp
 
     failures = []
     blocked = []
