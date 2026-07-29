@@ -89,11 +89,18 @@ import pandas as pd
 
 from back_dev_home._runtime.office_redis import redis_client as _redis_client
 from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query
+from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
+    AlignDetailResponse,
     IdpImageInfoRow,
+    IdpLocator,
+    ParamDetailRequestItem,
+    ParamDetailResponse,
     RecipeDetailResponse,
     RecipeSearchResponse,
     RecipeSearchRow,
+    SettingBlock,
+    SettingRow,
     ToolType,
     WaferAlignInfoRow,
     WaferMpInfoRow,
@@ -103,6 +110,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
 # Re-exported (not reimplemented) so that when it lands it can stay derived
 # from open, the invariant the mock guarantees.
 from back_dev_home.ebeam.hitachi.recipe_search.providers.mock import (
+    IMAGE_SLOTS,
     generate_amp_info,
     generate_wafer_align_images,
     get_recipe_compare_data,
@@ -110,6 +118,9 @@ from back_dev_home.ebeam.hitachi.recipe_search.providers.mock import (
 
 
 __all__ = [
+    "fetch_recipe_image",
+    "get_align_detail",
+    "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
     "get_recipe_open_data",
@@ -595,6 +606,278 @@ def _to_detail_response(
         # does not have to match the mock byte-for-byte here.
         "timestamp": datetime.now().isoformat(),
     }
+
+
+# ── raw-recipe folder: AMP, AF/PR and beam conditions ─────────────────────
+#
+# The folder beside the .idp (``data/{idw}/{idp}/``) holds the parameter
+# settings the recipe-open screen used to fabricate. Naming lives in
+# rawfiles.py, reading lives in office_utils.idp_amp_reader; only the wiring is
+# here — which is why almost none of this needs a tool to be tested.
+
+
+def _to_rows(obj: Any) -> list[SettingRow]:
+    """Whatever a reader returned -> ordered key/value rows.
+
+    The readers' return CONTAINER is OFFICE-VERIFY, not merely their field
+    names: a reader may hand back a dict, a one-row DataFrame whose columns are
+    the fields, a two-column DataFrame whose rows are pairs, or a list of pairs.
+    Handling all four means a wrong guess degrades to rows in a slightly odd
+    order rather than a 500 on a screen that used to work.
+    """
+    if obj is None:
+        return []
+    if isinstance(obj, pd.DataFrame):
+        if obj.empty:
+            return []
+        # ONE ROW is read as field-per-column, and this test comes FIRST because
+        # a 1x2 frame satisfies both readings and the two disagree: as pairs it
+        # yields one setting, as columns it yields two. A settings file with a
+        # single setting is rarer than one with two, so columns win. If the
+        # office turns out to emit 1x2 pair frames, this is the branch to flip
+        # — and the OFFICE-VERIFY note in recipe_idp.txt is where to record it.
+        if len(obj) == 1:
+            first = obj.iloc[0]
+            return [{"key": str(c), "value": str(first[c])} for c in obj.columns]
+        if obj.shape[1] == 2:
+            key_column, value_column = obj.columns[0], obj.columns[1]
+            return [
+                {"key": str(row[key_column]), "value": str(row[value_column])}
+                for _, row in obj.iterrows()
+            ]
+        # Many rows AND many columns maps to no key/value reading at all. The
+        # first row is the best guess; say so rather than silently dropping the
+        # rest, because that is a shape nobody has predicted.
+        _LOG.warning(
+            "recipe_search: reader returned a %dx%d frame, which has no "
+            "key/value reading — using row 0 and dropping %d row(s). Record the "
+            "real shape in docs/datatables/recipe_idp.txt.",
+            len(obj), obj.shape[1], len(obj) - 1,
+        )
+        first = obj.iloc[0]
+        return [{"key": str(c), "value": str(first[c])} for c in obj.columns]
+    if isinstance(obj, dict):
+        return [{"key": str(k), "value": str(v)} for k, v in obj.items()]
+    if isinstance(obj, (list, tuple)):
+        return [
+            {"key": str(pair[0]), "value": str(pair[1])}
+            for pair in obj
+            if isinstance(pair, (list, tuple)) and len(pair) >= 2
+        ]
+    _LOG.warning(
+        "recipe_search: unrecognised reader return type %s — rendered empty. "
+        "Add it to _to_rows and record it in docs/datatables/recipe_idp.txt.",
+        type(obj).__name__,
+    )
+    return []
+
+
+def _read_block(
+    source_name: str | None,
+    payload: bytes | None,
+    reader: Any,
+) -> SettingBlock | None:
+    """Parse one raw file into a block. None when absent OR unparseable.
+
+    A reader raising on a real file must not fail the whole parameter — the
+    blocks beside it are still good, and a parameter legitimately missing one
+    setting file is the common case rather than an error. The filename is
+    logged so a bad file can be found without reproducing the click.
+    """
+    if source_name is None or payload is None:
+        return None
+    try:
+        parsed = reader(payload)
+    except Exception:
+        _LOG.warning(
+            "recipe_search: %s could not be parsed by %s — rendered as 파일 없음",
+            source_name,
+            getattr(reader, "__name__", reader),
+            exc_info=True,
+        )
+        return None
+    return {"source": source_name, "rows": _to_rows(parsed)}
+
+
+def _cond_source(image_file_name: str) -> str:
+    """The sidecar as named in ``SettingBlock.source``: ``.IMMP0001.jpeg/cond.txt``.
+
+    Relative to the raw folder, matching what the mock emits, so the same string
+    reaches the screen under either provider.
+    """
+    return f".{image_file_name}/cond.txt"
+
+
+def _fetch_raw(locator: IdpLocator, names: list[str]) -> dict[str, bytes]:
+    """One batched FTP session for every raw file a call needs.
+
+    A missing file is NOT an error: parameters routinely lack a third
+    addressing image or an AF/PR setting. Failures are logged and are simply
+    absent from the returned mapping — only the session itself failing raises.
+
+    Keyed by file NAME rather than remote path, so a caller does not have to
+    re-derive the path to look a result up.
+    """
+    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.paths import validate_tool_ip
+
+    if not names:
+        return {}
+
+    config = load_config()
+    # Unlike _download_idp, whose IP comes from OpenSearch, this one arrives
+    # from the client — so the guard here is the SSRF gate, not a formality.
+    validate_tool_ip(locator["eqp_ip"], config.allowed_subnets)
+
+    raw = rawfiles.raw_dir(locator["class_name"], locator["idw"], locator["idp"])
+    path_of = {name: rawfiles.remote_path(raw, name) for name in dict.fromkeys(names)}
+
+    downloader_cls, host_spec_cls, transport = _transport()
+    downloader = downloader_cls(
+        user=config.ftp_user,
+        password=config.ftp_password,
+        port=config.ftp_port,
+        connect_timeout=config.ftp_timeout,
+    )
+    report = downloader.download(
+        [host_spec_cls(locator["eqp_ip"], files=sorted(path_of.values()))]
+    )
+    for failure in report.failures:
+        _LOG.info(
+            "recipe_search: %s absent on %s via %s (%s) — rendered as 파일 없음",
+            failure.remote_path, locator["eqp_ip"], transport, failure.error,
+        )
+    by_path = {result.remote_path: result.data for result in report.files}
+    return {name: by_path[path] for name, path in path_of.items() if path in by_path}
+
+
+def _slot_sources(
+    slots: dict[str, str],
+) -> tuple[str | None, str | None, list[tuple[str, str, str]]]:
+    """``(amp, af_pr, [(slot, image, cond)])`` for one parameter. Pure."""
+    amp = rawfiles.setting_name(slots.get("img_meas2"))
+    af_pr = rawfiles.setting_name(slots.get("img_add2"), pr_to_en=True)
+    images = [
+        (slot, name, _cond_source(name))
+        for slot in rawfiles.IMAGE_SLOT_KEYS
+        if (name := rawfiles.image_name(slots.get(slot))) is not None
+    ]
+    return amp, af_pr, images
+
+
+def _locator_key(locator: IdpLocator) -> tuple[str, str, str, str]:
+    return (
+        locator["eqp_ip"], locator["class_name"], locator["idw"], locator["idp"]
+    )
+
+
+def get_param_detail(
+    items: list[ParamDetailRequestItem],
+) -> list[ParamDetailResponse]:
+    """Settings and image names for each requested (recipe, parameter).
+
+    Grouped by locator so a compare across N recipes on ONE tool opens one FTP
+    session carrying every file, rather than N sessions of five files each.
+    """
+    from office_utils.idp_amp_reader import (
+        read_af_pr_condition,
+        read_amp_info,
+        read_meas_image_condition,
+    )
+
+    stage_of = {slot["key"]: slot["stage"] for slot in IMAGE_SLOTS}
+
+    wanted: dict[tuple[str, str, str, str], list[str]] = {}
+    plans: list[tuple[tuple[str, str, str, str], ParamDetailRequestItem, Any]] = []
+    for item in items:
+        key = _locator_key(item["locator"])
+        plan = _slot_sources(item.get("slots") or {})
+        amp, af_pr, images = plan
+        names = [name for name in (amp, af_pr) if name]
+        names += [name for _, name, _ in images]
+        names += [cond for _, _, cond in images]
+        wanted.setdefault(key, []).extend(names)
+        plans.append((key, item, plan))
+
+    fetched = {
+        key: _fetch_raw(
+            {"eqp_ip": key[0], "class_name": key[1], "idw": key[2], "idp": key[3]},
+            names,
+        )
+        for key, names in wanted.items()
+    }
+
+    out: list[ParamDetailResponse] = []
+    for key, item, (amp, af_pr, images) in plans:
+        blob = fetched.get(key, {})
+        out.append({
+            "parameter": item.get("parameter", ""),
+            "amp": _read_block(amp, blob.get(amp or ""), read_amp_info),
+            "af_pr": _read_block(af_pr, blob.get(af_pr or ""), read_af_pr_condition),
+            "images": [
+                {
+                    "slot": slot,
+                    "stage": stage_of.get(slot, slot),
+                    "name": name,
+                    "cond": _read_block(
+                        cond, blob.get(cond), read_meas_image_condition
+                    ),
+                }
+                for slot, name, cond in images
+            ],
+        })
+    return out
+
+
+def get_align_detail(
+    locator: IdpLocator,
+    p_numbers: list[int],
+) -> AlignDetailResponse:
+    """Wafer-align image, beam condition and AF/PR setting per align point."""
+    from office_utils.idp_amp_reader import (
+        read_af_pr_condition,
+        read_meas_image_condition,
+    )
+
+    plan = [(p_no, *rawfiles.align_names(p_no)) for p_no in sorted({int(p) for p in p_numbers})]
+    names: list[str] = []
+    for _, image, setting in plan:
+        names += [setting, _cond_source(image)]
+
+    blob = _fetch_raw(locator, names)
+    return {
+        "points": [
+            {
+                "P_No": p_no,
+                "image": image,
+                "cond": _read_block(
+                    _cond_source(image),
+                    blob.get(_cond_source(image)),
+                    read_meas_image_condition,
+                ),
+                "setting": _read_block(
+                    setting, blob.get(setting), read_af_pr_condition
+                ),
+            }
+            for p_no, image, setting in plan
+        ]
+    }
+
+
+def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
+    """One raw-recipe image's bytes and content type.
+
+    Raises:
+        LookupError: absent on the tool — the route turns this into a 404.
+    """
+    fetched = _fetch_raw(locator, [name])
+    if name not in fetched:
+        raise LookupError(f"{name} not found under the raw-recipe folder")
+    content_type = (
+        "image/jpeg" if name.lower().endswith((".jpeg", ".jpg"))
+        else "application/octet-stream"
+    )
+    return fetched[name], content_type
 
 
 def get_recipe_open_data(
