@@ -20,9 +20,16 @@ routes. The response echoes the caller's (uppercase) spelling so the contract
 matches the mock.
 
 **Recipe open** (``get_recipe_open_data``) — the measuring tool's own FTP
-server, via one meas_hist document::
+server. The path is assembled from the Redis recipe registry when it can be,
+and from measurement history when it cannot::
 
-    meas_hist_{cdsem,hvsem}                       (OpenSearch)
+    v3_{cdsem,hvsem}_rcp_loc_{fab}        full_name -> [idw_name, idp_name]
+    v3_{cdsem,hvsem}_tools_in_rcp_{fab}   full_name -> [eqp_id, ...]
+                                                          │
+                          sem_list roster: eqp_id ────────┴──►  FTP host
+                          full_name's "/" prefix ──────────►  {class}
+
+    (fallback) meas_hist_{cdsem,hvsem}            (OpenSearch)
       ├── eqp_ip      ─────────────────────────►  FTP host
       ├── class_name  ──┐
       ├── idw_name    ──┼───────────────────────►  /HITACHI/DEVICE/HD/{class}/data/{idw}
@@ -31,10 +38,15 @@ server, via one meas_hist document::
         office_utils.read_idp_info.combined_idp_info(path) ◄─┘
           -> {"wafer_mp_info": df, "wafer_align_info": df, "idp_image_info": df}
 
-``eqp_ip`` riding on the measurement document is what makes this one query
-instead of two: unlike lateral check (which resolves ``eqp_id -> eqp_ip``
-through sem_list), the measurement row already names the tool that ran the
-recipe, so the host it must be readable from is the host we just proved ran it.
+The two are all-or-nothing rather than blended: a location assembled half from
+each would be untraceable the day the path it produces turns out wrong. Both
+yield an ORDERED LIST of candidates and ``_download_first`` walks it, so one
+unreachable tool no longer fails a recipe several tools hold.
+
+On the registry path the ``eqp_id -> eqp_ip`` join through sem_list IS needed —
+the same one lateral check makes. Only on the meas_hist path is it avoidable,
+because there the measurement row already names the tool that ran the recipe,
+so the host it must be readable from is the host we just proved ran it.
 
 Column names *and dtypes* are the contract, not a convenience — see
 ``docs/datatables/recipe_idp.txt``, which is the schema of record for all three
@@ -52,10 +64,11 @@ into plausible-looking wrong data.
 WRITING THIS AT HOME: ``office_utils`` exists only on office machines, so a
 gitignored stand-in of the same name sits at the repo root matching its
 signature, keys, columns and dtypes. That makes everything below the parse
-runnable here; only ``_locate_idp`` (OpenSearch) and ``_download_idp`` (FTP)
-are genuinely unreachable. They are separate functions from
-``_to_detail_response`` for exactly that reason — the mapping is covered by a
-tracked test that needs neither.
+runnable here; only ``_locate_via_redis`` (Redis), ``_locate_via_meas_hist``
+(OpenSearch), and ``_download_first``/``_download_idp`` (FTP) are genuinely
+unreachable. They are separate functions from ``_to_detail_response`` for
+exactly that reason — the mapping is covered by a tracked test that needs
+neither.
 
 STILL NOT WIRED:
 
@@ -107,7 +120,7 @@ from typing import Any, NamedTuple
 import pandas as pd
 
 from back_dev_home._runtime.office_redis import redis_client as _redis_client
-from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query
+from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query, ttl_cache
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.msr_image.errors import SourceUnavailable
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
@@ -125,6 +138,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     WaferAlignInfoRow,
     WaferMpInfoRow,
 )
+from back_dev_home.sem_list.data import get_sem_list
 # TODO(office): replace with a batched IDP-backed implementation — one FTP
 # session per distinct eqp_ip, every recipe's .idp in one HostSpec(files=[...]).
 # Re-exported (not reimplemented) so that when it lands it can stay derived
@@ -153,18 +167,25 @@ _RECIPE_HASH: dict[ToolType, str] = {
     "hv-sem": "v3_hvsem_unique_rcp_list",
 }
 
+# The same two families, spelled the way the per-fab registry hashes spell
+# them. _RECIPE_HASH above is a whole key because the catalog has one hash per
+# family; the registry has one hash per family AND fab, so it is built instead.
+_FAMILY: dict[ToolType, str] = {"cd-sem": "cdsem", "hv-sem": "hvsem"}
+
 
 # ── catalog (Redis) ───────────────────────────────────────────────────────
 
 
-def _parse_recipe_list(value) -> list[RecipeSearchRow]:
-    """Hash value -> list of recipe names, tolerant of JSON / repr / CSV.
+def _parse_str_list(value) -> list[str]:
+    """A hash value -> list of strings, tolerant of JSON / repr / CSV.
 
-    The writer stores a Python list; whether that lands in Redis as JSON
-    (``["a", "b"]``) or a ``repr`` (``['a', 'b']``) depends on the job, and
-    both parse here. The CSV fallback covers a plain comma-joined string —
-    recipe names carry ``/`` and ``_`` but no commas, so that split is safe
-    as a last resort.
+    Shared by all three per-recipe hashes (the name catalog, the location
+    registry, the tool registry) because they are written by the same kind of
+    job: a Python list that lands in Redis as JSON (``["a", "b"]``) or as a
+    ``repr`` (``['a', 'b']``) depending on the writer, and both parse here. The
+    CSV fallback covers a plain comma-joined string — recipe names, paths and
+    equipment ids carry ``/`` and ``_`` but no commas, so that split is safe as
+    a last resort.
     """
     if isinstance(value, (bytes, bytearray)):
         value = bytes(value).decode("utf-8")
@@ -211,7 +232,7 @@ def _recipes_for_fab(client, key: str, fab_name: str) -> list[RecipeSearchRow]:
     """
     raw = client.hget(key, fab_name.strip().lower())
     if raw is not None:
-        return _unique(_parse_recipe_list(raw))
+        return _unique(_parse_str_list(raw))
     if not client.exists(key):
         raise _missing_key_error(key)
     return []
@@ -228,7 +249,7 @@ def _all_recipes(client, key: str) -> list[RecipeSearchRow]:
         raise _missing_key_error(key)
     names: list[RecipeSearchRow] = []
     for value in entries.values():
-        names.extend(_parse_recipe_list(value))
+        names.extend(_parse_str_list(value))
     return _unique(names)
 
 
@@ -308,12 +329,197 @@ def _stem(value: Any) -> str:
     return PurePosixPath(str(value or "").strip()).stem
 
 
-def _locate_idp(
+def _fab_hash(kind: str, tool_type: ToolType, fab_name: str) -> str:
+    """Redis key for one fab's per-recipe registry hash.
+
+    ``kind`` is ``"rcp_loc"`` (the ``[idw_name, idp_name]`` pair) or
+    ``"tools_in_rcp"`` (the equipment list). The fab is lowercased HERE, at the
+    Redis boundary, for the same reason the catalog does it: routes.py hands
+    down an uppercase name and nothing above this module should have to know
+    that the store disagrees.
+    """
+    family = _FAMILY.get(tool_type)
+    if family is None:
+        raise ValueError(
+            f"Unknown tool_type {tool_type!r}; expected one of {sorted(_FAMILY)}"
+        )
+    return f"v3_{family}_{kind}_{fab_name.strip().lower()}"
+
+
+def _class_name(recipe_id: str) -> str:
+    """'ADI/ADI_CD_BIAS_001' -> 'ADI'. The FTP tree's class directory.
+
+    ``full_name = f"{class_name}/{recipe_name}"``
+    (docs/datatables/meas_hist.txt), so on the Redis path the class is the
+    prefix of the key just looked up — neither registry hash carries it
+    separately, and meas_hist is not queried to get it.
+
+    A name with no ``/`` yields ``""`` rather than the name itself: using the
+    whole name would assemble a plausible path to a directory that does not
+    exist, and a blank forces the caller to fall back instead.
+    """
+    return recipe_id.split("/", 1)[0].strip() if "/" in recipe_id else ""
+
+
+@ttl_cache
+def _eqp_ip_index() -> dict[str, tuple[str, str]]:
+    """``eqp_id -> (eqp_ip, available)`` for the whole fleet.
+
+    The registry names tools by ``eqp_id`` but FTP dials an IP, so the roster
+    resolves the gap — the same ``eqp_id -> eqp_ip`` join lateral check makes,
+    and through the same source, so the two screens cannot disagree about
+    which tools exist.
+
+    Cached because ``get_sem_list()`` deserializes two parquet blobs from Redis
+    and merges them: reasonable once per TTL, wasteful once per recipe open.
+    What that costs is an IP change taking up to 15 minutes to be seen, which
+    is the right trade for a roster that only moves when tools do.
+    """
+    index: dict[str, tuple[str, str]] = {}
+    for row in get_sem_list():
+        eqp_id = str(row.get("eqp_id") or "").strip()
+        eqp_ip = str(row.get("eqp_ip") or "").strip()
+        if eqp_id and eqp_ip:
+            index[eqp_id] = (eqp_ip, str(row.get("available") or ""))
+    return index
+
+
+def _order_candidates(
+    eqp_ids: list[str],
+    index: dict[str, tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """``[eqp_id, ...]`` -> ``[(eqp_id, eqp_ip), ...]``, best host first. Pure.
+
+    Tools the roster reports available sort ahead of the rest; within each
+    group the registry's own order is preserved, since it carries no ranking
+    and a stable order keeps the same recipe hitting the same tool. Offline
+    tools are kept rather than dropped — ``available`` describes whether the
+    tool is running production, not whether its FTP server answers, and the
+    .idp is worth trying for once the online tools have failed.
+
+    An ``eqp_id`` the roster does not know is dropped: the registry says the
+    recipe is there, but with no IP there is nothing to dial.
+    """
+    online: list[tuple[str, str]] = []
+    offline: list[tuple[str, str]] = []
+    unknown: list[str] = []
+    for raw_id in eqp_ids:
+        eqp_id = raw_id.strip()
+        resolved = index.get(eqp_id)
+        if resolved is None:
+            unknown.append(eqp_id)
+            continue
+        eqp_ip, available = resolved
+        (online if available == "On" else offline).append((eqp_id, eqp_ip))
+    if unknown:
+        _LOG.warning(
+            "recipe_search: %d tool(s) named by the recipe registry are not in "
+            "the sem_list roster and were skipped: %s. The two sources use the "
+            "same eqp_id spelling (user-confirmed 2026-07-29), so this means "
+            "the roster is missing the tool, not that the ids disagree.",
+            len(unknown), unknown,
+        )
+    # A tools_in_rcp value can repeat an eqp_id; collapse exact repeats so the
+    # download walk tries each distinct tool once rather than re-dialing one.
+    return list(dict.fromkeys(online + offline))
+
+
+def _locate_via_redis(
     tool_type: ToolType,
     recipe_id: str,
     fab_name: str | None,
-) -> _IdpLocation:
-    """Find the tool and path that hold this recipe's .idp file.
+) -> list[_IdpLocation] | None:
+    """Candidate locations from the two per-fab registry hashes, or ``None``.
+
+    ``None`` means "ask meas_hist" and is never an error: the registry is a
+    newer source and is not promised to cover every fab or every recipe. It is
+    all-or-nothing on purpose — a location assembled half from the registry and
+    half from measurement history would be untraceable the day the path it
+    produces turns out to be wrong.
+
+    Every bail logs which step produced it, because from outside the office a
+    silent fallback and a broken lookup look identical.
+    """
+    if not fab_name:
+        _LOG.info(
+            "recipe_search: no fab_name for %r, so no registry key can be "
+            "built — falling back to meas_hist.", recipe_id,
+        )
+        return None
+
+    class_name = _class_name(recipe_id)
+    if not class_name:
+        _LOG.info(
+            "recipe_search: %r has no class prefix, so the registry cannot "
+            "supply the FTP class directory — falling back to meas_hist.",
+            recipe_id,
+        )
+        return None
+
+    client = _redis_client()
+
+    loc_key = _fab_hash("rcp_loc", tool_type, fab_name)
+    parts = _parse_str_list(client.hget(loc_key, recipe_id) or "")
+    if len(parts) < 2:
+        _LOG.info(
+            "recipe_search: %s has no usable [idw, idp] entry for %r (got %s) "
+            "— falling back to meas_hist.", loc_key, recipe_id, parts,
+        )
+        return None
+
+    tools_key = _fab_hash("tools_in_rcp", tool_type, fab_name)
+    eqp_ids = _parse_str_list(client.hget(tools_key, recipe_id) or "")
+    if not eqp_ids:
+        _LOG.info(
+            "recipe_search: %s names no tool for %r — falling back to "
+            "meas_hist.", tools_key, recipe_id,
+        )
+        return None
+
+    idw_stem, idp_stem = _stem(parts[0]), _stem(parts[1])
+    if not idw_stem or not idp_stem:
+        _LOG.info(
+            "recipe_search: %s entry for %r has an empty path component (%s) "
+            "— falling back to meas_hist.", loc_key, recipe_id, parts[:2],
+        )
+        return None
+
+    candidates = _order_candidates(eqp_ids, _eqp_ip_index())
+    if not candidates:
+        _LOG.info(
+            "recipe_search: none of %s resolves to an IP for %r — falling back "
+            "to meas_hist.", eqp_ids, recipe_id,
+        )
+        return None
+
+    _LOG.info(
+        "recipe_search: located %r via the Redis registry — %d tool "
+        "candidate(s), no OpenSearch query.", recipe_id, len(candidates),
+    )
+    return [
+        _IdpLocation(
+            eqp_id=eqp_id,
+            eqp_ip=eqp_ip,
+            class_name=class_name,
+            idw_stem=idw_stem,
+            idp_stem=idp_stem,
+        )
+        for eqp_id, eqp_ip in candidates
+    ]
+
+
+def _locate_via_meas_hist(
+    tool_type: ToolType,
+    recipe_id: str,
+    fab_name: str | None,
+) -> list[_IdpLocation]:
+    """Candidate locations from measurement history, newest run first.
+
+    The fallback for anything the Redis registry cannot answer, and still the
+    only source for a fab the registry does not cover. Every complete document
+    becomes a candidate rather than only the newest: if the tool that ran the
+    recipe most recently is unreachable, the tool that ran it the time before
+    holds the same file.
 
     Raises:
         LookupError: no measurement document names this recipe, or none of the
@@ -341,9 +547,11 @@ def _locate_idp(
             f"No document in {index} has full_name={recipe_id!r}"
             + (f" for fab {fab_name!r}" if fab_name else "")
             + ". A recipe that exists in the catalog but has never been measured "
-            "has no .idp location to derive — recipe open needs one run."
+            "has no .idp location to derive — recipe open needs one run, or an "
+            "entry in the Redis recipe registry."
         )
 
+    complete: list[_IdpLocation] = []
     incomplete: list[str] = []
     for hit in hits:
         location = _IdpLocation(
@@ -364,13 +572,40 @@ def _locate_idp(
             if not value
         ]
         if not missing:
-            return location
+            complete.append(location)
+            continue
         incomplete.append(f"{hit.get('timestamp')}: missing {', '.join(missing)}")
+
+    if complete:
+        # meas_hist's grain is one document per measurement RUN — one tool
+        # running one recipe on one lot (docs/datatables/meas_hist.txt) — so
+        # the newest _LOCATE_CANDIDATES documents for a recipe are usually the
+        # SAME tool measuring several different lots, which would otherwise
+        # yield several identical _IdpLocation tuples. Without collapsing
+        # them, _download_first would re-dial that one (possibly dead) host
+        # several times instead of trying several different hosts.
+        return list(dict.fromkeys(complete))
 
     raise LookupError(
         f"Found {len(hits)} document(s) in {index} for full_name={recipe_id!r}, "
         "but none carries every field the FTP path needs — "
         + " | ".join(incomplete)
+    )
+
+
+def _locate_idp(
+    tool_type: ToolType,
+    recipe_id: str,
+    fab_name: str | None,
+) -> list[_IdpLocation]:
+    """Where this recipe's .idp can be fetched from, best candidate first.
+
+    The Redis registry knows this directly and answers without a query to
+    measurement history; meas_hist is the fallback. Both return an ordered
+    list rather than one answer so the download can walk it.
+    """
+    return _locate_via_redis(tool_type, recipe_id, fab_name) or _locate_via_meas_hist(
+        tool_type, recipe_id, fab_name
     )
 
 
@@ -458,6 +693,61 @@ def _download_idp(location: _IdpLocation, dest_dir: Path) -> Path:
         remote_path, len(fetched[remote_path]), location.eqp_ip, transport,
     )
     return local_path
+
+
+def _download_first(
+    candidates: list[_IdpLocation], dest_dir: Path
+) -> tuple[Path, _IdpLocation]:
+    """Try each candidate in order; return the first success AND its location.
+
+    The location is returned, not just the path, because the caller has to know
+    WHICH tool actually served the file: `RecipeDetailResponse.locator` sends
+    the client back to that tool's raw-recipe folder, and with a candidate list
+    the winner is not necessarily the first entry. Handing back only the path
+    would leave the caller naming a tool that may not hold the folder at all.
+
+    Raises:
+        InvalidToolIp: EVERY candidate was refused by the tool-IP guard.
+        LookupError: candidates were dialable but none served the file.
+    """
+    # Imported here, not at module scope, to match _download_idp's deferral of
+    # the msr_image imports. InvalidToolIp is NOT a LookupError subclass
+    # (msr_image/errors.py: it descends from MsrImageError), so the two except
+    # clauses below are disjoint.
+    from back_dev_home.msr_image.errors import InvalidToolIp
+
+    failures = []
+    blocked = []
+    for location in candidates:
+        try:
+            return _download_idp(location, dest_dir), location
+        except InvalidToolIp as exc:
+            # Skipped rather than raised: one stale roster IP must not fail
+            # every recipe held on that tool. The guard still refuses to dial
+            # it and the WARNING names it, so the roster can be corrected.
+            blocked.append(exc)
+            _LOG.warning(
+                "recipe_search: %s (%s) is outside SKEWNONO_TOOL_SUBNETS and "
+                "was skipped — %s", location.eqp_id, location.eqp_ip, exc,
+            )
+            failures.append(
+                f"{location.eqp_id or '?'} ({location.eqp_ip}): IP blocked"
+            )
+        except LookupError as exc:
+            failures.append(f"{location.eqp_id or '?'}: {exc}")
+
+    if blocked and len(blocked) == len(candidates):
+        # Not a fetch failure. Every tool holding this recipe sits outside the
+        # allowed subnets, which is a configuration fault worth surfacing as
+        # itself rather than flattening into "could not download".
+        raise blocked[0]
+
+    # Unreachable today (get_recipe_open_data always calls this with at least
+    # one candidate — _locate_via_redis/_locate_via_meas_hist both raise or
+    # return non-empty), but an empty candidates list must not read as if a
+    # failure were omitted: no " — " separator when there is nothing to list.
+    detail = f" — {' | '.join(failures)}" if failures else ""
+    raise LookupError(f"Tried {len(candidates)} tool(s) and none served the .idp{detail}")
 
 
 # ── recipe open, step 3: parse it (office_utils) ──────────────────────────
@@ -915,10 +1205,15 @@ def get_recipe_open_data(
 ) -> RecipeDetailResponse:
     """One recipe's IDP tables: locate -> download -> parse -> map.
 
+    Locate prefers the Redis recipe registry and falls back to measurement
+    history; either way it yields tool candidates in preference order and the
+    download walks them until one answers.
+
     The download lands in a temp directory that is removed on the way out.
-    Nothing is cached: a recipe's .idp is small and the OpenSearch lookup
-    dominates, but if 열어보기 latency becomes a complaint this is the seam to
-    put a TTL cache behind (keyed on the recipe triple, not on the path).
+    Nothing is cached: a recipe's .idp is small, and with the registry path the
+    lookup is now two Redis reads rather than an OpenSearch query. If 열어보기
+    latency ever becomes a complaint this is still the seam to put a TTL cache
+    behind (keyed on the recipe triple, not on the path).
     """
     recipe = (recipe_id or "").strip()
     if not recipe:
@@ -926,9 +1221,9 @@ def get_recipe_open_data(
     tool_type: ToolType = tool_category or "cd-sem"
     fab_name = (fac_id or "").strip() or None
 
-    location = _locate_idp(tool_type, recipe, fab_name)
+    locations = _locate_idp(tool_type, recipe, fab_name)
     with tempfile.TemporaryDirectory(prefix="skewnono-idp-") as tmp_dir:
-        local_path = _download_idp(location, Path(tmp_dir))
+        local_path, location = _download_first(locations, Path(tmp_dir))
         frames = _parse_idp(local_path)
 
     return _to_detail_response(frames, recipe, fab_name or "", tool_type, location)

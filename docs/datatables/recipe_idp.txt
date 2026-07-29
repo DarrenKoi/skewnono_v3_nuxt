@@ -7,7 +7,14 @@ DB 가 아니라 **장비 FTP 에 있는 recipe 파일**이며, 파일을 내려
 소스 체인
 =========
 
-  meas_hist_cdsem / meas_hist_hvsem        (OpenSearch)
+경로는 Redis registry 에서 먼저 찾고, 없으면 측정 이력에서 찾습니다.
+
+  1순위: Redis (recipe_name_list.txt)
+    v3_{cdsem|hvsem}_rcp_loc_{fab}       [idw_name, idp_name]
+    v3_{cdsem|hvsem}_tools_in_rcp_{fab}  [eqp_id, ...]  ─► sem_list 로 eqp_ip
+    full_name 의 "/" 앞부분                ─► class_name
+
+  2순위: OpenSearch meas_hist_cdsem / meas_hist_hvsem
     ├── eqp_ip       ─────────────────►  FTP host
     ├── class_name   ──┐
     ├── idw_name     ──┼──────────────►  /HITACHI/DEVICE/HD/{class_name}/data/{idw_name}
@@ -17,9 +24,29 @@ DB 가 아니라 **장비 FTP 에 있는 recipe 파일**이며, 파일을 내려
   {idp_name}.idp  ──►  office_utils.read_idp_info.combined_idp_info(idp_file_path)
                          ──►  read_idp_info: dict[str, pd.DataFrame]
 
-측정 이력 문서가 **그 recipe 를 실행한 장비**를 이미 지목하므로, FTP host 를 위해
-sem_list 를 다시 join 할 필요가 없습니다(lateral check 는 eqp_id -> eqp_ip 해석에
-sem_list 가 필요하지만 이 경로는 아닙니다).
+두 경로는 **섞지 않습니다**. registry 가 둘 중 하나라도 답하지 못하면 (또는
+fab 이 지정되지 않으면) 전체를 meas_hist 로 넘깁니다 — 절반씩 조립한 경로는
+나중에 그 경로가 틀렸을 때 출처를 추적할 수 없기 때문입니다.
+
+여기서 "답하지 못하면"은 값이 비어 있거나 항목이 부족한 **정상 조회 결과**를
+말합니다. Redis 자체가 응답하지 않거나(연결 끊김) sem_list 조회가 실패하는
+경우는 폴백 대상이 **아닙니다** — 그런 예외는 meas_hist 로 넘어가지 않고 그대로
+올라갑니다(502/503).
+
+장비 선택
+
+  두 경로 모두 후보를 **여러 개** 돌려주고, 다운로드가 순서대로 시도해 먼저
+  성공한 것을 씁니다. registry 경로는 sem_list 의 available="On" 장비를 앞에
+  두고 registry 순서를 유지하며, meas_hist 경로는 최근 측정 순입니다. 장비 한
+  대가 꺼져 있다고 recipe 를 열 수 없게 되지 않도록 하기 위함입니다.
+
+  eqp_ip 가 허용 subnet 밖이면 그 후보만 건너뛰고 WARNING 을 남깁니다. 후보
+  **전부**가 그렇다면 InvalidToolIp 를 그대로 올립니다 — 그때는 전송 실패가
+  아니라 설정 오류이기 때문입니다.
+
+registry 경로에서는 eqp_id -> eqp_ip 해석에 sem_list 가 필요합니다(lateral
+check 와 같은 join). meas_hist 경로에서만 측정 이력 문서가 그 recipe 를 실행한
+장비를 이미 지목하므로 join 이 필요 없습니다.
 
 경로 표기 (office 확인 2026-07-27)
 
