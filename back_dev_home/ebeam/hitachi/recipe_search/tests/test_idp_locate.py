@@ -15,6 +15,7 @@ import logging
 import pytest
 
 from back_dev_home.ebeam.hitachi.recipe_search.providers import office_example as oe
+from back_dev_home.msr_image.errors import InvalidToolIp
 
 
 class TestFabHash:
@@ -273,6 +274,20 @@ class TestLocateViaMeasHist:
         with pytest.raises(LookupError, match="none carries every field"):
             oe._locate_via_meas_hist("cd-sem", RECIPE, "R3")
 
+    def test_duplicate_documents_from_the_same_tool_collapse_to_one(self, monkeypatch):
+        # meas_hist's grain is one document per measurement RUN, so the
+        # newest N documents for a recipe are usually the SAME tool measuring
+        # N different lots — same eqp_id, same idw/idp paths, only the
+        # timestamp differs. Without collapsing these, _download_first would
+        # re-dial that one host N times instead of trying N different tools.
+        monkeypatch.setattr(oe, "fetch_hits", lambda *a, **k: [
+            _hit("CG6300_01", "2026-07-28T10:00:00"),
+            _hit("CG6300_01", "2026-07-28T09:00:00"),
+            _hit("CG6300_01", "2026-07-28T08:00:00"),
+        ])
+        locations = oe._locate_via_meas_hist("cd-sem", RECIPE, "R3")
+        assert [location.eqp_id for location in locations] == ["CG6300_01"]
+
 
 class TestLocateIdpDispatch:
     def test_redis_wins_and_opensearch_is_never_queried(self, monkeypatch):
@@ -289,8 +304,6 @@ class TestLocateIdpDispatch:
         monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a: sentinel)
         assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel
 
-
-from back_dev_home.msr_image.errors import InvalidToolIp
 
 THREE = [
     oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A"),
@@ -346,6 +359,31 @@ class TestDownloadFirst:
             oe, "_download_idp", _always_raise(InvalidToolIp, "outside subnets")
         )
         # Not a fetch failure — this is the misconfiguration MIGRATION.md
-        # documents InvalidToolIp for, so it must survive as itself.
-        with pytest.raises(InvalidToolIp):
+        # documents InvalidToolIp for, so it must survive as itself. Matching
+        # on the FIRST candidate's id (CG6300_01) pins this to `raise
+        # blocked[0]` specifically — a bare `pytest.raises(InvalidToolIp)`
+        # cannot tell that apart from a freshly constructed InvalidToolIp.
+        with pytest.raises(InvalidToolIp, match=r"\(CG6300_01\)"):
             oe._download_first(THREE, tmp_path)
+
+    def test_mixed_blocked_and_failed_raises_lookup_error_naming_both(
+        self, monkeypatch, tmp_path
+    ):
+        # THREE = [CG6300_01, CG6300_07, CG6380_02]. If `blocked` truthiness
+        # ever replaced the `len(blocked) == len(candidates)` guard, this
+        # mixed case would wrongly raise InvalidToolIp instead of LookupError
+        # — silently turning an informative 502 into a generic 500.
+        def _download(location, dest_dir):
+            if location.eqp_id == "CG6300_01":
+                raise InvalidToolIp("outside the allowed subnets")
+            raise LookupError("no such file")
+
+        monkeypatch.setattr(oe, "_download_idp", _download)
+        with pytest.raises(LookupError) as excinfo:
+            oe._download_first(THREE, tmp_path)
+        message = str(excinfo.value)
+        # Not InvalidToolIp: excinfo.type asserts the exact raised type since
+        # pytest.raises(LookupError) alone would also accept a subclass.
+        assert excinfo.type is LookupError
+        assert "IP blocked" in message  # the blocked candidate is named
+        assert "no such file" in message  # the failed candidates are named

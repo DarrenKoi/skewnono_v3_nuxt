@@ -21,7 +21,7 @@ matches the mock.
 
 **Recipe open** (``get_recipe_open_data``) — the measuring tool's own FTP
 server. The path is assembled from the Redis recipe registry when it can be,
-and from one meas_hist document when it cannot::
+and from measurement history when it cannot::
 
     v3_{cdsem,hvsem}_rcp_loc_{fab}        full_name -> [idw_name, idp_name]
     v3_{cdsem,hvsem}_tools_in_rcp_{fab}   full_name -> [eqp_id, ...]
@@ -390,7 +390,9 @@ def _order_candidates(
             "the roster is missing the tool, not that the ids disagree.",
             len(unknown), unknown,
         )
-    return online + offline
+    # A tools_in_rcp value can repeat an eqp_id; collapse exact repeats so the
+    # download walk tries each distinct tool once rather than re-dialing one.
+    return list(dict.fromkeys(online + offline))
 
 
 def _locate_via_redis(
@@ -546,7 +548,14 @@ def _locate_via_meas_hist(
         incomplete.append(f"{hit.get('timestamp')}: missing {', '.join(missing)}")
 
     if complete:
-        return complete
+        # meas_hist's grain is one document per measurement RUN — one tool
+        # running one recipe on one lot (docs/datatables/meas_hist.txt) — so
+        # the newest _LOCATE_CANDIDATES documents for a recipe are usually the
+        # SAME tool measuring several different lots, which would otherwise
+        # yield several identical _IdpLocation tuples. Without collapsing
+        # them, _download_first would re-dial that one (possibly dead) host
+        # several times instead of trying several different hosts.
+        return list(dict.fromkeys(complete))
 
     raise LookupError(
         f"Found {len(hits)} document(s) in {index} for full_name={recipe_id!r}, "
@@ -673,9 +682,11 @@ def _download_first(candidates: list[_IdpLocation], dest_dir: Path) -> Path:
                 "recipe_search: %s (%s) is outside SKEWNONO_TOOL_SUBNETS and "
                 "was skipped — %s", location.eqp_id, location.eqp_ip, exc,
             )
-            failures.append(f"{location.eqp_id} ({location.eqp_ip}): IP blocked")
+            failures.append(
+                f"{location.eqp_id or '?'} ({location.eqp_ip}): IP blocked"
+            )
         except LookupError as exc:
-            failures.append(f"{location.eqp_id}: {exc}")
+            failures.append(f"{location.eqp_id or '?'}: {exc}")
 
     if blocked and len(blocked) == len(candidates):
         # Not a fetch failure. Every tool holding this recipe sits outside the
@@ -683,10 +694,12 @@ def _download_first(candidates: list[_IdpLocation], dest_dir: Path) -> Path:
         # itself rather than flattening into "could not download".
         raise blocked[0]
 
-    raise LookupError(
-        f"Tried {len(candidates)} tool(s) and none served the .idp — "
-        + " | ".join(failures)
-    )
+    # Unreachable today (get_recipe_open_data always calls this with at least
+    # one candidate — _locate_via_redis/_locate_via_meas_hist both raise or
+    # return non-empty), but an empty candidates list must not read as if a
+    # failure were omitted: no " — " separator when there is nothing to list.
+    detail = f" — {' | '.join(failures)}" if failures else ""
+    raise LookupError(f"Tried {len(candidates)} tool(s) and none served the .idp{detail}")
 
 
 # ── recipe open, step 3: parse it (office_utils) ──────────────────────────
