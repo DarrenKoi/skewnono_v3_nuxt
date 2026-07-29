@@ -6,7 +6,7 @@
         <span class="inline-block h-2 w-2 rounded-full bg-(--sk-bad)" /> 측정 실패
       </span>
       <span class="flex items-center gap-1">
-        <span class="inline-block h-2 w-2 rounded-full bg-(--sk-brand)" /> 이미지
+        <span class="inline-block h-2 w-2 rounded-full bg-sky-600 dark:bg-sky-400" /> 이미지
       </span>
       <span class="flex items-center gap-1">
         <span class="inline-block h-2 w-2 rounded-full bg-(--sk-ok)" /> 정렬
@@ -32,7 +32,7 @@
         />
         <span
           class="h-1.5 w-1.5 rounded-full"
-          :class="cell.image ? 'bg-(--sk-brand)' : 'bg-transparent'"
+          :class="cell.image ? 'bg-sky-600 dark:bg-sky-400' : 'bg-transparent'"
         />
         <span
           class="h-1.5 w-1.5 rounded-full"
