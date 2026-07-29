@@ -18,34 +18,58 @@
     </template>
 
     <template #body>
-      <div
-        v-if="images.length"
-        class="mb-4"
-      >
-        <p class="mb-1.5 sk-eyebrow">
-          Align Image
-        </p>
-        <div class="grid grid-cols-2 gap-3">
+      <div class="mb-4">
+        <div class="mb-1.5 flex items-baseline justify-between gap-2">
+          <p class="sk-eyebrow">
+            Align Image
+          </p>
+          <span
+            v-if="pending"
+            class="sk-meta"
+          >불러오는 중…</span>
+          <span
+            v-else-if="error"
+            class="text-[11px] text-(--sk-danger)"
+          >정렬 정보를 불러오지 못했습니다.</span>
+        </div>
+
+        <div
+          v-if="points.length"
+          class="grid grid-cols-2 gap-3"
+        >
           <button
-            v-for="img in images"
-            :key="img.filename"
+            v-for="point in points"
+            :key="point.P_No"
             type="button"
             class="group flex min-w-0 flex-col gap-1 text-left"
-            :aria-label="`${img.label} 확대해서 보기`"
-            @click="zoomImage = img"
+            :aria-label="`P.No ${point.P_No} 정렬 이미지 확대해서 보기`"
+            @click="zoom = point"
           >
             <div class="relative mx-auto aspect-square w-full max-w-[220px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
-              <EbeamRecipeOpenSemNoise />
+              <img
+                v-if="point.image"
+                :src="imageSrc(point.image)"
+                :alt="`P.No ${point.P_No} 정렬 이미지`"
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full object-cover"
+              >
               <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)">
-                {{ img.label }}
+                P.No {{ point.P_No }}
               </span>
               <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
             </div>
             <div class="truncate font-mono text-[11px] text-(--sk-ink-muted)">
-              {{ img.filename }}
+              {{ point.image ?? '—' }}
             </div>
           </button>
         </div>
+        <p
+          v-else-if="!pending"
+          class="sk-meta"
+        >
+          정렬 이미지가 없습니다.
+        </p>
       </div>
 
       <UTable
@@ -59,24 +83,40 @@
   </UModal>
 
   <UModal
-    :open="zoomImage !== null"
-    :ui="{ content: 'w-[92vw] sm:max-w-[920px]', body: 'p-0' }"
-    @update:open="value => { if (!value) zoomImage = null }"
+    :open="zoom !== null"
+    :ui="{ content: 'w-[92vw] sm:max-w-[1020px]', body: 'p-0' }"
+    @update:open="value => { if (!value) zoom = null }"
   >
     <template #content>
       <div
-        v-if="zoomImage"
-        class="relative mx-auto flex aspect-square w-full max-w-[min(100%,82vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]"
+        v-if="zoom"
+        class="grid h-full max-h-[88vh] grid-cols-1 gap-4 p-4 md:grid-cols-[1.4fr_320px]"
       >
-        <EbeamRecipeOpenSemNoise />
-        <div class="relative font-mono text-[80px] font-bold tracking-widest text-white/10">
-          ALIGN
+        <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]">
+          <img
+            v-if="zoom.image"
+            :src="imageSrc(zoom.image)"
+            :alt="`P.No ${zoom.P_No} 정렬 이미지`"
+            decoding="async"
+            class="h-full w-full object-contain"
+          >
+          <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
+            <span class="rounded bg-(--sk-ink) px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-(--sk-ink-fg)">
+              P.No {{ zoom.P_No }}
+            </span>
+            <span class="font-mono text-[11px] text-white/60">{{ zoom.image }}</span>
+          </div>
         </div>
-        <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
-          <span class="rounded bg-(--sk-ink) px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-(--sk-ink-fg)">
-            {{ zoomImage.label }}
-          </span>
-          <span class="font-mono text-[11px] text-white/60">{{ zoomImage.filename }}</span>
+
+        <div class="max-h-[88vh] space-y-3 overflow-auto">
+          <EbeamRecipeOpenSettingTable
+            title="빔 조건"
+            :block="zoom.cond"
+          />
+          <EbeamRecipeOpenSettingTable
+            title="정렬 조건 (AF / PR)"
+            :block="zoom.setting"
+          />
         </div>
       </div>
     </template>
@@ -84,9 +124,29 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Wafer-align points, with each point's image, beam condition and AF/PR
+ * setting fetched from the raw-recipe folder when the popup opens.
+ *
+ * Fetched on open rather than with the recipe: alignment is looked at rarely,
+ * and the fetch costs two files per align point off the tool's FTP server.
+ */
 import type { TableColumn } from '@nuxt/ui'
-import type { AlignImage, WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
+import type { IdpLocator, WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
+import { recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import { recipeTableUi } from '~/utils/recipeView'
+
+interface SettingBlockLike {
+  source: string
+  rows: { key: string, value: string }[]
+}
+
+interface AlignPoint {
+  P_No: number
+  image: string | null
+  cond: SettingBlockLike | null
+  setting: SettingBlockLike | null
+}
 
 type AlignDisplayRow = {
   Align_No: number
@@ -99,17 +159,55 @@ type AlignDisplayRow = {
 
 const open = defineModel<boolean>('open', { required: true })
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   rows: WaferAlignInfoRow[]
-  images?: AlignImage[]
-}>(), {
-  images: () => []
-})
+  toolSlug: string
+  locator: IdpLocator
+}>()
 
-const zoomImage = ref<AlignImage | null>(null)
+const zoom = ref<AlignPoint | null>(null)
+const points = ref<AlignPoint[]>([])
+const pending = ref(false)
+const error = ref(false)
+
+/** Sorted unique P.No — the align table repeats a P.No across rows, and each
+ *  distinct one names exactly one file set. */
+const pNumbers = computed(() =>
+  [...new Set(props.rows.map(row => row['P.No']))].sort((a, b) => a - b)
+)
+
+const imageSrc = (name: string) =>
+  recipeImageUrl(props.toolSlug, props.locator, name)
+
+async function load() {
+  if (!pNumbers.value.length) {
+    points.value = []
+    return
+  }
+  pending.value = true
+  error.value = false
+  try {
+    const response = await $fetch<{ points: AlignPoint[] }>(
+      `/api/${props.toolSlug}/recipe-search/align-detail`,
+      { query: { ...props.locator, p_numbers: pNumbers.value.join(',') } }
+    )
+    points.value = response.points
+  } catch {
+    error.value = true
+    points.value = []
+  } finally {
+    pending.value = false
+  }
+}
 
 watch(open, (isOpen) => {
-  if (!isOpen) zoomImage.value = null
+  if (!isOpen) {
+    zoom.value = null
+    return
+  }
+  // Only on the first open — the raw folder is immutable for a given recipe,
+  // so re-opening the popup should not re-hit the tool.
+  if (!points.value.length && !pending.value) void load()
 })
 
 const displayRows = computed<AlignDisplayRow[]>(() => props.rows.map(row => ({

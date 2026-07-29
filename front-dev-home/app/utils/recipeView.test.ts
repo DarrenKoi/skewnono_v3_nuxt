@@ -2,15 +2,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  recipeTableUi, IMAGE_SLOTS, AMP_FIELDS_ADDR, AMP_FIELDS_MEAS, ampFieldsForRole,
-  formatAmpValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
+  recipeTableUi, IMAGE_SLOTS, IMAGE_ONLY_SLOTS, EMPTY_SLOT, isEmptySlot,
+  formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
-
-// The optical columns both AMP field sets share, before the role-specific tail.
-const COMMON_AMP_KEYS = ['Mag', 'Vacc', 'I_probe', 'Frame', 'Scan', 'WD', 'Det']
 
 // Minimal loaded route — only `query` is read, the rest satisfies the type.
 const routeWith = (query: LocationQuery): RouteLocationNormalizedLoaded => ({
@@ -72,48 +69,52 @@ test('the slot label is the raw column name, so the UI names what it read', () =
   for (const slot of IMAGE_SLOTS) assert.equal(slot.label, slot.key)
 })
 
-// --- AMP field descriptors ---
+// --- image slots vs setting slots ---
 
-test('both AMP field sets start with the shared optical columns', () => {
-  assert.deepEqual(AMP_FIELDS_ADDR.slice(0, COMMON_AMP_KEYS.length).map(f => f.key), COMMON_AMP_KEYS)
-  assert.deepEqual(AMP_FIELDS_MEAS.slice(0, COMMON_AMP_KEYS.length).map(f => f.key), COMMON_AMP_KEYS)
+test('only three slots name an image; img_add2 and img_meas2 name settings', () => {
+  // img_add2 is PRMP0000 (-> ENMP0000, the AF/PR condition) and img_meas2 is
+  // PRMS0000 (the AMP file itself). Neither has a .jpeg. image_add3 breaks the
+  // img_* naming run but IS an image. (user-confirmed 2026-07-29)
+  assert.deepEqual(IMAGE_ONLY_SLOTS.map(s => s.key), ['img_add1', 'image_add3', 'img_meas1'])
+  assert.deepEqual(
+    IMAGE_SLOTS.filter(s => !s.hasImage).map(s => s.key),
+    ['img_add2', 'img_meas2']
+  )
 })
 
-test('the role-specific AMP columns do not overlap', () => {
-  // Sliced past the shared prefix by name, not by a hardcoded 7 — adding a
-  // common column must not silently shift what counts as role-specific.
-  const addrOnly = AMP_FIELDS_ADDR.slice(COMMON_AMP_KEYS.length).map(f => f.key)
-  const measOnly = AMP_FIELDS_MEAS.slice(COMMON_AMP_KEYS.length).map(f => f.key)
-  assert.deepEqual(addrOnly, ['Template', 'MatchScore', 'SearchArea', 'Rotation'])
-  assert.deepEqual(measOnly, ['Algo', 'ROI', 'EdgeThr', 'EdgeDir', 'Smooth'])
-  for (const key of measOnly) assert.ok(!addrOnly.includes(key))
+test('IMAGE_ONLY_SLOTS keeps the raw-folder order', () => {
+  const order = IMAGE_SLOTS.filter(s => s.hasImage)
+  assert.deepEqual(IMAGE_ONLY_SLOTS.map(s => s.key), order.map(s => s.key))
 })
 
-test('ampFieldsForRole picks the measure set only for measure', () => {
-  assert.equal(ampFieldsForRole('measure'), AMP_FIELDS_MEAS)
-  assert.equal(ampFieldsForRole('address'), AMP_FIELDS_ADDR)
+// --- the empty-slot sentinel ---
+
+test('the sentinel is the French "non", not "none"', () => {
+  assert.equal(EMPTY_SLOT, 'non')
+  assert.ok(isEmptySlot('non'))
+  assert.ok(isEmptySlot('NON'))
+  assert.ok(isEmptySlot('  non  '))
+  assert.ok(isEmptySlot(''))
+  assert.ok(isEmptySlot(null))
+  assert.ok(isEmptySlot(undefined))
 })
 
-test('the AMP descriptor units are attached to the fields that carry one', () => {
-  const unitOf = (key: string) => AMP_FIELDS_ADDR.find(f => f.key === key)?.unit
-  assert.equal(unitOf('Mag'), '×')
-  assert.equal(unitOf('Vacc'), 'V')
-  assert.equal(unitOf('I_probe'), 'pA')
-  assert.equal(unitOf('WD'), 'mm')
-  assert.equal(unitOf('Frame'), undefined) // unitless
+test('"none" is an ordinary value, not the sentinel', () => {
+  assert.equal(isEmptySlot('none'), false)
+  assert.equal(isEmptySlot('IMMP0001'), false)
 })
 
-// --- formatAmpValue ---
+// --- formatSettingValue ---
 
 test('formatAmpValue renders an em-dash placeholder for every empty form', () => {
-  assert.equal(formatAmpValue(null), '—')
-  assert.equal(formatAmpValue(undefined), '—')
-  assert.equal(formatAmpValue(''), '—')
+  assert.equal(formatSettingValue(null), '—')
+  assert.equal(formatSettingValue(undefined), '—')
+  assert.equal(formatSettingValue(''), '—')
 })
 
 test('formatAmpValue passes real values through as text', () => {
-  assert.equal(formatAmpValue('120000'), '120000')
-  assert.equal(formatAmpValue('0'), '0') // a real zero is not "empty"
+  assert.equal(formatSettingValue('120000'), '120000')
+  assert.equal(formatSettingValue('0'), '0') // a real zero is not "empty"
 })
 
 // --- routes ---

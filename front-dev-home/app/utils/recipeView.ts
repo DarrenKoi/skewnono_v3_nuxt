@@ -1,5 +1,5 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import type { AmpRole, AmpRow, IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
+import type { IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
 import type { RecipeSearchSource } from '~/utils/recipeSelection'
 
 export const recipeTableUi = {
@@ -13,58 +13,42 @@ export type ImageSlotKey = Extract<
   'img_add1' | 'img_add2' | 'image_add3' | 'img_meas1' | 'img_meas2'
 >
 
+export type SlotRole = 'address' | 'measure'
+
 export interface ImageSlot {
   key: ImageSlotKey
   label: string
-  role: AmpRole
+  role: SlotRole
   stage: string
+  /**
+   * Does this slot name a `.jpeg` in the raw-recipe folder?
+   *
+   * `img_add2` and `img_meas2` do NOT — they name setting files (`PRMP0000`
+   * and `PRMS0000`), which is why the panel shows three thumbnails and two
+   * settings tables rather than five thumbnails. `image_add3` breaks the
+   * `img_*` naming run but IS an image (user-confirmed 2026-07-29).
+   */
+  hasImage: boolean
 }
 
 export const IMAGE_SLOTS: readonly ImageSlot[] = [
-  { key: 'img_add1', label: 'img_add1', role: 'address', stage: 'Addressing 1' },
-  { key: 'img_add2', label: 'img_add2', role: 'address', stage: 'Addressing 2' },
-  { key: 'image_add3', label: 'image_add3', role: 'address', stage: 'Addressing 3' },
-  { key: 'img_meas1', label: 'img_meas1', role: 'measure', stage: 'Measure 1' },
-  { key: 'img_meas2', label: 'img_meas2', role: 'measure', stage: 'Measure 2' }
+  { key: 'img_add1', label: 'img_add1', role: 'address', stage: 'Addressing 1', hasImage: true },
+  { key: 'img_add2', label: 'img_add2', role: 'address', stage: 'Addressing 2', hasImage: false },
+  { key: 'image_add3', label: 'image_add3', role: 'address', stage: 'Addressing 3', hasImage: true },
+  { key: 'img_meas1', label: 'img_meas1', role: 'measure', stage: 'Measure 1', hasImage: true },
+  { key: 'img_meas2', label: 'img_meas2', role: 'measure', stage: 'Measure 2', hasImage: false }
 ] as const
 
-export interface AmpFieldDescriptor {
-  key: keyof AmpRow
-  label: string
-  unit?: string
-}
+/** The three slots that resolve to a `.jpeg`, in raw-folder order. */
+export const IMAGE_ONLY_SLOTS: readonly ImageSlot[] = IMAGE_SLOTS.filter(s => s.hasImage)
 
-const AMP_FIELDS_COMMON: readonly AmpFieldDescriptor[] = [
-  { key: 'Mag', label: 'Mag', unit: '×' },
-  { key: 'Vacc', label: 'Vacc', unit: 'V' },
-  { key: 'I_probe', label: 'I_probe', unit: 'pA' },
-  { key: 'Frame', label: 'Frame' },
-  { key: 'Scan', label: 'Scan' },
-  { key: 'WD', label: 'WD', unit: 'mm' },
-  { key: 'Det', label: 'Det' }
-]
+/** French "non" — the office's empty-slot sentinel. NOT "none". */
+export const EMPTY_SLOT = 'non'
 
-export const AMP_FIELDS_ADDR: readonly AmpFieldDescriptor[] = [
-  ...AMP_FIELDS_COMMON,
-  { key: 'Template', label: 'Template' },
-  { key: 'MatchScore', label: 'MatchScore', unit: '%' },
-  { key: 'SearchArea', label: 'SearchArea', unit: 'px' },
-  { key: 'Rotation', label: 'Rotation', unit: '°' }
-]
+export const isEmptySlot = (value: string | null | undefined): boolean =>
+  !value || value.trim().toLowerCase() === EMPTY_SLOT
 
-export const AMP_FIELDS_MEAS: readonly AmpFieldDescriptor[] = [
-  ...AMP_FIELDS_COMMON,
-  { key: 'Algo', label: 'Algo' },
-  { key: 'ROI', label: 'ROI', unit: 'px' },
-  { key: 'EdgeThr', label: 'EdgeThr', unit: '%' },
-  { key: 'EdgeDir', label: 'EdgeDir' },
-  { key: 'Smooth', label: 'Smooth' }
-]
-
-export const ampFieldsForRole = (role: AmpRole): readonly AmpFieldDescriptor[] =>
-  role === 'measure' ? AMP_FIELDS_MEAS : AMP_FIELDS_ADDR
-
-export const formatAmpValue = (value: AmpRow[keyof AmpRow] | undefined): string => {
+export const formatSettingValue = (value: string | null | undefined): string => {
   if (value === null || value === undefined || value === '') return '—'
   return String(value)
 }

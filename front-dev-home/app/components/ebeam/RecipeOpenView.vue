@@ -100,9 +100,8 @@
             <div class="flex flex-wrap gap-1.5">
               <SkNavPill
                 size="sm"
-                label="이미지 + AMP"
+                label="이미지 + 설정"
                 icon="i-lucide-eye"
-                :count="IMAGE_SLOTS.length"
                 :active="activeTab === 'image'"
                 @click="activeTab = 'image'"
               />
@@ -123,10 +122,13 @@
           </div>
 
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-            <EbeamRecipeOpenImageAmpMatrix
+            <EbeamRecipeOpenParamSettings
               v-if="activeTab === 'image'"
-              :row="selectedIdp"
-              :amp-rows="ampRowsForSelected"
+              :tool-slug="toolSlug"
+              :locator="locator"
+              :detail="paramDetail"
+              :pending="paramPending"
+              :error="paramError"
               @open-image="openLightbox"
             />
 
@@ -150,7 +152,8 @@
       <EbeamRecipeOpenAlignPopup
         v-model:open="alignOpen"
         :rows="data.wafer_align_info"
-        :images="data.align_images"
+        :tool-slug="toolSlug"
+        :locator="data.locator"
       />
 
       <EbeamRecipeOpenImageLightbox
@@ -164,14 +167,19 @@
 <script setup lang="ts">
 import type { Fab } from '~/stores/navigation'
 import type {
-  AmpRow,
+  IdpLocator,
   RecipeDetailResponse,
   RecipeSearchToolType
 } from '~/composables/useRecipeSearchApi'
+import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
+import {
+  fetchParamDetails,
+  recipeImageUrl,
+  slotsOf
+} from '~/composables/useRecipeParamDetail'
 import {
   IMAGE_SLOTS,
   isRecipeDetailScreenSupported,
-  type ImageSlotKey,
   readRecipeNameQuery,
   readRecipeSourceQuery
 } from '~/utils/recipeView'
@@ -218,7 +226,6 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeDetailRespons
 
 const waferMpRows = computed(() => data.value?.wafer_mp_info ?? [])
 const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
-const ampInfo = computed<AmpRow[]>(() => data.value?.amp_info ?? [])
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 
@@ -231,6 +238,7 @@ const lightboxOpen = ref(false)
 const lightboxData = ref<LightboxData | null>(null)
 
 watch(cacheKey, () => {
+  paramCache.clear()
   selectedIdpIndex.value = 0
   activeTab.value = 'image'
   lightboxOpen.value = false
@@ -245,20 +253,67 @@ const mpRowsForSelected = computed(() => {
   return waferMpRows.value.filter(r => r.Parameter === param)
 })
 
-const ampRowsForSelected = computed(() => {
-  const param = selectedIdp.value?.Parameter
-  if (!param) return []
-  return ampInfo.value.filter(a => a.parameter === param)
+// Where this recipe's raw folder lives. An empty locator means the detail call
+// has not landed yet; the settings panel simply stays pending.
+const locator = computed<IdpLocator>(() => data.value?.locator ?? {
+  eqp_ip: '', class_name: '', idw: '', idp: ''
 })
 
-const openLightbox = (slotKey: ImageSlotKey) => {
-  if (!selectedIdp.value) return
-  const slot = IMAGE_SLOTS.find(s => s.key === slotKey)
-  if (!slot) return
+const toolSlug = computed(() => props.toolType === 'hv-sem' ? 'hvsem' : 'cdsem')
+
+// Settings for the selected parameter, fetched on selection. Cached per
+// (recipe, parameter) so clicking back to a parameter already viewed is free —
+// the raw folder is immutable for a given recipe.
+const paramDetail = ref<ParamDetail | null>(null)
+const paramPending = ref(false)
+const paramError = ref(false)
+const paramCache = new Map<string, ParamDetail>()
+
+async function loadParamDetail() {
+  const row = selectedIdp.value
+  if (!row || !data.value?.locator?.eqp_ip) {
+    paramDetail.value = null
+    return
+  }
+  const key = `${cacheKey.value}::${row.Parameter}::${selectedIdpIndex.value}`
+  const cached = paramCache.get(key)
+  if (cached) {
+    paramDetail.value = cached
+    paramError.value = false
+    return
+  }
+
+  paramPending.value = true
+  paramError.value = false
+  try {
+    const rows = await fetchParamDetails(toolSlug.value, [{
+      locator: data.value.locator,
+      parameter: row.Parameter,
+      slots: slotsOf(row)
+    }])
+    const detail = rows[0] ?? null
+    if (detail) paramCache.set(key, detail)
+    paramDetail.value = detail
+  } catch {
+    paramError.value = true
+    paramDetail.value = null
+  } finally {
+    paramPending.value = false
+  }
+}
+
+watch([selectedIdp, () => data.value?.locator?.eqp_ip], () => {
+  void loadParamDetail()
+}, { immediate: true })
+
+const openLightbox = (image: ParamImage) => {
   lightboxData.value = {
-    slot,
-    filename: selectedIdp.value[slot.key],
-    ampRow: ampRowsForSelected.value.find(a => a.slot === slot.key) ?? null
+    slot: image.slot,
+    stage: image.stage,
+    name: image.name,
+    src: recipeImageUrl(toolSlug.value, locator.value, image.name),
+    role: IMAGE_SLOTS.find(s => s.key === image.slot)?.role ?? 'address',
+    cond: image.cond
   }
   lightboxOpen.value = true
 }

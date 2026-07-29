@@ -9,9 +9,20 @@
         class="grid h-full max-h-[88vh] grid-cols-1 gap-4 p-4 md:grid-cols-[1.4fr_320px]"
       >
         <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]">
-          <EbeamRecipeOpenSemNoise />
-          <div class="relative font-mono text-[80px] font-bold tracking-widest text-white/10">
-            SEM
+          <!-- No `loading="lazy"` here: the user has already asked for this one. -->
+          <img
+            v-if="!failed"
+            :src="data.src"
+            :alt="`${data.stage} (${data.name})`"
+            decoding="async"
+            class="h-full w-full object-contain"
+            @error="failed = true"
+          >
+          <div
+            v-else
+            class="px-6 text-center font-mono text-[12px] text-white/45"
+          >
+            이미지를 불러오지 못했습니다
           </div>
           <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
             <span
@@ -19,32 +30,39 @@
               :class="isMeas
                 ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
                 : 'bg-(--sk-ink) text-(--sk-ink-fg)'"
-            >{{ data.slot.stage.toUpperCase() }}</span>
-            <span class="font-mono text-[11px] text-white/60">{{ data.filename }}</span>
+            >{{ data.stage.toUpperCase() }}</span>
+            <span class="font-mono text-[11px] text-white/60">{{ data.name }}</span>
           </div>
         </div>
 
         <div class="max-h-[88vh] overflow-auto rounded-xl bg-zinc-50/60 px-4 py-3 dark:bg-zinc-900/40">
           <p class="sk-eyebrow text-(--sk-brand)">
-            AMP — {{ data.slot.stage.toUpperCase() }}
+            빔 조건 — {{ data.stage.toUpperCase() }}
           </p>
           <p class="mt-0.5 sk-title">
-            {{ data.slot.label }}
+            {{ data.slot }}
           </p>
-          <div class="mt-2.5">
+          <p
+            v-if="!data.cond"
+            class="mt-2.5 text-[11px] text-(--sk-ink-muted)"
+          >
+            파일 없음
+          </p>
+          <div
+            v-else
+            class="mt-2.5"
+          >
+            <p class="mb-1.5 font-mono text-[10px] text-(--sk-ink-subtle)">
+              {{ data.cond.source }}
+            </p>
             <div
-              v-for="field in fields"
-              :key="field.key"
+              v-for="setting in data.cond.rows"
+              :key="setting.key"
               class="flex items-baseline justify-between gap-3 border-b border-zinc-100 py-1.5 dark:border-zinc-800/60"
             >
-              <span class="sk-label">
-                {{ field.label }}<span
-                  v-if="field.unit"
-                  class="ml-1 text-(--sk-ink-subtle)"
-                >({{ field.unit }})</span>
-              </span>
+              <span class="sk-label">{{ setting.key }}</span>
               <span class="text-right sk-value-num">
-                {{ formatAmpValue(data?.ampRow?.[field.key]) }}
+                {{ formatSettingValue(setting.value) }}
               </span>
             </div>
           </div>
@@ -55,13 +73,21 @@
 </template>
 
 <script setup lang="ts">
-import type { AmpRow } from '~/composables/useRecipeSearchApi'
-import { ampFieldsForRole, formatAmpValue, type ImageSlot } from '~/utils/recipeView'
+/**
+ * One raw-recipe image at full size, beside the beam condition parsed from its
+ * `.{name}/cond.txt` sidecar.
+ */
+import type { SettingBlock } from '~/composables/useRecipeParamDetail'
+import { formatSettingValue, type SlotRole } from '~/utils/recipeView'
 
 export interface LightboxData {
-  slot: ImageSlot
-  filename: string
-  ampRow: AmpRow | null
+  /** Column name, e.g. `img_meas1`. */
+  slot: string
+  stage: string
+  name: string
+  src: string
+  role: SlotRole
+  cond: SettingBlock | null
 }
 
 const open = defineModel<boolean>('open', { required: true })
@@ -70,6 +96,10 @@ const props = defineProps<{
   data: LightboxData | null
 }>()
 
-const isMeas = computed(() => props.data?.slot.role === 'measure')
-const fields = computed(() => (props.data ? ampFieldsForRole(props.data.slot.role) : []))
+const isMeas = computed(() => props.data?.role === 'measure')
+
+const failed = ref(false)
+watch(() => props.data?.src, () => {
+  failed.value = false
+})
 </script>
