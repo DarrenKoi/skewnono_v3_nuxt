@@ -38,10 +38,35 @@ as a wrong string rather than an unexplained 550. When the primary path misses,
 ``_fallback_dirs`` re-probes plausible alternates and finally lists the parent
 ``data/`` directory, which reveals the real naming convention outright.
 
-Scope: download the .idp, parse it, LIST the raw-recipe folder. Mapping the
-parsed frames onto RecipeDetailResponse stays out — that is the adapter's job
-(recipe_search/providers/office_example.py), and it wants real frames to be
-written against rather than assumed ones.
+Stage D then takes ONE parameter — ``PARAMETER`` below, hard-coded so it can be
+edited in place — and follows its five image slots into that raw folder::
+
+    idp_image_info row where Parameter == PARAMETER
+      ├── img_add1   'IMMP0001' ──► IMMP0001.jpeg  +  .IMMP0001.jpeg/cond.txt
+      ├── image_add3 'I2MP0000' ──► I2MP0000.jpeg  +  .I2MP0000.jpeg/cond.txt
+      ├── img_meas1  'IMMS0000' ──► IMMS0000.jpeg  +  .IMMS0000.jpeg/cond.txt
+      ├── img_add2   'PRMP0000' ──► ENMP0000       (PR->EN, AF/PR condition)
+      └── img_meas2  'PRMS0000' ──► PRMS0000       (as-is, AMP setting)
+
+Each downloaded setting file is handed to the second office parser, the one the
+adapter uses::
+
+    office_utils.idp_amp_reader.read_amp_info(bytes)               <- img_meas2
+    office_utils.idp_amp_reader.read_af_pr_condition(bytes)        <- img_add2
+    office_utils.idp_amp_reader.read_meas_image_condition(bytes)   <- cond.txt
+
+The names are derived by ``recipe_search/rawfiles.py`` rather than spelled out
+here on purpose: that module is what the office adapter runs, so a name this
+script gets wrong is a bug found rather than a probe-only typo. Two things
+``docs/datatables/recipe_idp.txt`` still lists as unverified are what this stage
+is for — whether the ``img_*`` values are filenames at all, and whether the
+untranslated ``PR…`` file holds anything of its own (it is fetched beside the
+``EN…`` one to find out).
+
+Scope: download the .idp, parse it, LIST the raw-recipe folder, then fetch and
+read one parameter's files. Mapping any of it onto RecipeDetailResponse stays
+out — that is the adapter's job (recipe_search/providers/office_example.py), and
+it wants real frames to be written against rather than assumed ones.
 
 Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* and SKEWNONO_TOOL_FTP_*
 from back_dev_home/.env, like the adapters do). Bare, it probes the newest
@@ -57,7 +82,9 @@ Nothing the run saw is thrown away: ``main()`` returns a ``Probe`` and
 hands the IDE ``hits``, ``doc``, ``idp_bytes``, ``idp_text``, the listings and
 the three parsed frames — ``wafer_mp_info``, ``wafer_align_info`` and
 ``idp_image_info`` are bound separately so "View as DataFrame" reaches them in
-one click.
+one click. Stage D adds ``raw_files`` (name -> bytes) and ``raw_parsed``
+(name -> whatever the reader returned), so a setting file can be re-read by hand
+without another FTP round-trip.
 
 To drive it by hand instead, pass the flags as a list — ``main()`` takes argv
 explicitly so a console session never has to own ``sys.argv``:
@@ -86,13 +113,28 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from back_dev_home._runtime.office_redis import load_env_file
+from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.msr_image.config import load_config
 from back_dev_home.msr_image.paths import validate_tool_ip
 from ops_store import OSSearch, create_client
 
+# ── EDIT ME ───────────────────────────────────────────────────────────────
+# The parameter Stage D follows into the raw-recipe folder. Hard-coded rather
+# than defaulted-to-first-row because a run is usually about one parameter you
+# already have a question about; when it matches nothing, Stage D prints the
+# parameters the recipe DOES have so the next edit is one line away.
+# (--param overrides it for a one-off run without touching the file.)
+PARAMETER = "WAFER"
+# ──────────────────────────────────────────────────────────────────────────
+
 # Same root msr_image already reads images from (office 확인 2026-07-24); the
 # recipe tree is its sibling: images/{msr} vs data/{idw}.
 _ROOT = "/HITACHI/DEVICE/HD"
+
+# idp_image_info's five slot columns, in the order docs/datatables/recipe_idp.txt
+# lists them. Spelled out because the names do NOT follow one rule — image_add3
+# breaks the img_* run — and because the printout is meant to read like the doc.
+_SLOT_COLUMNS = ("img_add1", "img_add2", "img_meas1", "img_meas2", "image_add3")
 
 _INDEX = {"cdsem": "meas_hist_cdsem", "hvsem": "meas_hist_hvsem"}
 
@@ -377,6 +419,163 @@ def _print_tables(tables: dict[str, Any], rows: int = 3) -> None:
         print("\n".join(f"      | {line}" for line in head.splitlines()))
 
 
+# ── raw-recipe folder: one parameter's files ──────────────────────────────
+
+
+@dataclass(frozen=True)
+class _Want:
+    """One file a parameter's slots point at.
+
+    ``slot`` is the idp_image_info column it came from and ``kind`` decides the
+    reader, so the two are kept apart: three different columns produce a
+    ``cond`` file and one column (img_add2) produces two files of different
+    kinds. Collapsing them into "the slot's file" would lose exactly that.
+    """
+
+    slot: str   # source column, e.g. "img_add1"
+    kind: str   # image | cond | amp | af_pr | pr-key
+    name: str   # name relative to the raw-recipe folder
+
+
+def _param_rows(frame: Any, parameter: str) -> list[dict[str, Any]]:
+    """idp_image_info rows for one parameter, matched loosely on purpose.
+
+    Case and surrounding whitespace are ignored because whether Parameter is
+    written identically everywhere is still an OFFICE-VERIFY item — a run that
+    silently found nothing over a trailing space would waste the trip and teach
+    the wrong lesson. A match that only survives normalisation is reported.
+    """
+    if frame is None or "Parameter" not in getattr(frame, "columns", []):
+        return []
+    key = parameter.strip().casefold()
+    rows = [
+        row for row in frame.to_dict("records")
+        if str(row.get("Parameter", "")).strip().casefold() == key
+    ]
+    exact = [row for row in rows if str(row.get("Parameter", "")) == parameter]
+    if rows and not exact:
+        print(f"    NOTE: matched only after normalising case/whitespace: "
+              f"{sorted({str(r.get('Parameter')) for r in rows})}")
+    return rows
+
+
+def _wants(row: dict[str, Any]) -> list[_Want]:
+    """One idp_image_info row -> every file it names, with its derivation printed.
+
+    The derivation itself comes from ``rawfiles`` — the module the office
+    adapter runs — so this stage tests the real naming rules rather than a
+    second copy of them.
+    """
+    slots = {column: str(row.get(column) or "") for column in _SLOT_COLUMNS}
+    amp, af_pr, images = rawfiles.slot_sources(slots)
+
+    wants: list[_Want] = []
+    for slot, image, cond in images:
+        wants.append(_Want(slot, "image", image))
+        wants.append(_Want(slot, "cond", cond))
+    if amp:
+        wants.append(_Want("img_meas2", "amp", amp))
+    if af_pr:
+        wants.append(_Want("img_add2", "af_pr", af_pr))
+
+    # OFFICE-VERIFY (docs/datatables/recipe_idp.txt): the adapter only ever
+    # reads the EN… translation of img_add2. Whether the PR… file it was
+    # translated from carries anything of its own has never been looked at, and
+    # this run is standing in the folder anyway.
+    pr_key = rawfiles.setting_name(slots.get("img_add2"))
+    if pr_key and pr_key != af_pr:
+        wants.append(_Want("img_add2", "pr-key", pr_key))
+
+    print("    slot values and the files they name:")
+    for column in _SLOT_COLUMNS:
+        value = slots[column] or "(missing column)"
+        named = [w.name for w in wants if w.slot == column]
+        arrow = ", ".join(named) if named else "— no file (empty slot 'non')"
+        print(f"      {column:<11} {value!r:<14} -> {arrow}")
+    return wants
+
+
+def _fetch_raw(dl, HostSpec, ip: str, raw: str, names: list[str]) -> dict[str, bytes]:
+    """Download every wanted name in ONE session, keyed by name not path.
+
+    A missing file is normal here, not a failure: a parameter routinely has no
+    third addressing image and no AF/PR setting. Failures are printed and left
+    out of the result, which is the same distinction the adapter draws — only a
+    connect/login/listing failure (``remote_path is None``) means the tool is
+    down rather than the file being absent.
+    """
+    by_path = {rawfiles.remote_path(raw, name): name for name in dict.fromkeys(names)}
+    report = dl.download([HostSpec(ip, files=sorted(by_path))])
+    got = {
+        by_path[f.remote_path]: f.data
+        for f in report.files
+        if f.remote_path in by_path
+    }
+    for failure in report.failures:
+        where = failure.remote_path or "(session — connect/login/listing)"
+        print(f"      absent/failed {where}: {failure.error}")
+    return got
+
+
+def _describe(data: bytes) -> str:
+    """One line: how big, and what the bytes actually are."""
+    if data[:2] == b"\xff\xd8":
+        kind = "JPEG"
+    elif data[:2] in (b"II", b"MM"):
+        kind = "TIFF"
+    elif _decode(data)[0]:
+        kind = f"text/{_decode(data)[0]}"
+    else:
+        kind = "binary"
+    return f"{len(data):,} bytes, {kind}"
+
+
+def _print_parsed(name: str, reader: Any, parsed: Any, lines: int = 12) -> None:
+    """What the reader returned, printed by its ACTUAL type.
+
+    The return types of the three ``idp_amp_reader`` functions are an open
+    OFFICE-VERIFY item — the adapter's ``_to_rows`` accepts dict, DataFrame,
+    or pair-list precisely because nobody has seen one yet. So the type is
+    printed first and the value second: the type IS the finding.
+    """
+    label = getattr(reader, "__name__", str(reader))
+    print(f"      {label}({name}) -> {type(parsed).__name__}")
+    if hasattr(parsed, "columns"):  # DataFrame
+        print(f"        {len(parsed)} rows x {len(parsed.columns)} cols: "
+              f"{[str(c) for c in parsed.columns]}")
+        head = parsed.head(3).to_string(max_colwidth=24)
+        print("\n".join(f"        | {line}" for line in head.splitlines()))
+        return
+    items = (
+        list(parsed.items()) if isinstance(parsed, dict)
+        else list(enumerate(parsed)) if isinstance(parsed, (list, tuple))
+        else [("value", parsed)]
+    )
+    for key, value in items[:lines]:
+        print(f"        {str(key):<24} {value!r}")
+    if len(items) > lines:
+        print(f"        ... {len(items) - lines} more")
+
+
+def _readers() -> tuple[dict[str, Any], str]:
+    """(kind -> reader, error). Imported late for the same reason as the parser:
+    ``office_utils`` is office-only, and a module-scope import would make this
+    script unimportable everywhere else."""
+    try:
+        from office_utils.idp_amp_reader import (
+            read_af_pr_condition,
+            read_amp_info,
+            read_meas_image_condition,
+        )
+    except ImportError as exc:
+        return {}, f"office_utils.idp_amp_reader not importable ({exc}) — office PC only."
+    return {
+        "amp": read_amp_info,
+        "af_pr": read_af_pr_condition,
+        "cond": read_meas_image_condition,
+    }, ""
+
+
 # ── result ────────────────────────────────────────────────────────────────
 
 
@@ -412,6 +611,11 @@ class Probe:
     tables: dict[str, Any] = field(default_factory=dict)      # combined_idp_info's three DataFrames
     parse_error: str = ""                                     # traceback, if the parser raised
     raw_listing: list[str] | None = None                      # None = listing failed, [] = empty dir
+    parameter: str = ""                                       # Stage D, the parameter followed
+    param_rows: list[dict[str, Any]] = field(default_factory=list)   # its idp_image_info rows
+    raw_files: dict[str, bytes] = field(default_factory=dict)        # name -> downloaded bytes
+    raw_parsed: dict[str, Any] = field(default_factory=dict)         # name -> reader return value
+    raw_errors: dict[str, str] = field(default_factory=dict)         # name -> traceback, if it raised
     code: int = 1                                             # 0 only when the whole chain ran
 
     # The three frames by name. Worth the six lines because this is what a
@@ -464,6 +668,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--eqp", default="", help="optional eqp_id.keyword term (e.g. MCD719)")
     p.add_argument("--date", default="", help=f"optional KST day for the timestamp range (e.g. {today})")
     p.add_argument("--recipe", default=None, help="optional recipe_name substring filter")
+    p.add_argument("--param", default=PARAMETER,
+                   help=f"parameter whose raw files Stage D fetches (default: {PARAMETER!r}, "
+                        "edit the PARAMETER constant to change it permanently)")
     p.add_argument("--candidates", type=int, default=5, help="documents to fetch and print (default: 5)")
     p.add_argument("--pick", type=int, default=0, help="which candidate to probe (default: 0)")
     p.add_argument("--limit", type=int, default=40, help="max listing entries to print (default: 40)")
@@ -582,11 +789,99 @@ def main(argv: list[str] | None = None) -> Probe:
     else:
         _print_listing(probe.raw_dir, probe.raw_listing, args.limit)
 
-    print(f"\nDone. .idp saved under {args.out}/")
+    # Guarded because Stage D runs LAST: three stages of findings and a
+    # downloaded .idp already exist, and a surprise in the newest stage must not
+    # take them down with it. The traceback is printed where it happened.
+    try:
+        _stage_d(probe, dl, HostSpec, args)
+    except Exception:
+        print("\n  Stage D failed — earlier stages stand.")
+        traceback.print_exc()
+
+    print(f"\nDone. Files saved under {args.out}/")
     # A failed parse still leaves a downloaded file and three stages of findings,
     # so the run is reported rather than aborted — but it is not a clean run.
     probe.code = 1 if probe.parse_error else 0
     return probe
+
+
+def _stage_d(probe: Probe, dl: Any, HostSpec: Any, args: argparse.Namespace) -> None:
+    """Follow one parameter's five slots into the raw-recipe folder.
+
+    Writes everything it reaches onto ``probe`` as it goes rather than returning
+    it, so a run that dies mid-parameter still hands back the files it had
+    already downloaded.
+    """
+    probe.parameter = args.param
+    print(f"\n=== Stage D: raw files for parameter {args.param!r} ===")
+
+    frame = probe.idp_image_info
+    if frame is None:
+        print("    no idp_image_info — the parse did not run or did not return it.")
+        return
+
+    probe.param_rows = _param_rows(frame, args.param)
+    if not probe.param_rows:
+        available = sorted({str(p) for p in frame.get("Parameter", [])})
+        print(f"    {args.param!r} is not in this recipe. It has {len(available)}:")
+        print("      " + ", ".join(available[:40]))
+        print("    Edit PARAMETER at the top of this file (or pass --param).")
+        return
+
+    readers, reader_error = _readers()
+    if reader_error:
+        print(f"    {reader_error}\n    Files will be downloaded and previewed, not parsed.")
+
+    for i, row in enumerate(probe.param_rows):
+        # One parameter can hold several rows — SEQ orders a mother/son group,
+        # and each row carries its own slots. Printing SEQ/Region keeps the
+        # files attributable when they differ between rows.
+        print(f"\n  [{i}] SEQ={row.get('SEQ')!r} Region={row.get('Region')!r} "
+              f"Mother_Para={row.get('Mother_Para')!r}")
+        wants = _wants(row)
+        if not wants:
+            print("    every slot is empty — nothing to fetch.")
+            continue
+
+        print(f"\n    downloading {len(wants)} file(s) from {probe.raw_dir}")
+        fetched = _fetch_raw(dl, HostSpec, probe.ip, probe.raw_dir, [w.name for w in wants])
+
+        for want in wants:
+            data = fetched.get(want.name)
+            if data is None:
+                print(f"\n    {want.slot:<11} {want.kind:<7} {want.name}  — not on the tool")
+                continue
+            probe.raw_files[want.name] = data
+            dest = (
+                Path(args.out) / str(probe.doc.get("eqp_id") or probe.ip)
+                / PurePosixPath(rawfiles.remote_path(probe.raw_dir, want.name)).relative_to("/")
+            )
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+            print(f"\n    {want.slot:<11} {want.kind:<7} {want.name}  — {_describe(data)}")
+            print(f"      -> {dest}")
+
+            if want.kind in ("image", "pr-key"):
+                # No reader claims these: images are for the browser, and the
+                # PR… key file is here only to find out whether it holds
+                # anything. A preview is the whole answer for both.
+                if want.kind == "pr-key" or _decode(data)[0]:
+                    print(_preview(data, lines=12))
+                continue
+
+            reader = readers.get(want.kind)
+            if reader is None:
+                print(_preview(data, lines=12))
+                continue
+            try:
+                parsed = reader(data)
+            except Exception:
+                probe.raw_errors[want.name] = traceback.format_exc()
+                print("\n".join(f"      {line}"
+                                for line in probe.raw_errors[want.name].splitlines()))
+                continue
+            probe.raw_parsed[want.name] = parsed
+            _print_parsed(want.name, reader, parsed)
 
 
 if __name__ == "__main__":
@@ -614,6 +909,14 @@ if __name__ == "__main__":
     wafer_mp_info = tables.get("wafer_mp_info")
     wafer_align_info = tables.get("wafer_align_info")
     idp_image_info = tables.get("idp_image_info")
+
+    # Stage D. raw_files holds the bytes, so a setting file can be re-read by
+    # hand — read_amp_info(raw_files["PRMS0000"]) — without a second FTP trip,
+    # and an image can be opened straight from it (Image.open(BytesIO(...))).
+    param_rows = probe.param_rows
+    raw_files = probe.raw_files
+    raw_parsed = probe.raw_parsed
+    raw_errors = probe.raw_errors
 
     # Only a shell run has an exit status worth setting. Raising SystemExit into
     # a console session would print a traceback over output that is otherwise
