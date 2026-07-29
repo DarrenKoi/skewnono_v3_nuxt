@@ -57,9 +57,12 @@
               class="px-2 py-2 align-top"
             >
               <EbeamRecipeOpenImgThumb
-                v-if="file"
-                :image-slot="slotDescriptor"
-                :filename="file"
+                v-if="file && slotDescriptor.hasImage"
+                :label="slotDescriptor.label"
+                :stage="slotDescriptor.stage"
+                :name="imageFileName(file)"
+                :src="imageSrc(i, file)"
+                :role="slotDescriptor.role"
                 @open="openLightbox(i, file)"
               />
               <span
@@ -101,8 +104,10 @@
 
 <script setup lang="ts">
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
-import { buildAmpRows, buildIdpRows, imageFilenames, findParameter } from '~/utils/recipeCompare'
-import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
+import type { CompareParamDetail } from '~/utils/recipeCompare'
+import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames } from '~/utils/recipeCompare'
+import { recipeImageUrl } from '~/composables/useRecipeParamDetail'
+import { IMAGE_SLOTS, isEmptySlot, type ImageSlotKey } from '~/utils/recipeView'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
 
 const props = defineProps<{
@@ -110,6 +115,9 @@ const props = defineProps<{
   parameter: string
   slotKey: ImageSlotKey
   diffOnly: boolean
+  /** Aligned with `recipes` by index — the visible cell's settings per recipe. */
+  details: (CompareParamDetail | null)[]
+  toolSlug: string
 }>()
 
 const recipeIds = computed(() => props.recipes.map(r => r.recipe_id))
@@ -117,7 +125,7 @@ const slotDescriptor = computed(() => IMAGE_SLOTS.find(s => s.key === props.slot
 const slotLabel = computed(() => slotDescriptor.value.stage)
 
 const idpRows = computed(() => buildIdpRows(props.recipes, props.parameter))
-const ampRows = computed(() => buildAmpRows(props.recipes, props.parameter, props.slotKey))
+const ampRows = computed(() => buildSettingRows(props.details, props.slotKey))
 const images = computed(() => imageFilenames(props.recipes, props.parameter, props.slotKey))
 
 const visibleIdpRows = computed(() => props.diffOnly ? idpRows.value.filter(r => r.differs) : idpRows.value)
@@ -128,11 +136,28 @@ const shortId = (id: string) => (id.length > 12 ? `…${id.slice(-10)}` : id)
 const lightboxOpen = ref(false)
 const lightboxData = ref<LightboxData | null>(null)
 
-const openLightbox = (recipeIndex: number, filename: string) => {
-  const recipe = props.recipes[recipeIndex]
-  const param = recipe ? findParameter(recipe, props.parameter) : null
-  const ampRow = param?.amp.find(a => a.slot === props.slotKey) ?? null
-  lightboxData.value = { slot: slotDescriptor.value, filename, ampRow }
+// The compare payload carries the raw slot VALUE (IMMP0001); the image file
+// adds .jpeg. `non` means the slot names nothing at all.
+const imageFileName = (slotValue: string) =>
+  isEmptySlot(slotValue) ? '' : `${slotValue.trim()}.jpeg`
+
+const imageSrc = (recipeIndex: number, slotValue: string) => {
+  const locator = props.recipes[recipeIndex]?.locator
+  const name = imageFileName(slotValue)
+  return locator && name ? recipeImageUrl(props.toolSlug, locator, name) : ''
+}
+
+const openLightbox = (recipeIndex: number, slotValue: string) => {
+  const name = imageFileName(slotValue)
+  const detail = props.details[recipeIndex] ?? null
+  lightboxData.value = {
+    slot: slotDescriptor.value.key,
+    stage: slotDescriptor.value.stage,
+    name,
+    src: imageSrc(recipeIndex, slotValue),
+    role: slotDescriptor.value.role,
+    cond: blockForSlot(detail, props.slotKey)
+  }
   lightboxOpen.value = true
 }
 </script>

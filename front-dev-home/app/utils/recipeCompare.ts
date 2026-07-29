@@ -1,65 +1,62 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
-import type { AmpRole, AmpRow } from '~/composables/useRecipeSearchApi'
 import type { ImageSlotKey } from '~/utils/recipeView'
 
-// NOTE: recipeCompare runs under `node --test`, which cannot resolve the `~` alias
-// or extension-less sibling imports, while `nuxt typecheck` forbids `.ts`-extension
-// imports. So the slot / AMP-field metadata below is inlined rather than imported
-// from recipeView.ts. KEEP IN SYNC with recipeView.ts (IMAGE_SLOTS, AMP_FIELDS_*,
-// ampFieldsForRole, formatAmpValue).
+// NOTE: recipeCompare runs under `node --test`, which cannot resolve the `~`
+// alias or extension-less sibling imports, while `nuxt typecheck` forbids
+// `.ts`-extension imports. So the slot metadata below is inlined rather than
+// imported from recipeView.ts. KEEP IN SYNC with recipeView.ts (IMAGE_SLOTS).
+
+type SlotRole = 'address' | 'measure'
+
+/** Structurally identical to `SettingBlock` in useRecipeParamDetail, restated
+ *  here for the same alias reason as the slot table above. */
+export interface CompareSettingBlock {
+  source: string
+  rows: { key: string, value: string }[]
+}
+
+/** Structurally identical to `ParamDetail`. */
+export interface CompareParamDetail {
+  parameter: string
+  amp: CompareSettingBlock | null
+  af_pr: CompareSettingBlock | null
+  images: { slot: string, stage: string, name: string, cond: CompareSettingBlock | null }[]
+}
 
 interface CompareSlot {
   key: ImageSlotKey
   stage: string
-  role: AmpRole
+  role: SlotRole
+  hasImage: boolean
 }
 
 export const COMPARE_SLOTS: readonly CompareSlot[] = [
-  { key: 'img_add1', stage: 'Addressing 1', role: 'address' },
-  { key: 'img_add2', stage: 'Addressing 2', role: 'address' },
-  { key: 'image_add3', stage: 'Addressing 3', role: 'address' },
-  { key: 'img_meas1', stage: 'Measure 1', role: 'measure' },
-  { key: 'img_meas2', stage: 'Measure 2', role: 'measure' }
+  { key: 'img_add1', stage: 'Addressing 1', role: 'address', hasImage: true },
+  { key: 'img_add2', stage: 'Addressing 2', role: 'address', hasImage: false },
+  { key: 'image_add3', stage: 'Addressing 3', role: 'address', hasImage: true },
+  { key: 'img_meas1', stage: 'Measure 1', role: 'measure', hasImage: true },
+  { key: 'img_meas2', stage: 'Measure 2', role: 'measure', hasImage: false }
 ]
 
-interface AmpFieldDescriptor {
-  key: keyof AmpRow
-  label: string
-  unit?: string
+const formatSettingValue = (value: string | null | undefined): string =>
+  (value === null || value === undefined || value === '') ? '\u2014' : String(value)
+
+/**
+ * Which parsed file a slot's settings come from.
+ *
+ * `img_meas2` IS the AMP file and `img_add2` resolves (PR -> EN) to the AF/PR
+ * condition; the other three name images, whose settings are the beam
+ * condition in their `.{name}/cond.txt` sidecar.
+ */
+export function blockForSlot(
+  detail: CompareParamDetail | null | undefined,
+  slot: ImageSlotKey
+): CompareSettingBlock | null {
+  if (!detail) return null
+  if (slot === 'img_meas2') return detail.amp
+  if (slot === 'img_add2') return detail.af_pr
+  return detail.images.find(image => image.slot === slot)?.cond ?? null
 }
-
-const AMP_FIELDS_COMMON: readonly AmpFieldDescriptor[] = [
-  { key: 'Mag', label: 'Mag', unit: '×' },
-  { key: 'Vacc', label: 'Vacc', unit: 'V' },
-  { key: 'I_probe', label: 'I_probe', unit: 'pA' },
-  { key: 'Frame', label: 'Frame' },
-  { key: 'Scan', label: 'Scan' },
-  { key: 'WD', label: 'WD', unit: 'mm' },
-  { key: 'Det', label: 'Det' }
-]
-
-const AMP_FIELDS_ADDR: readonly AmpFieldDescriptor[] = [
-  ...AMP_FIELDS_COMMON,
-  { key: 'Template', label: 'Template' },
-  { key: 'MatchScore', label: 'MatchScore', unit: '%' },
-  { key: 'SearchArea', label: 'SearchArea', unit: 'px' },
-  { key: 'Rotation', label: 'Rotation', unit: '°' }
-]
-
-const AMP_FIELDS_MEAS: readonly AmpFieldDescriptor[] = [
-  ...AMP_FIELDS_COMMON,
-  { key: 'Algo', label: 'Algo' },
-  { key: 'ROI', label: 'ROI', unit: 'px' },
-  { key: 'EdgeThr', label: 'EdgeThr', unit: '%' },
-  { key: 'EdgeDir', label: 'EdgeDir' },
-  { key: 'Smooth', label: 'Smooth' }
-]
-
-const ampFieldsForRole = (role: AmpRole): readonly AmpFieldDescriptor[] =>
-  role === 'measure' ? AMP_FIELDS_MEAS : AMP_FIELDS_ADDR
-
-const formatAmpValue = (value: AmpRow[keyof AmpRow] | undefined): string =>
-  (value === null || value === undefined || value === '') ? '—' : String(value)
 
 export const GROUPING_DEFAULT_THRESHOLD = 8
 export const OUTLIER_SHARE = 0.25
@@ -169,22 +166,33 @@ export function buildIdpRows(recipes: CompareRecipe[], parameter: string): Matri
   })
 }
 
-export function buildAmpRows(
-  recipes: CompareRecipe[],
-  parameter: string,
+/**
+ * One row per setting key, one column per recipe, for the visible cell.
+ *
+ * `details` is aligned with `recipes` by index — index i is recipe i's settings
+ * for the currently selected parameter, or `null` when that recipe does not
+ * declare it. Rows are the UNION of keys across recipes in first-seen order, so
+ * a field only one recipe carries still gets a row (and reads as differing)
+ * rather than being invisible.
+ */
+export function buildSettingRows(
+  details: (CompareParamDetail | null)[],
   slot: ImageSlotKey
 ): MatrixRow[] {
-  const descriptor = COMPARE_SLOTS.find(s => s.key === slot)
-  if (!descriptor) return []
-  return ampFieldsForRole(descriptor.role).map((field) => {
-    const values = recipes.map((recipe) => {
-      const p = findParameter(recipe, parameter)
-      if (!p) return MISSING
-      const amp = p.amp.find(a => a.slot === slot) ?? null
-      if (!amp) return MISSING
-      return formatAmpValue(amp[field.key])
+  const blocks = details.map(detail => blockForSlot(detail, slot))
+  const keys: string[] = []
+  for (const block of blocks) {
+    for (const row of block?.rows ?? []) {
+      if (!keys.includes(row.key)) keys.push(row.key)
+    }
+  }
+  return keys.map((key) => {
+    const values = blocks.map((block) => {
+      if (!block) return MISSING
+      const row = block.rows.find(r => r.key === key)
+      return row ? formatSettingValue(row.value) : MISSING
     })
-    return { key: String(field.key), label: field.label, unit: field.unit, values, differs: cellsDiffer(values) }
+    return { key, label: key, values, differs: cellsDiffer(values) }
   })
 }
 
@@ -215,9 +223,23 @@ export interface CompareWorkbook {
   sheets: WorkbookSheet[]
 }
 
+/** `${recipe_id}::${parameter}` -> that pair's fetched settings. */
+export type CompareDetailIndex = Map<string, CompareParamDetail>
+
+export const compareDetailKey = (recipeId: string, parameter: string) =>
+  `${recipeId}::${parameter}`
+
 export function buildCompareWorkbook(
   recipes: CompareRecipe[],
-  parameters: string[]
+  parameters: string[],
+  /**
+   * Settings for every (recipe, parameter) pair the export covers. Passed in
+   * rather than read off `recipes`, because settings are no longer part of the
+   * compare payload — they are fetched per cell, and the export bulk-fetches
+   * what it needs before calling this. A pair missing from the index exports as
+   * 없음 rather than as a silently blank row.
+   */
+  details: CompareDetailIndex = new Map()
 ): CompareWorkbook {
   const recipeIds = recipes.map(r => r.recipe_id)
   const sheets: WorkbookSheet[] = []
@@ -244,7 +266,10 @@ export function buildCompareWorkbook(
   for (const slot of COMPARE_SLOTS) {
     const rows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
     for (const parameter of parameters) {
-      for (const r of buildAmpRows(recipes, parameter, slot.key)) {
+      const forParameter = recipes.map(
+        recipe => details.get(compareDetailKey(recipe.recipe_id, parameter)) ?? null
+      )
+      for (const r of buildSettingRows(forParameter, slot.key)) {
         rows.push([parameter, r.label, ...r.values])
       }
     }

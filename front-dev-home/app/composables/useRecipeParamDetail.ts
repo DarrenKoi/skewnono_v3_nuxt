@@ -118,3 +118,24 @@ export function useRecipeParamDetail(
     }
   )
 }
+
+/** Server cap on `param-detail`'s item list, mirrored so callers chunk instead
+ *  of getting a 400 on a wide compare. */
+export const PARAM_DETAIL_MAX_ITEMS = 200
+
+/**
+ * Same as `fetchParamDetails`, but splits an over-cap list across requests.
+ *
+ * Used by the compare export, which needs every (recipe, parameter) pair at
+ * once — 20 recipes x 30 parameters is 600 items, over the server's 200 cap.
+ */
+export async function fetchParamDetailsChunked(
+  toolSlug: string,
+  items: ParamDetailRequestItem[]
+): Promise<ParamDetail[]> {
+  const out: ParamDetail[] = []
+  for (let i = 0; i < items.length; i += PARAM_DETAIL_MAX_ITEMS) {
+    out.push(...await fetchParamDetails(toolSlug, items.slice(i, i + PARAM_DETAIL_MAX_ITEMS)))
+  }
+  return out
+}

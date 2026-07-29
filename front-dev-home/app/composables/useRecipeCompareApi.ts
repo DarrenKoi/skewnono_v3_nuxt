@@ -1,5 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
-import type { AmpRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
+import type { IdpLocator, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { ImageSlotKey } from '~/utils/recipeView'
 import { normalizeFab } from '~/utils/fab'
 
@@ -15,13 +15,15 @@ export interface CompareIdpFields {
 export interface CompareParameter {
   Parameter: string
   idp: CompareIdpFields
+  /** The five img_* values verbatim — posted straight back as param-detail's `slots`. */
   images: Record<ImageSlotKey, string>
-  amp: AmpRow[]
 }
 
 export interface CompareRecipe {
   recipe_id: string
   fac_id: string
+  /** Per recipe, because each one's raw folder lives on its own tool. */
+  locator: IdpLocator
   parameters: CompareParameter[]
 }
 

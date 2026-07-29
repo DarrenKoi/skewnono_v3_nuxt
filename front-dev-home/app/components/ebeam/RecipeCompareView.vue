@@ -153,6 +153,8 @@
             :parameter="activeParam"
             :slot-key="activeSlot"
             :diff-only="diffOnly"
+            :details="cellDetails"
+            :tool-slug="toolSlug"
           />
           <EbeamRecipeCompareGrouping
             v-else
@@ -160,6 +162,7 @@
             :parameter="activeParam"
             :slot-key="activeSlot"
             :diff-only="diffOnly"
+            :details="cellDetails"
           />
         </section>
 
@@ -179,15 +182,19 @@ import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { RecipeCompareResponse } from '~/composables/useRecipeCompareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import type { CompareDetailIndex, CompareParamDetail } from '~/utils/recipeCompare'
 import {
   COMPARE_SLOTS,
   GROUPING_DEFAULT_THRESHOLD,
   buildCompareWorkbook,
   buildOverlap,
   commonParameters,
+  compareDetailKey,
   downloadCompareWorkbook,
+  findParameter,
   imageFilenames
 } from '~/utils/recipeCompare'
+import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import { renderSemNoisePng } from '~/utils/semNoiseImage'
 import { recipeNamesForCompare } from '~/utils/recipeSelection'
@@ -280,10 +287,83 @@ const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'params', label: 'Params', value: selectedParameters.value.length.toLocaleString(), tone: 'neutral' }
 ])
 
+const toolSlug = computed(() => props.toolType === 'hv-sem' ? 'hvsem' : 'cdsem')
+
+/**
+ * Settings for the VISIBLE cell only — one item per recipe, one request.
+ *
+ * CompareMatrix and CompareGrouping both scope to a single (parameter, slot)
+ * pair, so a cell needs N files rather than the N x M cross-product. As N
+ * separate GETs this would trip the 20 req / 5 s per-user limit on /api/*; as
+ * one POST it is one request.
+ */
+const cellDetails = ref<(CompareParamDetail | null)[]>([])
+const detailCache = new Map<string, CompareParamDetail>()
+
+function itemsFor(parameters: string[]) {
+  const items = []
+  for (const recipe of recipes.value) {
+    for (const parameter of parameters) {
+      const param = findParameter(recipe, parameter)
+      if (!param) continue
+      items.push({
+        locator: recipe.locator,
+        parameter,
+        slots: slotsOf(param.images as never)
+      })
+    }
+  }
+  return items
+}
+
+function indexResults(parameters: string[], details: CompareParamDetail[]) {
+  // Results come back in request order, so they are re-keyed rather than
+  // matched by position — a recipe that lacks a parameter contributes no item.
+  let cursor = 0
+  for (const recipe of recipes.value) {
+    for (const parameter of parameters) {
+      if (!findParameter(recipe, parameter)) continue
+      const detail = details[cursor++]
+      if (detail) detailCache.set(compareDetailKey(recipe.recipe_id, parameter), detail)
+    }
+  }
+}
+
+async function loadCellDetails() {
+  const parameter = activeParam.value
+  if (!parameter || !recipes.value.length) {
+    cellDetails.value = []
+    return
+  }
+  const missing = recipes.value.some(
+    r => findParameter(r, parameter) && !detailCache.has(compareDetailKey(r.recipe_id, parameter))
+  )
+  if (missing) {
+    try {
+      indexResults([parameter], await fetchParamDetailsChunked(toolSlug.value, itemsFor([parameter])))
+    } catch (err) {
+      console.error('param-detail fetch failed', err)
+    }
+  }
+  cellDetails.value = recipes.value.map(
+    r => detailCache.get(compareDetailKey(r.recipe_id, parameter)) ?? null
+  )
+}
+
+watch([activeParam, recipes], () => {
+  void loadCellDetails()
+}, { immediate: true })
+
 const downloadExcel = async () => {
   if (!recipes.value.length || !selectedParameters.value.length) return
   try {
-    const workbook = buildCompareWorkbook(recipes.value, selectedParameters.value)
+    // The workbook covers EVERY selected parameter, not just the visible cell,
+    // so it bulk-fetches first — chunked, because the server caps one request
+    // at 200 items and a wide compare exceeds that.
+    const parameters = selectedParameters.value
+    indexResults(parameters, await fetchParamDetailsChunked(toolSlug.value, itemsFor(parameters)))
+    const details: CompareDetailIndex = detailCache
+    const workbook = buildCompareWorkbook(recipes.value, parameters, details)
     const slot = COMPARE_SLOTS.find(s => s.key === activeSlot.value)
     const imageBlock = (slot && activeParam.value)
       ? {

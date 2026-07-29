@@ -6,12 +6,12 @@ import {
   classifyCoverage,
   filterOverlap,
   commonParameters,
-  buildIdpRows, buildAmpRows, cellsDiffer, imageFilenames,
+  buildIdpRows, buildSettingRows, blockForSlot, cellsDiffer, imageFilenames,
   groupFieldValues,
-  buildCompareWorkbook
+  buildCompareWorkbook, compareDetailKey,
+  type CompareParamDetail, type CompareDetailIndex
 } from './recipeCompare.ts'
 import type { CompareRecipe, CompareParameter } from '../composables/useRecipeCompareApi.ts'
-import type { AmpRow } from '../composables/useRecipeSearchApi.ts'
 
 const param = (name: string): CompareParameter => ({
   Parameter: name,
@@ -19,12 +19,13 @@ const param = (name: string): CompareParameter => ({
     Addressing: true, Double_Addressing: false, Mother_Para: true,
     Region: 1, Meas_Counting: 1, dnumber_removed: false
   },
-  images: { img_add1: 'a1', img_add2: 'a2', image_add3: 'a3', img_meas1: 'm1', img_meas2: 'm2' },
-  amp: []
+  images: { img_add1: 'a1', img_add2: 'a2', image_add3: 'a3', img_meas1: 'm1', img_meas2: 'm2' }
 })
 
+const LOCATOR = { eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B' }
+
 const recipe = (id: string, params: string[]): CompareRecipe => ({
-  recipe_id: id, fac_id: 'R3', parameters: params.map(param)
+  recipe_id: id, fac_id: 'R3', locator: LOCATOR, parameters: params.map(param)
 })
 
 test('classifyCoverage: all / unique / partial', () => {
@@ -63,20 +64,25 @@ test('filterOverlap + commonParameters', () => {
   assert.deepEqual(commonParameters(rows), ['WAFER'])
 })
 
-const measAmp = (over: Partial<AmpRow>): AmpRow => ({
-  parameter: 'WAFER', slot: 'img_meas1', role: 'measure', stage: 'Measure 1',
-  Mag: '50.0K', Vacc: '800', I_probe: '200', Frame: '8', Scan: 'TV', WD: '5.0', Det: 'SE',
-  Template: null, MatchScore: null, SearchArea: null, Rotation: null,
-  Algo: 'Linear', ROI: '512', EdgeThr: '50', EdgeDir: 'L->R', Smooth: 'Off', ...over
+/** A parsed .{IMMS0001.jpeg}/cond.txt as the office reader would hand it back. */
+const detailWith = (rows: Record<string, string>): CompareParamDetail => ({
+  parameter: 'WAFER',
+  amp: { source: 'PRMS0001', rows: [{ key: 'AMP_FIELD_1', value: 'aa' }] },
+  af_pr: { source: 'ENMP0001', rows: [{ key: 'AFPR_FIELD_1', value: 'bb' }] },
+  images: [{
+    slot: 'img_meas1',
+    stage: 'Measure 1',
+    name: 'IMMS0001.jpeg',
+    cond: { source: '.IMMS0001.jpeg/cond.txt', rows: Object.entries(rows).map(([key, value]) => ({ key, value })) }
+  }]
 })
 
-const recipeWithAmp = (id: string, amp: AmpRow[]): CompareRecipe => ({
-  recipe_id: id, fac_id: 'R3',
+const recipeWithAmp = (id: string, _unused: unknown[] = []): CompareRecipe => ({
+  recipe_id: id, fac_id: 'R3', locator: LOCATOR,
   parameters: [{
     Parameter: 'WAFER',
     idp: { Addressing: true, Double_Addressing: false, Mother_Para: true, Region: 5, Meas_Counting: 3, dnumber_removed: false },
-    images: { img_add1: 'a1', img_add2: 'a2', image_add3: 'a3', img_meas1: `${id}_m1`, img_meas2: 'm2' },
-    amp
+    images: { img_add1: 'a1', img_add2: 'a2', image_add3: 'a3', img_meas1: `${id}_m1`, img_meas2: 'm2' }
   }]
 })
 
@@ -86,11 +92,11 @@ test('cellsDiffer: equal values agree, one different differs', () => {
   assert.equal(cellsDiffer(['x']), false)
 })
 
-test('buildAmpRows aligns values per recipe and flags differing rows', () => {
-  const rows = buildAmpRows([
-    recipeWithAmp('A', [measAmp({ Mag: '50.0K', Algo: 'Linear' })]),
-    recipeWithAmp('B', [measAmp({ Mag: '80.0K', Algo: 'Linear' })])
-  ], 'WAFER', 'img_meas1')
+test('buildSettingRows aligns values per recipe and flags differing rows', () => {
+  const rows = buildSettingRows([
+    detailWith({ Mag: '50.0K', Algo: 'Linear' }),
+    detailWith({ Mag: '80.0K', Algo: 'Linear' })
+  ], 'img_meas1')
   const mag = rows.find(r => r.key === 'Mag')!
   const algo = rows.find(r => r.key === 'Algo')!
   assert.deepEqual(mag.values, ['50.0K', '80.0K'])
@@ -98,21 +104,47 @@ test('buildAmpRows aligns values per recipe and flags differing rows', () => {
   assert.equal(algo.differs, false)
 })
 
-test('buildAmpRows shows 없음 when a recipe lacks the parameter', () => {
-  const withWafer = recipeWithAmp('A', [measAmp({})])
-  const without: CompareRecipe = { recipe_id: 'B', fac_id: 'R3', parameters: [] }
-  const rows = buildAmpRows([withWafer, without], 'WAFER', 'img_meas1')
+test('buildSettingRows shows 없음 when a recipe has no settings for the cell', () => {
+  const rows = buildSettingRows([detailWith({ Mag: '50.0K' }), null], 'img_meas1')
   assert.equal(rows.find(r => r.key === 'Mag')!.values[1], '없음')
+})
+
+test('buildSettingRows unions keys so a field only one recipe carries still shows', () => {
+  // The office field names are unverified, and two recipes may legitimately
+  // carry different ones. Intersecting would hide exactly the difference the
+  // compare screen exists to surface.
+  const rows = buildSettingRows([
+    detailWith({ Mag: '50.0K' }),
+    detailWith({ Mag: '50.0K', OnlyInB: 'x' })
+  ], 'img_meas1')
+  const only = rows.find(r => r.key === 'OnlyInB')!
+  assert.deepEqual(only.values, ['없음', 'x'])
+  assert.equal(only.differs, true)
+})
+
+test('buildSettingRows keeps the readers key order, first seen first', () => {
+  const rows = buildSettingRows([detailWith({ Zeta: '1', Alpha: '2' })], 'img_meas1')
+  assert.deepEqual(rows.map(r => r.key), ['Zeta', 'Alpha'])
+})
+
+test('blockForSlot routes img_meas2 to amp and img_add2 to af_pr', () => {
+  // Neither names an image: PRMS0000 IS the amp file, and PRMP0000 resolves
+  // (PR -> EN) to the AF/PR condition. (user-confirmed 2026-07-29)
+  const detail = detailWith({ Mag: '50.0K' })
+  assert.equal(blockForSlot(detail, 'img_meas2')!.source, 'PRMS0001')
+  assert.equal(blockForSlot(detail, 'img_add2')!.source, 'ENMP0001')
+  assert.equal(blockForSlot(detail, 'img_meas1')!.source, '.IMMS0001.jpeg/cond.txt')
+  assert.equal(blockForSlot(detail, 'img_add1'), null)
+  assert.equal(blockForSlot(null, 'img_meas1'), null)
 })
 
 test('buildIdpRows compares per-parameter fields', () => {
   const rows = buildIdpRows([
     recipeWithAmp('A', []),
-    { recipe_id: 'B', fac_id: 'R3', parameters: [{
+    { recipe_id: 'B', fac_id: 'R3', locator: LOCATOR, parameters: [{
       Parameter: 'WAFER',
       idp: { Addressing: true, Double_Addressing: false, Mother_Para: true, Region: 8, Meas_Counting: 3, dnumber_removed: false },
-      images: { img_add1: '', img_add2: '', image_add3: '', img_meas1: '', img_meas2: '' },
-      amp: []
+      images: { img_add1: '', img_add2: '', image_add3: '', img_meas1: '', img_meas2: '' }
     }] }
   ], 'WAFER')
   assert.equal(rows.find(r => r.key === 'Region')!.differs, true)
@@ -128,7 +160,7 @@ test('buildIdpRows spells booleans the way BoolPill does, not as String(true)', 
 test('imageFilenames returns per-recipe slot filename or null', () => {
   const files = imageFilenames([
     recipeWithAmp('A', []),
-    { recipe_id: 'B', fac_id: 'R3', parameters: [] }
+    { recipe_id: 'B', fac_id: 'R3', locator: LOCATOR, parameters: [] }
   ], 'WAFER', 'img_meas1')
   assert.deepEqual(files, ['A_m1', null])
 })
@@ -168,10 +200,11 @@ test('groupFieldValues: single value is never an outlier', () => {
 })
 
 test('buildCompareWorkbook emits Overlap + IDP + one sheet per slot', () => {
-  const wb = buildCompareWorkbook([
-    recipeWithAmp('A', [measAmp({ Mag: '50.0K' })]),
-    recipeWithAmp('B', [measAmp({ Mag: '80.0K' })])
-  ], ['WAFER'])
+  const details: CompareDetailIndex = new Map([
+    [compareDetailKey('A', 'WAFER'), detailWith({ Mag: '50.0K' })],
+    [compareDetailKey('B', 'WAFER'), detailWith({ Mag: '80.0K' })]
+  ])
+  const wb = buildCompareWorkbook([recipeWithAmp('A'), recipeWithAmp('B')], ['WAFER'], details)
 
   const names = wb.sheets.map(s => s.name)
   assert.deepEqual(names, ['Overlap', 'IDP', 'Addressing 1', 'Addressing 2', 'Addressing 3', 'Measure 1', 'Measure 2'])

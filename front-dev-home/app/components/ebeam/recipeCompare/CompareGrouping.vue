@@ -37,9 +37,10 @@
 <script setup lang="ts">
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
 import {
+  type CompareParamDetail,
   type MatrixRow,
   type ValueBucket,
-  buildAmpRows,
+  buildSettingRows,
   buildIdpRows,
   groupFieldValues
 } from '~/utils/recipeCompare'
@@ -50,6 +51,8 @@ const props = defineProps<{
   parameter: string
   slotKey: ImageSlotKey
   diffOnly: boolean
+  /** Aligned with `recipes` by index — the visible cell's settings per recipe. */
+  details: (CompareParamDetail | null)[]
 }>()
 
 interface GroupedField {
@@ -69,7 +72,7 @@ const groupRow = (row: MatrixRow): GroupedField => ({
 const fields = computed<GroupedField[]>(() => {
   const rows = [
     ...buildIdpRows(props.recipes, props.parameter),
-    ...buildAmpRows(props.recipes, props.parameter, props.slotKey)
+    ...buildSettingRows(props.details, props.slotKey)
   ]
   const grouped = rows.map(groupRow)
   return props.diffOnly ? grouped.filter(f => f.buckets.length > 1) : grouped
