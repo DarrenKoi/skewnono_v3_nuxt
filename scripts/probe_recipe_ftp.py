@@ -950,8 +950,10 @@ def _stage_e(probe: Probe, dl: Any, HostSpec: Any, args: argparse.Namespace) -> 
     # align mark, so the same point repeats down the rows.
     probe.align_points = sorted({int(p) for p in frame["P.No"]})
     optics = {p_no: rawfiles.align_optics(p_no) for p_no in probe.align_points}
-    print(f"    align points (unique P.No): "
-          f"{', '.join(f'{p}={optics[p] or 'UNKNOWN OPTIC'}' for p in probe.align_points)}")
+    align_summary = ", ".join(
+        f"{p}={optics[p] or 'UNKNOWN OPTIC'}" for p in probe.align_points
+    )
+    print(f"    align points (unique P.No): {align_summary}")
     unknown = [p_no for p_no, which in optics.items() if which is None]
     if unknown:
         print(f"    NOTE: {unknown} is outside the documented 1=OM / 2=SEM pair. "
