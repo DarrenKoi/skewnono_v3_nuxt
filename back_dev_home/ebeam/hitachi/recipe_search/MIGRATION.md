@@ -101,8 +101,9 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
   image. `timestamp` is `datetime.now().isoformat()` — a volatile field
   scrubbed by the parity harness (`VOLATILE_KEYS`), so office does not need to
   match it byte-for-byte.
-- Office data source: **WIRED — tool FTP, via one meas_hist document.** Four
-  steps, one function each, because only the middle two need the office:
+- Office data source: **WIRED — tool FTP, located from the Redis recipe
+  registry or, failing that, from measurement history.** Five steps, one
+  function each, because only the first three need the office:
 
   | Step | Function | Source | Runs at home? |
   | --- | --- | --- | --- |
@@ -129,6 +130,9 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
     still opens a socket to it, so the SSRF guard applies.
   - `office_utils` not importable → `RuntimeError` (503, unconfigured).
   - Parser returns the wrong keys → `LookupError` (502).
+  - A documented column the parser stopped emitting is **nulled, not dropped**
+    (WARNING logged); an undocumented one it started emitting is **dropped**
+    (INFO logged). Neither changes the response shape.
 - **`idp_image_info` dtypes corrected 2026-07-28** (office 확인, first real
   `combined_idp_info()` output). `Addressing`, `Mother_Para` and
   `dnumber_removed` are `bool`; they had been documented and mocked as a
