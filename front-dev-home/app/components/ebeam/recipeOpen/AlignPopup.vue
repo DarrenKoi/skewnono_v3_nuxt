@@ -133,20 +133,9 @@
  */
 import type { TableColumn } from '@nuxt/ui'
 import type { IdpLocator, WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
-import { recipeImageUrl } from '~/composables/useRecipeParamDetail'
+import { fetchAlignDetail, recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
+import type { AlignPoint } from '~/composables/useRecipeParamDetail'
 import { recipeTableUi } from '~/utils/recipeView'
-
-interface SettingBlockLike {
-  source: string
-  rows: { key: string, value: string }[]
-}
-
-interface AlignPoint {
-  P_No: number
-  image: string | null
-  cond: SettingBlockLike | null
-  setting: SettingBlockLike | null
-}
 
 type AlignDisplayRow = {
   Align_No: number
@@ -170,28 +159,33 @@ const points = ref<AlignPoint[]>([])
 const pending = ref(false)
 const error = ref(false)
 
+// What `points` currently holds data FOR. A plain `points.length` check would
+// re-hit the tool on every open when a recipe legitimately has zero align
+// points or the last fetch errored, and would never notice the locator
+// changing underneath it.
+const loadedFor = ref('')
+const wantKey = computed(() =>
+  `${props.locator.eqp_ip}|${props.locator.idp}|${pNumbers.value.join(',')}`
+)
+
 /** Sorted unique P.No — the align table repeats a P.No across rows, and each
  *  distinct one names exactly one file set. */
 const pNumbers = computed(() =>
   [...new Set(props.rows.map(row => row['P.No']))].sort((a, b) => a - b)
 )
 
+const base = recipeApiBase()
+
 const imageSrc = (name: string) =>
-  recipeImageUrl(props.toolSlug, props.locator, name)
+  recipeImageUrl(base, props.toolSlug, props.locator, name)
 
 async function load() {
-  if (!pNumbers.value.length) {
-    points.value = []
-    return
-  }
+  const key = wantKey.value
   pending.value = true
   error.value = false
   try {
-    const response = await $fetch<{ points: AlignPoint[] }>(
-      `/api/${props.toolSlug}/recipe-search/align-detail`,
-      { query: { ...props.locator, p_numbers: pNumbers.value.join(',') } }
-    )
-    points.value = response.points
+    points.value = await fetchAlignDetail(props.toolSlug, props.locator, pNumbers.value)
+    loadedFor.value = key
   } catch {
     error.value = true
     points.value = []
@@ -205,9 +199,9 @@ watch(open, (isOpen) => {
     zoom.value = null
     return
   }
-  // Only on the first open — the raw folder is immutable for a given recipe,
-  // so re-opening the popup should not re-hit the tool.
-  if (!points.value.length && !pending.value) void load()
+  // The raw folder is immutable for a given recipe, so re-opening the popup on
+  // the same locator+points must not re-hit the tool.
+  if (loadedFor.value !== wantKey.value && !pending.value) void load()
 })
 
 const displayRows = computed<AlignDisplayRow[]>(() => props.rows.map(row => ({

@@ -15,7 +15,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.data import (
     get_recipe_open_data,
 )
 from back_dev_home.msr_image.config import load_config
-from back_dev_home.msr_image.errors import InvalidLocator, InvalidToolIp
+from back_dev_home.msr_image.errors import InvalidLocator, MsrImageError
 from back_dev_home.msr_image.paths import validate_segment, validate_tool_ip
 
 
@@ -42,13 +42,28 @@ def _resolve_tool_type(tool_slug: str) -> ToolType | None:
     return TOOL_BY_SLUG.get(tool_slug.strip().lower())
 
 
-def _validated_locator(raw: object) -> IdpLocator:
+def _error(exc: MsrImageError):
+    """msr_image's error shape, reused verbatim.
+
+    Catching the base class rather than the two guard subclasses matters: a
+    ``ConfigError`` from ``load_config()`` on a misconfigured office box would
+    otherwise escape as a 500 traceback instead of the coded response the rest
+    of the tool-FTP surface returns.
+    """
+    return jsonify({"error": str(exc) or exc.code, "code": exc.code}), exc.status
+
+
+def _validated_locator(raw: object, allowed_subnets: list[str] | None = None) -> IdpLocator:
     """Guard the four client-supplied FTP path fields.
 
     The backend opens an FTP session to whatever this names, so both guards are
     load-bearing rather than defensive: ``validate_tool_ip`` is the SSRF gate
     and ``validate_segment`` stops a ``..`` escaping the raw-recipe folder.
     Both are reused from msr_image, which faces the identical exposure.
+
+    ``allowed_subnets`` is passed in rather than read here because param-detail
+    validates up to 200 items per request, and ``load_config()`` re-parses the
+    environment on every call.
 
     Raises:
         InvalidLocator, InvalidToolIp: rejected by one of the two guards.
@@ -59,7 +74,10 @@ def _validated_locator(raw: object) -> IdpLocator:
         key: str(raw.get(key) or "").strip()
         for key in ("eqp_ip", "class_name", "idw", "idp")
     }
-    validate_tool_ip(locator["eqp_ip"], load_config().allowed_subnets)
+    validate_tool_ip(
+        locator["eqp_ip"],
+        load_config().allowed_subnets if allowed_subnets is None else allowed_subnets,
+    )
     for key in _LOCATOR_SEGMENTS:
         validate_segment(locator[key], key)
     return locator
@@ -136,6 +154,7 @@ def recipe_search_param_detail(tool_slug: str):
 
     clean: list[ParamDetailRequestItem] = []
     try:
+        allowed_subnets = load_config().allowed_subnets
         for item in items:
             if not isinstance(item, dict):
                 raise InvalidLocator("each item must be an object")
@@ -153,12 +172,12 @@ def recipe_search_param_detail(tool_slug: str):
                 if value:
                     validate_segment(value, key)
             clean.append({
-                "locator": _validated_locator(item.get("locator")),
+                "locator": _validated_locator(item.get("locator"), allowed_subnets),
                 "parameter": str(item.get("parameter") or "").strip(),
                 "slots": slots
             })
-    except (InvalidLocator, InvalidToolIp) as exc:
-        return jsonify({"error": str(exc)}), 400
+    except MsrImageError as exc:
+        return _error(exc)
 
     return jsonify(get_param_detail(clean))
 
@@ -174,8 +193,8 @@ def recipe_search_align_detail(tool_slug: str):
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
     try:
         locator = _validated_locator(request.args.to_dict())
-    except (InvalidLocator, InvalidToolIp) as exc:
-        return jsonify({"error": str(exc)}), 400
+    except MsrImageError as exc:
+        return _error(exc)
 
     raw = (request.args.get("p_numbers") or "").strip()
     try:
@@ -197,11 +216,14 @@ def recipe_search_recipe_image(tool_slug: str):
     if not _resolve_tool_type(tool_slug):
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
     name = (request.args.get("name") or "").strip()
+    # Same cap msr_image applies — an unbounded name is an unbounded FTP path.
+    if len(name) > 256:
+        return jsonify({"error": "name too long"}), 400
     try:
         locator = _validated_locator(request.args.to_dict())
         validate_segment(name, "name")
-    except (InvalidLocator, InvalidToolIp) as exc:
-        return jsonify({"error": str(exc)}), 400
+    except MsrImageError as exc:
+        return _error(exc)
 
     try:
         payload, content_type = fetch_recipe_image(locator, name)
@@ -213,5 +235,8 @@ def recipe_search_recipe_image(tool_slug: str):
     return Response(
         payload,
         mimetype=content_type,
-        headers={"Cache-Control": "public, max-age=3600"}
+        # A raw-recipe file never changes for a given recipe, so this is
+        # genuinely immutable rather than merely cacheable — without it every
+        # thumbnail costs a fresh FTP session to a production tool once an hour.
+        headers={"Cache-Control": "public, max-age=31536000, immutable"}
     )

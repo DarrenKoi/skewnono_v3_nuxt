@@ -1,45 +1,19 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
-import type { ImageSlotKey } from '~/utils/recipeView'
+import type { ParamDetail, SettingBlock } from '../composables/useRecipeParamDetail.ts'
+import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
 
-// NOTE: recipeCompare runs under `node --test`, which cannot resolve the `~`
-// alias or extension-less sibling imports, while `nuxt typecheck` forbids
-// `.ts`-extension imports. So the slot metadata below is inlined rather than
-// imported from recipeView.ts. KEEP IN SYNC with recipeView.ts (IMAGE_SLOTS).
+// Relative `.ts` specifiers, not the `~` alias: `node --test` cannot resolve
+// `~`, but it does resolve these, and `nuxt typecheck` accepts them (verified
+// 2026-07-29 — an earlier comment here claimed otherwise and had grown three
+// copies of the slot table on that false premise). Type-only imports are erased
+// before Node sees them; `IMAGE_SLOTS` and `formatSettingValue` are real value
+// imports and run fine under both.
 
-type SlotRole = 'address' | 'measure'
+export const COMPARE_SLOTS = IMAGE_SLOTS
 
-/** Structurally identical to `SettingBlock` in useRecipeParamDetail, restated
- *  here for the same alias reason as the slot table above. */
-export interface CompareSettingBlock {
-  source: string
-  rows: { key: string, value: string }[]
-}
-
-/** Structurally identical to `ParamDetail`. */
-export interface CompareParamDetail {
-  parameter: string
-  amp: CompareSettingBlock | null
-  af_pr: CompareSettingBlock | null
-  images: { slot: string, stage: string, name: string, cond: CompareSettingBlock | null }[]
-}
-
-interface CompareSlot {
-  key: ImageSlotKey
-  stage: string
-  role: SlotRole
-  hasImage: boolean
-}
-
-export const COMPARE_SLOTS: readonly CompareSlot[] = [
-  { key: 'img_add1', stage: 'Addressing 1', role: 'address', hasImage: true },
-  { key: 'img_add2', stage: 'Addressing 2', role: 'address', hasImage: false },
-  { key: 'image_add3', stage: 'Addressing 3', role: 'address', hasImage: true },
-  { key: 'img_meas1', stage: 'Measure 1', role: 'measure', hasImage: true },
-  { key: 'img_meas2', stage: 'Measure 2', role: 'measure', hasImage: false }
-]
-
-const formatSettingValue = (value: string | null | undefined): string =>
-  (value === null || value === undefined || value === '') ? '\u2014' : String(value)
+/** Structurally the compare screen's view of one parameter's settings. */
+export type CompareSettingBlock = SettingBlock
+export type CompareParamDetail = ParamDetail
 
 /**
  * Which parsed file a slot's settings come from.
@@ -282,8 +256,7 @@ export function buildCompareWorkbook(
 export interface CompareImageBlock {
   sheetName: string // 활성 슬롯의 stage 이름 (예: 'Measure 1')
   parameter: string // 활성 파라미터
-  images: (string | null)[] // recipe별 이미지 파일명(없으면 null); 빈 셀 판정용
-  pngDataUrl: string // 브라우저에서 미리 렌더한 SEM 노이즈 PNG (data URL)
+  images: (string | null)[] // recipe별 이미지 파일명(없으면 null)
 }
 
 export async function downloadCompareWorkbook(
@@ -302,24 +275,13 @@ export async function downloadCompareWorkbook(
     }
 
     if (imageBlock && sheet.name === imageBlock.sheetName) {
-      // header occupies row 1; insert an image strip directly beneath it:
-      // row 2 = label, row 3 = image anchor row, row 4 = spacer.
-      ws.spliceRows(2, 0, ['이미지', imageBlock.parameter], [], [])
-      ws.getRow(3).height = 115
-
-      const imageId = book.addImage({
-        base64: imageBlock.pngDataUrl,
-        extension: 'png'
-      })
-      imageBlock.images.forEach((file, i) => {
-        if (!file) return
-        // columns: 0='parameter', 1='attr', recipe columns start at index 2 (C).
-        // ExcelJS anchors are 0-based; row index 2 === Excel row 3 (the anchor row).
-        ws.addImage(imageId, {
-          tl: { col: 2 + i, row: 2 },
-          ext: { width: 150, height: 150 }
-        })
-      })
+      // The image FILENAMES, not the images. Until 2026-07-29 this stamped a
+      // browser-rendered fake SEM texture into the sheet — harmless while every
+      // other column was fabricated too, actively misleading now that they are
+      // real tool data. Embedding the genuine images would mean pulling each
+      // one off the tool's FTP server at export time; the names let a reader
+      // find them without that cost. (header is row 1)
+      ws.spliceRows(2, 0, ['이미지', imageBlock.parameter, ...imageBlock.images.map(f => f ?? '없음')], [])
     }
   }
 

@@ -65,6 +65,7 @@ STILL NOT WIRED:
   single ``HostSpec(files=[...])``. Until that exists, compare returns mock
   data while ``/recipe-detail`` returns real data, so **the "compare is derived
   from open" invariant is knowingly broken office-side.** See the TODO there.
+
 ``align_images`` and ``amp_info`` used to be listed here as fabricated even at
 the office. They are gone as of 2026-07-29: their source turned out to be the
 **raw-recipe folder** beside the .idp, read by a second 사내 parser::
@@ -398,6 +399,21 @@ def _transport():
     return FtpFleetDownloader, HostSpec, "direct"
 
 
+def _downloader(downloader_cls, config):
+    """One place the FTP credentials and timeout are wired in.
+
+    Both the .idp download and the raw-folder fetch construct the same client,
+    so a credential or timeout change would otherwise have to be made twice in
+    this file.
+    """
+    return downloader_cls(
+        user=config.ftp_user,
+        password=config.ftp_password,
+        port=config.ftp_port,
+        connect_timeout=config.ftp_timeout,
+    )
+
+
 def _download_idp(location: _IdpLocation, dest_dir: Path) -> Path:
     """RETR the .idp to ``dest_dir`` and return the local path.
 
@@ -419,13 +435,9 @@ def _download_idp(location: _IdpLocation, dest_dir: Path) -> Path:
 
     remote_path = _idp_remote_path(location)
     downloader_cls, host_spec_cls, transport = _transport()
-    downloader = downloader_cls(
-        user=config.ftp_user,
-        password=config.ftp_password,
-        port=config.ftp_port,
-        connect_timeout=config.ftp_timeout,
+    report = _downloader(downloader_cls, config).download(
+        [host_spec_cls(location.eqp_ip, files=[remote_path])]
     )
-    report = downloader.download([host_spec_cls(location.eqp_ip, files=[remote_path])])
 
     fetched = {result.remote_path: result.data for result in report.files}
     if remote_path not in fetched:
@@ -699,76 +711,79 @@ def _read_block(
     return {"source": source_name, "rows": _to_rows(parsed)}
 
 
-def _cond_source(image_file_name: str) -> str:
-    """The sidecar as named in ``SettingBlock.source``: ``.IMMP0001.jpeg/cond.txt``.
-
-    Relative to the raw folder, matching what the mock emits, so the same string
-    reaches the screen under either provider.
-    """
-    return f".{image_file_name}/cond.txt"
-
-
-def _fetch_raw(locator: IdpLocator, names: list[str]) -> dict[str, bytes]:
-    """One batched FTP session for every raw file a call needs.
-
-    A missing file is NOT an error: parameters routinely lack a third
-    addressing image or an AF/PR setting. Failures are logged and are simply
-    absent from the returned mapping — only the session itself failing raises.
-
-    Keyed by file NAME rather than remote path, so a caller does not have to
-    re-derive the path to look a result up.
-    """
-    from back_dev_home.msr_image.config import load_config
-    from back_dev_home.msr_image.paths import validate_tool_ip
-
-    if not names:
-        return {}
-
-    config = load_config()
-    # Unlike _download_idp, whose IP comes from OpenSearch, this one arrives
-    # from the client — so the guard here is the SSRF gate, not a formality.
-    validate_tool_ip(locator["eqp_ip"], config.allowed_subnets)
-
-    raw = rawfiles.raw_dir(locator["class_name"], locator["idw"], locator["idp"])
-    path_of = {name: rawfiles.remote_path(raw, name) for name in dict.fromkeys(names)}
-
-    downloader_cls, host_spec_cls, transport = _transport()
-    downloader = downloader_cls(
-        user=config.ftp_user,
-        password=config.ftp_password,
-        port=config.ftp_port,
-        connect_timeout=config.ftp_timeout,
-    )
-    report = downloader.download(
-        [host_spec_cls(locator["eqp_ip"], files=sorted(path_of.values()))]
-    )
-    for failure in report.failures:
-        _LOG.info(
-            "recipe_search: %s absent on %s via %s (%s) — rendered as 파일 없음",
-            failure.remote_path, locator["eqp_ip"], transport, failure.error,
-        )
-    by_path = {result.remote_path: result.data for result in report.files}
-    return {name: by_path[path] for name, path in path_of.items() if path in by_path}
-
-
-def _slot_sources(
-    slots: dict[str, str],
-) -> tuple[str | None, str | None, list[tuple[str, str, str]]]:
-    """``(amp, af_pr, [(slot, image, cond)])`` for one parameter. Pure."""
-    amp = rawfiles.setting_name(slots.get("img_meas2"))
-    af_pr = rawfiles.setting_name(slots.get("img_add2"), pr_to_en=True)
-    images = [
-        (slot, name, _cond_source(name))
-        for slot in rawfiles.IMAGE_SLOT_KEYS
-        if (name := rawfiles.image_name(slots.get(slot))) is not None
-    ]
-    return amp, af_pr, images
-
-
 def _locator_key(locator: IdpLocator) -> tuple[str, str, str, str]:
     return (
         locator["eqp_ip"], locator["class_name"], locator["idw"], locator["idp"]
     )
+
+
+def _fetch_many(
+    wanted: dict[tuple[str, str, str, str], list[str]],
+) -> dict[tuple[str, str, str, str], dict[str, bytes]]:
+    """Every raw file every locator needs, in ONE fleet download.
+
+    ``FtpFleetDownloader.download`` takes a LIST of HostSpec and fans out
+    concurrently across hosts, so a compare spanning 20 tools is one call rather
+    than 20 sequential single-host sessions.
+
+    A missing file is NOT an error: parameters routinely lack a third
+    addressing image or an AF/PR setting. Failures are logged and are simply
+    absent from the result — only the session itself failing raises. Results are
+    keyed by (locator, file NAME) so callers need not re-derive a path.
+    """
+    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.paths import validate_tool_ip
+
+    wanted = {key: names for key, names in wanted.items() if names}
+    if not wanted:
+        return {}
+
+    config = load_config()
+    downloader_cls, host_spec_cls, transport = _transport()
+
+    specs = []
+    # (host, remote_path) -> (locator key, name). The path alone is ambiguous:
+    # two tools can hold the same recipe at the same path.
+    origin: dict[tuple[str, str], tuple[tuple[str, str, str, str], str]] = {}
+    for key, names in wanted.items():
+        eqp_ip, class_name, idw, idp = key
+        # Unlike _download_idp, whose IP comes from OpenSearch, this one arrives
+        # from the client — so the guard here is the SSRF gate, not a formality.
+        validate_tool_ip(eqp_ip, config.allowed_subnets)
+        raw = rawfiles.raw_dir(class_name, idw, idp)
+        paths = []
+        for name in dict.fromkeys(names):
+            path = rawfiles.remote_path(raw, name)
+            origin[(eqp_ip, path)] = (key, name)
+            paths.append(path)
+        specs.append(host_spec_cls(eqp_ip, files=sorted(paths)))
+
+    report = _downloader(downloader_cls, config).download(specs)
+    for failure in report.failures:
+        _LOG.info(
+            "recipe_search: %s absent via %s (%s) — rendered as 파일 없음",
+            failure.remote_path, transport, failure.error,
+        )
+
+    out: dict[tuple[str, str, str, str], dict[str, bytes]] = {key: {} for key in wanted}
+    for result in report.files:
+        found = origin.get((getattr(result, "host", ""), result.remote_path))
+        if found is None:
+            # Single-host reports may omit `host`; fall back to path alone,
+            # which is unambiguous whenever only one locator asked for it.
+            matches = [v for (_, path), v in origin.items() if path == result.remote_path]
+            if len(matches) != 1:
+                continue
+            found = matches[0]
+        key, name = found
+        out[key][name] = result.data
+    return out
+
+
+def _fetch_raw(locator: IdpLocator, names: list[str]) -> dict[str, bytes]:
+    """One locator's files. Thin wrapper over ``_fetch_many``."""
+    key = _locator_key(locator)
+    return _fetch_many({key: names}).get(key, {})
 
 
 def get_param_detail(
@@ -791,21 +806,18 @@ def get_param_detail(
     plans: list[tuple[tuple[str, str, str, str], ParamDetailRequestItem, Any]] = []
     for item in items:
         key = _locator_key(item["locator"])
-        plan = _slot_sources(item.get("slots") or {})
+        plan = rawfiles.slot_sources(item.get("slots") or {})
         amp, af_pr, images = plan
+        # Settings only. The images' BYTES are deliberately NOT fetched here:
+        # this response carries their filenames, and the browser pulls each one
+        # through recipe-image when it actually renders. Fetching them would
+        # double the tool round-trips for bytes this function then discards.
         names = [name for name in (amp, af_pr) if name]
-        names += [name for _, name, _ in images]
         names += [cond for _, _, cond in images]
         wanted.setdefault(key, []).extend(names)
         plans.append((key, item, plan))
 
-    fetched = {
-        key: _fetch_raw(
-            {"eqp_ip": key[0], "class_name": key[1], "idw": key[2], "idp": key[3]},
-            names,
-        )
-        for key, names in wanted.items()
-    }
+    fetched = _fetch_many(wanted)
 
     out: list[ParamDetailResponse] = []
     for key, item, (amp, af_pr, images) in plans:
@@ -839,10 +851,14 @@ def get_align_detail(
         read_meas_image_condition,
     )
 
-    plan = [(p_no, *rawfiles.align_names(p_no)) for p_no in sorted({int(p) for p in p_numbers})]
-    names: list[str] = []
-    for _, image, setting in plan:
-        names += [setting, _cond_source(image)]
+    plan = [
+        (p_no, image, setting, rawfiles.cond_source(image))
+        for p_no in sorted({int(p) for p in p_numbers})
+        for image, setting in [rawfiles.align_names(p_no)]
+    ]
+    # The align IMAGE itself is not fetched — the response carries its name and
+    # the browser pulls it through recipe-image only for the points it renders.
+    names = [name for _, _, setting, cond in plan for name in (setting, cond)]
 
     blob = _fetch_raw(locator, names)
     return {
@@ -850,16 +866,12 @@ def get_align_detail(
             {
                 "P_No": p_no,
                 "image": image,
-                "cond": _read_block(
-                    _cond_source(image),
-                    blob.get(_cond_source(image)),
-                    read_meas_image_condition,
-                ),
+                "cond": _read_block(cond, blob.get(cond), read_meas_image_condition),
                 "setting": _read_block(
                     setting, blob.get(setting), read_af_pr_condition
                 ),
             }
-            for p_no, image, setting in plan
+            for p_no, image, setting, cond in plan
         ]
     }
 
@@ -870,14 +882,15 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
     Raises:
         LookupError: absent on the tool — the route turns this into a 404.
     """
+    from back_dev_home.msr_image.providers.office_example import _content_type
+
     fetched = _fetch_raw(locator, [name])
     if name not in fetched:
         raise LookupError(f"{name} not found under the raw-recipe folder")
-    content_type = (
-        "image/jpeg" if name.lower().endswith((".jpeg", ".jpg"))
-        else "application/octet-stream"
-    )
-    return fetched[name], content_type
+    # msr_image's mapping, not a local one: it already knows tools serve TIFF
+    # originals alongside JPEG previews (office 확인 2026-07-24), which a
+    # .jpeg-only check would hand back as undownloadable octet-stream.
+    return fetched[name], _content_type(name)
 
 
 def get_recipe_open_data(

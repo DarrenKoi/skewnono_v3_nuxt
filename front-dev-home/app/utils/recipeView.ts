@@ -39,9 +39,6 @@ export const IMAGE_SLOTS: readonly ImageSlot[] = [
   { key: 'img_meas2', label: 'img_meas2', role: 'measure', stage: 'Measure 2', hasImage: false }
 ] as const
 
-/** The three slots that resolve to a `.jpeg`, in raw-folder order. */
-export const IMAGE_ONLY_SLOTS: readonly ImageSlot[] = IMAGE_SLOTS.filter(s => s.hasImage)
-
 /** French "non" — the office's empty-slot sentinel. NOT "none". */
 export const EMPTY_SLOT = 'non'
 

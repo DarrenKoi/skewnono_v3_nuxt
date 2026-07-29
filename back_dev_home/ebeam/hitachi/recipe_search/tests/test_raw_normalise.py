@@ -8,6 +8,7 @@ rows, never to a 500 on a screen that used to work.
 
 import pandas as pd
 
+from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.providers import office_example as office
 
 
@@ -105,11 +106,11 @@ def test_read_block_names_the_file_it_parsed():
     }
 
 
-# ── _slot_sources ─────────────────────────────────────────────────────────
+# ── slot planning (now shared with the mock, in rawfiles) ─────────────────
 
 
 def test_slot_sources_matches_the_naming_rules():
-    amp, af_pr, images = office._slot_sources({
+    amp, af_pr, images = rawfiles.slot_sources({
         "img_add1": "IMMP0001",
         "img_add2": "PRMP0001",
         "image_add3": "I2MP0001",
@@ -126,7 +127,7 @@ def test_slot_sources_matches_the_naming_rules():
 
 
 def test_slot_sources_drops_the_empty_sentinel():
-    amp, af_pr, images = office._slot_sources({
+    amp, af_pr, images = rawfiles.slot_sources({
         "img_add1": "non", "img_add2": "non", "img_meas2": "non",
     })
     assert amp is None
@@ -139,3 +140,29 @@ def test_fetch_raw_with_no_names_opens_no_session():
     assert office._fetch_raw(
         {"eqp_ip": "10.1.2.3", "class_name": "C", "idw": "W", "idp": "P"}, []
     ) == {}
+
+
+def test_both_providers_plan_a_parameter_identically():
+    """Provider parity by construction, not by discipline.
+
+    mock and office used to each walk the slots themselves; they now share
+    rawfiles.slot_sources, and this pins that they still agree on the one thing
+    the contract tests cannot see — WHICH FILE each slot names.
+    """
+    from back_dev_home.ebeam.hitachi.recipe_search.providers import mock
+
+    slots = {
+        "img_add1": "IMMP0001", "img_add2": "PRMP0001", "image_add3": "non",
+        "img_meas1": "IMMS0001", "img_meas2": "PRMS0001",
+    }
+    locator = {"eqp_ip": "10.1.2.3", "class_name": "C", "idw": "W", "idp": "P"}
+    item = {"locator": locator, "parameter": "Para_1", "slots": slots}
+
+    mocked = mock.get_param_detail([item])[0]
+    amp, af_pr, images = rawfiles.slot_sources(slots)
+
+    assert mocked["amp"]["source"] == amp
+    assert mocked["af_pr"]["source"] == af_pr
+    assert [(i["slot"], i["name"]) for i in mocked["images"]] == [
+        (slot, name) for slot, name, _ in images
+    ]

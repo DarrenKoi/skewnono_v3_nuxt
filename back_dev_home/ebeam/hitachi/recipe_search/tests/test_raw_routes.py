@@ -159,7 +159,7 @@ def test_recipe_image_serves_bytes_with_a_cache_header(client):
                           query_string={**LOCATOR, "name": "IMMP0001.jpeg"})
     assert response.status_code == 200
     assert response.mimetype == "image/svg+xml"
-    assert response.headers["Cache-Control"] == "public, max-age=3600"
+    assert response.headers["Cache-Control"] == "public, max-age=31536000, immutable"
     assert response.data
 
 

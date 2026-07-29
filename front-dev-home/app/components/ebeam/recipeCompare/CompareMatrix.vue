@@ -60,10 +60,10 @@
                 v-if="file && slotDescriptor.hasImage"
                 :label="slotDescriptor.label"
                 :stage="slotDescriptor.stage"
-                :name="imageFileName(file)"
-                :src="imageSrc(i, file)"
+                :name="imageFileName(i)"
+                :src="imageSrc(i)"
                 :role="slotDescriptor.role"
-                @open="openLightbox(i, file)"
+                @open="openLightbox(i)"
               />
               <span
                 v-else
@@ -106,8 +106,8 @@
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
 import type { CompareParamDetail } from '~/utils/recipeCompare'
 import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames } from '~/utils/recipeCompare'
-import { recipeImageUrl } from '~/composables/useRecipeParamDetail'
-import { IMAGE_SLOTS, isEmptySlot, type ImageSlotKey } from '~/utils/recipeView'
+import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
+import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
 
 const props = defineProps<{
@@ -119,6 +119,8 @@ const props = defineProps<{
   details: (CompareParamDetail | null)[]
   toolSlug: string
 }>()
+
+const base = recipeApiBase()
 
 const recipeIds = computed(() => props.recipes.map(r => r.recipe_id))
 const slotDescriptor = computed(() => IMAGE_SLOTS.find(s => s.key === props.slotKey) ?? IMAGE_SLOTS[0]!)
@@ -136,25 +138,26 @@ const shortId = (id: string) => (id.length > 12 ? `…${id.slice(-10)}` : id)
 const lightboxOpen = ref(false)
 const lightboxData = ref<LightboxData | null>(null)
 
-// The compare payload carries the raw slot VALUE (IMMP0001); the image file
-// adds .jpeg. `non` means the slot names nothing at all.
-const imageFileName = (slotValue: string) =>
-  isEmptySlot(slotValue) ? '' : `${slotValue.trim()}.jpeg`
+// The filename comes from the SERVER (ParamDetail.images[].name), never from
+// re-appending ".jpeg" here — that rule lives in rawfiles.py and a second
+// client-side implementation could disagree with it.
+const imageFileName = (recipeIndex: number) =>
+  props.details[recipeIndex]?.images.find(i => i.slot === props.slotKey)?.name ?? ''
 
-const imageSrc = (recipeIndex: number, slotValue: string) => {
+const imageSrc = (recipeIndex: number) => {
   const locator = props.recipes[recipeIndex]?.locator
-  const name = imageFileName(slotValue)
-  return locator && name ? recipeImageUrl(props.toolSlug, locator, name) : ''
+  const name = imageFileName(recipeIndex)
+  return locator && name ? recipeImageUrl(base, props.toolSlug, locator, name) : ''
 }
 
-const openLightbox = (recipeIndex: number, slotValue: string) => {
-  const name = imageFileName(slotValue)
+const openLightbox = (recipeIndex: number) => {
+  const name = imageFileName(recipeIndex)
   const detail = props.details[recipeIndex] ?? null
   lightboxData.value = {
     slot: slotDescriptor.value.key,
     stage: slotDescriptor.value.stage,
     name,
-    src: imageSrc(recipeIndex, slotValue),
+    src: imageSrc(recipeIndex),
     role: slotDescriptor.value.role,
     cond: blockForSlot(detail, props.slotKey)
   }

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 
 import { SLOT_KEYS, recipeImageUrl, slotsOf } from './useRecipeParamDetail.ts'
 
+const BASE = '/api'
+
 const LOCATOR = {
   eqp_ip: '10.1.2.3',
   class_name: 'CLS',
@@ -11,14 +13,23 @@ const LOCATOR = {
 }
 
 describe('recipeImageUrl', () => {
+  it('honours the runtime apiBase rather than hardcoding /api', () => {
+    // Phase 3 can move the base; every neighbouring composable already routes
+    // through joinApiPath, and this one used to be the exception.
+    assert.ok(
+      recipeImageUrl('/proxy/v2', 'cdsem', LOCATOR, 'X.jpeg')
+        .startsWith('/proxy/v2/cdsem/recipe-search/recipe-image?')
+    )
+  })
+
   it('targets the tool-scoped recipe-image endpoint', () => {
-    const url = recipeImageUrl('cdsem', LOCATOR, 'IMMP0001.jpeg')
+    const url = recipeImageUrl(BASE, 'cdsem', LOCATOR, 'IMMP0001.jpeg')
     assert.ok(url.startsWith('/api/cdsem/recipe-search/recipe-image?'))
   })
 
   it('carries every locator field plus the name', () => {
     const params = new URLSearchParams(
-      recipeImageUrl('cdsem', LOCATOR, 'IMMP0001.jpeg').split('?')[1]
+      recipeImageUrl(BASE, 'cdsem', LOCATOR, 'IMMP0001.jpeg').split('?')[1]
     )
     assert.equal(params.get('eqp_ip'), '10.1.2.3')
     assert.equal(params.get('class_name'), 'CLS')
@@ -28,7 +39,7 @@ describe('recipeImageUrl', () => {
   })
 
   it('encodes a name that would otherwise break the query string', () => {
-    const url = recipeImageUrl('cdsem', LOCATOR, 'A&B 0001.jpeg')
+    const url = recipeImageUrl(BASE, 'cdsem', LOCATOR, 'A&B 0001.jpeg')
     assert.ok(!url.includes('A&B 0001'))
     const params = new URLSearchParams(url.split('?')[1])
     assert.equal(params.get('name'), 'A&B 0001.jpeg')
@@ -36,8 +47,8 @@ describe('recipeImageUrl', () => {
 
   it('keeps hvsem and cdsem on separate paths', () => {
     assert.notEqual(
-      recipeImageUrl('cdsem', LOCATOR, 'X.jpeg'),
-      recipeImageUrl('hvsem', LOCATOR, 'X.jpeg')
+      recipeImageUrl(BASE, 'cdsem', LOCATOR, 'X.jpeg'),
+      recipeImageUrl(BASE, 'hvsem', LOCATOR, 'X.jpeg')
     )
   })
 })

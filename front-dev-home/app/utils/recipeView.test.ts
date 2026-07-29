@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  recipeTableUi, IMAGE_SLOTS, IMAGE_ONLY_SLOTS, EMPTY_SLOT, isEmptySlot,
+  recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
   formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp
 } from './recipeView.ts'
@@ -75,16 +75,14 @@ test('only three slots name an image; img_add2 and img_meas2 name settings', () 
   // img_add2 is PRMP0000 (-> ENMP0000, the AF/PR condition) and img_meas2 is
   // PRMS0000 (the AMP file itself). Neither has a .jpeg. image_add3 breaks the
   // img_* naming run but IS an image. (user-confirmed 2026-07-29)
-  assert.deepEqual(IMAGE_ONLY_SLOTS.map(s => s.key), ['img_add1', 'image_add3', 'img_meas1'])
+  assert.deepEqual(
+    IMAGE_SLOTS.filter(s => s.hasImage).map(s => s.key),
+    ['img_add1', 'image_add3', 'img_meas1']
+  )
   assert.deepEqual(
     IMAGE_SLOTS.filter(s => !s.hasImage).map(s => s.key),
     ['img_add2', 'img_meas2']
   )
-})
-
-test('IMAGE_ONLY_SLOTS keeps the raw-folder order', () => {
-  const order = IMAGE_SLOTS.filter(s => s.hasImage)
-  assert.deepEqual(IMAGE_ONLY_SLOTS.map(s => s.key), order.map(s => s.key))
 })
 
 // --- the empty-slot sentinel ---

@@ -80,7 +80,7 @@
  */
 import type { ParamImage } from '~/composables/useRecipeParamDetail'
 import type { IdpLocator } from '~/composables/useRecipeSearchApi'
-import { recipeImageUrl } from '~/composables/useRecipeParamDetail'
+import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type SlotRole } from '~/utils/recipeView'
 
 const props = defineProps<{
@@ -93,11 +93,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'openImage', image: ParamImage): void }>()
 
+const base = recipeApiBase()
+
 const images = computed<ParamImage[]>(() => props.detail?.images ?? [])
 
 const roleOf = (slotKey: string): SlotRole =>
   IMAGE_SLOTS.find(slot => slot.key === slotKey)?.role ?? 'address'
 
 const imageSrc = (name: string) =>
-  recipeImageUrl(props.toolSlug, props.locator, name)
+  recipeImageUrl(base, props.toolSlug, props.locator, name)
 </script>

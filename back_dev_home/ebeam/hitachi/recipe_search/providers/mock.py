@@ -214,17 +214,6 @@ def generate_wafer_align_info(
     return data
 
 
-# Office naming (user-confirmed 2026-07-29): {kind}{stage}{NNNN}, no extension.
-# IM/I2 name images, PR names a setting key the tool wrote; MP is addressing and
-# MS is measurement.
-_SLOT_PREFIX: dict[str, str] = {
-    "img_add1": "IMMP",
-    "img_add2": "PRMP",
-    "img_meas1": "IMMS",
-    "img_meas2": "PRMS",
-    "image_add3": "I2MP"
-}
-
 # Slots that legitimately hold no file. Parameters routinely lack a third
 # addressing image or an AF/PR setting, so the sentinel has to appear at home or
 # the no-file path is never exercised until the office run — the same reason
@@ -235,7 +224,10 @@ _MAY_BE_EMPTY: tuple[str, ...] = ("img_add2", "image_add3")
 def _slot(column: str, seq: int, rng: random.Random) -> str:
     if column in _MAY_BE_EMPTY and rng.random() < 0.25:
         return rawfiles.EMPTY_SLOT
-    return f"{_SLOT_PREFIX[column]}{seq:04d}"
+    # Prefixes come from rawfiles, not a local table: this mock exists to
+    # exercise rawfiles' own derivation, so a private copy could drift onto a
+    # branch the office never takes.
+    return f"{rawfiles.SLOT_PREFIX[column]}{seq:04d}"
 
 
 def generate_idp_image_info(
@@ -325,16 +317,6 @@ def _fake_locator(recipe_id: str) -> IdpLocator:
     }
 
 
-def _cond_source(image_file_name: str) -> str:
-    """The sidecar path as shown on screen: ``.IMMP0001.jpeg/cond.txt``.
-
-    Relative, not absolute: office-side this is the remote path under the raw
-    folder, and keeping the tail identical means both providers put the same
-    string in ``SettingBlock.source``.
-    """
-    return f".{image_file_name}/cond.txt"
-
-
 def get_param_detail(
     items: list[ParamDetailRequestItem]
 ) -> list[ParamDetailResponse]:
@@ -353,28 +335,22 @@ def get_param_detail(
     stage_of = {slot["key"]: slot["stage"] for slot in IMAGE_SLOTS}
     out: list[ParamDetailResponse] = []
     for item in items:
-        slots = item.get("slots") or {}
-        images: list[ParamImage] = []
-        for slot in rawfiles.IMAGE_SLOT_KEYS:
-            name = rawfiles.image_name(slots.get(slot))
-            if name is None:
-                continue
-            images.append({
-                "slot": slot,
-                "stage": stage_of.get(slot, slot),
-                "name": name,
-                "cond": _block(_cond_source(name), read_meas_image_condition)
-            })
+        # Same planner the office adapter uses, so the two cannot disagree
+        # about which file a slot names.
+        amp, af_pr, images = rawfiles.slot_sources(item.get("slots") or {})
         out.append({
             "parameter": item.get("parameter", ""),
-            "amp": _block(
-                rawfiles.setting_name(slots.get("img_meas2")), read_amp_info
-            ),
-            "af_pr": _block(
-                rawfiles.setting_name(slots.get("img_add2"), pr_to_en=True),
-                read_af_pr_condition
-            ),
-            "images": images
+            "amp": _block(amp, read_amp_info),
+            "af_pr": _block(af_pr, read_af_pr_condition),
+            "images": [
+                {
+                    "slot": slot,
+                    "stage": stage_of.get(slot, slot),
+                    "name": name,
+                    "cond": _block(cond, read_meas_image_condition)
+                }
+                for slot, name, cond in images
+            ]
         })
     return out
 
@@ -399,7 +375,7 @@ def get_align_detail(
         points.append({
             "P_No": p_no,
             "image": image,
-            "cond": _block(_cond_source(image), read_meas_image_condition),
+            "cond": _block(rawfiles.cond_source(image), read_meas_image_condition),
             "setting": _block(setting, read_af_pr_condition)
         })
     return {"points": points}

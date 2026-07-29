@@ -93,10 +93,14 @@ export interface RecipeDetailResponse {
   timestamp: string
 }
 
-const TOOL_TO_BACKEND_SLUG: Record<RecipeSearchToolType, string> = {
+export const TOOL_TO_BACKEND_SLUG: Record<RecipeSearchToolType, string> = {
   'cd-sem': 'cdsem',
   'hv-sem': 'hvsem'
 }
+
+/** `'hv-sem' -> 'hvsem'`. One table; the raw-folder endpoints need it too. */
+export const toolSlug = (toolType: RecipeSearchToolType): string =>
+  TOOL_TO_BACKEND_SLUG[toolType]
 
 const inFlightRecipeLists = new Map<string, Promise<RecipeSearchResponse>>()
 const inFlightRecipeDetails = new Map<string, Promise<RecipeDetailResponse>>()

@@ -11,7 +11,8 @@
  * instead of dropping it.
  */
 
-import type { IdpImageInfoRow, IdpLocator } from './useRecipeSearchApi.ts'
+import { joinApiPath } from '../utils/apiPath.ts'
+import type { IdpLocator } from './useRecipeSearchApi.ts'
 
 /** One parsed setting. Order is the office reader's own — never re-sorted. */
 export interface SettingRow {
@@ -55,10 +56,16 @@ export const SLOT_KEYS = [
   'img_meas2'
 ] as const
 
-/** Pull the five slot values off an idp_image_info row. */
-export function slotsOf(row: Pick<IdpImageInfoRow, typeof SLOT_KEYS[number]>): Record<string, string> {
-  return Object.fromEntries(SLOT_KEYS.map(key => [key, row[key]]))
+/** Pull the five slot values off an idp_image_info row (or a compare `images` map). */
+export function slotsOf(row: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(SLOT_KEYS.map(key => [key, row[key] ?? '']))
 }
+
+/** Base for every raw-folder call, so a Phase-3 apiBase change reaches them
+ *  the same way it reaches the rest of the feature. Callers in components read
+ *  it once; `recipeImageUrl` takes it as an argument so it stays pure and
+ *  `node --test`-able — the only automated guard this layer has. */
+export const recipeApiBase = () => useRuntimeConfig().public.apiBase as string
 
 /**
  * URL for one raw-recipe image.
@@ -68,12 +75,13 @@ export function slotsOf(row: Pick<IdpImageInfoRow, typeof SLOT_KEYS[number]>): R
  * Pure, so it is the part of this module that `node --test` can cover.
  */
 export function recipeImageUrl(
+  base: string,
   toolSlug: string,
   locator: IdpLocator,
   name: string
 ): string {
   const params = new URLSearchParams({ ...locator, name })
-  return `/api/${toolSlug}/recipe-search/recipe-image?${params.toString()}`
+  return `${joinApiPath(base, `/${toolSlug}/recipe-search/recipe-image`)}?${params.toString()}`
 }
 
 export interface ParamDetailRequestItem {
@@ -93,29 +101,9 @@ export function fetchParamDetails(
   toolSlug: string,
   items: ParamDetailRequestItem[]
 ): Promise<ParamDetail[]> {
-  return $fetch<ParamDetail[]>(`/api/${toolSlug}/recipe-search/param-detail`, {
-    method: 'POST',
-    body: { items }
-  })
-}
-
-/**
- * One parameter's settings, cached per (recipe, parameter) so re-selecting a
- * parameter already viewed costs nothing.
- */
-export function useRecipeParamDetail(
-  toolSlug: string,
-  locator: IdpLocator,
-  recipeId: string,
-  parameter: string,
-  slots: Record<string, string>
-) {
-  return useAsyncData<ParamDetail | null>(
-    `recipe-param-detail:${recipeId}:${parameter}`,
-    async () => {
-      const rows = await fetchParamDetails(toolSlug, [{ locator, parameter, slots }])
-      return rows[0] ?? null
-    }
+  return $fetch<ParamDetail[]>(
+    joinApiPath(recipeApiBase(), `/${toolSlug}/recipe-search/param-detail`),
+    { method: 'POST', body: { items } }
   )
 }
 
@@ -138,4 +126,25 @@ export async function fetchParamDetailsChunked(
     out.push(...await fetchParamDetails(toolSlug, items.slice(i, i + PARAM_DETAIL_MAX_ITEMS)))
   }
   return out
+}
+
+export interface AlignPoint {
+  P_No: number
+  image: string | null
+  cond: SettingBlock | null
+  setting: SettingBlock | null
+}
+
+/** Every wafer-align point's image, beam condition and AF/PR setting. */
+export async function fetchAlignDetail(
+  toolSlug: string,
+  locator: IdpLocator,
+  pNumbers: number[]
+): Promise<AlignPoint[]> {
+  if (!pNumbers.length) return []
+  const response = await $fetch<{ points: AlignPoint[] }>(
+    joinApiPath(recipeApiBase(), `/${toolSlug}/recipe-search/align-detail`),
+    { query: { ...locator, p_numbers: pNumbers.join(',') } }
+  )
+  return response.points
 }

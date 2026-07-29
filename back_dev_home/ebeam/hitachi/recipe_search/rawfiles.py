@@ -33,8 +33,11 @@ from back_dev_home.msr_image.paths import cond_path
 __all__ = [
     "EMPTY_SLOT",
     "IMAGE_SLOT_KEYS",
+    "SLOT_PREFIX",
     "align_names",
+    "slot_sources",
     "cond_remote_path",
+    "cond_source",
     "image_name",
     "is_empty",
     "raw_dir",
@@ -55,6 +58,18 @@ EMPTY_SLOT = "non"
 # have no image of their own; image_add3 breaks the img_* naming run but IS an
 # image, which is exactly why it is listed rather than derived from a prefix.
 IMAGE_SLOT_KEYS: tuple[str, ...] = ("img_add1", "image_add3", "img_meas1")
+
+# The {kind}{stage} prefix each column's value carries. Exported so the mock
+# generates values on the same convention this module parses, rather than a
+# second hand-written table that could drift onto a branch the office never
+# takes (a slot not starting with "PR" makes setting_name return None).
+SLOT_PREFIX: dict[str, str] = {
+    "img_add1": "IMMP",
+    "img_add2": "PRMP",
+    "img_meas1": "IMMS",
+    "img_meas2": "PRMS",
+    "image_add3": "I2MP",
+}
 
 
 def is_empty(value: str | None) -> bool:
@@ -109,11 +124,41 @@ def align_names(p_no: int) -> tuple[str, str]:
     return f"IMAP{p_no:04d}.jpeg", f"ENAP{p_no:04d}"
 
 
-def cond_remote_path(raw: str, image_file_name: str) -> str:
-    """The image's hidden condition sidecar: ``.{image}.jpeg/cond.txt``.
+def cond_source(image_file_name: str) -> str:
+    """The condition sidecar's name RELATIVE to the raw folder.
 
-    Delegates to msr_image's ``cond_path`` rather than re-deriving it — the
-    layout was proven there (office 확인 2026-07-24) and two copies of a rule
-    like this drift.
+    ``'IMMP0001.jpeg' -> '.IMMP0001.jpeg/cond.txt'``. This is the form both
+    providers want: the mock has no absolute path at all, and the office
+    adapter keys its fetch results by name. It is also what reaches the screen
+    as ``SettingBlock.source``, so both providers put the same string there.
+
+    Derived from msr_image's ``cond_path`` rather than spelled out here — the
+    hidden-directory layout was proven there (office 확인 2026-07-24), and two
+    copies of a rule like this drift.
     """
-    return cond_path(remote_path(raw, image_file_name))
+    return cond_path(image_file_name)
+
+
+def cond_remote_path(raw: str, image_file_name: str) -> str:
+    """The sidecar's ABSOLUTE path, for a caller that needs one."""
+    return remote_path(raw, cond_source(image_file_name))
+
+
+def slot_sources(
+    slots: dict[str, str],
+) -> tuple[str | None, str | None, list[tuple[str, str, str]]]:
+    """One parameter's five slot values -> the files they name.
+
+    Returns ``(amp, af_pr, [(slot, image, cond)])``. Lives here rather than in
+    either provider because both need exactly this mapping and provider parity
+    is the thing the contract tests exist to protect — two hand-kept-in-sync
+    copies would be parity by discipline instead of by construction.
+    """
+    amp = setting_name(slots.get("img_meas2"))
+    af_pr = setting_name(slots.get("img_add2"), pr_to_en=True)
+    images = [
+        (slot, name, cond_source(name))
+        for slot in IMAGE_SLOT_KEYS
+        if (name := image_name(slots.get(slot))) is not None
+    ]
+    return amp, af_pr, images

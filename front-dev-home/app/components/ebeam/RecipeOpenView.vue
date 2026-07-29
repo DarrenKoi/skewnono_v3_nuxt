@@ -153,7 +153,7 @@
         v-model:open="alignOpen"
         :rows="data.wafer_align_info"
         :tool-slug="toolSlug"
-        :locator="data.locator"
+        :locator="locator"
       />
 
       <EbeamRecipeOpenImageLightbox
@@ -174,6 +174,7 @@ import type {
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import {
   fetchParamDetails,
+  recipeApiBase,
   recipeImageUrl,
   slotsOf
 } from '~/composables/useRecipeParamDetail'
@@ -238,7 +239,6 @@ const lightboxOpen = ref(false)
 const lightboxData = ref<LightboxData | null>(null)
 
 watch(cacheKey, () => {
-  paramCache.clear()
   selectedIdpIndex.value = 0
   activeTab.value = 'image'
   lightboxOpen.value = false
@@ -267,15 +267,25 @@ const toolSlug = computed(() => props.toolType === 'hv-sem' ? 'hvsem' : 'cdsem')
 const paramDetail = ref<ParamDetail | null>(null)
 const paramPending = ref(false)
 const paramError = ref(false)
+// Keyed on recipe + parameter only. The recipe is already in the key, so no
+// clearing is needed when it changes; and the row INDEX is deliberately absent
+// — two rows sharing a parameter resolve to the same files, and including the
+// index would miss the cache whenever row order shifted after a refresh.
 const paramCache = new Map<string, ParamDetail>()
+
+// The request currently in flight. Clicking quickly through parameters starts
+// overlapping FTP-backed POSTs, and without this the slower one can land last
+// and show the wrong parameter's settings.
+const inFlight = ref('')
 
 async function loadParamDetail() {
   const row = selectedIdp.value
-  if (!row || !data.value?.locator?.eqp_ip) {
+  const locator = data.value?.locator
+  if (!row || !locator?.eqp_ip) {
     paramDetail.value = null
     return
   }
-  const key = `${cacheKey.value}::${row.Parameter}::${selectedIdpIndex.value}`
+  const key = `${cacheKey.value}::${row.Parameter}`
   const cached = paramCache.get(key)
   if (cached) {
     paramDetail.value = cached
@@ -283,26 +293,35 @@ async function loadParamDetail() {
     return
   }
 
+  inFlight.value = key
   paramPending.value = true
   paramError.value = false
   try {
     const rows = await fetchParamDetails(toolSlug.value, [{
-      locator: data.value.locator,
+      locator,
       parameter: row.Parameter,
-      slots: slotsOf(row)
+      slots: slotsOf(row as unknown as Record<string, string>)
     }])
     const detail = rows[0] ?? null
     if (detail) paramCache.set(key, detail)
+    // A later selection won; its response owns the panel.
+    if (inFlight.value !== key) return
     paramDetail.value = detail
   } catch {
+    if (inFlight.value !== key) return
     paramError.value = true
     paramDetail.value = null
   } finally {
-    paramPending.value = false
+    if (inFlight.value === key) {
+      inFlight.value = ''
+      paramPending.value = false
+    }
   }
 }
 
-watch([selectedIdp, () => data.value?.locator?.eqp_ip], () => {
+// Watches the parameter NAME, not the computed row object — a refresh() rebuilds
+// every row identity and would otherwise re-fetch files that cannot have changed.
+watch([() => selectedIdp.value?.Parameter, () => data.value?.locator?.eqp_ip], () => {
   void loadParamDetail()
 }, { immediate: true })
 
@@ -311,7 +330,7 @@ const openLightbox = (image: ParamImage) => {
     slot: image.slot,
     stage: image.stage,
     name: image.name,
-    src: recipeImageUrl(toolSlug.value, locator.value, image.name),
+    src: recipeImageUrl(recipeApiBase(), toolSlug.value, locator.value, image.name),
     role: IMAGE_SLOTS.find(s => s.key === image.slot)?.role ?? 'address',
     cond: image.cond
   }

@@ -182,7 +182,7 @@ import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { RecipeCompareResponse } from '~/composables/useRecipeCompareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import type { CompareDetailIndex, CompareParamDetail } from '~/utils/recipeCompare'
+import type { CompareParamDetail } from '~/utils/recipeCompare'
 import {
   COMPARE_SLOTS,
   GROUPING_DEFAULT_THRESHOLD,
@@ -196,7 +196,6 @@ import {
 } from '~/utils/recipeCompare'
 import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
-import { renderSemNoisePng } from '~/utils/semNoiseImage'
 import { recipeNamesForCompare } from '~/utils/recipeSelection'
 
 const props = defineProps<{
@@ -300,34 +299,40 @@ const toolSlug = computed(() => props.toolType === 'hv-sem' ? 'hvsem' : 'cdsem')
 const cellDetails = ref<(CompareParamDetail | null)[]>([])
 const detailCache = new Map<string, CompareParamDetail>()
 
-function itemsFor(parameters: string[]) {
-  const items = []
-  for (const recipe of recipes.value) {
-    for (const parameter of parameters) {
-      const param = findParameter(recipe, parameter)
-      if (!param) continue
-      items.push({
-        locator: recipe.locator,
-        parameter,
-        slots: slotsOf(param.images as never)
-      })
-    }
-  }
-  return items
+/** The (recipe, parameter) pairs still worth asking the tool for.
+ *
+ * Built once and reused for both the request and the re-keying of its results,
+ * so the "results come back in request order" coupling exists in one place
+ * instead of being re-derived by two loops kept in step by a cursor.
+ */
+function missingPairs(parameters: string[]) {
+  return recipes.value.flatMap(recipe =>
+    parameters
+      .filter(parameter =>
+        findParameter(recipe, parameter)
+        && !detailCache.has(compareDetailKey(recipe.recipe_id, parameter)))
+      .map(parameter => ({ recipe, parameter }))
+  )
 }
 
-function indexResults(parameters: string[], details: CompareParamDetail[]) {
-  // Results come back in request order, so they are re-keyed rather than
-  // matched by position — a recipe that lacks a parameter contributes no item.
-  let cursor = 0
-  for (const recipe of recipes.value) {
-    for (const parameter of parameters) {
-      if (!findParameter(recipe, parameter)) continue
-      const detail = details[cursor++]
-      if (detail) detailCache.set(compareDetailKey(recipe.recipe_id, parameter), detail)
-    }
-  }
+async function fetchInto(pairs: ReturnType<typeof missingPairs>) {
+  if (!pairs.length) return
+  const details = await fetchParamDetailsChunked(toolSlug.value, pairs.map(
+    ({ recipe, parameter }) => ({
+      locator: recipe.locator,
+      parameter,
+      slots: slotsOf(findParameter(recipe, parameter)!.images)
+    })
+  ))
+  pairs.forEach(({ recipe, parameter }, index) => {
+    const detail = details[index]
+    if (detail) detailCache.set(compareDetailKey(recipe.recipe_id, parameter), detail)
+  })
 }
+
+// The cell currently being fetched; a later selection must win even if its
+// response lands first.
+const inFlight = ref('')
 
 async function loadCellDetails() {
   const parameter = activeParam.value
@@ -335,16 +340,13 @@ async function loadCellDetails() {
     cellDetails.value = []
     return
   }
-  const missing = recipes.value.some(
-    r => findParameter(r, parameter) && !detailCache.has(compareDetailKey(r.recipe_id, parameter))
-  )
-  if (missing) {
-    try {
-      indexResults([parameter], await fetchParamDetailsChunked(toolSlug.value, itemsFor([parameter])))
-    } catch (err) {
-      console.error('param-detail fetch failed', err)
-    }
+  inFlight.value = parameter
+  try {
+    await fetchInto(missingPairs([parameter]))
+  } catch (err) {
+    console.error('param-detail fetch failed', err)
   }
+  if (inFlight.value !== parameter) return
   cellDetails.value = recipes.value.map(
     r => detailCache.get(compareDetailKey(r.recipe_id, parameter)) ?? null
   )
@@ -358,19 +360,17 @@ const downloadExcel = async () => {
   if (!recipes.value.length || !selectedParameters.value.length) return
   try {
     // The workbook covers EVERY selected parameter, not just the visible cell,
-    // so it bulk-fetches first — chunked, because the server caps one request
-    // at 200 items and a wide compare exceeds that.
+    // so it bulk-fetches first — only the pairs browsing has not already
+    // cached, and chunked, because the server caps one request at 200 items.
     const parameters = selectedParameters.value
-    indexResults(parameters, await fetchParamDetailsChunked(toolSlug.value, itemsFor(parameters)))
-    const details: CompareDetailIndex = detailCache
-    const workbook = buildCompareWorkbook(recipes.value, parameters, details)
+    await fetchInto(missingPairs(parameters))
+    const workbook = buildCompareWorkbook(recipes.value, parameters, detailCache)
     const slot = COMPARE_SLOTS.find(s => s.key === activeSlot.value)
     const imageBlock = (slot && activeParam.value)
       ? {
           sheetName: slot.stage,
           parameter: activeParam.value,
-          images: imageFilenames(recipes.value, activeParam.value, activeSlot.value),
-          pngDataUrl: renderSemNoisePng(slot.role)
+          images: imageFilenames(recipes.value, activeParam.value, activeSlot.value)
         }
       : undefined
     await downloadCompareWorkbook(
