@@ -60,9 +60,7 @@ from functools import lru_cache
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignDetailResponse,
-    AlignImageRow,
     AlignPoint,
-    AmpRow,
     CompareParameter,
     CompareRecipe,
     IdpImageInfoRow,
@@ -82,7 +80,6 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
 
 
 __all__ = [
-    "AmpRow",
     "CompareParameter",
     "CompareRecipe",
     "IMAGE_SLOTS",
@@ -217,17 +214,6 @@ def generate_wafer_align_info(
     return data
 
 
-def generate_wafer_align_images(
-    rng: random.Random | None = None
-) -> list[AlignImageRow]:
-    """Generate the pair of wafer-alignment reference images for a recipe."""
-    active_rng = rng or random.Random()
-    return [
-        {"label": "Global Align", "filename": f"ALIGN_GLOBAL_{active_rng.randint(1, 9999):04d}.jpg"},
-        {"label": "Fine Align", "filename": f"ALIGN_FINE_{active_rng.randint(1, 9999):04d}.jpg"}
-    ]
-
-
 # Office naming (user-confirmed 2026-07-29): {kind}{stage}{NNNN}, no extension.
 # IM/I2 name images, PR names a setting key the tool wrote; MP is addressing and
 # MS is measurement.
@@ -286,81 +272,6 @@ def generate_idp_image_info(
     return data
 
 
-_ADDR_ONLY_NONE = {
-    "Algo": None,
-    "ROI": None,
-    "EdgeThr": None,
-    "EdgeDir": None,
-    "Smooth": None
-}
-
-_MEAS_ONLY_NONE = {
-    "Template": None,
-    "MatchScore": None,
-    "SearchArea": None,
-    "Rotation": None
-}
-
-
-def generate_amp_info(idp_rows: list[IdpImageInfoRow]) -> list[AmpRow]:
-    """Generate Auto Meas Parameter rows for every (parameter, image slot).
-
-    Seeded deterministically off the parameter string so refreshes return the
-    same values for the same recipe.
-    """
-    rows: list[AmpRow] = []
-
-    for idp in idp_rows:
-        parameter = idp["Parameter"]
-        param_rng = random.Random(_seed_for_values("amp", parameter))
-
-        for slot in IMAGE_SLOTS:
-            common = {
-                "parameter": parameter,
-                "slot": slot["key"],
-                "role": slot["role"],
-                "stage": slot["stage"],
-                "WD": f"{param_rng.uniform(4.5, 6.0):.1f}"
-            }
-
-            if slot["role"] == "address":
-                rows.append({
-                    **common,
-                    "Mag": param_rng.choice(["1.0K", "3.0K", "5.0K", "10.0K"]),
-                    "Vacc": param_rng.choice(["300", "500", "800"]),
-                    "I_probe": param_rng.choice(["20", "40", "80"]),
-                    "Frame": param_rng.choice(["2", "4", "8"]),
-                    "Scan": param_rng.choice(["TV", "Fast"]),
-                    "Det": "SE",
-                    "Template": (
-                        f"TPL_{param_rng.choice(['LINE', 'PAD', 'VIA', 'CRN'])}"
-                        f"_{param_rng.randint(100, 999)}"
-                    ),
-                    "MatchScore": str(param_rng.randint(60, 95)),
-                    "SearchArea": param_rng.choice(["128", "256", "384", "512"]),
-                    "Rotation": f"{param_rng.uniform(-1.0, 1.0):.2f}",
-                    **_ADDR_ONLY_NONE
-                })
-            else:
-                rows.append({
-                    **common,
-                    "Mag": param_rng.choice(["30.0K", "50.0K", "80.0K", "100.0K"]),
-                    "Vacc": param_rng.choice(["800", "1000", "1500"]),
-                    "I_probe": param_rng.choice(["200", "400", "800"]),
-                    "Frame": param_rng.choice(["8", "16", "32"]),
-                    "Scan": param_rng.choice(["Slow1", "Slow2", "TV"]),
-                    "Det": param_rng.choice(["SE", "BSE"]),
-                    "Algo": param_rng.choice(["Linear", "Top-Bottom", "Threshold", "Box"]),
-                    "ROI": param_rng.choice(["256", "384", "512", "640"]),
-                    "EdgeThr": param_rng.choice(["40", "50", "60", "70"]),
-                    "EdgeDir": param_rng.choice(["L->R", "R->L", "Both"]),
-                    "Smooth": param_rng.choice(["Off", "3x3", "5x5", "Gauss"]),
-                    **_MEAS_ONLY_NONE
-                })
-
-    return rows
-
-
 def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> RecipeSearchResponse:
     rows = list(_generate_recipe_rows(tool_type, fab_name))
     return {
@@ -391,6 +302,26 @@ def _block(source: str | None, reader) -> SettingBlock | None:
             {"key": str(key), "value": str(value)}
             for key, value in reader(source).items()
         ]
+    }
+
+
+def _fake_locator(recipe_id: str) -> IdpLocator:
+    """A plausible-shaped FTP locator for one recipe.
+
+    Office-side this is resolved from meas_hist (eqp_ip, class_name, idw_name,
+    idp_name). At home there is no such lookup, so it is derived from the recipe
+    id — stable, and shaped so the frontend's round-trip (detail -> locator ->
+    param-detail) is genuinely exercised rather than stubbed out.
+
+    The IP is inside 10.0.0.0/8 so it survives ``validate_tool_ip``; nothing
+    listens on it, which is correct — at home no adapter opens a socket.
+    """
+    seed = _seed_for_values("locator", recipe_id)
+    return {
+        "eqp_ip": f"10.{seed % 251}.{(seed // 251) % 251}.{(seed // 63001) % 251}",
+        "class_name": "MOCKCLS",
+        "idw": f"IDW_{seed % 10000:04d}",
+        "idp": f"IDP_{seed % 10000:04d}"
     }
 
 
@@ -511,9 +442,8 @@ def get_recipe_open_data(
     return {
         "wafer_mp_info": generate_wafer_mp_info(rng=rng),
         "wafer_align_info": generate_wafer_align_info(rng=rng),
-        "align_images": generate_wafer_align_images(rng=rng),
         "idp_image_info": idp_rows,
-        "amp_info": generate_amp_info(idp_rows),
+        "locator": _fake_locator(resolved_recipe_id),
         "recipe_id": resolved_recipe_id,
         "fac_id": resolved_fac_id,
         "tool_category": resolved_tool_category,
@@ -526,8 +456,13 @@ def get_recipe_compare_data(
     fab_name: str | None,
     recipe_names: list[str]
 ) -> RecipeCompareResponse:
-    """Compact per-recipe comparison payload: IDP fields + slot image filenames +
-    AMP rows per parameter. Reuses get_recipe_open_data so compare matches open."""
+    """Compact per-recipe comparison payload: IDP fields + slot image names.
+
+    Reuses get_recipe_open_data so compare matches open. AMP is NOT included:
+    it is fetched per visible cell through param-detail, so compare shows the
+    same real settings the open screen does rather than its own fabrication.
+    Each recipe carries its locator because those fetches are per tool.
+    """
     recipes: list[CompareRecipe] = []
     for name in recipe_names:
         clean = (name or "").strip()
@@ -536,9 +471,6 @@ def get_recipe_compare_data(
         detail = get_recipe_open_data(
             recipe_id=clean, fac_id=fab_name, tool_category=tool_type
         )
-        amp_by_param: dict[str, list[AmpRow]] = {}
-        for amp in detail["amp_info"]:
-            amp_by_param.setdefault(amp["parameter"], []).append(amp)
 
         seen: set[str] = set()
         parameters: list[CompareParameter] = []
@@ -550,12 +482,14 @@ def get_recipe_compare_data(
             parameters.append({
                 "Parameter": param,
                 "idp": {field: idp[field] for field in COMPARE_IDP_FIELDS},
-                "images": {slot["key"]: idp[slot["key"]] for slot in IMAGE_SLOTS},
-                "amp": amp_by_param.get(param, [])
+                # The five img_* values verbatim — this is exactly what the
+                # client posts back as param-detail's `slots`.
+                "images": {slot["key"]: idp[slot["key"]] for slot in IMAGE_SLOTS}
             })
         recipes.append({
             "recipe_id": detail["recipe_id"],
             "fac_id": detail["fac_id"],
+            "locator": detail["locator"],
             "parameters": parameters
         })
 

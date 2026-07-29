@@ -65,8 +65,26 @@ STILL NOT WIRED:
   single ``HostSpec(files=[...])``. Until that exists, compare returns mock
   data while ``/recipe-detail`` returns real data, so **the "compare is derived
   from open" invariant is knowingly broken office-side.** See the TODO there.
-* ``align_images`` and ``amp_info`` — not among the parser's three keys, so
-  still fabricated even at the office. Isolated in ``_sourceless_extras``.
+``align_images`` and ``amp_info`` used to be listed here as fabricated even at
+the office. They are gone as of 2026-07-29: their source turned out to be the
+**raw-recipe folder** beside the .idp, read by a second 사내 parser::
+
+    /HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}/
+      ├── IMMP0001.jpeg              img_add1    addressing image
+      ├── .IMMP0001.jpeg/cond.txt    its beam condition (hidden sibling dir)
+      ├── ENMP0000                   img_add2, PR->EN   AF/PR condition
+      ├── I2MP0000.jpeg              image_add3  addressing image 3
+      ├── IMMS0000.jpeg              img_meas1   measurement image
+      ├── PRMS0000                   img_meas2   AMP setting (name used as-is)
+      ├── IMAP0001.jpeg / ENAP0001   per wafer-align P.No
+      │
+      └─►  office_utils.idp_amp_reader.{read_amp_info,
+             read_af_pr_condition, read_meas_image_condition}(path|bytes|str)
+
+Naming lives in ``rawfiles.py`` (pure, fully tested at home); the wiring is
+``get_param_detail`` / ``get_align_detail`` / ``fetch_recipe_image`` below.
+``"non"`` — French, not ``"none"`` — means the slot has no file, and a missing
+file is normal rather than an error.
 
 Connection settings come from ``REDIS_*`` and ``OPENSEARCH_*`` in
 ``back_dev_home/.env`` (self-loaded), and FTP credentials from
@@ -111,8 +129,6 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
 # from open, the invariant the mock guarantees.
 from back_dev_home.ebeam.hitachi.recipe_search.providers.mock import (
     IMAGE_SLOTS,
-    generate_amp_info,
-    generate_wafer_align_images,
     get_recipe_compare_data,
 )
 
@@ -526,38 +542,12 @@ def _records(frame: pd.DataFrame, columns: list[str], table: str) -> list[dict[s
     return [{column: _scalar(row.get(column)) for column in columns} for row in rows]
 
 
-def _sourceless_extras(
-    idp_image_info: list[IdpImageInfoRow],
-    recipe_id: str,
-    fac_id: str,
-    tool_category: str,
-) -> dict[str, Any]:
-    """``align_images`` and ``amp_info`` — FABRICATED, even at the office.
-
-    Neither is among ``combined_idp_info``'s three keys. The screen already
-    draws both, so they are generated rather than dropped, and this function
-    exists to keep exactly one place to delete when a source turns up. The
-    candidate is the raw-recipe folder beside the .idp
-    (``data/{idw}/{idp}/``), which a second 사내 parser is expected to read.
-
-    AMP is at least keyed off the REAL parameter names — it derives from the
-    parsed ``idp_image_info`` — so its parameter column is not fiction even
-    though its optical values are.
-    """
-    import random
-
-    seed_rng = random.Random(hash((recipe_id, fac_id, tool_category)) & 0xFFFFFFFF)
-    return {
-        "align_images": generate_wafer_align_images(rng=seed_rng),
-        "amp_info": generate_amp_info(idp_image_info),
-    }
-
-
 def _to_detail_response(
     frames: dict[str, pd.DataFrame],
     recipe_id: str,
     fac_id: str,
     tool_category: str,
+    location: _IdpLocation,
 ) -> RecipeDetailResponse:
     """Parser output -> ``RecipeDetailResponse``. Pure — no I/O, no office deps.
 
@@ -598,7 +588,17 @@ def _to_detail_response(
         "wafer_mp_info": wafer_mp_info,
         "wafer_align_info": wafer_align_info,
         "idp_image_info": idp_image_info,
-        **_sourceless_extras(idp_image_info, recipe_id, fac_id, tool_category),
+        # Handed to the client so param-detail, align-detail and recipe-image
+        # reach the raw folder without repeating the OpenSearch lookup or the
+        # .idp download. Replaces the fabricated amp_info/align_images that used
+        # to be assembled here by _sourceless_extras (deleted 2026-07-29 — the
+        # deletion that function's own docstring asked for).
+        "locator": {
+            "eqp_ip": location.eqp_ip,
+            "class_name": location.class_name,
+            "idw": location.idw_stem,
+            "idp": location.idp_stem,
+        },
         "recipe_id": recipe_id,
         "fac_id": fac_id,
         "tool_category": tool_category,
@@ -903,7 +903,7 @@ def get_recipe_open_data(
         local_path = _download_idp(location, Path(tmp_dir))
         frames = _parse_idp(local_path)
 
-    return _to_detail_response(frames, recipe, fab_name or "", tool_type)
+    return _to_detail_response(frames, recipe, fab_name or "", tool_type, location)
 
 
 if __name__ == "__main__":

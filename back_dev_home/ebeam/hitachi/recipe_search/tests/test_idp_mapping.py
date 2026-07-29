@@ -123,9 +123,18 @@ def _frames(**overrides: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return frames
 
 
+LOCATION = office_example._IdpLocation(
+    eqp_id="MCD719",
+    eqp_ip="10.1.2.3",
+    class_name="CLS",
+    idw_stem="IDW_A",
+    idp_stem="IDP_B",
+)
+
+
 def _map(**overrides: pd.DataFrame) -> RecipeDetailResponse:
     return office_example._to_detail_response(
-        _frames(**overrides), RECIPE_ID, FAC_ID, TOOL_CATEGORY
+        _frames(**overrides), RECIPE_ID, FAC_ID, TOOL_CATEGORY, LOCATION
     )
 
 
@@ -249,21 +258,25 @@ def test_empty_parser_table_maps_to_an_empty_list():
     assert_matches(detail, RecipeDetailResponse)
 
 
-def test_sourceless_extras_key_off_the_real_parameters():
-    """align_images and amp_info are fabricated even at the office.
-
-    They are not among the parser's three keys. What this pins is that AMP is
-    at least keyed on the PARSED parameter names, so the per-parameter panel
-    joins — a fabricated AMP row for a parameter the recipe does not declare
-    would be dropped on the floor by the frontend.
-    """
+def test_no_fabricated_amp_or_align_images_survive():
+    """Both were invented at the office as well as at home, and both are now
+    sourced from the raw-recipe folder through param-detail / align-detail.
+    Their absence is the assertion — a re-added key would be a regression to
+    serving fiction from production."""
     detail = _map()
-    declared = {row["Parameter"] for row in detail["idp_image_info"]}
-    assert declared
-    assert {amp["parameter"] for amp in detail["amp_info"]} <= declared
-    assert [image["label"] for image in detail["align_images"]] == [
-        "Global Align", "Fine Align",
-    ]
+    assert "amp_info" not in detail
+    assert "align_images" not in detail
+
+
+def test_the_locator_carries_the_resolved_ftp_location():
+    """What replaces them: where the raw folder is, so the follow-up calls
+    never repeat the OpenSearch lookup or the .idp download."""
+    assert _map()["locator"] == {
+        "eqp_ip": "10.1.2.3",
+        "class_name": "CLS",
+        "idw": "IDW_A",
+        "idp": "IDP_B",
+    }
 
 
 def test_idp_remote_path_matches_the_documented_tree():

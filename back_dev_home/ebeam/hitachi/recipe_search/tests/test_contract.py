@@ -28,6 +28,7 @@ from back_dev_home._core.contract_check import assert_matches
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.recipe_search import data
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
+    ParamDetailResponse,
     RecipeCompareResponse,
     RecipeDetailResponse,
     RecipeSearchResponse,
@@ -84,16 +85,30 @@ def test_recipe_open_and_compare_match_contract():
     assert_matches(detail, RecipeDetailResponse)
     assert detail["recipe_id"] == recipe_name, "detail must answer for the id asked for"
 
-    # amp_info and idp_image_info are joined on `Parameter` to build the
-    # per-parameter panel; an AMP row for an undeclared parameter is dropped on
-    # the floor whatever produced it. Keyed off the SAME resolved recipe as the
-    # detail call above, so closing the TODO(office) cannot leave this asking
-    # the office adapter for a recipe that does not exist there.
-    declared = {row["Parameter"] for row in detail["idp_image_info"]}
-    for amp in detail["amp_info"]:
-        assert amp["parameter"] in declared, (
-            f"AMP row references undeclared parameter {amp['parameter']!r}"
-        )
+    # AMP no longer rides on the detail response — it is fetched per click from
+    # the raw-recipe folder (spec 2026-07-29). What the detail response owes the
+    # follow-up calls is the locator, so that is what is pinned here.
+    assert set(detail["locator"]) == {"eqp_ip", "class_name", "idw", "idp"}
+    assert all(detail["locator"][field] for field in detail["locator"]), (
+        "an empty locator field would make param-detail unaddressable"
+    )
+
+    # The per-parameter panel posts a parameter's own img_* values back as
+    # `slots`, so every declared parameter must carry all five.
+    for row in detail["idp_image_info"]:
+        for slot in ("img_add1", "img_add2", "image_add3", "img_meas1", "img_meas2"):
+            assert slot in row, f"{row['Parameter']!r} is missing {slot}"
+
+    param_detail = data.get_param_detail([{
+        "locator": detail["locator"],
+        "parameter": detail["idp_image_info"][0]["Parameter"],
+        "slots": {
+            slot: detail["idp_image_info"][0][slot]
+            for slot in ("img_add1", "img_add2", "image_add3", "img_meas1", "img_meas2")
+        },
+    }]) if detail["idp_image_info"] else []
+    for entry in param_detail:
+        assert_matches(entry, ParamDetailResponse)
 
     compare = data.get_recipe_compare_data(TOOL_TYPE, None, [recipe_name])
     assert_matches(compare, RecipeCompareResponse)

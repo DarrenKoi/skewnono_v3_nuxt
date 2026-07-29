@@ -7,9 +7,7 @@ from typing import Literal, TypedDict
 
 __all__ = [
     "AlignDetailResponse",
-    "AlignImageRow",
     "AlignPoint",
-    "AmpRow",
     "CompareParameter",
     "CompareRecipe",
     "IdpImageInfoRow",
@@ -61,12 +59,6 @@ WaferAlignInfoRow = TypedDict("WaferAlignInfoRow", {
     "P.No": int
 })
 
-# Wafer-alignment reference images. Usually a pair (global + fine alignment).
-AlignImageRow = TypedDict("AlignImageRow", {
-    "label": str,
-    "filename": str
-})
-
 IdpImageInfoRow = TypedDict("IdpImageInfoRow", {
     "Parameter": str,
     "img_add1": str,
@@ -86,32 +78,6 @@ IdpImageInfoRow = TypedDict("IdpImageInfoRow", {
     "Double_Addressing": bool,
     "Meas_Counting": int,
     "dnumber_removed": bool
-})
-
-
-# Auto Meas Parameter (AMP) — one row per (parameter, image slot).
-# Fields not applicable to a role come through as None.
-AmpRow = TypedDict("AmpRow", {
-    "parameter": str,
-    "slot": str,
-    "role": str,
-    "stage": str,
-    "Mag": str,
-    "Vacc": str,
-    "I_probe": str,
-    "Frame": str,
-    "Scan": str,
-    "WD": str,
-    "Det": str,
-    "Template": str | None,
-    "MatchScore": str | None,
-    "SearchArea": str | None,
-    "Rotation": str | None,
-    "Algo": str | None,
-    "ROI": str | None,
-    "EdgeThr": str | None,
-    "EdgeDir": str | None,
-    "Smooth": str | None
 })
 
 
@@ -198,9 +164,13 @@ class RecipeSearchResponse(TypedDict):
 class RecipeDetailResponse(TypedDict):
     wafer_mp_info: list[WaferMpInfoRow]
     wafer_align_info: list[WaferAlignInfoRow]
-    align_images: list[AlignImageRow]
     idp_image_info: list[IdpImageInfoRow]
-    amp_info: list[AmpRow]
+    # Where this recipe's raw folder is. Carried so param-detail, align-detail
+    # and recipe-image reach it without re-downloading or re-parsing the .idp.
+    # ``amp_info`` and ``align_images`` USED to sit here and were fabricated at
+    # the office as well as at home; they are now fetched per click through
+    # those three endpoints (spec 2026-07-29).
+    locator: IdpLocator
     recipe_id: str
     fac_id: str
     tool_category: str
@@ -211,12 +181,14 @@ class CompareParameter(TypedDict):
     Parameter: str
     idp: dict[str, object]
     images: dict[str, str]
-    amp: list[AmpRow]
 
 
 class CompareRecipe(TypedDict):
     recipe_id: str
     fac_id: str
+    # Per-recipe, because compare fetches AMP for the visible cell across every
+    # selected recipe and each one lives on its own tool.
+    locator: IdpLocator
     parameters: list[CompareParameter]
 
 
