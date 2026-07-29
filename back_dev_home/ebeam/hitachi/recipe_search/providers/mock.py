@@ -202,10 +202,22 @@ def generate_wafer_align_info(
     num_records: int = 10,
     rng: random.Random | None = None
 ) -> list[WaferAlignInfoRow]:
-    """Generate dummy wafer alignment information."""
+    """Generate dummy wafer alignment information.
+
+    ``P.No`` is 1 or 2, never an arbitrary index (user-confirmed 2026-07-29):
+    the align point identifies the optic that took the image — 1 = OM, 2 = SEM —
+    and the table repeats those two across its rows. Roughly one recipe in four
+    has only point 1.
+
+    ``get_align_detail`` turns that number into ``read_align_image_condition``'s
+    ``which`` argument, so a mock emitting P.No = 17 would make the unknown-optic
+    path the common case at home and the OM/SEM path the rare one — exactly
+    backwards from the office.
+    """
     active_rng = rng or random.Random()
     data: list[WaferAlignInfoRow] = []
 
+    p_numbers = [1] if active_rng.random() < 0.25 else [1, 2]
     for index in range(num_records):
         data.append({
             "Align_No": index + 1,
@@ -213,7 +225,7 @@ def generate_wafer_align_info(
             "Chip.Y": active_rng.randint(1, 10),
             "Coordinate.X": round(active_rng.uniform(-100.0, 100.0), 3),
             "Coordinate.Y": round(active_rng.uniform(-100.0, 100.0), 3),
-            "P.No": active_rng.randint(1, 20)
+            "P.No": p_numbers[index % len(p_numbers)]
         })
 
     return data
@@ -290,6 +302,13 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
 _AMP_FIELDS = 8
 _AFPR_FIELDS = 6
 _COND_FIELDS = 5
+# Align files are read by two DIFFERENT office functions from the ones above
+# (get_align_beam_pr_conditions and read_align_image_condition), so their blocks
+# carry their own prefixes. Matching the stand-in's prefixes keeps mock and
+# office visibly parallel: a block that says COND_ under an align point means
+# somebody routed an align file to the measurement reader again.
+_ALIGNPR_FIELDS = 4
+_ALIGN_IMAGE_FIELDS = 5
 
 
 def _block(source: str | None, prefix: str, count: int, *scope: str) -> SettingBlock | None:
@@ -383,6 +402,15 @@ def get_align_detail(
 
     Points are the sorted unique ``P.No`` values — the align table repeats a
     P.No across rows, and each distinct one names exactly one file set.
+
+    Office-side these two files go to align-specific readers rather than the
+    parameter ones: the ENAP setting to ``get_align_beam_pr_conditions`` (once
+    for the whole list) and the image's cond.txt to
+    ``read_align_image_condition``, which additionally needs to be told whether
+    the point is OM or SEM. The mock cannot call either — it fabricates — but it
+    mirrors the CONSEQUENCES, which is what the screen sees: distinct field
+    prefixes per reader, and no image condition at all for a point that is
+    neither 1 nor 2.
     """
     scope = str((locator or {}).get("idp", ""))
     points: list[AlignPoint] = []
@@ -391,8 +419,17 @@ def get_align_detail(
         points.append({
             "P_No": p_no,
             "image": image,
-            "cond": _block(rawfiles.cond_source(image), "COND", _COND_FIELDS, scope),
-            "setting": _block(setting, "AFPR", _AFPR_FIELDS, scope)
+            # The image condition is read PER OPTIC, and only points 1 and 2
+            # have one (1 = OM, 2 = SEM). An unexpected point number leaves the
+            # office with no `which` to pass, so it renders 파일 없음 there and
+            # must render the same here.
+            "cond": _block(
+                rawfiles.cond_source(image),
+                f"ALIGN{optics}",
+                _ALIGN_IMAGE_FIELDS,
+                scope,
+            ) if (optics := rawfiles.align_optics(p_no)) else None,
+            "setting": _block(setting, "ALIGNPR", _ALIGNPR_FIELDS, scope)
         })
     return {"points": points}
 

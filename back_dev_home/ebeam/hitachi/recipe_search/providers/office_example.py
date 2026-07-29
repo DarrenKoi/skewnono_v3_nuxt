@@ -125,6 +125,7 @@ from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.msr_image.errors import SourceUnavailable
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignDetailResponse,
+    AlignPoint,
     IdpImageInfoRow,
     IdpLocator,
     ParamDetailRequestItem,
@@ -1173,15 +1174,92 @@ def get_param_detail(
     return out
 
 
+def _split_align_settings(
+    parsed: Any,
+    names: list[str],
+) -> dict[str, SettingBlock]:
+    """``get_align_beam_pr_conditions``'s ONE return value -> a block per ENAP.
+
+    Its return shape is unverified (docs/datatables/recipe_idp.txt), so the
+    three shapes it could plausibly have are all accepted:
+
+    * a sequence parallel to the input — the most likely, and the only
+      per-point shape the input permits: the adapter passes bytes, so the
+      office function never learns the ENAP filenames and cannot key by them;
+    * a mapping that does key by name — possible only if it derives names from
+      the content, kept because it is free to support;
+    * anything else — treated as ONE value describing the whole align set and
+      attached to every point, with the type logged. Splitting it by guessing
+      would put one point's optics under another point's heading.
+    """
+    if isinstance(parsed, (list, tuple)) and len(parsed) == len(names):
+        return {
+            name: {"source": name, "rows": _to_rows(value)}
+            for name, value in zip(names, parsed)
+        }
+    if isinstance(parsed, dict) and set(names) <= set(map(str, parsed)):
+        return {
+            name: {"source": name, "rows": _to_rows(parsed[name])}
+            for name in names
+        }
+    _LOG.warning(
+        "recipe_search: get_align_beam_pr_conditions returned %s for %d file(s) "
+        "(%s) — could not be split per align point, so every point shows the "
+        "whole result. Record the real shape in docs/datatables/recipe_idp.txt.",
+        type(parsed).__name__, len(names), ", ".join(names),
+    )
+    shared: SettingBlock = {"source": ", ".join(names), "rows": _to_rows(parsed)}
+    return dict.fromkeys(names, shared)
+
+
+def _align_settings(
+    names: list[str],
+    blob: dict[str, bytes],
+) -> dict[str, SettingBlock]:
+    """Every align point's ENAP condition, in ONE reader call.
+
+    ``get_align_beam_pr_conditions`` takes the whole ENAP list rather than one
+    file (user-confirmed 2026-07-29), so this is called once per recipe. Absent
+    files are dropped BEFORE the call — a recipe with only point 1 must not send
+    a hole the reader would have to interpret.
+    """
+    from office_utils.idp_amp_reader import get_align_beam_pr_conditions
+
+    present = [name for name in names if blob.get(name) is not None]
+    if not present:
+        return {}
+    try:
+        parsed = get_align_beam_pr_conditions([blob[name] for name in present])
+    except Exception:
+        # One unreadable ENAP file must not cost the align popup its images and
+        # beam conditions, the same way _read_block absorbs a per-file failure.
+        _LOG.warning(
+            "recipe_search: get_align_beam_pr_conditions failed for %s — align "
+            "settings rendered as 파일 없음",
+            ", ".join(present), exc_info=True,
+        )
+        return {}
+    return _split_align_settings(parsed, present)
+
+
 def get_align_detail(
     locator: IdpLocator,
     p_numbers: list[int],
 ) -> AlignDetailResponse:
-    """Wafer-align image, beam condition and AF/PR setting per align point."""
-    from office_utils.idp_amp_reader import (
-        read_af_pr_condition,
-        read_meas_image_condition,
-    )
+    """Wafer-align image, beam condition and AF/PR setting per align point.
+
+    Align files go to align-SPECIFIC readers, not the parameter-side lookalikes
+    (user-confirmed 2026-07-29): the ENAP settings to
+    ``get_align_beam_pr_conditions`` for the whole list at once, and the image's
+    cond.txt to ``read_align_image_condition``, which must be told which optic
+    took the image. Until 2026-07-29 this function called
+    ``read_af_pr_condition`` and ``read_meas_image_condition`` instead — the
+    wrong parsers, on files that would still have downloaded and still have
+    rendered, which is why nothing here failed loudly.
+    """
+    from functools import partial
+
+    from office_utils.idp_amp_reader import read_align_image_condition
 
     plan = [
         (p_no, image, setting, rawfiles.cond_source(image))
@@ -1193,19 +1271,32 @@ def get_align_detail(
     names = [name for _, _, setting, cond in plan for name in (setting, cond)]
 
     blob = _fetch_raw(locator, names)
-    return {
-        "points": [
-            {
-                "P_No": p_no,
-                "image": image,
-                "cond": _read_block(cond, blob.get(cond), read_meas_image_condition),
-                "setting": _read_block(
-                    setting, blob.get(setting), read_af_pr_condition
-                ),
-            }
-            for p_no, image, setting, cond in plan
-        ]
-    }
+    settings = _align_settings([setting for _, _, setting, _ in plan], blob)
+
+    points: list[AlignPoint] = []
+    for p_no, image, setting, cond in plan:
+        optics = rawfiles.align_optics(p_no)
+        if optics is None and blob.get(cond) is not None:
+            # The file is right there and still not read, so say why: the office
+            # has only ever described points 1 and 2, and read_align_image_condition
+            # cannot be called without knowing which of the two this is.
+            _LOG.warning(
+                "recipe_search: align point P.No=%s is neither 1 (OM) nor 2 (SEM); "
+                "%s downloaded but not parsed, since the optic it was taken with "
+                "is unknown. Record P.No=%s in docs/datatables/recipe_idp.txt.",
+                p_no, cond, p_no,
+            )
+        points.append({
+            "P_No": p_no,
+            "image": image,
+            "cond": _read_block(
+                cond,
+                blob.get(cond),
+                partial(read_align_image_condition, which=optics),
+            ) if optics else None,
+            "setting": settings.get(setting),
+        })
+    return {"points": points}
 
 
 def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:

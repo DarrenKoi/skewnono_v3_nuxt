@@ -5,6 +5,8 @@ are meaningless, but which file each slot resolves to is an office contract the
 office adapter will follow identically.
 """
 
+import random
+
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.providers import mock
 
@@ -169,3 +171,46 @@ def test_align_settings_also_vary_by_recipe():
     one = mock.get_align_detail({**LOCATOR, "idp": "IDP_ONE"}, [1])["points"][0]
     two = mock.get_align_detail({**LOCATOR, "idp": "IDP_TWO"}, [1])["points"][0]
     assert one["setting"]["rows"] != two["setting"]["rows"]
+
+
+# ── align points are optics, not positions (user-confirmed 2026-07-29) ────
+
+
+def test_generated_align_rows_only_ever_name_point_one_or_two():
+    """P.No identifies the optic (1 = OM, 2 = SEM), so it is not a free index.
+
+    A mock drawing P.No from 1..20 made the unknown-optic path the common case
+    at home while the office sees it almost never — the screen would then be
+    full of 파일 없음 here and full of conditions there.
+    """
+    rows = mock.generate_wafer_align_info(rng=random.Random(7))
+    assert {row["P.No"] for row in rows} <= {1, 2}
+
+
+def test_align_rows_usually_carry_both_optics_and_sometimes_only_om():
+    seen = {
+        frozenset(row["P.No"] for row in mock.generate_wafer_align_info(rng=random.Random(seed)))
+        for seed in range(40)
+    }
+    assert frozenset({1, 2}) in seen
+    assert frozenset({1}) in seen
+
+
+def test_the_image_condition_is_fabricated_per_optic():
+    """Point 1 and point 2 read the same kind of file through different optics,
+    so their blocks must not be interchangeable — mirroring the office, where
+    `which` is what read_align_image_condition is told."""
+    points = mock.get_align_detail(LOCATOR, [1, 2])["points"]
+    keys = [next(iter(row["key"] for row in point["cond"]["rows"])) for point in points]
+
+    assert keys[0].startswith("ALIGNOM_")
+    assert keys[1].startswith("ALIGNSEM_")
+
+
+def test_a_point_that_is_neither_om_nor_sem_has_no_image_condition():
+    """The office cannot call the reader without knowing the optic, so it
+    renders 파일 없음; the mock has to agree or home and office disagree about
+    what an unexpected align point looks like."""
+    point = mock.get_align_detail(LOCATOR, [3])["points"][0]
+    assert point["cond"] is None
+    assert point["setting"] is not None

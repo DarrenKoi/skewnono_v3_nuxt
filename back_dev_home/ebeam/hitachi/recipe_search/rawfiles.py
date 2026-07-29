@@ -15,7 +15,7 @@ Layout (user-confirmed 2026-07-29), under
     I2MP0000.jpeg          image_add3  addressing image 3
     IMMS0000.jpeg          img_meas1   measurement image
     PRMS0000               img_meas2   AMP setting    (column value used as-is)
-    IMAP0001.jpeg          P.No = 1    align image
+    IMAP0001.jpeg          P.No = 1    align image     (P.No 1 = OM, 2 = SEM)
     ENAP0001               P.No = 1    align setting
 
 Every value is ``{kind}{stage}{NNNN}`` — ``IM``/``I2`` name images, ``PR`` names
@@ -31,10 +31,12 @@ from __future__ import annotations
 from back_dev_home.msr_image.paths import cond_path
 
 __all__ = [
+    "ALIGN_OPTICS",
     "EMPTY_SLOT",
     "IMAGE_SLOT_KEYS",
     "SLOT_PREFIX",
     "align_names",
+    "align_optics",
     "slot_sources",
     "cond_remote_path",
     "cond_source",
@@ -63,6 +65,12 @@ IMAGE_SLOT_KEYS: tuple[str, ...] = ("img_add1", "image_add3", "img_meas1")
 # generates values on the same convention this module parses, rather than a
 # second hand-written table that could drift onto a branch the office never
 # takes (a slot not starting with "PR" makes setting_name return None).
+# Which optic took an align image, by align point number (user-confirmed
+# 2026-07-29). Align points are not scattered positions on the wafer so much as
+# the same alignment seen through two optics, which is why there are usually
+# exactly two and why the number alone identifies the instrument.
+ALIGN_OPTICS: dict[int, str] = {1: "OM", 2: "SEM"}
+
 SLOT_PREFIX: dict[str, str] = {
     "img_add1": "IMMP",
     "img_add2": "PRMP",
@@ -112,6 +120,23 @@ def setting_name(value: str | None, *, pr_to_en: bool = False) -> str | None:
             return None
         name = f"EN{name[2:]}"
     return name
+
+
+def align_optics(p_no: int) -> str | None:
+    """``P.No -> "OM" | "SEM"``, or None when the point is not one of the two.
+
+    ``read_align_image_condition`` needs this as its second argument, and it is
+    the one argument that cannot be derived from a filename — the align image's
+    cond.txt does not say which optic took it, the align point's NUMBER does
+    (user-confirmed 2026-07-29): point 1 is the optical microscope, point 2 the
+    SEM. Most recipes have both; some have only point 1.
+
+    Returns None rather than defaulting for anything else, because both answers
+    are wrong in the same way: a guessed "SEM" renders OM optics under a SEM
+    heading and reads as perfectly ordinary data. Callers are expected to skip
+    the condition and log, which shows up on screen as 파일 없음.
+    """
+    return ALIGN_OPTICS.get(p_no)
 
 
 def align_names(p_no: int) -> tuple[str, str]:

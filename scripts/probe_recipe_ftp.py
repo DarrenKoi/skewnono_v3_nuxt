@@ -63,10 +63,29 @@ is for — whether the ``img_*`` values are filenames at all, and whether the
 untranslated ``PR…`` file holds anything of its own (it is fetched beside the
 ``EN…`` one to find out).
 
+Stage E does the same for the wafer-align set, which uses a DIFFERENT pair of
+readers despite the files looking alike::
+
+    wafer_align_info["P.No"], deduplicated
+      ├── IMAP{p:04d}.jpeg              the align image itself
+      ├── .IMAP{p:04d}.jpeg/cond.txt ─► read_align_image_condition(bytes, which)
+      └── ENAP{p:04d} ────────────────► get_align_beam_pr_conditions([bytes, ...])
+
+``which`` is "OM" or "SEM" and comes from the point NUMBER, not the file:
+P.No 1 is the optical microscope and P.No 2 the SEM (user-confirmed
+2026-07-29). Most recipes have both. A point outside that pair is left unparsed
+rather than guessed, since either guess renders one instrument's settings under
+the other's heading and reads as ordinary data.
+
+The ENAP reader takes the whole point list in ONE call, so Stage E calls it once
+per recipe and prints the return's length beside the number of files — whether
+its result can be split per point is the open question about it.
+
 Scope: download the .idp, parse it, LIST the raw-recipe folder, then fetch and
-read one parameter's files. Mapping any of it onto RecipeDetailResponse stays
-out — that is the adapter's job (recipe_search/providers/office_example.py), and
-it wants real frames to be written against rather than assumed ones.
+read one parameter's files and the align set's. Mapping any of it onto
+RecipeDetailResponse stays out — that is the adapter's job
+(recipe_search/providers/office_example.py), and it wants real frames to be
+written against rather than assumed ones.
 
 Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* and SKEWNONO_TOOL_FTP_*
 from back_dev_home/.env, like the adapters do). Bare, it probes the newest
@@ -517,6 +536,23 @@ def _fetch_raw(dl, HostSpec, ip: str, raw: str, names: list[str]) -> dict[str, b
     return got
 
 
+def _save_raw(probe: Probe, out: str, name: str, data: bytes) -> Path:
+    """Keep the bytes on the probe and mirror the tool's own path under ``out``.
+
+    Mirroring rather than flattening because two align points' sidecars are both
+    called ``cond.txt`` and differ only by the hidden directory above them —
+    flattened, the second would overwrite the first.
+    """
+    probe.raw_files[name] = data
+    dest = (
+        Path(out) / str(probe.doc.get("eqp_id") or probe.ip)
+        / PurePosixPath(rawfiles.remote_path(probe.raw_dir, name)).relative_to("/")
+    )
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    return dest
+
+
 def _describe(data: bytes) -> str:
     """One line: how big, and what the bytes actually are."""
     if data[:2] == b"\xff\xd8":
@@ -563,7 +599,9 @@ def _readers() -> tuple[dict[str, Any], str]:
     script unimportable everywhere else."""
     try:
         from office_utils.idp_amp_reader import (
+            get_align_beam_pr_conditions,
             read_af_pr_condition,
+            read_align_image_condition,
             read_amp_info,
             read_meas_image_condition,
         )
@@ -573,6 +611,12 @@ def _readers() -> tuple[dict[str, Any], str]:
         "amp": read_amp_info,
         "af_pr": read_af_pr_condition,
         "cond": read_meas_image_condition,
+        # Align files take their OWN two readers, not the three above. Keyed
+        # separately so Stage E cannot reach for a parameter-side reader by
+        # accident — which is the mistake the adapter itself made until
+        # 2026-07-29, invisibly, because the wrong reader still returns a value.
+        "align_cond": read_align_image_condition,   # (source, which)
+        "align_batch": get_align_beam_pr_conditions,  # ([source, ...])
     }, ""
 
 
@@ -616,6 +660,8 @@ class Probe:
     raw_files: dict[str, bytes] = field(default_factory=dict)        # name -> downloaded bytes
     raw_parsed: dict[str, Any] = field(default_factory=dict)         # name -> reader return value
     raw_errors: dict[str, str] = field(default_factory=dict)         # name -> traceback, if it raised
+    align_points: list[int] = field(default_factory=list)            # Stage E, unique P.No
+    align_settings: Any = None                                       # the ONE batch-reader return
     code: int = 1                                             # 0 only when the whole chain ran
 
     # The three frames by name. Worth the six lines because this is what a
@@ -792,11 +838,12 @@ def main(argv: list[str] | None = None) -> Probe:
     # Guarded because Stage D runs LAST: three stages of findings and a
     # downloaded .idp already exist, and a surprise in the newest stage must not
     # take them down with it. The traceback is printed where it happened.
-    try:
-        _stage_d(probe, dl, HostSpec, args)
-    except Exception:
-        print("\n  Stage D failed — earlier stages stand.")
-        traceback.print_exc()
+    for stage, run in (("D", _stage_d), ("E", _stage_e)):
+        try:
+            run(probe, dl, HostSpec, args)
+        except Exception:
+            print(f"\n  Stage {stage} failed — earlier stages stand.")
+            traceback.print_exc()
 
     print(f"\nDone. Files saved under {args.out}/")
     # A failed parse still leaves a downloaded file and three stages of findings,
@@ -851,13 +898,7 @@ def _stage_d(probe: Probe, dl: Any, HostSpec: Any, args: argparse.Namespace) -> 
             if data is None:
                 print(f"\n    {want.slot:<11} {want.kind:<7} {want.name}  — not on the tool")
                 continue
-            probe.raw_files[want.name] = data
-            dest = (
-                Path(args.out) / str(probe.doc.get("eqp_id") or probe.ip)
-                / PurePosixPath(rawfiles.remote_path(probe.raw_dir, want.name)).relative_to("/")
-            )
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(data)
+            dest = _save_raw(probe, args.out, want.name, data)
             print(f"\n    {want.slot:<11} {want.kind:<7} {want.name}  — {_describe(data)}")
             print(f"      -> {dest}")
 
@@ -882,6 +923,105 @@ def _stage_d(probe: Probe, dl: Any, HostSpec: Any, args: argparse.Namespace) -> 
                 continue
             probe.raw_parsed[want.name] = parsed
             _print_parsed(want.name, reader, parsed)
+
+
+def _stage_e(probe: Probe, dl: Any, HostSpec: Any, args: argparse.Namespace) -> None:
+    """The wafer-align file set — a different two readers from Stage D's.
+
+    Align files look like parameter files and are not read like them
+    (user-confirmed 2026-07-29): the ENAP settings go to
+    ``get_align_beam_pr_conditions`` for the whole point list at once, and the
+    image's cond.txt to ``read_align_image_condition``, which has to be told
+    whether the point is OM (P.No 1) or SEM (P.No 2).
+
+    Unlike the adapter, this fetches the align IMAGE too. The adapter only
+    names it and lets the browser pull it later, but whether those images exist
+    at all is still an open question in docs/datatables/recipe_idp.txt, and one
+    listing answers it.
+    """
+    print("\n=== Stage E: wafer-align files ===")
+
+    frame = probe.wafer_align_info
+    if frame is None or "P.No" not in getattr(frame, "columns", []):
+        print("    no wafer_align_info — the parse did not run or did not return it.")
+        return
+
+    # One file set per DISTINCT P.No: the align table names a P.No once per
+    # align mark, so the same point repeats down the rows.
+    probe.align_points = sorted({int(p) for p in frame["P.No"]})
+    optics = {p_no: rawfiles.align_optics(p_no) for p_no in probe.align_points}
+    print(f"    align points (unique P.No): "
+          f"{', '.join(f'{p}={optics[p] or 'UNKNOWN OPTIC'}' for p in probe.align_points)}")
+    unknown = [p_no for p_no, which in optics.items() if which is None]
+    if unknown:
+        print(f"    NOTE: {unknown} is outside the documented 1=OM / 2=SEM pair. "
+              "Its image condition cannot be read without knowing the optic.")
+
+    plan = [(p_no, *rawfiles.align_names(p_no)) for p_no in probe.align_points]
+    names = [
+        name
+        for p_no, image, setting in plan
+        for name in (image, rawfiles.cond_source(image), setting)
+    ]
+    print(f"\n    downloading {len(names)} file(s) from {probe.raw_dir}")
+    fetched = _fetch_raw(dl, HostSpec, probe.ip, probe.raw_dir, names)
+
+    readers, reader_error = _readers()
+    if reader_error:
+        print(f"    {reader_error}\n    Files will be downloaded and previewed, not parsed.")
+
+    for p_no, image, setting in plan:
+        cond = rawfiles.cond_source(image)
+        print(f"\n  [P.No {p_no}] optic={optics[p_no] or '?'}  "
+              f"image={image}  cond={cond}  setting={setting}")
+        for name in (image, cond, setting):
+            data = fetched.get(name)
+            if data is None:
+                print(f"    {name}  — not on the tool")
+                continue
+            print(f"    {name}  — {_describe(data)}")
+            print(f"      -> {_save_raw(probe, args.out, name, data)}")
+
+        # The image condition is read PER OPTIC. Passing a guessed "SEM" would
+        # print the other instrument's settings as ordinary data, so an unknown
+        # point is left unparsed here exactly as the adapter leaves it.
+        reader = readers.get("align_cond")
+        data = fetched.get(cond)
+        if reader and data is not None and optics[p_no]:
+            try:
+                parsed = reader(data, optics[p_no])
+            except Exception:
+                probe.raw_errors[cond] = traceback.format_exc()
+                print("\n".join(f"      {line}"
+                                for line in probe.raw_errors[cond].splitlines()))
+            else:
+                probe.raw_parsed[cond] = parsed
+                _print_parsed(f"{cond}, which={optics[p_no]!r}", reader, parsed)
+
+    # ONE call for every point's ENAP, not one per point — that is the office
+    # signature. Absent files are dropped first: a hole in the list would have
+    # to be interpreted, and a positional return could then land on the wrong
+    # point.
+    batch = readers.get("align_batch")
+    present = [setting for _, _, setting in plan if fetched.get(setting) is not None]
+    if batch and present:
+        print(f"\n  get_align_beam_pr_conditions({present}) — one call for the set")
+        try:
+            probe.align_settings = batch([fetched[name] for name in present])
+        except Exception:
+            probe.raw_errors["get_align_beam_pr_conditions"] = traceback.format_exc()
+            print("\n".join(
+                f"    {line}"
+                for line in probe.raw_errors["get_align_beam_pr_conditions"].splitlines()
+            ))
+        else:
+            # Whether this can be split per point is THE open question about
+            # this function, so the length is printed beside the point count.
+            parsed = probe.align_settings
+            sized = len(parsed) if hasattr(parsed, "__len__") else "n/a"
+            print(f"    -> {type(parsed).__name__}, len={sized}, "
+                  f"for {len(present)} file(s)")
+            _print_parsed(", ".join(present), batch, parsed)
 
 
 if __name__ == "__main__":
@@ -917,6 +1057,12 @@ if __name__ == "__main__":
     raw_files = probe.raw_files
     raw_parsed = probe.raw_parsed
     raw_errors = probe.raw_errors
+
+    # Stage E. align_settings is the batch reader's single return value for the
+    # whole ENAP list — whether it can be split per point is the open question,
+    # so it is left exactly as the office handed it over.
+    align_points = probe.align_points
+    align_settings = probe.align_settings
 
     # Only a shell run has an exit status worth setting. Raising SystemExit into
     # a console session would print a traceback over output that is otherwise

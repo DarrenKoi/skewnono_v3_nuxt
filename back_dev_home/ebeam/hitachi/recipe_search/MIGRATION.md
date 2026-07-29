@@ -42,9 +42,19 @@ function are gone; three endpoints replace them.
 ### What the office adapter owes the raw-folder endpoints
 
 - **`office_utils.idp_amp_reader`** must be importable — `read_amp_info`,
-  `read_af_pr_condition`, `read_meas_image_condition`, each accepting a path,
-  bytes, or a string. A gitignored home stand-in of the same name exists at the
-  repo root so the adapter can be written and run at home.
+  `read_af_pr_condition`, `read_meas_image_condition`,
+  `get_align_beam_pr_conditions`, `read_align_image_condition` — each accepting
+  a path, bytes, or a string. A gitignored home stand-in of the same name exists
+  at the repo root so the adapter can be written and run at home.
+- **Align files take the last two readers, not the first three.** The ENAP
+  settings go to `get_align_beam_pr_conditions`, which takes the whole align
+  point list in **one** call; an align image's `cond.txt` goes to
+  `read_align_image_condition(source, which)`, where `which` is `"OM"` for
+  P.No 1 and `"SEM"` for P.No 2. Until 2026-07-29 `get_align_detail` used
+  `read_af_pr_condition` and `read_meas_image_condition` here. Nothing failed —
+  wrong parsers still return renderable values — so the swap was only visible in
+  the values, at the office. `tests/test_align_readers.py` now asserts which
+  reader receives what.
 - **Naming is not the adapter's business.** Every path comes from
   `recipe_search/rawfiles.py`, which is pure and fully tested at home. Do not
   re-derive `.jpeg`, the `PR`→`EN` swap, the four-digit padding, or the
