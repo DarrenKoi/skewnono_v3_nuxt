@@ -2,8 +2,16 @@
 
 ## Rules
 
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `contracts.py`, or `tests/`.
+- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`, or
+  `contracts.py`.
+- Never change `providers/mock.py` **behavior** or its generated values — its
+  docstring is maintained under the "office DB knowledge lands in TWO places"
+  rule (root `CLAUDE.md`), alongside `docs/datatables/*.txt`, so the docstring
+  itself may still change.
+- `tests/` is off-limits to whoever is implementing `providers/office.py` at
+  the office. It is not off-limits to the template author adding
+  home-runnable gates for logic that ships in `office_example.py` — those
+  additions are how this branch's `test_idp_locate.py` came to exist.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
@@ -130,7 +138,17 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
   - `eqp_ip` outside `SKEWNONO_TOOL_SUBNETS` → that candidate is skipped with a
     WARNING; if **every** candidate is outside, `InvalidToolIp` is raised. The
     IP comes from Redis or OpenSearch rather than a client, but the backend
-    still opens a socket to it, so the SSRF guard applies.
+    still opens a socket to it, so the SSRF guard applies. **Status: generic
+    JSON 500, not 502.** `InvalidToolIp` descends from `MsrImageError`
+    (`back_dev_home/msr_image/errors.py`), and `back_dev_home/__init__.py`
+    registers error handlers for `HTTPException`, the exact `LookupError` and
+    `RuntimeError` types, and the redis/opensearch driver errors — but none
+    for `MsrImageError`. So this case falls through to Flask's own
+    `InternalServerError` wrapping, which the app's `HTTPException` handler
+    turns into a generic message. The blocked IP lands only in the server
+    log (Flask logs the original exception before wrapping it); unlike the
+    sibling failures above, the JSON response body carries no per-tool
+    detail.
   - `office_utils` not importable → `RuntimeError` (503, unconfigured).
   - Parser returns the wrong keys → `LookupError` (502).
   - A documented column the parser stopped emitting is **nulled, not dropped**

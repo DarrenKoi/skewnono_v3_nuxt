@@ -46,7 +46,8 @@ hash value -> rcp_loc      : [idw_name, idp_name]  (경로 문자열 2개, 순�
 주의
 
 1. rcp_loc 의 value 는 **위치로 읽습니다**(0번 idw, 1번 idp). 항목이 2개보다
-   적으면 어댑터는 이 소스를 포기하고 meas_hist 로 넘어갑니다.
+   적으면 어댑터는 이 소스를 포기하고 meas_hist 로 넘어갑니다. 3개 이상이면
+   앞의 2개(idw, idp)만 쓰고 나머지는 무시합니다.
 2. class_name 은 두 hash 어디에도 없습니다. full_name 의 "/" 앞부분이 곧
    class_name 이므로(meas_hist.txt), 조회에 쓴 key 에서 그대로 떼어 씁니다.
 3. tools_in_rcp 는 eqp_id 를 주지만 FTP 는 eqp_ip 로 접속합니다. sem_list

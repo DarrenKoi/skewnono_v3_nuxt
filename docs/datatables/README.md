@@ -26,7 +26,7 @@
 | `msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file` | 연결 |
 | `msr_image_ftp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/...` | `msr_image` | 연결 |
 | `idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe` | 연결 |
-| `recipe_name_list.txt` | Redis `v3_cdsem_unique_rcp_list` / `v3_hvsem_unique_rcp_list` | `recipe_search` (목록만) | 연결 |
+| `recipe_name_list.txt` | Redis `v3_{cdsem,hvsem}_unique_rcp_list` + `v3_{cdsem,hvsem}_rcp_loc_{fab}` + `v3_{cdsem,hvsem}_tools_in_rcp_{fab}` | `recipe_search` | 연결 |
 | `live_alarm_board.txt` | 사내 alarm API → Redis ZSET 보드 | `live_alarm` | 연결 |
 | `hardware_beam_shape.txt` | OpenSearch `beam_shape_cdsem` | `hardware/bsm` | 연결 |
 | `hardware_network_fdc_cdsem.txt` | OpenSearch `network_fdc_cdsem` | `hardware/fdc` | 연결 |
@@ -36,7 +36,7 @@
 | `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | 연결 |
 | `hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc` | 연결 |
 | `skewnono_logging.txt` | OpenSearch `skewnono_logging{,_local}` (자체 생성) | `activity`, `admin_logs` | 구현완료(office 반영 대기) |
-| `recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 소스 확인, **어댑터 미연결** |
+| `recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |
 | `parameter_info.txt` | 미정 — IDP 파서가 돌려주지 않음(`amp_info`) | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `recipe_params.txt` | 미정 | `device_statistics` | **미연결**(mock) |
 | `device_info.txt` | 파생 — `device_desc` 의 요약 view | `device_statistics` | 파생(원천 아님) |
@@ -51,14 +51,16 @@
 아래는 화면은 있으나 office 어댑터가 mock 을 그대로 재사용하는 부분입니다. 새 소스를
 찾으면 해당 문서부터 채워야 합니다.
 
-- **recipe 자세히 보기** (`recipe_idp.txt`, `parameter_info.txt`) — `recipe_search` 의
-  office 어댑터는 recipe **이름 목록**만 Redis 에 연결되어 있고, 열람/비교
-  (`get_recipe_open_data` / `get_recipe_compare_data`)는 여전히 mock 을 re-export
-  합니다. 다만 **소스는 2026-07-27 에 확인되었습니다** — 장비 FTP 의 `.idp` 파일을
-  `office_utils.read_idp_info.combined_idp_info()` 로 파싱하면 `wafer_mp_info` /
-  `wafer_align_info` / `idp_image_info` 3개 DataFrame 이 나옵니다. 남은 일은
-  어댑터 연결이며, `align_images` 와 `amp_info` 두 항목은 이 파서가 돌려주지 않아
-  **여전히 소스가 없습니다**. 자세한 내용은 `recipe_idp.txt`.
+- **recipe 비교** (`recipe_idp.txt`, `parameter_info.txt`) — `recipe_search` 의
+  office 어댑터는 recipe **이름 목록**과 **열람**(`get_recipe_open_data`)까지
+  연결되었습니다 — Redis 레지스트리(`v3_*_rcp_loc_*` / `v3_*_tools_in_rcp_*`)를
+  먼저 찾고, 없으면 measurement history 로 넘어가 장비 FTP 의 `.idp` 파일을
+  받아 `office_utils.read_idp_info.combined_idp_info()` 로 파싱합니다. 다만
+  **비교**(`get_recipe_compare_data`)는 여전히 mock 을 re-export 합니다 —
+  열람에서 파생되는 관계를 유지하려면 tool 당 FTP 세션 1개로 최대 200개 recipe 의
+  `.idp` 를 배치 조회하는 구현이 필요하기 때문입니다. `align_images` 와
+  `amp_info` 두 항목은 이 파서가 돌려주지 않아 열람이 연결된 지금도 **여전히
+  소스가 없습니다**. 자세한 내용은 `recipe_idp.txt`.
 
 ## 사무실 구현과 집 템플릿이 갈라진 항목
 
