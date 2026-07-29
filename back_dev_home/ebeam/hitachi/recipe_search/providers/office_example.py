@@ -633,6 +633,49 @@ def _download_idp(location: _IdpLocation, dest_dir: Path) -> Path:
     return local_path
 
 
+def _download_first(candidates: list[_IdpLocation], dest_dir: Path) -> Path:
+    """Try each candidate in order and return the first successful download.
+
+    Raises:
+        InvalidToolIp: EVERY candidate was refused by the tool-IP guard.
+        LookupError: candidates were dialable but none served the file.
+    """
+    # Imported here, not at module scope, to match _download_idp's deferral of
+    # the msr_image imports. InvalidToolIp is NOT a LookupError subclass
+    # (msr_image/errors.py: it descends from MsrImageError), so the two except
+    # clauses below are disjoint.
+    from back_dev_home.msr_image.errors import InvalidToolIp
+
+    failures = []
+    blocked = []
+    for location in candidates:
+        try:
+            return _download_idp(location, dest_dir)
+        except InvalidToolIp as exc:
+            # Skipped rather than raised: one stale roster IP must not fail
+            # every recipe held on that tool. The guard still refuses to dial
+            # it and the WARNING names it, so the roster can be corrected.
+            blocked.append(exc)
+            _LOG.warning(
+                "recipe_search: %s (%s) is outside SKEWNONO_TOOL_SUBNETS and "
+                "was skipped — %s", location.eqp_id, location.eqp_ip, exc,
+            )
+            failures.append(f"{location.eqp_id} ({location.eqp_ip}): IP blocked")
+        except LookupError as exc:
+            failures.append(f"{location.eqp_id}: {exc}")
+
+    if blocked and len(blocked) == len(candidates):
+        # Not a fetch failure. Every tool holding this recipe sits outside the
+        # allowed subnets, which is a configuration fault worth surfacing as
+        # itself rather than flattening into "could not download".
+        raise blocked[0]
+
+    raise LookupError(
+        f"Tried {len(candidates)} tool(s) and none served the .idp — "
+        + " | ".join(failures)
+    )
+
+
 # ── recipe open, step 3: parse it (office_utils) ──────────────────────────
 
 
@@ -817,10 +860,15 @@ def get_recipe_open_data(
 ) -> RecipeDetailResponse:
     """One recipe's IDP tables: locate -> download -> parse -> map.
 
+    Locate prefers the Redis recipe registry and falls back to measurement
+    history; either way it yields tool candidates in preference order and the
+    download walks them until one answers.
+
     The download lands in a temp directory that is removed on the way out.
-    Nothing is cached: a recipe's .idp is small and the OpenSearch lookup
-    dominates, but if 열어보기 latency becomes a complaint this is the seam to
-    put a TTL cache behind (keyed on the recipe triple, not on the path).
+    Nothing is cached: a recipe's .idp is small, and with the registry path the
+    lookup is now two Redis reads rather than an OpenSearch query. If 열어보기
+    latency ever becomes a complaint this is still the seam to put a TTL cache
+    behind (keyed on the recipe triple, not on the path).
     """
     recipe = (recipe_id or "").strip()
     if not recipe:
@@ -828,9 +876,9 @@ def get_recipe_open_data(
     tool_type: ToolType = tool_category or "cd-sem"
     fab_name = (fac_id or "").strip() or None
 
-    location = _locate_idp(tool_type, recipe, fab_name)
+    locations = _locate_idp(tool_type, recipe, fab_name)
     with tempfile.TemporaryDirectory(prefix="skewnono-idp-") as tmp_dir:
-        local_path = _download_idp(location, Path(tmp_dir))
+        local_path = _download_first(locations, Path(tmp_dir))
         frames = _parse_idp(local_path)
 
     return _to_detail_response(frames, recipe, fab_name or "", tool_type)

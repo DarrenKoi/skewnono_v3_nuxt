@@ -288,3 +288,64 @@ class TestLocateIdpDispatch:
         monkeypatch.setattr(oe, "_locate_via_redis", lambda *a: None)
         monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a: sentinel)
         assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel
+
+
+from back_dev_home.msr_image.errors import InvalidToolIp
+
+THREE = [
+    oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A"),
+    oe._IdpLocation("CG6300_07", "10.1.2.7", "ADI", "A", "A"),
+    oe._IdpLocation("CG6380_02", "10.1.2.2", "ADI", "A", "A"),
+]
+
+
+def _always_raise(exception_type, message):
+    """A _download_idp stand-in that fails on every tool."""
+    def _download(location, dest_dir):
+        raise exception_type(f"{message} ({location.eqp_id})")
+    return _download
+
+
+class TestDownloadFirst:
+    def test_first_success_wins_and_stops(self, monkeypatch, tmp_path):
+        dialed = []
+
+        def _download(location, dest_dir):
+            dialed.append(location.eqp_id)
+            if location.eqp_id != "CG6300_07":
+                raise LookupError("connection refused")
+            return dest_dir / "A.idp"
+
+        monkeypatch.setattr(oe, "_download_idp", _download)
+        assert oe._download_first(THREE, tmp_path) == tmp_path / "A.idp"
+        # Stopped at the first success — the third tool was never dialed.
+        assert dialed == ["CG6300_01", "CG6300_07"]
+
+    def test_every_tool_failing_names_each_one(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            oe, "_download_idp", _always_raise(LookupError, "no such file")
+        )
+        with pytest.raises(LookupError) as excinfo:
+            oe._download_first(THREE, tmp_path)
+        message = str(excinfo.value)
+        assert "Tried 3 tool(s)" in message
+        assert "CG6300_01" in message and "CG6380_02" in message
+
+    def test_one_blocked_ip_is_skipped_not_fatal(self, monkeypatch, tmp_path):
+        def _download(location, dest_dir):
+            if location.eqp_id == "CG6300_01":
+                raise InvalidToolIp("outside the allowed subnets")
+            return dest_dir / "A.idp"
+
+        monkeypatch.setattr(oe, "_download_idp", _download)
+        # A single stale roster IP must not fail a recipe held on three tools.
+        assert oe._download_first(THREE, tmp_path) == tmp_path / "A.idp"
+
+    def test_every_ip_blocked_reraises_the_guard(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            oe, "_download_idp", _always_raise(InvalidToolIp, "outside subnets")
+        )
+        # Not a fetch failure — this is the misconfiguration MIGRATION.md
+        # documents InvalidToolIp for, so it must survive as itself.
+        with pytest.raises(InvalidToolIp):
+            oe._download_first(THREE, tmp_path)
