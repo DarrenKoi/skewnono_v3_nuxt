@@ -37,122 +37,241 @@
     </div>
 
     <template v-else>
-      <!-- Event lane — failure / image / alignment along the measurement order,
-           sharing the panes' cursor. -->
-      <EbeamSkewvoirPanelFrame
-        title="측정 순서 (Sequence)"
-        :meta="sequenceMeta"
-        icon="i-lucide-git-commit-horizontal"
+      <div
+        role="tablist"
+        aria-label="FDC 그래프 보기"
+        class="inline-flex w-fit items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
+        @keydown="onTabKeydown"
       >
-        <template #actions>
-          <div class="flex items-center gap-2">
-            <span
-              v-if="!model.integrity.matched && model.integrity.fdc > 0"
-              class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
-              :title="`측정 row ${model.integrity.rows}개 · dynamic FDC ${model.integrity.fdc}개 — 측정마다 FDC 1건이 있어야 합니다.`"
-            >
-              데이터 불일치 · row {{ model.integrity.rows }} / FDC {{ model.integrity.fdc }}
-            </span>
-            <USelect
-              v-model="axisMode"
-              size="xs"
-              :items="axisItems"
-              class="min-w-[8.5rem]"
-            />
-            <span class="sk-meta tabular-nums">
-              cursor: {{ analysis.focusedSequence.value ?? '—' }}
-            </span>
-          </div>
-        </template>
-        <EbeamSkewvoirFdcSequenceEventLane
-          :sequences="model.sequences"
-          :events="model.events"
-          :focused="analysis.focusedSequence.value"
-          @select="onSelect"
-        />
-      </EbeamSkewvoirPanelFrame>
+        <button
+          id="fdc-matrix-tab"
+          type="button"
+          role="tab"
+          :tabindex="viewMode === 'matrix' ? 0 : -1"
+          :aria-selected="viewMode === 'matrix'"
+          aria-controls="fdc-matrix-panel"
+          class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="viewMode === 'matrix'
+            ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
+            : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+          @click="selectView('matrix')"
+        >
+          파라미터 매트릭스
+        </button>
+        <button
+          id="fdc-individual-tab"
+          type="button"
+          role="tab"
+          :tabindex="viewMode === 'individual' ? 0 : -1"
+          :aria-selected="viewMode === 'individual'"
+          aria-controls="fdc-individual-panel"
+          class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="viewMode === 'individual'
+            ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
+            : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+          @click="selectView('individual')"
+        >
+          개별 그래프
+        </button>
+      </div>
 
-      <!-- Overview: every param at once, each in its own unit. The panes below
-           stay the detailed reading; this is the scan layer. -->
-      <EbeamSkewvoirPanelFrame
-        title="파라미터 매트릭스"
-        :meta="`${matrix.rows.length} rows · ${matrix.columns} cols · CD 대비 상관`"
-        icon="i-lucide-grid-3x3"
+      <div
+        :id="activePanelId"
+        role="tabpanel"
+        :aria-labelledby="activeTabId"
+        class="space-y-3"
       >
-        <template #actions>
-          <span
-            v-if="matrix.demoCoupled"
-            class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
-          >
-            데모 데이터 · 방법 검증 불가
-          </span>
-        </template>
-        <EbeamSkewvoirFdcParamMatrix
-          :model="matrix"
-          :colors="fdcColorByParam"
-          @select="onSelect"
-          @drill="drillTo"
-        />
-      </EbeamSkewvoirPanelFrame>
-
-      <!-- CD pane — always present. Different units go in SEPARATE panes. -->
-      <EbeamSkewvoirPanelFrame
-        :title="`CD · ${analysis.activeParamLabel.value}`"
-        :meta="cdMeta"
-        icon="i-lucide-activity"
-      >
-        <EbeamSkewvoirFdcSequenceTrend
-          :points="model.cd.points"
-          :sequences="model.sequences"
-          :name="analysis.activeParam.value"
-          :unit="model.unit"
-          :focused="analysis.focusedSequence.value"
-          :color="cdColor"
-          @select="onSelect"
-        />
-      </EbeamSkewvoirPanelFrame>
-
-      <!-- Dynamic-FDC panes — one per param, each its own Y unit. -->
-      <template v-if="model.hasFdc">
-        <!-- data-fdc-param is the matrix's drill-down scroll target. It falls
-             through to PanelFrame's root <section>, so no wrapper is needed. -->
+        <!-- Overview: every param at once, each in its own unit. The panes below
+             stay the detailed reading; this is the scan layer. -->
         <EbeamSkewvoirPanelFrame
-          v-for="series in model.fdc"
-          :key="series.param"
-          :data-fdc-param="series.param"
-          :title="`Dynamic FDC · ${series.param}`"
-          :meta="fdcMeta(series)"
-          icon="i-lucide-waves"
+          v-if="viewMode === 'matrix'"
+          title="파라미터 매트릭스"
+          :meta="`${matrix.rows.length} rows · ${matrix.columns} cols · CD 대비 상관`"
+          icon="i-lucide-grid-3x3"
         >
           <template #actions>
-            <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
+            <span
+              v-if="matrix.demoCoupled"
+              class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
+            >
               데모 데이터 · 방법 검증 불가
             </span>
           </template>
-          <EbeamSkewvoirFdcSequenceTrend
-            :points="series.points"
+          <EbeamSkewvoirFdcParamMatrix
+            :model="matrix"
+            :colors="fdcColorByParam"
+            @select="onSelect"
+            @drill="drillTo"
+          />
+        </EbeamSkewvoirPanelFrame>
+
+        <section
+          v-if="viewMode === 'individual' && model.hasFdc"
+          class="dashboard-surface rounded-(--sk-r-card) p-3"
+          aria-labelledby="fdc-graph-selector-title"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2
+              id="fdc-graph-selector-title"
+              class="sk-title"
+            >
+              표시할 그래프
+            </h2>
+            <div class="flex items-center gap-1.5">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="soft"
+                label="CD만 선택"
+                @click="selectOnlyCd"
+              />
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="soft"
+                label="전체 선택"
+                @click="selectAllGraphs"
+              />
+            </div>
+          </div>
+          <div
+            class="mt-2 flex flex-wrap gap-1.5"
+            role="group"
+            aria-label="개별 그래프 선택"
+          >
+            <button
+              type="button"
+              :aria-pressed="selectedGraphSet.has(cdGraphId(analysis.activeParam.value))"
+              class="rounded-(--sk-r-chip) px-2.5 py-1 font-mono text-[11px] transition-colors"
+              :class="selectedGraphSet.has(cdGraphId(analysis.activeParam.value))
+                ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
+                : 'bg-(--sk-chip-bg) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+              @click="onGraphToggle(cdGraphId(analysis.activeParam.value))"
+            >
+              CD · {{ analysis.activeParamLabel.value }}
+            </button>
+            <button
+              v-for="series in model.fdc"
+              :key="series.param"
+              type="button"
+              :aria-pressed="selectedGraphSet.has(fdcGraphId(series.param))"
+              class="rounded-(--sk-r-chip) px-2.5 py-1 font-mono text-[11px] transition-colors"
+              :class="selectedGraphSet.has(fdcGraphId(series.param))
+                ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
+                : 'bg-(--sk-chip-bg) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+              @click="onGraphToggle(fdcGraphId(series.param))"
+            >
+              {{ series.param }}
+            </button>
+          </div>
+        </section>
+
+        <!-- Event lane — failure / image / alignment along the measurement order,
+             sharing the panes' cursor. -->
+        <EbeamSkewvoirPanelFrame
+          title="측정 순서 (Sequence)"
+          :meta="sequenceMeta"
+          icon="i-lucide-git-commit-horizontal"
+        >
+          <template #actions>
+            <div class="flex items-center gap-2">
+              <span
+                v-if="!model.integrity.matched && model.integrity.fdc > 0"
+                class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
+                :title="`측정 row ${model.integrity.rows}개 · dynamic FDC ${model.integrity.fdc}개 — 측정마다 FDC 1건이 있어야 합니다.`"
+              >
+                데이터 불일치 · row {{ model.integrity.rows }} / FDC {{ model.integrity.fdc }}
+              </span>
+              <USelect
+                v-model="axisMode"
+                size="xs"
+                :items="axisItems"
+                class="min-w-[8.5rem]"
+              />
+              <span class="sk-meta tabular-nums">
+                cursor: {{ analysis.focusedSequence.value ?? '—' }}
+              </span>
+            </div>
+          </template>
+          <EbeamSkewvoirFdcSequenceEventLane
             :sequences="model.sequences"
-            :name="series.param"
-            :unit="series.unit"
-            :nominal="series.nominal"
+            :events="model.events"
             :focused="analysis.focusedSequence.value"
-            :color="fdcColorByParam[series.param] ?? cdColor"
             @select="onSelect"
           />
         </EbeamSkewvoirPanelFrame>
-      </template>
 
-      <!-- No dynamic FDC — CD pane only, with the reason. -->
-      <div
-        v-else
-        class="dashboard-surface flex flex-col items-center justify-center gap-1 rounded-(--sk-r-card) px-4 py-6 text-center"
-      >
-        <p class="sk-title">
-          FDC 없음
-        </p>
-        <p class="sk-body">
-          {{ model.fdcReason }}
-        </p>
+        <!-- CD pane — selected in the individual view. Different units stay in SEPARATE panes. -->
+        <EbeamSkewvoirPanelFrame
+          v-if="viewMode === 'individual' && showCdGraph"
+          :title="`CD · ${analysis.activeParamLabel.value}`"
+          :meta="cdMeta"
+          icon="i-lucide-activity"
+        >
+          <EbeamSkewvoirFdcSequenceTrend
+            :points="model.cd.points"
+            :sequences="model.sequences"
+            :name="analysis.activeParam.value"
+            :unit="model.unit"
+            :focused="analysis.focusedSequence.value"
+            :color="cdColor"
+            @select="onSelect"
+          />
+        </EbeamSkewvoirPanelFrame>
+
+        <!-- Dynamic-FDC panes — one per param, each its own Y unit. -->
+        <template v-if="viewMode === 'individual' && model.hasFdc">
+          <EbeamSkewvoirPanelFrame
+            v-for="series in selectedFdc"
+            :key="series.param"
+            :data-fdc-param="series.param"
+            tabindex="-1"
+            :title="`Dynamic FDC · ${series.param}`"
+            :meta="fdcMeta(series)"
+            icon="i-lucide-waves"
+          >
+            <template #actions>
+              <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
+                데모 데이터 · 방법 검증 불가
+              </span>
+            </template>
+            <EbeamSkewvoirFdcSequenceTrend
+              :points="series.points"
+              :sequences="model.sequences"
+              :name="series.param"
+              :unit="series.unit"
+              :nominal="series.nominal"
+              :focused="analysis.focusedSequence.value"
+              :color="fdcColorByParam[series.param] ?? cdColor"
+              @select="onSelect"
+            />
+          </EbeamSkewvoirPanelFrame>
+        </template>
+
+        <div
+          v-if="viewMode === 'individual' && noGraphsSelected"
+          class="dashboard-surface flex flex-col items-center justify-center gap-1 rounded-(--sk-r-card) px-4 py-6 text-center"
+        >
+          <p class="sk-title">
+            선택된 그래프가 없습니다
+          </p>
+          <p class="sk-body">
+            위 버튼에서 확인할 CD 또는 FDC 그래프를 선택하세요.
+          </p>
+        </div>
+
+        <!-- No dynamic FDC — CD pane only, with the reason. -->
+        <div
+          v-if="!model.hasFdc"
+          class="dashboard-surface flex flex-col items-center justify-center gap-1 rounded-(--sk-r-card) px-4 py-6 text-center"
+        >
+          <p class="sk-title">
+            FDC 없음
+          </p>
+          <p class="sk-body">
+            {{ model.fdcReason }}
+          </p>
+        </div>
       </div>
     </template>
   </div>
@@ -163,9 +282,25 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
 import { analyzeSequence, type FdcSeqSeries, type SequenceAxisMode, type SequenceSource } from '~/utils/skewvoirAnalysis/sequence'
 import { buildParamMatrix } from '~/utils/skewvoirAnalysis/paramMatrix'
+import {
+  addGraphSelection,
+  cdGraphId,
+  fdcGraphId,
+  graphSelectionIds,
+  reconcileGraphSelection,
+  selectCdOnly,
+  toggleGraphSelection,
+  type GraphSelectionId
+} from '~/utils/skewvoirAnalysis/graphSelection'
 import { assignCompareColors } from '~/utils/hardwareCompare'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
+
+type FdcViewMode = 'matrix' | 'individual'
+
+const viewMode = ref<FdcViewMode>('matrix')
+const selectedGraphs = ref<GraphSelectionId[]>([])
+const previousAvailableGraphs = ref<GraphSelectionId[]>([])
 
 const hasData = computed(() =>
   props.analysis.siteRows.value.some(
@@ -193,6 +328,87 @@ const model = computed(() =>
   )
 )
 
+const availableGraphIds = computed(() =>
+  graphSelectionIds(
+    props.analysis.activeParam.value,
+    model.value.fdc.map(series => series.param)
+  )
+)
+
+const graphResetKey = computed(() =>
+  `${props.analysis.focusMsr.value ?? ''}\u0000${props.analysis.activeParam.value}`
+)
+
+watch(graphResetKey, () => {
+  const next = availableGraphIds.value
+  selectedGraphs.value = [...next]
+  previousAvailableGraphs.value = [...next]
+}, { immediate: true })
+
+watch(availableGraphIds, (next) => {
+  selectedGraphs.value = reconcileGraphSelection(
+    selectedGraphs.value,
+    previousAvailableGraphs.value,
+    next
+  )
+  previousAvailableGraphs.value = [...next]
+})
+
+const selectedGraphSet = computed(() => new Set(selectedGraphs.value))
+const showCdGraph = computed(() =>
+  !model.value.hasFdc
+  || selectedGraphSet.value.has(cdGraphId(props.analysis.activeParam.value))
+)
+const selectedFdc = computed(() =>
+  model.value.fdc.filter(series =>
+    selectedGraphSet.value.has(fdcGraphId(series.param))
+  )
+)
+const noGraphsSelected = computed(() =>
+  model.value.hasFdc
+  && !showCdGraph.value
+  && selectedFdc.value.length === 0
+)
+
+const selectAllGraphs = (): void => {
+  selectedGraphs.value = [...availableGraphIds.value]
+}
+
+const selectOnlyCd = (): void => {
+  selectedGraphs.value = selectCdOnly(props.analysis.activeParam.value)
+}
+
+const onGraphToggle = (id: GraphSelectionId): void => {
+  selectedGraphs.value = toggleGraphSelection(selectedGraphs.value, id)
+}
+
+const tabOrder: FdcViewMode[] = ['matrix', 'individual']
+const activeTabId = computed(() => `fdc-${viewMode.value}-tab`)
+const activePanelId = computed(() => `fdc-${viewMode.value}-panel`)
+
+const selectView = (mode: FdcViewMode): void => {
+  viewMode.value = mode
+}
+
+const onTabKeydown = (event: KeyboardEvent): void => {
+  const current = tabOrder.indexOf(viewMode.value)
+  let next = current
+
+  if (event.key === 'ArrowLeft') next = (current - 1 + tabOrder.length) % tabOrder.length
+  else if (event.key === 'ArrowRight') next = (current + 1) % tabOrder.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = tabOrder.length - 1
+  else return
+
+  event.preventDefault()
+  viewMode.value = tabOrder[next] ?? 'matrix'
+  nextTick(() => {
+    rootEl.value
+      ?.querySelector<HTMLButtonElement>(`#fdc-${viewMode.value}-tab`)
+      ?.focus()
+  })
+}
+
 const axisItems = [
   { label: '파라미터 정렬', value: 'param' },
   { label: '전체 sequence', value: 'all' }
@@ -219,10 +435,19 @@ const matrix = computed(() => buildParamMatrix(model.value, source.value))
 const rootEl = ref<HTMLElement | null>(null)
 
 const drillTo = (param: string): void => {
+  selectedGraphs.value = addGraphSelection(
+    selectedGraphs.value,
+    fdcGraphId(param)
+  )
+  viewMode.value = 'individual'
+
   nextTick(() => {
-    rootEl.value
-      ?.querySelector(`[data-fdc-param="${CSS.escape(param)}"]`)
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    requestAnimationFrame(() => {
+      const target = rootEl.value
+        ?.querySelector<HTMLElement>(`[data-fdc-param="${CSS.escape(param)}"]`)
+      target?.focus({ preventScroll: true })
+      target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
   })
 }
 
