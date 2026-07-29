@@ -88,7 +88,7 @@ from typing import Any, NamedTuple
 import pandas as pd
 
 from back_dev_home._runtime.office_redis import redis_client as _redis_client
-from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query
+from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query, ttl_cache
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     IdpImageInfoRow,
     RecipeDetailResponse,
@@ -98,6 +98,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     WaferAlignInfoRow,
     WaferMpInfoRow,
 )
+from back_dev_home.sem_list.data import get_sem_list
 # TODO(office): replace with a batched IDP-backed implementation — one FTP
 # session per distinct eqp_ip, every recipe's .idp in one HostSpec(files=[...]).
 # Re-exported (not reimplemented) so that when it lands it can stay derived
@@ -316,6 +317,67 @@ def _class_name(recipe_id: str) -> str:
     exist, and a blank forces the caller to fall back instead.
     """
     return recipe_id.split("/", 1)[0].strip() if "/" in recipe_id else ""
+
+
+@ttl_cache
+def _eqp_ip_index() -> dict[str, tuple[str, str]]:
+    """``eqp_id -> (eqp_ip, available)`` for the whole fleet.
+
+    The registry names tools by ``eqp_id`` but FTP dials an IP, so the roster
+    resolves the gap — the same ``eqp_id -> eqp_ip`` join lateral check makes,
+    and through the same source, so the two screens cannot disagree about
+    which tools exist.
+
+    Cached because ``get_sem_list()`` deserializes two parquet blobs from Redis
+    and merges them: reasonable once per TTL, wasteful once per recipe open.
+    What that costs is an IP change taking up to 15 minutes to be seen, which
+    is the right trade for a roster that only moves when tools do.
+    """
+    index: dict[str, tuple[str, str]] = {}
+    for row in get_sem_list():
+        eqp_id = str(row.get("eqp_id") or "").strip()
+        eqp_ip = str(row.get("eqp_ip") or "").strip()
+        if eqp_id and eqp_ip:
+            index[eqp_id] = (eqp_ip, str(row.get("available") or ""))
+    return index
+
+
+def _order_candidates(
+    eqp_ids: list[str],
+    index: dict[str, tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """``[eqp_id, ...]`` -> ``[(eqp_id, eqp_ip), ...]``, best host first. Pure.
+
+    Tools the roster reports available sort ahead of the rest; within each
+    group the registry's own order is preserved, since it carries no ranking
+    and a stable order keeps the same recipe hitting the same tool. Offline
+    tools are kept rather than dropped — ``available`` describes whether the
+    tool is running production, not whether its FTP server answers, and the
+    .idp is worth trying for once the online tools have failed.
+
+    An ``eqp_id`` the roster does not know is dropped: the registry says the
+    recipe is there, but with no IP there is nothing to dial.
+    """
+    online: list[tuple[str, str]] = []
+    offline: list[tuple[str, str]] = []
+    unknown: list[str] = []
+    for raw_id in eqp_ids:
+        eqp_id = raw_id.strip()
+        resolved = index.get(eqp_id)
+        if resolved is None:
+            unknown.append(eqp_id)
+            continue
+        eqp_ip, available = resolved
+        (online if available == "On" else offline).append((eqp_id, eqp_ip))
+    if unknown:
+        _LOG.warning(
+            "recipe_search: %d tool(s) named by the recipe registry are not in "
+            "the sem_list roster and were skipped: %s. The two sources use the "
+            "same eqp_id spelling (user-confirmed 2026-07-29), so this means "
+            "the roster is missing the tool, not that the ids disagree.",
+            len(unknown), unknown,
+        )
+    return online + offline
 
 
 def _locate_idp(
