@@ -428,6 +428,7 @@ def _locate_via_redis(
     tool_type: ToolType,
     recipe_id: str,
     fab_name: str | None,
+    notes: list[str] | None = None,
 ) -> list[_IdpLocation] | None:
     """Candidate locations from the two per-fab registry hashes, or ``None``.
 
@@ -437,60 +438,57 @@ def _locate_via_redis(
     half from measurement history would be untraceable the day the path it
     produces turns out to be wrong.
 
-    Every bail logs which step produced it, because from outside the office a
-    silent fallback and a broken lookup look identical.
+    Every bail names the step that produced it, and that reason goes to TWO
+    places: the log, and ``notes`` if the caller passed a list. ``_locate_idp``
+    passes one so the reason can ride along on the error the browser receives —
+    from outside the office, a log line is not evidence anybody has.
     """
-    if not fab_name:
-        _LOG.info(
-            "recipe_search: no fab_name for %r, so no registry key can be "
-            "built — falling back to meas_hist.", recipe_id,
-        )
+    def _bail(reason: str) -> None:
+        if notes is not None:
+            notes.append(reason)
+        _LOG.info("recipe_search: %s — falling back to meas_hist.", reason)
         return None
+
+    if not fab_name:
+        return _bail(
+            f"no fab_name for {recipe_id!r}, so no registry key can be built"
+        )
 
     class_name = _class_name(recipe_id)
     if not class_name:
-        _LOG.info(
-            "recipe_search: %r has no class prefix, so the registry cannot "
-            "supply the FTP class directory — falling back to meas_hist.",
-            recipe_id,
+        return _bail(
+            f"{recipe_id!r} has no class prefix, so the registry cannot supply "
+            "the FTP class directory"
         )
-        return None
 
     client = _redis_client()
 
     loc_key = _fab_hash("rcp_loc", tool_type, fab_name)
     parts = _parse_str_list(client.hget(loc_key, recipe_id) or "")
     if len(parts) < 2:
-        _LOG.info(
-            "recipe_search: %s has no usable [idw, idp] entry for %r (got %s) "
-            "— falling back to meas_hist.", loc_key, recipe_id, parts,
+        return _bail(
+            f"{loc_key} has no usable [idw, idp] entry for {recipe_id!r} "
+            f"(got {parts})"
         )
-        return None
 
     tools_key = _fab_hash("tools_in_rcp", tool_type, fab_name)
     eqp_ids = _parse_str_list(client.hget(tools_key, recipe_id) or "")
     if not eqp_ids:
-        _LOG.info(
-            "recipe_search: %s names no tool for %r — falling back to "
-            "meas_hist.", tools_key, recipe_id,
-        )
-        return None
+        return _bail(f"{tools_key} names no tool for {recipe_id!r}")
 
     idw_stem, idp_stem = _stem(parts[0]), _stem(parts[1])
     if not idw_stem or not idp_stem:
-        _LOG.info(
-            "recipe_search: %s entry for %r has an empty path component (%s) "
-            "— falling back to meas_hist.", loc_key, recipe_id, parts[:2],
+        return _bail(
+            f"{loc_key} entry for {recipe_id!r} has an empty path component "
+            f"({parts[:2]})"
         )
-        return None
 
     candidates = _order_candidates(eqp_ids, _eqp_ip_index())
     if not candidates:
-        _LOG.info(
-            "recipe_search: none of %s resolves to an IP for %r — falling back "
-            "to meas_hist.", eqp_ids, recipe_id,
+        return _bail(
+            f"none of {eqp_ids} resolves to an IP for {recipe_id!r} — the "
+            "sem_list roster does not carry these tools"
         )
-        return None
 
     _LOG.info(
         "recipe_search: located %r via the Redis registry — %d tool "
@@ -603,10 +601,39 @@ def _locate_idp(
     The Redis registry knows this directly and answers without a query to
     measurement history; meas_hist is the fallback. Both return an ordered
     list rather than one answer so the download can walk it.
+
+    When BOTH come up empty the error names both, because the meas_hist half
+    alone is the least useful sentence of the two: "this recipe was never
+    measured" is the expected state for a great many recipes, and the registry
+    exists precisely to serve them. What the operator needs to know is why the
+    registry did not.
+
+    READING THE 502 THIS RAISES — the presence of the registry clause tells you
+    which adapter is deployed, which is worth more than it sounds:
+
+      * clause present -> office.py has the registry path; the clause says why
+        it declined, and the fix is in Redis (or in the fab/recipe spelling).
+      * clause ABSENT  -> office.py predates the registry entirely (a STALE
+        copy of a pre-2026-07-29 template). It never consulted Redis at all.
+        Refresh it: ``python -m scripts.sync_office_adapters recipe_search``.
+        The boot log flags this too, but a 502 body reaches further.
     """
-    return _locate_via_redis(tool_type, recipe_id, fab_name) or _locate_via_meas_hist(
-        tool_type, recipe_id, fab_name
-    )
+    notes: list[str] = []
+    located = _locate_via_redis(tool_type, recipe_id, fab_name, notes)
+    if located:
+        return located
+    try:
+        return _locate_via_meas_hist(tool_type, recipe_id, fab_name)
+    except LookupError as exc:
+        if not notes:
+            raise
+        # Bare LookupError, never a subclass: back_dev_home/__init__.py maps
+        # only the exact type to a 502 and turns subclasses into opaque 500s.
+        raise LookupError(
+            f"{exc} Redis recipe registry was tried first and declined: "
+            + "; ".join(notes)
+            + "."
+        ) from exc
 
 
 def _idp_remote_path(location: _IdpLocation) -> str:

@@ -263,3 +263,21 @@ function are gone; three endpoints replace them.
 ## Verify
 
     SKEWNONO_RECIPE_SEARCH_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_search
+
+## 502 진단 (`/recipe-detail`)
+
+`자세히 보기`가 502 를 반환할 때는 `.idp` 위치를 찾지 못한 것입니다. 위치 소스는
+Redis 레지스트리와 meas_hist 두 개이므로 502 는 **둘 다 실패했다**는 뜻입니다.
+브라우저에 보이는 문장은 meas_hist 만 지목하지만, 측정된 적 없는 recipe 에서
+meas_hist 가 비어 있는 것은 정상이며 레지스트리가 바로 그런 recipe 를 위해
+존재합니다. 따라서 실제로 물어야 할 것은 "레지스트리가 왜 답하지 않았는가"이고,
+아래 스크립트가 두 소스의 각 단계를 순서대로 확인합니다.
+
+    .venv/bin/python -m scripts.diagnose_recipe_search_office "1/AC_M2_TAT" --fab R3
+
+읽는 법 — 502 본문에 `Redis recipe registry was tried first and declined: ...`
+절이 있으면 배포된 `office.py` 가 레지스트리를 조회했고 그 이유를 말해 줍니다.
+**그 절이 없으면** 배포본이 레지스트리 경로가 없던 시절의 STALE 사본이므로
+Redis 를 아예 조회하지 않은 것입니다. 이때는 데이터가 아니라 사본을 고칩니다.
+
+    python -m scripts.sync_office_adapters recipe_search

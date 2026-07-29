@@ -305,6 +305,77 @@ class TestLocateIdpDispatch:
         assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel
 
 
+class TestLocateFailureNamesBothSources:
+    """The 502 body has to say what the registry did, not just what meas_hist did.
+
+    When both sources come up empty the client sees one string, and until now
+    that string named only meas_hist ("No document in meas_hist_cdsem has
+    full_name=..."). From outside the office three very different situations
+    produce it and the message told them apart in none:
+
+      * the registry declined for a nameable reason (no entry, no tool, no IP),
+      * the registry was never consulted because the deployed ``office.py`` is a
+        STALE copy that predates it,
+      * the recipe genuinely has neither a registry entry nor a measurement.
+
+    So the reason now travels with the error instead of only reaching the log,
+    which the person reading a browser Network tab does not have.
+    """
+
+    @staticmethod
+    def _no_meas_hist(*args):
+        raise LookupError(
+            f"No document in meas_hist_cdsem has full_name={RECIPE!r} for fab 'R3'."
+        )
+
+    def test_registry_bail_reason_travels_into_the_error(self, wired, monkeypatch):
+        # A real bail: the location hash has no entry for this recipe.
+        wired({TOOLS_KEY: {RECIPE: '["CG6300_01"]'}})
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", self._no_meas_hist)
+
+        with pytest.raises(LookupError) as excinfo:
+            oe._locate_idp("cd-sem", RECIPE, "R3")
+
+        message = str(excinfo.value)
+        assert "No document in meas_hist_cdsem" in message  # what it always said
+        assert LOC_KEY in message  # ...and now WHICH registry key came up empty
+        assert "no usable [idw, idp] entry" in message
+
+    def test_every_registry_bail_path_is_reportable(self, wired, monkeypatch):
+        # Not just the one above: whichever of the bail paths fires, the
+        # operator must be able to read it off the response.
+        wired({
+            LOC_KEY: {RECIPE: '["/R/A.idw", "/R/A.idp"]'},
+            TOOLS_KEY: {RECIPE: '["GONE_99"]'},  # not in the sem_list roster
+        })
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", self._no_meas_hist)
+
+        with pytest.raises(LookupError, match="resolves to an IP"):
+            oe._locate_idp("cd-sem", RECIPE, "R3")
+
+    def test_stays_a_bare_lookup_error_so_the_factory_maps_it_to_502(
+        self, wired, monkeypatch
+    ):
+        # back_dev_home/__init__.py handles LookupError with
+        # `if type(err) is not LookupError: return _internal_500(err)`, so
+        # re-raising as any subclass would turn this 502 into an opaque 500.
+        wired({})
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", self._no_meas_hist)
+
+        with pytest.raises(LookupError) as excinfo:
+            oe._locate_idp("cd-sem", RECIPE, "R3")
+        assert type(excinfo.value) is LookupError
+
+    def test_no_registry_clause_when_the_registry_answered(self, wired, monkeypatch):
+        # Nothing to explain when the registry succeeded — and no error at all.
+        wired({
+            LOC_KEY: {RECIPE: '["/R/A.idw", "/R/A.idp"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", self._no_meas_hist)
+        assert oe._locate_idp("cd-sem", RECIPE, "R3")
+
+
 THREE = [
     oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A"),
     oe._IdpLocation("CG6300_07", "10.1.2.7", "ADI", "A", "A"),
