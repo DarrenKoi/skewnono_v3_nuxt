@@ -33,6 +33,19 @@
             >{{ data.stage.toUpperCase() }}</span>
             <span class="font-mono text-[11px] text-white/60">{{ data.name }}</span>
           </div>
+          <!-- Overriding #content drops UModal's own ✕, so carry one here.
+               Over the image, not the dialog corner, which holds 빔 조건. -->
+          <button
+            type="button"
+            class="absolute top-3 right-3 rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
+            aria-label="닫기"
+            @click="open = false"
+          >
+            <UIcon
+              name="i-lucide-x"
+              class="h-4 w-4"
+            />
+          </button>
         </div>
 
         <div class="max-h-[88vh] overflow-auto rounded-xl bg-zinc-50/60 px-4 py-3 dark:bg-zinc-900/40">

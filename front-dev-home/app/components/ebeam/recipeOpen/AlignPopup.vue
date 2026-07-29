@@ -3,8 +3,11 @@
     v-model:open="open"
     :ui="{ content: 'w-[88vw] sm:max-w-[760px]' }"
   >
+    <!-- The ✕ is hand-rolled because UModal renders its own inside the #header
+         slot's FALLBACK — overriding #header drops it. Same classes as the
+         stock one (theme `close`), so it lands in the same spot. -->
     <template #header>
-      <div class="px-1 py-1">
+      <div class="px-1 py-1 pe-8">
         <p class="sk-eyebrow text-(--sk-brand)">
           WAFER_ALIGN_INFO
         </p>
@@ -15,6 +18,14 @@
           레시피의 wafer alignment 측정점 {{ rows.length }}개. 일반적으로 조회 빈도가 낮아 별도 창으로 분리했습니다.
         </p>
       </div>
+      <UButton
+        icon="i-lucide-x"
+        color="neutral"
+        variant="ghost"
+        aria-label="닫기"
+        class="absolute end-4 top-4"
+        @click="open = false"
+      />
     </template>
 
     <template #body>
@@ -106,6 +117,19 @@
             </span>
             <span class="font-mono text-[11px] text-white/60">{{ zoom.image }}</span>
           </div>
+          <!-- Over the image, not the dialog corner: the corner is occupied by
+               the 빔 조건 panel heading. -->
+          <button
+            type="button"
+            class="absolute top-3 right-3 rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
+            aria-label="닫기"
+            @click="zoom = null"
+          >
+            <UIcon
+              name="i-lucide-x"
+              class="h-4 w-4"
+            />
+          </button>
         </div>
 
         <div class="max-h-[88vh] space-y-3 overflow-auto">
