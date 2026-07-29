@@ -13,6 +13,9 @@
 | --- | --- | --- |
 | `/recipes` | Redis hash per tool family | wired |
 | `/recipe-detail` | tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
+| `/param-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
+| `/align-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
+| `/recipe-image` | tool FTP raw folder (bytes) | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
 
 **The "compare is derived from open" invariant is knowingly broken office-side
@@ -22,10 +25,33 @@ that means one FTP session per distinct `eqp_ip` with every requested recipe's
 `.idp` batched into a single `HostSpec(files=[...])` — compare accepts up to
 200 names, and 200 sequential downloads would hold a worker for minutes.
 
-Two fields stay **fabricated even at the office** because the parser does not
-return them: `align_images` and `amp_info`. They are isolated in
-`_sourceless_extras()` so there is one place to delete when a source lands; the
-candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
+`align_images` and `amp_info` used to be **fabricated even at the office**,
+isolated in `_sourceless_extras()` against the day a source landed. It landed
+on 2026-07-29: the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`),
+read by a second 사내 parser, `office_utils.idp_amp_reader`. Both keys and that
+function are gone; three endpoints replace them.
+
+### What the office adapter owes the raw-folder endpoints
+
+- **`office_utils.idp_amp_reader`** must be importable — `read_amp_info`,
+  `read_af_pr_condition`, `read_meas_image_condition`, each accepting a path,
+  bytes, or a string. A gitignored home stand-in of the same name exists at the
+  repo root so the adapter can be written and run at home.
+- **Naming is not the adapter's business.** Every path comes from
+  `recipe_search/rawfiles.py`, which is pure and fully tested at home. Do not
+  re-derive `.jpeg`, the `PR`→`EN` swap, the four-digit padding, or the
+  `.`-prefixed `cond.txt` sidecar in the adapter. Schema of record:
+  `docs/datatables/recipe_idp.txt`.
+- **A missing file is not an error.** `_fetch_raw` logs it and omits it from the
+  result; `_read_block` turns both an absent file and a reader that raises into
+  `None`, which renders as 파일 없음 on a **200**. Only the FTP session itself
+  failing may raise. A parameter legitimately lacking a third addressing image
+  or an AF/PR setting is the common case.
+- **`fetch_recipe_image` must raise `LookupError`** when the image is absent, so
+  the route can answer 404 and `<img>` falls back to its own broken state rather
+  than decoding a JSON error body as a picture.
+- **`get_param_detail` groups by locator before fetching**, so a compare across
+  N recipes on one tool is one FTP session rather than N.
 
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipes
 
@@ -78,9 +104,8 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
   class RecipeDetailResponse(TypedDict):
       wafer_mp_info: list[WaferMpInfoRow]
       wafer_align_info: list[WaferAlignInfoRow]
-      align_images: list[AlignImageRow]
       idp_image_info: list[IdpImageInfoRow]
-      amp_info: list[AmpRow]
+      locator: IdpLocator          # eqp_ip / class_name / idw / idp
       recipe_id: str
       fac_id: str
       tool_category: str
@@ -91,13 +116,15 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
   from `sha256(recipe_id:fac_id:tool_category)` (defaults `"DUMMY_RECIPE_001"`,
   `"R3"`, `"cd-sem"` when args are `None`) so a given recipe/fab/tool triple is
   reproducible. `wafer_mp_info` is 50 measurement-point rows, `wafer_align_info`
-  is 10 alignment rows, `align_images` is always exactly 2 rows (global + fine
-  alignment), `idp_image_info` is 20 rows (one per synthetic parameter), and
-  `amp_info` is `len(idp_image_info) * len(IMAGE_SLOTS)` rows — one AMP row
-  per (parameter, image slot) pair, keyed off `IMAGE_SLOTS` (3 "address" slots
-  + 2 "measure" slots). Address-role AMP rows populate
-  `Template`/`MatchScore`/`SearchArea`/`Rotation` and null out
-  `Algo`/`ROI`/`EdgeThr`/`EdgeDir`/`Smooth`; measure-role rows are the mirror
+  is 10 alignment rows, and `idp_image_info` is 20 rows (one per synthetic
+  parameter) whose five `img_*` values follow the office naming convention
+  (`IMMP0001`, `PRMP0000`, `IMMS0000`, `PRMS0000`, `I2MP0000` — eight
+  characters, no extension), with the French `"non"` sentinel on the optional
+  slots so the no-file path is exercised at home. `locator` is derived from the
+  recipe id, inside `10.0.0.0/8` so it survives `validate_tool_ip`; nothing
+  listens on it, which is correct — no adapter opens a socket at home. AMP and
+  the beam conditions are NOT part of this response: they are fetched per click
+  through `/param-detail`
   image. `timestamp` is `datetime.now().isoformat()` — a volatile field
   scrubbed by the parity harness (`VOLATILE_KEYS`), so office does not need to
   match it byte-for-byte.
@@ -183,13 +210,16 @@ candidate is the raw-recipe folder beside the `.idp` (`data/{idw}/{idp}/`).
 
 - Mock behavior: for each name in `recipe_names` (blank names skipped after
   `.strip()`), calls `get_recipe_open_data(recipe_id=name, fac_id=fab_name,
-  tool_category=tool_type)` and reshapes its `idp_image_info`/`amp_info` into
+  tool_category=tool_type)` and reshapes its `idp_image_info` into
   a compact per-parameter view — so compare data always matches what
   `/recipe-detail` would return for the same recipe. `idp` is restricted to
   `COMPARE_IDP_FIELDS` (`Addressing`, `Double_Addressing`, `Mother_Para`,
   `Region`, `Meas_Counting`, `dnumber_removed`); `images` maps each
-  `IMAGE_SLOTS` key to that parameter's filename; `amp` is that parameter's
-  AMP rows grouped by `Parameter`. Duplicate `Parameter` values within one
+  `IMAGE_SLOTS` key to that parameter's slot value, which the client posts
+  straight back as `/param-detail`'s `slots`. AMP is no longer part of this
+  payload — compare fetches it per visible cell, so the two screens cannot
+  disagree. Each recipe carries its own `locator`, because those fetches are per
+  tool. Duplicate `Parameter` values within one
   recipe's `idp_image_info` are de-duplicated (first occurrence wins).
 - Office data source: **NOT WIRED — mock-backed**, and now the only endpoint
   that is. Re-exported (not reimplemented) so that when the batched IDP fetch
