@@ -212,3 +212,12 @@ class TestLocateViaRedis:
             TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
         })
         assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is not None
+
+    def test_empty_path_component_falls_back(self, wired):
+        # _stem("") is "" — assembling a path from it would produce a malformed
+        # FTP path like data//B.idp, a plausible path to nothing.
+        wired({
+            LOC_KEY: {RECIPE: '["", "/Recipe/ADI/B.idp"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
