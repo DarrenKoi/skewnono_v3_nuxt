@@ -171,6 +171,7 @@ import type {
   RecipeDetailResponse,
   RecipeSearchToolType
 } from '~/composables/useRecipeSearchApi'
+import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import {
   fetchParamDetails,
@@ -259,7 +260,7 @@ const locator = computed<IdpLocator>(() => data.value?.locator ?? {
   eqp_ip: '', class_name: '', idw: '', idp: ''
 })
 
-const toolSlug = computed(() => props.toolType === 'hv-sem' ? 'hvsem' : 'cdsem')
+const toolSlug = computed(() => toBackendSlug(props.toolType))
 
 // Settings for the selected parameter, fetched on selection. Cached per
 // (recipe, parameter) so clicking back to a parameter already viewed is free —

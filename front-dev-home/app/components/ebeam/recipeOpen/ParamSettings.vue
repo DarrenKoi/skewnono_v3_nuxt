@@ -10,7 +10,7 @@
       >불러오는 중…</span>
       <span
         v-else-if="error"
-        class="text-[11px] text-(--sk-danger)"
+        class="text-xs text-rose-600 dark:text-rose-400"
       >설정을 불러오지 못했습니다.</span>
     </div>
 

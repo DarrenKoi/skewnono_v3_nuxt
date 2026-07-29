@@ -7,6 +7,7 @@ rows, never to a 500 on a screen that used to work.
 """
 
 import pandas as pd
+import pytest
 
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.providers import office_example as office
@@ -166,3 +167,165 @@ def test_both_providers_plan_a_parameter_identically():
     assert [(i["slot"], i["name"]) for i in mocked["images"]] == [
         (slot, name) for slot, name, _ in images
     ]
+
+
+# ── _fetch_many ───────────────────────────────────────────────────────────
+#
+# The batched FTP fan-out is office-only, but its RESULT MATCHING is pure
+# bookkeeping and is where a fleet call goes wrong silently: bytes landing under
+# the wrong recipe read as real settings. A fake downloader makes it testable
+# here instead of only at the office.
+
+
+class _FakeResult:
+    def __init__(self, host, remote_path, data):
+        self.host, self.remote_path, self.data = host, remote_path, data
+
+
+class _FakeFailure:
+    """Mirrors ftp_handler's HostFailure: ``remote_path`` is None when the
+    failure happened before any specific file (connect / login / listing)."""
+
+    def __init__(self, remote_path, error="550", host="10.0.0.1"):
+        self.remote_path, self.error, self.host = remote_path, error, host
+
+
+class _FakeReport:
+    def __init__(self, files, failures=()):
+        self.files, self.failures = files, list(failures)
+
+    def grouped(self):
+        out = {}
+        for f in self.files:
+            out.setdefault(f.host, {})[f.remote_path] = f.data
+        return out
+
+
+class _FakeDownloader:
+    """Serves `available`; records the specs it was handed."""
+
+    def __init__(self, available):
+        self.available = available
+        self.calls = []
+
+    host_down = False
+
+    def download(self, specs):
+        self.calls.append(specs)
+        if self.host_down:
+            # remote_path=None — the library's marker for connect/login failure.
+            return _FakeReport([], [
+                _FakeFailure(None, "ConnectionRefusedError", spec.host)
+                for spec in specs
+            ])
+        files = [
+            _FakeResult(spec.host, path, self.available[(spec.host, path)])
+            for spec in specs
+            for path in spec.files
+            if (spec.host, path) in self.available
+        ]
+        missing = [
+            _FakeFailure(path, host=spec.host) for spec in specs for path in spec.files
+            if (spec.host, path) not in self.available
+        ]
+        return _FakeReport(files, missing)
+
+
+class _FakeSpec:
+    def __init__(self, host, files=()):
+        self.host, self.files = host, list(files)
+
+
+def _patch_ftp(monkeypatch, available):
+    downloader = _FakeDownloader(available)
+    monkeypatch.setattr(office, "_transport", lambda: (object, _FakeSpec, "fake"))
+    monkeypatch.setattr(office, "_downloader", lambda _cls, _cfg: downloader)
+    return downloader
+
+
+A = ("10.0.0.1", "CLS", "IDW_A", "IDP_A")
+B = ("10.0.0.2", "CLS", "IDW_B", "IDP_B")
+
+
+def _path(key, name):
+    return rawfiles.remote_path(rawfiles.raw_dir(key[1], key[2], key[3]), name)
+
+
+def test_fetch_many_issues_exactly_one_download_for_many_hosts(monkeypatch):
+    """The whole point of the batch: N tools must be one fleet call, not N."""
+    downloader = _patch_ftp(monkeypatch, {
+        (A[0], _path(A, "PRMS0001")): b"a",
+        (B[0], _path(B, "PRMS0002")): b"b",
+    })
+    out = office._fetch_many({A: ["PRMS0001"], B: ["PRMS0002"]})
+
+    assert len(downloader.calls) == 1
+    assert {spec.host for spec in downloader.calls[0]} == {A[0], B[0]}
+    assert out[A] == {"PRMS0001": b"a"}
+    assert out[B] == {"PRMS0002": b"b"}
+
+
+def test_fetch_many_does_not_cross_wire_the_same_path_on_two_hosts(monkeypatch):
+    """Two tools can hold the same recipe at the same path. Matching on path
+    alone would give one recipe the other's settings — silently plausible."""
+    same = ("10.0.0.1", "CLS", "IDW_X", "IDP_X")
+    other = ("10.0.0.2", "CLS", "IDW_X", "IDP_X")
+    _patch_ftp(monkeypatch, {
+        (same[0], _path(same, "PRMS0001")): b"from-host-1",
+        (other[0], _path(other, "PRMS0001")): b"from-host-2",
+    })
+    out = office._fetch_many({same: ["PRMS0001"], other: ["PRMS0001"]})
+
+    assert out[same] == {"PRMS0001": b"from-host-1"}
+    assert out[other] == {"PRMS0001": b"from-host-2"}
+
+
+def test_fetch_many_omits_missing_files_without_raising(monkeypatch):
+    """A missing file is normal — it must be absent, not an exception."""
+    _patch_ftp(monkeypatch, {(A[0], _path(A, "PRMS0001")): b"a"})
+    out = office._fetch_many({A: ["PRMS0001", "ENMP0001"]})
+
+    assert out[A] == {"PRMS0001": b"a"}
+    assert "ENMP0001" not in out[A]
+
+
+def test_fetch_many_returns_an_entry_for_every_locator_asked_for(monkeypatch):
+    """Every requested file being absent is NOT an outage.
+
+    A parameter can legitimately ask only for a cond.txt that does not exist.
+    The host answered — it just had nothing — so this must be an empty entry on
+    a 200, never a 502.
+    """
+    _patch_ftp(monkeypatch, {})
+    out = office._fetch_many({A: ["PRMS0001"], B: ["PRMS0002"]})
+    assert out == {A: {}, B: {}}
+
+
+def test_fetch_many_raises_when_the_host_itself_is_unreachable(monkeypatch):
+    """The 502 the spec promises. HostFailure.remote_path is None when the
+    failure happened before any specific file — connect, login or listing —
+    which is the only reliable "tool is down" signal in the report."""
+    from back_dev_home.msr_image.errors import SourceUnavailable
+
+    downloader = _patch_ftp(monkeypatch, {})
+    downloader.host_down = True
+    with pytest.raises(SourceUnavailable):
+        office._fetch_many({A: ["PRMS0001"]})
+
+
+def test_fetch_many_skips_locators_with_no_names(monkeypatch):
+    downloader = _patch_ftp(monkeypatch, {})
+    assert office._fetch_many({A: []}) == {}
+    assert downloader.calls == []
+
+
+def test_fetch_many_deduplicates_a_repeated_name(monkeypatch):
+    downloader = _patch_ftp(monkeypatch, {(A[0], _path(A, "PRMS0001")): b"a"})
+    office._fetch_many({A: ["PRMS0001", "PRMS0001"]})
+    assert downloader.calls[0][0].files == [_path(A, "PRMS0001")]
+
+
+def test_fetch_raw_is_the_single_locator_case(monkeypatch):
+    _patch_ftp(monkeypatch, {(A[0], _path(A, "PRMS0001")): b"a"})
+    locator = {"eqp_ip": A[0], "class_name": A[1], "idw": A[2], "idp": A[3]}
+    assert office._fetch_raw(locator, ["PRMS0001"]) == {"PRMS0001": b"a"}

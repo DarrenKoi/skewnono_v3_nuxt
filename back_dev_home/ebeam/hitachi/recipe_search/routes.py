@@ -37,6 +37,11 @@ _MAX_PARAM_ITEMS = 200
 # the guard it needs is the SSRF one, not the traversal one.
 _LOCATOR_SEGMENTS = ("class_name", "idw", "idp")
 
+# Each align point costs two FTP paths. A recipe has roughly ten; the cap is a
+# ceiling on what a client can make the backend ask a tool for, not a limit any
+# real recipe approaches.
+_MAX_ALIGN_POINTS = 200
+
 
 def _resolve_tool_type(tool_slug: str) -> ToolType | None:
     return TOOL_BY_SLUG.get(tool_slug.strip().lower())
@@ -179,7 +184,14 @@ def recipe_search_param_detail(tool_slug: str):
     except MsrImageError as exc:
         return _error(exc)
 
-    return jsonify(get_param_detail(clean))
+    # The provider call is inside the guard too: a tool that refuses the
+    # connection raises SourceUnavailable from deep in the FTP layer, and
+    # without this it would surface as a 500 traceback instead of the coded
+    # 503 the rest of the tool-FTP surface returns.
+    try:
+        return jsonify(get_param_detail(clean))
+    except MsrImageError as exc:
+        return _error(exc)
 
 
 @bp.get("/<tool_slug>/recipe-search/align-detail")
@@ -201,8 +213,15 @@ def recipe_search_align_detail(tool_slug: str):
         p_numbers = [int(part) for part in raw.split(",") if part.strip()]
     except ValueError:
         return jsonify({"error": "p_numbers must be comma-separated integers"}), 400
+    if len(set(p_numbers)) > _MAX_ALIGN_POINTS:
+        return jsonify({
+            "error": f"p_numbers exceeds the {_MAX_ALIGN_POINTS}-point limit"
+        }), 400
 
-    return jsonify(get_align_detail(locator, p_numbers))
+    try:
+        return jsonify(get_align_detail(locator, p_numbers))
+    except MsrImageError as exc:
+        return _error(exc)
 
 
 @bp.get("/<tool_slug>/recipe-search/recipe-image")
@@ -227,6 +246,11 @@ def recipe_search_recipe_image(tool_slug: str):
 
     try:
         payload, content_type = fetch_recipe_image(locator, name)
+    except MsrImageError as exc:
+        # An unreachable TOOL is not a missing image. Collapsing both into 404
+        # would tell the user the file does not exist when the tool is simply
+        # down — caught before LookupError because it is the narrower case.
+        return _error(exc)
     except LookupError:
         # A real 404, so <img> falls back to its own broken state instead of
         # trying to decode a JSON error body as a picture.

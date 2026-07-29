@@ -2,7 +2,7 @@
   <div class="flex min-w-0 flex-col gap-1">
     <button
       type="button"
-      class="relative mx-auto block aspect-square w-full max-w-[180px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] p-0 dark:border-zinc-700"
+      class="relative mx-auto block aspect-square w-full max-w-[180px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) p-0 dark:border-zinc-700"
       :aria-label="`${stage} 확대해서 보기`"
       @click="emit('open')"
     >
@@ -24,7 +24,7 @@
       >
       <div
         v-else
-        class="flex h-full w-full items-center justify-center px-2 text-center font-mono text-[10px] text-white/45"
+        class="flex h-full w-full items-center justify-center px-2 text-center font-mono text-xs text-white/45"
       >
         {{ failed ? '이미지를 불러오지 못했습니다' : '이미지 없음' }}
       </div>

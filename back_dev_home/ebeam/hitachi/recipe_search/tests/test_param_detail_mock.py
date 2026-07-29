@@ -117,3 +117,55 @@ def test_recipe_image_is_stable_and_name_dependent():
     other, _ = mock.fetch_recipe_image(LOCATOR, "IMMP0002.jpeg")
     assert first == again
     assert first != other
+
+
+def test_the_mock_does_not_import_the_office_only_parser():
+    """The mock must run on a clean checkout.
+
+    ``office_utils`` is gitignored, so a fresh clone does not have it. The
+    office adapter importing it is correct — it only ever runs where the real
+    package exists — but the mock is what every home session and CI actually
+    run against, and it briefly imported it too: 19 tests failed the moment the
+    folder was absent. Asserting on the source keeps that from creeping back
+    through a helper that only fails on someone else's machine.
+    """
+    import ast
+    import pathlib
+
+    source = pathlib.Path(mock.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imported.append(node.module)
+        elif isinstance(node, ast.Import):
+            imported += [alias.name for alias in node.names]
+
+    offenders = [name for name in imported if name.split(".")[0] == "office_utils"]
+    assert not offenders, f"mock.py must not import office_utils: {offenders}"
+
+
+def test_two_recipes_sharing_a_filename_get_different_settings():
+    """Seeded on the recipe as well as the file.
+
+    Slot values repeat across recipes (both have a SEQ 1 row, so both name
+    PRMS0001). Seeding on the filename alone would hand two genuinely different
+    recipes identical settings, and the compare screen would show no diff where
+    the office shows one.
+    """
+    slots = {"img_meas2": "PRMS0001"}
+    first = mock.get_param_detail([{
+        "locator": {**LOCATOR, "idp": "IDP_ONE"}, "parameter": "Para_1", "slots": slots,
+    }])[0]
+    second = mock.get_param_detail([{
+        "locator": {**LOCATOR, "idp": "IDP_TWO"}, "parameter": "Para_1", "slots": slots,
+    }])[0]
+
+    assert first["amp"]["source"] == second["amp"]["source"] == "PRMS0001"
+    assert first["amp"]["rows"] != second["amp"]["rows"]
+
+
+def test_align_settings_also_vary_by_recipe():
+    one = mock.get_align_detail({**LOCATOR, "idp": "IDP_ONE"}, [1])["points"][0]
+    two = mock.get_align_detail({**LOCATOR, "idp": "IDP_TWO"}, [1])["points"][0]
+    assert one["setting"]["rows"] != two["setting"]["rows"]

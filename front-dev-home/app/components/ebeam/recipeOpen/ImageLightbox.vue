@@ -8,7 +8,7 @@
         v-if="open && data"
         class="grid h-full max-h-[88vh] grid-cols-1 gap-4 p-4 md:grid-cols-[1.4fr_320px]"
       >
-        <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]">
+        <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-(--sk-field)">
           <!-- No `loading="lazy"` here: the user has already asked for this one. -->
           <img
             v-if="!failed"

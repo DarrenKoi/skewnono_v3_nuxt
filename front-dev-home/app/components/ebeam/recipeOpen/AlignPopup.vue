@@ -29,7 +29,7 @@
           >불러오는 중…</span>
           <span
             v-else-if="error"
-            class="text-[11px] text-(--sk-danger)"
+            class="text-xs text-rose-600 dark:text-rose-400"
           >정렬 정보를 불러오지 못했습니다.</span>
         </div>
 
@@ -45,7 +45,7 @@
             :aria-label="`P.No ${point.P_No} 정렬 이미지 확대해서 보기`"
             @click="zoom = point"
           >
-            <div class="relative mx-auto aspect-square w-full max-w-[220px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-[#23201B] transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
+            <div class="relative mx-auto aspect-square w-full max-w-[220px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
               <img
                 v-if="point.image"
                 :src="imageSrc(point.image)"
@@ -92,7 +92,7 @@
         v-if="zoom"
         class="grid h-full max-h-[88vh] grid-cols-1 gap-4 p-4 md:grid-cols-[1.4fr_320px]"
       >
-        <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#1A1813]">
+        <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-(--sk-field)">
           <img
             v-if="zoom.image"
             :src="imageSrc(zoom.image)"

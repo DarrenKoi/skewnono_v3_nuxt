@@ -109,6 +109,7 @@ import pandas as pd
 from back_dev_home._runtime.office_redis import redis_client as _redis_client
 from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
+from back_dev_home.msr_image.errors import SourceUnavailable
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignDetailResponse,
     IdpImageInfoRow,
@@ -730,6 +731,10 @@ def _fetch_many(
     addressing image or an AF/PR setting. Failures are logged and are simply
     absent from the result — only the session itself failing raises. Results are
     keyed by (locator, file NAME) so callers need not re-derive a path.
+
+    Two locators can share one host, and two hosts can hold the same path, so
+    results are matched on BOTH — which is what ``report.grouped()`` returns
+    (``{host: {remote_path: data}}``) and why it is used instead of flattening.
     """
     from back_dev_home.msr_image.config import load_config
     from back_dev_home.msr_image.paths import validate_tool_ip
@@ -741,24 +746,41 @@ def _fetch_many(
     config = load_config()
     downloader_cls, host_spec_cls, transport = _transport()
 
-    specs = []
-    # (host, remote_path) -> (locator key, name). The path alone is ambiguous:
-    # two tools can hold the same recipe at the same path.
-    origin: dict[tuple[str, str], tuple[tuple[str, str, str, str], str]] = {}
+    # host -> {remote_path -> [(locator key, name), ...]}. A list because two
+    # locators on one host CAN resolve to the same path (the same recipe opened
+    # under two names), and both must receive the bytes.
+    origin: dict[str, dict[str, list[tuple[tuple[str, str, str, str], str]]]] = {}
+    files_for: dict[str, set[str]] = {}
     for key, names in wanted.items():
         eqp_ip, class_name, idw, idp = key
         # Unlike _download_idp, whose IP comes from OpenSearch, this one arrives
         # from the client — so the guard here is the SSRF gate, not a formality.
         validate_tool_ip(eqp_ip, config.allowed_subnets)
         raw = rawfiles.raw_dir(class_name, idw, idp)
-        paths = []
         for name in dict.fromkeys(names):
             path = rawfiles.remote_path(raw, name)
-            origin[(eqp_ip, path)] = (key, name)
-            paths.append(path)
-        specs.append(host_spec_cls(eqp_ip, files=sorted(paths)))
+            origin.setdefault(eqp_ip, {}).setdefault(path, []).append((key, name))
+            files_for.setdefault(eqp_ip, set()).add(path)
 
+    specs = [
+        host_spec_cls(eqp_ip, files=sorted(paths))
+        for eqp_ip, paths in files_for.items()
+    ]
     report = _downloader(downloader_cls, config).download(specs)
+
+    # ``HostFailure.remote_path is None`` means the failure happened BEFORE any
+    # specific file — connect, login or listing — which is the tool being
+    # unreachable, not a file being absent. That distinction is the whole 502:
+    # counting "answered nothing" instead would report a healthy tool as down
+    # whenever the only file a parameter asked for legitimately does not exist.
+    unreachable = {f.host: f.error for f in report.failures if f.remote_path is None}
+    if unreachable:
+        raise SourceUnavailable(
+            "raw-recipe folder unreachable on "
+            + "; ".join(f"{host} ({error})" for host, error in sorted(unreachable.items()))
+            + f" (transport: {transport})"
+        )
+
     for failure in report.failures:
         _LOG.info(
             "recipe_search: %s absent via %s (%s) — rendered as 파일 없음",
@@ -766,17 +788,10 @@ def _fetch_many(
         )
 
     out: dict[tuple[str, str, str, str], dict[str, bytes]] = {key: {} for key in wanted}
-    for result in report.files:
-        found = origin.get((getattr(result, "host", ""), result.remote_path))
-        if found is None:
-            # Single-host reports may omit `host`; fall back to path alone,
-            # which is unambiguous whenever only one locator asked for it.
-            matches = [v for (_, path), v in origin.items() if path == result.remote_path]
-            if len(matches) != 1:
-                continue
-            found = matches[0]
-        key, name = found
-        out[key][name] = result.data
+    for host, by_path in report.grouped().items():
+        for path, data in by_path.items():
+            for key, name in origin.get(host, {}).get(path, ()):
+                out[key][name] = data
     return out
 
 

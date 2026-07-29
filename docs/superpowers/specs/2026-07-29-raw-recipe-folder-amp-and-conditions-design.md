@@ -165,8 +165,11 @@ one request. The open screen sends a one-element list, so both screens share the
 endpoint. `…/compare` is already a POST, so this is consistent rather than novel.
 
 Images stay GET so the browser's own cache absorbs repeat views —
-`Cache-Control: public, max-age=3600`, copied from `msr_image`'s serve route.
-Nothing is stored on the Flask host: bytes go FTP → memory → `Response`.
+`Cache-Control` copied from `msr_image`'s serve route. **Changed during
+implementation** to `public, max-age=31536000, immutable` rather than
+`max-age=3600`: a raw-recipe file cannot change for a given recipe, and at one
+hour every thumbnail costs a fresh FTP session to a production tool. Nothing is
+stored on the Flask host: bytes go FTP → memory → `Response`.
 
 Per parameter click that is **one** `param-detail` POST plus lazy `<img>` GETs as
 thumbnails come into view. The POST fetches at most five files in a single
@@ -223,8 +226,14 @@ office adds appears on screen without a code change.
 
 `CompareMatrix.vue` already scopes its view to one `(parameter, slotKey)` pair,
 so a visible cell needs AMP for *N recipes × 1 parameter* — one `param-detail`
-POST carrying N items. It never fetches the full cross-product, so the
+POST carrying N items. Browsing never fetches the full cross-product, so the
 200-recipe cap stays reachable.
+
+**One exception, added during implementation:** the xlsx export covers every
+*selected* parameter, not just the visible cell, so it does fetch the
+cross-product — minus whatever browsing already cached, and chunked across
+requests because the server caps one POST at 200 items. Nothing on screen
+triggers it; only pressing 내보내기 does.
 
 The alternative — leaving compare on fabricated AMP — was rejected: the same
 recipe would then show real settings on the open screen and invented settings on
@@ -238,12 +247,20 @@ actively misleading.
 | Slot is `"non"` or empty | No FTP call at all; slot renders 없음 |
 | File absent on FTP | Block is `None`, HTTP **200**, panel shows 파일 없음 |
 | Reader raises on a real file | Block is `None`, warning logged with the filename |
-| FTP host/session failure | 502 |
+| FTP host/session failure | **503** (see note) |
 | Image absent | HTTP **404** |
 
 A missing file is normal here, not a failure — parameters legitimately lack
 addressing images or AF/PR settings, and a recipe with two `"non"` slots is
-healthy. Only the transport failing is an error. The image case returns a real
+healthy. Only the transport failing is an error.
+
+**Implementation note (2026-07-29):** this section originally said 502. The code
+raises `msr_image.errors.SourceUnavailable`, which is **503** — reusing the
+sibling feature's existing error hierarchy beat minting a second convention on
+the same tool-FTP surface. The signal is `HostFailure.remote_path is None`
+(connect/login/listing failed), *not* "no file came back": a parameter can
+legitimately request only a `cond.txt` that does not exist, and counting that as
+an outage would report a healthy tool as down. The image case returns a real
 404 rather than a JSON body so `<img>` falls back to its own broken-image state
 instead of trying to decode an error message as a picture.
 

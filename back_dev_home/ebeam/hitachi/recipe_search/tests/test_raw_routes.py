@@ -185,3 +185,41 @@ def test_recipe_image_404s_when_the_provider_cannot_find_it(client, monkeypatch)
     response = client.get("/api/cdsem/recipe-search/recipe-image",
                           query_string={**LOCATOR, "name": "IMMP9999.jpeg"})
     assert response.status_code == 404
+
+
+def test_an_unreachable_tool_is_503_not_a_silent_200(client, monkeypatch):
+    """A dead tool must not read as 'this recipe has no settings'.
+
+    Every block coming back None on a 200 is exactly what a healthy recipe with
+    no files looks like, so the two have to be distinguishable. 503 is
+    msr_image's existing SourceUnavailable status, reused rather than reinvented.
+    """
+    from back_dev_home.msr_image.errors import SourceUnavailable
+
+    def _down(_items):
+        raise SourceUnavailable("raw-recipe folder unreachable on 10.1.2.3")
+
+    monkeypatch.setattr(routes, "get_param_detail", _down)
+    response = client.post("/api/cdsem/recipe-search/param-detail",
+                           json={"items": [_item()]})
+    assert response.status_code == 503
+    assert response.get_json()["code"] == "office_source_unavailable"
+
+
+def test_an_unreachable_tool_on_the_image_route_is_not_a_404(client, monkeypatch):
+    from back_dev_home.msr_image.errors import SourceUnavailable
+
+    def _down(_locator, _name):
+        raise SourceUnavailable("unreachable")
+
+    monkeypatch.setattr(routes, "fetch_recipe_image", _down)
+    response = client.get("/api/cdsem/recipe-search/recipe-image",
+                          query_string={**LOCATOR, "name": "IMMP0001.jpeg"})
+    assert response.status_code == 503
+
+
+def test_align_detail_caps_the_point_list(client):
+    response = client.get("/api/cdsem/recipe-search/align-detail",
+                          query_string={**LOCATOR,
+                                        "p_numbers": ",".join(str(i) for i in range(300))})
+    assert response.status_code == 400

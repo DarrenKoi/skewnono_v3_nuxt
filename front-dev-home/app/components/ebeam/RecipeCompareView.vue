@@ -195,6 +195,7 @@ import {
   imageFilenames
 } from '~/utils/recipeCompare'
 import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamDetail'
+import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import { recipeNamesForCompare } from '~/utils/recipeSelection'
 
@@ -286,7 +287,7 @@ const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'params', label: 'Params', value: selectedParameters.value.length.toLocaleString(), tone: 'neutral' }
 ])
 
-const toolSlug = computed(() => props.toolType === 'hv-sem' ? 'hvsem' : 'cdsem')
+const toolSlug = computed(() => toBackendSlug(props.toolType))
 
 /**
  * Settings for the VISIBLE cell only — one item per recipe, one request.

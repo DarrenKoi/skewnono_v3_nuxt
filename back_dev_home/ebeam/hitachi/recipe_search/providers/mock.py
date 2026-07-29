@@ -277,22 +277,41 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
 # ── raw-recipe folder (spec 2026-07-29) ───────────────────────────────────
 
 
-def _block(source: str | None, reader) -> SettingBlock | None:
-    """A SettingBlock from a reader, or None when the slot names no file.
+# Field-name stems for the three raw-file kinds. Deliberately NOT plausible
+# optical names (Mag, Vacc): the office reader's real field names are still
+# OFFICE-VERIFY, and a mock that invents credible ones teaches the frontend to
+# expect columns the office may never send — exactly how AmpRow's sixteen
+# invented fields went unquestioned for months.
+_AMP_FIELDS = 8
+_AFPR_FIELDS = 6
+_COND_FIELDS = 5
 
-    The mock feeds the reader the file's NAME where the office feeds it the
-    file's BYTES. Both are accepted by ``idp_amp_reader`` (path | bytes | str),
-    and the name is the only recipe-stable identity available at home — so the
-    same parameter yields the same settings on every refresh, which is what
-    keeps a recipe compared against itself from showing differences.
+
+def _block(source: str | None, prefix: str, count: int, *scope: str) -> SettingBlock | None:
+    """Fabricated settings for one raw file, or None when the slot names none.
+
+    Generated HERE rather than through ``office_utils.idp_amp_reader``: that
+    package is office-only and gitignored, so importing it would make the mock —
+    the thing every home session and a fresh clone actually run — depend on a
+    file that is not in the repository. The office adapter imports it; this one
+    must not.
+
+    ``scope`` carries the recipe identity as well as the filename. Seeding on
+    the filename alone would make two different recipes that share a SEQ return
+    identical settings, so a compare of two genuinely different recipes would
+    silently show no differences.
     """
     if source is None:
         return None
+    digest = hashlib.sha256(":".join((*scope, source)).encode("utf-8")).hexdigest()
     return {
         "source": source,
         "rows": [
-            {"key": str(key), "value": str(value)}
-            for key, value in reader(source).items()
+            {
+                "key": f"{prefix}_FIELD_{index + 1}",
+                "value": digest[index * 4:(index + 1) * 4].upper()
+            }
+            for index in range(count)
         ]
     }
 
@@ -326,28 +345,24 @@ def get_param_detail(
     only 20 requests per 5 s per user — as N separate calls a 20-recipe compare
     would trip the limit on the first cell a user looked at.
     """
-    from office_utils.idp_amp_reader import (
-        read_af_pr_condition,
-        read_amp_info,
-        read_meas_image_condition,
-    )
-
     stage_of = {slot["key"]: slot["stage"] for slot in IMAGE_SLOTS}
     out: list[ParamDetailResponse] = []
     for item in items:
         # Same planner the office adapter uses, so the two cannot disagree
         # about which file a slot names.
         amp, af_pr, images = rawfiles.slot_sources(item.get("slots") or {})
+        locator = item.get("locator") or {}
+        scope = (str(locator.get("idp", "")), item.get("parameter", ""))
         out.append({
             "parameter": item.get("parameter", ""),
-            "amp": _block(amp, read_amp_info),
-            "af_pr": _block(af_pr, read_af_pr_condition),
+            "amp": _block(amp, "AMP", _AMP_FIELDS, *scope),
+            "af_pr": _block(af_pr, "AFPR", _AFPR_FIELDS, *scope),
             "images": [
                 {
                     "slot": slot,
                     "stage": stage_of.get(slot, slot),
                     "name": name,
-                    "cond": _block(cond, read_meas_image_condition)
+                    "cond": _block(cond, "COND", _COND_FIELDS, *scope)
                 }
                 for slot, name, cond in images
             ]
@@ -364,19 +379,15 @@ def get_align_detail(
     Points are the sorted unique ``P.No`` values — the align table repeats a
     P.No across rows, and each distinct one names exactly one file set.
     """
-    from office_utils.idp_amp_reader import (
-        read_af_pr_condition,
-        read_meas_image_condition,
-    )
-
+    scope = str((locator or {}).get("idp", ""))
     points: list[AlignPoint] = []
     for p_no in sorted({int(p) for p in p_numbers}):
         image, setting = rawfiles.align_names(p_no)
         points.append({
             "P_No": p_no,
             "image": image,
-            "cond": _block(rawfiles.cond_source(image), read_meas_image_condition),
-            "setting": _block(setting, read_af_pr_condition)
+            "cond": _block(rawfiles.cond_source(image), "COND", _COND_FIELDS, scope),
+            "setting": _block(setting, "AFPR", _AFPR_FIELDS, scope)
         })
     return {"points": points}
 
