@@ -51,11 +51,6 @@ export interface WaferAlignInfoRow {
   'P.No': number
 }
 
-export interface AlignImage {
-  label: string
-  filename: string
-}
-
 export interface IdpImageInfoRow {
   Parameter: string
   img_add1: string
@@ -75,37 +70,23 @@ export interface IdpImageInfoRow {
   dnumber_removed: boolean
 }
 
-export type AmpRole = 'address' | 'measure'
-
-export interface AmpRow {
-  parameter: string
-  slot: string
-  role: AmpRole
-  stage: string
-  Mag: string
-  Vacc: string
-  I_probe: string
-  Frame: string
-  Scan: string
-  WD: string
-  Det: string
-  Template: string | null
-  MatchScore: string | null
-  SearchArea: string | null
-  Rotation: string | null
-  Algo: string | null
-  ROI: string | null
-  EdgeThr: string | null
-  EdgeDir: string | null
-  Smooth: string | null
+/**
+ * Where this recipe's raw folder lives on the measuring tool's FTP server.
+ * Carried so param-detail, align-detail and recipe-image reach it without
+ * re-downloading or re-parsing the .idp.
+ */
+export interface IdpLocator {
+  eqp_ip: string
+  class_name: string
+  idw: string
+  idp: string
 }
 
 export interface RecipeDetailResponse {
   wafer_mp_info: WaferMpInfoRow[]
   wafer_align_info: WaferAlignInfoRow[]
-  align_images: AlignImage[]
   idp_image_info: IdpImageInfoRow[]
-  amp_info: AmpRow[]
+  locator: IdpLocator
   recipe_id: string
   fac_id: string
   tool_category: RecipeSearchToolType
