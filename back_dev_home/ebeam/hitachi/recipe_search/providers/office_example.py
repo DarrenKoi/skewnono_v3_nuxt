@@ -124,18 +124,25 @@ _RECIPE_HASH: dict[ToolType, str] = {
     "hv-sem": "v3_hvsem_unique_rcp_list",
 }
 
+# The same two families, spelled the way the per-fab registry hashes spell
+# them. _RECIPE_HASH above is a whole key because the catalog has one hash per
+# family; the registry has one hash per family AND fab, so it is built instead.
+_FAMILY: dict[ToolType, str] = {"cd-sem": "cdsem", "hv-sem": "hvsem"}
+
 
 # ── catalog (Redis) ───────────────────────────────────────────────────────
 
 
-def _parse_recipe_list(value) -> list[RecipeSearchRow]:
-    """Hash value -> list of recipe names, tolerant of JSON / repr / CSV.
+def _parse_str_list(value) -> list[str]:
+    """A hash value -> list of strings, tolerant of JSON / repr / CSV.
 
-    The writer stores a Python list; whether that lands in Redis as JSON
-    (``["a", "b"]``) or a ``repr`` (``['a', 'b']``) depends on the job, and
-    both parse here. The CSV fallback covers a plain comma-joined string —
-    recipe names carry ``/`` and ``_`` but no commas, so that split is safe
-    as a last resort.
+    Shared by all three per-recipe hashes (the name catalog, the location
+    registry, the tool registry) because they are written by the same kind of
+    job: a Python list that lands in Redis as JSON (``["a", "b"]``) or as a
+    ``repr`` (``['a', 'b']``) depending on the writer, and both parse here. The
+    CSV fallback covers a plain comma-joined string — recipe names, paths and
+    equipment ids carry ``/`` and ``_`` but no commas, so that split is safe as
+    a last resort.
     """
     if isinstance(value, (bytes, bytearray)):
         value = bytes(value).decode("utf-8")
@@ -182,7 +189,7 @@ def _recipes_for_fab(client, key: str, fab_name: str) -> list[RecipeSearchRow]:
     """
     raw = client.hget(key, fab_name.strip().lower())
     if raw is not None:
-        return _unique(_parse_recipe_list(raw))
+        return _unique(_parse_str_list(raw))
     if not client.exists(key):
         raise _missing_key_error(key)
     return []
@@ -199,7 +206,7 @@ def _all_recipes(client, key: str) -> list[RecipeSearchRow]:
         raise _missing_key_error(key)
     names: list[RecipeSearchRow] = []
     for value in entries.values():
-        names.extend(_parse_recipe_list(value))
+        names.extend(_parse_str_list(value))
     return _unique(names)
 
 
@@ -277,6 +284,38 @@ def _stem(value: Any) -> str:
     already, since the stem of a name without a directory is that name.
     """
     return PurePosixPath(str(value or "").strip()).stem
+
+
+def _fab_hash(kind: str, tool_type: ToolType, fab_name: str) -> str:
+    """Redis key for one fab's per-recipe registry hash.
+
+    ``kind`` is ``"rcp_loc"`` (the ``[idw_name, idp_name]`` pair) or
+    ``"tools_in_rcp"`` (the equipment list). The fab is lowercased HERE, at the
+    Redis boundary, for the same reason the catalog does it: routes.py hands
+    down an uppercase name and nothing above this module should have to know
+    that the store disagrees.
+    """
+    family = _FAMILY.get(tool_type)
+    if family is None:
+        raise ValueError(
+            f"Unknown tool_type {tool_type!r}; expected one of {sorted(_FAMILY)}"
+        )
+    return f"v3_{family}_{kind}_{fab_name.strip().lower()}"
+
+
+def _class_name(recipe_id: str) -> str:
+    """'ADI/ADI_CD_BIAS_001' -> 'ADI'. The FTP tree's class directory.
+
+    ``full_name = f"{class_name}/{recipe_name}"``
+    (docs/datatables/meas_hist.txt), so on the Redis path the class is the
+    prefix of the key just looked up — neither registry hash carries it
+    separately, and meas_hist is not queried to get it.
+
+    A name with no ``/`` yields ``""`` rather than the name itself: using the
+    whole name would assemble a plausible path to a directory that does not
+    exist, and a blank forces the caller to fall back instead.
+    """
+    return recipe_id.split("/", 1)[0].strip() if "/" in recipe_id else ""
 
 
 def _locate_idp(
