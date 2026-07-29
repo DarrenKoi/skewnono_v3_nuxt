@@ -92,8 +92,6 @@ const option = computed<EChartsOption>(() => {
   const yAxis: YAXisComponentOption[] = []
   const series: LineSeriesOption[] = []
 
-  const cols = props.model.columns
-
   for (const { cell, row, rowIdx, colIdx } of flatCells.value) {
     const id = `${rowIdx}|${colIdx}`
     const color = colorFor(cell)
@@ -101,9 +99,9 @@ const option = computed<EChartsOption>(() => {
     grids.push({
       id,
       coordinateSystem: 'matrix',
-      // The CD row spans every column; all other cells occupy one. Grid range
-      // coords resolve through Matrix.dataToLayout → parseCoordRangeOption.
-      coord: row.kind === 'cd' ? [[colKey(0), colKey(cols - 1)], row.label] : [colKey(colIdx), row.label],
+      // Every cell occupies one matrix column. The model guarantees that the CD row
+      // has exactly one cell at colIdx 0, so CD keeps the same width as each FDC cell.
+      coord: [colKey(colIdx), row.label],
       left: 4,
       right: 4,
       // Room above the plot for the per-cell param label (yAxis.name below).
@@ -135,6 +133,10 @@ const option = computed<EChartsOption>(() => {
       name: `${cell.param} (${cell.unit})  ${rBadge(cell)}`,
       nameLocation: 'end',
       nameGap: 9,
+      nameTruncate: {
+        maxWidth: 112,
+        ellipsis: '…'
+      },
       nameTextStyle: {
         fontSize: 9,
         align: 'left',
