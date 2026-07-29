@@ -38,8 +38,18 @@ there. Two were wrong until 2026-07-27 and are now corrected: `Rel_MoveY`
 (was RelMoveY), and `img_meas2`, which carries P_No's value rather than a
 filename.
 
-`align_images` and `amp_info` are NOT among the parser's keys and remain
-sourceless — see `parameter_info.txt`.
+`align_images` and `amp_info` are NOT among the parser's keys. Their source is
+the RAW-RECIPE FOLDER beside the .idp (`data/{idw}/{idp}/`), read by a second
+사내 parser, `office_utils.idp_amp_reader` — see the 2026-07-29 spec and
+`rawfiles.py`.
+
+That makes the five `img_*` VALUES a contract too, not just their column names:
+`rawfiles.py` derives every raw-folder path from them. They are generated here
+in the office shape (user-confirmed 2026-07-29) — `IMMP0001`, `PRMP0000`,
+`IMMS0000`, `PRMS0000`, `I2MP0000`, eight characters, no extension — with the
+French `"non"` sentinel appearing on the optional slots so the no-file path is
+exercised at home rather than first met at the office. The NUMBERING is still
+fabricated; only the shape imitates.
 """
 
 import hashlib
@@ -47,6 +57,7 @@ import random
 from datetime import datetime
 from functools import lru_cache
 
+from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignImageRow,
     AmpRow,
@@ -207,6 +218,30 @@ def generate_wafer_align_images(
     ]
 
 
+# Office naming (user-confirmed 2026-07-29): {kind}{stage}{NNNN}, no extension.
+# IM/I2 name images, PR names a setting key the tool wrote; MP is addressing and
+# MS is measurement.
+_SLOT_PREFIX: dict[str, str] = {
+    "img_add1": "IMMP",
+    "img_add2": "PRMP",
+    "img_meas1": "IMMS",
+    "img_meas2": "PRMS",
+    "image_add3": "I2MP"
+}
+
+# Slots that legitimately hold no file. Parameters routinely lack a third
+# addressing image or an AF/PR setting, so the sentinel has to appear at home or
+# the no-file path is never exercised until the office run — the same reason
+# msr_image's mock emits .tif names it cannot preview.
+_MAY_BE_EMPTY: tuple[str, ...] = ("img_add2", "image_add3")
+
+
+def _slot(column: str, seq: int, rng: random.Random) -> str:
+    if column in _MAY_BE_EMPTY and rng.random() < 0.25:
+        return rawfiles.EMPTY_SLOT
+    return f"{_SLOT_PREFIX[column]}{seq:04d}"
+
+
 def generate_idp_image_info(
     num_records: int = 20,
     rng: random.Random | None = None
@@ -221,14 +256,14 @@ def generate_idp_image_info(
 
         data.append({
             "Parameter": f"Para_{p_no}",
-            "img_add1": f"IMG_ADD1_{seq:04d}.jpg",
-            "img_add2": f"IMG_ADD2_{seq:04d}.jpg",
-            "img_meas1": f"IMG_MEAS1_{seq:04d}.jpg",
-            "img_meas2": f"IMG_MEAS2_{seq:04d}.jpg",
+            "img_add1": _slot("img_add1", seq, active_rng),
+            "img_add2": _slot("img_add2", seq, active_rng),
+            "img_meas1": _slot("img_meas1", seq, active_rng),
+            "img_meas2": _slot("img_meas2", seq, active_rng),
             "SEQ": seq,
             "Last_SEQ": seq + active_rng.randint(0, 5),
             "Region": p_no,
-            "image_add3": f"IMG_ADD3_{seq:04d}.jpg",
+            "image_add3": _slot("image_add3", seq, active_rng),
             "Addressing": active_rng.choice([True, False]),
             # A mother is the parameter whose image its sons measure from —
             # usually the SEQ 1 row (office 확인 2026-07-28), not a name.

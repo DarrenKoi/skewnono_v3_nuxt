@@ -84,17 +84,24 @@ def _align_frame(rows: int = 2) -> pd.DataFrame:
 
 
 def _image_frame(rows: int = 3) -> pd.DataFrame:
-    """idp_image_info — here img_meas2 IS a filename, unlike wafer_mp_info."""
+    """idp_image_info — here img_meas2 IS a file name, unlike wafer_mp_info.
+
+    Slot values use the office naming convention (user-confirmed 2026-07-29):
+    ``{kind}{stage}{NNNN}``, eight characters, no extension. rawfiles.py derives
+    every raw-folder path from these strings, so a fixture carrying the old
+    ``IMG_ADD1_0000.jpg`` shape would re-teach a convention the office does not
+    use — the same reason the mock generator was corrected.
+    """
     return pd.DataFrame({
         "Parameter": [f"Para_{i + 1}" for i in range(rows)],
-        "img_add1": [f"IMG_ADD1_{i:04d}.jpg" for i in range(rows)],
-        "img_add2": [f"IMG_ADD2_{i:04d}.jpg" for i in range(rows)],
-        "img_meas1": [f"IMG_MEAS1_{i:04d}.jpg" for i in range(rows)],
-        "img_meas2": [f"IMG_MEAS2_{i:04d}.jpg" for i in range(rows)],
+        "img_add1": [f"IMMP{i:04d}" for i in range(rows)],
+        "img_add2": [f"PRMP{i:04d}" for i in range(rows)],
+        "img_meas1": [f"IMMS{i:04d}" for i in range(rows)],
+        "img_meas2": [f"PRMS{i:04d}" for i in range(rows)],
         "SEQ": np.arange(1, rows + 1, dtype="int64"),
         "Last_SEQ": np.arange(2, rows + 2, dtype="int64"),
         "Region": np.arange(1, rows + 1, dtype="int64"),
-        "image_add3": [f"IMG_ADD3_{i:04d}.jpg" for i in range(rows)],
+        "image_add3": [f"I2MP{i:04d}" for i in range(rows)],
         # numpy bools, not Python ones — that is what the parser hands back,
         # and turning them into JSON-safe values is _scalar()'s job.
         "Addressing": np.array([True, False] * rows, dtype="bool")[:rows],
