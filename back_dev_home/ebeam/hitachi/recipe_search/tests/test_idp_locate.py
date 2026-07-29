@@ -122,3 +122,93 @@ class TestEqpIpIndex:
         oe._eqp_ip_index.cache_clear()
         assert oe._eqp_ip_index() == {}
         oe._eqp_ip_index.cache_clear()
+
+
+class _FakeRedis:
+    """Minimal `hget` stand-in. `store` is {key: {field: value}}."""
+
+    def __init__(self, store):
+        self.store = store
+
+    def hget(self, key, field):
+        return self.store.get(key, {}).get(field)
+
+
+LOC_KEY = "v3_cdsem_rcp_loc_r3"
+TOOLS_KEY = "v3_cdsem_tools_in_rcp_r3"
+RECIPE = "ADI/ADI_CD_BIAS_001"
+
+
+@pytest.fixture
+def wired(monkeypatch):
+    """Both hashes populated and the roster resolvable — the happy path."""
+    def _wire(store):
+        monkeypatch.setattr(oe, "_redis_client", lambda: _FakeRedis(store))
+        monkeypatch.setattr(oe, "_eqp_ip_index", lambda: ROSTER)
+    return _wire
+
+
+class TestLocateViaRedis:
+    def test_builds_candidates_from_both_hashes(self, wired):
+        wired({
+            LOC_KEY: {RECIPE: '["/Recipe/ADI/ADI_CD_BIAS_001.idw",'
+                              ' "/Recipe/ADI/ADI_CD_BIAS_001.idp"]'},
+            TOOLS_KEY: {RECIPE: '["CG6380_02", "CG6300_01"]'},
+        })
+        locations = oe._locate_via_redis("cd-sem", RECIPE, "R3")
+        assert locations == [
+            oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI",
+                            "ADI_CD_BIAS_001", "ADI_CD_BIAS_001"),
+            oe._IdpLocation("CG6380_02", "10.1.2.2", "ADI",
+                            "ADI_CD_BIAS_001", "ADI_CD_BIAS_001"),
+        ]
+
+    def test_paths_are_reduced_to_stems(self, wired):
+        # The registry stores paths; the FTP tree wants bare names.
+        wired({
+            LOC_KEY: {RECIPE: '["/Recipe/ADI/A.idw", "/Recipe/ADI/B.idp"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        location = oe._locate_via_redis("cd-sem", RECIPE, "R3")[0]
+        assert (location.idw_stem, location.idp_stem) == ("A", "B")
+
+    def test_blank_fab_falls_back(self, wired):
+        wired({})
+        assert oe._locate_via_redis("cd-sem", RECIPE, None) is None
+
+    def test_recipe_without_a_class_prefix_falls_back(self, wired):
+        wired({
+            LOC_KEY: {"AC_M2_TAT": '["/R/A.idw", "/R/A.idp"]'},
+            TOOLS_KEY: {"AC_M2_TAT": '["CG6300_01"]'},
+        })
+        assert oe._locate_via_redis("cd-sem", "AC_M2_TAT", "R3") is None
+
+    def test_missing_location_field_falls_back(self, wired):
+        wired({TOOLS_KEY: {RECIPE: '["CG6300_01"]'}})
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+
+    def test_one_sided_location_value_falls_back(self, wired):
+        # Read positionally, so a 1-entry list is unusable rather than partial.
+        wired({
+            LOC_KEY: {RECIPE: '["/Recipe/ADI/A.idw"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+
+    def test_missing_tool_field_falls_back(self, wired):
+        wired({LOC_KEY: {RECIPE: '["/R/A.idw", "/R/A.idp"]'}})
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+
+    def test_no_tool_resolves_falls_back(self, wired):
+        wired({
+            LOC_KEY: {RECIPE: '["/R/A.idw", "/R/A.idp"]'},
+            TOOLS_KEY: {RECIPE: '["GONE_99"]'},
+        })
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+
+    def test_uppercase_fab_reaches_the_lowercase_key(self, wired):
+        wired({
+            LOC_KEY: {RECIPE: '["/R/A.idw", "/R/A.idp"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is not None

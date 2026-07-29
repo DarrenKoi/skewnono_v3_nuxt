@@ -380,6 +380,90 @@ def _order_candidates(
     return online + offline
 
 
+def _locate_via_redis(
+    tool_type: ToolType,
+    recipe_id: str,
+    fab_name: str | None,
+) -> list[_IdpLocation] | None:
+    """Candidate locations from the two per-fab registry hashes, or ``None``.
+
+    ``None`` means "ask meas_hist" and is never an error: the registry is a
+    newer source and is not promised to cover every fab or every recipe. It is
+    all-or-nothing on purpose — a location assembled half from the registry and
+    half from measurement history would be untraceable the day the path it
+    produces turns out to be wrong.
+
+    Every bail logs which step produced it, because from outside the office a
+    silent fallback and a broken lookup look identical.
+    """
+    if not fab_name:
+        _LOG.info(
+            "recipe_search: no fab_name for %r, so no registry key can be "
+            "built — falling back to meas_hist.", recipe_id,
+        )
+        return None
+
+    class_name = _class_name(recipe_id)
+    if not class_name:
+        _LOG.info(
+            "recipe_search: %r has no class prefix, so the registry cannot "
+            "supply the FTP class directory — falling back to meas_hist.",
+            recipe_id,
+        )
+        return None
+
+    client = _redis_client()
+
+    loc_key = _fab_hash("rcp_loc", tool_type, fab_name)
+    parts = _parse_str_list(client.hget(loc_key, recipe_id) or "")
+    if len(parts) < 2:
+        _LOG.info(
+            "recipe_search: %s has no usable [idw, idp] entry for %r (got %s) "
+            "— falling back to meas_hist.", loc_key, recipe_id, parts,
+        )
+        return None
+
+    tools_key = _fab_hash("tools_in_rcp", tool_type, fab_name)
+    eqp_ids = _parse_str_list(client.hget(tools_key, recipe_id) or "")
+    if not eqp_ids:
+        _LOG.info(
+            "recipe_search: %s names no tool for %r — falling back to "
+            "meas_hist.", tools_key, recipe_id,
+        )
+        return None
+
+    idw_stem, idp_stem = _stem(parts[0]), _stem(parts[1])
+    if not idw_stem or not idp_stem:
+        _LOG.info(
+            "recipe_search: %s entry for %r has an empty path component (%s) "
+            "— falling back to meas_hist.", loc_key, recipe_id, parts[:2],
+        )
+        return None
+
+    candidates = _order_candidates(eqp_ids, _eqp_ip_index())
+    if not candidates:
+        _LOG.info(
+            "recipe_search: none of %s resolves to an IP for %r — falling back "
+            "to meas_hist.", eqp_ids, recipe_id,
+        )
+        return None
+
+    _LOG.info(
+        "recipe_search: located %r via the Redis registry — %d tool "
+        "candidate(s), no OpenSearch query.", recipe_id, len(candidates),
+    )
+    return [
+        _IdpLocation(
+            eqp_id=eqp_id,
+            eqp_ip=eqp_ip,
+            class_name=class_name,
+            idw_stem=idw_stem,
+            idp_stem=idp_stem,
+        )
+        for eqp_id, eqp_ip in candidates
+    ]
+
+
 def _locate_idp(
     tool_type: ToolType,
     recipe_id: str,
