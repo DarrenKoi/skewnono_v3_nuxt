@@ -94,46 +94,6 @@
             </div>
           </header>
 
-          <section class="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
-            <div class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-lightbulb"
-                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
-                />
-                <h2 class="sk-heading">
-                  왜 SKEWNONO인가요?
-                </h2>
-              </div>
-              <p class="mt-3 sk-body leading-7">
-                장비 이상이 관찰되면 Recipe 오측정 이력과 Hardware 상태를 함께 살펴야 합니다.
-                SKEWNONO는 떨어져 있던 정보를 연결해 차이가 시작된 지점을 좁혀 가도록 돕습니다.
-              </p>
-            </div>
-
-            <div class="rounded-lg border border-(--sk-border) bg-zinc-950 p-5 text-white dark:bg-zinc-100 dark:text-zinc-950">
-              <div class="flex items-start gap-4">
-                <img
-                  src="/favicon.svg"
-                  alt="나란히 기울어진 두 개의 CD Bar로 SKEW를 표현한 SKEWNONO 마크"
-                  class="h-14 w-14 shrink-0 rounded-lg"
-                >
-                <div>
-                  <div class="text-xs font-semibold uppercase tracking-[0.18em] text-(--sk-ink-muted)">
-                    Name Story
-                  </div>
-                  <div class="mt-2 text-xl font-semibold">
-                    SKEW + NO-NO
-                  </div>
-                </div>
-              </div>
-              <p class="mt-4 text-sm leading-6 text-zinc-300 dark:text-zinc-700">
-                SKEW는 데이터가 기준에서 어긋나는 현상이고, 원인 모를 SKEW는 있어서는 안 될
-                NO-NO입니다. 나란히 기울어진 두 개의 바는 CD Bar와 그 사이의 SKEW를 나타냅니다.
-              </p>
-            </div>
-          </section>
-
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
             <h2 class="sk-heading">
               함께 확인하는 데이터
