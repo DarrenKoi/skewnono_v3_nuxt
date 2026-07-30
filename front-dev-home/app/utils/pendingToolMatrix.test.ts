@@ -2,7 +2,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  STALE_ARRIVAL_DAYS,
   UNASSIGNED_FAB,
   buildPendingToolMatrix,
   cellRows,
@@ -10,7 +9,6 @@ import {
   filterByGroup,
   groupOf,
   ipList,
-  isStaleArrival,
   sortByArrivalDesc
 } from './pendingToolMatrix.ts'
 import type { PendingToolRow } from './pendingToolMatrix.ts'
@@ -138,23 +136,6 @@ test('cellRows returns the tools behind one cell, including the 미배정 bucket
 
   assert.deepEqual(cellRows(rows, 'M16A', 'CG6380').map(r => r.eqp_id), ['A', 'B'])
   assert.deepEqual(cellRows(rows, UNASSIGNED_FAB, 'CG6380').map(r => r.eqp_id), ['D'])
-})
-
-test('isStaleArrival is exclusive at the threshold', () => {
-  const now = new Date('2026-07-30T00:00:00Z')
-  const daysAgo = (n: number) =>
-    new Date(now.getTime() - n * 86_400_000).toISOString()
-
-  assert.equal(isStaleArrival(daysAgo(STALE_ARRIVAL_DAYS - 1), now), false)
-  assert.equal(isStaleArrival(daysAgo(STALE_ARRIVAL_DAYS), now), false)
-  assert.equal(isStaleArrival(daysAgo(STALE_ARRIVAL_DAYS + 1), now), true)
-})
-
-test('isStaleArrival treats an unparseable arrival as not stale', () => {
-  // Never hide a row because its timestamp was malformed — the cost of a
-  // missing new arrival is a tool nobody notices is unreachable.
-  assert.equal(isStaleArrival('', new Date('2026-07-30T00:00:00Z')), false)
-  assert.equal(isStaleArrival('not a date', new Date('2026-07-30T00:00:00Z')), false)
 })
 
 test('ipList is newline separated, deduped, and order-preserving', () => {

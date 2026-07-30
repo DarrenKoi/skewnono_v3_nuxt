@@ -14,14 +14,22 @@ once IT opens that IP. So `v3_df_sem_list - v3_df_sem_avail` is exactly the
 queue of firewall-exception requests, and "in the roster but unreachable" is
 the normal initial state of every tool rather than an error.
 
+`v3_df_sem_list` is a CURRENT SNAPSHOT of what is physically installed and on
+the fab network right now (user-confirmed 2026-07-30), not an accumulating
+history. There is no decommissioned or abandoned row sitting in it, so every
+row in `v3_df_sem_list - v3_df_sem_avail` is actionable regardless of how
+long ago it arrived — arrival age carries no signal about whether a firewall
+request is still needed. `get_pending_tools()` must never filter or
+de-emphasize by `updt_dt` age.
+
 `get_sem_list()` serves the reachable fleet (the `_avail` + `_version` merge);
 `get_pending_tools()` serves the difference. Contract details worth mirroring
 here:
 
 * `updt_dt` is the tool's FIRST ARRIVAL time at the fab, NOT a roster-update
   timestamp (user-confirmed 2026-07-30). It is imprecise for old tools and
-  trustworthy for recent ones, which is what makes it usable for telling a
-  genuine new arrival from a long-abandoned roster entry.
+  trustworthy for recent ones. Per the snapshot fact above it carries no
+  staleness signal, so on the pending screen it is informational only.
 * `version` is a FREE-FORM STRING ("1A"), not a number — do not sort it
   numerically anywhere.
 * `vendor_nm` is HITACHI or AMAT for the reachable fleet, and the office
@@ -94,10 +102,13 @@ _PENDING_CLUSTERS = [
     ("M16A", "M16", "CG6380", "ECDX", 2, 8),
     ("M16B", "M16", "GT2000", "ECDX", 4, 15),
     ("M14B", "M14", "TP4000", "PCD", 5, 22),
-    # Older than the UI's 180-day staleness threshold — exercises 오래됨.
+    # 400 days old and still unreachable. Not stale — v3_df_sem_list is a
+    # live snapshot, so this row cannot be an abandoned roster entry — it is
+    # exactly the embarrassing case this screen exists to surface: a tool
+    # that has waited over a year for its firewall exception.
     ("M16A", "M16", "VERITYSEM_4", "VCD", 2, 400),
     # No fab assignment yet — exercises the 미배정 bucket. Kept on a different
-    # row from the stale one so each edge case is reachable on its own.
+    # row from the 400-day-old one so each edge case is reachable on its own.
     ("", "M11", "PROVISION_10", "ACD", 1, 30),
 ]
 

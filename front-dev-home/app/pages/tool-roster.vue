@@ -203,18 +203,6 @@
                 <span class="sk-value-num">
                   {{ arrivalDate(row.original.updt_dt) }}
                 </span>
-                <!-- De-emphasized, never hidden and never dropped from the
-                     IP list: a stale row costs one reply from IT, while a
-                     hidden new arrival costs an unreachable tool nobody
-                     notices. -->
-                <UBadge
-                  v-if="isStale(row.original)"
-                  class="ml-2"
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                  label="오래됨"
-                />
               </template>
             </UTable>
           </div>
@@ -233,7 +221,6 @@ import {
   countByGroup,
   filterByGroup,
   ipList,
-  isStaleArrival,
   sortByArrivalDesc,
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
@@ -276,16 +263,9 @@ const statusMessages = computed<Record<'idle' | 'error' | 'empty', StatusMessage
 const activeGroup = ref<PendingToolGroup | 'all'>('all')
 const selectedCell = ref<{ fab: string, model: string } | null>(null)
 
-// Stamped when a fetch returns, so every row in one result set is judged against
-// the same instant. NOT a computed: a computed with no reactive dependency
-// evaluates once and caches forever, which would look reactive while being
-// frozen at setup time.
-const loadedAt = ref(new Date())
-
 const load = async () => {
   selectedCell.value = null
   await execute()
-  loadedAt.value = new Date()
 }
 
 const GROUP_LABELS: Array<{ value: PendingToolGroup, label: string }> = [
@@ -330,8 +310,6 @@ const drilldownRows = computed(() => {
   if (!cell) return []
   return sortByArrivalDesc(cellRows(visibleRows.value, cell.fab, cell.model))
 })
-
-const isStale = (row: PendingToolRow) => isStaleArrival(row.updt_dt, loadedAt.value)
 
 const arrivalDate = (updtDt: string) => updtDt.slice(0, 10)
 

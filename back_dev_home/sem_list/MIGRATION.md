@@ -95,8 +95,11 @@
   rejected. This screen exists to surface tools that have not been onboarded,
   so a new vendor must appear on it rather than 502 the request.
 - Mock behavior: 14 tools in 5 fab × model clusters, one with `fab_name=""`
-  and one arriving 400 days ago, so the UI's 미배정 and 오래됨 paths both have
-  data at home.
+  so the UI's 미배정 path has data at home. One cluster arrives 400 days ago
+  on purpose — `v3_df_sem_list` is a live snapshot (user-confirmed
+  2026-07-30), so there is no such thing as a stale/abandoned row in it, and
+  an old `updt_dt` still awaiting a firewall exception is exactly the case
+  this screen exists to surface.
 
 ## Verify
 
@@ -120,7 +123,3 @@ Both must run from the repo root. Do NOT run the provider file by path
    a gitignored copy and will be STALE after this change — it will lack
    `get_pending_tools`, and a stale copy fails the whole Flask app factory at
    boot, so this is not optional.
-3. Check the real pending count. If it is dominated by tools that arrived years
-   ago, the 180-day staleness threshold (`STALE_ARRIVAL_DAYS` in
-   `front-dev-home/app/utils/pendingToolMatrix.ts`) needs revisiting — it was an
-   estimate, not a measured value.

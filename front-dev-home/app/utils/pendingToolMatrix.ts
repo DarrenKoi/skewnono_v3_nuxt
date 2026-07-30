@@ -29,14 +29,6 @@ export const UNASSIGNED_FAB = '미배정'
 // stands between a new tool type and silent invisibility here.
 export const UNCLASSIFIED = 'unclassified'
 
-// A tool that arrived more than this long ago and is still unreachable is more
-// likely decommissioned than awaiting a firewall exception. Weakly grounded —
-// revisit once the screen has real use. Rows past it are de-emphasized, never
-// hidden and never dropped from the IP list.
-export const STALE_ARRIVAL_DAYS = 180
-
-const MS_PER_DAY = 86_400_000
-
 export type PendingToolGroup = ToolType | typeof UNCLASSIFIED
 
 export interface PendingToolMatrix {
@@ -117,14 +109,6 @@ export const cellRows = (
   model: string
 ): PendingToolRow[] =>
   rows.filter(row => fabLabel(row.fab_name) === fab && row.eqp_model_cd === model)
-
-export const isStaleArrival = (updtDt: string, now: Date): boolean => {
-  const arrived = Date.parse(updtDt)
-  // An unparseable arrival is NOT stale. Marking it stale on a parse failure
-  // would de-emphasize rows for a reason that has nothing to do with the tool.
-  if (Number.isNaN(arrived)) return false
-  return (now.getTime() - arrived) / MS_PER_DAY > STALE_ARRIVAL_DAYS
-}
 
 // Newline separated, which is the form a firewall request form takes. Deduped
 // because two roster rows can share an ip, and IT should see each ip once.

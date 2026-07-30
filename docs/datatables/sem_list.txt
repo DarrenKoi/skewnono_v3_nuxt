@@ -28,6 +28,17 @@ v3_df_sem_avail 에 들어옵니다. 따라서
 거치는 정상 초기 상태입니다. GET /api/sem-list/pending 이 이 차집합을
 eqp_id 기준으로 계산합니다.
 
+v3_df_sem_list 는 스냅샷입니다 (user-confirmed 2026-07-30)
+
+v3_df_sem_list 는 현재 fab 에 실제로 설치되어 네트워크에 연결되어 있는
+장비의 **현재 스냅샷**입니다. 시간이 지나며 쌓이는 누적 이력이 아니므로,
+폐기되거나 방치된 채 남아 있는 row 가 명부에 존재하지 않습니다. 따라서
+v3_df_sem_list - v3_df_sem_avail 차집합에 있는 모든 row 는 반입 시점과
+무관하게 전부 방화벽 해제가 필요한 대상입니다. 반입일이 오래되었다는 사실은
+방화벽 요청이 필요한지 여부에 아무 신호도 주지 않으므로, 이 차집합에 반입일
+기준 threshold 필터링(예: N 일 이상 경과 시 제외·흐리게 표시)을 적용하지
+않습니다.
+
 Key 2 와 Key 3 은 eqp_ip 를 기준으로 LEFT merge 합니다(fleet 이 왼쪽). fleet
 row 는 한 건도 버리지 않으며, version 이 없는 row 는 빈 문자열("")이 됩니다.
 version table 에 같은 eqp_ip 가 여러 건 있으면 fleet row 가 복제되므로, merge
@@ -53,10 +64,11 @@ fab_name -> string: 화면에서 선택하는 세부 fab 이름. 예: M16A, M16B
 updt_dt -> string(ISO): **장비가 fab 에 최초 반입된 시각**입니다.
                         명부 갱신 시각이 아닙니다 (user-confirmed 2026-07-30).
                         오래된 장비의 값은 정확하지 않으나 최근 장비의 값은
-                        신뢰할 수 있습니다. 따라서 신규 반입 여부 판단에는
-                        쓸 수 있지만, 오래된 값을 근거로 row 를 숨기지는
-                        않습니다. pandas Timestamp 로 오면 isoformat() 으로
-                        변환합니다.
+                        신뢰할 수 있습니다. 위 스냅샷 사실 때문에 신규 반입
+                        여부를 판단하는 근거로는 더 이상 쓸 수 없습니다 —
+                        미연결 장비 화면에서는 참고용 정보일 뿐이며 어떤
+                        판단의 근거도 아닙니다. pandas Timestamp 로 오면
+                        isoformat() 으로 변환합니다.
 available -> string: 장비 사용 가능 여부. 소스는 on/off/true/false/1/0 중 아무
                      표기나 올 수 있고, 어댑터가 "On"/"Off" 로 정규화합니다.
                      정규화 불가 값이면 에러를 냅니다.
