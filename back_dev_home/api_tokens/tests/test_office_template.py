@@ -12,6 +12,7 @@ backend that writes to the office Redis.
 from datetime import datetime, timedelta, timezone
 
 import pytest
+import redis
 
 from back_dev_home.api_tokens.providers import office_example as office
 from back_dev_home.api_tokens.providers.mock import _hash
@@ -279,3 +280,91 @@ def test_touch_last_used_writes_again_once_the_window_has_passed(fake):
 def test_touch_last_used_on_an_unknown_token_is_a_noop(fake):
     office.touch_last_used("deadbeefcafe")
     assert fake.all_keys() == set()
+
+
+# ── outage behavior ─────────────────────────────────────────────────────
+
+
+def _failing(driver_error):
+    def boom(*_a, **_k):
+        raise driver_error
+
+    return boom
+
+
+@pytest.mark.parametrize(
+    "driver_error",
+    [
+        redis.exceptions.ConnectionError("refused"),
+        redis.exceptions.TimeoutError("slow"),
+        redis.exceptions.ResponseError("WRONGTYPE"),
+        OSError("socket gone"),
+    ],
+    ids=["connection", "timeout", "response", "oserror"],
+)
+def test_find_by_plaintext_raises_the_503_signal_rather_than_reporting_invalid(
+    fake, driver_error
+):
+    """The important one. Returning None here would make middleware.py answer
+    401 invalid_token — telling the holder of a perfectly good token that their
+    credential is bad, and inviting them to revoke and re-mint it.
+
+    Parameterized across all four because only ConnectionError and TimeoutError
+    have registered 503 handlers; the other two would answer 500 ("we have a
+    bug") if the adapter let the driver exception escape.
+    """
+    _view, plaintext = office.create_token(OWNER, "laptop")
+    fake.get = _failing(driver_error)
+
+    with pytest.raises(RuntimeError) as raised:
+        office.find_by_plaintext(plaintext)
+
+    # EXACTLY RuntimeError: the app factory sends subclasses to a 500.
+    assert type(raised.value) is RuntimeError
+    assert raised.value.__cause__ is driver_error
+
+
+def test_a_malformed_bearer_secret_is_still_a_plain_none_during_an_outage(fake):
+    """The prefix check runs before the store is touched, so a garbage header
+    stays a cheap 401 rather than becoming a 503."""
+    fake.get = _failing(redis.exceptions.ConnectionError("refused"))
+
+    assert office.find_by_plaintext("nope_not-a-real-token") is None
+
+
+def test_list_tokens_raises_the_503_signal_on_an_outage(fake):
+    fake.smembers = _failing(redis.exceptions.ResponseError("WRONGTYPE"))
+
+    with pytest.raises(RuntimeError) as raised:
+        office.list_tokens(OWNER)
+
+    assert type(raised.value) is RuntimeError
+
+
+def test_create_token_raises_the_503_signal_on_an_outage(fake):
+    fake.hset = _failing(OSError("socket gone"))
+
+    with pytest.raises(RuntimeError) as raised:
+        office.create_token(OWNER, "laptop")
+
+    assert type(raised.value) is RuntimeError
+
+
+def test_revoke_token_raises_the_503_signal_on_an_outage(fake):
+    view, _ = office.create_token(OWNER, "laptop")
+    fake.hgetall = _failing(redis.exceptions.ConnectionError("refused"))
+
+    with pytest.raises(RuntimeError) as raised:
+        office.revoke_token(OWNER, view["id"])
+
+    assert type(raised.value) is RuntimeError
+
+
+def test_touch_last_used_swallows_an_outage(fake):
+    """Unlike the other four. It runs after find_by_plaintext already
+    succeeded, and a last-seen timestamp is not worth failing an authenticated
+    request over."""
+    view, _ = office.create_token(OWNER, "laptop")
+    fake.hget = _failing(redis.exceptions.ConnectionError("refused"))
+
+    office.touch_last_used(view["id"])  # must not raise

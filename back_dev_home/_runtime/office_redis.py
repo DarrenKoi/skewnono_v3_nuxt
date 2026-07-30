@@ -120,10 +120,42 @@ def redis_client_or_none() -> redis.Redis | None:
 
 # "The store is unusable right now." OSError covers socket-level failures
 # redis-py lets through unwrapped. Defined here, next to the client that raises
-# them, rather than per-adapter: the app factory registers 503 handlers against
-# the same driver exceptions, and the two layers only stay consistent if there
-# is one list.
+# them, rather than per-adapter, so every adapter draws the outage boundary in
+# the same place.
+#
+# This tuple is deliberately BROADER than what the app factory maps to a 503.
+# The factory registers handlers for redis ConnectionError and TimeoutError
+# only; a ResponseError (WRONGTYPE, bad arity) or a bare OSError matches
+# neither, falls through to InternalServerError, and answers 500 — JSON, but
+# saying "we have a bug" rather than "infrastructure is down, retry". Widening
+# the factory instead would be wrong: ResponseError, DataError and WatchError
+# usually ARE bugs, and the factory's own comment says subclasses of the adapter
+# signal types "must stay real 500s".
+#
+# So the conversion belongs at the adapter, which is the only layer that knows
+# a given call was reaching for the store. Catch STORE_ERRORS and re-raise via
+# `unreachable()`. See tests/test_app_error_handlers.py for the full table.
 STORE_ERRORS = (redis.exceptions.RedisError, OSError)
+
+
+def unreachable(detail: str, exc: BaseException) -> RuntimeError:
+    """Build the bare RuntimeError the app factory maps to a JSON 503.
+
+    Use as ``raise unreachable("...", exc) from exc`` when a store call failed
+    for an infrastructure reason. Returns rather than raises so the ``raise``
+    stays visible at the call site.
+
+    Must be EXACTLY ``RuntimeError``: ``back_dev_home/__init__.py`` checks
+    ``type(err) is not RuntimeError`` and sends subclasses to a 500, on the
+    grounds that a subclass is a programming bug rather than an adapter signal.
+    Constructing it here is what guarantees no adapter accidentally sends a
+    subclass and silently gets a 500 where it documented a 503.
+
+    The driver's own type and message are folded into the text because the
+    factory surfaces ``str(err)`` to the client, and "which redis error" is the
+    first thing an operator wants from a 503.
+    """
+    return RuntimeError(f"{detail}: {type(exc).__name__}: {exc}")
 
 
 def redis_text(value) -> str:

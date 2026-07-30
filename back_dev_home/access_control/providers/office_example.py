@@ -23,18 +23,27 @@ refreshes the timestamp and moves the entry to most-recent, it does not
 duplicate" semantics, and ``ZREVRANGE`` gives most-recent-first for free.
 
 OUTAGE BEHAVIOR follows one rule: **never report an infrastructure failure as a
-policy decision.** The app factory (``back_dev_home/__init__.py``) already maps
-redis ``ConnectionError``/``TimeoutError`` and bare ``RuntimeError`` to a JSON
-503, so propagating produces a truthful status rather than an opaque 500:
+policy decision.** Every read converts a store failure into the bare
+``RuntimeError`` that ``back_dev_home/__init__.py`` maps to a JSON 503.
+
+Converting matters rather than just letting the driver exception escape: the
+factory registers 503 handlers for redis ``ConnectionError`` and
+``TimeoutError`` ONLY. A ``ResponseError`` (WRONGTYPE, bad arity) or a bare
+``OSError`` — which redis-py lets through unwrapped — matches neither, falls
+through to ``InternalServerError`` and answers 500. The body is still JSON, but
+500 means "we have a bug" where 503 means "the store is down, retry", and those
+send an operator to two different places. ``unreachable()`` in
+``_runtime/office_redis.py`` builds the signal and guarantees it is the exact
+type the factory accepts.
 
 * ``is_blocked`` — called by ``_auth/middleware.py::_deny_if_blocked`` on every
-  request. PROPAGATES. Returning ``False`` would let blocked members in;
-  returning ``True`` would tell a legitimately-granted member they are "not
-  allowed to use this service" — a lie that sends someone chasing a policy
-  problem that does not exist. Propagating is *also* fail-closed, since the
-  request is not served either way, so it strictly dominates both. Only
-  X-prefixed ids reach Redis at all, so an outage cannot affect anyone else.
-* ``list_exceptions`` / ``list_denied`` — PROPAGATE. An admin shown an empty
+  request. RAISES. Returning ``False`` would let blocked members in; returning
+  ``True`` would tell a legitimately-granted member they are "not allowed to use
+  this service" — a lie that sends someone chasing a policy problem that does
+  not exist. Raising is *also* fail-closed, since the request is not served
+  either way, so it strictly dominates both. Only X-prefixed ids reach Redis at
+  all, so an outage cannot affect anyone else.
+* ``list_exceptions`` / ``list_denied`` — RAISE. An admin shown an empty
   exception table during an outage may conclude the grants were lost and start
   re-granting; 503 is the honest answer.
 * ``add_exception`` / ``remove_exception`` — raise ``StoreUnavailableError``,
@@ -66,6 +75,7 @@ from back_dev_home._runtime.office_redis import (
     STORE_ERRORS,
     redis_client,
     redis_text,
+    unreachable,
 )
 from back_dev_home.access_control.providers.mock import (
     BLOCKED_PREFIX,
@@ -116,7 +126,10 @@ def is_blocked(user_id: str) -> bool:
     normalized = _normalize(user_id)
     if not normalized.startswith(BLOCKED_PREFIX):
         return False  # nearly every id: no Redis round trip at all
-    return not _client().hexists(_EXC_KEY, normalized)
+    try:
+        return not _client().hexists(_EXC_KEY, normalized)
+    except STORE_ERRORS as exc:
+        raise unreachable("access exception store unreachable", exc) from exc
 
 
 def list_exceptions() -> list[dict]:
@@ -127,7 +140,10 @@ def list_exceptions() -> list[dict]:
     ``granted_at`` then ``user_id`` to keep the admin table stable across
     reloads instead of reshuffling.
     """
-    raw = _client().hgetall(_EXC_KEY)
+    try:
+        raw = _client().hgetall(_EXC_KEY)
+    except STORE_ERRORS as exc:
+        raise unreachable("access exception store unreachable", exc) from exc
     rows = [
         {"user_id": redis_text(field), "granted_at": redis_text(value)}
         for field, value in raw.items()
@@ -201,7 +217,12 @@ def record_denied(user_id: str) -> None:
 
 def list_denied() -> list[dict]:
     """Most recent attempts first, one entry per member id."""
-    entries = _client().zrevrange(_DENIED_KEY, 0, _DENIED_CAP - 1, withscores=True)
+    try:
+        entries = _client().zrevrange(
+            _DENIED_KEY, 0, _DENIED_CAP - 1, withscores=True
+        )
+    except STORE_ERRORS as exc:
+        raise unreachable("denied-attempt store unreachable", exc) from exc
     return [
         {"user_id": redis_text(member), "last_denied_at": _iso_from_score(score)}
         for member, score in entries

@@ -50,14 +50,30 @@ gives most-recent-first for free. `ZREMRANGEBYRANK(key, 0, -51)` enforces the
 
 ## Outage behavior — never report infrastructure failure as policy
 
-The app factory (`back_dev_home/__init__.py`) already maps redis
-`ConnectionError`/`TimeoutError` and bare `RuntimeError` to a JSON 503, so
-propagating produces a truthful status rather than an opaque 500.
+Every read converts a store failure into the bare `RuntimeError` that
+`back_dev_home/__init__.py` maps to a JSON 503, via `unreachable()` in
+`_runtime/office_redis.py`.
+
+**Why convert instead of letting the driver exception escape.** The app factory
+registers 503 handlers for redis `ConnectionError` and `TimeoutError` **only**. A
+`ResponseError` (WRONGTYPE, bad arity) or a bare `OSError` — which redis-py lets
+through unwrapped — matches neither and falls through to `InternalServerError`,
+answering 500. The body is still JSON (Flask wraps it in an `HTTPException`, which
+the factory's handler serves), but 500 reads as "we have a bug" where 503 reads
+as "the store is down, retry" — and those send an operator to two different
+places. Widening the factory instead would be wrong: `ResponseError`, `DataError`
+and `WatchError` usually *are* bugs, and the factory's own comment says
+subclasses of the adapter signal types "must stay real 500s". Only the adapter
+knows a given call was reaching for the store, so only the adapter can classify.
+
+`unreachable()` also guarantees the raise is *exactly* `RuntimeError` — the
+factory checks `type(err) is not RuntimeError` and sends subclasses to a 500, so
+a hand-rolled subclass would silently produce the very 500 this avoids.
 
 | Function | On a Redis outage | Why |
 | --- | --- | --- |
-| `is_blocked` | propagates → 503 | `False` would let blocked members in; `True` would tell a **granted** member they are "not allowed to use this service" — a lie that sends someone chasing a policy problem that does not exist. Propagating is *also* fail-closed, since the request is not served either way, so it strictly dominates both. |
-| `list_exceptions`, `list_denied` | propagate → 503 | An admin shown an empty exception table during an outage may conclude the grants were lost and start re-granting. |
+| `is_blocked` | raises → 503 | `False` would let blocked members in; `True` would tell a **granted** member they are "not allowed to use this service" — a lie that sends someone chasing a policy problem that does not exist. Raising is *also* fail-closed, since the request is not served either way, so it strictly dominates both. |
+| `list_exceptions`, `list_denied` | raise → 503 | An admin shown an empty exception table during an outage may conclude the grants were lost and start re-granting. |
 | `add_exception`, `remove_exception` | raise `StoreUnavailableError` | `routes.py` catches that exact class for a more specific 503 (`store_unavailable`, "grant NOT saved") than the generic handler gives. |
 | `record_denied` | swallowed + logged | Runs only after `is_blocked` already returned True, so the store was readable a moment ago; a failure here must not turn a correct 403 into a 503. |
 

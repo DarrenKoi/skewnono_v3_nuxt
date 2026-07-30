@@ -139,17 +139,51 @@ def test_is_blocked_normalizes_case_and_whitespace(fake):
     assert office.is_blocked("  x123456 ") is False
 
 
-def test_is_blocked_propagates_an_outage_instead_of_reporting_denial(fake):
+def test_is_blocked_raises_an_outage_instead_of_reporting_denial(fake):
     """A granted member must never be told "not allowed" because Redis blinked.
 
-    The app factory turns this into 503 backend_unreachable, which is both
-    truthful and still fail-closed — the request is not served either way.
+    The app factory turns a bare RuntimeError into 503 backend_unavailable,
+    which is truthful and still fail-closed — the request is not served either
+    way.
     """
     office.add_exception("X123456")
     fake.fail_on = {"hexists"}
 
-    with pytest.raises(redis.exceptions.ConnectionError):
+    with pytest.raises(RuntimeError) as raised:
         office.is_blocked("X123456")
+
+    # EXACTLY RuntimeError: the factory sends subclasses to a 500.
+    assert type(raised.value) is RuntimeError
+    assert isinstance(raised.value.__cause__, redis.exceptions.ConnectionError)
+
+
+@pytest.mark.parametrize(
+    "driver_error",
+    [
+        redis.exceptions.ConnectionError("refused"),
+        redis.exceptions.TimeoutError("slow"),
+        redis.exceptions.ResponseError("WRONGTYPE"),
+        OSError("socket gone"),
+    ],
+    ids=["connection", "timeout", "response", "oserror"],
+)
+def test_every_store_error_becomes_the_503_signal_not_just_the_two_the_factory_knows(
+    fake, driver_error
+):
+    """The reason the adapter converts instead of letting the driver exception
+    escape: only ConnectionError and TimeoutError have registered 503 handlers.
+    A ResponseError or bare OSError would answer 500 and read as a bug."""
+
+    def boom(*_a, **_k):
+        raise driver_error
+
+    fake.hexists = boom
+
+    with pytest.raises(RuntimeError) as raised:
+        office.is_blocked("X123456")
+
+    assert type(raised.value) is RuntimeError
+    assert type(driver_error).__name__ in str(raised.value)
 
 
 def test_is_blocked_propagates_a_missing_redis_host(monkeypatch):
@@ -181,14 +215,16 @@ def test_list_exceptions_is_empty_with_no_grants(fake):
     assert office.list_exceptions() == []
 
 
-def test_list_exceptions_propagates_rather_than_showing_an_empty_table(fake):
+def test_list_exceptions_raises_rather_than_showing_an_empty_table(fake):
     """An admin shown an empty exception list during an outage may conclude the
     grants were lost and start re-granting. A 503 is the honest answer."""
     office.add_exception("X123456")
     fake.fail_on = {"hgetall"}
 
-    with pytest.raises(redis.exceptions.ConnectionError):
+    with pytest.raises(RuntimeError) as raised:
         office.list_exceptions()
+
+    assert type(raised.value) is RuntimeError
 
 
 # ── add_exception ───────────────────────────────────────────────────────
@@ -344,12 +380,14 @@ def test_record_denied_never_raises_when_redis_is_down(fake):
     office.record_denied("X123456")  # must not raise
 
 
-def test_list_denied_propagates_an_outage(fake):
+def test_list_denied_raises_an_outage(fake):
     office.record_denied("X123456")
     fake.fail_on = {"zrevrange"}
 
-    with pytest.raises(redis.exceptions.ConnectionError):
+    with pytest.raises(RuntimeError) as raised:
         office.list_denied()
+
+    assert type(raised.value) is RuntimeError
 
 
 def test_record_denied_ignores_a_blank_id(fake):

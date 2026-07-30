@@ -39,13 +39,20 @@ keeps working. See api_tokens/MIGRATION.md's "Auth path" section.
 
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
+from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional
 
-from back_dev_home._runtime.office_redis import redis_client, redis_text
+from back_dev_home._runtime.office_redis import (
+    STORE_ERRORS,
+    redis_client,
+    redis_text,
+    unreachable,
+)
 from back_dev_home.api_tokens.providers.mock import (
     _PREFIX,
     _TOUCH_DEBOUNCE,
@@ -63,11 +70,28 @@ _HASH_PREFIX = "skewnono:api_tokens:hash"
 # encoding. Storing None directly would round-trip as the string "None".
 _NO_LAST_USED = ""
 
+logger = logging.getLogger("skewnono.api_tokens")
+
 
 def _client():
     # Indirection kept deliberately: this is the seam the tests patch to inject
     # a fake, and one test patches it to prove a code path never reaches Redis.
     return redis_client()
+
+
+@contextmanager
+def _store():
+    """Yield the client, converting an outage into the app factory's 503 signal.
+
+    Without this, a redis ``ResponseError`` or a bare ``OSError`` reaches no
+    registered handler and answers 500 — telling the caller "we have a bug" when
+    the truth is "the store is down". On the bearer path that is worse than
+    cosmetic: see :func:`find_by_plaintext`.
+    """
+    try:
+        yield _client()
+    except STORE_ERRORS as exc:
+        raise unreachable("api token store unreachable", exc) from exc
 
 
 def _token_key(token_id: str) -> str:
@@ -110,7 +134,6 @@ def create_token(owner_user_id: str, label: str) -> tuple[dict, str]:
     The plaintext is the caller's only chance to see the raw secret — only its
     SHA-256 reaches Redis.
     """
-    client = _client()
     plaintext = _PREFIX + secrets.token_urlsafe(32)
     row = _TokenRow(
         id=uuid.uuid4().hex[:12],
@@ -120,15 +143,17 @@ def create_token(owner_user_id: str, label: str) -> tuple[dict, str]:
         created_at=_now(),
         last_used_at=None,
     )
-    # Driven off the dataclass rather than a hand-mirrored field list, so a new
-    # _TokenRow field cannot silently stop being persisted. last_used_at is the
-    # one override: it is always None here and Redis needs the "" encoding.
-    client.hset(
-        _token_key(row.id),
-        mapping={**asdict(row), "last_used_at": _NO_LAST_USED},
-    )
-    client.sadd(_owner_key(owner_user_id), row.id)
-    client.set(_hash_key(row.hash), row.id)
+    with _store() as client:
+        # Driven off the dataclass rather than a hand-mirrored field list, so a
+        # new _TokenRow field cannot silently stop being persisted.
+        # last_used_at is the one override: it is always None here and Redis
+        # needs the "" encoding.
+        client.hset(
+            _token_key(row.id),
+            mapping={**asdict(row), "last_used_at": _NO_LAST_USED},
+        )
+        client.sadd(_owner_key(owner_user_id), row.id)
+        client.set(_hash_key(row.hash), row.id)
     return _public_view(row), plaintext
 
 
@@ -140,12 +165,12 @@ def list_tokens(owner_user_id: str) -> list[dict]:
     ``created_at`` (then id, to break same-second ties) to keep the response
     stable across calls instead of shuffling on every request.
     """
-    client = _client()
-    rows = [
-        row
-        for raw_id in client.smembers(_owner_key(owner_user_id))
-        if (row := _read_row(client, redis_text(raw_id))) is not None
-    ]
+    with _store() as client:
+        rows = [
+            row
+            for raw_id in client.smembers(_owner_key(owner_user_id))
+            if (row := _read_row(client, redis_text(raw_id))) is not None
+        ]
     rows.sort(key=lambda row: (row.created_at, row.id))
     return [_public_view(row) for row in rows]
 
@@ -158,13 +183,13 @@ def revoke_token(owner_user_id: str, token_id: str) -> bool:
     revoke of the same id finds no row and returns False rather than raising,
     which is what real client retries depend on.
     """
-    client = _client()
-    row = _read_row(client, token_id)
-    if row is None or row.owner_user_id != owner_user_id:
-        return False
-    # DEL is variadic — one round trip for both keys.
-    client.delete(_token_key(token_id), _hash_key(row.hash))
-    client.srem(_owner_key(owner_user_id), token_id)
+    with _store() as client:
+        row = _read_row(client, token_id)
+        if row is None or row.owner_user_id != owner_user_id:
+            return False
+        # DEL is variadic — one round trip for both keys.
+        client.delete(_token_key(token_id), _hash_key(row.hash))
+        client.srem(_owner_key(owner_user_id), token_id)
     return True
 
 
@@ -174,16 +199,21 @@ def find_by_plaintext(plaintext: str) -> Optional[_TokenRow]:
     The wrong-prefix check short-circuits before any Redis call: this runs on
     every ``/api/*`` request carrying an Authorization header, and a malformed
     one should not cost a round trip.
+
+    An outage RAISES rather than returning None. Returning None would make
+    ``_auth/middleware.py`` answer ``401 invalid_token`` — telling the holder of
+    a perfectly good token that their credential is bad, and inviting them to
+    revoke and re-mint it. A 503 says what is actually wrong.
     """
     if not plaintext.startswith(_PREFIX):
         return None
-    client = _client()
-    raw_id = client.get(_hash_key(_hash(plaintext)))
-    if raw_id is None:
-        return None
-    # The row can still be gone while the index lingers; _read_row reports that
-    # as absent, which the middleware turns into 401 invalid_token.
-    return _read_row(client, redis_text(raw_id))
+    with _store() as client:
+        raw_id = client.get(_hash_key(_hash(plaintext)))
+        if raw_id is None:
+            return None
+        # The row can still be gone while the index lingers; _read_row reports
+        # that as absent, which the middleware turns into 401 invalid_token.
+        return _read_row(client, redis_text(raw_id))
 
 
 def touch_last_used(token_id: str) -> None:
@@ -192,21 +222,30 @@ def touch_last_used(token_id: str) -> None:
     Called once per authenticated bearer request, so the write is debounced to
     once per ``_TOUCH_DEBOUNCE`` per token (the mock's own cadence) — without
     it this would be a Redis write on every single API call a token makes.
+
+    SWALLOWS an outage, unlike the other four. It runs immediately after
+    find_by_plaintext already succeeded, so the store was reachable a moment
+    ago and a failure here is a narrow race — and this is a last-seen
+    timestamp, not the request the caller asked for. Failing the whole
+    authenticated request over it would be the wrong trade.
     """
-    client = _client()
-    raw_last = client.hget(_token_key(token_id), "last_used_at")
-    if raw_last is None:
-        return  # no such token (or no such field) — nothing to record
-    now = datetime.now(timezone.utc)
-    last_used = redis_text(raw_last)
-    if last_used:
-        try:
-            if now - datetime.fromisoformat(last_used) < _TOUCH_DEBOUNCE:
-                return
-        except ValueError:
-            pass  # unparseable timestamp: overwrite it rather than wedge here
-    client.hset(
-        _token_key(token_id),
-        "last_used_at",
-        now.isoformat(timespec="seconds"),
-    )
+    try:
+        client = _client()
+        raw_last = client.hget(_token_key(token_id), "last_used_at")
+        if raw_last is None:
+            return  # no such token (or no such field) — nothing to record
+        now = datetime.now(timezone.utc)
+        last_used = redis_text(raw_last)
+        if last_used:
+            try:
+                if now - datetime.fromisoformat(last_used) < _TOUCH_DEBOUNCE:
+                    return
+            except ValueError:
+                pass  # unparseable timestamp: overwrite rather than wedge here
+        client.hset(
+            _token_key(token_id),
+            "last_used_at",
+            now.isoformat(timespec="seconds"),
+        )
+    except STORE_ERRORS:
+        logger.warning("token store unavailable; last_used_at not recorded")

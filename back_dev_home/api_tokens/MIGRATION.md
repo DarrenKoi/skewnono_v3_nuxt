@@ -223,6 +223,31 @@ to prevent.
   create a key, or a bogus id would leave a row with no `id` field behind
   (`test_touch_last_used_on_an_unknown_token_is_a_noop`).
 
+## Outage behavior — an outage must not read as a bad credential
+
+The rule is the same one `access_control` follows: never report an
+infrastructure failure as a verdict about the caller. Here the wrong verdict is
+especially costly, because the natural failure mode looks like a security event.
+
+| Function | On a Redis outage | Why |
+| --- | --- | --- |
+| `find_by_plaintext` | raises → 503 | Returning `None` would make `_auth/middleware.py` answer `401 invalid_token` — telling the holder of a perfectly good token that their credential is bad, and inviting them to revoke and re-mint it. The token is fine; the store is down. |
+| `create_token`, `list_tokens`, `revoke_token` | raise → 503 | Ordinary reads/writes with nothing truthful to return. |
+| `touch_last_used` | swallowed + logged | It runs immediately after `find_by_plaintext` already succeeded, so the store was reachable a moment ago and a failure is a narrow race. This is a last-seen timestamp, not the request the caller asked for — failing the whole authenticated request over it is the wrong trade. Mirrors `access_control`'s `record_denied`. |
+
+The four raising paths go through `unreachable()` in
+`_runtime/office_redis.py`, which converts any `STORE_ERRORS` member into the
+bare `RuntimeError` the app factory maps to 503. Converting matters rather than
+letting the driver exception escape: the factory registers 503 handlers for
+redis `ConnectionError` and `TimeoutError` **only**, so a `ResponseError` or a
+bare `OSError` would fall through to `InternalServerError` and answer 500 — "we
+have a bug" instead of "the store is down". `unreachable()` also guarantees the
+raise is *exactly* `RuntimeError`, since the factory sends subclasses to a 500.
+
+The prefix check in `find_by_plaintext` still runs before the store is touched,
+so a malformed `Authorization` header stays a cheap 401 even during an outage
+rather than being upgraded to a 503.
+
 ## Notes
 
 - The parity harness pins `GET /api/account/api-tokens` as
