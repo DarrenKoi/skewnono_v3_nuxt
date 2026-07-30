@@ -20,10 +20,10 @@
 | `sem_list.txt` | Redis `v3_df_sem_avail` + `v3_df_sem_version` | `sem_list` | 연결 |
 | `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/hitachi/storage` | 연결 |
 | `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe` | 연결 |
-| `ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리) | 연결 |
+| `ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리), `device_statistics`(M fab 공정 스텝) | 연결(device_statistics 제외) |
 | `device_desc.txt` | Redis `device_info_hvm` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |
 | `r3_device_grp.txt` | Redis `device_info_rnd` | 위와 동일 (R3/R&D) | 연결 |
-| `planstep_r3.txt` | OpenSearch `sknn-planstep-r3` | `device_statistics` (recipe-statistics, recipe-trend) | **미연결**(mock) |
+| `planstep_r3.txt` | OpenSearch `sknn-planstep-r3` | `device_statistics` (R3 공정 스텝; M fab 은 `ebeam_tas_lot_hist`) | **미연결**(mock) |
 | `msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file` | 연결 |
 | `msr_image_ftp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/...` | `msr_image` | 연결 |
 | `idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe`, `device_statistics`(파라미터 개수 — `parameters` blob) | 연결(lateral_recipe만) |

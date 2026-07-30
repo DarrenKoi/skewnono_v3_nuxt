@@ -6,28 +6,43 @@ returns matching recipe-info and summary rows for each weekly date in
 a trend window — keyed by ISO date so the frontend can plot the
 trend directly without re-shaping.
 
-사무실 원천 (user-confirmed 2026-07-30) — 이 모듈이 대역하는 실제 경로는 3-hop
-입니다. 자세한 내용은 docs/datatables/planstep_r3.txt 와 idp_ver.txt 입니다.
+사무실 원천 (user-confirmed 2026-07-30) — 이 모듈이 대역하는 실제 경로는 **fab
+계열에 따라 둘로 갈리고**, 파라미터 개수만 공통입니다. 자세한 내용은
+docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입니다.
 
+  R3 / 연구개발:
     device_info_rnd (Redis)        -> lot_cd
       + "_BASE"                    -> prod_id
     sknn-planstep-r3 (OpenSearch)  -> oper_seq/samp_seq 정렬, skip_yn == "Y"
                                       -> oper_desc, recipe_id
+
+  M 계열 양산:
+    ebeam_tas_lot_hist (OpenSearch) -> 최근 3개월(약 90일) × fab_id
+                                      -> lot_cd 별 unique oper_det_desc,
+                                         recipe_id  (lot_cd 그대로, 접미사 없음)
+
+  공통 (파라미터 개수):
     cdsem_idp_ver (OpenSearch)     -> full_name == recipe_id, 최신 version
                                       -> parameters -> para_* 집계
 
 이 mock 이 실물과 의도적으로 다른 점:
 
-- 한 문서는 (prod_id, oper_seq, samp_seq) 스텝 1건이고 lot_cd 컬럼이 아예
-  없습니다. 여기서는 계약(RecipeInfoRow)대로 lot_cd 를 직접 들고 있습니다.
-- para_16/13/9/5 는 planstep 에 없는 값입니다. 실제로는 recipe_id 를
+- 이 모듈은 R3 lot 과 M fab lot 을 **같은 방식으로** 만들지만, 실물은 위처럼
+  소스가 다릅니다. 특히 M fab 은 **공정 순서 field 가 없습니다** — 여기서 채우는
+  oper_seq / samp_seq 는 M fab 실물에 대응 값이 없으므로, 어댑터가 event_tm
+  시간순으로 합성하거나 계약을 넓혀야 합니다 (OFFICE-VERIFY).
+- R3 실물의 한 문서는 (prod_id, oper_seq, samp_seq) 스텝 1건이고 lot_cd 컬럼이
+  아예 없습니다. 여기서는 계약(RecipeInfoRow)대로 lot_cd 를 직접 들고 있습니다.
+- 스텝 이름 field 이름이 다릅니다 — R3 는 oper_desc, M fab 은 oper_det_desc.
+- para_16/13/9/5 는 어느 스텝 소스에도 없는 값입니다. 실제로는 recipe_id 를
   cdsem_idp_ver.full_name 과 조인해 최신 version 의 parameters blob 에서
   집계해야 하며, 그 blob 의 내부 구조는 아직 확인되지 않았습니다
   (OFFICE-VERIFY). 여기서는 그냥 난수로 만듭니다.
-- 실물 필드명은 fac_id 가 아니라 det_fac_id 이고, 계약에 대응이 없는
-  main_oper_id / main_oper_yn / bak_eqp_yn / bak_eqp_id_lval / eqp_grp_id /
-  reticle_id 가 더 있습니다.
-- 실물은 R3 전용 index 입니다. 이 mock 은 M fab lot 도 함께 만듭니다.
+- R3 실물 필드명은 fac_id 가 아니라 det_fac_id 이고(M fab 은 fab_id/fab_name),
+  계약에 대응이 없는 main_oper_id / main_oper_yn / bak_eqp_yn /
+  bak_eqp_id_lval / eqp_grp_id / reticle_id 가 더 있습니다.
+- skip_yn 은 R3 planstep 의 field 입니다. M fab 경로에는 없고, "측정 중" 판정을
+  최근 3개월 창에 나타나는지로 대신합니다.
 
 skip_yn 은 실물과 값·극성을 맞췄습니다 — "Y"/"N" 이며 **"Y" 가 현재 측정 중**
 입니다(직관과 반대, user-confirmed). 예전에는 "Yes"/"No" 를 만들면서 "No" 를

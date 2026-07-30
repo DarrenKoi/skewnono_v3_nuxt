@@ -8,6 +8,19 @@ Index -> sknn-planstep-r3
 
 문서 1건 = **(prod_id, oper_seq, samp_seq) 한 스텝** 입니다.
 
+**이 index 는 R3 / 연구개발 전용입니다.** M 계열 양산 fab 의 공정 스텝은 이 index 에
+없고 OpenSearch `ebeam_tas_lot_hist` 에서 가져옵니다 —
+docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 절을
+보십시오. 두 경로의 차이가 커서 어댑터도 갈라집니다.
+
+  구분          R3 (이 문서)              M fab (ebeam_tas_lot_hist)
+  키            prod_id = lot_cd+"_BASE"  lot_cd 그대로 (접미사 없음)
+  fab field     det_fac_id                fab_id / fab_name
+  스텝 이름     oper_desc                 oper_det_desc
+  순서          oper_seq, samp_seq        **없음** (event_tm 시간순으로 대체)
+  측정 대상     skip_yn == "Y"            최근 3개월 창의 unique oper_det_desc
+  파라미터      cdsem_idp_ver (공통)      cdsem_idp_ver (공통)
+
 사용 field (user-confirmed 2026-07-30)
 
   det_fac_id -> string: fab 대표 코드. 이 index 는 "R3" 단일 값입니다.
