@@ -190,6 +190,7 @@ import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import {
   fetchParamDetails,
+  paramDetailKey,
   recipeApiBase,
   recipeImageUrl,
   slotsOf
@@ -280,16 +281,39 @@ const locator = computed<IdpLocator>(() => data.value?.locator ?? {
 
 const toolSlug = computed(() => toBackendSlug(props.toolType))
 
-// Settings for the selected parameter, fetched on selection. Cached per
-// (recipe, parameter) so clicking back to a parameter already viewed is free —
-// the raw folder is immutable for a given recipe.
+// What the selected ROW asks the raw-folder endpoint for. Two rows of one
+// parameter can name different files (a row is an image definition, not a
+// parameter), so the request — and everything keyed on it — belongs to the row.
+const paramRequest = computed(() => {
+  const row = selectedIdp.value
+  if (!row) return null
+  return {
+    parameter: row.Parameter,
+    slots: slotsOf(row as unknown as Record<string, string>)
+  }
+})
+
+// A STRING identity for that request, so both the cache and the watcher below
+// compare by value. A refresh() rebuilds every row object but produces the same
+// key, which is what keeps it from re-reading files that cannot have changed.
+const paramRequestKey = computed(() => (
+  paramRequest.value
+    ? `${cacheKey.value}::${paramDetailKey(paramRequest.value.parameter, paramRequest.value.slots)}`
+    : ''
+))
+
+// Settings for the selected row, fetched on selection. Cached per request so
+// clicking back to a row already viewed is free — the raw folder is immutable
+// for a given recipe.
 const paramDetail = ref<ParamDetail | null>(null)
 const paramPending = ref(false)
 const paramError = ref(false)
-// Keyed on recipe + parameter only. The recipe is already in the key, so no
-// clearing is needed when it changes; and the row INDEX is deliberately absent
-// — two rows sharing a parameter resolve to the same files, and including the
-// index would miss the cache whenever row order shifted after a refresh.
+// Keyed on `paramRequestKey`: recipe + parameter + the five slots. Keyed on
+// recipe + parameter alone (as it was until 2026-07-30) the second of two
+// Para_13 rows hit the first one's entry and displayed IMMP0004 under the row
+// that names IMMP0011 — a wrong answer with no cue. The row INDEX stays out of
+// the key on purpose: it is not what identifies the files, and it would miss the
+// cache whenever row order shifted after a refresh.
 const paramCache = new Map<string, ParamDetail>()
 
 // The request currently in flight. Clicking quickly through parameters starts
@@ -298,13 +322,13 @@ const paramCache = new Map<string, ParamDetail>()
 const inFlight = ref('')
 
 async function loadParamDetail() {
-  const row = selectedIdp.value
+  const request = paramRequest.value
   const locator = data.value?.locator
-  if (!row || !locator?.eqp_ip) {
+  if (!request || !locator?.eqp_ip) {
     paramDetail.value = null
     return
   }
-  const key = `${cacheKey.value}::${row.Parameter}`
+  const key = paramRequestKey.value
   const cached = paramCache.get(key)
   if (cached) {
     paramDetail.value = cached
@@ -316,11 +340,9 @@ async function loadParamDetail() {
   paramPending.value = true
   paramError.value = false
   try {
-    const rows = await fetchParamDetails(toolSlug.value, [{
-      locator,
-      parameter: row.Parameter,
-      slots: slotsOf(row as unknown as Record<string, string>)
-    }])
+    // Same `request` object the key was built from, so a cache entry can never
+    // be filed under settings other than the ones fetched.
+    const rows = await fetchParamDetails(toolSlug.value, [{ locator, ...request }])
     const detail = rows[0] ?? null
     if (detail) paramCache.set(key, detail)
     // A later selection won; its response owns the panel.
@@ -338,9 +360,11 @@ async function loadParamDetail() {
   }
 }
 
-// Watches the parameter NAME, not the computed row object — a refresh() rebuilds
-// every row identity and would otherwise re-fetch files that cannot have changed.
-watch([() => selectedIdp.value?.Parameter, () => data.value?.locator?.eqp_ip], () => {
+// Watches the request KEY, not the row object and not the parameter name. The
+// name alone missed the selection entirely when the user moved between two rows
+// of one parameter: no fetch ran, so the previous row's files stayed on screen.
+// A string still ignores the new row objects a refresh() builds.
+watch([paramRequestKey, () => data.value?.locator?.eqp_ip], () => {
   void loadParamDetail()
 }, { immediate: true })
 

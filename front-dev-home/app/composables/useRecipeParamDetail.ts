@@ -73,6 +73,28 @@ export function slotsOf(row: Record<string, string>): Record<string, string> {
   return Object.fromEntries(SLOT_KEYS.map(key => [key, row[key] ?? '']))
 }
 
+/**
+ * Identity of one param-detail request: the parameter AND its five slot values.
+ *
+ * ★ The parameter alone is NOT the identity. A row of idp_image_info is one image
+ *   DEFINITION, not one parameter (`docs/datatables/recipe_idp.txt`), so the same
+ *   parameter can appear in several rows naming different files — Para_13 at
+ *   SEQ 4/6 and SEQ 11/15 resolve to `IMMP0004…` and `IMMP0011…`. A cache keyed
+ *   on the parameter served the first row's images and settings under the second
+ *   row's heading with no cue that it had done so.
+ *
+ * Built from the same `parameter` and `slots` that go INTO the request, so the
+ * key cannot drift from what was actually fetched, and read through SLOT_KEYS so
+ * it does not depend on the object's insertion order.
+ *
+ * NUL-separated because every part is an office-supplied string: `/`, `:` and `_`
+ * all occur in real recipe and file names, and any of them as a separator lets
+ * one pair forge another's key.
+ */
+export function paramDetailKey(parameter: string, slots: Record<string, string>): string {
+  return [parameter, ...SLOT_KEYS.map(key => slots[key] ?? '')].join('\u0000')
+}
+
 /** Base for every raw-folder call, so a Phase-3 apiBase change reaches them
  *  the same way it reaches the rest of the feature. Callers in components read
  *  it once; `recipeImageUrl` takes it as an argument so it stays pure and

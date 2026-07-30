@@ -189,6 +189,26 @@ dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-2
   `img_add3` 이 아니라 **`image_add3`** 이고, 목록 순서상으로도 img_meas2 뒤에
   떨어져 있습니다. IDP 원본 표기이므로 그대로 씁니다.
 
+★ img_* 5개의 주인은 row 이며 Parameter 가 아닙니다 — 이 절 첫 문장대로 한 row
+  는 image definition 1개이고, **같은 Parameter 가 여러 row 에 나올 수 있으며 그
+  row 들이 서로 다른 파일을 가리킬 수 있습니다.** mock 은 slot 을 SEQ 로 만들기
+  때문에 Para_13 의 SEQ 4/6 은 IMMP0004…, SEQ 11/15 는 IMMP0011… 이 됩니다.
+
+  그래서 raw 파일을 캐싱하거나 join 하는 쪽의 key 는 (Parameter + slot 5개)
+  이어야 합니다. Parameter 만으로 키를 잡으면 두 row 가 한 칸에 겹치고, 화면은
+  **오류 없이** 다른 row 의 이미지와 설정을 보여줍니다. 실제로 2026-07-30 까지
+  recipe open 의 param-detail 캐시가 그랬습니다(RecipeOpenView 의 paramCache,
+  `paramDetailKey` 로 수정). ENMP 의 (section, key) 와 같은 종류의 사고가 이번에는
+  **row 단위**에서 재현된 것입니다.
+
+  OFFICE-VERIFY: "같은 Parameter 의 두 row 가 다른 파일을 가리킨다"는 것은 row 가
+  image definition 이라는 사실에서 따라오는 결론이고 mock 도 그렇게 만들지만,
+  사무실 데이터로 직접 확인한 적은 없습니다. son 이 mother 와 **같은 image** 를
+  쓴다는 Mother_Para 절과도 이어지는 질문입니다 — son 과 mother 는 서로 다른
+  parameter 이므로 위 결론과 충돌하지는 않습니다. 반대로 사무실에서 같은
+  Parameter 의 row 들이 항상 같은 slot 을 갖는다고 밝혀져도 위 key 는 그대로
+  옳습니다(같으면 같은 key 가 나와 캐시가 그대로 맞습니다).
+
 OFFICE-VERIFY: img_* 컬럼이 담는 문자열이 파일명 그대로인지, 조립이 필요한
 key 인지는 아직 눈으로 확인하지 않았습니다. {idp_name}/ raw recipe 폴더를 실제로
 내려받아 대조해야 답이 나옵니다. wafer_mp_info.img_meas2 가 이름과 달리 숫자였던

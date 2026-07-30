@@ -251,7 +251,18 @@ def generate_idp_image_info(
     num_records: int = 20,
     rng: random.Random | None = None
 ) -> list[IdpImageInfoRow]:
-    """Generate dummy IDP image information."""
+    """Generate dummy IDP image information.
+
+    ★ The img_* slots belong to the ROW, not to the Parameter. A row is one image
+      definition (docs/datatables/recipe_idp.txt), so the slots here are built
+      from SEQ while `Parameter` is drawn at random and repeats — Para_13 at
+      SEQ 4/6 names IMMP0004… and at SEQ 11/15 names IMMP0011….
+
+      That is deliberate and worth keeping: anything downstream that caches or
+      joins raw files per Parameter shows one row's images under another row's
+      heading, with no error to notice. The recipe-open param-detail cache did
+      exactly that until 2026-07-30, and this mock is what exposed it.
+    """
     active_rng = rng or random.Random()
     data: list[IdpImageInfoRow] = []
 
