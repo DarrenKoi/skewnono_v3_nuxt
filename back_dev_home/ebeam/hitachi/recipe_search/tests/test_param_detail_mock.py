@@ -419,11 +419,43 @@ def test_only_the_seen_af_pr_group_carries_real_values():
         assert focusing["Mag"] == "0"
         assert focusing["Offset(LSB)"] == "0"
 
-        other = [r for r in rows if r["section"] != "measurement_focusing"]
-        assert other
-        assert all(re.fullmatch(r"[A-F][0-9A-F]{3}", r["value"]) for r in other)
+        # The groups nothing has been read from at all: sequence_* and the
+        # pattern-recognition pair. Every value there is still a placeholder.
+        unread = [
+            r for r in rows
+            if r["section"].startswith("sequence_")
+            or r["section"].endswith(("pattern_recognition", "pattern_recognition1",
+                                      "pattern_recognition2"))
+        ]
+        assert unread
+        assert all(re.fullmatch(r"[A-F][0-9A-F]{3}", r["value"]) for r in unread)
         return
     raise AssertionError("no parameter produced measurement_focusing")
+
+
+def test_the_auto_focus_groups_know_their_types_but_not_all_their_values():
+    """addressing_auto_focus's eight TYPES are known and Method's value is
+    (office 확인 2026-07-30). float is a complete format — only the magnitude is
+    open — so those render float-shaped. `str` describes nothing on its own: in
+    this one file it has meant '0', 'Fast2' and '50, 50', so str-typed keys
+    whose value is unread stay placeholders.
+    """
+    for seq in range(1, 60):
+        rows = {
+            r["key"]: r["value"]
+            for r in _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]
+            if r["section"] == "addressing_auto_focus1"
+        }
+        if not rows:
+            continue
+
+        assert rows["Method"] == "Fast2"
+        assert re.fullmatch(r"\d+\.\d", rows["Wait(s)"])
+        assert re.fullmatch(r"-?\d+\.\d", rows["Relative Position X(um)"])
+        for key in ("Offset(LSB)", "Mag", "Threshold", "Charging Voltage"):
+            assert re.fullmatch(r"[A-F][0-9A-F]{3}", rows[key]), key
+        return
+    raise AssertionError("no parameter ran an addressing pass")
 
 
 def test_one_group_expresses_zero_as_both_a_float_and_a_string():

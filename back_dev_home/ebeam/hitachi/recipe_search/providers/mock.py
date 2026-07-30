@@ -575,15 +575,37 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
 # Pass 1 and pass 2 SHARE their key tuples below rather than repeating them:
 # "addressing_auto_focus2 is likewise as 1" is a fact, and two literal copies
 # could drift apart while still passing every test.
+# Every key's TYPE is known here, and Method's value (office 확인 2026-07-30).
+# Method being 'Fast2' in BOTH auto-focus groups is the first evidence that the
+# addressing and measurement focusing steps share a vocabulary — which is why
+# the remaining values are still not copied across from measurement_focusing:
+# one key agreeing is evidence, not proof, and an addressing focus may well wait
+# longer than a measurement one.
+#
+# A known type is a known FORMAT for floats — only the magnitude is open — so
+# those render float-shaped. `str` determines nothing on its own: in this one
+# file it has meant '0', 'Fast2' and '50, 50', so str-typed keys whose value is
+# unread stay hex placeholders.
+def _wait_seconds(rng: random.Random) -> str:
+    """A float Wait(s), biased to the 0.0 actually seen. The unit is in the key,
+    so the value carries none. Spread is plausible, not office distribution."""
+    return str(rng.choice((0.0, 0.0, 0.0, 0.5, 1.0, 2.0)))
+
+
+def _relative_position(rng: random.Random) -> str:
+    """A float Relative Position X/Y(um). One sample read 2.0."""
+    return str(round(rng.uniform(-5.0, 5.0), 1))
+
+
 _AF_FIELDS: tuple[tuple[str, object], ...] = (
-    ("Method", None),
-    ("Offset(LSB)", None),
-    ("Wait(s)", None),
-    ("Relative Position X(um)", None),
-    ("Relative Position Y(um)", None),
-    ("Mag", None),
-    ("Threshold", None),
-    ("Charging Voltage", None),
+    ("Method", lambda _: "Fast2"),
+    ("Offset(LSB)", None),                   # str, value unread
+    ("Wait(s)", _wait_seconds),
+    ("Relative Position X(um)", _relative_position),
+    ("Relative Position Y(um)", _relative_position),
+    ("Mag", None),                           # str, value unread
+    ("Threshold", None),                     # str, value unread
+    ("Charging Voltage", None),              # str, value unread
 )
 _PR_FIELDS: tuple[tuple[str, object], ...] = (
     ("Acceptance", None),
@@ -613,18 +635,15 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
     # group. The dtypes are not semantically driven, so they cannot be reasoned
     # about — only read.
     "measurement_focusing": (
-        # float. The unit is already in the key, so the value carries none.
-        # Biased to 0.0, the value actually seen; the spread is plausible rather
-        # than an office distribution.
-        ("Wait(s)", lambda r: str(r.choice((0.0, 0.0, 0.0, 0.5, 1.0, 2.0)))),
+        ("Wait(s)", _wait_seconds),
         # str '0' — not the float 0.0 its neighbour uses for the same idea.
         ("Offset(LSB)", lambda _: "0"),
         # 'Fast2' — NOT AMP's Method vocabulary, which is 'Linear'. Same key
         # name in two files with two different domains, which is why a value is
         # never carried across from another file.
         ("Method", lambda _: "Fast2"),
-        ("Relative Position X(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
-        ("Relative Position Y(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
+        ("Relative Position X(um)", _relative_position),
+        ("Relative Position Y(um)", _relative_position),
         # str '0' — a SENTINEL, not a magnitude: in an auto-focus group it means
         # "use the same magnification as the measurement" (user-confirmed
         # 2026-07-30). Asked whether it would be '30000' or '50.0K'; it was

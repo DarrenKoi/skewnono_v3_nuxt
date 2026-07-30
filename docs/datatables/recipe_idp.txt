@@ -684,10 +684,38 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
     같아도 **파일이 다르면 값의 어휘가 다릅니다.** 다른 파일의 값을 가져다 쓰지
     않습니다.
 
-OFFICE-VERIFY: **나머지 7개 group 의 값**은 아직 못 봤습니다. 특히
-`addressing_auto_focus1` / `2` 는 `measurement_focusing` 과 key 6개가 겹치므로
-값도 같을 **가능성이 높지만**, "높다" 는 "읽었다" 가 아닙니다 — 같은 key 이름
-`Method` 가 AMP 와 ENMP 에서 이미 다른 값을 갖습니다. mock 은 그 값들에
+addressing_auto_focus1 / 2 (office 확인 2026-07-30)
+---------------------------------------------------
+
+두 pass 는 같습니다. type 은 8개 모두, 값은 `Method` 만 확인되었습니다.
+
+  | key | type | 예시 |
+  | --- | --- | --- |
+  | Method | str | `'Fast2'` |
+  | Offset(LSB) | str | (값 미확인) |
+  | Wait(s) | **float** | (값 미확인) |
+  | Relative Position X(um) | **float** | (값 미확인) |
+  | Relative Position Y(um) | **float** | (값 미확인) |
+  | Mag | str | (값 미확인) |
+  | Threshold | str | (값 미확인) |
+  | Charging Voltage | str | (값 미확인) |
+
+`Method` 가 두 focusing group 에서 똑같이 `'Fast2'` 라는 것이, addressing 과
+measurement 의 focusing 단계가 **같은 어휘를 쓴다**는 첫 증거입니다. 그래도
+나머지 값을 `measurement_focusing` 에서 베껴 오지는 않았습니다 — key 하나가
+일치하는 것은 증거이지 증명이 아니고, addressing focus 가 measurement focus 보다
+오래 기다릴 수도 있습니다.
+
+★ placeholder 규칙은 "**값** 미확인" 이 아니라 "**형식** 미확인" 입니다
+
+  type 이 float 이면 형식은 **다 아는 것**이고 크기만 열려 있으므로, mock 은
+  float 모양으로 냅니다. 반면 `str` 은 그 자체로 아무것도 정하지 않습니다 — 이
+  파일 하나 안에서만 해도 `'0'`, `'Fast2'`, `'50, 50'` 이 전부 str 입니다.
+  그래서 값이 미확인인 str key 는 계속 합성 hex 로 둡니다.
+
+OFFICE-VERIFY: **나머지 5개 group 의 값** — `sequence_addressing`,
+`sequence_measurement`, `measurement_pattern_recognition`,
+`addressing_pattern_recognition1` / `2` 는 type 도 값도 아직 못 봤습니다. mock 은 그 값들에
 AMP 의 값 미확인 key 와 같은 **합성 hex** 를 넣습니다. key 이름에서 형식을
 추론하는 것(`Wait(s)` 이니 숫자겠지)은 AmpRow 의 16개 가짜 field 를 만들어 낸
 바로 그 추론입니다 — 실제로 확인된 유일한 group 에서도 놀라운 점은 크기가 아니라
