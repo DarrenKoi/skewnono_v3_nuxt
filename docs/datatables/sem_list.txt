@@ -44,9 +44,11 @@ row 는 한 건도 버리지 않으며, version 이 없는 row 는 빈 문자열
 version table 에 같은 eqp_ip 가 여러 건 있으면 fleet row 가 복제되므로, merge
 전에 eqp_ip 기준으로 중복 제거(마지막 값 유지)합니다.
 
-Key 1 의 정확한 컬럼 목록은 아직 확인되지 않았습니다(OFFICE-VERIFY). Key 2 와
-같은 identity 컬럼을 가지며 available 컬럼이 없다고 가정하고 있습니다.
-확인 방법:
+Key 1 의 컬럼은 Key 2 와 같은 identity 컬럼 8 개이며 available 컬럼이 없습니다
+(user-confirmed 2026-07-30). 즉 fac_id, eqp_id, eqp_model_cd, eqp_grp_id,
+vendor_nm, eqp_ip, fab_name, updt_dt 입니다. 아직 실제 실행으로 검증한 것은
+아니므로, 사무실 첫 실행 때 아래로 한 번 확인하고 office 확인 <날짜> 로
+표기를 올립니다.
 
     .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list
 

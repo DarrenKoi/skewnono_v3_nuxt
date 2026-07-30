@@ -46,11 +46,15 @@
 | `updt_dt` 는 구 장비에서는 부정확하고 최근 장비에서는 신뢰 가능합니다 | 반입일을 신규 여부 판단 근거로 쓰되 숨김 조건으로는 쓰지 않습니다 |
 | `v3_df_sem_list` 는 fab 에 **현재 연결된** 장비의 스냅샷이며 누적 이력이 아닙니다 (`user-confirmed 2026-07-30`, 아래 "정정" 참고) | 명부에는 폐기·방치된 row 가 존재하지 않으므로 `roster − avail` 의 모든 row 는 반입 시점과 무관하게 actionable 합니다 — 반입일 기준 오래됨(staleness) 필터링은 폐기합니다 |
 
-`v3_df_sem_list` 의 정확한 컬럼 목록은 아직 확인되지 않았습니다
-(`OFFICE-VERIFY`). 본 설계는 `v3_df_sem_avail` 과 동일한 identity 컬럼을
-가지며 `available` 컬럼이 없다고 가정합니다. 가정이 틀린 경우 어댑터가 누락
-컬럼 목록과 함께 실패하도록 하여, 빈 화면이 아니라 진단 가능한 오류가
-나오게 합니다. 확인은 `scripts/inspect_redis_key.py` 로 수행합니다.
+`v3_df_sem_list` 의 컬럼은 `v3_df_sem_avail` 과 동일한 identity 컬럼 8 개이며
+`available` 컬럼이 없습니다 — `fac_id`, `eqp_id`, `eqp_model_cd`, `eqp_grp_id`,
+`vendor_nm`, `eqp_ip`, `fab_name`, `updt_dt` (`user-confirmed 2026-07-30`).
+설계 당시에는 `OFFICE-VERIFY` 가정이었으나 담당자 확인으로 승격되었습니다.
+아직 실제 실행으로 검증한 것은 아니므로 사무실 첫 실행 때 한 번 확인하고
+`office 확인 <날짜>` 로 표기를 올립니다. 그래도 어댑터는 컬럼이 다를 경우
+누락 컬럼 목록과 함께 실패하도록 유지합니다 — 빈 화면이 아니라 진단 가능한
+오류가 나와야 하기 때문입니다. 확인은 `scripts/inspect_redis_key.py` 로
+수행합니다.
 
 ```bash
 .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list --unique fab_name,eqp_model_cd

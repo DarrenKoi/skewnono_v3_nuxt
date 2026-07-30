@@ -82,10 +82,13 @@
   from that moment, entering `v3_df_sem_avail` only once IT opens the IP. So
   this difference is the firewall-request queue, and an empty result means
   every roster tool is reachable — a valid response, not an error.
-- `v3_df_sem_list`'s exact column list is **OFFICE-VERIFY**. It is assumed to
-  carry the same identity columns as `v3_df_sem_avail` minus `available`. If
-  that is wrong, `_select_pending` raises with the missing column names.
-  Check it first with:
+- `v3_df_sem_list` carries the same 8 identity columns as `v3_df_sem_avail`
+  minus `available` — `fac_id`, `eqp_id`, `eqp_model_cd`, `eqp_grp_id`,
+  `vendor_nm`, `eqp_ip`, `fab_name`, `updt_dt` (`user-confirmed 2026-07-30`).
+  Not yet proven by a real run, so confirm once on the first office run and
+  upgrade the marker to `office 확인 <date>`. If it turns out wrong,
+  `_select_pending` raises with the missing column names rather than rendering
+  an empty screen:
 
   ```bash
   .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list
@@ -116,10 +119,28 @@ Both must run from the repo root. Do NOT run the provider file by path
 
 ## Office Follow-up: 미연결 장비 실장
 
-1. Run `.venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list` to confirm
-   the roster's real column list, then clear the OFFICE-VERIFY marks in both
-   `docs/datatables/sem_list.txt` and this file.
-2. Run `python -m scripts.sync_office_adapters sem_list`. `providers/office.py` is
-   a gitignored copy and will be STALE after this change — it will lack
-   `get_pending_tools`, and a stale copy fails the whole Flask app factory at
-   boot, so this is not optional.
+1. **Run this first.** `python -m scripts.sync_office_adapters sem_list`.
+   `providers/office.py` is a gitignored copy and is STALE after this change —
+   it lacks `get_pending_tools`, and a stale adapter fails the whole Flask app
+   factory during blueprint discovery, so nothing else works until it is
+   refreshed. The symptom is a boot failure that does not obviously name
+   `sem_list`.
+2. Confirm the roster's columns once, and upgrade the two `user-confirmed
+   2026-07-30` markers (here and in `docs/datatables/sem_list.txt`) to
+   `office 확인 <date>`:
+
+   ```bash
+   .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list --unique fab_name,eqp_model_cd
+   ```
+
+3. Check the real payload for a null `eqp_ip`. `_normalize_pending` blanks a NaN
+   cell rather than raising, on the strength of the user-confirmed fact that
+   every tool gets an IP at fab installation. A blank IP would still show in the
+   matrix and drill-down but drop out of `IP 목록 복사`, so if any real row has
+   one, add a visible marker to those rows rather than letting the copy list
+   quietly come up short:
+
+   ```bash
+   curl -s localhost:5000/api/sem-list/pending \
+     | python -c "import json,sys; r=json.load(sys.stdin); print(len(r),'rows;', sum(1 for x in r if not x['eqp_ip']),'without ip;', sum(1 for x in r if not x['fab_name']),'without fab')"
+   ```

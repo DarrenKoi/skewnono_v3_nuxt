@@ -14,6 +14,14 @@ once IT opens that IP. So `v3_df_sem_list - v3_df_sem_avail` is exactly the
 queue of firewall-exception requests, and "in the roster but unreachable" is
 the normal initial state of every tool rather than an error.
 
+`v3_df_sem_list` carries the same 8 identity columns as `v3_df_sem_avail`
+minus `available` — fac_id, eqp_id, eqp_model_cd, eqp_grp_id, vendor_nm,
+eqp_ip, fab_name, updt_dt (user-confirmed 2026-07-30). Not yet proven by a
+real run, so `office_example._select_pending` still raises with the missing
+column names if that turns out wrong — a diagnosable error beats an empty
+screen. `PendingToolRow` mirrors exactly these 8: no `available` and no
+`version`, because a pending tool is in neither of those keys.
+
 `v3_df_sem_list` is a CURRENT SNAPSHOT of what is physically installed and on
 the fab network right now (user-confirmed 2026-07-30), not an accumulating
 history. There is no decommissioned or abandoned row sitting in it, so every
