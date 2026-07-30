@@ -1,0 +1,95 @@
+사무실(Office) OpenSearch index — R3 공정 스텝 계획(plan step)
+
+device-statistics 의 recipe 관련 화면(recipe-statistics, recipe-trend)의 소스입니다.
+답하려는 질문은 하나입니다 — **이 device 가 어떤 공정 스텝을, 몇 번째 순서로, 어떤
+recipe 로 측정하는가.**
+
+Index -> sknn-planstep-r3
+
+문서 1건 = **(prod_id, oper_seq, samp_seq) 한 스텝** 입니다.
+
+사용 field (user-confirmed 2026-07-30)
+
+  det_fac_id -> string: fab 대표 코드. 이 index 는 "R3" 단일 값입니다.
+                        (device_desc 계열의 fac_id 와 같은 의미이나 이름이 다릅니다.)
+  prod_id -> string: 제품 ID. 예 "REXA_BASE".
+                     **device code(lot_cd) + "_BASE" 형태입니다.** 접미사 "_BASE" 는
+                     해당 device 의 process integration 기본 설정(basic setting)을
+                     뜻하며, 제품 이름에 관례적으로 붙습니다. 따라서 device code 는
+                     prod_id 에서 "_BASE" 접미사를 떼어 얻습니다.
+  oper_id -> string: operation(공정) ID.
+  main_oper_id -> string: 대표 operation ID. 여러 sample 스텝이 하나의 main operation
+                          아래로 묶입니다.
+  main_oper_yn -> string: "Y" | "N". 이 row 가 main operation 인지 여부입니다.
+  oper_desc -> string: operation 설명. 예 "SNC2(CELL OPEN ETCH CLN CD)".
+                       화면에 보여주는 스텝 이름입니다.
+  oper_seq -> int: operation(공정) 순서.
+  samp_seq -> int: sample 순서. 같은 oper_seq 안에서의 측정 순서입니다.
+  eqp_id -> string: 장비 ID.
+  recipe_id -> string: recipe 식별자. **다른 DB 의 full_name 과 동일한 값**입니다 —
+                       cdsem_idp_ver.full_name 과 이 값으로 조인합니다.
+  bak_eqp_yn -> string: "Y" | "N". 백업 장비 지정 여부입니다.
+  bak_eqp_id_lval -> string: 백업 장비 목록을 슬래시로 이어붙인 문자열입니다.
+                             예 "MCD018 / MCD018 / ...". 단일 문자열이므로 장비별로
+                             쓰려면 분리해야 합니다.
+  skip_yn -> string: "Y" | "N". **"Y" 가 현재 측정 중인 스텝입니다** (아래 주의 참고).
+  eqp_grp_id -> string: 장비 그룹 ID. 예 "G-MCD-01".
+  reticle_id -> string: 레티클 ID.
+  chg_tm -> string: 변경 시각. 예 "2025-07-17T12:26:01" — offset 없는 KST
+                    wall-clock 입니다.
+
+조회 방법 (device-statistics 기준)
+
+1. device code(lot_cd)에 "_BASE" 를 붙여 prod_id 를 만들고 그 값으로 스텝을
+   가져옵니다. 반대로 index 에서 device 목록을 얻을 때는 prod_id 에서 "_BASE" 를
+   떼어냅니다.
+2. **oper_seq -> samp_seq 순서로 정렬**합니다. 이 두 값이 공정 흐름의 순서이며,
+   문서 반환 순서에 의존하면 안 됩니다.
+3. **skip_yn == "Y" 로 걸러 현재 측정 중인 스텝**의 oper_desc 와 recipe_id 를
+   얻습니다.
+4. 파라미터 개수(para_*)는 이 index 에 없습니다. 3번에서 얻은 recipe_id 를
+   cdsem_idp_ver 의 full_name 과 조인해 **가장 높은 version** 문서의 parameters 에서
+   구합니다 (docs/datatables/idp_ver.txt 참고).
+
+즉 device-statistics 의 office 경로는 3-hop 입니다.
+
+    device_info_rnd (Redis)         -> lot_cd
+      + "_BASE"                     -> prod_id
+    sknn-planstep-r3 (OpenSearch)   -> oper_seq/samp_seq 정렬, skip_yn == "Y"
+                                       -> oper_desc, recipe_id
+    cdsem_idp_ver (OpenSearch)      -> full_name == recipe_id, 최신 version
+                                       -> parameters -> para_* 집계
+
+주의 — skip_yn 극성 (user-confirmed 2026-07-30)
+
+이름은 "skip"(건너뛴다)이지만 **"Y" 가 현재 측정 중**을 의미합니다. 직관과 반대이므로
+"Y 는 제외해야 하는 값" 으로 읽고 필터를 뒤집는 실수가 나오기 쉽습니다. 담당자 확인을
+받은 값이므로 코드에서 되돌리지 마십시오. 사무실 실행으로 재확인할 때는
+scripts/probe_planstep_r3.py 의 skip_yn 분포와 recipe_id 채움 비율을 함께 봅니다.
+
+주의 — mock 과 다른 점
+
+- **skip_yn 값 도메인**: 이 index 는 "Y"/"N" 이고, mock(providers/statistics.py)은
+  과거 "Yes"/"No" 를 생성했습니다. 어댑터가 정규화하지 않으면 프론트가 값을 비교하는
+  순간 어긋납니다. mock 은 2026-07-30 에 "Y"/"N" 으로 맞췄습니다.
+- **키 축**: 계약(RecipeInfoRow)은 lot_cd 로 키를 잡지만 이 index 에는 lot_cd 컬럼이
+  없습니다. prod_id 에서 접미사를 떼어 lot_cd 를 만들어야 합니다.
+- **fac_id 이름**: 계약은 fac_id, 이 index 는 det_fac_id 입니다.
+- 계약에 대응이 없는 field: main_oper_id, main_oper_yn, bak_eqp_yn,
+  bak_eqp_id_lval, eqp_grp_id, reticle_id. 화면이 필요해지면 계약을 넓히면 됩니다.
+
+표기 규칙
+
+string field 의 정확 일치·집계는 mapping 이 analyzed text 인 경우 `.keyword`
+subfield 를 써야 합니다(prod_id.keyword, recipe_id.keyword 등). 실제 mapping 은
+사무실에서 확인합니다 — probe 스크립트가 field 별로 어느 쪽을 써야 하는지 출력합니다.
+
+OFFICE-VERIFY
+
+- 각 field 의 실제 mapping 타입(text vs keyword)과 int/long 여부.
+- prod_id 에서 "_BASE" 를 떼어낸 값이 device_info_rnd.lot_cd 어휘와 실제로 겹치는지.
+  ("_BASE" 외의 접미사가 존재하는지 포함.)
+- chg_tm 이 정말 offset 없이 저장되는지(Z 나 +09:00 이 붙으면 9시간 어긋납니다).
+- 한 device 의 스텝 수 / 전체 문서 수 — recipe-statistics 의 payload 규모 판단용.
+
+    .venv/bin/python -m scripts.probe_planstep_r3

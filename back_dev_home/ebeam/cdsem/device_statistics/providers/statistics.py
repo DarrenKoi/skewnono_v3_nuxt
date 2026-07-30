@@ -6,6 +6,34 @@ returns matching recipe-info and summary rows for each weekly date in
 a trend window — keyed by ISO date so the frontend can plot the
 trend directly without re-shaping.
 
+사무실 원천 (user-confirmed 2026-07-30) — 이 모듈이 대역하는 실제 경로는 3-hop
+입니다. 자세한 내용은 docs/datatables/planstep_r3.txt 와 idp_ver.txt 입니다.
+
+    device_info_rnd (Redis)        -> lot_cd
+      + "_BASE"                    -> prod_id
+    sknn-planstep-r3 (OpenSearch)  -> oper_seq/samp_seq 정렬, skip_yn == "Y"
+                                      -> oper_desc, recipe_id
+    cdsem_idp_ver (OpenSearch)     -> full_name == recipe_id, 최신 version
+                                      -> parameters -> para_* 집계
+
+이 mock 이 실물과 의도적으로 다른 점:
+
+- 한 문서는 (prod_id, oper_seq, samp_seq) 스텝 1건이고 lot_cd 컬럼이 아예
+  없습니다. 여기서는 계약(RecipeInfoRow)대로 lot_cd 를 직접 들고 있습니다.
+- para_16/13/9/5 는 planstep 에 없는 값입니다. 실제로는 recipe_id 를
+  cdsem_idp_ver.full_name 과 조인해 최신 version 의 parameters blob 에서
+  집계해야 하며, 그 blob 의 내부 구조는 아직 확인되지 않았습니다
+  (OFFICE-VERIFY). 여기서는 그냥 난수로 만듭니다.
+- 실물 필드명은 fac_id 가 아니라 det_fac_id 이고, 계약에 대응이 없는
+  main_oper_id / main_oper_yn / bak_eqp_yn / bak_eqp_id_lval / eqp_grp_id /
+  reticle_id 가 더 있습니다.
+- 실물은 R3 전용 index 입니다. 이 mock 은 M fab lot 도 함께 만듭니다.
+
+skip_yn 은 실물과 값·극성을 맞췄습니다 — "Y"/"N" 이며 **"Y" 가 현재 측정 중**
+입니다(직관과 반대, user-confirmed). 예전에는 "Yes"/"No" 를 만들면서 "No" 를
+사용 가능으로 셌기 때문에, 값 도메인과 극성이 동시에 틀려 있었습니다. 되돌리지
+마십시오.
+
 Internal module: callers outside this feature must import the public surface
 from `device_statistics.data` (the provider switch); `recipe_tat`'s mock
 provider is the one sanctioned exception and imports `_lot_index` straight
@@ -31,6 +59,11 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
 RCP_BUCKETS = ("all", "only_normal", "mother_normal", "only_sample")
 DEFAULT_TREND_POINTS = 8
 DEFAULT_INTERVAL_DAYS = 7
+
+# skip_yn 값 중 "현재 측정 중"을 뜻하는 쪽입니다. field 이름은 skip 이지만 "Y" 가
+# 측정 중입니다 — 직관과 반대라 상수로 뽑아 둡니다 (user-confirmed 2026-07-30,
+# docs/datatables/planstep_r3.txt). 반대로 읽으면 avail_recipe 가 그대로 뒤집힙니다.
+MEASURING = "Y"
 
 OPER_DESCS = (
     "Initial Material Prep", "Primary Etching", "Deposition Layer 1",
@@ -129,7 +162,8 @@ def _build_recipe_row(
     lot_cd: str,
     fac_id: str,
     bucket: str,
-    idx: int
+    idx: int,
+    date_key: str
 ) -> RecipeInfoRow:
     para_16 = rng.randint(*PARA_RANGES["para_16"])
     para_13 = rng.randint(*PARA_RANGES["para_13"])
@@ -151,8 +185,17 @@ def _build_recipe_row(
         "samp_seq": rng.randint(1, 5),
         "eqp_id": eqp_id,
         "recipe_id": recipe_id,
-        "skip_yn": "Yes" if rng.random() < 0.15 else "No",
-        "chg_tm": f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}",
+        # "Y" == 현재 측정 중 (user-confirmed 2026-07-30). 값 도메인도 실물과
+        # 같은 "Y"/"N" 입니다. 15% 를 미측정("N")으로 두어 예전 "Yes"/"No" 시절의
+        # 측정 비율(약 85%)은 유지합니다 — 극성만 바로잡은 것이라 화면 숫자가
+        # 뒤집히지 않습니다.
+        "skip_yn": "N" if rng.random() < 0.15 else MEASURING,
+        # 실물 chg_tm 은 offset 없는 KST wall-clock datetime("2025-07-17T12:26:01")
+        # 입니다. 예전에는 시각(HH:MM:SS)만 만들어 날짜가 없었습니다.
+        "chg_tm": (
+            f"{date_key}T{rng.randint(0, 23):02d}:"
+            f"{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}"
+        ),
         "ctn_desc": f"{oper_prefix} {rng.choice(OPER_DESCS)} step",
         "para_all": para_all,
         "para_16": para_16,
@@ -170,11 +213,15 @@ def _build_recipes_for_bucket(
     rng: random.Random,
     lot_cd: str,
     fac_id: str,
-    bucket: str
+    bucket: str,
+    date_key: str
 ) -> list[RecipeInfoRow]:
     count_min, count_max = RECIPE_COUNT_RANGES[bucket]
     count = rng.randint(count_min, count_max)
-    return [_build_recipe_row(rng, lot_cd, fac_id, bucket, i) for i in range(count)]
+    return [
+        _build_recipe_row(rng, lot_cd, fac_id, bucket, i, date_key)
+        for i in range(count)
+    ]
 
 
 def _summarize(
@@ -190,7 +237,10 @@ def _summarize(
     para_all = para_16 + para_13 + para_9 + para_5
 
     total_recipe = len(recipes)
-    avail_recipe = sum(1 for r in recipes if r["skip_yn"] == "No")
+    # 측정 중인 recipe 수. 실물 극성이 "Y == 현재 측정 중"(user-confirmed)이므로
+    # 여기서도 MEASURING 을 셉니다. 예전에는 "No"(건너뛰지 않음)를 셌는데, 실물
+    # 값으로 바꾸면 그대로 뒤집혀 사용 가능 비율이 85% -> 15% 로 잘못 갔습니다.
+    avail_recipe = sum(1 for r in recipes if r["skip_yn"] == MEASURING)
 
     return {
         "lot_cd": lot_cd,
@@ -274,7 +324,7 @@ def get_weekly_trend_data(
             rng = random.Random(_seed_for(lot_cd, point_index))
 
             for bucket in RCP_BUCKETS:
-                recipes = _build_recipes_for_bucket(rng, lot_cd, fac_id, bucket)
+                recipes = _build_recipes_for_bucket(rng, lot_cd, fac_id, bucket, date_key)
                 if include_recipes:
                     bucketed[f"{bucket}_rcp_info"].extend(recipes)
                 bucketed[f"{bucket}_summary"].append(

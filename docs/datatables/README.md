@@ -21,11 +21,12 @@
 | `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/hitachi/storage` | 연결 |
 | `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe` | 연결 |
 | `ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리) | 연결 |
-| `device_desc.txt` | Redis `device_desc` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |
-| `r3_device_grp.txt` | Redis `r3_device_grp` | 위와 동일 (R3/R&D) | 연결 |
+| `device_desc.txt` | Redis `device_info_hvm` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |
+| `r3_device_grp.txt` | Redis `device_info_rnd` | 위와 동일 (R3/R&D) | 연결 |
+| `planstep_r3.txt` | OpenSearch `sknn-planstep-r3` | `device_statistics` (recipe-statistics, recipe-trend) | **미연결**(mock) |
 | `msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file` | 연결 |
 | `msr_image_ftp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/...` | `msr_image` | 연결 |
-| `idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe` | 연결 |
+| `idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe`, `device_statistics`(파라미터 개수 — `parameters` blob) | 연결(lateral_recipe만) |
 | `recipe_name_list.txt` | Redis `v3_{cdsem,hvsem}_unique_rcp_list` + `v3_{cdsem,hvsem}_rcp_loc_{fab}` + `v3_{cdsem,hvsem}_tools_in_rcp_{fab}` | `recipe_search` | 연결 |
 | `live_alarm_board.txt` | 사내 alarm API → Redis ZSET 보드 | `live_alarm` | 연결 |
 | `hardware_beam_shape.txt` | OpenSearch `beam_shape_cdsem` | `hardware/bsm` | 연결 |
@@ -38,8 +39,8 @@
 | `skewnono_logging.txt` | OpenSearch `skewnono_logging{,_local}` (자체 생성) | `activity`, `admin_logs` | 구현완료(office 반영 대기) |
 | `recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |
 | `parameter_info.txt` | 미정 — IDP 파서가 돌려주지 않음(`amp_info`) | `recipe_search` 자세히 보기 | **미연결**(mock) |
-| `recipe_params.txt` | 미정 | `device_statistics` | **미연결**(mock) |
-| `device_info.txt` | 파생 — `device_desc` 의 요약 view | `device_statistics` | 파생(원천 아님) |
+| `recipe_params.txt` | `sknn-planstep-r3`(recipe 목록) + `cdsem_idp_ver`(파라미터) — `planstep_r3.txt` 참고 | `device_statistics` | **미연결**(mock) |
+| `device_info.txt` | 파생 — `device_info_hvm` / `device_info_rnd` 의 요약 view | `device_statistics` | 파생(원천 아님) |
 | `hardware.txt` | 데이터 소스 아님 — FDC 파라미터 해설 | `msr_file` mock, 스큐보아 | 참고 |
 | `cdsem_mag_pixel_table.txt` | 데이터 소스 아님 — mag/FOV/pixel 계산식 | 프론트 mag-pixel 화면 | 참고 |
 

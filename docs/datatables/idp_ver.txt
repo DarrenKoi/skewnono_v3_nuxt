@@ -24,8 +24,10 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
 
 가져오지 않는 field
 
-  parameters, raw_data -> 이 화면이 읽지 않는 object blob 입니다. 버전 200건치를
-                          함께 내리면 응답이 그것만으로 커집니다.
+  parameters, raw_data -> **이 화면(lateral check)이** 읽지 않는 object blob 입니다.
+                          버전 200건치를 함께 내리면 응답이 그것만으로 커집니다.
+                          ※ device-statistics 는 반대로 이 parameters 가 필요합니다.
+                            아래 "두 번째 소비자" 절을 보십시오.
   not_found_eqp_id -> 미보유 목록. **의도적으로 읽지 않습니다.** 보유 판정은
                       "명시적 eqp_id 등재" 와 "최근 측정 실행 이력" 의 합집합인데,
                       recipe 를 실제로 실행한 장비를 미보유로 표시할 수는 없으므로
@@ -44,6 +46,31 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
    sem_list 로 해결합니다(docs/datatables/sem_list.txt). 이 index 는 장비별
    보유/버전/시점만 결정합니다. 명부를 자체 공급하면 같은 fab 인데 장비 재고 화면과
    장비 수가 달라지고, 어느 쪽이 맞는지 판별할 수 없게 됩니다.
+
+두 번째 소비자 — device-statistics 의 파라미터 개수 (user-confirmed 2026-07-30)
+
+이 index 는 소비자가 둘이고, **필요한 field 가 서로 반대**입니다. lateral check 는
+parameters 를 버리고 보유/버전만 보지만, device-statistics 는 parameters 가 목적입니다.
+
+- 조인 키: sknn-planstep-r3 의 recipe_id 가 이 index 의 full_name 과 같은 값입니다
+  (docs/datatables/planstep_r3.txt). 정확 일치는 full_name.keyword 로 겁니다.
+- **가장 높은 version 문서 1건만** 필요합니다. 버전 이력 전체를 받는 lateral check 와
+  달리, 여기서는 recipe 당 최신 1건의 parameters 로 para_* 개수를 집계합니다.
+- 따라서 질의는 recipe 당 `full_name.keyword` term + `version` desc 정렬 + `size: 1` 로
+  좁히고, `_source` 도 parameters 로 제한합니다.
+
+주의 — payload. device 1개가 recipe 를 100~200개 가지므로(docs/datatables/
+recipe_params.txt), recipe 마다 parameters blob 을 받으면 위 "200건이면 응답이
+커진다" 경고가 device 단위로 그대로 재현됩니다. 최신 1건 제한과 _source 제한은
+선택이 아니라 필수입니다. 실제 blob 크기와 recipe 당 파라미터 개수는 사무실에서
+확인합니다:
+
+    .venv/bin/python -m scripts.probe_planstep_r3
+
+OFFICE-VERIFY: parameters blob 의 내부 구조(파라미터 이름/측정 point 수를 어떤 key
+로 담는지)는 아직 확인되지 않았습니다. RecipeParamsRow.parameters 는
+{name, point_count} 배열이고 RecipeInfoRow 는 para_16/13/9/5 개수를 요구하므로, 이
+blob 에서 그 두 형태를 모두 만들 수 있는지가 device-statistics 어댑터의 관문입니다.
 
 시각(timezone)
 
