@@ -1,62 +1,46 @@
 <template>
-  <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-    <div class="flex shrink-0 items-center justify-between gap-3">
-      <span class="sk-meta">
-        레시피 원본 폴더에서 읽은 파라미터 설정입니다.
-      </span>
-      <span
-        v-if="pending"
-        class="sk-meta"
-      >불러오는 중…</span>
-      <span
-        v-else-if="error"
-        class="text-xs text-rose-600 dark:text-rose-400"
-      >설정을 불러오지 못했습니다.</span>
+  <EbeamRecipeOpenParamPanel
+    caption="레시피 원본 폴더에서 읽은 이미지와 빔 · 포커스 조건입니다."
+    :pending="pending"
+    :error="error"
+  >
+    <div
+      v-if="images.length"
+      class="mb-3 grid gap-3"
+      :style="{ gridTemplateColumns: `repeat(${images.length}, minmax(0, 1fr))` }"
+    >
+      <EbeamRecipeOpenImgThumb
+        v-for="image in images"
+        :key="image.slot"
+        :label="image.slot"
+        :stage="image.stage"
+        :name="image.name"
+        :src="imageSrc(image.name)"
+        :role="roleOf(image.slot)"
+        @open="emit('openImage', image)"
+      />
     </div>
+    <p
+      v-else-if="!pending"
+      class="mb-3 sk-meta"
+    >
+      이 파라미터에는 이미지가 없습니다.
+    </p>
 
-    <div class="min-h-0 flex-1 overflow-auto pr-1">
+    <div class="grid gap-3 md:grid-cols-2">
+      <!--
+        AF / PR is one FILE and the beam conditions are one per image, so the two
+        columns hold different counts on purpose: the settings file left, the
+        thumbnails' own conditions stacked right. Sharing one flat grid would
+        interleave them and read as five peers.
+      -->
+      <EbeamRecipeOpenSettingTable
+        title="AF / PR (포커스 · 패턴 인식)"
+        :block="afPrSettings"
+      />
       <div
         v-if="images.length"
-        class="mb-3 grid gap-3"
-        :style="{ gridTemplateColumns: `repeat(${images.length}, minmax(0, 1fr))` }"
-      >
-        <EbeamRecipeOpenImgThumb
-          v-for="image in images"
-          :key="image.slot"
-          :label="image.slot"
-          :stage="image.stage"
-          :name="image.name"
-          :src="imageSrc(image.name)"
-          :role="roleOf(image.slot)"
-          @open="emit('openImage', image)"
-        />
-      </div>
-      <p
-        v-else-if="!pending"
-        class="mb-3 sk-meta"
-      >
-        이 파라미터에는 이미지가 없습니다.
-      </p>
-
-      <div class="grid gap-3 md:grid-cols-2">
-        <!--
-          Two settings files, not five image columns: img_meas2 (PRMS0000) is
-          the AMP file itself and img_add2 (PRMP0000 -> ENMP0000) is the
-          auto-focus / pattern-recognition condition. Neither names an image.
-        -->
-        <EbeamRecipeOpenSettingTable
-          title="AMP (측정 방법 · amp 설정)"
-          :block="detail?.amp ?? null"
-        />
-        <EbeamRecipeOpenSettingTable
-          title="AF / PR (포커스 · 패턴 인식)"
-          :block="detail?.af_pr ?? null"
-        />
-      </div>
-
-      <div
-        v-if="images.length"
-        class="mt-3 grid gap-3 md:grid-cols-2"
+        class="flex flex-col gap-3"
       >
         <EbeamRecipeOpenSettingTable
           v-for="image in images"
@@ -66,27 +50,29 @@
         />
       </div>
     </div>
-  </div>
+  </EbeamRecipeOpenParamPanel>
 </template>
 
 <script setup lang="ts">
 /**
- * One parameter's raw-recipe settings: up to three images with their beam
- * conditions, plus the AMP and AF/PR setting files.
+ * One parameter's images with their beam conditions, plus the focus / pattern
+ * recognition settings that go with them.
  *
  * Fetched on selection rather than with the recipe — each parameter costs up to
  * five files off the measuring tool's own FTP server, and most parameters are
- * never opened.
+ * never opened. Two of those five name no image: `img_meas2` (`PRMS0000`) is the
+ * AMP file, which has its own tab, and `img_add2` (`PRMP0000` → `ENMP0000`) is
+ * the AF/PR file below.
  */
-import type { ParamImage } from '~/composables/useRecipeParamDetail'
+import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import type { IdpLocator } from '~/composables/useRecipeSearchApi'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
-import { IMAGE_SLOTS, type SlotRole } from '~/utils/recipeView'
+import { IMAGE_SLOTS, splitSequenceSections, type SlotRole } from '~/utils/recipeView'
 
 const props = defineProps<{
   toolSlug: string
   locator: IdpLocator
-  detail: import('~/composables/useRecipeParamDetail').ParamDetail | null
+  detail: ParamDetail | null
   pending: boolean
   error: boolean
 }>()
@@ -96,6 +82,10 @@ const emit = defineEmits<{ (e: 'openImage', image: ParamImage): void }>()
 const base = recipeApiBase()
 
 const images = computed<ParamImage[]>(() => props.detail?.images ?? [])
+
+// The AF/PR file minus its two `sequence_*` groups — those list which steps run
+// rather than one step's settings, and live on the Sequence tab.
+const afPrSettings = computed(() => splitSequenceSections(props.detail?.af_pr ?? null).settings)
 
 const roleOf = (slotKey: string): SlotRole =>
   IMAGE_SLOTS.find(slot => slot.key === slotKey)?.role ?? 'address'

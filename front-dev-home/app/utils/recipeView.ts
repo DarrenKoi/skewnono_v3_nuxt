@@ -1,5 +1,6 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
+import type { SettingBlock, SettingRow } from '~/composables/useRecipeParamDetail'
 import type { RecipeSearchSource } from '~/utils/recipeSelection'
 
 export const recipeTableUi = {
@@ -48,6 +49,51 @@ export const isEmptySlot = (value: string | null | undefined): boolean =>
 export const formatSettingValue = (value: string | null | undefined): string => {
   if (value === null || value === undefined || value === '') return '—'
   return String(value)
+}
+
+/**
+ * Is this ENMP group a SEQUENCE listing rather than a settings group?
+ *
+ * `sequence_addressing` and `sequence_measurement` name the steps a sequence
+ * runs ('Pre Dose', 'Image Save'); every other group holds one step's settings.
+ * Two different questions, so the screen puts them on two different tabs.
+ *
+ * Matched on the `sequence` PREFIX rather than the two names read so far,
+ * because the office parser's group names are still being refined — a third
+ * sequence group should land on the sequence tab without a code change.
+ */
+export const isSequenceSection = (section: string | null | undefined): boolean =>
+  !!section && section.trim().toLowerCase().startsWith('sequence')
+
+export interface SplitSettingBlock {
+  /** The `sequence_*` groups. */
+  sequence: SettingBlock | null
+  /** Every other group. */
+  settings: SettingBlock | null
+}
+
+/**
+ * Split one AF/PR (ENMP) block into its sequence groups and its settings groups.
+ *
+ * Both halves keep the source file name, and either may come back with NO rows —
+ * a parameter that runs no addressing pass has no `sequence_addressing`. That is
+ * deliberately not collapsed to `null`: an empty block renders "읽을 수 있는
+ * 설정이 없습니다" (the file was read, the group is not in it) where `null`
+ * renders "파일 없음" (there was no file). Those say different things.
+ *
+ * Row order inside each half is the reader's own — filtered, never re-sorted.
+ */
+export function splitSequenceSections(block: SettingBlock | null): SplitSettingBlock {
+  if (!block) return { sequence: null, settings: null }
+  const sequence: SettingRow[] = []
+  const settings: SettingRow[] = []
+  for (const row of block.rows) {
+    (isSequenceSection(row.section) ? sequence : settings).push(row)
+  }
+  return {
+    sequence: { source: block.source, rows: sequence },
+    settings: { source: block.source, rows: settings }
+  }
 }
 
 export type RecipeDetailScreen = 'open' | 'lateral' | 'meas-hist'

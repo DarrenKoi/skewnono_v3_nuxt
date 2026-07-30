@@ -107,9 +107,15 @@
               />
               <SkNavPill
                 size="sm"
-                label="개요"
-                :active="activeTab === 'overview'"
-                @click="activeTab = 'overview'"
+                label="AMP"
+                :active="activeTab === 'amp'"
+                @click="activeTab = 'amp'"
+              />
+              <SkNavPill
+                size="sm"
+                label="Sequence"
+                :active="activeTab === 'sequence'"
+                @click="activeTab = 'sequence'"
               />
               <SkNavPill
                 size="sm"
@@ -132,9 +138,18 @@
               @open-image="openLightbox"
             />
 
-            <EbeamRecipeOpenOverviewKV
-              v-else-if="activeTab === 'overview'"
-              :row="selectedIdp"
+            <EbeamRecipeOpenAmpSettings
+              v-else-if="activeTab === 'amp'"
+              :detail="paramDetail"
+              :pending="paramPending"
+              :error="paramError"
+            />
+
+            <EbeamRecipeOpenSequenceSettings
+              v-else-if="activeTab === 'sequence'"
+              :detail="paramDetail"
+              :pending="paramPending"
+              :error="paramError"
             />
 
             <template v-else>
@@ -231,7 +246,10 @@ const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 
-type Tab = 'image' | 'overview' | 'mp'
+// No 개요 tab: every field it showed — Region, SEQ, the three flags, Meas_Counting,
+// dnumber_removed — is already a column of the idp_image_info table on the left,
+// with the selected row highlighted. AMP took its place.
+type Tab = 'image' | 'amp' | 'sequence' | 'mp'
 
 const selectedIdpIndex = ref(0)
 const activeTab = ref<Tab>('image')

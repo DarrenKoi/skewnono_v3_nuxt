@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import {
   recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
   formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
-  readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp
+  readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp,
+  isSequenceSection, splitSequenceSections
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
@@ -265,4 +266,84 @@ test('formatRecipeTimestamp echoes an unparseable timestamp instead of "Invalid 
   assert.equal(formatRecipeTimestamp(''), '')
   assert.equal(formatRecipeTimestamp('not-a-timestamp'), 'not-a-timestamp')
   assert.equal(formatRecipeTimestamp('0000-00-00'), '0000-00-00')
+})
+
+// --- the sequence / settings split of one ENMP block ---
+// Section names and order are the office's own (office 확인 2026-07-30).
+
+const afPrBlock = {
+  source: 'ENMP0007',
+  rows: [
+    { key: 'Pre Dose', value: 'a1', section: 'sequence_addressing' },
+    { key: 'Auto Focus1', value: 'a2', section: 'sequence_addressing' },
+    { key: 'Focusing', value: 'b1', section: 'sequence_measurement' },
+    { key: 'Image Save', value: 'b2', section: 'sequence_measurement' },
+    { key: 'Acceptance', value: 'c1', section: 'measurement_pattern_recognition' },
+    { key: 'Method', value: 'Fast2', section: 'measurement_focusing' },
+    { key: 'Method', value: 'Fast2', section: 'addressing_auto_focus1' }
+  ]
+}
+
+test('splitSequenceSections sends only the sequence_* groups to the sequence half', () => {
+  const { sequence, settings } = splitSequenceSections(afPrBlock)
+  assert.deepEqual(
+    sequence?.rows.map(r => `${r.section}/${r.key}`),
+    [
+      'sequence_addressing/Pre Dose',
+      'sequence_addressing/Auto Focus1',
+      'sequence_measurement/Focusing',
+      'sequence_measurement/Image Save'
+    ]
+  )
+  assert.deepEqual(
+    settings?.rows.map(r => `${r.section}/${r.key}`),
+    [
+      'measurement_pattern_recognition/Acceptance',
+      'measurement_focusing/Method',
+      'addressing_auto_focus1/Method'
+    ]
+  )
+})
+
+test('splitSequenceSections keeps the source file on both halves', () => {
+  const { sequence, settings } = splitSequenceSections(afPrBlock)
+  assert.equal(sequence?.source, 'ENMP0007')
+  assert.equal(settings?.source, 'ENMP0007')
+})
+
+test('splitSequenceSections keeps an absent group as EMPTY, not null', () => {
+  // No addressing pass ran, so the file has no sequence_addressing. The file
+  // itself was still read — "설정이 없습니다" is true, "파일 없음" would not be.
+  const { sequence, settings } = splitSequenceSections({
+    source: 'ENMP0008',
+    rows: [{ key: 'Focusing', value: 'x', section: 'sequence_measurement' }]
+  })
+  assert.equal(sequence?.rows.length, 1)
+  assert.deepEqual(settings, { source: 'ENMP0008', rows: [] })
+})
+
+test('splitSequenceSections passes a missing file through as null on both halves', () => {
+  assert.deepEqual(splitSequenceSections(null), { sequence: null, settings: null })
+})
+
+test('splitSequenceSections leaves the four flat readers whole — no section, no sequence', () => {
+  // cond.txt / AMP / ENAP rows carry no section at all; every row is a setting.
+  const { sequence, settings } = splitSequenceSections({
+    source: 'PRMS0000',
+    rows: [{ key: 'Measurement', value: 'Width' }, { key: 'Method', value: 'Linear' }]
+  })
+  assert.deepEqual(sequence?.rows, [])
+  assert.equal(settings?.rows.length, 2)
+})
+
+test('isSequenceSection matches the prefix, tolerates case and padding, ignores lookalikes', () => {
+  assert.ok(isSequenceSection('sequence_addressing'))
+  assert.ok(isSequenceSection('sequence_measurement'))
+  assert.ok(isSequenceSection('  SEQUENCE_Measurement  '))
+  // A group that merely mentions a sequence is a settings group.
+  assert.equal(isSequenceSection('measurement_sequence'), false)
+  assert.equal(isSequenceSection('measurement_focusing'), false)
+  assert.equal(isSequenceSection(null), false)
+  assert.equal(isSequenceSection(undefined), false)
+  assert.equal(isSequenceSection(''), false)
 })
