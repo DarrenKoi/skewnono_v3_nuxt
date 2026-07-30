@@ -127,3 +127,39 @@ def test_bytes_cells_are_decoded_as_utf8():
     rows = office._select_pending(roster, _connected([]))
 
     assert rows[0]["fab_name"] == "R3"
+
+
+def test_a_nan_fab_name_normalizes_to_blank_not_the_string_nan():
+    # Regression: a missing fab_name must bucket into the UI's 미배정 group,
+    # not render as a fab row literally named "nan".
+    roster = _roster([{"eqp_id": "ECDX200", "fab_name": float("nan")}])
+
+    rows = office._select_pending(roster, _connected([]))
+
+    assert rows[0]["fab_name"] == ""
+
+
+def test_a_nan_eqp_ip_normalizes_to_blank_not_the_string_nan():
+    # Regression: a missing eqp_ip must never reach the firewall-request IP
+    # list as the fake value "nan".
+    roster = _roster([{"eqp_id": "ECDX200", "eqp_ip": float("nan")}])
+
+    rows = office._select_pending(roster, _connected([]))
+
+    assert rows[0]["eqp_ip"] == ""
+
+
+def test_a_none_text_field_normalizes_to_blank():
+    roster = _roster([{"eqp_id": "ECDX200", "eqp_grp_id": None}])
+
+    rows = office._select_pending(roster, _connected([]))
+
+    assert rows[0]["eqp_grp_id"] == ""
+
+
+def test_a_nat_updt_dt_normalizes_to_blank_not_the_string_nat():
+    roster = _roster([{"eqp_id": "ECDX200", "updt_dt": pd.NaT}])
+
+    rows = office._select_pending(roster, _connected([]))
+
+    assert rows[0]["updt_dt"] == ""

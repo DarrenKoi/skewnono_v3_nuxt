@@ -190,6 +190,31 @@ _PENDING_REQUIRED_COLUMNS = frozenset(
 )
 
 
+def _text_or_blank(value) -> str:
+    """Cell as stripped text; "" when missing, never the string "nan".
+
+    Same NaN guard as `_version_str` above, generalized to any text field: a
+    parquet-backed DataFrame stores an unassigned cell as NaN/None, and
+    `_to_text` would otherwise stringify it to the literal "nan" — invisible
+    at home, where the mock can only ever emit "".
+    """
+    if pd.isna(value):
+        return ""
+    return _to_text(value).strip()
+
+
+def _iso_or_blank(value) -> str:
+    """updt_dt as ISO text; "" when missing (NaN/None/NaT).
+
+    A separate wrapper rather than teaching `_as_iso_string` this guard,
+    because `_as_iso_string` is also used by `_normalize` (the `get_sem_list`
+    path), which is out of scope here and must not change behavior.
+    """
+    if pd.isna(value):
+        return ""
+    return _as_iso_string(value)
+
+
 def _normalize_pending(df: pd.DataFrame) -> list[PendingToolRow]:
     """Shape roster rows into the contract.
 
@@ -197,17 +222,22 @@ def _normalize_pending(df: pd.DataFrame) -> list[PendingToolRow]:
     `vendor_nm` against a known set, and it does not map `available`. A tool
     we have not onboarded may legitimately carry a vendor we have never seen,
     and rejecting it would empty the one screen meant to reveal it.
+
+    Every field goes through `_text_or_blank` / `_iso_or_blank` so a missing
+    office cell becomes "" rather than the literal string "nan" — most
+    importantly `fab_name` (bucketed as 미배정 by the UI) and `eqp_ip` (the
+    firewall-request deliverable, where a fake "nan" value must never appear).
     """
     return [
         PendingToolRow(
-            fac_id=_to_text(rec["fac_id"]),
-            eqp_id=_to_text(rec["eqp_id"]),
-            eqp_model_cd=_to_text(rec["eqp_model_cd"]),
-            eqp_grp_id=_to_text(rec["eqp_grp_id"]),
-            vendor_nm=_to_text(rec["vendor_nm"]).strip().upper(),
-            eqp_ip=_to_text(rec["eqp_ip"]).strip(),
-            fab_name=_to_text(rec["fab_name"]).strip(),
-            updt_dt=_as_iso_string(rec["updt_dt"]),
+            fac_id=_text_or_blank(rec["fac_id"]),
+            eqp_id=_text_or_blank(rec["eqp_id"]),
+            eqp_model_cd=_text_or_blank(rec["eqp_model_cd"]),
+            eqp_grp_id=_text_or_blank(rec["eqp_grp_id"]),
+            vendor_nm=_text_or_blank(rec["vendor_nm"]).upper(),
+            eqp_ip=_text_or_blank(rec["eqp_ip"]),
+            fab_name=_text_or_blank(rec["fab_name"]),
+            updt_dt=_iso_or_blank(rec["updt_dt"]),
         )
         for rec in df.to_dict(orient="records")
     ]
