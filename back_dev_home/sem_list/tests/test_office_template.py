@@ -22,7 +22,14 @@ def _roster(rows: list[dict]) -> pd.DataFrame:
         "fab_name": "M16A",
         "updt_dt": "2026-07-20T00:00:00Z",
     }
-    return pd.DataFrame([{**base, **row} for row in rows])
+    # `columns=` keeps the 8 identity columns even when `rows` is empty —
+    # `pd.DataFrame([])` on its own has zero columns, which would make an
+    # empty roster indistinguishable from a schema-less one. A real parquet
+    # read of an empty office table always keeps its column names, so this
+    # fixture should too.
+    return pd.DataFrame(
+        [{**base, **row} for row in rows], columns=list(base.keys())
+    )
 
 
 def _connected(eqp_ids: list[str]) -> pd.DataFrame:
@@ -71,6 +78,18 @@ def test_missing_roster_column_names_the_column():
 def test_missing_eqp_id_on_the_connected_frame_names_the_key():
     with pytest.raises(ValueError) as err:
         office._select_pending(_roster([{}]), pd.DataFrame({"eqp_ip": ["1.1.1.1"]}))
+
+    assert "eqp_id" in str(err.value)
+    assert office._REDIS_KEY in str(err.value)
+
+
+def test_an_empty_roster_still_validates_the_connected_frame():
+    # Regression: an early `roster.empty` return placed ahead of the
+    # `connected` schema check would let a malformed `connected` frame slip
+    # through silently whenever the roster happens to be empty. Schema
+    # validation must not depend on how many rows the roster has.
+    with pytest.raises(ValueError) as err:
+        office._select_pending(_roster([]), pd.DataFrame({"eqp_ip": ["1.1.1.1"]}))
 
     assert "eqp_id" in str(err.value)
     assert office._REDIS_KEY in str(err.value)

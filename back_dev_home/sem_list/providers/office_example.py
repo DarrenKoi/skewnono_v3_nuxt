@@ -222,13 +222,6 @@ def _select_pending(
     row has one, whereas an ip can be reassigned. Kept separate from
     :func:`get_pending_tools` so it is testable without a Redis.
     """
-    # Checked before the column-schema validation below: a truly empty
-    # roster (0 rows, and — as `pd.DataFrame([])` produces — 0 columns too)
-    # has nothing to select regardless of schema, and a fresh parquet read
-    # of an empty office table still carries its real column names, so this
-    # branch only ever fires on "nothing to do", never on a schema problem.
-    if roster.empty:
-        return []
     missing = _PENDING_REQUIRED_COLUMNS - set(roster.columns)
     if missing:
         raise ValueError(
@@ -243,6 +236,8 @@ def _select_pending(
             f"(got {sorted(connected.columns)})."
         )
 
+    if roster.empty:
+        return []
     pending = roster[~roster["eqp_id"].isin(set(connected["eqp_id"]))]
     if pending.empty:
         return []
