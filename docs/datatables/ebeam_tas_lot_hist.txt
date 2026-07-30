@@ -47,7 +47,7 @@ oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. �
    (선택한 lot_cd -> lot_id 집합 -> terms(lot_id.keyword) 필터)을 지탱합니다.
 3. lot_cd 컬럼의 unique 값이 "현재 생산 중" device 집합입니다 — 최근 60일
    window 에 없는 lot_id 는 매핑이 없어 자연히 탈락합니다.
-4. 이 집합을 Redis "device_info_hvm"(그리고 R3 는 device_info_rnd)과 join 해서
+4. 이 집합을 Redis "device_desc"(그리고 R3 는 r3_device_grp)와 join 해서
    화면에 표시할 device 메타데이터를 붙입니다.
 5. lot_cd 별 row 수는 최근 60일 활동량(activity count)으로 쓸 수 있습니다.
 

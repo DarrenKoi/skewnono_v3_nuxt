@@ -6,15 +6,15 @@ returns matching recipe-info and summary rows for each weekly date in
 a trend window — keyed by ISO date so the frontend can plot the
 trend directly without re-shaping.
 
-사무실 원천 (user-confirmed 2026-07-30) — 이 모듈이 대역하는 실제 경로는 **fab
+사무실 원천 (user-confirmed 2026-07-31) — 이 모듈이 대역하는 실제 경로는 **fab
 계열에 따라 둘로 갈리고**, 파라미터 개수만 공통입니다. 자세한 내용은
 docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입니다.
 
   R3 / 연구개발:
-    device_info_rnd (Redis)        -> lot_cd
+    r3_device_grp (Redis)          -> lot_cd
       + "_BASE"                    -> prod_id
-    sknn-planstep-r3 (OpenSearch)  -> oper_seq/samp_seq 정렬, skip_yn == "Y"
-                                      -> oper_desc, recipe_id
+    sknn-planstep-r3 (OpenSearch)  -> prod_id/oper_seq/samp_seq 정렬,
+                                      skip_yn != "Y" -> oper_desc, recipe_id
 
   M 계열 양산:
     ebeam_tas_lot_hist (OpenSearch) -> 최근 3개월(약 90일) × fab_id
@@ -44,9 +44,15 @@ docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입니다.
 - skip_yn 은 R3 planstep 의 field 입니다. M fab 경로에는 없고, "측정 중" 판정을
   최근 3개월 창에 나타나는지로 대신합니다.
 
-skip_yn 은 실물과 값·극성을 맞췄습니다 — "Y"/"N" 이며 **"Y" 가 현재 측정 중**
-입니다(직관과 반대, user-confirmed). 예전에는 "Yes"/"No" 를 만들면서 "No" 를
-사용 가능으로 셌기 때문에, 값 도메인과 극성이 동시에 틀려 있었습니다. 되돌리지
+skip_yn 은 실물과 값 도메인·극성을 맞췄습니다 (user-confirmed 2026-07-31) —
+**"Y"/"N"/빈 값 세 가지**이고, 이름 그대로 **"Y" 가 skip(측정하지 않음)**
+입니다. 따라서 판정은 반드시 ``!= "Y"``(:func:`_is_measuring`)이며 ``== "N"``
+이 아닙니다 — 긍정 비교로 쓰면 빈 값 스텝이 통째로 빠지고, 그 손실은 예외가
+아니라 "숫자가 좀 작다" 로만 나타납니다. 이 mock 이 일부러 빈 값을 섞는 이유가
+그것입니다.
+
+이 값은 두 번 정정되었습니다: "Yes"/"No" -> "Y"/"N"(2026-07-30), 그리고
+"Y = 측정 중" 이라는 잘못된 극성 -> **"Y" = skip**(2026-07-31). 되돌리지
 마십시오.
 
 네 버킷의 실제 의미 (user-confirmed 2026-07-31)
@@ -58,13 +64,9 @@ skip_yn 은 실물과 값·극성을 맞췄습니다 — "Y"/"N" 이며 **"Y" �
 
   all            모든 Step (Full job + Sample job)
   only_normal    스텝명에 CD 가 포함된 Step
-  mother_normal  skip_yn == "N" 이면서 스텝명 끝이 순수한 CD
+  mother_normal  skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이 순수한 CD
                  ("CD(E)", "CD(F)" 는 제외)
   only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
-
-★ mother_normal 이 "N" 을 고르는 것은 바로 위 극성 설명과 충돌합니다. 둘 다
-  맞다면 그 버킷의 avail_recipe 는 항상 0 입니다 — 사무실 첫 실행에서 확인해야
-  하는 1순위 항목입니다 (docs/datatables/planstep_r3.txt 의 ★ 절).
 
 주간 트렌드의 실물 경로 (설계 확정 2026-07-31)
 ─────────────────────────────────────────────
@@ -99,10 +101,23 @@ RCP_BUCKETS = ("all", "only_normal", "mother_normal", "only_sample")
 DEFAULT_TREND_POINTS = 8
 DEFAULT_INTERVAL_DAYS = 7
 
-# skip_yn 값 중 "현재 측정 중"을 뜻하는 쪽입니다. field 이름은 skip 이지만 "Y" 가
-# 측정 중입니다 — 직관과 반대라 상수로 뽑아 둡니다 (user-confirmed 2026-07-30,
-# docs/datatables/planstep_r3.txt). 반대로 읽으면 avail_recipe 가 그대로 뒤집힙니다.
-MEASURING = "Y"
+# skip_yn 값 중 "이 스텝은 측정하지 않는다"를 뜻하는 쪽 (user-confirmed
+# 2026-07-31, docs/datatables/planstep_r3.txt). 실물 값 도메인은 "Y"/"N"/빈 값
+# 세 가지이므로 판정은 아래 _is_measuring 의 `!= "Y"` 하나로만 합니다.
+SKIPPED = "Y"
+
+# 실물에 섞여 있는 빈 값의 비율. `== "N"` 으로 판정하는 코드가 있으면 이 만큼이
+# 조용히 사라지므로, mock 이 그 경로를 실제로 밟게 하려고 일부러 만듭니다.
+BLANK_SKIP_YN_RATIO = 0.15
+SKIPPED_RATIO = 0.15
+
+
+def _is_measuring(skip_yn: str) -> bool:
+    """이 스텝이 skip 되지 않았는가 — ``skip_yn != "Y"``.
+
+    office 어댑터(providers/office_example.py)의 동명 함수와 같은 규칙입니다.
+    """
+    return (skip_yn or "").strip().upper() != SKIPPED
 
 OPER_DESCS = (
     "Initial Material Prep", "Primary Etching", "Deposition Layer 1",
@@ -142,6 +157,16 @@ def _percent(part: int, total: int) -> float:
     if total == 0:
         return 0.0
     return round(part / total * 100, 2)
+
+
+def _skip_yn(rng: random.Random) -> str:
+    """실물의 세 값("Y" / "N" / 빈 값)을 그 비율대로 만듭니다."""
+    roll = rng.random()
+    if roll < SKIPPED_RATIO:
+        return SKIPPED
+    if roll < SKIPPED_RATIO + BLANK_SKIP_YN_RATIO:
+        return ""
+    return "N"
 
 
 def _seed_for(lot_cd: str, point_index: int) -> int:
@@ -224,11 +249,11 @@ def _build_recipe_row(
         "samp_seq": rng.randint(1, 5),
         "eqp_id": eqp_id,
         "recipe_id": recipe_id,
-        # "Y" == 현재 측정 중 (user-confirmed 2026-07-30). 값 도메인도 실물과
-        # 같은 "Y"/"N" 입니다. 15% 를 미측정("N")으로 두어 예전 "Yes"/"No" 시절의
-        # 측정 비율(약 85%)은 유지합니다 — 극성만 바로잡은 것이라 화면 숫자가
-        # 뒤집히지 않습니다.
-        "skip_yn": "N" if rng.random() < 0.15 else MEASURING,
+        # "Y" == skip(측정하지 않음) (user-confirmed 2026-07-31). 값 도메인은
+        # 실물과 같은 "Y"/"N"/빈 값 세 가지이며, skip 비율 15% 를 유지해 측정
+        # 비율은 예전과 같은 약 85% 입니다 — 극성 표기만 바로잡은 것이라 화면
+        # 숫자는 뒤집히지 않습니다.
+        "skip_yn": _skip_yn(rng),
         # 실물 chg_tm 은 offset 없는 KST wall-clock datetime("2025-07-17T12:26:01")
         # 입니다. 예전에는 시각(HH:MM:SS)만 만들어 날짜가 없었습니다.
         "chg_tm": (
@@ -276,10 +301,9 @@ def _summarize(
     para_all = para_16 + para_13 + para_9 + para_5
 
     total_recipe = len(recipes)
-    # 측정 중인 recipe 수. 실물 극성이 "Y == 현재 측정 중"(user-confirmed)이므로
-    # 여기서도 MEASURING 을 셉니다. 예전에는 "No"(건너뛰지 않음)를 셌는데, 실물
-    # 값으로 바꾸면 그대로 뒤집혀 사용 가능 비율이 85% -> 15% 로 잘못 갔습니다.
-    avail_recipe = sum(1 for r in recipes if r["skip_yn"] == MEASURING)
+    # 측정 중인 recipe 수. "Y" 가 skip 이므로 그 외 전부(빈 값 포함)를 셉니다 —
+    # `== "N"` 으로 세면 빈 값 스텝이 빠져 운용 레시피수가 조용히 작아집니다.
+    avail_recipe = sum(1 for r in recipes if _is_measuring(r["skip_yn"]))
 
     return {
         "lot_cd": lot_cd,

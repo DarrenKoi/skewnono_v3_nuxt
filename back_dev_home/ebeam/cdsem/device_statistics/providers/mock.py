@@ -4,17 +4,22 @@
 계약:        docs/api-contracts/cdsem-device-statistics.yaml
 픽스처:      back_dev_home/ebeam/cdsem/device_statistics/__fixtures__/
 
-사무실 원천 (user-confirmed 2026-07-30)
+사무실 원천 (user-confirmed 2026-07-31)
 
-이 mock 이 대역하는 실제 소스는 Redis 의 두 key 입니다. `device_info_hvm` 이
-M 계열 양산(HVM) 카탈로그로 `_generate_device_desc()` 의 M11/M12/M14/M15/M16
-rows 에 대응하고, `device_info_rnd` 가 R3 연구개발 카탈로그로
-`_generate_r3_device_grp()` 의 fac_id="R3" rows 에 대응합니다. (문서에 기록된
-이전 key 이름 device_desc / r3_device_grp 는 정정되었습니다.) 두 key 는
+이 mock 이 대역하는 실제 소스는 Redis 의 두 key 입니다. `device_desc` 가
+M 계열 양산 카탈로그로 `_generate_device_desc()` 의 M11/M12/M14/M15/M16
+rows 에 대응하고, `r3_device_grp` 가 R3 연구개발 카탈로그로
+`_generate_r3_device_grp()` 의 fac_id="R3" rows 에 대응합니다. 두 key 는
 device-statistics 의 initial setup 카탈로그이며 요청에 따라 여기서 device
 code 를 추출합니다 — 어느 한쪽이 다른 쪽의 상위 집합이 아니므로 office
-어댑터는 두 key 를 모두 읽어야 합니다. device_desc 쪽 설명 컬럼은 사무실에서도
-`ctn_desc` 이며, 예전 문서가 적어 둔 `stn_desc` 는 존재하지 않습니다.
+어댑터는 두 key 를 모두 읽어야 합니다.
+
+★ key 이름은 두 번 바뀌었습니다. 2026-07-30 에 device_info_hvm /
+device_info_rnd 로 "정정" 되었다가, 2026-07-31 에 그 두 key 가 **낡은
+데이터**임이 확인되어 원래 이름으로 돌아왔습니다. 다시 device_info_* 로
+되돌리지 마십시오 (docs/datatables/device_desc.txt 의 ★ 절).
+설명 컬럼은 `ctn_desc` 입니다 — 예전 문서의 `stn_desc` 는 한 번 엇갈렸던
+이름이라 office 어댑터가 두 이름을 모두 받아 줍니다.
 
 이 mock 이 실물과 의도적으로 다른 점
 

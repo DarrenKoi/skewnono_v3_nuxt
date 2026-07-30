@@ -5,8 +5,8 @@
 네 개의 원천을 씁니다 — 이 기능이 답하는 질문들이 한 저장소에 모여 있지 않기
 때문입니다.
 
-    Redis  device_info_rnd     -> R3/R&D device 카탈로그        (r3-device-grp)
-    Redis  device_info_hvm     -> M 계열 양산 device 카탈로그    (device-desc)
+    Redis  r3_device_grp       -> R3/R&D device 카탈로그        (r3-device-grp)
+    Redis  device_desc         -> M 계열 양산 device 카탈로그    (device-desc)
     OS     sknn-planstep-r3    -> R3 공정 스텝 (oper_seq 순서)   ┐ recipe-params
     OS     ebeam_tas_lot_hist  -> M-fab 공정 스텝 (순서 field X) ┘ recipe-statistics
     OS     cdsem_idp_ver       -> recipe 당 parameters blob     (para_* 집계)
@@ -17,7 +17,7 @@ recipe 경로는 **fab 계열에 따라 갈라지는 3-hop 체인**입니다. �
 
     R3 / 연구개발                      M 계열 양산
     ─────────────────────────────      ─────────────────────────────
-    device_info_rnd -> lot_cd          device_info_hvm -> lot_cd
+    r3_device_grp -> lot_cd            device_desc -> lot_cd
     lot_cd + "_BASE" -> prod_id        lot_cd 그대로 (접미사 없음)
     sknn-planstep-r3                   ebeam_tas_lot_hist (최근 90일)
       oper_seq/samp_seq 로 정렬          순서 field 없음 -> oper_order.py
@@ -34,8 +34,8 @@ idp_ver.txt, device_desc.txt, r3_device_grp.txt 에 있습니다.
 
     all            모든 Step (Full job + Sample job)
     only_normal    스텝명에 CD 가 포함된 Step (정규 recipe)
-    mother_normal  skip_yn == "N" 이면서 스텝명 끝이 **순수한 CD**
-                   ("CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외)
+    mother_normal  **skip 되지 않은**(skip_yn != "Y") Step 중 스텝명 끝이
+                   **순수한 CD** 인 것 ("CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외)
     only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
 
 Sample 판정만 축이 다릅니다 — 스텝명이 아니라 **recipe 이름**을 봅니다
@@ -43,13 +43,17 @@ Sample 판정만 축이 다릅니다 — 스텝명이 아니라 **recipe 이름*
 "SE" 를 찾으면 PHASE/BASE/SET 같은 평범한 단어가 전부 Sample 이 됩니다. 그래서
 **끝자리 고정(anchored)** 규칙입니다.
 
-★ OFFICE-VERIFY #1 — skip_yn 극성 충돌. planstep_r3.txt 는 "Y" 가 현재 측정
-  중이라고 기록(user-confirmed 2026-07-30)하는데, mother_normal 규칙은 "N" 을
-  고릅니다(user-confirmed 2026-07-31). 둘 다 맞다면 mother_normal 버킷의
-  ``avail_recipe``(= skip_yn == MEASURING 인 recipe 수)는 **항상 0** 이 됩니다.
-  화면에 "운용 레시피수 0" 이 계속 뜬다면 극성이 반대라는 뜻이므로
-  :data:`MEASURING` 를 "N" 으로 뒤집고 문서를 함께 고치십시오. 이 파일의
-  ``__main__`` 스모크 테스트가 그 상태를 감지해 경고를 출력합니다.
+★ skip_yn — "Y" 만 제외, 나머지는 전부 진행 중 (user-confirmed 2026-07-31)
+
+  ``skip_yn`` 은 **세 값**을 가집니다: "Y", "N", 그리고 **빈 값**. 따라서 판정은
+  ``== "N"`` 이 아니라 반드시 **``!= "Y"``** 여야 합니다 — ``== "N"`` 으로 쓰면
+  빈 값인 스텝이 통째로 사라지고, 그 손실은 화면에 오류가 아니라 "숫자가 좀
+  작다" 로만 나타나 발견이 늦습니다.
+
+  이름 그대로 **"Y" 가 skip(측정하지 않음)** 입니다. 2026-07-30 에 문서에
+  기록되었던 "Y = 현재 측정 중" 은 틀린 내용이었고 2026-07-31 에 정정되었습니다
+  (docs/datatables/planstep_r3.txt). 이 극성은 ``avail_recipe`` 와 mother_normal
+  버킷 양쪽을 동시에 뒤집으므로 :func:`_is_measuring` 하나로 모았습니다.
 
 주간 트렌드 — MinIO 스냅샷 (설계 확정 2026-07-31)
 ──────────────────────────────────────────────
@@ -84,7 +88,9 @@ MIGRATION.md 의 Verify 명령입니다.
 
 OFFICE-VERIFY 목록
 ──────────────────
-1. skip_yn 극성 (위 ★).
+1. ``skip_yn`` 의 빈 값 비율 — ``!= "Y"`` 규칙이 실제로 얼마나 많은 스텝을
+   살리는지. probe 의 skip_yn 분포에서 "Y"/"N" 합이 전체보다 작으면 그 차이가
+   빈 값입니다.
 2. ``.keyword`` 접미사 — 아래 상수는 문서 관례(analyzed text)를 가정합니다.
    실제 mapping 은 ``python -m scripts.probe_planstep_r3`` 가 field 별로
    출력하므로 첫 실행에서 확정하십시오. bare keyword field 에 접미사를 붙이면
@@ -148,10 +154,13 @@ __all__ = [
 
 
 # ─────────────────────────── 원천 이름 ───────────────────────────
-# Redis: 2026-07-30 에 정정된 key 이름입니다. 예전 문서의 "device_desc" /
-# "r3_device_grp" 라는 key 는 사무실에 존재하지 않습니다.
-RND_KEY = "device_info_rnd"   # R3/R&D 카탈로그 (parquet DataFrame)
-HVM_KEY = "device_info_hvm"   # M 계열 양산 카탈로그 (parquet DataFrame)
+# Redis 카탈로그 두 개 (user-confirmed 2026-07-31). 한동안 device_info_rnd /
+# device_info_hvm 이 최신이라고 기록되어 있었으나, 그 두 key 는 **낡은
+# 데이터**입니다. 살아 있는 카탈로그는 아래 둘이며 recipe_tat/fail_issue 가
+# 공유하는 _office_meas_hist.py 도 같은 이름을 읽습니다 — 한쪽만 바꾸면
+# 같은 device 목록이 화면마다 달라집니다.
+RND_KEY = "r3_device_grp"   # R3/R&D 카탈로그 (parquet DataFrame)
+HVM_KEY = "device_desc"     # M 계열 양산 카탈로그 (parquet DataFrame)
 
 PLANSTEP_INDEX = "sknn-planstep-r3"
 LOT_HIST_INDEX = "ebeam_tas_lot_hist"
@@ -177,12 +186,9 @@ LOT_HIST_TIME_F = "event_tm"
 # device code -> prod_id. 다른 접미사가 있는지는 probe 의 [3] 단계가 셉니다.
 PROD_ID_SUFFIX = "_BASE"
 
-# skip_yn 중 "현재 측정 중"을 뜻하는 값. ★ OFFICE-VERIFY #1 (모듈 docstring).
-MEASURING = "Y"
-
-# mother_normal 이 고르는 skip_yn 값 (user-confirmed 2026-07-31). MEASURING 과
-# 반대 방향인 것이 의도인지 사무실에서 확인해야 합니다 — 위 ★ 참고.
-MOTHER_NORMAL_SKIP_YN = "N"
+# skip_yn 중 "이 스텝은 측정하지 않는다"를 뜻하는 값. 나머지("N" 과 **빈 값**)는
+# 전부 진행 중입니다 — 판정은 _is_measuring() 하나만 씁니다 (모듈 docstring ★).
+SKIPPED = "Y"
 
 # M-fab 스텝 창. recipe_tat 의 60일과 근거가 달라("3개월 안에는 공정이 한 번은
 # 돌았다") 일부러 상수를 공유하지 않습니다 — ebeam_tas_lot_hist.txt.
@@ -201,44 +207,47 @@ DEFAULT_INTERVAL_DAYS = 7
 
 
 # ───────────────────────── 계약 <- 원천 컬럼 ─────────────────────────
-# 계약은 plan_catg_type / den_type 이고 실물 컬럼은 plan_catg_typ / den_typ
-# 입니다. 이름이 한 글자 차이라 rename 을 빠뜨려도 조용히 빈 값이 되므로 표로
-# 고정합니다. 값이 없으면 계약 이름으로 한 번 더 찾습니다(원천이 계약 철자를
-# 쓰게 되어도 깨지지 않도록).
-_R3_COLUMNS: dict[str, str] = {
-    "fac_id": "fac_id",
-    "plan_catg_type": "plan_catg_typ",
-    "prod_catg_cd": "prod_catg_cd",
-    "tech_cd": "tech_cd",
-    "den_type": "den_typ",
-    "prod_grp_typ": "prod_grp_typ",
-    "gen_typ": "gen_typ",
-    "lot_cd": "lot_cd",
-    "plan_grade_cd": "plan_grade_cd",
-    "lake_load_tm": "lake_load_tm",
-    "ctn_desc": "ctn_desc",
+# 계약 이름 -> 원천 컬럼 후보(앞에서부터 먼저 있는 것을 씁니다).
+#
+# 계약은 plan_catg_type / den_type 인데 실물 컬럼은 plan_catg_typ / den_typ
+# 입니다. 이름이 한 글자 차이라 rename 을 빠뜨려도 예외 없이 조용히 빈 값이
+# 되므로 표로 고정합니다. 후보를 여러 개 두는 것은 이 카탈로그들의 컬럼 이름이
+# 실제로 한 번 이상 엇갈려 기록된 적이 있기 때문이며(ctn_desc / stn_desc),
+# 관용은 여기 한 곳에만 둡니다.
+_R3_COLUMNS: dict[str, tuple[str, ...]] = {
+    "fac_id": ("fac_id",),
+    "plan_catg_type": ("plan_catg_typ", "plan_catg_type"),
+    "prod_catg_cd": ("prod_catg_cd",),
+    "tech_cd": ("tech_cd",),
+    "den_type": ("den_typ", "den_type"),
+    "prod_grp_typ": ("prod_grp_typ",),
+    "gen_typ": ("gen_typ",),
+    "lot_cd": ("lot_cd",),
+    "plan_grade_cd": ("plan_grade_cd",),
+    "lake_load_tm": ("lake_load_tm",),
+    "ctn_desc": ("ctn_desc",),
 }
 
-_DEVICE_DESC_COLUMNS: dict[str, str] = {
-    "fac_id": "fac_id",
-    "lot_cd": "lot_cd",
-    "ctn_desc": "ctn_desc",   # stn_desc 는 존재하지 않습니다 (2026-07-30 정정)
-    "chg_tm": "chg_tm",
-    "tech_nm": "tech_nm",
-    "rnd_connector": "rnd_connector",
+_DEVICE_DESC_COLUMNS: dict[str, tuple[str, ...]] = {
+    "fac_id": ("fac_id",),
+    "lot_cd": ("lot_cd",),
+    "ctn_desc": ("ctn_desc", "stn_desc"),
+    "chg_tm": ("chg_tm",),
+    "tech_nm": ("tech_nm",),
+    "rnd_connector": ("rnd_connector",),
 }
 
 
-def _cell(record: dict[str, Any], source: str, contract: str) -> str:
+def _cell(record: dict[str, Any], candidates: tuple[str, ...]) -> str:
     """DataFrame 한 셀 -> 계약용 문자열.
 
     ``_text`` 가 None/NaN/pd.NA 와 **문자열 "None"** 을 모두 ""로 정규화합니다
     (원천에 둘 다 섞여 있습니다 — device_desc.txt).
     """
-    value = record.get(source)
-    if value is None and source != contract:
-        value = record.get(contract)
-    return _text(value)
+    for name in candidates:
+        if record.get(name) is not None:
+            return _text(record[name])
+    return ""
 
 
 def _catalog(key: str) -> list[dict[str, Any]]:
@@ -260,8 +269,8 @@ def _r3_rows() -> list[R3DeviceGrpRow]:
     rows: list[R3DeviceGrpRow] = []
     for record in _catalog(RND_KEY):
         row = {
-            contract: _cell(record, source, contract)
-            for contract, source in _R3_COLUMNS.items()
+            contract: _cell(record, sources)
+            for contract, sources in _R3_COLUMNS.items()
         }
         if not row["lot_cd"]:
             continue  # lot_cd 가 없으면 조인 키가 없어 쓸 수 없습니다
@@ -277,8 +286,8 @@ def _hvm_rows() -> list[DeviceDescRow]:
     rows: list[DeviceDescRow] = []
     for record in _catalog(HVM_KEY):
         row = {
-            contract: _cell(record, source, contract)
-            for contract, source in _DEVICE_DESC_COLUMNS.items()
+            contract: _cell(record, sources)
+            for contract, sources in _DEVICE_DESC_COLUMNS.items()
         }
         if not row["lot_cd"]:
             continue
@@ -358,6 +367,19 @@ def _as_int(value: Any) -> int:
         return 0
 
 
+def _is_measuring(skip_yn: str) -> bool:
+    """이 스텝이 skip 되지 않았는가 — ``skip_yn != "Y"``.
+
+    ``== "N"`` 으로 쓰면 안 됩니다. 실제 값은 "Y"/"N" 외에 **빈 값**도 있어서
+    (user-confirmed 2026-07-31), 긍정 비교는 빈 값 스텝을 통째로 떨어뜨립니다.
+    그 손실은 예외가 아니라 "숫자가 좀 작다" 로만 나타나 발견이 늦습니다.
+
+    ``avail_recipe`` 와 mother_normal 버킷이 모두 이 한 함수를 통과하므로,
+    극성이 다시 바뀌더라도 두 곳이 어긋날 수 없습니다.
+    """
+    return (skip_yn or "").strip().upper() != SKIPPED
+
+
 # ────────────────────────── 스텝 조회 ──────────────────────────
 
 
@@ -371,7 +393,11 @@ def _r3_steps(lot_cd: str) -> list[dict[str, Any]]:
         PLANSTEP_INDEX,
         _query([{"term": {PROD_ID_KW: f"{lot_cd}{PROD_ID_SUFFIX}"}}]),
         size=MAX_STEPS_PER_DEVICE,
-        sort=[{"oper_seq": "asc"}, {"samp_seq": "asc"}],
+        # prod_id 를 정렬 키의 맨 앞에 둡니다 (user-confirmed 2026-07-31).
+        # 한 device 만 조회하는 지금은 무해하지만, 여러 prod_id 를 한 번에
+        # 질의하도록 넓힐 때 device 별 스텝이 뒤섞이지 않게 하는 것은 이
+        # 첫 번째 키뿐입니다.
+        sort=[{PROD_ID_KW: "asc"}, {"oper_seq": "asc"}, {"samp_seq": "asc"}],
         source=[
             "oper_id", "oper_desc", "oper_seq", "samp_seq",
             "eqp_id", "recipe_id", "skip_yn", "chg_tm",
@@ -445,9 +471,11 @@ def _mfab_steps(lot_cd: str) -> list[dict[str, Any]]:
             "samp_seq": 1,   # 이 경로에는 sample 순서가 없습니다
             "eqp_id": _text(source.get("eqp_id")),
             "recipe_id": _text(source.get("recipe_id")),
-            # 이 경로에는 skip_yn 이 없습니다. 90일 창에 나타난 것 자체가
-            # "측정 중"이라는 신호이므로 MEASURING 으로 채웁니다.
-            "skip_yn": MEASURING,
+            # 이 경로에는 skip_yn field 자체가 없습니다. 90일 창에 나타난 것이
+            # 곧 "측정 중"이라는 신호이므로 빈 값으로 둡니다 — _is_measuring 의
+            # `!= "Y"` 규칙에서 빈 값은 진행 중이고, "N" 을 넣어 원천에 없는
+            # 값을 있는 것처럼 꾸미지도 않습니다.
+            "skip_yn": "",
             "chg_tm": _text(source.get(LOT_HIST_TIME_F)),
         })
 
@@ -608,8 +636,7 @@ def _bucket_members(steps: list[dict[str, Any]]) -> dict[str, list[dict[str, Any
         "only_normal": [s for s in steps if _is_normal_step(s["oper_desc"])],
         "mother_normal": [
             s for s in steps
-            if s["skip_yn"] == MOTHER_NORMAL_SKIP_YN
-            and _ends_with_pure_cd(s["oper_desc"])
+            if _is_measuring(s["skip_yn"]) and _ends_with_pure_cd(s["oper_desc"])
         ],
         "only_sample": [s for s in steps if _is_sample_recipe(s["recipe_id"])],
     }
@@ -763,7 +790,7 @@ def _summarize(
     para_5 = sum(row["para_5"] for row in recipes)
     para_all = para_16 + para_13 + para_9 + para_5
     total_recipe = len(recipes)
-    avail_recipe = sum(1 for row in recipes if row["skip_yn"] == MEASURING)
+    avail_recipe = sum(1 for row in recipes if _is_measuring(row["skip_yn"]))
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
@@ -1007,7 +1034,7 @@ if __name__ == "__main__":
 
     r3 = get_r3_device_grp()
     hvm = get_device_desc()
-    print(f"device_info_rnd: {len(r3):,} rows   device_info_hvm: {len(hvm):,} rows")
+    print(f"{RND_KEY}: {len(r3):,} rows   {HVM_KEY}: {len(hvm):,} rows")
     if not r3:
         print("R3 카탈로그가 비었습니다 — 이후 단계를 진행할 수 없습니다.")
         raise SystemExit(2)
@@ -1057,17 +1084,15 @@ if __name__ == "__main__":
                 f"avail={rows[0]['avail_recipe']}/{rows[0]['total_recipe']}"
             )
 
-    # ★ OFFICE-VERIFY #1 — skip_yn 극성. mother_normal 은 "N" 을 고르는데
-    # avail_recipe 는 "Y" 를 세므로, 둘 다 맞다면 이 값은 항상 0 입니다.
-    latest = sorted(trend)[-1] if trend else None
-    if latest:
-        mother = trend[latest]["mother_normal_summary"]
-        if mother and all(row["avail_recipe"] == 0 for row in mother):
-            print(
-                "\n  ★ mother_normal 의 avail_recipe 가 전부 0 입니다.\n"
-                "    skip_yn 극성이 문서(Y=측정 중)와 반대일 가능성이 큽니다 —\n"
-                "    MEASURING 을 'N' 으로 뒤집고 planstep_r3.txt 를 함께 고치십시오."
-            )
+    # OFFICE-VERIFY #1 — skip_yn 의 실제 값 분포. "Y"/"N" 말고 빈 값이 얼마나
+    #되는지가 `!= "Y"` 규칙이 살려 내는 스텝의 양입니다.
+    distribution: dict[str, int] = {}
+    for step in steps:
+        key = step["skip_yn"] or "(빈 값)"
+        distribution[key] = distribution.get(key, 0) + 1
+    measuring = sum(1 for step in steps if _is_measuring(step["skip_yn"]))
+    print(f"\n  skip_yn 분포: {distribution}")
+    print(f"    != {SKIPPED!r} (진행 중): {measuring}/{len(steps)}")
 
     published = "발행됨" if get_rules("R3") else "미발행 (publish_rules 필요)"
     print(f"\n  rules(R3): {published}")

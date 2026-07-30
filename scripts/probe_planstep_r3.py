@@ -4,10 +4,10 @@ Purpose: verify the 3-hop data path the cdsem **device_statistics** office
 adapter has to walk, before any of it is written. The adapter is still a stub,
 and this index was an unknown source until 2026-07-30.
 
-    device_info_rnd (Redis)        -> lot_cd
+    r3_device_grp (Redis)          -> lot_cd
       + "_BASE"                    -> prod_id
-    sknn-planstep-r3 (OpenSearch)  -> sort oper_seq, samp_seq; skip_yn == "Y"
-                                      -> oper_desc, recipe_id
+    sknn-planstep-r3 (OpenSearch)  -> sort prod_id, oper_seq, samp_seq;
+                                      skip_yn != "Y" -> oper_desc, recipe_id
     cdsem_idp_ver (OpenSearch)     -> full_name == recipe_id, highest version
                                       -> parameters -> para_* counts
 
@@ -53,7 +53,8 @@ INDEX = "sknn-planstep-r3"
 IDP_INDEX = "cdsem_idp_ver"
 
 # The Redis key holding the R3 device catalog this index's prod_id must join to.
-RND_KEY = "device_info_rnd"
+# NOT device_info_rnd — that key holds stale data (user-confirmed 2026-07-31).
+RND_KEY = "r3_device_grp"
 
 # Documented 2026-07-30. Presence and mapping type of each is what stage [1]
 # checks — a field documented here but missing in the mapping is the finding.
@@ -82,10 +83,11 @@ ENUM_FIELDS = ("det_fac_id", "main_oper_yn", "skip_yn", "bak_eqp_yn", "eqp_grp_i
 
 NUMERIC_FIELDS = ("oper_seq", "samp_seq")
 
-# user-confirmed 2026-07-30: the value meaning "currently being measured".
-# Counter-intuitive for a field named skip_yn, which is exactly why it is a
-# named constant with this comment rather than an inline "Y".
-MEASURING = "Y"
+# user-confirmed 2026-07-31: "Y" means SKIPPED, exactly as the field name reads.
+# The field has THREE values — "Y", "N", and blank — so "is this step measured"
+# is `!= "Y"`, never `== "N"`. (An earlier note claiming "Y" meant "currently
+# measuring" was withdrawn; docs/datatables/planstep_r3.txt has the history.)
+SKIPPED = "Y"
 
 PROD_ID_SUFFIX = "_BASE"
 
@@ -169,19 +171,25 @@ def stage_values(search: OSSearch, props: dict[str, Any]) -> None:
         for bucket in buckets:
             print(f"      {str(bucket['key']):<24} {bucket['doc_count']:>10,}")
         if name == "skip_yn":
-            measuring = next(
-                (b["doc_count"] for b in buckets if str(b["key"]) == MEASURING), 0
+            skipped = next(
+                (b["doc_count"] for b in buckets if str(b["key"]) == SKIPPED), 0
             )
-            other = sum(b["doc_count"] for b in buckets) - measuring
+            bucketed = sum(b["doc_count"] for b in buckets)
             print(
-                f"      -> skip_yn == {MEASURING!r} (currently measuring, "
-                f"user-confirmed): {measuring:,} vs {other:,} other"
+                f"      -> skip_yn == {SKIPPED!r} (skipped): {skipped:,}   "
+                f"!= {SKIPPED!r} (measured): {bucketed - skipped:,}"
             )
-            if measuring and other and measuring > other:
+            # The whole reason the adapter tests `!= "Y"` rather than `== "N"`:
+            # a third, blank value exists. Docs missing the field entirely never
+            # appear in a terms agg, so the gap against the index total is the
+            # only way to count them — and it is exactly the population a
+            # `== "N"` filter would silently drop.
+            total = OSSearch(client=search.client, index=INDEX).count().get("count")
+            if isinstance(total, int) and total > bucketed:
                 print(
-                    "      NOTE: the 'measuring' side is the MAJORITY. Consistent "
-                    "with Y=measuring, but if these steps look skipped in the fab, "
-                    "re-confirm the polarity before shipping."
+                    f"      -> BLANK/missing skip_yn: {total - bucketed:,} of "
+                    f"{total:,} docs carry no 'Y'/'N' value.\n"
+                    "         A `== \"N\"` filter would drop every one of them."
                 )
 
     for name in NUMERIC_FIELDS:
@@ -224,7 +232,7 @@ def stage_values(search: OSSearch, props: dict[str, Any]) -> None:
 
 
 def stage_prod_id_bridge(search: OSSearch, props: dict[str, Any], limit: int) -> list[str]:
-    """Does stripping "_BASE" off prod_id land in device_info_rnd's lot_cd?"""
+    """Does stripping "_BASE" off prod_id land in r3_device_grp's lot_cd?"""
     _rule("[3] prod_id <-> lot_cd bridge")
 
     if "prod_id" not in props:
@@ -305,12 +313,13 @@ def stage_steps_per_device(search: OSSearch, props: dict[str, Any], prod_ids: li
 
         measured = "?"
         if skip_field:
+            # `must_not term "Y"` rather than `term "N"` — the adapter's rule.
+            # A positive match on "N" would exclude the blank-valued steps,
+            # which is the bug this probe exists to make visible.
             measured_query = {
                 "bool": {
-                    "filter": [
-                        {"term": {field: prod_id}},
-                        {"term": {skip_field: MEASURING}},
-                    ]
+                    "filter": [{"term": {field: prod_id}}],
+                    "must_not": [{"term": {skip_field: SKIPPED}}],
                 }
             }
             measured = search.count(query=measured_query).get("count", 0)
@@ -320,7 +329,7 @@ def stage_steps_per_device(search: OSSearch, props: dict[str, Any], prod_ids: li
             body = {
                 "size": 5,
                 "query": measured_query,
-                "sort": [{"oper_seq": "asc"}, {"samp_seq": "asc"}],
+                "sort": [{field: "asc"}, {"oper_seq": "asc"}, {"samp_seq": "asc"}],
                 "_source": ["oper_seq", "samp_seq", "oper_desc", "recipe_id", "eqp_id"],
             }
             hits = search.search_raw(body).get("hits", {}).get("hits", [])
@@ -441,7 +450,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="python -m scripts.probe_planstep_r3",
         description=(
             "Probe sknn-planstep-r3 and the device_statistics 3-hop chain "
-            "(device_info_rnd -> planstep -> cdsem_idp_ver)."
+            "(r3_device_grp -> planstep -> cdsem_idp_ver)."
         ),
     )
     parser.add_argument(

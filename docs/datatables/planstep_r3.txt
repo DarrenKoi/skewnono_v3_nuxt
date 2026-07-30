@@ -56,29 +56,44 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
 1. device code(lot_cd)에 "_BASE" 를 붙여 prod_id 를 만들고 그 값으로 스텝을
    가져옵니다. 반대로 index 에서 device 목록을 얻을 때는 prod_id 에서 "_BASE" 를
    떼어냅니다.
-2. **oper_seq -> samp_seq 순서로 정렬**합니다. 이 두 값이 공정 흐름의 순서이며,
-   문서 반환 순서에 의존하면 안 됩니다.
-3. **skip_yn == "Y" 로 걸러 현재 측정 중인 스텝**의 oper_desc 와 recipe_id 를
-   얻습니다.
+2. **prod_id -> oper_seq -> samp_seq 순서로 정렬**합니다(user-confirmed
+   2026-07-31). 뒤의 두 값이 공정 흐름의 순서이고, 맨 앞의 prod_id 는 여러
+   device 를 한 번에 질의할 때 device 별 스텝이 뒤섞이지 않게 합니다. 문서 반환
+   순서에 의존하면 안 됩니다.
+3. **skip_yn != "Y" 로 걸러 skip 되지 않은 스텝**의 oper_desc 와 recipe_id 를
+   얻습니다. 아래 ★ 절을 반드시 먼저 읽으십시오 — `== "N"` 이 아닙니다.
 4. 파라미터 개수(para_*)는 이 index 에 없습니다. 3번에서 얻은 recipe_id 를
    cdsem_idp_ver 의 full_name 과 조인해 **가장 높은 version** 문서의 parameters 에서
    구합니다 (docs/datatables/idp_ver.txt 참고).
 
 즉 device-statistics 의 office 경로는 3-hop 입니다.
 
-    device_info_rnd (Redis)         -> lot_cd
+    r3_device_grp (Redis)           -> lot_cd
       + "_BASE"                     -> prod_id
-    sknn-planstep-r3 (OpenSearch)   -> oper_seq/samp_seq 정렬, skip_yn == "Y"
-                                       -> oper_desc, recipe_id
+    sknn-planstep-r3 (OpenSearch)   -> prod_id/oper_seq/samp_seq 정렬,
+                                       skip_yn != "Y" -> oper_desc, recipe_id
     cdsem_idp_ver (OpenSearch)      -> full_name == recipe_id, 최신 version
                                        -> parameters -> para_* 집계
 
-주의 — skip_yn 극성 (user-confirmed 2026-07-30)
+★ skip_yn — "Y" 만 제외하고 판정은 반드시 != "Y" (user-confirmed 2026-07-31)
 
-이름은 "skip"(건너뛴다)이지만 **"Y" 가 현재 측정 중**을 의미합니다. 직관과 반대이므로
-"Y 는 제외해야 하는 값" 으로 읽고 필터를 뒤집는 실수가 나오기 쉽습니다. 담당자 확인을
-받은 값이므로 코드에서 되돌리지 마십시오. 사무실 실행으로 재확인할 때는
-scripts/probe_planstep_r3.py 의 skip_yn 분포와 recipe_id 채움 비율을 함께 봅니다.
+이름 그대로 **"Y" 가 skip(측정하지 않음)** 입니다. 그리고 값은 **세 가지**입니다 —
+"Y", "N", 그리고 **빈 값**(둘 다 아님). 따라서 "측정 중인 스텝" 을 고르는 조건은
+
+    skip_yn != "Y"        (O)
+    skip_yn == "N"        (X — 빈 값인 스텝이 통째로 사라집니다)
+
+입니다. 긍정 비교로 쓰면 빈 값 스텝이 조용히 빠지고, 그 손실은 예외가 아니라
+"숫자가 좀 작다" 로만 나타나 발견이 아주 늦습니다.
+
+정정 이력: 2026-07-30 에 이 문서는 **"Y 가 현재 측정 중"** 이라고 기록했습니다.
+2026-07-31 에 철회되었습니다 — 반대였습니다. 이 극성은 avail_recipe 와
+mother_normal 버킷을 동시에 뒤집으므로 어댑터와 mock 양쪽에서 각각 함수
+하나(`_is_measuring`)로 모아 두었습니다. 다시 뒤집지 마십시오.
+
+사무실 실행으로 재확인할 때는 scripts/probe_planstep_r3.py 의 skip_yn 분포와
+recipe_id 채움 비율을 함께 봅니다. "Y"/"N" 두 버킷의 합이 전체 문서 수보다 작으면
+그 차이가 빈 값입니다.
 
 화면의 네 버킷 — 스텝을 어떻게 나누는가 (user-confirmed 2026-07-31)
 
@@ -88,7 +103,8 @@ recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷�
 
   all            모든 Step. Full job 과 Sample job 을 함께 포함합니다.
   only_normal    스텝명에 CD 가 포함된 Step (정규 recipe).
-  mother_normal  skip_yn == "N" 이면서 스텝명 끝이 **순수한 CD** 인 Step.
+  mother_normal  skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이
+                 **순수한 CD** 인 것.
                  "CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외합니다. 실제 스텝명이
                  "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는 괄호를
                  벗긴 뒤 마지막 토큰이 정확히 "CD" 인지로 판별합니다.
@@ -98,23 +114,12 @@ recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷�
                  단어까지 Sample 로 잡힙니다. 스텝 코드(괄호 앞)로 판단하면
                  오검출이 생긴다는 담당자 확인이 있었습니다.
 
-★ 주의 — mother_normal 과 skip_yn 극성이 충돌합니다
-
-바로 위 절은 **"Y" 가 현재 측정 중**(user-confirmed 2026-07-30)이라고 하는데,
-mother_normal 규칙은 **"N"** 을 고릅니다(user-confirmed 2026-07-31). 둘 다 그대로
-맞다면 mother_normal 버킷의 avail_recipe(= skip_yn 이 측정 중인 recipe 수)는
-**항상 0** 이 되어 화면에 "운용 레시피수 0" 이 계속 뜹니다.
-
-둘 중 하나가 틀렸을 가능성이 높으므로 사무실 첫 실행에서 반드시 확인하십시오.
-어댑터는 극성을 MEASURING 상수 하나로 뽑아 두었고, office_example.py 의
-__main__ 스모크 테스트가 이 상태를 감지해 경고를 출력합니다. 확인 결과가 나오면
-**이 문서와 어댑터를 함께** 고치십시오.
-
 주의 — mock 과 다른 점
 
-- **skip_yn 값 도메인**: 이 index 는 "Y"/"N" 이고, mock(providers/statistics.py)은
-  과거 "Yes"/"No" 를 생성했습니다. 어댑터가 정규화하지 않으면 프론트가 값을 비교하는
-  순간 어긋납니다. mock 은 2026-07-30 에 "Y"/"N" 으로 맞췄습니다.
+- **skip_yn 값 도메인**: 이 index 는 "Y"/"N"/**빈 값** 세 가지이고,
+  mock(providers/statistics.py)은 과거 "Yes"/"No" 두 가지만 생성했습니다. mock 은
+  2026-07-30 에 "Y"/"N" 으로, 2026-07-31 에 빈 값까지 섞도록 맞췄습니다 — 빈 값을
+  만들지 않으면 `== "N"` 으로 잘못 쓴 코드가 집에서는 멀쩡히 통과합니다.
 - **키 축**: 계약(RecipeInfoRow)은 lot_cd 로 키를 잡지만 이 index 에는 lot_cd 컬럼이
   없습니다. prod_id 에서 접미사를 떼어 lot_cd 를 만들어야 합니다.
 - **fac_id 이름**: 계약은 fac_id, 이 index 는 det_fac_id 입니다.
@@ -130,7 +135,7 @@ subfield 를 써야 합니다(prod_id.keyword, recipe_id.keyword 등). 실제 ma
 OFFICE-VERIFY
 
 - 각 field 의 실제 mapping 타입(text vs keyword)과 int/long 여부.
-- prod_id 에서 "_BASE" 를 떼어낸 값이 device_info_rnd.lot_cd 어휘와 실제로 겹치는지.
+- prod_id 에서 "_BASE" 를 떼어낸 값이 r3_device_grp.lot_cd 어휘와 실제로 겹치는지.
   ("_BASE" 외의 접미사가 존재하는지 포함.)
 - chg_tm 이 정말 offset 없이 저장되는지(Z 나 +09:00 이 붙으면 9시간 어긋납니다).
 - 한 device 의 스텝 수 / 전체 문서 수 — recipe-statistics 의 payload 규모 판단용.

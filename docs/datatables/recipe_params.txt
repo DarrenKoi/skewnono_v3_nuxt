@@ -52,7 +52,7 @@ device 의 ctn_desc / recipe 이름에서 파생됩니다. 근거 없이 값을 
                    행은 한 번만 냅니다(계약 단위가 recipe 이므로).
   ctn_desc      -> 그 recipe 가 걸린 **공정 스텝 이름**(R3 oper_desc /
                    M fab oper_det_desc). 문장을 지어내지 않습니다.
-  prod_catg_cd  -> device_info_rnd 의 값. M fab device 는 이 컬럼이 없어
+  prod_catg_cd  -> r3_device_grp 의 값. M fab device 는 이 컬럼이 없어
                    ""(빈 문자열)이며, 따라서 memory_class_auto 는 unknown 입니다.
   recipe_class  -> **recipe 이름이 "_S" 또는 "SE" 로 끝나면 Sample**, 아니면 Main.
                    끝자리 고정(anchored) 규칙입니다 — 이름 어디든 "SE" 를 찾으면

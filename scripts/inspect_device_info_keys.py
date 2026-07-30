@@ -1,21 +1,25 @@
-"""Check the office Redis keys ``device_info_hvm`` and ``device_info_rnd``.
+"""Check the office Redis device catalogs ``device_desc`` and ``r3_device_grp``.
 
-Purpose: unblock the **cdsem device_statistics** office adapter, which is still
-a stub (`providers/office_example.py` raises NotImplementedError for all five
-functions). Its two catalog-shaped inputs are documented in
-``docs/datatables/`` under the key names ``device_desc`` and ``r3_device_grp``,
-but the office also holds ``device_info_hvm`` / ``device_info_rnd``. This script
-answers, from the office, what those two keys actually contain and which
-contract each one can feed.
+Purpose: verify the two catalog-shaped inputs behind the **cdsem
+device_statistics** office adapter (`providers/office_example.py`) — the same two
+keys `_office_meas_hist.py` feeds recipe_tat / fail_issue from. This script
+answers, from the office, what each key actually contains and which contract it
+can feed.
 
-The split is **user-confirmed (2026-07-30)**: ``device_info_hvm`` carries the
-M-fab (양산) catalog, ``device_info_rnd`` carries R3 (연구개발). These two are the
+The split is **user-confirmed (2026-07-31)**: ``device_desc`` carries the M-fab
+(양산) catalog, ``r3_device_grp`` carries R3 (연구개발). These are the
 *initial-setup* catalogs — device-statistics extracts device codes out of them
 per request, rather than reading a per-request table.
 
+★ Key-name history. On 2026-07-30 these were recorded as having been renamed to
+``device_info_hvm`` / ``device_info_rnd``; on 2026-07-31 that was withdrawn —
+those two keys hold **stale data**. They are still probed (as ``LEGACY_KEYS``)
+so a run reports whether they exist and how far behind they are, rather than
+leaving the question open for the next session.
+
 Each key is still scored against BOTH contracts anyway, and fab coverage is
 checked against the confirmed expectation, so a surprise (an R3 row inside
-``device_info_hvm``, a renamed column) shows up as a flagged mismatch instead of
+``device_desc``, a renamed column) shows up as a flagged mismatch instead of
 being silently absorbed into the shape the key name promised.
 
 Run FROM THE REPO ROOT at the office (the shared client self-loads
@@ -72,21 +76,21 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
 from scripts.inspect_redis_key import _human_bytes, describe_dataframe
 
 
-DEFAULT_KEYS = ("device_info_hvm", "device_info_rnd")
+DEFAULT_KEYS = ("device_desc", "r3_device_grp")
 
-# User-confirmed 2026-07-30: which fabs each key is supposed to carry. Checked
+# User-confirmed 2026-07-31: which fabs each key is supposed to carry. Checked
 # rather than assumed — the script's job is to catch the case where the key name
 # and the contents disagree, which is precisely what a silent assumption hides.
 # Matched on the fac_id's leading character (M11/M12/... vs R3/R4).
 EXPECTED_FABS = {
-    "device_info_hvm": ("M", "M-fab 양산 (M11/M12/M14/M15/M16)"),
-    "device_info_rnd": ("R", "R3 연구개발"),
+    "device_desc": ("M", "M-fab 양산 (M11/M12/M14/M15/M16)"),
+    "r3_device_grp": ("R", "R3 연구개발"),
 }
 
-# The key names docs/datatables/{device_desc,r3_device_grp}.txt currently record
-# for these same two catalogs. Checked for existence so the run distinguishes
-# "renamed" from "additional key".
-LEGACY_KEYS = ("device_desc", "r3_device_grp")
+# The stale twins (★ in the module docstring). Probed for existence so a run
+# reports whether they are still present, instead of leaving "are those the real
+# keys?" open for another session to re-litigate.
+LEGACY_KEYS = ("device_info_hvm", "device_info_rnd")
 
 # Fields the contracts declare but the office does NOT store — `id` is a
 # row identifier the mock synthesizes (e.g. "M11-TP"), so counting it as a
@@ -365,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m scripts.inspect_device_info_keys",
         description=(
-            "Check the office Redis keys device_info_hvm / device_info_rnd and "
+            "Check the office Redis keys device_desc / r3_device_grp and "
             "score them against the cdsem device_statistics contracts."
         ),
     )

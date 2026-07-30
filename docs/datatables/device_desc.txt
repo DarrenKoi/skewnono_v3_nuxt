@@ -20,21 +20,32 @@ rnd_connector -> 연구 개발에서 이용된 테크 코드명 (lot_cd가 R로 
 
 사무실에서는 이 카탈로그가 Redis 에 pandas DataFrame 으로 저장됩니다.
 
-Key   -> "device_info_hvm" (DataFrame, parquet 직렬화)
-         M 계열 양산(HVM) fab 카탈로그입니다. (user-confirmed 2026-07-30)
+Key   -> "device_desc" (DataFrame, parquet 직렬화)
+         M 계열 양산 fab 카탈로그입니다. (user-confirmed 2026-07-31)
 Column -> fac_id, lot_cd, ctn_desc, chg_tm, tech_nm, rnd_connector
 
-정정 사항 (user-confirmed 2026-07-30)
+★ Key 이름 정정 이력 — 두 번 바뀌었습니다. 최종은 device_desc 입니다.
 
-- 컬럼명: 이 문서는 이전에 사무실 컬럼명을 stn_desc 로 기록했으나, 실제
-  컬럼명은 mock 과 동일한 ctn_desc 입니다. stn_desc 는 존재하지 않으므로
-  어댑터에서 rename 할 필요가 없습니다.
-- Key 이름: 이전에 "device_desc" 로 기록했으나, 사무실이 실제로 서빙하는
-  key 는 device_info_hvm 입니다. R3/연구개발 쪽은 별도 key device_info_rnd
-  로 분리되어 있습니다 (docs/datatables/r3_device_grp.txt 참고).
-- 두 key(device_info_hvm, device_info_rnd)는 device-statistics 의 initial
-  setup 카탈로그입니다. 화면 요청에 따라 이 카탈로그에서 device code 를
-  추출해 사용합니다.
+  2026-07-30: "사무실이 서빙하는 key 는 device_info_hvm" 이라고 기록.
+  2026-07-31: **철회.** device_info_hvm 은 **낡은 데이터**이며, 살아 있는
+              카탈로그는 원래 이름 그대로 **device_desc** 입니다
+              (user-confirmed). R3/연구개발 쪽도 마찬가지로 r3_device_grp
+              입니다 (docs/datatables/r3_device_grp.txt 참고).
+
+  이 이름을 다시 device_info_* 로 되돌리지 마십시오. recipe_tat/fail_issue 가
+  공유하는 back_dev_home/ebeam/hitachi/_office_meas_hist.py 도 device_desc /
+  r3_device_grp 를 읽으므로, 한쪽만 바꾸면 같은 device 목록이 화면마다
+  달라집니다.
+
+정정 사항 (컬럼명, user-confirmed 2026-07-30)
+
+- 이 문서는 이전에 사무실 컬럼명을 stn_desc 로 기록했으나, 실제 컬럼명은
+  mock 과 동일한 ctn_desc 입니다. 다만 이 이름은 한 번 엇갈린 전력이 있어
+  device_statistics 어댑터는 ctn_desc -> stn_desc 순으로 찾는 관용을
+  둡니다(providers/office_example.py 의 _DEVICE_DESC_COLUMNS).
+
+- 이 카탈로그와 r3_device_grp 는 device-statistics 의 initial setup
+  카탈로그입니다. 화면 요청에 따라 여기서 device code 를 추출해 사용합니다.
 
 실제 컬럼/행 수/결측 분포는 사무실에서 아래로 확인합니다 (OFFICE-VERIFY):
 

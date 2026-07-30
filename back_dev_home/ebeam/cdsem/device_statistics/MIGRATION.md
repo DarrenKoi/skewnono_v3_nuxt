@@ -6,17 +6,22 @@
 five functions are written against the real sources; `cp office_example.py
 office.py` at the office and run the Verify command at the bottom.
 
-Two things are deliberately still open:
+One thing is deliberately still open: **the weekly-snapshot scheduler does not
+exist yet.** Until it runs, `recipe-trend` returns a single point (the current
+week, computed live) and `recipe-statistics` is unaffected. See
+`docs/datatables/device_statistics_weekly_trend.txt`.
 
-- **The weekly-snapshot scheduler does not exist yet.** Until it runs,
-  `recipe-trend` returns a single point (the current week, computed live) and
-  `recipe-statistics` is unaffected. See
-  `docs/datatables/device_statistics_weekly_trend.txt`.
-- **OFFICE-VERIFY #1 — the `skip_yn` polarity is contradictory.**
-  `planstep_r3.txt` records `"Y"` = currently measuring, but the
-  `mother_normal` bucket rule selects `"N"`. If both stand, that bucket's
-  `avail_recipe` is always 0. The adapter's `__main__` smoke test detects it
-  and says so; fix the `MEASURING` constant AND the datatable doc together.
+Two facts were corrected on 2026-07-31 and are easy to re-break:
+
+- **`skip_yn` — "Y" means skipped, and the field has THREE values** (`"Y"`,
+  `"N"`, and blank). Selecting measured steps is `!= "Y"`, never `== "N"` —
+  the latter silently drops every blank-valued step. The 2026-07-30 note
+  saying `"Y"` meant "currently measuring" was wrong and has been withdrawn.
+  Both the adapter and the mock funnel this through one `_is_measuring()`.
+- **The Redis catalogs are `device_desc` / `r3_device_grp`**, not
+  `device_info_hvm` / `device_info_rnd` — those two hold stale data. This name
+  also flipped twice; see the ★ section in `docs/datatables/device_desc.txt`
+  before "fixing" it back.
 
 The remaining OFFICE-VERIFY items are listed in the adapter's module
 docstring.
@@ -79,7 +84,7 @@ docstring.
   process via a fixed RNG seed (`20260426`) — the same rows every call
   within a process, not necessarily byte-identical across process restarts
   if the generator changes, but stable within a running server.
-- Office data source: Redis `device_info_rnd` (parquet DataFrame). Columns map
+- Office data source: Redis `r3_device_grp` (parquet DataFrame). Columns map
   1:1 except `plan_catg_typ`→`plan_catg_type` and `den_typ`→`den_type`; `id`
   has no source column and is synthesized as `{fac_id}-{lot_cd}` (a row index
   would move every device's id whenever the catalog changes). See
@@ -121,10 +126,11 @@ docstring.
   When `fac_ids` is provided, filtering is by exact (normalized-uppercase)
   `fac_id` match; an empty/all-falsy `fac_ids` list (after stripping)
   behaves identically to `None` — full unfiltered table.
-- Office data source: Redis `device_info_hvm` (parquet DataFrame), filtered by
-  uppercase `fac_id`. The description column is `ctn_desc` — the `stn_desc`
-  the old doc named does not exist. `id` is synthesized as `{fac_id}-{lot_cd}`
-  like `r3-device-grp` above. See `docs/datatables/device_desc.txt`.
+- Office data source: Redis `device_desc` (parquet DataFrame), filtered by
+  uppercase `fac_id`. The description column is `ctn_desc`, with `stn_desc`
+  accepted as a fallback since that name has been recorded both ways. `id` is
+  synthesized as `{fac_id}-{lot_cd}` like `r3-device-grp` above. See
+  `docs/datatables/device_desc.txt`.
 - Notes: like `r3-device-grp`, this endpoint returns the full (or
   fac_id-filtered) table with no lot-narrowing — no huge-payload concern
   here relative to the trend/params endpoints below, but the unfiltered
