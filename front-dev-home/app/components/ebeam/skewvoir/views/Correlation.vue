@@ -127,11 +127,12 @@
           icon="i-lucide-scatter-chart"
         >
           <EbeamSkewvoirCorrelationScatter
-            :rows="analysis.siteRows.value"
+            :points="setRelationship.points"
             :param-x="paramX"
             :param-y="paramY"
             :unit-x="unitOf(paramX)"
             :unit-y="unitOf(paramY)"
+            :readiness-reason="setRelationship.reason"
           />
         </EbeamSkewvoirPanelFrame>
 
@@ -185,6 +186,14 @@ watch(params, (list) => {
   if (!list.includes(paramX.value)) paramX.value = list[0] ?? ''
   if (!list.includes(paramY.value)) paramY.value = list[1] ?? list[0] ?? ''
 }, { immediate: true })
+
+const setRelationship = computed(() =>
+  buildCdCdRelationship(
+    props.analysis.siteRows.value,
+    paramX.value,
+    paramY.value
+  )
+)
 
 // ── SINGLE-scope explorer state ─────────────────────────────────────────────
 const distMode = ref('Hist')

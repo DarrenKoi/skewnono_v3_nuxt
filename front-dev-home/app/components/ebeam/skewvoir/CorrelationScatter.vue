@@ -11,23 +11,14 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { PairedPoint } from '~/utils/skewvoirAnalysis/relationships'
-import { measuredRows } from '~/utils/msrRows'
 import { pearson, spearman, fitLine } from '~/utils/stats'
 
-// Param-vs-param correlation within one measurement.
-//
-// Two entry modes, both EXACT-pair (never index-paired):
-//   • `points` — pre-joined PairedPoint[] from utils/skewvoirAnalysis/relationships
-//     (the single-MSR explorer). Each point carries its `chip`, so a scatter click
-//     emits `focus(chip)` to drive the linked site + SEM preview.
-//   • `rows` + paramX/paramY — the legacy focus-only path (the `set` branch), which
-//     pairs the two parameters' CD values by site key here. Kept UNCHANGED so the
-//     set-scope view still renders; its points carry no chip, so clicks are inert.
+// Param-vs-param correlation renders only pre-paired points. Relationship joins
+// belong to utils/skewvoirAnalysis/relationships so every scope shares one
+// chip-aware pairing contract; point chips also drive linked focus behavior.
 const props = defineProps<{
-  rows?: MsrFileRow[]
-  points?: PairedPoint[]
+  points: PairedPoint[]
   paramX: string
   paramY: string
   unitX: string
@@ -41,34 +32,15 @@ const emit = defineEmits<{ focus: [chip: string] }>()
 
 const sk = useChartPalette()
 
-// Legacy rows path: pair the two parameters by (chip + sequence) here.
-const legacyPairs = computed<[number, number][]>(() => {
-  const rows = measuredRows(props.rows ?? [])
-  const xBySite = new Map<string, number>()
-  for (const r of rows) {
-    if (r.parameter === props.paramX) xBySite.set(`${r.chip_number}#${r.sequence}`, r.cd_value)
-  }
-  const out: [number, number][] = []
-  for (const r of rows) {
-    if (r.parameter !== props.paramY) continue
-    const x = xBySite.get(`${r.chip_number}#${r.sequence}`)
-    if (x != null) out.push([x, r.cd_value])
-  }
-  return out
-})
-
-// The active pairs, either from the pre-joined points or the legacy rows path.
 const pairs = computed<[number, number][]>(() =>
-  props.points ? props.points.map(p => [p.x, p.y]) : legacyPairs.value
+  props.points.map(point => [point.x, point.y])
 )
 
-// ECharts scatter data. When points are supplied, tag each datum's `name` with
-// its chip so useEchart's click handler (which forwards params.name) can emit
-// focus(chip) — the link that moves the focused site + SEM preview.
 const scatterData = computed(() =>
-  props.points
-    ? props.points.map(p => ({ value: [p.x, p.y] as [number, number], name: p.chip }))
-    : pairs.value
+  props.points.map(point => ({
+    value: [point.x, point.y] as [number, number],
+    name: point.chip
+  }))
 )
 
 const r = computed(() => pearson(pairs.value))
