@@ -618,7 +618,10 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
         ("Method", lambda _: "Fast2"),
         ("Relative Position X(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
         ("Relative Position Y(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
-        ("Mag", None),
+        # str '0', not a magnification — presumably "no override". Asked whether
+        # it would be '30000' or '50.0K'; it was neither, which is the clearest
+        # case yet for why an unseen value is never inferred from its key name.
+        ("Mag", lambda _: "0"),
     ),
     "addressing_auto_focus1": _AF_FIELDS,
     "addressing_pattern_recognition1": _PR_FIELDS,

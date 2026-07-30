@@ -413,8 +413,11 @@ def test_only_the_seen_af_pr_group_carries_real_values():
         # float in the reader, stringified by the adapter — '2.0', not '2'.
         assert re.fullmatch(r"-?\d+\.\d", focusing["Relative Position X(um)"])
         assert re.fullmatch(r"\d+\.\d", focusing["Wait(s)"])
-        # Same group, still-unseen values.
-        assert re.fullmatch(r"[A-F][0-9A-F]{3}", focusing["Mag"])
+        # '0', not a magnification. Guessed as '30000'/'50.0K' before it was
+        # read — the sharpest reminder that a key name does not imply a value.
+        assert focusing["Mag"] == "0"
+        # Same group, value still unseen.
+        assert re.fullmatch(r"[A-F][0-9A-F]{3}", focusing["Offset(LSB)"])
 
         other = [r for r in rows if r["section"] != "measurement_focusing"]
         assert other
