@@ -1,0 +1,86 @@
+사무실(Office) MinIO 객체 — device-statistics 주차별 트렌드 스냅샷
+
+recipe-trend 화면의 소스입니다. 답하려는 질문은 하나입니다 —
+**이 device 의 파라미터 규모가 주 단위로 어떻게 변해 왔는가.**
+
+이 문서가 다루는 것은 **우리가 만들어 쌓는 데이터**입니다. 다른 datatables 문서와
+달리 사무실이 이미 갖고 있는 원천이 아닙니다.
+
+왜 스냅샷이 필요한가 (설계 확정 2026-07-31)
+========================================================================
+
+공정 스텝 원천(sknn-planstep-r3)은 **현재 상태** index 입니다 — 문서 1건이
+(prod_id, oper_seq, samp_seq) 한 스텝의 **지금 계획**이고, chg_tm 은 그것이 마지막으로
+바뀐 시각입니다. 즉 "3주 전에는 스텝이 몇 개였는가" 를 질의로 복원할 방법이 없습니다.
+
+chg_tm <= 기준일 로 거르는 as-of 재구성도 정확하지 않습니다. 기준일 이후에 한 번이라도
+바뀐 스텝은 통째로 빠지므로 과거로 갈수록 과소 집계됩니다. 따라서 **주차별 스냅샷을
+적재**하고 화면은 그것을 읽습니다.
+
+Key   -> {MinIO 기본 prefix}/device_statistics/weekly_trend/YYYY-MM-DD.json
+         날짜는 그 주의 **월요일**입니다(주차 키는 항상 월요일 ISO 날짜).
+         사무실 자격증명은 user/<사번>/ prefix 로 제한되어 있으므로 그 아래에
+         떨어집니다. 버킷 레벨 조작(lifecycle 등)은 하지 않습니다.
+
+payload 구조
+
+    {
+      "date": "2026-07-27",                  # 주차 키(월요일)
+      "generated_at": "2026-07-27T01:00:00+09:00",
+      "summaries": {
+        "all":           [SummaryRow, ...],  # device 1개당 1행
+        "only_normal":   [SummaryRow, ...],
+        "mother_normal": [SummaryRow, ...],
+        "only_sample":   [SummaryRow, ...]
+      }
+    }
+
+SummaryRow 는 계약 그대로입니다 —
+back_dev_home/ebeam/cdsem/device_statistics/contracts.py.
+네 버킷의 정의는 docs/datatables/planstep_r3.txt 의 "화면의 네 버킷" 절입니다.
+
+summary 만 담고 rcp_info 는 담지 않습니다 — 의도입니다
+========================================================================
+
+recipe 단위 상세(*_rcp_info)는 스냅샷에 넣지 않습니다.
+
+- recipe-statistics 는 **최신 날짜 하나만** 소비합니다(routes.py 가 마지막 날짜만
+  꺼냅니다). 그 날짜는 어댑터가 라이브로 계산하므로 스냅샷이 필요 없습니다.
+- recipe-trend 는 *_summary 만 읽습니다.
+- 반대로 넣으면: device 4000개 × 버킷 4개 × recipe 100~200개를 매주 적재하게 되어
+  GB 급이 됩니다. MIGRATION.md 가 기록한 1.07 GB 응답 사고가 주마다 재현되는 셈이며,
+  그렇게 쌓아도 읽는 화면이 없습니다.
+
+적재 (스케줄러)
+========================================================================
+
+주 1회(월요일) 아래 함수 하나만 호출하면 됩니다. 읽기 쪽과 payload 형태가 갈라지지
+않도록 **생성도 office 어댑터가 책임집니다.**
+
+    from back_dev_home.ebeam.cdsem.device_statistics.providers.office import (
+        write_weekly_snapshot,
+    )
+    write_weekly_snapshot()          # 이번 주 월요일 키로 적재
+    write_weekly_snapshot("2026-07-20")   # 특정 주차 재적재(덮어쓰기, 재실행 안전)
+
+스케줄러 자체는 아직 없습니다 — 사무실에서 붙일 작업입니다.
+
+읽기 규칙
+========================================================================
+
+1. 요청된 주차 목록 중 **이번 주차는 라이브 계산**입니다(스냅샷이 아직 없으므로).
+2. 과거 주차는 위 key 를 읽어 요청된 lot_cd 로 좁힙니다.
+3. **스냅샷이 없는 과거 주차는 키 자체를 응답에서 뺍니다.** 빈 bucket 을 넣으면
+   트렌드 차트가 0 으로 내려꽂혀 "그 주에는 측정이 없었다" 는 거짓을 그립니다.
+4. 없음(NoSuchKey)과 권한 오류를 구분해야 합니다. 사무실 자격증명은 허용된 prefix
+   **밖**에서 NotFound 가 아니라 **AccessDenied** 를 돌려주므로, 그것을 "없음" 으로
+   삼키면 경로 오타가 조용히 빈 트렌드로 나타납니다.
+
+OFFICE-VERIFY
+
+- 첫 적재 후 실제 객체 크기(device 전체 기준). 예상보다 크면 적재 단위를 fab 별로
+  쪼개는 것을 검토합니다.
+- 보존 기간. 화면이 8주(기본 points)만 보므로 그보다 오래된 객체는 지울 수 있으나,
+  MinIO 자격증명이 prefix 로 제한되어 native lifecycle 을 걸 수 없습니다 — 지운다면
+  이미지 캐시처럼 애플리케이션 쪽 sweep 이 필요합니다
+  (docs/datatables/msr_image_ftp.txt 의 보존 정책 참고).

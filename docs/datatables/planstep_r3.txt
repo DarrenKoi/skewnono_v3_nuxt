@@ -80,6 +80,36 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
 받은 값이므로 코드에서 되돌리지 마십시오. 사무실 실행으로 재확인할 때는
 scripts/probe_planstep_r3.py 의 skip_yn 분포와 recipe_id 채움 비율을 함께 봅니다.
 
+화면의 네 버킷 — 스텝을 어떻게 나누는가 (user-confirmed 2026-07-31)
+
+recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷으로 나눠
+보여줍니다. 이 index 에 버킷 컬럼이 있는 것이 아니라 **스텝 이름과 recipe 이름에서
+어댑터가 파생**합니다.
+
+  all            모든 Step. Full job 과 Sample job 을 함께 포함합니다.
+  only_normal    스텝명에 CD 가 포함된 Step (정규 recipe).
+  mother_normal  skip_yn == "N" 이면서 스텝명 끝이 **순수한 CD** 인 Step.
+                 "CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외합니다. 실제 스텝명이
+                 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는 괄호를
+                 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지로 판별합니다.
+  only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step. 축이 스텝명이
+                 아니라 recipe 이름인 것이 핵심이며, 끝자리 고정(anchored)이어야
+                 합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 같은 평범한
+                 단어까지 Sample 로 잡힙니다. 스텝 코드(괄호 앞)로 판단하면
+                 오검출이 생긴다는 담당자 확인이 있었습니다.
+
+★ 주의 — mother_normal 과 skip_yn 극성이 충돌합니다
+
+바로 위 절은 **"Y" 가 현재 측정 중**(user-confirmed 2026-07-30)이라고 하는데,
+mother_normal 규칙은 **"N"** 을 고릅니다(user-confirmed 2026-07-31). 둘 다 그대로
+맞다면 mother_normal 버킷의 avail_recipe(= skip_yn 이 측정 중인 recipe 수)는
+**항상 0** 이 되어 화면에 "운용 레시피수 0" 이 계속 뜹니다.
+
+둘 중 하나가 틀렸을 가능성이 높으므로 사무실 첫 실행에서 반드시 확인하십시오.
+어댑터는 극성을 MEASURING 상수 하나로 뽑아 두었고, office_example.py 의
+__main__ 스모크 테스트가 이 상태를 감지해 경고를 출력합니다. 확인 결과가 나오면
+**이 문서와 어댑터를 함께** 고치십시오.
+
 주의 — mock 과 다른 점
 
 - **skip_yn 값 도메인**: 이 index 는 "Y"/"N" 이고, mock(providers/statistics.py)은

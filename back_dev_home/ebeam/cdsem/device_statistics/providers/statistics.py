@@ -49,6 +49,30 @@ skip_yn 은 실물과 값·극성을 맞췄습니다 — "Y"/"N" 이며 **"Y" �
 사용 가능으로 셌기 때문에, 값 도메인과 극성이 동시에 틀려 있었습니다. 되돌리지
 마십시오.
 
+네 버킷의 실제 의미 (user-confirmed 2026-07-31)
+──────────────────────────────────────────────
+이 mock 은 버킷마다 recipe 수를 난수 범위(RECIPE_COUNT_RANGES)로 만들지만,
+실물에서 버킷은 **스텝 이름과 recipe 이름으로 갈라지는 분류**입니다. 집에서
+개발할 때 "버킷 = 크기가 다른 네 덩어리" 로만 이해하면 어댑터를 읽을 때 어긋
+납니다.
+
+  all            모든 Step (Full job + Sample job)
+  only_normal    스텝명에 CD 가 포함된 Step
+  mother_normal  skip_yn == "N" 이면서 스텝명 끝이 순수한 CD
+                 ("CD(E)", "CD(F)" 는 제외)
+  only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
+
+★ mother_normal 이 "N" 을 고르는 것은 바로 위 극성 설명과 충돌합니다. 둘 다
+  맞다면 그 버킷의 avail_recipe 는 항상 0 입니다 — 사무실 첫 실행에서 확인해야
+  하는 1순위 항목입니다 (docs/datatables/planstep_r3.txt 의 ★ 절).
+
+주간 트렌드의 실물 경로 (설계 확정 2026-07-31)
+─────────────────────────────────────────────
+이 mock 은 날짜별 값을 seed 로 만들어 내지만, 실물 스텝 index 에는 **과거가
+없습니다**(현재 계획만 있는 index). 따라서 사무실에서는 주차별 스냅샷을 MinIO
+에 적재해 두고 읽습니다 — 과거 주차는 스냅샷, 이번 주차만 라이브입니다.
+자세한 내용은 docs/datatables/device_statistics_weekly_trend.txt.
+
 Internal module: callers outside this feature must import the public surface
 from `device_statistics.data` (the provider switch); `recipe_tat`'s mock
 provider is the one sanctioned exception and imports `_lot_index` straight

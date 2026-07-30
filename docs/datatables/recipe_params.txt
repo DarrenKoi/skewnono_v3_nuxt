@@ -30,3 +30,49 @@ Mock 생성 규칙
 1. lot_cd 별 결정론적 seed(statistics._seed_for)로 recipe·parameter 를 생성합니다.
 2. 약 8% recipe 는 기타(OTHER) 파라미터가 많은 bloated recipe 입니다 (D10 신호 검증용).
 3. 약 5% recipe 는 EDGE point 수가 또래 대비 큰 outlier 를 포함합니다 (outlier 뷰·R3 cap 검증용).
+
+
+========================================================================
+사무실(Office) 파생 규칙 — 어댑터가 각 컬럼을 무엇에서 만드는가
+========================================================================
+
+이 응답에는 **원천 컬럼이 그대로 있는 값이 하나도 없습니다.** recipe 목록은
+공정 스텝 index 에서, 파라미터는 IDP index 에서 오고, 분류 컬럼 네 개는
+device 의 ctn_desc / recipe 이름에서 파생됩니다. 근거 없이 값을 지어내지 않는
+것이 규칙이므로, 판별할 수 없는 값은 빈 문자열이나 null 로 둡니다.
+
+원천 (docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt)
+
+  recipe 목록  -> R3: sknn-planstep-r3 / M fab: ebeam_tas_lot_hist
+  parameters   -> cdsem_idp_ver, full_name == recipe_id 의 최신 version
+
+컬럼별 파생 규칙 (user-confirmed 2026-07-31)
+
+  recipe_id     -> 스텝의 recipe_id 그대로. 같은 recipe 가 여러 스텝에 걸리면
+                   행은 한 번만 냅니다(계약 단위가 recipe 이므로).
+  ctn_desc      -> 그 recipe 가 걸린 **공정 스텝 이름**(R3 oper_desc /
+                   M fab oper_det_desc). 문장을 지어내지 않습니다.
+  prod_catg_cd  -> device_info_rnd 의 값. M fab device 는 이 컬럼이 없어
+                   ""(빈 문자열)이며, 따라서 memory_class_auto 는 unknown 입니다.
+  recipe_class  -> **recipe 이름이 "_S" 또는 "SE" 로 끝나면 Sample**, 아니면 Main.
+                   끝자리 고정(anchored) 규칙입니다 — 이름 어디든 "SE" 를 찾으면
+                   PHASE/BASE/SET 같은 평범한 단어가 전부 Sample 로 잡히고,
+                   recipe_class 가 곧 프론트 cap 선택 축(D2)이라 위반 판정까지
+                   뒤집힙니다. 스텝 코드(괄호 앞)로 판단하지 않습니다 —
+                   오검출 가능성이 있다는 담당자 확인이 있었습니다.
+  family        -> device 의 ctn_desc 에 "pool"/"풀" 이 있으면 Pool, 나머지는
+                   전부 Core. **VG_RTC_Cubic 은 발행하지 않습니다** — 원천에서
+                   판별할 근거가 없어, 틀린 분류보다 미분류를 택했습니다.
+                   근거가 생기면 office 어댑터의 _family_of 만 고칩니다.
+  phase         -> device 의 ctn_desc 에서 파싱합니다. "t-EV"/"tev" 를 "EV"
+                   보다 먼저 봐야 합니다(부분 일치 함정).
+                   OFFICE-VERIFY: 원천에 실제로 있는 "p-EV" 는 계약 Literal
+                   (t-EV/EV/TV/PV)에 없어 현재 null 이 됩니다. 화면에 필요하면
+                   계약을 넓혀야 합니다.
+
+파라미터 이름의 세분도 — OFFICE-VERIFY
+
+idp_ver.txt 와 같은 경고입니다. parameters blob 의 key 가 "WAFER"/"EDGE" 처럼
+타입 단어뿐이면 위 26행의 longest-prefix 타입 파생이 할 일이 없어지고, 위 Mock
+생성 규칙 2·3번이 전제하는 **bloated recipe·outlier 신호가 입력을 잃습니다.**
+첫 사무실 실행에서 실제 key 목록을 확인하십시오.

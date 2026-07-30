@@ -1,5 +1,26 @@
 # device_statistics — office migration
 
+## Status (2026-07-31)
+
+`providers/office_example.py` is **implemented, not yet office-verified.** All
+five functions are written against the real sources; `cp office_example.py
+office.py` at the office and run the Verify command at the bottom.
+
+Two things are deliberately still open:
+
+- **The weekly-snapshot scheduler does not exist yet.** Until it runs,
+  `recipe-trend` returns a single point (the current week, computed live) and
+  `recipe-statistics` is unaffected. See
+  `docs/datatables/device_statistics_weekly_trend.txt`.
+- **OFFICE-VERIFY #1 — the `skip_yn` polarity is contradictory.**
+  `planstep_r3.txt` records `"Y"` = currently measuring, but the
+  `mother_normal` bucket rule selects `"N"`. If both stand, that bucket's
+  `avail_recipe` is always 0. The adapter's `__main__` smoke test detects it
+  and says so; fix the `MEASURING` constant AND the datatable doc together.
+
+The remaining OFFICE-VERIFY items are listed in the adapter's module
+docstring.
+
 ## Rules
 
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
@@ -58,8 +79,11 @@
   process via a fixed RNG seed (`20260426`) — the same rows every call
   within a process, not necessarily byte-identical across process restarts
   if the generator changes, but stable within a running server.
-- Office data source: <!-- OFFICE: docs/datatables/r3_device_grp.txt table
-  query -->
+- Office data source: Redis `device_info_rnd` (parquet DataFrame). Columns map
+  1:1 except `plan_catg_typ`→`plan_catg_type` and `den_typ`→`den_type`; `id`
+  has no source column and is synthesized as `{fac_id}-{lot_cd}` (a row index
+  would move every device's id whenever the catalog changes). See
+  `docs/datatables/r3_device_grp.txt`.
 - Notes: **this endpoint has no query params and always returns the full
   2000-row table** — unlike `recipe-statistics`/`recipe-params`/
   `recipe-trend` below, there is no narrowing here to preserve; office
@@ -97,8 +121,10 @@
   When `fac_ids` is provided, filtering is by exact (normalized-uppercase)
   `fac_id` match; an empty/all-falsy `fac_ids` list (after stripping)
   behaves identically to `None` — full unfiltered table.
-- Office data source: <!-- OFFICE: docs/datatables/device_desc.txt table
-  query, filterable by fac_id -->
+- Office data source: Redis `device_info_hvm` (parquet DataFrame), filtered by
+  uppercase `fac_id`. The description column is `ctn_desc` — the `stn_desc`
+  the old doc named does not exist. `id` is synthesized as `{fac_id}-{lot_cd}`
+  like `r3-device-grp` above. See `docs/datatables/device_desc.txt`.
 - Notes: like `r3-device-grp`, this endpoint returns the full (or
   fac_id-filtered) table with no lot-narrowing — no huge-payload concern
   here relative to the trend/params endpoints below, but the unfiltered
@@ -146,8 +172,14 @@
   `point_index`, so reducing `points` shifts which index is "latest" and
   changes that date's generated values, breaking the deterministic-per-date
   guarantee documented on `get_weekly_trend_data`.
-- Office data source: <!-- OFFICE: recipe/parameter aggregation per lot per
-  week, bucketed by normal/mother/sample recipe classification -->
+- Office data source: the **latest** weekly point is computed live from the
+  step sources (R3 `sknn-planstep-r3` by `prod_id = lot_cd + "_BASE"`, M-fab
+  `ebeam_tas_lot_hist` over the last 90 days), joined to `cdsem_idp_ver` for
+  each recipe's newest `parameters` blob. Because this route only ever reads
+  the latest date, it never touches the weekly snapshots. Bucket membership
+  (all / only_normal / mother_normal / only_sample) is derived from the step
+  name and the recipe name — see `docs/datatables/planstep_r3.txt` "화면의 네
+  버킷".
 - Notes: **huge-payload endpoint.** Called with no `lot_cds` filter, this
   fans out over every lot in the mock (2000 R3 + 2000 M-fab = 4000 lots)
   and returns a full cross-product — this is how the original capture
@@ -202,9 +234,11 @@
   pools (`WAFER_*`, `LEVEL_*`, `EDGE_*`, `EDGE_EX_*`, plus an `OTHER` bag)
   specifically to exercise the frontend's longest-prefix type derivation
   (`EDGE_EX` > `EDGE` > `WAFER` > `LEVEL` > everything else = `OTHER`).
-- Office data source: <!-- OFFICE: recipe + parameter tables joined per
-  lot_cd, with recipe_class/family/phase/memory_class_auto classification
-  -->
+- Office data source: the same step sources as `recipe-statistics`, one row
+  per distinct `recipe_id`, with `parameters` from `cdsem_idp_ver`'s newest
+  version. `recipe_class` / `family` / `phase` / `memory_class_auto` are
+  derived, not stored — the derivation table is in
+  `docs/datatables/recipe_params.txt` "사무실 파생 규칙".
 - Notes: **huge-payload endpoint**, same shape of concern as
   `recipe-statistics` above — an unfiltered call fans out over all ~4000
   lots (the original capture was 578 MB). The parity harness pins
@@ -270,9 +304,13 @@
   parameter data. Cell match order matters: `r3-sample-core-tvpv` must
   precede the general `r3-sample-dram`/`r3-sample-nand` cells so the
   frontend's first-match selection picks the more specific cell.
-- Office data source: <!-- OFFICE: rule version history table, keyed by
-  fab; office may serve more than one fab and more than one version, but
-  this endpoint's contract only asks for "the current version" per fab -->
+- Office data source: **none — rules are app-owned state, not office data.**
+  There is no upstream table to read, so the adapter reads the published
+  version out of the Redis hash `v3_device_statistics_rules` (field =
+  `fac_id`, value = `RuleVersion` JSON) and returns `None` when nothing has
+  been published, which the route turns into a 404. Seed it once with
+  `publish_rules(fac_id, version)` from the adapter module. Version history
+  and rollback (D12) remain out of scope for this seam.
 
 - Notes: not a huge-payload endpoint — one fab's rule set is a handful of
   cells. `save`/`history`/`rollback` are explicitly out of scope for this
@@ -302,8 +340,16 @@
   `points`" caveat), just with the recipe-detail lists stripped before
   return and a date-range slice applied by the route afterward instead of
   "take only the latest date."
-- Office data source: <!-- OFFICE: same aggregation as recipe-statistics,
-  summary-only (no per-recipe rows), filterable by date range -->
+- Office data source: **MinIO weekly snapshots** —
+  `device_statistics/weekly_trend/YYYY-MM-DD.json`, summary-only, one object
+  per week keyed by that week's Monday. The step index is a current-state
+  index with no usable history, so past weeks cannot be reconstructed by
+  query; a separate scheduler writes the snapshots via
+  `write_weekly_snapshot()`. The current week has no snapshot yet and is
+  computed live. A past week whose snapshot is missing is **omitted from the
+  response** rather than emitted empty — an empty bucket would draw a
+  0 on the trend chart and assert "nothing was measured that week". See
+  `docs/datatables/device_statistics_weekly_trend.txt`.
 - Notes: **huge-payload endpoint**, same class of concern as
   `recipe-statistics`/`recipe-params` — the original capture was 70 MB
   unfiltered. The parity harness pins `?lot_cds=R000` (~12 KB). Because

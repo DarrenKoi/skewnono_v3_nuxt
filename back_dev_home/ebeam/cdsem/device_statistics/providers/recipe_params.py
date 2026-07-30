@@ -11,6 +11,20 @@ Phase 1 mock: lot 당 결정론적 seed 로 recipe·parameter 생성. 일부 rec
 의도적으로 (a) point-count outlier 와 (b) cap 위반 파라미터를 심어 두 소비처
 (outlier 뷰 · R3 compliance)가 모두 실데이터로 검증되게 합니다.
 
+사무실 파생 규칙 (user-confirmed 2026-07-31) — 이 mock 이 난수로 고르는 분류
+컬럼들은 실물에서 **파생**됩니다. 규칙 전문은
+docs/datatables/recipe_params.txt 의 "사무실 파생 규칙" 절이고, 요지는:
+
+- recipe_class -> **recipe 이름이 "_S"/"SE" 로 끝나면 Sample**. 끝자리 고정
+  이어야 합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 이 전부 Sample 이
+  되고, recipe_class 가 프론트의 cap 선택 축(D2)이라 위반 판정까지 뒤집힙니다.
+- family -> device ctn_desc 에 "pool"/"풀" 이 있으면 Pool, 나머지는 전부 Core.
+  **VG_RTC_Cubic 은 실물에서 판별할 근거가 없어 발행하지 않습니다** — 이
+  mock 이 세 값을 고루 만드는 것과 다릅니다.
+- prod_catg_cd -> R3 카탈로그에만 있습니다. 이 mock 은 M fab lot 에도 값을
+  지어내지만(_prod_catg_for 의 fallback), 실물은 빈 값이고 따라서
+  memory_class_auto 가 unknown(수동 분류) 으로 떨어집니다.
+
 Internal module: callers outside this feature must import the public
 surface from `device_statistics.data` (the provider switch), not this file
 directly.
