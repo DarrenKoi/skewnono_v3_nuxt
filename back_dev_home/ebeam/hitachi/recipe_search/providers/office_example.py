@@ -92,13 +92,49 @@ the office. They are gone as of 2026-07-29: their source turned out to be the
       ├── PRMS0000                   img_meas2   AMP setting (name used as-is)
       ├── IMAP0001.jpeg / ENAP0001   per wafer-align P.No
       │
-      └─►  office_utils.idp_amp_reader.{read_amp_info,
-             read_af_pr_condition, read_meas_image_condition}(path|bytes|str)
+      └─►  office_utils.idp_amp_reader — FIVE readers, and which file goes to
+           which is the contract (docs/datatables/recipe_idp.txt):
+
+             read_meas_image_condition(src)     .IMMP/.I2MP/.IMMS cond.txt
+             read_amp_info(src)                 PRMS…
+             read_af_pr_condition(src)          ENMP…
+             read_align_image_condition(src, which)   .IMAP{p}/cond.txt
+             get_align_beam_pr_conditions([src, ...]) every ENAP at once
+
+All five were run against real files on 2026-07-30, and three results shape the
+code below rather than merely the documentation:
+
+* **ENMP returns a dict OF DICTS** — eight groups covering the addressing and
+  measurement sequences. ``_to_rows`` tags each inner key with its group and
+  ``SettingRow.section`` carries it to the screen. Flattening would be silently
+  wrong, not merely ugly: addressing pass 1 and pass 2 hold the SAME inner keys,
+  so a row's identity is (section, key) and never key alone.
+* **get_align_beam_pr_conditions keys its return by OPTIC**, ``{"OM": …,
+  "SEM": …}``, so the one batched call CAN be split per align point — P.No 1 is
+  OM and P.No 2 is SEM. ``_split_align_settings`` tries that first; its older
+  positional and name-keyed guesses stay behind it.
+* **The readers do not only return strings.** ENMP's Wait(s) and
+  Relative Position X/Y(um) come back as Python floats beside str siblings in
+  the same group, while cond.txt and PRMS… are genuinely all-str. ``_to_rows``
+  already ``str()``s everything, which is why nothing here needed changing —
+  but do not add code that assumes a reader handed back a string.
+
+Field NAMES are recorded in docs/datatables/recipe_idp.txt, not here, and they
+are expected to change as the office parser is refined. Nothing in this module
+keys off any of them: the contract is open key/value precisely so a renamed
+field shows up on screen instead of vanishing.
 
 Naming lives in ``rawfiles.py`` (pure, fully tested at home); the wiring is
 ``get_param_detail`` / ``get_align_detail`` / ``fetch_recipe_image`` below.
 ``"non"`` — French, not ``"none"`` — means the slot has no file, and a missing
 file is normal rather than an error.
+
+READ-ONLY, by design (user-confirmed 2026-07-30). This screen shows recipe
+settings; there is no write mode. Every route is a read — the two POSTs take a
+list body only because ``/api/*`` allows 20 requests per 5 s and a 20-recipe
+compare would trip that as separate GETs. The single local write below is a
+temp file, because ``combined_idp_info`` takes a path rather than bytes.
+**Nothing may ever write to the tool**: these are live metrology recipes.
 
 Connection settings come from ``REDIS_*`` and ``OPENSEARCH_*`` in
 ``back_dev_home/.env`` (self-loaded), and FTP credentials from
@@ -956,12 +992,15 @@ def _to_rows(obj: Any) -> list[SettingRow]:
     a wrong guess degrades to rows in a slightly odd order rather than a 500 on
     a screen that used to work.
 
-    Their FIELD NAMES no longer are, for the two cond.txt readers: both were run
-    against real files (office 확인 2026-07-30) and their twelve / five keys are
-    written down in docs/datatables/recipe_idp.txt. Nothing here changed as a
-    result — which is the open key/value contract paying for itself — and the
-    ambiguous 1x2 branch below cannot reach them either way, since neither file
-    carries a single setting.
+    Their FIELD NAMES no longer are. All five readers were run against real
+    files (office 확인 2026-07-30) and every key is written down in
+    docs/datatables/recipe_idp.txt. Only ONE of the five forced a change here —
+    ENMP's nested branch below — which is the open key/value contract paying for
+    itself. The ambiguous 1x2 reading cannot reach any of them either way: the
+    smallest real file carries three settings.
+
+    Values are NOT all strings — ENMP mixes float and str inside one group — so
+    every branch here stringifies rather than passing a value through.
     """
     if obj is None:
         return []

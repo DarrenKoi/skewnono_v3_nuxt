@@ -71,6 +71,47 @@ function are gone; three endpoints replace them.
 - **`get_param_detail` groups by locator before fetching**, so a compare across
   N recipes on one tool is one FTP session rather than N.
 
+### What the 2026-07-30 probe run changed
+
+`scripts/probe_recipe_ftp.py` was run against real files and all five readers'
+output is now recorded in `docs/datatables/recipe_idp.txt`. Three results
+changed the adapter rather than only the documentation, so re-read them before
+copying this template to `office.py`:
+
+- **`get_align_beam_pr_conditions` keys its return by OPTIC** — `{"OM": …,
+  "SEM": …}`. That answers the question this function was built to hedge: the
+  single batched result **can** be split per align point, because P.No 1 is OM
+  and P.No 2 is SEM. `_split_align_settings` now tries the optic branch first
+  and keeps the older positional / name-keyed guesses behind it. A P.No outside
+  1–2 is left out rather than handed an arbitrary optic's block.
+- **`read_af_pr_condition` (ENMP) returns a dict OF DICTS** — eight groups. It
+  is the only nested reader. `_to_rows` emits one row per inner key tagged with
+  its group, and `SettingRow.section` (NotRequired) carries it to the screen;
+  the four flat readers are untouched and render identically to before.
+  **A row's identity is `(section, key)`, never `key`** — addressing pass 1 and
+  pass 2 carry identical inner keys, and `Acceptance` appears in three ENMP
+  groups plus ENAP. Anything joining on the bare key shows pass 1's value under
+  both headings with no error and no blank cell.
+- **Values are not all strings.** ENMP's `Wait(s)` and
+  `Relative Position X/Y(um)` come back as Python floats beside `str` siblings
+  in the same group, while the cond.txt readers and `read_amp_info` are
+  genuinely all-`str`. `_to_rows` already stringifies every branch, so nothing
+  broke — but do not add code that assumes a reader returned a string.
+
+Field NAMES live in `docs/datatables/recipe_idp.txt` and are expected to change
+as the office parser is refined. Nothing in the adapter keys off any of them;
+that is what the open key/value `SettingBlock` buys. When they change, the
+adapter needs no edit at all — only the mock's tables and that document.
+
+### This screen is read-only
+
+There is no write mode and no plan for one: it displays recipe settings.
+`/compare` and `/param-detail` are POSTs only because they take a list body —
+`/api/*` allows 20 requests per 5 s, and a 20-recipe compare would trip that as
+separate GETs. The one local write in the adapter is a temp file, because
+`combined_idp_info` takes a path rather than bytes. **Nothing may write to the
+tool**: these are live metrology recipes on production equipment.
+
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipes
 
 - Handler: `routes.py` → `data.get_recipe_catalog(tool_type, fab_name)`.
