@@ -2,14 +2,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  IP_LIST_SEPARATOR,
   UNASSIGNED_FAB,
   buildPendingToolMatrix,
   cellRows,
   countByGroup,
   filterByGroup,
   groupOf,
-  ipList,
-  sortByArrivalDesc
+  sortByArrivalDesc,
+  uniqueIps
 } from './pendingToolMatrix.ts'
 import type { PendingToolRow } from './pendingToolMatrix.ts'
 
@@ -138,18 +139,39 @@ test('cellRows returns the tools behind one cell, including the 미배정 bucket
   assert.deepEqual(cellRows(rows, UNASSIGNED_FAB, 'CG6380').map(r => r.eqp_id), ['D'])
 })
 
-test('ipList is newline separated, deduped, and order-preserving', () => {
+test('uniqueIps dedupes and preserves first-seen order', () => {
   const rows = [
     tool('A', 'CG6380', 'M16A', '177.1.1.1'),
     tool('B', 'CG6380', 'M16A', '177.1.1.2'),
     tool('C', 'CG6380', 'M16A', '177.1.1.1')
   ]
 
-  assert.equal(ipList(rows), '177.1.1.1\n177.1.1.2')
+  assert.deepEqual(uniqueIps(rows), ['177.1.1.1', '177.1.1.2'])
 })
 
-test('ipList skips blank ips', () => {
-  assert.equal(ipList([tool('A', 'CG6380', 'M16A', '')]), '')
+test('uniqueIps skips blank and whitespace-only ips', () => {
+  assert.deepEqual(uniqueIps([tool('A', 'CG6380', 'M16A', '')]), [])
+  assert.deepEqual(uniqueIps([tool('A', 'CG6380', 'M16A', '   ')]), [])
+})
+
+test('uniqueIps joins with IP_LIST_SEPARATOR into the copied form', () => {
+  // The comma-separated string is what gets pasted into an IT firewall request.
+  const rows = [
+    tool('A', 'CG6380', 'M16A', '177.1.1.1'),
+    tool('B', 'CG6380', 'M16A', '177.1.1.2')
+  ]
+
+  assert.equal(uniqueIps(rows).join(IP_LIST_SEPARATOR), '177.1.1.1, 177.1.1.2')
+})
+
+test('an empty selection copies an empty string, and counts zero', () => {
+  // Guards the toast: the count comes from the array length, so an empty list
+  // reports 0 rather than the 1 that splitting an empty string would give.
+  const ips = uniqueIps([])
+
+  assert.deepEqual(ips, [])
+  assert.equal(ips.length, 0)
+  assert.equal(ips.join(IP_LIST_SEPARATOR), '')
 })
 
 test('sortByArrivalDesc orders newest arrival first', () => {

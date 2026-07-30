@@ -110,10 +110,21 @@ export const cellRows = (
 ): PendingToolRow[] =>
   rows.filter(row => fabLabel(row.fab_name) === fab && row.eqp_model_cd === model)
 
-// Newline separated, which is the form a firewall request form takes. Deduped
-// because two roster rows can share an ip, and IT should see each ip once.
-export const ipList = (rows: PendingToolRow[]): string =>
-  [...new Set(rows.map(row => row.eqp_ip.trim()).filter(ip => ip !== ''))].join('\n')
+// How the copied IP list is delimited. One constant so the format is decided in
+// exactly one place — the toast's count and the copied text must never disagree
+// about what separates two IPs.
+export const IP_LIST_SEPARATOR = ', '
+
+/** The distinct, non-blank IPs of these rows, in first-seen order.
+ *
+ * Deduped because two roster rows can share an ip and IT should see each once.
+ * Returns the ARRAY rather than a joined string so callers can take both the
+ * text and its count from one source: the toast used to re-split the joined
+ * string to count it, which meant changing the separator silently broke the
+ * count.
+ */
+export const uniqueIps = (rows: PendingToolRow[]): string[] =>
+  [...new Set(rows.map(row => row.eqp_ip.trim()).filter(ip => ip !== ''))]
 
 // Newest arrival first, for the drill-down table. Copies before sorting —
 // callers hold the filtered `visibleRows` array and must not see it reordered

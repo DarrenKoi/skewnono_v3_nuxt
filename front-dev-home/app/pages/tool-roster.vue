@@ -220,8 +220,9 @@ import {
   cellRows,
   countByGroup,
   filterByGroup,
-  ipList,
+  IP_LIST_SEPARATOR,
   sortByArrivalDesc,
+  uniqueIps,
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
 import { copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
@@ -335,12 +336,14 @@ const drilldownColumns: TableColumn<PendingToolRow>[] = drilldownColumnConfigs.m
 )
 
 const copyIpList = async () => {
-  const text = ipList(visibleRows.value)
-  const ok = await copyTextToClipboard(text)
+  // Count from the array, never by re-splitting the joined text: that coupling
+  // meant the separator and the count had to be kept in sync by hand.
+  const ips = uniqueIps(visibleRows.value)
+  const ok = await copyTextToClipboard(ips.join(IP_LIST_SEPARATOR))
   toast.add(
     ok
       ? {
-          title: `IP ${text.split('\n').filter(Boolean).length}건이 복사되었습니다`,
+          title: `IP ${ips.length}건이 복사되었습니다`,
           icon: 'i-lucide-check',
           color: 'success'
         }
