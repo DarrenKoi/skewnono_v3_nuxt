@@ -1,31 +1,87 @@
 # access_control — office migration
 
-## Rules
+## Status: WRITTEN — activate by copying, no implementation left to do
 
-- FIRST copy the tracked skeleton, then work only in the copy:
-  `cp providers/office_example.py providers/office.py`. `office.py` is
-  gitignored and lives only at the office, so `git pull` never conflicts on it.
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
-- Definition of done: the Verify command at the bottom is green.
-- Implement **all six** functions here, not just the four admin-CRUD ones:
-  `is_blocked`, `list_exceptions`, `add_exception`, `remove_exception`,
-  `record_denied`, `list_denied`. See "Enforcement path" below —
-  `is_blocked`/`record_denied` must read/write the SAME office store as
-  the other four, or member blocking silently breaks.
-- **StoreUnavailableError rule:** when the office Redis store is
-  unreachable, `add_exception`/`remove_exception` MUST raise
-  `StoreUnavailableError` — imported from `providers.mock`
-  (`from back_dev_home.access_control.providers.mock import
-  StoreUnavailableError`), never redefined or replaced with a different
-  exception type. `routes.py` already has
-  `except (StoreUnavailableError, OSError):` → `503 store_unavailable`
-  wired for both POST and DELETE; if office raises anything else (a raw
-  Redis client exception, for example), that handler will not catch it
-  and the request will 500 instead of the intended 503. Catch the
-  Redis-specific error inside `providers/office.py` and re-raise it as
-  `StoreUnavailableError(...)`.
+All six functions are implemented in the tracked template against the office
+Redis. The file holds no in-house address or secret, so the copy is verbatim:
+
+```bash
+cp providers/office_example.py providers/office.py
+```
+
+- `office.py` is gitignored, so `git pull` never conflicts on it. It is also a
+  **copy** — if a later `git pull` moves the template, refresh it with
+  `python -m scripts.sync_office_adapters access_control`, or the boot log will
+  report `STALE office.py: access_control`.
+- Requires `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in
+  `back_dev_home/.env`, resolved through `_runtime/office_redis.py`.
+- Only edit the copy if the in-house connection needs adjusting. Never touch
+  `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
+
+**The mock is NOT broken at the office** — unlike `api_tokens`, whose store is
+process memory. The exception store here is an mtime-keyed JSON file, so grants
+do propagate across `gunicorn -w N` workers. Switching to office buys two
+things: grants become editable from any office machine instead of only by
+editing a file on the cloud host, and the denied-attempts list stops being
+per-worker (on mock each worker keeps its own in-memory ring buffer, so the
+admin page shows only the attempts that happened to hit the worker answering
+the request). Neither is a correctness bug, so this switch is discretionary.
+
+## Implemented key layout
+
+```text
+skewnono:access_control:exceptions   HASH  <USER_ID> -> granted_at (ISO Z)
+skewnono:access_control:denied       ZSET  <USER_ID> scored by epoch seconds
+```
+
+This **diverges from this document's original hint**, which suggested a key per
+exception plus a SET index. One hash is strictly better at every call site:
+`list_exceptions` is a single `HGETALL` instead of `SMEMBERS` + N `HGET`s;
+`is_blocked` — which runs on every request from an X-member — is a single
+`HEXISTS`; idempotent granting is `HSETNX`, atomic, with no read-before-write
+race; and `HDEL`'s 0/1 return *is* the bool `remove_exception` owes its caller.
+
+The ZSET is likewise a better fit than a capped list: `ZADD` on an existing
+member updates its score in place, which is exactly the "a repeat denial
+refreshes the timestamp and moves the entry to most-recent, it does not
+duplicate" rule described under the enforcement path below, and `ZREVRANGE`
+gives most-recent-first for free. `ZREMRANGEBYRANK(key, 0, -51)` enforces the
+50-entry cap, oldest evicted first.
+
+## Outage behavior — never report infrastructure failure as policy
+
+The app factory (`back_dev_home/__init__.py`) already maps redis
+`ConnectionError`/`TimeoutError` and bare `RuntimeError` to a JSON 503, so
+propagating produces a truthful status rather than an opaque 500.
+
+| Function | On a Redis outage | Why |
+| --- | --- | --- |
+| `is_blocked` | propagates → 503 | `False` would let blocked members in; `True` would tell a **granted** member they are "not allowed to use this service" — a lie that sends someone chasing a policy problem that does not exist. Propagating is *also* fail-closed, since the request is not served either way, so it strictly dominates both. |
+| `list_exceptions`, `list_denied` | propagate → 503 | An admin shown an empty exception table during an outage may conclude the grants were lost and start re-granting. |
+| `add_exception`, `remove_exception` | raise `StoreUnavailableError` | `routes.py` catches that exact class for a more specific 503 (`store_unavailable`, "grant NOT saved") than the generic handler gives. |
+| `record_denied` | swallowed + logged | Runs only after `is_blocked` already returned True, so the store was readable a moment ago; a failure here must not turn a correct 403 into a 503. |
+
+Only X-prefixed ids reach Redis at all (`is_blocked` short-circuits on the
+prefix first), so an outage cannot affect anyone else's requests.
+
+This **diverges from the mock**, whose reads fail safe to an empty store. That
+is right for the mock — its failure mode is a corrupt local JSON file, where
+carrying on is reasonable — and wrong here, where the failure is a server that
+is not answering and there is a status code that says exactly that.
+
+**The `StoreUnavailableError` rule still holds:** it is imported from
+`providers.mock`, never redefined. `routes.py` has
+`except (StoreUnavailableError, OSError):` → `503 store_unavailable` wired for
+POST and DELETE; a raw redis exception would sail past it. Note also that
+`StoreUnavailableError` subclasses `RuntimeError`, and the app factory's
+`RuntimeError` handler deliberately rejects subclasses
+(`type(err) is not RuntimeError` → 500) — so it *must* keep being caught in
+`routes.py`, which it is.
+
+`BLOCKED_PREFIX` and `_now_iso` are imported from `providers/mock.py` rather
+than restated: the blocking rule is provider-independent policy, and the
+timestamp format must not drift or the frontend would have to branch on
+provider to parse it.
 
 ## Endpoint: GET /api/admin/access
 
@@ -69,12 +125,14 @@
   timestamp and moves it to the end — it does not duplicate the entry).
   `BLOCKED_PREFIX` is `"X"` — provider-independent policy, re-exported
   unswitched from `providers/mock.py` (see `data.py`'s module docstring).
-- Office data source: <!-- OFFICE: key pattern — e.g. a Redis hash per
-  exception (`access_control:exception:<user_id>` → `{granted_at}`) plus a
-  Redis SET or sorted-set index of all granted ids for `list_exceptions`
-  to enumerate, and a Redis list/sorted-set capped at 50
-  (`access_control:denied` — a ZSET keyed by timestamp is the natural fit
-  for the "most-recent-first, dedup by id" semantics) for `list_denied` -->
+- Office behavior: `list_exceptions` is one `HGETALL` over the exceptions hash;
+  `list_denied` is one `ZREVRANGE(0, 49, withscores=True)`, with each score
+  rendered back into the mock's ISO-`Z` format rather than stored twice.
+- **Deliberate divergence — exception ordering.** The mock returns file
+  insertion order. A Redis hash has no order, so rows are sorted by
+  `granted_at` then `user_id`, keeping the admin table stable across reloads
+  instead of reshuffling. `list_denied` needs no such fix: the ZSET score *is*
+  the ordering.
 
 ## Endpoint: POST /api/admin/access/exceptions
 
@@ -105,11 +163,13 @@
   half-loaded view over the real file. If the file write itself fails
   (`OSError`), the in-memory row is rolled back before the exception
   propagates, so a failed write never looks committed in memory.
-- Office data source: <!-- OFFICE: write the exception hash keyed by
-  normalized `user_id`; idempotency means a write to an already-existing
-  key must NOT refresh `granted_at` — read-before-write (or a Redis
-  `HSETNX`-style conditional set on the `granted_at` field only) to
-  preserve the original grant time -->
+- Office behavior: `HSETNX` on the exceptions hash, which makes idempotency
+  **atomic** — a concurrent second grant cannot overwrite the first one's
+  `granted_at`, which a read-before-write could. When `HSETNX` reports the
+  field already existed, the stored `granted_at` is read back and returned, so
+  a repeat grant reports the original time. Then `ZREM` clears any pending
+  denied-attempt entry for that id, matching the mock's `_denied.pop`.
+  `ValueError` for an empty or non-X id is raised **before** any Redis call.
 
 ## Endpoint: DELETE /api/admin/access/exceptions/\<user_id\>
 
@@ -129,10 +189,10 @@
   write-through; on a write failure (`OSError`) the row is restored in
   memory before the exception propagates (mirrors `add_exception`'s
   rollback-on-write-failure behavior).
-- Office data source: <!-- OFFICE: DEL on a Redis key that is already gone
-  returns 0, not an error — map "0 keys deleted" to `False`, not an
-  exception, to preserve idempotency (same rule as `api_tokens`'
-  `revoke_token`) -->
+- Office behavior: a single `HDEL`, whose 0/1 return *is* the bool this function
+  owes its caller — `HDEL` on a field that is already gone returns 0, not an
+  error, so idempotency needs no extra guard. Same rule as `api_tokens`'
+  `revoke_token`, reached more cheaply here.
 
 ## Enforcement path: is_blocked / record_denied
 
@@ -171,11 +231,17 @@ the exact class of bug the `api_tokens` migration hit with
   most-recently-denied position — a repeat denial updates the timestamp
   in place rather than adding a duplicate entry, and the buffer is capped
   at 50 entries (oldest evicted first).
-- Office data source: <!-- OFFICE: is_blocked should key off the same
-  exception-hash pattern as list_exceptions/add_exception/remove_exception
-  above (a Redis `EXISTS`/`HEXISTS` check on the normalized user_id is
-  enough — no need to fetch the full row); record_denied should key off
-  the same denied-attempts store as list_denied -->
+- Office behavior — `is_blocked`: the prefix check short-circuits **before** any
+  Redis call, so the overwhelming majority of ids cost nothing; an X-prefixed id
+  is one `HEXISTS` on the same hash the four admin functions use, so a grant
+  written by `add_exception` is visible immediately. The full row is never
+  fetched — only its presence matters.
+- Office behavior — `record_denied`: `ZADD` on the same ZSET `list_denied`
+  reads, followed by `ZREMRANGEBYRANK(key, 0, -51)` to hold the 50-entry cap.
+  `ZADD` on an existing member updates its score in place, which gives the
+  "refresh the timestamp and move to most-recent, do not duplicate" behavior
+  for free. A blank id is ignored, as in the mock. See the outage table above
+  for why this one call swallows errors.
 
 ## Notes
 
@@ -202,4 +268,30 @@ the exact class of bug the `api_tokens` migration hit with
 
 ## Verify
 
+At home — the adapter's own suite runs against an injected fake Redis
+(`tests/test_office_template.py`), covering the key layout, idempotency, the
+50-entry cap and every branch of the outage table without a server:
+
+    .venv/bin/pytest back_dev_home/access_control
+
+At the office, after `cp` and setting `REDIS_*` — this is the run that promotes
+the row in `docs/office-migration/STATUS.md` to `office` with a verification
+date:
+
     SKEWNONO_ACCESS_CONTROL_PROVIDER=office .venv/bin/pytest back_dev_home/access_control
+
+Running that at home fails with `RuntimeError: REDIS_HOST is not set` from
+`_runtime/office_redis.py`. That is the expected off-network result, not a
+defect — it proves the switch resolved to the office adapter.
+
+Then confirm end to end, because the contract gate cannot exercise enforcement:
+
+1. `GET /api/health/providers` reports `access_control` → `office`.
+2. As an admin, grant an exception for a test X-id on `/api/admin/access`, then
+   sign in as that id and confirm `/api/*` calls succeed. **Repeat the calls** —
+   under `gunicorn -w N` a different worker answers each one, and all must agree.
+3. Remove the exception and confirm the same id is blocked again with `403
+   access_denied` — and that the attempt shows up in the denied list for
+   *whichever* worker serves the admin page, which is the per-worker gap on mock
+   that this switch closes.
+4. Grant the same id twice and confirm `granted_at` does not change.

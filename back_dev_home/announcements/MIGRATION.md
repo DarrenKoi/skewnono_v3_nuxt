@@ -1,14 +1,88 @@
 # announcements — office migration
 
-## Rules
+## Status: WRITTEN — activate by copying, no implementation left to do
 
-- FIRST copy the tracked skeleton, then work only in the copy:
-  `cp providers/office_example.py providers/office.py`. `office.py` is
-  gitignored and lives only at the office, so `git pull` never conflicts on it.
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
-- Definition of done: the Verify command at the bottom is green.
+`get_announcements` is implemented in the tracked template against one Redis
+key. The file holds no in-house address or secret, so the copy is verbatim:
+
+```bash
+cp providers/office_example.py providers/office.py
+```
+
+- `office.py` is gitignored, so `git pull` never conflicts on it. It is also a
+  **copy** — refresh it with `python -m scripts.sync_office_adapters
+  announcements` if a later `git pull` moves the template, or the boot log will
+  report `STALE office.py: announcements`.
+- Requires `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in
+  `back_dev_home/.env`, resolved through `_runtime/office_redis.py`.
+- Only edit the copy if the in-house connection needs adjusting. Never touch
+  `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
+
+## Why Redis and not the JSON file
+
+The mock reads `announcements/announcements.json` from disk, and that is not
+broken at the office — it re-reads on mtime change, so it is even
+multi-worker-safe. It is the *operational* story that fails: in Phase 3 the app
+lives at `/project/workSpace/` on a cloud host, so editing that file means shell
+access on the box — and the announcement most worth posting is the one about the
+box being unwell. A Redis value can be set from any machine on the internal
+network, takes effect on the next request for every worker, and needs no
+redeploy. Publishing a banner becomes:
+
+```bash
+redis-cli -h "$REDIS_HOST" -a "$REDIS_PASSWORD" SET skewnono:announcements \
+  '[{"id":"2026-07-30-maint","level":"warning","title":"정기 점검",
+     "body":"07-31 02:00~04:00 조회가 지연될 수 있습니다."}]'
+```
+
+Because this switch buys operability rather than correctness, it is
+discretionary — staying on mock at the office is legitimate if editing the file
+on the host is acceptable.
+
+## Implemented key layout
+
+```text
+skewnono:announcements   STRING  a JSON array of Announcement rows
+```
+
+**No cache, deliberately.** The mock caches on file mtime; a Redis `GET` per
+page load is cheap enough that caching would only add a window where an operator
+has published a notice and the app is still serving the old one. Announcements
+are posted precisely when something is going wrong, so staleness is the
+expensive failure here.
+
+## Every failure degrades to "no banners", never to an error
+
+`routes.py` is `jsonify(get_announcements())` with no try/except, and the SPA
+calls this endpoint on **every page load** — so a raise here is a 500 on every
+page. All of the following resolve to `[]` with a warning in the log:
+
+| Condition | Result |
+| --- | --- |
+| Key unset, or value empty | `[]` — the normal "nothing posted" state |
+| Truncated / invalid JSON | `[]` |
+| A JSON object where an array belongs | `[]` |
+| A non-dict row inside the array | that row skipped, the rest served |
+| Redis unreachable | `[]` |
+| `REDIS_*` not configured | `[]` |
+
+That last row is the one place this adapter deliberately differs from
+`access_control`, which lets a missing `REDIS_HOST` become a 503: enforcement
+failing loudly is correct, a decorative banner breaking every page is not. The
+catch is scoped to the client lookup alone, so a `RuntimeError` from a genuine
+defect further down still surfaces.
+
+The non-dict-row case is **hardening the mock does not have**: `mock._is_active`
+calls `a.get("starts_at")` straight on each row, so a bare string in
+`announcements.json` raises `AttributeError` and 500s the endpoint. Both
+providers read hand-edited data, so the mock has the same latent gap — worth
+fixing there separately rather than silently diverging here.
+
+`_is_active` and `_parse_bound` are imported from `providers/mock.py` rather than
+restated. The active-window semantics — either bound optional, an unparseable
+bound treated as absent, and a naive stamp read as KST so operators can type
+`2026-05-07T18:00:00` without an offset — must not drift between providers,
+since the same operator writes both.
 
 ## Endpoint: GET /api/announcements
 
@@ -67,7 +141,11 @@
     `[]` — not an error.
   - Ordering: rows are returned in file order (the same order as
     `announcements.json`); there is no sort applied.
-- Office data source: <!-- OFFICE: Redis key or index -->
+- Office behavior: one `GET skewnono:announcements`, parsed as a JSON array,
+  then filtered through the mock's own `_is_active` so the active-window rules
+  are identical by construction. Row order is preserved (no sort), rows pass
+  through unreshaped, and every failure path yields `[]` — see the degradation
+  table above.
 - Notes: the parity harness pins `GET /api/announcements` as a `200`
   response reflecting the single demo row in
   `announcements/announcements.json`. The contract test in
@@ -77,4 +155,29 @@
 
 ## Verify
 
+At home — the adapter's own suite runs against an injected fake Redis
+(`tests/test_office_template.py`), covering the active-window rules (including
+the KST-naive convention) and every row of the degradation table:
+
+    .venv/bin/pytest back_dev_home/announcements
+
+At the office, after `cp` and setting `REDIS_*`:
+
     SKEWNONO_ANNOUNCEMENTS_PROVIDER=office .venv/bin/pytest back_dev_home/announcements
+
+Running that at home fails with `RuntimeError: REDIS_HOST is not set` from
+`_runtime/office_redis.py` — expected off-network, and proof the switch resolved
+to the office adapter. Note this is the one failure the *adapter* swallows in
+production; the contract gate sees it because it calls `get_announcements`
+through `data.py` with no key set, and an empty list does not satisfy the
+roundtrip. Then:
+
+1. `GET /api/health/providers` reports `announcements` → `office`.
+2. `SET skewnono:announcements` to a one-row array; reload any page and confirm
+   the banner appears without a redeploy.
+3. `SET` it to `[]` and confirm the banner disappears on the next load — proving
+   there is no cache in the way.
+4. `SET` it to deliberate garbage (`not json`) and confirm pages still render
+   with no banner, and a warning is logged. This is the important one: it is the
+   difference between a bad paste being a non-event and a bad paste taking the
+   SPA down.
