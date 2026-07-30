@@ -58,3 +58,33 @@ phase 분포 후보: tev_count, pev_count, pv_count, tv_count
 
 device_info는 device_desc의 통계 view이므로 원천 데이터처럼 직접 수정하지 않습니다.
 R3, R4 같은 R 계열 Fab은 최신 개발 디바이스 정보가 r3_device_grp에 더 잘 반영되어 있으므로, R 계열 통계는 별도 R3 summary를 만들거나 r3_device_grp 기준으로 계산합니다.
+
+========================================================================
+사무실(Office) 실데이터 소스 — Redis
+========================================================================
+
+이름이 겹쳐 혼동하기 쉬우므로 먼저 구분합니다 (user-confirmed 2026-07-30).
+
+- 이 문서가 설명하는 device_info 는 파생 summary view 이며, Redis 에 그런
+  key 로 저장되어 있지 않습니다. 계산해서 만드는 통계 결과입니다.
+- device_info_hvm / device_info_rnd 는 그 summary 의 **원천** key 입니다.
+  이름만 보고 이 문서의 summary 라고 착각하지 않도록 주의합니다.
+
+Key 1 -> "device_info_hvm" : M 계열 양산(HVM) 개발 디바이스 카탈로그.
+         컬럼은 docs/datatables/device_desc.txt 기준
+         (fac_id, lot_cd, ctn_desc, chg_tm, tech_nm, rnd_connector).
+Key 2 -> "device_info_rnd" : R3 연구개발 카탈로그.
+         컬럼은 docs/datatables/r3_device_grp.txt 기준
+         (fac_id, plan_catg_typ, prod_catg_cd, tech_cd, den_typ, ...).
+
+두 key 는 device-statistics 의 initial setup 카탈로그입니다. 화면 요청에
+따라 이 카탈로그에서 device code 를 추출해 통계를 계산합니다. 따라서
+device_statistics office 어댑터는 두 key 를 모두 읽어야 하며, 한쪽을 다른
+쪽의 상위 집합으로 취급하면 안 됩니다 (fab 커버리지가 분리되어 있습니다).
+
+주의: 두 카탈로그 모두 결측이 실제 None/NaN 과 문자열 "None" 두 형태로
+섞여 있습니다. 어댑터는 둘 다 빈 값("")으로 정규화해야 합니다.
+
+실제 컬럼/행 수/결측 분포/lot_cd 교집합은 사무실에서 아래로 확인합니다:
+
+    .venv/bin/python -m scripts.inspect_device_info_keys
