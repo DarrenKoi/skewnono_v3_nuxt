@@ -110,3 +110,17 @@ Contract gate (`.env` is loaded by `back_dev_home/conftest.py`):
 
 Both must run from the repo root. Do NOT run the provider file by path
 (`python providers/office.py`) — package imports require the `-m` form.
+
+## Office Follow-up: 미연결 장비 실장
+
+1. Run `.venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list` to confirm
+   the roster's real column list, then clear the OFFICE-VERIFY marks in both
+   `docs/datatables/sem_list.txt` and this file.
+2. Run `python -m scripts.sync_office_adapters sem_list`. `providers/office.py` is
+   a gitignored copy and will be STALE after this change — it will lack
+   `get_pending_tools`, and a stale copy fails the whole Flask app factory at
+   boot, so this is not optional.
+3. Check the real pending count. If it is dominated by tools that arrived years
+   ago, the 180-day staleness threshold (`STALE_ARRIVAL_DAYS` in
+   `front-dev-home/app/utils/pendingToolMatrix.ts`) needs revisiting — it was an
+   estimate, not a measured value.
