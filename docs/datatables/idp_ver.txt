@@ -67,10 +67,37 @@ recipe_params.txt), recipe 마다 parameters blob 을 받으면 위 "200건이�
 
     .venv/bin/python -m scripts.probe_planstep_r3
 
-OFFICE-VERIFY: parameters blob 의 내부 구조(파라미터 이름/측정 point 수를 어떤 key
-로 담는지)는 아직 확인되지 않았습니다. RecipeParamsRow.parameters 는
-{name, point_count} 배열이고 RecipeInfoRow 는 para_16/13/9/5 개수를 요구하므로, 이
-blob 에서 그 두 형태를 모두 만들 수 있는지가 device-statistics 어댑터의 관문입니다.
+parameters blob 구조 (user-confirmed 2026-07-30)
+
+**dict[str, int]** 입니다 — key 가 파라미터 이름, value 가 측정 point 수입니다.
+
+    {"WAFER": 13, "EDGE": 16, ...}
+
+계약 두 형태가 모두 이 dict 하나에서 나옵니다.
+
+  RecipeParamsRow.parameters   -> [{"name": k, "point_count": v}, ...]
+                                  dict entry 1개 = ParameterRow 1개입니다.
+  RecipeInfoRow.para_16/13/9/5 -> **value(point 수)별 파라미터 개수**입니다.
+                                  para_16 = value 가 16 인 entry 수, para_13 은 13,
+                                  para_9 은 9, para_5 은 5. para_all 은 그 합입니다.
+                                  확인된 예시값 13, 16 이 실제로 para_13 / para_16
+                                  버킷에 정확히 대응합니다.
+
+즉 para_* 는 **파라미터 타입별 개수가 아니라 point 수별 개수**입니다. "para_16" 이
+타입 코드처럼 보이지만 16 은 측정 point 수이며, 타입(WAFER / LEVEL / EDGE /
+EDGE_EX / OTHER)과는 다른 축이므로 섞으면 안 됩니다.
+
+value 가 16/13/9/5 가 아닌 entry 가 있으면 그 개수는 어느 para_* 버킷에도 들어가지
+않습니다. para_all 을 "전체 파라미터 수" 로 쓸지 "네 버킷의 합" 으로 쓸지는 그
+잔여분이 실제로 있는지에 달려 있습니다 — OFFICE-VERIFY.
+
+OFFICE-VERIFY — key 의 세분도. 확인된 예시 key 가 "WAFER", "EDGE" 처럼 타입 단어
+그대로였습니다. key 가 항상 이 타입 수준이면 파라미터 개별 이름이 없다는 뜻이고,
+그때는 프론트엔드의 longest-prefix 타입 파생(EDGE_EX > EDGE > WAFER > LEVEL >
+OTHER)이 할 일이 없어지며 **outlier 뷰와 bloated recipe 신호가 입력을 잃습니다**
+(recipe_params.txt 의 mock 생성 규칙 2·3번이 그 신호를 전제로 합니다). 반대로
+"EDGE_EX_R" 처럼 접두사 뒤가 더 붙는 key 가 섞여 있으면 지금 계약이 그대로
+성립합니다. probe 가 실제 key 목록을 출력하므로 첫 실행에서 확정됩니다.
 
 시각(timezone)
 

@@ -41,6 +41,11 @@ import sys
 from typing import Any
 
 from back_dev_home._runtime.office_redis import load_env_file
+from back_dev_home.ebeam.cdsem.device_statistics.oper_order import (
+    oper_prefix,
+    sort_oper_descs,
+    unknown_prefixes,
+)
 from ops_store import OSIndex, OSSearch, create_client
 
 # Shared with the R3 probe rather than duplicated — the `.keyword` resolution in
@@ -253,6 +258,26 @@ def stage_steps_per_device(
         listed = len(bucket.get("steps", {}).get("buckets", []))
         if isinstance(distinct, int) and listed < distinct:
             print(f"      ... {distinct - listed} more not shown (terms size cap)")
+
+        # The ordering rule, applied to real values. Printing the sorted list is
+        # how the documented prefix order gets checked against the fab rather
+        # than taken on faith; unlisted prefixes mean OPER_PREFIX_ORDER is stale.
+        names = [str(s["key"]) for s in bucket.get("steps", {}).get("buckets", [])]
+        if names:
+            print("      sorted by OPER_PREFIX_ORDER:")
+            for name in sort_oper_descs(names)[:8]:
+                prefix = oper_prefix(name)
+                print(f"          [{prefix or '?':>4}] {name[:56]}")
+            unlisted = unknown_prefixes(names)
+            if unlisted:
+                print(
+                    f"      UNLISTED PREFIX ({len(unlisted)}): "
+                    f"{', '.join(unlisted[:6])}"
+                )
+                print(
+                    "          -> these sort last. Add them to OPER_PREFIX_ORDER\n"
+                    "             (oper_order.py) and to ebeam_tas_lot_hist.txt."
+                )
 
     # Collect measured recipe_ids for the idp_ver join, reusing the R3 stage.
     if recipe_field:

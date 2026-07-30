@@ -81,6 +81,31 @@ M fab 경로는 다음과 같습니다.
 (lot_cd.keyword -> oper_det_desc.keyword)으로 구하는 것이 range_dataframe_all
 보다 훨씬 가볍습니다. 위의 60일 경고가 90일에서는 그만큼 더 강하게 적용됩니다.
 
+스텝 정렬 — 공정 접두사 순서 (user-confirmed 2026-07-30)
+
+순서 field 가 없으므로 oper_det_desc 앞머리의 공정 접두사로 정렬합니다. 확정된
+순서는 다음이며, 구현은 back_dev_home/ebeam/cdsem/device_statistics/oper_order.py
+(`OPER_PREFIX_ORDER`, `sort_oper_descs`)에 있습니다.
+
+    ISO, CW, BG, MBO, BLC, POM, PRW, NW, GT, CBL,
+    SNC, M0C, SNC2, SN, ILD, M2, M2C, M3, M4, RDL
+
+    예: "SNC2(CELL OPEN ETCH CLN CD)" -> 접두사 "SNC2"
+
+주의 — **longest-prefix** 로 매칭해야 합니다. 목록에 SNC / SNC2 / SN 이 함께 있고
+M2 / M2C 도 함께 있어서, 앞에서부터 startswith 로 처음 맞는 것을 고르면 "SNC2..."
+가 SNC 나 SN 으로 잡혀 엉뚱한 자리에 놓입니다. 예외 없이 순서만 조용히 틀리므로
+발견이 늦습니다. 프론트엔드 파라미터 타입 파생(EDGE_EX > EDGE)과 같은 함정입니다.
+
+주의 — 목록에 없는 접두사는 버리지 않고 맨 뒤로 보냅니다(`UNKNOWN_RANK`). 새 공정이
+생겼을 때 화면에서 스텝이 사라지는 것이 가장 나쁜 실패입니다. `unknown_prefixes()`
+가 미등록 접두사를 돌려주므로 목록 갱신 시점을 알 수 있습니다.
+
+★ **화면 표기 의무.** 이 순서는 근사입니다 — 실제 공정 순서는 **tool 마다 다릅니다**.
+따라서 이 정렬을 쓰는 화면은 **"운영 공정 순서를 반영하지 않는다"** 는 것을 반드시
+명시해야 합니다. 명시하지 않으면 사용자가 화면 순서를 실제 공정 순서로 신뢰하게
+되고, 그것은 이 데이터가 보장하지 않는 주장입니다.
+
 주의 — 계약 공백. RecipeInfoRow 는 oper_seq / samp_seq 를 요구하지만 이 index 에는
-그 값이 없습니다. M fab row 를 그 계약에 담을 때 두 field 를 무엇으로 채울지
-(event_tm 기준 순번, 0, 혹은 계약 확장) 결정해야 합니다 — OFFICE-VERIFY.
+그 값이 없습니다. 위 접두사 순서로 합성하는 것이 현재 계획이며(oper_seq 는 접두사
+rank, samp_seq 는 그 안에서의 일련번호), 확정 전까지는 OFFICE-VERIFY 입니다.

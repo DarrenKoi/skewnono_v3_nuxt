@@ -395,10 +395,35 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
                 if isinstance(first, dict):
                     print(f"      element keys: {sorted(first)}")
         elif isinstance(params, dict):
+            # Confirmed shape (user-confirmed 2026-07-30): {parameter_name:
+            # point_count}, e.g. {"WAFER": 13, "EDGE": 16}. Both contract shapes
+            # derive from this one dict, so bucketize it exactly the way the
+            # adapter must and surface whatever falls outside {16,13,9,5}.
             keys = sorted(params)
             print(f"      {len(keys)} key(s): {', '.join(map(str, keys[:14]))}")
-            if keys:
-                print(f"      sample value: {str(params[keys[0]])[:160]}")
+            counts: dict[Any, int] = {}
+            for value in params.values():
+                counts[value] = counts.get(value, 0) + 1
+            print(f"      point_count -> #params: {sorted(counts.items(), key=str)}")
+            buckets = {n: counts.get(n, 0) for n in (16, 13, 9, 5)}
+            leftover = sum(c for v, c in counts.items() if v not in (16, 13, 9, 5))
+            print(
+                f"      para_16={buckets[16]} para_13={buckets[13]} "
+                f"para_9={buckets[9]} para_5={buckets[5]} "
+                f"(sum={sum(buckets.values())}, outside those buckets={leftover})"
+            )
+            if leftover:
+                print(
+                    "      NOTE: point counts outside {16,13,9,5} exist, so para_all\n"
+                    "            cannot be both 'total params' and 'sum of buckets'.\n"
+                    "            Decide which, and record it in idp_ver.txt."
+                )
+            if keys and all("_" not in str(k) for k in keys):
+                print(
+                    "      NOTE: every key is a bare word with no suffix, so there is\n"
+                    "            no per-parameter identity — the outlier and\n"
+                    "            bloated-recipe views lose their input (idp_ver.txt)."
+                )
         else:
             print(f"      value: {str(params)[:160]}")
 
