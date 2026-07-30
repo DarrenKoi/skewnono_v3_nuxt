@@ -4,7 +4,7 @@
 
 **Goal:** Recipe 현황의 최초 백엔드 대기 중에도 상단 헤더와 탭을 유지하면서 Nuxt UI 기반 진행 패널을 표시합니다.
 
-**Architecture:** 공용 `AppLoadingState` 표현 컴포넌트가 indeterminate `UProgress`와 접근 가능한 상태 문구를 렌더링합니다. `RecipeStatusView`는 기존 `KeepAlive` 자식 영역을 `Suspense`로 감싸고, 비동기 setup이 완료될 때까지 이 공용 컴포넌트를 fallback으로 사용합니다.
+**Architecture:** 공용 `AppLoadingState` 표현 컴포넌트가 indeterminate `UProgress`와 접근 가능한 상태 문구를 렌더링합니다. `RecipeStatusView`는 Vue의 권장 built-in 순서대로 `KeepAlive` 안에 `Suspense`를 두고, 비동기 setup이 완료될 때까지 이 공용 컴포넌트를 즉시 fallback으로 사용합니다.
 
 **Tech Stack:** Nuxt 4, Vue 3 `Suspense`/`KeepAlive`, TypeScript, Nuxt UI 4 `UProgress`, Tailwind CSS
 
@@ -103,8 +103,8 @@ Replace the current standalone `KeepAlive` block in
 `RecipeStatusView.vue` with:
 
 ```vue
-    <Suspense>
-      <KeepAlive>
+    <KeepAlive>
+      <Suspense :timeout="0">
         <EbeamRecipeTatView
           v-if="activeTab === 'tat'"
           v-model:include-today="includeToday"
@@ -120,12 +120,12 @@ Replace the current standalone `KeepAlive` block in
           :tool-type="toolType"
           :section="activeTab"
         />
-      </KeepAlive>
 
-      <template #fallback>
-        <AppLoadingState title="Recipe 현황 데이터를 불러오는 중입니다." />
-      </template>
-    </Suspense>
+        <template #fallback>
+          <AppLoadingState title="Recipe 현황 데이터를 불러오는 중입니다." />
+        </template>
+      </Suspense>
+    </KeepAlive>
 ```
 
 Keep the existing explanatory comment immediately above the boundary. Do not
