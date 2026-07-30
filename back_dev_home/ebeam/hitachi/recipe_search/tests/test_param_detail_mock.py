@@ -6,6 +6,7 @@ office adapter will follow identically.
 """
 
 import random
+import re
 
 from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.providers import mock
@@ -196,15 +197,128 @@ def test_align_rows_usually_carry_both_optics_and_sometimes_only_om():
     assert frozenset({1}) in seen
 
 
-def test_the_image_condition_is_fabricated_per_optic():
-    """Point 1 and point 2 read the same kind of file through different optics,
-    so their blocks must not be interchangeable — mirroring the office, where
-    `which` is what read_align_image_condition is told."""
-    points = mock.get_align_detail(LOCATOR, [1, 2])["points"]
-    keys = [next(iter(row["key"] for row in point["cond"]["rows"])) for point in points]
+def test_the_om_image_condition_is_a_subset_of_the_sem_one():
+    """Point 1 and point 2 read the same kind of file through different optics
+    and get DIFFERENT KEYS for it (office 확인 2026-07-30): OM carries five
+    fields and SEM twelve, because an optical microscope has no beam.
 
-    assert keys[0].startswith("ALIGNOM_")
-    assert keys[1].startswith("ALIGNSEM_")
+    This used to assert distinct placeholder prefixes (ALIGNOM_/ALIGNSEM_),
+    which only proved the mock told the two apart. Now that the real fields are
+    known it asserts the office's own distinction, so a point sent to the wrong
+    optic is caught by what it CONTAINS rather than by a mock-only label.
+    """
+    om, sem = mock.get_align_detail(LOCATOR, [1, 2])["points"]
+    om_keys = [row["key"] for row in om["cond"]["rows"]]
+    sem_keys = [row["key"] for row in sem["cond"]["rows"]]
+
+    assert om_keys == [
+        "Magnification", "Chip_coordinate", "Wafer_coordinate", "Field_Size", "Pixel",
+    ]
+    assert set(om_keys) < set(sem_keys)
+    assert "Accelerating_voltage" in sem_keys and "Accelerating_voltage" not in om_keys
+
+
+def test_the_sem_align_condition_matches_the_measurement_one_field_for_field():
+    """P.No 2 goes through read_align_image_condition and a measurement image
+    through read_meas_image_condition — different functions, but the office
+    writes the same twelve keys in both files. Asserted because the two are
+    generated from one vocabulary here, and a future edit that forks them would
+    otherwise pass."""
+    sem_align = mock.get_align_detail(LOCATOR, [2])["points"][0]["cond"]
+    measurement = _detail({"img_meas1": "IMMS0001"})["images"][0]["cond"]
+
+    assert [row["key"] for row in sem_align["rows"]] == [
+        row["key"] for row in measurement["rows"]
+    ]
+
+
+def test_condition_values_are_strings_carrying_their_own_units():
+    """Nothing downstream may parse these as numbers: the unit lives inside the
+    value, and the unitless ones are strings anyway (office 확인 2026-07-30)."""
+    rows = {
+        row["key"]: row["value"]
+        for row in _detail({"img_meas1": "IMMS0001"})["images"][0]["cond"]["rows"]
+    }
+
+    assert rows["Accelerating_voltage"].endswith(" V")
+    assert rows["Probe_current"].endswith(" pA")
+    assert rows["Image_rotation"].endswith(" deg")
+    assert rows["Magnification"].isdigit()          # str, not int
+    assert all(isinstance(value, str) for value in rows.values())
+
+
+def test_field_size_never_contradicts_magnification():
+    """The two are one setting seen twice (4.499 um at 30000x). Drawn
+    independently they would render a table that disagrees with itself."""
+    for slot in ("IMMS0001", "IMMS0002", "IMMS0009"):
+        rows = {
+            row["key"]: row["value"]
+            for row in _detail({"img_meas1": slot})["images"][0]["cond"]["rows"]
+        }
+        magnification = int(rows["Magnification"])
+        side = float(rows["Field_Size"].split(" um")[0])
+        # Tolerance rather than equality: the office writes field size to THREE
+        # decimals ('4.499 um'), so the product it implies is only good to
+        # ±0.0005 um — 50 um·x at 100000x. Demanding exactness here would be
+        # asserting a precision the real file does not carry.
+        assert abs(side * magnification - 134_970) <= magnification * 0.0005
+
+
+def test_amp_carries_the_measurement_definition_fields():
+    """PRMS… says how the parameter is measured off the image, where cond.txt
+    says how the image was taken (office 확인 2026-07-30)."""
+    rows = {row["key"]: row["value"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]}
+
+    assert rows["Measurement"] == "Width"
+    assert rows["Kind"] == "Multi_Point"
+    # No unit, unlike every dimensioned value in cond.txt — whether a value
+    # carries its unit is per-file, so nothing may assume it either way.
+    assert " nm" not in rows["Design_Value"]
+    assert float(rows["Design_Value"]) > 0
+
+
+def test_amp_pair_fields_hold_one_setting_per_edge():
+    """A width measurement has two edges and each takes its own setting, joined
+    with the same ', ' cond.txt uses for coordinates."""
+    rows = {row["key"]: row["value"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]}
+
+    for key in ("Threshold", "Edge_Number", "Base_Line_Start_Pint", "Base_Line_Area"):
+        assert len(rows[key].split(", ")) == 2, key
+    assert rows["Edge_Search_Direct."] == "Normal, Normal"
+
+
+def test_amp_keys_with_no_confirmed_value_are_visibly_synthetic():
+    """Six keys arrived named but valueless. Emitting a plausible value there
+    would repeat the AmpRow mistake one layer down — right key, invented data —
+    so they render as obvious placeholders until a real sample turns up."""
+    rows = {row["key"]: row["value"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]}
+
+    for key in ("Search_Area", "Inspect_Area", "Smoothing",
+                "Differential", "Sum_Line_Point", "Target"):
+        assert re.fullmatch(r"[0-9A-F]{4}", rows[key]), (key, rows[key])
+
+
+def test_amp_reproduces_the_office_key_spellings_including_their_typos():
+    """'Edge_Search_Direct.' ends in a period and 'Base_Line_Start_Pint' reads
+    as a misspelt "Point". Both are contract keys; correcting either here would
+    make home and office disagree about a key name."""
+    keys = [row["key"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]]
+
+    assert "Edge_Search_Direct." in keys
+    assert "Base_Line_Start_Pint" in keys
+
+
+def test_paired_values_keep_the_separator_the_tool_wrote():
+    """Coordinates use ', ' and Pixel a bare ',' — a real inconsistency in the
+    file that the screen shows verbatim rather than tidying up."""
+    rows = {
+        row["key"]: row["value"]
+        for row in _detail({"img_meas1": "IMMS0001"})["images"][0]["cond"]["rows"]
+    }
+
+    assert ", " in rows["Chip_coordinate"] and rows["Chip_coordinate"].count(" um") == 2
+    assert ", " in rows["Field_Size"]
+    assert "," in rows["Pixel"] and ", " not in rows["Pixel"]
 
 
 def test_a_point_that_is_neither_om_nor_sem_has_no_image_condition():

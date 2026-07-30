@@ -452,14 +452,131 @@ adapter 는 없는 파일을 로그만 남기고 결과에서 빼며, 화면은 
 쓰고 있기 때문입니다. 2026-07-29 설계 문서에는 502 라고 적혀 있었지만, 같은
 tool-FTP 표면에서 코드를 새로 만드는 것보다 재사용이 낫다고 판단했습니다.
 
+cond.txt 의 field 이름 (office 확인 2026-07-30)
+==============================================
+
+`scripts/probe_recipe_ftp.py` 를 사무실에서 실제로 돌려 확인했습니다. 측정·addressing
+이미지의 cond.txt(`read_meas_image_condition`)와 wafer align 이미지의
+cond.txt(`read_align_image_condition`)는 **어휘가 하나**이며, 어느 key 가 들어
+있느냐만 다릅니다. **모든 값은 str 입니다.**
+
+  | key | 예시 | SEM | OM |
+  | --- | --- | --- | --- |
+  | Accelerating_voltage | `'500 V'` | O | — |
+  | Probe_current | `'8.0 pA'` | O | — |
+  | Magnification | `'30000'` (OM 은 `'104'`) | O | O |
+  | Number_of_frames | `'32'` | O | — |
+  | Image_rotation | `'0.0 deg'` | O | — |
+  | Chip_coordinate | `'9737 um, 14710 um'` (OM 은 `'0 um, 0 um'`) | O | O |
+  | Wafer_coordinate | `'172792 um, 175176 um'` | O | O |
+  | Field_Size | `'4.499 um, 4.499 um'` | O | O |
+  | Optics | `'High Reso.'` | O | — |
+  | Scan | `'TV'` | O | — |
+  | Pixel | `'512,512'` | O | O |
+  | Filter | `'OFF'` | O | — |
+
+측정·addressing 이미지(.IMMP / .I2MP / .IMMS)는 항상 SEM 12개입니다. align 은
+P.No 로 갈립니다 — P.No 1(OM)은 위 5개, P.No 2(SEM)는 측정 쪽과 **똑같은 12개**
+입니다.
+
+숫자로 읽으면 안 되는 이유 4가지
+--------------------------------
+
+1. **단위가 값 안에 있습니다.** `'500 V'`, `'0.0 deg'`, `'8.0 pA'`. float() 로
+   바로 넘길 수 없습니다.
+2. **단위가 아예 없는데도 str 입니다.** `Magnification`, `Number_of_frames`,
+   `Pixel` 은 `'30000'` 이지 `30000` 이 아닙니다.
+3. **X,Y 를 문자열 하나에 담는 key 가 4개이고 구분자가 서로 다릅니다.**
+   `Chip_coordinate` · `Wafer_coordinate` · `Field_Size` 는 `', '` 이고
+   `Pixel` 은 공백 없는 `','` 입니다. 화면은 이것을 **그대로** 보여 줍니다.
+   보기 좋게 다듬으면 장비가 실제로 뭐라고 썼는지가 가려집니다.
+4. **OM 은 다른 어휘가 아니라 부분집합입니다.** 광학 현미경에는 beam 이 없으니
+   beam 설정 key 가 통째로 없습니다. 없는 key 를 빈 값으로 채우면 안 됩니다.
+
+Magnification ↔ Field_Size 는 한 설정입니다
+-------------------------------------------
+
+SEM 표본이 30000x → `'4.499 um'` 이었고, 4.499 × 30000 = **134,970** 입니다.
+mock 은 이 곱을 유지해 magnification 과 모순되는 field size 를 만들지 않습니다
+(`_FOV_MAG_PRODUCT`).
+
+OFFICE-VERIFY: 표본 **1건**에서 나온 상수입니다. recipe 를 몇 건 더 봐서 곱이
+유지되는지, 그리고 **OM 도 같은 상수를 쓰는지** 확인해야 합니다. OM 표본은
+`Field_Size` key 가 있다는 것만 확인되었고 값은 받지 못했습니다.
+
+OFFICE-VERIFY: OM 의 `Magnification = '104'` 와 `Chip_coordinate = '0 um, 0 um'`
+이 장비 고정값인지 recipe 마다 달라지는지 모릅니다. mock 은 표본 값을 그대로
+내보냅니다 — 표본 1건은 **형식**을 가르칠 수 있어도 **값의 범위**는 가르치지
+못하기 때문입니다. 같은 이유로 `Optics` · `Scan` · `Filter` 도 확인된 한 값만
+내보냅니다.
+
+PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
+=====================================================
+
+`read_amp_info` 가 돌려주는 18개 field 입니다. cond.txt 가 **이미지를 어떻게
+찍었는지**를 적는다면, 이 파일은 **그 이미지에서 parameter 를 어떻게 재는지**를
+적습니다. 값은 전부 str 입니다.
+
+  | key | 예시 |
+  | --- | --- |
+  | Measurement | `'Width'` |
+  | Object | `'Space'` |
+  | Kind | `'Multi_Point'` |
+  | Measurement_Point | `'32'` |
+  | Data | `'Mean'` |
+  | Method | `'Linear'` |
+  | Design_Value | `'266.1'` |
+  | Search_Area | (값 미확인) |
+  | Inspect_Area | (값 미확인) |
+  | Smoothing | (값 미확인) |
+  | Differential | (값 미확인) |
+  | Threshold | `'50, 50'` |
+  | Edge_Search_Direct. | `'Normal, Normal'` |
+  | Edge_Number | `'1, 1'` |
+  | Base_Line_Start_Pint | `'2, 2'` |
+  | Base_Line_Area | `'8, 8'` |
+  | Sum_Line_Point | (값 미확인) |
+  | Target | (값 미확인) |
+
+cond.txt 와 다른 점 2가지
+-------------------------
+
+1. **단위가 아예 없습니다.** `Design_Value` 는 `'266.1'` 이지 `'266.1 nm'` 이
+   아닙니다. 즉 "값이 단위를 품고 있는가" 는 **파일마다 다르며** 이 pipeline 의
+   성질이 아닙니다. 어느 쪽도 가정하면 안 됩니다.
+2. **`', '` 로 이어 붙인 쌍(pair)이 5개입니다.** `Threshold`,
+   `Edge_Search_Direct.`, `Edge_Number`, `Base_Line_Start_Pint`,
+   `Base_Line_Area`. width 측정은 edge 가 둘이고 각 edge 가 자기 설정을 갖기
+   때문입니다. 구분자는 좌표와 같은 `', '` 이고, 처리 방식도 같습니다 — 그대로
+   보여 줍니다.
+
+★ key 철자 2개를 **그대로** 씁니다 (OFFICE-VERIFY)
+
+  `Edge_Search_Direct.` 는 마침표로 끝나고("Direction" 이 잘린 것으로 보입니다),
+  `Base_Line_Start_Pint` 는 "Point" 의 오타로 읽힙니다. 둘 다 장비 쪽 표기로
+  보이며 **고치지 않았습니다**. 이것들은 contract key 이고, 조용히 바로잡으면
+  집과 사무실이 key 이름을 두고 어긋나게 됩니다 — 이 문서가 막으려는 사고가
+  바로 그것입니다. 표본을 한 건 더 봐서 확인해야 합니다.
+
+★ 값을 모르는 key 6개는 **가짜처럼 보이게** 둡니다
+
+  `Search_Area`, `Inspect_Area`, `Smoothing`, `Differential`, `Sum_Line_Point`,
+  `Target` 은 key 만 확인되고 값 형식은 확인되지 않았습니다. mock 은 이 6개에
+  `'A3F1'` 같은 **누가 봐도 합성인 hex** 를 넣습니다. 그럴듯한 값을 지어내면
+  key 층에서 저질렀던 AmpRow 의 실수를 값 층에서 되풀이하는 셈이기 때문입니다.
+  실제 값이 하나라도 들어오면 그때 채웁니다.
+
 OFFICE-VERIFY
 -------------
 
-* **세 reader 가 돌려주는 field 이름.** 아직 모릅니다. 그래서 contract 는 고정
-  컬럼이 아니라 열린 key/value(SettingBlock.rows)입니다 — 모르는 key 가 사라지지
-  않고 그대로 화면에 나옵니다. 확인되면 mock 의 placeholder key 와 이 문서만
-  고치면 되고 contract 와 frontend 는 그대로입니다.
-* **세 reader 가 돌려주는 container 종류.** dict / 1행 DataFrame / 2열 DataFrame /
+* **나머지 두 reader 의 field 이름.**
+  `read_af_pr_condition`(ENMP…), `get_align_beam_pr_conditions`(ENAP…) 는 아직
+  모릅니다. 그래서 contract 는 고정 컬럼이 아니라 열린 key/value
+  (SettingBlock.rows)입니다 — 모르는 key 가 사라지지 않고 그대로 화면에 나옵니다.
+  cond.txt 2개가 2026-07-30 에 확인되었을 때 **contract 도 frontend 도 고칠 것이
+  없었던 것**이 이 설계의 값어치입니다. mock 의 placeholder key 와 이 문서만
+  고쳤습니다.
+* **다섯 reader 가 돌려주는 container 종류.** dict / 1행 DataFrame / 2열 DataFrame /
   pair list 를 office_example.py 의 _to_rows 가 모두 받습니다. 단 1행 2열
   DataFrame 은 두 해석이 모두 성립하고 결과가 다릅니다 — 지금은 "컬럼이 field"
   쪽으로 읽습니다. 실제가 다르면 _to_rows 의 해당 분기를 뒤집습니다.

@@ -294,21 +294,236 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
 # ── raw-recipe folder (spec 2026-07-29) ───────────────────────────────────
 
 
-# Field-name stems for the three raw-file kinds. Deliberately NOT plausible
-# optical names (Mag, Vacc): the office reader's real field names are still
-# OFFICE-VERIFY, and a mock that invents credible ones teaches the frontend to
-# expect columns the office may never send — exactly how AmpRow's sixteen
-# invented fields went unquestioned for months.
-_AMP_FIELDS = 8
+# Field-name stems for the raw-file kinds whose reader output NOBODY HAS SEEN.
+# Deliberately NOT plausible optical names (Mag, Vacc): those field names are
+# still OFFICE-VERIFY, and a mock that invents credible ones teaches the
+# frontend to expect columns the office may never send — exactly how AmpRow's
+# sixteen invented fields went unquestioned for months.
+#
+# Three readers have LEFT this group, all confirmed by running
+# scripts/probe_recipe_ftp.py at the office (2026-07-30): both cond.txt readers
+# and read_amp_info. Their fields are named below rather than counted.
+# read_af_pr_condition (ENMP…) and get_align_beam_pr_conditions (ENAP…) remain.
 _AFPR_FIELDS = 6
-_COND_FIELDS = 5
-# Align files are read by two DIFFERENT office functions from the ones above
-# (get_align_beam_pr_conditions and read_align_image_condition), so their blocks
-# carry their own prefixes. Matching the stand-in's prefixes keeps mock and
-# office visibly parallel: a block that says COND_ under an align point means
-# somebody routed an align file to the measurement reader again.
+# ENAP goes to get_align_beam_pr_conditions, a DIFFERENT function from the
+# parameter-side readers, so its block keeps its own prefix. A block that says
+# AFPR_ under an align point means somebody routed ENAP to read_af_pr_condition
+# again — the mistake the adapter actually made until 2026-07-29.
 _ALIGNPR_FIELDS = 4
-_ALIGN_IMAGE_FIELDS = 5
+
+# ── cond.txt (office 확인 2026-07-30) ──────────────────────────────────────
+#
+# The measurement/addressing cond.txt (.IMMP / .I2MP / .IMMS) and the wafer-align
+# one (.IMAP{p:04d}) share ONE vocabulary; they are read by different functions
+# and differ only in WHICH of these keys are present. Every value is a str.
+#
+# Four properties the screen depends on and a field COUNT could never have taught:
+#
+#   * the UNIT lives inside the value ("500 V", "0.0 deg"), so nothing
+#     downstream may parse these as numbers;
+#   * Magnification, Number_of_frames and Pixel carry no unit at all and are
+#     still strings — "30000", not 30000;
+#   * three keys pack an X,Y PAIR into one string, and the separators DIFFER:
+#     Chip_coordinate / Wafer_coordinate / Field_Size use ", " while Pixel uses
+#     a bare ",". Kept verbatim rather than normalised — a screen that tidies
+#     this up hides what the tool actually wrote;
+#   * the OM align file is a strict SUBSET, not a different vocabulary. It has
+#     no beam settings at all, because an optical microscope has no beam.
+_COND_KEYS_SEM: tuple[str, ...] = (
+    "Accelerating_voltage",
+    "Probe_current",
+    "Magnification",
+    "Number_of_frames",
+    "Image_rotation",
+    "Chip_coordinate",
+    "Wafer_coordinate",
+    "Field_Size",
+    "Optics",
+    "Scan",
+    "Pixel",
+    "Filter",
+)
+
+# P.No 1 — the optical microscope. Five keys, in the order the file lists them.
+_COND_KEYS_OM: tuple[str, ...] = (
+    "Magnification",
+    "Chip_coordinate",
+    "Wafer_coordinate",
+    "Field_Size",
+    "Pixel",
+)
+
+# Field size and magnification are ONE setting seen twice: the sample read at
+# the office was 30000x -> "4.499 um", and 4.499 * 30000 = 134,970. Reproducing
+# the product rather than drawing two independent numbers keeps the mock from
+# teaching that a screen may show a field size contradicting its magnification.
+#
+# OFFICE-VERIFY: derived from ONE SEM sample. Whether a second recipe keeps the
+# product, and whether the OM optic shares this constant at all, is unchecked —
+# the OM sample came with a Field_Size key but no value.
+_FOV_MAG_PRODUCT = 134_970.0
+
+# The OM magnification seen at the office. Emitted verbatim rather than varied:
+# it is one sample, and an optical scope's magnification is fixed by its lens,
+# so a range here would be invention rather than imitation.
+_OM_MAGNIFICATION = 104
+
+
+def _um_pair(x: float, y: float) -> str:
+    """'9737 um, 14710 um' — per-component unit, ', ' separator (office 확인)."""
+    return f"{x:g} um, {y:g} um"
+
+
+def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
+    """Every cond.txt key this mock knows how to write, for one optic.
+
+    Built as a whole rather than per-key so Magnification and Field_Size are
+    drawn ONCE and stay consistent — see _FOV_MAG_PRODUCT. Keys the caller's
+    optic does not use are still computed and then dropped, which costs nothing
+    and keeps the two field lists a selection of one vocabulary instead of two
+    definitions that can drift apart.
+
+    Only the SHAPE imitates the office. Magnitudes are plausible-for-a-CD-SEM,
+    not office distributions, and where exactly one real value is known
+    (Optics / Scan / Filter, and OM's magnification and chip coordinate) that
+    one value is emitted verbatim on every file — a single sample can teach a
+    format, never a value domain.
+    """
+    om = optic == "OM"
+    magnification = _OM_MAGNIFICATION if om else rng.choice((20_000, 30_000, 50_000, 100_000, 150_000))
+    side = _FOV_MAG_PRODUCT / magnification
+    return {
+        "Accelerating_voltage": f"{rng.choice((300, 500, 800))} V",
+        "Probe_current": f"{rng.choice((4.0, 8.0, 16.0)):.1f} pA",
+        "Magnification": str(magnification),
+        "Number_of_frames": str(rng.choice((8, 16, 32, 64))),
+        "Image_rotation": f"{rng.choice((0.0, 90.0, 180.0, 270.0)):.1f} deg",
+        # OM aligns in WAFER coordinates, so its chip coordinate is 0,0
+        # (office 확인 2026-07-30). SEM images are addressed inside a die, so
+        # theirs is die-relative. The wafer one is the larger of the two either
+        # way: it spans a 300 mm wafer, i.e. 300,000 um.
+        "Chip_coordinate": _um_pair(0, 0) if om
+        else _um_pair(rng.randrange(0, 30_000), rng.randrange(0, 30_000)),
+        "Wafer_coordinate": _um_pair(rng.randrange(0, 300_000), rng.randrange(0, 300_000)),
+        "Field_Size": f"{side:.3f} um, {side:.3f} um",
+        "Optics": "High Reso.",
+        "Scan": "TV",
+        "Pixel": rng.choice(("512,512", "1024,1024")),
+        "Filter": "OFF",
+    }
+
+
+def _cond_block(source: str | None, optic: str, *scope: str) -> SettingBlock | None:
+    """A cond.txt block with its REAL field names, for OM or SEM.
+
+    Split from ``_block`` on purpose. The two answer different questions — this
+    one reproduces field names we have seen, ``_block`` stands in for readers
+    whose output is still unknown — and merging them would make placeholder keys
+    and confirmed ones indistinguishable at the call site, which is the one
+    thing a reader of this file most needs to tell apart.
+
+    ``optic`` is "OM" or "SEM", the same argument the office passes to
+    read_align_image_condition. Measurement and addressing images are always
+    SEM; only wafer align has an OM file, at P.No 1.
+    """
+    if source is None:
+        return None
+    values = _cond_values(_seeded_rng(source, *scope), optic)
+    keys = _COND_KEYS_OM if optic == "OM" else _COND_KEYS_SEM
+    return {
+        "source": source,
+        "rows": [{"key": key, "value": values[key]} for key in keys]
+    }
+
+
+def _seeded_rng(source: str, *scope: str) -> random.Random:
+    """Stable per (recipe, file) — see ``_block`` for why scope is not optional."""
+    digest = hashlib.sha256(":".join((*scope, source)).encode("utf-8")).hexdigest()
+    return random.Random(int(digest[:16], 16))
+
+
+# ── PRMS…, the AMP file (office 확인 2026-07-30) ───────────────────────────
+#
+# read_amp_info's eighteen fields — how one parameter is actually measured off
+# the image, where cond.txt says how the image was taken. Every value is a str.
+#
+# Two things this file does that cond.txt does not:
+#
+#   * NO UNITS ANYWHERE. Design_Value is '266.1', not '266.1 nm'. So "does a
+#     value carry its unit" is per-FILE, not a property of this pipeline, and
+#     nothing may assume either way.
+#   * FIVE fields are ', '-joined PAIRS — Threshold, Edge_Search_Direct.,
+#     Edge_Number, Base_Line_Start_Pint, Base_Line_Area. A width measurement has
+#     two edges and each takes its own setting. Same ', ' separator cond.txt
+#     uses for coordinates, and the same rule applies: shown verbatim.
+#
+# A generator of None means the KEY is confirmed but its VALUE FORMAT is not —
+# the office sample listed the key without a value. Those emit the same obviously
+# synthetic hex that the still-unknown readers do (_block), so the block shows
+# the right contract without teaching a format nobody has seen. Fill one in the
+# moment a real value turns up.
+_AMP_FIELDS: tuple[tuple[str, object], ...] = (
+    # Enumerated strings: exactly one real value known each, so it is emitted
+    # verbatim on every file. One sample teaches a format, never a domain.
+    ("Measurement", lambda _: "Width"),
+    ("Object", lambda _: "Space"),
+    ("Kind", lambda _: "Multi_Point"),
+    ("Measurement_Point", lambda r: str(r.choice((16, 32, 64)))),
+    ("Data", lambda _: "Mean"),
+    ("Method", lambda _: "Linear"),
+    # The parameter's target CD. Varied — a compare screen whose Design_Value is
+    # identical across two different recipes would show no difference where the
+    # office shows the whole point of the comparison.
+    ("Design_Value", lambda r: f"{r.uniform(40.0, 400.0):.1f}"),
+    ("Search_Area", None),
+    ("Inspect_Area", None),
+    ("Smoothing", None),
+    ("Differential", None),
+    ("Threshold", lambda r: _pair(r.choice((40, 50, 60)))),
+    ("Edge_Search_Direct.", lambda _: _pair("Normal")),
+    ("Edge_Number", lambda r: _pair(r.choice((1, 2)))),
+    ("Base_Line_Start_Pint", lambda r: _pair(r.choice((2, 3, 4)))),
+    ("Base_Line_Area", lambda r: _pair(r.choice((8, 10, 12)))),
+    ("Sum_Line_Point", None),
+    ("Target", None),
+)
+
+# OFFICE-VERIFY: two key SPELLINGS above are reproduced exactly as the office
+# sample gave them and both look like the tool's own typos rather than ours —
+# 'Edge_Search_Direct.' ends in a period (a truncated "Direction") and
+# 'Base_Line_Start_Pint' reads as "Point" misspelled. Left verbatim on purpose:
+# these are contract keys, and silently correcting one would make home and
+# office disagree about a key name, which is the exact class of bug this file
+# exists to prevent. Confirm against a second sample.
+
+
+def _pair(value: object) -> str:
+    """'50, 50' — one setting per edge, ', ' separated (office 확인 2026-07-30)."""
+    return f"{value}, {value}"
+
+
+def _unknown_value(rng: random.Random) -> str:
+    """A value that cannot be mistaken for a real one.
+
+    Used where the key is confirmed but its format is not. Deliberately shares
+    the look of ``_block``'s placeholders so "we have not seen this" reads the
+    same everywhere on the screen.
+    """
+    return f"{rng.getrandbits(16):04X}"
+
+
+def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
+    """The PRMS… AMP file, with its REAL field names (office 확인 2026-07-30)."""
+    if source is None:
+        return None
+    rng = _seeded_rng(source, *scope)
+    return {
+        "source": source,
+        "rows": [
+            {"key": key, "value": generate(rng) if generate else _unknown_value(rng)}
+            for key, generate in _AMP_FIELDS
+        ]
+    }
 
 
 def _block(source: str | None, prefix: str, count: int, *scope: str) -> SettingBlock | None:
@@ -379,14 +594,16 @@ def get_param_detail(
         scope = (str(locator.get("idp", "")), item.get("parameter", ""))
         out.append({
             "parameter": item.get("parameter", ""),
-            "amp": _block(amp, "AMP", _AMP_FIELDS, *scope),
+            "amp": _amp_block(amp, *scope),
             "af_pr": _block(af_pr, "AFPR", _AFPR_FIELDS, *scope),
             "images": [
                 {
                     "slot": slot,
                     "stage": stage_of.get(slot, slot),
                     "name": name,
-                    "cond": _block(cond, "COND", _COND_FIELDS, *scope)
+                    # Always SEM: an optical microscope takes no measurement or
+                    # addressing image. Only wafer align has an OM file.
+                    "cond": _cond_block(cond, "SEM", *scope)
                 }
                 for slot, name, cond in images
             ]
@@ -423,10 +640,14 @@ def get_align_detail(
             # have one (1 = OM, 2 = SEM). An unexpected point number leaves the
             # office with no `which` to pass, so it renders 파일 없음 there and
             # must render the same here.
-            "cond": _block(
+            #
+            # The optic is not just a label: OM writes FIVE keys and SEM the
+            # full twelve (office 확인 2026-07-30), so a point routed to the
+            # wrong optic shows the wrong number of rows rather than merely a
+            # wrong heading.
+            "cond": _cond_block(
                 rawfiles.cond_source(image),
-                f"ALIGN{optics}",
-                _ALIGN_IMAGE_FIELDS,
+                optics,
                 scope,
             ) if (optics := rawfiles.align_optics(p_no)) else None,
             "setting": _block(setting, "ALIGNPR", _ALIGNPR_FIELDS, scope)

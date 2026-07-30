@@ -950,11 +950,18 @@ def _to_detail_response(
 def _to_rows(obj: Any) -> list[SettingRow]:
     """Whatever a reader returned -> ordered key/value rows.
 
-    The readers' return CONTAINER is OFFICE-VERIFY, not merely their field
-    names: a reader may hand back a dict, a one-row DataFrame whose columns are
-    the fields, a two-column DataFrame whose rows are pairs, or a list of pairs.
-    Handling all four means a wrong guess degrades to rows in a slightly odd
-    order rather than a 500 on a screen that used to work.
+    The readers' return CONTAINER is OFFICE-VERIFY: a reader may hand back a
+    dict, a one-row DataFrame whose columns are the fields, a two-column
+    DataFrame whose rows are pairs, or a list of pairs. Handling all four means
+    a wrong guess degrades to rows in a slightly odd order rather than a 500 on
+    a screen that used to work.
+
+    Their FIELD NAMES no longer are, for the two cond.txt readers: both were run
+    against real files (office 확인 2026-07-30) and their twelve / five keys are
+    written down in docs/datatables/recipe_idp.txt. Nothing here changed as a
+    result — which is the open key/value contract paying for itself — and the
+    ambiguous 1x2 branch below cannot reach them either way, since neither file
+    carries a single setting.
     """
     if obj is None:
         return []
