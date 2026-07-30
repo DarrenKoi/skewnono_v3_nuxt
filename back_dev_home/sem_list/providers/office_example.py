@@ -28,7 +28,7 @@ from back_dev_home._runtime.office_redis import (
     read_dataframe as _deserialize_dataframe,
     redis_client as _redis_client,
 )
-from back_dev_home.sem_list.contracts import SemListRow
+from back_dev_home.sem_list.contracts import PendingToolRow, SemListRow
 
 _REDIS_KEY = "v3_df_sem_avail"
 _VERSION_KEY = "v3_df_sem_version"
@@ -166,6 +166,21 @@ def get_sem_list() -> list[SemListRow]:
     if fleet.empty:
         return []
     return _normalize(fleet)
+
+
+def get_pending_tools(*args, **kwargs) -> list[PendingToolRow]:
+    """Roster-minus-avail diff (``v3_df_sem_list`` - ``v3_df_sem_avail``).
+
+    NOT CONNECTED YET — a stub, not the real adapter. `data.py` reaches for
+    this name as soon as it exists, so `test_office_adapter_parity.py` needs a
+    callable here before the real roster diff lands. Implement against
+    `docs/datatables/sem_list.txt`'s Key 1 (`v3_df_sem_list`) and normalize to
+    `PendingToolRow`.
+    """
+    raise NotImplementedError(
+        "get_pending_tools has not been connected yet — see "
+        "sem_list/MIGRATION.md."
+    )
 
 
 if __name__ == "__main__":

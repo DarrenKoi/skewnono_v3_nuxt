@@ -1,24 +1,40 @@
 """Deterministic Phase 1 adapter for the SEM equipment list.
 
 Office counterpart — schema of record: `docs/datatables/sem_list.txt`.
-Two Redis keys, each a pandas DataFrame serialized to parquet:
+THREE Redis keys, each a pandas DataFrame serialized to parquet:
 
-    v3_df_sem_avail     the fleet, WITHOUT a `version` column
+    v3_df_sem_list      the FULL company roster — every tool, all tool types
+    v3_df_sem_avail     the subset skewnono can actually reach
     v3_df_sem_version   columns [eqp_ip, version]
 
-The office adapter LEFT-merges the second onto the first by `eqp_ip` (fleet on
-the left, so no fleet row is ever dropped; unmatched rows get ""), then
-normalizes to `SemListRow`. Contract details worth mirroring here:
+`v3_df_sem_avail` is a derived subset, not the roster (user-confirmed
+2026-07-30). Every tool is assigned an `eqp_ip` when it is installed in the
+fab and is FIREWALLED from that moment; it only enters `v3_df_sem_avail`
+once IT opens that IP. So `v3_df_sem_list - v3_df_sem_avail` is exactly the
+queue of firewall-exception requests, and "in the roster but unreachable" is
+the normal initial state of every tool rather than an error.
 
+`get_sem_list()` serves the reachable fleet (the `_avail` + `_version` merge);
+`get_pending_tools()` serves the difference. Contract details worth mirroring
+here:
+
+* `updt_dt` is the tool's FIRST ARRIVAL time at the fab, NOT a roster-update
+  timestamp (user-confirmed 2026-07-30). It is imprecise for old tools and
+  trustworthy for recent ones, which is what makes it usable for telling a
+  genuine new arrival from a long-abandoned roster entry.
 * `version` is a FREE-FORM STRING ("1A"), not a number — do not sort it
   numerically anywhere.
-* `vendor_nm` is HITACHI or AMAT and nothing else; the office adapter raises on
-  a third value rather than passing it through.
+* `vendor_nm` is HITACHI or AMAT for the reachable fleet, and the office
+  adapter raises on a third value there. `PendingToolRow` deliberately does
+  NOT constrain it — a newly installed tool from a new vendor must appear on
+  the 미연결 screen instead of 502-ing it.
 * `available` arrives as any of on/off/true/false/1/0 and is normalized to
-  "On"/"Off". This mock emits the normalized form directly.
-* the fleet carries no `tool_type` column — it is derived from `eqp_model_cd`
-  (`_tool_specs.model_to_tool_type`), which is why that mapping, not a stored
-  field, is authoritative in both phases.
+  "On"/"Off". This mock emits the normalized form directly. Pending tools
+  have no `available` at all.
+* the fleet carries no `tool_type` column — it is derived from `eqp_model_cd`.
+  Note the two classifiers disagree: backend `_tool_specs.model_to_tool_type`
+  returns None for AMAT models, while frontend `classifyToolType` resolves
+  all four tool types. The 미연결 screen uses the frontend one.
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
@@ -32,7 +48,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from back_dev_home.sem_list.contracts import SemListRow
+from back_dev_home.sem_list.contracts import PendingToolRow, SemListRow
 
 
 FAC_IDS = ["M11", "M12", "M14", "M15", "M16", "R3"]
@@ -49,11 +65,15 @@ CDSEM_EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
 HVSEM_MODELS = ["TP3000", "TP3500", "TP4000", "TP4500"]
 HVSEM_EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
 
-# Deferred-to-2027 AMAT tools. They belong in the inventory but are NOT CD/HV-SEM,
-# so `model_to_tool_type()` returns None and every tool-scoped view filters them
-# out. Kept rare for exactly that reason — at the old ~50% they crowded the
-# CD/HV-SEM pages down to half a fleet. The prefix pool is unverified; nothing
-# classifies by prefix (it only builds eqp_ids), so it is cosmetic.
+# AMAT tools, deferred to 2027. They belong in the inventory but are NOT
+# CD/HV-SEM, so backend `model_to_tool_type()` returns None and the
+# tool-scoped ebeam views filter them out. The 미연결 screen is the
+# exception: it groups by the FRONTEND classifier, which resolves these to
+# 'verity-sem' / 'provision', and shows them under their own filter chip —
+# their firewall requests get filed too, just not this year. Kept rare here
+# because at the old ~50% they crowded the CD/HV-SEM pages down to half a
+# fleet. The prefix pool is unverified; nothing classifies by prefix (it only
+# builds eqp_ids), so it is cosmetic.
 AMAT_MODELS = ["PROVISION_10", "PROVISION_20", "VERITYSEM_4", "VERITYSEM_5"]
 AMAT_EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
 
@@ -62,6 +82,24 @@ AMAT_SHARE = 0.10
 CDSEM_SHARE = 0.62
 
 EQP_GRP_PREFIXES = ["G-ECD-", "G-MCD-", "G-KCD-", "G-MDS-", "G-PCD-", "G-ACD-"]
+
+# Newly installed tools awaiting an IT firewall exception. An explicit table,
+# not a random draw: what this fixture has to stand in for is the SHAPE of an
+# arrival batch — a few fab x model cells holding several tools each — and a
+# uniform random draw produces a matrix of all 1s that never exercises the
+# aggregation. Counts and ids are invented; only the shape is claimed.
+#
+#                fab_name  fac_id  eqp_model_cd     prefix  count  days_ago
+_PENDING_CLUSTERS = [
+    ("M16A", "M16", "CG6380", "ECDX", 2, 8),
+    ("M16B", "M16", "GT2000", "ECDX", 4, 15),
+    ("M14B", "M14", "TP4000", "PCD", 5, 22),
+    # Older than the UI's 180-day staleness threshold — exercises 오래됨.
+    ("M16A", "M16", "VERITYSEM_4", "VCD", 2, 400),
+    # No fab assignment yet — exercises the 미배정 bucket. Kept on a different
+    # row from the stale one so each edge case is reachable on its own.
+    ("", "M11", "PROVISION_10", "ACD", 1, 30),
+]
 
 
 def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
@@ -100,8 +138,13 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
 
         ip_prefix = "177" if rng.random() < 0.5 else "197"
         eqp_ip = f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
+        # Arrival time, so the fleet's values span years — a roster of tools
+        # that all arrived within 90 days would teach that this column is a
+        # recency signal, which is exactly the misreading the docs used to
+        # encode. Values change freely: check_contract.py compares key sets
+        # and value TYPES, never value equality.
         updt_dt = (
-            now - timedelta(days=rng.randint(0, 90))
+            now - timedelta(days=rng.randint(0, 2555))
         ).isoformat().replace("+00:00", "Z")
         available: Literal["On", "Off"] = "On" if rng.random() < 0.9 else "Off"
 
@@ -124,5 +167,53 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
     return rows
 
 
+def _generate_pending(
+    taken: set[str], seed: int = 43
+) -> list[PendingToolRow]:
+    """The 14 roster tools skewnono cannot reach yet.
+
+    ``taken`` is the connected fleet's eqp_id set. Ids are re-rolled on
+    collision rather than drawn from a reserved numeric range, so the
+    disjointness invariant holds even if the connected generator's id scheme
+    changes later.
+    """
+    rng = random.Random(seed)
+    now = datetime(2026, 4, 19, tzinfo=timezone.utc)
+    used = set(taken)
+    rows: list[PendingToolRow] = []
+
+    for fab_name, fac_id, model, prefix, count, days_ago in _PENDING_CLUSTERS:
+        vendor_nm = "AMAT" if model in AMAT_MODELS else "HITACHI"
+        for _ in range(count):
+            eqp_id = f"{prefix}{rng.randint(100, 999)}"
+            while eqp_id in used:
+                eqp_id = f"{prefix}{rng.randint(100, 999)}"
+            used.add(eqp_id)
+
+            ip_prefix = "177" if rng.random() < 0.5 else "197"
+            rows.append(PendingToolRow(
+                fac_id=fac_id,
+                eqp_id=eqp_id,
+                eqp_model_cd=model,
+                eqp_grp_id=f"{rng.choice(EQP_GRP_PREFIXES)}{rng.randint(1, 3):02d}",
+                vendor_nm=vendor_nm,
+                # Always present: assigned at fab installation.
+                eqp_ip=(
+                    f"{ip_prefix}.{rng.randint(1, 254)}"
+                    f".{rng.randint(1, 254)}.{rng.randint(1, 254)}"
+                ),
+                fab_name=fab_name,
+                updt_dt=(
+                    now - timedelta(days=days_ago)
+                ).isoformat().replace("+00:00", "Z"),
+            ))
+
+    return rows
+
+
 def get_sem_list() -> list[SemListRow]:
     return _generate_rows()
+
+
+def get_pending_tools() -> list[PendingToolRow]:
+    return _generate_pending({row["eqp_id"] for row in _generate_rows()})

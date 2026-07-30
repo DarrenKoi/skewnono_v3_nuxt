@@ -7,15 +7,37 @@ lateral_recipe, sharpness 어댑터가 모두 여기로 eqp_id <-> eqp_ip 를 �
 어느 쪽이 맞는지 판별할 방법이 없으므로, 명부는 반드시 이 소스 하나만 씁니다.
 
 저장 형태: Redis, pandas DataFrame 을 parquet 직렬화(df.to_parquet(), 값 선두
-4바이트가 b"PAR1"). 두 개의 key 로 나뉘어 있습니다.
+4바이트가 b"PAR1"). 세 개의 key 로 나뉘어 있습니다.
 
-Key 1 -> "v3_df_sem_avail"   : fleet 본체. version 컬럼이 **없습니다**.
-Key 2 -> "v3_df_sem_version" : 컬럼 [eqp_ip, version] 두 개짜리 보조 table.
+Key 1 -> "v3_df_sem_list"    : 전사 전체 명부. 모든 tool type 을 포함하며
+                               VeritySEM 과 Provision 도 들어 있습니다.
+                               (user-confirmed 2026-07-30)
+Key 2 -> "v3_df_sem_avail"   : 위 명부 중 접속이 확인된 부분집합입니다.
+                               version 컬럼이 **없습니다**.
+Key 3 -> "v3_df_sem_version" : 컬럼 [eqp_ip, version] 두 개짜리 보조 table.
 
-두 key 는 eqp_ip 를 기준으로 LEFT merge 합니다(fleet 이 왼쪽). fleet row 는 한 건도
-버리지 않으며, version 이 없는 row 는 빈 문자열("")이 됩니다. version table 에 같은
-eqp_ip 가 여러 건 있으면 fleet row 가 복제되므로, merge 전에 eqp_ip 기준으로
-중복 제거(마지막 값 유지)합니다.
+장비 lifecycle (user-confirmed 2026-07-30)
+
+모든 장비는 fab 에 반입되는 시점에 eqp_ip 를 부여받고, 그 순간부터 네트워크
+방화벽에 막혀 있습니다. IT 서비스팀이 해당 IP 를 열어 준 뒤에야
+v3_df_sem_avail 에 들어옵니다. 따라서
+
+    v3_df_sem_list - v3_df_sem_avail  =  방화벽 해제 요청 대기 목록
+
+이며, "명부에 있으나 접속되지 않음"은 오류가 아니라 모든 장비가 반드시 한 번
+거치는 정상 초기 상태입니다. GET /api/sem-list/pending 이 이 차집합을
+eqp_id 기준으로 계산합니다.
+
+Key 2 와 Key 3 은 eqp_ip 를 기준으로 LEFT merge 합니다(fleet 이 왼쪽). fleet
+row 는 한 건도 버리지 않으며, version 이 없는 row 는 빈 문자열("")이 됩니다.
+version table 에 같은 eqp_ip 가 여러 건 있으면 fleet row 가 복제되므로, merge
+전에 eqp_ip 기준으로 중복 제거(마지막 값 유지)합니다.
+
+Key 1 의 정확한 컬럼 목록은 아직 확인되지 않았습니다(OFFICE-VERIFY). Key 2 와
+같은 identity 컬럼을 가지며 available 컬럼이 없다고 가정하고 있습니다.
+확인 방법:
+
+    .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list
 
 컬럼 정보 (merge 후 기준, 10개 전부 필수 — 하나라도 없으면 어댑터가 에러)
 
@@ -28,7 +50,12 @@ vendor_nm -> string: vendor. HITACHI 또는 AMAT 두 값만 허용됩니다.
 eqp_ip -> string: 장비 IP. 두 key 의 merge 기준이자 타 feature 의 join 기준입니다.
 fab_name -> string: 화면에서 선택하는 세부 fab 이름. 예: M16A, M16B, R3, R4
                     fac_id 보다 granular 하며, 필터의 정식 키입니다.
-updt_dt -> string(ISO): 명부 갱신 시각. pandas Timestamp 로 오면 isoformat() 으로
+updt_dt -> string(ISO): **장비가 fab 에 최초 반입된 시각**입니다.
+                        명부 갱신 시각이 아닙니다 (user-confirmed 2026-07-30).
+                        오래된 장비의 값은 정확하지 않으나 최근 장비의 값은
+                        신뢰할 수 있습니다. 따라서 신규 반입 여부 판단에는
+                        쓸 수 있지만, 오래된 값을 근거로 row 를 숨기지는
+                        않습니다. pandas Timestamp 로 오면 isoformat() 으로
                         변환합니다.
 available -> string: 장비 사용 가능 여부. 소스는 on/off/true/false/1/0 중 아무
                      표기나 올 수 있고, 어댑터가 "On"/"Off" 로 정규화합니다.
@@ -49,6 +76,11 @@ version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 �
 4. tool_type(cd-sem / hv-sem)은 이 명부에 컬럼으로 없습니다. eqp_model_cd 로
    판별합니다 — CG/GT 계열은 cd-sem, TP 계열은 hv-sem
    (back_dev_home/ebeam/hitachi/_tool_specs.py 의 model_to_tool_type).
+5. VeritySEM / Provision 은 v3_df_sem_list 에 포함됩니다
+   (user-confirmed 2026-07-30). 백엔드 model_to_tool_type() 은 이 모델들에
+   None 을 반환하지만 프론트 classifyToolType() 은 verity-sem / provision 으로
+   해석합니다. 미연결 장비 화면은 프론트 분류기를 사용하므로 이 장비들도
+   자기 필터 chip 아래에 표시됩니다.
 
 연결 설정
 
