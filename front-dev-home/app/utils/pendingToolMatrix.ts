@@ -53,7 +53,11 @@ export interface PendingToolMatrix {
 // because "1" < "9" lexically, which reads as a bug in a fab column.
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
-export const fabLabel = (fabName: string): string => fabName.trim() || UNASSIGNED_FAB
+// Module-local, not exported: `app/utils/` is Nuxt auto-imported, and
+// `pages/afm/[tool]/index.vue` already declares its own local `fabLabel` —
+// exporting ours would put a colliding name into every component's implicit
+// scope.
+const fabLabel = (fabName: string): string => fabName.trim() || UNASSIGNED_FAB
 
 export const groupOf = (row: PendingToolRow): PendingToolGroup =>
   classifyToolType(row.eqp_model_cd) ?? UNCLASSIFIED

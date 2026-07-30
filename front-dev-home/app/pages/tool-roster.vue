@@ -32,21 +32,10 @@
 
       <!-- Idle: nothing has been fetched, because this page never fetches on
            navigation. Say why, so the empty screen does not read as broken. -->
-      <div
+      <AppStatusMessage
         v-if="status === 'idle'"
-        class="flex flex-col items-center justify-center gap-2 flex-1 px-6 py-12 text-center"
-      >
-        <UIcon
-          name="i-lucide-network"
-          class="size-8 text-(--sk-ink-muted)"
-        />
-        <p class="sk-value">
-          전사 장비 명부는 조회 시점에만 불러옵니다.
-        </p>
-        <p class="sk-label">
-          조회를 누르면 방화벽 해제가 필요한 장비를 확인할 수 있습니다.
-        </p>
-      </div>
+        v-bind="statusMessages.idle"
+      />
 
       <AppLoadingState
         v-else-if="status === 'pending'"
@@ -54,34 +43,15 @@
         description="장비 수에 따라 시간이 걸릴 수 있습니다."
       />
 
-      <div
+      <AppStatusMessage
         v-else-if="status === 'error'"
-        class="flex flex-col items-center justify-center gap-2 flex-1 px-6 py-12 text-center"
-      >
-        <UIcon
-          name="i-lucide-triangle-alert"
-          class="size-8 text-(--sk-bad)"
-        />
-        <p class="sk-value">
-          명부를 불러오지 못했습니다.
-        </p>
-        <p class="sk-label">
-          {{ error?.message }}
-        </p>
-      </div>
+        v-bind="statusMessages.error"
+      />
 
-      <div
+      <AppStatusMessage
         v-else-if="status === 'success' && rows.length === 0"
-        class="flex flex-col items-center justify-center gap-2 flex-1 px-6 py-12 text-center"
-      >
-        <UIcon
-          name="i-lucide-check"
-          class="size-8 text-(--sk-ok)"
-        />
-        <p class="sk-value">
-          명부의 모든 장비가 연결되어 있습니다.
-        </p>
-      </div>
+        v-bind="statusMessages.empty"
+      />
 
       <div
         v-else-if="status === 'success'"
@@ -159,12 +129,12 @@
                 >
                   <!-- Zero renders as · so occupied cells carry the eye. -->
                   <UButton
-                    v-if="matrix.counts[fabAt]?.[modelAt]"
+                    v-if="cellCount(fabAt, modelAt)"
                     size="xs"
                     color="neutral"
                     variant="ghost"
-                    :label="String(matrix.counts[fabAt]?.[modelAt])"
-                    :aria-label="`${fab} ${model} 장비 ${matrix.counts[fabAt]?.[modelAt]}대 보기`"
+                    :label="String(cellCount(fabAt, modelAt))"
+                    :aria-label="`${fab} ${model} 장비 ${cellCount(fabAt, modelAt)}대 보기`"
                     @click="selectCell(fab, model)"
                   />
                   <span
@@ -215,58 +185,38 @@
                 @click="selectedCell = null"
               />
             </div>
-            <table class="w-full text-left">
-              <thead>
-                <tr>
-                  <th class="sk-label py-2 px-3">
-                    Equipment ID
-                  </th>
-                  <th class="sk-label py-2 px-3">
-                    IP Address
-                  </th>
-                  <th class="sk-label py-2 px-3">
-                    Vendor
-                  </th>
-                  <th class="sk-label py-2 px-3">
-                    반입일
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in drilldownRows"
-                  :key="row.eqp_id"
-                  class="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                >
-                  <td class="sk-value-num py-1.5 px-3">
-                    {{ row.eqp_id }}
-                  </td>
-                  <td class="sk-value-num py-1.5 px-3">
-                    {{ row.eqp_ip }}
-                  </td>
-                  <td class="sk-value capitalize py-1.5 px-3">
-                    {{ row.vendor_nm.toLowerCase() }}
-                  </td>
-                  <td class="py-1.5 px-3">
-                    <span :class="isStale(row) ? 'sk-label' : 'sk-value-num'">
-                      {{ arrivalDate(row.updt_dt) }}
-                    </span>
-                    <!-- De-emphasized, never hidden and never dropped from the
-                         IP list: a stale row costs one reply from IT, while a
-                         hidden new arrival costs an unreachable tool nobody
-                         notices. -->
-                    <UBadge
-                      v-if="isStale(row)"
-                      class="ml-2"
-                      color="neutral"
-                      variant="subtle"
-                      size="sm"
-                      label="오래됨"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <UTable
+              :columns="drilldownColumns"
+              :data="drilldownRows"
+              :meta="drilldownTableMeta"
+            >
+              <template #eqp_id-cell="{ row }">
+                <span class="sk-value-num">{{ row.original.eqp_id }}</span>
+              </template>
+              <template #eqp_ip-cell="{ row }">
+                <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
+              </template>
+              <template #vendor_nm-cell="{ row }">
+                <span class="sk-value capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
+              </template>
+              <template #updt_dt-cell="{ row }">
+                <span :class="isStale(row.original) ? 'sk-label' : 'sk-value-num'">
+                  {{ arrivalDate(row.original.updt_dt) }}
+                </span>
+                <!-- De-emphasized, never hidden and never dropped from the
+                     IP list: a stale row costs one reply from IT, while a
+                     hidden new arrival costs an unreachable tool nobody
+                     notices. -->
+                <UBadge
+                  v-if="isStale(row.original)"
+                  class="ml-2"
+                  color="neutral"
+                  variant="subtle"
+                  size="sm"
+                  label="오래됨"
+                />
+              </template>
+            </UTable>
           </div>
         </div>
       </div>
@@ -275,6 +225,7 @@
 </template>
 
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { PendingToolGroup, PendingToolRow } from '~/utils/pendingToolMatrix'
 import {
   buildPendingToolMatrix,
@@ -282,7 +233,8 @@ import {
   countByGroup,
   filterByGroup,
   ipList,
-  isStaleArrival
+  isStaleArrival,
+  UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
 import { copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
 
@@ -290,6 +242,35 @@ const { data, status, error, execute } = usePendingTools()
 const toast = useToast()
 
 const rows = computed<PendingToolRow[]>(() => data.value ?? [])
+
+interface StatusMessageContent {
+  icon: string
+  iconClass: string
+  title: string
+  description?: string
+}
+
+// idle / error / success-empty share one shape (icon + title + optional
+// description) — see AppStatusMessage.vue; only the content differs per state.
+const statusMessages = computed<Record<'idle' | 'error' | 'empty', StatusMessageContent>>(() => ({
+  idle: {
+    icon: 'i-lucide-network',
+    iconClass: 'text-(--sk-ink-muted)',
+    title: '전사 장비 명부는 조회 시점에만 불러옵니다.',
+    description: '조회를 누르면 방화벽 해제가 필요한 장비를 확인할 수 있습니다.'
+  },
+  error: {
+    icon: 'i-lucide-triangle-alert',
+    iconClass: 'text-(--sk-bad)',
+    title: '명부를 불러오지 못했습니다.',
+    description: error.value?.message
+  },
+  empty: {
+    icon: 'i-lucide-check',
+    iconClass: 'text-(--sk-ok)',
+    title: '명부의 모든 장비가 연결되어 있습니다.'
+  }
+}))
 
 const activeGroup = ref<PendingToolGroup | 'all'>('all')
 const selectedCell = ref<{ fab: string, model: string } | null>(null)
@@ -311,7 +292,7 @@ const GROUP_LABELS: Array<{ value: PendingToolGroup, label: string }> = [
   { value: 'hv-sem', label: 'HV-SEM' },
   { value: 'verity-sem', label: 'VeritySEM' },
   { value: 'provision', label: 'Provision' },
-  { value: 'unclassified', label: '미분류' }
+  { value: UNCLASSIFIED, label: '미분류' }
 ]
 
 // Only groups that actually have tools get a chip, so 미분류 stays invisible
@@ -328,6 +309,10 @@ const groupChips = computed(() => {
 
 const visibleRows = computed(() => filterByGroup(rows.value, activeGroup.value))
 const matrix = computed(() => buildPendingToolMatrix(visibleRows.value))
+
+// One lookup per cell instead of re-indexing matrix.counts in v-if, :label
+// and :aria-label separately.
+const cellCount = (fabAt: number, modelAt: number) => matrix.value.counts[fabAt]?.[modelAt]
 
 const selectGroup = (group: PendingToolGroup | 'all') => {
   activeGroup.value = group
@@ -349,6 +334,27 @@ const drilldownRows = computed(() => {
 const isStale = (row: PendingToolRow) => isStaleArrival(row.updt_dt, loadedAt.value)
 
 const arrivalDate = (updtDt: string) => updtDt.slice(0, 10)
+
+// Same hover/typography convention as ToolInventoryView.vue and
+// PpidUnavailablePanel.vue's tableMeta — the drill-down needs no sorting, so
+// only the `class` half of that pattern applies here.
+const drilldownTableMeta = {
+  class: {
+    tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
+    td: 'py-1.5 px-3 sk-value',
+    th: 'py-2 px-3 sk-label'
+  }
+}
+
+const drilldownColumnConfigs: Array<{ id: keyof PendingToolRow, header: string }> = [
+  { id: 'eqp_id', header: 'Equipment ID' },
+  { id: 'eqp_ip', header: 'IP Address' },
+  { id: 'vendor_nm', header: 'Vendor' },
+  { id: 'updt_dt', header: '반입일' }
+]
+const drilldownColumns: TableColumn<PendingToolRow>[] = drilldownColumnConfigs.map(
+  ({ id, header }) => ({ accessorKey: id, header })
+)
 
 const copyIpList = async () => {
   const text = ipList(visibleRows.value)
