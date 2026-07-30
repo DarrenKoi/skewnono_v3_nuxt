@@ -76,11 +76,14 @@ def _as_iso_string(value) -> str:
     return _to_text(value)
 
 
-def _version_str(value) -> str:
-    """Version as a string; "" when missing.
+def _text_or_blank(value) -> str:
+    """Cell as stripped text; "" when missing, never the string "nan".
 
-    After the LEFT merge, fleet rows with no matching version row carry NaN
-    (pandas' missing-value marker), which must become an empty string.
+    A parquet-backed DataFrame stores an unassigned cell as NaN/None, and
+    `_to_text` would otherwise stringify it to the literal "nan" — invisible
+    at home, where the mock can only ever emit "". This also covers the
+    `_normalize` LEFT-merge case: a fleet row with no matching version row
+    carries NaN, which must become an empty string too.
     """
     if pd.isna(value):
         return ""
@@ -120,7 +123,7 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
                 fab_name=_to_text(rec["fab_name"]),
                 updt_dt=_as_iso_string(rec["updt_dt"]),
                 available=available,
-                version=_version_str(rec["version"]),
+                version=_text_or_blank(rec["version"]),
             )
         )
     return rows
@@ -188,19 +191,6 @@ _PENDING_REQUIRED_COLUMNS = frozenset(
         "updt_dt",
     }
 )
-
-
-def _text_or_blank(value) -> str:
-    """Cell as stripped text; "" when missing, never the string "nan".
-
-    Same NaN guard as `_version_str` above, generalized to any text field: a
-    parquet-backed DataFrame stores an unassigned cell as NaN/None, and
-    `_to_text` would otherwise stringify it to the literal "nan" — invisible
-    at home, where the mock can only ever emit "".
-    """
-    if pd.isna(value):
-        return ""
-    return _to_text(value).strip()
 
 
 def _iso_or_blank(value) -> str:
