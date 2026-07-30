@@ -48,6 +48,12 @@
         </p>
       </div>
 
+      <AppLoadingState
+        v-else-if="status === 'pending'"
+        title="전사 장비 명부를 불러오는 중입니다."
+        description="장비 수에 따라 시간이 걸릴 수 있습니다."
+      />
+
       <div
         v-else-if="status === 'error'"
         class="flex flex-col items-center justify-center gap-2 flex-1 px-6 py-12 text-center"
