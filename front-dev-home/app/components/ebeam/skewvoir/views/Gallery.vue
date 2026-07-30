@@ -1,5 +1,7 @@
 <template>
   <EbeamSkewvoirPanelFrame
+    class="h-full min-h-0"
+    body-class="flex min-h-0 flex-col overflow-hidden"
     title="SEM Gallery"
     :meta="frameMeta"
     icon="i-lucide-images"
@@ -83,7 +85,7 @@
     <!-- ── SINGLE scope: priority visual-evidence review queue ─────────────── -->
     <div
       v-else-if="analysis.scope.value === 'single'"
-      class="flex flex-col gap-3"
+      class="flex min-h-0 flex-1 flex-col gap-3"
     >
       <EbeamSkewvoirGalleryReviewFilters
         :model-value="filter"
@@ -100,7 +102,7 @@
 
       <div
         v-if="filteredEntries.length"
-        class="grid max-h-[34rem] grid-cols-2 gap-2 overflow-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        class="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-2 overflow-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
       >
         <EbeamSkewvoirGalleryEvidenceCard
           v-for="entry in filteredEntries"
@@ -123,7 +125,7 @@
     <!-- ── SET scope: existing focus-only filename grid (Task 12 replaces) ──── -->
     <div
       v-else-if="images.length"
-      class="grid max-h-[34rem] grid-cols-3 gap-2 overflow-auto sm:grid-cols-4 xl:grid-cols-6"
+      class="grid min-h-0 flex-1 auto-rows-max grid-cols-3 content-start gap-2 overflow-auto sm:grid-cols-4 xl:grid-cols-6"
     >
       <figure
         v-for="img in images"
