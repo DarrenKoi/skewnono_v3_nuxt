@@ -1,6 +1,7 @@
 import type { Fab, ToolType } from '~/stores/navigation'
 import { joinApiPath } from '~/utils/apiPath'
 import { NO_FAB, hasFab, normalizeFab } from '~/utils/fab'
+import { classifyToolType } from '~/utils/toolType'
 
 // One shared cache key for /api/sem-list. Every consumer (hub page, tool-type
 // tabs, fab sidebar, inventory view) calls useSemList() and derives its view
@@ -29,14 +30,6 @@ export interface SemListRow {
 }
 
 export type SemListResponse = SemListRow[]
-
-export const classifyToolType = (eqpModelCd: string): ToolType | null => {
-  if (eqpModelCd.startsWith('CG') || eqpModelCd.startsWith('GT')) return 'cd-sem'
-  if (eqpModelCd.startsWith('TP')) return 'hv-sem'
-  if (eqpModelCd.startsWith('VERITYSEM')) return 'verity-sem'
-  if (eqpModelCd.startsWith('PROVISION')) return 'provision'
-  return null
-}
 
 export const useSemListApi = () => {
   const config = useRuntimeConfig()
