@@ -62,21 +62,12 @@ def _aware(offset: timedelta) -> str:
 # ── happy path ──────────────────────────────────────────────────────────
 
 
-def test_returns_the_rows_stored_in_redis(fake):
+def test_a_bound_less_row_is_returned_unreshaped_and_active(fake):
+    """Equality against the whole row is the wire contract: nothing renamed,
+    nothing reshaped, and a row with no starts_at/ends_at is always active."""
     fake.put_json(KEY, [ROW])
 
     assert office.get_announcements() == [ROW]
-
-
-def test_rows_pass_through_unreshaped(fake):
-    """Field names and values are the wire contract; nothing is renamed."""
-    fake.put_json(KEY, [ROW])
-
-    got = office.get_announcements()[0]
-
-    assert got["title"] == ROW["title"]
-    assert got["level"] == "info"
-    assert got["dismissible"] is True
 
 
 def test_order_is_preserved_not_sorted(fake):
@@ -96,11 +87,6 @@ def test_an_empty_array_is_a_valid_empty_response(fake):
 
 
 # ── active window ───────────────────────────────────────────────────────
-
-
-def test_an_announcement_with_no_bounds_is_always_active(fake):
-    fake.put_json(KEY, [ROW])
-    assert office.get_announcements() == [ROW]
 
 
 def test_a_not_yet_started_announcement_is_hidden(fake):
@@ -180,19 +166,16 @@ def test_redis_being_down_degrades_to_no_banners(fake):
 
 def test_missing_redis_config_degrades_to_no_banners(monkeypatch):
     """Unlike access_control, which lets this become a 503, a decorative banner
-    must never break every page in the SPA."""
-    monkeypatch.setattr(
-        office,
-        "_client",
-        lambda: (_ for _ in ()).throw(RuntimeError("REDIS_HOST is not set")),
-    )
+    must never break every page in the SPA. Expressed as redis_client_or_none
+    returning None rather than as a caught RuntimeError."""
+    monkeypatch.setattr(office, "_client", lambda: None)
 
     assert office.get_announcements() == []
 
 
-def test_a_real_bug_below_the_client_lookup_is_not_swallowed(monkeypatch):
-    """The RuntimeError catch is scoped to the client lookup only, so a genuine
-    defect still surfaces instead of silently blanking the banner."""
+def test_a_real_bug_in_the_store_read_is_not_swallowed(monkeypatch):
+    """Only STORE_ERRORS degrade. A defect that is not an outage still surfaces
+    instead of silently blanking the banner."""
 
     class Exploding:
         def get(self, key):

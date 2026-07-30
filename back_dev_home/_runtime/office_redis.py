@@ -1,17 +1,28 @@
 """Shared Redis plumbing for office adapters (Phase 2/3).
 
-Every office adapter needs the same three pieces of plumbing, which used to
-live as drifting copies in each ``providers/office_example.py``:
+Every office adapter needs the same pieces of plumbing, which used to live as
+drifting copies in each ``providers/office_example.py``:
 
 * :func:`load_env_file` — lazy ``back_dev_home/.env`` loading so a standalone
   run (``python -m ... .providers.office``) works without the Flask factory.
 * :func:`redis_client` — one cached, fail-fast Redis client per process.
+* :func:`redis_client_or_none` — the same client, but "not configured" as a
+  return value instead of an exception, for adapters that must degrade rather
+  than fail.
+* :data:`STORE_ERRORS` — the exception tuple meaning "the store is unusable
+  right now".
+* :func:`redis_text` — decode one value out of the byte-mode client.
 * :func:`read_dataframe` — parquet-first DataFrame deserialization with a
   diagnostic error instead of a bare unpickle traceback.
 
-Feature-specific normalization (text coercion, column mapping, contract
-shaping) stays in each adapter — only the plumbing is shared.
+Feature-specific normalization (column mapping, contract shaping, pandas-cell
+coercion) stays in each adapter — only the plumbing is shared. Note the
+distinction: :func:`redis_text` decodes a *Redis* value and is plumbing, while
+e.g. ``storage``'s ``_text`` normalizes a *DataFrame cell* (NaN, Timestamp) and
+is not.
 """
+
+from __future__ import annotations
 
 import os
 import pickle
@@ -19,11 +30,14 @@ import sys
 from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pandas as pd
 import redis
 from redis.backoff import NoBackoff
 from redis.retry import Retry
+
+if TYPE_CHECKING:  # pandas is imported inside read_dataframe, not at module scope
+    import pandas as pd
 
 
 def load_env_file(required_var: str = "REDIS_HOST") -> None:
@@ -85,6 +99,44 @@ def redis_client() -> redis.Redis:
     )
 
 
+def redis_client_or_none() -> redis.Redis | None:
+    """:func:`redis_client`, but unconfigured is ``None`` rather than a raise.
+
+    For adapters that must degrade instead of failing — a decorative feature
+    whose route has no error path, where a raise would break every page that
+    calls it. Those adapters would otherwise have to ``except RuntimeError``
+    around the client lookup, which couples them to the least specific
+    exception type in the language and silently swallows unrelated bugs.
+
+    Adapters that *should* fail loudly on missing config — anything enforcing
+    policy — call :func:`redis_client` directly and let the app factory map the
+    RuntimeError to a 503.
+    """
+    try:
+        return redis_client()
+    except RuntimeError:
+        return None
+
+
+# "The store is unusable right now." OSError covers socket-level failures
+# redis-py lets through unwrapped. Defined here, next to the client that raises
+# them, rather than per-adapter: the app factory registers 503 handlers against
+# the same driver exceptions, and the two layers only stay consistent if there
+# is one list.
+STORE_ERRORS = (redis.exceptions.RedisError, OSError)
+
+
+def redis_text(value) -> str:
+    """Decode one value from the byte-mode client.
+
+    :func:`redis_client` is built with ``decode_responses=False`` because its
+    original payloads were parquet DataFrames, so every hash field, set member
+    and string comes back as ``bytes``. Adapters storing text rather than
+    DataFrames need this on every read.
+    """
+    return value.decode() if isinstance(value, (bytes, bytearray)) else str(value)
+
+
 def _looks_like_json(raw: bytes) -> bool:
     return raw.lstrip()[:1] in (b"{", b"[")
 
@@ -129,7 +181,13 @@ def read_dataframe(raw: bytes, key: str) -> pd.DataFrame:
     back via the pyarrow engine; JSON and pickle branches are fallbacks for
     other keys/writers. All failures raise bare :class:`LookupError` —
     upstream data problem — which the app factory maps to a JSON 502.
+
+    pandas is imported here rather than at module scope so that adapters using
+    only the Redis helpers do not pay a ~200-400ms pandas/pyarrow import to
+    call :func:`redis_client`.
     """
+    import pandas as pd
+
     # Parquet: magic bytes b"PAR1" at the head (and tail). Parquet stores
     # text columns as UTF-8, so strings come back as Python str already.
     #

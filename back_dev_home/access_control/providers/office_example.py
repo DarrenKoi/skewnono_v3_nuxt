@@ -62,8 +62,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-import redis
-
+from back_dev_home._runtime.office_redis import (
+    STORE_ERRORS,
+    redis_client,
+    redis_text,
+)
 from back_dev_home.access_control.providers.mock import (
     BLOCKED_PREFIX,
     StoreUnavailableError,
@@ -78,22 +81,15 @@ logger = logging.getLogger("skewnono.access_control")
 _EXC_KEY = "skewnono:access_control:exceptions"
 _DENIED_KEY = "skewnono:access_control:denied"
 
-# Redis errors that mean "the store is unreachable/unusable right now".
-# OSError covers socket-level failures redis-py lets through unwrapped.
-_STORE_ERRORS = (redis.exceptions.RedisError, OSError)
+# The message both mutating paths surface as 503 store_unavailable. One constant
+# so the two cannot drift into telling the admin different things.
+_UNAVAILABLE = "access exception store unavailable; refusing to modify"
 
 
 def _client():
-    # Lazy: office-only dependency, keeps the home boot path free of Redis.
-    from back_dev_home._runtime.office_redis import redis_client
-
+    # Indirection kept deliberately: this is the seam the tests patch to inject
+    # a fake, and one test patches it to prove a code path never reaches Redis.
     return redis_client()
-
-
-def _text(value) -> str:
-    """The shared office client runs ``decode_responses=False`` (its usual
-    payloads are parquet DataFrames), so fields come back as bytes."""
-    return value.decode() if isinstance(value, (bytes, bytearray)) else str(value)
 
 
 def _normalize(user_id: str) -> str:
@@ -133,7 +129,7 @@ def list_exceptions() -> list[dict]:
     """
     raw = _client().hgetall(_EXC_KEY)
     rows = [
-        {"user_id": _text(field), "granted_at": _text(value)}
+        {"user_id": redis_text(field), "granted_at": redis_text(value)}
         for field, value in raw.items()
     ]
     rows.sort(key=lambda row: (row["granted_at"], row["user_id"]))
@@ -161,16 +157,12 @@ def add_exception(user_id: str) -> dict:
         # HSETNX makes idempotency atomic: a concurrent second grant cannot
         # overwrite the first one's timestamp.
         if not client.hsetnx(_EXC_KEY, normalized, granted_at):
-            existing = client.hget(_EXC_KEY, normalized)
-            if existing is not None:
-                granted_at = _text(existing)
+            granted_at = redis_text(client.hget(_EXC_KEY, normalized) or granted_at)
         # A fresh grant clears the "attempted and was blocked" history, so the
         # admin page stops offering to grant someone who already has access.
         client.zrem(_DENIED_KEY, normalized)
-    except _STORE_ERRORS as exc:
-        raise StoreUnavailableError(
-            "access exception store unavailable; refusing to modify"
-        ) from exc
+    except STORE_ERRORS as exc:
+        raise StoreUnavailableError(_UNAVAILABLE) from exc
     return {"user_id": normalized, "granted_at": granted_at}
 
 
@@ -183,10 +175,8 @@ def remove_exception(user_id: str) -> bool:
     normalized = _normalize(user_id)
     try:
         return bool(_client().hdel(_EXC_KEY, normalized))
-    except _STORE_ERRORS as exc:
-        raise StoreUnavailableError(
-            "access exception store unavailable; refusing to modify"
-        ) from exc
+    except STORE_ERRORS as exc:
+        raise StoreUnavailableError(_UNAVAILABLE) from exc
 
 
 def record_denied(user_id: str) -> None:
@@ -205,7 +195,7 @@ def record_denied(user_id: str) -> None:
         # Trim to the cap, oldest first. Negative rank counts from the end, so
         # -(cap + 1) is "everything below the newest `cap` entries".
         client.zremrangebyrank(_DENIED_KEY, 0, -(_DENIED_CAP + 1))
-    except _STORE_ERRORS:
+    except STORE_ERRORS:
         logger.warning("denied-attempt store unavailable; not recording")
 
 
@@ -213,6 +203,6 @@ def list_denied() -> list[dict]:
     """Most recent attempts first, one entry per member id."""
     entries = _client().zrevrange(_DENIED_KEY, 0, _DENIED_CAP - 1, withscores=True)
     return [
-        {"user_id": _text(member), "last_denied_at": _iso_from_score(score)}
+        {"user_id": redis_text(member), "last_denied_at": _iso_from_score(score)}
         for member, score in entries
     ]

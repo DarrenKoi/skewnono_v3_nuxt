@@ -41,9 +41,11 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional
 
+from back_dev_home._runtime.office_redis import redis_client, redis_text
 from back_dev_home.api_tokens.providers.mock import (
     _PREFIX,
     _TOUCH_DEBOUNCE,
@@ -63,16 +65,9 @@ _NO_LAST_USED = ""
 
 
 def _client():
-    # Lazy: office-only dependency, keeps the home boot path free of Redis.
-    from back_dev_home._runtime.office_redis import redis_client
-
+    # Indirection kept deliberately: this is the seam the tests patch to inject
+    # a fake, and one test patches it to prove a code path never reaches Redis.
     return redis_client()
-
-
-def _text(value) -> str:
-    """The shared office client runs ``decode_responses=False`` (its usual
-    payloads are parquet DataFrames), so fields come back as bytes."""
-    return value.decode() if isinstance(value, (bytes, bytearray)) else str(value)
 
 
 def _token_key(token_id: str) -> str:
@@ -95,17 +90,17 @@ def _read_row(client, token_id: str) -> Optional[_TokenRow]:
     half-populated row that would authenticate as owner "".
     """
     raw = client.hgetall(_token_key(token_id))
-    fields = {_text(k): _text(v) for k, v in raw.items()}
+    fields = {redis_text(k): redis_text(v) for k, v in raw.items()}
     if "id" not in fields:
         return None
-    last_used = fields.get("last_used_at", _NO_LAST_USED)
     return _TokenRow(
         id=fields["id"],
         owner_user_id=fields.get("owner_user_id", ""),
         label=fields.get("label", ""),
         hash=fields.get("hash", ""),
         created_at=fields.get("created_at", ""),
-        last_used_at=last_used or None,
+        # "" is how an absent last_used_at is encoded; map it back to None.
+        last_used_at=fields.get("last_used_at") or None,
     )
 
 
@@ -125,16 +120,12 @@ def create_token(owner_user_id: str, label: str) -> tuple[dict, str]:
         created_at=_now(),
         last_used_at=None,
     )
+    # Driven off the dataclass rather than a hand-mirrored field list, so a new
+    # _TokenRow field cannot silently stop being persisted. last_used_at is the
+    # one override: it is always None here and Redis needs the "" encoding.
     client.hset(
         _token_key(row.id),
-        mapping={
-            "id": row.id,
-            "owner_user_id": row.owner_user_id,
-            "label": row.label,
-            "hash": row.hash,
-            "created_at": row.created_at,
-            "last_used_at": _NO_LAST_USED,
-        },
+        mapping={**asdict(row), "last_used_at": _NO_LAST_USED},
     )
     client.sadd(_owner_key(owner_user_id), row.id)
     client.set(_hash_key(row.hash), row.id)
@@ -152,11 +143,8 @@ def list_tokens(owner_user_id: str) -> list[dict]:
     client = _client()
     rows = [
         row
-        for row in (
-            _read_row(client, _text(raw_id))
-            for raw_id in client.smembers(_owner_key(owner_user_id))
-        )
-        if row is not None
+        for raw_id in client.smembers(_owner_key(owner_user_id))
+        if (row := _read_row(client, redis_text(raw_id))) is not None
     ]
     rows.sort(key=lambda row: (row.created_at, row.id))
     return [_public_view(row) for row in rows]
@@ -174,9 +162,9 @@ def revoke_token(owner_user_id: str, token_id: str) -> bool:
     row = _read_row(client, token_id)
     if row is None or row.owner_user_id != owner_user_id:
         return False
-    client.delete(_hash_key(row.hash))
+    # DEL is variadic — one round trip for both keys.
+    client.delete(_token_key(token_id), _hash_key(row.hash))
     client.srem(_owner_key(owner_user_id), token_id)
-    client.delete(_token_key(token_id))
     return True
 
 
@@ -195,7 +183,7 @@ def find_by_plaintext(plaintext: str) -> Optional[_TokenRow]:
         return None
     # The row can still be gone while the index lingers; _read_row reports that
     # as absent, which the middleware turns into 401 invalid_token.
-    return _read_row(client, _text(raw_id))
+    return _read_row(client, redis_text(raw_id))
 
 
 def touch_last_used(token_id: str) -> None:
@@ -210,7 +198,7 @@ def touch_last_used(token_id: str) -> None:
     if raw_last is None:
         return  # no such token (or no such field) — nothing to record
     now = datetime.now(timezone.utc)
-    last_used = _text(raw_last)
+    last_used = redis_text(raw_last)
     if last_used:
         try:
             if now - datetime.fromisoformat(last_used) < _TOUCH_DEBOUNCE:

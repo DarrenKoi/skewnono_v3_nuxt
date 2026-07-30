@@ -45,9 +45,11 @@ def _default_client():
 
 
 def _text(value) -> str:
-    """The shared office client runs ``decode_responses=False`` (its usual
-    payloads are parquet DataFrames), so hash fields come back as bytes."""
-    return value.decode() if isinstance(value, (bytes, bytearray)) else str(value)
+    """Thin alias for the shared decoder, kept because this module's own name is
+    used throughout below. See ``_runtime.office_redis.redis_text``."""
+    from back_dev_home._runtime.office_redis import redis_text
+
+    return redis_text(value)
 
 
 class RedisJobRegistry:

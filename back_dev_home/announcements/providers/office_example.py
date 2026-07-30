@@ -23,10 +23,18 @@ EVERY FAILURE DEGRADES TO "NO BANNERS", NEVER TO AN ERROR. ``routes.py`` is
 ``jsonify(get_announcements())`` with no try/except, and the SPA calls this
 endpoint on every page load — so a raise here is a 500 on every page. A missing
 key, an empty value, a truncated paste, a JSON object where an array belongs, a
-non-dict row, and Redis itself being down all resolve to ``[]`` with a warning
-in the log. The mock's own "missing file is a normal empty store" rule is the
-same instinct; this adapter extends it to every way a hand-edited value can be
-wrong.
+non-dict row, Redis itself being down, and ``REDIS_*`` not being configured all
+resolve to ``[]`` with a warning in the log. The mock's own "missing file is a
+normal empty store" rule is the same instinct; this adapter extends it to every
+way a hand-edited value can be wrong.
+
+The unconfigured case is the one place this adapter deliberately differs from
+``access_control``, which lets a missing ``REDIS_HOST`` become a 503:
+enforcement failing loudly is correct, a decorative banner breaking every page
+is not. The deviation is expressed by *which client accessor is called* —
+:func:`redis_client_or_none` here, ``redis_client`` there — rather than by
+catching a bare ``RuntimeError``, so it is visible at the call site and cannot
+swallow an unrelated defect from the shared plumbing.
 
 That last case is hardening the mock does NOT have: ``mock._is_active`` calls
 ``a.get("starts_at")`` straight on each row, so a bare string in the array
@@ -40,8 +48,9 @@ published a notice and the app is still serving the old one. Announcements are
 posted precisely when something is going wrong, so staleness is the expensive
 failure.
 
-``_is_active`` and ``_parse_bound`` are imported from ``providers.mock`` rather
-than restated. The active-window semantics — either bound optional, an
+``_is_active`` is imported from ``providers.mock`` rather than restated (and it
+uses that module's ``_parse_bound`` internally). The active-window semantics —
+either bound optional, an
 unparseable bound treated as absent, and a naive stamp read as KST so operators
 can type ``2026-05-07T18:00:00`` without an offset — must not drift between
 providers, since the same operator writes both.
@@ -53,8 +62,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
-import redis
-
+from back_dev_home._runtime.office_redis import STORE_ERRORS, redis_client_or_none
 from back_dev_home.announcements.contracts import Announcement
 from back_dev_home.announcements.providers.mock import _is_active
 
@@ -64,15 +72,19 @@ logger = logging.getLogger("skewnono.announcements")
 
 _KEY = "skewnono:announcements"
 
-# OSError covers socket-level failures redis-py lets through unwrapped.
-_STORE_ERRORS = (redis.exceptions.RedisError, OSError)
-
 
 def _client():
-    # Lazy: office-only dependency, keeps the home boot path free of Redis.
-    from back_dev_home._runtime.office_redis import redis_client
+    """The client, or None when Redis is not configured.
 
-    return redis_client()
+    ``redis_client_or_none`` rather than ``redis_client`` is the whole
+    expression of this adapter's deviation: enforcement features let a missing
+    ``REDIS_HOST`` become a 503, a decorative banner must not break every page.
+    Asking as a value beats catching a bare ``RuntimeError``, which would also
+    swallow unrelated bugs from the shared plumbing.
+
+    Also the seam the tests patch to inject a fake.
+    """
+    return redis_client_or_none()
 
 
 def _load() -> list[Announcement]:
@@ -81,19 +93,13 @@ def _load() -> list[Announcement]:
     Deliberately broad: everything reachable from here is operator-edited text,
     and the caller has no error path (see the module docstring).
     """
-    try:
-        client = _client()
-    except RuntimeError:
-        # Unset REDIS_* config. Caught here but deliberately NOT in
-        # access_control, which lets it become a 503: enforcement failing
-        # loudly is correct, a decorative banner breaking every page is not.
-        # Narrow scope on purpose — only the client lookup, so a RuntimeError
-        # from a real bug further down still surfaces.
+    client = _client()
+    if client is None:
         logger.warning("announcement store not configured; serving no banners")
         return []
     try:
         raw = client.get(_KEY)
-    except _STORE_ERRORS:
+    except STORE_ERRORS:
         logger.warning("announcement store unreachable; serving no banners")
         return []
     if not raw:

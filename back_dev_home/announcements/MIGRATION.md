@@ -68,9 +68,13 @@ page. All of the following resolve to `[]` with a warning in the log:
 
 That last row is the one place this adapter deliberately differs from
 `access_control`, which lets a missing `REDIS_HOST` become a 503: enforcement
-failing loudly is correct, a decorative banner breaking every page is not. The
-catch is scoped to the client lookup alone, so a `RuntimeError` from a genuine
-defect further down still surfaces.
+failing loudly is correct, a decorative banner breaking every page is not.
+
+The deviation is expressed by **which client accessor is called** —
+`redis_client_or_none()` here versus `redis_client()` there — so it is visible
+at the call site rather than buried in an `except RuntimeError`. That also means
+only a genuine outage (`STORE_ERRORS`) is swallowed on the read; a `RuntimeError`
+from a real defect still surfaces.
 
 The non-dict-row case is **hardening the mock does not have**: `mock._is_active`
 calls `a.get("starts_at")` straight on each row, so a bare string in
@@ -165,12 +169,12 @@ At the office, after `cp` and setting `REDIS_*`:
 
     SKEWNONO_ANNOUNCEMENTS_PROVIDER=office .venv/bin/pytest back_dev_home/announcements
 
-Running that at home fails with `RuntimeError: REDIS_HOST is not set` from
-`_runtime/office_redis.py` — expected off-network, and proof the switch resolved
-to the office adapter. Note this is the one failure the *adapter* swallows in
-production; the contract gate sees it because it calls `get_announcements`
-through `data.py` with no key set, and an empty list does not satisfy the
-roundtrip. Then:
+Unlike every other office gate, **this one also passes at home**, because
+"unconfigured" is this adapter's documented degradation rather than a failure:
+`get_announcements()` returns `[]`, which satisfies `AnnouncementsResponse`. A
+green run off-network therefore proves the contract shape but says nothing about
+the connection — so the office checks below are the real verification, not the
+gate. Then:
 
 1. `GET /api/health/providers` reports `announcements` → `office`.
 2. `SET skewnono:announcements` to a one-row array; reload any page and confirm

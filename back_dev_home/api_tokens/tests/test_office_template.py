@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from back_dev_home.api_tokens.providers import office_example as office
+from back_dev_home.api_tokens.providers.mock import _hash
 
 OWNER = "2067928"
 OTHER_OWNER = "1234567"
@@ -23,13 +24,17 @@ class FakeRedis:
     """In-memory stand-in speaking the byte-oriented dialect of the shared
     office client, which is built with ``decode_responses=False`` (its usual
     values are parquet DataFrames). Returning str here instead of bytes would
-    let a decoding bug pass at home and fail at the office."""
+    let a decoding bug pass at home and fail at the office.
+
+    Deliberately has NO ``expire``: tokens are durable credentials, unlike
+    msr_image's job keys, so any TTL this adapter ever grows raises
+    AttributeError in every test that creates a token — a louder and more
+    precise guard than asserting an empty TTL dict."""
 
     def __init__(self):
         self.hashes: dict[str, dict[bytes, bytes]] = {}
         self.strings: dict[str, bytes] = {}
         self.sets: dict[str, set[bytes]] = {}
-        self.ttls: dict[str, int] = {}
 
     @staticmethod
     def _b(v) -> bytes:
@@ -70,18 +75,9 @@ class FakeRedis:
         return set(self.sets.get(key, set()))
 
     def delete(self, *keys):
-        removed = 0
         for key in keys:
             for store in (self.hashes, self.strings, self.sets):
-                if key in store:
-                    del store[key]
-                    removed += 1
-            self.ttls.pop(key, None)
-        return removed
-
-    def expire(self, key, seconds):
-        self.ttls[key] = seconds
-        return True
+                store.pop(key, None)
 
     # -- test helpers -------------------------------------------------
     def all_keys(self) -> set[str]:
@@ -89,7 +85,7 @@ class FakeRedis:
 
     def raw_blob(self) -> str:
         """Everything stored, flattened — used to prove no plaintext leaks."""
-        parts = [k for k in self.all_keys()]
+        parts = list(self.all_keys())
         for h in self.hashes.values():
             parts += [k.decode() for k in h] + [v.decode() for v in h.values()]
         parts += [v.decode() for v in self.strings.values()]
@@ -113,17 +109,17 @@ def _iso(moment: datetime) -> str:
 
 
 def test_create_token_writes_row_owner_index_and_hash_index(fake):
-    view, _plaintext = office.create_token(OWNER, "laptop")
+    view, plaintext = office.create_token(OWNER, "laptop")
 
     token_id = view["id"]
     assert fake.hashes[f"skewnono:api_tokens:token:{token_id}"]
     assert fake.smembers(f"skewnono:api_tokens:owner:{OWNER}") == {
         token_id.encode()
     }
-    # The reverse index is what keeps find_by_plaintext off a full scan.
-    hash_keys = [k for k in fake.strings if ":hash:" in k]
-    assert len(hash_keys) == 1
-    assert fake.get(hash_keys[0]).decode() == token_id
+    # The reverse index is what keeps find_by_plaintext off a full scan. Keyed
+    # by the SHA-256 of the plaintext, exactly as MIGRATION.md documents.
+    index_key = f"skewnono:api_tokens:hash:{_hash(plaintext)}"
+    assert fake.get(index_key).decode() == token_id
 
 
 def test_create_token_returns_public_view_and_one_time_plaintext(fake):
@@ -143,15 +139,6 @@ def test_create_token_coerces_blank_label_to_untitled(fake):
 def test_plaintext_is_never_persisted(fake):
     _view, plaintext = office.create_token(OWNER, "laptop")
     assert plaintext not in fake.raw_blob()
-
-
-def test_token_rows_carry_no_ttl(fake):
-    """Unlike msr_image's job keys, tokens are durable credentials.
-
-    A TTL here would silently log users out when it lapsed.
-    """
-    office.create_token(OWNER, "laptop")
-    assert fake.ttls == {}
 
 
 # ── list_tokens ─────────────────────────────────────────────────────────

@@ -4,25 +4,9 @@ Verified against an injected fake rather than a live server: home has no Redis,
 and what needs proving is the key layout, the fail-safe/fail-closed split, and
 that add/remove raise the exception ``routes.py`` already maps to 503.
 
-Outage behavior is the delicate part, and the governing rule is: **never report
-an infrastructure failure as a policy decision.**
-
-* ``is_blocked`` / ``list_exceptions`` / ``list_denied`` PROPAGATE. The app
-  factory already maps redis ``ConnectionError``/``TimeoutError`` and bare
-  ``RuntimeError`` to a JSON 503, so an outage surfaces truthfully. Returning
-  ``False`` would let blocked members in; returning ``True`` would tell a
-  legitimately-granted member they are "not allowed to use this service", which
-  is a lie that generates a support ticket. Propagating is *also* fail-closed —
-  the request is not served either way — so it strictly dominates.
-* ``add_exception`` / ``remove_exception`` raise ``StoreUnavailableError``,
-  which ``routes.py`` catches for a more specific 503 ("grant NOT saved") than
-  the generic handler would give.
-* ``record_denied`` swallows. It runs after ``is_blocked`` already returned
-  True — so the store was readable a moment ago — and a failure here must not
-  convert a correct 403 into a 503.
-
-This deliberately diverges from the mock's fail-safe-to-empty reads, whose
-failure mode is a corrupt local JSON file rather than an unreachable server.
+Outage behavior is asserted in both directions here; the rule and its
+per-call-site rationale live in the adapter's own module docstring rather than
+being restated a third time (it is also in MIGRATION.md's table).
 """
 
 from datetime import datetime
@@ -44,7 +28,7 @@ class FakeRedis:
     at home and fail at the office.
 
     ``fail_on`` makes the named commands raise the way a real outage would, so
-    each call site's fail-safe/fail-closed contract can be asserted.
+    each call site's propagate-or-swallow contract can be asserted.
     """
 
     def __init__(self):
@@ -57,7 +41,7 @@ class FakeRedis:
         return v if isinstance(v, bytes) else str(v).encode()
 
     def _guard(self, name: str) -> None:
-        if name in self.fail_on or "*" in self.fail_on:
+        if name in self.fail_on:
             raise redis.exceptions.ConnectionError("fake outage")
 
     # -- hash ---------------------------------------------------------
@@ -122,10 +106,6 @@ class FakeRedis:
         if not z:
             self.zsets.pop(key, None)
 
-    def zcard(self, key):
-        self._guard("zcard")
-        return len(self.zsets.get(key, {}))
-
 
 @pytest.fixture
 def fake(monkeypatch):
@@ -137,9 +117,7 @@ def fake(monkeypatch):
 # ── is_blocked (runs on EVERY request) ──────────────────────────────────
 
 
-def test_is_blocked_short_circuits_a_non_x_id_without_reading_redis(
-    fake, monkeypatch
-):
+def test_is_blocked_short_circuits_a_non_x_id_without_reading_redis(monkeypatch):
     def explode():
         raise AssertionError("nearly every id is non-X; must not hit Redis")
 
@@ -177,12 +155,10 @@ def test_is_blocked_propagates_an_outage_instead_of_reporting_denial(fake):
 def test_is_blocked_propagates_a_missing_redis_host(monkeypatch):
     """Unset config is a deploy mistake, not a policy outcome. Bare
     RuntimeError is what the app factory maps to 503 backend_unavailable."""
-    monkeypatch.delenv("REDIS_HOST", raising=False)
-    monkeypatch.setattr(
-        office,
-        "_client",
-        lambda: (_ for _ in ()).throw(RuntimeError("REDIS_HOST is not set")),
-    )
+    def no_config():
+        raise RuntimeError("REDIS_HOST is not set")
+
+    monkeypatch.setattr(office, "_client", no_config)
 
     with pytest.raises(RuntimeError):
         office.is_blocked("X123456")
@@ -330,13 +306,6 @@ def test_a_repeat_denial_updates_in_place_rather_than_duplicating(fake):
     assert fake.zsets[DENIED_KEY][b"X123456"] != 100.0
 
 
-def test_denied_buffer_is_capped_at_fifty(fake):
-    for i in range(55):
-        office.record_denied(f"X{i:06d}")
-
-    assert len(office.list_denied()) == 50
-
-
 def test_the_trim_evicts_the_oldest_attempts_not_the_newest(fake):
     # Seeded directly with known scores: record_denied's clock has sub-second
     # resolution, so 55 real calls would leave the eviction order ambiguous.
@@ -391,18 +360,13 @@ def test_record_denied_ignores_a_blank_id(fake):
 # ── error-type identity ─────────────────────────────────────────────────
 
 
-def test_store_unavailable_error_is_the_class_routes_already_catches(fake):
+def test_store_unavailable_error_is_the_class_routes_already_catches():
     """routes.py imports StoreUnavailableError from data.py, which re-exports
-    the MOCK's class unswitched. A redefined class here would sail past
-    `except StoreUnavailableError` and 500 instead of 503."""
+    the MOCK's class unswitched, so a redefined class here would sail past
+    `except StoreUnavailableError` and 500 instead of 503. It must also stay a
+    RuntimeError SUBCLASS: the app factory's RuntimeError handler rejects
+    subclasses (`type(err) is not RuntimeError` -> 500), which is safe only
+    because routes.py catches it first."""
     assert office.StoreUnavailableError is mock.StoreUnavailableError
-
-
-def test_store_unavailable_error_is_not_swallowed_by_the_generic_handler(fake):
-    """StoreUnavailableError subclasses RuntimeError, and the app factory's
-    RuntimeError handler deliberately rejects subclasses
-    (`type(err) is not RuntimeError` → 500). That is fine only because
-    routes.py catches it first — so the class must stay a RuntimeError subclass
-    AND stay the one routes.py imports."""
     assert issubclass(mock.StoreUnavailableError, RuntimeError)
-    assert type(mock.StoreUnavailableError("x")) is not RuntimeError
+    assert mock.StoreUnavailableError is not RuntimeError

@@ -45,14 +45,23 @@ def _deny_if_blocked():
     can render the friendly access-denied screen. Admins always pass.
     """
     user_id = getattr(g, "user_id", None)
-    # is_blocked first: non-X ids (nearly everyone) short-circuit on a prefix
-    # check without touching the admin allowlist or the exception store.
-    if not user_id or not is_blocked(user_id) or is_admin(user_id):
+    if not user_id:
         return None
-    if request.path.startswith("/api/"):
-        record_denied(user_id)
-        return error_json("access_denied", "member id is not allowed to access this service", 403)
-    return None
+    # Path check FIRST, because only /api/* can be denied — every other path
+    # returns None regardless of the verdict, so computing one is pure waste.
+    # This matters now that the office access_control provider makes is_blocked
+    # a Redis round trip: without this, one cold SPA page load by an X-member
+    # would cost an HEXISTS per asset (/_nuxt/*.js, favicon, ...), since
+    # _is_public only exempts /login and /static/ and everything else reaches
+    # the catch-all SPA route.
+    if not request.path.startswith("/api/"):
+        return None
+    # is_blocked before is_admin: non-X ids (nearly everyone) short-circuit on a
+    # prefix check without touching the admin allowlist or the exception store.
+    if not is_blocked(user_id) or is_admin(user_id):
+        return None
+    record_denied(user_id)
+    return error_json("access_denied", "member id is not allowed to access this service", 403)
 
 
 def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
