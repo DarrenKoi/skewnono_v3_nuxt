@@ -1,104 +1,112 @@
-# Spec 2 — Skewvoir paired-scatter field-location pairing
+# Skewvoir CD 상관관계 위치 매칭 설계
 
-Date: 2026-07-24
-Depends on: Spec 1 (wafer geometry `map_offset` coherence) — the Position key reuses
-`snapToDieCell` from the corrected geometry layer.
-Scope: Skewvoir single-scope Correlation/Distribution explorer — how two selected
-parameters of ONE MSR are paired for the Paired Scatter (and the panels that follow
-its points).
+작성일: 2026-07-24
 
-## Problem
+수정일: 2026-07-30
 
-`buildCdCdRelationship` (`utils/skewvoirAnalysis/relationships.ts`) pairs two CD
-parameters on the key `chip_number#sequence` (`siteKey`). But `sequence` is the
-**per-parameter measurement order** — each parameter has its own sequence, so two
-parameters measured at the same physical field carry **different** sequence numbers.
-The join only works in the Phase-1 mock because the mock emits every parameter inside
-one `sequence` loop, coincidentally aligning them. Office data breaks it silently.
+범위: Skewvoir `상관 / 분포`의 CD↔CD 비교
 
-The correct join is by **physical field location**, not measurement order.
+## 배경
 
-## Design
+현재 `buildCdCdRelationship`은 서로 다른 CD parameter를
+`chip_number#sequence`로 연결합니다. 그러나 `sequence`는 측정 row마다 고유하며,
+같은 chip에서 측정한 서로 다른 parameter도 sequence가 절대 같지 않습니다.
+따라서 동일 위치의 두 CD가 모두 존재해도 pair가 0개가 되고 산점도와 후속 분포가
+비어 보입니다.
 
-Two location keys, both selectable, compared in practice so the weaker can be
-retired later. `sequence` is retained as a third, legacy option.
+CD↔CD 비교는 측정 순서가 아니라 chip 위치를 기준으로 해야 합니다.
 
-### Keys
+## 결정
 
-- **Field** (default): `fieldKey(row) = row.chip_coordinate.trim() || row.chip_number`.
-  `chip_coordinate` is the field X,Y when present; office-side it is `""`
-  (contract gap, `office_example.py:198`), so the key falls back to `chip_number`
-  (die-level).
-- **Position**: `snapToDieCell(row.stage_coordinate, geo)` from Spec 1 — the die cell
-  recovered from the physical `stage_coordinate` via `map_offset` + `pitch`.
-  Independent of the `chip_coordinate`/`chip_number` strings, so it validates them
-  (catches a mislabeled `chip_number`). Rows with no snap (missing pitch/stage) drop
-  and count as missing.
-- **Sequence** (legacy): today's `chip_number#sequence`, byte-for-byte unchanged.
+CD↔CD의 기본 매칭 키는 `chip_number`로 고정합니다. `sequence`는 매칭에 사용하지
+않으며, `chip_coordinate`는 같은 chip에 여러 관측치가 있을 때만 세부 위치를
+구분하는 보조 키로 사용합니다.
 
-### Join with aggregation
+UI에 매칭 방식 선택기나 URL query를 추가하지 않습니다. 단일 MSR과 SET scope가
+동일한 매칭 규칙을 사용하도록 순수 관계 함수에 규칙을 모읍니다.
 
-`buildCdCdRelationship(rows, paramX, paramY, opts)` gains
-`opts.pairBy: 'field' | 'position' | 'sequence'` and `opts.geo?: WaferGeometry`
-(required for `'position'`).
+CD↔FDC는 per-sequence `dynamic_fdc`와 CD row를 연결하는 별도 관계이므로 기존
+sequence 매칭을 유지합니다.
 
-For `'field'` / `'position'`:
+## CD↔CD 매칭 알고리즘
 
-1. Filter to measured rows (`isMeasuredRow`, existing gate).
-2. Group each parameter's rows by the chosen key.
-3. **Mean-aggregate** `cd_value` per key per parameter — a key holding several
-   measured fields (common office-side when the key is die-level `chip_number`)
-   collapses to one value. One point per key: unambiguous, loses within-die spread.
-4. Pair keys present in **both** parameters. Keys in exactly one → `missingN`
-   (symmetric difference), preserving the existing "never index-pair, count the
-   drops" contract.
+먼저 `isMeasuredRow`를 통과한 X/Y parameter row를 `chip_number`별로 모읍니다.
+두 parameter 중 한쪽에만 존재하는 chip은 pair를 만들지 않고 `missingN`에
+1을 더합니다.
 
-`'sequence'` keeps the current path untouched.
+양쪽 parameter가 모두 존재하는 chip은 다음 순서로 처리합니다.
 
-### `PairedPoint` shape
+### 단일 관측치
 
-Add `fieldKey: string`. `chip` = the key's `chip_number` (drives `focus(chip)` →
-`setFocusedSite`). `sequence` = the **min** sequence among the key's X rows — a
-representative so scatter-click focus and spatial grouping keep working after
-aggregation. Points sort by `sequence` as today.
+X와 Y가 각각 한 개이면 두 값을 바로 한 pair로 만듭니다. 두 row의 sequence가
+달라도 결과에 영향을 주지 않습니다.
 
-CD↔FDC (`buildCdFdcRelationship`) is inherently per-sequence (`dynamic_fdc` is
-sequence-keyed) — **unchanged**, and the toggle is hidden for it.
+### 복수 관측치
 
-### UI — `factor/QueryBuilder.vue`
+한쪽에라도 두 개 이상의 row가 있으면 `chip_coordinate`를 확인합니다.
 
-- `FactorQuery` gains `pairBy: 'field' | 'position' | 'sequence'` (default `'field'`).
-- Add a compact segmented control `Pair by: [ Field | Position | Sequence ]`, shown
-  only when `yKind === 'cd'`. Disable `Position` with a tooltip when
-  coordinates/pitch are unavailable (`!coordinateReady`), same gating pattern as the
-  radius/sector group select.
+1. 양쪽의 모든 row에 비어 있지 않은 `chip_coordinate`가 있고, 양쪽의 coordinate
+   집합이 완전히 같으면 `chip_number + chip_coordinate`별로 pair를 만듭니다.
+2. 동일 coordinate에 같은 parameter의 row가 반복되면 해당 CD의 산술평균을
+   사용합니다.
+3. coordinate가 비어 있거나 양쪽 coordinate 집합이 다르면 coordinate 일부만
+   억지로 연결하지 않습니다. 대신 해당 chip의 X 전체 평균과 Y 전체 평균으로
+   chip-level pair 하나를 만듭니다.
 
-### Wiring — `views/Correlation.vue`
+이 규칙은 가능한 경우 같은 세부 위치를 보존하면서, office 데이터의
+`chip_coordinate`가 없거나 불완전해도 빈 결과로 퇴행하지 않도록 합니다.
 
-- Seed `pairBy` from the URL and persist it alongside `xParam`/`yParam` via
-  `analysis.setXY` sibling (extend the existing URL round-trip; add a `pairBy` query
-  param) so the explorer stays shareable.
-- Pass `{ pairBy, geo: analysis.waferGeo.value }` into `buildCdCdRelationship`.
-- Group distribution: unchanged mechanism (`groupBySeq` keyed by the paired point's
-  representative `sequence`); within-die offset is negligible vs. pitch, so
-  radius/sector stays correct.
-- Marginal distribution + Paired Evidence table already derive from
-  `relationship.points` — they follow the new pairs automatically.
+## 결과 모델
 
-## Testing — `utils/skewvoirAnalysis/relationships.test.ts`
+`PairedPoint.key`는 매칭 grain을 드러냅니다.
 
-- Field fallback: `chip_coordinate=""` rows pair by `chip_number`; non-empty
-  `chip_coordinate` takes precedence.
-- Mean aggregation: a key with two measured X and two measured Y values yields one
-  pair at the two means.
-- Missing-count symmetry: keys in exactly one parameter counted, not paired.
-- Position key: on mock rows, `pairBy:'position'` pairs agree with the `chip_number`
-  the mock assigned (uses Spec 1's coherent geometry).
-- `pairBy:'sequence'` output identical to the pre-change baseline (regression pin).
-- CD↔FDC unaffected by `pairBy`.
+- 단일 관측치 또는 chip 평균 fallback: `chip_number`
+- coordinate 매칭: `chip_number#chip_coordinate`
 
-## Out of scope
+`PairedPoint.chip`은 기존 focus 동작을 위해 항상 `chip_number`를 유지합니다.
+`PairedPoint.sequence`는 매칭 키가 아니라 정렬과 기존 공간 그룹 연결을 위한
+대표값입니다. 각 X 그룹에서 가장 작은 sequence를 사용합니다.
 
-- SET-scope legacy X/Y view — left as-is.
-- Backend changes — `chip_coordinate`/`chip_number`/`stage_coordinate` already ship.
-- Retiring Field or Position — that's a follow-up decision after real comparison.
+`missingN`은 한쪽 parameter에만 존재한 chip 수입니다. 동일 chip 안의 coordinate
+불일치는 chip 평균 fallback으로 비교할 수 있으므로 missing으로 세지 않습니다.
+
+## 적용 범위
+
+### 단일 MSR
+
+`views/Correlation.vue`의 Paired Scatter, Marginal Distribution, Group
+Distribution, Paired Evidence가 모두 `buildCdCdRelationship`의 결과를 사용합니다.
+현재 구조를 유지하되 새 chip 기반 결과가 모든 패널에 함께 반영되도록 합니다.
+
+### SET scope
+
+`CorrelationScatter.vue` 내부의 기존 `chip_number#sequence` 조인을 제거합니다.
+SET scope도 중앙 관계 함수를 통해 만든 point를 전달받아 단일 MSR과 동일한 규칙을
+사용합니다.
+
+### 변경하지 않는 범위
+
+- CD↔FDC sequence 매칭
+- backend API와 response shape
+- query string과 공유 URL
+- parameter 선택 UI와 차트 배치
+- 상관계수 및 readiness 계산 방식
+
+## 테스트
+
+`utils/skewvoirAnalysis/relationships.test.ts`에서 다음 계약을 고정합니다.
+
+1. 같은 `chip_number`이고 sequence가 다른 X/Y가 pair를 만듭니다.
+2. 서로 다른 chip은 pair를 만들지 않습니다.
+3. chip당 X/Y가 하나씩이면 `chip_coordinate`가 달라도 chip 기준으로 연결합니다.
+4. 복수 관측치의 coordinate 집합이 같으면 coordinate별 pair를 만듭니다.
+5. 동일 coordinate의 반복 row는 parameter별 평균을 사용합니다.
+6. 복수 관측치에서 coordinate가 비어 있으면 chip 평균 pair 하나로 대체합니다.
+7. 복수 관측치에서 coordinate 집합이 다르면 chip 평균 pair 하나로 대체합니다.
+8. 한쪽 parameter에만 존재하는 chip은 `missingN`에 포함합니다.
+9. 측정 실패 row는 `isMeasuredRow`에 의해 제외합니다.
+10. CD↔FDC 결과는 기존 sequence 기반 계약을 유지합니다.
+
+관련 순수 테스트를 먼저 실패시키고 구현 후 통과시킵니다. 이후 frontend 전체
+test와 typecheck를 실행하며, 실행 중인 Skewvoir 화면에서 서로 다른 CD 두 개를
+선택해 pair와 분포가 나타나는지 확인합니다.
