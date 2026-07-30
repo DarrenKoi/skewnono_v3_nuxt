@@ -35,6 +35,8 @@
 | `back_dev_home/sem_list/tests/test_office_template.py` | New. Pure-normalizer tests for the office diff |
 | `docs/datatables/sem_list.txt` | Schema of record: 3 keys, `updt_dt` meaning, lifecycle |
 | `back_dev_home/sem_list/MIGRATION.md` | Office adapter instructions for the new endpoint |
+| `front-dev-home/app/utils/toolType.ts` | `classifyToolType`, moved out of the composable so utils can import it at runtime |
+| `front-dev-home/app/composables/useSemListApi.ts` | Imports the moved classifier instead of defining it |
 | `front-dev-home/app/utils/pendingToolMatrix.ts` | Pure aggregation, grouping, staleness, IP list |
 | `front-dev-home/app/utils/pendingToolMatrix.test.ts` | `node --test` coverage of the above |
 | `front-dev-home/app/composables/usePendingToolsApi.ts` | On-demand fetch |
@@ -827,8 +829,8 @@ def _select_pending(
             f"Redis key {_ROSTER_KEY!r} DataFrame is missing columns: "
             f"{sorted(missing)} (got {sorted(roster.columns)})"
         )
-    if _MERGE_KEY not in roster.columns and "eqp_id" not in roster.columns:
-        raise ValueError(f"Redis key {_ROSTER_KEY!r} has no 'eqp_id' column")
+    # No separate eqp_id guard for the roster: _PENDING_REQUIRED_COLUMNS
+    # already contains it, so the check above has covered it.
     if "eqp_id" not in connected.columns:
         raise ValueError(
             f"Redis key {_REDIS_KEY!r} has no 'eqp_id' column to diff against "
@@ -946,12 +948,32 @@ Pure functions only, so `npm test` covers them.
 
 **Files:**
 
+- Create: `front-dev-home/app/utils/toolType.ts`
 - Create: `front-dev-home/app/utils/pendingToolMatrix.ts`
 - Create: `front-dev-home/app/utils/pendingToolMatrix.test.ts`
+- Modify: `front-dev-home/app/composables/useSemListApi.ts:33-39`
+
+**Why `toolType.ts` exists — read before Step 1.** `pendingToolMatrix.ts` needs
+`classifyToolType` at RUNTIME, and it cannot import it from
+`~/composables/useSemListApi`. `npm test` runs `node --test` directly over
+`app/**/*.test.ts` with no bundler, so the Nuxt `~` alias does not resolve: a
+runtime `~/…` import throws `ERR_MODULE_NOT_FOUND`. Every one of the 29 `~/`
+imports in `app/utils/` today is `import type`, which node's type-stripping
+erases — that is exactly why those utils are testable.
+
+So move `classifyToolType` (and only it) into `app/utils/toolType.ts`, and have
+`useSemListApi.ts` import it from there. This is transparent to callers:
+`classifyToolType` has **no explicit importers** anywhere — `StorageView.vue`,
+`FabSidebar.vue` and `pages/index.vue` all reach it through Nuxt auto-import,
+which covers `app/utils/` and `app/composables/` alike. Do not duplicate the
+function; two classifiers that must agree is the bug this repo already has
+between `_tool_specs.model_to_tool_type()` and this one.
 
 **Interfaces:**
 
-- Consumes: `classifyToolType` from `~/composables/useSemListApi`; `ToolType` from `~/stores/navigation`.
+- Consumes: `ToolType` from `~/stores/navigation` (type-only import).
+- Produces `classifyToolType(eqpModelCd: string): ToolType | null` from
+  `~/utils/toolType`, moved verbatim from `useSemListApi.ts:33-39`.
 - Produces, all from `~/utils/pendingToolMatrix`:
   - `interface PendingToolRow` — mirrors the backend contract (8 string fields)
   - `UNASSIGNED_FAB = '미배정'`, `UNCLASSIFIED = 'unclassified'`, `STALE_ARRIVAL_DAYS = 180`
@@ -1137,13 +1159,57 @@ npm --prefix front-dev-home test
 
 Expected: FAIL — cannot resolve `./pendingToolMatrix.ts`.
 
-- [ ] **Step 3: Implement the util**
+- [ ] **Step 3: Move the classifier into utils**
+
+Create `front-dev-home/app/utils/toolType.ts`:
+
+```ts
+import type { ToolType } from '~/stores/navigation'
+
+/**
+ * Tool type from an equipment model code, or null for a model we do not know.
+ *
+ * Lives in utils rather than beside `useSemListApi` because it is a pure
+ * function that `pendingToolMatrix.ts` needs at runtime, and `npm test` runs
+ * `node --test` with no bundler — a runtime `~/composables/…` import would not
+ * resolve. Callers are unaffected: nothing imports this explicitly, they all
+ * reach it through Nuxt auto-import, which covers utils and composables alike.
+ *
+ * Note this DISAGREES with the backend's `_tool_specs.model_to_tool_type()`,
+ * which returns None for the two AMAT families. Reconciling the two is real
+ * work, tracked separately.
+ */
+export const classifyToolType = (eqpModelCd: string): ToolType | null => {
+  if (eqpModelCd.startsWith('CG') || eqpModelCd.startsWith('GT')) return 'cd-sem'
+  if (eqpModelCd.startsWith('TP')) return 'hv-sem'
+  if (eqpModelCd.startsWith('VERITYSEM')) return 'verity-sem'
+  if (eqpModelCd.startsWith('PROVISION')) return 'provision'
+  return null
+}
+```
+
+In `front-dev-home/app/composables/useSemListApi.ts`, delete the
+`classifyToolType` definition at lines 33–39 and import it instead. Put the
+import with the file's other imports at the top:
+
+```ts
+import { classifyToolType } from '~/utils/toolType'
+```
+
+`filterRows` in that file already calls `classifyToolType` and keeps working
+unchanged. Do **not** re-export it from the composable — two auto-import
+sources for one name is a Nuxt duplicate-import warning.
+
+- [ ] **Step 4: Implement the matrix util**
 
 Create `front-dev-home/app/utils/pendingToolMatrix.ts`:
 
 ```ts
 import type { ToolType } from '~/stores/navigation'
-import { classifyToolType } from '~/composables/useSemListApi'
+// Relative and WITH the .ts extension: that is what node's ESM resolver needs
+// under `node --test`, and it is the form every runtime util-to-util import in
+// this directory already uses (e.g. boxplotStats.ts -> './stats.ts').
+import { classifyToolType } from './toolType.ts'
 
 // Mirrors PendingToolRow in back_dev_home/sem_list/contracts.py. No
 // `available` or `version`: both come from Redis keys a pending tool is not
@@ -1269,7 +1335,7 @@ export const ipList = (rows: PendingToolRow[]): string =>
   [...new Set(rows.map(row => row.eqp_ip.trim()).filter(ip => ip !== ''))].join('\n')
 ```
 
-- [ ] **Step 4: Run tests, typecheck, lint**
+- [ ] **Step 5: Run tests, typecheck, lint**
 
 ```bash
 npm --prefix front-dev-home test
@@ -1277,13 +1343,18 @@ npm --prefix front-dev-home run typecheck
 npm --prefix front-dev-home run lint
 ```
 
-Expected: 14 tests PASS; typecheck and lint clean.
+Expected: 897 baseline + 14 new = **911 pass, 0 fail**; typecheck and lint
+clean. The 897 must not drop: moving `classifyToolType` touches every consumer
+that reaches it by auto-import, so a resolution failure shows up as unrelated
+tests breaking, not as a new-test failure.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add front-dev-home/app/utils/pendingToolMatrix.ts \
-        front-dev-home/app/utils/pendingToolMatrix.test.ts
+git add front-dev-home/app/utils/toolType.ts \
+        front-dev-home/app/utils/pendingToolMatrix.ts \
+        front-dev-home/app/utils/pendingToolMatrix.test.ts \
+        front-dev-home/app/composables/useSemListApi.ts
 git commit -m "feat(tool-roster): pure aggregation for the pending-tool matrix
 
 Cross-tabulates pending tools by fab_name x eqp_model_cd, groups by tool type
@@ -1662,9 +1733,16 @@ const rows = computed<PendingToolRow[]>(() => data.value ?? [])
 const activeGroup = ref<PendingToolGroup | 'all'>('all')
 const selectedCell = ref<{ fab: string, model: string } | null>(null)
 
+// Stamped when a fetch returns, so every row in one result set is judged against
+// the same instant. NOT a computed: a computed with no reactive dependency
+// evaluates once and caches forever, which would look reactive while being
+// frozen at setup time.
+const loadedAt = ref(new Date())
+
 const load = async () => {
   selectedCell.value = null
   await execute()
+  loadedAt.value = new Date()
 }
 
 const GROUP_LABELS: Array<{ value: PendingToolGroup, label: string }> = [
@@ -1707,10 +1785,7 @@ const drilldownRows = computed(() => {
     .sort((left, right) => Date.parse(right.updt_dt) - Date.parse(left.updt_dt))
 })
 
-// One `now` per render pass rather than per row, so every row in a table is
-// judged against the same instant.
-const now = computed(() => new Date())
-const isStale = (row: PendingToolRow) => isStaleArrival(row.updt_dt, now.value)
+const isStale = (row: PendingToolRow) => isStaleArrival(row.updt_dt, loadedAt.value)
 
 const arrivalDate = (updtDt: string) => updtDt.slice(0, 10)
 
