@@ -8,7 +8,8 @@
 //
 // Two join shapes:
 //   • CD ↔ CD   — two CD parameters of the focus MSR, paired by
-//                 PhysicalSiteKey-minus-parameter (chip_number + sequence).
+//                 chip_number, then by chip_coordinate when every repeated
+//                 observation has matching coordinate sets.
 //   • CD ↔ FDC  — a CD parameter vs a per-sequence dynamic FDC channel of the
 //                 SAME MSR, paired by sequence. This is a same-MSR + same-sequence
 //                 join (flagged in the result), and on the Phase-1 home mock CD and
@@ -32,7 +33,7 @@ import { pearson, spearman } from '../stats.ts'
 export type RelationshipJoin = 'cd-cd' | 'cd-fdc'
 export type RelationshipReadiness = 'ready' | 'unavailable'
 
-/** One paired observation, keyed by the shared site/sequence. `chip` carries the
+/** One paired observation, keyed by its paired chip/coordinate. `chip` carries the
  * die identity so a scatter-point click can drive `setFocusedSite(chip)`. */
 export interface PairedPoint {
   key: string
@@ -119,42 +120,96 @@ const finalize = (
   }
 }
 
-// The PhysicalSiteKey minus the parameter: a physical site within one MSR is a
-// (chip_number, sequence) pair. Two different CD parameters measured at the same
-// physical site share this key.
-const siteKey = (row: MsrFileRow): string => `${row.chip_number}#${row.sequence}`
+const meanCd = (rows: MeasuredMsrRow[]): number =>
+  rows.reduce((sum, row) => sum + row.cd_value, 0) / rows.length
+
+const groupBy = (
+  rows: MeasuredMsrRow[],
+  keyOf: (row: MeasuredMsrRow) => string
+): Map<string, MeasuredMsrRow[]> => {
+  const groups = new Map<string, MeasuredMsrRow[]>()
+  for (const row of rows) {
+    const key = keyOf(row)
+    const group = groups.get(key) ?? []
+    group.push(row)
+    groups.set(key, group)
+  }
+  return groups
+}
+
+const sameKeys = (
+  left: Map<string, MeasuredMsrRow[]>,
+  right: Map<string, MeasuredMsrRow[]>
+): boolean =>
+  left.size === right.size && [...left.keys()].every(key => right.has(key))
 
 /**
- * Exact-pair join of two CD parameters of ONE MSR, keyed by (chip + sequence).
- * Sites measured for only one of the two parameters are dropped and counted as
- * `missing`. Never pairs by array index.
+ * Chip-based join of two CD parameters of ONE MSR. Repeated observations pair by
+ * coordinate when complete matching coordinates are available; otherwise each
+ * parameter is averaged into one chip-level point. Chips measured on only one
+ * axis are dropped and counted as `missing`. Never pairs by array index.
  */
 export const buildCdCdRelationship = (
   rows: MsrFileRow[],
   paramX: string,
   paramY: string
 ): RelationshipResult => {
-  const xByKey = new Map<string, MeasuredMsrRow>()
-  const yByKey = new Map<string, MeasuredMsrRow>()
-  for (const r of rows) {
-    if (!isMeasuredRow(r)) continue
-    if (r.parameter === paramX) xByKey.set(siteKey(r), r)
-    if (r.parameter === paramY) yByKey.set(siteKey(r), r)
-  }
+  const measured = rows.filter(isMeasuredRow)
+  const xByChip = groupBy(measured.filter(row => row.parameter === paramX), row => row.chip_number)
+  const yByChip = groupBy(measured.filter(row => row.parameter === paramY), row => row.chip_number)
 
   const points: PairedPoint[] = []
-  for (const [key, xr] of xByKey) {
-    const yr = yByKey.get(key)
-    if (!yr) continue
-    points.push({ key, chip: xr.chip_number, sequence: xr.sequence, x: xr.cd_value, y: yr.cd_value })
-  }
-  points.sort((a, b) => a.sequence - b.sequence)
-
-  // Sites present in exactly one parameter — the symmetric difference of the key
-  // sets. These are the rows a naive index pairing would silently mis-join.
   let missingN = 0
-  for (const key of xByKey.keys()) if (!yByKey.has(key)) missingN++
-  for (const key of yByKey.keys()) if (!xByKey.has(key)) missingN++
+  for (const [chip, xRows] of xByChip) {
+    const yRows = yByChip.get(chip)
+    if (!yRows) {
+      missingN++
+      continue
+    }
+
+    if (xRows.length === 1 && yRows.length === 1) {
+      points.push({
+        key: chip,
+        chip,
+        sequence: xRows[0]!.sequence,
+        x: xRows[0]!.cd_value,
+        y: yRows[0]!.cd_value
+      })
+      continue
+    }
+
+    const coordinatesComplete = [...xRows, ...yRows]
+      .every(row => row.chip_coordinate.trim().length > 0)
+    const xByCoordinate = groupBy(xRows, row => row.chip_coordinate.trim())
+    const yByCoordinate = groupBy(yRows, row => row.chip_coordinate.trim())
+
+    if (coordinatesComplete && sameKeys(xByCoordinate, yByCoordinate)) {
+      for (const [coordinate, coordinateXRows] of xByCoordinate) {
+        const coordinateYRows = yByCoordinate.get(coordinate)!
+        points.push({
+          key: `${chip}#${coordinate}`,
+          chip,
+          sequence: Math.min(...coordinateXRows.map(row => row.sequence)),
+          x: meanCd(coordinateXRows),
+          y: meanCd(coordinateYRows)
+        })
+      }
+      continue
+    }
+
+    points.push({
+      key: chip,
+      chip,
+      sequence: Math.min(...xRows.map(row => row.sequence)),
+      x: meanCd(xRows),
+      y: meanCd(yRows)
+    })
+  }
+
+  for (const chip of yByChip.keys()) {
+    if (!xByChip.has(chip)) missingN++
+  }
+  points.sort((a, b) => a.sequence - b.sequence || a.key.localeCompare(b.key))
 
   return finalize('cd-cd', paramX, paramY, points, missingN, {
     sameMsrSequenceJoin: false,

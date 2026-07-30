@@ -24,44 +24,47 @@ const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
   ...over
 })
 
-// X = CD_TOP, Y = CD_BOT, four shared sites with a monotone relation.
+// X = CD_TOP, Y = CD_BOT, four shared chips with a monotone relation.
 const twoParamRows = (): MsrFileRow[] => [
-  row({ sequence: 1, chip_number: '0, 0', parameter: 'CD_TOP', cd_value: 100 }),
-  row({ sequence: 2, chip_number: '1, 0', parameter: 'CD_TOP', cd_value: 110 }),
-  row({ sequence: 3, chip_number: '2, 0', parameter: 'CD_TOP', cd_value: 120 }),
-  row({ sequence: 4, chip_number: '3, 0', parameter: 'CD_TOP', cd_value: 130 }),
-  row({ sequence: 1, chip_number: '0, 0', parameter: 'CD_BOT', cd_value: 200 }),
-  row({ sequence: 2, chip_number: '1, 0', parameter: 'CD_BOT', cd_value: 205 }),
-  row({ sequence: 3, chip_number: '2, 0', parameter: 'CD_BOT', cd_value: 210 }),
-  row({ sequence: 4, chip_number: '3, 0', parameter: 'CD_BOT', cd_value: 215 })
+  row({ sequence: 1, chip_number: '0,0', parameter: 'CD_TOP', cd_value: 100 }),
+  row({ sequence: 3, chip_number: '1,0', parameter: 'CD_TOP', cd_value: 110 }),
+  row({ sequence: 5, chip_number: '2,0', parameter: 'CD_TOP', cd_value: 120 }),
+  row({ sequence: 7, chip_number: '3,0', parameter: 'CD_TOP', cd_value: 130 }),
+  row({ sequence: 2, chip_number: '0,0', parameter: 'CD_BOT', cd_value: 200 }),
+  row({ sequence: 4, chip_number: '1,0', parameter: 'CD_BOT', cd_value: 205 }),
+  row({ sequence: 6, chip_number: '2,0', parameter: 'CD_BOT', cd_value: 210 }),
+  row({ sequence: 8, chip_number: '3,0', parameter: 'CD_BOT', cd_value: 215 })
 ]
 
 // ---------------------------------------------------------------------------
 // CD ↔ CD exact join
 // ---------------------------------------------------------------------------
 
-test('CD↔CD pairs by shared site key and reports Pearson/Spearman + N', () => {
+test('CD↔CD pairs same-chip values even when every sequence differs', () => {
   const res = buildCdCdRelationship(twoParamRows(), 'CD_TOP', 'CD_BOT')
   assert.equal(res.pairN, 4)
   assert.equal(res.missingN, 0)
   assert.equal(res.readiness, 'ready')
   assert.ok(res.pearson != null && res.pearson > 0.99)
   assert.ok(res.spearman != null && res.spearman > 0.99)
-  // Each paired point is keyed correctly: X=CD_TOP value, Y=CD_BOT value.
-  const p1 = res.points.find(p => p.sequence === 1)!
-  assert.equal(p1.x, 100)
-  assert.equal(p1.y, 200)
-  assert.equal(p1.chip, '0, 0')
+  assert.deepEqual(res.points.map(p => p.chip), ['0,0', '1,0', '2,0', '3,0'])
+  assert.deepEqual(res.points[0], {
+    key: '0,0',
+    chip: '0,0',
+    sequence: 1,
+    x: 100,
+    y: 200
+  })
 })
 
-test('zero pairs ⇒ 평가 불가 (unavailable), NOT r=0', () => {
-  // Two params that share no site key at all (disjoint sequences).
+test('different chips produce zero pairs and an unavailable result', () => {
   const rows: MsrFileRow[] = [
-    row({ sequence: 1, parameter: 'CD_TOP', cd_value: 100 }),
-    row({ sequence: 2, parameter: 'CD_BOT', cd_value: 200 })
+    row({ sequence: 1, chip_number: '0,0', parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 2, chip_number: '1,0', parameter: 'CD_BOT', cd_value: 200 })
   ]
   const res = buildCdCdRelationship(rows, 'CD_TOP', 'CD_BOT')
   assert.equal(res.pairN, 0)
+  assert.equal(res.missingN, 2)
   assert.equal(res.readiness, 'unavailable')
   assert.equal(res.pearson, null)
   assert.equal(res.spearman, null)
@@ -83,33 +86,70 @@ test('constant axis ⇒ 평가 불가 (unavailable), NOT r=0', () => {
   assert.equal(res.pearson, null)
 })
 
-test('a missing row in X is DROPPED and counted, never index-paired against Y', () => {
-  // Y has sequences 1..4; X is MISSING sequence 1 (a gap at the FIRST key).
-  // Index pairing would shift every X down one row and pair X(seq2) with
-  // Y(seq1) — the key join must instead pair by sequence and drop seq 1.
+test('a chip present on only one axis is dropped and counted once', () => {
   const rows: MsrFileRow[] = [
-    // X = CD_TOP, gap at seq 1
-    row({ sequence: 2, chip_number: '1, 0', parameter: 'CD_TOP', cd_value: 110 }),
-    row({ sequence: 3, chip_number: '2, 0', parameter: 'CD_TOP', cd_value: 120 }),
-    row({ sequence: 4, chip_number: '3, 0', parameter: 'CD_TOP', cd_value: 130 }),
-    // Y = CD_BOT, full 1..4
-    row({ sequence: 1, chip_number: '0, 0', parameter: 'CD_BOT', cd_value: 200 }),
-    row({ sequence: 2, chip_number: '1, 0', parameter: 'CD_BOT', cd_value: 205 }),
-    row({ sequence: 3, chip_number: '2, 0', parameter: 'CD_BOT', cd_value: 210 }),
-    row({ sequence: 4, chip_number: '3, 0', parameter: 'CD_BOT', cd_value: 215 })
+    row({ sequence: 1, chip_number: '0,0', parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 3, chip_number: '1,0', parameter: 'CD_TOP', cd_value: 110 }),
+    row({ sequence: 2, chip_number: '0,0', parameter: 'CD_BOT', cd_value: 200 })
   ]
   const res = buildCdCdRelationship(rows, 'CD_TOP', 'CD_BOT')
-  // seq 1 is present only in Y → dropped, counted as missing.
-  assert.equal(res.pairN, 3)
+  assert.equal(res.pairN, 1)
   assert.equal(res.missingN, 1)
-  assert.deepEqual(res.points.map(p => p.sequence).sort(), [2, 3, 4])
-  // The surviving pairs are correctly keyed, NOT index-shifted.
-  const p2 = res.points.find(p => p.sequence === 2)!
-  assert.equal(p2.x, 110) // CD_TOP@seq2
-  assert.equal(p2.y, 205) // CD_BOT@seq2  (index pairing would give 200)
-  const p4 = res.points.find(p => p.sequence === 4)!
-  assert.equal(p4.x, 130)
-  assert.equal(p4.y, 215)
+  assert.equal(res.points[0]?.chip, '0,0')
+})
+
+test('one row per axis pairs by chip and ignores coordinate differences', () => {
+  const rows = [
+    row({ sequence: 11, chip_number: '0,0', chip_coordinate: '10,10', parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 12, chip_number: '0,0', chip_coordinate: '20,20', parameter: 'CD_BOT', cd_value: 200 })
+  ]
+  const res = buildCdCdRelationship(rows, 'CD_TOP', 'CD_BOT')
+  assert.equal(res.pairN, 1)
+  assert.equal(res.points[0]?.key, '0,0')
+})
+
+test('repeated rows with equal coordinate sets pair per coordinate and average repeats', () => {
+  const rows = [
+    row({ sequence: 11, chip_number: '0,0', chip_coordinate: '10,10', parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 12, chip_number: '0,0', chip_coordinate: '10,10', parameter: 'CD_TOP', cd_value: 104 }),
+    row({ sequence: 13, chip_number: '0,0', chip_coordinate: '20,20', parameter: 'CD_TOP', cd_value: 110 }),
+    row({ sequence: 21, chip_number: '0,0', chip_coordinate: '10,10', parameter: 'CD_BOT', cd_value: 200 }),
+    row({ sequence: 22, chip_number: '0,0', chip_coordinate: '20,20', parameter: 'CD_BOT', cd_value: 220 })
+  ]
+  const res = buildCdCdRelationship(rows, 'CD_TOP', 'CD_BOT')
+  assert.deepEqual(res.points.map(p => [p.key, p.x, p.y]), [
+    ['0,0#10,10', 102, 200],
+    ['0,0#20,20', 110, 220]
+  ])
+})
+
+test('missing coordinates fall back to one per-parameter chip mean', () => {
+  const rows = [
+    row({ sequence: 11, chip_number: '0,0', chip_coordinate: '', parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 12, chip_number: '0,0', chip_coordinate: '', parameter: 'CD_TOP', cd_value: 110 }),
+    row({ sequence: 21, chip_number: '0,0', chip_coordinate: '', parameter: 'CD_BOT', cd_value: 200 }),
+    row({ sequence: 22, chip_number: '0,0', chip_coordinate: '', parameter: 'CD_BOT', cd_value: 220 })
+  ]
+  const res = buildCdCdRelationship(rows, 'CD_TOP', 'CD_BOT')
+  assert.deepEqual(res.points[0], {
+    key: '0,0',
+    chip: '0,0',
+    sequence: 11,
+    x: 105,
+    y: 210
+  })
+})
+
+test('different coordinate sets fall back to one per-parameter chip mean', () => {
+  const rows = [
+    row({ sequence: 11, chip_number: '0,0', chip_coordinate: '10,10', parameter: 'CD_TOP', cd_value: 100 }),
+    row({ sequence: 12, chip_number: '0,0', chip_coordinate: '20,20', parameter: 'CD_TOP', cd_value: 110 }),
+    row({ sequence: 21, chip_number: '0,0', chip_coordinate: '10,10', parameter: 'CD_BOT', cd_value: 200 }),
+    row({ sequence: 22, chip_number: '0,0', chip_coordinate: '30,30', parameter: 'CD_BOT', cd_value: 220 })
+  ]
+  const res = buildCdCdRelationship(rows, 'CD_TOP', 'CD_BOT')
+  assert.equal(res.pairN, 1)
+  assert.deepEqual([res.points[0]?.x, res.points[0]?.y], [105, 210])
 })
 
 test('unmeasured (mp_number < 0 / null cd) rows are excluded via isMeasuredRow', () => {
