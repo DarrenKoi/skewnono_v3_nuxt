@@ -32,26 +32,31 @@
       </template>
     </EbeamMetaBar>
 
-    <!-- KeepAlive: tab flips deactivate instead of unmount, so each view's
-         filters, table state, and fetched data survive TAT <-> Fail switches
-         without refetching. Align/Meas additionally share one FailIssueView
-         instance (only the section prop changes). -->
+    <!-- KeepAlive stays outside Suspense so a new tab root can trigger the
+         fallback while cached views retain filters, table state, and data.
+         Align/Meas share one FailIssueView instance (only section changes). -->
     <KeepAlive>
-      <EbeamRecipeTatView
-        v-if="activeTab === 'tat'"
-        v-model:include-today="includeToday"
-        :fab="fab"
-        :tool-label="toolLabel"
-        :tool-type="toolType"
-      />
-      <EbeamFailIssueView
-        v-else
-        v-model:include-today="includeToday"
-        :fab="fab"
-        :tool-label="toolLabel"
-        :tool-type="toolType"
-        :section="activeTab"
-      />
+      <Suspense :timeout="0">
+        <EbeamRecipeTatView
+          v-if="activeTab === 'tat'"
+          v-model:include-today="includeToday"
+          :fab="fab"
+          :tool-label="toolLabel"
+          :tool-type="toolType"
+        />
+        <EbeamFailIssueView
+          v-else
+          v-model:include-today="includeToday"
+          :fab="fab"
+          :tool-label="toolLabel"
+          :tool-type="toolType"
+          :section="activeTab"
+        />
+
+        <template #fallback>
+          <AppLoadingState title="Recipe 현황 데이터를 불러오는 중입니다." />
+        </template>
+      </Suspense>
     </KeepAlive>
   </div>
 </template>
