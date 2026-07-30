@@ -618,9 +618,16 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
         ("Method", lambda _: "Fast2"),
         ("Relative Position X(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
         ("Relative Position Y(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
-        # str '0', not a magnification — presumably "no override". Asked whether
-        # it would be '30000' or '50.0K'; it was neither, which is the clearest
+        # str '0' — a SENTINEL, not a magnitude: in an auto-focus group it means
+        # "use the same magnification as the measurement" (user-confirmed
+        # 2026-07-30). Asked whether it would be '30000' or '50.0K'; it was
+        # neither, and it is not even a number on the same scale. The clearest
         # case yet for why an unseen value is never inferred from its key name.
+        #
+        # Shown verbatim, like every other value. Rendering it as "측정과 동일"
+        # would mean the frontend hard-coding meaning for one (section, key)
+        # pair — precisely what the open key/value contract avoids, and these
+        # names are expected to change.
         ("Mag", lambda _: "0"),
     ),
     "addressing_auto_focus1": _AF_FIELDS,
