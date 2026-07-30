@@ -282,7 +282,7 @@ def test_amp_pair_fields_hold_one_setting_per_edge():
     with the same ', ' cond.txt uses for coordinates."""
     rows = {row["key"]: row["value"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]}
 
-    for key in ("Threshold", "Edge_Number", "Base_Line_Start_Pint", "Base_Line_Area"):
+    for key in ("Threshold", "Edge_Number", "Base_Line_Start_Point", "Base_Line_Area"):
         assert len(rows[key].split(", ")) == 2, key
     assert rows["Edge_Search_Direct."] == "Normal, Normal"
 
@@ -299,13 +299,13 @@ def test_amp_keys_with_no_confirmed_value_are_visibly_synthetic():
 
 
 def test_amp_reproduces_the_office_key_spellings_including_their_typos():
-    """'Edge_Search_Direct.' ends in a period and 'Base_Line_Start_Pint' reads
+    """'Edge_Search_Direct.' ends in a period and 'Base_Line_Start_Point' reads
     as a misspelt "Point". Both are contract keys; correcting either here would
     make home and office disagree about a key name."""
     keys = [row["key"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]]
 
     assert "Edge_Search_Direct." in keys
-    assert "Base_Line_Start_Pint" in keys
+    assert "Base_Line_Start_Point" in keys
 
 
 def test_af_pr_rows_are_grouped_into_the_office_section_names():
@@ -325,6 +325,85 @@ def test_af_pr_rows_are_grouped_into_the_office_section_names():
     # The measurement half runs whatever the addressing choice is.
     assert {"sequence_measurement", "measurement_pattern_recognition",
             "measurement_focusing"} <= sections
+
+
+def _afpr_by_section(seq: int) -> dict[str, list[str]]:
+    grouped: dict[str, list[str]] = {}
+    for row in _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]:
+        grouped.setdefault(row["section"], []).append(row["key"])
+    return grouped
+
+
+def test_af_pr_groups_carry_the_office_key_names():
+    """Keys within the groups, not just the group names (office 확인 2026-07-30).
+
+    These are expected to change as the office parser is refined — that costs
+    one edit to _AFPR_SECTION_KEYS, because nothing keys off these strings in
+    code and the contract is open key/value.
+    """
+    for seq in range(1, 40):
+        grouped = _afpr_by_section(seq)
+        if "measurement_focusing" not in grouped:
+            continue
+        assert grouped["measurement_focusing"] == [
+            "Wait(s)", "Offset(LSB)", "Method",
+            "Relative Position X(um)", "Relative Position Y(um)", "Mag",
+        ]
+        assert grouped["sequence_measurement"] == [
+            "Focusing", "Pattern Recognition", "Measurement Excution", "Image Save",
+        ]
+        return
+    raise AssertionError("no parameter produced a measurement group")
+
+
+def test_the_two_addressing_passes_carry_identical_keys():
+    """"addressing_auto_focus2 is likewise as 1" — asserted rather than assumed,
+    because the mock shares one tuple and a later edit could fork them."""
+    for seq in range(1, 60):
+        grouped = _afpr_by_section(seq)
+        if "addressing_auto_focus2" not in grouped:
+            continue
+        assert grouped["addressing_auto_focus1"] == grouped["addressing_auto_focus2"]
+        assert grouped["addressing_pattern_recognition1"] == \
+            grouped["addressing_pattern_recognition2"]
+        return
+    raise AssertionError("no parameter ran two addressing passes")
+
+
+def test_one_key_name_recurs_across_groups_and_files():
+    """'Acceptance' is in three ENMP groups AND in ENAP — the concrete reason a
+    row's identity has to be (section, key) rather than key."""
+    for seq in range(1, 60):
+        grouped = _afpr_by_section(seq)
+        holders = [s for s, keys in grouped.items() if "Acceptance" in keys]
+        if len(holders) < 2:
+            continue
+        assert len(holders) >= 2
+        break
+    else:
+        raise AssertionError("never saw Acceptance in two groups at once")
+
+    enap = mock.get_align_detail(LOCATOR, [1])["points"][0]["setting"]
+    assert "Acceptance" in [row["key"] for row in enap["rows"]]
+
+
+def test_af_pr_values_are_all_still_unseen():
+    """Only ENMP's key NAMES have been read. Inferring a format from a key
+    ('Wait(s)' is surely a number) is the reasoning that produced AmpRow's
+    sixteen invented fields, so every value renders as an obvious placeholder."""
+    rows = _detail({"img_add2": "PRMP0001"})["af_pr"]["rows"]
+
+    assert rows
+    assert all(re.fullmatch(r"[0-9A-F]{4}", row["value"]) for row in rows)
+
+
+def test_enmp_puts_its_units_in_the_key_name():
+    """A THIRD unit convention: cond.txt puts the unit in the value ('500 V'),
+    AMP omits it ('266.1'), ENMP puts it in the key. Nothing may assume one."""
+    keys = {row["key"] for row in _detail({"img_add2": "PRMP0001"})["af_pr"]["rows"]}
+
+    assert any(key.endswith("(s)") for key in keys)
+    assert any(key.endswith("(um)") for key in keys)
 
 
 def test_af_pr_addressing_groups_appear_in_pass_order():
@@ -348,6 +427,39 @@ def test_only_af_pr_carries_sections():
 
     assert all("section" not in row for row in detail["amp"]["rows"])
     assert all("section" not in row for row in detail["images"][0]["cond"]["rows"])
+
+
+def test_addressing_none_drops_every_addressing_group():
+    """With addressing = none the addressing settings are simply absent from
+    the parsed result (user-confirmed 2026-07-30) — including
+    sequence_addressing, which was inferred until then."""
+    for seq in range(1, 60):
+        grouped = _afpr_by_section(seq)
+        if any(s.startswith("addressing_") for s in grouped):
+            continue
+        assert "sequence_addressing" not in grouped
+        assert set(grouped) == {
+            "sequence_measurement", "measurement_pattern_recognition",
+            "measurement_focusing",
+        }
+        return
+    raise AssertionError("no parameter ran zero addressing passes")
+
+
+def test_the_om_field_size_key_is_present_but_empty():
+    """The OM sample has the key with NO value (user-confirmed 2026-07-30).
+
+    Until then the mock derived it from the SEM Magnification x Field_Size
+    constant and printed '1297.788 um' as though it had been read — a
+    cross-optic relationship nobody has observed.
+    """
+    om, sem = mock.get_align_detail(LOCATOR, [1, 2])["points"]
+    om_rows = {row["key"]: row["value"] for row in om["cond"]["rows"]}
+    sem_rows = {row["key"]: row["value"] for row in sem["cond"]["rows"]}
+
+    assert "Field_Size" in om_rows
+    assert om_rows["Field_Size"] == ""
+    assert sem_rows["Field_Size"].endswith(" um")
 
 
 def test_align_setting_carries_the_two_enap_fields():

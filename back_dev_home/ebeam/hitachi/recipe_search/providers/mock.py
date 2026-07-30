@@ -294,18 +294,13 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
 # ── raw-recipe folder (spec 2026-07-29) ───────────────────────────────────
 
 
-# Field-name stems for the raw-file kinds whose reader output NOBODY HAS SEEN.
-# Deliberately NOT plausible optical names (Mag, Vacc): those field names are
-# still OFFICE-VERIFY, and a mock that invents credible ones teaches the
-# frontend to expect columns the office may never send — exactly how AmpRow's
-# sixteen invented fields went unquestioned for months.
-#
 # ALL FIVE readers were run against real files at the office (2026-07-30) via
-# scripts/probe_recipe_ftp.py, so nothing here is a bare count any more. What
-# remains unknown is narrower: ENMP's GROUP names are confirmed but the keys
-# INSIDE each group are not, so those alone still carry placeholder names —
-# see _AFPR_FIELDS_PER_SECTION.
-_AFPR_FIELDS_PER_SECTION = 3
+# scripts/probe_recipe_ftp.py, so no raw file's FIELD NAMES are guessed any
+# more — the counted placeholders that used to live here are gone. What remains
+# unknown is narrower and is marked per field: some VALUES have never been seen,
+# and those emit _unknown_value() rather than a plausible invention. Inventing
+# credible-looking data is how AmpRow's sixteen fabricated fields went
+# unquestioned for months.
 
 # ── cond.txt (office 확인 2026-07-30) ──────────────────────────────────────
 #
@@ -354,9 +349,14 @@ _COND_KEYS_OM: tuple[str, ...] = (
 # the product rather than drawing two independent numbers keeps the mock from
 # teaching that a screen may show a field size contradicting its magnification.
 #
-# OFFICE-VERIFY: derived from ONE SEM sample. Whether a second recipe keeps the
-# product, and whether the OM optic shares this constant at all, is unchecked —
-# the OM sample came with a Field_Size key but no value.
+# OFFICE-VERIFY: derived from ONE SEM sample; whether a second recipe keeps the
+# product is unchecked.
+#
+# It is NOT applied to OM. The OM sample carries a Field_Size key with NO VALUE
+# (user-confirmed 2026-07-30), so the mock emits an empty one, which the screen
+# renders as a dash rather than a number. Deriving OM's field size from the SEM
+# constant, as this did until 2026-07-30, invented a cross-optic relationship
+# nobody has observed and printed 1297.788 um as though it had been read.
 _FOV_MAG_PRODUCT = 134_970.0
 
 # The OM magnification seen at the office. Emitted verbatim rather than varied:
@@ -401,7 +401,8 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
         "Chip_coordinate": _um_pair(0, 0) if om
         else _um_pair(rng.randrange(0, 30_000), rng.randrange(0, 30_000)),
         "Wafer_coordinate": _um_pair(rng.randrange(0, 300_000), rng.randrange(0, 300_000)),
-        "Field_Size": f"{side:.3f} um, {side:.3f} um",
+        # Empty for OM: the key is there, the value is not.
+        "Field_Size": "" if om else f"{side:.3f} um, {side:.3f} um",
         "Optics": "High Reso.",
         "Scan": "TV",
         "Pixel": rng.choice(("512,512", "1024,1024")),
@@ -449,7 +450,7 @@ def _seeded_rng(source: str, *scope: str) -> random.Random:
 #     value carry its unit" is per-FILE, not a property of this pipeline, and
 #     nothing may assume either way.
 #   * FIVE fields are ', '-joined PAIRS — Threshold, Edge_Search_Direct.,
-#     Edge_Number, Base_Line_Start_Pint, Base_Line_Area. A width measurement has
+#     Edge_Number, Base_Line_Start_Point, Base_Line_Area. A width measurement has
 #     two edges and each takes its own setting. Same ', ' separator cond.txt
 #     uses for coordinates, and the same rule applies: shown verbatim.
 #
@@ -478,19 +479,17 @@ _AMP_FIELDS: tuple[tuple[str, object], ...] = (
     ("Threshold", lambda r: _pair(r.choice((40, 50, 60)))),
     ("Edge_Search_Direct.", lambda _: _pair("Normal")),
     ("Edge_Number", lambda r: _pair(r.choice((1, 2)))),
-    ("Base_Line_Start_Pint", lambda r: _pair(r.choice((2, 3, 4)))),
+    ("Base_Line_Start_Point", lambda r: _pair(r.choice((2, 3, 4)))),
     ("Base_Line_Area", lambda r: _pair(r.choice((8, 10, 12)))),
     ("Sum_Line_Point", None),
     ("Target", None),
 )
 
-# OFFICE-VERIFY: two key SPELLINGS above are reproduced exactly as the office
-# sample gave them and both look like the tool's own typos rather than ours —
-# 'Edge_Search_Direct.' ends in a period (a truncated "Direction") and
-# 'Base_Line_Start_Pint' reads as "Point" misspelled. Left verbatim on purpose:
-# these are contract keys, and silently correcting one would make home and
-# office disagree about a key name, which is the exact class of bug this file
-# exists to prevent. Confirm against a second sample.
+# 'Edge_Search_Direct.' really does end in a period — a truncated "Direction"
+# (user-confirmed 2026-07-30). Left verbatim because it is a contract key.
+# 'Base_Line_Start_Pint' was OUR transcription slip, corrected to Point the same
+# day; the distinction matters, since silently "fixing" a real one would make
+# home and office disagree about a key name.
 
 
 def _pair(value: object) -> str:
@@ -531,30 +530,81 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
 # recoverable only by string-splitting.
 #
 # A recipe measures in a basic sequence — addressing, then measurement — and
-# addressing runs NONE, ONCE or TWICE depending on the parameter. That choice is
-# what decides which groups are present, so the group list is not fixed:
-_AFPR_MEASUREMENT_SECTIONS: tuple[str, ...] = (
-    "sequence_measurement",
-    "measurement_pattern_recognition",
-    "measurement_focusing",
+# addressing runs NONE, ONCE or TWICE depending on the parameter. With NONE,
+# the addressing groups are simply absent from the parsed result
+# (user-confirmed 2026-07-30), so the group list is not fixed.
+#
+# Pass 1 and pass 2 SHARE their key tuples below rather than repeating them:
+# "addressing_auto_focus2 is likewise as 1" is a fact, and two literal copies
+# could drift apart while still passing every test.
+_AF_KEYS: tuple[str, ...] = (
+    "Method",
+    "Offset(LSB)",
+    "Wait(s)",
+    "Relative Position X(um)",
+    "Relative Position Y(um)",
+    "Mag",
+    "Threshold",
+    "Charging Voltage",
 )
-# Present only when addressing runs at least once. sequence_addressing is the
-# addressing half of the basic sequence, so it appears with the first pass.
-_AFPR_ADDRESSING_SECTIONS: tuple[tuple[str, ...], ...] = (
+_PR_KEYS: tuple[str, ...] = ("Acceptance", "Wait(s)", "ABC")
+
+# In the office's own key order. `sequence_*` groups list the STEPS of a
+# sequence rather than settings — their keys are stage names, and the groups
+# below them hold each stage's settings.
+_AFPR_SECTION_KEYS: dict[str, tuple[str, ...]] = {
+    # OFFICE-VERIFY: "Pre does" reads as "Pre dose" (electron pre-dose)
+    # misspelled. Reproduced verbatim — see the Edge_Search_Direct. note above
+    # for why a suspected tool typo is never quietly corrected.
+    "sequence_addressing": (
+        "Pre does", "Auto Focus1", "Pattern Recognition1",
+        "Pattern Recognition2", "Auto Focus2",
+    ),
+    # OFFICE-VERIFY: "Measurement Excution" likewise reads as "Execution".
+    "sequence_measurement": (
+        "Focusing", "Pattern Recognition", "Measurement Excution", "Image Save",
+    ),
+    "measurement_pattern_recognition": (
+        "Acceptance", "Wait(s)", "ABC", "Centering",
+        "Relative Position(um)", "Offset(um)", "Contrast Mode",
+    ),
+    "measurement_focusing": (
+        "Wait(s)", "Offset(LSB)", "Method",
+        "Relative Position X(um)", "Relative Position Y(um)", "Mag",
+    ),
+    "addressing_auto_focus1": _AF_KEYS,
+    "addressing_pattern_recognition1": _PR_KEYS,
+    "addressing_auto_focus2": _AF_KEYS,
+    "addressing_pattern_recognition2": _PR_KEYS,
+}
+
+# The groups an addressing pass contributes, in that same office order. Slicing
+# this by pass count is what "none / once / twice" means here.
+_AFPR_PASS_SECTIONS: tuple[tuple[str, ...], ...] = (
     ("sequence_addressing", "addressing_auto_focus1", "addressing_pattern_recognition1"),
     ("addressing_auto_focus2", "addressing_pattern_recognition2"),
 )
 
-# OFFICE-VERIFY, two separate things:
+# ★ ENMP is why a setting row's identity is (section, key) rather than key:
+#   addressing_auto_focus1 and 2 carry the IDENTICAL key tuple, and
+#   "Acceptance" alone appears in three ENMP groups AND in ENAP. Keying on the
+#   bare name would collapse rows that mean different things.
 #
-# 1. WHICH groups vanish for addressing=none. Confirmed: the addressing choice
-#    decides. Inferred: that sequence_addressing goes with pass 1, and that the
-#    three measurement groups are always present. Both are the reading that
-#    makes sense of "basic sequence (addressing -> measurement)" but neither was
-#    seen absent.
-# 2. The KEYS INSIDE each group. Not seen at all, so they are emitted with
-#    placeholder names — a group with real settings under invented key names
-#    would look complete and be wrong, which is the AmpRow failure again.
+# ★ A THIRD unit convention. cond.txt puts the unit in the VALUE ('500 V'), AMP
+#   omits it entirely ('266.1'), and ENMP puts it in the KEY NAME — 'Wait(s)',
+#   'Offset(LSB)', 'Relative Position X(um)'. Three files, three conventions, so
+#   nothing downstream may assume any of them.
+#
+# OFFICE-VERIFY: the VALUES. Only the key names have been read, so every value
+# below is the same visibly-synthetic hex the AMP file's six valueless keys use.
+# Inferring formats from the key names ('Wait(s)' is surely a number) is exactly
+# the reasoning that produced AmpRow's sixteen invented fields, so it is not
+# done here — fill each one in as a real sample turns up.
+#
+# These key names are expected to CHANGE as the office parser is refined
+# (user-noted 2026-07-30). That costs one edit to this table: nothing keys off
+# these strings in code, the contract is open key/value, and the frontend
+# renders whatever arrives.
 
 
 def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
@@ -565,30 +615,34 @@ def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
     slot names — the idp_image_info row's Addressing / Double_Addressing flags,
     which are the same fact, stay on the client. Seeded, so a parameter's group
     list does not change between two views of the same recipe.
+
+    Filtered from _AFPR_SECTION_KEYS rather than concatenated, so the result
+    keeps the office's own key order however many passes ran.
     """
     passes = rng.choice((0, 1, 1, 2))
-    return tuple(
+    present = {
         section
-        for group in _AFPR_ADDRESSING_SECTIONS[:passes]
+        for group in _AFPR_PASS_SECTIONS[:passes]
         for section in group
-    ) + _AFPR_MEASUREMENT_SECTIONS
+    }
+    return tuple(
+        section for section in _AFPR_SECTION_KEYS
+        if not section.startswith(("sequence_addressing", "addressing_"))
+        or section in present
+    )
 
 
 def _afpr_block(source: str | None, *scope: str) -> SettingBlock | None:
-    """The ENMP… AF/PR file: real GROUP names, placeholder keys within them."""
+    """The ENMP… AF/PR file: real group AND key names, values still unknown."""
     if source is None:
         return None
     rng = _seeded_rng(source, *scope)
     return {
         "source": source,
         "rows": [
-            {
-                "key": f"AFPR_FIELD_{index + 1}",
-                "value": _unknown_value(rng),
-                "section": section,
-            }
+            {"key": key, "value": _unknown_value(rng), "section": section}
             for section in _afpr_sections(rng)
-            for index in range(_AFPR_FIELDS_PER_SECTION)
+            for key in _AFPR_SECTION_KEYS[section]
         ]
     }
 

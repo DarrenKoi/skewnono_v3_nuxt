@@ -470,7 +470,7 @@ cond.txt(`read_align_image_condition`)는 **어휘가 하나**이며, 어느 key
   | Image_rotation | `'0.0 deg'` | O | — |
   | Chip_coordinate | `'9737 um, 14710 um'` (OM 은 `'0 um, 0 um'`) | O | O |
   | Wafer_coordinate | `'172792 um, 175176 um'` | O | O |
-  | Field_Size | `'4.499 um, 4.499 um'` | O | O |
+  | Field_Size | `'4.499 um, 4.499 um'` (OM 은 **값 없음**) | O | O |
   | Optics | `'High Reso.'` | O | — |
   | Scan | `'TV'` | O | — |
   | Pixel | `'512,512'` | O | O |
@@ -501,9 +501,14 @@ SEM 표본이 30000x → `'4.499 um'` 이었고, 4.499 × 30000 = **134,970** �
 mock 은 이 곱을 유지해 magnification 과 모순되는 field size 를 만들지 않습니다
 (`_FOV_MAG_PRODUCT`).
 
-OFFICE-VERIFY: 표본 **1건**에서 나온 상수입니다. recipe 를 몇 건 더 봐서 곱이
-유지되는지, 그리고 **OM 도 같은 상수를 쓰는지** 확인해야 합니다. OM 표본은
-`Field_Size` key 가 있다는 것만 확인되었고 값은 받지 못했습니다.
+**OM 에는 적용하지 않습니다.** OM 의 `Field_Size` 는 key 는 있고 **값이
+없습니다**(user-confirmed 2026-07-30). mock 은 빈 문자열을 내보내고 화면은
+`—` 로 그립니다. 2026-07-30 이전에는 SEM 상수로 OM 값을 계산해
+`'1297.788 um'` 을 마치 읽어 온 값처럼 찍고 있었습니다 — 아무도 관찰한 적 없는
+**광학계 간 관계를 지어낸 것**이었습니다.
+
+OFFICE-VERIFY: 상수 자체는 SEM 표본 **1건**에서 나왔습니다. recipe 를 몇 건 더
+봐서 곱이 유지되는지 확인해야 합니다.
 
 OFFICE-VERIFY: OM 의 `Magnification = '104'` 와 `Chip_coordinate = '0 um, 0 um'`
 이 장비 고정값인지 recipe 마다 달라지는지 모릅니다. mock 은 표본 값을 그대로
@@ -534,7 +539,7 @@ PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
   | Threshold | `'50, 50'` |
   | Edge_Search_Direct. | `'Normal, Normal'` |
   | Edge_Number | `'1, 1'` |
-  | Base_Line_Start_Pint | `'2, 2'` |
+  | Base_Line_Start_Point | `'2, 2'` |
   | Base_Line_Area | `'8, 8'` |
   | Sum_Line_Point | (값 미확인) |
   | Target | (값 미확인) |
@@ -546,18 +551,20 @@ cond.txt 와 다른 점 2가지
    아닙니다. 즉 "값이 단위를 품고 있는가" 는 **파일마다 다르며** 이 pipeline 의
    성질이 아닙니다. 어느 쪽도 가정하면 안 됩니다.
 2. **`', '` 로 이어 붙인 쌍(pair)이 5개입니다.** `Threshold`,
-   `Edge_Search_Direct.`, `Edge_Number`, `Base_Line_Start_Pint`,
+   `Edge_Search_Direct.`, `Edge_Number`, `Base_Line_Start_Point`,
    `Base_Line_Area`. width 측정은 edge 가 둘이고 각 edge 가 자기 설정을 갖기
    때문입니다. 구분자는 좌표와 같은 `', '` 이고, 처리 방식도 같습니다 — 그대로
    보여 줍니다.
 
-★ key 철자 2개를 **그대로** 씁니다 (OFFICE-VERIFY)
+★ `Edge_Search_Direct.` 는 정말 마침표로 끝납니다 (user-confirmed 2026-07-30)
 
-  `Edge_Search_Direct.` 는 마침표로 끝나고("Direction" 이 잘린 것으로 보입니다),
-  `Base_Line_Start_Pint` 는 "Point" 의 오타로 읽힙니다. 둘 다 장비 쪽 표기로
-  보이며 **고치지 않았습니다**. 이것들은 contract key 이고, 조용히 바로잡으면
-  집과 사무실이 key 이름을 두고 어긋나게 됩니다 — 이 문서가 막으려는 사고가
-  바로 그것입니다. 표본을 한 건 더 봐서 확인해야 합니다.
+  "Direction" 이 잘린 장비 쪽 표기이며 **고치지 않습니다**. contract key 를
+  조용히 바로잡으면 집과 사무실이 key 이름을 두고 어긋나게 됩니다 — 이 문서가
+  막으려는 사고가 바로 그것입니다.
+
+  같은 날 `Base_Line_Start_Pint` 는 **우리 쪽 전달 오타**로 확인되어
+  `Base_Line_Start_Point` 로 고쳤습니다. 둘을 구분하는 것이 요점입니다:
+  장비 오타는 남기고, 우리 오타는 고칩니다.
 
 ★ 값을 모르는 key 6개는 **가짜처럼 보이게** 둡니다
 
@@ -573,39 +580,63 @@ ENMP… — AF/PR 파일은 **중첩 dict** 입니다 (office 확인 2026-07-30)
 `read_af_pr_condition` 만 유일하게 **dict 안에 dict** 를 돌려줍니다. 나머지 넷은
 평평한 key/value 입니다. group 은 8개입니다.
 
-  | group | 언제 있는가 |
-  | --- | --- |
-  | sequence_measurement | 항상 |
-  | measurement_pattern_recognition | 항상 |
-  | measurement_focusing | 항상 |
-  | sequence_addressing | addressing 1회 이상 |
-  | addressing_auto_focus1 | addressing 1회 이상 |
-  | addressing_pattern_recognition1 | addressing 1회 이상 |
-  | addressing_auto_focus2 | addressing 2회 |
-  | addressing_pattern_recognition2 | addressing 2회 |
+group 과 그 안의 key 는 아래와 같습니다 (사무실 key 순서 그대로).
+
+  | group | 언제 있는가 | key |
+  | --- | --- | --- |
+  | sequence_addressing | addressing 1회 이상 | Pre does · Auto Focus1 · Pattern Recognition1 · Pattern Recognition2 · Auto Focus2 |
+  | sequence_measurement | 항상 | Focusing · Pattern Recognition · Measurement Excution · Image Save |
+  | measurement_pattern_recognition | 항상 | Acceptance · Wait(s) · ABC · Centering · Relative Position(um) · Offset(um) · Contrast Mode |
+  | measurement_focusing | 항상 | Wait(s) · Offset(LSB) · Method · Relative Position X(um) · Relative Position Y(um) · Mag |
+  | addressing_auto_focus1 | addressing 1회 이상 | Method · Offset(LSB) · Wait(s) · Relative Position X(um) · Relative Position Y(um) · Mag · Threshold · Charging Voltage |
+  | addressing_pattern_recognition1 | addressing 1회 이상 | Acceptance · Wait(s) · ABC |
+  | addressing_auto_focus2 | addressing 2회 | 1과 동일 |
+  | addressing_pattern_recognition2 | addressing 2회 | 1과 동일 |
 
 측정은 **기본 sequence(addressing → measurement)** 로 돌아가고, measurement
 직전의 addressing 은 parameter 에 따라 **none / once / twice** 로 선택됩니다.
-그 선택이 어느 group 이 파일에 들어 있는지를 정합니다.
+none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
+(user-confirmed 2026-07-30). `sequence_addressing` 도 마찬가지로 사라집니다.
+
+`sequence_*` 두 group 은 설정이 아니라 **sequence 의 단계 이름**을 나열합니다.
+그 아래 group 들이 각 단계의 실제 설정을 담습니다.
+
+★ 단위를 **key 이름**에 답니다 — 세 번째 규칙입니다
+
+  `Wait(s)`, `Offset(LSB)`, `Relative Position X(um)` 처럼 ENMP 는 단위를 key 에
+  씁니다. cond.txt 는 **값**에 쓰고(`'500 V'`), AMP 는 **아예 안 씁니다**
+  (`'266.1'`). 파일 3개가 규칙 3개이므로, 어느 쪽도 가정하면 안 됩니다.
+
+★ 오타로 보이는 key 2개 (OFFICE-VERIFY)
+
+  `Pre does` 는 "Pre dose"(전자 pre-dose), `Measurement Excution` 은
+  "Execution" 의 오타로 읽힙니다. `Edge_Search_Direct.` 와 같은 이유로
+  **그대로** 씁니다.
 
 ★ row 의 정체는 (section, key) 이지 key 가 아닙니다
 
   `addressing_auto_focus1` 과 `addressing_auto_focus2` 는 **같은 종류의 설정을
-  두 번** 적은 것이므로 안쪽 key 이름이 서로 같습니다. key 만으로 dedup 하거나
-  join 하면 pass 2 가 pass 1 로 조용히 흡수되어, 두 heading 아래에 pass 1 의
-  값이 똑같이 찍힙니다. 오류도 빈 칸도 나지 않고 **틀린 값이 자신 있게** 보입니다.
+  두 번** 적은 것이므로 안쪽 key 이름이 **완전히 같습니다**. 게다가
+  `Acceptance` 는 ENMP group 3개에 나오고 **ENAP 에도** 나옵니다. key 만으로
+  dedup 하거나 join 하면 pass 2 가 pass 1 로 조용히 흡수되어, 두 heading 아래에
+  pass 1 의 값이 똑같이 찍힙니다. 오류도 빈 칸도 나지 않고 **틀린 값이 자신
+  있게** 보입니다.
 
   그래서 `SettingRow` 에 `section` 을 넣었고(NotRequired — 평평한 reader 4개는
   손대지 않았습니다), frontend 의 비교 화면은 `settingRowId()` 로 (section, key)
   를 묶어 식별합니다.
 
-OFFICE-VERIFY: **각 group 안의 key 이름은 아직 못 봤습니다.** mock 은 group
-이름만 진짜로 쓰고 안쪽은 placeholder key 를 냅니다.
+OFFICE-VERIFY: **값은 아직 못 봤습니다.** key 이름만 확인되었습니다. mock 은
+모든 값에 AMP 의 값 미확인 key 와 같은 **합성 hex** 를 넣습니다. key 이름에서
+형식을 추론하는 것(`Wait(s)` 이니 숫자겠지)은 AmpRow 의 16개 가짜 field 를
+만들어 낸 바로 그 추론이므로 하지 않습니다.
 
-OFFICE-VERIFY: none 일 때 정확히 어느 group 이 사라지는지. addressing 선택이
-결정한다는 것은 확인되었지만, `sequence_addressing` 이 pass 1 과 함께 사라지는
-것과 measurement group 3개가 항상 있다는 것은 "기본 sequence" 설명에서
-**추론한** 것이며 없는 경우를 직접 보지는 못했습니다.
+★ 이 key 이름들은 **바뀔 수 있습니다** (user-noted 2026-07-30)
+
+  사무실 파싱 코드가 raw data 를 더 읽어 들이면서 key 와 값이 달라질 수
+  있습니다. 바뀌면 고칠 곳은 `mock.py` 의 `_AFPR_SECTION_KEYS` 표 **하나**와 이
+  문서뿐입니다 — 코드가 이 문자열들에 의존하지 않고, contract 가 열린
+  key/value 이며, 화면은 오는 대로 그리기 때문입니다.
 
 ENAP… — align beam/PR 은 **optic 으로 나뉩니다** (office 확인 2026-07-30)
 =========================================================================
