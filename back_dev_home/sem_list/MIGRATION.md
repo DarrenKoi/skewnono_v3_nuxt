@@ -38,14 +38,18 @@
   vendor-specific pools so the model code and equipment id prefix always
   agree with `vendor_nm`. `updt_dt` is an ISO-8601 UTC timestamp with a
   literal `Z` suffix, anchored at `2026-04-19T00:00:00Z` minus a random
-  0–90 day offset. `available` is `"On"` 90% of the time.
-- Office data source: **two** Redis keys, each a `pandas.DataFrame`
+  0–2555 day offset — it is the tool's FIRST ARRIVAL time at the fab, not a
+  roster-update time (user-confirmed 2026-07-30), so the span covers years
+  rather than a recent window. `available` is `"On"` 90% of the time.
+- Office data source: **three** Redis keys, each a `pandas.DataFrame`
   serialized as **parquet** (`df.to_parquet()`, read via the pyarrow engine
   — `pyarrow` is in `requirements.txt`). Connection via `REDIS_HOST` /
   `REDIS_PORT` / `REDIS_PASSWORD` in `back_dev_home/.env`.
   - `v3_df_sem_avail` — the fleet, **without** a `version` column.
   - `v3_df_sem_version` — columns `[eqp_ip, version]`; `version` is a
     free-form string.
+  - `v3_df_sem_list` — the full company roster; not read by this endpoint,
+    only by `GET /api/sem-list/pending` below.
 
   The adapter LEFT-merges `version` onto the fleet by `eqp_ip`
   (`fleet.merge(right, on="eqp_ip", how="left")`), so every fleet row
@@ -61,6 +65,38 @@
   fleet table is empty rather than erroring, since the contract test only
   requires "not empty" as a mock-mode sanity check, not a hard invariant of
   the contract itself.
+
+## Endpoint: GET /api/sem-list/pending
+
+- Handler: `routes.py` → `data.get_pending_tools()`
+- Contract: `PendingToolRow` — the eight identity columns, no `available`
+  and no `version` (both live in keys a pending tool is not in yet).
+- Office data source: `v3_df_sem_list` (full company roster) diffed against
+  `v3_df_sem_avail` (reachable subset) on **`eqp_id`**.
+
+  ```python
+  pending = roster[~roster["eqp_id"].isin(set(connected["eqp_id"]))]
+  ```
+
+  Every tool is assigned an `eqp_ip` at fab installation and is firewalled
+  from that moment, entering `v3_df_sem_avail` only once IT opens the IP. So
+  this difference is the firewall-request queue, and an empty result means
+  every roster tool is reachable — a valid response, not an error.
+- `v3_df_sem_list`'s exact column list is **OFFICE-VERIFY**. It is assumed to
+  carry the same identity columns as `v3_df_sem_avail` minus `available`. If
+  that is wrong, `_select_pending` raises with the missing column names.
+  Check it first with:
+
+  ```bash
+  .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list
+  ```
+
+- Unlike `get_sem_list`, an unknown `vendor_nm` is **passed through**, not
+  rejected. This screen exists to surface tools that have not been onboarded,
+  so a new vendor must appear on it rather than 502 the request.
+- Mock behavior: 14 tools in 5 fab × model clusters, one with `fab_name=""`
+  and one arriving 400 days ago, so the UI's 미배정 and 오래됨 paths both have
+  data at home.
 
 ## Verify
 

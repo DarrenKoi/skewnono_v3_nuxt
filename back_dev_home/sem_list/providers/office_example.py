@@ -2,17 +2,22 @@
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Phase 2/3 adapter for the office SEM equipment source (Redis).
 
-The office Redis stores the SEM fleet across two keys, each a
+The office Redis stores the SEM fleet across three keys, each a
 ``pandas.DataFrame`` serialized to **parquet** (``df.to_parquet()``):
 
-* ``v3_df_sem_avail``    — the fleet, WITHOUT a ``version`` column.
+* ``v3_df_sem_list``    — the FULL company roster — every tool, all tool types.
+* ``v3_df_sem_avail``    — the fleet skewnono can actually reach: a DERIVED
+  subset of the roster, WITHOUT a ``version`` column.
 * ``v3_df_sem_version`` — columns ``[eqp_ip, version]``; ``version`` is a
   free-form string (digits + letters, e.g. ``"1A"``).
 
-This adapter fetches both, LEFT-merges the version onto the fleet by
-``eqp_ip`` (keeping every fleet row exactly once — rows with no matching
-version get ``""``), and normalizes to ``SemListRow``; callers and routes
-must not need to know the source format.
+``get_sem_list()`` fetches ``v3_df_sem_avail`` and ``v3_df_sem_version``,
+LEFT-merges the version onto the fleet by ``eqp_ip`` (keeping every fleet row
+exactly once — rows with no matching version get ``""``), and normalizes to
+``SemListRow``. ``get_pending_tools()`` diffs ``v3_df_sem_list`` against
+``v3_df_sem_avail`` on ``eqp_id`` to surface the roster tools skewnono cannot
+reach yet, normalized to ``PendingToolRow``. Callers and routes must not need
+to know the source format.
 
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
 ``REDIS_PASSWORD`` in ``back_dev_home/.env`` (same vars the health feature
@@ -168,19 +173,87 @@ def get_sem_list() -> list[SemListRow]:
     return _normalize(fleet)
 
 
-def get_pending_tools(*args, **kwargs) -> list[PendingToolRow]:
-    """Roster-minus-avail diff (``v3_df_sem_list`` - ``v3_df_sem_avail``).
+_ROSTER_KEY = "v3_df_sem_list"
 
-    NOT CONNECTED YET — a stub, not the real adapter. `data.py` reaches for
-    this name as soon as it exists, so `test_office_adapter_parity.py` needs a
-    callable here before the real roster diff lands. Implement against
-    `docs/datatables/sem_list.txt`'s Key 1 (`v3_df_sem_list`) and normalize to
-    `PendingToolRow`.
+# No `available` and no `version`: both live in keys a pending tool is not in.
+_PENDING_REQUIRED_COLUMNS = frozenset(
+    {
+        "fac_id",
+        "eqp_id",
+        "eqp_model_cd",
+        "eqp_grp_id",
+        "vendor_nm",
+        "eqp_ip",
+        "fab_name",
+        "updt_dt",
+    }
+)
+
+
+def _normalize_pending(df: pd.DataFrame) -> list[PendingToolRow]:
+    """Shape roster rows into the contract.
+
+    Note what this does NOT do, unlike `_normalize`: it does not validate
+    `vendor_nm` against a known set, and it does not map `available`. A tool
+    we have not onboarded may legitimately carry a vendor we have never seen,
+    and rejecting it would empty the one screen meant to reveal it.
     """
-    raise NotImplementedError(
-        "get_pending_tools has not been connected yet — see "
-        "sem_list/MIGRATION.md."
-    )
+    return [
+        PendingToolRow(
+            fac_id=_to_text(rec["fac_id"]),
+            eqp_id=_to_text(rec["eqp_id"]),
+            eqp_model_cd=_to_text(rec["eqp_model_cd"]),
+            eqp_grp_id=_to_text(rec["eqp_grp_id"]),
+            vendor_nm=_to_text(rec["vendor_nm"]).strip().upper(),
+            eqp_ip=_to_text(rec["eqp_ip"]).strip(),
+            fab_name=_to_text(rec["fab_name"]).strip(),
+            updt_dt=_as_iso_string(rec["updt_dt"]),
+        )
+        for rec in df.to_dict(orient="records")
+    ]
+
+
+def _select_pending(
+    roster: pd.DataFrame, connected: pd.DataFrame
+) -> list[PendingToolRow]:
+    """Roster minus reachable, diffed on ``eqp_id``.
+
+    ``eqp_id`` and not ``eqp_ip``: the id is the tool's name and every roster
+    row has one, whereas an ip can be reassigned. Kept separate from
+    :func:`get_pending_tools` so it is testable without a Redis.
+    """
+    # Checked before the column-schema validation below: a truly empty
+    # roster (0 rows, and — as `pd.DataFrame([])` produces — 0 columns too)
+    # has nothing to select regardless of schema, and a fresh parquet read
+    # of an empty office table still carries its real column names, so this
+    # branch only ever fires on "nothing to do", never on a schema problem.
+    if roster.empty:
+        return []
+    missing = _PENDING_REQUIRED_COLUMNS - set(roster.columns)
+    if missing:
+        raise ValueError(
+            f"Redis key {_ROSTER_KEY!r} DataFrame is missing columns: "
+            f"{sorted(missing)} (got {sorted(roster.columns)})"
+        )
+    # No separate eqp_id guard for the roster: _PENDING_REQUIRED_COLUMNS
+    # already contains it, so the check above has covered it.
+    if "eqp_id" not in connected.columns:
+        raise ValueError(
+            f"Redis key {_REDIS_KEY!r} has no 'eqp_id' column to diff against "
+            f"(got {sorted(connected.columns)})."
+        )
+
+    pending = roster[~roster["eqp_id"].isin(set(connected["eqp_id"]))]
+    if pending.empty:
+        return []
+    return _normalize_pending(pending)
+
+
+def get_pending_tools() -> list[PendingToolRow]:
+    client = _redis_client()
+    roster = _load_dataframe(client, _ROSTER_KEY)
+    connected = _load_dataframe(client, _REDIS_KEY)
+    return _select_pending(roster, connected)
 
 
 if __name__ == "__main__":
