@@ -349,8 +349,13 @@ _COND_KEYS_OM: tuple[str, ...] = (
 # the product rather than drawing two independent numbers keeps the mock from
 # teaching that a screen may show a field size contradicting its magnification.
 #
-# OFFICE-VERIFY: derived from ONE SEM sample; whether a second recipe keeps the
-# product is unchecked.
+# OFFICE-VERIFY — DEFERRED, cannot be confirmed for now (2026-07-30). It comes
+# from ONE SEM sample, and whether a second recipe keeps the product is
+# unanswered rather than merely unchecked. It stays because the alternative,
+# drawing the two independently, asserts that they are UNRELATED — equally
+# unverified and worse: it would render tables that contradict themselves. This
+# is a mock-internal consistency choice, not a documented office rule, and the
+# office adapter neither knows nor uses it.
 #
 # It is NOT applied to OM. The OM sample carries a Field_Size key with NO VALUE
 # (user-confirmed 2026-07-30), so the mock emits an empty one, which the screen
@@ -359,10 +364,13 @@ _COND_KEYS_OM: tuple[str, ...] = (
 # nobody has observed and printed 1297.788 um as though it had been read.
 _FOV_MAG_PRODUCT = 134_970.0
 
-# The OM magnification seen at the office. Emitted verbatim rather than varied:
-# it is one sample, and an optical scope's magnification is fixed by its lens,
-# so a range here would be invention rather than imitation.
-_OM_MAGNIFICATION = 104
+# The OM magnification seen at the office. VARIED around it, not pinned to it:
+# the OM values differ between recipes (user-confirmed 2026-07-30), so emitting
+# 104 on every file — which this did until then, reasoning that an optical
+# scope's magnification is fixed by its lens — taught a constant that is not one.
+# The sample stays in the set; the rest is plausible spread, not office
+# distribution.
+_OM_MAGNIFICATIONS: tuple[int, ...] = (70, 104, 140, 200)
 
 
 def _um_pair(x: float, y: float) -> str:
@@ -386,7 +394,10 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
     format, never a value domain.
     """
     om = optic == "OM"
-    magnification = _OM_MAGNIFICATION if om else rng.choice((20_000, 30_000, 50_000, 100_000, 150_000))
+    magnification = (
+        rng.choice(_OM_MAGNIFICATIONS) if om
+        else rng.choice((20_000, 30_000, 50_000, 100_000, 150_000))
+    )
     side = _FOV_MAG_PRODUCT / magnification
     return {
         "Accelerating_voltage": f"{rng.choice((300, 500, 800))} V",
@@ -394,11 +405,13 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
         "Magnification": str(magnification),
         "Number_of_frames": str(rng.choice((8, 16, 32, 64))),
         "Image_rotation": f"{rng.choice((0.0, 90.0, 180.0, 270.0)):.1f} deg",
-        # OM aligns in WAFER coordinates, so its chip coordinate is 0,0
-        # (office 확인 2026-07-30). SEM images are addressed inside a die, so
-        # theirs is die-relative. The wafer one is the larger of the two either
-        # way: it spans a 300 mm wafer, i.e. 300,000 um.
-        "Chip_coordinate": _um_pair(0, 0) if om
+        # Die-relative for both optics. The OM sample read 0,0 — plausibly
+        # because an align mark sits at a die origin — but OM values vary
+        # between recipes (user-confirmed 2026-07-30), so 0,0 is drawn as ONE
+        # possibility rather than emitted as OM's constant. The wafer coordinate
+        # is the larger of the two either way: it spans a 300 mm wafer, i.e.
+        # 300,000 um.
+        "Chip_coordinate": _um_pair(0, 0) if om and rng.random() < 0.5
         else _um_pair(rng.randrange(0, 30_000), rng.randrange(0, 30_000)),
         "Wafer_coordinate": _um_pair(rng.randrange(0, 300_000), rng.randrange(0, 300_000)),
         # Empty for OM: the key is there, the value is not.
@@ -486,10 +499,15 @@ _AMP_FIELDS: tuple[tuple[str, object], ...] = (
 )
 
 # 'Edge_Search_Direct.' really does end in a period — a truncated "Direction"
-# (user-confirmed 2026-07-30). Left verbatim because it is a contract key.
-# 'Base_Line_Start_Pint' was OUR transcription slip, corrected to Point the same
-# day; the distinction matters, since silently "fixing" a real one would make
-# home and office disagree about a key name.
+# (user-confirmed 2026-07-30). Left verbatim because it is a contract key, and
+# silently "fixing" a real one would make home and office disagree about a name.
+#
+# It is the ONLY one. Four odd spellings were flagged that day and THREE were
+# our own transcription slips, corrected once asked: Base_Line_Start_Pint ->
+# Point, "Pre does" -> "Pre Dose", "Measurement Excution" -> "Execution". Worth
+# recording, because the instinct was to preserve all four as tool quirks. The
+# cost is asymmetric — a preserved slip is a key the office never sends and the
+# screen silently omits — so an odd spelling is worth one question every time.
 
 
 def _pair(value: object) -> str:
@@ -503,8 +521,14 @@ def _unknown_value(rng: random.Random) -> str:
     Used where the key is confirmed but its format is not. Deliberately shares
     the look of ``_block``'s placeholders so "we have not seen this" reads the
     same everywhere on the screen.
+
+    ALWAYS STARTS WITH A LETTER. Plain 4-digit hex is all-numeric about one time
+    in sixteen, and the browser promptly showed `Mag = 1484` — a placeholder
+    reading as a perfectly plausible magnification, which is the one thing this
+    function exists to prevent. Leading A-F makes every one of them impossible
+    to read as a number.
     """
-    return f"{rng.getrandbits(16):04X}"
+    return f"{rng.choice('ABCDEF')}{rng.getrandbits(12):03X}"
 
 
 def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
@@ -534,48 +558,72 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
 # the addressing groups are simply absent from the parsed result
 # (user-confirmed 2026-07-30), so the group list is not fixed.
 #
+# ★ ENMP's values are NOT all strings (office 확인 2026-07-30). It is the first
+#   reader where that is false, and the mixture is WITHIN one group:
+#   measurement_focusing's Wait(s) and Relative Position X/Y(um) come back as
+#   Python floats while Offset(LSB), Method and Mag are str. cond.txt and AMP
+#   are genuinely all-str, so "the readers return strings" was a per-file fact
+#   about those two, never a property of this pipeline.
+#
+#   SettingRow.value is still str because the adapter's _to_rows stringifies
+#   everything (a float 2.0 reaches the screen as "2.0"). Nothing here needs to
+#   change for that — but nothing may assume the READER handed back a string.
+#
+# Each entry is (key, generator) with the same rule as _AMP_FIELDS: a generator
+# of None means the value has never been seen and renders as obvious hex.
+#
 # Pass 1 and pass 2 SHARE their key tuples below rather than repeating them:
 # "addressing_auto_focus2 is likewise as 1" is a fact, and two literal copies
 # could drift apart while still passing every test.
-_AF_KEYS: tuple[str, ...] = (
-    "Method",
-    "Offset(LSB)",
-    "Wait(s)",
-    "Relative Position X(um)",
-    "Relative Position Y(um)",
-    "Mag",
-    "Threshold",
-    "Charging Voltage",
+_AF_FIELDS: tuple[tuple[str, object], ...] = (
+    ("Method", None),
+    ("Offset(LSB)", None),
+    ("Wait(s)", None),
+    ("Relative Position X(um)", None),
+    ("Relative Position Y(um)", None),
+    ("Mag", None),
+    ("Threshold", None),
+    ("Charging Voltage", None),
 )
-_PR_KEYS: tuple[str, ...] = ("Acceptance", "Wait(s)", "ABC")
+_PR_FIELDS: tuple[tuple[str, object], ...] = (
+    ("Acceptance", None),
+    ("Wait(s)", None),
+    ("ABC", None),
+)
 
 # In the office's own key order. `sequence_*` groups list the STEPS of a
 # sequence rather than settings — their keys are stage names, and the groups
 # below them hold each stage's settings.
-_AFPR_SECTION_KEYS: dict[str, tuple[str, ...]] = {
-    # OFFICE-VERIFY: "Pre does" reads as "Pre dose" (electron pre-dose)
-    # misspelled. Reproduced verbatim — see the Edge_Search_Direct. note above
-    # for why a suspected tool typo is never quietly corrected.
+_AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
     "sequence_addressing": (
-        "Pre does", "Auto Focus1", "Pattern Recognition1",
-        "Pattern Recognition2", "Auto Focus2",
+        ("Pre Dose", None), ("Auto Focus1", None), ("Pattern Recognition1", None),
+        ("Pattern Recognition2", None), ("Auto Focus2", None),
     ),
-    # OFFICE-VERIFY: "Measurement Excution" likewise reads as "Execution".
     "sequence_measurement": (
-        "Focusing", "Pattern Recognition", "Measurement Excution", "Image Save",
+        ("Focusing", None), ("Pattern Recognition", None),
+        ("Measurement Execution", None), ("Image Save", None),
     ),
     "measurement_pattern_recognition": (
-        "Acceptance", "Wait(s)", "ABC", "Centering",
-        "Relative Position(um)", "Offset(um)", "Contrast Mode",
+        ("Acceptance", None), ("Wait(s)", None), ("ABC", None), ("Centering", None),
+        ("Relative Position(um)", None), ("Offset(um)", None), ("Contrast Mode", None),
     ),
+    # The one group whose value TYPES have been read.
     "measurement_focusing": (
-        "Wait(s)", "Offset(LSB)", "Method",
-        "Relative Position X(um)", "Relative Position Y(um)", "Mag",
+        # float. The unit is already in the key, so the value carries none.
+        ("Wait(s)", lambda r: str(round(r.uniform(0.0, 3.0), 1))),
+        ("Offset(LSB)", None),
+        # 'Fast2' — NOT AMP's Method vocabulary, which is 'Linear'. Same key
+        # name in two files with two different domains, which is why a value is
+        # never carried across from another file.
+        ("Method", lambda _: "Fast2"),
+        ("Relative Position X(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
+        ("Relative Position Y(um)", lambda r: str(round(r.uniform(-5.0, 5.0), 1))),
+        ("Mag", None),
     ),
-    "addressing_auto_focus1": _AF_KEYS,
-    "addressing_pattern_recognition1": _PR_KEYS,
-    "addressing_auto_focus2": _AF_KEYS,
-    "addressing_pattern_recognition2": _PR_KEYS,
+    "addressing_auto_focus1": _AF_FIELDS,
+    "addressing_pattern_recognition1": _PR_FIELDS,
+    "addressing_auto_focus2": _AF_FIELDS,
+    "addressing_pattern_recognition2": _PR_FIELDS,
 }
 
 # The groups an addressing pass contributes, in that same office order. Slicing
@@ -595,13 +643,15 @@ _AFPR_PASS_SECTIONS: tuple[tuple[str, ...], ...] = (
 #   'Offset(LSB)', 'Relative Position X(um)'. Three files, three conventions, so
 #   nothing downstream may assume any of them.
 #
-# OFFICE-VERIFY: the VALUES. Only the key names have been read, so every value
-# below is the same visibly-synthetic hex the AMP file's six valueless keys use.
-# Inferring formats from the key names ('Wait(s)' is surely a number) is exactly
-# the reasoning that produced AmpRow's sixteen invented fields, so it is not
-# done here — fill each one in as a real sample turns up.
+# OFFICE-VERIFY: most of the VALUES. Only measurement_focusing's have been
+# looked at; every other group's are unseen and render as visibly-synthetic hex,
+# the same treatment the AMP file's six valueless keys get. Inferring a format
+# from a key name ('Wait(s)' is surely a number) is exactly the reasoning that
+# produced AmpRow's sixteen invented fields — note that even for the one group
+# we HAVE seen, the surprise was the dtype (float, not str) rather than the
+# magnitude. Fill each in as a real sample turns up.
 #
-# These key names are expected to CHANGE as the office parser is refined
+# These keys and values are expected to CHANGE as the office parser is refined
 # (user-noted 2026-07-30). That costs one edit to this table: nothing keys off
 # these strings in code, the contract is open key/value, and the frontend
 # renders whatever arrives.
@@ -616,7 +666,7 @@ def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
     which are the same fact, stay on the client. Seeded, so a parameter's group
     list does not change between two views of the same recipe.
 
-    Filtered from _AFPR_SECTION_KEYS rather than concatenated, so the result
+    Filtered from _AFPR_SECTION_FIELDS rather than concatenated, so the result
     keeps the office's own key order however many passes ran.
     """
     passes = rng.choice((0, 1, 1, 2))
@@ -626,23 +676,27 @@ def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
         for section in group
     }
     return tuple(
-        section for section in _AFPR_SECTION_KEYS
+        section for section in _AFPR_SECTION_FIELDS
         if not section.startswith(("sequence_addressing", "addressing_"))
         or section in present
     )
 
 
 def _afpr_block(source: str | None, *scope: str) -> SettingBlock | None:
-    """The ENMP… AF/PR file: real group AND key names, values still unknown."""
+    """The ENMP… AF/PR file: real group and key names, most values still unseen."""
     if source is None:
         return None
     rng = _seeded_rng(source, *scope)
     return {
         "source": source,
         "rows": [
-            {"key": key, "value": _unknown_value(rng), "section": section}
+            {
+                "key": key,
+                "value": generate(rng) if generate else _unknown_value(rng),
+                "section": section,
+            }
             for section in _afpr_sections(rng)
-            for key in _AFPR_SECTION_KEYS[section]
+            for key, generate in _AFPR_SECTION_FIELDS[section]
         ]
     }
 

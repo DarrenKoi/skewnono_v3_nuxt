@@ -459,7 +459,8 @@ cond.txt 의 field 이름 (office 확인 2026-07-30)
 `scripts/probe_recipe_ftp.py` 를 사무실에서 실제로 돌려 확인했습니다. 측정·addressing
 이미지의 cond.txt(`read_meas_image_condition`)와 wafer align 이미지의
 cond.txt(`read_align_image_condition`)는 **어휘가 하나**이며, 어느 key 가 들어
-있느냐만 다릅니다. **모든 값은 str 입니다.**
+있느냐만 다릅니다. 이 두 파일은 **모든 값이 str** 입니다 (ENMP 은 다릅니다 —
+아래 ENMP 절 참고).
 
   | key | 예시 | SEM | OM |
   | --- | --- | --- | --- |
@@ -468,7 +469,7 @@ cond.txt(`read_align_image_condition`)는 **어휘가 하나**이며, 어느 key
   | Magnification | `'30000'` (OM 은 `'104'`) | O | O |
   | Number_of_frames | `'32'` | O | — |
   | Image_rotation | `'0.0 deg'` | O | — |
-  | Chip_coordinate | `'9737 um, 14710 um'` (OM 은 `'0 um, 0 um'`) | O | O |
+  | Chip_coordinate | `'9737 um, 14710 um'` (OM 표본은 `'0 um, 0 um'`) | O | O |
   | Wafer_coordinate | `'172792 um, 175176 um'` | O | O |
   | Field_Size | `'4.499 um, 4.499 um'` (OM 은 **값 없음**) | O | O |
   | Optics | `'High Reso.'` | O | — |
@@ -507,21 +508,28 @@ mock 은 이 곱을 유지해 magnification 과 모순되는 field size 를 만�
 `'1297.788 um'` 을 마치 읽어 온 값처럼 찍고 있었습니다 — 아무도 관찰한 적 없는
 **광학계 간 관계를 지어낸 것**이었습니다.
 
-OFFICE-VERIFY: 상수 자체는 SEM 표본 **1건**에서 나왔습니다. recipe 를 몇 건 더
-봐서 곱이 유지되는지 확인해야 합니다.
+OFFICE-VERIFY — **판단 보류** (2026-07-30 현재 확인 불가). 상수는 SEM 표본
+**1건**에서 나왔고, 곱이 유지되는지는 "아직 안 봤다" 가 아니라 **답을 못 얻은**
+상태입니다. 그래도 유지하는 이유는, 둘을 따로 뽑으면 이번에는 "둘은 무관하다" 를
+주장하게 되기 때문입니다 — 똑같이 미확인이면서 결과는 더 나쁩니다(자기 magnification
+과 모순되는 field size 를 화면에 찍습니다). 이것은 **mock 내부 일관성**을 위한
+선택이지 사무실 규칙이 아니며, office adapter 는 이 상수를 알지도 쓰지도 않습니다.
 
-OFFICE-VERIFY: OM 의 `Magnification = '104'` 와 `Chip_coordinate = '0 um, 0 um'`
-이 장비 고정값인지 recipe 마다 달라지는지 모릅니다. mock 은 표본 값을 그대로
-내보냅니다 — 표본 1건은 **형식**을 가르칠 수 있어도 **값의 범위**는 가르치지
-못하기 때문입니다. 같은 이유로 `Optics` · `Scan` · `Filter` 도 확인된 한 값만
-내보냅니다.
+OM 의 값은 **recipe 마다 달라집니다** (user-confirmed 2026-07-30). 그래서 mock 은
+`Magnification = '104'` 와 `Chip_coordinate = '0 um, 0 um'` 을 상수로 찍지 않고
+표본을 포함한 범위에서 뽑습니다. 2026-07-30 이전에는 "광학 현미경 배율은 렌즈로
+고정" 이라고 추론해 매번 104 만 내보냈고, 이는 존재하지 않는 상수를 가르치고
+있었습니다.
+
+`Optics` · `Scan` · `Filter` 는 여전히 확인된 한 값만 내보냅니다 — 이쪽은 변한다는
+확인이 없기 때문입니다.
 
 PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
 =====================================================
 
 `read_amp_info` 가 돌려주는 18개 field 입니다. cond.txt 가 **이미지를 어떻게
 찍었는지**를 적는다면, 이 파일은 **그 이미지에서 parameter 를 어떻게 재는지**를
-적습니다. 값은 전부 str 입니다.
+적습니다. 값은 전부 str 입니다 (ENMP 과 다른 점입니다).
 
   | key | 예시 |
   | --- | --- |
@@ -584,8 +592,8 @@ group 과 그 안의 key 는 아래와 같습니다 (사무실 key 순서 그대
 
   | group | 언제 있는가 | key |
   | --- | --- | --- |
-  | sequence_addressing | addressing 1회 이상 | Pre does · Auto Focus1 · Pattern Recognition1 · Pattern Recognition2 · Auto Focus2 |
-  | sequence_measurement | 항상 | Focusing · Pattern Recognition · Measurement Excution · Image Save |
+  | sequence_addressing | addressing 1회 이상 | Pre Dose · Auto Focus1 · Pattern Recognition1 · Pattern Recognition2 · Auto Focus2 |
+  | sequence_measurement | 항상 | Focusing · Pattern Recognition · Measurement Execution · Image Save |
   | measurement_pattern_recognition | 항상 | Acceptance · Wait(s) · ABC · Centering · Relative Position(um) · Offset(um) · Contrast Mode |
   | measurement_focusing | 항상 | Wait(s) · Offset(LSB) · Method · Relative Position X(um) · Relative Position Y(um) · Mag |
   | addressing_auto_focus1 | addressing 1회 이상 | Method · Offset(LSB) · Wait(s) · Relative Position X(um) · Relative Position Y(um) · Mag · Threshold · Charging Voltage |
@@ -607,11 +615,18 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
   씁니다. cond.txt 는 **값**에 쓰고(`'500 V'`), AMP 는 **아예 안 씁니다**
   (`'266.1'`). 파일 3개가 규칙 3개이므로, 어느 쪽도 가정하면 안 됩니다.
 
-★ 오타로 보이는 key 2개 (OFFICE-VERIFY)
+★ 이상해 보이는 철자는 **매번 되물어야 합니다**
 
-  `Pre does` 는 "Pre dose"(전자 pre-dose), `Measurement Excution` 은
-  "Execution" 의 오타로 읽힙니다. `Edge_Search_Direct.` 와 같은 이유로
-  **그대로** 씁니다.
+  2026-07-30 에 이상해 보이는 key 4개를 지목했고, 그중 **3개가 우리 쪽 전달
+  오타**였습니다 — `Base_Line_Start_Pint` → `Point`, `Pre does` → `Pre Dose`,
+  `Measurement Excution` → `Measurement Execution`. 장비 쪽 표기가 맞았던 것은
+  `Edge_Search_Direct.` **하나뿐**입니다.
+
+  처음의 본능은 4개를 다 "장비 오타이니 보존" 하는 것이었고, 그대로 갔다면
+  사무실이 보내지 않는 key 3개를 계약으로 굳힐 뻔했습니다. 비용이 한쪽으로만
+  큽니다 — 보존한 오타는 사무실이 절대 보내지 않는 key 이고, 화면은 오류 없이
+  그 줄만 조용히 비웁니다. 그래서 이상한 철자는 보존하기 전에 **질문 한 번**이
+  항상 남는 장사입니다.
 
 ★ row 의 정체는 (section, key) 이지 key 가 아닙니다
 
@@ -626,10 +641,36 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
   손대지 않았습니다), frontend 의 비교 화면은 `settingRowId()` 로 (section, key)
   를 묶어 식별합니다.
 
-OFFICE-VERIFY: **값은 아직 못 봤습니다.** key 이름만 확인되었습니다. mock 은
-모든 값에 AMP 의 값 미확인 key 와 같은 **합성 hex** 를 넣습니다. key 이름에서
-형식을 추론하는 것(`Wait(s)` 이니 숫자겠지)은 AmpRow 의 16개 가짜 field 를
-만들어 낸 바로 그 추론이므로 하지 않습니다.
+★ ENMP 의 값은 **전부 str 이 아닙니다** (office 확인 2026-07-30)
+
+  `measurement_focusing` 한 group 의 값을 확인한 결과입니다.
+
+  | key | type | 예시 |
+  | --- | --- | --- |
+  | Wait(s) | **float** | — |
+  | Offset(LSB) | str | — |
+  | Method | str | `'Fast2'` |
+  | Relative Position X(um) | **float** | `2.0` |
+  | Relative Position Y(um) | **float** | — |
+  | Mag | str | — |
+
+  float 과 str 이 **한 group 안에서 섞입니다**. cond.txt 와 AMP 는 실제로 전부
+  str 이므로, "reader 는 문자열을 준다" 는 그 두 파일에 대한 사실이었지 이
+  pipeline 의 성질이 아니었습니다.
+
+  `SettingRow.value` 는 그대로 str 입니다 — adapter 의 `_to_rows` 가 전부
+  문자열로 바꾸기 때문입니다(float `2.0` 은 화면에 `'2.0'` 으로 도착합니다).
+  코드는 고칠 것이 없지만, **reader 가 문자열을 돌려준다고 가정하면 안 됩니다.**
+
+  ★ `Method` 는 ENMP 에서 `'Fast2'` 이고 AMP 에서는 `'Linear'` 입니다. key 이름이
+    같아도 **파일이 다르면 값의 어휘가 다릅니다.** 다른 파일의 값을 가져다 쓰지
+    않습니다.
+
+OFFICE-VERIFY: **나머지 7개 group 의 값**은 아직 못 봤습니다. mock 은 그 값들에
+AMP 의 값 미확인 key 와 같은 **합성 hex** 를 넣습니다. key 이름에서 형식을
+추론하는 것(`Wait(s)` 이니 숫자겠지)은 AmpRow 의 16개 가짜 field 를 만들어 낸
+바로 그 추론입니다 — 실제로 확인된 유일한 group 에서도 놀라운 점은 크기가 아니라
+**dtype** 이었습니다.
 
 ★ 이 key 이름들은 **바뀔 수 있습니다** (user-noted 2026-07-30)
 

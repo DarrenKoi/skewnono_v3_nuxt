@@ -248,8 +248,15 @@ def test_condition_values_are_strings_carrying_their_own_units():
 
 
 def test_field_size_never_contradicts_magnification():
-    """The two are one setting seen twice (4.499 um at 30000x). Drawn
-    independently they would render a table that disagrees with itself."""
+    """Guards the MOCK's internal consistency, not a documented office rule.
+
+    One SEM sample read 4.499 um at 30000x and the office cannot confirm the
+    relationship for now (2026-07-30), so it is deferred rather than
+    established. The product stays because the alternative — drawing the two
+    independently — asserts they are UNRELATED, equally unverified and worse:
+    the screen would show a field size contradicting its own magnification.
+    The office adapter neither knows nor uses this.
+    """
     for slot in ("IMMS0001", "IMMS0002", "IMMS0009"):
         rows = {
             row["key"]: row["value"]
@@ -295,7 +302,7 @@ def test_amp_keys_with_no_confirmed_value_are_visibly_synthetic():
 
     for key in ("Search_Area", "Inspect_Area", "Smoothing",
                 "Differential", "Sum_Line_Point", "Target"):
-        assert re.fullmatch(r"[0-9A-F]{4}", rows[key]), (key, rows[key])
+        assert re.fullmatch(r"[A-F][0-9A-F]{3}", rows[key]), (key, rows[key])
 
 
 def test_amp_reproduces_the_office_key_spellings_including_their_typos():
@@ -350,7 +357,7 @@ def test_af_pr_groups_carry_the_office_key_names():
             "Relative Position X(um)", "Relative Position Y(um)", "Mag",
         ]
         assert grouped["sequence_measurement"] == [
-            "Focusing", "Pattern Recognition", "Measurement Excution", "Image Save",
+            "Focusing", "Pattern Recognition", "Measurement Execution", "Image Save",
         ]
         return
     raise AssertionError("no parameter produced a measurement group")
@@ -387,14 +394,49 @@ def test_one_key_name_recurs_across_groups_and_files():
     assert "Acceptance" in [row["key"] for row in enap["rows"]]
 
 
-def test_af_pr_values_are_all_still_unseen():
-    """Only ENMP's key NAMES have been read. Inferring a format from a key
-    ('Wait(s)' is surely a number) is the reasoning that produced AmpRow's
-    sixteen invented fields, so every value renders as an obvious placeholder."""
-    rows = _detail({"img_add2": "PRMP0001"})["af_pr"]["rows"]
+def test_only_the_seen_af_pr_group_carries_real_values():
+    """measurement_focusing's values were read (office 확인 2026-07-30); every
+    other group's are still unseen and render as obvious placeholders.
 
-    assert rows
-    assert all(re.fullmatch(r"[0-9A-F]{4}", row["value"]) for row in rows)
+    Inferring a format from a key name ('Wait(s)' is surely a number) is the
+    reasoning that produced AmpRow's sixteen invented fields — and for the one
+    group we HAVE seen, the surprise was the dtype rather than the magnitude.
+    """
+    for seq in range(1, 40):
+        rows = _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]
+        focusing = {r["key"]: r["value"] for r in rows
+                    if r["section"] == "measurement_focusing"}
+        if not focusing:
+            continue
+
+        assert focusing["Method"] == "Fast2"
+        # float in the reader, stringified by the adapter — '2.0', not '2'.
+        assert re.fullmatch(r"-?\d+\.\d", focusing["Relative Position X(um)"])
+        assert re.fullmatch(r"\d+\.\d", focusing["Wait(s)"])
+        # Same group, still-unseen values.
+        assert re.fullmatch(r"[A-F][0-9A-F]{3}", focusing["Mag"])
+
+        other = [r for r in rows if r["section"] != "measurement_focusing"]
+        assert other
+        assert all(re.fullmatch(r"[A-F][0-9A-F]{3}", r["value"]) for r in other)
+        return
+    raise AssertionError("no parameter produced measurement_focusing")
+
+
+def test_af_pr_method_does_not_borrow_the_amp_vocabulary():
+    """'Method' is 'Fast2' in ENMP and 'Linear' in AMP — same key name, two
+    files, two domains. A value is never carried across from another file."""
+    amp = {r["key"]: r["value"] for r in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]}
+    assert amp["Method"] == "Linear"
+
+    for seq in range(1, 40):
+        rows = _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]
+        focusing = [r for r in rows if r["section"] == "measurement_focusing"]
+        if not focusing:
+            continue
+        assert {r["value"] for r in focusing if r["key"] == "Method"} == {"Fast2"}
+        return
+    raise AssertionError("no parameter produced measurement_focusing")
 
 
 def test_enmp_puts_its_units_in_the_key_name():
