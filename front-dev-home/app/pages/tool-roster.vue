@@ -356,7 +356,7 @@ const copyIpList = async () => {
   toast.add(
     ok
       ? {
-          title: `IP ${text.split('\n').length}건이 복사되었습니다`,
+          title: `IP ${text.split('\n').filter(Boolean).length}건이 복사되었습니다`,
           icon: 'i-lucide-check',
           color: 'success'
         }

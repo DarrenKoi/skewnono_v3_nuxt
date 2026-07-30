@@ -29,9 +29,13 @@ export const CATEGORY_TO_TOOL_TYPE: Record<SkewvoirCategory, MeasHistToolType> =
 }
 
 // Mirrors classifyToolType (utils/toolType.ts) / TOOL_SPECS (_tool_specs.py)
-// for the two families skewvoir indexes. Local copy because this util is
-// node:test-runnable and must not pull the runtime-config imports of
-// useSemListApi at module load.
+// for the two families skewvoir indexes. Local copy because categoryOfModel
+// is not the same function as classifyToolType: it returns
+// SkewvoirCategory | null and returns null for VeritySEM/Provision, which
+// classifyToolType resolves to 'verity-sem' / 'provision'. A mechanical
+// import swap would therefore be a behavior regression (AMAT models would
+// start passing as a skewvoir category); unifying them needs a narrowing
+// map, not an import, and is tracked separately.
 export const categoryOfModel = (eqpModelCd: string): SkewvoirCategory | null => {
   if (eqpModelCd.startsWith('CG') || eqpModelCd.startsWith('GT')) return 'CD-SEM'
   if (eqpModelCd.startsWith('TP')) return 'HV-SEM'
