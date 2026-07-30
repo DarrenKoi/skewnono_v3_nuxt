@@ -26,6 +26,9 @@ export interface HeaderLink {
 export const HEADER_LINKS: HeaderLink[] = [
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '소개' },
   { to: '/endpoints', icon: 'i-lucide-plug', label: 'API 리스트' },
+  // network: 이 화면이 다루는 것이 장비의 네트워크 연결 상태 — 방화벽이 열려
+  // skewnono 가 닿을 수 있는지 — 그 자체입니다.
+  { to: '/tool-roster', icon: 'i-lucide-network', label: '미연결 장비' },
   // scan-search: 스캔 프레임(FOV) 안의 돋보기(배율) — 이 페이지가 답하는
   // "패턴이 화면에 들어오는 한도에서 가장 높은 배율" 그 자체입니다. 자(ruler)는
   // 길이를 재는 뜻이라 배율·픽셀 선택과는 어긋났습니다. 헤더의 다른 돋보기
