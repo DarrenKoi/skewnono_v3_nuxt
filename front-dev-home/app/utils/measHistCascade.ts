@@ -28,7 +28,7 @@ export const CATEGORY_TO_TOOL_TYPE: Record<SkewvoirCategory, MeasHistToolType> =
   'HV-SEM': 'hv-sem'
 }
 
-// Mirrors classifyToolType (useSemListApi.ts) / TOOL_SPECS (_tool_specs.py)
+// Mirrors classifyToolType (utils/toolType.ts) / TOOL_SPECS (_tool_specs.py)
 // for the two families skewvoir indexes. Local copy because this util is
 // node:test-runnable and must not pull the runtime-config imports of
 // useSemListApi at module load.

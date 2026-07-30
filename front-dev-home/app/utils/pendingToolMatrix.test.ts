@@ -68,6 +68,15 @@ test('filterByGroup narrows to one tool type', () => {
   assert.deepEqual(filterByGroup(rows, 'hv-sem').map(r => r.eqp_id), ['C'])
 })
 
+test('filterByGroup narrows to unclassified', () => {
+  // The domain-critical case: this is the bucket that keeps an unrecognized
+  // model type from silently vanishing off the arrivals screen. A sentinel
+  // mismatch here would make this filter always return [] with nothing else
+  // to catch it.
+  const rows = [tool('A', 'CG6380', 'M16A'), tool('F', 'ZZ9000', 'M16A')]
+  assert.deepEqual(filterByGroup(rows, 'unclassified').map(r => r.eqp_id), ['F'])
+})
+
 test('buildPendingToolMatrix cross-tabulates fab against model', () => {
   const matrix = buildPendingToolMatrix([
     tool('A', 'CG6380', 'M16A'),
@@ -102,6 +111,11 @@ test('buildPendingToolMatrix buckets a blank fab as 미배정 and sorts it last'
 
   assert.deepEqual(matrix.fabs, ['M16A', UNASSIGNED_FAB])
   assert.equal(matrix.total, 2)
+  // Proves the 미배정 row's tool actually lands in the grid, not just that the
+  // bucket earns a label — if the counts loop indexed by raw row.fab_name
+  // instead of fabLabel(row.fab_name), this row would come out all-zero.
+  assert.deepEqual(matrix.counts, [[1], [1]])
+  assert.deepEqual(matrix.fabTotals, [1, 1])
 })
 
 test('buildPendingToolMatrix on no rows is empty, not a crash', () => {
