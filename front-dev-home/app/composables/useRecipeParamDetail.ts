@@ -18,6 +18,18 @@ import type { IdpLocator } from './useRecipeSearchApi.ts'
 export interface SettingRow {
   key: string
   value: string
+  /**
+   * Which nested group this row came from, for readers that return a dict OF
+   * dicts. ENMP (`af_pr`) is the only one today — eight groups covering the
+   * addressing and measurement sequences (office 확인 2026-07-30). The other
+   * four readers are flat and omit this entirely.
+   *
+   * ★ A row's identity is (section, key), NOT key. Addressing pass 1 and pass 2
+   *   are the same kind of settings twice, so they carry the SAME inner keys;
+   *   anything deduping or joining on key alone shows pass 1's value under both
+   *   headings without erroring. See `settingRowId` in `utils/recipeCompare`.
+   */
+  section?: string | null
 }
 
 export interface SettingBlock {

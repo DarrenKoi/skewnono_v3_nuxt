@@ -9,9 +9,15 @@ from back_dev_home.ebeam.hitachi.recipe_search import contracts
 
 
 def test_setting_block_is_open_key_value():
-    """Open rows, not fixed columns: the readers' real field names are still
-    OFFICE-VERIFY, and an unknown key must render rather than vanish."""
-    assert set(contracts.SettingRow.__annotations__) == {"key", "value"}
+    """Open rows, not fixed columns: an unknown key must render rather than
+    vanish. Two of the five readers still have unconfirmed field names, and the
+    three that were confirmed on 2026-07-30 needed no contract change at all.
+
+    ``section`` is the one addition, for ENMP's grouped output, and it is
+    NotRequired precisely so the four flat readers stay untouched.
+    """
+    assert set(contracts.SettingRow.__annotations__) == {"key", "value", "section"}
+    assert contracts.SettingRow.__optional_keys__ == frozenset({"section"})
     assert set(contracts.SettingBlock.__annotations__) == {"source", "rows"}
 
 

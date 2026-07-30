@@ -21,6 +21,49 @@ def test_a_dict_becomes_rows_in_insertion_order():
     ]
 
 
+def test_a_dict_of_dicts_becomes_rows_tagged_with_their_group():
+    """ENMP (read_af_pr_condition) returns eight NESTED groups
+    (office 확인 2026-07-30). Before this, str() flattened each inner dict into
+    one unreadable "{'a': 1}" cell."""
+    parsed = {
+        "sequence_measurement": {"Mode": "Auto"},
+        "measurement_focusing": {"Mode": "Off", "Retry": 2},
+    }
+
+    assert office._to_rows(parsed) == [
+        {"key": "Mode", "value": "Auto", "section": "sequence_measurement"},
+        {"key": "Mode", "value": "Off", "section": "measurement_focusing"},
+        {"key": "Retry", "value": "2", "section": "measurement_focusing"},
+    ]
+
+
+def test_two_groups_sharing_an_inner_key_stay_separate_rows():
+    """Addressing pass 1 and pass 2 are the same settings twice, so they carry
+    identical inner keys. Collapsing them would show pass 1's value twice."""
+    rows = office._to_rows({
+        "addressing_auto_focus1": {"Acceptance": "200"},
+        "addressing_auto_focus2": {"Acceptance": "150"},
+    })
+
+    assert [row["value"] for row in rows] == ["200", "150"]
+    assert len({row["section"] for row in rows}) == 2
+
+
+def test_a_flat_pair_beside_grouped_ones_keeps_its_own_row():
+    """Tolerated rather than rejected: dropping it would hide a setting the
+    office does send, and no shape here has been seen twice yet."""
+    rows = office._to_rows({"Version": "3", "measurement_focusing": {"Mode": "Off"}})
+
+    assert rows[0] == {"key": "Version", "value": "3"}
+    assert rows[1]["section"] == "measurement_focusing"
+
+
+def test_a_flat_dict_gains_no_section():
+    """The four flat readers must be untouched — that is what keeps their
+    tables rendering byte-identically to before."""
+    assert all("section" not in row for row in office._to_rows({"A": 1, "B": 2}))
+
+
 def test_a_single_row_dataframe_becomes_column_rows():
     frame = pd.DataFrame([{"Mag": "50.0K", "Vacc": 800}])
     assert office._to_rows(frame) == [

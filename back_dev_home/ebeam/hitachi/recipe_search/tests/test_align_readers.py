@@ -160,6 +160,59 @@ def test_a_reader_that_raises_costs_only_the_settings(readers, fetched, monkeypa
 # ── splitting one batch return across the points ──────────────────────────
 
 
+def test_an_optic_keyed_return_is_split_by_optic():
+    """THE confirmed shape (office 확인 2026-07-30): the reader keys its return
+    {"OM": ..., "SEM": ...}, which is what makes it splittable at all — P.No 1
+    is OM and P.No 2 is SEM."""
+    parsed = {"OM": {"Acceptance": "200"}, "SEM": {"Acceptance": "150"}}
+    blocks = office._split_align_settings(
+        parsed, ["ENAP0001", "ENAP0002"], {"ENAP0001": "OM", "ENAP0002": "SEM"},
+    )
+
+    assert blocks["ENAP0001"]["rows"] == [{"key": "Acceptance", "value": "200"}]
+    assert blocks["ENAP0002"]["rows"] == [{"key": "Acceptance", "value": "150"}]
+    assert blocks["ENAP0001"]["source"] == "ENAP0001"
+
+
+def test_the_optic_branch_wins_over_the_positional_guess():
+    """Both readings apply to a 2-key dict for 2 files, and they disagree: by
+    optic ENAP0002 gets SEM's value, positionally it would get whichever key
+    came second. The confirmed shape has to be the one that fires."""
+    parsed = {"SEM": {"Acceptance": "150"}, "OM": {"Acceptance": "200"}}
+    blocks = office._split_align_settings(
+        parsed, ["ENAP0001", "ENAP0002"], {"ENAP0001": "OM", "ENAP0002": "SEM"},
+    )
+
+    assert blocks["ENAP0001"]["rows"] == [{"key": "Acceptance", "value": "200"}]
+
+
+def test_a_point_with_no_optic_is_left_out_rather_than_guessed(caplog):
+    """P.No 3 has no optic, so there is no key to look its settings up under.
+    Attaching either optic's block would show one instrument's settings under
+    another's heading — the same rule the image condition follows."""
+    parsed = {"OM": {"Acceptance": "200"}, "SEM": {"Acceptance": "150"}}
+    with caplog.at_level(logging.INFO):
+        blocks = office._split_align_settings(
+            parsed,
+            ["ENAP0001", "ENAP0003"],
+            {"ENAP0001": "OM", "ENAP0003": None},
+        )
+
+    assert "ENAP0001" in blocks
+    assert "ENAP0003" not in blocks
+    assert "ENAP0003" in caplog.text
+
+
+def test_the_optic_lookup_tolerates_a_casing_difference():
+    """"OM"/"SEM" is a label the adapter passes IN to the sibling reader;
+    nothing guarantees this one echoes the same casing back."""
+    blocks = office._split_align_settings(
+        {"om": {"Acceptance": "200"}}, ["ENAP0001"], {"ENAP0001": "OM"},
+    )
+
+    assert blocks["ENAP0001"]["rows"] == [{"key": "Acceptance", "value": "200"}]
+
+
 def test_a_parallel_sequence_is_zipped_onto_the_points_in_order():
     blocks = office._split_align_settings([{"A": 1}, {"B": 2}], ["ENAP0001", "ENAP0002"])
 

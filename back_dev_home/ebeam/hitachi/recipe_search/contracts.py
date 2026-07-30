@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 __all__ = [
@@ -101,7 +101,23 @@ IdpLocator = TypedDict("IdpLocator", {
 # sixteen optical fields were named at home and never seen in a real file.
 SettingRow = TypedDict("SettingRow", {
     "key": str,
-    "value": str
+    "value": str,
+    # Which nested group this row came from, for readers that return a dict OF
+    # dicts rather than a flat one. ENMP (read_af_pr_condition) is the only such
+    # reader today: it returns eight groups — the addressing and measurement
+    # sequences, their pattern-recognition settings and their auto-focus
+    # settings (office 확인 2026-07-30).
+    #
+    # NotRequired, so the four FLAT readers construct their rows exactly as
+    # before and render byte-identically. Absent and None mean the same thing:
+    # this row belongs to no group.
+    #
+    # ★ The row's identity is (section, key), NOT key. Two groups routinely
+    #   carry the SAME inner key — addressing pass 1 and pass 2 are the same
+    #   kind of settings twice — so anything that dedupes or joins on key alone
+    #   silently collapses pass 2 into pass 1 and shows one pass's value under
+    #   both. recipeCompare.ts's buildSettingRows is where that matters.
+    "section": NotRequired[str | None]
 })
 
 SettingBlock = TypedDict("SettingBlock", {

@@ -127,6 +127,53 @@ test('buildSettingRows keeps the readers key order, first seen first', () => {
   assert.deepEqual(rows.map(r => r.key), ['Zeta', 'Alpha'])
 })
 
+/** An ENMP block: nested groups, and pass 1 / pass 2 share their inner keys. */
+const detailWithSections = (focus1: string, focus2: string): CompareParamDetail => ({
+  parameter: 'WAFER',
+  amp: null,
+  af_pr: {
+    source: 'ENMP0001',
+    rows: [
+      { key: 'Acceptance', value: focus1, section: 'addressing_auto_focus1' },
+      { key: 'Acceptance', value: focus2, section: 'addressing_auto_focus2' },
+      { key: 'Acceptance', value: 'm', section: 'measurement_focusing' }
+    ]
+  },
+  images: []
+})
+
+test('buildSettingRows keeps two groups sharing an inner key apart', () => {
+  // The bug this guards: identity used to be `row.key` alone, so addressing
+  // pass 2 collapsed into pass 1 and the table showed pass 1's value twice —
+  // no error, no blank cell, just a confidently wrong number.
+  const rows = buildSettingRows([detailWithSections('p1', 'p2')], 'img_add2')
+
+  assert.equal(rows.length, 3)
+  assert.deepEqual(rows.map(r => r.section), [
+    'addressing_auto_focus1', 'addressing_auto_focus2', 'measurement_focusing'
+  ])
+  assert.deepEqual(rows.map(r => r.values[0]), ['p1', 'p2', 'm'])
+  // The label stays the bare key — the section is what disambiguates it.
+  assert.deepEqual(rows.map(r => r.label), ['Acceptance', 'Acceptance', 'Acceptance'])
+})
+
+test('buildSettingRows matches grouped rows across recipes by group AND key', () => {
+  const rows = buildSettingRows(
+    [detailWithSections('p1', 'p2'), detailWithSections('p1', 'CHANGED')],
+    'img_add2'
+  )
+
+  // Only pass 2 differs. Keyed by bare key, both recipes would have resolved
+  // every row to their own pass 1 and nothing would have read as differing.
+  assert.deepEqual(rows.map(r => r.differs), [false, true, false])
+})
+
+test('flat blocks are untouched by the section change', () => {
+  const rows = buildSettingRows([detailWith({ Mag: '50.0K' })], 'img_meas1')
+  assert.equal(rows[0]?.key, 'Mag')
+  assert.equal(rows[0]?.section, null)
+})
+
 test('blockForSlot routes img_meas2 to amp and img_add2 to af_pr', () => {
   // Neither names an image: PRMS0000 IS the amp file, and PRMP0000 resolves
   // (PR -> EN) to the AF/PR condition. (user-confirmed 2026-07-29)

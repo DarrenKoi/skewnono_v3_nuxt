@@ -1,5 +1,5 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
-import type { ParamDetail, SettingBlock } from '../composables/useRecipeParamDetail.ts'
+import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
 
 // Relative `.ts` specifiers, not the `~` alias: `node --test` cannot resolve
@@ -95,11 +95,33 @@ export function commonParameters(rows: OverlapRow[]): string[] {
 const MISSING = '없음'
 
 export interface MatrixRow {
+  /** Row identity. For settings this is `settingRowId(row)`, not the bare key. */
   key: string
   label: string
   unit?: string
+  /** Group heading, for the one reader that returns nested settings. */
+  section?: string | null
   values: string[]
   differs: boolean
+}
+
+/**
+ * A setting row's identity across recipes: its group AND its key.
+ *
+ * Keying on `row.key` alone is wrong for `af_pr`, the one block whose reader
+ * returns nested groups: `addressing_pattern_recognition1` and
+ * `addressing_pattern_recognition2` are the same settings for two addressing
+ * passes and therefore carry identical inner keys. Deduping by key would drop
+ * pass 2's rows and then render pass 1's values under both headings — no error,
+ * no empty cell, just the wrong number shown confidently.
+ *
+ * The separator is NUL rather than a space or a dot: ENAP's `Auto Focus` proves
+ * office keys contain spaces, and confirmed keys are underscore- and even
+ * dot-adjacent (`Edge_Search_Direct.`), so only a character the files cannot
+ * hold is safe from collapsing two distinct rows into one.
+ */
+export function settingRowId(row: SettingRow): string {
+  return row.section ? `${row.section}\u0000${row.key}` : row.key
 }
 
 interface IdpFieldDescriptor {
@@ -154,19 +176,31 @@ export function buildSettingRows(
   slot: ImageSlotKey
 ): MatrixRow[] {
   const blocks = details.map(detail => blockForSlot(detail, slot))
-  const keys: string[] = []
+  const ids: string[] = []
+  const seen = new Map<string, SettingRow>()
   for (const block of blocks) {
     for (const row of block?.rows ?? []) {
-      if (!keys.includes(row.key)) keys.push(row.key)
+      const id = settingRowId(row)
+      if (!seen.has(id)) {
+        ids.push(id)
+        seen.set(id, row)
+      }
     }
   }
-  return keys.map((key) => {
+  return ids.map((id) => {
     const values = blocks.map((block) => {
       if (!block) return MISSING
-      const row = block.rows.find(r => r.key === key)
+      const row = block.rows.find(r => settingRowId(r) === id)
       return row ? formatSettingValue(row.value) : MISSING
     })
-    return { key, label: key, values, differs: cellsDiffer(values) }
+    const row = seen.get(id)!
+    return {
+      key: id,
+      label: row.key,
+      section: row.section ?? null,
+      values,
+      differs: cellsDiffer(values)
+    }
   })
 }
 
@@ -244,7 +278,11 @@ export function buildCompareWorkbook(
         recipe => details.get(compareDetailKey(recipe.recipe_id, parameter)) ?? null
       )
       for (const r of buildSettingRows(forParameter, slot.key)) {
-        rows.push([parameter, r.label, ...r.values])
+        // Grouped settings (af_pr) are qualified rather than rendered as a
+        // heading: a sheet is flat, and two addressing passes carry the same
+        // inner keys, so a bare label would put identical `attr` values on rows
+        // that mean different things.
+        rows.push([parameter, r.section ? `${r.section}.${r.label}` : r.label, ...r.values])
       }
     }
     sheets.push({ name: slot.stage, rows })

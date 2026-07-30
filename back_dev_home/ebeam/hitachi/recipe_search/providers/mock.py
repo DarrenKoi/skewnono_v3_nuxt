@@ -300,16 +300,12 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
 # frontend to expect columns the office may never send — exactly how AmpRow's
 # sixteen invented fields went unquestioned for months.
 #
-# Three readers have LEFT this group, all confirmed by running
-# scripts/probe_recipe_ftp.py at the office (2026-07-30): both cond.txt readers
-# and read_amp_info. Their fields are named below rather than counted.
-# read_af_pr_condition (ENMP…) and get_align_beam_pr_conditions (ENAP…) remain.
-_AFPR_FIELDS = 6
-# ENAP goes to get_align_beam_pr_conditions, a DIFFERENT function from the
-# parameter-side readers, so its block keeps its own prefix. A block that says
-# AFPR_ under an align point means somebody routed ENAP to read_af_pr_condition
-# again — the mistake the adapter actually made until 2026-07-29.
-_ALIGNPR_FIELDS = 4
+# ALL FIVE readers were run against real files at the office (2026-07-30) via
+# scripts/probe_recipe_ftp.py, so nothing here is a bare count any more. What
+# remains unknown is narrower: ENMP's GROUP names are confirmed but the keys
+# INSIDE each group are not, so those alone still carry placeholder names —
+# see _AFPR_FIELDS_PER_SECTION.
+_AFPR_FIELDS_PER_SECTION = 3
 
 # ── cond.txt (office 확인 2026-07-30) ──────────────────────────────────────
 #
@@ -526,6 +522,107 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
     }
 
 
+# ── ENMP…, the AF/PR file (office 확인 2026-07-30) ─────────────────────────
+#
+# read_af_pr_condition is the ONE reader that returns a dict OF DICTS rather
+# than a flat mapping. Eight groups, which is why SettingRow grew an optional
+# ``section``: flattening them would put two passes of the same settings under
+# one heading, and dotting the names together would leave the grouping
+# recoverable only by string-splitting.
+#
+# A recipe measures in a basic sequence — addressing, then measurement — and
+# addressing runs NONE, ONCE or TWICE depending on the parameter. That choice is
+# what decides which groups are present, so the group list is not fixed:
+_AFPR_MEASUREMENT_SECTIONS: tuple[str, ...] = (
+    "sequence_measurement",
+    "measurement_pattern_recognition",
+    "measurement_focusing",
+)
+# Present only when addressing runs at least once. sequence_addressing is the
+# addressing half of the basic sequence, so it appears with the first pass.
+_AFPR_ADDRESSING_SECTIONS: tuple[tuple[str, ...], ...] = (
+    ("sequence_addressing", "addressing_auto_focus1", "addressing_pattern_recognition1"),
+    ("addressing_auto_focus2", "addressing_pattern_recognition2"),
+)
+
+# OFFICE-VERIFY, two separate things:
+#
+# 1. WHICH groups vanish for addressing=none. Confirmed: the addressing choice
+#    decides. Inferred: that sequence_addressing goes with pass 1, and that the
+#    three measurement groups are always present. Both are the reading that
+#    makes sense of "basic sequence (addressing -> measurement)" but neither was
+#    seen absent.
+# 2. The KEYS INSIDE each group. Not seen at all, so they are emitted with
+#    placeholder names — a group with real settings under invented key names
+#    would look complete and be wrong, which is the AmpRow failure again.
+
+
+def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
+    """The groups this parameter's ENMP carries, for 0, 1 or 2 addressing passes.
+
+    Office-side the passes are whatever the file itself contains. Here they are
+    drawn from the block's seed, because get_param_detail is handed only the
+    slot names — the idp_image_info row's Addressing / Double_Addressing flags,
+    which are the same fact, stay on the client. Seeded, so a parameter's group
+    list does not change between two views of the same recipe.
+    """
+    passes = rng.choice((0, 1, 1, 2))
+    return tuple(
+        section
+        for group in _AFPR_ADDRESSING_SECTIONS[:passes]
+        for section in group
+    ) + _AFPR_MEASUREMENT_SECTIONS
+
+
+def _afpr_block(source: str | None, *scope: str) -> SettingBlock | None:
+    """The ENMP… AF/PR file: real GROUP names, placeholder keys within them."""
+    if source is None:
+        return None
+    rng = _seeded_rng(source, *scope)
+    return {
+        "source": source,
+        "rows": [
+            {
+                "key": f"AFPR_FIELD_{index + 1}",
+                "value": _unknown_value(rng),
+                "section": section,
+            }
+            for section in _afpr_sections(rng)
+            for index in range(_AFPR_FIELDS_PER_SECTION)
+        ]
+    }
+
+
+# ── ENAP…, the align beam/PR file (office 확인 2026-07-30) ─────────────────
+#
+# get_align_beam_pr_conditions takes the whole ENAP list in one call and returns
+# a dict keyed by OPTIC — {"OM": {...}, "SEM": {...}} — which settles the
+# question the adapter was built to hedge against: its result CAN be split per
+# align point, because P.No 1 is OM and P.No 2 is SEM.
+#
+# Both optics carry the same two keys. Note the SPACE in "Auto Focus": the only
+# key across all five readers that is not underscore-joined, so nothing may
+# assume identifier-shaped keys.
+_ALIGNPR_FIELDS: tuple[tuple[str, object], ...] = (
+    ("Acceptance", lambda r: str(r.choice((100, 150, 200, 250)))),
+    ("Auto Focus", lambda _: "OFF"),
+)
+
+
+def _alignpr_block(source: str | None, *scope: str) -> SettingBlock | None:
+    """One align point's ENAP block (office 확인 2026-07-30)."""
+    if source is None:
+        return None
+    rng = _seeded_rng(source, *scope)
+    return {
+        "source": source,
+        "rows": [
+            {"key": key, "value": generate(rng)}
+            for key, generate in _ALIGNPR_FIELDS
+        ]
+    }
+
+
 def _block(source: str | None, prefix: str, count: int, *scope: str) -> SettingBlock | None:
     """Fabricated settings for one raw file, or None when the slot names none.
 
@@ -595,7 +692,7 @@ def get_param_detail(
         out.append({
             "parameter": item.get("parameter", ""),
             "amp": _amp_block(amp, *scope),
-            "af_pr": _block(af_pr, "AFPR", _AFPR_FIELDS, *scope),
+            "af_pr": _afpr_block(af_pr, *scope),
             "images": [
                 {
                     "slot": slot,
@@ -650,7 +747,7 @@ def get_align_detail(
                 optics,
                 scope,
             ) if (optics := rawfiles.align_optics(p_no)) else None,
-            "setting": _block(setting, "ALIGNPR", _ALIGNPR_FIELDS, scope)
+            "setting": _alignpr_block(setting, scope)
         })
     return {"points": points}
 

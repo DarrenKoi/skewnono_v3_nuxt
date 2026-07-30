@@ -308,6 +308,68 @@ def test_amp_reproduces_the_office_key_spellings_including_their_typos():
     assert "Base_Line_Start_Pint" in keys
 
 
+def test_af_pr_rows_are_grouped_into_the_office_section_names():
+    """ENMP is the one reader returning a dict OF dicts (office 확인 2026-07-30).
+    The groups are real; the keys inside them are still placeholders."""
+    sections: set[str] = set()
+    for seq in range(1, 30):
+        block = _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]
+        sections |= {row["section"] for row in block["rows"]}
+
+    assert sections <= {
+        "sequence_addressing", "sequence_measurement",
+        "measurement_pattern_recognition", "measurement_focusing",
+        "addressing_auto_focus1", "addressing_pattern_recognition1",
+        "addressing_auto_focus2", "addressing_pattern_recognition2",
+    }
+    # The measurement half runs whatever the addressing choice is.
+    assert {"sequence_measurement", "measurement_pattern_recognition",
+            "measurement_focusing"} <= sections
+
+
+def test_af_pr_addressing_groups_appear_in_pass_order():
+    """Addressing runs none, once or twice, and pass 2's groups can never show
+    up without pass 1's — otherwise the screen implies a second pass that the
+    basic sequence never ran."""
+    for seq in range(1, 40):
+        sections = {
+            row["section"]
+            for row in _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]
+        }
+        if "addressing_auto_focus2" in sections:
+            assert "addressing_auto_focus1" in sections, seq
+            assert "sequence_addressing" in sections, seq
+
+
+def test_only_af_pr_carries_sections():
+    """The other four readers are flat, so their rows must not grow a section —
+    that is what keeps their tables rendering exactly as before."""
+    detail = _detail({"img_meas2": "PRMS0001", "img_meas1": "IMMS0001"})
+
+    assert all("section" not in row for row in detail["amp"]["rows"])
+    assert all("section" not in row for row in detail["images"][0]["cond"]["rows"])
+
+
+def test_align_setting_carries_the_two_enap_fields():
+    """get_align_beam_pr_conditions returns {'OM': ..., 'SEM': ...} and both
+    optics carry the same two keys (office 확인 2026-07-30)."""
+    points = mock.get_align_detail(LOCATOR, [1, 2])["points"]
+
+    for point in points:
+        rows = {row["key"]: row["value"] for row in point["setting"]["rows"]}
+        assert set(rows) == {"Acceptance", "Auto Focus"}
+        assert rows["Acceptance"].isdigit()
+        assert rows["Auto Focus"] == "OFF"
+
+
+def test_an_office_key_contains_a_space():
+    """'Auto Focus' is the only confirmed key across all five readers that is
+    not underscore-joined, so nothing may assume identifier-shaped keys."""
+    rows = mock.get_align_detail(LOCATOR, [1])["points"][0]["setting"]["rows"]
+
+    assert any(" " in row["key"] for row in rows)
+
+
 def test_paired_values_keep_the_separator_the_tool_wrote():
     """Coordinates use ', ' and Pixel a bare ',' — a real inconsistency in the
     file that the screen shows verbatim rather than tidying up."""

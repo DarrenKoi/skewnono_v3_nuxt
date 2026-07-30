@@ -366,10 +366,11 @@ align point 의 파일은 **일반 parameter 와 다른 함수**로 읽습니다
 get_align_beam_pr_conditions 는 파일 하나가 아니라 **align point 전체의 ENAP
 목록**을 한 번에 받습니다. 그래서 호출도 point 당 1회가 아니라 recipe 당 1회입니다.
 
-OFFICE-VERIFY: 이 함수의 **반환 구조**는 아직 모릅니다. 입력 순서대로 된 list 인지,
-파일 이름을 key 로 하는 dict 인지, 아니면 align 전체를 하나로 합친 값인지에 따라
-point 별로 나눌 수 있는지가 갈립니다. adapter 는 세 경우를 모두 받아들이되,
-나눌 수 없을 때는 WARNING 을 남기고 전체를 모든 point 에 같은 block 으로 붙입니다.
+이 함수의 **반환 구조**는 2026-07-30 에 확인되었습니다: `{"OM": ..., "SEM": ...}`
+이며 point 별로 나눌 수 있습니다. 아래 "ENAP… — align beam/PR 은 optic 으로
+나뉩니다" 절을 참고하십시오. (2026-07-30 이전에는 이 자리에 "반환 구조를 모른다"
+는 OFFICE-VERIFY 가 있었고, adapter 는 나눌 수 없는 경우 전체를 모든 point 에
+같은 block 으로 붙이도록 되어 있었습니다. 그 폴백은 지우지 않고 남겨 두었습니다.)
 
 which 인자 (user-confirmed 2026-07-29)
 --------------------------------------
@@ -566,16 +567,79 @@ cond.txt 와 다른 점 2가지
   key 층에서 저질렀던 AmpRow 의 실수를 값 층에서 되풀이하는 셈이기 때문입니다.
   실제 값이 하나라도 들어오면 그때 채웁니다.
 
+ENMP… — AF/PR 파일은 **중첩 dict** 입니다 (office 확인 2026-07-30)
+==================================================================
+
+`read_af_pr_condition` 만 유일하게 **dict 안에 dict** 를 돌려줍니다. 나머지 넷은
+평평한 key/value 입니다. group 은 8개입니다.
+
+  | group | 언제 있는가 |
+  | --- | --- |
+  | sequence_measurement | 항상 |
+  | measurement_pattern_recognition | 항상 |
+  | measurement_focusing | 항상 |
+  | sequence_addressing | addressing 1회 이상 |
+  | addressing_auto_focus1 | addressing 1회 이상 |
+  | addressing_pattern_recognition1 | addressing 1회 이상 |
+  | addressing_auto_focus2 | addressing 2회 |
+  | addressing_pattern_recognition2 | addressing 2회 |
+
+측정은 **기본 sequence(addressing → measurement)** 로 돌아가고, measurement
+직전의 addressing 은 parameter 에 따라 **none / once / twice** 로 선택됩니다.
+그 선택이 어느 group 이 파일에 들어 있는지를 정합니다.
+
+★ row 의 정체는 (section, key) 이지 key 가 아닙니다
+
+  `addressing_auto_focus1` 과 `addressing_auto_focus2` 는 **같은 종류의 설정을
+  두 번** 적은 것이므로 안쪽 key 이름이 서로 같습니다. key 만으로 dedup 하거나
+  join 하면 pass 2 가 pass 1 로 조용히 흡수되어, 두 heading 아래에 pass 1 의
+  값이 똑같이 찍힙니다. 오류도 빈 칸도 나지 않고 **틀린 값이 자신 있게** 보입니다.
+
+  그래서 `SettingRow` 에 `section` 을 넣었고(NotRequired — 평평한 reader 4개는
+  손대지 않았습니다), frontend 의 비교 화면은 `settingRowId()` 로 (section, key)
+  를 묶어 식별합니다.
+
+OFFICE-VERIFY: **각 group 안의 key 이름은 아직 못 봤습니다.** mock 은 group
+이름만 진짜로 쓰고 안쪽은 placeholder key 를 냅니다.
+
+OFFICE-VERIFY: none 일 때 정확히 어느 group 이 사라지는지. addressing 선택이
+결정한다는 것은 확인되었지만, `sequence_addressing` 이 pass 1 과 함께 사라지는
+것과 measurement group 3개가 항상 있다는 것은 "기본 sequence" 설명에서
+**추론한** 것이며 없는 경우를 직접 보지는 못했습니다.
+
+ENAP… — align beam/PR 은 **optic 으로 나뉩니다** (office 확인 2026-07-30)
+=========================================================================
+
+`get_align_beam_pr_conditions` 는 ENAP 목록을 한 번에 받아
+**`{"OM": {...}, "SEM": {...}}`** 를 돌려줍니다. 이것으로 오래 열려 있던 질문이
+닫혔습니다 — **point 별로 나눌 수 있습니다.** P.No 1 = OM, P.No 2 = SEM 이므로
+optic 이 곧 point 입니다.
+
+두 optic 모두 key 2개로 같습니다.
+
+  | key | 예시 |
+  | --- | --- |
+  | Acceptance | `'200'` |
+  | Auto Focus | `'OFF'` |
+
+★ `Auto Focus` 에는 **공백**이 있습니다. 다섯 reader 를 통틀어 underscore 로
+  이어지지 않은 유일한 key 이므로, key 가 식별자 모양일 것이라고 가정하면
+  안 됩니다. frontend 가 (section, key) 를 이을 때 구분자로 공백이나 점이 아니라
+  NUL 을 쓰는 이유입니다.
+
+adapter 는 optic 분기를 **가장 먼저** 시도하고, 예전에 대비해 두었던 추측
+(입력 순서대로의 list, 파일 이름 key) 은 뒤에 그대로 남겨 두었습니다. 비용이
+없고, tool 세대에 따라 다르게 나오는 경우 곧바로 "나눌 수 없음" 으로 떨어지는
+것을 막아 주기 때문입니다.
+
 OFFICE-VERIFY
 -------------
 
-* **나머지 두 reader 의 field 이름.**
-  `read_af_pr_condition`(ENMP…), `get_align_beam_pr_conditions`(ENAP…) 는 아직
-  모릅니다. 그래서 contract 는 고정 컬럼이 아니라 열린 key/value
-  (SettingBlock.rows)입니다 — 모르는 key 가 사라지지 않고 그대로 화면에 나옵니다.
-  cond.txt 2개가 2026-07-30 에 확인되었을 때 **contract 도 frontend 도 고칠 것이
-  없었던 것**이 이 설계의 값어치입니다. mock 의 placeholder key 와 이 문서만
-  고쳤습니다.
+* **ENMP 각 group 안의 key 이름.** 위 절 참고. 그래서 contract 는 여전히 고정
+  컬럼이 아니라 열린 key/value(SettingBlock.rows)입니다 — 모르는 key 가
+  사라지지 않고 그대로 화면에 나옵니다. 2026-07-30 에 reader 5개가 한꺼번에
+  확인되었을 때 **contract 는 `section` 하나만 늘었고 나머지는 그대로였던 것**이
+  이 설계의 값어치입니다.
 * **다섯 reader 가 돌려주는 container 종류.** dict / 1행 DataFrame / 2열 DataFrame /
   pair list 를 office_example.py 의 _to_rows 가 모두 받습니다. 단 1행 2열
   DataFrame 은 두 해석이 모두 성립하고 결과가 다릅니다 — 지금은 "컬럼이 field"

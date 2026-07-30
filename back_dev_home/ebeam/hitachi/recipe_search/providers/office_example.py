@@ -995,6 +995,27 @@ def _to_rows(obj: Any) -> list[SettingRow]:
         first = obj.iloc[0]
         return [{"key": str(c), "value": str(first[c])} for c in obj.columns]
     if isinstance(obj, dict):
+        # A dict OF DICTS is ENMP (read_af_pr_condition), the one reader that
+        # groups its settings: eight groups covering the addressing and
+        # measurement sequences (office 확인 2026-07-30). Each inner dict becomes
+        # rows tagged with its group, so the screen shows the tool's own
+        # structure. str()-ing the inner dict — what this did before — rendered
+        # a whole group as one unreadable "{'a': 1, ...}" cell.
+        #
+        # Mixed is tolerated rather than rejected: a flat pair beside grouped
+        # ones keeps its own row with no section, since dropping it would hide a
+        # setting the office does send.
+        if any(isinstance(v, dict) for v in obj.values()):
+            rows: list[SettingRow] = []
+            for section, value in obj.items():
+                if isinstance(value, dict):
+                    rows += [
+                        {"key": str(k), "value": str(v), "section": str(section)}
+                        for k, v in value.items()
+                    ]
+                else:
+                    rows.append({"key": str(section), "value": str(value)})
+            return rows
         return [{"key": str(k), "value": str(v)} for k, v in obj.items()]
     if isinstance(obj, (list, tuple)):
         return [
@@ -1184,21 +1205,47 @@ def get_param_detail(
 def _split_align_settings(
     parsed: Any,
     names: list[str],
+    optics: dict[str, str | None] | None = None,
 ) -> dict[str, SettingBlock]:
     """``get_align_beam_pr_conditions``'s ONE return value -> a block per ENAP.
 
-    Its return shape is unverified (docs/datatables/recipe_idp.txt), so the
-    three shapes it could plausibly have are all accepted:
+    IT KEYS BY OPTIC (office 확인 2026-07-30): ``{"OM": {...}, "SEM": {...}}``.
+    That settles the question this function was built to hedge — the result CAN
+    be split per align point, because P.No 1 is OM and P.No 2 is SEM. The optic
+    branch therefore comes first and is the only one expected to fire.
 
-    * a sequence parallel to the input — the most likely, and the only
-      per-point shape the input permits: the adapter passes bytes, so the
-      office function never learns the ENAP filenames and cannot key by them;
-    * a mapping that does key by name — possible only if it derives names from
-      the content, kept because it is free to support;
+    The older guesses are kept below rather than deleted. They cost nothing, and
+    a reader that turns out to vary by tool generation would otherwise fall
+    straight to the un-splittable path:
+
+    * a sequence parallel to the input — the adapter passes bytes, so the office
+      function never learns the ENAP filenames and could only key positionally;
+    * a mapping that keys by filename — possible only if it derives names from
+      the content;
     * anything else — treated as ONE value describing the whole align set and
       attached to every point, with the type logged. Splitting it by guessing
       would put one point's optics under another point's heading.
     """
+    if isinstance(parsed, dict) and optics:
+        # Case-folded because "OM"/"SEM" is a label we pass IN as `which` for the
+        # sibling reader; nothing guarantees this one echoes the same casing.
+        by_optic = {str(key).strip().upper(): value for key, value in parsed.items()}
+        matched = {
+            name: {"source": name, "rows": _to_rows(by_optic[optic.upper()])}
+            for name, optic in optics.items()
+            if name in names and optic and optic.upper() in by_optic
+        }
+        if matched:
+            missing = [name for name in names if name not in matched]
+            if missing:
+                # Not an error: a P.No outside 1/2 has no optic to look up, and
+                # the point renders 파일 없음 exactly as its image condition does.
+                _LOG.info(
+                    "recipe_search: get_align_beam_pr_conditions returned optics "
+                    "%s, which do not cover %s",
+                    sorted(by_optic), ", ".join(missing),
+                )
+            return matched
     if isinstance(parsed, (list, tuple)) and len(parsed) == len(names):
         return {
             name: {"source": name, "rows": _to_rows(value)}
@@ -1222,6 +1269,7 @@ def _split_align_settings(
 def _align_settings(
     names: list[str],
     blob: dict[str, bytes],
+    optics: dict[str, str | None] | None = None,
 ) -> dict[str, SettingBlock]:
     """Every align point's ENAP condition, in ONE reader call.
 
@@ -1229,6 +1277,10 @@ def _align_settings(
     file (user-confirmed 2026-07-29), so this is called once per recipe. Absent
     files are dropped BEFORE the call — a recipe with only point 1 must not send
     a hole the reader would have to interpret.
+
+    ``optics`` maps each ENAP name to "OM" or "SEM", which is how the return
+    value is keyed (office 확인 2026-07-30). Passed in rather than re-derived
+    here so one function owns the P.No -> optic rule: ``rawfiles.align_optics``.
     """
     from office_utils.idp_amp_reader import get_align_beam_pr_conditions
 
@@ -1246,7 +1298,7 @@ def _align_settings(
             ", ".join(present), exc_info=True,
         )
         return {}
-    return _split_align_settings(parsed, present)
+    return _split_align_settings(parsed, present, optics)
 
 
 def get_align_detail(
@@ -1278,7 +1330,12 @@ def get_align_detail(
     names = [name for _, _, setting, cond in plan for name in (setting, cond)]
 
     blob = _fetch_raw(locator, names)
-    settings = _align_settings([setting for _, _, setting, _ in plan], blob)
+    # The reader keys its return by optic, so it needs the same P.No -> optic
+    # rule the image condition uses. Derived once, here, and handed to both.
+    optic_of = {setting: rawfiles.align_optics(p_no) for p_no, _, setting, _ in plan}
+    settings = _align_settings(
+        [setting for _, _, setting, _ in plan], blob, optic_of,
+    )
 
     points: list[AlignPoint] = []
     for p_no, image, setting, cond in plan:
