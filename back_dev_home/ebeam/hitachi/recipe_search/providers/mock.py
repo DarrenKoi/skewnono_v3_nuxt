@@ -586,6 +586,27 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
 # those render float-shaped. `str` determines nothing on its own: in this one
 # file it has meant '0', 'Fast2' and '50, 50', so str-typed keys whose value is
 # unread stay hex placeholders.
+# ── the dtype rule, INFERRED not read (2026-07-30) ────────────────────────
+#
+# Fourteen key types are confirmed across measurement_focusing and
+# addressing_auto_focus, and they split cleanly on one signal: a key naming a
+# PHYSICAL unit in parentheses is float, everything else is str.
+#
+#   float   Wait(s) · Relative Position X(um) · Relative Position Y(um)
+#   str     Offset(LSB) · Mag · Method · Threshold · Charging Voltage
+#
+# Offset(LSB) is what makes it a rule about physical units rather than about
+# parentheses: LSB is a digital quantum, counted, and it comes back as str.
+#
+# The unread groups below are typed by this rule at the user's direction rather
+# than left blank. They are marked 추론 (inferred) wherever they appear, never
+# `office 확인` — the distinction is the entire value of this file, and the rule
+# has already been wrong once in spirit: nothing predicted that Mag would be a
+# sentinel '0'. A wrong guess here shows up as a float rendered where the office
+# sends a string, which the adapter absorbs (it stringifies everything) but the
+# doc would be lying about.
+
+
 def _wait_seconds(rng: random.Random) -> str:
     """A float Wait(s), biased to the 0.0 actually seen. The unit is in the key,
     so the value carries none. Spread is plausible, not office distribution."""
@@ -607,9 +628,13 @@ _AF_FIELDS: tuple[tuple[str, object], ...] = (
     ("Threshold", None),                     # str, value unread
     ("Charging Voltage", None),              # str, value unread
 )
+# 추론 (2026-07-30): Wait(s) is float by the unit rule; Acceptance and ABC are
+# str. Acceptance is deliberately NOT given ENAP's '200' — that is a different
+# file, and Method already proved a shared key name carries its own vocabulary
+# per file.
 _PR_FIELDS: tuple[tuple[str, object], ...] = (
     ("Acceptance", None),
-    ("Wait(s)", None),
+    ("Wait(s)", _wait_seconds),
     ("ABC", None),
 )
 
@@ -617,6 +642,11 @@ _PR_FIELDS: tuple[tuple[str, object], ...] = (
 # sequence rather than settings — their keys are stage names, and the groups
 # below them hold each stage's settings.
 _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
+    # 추론 (2026-07-30): every key here is a STAGE NAME, so its value says
+    # whether that stage runs — no physical unit, therefore str by the rule
+    # above. Left as placeholders: the rule types them, it does not tell us
+    # whether the office writes 'ON'/'OFF', 'Yes'/'No' or an order number, and
+    # those three would render very differently.
     "sequence_addressing": (
         ("Pre Dose", None), ("Auto Focus1", None), ("Pattern Recognition1", None),
         ("Pattern Recognition2", None), ("Auto Focus2", None),
@@ -625,9 +655,18 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
         ("Focusing", None), ("Pattern Recognition", None),
         ("Measurement Execution", None), ("Image Save", None),
     ),
+    # 추론 (2026-07-30): Wait(s) · Relative Position(um) · Offset(um) are float
+    # by the unit rule — note Relative Position(um) has NO X/Y here, one key for
+    # both axes, unlike the focusing groups. Acceptance, ABC, Centering and
+    # Contrast Mode are str.
     "measurement_pattern_recognition": (
-        ("Acceptance", None), ("Wait(s)", None), ("ABC", None), ("Centering", None),
-        ("Relative Position(um)", None), ("Offset(um)", None), ("Contrast Mode", None),
+        ("Acceptance", None),
+        ("Wait(s)", _wait_seconds),
+        ("ABC", None),
+        ("Centering", None),
+        ("Relative Position(um)", _relative_position),
+        ("Offset(um)", _relative_position),
+        ("Contrast Mode", None),
     ),
     # The one group read END TO END — every key's type and a real value
     # (office 확인 2026-07-30). Note Wait(s) and Offset(LSB) both express "zero"

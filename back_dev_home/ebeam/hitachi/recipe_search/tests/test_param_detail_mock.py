@@ -419,18 +419,40 @@ def test_only_the_seen_af_pr_group_carries_real_values():
         assert focusing["Mag"] == "0"
         assert focusing["Offset(LSB)"] == "0"
 
-        # The groups nothing has been read from at all: sequence_* and the
-        # pattern-recognition pair. Every value there is still a placeholder.
-        unread = [
-            r for r in rows
-            if r["section"].startswith("sequence_")
-            or r["section"].endswith(("pattern_recognition", "pattern_recognition1",
-                                      "pattern_recognition2"))
-        ]
-        assert unread
-        assert all(re.fullmatch(r"[A-F][0-9A-F]{3}", r["value"]) for r in unread)
+        # The sequence_* groups are stage lists with no physical unit anywhere,
+        # so the dtype rule types them all str and nothing predicts their
+        # values — 'ON'/'OFF', 'Yes'/'No' and an order number would all render
+        # differently. Entirely placeholders.
+        sequences = [r for r in rows if r["section"].startswith("sequence_")]
+        assert sequences
+        assert all(re.fullmatch(r"[A-F][0-9A-F]{3}", r["value"]) for r in sequences)
         return
     raise AssertionError("no parameter produced measurement_focusing")
+
+
+def test_every_physical_unit_key_renders_as_a_float():
+    """The INFERRED dtype rule (2026-07-30), applied across all eight groups.
+
+    Fourteen confirmed types split on one signal: a key naming a PHYSICAL unit
+    in parentheses is float, everything else is str. Offset(LSB) is what makes
+    it about physical units rather than parentheses — LSB is a counted digital
+    quantum and comes back as str.
+
+    Asserted so a later edit cannot type one group's Wait(s) differently from
+    another's, which is the drift this rule exists to prevent.
+    """
+    seen: set[str] = set()
+    for seq in range(1, 60):
+        for row in _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]:
+            key, value = row["key"], row["value"]
+            if key.endswith(("(s)", "(um)")):
+                assert re.fullmatch(r"-?\d+\.\d", value), (row["section"], key, value)
+                seen.add(key)
+            elif key.endswith("(LSB)"):
+                # A parenthesised unit that is NOT physical, and not a float.
+                assert not re.fullmatch(r"-?\d+\.\d", value), (key, value)
+
+    assert {"Wait(s)", "Relative Position X(um)", "Offset(um)"} <= seen
 
 
 def test_the_auto_focus_groups_know_their_types_but_not_all_their_values():

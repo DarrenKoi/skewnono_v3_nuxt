@@ -713,9 +713,46 @@ measurement 의 focusing 단계가 **같은 어휘를 쓴다**는 첫 증거입�
   파일 하나 안에서만 해도 `'0'`, `'Fast2'`, `'50, 50'` 이 전부 str 입니다.
   그래서 값이 미확인인 str key 는 계속 합성 hex 로 둡니다.
 
-OFFICE-VERIFY: **나머지 5개 group 의 값** — `sequence_addressing`,
-`sequence_measurement`, `measurement_pattern_recognition`,
-`addressing_pattern_recognition1` / `2` 는 type 도 값도 아직 못 봤습니다. mock 은 그 값들에
+dtype 규칙 — **추론입니다, 읽은 것이 아닙니다** (2026-07-30)
+------------------------------------------------------------
+
+확인된 type 14개가 신호 하나로 깔끔하게 갈립니다. **key 이름에 물리 단위가
+괄호로 붙어 있으면 float, 나머지는 전부 str** 입니다.
+
+  float   Wait(s) · Relative Position X(um) · Relative Position Y(um)
+  str     Offset(LSB) · Mag · Method · Threshold · Charging Voltage
+
+`Offset(LSB)` 가 이 규칙을 "괄호" 가 아니라 "**물리** 단위" 에 대한 것으로
+만듭니다 — LSB 는 세는 디지털 양자이고 str 로 옵니다.
+
+아직 읽지 않은 group 들의 type 은 사용자 지시에 따라 이 규칙으로 **채웠습니다**.
+표시는 언제나 `추론` 이며 `office 확인` 이 **아닙니다** — 이 둘을 구분하는 것이
+이 문서의 존재 이유입니다.
+
+  | group | key | type | 근거 |
+  | --- | --- | --- | --- |
+  | measurement_pattern_recognition | Wait(s) · Relative Position(um) · Offset(um) | float | 추론 |
+  | measurement_pattern_recognition | Acceptance · ABC · Centering · Contrast Mode | str | 추론 |
+  | addressing_pattern_recognition1 / 2 | Wait(s) | float | 추론 |
+  | addressing_pattern_recognition1 / 2 | Acceptance · ABC | str | 추론 |
+  | sequence_addressing · sequence_measurement | 전부 | str | 추론 |
+
+`measurement_pattern_recognition` 의 `Relative Position(um)` 은 focusing group 과
+달리 **X/Y 가 없습니다** — 축 하나가 아니라 key 하나입니다.
+
+★ 규칙이 type 을 정해 주어도 **값은 여전히 모릅니다**
+
+  `sequence_*` 의 key 는 전부 단계 이름이므로 값은 그 단계를 실행하는지 여부일
+  텐데, `'ON'`/`'OFF'` 인지 `'Yes'`/`'No'` 인지 순서 번호인지는 규칙이 알려 주지
+  않고 셋은 화면에서 전혀 다르게 보입니다. 그래서 str 로 추론된 key 의 값은
+  계속 placeholder 입니다.
+
+  이 규칙이 이미 한 번은 정신적으로 틀렸다는 점도 남겨 둡니다 — `Mag` 가
+  sentinel `'0'` 이라는 것은 어떤 규칙도 예측하지 못했습니다.
+
+OFFICE-VERIFY: 위 표의 **추론된 type 전부**, 그리고 `sequence_addressing` ·
+`sequence_measurement` · `measurement_pattern_recognition` ·
+`addressing_pattern_recognition1` / `2` 의 **값**. mock 은 그 값들에
 AMP 의 값 미확인 key 와 같은 **합성 hex** 를 넣습니다. key 이름에서 형식을
 추론하는 것(`Wait(s)` 이니 숫자겠지)은 AmpRow 의 16개 가짜 field 를 만들어 낸
 바로 그 추론입니다 — 실제로 확인된 유일한 group 에서도 놀라운 점은 크기가 아니라
