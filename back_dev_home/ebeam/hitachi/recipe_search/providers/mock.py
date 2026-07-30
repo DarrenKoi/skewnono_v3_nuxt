@@ -607,11 +607,18 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
         ("Acceptance", None), ("Wait(s)", None), ("ABC", None), ("Centering", None),
         ("Relative Position(um)", None), ("Offset(um)", None), ("Contrast Mode", None),
     ),
-    # The one group whose value TYPES have been read.
+    # The one group read END TO END — every key's type and a real value
+    # (office 확인 2026-07-30). Note Wait(s) and Offset(LSB) both express "zero"
+    # and do it with DIFFERENT dtypes, float 0.0 versus str '0', inside one
+    # group. The dtypes are not semantically driven, so they cannot be reasoned
+    # about — only read.
     "measurement_focusing": (
         # float. The unit is already in the key, so the value carries none.
-        ("Wait(s)", lambda r: str(round(r.uniform(0.0, 3.0), 1))),
-        ("Offset(LSB)", None),
+        # Biased to 0.0, the value actually seen; the spread is plausible rather
+        # than an office distribution.
+        ("Wait(s)", lambda r: str(r.choice((0.0, 0.0, 0.0, 0.5, 1.0, 2.0)))),
+        # str '0' — not the float 0.0 its neighbour uses for the same idea.
+        ("Offset(LSB)", lambda _: "0"),
         # 'Fast2' — NOT AMP's Method vocabulary, which is 'Linear'. Same key
         # name in two files with two different domains, which is why a value is
         # never carried across from another file.
@@ -624,12 +631,17 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
         # neither, and it is not even a number on the same scale. The clearest
         # case yet for why an unseen value is never inferred from its key name.
         #
-        # Shown verbatim, like every other value. Rendering it as "측정과 동일"
-        # would mean the frontend hard-coding meaning for one (section, key)
-        # pair — precisely what the open key/value contract avoids, and these
-        # names are expected to change.
+        # Shown verbatim as '0' and NOT annotated (user-confirmed 2026-07-30):
+        # the engineers reading this screen already know what it means. Which
+        # settles it the right way round — the frontend does not hard-code
+        # meaning for one (section, key) pair, so the open key/value contract
+        # stays intact and these names can still change freely.
         ("Mag", lambda _: "0"),
     ),
+    # The addressing auto-focus groups repeat six of measurement_focusing's keys
+    # and probably repeat its values too — but "probably" is not "read", and
+    # Method already differs between AMP and ENMP for the same key name. Left as
+    # placeholders so the screen keeps showing which group was actually opened.
     "addressing_auto_focus1": _AF_FIELDS,
     "addressing_pattern_recognition1": _PR_FIELDS,
     "addressing_auto_focus2": _AF_FIELDS,

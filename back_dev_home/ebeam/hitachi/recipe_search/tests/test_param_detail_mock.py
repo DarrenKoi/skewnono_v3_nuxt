@@ -413,15 +413,33 @@ def test_only_the_seen_af_pr_group_carries_real_values():
         # float in the reader, stringified by the adapter — '2.0', not '2'.
         assert re.fullmatch(r"-?\d+\.\d", focusing["Relative Position X(um)"])
         assert re.fullmatch(r"\d+\.\d", focusing["Wait(s)"])
-        # '0', not a magnification. Guessed as '30000'/'50.0K' before it was
-        # read — the sharpest reminder that a key name does not imply a value.
+        # '0', not a magnification: a sentinel for "same as the measurement".
+        # Guessed as '30000'/'50.0K' before it was read — not merely the wrong
+        # number, but not a magnitude on that scale at all.
         assert focusing["Mag"] == "0"
-        # Same group, value still unseen.
-        assert re.fullmatch(r"[A-F][0-9A-F]{3}", focusing["Offset(LSB)"])
+        assert focusing["Offset(LSB)"] == "0"
 
         other = [r for r in rows if r["section"] != "measurement_focusing"]
         assert other
         assert all(re.fullmatch(r"[A-F][0-9A-F]{3}", r["value"]) for r in other)
+        return
+    raise AssertionError("no parameter produced measurement_focusing")
+
+
+def test_one_group_expresses_zero_as_both_a_float_and_a_string():
+    """Wait(s) is float 0.0 and Offset(LSB) is str '0' — the same idea, two
+    dtypes, in one group (office 확인 2026-07-30). The dtypes are not driven by
+    meaning, so they can only be read, never reasoned about."""
+    for seq in range(1, 40):
+        rows = {
+            r["key"]: r["value"]
+            for r in _detail({"img_add2": f"PRMP{seq:04d}"})["af_pr"]["rows"]
+            if r["section"] == "measurement_focusing"
+        }
+        if not rows:
+            continue
+        assert "." in rows["Wait(s)"]          # float-shaped
+        assert "." not in rows["Offset(LSB)"]  # str, bare
         return
     raise AssertionError("no parameter produced measurement_focusing")
 
