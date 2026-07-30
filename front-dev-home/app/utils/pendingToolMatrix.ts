@@ -130,3 +130,17 @@ export const isStaleArrival = (updtDt: string, now: Date): boolean => {
 // because two roster rows can share an ip, and IT should see each ip once.
 export const ipList = (rows: PendingToolRow[]): string =>
   [...new Set(rows.map(row => row.eqp_ip.trim()).filter(ip => ip !== ''))].join('\n')
+
+// Newest arrival first, for the drill-down table. Copies before sorting —
+// callers hold the filtered `visibleRows` array and must not see it reordered
+// out from under them. An unparseable updt_dt sorts last: we cannot claim it
+// just arrived, and ranking unknown data ahead of a known-recent row would
+// misrepresent it.
+export const sortByArrivalDesc = (rows: PendingToolRow[]): PendingToolRow[] =>
+  [...rows].sort((left, right) => {
+    const leftAt = Date.parse(left.updt_dt)
+    const rightAt = Date.parse(right.updt_dt)
+    const leftKey = Number.isNaN(leftAt) ? -Infinity : leftAt
+    const rightKey = Number.isNaN(rightAt) ? -Infinity : rightAt
+    return rightKey - leftKey
+  })

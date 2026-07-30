@@ -200,7 +200,7 @@
                 <span class="sk-value capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
               </template>
               <template #updt_dt-cell="{ row }">
-                <span :class="isStale(row.original) ? 'sk-label' : 'sk-value-num'">
+                <span class="sk-value-num">
                   {{ arrivalDate(row.original.updt_dt) }}
                 </span>
                 <!-- De-emphasized, never hidden and never dropped from the
@@ -234,6 +234,7 @@ import {
   filterByGroup,
   ipList,
   isStaleArrival,
+  sortByArrivalDesc,
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
 import { copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
@@ -327,8 +328,7 @@ const selectCell = (fab: string, model: string) => {
 const drilldownRows = computed(() => {
   const cell = selectedCell.value
   if (!cell) return []
-  return [...cellRows(visibleRows.value, cell.fab, cell.model)]
-    .sort((left, right) => Date.parse(right.updt_dt) - Date.parse(left.updt_dt))
+  return sortByArrivalDesc(cellRows(visibleRows.value, cell.fab, cell.model))
 })
 
 const isStale = (row: PendingToolRow) => isStaleArrival(row.updt_dt, loadedAt.value)

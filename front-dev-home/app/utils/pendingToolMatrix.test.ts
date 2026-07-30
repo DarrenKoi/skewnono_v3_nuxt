@@ -10,7 +10,8 @@ import {
   filterByGroup,
   groupOf,
   ipList,
-  isStaleArrival
+  isStaleArrival,
+  sortByArrivalDesc
 } from './pendingToolMatrix.ts'
 import type { PendingToolRow } from './pendingToolMatrix.ts'
 
@@ -168,4 +169,37 @@ test('ipList is newline separated, deduped, and order-preserving', () => {
 
 test('ipList skips blank ips', () => {
   assert.equal(ipList([tool('A', 'CG6380', 'M16A', '')]), '')
+})
+
+test('sortByArrivalDesc orders newest arrival first', () => {
+  const rows = [
+    tool('A', 'CG6380', 'M16A', '177.1.1.1', '2026-01-01T00:00:00Z'),
+    tool('B', 'CG6380', 'M16A', '177.1.1.2', '2026-07-01T00:00:00Z'),
+    tool('C', 'CG6380', 'M16A', '177.1.1.3', '2026-04-01T00:00:00Z')
+  ]
+
+  assert.deepEqual(sortByArrivalDesc(rows).map(r => r.eqp_id), ['B', 'C', 'A'])
+})
+
+test('sortByArrivalDesc does not mutate its input', () => {
+  const rows = [
+    tool('A', 'CG6380', 'M16A', '177.1.1.1', '2026-01-01T00:00:00Z'),
+    tool('B', 'CG6380', 'M16A', '177.1.1.2', '2026-07-01T00:00:00Z')
+  ]
+  const original = [...rows]
+
+  sortByArrivalDesc(rows)
+
+  assert.deepEqual(rows, original)
+})
+
+test('sortByArrivalDesc sorts an unparseable arrival last', () => {
+  // We cannot claim an unparseable date "just arrived" — ranking it ahead of
+  // a known-recent row would misrepresent it, so it sorts to the end.
+  const rows = [
+    tool('A', 'CG6380', 'M16A', '177.1.1.1', 'not a date'),
+    tool('B', 'CG6380', 'M16A', '177.1.1.2', '2026-01-01T00:00:00Z')
+  ]
+
+  assert.deepEqual(sortByArrivalDesc(rows).map(r => r.eqp_id), ['B', 'A'])
 })
