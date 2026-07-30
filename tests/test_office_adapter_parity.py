@@ -48,7 +48,7 @@ home request, while the office branch runs nowhere until it runs in production.
 
 Signatures are compared by ARITY ONLY, not by parameter names. An office
 adapter that has not been connected yet is deliberately a `(*args, **kwargs)`
-stub raising NotImplementedError (see admin_logs, announcements, api_tokens),
+stub raising NotImplementedError (see access_control, announcements),
 so name-by-name signature equality would fail for every unwired feature —
 exactly the features least worth failing on. Arity binding still catches the
 fatal case (the dispatcher passes more positionals than the adapter accepts)

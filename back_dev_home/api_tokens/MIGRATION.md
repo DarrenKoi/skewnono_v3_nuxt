@@ -1,18 +1,64 @@
 # api_tokens — office migration
 
-## Rules
+## Status: WRITTEN — activate by copying, no implementation left to do
 
-- FIRST copy the tracked skeleton, then work only in the copy:
-  `cp providers/office_example.py providers/office.py`. `office.py` is
-  gitignored and lives only at the office, so `git pull` never conflicts on it.
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
-- Definition of done: the Verify command at the bottom is green.
-- Implement **all five** functions here, not just the three CRUD ones:
-  `create_token`, `list_tokens`, `revoke_token`, `find_by_plaintext`,
-  `touch_last_used`. See "Auth path" below — the last two must read/write
-  the SAME office store as the first three, or bearer-token auth breaks.
+All five functions are implemented in the tracked template against the office
+Redis. There is no in-house address or secret in the file, so the copy is
+verbatim (same as `activity` and `admin_logs`):
+
+```bash
+cp providers/office_example.py providers/office.py
+```
+
+- `office.py` is gitignored, so `git pull` never conflicts on it. It is also a
+  **copy** — if a later `git pull` moves the template, refresh it with
+  `python -m scripts.sync_office_adapters api_tokens`, or the boot log will
+  report `STALE office.py: api_tokens`.
+- Requires `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in
+  `back_dev_home/.env` — resolved through `_runtime/office_redis.py`, the same
+  client `sem_list` and `storage` already read through.
+- Only edit the copy if the in-house connection needs adjusting. Never touch
+  `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
+
+**Why this feature cannot stay on mock at the office.** `providers/mock.py`
+holds its tokens in two module-level dicts. Under `gunicorn -w N` the worker
+that serves `POST /api/account/api-tokens` and the worker that later
+authenticates `Authorization: Bearer skn_...` are different processes, so
+`find_by_plaintext` misses a token that exists perfectly well in a sibling
+worker and bearer auth fails nondeterministically — and every restart drops
+every token. Leaving `api_tokens` on mock at the office is a defect, not a safe
+default. (`access_control` and `announcements` do not share this problem: their
+mocks are mtime-keyed JSON files, which do propagate across workers.)
+
+## Implemented key layout
+
+```text
+skewnono:api_tokens:token:<token_id>   HASH  id owner_user_id label
+                                             hash created_at last_used_at
+skewnono:api_tokens:owner:<owner_id>   SET   token ids owned by this member
+skewnono:api_tokens:hash:<sha256>      STR   token_id
+```
+
+Three decisions worth knowing before you change anything here:
+
+- **No TTL on any key.** `msr_image/redis_jobs.py` — the only other writer
+  against this Redis — expires everything it writes, because a job is
+  transient. A token is a durable credential; a TTL here would log a member out
+  with no trace. Do not copy the TTL idiom over.
+- **`last_used_at` is stored as `""` when absent, never as `None`.** Redis hash
+  fields are strings, so writing `None` directly round-trips as the literal
+  string `"None"` and the frontend renders a token as having been used at
+  "None". The adapter maps `"" → None` on read.
+- **The `hash:` reverse index is not optional.** `find_by_plaintext` runs on the
+  hot path of every bearer request; without the index it would need a full
+  keyspace scan. It mirrors the mock's `_by_hash` dict.
+
+The adapter imports `_PREFIX`, `_hash`, `_now`, `_TOUCH_DEBOUNCE`,
+`_public_view` and `_TokenRow` from `providers/mock.py` rather than restating
+them. That is deliberate: the token prefix and hash algorithm must not drift
+between providers, and reusing `_TokenRow` is what guarantees the attribute
+access `_auth/middleware.py` performs (`row.owner_user_id`, `row.id`) keeps
+working. See "Auth path" below.
 
 ## Endpoint: GET /api/account/api-tokens
 
@@ -38,10 +84,15 @@
   Order is insertion order of the underlying dict (not explicitly sorted).
   An owner with no tokens gets `[]` — that is a valid response, not an
   error.
-- Office data source: <!-- OFFICE: key pattern — e.g. a Redis SET/hash per
-  owner (`api_tokens:owner:<owner_user_id>` → set of token ids, plus
-  `api_tokens:token:<token_id>` → hash with label/created_at/last_used_at)
-  so list/get/revoke can all key off `token_id` without a full scan -->
+- Office behavior: reads `skewnono:api_tokens:owner:<owner_user_id>` (SET of
+  token ids), then one `HGETALL` per id. A token id in the owner index whose
+  row is gone is **skipped**, not returned as a half-populated row — a row
+  missing its `id` field would otherwise authenticate as owner `""`.
+- **Deliberate divergence — ordering.** The mock returns its dict's insertion
+  order. A Redis SET has no order at all, so the office adapter sorts by
+  `created_at`, then `id` to break same-second ties. Without a sort the
+  response would reshuffle on every request. Oldest-first either way, so the
+  frontend needs no change.
 
 ## Endpoint: POST /api/account/api-tokens
 
@@ -81,10 +132,12 @@
   after `.strip()` inside the mock, which can't currently happen since
   `routes.py` already stripped and 400'd on empty; still, don't remove the
   mock's own fallback when porting behavior to office).
-- Office data source: <!-- OFFICE: same Redis key pattern as above — write
-  the token hash (never the plaintext) into `api_tokens:token:<token_id>`
-  and index it by owner; the one-time plaintext is generated in-process
-  and only returned, never persisted -->
+- Office behavior: writes the row hash, adds the id to the owner SET, and sets
+  the `hash:<sha256>` → `token_id` reverse index — three writes, no TTL. Only
+  the SHA-256 reaches Redis; the plaintext exists in process memory just long
+  enough to be returned once (`test_plaintext_is_never_persisted` asserts it
+  appears nowhere in the store). Blank labels coerce to `"untitled"`, matching
+  the mock.
 
 ## Endpoint: DELETE /api/account/api-tokens/\<token_id\>
 
@@ -109,9 +162,14 @@
   `True`; office must preserve that a **second** revoke of the same id
   (not exercised by the gate test, but by real client retries) returns
   `False` cleanly rather than throwing on a missing Redis key.
-- Office data source: <!-- OFFICE: DEL on a Redis key that is already gone
-  returns 0, not an error — make sure the office adapter maps "0 keys
-  deleted" to `False`, not an exception, to preserve idempotency -->
+- Office behavior: reads the row first, so ownership is checked before anything
+  is deleted; a mismatched owner returns `False` having written nothing. On a
+  match it deletes the reverse index, removes the id from the owner SET, then
+  deletes the row. Idempotency falls out of the read-first order — a second
+  revoke finds no row and returns `False` without touching Redis further, so a
+  `DEL` against an already-gone key never surfaces. Revoking the owner's last
+  token leaves **no** keys behind: Redis drops a SET once its final member is
+  removed (`test_revoke_token_removes_row_owner_index_and_hash_index`).
 
 ## Auth path: find_by_plaintext / touch_last_used
 
@@ -151,10 +209,19 @@ to prevent.
   write to once per 60s per token (`_TOUCH_DEBOUNCE`) to avoid a write per
   request; preserve that debounce (or an equivalent) in office so this
   doesn't become a write-per-request against Redis.
-- Office data source: <!-- OFFICE: same `api_tokens:token:<token_id>` /
-  hash-lookup key pattern as the CRUD functions above — find_by_plaintext
-  needs a hash → token_id reverse index (mirrors the mock's `_by_hash`
-  dict) so it doesn't have to scan every token to match a hash -->
+- Office behavior — `find_by_plaintext`: the wrong-prefix check short-circuits
+  **before** any Redis call, so a malformed Authorization header costs no round
+  trip on a path that runs for every request. A correct prefix reads
+  `hash:<sha256>` → `token_id`, then the row. If the index outlives its row the
+  result is `None`, which the middleware turns into `401 invalid_token` — never
+  a partially-populated row.
+- Office behavior — `touch_last_used`: reads only the `last_used_at` field
+  (`HGET`, not `HGETALL`) and returns early inside the 60s window, so the steady
+  state for a busy token is one cheap read per request and one write per minute.
+  A `last_used_at` that fails to parse is overwritten rather than allowed to
+  wedge the token permanently. An unknown `token_id` is a no-op — it must not
+  create a key, or a bogus id would leave a row with no `id` field behind
+  (`test_touch_last_used_on_an_unknown_token_is_a_noop`).
 
 ## Notes
 
@@ -166,10 +233,33 @@ to prevent.
   and it cleans up after itself so repeated runs don't leak tokens.
 - `created_at`/`last_used_at` are ISO-8601 UTC timestamps
   (`timespec="seconds"`, no `Z` suffix — unlike `admin_logs`/`health`,
-  this feature does not append a literal `Z`). Preserve that format (or
-  document a deliberate change) when porting to office so frontend date
-  parsing doesn't need to branch on provider.
+  this feature does not append a literal `Z`). The office adapter preserves the
+  format by importing the mock's `_now`, so it cannot drift.
 
 ## Verify
 
+At home — the adapter's own suite runs against an injected fake Redis
+(`tests/test_office_template.py`), so it is fully covered without a server:
+
+    .venv/bin/pytest back_dev_home/api_tokens
+
+At the office, after `cp` and setting `REDIS_*` — this is the run that has
+never happened yet, and the one that promotes the row in
+`docs/office-migration/STATUS.md` from `구현완료` to `office` with a 검증일:
+
     SKEWNONO_API_TOKENS_PROVIDER=office .venv/bin/pytest back_dev_home/api_tokens
+
+Running that at home fails with `RuntimeError: REDIS_HOST is not set` from
+`_runtime/office_redis.py`. That is the expected off-network result, not a
+defect — it proves the switch resolves to the office adapter and that the
+adapter reached for its client.
+
+Then confirm end to end, since the contract gate cannot prove the multi-worker
+fix that motivated this adapter:
+
+1. `GET /api/health/providers` reports `api_tokens` → `office`.
+2. Mint a token in the UI, then call any `/api/*` endpoint with
+   `Authorization: Bearer skn_...` **repeatedly** — under `gunicorn -w N` a
+   different worker answers each time, and every one must accept it. That is
+   precisely what the mock could not do.
+3. Restart the backend and reuse the same token: it must still authenticate.
