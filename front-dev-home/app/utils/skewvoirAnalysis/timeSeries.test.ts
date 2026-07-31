@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  setBaseline, buildTrendSeries, buildSetDistributionGroups, buildToolSkew, distinctToolCount,
+  setBaseline, buildTrendSeries, placeTrendPoints,
+  buildSetDistributionGroups, buildToolSkew, distinctToolCount,
   setParamOptions, setIntegrity,
   type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput, type OptionFileInput
 } from './timeSeries.ts'
@@ -123,6 +124,36 @@ test('verdicts are computed from RAW means, so residual mode cannot change them'
     raw.map(p => p.verdict?.severity),
     resid.map(p => p.verdict?.severity)
   )
+})
+
+const placeable = [
+  { msr: 'm1', ts: 1000, eqpId: 'TP01' },
+  { msr: 'm2', ts: null, eqpId: 'TP01' },
+  { msr: 'm3', ts: 3000, eqpId: 'TP02' }
+] as TrendPoint[]
+
+test('placeTrendPoints drops the unplaceable points on a time axis and keeps epoch x', () => {
+  // A null ts has no position on a time axis: plotting it anywhere would be an
+  // invented timestamp, so it is hidden and the caller reports the count.
+  const out = placeTrendPoints(placeable, 'time')
+  assert.deepEqual(out.map(e => e.p.msr), ['m1', 'm3'])
+  assert.deepEqual(out.map(e => e.x), [1000, 3000])
+  assert.equal(placeable.length - out.length, 1) // what a panel meta reports
+})
+
+test('placeTrendPoints hides nothing on an order axis and indexes the FULL array', () => {
+  // x must be the index into the full point list, because the category axis
+  // data is built from every point — indexing the filtered array would slide
+  // every label one slot left of its measurement.
+  const out = placeTrendPoints(placeable, 'order')
+  assert.deepEqual(out.map(e => e.p.msr), ['m1', 'm2', 'm3'])
+  assert.deepEqual(out.map(e => e.x), [0, 1, 2])
+})
+
+test('placeTrendPoints keeps a ts of 0 rather than treating it as missing', () => {
+  // Epoch 0 is falsy but perfectly placeable; only null means "no position".
+  const out = placeTrendPoints([{ msr: 'm0', ts: 0 }] as TrendPoint[], 'time')
+  assert.deepEqual(out.map(e => e.x), [0])
 })
 
 const siteRow = (parameter: string, mp_number: number, cd_value: number | null) =>

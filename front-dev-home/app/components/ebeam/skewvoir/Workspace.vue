@@ -54,9 +54,12 @@
               v-else-if="ws.activeKind.value === 'fdc'"
               :analysis="analysis"
             />
+            <!-- The only view handed `ws`: its axis mode and baseline are
+                 URL-carried workspace state, not analysis output. -->
             <EbeamSkewvoirViewsTimeSeries
               v-else-if="ws.activeKind.value === 'time-series'"
               :analysis="analysis"
+              :ws="ws"
             />
             <EbeamSkewvoirViewsCorrelation
               v-else-if="ws.activeKind.value === 'correlation'"

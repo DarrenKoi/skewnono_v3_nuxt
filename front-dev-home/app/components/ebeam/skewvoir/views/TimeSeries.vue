@@ -84,6 +84,9 @@
           :points="analysis.trendPoints.value"
           :parameter="analysis.activeParam.value"
           :unit="analysis.activeUnit.value"
+          :axis-mode="ws.tsAxis.value"
+          :baseline="ws.tsBaseline.value"
+          @select="analysis.setFocusedMsr($event)"
         />
       </template>
       <div
@@ -133,10 +136,14 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import { isMeasuredRow } from '~/utils/msrRows'
 
+// `ws` carries the URL-pinned axis mode and baseline for the trend chart; the
+// toggles that write them arrive with the rest of the lens switch.
 const props = defineProps<{
   analysis: SkewvoirAnalysis
+  ws: SkewvoirWorkspace
 }>()
 
 // Destructure the mutable shared state ref into a local so v-model bindings do

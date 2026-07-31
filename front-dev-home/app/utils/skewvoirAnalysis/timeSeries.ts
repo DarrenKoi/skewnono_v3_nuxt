@@ -10,7 +10,7 @@
 // That split is load-bearing, not redundancy. The `range` scoring method divides
 // by the leave-one-out center, so judging baseline-shifted values would change
 // every percentage. Anomaly verdicts and tool skew read the RAW fields.
-import type { TsBaseline } from './types.ts'
+import type { TsAxisMode, TsBaseline } from './types.ts'
 import type { MsrParamSummary } from '~/composables/useMsrFileApi'
 import { quantileSorted, mean as meanOf, sampleStd } from '../stats.ts'
 import { peerVerdicts, combineVerdicts, type MethodConfig, type CombinedVerdict } from '../anomaly/index.ts'
@@ -127,6 +127,34 @@ export const buildTrendSeries = (
   const spreadV = peerVerdicts(points.map(p => p.std), { config: opts.config, metric: 'spread', tag: '산포' })
   return points.map((p, i) => ({ ...p, verdict: combineVerdicts([meanV[i]!, spreadV[i]!]) }))
 }
+
+/** A trend point paired with the x value it is drawn at. */
+export interface PlacedTrendPoint {
+  p: TrendPoint
+  /** Epoch ms under a `time` axis; the point's index under `order`. */
+  x: number
+}
+
+/** The points the trend chart can actually position, in plot order.
+ *
+ *  A measurement whose timestamp would not parse has NO position on a time
+ *  axis, so the `time` branch drops it. `order` plots by index, which every
+ *  point has, so it drops nothing — an unparseable timestamp is still a real
+ *  measurement and the order axis can show it honestly.
+ *
+ *  Under `order` the x is the index into the FULL array, so it lines up with a
+ *  category axis whose `data` is built from every point.
+ *
+ *  Exported rather than kept inside the chart component so a panel can report
+ *  what the chart hid — `points.length - placeTrendPoints(points, mode).length`
+ *  — without reaching into the component for it. */
+export const placeTrendPoints = (
+  points: readonly TrendPoint[],
+  axisMode: TsAxisMode
+): PlacedTrendPoint[] =>
+  points
+    .map((p, i) => ({ p, x: axisMode === 'time' ? p.ts : i }))
+    .filter((e): e is PlacedTrendPoint => e.x != null)
 
 /** The site facts the distribution lens needs.
  *
