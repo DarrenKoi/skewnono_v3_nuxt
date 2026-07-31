@@ -22,23 +22,16 @@
             size="sm"
             color="neutral"
             variant="outline"
-            :icon="status === 'success' ? 'i-lucide-rotate-ccw' : 'i-lucide-search'"
-            :label="status === 'success' ? '새로고침' : '조회'"
+            icon="i-lucide-rotate-ccw"
+            label="새로고침"
             :loading="status === 'pending'"
             @click="load"
           />
         </div>
       </template>
 
-      <!-- Idle: nothing has been fetched, because this page never fetches on
-           navigation. Say why, so the empty screen does not read as broken. -->
-      <AppStatusMessage
-        v-if="status === 'idle'"
-        v-bind="statusMessages.idle"
-      />
-
       <AppLoadingState
-        v-else-if="status === 'pending'"
+        v-if="status === 'pending'"
         title="전사 장비 명부를 불러오는 중입니다."
         description="장비 수에 따라 시간이 걸릴 수 있습니다."
       />
@@ -239,15 +232,7 @@ interface StatusMessageContent {
   description?: string
 }
 
-// idle / error / success-empty share one shape (icon + title + optional
-// description) — see AppStatusMessage.vue; only the content differs per state.
-const statusMessages = computed<Record<'idle' | 'error' | 'empty', StatusMessageContent>>(() => ({
-  idle: {
-    icon: 'i-lucide-network',
-    iconClass: 'text-(--sk-ink-muted)',
-    title: '전사 장비 명부는 조회 시점에만 불러옵니다.',
-    description: '조회를 누르면 방화벽 해제가 필요한 장비를 확인할 수 있습니다.'
-  },
+const statusMessages = computed<Record<'error' | 'empty', StatusMessageContent>>(() => ({
   error: {
     icon: 'i-lucide-triangle-alert',
     iconClass: 'text-(--sk-bad)',

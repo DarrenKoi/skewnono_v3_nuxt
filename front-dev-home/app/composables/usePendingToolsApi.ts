@@ -5,16 +5,14 @@ import { joinApiPath } from '~/utils/apiPath'
 const PENDING_TOOLS_CACHE_KEY = 'pending-tools'
 
 /**
- * The roster tools skewnono cannot reach yet — fetched ON DEMAND ONLY.
+ * The roster tools skewnono cannot reach yet.
  *
- * `immediate: false` is the point, not an optimization. `v3_df_sem_list` is the
- * full company roster and is only wanted when someone is actually preparing a
- * firewall request, so navigating to the page must not touch it. Call
- * `execute()` from a user action; the result then stays cached for the session
- * and `execute()` again re-fetches.
+ * This composable is used only by `/tool-roster`, so reaching that dedicated
+ * route is the user's request to load the full company roster. Fetch on mount,
+ * keep the result cached for the session, and expose `execute()` for refresh.
  *
- * Deliberately unlike `useSemList()`, which fetches on mount because five other
- * features depend on the roster being warm.
+ * The landing page links to the route but never calls this composable, so a
+ * landing visit does not touch `v3_df_sem_list`.
  */
 export const usePendingTools = () => {
   const config = useRuntimeConfig()
@@ -23,6 +21,6 @@ export const usePendingTools = () => {
   return useAsyncData(
     PENDING_TOOLS_CACHE_KEY,
     () => $fetch<PendingToolRow[]>(url),
-    { immediate: false, default: () => [] as PendingToolRow[] }
+    { immediate: true, default: () => [] as PendingToolRow[] }
   )
 }
