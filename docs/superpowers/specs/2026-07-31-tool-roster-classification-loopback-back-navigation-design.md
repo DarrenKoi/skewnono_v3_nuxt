@@ -1,7 +1,7 @@
 # Tool Roster 분류·루프백 제외·복귀 동선 설계
 
 - 날짜: 2026-07-31
-- 상태: 문서 검토 대기
+- 상태: 승인됨
 - 영역: `front-dev-home` 공용 장비 분류와 `/tool-roster`
 
 ## 배경
@@ -28,6 +28,8 @@ Tool Roster는 랜딩의 System Status에서 진입하지만 현재 페이지 �
 - `eqp_ip` 앞뒤 공백을 제거한 값이 정확히 `127.0.0.1`인 행을 Tool Roster의
   모든 사용자 동작에서 제외합니다.
 - Tool Roster 헤더에서 랜딩(`/`)으로 돌아갈 수 있게 합니다.
+- `DESIGN.md`의 Paper/Walnut 토큰, 의미별 선택 색상과 데이터 테이블 규칙에
+  맞게 집계표와 드릴다운 표의 가독성을 개선합니다.
 - 알 수 없는 다른 모델은 계속 `미분류`에 남겨 신규 장비 유형이 조용히
   사라지지 않게 합니다.
 
@@ -87,6 +89,44 @@ Tool Roster는 랜딩의 System Status에서 진입하지만 현재 페이지 �
 사용합니다. 직접 URL로 Tool Roster에 진입한 경우에도 항상 요청한 랜딩
 페이지로 이동해야 하기 때문입니다.
 
+### DESIGN.md 기반 표 개선
+
+최근 표 밀도 변경은 집계표를 콘텐츠 너비(`w-max`)로만 렌더링하고 행 패딩을
+4px까지 줄였습니다. 이 때문에 카드 안에 표가 작은 덩어리로 붙고 Fab, 모델,
+합계의 관계를 구분하기 어려워졌습니다.
+
+집계표의 정보와 동작은 유지하면서 다음 시각 규칙을 적용합니다.
+
+- 표는 `min-w-full w-max`로 카드의 사용 가능한 폭을 채우되, 모델 열이 많으면
+  기존처럼 가로 스크롤합니다.
+- 필터는 같은 화면의 데이터를 좁히는 컨트롤이므로 일반 `UButton` 대신
+  `SkChip`을 사용합니다. 활성 필터는 `--sk-brand` Terracotta 계열로
+  표시합니다.
+- 필터·내보내기 도구 행은 `--sk-brand-soft`의 옅은 배경을 사용하여 데이터
+  표와 구분합니다.
+- 헤더와 합계 행은 `--sk-muted-surface`, 각 행과 열은
+  `--sk-border-soft` 1px hairline으로 구분합니다.
+- Fab 첫 열은 가로 스크롤 중에도 문맥을 잃지 않도록 왼쪽에 고정합니다.
+  헤더는 위쪽에 고정합니다.
+- 헤더는 `.sk-label`, Fab과 모델 수량은 최소 12px의 `.sk-value` /
+  `.sk-value-num`을 사용합니다. 데이터 값에 muted 색을 쓰지 않습니다.
+- 값이 없는 칸은 `·`로 조용히 유지합니다. 값이 있는 칸은 inset surface의
+  작은 사각 버튼으로 표시하고 `--sk-accent-soft` hover를 사용합니다.
+- 선택된 집계 셀은 상세 보기를 바꾸는 NAVIGATE 상태이므로
+  `--sk-ink` 배경과 `--sk-ink-fg` 글자로 표시하며 `aria-pressed`를
+  제공합니다.
+- 최근 압축 변경의 4px 행 패딩은 되돌리고, 헤더 8px·데이터 6px 수준의
+  읽기 가능한 밀도로 조정합니다.
+
+드릴다운은 집계표 바로 아래에 붙은 또 하나의 평면 표가 아니라, 선택된 셀의
+상세라는 관계가 보이도록 `--sk-muted-surface` inset panel로 묶습니다.
+상단에는 `Fab / Model` 제목과 중립 count badge, 닫기 버튼을 두고 본문
+`UTable`은 `--sk-surface` 위에 렌더링합니다. 데이터 필드, 정렬 순서와
+hover 동작은 변경하지 않습니다.
+
+새 색상, 새 radius, 그림자 또는 고정-lightness zinc 계열을 추가하지
+않습니다. Zinc는 `DESIGN.md`가 허용한 표 행 hover에서만 사용합니다.
+
 ## 데이터 흐름
 
 ```text
@@ -108,6 +148,8 @@ GET /api/sem-list/pending
 4. `npm run typecheck`와 변경 파일 대상 ESLint를 실행합니다.
 5. 실행 중인 앱에서 버튼의 `/` 이동, 미분류 수량 정정과 루프백 장비의
    표시·복사·CSV 제외를 확인합니다.
+6. FHD와 좁은 viewport에서 표의 전체 폭, sticky Fab/header, 가로 스크롤,
+   선택 셀, 필터 chip과 드릴다운 inset panel을 확인합니다.
 
 ## 변경하지 않는 범위
 
@@ -115,3 +157,4 @@ GET /api/sem-list/pending
 - `127.0.0.1`이 아닌 특수 IP에 대한 새 정책은 만들지 않습니다.
 - VeritySEM 이외 장비군의 대소문자 규칙은 변경하지 않습니다.
 - 미분류 fallback과 Tool Type 필터 UI는 유지합니다.
+- 집계 기준, 드릴다운 데이터 필드와 정렬 순서는 변경하지 않습니다.
