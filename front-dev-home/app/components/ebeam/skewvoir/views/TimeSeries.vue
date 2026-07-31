@@ -23,9 +23,15 @@
     />
     <!-- Resolved but never loaded: POST /api/msr-files silently skips MSRs it
          cannot find, so without this the miss would masquerade as “이 파라미터가
-         없다” and quietly shrink every denominator on the page. -->
+         없다” and quietly shrink every denominator on the page.
+
+         Gated on `setPending` — unlike the unresolved-id alert above, which
+         reads measurement history that is already in hand, this one compares
+         against the batch's result. While the batch is in flight `loaded` is 0,
+         so an ungated alert accuses the request of failing every single time,
+         for as long as it takes. -->
     <UAlert
-      v-if="integrity.resolved > integrity.loaded"
+      v-if="!analysis.setPending.value && integrity.resolved > integrity.loaded"
       color="warning"
       variant="soft"
       icon="i-lucide-file-x"

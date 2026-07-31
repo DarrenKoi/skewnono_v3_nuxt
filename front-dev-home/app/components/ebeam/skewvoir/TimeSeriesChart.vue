@@ -222,7 +222,11 @@ const option = computed<EChartsOption>(() => ({
       return lines.join('<br/>')
     }
   },
-  grid: { left: 48, right: 16, top: 20, bottom: 64, containLabel: true },
+  // top 28, not 20: `containLabel` reserves room for axis LABELS but not for the
+  // axis NAME, which yAxis draws above the grid at the default nameGap of 15.
+  // At 20 the name is half-clipped by the canvas edge — verified in the browser,
+  // where “Δ vs 세트 기준” (the whole point of residual mode) was unreadable.
+  grid: { left: 48, right: 16, top: 28, bottom: 64, containLabel: true },
   xAxis: props.axisMode === 'time'
     ? { type: 'time' as const, axisLabel: { fontSize: 10, hideOverlap: true }, axisPointer: AXIS_POINTER }
     : {
