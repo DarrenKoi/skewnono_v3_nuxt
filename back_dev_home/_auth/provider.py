@@ -24,26 +24,15 @@ class LocalIdentityProvider:
 
 
 def _load_sso_class():
-    """Return the cloud image's SSO class, accepting either module spelling.
-
-    `hcputil` is supplied by the cloud image, never by requirements.txt. The
-    in-house doc this code was written from (docs/afm/개발요구.txt:31)
-    spells the module `auto`; the library spells it `auth`. Trying both costs
-    one failed import and removes an entire class of boot failure from a
-    deploy that cannot be iterated on quickly -- create_app() builds
-    CloudIdentityProvider() with no try/except, and wsgi.ini sets
-    need-app=true, so a wrong name means uwsgi never starts.
-    """
-    errors = []
-    for module_path in ("hcputil.auth.sso", "hcputil.auto.sso"):
-        try:
-            return importlib.import_module(module_path).SSO
-        except ImportError as exc:
-            errors.append(f"{module_path}: {exc}")
-    raise ImportError(
-        "hcputil SSO not importable; the cloud image must provide it. Tried:\n  "
-        + "\n  ".join(errors)
-    )
+    """Return the cloud image's confirmed SSO class."""
+    module_path = "hcputil.auth.sso"
+    try:
+        return importlib.import_module(module_path).SSO
+    except ImportError as exc:
+        raise ImportError(
+            f"{module_path} is not importable; "
+            "the cloud image must provide this SSO module."
+        ) from exc
 
 
 class CloudIdentityProvider:

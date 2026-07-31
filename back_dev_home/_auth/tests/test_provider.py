@@ -1,10 +1,4 @@
-"""`hcputil` lives only on the cloud image, so these tests inject stub
-modules into sys.modules rather than importing the real library.
-
-The module path is genuinely uncertain: the in-house requirements doc
-(docs/afm/개발요구.txt:31) spells it `auto`, the library spells it
-`auth`. The loader accepts either, and these tests pin that behaviour.
-"""
+"""The cloud image supplies `hcputil.auth.sso`; tests inject a local stub."""
 
 import sys
 import types
@@ -19,43 +13,35 @@ class _FakeSSO:
 
 
 @pytest.fixture
-def stub_hcputil(monkeypatch):
-    """Install hcputil.<variant>.sso stubs; yields an installer function."""
-
-    def install(*variants):
-        for variant in variants:
-            pkg = types.ModuleType("hcputil")
-            pkg.__path__ = []
-            sub = types.ModuleType(f"hcputil.{variant}")
-            sub.__path__ = []
-            sso_mod = types.ModuleType(f"hcputil.{variant}.sso")
-            sso_mod.SSO = _FakeSSO
-            monkeypatch.setitem(sys.modules, "hcputil", pkg)
-            monkeypatch.setitem(sys.modules, f"hcputil.{variant}", sub)
-            monkeypatch.setitem(sys.modules, f"hcputil.{variant}.sso", sso_mod)
-
-    return install
+def stub_hcputil_auth(monkeypatch):
+    pkg = types.ModuleType("hcputil")
+    pkg.__path__ = []
+    sub = types.ModuleType("hcputil.auth")
+    sub.__path__ = []
+    sso_mod = types.ModuleType("hcputil.auth.sso")
+    sso_mod.SSO = _FakeSSO
+    monkeypatch.setitem(sys.modules, "hcputil", pkg)
+    monkeypatch.setitem(sys.modules, "hcputil.auth", sub)
+    monkeypatch.setitem(sys.modules, "hcputil.auth.sso", sso_mod)
 
 
-def test_prefers_auth_spelling(stub_hcputil):
-    stub_hcputil("auth")
+def test_loads_auth_sso(stub_hcputil_auth):
     assert _load_sso_class() is _FakeSSO
 
 
-def test_falls_back_to_auto_spelling(stub_hcputil):
-    stub_hcputil("auto")
-    assert _load_sso_class() is _FakeSSO
+def test_does_not_fall_back_to_auto_typo(monkeypatch):
+    attempted = []
 
+    def missing(name):
+        attempted.append(name)
+        raise ImportError(name)
 
-def test_raises_naming_both_paths_when_neither_exists(monkeypatch):
-    for name in list(sys.modules):
-        if name == "hcputil" or name.startswith("hcputil."):
-            monkeypatch.delitem(sys.modules, name, raising=False)
-    monkeypatch.setattr(sys, "path", [])
+    monkeypatch.setattr(
+        "back_dev_home._auth.provider.importlib.import_module",
+        missing,
+    )
 
-    with pytest.raises(ImportError) as excinfo:
+    with pytest.raises(ImportError, match=r"hcputil\.auth\.sso"):
         _load_sso_class()
 
-    message = str(excinfo.value)
-    assert "hcputil.auth.sso" in message
-    assert "hcputil.auto.sso" in message
+    assert attempted == ["hcputil.auth.sso"]
