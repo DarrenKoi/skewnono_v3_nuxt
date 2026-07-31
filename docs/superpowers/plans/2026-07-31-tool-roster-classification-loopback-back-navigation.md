@@ -38,7 +38,6 @@
 | `front-dev-home/app/utils/pendingToolMatrix.ts` | Tool Roster 전용 행 정제와 기존 집계 순수 함수 |
 | `front-dev-home/app/utils/pendingToolMatrix.test.ts` | 루프백 제외 규칙의 순수 함수 테스트 |
 | `front-dev-home/app/pages/tool-roster.vue` | 정제된 행, 랜딩 링크와 DESIGN.md 기반 집계·드릴다운 UI |
-| `front-dev-home/app/pages/tool-roster.test.ts` | Vue SFC의 랜딩 링크와 핵심 표 구조 회귀 테스트 |
 
 ### Task 1: 공용 VeritySEM 분류
 
@@ -225,7 +224,6 @@ git commit -m "fix(tool-roster): exclude loopback roster rows"
 
 **Files:**
 
-- Create: `front-dev-home/app/pages/tool-roster.test.ts`
 - Modify: `front-dev-home/app/pages/tool-roster.vue:7-210`
 
 **Interfaces:**
@@ -239,47 +237,7 @@ git commit -m "fix(tool-roster): exclude loopback roster rows"
   - full-width hairline 집계표, sticky header/Fab 열과 Ink 선택 셀
   - `--sk-muted-surface` inset drill-down panel
 
-- [ ] **Step 1: 실패하는 SFC 템플릿 테스트 작성**
-
-```ts
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { test } from 'node:test'
-import assert from 'node:assert/strict'
-import { parse } from '@vue/compiler-sfc'
-
-const filename = fileURLToPath(new URL('./tool-roster.vue', import.meta.url))
-const { descriptor } = parse(readFileSync(filename, 'utf8'), { filename })
-const template = descriptor.template?.content ?? ''
-
-test('tool roster header links back to the landing page', () => {
-  assert.match(
-    template,
-    /<UButton[^>]*to="\/"[^>]*icon="i-lucide-arrow-left"[^>]*label="뒤로가기"[^>]*>/s
-  )
-})
-
-test('tool roster uses filter chips and a full-width accessible matrix', () => {
-  assert.match(template, /<SkChip[\s\S]*v-for="chip in groupChips"/)
-  assert.match(template, /<table[^>]*min-w-full[^>]*w-max[^>]*>/)
-  assert.match(template, /<button[^>]*:aria-pressed="isSelectedCell\(fab, model\)"/)
-  assert.match(template, /<caption[^>]*sr-only[^>]*>[\s\S]*Fab별 미연결 장비 모델 수/)
-})
-```
-
-- [ ] **Step 2: 실패 확인**
-
-Run:
-
-```bash
-cd front-dev-home
-node --test app/pages/tool-roster.test.ts
-```
-
-Expected: 두 테스트 모두 현재 템플릿에서 필요한 링크 또는 표 구조를 찾지 못해
-실패합니다.
-
-- [ ] **Step 3: 헤더 버튼 구현**
+- [ ] **Step 1: 헤더 버튼 구현**
 
 `tool-roster.vue`의 제목 앞에 다음 버튼과 hairline 구분자를 배치합니다.
 테스트와 속성 순서를 일치시킵니다.
@@ -299,7 +257,7 @@ Expected: 두 테스트 모두 현재 템플릿에서 필요한 링크 또는 �
 />
 ```
 
-- [ ] **Step 4: 필터를 Terracotta `SkChip`으로 교체**
+- [ ] **Step 2: 필터를 Terracotta `SkChip`으로 교체**
 
 기존 filter bar의 `UButton v-for`를 다음 구조로 교체합니다.
 
@@ -344,7 +302,7 @@ Expected: 두 테스트 모두 현재 템플릿에서 필요한 링크 또는 �
 </div>
 ```
 
-- [ ] **Step 5: 집계표를 full-width hairline matrix로 재구성**
+- [ ] **Step 3: 집계표를 full-width hairline matrix로 재구성**
 
 표에는 접근 가능한 caption을 추가하고 다음 구조를 적용합니다.
 
@@ -446,7 +404,7 @@ const isSelectedCell = (fab: string, model: string): boolean =>
   selectedCell.value?.fab === fab && selectedCell.value.model === model
 ```
 
-- [ ] **Step 6: 드릴다운을 inset panel로 묶기**
+- [ ] **Step 4: 드릴다운을 inset panel로 묶기**
 
 선택 상세 영역의 바깥 구조를 다음처럼 변경합니다.
 
@@ -499,22 +457,24 @@ const isSelectedCell = (fab: string, model: string): boolean =>
 </div>
 ```
 
-- [ ] **Step 7: SFC 구조 테스트 통과 확인**
+- [ ] **Step 5: Vue 정적 검증**
 
 Run:
 
 ```bash
 cd front-dev-home
-node --test app/pages/tool-roster.test.ts
+npm run typecheck
+./node_modules/.bin/eslint app/pages/tool-roster.vue
 ```
 
-Expected: 2 tests pass.
+Expected: 두 명령 모두 exit 0입니다. 이 저장소에는 Vue mounting harness가
+없으므로 SFC 소스 문자열을 검사하는 change-detector 테스트를 만들지 않습니다.
+버튼 이동과 시각 구조는 Task 4의 실행 화면 검증에서 확인합니다.
 
-- [ ] **Step 8: 세 번째 변경 커밋**
+- [ ] **Step 6: 세 번째 변경 커밋**
 
 ```bash
-git add front-dev-home/app/pages/tool-roster.vue \
-  front-dev-home/app/pages/tool-roster.test.ts
+git add front-dev-home/app/pages/tool-roster.vue
 git commit -m "style(tool-roster): refine roster table hierarchy"
 ```
 
@@ -527,7 +487,6 @@ git commit -m "style(tool-roster): refine roster table hierarchy"
 - Verify only: `front-dev-home/app/utils/pendingToolMatrix.ts`
 - Verify only: `front-dev-home/app/utils/pendingToolMatrix.test.ts`
 - Verify only: `front-dev-home/app/pages/tool-roster.vue`
-- Verify only: `front-dev-home/app/pages/tool-roster.test.ts`
 
 **Interfaces:**
 
@@ -567,8 +526,7 @@ cd front-dev-home
   app/utils/toolType.test.ts \
   app/utils/pendingToolMatrix.ts \
   app/utils/pendingToolMatrix.test.ts \
-  app/pages/tool-roster.vue \
-  app/pages/tool-roster.test.ts
+  app/pages/tool-roster.vue
 ```
 
 Expected: exits 0 with no errors.
