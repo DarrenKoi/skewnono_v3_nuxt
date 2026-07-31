@@ -1,6 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { setBaseline, buildTrendSeries, type TrendRowInput, type TrendFileInput } from './timeSeries.ts'
+import {
+  setBaseline, buildTrendSeries, buildSetDistributionGroups, buildToolSkew, distinctToolCount,
+  type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput
+} from './timeSeries.ts'
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 
 const row = (msr: string, eqpId: string, timestamp: string): TrendRowInput =>
@@ -119,4 +122,78 @@ test('verdicts are computed from RAW means, so residual mode cannot change them'
     raw.map(p => p.verdict?.severity),
     resid.map(p => p.verdict?.severity)
   )
+})
+
+const siteRow = (parameter: string, mp_number: number, cd_value: number | null) =>
+  ({ parameter, mp_number, cd_value })
+
+test('buildSetDistributionGroups makes one group per measurement, measured sites only', () => {
+  const rows = [row('m1', 'TP01', '2026-07-01T10:00:00'), row('m2', 'TP02', '2026-07-02T10:00:00')]
+  const files = new Map<string, DistFileInput>([
+    ['m1', { rows: [siteRow('WAFER', 0, 10), siteRow('WAFER', 1, 12), siteRow('GATE_CD', 2, 99)] }],
+    ['m2', { rows: [siteRow('WAFER', 0, 20), siteRow('WAFER', -1, null)] }]
+  ])
+  const out = buildSetDistributionGroups(rows, files, 'WAFER')
+  assert.deepEqual(out.map(g => g.label), ['TP01 · 2026-07-01T10:00:00', 'TP02 · 2026-07-02T10:00:00'])
+  assert.deepEqual(out[0]!.values, [10, 12])
+  assert.deepEqual(out[1]!.values, [20]) // the mp_number -1 / null site is excluded
+})
+
+test('buildSetDistributionGroups drops a measurement with no measured site', () => {
+  const rows = [row('m1', 'TP01', '2026-07-01T10:00:00'), row('m2', 'TP02', '2026-07-02T10:00:00')]
+  const files = new Map<string, DistFileInput>([
+    ['m1', { rows: [siteRow('WAFER', 0, 10)] }],
+    ['m2', { rows: [siteRow('WAFER', -1, null)] }]
+  ])
+  const out = buildSetDistributionGroups(rows, files, 'WAFER')
+  assert.deepEqual(out.map(g => g.label), ['TP01 · 2026-07-01T10:00:00'])
+})
+
+test('buildToolSkew groups by equipment, offsets against the set baseline', () => {
+  const points = [
+    { eqpId: 'TP01', mean: 10 }, { eqpId: 'TP01', mean: 12 },
+    { eqpId: 'TP02', mean: 30 }
+  ] as TrendPoint[]
+  const out = buildToolSkew(points, 20)
+  const tp01 = out.find(r => r.eqpId === 'TP01')!
+  assert.equal(tp01.n, 2)
+  assert.equal(tp01.mean, 11)
+  assert.equal(tp01.offset, -9)
+  assert.equal(tp01.sigma, Math.sqrt(2)) // sample std of [10, 12]
+})
+
+test('buildToolSkew reports sigma null for a single-measurement tool', () => {
+  // sampleStd returns 0 for n<2; rendering that reads as "no variation" when
+  // the truth is "not estimable".
+  const points = [{ eqpId: 'TP01', mean: 10 }, { eqpId: 'TP02', mean: 30 }] as TrendPoint[]
+  const out = buildToolSkew(points, 20)
+  assert.ok(out.every(r => r.n === 1))
+  assert.ok(out.every(r => r.sigma === null))
+})
+
+test('buildToolSkew sorts by absolute offset, most-skewed tool first', () => {
+  const points = [
+    { eqpId: 'NEAR', mean: 21 }, { eqpId: 'FAR', mean: 40 }, { eqpId: 'MID', mean: 14 }
+  ] as TrendPoint[]
+  assert.deepEqual(buildToolSkew(points, 20).map(r => r.eqpId), ['FAR', 'MID', 'NEAR'])
+})
+
+test('buildToolSkew produces NO rows for a single-tool set', () => {
+  // An offset against a baseline the tool itself defines is not a comparison.
+  // The spec requires no row at all — the panel says 단일 장비 instead.
+  const points = [{ eqpId: 'TP01', mean: 10 }, { eqpId: 'TP01', mean: 20 }] as TrendPoint[]
+  assert.deepEqual(buildToolSkew(points, 15), [])
+})
+
+test('buildToolSkew on an empty set returns no rows', () => {
+  assert.deepEqual(buildToolSkew([], Number.NaN), [])
+})
+
+test('distinctToolCount lets the panel tell "one tool" apart from "no data"', () => {
+  // Both cases give buildToolSkew an empty array, but they need different copy.
+  assert.equal(distinctToolCount([{ eqpId: 'TP01', mean: 10 }] as TrendPoint[]), 1)
+  assert.equal(distinctToolCount([]), 0)
+  assert.equal(distinctToolCount([
+    { eqpId: 'TP01', mean: 10 }, { eqpId: 'TP02', mean: 20 }
+  ] as TrendPoint[]), 2)
 })

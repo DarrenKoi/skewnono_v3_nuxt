@@ -12,7 +12,7 @@
 // every percentage. Anomaly verdicts and tool skew read the RAW fields.
 import type { TsBaseline } from './types.ts'
 import type { MsrParamSummary } from '~/composables/useMsrFileApi'
-import { quantileSorted } from '../stats.ts'
+import { quantileSorted, mean as meanOf, sampleStd } from '../stats.ts'
 import { peerVerdicts, combineVerdicts, type MethodConfig, type CombinedVerdict } from '../anomaly/index.ts'
 import { isNamedParam } from './paramOrder.ts'
 
@@ -126,4 +126,115 @@ export const buildTrendSeries = (
   const meanV = peerVerdicts(points.map(p => p.mean), { config: opts.config, metric: 'mean' })
   const spreadV = peerVerdicts(points.map(p => p.std), { config: opts.config, metric: 'spread', tag: '산포' })
   return points.map((p, i) => ({ ...p, verdict: combineVerdicts([meanV[i]!, spreadV[i]!]) }))
+}
+
+/** The site facts the distribution lens needs.
+ *
+ *  Deliberately a MINIMAL structural type, not `MsrFileRow`. `MsrFileRow` has
+ *  ~20 required fields (coordinates, image names, measurement conditions,
+ *  scores); demanding it here would force every test fixture to invent all of
+ *  them. `nuxt typecheck` covers `app/**` INCLUDING `*.test.ts`, so a shortcut
+ *  fixture would not merely be untidy — it would fail the build. A real
+ *  MsrFileRow still satisfies this shape structurally. */
+export interface DistSiteInput {
+  parameter: string
+  mp_number: number
+  cd_value: number | null
+}
+
+export interface DistFileInput {
+  rows: DistSiteInput[]
+}
+
+/** Local mirror of utils/msrRows.ts's isMeasuredRow, narrowed to DistSiteInput.
+ *  Same rule — mp_number < 0 is a metadata-only point with no measurement, and
+ *  a null cd_value is the contract for "no data" — but it does not demand a
+ *  full MsrFileRow. Keep the two in sync. */
+const isMeasuredSite = (r: DistSiteInput): r is DistSiteInput & { cd_value: number } =>
+  r.mp_number >= 0 && r.cd_value != null && Number.isFinite(r.cd_value)
+
+/** Matches DistributionChart.vue's `DistributionGroup` prop shape. */
+export interface SetDistributionGroup {
+  label: string
+  values: number[]
+}
+
+/** One box per measurement, from the site rows already in setFiles.
+ *
+ *  A measurement with no measured site is dropped rather than contributed as an
+ *  empty box — the caller reports the count in the panel meta. */
+export const buildSetDistributionGroups = (
+  rows: readonly TrendRowInput[],
+  files: ReadonlyMap<string, DistFileInput>,
+  parameter: string
+): SetDistributionGroup[] => {
+  const groups: SetDistributionGroup[] = []
+  for (const row of rows) {
+    const file = files.get(row.msr)
+    if (!file) continue
+    const values: number[] = []
+    for (const site of file.rows) {
+      if (site.parameter === parameter && isMeasuredSite(site)) values.push(site.cd_value)
+    }
+    if (values.length === 0) continue
+    groups.push({ label: row.label, values })
+  }
+  return groups
+}
+
+export interface ToolSkewRow {
+  eqpId: string
+  /** Measurements this tool contributed to the set. */
+  n: number
+  /** Mean of this tool's measurement means (raw). */
+  mean: number
+  /** mean - 세트 기준. */
+  offset: number
+  /** Sample std across this tool's means; null when n < 2 (not estimable). */
+  sigma: number | null
+}
+
+/** Distinct equipment in the set. The panel needs this to tell "one tool"
+ *  (say 단일 장비) apart from "no data" (say nothing) — buildToolSkew returns an
+ *  empty array for both. */
+export const distinctToolCount = (points: readonly TrendPoint[]): number =>
+  new Set(points.map(p => p.eqpId)).size
+
+/** Per-equipment offset from the set baseline.
+ *
+ *  Reads the RAW `mean`, so the rows are identical in raw and residual mode —
+ *  an offset is already a delta. No verdict or status is produced: with a
+ *  hand-picked set spanning recipes, an offset is not attributable enough to
+ *  grade.
+ *
+ *  A single-tool set yields NO rows. Its baseline is that tool's own median, so
+ *  the "offset" would be a number about nothing — a row reading ≈0 invites the
+ *  conclusion that the tool agrees with its peers when it has none. */
+export const buildToolSkew = (
+  points: readonly TrendPoint[],
+  baseline: number
+): ToolSkewRow[] => {
+  if (distinctToolCount(points) < 2) return []
+
+  const byTool = new Map<string, number[]>()
+  for (const p of points) {
+    const list = byTool.get(p.eqpId)
+    if (list) list.push(p.mean)
+    else byTool.set(p.eqpId, [p.mean])
+  }
+
+  const rows: ToolSkewRow[] = []
+  for (const [eqpId, means] of byTool) {
+    const m = meanOf(means)
+    rows.push({
+      eqpId,
+      n: means.length,
+      mean: m,
+      offset: m - baseline,
+      sigma: means.length > 1 ? sampleStd(means) : null
+    })
+  }
+
+  rows.sort((a, b) => Math.abs(b.offset) - Math.abs(a.offset))
+  return rows
 }
