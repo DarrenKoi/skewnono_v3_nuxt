@@ -7,6 +7,9 @@ import {
   decodeParam,
   encodeFdcAxis,
   encodeParam,
+  encodeTsAxis,
+  encodeTsBaseline,
+  encodeTsView,
   focusIdentityFromRow,
   parseFdcAxis,
   parseMsrList,
@@ -274,6 +277,53 @@ test('parseTsAxis defaults to time; parseTsBaseline defaults to raw', () => {
   assert.equal(parseTsBaseline(undefined), 'raw')
   assert.equal(parseTsBaseline('resid'), 'resid')
   assert.equal(parseTsBaseline('bogus'), 'raw')
+})
+
+test('encodeTsView / parseTsView round-trip, and the default stays out of the URL', () => {
+  assert.equal(encodeTsView('trend'), null) // default stays out of the URL
+  assert.equal(encodeTsView('dist'), 'dist')
+  assert.equal(encodeTsView('skew'), 'skew')
+  // Round trip: a non-default survives, and the cleared default parses BACK to
+  // the same default an absent key yields.
+  assert.equal(parseTsView(encodeTsView('dist')), 'dist')
+  assert.equal(parseTsView(encodeTsView('skew')), 'skew')
+  assert.equal(parseTsView(encodeTsView('trend')), 'trend')
+  assert.equal(parseTsView(undefined), parseTsView(encodeTsView('trend')))
+})
+
+test('encodeTsAxis / parseTsAxis round-trip, and the default stays out of the URL', () => {
+  assert.equal(encodeTsAxis('time'), null) // default stays out of the URL
+  assert.equal(encodeTsAxis('order'), 'order')
+  assert.equal(parseTsAxis(encodeTsAxis('order')), 'order')
+  assert.equal(parseTsAxis(encodeTsAxis('time')), 'time')
+  assert.equal(parseTsAxis(undefined), parseTsAxis(encodeTsAxis('time')))
+})
+
+test('encodeTsBaseline / parseTsBaseline round-trip, and the default stays out of the URL', () => {
+  assert.equal(encodeTsBaseline('raw'), null) // default stays out of the URL
+  assert.equal(encodeTsBaseline('resid'), 'resid')
+  assert.equal(parseTsBaseline(encodeTsBaseline('resid')), 'resid')
+  assert.equal(parseTsBaseline(encodeTsBaseline('raw')), 'raw')
+  assert.equal(parseTsBaseline(undefined), parseTsBaseline(encodeTsBaseline('raw')))
+})
+
+test('a default Time-Series lens state clears its three keys from the query', () => {
+  // What the three setters do together via patchQuery: a shared link carries
+  // only what actually differs from the default, never tsview=trend&tsx=time&tsb=raw.
+  const query = { view: 'time-series', tsview: 'skew', tsx: 'order', tsb: 'resid' }
+  assert.deepEqual(
+    applyQueryPatch(query, {
+      tsview: encodeTsView('trend'),
+      tsx: encodeTsAxis('time'),
+      tsb: encodeTsBaseline('raw')
+    }),
+    { view: 'time-series' }
+  )
+  // …and a non-default writes the key.
+  assert.deepEqual(
+    applyQueryPatch({ view: 'time-series' }, { tsview: encodeTsView('dist') }),
+    { view: 'time-series', tsview: 'dist' }
+  )
 })
 
 test('parseMsrList removes duplicate msr ids, keeping first occurrence order', () => {

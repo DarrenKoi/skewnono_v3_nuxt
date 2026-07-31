@@ -148,6 +148,21 @@
           추이 데이터를 불러오는 중…
         </div>
 
+        <!-- Fewer than two measurements: the empty state, NOT a lens. Placed
+             ahead of the three lens branches so none of them can render a
+             degenerate one-measurement view. It sits in the panel body rather
+             than replacing the whole screen so the integrity alerts above —
+             which are often the reason only one measurement survived — stay
+             on screen. -->
+        <div
+          v-else-if="!hasComparableSetData"
+          class="flex h-72 items-center justify-center sk-body"
+        >
+          {{ comparableCount === 1
+            ? '측정 1개로는 비교할 수 없습니다 · 측정을 더 추가하세요.'
+            : '비교할 측정을 추가하세요.' }}
+        </div>
+
         <template v-else-if="ws.tsView.value === 'trend' && analysis.trendPoints.value.length">
           <div class="mb-2 flex flex-wrap items-center gap-2">
             <USelect
@@ -330,15 +345,23 @@ const panelId = (lens: TsView): string => `ts-lens-${lens}-panel`
 
 const integrity = computed(() => props.analysis.integrity.value)
 
-// Whether ANY lens has something to draw. Gates the tab strip so a set that
-// resolved to nothing does not offer three empty choices.
-const hasAnySetData = computed(() =>
-  props.analysis.trendPoints.value.length > 0
-  || props.analysis.distributionGroups.value.length > 0
-)
+// How many measurements the lenses actually have to work with — the wider of
+// the two derivations, mirroring what each lens draws from.
+const comparableCount = computed(() => Math.max(
+  props.analysis.trendPoints.value.length,
+  props.analysis.distributionGroups.value.length
+))
+
+// TWO measurements is the floor for every lens, not one. At n=1 the trend is a
+// single dot whose 세트 기준 is its own mean, the distribution is one box with
+// nothing beside it, and the skew lens reads 단일 장비 — three degenerate views
+// of a comparison that has no second term. The spec puts that case in the empty
+// state, and it is one click away (the analyze button only requires a non-empty
+// selection, and openAnalysisSet always writes scope=set).
+const hasComparableSetData = computed(() => comparableCount.value >= 2)
 
 const lensTabsVisible = computed(() =>
-  !props.analysis.setPending.value && hasAnySetData.value
+  !props.analysis.setPending.value && hasComparableSetData.value
 )
 
 const lensTabsEl = ref<HTMLElement | null>(null)

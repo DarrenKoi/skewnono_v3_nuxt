@@ -140,6 +140,8 @@ export const encodeFdcAxis = (mode: SequenceAxisMode): string | null =>
   mode === 'all' ? 'all' : null
 
 export const DEFAULT_TS_VIEW: TsView = 'trend'
+export const DEFAULT_TS_AXIS: TsAxisMode = 'time'
+export const DEFAULT_TS_BASELINE: TsBaseline = 'raw'
 
 const TS_VIEWS: readonly TsView[] = ['trend', 'dist', 'skew']
 const TS_AXES: readonly TsAxisMode[] = ['time', 'order']
@@ -154,13 +156,28 @@ export const parseTsView = (raw: unknown): TsView => {
 
 export const parseTsAxis = (raw: unknown): TsAxisMode => {
   const v = qstr(raw)
-  return v && (TS_AXES as readonly string[]).includes(v) ? v as TsAxisMode : 'time'
+  return v && (TS_AXES as readonly string[]).includes(v) ? v as TsAxisMode : DEFAULT_TS_AXIS
 }
 
 export const parseTsBaseline = (raw: unknown): TsBaseline => {
   const v = qstr(raw)
-  return v && (TS_BASELINES as readonly string[]).includes(v) ? v as TsBaseline : 'raw'
+  return v && (TS_BASELINES as readonly string[]).includes(v) ? v as TsBaseline : DEFAULT_TS_BASELINE
 }
+
+/** Write-side mirrors of the three parsers above, same shape as encodeFdcAxis:
+ *  the DEFAULT maps to `null` so the key is cleared from the URL. Same RULE, and
+ *  the reason it is a rule rather than tidiness — every shared Time-Series link
+ *  would otherwise carry `tsview=trend&tsx=time&tsb=raw`, three params that say
+ *  nothing the absent key does not already say. Each reads its default from the
+ *  SAME constant its parser falls back to, so the round trip cannot drift. */
+export const encodeTsView = (v: TsView): string | null =>
+  v === DEFAULT_TS_VIEW ? null : v
+
+export const encodeTsAxis = (v: TsAxisMode): string | null =>
+  v === DEFAULT_TS_AXIS ? null : v
+
+export const encodeTsBaseline = (v: TsBaseline): string | null =>
+  v === DEFAULT_TS_BASELINE ? null : v
 
 /** Serialize a selection (+ view + explicit set + scope) into an analysis-link
  *  query. `msrs` defaults to the focus alone; pass a curated list for the

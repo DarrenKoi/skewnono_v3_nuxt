@@ -25,23 +25,27 @@
         >
           n
         </th>
+        <!-- The unit rides the three value columns' headers rather than every
+             row: a table of bare numbers is the one lens of the three that
+             does not say what it is measuring. `unitSuffix` is '' for a
+             parameter that legitimately has none, so no stray parentheses. -->
         <th
           scope="col"
-          class="py-1 text-right"
+          class="py-1 text-right whitespace-nowrap"
         >
-          평균
+          평균{{ unitSuffix }}
         </th>
         <th
           scope="col"
-          class="py-1 text-right"
+          class="py-1 text-right whitespace-nowrap"
         >
-          세트 기준 대비
+          세트 기준 대비{{ unitSuffix }}
         </th>
         <th
           scope="col"
-          class="py-1 text-right"
+          class="py-1 text-right whitespace-nowrap"
         >
-          σ
+          σ{{ unitSuffix }}
         </th>
         <th
           scope="col"
@@ -57,19 +61,23 @@
         :key="r.eqpId"
         class="border-t border-(--sk-border-soft)"
       >
-        <td class="py-1 font-mono text-xs text-(--sk-ink)">
+        <!-- `.sk-value-num` (DESIGN.md: "A numeric value (mono + tabular
+             figures)") for every number and for the equipment id, matching the
+             sibling dashboard/ParamSummary.vue table rather than the 14px body
+             copy this used to borrow. -->
+        <td class="py-1 sk-value-num">
           {{ r.eqpId }}
         </td>
-        <td class="py-1 text-right tabular-nums sk-body">
+        <td class="py-1 text-right sk-value-num">
           {{ r.n }}
         </td>
-        <td class="py-1 text-right tabular-nums sk-body">
+        <td class="py-1 text-right sk-value-num">
           {{ r.mean.toFixed(3) }}
         </td>
-        <td class="py-1 text-right tabular-nums sk-body">
+        <td class="py-1 text-right sk-value-num">
           {{ signed(r.offset) }}
         </td>
-        <td class="py-1 text-right tabular-nums sk-body">
+        <td class="py-1 text-right sk-value-num">
           {{ r.sigma == null ? '—' : r.sigma.toFixed(3) }}
         </td>
         <td class="py-1 pl-3">
@@ -105,6 +113,11 @@ const props = defineProps<{
 }>()
 
 const signed = (v: number): string => `${v >= 0 ? '+' : ''}${v.toFixed(3)}`
+
+// `label (unit)`, the same shape the trend / distribution charts give their
+// axis names — and empty when the parameter carries no unit, so the header
+// never renders a bare `()`.
+const unitSuffix = computed(() => (props.unit ? ` (${props.unit})` : ''))
 
 // The track is scaled so the widest reach in the set — offset plus its sigma
 // whisker — just fits. Scaling on offset alone would push a noisy tool's

@@ -6,6 +6,9 @@ import {
   applyQueryPatch,
   encodeFdcAxis,
   encodeParam,
+  encodeTsAxis,
+  encodeTsBaseline,
+  encodeTsView,
   parseFdcAxis,
   parseMsrList,
   parseScope,
@@ -120,13 +123,12 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   // The mapping itself (default → null, so the URL stays clean) lives in
   // encodeFdcAxis, tested as a pure round-trip with parseFdcAxis.
   const setFdcAxis = (mode: SequenceAxisMode) => patchQuery({ fdcaxis: encodeFdcAxis(mode) })
-  // In-place (no history entry), same pattern as setView/setFdcAxis.
-  const setTsView = (v: TsView) =>
-    router.replace({ path: analysisPath, query: { ...route.query, tsview: v } })
-  const setTsAxis = (v: TsAxisMode) =>
-    router.replace({ path: analysisPath, query: { ...route.query, tsx: v } })
-  const setTsBaseline = (v: TsBaseline) =>
-    router.replace({ path: analysisPath, query: { ...route.query, tsb: v } })
+  // In-place (no history entry), same pattern as setFdcAxis right above — and
+  // the same default → null rule, so a shared Time-Series link carries only the
+  // lens state that actually differs from the default.
+  const setTsView = (v: TsView) => patchQuery({ tsview: encodeTsView(v) })
+  const setTsAxis = (v: TsAxisMode) => patchQuery({ tsx: encodeTsAxis(v) })
+  const setTsBaseline = (v: TsBaseline) => patchQuery({ tsb: encodeTsBaseline(v) })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
   const setFilter = (filter: string | null) => patchQuery({ filter })
 

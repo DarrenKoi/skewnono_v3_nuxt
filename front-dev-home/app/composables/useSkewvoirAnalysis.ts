@@ -435,11 +435,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       setPending.value = false
       return
     }
+    // A non-empty key means a non-empty `setRows` — the key IS the joined msr
+    // list — so there is no empty-list case left to guard here.
     const list = setRows.value
-    if (list.length === 0) {
-      setFiles.value = new Map()
-      return
-    }
     setPending.value = true
     try {
       const res = await fetchMsrFiles(list.map(r => ({
@@ -457,7 +455,15 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     } catch {
       // Leave the previous map in place on failure rather than blanking the chart.
     } finally {
-      setPending.value = false
+      // Only the CURRENT batch owns the flag — the same rule loadFocus applies
+      // via isFocusStillCurrent. A superseded run clearing it would report "not
+      // loading" while its replacement is still in flight, and the integrity
+      // alert (gated on !setPending) would then read the incoming set's rows
+      // against the outgoing set's files and cry failure for the seconds the
+      // replacement takes. The flag is never stranded: whichever invocation is
+      // last to be current is by definition the one whose `key === setKey.value`
+      // holds when it settles, so it does clear it.
+      if (key === setKey.value) setPending.value = false
     }
   }, { immediate: true })
 
