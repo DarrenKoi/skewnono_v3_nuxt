@@ -70,7 +70,17 @@ def _deny_if_blocked():
     return error_json("access_denied", "member id is not allowed to access this service", 403)
 
 
+# Where the installed provider is parked so routes can ask what THIS phase
+# substitutes for an unidentified caller. `DELETE /api/identify` needs it to
+# describe the identity its own response leaves the caller with, and deciding
+# that from is_cloud() a second time would be a second place to get the
+# phase split wrong.
+IDENTITY_PROVIDER_KEY = "skewnono_identity_provider"
+
+
 def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
+    app.extensions[IDENTITY_PROVIDER_KEY] = provider
+
     @app.before_request
     def _attach_identity():
         matched, response = _try_api_token()
