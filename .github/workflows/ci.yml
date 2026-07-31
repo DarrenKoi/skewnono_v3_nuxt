@@ -46,7 +46,11 @@ jobs:
         run: npm test
 
   backend:
-    name: pytest
+    # Names every gate it runs, like the frontend job above. A job named for
+    # its last step misattributes each earlier-step failure: as `pytest`, this
+    # job spent a week reporting "pytest Failed" for a `ruff check .` break
+    # that stopped pytest from ever running.
+    name: lint + pytest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
