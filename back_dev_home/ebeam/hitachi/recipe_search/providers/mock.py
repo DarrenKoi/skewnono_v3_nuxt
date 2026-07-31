@@ -72,7 +72,6 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     IdpLocator,
     ParamDetailRequestItem,
     ParamDetailResponse,
-    ParamImage,
     RecipeCompareResponse,
     RecipeDetailResponse,
     RecipeSearchResponse,

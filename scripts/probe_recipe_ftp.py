@@ -249,8 +249,8 @@ def _print_candidates(hits: list[dict[str, Any]]) -> None:
         src = hit.get("_source", {})
         marker = "->" if i == 0 else "  "
         print(f"\n{marker} [{i}] _index={hit.get('_index')}  _id={hit.get('_id')}")
-        for field in _SOURCE:
-            print(f"      {field:<12} {src.get(field)!r}")
+        for key in _SOURCE:
+            print(f"      {key:<12} {src.get(key)!r}")
 
 
 # ── path derivation ───────────────────────────────────────────────────────

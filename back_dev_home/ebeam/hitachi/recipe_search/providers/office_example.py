@@ -1288,7 +1288,7 @@ def _split_align_settings(
     if isinstance(parsed, (list, tuple)) and len(parsed) == len(names):
         return {
             name: {"source": name, "rows": _to_rows(value)}
-            for name, value in zip(names, parsed)
+            for name, value in zip(names, parsed, strict=True)
         }
     if isinstance(parsed, dict) and set(names) <= set(map(str, parsed)):
         return {
