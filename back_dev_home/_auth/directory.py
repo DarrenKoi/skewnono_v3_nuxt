@@ -40,7 +40,7 @@ import json
 import logging
 import time
 from functools import lru_cache
-from typing import Optional, TypedDict
+from typing import NamedTuple, Optional, TypedDict
 
 from .._runtime.data_provider import get_mode
 from .._runtime.office_redis import STORE_ERRORS, redis_client_or_none, redis_text
@@ -71,6 +71,23 @@ class Member(TypedDict):
     dept_nm: Optional[str]
     organ_cd: Optional[str]
     upper_organ_nm: Optional[str]
+
+
+class Probe(NamedTuple):
+    """What the directory could tell us about one employee number.
+
+    ``lookup_member`` collapses every failure into the same bare record, which
+    is right for display — a directory miss must never cost anyone a page. But
+    verification has to tell a *missing row* (this person is not in the
+    directory) from an *unreachable directory* (we cannot say), because those
+    deserve opposite treatment: one is a fact about the user, the other is a
+    fact about us.
+
+    ``member`` is populated only when ``status`` is ``"found"``.
+    """
+
+    member: Optional[Member]
+    status: str  # "found" | "absent" | "unavailable"
 
 
 def bare_member(user_id: str) -> Member:
@@ -129,46 +146,50 @@ def _home_member(user_id: str) -> Member:
     }
 
 
-def _fetch(user_id: str) -> Member:
+def _fetch(user_id: str) -> Probe:
     # Mode, not is_cloud(). Home has REDIS_HOST set — it points at the office
     # Redis, which is unreachable from here — so "is the client configured"
     # answers yes and then every cold lookup burns the full socket timeout
-    # (10s: 5s connect, one retry) before degrading. Worse, it degrades to the
-    # bare record, so home never sees the enriched shape it exists to build
-    # against. get_mode() is the same knob the data providers use and is the
-    # only one that separates home from office-localhost, where REDIS_HOST is
-    # set AND reachable.
+    # (10s: 5s connect, one retry) before degrading. get_mode() is the same
+    # knob the data providers use and is the only one that separates home from
+    # office-localhost, where REDIS_HOST is set AND reachable.
+    #
+    # Home reports "unavailable" rather than the fabricated row: it can display
+    # a stand-in name (see `lookup_member`) but it cannot confirm one, and
+    # calling it "found" would make every home declaration verify against
+    # `홍길동(<사번>)`.
     if get_mode() != "office":
-        return _home_member(user_id)
+        return Probe(None, "unavailable")
 
     client = redis_client_or_none()
     if client is None:
         # Office mode with no REDIS_HOST: an incomplete .env. Worth knowing
         # about, but not worth a 503 — and never worth inventing a name for a
-        # real person, so this path stays bare rather than fabricating.
+        # real person, so this path stays empty rather than fabricating.
         logger.warning(
             "office mode but Redis is unconfigured; "
             "member names will be missing for every user"
         )
-        return bare_member(user_id)
+        return Probe(None, "unavailable")
 
     try:
         raw = client.hget(MEMBERS_KEY, user_id)
     except STORE_ERRORS as exc:
         logger.warning("member directory unreachable for %s: %s", user_id, exc)
-        return bare_member(user_id)
+        return Probe(None, "unavailable")
 
     if raw is None:
         # A real, ordinary outcome: contractors and service accounts hold a
         # LASTUSER cookie without a directory row. Not logged — it would be
         # every request from those users, forever.
-        return bare_member(user_id)
+        return Probe(None, "absent")
 
     try:
-        return _decode(raw, user_id)
+        return Probe(_decode(raw, user_id), "found")
     except (ValueError, TypeError, UnicodeDecodeError) as exc:
         # The one case that means our assumption about the value encoding is
-        # wrong. Log it loudly enough to find, then degrade like the rest.
+        # wrong. Log it loudly enough to find, then degrade like an outage —
+        # never like a missing row, which would blame the user for our bug.
         logger.warning(
             "member document for %s is not the expected JSON object (%s: %s); "
             "first bytes %r",
@@ -177,11 +198,11 @@ def _fetch(user_id: str) -> Member:
             exc,
             raw[:32],
         )
-        return bare_member(user_id)
+        return Probe(None, "unavailable")
 
 
 @lru_cache(maxsize=1024)
-def _cached(user_id: str, _bucket: int) -> Member:
+def _cached(user_id: str, _bucket: int) -> Probe:
     """Cache keyed on (user, time bucket) so entries expire without a sweeper.
 
     The bucket is part of the key rather than a stored timestamp, so an expiry
@@ -192,15 +213,35 @@ def _cached(user_id: str, _bucket: int) -> Member:
     return _fetch(user_id)
 
 
+def probe_member(user_id: str) -> Probe:
+    """What the directory knows about ``user_id``, failures kept distinct.
+
+    Only verification should call this. Anything that merely displays a name
+    wants ``lookup_member``, which cannot leave a caller with a failure branch
+    to forget.
+    """
+    return _cached(user_id, int(time.time() // _TTL_SECONDS))
+
+
 def lookup_member(user_id: Optional[str]) -> Optional[Member]:
     """The person behind a user id, or None if there is no user id.
 
     Never raises and never returns a half-built record: an unidentified caller
-    gets None, and an identified one always gets at least their empno.
+    gets None, and an identified one always gets at least their empno. This is
+    the forgiving face of ``probe_member`` — every failure it distinguishes
+    collapses to the same bare record here, so no caller has a "lookup failed"
+    branch to forget.
     """
     if not user_id:
         return None
-    return _cached(user_id, int(time.time() // _TTL_SECONDS))
+    # Home gets a fabricated row so the enriched shape is exercised before it
+    # meets the cloud. The probe reports "unavailable" for the same case,
+    # because a row we invented cannot vouch for anybody — display and
+    # verification want opposite answers here, which is the whole reason these
+    # are two functions.
+    if get_mode() != "office":
+        return _home_member(user_id)
+    return probe_member(user_id).member or bare_member(user_id)
 
 
 def reset_cache() -> None:

@@ -19,8 +19,10 @@ from back_dev_home._auth.directory import (
     MEMBERS_KEY,
     bare_member,
     lookup_member,
+    probe_member,
     reset_cache,
 )
+from back_dev_home._runtime.office_redis import STORE_ERRORS
 
 MEMBER_DOC = {
     "empno": "2067928",
@@ -252,3 +254,94 @@ def test_the_cache_expires_on_the_ttl_bucket(redis_returning, monkeypatch):
     lookup_member("2067928")
 
     assert len(client.calls) == 2
+
+
+# ── probe_member: the same lookup, with the failures kept apart ──────────
+#
+# Everything above asserts that lookup_member forgives. These assert the
+# forgiveness is a wrapper rather than the whole truth: verification has to
+# reject a name that disagrees with a real row while accepting anyone the
+# directory simply could not answer for, and it cannot do that if both arrive
+# as the same bare record.
+
+
+def test_a_present_row_probes_as_found(redis_returning):
+    redis_returning({"2067928": json.dumps(MEMBER_DOC)})
+
+    probe = probe_member("2067928")
+
+    assert probe.status == "found"
+    assert probe.member == MEMBER_DOC
+
+
+def test_a_missing_row_probes_as_absent(redis_returning):
+    """The distinction this function exists for. Absent is a real, ordinary
+    outcome — contractors and service accounts — and must not read the same as
+    an outage, because the two deserve opposite treatment."""
+    redis_returning({})
+
+    probe = probe_member("9999999")
+
+    assert probe.status == "absent"
+    assert probe.member is None
+
+
+def test_an_unreachable_redis_probes_as_unavailable(redis_returning):
+    redis_returning(raises=STORE_ERRORS[0]("redis is down"))
+
+    assert probe_member("2067928").status == "unavailable"
+
+
+def test_an_unconfigured_redis_probes_as_unavailable(monkeypatch):
+    """Office mode with no REDIS_HOST is an incomplete .env, not a statement
+    about this employee number."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "office")
+    monkeypatch.setattr(directory_mod, "redis_client_or_none", lambda: None)
+
+    assert probe_member("2067928").status == "unavailable"
+
+
+def test_an_undecodable_row_probes_as_unavailable(redis_returning):
+    """A row we cannot parse means our assumption about the encoding is wrong.
+    Reporting it as `absent` would reject the user for our own bug."""
+    redis_returning({"2067928": "not json at all"})
+
+    assert probe_member("2067928").status == "unavailable"
+
+
+def test_home_probes_as_unavailable(monkeypatch):
+    """Home fabricates rows, so it can display a name but cannot confirm one.
+    Reporting the fabricated row as `found` would make every home declaration
+    verify against `홍길동(<사번>)`."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "mock")
+
+    probe = probe_member("2067928")
+
+    assert probe.status == "unavailable"
+    assert probe.member is None
+
+
+def test_home_still_displays_the_fabricated_row(monkeypatch):
+    """The wrapper's contract is unchanged by the split: GET /api/me keeps
+    showing the stand-in name at home even though the probe refuses to vouch
+    for it."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "mock")
+
+    member = lookup_member("2067928")
+
+    assert member is not None
+    assert member["emp_nm"] == "홍길동(2067928)"
+
+
+def test_home_never_dials_redis_for_a_probe(monkeypatch):
+    """Home's REDIS_HOST points at an office host it cannot reach, so a probe
+    that tried would burn the full socket timeout before failing."""
+    called = []
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "mock")
+    monkeypatch.setattr(
+        directory_mod, "redis_client_or_none", lambda: called.append(1)
+    )
+
+    probe_member("2067928")
+
+    assert called == []
