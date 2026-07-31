@@ -21,7 +21,12 @@ types:
       description: Round-trip time of the health probe in milliseconds. null when status is "down" (no successful response).
     detail:
       type: string
-      description: Short context line (version / node count / cluster color / failure reason)
+      description: >-
+        Short context line (version / node count / cluster color). On failure
+        this is a redacted phrase such as "probe failed (ConnectionError)" —
+        never the driver's message, which carries internal hostnames and ports
+        and this endpoint is readable by any authenticated user. The full
+        message and traceback go to the skewnono.health log instead.
 
   ServicesHealthResponse:
     checked_at:
@@ -33,12 +38,39 @@ types:
       items: ServiceHealth
 
 endpoints:
+  - path: /api/health/providers
+    method: GET
+    admin_only: true
+    description: Which adapter actually answered for each feature, plus the detected site and mode. Deliberately bypasses the provider swap mechanism — a swappable introspection endpoint could misreport itself exactly when you would query it. Admin-only, because it discloses the site, mode and every feature's provider.
+    response:
+      status: 200
+      body: "site: 'home'|'office'|'unknown', mode: 'mock'|'office', features: [{feature, provider, reason}]"
+    errors:
+      - status: 403
+        body: "{error: {code: 'forbidden', ...}}"
+        when: caller is not an admin, or the identity source is untrusted
+    example_request: "GET /api/health/providers"
+    example_response:
+      site: "home"
+      mode: "mock"
+      features:
+        - feature: "activity"
+          provider: "mock"
+          reason: "mode=mock"
+        - feature: "sem_list"
+          provider: "mock"
+          reason: "mode=mock"
   - path: /api/health/logging
     method: GET
-    description: Delivery diagnostics for the OpenSearch log shipper. Runtime introspection like /api/health/providers — reads the installed handler directly, so silent document loss (queue-full or bulk drops) is observable instead of only shrinking the activity metrics.
+    admin_only: true
+    description: Delivery diagnostics for the OpenSearch log shipper. Runtime introspection like /api/health/providers — reads the installed handler directly, so silent document loss (queue-full or bulk drops) is observable instead of only shrinking the activity metrics. Admin-only, because it names the alias and deployment.
     response:
       status: 200
       body: "installed: bool, target: {alias, deployment} | null, diagnostics: {enqueued, indexed, queue_full_dropped, bulk_dropped, dropped, retries, bulk_failures, last_success_at, last_failure_at, queue_depth} | null"
+    errors:
+      - status: 403
+        body: "{error: {code: 'forbidden', ...}}"
+        when: caller is not an admin, or the identity source is untrusted
     example_request: "GET /api/health/logging"
     example_response:
       installed: true
@@ -58,13 +90,20 @@ endpoints:
         queue_depth: 3
   - path: /api/health/services
     method: GET
-    description: Snapshot of liveness for the three backing services. Cheap to call; frontend fetches once on page mount.
+    description: Snapshot of liveness for the three backing services. Cheap to call; frontend fetches once on page mount. Open to any authenticated user — it powers the landing-page status card — which is why the failure detail is redacted.
     response:
       status: 200
       body: ServicesHealthResponse
+    errors:
+      - status: 503
+        body: "{error: {code: 'health_unavailable', ...}}"
+        when: >-
+          The provider raised outside the per-probe traps. A failing service is
+          a "down" row, not an error — the contract is always exactly three
+          rows — so this only fires on a genuine bug in the adapter.
     example_request: "GET /api/health/services"
     example_response:
-      checked_at: "2026-05-08T07:16:00+00:00"
+      checked_at: "2026-05-08T07:16:00Z"
       services:
         - id: "redis"
           label: "Redis"
@@ -80,7 +119,7 @@ endpoints:
           label: "MinIO"
           status: "down"
           latency_ms: null
-          detail: "connect timeout"
+          detail: "probe failed (ConnectionError)"
 
 notes:
   - Phase 1 source is back_dev_home/health/data.py, which returns fixed always-up values for the three services because OpenSearch and MinIO are not reachable from home. Only checked_at varies per request. No fixture is captured because the office response is intrinsically time-varying.

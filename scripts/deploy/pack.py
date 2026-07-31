@@ -275,10 +275,12 @@ RUNBOOK = """# Deploy this bundle
 
 6. Verify which data providers actually engaged:
 
-       curl localhost:5000/api/health/providers
+       curl -b "LASTUSER=<admin empno>" localhost:5000/api/health/providers
 
    This endpoint deliberately bypasses the provider swap mechanism, so it is
-   the honest answer to whether office mode is on.
+   the honest answer to whether office mode is on. It is admin-only — it
+   discloses the site, mode and every feature's provider — so an uncookied
+   call gets a 403 rather than the table.
 
 `MANIFEST.txt` records what this bundle contains and any warnings raised
 when it was packed.

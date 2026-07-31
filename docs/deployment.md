@@ -209,8 +209,12 @@ SPA 는 `/api` 를 **상대 경로**로 호출하고 Flask 가 같은 오리진�
 ## 6. 기동 후 확인
 
 ```bash
-curl localhost:5000/api/health/providers
+curl -b "LASTUSER=<관리자 사번>" localhost:5000/api/health/providers
 ```
+
+이 엔드포인트는 관리자 전용입니다. provider 표와 site/mode 를 그대로
+드러내므로 일반 사용자에게는 403 을 돌려줍니다. 쿠키 없이 호출하면 확인이
+되지 않으니, `SKEWNONO_ADMIN_USERS` 에 등록된 사번을 넣어 호출합니다.
 
 이 엔드포인트는 provider 교체 메커니즘을 **의도적으로 우회**합니다. 교체
 가능한 방식으로 만들면 정작 문제가 생긴 상황에서 잘못된 값을 보고할 수 있기
