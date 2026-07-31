@@ -57,19 +57,28 @@ describe('validateIdentityInput', () => {
   })
 })
 
-describe('validateIdentityInput length bound', () => {
-  it('refuses an over-long empno or name with the server message', () => {
-    assert.equal(validateIdentityInput('9'.repeat(65), '김철수'), '입력값이 너무 깁니다')
-    assert.equal(validateIdentityInput('2067928', '김'.repeat(65)), '입력값이 너무 깁니다')
+describe('validateIdentityInput length bounds', () => {
+  it('accepts the real empno shapes', () => {
+    // user-confirmed formats: 7 digits, or an X/x prefix plus digits.
+    assert.equal(validateIdentityInput('2067928', '고대영'), null)
+    assert.equal(validateIdentityInput('x2363321', '김철수'), null)
+  })
+
+  it('refuses an over-long empno with the server message', () => {
+    assert.equal(validateIdentityInput('9'.repeat(10), '김철수'), '사번이 너무 깁니다')
+  })
+
+  it('refuses an over-long name with the server message', () => {
+    assert.equal(validateIdentityInput('2067928', '김'.repeat(65)), '이름이 너무 깁니다')
   })
 
   it('measures the empno after space removal, as the server will receive it', () => {
-    // 64 digits + spaces: what is SENT is 64 chars, so it must pass.
-    const spaced = '9'.repeat(32) + ' ' + '9'.repeat(32)
+    // 9 digits + a space: what is SENT is 9 chars, so it must pass.
+    const spaced = '9'.repeat(4) + ' ' + '9'.repeat(5)
     assert.equal(validateIdentityInput(spaced, '김철수'), null)
   })
 
-  it('accepts exactly the bound', () => {
-    assert.equal(validateIdentityInput('9'.repeat(64), '김'.repeat(64)), null)
+  it('accepts exactly the bounds', () => {
+    assert.equal(validateIdentityInput('9'.repeat(9), '김'.repeat(64)), null)
   })
 })

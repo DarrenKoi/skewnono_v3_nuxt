@@ -25,6 +25,10 @@ Key
 사용 field
 
   empno -> str: 사번. 쿠키 값과 동일한 것으로 기대합니다.
+                형식: 10자 미만 (user-confirmed 2026-07-31). 예: `2067928`
+                (7자리 숫자), `x2363321` (X/x 접두 + 숫자 — access control 이
+                차단 대상으로 다루는 계열). `/api/identify` 는 이 길이 상한을
+                입력 검증에 사용합니다 (`_auth/routes.py MAX_EMPNO_LEN`).
                 ※ 만약 document 의 empno 가 쿠키와 다르면 **쿠키가 우선**입니다.
                   access control, admin allowlist, activity log 가 이미 쿠키 값을
                   key 로 쓰고 있어서, document 가 요청 도중에 사용자를 개명시키면

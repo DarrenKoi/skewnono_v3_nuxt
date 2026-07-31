@@ -369,12 +369,12 @@ def test_an_oversized_input_is_refused_before_the_directory(
     """The pair rides into the session cookie (silently dropped past ~4KB —
     the declaration would evaporate on reload) and into the OpenSearch
     user_id keyword field. The bound fires before probe_member so the
-    directory never sees garbage."""
+    directory never sees garbage. The empno bound is a format fact
+    (user-confirmed 2026-07-31: under 10 chars — `2067928`, `x2363321`)."""
     directory_says(Probe(None, "absent"))
 
-    huge = "9" * 65
     for payload in (
-        {"empno": huge, "emp_nm": "김철수"},
+        {"empno": "9" * 10, "emp_nm": "김철수"},
         {"empno": "9999999", "emp_nm": "김" * 65},
     ):
         response = client.post("/api/identify", json=payload)
@@ -382,6 +382,19 @@ def test_an_oversized_input_is_refused_before_the_directory(
         assert response.get_json()["error"] == "invalid_input"
 
     assert client.get("/api/me").get_json()["user_id"] == "anonymous"
+
+
+def test_the_x_prefixed_empno_shape_stays_declarable(client, directory_says):
+    """`x2363321` is a real 8-char id shape; the format bound must not
+    swallow it."""
+    directory_says(Probe(None, "absent"))
+
+    response = client.post(
+        "/api/identify", json={"empno": "x2363321", "emp_nm": "김철수"}
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["user_id"] == "x2363321"
 
 
 @pytest.mark.parametrize("empno", ["anonymous", "Anonymous", "local-dev", "LOCAL-DEV"])

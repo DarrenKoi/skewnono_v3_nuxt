@@ -30,8 +30,15 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint("auth", __name__)
 
-# Transport bound for declared inputs — see the check in identify().
-MAX_INPUT_LEN = 64
+# Bounds for declared inputs — see the check in identify().
+#
+# Real employee numbers are under 10 characters (user-confirmed 2026-07-31:
+# `2067928`, `x2363321` — 7 digits, or an X/x prefix plus digits), so the
+# empno bound is a FORMAT fact, not just a transport cap. The name keeps a
+# transport-only bound: 64 is far above any real name, and guessing at name
+# formats is exactly what verify.py refuses to do.
+MAX_EMPNO_LEN = 9
+MAX_NAME_LEN = 64
 
 # The two per-phase fallback ids, lowercased for the case-insensitive check.
 # ANONYMOUS is imported so a rename breaks here; `local-dev` has no constant
@@ -107,10 +114,11 @@ def identify():
     # Bounded before anything downstream sees the values: an oversized pair
     # rides into the session cookie (browsers silently drop it past ~4KB, so
     # the declaration would evaporate on reload with no error) and into the
-    # OpenSearch user_id keyword field unbounded. 64 is far above any real
-    # empno or name; this is a transport bound, not a format opinion.
-    if len(empno) > MAX_INPUT_LEN or len(entered_name) > MAX_INPUT_LEN:
-        return jsonify({"error": "invalid_input", "message": "입력값이 너무 깁니다"}), 422
+    # OpenSearch user_id keyword field unbounded.
+    if len(empno) > MAX_EMPNO_LEN:
+        return jsonify({"error": "invalid_input", "message": "사번이 너무 깁니다"}), 422
+    if len(entered_name) > MAX_NAME_LEN:
+        return jsonify({"error": "invalid_input", "message": "이름이 너무 깁니다"}), 422
     # The fallback ids are vocabulary, not people. A declaration of
     # `anonymous` would yield user_id=anonymous with source=declared —
     # muddying exactly the log distinction this feature creates — and
