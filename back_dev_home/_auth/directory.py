@@ -20,6 +20,13 @@ Redis round trip there would add one HGET per asset on a cold page load. Callers
 ask for a profile only when they are about to show one, and answers are cached
 per process.
 
+**Home never dials Redis.** Which side we are on is ``get_mode()``, the same
+knob the data providers use — not ``is_cloud()``, which cannot tell home from
+office-localhost. Home's ``REDIS_HOST`` points at an office host it cannot
+reach, so trying costs the full socket timeout per cold lookup and then yields
+nothing anyway; home gets a fabricated row instead, which is also the only way
+the enriched shape gets exercised before it reaches the cloud.
+
 **empno is trusted from the cookie, not from the document.** The office record
 is expected to agree, but if it disagrees the cookie wins: it is what access
 control, the admin allowlist and the activity log already keyed on, and letting
@@ -35,7 +42,7 @@ import time
 from functools import lru_cache
 from typing import Optional, TypedDict
 
-from .._runtime.env import is_cloud
+from .._runtime.data_provider import get_mode
 from .._runtime.office_redis import STORE_ERRORS, redis_client_or_none, redis_text
 
 logger = logging.getLogger(__name__)
@@ -122,13 +129,27 @@ def _home_member(user_id: str) -> Member:
 
 
 def _fetch(user_id: str) -> Member:
+    # Mode, not is_cloud(). Home has REDIS_HOST set — it points at the office
+    # Redis, which is unreachable from here — so "is the client configured"
+    # answers yes and then every cold lookup burns the full socket timeout
+    # (10s: 5s connect, one retry) before degrading. Worse, it degrades to the
+    # bare record, so home never sees the enriched shape it exists to build
+    # against. get_mode() is the same knob the data providers use and is the
+    # only one that separates home from office-localhost, where REDIS_HOST is
+    # set AND reachable.
+    if get_mode() != "office":
+        return _home_member(user_id)
+
     client = redis_client_or_none()
     if client is None:
-        # No REDIS_HOST at all. At home that is normal and we fabricate a row
-        # so the shape gets exercised. On the cloud it means an incomplete
-        # .env — worth knowing about, but not worth a 503, and absolutely not
-        # worth inventing a name for a real person, so that path stays bare.
-        return bare_member(user_id) if is_cloud() else _home_member(user_id)
+        # Office mode with no REDIS_HOST: an incomplete .env. Worth knowing
+        # about, but not worth a 503 — and never worth inventing a name for a
+        # real person, so this path stays bare rather than fabricating.
+        logger.warning(
+            "office mode but Redis is unconfigured; "
+            "member names will be missing for every user"
+        )
+        return bare_member(user_id)
 
     try:
         raw = client.hget(MEMBERS_KEY, user_id)

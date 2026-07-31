@@ -41,6 +41,9 @@ def client(monkeypatch):
     # The real allowlist, driven by the env var it actually reads, rather than
     # a stubbed is_admin — this test's whole point is which source decides.
     monkeypatch.setenv("SKEWNONO_ADMIN_USERS", "2067928")
+    # Office mode: this endpoint's interesting behaviour is what it does with a
+    # real directory, and at home the module never reaches Redis at all.
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "office")
     monkeypatch.setattr(
         directory_mod,
         "redis_client_or_none",

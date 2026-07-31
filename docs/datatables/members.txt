@@ -61,5 +61,12 @@ Key
   back_dev_home/_auth/directory.py  — 조회·정규화·캐시(TTL 600초)
   back_dev_home/_auth/routes.py     — GET /api/me 로 노출
 
-  집에서는 Redis 가 없으므로 `_home_member()` 가 명백한 placeholder("홍길동(<사번>)",
+  집/사무실 판정은 `get_mode()`(데이터 provider 와 동일한 knob)를 사용합니다.
+  `is_cloud()` 가 아닙니다 — `is_cloud()` 는 집과 사무실 localhost 를 구분하지
+  못하고, 집의 `.env` 에도 REDIS_HOST 가 (도달 불가한 사무실 host 를 가리킨 채)
+  설정되어 있기 때문입니다.
+
+  집에서는 Redis 를 아예 호출하지 않습니다. 연결을 시도하면 cold lookup 당
+  socket timeout 전부(10초 = connect 5초 + 재시도 1회)를 소모하고 결과도 얻지
+  못합니다. 대신 `_home_member()` 가 명백한 placeholder("홍길동(<사번>)",
   "MOCK-ORG")를 만들어 shape 만 재현합니다. 사무실 실제 값을 흉내내지 않습니다.

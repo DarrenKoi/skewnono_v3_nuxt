@@ -57,8 +57,16 @@ def clean_cache():
 
 @pytest.fixture
 def redis_returning(monkeypatch):
+    """Put the directory in office mode behind a fake Redis.
+
+    Office mode is part of the fixture because it is what makes the module
+    reach for Redis at all — at home it short-circuits to a fabricated row and
+    the client is never consulted.
+    """
+
     def install(values=None, raises=None):
         client = _FakeRedis(values, raises)
+        monkeypatch.setattr(directory_mod, "get_mode", lambda: "office")
         monkeypatch.setattr(
             directory_mod, "redis_client_or_none", lambda: client
         )
@@ -97,12 +105,11 @@ def test_redis_being_down_costs_the_name_not_the_identity(redis_returning):
     assert lookup_member("2067928") == bare_member("2067928")
 
 
-def test_no_redis_at_home_fabricates_the_shape(monkeypatch):
-    """Home has no Redis. Degrading to an empno alone would mean the UI is
-    built against a field set the cloud never sends, so home gets a fabricated
-    row instead — obviously fake, but the right shape."""
-    monkeypatch.setattr(directory_mod, "redis_client_or_none", lambda: None)
-    monkeypatch.setattr(directory_mod, "is_cloud", lambda: False)
+def test_home_fabricates_the_shape(monkeypatch):
+    """Degrading to an empno alone at home would mean the UI is built against a
+    field set the cloud never sends, so home gets a fabricated row instead —
+    obviously fake, but the right shape."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "mock")
 
     member = lookup_member("2067928")
 
@@ -110,14 +117,33 @@ def test_no_redis_at_home_fabricates_the_shape(monkeypatch):
     assert member["emp_nm"] and member["dept_nm"]
 
 
-def test_no_redis_on_the_cloud_invents_nothing(monkeypatch):
-    """The same missing config on the cloud means an incomplete .env. Filling
-    a real person's name with a placeholder there would be worse than showing
-    an employee number."""
-    monkeypatch.setattr(directory_mod, "redis_client_or_none", lambda: None)
-    monkeypatch.setattr(directory_mod, "is_cloud", lambda: True)
+def test_home_never_dials_redis(monkeypatch):
+    """The latency fix, pinned. Home's REDIS_HOST points at an office host it
+    cannot reach, so a connect attempt costs the full socket timeout (10s: 5s
+    connect plus one retry) on every cold lookup and yields nothing anyway.
+    A configured-but-unreachable client is exactly the home situation, so
+    "no client" is not enough to prove we skipped it — assert nothing was
+    asked of the client at all."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "mock")
+    client = _FakeRedis({}, raises=AssertionError("home must not dial Redis"))
+    monkeypatch.setattr(directory_mod, "redis_client_or_none", lambda: client)
 
-    assert lookup_member("2067928") == bare_member("2067928")
+    lookup_member("2067928")
+
+    assert client.calls == []
+
+
+def test_office_mode_without_redis_invents_nothing(monkeypatch, caplog):
+    """Missing config in office mode means an incomplete .env. Filling a real
+    person's name with a placeholder there would be worse than showing an
+    employee number, so this path stays bare — and says so in the log."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "office")
+    monkeypatch.setattr(directory_mod, "redis_client_or_none", lambda: None)
+
+    with caplog.at_level("WARNING"):
+        assert lookup_member("2067928") == bare_member("2067928")
+
+    assert "Redis is unconfigured" in caplog.text
 
 
 @pytest.mark.parametrize(
