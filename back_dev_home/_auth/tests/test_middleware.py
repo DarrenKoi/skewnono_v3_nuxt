@@ -111,8 +111,8 @@ def test_the_refusal_path_survives_a_provider_that_identifies_nobody(
     app = Flask(__name__, static_folder=None)
 
     class _IdentifiesNobody:
-        def identify(self, request):
-            return None
+        def fallback_identity(self):
+            return (None, None)
 
     install_identity_middleware(app, _IdentifiesNobody())
 

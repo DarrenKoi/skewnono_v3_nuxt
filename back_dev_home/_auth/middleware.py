@@ -4,7 +4,7 @@ from ..access_control.data import is_blocked, record_denied
 from ..api_tokens.data import find_by_plaintext, touch_last_used
 from .admin import is_admin
 from .errors import error_json
-from .provider import IdentityProvider
+from .provider import SOURCE_COOKIE, SOURCE_TOKEN, IdentityProvider, read_identity_cookie
 
 
 _BEARER_PREFIX = "Bearer "
@@ -28,6 +28,7 @@ def _try_api_token():
     if row is None:
         return True, error_json("invalid_token", "API token invalid or revoked", 401)
     g.user_id = row.owner_user_id
+    g.identity_source = SOURCE_TOKEN
     g.api_token_id = row.id
     touch_last_used(row.id)
     return True, None
@@ -65,9 +66,18 @@ def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
         if matched:
             return response or _deny_if_blocked()
 
-        user_id = provider.identify(request)
+        cookie = read_identity_cookie(request)
+        if cookie:
+            g.user_id = cookie
+            g.identity_source = SOURCE_COOKIE
+            return _deny_if_blocked()
+
+        # Nobody was identified, so the phase decides what that means: a
+        # stand-in developer at home, `anonymous` on the cloud.
+        user_id, source = provider.fallback_identity()
         if user_id:
             g.user_id = user_id
+            g.identity_source = source
             return _deny_if_blocked()
 
         # Nobody identified. Data is refused, but the page is not: this hook is

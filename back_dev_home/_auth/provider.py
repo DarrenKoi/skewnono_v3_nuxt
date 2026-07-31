@@ -5,11 +5,23 @@ Both phases read the same cookie. The company infrastructure sets `LASTUSER`
 `afm/routes.py:196`), so the cloud needs no SSO library of its own: there is
 nothing `hcputil` could tell us about the caller that the cookie does not.
 
-The phases differ in exactly one thing — what an *absent* cookie means — and
-that difference is the security boundary, so the two classes stay separate
-rather than sharing a `default=` argument someone could pass the wrong way.
-Home substitutes a developer (`local-dev`, an admin); the cloud substitutes
-`anonymous`, which is nobody in particular and must never be anybody important.
+**Reading the cookie is not a provider's job.** It is one step of a four-step
+chain the middleware owns, and the declared session (`self_id.py`) sits between
+the cookie and the fallback below — so an object owning both ends would leave
+no seam for the middle step to occupy. `read_identity_cookie` is a plain
+function here; the middleware calls it.
+
+What is left on the providers is the one thing that genuinely differs per
+phase: what an *absent* cookie means. That difference is the security boundary,
+so the two classes stay separate rather than sharing a `default=` argument
+someone could pass the wrong way. Home substitutes a developer (`local-dev`, an
+admin); the cloud substitutes `anonymous`, which is nobody in particular and
+must never be anybody important.
+
+Each fallback also names its own source. That name is what `admin.py` reads to
+decide whether an identity may hold admin at all, and it is why home's
+`local-dev` — which arrives from a fallback rather than a cookie — can stay an
+admin without the middleware having to pretend it saw a cookie.
 """
 
 from typing import Optional, Protocol
@@ -27,12 +39,28 @@ _IDENTITY_COOKIES = ("LASTUSER", "LAST_USER")
 # id in the logs rather than two.
 ANONYMOUS = "anonymous"
 
+# The five ways a request can acquire an identity — the vocabulary of
+# `g.identity_source`. They live together because `admin.py` compares against a
+# subset of them to decide who may be an admin, and a name that drifted out of
+# sync with that set would silently grant or revoke authority.
+SOURCE_TOKEN = "token"
+SOURCE_COOKIE = "cookie"
+SOURCE_DECLARED = "declared"
+SOURCE_LOCAL = "local"
+SOURCE_ANONYMOUS = ANONYMOUS
 
-class IdentityProvider(Protocol):
-    def identify(self, request: Request) -> Optional[str]: ...
 
+def read_identity_cookie(request: Request) -> Optional[str]:
+    """The employee number the infrastructure put on this request, if any.
 
-def _cookie_identity(request: Request) -> Optional[str]:
+    Returns None rather than a substitute: choosing the substitute belongs to
+    whichever provider is installed, and the two phases choose differently.
+
+    A blank value counts as absent. Infrastructure that clears the cookie by
+    setting it empty must read as nobody rather than as a user whose id is the
+    empty string — that id would flow into activity logs and access-control
+    lookups as though it were a real member.
+    """
     for name in _IDENTITY_COOKIES:
         value = (request.cookies.get(name) or "").strip()
         if value:
@@ -40,31 +68,45 @@ def _cookie_identity(request: Request) -> Optional[str]:
     return None
 
 
+class IdentityProvider(Protocol):
+    def fallback_identity(self) -> tuple[str, str]:
+        """`(user_id, identity_source)` for a caller no cookie identified."""
+        ...
+
+
 class LocalIdentityProvider:
-    """Home and office-localhost: the cookie, or a stand-in developer.
+    """Home and office-localhost: a stand-in developer.
 
     The `local-dev` fallback is a convenience — a fresh browser needs no setup
     to reach the app — and it is an admin id (`_auth/admin.py`). That is
     deliberately absent from the cloud provider below.
+
+    Its source is `local` rather than `cookie` for a reason worth stating: the
+    id did not come from a cookie, and labelling it as though it had would make
+    `identity_source` lie about the one thing it exists to report. Giving it a
+    name of its own lets `admin.py` trust it explicitly — safe, because this
+    provider is installed only when `is_cloud()` is false, so `local` cannot
+    appear on the cloud at all.
     """
 
-    def identify(self, request: Request) -> Optional[str]:
-        return _cookie_identity(request) or "local-dev"
+    def fallback_identity(self) -> tuple[str, str]:
+        return ("local-dev", SOURCE_LOCAL)
 
 
 class CloudIdentityProvider:
-    """Phase 3: the cookie, or `anonymous`.
+    """Phase 3: `anonymous`.
 
     Same convention `afm/routes.py:196` has always used. An unidentified caller
     is a real caller on the private cloud — the network is already internal —
     so they get a usable app rather than a locked door, and the activity log
     gets a name for the traffic instead of a null.
 
-    `anonymous` is a shared id, not an identity: it must never be admin. Two
+    `anonymous` is a shared id, not an identity: it must never be admin. Three
     independent things keep that true — it is absent from both allowlists in
-    `admin.py`, and it is not X-prefixed so access control ignores it — and a
-    test pins the first. Do not add it to `SKEWNONO_ADMIN_USERS`.
+    `admin.py`, it is not X-prefixed so access control ignores it, and its
+    source name is outside `admin.py`'s trusted set — and a test pins each. Do
+    not add it to `SKEWNONO_ADMIN_USERS`.
     """
 
-    def identify(self, request: Request) -> Optional[str]:
-        return _cookie_identity(request) or ANONYMOUS
+    def fallback_identity(self) -> tuple[str, str]:
+        return (ANONYMOUS, SOURCE_ANONYMOUS)
