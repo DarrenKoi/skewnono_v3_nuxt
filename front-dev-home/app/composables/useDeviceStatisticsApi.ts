@@ -45,11 +45,15 @@ export const useDeviceStatisticsApi = () => {
   }
 
   const fetchRecipeParams = async (lotCds: string[] = []): Promise<RecipeInput[]> => {
-    const query = lotCds.length > 0 ? { lot_cds: lotCds.join(',') } : undefined
+    // 빈 목록이면 아예 요청하지 않습니다. 이 엔드포인트는 lot_cds 가 없으면
+    // **전 lot** 을 돌려주는데 그것이 599,899 recipe / 약 522 MB 입니다.
+    // 예전에는 호출자마다 이 가드를 따로 들고 있어서(3곳), 넷째 호출자가 빠뜨리면
+    // 그만이었습니다. 가드는 위험이 있는 곳에 둡니다.
+    if (lotCds.length === 0) return []
 
     return await $fetch<RecipeInput[]>(
       joinApiPath(base, '/cdsem/device-statistics/recipe-params'),
-      { query }
+      { query: { lot_cds: lotCds.join(',') } }
     )
   }
 

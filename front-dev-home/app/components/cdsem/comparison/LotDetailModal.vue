@@ -135,17 +135,14 @@ import { computed, ref } from 'vue'
 import { useColorMode } from '#imports'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import type { LotHealthFields } from '~/utils/lotHealth'
+import type { HealthAugmentedRow } from '~/utils/lotHealth'
 import type {
   RecipeInfoRow,
   RecipeTrendResponse,
-  SummaryBucketKey,
-  SummaryRow
+  SummaryBucketKey
 } from '~/composables/useRecipeStatisticsApi'
 
 import { healthSwatches, paraColors, paraColorsDark, paraOrder } from './healthTokens'
-
-type HealthAugmentedRow = SummaryRow & LotHealthFields
 
 const props = defineProps<{
   row: HealthAugmentedRow | null

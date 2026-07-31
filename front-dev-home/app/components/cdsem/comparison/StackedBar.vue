@@ -29,15 +29,14 @@
 import { computed } from 'vue'
 import { useColorMode } from '#imports'
 import { paraColors, paraColorsDark, paraOrder } from './healthTokens'
-import type { LotHealthFields } from '~/utils/lotHealth'
-import type { SummaryRow } from '~/composables/useRecipeStatisticsApi'
+import { paraTotal, type HealthAugmentedRow } from '~/utils/lotHealth'
 
 // cap 초과 줄무늬는 없어졌습니다. 그 줄무늬는 프런트엔드 mock 의 para 티어별 cap
 // (para_16_max …)에서 나왔는데, 실제 룰에는 그런 축이 없습니다 — 파라미터 종류별
 // (WAFER/LEVEL/EDGE/…) 상한을 recipe 단위로 봅니다. 티어로 되돌릴 방법이 없어,
 // 지어내지 않고 뺐습니다. cap 위반은 이제 health/violations 열이 말합니다.
 const props = withDefaults(defineProps<{
-  row: SummaryRow & LotHealthFields
+  row: HealthAugmentedRow
   height?: number
   showValues?: boolean
   normalize?: boolean
@@ -64,14 +63,9 @@ const segments = computed(() => {
   }))
 })
 
-const paraTotal = computed(() => {
-  const r = props.row
-  return r.para_16 + r.para_13 + r.para_9 + r.para_5
-})
-
 const emptyFlex = computed(() => {
   if (props.normalize || !props.maxTotal) return 0
-  return Math.max(0, props.maxTotal - paraTotal.value)
+  return Math.max(0, props.maxTotal - paraTotal(props.row))
 })
 
 const ariaLabel = computed(() => {

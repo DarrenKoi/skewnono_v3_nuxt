@@ -181,13 +181,10 @@
 import { computed, ref } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import type { SummaryRow } from '~/composables/useRecipeStatisticsApi'
-import { verdictSortValue, type LotHealthFields } from '~/utils/lotHealth'
+import { paraTotal, verdictSortValue, type HealthAugmentedRow } from '~/utils/lotHealth'
 import type { HealthLevel } from '~/utils/ruleEngine'
 import { healthSwatches } from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-
-type HealthAugmentedRow = SummaryRow & LotHealthFields
 
 const props = defineProps<{
   rows: HealthAugmentedRow[]
@@ -214,8 +211,6 @@ const counts = computed<Record<HealthLevel, number>>(() => ({
 
 // 룰이 없어 판정하지 못한 lot. 초록과 섞이면 안 되므로 따로 셉니다.
 const noRuleCount = computed(() => props.rows.filter(r => r.verdict.kind === 'no-rules').length)
-
-const paraTotal = (r: HealthAugmentedRow) => r.para_16 + r.para_13 + r.para_9 + r.para_5
 
 const maxParaTotal = computed(() => Math.max(0, ...props.rows.map(paraTotal)))
 

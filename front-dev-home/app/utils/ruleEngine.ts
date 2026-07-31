@@ -249,9 +249,19 @@ export const classifyHealth = (
 export interface LotHealth {
   lot_cd: string
   total_recipes: number
+  /** gray 를 뺀 실제 판정 대상 수 — violation_ratio 의 분모입니다. */
+  judged_recipes: number
   violation_recipes: number
-  violation_ratio: number
-  health: HealthLevel
+  /** 판정한 recipe 가 하나도 없으면 null — 0 이 아닙니다. */
+  violation_ratio: number | null
+  /**
+   * 판정한 recipe 가 하나도 없으면 null.
+   *
+   * 예전에는 non-nullable 이었고, 전부 gray 인 lot 이 ratio 0 → classifyHealth(0)
+   * → **green** 으로 나왔습니다. 아무것도 못 본 lot 과 다 보고 깨끗한 lot 이 같은
+   * 색이었다는 뜻입니다. 판정 없음은 색이 아니라 값의 부재로 표현합니다.
+   */
+  health: HealthLevel | null
   recipes: RecipeResult[]
 }
 
@@ -270,13 +280,17 @@ export const evaluateLot = (
   // gray recipes are excluded from the denominator (conservative, D14)
   const evaluated = results.filter(r => r.gray == null)
   const violation_recipes = evaluated.filter(r => !r.pass).length
-  const violation_ratio = evaluated.length ? violation_recipes / evaluated.length : 0
+  // 판정한 recipe 가 없으면 비율도 색도 없습니다. 예전에는 0 으로 떨어뜨렸고
+  // classifyHealth(0) 이 green 이라, 전부 gray 인 lot 이 "깨끗함" 으로 보였습니다.
+  const judged = evaluated.length
+  const violation_ratio = judged ? violation_recipes / judged : null
   return {
     lot_cd,
     total_recipes: recipes.length,
+    judged_recipes: judged,
     violation_recipes,
     violation_ratio,
-    health: classifyHealth(violation_ratio, thresholds),
+    health: violation_ratio === null ? null : classifyHealth(violation_ratio, thresholds),
     recipes: results
   }
 }

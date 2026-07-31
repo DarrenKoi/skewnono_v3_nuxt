@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  augmentRow, buildLotVerdicts, extractStage, recipeKey, verdictSortValue,
+  augmentRow, buildLotVerdicts, extractStage, paraTotal, recipeKey, verdictSortValue,
   type RuleSet
 } from './lotHealth.ts'
 import type { RecipeInput, RuleCell } from './ruleEngine.ts'
@@ -123,6 +123,24 @@ test('an empty cell list is no-rules, not "everything is gray"', () => {
   assert.equal(v.gray_recipes, 0)
 })
 
+test('rules present but EVERY recipe gray is no-verdict, not green', () => {
+  // 이 경로가 예전에 green 을 냈습니다: 판정 대상이 0건이면 ratio 가 0 이 되고
+  // classifyHealth(0) 이 green 이라, 아무것도 못 본 lot 이 "깨끗함" 으로 보였습니다.
+  // fab 에 룰이 없는 경우만 막아 두었기 때문에 이쪽으로 새어 나왔습니다.
+  const rows = [
+    recipe('A', 5, { memory_class_auto: 'unknown' }),
+    recipe('B', 5, { memory_class_auto: 'unknown' })
+  ]
+  const v = buildLotVerdicts(rows, rulesByFab).get('R000')!
+
+  assert.equal(v.judged_recipes, 0)
+  assert.equal(v.gray_recipes, 2)
+  assert.equal(v.health, null, '아무것도 판정하지 못한 lot 은 색을 가질 수 없습니다')
+  assert.equal(v.violation_ratio, null)
+  assert.equal(v.kind, 'no-rules')
+  assert.equal(v.coverage, 0)
+})
+
 // --- bucket scoping (the whole reason the filter exists) ---
 
 test('bucket keys scope the verdict to the selected bucket', () => {
@@ -168,8 +186,8 @@ test('lots are evaluated independently', () => {
 
 test('no-verdict lots sort last, red first', () => {
   const mk = (health: 'red' | 'yellow' | 'green', ratio: number) => ({
-    lot_cd: 'x', kind: 'judged' as const, health, violation_ratio: ratio,
-    violation_recipes: 0, judged_recipes: 0, total_recipes: 0,
+    kind: 'judged' as const, health, violation_ratio: ratio,
+    violation_recipes: 0, judged_recipes: 4, total_recipes: 4,
     gray_recipes: 0, gray_reasons: {}, coverage: 1
   })
   const order = [
@@ -192,8 +210,15 @@ test('stage comes from the lot-level ctn_desc', () => {
   assert.equal(extractStage(undefined), '?')
 })
 
+const summaryRow = (ctn_desc: string, para_16 = 10) => ({
+  lot_cd: 'R000', fac_id: 'R3', ctn_desc,
+  para_all: para_16 + 6, para_16, para_13: 3, para_9: 2, para_5: 1,
+  para_16_percent: 0, para_13_percent: 0, para_9_percent: 0, para_5_percent: 0,
+  total_recipe: 10, avail_recipe: 8, avail_recipe_percent: 80
+})
+
 test('a row with no verdict still renders as no-verdict, not a crash', () => {
-  const row = augmentRow({ lot_cd: 'R000', ctn_desc: 'EV lot' }, undefined)
+  const row = augmentRow(summaryRow('EV lot'), undefined)
   assert.equal(row.verdict.kind, 'no-rules')
   assert.equal(row.verdict.health, null)
   assert.equal(row.dev_stage, 'EV')
@@ -201,18 +226,19 @@ test('a row with no verdict still renders as no-verdict, not a crash', () => {
 })
 
 test('augmentRow preserves the original row fields', () => {
-  const row = augmentRow(
-    { lot_cd: 'R000', ctn_desc: 'Pool lot', para_16: 42 },
-    undefined
-  )
+  const row = augmentRow(summaryRow('Pool lot', 42), undefined)
   assert.equal(row.para_16, 42)
   assert.equal(row.dev_stage, 'Pool')
 })
 
+test('paraTotal sums the four tiers', () => {
+  assert.equal(paraTotal(summaryRow('EV lot', 42)), 42 + 3 + 2 + 1)
+})
+
 test('within one colour the worse ratio comes first', () => {
   const mk = (ratio: number) => ({
-    lot_cd: 'x', kind: 'judged' as const, health: 'red' as const, violation_ratio: ratio,
-    violation_recipes: 0, judged_recipes: 0, total_recipes: 0,
+    kind: 'judged' as const, health: 'red' as const, violation_ratio: ratio,
+    violation_recipes: 0, judged_recipes: 4, total_recipes: 4,
     gray_recipes: 0, gray_reasons: {}, coverage: 1
   })
   assert.ok(verdictSortValue(mk(0.9)) < verdictSortValue(mk(0.3)))
