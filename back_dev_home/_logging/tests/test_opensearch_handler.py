@@ -139,6 +139,30 @@ def test_document_has_identity_environment_and_bounded_fields(parked):
     assert len(doc["error_name"]) == 1024
 
 
+def test_the_document_carries_how_the_caller_was_identified(parked):
+    """`_KNOWN_EXTRA_KEYS` is an ALLOWLIST, so a field set on the record but
+    missing from it is dropped here in silence.
+
+    Asserting against the record instead of the document is exactly what let
+    that happen once: `identity_source` reached the LogRecord, the activity
+    middleware test passed, and nothing ever shipped. The index mapping is
+    `dynamic: "false"` too, so the field has to be named in three places
+    before it survives — this allowlist, `ops_index_mgmt/skewnono_logging.py`,
+    and `docs/datatables/skewnono_logging.txt`.
+    """
+    doc = parked._record_to_doc(_record(user_id="7654321", identity_source="declared"))
+
+    assert doc["identity_source"] == "declared"
+
+
+def test_a_record_without_an_identity_source_omits_the_field(parked):
+    """Consistent with every other optional field here: absent rather than
+    null, so the index carries no empty column to filter around."""
+    doc = parked._record_to_doc(_record(user_id="2067928"))
+
+    assert "identity_source" not in doc
+
+
 def test_unmapped_extras_are_dropped_and_absent_ones_omitted(parked):
     """Anything outside _KNOWN_EXTRA_KEYS would arrive as a dynamically mapped
     field, and one bad type there poisons the mapping for the whole index."""

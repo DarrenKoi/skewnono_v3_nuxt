@@ -116,6 +116,32 @@ def test_a_found_row_with_no_name_cannot_verify():
     assert decision.emp_nm == "고대영"
 
 
+def test_a_partial_row_reports_its_own_reason():
+    """Not `unavailable`, which would claim the directory failed to answer when
+    it answered with an incomplete row. The reason field is what the office
+    miss-rate investigation will group by, so a borrowed label there would
+    inflate the apparent outage count."""
+    partial = {**_MEMBER, "emp_nm": None}
+
+    assert decide(Probe(partial, "found"), "고대영").reason == "no_name"
+
+
+def test_accept_and_verified_follow_from_the_reason_alone():
+    """They are derived, not stored — so this pins the mapping rather than a
+    set of fields that could be written inconsistently."""
+    assert decide(Probe(_MEMBER, "found"), "고대영").reason == "match"
+    assert decide(Probe(_MEMBER, "found"), "홍길동").reason == "mismatch"
+
+    for probe, expected in (
+        (Probe(None, "absent"), "absent"),
+        (Probe(None, "unavailable"), "unavailable"),
+    ):
+        decision = decide(probe, "홍길동")
+        assert decision.reason == expected
+        assert decision.accept is True
+        assert decision.verified is False
+
+
 @pytest.mark.parametrize("entered", ["", "   "])
 def test_an_empty_entered_name_never_verifies(entered):
     """Empty input must not match an empty or missing directory name into a

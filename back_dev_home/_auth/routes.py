@@ -15,20 +15,18 @@ visitor arrives here as an ordinary identified request. A gate with exemptions
 is how this repository's last auth bug got in.
 """
 
-from flask import Blueprint, current_app, g, jsonify, request
+import logging
+
+from flask import Blueprint, g, jsonify, request
 
 from .admin import is_admin_request
 from .directory import lookup_member, probe_member
-from .middleware import IDENTITY_PROVIDER_KEY
-from .provider import (
-    ANONYMOUS,
-    SOURCE_ANONYMOUS,
-    SOURCE_COOKIE,
-    SOURCE_DECLARED,
-    read_identity_cookie,
-)
+from .middleware import resolve_identity
+from .provider import SOURCE_DECLARED
 from .self_id import clear_declared, read_declared, write_declared
 from .verify import decide
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("auth", __name__)
 
@@ -55,25 +53,6 @@ def _identity_payload():
         "verified": bool(declared and declared["verified"]),
         "member": lookup_member(user_id),
     }
-
-
-def _identity_without_a_declaration():
-    """Who the caller is once their declaration is gone.
-
-    Re-runs the two chain steps that can still apply — a cookie, then this
-    phase's fallback — so the DELETE response describes the identity the next
-    request will actually compute rather than assuming `anonymous`.
-    """
-    cookie = read_identity_cookie(request)
-    if cookie:
-        return cookie, SOURCE_COOKIE
-
-    provider = current_app.extensions.get(IDENTITY_PROVIDER_KEY)
-    if provider is None:
-        # The blueprint mounted without the gate. Not a configuration this app
-        # ships, but answering with the safest identity beats raising.
-        return ANONYMOUS, SOURCE_ANONYMOUS
-    return provider.fallback_identity()
 
 
 @bp.get("/me")
@@ -112,6 +91,20 @@ def identify():
             422,
         )
 
+    # An accepted-but-unverified declaration is the only record that this
+    # employee number could not be confirmed, and the two reasons want
+    # different attention: `absent` is an expected outcome whose RATE is the
+    # open office question (spec §13 — how many people have no `members` row),
+    # while `unavailable` means the directory itself is not answering.
+    if decision.reason == "absent":
+        logger.info(
+            "declared identity %s has no members row; accepted unverified", empno
+        )
+    elif decision.reason == "unavailable":
+        logger.warning(
+            "could not verify declared identity %s: directory unavailable", empno
+        )
+
     write_declared(
         empno=empno,
         emp_nm=decision.emp_nm,
@@ -134,5 +127,9 @@ def unidentify():
     a no-op.
     """
     clear_declared()
-    g.user_id, g.identity_source = _identity_without_a_declaration()
+    # Re-run the chain rather than assuming `anonymous`. The declaration is
+    # already gone, so its step falls through on its own, and a caller who
+    # also holds a LASTUSER cookie is correctly told they are still that
+    # person — which is what their next request will compute anyway.
+    g.user_id, g.identity_source = resolve_identity()
     return jsonify(_identity_payload())

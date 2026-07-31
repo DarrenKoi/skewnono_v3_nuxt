@@ -21,6 +21,7 @@ from back_dev_home._auth.provider import (
     SOURCE_COOKIE,
     SOURCE_DECLARED,
     SOURCE_LOCAL,
+    SOURCE_TOKEN,
     CloudIdentityProvider,
     LocalIdentityProvider,
 )
@@ -75,6 +76,25 @@ def make_client():
 @pytest.fixture
 def cloud(make_client):
     return make_client(CloudIdentityProvider())
+
+
+def test_an_api_token_is_tagged_token_and_outranks_everything(make_client, monkeypatch):
+    """Step 1, the only step that can answer with a response instead of an
+    identity — which is why it sits outside `resolve_identity`. Tested through
+    the gate because a token that authenticated without tagging its source
+    would be non-admin everywhere, breaking automation rather than security.
+    """
+    row = type("Row", (), {"owner_user_id": "2067928", "id": "tok_1"})()
+    monkeypatch.setattr(middleware_mod, "find_by_plaintext", lambda text: row)
+    monkeypatch.setattr(middleware_mod, "touch_last_used", lambda token_id: None)
+    client = make_client(CloudIdentityProvider())
+    client.set_cookie("LASTUSER", "9999999")
+
+    body = client.get(
+        "/api/whoami", headers={"Authorization": "Bearer skn_whatever"}
+    ).get_json()
+
+    assert body == {"user_id": "2067928", "identity_source": SOURCE_TOKEN}
 
 
 def test_a_cookie_identity_is_tagged_cookie(cloud):

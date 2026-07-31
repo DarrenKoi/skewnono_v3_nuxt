@@ -15,13 +15,23 @@ ordinarily missing for contractors and service accounts.
 
 from __future__ import annotations
 
-from typing import NamedTuple, Optional
+from typing import Literal, NamedTuple, Optional
 
 from .directory import Probe
+
+# Why a declaration turned out the way it did. Every other property of the
+# outcome follows from this one value, so it is the only thing stored.
+Reason = Literal["match", "mismatch", "absent", "unavailable", "no_name"]
 
 
 class Decision(NamedTuple):
     """What to do with a declaration.
+
+    ``accept`` and ``verified`` are DERIVED rather than stored. They are each a
+    function of ``reason``, and holding three fields with one degree of freedom
+    between them invites a later edit that sets two of them consistently and
+    the third not — a bug that would read as "accepted but unverified" or,
+    worse, the reverse.
 
     ``emp_nm`` is the name to STORE: the directory's spelling when we verified
     against it, the entered one when we could not. It is None only on a
@@ -29,10 +39,18 @@ class Decision(NamedTuple):
     exactly the unattributable traffic this feature exists to fix.
     """
 
-    accept: bool
-    verified: bool
+    reason: Reason
     emp_nm: Optional[str]
-    reason: str  # "match" | "mismatch" | "absent" | "unavailable"
+
+    @property
+    def accept(self) -> bool:
+        """Only a name that contradicts a real directory row is refused."""
+        return self.reason != "mismatch"
+
+    @property
+    def verified(self) -> bool:
+        """True only when a directory name was present AND agreed."""
+        return self.reason == "match"
 
 
 def names_match(entered: str, directory: Optional[str]) -> bool:
@@ -58,16 +76,18 @@ def decide(probe: Probe, entered_name: str) -> Decision:
         directory_name = probe.member["emp_nm"] if probe.member else None
 
         if names_match(entered, directory_name):
-            return Decision(True, True, directory_name.strip(), "match")
+            return Decision("match", directory_name.strip())
 
         if not directory_name:
             # A partial row: an employee number and nothing to compare
-            # against. Treated as an unverifiable directory rather than a
-            # mismatch, because there was never a name here for the user to
-            # get wrong.
-            return Decision(True, False, entered or None, "unavailable")
+            # against. Accepted like any other unverifiable case, because
+            # there was never a name here for the user to get wrong — but it
+            # gets its OWN reason rather than borrowing "unavailable", which
+            # would claim the directory failed to answer when in fact it
+            # answered with an incomplete row.
+            return Decision("no_name", entered or None)
 
-        return Decision(False, False, None, "mismatch")
+        return Decision("mismatch", None)
 
     # absent | unavailable — nothing to compare against, so nothing to reject.
-    return Decision(True, False, entered or None, probe.status)
+    return Decision(probe.status, entered or None)

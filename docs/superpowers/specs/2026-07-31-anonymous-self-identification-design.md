@@ -179,15 +179,26 @@ def probe_member(user_id: str) -> Probe: ...
 비교합니다. 비교는 **양끝 공백 제거 후 정확히 일치**해야 합니다. 한글 이름에는
 대소문자가 없으므로 대소문자 정규화는 하지 않으며, 공백만 관대하게 봅니다.
 
-| `probe_member` 결과 | 이름 | 처리 |
-| --- | --- | --- |
-| `found` | 일치 | 수락, `verified: true`, **디렉터리의 이름**을 저장 |
-| `found` | 불일치 | `422`, 일반 메시지 |
-| `absent` | — | 수락, `verified: false`, INFO 로그 |
-| `unavailable` | — | 수락, `verified: false`, WARN 로그 |
+| `probe_member` 결과 | 이름 | `reason` | 처리 |
+| --- | --- | --- | --- |
+| `found` | 일치 | `match` | 수락, `verified: true`, **디렉터리의 이름**을 저장 |
+| `found` | 불일치 | `mismatch` | `422`, 일반 메시지 |
+| `found` (이름 없음) | — | `no_name` | 수락, `verified: false` |
+| `absent` | — | `absent` | 수락, `verified: false`, INFO 로그 |
+| `unavailable` | — | `unavailable` | 수락, `verified: false`, WARN 로그 |
 
 거부는 **오직 한 칸**입니다 — 디렉터리가 그 사람을 알고 있는데 이름이 다를 때.
 나머지 실패는 모두 "검증할 수 없음"으로 취급해 통과시킵니다.
+
+`no_name` 은 row 는 있으나 `emp_nm` 이 비어 있는 경우입니다. row 가 부분적일 수
+있다는 것은 `directory.py` 가 이미 전제하며(`_PROFILE_FIELDS` 는 empno 외 전부
+optional), 비교할 이름이 애초에 없었으므로 사용자가 틀릴 수 있는 것도 없었습니다.
+`unavailable` 을 재사용하지 않고 별도 이름을 주는 이유는 `reason` 이 사무실 미등록
+비율 조사(§13)의 집계 키가 되기 때문입니다 — 빌려 쓴 이름은 장애 건수를 부풀립니다.
+
+`accept` 와 `verified` 는 저장하지 않고 `reason` 에서 **파생**시킵니다. 셋을 따로
+저장하면 자유도는 하나인데 필드는 셋이 되어, 나중의 수정이 둘만 맞추고 하나를
+어긋나게 둘 수 있습니다.
 
 디렉터리의 이름을 저장하는 이유는 `dept_nm`, `organ_cd`, `upper_organ_nm` 까지
 함께 확보되기 때문입니다. 입력된 이름은 확인용이며 저장 대상이 아닙니다.

@@ -98,6 +98,7 @@ LOG_MAPPING_PROPERTIES: dict[str, Any] = {
     "host": {"type": "keyword"},
     "event": {"type": "keyword"},
     "user_id": {"type": "keyword"},
+    "identity_source": {"type": "keyword"},
     "api_token_id": {"type": "keyword"},
     "request_id": {"type": "keyword"},
     "method": {"type": "keyword"},

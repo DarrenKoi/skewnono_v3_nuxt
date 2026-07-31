@@ -27,6 +27,11 @@ deployment -> keyword: local | production
 host -> keyword: 실행 host 이름
 request_id -> keyword: 요청 correlation ID (request 와 request_exception 을 잇습니다)
 user_id -> keyword: 인증 사용자 ID. 없으면 필드 자체를 생략합니다 (null 컬럼 없음).
+identity_source -> keyword: 그 ID 를 무엇이 정했는지 — token | cookie | declared | local | anonymous.
+    `declared` 는 사용자가 /identify 화면에서 직접 입력한 신원이므로 인프라가 준
+    신원과 구분해야 합니다. 이 필드가 없으면 쿠키를 떨어뜨리는 호스트 설정과 실제
+    익명 접근이 `anonymous` 한 줄로 합쳐집니다. 신원 체인 이전에 기록되는 요청은
+    생략됩니다.
 api_token_id -> keyword: token 자동화 요청 식별자. 없으면 생략합니다.
 method -> keyword: HTTP method
 path -> keyword: query 제외 request path

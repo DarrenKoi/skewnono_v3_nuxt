@@ -40,7 +40,7 @@ import json
 import logging
 import time
 from functools import lru_cache
-from typing import NamedTuple, Optional, TypedDict
+from typing import Literal, NamedTuple, Optional, TypedDict
 
 from .._runtime.data_provider import get_mode
 from .._runtime.office_redis import STORE_ERRORS, redis_client_or_none, redis_text
@@ -73,6 +73,13 @@ class Member(TypedDict):
     upper_organ_nm: Optional[str]
 
 
+# What the directory was able to say. A closed vocabulary, typed rather than
+# left as a commented `str` — the same way `_logging/policy.py` types its
+# activity kinds — because `verify.decide` branches on these three values and a
+# typo would silently take the accept-everything path.
+ProbeStatus = Literal["found", "absent", "unavailable"]
+
+
 class Probe(NamedTuple):
     """What the directory could tell us about one employee number.
 
@@ -87,7 +94,7 @@ class Probe(NamedTuple):
     """
 
     member: Optional[Member]
-    status: str  # "found" | "absent" | "unavailable"
+    status: ProbeStatus
 
 
 def bare_member(user_id: str) -> Member:

@@ -1,4 +1,6 @@
-from flask import Flask, g, request
+from typing import Optional
+
+from flask import Flask, current_app, g, request
 
 from ..access_control.data import is_blocked, record_denied
 from ..api_tokens.data import find_by_plaintext, touch_last_used
@@ -78,6 +80,39 @@ def _deny_if_blocked():
 IDENTITY_PROVIDER_KEY = "skewnono_identity_provider"
 
 
+def resolve_identity() -> tuple[Optional[str], Optional[str]]:
+    """Steps 2-4 of the chain: cookie, declared session, per-phase fallback.
+
+    The API token step is deliberately outside — it can answer with a 401,
+    which is a response rather than an identity, and folding it in would give
+    this function two return kinds.
+
+    Public because ``DELETE /api/identify`` needs the same answer this hook
+    computes. Having it call this rather than re-deriving the steps is what
+    keeps "who is the caller once the declaration is gone" from becoming a
+    second, drifting copy of the precedence rules: clearing the session makes
+    the declared step fall through here on its own.
+    """
+    cookie = read_identity_cookie(request)
+    if cookie:
+        return cookie, SOURCE_COOKIE
+
+    # The identity the user typed in for themselves. Below the cookie on
+    # purpose: infrastructure identity outranks a declared one, so someone who
+    # is later given a real cookie stops being their own declaration without
+    # having to clear anything.
+    declared = read_declared()
+    if declared:
+        return declared["empno"], SOURCE_DECLARED
+
+    # Nobody was identified, so the phase decides what that means: a stand-in
+    # developer at home, `anonymous` on the cloud.
+    provider = current_app.extensions.get(IDENTITY_PROVIDER_KEY)
+    if provider is None:
+        return None, None
+    return provider.fallback_identity()
+
+
 def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
     app.extensions[IDENTITY_PROVIDER_KEY] = provider
 
@@ -87,25 +122,7 @@ def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
         if matched:
             return response or _deny_if_blocked()
 
-        cookie = read_identity_cookie(request)
-        if cookie:
-            g.user_id = cookie
-            g.identity_source = SOURCE_COOKIE
-            return _deny_if_blocked()
-
-        # The identity the user typed in for themselves. Below the cookie on
-        # purpose: infrastructure identity outranks a declared one, so someone
-        # who is later given a real cookie stops being their own declaration
-        # without having to clear anything.
-        declared = read_declared()
-        if declared:
-            g.user_id = declared["empno"]
-            g.identity_source = SOURCE_DECLARED
-            return _deny_if_blocked()
-
-        # Nobody was identified, so the phase decides what that means: a
-        # stand-in developer at home, `anonymous` on the cloud.
-        user_id, source = provider.fallback_identity()
+        user_id, source = resolve_identity()
         if user_id:
             g.user_id = user_id
             g.identity_source = source

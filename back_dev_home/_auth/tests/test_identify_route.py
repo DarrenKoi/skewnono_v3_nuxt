@@ -235,6 +235,46 @@ def test_the_directory_name_is_stored_not_the_entered_one(client, directory_says
         assert session["declared"]["emp_nm"] == "고대영"
 
 
+def test_an_unreachable_directory_accepts_unverified(client, directory_says):
+    """§11's `디렉터리 도달 불가 → 200` row. Refusing here would deny access on
+    the strength of our own outage, and the home/mock path takes exactly this
+    branch — so it is also the row every home session exercises."""
+    directory_says(Probe(None, "unavailable"))
+
+    response = client.post(
+        "/api/identify", json={"empno": "2067928", "emp_nm": "고대영"}
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["verified"] is False
+
+
+def test_a_declared_identity_is_not_admin_under_either_phase_default(
+    client, directory_says, monkeypatch
+):
+    """With no SKEWNONO_ADMIN_USERS set, `admin.py` picks its default set from
+    is_cloud(). The other admin test pins an explicit allowlist, so neither
+    default is exercised there — and a declared caller must be refused under
+    both, not just the one this machine happens to run.
+    """
+    monkeypatch.delenv("SKEWNONO_ADMIN_USERS", raising=False)
+    directory_says(Probe(MEMBER_DOC, "found"))
+
+    for cloud in (True, False):
+        monkeypatch.setattr(
+            "back_dev_home._auth.admin.is_cloud", lambda cloud=cloud: cloud
+        )
+        admin_mod._parse_allowlist.cache_clear()
+
+        body = client.post(
+            "/api/identify", json={"empno": "2067928", "emp_nm": "고대영"}
+        ).get_json()
+
+        assert body["is_admin"] is False
+
+    admin_mod._parse_allowlist.cache_clear()
+
+
 def test_an_unverified_declaration_keeps_the_entered_name(client, directory_says):
     """Otherwise an accepted employee number would carry no name at all, which
     is the unattributable traffic this feature exists to remove."""
