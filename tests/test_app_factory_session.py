@@ -115,6 +115,52 @@ def test_an_unset_looking_flag_does_not_enable_it(monkeypatch, home, flag):
     assert not _has_proxyfix(create_app())
 
 
+@pytest.fixture
+def seeded(monkeypatch):
+    """The factory imports `seed_demo_users` inside the branch, so the module
+    attribute is what it resolves at call time."""
+    from back_dev_home.activity import data as activity_data
+
+    calls: list[int] = []
+    monkeypatch.setattr(activity_data, "seed_demo_users", lambda: calls.append(1))
+    return calls
+
+
+@pytest.fixture
+def mock_mode(monkeypatch):
+    monkeypatch.setattr(back_dev_home, "get_mode", lambda: "mock")
+
+
+@pytest.fixture
+def office_mode(monkeypatch):
+    monkeypatch.setattr(back_dev_home, "get_mode", lambda: "office")
+    # Office mode points the rate limiter at Redis; without this the boot
+    # spends its connect timeout on a host that is not there.
+    monkeypatch.delenv("REDIS_HOST", raising=False)
+
+
+def test_home_seeds_the_demo_users(home, mock_mode, seeded):
+    assert create_app() and seeded
+
+
+def test_office_localhost_does_not_seed(home, office_mode, seeded):
+    """Phase 2 runs on office localhost, where /project/workSpace/ is absent —
+    so is_cloud() reads false and the old gate seeded there. Any feature
+    falling back to the mock adapter then served five invented employees as
+    real ones."""
+    assert create_app() and not seeded
+
+
+def test_the_cloud_does_not_seed_even_with_the_kill_switch(
+    monkeypatch, cloud, mock_mode, seeded
+):
+    """SKEWNONO_DATA_PROVIDER=mock makes get_mode() report "mock" on the cloud
+    host, so mode alone would reopen the hole is_cloud() was closing."""
+    monkeypatch.setenv("SKEWNONO_SECRET_KEY", "a-cloud-key")
+
+    assert create_app() and not seeded
+
+
 def test_the_session_cookie_is_samesite_lax(home):
     """Explicit, not inherited from browser defaults: without the attribute a
     pre-Lax-by-default browser sends the session cookie on a cross-site form

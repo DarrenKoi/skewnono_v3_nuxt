@@ -247,7 +247,14 @@ def create_app() -> Flask:
         # link, and X-Forwarded-Host would do the same to the hostname.
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 
-    if not is_cloud():
+    # Demo users are fabricated, so they must never reach a process serving
+    # office data. is_cloud() alone only rules out Phase 3 — Phase 2 runs on
+    # office localhost, where the filesystem looks like home, so the seeding
+    # ran there and any feature falling back to the mock adapter would show
+    # five invented employees as real ones. Both conditions are needed: the
+    # SKEWNONO_DATA_PROVIDER=mock kill switch makes get_mode() report "mock"
+    # even on the cloud host.
+    if get_mode() == "mock" and not is_cloud():
         from .activity.data import seed_demo_users
         seed_demo_users()
 
