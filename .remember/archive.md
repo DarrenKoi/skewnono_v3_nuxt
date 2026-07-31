@@ -1,5 +1,8 @@
 # Archive
 
+## Week of 2026-07-28
+Completed numpy.bool_→bool refactor (20+ sites, removed BoolPill.vue); fixed recipe comparison & IDP mapping tests (1516 pass). Audited Progress.bento (76 API endpoints, 31–55k LOC BE/FE/docs); pushed openwiki regen.
+
 ## Week of 2026-07-21
 Live-alarm broadcast (35 files, 1926 LOC, 746 tests, Redis ZSET + APScheduler), Chat LLM HCP gateway (3 models, E2E verified), Bento deck (Vue→Nuxt conversion). MSR image tool-FTP fetch (360+ tests, MinIO cache), BM/PM office adapter (57-58 tests, datatables), critical bugs fixed (PPID silent-drop, meas-hist >100%, chart zoom, beam-trend zoom, fdc_key casing). Shipped skewvoir KB nav + checkbox multi-select; ECharts 6 theme standardization (MATLAB light, CIELAB/CVD 7→10 palette, useChartPalette); CD-SEM mag/pixel (FOV 0–20%, recommendation engine); SCE UI perf (9.27→1.11ms); FDC timeseries sparklines w/ site-aware coloring. Provider layer infra: office Redis wiring, recipe_tat OpenSearch (15-field schema), storage adapter; skewvoir search bug, field-location Spec 1&2, deploy packer (Python allowlist). Code quality: dedup −121L, TS types, UI polish; Codex review (11 → 9-task SDD). 638–648 tests; 6+ commits.
 
