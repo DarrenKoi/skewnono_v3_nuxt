@@ -39,6 +39,7 @@ const isLinkActive = (link: HeaderLink) =>
     <NavFeatureTabs />
 
     <template #right>
+      <NavIdentityPill />
       <UButton
         v-for="link in HEADER_LINKS"
         :key="link.label"
