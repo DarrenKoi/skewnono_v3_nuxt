@@ -9,18 +9,18 @@
 ```bash
 # 사무실 PC, 저장소 루트에서
 npm --prefix front-dev-home run build
-.venv/bin/python -m scripts.deploy
+.venv/bin/python scripts/deploy/pack.py
 ```
 
-`dist/skewnono-<타임스탬프>/` 폴더가 생성됩니다. 이 폴더를 통째로 클라우드
-호스트의 `/project/workSpace/` 아래에 복사한 뒤, 번들 안의 `DEPLOY.md` 를
-따라 실행합니다.
+`dist/skewnono-<타임스탬프>/` 폴더가 생성됩니다. 이 폴더의 **내용**을 클라우드
+호스트의 기존 `/project/workSpace/`에 덮어쓴 뒤, 번들 안의 `DEPLOY.md`를 따라
+실행합니다. `/project/workSpace` 자체를 삭제하거나 교체하지 않습니다.
 
 | 단계 | 실행 위치 | 명령 |
 | --- | --- | --- |
 | 1 | 사무실 | `npm --prefix front-dev-home run build` |
-| 2 | 사무실 | `.venv/bin/python -m scripts.deploy` |
-| 3 | 사무실 → 클라우드 | 번들 폴더를 `/project/workSpace/` 로 복사 |
+| 2 | 사무실 | `.venv/bin/python scripts/deploy/pack.py` |
+| 3 | 사무실 → 클라우드 | 번들 내용을 기존 `/project/workSpace/`에 덮어쓰기 |
 | 4 | 클라우드 | `python preflight.py` (설치 전) |
 | 5 | 클라우드 | `pip install -r back_dev_home/requirements.txt` |
 | 6 | 클라우드 | `python preflight.py` (설치 후) |
@@ -54,16 +54,20 @@ SPA 경로가 어긋납니다.
 
 | 포함 | 이유 |
 | --- | --- |
-| `index.py`, `wsgi.ini` | WSGI 진입점입니다. |
 | `back_dev_home/` | Flask 백엔드 전체입니다. |
 | `front-dev-home/.output/public/` | 빌드된 SPA 입니다. |
 | `ops_store/`, `minio_handler/`, `ftp_handler/` | 앱이 실제로 import 하는 벤더 패키지입니다. |
 
 | 제외 | 이유 |
 | --- | --- |
+| `index.py`, `wsgi.ini` | 기존 `/project/workSpace`에 영구 보관하는 기동 파일입니다. |
 | `ops_index_mgmt/` | 인덱스 생성 도구로, 런타임에 사용되지 않습니다. |
 | `docs/`, `openwiki/` | 문서이며 런타임 역할이 없습니다. |
 | `__pycache__/`, `tests/`, `conftest.py`, `*.md` | 실행에 불필요합니다. |
+
+클라우드용 `preflight.py`는 오버레이가 끝난 최종 `/project/workSpace`에서
+`index.py`와 `wsgi.ini`의 존재 여부를 계속 검사합니다. 두 파일 중 하나라도
+유실되면 uWSGI 기동 전에 차단합니다.
 
 빌드된 SPA 출력물은 예외적으로 **가지치기 없이 그대로** 복사합니다. Nuxt 빌드
 산출물의 파일명은 우리 규칙이 해석할 수 있는 대상이 아니어서, 만약 `tests` 라는
@@ -72,7 +76,7 @@ SPA 경로가 어긋납니다.
 
 ### 추적되지 않는 파일을 포함하는 이유
 
-`pack_deploy` 는 git 이 아니라 **작업 트리**를 읽습니다. 다음 파일들은
+`pack.py`는 git이 아니라 **작업 트리**를 읽습니다. 다음 파일들은
 의도적으로 gitignore 되어 있지만 반드시 함께 배포되어야 합니다.
 
 - `back_dev_home/<feature>/providers/office.py` — 사내 데이터 어댑터입니다.
@@ -100,15 +104,16 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 
 | 항목 | 확인 방법 | 담당 |
 | --- | --- | --- |
-| `/project/workSpace` 에 압축 해제 | `python preflight.py` 의 PATH 검사 | 배포자 |
-| 이미지에 `hcputil` 이 있는지 | `preflight.py` 가 어떤 철자로 해석되었는지 보고합니다 | 인프라 |
+| 기존 `/project/workSpace`에 오버레이 | `python preflight.py`의 PATH 및 영구 파일 검사 | 배포자 |
+| 이미지에 `hcputil.auth.sso`가 있는지 | `python preflight.py`의 import 검사 | 인프라 |
 | SSO 에 호스트명 등록 | 로그인 리다이렉트가 동작하는지 | SSO 담당 |
-| 실제 `SKEWNONO_SECRET_KEY` 설정 | `preflight.py` 의 경고가 사라지는지 | 배포자 |
+| `back_dev_home/.env` 배치 | `python preflight.py`의 파일 존재 검사 | 배포자 |
 
-`hcputil` 은 requirements.txt 가 아니라 **클라우드 이미지가 제공**합니다.
-사내 요구사항 문서(`docs/afm/개발요구.txt:31`)에는 `auto` 로,
-라이브러리 실제 철자는 `auth` 로 적혀 있어 양쪽 모두를 시도하도록 되어 있습니다.
-어느 쪽이 실제로 존재하는지는 `preflight.py` 가 첫 실행에서 알려줍니다.
+`hcputil.auth.sso`는 requirements.txt가 아니라 **클라우드 이미지가 제공**합니다.
+`preflight.py`와 런타임 인증 로더는 이 경로만 사용합니다.
+
+`preflight.py`는 `back_dev_home/.env`의 존재 여부만 검사하며 내부 값은 읽거나
+검증하지 않습니다.
 
 SSO 호스트명 등록은 테스트 URL 과 정식 URL 각각에 대해 필요합니다.
 

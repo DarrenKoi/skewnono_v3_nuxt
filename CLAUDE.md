@@ -168,10 +168,12 @@ Playwright MCP by hand; see the `verify` skill.
 
 ### Deployment (Phase 3)
 
-Pack at the office with `python -m scripts.deploy` (after building the frontend), then
-deploy to `/project/workSpace/` on the cloud host — that exact path, because
-`is_cloud()` is a filesystem check, not a config flag. Full steps, including the
-bundle's `preflight.py`: `docs/deployment.md`.
+Pack at the office with `python scripts/deploy/pack.py` (after building the
+frontend), then overlay the bundle contents onto the existing
+`/project/workSpace/` on the cloud host. Do not replace that directory:
+its permanent `index.py` and `wsgi.ini` are intentionally outside the bundle.
+The path remains exact because `is_cloud()` is a filesystem check, not a config
+flag. Full steps, including the bundle's `preflight.py`: `docs/deployment.md`.
 
 ## Playwright Screenshots
 
