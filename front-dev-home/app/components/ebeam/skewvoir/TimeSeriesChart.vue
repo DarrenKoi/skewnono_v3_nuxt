@@ -7,22 +7,15 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import type { TrendPoint } from '~/utils/skewvoirAnalysis/timeSeries'
 import { SK_STATE } from '~/utils/chartPalette'
 
-export interface TimeSeriesPoint {
-  msr: string
-  label: string
-  eqpId: string
-  mean: number
-  min: number
-  max: number
-  std: number
-  // Set by useSkewvoirAnalysis (trendPoints) via combineVerdicts; absent ⇒ treated as normal.
-  verdict?: import('~/utils/anomaly').CombinedVerdict
-}
+/** @deprecated Use TrendPoint from utils/skewvoirAnalysis/timeSeries. Kept so
+ *  existing importers of this name keep compiling. */
+export type TimeSeriesPoint = TrendPoint
 
 const props = defineProps<{
-  points: TimeSeriesPoint[]
+  points: TrendPoint[]
   parameter: string
   unit: string
 }>()
@@ -45,7 +38,7 @@ const sevHex = computed<Record<string, string>>(() => ({
   insufficient: sk.value.muted,
   normal: sk.value.series
 }))
-const sevKey = (p: TimeSeriesPoint): string =>
+const sevKey = (p: TrendPoint): string =>
   !p.verdict ? 'normal' : p.verdict.status === 'insufficient' ? 'insufficient' : p.verdict.severity
 const meanData = computed(() =>
   props.points.map((p) => {

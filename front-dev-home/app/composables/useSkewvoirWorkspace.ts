@@ -73,6 +73,14 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     grainParam: skRoute.grainParam,
     fdcAxis: skRoute.fdcAxis,
     setFdcAxis: skRoute.setFdcAxis,
+    // Time-Series lens state (lens / x-axis / baseline), URL-carried like the
+    // rest so a shared link restores the exact screen.
+    tsView: skRoute.tsView,
+    tsAxis: skRoute.tsAxis,
+    tsBaseline: skRoute.tsBaseline,
+    setTsView: skRoute.setTsView,
+    setTsAxis: skRoute.setTsAxis,
+    setTsBaseline: skRoute.setTsBaseline,
     xParam: skRoute.xParam,
     yParam: skRoute.yParam,
     filterParam: skRoute.filterParam,
