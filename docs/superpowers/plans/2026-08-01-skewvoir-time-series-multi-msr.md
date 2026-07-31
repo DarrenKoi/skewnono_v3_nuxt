@@ -37,7 +37,9 @@
 | `app/components/ebeam/skewvoir/DistributionChart.vue` | modify | Opt-in axis rotation + `dataZoom` props (defaults keep today's look) |
 | `app/components/ebeam/skewvoir/timeseries/ParamCoverageSelect.vue` | create | Set-aware parameter selector with coverage |
 | `app/components/ebeam/skewvoir/timeseries/ToolSkewPanel.vue` | create | Per-tool offset interval plot + numeric table |
+| `app/components/ebeam/skewvoir/Workspace.vue` | modify | Pass `ws` to the Time-Series view (the new URL keys live on the workspace) |
 | `app/components/ebeam/skewvoir/views/TimeSeries.vue` | rewrite | Lens buttons, integrity banner, chart slot, Sequence Trend |
+| `app/composables/useEchart.ts` | modify | Add an `onDataIndex` click callback (existing callbacks untouched) |
 
 Tasks 1–5 are pure and fully unit-tested. Task 6 is the wiring seam. Tasks 7–10 are rendering, verified in the browser.
 
@@ -339,7 +341,7 @@ export const resolveActiveParam = (input: ActiveParamInput): string => {
 node --test app/utils/skewvoirAnalysis/activeParam.test.ts
 ```
 
-Expected: PASS (9 tests).
+Expected: PASS (8 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -551,7 +553,10 @@ export interface TrendPoint {
   value: number
   bandLo: number
   bandHi: number
-  /** Absent for an unnamed settling MP, or when there are too few peers. */
+  /** Absent ONLY for an unnamed settling MP. With too few peers the verdict is
+   *  still present, carrying status 'insufficient' — peerVerdicts returns an
+   *  insufficient verdict rather than nothing, and the chart renders that as
+   *  the grey 판정 불가 tone. */
   verdict?: CombinedVerdict
 }
 
@@ -667,7 +672,7 @@ git commit -m "feat(skewvoir): derive the multi-measurement trend series"
 Append to `app/utils/skewvoirAnalysis/timeSeries.test.ts`:
 
 ```ts
-import { buildSetDistributionGroups, buildToolSkew, type DistFileInput } from './timeSeries.ts'
+import { buildSetDistributionGroups, buildToolSkew, distinctToolCount, type DistFileInput } from './timeSeries.ts'
 
 const siteRow = (parameter: string, mp_number: number, cd_value: number | null) =>
   ({ parameter, mp_number, cd_value })
@@ -723,15 +728,24 @@ test('buildToolSkew sorts by absolute offset, most-skewed tool first', () => {
   assert.deepEqual(buildToolSkew(points, 20).map(r => r.eqpId), ['FAR', 'MID', 'NEAR'])
 })
 
-test('buildToolSkew returns a single row for a single-tool set (the caller decides what to say)', () => {
+test('buildToolSkew produces NO rows for a single-tool set', () => {
+  // An offset against a baseline the tool itself defines is not a comparison.
+  // The spec requires no row at all — the panel says 단일 장비 instead.
   const points = [{ eqpId: 'TP01', mean: 10 }, { eqpId: 'TP01', mean: 20 }] as TrendPoint[]
-  const out = buildToolSkew(points, 15)
-  assert.equal(out.length, 1)
-  assert.equal(out[0]!.eqpId, 'TP01')
+  assert.deepEqual(buildToolSkew(points, 15), [])
 })
 
 test('buildToolSkew on an empty set returns no rows', () => {
   assert.deepEqual(buildToolSkew([], Number.NaN), [])
+})
+
+test('distinctToolCount lets the panel tell "one tool" apart from "no data"', () => {
+  // Both cases give buildToolSkew an empty array, but they need different copy.
+  assert.equal(distinctToolCount([{ eqpId: 'TP01', mean: 10 }] as TrendPoint[]), 1)
+  assert.equal(distinctToolCount([]), 0)
+  assert.equal(distinctToolCount([
+    { eqpId: 'TP01', mean: 10 }, { eqpId: 'TP02', mean: 20 }
+  ] as TrendPoint[]), 2)
 })
 ```
 
@@ -748,18 +762,36 @@ Expected: FAIL — `buildSetDistributionGroups is not a function`.
 Append to `app/utils/skewvoirAnalysis/timeSeries.ts`. Add to the existing imports:
 
 ```ts
-import type { MsrFileRow } from '~/composables/useMsrFileApi'
-import { isMeasuredRow } from '../msrRows.ts'
 import { mean as meanOf, sampleStd } from '../stats.ts'
 ```
 
 Then:
 
 ```ts
-/** The MsrFile facts the distribution lens needs. */
-export interface DistFileInput {
-  rows: MsrFileRow[]
+/** The site facts the distribution lens needs.
+ *
+ *  Deliberately a MINIMAL structural type, not `MsrFileRow`. `MsrFileRow` has
+ *  ~20 required fields (coordinates, image names, measurement conditions,
+ *  scores); demanding it here would force every test fixture to invent all of
+ *  them. `nuxt typecheck` covers `app/**` INCLUDING `*.test.ts`, so a shortcut
+ *  fixture would not merely be untidy — it would fail the build. A real
+ *  MsrFileRow still satisfies this shape structurally. */
+export interface DistSiteInput {
+  parameter: string
+  mp_number: number
+  cd_value: number | null
 }
+
+export interface DistFileInput {
+  rows: DistSiteInput[]
+}
+
+/** Local mirror of utils/msrRows.ts's isMeasuredRow, narrowed to DistSiteInput.
+ *  Same rule — mp_number < 0 is a metadata-only point with no measurement, and
+ *  a null cd_value is the contract for "no data" — but it does not demand a
+ *  full MsrFileRow. Keep the two in sync. */
+const isMeasuredSite = (r: DistSiteInput): r is DistSiteInput & { cd_value: number } =>
+  r.mp_number >= 0 && r.cd_value != null && Number.isFinite(r.cd_value)
 
 /** Matches DistributionChart.vue's `DistributionGroup` prop shape. */
 export interface SetDistributionGroup {
@@ -782,7 +814,7 @@ export const buildSetDistributionGroups = (
     if (!file) continue
     const values: number[] = []
     for (const site of file.rows) {
-      if (site.parameter === parameter && isMeasuredRow(site)) values.push(site.cd_value)
+      if (site.parameter === parameter && isMeasuredSite(site)) values.push(site.cd_value)
     }
     if (values.length === 0) continue
     groups.push({ label: row.label, values })
@@ -802,16 +834,28 @@ export interface ToolSkewRow {
   sigma: number | null
 }
 
+/** Distinct equipment in the set. The panel needs this to tell "one tool"
+ *  (say 단일 장비) apart from "no data" (say nothing) — buildToolSkew returns an
+ *  empty array for both. */
+export const distinctToolCount = (points: readonly TrendPoint[]): number =>
+  new Set(points.map(p => p.eqpId)).size
+
 /** Per-equipment offset from the set baseline.
  *
  *  Reads the RAW `mean`, so the rows are identical in raw and residual mode —
  *  an offset is already a delta. No verdict or status is produced: with a
  *  hand-picked set spanning recipes, an offset is not attributable enough to
- *  grade. */
+ *  grade.
+ *
+ *  A single-tool set yields NO rows. Its baseline is that tool's own median, so
+ *  the "offset" would be a number about nothing — a row reading ≈0 invites the
+ *  conclusion that the tool agrees with its peers when it has none. */
 export const buildToolSkew = (
   points: readonly TrendPoint[],
   baseline: number
 ): ToolSkewRow[] => {
+  if (distinctToolCount(points) < 2) return []
+
   const byTool = new Map<string, number[]>()
   for (const p of points) {
     const list = byTool.get(p.eqpId)
@@ -842,7 +886,7 @@ export const buildToolSkew = (
 node --test app/utils/skewvoirAnalysis/timeSeries.test.ts
 ```
 
-Expected: PASS (16 tests). If `mean` collides with the imported `mean` from `../stats.ts`, keep the `meanOf` alias shown above.
+Expected: PASS (17 tests — 9 from Task 3 plus 8 here). If `mean` collides with the imported `mean` from `../stats.ts`, keep the `meanOf` alias shown above.
 
 - [ ] **Step 5: Commit**
 
@@ -1185,9 +1229,34 @@ Still in `app/composables/useSkewvoirAnalysis.ts`, replace the existing `trendPo
   const paramOptions = computed(() => setParamOptions(trendRowInputs.value, setFiles.value))
 
   const integrity = computed(() => setIntegrity(ws.msrList.value, trendRowInputs.value, setFiles.value))
+
+  const toolCount = computed(() => distinctToolCount(trendPoints.value))
 ```
 
-Add `setBaselineValue`, `distributionGroups`, `toolSkewRows`, `paramOptions`, and `integrity` to the returned object. `trendSummary` and `focusVerdict` already read `trendPoints` and keep working unchanged.
+Add `setBaselineValue`, `distributionGroups`, `toolSkewRows`, `toolCount`, `paramOptions`, and `integrity` to the returned object. `trendSummary` and `focusVerdict` already read `trendPoints` and keep working unchanged.
+
+- [ ] **Step 4b: Make `activeUnit` set-aware too**
+
+Widening the parameter without widening the unit leaves a hole: `activeSummary` searches `paramSummaries`, which derives from the **focus file only**, and `activeUnit` falls back to `''`. So the exact case Task 2 unlocks — a parameter the focus measurement lacks — would render every axis and table with no unit.
+
+Find the existing `activeUnit` computed (around line 216) and give it a set fallback:
+
+```ts
+  // Focus first (unchanged for single scope); then any loaded set measurement
+  // that carries the parameter. Without this, widening activeParam to the set
+  // would strip the unit off the very parameters the widening exists to reach.
+  const activeUnit = computed(() => {
+    const focusUnit = activeSummary.value?.unit
+    if (focusUnit) return focusUnit
+    for (const file of setFiles.value.values()) {
+      const hit = file.parameters.find(p => p.parameter === activeParam.value)
+      if (hit?.unit) return hit.unit
+    }
+    return ''
+  })
+```
+
+Keep whatever the current declaration returns for the focus case so single-scope screens are untouched.
 
 - [ ] **Step 5: Verify the wiring compiles and nothing regressed**
 
@@ -1265,29 +1334,75 @@ const overflowTools = computed(() => {
 
 Render the legend from `toolColor`, replacing the overflow entries with a single `기타 (n)` chip using `overflowTools.value.length`.
 
-- [ ] **Step 3: Drive the axis from `axisMode`, and the band from the display fields**
+- [ ] **Step 3: Split one series per tool, keeping verdict color on the points**
 
-Replace the axis and series construction. The mean series carries `[x, value]` pairs so a time axis works; the band uses `bandLo`/`bandHi`, which Task 3 already baseline-shifted:
+**Two channels, two meanings — do not collapse them.** The line's color says *which tool*; the point's color says *how the anomaly rule judged that measurement*. Recoloring the existing single point series by tool would destroy the verdict signal (`sevHex`, already in this file) and still leave every tool joined by one continuous line, which draws a trend across measurements that never belonged to the same series.
+
+So: one line series per `eqp_id`, colored by tool; each datum keeps its verdict `itemStyle`.
 
 ```ts
 // `time` is the honest default; `order` is the escape hatch when measurements
 // bunch. Under `order` the x value is the index, so spacing is uniform.
-const xValue = (p: TrendPoint, i: number): number | string =>
-  props.axisMode === 'time' && p.ts != null ? p.ts : i
+// A point with an unparseable ts has no position on a time axis, so the time
+// branch drops it; the view reports the count in the panel meta.
+const placed = computed(() =>
+  props.points
+    .map((p, i) => ({ p, x: props.axisMode === 'time' ? p.ts : i }))
+    .filter((e): e is { p: TrendPoint, x: number } => e.x != null)
+)
 
-const meanData = computed(() => props.points.map((p, i) => {
-  const key = sevKey(p)
-  const symbolSize = key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 7 : 6
-  return {
-    value: [xValue(p, i), p.value],
-    itemStyle: { color: toolColor.value.get(p.eqpId) ?? sk.value.series },
-    symbolSize
+const symbolFor = (key: string): number =>
+  key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 7 : 6
+
+// One series per tool. The LINE carries tool identity; each POINT keeps the
+// severity color the existing sevHex table produces, so a red dot still means
+// "this measurement was judged abnormal", never "this is tool 3".
+const toolSeries = computed(() => {
+  const byTool = new Map<string, { value: [number, number], itemStyle: { color: string }, symbolSize: number }[]>()
+  for (const { p, x } of placed.value) {
+    const key = sevKey(p)
+    const datum = {
+      value: [x, p.value] as [number, number],
+      itemStyle: { color: sevHex.value[key]! },
+      symbolSize: symbolFor(key)
+    }
+    const list = byTool.get(p.eqpId)
+    if (list) list.push(datum)
+    else byTool.set(p.eqpId, [datum])
   }
-}))
+  return [...byTool].map(([eqpId, data]) => ({
+    name: eqpId,
+    type: 'line' as const,
+    data,
+    smooth: false,
+    showSymbol: true,
+    lineStyle: { width: 2, color: toolColor.value.get(eqpId) ?? sk.value.series },
+    itemStyle: { color: toolColor.value.get(eqpId) ?? sk.value.series },
+    z: 3
+  }))
+})
 
-const floorData = computed(() => props.points.map((p, i) => [xValue(p, i), p.bandLo]))
-const bandData = computed(() => props.points.map((p, i) => [xValue(p, i), p.bandHi - p.bandLo]))
+// The band spans the whole set, not one tool, so it stays two global silent
+// series behind everything. bandLo/bandHi are already baseline-shifted (Task 3).
+const floorData = computed(() => placed.value.map(({ p, x }) => [x, p.bandLo]))
+const bandData = computed(() => placed.value.map(({ p, x }) => [x, p.bandHi - p.bandLo]))
 ```
+
+Build `series` as `[floorSeries, bandSeries, ...toolSeries.value]`, keeping the existing `stack: 'band'`, `silent: true`, `symbol: 'none'`, `z: 1` settings on the two band series unchanged.
+
+**Set `hidden` count for the meta:** expose `placed.value.length` against `props.points.length` so Task 10 can report how many measurements the time axis could not place.
+
+Axis:
+
+```ts
+xAxis: props.axisMode === 'time'
+  ? { type: 'time' as const, axisLabel: { fontSize: 10, hideOverlap: true } }
+  : { type: 'category' as const, data: props.points.map(p => p.label), axisLabel: { fontSize: 10, rotate: 35, hideOverlap: true }, boundaryGap: true },
+```
+
+Under `category` the datum x is the index, which lines up with `data` positionally.
+
+The tooltip's existing `formatter` indexes `props.points[dataIndex]`. That is no longer correct — `dataIndex` is now an index into one tool's filtered array. Rebuild the tooltip from the datum instead, or carry the `msr` on each datum and look it up. Do not leave the existing index lookup in place; it will show the wrong measurement's numbers.
 
 Set `xAxis` to `{ type: 'time' }` when `axisMode === 'time'`, else `{ type: 'category', data: labels }`. Under `time`, points whose `ts` is `null` cannot be placed — filter them out of the series and let Task 10's panel meta report the count.
 
@@ -1306,17 +1421,35 @@ const yName = computed(() => {
 
 `useEchart`'s `onClick` forwards only a category **name**, and these labels are `eqp_id · timestamp`, not MSR ids. Resolve through the series index instead:
 
+Because Step 3 split the points across one series per tool, `dataIndex` alone is no longer an index into `props.points` — it is an index within **one tool's** array, and the two band series sit at series 0 and 1 ahead of them. Keep an msr lookup with the same shape as the series list:
+
 ```ts
-// The chart owns the points array, so dataIndex is an exact index into it.
-// useEchart's shared onClick(name) contract is untouched.
+// Parallel to the series array: msrGrid[seriesIndex - BAND_SERIES][dataIndex].
+// Built from the same grouping pass as toolSeries so the two cannot drift.
+const BAND_SERIES = 2
+
+const msrGrid = computed<string[][]>(() => {
+  const byTool = new Map<string, string[]>()
+  for (const { p } of placed.value) {
+    const list = byTool.get(p.eqpId)
+    if (list) list.push(p.msr)
+    else byTool.set(p.eqpId, [p.msr])
+  }
+  return [...byTool.values()]
+})
+
 const chartEl = ref<HTMLDivElement | null>(null)
 useEchart(chartEl, option, {
-  onDataIndex: (index: number) => {
-    const p = props.points[index]
-    if (p) emit('select', p.msr)
+  onDataIndex: (dataIndex: number, seriesIndex: number) => {
+    const msr = msrGrid.value[seriesIndex - BAND_SERIES]?.[dataIndex]
+    if (msr) emit('select', msr)
   }
 })
 ```
+
+The `?.` is the guard: the band series are `silent: true` so they should not fire at all, but an out-of-range index resolves to `undefined` and emits nothing rather than selecting the wrong measurement.
+
+**`toolSeries` and `msrGrid` must iterate the same Map insertion order.** Both build their map by walking `placed.value` in order, so a tool's index is the same in both — if you refactor one, refactor both together, or merge them into a single computed returning `{ series, msrGrid }`.
 
 `useEchart` currently exposes exactly two click callbacks — `onClick(name)` and `onGridClick(xValue, gridIndex)` — and **neither forwards a data index**, so you must add `onDataIndex` to `UseEchartOptions`. Add it beside the existing two, leaving both untouched so no other chart changes behaviour:
 
@@ -1433,7 +1566,7 @@ git commit -m "feat(skewvoir): opt-in label rotation and zoom for many-group box
 **Interfaces:**
 
 - Consumes: `SetParamOption`, `ToolSkewRow` from Task 5 / Task 4; `paramLabel` from `~/utils/skewvoirAnalysis/paramOrder`.
-- Produces: `ParamCoverageSelect` props `options: SetParamOption[]`, `modelValue: string`; emit `update:modelValue(parameter: string)`. `ToolSkewPanel` props `rows: ToolSkewRow[]`, `unit: string`.
+- Produces: `ParamCoverageSelect` props `options: SetParamOption[]`, `modelValue: string`; emit `update:modelValue(parameter: string)`. `ToolSkewPanel` props `rows: ToolSkewRow[]`, `toolCount: number`, `unit: string`.
 
 - [ ] **Step 1: Write `ParamCoverageSelect.vue`**
 
@@ -1480,11 +1613,13 @@ Render one row per tool: the label, a horizontal offset bar against a zero line,
 
 ```vue
 <template>
+  <!-- buildToolSkew returns [] for BOTH "one tool" and "no data", so the copy
+       is chosen by toolCount, not by rows.length. -->
   <div
-    v-if="rows.length <= 1"
+    v-if="!rows.length"
     class="flex h-56 items-center justify-center sk-body"
   >
-    단일 장비 · 비교 대상 없습니다.
+    {{ toolCount === 1 ? '단일 장비 · 비교 대상 없습니다.' : '비교할 측정을 추가하세요.' }}
   </div>
   <table
     v-else
@@ -1512,11 +1647,19 @@ Render one row per tool: the label, a horizontal offset bar against a zero line,
         <td class="py-1 text-right tabular-nums sk-body">{{ signed(r.offset) }}</td>
         <td class="py-1 text-right tabular-nums sk-body">{{ r.sigma == null ? '—' : r.sigma.toFixed(3) }}</td>
         <td class="py-1 pl-3">
-          <div class="relative h-2 w-full rounded bg-(--sk-chip-bg)">
+          <!-- Offset POINT with a ±σ interval around it — not a bar from zero.
+               A filled bar reads as a magnitude; this reads as an estimate and
+               its uncertainty, which is what the numbers actually are. -->
+          <div class="relative h-4 w-full">
             <span class="absolute inset-y-0 left-1/2 w-px bg-(--sk-border)" />
             <span
-              class="absolute inset-y-0 rounded bg-(--sk-brand)"
-              :style="barStyle(r.offset)"
+              v-if="r.sigma != null"
+              class="absolute top-1/2 h-px -translate-y-1/2 bg-(--sk-brand)/50"
+              :style="intervalStyle(r)"
+            />
+            <span
+              class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--sk-brand)"
+              :style="{ left: `${pos(r.offset)}%` }"
             />
           </div>
         </td>
@@ -1530,21 +1673,26 @@ import type { ToolSkewRow } from '~/utils/skewvoirAnalysis/timeSeries'
 
 const props = defineProps<{
   rows: ToolSkewRow[]
+  /** Distinct equipment in the set — distinguishes "one tool" from "no data". */
+  toolCount: number
   unit: string
 }>()
 
 const signed = (v: number): string => `${v >= 0 ? '+' : ''}${v.toFixed(3)}`
 
-// Bars are scaled against the largest absolute offset in the set, so the most
-// skewed tool fills half the track and everything else reads relative to it.
+// The track is scaled so the widest reach in the set — offset plus its sigma
+// whisker — just fits. Scaling on offset alone would push a noisy tool's
+// interval off the end of its row.
 const maxAbs = computed(() =>
-  props.rows.reduce((m, r) => Math.max(m, Math.abs(r.offset)), 0) || 1)
+  props.rows.reduce((m, r) => Math.max(m, Math.abs(r.offset) + (r.sigma ?? 0)), 0) || 1)
 
-const barStyle = (offset: number) => {
-  const pct = (Math.abs(offset) / maxAbs.value) * 50
-  return offset >= 0
-    ? { left: '50%', width: `${pct}%` }
-    : { right: '50%', width: `${pct}%` }
+/** Percent position across the track, 50% = 세트 기준 (zero). */
+const pos = (value: number): number => 50 + (value / maxAbs.value) * 50
+
+const intervalStyle = (r: ToolSkewRow) => {
+  const lo = pos(r.offset - (r.sigma ?? 0))
+  const hi = pos(r.offset + (r.sigma ?? 0))
+  return { left: `${lo}%`, width: `${hi - lo}%` }
 }
 </script>
 ```
@@ -1573,6 +1721,7 @@ git commit -m "feat(skewvoir): add the set param selector and tool skew panel"
 
 **Files:**
 
+- Modify: `app/components/ebeam/skewvoir/Workspace.vue`
 - Rewrite: `app/components/ebeam/skewvoir/views/TimeSeries.vue`
 
 **Interfaces:**
@@ -1580,7 +1729,34 @@ git commit -m "feat(skewvoir): add the set param selector and tool skew panel"
 - Consumes: everything from Tasks 6–9.
 - Produces: the finished page. Nothing downstream depends on it.
 
-- [ ] **Step 1: Compose the view**
+- [ ] **Step 1: Pass the workspace into the view**
+
+`views/TimeSeries.vue` needs `tsView` / `tsAxis` / `tsBaseline` and their setters, which Task 6 put on the **workspace**, not on `analysis`. But `Workspace.vue` currently renders the view with only `:analysis="analysis"` (line 57–60), and `ws` is local to `Workspace.vue`. Without this step the whole template fails to compile.
+
+In `Workspace.vue`, pass `ws` to the Time-Series view only:
+
+```vue
+            <EbeamSkewvoirViewsTimeSeries
+              v-else-if="ws.activeKind.value === 'time-series'"
+              :analysis="analysis"
+              :ws="ws"
+            />
+```
+
+and in `views/TimeSeries.vue`:
+
+```ts
+import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
+
+const props = defineProps<{
+  analysis: SkewvoirAnalysis
+  ws: SkewvoirWorkspace
+}>()
+```
+
+Leave the other five view components untouched — none of them needs `ws`, and widening them all would be churn for nothing.
+
+- [ ] **Step 2: Compose the view**
 
 Reading order is `integrity banner → parameter selector → lens buttons → active chart → Sequence Trend`. Keep the existing `scope !== 'set'` empty state exactly as it is today.
 
@@ -1597,6 +1773,15 @@ Structure:
       variant="soft"
       :title="`${integrity.unresolvedMsrs.length}개 측정이 이 장비군 검색 결과에 없어 제외되었습니다.`"
     />
+    <!-- Resolved but never loaded: POST /api/msr-files silently skips MSRs it
+         cannot find, so without this the miss would masquerade as "this
+         parameter is absent" and quietly shrink every denominator. -->
+    <UAlert
+      v-if="integrity.resolved > integrity.loaded"
+      color="warning"
+      variant="soft"
+      :title="`${integrity.resolved - integrity.loaded}개 측정의 파일을 불러오지 못했습니다.`"
+    />
 
     <div class="flex flex-wrap items-center gap-2">
       <EbeamSkewvoirTimeseriesParamCoverageSelect
@@ -1610,18 +1795,33 @@ Structure:
       >recipe {{ integrity.recipeCount }}종 혼재 · 장비 차이로 해석하기 어렵습니다</span>
     </div>
 
-    <!-- Lens buttons. Inactive lenses unmount (v-if) so their ECharts instance
-         is disposed — the FDC toggle spec's precedent. dataZoom resets on
-         return; accepted. -->
-    <UButtonGroup size="xs">
-      <UButton
+    <!-- Lens switch. NOTE: there is no `UButtonGroup` in NuxtUI 4.10 — the
+         registry has UFieldGroup and UTabs. This repo's own precedent for
+         exactly this control is a hand-rolled tablist with native buttons and
+         a roving tabindex; see fdc/SequenceWorkbench.vue. Copy that pattern,
+         including its keydown handler, rather than introducing a third idiom.
+
+         Hidden while loading and while there is nothing to show, per the spec:
+         an empty tab strip over a spinner offers a choice that does nothing. -->
+    <div
+      v-if="!analysis.setPending.value && hasAnySetData"
+      role="tablist"
+      aria-label="Time-Series 보기"
+      class="inline-flex w-fit items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
+      @keydown="onLensKeydown"
+    >
+      <button
         v-for="lens in LENSES"
         :key="lens.value"
-        :variant="ws.tsView.value === lens.value ? 'solid' : 'outline'"
-        :label="lens.label"
+        type="button"
+        role="tab"
+        :tabindex="ws.tsView.value === lens.value ? 0 : -1"
+        :aria-selected="ws.tsView.value === lens.value"
         @click="ws.setTsView(lens.value)"
-      />
-    </UButtonGroup>
+      >
+        {{ lens.label }}
+      </button>
+    </div>
 
     <EbeamSkewvoirPanelFrame :title="activeTitle" :meta="activeMeta" :icon="activeIcon">
       <template v-if="ws.tsView.value === 'trend'" #actions>
@@ -1655,6 +1855,7 @@ Structure:
       <EbeamSkewvoirTimeseriesToolSkewPanel
         v-else-if="ws.tsView.value === 'skew'"
         :rows="analysis.toolSkewRows.value"
+        :tool-count="analysis.toolCount.value"
         :unit="analysis.activeUnit.value"
       />
 
@@ -1677,11 +1878,30 @@ Structure:
 </template>
 ```
 
-The trend panel's `#actions` slot keeps the existing anomaly method `USelect` and threshold `UInput`s from the current file — move them, do not rewrite them — and adds two `UButtonGroup`s bound to `ws.tsAxis` / `ws.tsBaseline`.
+The trend panel's `#actions` slot keeps the existing anomaly method `USelect` and threshold `UInput`s from the current file — move them, do not rewrite them — and adds two small toggles bound to `ws.tsAxis` / `ws.tsBaseline`. Use plain `UButton`s (`variant="soft"` when active, `variant="ghost"` when not), matching how `SequenceWorkbench.vue` renders its inline controls.
 
-Panel meta strings must report what was dropped, per the spec: `n/총` for measurements missing the parameter, the count of measurements with fewer than 4 measured sites (distribution lens), and the count of unparseable timestamps hidden by the time axis (trend lens, `time` mode only).
+The script block needs:
 
-- [ ] **Step 2: Typecheck and lint**
+```ts
+const LENSES = [
+  { value: 'trend' as const, label: '추이' },
+  { value: 'dist' as const, label: '분포' },
+  { value: 'skew' as const, label: '장비 skew' }
+]
+
+// Whether ANY lens has something to draw. Gates the tab strip so a set that
+// resolved to nothing does not offer three empty choices.
+const hasAnySetData = computed(() =>
+  props.analysis.trendPoints.value.length > 0
+  || props.analysis.distributionGroups.value.length > 0
+)
+```
+
+plus `activeTitle` / `activeMeta` / `activeIcon` computeds switching on `ws.tsView.value`, and an `onLensKeydown` roving-focus handler copied from `fdc/SequenceWorkbench.vue`.
+
+Panel meta strings must report what was dropped, per the spec: `n/총` for measurements missing the parameter, the count of measurements with fewer than 4 measured sites (distribution lens), and — for the trend lens in `time` mode only — the count of measurements the time axis could not place because their timestamp would not parse (the `points.length - placed.length` figure Task 7 exposes).
+
+- [ ] **Step 3: Typecheck and lint**
 
 ```bash
 npm run typecheck
@@ -1690,7 +1910,7 @@ npm run lint
 
 Expected: clean.
 
-- [ ] **Step 3: Run the backend suite to confirm no backend impact**
+- [ ] **Step 4: Run the backend suite to confirm no backend impact**
 
 From the repo root:
 
@@ -1700,7 +1920,7 @@ From the repo root:
 
 Expected: passing at the pre-existing baseline. This plan changes no Python; run it to confirm that claim rather than assert it.
 
-- [ ] **Step 4: Verify in the browser**
+- [ ] **Step 5: Verify in the browser**
 
 Use the `verify` skill to start Flask on :5050 and Nuxt on :3000, then walk the real path:
 
@@ -1709,22 +1929,24 @@ Use the `verify` skill to start Flask on :5050 and Nuxt on :3000, then walk the 
 3. Confirm the parameter selector shows coverage (`WAFER · n/m`) and that switching to a parameter the focus measurement lacks **sticks** — this is the Task 2 rule; before the change the URL would snap back.
 4. Toggle 시간 ↔ 순서. Confirm point spacing changes and the axis type changes with it.
 5. Toggle 원시값 ↔ 잔차. Confirm the y-axis name becomes `Δ vs 세트 기준` and the min/max band moves with the mean rather than staying behind.
-6. Click a point. Confirm the focus moves to that MSR (left rail identity updates).
-7. Switch to 분포. Confirm one box per measurement, raw points overlaid, labels rotated and zoom present.
-8. Switch to 장비 skew. Confirm tools are sorted most-skewed first and a single-measurement tool shows `σ = —`.
-9. Select measurements from **one** tool only and confirm the skew lens says 단일 장비 · 비교 대상 없습니다.
-10. Copy the URL, open it in a new tab, and confirm the lens, axis mode, baseline, and parameter all come back.
+6. Confirm each `eqp_id` draws its **own line** (measurements from different tools are not joined), while individual points still carry verdict colors — a flagged measurement stays red/amber regardless of which tool it came from.
+7. Click a point. Confirm the focus moves to that MSR (left rail identity updates), and that the point you clicked is the measurement you land on.
+8. Switch to 분포. Confirm one box per measurement, raw points overlaid, labels rotated and zoom present.
+9. Switch to 장비 skew. Confirm tools are sorted most-skewed first, that each row shows an offset **point with a ±σ interval** (not a bar from zero), and that a single-measurement tool shows `σ = —`.
+10. Select measurements from **one** tool only and confirm the skew lens says 단일 장비 · 비교 대상 없습니다.
+11. Deep-link a URL with an `msrs` id that does not exist, and confirm the integrity banner counts it rather than the set silently shrinking.
+12. Copy the URL, open it in a new tab, and confirm the lens, axis mode, baseline, and parameter all come back.
 
 Save screenshots under `.playwright-mcp/screenshots/`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add app/components/ebeam/skewvoir/views/TimeSeries.vue
+git add app/components/ebeam/skewvoir/Workspace.vue app/components/ebeam/skewvoir/views/TimeSeries.vue
 git commit -m "feat(skewvoir): assemble the three-lens Time-Series page"
 ```
 
-- [ ] **Step 6: Land the work and tear down the worktree**
+- [ ] **Step 7: Land the work and tear down the worktree**
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono_v3_nuxt
@@ -1743,6 +1965,15 @@ git worktree list   # must show the main tree alone
 
 **Type consistency.** `TrendPoint` is defined once in Task 3 and consumed by Tasks 4, 6, 7. `SetParamOption` (Task 5) is deliberately *not* named `ParamCoverage`, which `utils/overview.ts` already owns. `TrendRowInput` gains `recipeName` in Task 5 via `IntegrityRowInput`; Task 6 builds one `trendRowInputs` array carrying `recipeName`, which satisfies both. `sigma: number | null` is null-for-n<2 in Task 4 and rendered `—` in Task 9.
 
-**Both open questions were resolved before this plan was finalised**, so no task starts on a guess: `app/utils/anomaly/index.ts` exists (Task 3 imports `'../anomaly/index.ts'`), and `useEchart` has no data-index callback, so Task 7 adds `onDataIndex` with the exact code to write.
+**All API assumptions were checked against this checkout before the plan was finalised**, so no task starts on a guess:
+
+- `app/utils/anomaly/index.ts` exists → Task 3 imports `'../anomaly/index.ts'`.
+- `useEchart` exposes only `onClick(name)` and `onGridClick(xValue, gridIndex)`, neither carrying a data index → Task 7 adds `onDataIndex` with the exact code to write.
+- **`UButtonGroup` does not exist in NuxtUI 4.10** (the registry has `UFieldGroup` and `UTabs`). This repo's own precedent for a lens switch is a hand-rolled `role="tablist"` with native buttons in `fdc/SequenceWorkbench.vue` → Task 10 copies that, including the roving-tabindex keydown handler.
+- `nuxt typecheck` includes `../app/**/*`, which covers `*.test.ts` → fixtures must satisfy their declared types. That is why `DistFileInput.rows` is a minimal `DistSiteInput[]` rather than `MsrFileRow[]`: a 20-field row type would make every fixture a liability.
 
 **One assumption left for the implementer to confirm at the keyboard**, called out inline in Task 9: the NuxtUI `USelectMenu` prop names (`items` / `value-key`) should be matched against a working call site such as `search/FacetSelect.vue` rather than trusted from this plan.
+
+**Two places where the plan deliberately makes a pure function stricter than "just return the data".** `buildToolSkew` returns `[]` for a single-tool set rather than one ≈0 row, because an offset against a baseline the tool itself defines reads as "this tool agrees with its peers" when it has none — the spec requires a unit test proving no row is produced. `distinctToolCount` exists solely so the panel can tell that case apart from "no data", since both hand it an empty array.
+
+**One cross-task hazard worth re-reading before Task 7.** Splitting the trend into one series per tool changes what `dataIndex` means, which breaks both the click handler and the existing tooltip `formatter` — Task 7 fixes the first with `msrGrid` and explicitly flags the second. Neither is optional; leaving the old index lookup shows the wrong measurement's numbers.
