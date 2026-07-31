@@ -2,9 +2,16 @@ from flask import Flask, g, request
 
 from ..access_control.data import is_blocked, record_denied
 from ..api_tokens.data import find_by_plaintext, touch_last_used
-from .admin import is_admin
+from .admin import is_admin_request
 from .errors import error_json
-from .provider import SOURCE_COOKIE, SOURCE_TOKEN, IdentityProvider, read_identity_cookie
+from .provider import (
+    SOURCE_COOKIE,
+    SOURCE_DECLARED,
+    SOURCE_TOKEN,
+    IdentityProvider,
+    read_identity_cookie,
+)
+from .self_id import read_declared
 
 
 _BEARER_PREFIX = "Bearer "
@@ -51,9 +58,13 @@ def _deny_if_blocked():
     # non-API path reaches the catch-all SPA route.
     if not request.path.startswith("/api/"):
         return None
-    # is_blocked before is_admin: non-X ids (nearly everyone) short-circuit on a
-    # prefix check without touching the admin allowlist or the exception store.
-    if not is_blocked(user_id) or is_admin(user_id):
+    # is_blocked first: non-X ids (nearly everyone) short-circuit on a prefix
+    # check without touching the admin allowlist or the exception store.
+    #
+    # is_admin_request, not is_admin: the admin exemption below must not be
+    # reachable by declaring an X-prefixed admin's employee number, which an
+    # id-only check would have granted.
+    if not is_blocked(user_id) or is_admin_request():
         return None
     record_denied(user_id)
     return error_json("access_denied", "member id is not allowed to access this service", 403)
@@ -70,6 +81,16 @@ def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
         if cookie:
             g.user_id = cookie
             g.identity_source = SOURCE_COOKIE
+            return _deny_if_blocked()
+
+        # The identity the user typed in for themselves. Below the cookie on
+        # purpose: infrastructure identity outranks a declared one, so someone
+        # who is later given a real cookie stops being their own declaration
+        # without having to clear anything.
+        declared = read_declared()
+        if declared:
+            g.user_id = declared["empno"]
+            g.identity_source = SOURCE_DECLARED
             return _deny_if_blocked()
 
         # Nobody was identified, so the phase decides what that means: a

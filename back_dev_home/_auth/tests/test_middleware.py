@@ -36,7 +36,9 @@ def no_access_control(monkeypatch):
     """
     monkeypatch.setattr(middleware_mod, "is_blocked", lambda user_id: False)
     monkeypatch.setattr(middleware_mod, "record_denied", lambda user_id: None)
-    monkeypatch.setattr(middleware_mod, "is_admin", lambda user_id: False)
+    # is_admin_request, not is_admin: the gate now asks whether the CALLER is
+    # an admin, which consults g.identity_source as well as the id.
+    monkeypatch.setattr(middleware_mod, "is_admin_request", lambda: False)
 
 
 @pytest.fixture
