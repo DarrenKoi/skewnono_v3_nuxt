@@ -90,13 +90,47 @@ def test_static_assets_load_for_an_unidentified_visitor(client):
     assert client.get("/favicon.ico").status_code == 200
 
 
-def test_an_api_request_without_a_cookie_is_refused(client):
-    """The other half: pages stay open so the frontend can explain itself, but
-    data does not. 401 is a JSON body the SPA can render, not a redirect."""
+def test_an_api_request_without_a_cookie_runs_as_anonymous(client):
+    """The cloud substitutes `anonymous` rather than refusing — the network is
+    already internal, so an unidentified caller gets a working app. What
+    matters is that the request is still *attributed*: a null user in the
+    activity log is indistinguishable from a logging bug."""
     response = client.get("/api/sem-list")
 
-    assert response.status_code == 401
-    assert response.get_json()["error"]["code"] == "unauthenticated"
+    assert response.status_code == 200
+    assert response.get_json()["user"] == "anonymous"
+
+
+def test_the_refusal_path_survives_a_provider_that_identifies_nobody(
+    no_access_control,
+):
+    """`CloudIdentityProvider` never returns None now, which would leave the
+    gate's 401 branch dead — and dead code guarding an API is exactly the kind
+    that rots unnoticed until something reintroduces None. Driven through a
+    provider that does return None, so the branch stays honest."""
+    app = Flask(__name__, static_folder=None)
+
+    class _IdentifiesNobody:
+        def identify(self, request):
+            return None
+
+    install_identity_middleware(app, _IdentifiesNobody())
+
+    @app.get("/api/sem-list")
+    def _sem_list():
+        return {"rows": []}
+
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def _spa(path: str):
+        return SPA_MARK
+
+    client = app.test_client()
+    refused = client.get("/api/sem-list")
+
+    assert client.get("/").status_code == 200  # the page still opens
+    assert refused.status_code == 401
+    assert refused.get_json()["error"]["code"] == "unauthenticated"
 
 
 def test_the_cookie_becomes_the_user_id(client):

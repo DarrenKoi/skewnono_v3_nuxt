@@ -13,6 +13,7 @@ from flask import Flask
 
 from back_dev_home._auth.admin import is_admin
 from back_dev_home._auth.provider import (
+    ANONYMOUS,
     CloudIdentityProvider,
     LocalIdentityProvider,
 )
@@ -65,25 +66,50 @@ def test_the_canonical_spelling_wins_when_both_are_present(request_with):
     assert identity == "2067928"
 
 
-def test_the_cloud_invents_no_identity_without_a_cookie(request_with):
-    """The reason this class exists apart from the local one. Anything truthy
-    here is handed to every unidentified visitor on the private cloud."""
-    assert CloudIdentityProvider().identify(request_with()) is None
+def test_the_cloud_substitutes_anonymous_without_a_cookie(request_with):
+    """An unidentified caller is still a real caller on an internal network, so
+    they get a usable app under a shared id rather than a locked door."""
+    assert CloudIdentityProvider().identify(request_with()) == ANONYMOUS
 
 
 @pytest.mark.parametrize("blank", ["", "   "])
-def test_the_cloud_treats_a_blank_cookie_as_nobody(request_with, blank):
-    """An infrastructure that clears the cookie by setting it empty must read
-    as logged-out, not as a user whose id is the empty string — that id would
-    flow into activity logs and access-control lookups as a real member."""
-    assert CloudIdentityProvider().identify(request_with(LASTUSER=blank)) is None
+def test_the_cloud_treats_a_blank_cookie_as_anonymous(request_with, blank):
+    """Infrastructure that clears the cookie by setting it empty must read as
+    anonymous, not as a user whose id is the empty string — that id would flow
+    into activity logs and access-control lookups as if it were a real member."""
+    assert (
+        CloudIdentityProvider().identify(request_with(LASTUSER=blank))
+        == ANONYMOUS
+    )
 
 
 def test_the_cloud_never_yields_an_admin_by_default(request_with):
-    """Belt and braces across the two modules that would have to agree for the
-    admin panel to leak: identify() returning None, and is_admin(None) refusing
-    it. Either alone is enough; neither is allowed to be the only one."""
+    """The security property the anonymous fallback rests on. `anonymous` is a
+    shared id, so if it were ever admin, the admin panel would be reachable by
+    anyone whose cookie is missing."""
     assert not is_admin(CloudIdentityProvider().identify(request_with()))
+
+
+def test_anonymous_is_not_admin_under_either_phase_default(monkeypatch):
+    """Directly, against both allowlists rather than through identify().
+
+    admin.py picks its default set from is_cloud(), so a fallback id that is
+    safe at home could still be admin on the cloud — and the test above, which
+    only ever runs in one phase, would not notice.
+    """
+    monkeypatch.delenv("SKEWNONO_ADMIN_USERS", raising=False)
+
+    for cloud in (True, False):
+        monkeypatch.setattr(
+            "back_dev_home._auth.admin.is_cloud", lambda cloud=cloud: cloud
+        )
+        assert not is_admin(ANONYMOUS)
+
+
+def test_anonymous_is_not_x_prefixed_so_access_control_ignores_it():
+    """The second, independent guard on the same property: access control
+    blocks X-prefixed member ids, and `anonymous` must not resemble one."""
+    assert not ANONYMOUS.upper().startswith("X")
 
 
 def test_home_falls_back_to_the_local_developer(request_with):

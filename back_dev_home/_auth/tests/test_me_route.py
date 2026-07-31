@@ -88,13 +88,18 @@ def test_admin_status_comes_from_the_allowlist_not_the_directory(client):
     assert client.get("/api/me").get_json()["is_admin"] is False
 
 
-def test_an_unidentified_caller_is_refused_by_the_gate(client):
-    """No carve-out: /api/me is an API path like any other, and the 401 is
-    itself the answer the SPA needs."""
-    response = client.get("/api/me")
+def test_an_unidentified_caller_is_told_they_are_anonymous(client):
+    """What the SPA boots into when the cookie is missing. It needs to be able
+    to tell "we know who you are" from "we don't" in order to show a sign-in
+    hint, and a shared id that looks like any other user would hide that — so
+    the id it gets back must be the literal `anonymous`, not a blank or a
+    fabricated empno."""
+    body = client.get("/api/me").get_json()
 
-    assert response.status_code == 401
-    assert response.get_json()["error"]["code"] == "unauthenticated"
+    assert body["user_id"] == "anonymous"
+    assert body["is_admin"] is False
+    assert body["member"]["empno"] == "anonymous"
+    assert body["member"]["emp_nm"] is None
 
 
 def test_the_route_is_registered_in_every_phase():
