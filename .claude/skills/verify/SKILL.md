@@ -35,7 +35,7 @@ lsof -iTCP -sTCP:LISTEN -P | grep -E ":3000|:5050"
 - Rate limit: 20 req / 5 s per user on `/api/*` — space out curl loops or
   vary `LASTUSER`.
 - Backend tests: `.venv/bin/python -m pytest tests back_dev_home -q` from the
-  repo root (~1320 tests, ~17 s). Both roots are required — `tests/` alone
+  repo root (~2090 tests, ~9 s). Both roots are required — `tests/` alone
   skips every `back_dev_home/<feature>/tests/` provider contract suite, which
   is the larger half of the suite. A bare `.venv/bin/python -m pytest -q`
   collects the same set (`testpaths` in root `pyproject.toml`).

@@ -110,7 +110,7 @@ Backend, from the repo root (CPython 3.14 venv; no activation step needed):
 
 ```bash
 .venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
-.venv/bin/python -m pytest -q                          # full suite (~1320 tests, ~17 s)
+.venv/bin/python -m pytest -q                          # full suite (~2090 tests, ~9 s)
 .venv/bin/python -m pytest back_dev_home/<feature> -q  # one feature
 ```
 

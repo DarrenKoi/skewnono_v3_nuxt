@@ -105,7 +105,7 @@ Backend — pytest on CPython 3.14, installed from `back_dev_home/requirements-d
 runner). Always run from the repo root, in the `python -m pytest` form: `-m` is
 what puts the repo root on `sys.path` so tests can import `back_dev_home.*`.
 
-- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~1320 tests, ~17 s). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
+- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~2090 tests, ~9 s). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
 - `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "back_dev_home"]`, so the bare form and the explicit one are interchangeable.
 - `.venv/bin/python -m pytest back_dev_home/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
 - `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp back_dev_home/<feature>/providers/office_example.py back_dev_home/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
