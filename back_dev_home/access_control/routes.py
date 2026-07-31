@@ -13,6 +13,17 @@ from .data import (
 
 bp = Blueprint("access_control", __name__)
 
+# Both mutating routes answer a failed persist with the same 503. One error
+# tuple + one response builder so the two handlers cannot drift apart — the
+# office adapter does the same for its own strings via _UNAVAILABLE.
+_STORE_ERRORS = (StoreUnavailableError, OSError)
+
+
+def _store_unavailable_503(action: str):
+    return error_json(
+        "store_unavailable", f"exception store unavailable; {action} NOT saved", 503
+    )
+
 
 # One combined read: the admin page needs all three at once, and separate
 # calls would eat into the 20-req/5s per-user rate budget.
@@ -36,8 +47,8 @@ def access_add_exception():
         row = add_exception(str(body.get("user_id", "")))
     except ValueError as exc:
         return error_json("invalid_member_id", str(exc), 400)
-    except (StoreUnavailableError, OSError):
-        return error_json("store_unavailable", "exception store unavailable; grant NOT saved", 503)
+    except _STORE_ERRORS:
+        return _store_unavailable_503("grant")
     return jsonify(row), 201
 
 
@@ -46,8 +57,8 @@ def access_add_exception():
 def access_remove_exception(user_id: str):
     try:
         removed = remove_exception(user_id)
-    except (StoreUnavailableError, OSError):
-        return error_json("store_unavailable", "exception store unavailable; removal NOT saved", 503)
+    except _STORE_ERRORS:
+        return _store_unavailable_503("removal")
     if not removed:
         return error_json("not_found", f"no exception for {user_id!r}", 404)
     return jsonify({"removed": user_id.strip().upper()})

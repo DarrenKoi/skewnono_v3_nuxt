@@ -14,17 +14,15 @@ silently unblock) members depending on which half of the store each
 function reads. See MIGRATION.md's "Enforcement path" section.
 
 BLOCKED_PREFIX and StoreUnavailableError are re-exported unswitched —
-provider-independent policy/error type shared by both providers.
-reset_for_tests and _store_path are mock-only (test support / this
-provider's own file location), not part of the switch.
+provider-independent policy/error type shared by both providers. The mock's
+test helpers (reset_for_tests, _store_path) are NOT re-exported here: they
+are mock-only by design, so tests import them from providers.mock directly.
 """
 
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.access_control.providers.mock import (
     BLOCKED_PREFIX,          # policy constant: provider-independent
     StoreUnavailableError,   # error type shared by both providers
-    _store_path,             # test-only: mock's exception-file location
-    reset_for_tests,         # dev/test-only: mock-only by design
 )
 
 
@@ -37,8 +35,6 @@ __all__ = [
     "remove_exception",
     "record_denied",
     "list_denied",
-    "reset_for_tests",
-    "_store_path",
 ]
 
 

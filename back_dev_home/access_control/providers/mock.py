@@ -10,6 +10,9 @@
   그 상태에서의 변경은 거부합니다 — 손상된 캐시로 파일을 덮어써서 기존
   grant를 날리는 사고를 막기 위함입니다. 쓰기 실패는 호출자에게 예외로
   전파되어 관리자가 실패를 알 수 있습니다.
+- 변경은 파일에 먼저 쓰고, 그 쓰기가 성공한 뒤에만 메모리 캐시에
+  반영합니다(write-then-commit). 그래서 쓰기가 실패해도 되돌릴 상태가
+  아예 없습니다 — 롤백 코드가 필요 없는 이유입니다.
 - 차단 시도 기록은 메모리 링 버퍼(최근 50건)로만 유지되는 편의 뷰입니다 —
   관리자가 정확한 사번을 몰라도 원클릭으로 허용할 수 있게 해 줍니다.
 
@@ -24,7 +27,8 @@ all six against the same backing store (Redis) for
 moment the provider is switched. See access_control/data.py and
 MIGRATION.md for architecture details. ``reset_for_tests`` and
 ``_store_path`` stay mock-only (test-support / this provider's own file
-location), re-exported unswitched from data.py.
+location) — tests import them from THIS module, they are not part of
+data.py's switched surface.
 """
 
 from __future__ import annotations
@@ -47,7 +51,6 @@ _lock = Lock()
 # user_id(uppercased) -> {"user_id": ..., "granted_at": ...}
 _cache: OrderedDict[str, dict] | None = None
 _cache_mtime: float | None = None
-_load_failed = False
 # user_id(uppercased) -> last denied timestamp (ISO). Ordered oldest-first.
 _denied: OrderedDict[str, str] = OrderedDict()
 
@@ -55,6 +58,9 @@ _denied: OrderedDict[str, str] = OrderedDict()
 class StoreUnavailableError(RuntimeError):
     """The exception store cannot be read; mutations are refused so a
     half-loaded view is never persisted over the real file."""
+
+
+_UNREADABLE = "access exception store unreadable; refusing to modify"
 
 
 def _now_iso() -> str:
@@ -71,33 +77,32 @@ def _store_path() -> Path:
 def _load_locked() -> OrderedDict[str, dict]:
     """Return the current exception store, reloading when the file changed.
 
-    A missing file is a normal empty store. An unreadable/corrupt file is
-    fail-safe: this call sees an empty store, but nothing is cached (so the
-    next call retries) and _load_failed marks mutations as unsafe.
+    A missing file is a normal empty store. An unreadable/corrupt file raises
+    StoreUnavailableError with nothing cached (so the next call retries):
+    mutators let it propagate (fail-closed, a half-loaded view must never be
+    persisted over the real file), readers downgrade it to an empty store via
+    _load_failsafe_locked.
     """
-    global _cache, _cache_mtime, _load_failed
+    global _cache, _cache_mtime
     path = _store_path()
     try:
         mtime: float | None = path.stat().st_mtime
     except FileNotFoundError:
         mtime = None
-    except OSError:
+    except OSError as exc:
         logger.warning("access exceptions file unstatable; failing safe: %s", path)
-        _load_failed = True
-        return OrderedDict()
+        raise StoreUnavailableError(_UNREADABLE) from exc
 
     if _cache is not None and mtime == _cache_mtime:
-        _load_failed = False
         return _cache
 
     loaded: OrderedDict[str, dict] = OrderedDict()
     if mtime is not None:
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
             logger.warning("access exceptions file unreadable; failing safe: %s", path)
-            _load_failed = True
-            return loaded
+            raise StoreUnavailableError(_UNREADABLE) from exc
         for row in raw.get("exceptions", []):
             user_id = str(row.get("user_id", "")).strip().upper()
             if user_id:
@@ -107,28 +112,40 @@ def _load_locked() -> OrderedDict[str, dict]:
                 }
     _cache = loaded
     _cache_mtime = mtime
-    _load_failed = False
     return _cache
 
 
-def _save_locked() -> None:
-    """Write-through persist. Raises OSError on failure — callers surface it
-    instead of reporting success for a grant that would vanish on restart."""
+def _load_failsafe_locked() -> OrderedDict[str, dict]:
+    """Reader view of the store: an unreadable file is an empty store for THIS
+    call only — a read failure must not 500 every request from an X-member or
+    blank the admin page, and nothing is cached so the next call retries."""
+    try:
+        return _load_locked()
+    except StoreUnavailableError:
+        return OrderedDict()
+
+
+def _save_locked(rows: list[dict]) -> None:
+    """Write-through persist of a CANDIDATE row set. Raises OSError on failure —
+    callers surface it instead of reporting success for a grant that would
+    vanish on restart.
+
+    Takes the rows rather than reading _cache so both mutators can write first
+    and only then commit the change in memory. That ordering is what makes a
+    failed write a no-op instead of something to hand-roll a rollback for: if
+    this raises, the cache was never touched.
+    """
     global _cache_mtime
     path = _store_path()
-    payload = {"exceptions": list((_cache or {}).values())}
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(
+        json.dumps({"exceptions": rows}, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    # Atomic swap: a reader (another worker) sees either the old file or the
+    # new one, never a half-written one.
     tmp.replace(path)
     _cache_mtime = path.stat().st_mtime
-
-
-def _mutable_store_locked() -> OrderedDict[str, dict]:
-    store = _load_locked()
-    if _load_failed:
-        raise StoreUnavailableError("access exception store unreadable; refusing to modify")
-    return store
 
 
 def is_blocked(user_id: str) -> bool:
@@ -141,12 +158,12 @@ def is_blocked(user_id: str) -> bool:
     if not normalized.startswith(BLOCKED_PREFIX):
         return False
     with _lock:
-        return normalized not in _load_locked()
+        return normalized not in _load_failsafe_locked()
 
 
 def list_exceptions() -> list[dict]:
     with _lock:
-        return list(_load_locked().values())
+        return list(_load_failsafe_locked().values())
 
 
 def add_exception(user_id: str) -> dict:
@@ -158,33 +175,27 @@ def add_exception(user_id: str) -> dict:
     if not normalized.startswith(BLOCKED_PREFIX):
         raise ValueError(f"only ids starting with '{BLOCKED_PREFIX}' need an exception")
     with _lock:
-        store = _mutable_store_locked()
+        store = _load_locked()
         row = store.get(normalized)
         if row is None:
+            # Idempotent: an existing grant keeps its original granted_at and
+            # needs no write at all.
             row = {"user_id": normalized, "granted_at": _now_iso()}
-            store[normalized] = row
-            try:
-                _save_locked()
-            except OSError:
-                store.pop(normalized, None)
-                raise
+            _save_locked([*store.values(), row])
+            store[normalized] = row  # committed only once the file has it
         _denied.pop(normalized, None)
         return row
 
 
 def remove_exception(user_id: str) -> bool:
+    """Revoke a grant. Idempotent: True the first time, False afterwards."""
     normalized = user_id.strip().upper()
     with _lock:
-        store = _mutable_store_locked()
-        row = store.get(normalized)
-        if row is None:
+        store = _load_locked()
+        if normalized not in store:
             return False
-        del store[normalized]
-        try:
-            _save_locked()
-        except OSError:
-            store[normalized] = row
-            raise
+        _save_locked([row for uid, row in store.items() if uid != normalized])
+        del store[normalized]  # committed only once the file has dropped it
         return True
 
 
@@ -210,9 +221,8 @@ def list_denied() -> list[dict]:
 
 def reset_for_tests() -> None:
     """Drop all in-memory state so tests can point at a fresh store file."""
-    global _cache, _cache_mtime, _load_failed
+    global _cache, _cache_mtime
     with _lock:
         _cache = None
         _cache_mtime = None
-        _load_failed = False
         _denied.clear()

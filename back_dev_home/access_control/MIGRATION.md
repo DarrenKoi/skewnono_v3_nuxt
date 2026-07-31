@@ -86,9 +86,12 @@ carrying on is reasonable — and wrong here, where the failure is a server that
 is not answering and there is a status code that says exactly that.
 
 **The `StoreUnavailableError` rule still holds:** it is imported from
-`providers.mock`, never redefined. `routes.py` has
-`except (StoreUnavailableError, OSError):` → `503 store_unavailable` wired for
-POST and DELETE; a raw redis exception would sail past it. Note also that
+`providers.mock`, never redefined. `routes.py` catches
+`_STORE_ERRORS` — the module-level `(StoreUnavailableError, OSError)` tuple —
+and answers `503 store_unavailable` on POST and DELETE through the shared
+`_store_unavailable_503()` builder, so the two handlers cannot drift into
+catching different classes or reporting different messages. A raw redis
+exception would sail past that tuple. Note also that
 `StoreUnavailableError` subclasses `RuntimeError`, and the app factory's
 `RuntimeError` handler deliberately rejects subclasses
 (`type(err) is not RuntimeError` → 500) — so it *must* keep being caught in
@@ -176,9 +179,11 @@ provider to parse it.
   None)`) — a fresh grant clears the "attempted and was blocked" history
   for that id. If the store is unreadable (fail-safe), the grant is
   refused with `StoreUnavailableError` rather than persisting a
-  half-loaded view over the real file. If the file write itself fails
-  (`OSError`), the in-memory row is rolled back before the exception
-  propagates, so a failed write never looks committed in memory.
+  half-loaded view over the real file. The write happens **before** the
+  in-memory commit — `_save_locked()` takes the candidate row set as an
+  argument — so if the file write fails (`OSError`) the cache was never
+  touched and a failed write cannot look committed in memory. No rollback
+  step is involved; there is nothing to roll back.
 - Office behavior: `HSETNX` on the exceptions hash, which makes idempotency
   **atomic** — a concurrent second grant cannot overwrite the first one's
   `granted_at`, which a read-before-write could. When `HSETNX` reports the
@@ -201,10 +206,10 @@ provider to parse it.
   `False` if no exception row exists for it (no-op, not an error) —
   **removal must be idempotent**: calling it twice on the same id returns
   `True` once, then `False` on every subsequent call, never raising. If a
-  row exists, it is deleted from the in-memory store and persisted
-  write-through; on a write failure (`OSError`) the row is restored in
-  memory before the exception propagates (mirrors `add_exception`'s
-  rollback-on-write-failure behavior).
+  row exists, the reduced row set is persisted write-through and the
+  in-memory delete happens only once that write succeeded — the same
+  write-then-commit ordering as `add_exception`, so a write failure
+  (`OSError`) leaves the row present in both the file and the cache.
 - Office behavior: a single `HDEL`, whose 0/1 return *is* the bool this function
   owes its caller — `HDEL` on a field that is already gone returns 0, not an
   error, so idempotency needs no extra guard. Same rule as `api_tokens`'
@@ -268,6 +273,14 @@ the exact class of bug the `api_tokens` migration hit with
   `add_exception`/`remove_exception` roundtrip are the only coverage of
   this feature's data-layer shapes, and the roundtrip cleans up after
   itself so repeated runs don't leak a synthetic exception row.
+- `tests/test_routes.py` covers the HTTP layer the contract gate cannot:
+  the `@require_admin` 403 on all three routes, the admin
+  grant → overview → delete flow, and a blocked X-member being denied by
+  `_auth/middleware.py` and then surfacing in the denied list. It **pins the
+  mock provider** (`SKEWNONO_ACCESS_CONTROL_PROVIDER=mock` plus a `tmp_path`
+  store file), because it drives the mock-only `reset_for_tests`/store-file
+  helpers — an office run of this directory must not route it to Redis. The
+  admin gate and the enforcement wiring it asserts are provider-independent.
 - `granted_at`/`last_denied_at` are UTC ISO-8601 timestamps with seconds
   precision and a literal `Z` suffix (`"+00:00"` replaced with `"Z"` —
   see `_now_iso()` in `providers/mock.py`, same convention as
@@ -275,12 +288,12 @@ the exact class of bug the `api_tokens` migration hit with
   frontend date parsing doesn't need to branch on provider.
 - `BLOCKED_PREFIX` and `StoreUnavailableError` are re-exported **unswitched**
   from `providers/mock.py` by `data.py` — they are provider-independent
-  policy/error type, not part of the seam. `reset_for_tests` and the
-  private `_store_path` helper are also re-exported unswitched, but for a
-  different reason: they are mock-only test support (dropping in-memory
-  cache state, and reporting the mock's own JSON file location) consumed
-  by the legacy `tests/test_access_control.py` at the repo root — they are
-  never called from `routes.py` and are irrelevant to the office adapter.
+  policy/error type, not part of the seam. `reset_for_tests` and the private
+  `_store_path` helper are **not** re-exported: they are mock-only test
+  support (dropping in-memory cache state, reporting the mock's own JSON file
+  location), never called from `routes.py` and irrelevant to the office
+  adapter, so the tests that need them import them from `providers.mock`
+  directly rather than borrowing the dispatcher's namespace.
 
 ## Verify
 

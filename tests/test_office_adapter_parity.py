@@ -196,10 +196,10 @@ def _switched_names(data_py: Path) -> tuple[set[str], set[str]]:
     Two kinds of reference are deliberately NOT collected:
 
       * MODULE-LEVEL imports. access_control's data.py re-exports
-        `StoreUnavailableError`, `reset_for_tests` and `_store_path` from the
-        mock at module scope on purpose ("re-exported unswitched —
-        provider-independent policy/error type"), so demanding them from the
-        office side would invent a requirement the design rejects.
+        `BLOCKED_PREFIX` and `StoreUnavailableError` from the mock at module
+        scope on purpose ("re-exported unswitched — provider-independent
+        policy/error type"), so demanding them from the office side would
+        invent a requirement the design rejects.
       * `mock_provider.<name>` — a module-scope alias pinned to the mock
         (fail_issue's `ANCHOR_TIME`, msr_file's cache handles). Those never
         resolve against the office module, so they are not seam lookups at all;

@@ -18,6 +18,7 @@ os.environ["SKEWNONO_ACCESS_EXCEPTIONS_FILE"] = str(_STORE)
 
 from back_dev_home import create_app  # noqa: E402
 from back_dev_home.access_control import data as ac_data  # noqa: E402
+from back_dev_home.access_control.providers import mock as ac_mock  # noqa: E402
 
 ADMIN = "local-dev"  # home-phase default admin
 NORMAL = "1234567"
@@ -37,7 +38,7 @@ def _client():
 
 class AccessControlBase(unittest.TestCase):
     def setUp(self):
-        ac_data.reset_for_tests()
+        ac_mock.reset_for_tests()
         if _STORE.exists():
             _STORE.unlink()
         self.client = _client()
@@ -59,7 +60,7 @@ class TestStorePath(unittest.TestCase):
                 / "state"
                 / "access_exceptions.json"
             )
-            self.assertEqual(ac_data._store_path(), expected)
+            self.assertEqual(ac_mock._store_path(), expected)
         finally:
             if override is not None:
                 os.environ["SKEWNONO_ACCESS_EXCEPTIONS_FILE"] = override
@@ -123,7 +124,7 @@ class TestExceptionList(AccessControlBase):
         self.assertEqual(raw["exceptions"][0]["user_id"], BLOCKED)
 
         # Fresh in-memory state (as after a server restart) must reload it.
-        ac_data.reset_for_tests()
+        ac_mock.reset_for_tests()
         self.assertEqual(self._get("/api/activity/me", BLOCKED).status_code, 200)
 
     def test_non_x_id_rejected(self):
@@ -133,7 +134,7 @@ class TestExceptionList(AccessControlBase):
 
     def test_corrupt_store_fails_safe(self):
         _STORE.write_text("{not json", encoding="utf-8")
-        ac_data.reset_for_tests()
+        ac_mock.reset_for_tests()
         self.assertEqual(ac_data.list_exceptions(), [])
         self.assertEqual(self._get("/api/activity/me", BLOCKED).status_code, 403)
 
@@ -142,7 +143,7 @@ class TestExceptionList(AccessControlBase):
         # report success and later clobber the real file with a partial view.
         self._grant(BLOCKED)
         _STORE.write_text("{not json", encoding="utf-8")
-        ac_data.reset_for_tests()
+        ac_mock.reset_for_tests()
         res = self._grant("X777777")
         self.assertEqual(res.status_code, 503)
         self.assertEqual(res.get_json()["error"]["code"], "store_unavailable")
