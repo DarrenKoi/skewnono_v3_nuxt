@@ -4,6 +4,10 @@ Like /health/providers, this reads the runtime directly instead of going
 through health/data.py: the shipper drops documents rather than fail requests,
 so its loss counters must come from the real installed handler, not a
 swappable stand-in that could hide exactly the loss being asked about.
+
+Admin-only, like /health/providers — it names the log index alias and the
+deployment. At home the no-cookie fallback identity IS `local-dev`, an admin,
+so the 403 case has to send a normal member id explicitly.
 """
 
 import logging
@@ -20,7 +24,19 @@ def _never_dial():
 
 @pytest.fixture
 def client():
-    return create_app().test_client()
+    test_client = create_app().test_client()
+    test_client.set_cookie("LASTUSER", "local-dev")
+    return test_client
+
+
+def test_logging_health_is_admin_only():
+    normal_user = create_app().test_client()
+    normal_user.set_cookie("LASTUSER", "1234567")
+
+    response = normal_user.get("/api/health/logging")
+
+    assert response.status_code == 403
+    assert response.get_json()["error"]["code"] == "forbidden"
 
 
 def test_logging_health_reports_not_installed_at_home(client):
