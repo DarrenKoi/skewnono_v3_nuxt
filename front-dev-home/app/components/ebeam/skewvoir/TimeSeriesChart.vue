@@ -45,15 +45,27 @@ const emit = defineEmits<{ select: [msr: string] }>()
 
 const sk = useChartPalette()
 
+// `time` is the honest default; `order` is the escape hatch when measurements
+// bunch. Under `order` the x value is the index, so spacing is uniform. A point
+// with an unparseable ts has no position on a time axis, so the time branch
+// drops it — placeTrendPoints owns that rule and the panel meta counts what it
+// dropped with the same function.
+const placed = computed(() => placeTrendPoints(props.points, props.axisMode))
+
 // Tools ranked by how many measurements they contributed; the top 9 get an
 // identity color, everything else collapses into one labelled 기타 bucket.
 // A shared gray silently spread across many tools would read as one series.
+//
+// Ranked over `placed`, NOT props.points: a hidden measurement must not spend
+// an identity color, or a tool that IS drawn gets pushed into 기타 by points
+// nobody can see — and a tool whose measurements were all hidden would get a
+// legend chip with no line under it.
 const TOOL_COLOR_LIMIT = 9
 const OTHER_LABEL = '기타'
 
 const toolColor = computed<Map<string, string>>(() => {
   const counts = new Map<string, number>()
-  for (const p of props.points) counts.set(p.eqpId, (counts.get(p.eqpId) ?? 0) + 1)
+  for (const { p } of placed.value) counts.set(p.eqpId, (counts.get(p.eqpId) ?? 0) + 1)
   const ranked = [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([eqpId]) => eqpId)
@@ -80,13 +92,6 @@ const legendChips = computed(() => {
   return chips
 })
 
-// `time` is the honest default; `order` is the escape hatch when measurements
-// bunch. Under `order` the x value is the index, so spacing is uniform. A point
-// with an unparseable ts has no position on a time axis, so the time branch
-// drops it — placeTrendPoints owns that rule and the panel meta counts what it
-// dropped with the same function.
-const placed = computed(() => placeTrendPoints(props.points, props.axisMode))
-
 // Per-datum styling by severity (status first): insufficient grey, watch amber,
 // abnormal red, normal in the theme's series color. The three severity tones
 // are semantic and stay put across themes; only `normal` -- which says nothing
@@ -100,8 +105,12 @@ const sevHex = computed<Record<string, string>>(() => ({
 const sevKey = (p: TrendPoint): string =>
   !p.verdict ? 'normal' : p.verdict.status === 'insufficient' ? 'insufficient' : p.verdict.severity
 
+// Strictly ordered: abnormal > watch > insufficient > normal, so size alone
+// still ranks severity. The floor is 7, not 6 — an item-triggered tooltip makes
+// the symbol the ONLY hover target, and a 6px dot is a hard thing to hit on a
+// dense set. `emphasis.scale` on the series grows whichever one is hovered.
 const symbolFor = (key: string): number =>
-  key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 7 : 6
+  key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 8 : 7
 
 interface TrendDatum {
   value: [number, number]
@@ -142,6 +151,10 @@ const toolSeries = computed(() => {
     showSymbol: true,
     lineStyle: { width: 2, color: toolColor.value.get(eqpId) ?? sk.value.series },
     itemStyle: { color: toolColor.value.get(eqpId) ?? sk.value.series },
+    // Grow the hovered symbol so a small dot is findable and stays under the
+    // cursor once found. Scale only — no `focus`, which would dim the other
+    // tools and defeat the cross-tool comparison this chart exists for.
+    emphasis: { scale: 1.8 },
     z: 3
   }))
 })
@@ -158,6 +171,13 @@ const bandData = computed(() =>
 // The two band series sit ahead of the per-tool ones, so a series index has to
 // be shifted by this much before it indexes toolSeries.
 const BAND_SERIES = 2
+
+// The crosshair is an AXIS component, not a tooltip feature, so it survives the
+// item-triggered tooltip: the reader keeps a vertical reference for lining a
+// point up against the band and against the other tools, which is exactly what
+// leaving `trigger: 'axis'` cost. `snap` puts it on measurements rather than on
+// arbitrary pixels. Color comes from the theme's axisPointer styling.
+const AXIS_POINTER = { show: true, type: 'line' as const, snap: true, label: { show: false } }
 
 const yName = computed(() => {
   const base = props.unit ? `${props.parameter} (${props.unit})` : props.parameter
@@ -204,12 +224,13 @@ const option = computed<EChartsOption>(() => ({
   },
   grid: { left: 48, right: 16, top: 20, bottom: 64, containLabel: true },
   xAxis: props.axisMode === 'time'
-    ? { type: 'time' as const, axisLabel: { fontSize: 10, hideOverlap: true } }
+    ? { type: 'time' as const, axisLabel: { fontSize: 10, hideOverlap: true }, axisPointer: AXIS_POINTER }
     : {
         type: 'category' as const,
         data: props.points.map(p => p.label),
         axisLabel: { fontSize: 10, rotate: 35, hideOverlap: true },
-        boundaryGap: true
+        boundaryGap: true,
+        axisPointer: AXIS_POINTER
       },
   yAxis: {
     type: 'value',
@@ -234,6 +255,14 @@ const option = computed<EChartsOption>(() => ({
       name: 'range',
       type: 'line',
       stack: 'band',
+      // REQUIRED, not decoration. ECharts' default stackStrategy is 'samesign'
+      // (processor/dataStack.js), which stacks a value onto its predecessor
+      // only when both share a sign. In residual mode bandLo is negative for
+      // every measurement below the 세트 기준 — about half of them, since the
+      // baseline is the median — so the floor would be skipped, stackedOver
+      // would stay NaN, and the band would draw from the axis origin, leaving
+      // the mean dot outside its own band. 'all' stacks unconditionally.
+      stackStrategy: 'all',
       data: bandData.value,
       lineStyle: { opacity: 0 },
       areaStyle: { color: sk.value.series, opacity: 0.12 },
