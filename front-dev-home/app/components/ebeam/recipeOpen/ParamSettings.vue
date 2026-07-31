@@ -4,52 +4,64 @@
     :pending="pending"
     :error="error"
   >
-    <div
-      v-if="images.length"
-      class="mb-3 grid gap-3"
-      :style="{ gridTemplateColumns: `repeat(${images.length}, minmax(0, 1fr))` }"
-    >
-      <EbeamRecipeOpenImgThumb
-        v-for="image in images"
-        :key="image.slot"
-        :label="image.slot"
-        :stage="image.stage"
-        :name="image.name"
-        :src="imageSrc(image.name)"
-        :role="roleOf(image.slot)"
-        @open="emit('openImage', image)"
-      />
-    </div>
-    <p
-      v-else-if="!pending"
-      class="mb-3 sk-meta"
-    >
-      이 파라미터에는 이미지가 없습니다.
-    </p>
-
-    <div class="grid gap-3 md:grid-cols-2">
-      <!--
-        AF / PR is one FILE and the beam conditions are one per image, so the two
-        columns hold different counts on purpose: the settings file left, the
-        thumbnails' own conditions stacked right. Sharing one flat grid would
-        interleave them and read as five peers.
-      -->
-      <EbeamRecipeOpenSettingTable
-        title="AF / PR (포커스 · 패턴 인식)"
-        :block="afPrSettings"
-      />
-      <div
-        v-if="images.length"
-        class="flex flex-col gap-3"
+    <div class="grid gap-3 md:grid-cols-2 md:items-start">
+      <section
+        v-for="lane in lanes"
+        :key="lane.key"
+        class="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/70 p-3 dark:border-zinc-800/60"
       >
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-bold tracking-wide text-zinc-900 dark:text-zinc-100">
+            {{ lane.title }}
+          </span>
+          <span class="font-mono text-[10px] text-(--sk-ink-muted)">
+            {{ lane.images.length }} image
+          </span>
+        </div>
+
+        <div
+          v-if="lane.images.length"
+          class="grid gap-3"
+          :style="{ gridTemplateColumns: `repeat(${lane.images.length}, minmax(0, 1fr))` }"
+        >
+          <EbeamRecipeOpenImgThumb
+            v-for="image in lane.images"
+            :key="image.slot"
+            :label="image.slot"
+            :stage="image.stage"
+            :name="image.name"
+            :src="imageSrc(image.name)"
+            :role="roleOf(image.slot)"
+            @open="emit('openImage', image)"
+          />
+        </div>
+        <p
+          v-else-if="!pending"
+          class="sk-meta"
+        >
+          {{ lane.title }} 이미지가 없습니다.
+        </p>
+
         <EbeamRecipeOpenSettingTable
-          v-for="image in images"
+          title="AF / PR (포커스 · 패턴 인식)"
+          :block="lane.afPr"
+        />
+
+        <EbeamRecipeOpenSettingTable
+          v-for="image in lane.images"
           :key="`cond-${image.slot}`"
           :title="`${image.stage} 빔 조건`"
           :block="image.cond"
         />
-      </div>
+      </section>
     </div>
+
+    <EbeamRecipeOpenSettingTable
+      v-if="groupedAfPr.other?.rows.length"
+      class="mt-3"
+      title="기타 AF / PR"
+      :block="groupedAfPr.other"
+    />
   </EbeamRecipeOpenParamPanel>
 </template>
 
@@ -67,7 +79,12 @@
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import type { IdpLocator } from '~/composables/useRecipeSearchApi'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
-import { IMAGE_SLOTS, splitSequenceSections, type SlotRole } from '~/utils/recipeView'
+import {
+  IMAGE_SLOTS,
+  splitAfPrSectionsByDomain,
+  splitSequenceSections,
+  type SlotRole
+} from '~/utils/recipeView'
 
 const props = defineProps<{
   toolSlug: string
@@ -83,9 +100,24 @@ const base = recipeApiBase()
 
 const images = computed<ParamImage[]>(() => props.detail?.images ?? [])
 
-// The AF/PR file minus its two `sequence_*` groups — those list which steps run
-// rather than one step's settings, and live on the Sequence tab.
-const afPrSettings = computed(() => splitSequenceSections(props.detail?.af_pr ?? null).settings)
+const groupedAfPr = computed(() => splitAfPrSectionsByDomain(
+  splitSequenceSections(props.detail?.af_pr ?? null).settings
+))
+
+const lanes = computed(() => [
+  {
+    key: 'address',
+    title: 'Addressing',
+    images: images.value.filter(image => roleOf(image.slot) === 'address'),
+    afPr: groupedAfPr.value.addressing
+  },
+  {
+    key: 'measure',
+    title: 'Measurement',
+    images: images.value.filter(image => roleOf(image.slot) === 'measure'),
+    afPr: groupedAfPr.value.measurement
+  }
+] as const)
 
 const roleOf = (slotKey: string): SlotRole =>
   IMAGE_SLOTS.find(slot => slot.key === slotKey)?.role ?? 'address'
