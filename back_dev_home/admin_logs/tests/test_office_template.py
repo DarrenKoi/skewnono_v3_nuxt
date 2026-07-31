@@ -7,7 +7,9 @@ from back_dev_home.admin_logs import routes
 from back_dev_home.admin_logs.providers import mock, office_example
 from back_dev_home.admin_logs.query import (
     item_from_hit,
+    parse_iso_utc,
     parse_log_query,
+    utc_now,
 )
 
 
@@ -112,6 +114,21 @@ def test_route_returns_stable_503_without_backend_details(monkeypatch):
     assert "secret-internal-host" not in str(body)
 
 
+def test_route_maps_malformed_time_range_to_400_invalid_log_query():
+    app = Flask(__name__)
+
+    @app.before_request
+    def identity():
+        g.user_id = "local-dev"
+        g.identity_source = SOURCE_LOCAL
+
+    app.register_blueprint(routes.bp, url_prefix="/api")
+    response = app.test_client().get("/api/admin/logs?from=not-a-date")
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_log_query"
+
+
 def test_parse_log_query_rejects_pages_beyond_the_result_window():
     """OpenSearch rejects from+size past 10k with an opaque 400-class error the
     route would relabel as a 503 outage; refusing up front keeps it a 400."""
@@ -140,6 +157,63 @@ def test_activity_kind_and_fab_name_narrow_the_query():
     assert {"terms": {"fab_name_list": ["M16B", "M14"]}} in filters
     assert parsed.filters["activity_kind"] == "feature"
     assert parsed.filters["fab_name"] == "M16B,M14"
+
+
+def test_malformed_time_range_raises_value_error_in_both_providers():
+    """A typo in from/to must become 400 invalid_log_query, not the office's
+    503 outage message — and the mock must reject it too instead of silently
+    ignoring the filter."""
+    with pytest.raises(ValueError, match="from must be an ISO-8601"):
+        parse_log_query({"from": "not-a-date"})
+    with pytest.raises(ValueError, match="to must be an ISO-8601"):
+        parse_log_query({"to": "2026-13-45"})
+    with pytest.raises(ValueError, match="from must be an ISO-8601"):
+        mock.query_logs({"from": "yesterday-ish"})
+
+
+def test_valid_time_range_is_accepted_and_applied_by_the_mock():
+    parsed = parse_log_query(
+        {"from": "2026-07-30T00:00:00Z", "to": "2026-07-31T00:00:00Z"}
+    )
+    assert parsed.filters["from"] == "2026-07-30T00:00:00Z"
+    assert parsed.filters["to"] == "2026-07-31T00:00:00Z"
+
+    # Demo rows are relative to now; a window that old matches none of them.
+    old_window = mock.query_logs(
+        {"from": "2020-01-01T00:00:00Z", "to": "2020-01-02T00:00:00Z"}
+    )
+    assert old_window["total"] == 0
+    assert old_window["items"] == []
+
+    # The default window (last 24 h) keeps every demo row.
+    assert mock.query_logs({})["total"] == len(mock._demo_source(utc_now()))
+
+
+def test_mock_time_filter_tolerates_an_unusable_row_timestamp():
+    """A row whose @timestamp is missing or malformed must be passed over by the
+    time filter, not raise — a raise here would reach the route as a 503."""
+    window = (
+        parse_iso_utc("2026-07-30T00:00:00Z"),
+        parse_iso_utc("2026-07-31T00:00:00Z"),
+    )
+    filters = {"from": "2026-07-30T00:00:00Z", "to": "2026-07-31T00:00:00Z"}
+
+    for row in ({}, {"@timestamp": None}, {"@timestamp": "not-a-date"}):
+        assert mock._matches_demo(dict(row), filters, window) is True
+
+
+def test_mock_free_text_covers_the_office_field_set():
+    """q semantics are shared: the mock substring-matches exactly the fields
+    the office should-clauses search (query.FREE_TEXT_FIELDS)."""
+    # exception.stack is only reachable through the nested field.
+    by_stack = mock.query_logs({"q": "Traceback"})
+    assert by_stack["total"] == 1
+    assert by_stack["items"][0]["raw"]["exception"]["stack"].startswith(
+        "Traceback"
+    )
+
+    # query_string is not in the office field set, so it must not match.
+    assert mock.query_logs({"q": "top=10"})["total"] == 0
 
 
 def test_mock_filters_by_activity_kind_and_fab_name():

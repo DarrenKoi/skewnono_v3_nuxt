@@ -16,6 +16,15 @@ MAX_PAGE_SIZE = 200
 # fail as a 400 up front instead of surfacing a generic 503 at query time.
 MAX_RESULT_WINDOW = 10_000
 
+# Fields the `q` free-text search covers. The office query builds per-field
+# clauses from these tuples; the mock substring-matches FREE_TEXT_FIELDS. The
+# field set is part of the contract, so both providers read it from here.
+_FREE_TEXT_PHRASE_FIELDS = ("message", "exception.message", "exception.stack")
+# Keyword-mapped: match_phrase would only hit exact full values, so these are
+# substring-matched with a wildcard instead.
+_FREE_TEXT_WILDCARD_FIELDS = ("error_name", "path", "user_id")
+FREE_TEXT_FIELDS = _FREE_TEXT_PHRASE_FIELDS + _FREE_TEXT_WILDCARD_FIELDS
+
 
 @dataclass(frozen=True)
 class ParsedLogQuery:
@@ -25,16 +34,32 @@ class ParsedLogQuery:
     page_size: int
 
 
-def _utc_now() -> datetime:
+def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _iso_z(value: datetime) -> str:
+def iso_z(value: datetime) -> str:
     return (
         value.astimezone(timezone.utc)
         .isoformat(timespec="seconds")
         .replace("+00:00", "Z")
     )
+
+
+def parse_iso_utc(value: str) -> datetime:
+    """Parse an ISO-8601 datetime into aware UTC. Raises ValueError.
+
+    A trailing ``Z`` is accepted. A value carrying no offset is read as UTC
+    rather than local time — OFFICE-VERIFY: believed to match how OpenSearch
+    reads an offset-less date in a range query, but unverified against the real
+    cluster. Only the mock's own filtering depends on it; the office adapter
+    forwards the caller's string to OpenSearch untouched, so the two could
+    disagree for a naive value until this is confirmed.
+    """
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _read_str(params: Mapping[str, Any], key: str) -> str:
@@ -61,16 +86,25 @@ def _read_int(
 def _read_time_range(params: Mapping[str, Any]) -> tuple[str, str]:
     from_value = _read_str(params, "from")
     to_value = _read_str(params, "to")
-    if from_value and to_value:
-        return from_value, to_value
-    now = _utc_now()
+    # Reject malformed values here so the route answers 400 invalid_log_query;
+    # passed through, they would surface as a 503 outage message at the office
+    # and be silently ignored by the mock.
+    for key, value in (("from", from_value), ("to", to_value)):
+        if value:
+            try:
+                parse_iso_utc(value)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{key} must be an ISO-8601 datetime, got {value!r}"
+                ) from exc
+    now = utc_now()
     return (
-        from_value or _iso_z(now - timedelta(hours=24)),
-        to_value or _iso_z(now),
+        from_value or iso_z(now - timedelta(hours=24)),
+        to_value or iso_z(now),
     )
 
 
-def _split_csv(value: str) -> list[str]:
+def split_csv(value: str) -> list[str]:
     return [part.strip() for part in value.split(",") if part.strip()]
 
 
@@ -85,27 +119,18 @@ def _build_filter_query(
 
     level = _read_str(params, "level").upper()
     if level:
-        filters.append({"terms": {"level": _split_csv(level)}})
+        filters.append({"terms": {"level": split_csv(level)}})
 
-    event = _read_str(params, "event")
-    if event:
-        filters.append({"term": {"event": event}})
-
-    method = _read_str(params, "method").upper()
-    if method:
-        filters.append({"term": {"method": method}})
-
-    user_id = _read_str(params, "user_id")
-    if user_id:
-        filters.append({"term": {"user_id": user_id}})
-
-    feature = _read_str(params, "feature")
-    if feature:
-        filters.append({"term": {"feature": feature}})
-
-    activity_kind = _read_str(params, "activity_kind")
-    if activity_kind:
-        filters.append({"term": {"activity_kind": activity_kind}})
+    term_values = {
+        "event": _read_str(params, "event"),
+        "method": _read_str(params, "method").upper(),
+        "user_id": _read_str(params, "user_id"),
+        "feature": _read_str(params, "feature"),
+        "activity_kind": _read_str(params, "activity_kind"),
+    }
+    for field, value in term_values.items():
+        if value:
+            filters.append({"term": {field: value}})
 
     # The writer indexes fab_name_list through the same normalization, so a
     # hand-rolled .upper() here could never match comma-separated input.
@@ -130,23 +155,14 @@ def _build_filter_query(
     must: list[dict[str, Any]] = []
     q = _read_str(params, "q")
     if q:
-        must.append(
-            {
-                "bool": {
-                    "should": [
-                        {"match_phrase": {"message": q}},
-                        {"match_phrase": {"exception.message": q}},
-                        {"match_phrase": {"exception.stack": q}},
-                        # error_name is keyword-mapped: match_phrase would only
-                        # hit exact full values, so substring-match like path.
-                        {"wildcard": {"error_name": f"*{q}*"}},
-                        {"wildcard": {"path": f"*{q}*"}},
-                        {"wildcard": {"user_id": f"*{q}*"}},
-                    ],
-                    "minimum_should_match": 1,
-                }
-            }
-        )
+        should: list[dict[str, Any]] = [
+            {"match_phrase": {field: q}} for field in _FREE_TEXT_PHRASE_FIELDS
+        ]
+        should += [
+            {"wildcard": {field: f"*{q}*"}}
+            for field in _FREE_TEXT_WILDCARD_FIELDS
+        ]
+        must.append({"bool": {"should": should, "minimum_should_match": 1}})
 
     bool_query: dict[str, Any] = {"filter": filters}
     if must:
@@ -155,11 +171,7 @@ def _build_filter_query(
         "from": from_value,
         "to": to_value,
         "level": level,
-        "event": event,
-        "method": method,
-        "user_id": user_id,
-        "feature": feature,
-        "activity_kind": activity_kind,
+        **term_values,
         "fab_name": ",".join(fab_names),
         "path": path,
         "status_min": status_min,
@@ -241,7 +253,7 @@ def response_from_result(
     hits = result.get("hits", {}).get("hits", [])
     total = _total_from_response(result)
     return {
-        "generated_at": _iso_z(_utc_now()),
+        "generated_at": iso_z(utc_now()),
         "page": parsed.page,
         "page_size": parsed.page_size,
         "total": total,

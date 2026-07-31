@@ -11,29 +11,35 @@ readable ``demo-*`` strings rather than UUIDs, timestamps are relative to now
 so the default time window always has hits, and one row carries the legacy
 ``request_path`` field to exercise ``item_from_hit``'s fallback for documents
 written before ``c11fbc2``. See ``docs/datatables/skewnono_logging.txt``.
+
+Query semantics are shared with the office adapter: ``parse_log_query``
+validates ``from``/``to`` (malformed values raise the same 400), the ``q``
+free-text filter covers ``query.FREE_TEXT_FIELDS``, and the response is built
+by ``response_from_result`` from a fake OpenSearch hits payload.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from back_dev_home.admin_logs.contracts import LogQueryResponse
 from back_dev_home.admin_logs.query import (
-    _iso_z,
-    _split_csv,
-    _utc_now,
-    item_from_hit,
-    page_count_for,
+    FREE_TEXT_FIELDS,
+    iso_z,
+    parse_iso_utc,
     parse_log_query,
+    response_from_result,
+    split_csv,
+    utc_now,
 )
 
 
 def _demo_source(now: datetime) -> list[dict[str, Any]]:
     rows = [
         {
-            "@timestamp": _iso_z(now - timedelta(minutes=4)),
+            "@timestamp": iso_z(now - timedelta(minutes=4)),
             "level": "ERROR",
             "logger": "skewnono.activity",
             "message": "request exception user=kim.minju method=GET path=/api/ebeam/cdsem/storage ms=842 remote=10.20.30.11 error=TimeoutError",
@@ -60,7 +66,7 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             },
         },
         {
-            "@timestamp": _iso_z(now - timedelta(minutes=9)),
+            "@timestamp": iso_z(now - timedelta(minutes=9)),
             "level": "WARNING",
             "logger": "skewnono.activity",
             "message": "user=park.jinho method=GET path=/api/afm/recipes/missing status=404 ms=38 remote=10.20.30.12",
@@ -82,7 +88,7 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "error_name": "Not Found",
         },
         {
-            "@timestamp": _iso_z(now - timedelta(minutes=16)),
+            "@timestamp": iso_z(now - timedelta(minutes=16)),
             "level": "INFO",
             "logger": "skewnono.activity",
             "message": "user=lee.soyoung method=GET path=/api/activity/leaderboard status=200 ms=14 remote=10.20.30.13",
@@ -102,7 +108,7 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "fab_name_list": [],
         },
         {
-            "@timestamp": _iso_z(now - timedelta(minutes=31)),
+            "@timestamp": iso_z(now - timedelta(minutes=31)),
             "level": "INFO",
             "logger": "skewnono.activity",
             "message": "user=choi.eunwoo method=POST path=/api/ebeam/cdsem/recipe-search status=200 ms=126 remote=10.20.30.14",
@@ -122,7 +128,7 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "fab_name_list": ["M16B"],
         },
         {
-            "@timestamp": _iso_z(now - timedelta(hours=2, minutes=8)),
+            "@timestamp": iso_z(now - timedelta(hours=2, minutes=8)),
             "level": "ERROR",
             "logger": "skewnono.activity",
             "message": "user=jung.hari method=GET path=/api/admin/logs status=503 ms=24 remote=10.20.30.15",
@@ -155,26 +161,40 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
     return rows
 
 
-def _parse_demo_time(value: str | None) -> datetime | None:
-    if not value:
+def _field_value(row: dict[str, Any], dotted: str) -> str:
+    """Read a possibly nested (``exception.stack``-style) field as text."""
+    value: Any = row
+    for part in dotted.split("."):
+        if not isinstance(value, dict):
+            return ""
+        value = value.get(part)
+    return str(value or "")
+
+
+def _row_time(row: dict[str, Any]) -> datetime | None:
+    """Row timestamp, or None for a row the time filter cannot judge."""
+    value = row.get("@timestamp")
+    if not isinstance(value, str) or not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+        return parse_iso_utc(value)
     except ValueError:
         return None
 
 
-def _matches_demo(row: dict[str, Any], filters: dict[str, Any]) -> bool:
-    row_time = _parse_demo_time(row.get("@timestamp"))
-    from_time = _parse_demo_time(filters.get("from"))
-    to_time = _parse_demo_time(filters.get("to"))
-    if row_time is not None and from_time is not None and row_time < from_time:
-        return False
-    if row_time is not None and to_time is not None and row_time > to_time:
+def _matches_demo(
+    row: dict[str, Any],
+    filters: dict[str, Any],
+    window: tuple[datetime, datetime],
+) -> bool:
+    # A row without a usable @timestamp is not excluded by the time filter —
+    # the same tolerance OpenSearch shows a document missing the range field.
+    row_time = _row_time(row)
+    if row_time is not None and not window[0] <= row_time <= window[1]:
         return False
 
     level = str(filters.get("level") or "")
-    if level and str(row.get("level")) not in _split_csv(level):
+    if level and str(row.get("level")) not in split_csv(level):
         return False
 
     for key in ("event", "method", "user_id", "feature", "activity_kind"):
@@ -185,7 +205,7 @@ def _matches_demo(row: dict[str, Any], filters: dict[str, Any]) -> bool:
     fab_name = str(filters.get("fab_name") or "")
     if fab_name and not any(
         fab in (row.get("fab_name_list") or [])
-        for fab in _split_csv(fab_name)
+        for fab in split_csv(fab_name)
     ):
         return False
 
@@ -203,13 +223,11 @@ def _matches_demo(row: dict[str, Any], filters: dict[str, Any]) -> bool:
 
     q = str(filters.get("q") or "").lower()
     if q:
+        # Substring stand-in for the office should-clauses, over the same
+        # field set (query.FREE_TEXT_FIELDS) so the two cannot drift apart.
         haystack = " ".join(
-            str(row.get(key) or "")
-            for key in ("message", "path", "user_id", "error_name")
+            _field_value(row, field) for field in FREE_TEXT_FIELDS
         )
-        exception = row.get("exception")
-        if isinstance(exception, dict):
-            haystack += " " + " ".join(str(value or "") for value in exception.values())
         if q not in haystack.lower():
             return False
 
@@ -218,30 +236,35 @@ def _matches_demo(row: dict[str, Any], filters: dict[str, Any]) -> bool:
 
 def query_logs(params: Mapping[str, Any]) -> LogQueryResponse:
     parsed = parse_log_query(params)
-    filters = {**parsed.filters, "demo_mode": True}
-    now = _utc_now()
+    # parse_log_query validated from/to and filled the defaults, so the bounds
+    # are always present and parseable — parse them once, not once per row.
+    window = (
+        parse_iso_utc(parsed.filters["from"]),
+        parse_iso_utc(parsed.filters["to"]),
+    )
     rows = [
         row
-        for row in _demo_source(now)
-        if _matches_demo(row, filters)
+        for row in _demo_source(utc_now())
+        if _matches_demo(row, parsed.filters, window)
     ]
     start = (parsed.page - 1) * parsed.page_size
-    hits = [
-        {
-            "_id": f"demo-{start + idx + 1}",
-            "_index": "skewnono_logging_local-demo",
-            "_source": row,
+    result = {
+        "hits": {
+            "total": {"value": len(rows)},
+            "hits": [
+                {
+                    "_id": f"demo-{start + idx + 1}",
+                    "_index": "skewnono_logging_local-demo",
+                    "_source": row,
+                }
+                for idx, row in enumerate(
+                    rows[start : start + parsed.page_size]
+                )
+            ],
         }
-        for idx, row in enumerate(
-            rows[start : start + parsed.page_size]
-        )
-    ]
-    return {
-        "generated_at": _iso_z(now),
-        "page": parsed.page,
-        "page_size": parsed.page_size,
-        "total": len(rows),
-        "page_count": page_count_for(len(rows), parsed.page_size),
-        "filters": filters,
-        "items": [item_from_hit(hit) for hit in hits],
     }
+    return response_from_result(
+        result,
+        parsed,
+        extra_filters={"demo_mode": True},
+    )

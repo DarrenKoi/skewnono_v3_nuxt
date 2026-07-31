@@ -72,6 +72,13 @@ before the provider is called at all.
 Supported query parameters:
 
 - `from`, `to`: a UTC ISO-8601 time range; omitted means the last 24 hours.
+  Both values are validated by the shared parser in **both** providers — a
+  malformed value is rejected with `400 invalid_log_query` instead of reaching
+  OpenSearch (where it would surface as a misleading `503`). A value carrying no
+  offset is read as UTC rather than local time (`OFFICE-VERIFY`: assumed to
+  match how OpenSearch reads an offset-less date in a range query, unverified
+  against the real cluster). Only the mock's filtering depends on that reading;
+  the office adapter forwards the caller's string to OpenSearch untouched.
 - `page`, `page_size`: default `1` and `50`, maximum page size `200`. If
   `page * page_size` exceeds the OpenSearch result window (10,000), the request
   is rejected with `400 invalid_log_query`.
@@ -82,10 +89,16 @@ Supported query parameters:
   through the same `normalize_fab_name_list` normalization as the writer and are
   matched as a terms query against `fab_name_list`.
 - `status_min`, `status_max`
-- `q`: searches the message, exception, error name, path and user identifier.
-  `error_name` is a keyword field, so wildcard partial matching is used.
+- `q`: free-text search over the field set `FREE_TEXT_FIELDS` in `query.py` —
+  the constant is the single definition, so read it there rather than trusting a
+  copy of the list here. Both providers cover **the same field set**, but not
+  with identical semantics: the office query uses `match_phrase` on the analyzed
+  fields (phrase order matters) and case-sensitive `wildcard` on the
+  keyword-mapped ones, while the mock lowercases both sides and plain
+  substring-matches. Expect the mock to match slightly more liberally.
 
-Invalid numeric values are converted by the route into `400 invalid_log_query`.
+Invalid numeric or datetime values are converted by the route into
+`400 invalid_log_query`.
 Configuration errors and OpenSearch query errors are converted into
 `503 log_query_failed` with the message `Could not query OpenSearch logs`,
 without exposing internal detail.
