@@ -130,8 +130,14 @@ const axisMax = computed(() => waferRadius.value * 1.03)
 
 // Die boundaries at true die size (chip_pitch), clipped to the wafer circle —
 // one line series, segments separated by null gaps.
+//
+// This is the map's ONLY lattice. `grid` asks for it too, because that option is
+// "격자 · Die 번호" and its axis half now contributes numbers alone: the axis can
+// only step split lines from its own extent, never from the die grid, so letting
+// it draw as well is what put two grids half a pitch apart on the wafer. See
+// utils/waferAxis.ts.
 const dieGridData = computed(() =>
-  props.options.dieGrid ? dieGridLineData(props.geo, waferRadius.value) : []
+  props.options.dieGrid || props.options.grid ? dieGridLineData(props.geo, waferRadius.value) : []
 )
 
 const waferOutline = computed<[number, number][]>(() => {

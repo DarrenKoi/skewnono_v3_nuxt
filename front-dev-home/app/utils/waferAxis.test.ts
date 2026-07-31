@@ -1,31 +1,58 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildWaferAxis } from './waferAxis.ts'
+import { buildWaferAxis, type WaferAxisConfig } from './waferAxis.ts'
+
+// `interval` is deliberately absent from WaferAxisConfig — setting it is the
+// double-grid bug. Read it off the shape so the tests can prove it stays unset.
+const interval = (a: WaferAxisConfig): unknown => (a as unknown as Record<string, unknown>).interval
 
 test('grid off: all furniture hidden, no interval', () => {
   const a = buildWaferAxis(false, 154.5, 6.818182, '#9A8E7C', 0)
   assert.equal(a.splitLine.show, false)
   assert.equal(a.axisLabel.show, false)
   assert.equal(a.axisTick.show, false)
-  assert.equal(a.interval, undefined)
+  assert.equal(interval(a), undefined)
   assert.equal(a.min, -154.5)
   assert.equal(a.max, 154.5)
 })
 
-test('grid on with pitch: die-pitch interval + die-index labels', () => {
-  const a = buildWaferAxis(true, 154.5, 6.818182, '#9A8E7C', 0)
-  assert.equal(a.splitLine.show, true)
-  assert.equal(a.axisLabel.show, true)
-  assert.ok(Math.abs((a.interval ?? 0) - 6.818182) < 1e-6)
-  assert.equal(a.axisLabel.formatter!(0), '0')
-  assert.equal(a.axisLabel.formatter!(6.9), '1')
-  assert.equal(a.axisLabel.formatter!(-13.6), '-2')
+test('grid on with pitch: labels are placed on die centres, never by an interval', () => {
+  // REGRESSION (the double-grid bug). `interval` is unusable here: ECharts steps
+  // it from the axis extent start (-axisMax = -radius·1.03), an arbitrary point
+  // off the die lattice, and no interval value can phase-shift it back on. Tick
+  // positions must therefore be given explicitly.
+  const pitch = 12.52
+  const offset = 4.61
+  const a = buildWaferAxis(true, 154.5, pitch, '#9A8E7C', offset)
+  assert.equal(interval(a), undefined)
+  const ticks = a.axisLabel.customValues
+  assert.ok(ticks && ticks.length > 0, 'die-index labels must have explicit positions')
+  assert.deepEqual(a.axisTick.customValues, ticks, 'ticks and labels must not drift apart')
+  for (const v of ticks) {
+    const k = (v - offset) / pitch
+    assert.ok(Math.abs(k - Math.round(k)) < 1e-9,
+      `tick ${v} sits ${(k - Math.round(k)).toFixed(3)} of a pitch off die ${Math.round(k)}'s centre`)
+    assert.equal(a.axisLabel.formatter!(v), String(Math.round(k)))
+  }
 })
 
-test('grid on without pitch: no interval, rounded-mm label fallback', () => {
+test('grid on with pitch: the axis draws no split lines', () => {
+  // The die-boundary overlay draws the lattice, chord-clipped to the wafer. An
+  // axis grid on top of it would sit half a pitch away — two grids, one wafer.
+  const a = buildWaferAxis(true, 154.5, 12.52, '#9A8E7C', 0)
+  assert.equal(a.splitLine.show, false)
+  assert.equal(a.axisLabel.show, true)
+})
+
+test('grid on without pitch: split lines are the fallback lattice', () => {
+  // No pitch → the overlay cannot draw anything, so the axis keeps its own
+  // auto-tick grid and falls back to rounded-mm labels.
   const a = buildWaferAxis(true, 154.5, 0, '#9A8E7C', 0)
-  assert.equal(a.interval, undefined)
+  assert.equal(interval(a), undefined)
+  assert.equal(a.splitLine.show, true)
+  assert.equal(a.axisLabel.customValues, undefined)
+  assert.equal(a.axisTick.customValues, undefined)
   assert.equal(a.axisLabel.formatter!(50.4), '50')
 })
 

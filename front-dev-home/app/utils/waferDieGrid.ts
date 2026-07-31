@@ -18,23 +18,38 @@ const MAX_LINES_PER_AXIS = 200
 
 const round3 = (n: number): number => Number(n.toFixed(3))
 
-// Boundary coordinates offset + (k + 0.5)·pitch strictly inside (−radius, radius).
-// The die array is shifted off the wafer centre by map_offset, so boundaries are
+// Lattice coordinates offset + (k + phase)·pitch strictly inside (−limit, limit).
+// The die array is shifted off the wafer centre by map_offset, so the lattice is
 // measured from the shifted grid — otherwise the lines sit map_offset away from
 // the points they are supposed to enclose.
-const boundaries = (pitch: number, radius: number, offset: number): number[] => {
-  if (!(pitch > 0) || !(radius > 0)) return []
-  if (radius / pitch > MAX_LINES_PER_AXIS) return []
+//
+// `phase` picks which lattice: 0 = die centres, 0.5 = the boundaries between
+// them. Both come from here on purpose. They are drawn by different ECharts
+// mechanisms — a line series and the axis ticks — and while each derived its own
+// positions they ended up on different grids and the map drew two of them.
+const lattice = (pitch: number, limit: number, offset: number, phase: number): number[] => {
+  if (!(pitch > 0) || !(limit > 0)) return []
+  if (limit / pitch > MAX_LINES_PER_AXIS) return []
   const out: number[] = []
-  // One extra ring beyond the wafer covers any |offset| < pitch, so a shifted
-  // grid cannot clip its outermost boundary line off either edge.
-  const kMax = Math.ceil(radius / pitch) + 1
+  // One extra ring beyond the limit covers any |offset| < pitch, so a shifted
+  // grid cannot clip its outermost line off either edge.
+  const kMax = Math.ceil(limit / pitch) + 1
   for (let k = -kMax; k <= kMax; k++) {
-    const c = offset + (k + 0.5) * pitch
-    if (Math.abs(c) < radius) out.push(c)
+    const c = offset + (k + phase) * pitch
+    if (Math.abs(c) < limit) out.push(round3(c))
   }
   return out
 }
+
+const boundaries = (pitch: number, radius: number, offset: number): number[] =>
+  lattice(pitch, radius, offset, 0.5)
+
+// Die-centre coordinates, for the axis ticks that number the bands those
+// boundaries enclose. `limit` is the axis extent rather than the wafer radius:
+// an edge die whose centre falls just off the wafer still owns a visible band,
+// and ECharts clips custom tick values to the axis range regardless.
+export const dieCentreTicks = (pitchMm: number, limitMm: number, offsetMm: number): number[] =>
+  lattice(pitchMm, limitMm, offsetMm, 0)
 
 export const buildDieGridSegments = (geo: WaferGeometry, radiusMm: number): DieGridSegment[] => {
   const segments: DieGridSegment[] = []

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildDieGridSegments, dieGridLineData } from './waferDieGrid.ts'
+import { buildDieGridSegments, dieCentreTicks, dieGridLineData } from './waferDieGrid.ts'
 import type { WaferGeometry } from './waferGeometry.ts'
 
 const geo = (pitchXmm: number, pitchYmm: number, offsetXmm = 0, offsetYmm = 0): WaferGeometry => ({
@@ -69,6 +69,32 @@ test('unknown pitch yields no grid for that axis', () => {
 
 test('a degenerate tiny pitch is refused instead of flooding the map', () => {
   assert.equal(buildDieGridSegments(geo(0.01, 0.01), 150).length, 0)
+})
+
+test('dieCentreTicks lands on the die centres the boundaries enclose', () => {
+  // Pitch 10, offset 2 → centres at 2 + k·10; the boundaries above are at 7, -3, …
+  assert.deepEqual(dieCentreTicks(10, 45, 2), [-38, -28, -18, -8, 2, 12, 22, 32, 42])
+})
+
+test('every die centre is exactly midway between two die boundaries', () => {
+  // The axis labels and the drawn lattice must come from one lattice, or the
+  // number sits off the band it names — the double-grid bug in miniature.
+  const g = geo(12.52, 10.34, 0, 4.61)
+  const bounds = buildDieGridSegments(g, 150)
+    .filter(([a, b]) => a[1] === b[1]).map(([a]) => a[1])
+    .sort((a, b) => a - b)
+  for (const centre of dieCentreTicks(g.pitchYmm, 150, g.offsetYmm)) {
+    const below = Math.max(...bounds.filter(b => b < centre))
+    const above = Math.min(...bounds.filter(b => b > centre))
+    if (!Number.isFinite(below) || !Number.isFinite(above)) continue // outermost band
+    assert.ok(Math.abs((below + above) / 2 - centre) < 0.01,
+      `centre ${centre} is not midway between ${below} and ${above}`)
+  }
+})
+
+test('dieCentreTicks refuses an unknown or degenerate pitch', () => {
+  assert.deepEqual(dieCentreTicks(0, 150, 0), [])
+  assert.deepEqual(dieCentreTicks(0.01, 150, 0), []) // same safety valve as the grid
 })
 
 test('dieGridLineData separates segments with null gaps', () => {
