@@ -260,3 +260,47 @@ test('setIntegrity on a clean single-recipe set reports nothing to warn about', 
   assert.equal(out.recipeCount, 1)
   assert.equal(out.loaded, 2)
 })
+
+test('setIntegrity counts loaded as RESOLVED rows with a file, not the size of the files map', () => {
+  const resolved = [
+    { ...row('m1', 'TP01', 't1'), recipeName: 'RCP_A' },
+    { ...row('m2', 'TP02', 't2'), recipeName: 'RCP_A' }
+  ]
+  // 'stale' is in the files map but is NOT part of the resolved set — a map
+  // left over from a previous set. files.size would say 2; only m1 is loaded.
+  const files = new Map<string, OptionFileInput>([
+    ['m1', optFile(['WAFER'], [])],
+    ['stale', optFile(['WAFER'], [])]
+  ])
+  assert.equal(setIntegrity(['m1', 'm2'], resolved, files).loaded, 1)
+})
+
+test('setParamOptions breaks an equal coverage AND equal MP-order tie by name', () => {
+  // Both parameters come from the same measurement at the same (mp_number,
+  // sequence) — an unusual recipe, but it isolates the name comparator: with
+  // coverage and rank tied, only localeCompare can decide the order.
+  const rows = [row('m1', 'TP01', 't1')]
+  const files = new Map<string, OptionFileInput>([
+    ['m1', optFile(['Z_LATE', 'A_FIRST'], [
+      { parameter: 'Z_LATE', mp_number: 1, sequence: 1 },
+      { parameter: 'A_FIRST', mp_number: 1, sequence: 1 }
+    ])]
+  ])
+  assert.deepEqual(setParamOptions(rows, files).map(o => o.parameter), ['A_FIRST', 'Z_LATE'])
+})
+
+test('setParamOptions sorts an unranked parameter last within its coverage tier, and ignores negative-mp_number rows when ranking', () => {
+  // RANKED has a real MP row (mp_number 2). UNRANKED's only row has a negative
+  // mp_number, which must be excluded from ranking — if it were not excluded,
+  // -1 would sort BEFORE 2 and UNRANKED would wrongly come first. Correctly
+  // excluded, UNRANKED has no rank at all and falls back to the NO_RANK
+  // sentinel, which sorts last within the (tied) coverage tier.
+  const rows = [row('m1', 'TP01', 't1')]
+  const files = new Map<string, OptionFileInput>([
+    ['m1', optFile(['RANKED', 'UNRANKED'], [
+      { parameter: 'RANKED', mp_number: 2, sequence: 1 },
+      { parameter: 'UNRANKED', mp_number: -1, sequence: 1 }
+    ])]
+  ])
+  assert.deepEqual(setParamOptions(rows, files).map(o => o.parameter), ['RANKED', 'UNRANKED'])
+})
