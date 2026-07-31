@@ -163,36 +163,66 @@ def _generate_recipe_rows(tool_type: ToolType, fab_name: str | None) -> tuple[Re
 
 def generate_wafer_mp_info(
     num_records: int = 50,
-    rng: random.Random | None = None
+    rng: random.Random | None = None,
+    *,
+    idp_rows: list[IdpImageInfoRow]
 ) -> list[WaferMpInfoRow]:
-    """Generate dummy wafer measurement point information."""
+    """Generate dummy wafer measurement point information.
+
+    ``idp_rows`` is required, and keyword-only so it cannot be passed by
+    accident. This table does not stand on its own: two of its columns are
+    determined by the parameter the point measures, and both were previously
+    drawn independently here, so home data contradicted the office on every row.
+
+      * ``P_No`` == that parameter's ``Region`` (office 확인 2026-07-28) — the
+        integer key that joins the two tables. Drawing it separately made the
+        documented join return another parameter's rows, which reads from here
+        as "the doc is wrong" rather than "the mock is".
+      * ``D_No == -1`` ⟺ that parameter's ``dnumber_removed`` (office 확인
+        2026-07-28) — the same suppression fact, recorded per point on this
+        side and per parameter on the other. ``randint(1, 100)`` never produced
+        -1, so the suppressed case did not exist at home at all.
+    """
     active_rng = rng or random.Random()
     data: list[WaferMpInfoRow] = []
+
+    # Keyed by PARAMETER: Region and dnumber_removed are parameter-level, so the
+    # several rows a parameter may own collapse to one entry here. (The img_*
+    # slots, which are what genuinely differ between those rows, are not read.)
+    pool = list({
+        row["Parameter"]: (row["Region"], row["dnumber_removed"])
+        for row in idp_rows
+    }.items())
+    if not pool:
+        return data
 
     for _ in range(num_records):
         chip_x = active_rng.randint(1, 10)
         chip_y = active_rng.randint(1, 10)
-        p_no = active_rng.randint(1, 20)
+        parameter, (region, dnumber_removed) = active_rng.choice(pool)
+        # Drawn unconditionally so the suppressed branch does not shift the
+        # random stream and make the seeded output depend on the coin flip.
+        d_no = active_rng.randint(1, 100)
 
         data.append({
             "ChipNo_X": chip_x,
             "ChipNo_Y": chip_y,
             "Coordinate_X": round(active_rng.uniform(-50.0, 50.0), 3),
             "Coordinate_Y": round(active_rng.uniform(-50.0, 50.0), 3),
-            "P_No": p_no,
-            "D_No": active_rng.randint(1, 100),
+            "P_No": region,
+            "D_No": -1 if dnumber_removed else d_no,
             "Diff": active_rng.choice([True, False]),
             "Rel": active_rng.choice([True, False]),
             "Rel_MoveX": round(active_rng.uniform(-5.0, 5.0), 3),
             "Rel_MoveY": round(active_rng.uniform(-5.0, 5.0), 3),
             "Coordinate_X_r": round(active_rng.uniform(-50.0, 50.0), 3),
             "Coordinate_Y_r": round(active_rng.uniform(-50.0, 50.0), 3),
-            "Parameter": f"Para_{active_rng.randint(1, 20)}",
+            "Parameter": parameter,
             # NOT a filename: the real parser emits P_No's value here
             # (user-confirmed 2026-07-27). This mock previously fabricated
             # "IMG_MEAS_0001.jpg", which taught the frontend to expect a
             # string that office data never produces.
-            "img_meas2": p_no
+            "img_meas2": region
         })
 
     return data
@@ -262,16 +292,28 @@ def generate_idp_image_info(
       joins raw files per Parameter shows one row's images under another row's
       heading, with no error to notice. The recipe-open param-detail cache did
       exactly that until 2026-07-30, and this mock is what exposed it.
+
+    ★ What is NOT row-level: ``Region`` and ``dnumber_removed`` describe the
+      PARAMETER (docs/datatables/recipe_idp.txt), so the rows a parameter
+      repeats across must agree on both. ``dnumber_removed`` used to be flipped
+      per row, which let one parameter be suppressed and not suppressed at once
+      — an ill-defined answer for anything grouping by parameter, and it makes
+      the D_No ⟺ dnumber_removed invariant unsatisfiable by construction.
     """
     active_rng = rng or random.Random()
     data: list[IdpImageInfoRow] = []
+    # Decided once per parameter, then reused by that parameter's other rows.
+    removed_by_parameter: dict[str, bool] = {}
 
     for index in range(num_records):
         p_no = active_rng.randint(1, 20)
         seq = index + 1
+        parameter = f"Para_{p_no}"
+        if parameter not in removed_by_parameter:
+            removed_by_parameter[parameter] = active_rng.choice([True, False])
 
         data.append({
-            "Parameter": f"Para_{p_no}",
+            "Parameter": parameter,
             "img_add1": _slot("img_add1", seq, active_rng),
             "img_add2": _slot("img_add2", seq, active_rng),
             "img_meas1": _slot("img_meas1", seq, active_rng),
@@ -286,7 +328,10 @@ def generate_idp_image_info(
             "Mother_Para": seq == 1,
             "Double_Addressing": active_rng.choice([True, False]),
             "Meas_Counting": active_rng.randint(1, 10),
-            "dnumber_removed": active_rng.choice([True, False])
+            # Parameter-level, not row-level — see the note above. True means the
+            # parameter's data is suppressed, which wafer_mp_info records as
+            # D_No = -1 on every point measuring it.
+            "dnumber_removed": removed_by_parameter[parameter]
         })
 
     return data
@@ -986,7 +1031,7 @@ def get_recipe_open_data(
     idp_rows = generate_idp_image_info(rng=rng)
 
     return {
-        "wafer_mp_info": generate_wafer_mp_info(rng=rng),
+        "wafer_mp_info": generate_wafer_mp_info(rng=rng, idp_rows=idp_rows),
         "wafer_align_info": generate_wafer_align_info(rng=rng),
         "idp_image_info": idp_rows,
         "locator": _fake_locator(resolved_recipe_id),

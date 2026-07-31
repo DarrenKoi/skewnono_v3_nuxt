@@ -241,9 +241,22 @@ tool**: these are live metrology recipes on production equipment.
   carried another parameter's name. `dnumber_removed == True` means the
   parameter's data is suppressed and reaches no legacy system. The adapter
   needed **no logic change**: `_scalar` already converts `numpy.bool_` via
-  `.item()`. Two cross-table invariants were confirmed at the same time and
-  are recorded but **not yet acted on**: `Region == wafer_mp_info.P_No`, and
-  `D_No == -1` ⟺ `dnumber_removed == True`.
+  `.item()`. Two cross-table invariants were confirmed at the same time:
+  `Region == wafer_mp_info.P_No`, and `D_No == -1` ⟺
+  `dnumber_removed == True`.
+- **Those two invariants now hold in the home data (2026-07-31).** They had
+  been written down and left unbuilt, so `providers/mock.py` and the
+  `office_utils` stand-in drew `Parameter`, `P_No` and `dnumber_removed` from
+  independent draws. At home the documented `Region` join therefore returned
+  another parameter's rows, and `D_No` came from `randint(1, 100)` — so
+  `D_No == -1`, the case the screen flags, occurred at **no** seed. Both
+  generators now build a measurement point from one of `idp_image_info`'s
+  parameters and take `P_No` and the `-1` from it; `tests/test_mock_cross_table.py`
+  pins the relations without pinning any value. `Region` and `dnumber_removed`
+  are parameter-level and so agree across a parameter's rows, while the `img_*`
+  slots stay row-level and still differ — the distinction the param-detail cache
+  bug of 2026-07-30 depended on. **The adapter still joins on `Parameter`**;
+  moving it to the integer key is a separate change, now testable at home.
 - **Writing this adapter at home:** `office_utils` exists only on office
   machines, so a stand-in package of the same name lives at the repo root and
   is **gitignored** (`/office_utils/`) — never commit it, or it shadows the

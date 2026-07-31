@@ -305,6 +305,27 @@ Mock 데이터 생성 규칙 (집/Phase 1)
 6. 같은 recipe 를 다시 열면 같은 값이 나오도록 recipe_id/fac_id/tool_category 로
    seed 를 만듭니다. 비교(compare) 화면이 열람(open) 결과에서 파생되기 때문에,
    호출마다 값이 흔들리면 비교가 의미를 잃습니다.
+7. 두 table 사이의 관계는 값이 아니라 **불변식**이므로 mock 도 지킵니다
+   (2026-07-31 반영). wafer_mp_info 의 row 는 idp_image_info 의 parameter 중
+   하나를 골라 만들며, 그 parameter 로부터 아래 두 컬럼이 결정됩니다.
+
+     P_No  = 고른 parameter 의 Region
+     D_No  = -1  (그 parameter 의 dnumber_removed 가 True 일 때)
+             그 외에는 1~100 의 임의값
+
+   2026-07-28 에 확인해 이 문서에 적어 두고도 mock 에는 반영하지 않았던
+   항목입니다. 그 사이 집에서는 Region 으로 join 하면 **다른 parameter 의 row**
+   가 나왔고, D_No 는 randint(1, 100) 이라 **-1 이 한 번도 나오지 않았습니다** —
+   화면이 경고로 칠하는 바로 그 경우가 집에는 존재하지 않았습니다.
+8. Region 과 dnumber_removed 는 **parameter 단위**이므로, 같은 Parameter 를 갖는
+   idp_image_info row 들은 이 두 값이 서로 같아야 합니다. img_* slot 5개는 반대로
+   **row 단위**이며 서로 달라야 합니다(위 idp_image_info 절의 함정). 7번을
+   맞추면서 이 구분을 무너뜨리면 2026-07-30 의 param-detail 캐시 사고가 집에서
+   재현되지 않게 됩니다.
+
+   집의 대역 `office_utils/read_idp_info.py` 도 같은 규칙을 따릅니다. 두 곳이
+   어긋나면 office adapter 를 집에서 돌릴 때와 mock provider 를 쓸 때가 서로
+   다른 데이터를 보여 주게 됩니다.
 
 화면 사용 기준
 ==============
