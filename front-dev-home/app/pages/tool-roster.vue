@@ -88,20 +88,20 @@
 
         <div class="flex-1 min-h-0 overflow-auto">
           <!-- Matrix -->
-          <table class="w-full text-left">
+          <table class="w-max text-left">
             <thead class="sticky top-0 bg-(--sk-surface)">
               <tr>
-                <th class="sk-label py-2 px-3">
+                <th class="sk-label py-1.5 px-2">
                   Fab
                 </th>
                 <th
                   v-for="model in matrix.models"
                   :key="model"
-                  class="sk-label py-2 px-3 text-right"
+                  class="sk-label py-1.5 px-2 text-right"
                 >
                   {{ model }}
                 </th>
-                <th class="sk-label py-2 px-3 text-right">
+                <th class="sk-label py-1.5 px-2 text-right">
                   합계
                 </th>
               </tr>
@@ -112,13 +112,13 @@
                 :key="fab"
                 class="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
               >
-                <td class="sk-value py-1.5 px-3">
+                <td class="sk-value py-1 px-2">
                   {{ fab }}
                 </td>
                 <td
                   v-for="(model, modelAt) in matrix.models"
                   :key="model"
-                  class="py-1.5 px-3 text-right"
+                  class="py-1 px-2 text-right"
                 >
                   <!-- Zero renders as · so occupied cells carry the eye. -->
                   <UButton
@@ -135,24 +135,24 @@
                     class="sk-label"
                   >·</span>
                 </td>
-                <td class="sk-value-num py-1.5 px-3 text-right">
+                <td class="sk-value-num py-1 px-2 text-right">
                   {{ matrix.fabTotals[fabAt] }}
                 </td>
               </tr>
             </tbody>
             <tfoot class="border-t border-(--sk-border)">
               <tr>
-                <td class="sk-label py-2 px-3">
+                <td class="sk-label py-1.5 px-2">
                   합계
                 </td>
                 <td
                   v-for="(model, modelAt) in matrix.models"
                   :key="model"
-                  class="sk-value-num py-2 px-3 text-right"
+                  class="sk-value-num py-1.5 px-2 text-right"
                 >
                   {{ matrix.modelTotals[modelAt] }}
                 </td>
-                <td class="sk-value-num py-2 px-3 text-right">
+                <td class="sk-value-num py-1.5 px-2 text-right">
                   {{ matrix.total }}
                 </td>
               </tr>
@@ -182,6 +182,10 @@
               :columns="drilldownColumns"
               :data="drilldownRows"
               :meta="drilldownTableMeta"
+              :ui="{
+                root: 'w-fit max-w-full',
+                base: 'min-w-0 w-max'
+              }"
             >
               <template #eqp_id-cell="{ row }">
                 <span class="sk-value-num">{{ row.original.eqp_id }}</span>
@@ -305,8 +309,8 @@ const arrivalDate = (updtDt: string) => updtDt.slice(0, 10)
 const drilldownTableMeta = {
   class: {
     tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 sk-value',
-    th: 'py-2 px-3 sk-label'
+    td: 'py-1 px-2 sk-value',
+    th: 'py-1.5 px-2 sk-label'
   }
 }
 
