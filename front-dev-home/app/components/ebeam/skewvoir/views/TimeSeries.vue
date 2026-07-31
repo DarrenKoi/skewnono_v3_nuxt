@@ -1,103 +1,248 @@
 <template>
   <!-- Multi-measurement comparison only. The single-MSR sequence workbench moved
        to the FDC 분석 view: it plots measurement ORDER, which is a different
-       axis from this view's across-measurement trend, not a narrower one. -->
+       axis from this view's across-measurement trend, not a narrower one.
+
+       Reading order: 무결성 → 파라미터 → 렌즈 → 활성 차트 → Sequence Trend. -->
   <div
     v-if="analysis.scope.value === 'set'"
     class="space-y-3"
   >
-    <!-- Multi-measurement trend (mean ± min/max band) -->
-    <EbeamSkewvoirPanelFrame
-      title="Multi-Measurement Trend"
-      :meta="`mean ± min/max · ${analysis.activeParam.value}`"
-      icon="i-lucide-trending-up"
-    >
-      <div
-        v-if="analysis.setPending.value"
-        class="flex h-72 items-center justify-center gap-2 sk-body"
-      >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="h-4 w-4 animate-spin"
-        />
-        추이 데이터를 불러오는 중…
-      </div>
-      <template v-else-if="analysis.trendPoints.value.length">
-        <div class="mb-2 flex flex-wrap items-center gap-2">
-          <USelect
-            v-model="anomalyCfg.method"
-            size="xs"
-            :items="methodItems"
-            class="min-w-[11rem]"
-          />
-          <template v-if="anomalyCfg.method === 'range'">
-            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
-              주의 ±<UInput
-                v-model.number="anomalyCfg.range.watchPct"
-                type="number"
-                min="0"
-                size="xs"
-                class="w-14"
-              />%
-            </label>
-            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
-              이상 ±<UInput
-                v-model.number="anomalyCfg.range.abnormalPct"
-                type="number"
-                min="0"
-                size="xs"
-                class="w-14"
-              />%
-            </label>
-          </template>
-          <template v-else>
-            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
-              주의 ±<UInput
-                v-model.number="anomalyCfg.stddev.watchK"
-                type="number"
-                min="0"
-                size="xs"
-                class="w-14"
-              />σ
-            </label>
-            <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
-              이상 ±<UInput
-                v-model.number="anomalyCfg.stddev.abnormalK"
-                type="number"
-                min="0"
-                size="xs"
-                class="w-14"
-              />σ
-            </label>
-          </template>
-          <span class="sk-meta tabular-nums">
-            주의 {{ analysis.trendSummary.value.watch }} · 이상 {{ analysis.trendSummary.value.abnormal }} / {{ analysis.trendPoints.value.length }} MSR
-          </span>
-          <SkAnomalyLegend
-            class="ml-auto"
-            :method="anomalyCfg.method"
-            :range="anomalyCfg.range"
-            :stddev="anomalyCfg.stddev"
-          />
-        </div>
-        <EbeamSkewvoirTimeSeriesChart
-          :points="analysis.trendPoints.value"
-          :parameter="analysis.activeParam.value"
-          :unit="analysis.activeUnit.value"
-          :axis-mode="ws.tsAxis.value"
-          :baseline="ws.tsBaseline.value"
-          @select="analysis.setFocusedMsr($event)"
-        />
-      </template>
-      <div
-        v-else
-        class="flex h-72 items-center justify-center sk-body"
-      >
-        비교할 측정을 추가하세요.
-      </div>
-    </EbeamSkewvoirPanelFrame>
+    <!-- Integrity. TWO distinct failures, deliberately not merged into one line.
+         An id the measurement history could not resolve (usually a selection that
+         spans both SEM families, since search spans them but analysis loads one
+         tool type) is a different problem from a resolved measurement whose file
+         the batch endpoint skipped. Both report; neither blocks. -->
+    <UAlert
+      v-if="integrity.unresolvedMsrs.length"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="`${integrity.unresolvedMsrs.length}개 측정이 이 장비군 검색 결과에 없어 제외되었습니다.`"
+      description="다른 장비군에서 고른 측정은 이 분석에 포함되지 않습니다."
+    />
+    <!-- Resolved but never loaded: POST /api/msr-files silently skips MSRs it
+         cannot find, so without this the miss would masquerade as “이 파라미터가
+         없다” and quietly shrink every denominator on the page. -->
+    <UAlert
+      v-if="integrity.resolved > integrity.loaded"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-file-x"
+      :title="`${integrity.resolved - integrity.loaded}개 측정의 파일을 불러오지 못했습니다.`"
+      description="아래 집계의 분모에서 빠져 있습니다."
+    />
 
-    <!-- Sequence trend of the focus measurement -->
+    <div class="flex flex-wrap items-center gap-2">
+      <EbeamSkewvoirTimeseriesParamCoverageSelect
+        :options="analysis.paramOptions.value"
+        :model-value="analysis.activeParam.value"
+        @update:model-value="ws.setParam($event)"
+      />
+      <!-- Recipe mixing confounds the skew lens: an offset between two tools that
+           ran different recipes is not attributable to the tools. -->
+      <span
+        v-if="integrity.recipeCount > 1"
+        class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-1 font-mono text-[10px] text-(--sk-warn)"
+      >recipe {{ integrity.recipeCount }}종 혼재 · 장비 차이로 해석하기 어렵습니다.</span>
+    </div>
+
+    <!-- Lens switch. There is no `UButtonGroup` in NuxtUI 4.10 (the registry has
+         UFieldGroup and UTabs); this repo's own precedent for exactly this control
+         is a hand-rolled tablist with native buttons and a roving tabindex — see
+         fdc/SequenceWorkbench.vue, whose keydown handling this mirrors.
+
+         Hidden while loading and while there is nothing to show: an empty tab
+         strip over a spinner offers a choice that does nothing. -->
+    <div
+      v-if="lensTabsVisible"
+      ref="lensTabsEl"
+      role="tablist"
+      aria-label="Time-Series 보기"
+      class="inline-flex w-fit items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
+      @keydown="onLensKeydown"
+    >
+      <button
+        v-for="lens in LENSES"
+        :id="tabId(lens.value)"
+        :key="lens.value"
+        type="button"
+        role="tab"
+        :tabindex="ws.tsView.value === lens.value ? 0 : -1"
+        :aria-selected="ws.tsView.value === lens.value"
+        :aria-controls="panelId(lens.value)"
+        class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
+        :class="ws.tsView.value === lens.value
+          ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
+          : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+        @click="ws.setTsView(lens.value)"
+      >
+        {{ lens.label }}
+      </button>
+    </div>
+
+    <!-- The tab strip is conditional, so the panel only claims to be its tabpanel
+         while that tab actually exists — a dangling aria-labelledby is worse than
+         no relationship at all. -->
+    <div
+      :id="lensTabsVisible ? panelId(ws.tsView.value) : undefined"
+      :role="lensTabsVisible ? 'tabpanel' : undefined"
+      :aria-labelledby="lensTabsVisible ? tabId(ws.tsView.value) : undefined"
+    >
+      <EbeamSkewvoirPanelFrame
+        :title="activeTitle"
+        :meta="activeMeta"
+        :icon="activeIcon"
+      >
+        <!-- Axis mode and baseline are per-lens view state carried in the URL, so
+             they ride the trend panel's header the way FDC 분석 carries its axis
+             select. The anomaly method + thresholds stay in the body row below:
+             the header slot is `shrink-0`, so parking six controls in it would
+             widen the panel past its container instead of wrapping. -->
+        <template
+          v-if="ws.tsView.value === 'trend'"
+          #actions
+        >
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-0.5">
+              <UButton
+                v-for="opt in AXIS_OPTIONS"
+                :key="opt.value"
+                size="xs"
+                color="neutral"
+                :variant="ws.tsAxis.value === opt.value ? 'soft' : 'ghost'"
+                :aria-pressed="ws.tsAxis.value === opt.value"
+                :label="opt.label"
+                @click="ws.setTsAxis(opt.value)"
+              />
+            </div>
+            <div class="flex items-center gap-0.5">
+              <UButton
+                v-for="opt in BASELINE_OPTIONS"
+                :key="opt.value"
+                size="xs"
+                color="neutral"
+                :variant="ws.tsBaseline.value === opt.value ? 'soft' : 'ghost'"
+                :aria-pressed="ws.tsBaseline.value === opt.value"
+                :label="opt.label"
+                @click="ws.setTsBaseline(opt.value)"
+              />
+            </div>
+          </div>
+        </template>
+
+        <div
+          v-if="analysis.setPending.value"
+          class="flex h-72 items-center justify-center gap-2 sk-body"
+        >
+          <UIcon
+            name="i-lucide-loader-circle"
+            class="h-4 w-4 animate-spin"
+          />
+          추이 데이터를 불러오는 중…
+        </div>
+
+        <template v-else-if="ws.tsView.value === 'trend' && analysis.trendPoints.value.length">
+          <div class="mb-2 flex flex-wrap items-center gap-2">
+            <USelect
+              v-model="anomalyCfg.method"
+              size="xs"
+              :items="methodItems"
+              class="min-w-[11rem]"
+            />
+            <template v-if="anomalyCfg.method === 'range'">
+              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+                주의 ±<UInput
+                  v-model.number="anomalyCfg.range.watchPct"
+                  type="number"
+                  min="0"
+                  size="xs"
+                  class="w-14"
+                />%
+              </label>
+              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+                이상 ±<UInput
+                  v-model.number="anomalyCfg.range.abnormalPct"
+                  type="number"
+                  min="0"
+                  size="xs"
+                  class="w-14"
+                />%
+              </label>
+            </template>
+            <template v-else>
+              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+                주의 ±<UInput
+                  v-model.number="anomalyCfg.stddev.watchK"
+                  type="number"
+                  min="0"
+                  size="xs"
+                  class="w-14"
+                />σ
+              </label>
+              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+                이상 ±<UInput
+                  v-model.number="anomalyCfg.stddev.abnormalK"
+                  type="number"
+                  min="0"
+                  size="xs"
+                  class="w-14"
+                />σ
+              </label>
+            </template>
+            <span class="sk-meta tabular-nums">
+              주의 {{ analysis.trendSummary.value.watch }} · 이상 {{ analysis.trendSummary.value.abnormal }} / {{ analysis.trendPoints.value.length }} MSR
+            </span>
+            <SkAnomalyLegend
+              class="ml-auto"
+              :method="anomalyCfg.method"
+              :range="anomalyCfg.range"
+              :stddev="anomalyCfg.stddev"
+            />
+          </div>
+          <EbeamSkewvoirTimeSeriesChart
+            :points="analysis.trendPoints.value"
+            :parameter="analysis.activeParam.value"
+            :unit="analysis.activeUnit.value"
+            :axis-mode="ws.tsAxis.value"
+            :baseline="ws.tsBaseline.value"
+            @select="analysis.setFocusedMsr($event)"
+          />
+        </template>
+
+        <!-- One box per measurement. Rotated labels + zoom because a curated set
+             runs to 30 groups, which the default flat labels cannot carry. -->
+        <EbeamSkewvoirDistributionChart
+          v-else-if="ws.tsView.value === 'dist' && analysis.distributionGroups.value.length"
+          :groups="analysis.distributionGroups.value"
+          :unit="analysis.activeUnit.value"
+          mode="Box"
+          rotate-labels
+          zoomable
+        />
+
+        <!-- No `.length` guard: buildToolSkew returns [] for BOTH “one tool” and
+             “no data”, and only the panel (which also gets toolCount) can tell
+             those apart. -->
+        <EbeamSkewvoirTimeseriesToolSkewPanel
+          v-else-if="ws.tsView.value === 'skew'"
+          :rows="analysis.toolSkewRows.value"
+          :tool-count="analysis.toolCount.value"
+          :unit="analysis.activeUnit.value"
+        />
+
+        <div
+          v-else
+          class="flex h-72 items-center justify-center sk-body"
+        >
+          비교할 측정을 추가하세요.
+        </div>
+      </EbeamSkewvoirPanelFrame>
+    </div>
+
+    <!-- Sequence Trend plots the focus measurement's INTERNAL order — a different
+         axis from the three lenses above, not a fourth one of them, so it stays
+         put rather than joining the switch. -->
     <EbeamSkewvoirPanelFrame
       title="Sequence Trend"
       :meta="`focus · ${analysis.focusRow.value?.lot_id ?? '—'}`"
@@ -137,10 +282,12 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
+import type { TsAxisMode, TsBaseline, TsView } from '~/utils/skewvoirAnalysis/types'
+import { placeTrendPoints } from '~/utils/skewvoirAnalysis/timeSeries'
 import { isMeasuredRow } from '~/utils/msrRows'
 
-// `ws` carries the URL-pinned axis mode and baseline for the trend chart; the
-// toggles that write them arrive with the rest of the lens switch.
+// `ws` carries the URL-pinned lens, axis mode and baseline; `analysis` carries
+// everything derived from the loaded set.
 const props = defineProps<{
   analysis: SkewvoirAnalysis
   ws: SkewvoirWorkspace
@@ -155,6 +302,119 @@ const methodItems = [
   { label: '범위(%)', value: 'range' },
   { label: '표준편차(σ) · 진단', value: 'stddev' }
 ]
+
+const LENSES: readonly { value: TsView, label: string }[] = [
+  { value: 'trend', label: '추이' },
+  { value: 'dist', label: '분포' },
+  { value: 'skew', label: '장비 skew' }
+]
+const LENS_ORDER: readonly TsView[] = LENSES.map(l => l.value)
+
+const AXIS_OPTIONS: readonly { value: TsAxisMode, label: string }[] = [
+  { value: 'time', label: '시간' },
+  { value: 'order', label: '순서' }
+]
+const BASELINE_OPTIONS: readonly { value: TsBaseline, label: string }[] = [
+  { value: 'raw', label: '원시값' },
+  { value: 'resid', label: '잔차' }
+]
+
+const tabId = (lens: TsView): string => `ts-lens-${lens}-tab`
+const panelId = (lens: TsView): string => `ts-lens-${lens}-panel`
+
+const integrity = computed(() => props.analysis.integrity.value)
+
+// Whether ANY lens has something to draw. Gates the tab strip so a set that
+// resolved to nothing does not offer three empty choices.
+const hasAnySetData = computed(() =>
+  props.analysis.trendPoints.value.length > 0
+  || props.analysis.distributionGroups.value.length > 0
+)
+
+const lensTabsVisible = computed(() =>
+  !props.analysis.setPending.value && hasAnySetData.value
+)
+
+const lensTabsEl = ref<HTMLElement | null>(null)
+
+// Roving focus across the tab strip, mirroring fdc/SequenceWorkbench.vue.
+// `.focus()` works on a tabindex="-1" button, so the move does not have to wait
+// for the URL round-trip to flip which tab carries tabindex 0.
+const onLensKeydown = (event: KeyboardEvent): void => {
+  const current = LENS_ORDER.indexOf(props.ws.tsView.value)
+  let next = current
+
+  if (event.key === 'ArrowLeft') next = (current - 1 + LENS_ORDER.length) % LENS_ORDER.length
+  else if (event.key === 'ArrowRight') next = (current + 1) % LENS_ORDER.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = LENS_ORDER.length - 1
+  else return
+
+  event.preventDefault()
+  const target = LENS_ORDER[next] ?? 'trend'
+  props.ws.setTsView(target)
+  nextTick(() => {
+    lensTabsEl.value?.querySelector<HTMLButtonElement>(`#${tabId(target)}`)?.focus()
+  })
+}
+
+// --- Panel meta: report what silently fell out, never just what is drawn ---
+
+const loadedCount = computed(() => integrity.value.loaded)
+const trendCount = computed(() => props.analysis.trendPoints.value.length)
+
+// Measurements whose file loaded but does not carry the active parameter. This
+// is the denominator behind every number on the page, so it is stated rather
+// than left for the reader to infer from a shorter-than-expected chart.
+const missingParam = computed(() => Math.max(0, loadedCount.value - trendCount.value))
+const missingParamMeta = computed(() =>
+  missingParam.value ? ` · 파라미터 없음 ${missingParam.value}/${loadedCount.value}` : ''
+)
+
+// A measurement whose timestamp will not parse has no position on a time axis,
+// so the chart drops it — invisibly, unless it is counted here. Counted with
+// placeTrendPoints, the SAME function the chart draws with, so this figure can
+// never disagree with what is on screen.
+const unplaceable = computed(() =>
+  props.ws.tsAxis.value === 'time'
+    ? trendCount.value - placeTrendPoints(props.analysis.trendPoints.value, 'time').length
+    : 0
+)
+
+// A box built from fewer than 4 sites is a shape nobody can read. Counted over
+// the measurements that DO carry the parameter, so one dropped for having no
+// measured site at all is reported here rather than vanishing between the two
+// numbers.
+const thinGroups = computed(() => {
+  const groups = props.analysis.distributionGroups.value
+  const dropped = Math.max(0, trendCount.value - groups.length)
+  return dropped + groups.filter(g => g.values.length < 4).length
+})
+
+const activeTitle = computed(() => ({
+  trend: 'Multi-Measurement Trend',
+  dist: '측정별 분포',
+  skew: '장비 skew'
+}[props.ws.tsView.value]))
+
+const activeIcon = computed(() => ({
+  trend: 'i-lucide-trending-up',
+  dist: 'i-lucide-chart-candlestick',
+  skew: 'i-lucide-scale'
+}[props.ws.tsView.value]))
+
+const activeMeta = computed(() => {
+  const param = props.analysis.activeParamLabel.value
+  if (props.ws.tsView.value === 'dist') {
+    const thin = thinGroups.value ? ` · 측정점 4개 미만 ${thinGroups.value}개` : ''
+    return `${props.analysis.distributionGroups.value.length}개 측정 · ${param}${missingParamMeta.value}${thin}`
+  }
+  if (props.ws.tsView.value === 'skew') {
+    return `${props.analysis.toolCount.value}개 장비 · 세트 기준 대비${missingParamMeta.value}`
+  }
+  const hidden = unplaceable.value ? ` · 시간축 배치 불가 ${unplaceable.value}개` : ''
+  return `mean ± min/max · ${param}${missingParamMeta.value}${hidden}`
+})
 
 const hasFocusData = computed(() =>
   props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r))
