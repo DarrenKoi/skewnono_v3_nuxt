@@ -184,7 +184,9 @@
               :meta="drilldownTableMeta"
               :ui="{
                 root: 'w-fit max-w-full',
-                base: 'min-w-0 w-max'
+                base: 'min-w-0 w-max',
+                td: 'py-1 px-2 sk-value',
+                th: 'py-1.5 px-2 sk-label'
               }"
             >
               <template #eqp_id-cell="{ row }">
