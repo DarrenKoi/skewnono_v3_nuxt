@@ -17,6 +17,21 @@ from .policy import (
 
 logger = logging.getLogger("skewnono.activity")
 
+# Debounce for _note_record_request_failure: a store outage fails every
+# request, and one traceback per request would bury the log it reports to.
+_RECORD_FAILURE_INTERVAL = 60.0
+_record_failure_last = float("-inf")
+
+
+def _note_record_request_failure() -> None:
+    global _record_failure_last
+    now = time.monotonic()
+    if now - _record_failure_last < _RECORD_FAILURE_INTERVAL:
+        return
+    _record_failure_last = now
+    logger.exception("record_request failed; usage rows are being dropped")
+
+
 _STATUS_PHRASE = {status.value: status.phrase for status in HTTPStatus}
 
 
@@ -162,15 +177,22 @@ def install_activity_logging(app: Flask) -> None:
             extra=extra,
         )
         if extra["activity_weight"] == 1:
-            record_request(
-                user_id,
-                request.method,
-                path,
-                status,
-                feature,
-                extra["activity_kind"],
-                extra["fab_name_list"],
-            )
+            # The usage store is a swap surface: the mock is in-memory, but an
+            # office adapter doing real I/O turns a backing-store blip into a
+            # 500 on a response that already succeeded. A failure here costs
+            # the usage row, never the request.
+            try:
+                record_request(
+                    user_id,
+                    request.method,
+                    path,
+                    status,
+                    feature,
+                    extra["activity_kind"],
+                    extra["fab_name_list"],
+                )
+            except Exception:
+                _note_record_request_failure()
         return response
 
     def _emit_exception(_sender, exception, **_extra):

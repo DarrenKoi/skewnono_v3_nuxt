@@ -401,3 +401,28 @@ def test_a_request_logged_before_the_chain_ran_records_none(make_app, records):
     client.get("/api/sem-list")
 
     assert _only(records, "request").identity_source is None
+
+
+def test_a_failing_usage_store_never_fails_the_request(
+    make_app, records, monkeypatch
+):
+    """record_request writes to a swap surface: the mock is in-memory, but an
+    office adapter doing real I/O can raise on a backing-store blip. That must
+    cost the usage row — never turn an already-successful response into a 500.
+    The stderr-side note is debounced so a store outage reports once per
+    interval, not once per request."""
+
+    def _boom(*_a):
+        raise RuntimeError("usage store down")
+
+    monkeypatch.setattr(activity_mod, "record_request", _boom)
+    monkeypatch.setattr(activity_mod, "_record_failure_last", float("-inf"))
+    client = make_app(user_id="2067928")
+
+    first = client.get("/api/sem-list")
+    second = client.get("/api/sem-list")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    notes = [r for r in records if "record_request failed" in r.getMessage()]
+    assert len(notes) == 1

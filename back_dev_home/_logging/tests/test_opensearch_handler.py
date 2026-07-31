@@ -457,10 +457,19 @@ def stub_handler(monkeypatch):
     return _StubHandler
 
 
-def test_no_credentials_means_no_handler_at_all(preserve_logger, stub_handler):
-    """A cloud host booting before its OPENSEARCH_PASSWORD is set, and every
-    non-cloud checkout that reaches this by accident: skip shipping and serve
-    traffic rather than crash or retry a connection nobody configured."""
+@pytest.fixture
+def office_mode(monkeypatch):
+    """Ambient install is mode-gated; these tests exercise the office path
+    regardless of which machine runs the suite."""
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+
+
+def test_no_credentials_means_no_handler_at_all(
+    preserve_logger, stub_handler, office_mode
+):
+    """A cloud host booting before its OPENSEARCH_PASSWORD is set: skip
+    shipping and serve traffic rather than crash or retry a connection nobody
+    configured."""
     root = preserve_logger("")
     preserve_logger("skewnono.activity")
     handlers_before = list(root.handlers)
@@ -470,9 +479,44 @@ def test_no_credentials_means_no_handler_at_all(preserve_logger, stub_handler):
     assert list(root.handlers) == handlers_before
 
 
+def test_mock_mode_never_reaches_the_credential_machinery(
+    monkeypatch, preserve_logger, stub_handler
+):
+    """The set-but-unreachable trap: a home .env that grows office
+    OPENSEARCH_* lines must not fail the boot closed (password set,
+    SKEWNONO_LOG_ENV unset would raise below) or leave a worker retrying an
+    unreachable host. Mode answers before credentials are even considered."""
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+    monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    preserve_logger("")
+    preserve_logger("skewnono.activity")
+
+    assert osh.install_opensearch_logging() is None
+    assert stub_handler.made == []
+
+
+def test_an_explicit_target_bypasses_the_mode_gate(
+    monkeypatch, preserve_logger, stub_handler
+):
+    """`target=` is a deliberate act — tests and tooling use it to exercise
+    the machinery on a machine whose ambient mode is mock."""
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+    monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
+    preserve_logger("")
+    preserve_logger("skewnono.activity")
+
+    target = osh.LoggingTarget(
+        environment="local", alias="skewnono_logging_local", deployment="local"
+    )
+    handler = osh.install_opensearch_logging(target=target)
+
+    assert handler is not None
+    assert handler.kwargs["index"] == "skewnono_logging_local"
+
+
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes"])
 def test_the_kill_switch_wins_over_a_configured_password(
-    monkeypatch, preserve_logger, stub_handler, value
+    monkeypatch, preserve_logger, stub_handler, office_mode, value
 ):
     """OPENSEARCH_LOGGING_DISABLED is the one lever an operator has on a live
     cloud host when the cluster is the thing that is broken."""
@@ -486,7 +530,7 @@ def test_the_kill_switch_wins_over_a_configured_password(
 
 
 def test_it_attaches_to_the_root_and_to_the_activity_logger(
-    monkeypatch, preserve_logger, stub_handler
+    monkeypatch, preserve_logger, stub_handler, office_mode
 ):
     """skewnono.activity sets propagate=False, so a root handler alone would
     ship everything EXCEPT the request records that are the point of the index.
@@ -505,7 +549,7 @@ def test_it_attaches_to_the_root_and_to_the_activity_logger(
 
 
 def test_installing_twice_does_not_double_ship(
-    monkeypatch, preserve_logger, stub_handler
+    monkeypatch, preserve_logger, stub_handler, office_mode
 ):
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
     monkeypatch.setenv("SKEWNONO_LOG_ENV", "production")
@@ -522,7 +566,7 @@ def test_installing_twice_does_not_double_ship(
 
 
 def test_a_quiet_root_is_lowered_to_the_shipping_level(
-    monkeypatch, preserve_logger, stub_handler
+    monkeypatch, preserve_logger, stub_handler, office_mode
 ):
     """uwsgi leaves the root at WARNING; the index would then hold only errors."""
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
@@ -536,7 +580,7 @@ def test_a_quiet_root_is_lowered_to_the_shipping_level(
     assert root.level == logging.INFO
 
 
-def test_a_chattier_root_is_left_alone(monkeypatch, preserve_logger, stub_handler):
+def test_a_chattier_root_is_left_alone(monkeypatch, preserve_logger, stub_handler, office_mode):
     """Someone debugging at DEBUG must not be quietly turned back down."""
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
     monkeypatch.setenv("SKEWNONO_LOG_ENV", "production")
@@ -550,7 +594,7 @@ def test_a_chattier_root_is_left_alone(monkeypatch, preserve_logger, stub_handle
 
 
 def test_configured_password_without_target_fails_closed(
-    monkeypatch, preserve_logger, stub_handler
+    monkeypatch, preserve_logger, stub_handler, office_mode
 ):
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
     preserve_logger("")
@@ -563,7 +607,7 @@ def test_configured_password_without_target_fails_closed(
 
 
 def test_existing_handler_for_another_target_is_rejected(
-    monkeypatch, preserve_logger, stub_handler
+    monkeypatch, preserve_logger, stub_handler, office_mode
 ):
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "s3cret")
     monkeypatch.setenv("SKEWNONO_LOG_ENV", "local")
@@ -702,3 +746,45 @@ def test_preflight_bounds_a_connection_failure_to_its_type_name(monkeypatch):
     assert "secret" not in out
     assert "10.0.0.1" not in out
 
+
+
+# -- pipeline noise filter ---------------------------------------------------
+
+
+def _named_record(name: str, level=logging.WARNING) -> logging.LogRecord:
+    return logging.LogRecord(
+        name=name,
+        level=level,
+        pathname=__file__,
+        lineno=1,
+        msg="POST http://opensearch:9200/_bulk failed",
+        args=(),
+        exc_info=None,
+    )
+
+
+def test_the_transports_own_warnings_never_enter_the_queue(parked):
+    """The handler sits on the root logger, so opensearch-py's per-failure
+    WARNINGs would feed back into the queue during the exact outage they
+    describe — filling the bounded queue with client noise until real activity
+    documents are the ones dropped. apscheduler's per-run lines are the same
+    problem at 365-day retention. handle() is used because that is the path
+    Logger.callHandlers takes; handler-level filters do not run in emit()."""
+    for name in (
+        "opensearch",
+        "opensearchpy.transport",
+        "urllib3.connectionpool",
+        "apscheduler.executors.default",
+    ):
+        parked.handle(_named_record(name))
+
+    assert parked._queue.empty()
+    assert parked.snapshot().enqueued == 0
+
+
+def test_application_records_still_pass_the_noise_filter(parked):
+    """The filter must reject by logger name only — the activity records the
+    index exists for take the same handle() path."""
+    parked.handle(_record())
+
+    assert parked.snapshot().enqueued == 1

@@ -26,6 +26,7 @@ from back_dev_home._logging.target import (
     LoggingTarget,
     resolve_logging_target,
 )
+from back_dev_home._runtime.data_provider import get_mode
 
 DEFAULT_INDEX = "skewnono_logging"
 DEFAULT_BUFFER_SIZE = 100
@@ -53,6 +54,19 @@ _KNOWN_EXTRA_KEYS = (
 )
 _RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 _RETRY_BACKOFFS = (0.5, 1.0)
+
+# The handler sits on the root logger, so without this the transport's own
+# records feed back into the pipeline: during an outage opensearch-py/urllib3
+# emit a WARNING per failed flush, those enqueue, fail, and warn again —
+# filling the bounded queue with client-error noise until *real* activity
+# documents are the ones dropped, and handing recovery a backlog of junk.
+# apscheduler's per-run INFO lines are operational noise that would sit in a
+# 365-day-retention index. ("opensearch" also covers "opensearchpy".)
+_NOISY_LOGGER_PREFIXES = ("opensearch", "urllib3", "apscheduler")
+
+
+def _reject_pipeline_noise(record: logging.LogRecord) -> bool:
+    return not record.name.startswith(_NOISY_LOGGER_PREFIXES)
 
 
 class AliasNotReadyError(RuntimeError):
@@ -156,6 +170,7 @@ class OpenSearchBulkHandler(logging.Handler):
         doc_service_factory: Callable[[Any, str], Any] = _make_doc_service,
     ) -> None:
         super().__init__(level=level)
+        self.addFilter(_reject_pipeline_noise)
         self._client_factory = client_factory
         self._deployment = deployment
         self._index = index
@@ -471,6 +486,14 @@ def install_opensearch_logging(
     """Attach one target-matched handler to root and selected named loggers."""
 
     if _logging_disabled(os.environ):
+        return None
+    if target is None and get_mode() != "office":
+        # Ambient resolution is for deployments that really ship logs. A home
+        # .env that grows office OPENSEARCH_* lines would otherwise either
+        # fail the boot closed (password set, SKEWNONO_LOG_ENV unset) or leave
+        # the worker retrying an unreachable host forever — the documented
+        # set-but-unreachable trap. Mode is the home/office question; an
+        # explicit `target=` bypasses the gate on purpose.
         return None
     if not os.environ.get("OPENSEARCH_PASSWORD"):
         _stderr("OPENSEARCH_PASSWORD not set; skipping OpenSearch log handler")
