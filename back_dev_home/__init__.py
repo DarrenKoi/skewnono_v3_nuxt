@@ -195,6 +195,14 @@ def create_app() -> Flask:
     # declaration would evaporate when the tab closed.
     app.permanent_session_lifetime = timedelta(days=30)
 
+    # Explicit rather than inherited from browser defaults: without SameSite,
+    # a browser still on pre-Lax-by-default behavior sends the session cookie
+    # on a cross-site form POST, and /api/identify's response *plants* an
+    # attacker-chosen declared identity — login-CSRF whose payoff is 30 days
+    # of mis-attributed activity. Lax keeps deep links working (top-level
+    # navigations carry the cookie) while refusing the cross-site POST.
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
     # Config must agree with the filesystem before we serve anything: an
     # explicit SKEWNONO_<FEATURE>_PROVIDER=office with no providers/office.py
     # is a promise of real fab data we cannot keep, so refuse to start rather

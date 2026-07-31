@@ -22,13 +22,21 @@ from flask import Blueprint, g, jsonify, request
 from .admin import is_admin_request
 from .directory import lookup_member, probe_member
 from .middleware import resolve_identity
-from .provider import SOURCE_DECLARED
+from .provider import ANONYMOUS, SOURCE_DECLARED
 from .self_id import clear_declared, read_declared, write_declared
 from .verify import decide
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("auth", __name__)
+
+# Transport bound for declared inputs — see the check in identify().
+MAX_INPUT_LEN = 64
+
+# The two per-phase fallback ids, lowercased for the case-insensitive check.
+# ANONYMOUS is imported so a rename breaks here; `local-dev` has no constant
+# (it lives in LocalIdentityProvider.fallback_identity), so it is spelled out.
+RESERVED_IDS = frozenset({ANONYMOUS.lower(), "local-dev"})
 
 
 def _identity_payload():
@@ -96,6 +104,21 @@ def identify():
     # otherwise store the accepted-with-no-name state Decision rules out.
     if not entered_name:
         return jsonify({"error": "invalid_input", "message": "이름을 입력해 주세요"}), 422
+    # Bounded before anything downstream sees the values: an oversized pair
+    # rides into the session cookie (browsers silently drop it past ~4KB, so
+    # the declaration would evaporate on reload with no error) and into the
+    # OpenSearch user_id keyword field unbounded. 64 is far above any real
+    # empno or name; this is a transport bound, not a format opinion.
+    if len(empno) > MAX_INPUT_LEN or len(entered_name) > MAX_INPUT_LEN:
+        return jsonify({"error": "invalid_input", "message": "입력값이 너무 깁니다"}), 422
+    # The fallback ids are vocabulary, not people. A declaration of
+    # `anonymous` would yield user_id=anonymous with source=declared —
+    # muddying exactly the log distinction this feature creates — and
+    # `local-dev` would wear home's admin id on the cloud's activity log.
+    # Case-insensitive: `Anonymous` as a distinct log id confuses the same
+    # count.
+    if empno.lower() in RESERVED_IDS:
+        return jsonify({"error": "invalid_input", "message": "사용할 수 없는 사번입니다"}), 422
 
     decision = decide(probe_member(empno), entered_name)
     if not decision.accept:

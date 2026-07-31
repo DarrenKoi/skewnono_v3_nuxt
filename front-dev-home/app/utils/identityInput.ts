@@ -20,17 +20,28 @@
 export const normalizeEmpno = (raw: string): string => raw.replace(/\s+/g, '')
 
 /**
+ * Mirrors the server's transport bound (`_auth/routes.py MAX_INPUT_LEN`), so
+ * an over-long paste fails here with the same verdict instead of a round
+ * trip. Not a format rule — see the caveat below.
+ */
+export const MAX_INPUT_LEN = 64
+
+/**
  * The error to show, or null when the pair is worth sending.
  *
- * Only presence is checked. The authority on which employee numbers exist is
- * the `members` directory, and a client-side format rule would eventually
- * disagree with it — rejecting a real person on the strength of a guess made
- * here, with no way for them to argue. Names keep their inner spacing for the
- * same reason: the server compares against the directory without collapsing
- * it, so trimming here could only cause a mismatch.
+ * Presence and the transport bound are checked — nothing else. The authority
+ * on which employee numbers exist is the `members` directory, and a
+ * client-side format rule would eventually disagree with it — rejecting a
+ * real person on the strength of a guess made here, with no way for them to
+ * argue. Names keep their inner spacing for the same reason: the server
+ * compares against the directory without collapsing it, so trimming here
+ * could only cause a mismatch.
  */
 export const validateIdentityInput = (empno: string, empNm: string): string | null => {
   if (!normalizeEmpno(empno)) return '사번을 입력해 주세요'
   if (!empNm.trim()) return '이름을 입력해 주세요'
+  if (normalizeEmpno(empno).length > MAX_INPUT_LEN || empNm.trim().length > MAX_INPUT_LEN) {
+    return '입력값이 너무 깁니다'
+  }
   return null
 }

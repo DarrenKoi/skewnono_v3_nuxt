@@ -56,3 +56,20 @@ describe('validateIdentityInput', () => {
     assert.equal(validateIdentityInput('2067928', '고 대영'), null)
   })
 })
+
+describe('validateIdentityInput length bound', () => {
+  it('refuses an over-long empno or name with the server message', () => {
+    assert.equal(validateIdentityInput('9'.repeat(65), '김철수'), '입력값이 너무 깁니다')
+    assert.equal(validateIdentityInput('2067928', '김'.repeat(65)), '입력값이 너무 깁니다')
+  })
+
+  it('measures the empno after space removal, as the server will receive it', () => {
+    // 64 digits + spaces: what is SENT is 64 chars, so it must pass.
+    const spaced = '9'.repeat(32) + ' ' + '9'.repeat(32)
+    assert.equal(validateIdentityInput(spaced, '김철수'), null)
+  })
+
+  it('accepts exactly the bound', () => {
+    assert.equal(validateIdentityInput('9'.repeat(64), '김'.repeat(64)), null)
+  })
+})

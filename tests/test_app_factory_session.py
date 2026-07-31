@@ -113,3 +113,13 @@ def test_an_unset_looking_flag_does_not_enable_it(monkeypatch, home, flag):
     monkeypatch.setenv("SKEWNONO_TRUST_PROXY", flag)
 
     assert not _has_proxyfix(create_app())
+
+
+def test_the_session_cookie_is_samesite_lax(home):
+    """Explicit, not inherited from browser defaults: without the attribute a
+    pre-Lax-by-default browser sends the session cookie on a cross-site form
+    POST, and /api/identify's response plants an attacker-chosen declared
+    identity (login-CSRF, 30 days of mis-attribution)."""
+    app = create_app()
+
+    assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"

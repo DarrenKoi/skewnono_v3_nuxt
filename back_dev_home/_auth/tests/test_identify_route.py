@@ -361,3 +361,39 @@ def test_a_stale_declaration_never_renames_a_cookie_caller(
     assert body["identity_source"] == "cookie"
     assert body["user_id"] == "1234567"
     assert body["member"]["emp_nm"] is None
+
+
+def test_an_oversized_input_is_refused_before_the_directory(
+    client, directory_says
+):
+    """The pair rides into the session cookie (silently dropped past ~4KB —
+    the declaration would evaporate on reload) and into the OpenSearch
+    user_id keyword field. The bound fires before probe_member so the
+    directory never sees garbage."""
+    directory_says(Probe(None, "absent"))
+
+    huge = "9" * 65
+    for payload in (
+        {"empno": huge, "emp_nm": "김철수"},
+        {"empno": "9999999", "emp_nm": "김" * 65},
+    ):
+        response = client.post("/api/identify", json=payload)
+        assert response.status_code == 422
+        assert response.get_json()["error"] == "invalid_input"
+
+    assert client.get("/api/me").get_json()["user_id"] == "anonymous"
+
+
+@pytest.mark.parametrize("empno", ["anonymous", "Anonymous", "local-dev", "LOCAL-DEV"])
+def test_the_fallback_ids_cannot_be_declared(client, directory_says, empno):
+    """`anonymous`/`local-dev` are vocabulary, not people: a declared
+    `anonymous` would muddy exactly the log distinction this feature creates,
+    and `local-dev` would wear home's admin id in the cloud activity log.
+    Case-insensitive so `Anonymous` cannot slip in as a distinct log id."""
+    directory_says(Probe(None, "absent"))
+
+    response = client.post("/api/identify", json={"empno": empno, "emp_nm": "김철수"})
+
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "invalid_input"
+    assert client.get("/api/me").get_json()["user_id"] == "anonymous"
