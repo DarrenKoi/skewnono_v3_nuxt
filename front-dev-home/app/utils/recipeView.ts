@@ -96,6 +96,50 @@ export function splitSequenceSections(block: SettingBlock | null): SplitSettingB
   }
 }
 
+export interface SplitAfPrSettingBlock {
+  addressing: SettingBlock | null
+  measurement: SettingBlock | null
+  other: SettingBlock | null
+}
+
+export function splitAfPrSectionsByDomain(
+  block: SettingBlock | null
+): SplitAfPrSettingBlock {
+  if (!block) {
+    return {
+      addressing: null,
+      measurement: null,
+      other: null
+    }
+  }
+
+  const addressing: SettingRow[] = []
+  const measurement: SettingRow[] = []
+  const other: SettingRow[] = []
+
+  for (const row of block.rows) {
+    const section = row.section?.trim().toLowerCase() ?? ''
+    if (section.startsWith('addressing_')) {
+      addressing.push(row)
+    } else if (section.startsWith('measurement_')) {
+      measurement.push(row)
+    } else {
+      other.push(row)
+    }
+  }
+
+  const withRows = (rows: SettingRow[]): SettingBlock => ({
+    source: block.source,
+    rows
+  })
+
+  return {
+    addressing: withRows(addressing),
+    measurement: withRows(measurement),
+    other: withRows(other)
+  }
+}
+
 export type RecipeDetailScreen = 'open' | 'lateral' | 'meas-hist'
 
 export const isRecipeDetailScreenSupported = (

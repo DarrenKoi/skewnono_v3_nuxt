@@ -5,7 +5,7 @@ import {
   recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
   formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp,
-  isSequenceSection, splitSequenceSections
+  isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
@@ -283,6 +283,68 @@ const afPrBlock = {
     { key: 'Method', value: 'Fast2', section: 'addressing_auto_focus1' }
   ]
 }
+
+test('splitAfPrSectionsByDomain separates addressing, measurement and unknown rows', () => {
+  const settings = splitSequenceSections({
+    source: 'ENMP0012',
+    rows: [
+      { key: 'Address Method 1', value: 'A1', section: 'addressing_auto_focus1' },
+      { key: 'Measure PR', value: 'M1', section: 'measurement_pattern_recognition' },
+      { key: 'Address Method 2', value: 'A2', section: 'addressing_auto_focus2' },
+      { key: 'Measure Focus', value: 'M2', section: '  MEASUREMENT_Focusing  ' },
+      { key: 'Vendor Flag', value: 'V', section: 'vendor_extension' },
+      { key: 'Version', value: '3' },
+      { key: 'Image Save', value: 'yes', section: 'sequence_measurement' }
+    ]
+  }).settings
+
+  const grouped = splitAfPrSectionsByDomain(settings)
+
+  assert.deepEqual(
+    grouped.addressing?.rows.map(row => row.key),
+    ['Address Method 1', 'Address Method 2']
+  )
+  assert.deepEqual(
+    grouped.measurement?.rows.map(row => row.key),
+    ['Measure PR', 'Measure Focus']
+  )
+  assert.deepEqual(
+    grouped.other?.rows.map(row => row.key),
+    ['Vendor Flag', 'Version']
+  )
+  assert.equal(grouped.addressing?.source, 'ENMP0012')
+  assert.equal(grouped.measurement?.source, 'ENMP0012')
+  assert.equal(grouped.other?.source, 'ENMP0012')
+})
+
+test('splitAfPrSectionsByDomain preserves empty blocks for domains absent from a file', () => {
+  assert.deepEqual(
+    splitAfPrSectionsByDomain({
+      source: 'ENMP0013',
+      rows: [
+        { key: 'Method', value: 'Fast2', section: 'measurement_focusing' }
+      ]
+    }),
+    {
+      addressing: { source: 'ENMP0013', rows: [] },
+      measurement: {
+        source: 'ENMP0013',
+        rows: [
+          { key: 'Method', value: 'Fast2', section: 'measurement_focusing' }
+        ]
+      },
+      other: { source: 'ENMP0013', rows: [] }
+    }
+  )
+})
+
+test('splitAfPrSectionsByDomain passes a missing file through as null', () => {
+  assert.deepEqual(splitAfPrSectionsByDomain(null), {
+    addressing: null,
+    measurement: null,
+    other: null
+  })
+})
 
 test('splitSequenceSections sends only the sequence_* groups to the sequence half', () => {
   const { sequence, settings } = splitSequenceSections(afPrBlock)
