@@ -204,9 +204,15 @@
 import type { EChartsOption } from 'echarts'
 import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
 import { summaryToRecipeInfoBucket, type RecipeInfoRow, type SummaryBucketKey, type SummaryRow } from '~/composables/useRecipeStatisticsApi'
-import { augmentSummaryRow, type HealthAugmentedRow } from '~/composables/useLotHealthMock'
+import {
+  augmentRow, buildLotVerdicts, recipeKey,
+  type LotHealthFields, type RuleSet
+} from '~/utils/lotHealth'
+import type { RecipeInput } from '~/utils/ruleEngine'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
+
+type HealthAugmentedRow = SummaryRow & LotHealthFields
 
 definePageMeta({
   hideFabSidebar: true
@@ -214,6 +220,8 @@ definePageMeta({
 
 const { setToolType } = useNavigation()
 const { fetchRecipeStatistics, fetchRecipeTrend } = useRecipeStatisticsApi()
+const { fetchRecipeParams } = useDeviceStatisticsApi()
+const { fetchRules } = useMeasurementRulesApi()
 const colorMode = useColorMode()
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
@@ -315,16 +323,68 @@ const rows = computed<SummaryRow[]>(() => {
   return Array.isArray(list) ? (list as SummaryRow[]) : []
 })
 
-const augmentedRows = computed<HealthAugmentedRow[]>(() =>
-  rows.value.map(row => augmentSummaryRow(row, selectedBucket.value))
-)
-
 const recipeRowsForBucket = computed<RecipeInfoRow[]>(() => {
   const buckets = data.value?.buckets
   if (!buckets) return []
   const list = (buckets as Record<string, unknown>)[summaryToRecipeInfoBucket[selectedBucket.value]]
   return Array.isArray(list) ? (list as RecipeInfoRow[]) : []
 })
+
+// health 는 서버 룰로 판정합니다. 예전에는 프런트엔드 안의 cap 표
+// (useLotHealthMock)가 했는데, 그 표는 para 티어별 상한이라 실제 룰(파라미터
+// 종류별 상한)과 아예 다른 것을 재고 있었습니다.
+//
+// 빈 선택에서 fetchRecipeParams 를 부르면 lot_cds 없이 나가 **전 lot(약 522 MB)**
+// 이 돌아옵니다. 이 가드를 지우지 마십시오.
+const { data: recipeParams } = await useAsyncData<RecipeInput[]>(
+  'recipe-params-comparison',
+  () => {
+    if (selectedLots.value.length === 0) return Promise.resolve([])
+    return fetchRecipeParams(selectedLots.value)
+  },
+  { watch: [selectedLots] }
+)
+
+// 룰은 fab 단위입니다. 선택에 들어 있는 fab 만 받아오고, 룰이 없는 fab(M 계열 —
+// D22 로 폐기)은 404 이므로 null 로 두어 "판정 없음" 이 됩니다.
+const selectedFabs = computed(() => [...new Set(rows.value.map(r => r.fac_id))].sort())
+
+const { data: rulesByFab } = await useAsyncData<Record<string, RuleSet | null>>(
+  'measurement-rules-by-fab',
+  async () => {
+    const entries = await Promise.all(
+      selectedFabs.value.map(async (facId) => {
+        try {
+          const version = await fetchRules(facId)
+          return [facId, { cells: version.cells, thresholds: version.thresholds }] as const
+        } catch {
+          // 404(그 fab 에 룰 없음)와 네트워크 오류를 같게 다룹니다 — 어느 쪽이든
+          // 지어낸 cap 으로 색을 칠하지 않는 것이 맞습니다.
+          return [facId, null] as const
+        }
+      })
+    )
+    return Object.fromEntries(entries)
+  },
+  { watch: [selectedFabs] }
+)
+
+// 요약 행은 **버킷 단위**인데 recipe-params 는 버킷 축이 없습니다. 버킷의
+// recipe_id 로 좁히지 않으면 버킷을 바꿔도 health 만 그대로인 모순이 생깁니다.
+// recipe_id 로 좁힐 수 있는 것은 그것이 표면을 가로지르는 조인 키이기 때문입니다.
+const bucketRecipeKeys = computed(() => {
+  const keys = new Set<string>()
+  for (const row of recipeRowsForBucket.value) keys.add(recipeKey(row.lot_cd, row.recipe_id))
+  return keys
+})
+
+const lotVerdicts = computed(() =>
+  buildLotVerdicts(recipeParams.value ?? [], rulesByFab.value ?? {}, bucketRecipeKeys.value)
+)
+
+const augmentedRows = computed<HealthAugmentedRow[]>(() =>
+  rows.value.map(row => augmentRow(row, lotVerdicts.value.get(row.lot_cd)))
+)
 
 const sortedRows = computed<SummaryRow[]>(() => {
   if (selectedSort.value === 'default') {

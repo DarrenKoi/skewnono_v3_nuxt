@@ -29,6 +29,14 @@
             />
             {{ counts[level] }} {{ level }}
           </span>
+          <span
+            v-if="noRuleCount > 0"
+            class="inline-flex items-center gap-1.5 rounded-full bg-(--sk-muted-surface) px-2.5 py-1 font-mono text-[10.5px] font-semibold tracking-wide text-(--sk-ink-subtle) ring-1 ring-(--sk-border) ring-inset"
+            title="계측 룰이 없는 fab 의 lot 입니다 — 판정하지 않았습니다"
+          >
+            <span class="h-[7px] w-[7px] rounded-full bg-(--sk-border)" />
+            {{ noRuleCount }} 룰 없음
+          </span>
         </div>
         <UTooltip :text="text.copy">
           <UButton
@@ -94,19 +102,54 @@
         </template>
 
         <template #health-cell="{ row }">
-          <span class="inline-flex items-center gap-1.5">
+          <span
+            v-if="row.original.verdict.health"
+            class="inline-flex items-center gap-1.5"
+          >
             <span
               class="h-2 w-2 rounded-full"
-              :style="{ background: healthSwatches[row.original.health].dot }"
+              :style="{ background: healthSwatches[row.original.verdict.health].dot }"
             />
-            <span class="font-mono text-[11px] font-semibold text-(--sk-ink-muted)">{{ row.original.health }}</span>
+            <span class="font-mono text-[11px] font-semibold text-(--sk-ink-muted)">{{ row.original.verdict.health }}</span>
+          </span>
+          <span
+            v-else
+            class="inline-flex items-center gap-1.5"
+            :title="coverageTitle(row.original)"
+          >
+            <span class="h-2 w-2 rounded-full bg-(--sk-border)" />
+            <span class="font-mono text-[11px] font-medium text-(--sk-ink-subtle)">룰 없음</span>
           </span>
         </template>
 
         <template #violations-cell="{ row }">
-          <span class="tabular-nums">
-            <span class="font-semibold text-(--sk-ink)">{{ row.original.violations }}</span>
-            <span class="text-(--sk-ink-subtle)"> / 4</span>
+          <span
+            v-if="row.original.verdict.kind === 'judged'"
+            class="tabular-nums"
+          >
+            <span class="font-semibold text-(--sk-ink)">{{ row.original.verdict.violation_recipes }}</span>
+            <span class="text-(--sk-ink-subtle)"> / {{ row.original.verdict.judged_recipes }}</span>
+          </span>
+          <span
+            v-else
+            class="text-(--sk-ink-subtle)"
+          >—</span>
+        </template>
+
+        <template #coverage-cell="{ row }">
+          <span
+            class="tabular-nums"
+            :title="coverageTitle(row.original)"
+          >
+            <template v-if="row.original.verdict.kind === 'judged'">
+              <span class="font-semibold text-(--sk-ink)">{{ row.original.verdict.judged_recipes }}</span>
+              <span class="text-(--sk-ink-subtle)"> / {{ row.original.verdict.total_recipes }}</span>
+              <span class="ml-1 text-[11px] text-(--sk-ink-subtle)">({{ percent(row.original.verdict.coverage) }})</span>
+            </template>
+            <span
+              v-else
+              class="text-(--sk-ink-subtle)"
+            >0 / {{ row.original.verdict.total_recipes }}</span>
           </span>
         </template>
 
@@ -138,9 +181,13 @@
 import { computed, ref } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import type { HealthAugmentedRow } from '~/composables/useLotHealthMock'
-import { healthOrder, healthSwatches, type HealthLevel } from './healthTokens'
+import type { SummaryRow } from '~/composables/useRecipeStatisticsApi'
+import { verdictSortValue, type LotHealthFields } from '~/utils/lotHealth'
+import type { HealthLevel } from '~/utils/ruleEngine'
+import { healthSwatches } from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+
+type HealthAugmentedRow = SummaryRow & LotHealthFields
 
 const props = defineProps<{
   rows: HealthAugmentedRow[]
@@ -160,16 +207,32 @@ const text = {
 const healthLevels: HealthLevel[] = ['red', 'yellow', 'green']
 
 const counts = computed<Record<HealthLevel, number>>(() => ({
-  red: props.rows.filter(r => r.health === 'red').length,
-  yellow: props.rows.filter(r => r.health === 'yellow').length,
-  green: props.rows.filter(r => r.health === 'green').length
+  red: props.rows.filter(r => r.verdict.health === 'red').length,
+  yellow: props.rows.filter(r => r.verdict.health === 'yellow').length,
+  green: props.rows.filter(r => r.verdict.health === 'green').length
 }))
 
-const maxParaTotal = computed(() => Math.max(0, ...props.rows.map(r => r.para_total)))
+// 룰이 없어 판정하지 못한 lot. 초록과 섞이면 안 되므로 따로 셉니다.
+const noRuleCount = computed(() => props.rows.filter(r => r.verdict.kind === 'no-rules').length)
 
-// Two-level sort in one number: severity band (red 0 / yellow 1 / green 2),
-// then higher violation ratio first within a band.
-const healthSortValue = (r: HealthAugmentedRow) => healthOrder[r.health] - r.violation_ratio / 10
+const paraTotal = (r: HealthAugmentedRow) => r.para_16 + r.para_13 + r.para_9 + r.para_5
+
+const maxParaTotal = computed(() => Math.max(0, ...props.rows.map(paraTotal)))
+
+const percent = (value: number) => `${Math.round(value * 100)}%`
+
+/** gray 사유별 건수를 툴팁 한 줄로. 왜 판정 대상에서 빠졌는지 말해 줍니다. */
+const coverageTitle = (r: HealthAugmentedRow) => {
+  const v = r.verdict
+  if (v.kind === 'no-rules') return `${r.fac_id} 에는 계측 룰이 없습니다 (D22)`
+  const reasons = Object.entries(v.gray_reasons)
+  if (reasons.length === 0) return `${v.judged_recipes}건 모두 판정했습니다`
+  const detail = reasons.map(([reason, n]) => `${reason} ${n}건`).join(', ')
+  return `판정 ${v.judged_recipes} / 전체 ${v.total_recipes} — 제외: ${detail}`
+}
+
+// 정렬은 lotHealth 가 정의합니다 — 판정 없음이 항상 맨 뒤로 갑니다.
+const healthSortValue = (r: HealthAugmentedRow) => verdictSortValue(r.verdict)
 
 const sorting = ref<SortingState>([{ id: 'health', desc: false }])
 
@@ -177,16 +240,17 @@ const columns: TableColumn<HealthAugmentedRow>[] = [
   { accessorKey: 'lot_cd', header: 'lot', size: 120 },
   { id: 'stage', accessorFn: r => r.dev_stage, header: 'stage', size: 72 },
   { id: 'health', accessorFn: healthSortValue, header: 'health', size: 90 },
-  { accessorKey: 'violations', header: 'violations', size: 90 },
+  { id: 'violations', accessorFn: r => r.verdict.violation_recipes, header: 'violations', size: 110 },
+  { id: 'coverage', accessorFn: r => r.verdict.coverage, header: '판정 범위', size: 120 },
   { id: 'params', header: 'para 분포', size: 216, enableSorting: false },
-  { accessorKey: 'para_total', header: 'para 합계', size: 90 },
+  { id: 'para_total', accessorFn: paraTotal, header: 'para 합계', size: 90 },
   { accessorKey: 'avail_recipe', header: '운용 recipe', size: 100 },
   { accessorKey: 'total_recipe', header: '전체 recipe', size: 100 },
   { accessorKey: 'ctn_desc', header: 'description' }
 ]
 
 const sortableColumnIds = [
-  'lot_cd', 'stage', 'health', 'violations',
+  'lot_cd', 'stage', 'health', 'violations', 'coverage',
   'para_total', 'avail_recipe', 'total_recipe', 'ctn_desc'
 ] as const
 
@@ -208,8 +272,9 @@ const exportSortValue: Record<string, (r: HealthAugmentedRow) => string | number
   lot_cd: r => r.lot_cd,
   stage: r => r.dev_stage,
   health: healthSortValue,
-  violations: r => r.violations,
-  para_total: r => r.para_total,
+  violations: r => r.verdict.violation_recipes,
+  coverage: r => r.verdict.coverage,
+  para_total: paraTotal,
   avail_recipe: r => r.avail_recipe,
   total_recipe: r => r.total_recipe,
   ctn_desc: r => r.ctn_desc
@@ -231,14 +296,18 @@ const exportRows = computed(() => {
 })
 
 const lotTable = () => {
+  // health 가 빈 칸이면 "판정 없음" 입니다 — 초록으로 읽히지 않도록 색 이름 대신
+  // 빈 값을 내보내고, 몇 건을 실제로 판정했는지는 옆 두 열이 말합니다.
   const headers = [
-    'lot_cd', 'fac_id', 'stage', 'health', 'violations',
+    'lot_cd', 'fac_id', 'stage', 'health', 'violation_recipes',
+    'judged_recipes', 'total_recipes', 'coverage',
     'para_16', 'para_13', 'para_9', 'para_5', 'para_total',
     'avail_recipe', 'total_recipe', 'ctn_desc'
   ]
   const rows = exportRows.value.map(r => [
-    r.lot_cd, r.fac_id, r.dev_stage, r.health, r.violations,
-    r.para_16, r.para_13, r.para_9, r.para_5, r.para_total,
+    r.lot_cd, r.fac_id, r.dev_stage, r.verdict.health ?? '', r.verdict.violation_recipes,
+    r.verdict.judged_recipes, r.verdict.total_recipes, r.verdict.coverage.toFixed(3),
+    r.para_16, r.para_13, r.para_9, r.para_5, paraTotal(r),
     r.avail_recipe, r.total_recipe, r.ctn_desc
   ])
   return { headers, rows }

@@ -15,15 +15,33 @@
             :stage="row.dev_stage"
             :inferred="row.stage_inferred"
           />
-          <span class="inline-flex items-center gap-1.5">
+          <span
+            v-if="row.verdict.health"
+            class="inline-flex items-center gap-1.5"
+          >
             <span
               class="h-2 w-2 rounded-full"
-              :style="{ background: healthSwatches[row.health].dot }"
+              :style="{ background: healthSwatches[row.verdict.health].dot }"
             />
-            <span class="font-mono text-[11px] font-semibold text-(--sk-ink-muted)">{{ row.health }}</span>
+            <span class="font-mono text-[11px] font-semibold text-(--sk-ink-muted)">{{ row.verdict.health }}</span>
           </span>
-          <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
-            violations <span class="font-bold text-(--sk-ink)">{{ row.violations }}</span> / 4
+          <span
+            v-else
+            class="inline-flex items-center gap-1.5"
+          >
+            <span class="h-2 w-2 rounded-full bg-(--sk-border)" />
+            <span class="font-mono text-[11px] font-medium text-(--sk-ink-subtle)">{{ text.noRules }}</span>
+          </span>
+          <span
+            v-if="row.verdict.kind === 'judged'"
+            class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)"
+          >
+            violations <span class="font-bold text-(--sk-ink)">{{ row.verdict.violation_recipes }}</span>
+            / {{ row.verdict.judged_recipes }} recipe
+            <span
+              v-if="row.verdict.gray_recipes > 0"
+              class="text-(--sk-ink-subtle)"
+            >(판정 제외 {{ row.verdict.gray_recipes }})</span>
           </span>
           <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
             recipe <span class="font-bold text-(--sk-ink)">{{ row.avail_recipe }}</span> / {{ row.total_recipe }}
@@ -117,13 +135,17 @@ import { computed, ref } from 'vue'
 import { useColorMode } from '#imports'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import type { HealthAugmentedRow } from '~/composables/useLotHealthMock'
+import type { LotHealthFields } from '~/utils/lotHealth'
 import type {
   RecipeInfoRow,
   RecipeTrendResponse,
-  SummaryBucketKey
+  SummaryBucketKey,
+  SummaryRow
 } from '~/composables/useRecipeStatisticsApi'
+
 import { healthSwatches, paraColors, paraColorsDark, paraOrder } from './healthTokens'
+
+type HealthAugmentedRow = SummaryRow & LotHealthFields
 
 const props = defineProps<{
   row: HealthAugmentedRow | null
@@ -135,7 +157,8 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { required: true })
 
 const text = {
-  recipeEmpty: '이 lot 의 recipe 가 현재 bucket 에 없습니다.'
+  recipeEmpty: '이 lot 의 recipe 가 현재 bucket 에 없습니다.',
+  noRules: '룰 없음'
 } as const
 
 const colorMode = useColorMode()

@@ -2,7 +2,12 @@
 // Tailwind defaults (red-50 / amber-50 / green-50) clash with --sk-canvas cream,
 // so we publish brand-correlated oklch tokens for lot rows + cards.
 
-export type HealthLevel = 'red' | 'yellow' | 'green'
+// HealthLevel 의 정의는 utils/ruleEngine.ts 한 곳입니다. 이 파일은 색만 갖습니다.
+// 예전에는 두 벌이 있었고(여기 + ruleEngine), classifyHealth 와 threshold 도 각각
+// 있어서 같은 이름이 서로 다른 판정을 할 수 있었습니다.
+import type { HealthLevel } from '~/utils/ruleEngine'
+
+export type { HealthLevel }
 
 export interface HealthSwatch {
   tint: string
@@ -75,17 +80,10 @@ export const paraColorsDark = {
 
 export const paraOrder = ['para_16', 'para_13', 'para_9', 'para_5'] as const
 
-// Threshold buckets — provisional ratios from CONTEXT.md §lot-health-signal.
-// Tweaked here once, consumed everywhere via classifyHealth().
-export const healthThresholds = {
-  yellow: 0.10,
-  red: 0.20
-} as const
-
-export const classifyHealth = (violationRatio: number): HealthLevel => {
-  if (violationRatio >= healthThresholds.red) return 'red'
-  if (violationRatio >= healthThresholds.yellow) return 'yellow'
-  return 'green'
-}
-
-export const healthOrder: Record<HealthLevel, number> = { red: 0, yellow: 1, green: 2 }
+// classifyHealth / healthThresholds / healthOrder 는 여기 없습니다.
+//
+// 판정은 서버가 주는 룰의 thresholds 로 utils/ruleEngine.ts 의 classifyHealth 가
+// 합니다 (fab 마다 다를 수 있습니다). 예전에 이 파일이 갖고 있던 0.10 / 0.20 은
+// 프런트엔드에 박힌 상수라, 사무실에서 경계를 바꿔도 화면이 따라가지 않았습니다.
+// 정렬 순서는 판정 없음(룰 없는 fab)까지 다뤄야 하므로 utils/lotHealth.ts 의
+// verdictSortValue 가 갖습니다.

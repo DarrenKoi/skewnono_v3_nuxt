@@ -9,13 +9,8 @@
       v-for="seg in segments"
       :key="seg.key"
       class="stack-bar__seg"
-      :class="seg.breach > 0 ? 'stack-bar__seg--breach' : ''"
-      :style="{
-        'flex': seg.flex,
-        'background': seg.color,
-        '--breach-edge': seg.breach > 0 ? seg.edgeColor : 'transparent'
-      }"
-      :title="`${seg.label}: ${seg.value}${seg.breach > 0 ? ` (cap ${seg.cap} 초과)` : ''}`"
+      :style="{ flex: seg.flex, background: seg.color }"
+      :title="`${seg.label}: ${seg.value}`"
     >
       <span
         v-if="showValues && seg.flex >= 0.08"
@@ -33,11 +28,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useColorMode } from '#imports'
-import { paraColors, paraColorsDark, paraOrder, healthSwatches } from './healthTokens'
-import type { HealthAugmentedRow } from '~/composables/useLotHealthMock'
+import { paraColors, paraColorsDark, paraOrder } from './healthTokens'
+import type { LotHealthFields } from '~/utils/lotHealth'
+import type { SummaryRow } from '~/composables/useRecipeStatisticsApi'
 
+// cap 초과 줄무늬는 없어졌습니다. 그 줄무늬는 프런트엔드 mock 의 para 티어별 cap
+// (para_16_max …)에서 나왔는데, 실제 룰에는 그런 축이 없습니다 — 파라미터 종류별
+// (WAFER/LEVEL/EDGE/…) 상한을 recipe 단위로 봅니다. 티어로 되돌릴 방법이 없어,
+// 지어내지 않고 뺐습니다. cap 위반은 이제 health/violations 열이 말합니다.
 const props = withDefaults(defineProps<{
-  row: HealthAugmentedRow
+  row: SummaryRow & LotHealthFields
   height?: number
   showValues?: boolean
   normalize?: boolean
@@ -55,26 +55,23 @@ const palette = computed(() => colorMode.value === 'dark' ? paraColorsDark : par
 
 const segments = computed(() => {
   const r = props.row
-  return paraOrder.map((key) => {
-    const value = r[key] as number
-    const cap = r.caps[`${key}_max` as keyof typeof r.caps] as number
-    const breach = r.cap_breach[key as keyof typeof r.cap_breach]
-    return {
-      key,
-      label: key,
-      value,
-      cap,
-      breach,
-      color: palette.value[key],
-      edgeColor: healthSwatches.red.ink,
-      flex: value
-    }
-  })
+  return paraOrder.map(key => ({
+    key,
+    label: key,
+    value: r[key] as number,
+    color: palette.value[key],
+    flex: r[key] as number
+  }))
+})
+
+const paraTotal = computed(() => {
+  const r = props.row
+  return r.para_16 + r.para_13 + r.para_9 + r.para_5
 })
 
 const emptyFlex = computed(() => {
   if (props.normalize || !props.maxTotal) return 0
-  return Math.max(0, props.maxTotal - props.row.para_total)
+  return Math.max(0, props.maxTotal - paraTotal.value)
 })
 
 const ariaLabel = computed(() => {
@@ -110,10 +107,6 @@ const ariaLabel = computed(() => {
 
 .stack-bar__seg:hover {
   filter: brightness(1.08);
-}
-
-.stack-bar__seg--breach {
-  box-shadow: inset 0 -2px 0 0 var(--breach-edge);
 }
 
 .stack-bar__val {

@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DevStage } from '~/composables/useLotHealthMock'
+import type { DevStage } from '~/utils/lotHealth'
 
 const props = defineProps<{
   stage: DevStage
