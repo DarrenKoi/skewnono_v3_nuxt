@@ -6,7 +6,6 @@ The selected adapter lives in providers/mock.py or providers/office.py.
 """
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.activity.providers.mock import seed_demo_users
 
 
 __all__ = [
@@ -50,19 +49,22 @@ def get_user_history(user_id: str):
 
 def record_request(
     user_id: str,
-    method: str,
-    path: str,
-    status: int,
     feature: str,
     activity_kind: str,
     fab_name_list: list[str],
 ) -> None:
     return _provider().record_request(
         user_id,
-        method,
-        path,
-        status,
         feature,
         activity_kind,
         fab_name_list,
     )
+
+
+def seed_demo_users() -> None:
+    # Imported lazily so office mode never loads the mock module.
+    from back_dev_home.activity.providers.mock import (
+        seed_demo_users as _seed_demo_users,
+    )
+
+    _seed_demo_users()

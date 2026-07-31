@@ -17,6 +17,13 @@ Both aliases live in the same in-house cluster, and
 reader. Connection settings are read from the `OPENSEARCH_*` environment
 variables.
 
+`providers/shared.py` holds the three constants both adapters must agree on —
+the `Asia/Seoul` calendar zone, the top-features cap of 10, and the 30-day
+sparkline window. It exists so the home adapter never imports the office
+module: `mock.py` used to take `KST` from `opensearch_reader.py`, which made
+every home boot load office-only code. Change a window size there, not in one
+adapter.
+
 ## What the data means
 
 A request document counts toward activity only if it satisfies all of:
@@ -68,14 +75,27 @@ contributes once to each FAB's bucket. A missing or empty FAB is normalized to
 
 ### `GET /api/activity/users`
 
-Reads the full 30-day user composite aggregation, page by page. Returns
-`requests_30d`, `days_active_30d`, `last_seen` and the feature-only
-`favorite_feature`, sorted by `(-requests_30d, user_id)`.
+**Admin only** (`403 forbidden` otherwise). Reads the full 30-day user
+composite aggregation, page by page. Returns `requests_30d`,
+`days_active_30d`, `last_seen` and the feature-only `favorite_feature`, sorted
+by `(-requests_30d, user_id)`.
 
 ### `GET /api/activity/users/<user_id>`
 
-Returns the personal history shape. No result is `404 not_found`; a failed
-OpenSearch query is `503 activity_query_failed`.
+**Admin only** (`403 forbidden` otherwise). Returns the personal history shape.
+No result is `404 not_found`; a failed OpenSearch query is
+`503 activity_query_failed`.
+
+## Who may read what
+
+`/me`, `/summary` and `/fabs` are open to every identified user — they are
+aggregates, and a person's own history is theirs to see. The two `/users`
+routes enumerate activity per employee, so they are gated with
+`_auth.admin.require_admin`, which requires both an admin id **and** a trusted
+identity source (a self-declared identity that types an admin's employee
+number does not pass). The frontend reads `is_admin` off `/api/activity/me`
+and skips the users fetch entirely for non-admins, so the gate is never the
+first thing a normal user hits.
 
 ## Write path
 
@@ -85,7 +105,9 @@ canonical document.
 
 The office adapter's `record_request()` is an **intentional no-op**. Writing
 again from the provider adapter would store the same request twice, so no writer
-is added there. Only the mock adapter updates process-local state.
+is added there. Only the mock adapter updates process-local state, and it trims
+each user's day buckets to the widest read window on every write so a long-lived
+process cannot grow without bound.
 
 ## Connecting at the office
 

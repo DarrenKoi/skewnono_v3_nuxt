@@ -184,9 +184,6 @@ def install_activity_logging(app: Flask) -> None:
             try:
                 record_request(
                     user_id,
-                    request.method,
-                    path,
-                    status,
                     feature,
                     extra["activity_kind"],
                     extra["fab_name_list"],

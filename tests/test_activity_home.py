@@ -46,29 +46,13 @@ class FabPageUsageTestCase(unittest.TestCase):
 
     def test_unaffiliated_traffic_buckets_under_mijijeong(self):
         activity_mock._users.clear()
-        data.record_request(
-            "live-dev",
-            "GET",
-            "/api/sem-list",
-            200,
-            "sem_list",
-            "entry",
-            [],
-        )
+        data.record_request("live-dev", "sem_list", "entry", [])
         fabs = {row["fab"] for row in data.get_fab_page_usage()["fabs_30d"]}
         self.assertIn("미지정", fabs)
 
     def test_entry_counts_activity_but_never_top_features(self):
         activity_mock._users.clear()
-        data.record_request(
-            "u1",
-            "GET",
-            "/api/sem-list",
-            200,
-            "sem_list",
-            "entry",
-            ["M14"],
-        )
+        data.record_request("u1", "sem_list", "entry", ["M14"])
         me = data.get_me("u1")
         self.assertEqual(me["this_month"]["requests"], 1)
         self.assertEqual(me["top_features"], [])
@@ -76,24 +60,8 @@ class FabPageUsageTestCase(unittest.TestCase):
     def test_fab_total_is_distinct_users_not_requests(self):
         activity_mock._users.clear()
         for _ in range(3):
-            data.record_request(
-                "u1",
-                "GET",
-                "/api/cdsem/storage",
-                200,
-                "storage",
-                "feature",
-                ["M14"],
-            )
-        data.record_request(
-            "u2",
-            "GET",
-            "/api/sem-list",
-            200,
-            "sem_list",
-            "entry",
-            ["M14"],
-        )
+            data.record_request("u1", "storage", "feature", ["M14"])
+        data.record_request("u2", "sem_list", "entry", ["M14"])
         row = data.get_fab_page_usage()["fabs_7d"][0]
         self.assertEqual(row["fab"], "M14")
         self.assertEqual(row["total"], 2)
@@ -101,15 +69,7 @@ class FabPageUsageTestCase(unittest.TestCase):
 
     def test_multi_fab_request_contributes_to_each_bucket_once(self):
         activity_mock._users.clear()
-        data.record_request(
-            "u1",
-            "GET",
-            "/api/cdsem/storage",
-            200,
-            "storage",
-            "feature",
-            ["M14", "M16"],
-        )
+        data.record_request("u1", "storage", "feature", ["M14", "M16"])
         rows = data.get_fab_page_usage()["fabs_7d"]
         self.assertEqual(
             {row["fab"]: row["total"] for row in rows},

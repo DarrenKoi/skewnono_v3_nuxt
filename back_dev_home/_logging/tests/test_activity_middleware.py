@@ -200,17 +200,7 @@ def test_only_weighted_requests_become_usage_events(make_app, recorded):
     client.get("/api/nope")
     client.get("/login")
 
-    assert recorded == [
-        (
-            "2067928",
-            "GET",
-            "/api/sem-list",
-            200,
-            "sem_list",
-            "entry",
-            ["M16"],
-        )
-    ]
+    assert recorded == [("2067928", "sem_list", "entry", ["M16"])]
 
 
 def test_a_cors_preflight_is_logged_but_not_recorded(make_app, records, recorded):
@@ -274,7 +264,7 @@ def test_the_middleware_shares_one_feature_computation_with_the_writer(
     client.get("/api/cdsem/ppid-unavailable")
 
     assert _only(records, "request").feature == "storage"
-    assert recorded[0][4] == "storage"
+    assert recorded[0][1] == "storage"
 
 
 def test_an_unhandled_exception_is_logged_with_its_traceback(make_app, records):

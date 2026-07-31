@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, time, timedelta, timezone
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from back_dev_home._auth.admin import is_admin
 from back_dev_home._logging.target import resolve_logging_target
@@ -20,9 +19,8 @@ from back_dev_home.activity.contracts import (
     UserListResponse,
     UserListRow,
 )
+from back_dev_home.activity.providers.shared import KST, TOP_FEATURES_CAP
 
-KST = ZoneInfo("Asia/Seoul")
-TOP_FEATURES_CAP = 10
 COMPOSITE_PAGE_SIZE = 1000
 CARDINALITY_PRECISION = 40000
 

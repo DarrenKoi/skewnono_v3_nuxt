@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, g, jsonify
 
+from .._auth.admin import require_admin
 from .._auth.errors import error_json
 from .data import (
     get_fab_page_usage,
@@ -45,12 +46,16 @@ def activity_fabs():
     return _query(get_fab_page_usage)
 
 
+# Per-employee enumeration is admin-only; the aggregate views above
+# (/me, /summary, /fabs) stay open to every identified user.
 @bp.get("/activity/users")
+@require_admin
 def activity_users():
     return _query(get_users_list)
 
 
 @bp.get("/activity/users/<user_id>")
+@require_admin
 def activity_user_detail(user_id: str):
     return _query(
         lambda: get_user_history(user_id),

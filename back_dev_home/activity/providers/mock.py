@@ -15,10 +15,8 @@ from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 
 from ..._auth.admin import is_admin
-from .opensearch_reader import KST
-from back_dev_home.activity.contracts import (
+from ..contracts import (
     DailyCount,
-    FabPageCount,
     FabUsageResponse,
     FabUsageRow,
     FeatureCount,
@@ -29,37 +27,12 @@ from back_dev_home.activity.contracts import (
     UserListResponse,
     UserListRow,
 )
-
-__all__ = [
-    "FeatureCount",
-    "DailyCount",
-    "MeThisMonth",
-    "MeResponse",
-    "SummaryResponse",
-    "UserListRow",
-    "UserListResponse",
-    "UserHistoryResponse",
-    "FabPageCount",
-    "FabUsageRow",
-    "FabUsageResponse",
-    "record_request",
-    "get_me",
-    "get_summary",
-    "get_fab_page_usage",
-    "get_users_list",
-    "get_user_history",
-    "is_admin",
-    "seed_demo_users",
-]
-
-_SPARKLINE_DAYS = 30
-_TOP_FEATURES_CAP = 10
+from .shared import KST, SPARKLINE_DAYS, TOP_FEATURES_CAP
 
 
 @dataclass
 class _UserState:
     user_id: str
-    total: int = 0
     by_feature: dict[str, int] = field(default_factory=dict)
     daily: dict[date, int] = field(default_factory=dict)
     daily_features: dict[date, dict[str, int]] = field(default_factory=dict)
@@ -87,15 +60,19 @@ def _today() -> date:
     return _kst_date(_now())
 
 
-def _iso(value: datetime | None) -> str | None:
-    if value is None:
-        return None
+def _iso(value: datetime) -> str:
     return value.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _iso_or_none(value: datetime | None) -> str | None:
+    # first_seen/last_seen are genuinely nullable; generated_at is not, so the
+    # two get different signatures rather than one that lies about both.
+    return None if value is None else _iso(value)
 
 
 def _top_features(
     counts: dict[str, int],
-    cap: int = _TOP_FEATURES_CAP,
+    cap: int = TOP_FEATURES_CAP,
 ) -> list[FeatureCount]:
     ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:cap]
     return [{"feature": feature, "count": count} for feature, count in ranked]
@@ -139,11 +116,28 @@ def _merge_counts(
         target[key] = target.get(key, 0) + count
 
 
+def _prune_old_days(state: _UserState, today: date) -> None:
+    """Drop day buckets no read window can reach, so state stays bounded.
+
+    The widest windows are the 30-day series and ``this_month``, which on the
+    31st of a month reaches one day further back than the sparkline does.
+    """
+    cutoff = min(
+        today - timedelta(days=SPARKLINE_DAYS - 1),
+        today.replace(day=1),
+    )
+    for bucket in (
+        state.daily,
+        state.daily_features,
+        state.daily_fabs,
+        state.daily_fab_features,
+    ):
+        for day in [day for day in bucket if day < cutoff]:
+            del bucket[day]
+
+
 def record_request(
     user_id: str,
-    method: str,
-    path: str,
-    status: int,
     feature: str,
     activity_kind: str,
     fab_name_list: list[str],
@@ -166,10 +160,10 @@ def record_request(
             )
             _users[user_id] = state
 
-        state.total += 1
         state.daily[today] = state.daily.get(today, 0) + 1
         state.daily_fabs.setdefault(today, set()).update(fabs)
         state.last_seen = now
+        _prune_old_days(state, today)
 
         if activity_kind != "feature":
             return
@@ -191,16 +185,16 @@ def _history_fields(
         return {
             "this_month": {"requests": 0, "days_active": 0},
             "top_features": [],
-            "daily": _daily_series({}, today, _SPARKLINE_DAYS),
+            "daily": _daily_series({}, today, SPARKLINE_DAYS),
             "first_seen": None,
             "last_seen": None,
         }
     return {
         "this_month": _this_month_stats(state.daily, today),
         "top_features": _top_features(state.by_feature),
-        "daily": _daily_series(state.daily, today, _SPARKLINE_DAYS),
-        "first_seen": _iso(state.first_seen),
-        "last_seen": _iso(state.last_seen),
+        "daily": _daily_series(state.daily, today, SPARKLINE_DAYS),
+        "first_seen": _iso_or_none(state.first_seen),
+        "last_seen": _iso_or_none(state.last_seen),
     }
 
 
@@ -251,7 +245,7 @@ def get_summary() -> SummaryResponse:
                     _merge_counts(feature_30d, counts)
 
     return {
-        "generated_at": _iso(_now()) or "",
+        "generated_at": _iso(_now()),
         "dau": dau,
         "wau": wau,
         "mau": mau,
@@ -287,13 +281,13 @@ def get_users_list() -> UserListResponse:
                     "user_id": state.user_id,
                     "requests_30d": sum(active.values()),
                     "days_active_30d": len(active),
-                    "last_seen": _iso(state.last_seen),
+                    "last_seen": _iso_or_none(state.last_seen),
                     "favorite_feature": favorite,
                 }
             )
 
     rows.sort(key=lambda row: (-row["requests_30d"], row["user_id"]))
-    return {"generated_at": _iso(_now()) or "", "users": rows}
+    return {"generated_at": _iso(_now()), "users": rows}
 
 
 def _fab_rows(
@@ -314,13 +308,14 @@ def _fab_rows(
 
 
 def _fab_window(
+    users: dict[str, _UserState],
     today: date,
     cutoff: date,
 ) -> list[FabUsageRow]:
     active_users: dict[str, set[str]] = {}
     page_counts: dict[str, dict[str, int]] = {}
 
-    for state in _users.values():
+    for state in users.values():
         for day, fabs in state.daily_fabs.items():
             if not cutoff <= day <= today:
                 continue
@@ -338,80 +333,121 @@ def _fab_window(
 def get_fab_page_usage() -> FabUsageResponse:
     today = _today()
     with _lock:
-        rows_7d = _fab_window(today, today - timedelta(days=6))
-        rows_30d = _fab_window(today, today - timedelta(days=29))
+        rows_7d = _fab_window(_users, today, today - timedelta(days=6))
+        rows_30d = _fab_window(_users, today, today - timedelta(days=29))
     return {
-        "generated_at": _iso(_now()) or "",
+        "generated_at": _iso(_now()),
         "fabs_7d": rows_7d,
         "fabs_30d": rows_30d,
     }
+
+
+# (user_id, fab, feature totals, days of activity ending today). ``sem_list``
+# stands in for entry traffic — see _seed_feature.
+_DEMO_USERS: list[tuple[str, str, dict[str, int], int]] = [
+    (
+        "kim.minju",
+        "M14",
+        {
+            "sem_list": 220,
+            "recipe_search": 160,
+            "meas_hist": 45,
+            "fail_issue": 30,
+        },
+        14,
+    ),
+    (
+        "park.jinho",
+        "M16B",
+        {
+            "recipe_search": 190,
+            "sem_list": 120,
+            "recipe_tat": 65,
+            "storage": 25,
+        },
+        12,
+    ),
+    (
+        "lee.soyoung",
+        "M11",
+        {
+            "sem_list": 140,
+            "storage": 80,
+            "fail_issue": 55,
+            "hardware": 20,
+        },
+        9,
+    ),
+    (
+        "choi.eunwoo",
+        "R3",
+        {
+            "recipe_tat": 70,
+            "sem_list": 60,
+            "recipe_search": 40,
+            "device_statistics": 25,
+        },
+        6,
+    ),
+    (
+        "jung.hari",
+        "M15",
+        {
+            "skewvoir": 90,
+            "sem_list": 30,
+            "afm": 25,
+            "meas_hist": 15,
+        },
+        4,
+    ),
+]
+
+
+def _seed_feature(
+    state: _UserState,
+    fab: str,
+    feature: str,
+    total: int,
+    days_back: int,
+    today: date,
+) -> None:
+    """Spread ``total`` requests evenly over the last ``days_back`` days.
+
+    ``sem_list`` stands in for entry traffic: it counts toward daily totals
+    and FAB active users but never toward the feature or FAB-page rankings,
+    mirroring record_request's entry/feature split.
+    """
+    is_entry = feature == "sem_list"
+    if not is_entry:
+        state.by_feature[feature] = state.by_feature.get(feature, 0) + total
+    for offset in range(days_back):
+        count = total // days_back
+        if offset < total % days_back:
+            count += 1
+        if count == 0:
+            continue
+        day = today - timedelta(days=offset)
+        state.daily[day] = state.daily.get(day, 0) + count
+        state.daily_fabs.setdefault(day, set()).add(fab)
+        if is_entry:
+            continue
+        day_features = state.daily_features.setdefault(day, {})
+        day_features[feature] = day_features.get(feature, 0) + count
+        fab_features = state.daily_fab_features.setdefault(
+            day,
+            {},
+        ).setdefault(fab, {})
+        fab_features[feature] = fab_features.get(feature, 0) + count
 
 
 def seed_demo_users() -> None:
     """Populate deterministic mock peers without ranking entry traffic."""
 
     today = _today()
-    demo: list[tuple[str, str, dict[str, int], int]] = [
-        (
-            "kim.minju",
-            "M14",
-            {
-                "sem_list": 220,
-                "recipe_search": 160,
-                "meas_hist": 45,
-                "fail_issue": 30,
-            },
-            14,
-        ),
-        (
-            "park.jinho",
-            "M16B",
-            {
-                "recipe_search": 190,
-                "sem_list": 120,
-                "recipe_tat": 65,
-                "storage": 25,
-            },
-            12,
-        ),
-        (
-            "lee.soyoung",
-            "M11",
-            {
-                "sem_list": 140,
-                "storage": 80,
-                "fail_issue": 55,
-                "hardware": 20,
-            },
-            9,
-        ),
-        (
-            "choi.eunwoo",
-            "R3",
-            {
-                "recipe_tat": 70,
-                "sem_list": 60,
-                "recipe_search": 40,
-                "device_statistics": 25,
-            },
-            6,
-        ),
-        (
-            "jung.hari",
-            "M15",
-            {
-                "skewvoir": 90,
-                "sem_list": 30,
-                "afm": 25,
-                "meas_hist": 15,
-            },
-            4,
-        ),
-    ]
     now = _now()
 
     with _lock:
-        for user_id, fab, features, days_back in demo:
+        for user_id, fab, features, days_back in _DEMO_USERS:
             if user_id in _users:
                 continue
             state = _UserState(
@@ -420,29 +456,5 @@ def seed_demo_users() -> None:
                 last_seen=now - timedelta(hours=1),
             )
             for feature, total in features.items():
-                if feature != "sem_list":
-                    state.by_feature[feature] = total
-                for offset in range(days_back):
-                    count = total // days_back
-                    if offset < total % days_back:
-                        count += 1
-                    if count == 0:
-                        continue
-                    day = today - timedelta(days=offset)
-                    state.total += count
-                    state.daily[day] = state.daily.get(day, 0) + count
-                    state.daily_fabs.setdefault(day, set()).add(fab)
-                    if feature == "sem_list":
-                        continue
-                    day_features = state.daily_features.setdefault(day, {})
-                    day_features[feature] = (
-                        day_features.get(feature, 0) + count
-                    )
-                    fab_features = state.daily_fab_features.setdefault(
-                        day,
-                        {},
-                    ).setdefault(fab, {})
-                    fab_features[feature] = (
-                        fab_features.get(feature, 0) + count
-                    )
+                _seed_feature(state, fab, feature, total, days_back, today)
             _users[user_id] = state

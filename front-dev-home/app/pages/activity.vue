@@ -276,8 +276,11 @@
         </div>
       </UCard>
 
-      <!-- Users table -->
-      <UCard class="dashboard-surface">
+      <!-- Users table: per-employee rows are admin-only (backend returns 403) -->
+      <UCard
+        v-if="isAdmin"
+        class="dashboard-surface"
+      >
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
@@ -285,6 +288,13 @@
               사용자
             </span>
             <div class="flex items-center gap-2">
+              <UBadge
+                color="warning"
+                variant="subtle"
+                size="sm"
+              >
+                관리자 전용
+              </UBadge>
               <UBadge
                 color="neutral"
                 variant="subtle"
@@ -506,24 +516,27 @@ const {
   status: meStatus
 } = await useActivityMe()
 
-// Summary + users + model breakdown are shared activity views, so every
-// viewer fetches them.
+const isAdmin = computed(() => me.value?.is_admin === true)
+
+// Summary + fab breakdown are shared activity views, so every viewer fetches
+// them. The users list is admin-only on the backend (403 otherwise), so it is
+// fetched only when /activity/me says the viewer is an admin.
 const sharedQueries = await Promise.all([
   useActivitySummary(),
-  useActivityUsers(),
   useActivityFabs()
 ]).then(
-  ([summary, users, fabs]) => ({ summary, users, fabs })
+  ([summary, fabs]) => ({ summary, fabs })
 )
+const usersQuery = isAdmin.value ? await useActivityUsers() : null
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
-const users = computed(() => sharedQueries.users.data.value ?? null)
+const users = computed(() => usersQuery?.data.value ?? null)
 const fabs = computed(() => sharedQueries.fabs.data.value ?? null)
 
 const loadError = computed(() => {
   const error = meError.value
     ?? sharedQueries.summary.error.value
-    ?? sharedQueries.users.error.value
+    ?? usersQuery?.error.value
     ?? sharedQueries.fabs.error.value
   if (!error) return null
   return operationalDataErrorMessage(
@@ -535,7 +548,7 @@ const loadError = computed(() => {
 const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
   if (sharedQueries.summary.status.value === 'pending') return true
-  if (sharedQueries.users.status.value === 'pending') return true
+  if (usersQuery?.status.value === 'pending') return true
   if (sharedQueries.fabs.status.value === 'pending') return true
   return false
 })
@@ -545,9 +558,9 @@ const refreshAll = async () => {
   const jobs: Array<Promise<unknown>> = [refreshMe()]
   jobs.push(
     sharedQueries.summary.refresh(),
-    sharedQueries.users.refresh(),
     sharedQueries.fabs.refresh()
   )
+  if (usersQuery) jobs.push(usersQuery.refresh())
   await Promise.all(jobs)
 }
 
@@ -578,7 +591,11 @@ const weeklyChange = computed(() => {
 // --- shared usage: KPI cards ---
 const kpiCards = computed(() => {
   if (!summary.value) return []
-  const totalRequests30d = users.value?.users.reduce((sum, row) => sum + row.requests_30d, 0) ?? 0
+  // The request total is derived from the admin-only users list, so it is
+  // dropped rather than shown as 0 for a viewer who cannot fetch it.
+  const totalRequests30d = users.value
+    ? users.value.users.reduce((sum, row) => sum + row.requests_30d, 0)
+    : null
   const returnRate = summary.value.mau > 0
     ? Math.round((summary.value.wau / summary.value.mau) * 100)
     : 0
@@ -604,13 +621,15 @@ const kpiCards = computed(() => {
       icon: 'i-lucide-user-check',
       color: 'text-emerald-500'
     },
-    {
-      label: '30D 요청',
-      value: totalRequests30d.toLocaleString(),
-      hint: '전체 사용자의 요청 합계',
-      icon: 'i-lucide-mouse-pointer-click',
-      color: 'text-amber-500'
-    },
+    ...(totalRequests30d === null
+      ? []
+      : [{
+          label: '30D 요청',
+          value: totalRequests30d.toLocaleString(),
+          hint: '전체 사용자의 요청 합계',
+          icon: 'i-lucide-mouse-pointer-click',
+          color: 'text-amber-500'
+        }]),
     {
       label: 'WAU / MAU',
       value: `${returnRate}%`,

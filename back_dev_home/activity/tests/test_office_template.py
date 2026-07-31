@@ -322,11 +322,15 @@ def test_activity_query_failures_are_normalized_to_503(
         raise ConnectionError("cluster detail must not leak")
 
     monkeypatch.setattr(routes, loader_name, fail)
+    # The /users routes are admin-gated, so the failure path needs an admin
+    # caller — otherwise the gate answers 403 before the loader ever runs.
+    monkeypatch.delenv("SKEWNONO_ADMIN_USERS", raising=False)
     app = Flask(__name__)
 
     @app.before_request
     def identity():
-        g.user_id = "u1"
+        g.user_id = "local-dev"
+        g.identity_source = "local"
 
     app.register_blueprint(routes.bp, url_prefix="/api")
     response = app.test_client().get(path)
