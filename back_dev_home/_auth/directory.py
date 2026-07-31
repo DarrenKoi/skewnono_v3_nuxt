@@ -47,10 +47,11 @@ from .._runtime.office_redis import STORE_ERRORS, redis_client_or_none, redis_te
 
 logger = logging.getLogger(__name__)
 
-# HGET members <empno> -> a JSON document with the fields below.
-# OFFICE-VERIFY: the hash name and the field spellings are user-confirmed
-# (2026-07-31); that the value is JSON rather than another encoding is an
-# assumption, which is why a decode failure degrades instead of raising.
+# HGET members <empno> -> a UTF-8 JSON document with the fields below.
+# user-confirmed 2026-07-31, whole read path: the office does
+# `json.loads(redis.hget("members", str(LASTUSER)).decode("utf-8"))`.
+# The decode still degrades rather than raising — not because the encoding is
+# in doubt now, but because a single malformed row must not lock a user out.
 MEMBERS_KEY = "members"
 
 # Everything except empno is optional: a member row may be partial, and a

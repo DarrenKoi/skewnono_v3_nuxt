@@ -15,6 +15,13 @@ Key
 
   `LASTUSER` 쿠키가 곧 사번입니다. 쿠키 값을 그대로 field 로 사용합니다.
 
+  사무실 원본 코드 (user-confirmed 2026-07-31):
+
+    data = redis.hget("members", str(LASTUSER))
+    member = json.loads(data.decode("utf-8"))
+
+  value 는 **UTF-8 로 인코딩된 JSON object** 입니다. field 이름은 str 로 넘깁니다.
+
 사용 field
 
   empno -> str: 사번. 쿠키 값과 동일한 것으로 기대합니다.
@@ -49,12 +56,14 @@ Key
 확인 근거
 
   hash 이름, 조회 방식, field 철자 5종 -> user-confirmed 2026-07-31
-  value 가 JSON object 라는 것       -> OFFICE-VERIFY (미검증 가정)
+  value 가 UTF-8 JSON object 라는 것  -> user-confirmed 2026-07-31
+                                        (사무실 원본 코드로 확인, 위 "조회" 절)
 
-  value 인코딩만 가정입니다. 이 가정이 틀리면 decode 가 실패하고 warning 로그
-  "member document for <사번> is not the expected JSON object" 가 남으므로,
-  사무실에서 그 로그를 확인해 decoder 를 고치면 됩니다. 그 동안에도 사용자는
-  사번으로 계속 접속할 수 있습니다.
+  가정으로 남은 항목은 없습니다. 다만 decode 실패는 여전히 degrade 로 처리합니다 —
+  인코딩이 의심스러워서가 아니라, row 1건이 깨졌다고 그 사용자를 접속 불가로
+  만들면 안 되기 때문입니다. 그런 경우 warning 로그
+  "member document for <사번> is not the expected JSON object" 가 남고, 해당
+  사용자는 사번만으로 계속 접속합니다.
 
 소비 코드
 

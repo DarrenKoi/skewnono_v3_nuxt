@@ -17,7 +17,7 @@
 
 | 문서 | 사무실 소스 | 소비 feature | 상태 |
 | --- | --- | --- | --- |
-| `members.txt` | Redis hash `members` | `_auth` (사용자 이름·소속, `GET /api/me`) | 구현완료(사무실 검증 대기) |
+| `members.txt` | Redis hash `members` | `_auth` (사용자 이름·소속, `GET /api/me`) | 구현완료(스키마 user-confirmed, 실행 검증 대기) |
 | `sem_list.txt` | Redis `v3_df_sem_avail` + `v3_df_sem_version` | `sem_list` | 연결 |
 | `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/hitachi/storage` | 연결 |
 | `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe` | 연결 |

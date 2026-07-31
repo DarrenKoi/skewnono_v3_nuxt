@@ -14,9 +14,10 @@ from typing import Optional, Protocol
 
 from flask import Request
 
-# Both spellings have been in circulation on the company network; afm/routes.py
-# has always accepted either, and a cloud host that saw only the other one
-# would look exactly like "nobody is logged in".
+# Order IS the precedence, and it is user-confirmed (2026-07-31): LASTUSER wins.
+# LAST_USER stays as a second spelling because afm/routes.py has always accepted
+# either, and a host setting only that one would look exactly like "nobody is
+# logged in" — a failure with no distinguishing symptom to debug from.
 _IDENTITY_COOKIES = ("LASTUSER", "LAST_USER")
 
 
