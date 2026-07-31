@@ -10,15 +10,50 @@ from werkzeug.exceptions import HTTPException
 
 from ._auth.errors import error_json
 from ._auth.middleware import install_identity_middleware
-from ._auth.provider import CloudIdentityProvider, LocalIdentityProvider
+from ._auth.provider import ANONYMOUS, CloudIdentityProvider, LocalIdentityProvider
 from ._logging.activity import install_activity_logging
 from ._runtime.boot import log_provider_table
-from ._runtime.data_provider import validate_env
+from ._runtime.data_provider import get_mode, validate_env
 from ._runtime.env import is_cloud
 
 
 def _rate_limit_key() -> str:
-    return getattr(g, "user_id", None) or request.remote_addr or "anon"
+    # Every cookie-less cloud caller shares the literal `anonymous` id, so
+    # keying on it would pool the whole fab into ONE 20-req budget the day a
+    # proxy config strips LASTUSER — turning that quiet misconfiguration into
+    # a site-wide 429 storm. Those callers get per-address buckets instead
+    # (real addresses once SKEWNONO_TRUST_PROXY is on behind nginx).
+    user_id = getattr(g, "user_id", None)
+    if user_id == ANONYMOUS:
+        return f"anon:{request.remote_addr or 'unknown'}"
+    return user_id or request.remote_addr or "anon"
+
+
+def _rate_limit_storage() -> dict:
+    """Limiter storage kwargs: in-process at home, shared Redis at the office.
+
+    memory:// counters are per-process, which under Phase 3's multi-worker
+    uwsgi turns "20 per 5 seconds" into "20 per worker, nondeterministically"
+    — and lets a client rotating cookie values mint a fresh bucket per worker
+    it happens to hit. Office mode points the limiter at the Redis the
+    adapters already use; an unreachable Redis degrades to the per-worker
+    memory fallback rather than failing requests.
+    """
+    host = os.environ.get("REDIS_HOST")
+    if get_mode() != "office" or not host:
+        return {"storage_uri": "memory://"}
+    from urllib.parse import quote
+
+    password = os.environ.get("REDIS_PASSWORD")
+    auth = f":{quote(password, safe='')}@" if password else ""
+    port = os.environ.get("REDIS_PORT", "6379")
+    return {
+        "storage_uri": f"redis://{auth}{host}:{port}/0",
+        # Bound the probe: a host that drops SYNs must cost ~1s once on the
+        # way to the fallback, not stall every request on client defaults.
+        "storage_options": {"socket_connect_timeout": 1, "socket_timeout": 1},
+        "in_memory_fallback_enabled": True,
+    }
 
 
 def _install_rate_limit(app: Flask) -> None:
@@ -27,11 +62,18 @@ def _install_rate_limit(app: Flask) -> None:
     # 5/5s was so tight that any page mounting 2+ composables + a user pill
     # click would 429. 20/5s still catches runaway loops but tolerates
     # normal interactive navigation.
+    #
+    # application_limits, not default_limits: one budget per user shared
+    # across ALL /api routes, which is the contract CLAUDE.md documents.
+    # default_limits would give each route its own 20/5s window — a runaway
+    # loop rotating across N endpoints would run at N×20 req/5s and never
+    # 429 — and would leave application_limits_exempt_when inert (it only
+    # applies to application limits).
     limiter = Limiter(
         key_func=_rate_limit_key,
-        storage_uri="memory://",
-        default_limits=["20 per 5 seconds"],
+        application_limits=["20 per 5 seconds"],
         application_limits_exempt_when=lambda: not request.path.startswith("/api/"),
+        **_rate_limit_storage(),
     )
     limiter.init_app(app)
 
