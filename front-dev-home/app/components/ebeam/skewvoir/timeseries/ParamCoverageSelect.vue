@@ -3,6 +3,7 @@
     :model-value="selected"
     :items="items"
     value-key="value"
+    placeholder="파라미터 선택"
     size="sm"
     class="min-w-64"
     @update:model-value="emit('update:modelValue', $event)"

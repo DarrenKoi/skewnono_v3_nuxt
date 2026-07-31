@@ -12,23 +12,41 @@
     class="w-full text-left"
   >
     <thead>
-      <tr class="sk-meta">
-        <th class="py-1">
+      <tr class="sk-label">
+        <th
+          scope="col"
+          class="py-1"
+        >
           장비
         </th>
-        <th class="py-1 text-right">
+        <th
+          scope="col"
+          class="py-1 text-right"
+        >
           n
         </th>
-        <th class="py-1 text-right">
+        <th
+          scope="col"
+          class="py-1 text-right"
+        >
           평균
         </th>
-        <th class="py-1 text-right">
+        <th
+          scope="col"
+          class="py-1 text-right"
+        >
           세트 기준 대비
         </th>
-        <th class="py-1 text-right">
+        <th
+          scope="col"
+          class="py-1 text-right"
+        >
           σ
         </th>
-        <th class="py-1 pl-3">
+        <th
+          scope="col"
+          class="py-1 pl-3"
+        >
           편차
         </th>
       </tr>
