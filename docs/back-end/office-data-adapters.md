@@ -442,7 +442,8 @@ PORT=5000 .venv/bin/python -m scripts.check_contract
   의존하는 `opensearch-py`, `pandas`, `redis`, `minio` SDK는
   `back_dev_home/requirements.txt`에 포함하고 사무실 image도 동일한 dependency
   범위를 사용해야 합니다.
-- SSO용 `hcputil`은 cloud image 제공 여부와 version을 별도로 목록화해야 합니다.
+- 인증은 사내 인프라가 내려주는 `LASTUSER` 쿠키만 사용하므로 cloud image가
+  제공하는 SSO 라이브러리에 대한 의존성은 없습니다.
 - 현재 일반 예외는 JSON 오류 계약으로 정규화되지 않습니다. source timeout/권한 오류를
   어떤 code와 HTTP 상태로 반환할지 정한 뒤 공통 handler를 추가해야 합니다.
 - Phase 2 localhost에서 Local identity를 쓸지 SSO를 쓸지 확정해야 합니다. 데이터

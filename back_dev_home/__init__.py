@@ -163,10 +163,13 @@ def create_app() -> Flask:
             )
         app.register_blueprint(bp, url_prefix="/api")
 
-    if is_cloud():
-        from ._auth.routes import bp as auth_bp
-        app.register_blueprint(auth_bp)
+    # Identity exists in every phase, so /api/me does too — a home session that
+    # could not answer it would develop against a screen the cloud never shows.
+    # Registered by hand because the factory's rglob skips _-prefixed folders.
+    from ._auth.routes import bp as auth_bp
+    app.register_blueprint(auth_bp, url_prefix="/api")
 
+    if is_cloud():
         from ._spa.serving import register_spa
         register_spa(app)
 

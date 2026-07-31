@@ -264,8 +264,8 @@ RUNBOOK = """# Deploy this bundle
 
        pip install -r back_dev_home/requirements.txt
 
-4. Run preflight again. Imports should now resolve, including the
-   cloud-image-provided `hcputil.auth.sso`:
+4. Run preflight again. Every runtime import comes from requirements.txt —
+   identity is the LASTUSER cookie, so nothing here needs the cloud image:
 
        python preflight.py
 

@@ -105,20 +105,38 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 | 항목 | 확인 방법 | 담당 |
 | --- | --- | --- |
 | 기존 `/project/workSpace`에 오버레이 | `python preflight.py`의 PATH 및 영구 파일 검사 | 배포자 |
-| 이미지에 `hcputil.auth.sso`가 있는지 | `python preflight.py`의 import 검사 | 인프라 |
-| SSO 에 호스트명 등록 | 로그인 리다이렉트가 동작하는지 | SSO 담당 |
+| `LASTUSER` 쿠키가 브라우저에 전달되는지 | 페이지 접속 후 로그의 `user=` 필드 | 인프라 |
 | `back_dev_home/.env` 배치 | `python preflight.py`의 파일 존재 검사 | 배포자 |
 
-`hcputil.auth.sso`는 requirements.txt가 아니라 **클라우드 이미지가 제공**합니다.
-`preflight.py`와 런타임 인증 로더는 이 경로만 사용합니다.
+### 사용자 식별 방식
+
+사용자 식별은 **사내 인프라가 내려주는 `LASTUSER` 쿠키**만 사용합니다. 기존 AFM
+앱이 읽던 것과 같은 쿠키이며, 클라우드 이미지가 제공하는 별도의 SSO 모듈은
+필요하지 않습니다. `LAST_USER` 철자도 함께 허용합니다.
+
+쿠키가 없는 요청은 다음과 같이 처리합니다.
+
+| 요청 | 응답 |
+| --- | --- |
+| 페이지·정적 자원 | 그대로 SPA 를 내려줍니다 |
+| `/api/*` | `401 unauthenticated` |
+
+페이지를 막지 않는 이유는, 인증 게이트가 애플리케이션의 첫 `before_request`
+이기 때문입니다. 여기서 응답을 돌려주면 `index.html` 과 번들까지 함께 막혀
+화면에 아무것도 표시되지 않습니다. 실제로 이 자리에서 리다이렉트를 돌려주던
+시절에는 브라우저가 앱과 SSO 사이를 무한히 오가다 빈 화면으로 끝났습니다.
+
+로그에서 `path=/ status=302` 또는 `ms=-1` 이 보이면 이 게이트가 요청을
+가로챈 것입니다. 라우트나 SPA 마운트가 아니라 `_auth/middleware.py` 를 먼저
+확인해 주십시오.
+
+> **주의**: 번들이 `/project/workSpace` 아래에 있지 않으면 `is_cloud()` 가
+> False 가 되어 **홈용 identity provider** 가 선택됩니다. 이 경우 쿠키가 없는
+> 모든 요청이 관리자 계정 `local-dev` 로 취급되므로, `preflight.py` 의 PATH
+> 검사를 반드시 통과시켜야 합니다.
 
 `preflight.py`는 `back_dev_home/.env`의 존재 여부만 검사하며 내부 값은 읽거나
 검증하지 않습니다.
-
-SSO 호스트명 등록은 테스트 URL 과 정식 URL 각각에 대해 필요합니다.
-
-- `skewnono-v3-webapp.aipp01.skhynix.com` (feasibility 테스트)
-- `skewnono.skhynix.com` (정식 전환 시)
 
 ## 5. 전환 시 재빌드가 필요하지 않습니다
 

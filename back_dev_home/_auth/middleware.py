@@ -1,4 +1,4 @@
-from flask import Flask, g, redirect, request
+from flask import Flask, g, request
 
 from ..access_control.data import is_blocked, record_denied
 from ..api_tokens.data import find_by_plaintext, touch_last_used
@@ -7,12 +7,7 @@ from .errors import error_json
 from .provider import IdentityProvider
 
 
-_PUBLIC_PREFIXES = ("/login", "/static/")
 _BEARER_PREFIX = "Bearer "
-
-
-def _is_public(path: str) -> bool:
-    return path == "/login" or any(path.startswith(p) for p in _PUBLIC_PREFIXES)
 
 
 def _try_api_token():
@@ -51,9 +46,8 @@ def _deny_if_blocked():
     # returns None regardless of the verdict, so computing one is pure waste.
     # This matters now that the office access_control provider makes is_blocked
     # a Redis round trip: without this, one cold SPA page load by an X-member
-    # would cost an HEXISTS per asset (/_nuxt/*.js, favicon, ...), since
-    # _is_public only exempts /login and /static/ and everything else reaches
-    # the catch-all SPA route.
+    # would cost an HEXISTS per asset (/_nuxt/*.js, favicon, ...), since every
+    # non-API path reaches the catch-all SPA route.
     if not request.path.startswith("/api/"):
         return None
     # is_blocked before is_admin: non-X ids (nearly everyone) short-circuit on a
@@ -67,9 +61,6 @@ def _deny_if_blocked():
 def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
     @app.before_request
     def _attach_identity():
-        if _is_public(request.path):
-            return None
-
         matched, response = _try_api_token()
         if matched:
             return response or _deny_if_blocked()
@@ -79,10 +70,15 @@ def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
             g.user_id = user_id
             return _deny_if_blocked()
 
+        # Nobody identified. Data is refused, but the page is not: this hook is
+        # the app's first before_request, so returning a response here answers
+        # index.html and every bundle with it, and the visitor gets a blank
+        # window instead of a UI that could explain itself. Phase 3 shipped a
+        # redirect on this line once and the browser looped between the app and
+        # SSO until it gave up. Falling through hands the request to the SPA
+        # mount; /api/* stays 401 and the frontend renders that.
         if request.path.startswith("/api/"):
-            return error_json("unauthenticated", "SSO session required", 401)
-
-        target = provider.login_redirect_url(request, request.path)
-        if target:
-            return redirect(target)
-        return error_json("unauthenticated", "SSO session required", 401)
+            return error_json(
+                "unauthenticated", "member identity cookie missing", 401
+            )
+        return None

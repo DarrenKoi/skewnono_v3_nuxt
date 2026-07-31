@@ -1,70 +1,58 @@
-import importlib
+"""Who the caller is, in one place, per phase.
+
+Both phases read the same cookie. The company infrastructure sets `LASTUSER`
+(the legacy AFM app has read it since before this app existed —
+`afm/routes.py:196`), so the cloud needs no SSO library of its own: there is
+nothing `hcputil` could tell us about the caller that the cookie does not.
+
+The phases differ in exactly one thing — what an *absent* cookie means — and
+that difference is the security boundary, so the two classes stay separate
+rather than sharing a `default=` argument someone could pass the wrong way.
+"""
+
 from typing import Optional, Protocol
 
 from flask import Request
 
+# Both spellings have been in circulation on the company network; afm/routes.py
+# has always accepted either, and a cloud host that saw only the other one
+# would look exactly like "nobody is logged in".
+_IDENTITY_COOKIES = ("LASTUSER", "LAST_USER")
+
 
 class IdentityProvider(Protocol):
     def identify(self, request: Request) -> Optional[str]: ...
-    def login_redirect_url(self, request: Request, next_path: str) -> Optional[str]: ...
+
+
+def _cookie_identity(request: Request) -> Optional[str]:
+    for name in _IDENTITY_COOKIES:
+        value = (request.cookies.get(name) or "").strip()
+        if value:
+            return value
+    return None
 
 
 class LocalIdentityProvider:
-    """Local/home dev: reuse the LASTUSER cookie pattern from afm/routes.py."""
+    """Home and office-localhost: the cookie, or a stand-in developer.
+
+    The `local-dev` fallback is a convenience — a fresh browser needs no setup
+    to reach the app — and it is an admin id (`_auth/admin.py`). That is
+    deliberately absent from the cloud provider below.
+    """
 
     def identify(self, request: Request) -> Optional[str]:
-        return (
-            request.cookies.get("LASTUSER")
-            or request.cookies.get("LAST_USER")
-            or "local-dev"
-        )
-
-    def login_redirect_url(self, request: Request, next_path: str) -> Optional[str]:
-        return None
-
-
-def _load_sso_class():
-    """Return the cloud image's confirmed SSO class."""
-    module_path = "hcputil.auth.sso"
-    try:
-        return importlib.import_module(module_path).SSO
-    except ImportError as exc:
-        raise ImportError(
-            f"{module_path} is not importable; "
-            "the cloud image must provide this SSO module."
-        ) from exc
+        return _cookie_identity(request) or "local-dev"
 
 
 class CloudIdentityProvider:
-    """Cloud production: validate via the cloud image's hcputil SSO. Imported
-    lazily because hcputil is provided only by the cloud image."""
+    """Phase 3: the cookie, or nobody.
 
-    _ID_ATTRS = ("user_id", "member_id", "userId", "memberId", "id")
-
-    def __init__(self) -> None:
-        self._SSO_cls = _load_sso_class()
-
-    def _sso(self, request: Request):
-        return self._SSO_cls(request)
+    Returning None is the whole point of this class existing separately. A
+    fallback id here would be handed to every unidentified visitor on the
+    private cloud, and if it ever matched the admin allowlist it would hand out
+    the admin panel with it. Unidentified must stay unidentified; the gate in
+    `middleware.py` decides what an unidentified caller may still reach.
+    """
 
     def identify(self, request: Request) -> Optional[str]:
-        try:
-            sso = self._sso(request)
-        except Exception:
-            return None
-        for attr in self._ID_ATTRS:
-            value = getattr(sso, attr, None)
-            if value:
-                return str(value)
-        return None
-
-    def login_redirect_url(self, request: Request, next_path: str) -> Optional[str]:
-        try:
-            sso = self._sso(request)
-        except Exception:
-            return None
-        base = str(getattr(sso, "redirect_url", "")).rstrip("/")
-        if not base:
-            return None
-        suffix = next_path if next_path.startswith("/") else f"/{next_path}"
-        return f"{base}{suffix}"
+        return _cookie_identity(request)

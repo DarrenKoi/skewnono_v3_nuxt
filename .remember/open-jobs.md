@@ -11,8 +11,10 @@ _Updated: 2026-07-29 · branch: main_
 
 - [ ] **How home stands in for `office_utils.read_idp_info`** — I offered three routes (paste real `df.dtypes`+`head(3)` output / vendor the parser like ftp_handler / pure mock from column lists alone); user wanted to clarify the question and then signed off. Blocked on: that decision. Partially mitigated 2026-07-29 — `office_utils/read_idp_info.py` now has a stand-in with corrected slot values — but the real parser's output still has not been seen · since 2026-07-27
 - [ ] First cloud feasibility deploy → `http://skewnono-v3-webapp.aipp01.skhynix.com` — packaging shipped, unblocked on our side. Remaining: pack from the office PC (`npm --prefix front-dev-home run build && .venv/bin/python -m scripts.deploy`), copy to `/project/workSpace/`, follow the bundle's `DEPLOY.md` · since 2026-07-24
-- [ ] Register `skewnono-v3-webapp.aipp01.skhynix.com` with SSO as a valid service/callback URL — blocked on infra/SSO team; repeat for `skewnono.skhynix.com` at cutover · since 2026-07-24
-- [ ] Confirm which `hcputil` SSO spelling the cloud image provides (`auth` vs `auto`) — not urgent, `_load_sso_class()` tries both (`374432a`); bundled `preflight.py` reports which resolved · since 2026-07-24
+- [ ] Confirm the `members` hash value encoding at the office — JSON object is an OFFICE-VERIFY assumption in `docs/datatables/members.txt`. If wrong, `/api/me` still works (names degrade to empno) and the warning log `member document for <empno> is not the expected JSON object` names it · since 2026-07-31
+- [ ] Confirm the cloud host forwards the `LASTUSER` cookie to `/project/workSpace` — identity now depends on it alone; a host that strips it leaves everyone unidentified (pages load, `/api/*` 401s) · since 2026-07-31
+- [x] ~~Register hostnames with SSO~~ — moot: identity is the `LASTUSER` cookie, no SSO callback registration needed (2026-07-31)
+- [x] ~~Confirm which `hcputil` SSO spelling the cloud image provides~~ — moot: `hcputil` dependency removed entirely (2026-07-31)
 
 ## Backlog / soon
 

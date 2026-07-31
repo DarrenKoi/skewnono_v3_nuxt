@@ -5,8 +5,6 @@ raises instead of returning a failure string is a bug.
 """
 
 import re
-import sys
-import types
 from pathlib import Path
 
 import pytest
@@ -86,38 +84,28 @@ def test_imports_report_missing_package_by_pip_name(monkeypatch):
     assert any("some-pip-name" in f for f in failures)
 
 
-def test_imports_accept_hcputil_auth_sso(monkeypatch):
+def test_imports_need_nothing_the_cloud_image_alone_supplies(monkeypatch):
+    """Preflight used to fail the deploy unless `hcputil.auth.sso` imported.
+
+    Identity is now the LASTUSER cookie, so every runtime import comes from
+    requirements.txt and a host that installed them passes. Keeping the old
+    gate would block a deploy that is in fact complete.
+    """
     monkeypatch.setattr(preflight_cloud, "RUNTIME_PACKAGES", ())
-    pkg = types.ModuleType("hcputil")
-    pkg.__path__ = []
-    sub = types.ModuleType("hcputil.auth")
-    sub.__path__ = []
-    sso = types.ModuleType("hcputil.auth.sso")
-    sso.SSO = object
-    monkeypatch.setitem(sys.modules, "hcputil", pkg)
-    monkeypatch.setitem(sys.modules, "hcputil.auth", sub)
-    monkeypatch.setitem(sys.modules, "hcputil.auth.sso", sso)
 
     failures, notes = preflight_cloud.check_imports()
 
     assert failures == []
-    assert notes == ["hcputil resolved as hcputil.auth.sso"]
+    assert any("LASTUSER" in note for note in notes)
 
 
-def test_imports_reject_auto_typo(monkeypatch):
-    monkeypatch.setattr(preflight_cloud, "RUNTIME_PACKAGES", ())
-    attempted = []
+def test_no_check_reaches_for_a_cloud_image_module():
+    """The bundle must be verifiable from its own contents. An import probe for
+    a module only the cloud image provides cannot be reproduced anywhere the
+    deploy is prepared, so a failure there is undiagnosable before transfer."""
+    source = Path(preflight_cloud.__file__).read_text(encoding="utf-8")
 
-    def missing(name):
-        attempted.append(name)
-        raise ImportError(name)
-
-    monkeypatch.setattr(preflight_cloud.importlib, "import_module", missing)
-
-    failures, _notes = preflight_cloud.check_imports()
-
-    assert attempted == ["hcputil.auth.sso"]
-    assert any("hcputil.auth.sso" in failure for failure in failures)
+    assert "hcputil" not in source
 
 
 def test_config_does_not_read_env_contents(bundle):

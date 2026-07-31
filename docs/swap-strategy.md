@@ -49,7 +49,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 | L1 | provider 전환 미적용 피처 | mock 구현, 공개 계약, office adapter가 아직 분리되지 않음 |
 | L2 | 사무실 원본 명세 | source 이름, mapping, null/enum/timezone/dedup 규칙이 피처별로 불완전함 |
 | L3 | 오류 응답 | 일반 source 예외가 공통 JSON 오류 형태와 HTTP 상태로 정규화되지 않음 |
-| L4 | 사무실 의존성 | OpenSearch/MinIO는 `ops_store`/`minio_handler`를 사용하며 `hcputil` 제공 방식과 전체 dependency version 고정이 남음 |
+| L4 | 사무실 의존성 | OpenSearch/MinIO는 `ops_store`/`minio_handler`를 사용하며 전체 dependency version 고정이 남음 (인증은 `LASTUSER` 쿠키만 사용하므로 외부 SSO 모듈 의존 없음) |
 | L5 | 검증 범위 | `check_contract.py`는 첫 행 구조를 비교하지만 enum, 모든 행, 중복, truncation은 검증하지 않음 |
 
 피처별 상세 체크리스트는 `docs/back-end/office-data-adapters.md`의 연결 명세 표를 사용합니다.

@@ -44,10 +44,6 @@ RUNTIME_PACKAGES = (
     ("requests", "requests"),
 )
 
-# The cloud image supplies this; requirements.txt deliberately does not.
-HCPUTIL_PATH = "hcputil.auth.sso"
-
-
 def check_layout(root: Path) -> list[str]:
     """Structural checks. Depth matters as much as presence."""
     failures = []
@@ -77,7 +73,9 @@ def check_layout(root: Path) -> list[str]:
     if not root.resolve().is_relative_to(CLOUD_PREFIX):
         failures.append(
             f"PATH bundle is at {root.resolve()}, not under {CLOUD_PREFIX}. "
-            "is_cloud() will be False: no SSO auth, no SPA mount, mock data. "
+            "is_cloud() will be False: no SPA mount, mock data, and — worst — "
+            "the LOCAL identity provider, which falls back to the admin id "
+            "'local-dev' for any caller with no LASTUSER cookie. "
             f"Move the bundle so it sits under {CLOUD_PREFIX}."
         )
 
@@ -98,16 +96,7 @@ def check_imports() -> tuple[list[str], list[str]]:
                 f"run: pip install -r back_dev_home/requirements.txt  [{pip_name}]"
             )
 
-    try:
-        importlib.import_module(HCPUTIL_PATH)
-    except ImportError as exc:
-        failures.append(
-            f"IMPORT {HCPUTIL_PATH} unavailable ({exc}). "
-            "This is supplied by the cloud image, NOT by requirements.txt. "
-            "Without it create_app() raises and uwsgi refuses to start."
-        )
-    else:
-        notes.append(f"hcputil resolved as {HCPUTIL_PATH}")
+    notes.append("identity: LASTUSER cookie (no cloud-image SSO module needed)")
 
     return failures, notes
 
