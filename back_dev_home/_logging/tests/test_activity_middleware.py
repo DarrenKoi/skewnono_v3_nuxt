@@ -365,3 +365,39 @@ def test_the_skip_does_not_leak_into_the_next_request(make_app, records):
     record = _only(records, "request")
     assert record.path == "/api/sem-list"
     assert record.activity_weight == 1
+
+
+def test_the_record_carries_how_the_caller_was_identified(make_app, records):
+    """The field this self-identification feature exists to produce.
+
+    Without it, an infrastructure misconfiguration that strips the cookie and a
+    genuine walk-up visitor merge into one undifferentiated `anonymous` stream
+    — the silent failure the feature was written to end.
+    """
+    client = make_app(user_id="7654321", identity_source="declared")
+
+    client.get("/api/sem-list")
+
+    assert _only(records, "request").identity_source == "declared"
+
+
+def test_a_cookie_caller_is_distinguishable_from_a_declared_one(make_app, records):
+    """Same record shape, different provenance — which is the entire point: one
+    of these identities was asserted by the company's infrastructure and the
+    other was typed in by its own subject."""
+    client = make_app(user_id="2067928", identity_source="cookie")
+
+    client.get("/api/sem-list")
+
+    assert _only(records, "request").identity_source == "cookie"
+
+
+def test_a_request_logged_before_the_chain_ran_records_none(make_app, records):
+    """Some paths log without an identity resolved. The field must read as
+    absent rather than raising inside the logger, where an exception would cost
+    the log line AND the request carrying it."""
+    client = make_app(user_id="2067928")
+
+    client.get("/api/sem-list")
+
+    assert _only(records, "request").identity_source is None

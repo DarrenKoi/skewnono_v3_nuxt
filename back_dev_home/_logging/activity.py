@@ -71,6 +71,14 @@ def _build_extra(
     return {
         "event": event,
         "user_id": str(user_id) if user_id not in (None, "-") else None,
+        # How we know who this is: token, cookie, declared, local, anonymous.
+        # An `anonymous` row is only actionable when a self-declared identity
+        # is distinguishable from an infrastructure-supplied one — a log that
+        # merges them is exactly the silence self-identification removes.
+        # Read defensively: paths that log before the identity chain has run
+        # must record None rather than raise inside the logger, where an
+        # exception costs the log line and the request carrying it.
+        "identity_source": getattr(g, "identity_source", None),
         "api_token_id": getattr(g, "api_token_id", None),
         "request_id": _request_id(),
         "method": request.method,
