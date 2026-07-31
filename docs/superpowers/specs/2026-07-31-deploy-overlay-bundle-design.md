@@ -36,6 +36,16 @@
   Flask가 시작할 때 이 파일을 로드하기 때문입니다.
 - `.env`와 다른 런타임 자격 증명 파일은 현재와 같이 번들에 포함합니다.
 
+## SSO 모듈 경로
+
+- 클라우드 이미지가 제공하는 SSO 모듈 경로는 `hcputil.auth.sso`입니다.
+- 클라우드용 `preflight.py`와 런타임 `CloudIdentityProvider`는
+  `hcputil.auth.sso`만 import합니다.
+- 오타인 `hcputil.auto.sso` fallback과 이를 설명하는 문서 및 테스트를
+  제거합니다.
+- `hcputil.auth.sso`를 import할 수 없으면 preflight와 애플리케이션 기동을
+  차단합니다.
+
 ## 오류 처리
 
 - 번들 생성에 필요한 파일이나 디렉터리가 없으면 패킹을 차단합니다.
@@ -53,5 +63,7 @@
   `/project/workSpace/wsgi.ini`가 없을 때 계속 실패하는지 확인합니다.
 - 패커 검사 결과에 `secret_key` 항목이 없고 `.env` 존재 검사는 유지되는지
   확인합니다.
+- preflight와 런타임 인증 테스트에서 `hcputil.auth.sso`만 지원하고
+  `hcputil.auto.sso`는 지원하지 않는지 확인합니다.
 - 배포 문서가 기존 `/project/workSpace`에 덮어쓰는 절차를 설명하는지
   확인합니다.
