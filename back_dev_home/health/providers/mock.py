@@ -11,9 +11,14 @@
 - MinIO      : OS 최신 도큐먼트의 `minio_path` (형식: "bucket/key") 를 stat() 으로 조회해
                last_modified 가 1시간 이내이면 "up".
 
-홈 환경에서는 세 서버 모두 실제로 떠 있지 않습니다. 각 체커는 try/except 로 묶여 있고,
-연결 실패·라이브러리 미설치 같은 예외가 발생하면 detail 앞에 `mock · ` 접두사를 단
-"up" 응답으로 폴백합니다. 사무실에서는 같은 코드가 실제 핑/쿼리 결과를 돌려줍니다.
+홈 환경에서는 세 서버 모두 실제로 떠 있지 않습니다. `get_mode()` 가 office 가
+아니면 프로브를 아예 시도하지 않고 canned 응답을 즉시 돌려줍니다 — 홈 .env 의
+REDIS_HOST 는 사무실 호스트라 "설정돼 있지만 도달 불가" 이고, 프로브를 돌리면
+요청마다 connect timeout(2s) 만큼 블록되기 때문입니다. office 모드에서만 라이브
+프로브를 수행하며, 각 체커는 try/except 로 묶여 있어 연결 실패·라이브러리 미설치
+같은 예외가 발생하면 detail 앞에 `mock · ` 접두사를 단 "up" 응답으로 폴백합니다.
+(office 모드 + 이 파일: office.py 를 아직 cp 하지 않은 사무실 장비의 하이브리드
+경로 — 모드가 office 이므로 라이브 프로브가 그대로 동작합니다.)
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from back_dev_home._runtime.data_provider import get_mode
 from back_dev_home.health.contracts import ServiceHealth, ServicesHealthResponse
 
 
@@ -202,6 +208,14 @@ def _check_minio(latest_doc: dict[str, Any] | None) -> ServiceHealth:
 
 
 def get_services_health() -> ServicesHealthResponse:
+    # Mode, not reachability: home's .env carries the office REDIS_HOST, so
+    # probing from home is not "try and fall back" — it is a guaranteed
+    # connect-timeout block on every call. Only office mode probes live.
+    if get_mode() != "office":
+        return {
+            "checked_at": _now().isoformat(timespec="seconds"),
+            "services": [_MOCK_REDIS, _MOCK_OPENSEARCH, _MOCK_MINIO],
+        }
     redis_h = _check_redis()
     os_h, latest_doc = _check_opensearch_latest()
     minio_h = _check_minio(latest_doc)
