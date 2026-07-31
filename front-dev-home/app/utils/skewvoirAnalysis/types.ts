@@ -176,3 +176,14 @@ export interface ReferenceDescriptor {
  * Answers "what did the tool do BETWEEN my points", at the cost of a CD line
  * that is mostly gaps. */
 export type SequenceAxisMode = 'param' | 'all'
+
+/** Time-Series lens: which of the three readings occupies the chart slot. */
+export type TsView = 'trend' | 'dist' | 'skew'
+
+/** Time-Series x-axis scaling. `time` is honest about cadence; `order` is the
+ *  escape hatch when measurements bunch into an unreadable smear. */
+export type TsAxisMode = 'time' | 'order'
+
+/** Time-Series value baseline: plotted as measured, or as a delta from the
+ *  set's median (`세트 기준`). */
+export type TsBaseline = 'raw' | 'resid'
