@@ -33,16 +33,6 @@ Key    -> "r3_device_grp" (DataFrame, parquet 직렬화)
 Column -> fac_id, plan_catg_typ, prod_catg_cd, tech_cd, den_typ,
           prod_grp_typ, gen_typ, lot_cd, plan_grade_cd, lake_load_tm, ctn_desc
 
-★ Key 이름 정정 이력 — 두 번 바뀌었습니다. 최종은 r3_device_grp 입니다.
-
-  2026-07-30: "사무실이 서빙하는 key 는 device_info_rnd" 라고 기록.
-  2026-07-31: **철회.** device_info_rnd 는 **낡은 데이터**이며, 살아 있는
-              카탈로그는 원래 이름 그대로 **r3_device_grp** 입니다
-              (user-confirmed). M 계열 양산 쪽도 device_desc 입니다.
-
-  이 이름을 다시 device_info_* 로 되돌리지 마십시오 — device_desc.txt 의
-  같은 절에 이유가 있습니다.
-
 정정 사항
 
 - 두 카탈로그(device_desc, r3_device_grp)는 device-statistics 의 initial

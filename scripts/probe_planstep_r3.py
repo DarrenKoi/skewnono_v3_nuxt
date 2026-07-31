@@ -53,7 +53,6 @@ INDEX = "sknn-planstep-r3"
 IDP_INDEX = "cdsem_idp_ver"
 
 # The Redis key holding the R3 device catalog this index's prod_id must join to.
-# NOT device_info_rnd — that key holds stale data (user-confirmed 2026-07-31).
 RND_KEY = "r3_device_grp"
 
 # Documented 2026-07-30. Presence and mapping type of each is what stage [1]

@@ -154,11 +154,9 @@ __all__ = [
 
 
 # ─────────────────────────── 원천 이름 ───────────────────────────
-# Redis 카탈로그 두 개 (user-confirmed 2026-07-31). 한동안 device_info_rnd /
-# device_info_hvm 이 최신이라고 기록되어 있었으나, 그 두 key 는 **낡은
-# 데이터**입니다. 살아 있는 카탈로그는 아래 둘이며 recipe_tat/fail_issue 가
-# 공유하는 _office_meas_hist.py 도 같은 이름을 읽습니다 — 한쪽만 바꾸면
-# 같은 device 목록이 화면마다 달라집니다.
+# Redis 카탈로그 두 개 (user-confirmed 2026-07-31). recipe_tat/fail_issue 가
+# 공유하는 _office_meas_hist.py 도 같은 두 key 를 읽으므로, 한쪽만 바꾸면 같은
+# device 목록이 화면마다 달라집니다.
 RND_KEY = "r3_device_grp"   # R3/R&D 카탈로그 (parquet DataFrame)
 HVM_KEY = "device_desc"     # M 계열 양산 카탈로그 (parquet DataFrame)
 

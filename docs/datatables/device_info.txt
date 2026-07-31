@@ -69,11 +69,6 @@ R3, R4 같은 R 계열 Fab은 최신 개발 디바이스 정보가 r3_device_grp
   key 로 저장되어 있지 않습니다. 계산해서 만드는 통계 결과입니다.
 - 그 summary 의 **원천** key 는 아래 둘입니다.
 
-★ 2026-07-30 에는 원천 key 가 device_info_hvm / device_info_rnd 라고 적혀
-  있었습니다. 2026-07-31 에 **철회**되었습니다 — 그 두 key 는 낡은 데이터이고,
-  살아 있는 카탈로그는 device_desc / r3_device_grp 입니다 (user-confirmed).
-  device_info_* 라는 이름이 이 문서 제목과 비슷해 원천처럼 보이지만 아닙니다.
-
 Key 1 -> "device_desc" : M 계열 양산 개발 디바이스 카탈로그.
          컬럼은 docs/datatables/device_desc.txt 기준
          (fac_id, lot_cd, ctn_desc, chg_tm, tech_nm, rnd_connector).

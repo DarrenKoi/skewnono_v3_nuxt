@@ -11,12 +11,6 @@ The split is **user-confirmed (2026-07-31)**: ``device_desc`` carries the M-fab
 *initial-setup* catalogs — device-statistics extracts device codes out of them
 per request, rather than reading a per-request table.
 
-★ Key-name history. On 2026-07-30 these were recorded as having been renamed to
-``device_info_hvm`` / ``device_info_rnd``; on 2026-07-31 that was withdrawn —
-those two keys hold **stale data**. They are still probed (as ``LEGACY_KEYS``)
-so a run reports whether they exist and how far behind they are, rather than
-leaving the question open for the next session.
-
 Each key is still scored against BOTH contracts anyway, and fab coverage is
 checked against the confirmed expectation, so a surprise (an R3 row inside
 ``device_desc``, a renamed column) shows up as a flagged mismatch instead of
@@ -36,13 +30,12 @@ Run FROM THE REPO ROOT at the office (the shared client self-loads
 
 What it reports per key: existence and byte size, the full column inventory
 (dtype / non-null / distinct / sample), fit against `DeviceDescRow` and
-`R3DeviceGrpRow` including the known ``ctn_desc`` -> ``stn_desc`` office rename,
-placeholder contamination (the literal string ``"None"`` the datatable docs warn
-about, which an adapter must normalize to ``""``), and fab coverage. Then across
-keys: ``lot_cd`` overlap (the join key `recipe-params`/`recipe-statistics`
-depend on), the four fields `recipe_tat`'s external `lot_metadata()` importer
-reads, and whether the legacy ``device_desc`` / ``r3_device_grp`` keys still
-exist — i.e. whether these are renames or additions.
+`R3DeviceGrpRow` including the ``ctn_desc`` / ``stn_desc`` spelling the docs
+have recorded both ways, placeholder contamination (the literal string
+``"None"`` the datatable docs warn about, which an adapter must normalize to
+``""``), and fab coverage. Then across keys: ``lot_cd`` overlap (the join key
+`recipe-params`/`recipe-statistics` depend on) and the four fields
+`recipe_tat`'s external `lot_metadata()` importer reads.
 
 Whatever this prints belongs in TWO places (CLAUDE.md): the schema of record in
 ``docs/datatables/<source>.txt`` AND the feature's ``providers/mock.py``
@@ -87,11 +80,6 @@ EXPECTED_FABS = {
     "r3_device_grp": ("R", "R3 연구개발"),
 }
 
-# The stale twins (★ in the module docstring). Probed for existence so a run
-# reports whether they are still present, instead of leaving "are those the real
-# keys?" open for another session to re-litigate.
-LEGACY_KEYS = ("device_info_hvm", "device_info_rnd")
-
 # Fields the contracts declare but the office does NOT store — `id` is a
 # row identifier the mock synthesizes (e.g. "M11-TP"), so counting it as a
 # missing office column would understate every fit score.
@@ -117,11 +105,10 @@ class ContractSpec:
     annotations: dict
     # contract field -> extra office spellings that count as present.
     #
-    # `stn_desc` is kept ONLY as a defensive alias: docs/datatables/
-    # device_desc.txt's office section claims the column is `stn_desc`, but that
-    # line is wrong — user-confirmed 2026-07-30 that the real column is
-    # `ctn_desc`, same as the contract. The alias costs nothing and means an
-    # unexpected `stn_desc` reads as an alias hit rather than a missing field.
+    # `stn_desc` is kept ONLY as a defensive alias: the real column is
+    # `ctn_desc`, same as the contract, but the docs recorded it as `stn_desc`
+    # once. The alias costs nothing and means an unexpected `stn_desc` reads as
+    # an alias hit rather than a missing field.
     #
     # r3_device_grp's office spellings drop the `e` from `_type` (the datatable
     # doc calls plan_catg_typ / den_typ 정식).
@@ -155,8 +142,8 @@ CONTRACTS = (
             # r3_device_grp stores tech_cd as separate columns of separate
             # tables, and MIGRATION.md's external importer reads tech_nm by
             # name. Treating them as interchangeable inflates the wrong
-            # contract's score and blurs the hvm/rnd distinction this script
-            # exists to draw.
+            # contract's score and blurs the 양산/연구개발 distinction this
+            # script exists to draw.
         },
     ),
 )
@@ -352,19 +339,6 @@ def report_cross_key(frames: dict) -> None:
         print(f"    {wanted:<16} {status}")
 
 
-def report_legacy_keys(client) -> None:
-    """Are device_desc / r3_device_grp still there? Rename vs addition."""
-    print("\n  legacy key names recorded in docs/datatables/:")
-    for name in LEGACY_KEYS:
-        key = name.encode()
-        kind = redis_text(client.type(key))
-        if kind == "none":
-            print(f"    {name:<20} ABSENT   -> docs are stale; update the Key line.")
-        else:
-            size = _human_bytes(client.strlen(key)) if kind == "string" else kind
-            print(f"    {name:<20} present  ({size}) -> both key sets exist; docs need both.")
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m scripts.inspect_device_info_keys",
@@ -386,11 +360,6 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Comma-separated columns to print full value counts for (e.g. fac_id,tech_nm).",
     )
-    parser.add_argument(
-        "--skip-legacy",
-        action="store_true",
-        help="Skip the device_desc / r3_device_grp existence check.",
-    )
     args = parser.parse_args(argv)
 
     keys = [name.strip() for name in args.keys.split(",") if name.strip()]
@@ -405,14 +374,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         frames = {name: inspect_key(client, name, args.rows, unique_cols) for name in keys}
         report_cross_key(frames)
-        if not args.skip_legacy:
-            report_legacy_keys(client)
 
         _rule("NEXT")
         print(
             "  Record what this run proved in BOTH places (CLAUDE.md):\n"
-            "    1. docs/datatables/device_info.txt  (+ device_desc.txt / "
-            "r3_device_grp.txt Key lines if the names changed)\n"
+            "    1. docs/datatables/device_desc.txt / r3_device_grp.txt\n"
             "    2. back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py "
             "docstring\n"
             "  Mark each fact 'office 확인 YYYY-MM-DD'. Then implement\n"

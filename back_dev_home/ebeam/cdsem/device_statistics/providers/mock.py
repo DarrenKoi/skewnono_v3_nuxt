@@ -14,12 +14,8 @@ device-statistics 의 initial setup 카탈로그이며 요청에 따라 여기�
 code 를 추출합니다 — 어느 한쪽이 다른 쪽의 상위 집합이 아니므로 office
 어댑터는 두 key 를 모두 읽어야 합니다.
 
-★ key 이름은 두 번 바뀌었습니다. 2026-07-30 에 device_info_hvm /
-device_info_rnd 로 "정정" 되었다가, 2026-07-31 에 그 두 key 가 **낡은
-데이터**임이 확인되어 원래 이름으로 돌아왔습니다. 다시 device_info_* 로
-되돌리지 마십시오 (docs/datatables/device_desc.txt 의 ★ 절).
-설명 컬럼은 `ctn_desc` 입니다 — 예전 문서의 `stn_desc` 는 한 번 엇갈렸던
-이름이라 office 어댑터가 두 이름을 모두 받아 줍니다.
+설명 컬럼은 `ctn_desc` 입니다 — 예전 문서가 `stn_desc` 로 적었던 적이 있어
+office 어댑터가 두 이름을 모두 받아 줍니다.
 
 이 mock 이 실물과 의도적으로 다른 점
 

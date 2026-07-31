@@ -11,17 +11,10 @@ exist yet.** Until it runs, `recipe-trend` returns a single point (the current
 week, computed live) and `recipe-statistics` is unaffected. See
 `docs/datatables/device_statistics_weekly_trend.txt`.
 
-Two facts were corrected on 2026-07-31 and are easy to re-break:
-
-- **`skip_yn` — "Y" means skipped, and the field has THREE values** (`"Y"`,
-  `"N"`, and blank). Selecting measured steps is `!= "Y"`, never `== "N"` —
-  the latter silently drops every blank-valued step. The 2026-07-30 note
-  saying `"Y"` meant "currently measuring" was wrong and has been withdrawn.
-  Both the adapter and the mock funnel this through one `_is_measuring()`.
-- **The Redis catalogs are `device_desc` / `r3_device_grp`**, not
-  `device_info_hvm` / `device_info_rnd` — those two hold stale data. This name
-  also flipped twice; see the ★ section in `docs/datatables/device_desc.txt`
-  before "fixing" it back.
+One fact is easy to re-break: **`skip_yn` — `"Y"` means skipped, and the field
+has THREE values** (`"Y"`, `"N"`, and blank). Selecting measured steps is
+`!= "Y"`, never `== "N"` — the latter silently drops every blank-valued step.
+Both the adapter and the mock funnel this through one `_is_measuring()`.
 
 The remaining OFFICE-VERIFY items are listed in the adapter's module
 docstring.
