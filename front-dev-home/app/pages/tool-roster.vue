@@ -7,6 +7,18 @@
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3">
+            <UButton
+              to="/"
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-arrow-left"
+              label="뒤로가기"
+            />
+            <span
+              class="h-6 w-px bg-(--sk-border-soft)"
+              aria-hidden="true"
+            />
             <h2 class="sk-heading">
               미연결 장비
             </h2>
@@ -52,17 +64,22 @@
       >
         <!-- Tool-type filter. Scopes the matrix AND the IP list: an IT request
              is filed per tool type, not as one mixed list. -->
-        <div class="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-(--sk-border)">
-          <UButton
-            v-for="chip in groupChips"
-            :key="chip.value"
-            size="sm"
-            :color="chip.value === activeGroup ? 'primary' : 'neutral'"
-            :variant="chip.value === activeGroup ? 'solid' : 'subtle'"
-            @click="selectGroup(chip.value)"
+        <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border) bg-(--sk-brand-soft) px-4 py-3">
+          <div
+            class="flex flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label="장비 유형 필터"
           >
-            {{ chip.label }} {{ chip.count }}
-          </UButton>
+            <SkChip
+              v-for="chip in groupChips"
+              :key="chip.value"
+              size="sm"
+              :label="chip.label"
+              :count="chip.count"
+              :active="chip.value === activeGroup"
+              @click="selectGroup(chip.value)"
+            />
+          </div>
 
           <div class="flex-1" />
 
@@ -88,20 +105,30 @@
 
         <div class="flex-1 min-h-0 overflow-auto">
           <!-- Matrix -->
-          <table class="w-max text-left">
-            <thead class="sticky top-0 bg-(--sk-surface)">
+          <table class="min-w-full w-max border-separate border-spacing-0 text-left">
+            <caption class="sr-only">
+              Fab별 미연결 장비 모델 수
+            </caption>
+            <thead>
               <tr>
-                <th class="sk-label py-1.5 px-2">
+                <th
+                  scope="col"
+                  class="sticky left-0 top-0 z-30 border-b border-r border-(--sk-border-soft) bg-(--sk-muted-surface) px-3 py-2 sk-label"
+                >
                   Fab
                 </th>
                 <th
                   v-for="model in matrix.models"
                   :key="model"
-                  class="sk-label py-1.5 px-2 text-right"
+                  scope="col"
+                  class="sticky top-0 z-20 whitespace-nowrap border-b border-r border-(--sk-border-soft) bg-(--sk-muted-surface) px-3 py-2 text-center sk-label"
                 >
                   {{ model }}
                 </th>
-                <th class="sk-label py-1.5 px-2 text-right">
+                <th
+                  scope="col"
+                  class="sticky right-0 top-0 z-30 border-b border-l border-(--sk-border-soft) bg-(--sk-muted-surface) px-3 py-2 text-center sk-label"
+                >
                   합계
                 </th>
               </tr>
@@ -110,49 +137,59 @@
               <tr
                 v-for="(fab, fabAt) in matrix.fabs"
                 :key="fab"
-                class="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                class="group transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
               >
-                <td class="sk-value py-1 px-2">
+                <th
+                  scope="row"
+                  class="sticky left-0 z-10 whitespace-nowrap border-b border-r border-(--sk-border-soft) bg-(--sk-surface) px-3 py-1.5 text-left group-hover:bg-zinc-50 dark:group-hover:bg-zinc-800/50 sk-value"
+                >
                   {{ fab }}
-                </td>
+                </th>
                 <td
                   v-for="(model, modelAt) in matrix.models"
                   :key="model"
-                  class="py-1 px-2 text-right"
+                  class="border-b border-r border-(--sk-border-soft) px-3 py-1.5 text-center"
                 >
                   <!-- Zero renders as · so occupied cells carry the eye. -->
-                  <UButton
+                  <button
                     v-if="cellCount(fabAt, modelAt)"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    :label="String(cellCount(fabAt, modelAt))"
+                    type="button"
+                    :aria-pressed="isSelectedCell(fab, model)"
                     :aria-label="`${fab} ${model} 장비 ${cellCount(fabAt, modelAt)}대 보기`"
+                    class="inline-flex min-h-7 min-w-8 items-center justify-center rounded-[var(--sk-r-sidebar)] border px-2 py-1 transition-colors sk-value-num"
+                    :class="isSelectedCell(fab, model)
+                      ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+                      : 'border-(--sk-border) bg-(--sk-muted-surface) text-(--sk-ink) hover:bg-(--sk-accent-soft)'"
                     @click="selectCell(fab, model)"
-                  />
+                  >
+                    {{ cellCount(fabAt, modelAt) }}
+                  </button>
                   <span
                     v-else
-                    class="sk-label"
+                    class="text-(--sk-ink-subtle) sk-label"
                   >·</span>
                 </td>
-                <td class="sk-value-num py-1 px-2 text-right">
+                <td class="sticky right-0 z-10 border-b border-l border-(--sk-border-soft) bg-(--sk-surface) px-3 py-1.5 text-center group-hover:bg-zinc-50 dark:group-hover:bg-zinc-800/50 sk-value-num">
                   {{ matrix.fabTotals[fabAt] }}
                 </td>
               </tr>
             </tbody>
-            <tfoot class="border-t border-(--sk-border)">
-              <tr>
-                <td class="sk-label py-1.5 px-2">
+            <tfoot>
+              <tr class="bg-(--sk-muted-surface)">
+                <th
+                  scope="row"
+                  class="sticky left-0 z-10 border-r border-t border-(--sk-border-soft) bg-(--sk-muted-surface) px-3 py-2 text-left sk-label"
+                >
                   합계
-                </td>
+                </th>
                 <td
                   v-for="(model, modelAt) in matrix.models"
                   :key="model"
-                  class="sk-value-num py-1.5 px-2 text-right"
+                  class="border-r border-t border-(--sk-border-soft) px-3 py-2 text-center sk-value-num"
                 >
                   {{ matrix.modelTotals[modelAt] }}
                 </td>
-                <td class="sk-value-num py-1.5 px-2 text-right">
+                <td class="sticky right-0 z-10 border-l border-t border-(--sk-border-soft) bg-(--sk-muted-surface) px-3 py-2 text-center sk-value-num">
                   {{ matrix.total }}
                 </td>
               </tr>
@@ -162,13 +199,20 @@
           <!-- Drill-down -->
           <div
             v-if="selectedCell"
-            class="border-t border-(--sk-border)"
+            class="m-3 overflow-hidden rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface)"
           >
-            <div class="px-4 py-2.5 flex items-center justify-between gap-3">
-              <h3 class="sk-heading">
-                {{ selectedCell.fab }} / {{ selectedCell.model }}
-                <span class="sk-label">{{ drilldownRows.length }}대</span>
-              </h3>
+            <div class="flex items-center justify-between gap-3 border-b border-(--sk-border-soft) px-3 py-2.5">
+              <div class="flex items-center gap-2">
+                <h3 class="sk-title">
+                  {{ selectedCell.fab }} / {{ selectedCell.model }}
+                </h3>
+                <UBadge
+                  color="neutral"
+                  variant="subtle"
+                >
+                  {{ drilldownRows.length }}대
+                </UBadge>
+              </div>
               <UButton
                 size="xs"
                 color="neutral"
@@ -179,14 +223,15 @@
               />
             </div>
             <UTable
+              class="bg-(--sk-surface)"
               :columns="drilldownColumns"
               :data="drilldownRows"
               :meta="drilldownTableMeta"
               :ui="{
-                root: 'w-fit max-w-full',
-                base: 'min-w-0 w-max',
-                td: 'py-1 px-2 sk-value',
-                th: 'py-1.5 px-2 sk-label'
+                root: 'w-full',
+                base: 'min-w-0 w-full',
+                td: 'px-3 py-1.5 sk-value',
+                th: 'px-3 py-2 sk-label'
               }"
             >
               <template #eqp_id-cell="{ row }">
@@ -289,6 +334,9 @@ const matrix = computed(() => buildPendingToolMatrix(visibleRows.value))
 // One lookup per cell instead of re-indexing matrix.counts in v-if, :label
 // and :aria-label separately.
 const cellCount = (fabAt: number, modelAt: number) => matrix.value.counts[fabAt]?.[modelAt]
+
+const isSelectedCell = (fab: string, model: string): boolean =>
+  selectedCell.value?.fab === fab && selectedCell.value.model === model
 
 const selectGroup = (group: PendingToolGroup | 'all') => {
   activeGroup.value = group
