@@ -312,3 +312,52 @@ def test_a_blank_name_is_refused_server_side(client, directory_says):
 
     assert response.status_code == 422
     assert response.get_json()["error"] == "invalid_input"
+
+
+def _nameless_member(user_id):
+    """What lookup_member returns on the cloud for an empno with no members
+    row — the home mock always fabricates a name, so the None path the merge
+    below exists for has to be planted (the documented mock value-domain
+    blind spot)."""
+    return {
+        "empno": user_id,
+        "emp_nm": None,
+        "dept_nm": None,
+        "organ_cd": None,
+        "upper_organ_nm": None,
+    }
+
+
+def test_the_declared_name_fills_a_nameless_member(
+    client, directory_says, monkeypatch
+):
+    """An absent directory row leaves the member nameless, and the name the
+    caller typed is then the only attribution there is — without the merge,
+    the header greets a self-identified caller by raw empno."""
+    directory_says(Probe(None, "absent"))
+    monkeypatch.setattr(routes_mod, "lookup_member", _nameless_member)
+
+    client.post("/api/identify", json={"empno": "9999999", "emp_nm": "김철수"})
+    body = client.get("/api/me").get_json()
+
+    assert body["identity_source"] == "declared"
+    assert body["member"]["emp_nm"] == "김철수"
+
+
+def test_a_stale_declaration_never_renames_a_cookie_caller(
+    client, directory_says, monkeypatch
+):
+    """The chain prefers a LASTUSER cookie over the declared session, so a
+    declaration left behind in the session must not leak its stored name onto
+    the cookie identity — that would attribute one person's name to another's
+    empno. The nameless member is the truth for the cookie caller."""
+    directory_says(Probe(None, "absent"))
+    monkeypatch.setattr(routes_mod, "lookup_member", _nameless_member)
+
+    client.post("/api/identify", json={"empno": "9999999", "emp_nm": "김철수"})
+    client.set_cookie("LASTUSER", "1234567")
+    body = client.get("/api/me").get_json()
+
+    assert body["identity_source"] == "cookie"
+    assert body["user_id"] == "1234567"
+    assert body["member"]["emp_nm"] is None

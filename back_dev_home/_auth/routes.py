@@ -40,6 +40,20 @@ def _identity_payload():
     """
     user_id = g.user_id
     declared = read_declared()
+    member = lookup_member(user_id)
+    # The stored declared name exists for exactly this payload: an `absent`
+    # directory row leaves the member nameless, and the name the caller typed
+    # is then the only attribution there is — without this, the header greets
+    # a self-identified caller by raw empno. The directory spelling wins when
+    # present (a verified declaration stored it anyway). Guarded on the
+    # SOURCE, not just the session: a stale declared session must not rename
+    # a caller whose identity came from a cookie.
+    if (
+        getattr(g, "identity_source", None) == SOURCE_DECLARED
+        and declared
+        and not (member.get("emp_nm") or "").strip()
+    ):
+        member = {**member, "emp_nm": declared["emp_nm"]}
     return {
         "user_id": user_id,
         "identity_source": getattr(g, "identity_source", None),
@@ -51,7 +65,7 @@ def _identity_payload():
         # Only meaningful for a declared identity. A cookie identity is not
         # "verified" — it is authoritative, which is a stronger thing.
         "verified": bool(declared and declared["verified"]),
-        "member": lookup_member(user_id),
+        "member": member,
     }
 
 
