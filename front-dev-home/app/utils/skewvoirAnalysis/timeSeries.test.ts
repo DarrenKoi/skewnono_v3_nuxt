@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   setBaseline, buildTrendSeries, buildSetDistributionGroups, buildToolSkew, distinctToolCount,
-  type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput
+  setParamOptions, setIntegrity,
+  type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput, type OptionFileInput
 } from './timeSeries.ts'
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 
@@ -196,4 +197,66 @@ test('distinctToolCount lets the panel tell "one tool" apart from "no data"', ()
   assert.equal(distinctToolCount([
     { eqpId: 'TP01', mean: 10 }, { eqpId: 'TP02', mean: 20 }
   ] as TrendPoint[]), 2)
+})
+
+const optFile = (params: string[], mpRows: { parameter: string, mp_number: number, sequence: number }[]): OptionFileInput =>
+  ({ parameters: params.map(p => ({ parameter: p, count: 1, mean: 0, std: 0, min: 0, max: 0, unit: 'nm' })), rows: mpRows })
+
+test('setParamOptions counts how many LOADED measurements carry each parameter', () => {
+  const rows = [row('m1', 'TP01', 't1'), row('m2', 'TP02', 't2'), row('m3', 'TP03', 't3')]
+  const files = new Map<string, OptionFileInput>([
+    ['m1', optFile(['WAFER', 'GATE_CD'], [{ parameter: 'WAFER', mp_number: 1, sequence: 1 }, { parameter: 'GATE_CD', mp_number: 2, sequence: 2 }])],
+    ['m2', optFile(['WAFER'], [{ parameter: 'WAFER', mp_number: 1, sequence: 1 }])]
+    // m3 has no file — it was never loaded, so it is not in the denominator
+  ])
+  const out = setParamOptions(rows, files)
+  assert.equal(out.find(o => o.parameter === 'WAFER')!.covered, 2)
+  assert.equal(out.find(o => o.parameter === 'GATE_CD')!.covered, 1)
+  assert.ok(out.every(o => o.loaded === 2))
+})
+
+test('setParamOptions sorts by coverage, then MP order, then name', () => {
+  const rows = [row('m1', 'TP01', 't1'), row('m2', 'TP02', 't2')]
+  const files = new Map<string, OptionFileInput>([
+    ['m1', optFile(['B_LATE', 'A_EARLY', 'RARE'], [
+      { parameter: 'A_EARLY', mp_number: 1, sequence: 1 },
+      { parameter: 'B_LATE', mp_number: 5, sequence: 5 },
+      { parameter: 'RARE', mp_number: 9, sequence: 9 }
+    ])],
+    ['m2', optFile(['B_LATE', 'A_EARLY'], [
+      { parameter: 'A_EARLY', mp_number: 1, sequence: 1 },
+      { parameter: 'B_LATE', mp_number: 5, sequence: 5 }
+    ])]
+  ])
+  // A_EARLY and B_LATE both cover 2; A_EARLY has the lower mp_number.
+  // RARE covers 1, so it sorts last regardless of anything else.
+  assert.deepEqual(setParamOptions(rows, files).map(o => o.parameter), ['A_EARLY', 'B_LATE', 'RARE'])
+})
+
+test('setIntegrity separates unresolved ids from unloaded files and counts recipes', () => {
+  const resolved = [
+    { ...row('m1', 'TP01', 't1'), recipeName: 'RCP_A' },
+    { ...row('m2', 'TP02', 't2'), recipeName: 'RCP_B' }
+  ]
+  const files = new Map<string, OptionFileInput>([['m1', optFile(['WAFER'], [])]])
+  const out = setIntegrity(['m1', 'm2', 'ghost'], resolved, files)
+  assert.equal(out.requested, 3)
+  assert.equal(out.resolved, 2)
+  assert.equal(out.loaded, 1)
+  assert.deepEqual(out.unresolvedMsrs, ['ghost'])
+  assert.equal(out.recipeCount, 2)
+})
+
+test('setIntegrity on a clean single-recipe set reports nothing to warn about', () => {
+  const resolved = [
+    { ...row('m1', 'TP01', 't1'), recipeName: 'RCP_A' },
+    { ...row('m2', 'TP02', 't2'), recipeName: 'RCP_A' }
+  ]
+  const files = new Map<string, OptionFileInput>([
+    ['m1', optFile(['WAFER'], [])], ['m2', optFile(['WAFER'], [])]
+  ])
+  const out = setIntegrity(['m1', 'm2'], resolved, files)
+  assert.deepEqual(out.unresolvedMsrs, [])
+  assert.equal(out.recipeCount, 1)
+  assert.equal(out.loaded, 2)
 })

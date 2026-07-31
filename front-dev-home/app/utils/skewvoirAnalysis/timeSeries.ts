@@ -238,3 +238,98 @@ export const buildToolSkew = (
   rows.sort((a, b) => Math.abs(b.offset) - Math.abs(a.offset))
   return rows
 }
+
+/** The MsrFile facts the parameter selector needs: which parameters exist, and
+ *  the MP order rows that break coverage ties. */
+export interface OptionFileInput {
+  parameters: MsrParamSummary[]
+  rows: { parameter: string, mp_number: number, sequence: number }[]
+}
+
+export interface SetParamOption {
+  parameter: string
+  /** Measurements in the set whose file carries this parameter. */
+  covered: number
+  /** Measurements whose file loaded at all — the coverage denominator. */
+  loaded: number
+}
+
+/** Set-aware parameter list with coverage.
+ *
+ *  NOT `ParamCoverage` — utils/overview.ts already owns that name for
+ *  attempted/measured/failed SITES within one measurement.
+ *
+ *  Ordering must be deterministic across a heterogeneous set. sortByRowMpOrder
+ *  answers "what order are one measurement's parameters in", and recipes can
+ *  disagree, so the set uses: coverage desc → lowest (mp_number, sequence) in
+ *  the set → name. */
+export const setParamOptions = (
+  rows: readonly TrendRowInput[],
+  files: ReadonlyMap<string, OptionFileInput>
+): SetParamOption[] => {
+  const covered = new Map<string, number>()
+  const rank = new Map<string, [number, number]>()
+  let loaded = 0
+
+  for (const row of rows) {
+    const file = files.get(row.msr)
+    if (!file) continue
+    loaded++
+    for (const p of file.parameters) {
+      covered.set(p.parameter, (covered.get(p.parameter) ?? 0) + 1)
+    }
+    for (const r of file.rows) {
+      if (r.mp_number < 0) continue
+      const current = rank.get(r.parameter)
+      if (!current || r.mp_number < current[0] || (r.mp_number === current[0] && r.sequence < current[1])) {
+        rank.set(r.parameter, [r.mp_number, r.sequence])
+      }
+    }
+  }
+
+  const options = [...covered].map(([parameter, n]) => ({ parameter, covered: n, loaded }))
+  const NO_RANK: [number, number] = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]
+  options.sort((a, b) => {
+    if (b.covered !== a.covered) return b.covered - a.covered
+    const ra = rank.get(a.parameter) ?? NO_RANK
+    const rb = rank.get(b.parameter) ?? NO_RANK
+    if (ra[0] !== rb[0]) return ra[0] - rb[0]
+    if (ra[1] !== rb[1]) return ra[1] - rb[1]
+    return a.parameter.localeCompare(b.parameter)
+  })
+  return options
+}
+
+/** A resolved set row plus the recipe, for the confounding badge. */
+export interface IntegrityRowInput extends TrendRowInput {
+  recipeName: string
+}
+
+export interface SetIntegrity {
+  /** Ids in the URL `msrs`. */
+  requested: number
+  /** Ids that matched a measurement-history row. */
+  resolved: number
+  /** Resolved measurements whose MsrFile actually came back. */
+  loaded: number
+  /** Ids the history could not resolve — most often a cross-family selection,
+   *  since search spans both SEM families but analysis loads one tool type. */
+  unresolvedMsrs: string[]
+  /** Distinct recipes in the set. >1 means tool skew is confounded. */
+  recipeCount: number
+}
+
+export const setIntegrity = (
+  msrList: readonly string[],
+  resolvedRows: readonly IntegrityRowInput[],
+  files: ReadonlyMap<string, unknown>
+): SetIntegrity => {
+  const resolvedIds = new Set(resolvedRows.map(r => r.msr))
+  return {
+    requested: msrList.length,
+    resolved: resolvedRows.length,
+    loaded: resolvedRows.filter(r => files.has(r.msr)).length,
+    unresolvedMsrs: msrList.filter(id => !resolvedIds.has(id)),
+    recipeCount: new Set(resolvedRows.map(r => r.recipeName)).size
+  }
+}
