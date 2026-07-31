@@ -27,6 +27,12 @@ test('/chat is reachable from the header and keeps its tabs', () => {
   assert.equal(isHeaderInfoPath('/chat'), true)
 })
 
+test('/tool-roster is reached from the landing page, not the header', () => {
+  assert.equal(HEADER_LINKS.some(link => link.to === '/tool-roster'), false)
+  assert.equal(HEADER_INFO_PATHS.includes('/tool-roster'), false)
+  assert.equal(isHeaderInfoPath('/tool-roster'), false)
+})
+
 test('the fab-scoped live-alarm link is not an info path', () => {
   // Its target is computed per remembered tool/fab and lands inside /ebeam, where the tabs
   // come from isEbeamRoute instead.
