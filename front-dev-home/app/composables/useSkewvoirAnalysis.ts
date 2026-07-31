@@ -367,6 +367,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // the empty string, and a truthy test would treat an explicit pick of it as
   // absent and rewrite it away.
   watch([() => activeParamPool(paramInput.value), () => ws.selection.value?.mp], ([pool, mp]) => {
+    // Under set scope with no set files loaded, the pool is the focus file's —
+    // deliberately narrower than the screen's real subject. Falling back for
+    // RENDERING is right; rewriting the URL from that pool is not. It would
+    // silently discard a set-only parameter the moment the user visits the
+    // dashboard. The set-scope pass corrects a genuinely invalid mp later.
+    if (ws.scope.value === 'set' && setFiles.value.size === 0) return
     if (pool.length === 0) return
     if (mp != null && pool.includes(mp)) return
     if (activeParam.value !== mp) ws.setParam(activeParam.value)
@@ -441,6 +447,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
         className: r.class_name,
         totalImages: r.total_images
       })))
+      // A slow batch must not land on a screen that has moved on. setKey is ''
+      // for a non-set view, so without this a late response repopulates a map
+      // the empty-key branch already cleared — and activeParam (and the URL it
+      // writes back) would then judge against a set the screen is not showing.
+      // fetchMsrFiles retries on 429, so that window is seconds, not microtasks.
+      if (key !== setKey.value) return
       setFiles.value = new Map(res.map(f => [f.msr, f]))
     } catch {
       // Leave the previous map in place on failure rather than blanking the chart.
