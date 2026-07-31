@@ -26,7 +26,6 @@ import sys
 from pathlib import Path
 
 CLOUD_PREFIX = Path("/project/workSpace")
-DEFAULT_SECRET_KEY = "dev-only-not-for-prod"
 
 # (import name, pip name) — the two differ often enough to be worth pairing,
 # because the remedy the operator needs is the pip name.
@@ -45,8 +44,8 @@ RUNTIME_PACKAGES = (
     ("requests", "requests"),
 )
 
-# The cloud image supplies these; requirements.txt deliberately does not.
-HCPUTIL_PATHS = ("hcputil.auth.sso", "hcputil.auto.sso")
+# The cloud image supplies this; requirements.txt deliberately does not.
+HCPUTIL_PATH = "hcputil.auth.sso"
 
 
 def check_layout(root: Path) -> list[str]:
@@ -86,7 +85,7 @@ def check_layout(root: Path) -> list[str]:
 
 
 def check_imports() -> tuple[list[str], list[str]]:
-    """Returns (failures, notes). Notes record which hcputil spelling worked."""
+    """Returns (failures, notes)."""
     failures = []
     notes = []
 
@@ -99,64 +98,32 @@ def check_imports() -> tuple[list[str], list[str]]:
                 f"run: pip install -r back_dev_home/requirements.txt  [{pip_name}]"
             )
 
-    for module_path in HCPUTIL_PATHS:
-        try:
-            importlib.import_module(module_path)
-        except ImportError:
-            continue
-        notes.append(f"hcputil resolved as {module_path}")
-        break
-    else:
+    try:
+        importlib.import_module(HCPUTIL_PATH)
+    except ImportError as exc:
         failures.append(
-            "IMPORT hcputil SSO unavailable; tried "
-            + " and ".join(HCPUTIL_PATHS)
-            + ". This is supplied by the cloud image, NOT by requirements.txt. "
+            f"IMPORT {HCPUTIL_PATH} unavailable ({exc}). "
+            "This is supplied by the cloud image, NOT by requirements.txt. "
             "Without it create_app() raises and uwsgi refuses to start."
         )
+    else:
+        notes.append(f"hcputil resolved as {HCPUTIL_PATH}")
 
     return failures, notes
 
 
-def _parse_env(text: str) -> dict[str, str]:
-    """Minimal .env reader — python-dotenv may not be installed yet."""
-    values = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        values[key.strip()] = value.strip()
-    return values
-
-
 def check_config(root: Path) -> tuple[list[str], list[str]]:
-    """Returns (failures, warnings)."""
-    failures = []
-    warnings = []
-
+    """Check that Flask's environment file exists without inspecting it."""
     env_path = root / "back_dev_home" / ".env"
     if not env_path.is_file():
-        failures.append(
-            f"MISSING {env_path} — create_app() calls load_dotenv on this path; "
-            "without it the app boots unconfigured."
+        return (
+            [
+                f"MISSING {env_path} — create_app() calls load_dotenv on this path; "
+                "without it the app boots unconfigured."
+            ],
+            [],
         )
-        return failures, warnings
-
-    try:
-        values = _parse_env(env_path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        failures.append(f"UNREADABLE {env_path}: {exc}")
-        return failures, warnings
-
-    secret = values.get("SKEWNONO_SECRET_KEY", "")
-    if not secret or secret == DEFAULT_SECRET_KEY:
-        warnings.append(
-            "SKEWNONO_SECRET_KEY is unset or still the default "
-            f"({DEFAULT_SECRET_KEY!r}); sessions are signed with a known key. "
-            "Acceptable for a feasibility deploy, not for skewnono.skhynix.com."
-        )
-
-    return failures, warnings
+    return [], []
 
 
 def _adapter_roster(root: Path) -> list[str]:

@@ -86,34 +86,45 @@ def test_imports_report_missing_package_by_pip_name(monkeypatch):
     assert any("some-pip-name" in f for f in failures)
 
 
-def test_imports_accept_either_hcputil_spelling(monkeypatch):
+def test_imports_accept_hcputil_auth_sso(monkeypatch):
     monkeypatch.setattr(preflight_cloud, "RUNTIME_PACKAGES", ())
     pkg = types.ModuleType("hcputil")
     pkg.__path__ = []
-    sub = types.ModuleType("hcputil.auto")
+    sub = types.ModuleType("hcputil.auth")
     sub.__path__ = []
-    sso = types.ModuleType("hcputil.auto.sso")
+    sso = types.ModuleType("hcputil.auth.sso")
     sso.SSO = object
     monkeypatch.setitem(sys.modules, "hcputil", pkg)
-    monkeypatch.setitem(sys.modules, "hcputil.auto", sub)
-    monkeypatch.setitem(sys.modules, "hcputil.auto.sso", sso)
+    monkeypatch.setitem(sys.modules, "hcputil.auth", sub)
+    monkeypatch.setitem(sys.modules, "hcputil.auth.sso", sso)
 
     failures, notes = preflight_cloud.check_imports()
 
     assert failures == []
-    assert any("hcputil.auto.sso" in n for n in notes)
+    assert notes == ["hcputil resolved as hcputil.auth.sso"]
 
 
-def test_config_warns_on_default_secret_key(bundle):
-    root = bundle
-    (root / "back_dev_home" / ".env").write_text(
-        "SKEWNONO_SECRET_KEY=dev-only-not-for-prod\n"
-    )
+def test_imports_reject_auto_typo(monkeypatch):
+    monkeypatch.setattr(preflight_cloud, "RUNTIME_PACKAGES", ())
+    attempted = []
 
-    failures, warnings = preflight_cloud.check_config(root)
+    def missing(name):
+        attempted.append(name)
+        raise ImportError(name)
 
-    assert failures == []
-    assert any("SKEWNONO_SECRET_KEY" in w for w in warnings)
+    monkeypatch.setattr(preflight_cloud.importlib, "import_module", missing)
+
+    failures, _notes = preflight_cloud.check_imports()
+
+    assert attempted == ["hcputil.auth.sso"]
+    assert any("hcputil.auth.sso" in failure for failure in failures)
+
+
+def test_config_does_not_read_env_contents(bundle):
+    env_path = bundle / "back_dev_home" / ".env"
+    env_path.write_bytes(b"\xff")
+
+    assert preflight_cloud.check_config(bundle) == ([], [])
 
 
 def test_config_fails_when_env_missing(bundle):
