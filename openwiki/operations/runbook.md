@@ -1,7 +1,7 @@
 ---
 type: Operations Runbook
 title: Development and Deployment Runbook
-description: Practical commands and diagnostics for running, configuring, building, and deploying the SKEWNONO Nuxt frontend and Flask backend across mock, office-local, and cloud modes.
+description: Practical commands and diagnostics for identity, configuration, office adapters, overlay packaging, and running the SKEWNONO Nuxt and Flask application across home, office, and cloud modes.
 resource: index.py
 tags: [operations, runbook, deployment, configuration, troubleshooting]
 ---
@@ -41,7 +41,8 @@ Check backing services through `GET /api/health/services` and resolved feature p
 | Extra office hosts | `SKEWNONO_OFFICE_HOSTNAMES` | Comma-separated hostnames outside the tracked `PC...` convention |
 | Provider mode | `SKEWNONO_DATA_PROVIDER` | `mock` is a whole-instance kill switch; `office` enables only adapters present on this machine |
 | Feature source | `SKEWNONO_<FEATURE>_PROVIDER` | Highest precedence; explicit `office` fails if that adapter is absent |
-| Session secret | `SKEWNONO_SECRET_KEY` | Development-only fallback; set in production |
+| Session secret | `SKEWNONO_SECRET_KEY` | Development-only fallback at home; cloud startup and preflight require a nonblank value |
+| Trusted proxy address | `SKEWNONO_TRUST_PROXY` | Off by default; truthy enables exactly one trusted `X-Forwarded-For` hop |
 | Admin users | `SKEWNONO_ADMIN_USERS` | Mode-specific source defaults |
 | Logging target | `SKEWNONO_LOG_ENV` | Required as `local` or `production` when OpenSearch logging credentials are configured; selects the shared writer/reader alias |
 | Logging kill switch | `OPENSEARCH_LOGGING_DISABLED` | `1`, `true`, or `yes` skips the asynchronous log shipper without changing reader/provider selection |
@@ -49,6 +50,12 @@ Check backing services through `GET /api/health/services` and resolved feature p
 | Extra blocked chat hosts | `CHAT_BLOCKED_HOSTS` | Comma-separated additions to the built-in office blocklist |
 
 Use the tracked `back_dev_home/.env.example` as the non-secret template and copy it to the ignored `back_dev_home/.env` for local values. Never inspect or document live `.env` values. Configuration exists under backend/frontend environment files, but setup documentation should refer only to variable names and trusted secret-management procedures.
+
+## Identity checks
+
+Every phase exposes `GET /api/me`. Identity precedence is API token, `LASTUSER`/legacy `LAST_USER` cookie, signed self-declaration, then `local-dev` at home or `anonymous` in cloud. Cloud users with no cookie are sent by Nuxt to `/identify`; accepted declarations last 30 days and may carry `verified: false` when the `members` directory has no row or is unavailable. They remain non-admin regardless of employee number. Use the header release action or `DELETE /api/identify` to clear a declaration.
+
+Before cloud rollout, confirm the hosting layer forwards `LASTUSER`. If it does not, the application remains usable but all new browser sessions initially appear as `anonymous`, masking an infrastructure problem as a self-identification workflow. When nginx or another trusted proxy terminates connections, enable `SKEWNONO_TRUST_PROXY` only if exactly one proxy supplies `X-Forwarded-For`; leaving it off is safer for the current direct uWSGI socket because clients could otherwise forge addresses.
 
 ## Incremental office migration
 
@@ -101,13 +108,12 @@ Build and package the client-only SPA from the office working tree:
 
 ```bash
 npm --prefix front-dev-home run build
-.venv/bin/python -m scripts.deploy
-# Equivalent: .venv/bin/python -m scripts.deploy --build
+.venv/bin/python scripts/deploy/pack.py
 ```
 
-The default bundle is `dist/skewnono-<timestamp>/`. Packaging deliberately reads the working tree rather than `git archive`, so ignored `providers/office.py`, `back_dev_home/.env`, and `minio_handler/minio_config.py` are retained. It also writes `preflight.py`, `DEPLOY.md`, and `MANIFEST.txt`; the manifest records source provenance, dirty state, adapter roster, and pack-time warnings. Use `--strict` only when every advisory should block packaging; the current feasibility deployment permits a runnable mock-backed bundle. See `docs/deployment.md` for the authoritative transfer procedure.
+The default artifact is an **overlay bundle** under `dist/`: it deliberately excludes the permanent cloud-root `index.py` and `wsgi.ini`, which must already exist under `/project/workSpace`. Packaging reads the working tree rather than `git archive`, so ignored `providers/office.py`, `back_dev_home/.env`, and `minio_handler/minio_config.py` are retained. It also writes `preflight.py`, `DEPLOY.md`, and `MANIFEST.txt`; the manifest records source provenance, dirty state, adapter roster, and pack-time warnings. Use `--strict` only when every advisory should block packaging; the current feasibility deployment permits a runnable mock-backed overlay. See `docs/deployment.md` for the authoritative transfer procedure.
 
-Copy the bundle's contents directly under `/project/workSpace`, restore restrictive permissions because transfer may discard them, then preflight both before and after dependency installation:
+Overlay the bundle's contents directly onto the existing `/project/workSpace` without deleting its permanent root boot files. Restore restrictive permissions because transfer may discard them, then preflight both before and after dependency installation:
 
 ```bash
 chmod 700 /project/workSpace
@@ -121,7 +127,7 @@ uwsgi --ini wsgi.ini
 curl localhost:5000/api/health/providers
 ```
 
-Path and directory depth are runtime configuration: `_runtime/env.py` recognizes cloud mode only below `/project/workSpace`, and SPA lookup assumes the packaged depth. An extra wrapper directory or another installation path can leave the process returning HTTP while silently disabling cloud SSO, SPA mounting, and office-mode site classification. The standard-library-only preflight catches these layout errors and reports whether `hcputil.auth.sso` or `hcputil.auto.sso` is available from the cloud image.
+Path and directory depth are runtime configuration: `_runtime/env.py` recognizes cloud mode only below `/project/workSpace`, and SPA lookup assumes the packaged depth. An extra wrapper directory or another installation path can leave the process returning HTTP while silently selecting the local fallback identity, disabling SPA mounting, and selecting the wrong provider mode. The standard-library-only preflight catches these layout errors, requires the permanent `index.py` and `wsgi.ini`, reports that identity comes from the `LASTUSER` cookie, and verifies that `back_dev_home/.env` chooses a nonblank `SKEWNONO_SECRET_KEY` before uWSGI can enter a boot loop.
 
 `wsgi.ini` exposes HTTP on `0.0.0.0:5000`, with four processes, two threads per process, 60-second harakiri, and worker recycle after 1,000 requests. The SPA uses relative `/api`, so the feasibility and production hostnames can use the same bundle. Current deployment URLs are HTTP-only; follow `docs/deployment.md` rather than enabling secure-cookie/HSTS settings that would break those sessions. The [architecture overview](../architecture/overview.md#deployment-modes) explains the underlying mode coupling.
 
@@ -197,7 +203,7 @@ All endpoints named `msr_image.*` are limiter-exempt. A `400 invalid_tool_ip` po
 
 ### Rate limits or local state behave inconsistently across workers
 
-The limiter uses `memory://`, and several home providers are in-memory/SQLite oriented. Measurement-image jobs use Redis only when the selected provider is office and `REDIS_HOST` is configured; otherwise they use process memory. Multi-worker office deployment therefore needs Redis to prevent valid polls reaching another worker as `404 unknown_job`. Job TTL and maximum-active settings are enforced, although Redis admission is a soft cross-worker guard rather than a fully atomic global cap. The app starts one idempotent image-cache purge scheduler per process. Connect intended shared persistence for other local state or reduce the process model only for diagnosis.
+The application-wide limiter uses shared Redis in office mode when `REDIS_HOST` is configured, with bounded connection timeouts and a per-process memory fallback; home or unconfigured runs use `memory://`. A fallback event restores availability but makes rate budgets worker-local again, so diagnose Redis before trusting enforcement totals. Measurement-image jobs independently use Redis only when the selected provider is office and `REDIS_HOST` is configured; otherwise they use process memory. Multi-worker office deployment therefore needs Redis to prevent valid polls reaching another worker as `404 unknown_job`. Job TTL and maximum-active settings are enforced, although Redis admission is a soft cross-worker guard rather than a fully atomic global cap. The app starts one idempotent image-cache purge scheduler per process.
 
 ### Icons disappear in the office network
 

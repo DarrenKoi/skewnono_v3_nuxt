@@ -18,7 +18,7 @@ Use this map after reading the [quickstart](quickstart.md). It identifies owners
 | `wsgi.ini` | uWSGI process/network configuration | Production-style process model |
 | `back_dev_home/__init__.py` | App factory and Blueprint discovery | Middleware, feature registration, rate limiting |
 | `back_dev_home/_runtime/` | Cloud and provider selection | Environment/data-source switching |
-| `back_dev_home/_auth/` | SSO/local identity, tokens, admin/access middleware | Authentication and authorization |
+| `back_dev_home/_auth/` | Cookie/token/declaration identity, member-directory enrichment, admin/access middleware | Authentication and authorization |
 | `back_dev_home/_logging/` | Request/activity and OpenSearch logging | Observability and usage semantics |
 | `back_dev_home/_spa/` | Generated Nuxt SPA serving | Cloud static and fallback routes |
 | `front-dev-home/nuxt.config.ts` | SPA, proxy, ports, offline assets, TS/lint config | Frontend runtime/build behavior |

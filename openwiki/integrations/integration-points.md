@@ -1,7 +1,7 @@
 ---
 type: Integration Guide
 title: Integration Points and Office Migration Boundaries
-description: Live and planned SKEWNONO boundaries for Nuxt proxying, identity, OpenSearch, MinIO, FTP ingestion, LLM completion, Redis-backed SEM-list data, and provider-by-provider office migration.
+description: Live and planned SKEWNONO boundaries for browser identity and member lookup, Nuxt proxying, OpenSearch, MinIO, raw-recipe FTP data, LLM completion, Redis-backed fleet data, and office migration.
 resource: docs/back-end/office-data-adapters.md
 tags: [integrations, opensearch, minio, ftp, redis, sso, llm]
 ---
@@ -18,9 +18,9 @@ The current direct CORS allowlist is `http://localhost:3100`, while Nuxt default
 
 ## Identity and access
 
-Local identity is development-oriented; cloud identity lazily imports internal SSO. API clients may use `Authorization: Bearer skn_...`; token creation/revocation still requires a human session. Admin identity can be configured by `SKEWNONO_ADMIN_USERS`.
+Browser identity comes from `LASTUSER` or legacy `LAST_USER`, then a signed 30-day self-declaration; cloud falls back to `anonymous` and home to `local-dev`. `GET /api/me` enriches the effective identity from the Redis `members` hash, but missing rows or directory outages do not deny ordinary access: declarations are accepted as unverified unless a real row proves the entered name mismatches. Nuxt routes anonymous visitors to `/identify`; that gate is UX, while the server enforces that declared and anonymous identities are never admin. API clients may instead use `Authorization: Bearer skn_...`; token creation/revocation still requires a trusted human session. Admin identity can be configured by `SKEWNONO_ADMIN_USERS`.
 
-Do not copy credential values into code or wiki pages. Production must set `SKEWNONO_SECRET_KEY`; the source fallback is explicitly development-only. Path-based cloud detection in `_runtime/env.py` decides whether SSO and SPA serving activate, making deployment location part of the current integration contract.
+Do not copy credential values into code or wiki pages. Cloud startup and preflight require a nonblank `SKEWNONO_SECRET_KEY` because declaration verification is carried in the signed session; the source fallback is explicitly development-only. Path-based cloud detection in `_runtime/env.py` decides the fallback identity and SPA serving, making deployment location part of the current integration contract. Operators must separately confirm that the hosting layer forwards `LASTUSER`; no internal SSO Python module is required.
 
 ## OpenSearch
 
@@ -30,7 +30,7 @@ Do not copy credential values into code or wiki pages. Production must set `SKEW
 
 ## Measurement-image delivery and cache
 
-Measurement images have a dedicated `back_dev_home/msr_image/` feature rather than an endpoint in `msr_file`. `GET /api/msr-images` lists JPEG/TIFF names; `GET /api/msr-image` serves one cacheable response and optionally sends URL-encoded condition text in `X-Msr-Cond`; `POST /api/msr-images` validates locally, returns `202` before the slow FTP listing, and starts a background download-all job; `GET /api/msr-images/<job_id>` polls its snapshot. `msr_file` supplies the authoritative `(eqp_ip, class_name, msr)` tuple from the MSR's parent measurement document; a loaded measurement-history row is only a frontend fallback. The [Skewvoir gallery](../workflows/key-workflows.md#skewvoir-search-and-analysis) consumes these endpoints, reports whole-job and per-file failures, and offers TIFF originals as downloads when the browser cannot render them.
+Measurement images have a dedicated `back_dev_home/msr_image/` feature rather than an endpoint in `msr_file`. `GET /api/msr-images` lists JPEG/TIFF names; `GET /api/msr-image` serves one cacheable response and optionally sends URL-encoded condition text in `X-Msr-Cond`; `POST /api/msr-images` validates locally, returns `202` before the slow FTP listing, and starts a background download-all job; `GET /api/msr-images/<job_id>` polls its snapshot. `msr_file` supplies the authoritative `(eqp_ip, class_name, msr)` tuple from the MSR's parent measurement document; a loaded measurement-history row is only a frontend fallback. The [Skewvoir gallery](../workflows/key-workflows.md#skewvoir-search-and-analysis) currently consumes the list/single-image endpoints, reports failures, and offers TIFF originals as downloads when the browser cannot render them. The async download-all job endpoints remain implemented for other clients, but the current Gallery no longer exposes a start/poll action.
 
 Mock mode uses `DiskImageCache`; office mode chooses `MinioImageCache`, storing content type and condition as object metadata. `create_app()` starts an APScheduler purge at `IMAGE_CACHE_PURGE_HOUR` and removes entries older than `IMAGE_CACHE_TTL_HOURS` (168 hours/seven days by default). An external Airflow sweep is the office safety net for periods when the app is down; it must use the same cache prefix and retention window. The tracked office adapter uses `ftp_handler` directly: Windows selects its HTTP-proxy transport, while Linux/cloud selects direct FTP under `/HITACHI/DEVICE/HD/<class>/images/<msr>`. Missing files map to 404 and transport failures to 503; condition sidecars are best-effort.
 
@@ -52,7 +52,9 @@ There are two machine-local swap surfaces: `writer/office.py` configures source 
 
 `ftp_handler/` is an ingestion library, not a Flask Blueprint. It supports direct and HTTP-proxied fleet downloads, listing/size passes, background jobs, and injected archive/parse/index callbacks. The package intentionally does not import MinIO or OpenSearch; callers provide those side effects.
 
-Recipe open now [uses this boundary from the recipe workflow](../workflows/key-workflows.md#recipe-and-hardware-operations): the office adapter locates the newest valid recipe path in `meas_hist_{cdsem,hvsem}`, applies the tool-IP/subnet guard, downloads the `.idp` from tool FTP, parses it with office-only `office_utils.read_idp_info`, and normalizes the stable detail contract. The parsed `idp_image_info` contract treats `Addressing`, `Mother_Para`, and `dnumber_removed` as booleans; `Mother_Para=true` marks the row's own parameter as a mother, and `dnumber_removed=true` marks data suppressed from legacy delivery. `align_images` and `amp_info` remain synthetic because the parser has no source for them, and office compare remains mock-backed; only Redis-origin selections may open or compare, so OpenSearch fallback entries cannot enter those inconsistent paths.
+Recipe open now [uses this boundary from the recipe workflow](../workflows/key-workflows.md#recipe-and-hardware-operations): the office adapter resolves `.idp` location Redis-first from the recipe registry, falls back through eligible measured tools, applies the tool-IP/subnet guard, downloads from tool FTP, parses with office-only `office_utils.read_idp_info`, and normalizes the stable detail contract. The parsed `idp_image_info` contract treats `Addressing`, `Mother_Para`, and `dnumber_removed` as booleans; `Mother_Para=true` marks the row's own parameter as a mother, and `dnumber_removed=true` marks data suppressed from legacy delivery.
+
+The `.idp` locator also addresses its adjacent raw-recipe directory. Bounded `POST .../param-detail` reads AMP (`PRMS`), translated addressing AF/PR (`PRMP` to `ENMP`), image slots, and hidden image-sidecar `cond.txt`; `GET .../align-detail` reads `IMAP`/`ENAP` pairs, where points 1 and 2 identify OM and SEM optics; and `GET .../recipe-image` streams immutable image bytes without storing them locally. All routes validate locator fields, subnet, path segments, and request fan-out; an unreachable tool is 503 while a truly missing image is 404. Office compare's base dataset remains mock-backed, but visible cells can lazily request real AMP detail. Only Redis-origin selections may open or compare, so OpenSearch fallback entries cannot enter those inconsistent paths.
 
 ## LLM gateway
 
@@ -75,6 +77,8 @@ An explicit feature `=office` is a promise of real data: startup and direct prov
 ### SEM-list Redis adapter
 
 `back_dev_home/sem_list/providers/office_example.py` reads parquet-serialized DataFrames from `v3_df_sem_avail` and `v3_df_sem_version` using the shared `_runtime/office_redis.py` client. It de-duplicates the version table by `eqp_ip`, left-merges it onto the fleet so rows are not dropped or multiplied, then normalizes the result to `SemListRow`. The public `version` field is a free-form string such as `"1A"`; an unmatched fleet row returns `version: ""`. Parquet is the confirmed format (`pyarrow`); JSON and pickle remain compatibility fallbacks, and malformed data raises a diagnosable upstream-data failure.
+
+The same adapter reads the full company roster from `v3_df_sem_list` and exposes roster-minus-available as `GET /api/sem-list/pending`, joined by equipment ID. Keeping this diff separate prevents unreachable tools from contaminating the connected-fleet identity used by other features. Missing values normalize to blanks, unknown vendors/models remain visible, and pending rows intentionally omit availability/version fields. This integration [surfaces as the Tool Roster workflow](../workflows/key-workflows.md#tool-roster-and-firewall-requests), where it becomes a fab/model matrix and an IT-ready IP export.
 
 Storage shares that Redis plumbing. Its adapter reads per-tool storage DataFrames plus the combined `v3_hitachi_sem_ppid_not_avail` hash, then joins unavailable IPs through SEM list to recover equipment identity and split CD-SEM from HV-SEM. Storage therefore [depends on the SEM-list integration](#sem-list-redis-adapter), and both are office-verified in the migration ledger.
 
@@ -120,6 +124,6 @@ A provider is ready only when it:
 - Where do stable site-layout, recipe-revision, coordinate-transform, and sequence fields originate?
 - When will the implemented measurement-image FTP/gallery path complete on-site activation and representative verification, and what authoritative office sources will serve AFM registry, detail/profile bodies, images/artifacts, activity, and analytics?
 - What store backs editable measurement-rule versions and rollback?
-- Should Redis or another shared system replace process-local access, token, and limiter state in production? Office activity is now derived from the shared canonical OpenSearch log stream.
+- After first cloud deployment, does shared Redis remain stable for access-control, API-token, announcement, and rate-limit state, and does the host reliably forward `LASTUSER` so anonymous declarations remain an exception rather than the default? Office activity is derived from the shared canonical OpenSearch log stream.
 
 Track startup and provider failures through the [operations runbook](../operations/runbook.md), and verify adapters using [testing guidance](../testing/guidance.md).

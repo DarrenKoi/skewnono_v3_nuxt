@@ -37,14 +37,14 @@ Frontend state uses Nuxt built-ins rather than Pinia. `app/stores/navigation.ts`
 `back_dev_home/__init__.py:create_app()`:
 
 1. Loads backend environment configuration and creates Flask.
-2. Installs JSON HTTP-error handling.
-3. Selects local or cloud identity and installs access middleware.
-4. Installs activity/request logging.
+2. Requires a cloud session secret, configures 30-day signed declarations, and installs JSON HTTP-error handling.
+3. Selects the local or cloud fallback identity and installs identity/access middleware.
+4. Installs activity/request logging and optional one-hop proxy address trust.
 5. Seeds local demo activity users outside cloud mode.
 6. Recursively imports every non-private `routes.py` and requires a Blueprint named `bp`.
-7. Registers each feature Blueprint under `/api`.
-8. In cloud mode, registers login and SPA serving.
-9. Installs a per-user/IP API rate limiter.
+7. Registers each feature Blueprint plus the shared auth Blueprint under `/api`.
+8. In cloud mode, registers SPA serving.
+9. Installs one application-wide per-user/IP API rate-limit budget.
 
 Automatic route discovery makes a feature self-registering, but every discovered module is imported at startup. A broken import or a `routes.py` without `bp` prevents the entire app from booting. After route and limiter setup, `create_app()` also starts the [measurement-image cache](../integrations/integration-points.md#measurement-image-delivery-and-cache) purge scheduler. Under multi-process serving this creates one idempotent nightly sweep per worker, not one cluster-wide scheduler.
 
@@ -68,23 +68,23 @@ This architecture [depends on integration adapters](../integrations/integration-
 
 ## Identity, authorization, and observability
 
-`_auth/middleware.py` accepts a `Bearer skn_...` API token first, then the selected user identity provider. Identity selection follows `_runtime/env.py:is_cloud()` independently of mock/office data-provider mode: local identity reads `LASTUSER` or `LAST_USER` cookies and otherwise uses `local-dev`, while cloud identity lazily tries `hcputil.auth.sso` and then the documented `hcputil.auto.sso` compatibility spelling. Admin membership is centralized in `_auth/admin.py` and can be configured with `SKEWNONO_ADMIN_USERS`.
+`_auth/middleware.py` resolves identity in a strict chain: `Bearer skn_...` API token, `LASTUSER` or legacy `LAST_USER` cookie, signed self-declared session, then the phase fallback (`local-dev` at home or `anonymous` in cloud). Cloud no longer imports an SSO module or redirects unidentified requests. Instead, `GET /api/me` is available in every phase and enriches the identity from the `members` directory when possible; directory absence or outage degrades to the employee number rather than denying access. Anonymous browser users are routed client-side to `/identify`, where `POST /api/identify` requires bounded employee-number/name input and records a 30-day declaration as verified only when the directory confirms it. `DELETE /api/identify` releases that declaration, and a later infrastructure cookie automatically outranks it. This browser gate is attribution UX, not an authorization boundary.
 
-Blocked users may still receive the SPA shell so the client can render a denial experience, but `/api/*` requests are rejected. The frontend gate in `app/app.vue` loads the current activity/user record before rendering protected content.
+Admin membership is centralized in `_auth/admin.py` and can be configured with `SKEWNONO_ADMIN_USERS`, but admin authority additionally requires a trusted token, cookie, or local-fallback source; a declared or anonymous identity cannot become admin by choosing an admin employee number. Cloud startup refuses a blank `SKEWNONO_SECRET_KEY` because it signs the declaration and its verification claim; sessions use `SameSite=Lax`. `SKEWNONO_TRUST_PROXY` can opt into exactly one trusted `X-Forwarded-For` hop when a reverse proxy is actually present. Blocked users may still receive the SPA shell so the client can render a denial experience, but `/api/*` requests are rejected, and access-control lookup is skipped for non-API assets.
 
-`_logging/activity.py` records a canonical request document with request ID, latency, feature, normalized FAB context, sanitized query, identity, status, exception correlation, and human-activity classification. Anonymous, API-token, failed, administrative, health, and registered background requests carry zero activity weight; authenticated successful entry/feature requests drive analytics. Cloud requests that successfully serve a built SPA file are excluded, while `index.html` fallbacks remain logged so app entry, deep-link reloads, unknown routes, and missing-asset deployment symptoms stay observable. When OpenSearch credentials are configured and logging is not explicitly disabled, `_logging/target.py` requires `SKEWNONO_LOG_ENV=local|production` and the bounded asynchronous handler ships to the corresponding alias described in [integration points](../integrations/integration-points.md). Request bodies, headers, cookies, and authorization values are not captured.
+`_logging/activity.py` records a canonical request document with request ID, latency, feature, normalized FAB context, sanitized query, identity and `identity_source`, status, exception correlation, and human-activity classification. Anonymous, API-token, failed, administrative, health, and registered background requests carry zero activity weight; authenticated successful entry/feature requests drive analytics. Cloud requests that successfully serve a built SPA file are excluded, while `index.html` fallbacks remain logged so app entry, deep-link reloads, unknown routes, and missing-asset deployment symptoms stay observable. Ambient OpenSearch handler installation occurs only in office mode; when credentials are configured and logging is not explicitly disabled, `_logging/target.py` requires `SKEWNONO_LOG_ENV=local|production` and the bounded asynchronous handler ships to the corresponding alias described in [integration points](../integrations/integration-points.md). Usage-write failures are guarded so they cannot turn an otherwise successful response into a 500. Request bodies, headers, cookies, and authorization values are not captured.
 
-The default limit is `20 per 5 seconds`, keyed by user or remote address. The entire `msr_image` Blueprint is exempt because one gallery can open many cacheable requests. Limiter state remains process-local (`memory://`). Image download jobs select Redis shared state only when the provider is office and `REDIS_HOST` is configured; other runs use memory. Job TTL and active-job limits are enforced in both implementations, although Redis admission can briefly exceed the cap under simultaneous cross-worker creation. Multi-worker office serving therefore depends on the [measurement-image integration](../integrations/integration-points.md#measurement-image-delivery-and-cache) being configured with Redis.
+The default limit is one application-wide `20 per 5 seconds` budget per caller across `/api/*`, not a separate budget per endpoint. Identified callers are keyed by user; anonymous callers use per-address buckets so one stripped-cookie deployment cannot pool the whole site under `anonymous`. The entire `msr_image` Blueprint is exempt because one gallery can open many cacheable requests. Home or unconfigured runs use `memory://`; office mode with `REDIS_HOST` uses shared Redis with bounded socket timeouts and an in-memory fallback. Image download jobs independently select Redis shared state only when the provider is office and `REDIS_HOST` is configured; other runs use memory. Job TTL and active-job limits are enforced in both implementations, although Redis admission can briefly exceed the cap under simultaneous cross-worker creation. Multi-worker office serving therefore depends on the [measurement-image integration](../integrations/integration-points.md#measurement-image-delivery-and-cache) being configured with Redis.
 
 ## Deployment modes
 
 Deployment mode and data provider remain separate, but deployment site contributes a safe provider mode:
 
-- `_runtime/env.py:is_cloud()` decides cloud SSO, SPA serving, and bind behavior based on installation path; OpenSearch logging target selection is independent and explicit.
+- `_runtime/env.py:is_cloud()` decides the anonymous-versus-local fallback identity, cloud secret enforcement, SPA serving, and bind behavior based on installation path; OpenSearch logging target selection is independent and explicit.
 - `_runtime/site.py` classifies explicit, cloud, and recognized-host runs as home or office.
 - `SKEWNONO_DATA_PROVIDER` can override that mode; each feature still needs a local office adapter before office mode selects it.
 
-An office-local process can therefore use office data without cloud SSO or SPA serving. Path-derived cloud detection is still brittle for deployment behavior, though treating cloud as office mode prevents a production VM hostname change from silently selecting mock for adapters that are present.
+An office-local process can therefore use office data without the cloud anonymous fallback, cloud secret gate, or SPA serving. Path-derived cloud detection is still brittle for deployment behavior, though treating cloud as office mode prevents a production VM hostname change from silently selecting mock for adapters that are present.
 
 In cloud mode, `_spa/serving.py` serves files from `front-dev-home/.output/public` and falls back to `index.html` for client routes, while refusing to swallow `api/*`. Missing output logs a warning and leaves an API-only service rather than failing startup. The supported packager preserves the exact SPA output and ignored office runtime files, then supplies a standard-library preflight. Bundle contents must sit directly under `/project/workSpace`; both that path and the internal directory depth are load-bearing because they control cloud detection and SPA resolution. Build and deployment procedures live in the [operations runbook](../operations/runbook.md#build-package-and-cloud-deployment).
 

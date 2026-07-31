@@ -6,4 +6,4 @@ description: "Files and subdirectories in Operations."
 
 # Files
 
-- [Development and Deployment Runbook](runbook.md) - Practical commands and diagnostics for running, configuring, building, and deploying the SKEWNONO Nuxt frontend and Flask backend across mock, office-local, and cloud modes.
+- [Development and Deployment Runbook](runbook.md) - Practical commands and diagnostics for identity, configuration, office adapters, overlay packaging, and running the SKEWNONO Nuxt and Flask application across home, office, and cloud modes.
