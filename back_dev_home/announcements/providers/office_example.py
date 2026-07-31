@@ -36,11 +36,10 @@ is not. The deviation is expressed by *which client accessor is called* —
 catching a bare ``RuntimeError``, so it is visible at the call site and cannot
 swallow an unrelated defect from the shared plumbing.
 
-That last case is hardening the mock does NOT have: ``mock._is_active`` calls
-``a.get("starts_at")`` straight on each row, so a bare string in the array
-raises AttributeError and 500s the endpoint. Since both providers read
-hand-edited data, the mock has the same latent gap — worth fixing there
-separately rather than silently here.
+The non-dict-row tolerance is shared, not office-only hardening: both providers
+read hand-edited data, so ``mock._load`` applies the same skip to
+``announcements.json`` — a bare string row is dropped there too, never an
+AttributeError.
 
 NO CACHE, deliberately. The mock caches on file mtime; a Redis GET per page load
 is cheap enough that caching would only add a window where an operator has
@@ -48,12 +47,12 @@ published a notice and the app is still serving the old one. Announcements are
 posted precisely when something is going wrong, so staleness is the expensive
 failure.
 
-``_is_active`` is imported from ``providers.mock`` rather than restated (and it
-uses that module's ``_parse_bound`` internally). The active-window semantics —
-either bound optional, an
-unparseable bound treated as absent, and a naive stamp read as KST so operators
-can type ``2026-05-07T18:00:00`` without an offset — must not drift between
-providers, since the same operator writes both.
+``is_active`` is imported from ``providers.mock`` rather than restated (it is
+public there precisely because this adapter shares it, and it uses that
+module's ``_parse_bound`` internally). The active-window semantics — either
+bound optional, an unparseable bound treated as absent, and a naive stamp read
+as KST so operators can type ``2026-05-07T18:00:00`` without an offset — must
+not drift between providers, since the same operator writes both.
 """
 
 from __future__ import annotations
@@ -64,7 +63,7 @@ from datetime import datetime, timezone
 
 from back_dev_home._runtime.office_redis import STORE_ERRORS, redis_client_or_none
 from back_dev_home.announcements.contracts import Announcement
-from back_dev_home.announcements.providers.mock import _is_active
+from back_dev_home.announcements.providers.mock import is_active
 
 __all__ = ["get_announcements"]
 
@@ -127,4 +126,4 @@ def _load() -> list[Announcement]:
 def get_announcements() -> list[Announcement]:
     """Currently-active announcements, in stored order."""
     now = datetime.now(timezone.utc)
-    return [row for row in _load() if _is_active(row, now)]
+    return [row for row in _load() if is_active(row, now)]

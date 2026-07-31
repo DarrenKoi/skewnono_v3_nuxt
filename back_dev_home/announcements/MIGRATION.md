@@ -13,6 +13,10 @@ cp providers/office_example.py providers/office.py
   **copy** — refresh it with `python -m scripts.sync_office_adapters
   announcements` if a later `git pull` moves the template, or the boot log will
   report `STALE office.py: announcements`.
+- **A copy made before the `_is_active` → `is_active` rename must be
+  refreshed.** The import is module-level, so a pre-rename copy fails the app
+  factory at boot rather than degrading — loud on purpose, and the refresh
+  command above is the fix.
 - Requires `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in
   `back_dev_home/.env`, resolved through `_runtime/office_redis.py`.
 - Only edit the copy if the in-house connection needs adjusting. Never touch
@@ -76,17 +80,17 @@ at the call site rather than buried in an `except RuntimeError`. That also means
 only a genuine outage (`STORE_ERRORS`) is swallowed on the read; a `RuntimeError`
 from a real defect still surfaces.
 
-The non-dict-row case is **hardening the mock does not have**: `mock._is_active`
-calls `a.get("starts_at")` straight on each row, so a bare string in
-`announcements.json` raises `AttributeError` and 500s the endpoint. Both
-providers read hand-edited data, so the mock has the same latent gap — worth
-fixing there separately rather than silently diverging here.
+The non-dict-row tolerance is **shared, not office-only hardening**: both
+providers read hand-edited data, so `mock._load` applies the same skip — and the
+same warning — to `announcements.json`. A bare string row is dropped there too,
+never an `AttributeError`.
 
-`_is_active` and `_parse_bound` are imported from `providers/mock.py` rather than
-restated. The active-window semantics — either bound optional, an unparseable
-bound treated as absent, and a naive stamp read as KST so operators can type
-`2026-05-07T18:00:00` without an offset — must not drift between providers,
-since the same operator writes both.
+`is_active` is imported from `providers/mock.py` rather than restated (it is
+public there precisely because the office adapter shares it, and it uses that
+module's private `_parse_bound` internally). The active-window semantics —
+either bound optional, an unparseable bound treated as absent, and a naive
+stamp read as KST so operators can type `2026-05-07T18:00:00` without an
+offset — must not drift between providers, since the same operator writes both.
 
 ## Endpoint: GET /api/announcements
 
@@ -119,8 +123,9 @@ since the same operator writes both.
     keyed on the file's `mtime` (`Path.stat().st_mtime`) — editing
     `announcements.json` on disk and calling again picks up the change
     without a process restart; a missing file returns `[]` rather than
-    raising.
-  - `_is_active(a, now)` filters on the optional `starts_at`/`ends_at`
+    raising, and a non-dict row (e.g. a bare string from a bad hand edit)
+    is skipped rather than raising.
+  - `is_active(a, now)` filters on the optional `starts_at`/`ends_at`
     bounds: an announcement is excluded if `now < starts_at` or
     `now > ends_at`; either bound may be omitted (unbounded on that
     side), and a bound that fails to parse (`_parse_bound` returns
@@ -146,7 +151,7 @@ since the same operator writes both.
   - Ordering: rows are returned in file order (the same order as
     `announcements.json`); there is no sort applied.
 - Office behavior: one `GET skewnono:announcements`, parsed as a JSON array,
-  then filtered through the mock's own `_is_active` so the active-window rules
+  then filtered through the mock's own `is_active` so the active-window rules
   are identical by construction. Row order is preserved (no sort), rows pass
   through unreshaped, and every failure path yields `[]` — see the degradation
   table above.
@@ -161,7 +166,10 @@ since the same operator writes both.
 
 At home — the adapter's own suite runs against an injected fake Redis
 (`tests/test_office_template.py`), covering the active-window rules (including
-the KST-naive convention) and every row of the degradation table:
+the KST-naive convention) and every row of the degradation table.
+`tests/test_routes.py` adds the HTTP hop: `GET /api/announcements` is a `200`
+carrying the contract shape under either provider, and — fenced to mock, since
+it drives the JSON file — a non-dict row is skipped rather than 500-ing.
 
     .venv/bin/pytest back_dev_home/announcements
 

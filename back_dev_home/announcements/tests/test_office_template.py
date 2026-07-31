@@ -152,8 +152,8 @@ def test_a_json_object_instead_of_an_array_degrades_to_no_banners(fake):
 
 
 def test_a_non_dict_row_is_skipped_rather_than_crashing(fake):
-    """Hardening the mock does not have: it calls ``a.get(...)`` straight on
-    each row, so a bare string in the array raises AttributeError and 500s."""
+    """Shared tolerance: the mock's ``_load`` applies the same skip to the
+    hand-edited JSON file (pinned route-level in ``test_routes.py``)."""
     fake.put_json(KEY, ["oops", ROW])
 
     assert office.get_announcements() == [ROW]
