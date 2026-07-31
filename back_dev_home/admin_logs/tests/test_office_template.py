@@ -2,6 +2,7 @@ import pytest
 from flask import Flask, g
 
 import ops_store
+from back_dev_home._auth.provider import SOURCE_LOCAL
 from back_dev_home.admin_logs import routes
 from back_dev_home.admin_logs.providers import mock, office_example
 from back_dev_home.admin_logs.query import (
@@ -95,7 +96,11 @@ def test_route_returns_stable_503_without_backend_details(monkeypatch):
 
     @app.before_request
     def identity():
+        # Both fields, as the real gate sets them: require_admin now asks
+        # is_admin_request(), which fails closed when a caller has an id but no
+        # source — an id alone could be a self-declared one.
         g.user_id = "local-dev"
+        g.identity_source = SOURCE_LOCAL
 
     app.register_blueprint(routes.bp, url_prefix="/api")
     response = app.test_client().get("/api/admin/logs")
