@@ -16,7 +16,11 @@ import type { ToolType } from '~/stores/navigation'
 export const classifyToolType = (eqpModelCd: string): ToolType | null => {
   if (eqpModelCd.startsWith('CG') || eqpModelCd.startsWith('GT')) return 'cd-sem'
   if (eqpModelCd.startsWith('TP')) return 'hv-sem'
-  if (eqpModelCd.startsWith('VERITYSEM')) return 'verity-sem'
+  const normalizedModel = eqpModelCd.toUpperCase()
+  if (
+    normalizedModel.startsWith('VERITYSEM')
+    || normalizedModel.startsWith('VERITY_SEM')
+  ) return 'verity-sem'
   if (eqpModelCd.startsWith('PROVISION')) return 'provision'
   return null
 }
