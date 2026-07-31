@@ -102,7 +102,14 @@ def check_imports() -> tuple[list[str], list[str]]:
 
 
 def check_config(root: Path) -> tuple[list[str], list[str]]:
-    """Check that Flask's environment file exists without inspecting it."""
+    """Check that Flask's environment file exists and chooses a secret key.
+
+    The file's other contents stay uninspected — preflight has no standing to
+    judge them — but SKEWNONO_SECRET_KEY decides whether create_app() raises
+    on the cloud, and a preflight that passes while uwsgi boot-loops (reason
+    visible only in uwsgi logs) is the silent-blank-window failure this script
+    exists to prevent. Same rule as create_app(): blank counts as absent.
+    """
     env_path = root / "back_dev_home" / ".env"
     if not env_path.is_file():
         return (
@@ -112,7 +119,45 @@ def check_config(root: Path) -> tuple[list[str], list[str]]:
             ],
             [],
         )
+    if not _env_file_chooses_secret_key(env_path):
+        return (
+            [
+                f"SKEWNONO_SECRET_KEY not set in {env_path} — create_app() refuses "
+                "to start on the cloud without it (it signs the "
+                "self-identification session). Set any non-empty value."
+            ],
+            [],
+        )
     return [], []
+
+
+def _env_file_chooses_secret_key(env_path: Path) -> bool:
+    """Whether the .env assigns SKEWNONO_SECRET_KEY a non-blank value.
+
+    A hand-rolled scan rather than python-dotenv: this script may only import
+    what the cloud image alone supplies, and it must degrade to a report on a
+    broken host — an unreadable file is a different failure that load_dotenv
+    will surface at boot, so it is not this check's call to guess at.
+    """
+    try:
+        text = env_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return True
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        name, sep, value = line.partition("=")
+        if name.strip() != "SKEWNONO_SECRET_KEY" or not sep:
+            continue
+        value = value.strip()
+        if value[:1] in {"'", '"'} and len(value) >= 2 and value[-1:] == value[:1]:
+            value = value[1:-1]  # quoted: keep content verbatim, as dotenv does
+        else:
+            value = value.split("#", 1)[0]  # unquoted: drop an inline comment
+        if value.strip():
+            return True
+    return False
 
 
 def _adapter_roster(root: Path) -> list[str]:

@@ -108,7 +108,11 @@ def test_no_check_reaches_for_a_cloud_image_module():
     assert "hcputil" not in source
 
 
-def test_config_does_not_read_env_contents(bundle):
+def test_config_treats_an_unreadable_env_as_not_its_call(bundle):
+    """Degrade to a report, and do not guess: an undecodable .env is a
+    different failure that load_dotenv surfaces at boot. The checker must
+    neither crash on it nor manufacture a SKEWNONO_SECRET_KEY verdict from a
+    file it could not read."""
     env_path = bundle / "back_dev_home" / ".env"
     env_path.write_bytes(b"\xff")
 
@@ -122,6 +126,48 @@ def test_config_fails_when_env_missing(bundle):
     failures, _warnings = preflight_cloud.check_config(root)
 
     assert any(".env" in f for f in failures)
+
+
+def test_config_passes_when_a_secret_key_is_chosen(bundle):
+    """The bundle fixture's .env carries a real key — the deploy happy path."""
+    assert preflight_cloud.check_config(bundle) == ([], [])
+
+
+@pytest.mark.parametrize(
+    "env_body",
+    [
+        "REDIS_HOST=redis.example\n",
+        "SKEWNONO_SECRET_KEY=\n",
+        "SKEWNONO_SECRET_KEY=   \n",
+        'SKEWNONO_SECRET_KEY=""\n',
+        "SKEWNONO_SECRET_KEY= # choose one\n",
+    ],
+)
+def test_config_fails_when_the_secret_key_is_missing_or_blank(bundle, env_body):
+    """create_app() treats a blank as absent and refuses to start on the
+    cloud; a preflight that disagrees passes a bundle uwsgi will boot-loop on,
+    with the reason visible only in uwsgi logs."""
+    (bundle / "back_dev_home" / ".env").write_text(env_body)
+
+    failures, _warnings = preflight_cloud.check_config(bundle)
+
+    assert any("SKEWNONO_SECRET_KEY" in f for f in failures)
+
+
+@pytest.mark.parametrize(
+    "env_body",
+    [
+        "export SKEWNONO_SECRET_KEY=chosen\n",
+        "SKEWNONO_SECRET_KEY='chosen'\n",
+        "OTHER=1\nSKEWNONO_SECRET_KEY=chosen\n",
+    ],
+)
+def test_config_accepts_the_dotenv_spellings_load_dotenv_accepts(bundle, env_body):
+    """False FAILs erode trust in the checker: every spelling python-dotenv
+    would load as a non-blank key must pass here too."""
+    (bundle / "back_dev_home" / ".env").write_text(env_body)
+
+    assert preflight_cloud.check_config(bundle) == ([], [])
 
 
 def _requirement_names(text: str) -> set[str]:
