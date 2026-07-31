@@ -28,7 +28,10 @@ authenticates `Authorization: Bearer skn_...` are different processes, so
 worker and bearer auth fails nondeterministically — and every restart drops
 every token. Leaving `api_tokens` on mock at the office is a defect, not a safe
 default. (`access_control` and `announcements` do not share this problem: their
-mocks are mtime-keyed JSON files, which do propagate across workers.)
+mocks are mtime-keyed JSON files, which do propagate across workers.) The mock
+does serialize its dict access with a module-level `threading.Lock` — that
+makes it safe for home's one multi-threaded dev process, and changes nothing
+about the multi-worker defect above.
 
 ## Implemented key layout
 
@@ -99,7 +102,8 @@ working. See "Auth path" below.
 - Handler: `routes.py` → `create_api_token()`. Before calling `data.py`:
   - Rejects the request with `403 forbidden` if `g.api_token_id` is set —
     a caller authenticated via an existing API token cannot mint another
-    one (prevents a leaked token from self-propagating).
+    one (prevents a leaked token from self-propagating). The check lives in
+    the `_reject_token_auth` decorator, shared with DELETE.
   - Reads `label` from the JSON body, strips it, and returns
     `400 invalid_request` if it is empty or longer than 80 characters.
   - Calls `data.create_token(g.user_id, label)`, which returns
@@ -142,7 +146,7 @@ working. See "Auth path" below.
 ## Endpoint: DELETE /api/account/api-tokens/\<token_id\>
 
 - Handler: `routes.py` → `revoke_api_token(token_id)`. Same
-  `g.api_token_id` forbid-check as POST. Calls
+  `_reject_token_auth` forbid-check as POST. Calls
   `data.revoke_token(g.user_id, token_id)` → `bool`; `False` becomes
   `404 not_found`, `True` becomes `{"revoked": token_id}`.
 - Contract: plain `bool` — no TypedDict needed, `assert_matches` handles
@@ -254,8 +258,15 @@ rather than being upgraded to a 503.
   `200 {"tokens": []}` (empty store, fresh process) — a legitimate parity
   value. It does not exercise POST/DELETE (the harness only issues GET
   requests). The contract test's roundtrip (create → assert shape →
-  revoke) is the only coverage of those two endpoints' data-layer shapes,
-  and it cleans up after itself so repeated runs don't leak tokens.
+  revoke) covers those two endpoints' data-layer shapes and cleans up
+  after itself so repeated runs don't leak tokens. The HTTP surface —
+  owner scoping, label validation 400s, and the `_reject_token_auth` 403 —
+  is covered by `tests/test_routes.py`, which drives the real identity
+  middleware (cookie and bearer paths) against the blueprint, pinned to
+  the mock provider.
+- `tests/test_mock_store.py` is **mock-only** — it asserts the in-memory
+  store's own thread-safety and would be meaningless against Redis. It is
+  not part of the office contract; do not port it.
 - `created_at`/`last_used_at` are ISO-8601 UTC timestamps
   (`timespec="seconds"`, no `Z` suffix — unlike `admin_logs`/`health`,
   this feature does not append a literal `Z`). The office adapter preserves the

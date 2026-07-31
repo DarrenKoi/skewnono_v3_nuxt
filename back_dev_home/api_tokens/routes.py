@@ -1,3 +1,5 @@
+from functools import wraps
+
 from flask import Blueprint, g, request
 
 from back_dev_home._auth.errors import error_json
@@ -10,17 +12,31 @@ from back_dev_home.api_tokens.data import (
 bp = Blueprint("api_tokens", __name__)
 
 
+def _reject_token_auth(view):
+    """Refuse callers that authenticated WITH an API token.
+
+    A token-authenticated caller minting more tokens would defeat revocation,
+    and a leaked token must not be able to revoke its siblings — so token
+    management stays human-session-only (cookie/declared identity).
+    """
+
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if getattr(g, "api_token_id", None):
+            return error_json("forbidden", "API tokens cannot manage tokens", 403)
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
 @bp.get("/account/api-tokens")
 def list_api_tokens():
     return {"tokens": list_tokens(g.user_id)}
 
 
 @bp.post("/account/api-tokens")
+@_reject_token_auth
 def create_api_token():
-    # A token-authenticated caller minting more tokens would defeat
-    # revocation: blocking it keeps token management human-session-only.
-    if getattr(g, "api_token_id", None):
-        return error_json("forbidden", "API tokens cannot manage tokens", 403)
     body = request.get_json(silent=True) or {}
     label = (body.get("label") or "").strip()
     if not label:
@@ -32,11 +48,8 @@ def create_api_token():
 
 
 @bp.delete("/account/api-tokens/<token_id>")
+@_reject_token_auth
 def revoke_api_token(token_id: str):
-    # Same rationale as create: a leaked token must not be able to
-    # revoke its siblings.
-    if getattr(g, "api_token_id", None):
-        return error_json("forbidden", "API tokens cannot manage tokens", 403)
     if not revoke_token(g.user_id, token_id):
         return error_json("not_found", "token not found", 404)
     return {"revoked": token_id}
