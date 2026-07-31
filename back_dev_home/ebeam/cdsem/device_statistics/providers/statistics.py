@@ -57,10 +57,11 @@ skip_yn 은 실물과 값 도메인·극성을 맞췄습니다 (user-confirmed 2
 
 네 버킷의 실제 의미 (user-confirmed 2026-07-31)
 ──────────────────────────────────────────────
-이 mock 은 버킷마다 recipe 수를 난수 범위(RECIPE_COUNT_RANGES)로 만들지만,
-실물에서 버킷은 **스텝 이름과 recipe 이름으로 갈라지는 분류**입니다. 집에서
-개발할 때 "버킷 = 크기가 다른 네 덩어리" 로만 이해하면 어댑터를 읽을 때 어긋
-납니다.
+실물에서 버킷은 **스텝 이름과 recipe 이름으로 갈라지는 분류**입니다 — 크기가 다른
+네 덩어리가 아니라 **한 모집단 위의 겹치는 필터**이고, 한 스텝이 여러 버킷에 동시에
+들어갑니다. 이 mock 도 2026-08-01 부터 그렇게 만듭니다
+(providers/recipe_population.py). 예전에는 버킷마다 recipe 를 따로 만들고 id 에
+버킷 이름을 박아서, recipe-params 와 recipe_id 로 조인이 아예 되지 않았습니다.
 
   all            모든 Step (Full job + Sample job)
   only_normal    스텝명에 CD 가 포함된 Step
@@ -95,78 +96,29 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     RecipeInfoRow,
     SummaryRow,
 )
+from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population import (
+    RecipeIdentity,
+    build_population,
+    bucket_members,
+    is_measuring as _is_measuring,
+)
 
 
 RCP_BUCKETS = ("all", "only_normal", "mother_normal", "only_sample")
 DEFAULT_TREND_POINTS = 8
 DEFAULT_INTERVAL_DAYS = 7
 
-# skip_yn 값 중 "이 스텝은 측정하지 않는다"를 뜻하는 쪽 (user-confirmed
-# 2026-07-31, docs/datatables/planstep_r3.txt). 실물 값 도메인은 "Y"/"N"/빈 값
-# 세 가지이므로 판정은 아래 _is_measuring 의 `!= "Y"` 하나로만 합니다.
-SKIPPED = "Y"
-
-# 실물에 섞여 있는 빈 값의 비율. `== "N"` 으로 판정하는 코드가 있으면 이 만큼이
-# 조용히 사라지므로, mock 이 그 경로를 실제로 밟게 하려고 일부러 만듭니다.
-BLANK_SKIP_YN_RATIO = 0.15
-SKIPPED_RATIO = 0.15
-
-
-def _is_measuring(skip_yn: str) -> bool:
-    """이 스텝이 skip 되지 않았는가 — ``skip_yn != "Y"``.
-
-    office 어댑터(providers/office_example.py)의 동명 함수와 같은 규칙입니다.
-    """
-    return (skip_yn or "").strip().upper() != SKIPPED
-
-OPER_DESCS = (
-    "Initial Material Prep", "Primary Etching", "Deposition Layer 1",
-    "Photolithography", "Ion Implantation", "Chemical Cleaning",
-    "Annealing Process", "Final Inspection", "Wafer Testing"
-)
-
-OPER_PREFIXES = (
-    "ETCH", "DEPO", "LITH", "IMPL", "CLEAN", "ANNL", "INSP", "MEAS",
-    "CMP", "STRIP", "OXID", "DIFF"
-)
-
-EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
-
-# Per-bucket recipe-count range. "all" is widest; "only_sample" narrowest —
-# the summary chart aggregates from these counts, so this also governs the
-# relative visual hierarchy of the bucket bars on the comparison page.
-RECIPE_COUNT_RANGES = {
-    "all": (130, 200),
-    "only_normal": (80, 150),
-    "mother_normal": (50, 110),
-    "only_sample": (25, 70),
-}
-
-# Per-recipe parameter ranges. Sums across ~150 recipes land in the legacy
-# summary range of ~5k–10k for `all`, which keeps existing chart axes
-# meaningful.
-PARA_RANGES = {
-    "para_16": (10, 50),
-    "para_13": (6, 32),
-    "para_9": (3, 16),
-    "para_5": (1, 9),
-}
+# recipe 모집단·이름 어휘·버킷 분류는 providers/recipe_population.py 가 갖습니다.
+# 예전에는 이 모듈이 버킷마다 recipe 를 따로 만들고 id 에 버킷 이름을 박았는데,
+# 그러면 recipe-params 와 recipe_id 로 조인할 수 없습니다 (실물에서 recipe_id 는
+# cdsem_idp_ver.full_name 과 같은 조인 키입니다 — docs/datatables/idp_ver.txt L55).
+# `_is_measuring` 는 그 모듈에서 가져와 avail_recipe 집계에 그대로 씁니다.
 
 
 def _percent(part: int, total: int) -> float:
     if total == 0:
         return 0.0
     return round(part / total * 100, 2)
-
-
-def _skip_yn(rng: random.Random) -> str:
-    """실물의 세 값("Y" / "N" / 빈 값)을 그 비율대로 만듭니다."""
-    roll = rng.random()
-    if roll < SKIPPED_RATIO:
-        return SKIPPED
-    if roll < SKIPPED_RATIO + BLANK_SKIP_YN_RATIO:
-        return ""
-    return "N"
 
 
 def _seed_for(lot_cd: str, point_index: int) -> int:
@@ -221,46 +173,45 @@ def _lot_ctn_desc() -> dict[str, str]:
     return descs
 
 
-def _build_recipe_row(
+def _to_recipe_row(
     rng: random.Random,
+    identity: RecipeIdentity,
     lot_cd: str,
     fac_id: str,
-    bucket: str,
-    idx: int,
     date_key: str
 ) -> RecipeInfoRow:
-    para_16 = rng.randint(*PARA_RANGES["para_16"])
-    para_13 = rng.randint(*PARA_RANGES["para_13"])
-    para_9 = rng.randint(*PARA_RANGES["para_9"])
-    para_5 = rng.randint(*PARA_RANGES["para_5"])
-    para_all = para_16 + para_13 + para_9 + para_5
+    """모집단의 recipe 한 건을 계약(RecipeInfoRow) 모양으로 펼칩니다.
 
-    oper_prefix = rng.choice(OPER_PREFIXES)
-    oper_id = f"{oper_prefix}-{rng.randint(100, 999)}"
-    eqp_id = f"{rng.choice(EQP_FAMILIES)}-{rng.randint(1, 24):02d}"
-    recipe_id = f"RCP-{lot_cd}-{bucket[:3].upper()}-{idx:03d}"
+    recipe_id / oper_desc / skip_yn 은 모집단이 정합니다 — 이 셋이 버킷 분류의
+    입력이자 recipe-params 와의 조인 키라, 여기서 다시 뽑으면 두 표면이 어긋납니다.
+    """
+    para_16 = identity["para_16"]
+    para_13 = identity["para_13"]
+    para_9 = identity["para_9"]
+    para_5 = identity["para_5"]
+    para_all = para_16 + para_13 + para_9 + para_5
 
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
-        "oper_id": oper_id,
-        "oper_desc": rng.choice(OPER_DESCS),
-        "oper_seq": idx + 1,
-        "samp_seq": rng.randint(1, 5),
-        "eqp_id": eqp_id,
-        "recipe_id": recipe_id,
+        "oper_id": identity["oper_id"],
+        "oper_desc": identity["oper_desc"],
+        "oper_seq": identity["oper_seq"],
+        "samp_seq": identity["samp_seq"],
+        "eqp_id": identity["eqp_id"],
+        "recipe_id": identity["recipe_id"],
         # "Y" == skip(측정하지 않음) (user-confirmed 2026-07-31). 값 도메인은
         # 실물과 같은 "Y"/"N"/빈 값 세 가지이며, skip 비율 15% 를 유지해 측정
         # 비율은 예전과 같은 약 85% 입니다 — 극성 표기만 바로잡은 것이라 화면
         # 숫자는 뒤집히지 않습니다.
-        "skip_yn": _skip_yn(rng),
+        "skip_yn": identity["skip_yn"],
         # 실물 chg_tm 은 offset 없는 KST wall-clock datetime("2025-07-17T12:26:01")
         # 입니다. 예전에는 시각(HH:MM:SS)만 만들어 날짜가 없었습니다.
         "chg_tm": (
             f"{date_key}T{rng.randint(0, 23):02d}:"
             f"{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}"
         ),
-        "ctn_desc": f"{oper_prefix} {rng.choice(OPER_DESCS)} step",
+        "ctn_desc": identity["step_ctn_desc"],
         "para_all": para_all,
         "para_16": para_16,
         "para_13": para_13,
@@ -273,19 +224,30 @@ def _build_recipe_row(
     }
 
 
-def _build_recipes_for_bucket(
+def _bucketed_recipe_rows(
     rng: random.Random,
     lot_cd: str,
     fac_id: str,
-    bucket: str,
-    date_key: str
-) -> list[RecipeInfoRow]:
-    count_min, count_max = RECIPE_COUNT_RANGES[bucket]
-    count = rng.randint(count_min, count_max)
-    return [
-        _build_recipe_row(rng, lot_cd, fac_id, bucket, i, date_key)
-        for i in range(count)
-    ]
+    date_key: str,
+    point_index: int,
+    points: int
+) -> dict[str, list[RecipeInfoRow]]:
+    """이 (lot, date) 의 네 버킷 recipe 행.
+
+    버킷은 **한 모집단 위의 겹치는 필터**입니다 — 예전처럼 버킷마다 따로 만들지
+    않습니다. 같은 recipe 가 여러 버킷에 나오면 같은 recipe_id 를 갖고, 그 id 로
+    recipe-params 와 조인됩니다 (실물에서 recipe_id 가 cdsem_idp_ver.full_name
+    과 같은 조인 키이기 때문입니다 — docs/datatables/idp_ver.txt L55).
+    """
+    population = build_population(lot_cd, point_index, points)
+    rows_by_id = {
+        identity["recipe_id"]: _to_recipe_row(rng, identity, lot_cd, fac_id, date_key)
+        for identity in population
+    }
+    return {
+        bucket: [rows_by_id[identity["recipe_id"]] for identity in members]
+        for bucket, members in bucket_members(population).items()
+    }
 
 
 def _summarize(
@@ -386,8 +348,11 @@ def get_weekly_trend_data(
             ctn_desc = descs.get(lot_cd, "")
             rng = random.Random(_seed_for(lot_cd, point_index))
 
+            rows_by_bucket = _bucketed_recipe_rows(
+                rng, lot_cd, fac_id, date_key, point_index, len(dates)
+            )
             for bucket in RCP_BUCKETS:
-                recipes = _build_recipes_for_bucket(rng, lot_cd, fac_id, bucket, date_key)
+                recipes = rows_by_bucket[bucket]
                 if include_recipes:
                     bucketed[f"{bucket}_rcp_info"].extend(recipes)
                 bucketed[f"{bucket}_summary"].append(

@@ -37,10 +37,16 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     ParameterRow,
     RecipeParamsRow,
 )
+from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population import (
+    RecipeIdentity,
+    build_population,
+    is_sample_recipe,
+)
 
 
-# Recipes per device. Domain: 100~200 (D22).
-RECIPE_COUNT_RANGE = (100, 200)
+# recipe 수·이름은 이제 recipe_population 이 정합니다 — 여기서 따로 세면 두 표면의
+# recipe_id 가 갈라져 조인이 깨집니다 (예전이 그랬습니다). 도메인 100~200 (D22) 은
+# 그 모듈의 POOL_RANGE 와 주차 배율이 함께 만족합니다.
 
 FAMILIES: tuple[str, ...] = ("Core", "Pool", "VG_RTC_Cubic")
 PHASES: tuple[str, ...] = ("t-EV", "EV", "TV", "PV")
@@ -101,8 +107,20 @@ def _build_parameters(rng: random.Random, bloated: bool, over_measured: bool) ->
     return params
 
 
-def _build_recipe(rng: random.Random, lot_cd: str, fac_id: str, prod_catg_cd: str, idx: int) -> RecipeParamsRow:
-    recipe_class: Literal["Main", "Sample"] = "Sample" if rng.random() < 0.2 else "Main"
+def _build_recipe(
+    rng: random.Random,
+    identity: RecipeIdentity,
+    lot_cd: str,
+    fac_id: str,
+    prod_catg_cd: str,
+    idx: int
+) -> RecipeParamsRow:
+    # recipe_class 는 굴리지 않고 **recipe 이름에서 파생**합니다 — 실물도 그렇고
+    # (office_example.py: "only_sample 버킷과 같은 규칙"), 굴리면 같은 recipe 가
+    # only_sample 버킷에는 있는데 recipe_class 는 Main 인 모순이 생깁니다.
+    recipe_class: Literal["Main", "Sample"] = (
+        "Sample" if is_sample_recipe(identity["recipe_id"]) else "Main"
+    )
     family = rng.choice(FAMILIES)
     phase = rng.choice(PHASES)
     bloated = rng.random() < 0.08       # ~8% of recipes over-parameterized
@@ -111,7 +129,7 @@ def _build_recipe(rng: random.Random, lot_cd: str, fac_id: str, prod_catg_cd: st
 
     return {
         "lot_cd": lot_cd,
-        "recipe_id": f"RCP-{lot_cd}-{idx:03d}",
+        "recipe_id": identity["recipe_id"],
         "fac_id": fac_id,
         "ctn_desc": f"{phase} {prod_catg_cd} {family} recipe {idx} lot {lot_cd}",
         "prod_catg_cd": prod_catg_cd,
@@ -144,7 +162,9 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
 
     Empty / None lot_cds → every known lot (can be large; callers should pass a
     selection). Deterministic per lot_cd via _seed_for."""
-    from .statistics import _lot_index, _resolve_lots  # deferred import
+    from .statistics import (  # deferred import
+        DEFAULT_TREND_POINTS, _lot_index, _resolve_lots, _seed_for,
+    )
     index = _lot_index()
     selected = _resolve_lots(lot_cds)
 
@@ -152,10 +172,15 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
     for lot_cd in selected:
         fac_id = index[lot_cd]
         prod_catg_cd = _prod_catg_for(lot_cd, fac_id)
-        rng = random.Random(_recipe_seed(lot_cd, 4242))
-        count = rng.randint(*RECIPE_COUNT_RANGE)
-        for idx in range(count):
-            rows.append(_build_recipe(rng, lot_cd, fac_id, prod_catg_cd, idx))
+        # recipe-statistics 가 보여주는 것은 트렌드의 **마지막 주차**이므로
+        # (routes.py recipe_statistics), 같은 주차의 모집단을 부릅니다. 이 한 줄이
+        # 두 표면을 recipe_id 로 조인 가능하게 만듭니다.
+        population = build_population(
+            lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS
+        )
+        rng = random.Random(_seed_for(lot_cd, 4242))
+        for idx, identity in enumerate(population):
+            rows.append(_build_recipe(rng, identity, lot_cd, fac_id, prod_catg_cd, idx))
     return rows
 
 
