@@ -247,5 +247,15 @@ const systemStatus = computed(() => {
         </div>
       </div>
     </UCard>
+    <div class="flex justify-end">
+      <UButton
+        to="/tool-roster"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-network"
+        trailing-icon="i-lucide-arrow-right"
+        label="미연결 장비 보기"
+      />
+    </div>
   </div>
 </template>
