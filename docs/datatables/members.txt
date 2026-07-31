@@ -68,7 +68,31 @@ Key
 소비 코드
 
   back_dev_home/_auth/directory.py  — 조회·정규화·캐시(TTL 600초)
-  back_dev_home/_auth/routes.py     — GET /api/me 로 노출
+  back_dev_home/_auth/routes.py     — GET /api/me 로 노출, POST /api/identify 로 검증
+
+  읽는 쪽이 둘이며 요구가 서로 반대입니다 (2026-07-31 추가).
+
+    lookup_member()  — 표시용. 모든 실패(Redis 미설정/도달 불가/row 없음/값
+                       해석 실패)를 사번만 담은 같은 record 로 뭉갭니다.
+                       디렉터리 장애가 페이지 접근을 막아서는 안 되기 때문입니다.
+    probe_member()   — 검증용. 같은 조회지만 found / absent / unavailable 을
+                       구분해 돌려줍니다. "이 사람은 디렉터리에 없다"와
+                       "디렉터리가 대답하지 못한다"는 처리가 반대여야 하는데,
+                       lookup_member() 의 결과로는 둘을 구분할 수 없습니다.
+
+  OFFICE-VERIFY — `members` 에 row 가 없는 사번의 실제 비율
+
+    LASTUSER 쿠키는 있으나 members row 가 없는 인원(협력사·서비스 계정)이
+    얼마나 되는지 아직 확인되지 않았습니다. 현재 정책은 그런 신원을 거부하지
+    않고 `verified: false` 로 통과시키는 것이며, 비율을 모르는 상태에서 안전한
+    쪽을 고른 것입니다.
+
+    사무실에서 비율이 무시할 수준으로 확인되면 그때 거부로 조일 수 있습니다.
+    반대 방향(먼저 거부해 두고 나중에 푸는 것)은 그 사이에 정당한 사용자가
+    막히므로 되돌릴 수 없습니다.
+
+    집계 방법: 활동 로그에서 `identity_source` 가 `declared` 인 요청 중 INFO
+    로그 "declared identity <사번> has no members row" 가 남은 건수를 봅니다.
 
   집/사무실 판정은 `get_mode()`(데이터 provider 와 동일한 knob)를 사용합니다.
   `is_cloud()` 가 아닙니다 — `is_cloud()` 는 집과 사무실 localhost 를 구분하지
