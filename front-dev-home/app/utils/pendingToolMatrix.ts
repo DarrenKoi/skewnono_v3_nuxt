@@ -51,6 +51,10 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'bas
 // scope.
 const fabLabel = (fabName: string): string => fabName.trim() || UNASSIGNED_FAB
 
+export const filterActionablePendingTools = (
+  rows: PendingToolRow[]
+): PendingToolRow[] => rows.filter(row => row.eqp_ip.trim() !== '127.0.0.1')
+
 export const groupOf = (row: PendingToolRow): PendingToolGroup =>
   classifyToolType(row.eqp_model_cd) ?? UNCLASSIFIED
 

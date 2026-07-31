@@ -218,6 +218,7 @@ import {
   buildPendingToolMatrix,
   cellRows,
   countByGroup,
+  filterActionablePendingTools,
   filterByGroup,
   IP_LIST_SEPARATOR,
   sortByArrivalDesc,
@@ -229,7 +230,9 @@ import { copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
 const { data, status, error, execute } = usePendingTools()
 const toast = useToast()
 
-const rows = computed<PendingToolRow[]>(() => data.value ?? [])
+const rows = computed<PendingToolRow[]>(() =>
+  filterActionablePendingTools(data.value ?? [])
+)
 
 interface StatusMessageContent {
   icon: string

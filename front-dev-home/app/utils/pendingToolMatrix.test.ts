@@ -7,6 +7,7 @@ import {
   buildPendingToolMatrix,
   cellRows,
   countByGroup,
+  filterActionablePendingTools,
   filterByGroup,
   groupOf,
   sortByArrivalDesc,
@@ -42,6 +43,22 @@ test('groupOf resolves all four tool types and falls back to unclassified', () =
   // A model the company installs next year. This bucket is the only thing
   // keeping a new tool type from vanishing off the arrivals screen.
   assert.equal(groupOf(tool('F', 'ZZ9000', 'M16A')), 'unclassified')
+})
+
+test('filterActionablePendingTools removes only exact loopback IPs after trimming', () => {
+  const rows = [
+    tool('A', 'CG6380', 'M16A', '177.1.1.1'),
+    tool('B', 'CG6380', 'M16A', '127.0.0.1'),
+    tool('C', 'TP4000', 'M14B', ' 127.0.0.1 '),
+    tool('D', 'TP4000', 'M14B', '127.0.0.2'),
+    tool('E', 'GT2000', 'M16B', '')
+  ]
+
+  assert.deepEqual(
+    filterActionablePendingTools(rows).map(row => row.eqp_id),
+    ['A', 'D', 'E']
+  )
+  assert.equal(rows.length, 5)
 })
 
 test('countByGroup counts every group present', () => {
