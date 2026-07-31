@@ -13,6 +13,10 @@
    전환 신호이므로, `.env` 수정이나 코드 커밋은 필요하지 않습니다.
 4. `GET /api/health/providers` 또는 기동 로그의 provider 표에서 해당 기능이
    `office`로 표시되는지 확인한 뒤, 아래 표의 상태/검증일을 갱신합니다.
+   이 엔드포인트는 2026-08-01부터 관리자 전용이므로
+   `curl -b "LASTUSER=<관리자 사번>" localhost:5000/api/health/providers`
+   형태로 호출합니다. 쿠키 없이 부르면 403이 돌아옵니다. 쿠키를 쓸 수 없는
+   상황이라면 기동 로그의 provider 표를 봅니다.
 
 아래 표의 상태/검증일 컬럼은 "실제 사내 데이터로 확인되었는가"를 기록합니다.
 `office.py`의 존재 여부(= 무엇이 전환되는가)와는 별개이며, 코드가 이 표를
@@ -81,3 +85,21 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
   또는 기동 로그의 provider 표에서 확인합니다.
 - 그 표는 **무엇이 전환되는지**만 나타냅니다. 실데이터로 검증했는지 여부는
   위 표의 `상태`/`검증일` 열이 유일한 기준입니다.
+- **2026-08-01 운영·관리 6개 기능 정비** — activity, admin_logs, announcements,
+  api_tokens, access_control, health을 정리하고 권한·장애 처리를 손봤습니다.
+  사내 데이터로 돌려본 것은 아니므로 여섯 행의 `상태`는 모두 `구현완료`
+  그대로입니다. 다만 이미 `office.py`를 복사해 둔 checkout이 있다면 아래 두
+  기능은 **반드시 다시 복사해야 합니다**. 어댑터가 임포트하는 대상이 바뀌어,
+  옛 복사본은 폴백하지 않고 app factory 기동 자체를 실패시킵니다.
+
+  | 기능 | 재복사 | 이유 |
+  | --- | --- | --- |
+  | announcements | 필요 | `_is_active`가 `is_active`로 공개되었습니다 |
+  | health | 필요 | probe 본체가 `providers/probe_common.py`로 이동했습니다 |
+  | activity | 불필요 | office 껍데기는 그대로이고, 바뀐 `opensearch_reader.py`는 git 추적 대상입니다 |
+  | admin_logs | 불필요 | 바뀐 `query.py`가 git 추적 대상입니다 |
+  | api_tokens · access_control | 불필요 | `office_example.py`를 건드리지 않았습니다 |
+
+  재복사 명령은 `python -m scripts.sync_office_adapters <기능>`입니다. 기동
+  로그의 `STALE office.py:` 줄이 대상 기능을 짚어 주므로, 먼저 로그를 봐도
+  됩니다.
