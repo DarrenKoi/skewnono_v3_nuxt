@@ -21,6 +21,12 @@ export const usePendingTools = () => {
   return useAsyncData(
     PENDING_TOOLS_CACHE_KEY,
     () => $fetch<PendingToolRow[]>(url),
-    { immediate: true, default: () => [] as PendingToolRow[] }
+    {
+      immediate: true,
+      default: () => [] as PendingToolRow[],
+      getCachedData: (key, nuxtApp, context) => context.cause === 'initial'
+        ? nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+        : undefined
+    }
   )
 }

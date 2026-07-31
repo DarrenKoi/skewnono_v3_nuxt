@@ -310,9 +310,7 @@ const arrivalDate = (updtDt: string) => updtDt.slice(0, 10)
 // only the `class` half of that pattern applies here.
 const drilldownTableMeta = {
   class: {
-    tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1 px-2 sk-value',
-    th: 'py-1.5 px-2 sk-label'
+    tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
   }
 }
 
