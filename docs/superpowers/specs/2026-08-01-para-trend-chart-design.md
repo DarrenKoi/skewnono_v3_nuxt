@@ -41,8 +41,8 @@
 
 | 파일 | 변경 |
 | --- | --- |
-| `app/utils/paraTrendOptions.ts` | 신규 — 순수 함수. 추이 응답 → ECharts option |
-| `app/utils/paraTrendOptions.test.ts` | 신규 — `node --test` |
+| `app/utils/paraTrendSeries.ts` | 신규 — 순수 함수. 추이 응답 → 시리즈 데이터 |
+| `app/utils/paraTrendSeries.test.ts` | 신규 — `node --test` |
 | `app/components/cdsem/comparison/TrendChart.vue` | ECharts 호스트로 재작성 |
 | `app/components/cdsem/comparison/healthTokens.ts` | `paraColors` / `paraColorsDark` 재배치 |
 | `app/components/cdsem/comparison/LotDetailModal.vue` | 사라진 prop 정리 |
@@ -90,16 +90,35 @@ Okabe-Ito 기반 범주형 팔레트도 시도했으나, light 는 통과하지�
 이 색은 `StackedBar.vue` 및 비교 페이지의 ECharts 누적 막대 카드와 공유되므로
 네 표면이 함께 갱신되어 색이 계속 동일한 대상을 가리킵니다.
 
-## 모달 안에서의 크기 보정
+## 모달 안에서의 크기 보정 — 불필요한 것으로 확인됨
 
 `useEchart` 는 `onMounted` 시점에 캔버스를 초기화하고 이후에는
-`window.resize` 에만 반응합니다 (`useEchart.ts:164-167`). 이 저장소에서
-`UModal` 안에 ECharts 를 넣은 선례가 없어, 모달이 열리는 동안 컨테이너 폭이
-0 이면 차트가 잘못된 크기로 고정될 수 있습니다.
+`window.resize` 에만 반응하므로 (`useEchart.ts:164-167`), `UModal` 안에서
+컨테이너 폭이 0 인 채로 고정될 위험을 예상하고 `ResizeObserver` 보정을
+설계에 넣었습니다.
 
-호스트 `div` 에 `v-if="open"` 을 걸고 컨테이너에 `ResizeObserver` 를 붙여
-`chart.resize()` 를 호출합니다. 브라우저 창 크기 변경으로 모달이 재배치되는
-경우도 함께 처리됩니다.
+**실제로 측정해 보니 보정이 필요하지 않았습니다.** 모달을 연 직후
+호스트는 797×260, 캔버스는 1594×520 (DPR 2) 로 정확히 초기화됩니다.
+`UModal` 이 내용을 열릴 때 마운트하므로 `TrendChart` 의 `onMounted` 가
+레이아웃이 확정된 뒤에 실행되고, 열림 트랜지션은 `transform`·`opacity` 만
+건드려 `clientWidth` 를 바꾸지 않기 때문입니다.
+
+추측으로 넣을 뻔한 코드였으므로 넣지 않았습니다. 나중에 모달 레이아웃이
+바뀌어 실제로 어긋나면 그때 추가하면 됩니다.
+
+## hover 시 누적 영역이 사라지던 문제
+
+브라우저에서 눈으로 확인하다 발견한 실제 결함입니다. ECharts 의
+emphasis/blur 상태는 stacked line series 의 area fill 을 지워버립니다.
+그 결과 **툴팁을 읽는 바로 그 순간에 정작 읽어야 할 구성이 사라집니다.**
+
+- `emphasis.focus: 'series'` — 나머지 세 밴드가 흐려짐
+- `emphasis.focus: 'none'` — 네 밴드의 fill 이 전부 사라짐
+
+축 단위 툴팁이 이미 네 값을 모두 보여주므로 hover 로 시리즈를 강조할
+이유가 없습니다. `emphasis: { disabled: true }` 와
+`blur: { areaStyle: { opacity: … } }` 로 두 상태를 기본 스타일에 고정했고,
+격리 기능은 범례 클릭으로 그대로 남습니다.
 
 ## 삭제되는 코드
 
@@ -111,8 +130,11 @@ Okabe-Ito 기반 범주형 팔레트도 시도했으나, light 는 통과하지�
 
 ## 테스트
 
-`paraTrendOptions.test.ts` 는 브라우저 없이 순수 함수만 검증합니다
-(이 저장소에는 컴포넌트 마운팅 하네스가 없습니다).
+`paraTrendSeries.test.ts` 는 브라우저 없이 순수 함수만 검증합니다
+(이 저장소에는 컴포넌트 마운팅 하네스가 없습니다). 축·툴팁 설정은
+컴포넌트에 남기고 데이터 정형만 utils 로 분리했는데, 정규화 버그가 있던
+자리가 바로 데이터 정형이고 `app/utils` 중 `EChartsOption` 을 import 하는
+모듈이 하나도 없다는 기존 관례를 따른 것입니다.
 
 - 절대 개수가 보존됩니다 — 정규화가 다시 들어오면 실패합니다
 - 누적 모드의 상단 합계가 `para_all` 과 일치합니다

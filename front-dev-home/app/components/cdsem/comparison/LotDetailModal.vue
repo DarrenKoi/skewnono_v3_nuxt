@@ -59,8 +59,6 @@
           :trend="trend"
           :bucket="bucket"
           :focused-lot="row.lot_cd"
-          :compact="false"
-          default-mode="lines"
         />
 
         <div class="space-y-2">

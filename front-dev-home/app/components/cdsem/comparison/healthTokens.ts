@@ -44,21 +44,33 @@ export const healthSwatches: Record<HealthLevel, HealthSwatch> = {
   }
 }
 
-// Parameter category palette — earthy 4-step gradient that lives in the
-// same warm-paper family as --sk-accent. Saturated enough to read at
-// stacked-bar width 80px, restrained enough to never out-shout the brand.
+// Parameter category palette — an ORDINAL ramp, not four categorical hues.
+// para_16 → para_5 is an ordered measurement-density scale, so a single warm
+// hue (45°, the --sk-accent family) carries identity through lightness alone.
+//
+// The previous palette swept four hues (32/65/100/165) and was *declared* a
+// "heaviest → lightest" gradient, but its lightness ran 0.62 → 0.72 → 0.66 →
+// 0.62 — not monotone. That collision left para_13 and para_9 ΔE 10.2 apart in
+// normal vision (the floor is 15) and ΔE 3.1 under protanopia, i.e. the same
+// colour for a red-green reader. It matters most in the stacked area, where
+// those two bands sit physically adjacent.
+//
+// Lightness is monotone here, so the ramp is colour-vision-safe by construction
+// rather than by luck. Both steps pass every check in the dataviz palette
+// validator (--ordinal) against --sk-surface in their respective modes.
+// Keep the adjacent ΔL ≥ 0.06 if you retune — paraTrendSeries.test.ts asserts it.
 export const paraColors = {
-  para_16: 'oklch(0.62 0.16 32)', // terracotta (heaviest weight)
-  para_13: 'oklch(0.72 0.14 65)', // amber
-  para_9: 'oklch(0.66 0.10 100)', // olive
-  para_5: 'oklch(0.62 0.08 165)' // dusty sage (lightest weight)
+  para_16: 'oklch(0.40 0.115 45)', // darkest — most parameters
+  para_13: 'oklch(0.52 0.135 45)',
+  para_9: 'oklch(0.64 0.130 45)',
+  para_5: 'oklch(0.76 0.100 45)' // lightest — fewest parameters
 } as const
 
 export const paraColorsDark = {
-  para_16: 'oklch(0.72 0.17 32)',
-  para_13: 'oklch(0.80 0.14 65)',
-  para_9: 'oklch(0.76 0.10 100)',
-  para_5: 'oklch(0.72 0.09 165)'
+  para_16: 'oklch(0.52 0.135 45)',
+  para_13: 'oklch(0.63 0.145 45)',
+  para_9: 'oklch(0.74 0.115 45)',
+  para_5: 'oklch(0.85 0.080 45)'
 } as const
 
 export const paraOrder = ['para_16', 'para_13', 'para_9', 'para_5'] as const
