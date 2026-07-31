@@ -60,6 +60,9 @@ test('residual baseline shifts value AND both band edges by the same amount', ()
   assert.equal(mid.value, 0) // 20 - median(10,20,30) = 0
   assert.equal(mid.bandLo, -2) // 18 - 20
   assert.equal(mid.bandHi, 4) // 24 - 20
+  assert.equal(mid.min, 18) // raw statistic preserved, NOT shifted
+  assert.equal(mid.max, 24) // raw statistic preserved, NOT shifted
+  assert.equal(mid.std, 2) // raw statistic preserved, NOT shifted
 })
 
 test('measurements whose file lacks the parameter are dropped', () => {
@@ -103,7 +106,7 @@ test('a named parameter DOES get verdicts once there are enough peers', () => {
     row(`m${i}`, 'TP01', `2026-07-0${i + 1}T10:00:00`))
   const files = new Map(rows.map((r, i) => [r.msr, file('WAFER', 10 + i, 9 + i, 11 + i, 1)]))
   const out = buildTrendSeries(rows, files, 'WAFER', { baseline: 'raw', config: DEFAULT_METHOD_CONFIG })
-  assert.ok(out.every(p => p.verdict !== undefined))
+  assert.ok(out.every(p => p.verdict?.status === 'evaluated'))
 })
 
 test('verdicts are computed from RAW means, so residual mode cannot change them', () => {
