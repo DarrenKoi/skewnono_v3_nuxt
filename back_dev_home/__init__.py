@@ -1,5 +1,6 @@
 import importlib
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -123,7 +124,34 @@ def create_app() -> Flask:
     # Nothing collides today; the SPA owns every non-/api path, so the mount in
     # _spa/serving.py should be the only thing claiming them.
     app = Flask(__name__, static_folder=None)
-    app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", "dev-only-not-for-prod")
+
+    # The declared identity (`_auth/self_id.py`) rides in a signed session
+    # cookie, and its `verified` flag is only a claim the signature makes
+    # credible. A default key is a public constant in this repository, so on
+    # the cloud a missing value is not a weak configuration — it is an unsigned
+    # session that still looks signed, with no error to notice. Refuse to start
+    # instead: the failure then appears once, at deploy, rather than never.
+    #
+    # The gate asks whether a value was CHOSEN, not whether it is strong.
+    # Judging strength here would block a deploy over a policy this code has no
+    # standing to set. A blank counts as absent — `SKEWNONO_SECRET_KEY=` in a
+    # .env reads as "", which a plain presence check would wave through.
+    secret = (os.environ.get("SKEWNONO_SECRET_KEY") or "").strip()
+    if not secret:
+        if is_cloud():
+            raise RuntimeError(
+                "SKEWNONO_SECRET_KEY is required on the cloud: it signs the "
+                "self-identification session, whose `verified` flag is "
+                "forgeable without it. Set any non-empty value in "
+                "/project/workSpace/back_dev_home/.env and restart."
+            )
+        secret = "dev-only-not-for-prod"
+    app.secret_key = secret
+
+    # Only sessions marked permanent get a lifetime, and `self_id`'s writer
+    # marks them — setting this without that would leave it inert and every
+    # declaration would evaporate when the tab closed.
+    app.permanent_session_lifetime = timedelta(days=30)
 
     # Config must agree with the filesystem before we serve anything: an
     # explicit SKEWNONO_<FEATURE>_PROVIDER=office with no providers/office.py
@@ -144,6 +172,25 @@ def create_app() -> Flask:
     provider = CloudIdentityProvider() if is_cloud() else LocalIdentityProvider()
     install_identity_middleware(app, provider)
     install_activity_logging(app)
+
+    # wsgi.ini exposes http-socket directly today, so request.remote_addr is
+    # already the real client IP and trusting X-Forwarded-For would let any
+    # caller forge their own address with a header. But wsgi.ini:20-24
+    # documents the nginx move, and making it would silently record every
+    # request as 127.0.0.1 with no error at all — including the declared_from
+    # that self-identification exists to capture.
+    #
+    # Opt-in, so the trust is a deployment decision rather than something this
+    # code guesses. Parsed against a list of true-ish spellings: treating any
+    # non-empty string as true is how `=false` turns an opt-in into always-on.
+    if (os.environ.get("SKEWNONO_TRUST_PROXY") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     if not is_cloud():
         from .activity.data import seed_demo_users
