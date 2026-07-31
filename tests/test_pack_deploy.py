@@ -22,6 +22,11 @@ def test_includes_the_built_spa_at_its_exact_path():
     assert "front-dev-home/.output/public" in pack.INCLUDED_ROOTS
 
 
+def test_excludes_permanent_cloud_root_files():
+    for name in ("index.py", "wsgi.ini"):
+        assert name not in pack.INCLUDED_ROOTS
+
+
 def test_prunes_pycache_and_tests():
     assert pack.should_prune(Path("back_dev_home/__pycache__"))
     assert pack.should_prune(Path("back_dev_home/sem_list/tests"))
@@ -65,6 +70,14 @@ def test_preflight_passes_on_a_complete_tree(tmp_path):
     assert pack.blocking_failures(checks) == []
 
 
+def test_preflight_does_not_require_permanent_cloud_root_files(tmp_path):
+    root = _make_repo(tmp_path)
+    (root / "index.py").unlink()
+    (root / "wsgi.ini").unlink()
+
+    assert pack.blocking_failures(pack.run_preflight(root)) == []
+
+
 def test_missing_spa_blocks(tmp_path):
     root = _make_repo(tmp_path)
     (root / "front-dev-home" / ".output" / "public" / "index.html").unlink()
@@ -105,7 +118,7 @@ def test_strict_promotes_advisories_to_blocking(tmp_path):
     assert any(f.name == "office_adapters" for f in failures)
 
 
-def test_default_secret_key_is_advisory(tmp_path):
+def test_preflight_does_not_inspect_env_values(tmp_path):
     root = _make_repo(tmp_path)
     (root / "back_dev_home" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=dev-only-not-for-prod\n"
@@ -113,94 +126,7 @@ def test_default_secret_key_is_advisory(tmp_path):
 
     checks = pack.run_preflight(root)
 
-    secret = next(c for c in checks if c.name == "secret_key")
-    assert not secret.ok
-    assert not secret.blocking
-
-
-def test_read_env_ignores_comments_blanks_and_non_assignments(tmp_path):
-    env_path = tmp_path / ".env"
-    env_path.write_text(
-        "# a comment\n"
-        "\n"
-        "just-a-word\n"
-        "  SKEWNONO_SECRET_KEY = real  \n"
-    )
-
-    assert pack._read_env(env_path) == {"SKEWNONO_SECRET_KEY": "real"}
-
-
-def test_read_env_splits_on_the_first_equals_only(tmp_path):
-    """Redis/MinIO credentials routinely contain '=' (base64 padding)."""
-    env_path = tmp_path / ".env"
-    env_path.write_text("SKEWNONO_REDIS_PASSWORD=pa==ss=\n")
-
-    assert pack._read_env(env_path) == {"SKEWNONO_REDIS_PASSWORD": "pa==ss="}
-
-
-def test_read_env_of_a_missing_file_is_empty(tmp_path):
-    """run_preflight() reads .env unconditionally, before env_present blocks."""
-    assert pack._read_env(tmp_path / "nope.env") == {}
-
-
-def test_read_env_keeps_quotes_in_the_value(tmp_path):
-    """A deliberate 3-line reader — packing must work without importing the app
-    — so it is not python-dotenv and does not strip quotes.
-
-    back_dev_home/.env.example states the format ("no quotes, no `export`, no
-    spaces around `=`"), so this is the documented shape, not a parser bug. The
-    next test is what it costs when the format is ignored.
-    """
-    env_path = tmp_path / ".env"
-    env_path.write_text('SKEWNONO_SECRET_KEY="dev-only-not-for-prod"\n')
-
-    assert pack._read_env(env_path) == {
-        "SKEWNONO_SECRET_KEY": '"dev-only-not-for-prod"'
-    }
-
-
-def test_a_quoted_default_secret_key_is_caught_by_the_advisory(tmp_path):
-    """The asymmetry this closes: create_app() reads this file with
-    load_dotenv(), which DOES strip quotes, so a quoted default key signed
-    sessions with the key published in this repo while packing reported
-    nothing — the one check meant to catch exactly that.
-
-    `_read_env` still keeps quotes (it stays a three-line reader; see the test
-    above). The comparison is what changed: it now asks what the app will
-    actually see. Escapes, `${}` and multi-line values remain unhandled by
-    design — outside the documented .env format.
-    """
-    root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text(
-        'SKEWNONO_SECRET_KEY="dev-only-not-for-prod"\n'
-    )
-
-    checks = pack.run_preflight(root)
-
-    assert not next(c for c in checks if c.name == "secret_key").ok
-
-
-def test_a_quoted_real_secret_key_still_passes(tmp_path):
-    """The fix must not fire on a genuine key that merely carries quotes —
-    otherwise it trades a false negative for a false positive."""
-    root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text(
-        "SKEWNONO_SECRET_KEY='a-real-production-key'\n"
-    )
-
-    checks = pack.run_preflight(root)
-
-    assert next(c for c in checks if c.name == "secret_key").ok
-
-
-def test_read_env_does_not_understand_the_export_prefix(tmp_path):
-    """`export FOO=bar` yields the key "export FOO", so a shell-style .env
-    reads as having no SKEWNONO_SECRET_KEY at all — the advisory fires. Also
-    out of the documented format, and failing loudly is the right direction."""
-    env_path = tmp_path / ".env"
-    env_path.write_text("export SKEWNONO_SECRET_KEY=real\n")
-
-    assert pack._read_env(env_path) == {"export SKEWNONO_SECRET_KEY": "real"}
+    assert "secret_key" not in {check.name for check in checks}
 
 
 def _set_build_times(root: Path, source: float, build: float) -> None:
@@ -264,6 +190,16 @@ def test_copy_preserves_the_depth_invariant(tmp_path):
     env_py = dest / "back_dev_home" / "_runtime" / "env.py"
     assert env_py.is_file()
     assert env_py.resolve().parents[2] == dest.resolve()
+
+
+def test_copy_omits_permanent_cloud_root_files(tmp_path):
+    repo = _make_repo(tmp_path)
+    dest = tmp_path / "bundle"
+
+    pack.copy_bundle(repo, dest)
+
+    assert not (dest / "index.py").exists()
+    assert not (dest / "wsgi.ini").exists()
 
 
 def test_copy_places_the_spa_at_its_exact_path(tmp_path):

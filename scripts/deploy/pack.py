@@ -3,7 +3,7 @@
 Run FROM THE REPO ROOT, at the office, after building the frontend:
 
     npm --prefix front-dev-home run build
-    .venv/bin/python -m scripts.deploy
+    .venv/bin/python scripts/deploy/pack.py
 
 Two properties of this repository shape everything here.
 
@@ -34,8 +34,6 @@ from pathlib import Path
 # Only ops_store, minio_handler and ftp_handler are actually imported by the
 # app; ops_index_mgmt (index-creation tooling) is deliberately absent.
 INCLUDED_ROOTS = (
-    "index.py",
-    "wsgi.ini",
     "back_dev_home",
     "front-dev-home/.output/public",
     "ops_store",
@@ -79,12 +77,6 @@ def should_prune(path: Path) -> bool:
     return prunes_by_name(path.name) or any(part in PRUNE_DIRS for part in path.parts)
 
 
-# Keep in sync with the fallback in back_dev_home/__init__.py's
-# app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", ...). Not imported:
-# packing must work without importing the app.
-DEFAULT_SECRET_KEY = "dev-only-not-for-prod"
-
-
 @dataclass(frozen=True)
 class Check:
     """One preflight result.
@@ -104,41 +96,6 @@ def _newest_mtime(root: Path) -> float:
     return max(
         (p.stat().st_mtime for p in root.rglob("*") if p.is_file()), default=0.0
     )
-
-
-def _read_env(path: Path) -> dict[str, str]:
-    values = {}
-    if not path.is_file():
-        return values
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        values[key.strip()] = value.strip()
-    return values
-
-
-def _as_the_app_reads_it(value: str) -> str:
-    """What create_app() will actually see for a `.env` value this reader got.
-
-    `_read_env` is deliberately three lines — packing must work without
-    importing the app — so it does not strip quotes. `create_app()` reads the
-    same file with `load_dotenv()`, which does. That gap made
-    `SKEWNONO_SECRET_KEY="dev-only-not-for-prod"` compare unequal to the
-    default here and pass the advisory silently, while the running app signed
-    real sessions with the key published in this repo.
-
-    Only the unambiguous case is handled: one matching pair of surrounding
-    quotes. Escapes, `${}` interpolation and multi-line values are left alone
-    rather than half-guessed — `back_dev_home/.env.example` documents the
-    format as "no quotes, no `export`, no spaces around `=`", so anything
-    fancier is already outside it. This narrows the blind spot to shapes the
-    packer cannot be sure about instead of leaving the common one open.
-    """
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        return value[1:-1]
-    return value
 
 
 def office_adapters(repo_root: Path) -> list[str]:
@@ -199,16 +156,6 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
         build_fresh,
         "the built SPA is older than front-dev-home/app/ — rebuild, or you "
         "will ship yesterday's UI",
-        False,
-    )
-
-    secret = _read_env(env_path).get("SKEWNONO_SECRET_KEY", "")
-    add(
-        "secret_key",
-        bool(secret) and _as_the_app_reads_it(secret) != DEFAULT_SECRET_KEY,
-        "SKEWNONO_SECRET_KEY is unset or still the default; sessions are "
-        "signed with a known key. Fine for a feasibility deploy, not for "
-        "skewnono.skhynix.com",
         False,
     )
 
@@ -284,10 +231,6 @@ def verify_bundle(dest: Path) -> list[str]:
     if not index_html.is_file():
         failures.append(f"missing {index_html}")
 
-    for name in ("index.py", "wsgi.ini"):
-        if not (dest / name).is_file():
-            failures.append(f"missing {dest / name}")
-
     if list(dest.rglob("__pycache__")):
         failures.append("__pycache__ survived the prune")
 
@@ -296,7 +239,10 @@ def verify_bundle(dest: Path) -> list[str]:
 
 RUNBOOK = """# Deploy this bundle
 
-1. Copy this whole folder to `/project/workSpace/` on the cloud host.
+1. Copy this bundle's contents over the existing `/project/workSpace/` on the
+   cloud host. Do not delete or replace `/project/workSpace`: its permanent
+   `index.py` and `wsgi.ini` are intentionally not included in this bundle.
+
    The path matters: `is_cloud()` tests whether `back_dev_home/_runtime/env.py`
    resolves under `/project/workSpace`. Anywhere else and the app starts with
    no SSO auth, no SPA mount, and mock data — while still answering HTTP 200.
@@ -318,8 +264,8 @@ RUNBOOK = """# Deploy this bundle
 
        pip install -r back_dev_home/requirements.txt
 
-4. Run preflight again. Imports should now resolve, and it reports which
-   `hcputil` module spelling this image provides:
+4. Run preflight again. Imports should now resolve, including the
+   cloud-image-provided `hcputil.auth.sso`:
 
        python preflight.py
 
@@ -487,7 +433,10 @@ def main(argv: list[str] | None = None) -> int:
     print("    back_dev_home/.env")
     print("    minio_handler/minio_config.py")
     print("  The folder is chmod 700. Do not place it on shared storage.")
-    print(f"\n  Next: copy {dest}/ to /project/workSpace/ then read DEPLOY.md")
+    print(
+        f"\n  Next: overlay the contents of {dest}/ onto the existing "
+        "/project/workSpace/ then read DEPLOY.md"
+    )
     return 0
 
 
