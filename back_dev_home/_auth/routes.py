@@ -76,6 +76,12 @@ def identify():
 
     if not empno:
         return jsonify({"error": "invalid_input", "message": "사번을 입력해 주세요"}), 422
+    # The name is required HERE, not only in the SPA's form: the /identify
+    # gate is client-side, and an `absent`/`unavailable` probe accepts without
+    # a directory name to fall back on — a curl caller skipping `emp_nm` would
+    # otherwise store the accepted-with-no-name state Decision rules out.
+    if not entered_name:
+        return jsonify({"error": "invalid_input", "message": "이름을 입력해 주세요"}), 422
 
     decision = decide(probe_member(empno), entered_name)
     if not decision.accept:

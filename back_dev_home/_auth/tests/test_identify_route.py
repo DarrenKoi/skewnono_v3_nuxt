@@ -285,3 +285,30 @@ def test_an_unverified_declaration_keeps_the_entered_name(client, directory_says
     with client.session_transaction() as session:
         assert session["declared"]["emp_nm"] == "홍길동"
         assert session["declared"]["verified"] is False
+
+
+def test_a_missing_name_is_refused_server_side(client, directory_says):
+    """The /identify screen requires a name, but that gate is client-side. An
+    `absent` probe accepts with no directory name to fall back on, so a curl
+    caller omitting `emp_nm` would otherwise store the accepted-with-no-name
+    state Decision's docstring rules out — attributed traffic with nobody
+    attached."""
+    directory_says(Probe(None, "absent"))
+
+    response = client.post("/api/identify", json={"empno": "9999999"})
+
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "invalid_input"
+    assert client.get("/api/me").get_json()["user_id"] == "anonymous"
+
+
+def test_a_blank_name_is_refused_server_side(client, directory_says):
+    """Whitespace must read as absent, mirroring the empno handling."""
+    directory_says(Probe(None, "absent"))
+
+    response = client.post(
+        "/api/identify", json={"empno": "9999999", "emp_nm": "   "}
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "invalid_input"
