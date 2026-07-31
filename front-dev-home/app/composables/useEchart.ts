@@ -23,6 +23,11 @@ interface UseEchartOptions {
   // means a different series depending on which pane was clicked. Single-grid
   // callers can ignore it.
   onGridClick?: (xValue: number, gridIndex: number) => void
+  // Fired when a series element is clicked, carrying the datum's index within
+  // its series. `onClick` forwards the category NAME, which is not an identity
+  // for charts whose labels are display strings rather than ids — the caller
+  // maps the index back to its own data array. All supplied callbacks fire.
+  onDataIndex?: (dataIndex: number, seriesIndex: number) => void
   // Preferred base name for the downloaded PNG (before the date stamp). Falls
   // back to the chart's title text, then 'chart'.
   exportName?: string
@@ -85,6 +90,19 @@ export const useEchart = (
       if (params.componentType !== 'series') return
       const name = (params as { name?: string }).name
       if (typeof name === 'string' && name.length > 0) callback(name)
+    })
+  }
+
+  // Same 'click' source as bindClick, bound separately so a chart can ask for
+  // the index without also being handed a name it has no use for.
+  const bindDataIndex = () => {
+    const callback = options.onDataIndex
+    if (!chart || !callback) return
+    chart.on('click', (params) => {
+      if (params.componentType !== 'series') return
+      const hit = params as { dataIndex?: number, seriesIndex?: number }
+      if (typeof hit.dataIndex !== 'number') return
+      callback(hit.dataIndex, hit.seriesIndex ?? 0)
     })
   }
 
@@ -159,6 +177,7 @@ export const useEchart = (
     chart = echarts.init(elRef.value, themeId.value)
     chart.setOption(optionRef.value)
     bindClick()
+    bindDataIndex()
     bindGridClick()
     mountDownloadButton()
     if (!resizeHandler) {

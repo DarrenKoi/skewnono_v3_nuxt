@@ -14,7 +14,7 @@
 // extension, and every framework import is type-only (erased at runtime).
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
-import type { AnalysisScope, SequenceAxisMode } from './types.ts'
+import type { AnalysisScope, SequenceAxisMode, TsAxisMode, TsBaseline, TsView } from './types.ts'
 
 export const DEFAULT_VIEW: SkewvoirViewKind = 'dashboard'
 
@@ -107,7 +107,11 @@ export const parseMsrList = (query: LocationQuery): string[] => {
   const raw = qstr(query.msrs)
   const ids = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
   const fallback = qstr(query.msr)
-  return ids.length ? ids : (fallback ? [fallback] : [])
+  const parts = ids.length ? ids : (fallback ? [fallback] : [])
+  // A duplicated msr would be counted twice by every aggregation (mean, n,
+  // coverage) and would also consume one of the TREND_LIMIT slots, so ids are
+  // unique from the moment they leave the URL.
+  return [...new Set(parts)]
 }
 
 /** Analysis scope — held in the URL SEPARATELY from the selection count so a
@@ -134,6 +138,29 @@ export const parseFdcAxis = (raw: unknown): SequenceAxisMode =>
  *  URL clean, so only the `'all'` opt-out is ever written. */
 export const encodeFdcAxis = (mode: SequenceAxisMode): string | null =>
   mode === 'all' ? 'all' : null
+
+export const DEFAULT_TS_VIEW: TsView = 'trend'
+
+const TS_VIEWS: readonly TsView[] = ['trend', 'dist', 'skew']
+const TS_AXES: readonly TsAxisMode[] = ['time', 'order']
+const TS_BASELINES: readonly TsBaseline[] = ['raw', 'resid']
+
+/** Lens for the Time-Series view. An unknown value corrects to `trend` rather
+ *  than rendering nothing, matching parseView's treatment of a hand-edited link. */
+export const parseTsView = (raw: unknown): TsView => {
+  const v = qstr(raw)
+  return v && (TS_VIEWS as readonly string[]).includes(v) ? v as TsView : DEFAULT_TS_VIEW
+}
+
+export const parseTsAxis = (raw: unknown): TsAxisMode => {
+  const v = qstr(raw)
+  return v && (TS_AXES as readonly string[]).includes(v) ? v as TsAxisMode : 'time'
+}
+
+export const parseTsBaseline = (raw: unknown): TsBaseline => {
+  const v = qstr(raw)
+  return v && (TS_BASELINES as readonly string[]).includes(v) ? v as TsBaseline : 'raw'
+}
 
 /** Serialize a selection (+ view + explicit set + scope) into an analysis-link
  *  query. `msrs` defaults to the focus alone; pass a curated list for the

@@ -12,6 +12,9 @@ import {
   parseMsrList,
   parseScope,
   parseSelection,
+  parseTsAxis,
+  parseTsBaseline,
+  parseTsView,
   parseView,
   qstr,
   toAnalysisQuery,
@@ -252,4 +255,30 @@ test('the fdc view kind parses and survives a round trip', () => {
   assert.equal(parseView('time-series'), 'time-series')
   // Still whitelisted — a hand-edited link falls back to the Dashboard.
   assert.equal(parseView('fdc-analysis'), 'dashboard')
+})
+
+test('parseTsView defaults to trend and corrects an unknown value', () => {
+  assert.equal(parseTsView(undefined), 'trend')
+  assert.equal(parseTsView('dist'), 'dist')
+  assert.equal(parseTsView('skew'), 'skew')
+  assert.equal(parseTsView('nonsense'), 'trend')
+  assert.equal(parseTsView(''), 'trend')
+  // An array query value collapses to its first element (qstr behaviour).
+  assert.equal(parseTsView(['skew', 'dist']), 'skew')
+})
+
+test('parseTsAxis defaults to time; parseTsBaseline defaults to raw', () => {
+  assert.equal(parseTsAxis(undefined), 'time')
+  assert.equal(parseTsAxis('order'), 'order')
+  assert.equal(parseTsAxis('bogus'), 'time')
+  assert.equal(parseTsBaseline(undefined), 'raw')
+  assert.equal(parseTsBaseline('resid'), 'resid')
+  assert.equal(parseTsBaseline('bogus'), 'raw')
+})
+
+test('parseMsrList removes duplicate msr ids, keeping first occurrence order', () => {
+  assert.deepEqual(
+    parseMsrList({ msrs: 'a,b,a,c,b' }),
+    ['a', 'b', 'c']
+  )
 })

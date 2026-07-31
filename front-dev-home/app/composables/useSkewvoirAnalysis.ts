@@ -1,9 +1,8 @@
 import type { MeasHistResponse, MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MsrFileResponse, MsrParamSummary, MsrFileRow } from '~/composables/useMsrFileApi'
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
-import type { TimeSeriesPoint } from '~/components/ebeam/skewvoir/TimeSeriesChart.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
-import { peerVerdicts, combineVerdicts, DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
+import { DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
 import { overviewSites, type OverviewSites } from '~/utils/overview'
 import { parseWaferGeometry, type WaferGeometry } from '~/utils/waferGeometry'
 import { buildAnalysisManifest, extractSignature, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
@@ -15,7 +14,18 @@ import {
   type MsrFeatureRow,
   type FeatureDefinition
 } from '~/utils/skewvoirAnalysis/features'
-import { isNamedParam, paramLabel, sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
+import { paramLabel, sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
+import { activeParamPool, resolveActiveParam } from '~/utils/skewvoirAnalysis/activeParam'
+import {
+  buildSetDistributionGroups,
+  buildToolSkew,
+  buildTrendSeries,
+  distinctToolCount,
+  setBaseline,
+  setIntegrity,
+  setParamOptions,
+  type TrendPoint
+} from '~/utils/skewvoirAnalysis/timeSeries'
 import { resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
@@ -150,23 +160,31 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
   const availableParams = computed(() => paramSummaries.value.map(p => p.parameter))
 
-  // Effective parameter: honor the URL `mp` when the focus file actually has it,
-  // else fall back to the file's first NAMED parameter (recipes differ — the
-  // sample's WAFER param doesn't exist in a GATE_CD recipe).
-  //
-  // `want != null` rather than a truthiness test: the unnamed dummy MP's name IS
-  // the empty string, and a truthy check would reject the reviewer's explicit
-  // pick and bounce them to another parameter. Defaulting still skips it — you
-  // land on the first real parameter and choose the dummy deliberately — but a
-  // file whose ONLY parameter is the dummy falls back to it rather than to
-  // nothing.
-  const activeParam = computed(() => {
-    const want = ws.selection.value?.mp
-    const params = availableParams.value
-    if (want != null && params.includes(want)) return want
-    const named = params.filter(isNamedParam)
-    return named[0] ?? params[0] ?? want ?? ''
+  // Parameters carried by ANY loaded measurement in the curated set. Empty
+  // until the set files land, which is what keeps the dashboard case safe.
+  const setParams = computed<string[]>(() => {
+    const names = new Set<string>()
+    for (const file of setFiles.value.values()) {
+      for (const p of file.parameters) names.add(p.parameter)
+    }
+    return [...names]
   })
+
+  // Effective parameter: honor the URL `mp` when a measurement that gets a vote
+  // actually has it, else fall back to the first NAMED parameter (recipes
+  // differ — the sample's WAFER param doesn't exist in a GATE_CD recipe). Which
+  // measurements get a vote is scope-dependent, and resolveActiveParam
+  // (utils/skewvoirAnalysis/activeParam.ts) owns that rule — including the
+  // empty-set carve-out that keeps a scope=set + view=dashboard screen judging
+  // against the focus file alone.
+  const paramInput = computed(() => ({
+    scope: ws.scope.value,
+    urlMp: ws.selection.value?.mp,
+    focusParams: availableParams.value,
+    setParams: setParams.value
+  }))
+
+  const activeParam = computed(() => resolveActiveParam(paramInput.value))
 
   // Display form of the active parameter — the unnamed MP renders as a stand-in
   // label instead of an empty string. Components interpolating the parameter
@@ -216,7 +234,18 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const activeSummary = computed<MsrParamSummary | null>(() =>
     paramSummaries.value.find(p => p.parameter === activeParam.value) ?? null
   )
-  const activeUnit = computed(() => activeSummary.value?.unit ?? '')
+  // Focus first (unchanged for single scope); then any loaded set measurement
+  // that carries the parameter. Without this, widening activeParam to the set
+  // would strip the unit off the very parameters the widening exists to reach.
+  const activeUnit = computed(() => {
+    const focusUnit = activeSummary.value?.unit
+    if (focusUnit) return focusUnit
+    for (const file of setFiles.value.values()) {
+      const hit = file.parameters.find(p => p.parameter === activeParam.value)
+      if (hit?.unit) return hit.unit
+    }
+    return ''
+  })
   const siteRows = computed<MsrFileRow[]>(() => focusFile.value?.rows ?? [])
 
   // Physical wafer geometry (size, centre, die pitch) parsed from the focus
@@ -327,14 +356,26 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const overviewFor = (parameter: string): OverviewSites =>
     overviewSites(siteRows.value, parameter, anomalyCfg.value)
 
-  // Once the file loads, if the URL `mp` isn't one of its parameters the charts
-  // fall back to the first param — but the rail/breadcrumb and any saved link
-  // still show the stale `mp`. Write the effective param back to the URL so the
-  // displayed selection (and saved views) match what's actually plotted.
-  watch([availableParams, () => ws.selection.value?.mp], ([params, mp]) => {
-    if (params.length === 0) return
-    if (mp && params.includes(mp)) return
-    if (activeParam.value && activeParam.value !== mp) ws.setParam(activeParam.value)
+  // Once the file loads, if the URL `mp` isn't one of the parameters that get a
+  // vote the charts fall back to the first param — but the rail/breadcrumb and
+  // any saved link still show the stale `mp`. Write the effective param back to
+  // the URL so the displayed selection (and saved views) match what's actually
+  // plotted. Judged against the SAME pool activeParam resolved from, so a set
+  // parameter the focus measurement lacks is never rewritten away.
+  //
+  // `mp != null` rather than a truthy test: the unnamed settling MP's name is
+  // the empty string, and a truthy test would treat an explicit pick of it as
+  // absent and rewrite it away.
+  watch([() => activeParamPool(paramInput.value), () => ws.selection.value?.mp], ([pool, mp]) => {
+    // Under set scope with no set files loaded, the pool is the focus file's —
+    // deliberately narrower than the screen's real subject. Falling back for
+    // RENDERING is right; rewriting the URL from that pool is not. It would
+    // silently discard a set-only parameter the moment the user visits the
+    // dashboard. The set-scope pass corrects a genuinely invalid mp later.
+    if (ws.scope.value === 'set' && setFiles.value.size === 0) return
+    if (pool.length === 0) return
+    if (mp != null && pool.includes(mp)) return
+    if (activeParam.value !== mp) ws.setParam(activeParam.value)
   })
 
   // --- Curated set (Time-Series + Position Stack), fetched lazily ---
@@ -406,6 +447,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
         className: r.class_name,
         totalImages: r.total_images
       })))
+      // A slow batch must not land on a screen that has moved on. setKey is ''
+      // for a non-set view, so without this a late response repopulates a map
+      // the empty-key branch already cleared — and activeParam (and the URL it
+      // writes back) would then judge against a set the screen is not showing.
+      // fetchMsrFiles retries on 429, so that window is seconds, not microtasks.
+      if (key !== setKey.value) return
       setFiles.value = new Map(res.map(f => [f.msr, f]))
     } catch {
       // Leave the previous map in place on failure rather than blanking the chart.
@@ -414,44 +461,47 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
   }, { immediate: true })
 
+  // The set rows reduced to exactly what the Time-Series derivations need.
+  // Centralises the label so the trend and distribution lenses always agree on
+  // it, and carries recipe_name for the integrity badge.
+  const trendRowInputs = computed(() => setRows.value.map(r => ({
+    msr: r.msr,
+    label: msrLabel(r.msr),
+    eqpId: r.eqp_id,
+    timestamp: r.timestamp,
+    recipeName: r.recipe_name
+  })))
+
   // One trend point per measurement in the curated set, at its meas_hist
-  // timestamp, for the active param. Sorted by time for the trend line.
-  const trendPoints = computed<TimeSeriesPoint[]>(() => {
-    const points: (TimeSeriesPoint & { ts: number })[] = []
-    for (const row of setRows.value) {
-      const summary = setFiles.value.get(row.msr)?.parameters.find(p => p.parameter === activeParam.value)
-      if (!summary) continue
-      points.push({
-        ts: new Date(row.timestamp).getTime(),
-        msr: row.msr,
-        label: formatRecipeTimestamp(row.timestamp),
-        eqpId: row.eqp_id,
-        mean: summary.mean,
-        min: summary.min,
-        max: summary.max,
-        std: summary.std
-      })
-    }
-    points.sort((a, b) => a.ts - b.ts)
+  // timestamp, for the active param. Sorted by time; carries both the raw
+  // statistics and the baseline-applied display values (see timeSeries.ts).
+  const trendPoints = computed<TrendPoint[]>(() => buildTrendSeries(
+    trendRowInputs.value,
+    setFiles.value,
+    activeParam.value,
+    { baseline: ws.tsBaseline.value, config: anomalyCfg.value }
+  ))
 
-    // Same rule the overview applies: no peer judgement on an unnamed settling
-    // MP. Comparing one measurement's warm-up shots against another's says
-    // nothing about either wafer. Points carry no verdict, which the chart
-    // already treats as normal — so the trend still draws, unflagged.
-    if (!isNamedParam(activeParam.value)) {
-      return points.map(({ ts: _ts, ...rest }) => rest)
-    }
+  // 세트 기준 — the median of the set's measurement means, in raw units.
+  const setBaselineValue = computed(() => setBaseline(trendPoints.value.map(p => p.mean)))
 
-    // Peer verdicts under the active method: level (mean) and spread (std), each
-    // judged leave-one-out against the rest of the curated set, then combined.
-    const meanV = peerVerdicts(points.map(p => p.mean), { config: anomalyCfg.value, metric: 'mean' })
-    const spreadV = peerVerdicts(points.map(p => p.std), { config: anomalyCfg.value, metric: 'spread', tag: '산포' })
+  // One box per measurement, from the site rows already loaded in setFiles.
+  const distributionGroups = computed(() => buildSetDistributionGroups(
+    trendRowInputs.value, setFiles.value, activeParam.value
+  ))
 
-    return points.map(({ ts: _ts, ...rest }, i) => ({
-      ...rest,
-      verdict: combineVerdicts([meanV[i]!, spreadV[i]!])
-    }))
-  })
+  // Per-equipment offset from 세트 기준 (empty for a single-tool set).
+  const toolSkewRows = computed(() => buildToolSkew(trendPoints.value, setBaselineValue.value))
+
+  // Set-aware parameter list with coverage, for the Time-Series parameter picker.
+  const paramOptions = computed(() => setParamOptions(trendRowInputs.value, setFiles.value))
+
+  // requested / resolved / loaded counts + the confounding recipe count.
+  const integrity = computed(() => setIntegrity(ws.msrList.value, trendRowInputs.value, setFiles.value))
+
+  // Distinct equipment in the trend — lets the skew panel tell "one tool" apart
+  // from "no data", both of which yield no toolSkewRows.
+  const toolCount = computed(() => distinctToolCount(trendPoints.value))
 
   // Watch/abnormal counts across the curated trend, for the panel meta.
   // NB: the local counter is `watchCount`, not `watch` — a bare `let watch`
@@ -606,6 +656,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     setFiles,
     setPending,
     trendPoints,
+    setBaselineValue,
+    distributionGroups,
+    toolSkewRows,
+    toolCount,
+    paramOptions,
+    integrity,
     anomalyCfg,
     trendSummary,
     focusVerdict,

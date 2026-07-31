@@ -51,10 +51,17 @@ const props = withDefaults(defineProps<{
   // Selected points to mark, each with its identity color (active param only).
   // Box: colored raw dots; Violin: value-axis rug; Hist: tinted containing bin.
   highlights?: DistributionHighlight[]
+  // Box mode with many groups (the Time-Series set lens passes up to 30) needs
+  // room the existing callers do not: they pass a handful of groups and must
+  // keep today's flat labels, so both default OFF.
+  rotateLabels?: boolean
+  zoomable?: boolean
 }>(), {
   mode: 'Hist',
   heightClass: 'h-72',
-  highlights: () => []
+  highlights: () => [],
+  rotateLabels: false,
+  zoomable: false
 })
 
 const sk = useChartPalette()
@@ -231,8 +238,13 @@ const boxOption = computed<EChartsOption>(() => {
     xAxis: {
       type: 'category',
       data: cats.map(c => `${c.label} (n=${c.values.length})`),
-      axisLabel: { fontSize: 11, interval: 0 }
+      axisLabel: props.rotateLabels
+        ? { fontSize: 10, rotate: 35, hideOverlap: true }
+        : { fontSize: 11, interval: 0 }
     },
+    dataZoom: props.zoomable
+      ? [{ type: 'slider', height: 14, bottom: 4 }, { type: 'inside' }]
+      : undefined,
     yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 11 }, name: props.unit, nameTextStyle: { fontSize: 11 } },
     series: [
       {

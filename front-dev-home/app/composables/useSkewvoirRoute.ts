@@ -1,6 +1,6 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
-import type { AnalysisScope, SequenceAxisMode } from '~/utils/skewvoirAnalysis/types'
+import type { AnalysisScope, SequenceAxisMode, TsAxisMode, TsBaseline, TsView } from '~/utils/skewvoirAnalysis/types'
 import {
   DEFAULT_VIEW,
   applyQueryPatch,
@@ -10,6 +10,9 @@ import {
   parseMsrList,
   parseScope,
   parseSelection,
+  parseTsAxis,
+  parseTsBaseline,
+  parseTsView,
   parseView,
   qstr,
   toAnalysisQuery,
@@ -56,6 +59,12 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   // or 'all' (the whole-MSR union). In the URL so the axis a screenshot was
   // taken on travels with the link.
   const fdcAxis = computed<SequenceAxisMode>(() => parseFdcAxis(route.query.fdcaxis))
+  // Time-Series lens state, all shareable: `tsview` = which lens (추이 / 분포 /
+  // 장비 편차), `tsx` = the trend x-axis (시간 or 측정 순서), `tsb` = whether the
+  // trend plots raw values or residuals against the 세트 기준.
+  const tsView = computed<TsView>(() => parseTsView(route.query.tsview))
+  const tsAxis = computed<TsAxisMode>(() => parseTsAxis(route.query.tsx))
+  const tsBaseline = computed<TsBaseline>(() => parseTsBaseline(route.query.tsb))
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
   // Gallery review-queue filter preset (e.g. 'priority' — the 이상·실패 우선
@@ -111,6 +120,13 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   // The mapping itself (default → null, so the URL stays clean) lives in
   // encodeFdcAxis, tested as a pure round-trip with parseFdcAxis.
   const setFdcAxis = (mode: SequenceAxisMode) => patchQuery({ fdcaxis: encodeFdcAxis(mode) })
+  // In-place (no history entry), same pattern as setView/setFdcAxis.
+  const setTsView = (v: TsView) =>
+    router.replace({ path: analysisPath, query: { ...route.query, tsview: v } })
+  const setTsAxis = (v: TsAxisMode) =>
+    router.replace({ path: analysisPath, query: { ...route.query, tsx: v } })
+  const setTsBaseline = (v: TsBaseline) =>
+    router.replace({ path: analysisPath, query: { ...route.query, tsb: v } })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
   const setFilter = (filter: string | null) => patchQuery({ filter })
 
@@ -131,6 +147,9 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     metricParam,
     grainParam,
     fdcAxis,
+    tsView,
+    tsAxis,
+    tsBaseline,
     xParam,
     yParam,
     filterParam,
@@ -146,6 +165,9 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     setMetric,
     setGrain,
     setFdcAxis,
+    setTsView,
+    setTsAxis,
+    setTsBaseline,
     setXY,
     setFilter,
     goSearch,
