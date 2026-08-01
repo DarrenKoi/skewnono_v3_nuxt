@@ -1,15 +1,87 @@
-"""Chat blueprint: models, threads CRUD, and the send-message orchestration."""
+"""Thin HTTP adapters for chat models, threads, messages, and feedback."""
+
+from uuid import UUID
 
 from flask import Blueprint, g, request
 
 from back_dev_home._auth.errors import error_json
 from back_dev_home.chat import config, data, guard, llm
+from back_dev_home.chat.orchestration import (
+    ModelDoesNotSupportTools,
+    ThreadNotFound,
+    orchestrator,
+)
+from back_dev_home.chat.runtime.contracts import (
+    RuntimeDenied,
+    RuntimeLimitExceeded,
+    RuntimeTimeout,
+    RuntimeUnavailable,
+)
+from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 bp = Blueprint("chat", __name__)
+
+_FEEDBACK_RATINGS = {"up", "down"}
+_FEEDBACK_REASONS = {
+    "incorrect",
+    "insufficient_evidence",
+    "wrong_source",
+    "outdated",
+    "unclear",
+    "incorrect_scope_rejection",
+    "other",
+}
 
 
 def _uid() -> str:
     return getattr(g, "user_id", None) or "anon"
+
+
+def _canonical_uuid(value) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(UUID(value)) == value
+    except ValueError:
+        return False
+
+
+def _feedback_input(body):
+    rating = body.get("rating")
+    reasons = body.get("reasons")
+    comment = body.get("comment")
+    if not isinstance(rating, str) or rating not in _FEEDBACK_RATINGS:
+        return None
+    if not isinstance(reasons, list) or any(
+        not isinstance(reason, str) or reason not in _FEEDBACK_REASONS
+        for reason in reasons
+    ):
+        return None
+    if comment is not None and (not isinstance(comment, str) or len(comment) > 500):
+        return None
+    if isinstance(comment, str):
+        comment = comment.strip() or None
+    return {"rating": rating, "reasons": reasons, "comment": comment}
+
+
+def _owned_message(user_id, message_id):
+    for summary in data.list_threads(user_id):
+        thread = data.get_thread(user_id, summary["id"])
+        if thread is None:
+            continue
+        for message in thread["messages"]:
+            if message["id"] == message_id:
+                return message
+    return None
+
+
+def _missing_feedback_target(user_id, message_id):
+    message = _owned_message(user_id, message_id)
+    if message is not None and message["role"] != "assistant":
+        return error_json(
+            "bad_request", "feedback is only supported for assistant messages", 400
+        )
+    return error_json("not_found", "message not found", 404)
 
 
 @bp.get("/chat/models")
@@ -62,48 +134,62 @@ def chat_delete_thread(thread_id):
 
 @bp.post("/chat/threads/<thread_id>/messages")
 def chat_send_message(thread_id):
-    body = request.get_json(silent=True) or {}
-    content = (body.get("content") or "").strip()
-    if not content:
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return error_json("bad_request", "request body must be an object", 400)
+    raw_content = body.get("content")
+    if not isinstance(raw_content, str) or not raw_content.strip():
         return error_json("bad_request", "content is required", 400)
-
-    thread = data.get_thread(_uid(), thread_id)
-    if thread is None:
-        return error_json("not_found", "thread not found", 404)
-
-    history = thread["messages"]
-    last = history[-1] if history else None
-    already_persisted = (
-        last is not None and last["role"] == "user" and last["content"] == content
-    )
-    # On a retry the user turn is already stored; don't write it (or send it) twice.
-    if not already_persisted:
-        data.append_message(thread_id, "user", content)
-
-    payload = []
-    if thread.get("system_prompt"):
-        payload.append({"role": "system", "content": thread["system_prompt"]})
-    for m in history:
-        payload.append({"role": m["role"], "content": m["content"]})
-    if not already_persisted:
-        payload.append({"role": "user", "content": content})
-
+    content = raw_content.strip()
+    request_id = body.get("request_id")
+    if not _canonical_uuid(request_id):
+        return error_json("bad_request", "request_id must be a canonical UUID", 400)
     try:
-        reply = llm.send_chat(thread["model"], payload)
+        assistant = orchestrator.send_message(_uid(), thread_id, content, request_id)
+    except ThreadNotFound as exc:
+        return error_json("not_found", str(exc), 404)
+    except ModelDoesNotSupportTools as exc:
+        return error_json("bad_request", str(exc), 400)
+    except RuntimeDenied as exc:
+        return error_json("runtime_denied", str(exc), 403)
+    except (RuntimeUnavailable, ScopeUnavailable) as exc:
+        return error_json("runtime_unavailable", str(exc), 503)
+    except RuntimeTimeout as exc:
+        return error_json("gateway_timeout", str(exc), 504)
+    except RuntimeLimitExceeded as exc:
+        return error_json("runtime_limit_exceeded", str(exc), 422)
     except guard.ChatEgressBlocked as exc:
         return error_json("egress_blocked", exc.message, 403)
     except llm.ChatTimeout as exc:
         return error_json("gateway_timeout", exc.message, 504)
     except llm.ChatUpstreamError as exc:
         return error_json("bad_gateway", exc.message, 502)
-
-    assistant = data.append_message(
-        thread_id, "assistant", reply["content"],
-        meta={
-            "model": thread["model"],
-            "prompt_tokens": reply["prompt_tokens"],
-            "completion_tokens": reply["completion_tokens"],
-            "latency_ms": reply["latency_ms"],
-        },
-    )
     return {"data": assistant}
+
+
+@bp.put("/chat/messages/<message_id>/feedback")
+def chat_put_feedback(message_id):
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return error_json("bad_request", "request body must be an object", 400)
+    feedback = _feedback_input(body)
+    if feedback is None:
+        return error_json("bad_request", "invalid feedback", 400)
+    stored = data.put_feedback(_uid(), message_id, feedback)
+    if stored is None:
+        return _missing_feedback_target(_uid(), message_id)
+    return {"data": stored}
+
+
+@bp.delete("/chat/messages/<message_id>/feedback")
+def chat_delete_feedback(message_id):
+    if data.delete_feedback(_uid(), message_id):
+        return {"data": {"id": message_id, "feedback": None}}
+    message = _owned_message(_uid(), message_id)
+    if message is None:
+        return error_json("not_found", "message not found", 404)
+    if message["role"] != "assistant":
+        return error_json(
+            "bad_request", "feedback is only supported for assistant messages", 400
+        )
+    return {"data": {"id": message_id, "feedback": None}}
