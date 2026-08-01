@@ -1,6 +1,6 @@
 import logging
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify, request
 
 from back_dev_home._auth.admin import require_admin
 from back_dev_home._auth.errors import error_json
@@ -92,3 +92,35 @@ def logging_health():
             "diagnostics": handler.snapshot().as_dict(),
         }
     )
+
+
+_DEFAULT_JOB_LIMIT = 200
+
+
+@bp.get("/health/jobs")
+@require_admin
+def jobs_health():
+    """Recent scheduler run records — start, end, error, skip, missed.
+
+    Same introspection carve-out as /health/providers: reads the run log off
+    the app rather than going through a provider. Admin-only because it names
+    internal job ids and their timings.
+
+    The retention cap lives in the storage layer (memory ring buffer at home, a
+    Redis LTRIM at the office), so the ceiling below is read from the config
+    rather than duplicated here. A worker that never elected still answers:
+    at the office every worker reads the same Redis list.
+    """
+    from back_dev_home._scheduler.config import load_scheduler_config
+
+    ceiling = load_scheduler_config().log_list_max
+    raw_limit = request.args.get("limit", "")
+    try:
+        limit = int(raw_limit) if raw_limit else _DEFAULT_JOB_LIMIT
+    except ValueError:
+        limit = _DEFAULT_JOB_LIMIT
+    limit = max(1, min(limit, ceiling))
+
+    run_log = current_app.extensions.get("scheduler_run_log")
+    records = run_log.read(limit) if run_log is not None else []
+    return jsonify({"limit": limit, "records": records})
