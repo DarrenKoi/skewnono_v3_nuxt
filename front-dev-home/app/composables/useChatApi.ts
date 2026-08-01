@@ -21,14 +21,14 @@ export interface SourceRef {
   score: number | null
 }
 
-export type FeedbackReason =
-  | 'incorrect'
-  | 'insufficient_evidence'
-  | 'wrong_source'
-  | 'outdated'
-  | 'unclear'
-  | 'incorrect_scope_rejection'
-  | 'other'
+export type FeedbackReason
+  = | 'incorrect'
+    | 'insufficient_evidence'
+    | 'wrong_source'
+    | 'outdated'
+    | 'unclear'
+    | 'incorrect_scope_rejection'
+    | 'other'
 
 export interface FeedbackInput {
   rating: 'up' | 'down'
