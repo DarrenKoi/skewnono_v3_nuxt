@@ -284,4 +284,7 @@ def create_app() -> Flask:
 
     _install_rate_limit(app)
 
+    from ._scheduler import start_scheduler
+    start_scheduler(app)
+
     return app
