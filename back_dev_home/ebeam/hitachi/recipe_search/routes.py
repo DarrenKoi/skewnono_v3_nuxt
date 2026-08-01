@@ -32,7 +32,10 @@ TOOL_BY_SLUG: dict[str, ToolType] = {
 # 20 requests / 5 s per-user limit on /api/* the moment a user compared more
 # than a handful of recipes; as one POST it is one request. Same cap the
 # compare endpoint already applies.
-_MAX_PARAM_ITEMS = 200
+#
+# One name, one value: param-info builds items against the same ceiling, and a
+# second literal here would let the two drift.
+_MAX_PARAM_ITEMS = param_info.MAX_OCCURRENCES
 
 # The locator's path segments. eqp_ip is validated separately — it is an IP, and
 # the guard it needs is the SSRF one, not the traversal one.
@@ -94,20 +97,22 @@ def _resolve_fab_name() -> str | None:
     return raw or None
 
 
-def _open_data_or_error(recipe_name: str, fab_name: str | None, tool_type: ToolType):
-    """``(detail, None)`` or ``(None, coded_response)``.
+@bp.errorhandler(MsrImageError)
+def _handle_msr_image_error(exc: MsrImageError):
+    """Every route in this blueprint answers an unreachable tool the same way.
 
-    ``get_recipe_open_data`` is I/O at the office — locating the .idp can touch
-    the tool — so it needs the same ``MsrImageError`` guard the raw-folder
-    routes already apply, or an unreachable tool escapes as a 500 traceback.
-    Returning the response rather than raising keeps the three callers flat.
+    Registered rather than repeated because ``get_recipe_open_data`` is I/O at
+    the office too — locating the .idp can touch the tool — so ``recipes`` and
+    ``recipe-detail`` could raise it just as the raw-folder routes can, and
+    those two had no guard: an unreachable tool escaped as a 500 traceback on
+    the feature's most-used endpoint.
+
+    Uses ``_error`` rather than ``_auth.errors.error_json`` deliberately: this
+    surface's body is flat (``{"error", "code"}``) and the app-wide helper nests
+    under ``error``. Handing this to the shared helper would have quietly
+    changed the response shape for every existing tool-FTP caller.
     """
-    try:
-        return get_recipe_open_data(
-            recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
-        ), None
-    except MsrImageError as exc:
-        return None, _error(exc)
+    return _error(exc)
 
 
 @bp.get("/<tool_slug>/recipe-search/recipes")
@@ -154,10 +159,9 @@ def recipe_search_parameters(tool_slug: str):
         return jsonify({"error": "recipe_name is required"}), 400
 
     fab_name = _resolve_fab_name()
-    detail, failed = _open_data_or_error(recipe_name, fab_name, tool_type)
-    if failed:
-        return failed
-
+    detail = get_recipe_open_data(
+        recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
+    )
     return jsonify(param_info.build_parameter_list(detail, tool_type, fab_name))
 
 
@@ -177,10 +181,9 @@ def recipe_search_measurement_points(tool_slug: str):
     if not recipe_name or not parameter:
         return jsonify({"error": "recipe_name and parameter are required"}), 400
 
-    detail, failed = _open_data_or_error(recipe_name, _resolve_fab_name(), tool_type)
-    if failed:
-        return failed
-
+    detail = get_recipe_open_data(
+        recipe_id=recipe_name, fac_id=_resolve_fab_name(), tool_category=tool_type
+    )
     # 404 on the PARAMETER, not on an empty point list: a parameter can
     # legitimately have no measurement point, and collapsing the two would
     # report a typo'd name as "no points".
@@ -213,23 +216,18 @@ def recipe_search_param_info(tool_slug: str):
         return jsonify({"error": str(exc)}), 400
 
     fab_name = _resolve_fab_name()
-    detail, failed = _open_data_or_error(recipe_name, fab_name, tool_type)
-    if failed:
-        return failed
-
-    if not param_info.rows_for_parameter(detail, parameter):
+    detail = get_recipe_open_data(
+        recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
+    )
+    rows = param_info.rows_for_parameter(detail, parameter)
+    if not rows:
         return jsonify({"error": f"parameter not in recipe: {parameter}"}), 404
 
-    # The fetch is inside the guard because an unreachable tool raises
-    # SourceUnavailable from deep in the FTP layer; without this it would
-    # surface as a 500 traceback instead of the coded 503 the rest of the
-    # tool-FTP surface returns.
-    try:
-        return jsonify(param_info.build_param_info(
-            detail, parameter, tool_type, fab_name, include, get_param_detail
-        ))
-    except MsrImageError as exc:
-        return _error(exc)
+    # An unreachable tool raises SourceUnavailable from deep in the FTP layer
+    # and is answered by the blueprint's MsrImageError handler.
+    return jsonify(param_info.build_param_info(
+        detail, parameter, tool_type, fab_name, include, get_param_detail, rows
+    ))
 
 
 @bp.post("/<tool_slug>/recipe-search/compare")

@@ -110,6 +110,25 @@ def test_recipe_open_and_compare_match_contract():
     for entry in param_detail:
         assert_matches(entry, ParamDetailResponse)
 
+    # A PARTIAL `slots` dict is part of the contract, not an accident: it is how
+    # param-info's `include=` narrows what the adapter READS rather than merely
+    # what it returns. Omitting img_meas2 must yield amp=None with that file
+    # never fetched, and must do so under BOTH providers — an office adapter
+    # that indexed `slots` directly instead of planning through
+    # rawfiles.slot_sources would KeyError here rather than silently costing a
+    # full FTP session.
+    if detail["idp_image_info"]:
+        row = detail["idp_image_info"][0]
+        partial = data.get_param_detail([{
+            "locator": detail["locator"],
+            "parameter": row["Parameter"],
+            "slots": {"img_add1": row["img_add1"]},
+        }])
+        assert len(partial) == 1, "one entry per requested item, partial slots or not"
+        assert_matches(partial[0], ParamDetailResponse)
+        assert partial[0]["amp"] is None, "img_meas2 was not asked for; AMP must be unread"
+        assert partial[0]["af_pr"] is None, "img_add2 was not asked for"
+
     compare = data.get_recipe_compare_data(TOOL_TYPE, None, [recipe_name])
     assert_matches(compare, RecipeCompareResponse)
     assert compare["tool_type"] == TOOL_TYPE

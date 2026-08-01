@@ -95,12 +95,12 @@ test('개요 keeps false apart from missing', () => {
   assert.equal(flat.get('dnumber_removed'), false)
 })
 
-test('AMP keeps reader order and records its source file', () => {
+test('AMP keeps reader order and records its source file as a row', () => {
   const wb = buildParamWorkbook(input([]))
   const rows = sheet(wb, 'AMP').rows
-  assert.deepEqual(rows[0], ['key', 'value'])
-  assert.deepEqual(rows[1], ['ACCV', '800'])
-  assert.equal(sheet(wb, 'AMP').source, 'PRMS0000')
+  assert.deepEqual(rows[0], ['source: PRMS0000'])
+  assert.deepEqual(rows[1], ['key', 'value'])
+  assert.deepEqual(rows[2], ['ACCV', '800'])
 })
 
 test('AF_PR keeps section as its own column, not a flattened label', () => {
@@ -109,9 +109,32 @@ test('AF_PR keeps section as its own column, not a flattened label', () => {
   // read back, and a bare "MODE" would show one pass's value under both.
   const wb = buildParamWorkbook(input([]))
   const rows = sheet(wb, 'AF_PR').rows
-  assert.deepEqual(rows[0], ['section', 'key', 'value'])
-  assert.deepEqual(rows[1], ['ADD1', 'MODE', 'AUTO'])
-  assert.deepEqual(rows[2], ['ADD2', 'MODE', 'MANUAL'])
+  assert.deepEqual(rows[0], ['source: ENMP0000'])
+  assert.deepEqual(rows[1], ['section', 'key', 'value'])
+  assert.deepEqual(rows[2], ['ADD1', 'MODE', 'AUTO'])
+  assert.deepEqual(rows[3], ['ADD2', 'MODE', 'MANUAL'])
+})
+
+test('the section column is derived from the rows, not the sheet name', () => {
+  // AMP has no sections today, but a file that grows them must not lose the
+  // column just because its call site once said "not sectioned".
+  const wb = buildParamWorkbook({
+    ...input([]),
+    detail: {
+      ...DETAIL,
+      amp: { source: 'PRMS0000', rows: [{ key: 'ACCV', value: '800', section: 'G1' }] }
+    }
+  })
+  assert.deepEqual(sheet(wb, 'AMP').rows[1], ['section', 'key', 'value'])
+})
+
+test('no sheet is written that the builder did not lay out', () => {
+  // anchorRow indexes into sheet.rows, so a source line the WRITER prepended
+  // would shift every embedded picture down one. Sources are rows here.
+  const wb = buildParamWorkbook(input(MEASURE))
+  for (const s of wb.sheets) {
+    assert.ok(!('source' in s), `${s.name} still carries a source field`)
+  }
 })
 
 test('이미지 includes only the requested slots', () => {

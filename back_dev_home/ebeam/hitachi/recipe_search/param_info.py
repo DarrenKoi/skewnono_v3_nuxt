@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
+from back_dev_home.ebeam.hitachi.recipe_search import rawfiles
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     IdpImageInfoRow,
     MeasurementPointsResponse,
@@ -51,14 +52,23 @@ INCLUDE_PARTS: tuple[str, ...] = ("amp", "af_pr", "images")
 # ``rawfiles.slot_sources``, which reads every slot with ``slots.get(...)``, so
 # an ABSENT key takes the same branch as an empty one and the read never
 # happens. Filtering the RESPONSE instead would cost the same FTP session.
+#
+# ``images`` is taken FROM rawfiles rather than restated: that module owns the
+# slot->file mapping precisely so it is "parity by construction" rather than by
+# discipline (its own docstring). Restating the tuple here would mean a fourth
+# confirmed image slot silently kept being dropped from ``include=images``,
+# with no test failing — this endpoint would just return fewer images than
+# param-detail does for the same row.
 _PART_SLOTS: dict[str, tuple[str, ...]] = {
     "amp": ("img_meas2",),
     "af_pr": ("img_add2",),
-    "images": ("img_add1", "image_add3", "img_meas1"),
+    "images": rawfiles.IMAGE_SLOT_KEYS,
 }
 
-# Same ceiling routes.py already applies to param-detail's item list. An
-# unbounded parameter match is an unbounded pull off a production tool.
+# The ceiling routes.py applies to param-detail's item list, which is where
+# these items end up. Defined here and imported there rather than written twice:
+# lowering the POST cap while this one silently stayed at 200 would send a
+# provider more items than the route layer considers legal.
 MAX_OCCURRENCES = 200
 
 
@@ -133,8 +143,13 @@ def rows_for_parameter(
     ]
 
 
-def _trimmed_slots(row: IdpImageInfoRow, include: Iterable[str]) -> dict[str, str]:
-    keep = {slot for part in include for slot in _PART_SLOTS[part]}
+def _slots_to_keep(include: Iterable[str]) -> frozenset[str]:
+    """The slots the requested parts are named by. Computed once per request,
+    not once per occurrence — it depends only on ``include``."""
+    return frozenset(slot for part in include for slot in _PART_SLOTS[part])
+
+
+def _trimmed_slots(row: IdpImageInfoRow, keep: frozenset[str]) -> dict[str, str]:
     return {slot: str(row.get(slot) or "") for slot in keep}
 
 
@@ -147,9 +162,8 @@ def _flatten(block: SettingBlock | None) -> tuple[list[SettingRow], str | None]:
 def _occurrence(
     row: IdpImageInfoRow,
     detail: ParamDetailResponse,
-    include: Iterable[str],
+    parts: frozenset[str],
 ) -> ParamOccurrence:
-    parts = set(include)
     occurrence: ParamOccurrence = {"idp": row}
     if "amp" in parts:
         occurrence["amp"], occurrence["amp_source"] = _flatten(detail.get("amp"))
@@ -177,21 +191,29 @@ def build_param_info(
     fab_name: str | None,
     include: Iterable[str],
     fetch: Callable[[list[ParamDetailRequestItem]], list[ParamDetailResponse]],
+    rows: list[IdpImageInfoRow] | None = None,
 ) -> ParamInfoResponse:
     """Tier 2 — one occurrence per idp_image_info row naming ``parameter``.
 
     ``fetch`` is injected rather than imported so the slot trimming — the part
     that decides how many files come off a production tool — can be asserted
     without one.
+
+    ``rows`` lets a caller that has already filtered (the route does, to answer
+    404 before spending a tool session) pass its result in rather than have the
+    same scan run twice per request.
     """
-    include = tuple(include)
+    include = frozenset(include)
     locator = detail.get("locator", {})
-    rows = rows_for_parameter(detail, parameter)[:MAX_OCCURRENCES]
+    if rows is None:
+        rows = rows_for_parameter(detail, parameter)
+    rows = rows[:MAX_OCCURRENCES]
+    keep_slots = _slots_to_keep(include)
     items: list[ParamDetailRequestItem] = [
         {
             "locator": locator,
             "parameter": parameter,
-            "slots": _trimmed_slots(row, include),
+            "slots": _trimmed_slots(row, keep_slots),
         }
         for row in rows
     ]
@@ -202,7 +224,9 @@ def build_param_info(
         "tool_type": tool_type,
         "parameter": parameter,
         "locator": locator,
-        "include": list(include),
+        # Sorted so the echoed list is stable regardless of the frozenset's
+        # iteration order — a response field a caller may assert on.
+        "include": [part for part in INCLUDE_PARTS if part in include],
         # strict=True on purpose. Both adapters contract to return exactly one
         # entry per item; a mismatch means a provider bug, and zipping loosely
         # would silently DROP occurrences — the same class of quiet wrong answer

@@ -143,9 +143,17 @@ ParamImage = TypedDict("ParamImage", {
     "cond": SettingBlock | None
 })
 
-# One element of the param-detail POST body. ``slots`` is the row's five img_*
-# values verbatim from idp_image_info — the client already holds them, so the
-# server never re-parses the .idp to recover them.
+# One element of the param-detail POST body. ``slots`` is normally the row's
+# five img_* values verbatim from idp_image_info — the client already holds
+# them, so the server never re-parses the .idp to recover them.
+#
+# ★ A PARTIAL dict is legal and means "do not read the omitted slots". Both
+#   adapters plan their reads through ``rawfiles.slot_sources``, which reads
+#   every slot with ``slots.get(...)``, so an absent key takes the same branch
+#   as an empty one and that file is never fetched. ``param-info``'s
+#   ``include=`` is built on this, and it is the difference between narrowing
+#   the READ and merely filtering the response — so an adapter must keep
+#   planning through ``slot_sources`` rather than indexing ``slots`` directly.
 ParamDetailRequestItem = TypedDict("ParamDetailRequestItem", {
     "locator": IdpLocator,
     "parameter": str,

@@ -11,18 +11,26 @@ export const buildCsvContent = (headers: string[], rows: unknown[][]): string =>
   return [headerRow, ...bodyRows].join('\r\n')
 }
 
-// Download an arbitrary CSV string. Excel reads UTF-8 only when a BOM (U+FEFF)
-// is present, so this is the single place the BOM is added. Client-only.
-export const downloadCsvRaw = (filename: string, content: string): void => {
-  if (!import.meta.client || content.length === 0) return
+// Hand a Blob to the browser as a download. The object-URL dance is fiddly and
+// easy to get subtly wrong (a missing revoke leaks the blob for the life of the
+// document), so it lives here once rather than in each exporter. Client-only.
+export const downloadBlob = (filename: string, blob: Blob): void => {
+  if (!import.meta.client) return
 
-  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
   link.click()
   URL.revokeObjectURL(url)
+}
+
+// Download an arbitrary CSV string. Excel reads UTF-8 only when a BOM (U+FEFF)
+// is present, so this is the single place the BOM is added. Client-only.
+export const downloadCsvRaw = (filename: string, content: string): void => {
+  if (!import.meta.client || content.length === 0) return
+
+  downloadBlob(filename, new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' }))
 }
 
 export const downloadCsv = (

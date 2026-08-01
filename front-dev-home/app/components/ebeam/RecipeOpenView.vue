@@ -420,6 +420,7 @@ watch([paramRequestKey, () => data.value?.locator?.eqp_ip], () => {
 // a reader most often does not need. 측정 이미지 is unconditional.
 const includeAddressing = ref(false)
 const exporting = ref(false)
+const toast = useToast()
 
 const downloadExcel = async () => {
   const row = selectedIdp.value
@@ -437,7 +438,7 @@ const downloadExcel = async () => {
       locator: locator.value,
       // The SELECTED row, not the parameter: two rows of one parameter name
       // different files, and this workbook describes the row on screen.
-      idp: row as unknown as Record<string, unknown>,
+      idp: row,
       detail: paramDetail.value,
       slots,
       exportedAt: new Date().toISOString()
@@ -449,7 +450,16 @@ const downloadExcel = async () => {
       name => recipeImageUrl(base, toolSlug.value, locator.value, name)
     )
   } catch (err) {
+    // Told, not just logged. The export reads files off a live tool, so it can
+    // fail entirely — and with only a console line the spinner simply stops and
+    // a silent no-download is indistinguishable from success.
     console.error('Excel export failed', err)
+    toast.add({
+      title: 'Excel 다운로드에 실패했습니다.',
+      description: '장비에서 파일을 읽지 못했습니다. 잠시 후 다시 시도하십시오.',
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
   } finally {
     exporting.value = false
   }

@@ -157,13 +157,23 @@ def test_param_info_turns_an_unreachable_tool_into_503(client, monkeypatch):
     assert response.status_code == 503
 
 
-def test_parameters_turns_an_unreachable_tool_into_503(client, monkeypatch):
-    """Locating the .idp is I/O at the office, so tier 0 needs the guard too."""
+@pytest.mark.parametrize("path", [
+    "/api/cdsem/recipe-search/parameters?recipe_name=RCP_001",
+    "/api/cdsem/recipe-search/measurement-points?recipe_name=RCP_001&parameter=P",
+    "/api/cdsem/recipe-search/param-info?recipe_name=RCP_001&parameter=P",
+    # recipe-detail predates this change and had NO guard: locating the .idp is
+    # I/O at the office, so an unreachable tool escaped as a 500 traceback on
+    # the feature's most-used endpoint. The blueprint errorhandler covers it.
+    "/api/cdsem/recipe-search/recipe-detail?recipe_name=RCP_001",
+])
+def test_an_unreachable_tool_is_503_on_every_recipe_route(client, monkeypatch, path):
     from back_dev_home.msr_image.errors import SourceUnavailable
 
     def boom(**_kwargs):
         raise SourceUnavailable("tool refused the connection")
 
     monkeypatch.setattr(routes, "get_recipe_open_data", boom)
-    response = client.get("/api/cdsem/recipe-search/parameters?recipe_name=RCP_001")
+    response = client.get(path)
     assert response.status_code == 503
+    # The flat body this surface has always used, NOT the app-wide nested one.
+    assert set(response.get_json()) == {"error", "code"}

@@ -343,6 +343,17 @@ at the office for these.
   `idp_image_info` row naming the parameter, each with `amp`, `af_pr` and
   `images[].cond` flattened from `SettingBlock` to rows plus a `*_source`.
 
+**Cost note for the office.** Each of the three calls `get_recipe_open_data`,
+which office-side is locate + an FTP download of the `.idp` + parse, and that
+function deliberately caches nothing (its docstring: *"a recipe's .idp is
+small … if 열어보기 latency ever becomes a complaint this is still the seam to
+put a TTL cache behind"*). These endpoints change that calculus: a script that
+walks a recipe parameter by parameter now pays one `.idp` download **per
+call**, on top of the raw-folder session. The catalog copy steers bulk callers
+to `parameters` once followed by `POST param-detail`, which needs the locator
+only once. If a real bulk consumer appears, the TTL cache at that seam — keyed
+on the recipe triple — is the fix, not a change here.
+
 Two things an office adapter must not break:
 
 - **`include=` narrows the READ, not the response.** It works by dropping slots

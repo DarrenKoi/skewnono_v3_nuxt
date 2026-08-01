@@ -12,37 +12,54 @@
  * Spec: `docs/superpowers/specs/2026-08-02-recipe-param-export-and-api-design.md`
  */
 
-import type { IdpLocator } from '../composables/useRecipeSearchApi.ts'
+import type { IdpImageInfoRow, IdpLocator } from '../composables/useRecipeSearchApi.ts'
 import type { ParamDetail, SettingBlock } from '../composables/useRecipeParamDetail.ts'
+import { IMAGE_SLOTS } from './recipeView.ts'
+import { downloadBlob } from './csvDownload.ts'
+
+// Relative `.ts` specifier, not the `~` alias, for the same reason
+// `recipeCompare.ts` uses one: `node --test` cannot resolve `~`, but resolves
+// this, and `nuxt typecheck` accepts it. `IMAGE_SLOTS` is a real value import.
 
 /**
- * The image-bearing slots, split the way the export offers them.
+ * The slots that carry a picture, in recipe order.
  *
- * `img_add2` and `img_meas2` are absent because they are SETTING files — they
- * are where `af_pr` and `amp` come from and carry no picture.
+ * DERIVED from `IMAGE_SLOTS` rather than restated. `hasImage` encodes a
+ * user-confirmed office fact — `image_add3` breaks the `img_*` naming run but
+ * IS an image, while `img_add2`/`img_meas2` are the SETTING files `af_pr` and
+ * `amp` come from. `recipeCompare.ts` records that a false premise about
+ * `node --test` imports once grew three copies of this table; a fourth would
+ * mean a corrected `stage` or `hasImage` silently not reaching the export.
  */
-export const EXPORT_IMAGE_SLOTS = {
-  measure: ['img_meas1'],
-  addressing: ['img_add1', 'image_add3']
-} as const
-
-/** Stage labels, so a slot with no ParamImage can still be named in the sheet. */
-const STAGE_OF: Record<string, string> = {
-  img_add1: 'Addressing 1',
-  image_add3: 'Addressing 3',
-  img_meas1: 'Measure 1'
-}
+const PICTURE_SLOTS = IMAGE_SLOTS.filter(slot => slot.hasImage)
 
 /** The order slots appear within 이미지 — recipe order, not request order. */
-const SLOT_ORDER = ['img_add1', 'image_add3', 'img_meas1']
+const SLOT_ORDER = PICTURE_SLOTS.map(slot => slot.key)
+
+/** Stage labels, so a slot with no ParamImage can still be named in the sheet. */
+const STAGE_OF: Record<string, string> = Object.fromEntries(
+  PICTURE_SLOTS.map(slot => [slot.key, slot.stage])
+)
+
+/**
+ * The picture slots split the way the export offers them: 측정 is
+ * unconditional, Addressing is opt-in because it is the larger half of the
+ * tool reads and the part a reader most often does not need.
+ */
+export const EXPORT_IMAGE_SLOTS = {
+  measure: PICTURE_SLOTS.filter(slot => slot.role === 'measure').map(slot => slot.key),
+  addressing: PICTURE_SLOTS.filter(slot => slot.role === 'address').map(slot => slot.key)
+}
 
 export interface ParamExportInput {
   recipeId: string
   fabName: string
   toolLabel: string
   locator: IdpLocator
-  /** The SELECTED idp_image_info row — one image definition, not the parameter. */
-  idp: Record<string, unknown>
+  /** The SELECTED idp_image_info row — one image definition, not the parameter.
+   *  Typed precisely rather than as a string bag, so a renamed office column is
+   *  a compile error instead of a blank cell in a shipped workbook. */
+  idp: IdpImageInfoRow
   detail: ParamDetail | null
   /** Which image slots to include. Order is normalised to SLOT_ORDER. */
   slots: string[]
@@ -53,9 +70,13 @@ export type ParamCell = string | number | boolean | null
 
 export interface ParamSheet {
   name: string
-  /** The file these rows came from, written above the table so a surprising
-   *  value can be traced without reading a server log. */
-  source?: string | null
+  /**
+   * Every row the sheet contains, including its `source: …` line where it has
+   * one. The source is a ROW rather than a field on purpose: `anchorRow` is an
+   * index into this array, so anything the writer prepended on its own would
+   * shift every embedded picture down by one — an invariant spanning two
+   * functions and enforced only by a comment. Here the writer is uniform.
+   */
   rows: ParamCell[][]
 }
 
@@ -73,8 +94,9 @@ export interface ParamWorkbook {
   images: ParamImagePlacement[]
 }
 
-/** Written in this order, which is the order the screen presents them. */
-const IDP_FIELDS = [
+/** Written in this order, which is the order the screen presents them.
+ *  `keyof`-typed so a column renamed in the API type fails the build here. */
+const IDP_FIELDS: (keyof IdpImageInfoRow)[] = [
   'Parameter', 'SEQ', 'Last_SEQ', 'Region', 'Meas_Counting',
   'Addressing', 'Double_Addressing', 'Mother_Para', 'dnumber_removed',
   'img_add1', 'img_add2', 'image_add3', 'img_meas1', 'img_meas2'
@@ -105,20 +127,22 @@ function overviewSheet(input: ParamExportInput): ParamSheet {
   return { name: '개요', rows }
 }
 
-function blockSheet(
-  name: string,
-  block: SettingBlock | null | undefined,
-  sectioned: boolean
-): ParamSheet {
-  if (!block) return { name, source: null, rows: [[NO_FILE]] }
-  const rows: ParamCell[][] = [sectioned ? ['section', 'key', 'value'] : ['key', 'value']]
+function blockSheet(name: string, block: SettingBlock | null | undefined): ParamSheet {
+  if (!block) return { name, rows: [[NO_FILE]] }
+  // Derived rather than passed in, so a file that unexpectedly carries sections
+  // keeps them instead of having the column dropped by its call site.
+  const sectioned = block.rows.some(row => row.section != null)
+  const rows: ParamCell[][] = [
+    [`source: ${block.source}`],
+    sectioned ? ['section', 'key', 'value'] : ['key', 'value']
+  ]
   for (const row of block.rows) {
     // section stays its OWN column rather than being folded into the key: a
     // row's identity is (section, key), and two addressing passes carry the
     // same inner keys, so a flat label would show one pass under both.
     rows.push(sectioned ? [row.section ?? '', row.key, row.value] : [row.key, row.value])
   }
-  return { name, source: block.source, rows }
+  return { name, rows }
 }
 
 function imageSheet(
@@ -161,8 +185,8 @@ export function buildParamWorkbook(input: ParamExportInput): ParamWorkbook {
   return {
     sheets: [
       overviewSheet(input),
-      blockSheet('AMP', input.detail?.amp, false),
-      blockSheet('AF_PR', input.detail?.af_pr, true),
+      blockSheet('AMP', input.detail?.amp),
+      blockSheet('AF_PR', input.detail?.af_pr),
       sheet
     ],
     images
@@ -182,6 +206,7 @@ const IMAGE_BOX = { width: 320, height: 240 }
 const ANCHOR_ROW_POINTS = 190
 /** The widest any sheet here gets is AF_PR's three columns. */
 const SHEET_COLUMNS = 3
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 /**
  * Write the workbook, embedding each placement's actual picture.
@@ -206,11 +231,8 @@ export async function downloadParamWorkbook(
   let imageWorksheet: ReturnType<typeof book.addWorksheet> | null = null
   for (const sheet of workbook.sheets) {
     const ws = book.addWorksheet(sheet.name.slice(0, 31))
-    // ★ The 이미지 sheet must NOT get a source line: the placements' anchorRow
-    //   is an index into `sheet.rows`, and a line above the table would shift
-    //   every picture down one row. `imageSheet` never sets a source, which is
-    //   what keeps this safe — do not add one without offsetting placements.
-    if (sheet.source) ws.addRow([`source: ${sheet.source}`])
+    // Uniform over every sheet, which is what keeps `anchorRow` a plain index
+    // into `sheet.rows`: nothing is written that the builder did not lay out.
     for (const row of sheet.rows) ws.addRow(row)
     // getColumn, not `ws.columns.forEach`: `columns` is only populated when the
     // sheet was given a column definition, and these are built from addRow.
@@ -248,13 +270,5 @@ export async function downloadParamWorkbook(
   }
 
   const buffer = await book.xlsx.writeBuffer()
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
+  downloadBlob(filename, new Blob([buffer], { type: XLSX_MIME }))
 }
