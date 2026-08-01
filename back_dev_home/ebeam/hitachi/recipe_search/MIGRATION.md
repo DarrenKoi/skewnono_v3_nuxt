@@ -324,6 +324,37 @@ tool**: these are live metrology recipes on production equipment.
   derivable from / consistent with that recipe's `/recipe-detail` output)
   rather than hitting a separate data path that could drift.
 
+## Endpoints: the tiered reads (2026-08-02) — no adapter work
+
+`GET /parameters`, `GET /measurement-points` and `GET /param-info` are
+**composed**, not implemented: `param_info.py` calls
+`data.get_recipe_open_data()` and `data.get_param_detail()` and reshapes their
+output. Nothing in `providers/` changes, there is no new swap surface, and both
+adapters answer all three the moment the routes exist. There is nothing to `cp`
+at the office for these.
+
+- `/parameters` — `ParameterListResponse`. Every `idp_image_info` row verbatim
+  plus `total_rows`, `distinct_parameters`, `mother_rows`, `addressing_rows` and
+  the `locator`. A strict, cheaper subset of `/recipe-detail`, for callers that
+  want the parameter listing without the measurement and align tables.
+- `/measurement-points` — `MeasurementPointsResponse`. `wafer_mp_info` filtered
+  to one `parameter` (required; 404 when the recipe has no row naming it).
+- `/param-info` — `ParamInfoResponse`. `occurrences[]`, one per
+  `idp_image_info` row naming the parameter, each with `amp`, `af_pr` and
+  `images[].cond` flattened from `SettingBlock` to rows plus a `*_source`.
+
+Two things an office adapter must not break:
+
+- **`include=` narrows the READ, not the response.** It works by dropping slots
+  from the `slots` dict handed to `get_param_detail`, and `rawfiles.slot_sources`
+  reads every slot with `slots.get(...)`, so an absent key takes the same branch
+  as an empty one and that file is never fetched. An adapter that stops planning
+  its reads through `slot_sources` turns `include=` into cosmetic filtering that
+  still costs a full FTP session.
+- **One returned entry per requested item.** `build_param_info` zips the rows
+  against `get_param_detail`'s output with `strict=True`, so a count mismatch
+  raises rather than silently dropping occurrences.
+
 ## Verify
 
     SKEWNONO_RECIPE_SEARCH_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_search
