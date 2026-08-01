@@ -1017,10 +1017,25 @@ def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
     if not dated:
         return 0
     dated.sort()
-    doomed = dated[:-keep_weeks] if keep_weeks > 0 else dated
+    doomed = set(dated[:-keep_weeks]) if keep_weeks > 0 else set(dated)
     if not doomed:
         return 0
-    errors = store.delete_many(doomed) or []
+    # ``delete_many(doomed)`` 은 여기서 **틀립니다**. ``list()`` 가 주는
+    # ``object_name`` 은 이미 클라이언트의 default_prefix 가 붙은 전체 key 인데
+    # ``delete_many`` 는 그것을 ``_resolve_key()`` 로 한 번 더 감싸므로
+    # ``2067928/2067928/...`` 라는 없는 key 를 지우게 됩니다. S3 DeleteObjects 는
+    # 없는 key 에 오류를 내지 않으므로 errors 는 비고, "N 개 정리" 를 찍으면서
+    # 실제로는 0 개를 지웁니다. 그 key 도 허용된 prefix 안이라 AccessDenied 조차
+    # 나지 않습니다. 같은 함정의 설명이 msr_image/minio_cache.py 의
+    # ``_default_client()`` 주석에 있습니다.
+    #
+    # ``delete_matching`` 은 predicate 에 ``object_name`` 을 **그대로** 넘기고
+    # 그대로 지우므로 prefix 가 두 번 붙지 않습니다(minio_handler/object.py).
+    # ``use_prefix(None)`` 로 눌러도 되지만, 그러면 list 보다 뒤에 와야만 맞는
+    # 순서 의존이 생겨 다음 사람이 줄을 옮기면 조용히 깨집니다.
+    errors = store.delete_matching(lambda key: key in doomed, prefix=prefix) or []
+    if errors:
+        _LOG.warning("device_statistics: %d snapshot deletions failed: %s", len(errors), errors)
     removed = len(doomed) - len(errors)
     _LOG.info("device_statistics: swept %d weekly snapshots", removed)
     return removed
