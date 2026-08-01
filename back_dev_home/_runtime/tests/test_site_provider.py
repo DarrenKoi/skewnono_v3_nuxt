@@ -265,3 +265,20 @@ def test_validate_env_leaves_chat_sub_provider_selectors_to_chat(monkeypatch, wi
     monkeypatch.setenv("SKEWNONO_CHAT_SCOPE_PROVIDER", "office")
 
     data_provider.validate_env()  # must not require chat/providers/office.py
+
+
+@pytest.mark.parametrize(
+    "env_name",
+    [
+        "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER",
+        "SKEWNONO_CHAT_SCOPE_PROVIDER",
+    ],
+)
+def test_validate_env_rejects_invalid_lazy_chat_selector(
+    monkeypatch, wired, env_name
+):
+    """Lazy adapter resolution must not make invalid selector values lazy."""
+    monkeypatch.setenv(env_name, "typo")
+
+    with pytest.raises(RuntimeError, match=env_name):
+        data_provider.validate_env()

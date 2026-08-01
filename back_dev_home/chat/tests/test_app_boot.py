@@ -1,4 +1,5 @@
 import back_dev_home
+import pytest
 from back_dev_home import create_app
 
 
@@ -19,6 +20,20 @@ def test_create_app_loads_dotenv():
     # smoke: building the app twice must not raise
     create_app()
     create_app()
+
+
+@pytest.mark.parametrize(
+    "env_name",
+    [
+        "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER",
+        "SKEWNONO_CHAT_SCOPE_PROVIDER",
+    ],
+)
+def test_invalid_lazy_chat_selector_fails_at_startup(monkeypatch, env_name):
+    monkeypatch.setenv(env_name, "typo")
+
+    with pytest.raises(RuntimeError, match=env_name):
+        create_app()
 
 
 def test_office_chat_sub_providers_start_then_fail_lazily(

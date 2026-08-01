@@ -5,6 +5,7 @@ import os
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_TIMEOUT = 60.0
+MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT = 32
 DEFAULT_MODELS = [
     {"id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (free)"},
     {"id": "google/gemini-2.0-flash-exp:free", "label": "Gemini 2.0 Flash (free)"},
@@ -68,6 +69,24 @@ def get_max_tool_calls() -> int:
 
 def get_agent_timeout() -> float:
     return min(max(float(os.environ.get("SKEWNONO_CHAT_AGENT_TIMEOUT", "60")), 1), 120)
+
+
+def get_max_concurrent_agent_runs() -> int:
+    name = "SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS"
+    raw = os.environ.get(name, "4")
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise ValueError(
+            f"{name} must be an integer between 1 and "
+            f"{MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT}."
+        ) from error
+    if not 1 <= value <= MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT:
+        raise ValueError(
+            f"{name} must be an integer between 1 and "
+            f"{MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT}."
+        )
+    return value
 
 
 def get_max_snippet_chars() -> int:

@@ -128,6 +128,36 @@ class SlowModel(BaseChatModel):
         )
 
 
+class BlockingGraph:
+    """A non-cooperative graph used to verify process-level worker bounds."""
+
+    def __init__(self):
+        self.release = threading.Event()
+        self.condition = threading.Condition()
+        self.started = 0
+        self.finished = 0
+
+    def invoke(self, _input):
+        with self.condition:
+            self.started += 1
+            self.condition.notify_all()
+        self.release.wait()
+        with self.condition:
+            self.finished += 1
+            self.condition.notify_all()
+        return {"messages": [AIMessage(content="recovered")]}
+
+    def wait_for_finished(self, count: int, timeout: float = 1.0) -> bool:
+        deadline = time.monotonic() + timeout
+        with self.condition:
+            while self.finished < count:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self.condition.wait(remaining)
+            return True
+
+
 @pytest.fixture(autouse=True)
 def fail_on_network(monkeypatch):
     """Catches a runtime test that reaches a real HTTP transport."""
@@ -589,6 +619,61 @@ def test_agent_enforces_whole_invocation_deadline(monkeypatch):
 
     assert time.perf_counter() - started < 0.1
     assert finished.wait(timeout=1)
+
+
+def test_non_cooperative_timeouts_are_capacity_bounded_and_slots_recover(
+    monkeypatch,
+):
+    graph = BlockingGraph()
+    monkeypatch.setattr(agent, "_AGENT_RUN_GATE", agent._AgentRunGate())
+    monkeypatch.setattr(config, "get_agent_timeout", lambda: 0.1)
+    monkeypatch.setattr(
+        config,
+        "get_max_concurrent_agent_runs",
+        lambda: 2,
+        raising=False,
+    )
+    monkeypatch.setattr(agent, "create_agent", lambda **_kwargs: graph)
+    model = ScriptedToolModel(calls=[])
+
+    try:
+        for _ in range(2):
+            with pytest.raises(RuntimeTimeout, match="invocation timed out"):
+                agent.invoke(make_request(), model=model)
+
+        rejected_at = time.perf_counter()
+        for _ in range(5):
+            with pytest.raises(RuntimeLimitExceeded, match="capacity"):
+                agent.invoke(make_request(), model=model)
+        assert time.perf_counter() - rejected_at < 0.05
+        assert graph.started == 2
+    finally:
+        graph.release.set()
+
+    assert graph.wait_for_finished(2)
+    result = agent.invoke(make_request(), model=model)
+    assert result["content"] == "recovered"
+    assert graph.started == 3
+
+
+def test_agent_setup_failure_does_not_consume_run_capacity(monkeypatch):
+    monkeypatch.setattr(agent, "_AGENT_RUN_GATE", agent._AgentRunGate())
+    monkeypatch.setattr(config, "get_max_concurrent_agent_runs", lambda: 1)
+    monkeypatch.setattr(
+        config,
+        "get_max_tool_calls",
+        lambda: (_ for _ in ()).throw(ValueError("invalid tool limit")),
+    )
+
+    with pytest.raises(ValueError, match="invalid tool limit"):
+        agent.invoke(make_request(), model=ScriptedToolModel(calls=[]))
+
+    monkeypatch.setattr(config, "get_max_tool_calls", lambda: 1)
+    graph = BlockingGraph()
+    graph.release.set()
+    monkeypatch.setattr(agent, "create_agent", lambda **_kwargs: graph)
+    result = agent.invoke(make_request(), model=ScriptedToolModel(calls=[]))
+    assert result["content"] == "recovered"
 
 
 def test_timed_out_agent_cannot_later_complete_persistence(monkeypatch, tmp_path):

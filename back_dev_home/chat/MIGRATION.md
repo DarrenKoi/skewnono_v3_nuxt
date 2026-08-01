@@ -31,7 +31,8 @@ provider 값을 명시적으로 되돌리며, 요청 중 자동 fallback은 구�
 `SKEWNONO_CHAT_SCOPE_PROVIDER`는 chat 내부 lazy selector입니다. 따라서 두 selector를
 `office`로 설정해도 gitignored adapter copy가 없다는 이유만으로 Flask boot가 실패하지
 않습니다. 해당 scope 또는 knowledge 경로를 처음 호출할 때 typed `503`을 반환하며
-mock으로 fallback하지 않습니다.
+mock으로 fallback하지 않습니다. 단 두 selector의 raw 값은 boot에서 먼저 검증하며,
+`mock` 또는 `office`가 아닌 값은 명확한 `RuntimeError`로 startup을 중단합니다.
 
 ## Agent server-side bound
 
@@ -40,6 +41,7 @@ mock으로 fallback하지 않습니다.
 | 환경 변수 | 기본값 | Code hard maximum | 적용 의미 |
 | --- | --- | --- | --- |
 | `SKEWNONO_CHAT_MAX_TOOL_CALLS` | 6 | 12 | 한 agent invocation의 전체 tool call 수입니다. |
+| `SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS` | 4 | 32 | 한 process에서 동시에 실행하거나 timeout 뒤 남아 있을 수 있는 agent worker 수입니다. |
 | Tool별 result 수 | 5 | 5 | 각 knowledge search 결과를 application이 다시 제한합니다. |
 | `SKEWNONO_CHAT_MAX_SNIPPET_CHARS` | 1200 | 4000 | 각 source snippet을 tool content와 artifact 생성 전에 자릅니다. |
 | `SKEWNONO_CHAT_MAX_EVIDENCE_CHARS` | 12000 | 40000 | Invocation 전체의 model-facing tool content 문자 예산입니다. |
@@ -49,7 +51,12 @@ Snippet 상한은 model 입력과 저장/API `SourceRef`에 동일하게 적용�
 evidence 상한을 넘으면 `422 runtime_limit_exceeded`, 전체 invocation deadline을 넘으면
 `504 gateway_timeout`입니다. 두 경우 모두 user turn만 유지하고 assistant, source,
 tool trace를 저장하지 않습니다. Deadline 뒤 background graph 결과도 conversation
-store에 접근하지 못하며 나중에 assistant turn을 추가하지 않습니다.
+store에 접근하지 못하며 나중에 assistant turn을 추가하지 않습니다. Timeout HTTP 응답을
+보냈다는 이유로 worker slot을 반환하지 않으며, synchronous graph worker가 실제 종료한
+뒤에만 반환합니다. 모든 slot이 사용 중이면 새 worker를 만들지 않고 즉시
+`422 runtime_limit_exceeded`를 반환합니다. 따라서 cooperative cancellation을 지원하지
+않는 upstream이 멈춰도 process별 lingering worker 수는 설정값을 넘지 않습니다.
+`SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS`는 1 이상 32 이하의 정수만 허용합니다.
 
 ## HTTP rollout 계약
 

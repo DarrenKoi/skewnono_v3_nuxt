@@ -169,8 +169,11 @@ def validate_env() -> None:
     for name in sorted(os.environ):
         if not (name.startswith(_PREFIX) and name.endswith(_SUFFIX)):
             continue
-        if name == _GLOBAL_ENV or name in _LAZY_SUB_PROVIDER_ENVS:
-            continue  # mode/sub-provider selectors name no generic feature
+        if name in _LAZY_SUB_PROVIDER_ENVS:
+            _validated(os.environ[name], name)
+            continue  # lazy selectors name no generic feature
+        if name == _GLOBAL_ENV:
+            continue  # mode selector names no generic feature
         if _validated(os.environ[name], name) != "office":
             continue
         slug = name[len(_PREFIX):-len(_SUFFIX)].lower()

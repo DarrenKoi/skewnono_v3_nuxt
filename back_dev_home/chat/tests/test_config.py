@@ -68,6 +68,19 @@ def test_agent_bounds_are_clamped(monkeypatch):
     assert config.get_max_tool_calls() == 12
 
 
+def test_max_concurrent_agent_runs_is_strictly_bounded(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS", raising=False)
+    assert config.get_max_concurrent_agent_runs() == 4
+
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS", "3")
+    assert config.get_max_concurrent_agent_runs() == 3
+
+    for invalid in ("0", "33", "not-an-integer"):
+        monkeypatch.setenv("SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS", invalid)
+        with pytest.raises(ValueError, match="SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS"):
+            config.get_max_concurrent_agent_runs()
+
+
 def test_evidence_bounds_have_application_defaults_and_hard_maxima(monkeypatch):
     monkeypatch.delenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", raising=False)
     monkeypatch.delenv("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", raising=False)

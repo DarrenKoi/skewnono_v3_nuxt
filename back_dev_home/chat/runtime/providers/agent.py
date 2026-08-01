@@ -54,6 +54,44 @@ _APPLICATION_POLICY = """Application-owned policy (higher priority than thread p
 """
 
 
+class _AgentRunLease:
+    """One process-local run slot, released exactly once by its owner."""
+
+    def __init__(self, gate: _AgentRunGate):
+        self._gate = gate
+        self._lock = threading.Lock()
+        self._released = False
+
+    def release(self) -> None:
+        with self._lock:
+            if self._released:
+                return
+            self._released = True
+        self._gate.release()
+
+
+class _AgentRunGate:
+    """Non-blocking process bound for synchronous agent workers."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._active = 0
+
+    def acquire(self, maximum: int) -> _AgentRunLease | None:
+        with self._lock:
+            if self._active >= maximum:
+                return None
+            self._active += 1
+        return _AgentRunLease(self)
+
+    def release(self) -> None:
+        with self._lock:
+            self._active -= 1
+
+
+_AGENT_RUN_GATE = _AgentRunGate()
+
+
 def _build_system_prompt(request: RuntimeRequest) -> str:
     decision = request["scope_decision"]
     supported_query = json.dumps(decision["supported_query"], ensure_ascii=False)
@@ -74,12 +112,16 @@ def _build_system_prompt(request: RuntimeRequest) -> str:
     return prompt
 
 
-def _build_model(request: RuntimeRequest, base_url: str) -> BaseChatModel:
+def _build_model(
+    request: RuntimeRequest,
+    base_url: str,
+    timeout: float,
+) -> BaseChatModel:
     return ChatOpenAI(
         model=request["model"],
         base_url=base_url,
         api_key=config.get_api_key() or "not-set",
-        timeout=config.get_agent_timeout(),
+        timeout=timeout,
     )
 
 
@@ -117,7 +159,12 @@ def _collect_artifacts(
     return sources, traces
 
 
-def _invoke_graph_with_deadline(graph: Any, messages: list[dict], timeout: float):
+def _invoke_graph_with_deadline(
+    graph: Any,
+    messages: list[dict],
+    deadline: float,
+    lease: _AgentRunLease,
+):
     """Run only the side-effect-free graph behind a wall-clock deadline.
 
     Persistence remains in the caller after this function returns. A daemon
@@ -128,18 +175,29 @@ def _invoke_graph_with_deadline(graph: Any, messages: list[dict], timeout: float
 
     def run() -> None:
         try:
-            outcome.put((True, graph.invoke({"messages": messages})))
-        except Exception as error:
-            outcome.put((False, error))
+            try:
+                outcome.put((True, graph.invoke({"messages": messages})))
+            except Exception as error:
+                outcome.put((False, error))
+        finally:
+            lease.release()
 
     worker = threading.Thread(
         target=run,
         name="chat-agent-invocation",
         daemon=True,
     )
-    worker.start()
+    remaining = deadline - time.perf_counter()
+    if remaining <= 0:
+        lease.release()
+        raise RuntimeTimeout("The agent invocation timed out.")
     try:
-        succeeded, value = outcome.get(timeout=timeout)
+        worker.start()
+    except BaseException:
+        lease.release()
+        raise
+    try:
+        succeeded, value = outcome.get(timeout=remaining)
     except queue.Empty as error:
         raise RuntimeTimeout("The agent invocation timed out.") from error
     worker.join()
@@ -156,33 +214,43 @@ def invoke(
     base_url = config.get_base_url()
     guard.enforce_egress_policy(base_url)
     started = time.perf_counter()
+    timeout = config.get_agent_timeout()
+    deadline = started + timeout
     maximum = config.get_max_tool_calls()
-    evidence_budget = EvidenceBudget.from_config()
-    tools = [
-        build_search_manuals_tool(request["access_scope"], evidence_budget),
-        build_search_meeting_summaries_tool(
-            request["access_scope"], evidence_budget
-        ),
-        build_search_emails_tool(request["access_scope"], evidence_budget),
-        build_search_reports_tool(request["access_scope"], evidence_budget),
-    ]
-    graph = create_agent(
-        model=model or _build_model(request, base_url),
-        tools=tools,
-        system_prompt=_build_system_prompt(request),
-        middleware=[
-            ToolCallLimitMiddleware(
-                run_limit=maximum,
-                exit_behavior="error",
-            )
-        ],
-    )
+    lease = _AGENT_RUN_GATE.acquire(config.get_max_concurrent_agent_runs())
+    if lease is None:
+        raise RuntimeLimitExceeded("The agent run capacity is exhausted.")
+    try:
+        evidence_budget = EvidenceBudget.from_config()
+        tools = [
+            build_search_manuals_tool(request["access_scope"], evidence_budget),
+            build_search_meeting_summaries_tool(
+                request["access_scope"], evidence_budget
+            ),
+            build_search_emails_tool(request["access_scope"], evidence_budget),
+            build_search_reports_tool(request["access_scope"], evidence_budget),
+        ]
+        graph = create_agent(
+            model=model or _build_model(request, base_url, timeout),
+            tools=tools,
+            system_prompt=_build_system_prompt(request),
+            middleware=[
+                ToolCallLimitMiddleware(
+                    run_limit=maximum,
+                    exit_behavior="error",
+                )
+            ],
+        )
+    except BaseException:
+        lease.release()
+        raise
 
     try:
         state = _invoke_graph_with_deadline(
             graph,
             request["messages"],
-            config.get_agent_timeout(),
+            deadline,
+            lease,
         )
     except ToolCallLimitExceededError as error:
         raise RuntimeLimitExceeded("The agent exceeded its tool-call limit.") from error
