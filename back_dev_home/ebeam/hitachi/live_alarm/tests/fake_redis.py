@@ -1,8 +1,8 @@
-"""Minimal in-memory stand-in for the Redis commands the writer uses.
+"""Minimal in-memory stand-in for the Redis commands live_alarm uses.
 
 Hand-rolled rather than pulled from a package: Phase 1 is fully offline,
 so the test suite must not require a new dependency. Only the handful of
-commands job.py issues are implemented.
+commands refresh.py issues are implemented.
 """
 
 from __future__ import annotations
@@ -71,6 +71,10 @@ class FakeRedis:
         self.zsets: dict[str, dict[str, float]] = {}
         self.strings: dict[str, bytes] = {}
         self.sets: dict[str, set] = {}
+        # Expiry is modelled because the lock's TTL IS the feature's retry
+        # backoff: a fake that ignored `ex` would make the backoff test pass
+        # while the real lock never expired.
+        self._expires: dict[str, int] = {}
         self._now = now
 
     def time(self):
@@ -78,12 +82,58 @@ class FakeRedis:
 
     def advance(self, seconds: int) -> None:
         self._now += seconds
+        self._evict()
+
+    def _evict(self) -> None:
+        for key in [k for k, at in self._expires.items() if at <= self._now]:
+            self._expires.pop(key, None)
+            self.strings.pop(key, None)
+            self.zsets.pop(key, None)
+            self.sets.pop(key, None)
 
     def exists(self, key) -> int:
+        self._evict()
         return int(key in self.zsets or key in self.strings)
 
     def get(self, key):
+        self._evict()
         return self.strings.get(key)
+
+    def set(self, key, value, nx: bool = False, ex: int | None = None):
+        """redis-py returns True on a write and None when NX declined."""
+        self._evict()
+        if nx and key in self.strings:
+            return None
+        self.strings[key] = value.encode() if isinstance(value, str) else value
+        if ex is None:
+            self._expires.pop(key, None)
+        else:
+            self._expires[key] = self._now + int(ex)
+        return True
+
+    def delete(self, *keys) -> int:
+        removed = 0
+        for key in keys:
+            self._expires.pop(key, None)
+            if self.strings.pop(key, None) is not None:
+                removed += 1
+        return removed
+
+    def eval(self, script, numkeys: int, *args) -> int:
+        """The ONE script this feature uses: compare-and-delete.
+
+        The script text is accepted and ignored — this fake implements the
+        semantics of refresh._RELEASE_LUA, not a Lua interpreter. If a second
+        script is ever added, this must branch on it rather than silently
+        applying compare-and-delete to something else.
+        """
+        self._evict()
+        keys, argv = list(args[:numkeys]), list(args[numkeys:])
+        expected = argv[0].encode() if isinstance(argv[0], str) else argv[0]
+        if self.strings.get(keys[0]) == expected:
+            self.delete(keys[0])
+            return 1
+        return 0
 
     def sismember(self, key, member) -> bool:
         return member in self.sets.get(key, set())
