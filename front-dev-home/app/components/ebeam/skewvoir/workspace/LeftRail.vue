@@ -271,12 +271,20 @@ const openRecipe = () => {
   window.open(router.resolve(route).href, '_blank', 'noopener')
 }
 
+// What we copy is a share URL (or a summary carrying one), and its msr ids
+// — `20260509_ADI_CD_BIAS_ABC123_STD_00001_KPB266344_ECDX285` — offer the
+// browser no break opportunity, so the default toast runs them past its right
+// edge and silently clips the middle of the link. break-all, same as the msr id
+// in ReadinessModal. This matters most on the failure path below, where the
+// toast body IS the copy-it-yourself fallback.
+const copyToastUi = { description: 'break-all' }
+
 const copyToClipboard = async (text: string, okTitle: string) => {
   try {
     await navigator.clipboard.writeText(text)
-    toast.add({ title: okTitle, description: text, icon: 'i-lucide-clipboard-check', color: 'success' })
+    toast.add({ title: okTitle, description: text, icon: 'i-lucide-clipboard-check', color: 'success', ui: copyToastUi })
   } catch {
-    toast.add({ title: '복사하지 못했습니다', description: text, icon: 'i-lucide-triangle-alert', color: 'warning' })
+    toast.add({ title: '복사하지 못했습니다', description: text, icon: 'i-lucide-triangle-alert', color: 'warning', ui: copyToastUi })
   }
 }
 
