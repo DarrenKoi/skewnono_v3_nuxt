@@ -77,6 +77,9 @@ def test_testing_app_starts_no_scheduler():
 def test_starting_twice_returns_the_same_scheduler(monkeypatch):
     monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
     monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
+    # conftest.py sets this to "0" for the whole session; undo it here since
+    # this test needs a real scheduler to start.
+    monkeypatch.delenv("SKEWNONO_SCHEDULER_ENABLED", raising=False)
     app = Flask(__name__)
     app.debug = False
     first = start_scheduler(app)
@@ -89,9 +92,36 @@ def test_starting_twice_returns_the_same_scheduler(monkeypatch):
             first.shutdown(wait=False)
 
 
+def test_disabled_by_env_starts_no_scheduler(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+    monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
+    monkeypatch.setenv("SKEWNONO_SCHEDULER_ENABLED", "0")
+    app = Flask(__name__)
+    app.debug = False
+    assert start_scheduler(app) is None
+    assert "scheduler" not in app.extensions
+
+
+def test_unset_env_still_starts_a_scheduler(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+    monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
+    monkeypatch.delenv("SKEWNONO_SCHEDULER_ENABLED", raising=False)
+    app = Flask(__name__)
+    app.debug = False
+    scheduler = start_scheduler(app)
+    try:
+        assert scheduler is not None
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+
+
 def test_start_exposes_the_run_log_on_the_app(monkeypatch):
     monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
     monkeypatch.delenv("WERKZEUG_RUN_MAIN", raising=False)
+    # conftest.py sets this to "0" for the whole session; undo it here since
+    # this test needs a real scheduler to start.
+    monkeypatch.delenv("SKEWNONO_SCHEDULER_ENABLED", raising=False)
     app = Flask(__name__)
     app.debug = False
     scheduler = start_scheduler(app)

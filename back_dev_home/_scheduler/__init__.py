@@ -16,6 +16,7 @@ than detected as missed.
 
 import atexit
 import logging
+import os
 
 from back_dev_home._scheduler.config import load_scheduler_config
 from back_dev_home._scheduler.election import is_scheduler_worker
@@ -29,8 +30,24 @@ __all__ = ["start_scheduler"]
 _EXTENSION_KEY = "scheduler"
 
 
+def _disabled() -> bool:
+    """Env kill switch, read at call time.
+
+    Set to 0/false/no to keep the scheduler from starting at all. The test
+    suite sets it (see back_dev_home/conftest.py): tests build apps with
+    `create_app()` and only set `app.testing` afterwards, so the app.testing
+    guard below cannot catch them -- by then the scheduler thread exists.
+    It also gives an operator a way to stop the scheduler without a code
+    change, which matters because the jobs touch the image cache and MinIO.
+    """
+    raw = os.environ.get("SKEWNONO_SCHEDULER_ENABLED", "").strip().lower()
+    return raw in ("0", "false", "no", "off")
+
+
 def start_scheduler(app):
     """Start the scheduler if this process owns it. Returns it, or None."""
+    if _disabled():
+        return None
     if app.testing:
         # A test suite creates many apps; each would otherwise leave a live
         # thread firing real jobs.
