@@ -8,7 +8,9 @@ from back_dev_home.chat.contracts import (
 __all__ = [
     "Message", "Thread", "ThreadDetail", "ThreadSummary",
     "create_thread", "list_threads", "get_thread",
-    "rename_thread", "delete_thread", "append_message", "purge_expired",
+    "rename_thread", "delete_thread", "append_message",
+    "get_message_by_request", "append_user_message", "set_scope_decision",
+    "complete_turn", "put_feedback", "delete_feedback", "purge_expired",
 ]
 
 
@@ -42,6 +44,30 @@ def delete_thread(user_id, thread_id):
 
 def append_message(thread_id, role, content, meta=None):
     return _provider().append_message(thread_id, role, content, meta)
+
+
+def get_message_by_request(thread_id, request_id, role):
+    return _provider().get_message_by_request(thread_id, request_id, role)
+
+
+def append_user_message(thread_id, content, request_id):
+    return _provider().append_user_message(thread_id, content, request_id)
+
+
+def set_scope_decision(thread_id, request_id, decision):
+    return _provider().set_scope_decision(thread_id, request_id, decision)
+
+
+def complete_turn(thread_id, request_id, result):
+    return _provider().complete_turn(thread_id, request_id, result)
+
+
+def put_feedback(user_id, message_id, feedback):
+    return _provider().put_feedback(user_id, message_id, feedback)
+
+
+def delete_feedback(user_id, message_id):
+    return _provider().delete_feedback(user_id, message_id)
 
 
 def purge_expired(days=30):
