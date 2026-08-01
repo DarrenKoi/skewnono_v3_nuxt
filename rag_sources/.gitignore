@@ -1,0 +1,11 @@
+*
+!.gitignore
+!README.md
+!manuals/
+!meetings/
+!emails/
+!reports/
+!manuals/.gitkeep
+!meetings/.gitkeep
+!emails/.gitkeep
+!reports/.gitkeep

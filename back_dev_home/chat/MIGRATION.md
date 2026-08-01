@@ -1,159 +1,255 @@
-# chat — office migration
+# Chat office RAG 전환 가이드
 
-Chat is a **two-swap-surface** feature. The surfaces are independent and are
-selected differently — do not conflate them:
+이 문서는 사내 coding LLM이 현재 Flask/Nuxt 계약을 변경하지 않고 chat RAG 연결점을
+구현하기 위한 handoff 계약입니다. 실제 hostname, credential, index alias, raw mapping,
+사내 sample 문서 및 원문은 저장소에 commit하지 않습니다.
 
-| Surface | What swaps | Selector | Office state |
+## 현재 경계와 선택 matrix
+
+Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값을 다른 선택점의 준비
+상태로 간주하지 않습니다.
+
+| 경계 | 선택값 | 역할 | 준비되지 않았을 때의 동작 |
 | --- | --- | --- | --- |
-| A · LLM gateway | which OpenAI-compatible endpoint generates replies | env vars only (`CHAT_*`) — no code | ready (set env) |
-| B · Thread storage | where threads/messages persist | `SKEWNONO_CHAT_PROVIDER` → `providers/office.py` | **stub — not connected** |
+| LLM gateway | `CHAT_BASE_URL`, `CHAT_API_KEY`, `CHAT_MODELS` | OpenAI-compatible model endpoint와 capability를 선택합니다. | Office mode에서 public gateway는 egress guard가 차단합니다. |
+| Runtime | `SKEWNONO_CHAT_RUNTIME=direct` | Retrieval tool 없이 기존 대화 경로를 실행합니다. | Knowledge provider를 호출하지 않습니다. |
+| Runtime | `SKEWNONO_CHAT_RUNTIME=agent` | 네 read-only retrieval tool을 제한된 횟수로 실행합니다. | `supports_tools=false` model은 user turn 저장 전에 `400`으로 거절합니다. |
+| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=mock` | Synthetic fixture를 결정적으로 검색합니다. | Office source나 network가 필요하지 않습니다. |
+| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office` | 사내 read-only index를 검색합니다. | Adapter 또는 설정이 없으면 `503`이며 mock으로 전환하지 않습니다. |
+| Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=mock` | 제한된 deterministic classifier를 사용합니다. | Office dependency가 필요하지 않습니다. |
+| Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=office` | 승인된 사내 scope classifier를 사용합니다. | Adapter가 없으면 `503`이며 mock으로 전환하지 않습니다. |
+| Thread storage | `SKEWNONO_CHAT_PROVIDER=mock` | SQLite에 thread, turn, source, trace, feedback을 저장합니다. | 기본 보존 기간은 30일입니다. |
+| Thread storage | `SKEWNONO_CHAT_PROVIDER=office` | 승인된 사내 저장소를 사용합니다. | `providers/office.py`가 없으면 명시적 office 선택은 boot 단계에서 실패합니다. Stub copy는 호출 시 실패합니다. |
 
-## Status
+권장 전환 순서는 `direct/mock/mock` baseline, `agent/mock/mock` synthetic RAG,
+`agent/office/mock` knowledge integration, `agent/office/office` scope integration
+순서입니다. Thread storage는 RAG 전환과 독립적으로 검증합니다. 장애 시 runtime 또는
+provider 값을 명시적으로 되돌리며, 요청 중 자동 fallback은 구현하지 않습니다.
 
-- **LLM 게이트웨이 연결(Surface A):** 환경변수만으로 전환되며 코드 변경이 없습니다.
-  사내 게이트웨이는 `back_dev_home/.env`의 `CHAT_BASE_URL`로 지정합니다.
-  OpenRouter(home) ↔ 사내 게이트웨이(office)가 동일한 `llm.send_chat` 경로를
-  사용하므로, 기능 검증은 게이트웨이와 무관합니다. 2026-07-23 로컬에서 OpenRouter로
-  기능 전체(모델 목록·스레드 CRUD·멀티턴 기억·재시작 후 영속성·업스트림 오류 처리)를
-  검증 완료했습니다. **2026-07-23 사내망에서 사내 게이트웨이(HCP) 실연결도 검증
-  완료했습니다** — API 연결과 채팅 응답 모두 정상 동작합니다. Surface A는 이제
-  home(OpenRouter)·office(HCP) 양쪽에서 실검증된 상태입니다.
-- **스레드 저장소(Surface B):** 미구현입니다. `providers/office_example.py`는 아직
-  모든 함수가 `NotImplementedError`를 던지는 뼈대입니다. 승인된 데이터 플랫폼에
-  연결하기 전에는 office 저장소 모드를 선택하지 마십시오. chat 페이지는 현재 parked
-  상태입니다.
+## HTTP rollout 계약
 
-## Rules
+`POST /api/chat/threads/<thread_id>/messages` body는 다음 두 필드를 모두 요구합니다.
 
-- (Surface B only) FIRST copy the tracked skeleton, then work only in the copy:
-  `cp providers/office_example.py providers/office.py`. `office.py` is gitignored
-  and lives only at the office, so `git pull` never conflicts on it.
-- Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/office_example.py`, `providers/mock.py`, `contracts.py`,
-  `config.py`, `llm.py`, `guard.py`, or `tests/`.
-- Normalize every result to the shapes in `contracts.py` before returning.
-- Surface A needs **no code**. Never hardcode a gateway URL or key in
-  `config.py` — the internal URL/key is a 사내 detail and stays out of git; set it
-  in `back_dev_home/.env` (gitignored).
-- Definition of done: the relevant Verify command at the bottom is green.
-
-## Surface A — LLM gateway (env-only)
-
-`llm.send_chat` POSTs `{model, messages}` to `{CHAT_BASE_URL}/chat/completions`
-and reads back `choices[0].message.content` + `usage`. Any OpenAI-compatible
-gateway drops in with zero code change.
-
-Env vars (all in `back_dev_home/.env`):
-
-- `CHAT_BASE_URL` — approved internal gateway base URL. The client appends
-  `/chat/completions`. Unset → OpenRouter default, which is **blocked** in office
-  mode (see guard). Set the internal gateway explicitly at the office.
-- `CHAT_API_KEY` — bearer token, sent as `Authorization: Bearer <key>`. If unset,
-  no auth header is sent.
-- `CHAT_MODELS` — JSON array `[{"id","label"}]`. `id` becomes the request `model`;
-  `label` is the picker text. Defaults go stale — set explicitly.
-- `CHAT_TIMEOUT` — request timeout in seconds (default `60`).
-- `CHAT_BLOCKED_HOSTS` — comma-separated extra hosts to block. Can only **add** to
-  the blocklist, never remove.
-
-Gateway contract the internal endpoint must satisfy: `POST {base}/chat/completions`
-accepting `{"model": <id>, "messages": [{role, content}, …]}` and returning
-`choices[0].message.content`, plus (ideally) `usage.prompt_tokens` /
-`usage.completion_tokens` — those are surfaced as per-message metadata alongside
-the measured `latency_ms`.
-
-Egress guard (`guard.py`): keyed on **MODE** (`get_mode()`), NOT on
-`get_data_provider("chat")`. In office mode it fails closed — a resolved host
-matching a known public gateway (`openrouter.ai`, `api.openai.com`,
-`api.anthropic.com`, …) is refused before any byte leaves the process, surfaced
-as `403 egress_blocked`. The internal gateway is not on the blocklist, so it
-passes. **Consequence:** at the office you MUST set `CHAT_BASE_URL` to the
-internal gateway; leaving the OpenRouter default will be blocked.
-
-## Surface B — thread storage (office adapter)
-
-Selector: `SKEWNONO_CHAT_PROVIDER` → `get_data_provider("chat")`. Home/mock uses
-`providers/mock.py` (SQLite `chat.db` — survives restart, keeps a 30-day archive).
-Office must implement `providers/office.py` against the approved store, mirroring
-the mock signatures and returning `contracts.py` shapes.
-
-Functions to implement:
-
-- `create_thread(user_id, model, system_prompt=None) -> Thread`
-- `list_threads(user_id) -> list[ThreadSummary]` — newest first (`updated_at` desc)
-- `get_thread(user_id, thread_id) -> ThreadDetail | None` — messages ordered
-  oldest→newest; `None` if the thread is missing or owned by another user
-- `rename_thread(user_id, thread_id, title) -> bool`
-- `delete_thread(user_id, thread_id) -> bool` — must also delete the thread's messages
-- `append_message(thread_id, role, content, meta=None) -> Message` — `meta` carries
-  `model` / `prompt_tokens` / `completion_tokens` / `latency_ms`; also bump the
-  thread's `updated_at`
-- `purge_expired(days=30) -> int` — delete threads (and their messages) whose
-  `updated_at` is older than the cutoff; return the count removed
-
-Contracts (`contracts.py`): `Thread`, `ThreadDetail` (= `Thread` + `messages:
-list[Message]`), `ThreadSummary`, `Message` (`id, thread_id, role, content,
-model|None, prompt_tokens|None, completion_tokens|None, latency_ms|None,
-created_at`).
-
-Ownership invariant: every read/write is scoped by `user_id`. `get`/`rename`/
-`delete` must never touch another user's thread.
-
-## Critical operational note — testing chat at the office
-
-Presence detection (`_runtime/data_provider.py`) keeps this safe by default:
-office mode alone does **not** flip chat storage. As long as
-`chat/providers/office.py` does not exist, chat storage resolves to mock
-(SQLite `chat.db`) even when the machine is in office mode — so chat works at
-the office with **zero storage configuration**. Only Surface A needs setting:
-
-```bash
-# back_dev_home/.env at the office — Surface A only
-CHAT_BASE_URL=<internal gateway>/v1   # required: office mode BLOCKS the OpenRouter default
-CHAT_API_KEY=<internal gateway key>
-CHAT_MODELS=[{"id":"<model-id>","label":"<picker text>"}]
+```json
+{
+  "content": "승인된 업무 질문",
+  "request_id": "64d35cd4-9e07-4be8-90a3-683f94c29408"
+}
 ```
 
-The two remaining traps:
+`request_id`는 lowercase canonical UUID string이어야 합니다. Network retry는 동일한
+UUID를 재사용하고, 같은 문장의 새 질문은 새 UUID를 생성합니다. 이 필드는 기존 client와
+호환되지 않는 필수 계약이므로 backend와 Nuxt를 같은 release에서 함께 배포합니다.
+구형 frontend가 새 backend에 message를 보내거나 새 frontend가 구형 backend에
+message를 보내는 혼합 배포를 허용하지 않습니다.
 
-- Do **not** run `cp providers/office_example.py providers/office.py` for chat
-  until Surface B is actually implemented. For every other feature that cp IS
-  the switch-on; for chat it flips storage onto the `_not_connected` stubs and
-  every thread call raises `NotImplementedError`.
-- Do **not** set `SKEWNONO_CHAT_PROVIDER=office` — with no `office.py` present,
-  Flask refuses to boot (by design: an explicit office request is never
-  silently served mock).
+Assistant message는 `runtime`, `scope_status`, `sources`, `feedback`을 포함합니다.
+Frontend와 backend의 해당 타입도 같은 release 단위로 유지합니다.
 
-Surface A is unaffected by any provider switch; the two surfaces are orthogonal.
+## Office knowledge provider 구현 계약
 
-## Endpoints
+Tracked template인 `knowledge/providers/office_example.py`를
+`knowledge/providers/office.py`로 복사한 뒤 gitignored copy만 구현합니다. 다음 네 공개
+signature를 그대로 유지합니다.
 
-- `GET /api/chat/models` → `{data: ModelInfo[]}` from `CHAT_MODELS`. No store/LLM call.
-- `GET /api/chat/threads` → `{data: ThreadSummary[]}`; runs `purge_expired(30)` first.
-- `POST /api/chat/threads` `{model, system_prompt?}` → `{data: ThreadDetail}` `201`;
-  `400` if `model` is missing.
-- `GET /api/chat/threads/<id>` → `{data: ThreadDetail}`; `404` if not found/owned.
-- `PATCH /api/chat/threads/<id>` `{title}` → rename; `400` on blank title, `404` if missing.
-- `DELETE /api/chat/threads/<id>` → delete; `404` if missing.
-- `POST /api/chat/threads/<id>/messages` `{content}` → persists the user turn, calls
-  the LLM, persists the assistant turn, returns `{data: Message}`. Errors: `400`
-  blank content, `404` thread, `403 egress_blocked`, `504 gateway_timeout`,
-  `502 bad_gateway`. Retry-safe: if the last stored turn is an identical user
-  message (a prior failed attempt), the user turn is neither written nor sent twice.
+```python
+search_manuals(
+    query: str,
+    filters: Mapping[str, object] | None,
+    scope: AccessScope,
+    limit: int,
+) -> list[Evidence]
 
-## Verify
+search_meeting_summaries(
+    query: str,
+    filters: Mapping[str, object] | None,
+    scope: AccessScope,
+    limit: int,
+) -> list[Evidence]
 
-Surface A (home — LLM client, config, egress guard):
+search_emails(
+    query: str,
+    filters: Mapping[str, object] | None,
+    scope: AccessScope,
+    limit: int,
+) -> list[Evidence]
 
-    .venv/bin/pytest back_dev_home/chat/tests/test_config.py back_dev_home/chat/tests/test_guard.py back_dev_home/chat/tests/test_llm.py
+search_reports(
+    query: str,
+    filters: Mapping[str, object] | None,
+    scope: AccessScope,
+    limit: int,
+) -> list[Evidence]
+```
 
-Surface B — mock (home; the full chat suite runs in mock mode):
+각 반환 행은 `knowledge/contracts.py`의 다음 `Evidence` field를 모두 포함합니다.
 
-    .venv/bin/pytest back_dev_home/chat
+| Field | 규칙 |
+| --- | --- |
+| `source_id` | Revision이 바뀌지 않는 한 재색인 후에도 유지되는 stable ID입니다. |
+| `source_type` | `manual`, `meeting`, `email`, `report` 중 하나입니다. |
+| `title` | 사용자가 볼 수 있도록 승인된 제목만 반환합니다. |
+| `snippet` | 승인된 최소 근거 text이며 원문 전체를 반환하지 않습니다. |
+| `revision` | Manual/report revision이 없으면 `None`입니다. |
+| `occurred_at` | Source 기준일을 정규화하며 적용할 수 없으면 `None`입니다. |
+| `section` | Section provenance가 없으면 `None`입니다. |
+| `page` | 1-based page 번호이며 적용할 수 없으면 `None`입니다. |
+| `region` | 승인된 page region/bounding reference이며 없으면 `None`입니다. |
+| `locator` | 임의 URL이나 filesystem path가 아닌 안정된 승인 locator입니다. |
+| `score` | 같은 source 검색 결과의 ranking 진단용 값이며 없으면 `None`입니다. |
 
-Surface B — office (ONLY after `providers/office.py` is implemented):
+Access filter는 retrieval query 단계에 적용합니다. 검색 후 Python filtering만으로 권한을
+보완하지 않습니다. 권한이 없는 source의 존재, title, count 또는 score도 노출하지
+않습니다. Empty result는 빈 list이며 다른 source나 mock 검색으로 대체하지 않습니다.
 
-    SKEWNONO_CHAT_PROVIDER=office .venv/bin/pytest back_dev_home/chat
+Agent model에 공개되는 tool argument는 `query`뿐입니다. `AccessScope`의 `user_id`,
+`groups`, `fabs`, index/collection 이름, host, credential, limit은 Flask가 인증·설정에서
+만들어 tool closure와 provider에 전달합니다. 이를 model argument나 user 입력에서
+받지 않습니다.
 
-The provider key is `get_data_provider("chat")` → env var `SKEWNONO_CHAT_PROVIDER`.
-Run all commands from the repo root.
+현재 구현은 인증된 `user_id`만 채우고 `groups`와 `fabs`에는 빈 list를 전달합니다.
+따라서 group/FAB 제한 source를 연결하기 전에 authoritative access resolver를 별도
+server-side seam으로 구현하고, 인증 middleware의 값과 resolver 결과만으로
+`AccessScope`를 구성해야 합니다. Resolver unavailable 또는 identity 누락 시 권한을
+넓히지 않고 요청을 거절합니다.
+
+Provider는 오류를 다음 typed exception으로 변환합니다.
+
+- 접근 거부는 `KnowledgeDenied`입니다.
+- 제한 시간 초과는 `KnowledgeTimeout`입니다.
+- 설정 누락, index 불일치, source unavailable은 `KnowledgeUnavailable`입니다.
+
+Agent runtime은 이를 각각 `403`, `504`, `503` 계열로 변환합니다. Retrieval 실패를
+direct runtime, mock provider 또는 다른 source로 자동 전환하지 않습니다. Partial
+assistant/source/trace row도 저장하지 않으며, 이미 저장된 user turn은 같은
+`request_id` retry를 위해 유지합니다.
+
+## Scope provider 구현 계약
+
+`scope/providers/office_example.py`를 `scope/providers/office.py`로 복사하고
+`classify(query: str) -> ScopeDecision`만 구현합니다. 반환 `status`는 `in_scope`,
+`mixed`, `out_of_scope`, `unsafe` 중 하나이며 `reason_code`와 `supported_query`를 함께
+정규화합니다. `mixed`일 때만 지원되는 부분을 `supported_query`로 전달합니다.
+Unavailable 상태는 `ScopeUnavailable`을 발생시키며 mock으로 fallback하지 않습니다.
+
+## Thread storage 동기화
+
+Office thread storage는 `providers/office_example.py`의 모든 함수를 구현하고
+`contracts.py`와 mock provider의 의미를 유지합니다. 특히 다음을 보장합니다.
+
+```python
+create_thread(user_id, model, system_prompt=None)
+list_threads(user_id)
+get_thread(user_id, thread_id)
+rename_thread(user_id, thread_id, title)
+delete_thread(user_id, thread_id)
+append_message(thread_id, role, content, meta=None)
+get_message_by_request(thread_id, request_id, role)
+get_owned_message(user_id, message_id)
+append_user_message(thread_id, content, request_id)
+set_scope_decision(thread_id, request_id, decision)
+complete_turn(thread_id, request_id, result)
+put_feedback(user_id, message_id, feedback)
+delete_feedback(user_id, message_id)
+purge_expired(days=30)
+```
+
+- `(thread_id, request_id, role)` uniqueness와 동일 request ID replay를 보장합니다.
+- Assistant, source, tool trace를 한 transaction으로 완료합니다.
+- 모든 read/write에 thread owner의 `user_id`를 적용합니다.
+- Thread 삭제와 retention purge가 source, trace, feedback을 함께 삭제합니다.
+- `get_thread()`는 message와 source/feedback을 빠짐없이 hydrate합니다.
+
+`providers/office_example.py`를 구현하지 않은 채 `office.py`로 복사하면 presence-based
+selector가 thread storage를 stub으로 전환합니다. 구현과 fake-client 검증 전에는
+복사하지 않습니다.
+
+## Source와 index 준비 checklist
+
+다음 값은 사내에서 실제 system owner와 mapping을 확인한 뒤 office-local 설정 또는
+승인된 비밀 관리 체계에 기록합니다. 이 저장소에는 실제 값을 기록하지 않습니다.
+
+- [ ] Source별 index/collection과 현재 alias를 확인합니다.
+- [ ] Source별 raw schema, schema version과 허용 field projection을 확인합니다.
+- [ ] Embedding model identity, dimension과 index build version의 일치를 확인합니다.
+- [ ] Chunk/vector ID에서 document, section, page, region으로 가는 manifest를 확인합니다.
+- [ ] Manual revision 우선순위, superseded 문서 제외 규칙과 stable source ID를 확인합니다.
+- [ ] Meeting, email, report의 기준 date field, timezone과 retention을 확인합니다.
+- [ ] Identity에서 email recipient, group, FAB를 계산하는 authoritative access resolver와 identity 누락 시 deny 규칙을 확인합니다.
+- [ ] Access filter가 query 단계에 적용되고 허용되지 않은 field가 projection에서 제외되는지 확인합니다.
+- [ ] Source별 timeout, result/rerank limit, 허용 date range를 확인합니다.
+- [ ] Versioned index 배포와 atomic active-version switch 절차를 확인합니다.
+- [ ] Flask worker 수, worker별 index memory와 client connection budget을 확인합니다.
+- [ ] 승인된 tool-capable model의 tool-call contract와 `CHAT_MODELS` capability flag를 확인합니다.
+
+`SKEWNONO_RAG_SOURCE_ROOT`는 승인된 외부 root를 가리킵니다. Runtime은 이 경로를
+scan하여 index를 build하지 않으며, offline ingestion이 만든 immutable/versioned
+artifact만 read-only로 엽니다.
+
+## Feedback와 evaluation 제한
+
+현재 feedback은 chat history와 같은 retention 정책을 따르며 mock 기본값은 30일입니다.
+Office에서 더 길게 보존하려면 개인정보·보안 승인, 삭제 job, 목적과 접근자를 먼저
+문서화한 후 정책을 분리합니다. Feedback은 자동 학습 label이 아니며 model fine-tuning에
+직접 사용하지 않습니다.
+
+Evaluation bundle에는 user query, assistant answer, scope decision, runtime/model,
+tool trace, source reference/score, rating/reason/comment가 결합될 수 있으므로 민감
+업무 데이터로 취급합니다. 이번 scaffold에는 export, dashboard, training dataset 생성이
+포함되지 않습니다. Application log에는 query, answer, retrieval query/snippet, 원문,
+page image, 내부 hostname/index, credential을 남기지 않습니다.
+
+## 검증 순서
+
+### Home 및 fake-client contract
+
+먼저 현재 mock/fake 계약을 실행합니다.
+
+```bash
+.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py back_dev_home/chat/tests/test_runtime.py back_dev_home/chat/tests/test_scope.py -q
+```
+
+Office adapter를 구현할 때는 live service를 호출하지 않는
+`back_dev_home/chat/tests/test_knowledge_office.py`를 추가합니다. Fake client/raw result를
+주입하고 네 method 각각에 대해 정확한 `Evidence` field, query-time access filter,
+limit, empty result, stable ordering, typed exception을 검증합니다.
+
+```bash
+.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q
+```
+
+### Office-local smoke
+
+Fake-client test가 통과한 뒤에만 gitignored `knowledge/providers/office.py`와 승인된
+office-local 설정을 사용합니다. `tests/test_chat_rag_local.py`는 `TEST_STAGE=local`과
+필수 환경변수가 없으면 명확한 이유로 skip하고, 승인된 비민감 query 한 건으로 실제
+source type, provenance와 access denial을 확인하도록 작성합니다. Thread storage가 아직
+준비되지 않았으면 mock으로 명시하여 RAG source smoke와 분리합니다.
+
+```bash
+TEST_STAGE=local SKEWNONO_CHAT_PROVIDER=mock SKEWNONO_CHAT_RUNTIME=agent SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office SKEWNONO_CHAT_SCOPE_PROVIDER=office .venv/bin/python -m pytest tests/test_chat_rag_local.py -q
+```
+
+실제 source content, query 결과, 내부 경로와 credential은 test assertion, fixture,
+console log 또는 commit에 남기지 않습니다. Office smoke가 통과한 뒤에도 전체 home
+suite를 다시 실행하여 환경 전환이 frontend/backend 계약을 바꾸지 않았는지 확인합니다.
+
+## Repository gate
+
+Repository root에서 다음을 실행합니다.
+
+```bash
+.venv/bin/python -m pytest tests back_dev_home -q
+uv run --no-project ruff check back_dev_home/chat
+npm run lint:md
+git diff --check
+```
+
+`front-dev-home/`에서는 다음을 실행합니다.
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
