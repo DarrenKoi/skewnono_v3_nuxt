@@ -237,6 +237,127 @@ const apiGroups: ApiGroup[] = [
       },
       {
         method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/parameters',
+        summary: 'recipe의 parameter(idp_image_info) row 목록과 row·parameter 개수를 반환합니다. 장비에 접속하지 않으므로 가볍게 반복 호출할 수 있습니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름' },
+          FAB_NAME_ARG
+        ],
+        response: 'ParameterListResponse',
+        auth: '토큰 가능',
+        example: { path: '/cdsem/recipe-search/parameters', query: { recipe_name: 'RCP_001' } }
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/measurement-points',
+        summary: '해당 parameter의 측정 위치(wafer_mp_info) row만 필터링해 반환합니다. 장비에 접속하지 않습니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름' },
+          { name: 'parameter', kind: 'query', required: true, note: 'parameters 응답의 Parameter 값' },
+          FAB_NAME_ARG
+        ],
+        response: 'MeasurementPointsResponse',
+        auth: '토큰 가능',
+        example: {
+          path: '/cdsem/recipe-search/measurement-points',
+          query: { recipe_name: 'RCP_001', parameter: 'Para_13' }
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/param-info',
+        summary: 'parameter의 AMP, AF/PR, 이미지별 빔 조건을 반환합니다. 같은 parameter가 여러 row에 걸쳐 있으면 occurrences 배열로 모두 내려갑니다. 장비 FTP를 읽으므로 occurrence당 최대 5개 파일을 조회합니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름' },
+          { name: 'parameter', kind: 'query', required: true, note: 'parameters 응답의 Parameter 값' },
+          {
+            name: 'include',
+            kind: 'query',
+            required: false,
+            note: 'amp, af_pr, images 중 쉼표로 지정. 생략하면 전체입니다. 제외한 항목은 장비 파일을 읽지 않으므로 호출이 가벼워집니다'
+          },
+          FAB_NAME_ARG
+        ],
+        response: 'ParamInfoResponse',
+        auth: '토큰 가능',
+        example: {
+          path: '/cdsem/recipe-search/param-info',
+          query: { recipe_name: 'RCP_001', parameter: 'Para_13', include: 'amp' }
+        }
+      },
+      {
+        method: 'POST',
+        path: '/api/{tool_slug}/recipe-search/param-detail',
+        summary: '여러 (recipe, parameter) 조합의 원본 폴더 설정을 한 번에 조회합니다. locator와 img_* slot 값을 직접 넘겨야 하므로, 단건 조회는 param-info가 더 간단합니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          {
+            name: 'items',
+            kind: 'body',
+            required: true,
+            note: '[{ locator, parameter, slots }] — 최대 200건. locator와 slots는 parameters 응답에서 얻습니다'
+          }
+        ],
+        response: 'ParamDetailResponse[]',
+        auth: '토큰 가능',
+        example: {
+          path: '/cdsem/recipe-search/param-detail',
+          body: {
+            items: [{
+              locator: { eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B' },
+              parameter: 'Para_13',
+              slots: { img_meas2: 'PRMS0000' }
+            }]
+          }
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/align-detail',
+        summary: 'wafer align point별 이미지, 빔 조건, AF/PR 설정을 한 번에 반환합니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'eqp_ip', kind: 'query', required: true, note: 'recipe-detail 응답 locator의 eqp_ip' },
+          { name: 'class_name', kind: 'query', required: true, note: 'locator의 class_name' },
+          { name: 'idw', kind: 'query', required: true, note: 'locator의 idw' },
+          { name: 'idp', kind: 'query', required: true, note: 'locator의 idp' },
+          { name: 'p_numbers', kind: 'query', required: true, note: '쉼표로 구분한 P.No 정수 목록 (최대 200개)' }
+        ],
+        response: 'AlignDetailResponse',
+        auth: '토큰 가능',
+        example: {
+          path: '/cdsem/recipe-search/align-detail',
+          query: {
+            eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B', p_numbers: '1,2'
+          }
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/recipe-image',
+        summary: '원본 recipe 이미지 1장을 바이트로 반환합니다. JSON이 아니라 이미지 응답이며, 파일명은 param-info나 param-detail의 images에서 얻습니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'eqp_ip', kind: 'query', required: true, note: 'locator의 eqp_ip' },
+          { name: 'class_name', kind: 'query', required: true, note: 'locator의 class_name' },
+          { name: 'idw', kind: 'query', required: true, note: 'locator의 idw' },
+          { name: 'idp', kind: 'query', required: true, note: 'locator의 idp' },
+          { name: 'name', kind: 'query', required: true, note: '이미지 파일명 (최대 256자)' }
+        ],
+        response: 'image/jpeg',
+        auth: '토큰 가능',
+        example: {
+          path: '/cdsem/recipe-search/recipe-image',
+          query: {
+            eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B', name: 'IMMP0004.jpeg'
+          }
+        }
+      },
+      {
+        method: 'GET',
         path: '/api/{tool_slug}/recipe-search/lateral',
         summary: 'recipe_name에 해당하는 lateral recipe 데이터를 반환합니다.',
         args: [
