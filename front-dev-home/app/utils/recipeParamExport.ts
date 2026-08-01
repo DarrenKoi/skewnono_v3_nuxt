@@ -175,3 +175,86 @@ export function paramExportFilename(recipeId: string, parameter: string): string
   const safe = (value: string) => (value || 'unknown').replace(/[^\w.-]+/g, '_')
   return `${safe(recipeId)}_${safe(parameter)}.xlsx`
 }
+
+/** Roughly 4:3 at a readable size in Excel's default zoom. */
+const IMAGE_BOX = { width: 320, height: 240 }
+/** Excel row height is in points; the anchored row must clear the picture. */
+const ANCHOR_ROW_POINTS = 190
+/** The widest any sheet here gets is AF_PR's three columns. */
+const SHEET_COLUMNS = 3
+
+/**
+ * Write the workbook, embedding each placement's actual picture.
+ *
+ * `resolveImageUrl` is injected so this module never reaches for
+ * `useRuntimeConfig()` — the pure half above stays importable under
+ * `node --test`, which has no Nuxt runtime.
+ *
+ * A picture that cannot be fetched is labelled in place rather than failing the
+ * export: the source is a live FTP server on a production tool, and one 404
+ * should not cost the user the other three sheets.
+ */
+export async function downloadParamWorkbook(
+  workbook: ParamWorkbook,
+  filename: string,
+  resolveImageUrl: (name: string) => string
+): Promise<void> {
+  const mod = await import('exceljs')
+  const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod
+  const book = new ExcelJS.Workbook()
+
+  let imageWorksheet: ReturnType<typeof book.addWorksheet> | null = null
+  for (const sheet of workbook.sheets) {
+    const ws = book.addWorksheet(sheet.name.slice(0, 31))
+    // ★ The 이미지 sheet must NOT get a source line: the placements' anchorRow
+    //   is an index into `sheet.rows`, and a line above the table would shift
+    //   every picture down one row. `imageSheet` never sets a source, which is
+    //   what keeps this safe — do not add one without offsetting placements.
+    if (sheet.source) ws.addRow([`source: ${sheet.source}`])
+    for (const row of sheet.rows) ws.addRow(row)
+    // getColumn, not `ws.columns.forEach`: `columns` is only populated when the
+    // sheet was given a column definition, and these are built from addRow.
+    for (let column = 1; column <= SHEET_COLUMNS; column += 1) {
+      ws.getColumn(column).width = 28
+    }
+    if (sheet.name === '이미지') imageWorksheet = ws
+  }
+
+  if (imageWorksheet) {
+    for (const placement of workbook.images) {
+      try {
+        const response = await fetch(resolveImageUrl(placement.name), {
+          credentials: 'include'
+        })
+        if (!response.ok) throw new Error(String(response.status))
+        const buffer = await response.arrayBuffer()
+        const extension = placement.name.toLowerCase().endsWith('.png') ? 'png' : 'jpeg'
+        const id = book.addImage({
+          // exceljs types this as its own Node Buffer alias; the browser build
+          // accepts an ArrayBuffer at runtime.
+          buffer: buffer as unknown as ArrayBuffer,
+          extension
+        })
+        imageWorksheet.getRow(placement.anchorRow + 1).height = ANCHOR_ROW_POINTS
+        imageWorksheet.addImage(id, {
+          tl: { col: 0, row: placement.anchorRow },
+          ext: IMAGE_BOX
+        })
+      } catch {
+        imageWorksheet.getRow(placement.anchorRow + 1).getCell(1).value
+          = `${placement.name} (이미지를 가져오지 못했습니다)`
+      }
+    }
+  }
+
+  const buffer = await book.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}

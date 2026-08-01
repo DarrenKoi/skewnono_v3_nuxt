@@ -82,20 +82,62 @@
 
         <section class="dashboard-surface flex h-[640px] flex-col overflow-hidden rounded-2xl lg:h-auto">
           <div class="border-b border-zinc-200/70 px-4 pt-3 pb-3 dark:border-zinc-800/70">
-            <div class="mb-3 flex flex-wrap items-baseline gap-2.5">
-              <span class="sk-eyebrow text-(--sk-brand)">
-                SELECTED
-              </span>
-              <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                {{ selectedIdp.Parameter }}
-              </span>
-              <EbeamRecipeOpenBoolPill :value="selectedIdp.Addressing" />
-              <!-- Mother_Para 는 다른 parameter 이름이 아니라 이 parameter 자신이
-                   mother 인지를 나타내는 flag 입니다. 참일 때만 표시합니다. -->
-              <span
-                v-if="selectedIdp.Mother_Para"
-                class="inline-block rounded bg-(--sk-brand-soft) px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-(--sk-brand-ink)"
-              >MOTHER</span>
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+              <div class="flex flex-wrap items-baseline gap-2.5">
+                <span class="sk-eyebrow text-(--sk-brand)">
+                  SELECTED
+                </span>
+                <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+                  {{ selectedIdp.Parameter }}
+                </span>
+                <EbeamRecipeOpenBoolPill :value="selectedIdp.Addressing" />
+                <!-- Mother_Para 는 다른 parameter 이름이 아니라 이 parameter 자신이
+                     mother 인지를 나타내는 flag 입니다. 참일 때만 표시합니다. -->
+                <span
+                  v-if="selectedIdp.Mother_Para"
+                  class="inline-block rounded bg-(--sk-brand-soft) px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-(--sk-brand-ink)"
+                >MOTHER</span>
+              </div>
+
+              <!-- 선택한 parameter 전체에 대한 동작이므로 특정 탭에 두지 않고
+                   헤더에 둡니다. -->
+              <div class="flex shrink-0 items-center gap-1">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-file-down"
+                  :loading="exporting"
+                  :disabled="paramPending || !paramDetail"
+                  label="Excel 다운로드"
+                  @click="downloadExcel"
+                />
+                <UPopover :content="{ align: 'end' }">
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-chevron-down"
+                    :disabled="exporting"
+                    aria-label="다운로드 옵션"
+                  />
+                  <template #content>
+                    <div class="w-64 space-y-2 p-3">
+                      <p class="sk-label">
+                        이미지 포함
+                      </p>
+                      <p class="sk-meta">
+                        측정 이미지는 항상 포함됩니다. Addressing 이미지는 장비에서 파일을 2장 더 받아오므로 필요할 때만 선택하십시오.
+                      </p>
+                      <UCheckbox
+                        v-model="includeAddressing"
+                        size="xs"
+                        label="Addressing 이미지 포함"
+                      />
+                    </div>
+                  </template>
+                </UPopover>
+              </div>
             </div>
             <div class="flex flex-wrap gap-1.5">
               <SkNavPill
@@ -201,6 +243,12 @@ import {
   readRecipeNameQuery,
   readRecipeSourceQuery
 } from '~/utils/recipeView'
+import {
+  EXPORT_IMAGE_SLOTS,
+  buildParamWorkbook,
+  downloadParamWorkbook,
+  paramExportFilename
+} from '~/utils/recipeParamExport'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
 
 const props = defineProps<{
@@ -367,6 +415,45 @@ async function loadParamDetail() {
 watch([paramRequestKey, () => data.value?.locator?.eqp_ip], () => {
   void loadParamDetail()
 }, { immediate: true })
+
+// Addressing images are opt-in: they are two of the three pictures and the ones
+// a reader most often does not need. 측정 이미지 is unconditional.
+const includeAddressing = ref(false)
+const exporting = ref(false)
+
+const downloadExcel = async () => {
+  const row = selectedIdp.value
+  if (!row || !paramDetail.value || exporting.value) return
+  exporting.value = true
+  try {
+    const slots = [
+      ...EXPORT_IMAGE_SLOTS.measure,
+      ...(includeAddressing.value ? EXPORT_IMAGE_SLOTS.addressing : [])
+    ]
+    const workbook = buildParamWorkbook({
+      recipeId: titleRecipeName.value,
+      fabName: props.fab,
+      toolLabel: props.toolLabel,
+      locator: locator.value,
+      // The SELECTED row, not the parameter: two rows of one parameter name
+      // different files, and this workbook describes the row on screen.
+      idp: row as unknown as Record<string, unknown>,
+      detail: paramDetail.value,
+      slots,
+      exportedAt: new Date().toISOString()
+    })
+    const base = recipeApiBase()
+    await downloadParamWorkbook(
+      workbook,
+      paramExportFilename(titleRecipeName.value, row.Parameter),
+      name => recipeImageUrl(base, toolSlug.value, locator.value, name)
+    )
+  } catch (err) {
+    console.error('Excel export failed', err)
+  } finally {
+    exporting.value = false
+  }
+}
 
 const openLightbox = (image: ParamImage) => {
   lightboxData.value = {
