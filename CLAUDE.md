@@ -195,8 +195,10 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 ## Markdown Notes
 
 - Run `npm run lint:md` after editing Markdown files. It covers the root `*.md`,
-  `docs/`, `back_dev_home/` (the per-feature `MIGRATION.md` files) and
-  `front-dev-home/` — every tree whose Markdown we author.
+  `docs/`, `back_dev_home/` (the per-feature `MIGRATION.md` files),
+  `front-dev-home/` and the top level of `rag_sources/` — every tree whose
+  Markdown we author. `rag_sources/` subdirectories stay unlinted on purpose:
+  office source drops are content, not authored docs.
 - Deliberately **not** linted, so do not widen the glob to reach them: vendored
   copies (`ftp_handler/`, `minio_handler/`, `ops_store/`, `ops_index_mgmt/`,
   `bento_agents.md`) must stay byte-identical to their upstream, generated

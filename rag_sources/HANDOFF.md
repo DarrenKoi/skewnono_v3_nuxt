@@ -1,11 +1,36 @@
 # Chat RAG 데이터 준비 체크포인트와 사내 LLM 프롬프트
 
-작성일: 2026-08-02. 이 문서는 사내 RAG side project(별도 저장소)에서 로컬 LLM으로
-RAG 데이터를 생성할 때 사용할 체크포인트와 복사-붙여넣기용 프롬프트를 제공합니다.
-Skewnono 저장소 쪽 계약의 원본은 `back_dev_home/chat/MIGRATION.md`이며, 이 문서는
-그 계약을 "데이터를 만드는 쪽" 관점으로 재정리한 것입니다.
+작성일: 2026-08-02. 이 문서는 사내 RAG side project에서 로컬 LLM(GLM-5.2,
+pi coding agent)으로 RAG 데이터를 생성할 때 사용할 목표 설명, 체크포인트,
+복사-붙여넣기용 프롬프트를 제공합니다. 원문 배치 위치인 이 디렉터리
+(`rag_sources/`, 계약은 같은 폴더의 `README.md`)에 함께 둡니다. Skewnono 저장소 쪽
+계약의 원본은 `back_dev_home/chat/MIGRATION.md`이며, 이 문서는 그 계약을 "데이터를
+만드는 쪽" 관점으로 재정리한 것입니다.
 
-## 1. Feasibility 결론
+## 1. 우리의 목표
+
+SKEWNONO chat 페이지가 mock 응답이 아니라 **사내 실제 업무 자료 — 장비 manual,
+회의 요약, 이메일, 업무 보고서 — 에 근거한 답을 출처(provenance)와 함께 제공**하게
+만드는 것이 목표입니다. 계측 엔지니어가 "이 alarm 복구 절차가 뭐였지", "지난 회의에서
+그 장비 어떻게 하기로 했지" 같은 질문을 chat에 물으면, agent가 read-only retrieval
+tool로 근거를 모아 답하고 각 답에 출처 chip이 붙습니다.
+
+역할 분담은 다음과 같습니다.
+
+- **RAG side project(이 문서의 독자)** — 원문을 ingestion해 versioned read-only
+  index와 provenance manifest를 만들고, skewnono가 소비할 수 있는 계약 형태로
+  배포합니다. 원문 배치 지점이 이 디렉터리이며, 운영 경로는
+  `SKEWNONO_RAG_SOURCE_ROOT`로 지정합니다.
+- **Skewnono chat(이미 준비됨)** — 그 index를 gitignored office adapter로 조회하고,
+  agent runtime이 제한된 tool 호출로 근거를 모아 citation과 함께 답합니다.
+
+품질 원칙은 하나입니다: **근거 없는 답을 근거 있는 답처럼 보이게 하지 않습니다.**
+근거가 없으면 없다고 답하고, retrieval 실패는 typed 오류로 드러나며 mock이나 다른
+source로 조용히 대체하지 않습니다. 향후 확장으로 MinIO에 저장된 이미지(stable
+object key)를 출처에 연결하는 것을 계획하고 있으므로, 데이터를 만들 때부터 이미지
+key를 manifest에 남겨 두면 재색인 없이 연결할 수 있습니다.
+
+## 2. Feasibility 결론
 
 Chat backend는 office 데이터를 받을 준비가 되어 있습니다. 2026-08-02 기준 확인
 내용은 다음과 같습니다.
@@ -23,7 +48,7 @@ Chat backend는 office 데이터를 받을 준비가 되어 있습니다. 2026-0
 (2) gitignored `office.py` adapter 구현, (3) access resolver·LLM gateway·retention
 job 배정입니다. 이 문서는 (1)과 (2)를 위한 입력입니다.
 
-## 2. RAG 데이터가 최종적으로 도달해야 하는 계약
+## 3. RAG 데이터가 최종적으로 도달해야 하는 계약
 
 Adapter가 반환하는 각 검색 결과는 `back_dev_home/chat/knowledge/contracts.py`의
 `Evidence`와 정확히 일치해야 합니다. 즉 **RAG index의 record 하나가 아래 필드를
@@ -50,7 +75,7 @@ Home mock fixture(`back_dev_home/chat/__fixtures__/knowledge/*.json`)가 이 형
 query 단계에 적용해야 하며, 검색 후 Python filtering으로 보완하는 방식은 계약
 위반입니다.
 
-## 3. RAG 데이터 생성 체크포인트
+## 4. RAG 데이터 생성 체크포인트
 
 Ingestion/chunking/색인을 만드는 쪽에서 하나라도 빠지면 adapter를 아무리 잘
 구현해도 계약을 만족할 수 없는 항목들입니다.
@@ -84,7 +109,7 @@ Ingestion/chunking/색인을 만드는 쪽에서 하나라도 빠지면 adapter�
 - [ ] **저장소·로그 위생.** 실제 hostname, credential, index alias, 원문, page
   image는 git 저장소·test fixture·log 어디에도 남기지 않습니다.
 
-## 4. 사내 로컬 LLM용 프롬프트
+## 5. 사내 로컬 LLM용 프롬프트
 
 아래 프롬프트는 그대로 복사해 사내 coding LLM(GLM-5.2, pi coding agent 하에서
 동작)에 입력하는 용도입니다. `< >` 부분만 사내 값으로 치환합니다. 공통 전제: 사내
@@ -191,7 +216,7 @@ root에서 전체 suite를 다시 실행해 계약이 변하지 않았음을 확
 .venv/bin/python -m pytest tests back_dev_home -q
 ```
 
-## 5. Adapter 밖에서 별도 배정이 필요한 항목
+## 6. Adapter 밖에서 별도 배정이 필요한 항목
 
 RAG 데이터·adapter와 무관하게 사내 담당 배정이 필요한 잔여 항목입니다. 상세 계약은
 `back_dev_home/chat/MIGRATION.md`에 있습니다.

@@ -2,8 +2,12 @@
 
 이 디렉터리는 사내 RAG 원문의 배치 위치만 정의하는 Git-safe skeleton입니다.
 실제 매뉴얼, 회의 자료, 이메일, 보고서, 추출 텍스트, page image 및 index artifact는
-민감도와 관계없이 이 저장소에 commit하지 않습니다. `.gitignore`, 이 문서와 각
-source 디렉터리의 `.gitkeep`만 추적합니다.
+민감도와 관계없이 이 저장소에 commit하지 않습니다. `.gitignore`, 이 문서,
+`HANDOFF.md`와 각 source 디렉터리의 `.gitkeep`만 추적합니다.
+
+RAG 데이터를 생성하는 사내 로컬 LLM은 같은 폴더의 [`HANDOFF.md`](HANDOFF.md)를
+먼저 읽습니다 — 전체 목표, 데이터 계약 체크포인트, 단계별 프롬프트가 거기에
+있습니다.
 
 ## 디렉터리 의미
 
