@@ -209,6 +209,10 @@ from .statistics import (  # noqa: E402  (의도된 후위 import)
 )
 from .recipe_params import get_recipe_params  # noqa: E402  (의도된 후위 import)
 from .rules import get_rules  # noqa: E402  (의도된 후위 import)
+from .snapshot_store import (  # noqa: E402  (의도된 후위 import)
+    sweep_weekly_snapshots,
+    write_weekly_snapshot,
+)
 
 
 __all__ = [
@@ -227,4 +231,6 @@ __all__ = [
     "get_lot_index",
     "get_rules",
     "_lot_index",
+    "write_weekly_snapshot",
+    "sweep_weekly_snapshots",
 ]
