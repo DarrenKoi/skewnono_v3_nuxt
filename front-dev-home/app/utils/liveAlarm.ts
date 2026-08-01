@@ -21,10 +21,17 @@ export interface LiveAlarmPayload {
   fab_name: string
   tool_type: string
   feed_status: FeedStatus
-  polled_at: string | null
+  // Last SUCCESSFUL office fetch — null when there has never been one. The
+  // server stamps it only on success, so it ages during an outage rather
+  // than claiming freshness over data that never arrived.
+  fetched_at: string | null
   covered_since: string | null
   server_now: string
   board_window_sec: number
+  // Alarms in this facility's feed whose equipment is absent from the
+  // sem_list roster, so they belong to no fab. Shown as a count, never as
+  // rows: they cannot be attributed to the fab being viewed.
+  unmatched_count: number
   events: LiveAlarmEvent[]
 }
 

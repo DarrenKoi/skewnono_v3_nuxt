@@ -7,10 +7,11 @@ const payload = (ids: string[], serverNowEpochMs: number): LiveAlarmPayload => (
   fab_name: 'R3',
   tool_type: 'cd-sem',
   feed_status: 'live',
-  polled_at: '2026-07-23 10:00:00+09:00',
+  fetched_at: '2026-07-23 10:00:00+09:00',
   covered_since: '2026-07-23 09:50:00+09:00',
   server_now: new Date(serverNowEpochMs).toISOString(),
   board_window_sec: 600,
+  unmatched_count: 0,
   events: ids.map(id => ({
     id, eqp_id: 'EQ1', alid: '9006', kind: 'align' as const, alarm_name: 'Align Fail',
     occurred_at: '2026-07-23 10:00:00+09:00', occurred_epoch: 1,

@@ -35,7 +35,10 @@ interface FeedState {
   // was already there, not to N alarms that fired the instant they looked.
   initialized: boolean
   feedStatus: FeedStatus
-  polledAt: string | null
+  fetchedAt: string | null
+  // Non-zero means the feed carried alarms this build could not attribute to
+  // any fab — a roster gap, not a quiet board.
+  unmatchedCount: number
   serverOffsetMs: number
 }
 
@@ -63,7 +66,8 @@ export const applyPoll = (
     arrivedIds,
     initialized: true,
     feedStatus: payload.feed_status,
-    polledAt: payload.polled_at,
+    fetchedAt: payload.fetched_at,
+    unmatchedCount: payload.unmatched_count,
     serverOffsetMs: Date.parse(payload.server_now) - receivedAtMs
   }
 }
@@ -78,7 +82,8 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
   const key = `live-alarm:${toolSlug}:${fabName}`
   const state = useState<FeedState>(key, () => ({
     events: [], ids: [], seenIds: [], unseenIds: [], arrivedIds: [],
-    initialized: false, feedStatus: 'live', polledAt: null, serverOffsetMs: 0
+    initialized: false, feedStatus: 'live', fetchedAt: null, unmatchedCount: 0,
+    serverOffsetMs: 0
   }))
   const errorState = useState<string | null>(`${key}:error`, () => null)
   // Transient row emphasis, kept out of the reducer: a row highlights when it
@@ -187,7 +192,10 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
     // that would sit next to a "연결 불안정" error and contradict it.
     hasLoaded: computed(() => state.value.initialized),
     feedStatus: computed(() => state.value.feedStatus),
-    polledAt: computed(() => state.value.polledAt),
+    fetchedAt: computed(() => state.value.fetchedAt),
+    // Reported, never rendered as rows: an unattributable alarm belongs to no
+    // fab, so showing it here would put it on the wrong board.
+    unmatchedCount: computed(() => state.value.unmatchedCount),
     serverOffsetMs: computed(() => state.value.serverOffsetMs),
     // Persistent unread count (drives the tab title); cleared by markSeen.
     unseenCount: computed(() => state.value.unseenIds.length),

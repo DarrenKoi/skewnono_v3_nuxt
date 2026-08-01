@@ -12,7 +12,7 @@ const props = defineProps<{
 
 const fabSlug = computed(() => props.fab.toLowerCase())
 
-const { events, hasLoaded, feedStatus, polledAt, serverOffsetMs, unseenCount, highlightIds, error, markSeen }
+const { events, hasLoaded, feedStatus, fetchedAt, unmatchedCount, serverOffsetMs, unseenCount, highlightIds, error, markSeen }
   = useLiveAlarmFeed(props.toolType, props.fab)
 
 const highlightSet = computed(() => new Set(highlightIds.value))
@@ -24,8 +24,8 @@ const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 // board means nothing on its own: "quiet fab" and "we know nothing" render
 // identically without it.
 const sinceLastPoll = computed(() => {
-  if (!polledAt.value) return '갱신 기록 없음'
-  return `${formatElapsed(Date.now() + serverOffsetMs.value - Date.parse(polledAt.value))} 갱신`
+  if (!fetchedAt.value) return '갱신 기록 없음'
+  return `${formatElapsed(Date.now() + serverOffsetMs.value - Date.parse(fetchedAt.value))} 갱신`
 })
 
 // False until the first successful poll: the badge shows "연결 중" instead of
@@ -113,5 +113,14 @@ useHead({
         최근 10분간 알람이 없습니다.
       </p>
     </div>
+
+    <!-- Reported outside the board, not as a row: these alarms belong to no
+         fab, so placing them in this fab's list would be a guess. -->
+    <p
+      v-if="unmatchedCount > 0"
+      class="sk-meta"
+    >
+      장비 목록에 없는 알람 {{ unmatchedCount }}건은 표시하지 않았습니다.
+    </p>
   </div>
 </template>
