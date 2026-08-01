@@ -89,12 +89,6 @@ from back_dev_home._runtime.office_template import Adapter, discover
 # to sit in a directory called "chat" is not silently dropped from the sweep.
 PARKED = {"chat"}
 
-# The writer directory is copied wholesale onto a scheduler service and has no
-# providers/ layout and no mock.py at all — its caller is its own job.py, not a
-# data.py. Importability is still asserted; parity has no second side to check.
-NO_MOCK_SIBLING = {"ebeam/hitachi/live_alarm/writer"}
-
-
 def _adapters() -> list[Adapter]:
     return [a for a in discover() if a.slug not in PARKED]
 
@@ -295,7 +289,9 @@ def _ids(adapters: list[Adapter]) -> list[str]:
 
 
 _ALL = _adapters()
-_WITH_MOCK = [a for a in _ALL if a.slug not in NO_MOCK_SIBLING]
+# Every adapter now has a providers/{mock,office}.py layout, so there is no
+# longer a template without a mock sibling to compare against.
+_WITH_MOCK = _ALL
 
 
 # --------------------------------------------------------------------------
@@ -408,11 +404,7 @@ def test_every_adapter_with_a_caller_has_a_non_empty_switched_surface():
     a legitimate change that must break HERE, loudly, rather than silently
     retiring the parity check for that feature.
     """
-    empty = sorted(
-        a.slug
-        for a in _ALL
-        if a.slug not in NO_MOCK_SIBLING and not any(_required(a))
-    )
+    empty = sorted(a.slug for a in _ALL if not any(_required(a)))
     assert not empty, (
         "no switched names extracted for: " + ", ".join(empty) + ". Either the "
         "feature's data.py uses a dispatch idiom _switched_names/_tab_names "

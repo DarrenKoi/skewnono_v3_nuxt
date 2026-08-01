@@ -409,7 +409,6 @@ def test_git_does_not_ignore_the_template(checkout):
 @pytest.mark.parametrize("relative", [
     "back_dev_home/sem_list/providers/office.py",
     "back_dev_home/ebeam/hitachi/hardware/providers/fdc/office.py",
-    "back_dev_home/ebeam/hitachi/live_alarm/writer/office.py",
 ])
 def test_this_repo_ignores_every_shape_of_office_py(relative):
     """Against the REAL .gitignore, not the fixture's reduction of it.
