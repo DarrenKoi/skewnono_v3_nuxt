@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import type { ChatMessage } from '~/composables/useChatApi'
+import type { ChatMessage, FeedbackInput } from '~/composables/useChatApi'
 import { renderChatMarkdown } from '~/utils/chatMarkdown'
 import { formatRelativeTime } from '~/utils/relativeTime'
 
-const props = defineProps<{ message: ChatMessage }>()
+const props = defineProps<{
+  message: ChatMessage
+  feedbackLoading?: boolean
+}>()
+const emit = defineEmits<{
+  feedback: [messageId: string, input: FeedbackInput | null]
+}>()
 
 const isUser = computed(() => props.message.role === 'user')
+const isAssistant = computed(() => props.message.role === 'assistant')
 const html = computed(() => renderChatMarkdown(props.message.content))
 
 const meta = computed(() => {
@@ -29,6 +36,14 @@ const copy = async () => {
   } catch {
     // Clipboard unavailable (e.g. insecure context) — silently no-op.
   }
+}
+
+const submitFeedback = (input: FeedbackInput) => {
+  emit('feedback', props.message.id, input)
+}
+
+const removeFeedback = () => {
+  emit('feedback', props.message.id, null)
 }
 </script>
 
@@ -69,12 +84,23 @@ const copy = async () => {
         v-html="html"
       />
       <!-- eslint-enable vue/no-v-html -->
+      <ChatSources
+        v-if="isAssistant"
+        :sources="message.sources"
+      />
       <div class="sk-chat-metarail">
         <span
           v-for="bit in meta"
           :key="bit"
           class="sk-chat-metachip"
         >{{ bit }}</span>
+        <ChatFeedbackControls
+          v-if="isAssistant"
+          :feedback="message.feedback"
+          :loading="feedbackLoading"
+          @submit="submitFeedback"
+          @remove="removeFeedback"
+        />
         <UButton
           :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
           :label="copied ? '복사됨' : '복사'"
@@ -166,7 +192,8 @@ const copy = async () => {
 
 .sk-chat-metarail {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.375rem;
   min-height: 1.25rem;

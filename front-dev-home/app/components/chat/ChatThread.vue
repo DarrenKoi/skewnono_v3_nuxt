@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import type { ChatMessage } from '~/composables/useChatApi'
+import type { ChatMessage, FeedbackInput } from '~/composables/useChatApi'
 
 const props = defineProps<{
   messages: ChatMessage[]
   pending?: boolean
   errorMessage?: string | null
   modelLabel?: string
+  feedbackLoadingIds?: ReadonlySet<string>
 }>()
-const emit = defineEmits<{ retry: [], example: [text: string] }>()
+const emit = defineEmits<{
+  retry: []
+  example: [text: string]
+  feedback: [messageId: string, input: FeedbackInput | null]
+}>()
+
+const isFeedbackLoading = (messageId: string): boolean =>
+  props.feedbackLoadingIds?.has(messageId) ?? false
 
 const scroller = ref<HTMLElement | null>(null)
 const scrollToEnd = () => {
@@ -74,6 +82,8 @@ const examples = [
           v-for="m in messages"
           :key="m.id"
           :message="m"
+          :feedback-loading="isFeedbackLoading(m.id)"
+          @feedback="(messageId, input) => emit('feedback', messageId, input)"
         />
 
         <!-- Typing indicator -->
