@@ -1060,10 +1060,10 @@ Expected: no output. (Plans under `docs/superpowers/plans/` are historical recor
 - [ ] **Step 7: Commit**
 
 ```bash
+# Step 4's `git rm` already staged the deletion -- do not re-stage it here.
 git add back_dev_home/_scheduler/tasks/image_cache.py \
         back_dev_home/msr_image/tests/test_scheduler.py \
         back_dev_home/__init__.py
-git rm --cached back_dev_home/msr_image/scheduler.py 2>/dev/null || true
 git commit -m "refactor(scheduler): move the image-cache purge into _scheduler/tasks
 
 Splits the task body from the scheduling policy. msr_image/scheduler.py
@@ -2419,6 +2419,20 @@ curl -s 'localhost:5050/api/cdsem/device-statistics/recipe-trend?lot_cds=' \
 Expected: `8`. Anything less means the office read rule leaked into the mock and the trend chart is blank.
 
 ## Notes for the implementer
+
+**You are in a git worktree, so `.venv/` and `node_modules/` do not exist
+here** — both are gitignored and live only in the main checkout. Use the main
+tree's copies; nothing needs installing:
+
+```bash
+# tests -- run from the worktree root so `-m` puts it on sys.path
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest -q
+
+# markdown lint (Tasks 7 and 11 only)
+/Users/daeyoung/Codes/skewnono_v3_nuxt/node_modules/.bin/markdownlint-cli2 \
+  "*.md" "docs/**/*.md" "back_dev_home/**/*.md" "front-dev-home/**/*.md"
+```
+
 
 **Skip counts differ legitimately.** A worktree has no gitignored `office.py` files, so provider-contract tests skip differently than in the main checkout. Compare `passed + skipped`, not `passed`.
 
