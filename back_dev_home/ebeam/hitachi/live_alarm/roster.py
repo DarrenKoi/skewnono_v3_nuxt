@@ -19,11 +19,16 @@ from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
 from back_dev_home.sem_list.contracts import SemListRow
 
 
-__all__ = ["RosterIndex", "build_index", "load_index"]
+__all__ = ["RosterIndex", "build_index", "load_index", "norm"]
 
 
-def _norm(value) -> str:
-    """Roster text arrives from parquet/Redis cells carrying case and spaces."""
+def norm(value) -> str:
+    """Roster text arrives from parquet/Redis cells carrying case and spaces.
+
+    Public because callers compare their own inputs against index keys, and a
+    caller that normalized differently would simply match nothing — an empty
+    board, not an error.
+    """
     return str(value or "").strip().upper()
 
 
@@ -31,45 +36,62 @@ def _norm(value) -> str:
 class RosterIndex:
     """Two lookups over one pass of the roster.
 
-    ``fac_id_by_fab`` is what makes the cache key coarse: M16A, M16B and M16C
-    all resolve to M16, so they share one cache entry and one office call.
-    ``placement_by_eqp`` is what puts an alarm on the right board.
+    ``fac_id_by_placement`` answers both questions the reader has, in one
+    call: is this (fab, tool family) a thing we serve, and which facility's
+    cache holds it. Keying it by the PAIR is what makes "configured" and
+    "which fac_id" impossible to disagree — a fab that resolves is guaranteed
+    to have a fac_id, so no caller can build a key out of ``None``.
+
+    ``placement_by_eqp`` is what puts an individual alarm on the right board.
     """
 
-    fac_id_by_fab: dict[str, str]
+    fac_id_by_placement: dict[tuple[str, ToolType], str]
     placement_by_eqp: dict[str, tuple[str, ToolType]]
 
-    def fac_id_for(self, fab_name: str) -> str | None:
-        return self.fac_id_by_fab.get(_norm(fab_name))
+    def fac_id_for(self, fab_name: str, tool_type: ToolType) -> str | None:
+        """The facility whose board serves this fab, or None if we serve none."""
+        return self.fac_id_by_placement.get((norm(fab_name), tool_type))
 
     def placement_of(self, eqp_id: str) -> tuple[str, ToolType] | None:
-        return self.placement_by_eqp.get(_norm(eqp_id))
+        return self.placement_by_eqp.get(norm(eqp_id))
 
-    def has_tools(self, tool_type: ToolType, fab_name: str) -> bool:
-        fab = _norm(fab_name)
-        return any(
-            placed_fab == fab and placed_type == tool_type
-            for placed_fab, placed_type in self.placement_by_eqp.values()
+    def fabs_for(self, tool_type: ToolType) -> list[str]:
+        """Every fab holding a tool of this family, sorted. Used by the mock."""
+        return sorted(
+            fab for fab, placed_type in self.fac_id_by_placement
+            if placed_type == tool_type
+        )
+
+    def eqp_ids_in(self, fab_name: str, tool_type: ToolType) -> list[str]:
+        """Every tool of this family in this fab, sorted. Used by the mock."""
+        wanted = (norm(fab_name), tool_type)
+        return sorted(
+            eqp for eqp, placement in self.placement_by_eqp.items()
+            if placement == wanted
         )
 
 
 def build_index(rows: Iterable[SemListRow]) -> RosterIndex:
-    fac_id_by_fab: dict[str, str] = {}
+    fac_id_by_placement: dict[tuple[str, ToolType], str] = {}
     placement_by_eqp: dict[str, tuple[str, ToolType]] = {}
 
     for row in rows:
-        fab = _norm(row.get("fab_name"))
-        fac = _norm(row.get("fac_id"))
-        if fab and fac:
-            fac_id_by_fab.setdefault(fab, fac)
-
+        fab = norm(row.get("fab_name"))
+        fac = norm(row.get("fac_id"))
+        eqp = norm(row.get("eqp_id"))
         # None for AMAT VeritySEM/Provision, which are not on this board.
         tool_type = model_to_tool_type(row.get("eqp_model_cd", ""))
-        eqp = _norm(row.get("eqp_id"))
-        if eqp and fab and tool_type is not None:
-            placement_by_eqp[eqp] = (fab, tool_type)
+        if not (fab and tool_type is not None):
+            continue
 
-    return RosterIndex(fac_id_by_fab, placement_by_eqp)
+        if eqp:
+            placement_by_eqp[eqp] = (fab, tool_type)
+        # Requires fac too: a row with a blank fac_id cannot name a cache key,
+        # so it must not make the fab look servable.
+        if fac:
+            fac_id_by_placement.setdefault((fab, tool_type), fac)
+
+    return RosterIndex(fac_id_by_placement, placement_by_eqp)
 
 
 def load_index() -> RosterIndex:

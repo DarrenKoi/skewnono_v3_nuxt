@@ -51,9 +51,9 @@ equivalent and the reason its output shifts by the minute.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
+from back_dev_home.ebeam.hitachi.live_alarm import board, roster
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
     BOARD_WINDOW_SEC,
     AlarmEvent,
@@ -61,39 +61,38 @@ from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
 )
 
 
-KST = timezone(timedelta(hours=9))
-
-_EQP_IDS = ("MXCD101", "MXCD204", "MXCD317", "TP0421")
 _RECIPES = ("MONITOR/CD_TOP_01", "MONITOR/CD_BOT_04", "", "PROD/EV_MAIN_12")
 _ALIDS = ("9006", "9100")
 
 # Set SKEWNONO_LIVE_ALARM_MOCK_STALE=1 to see the "feed died" screen at home.
 _STALE_ENV = "SKEWNONO_LIVE_ALARM_MOCK_STALE"
 
-# Fabs the mock pretends have a live-alarm feed. A fab outside this set
-# resolves to "not_configured" — the same status-body the office reader
-# returns for a fab whose sem_list roster holds no tool of the requested
-# family. Keeping the mock and office consistent here is the point: a typo'd
-# or unrostered fab must look the same at home as at the office (a clear
-# "미설정" panel), not a healthy board.
-# Visiting e.g. /ebeam/cd-sem/ZZZ/live-alarm renders that state at home.
-_CONFIGURED_FABS = frozenset({"R3", "M11", "M12", "M14", "M15", "M16A", "M16B"})
+# An eqp_id no roster carries, so it lands in unmatched_count exactly as a
+# still-firewalled tool would at the office. Fabricating one deliberately is
+# the only way the roster-gap path is reachable at home: every id the sem_list
+# mock emits is, by construction, in the roster.
+_UNROSTERED_EQP_ID = "MCD999"
 
 
-def _text(epoch: int) -> str:
-    return datetime.fromtimestamp(epoch, KST).strftime("%Y-%m-%d %H:%M:%S%z")
+def _index() -> roster.RosterIndex:
+    """The same roster the office reader uses, over the sem_list MOCK fleet.
+
+    Built from sem_list rather than a hardcoded fab whitelist so home and
+    office answer "is this fab configured?" by the SAME mechanism. The
+    whitelist this replaced listed four fac_ids (M11, M12, M14, M15) among its
+    fab names, so 14 of the 17 fabs the sem_list mock generates rendered 미설정
+    at home while the office would have served them a board — the exact
+    fab/fac confusion MIGRATION.md warns about, reproduced in our own mock.
+    """
+    from back_dev_home.sem_list.providers.mock import get_sem_list
+
+    return roster.build_index(get_sem_list())
 
 
-def _iso(epoch: int) -> str:
-    raw = _text(epoch)
-    return f"{raw[:-2]}:{raw[-2:]}"  # +0900 -> +09:00
-
-
-def _event(now: int, index: int) -> AlarmEvent:
+def _event(now: int, index: int, eqp_id: str) -> AlarmEvent:
     occurred = now - (index * 137) % BOARD_WINDOW_SEC
-    eqp_id = _EQP_IDS[index % len(_EQP_IDS)]
     alid = _ALIDS[index % len(_ALIDS)]
-    occurred_at = _iso(occurred)
+    occurred_at = board.iso(occurred)
     return {
         "id": f"{eqp_id}|{alid}|{occurred_at}",
         "eqp_id": eqp_id,
@@ -114,38 +113,35 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     import os
 
     now = int(time.time())
+    index = _index()
 
-    # An unconfigured fab: no feed, no heartbeat — the panel says "미설정",
-    # not a healthy empty board. This is how a typo'd fab surfaces.
-    if fab_name.upper() not in _CONFIGURED_FABS:
-        return {
-            "fab_name": fab_name,
-            "tool_type": tool_type,
-            "feed_status": "not_configured",
-            "fetched_at": None,
-            "covered_since": None,
-            "server_now": _iso(now),
-            "board_window_sec": BOARD_WINDOW_SEC,
-            "unmatched_count": 0,
-            "events": [],
-        }
+    # A fab holding no tool of this family: no feed, no heartbeat — the panel
+    # says "미설정", not a healthy empty board. Decided by the roster, which is
+    # how the office decides it too.
+    if index.fac_id_for(fab_name, tool_type) is None:
+        return board.payload(
+            tool_type=tool_type, fab_name=fab_name, now=now, configured=False,
+        )
 
     stale = os.environ.get(_STALE_ENV, "").strip().lower() in {"1", "true", "yes"}
     # Vary the count by minute so the board visibly changes during development.
     count = (now // 60) % 4
-    events = [_event(now, i) for i in range(count)]
-    fetched_at = now - 2000 if stale else now
-    return {
-        "fab_name": fab_name,
-        "tool_type": tool_type,
-        "feed_status": "stale" if stale else "live",
-        "fetched_at": _iso(fetched_at),
-        "covered_since": _iso(now - BOARD_WINDOW_SEC),
-        "server_now": _iso(now),
-        "board_window_sec": BOARD_WINDOW_SEC,
-        # Non-zero on one minute in four, so the "roster gap" line is
-        # reachable at home. A mock that always reported 0 would leave that UI
-        # path unexercised until it first appeared at the office.
-        "unmatched_count": 1 if count == 3 else 0,
-        "events": sorted(events, key=lambda e: e["occurred_epoch"], reverse=True),
-    }
+    # Real ids from the roster, so an alarm row resolves to the fab being
+    # viewed exactly as it does at the office. The previous fabricated ids
+    # (MXCD*) matched no prefix sem_list emits, so the whole attribution path
+    # went unexercised at home.
+    eqp_ids = index.eqp_ids_in(fab_name, tool_type) or [_UNROSTERED_EQP_ID]
+    events = [_event(now, i, eqp_ids[i % len(eqp_ids)]) for i in range(count)]
+
+    return board.payload(
+        tool_type=tool_type,
+        fab_name=fab_name,
+        now=now,
+        configured=True,
+        meta={"fetched_at": now - 2000 if stale else now},
+        # Non-zero on one minute in four, so the roster-gap line is reachable
+        # at home. A mock that always reported 0 would leave that UI path
+        # unexercised until it first appeared at the office.
+        unmatched_count=1 if count == 3 else 0,
+        events=sorted(events, key=lambda e: e["occurred_epoch"], reverse=True),
+    )

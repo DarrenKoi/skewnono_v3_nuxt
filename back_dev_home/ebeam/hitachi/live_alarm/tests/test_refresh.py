@@ -4,8 +4,6 @@ Almost every assertion here is about how often the OFFICE is called, not about
 what the board contains. The board's content is normalize.py's contract.
 """
 
-import pytest
-
 from back_dev_home.ebeam.hitachi.live_alarm import refresh
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import CACHE_TTL_SEC, LOCK_TTL_SEC
 from back_dev_home.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
@@ -96,13 +94,19 @@ def test_a_successful_fetch_releases_the_lock_immediately():
     assert client.get(lock_key) is None
 
 
-def test_a_stale_lock_holder_does_not_delete_its_successors_lock():
-    # The release is compare-and-delete: a fetch that outlived its own TTL
-    # must not unlock the request that legitimately took over.
+def test_a_slow_fetch_does_not_delete_its_successors_lock():
+    # The release is compare-and-delete. This drives the real path: the
+    # holder's lock expires mid-fetch, a successor takes it, and the original
+    # then finishes and releases — which must be a no-op on the new holder.
     client = FakeRedis()
     _, _, lock_key = refresh.keys(FAC)
-    client.set(lock_key, "successor-token", nx=True, ex=LOCK_TTL_SEC)
-    assert client.eval(refresh._RELEASE_LUA, 1, lock_key, "expired-token") == 0
+
+    def slow(fac_id):
+        client.advance(LOCK_TTL_SEC)                      # our lock lapses
+        client.set(lock_key, "successor-token", nx=True, ex=LOCK_TTL_SEC)
+        return [_row()]
+
+    refresh.ensure_fresh(client, FAC, now=NOW, fetch=slow)
     assert client.get(lock_key) == b"successor-token"
 
 
@@ -117,6 +121,29 @@ def test_overlapping_snapshots_accumulate_into_one_deduped_board():
     _fresh(client, second, NOW + CACHE_TTL_SEC)
     events_key, _, _ = refresh.keys(FAC)
     assert len(client.store_zset(events_key)) == 2
+
+
+def test_ensure_fresh_returns_the_meta_it_just_wrote():
+    # Returned rather than re-read: the caller would otherwise need a second
+    # round trip to observe the write this very call made.
+    client, spy = FakeRedis(), Spy([_row()])
+    assert refresh.ensure_fresh(client, FAC, now=NOW, fetch=spy) == {"fetched_at": NOW}
+
+
+def test_ensure_fresh_returns_the_existing_meta_on_a_cache_hit():
+    client, spy = FakeRedis(), Spy([_row()])
+    _fresh(client, spy, NOW)
+    assert refresh.ensure_fresh(client, FAC, now=NOW + 1, fetch=spy) == {"fetched_at": NOW}
+
+
+def test_a_failed_fetch_reports_the_last_good_meta_not_a_fresh_one():
+    client = FakeRedis()
+    _fresh(client, Spy([_row()]), NOW)
+    client.advance(CACHE_TTL_SEC)
+    reported = refresh.ensure_fresh(
+        client, FAC, now=NOW + CACHE_TTL_SEC, fetch=Spy(fail=True)
+    )
+    assert reported == {"fetched_at": NOW}, "a failed fetch must not look fresh"
 
 
 def test_a_quiet_facility_still_stamps_the_cache():
@@ -142,20 +169,3 @@ def test_unreadable_meta_is_treated_as_cold_rather_than_fresh():
     client.set(meta_key, "{not json")
     _fresh(client, spy, NOW)
     assert spy.calls == [FAC]
-
-
-def test_missing_office_utils_raises_rather_than_serving_a_silent_empty_board():
-    # office_utils is absent at home, so the real fetch path is exercised here.
-    client = FakeRedis()
-    with pytest.raises(RuntimeError, match="office_utils"):
-        refresh.ensure_fresh(client, FAC, now=NOW)
-
-
-def test_a_missing_office_utils_does_not_leave_a_lock_behind():
-    # Resolved before the lock is taken: a deployment fault must not wedge
-    # the feature for LOCK_TTL_SEC on top of failing.
-    client = FakeRedis()
-    with pytest.raises(RuntimeError):
-        refresh.ensure_fresh(client, FAC, now=NOW)
-    _, _, lock_key = refresh.keys(FAC)
-    assert client.get(lock_key) is None

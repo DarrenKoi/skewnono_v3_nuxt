@@ -19,16 +19,24 @@ The events key stays an ACCUMULATING ZSET rather than a last-response cache.
 the office's choice; if it reports only currently-active alarms, a
 last-response cache could never hold the 10-minute board. Accumulation is
 safe because ZSET members are canonical JSON, making a repeated event a no-op.
+
+Nothing here imports ``office_utils`` or knows what the office is: ``fetch``
+is injected by the caller. That keeps this module — cache and lock policy
+over an injected client — importable and testable at home, and leaves the
+office binding in the adapter that is copied to make ``office.py``.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import secrets
+
+from redis.exceptions import LockError
+from redis.lock import Lock
 
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
     CACHE_TTL_SEC,
+    KEY_TTL_SEC,
     LOCK_TTL_SEC,
     PRUNE_SEC,
 )
@@ -38,18 +46,8 @@ from back_dev_home.ebeam.hitachi.live_alarm.normalize import canonical_json, to_
 log = logging.getLogger(__name__)
 
 KEY_PREFIX = "skewnono:live_alarm"
-TTL_SEC = 86_400
 
 __all__ = ["keys", "read_meta", "ensure_fresh"]
-
-# Compare-and-delete. A fetch that outlived its own lock TTL must not delete
-# the SUCCESSOR's lock, which is what an unconditional DEL would do.
-_RELEASE_LUA = """
-if redis.call('get', KEYS[1]) == ARGV[1] then
-    return redis.call('del', KEYS[1])
-end
-return 0
-"""
 
 
 def keys(fac_id: str) -> tuple[str, str, str]:
@@ -78,34 +76,6 @@ def read_meta(client, fac_id: str) -> dict | None:
     return payload
 
 
-def _office_fetch():
-    """Bind the office callable, or explain why it is missing.
-
-    Imported inside the function because office_utils is gitignored and does
-    not exist at home; a module-scope import would break every developer
-    machine's import of this module.
-    """
-    try:
-        from office_utils.live_alarm import get_live_alarms
-    except ImportError as exc:
-        raise RuntimeError(
-            "office_utils.live_alarm is not importable — live_alarm's office "
-            "provider needs the office-only office_utils package on sys.path. "
-            "Copy it onto this host, or run with "
-            "SKEWNONO_LIVE_ALARM_PROVIDER=mock."
-        ) from exc
-
-    def fetch(fac_id: str) -> list[dict]:
-        frame = get_live_alarms(fac_id)
-        # DataFrame -> dict rows (CLAUDE.md's dataframe-dict convention).
-        # NaN survives to_dict; normalize._text is what guards it.
-        if hasattr(frame, "to_dict"):
-            return frame.to_dict(orient="records")
-        return list(frame)
-
-    return fetch
-
-
 def _write_board(client, fac_id: str, events: list[dict], now: int) -> None:
     events_key, meta_key, _ = keys(fac_id)
     pipe = client.pipeline()
@@ -113,34 +83,52 @@ def _write_board(client, fac_id: str, events: list[dict], now: int) -> None:
         # redis-py rejects an empty mapping, and a quiet facility is normal.
         pipe.zadd(events_key, {canonical_json(e): e["occurred_epoch"] for e in events})
     pipe.zremrangebyscore(events_key, "-inf", now - PRUNE_SEC)
-    pipe.expire(events_key, TTL_SEC)
-    pipe.set(meta_key, json.dumps({"fetched_at": now}), ex=TTL_SEC)
+    pipe.expire(events_key, KEY_TTL_SEC)
+    pipe.set(meta_key, json.dumps({"fetched_at": now}), ex=KEY_TTL_SEC)
     pipe.execute()
 
 
-def ensure_fresh(client, fac_id: str, *, now: int, fetch=None) -> None:
-    """Refresh this facility's board if the cache has lapsed. Never blocks."""
+def ensure_fresh(client, fac_id: str, *, now: int, fetch) -> dict | None:
+    """Refresh this facility's board if the cache has lapsed. Never blocks.
+
+    Returns the meta the caller should report — ``{"fetched_at": now}`` when
+    this call refreshed, otherwise whatever was already stored (``None`` if
+    nothing ever succeeded). Returned rather than re-read so the caller does
+    not need a second round trip to observe the write this call just made.
+    """
     meta = read_meta(client, fac_id)
     if meta and now - int(meta["fetched_at"]) < CACHE_TTL_SEC:
-        return
+        return meta
 
-    # Bound BEFORE the lock is taken. A missing office_utils is a deployment
-    # fault that must surface as a 503 — not be swallowed as a transient
-    # failure, and not hold a lock for LOCK_TTL_SEC on the way out.
-    fetcher = fetch or _office_fetch()
-
+    # redis-py's own lock: SET NX PX to acquire, and an owner-checked
+    # compare-and-delete to release, so a fetch that outlived its TTL cannot
+    # delete the successor's lock. Same choice _scheduler/locks.py made, and
+    # for the same reason — the release script is the driver's, not ours.
     _, _, lock_key = keys(fac_id)
-    token = secrets.token_hex(8)
-    if not client.set(lock_key, token, nx=True, ex=LOCK_TTL_SEC):
-        return   # another request is fetching; serve the board already here
+    lock = Lock(client, lock_key, timeout=LOCK_TTL_SEC, thread_local=False)
+    if not lock.acquire(blocking=False):
+        return meta   # another request is fetching; serve what is already here
 
     try:
-        rows = fetcher(fac_id)
+        rows = fetch(fac_id)
         _write_board(client, fac_id, to_events(rows, now=now), now)
     except Exception:
         log.exception("live_alarm refresh failed for fac_id=%s", fac_id)
         # The lock is deliberately NOT released: it expires in LOCK_TTL_SEC
         # and is the retry backoff.
-        return
+        return meta
 
-    client.eval(_RELEASE_LUA, 1, lock_key, token)
+    try:
+        lock.release()
+    except LockError:
+        # Our lock lapsed during a fetch slower than LOCK_TTL_SEC, and may
+        # already belong to a successor. The board WAS written, so this must
+        # not fail the request — hence an explicit guard rather than the
+        # `raise_on_release_error` flag, which redis-py honours only in the
+        # context manager, and `with lock:` would release in a finally and
+        # destroy the don't-release-on-failure backoff above.
+        log.warning(
+            "live_alarm lock for fac_id=%s expired before release "
+            "(fetch slower than %ss)", fac_id, LOCK_TTL_SEC,
+        )
+    return {"fetched_at": now}

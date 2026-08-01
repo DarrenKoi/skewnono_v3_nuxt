@@ -8,18 +8,31 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 
+from back_dev_home.ebeam.hitachi._tool_specs import ToolType
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
+    BOARD_WINDOW_SEC,
     STALE_AFTER_SEC,
     AlarmEvent,
     FeedStatus,
+    LiveAlarmPayload,
 )
 
 
 log = logging.getLogger(__name__)
 
-__all__ = ["feed_status_for", "dedupe_by_id", "parse_members"]
+KST = timezone(timedelta(hours=9))
+
+__all__ = ["feed_status_for", "dedupe_by_id", "parse_members", "iso", "payload"]
+
+
+def iso(epoch: int | None) -> str | None:
+    """Epoch -> "YYYY-MM-DD HH:MM:SS+09:00", the contract's timestamp form."""
+    if epoch is None:
+        return None
+    return datetime.fromtimestamp(int(epoch), KST).isoformat(sep=" ")
 
 
 def feed_status_for(meta: dict[str, Any] | None, known: bool, *, now: int) -> FeedStatus:
@@ -39,6 +52,39 @@ def feed_status_for(meta: dict[str, Any] | None, known: bool, *, now: int) -> Fe
     if not meta or "fetched_at" not in meta:
         return "stale"
     return "live" if now - int(meta["fetched_at"]) <= STALE_AFTER_SEC else "stale"
+
+
+def payload(
+    *,
+    tool_type: ToolType,
+    fab_name: str,
+    now: int,
+    configured: bool,
+    meta: dict[str, Any] | None = None,
+    unmatched_count: int = 0,
+    events: Iterable[AlarmEvent] = (),
+) -> LiveAlarmPayload:
+    """The one LiveAlarmPayload constructor both providers use.
+
+    Written once rather than per provider because a payload literal per
+    provider per empty-state is four copies of the same nine keys — and the
+    field this feature most needs to be right (`fetched_at`, which must be
+    absent unless a fetch actually succeeded) would be the one most likely to
+    drift between them. Adding a field is now one edit, not four.
+    """
+    return {
+        "fab_name": fab_name,
+        "tool_type": tool_type,
+        "feed_status": feed_status_for(meta, configured, now=now),
+        "fetched_at": iso(meta["fetched_at"]) if meta else None,
+        # Only meaningful for a fab that has a board: an unconfigured fab
+        # covers nothing, so claiming a window would imply a feed exists.
+        "covered_since": iso(now - BOARD_WINDOW_SEC) if configured else None,
+        "server_now": iso(now),
+        "board_window_sec": BOARD_WINDOW_SEC,
+        "unmatched_count": unmatched_count,
+        "events": list(events),
+    }
 
 
 def dedupe_by_id(events: Iterable[AlarmEvent]) -> list[AlarmEvent]:

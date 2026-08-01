@@ -26,13 +26,19 @@ KST = timezone(timedelta(hours=9))
 __all__ = ["to_events", "canonical_json"]
 
 # What DataFrame.to_dict leaves behind in an empty optional cell. str() turns
-# each of these into text that would render literally on the board.
-_NULLISH = {"nan", "nat", "none", "<na>"}
+# each of these into text that would render literally on the board. Kept in
+# step with `_office_search._MISSING_TEXT`, which answers the same question
+# for OpenSearch cells — the two drifting would mean two answers for one cell.
+# Not imported from there: that module pulls pandas, opensearchpy and
+# ops_store at import time, and this one is deliberately dependency-free.
+_NULLISH = {"nan", "nat", "none", "null", "<na>"}
 
 
 def _text(row: Any, *names: str) -> str:
+    if not isinstance(row, dict):
+        return ""
     for name in names:
-        if not isinstance(row, dict) or name not in row:
+        if name not in row:
             continue
         value = row[name]
         if value is None:

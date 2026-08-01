@@ -66,6 +66,29 @@ class FakePipeline:
         return False
 
 
+class _CompareAndDelete:
+    """What ``register_script`` hands back — semantics of Lock's release Lua.
+
+    A CLASS with ``__call__``, not a closure, because ``redis.lock.Lock``
+    stores the registered script on the class (``cls.lua_release``). A plain
+    function there would be a descriptor and bind the Lock instance as the
+    first positional argument, colliding with ``keys``. redis-py's real
+    ``Script`` is an object for the same reason.
+    """
+
+    def __init__(self, default_client: "FakeRedis") -> None:
+        self.default_client = default_client
+
+    def __call__(self, keys=(), args=(), client=None):
+        target = client if client is not None else self.default_client
+        target._evict()
+        expected = args[0].encode() if isinstance(args[0], str) else args[0]
+        if target.strings.get(keys[0]) == expected:
+            target.delete(keys[0])
+            return 1
+        return 0
+
+
 class FakeRedis:
     def __init__(self, now: int = 1_000_000) -> None:
         self.zsets: dict[str, dict[str, float]] = {}
@@ -99,16 +122,22 @@ class FakeRedis:
         self._evict()
         return self.strings.get(key)
 
-    def set(self, key, value, nx: bool = False, ex: int | None = None):
-        """redis-py returns True on a write and None when NX declined."""
+    def set(self, key, value, nx: bool = False, ex: int | None = None,
+            px: int | None = None):
+        """redis-py returns True on a write and None when NX declined.
+
+        ``px`` (milliseconds) is here because redis-py's own ``Lock.acquire``
+        uses it rather than ``ex``.
+        """
         self._evict()
         if nx and key in self.strings:
             return None
         self.strings[key] = value.encode() if isinstance(value, str) else value
-        if ex is None:
+        seconds = ex if ex is not None else (px / 1000 if px is not None else None)
+        if seconds is None:
             self._expires.pop(key, None)
         else:
-            self._expires[key] = self._now + int(ex)
+            self._expires[key] = self._now + int(seconds)
         return True
 
     def delete(self, *keys) -> int:
@@ -119,21 +148,17 @@ class FakeRedis:
                 removed += 1
         return removed
 
-    def eval(self, script, numkeys: int, *args) -> int:
-        """The ONE script this feature uses: compare-and-delete.
+    def register_script(self, script):
+        """Stand in for the ONE script this feature registers.
 
-        The script text is accepted and ignored — this fake implements the
-        semantics of refresh._RELEASE_LUA, not a Lua interpreter. If a second
-        script is ever added, this must branch on it rather than silently
-        applying compare-and-delete to something else.
+        ``redis.lock.Lock`` registers its owner-checked compare-and-delete
+        release script here. The Lua text is accepted and ignored — this is
+        not a Lua interpreter, it reproduces that script's semantics so the
+        call shape is exercised. If anything ever registers a second script,
+        this must branch on the text rather than silently applying
+        compare-and-delete to it.
         """
-        self._evict()
-        keys, argv = list(args[:numkeys]), list(args[numkeys:])
-        expected = argv[0].encode() if isinstance(argv[0], str) else argv[0]
-        if self.strings.get(keys[0]) == expected:
-            self.delete(keys[0])
-            return 1
-        return 0
+        return _CompareAndDelete(self)
 
     def sismember(self, key, member) -> bool:
         return member in self.sets.get(key, set())

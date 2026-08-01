@@ -24,6 +24,7 @@ __all__ = [
     "FUTURE_TOLERANCE_SEC",
     "CACHE_TTL_SEC",
     "LOCK_TTL_SEC",
+    "KEY_TTL_SEC",
     "ALID_KIND",
 ]
 
@@ -44,6 +45,9 @@ CACHE_TTL_SEC = 20
 # left to expire on failure, so an office API already in trouble is not
 # retried by every poll of every viewer.
 LOCK_TTL_SEC = 20
+# Garbage collection for a facility nobody has opened in a day. Distinct from
+# PRUNE_SEC, which trims events inside a board that IS being read.
+KEY_TTL_SEC = 86_400
 
 assert PRUNE_SEC >= BOARD_WINDOW_SEC, (
     "PRUNE_SEC must be >= BOARD_WINDOW_SEC, otherwise the refresh deletes "
