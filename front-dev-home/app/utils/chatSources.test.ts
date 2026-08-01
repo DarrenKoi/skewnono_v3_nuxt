@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { formatSourceLabel, normalizeFeedbackInput } from './chatSources.ts'
+import * as chatSources from './chatSources.ts'
+
+const { formatSourceLabel, normalizeFeedbackInput } = chatSources
 
 test('manual source label includes revision and page', () => {
   assert.equal(formatSourceLabel({
@@ -37,4 +39,53 @@ test('feedback trims and limits comments to 500 characters', () => {
   assert.deepEqual(normalizeFeedbackInput('up', [], `  ${'x'.repeat(510)}  `), {
     rating: 'up', reasons: [], comment: 'x'.repeat(500)
   })
+})
+
+test('feedback reconciliation updates the reopened thread message by id', () => {
+  const reconcileMessageFeedback = Reflect.get(chatSources, 'reconcileMessageFeedback')
+  assert.equal(typeof reconcileMessageFeedback, 'function')
+
+  const storedFeedback = {
+    rating: 'down' as const,
+    reasons: ['wrong_source' as const],
+    comment: 'Use the current manual.',
+    updated_at: '2026-08-02T00:00:00Z'
+  }
+  const reopenedMessage = {
+    id: 'assistant-1',
+    role: 'assistant' as const,
+    feedback: null
+  }
+  const reopenedThread = { id: 'thread-a', messages: [reopenedMessage] }
+
+  assert.equal(reconcileMessageFeedback(
+    reopenedThread,
+    'thread-a',
+    'assistant-1',
+    storedFeedback
+  ), true)
+  assert.deepEqual(reopenedMessage.feedback, storedFeedback)
+})
+
+test('feedback reconciliation preserves a different active thread', () => {
+  const reconcileMessageFeedback = Reflect.get(chatSources, 'reconcileMessageFeedback')
+  assert.equal(typeof reconcileMessageFeedback, 'function')
+
+  const activeMessage = {
+    id: 'assistant-b',
+    role: 'assistant' as const,
+    feedback: null
+  }
+  const activeThread = { id: 'thread-b', messages: [activeMessage] }
+
+  assert.equal(reconcileMessageFeedback(
+    activeThread,
+    'thread-a',
+    'assistant-a',
+    {
+      rating: 'up', reasons: [], comment: null,
+      updated_at: '2026-08-02T00:00:00Z'
+    }
+  ), false)
+  assert.equal(activeMessage.feedback, null)
 })

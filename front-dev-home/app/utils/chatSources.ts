@@ -1,6 +1,8 @@
 import type {
+  ChatMessage,
   FeedbackInput,
   FeedbackReason,
+  MessageFeedback,
   SourceRef
 } from '~/composables/useChatApi'
 
@@ -40,4 +42,24 @@ export const normalizeFeedbackInput = (
     reasons: FEEDBACK_REASON_ORDER.filter(reason => selectedReasons.has(reason)),
     comment: normalizedComment || null
   }
+}
+
+type FeedbackThreadTarget = {
+  id: string
+  messages: Array<Pick<ChatMessage, 'id' | 'role' | 'feedback'>>
+}
+
+export const reconcileMessageFeedback = (
+  activeThread: FeedbackThreadTarget | null,
+  targetThreadId: string,
+  messageId: string,
+  feedback: MessageFeedback | null
+): boolean => {
+  if (activeThread?.id !== targetThreadId) return false
+
+  const message = activeThread.messages.find(item => item.id === messageId)
+  if (!message || message.role !== 'assistant') return false
+
+  message.feedback = feedback
+  return true
 }

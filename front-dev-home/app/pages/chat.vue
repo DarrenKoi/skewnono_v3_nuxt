@@ -6,6 +6,7 @@ import type {
   ThreadDetail,
   ThreadSummary
 } from '~/composables/useChatApi'
+import { reconcileMessageFeedback } from '~/utils/chatSources'
 import { createPendingChatTurn, type PendingChatTurn } from '~/utils/chatTurn'
 
 const api = useChatApi()
@@ -120,23 +121,30 @@ const setFeedbackLoading = (messageId: string, loading: boolean) => {
 }
 
 const saveFeedback = async (messageId: string, input: FeedbackInput | null) => {
+  const targetThreadId = active.value?.id
   const message = active.value?.messages.find(item => item.id === messageId)
-  if (!message || message.role !== 'assistant' || feedbackLoadingIds.value.has(messageId)) return
+  if (!targetThreadId || !message || message.role !== 'assistant'
+    || feedbackLoadingIds.value.has(messageId)) return
 
   const previousFeedback = message.feedback
-  message.feedback = input === null
-    ? null
-    : { ...input, updated_at: new Date().toISOString() }
+  reconcileMessageFeedback(
+    active.value,
+    targetThreadId,
+    messageId,
+    input === null ? null : { ...input, updated_at: new Date().toISOString() }
+  )
   setFeedbackLoading(messageId, true)
 
   try {
     if (input === null) {
       await api.deleteFeedback(messageId)
+      reconcileMessageFeedback(active.value, targetThreadId, messageId, null)
     } else {
-      message.feedback = await api.putFeedback(messageId, input)
+      const storedFeedback = await api.putFeedback(messageId, input)
+      reconcileMessageFeedback(active.value, targetThreadId, messageId, storedFeedback)
     }
   } catch {
-    message.feedback = previousFeedback
+    reconcileMessageFeedback(active.value, targetThreadId, messageId, previousFeedback)
     toast.add({
       title: '평가를 저장하지 못했습니다',
       description: '답변은 그대로 유지됩니다. 잠시 후 다시 시도해 주세요.',
