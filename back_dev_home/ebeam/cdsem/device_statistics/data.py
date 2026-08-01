@@ -19,6 +19,8 @@ __all__ = [
     "get_recipe_params",
     "get_weekly_trend_data",
     "get_rules",
+    "write_weekly_snapshot",
+    "sweep_weekly_snapshots",
 ]
 
 
@@ -53,3 +55,19 @@ def get_weekly_trend_data(
 
 def get_rules(fac_id: str):
     return _provider().get_rules(fac_id)
+
+
+# ── 스케줄러 진입점 ──────────────────────────────────────────────
+# 읽기가 아니라 쓰기입니다. 스케줄러가 provider 를 직접 import 하지 않도록
+# 여기를 통과시킵니다 — 직접 import 하면 이 dispatcher 가 존재하는 이유인
+# home/office swap 을 하드코딩하게 됩니다.
+
+
+def write_weekly_snapshot(date_key: str | None = None) -> str:
+    """이번(또는 지정된) 주차 스냅샷을 적재하고 그 위치를 돌려줍니다."""
+    return _provider().write_weekly_snapshot(date_key)
+
+
+def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
+    """가장 최근 ``keep_weeks`` 주차만 남기고 지웁니다. 지운 개수를 돌려줍니다."""
+    return _provider().sweep_weekly_snapshots(keep_weeks)

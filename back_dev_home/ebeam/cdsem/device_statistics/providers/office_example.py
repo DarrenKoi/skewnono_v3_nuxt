@@ -149,6 +149,7 @@ __all__ = [
     # 스케줄러/운영 진입점 — route 는 호출하지 않습니다.
     "build_weekly_snapshot",
     "write_weekly_snapshot",
+    "sweep_weekly_snapshots",
     "publish_rules",
 ]
 
@@ -170,6 +171,10 @@ RULES_KEY = "v3_device_statistics_rules"
 # MinIO 주차 스냅샷 접두사. 설정된 기본 prefix 위에 얹힙니다 — 사무실 자격증명은
 # user/<사번>/ 아래로 제한되어 있어 버킷 레벨 조작은 하지 않습니다.
 MINIO_BASE = "device_statistics/weekly_trend"
+
+# YYYY-MM-DD.json 인 객체만 스냅샷으로 취급합니다 — sweep 이 같은 prefix 의 다른
+# 객체를 지우지 않도록 하는 방어선입니다.
+_SNAPSHOT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 # ─────────────────────── term/agg 대상 field ───────────────────────
@@ -979,6 +984,46 @@ def write_weekly_snapshot(date_key: str | None = None) -> str:
         key, len(payload["summaries"].get("all", [])),
     )
     return key
+
+
+def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
+    """가장 최근 ``keep_weeks`` 주차만 남기고 MinIO 객체를 지웁니다.
+
+    **key 의 날짜로 판단하며 ``last_modified`` 로 하지 않습니다.** 이미지 캐시는
+    객체가 연속적으로 도착하므로 쓰기 시각이 곧 나이지만, 스냅샷은 key 가 곧
+    주차입니다. 놓친 주를 메우려 재적재하면 그 객체의 ``last_modified`` 는
+    오늘이 되므로, ``last_modified`` 기준 sweep 은 그 오래된 백필을 남기고
+    정상적인 최근 것을 지웁니다.
+
+    MinIO 자격증명이 prefix 로 제한되어 native lifecycle 을 걸 수 없기 때문에
+    애플리케이션 쪽에서 지웁니다(docs/datatables/device_statistics_weekly_trend.txt
+    의 OFFICE-VERIFY 항목).
+
+    **``AccessDenied`` 를 "지울 것 없음"으로 삼키지 않습니다.** 사무실 자격증명은
+    허용된 prefix 밖에서 NotFound 가 아니라 AccessDenied 를 돌려주므로, 삼키면
+    경로 오타가 "성공"을 보고하면서 영원히 아무것도 하지 않습니다.
+
+    OFFICE-VERIFY: 첫 실행에서 실제로 지워지는 개수와 남는 개수.
+    """
+    from minio_handler import MinioObject  # office 전용 의존성 — 지연 import
+
+    store = MinioObject()
+    prefix = f"{MINIO_BASE}/"
+    dated: list[str] = []
+    for obj in store.list(prefix=prefix, recursive=True):
+        stem = str(obj.object_name).rsplit("/", 1)[-1].removesuffix(".json")
+        if _SNAPSHOT_NAME.match(stem):
+            dated.append(str(obj.object_name))
+    if not dated:
+        return 0
+    dated.sort()
+    doomed = dated[:-keep_weeks] if keep_weeks > 0 else dated
+    if not doomed:
+        return 0
+    errors = store.delete_many(doomed) or []
+    removed = len(doomed) - len(errors)
+    _LOG.info("device_statistics: swept %d weekly snapshots", removed)
+    return removed
 
 
 # ──────────────────────────── 계측 룰 ────────────────────────────

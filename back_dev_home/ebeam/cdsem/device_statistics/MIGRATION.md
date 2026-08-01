@@ -6,10 +6,9 @@
 five functions are written against the real sources; `cp office_example.py
 office.py` at the office and run the Verify command at the bottom.
 
-One thing is deliberately still open: **the weekly-snapshot scheduler does not
-exist yet.** Until it runs, `recipe-trend` returns a single point (the current
-week, computed live) and `recipe-statistics` is unaffected. See
-`docs/datatables/device_statistics_weekly_trend.txt`.
+주차 스냅샷 스케줄러는 이제 존재합니다(`back_dev_home/_scheduler/`). 월요일
+01:00 에 `write_weekly_snapshot()`, 02:30 에 `sweep_weekly_snapshots()` 가
+돕니다. 사무실에서는 `cp office_example.py office.py` 만 하면 켜집니다.
 
 One fact is easy to re-break: **`skip_yn` — `"Y"` means skipped, and the field
 has THREE values** (`"Y"`, `"N"`, and blank). Selecting measured steps is
@@ -22,8 +21,11 @@ docstring.
 ## Rules
 
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`,
-  `providers/mock.py`, `providers/statistics.py`, `providers/recipe_params.py`,
-  `providers/rules.py`, `contracts.py`, or `tests/`.
+  `providers/mock.py`, `providers/snapshot_store.py`, `providers/statistics.py`,
+  `providers/recipe_params.py`, `providers/rules.py`, `contracts.py`, or
+  `tests/`. (`data.py` 는 2026-08-01 에 스케줄러 진입점 두 개가 추가되면서 한 번
+  바뀌었습니다 — dispatcher 에 함수를 더한 것이며 `_provider()` 선택 로직은
+  그대로입니다. 사무실 방문에서는 여전히 건드리지 않습니다.)
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 - Implement **all five** functions here: `get_r3_device_grp`,
@@ -31,6 +33,9 @@ docstring.
   `get_rules`. These back six GET endpoints (`recipe-statistics` and
   `recipe-trend` both call `get_weekly_trend_data`, just with different
   arguments and different route-level post-processing).
+- **일곱 개**를 구현합니다: 기존 다섯 개에 더해 `write_weekly_snapshot`,
+  `sweep_weekly_snapshots`. 뒤의 두 개는 스케줄러가 부르며 화면이 부르지
+  않습니다.
 - **External importer — do not break this.** `back_dev_home/ebeam/hitachi/
   _analytics.py`'s `lot_metadata()` lazily imports `get_device_desc` and
   `get_r3_device_grp` from `device_statistics.data` (the switch you are
