@@ -65,8 +65,8 @@ def test_parse_members_decodes_bytes():
 
 
 def test_parse_members_skips_a_broken_member():
-    # The writer is a separate deployment; a partial schema rollout must not
-    # take the whole endpoint down.
+    # Members outlive the build that wrote them, so a schema change or a
+    # rolling restart must not take the whole endpoint down.
     raw = [
         b'{"id":"ok","occurred_epoch":1}',
         b'not json at all',

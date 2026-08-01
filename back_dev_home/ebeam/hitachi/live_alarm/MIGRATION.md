@@ -1,103 +1,108 @@
 # live_alarm — 오피스 전환 절차
 
-이 기능은 다른 기능과 달리 **swap surface 가 둘** 입니다.
+swap surface 는 **하나**입니다. `providers/office.py` 를 만들면 이 기능이
+office 모드로 전환됩니다. 별도의 스케줄러 서비스나 writer 배포는 필요하지
+않습니다.
 
-| 위치 | 역할 | 실행 주체 |
-| --- | --- | --- |
-| `providers/office.py` | Redis 를 읽어 화면에 내보냅니다 | SKEWNONO Flask |
-| `writer/office.py` | 사내 알람 API 를 폴링해 Redis 에 씁니다 | 스케줄러 서비스 |
+## 1. office_utils 에 알람 조회 함수를 둡니다
 
-writer 가 먼저 돌아야 reader 가 보여줄 것이 생깁니다. 아래 순서대로 진행합니다.
+`office_utils/live_alarm.py` 에 아래 한 함수를 구현합니다. SKEWNONO 는 이
+함수 하나만 호출합니다.
 
-## 1. 스케줄러 플랫폼 사전 조건
-
-`flask_modules/api` 에 다음 두 가지가 이미 반영되어 있어야 합니다.
-
-- `extension.py` 의 `SCHEDULER_EXECUTORS` 에 `fast` executor (단일 스레드 전용
-  레인)
-- `schedule.py` 의 `init_jobs` 가 job 별 `misfire_grace_time` / `executor` 를
-  선택적으로 전달하는 로직
-
-두 가지 모두 이미 배포되어 있는 것으로 확인되었으므로, 이 절차에서 스케줄러
-플랫폼 자체를 수정할 필요는 없습니다. 없는 상태에서 등록하면 15초 주기 job 이
-긴 job 에 밀려 4-worker 스레드풀에서 굶고, `misfire_grace_time` 은 기본값
-60초가 적용됩니다.
-
-## 2. writer 배치
-
-1. `back_dev_home/ebeam/hitachi/live_alarm/writer/` 디렉터리 전체를 스케줄러
-   서비스로 복사합니다. `job.py` 는 이미 `from .normalize import ...` /
-   `from .window import compute_window` 같은 상대 경로 import 만 사용하므로,
-   복사 후 import 를 다시 손볼 필요가 없습니다.
-2. `cp office_example.py office.py` 후 `ALARM_API` 에 팹별 실제 주소를
-   채웁니다. **이 맵의 키 집합이 곧 감시 대상 팹 목록입니다** — 팹을
-   추가하는 일과 주소를 등록하는 일이 같은 한 줄의 편집이라, 목록과 주소가
-   따로 어긋날 일이 없습니다.
-3. 환경 변수 `LIVE_ALARM_REDIS_*` 를 설정합니다. **`LIVE_ALARM_REDIS_DB` 는
-   반드시 0 이어야 합니다** — `office_redis.py` 가 `db` 인자를 전혀 넘기지
-   않아 reader 가 항상 0 번 db 에 있기 때문입니다.
-4. `JOB_FUNCTIONS` 에 다음과 같이 등록합니다.
-
-   ```python
-   "live_alarm_board": {
-       "fn": run_once,
-       "trigger": IntervalTrigger(seconds=15),
-       "executor": "fast",
-       "misfire_grace_time": 10,
-       "lock_ttl": 45,          # 기본값 1200 을 반드시 덮어씁니다
-       "manual_dispatch": True,
-   },
-   ```
-
-   `lock_ttl` 기본값 1200초를 그대로 두면, 락을 쥔 워커가 재활용되는 순간부터
-   20분 동안 이 job 이 계속 skip 되고 화면은 그동안 내내 `stale` 로 보입니다.
-
-## 3. writer 동작 확인
-
-```bash
-redis-cli -n 0 --scan --pattern 'skewnono:live_alarm:*'
-redis-cli -n 0 SMEMBERS skewnono:live_alarm:registry
-redis-cli -n 0 GET skewnono:live_alarm:cd-sem:R3:meta
+```python
+def get_live_alarms(fac_id: str) -> pd.DataFrame:
+    """한 fac_id 의 알람 rows 를 ALID 구분 없이 모두 돌려줍니다."""
+    align = filter_align_fail(get_cdsem_alarms(fac_id))
+    meas = get_measurement_fail_alarms(fac_id)
+    return pd.concat([align, meas], ignore_index=True)
 ```
 
-`meta` 의 `polled_at` 값이 약 15초 간격으로 계속 올라가면 정상입니다. 올라가지
-않으면 스케줄러의 `/jobs/logs` 에서 `live_alarm_board` 의 `error` 레코드를
-확인합니다. `registry` 셋에 등록한 `tool_slug:fab_name` 조합이 모두 보이는지도
-함께 확인합니다.
+두 종류를 SKEWNONO 가 아니라 여기서 합치는 이유는, 한쪽만 실패했을 때 무엇을
+보여줄지 정하는 문제를 아예 만들지 않기 위해서입니다. import 도 호출도 실패
+경로도 하나씩만 남습니다.
 
-## 4. reader 활성화
+반환 컬럼은 workflow_3 알람 표준 스키마와 같습니다.
+
+| 컬럼 | 필수 | 의미 |
+| --- | --- | --- |
+| `EQP_ID` | 예 | 장비 ID. 이 값으로 sem_list 에서 fab 을 찾습니다 |
+| `ALID` | 예 | `9006` align fail, `9100` 측정 연속 실패 |
+| `UTC9` | 예 | `"%Y-%m-%d %H:%M:%S"` 발생 시각 |
+| `RECIPE_ID` | 아니오 | `"<class>/<recipe>"` |
+| `ALARM_NAME` | 아니오 | 사람이 읽는 라벨 |
+| `OPERATION_DESC` | 아니오 | 공정/스텝 설명 |
+| `LOT_TYPE_CD` | 아니오 | lot 종류 코드 |
+| `TIMESTAMP` | 아니오 | `UTC9` 가 없을 때의 대체 값 |
+
+선택 컬럼이 비어 있으면 `NaN` 이어도 됩니다. `normalize.py` 가 `NaN`/`NaT`/
+`None` 을 빈 문자열로 바꿔 화면에 `nan` 이라는 글자가 찍히지 않게 합니다.
+
+### 인자는 fac_id 입니다
+
+`fac_id` 는 fab 을 묶은 **상위 단위**(`M16`, `R3`)이고, 화면 URL 이 나르는
+`fab_name` 은 그보다 세분화된 값(`M16A`, `M16B`, `R3`, `R4`)입니다.
+
+| 키 | 값 예시 |
+| --- | --- |
+| `fab_name` | `M16A`, `M16B`, `M16C`, `R3`, `R4` |
+| `fac_id` | `M16`, `R3` (`R3`+`R4` → `R3`, `M16A/B/C` → `M16`) |
+
+**`R3` 는 두 값이 같아지는 유일한 값입니다.** 그래서 `R3` 만으로 시험하면 이
+구분이 드러나지 않습니다. `M16` 이 들어오는 순간 `fab_name` 을 그대로 넘기면
+빈 결과가 돌아오고, 화면에는 "조용한 fab" 으로 보입니다.
+
+`fab_name → fac_id` 변환표는 코드에 없습니다. `sem_list` row 가 두 컬럼을 모두
+갖고 있어 roster 에서 읽습니다. fab 이 늘어도 코드를 고칠 필요가 없습니다.
+
+## 2. reader 활성화
 
 ```bash
 cd back_dev_home/ebeam/hitachi/live_alarm/providers
 cp office_example.py office.py
 ```
 
-`office.py` 파일이 존재한다는 사실 자체가 이 기능을 office 모드로 전환합니다.
-별도의 환경 변수 설정은 필요하지 않습니다 (`_runtime/office_registry.py` 가
-파일 존재 여부만 확인합니다).
+`office.py` 파일이 존재한다는 사실 자체가 이 기능을 office 모드로
+전환합니다. 별도의 환경 변수 설정은 필요하지 않습니다.
 
-## 5. 검증
+## 3. 동작 확인
 
 ```bash
-SKEWNONO_LIVE_ALARM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/live_alarm
 curl 'http://localhost:5000/api/health/providers' | grep live_alarm
-curl 'http://localhost:5000/api/cdsem/live-alarm?fab_name=R3'
+curl 'http://localhost:5000/api/cdsem/live-alarm?fab_name=M16A'
+redis-cli --scan --pattern 'skewnono:live_alarm:*'
 ```
 
 응답의 `feed_status` 값을 확인합니다.
 
 | 값 | 의미 | 조치 |
 | --- | --- | --- |
-| `live` | 정상 수신 중입니다 | 없음 |
-| `stale` | 레지스트리에는 있으나 갱신이 멈췄습니다 | writer job 로그를 확인합니다 |
-| `not_configured` | 이 팹이 `ALARM_API` 에 등록되어 있지 않습니다 | 주소 맵에 추가합니다 |
+| `live` | 마지막 성공 조회가 90초 이내입니다 | 없음 |
+| `stale` | 마지막 성공 조회가 오래됐습니다 | Flask 로그에서 `live_alarm refresh failed` 를 확인합니다 |
+| `not_configured` | sem_list 에 이 fab 의 해당 tool 이 없습니다 | roster 를 확인합니다 |
+
+`unmatched_count` 가 0 이 아니면, 알람은 왔는데 그 `EQP_ID` 가 sem_list 에
+없다는 뜻입니다. 방화벽 미개방 장비일 가능성이 높습니다. 이 값은 화면에도
+한 줄로 표시되므로, roster 구멍이 조용히 묻히지 않습니다.
+
+## 4. 부하 확인
+
+사내 alarm API 호출은 **fac_id 당 20초에 한 번**이 상한입니다. 보는 사람이
+몇 명이든, 얼마나 자주 새로고침하든 이 상한은 변하지 않습니다. 아무도
+페이지를 열지 않으면 호출은 0 입니다.
+
+호출이 이보다 잦다면 `CACHE_TTL_SEC` 이 아니라 락을 의심합니다. Redis 가 여러
+대로 분리돼 있으면 `SET NX` 가 인스턴스마다 따로 걸려 상한이 인스턴스 수만큼
+늘어납니다.
 
 ## 주의
 
-- writer 는 절대 `back_dev_home` 를 import 하지 않습니다. 이식성이 이 기능의
-  핵심 설계 제약이므로, 편의를 위해서라도 import 를 추가하지 않습니다.
-- writer 와 reader 는 Python 코드를 공유하지 않습니다. 유일한 예외는 reader
-  가 `writer.job` 에서 키 레이아웃(`keys()`, `REGISTRY_KEY`)만 가져오는
-  것뿐입니다. 그 외에 사람이 직접 맞춰야 하는 마지막 약속은 `AlarmEvent`
-  멤버 스키마이며, `test_written_members_are_readable_by_the_reader` 가 이를
-  지킵니다. writer 를 수정할 때마다 이 테스트를 반드시 다시 실행합니다.
+- 캐시 키는 `fac_id` 단위입니다. `M16A`/`M16B`/`M16C` 가 하나의 항목을
+  공유하고, `R3`/`R4` 도 하나를 공유합니다.
+- 조회에 실패하면 `fetched_at` 을 갱신하지 않습니다. 데이터가 오지 않았는데
+  최신인 것처럼 보이는 상태를 만들지 않기 위한 것이므로, 편의를 위해서라도
+  실패 경로에서 타임스탬프를 찍지 않습니다.
+- 조회에 실패하면 락을 풀지 않고 TTL 로 만료시킵니다. 이것이 재시도 backoff
+  입니다. 실패 직후 모든 요청이 다시 사내 API 를 때리는 일을 막습니다.
+- fab 귀속은 `EQP_ID` 를 파싱해서 정하지 않습니다. 반드시 `sem_list` roster
+  에서 찾습니다 — `_tool_specs.py` 에 이 구분을 어겼을 때 장비 8대가 화면에서
+  조용히 사라진 사례가 적혀 있습니다.

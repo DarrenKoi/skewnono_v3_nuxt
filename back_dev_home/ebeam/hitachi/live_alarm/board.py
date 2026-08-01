@@ -62,10 +62,11 @@ def dedupe_by_id(events: Iterable[AlarmEvent]) -> list[AlarmEvent]:
 def parse_members(raw: Iterable[bytes]) -> list[AlarmEvent]:
     """Decode ZSET members, skipping anything unreadable OR wrong-shaped.
 
-    The writer is deployed separately, so a partial rollout can leave a
-    member this build cannot parse. Dropping that one member beats 500ing
-    the endpoint — same leniency `flask_modules`' read_task_logs applies
-    to malformed log entries.
+    Members outlive the build that wrote them — they sit in Redis for up to
+    TTL_SEC, so a rolling restart or a schema change can leave a member this
+    build cannot parse. Dropping that one member beats 500ing the endpoint —
+    same leniency `flask_modules`' read_task_logs applies to malformed log
+    entries.
 
     Valid JSON is not enough: a member that decodes to a list, or to a dict
     missing ``id``/``occurred_epoch``, would later raise in dedupe_by_id

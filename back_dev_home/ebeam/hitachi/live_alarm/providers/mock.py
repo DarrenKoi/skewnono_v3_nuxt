@@ -71,10 +71,11 @@ _ALIDS = ("9006", "9100")
 _STALE_ENV = "SKEWNONO_LIVE_ALARM_MOCK_STALE"
 
 # Fabs the mock pretends have a live-alarm feed. A fab outside this set
-# resolves to "not_configured" — same status-body model the office reader
-# uses for a fab absent from the writer's registry. Keeping the mock and
-# office consistent here is the point: a typo'd or unwired fab must look the
-# same at home as at the office (a clear "미설정" panel), not a healthy board.
+# resolves to "not_configured" — the same status-body the office reader
+# returns for a fab whose sem_list roster holds no tool of the requested
+# family. Keeping the mock and office consistent here is the point: a typo'd
+# or unrostered fab must look the same at home as at the office (a clear
+# "미설정" panel), not a healthy board.
 # Visiting e.g. /ebeam/cd-sem/ZZZ/live-alarm renders that state at home.
 _CONFIGURED_FABS = frozenset({"R3", "M11", "M12", "M14", "M15", "M16A", "M16B"})
 
