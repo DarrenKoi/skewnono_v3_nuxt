@@ -33,3 +33,7 @@ class KnowledgeTimeout(RuntimeError):
 
 class KnowledgeDenied(RuntimeError):
     pass
+
+
+class KnowledgeLimitExceeded(RuntimeError):
+    pass

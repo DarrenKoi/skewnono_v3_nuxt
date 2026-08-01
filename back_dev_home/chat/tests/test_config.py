@@ -66,3 +66,15 @@ def test_invalid_runtime_is_rejected(monkeypatch):
 def test_agent_bounds_are_clamped(monkeypatch):
     monkeypatch.setenv("SKEWNONO_CHAT_MAX_TOOL_CALLS", "999")
     assert config.get_max_tool_calls() == 12
+
+
+def test_evidence_bounds_have_application_defaults_and_hard_maxima(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", raising=False)
+    monkeypatch.delenv("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", raising=False)
+    assert config.get_max_snippet_chars() == 1200
+    assert config.get_max_evidence_chars() == 12000
+
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "999999")
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "999999")
+    assert config.get_max_snippet_chars() == 4000
+    assert config.get_max_evidence_chars() == 40000

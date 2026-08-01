@@ -24,10 +24,20 @@ def _supported_clause(query: str) -> str:
     clauses = _CLAUSE_BOUNDARY.split(query)
     supported: list[str] = []
     for clause in clauses:
-        if _contains_any(clause.lower(), _OUT_OF_SCOPE_MARKERS):
-            break
-        supported.append(clause)
-    return " ".join(supported).strip()
+        normalized = clause.lower()
+        if _contains_any(normalized, _IN_SCOPE_MARKERS) and not _contains_any(
+            normalized, _OUT_OF_SCOPE_MARKERS
+        ):
+            supported.append(clause.strip())
+    if supported:
+        return " ".join(supported).strip()
+
+    # A compact query may put both topics in one unsplittable clause. Returning
+    # only the matched domain terms stays fail-closed and never forwards the
+    # original mixed request to retrieval.
+    return " ".join(
+        marker for marker in _IN_SCOPE_MARKERS if marker in query.lower()
+    ).strip()
 
 
 def classify(query: str) -> ScopeDecision:

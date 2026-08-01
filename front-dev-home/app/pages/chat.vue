@@ -7,7 +7,11 @@ import type {
   ThreadSummary
 } from '~/composables/useChatApi'
 import { reconcileMessageFeedback } from '~/utils/chatSources'
-import { createPendingChatTurn, type PendingChatTurn } from '~/utils/chatTurn'
+import {
+  createPendingChatTurn,
+  isPendingTurnForThread,
+  type PendingChatTurn
+} from '~/utils/chatTurn'
 
 const api = useChatApi()
 const toast = useToast()
@@ -19,12 +23,22 @@ const active = ref<ThreadDetail | null>(null)
 const systemPrompt = ref('')
 const draft = ref('')
 const pending = ref(false)
-const errorMessage = ref<string | null>(null)
 const pendingTurn = ref<PendingChatTurn | null>(null)
+const turnError = ref<{
+  threadId: string
+  requestId: string
+  message: string
+} | null>(null)
 const sidebarOpen = ref(false)
 const feedbackLoadingIds = ref<Set<string>>(new Set())
 
 const activeId = computed(() => active.value?.id ?? null)
+const errorMessage = computed(() =>
+  turnError.value?.threadId === activeId.value ? turnError.value.message : null
+)
+const activePending = computed(() =>
+  pending.value && isPendingTurnForThread(pendingTurn.value, activeId.value)
+)
 const currentModelId = computed(() => active.value?.model ?? selectedModel.value)
 const modelLabel = computed(
   () => models.value.find(m => m.id === currentModelId.value)?.label ?? ''
@@ -35,7 +49,6 @@ const loadThreads = async () => {
 }
 
 const openThread = async (id: string) => {
-  errorMessage.value = null
   active.value = await api.fetchThread(id)
   systemPrompt.value = active.value.system_prompt ?? ''
   selectedModel.value = active.value.model
@@ -51,7 +64,6 @@ const newThread = async () => {
 
 const startNew = () => {
   active.value = null
-  errorMessage.value = null
   draft.value = ''
   sidebarOpen.value = false
 }
@@ -74,17 +86,32 @@ const titleThread = async (thread: ThreadDetail, text: string) => {
   }
 }
 
-const deliver = async (thread: ThreadDetail, turn: PendingChatTurn) => {
-  errorMessage.value = null
+const deliver = async (turn: PendingChatTurn): Promise<boolean> => {
+  if (turnError.value?.threadId === turn.threadId
+    && turnError.value.requestId === turn.requestId) turnError.value = null
   pending.value = true
   try {
-    const reply: ChatMessage = await api.sendMessage(thread.id, turn.content, turn.requestId)
-    active.value!.messages.push(reply)
-    pendingTurn.value = null
+    const reply: ChatMessage = await api.sendMessage(
+      turn.threadId,
+      turn.content,
+      turn.requestId
+    )
+    if (active.value?.id === turn.threadId
+      && !active.value.messages.some(message => message.id === reply.id)) {
+      active.value.messages.push(reply)
+    }
+    if (isPendingTurnForThread(pendingTurn.value, turn.threadId)
+      && pendingTurn.value.requestId === turn.requestId) pendingTurn.value = null
     await loadThreads()
+    return true
   } catch (e: unknown) {
     const err = e as { data?: { error?: { message?: string } } }
-    errorMessage.value = err?.data?.error?.message ?? '응답을 받지 못했습니다.'
+    turnError.value = {
+      threadId: turn.threadId,
+      requestId: turn.requestId,
+      message: err?.data?.error?.message ?? '응답을 받지 못했습니다.'
+    }
+    return false
   } finally {
     pending.value = false
   }
@@ -94,19 +121,21 @@ const send = async (text: string) => {
   if (!active.value) await newThread()
   const thread = active.value!
   const firstTurn = thread.messages.length === 0
-  const turn = createPendingChatTurn(text)
+  const turn = createPendingChatTurn(thread.id, text)
   pendingTurn.value = turn
   thread.messages.push({
     id: `local-${Date.now()}`, thread_id: thread.id, role: 'user',
     request_id: turn.requestId, content: text, runtime: null, scope_status: null,
     sources: [], feedback: null, created_at: new Date().toISOString()
   })
-  await deliver(thread, turn)
-  if (firstTurn && !errorMessage.value) await titleThread(thread, text)
+  const succeeded = await deliver(turn)
+  if (firstTurn && succeeded) await titleThread(thread, text)
 }
 
 const retry = () => {
-  if (pendingTurn.value && active.value) deliver(active.value, pendingTurn.value)
+  if (isPendingTurnForThread(pendingTurn.value, activeId.value)) {
+    deliver(pendingTurn.value)
+  }
 }
 
 const fillExample = (text: string) => {
@@ -223,7 +252,7 @@ onMounted(async () => {
 
       <ChatThread
         :messages="active?.messages ?? []"
-        :pending="pending"
+        :pending="activePending"
         :error-message="errorMessage"
         :model-label="modelLabel"
         :feedback-loading-ids="feedbackLoadingIds"

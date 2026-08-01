@@ -26,6 +26,31 @@ Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값�
 순서입니다. Thread storage는 RAG 전환과 독립적으로 검증합니다. 장애 시 runtime 또는
 provider 값을 명시적으로 되돌리며, 요청 중 자동 fallback은 구현하지 않습니다.
 
+`SKEWNONO_CHAT_PROVIDER`만 generic feature-provider selector이며 thread 저장소를
+선택합니다. `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER`와
+`SKEWNONO_CHAT_SCOPE_PROVIDER`는 chat 내부 lazy selector입니다. 따라서 두 selector를
+`office`로 설정해도 gitignored adapter copy가 없다는 이유만으로 Flask boot가 실패하지
+않습니다. 해당 scope 또는 knowledge 경로를 처음 호출할 때 typed `503`을 반환하며
+mock으로 fallback하지 않습니다.
+
+## Agent server-side bound
+
+아래 bound는 model이나 office adapter가 변경할 수 없는 application-owned 설정입니다.
+
+| 환경 변수 | 기본값 | Code hard maximum | 적용 의미 |
+| --- | --- | --- | --- |
+| `SKEWNONO_CHAT_MAX_TOOL_CALLS` | 6 | 12 | 한 agent invocation의 전체 tool call 수입니다. |
+| Tool별 result 수 | 5 | 5 | 각 knowledge search 결과를 application이 다시 제한합니다. |
+| `SKEWNONO_CHAT_MAX_SNIPPET_CHARS` | 1200 | 4000 | 각 source snippet을 tool content와 artifact 생성 전에 자릅니다. |
+| `SKEWNONO_CHAT_MAX_EVIDENCE_CHARS` | 12000 | 40000 | Invocation 전체의 model-facing tool content 문자 예산입니다. |
+| `SKEWNONO_CHAT_AGENT_TIMEOUT` | 60초 | 120초 | Model과 tool round 전체를 포함하는 wall-clock deadline입니다. |
+
+Snippet 상한은 model 입력과 저장/API `SourceRef`에 동일하게 적용합니다. Aggregate
+evidence 상한을 넘으면 `422 runtime_limit_exceeded`, 전체 invocation deadline을 넘으면
+`504 gateway_timeout`입니다. 두 경우 모두 user turn만 유지하고 assistant, source,
+tool trace를 저장하지 않습니다. Deadline 뒤 background graph 결과도 conversation
+store에 접근하지 못하며 나중에 assistant turn을 추가하지 않습니다.
+
 ## HTTP rollout 계약
 
 `POST /api/chat/threads/<thread_id>/messages` body는 다음 두 필드를 모두 요구합니다.

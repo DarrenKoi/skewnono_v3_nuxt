@@ -37,6 +37,10 @@ _GLOBAL_ENV = "SKEWNONO_DATA_PROVIDER"
 _PREFIX = "SKEWNONO_"
 _SUFFIX = "_PROVIDER"
 _VALID_PROVIDERS = frozenset({"mock", "office"})
+_LAZY_SUB_PROVIDER_ENVS = frozenset({
+    "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER",
+    "SKEWNONO_CHAT_SCOPE_PROVIDER",
+})
 
 
 class FeatureResolution(NamedTuple):
@@ -165,8 +169,8 @@ def validate_env() -> None:
     for name in sorted(os.environ):
         if not (name.startswith(_PREFIX) and name.endswith(_SUFFIX)):
             continue
-        if name == _GLOBAL_ENV:
-            continue  # selects the mode; names no feature
+        if name == _GLOBAL_ENV or name in _LAZY_SUB_PROVIDER_ENVS:
+            continue  # mode/sub-provider selectors name no generic feature
         if _validated(os.environ[name], name) != "office":
             continue
         slug = name[len(_PREFIX):-len(_SUFFIX)].lower()

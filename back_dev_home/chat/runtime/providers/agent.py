@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import queue
+import threading
 import time
 from typing import Any
 
@@ -18,6 +20,7 @@ from langchain_openai import ChatOpenAI
 from back_dev_home.chat import config, guard
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
+    KnowledgeLimitExceeded,
     KnowledgeTimeout,
     KnowledgeUnavailable,
 )
@@ -36,6 +39,7 @@ from back_dev_home.chat.tools import (
     build_search_meeting_summaries_tool,
     build_search_reports_tool,
 )
+from back_dev_home.chat.tools.evidence import EvidenceBudget
 
 
 _APPLICATION_POLICY = """Application-owned policy (higher priority than thread preferences):
@@ -113,6 +117,37 @@ def _collect_artifacts(
     return sources, traces
 
 
+def _invoke_graph_with_deadline(graph: Any, messages: list[dict], timeout: float):
+    """Run only the side-effect-free graph behind a wall-clock deadline.
+
+    Persistence remains in the caller after this function returns. A daemon
+    worker that finishes after timeout can therefore produce only an orphaned
+    in-memory graph result; it cannot append an assistant turn later.
+    """
+    outcome: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
+
+    def run() -> None:
+        try:
+            outcome.put((True, graph.invoke({"messages": messages})))
+        except Exception as error:
+            outcome.put((False, error))
+
+    worker = threading.Thread(
+        target=run,
+        name="chat-agent-invocation",
+        daemon=True,
+    )
+    worker.start()
+    try:
+        succeeded, value = outcome.get(timeout=timeout)
+    except queue.Empty as error:
+        raise RuntimeTimeout("The agent invocation timed out.") from error
+    worker.join()
+    if not succeeded:
+        raise value
+    return value
+
+
 def invoke(
     request: RuntimeRequest,
     model: BaseChatModel | None = None,
@@ -122,11 +157,14 @@ def invoke(
     guard.enforce_egress_policy(base_url)
     started = time.perf_counter()
     maximum = config.get_max_tool_calls()
+    evidence_budget = EvidenceBudget.from_config()
     tools = [
-        build_search_manuals_tool(request["access_scope"]),
-        build_search_meeting_summaries_tool(request["access_scope"]),
-        build_search_emails_tool(request["access_scope"]),
-        build_search_reports_tool(request["access_scope"]),
+        build_search_manuals_tool(request["access_scope"], evidence_budget),
+        build_search_meeting_summaries_tool(
+            request["access_scope"], evidence_budget
+        ),
+        build_search_emails_tool(request["access_scope"], evidence_budget),
+        build_search_reports_tool(request["access_scope"], evidence_budget),
     ]
     graph = create_agent(
         model=model or _build_model(request, base_url),
@@ -141,7 +179,11 @@ def invoke(
     )
 
     try:
-        state = graph.invoke({"messages": request["messages"]})
+        state = _invoke_graph_with_deadline(
+            graph,
+            request["messages"],
+            config.get_agent_timeout(),
+        )
     except ToolCallLimitExceededError as error:
         raise RuntimeLimitExceeded("The agent exceeded its tool-call limit.") from error
     except KnowledgeDenied as error:
@@ -150,6 +192,8 @@ def invoke(
         raise RuntimeTimeout("Knowledge retrieval timed out.") from error
     except KnowledgeUnavailable as error:
         raise RuntimeUnavailable("Knowledge retrieval is unavailable.") from error
+    except KnowledgeLimitExceeded as error:
+        raise RuntimeLimitExceeded(str(error)) from error
     except (openai.APITimeoutError, httpx.TimeoutException) as error:
         raise RuntimeTimeout("The model gateway timed out.") from error
     except (openai.APIError, httpx.HTTPError) as error:

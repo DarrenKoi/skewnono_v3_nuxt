@@ -11,6 +11,7 @@ from back_dev_home.chat.runtime import data as runtime_data
 from back_dev_home.chat.runtime.contracts import RuntimeRequest, RuntimeResult
 from back_dev_home.chat.scope import data as scope_data
 from back_dev_home.chat.scope.contracts import ScopeDecision
+from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 
 SCOPE_REFUSAL = (
@@ -77,6 +78,12 @@ class ChatOrchestrator:
 
         user_message = self._store.append_user_message(thread_id, content, request_id)
         decision = self._scope_classifier(user_message["content"])
+        if decision["status"] == "mixed" and not (
+            decision["supported_query"] or ""
+        ).strip():
+            raise ScopeUnavailable(
+                "A mixed scope decision must include a nonempty supported_query."
+            )
         self._store.set_scope_decision(thread_id, request_id, decision)
 
         if decision["status"] in {"out_of_scope", "unsafe"}:

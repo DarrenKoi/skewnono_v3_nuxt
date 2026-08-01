@@ -257,3 +257,11 @@ def test_validate_env_ignores_the_global_mode_var(monkeypatch, wired):
     never be 'unhonorable'."""
     monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
     data_provider.validate_env()  # must not raise
+
+
+def test_validate_env_leaves_chat_sub_provider_selectors_to_chat(monkeypatch, wired):
+    """Knowledge/scope adapters are lazy chat seams, not feature providers."""
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_SCOPE_PROVIDER", "office")
+
+    data_provider.validate_env()  # must not require chat/providers/office.py

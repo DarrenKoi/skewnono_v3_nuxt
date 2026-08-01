@@ -6,6 +6,7 @@ from back_dev_home.chat.orchestration import (
     ThreadNotFound,
 )
 from back_dev_home.chat.runtime.contracts import RuntimeTimeout
+from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 
 REQUEST_ID = "64d35cd4-9e07-4be8-90a3-683f94c29408"
@@ -246,6 +247,29 @@ def test_mixed_scope_sends_supported_query_but_persists_original(
         "content": "alarm reset",
     }
     assert fake_runtime.requests[0]["scope_decision"]["status"] == "mixed"
+
+
+def test_mixed_scope_without_supported_query_never_reaches_runtime(
+    fake_store, fake_runtime
+):
+    orchestrator = ChatOrchestrator(
+        fake_store,
+        lambda query: {
+            "status": "mixed",
+            "reason_code": "mixed_scope",
+            "supported_query": None,
+        },
+        fake_runtime,
+        lambda model_id: {"id": model_id, "supports_tools": True},
+        runtime_name_finder=lambda: "direct",
+    )
+
+    with pytest.raises(ScopeUnavailable, match="supported_query"):
+        orchestrator.send_message(
+            "u1", "t1", "movie recommendations and alarm reset", REQUEST_ID
+        )
+
+    assert fake_runtime.calls == 0
 
 
 def test_runtime_receives_minimal_access_scope(orchestrator, fake_runtime):

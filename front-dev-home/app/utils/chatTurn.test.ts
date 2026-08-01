@@ -1,10 +1,24 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createPendingChatTurn } from './chatTurn.ts'
+import {
+  createPendingChatTurn,
+  isPendingTurnForThread
+} from './chatTurn.ts'
 
 test('a pending turn keeps one request id across retries', () => {
-  const turn = createPendingChatTurn('alarm reset', () => 'fixed-request-id')
-  assert.deepEqual(turn, { content: 'alarm reset', requestId: 'fixed-request-id' })
+  const turn = createPendingChatTurn('thread-a', 'alarm reset', () => 'fixed-request-id')
+  assert.deepEqual(turn, {
+    threadId: 'thread-a',
+    content: 'alarm reset',
+    requestId: 'fixed-request-id'
+  })
   assert.equal(turn.requestId, 'fixed-request-id')
+})
+
+test('pending reconciliation is bound to its originating thread', () => {
+  const turn = createPendingChatTurn('thread-a', 'alarm reset', () => 'request-a')
+
+  assert.equal(isPendingTurnForThread(turn, 'thread-a'), true)
+  assert.equal(isPendingTurnForThread(turn, 'thread-b'), false)
 })

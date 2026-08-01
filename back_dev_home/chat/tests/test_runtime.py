@@ -6,6 +6,8 @@ import json
 import subprocess
 import sys
 import textwrap
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +19,7 @@ from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolM
 from langchain_core.outputs import ChatGeneration, ChatResult
 from pydantic import Field
 
-from back_dev_home.chat import guard, llm
+from back_dev_home.chat import config, data as chat_store, guard, llm
 from back_dev_home.chat.knowledge import data as knowledge_data
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
@@ -32,6 +34,7 @@ from back_dev_home.chat.runtime.contracts import (
     RuntimeUpstreamError,
 )
 from back_dev_home.chat.runtime.providers import agent, direct
+from back_dev_home.chat.orchestration import ChatOrchestrator
 from back_dev_home.chat.tools import (
     build_search_emails_tool,
     build_search_manuals_tool,
@@ -102,6 +105,27 @@ class FailingModel(BaseChatModel):
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         raise self.error
+
+
+class SlowModel(BaseChatModel):
+    """Finish after the application-owned whole-invocation deadline."""
+
+    delay: float
+    finished: Any
+
+    @property
+    def _llm_type(self) -> str:
+        return "slow-model"
+
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        time.sleep(self.delay)
+        self.finished.set()
+        return ChatResult(
+            generations=[ChatGeneration(message=AIMessage(content="too late"))]
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -325,6 +349,71 @@ def test_tool_scope_and_limit_are_server_owned(monkeypatch):
     assert message.artifact["trace"]["status"] == "empty"
 
 
+def test_tool_truncates_snippets_before_model_and_artifact_exposure(monkeypatch):
+    original = "0123456789-secret-tail"
+    row = {
+        "source_id": "manual-oversized",
+        "source_type": "manual",
+        "title": "Oversized manual",
+        "snippet": original,
+        "revision": "R1",
+        "occurred_at": None,
+        "section": "Alarm",
+        "page": 1,
+        "region": None,
+        "locator": None,
+        "score": 1.0,
+    }
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "10")
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "1000")
+    monkeypatch.setattr(knowledge_data, "search_manuals", lambda *_args: [row])
+
+    search = build_search_manuals_tool(make_request()["access_scope"])
+    message = search.invoke(
+        {
+            "name": search.name,
+            "args": {"query": "alarm"},
+            "id": "call-manual",
+            "type": "tool_call",
+        }
+    )
+
+    assert message.artifact["sources"][0]["snippet"] == "0123456789"
+    assert "secret-tail" not in message.content
+
+
+def test_agent_rejects_aggregate_evidence_before_model_consumption(monkeypatch):
+    row = {
+        "source_id": "manual-oversized",
+        "source_type": "manual",
+        "title": "Oversized manual title",
+        "snippet": "x" * 200,
+        "revision": "R1",
+        "occurred_at": None,
+        "section": "Alarm",
+        "page": 1,
+        "region": None,
+        "locator": None,
+        "score": 1.0,
+    }
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "200")
+    monkeypatch.setenv("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "100")
+    monkeypatch.setattr(knowledge_data, "search_manuals", lambda *_args: [row])
+    model = ScriptedToolModel(
+        calls=[{
+            "name": "search_manuals",
+            "args": {"query": "alarm"},
+            "id": "call-manual",
+            "type": "tool_call",
+        }]
+    )
+
+    with pytest.raises(RuntimeLimitExceeded, match="evidence"):
+        agent.invoke(make_request(), model=model)
+
+    assert all(not isinstance(message, ToolMessage) for message in model.seen_messages[0])
+
+
 def test_agent_collects_tool_artifacts_as_sources(scripted_manual_model):
     """Catches citations being parsed from model text instead of tool artifacts."""
     result = agent.invoke(make_request(), model=scripted_manual_model)
@@ -488,6 +577,46 @@ def test_agent_maps_knowledge_failures_without_fallback(
 def test_agent_normalizes_only_model_gateway_failures(model_error, runtime_error):
     with pytest.raises(runtime_error):
         agent.invoke(make_request(), model=FailingModel(error=model_error))
+
+
+def test_agent_enforces_whole_invocation_deadline(monkeypatch):
+    finished = threading.Event()
+    monkeypatch.setattr(config, "get_agent_timeout", lambda: 0.02)
+    started = time.perf_counter()
+
+    with pytest.raises(RuntimeTimeout, match="invocation timed out"):
+        agent.invoke(make_request(), model=SlowModel(delay=0.15, finished=finished))
+
+    assert time.perf_counter() - started < 0.1
+    assert finished.wait(timeout=1)
+
+
+def test_timed_out_agent_cannot_later_complete_persistence(monkeypatch, tmp_path):
+    finished = threading.Event()
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    monkeypatch.setattr(config, "get_agent_timeout", lambda: 0.02)
+    thread = chat_store.create_thread("u1", "m1")
+    model = SlowModel(delay=0.15, finished=finished)
+    orchestrator = ChatOrchestrator(
+        chat_store,
+        lambda query: {
+            "status": "in_scope",
+            "reason_code": "supported_domain",
+            "supported_query": query,
+        },
+        lambda request: agent.invoke(request, model=model),
+        lambda model_id: {"id": model_id, "supports_tools": True},
+        runtime_name_finder=lambda: "agent",
+    )
+
+    with pytest.raises(RuntimeTimeout):
+        orchestrator.send_message(
+            "u1", thread["id"], "alarm reset", make_request()["request_id"]
+        )
+
+    assert finished.wait(timeout=1)
+    persisted = chat_store.get_thread("u1", thread["id"])
+    assert [message["role"] for message in persisted["messages"]] == ["user"]
 
 
 def test_agent_does_not_swallow_programmer_errors():

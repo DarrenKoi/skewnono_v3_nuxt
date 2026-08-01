@@ -70,6 +70,20 @@ def get_agent_timeout() -> float:
     return min(max(float(os.environ.get("SKEWNONO_CHAT_AGENT_TIMEOUT", "60")), 1), 120)
 
 
+def get_max_snippet_chars() -> int:
+    return min(
+        max(int(os.environ.get("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "1200")), 1),
+        4000,
+    )
+
+
+def get_max_evidence_chars() -> int:
+    return min(
+        max(int(os.environ.get("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "12000")), 1),
+        40000,
+    )
+
+
 def get_rag_source_root() -> str | None:
     value = os.environ.get("SKEWNONO_RAG_SOURCE_ROOT", "").strip()
     return value or None

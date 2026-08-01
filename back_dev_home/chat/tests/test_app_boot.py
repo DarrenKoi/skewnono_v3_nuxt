@@ -2,6 +2,9 @@ import back_dev_home
 from back_dev_home import create_app
 
 
+REQUEST_ID = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+
+
 def test_chat_routes_registered():
     app = create_app()
     rules = {r.rule for r in app.url_map.iter_rules()}
@@ -16,3 +19,27 @@ def test_create_app_loads_dotenv():
     # smoke: building the app twice must not raise
     create_app()
     create_app()
+
+
+def test_office_chat_sub_providers_start_then_fail_lazily(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_SCOPE_PROVIDER", "office")
+
+    client = create_app().test_client()
+    thread_id = client.post(
+        "/api/chat/threads", json={"model": "m1"}
+    ).get_json()["data"]["id"]
+    response = client.post(
+        f"/api/chat/threads/{thread_id}/messages",
+        json={"content": "recommend a movie", "request_id": REQUEST_ID},
+    )
+
+    assert response.status_code == 503
+    assert response.get_json()["error"]["code"] == "runtime_unavailable"
+    messages = client.get(f"/api/chat/threads/{thread_id}").get_json()["data"][
+        "messages"
+    ]
+    assert [message["role"] for message in messages] == ["user"]
