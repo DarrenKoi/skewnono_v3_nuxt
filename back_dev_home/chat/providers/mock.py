@@ -275,12 +275,14 @@ def append_user_message(thread_id, content, request_id):
     message_id = uuid.uuid4().hex
     now = _now()
     with conn:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO messages (id,thread_id,request_id,role,content,created_at) "
-            "VALUES (?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?) ON CONFLICT(thread_id,request_id,role) "
+            "WHERE request_id IS NOT NULL DO NOTHING",
             (message_id, thread_id, request_id, "user", content, now),
         )
-        conn.execute("UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id))
+        if cur.rowcount > 0:
+            conn.execute("UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id))
     message = _get_message_by_request(conn, thread_id, request_id, "user")
     conn.close()
     return message
@@ -315,10 +317,12 @@ def complete_turn(thread_id, request_id, result):
         message_id = uuid.uuid4().hex
         now = _now()
         with conn:
-            conn.execute(
+            cur = conn.execute(
                 "INSERT INTO messages (id,thread_id,request_id,role,content,model,runtime,"
                 "scope_status,scope_reason_code,prompt_tokens,completion_tokens,latency_ms,"
-                "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(thread_id,request_id,role) "
+                "WHERE request_id IS NOT NULL DO NOTHING",
                 (
                     message_id, thread_id, request_id, "assistant", result["content"],
                     result["model"], result["runtime"],
@@ -328,29 +332,33 @@ def complete_turn(thread_id, request_id, result):
                     result["latency_ms"], now,
                 ),
             )
-            for position, source in enumerate(result["sources"]):
+            if cur.rowcount > 0:
+                for position, source in enumerate(result["sources"]):
+                    conn.execute(
+                        "INSERT INTO message_sources (message_id,position,source_id,"
+                        "source_type,title,snippet,revision,occurred_at,section,page,region,"
+                        "locator,score) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (
+                            message_id, position, source["source_id"],
+                            source["source_type"], source["title"], source["snippet"],
+                            source["revision"], source["occurred_at"], source["section"],
+                            source["page"], source["region"], source["locator"],
+                            source["score"],
+                        ),
+                    )
+                for position, trace in enumerate(result["tool_traces"]):
+                    conn.execute(
+                        "INSERT INTO message_tool_traces "
+                        "(message_id,position,tool_name,query,result_count,duration_ms,"
+                        "status) VALUES (?,?,?,?,?,?,?)",
+                        (
+                            message_id, position, trace["tool_name"], trace["query"],
+                            trace["result_count"], trace["duration_ms"], trace["status"],
+                        ),
+                    )
                 conn.execute(
-                    "INSERT INTO message_sources (message_id,position,source_id,"
-                    "source_type,title,snippet,revision,occurred_at,section,page,region,"
-                    "locator,score) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        message_id, position, source["source_id"],
-                        source["source_type"], source["title"], source["snippet"],
-                        source["revision"], source["occurred_at"], source["section"],
-                        source["page"], source["region"], source["locator"],
-                        source["score"],
-                    ),
+                    "UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id)
                 )
-            for position, trace in enumerate(result["tool_traces"]):
-                conn.execute(
-                    "INSERT INTO message_tool_traces (message_id,position,tool_name,query,"
-                    "result_count,duration_ms,status) VALUES (?,?,?,?,?,?,?)",
-                    (
-                        message_id, position, trace["tool_name"], trace["query"],
-                        trace["result_count"], trace["duration_ms"], trace["status"],
-                    ),
-                )
-            conn.execute("UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id))
         return _get_message_by_request(conn, thread_id, request_id, "assistant")
     finally:
         conn.close()
@@ -358,31 +366,28 @@ def complete_turn(thread_id, request_id, result):
 
 def put_feedback(user_id, message_id, feedback):
     conn = _connect()
-    owned_assistant = conn.execute(
-        "SELECT messages.id FROM messages JOIN threads "
-        "ON threads.id=messages.thread_id "
-        "WHERE messages.id=? AND messages.role='assistant' AND threads.user_id=?",
-        (message_id, user_id),
-    ).fetchone()
-    if owned_assistant is None:
-        conn.close()
-        return None
     updated_at = _now()
     reasons_json = json.dumps(feedback["reasons"], ensure_ascii=False)
     with conn:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO message_feedback "
             "(message_id,user_id,rating,reasons_json,comment,updated_at) "
-            "VALUES (?,?,?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET "
+            "SELECT ?,?,?,?,?,? FROM messages JOIN threads "
+            "ON threads.id=messages.thread_id "
+            "WHERE messages.id=? AND messages.role='assistant' AND threads.user_id=? "
+            "ON CONFLICT(message_id) DO UPDATE SET "
             "user_id=excluded.user_id,rating=excluded.rating,"
             "reasons_json=excluded.reasons_json,comment=excluded.comment,"
             "updated_at=excluded.updated_at",
             (
                 message_id, user_id, feedback["rating"], reasons_json,
-                feedback.get("comment"), updated_at,
+                feedback.get("comment"), updated_at, message_id, user_id,
             ),
         )
+    stored = cur.rowcount > 0
     conn.close()
+    if not stored:
+        return None
     return {
         "rating": feedback["rating"],
         "reasons": feedback["reasons"],

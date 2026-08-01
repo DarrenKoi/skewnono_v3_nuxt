@@ -1,9 +1,12 @@
 import sqlite3
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from back_dev_home.chat import data
+from back_dev_home.chat.providers import mock
 
 
 @pytest.fixture(autouse=True)
@@ -397,3 +400,149 @@ def test_thread_cleanup_removes_message_children(monkeypatch, tmp_path, cleanup)
     ]
     conn.close()
     assert counts == [0, 0, 0, 0]
+
+
+def test_concurrent_user_replay_returns_winning_message(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    thread = data.create_thread("u1", "m1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    lookups_complete = threading.Barrier(2)
+    original_lookup = mock._get_message_by_request
+
+    def synchronized_lookup(conn, thread_id, candidate_request_id, role):
+        message = original_lookup(conn, thread_id, candidate_request_id, role)
+        if role == "user" and message is None:
+            lookups_complete.wait(timeout=5)
+        return message
+
+    monkeypatch.setattr(mock, "_get_message_by_request", synchronized_lookup)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(
+                data.append_user_message, thread["id"], "same text", request_id
+            )
+            for _ in range(2)
+        ]
+        messages = [future.result(timeout=5) for future in futures]
+
+    assert messages[0]["id"] == messages[1]["id"]
+
+
+def test_concurrent_assistant_replay_returns_winning_completion(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    thread = data.create_thread("u1", "m1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    data.append_user_message(thread["id"], "alarm", request_id)
+    lookups_complete = threading.Barrier(2)
+    original_lookup = mock._get_message_by_request
+
+    def synchronized_lookup(conn, thread_id, candidate_request_id, role):
+        message = original_lookup(conn, thread_id, candidate_request_id, role)
+        if role == "assistant" and message is None:
+            lookups_complete.wait(timeout=5)
+        return message
+
+    monkeypatch.setattr(mock, "_get_message_by_request", synchronized_lookup)
+    result = {
+        "content": "answer",
+        "runtime": "agent",
+        "model": "m1",
+        "prompt_tokens": 1,
+        "completion_tokens": 1,
+        "latency_ms": 1,
+        "sources": [],
+        "tool_traces": [],
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(data.complete_turn, thread["id"], request_id, result)
+            for _ in range(2)
+        ]
+        messages = [future.result(timeout=5) for future in futures]
+
+    assert messages[0]["id"] == messages[1]["id"]
+
+
+def test_feedback_write_cannot_outlive_owned_message(monkeypatch, tmp_path):
+    db_path = tmp_path / "chat.db"
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(db_path))
+    thread = data.create_thread("u1", "m1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    data.append_user_message(thread["id"], "alarm", request_id)
+    assistant = data.complete_turn(
+        thread["id"],
+        request_id,
+        {
+            "content": "answer",
+            "runtime": "direct",
+            "model": "m1",
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "latency_ms": 1,
+            "sources": [],
+            "tool_traces": [],
+        },
+    )
+    ownership_window_open = threading.Event()
+    allow_feedback_write = threading.Event()
+
+    class CoordinatedConnection(sqlite3.Connection):
+        def execute(self, sql, parameters=(), /):
+            normalized = " ".join(sql.split())
+            is_feedback_thread = threading.current_thread().name.startswith(
+                "feedback-writer"
+            )
+            is_atomic_upsert = (
+                normalized.startswith("INSERT INTO message_feedback")
+                and " SELECT " in normalized
+            )
+            if is_feedback_thread and is_atomic_upsert:
+                ownership_window_open.set()
+                assert allow_feedback_write.wait(timeout=5)
+                return super().execute(sql, parameters)
+
+            is_separate_ownership_read = normalized.startswith(
+                "SELECT messages.id FROM messages JOIN threads"
+            )
+            if is_feedback_thread and is_separate_ownership_read:
+                cursor = super().execute(sql, parameters)
+                owned_row = cursor.fetchone()
+                cursor.close()
+                ownership_window_open.set()
+                assert allow_feedback_write.wait(timeout=5)
+
+                class BufferedResult:
+                    def fetchone(self):
+                        return owned_row
+
+                return BufferedResult()
+            return super().execute(sql, parameters)
+
+    def coordinated_connect():
+        conn = sqlite3.connect(str(db_path), factory=CoordinatedConnection)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    monkeypatch.setattr(mock, "_connect", coordinated_connect)
+    feedback = {"rating": "up", "reasons": [], "comment": None}
+
+    with ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix="feedback-writer"
+    ) as executor:
+        future = executor.submit(
+            data.put_feedback, "u1", assistant["id"], feedback
+        )
+        assert ownership_window_open.wait(timeout=5)
+        assert data.delete_thread("u1", thread["id"]) is True
+        allow_feedback_write.set()
+        stored_feedback = future.result(timeout=5)
+
+    assert stored_feedback is None
+    conn = sqlite3.connect(str(db_path))
+    feedback_count = conn.execute(
+        "SELECT count(*) FROM message_feedback"
+    ).fetchone()[0]
+    conn.close()
+    assert feedback_count == 0
