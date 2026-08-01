@@ -322,12 +322,16 @@ honest — no successful fetch has happened — and self-corrects on the next po
 | `providers/office_example.py` | rewritten around `ensure_fresh` |
 
 Two **repo-level** tests name the writer as an office adapter and must be
-updated in the same change, or the suite fails on a path that no longer exists:
+updated in the same change:
 
-| File | Reference to remove |
-| --- | --- |
-| `tests/test_office_adapter_scripts.py` | `".../live_alarm/writer/office.py"` in its adapter list |
-| `tests/test_office_adapter_parity.py` | `NO_MOCK_SIBLING = {"ebeam/hitachi/live_alarm/writer"}` — the carve-out exists only because the writer had no mock sibling |
+| File | Reference to remove | If left |
+| --- | --- | --- |
+| `tests/test_office_adapter_parity.py` | `NO_MOCK_SIBLING = {"ebeam/hitachi/live_alarm/writer"}` | dead carve-out; this suite imports every office template via `importlib`, so `providers/office_example.py` must stop importing `writer.job` **before** the package is deleted |
+| `tests/test_office_adapter_scripts.py` | `".../live_alarm/writer/office.py"` in its parametrize list | stale but still green — `git check-ignore` answers for paths that do not exist, so this one does not fail, it merely asserts a rule about a file nobody will ever create |
+
+The import ordering above is a real constraint on the implementation sequence,
+not a stylistic preference: deleting `writer/` while the office template still
+imports it turns the parity suite red.
 
 `writer/normalize.py` is **moved**, not deleted: `to_events()` and
 `canonical_json()` are still the row→event conversion and the ZSET member form.
