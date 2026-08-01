@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChatMessage, ChatModel, ThreadDetail, ThreadSummary } from '~/composables/useChatApi'
+import { createPendingChatTurn, type PendingChatTurn } from '~/utils/chatTurn'
 
 const api = useChatApi()
 
@@ -11,7 +12,7 @@ const systemPrompt = ref('')
 const draft = ref('')
 const pending = ref(false)
 const errorMessage = ref<string | null>(null)
-const lastSent = ref<string | null>(null)
+const pendingTurn = ref<PendingChatTurn | null>(null)
 const sidebarOpen = ref(false)
 
 const activeId = computed(() => active.value?.id ?? null)
@@ -64,13 +65,13 @@ const titleThread = async (thread: ThreadDetail, text: string) => {
   }
 }
 
-const deliver = async (thread: ThreadDetail, text: string) => {
+const deliver = async (thread: ThreadDetail, turn: PendingChatTurn) => {
   errorMessage.value = null
   pending.value = true
   try {
-    const reply: ChatMessage = await api.sendMessage(thread.id, text)
+    const reply: ChatMessage = await api.sendMessage(thread.id, turn.content, turn.requestId)
     active.value!.messages.push(reply)
-    lastSent.value = null
+    pendingTurn.value = null
     await loadThreads()
   } catch (e: unknown) {
     const err = e as { data?: { error?: { message?: string } } }
@@ -84,17 +85,19 @@ const send = async (text: string) => {
   if (!active.value) await newThread()
   const thread = active.value!
   const firstTurn = thread.messages.length === 0
-  lastSent.value = text
+  const turn = createPendingChatTurn(text)
+  pendingTurn.value = turn
   thread.messages.push({
     id: `local-${Date.now()}`, thread_id: thread.id, role: 'user',
-    content: text, created_at: new Date().toISOString()
+    request_id: turn.requestId, content: text, runtime: null, scope_status: null,
+    sources: [], feedback: null, created_at: new Date().toISOString()
   })
-  await deliver(thread, text)
+  await deliver(thread, turn)
   if (firstTurn && !errorMessage.value) await titleThread(thread, text)
 }
 
 const retry = () => {
-  if (lastSent.value && active.value) deliver(active.value, lastSent.value)
+  if (pendingTurn.value && active.value) deliver(active.value, pendingTurn.value)
 }
 
 const fillExample = (text: string) => {
