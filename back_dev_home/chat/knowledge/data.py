@@ -6,7 +6,11 @@ from importlib import import_module
 from typing import Mapping
 
 from back_dev_home.chat.config import get_knowledge_provider_name
-from back_dev_home.chat.knowledge.contracts import AccessScope, Evidence, KnowledgeUnavailable
+from back_dev_home.chat.knowledge.contracts import (
+    AccessScope,
+    Evidence,
+    KnowledgeUnavailable,
+)
 
 
 _OFFICE_MODULE = "back_dev_home.chat.knowledge.providers.office"
@@ -31,23 +35,13 @@ def _limit(value: int) -> int:
     return min(max(value, 1), 5)
 
 
-def _search(
-    method: str,
-    query: str,
-    filters: Mapping[str, object] | None,
-    scope: AccessScope,
-    limit: int,
-) -> list[Evidence]:
-    return getattr(_provider(), method)(query, filters, scope, _limit(limit))
-
-
 def search_manuals(
     query: str,
     filters: Mapping[str, object] | None,
     scope: AccessScope,
     limit: int,
 ) -> list[Evidence]:
-    return _search("search_manuals", query, filters, scope, limit)
+    return _provider().search_manuals(query, filters, scope, _limit(limit))
 
 
 def search_meeting_summaries(
@@ -56,7 +50,7 @@ def search_meeting_summaries(
     scope: AccessScope,
     limit: int,
 ) -> list[Evidence]:
-    return _search("search_meeting_summaries", query, filters, scope, limit)
+    return _provider().search_meeting_summaries(query, filters, scope, _limit(limit))
 
 
 def search_emails(
@@ -65,7 +59,7 @@ def search_emails(
     scope: AccessScope,
     limit: int,
 ) -> list[Evidence]:
-    return _search("search_emails", query, filters, scope, limit)
+    return _provider().search_emails(query, filters, scope, _limit(limit))
 
 
 def search_reports(
@@ -74,4 +68,4 @@ def search_reports(
     scope: AccessScope,
     limit: int,
 ) -> list[Evidence]:
-    return _search("search_reports", query, filters, scope, limit)
+    return _provider().search_reports(query, filters, scope, _limit(limit))

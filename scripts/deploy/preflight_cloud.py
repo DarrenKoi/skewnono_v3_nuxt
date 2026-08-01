@@ -42,6 +42,9 @@ RUNTIME_PACKAGES = (
     ("dotenv", "python-dotenv"),
     ("httpx", "httpx"),
     ("requests", "requests"),
+    ("langchain", "langchain"),
+    ("langgraph", "langgraph"),
+    ("langchain_openai", "langchain-openai"),
 )
 
 def check_layout(root: Path) -> list[str]:

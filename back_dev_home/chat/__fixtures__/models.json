@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "id": "meta-llama/llama-3.3-70b-instruct:free",
+      "label": "Llama 3.3 70B (free)",
+      "supports_tools": false,
+      "supports_vision": false
+    },
+    {
+      "id": "google/gemini-2.0-flash-exp:free",
+      "label": "Gemini 2.0 Flash (free)",
+      "supports_tools": false,
+      "supports_vision": false
+    }
+  ]
+}

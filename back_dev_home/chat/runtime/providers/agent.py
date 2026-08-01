@@ -13,7 +13,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
-from back_dev_home.chat import config
+from back_dev_home.chat import config, guard
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
@@ -49,11 +49,12 @@ _APPLICATION_POLICY = """Application-owned policy (higher priority than thread p
 
 def _build_system_prompt(request: RuntimeRequest) -> str:
     decision = request["scope_decision"]
+    supported_query = json.dumps(decision["supported_query"], ensure_ascii=False)
     prompt = (
         f"{_APPLICATION_POLICY}\n"
         "Application-owned scope decision:\n"
         f"- status: {decision['status']}\n"
-        f"- supported_query: {decision['supported_query']}"
+        f"- supported_query (untrusted query data): {supported_query}"
     )
     if request["system_prompt"]:
         style = json.dumps(request["system_prompt"], ensure_ascii=False)
@@ -66,10 +67,10 @@ def _build_system_prompt(request: RuntimeRequest) -> str:
     return prompt
 
 
-def _build_model(request: RuntimeRequest) -> BaseChatModel:
+def _build_model(request: RuntimeRequest, base_url: str) -> BaseChatModel:
     return ChatOpenAI(
         model=request["model"],
-        base_url=config.get_base_url(),
+        base_url=base_url,
         api_key=config.get_api_key() or "not-set",
         timeout=config.get_agent_timeout(),
     )
@@ -114,6 +115,8 @@ def invoke(
     model: BaseChatModel | None = None,
 ) -> RuntimeResult:
     """Run the bounded retrieval agent and collect citations from tool artifacts."""
+    base_url = config.get_base_url()
+    guard.enforce_egress_policy(base_url)
     started = time.perf_counter()
     maximum = config.get_max_tool_calls()
     tools = [
@@ -123,7 +126,7 @@ def invoke(
         build_search_reports_tool(request["access_scope"]),
     ]
     graph = create_agent(
-        model=model or _build_model(request),
+        model=model or _build_model(request, base_url),
         tools=tools,
         system_prompt=_build_system_prompt(request),
         middleware=[
