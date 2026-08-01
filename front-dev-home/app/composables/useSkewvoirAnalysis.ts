@@ -26,7 +26,7 @@ import {
   setParamOptions,
   type TrendPoint
 } from '~/utils/skewvoirAnalysis/timeSeries'
-import { resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
+import { isSetPoolComplete, resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
@@ -356,28 +356,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const overviewFor = (parameter: string): OverviewSites =>
     overviewSites(siteRows.value, parameter, anomalyCfg.value)
 
-  // Once the file loads, if the URL `mp` isn't one of the parameters that get a
-  // vote the charts fall back to the first param — but the rail/breadcrumb and
-  // any saved link still show the stale `mp`. Write the effective param back to
-  // the URL so the displayed selection (and saved views) match what's actually
-  // plotted. Judged against the SAME pool activeParam resolved from, so a set
-  // parameter the focus measurement lacks is never rewritten away.
-  //
-  // `mp != null` rather than a truthy test: the unnamed settling MP's name is
-  // the empty string, and a truthy test would treat an explicit pick of it as
-  // absent and rewrite it away.
-  watch([() => activeParamPool(paramInput.value), () => ws.selection.value?.mp], ([pool, mp]) => {
-    // Under set scope with no set files loaded, the pool is the focus file's —
-    // deliberately narrower than the screen's real subject. Falling back for
-    // RENDERING is right; rewriting the URL from that pool is not. It would
-    // silently discard a set-only parameter the moment the user visits the
-    // dashboard. The set-scope pass corrects a genuinely invalid mp later.
-    if (ws.scope.value === 'set' && setFiles.value.size === 0) return
-    if (pool.length === 0) return
-    if (mp != null && pool.includes(mp)) return
-    if (activeParam.value !== mp) ws.setParam(activeParam.value)
-  })
-
   // --- Curated set (Time-Series + Position Stack), fetched lazily ---
   // Both views consume the same batch-fetched MsrFiles of the URL `msrs` set:
   // Time-Series builds the trend, Position Stack builds the composite map.
@@ -421,6 +399,11 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // this watcher is its only populating side effect.
   const setPending = ref(false)
 
+  // Which set key the files in `setFiles` were fetched for. Size alone cannot
+  // answer that: the catch below deliberately keeps the previous map on failure,
+  // and two different sets of equal size are indistinguishable by count.
+  const setFilesKey = ref('')
+
   const setKey = computed(() =>
     wantSet.value ? setRows.value.map(r => r.msr).sort().join('|') : ''
   )
@@ -432,6 +415,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       // while the analysis views (left rail) are showing a non-set scope. No new fetch here —
       // the lazy-load invariant only fires when setKey is non-empty.
       setFiles.value = new Map()
+      setFilesKey.value = ''
       setPending.value = false
       return
     }
@@ -452,6 +436,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       // fetchMsrFiles retries on 429, so that window is seconds, not microtasks.
       if (key !== setKey.value) return
       setFiles.value = new Map(res.map(f => [f.msr, f]))
+      setFilesKey.value = key
     } catch {
       // Leave the previous map in place on failure rather than blanking the chart.
     } finally {
@@ -466,6 +451,52 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       if (key === setKey.value) setPending.value = false
     }
   }, { immediate: true })
+
+  // --- URL write-back for the active parameter ---
+  //
+  // Once the file loads, if the URL `mp` isn't one of the parameters that get a
+  // vote the charts fall back to the first param — but the rail/breadcrumb and
+  // any saved link still show the stale `mp`. Write the effective param back to
+  // the URL so the displayed selection (and saved views) match what's plotted.
+  //
+  // Sited HERE, below the curated-set state, rather than beside activeParam:
+  // watch() evaluates its source once at setup, so reading setPending/setRows
+  // from up there would hit their temporal dead zone.
+  //
+  // Authority, not just membership, is what gates the write. A pool narrowed to
+  // the focus file — or to a part-loaded set — is the right thing to RENDER and
+  // the wrong thing to canonicalize the URL from, because a rewrite destroys a
+  // pick the user made and nothing restores it. activeParamPool owns that call
+  // (utils/skewvoirAnalysis/activeParam.ts); this watcher only obeys it.
+  const writeBackPool = computed(() => activeParamPool({
+    ...paramInput.value,
+    setComplete: isSetPoolComplete({
+      pending: setPending.value,
+      loadedKey: setFilesKey.value,
+      wantedKey: setKey.value,
+      loaded: setFiles.value.size,
+      expected: setRows.value.length
+    })
+  }))
+
+  // Watched field by field, not as the whole object: writeBackPool builds a new
+  // object on every recompute, so watching it directly would wake this callback
+  // far more often than the state it cares about actually changes. `params` is
+  // one of the underlying computed arrays, so its identity is stable.
+  //
+  // `mp != null` rather than a truthy test: the unnamed settling MP's name is
+  // the empty string, and a truthy test would treat an explicit pick of it as
+  // absent and rewrite it away.
+  watch([
+    () => writeBackPool.value.authoritative,
+    () => writeBackPool.value.params,
+    () => ws.selection.value?.mp
+  ], ([authoritative, pool, mp]) => {
+    if (!authoritative) return
+    if (pool.length === 0) return
+    if (mp != null && pool.includes(mp)) return
+    if (activeParam.value !== mp) ws.setParam(activeParam.value)
+  })
 
   // The set rows reduced to exactly what the Time-Series derivations need.
   // Centralises the label so the trend and distribution lenses always agree on

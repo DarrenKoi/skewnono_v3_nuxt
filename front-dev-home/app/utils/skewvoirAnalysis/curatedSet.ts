@@ -35,6 +35,37 @@ export const TREND_LIMIT = 30
 export const shouldLoadSet = (scope: AnalysisScope, activeKind: SkewvoirViewKind): boolean =>
   scope === 'set' && activeKind !== 'dashboard'
 
+/** Whether the loaded set files are the WHOLE of the set currently being asked
+ *  about — the input to activeParamPool's `setComplete`.
+ *
+ *  Three ways a non-empty `setFiles` can still be an incomplete answer, and all
+ *  three are silent — nothing throws, nothing renders an error:
+ *
+ *    • the batch is in flight, so the map still holds the PREVIOUS set;
+ *    • the batch settled short, because /api/msr-files returns found MSRs only
+ *      and skips the rest (back_dev_home/msr_file/routes.py);
+ *    • the batch FAILED, which deliberately leaves the previous map in place —
+ *      and two different sets of equal size would otherwise be indistinguishable
+ *      by count alone, hence the key comparison rather than a size check.
+ *
+ *  Counting loaded-vs-expected is what a `size === 0` guard cannot express: a
+ *  set that is 3-of-5 loaded is "loaded" by presence and incomplete by fact. */
+export const isSetPoolComplete = (input: {
+  /** A batch fetch is running. */
+  pending: boolean
+  /** The set key the loaded files were fetched for. */
+  loadedKey: string
+  /** The set key the screen is currently asking about. */
+  wantedKey: string
+  /** How many set files are loaded. */
+  loaded: number
+  /** How many the set expects. */
+  expected: number
+}): boolean =>
+  !input.pending
+  && input.loadedKey === input.wantedKey
+  && input.loaded === input.expected
+
 /** Resolve the URL `msrs` list against a meas_hist row lookup, in the list's
  *  AUTHORED order (never sorted). Ids with no matching row are dropped, and the
  *  result is capped defensively at TREND_LIMIT.

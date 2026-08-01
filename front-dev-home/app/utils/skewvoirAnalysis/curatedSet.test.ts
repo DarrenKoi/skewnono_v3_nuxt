@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TREND_LIMIT, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
+import { TREND_LIMIT, isSetPoolComplete, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
 
 interface MeasHistRowFixture { msr: string, msr_check: 'Yes' | 'No' }
 
@@ -43,4 +43,39 @@ test('shouldLoadSet: under single scope no view triggers the batch fetch (no com
   assert.equal(shouldLoadSet('single', 'position-stack'), false)
   assert.equal(shouldLoadSet('single', 'correlation'), false)
   assert.equal(shouldLoadSet('single', 'gallery'), false)
+})
+
+// --- isSetPoolComplete: does the loaded set answer the set we are asking about? ---
+// Feeds activeParamPool's `setComplete`. Lives here as a pure rule because the
+// composable that used to hold it inline has no test harness, and this is the
+// predicate that decides whether the URL may be rewritten.
+
+const COMPLETE = { pending: false, loadedKey: 'a|b', wantedKey: 'a|b', loaded: 2, expected: 2 }
+
+test('isSetPoolComplete: a settled, fully loaded set for the current key is complete', () => {
+  assert.equal(isSetPoolComplete(COMPLETE), true)
+})
+
+test('isSetPoolComplete: a batch still in flight is not complete', () => {
+  // setFiles still holds the PREVIOUS set while the new one is fetching.
+  assert.equal(isSetPoolComplete({ ...COMPLETE, pending: true }), false)
+})
+
+test('isSetPoolComplete: a part-loaded set is not complete', () => {
+  // /api/msr-files returns found MSRs only and silently skips the rest.
+  assert.equal(isSetPoolComplete({ ...COMPLETE, loaded: 1 }), false)
+})
+
+test('isSetPoolComplete: files belonging to a DIFFERENT set are not complete', () => {
+  // A failed batch leaves the previous set's map in place. Same size is not
+  // the same set — two 5-msr sets would otherwise look interchangeable.
+  assert.equal(isSetPoolComplete({ ...COMPLETE, loadedKey: 'c|d' }), false)
+})
+
+test('isSetPoolComplete: an empty set on an empty key is vacuously complete', () => {
+  // Non-set scope clears both. activeParamPool still refuses to widen (no set
+  // params), so this never grants authority the set itself has not earned.
+  assert.equal(isSetPoolComplete({
+    pending: false, loadedKey: '', wantedKey: '', loaded: 0, expected: 0
+  }), true)
 })

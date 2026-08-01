@@ -56,9 +56,74 @@ test('no parameters at all yields the URL mp, else the empty string', () => {
 
 test('activeParamPool widens to the set only under set scope with a loaded set', () => {
   assert.deepEqual(activeParamPool({
-    scope: 'set', urlMp: undefined, focusParams: ['WAFER'], setParams: ['WAFER', 'GATE_CD']
-  }), ['WAFER', 'GATE_CD'])
+    scope: 'set', urlMp: undefined, focusParams: ['WAFER'], setParams: ['WAFER', 'GATE_CD'],
+    setComplete: true
+  }).params, ['WAFER', 'GATE_CD'])
   assert.deepEqual(activeParamPool({
     scope: 'single', urlMp: undefined, focusParams: ['WAFER'], setParams: ['WAFER', 'GATE_CD']
-  }), ['WAFER'])
+  }).params, ['WAFER'])
+})
+
+// --- Pool authority: may this pool rewrite the URL, or only render? ---
+// The pool answers two masters. Rendering may always fall back to a narrower
+// pool; canonicalizing the URL may not, because a rewrite DESTROYS the user's
+// pick. These assert the flag that keeps the second master honest.
+
+test('single scope is always authoritative — the focus file is the whole subject', () => {
+  assert.equal(activeParamPool({
+    scope: 'single', urlMp: undefined, focusParams: ['WAFER'], setParams: []
+  }).authoritative, true)
+})
+
+test('a fully loaded set is authoritative', () => {
+  assert.equal(activeParamPool({
+    scope: 'set', urlMp: undefined, focusParams: ['WAFER'], setParams: ['WAFER', 'GATE_CD'],
+    setComplete: true
+  }).authoritative, true)
+})
+
+test('set scope with an unloaded set is NOT authoritative — the dashboard case', () => {
+  // shouldLoadSet() excludes the dashboard, so setFiles is empty there and the
+  // pool silently narrows to the focus file. Rewriting the URL from it would
+  // discard a set-only parameter the moment the user opens the dashboard.
+  assert.equal(activeParamPool({
+    scope: 'set', urlMp: 'GATE_CD', focusParams: ['WAFER'], setParams: [], setComplete: false
+  }).authoritative, false)
+})
+
+test('set scope with loaded files that carry NO parameters is NOT authoritative', () => {
+  // setParams is the union over loaded files, so files with empty `parameters`
+  // leave it empty and the pool falls back to focus — while a guard phrased as
+  // "are any files loaded?" would wave this through.
+  assert.equal(activeParamPool({
+    scope: 'set', urlMp: 'GATE_CD', focusParams: ['WAFER'], setParams: [], setComplete: true
+  }).authoritative, false)
+})
+
+test('a PARTIALLY loaded set is NOT authoritative', () => {
+  // /api/msr-files returns found MSRs only and silently skips the rest, so a
+  // 5-msr set can settle at 3 files. The union of 3 is right for rendering and
+  // wrong as the authority for the URL: a parameter only the 2 missing
+  // measurements carry would be rewritten away and lost.
+  assert.equal(activeParamPool({
+    scope: 'set', urlMp: 'GATE_CD', focusParams: ['WAFER'], setParams: ['WAFER', 'CD_BOT'],
+    setComplete: false
+  }).authoritative, false)
+})
+
+test('setComplete defaults to NOT authoritative when omitted', () => {
+  // Fail-safe: forgetting the field can only suppress a URL write, never permit
+  // a wrong one.
+  assert.equal(activeParamPool({
+    scope: 'set', urlMp: undefined, focusParams: ['WAFER'], setParams: ['WAFER', 'GATE_CD']
+  }).authoritative, false)
+})
+
+test('rendering still falls back while the pool is non-authoritative', () => {
+  // The two masters stay separated: resolveActiveParam ignores authority, so a
+  // dashboard under set scope keeps rendering the focus fallback even though
+  // the URL is now left alone.
+  assert.equal(resolveActiveParam({
+    scope: 'set', urlMp: 'GATE_CD', focusParams: ['WAFER'], setParams: [], setComplete: false
+  }), 'WAFER')
 })
