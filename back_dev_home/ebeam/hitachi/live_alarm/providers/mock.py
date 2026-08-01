@@ -7,31 +7,43 @@ tests stable while the screen still visibly changes as time passes.
 
 Office counterpart — schema of record: `docs/datatables/live_alarm_board.txt`.
 Unlike every other feature here, the office READ SOURCE IS NOT THE SYSTEM OF
-RECORD. A separate scheduler job polls the in-house alarm API and writes a
-Redis board; SKEWNONO only ever reads that board, so opening the page never
-hits the alarm API:
+RECORD. Redis is a short cache in front of the in-house alarm API, refreshed
+by the same request that reads it: a page view calls `refresh.ensure_fresh`,
+which fetches only when the facility's cache is older than CACHE_TTL_SEC and
+only after winning a lock. Opening the page therefore costs at most one office
+call per facility per 20 seconds, shared by every viewer, and none at all when
+nobody is watching.
 
-    사내 alarm API --(writer job)--> Redis board --(reader)--> page
+    page --(cache miss + lock)--> 사내 alarm API --> Redis board --> page
+    page --(cache hit)---------------------------> Redis board --> page
 
-    skewnono:live_alarm:{tool_slug}:{fab_name}:events   ZSET, score =
-                                                        occurred_epoch
-    skewnono:live_alarm:{tool_slug}:{fab_name}:meta     JSON, polled_at
-    skewnono:live_alarm:registry                        SET of known
-                                                        "{slug}:{fab}" pairs
+    skewnono:live_alarm:{fac_id}:events   ZSET, score = occurred_epoch
+    skewnono:live_alarm:{fac_id}:meta     JSON, fetched_at
+    skewnono:live_alarm:{fac_id}:lock     stampede guard
 
-The registry is what separates "this fab was never configured" from "configured
-and currently quiet" — two states that look identical from an empty board and
-need different responses.
+Keys are scoped by fac_id (the coarse facility: M16, R3), NOT by fab_name
+(M16A, R3, R4) — one office call covers a whole facility, and the reader
+filters it down to the requested fab through the sem_list roster. Fab
+attribution is a roster lookup, never a parse of the eqp_id.
+
+"This fab was never configured" is answered by that same roster: a fab holding
+no tool of the requested family is `not_configured`, which is a different fact
+from a configured fab that is merely quiet.
 
 Windows come from `contracts.py` and are shared with this mock, so home and
 office cut the board the same way: BOARD_WINDOW_SEC (600) back, and only
 FUTURE_TOLERANCE_SEC (300) forward — not +inf, because one upstream clock
 running fast would otherwise pin a far-future alarm to the top of the board
-permanently. The writer's prune interval must be >= the board window or it
-deletes events the reader still shows; the writer refuses to start otherwise.
+permanently. PRUNE_SEC must be >= the board window or the refresh would delete
+events the reader still shows; contracts.py asserts that at import.
+
+OFFICE-VERIFY: how far back `get_live_alarms(fac_id)` reaches is unknown. The
+ZSET accumulates successive snapshots and prunes at PRUNE_SEC, so the board is
+rebuilt correctly whether the office returns a rolling history or only the
+alarms active right now.
 
 Office reads take `now` from REDIS's clock, not the app server's, because the
-writer prunes against that same clock — the two can then never disagree about
+refresh prunes against that same clock — the two can then never disagree about
 the boundary. This mock uses the local clock, which is the honest home
 equivalent and the reason its output shifts by the minute.
 """
@@ -109,10 +121,11 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
             "fab_name": fab_name,
             "tool_type": tool_type,
             "feed_status": "not_configured",
-            "polled_at": None,
+            "fetched_at": None,
             "covered_since": None,
             "server_now": _iso(now),
             "board_window_sec": BOARD_WINDOW_SEC,
+            "unmatched_count": 0,
             "events": [],
         }
 
@@ -120,14 +133,18 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     # Vary the count by minute so the board visibly changes during development.
     count = (now // 60) % 4
     events = [_event(now, i) for i in range(count)]
-    polled_at = now - 2000 if stale else now
+    fetched_at = now - 2000 if stale else now
     return {
         "fab_name": fab_name,
         "tool_type": tool_type,
         "feed_status": "stale" if stale else "live",
-        "polled_at": _iso(polled_at),
+        "fetched_at": _iso(fetched_at),
         "covered_since": _iso(now - BOARD_WINDOW_SEC),
         "server_now": _iso(now),
         "board_window_sec": BOARD_WINDOW_SEC,
+        # Non-zero on one minute in four, so the "roster gap" line is
+        # reachable at home. A mock that always reported 0 would leave that UI
+        # path unexercised until it first appeared at the office.
+        "unmatched_count": 1 if count == 3 else 0,
         "events": sorted(events, key=lambda e: e["occurred_epoch"], reverse=True),
     }
