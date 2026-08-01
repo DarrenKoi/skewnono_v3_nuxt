@@ -137,12 +137,23 @@ def _passthrough(fn: Callable) -> Callable:
     return fn
 
 
-def make_job_lock(cfg, job: str, on_skip: Callable[[dict], None] | None = None):
+def make_job_lock(
+    cfg,
+    job: str,
+    on_skip: Callable[[dict], None] | None = None,
+    ttl: int | None = None,
+):
     """Return the decorator for ``job``.
 
     Home is a pass-through: election already guarantees one process, and there
     is no reachable Redis to coordinate through anyway.
+
+    ``ttl`` is the registry's per-job ``lock_ttl``; ``None`` or 0 falls back to
+    ``cfg.lock_ttl``. Never let a None reach the lock -- redis-py would SET the
+    key with no expiry and one killed process would block the job forever.
     """
+    ttl = ttl or cfg.lock_ttl
+
     from back_dev_home._runtime.data_provider import get_mode
 
     if get_mode() == "mock":
@@ -160,10 +171,10 @@ def make_job_lock(cfg, job: str, on_skip: Callable[[dict], None] | None = None):
     # thread_local=False: the renewal watchdog calls extend() from ANOTHER
     # thread, and redis-py's default stashes the acquisition token in
     # threading.local() where that thread would find none and raise.
-    lock = Lock(client, key, timeout=cfg.lock_ttl, thread_local=False)
+    lock = Lock(client, key, timeout=ttl, thread_local=False)
 
     def skip_reporter(_info: dict) -> None:
         if on_skip is not None:
             on_skip(describe_lock_holder(client, key))
 
-    return _redis_lock(lock, ttl=cfg.lock_ttl, on_skip=skip_reporter)
+    return _redis_lock(lock, ttl=ttl, on_skip=skip_reporter)

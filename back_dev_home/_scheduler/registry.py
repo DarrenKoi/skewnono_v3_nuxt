@@ -21,6 +21,15 @@ Four knobs matter, and for jobs measured in minutes the last two matter most.
 
 Hours all sit inside 01:00-08:00, the confirmed quiet window (user-confirmed
 2026-08-01), and the sweep deliberately follows the write.
+
+**Cron fields are stored, not triggers.** A ``CronTrigger`` built at import
+time binds ``get_localzone()`` for good -- APScheduler never re-applies the
+scheduler's own timezone to an already-constructed trigger, so
+``SchedulerConfig.timezone`` would buy nothing and a UTC cloud host would fire
+the "quiet window" jobs at 12:10 KST, mid-workday. ``build_schedule(cfg)``
+constructs each trigger once the config is in hand, with ``timezone=`` passed
+explicitly. Building them late also lets the purge hour come from
+``IMAGE_CACHE_PURGE_HOUR``, whose config object is read at build time.
 """
 
 from collections.abc import Callable
@@ -34,32 +43,67 @@ from back_dev_home._scheduler.tasks.device_statistics import (
 )
 from back_dev_home._scheduler.tasks.image_cache import purge_image_cache
 
+def _image_cache_purge_cron() -> dict:
+    """Nightly. :10 keeps it clear of the two weekly slots below.
+
+    The hour is ``IMAGE_CACHE_PURGE_HOUR`` (default 3), read here rather than
+    hardcoded so the env var documented in ``.env.example`` and
+    ``msr_image/MIGRATION.md`` -- including its coordination with the Airflow
+    DAG at 03:35 KST -- keeps working. Read at build time, not import time, so
+    an operator only has to restart.
+    """
+    from back_dev_home.msr_image.config import load_config as load_image_config
+
+    return {"hour": load_image_config().purge_hour, "minute": 10}
+
+
+def _weekly_snapshot_write_cron() -> dict:
+    """Monday, because the snapshot key IS that week's Monday."""
+    return {"day_of_week": "mon", "hour": 1, "minute": 0}
+
+
+def _weekly_snapshot_sweep_cron() -> dict:
+    """90 minutes after the write, never before: sweeping first could delete
+    the oldest kept snapshot in the same hour the newest arrives, and a failed
+    write would still trigger deletions."""
+    return {"day_of_week": "mon", "hour": 2, "minute": 30}
+
+
 JOB_REGISTRY: dict[str, dict] = {
     "image_cache_purge": {
         "fn": purge_image_cache,
-        # Nightly. :10 keeps it clear of the two weekly slots below.
-        "trigger": CronTrigger(hour=3, minute=10),
+        "cron": _image_cache_purge_cron,
         "lock_ttl": 600,
         "misfire_grace_time": 3600,
     },
     "weekly_snapshot_write": {
         "fn": write_weekly_snapshot,
-        # Monday, because the snapshot key IS that week's Monday.
-        "trigger": CronTrigger(day_of_week="mon", hour=1, minute=0),
+        "cron": _weekly_snapshot_write_cron,
         "lock_ttl": 600,
         # Six hours: the next retry would otherwise be next Monday.
         "misfire_grace_time": 21600,
     },
     "weekly_snapshot_sweep": {
         "fn": sweep_weekly_snapshots,
-        # 90 minutes after the write, never before: sweeping first could delete
-        # the oldest kept snapshot in the same hour the newest arrives, and a
-        # failed write would still trigger deletions.
-        "trigger": CronTrigger(day_of_week="mon", hour=2, minute=30),
+        "cron": _weekly_snapshot_sweep_cron,
         "lock_ttl": 600,
         "misfire_grace_time": 3600,
     },
 }
+
+
+def build_schedule(cfg, registry: dict[str, dict] | None = None) -> dict[str, CronTrigger]:
+    """One ``CronTrigger`` per entry, all in ``cfg.timezone``.
+
+    Constructing them here rather than at import is the whole point: a trigger
+    built without ``timezone=`` binds ``get_localzone()`` permanently, and
+    handing it to a ``BackgroundScheduler(timezone=...)`` does NOT retag it.
+    """
+    registry = JOB_REGISTRY if registry is None else registry
+    return {
+        name: CronTrigger(timezone=cfg.timezone, **spec["cron"]())
+        for name, spec in registry.items()
+    }
 
 
 def _skip_recorder(run_log, job: str) -> Callable[[dict], None]:
@@ -89,6 +133,11 @@ def build_jobs(cfg, run_log, registry: dict[str, dict] | None = None) -> dict[st
         # scheduler job id and log records. Deriving any of them from
         # fn.__name__ splits that identity, and two entries sharing one
         # function would silently share one lock.
-        lock = make_job_lock(cfg, name, on_skip=_skip_recorder(run_log, name))
+        # `or`, never `.get("lock_ttl", cfg.lock_ttl)`: an explicit
+        # "lock_ttl": None must fall back too. Passing None through reaches a
+        # SET with no expiry, and one killed process would then block that job
+        # forever.
+        ttl = spec.get("lock_ttl") or cfg.lock_ttl
+        lock = make_job_lock(cfg, name, on_skip=_skip_recorder(run_log, name), ttl=ttl)
         jobs[name] = lock(run_log.wrap(spec["fn"], name))
     return jobs

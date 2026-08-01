@@ -127,3 +127,50 @@ def test_renewal_stops_when_the_job_finishes():
     ticks_at_exit = len(lock.extends)
     time.sleep(1.5)
     assert len(lock.extends) == ticks_at_exit
+
+
+def test_office_lock_uses_the_per_job_ttl(monkeypatch):
+    # The registry's per-job lock_ttl must reach both the Redis key's timeout
+    # and the renewal watchdog, not just sit in the registry unread.
+    import redis.lock
+
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+    monkeypatch.setattr(
+        "back_dev_home._runtime.office_redis.redis_client_or_none", lambda: object()
+    )
+    captured: dict = {}
+
+    class SpyLock:
+        def __init__(self, client, name, timeout=None, thread_local=True):
+            captured["timeout"] = timeout
+            captured["thread_local"] = thread_local
+            self.name = name
+
+    monkeypatch.setattr(redis.lock, "Lock", SpyLock)
+    cfg = load_scheduler_config({})
+    make_job_lock(cfg, "job_a", ttl=42)
+    assert captured["timeout"] == 42
+    # thread_local must stay False: the watchdog extends from another thread.
+    assert captured["thread_local"] is False
+
+
+def test_office_lock_falls_back_when_the_ttl_is_none(monkeypatch):
+    # A None reaching redis-py would SET the key with NO expiry, so one killed
+    # process would block that job forever.
+    import redis.lock
+
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+    monkeypatch.setattr(
+        "back_dev_home._runtime.office_redis.redis_client_or_none", lambda: object()
+    )
+    captured: dict = {}
+
+    class SpyLock:
+        def __init__(self, client, name, timeout=None, thread_local=True):
+            captured["timeout"] = timeout
+            self.name = name
+
+    monkeypatch.setattr(redis.lock, "Lock", SpyLock)
+    cfg = load_scheduler_config({})
+    make_job_lock(cfg, "job_a", ttl=None)
+    assert captured["timeout"] == cfg.lock_ttl

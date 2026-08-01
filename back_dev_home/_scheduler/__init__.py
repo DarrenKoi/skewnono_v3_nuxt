@@ -20,7 +20,7 @@ import os
 
 from back_dev_home._scheduler.config import load_scheduler_config
 from back_dev_home._scheduler.election import is_scheduler_worker
-from back_dev_home._scheduler.registry import JOB_REGISTRY, build_jobs
+from back_dev_home._scheduler.registry import JOB_REGISTRY, build_jobs, build_schedule
 from back_dev_home._scheduler.runlog import make_run_log
 
 logger = logging.getLogger("skewnono.scheduler")
@@ -68,11 +68,15 @@ def start_scheduler(app):
     from apscheduler.schedulers.background import BackgroundScheduler
 
     jobs = build_jobs(cfg, run_log)
+    # Triggers are built here, not imported: a CronTrigger constructed without
+    # timezone= binds the host's local zone permanently, and the scheduler's
+    # own timezone= does NOT retag an already-built trigger.
+    triggers = build_schedule(cfg)
     scheduler = BackgroundScheduler(daemon=True, timezone=cfg.timezone)
     for name, spec in JOB_REGISTRY.items():
         scheduler.add_job(
             jobs[name],
-            trigger=spec["trigger"],
+            trigger=triggers[name],
             id=name,
             replace_existing=True,
             max_instances=1,
