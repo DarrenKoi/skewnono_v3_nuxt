@@ -81,8 +81,12 @@ Frontend와 backend의 해당 타입도 같은 release 단위로 유지합니다
 ## Office knowledge provider 구현 계약
 
 Tracked template인 `knowledge/providers/office_example.py`를
-`knowledge/providers/office.py`로 복사한 뒤 gitignored copy만 구현합니다. 다음 네 공개
-signature를 그대로 유지합니다.
+`knowledge/providers/office.py`로 복사한 뒤 gitignored copy만 구현합니다. Template은
+계약 절반(`_search` limit/오류 변환, `_to_evidence` 엄격 검증, 네 공개 함수)이 이미
+작성된 skeleton이며, office copy는 `OFFICE-TODO`로 표시된 세 seam —
+`_config()`, `_build_request()`, `_execute()` — 과 `_translate_error()`의 client별
+오류 mapping만 구현합니다. "do not edit below" 표시 아래의 계약 절반은 수정하지
+않습니다. 다음 네 공개 signature를 그대로 유지합니다.
 
 ```python
 search_manuals(
@@ -275,10 +279,13 @@ export, training dataset 생성과 model training/fine-tuning은 계속 이 scaf
 .venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py back_dev_home/chat/tests/test_runtime.py back_dev_home/chat/tests/test_scope.py -q
 ```
 
-Office adapter를 구현할 때는 live service를 호출하지 않는
-`back_dev_home/chat/tests/test_knowledge_office.py`를 추가합니다. Fake client/raw result를
-주입하고 네 method 각각에 대해 정확한 `Evidence` field, query-time access filter,
-limit, empty result, stable ordering, typed exception을 검증합니다.
+`back_dev_home/chat/tests/test_knowledge_office.py`는 tracked skeleton으로 이미
+존재합니다. Home에서는 gitignored `office.py`가 없어 module 단위로 skip하고,
+office에서 복사 직후부터 계약 절반(정확한 `Evidence` field mapping, limit,
+empty result, rank ordering 유지, typed exception)을 fake seam으로 검증합니다.
+Office 구현 시에는 파일 하단의 `OFFICE-TODO` skip test 세 건 — query-time access
+filter 증명, raw row 정규화, client 오류 mapping — 을 fake client/raw result 주입
+방식으로 채웁니다. Live service는 호출하지 않습니다.
 
 ```bash
 .venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q

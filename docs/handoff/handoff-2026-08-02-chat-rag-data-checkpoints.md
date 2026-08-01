@@ -86,9 +86,10 @@ Ingestion/chunking/색인을 만드는 쪽에서 하나라도 빠지면 adapter�
 
 ## 4. 사내 로컬 LLM용 프롬프트
 
-아래 프롬프트는 그대로 복사해 사내 coding LLM에 입력하는 용도입니다. `< >` 부분만
-사내 값으로 치환합니다. 공통 전제: 사내 LLM은 public skewnono 저장소를 읽을 수
-있고, 실제 hostname/credential은 프롬프트에 넣지 않습니다.
+아래 프롬프트는 그대로 복사해 사내 coding LLM(GLM-5.2, pi coding agent 하에서
+동작)에 입력하는 용도입니다. `< >` 부분만 사내 값으로 치환합니다. 공통 전제: 사내
+agent는 public skewnono 저장소 파일을 직접 읽을 수 있으므로 프롬프트는 경로만
+가리키고, 실제 hostname/credential은 프롬프트에 넣지 않습니다.
 
 ### Prompt 1 — RAG ingestion 출력 schema 설계·검증
 
@@ -122,46 +123,49 @@ back_dev_home/chat/__fixtures__/knowledge/*.json 의 record 형태다.
 ### Prompt 2 — `knowledge/providers/office.py` 구현
 
 ```text
-skewnono 저장소의 back_dev_home/chat/MIGRATION.md 중 "Office knowledge provider
-구현 계약" 절을 읽고, back_dev_home/chat/knowledge/providers/office_example.py 를
-office.py 로 복사한 gitignored 파일에 다음을 구현하라.
+skewnono 저장소의 back_dev_home/chat/knowledge/providers/office_example.py 는 계약
+절반이 이미 작성된 skeleton이다. 파일 docstring과
+back_dev_home/chat/MIGRATION.md 의 "Office knowledge provider 구현 계약" 절을 읽은
+뒤, office_example.py 를 office.py 로 복사한 gitignored 파일에서 OFFICE-TODO 로
+표시된 세 seam만 구현하라. "do not edit below" 아래의 계약 절반(공개 signature,
+_search, _to_evidence)은 절대 수정하지 않는다.
 
-1. search_manuals / search_meeting_summaries / search_emails / search_reports 네
-   함수의 공개 signature를 그대로 유지한다: (query, filters, scope: AccessScope,
-   limit) -> list[Evidence].
-2. 검색 대상은 <사내 index/collection 설명>이며, access filter(scope의
-   user_id/groups/fabs)는 검색 query 단계에 적용한다. 검색 후 Python filtering으로
-   권한을 보완하지 않는다.
-3. 반환 행은 contracts.py의 Evidence 필드를 전부 채운다. 없으면 None. snippet은
-   승인된 최소 근거만 넣는다.
-4. 오류 변환: 접근 거부 -> KnowledgeDenied, timeout -> KnowledgeTimeout, 설정
-   누락·index 불일치·source unavailable -> KnowledgeUnavailable. 어떤 실패도
-   mock/다른 source로 대체하지 않고, empty result는 빈 list로 반환한다.
-5. host/credential/index 이름은 환경설정에서만 읽는다. model argument나 user
-   입력에서 받지 않는다. 설정 self-load는 back_dev_home/_runtime 의 기존 패턴을
-   따른다.
-6. limit은 호출자가 준 값을 초과하지 않는다(응용단 상한 5).
+1. _config(): <사내 설정 설명: host, index alias, timeout 등>을 환경설정/.env에서만
+   읽는다. model argument나 user 입력에서 받지 않는다. 필수 설정이 없으면
+   KnowledgeUnavailable을 raise한다.
+2. _build_request(): 검색 대상은 <사내 index/collection 설명>이며, scope의
+   user_id/groups/fabs access filter를 backend query 자체에 포함한다. 검색 후
+   Python filtering으로 권한을 보완하는 것은 계약 위반이다. Field projection은
+   docstring의 normalized raw hit 키로 제한한다.
+3. _execute(): 사내 backend를 호출해 normalized raw hit 형태(list of mapping,
+   rank 순서 유지)로 반환한다. snippet은 승인된 최소 근거만 넣는다.
+4. _translate_error(): 사내 client 예외를 KnowledgeDenied(접근 거부)/
+   KnowledgeTimeout(시간 초과)/KnowledgeUnavailable(그 외)로 mapping하는 분기를
+   추가한다. 오류 메시지에 query 내용·credential을 넣지 않는다.
 
-구현 후, live service를 호출하지 않는
-back_dev_home/chat/tests/test_knowledge_office.py 를 함께 작성하라(다음 프롬프트
-참조).
+구현 후 back_dev_home/chat/tests/test_knowledge_office.py 의 OFFICE-TODO skip
+test 세 건을 채워라(다음 프롬프트 참조).
 ```
 
-### Prompt 3 — fake-client contract test 작성
+### Prompt 3 — fake-client contract test 완성
 
 ```text
-back_dev_home/chat/tests/test_knowledge_office.py 를 작성하라. Live 사내 service를
-호출하지 않고 fake client/raw result를 주입해 office.py를 검증한다. 네 search 함수
-각각에 대해 최소 다음을 검증한다.
+back_dev_home/chat/tests/test_knowledge_office.py 는 tracked skeleton으로 이미
+존재한다. 계약 절반(Evidence mapping, limit, empty result, rank ordering, typed
+exception)은 이미 fake seam으로 검증되고 있으니 수정하지 마라. 파일 하단의
+OFFICE-TODO skip test 세 건을 live 사내 service 호출 없이 채워라.
 
-1. raw result -> Evidence 변환: 모든 필드 정확성, None 처리, 1-based page.
-2. access filter가 검색 query 단계에 반영되는지(fake client에 전달된 query/filter를
-   검사한다).
-3. limit 준수와 stable ordering.
-4. empty result가 빈 list인지(대체 검색 없음).
-5. 접근 거부/timeout/설정 누락이 각각 KnowledgeDenied/KnowledgeTimeout/
-   KnowledgeUnavailable로 변환되는지.
-6. 실제 source 내용·사내 경로·credential이 assertion과 fixture에 없는지.
+1. test_access_scope_is_embedded_in_the_backend_query: office._build_request가
+   scope(user_id/groups/fabs)를 backend query 자체에 포함하는지 검증한다.
+2. test_raw_backend_rows_normalize_to_the_documented_hit_shape: de-identify한 raw
+   backend row를 fake client로 주입해 _execute가 normalized raw hit 형태(1-based
+   page, 없는 provenance는 None)로 반환하는지 검증한다.
+3. test_office_client_errors_map_to_typed_exceptions: 사내 client library의 실제
+   authorization/timeout 예외 타입이 KnowledgeDenied/KnowledgeTimeout으로
+   mapping되는지 검증한다.
+
+제약: 실제 source 내용·사내 경로·index 이름·credential을 assertion과 fixture에
+넣지 않는다.
 
 실행:
 .venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q
