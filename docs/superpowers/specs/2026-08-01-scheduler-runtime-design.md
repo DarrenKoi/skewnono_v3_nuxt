@@ -64,13 +64,19 @@ key 규칙을 확정했고, `providers/office_example.py:966` 에
 back_dev_home/_scheduler/
   __init__.py       start_scheduler(app)  ← 앱 팩토리의 유일한 진입점
   config.py         SchedulerConfig — 환경변수 기반
-  runtime.py        선출 · 락 · TaskLogger · 두 개의 백엔드
+  election.py       is_scheduler_worker()
+  runlog.py         RunLog 두 구현(메모리 / Redis)
+  locks.py          job_lock() 두 구현(no-op / Redis)
   registry.py       JOB_REGISTRY + 래핑 + 등록
   tasks/
     image_cache.py         purge_image_cache()
     device_statistics.py   write_weekly_snapshot() · sweep_weekly_snapshots()
   tests/
 ```
+
+선출 · 실행기록 · 락을 `runtime.py` 한 파일에 몰지 않고 셋으로 나눕니다. 각각
+독립적으로 테스트되고 서로를 부르지 않으므로, 한 파일에 두면 세 관심사가 한
+파일의 크기만큼 얽힙니다.
 
 **밑줄 접두 폴더입니다.** 앱 팩토리의 `rglob("routes.py")` 자동 등록이 `_` 로
 시작하는 경로를 건너뛰므로, `_runtime/` · `_logging/` 과 같은 공용 배관으로
@@ -105,7 +111,7 @@ home/office 차이는 런타임 내부의 분기가 아니라 **하나의 인터
 | 관심사 | 집 (`get_mode() == "mock"`) | 사무실 |
 | --- | --- | --- |
 | 선출 | 항상 이 프로세스 | `uwsgi.worker_id() == 1` |
-| jobstore | APScheduler 기본(메모리) | `RedisJobStore` |
+| jobstore | APScheduler 기본(메모리) | APScheduler 기본(메모리) — § 3.4 |
 | 락 | no-op, 항상 획득 | `redis.lock.Lock` + TTL 갱신 데몬 |
 | 실행 기록 | 메모리 ring buffer + `logging` | Redis 리스트(`LPUSH` + `LTRIM`) |
 
@@ -114,7 +120,65 @@ home/office 차이는 런타임 내부의 분기가 아니라 **하나의 인터
 함정이 이미 한 번 데모 사용자 유출을 만들었고(`__init__.py:250-257` 의 주석),
 같은 가드를 씁니다.
 
-### 3.4 사무실 백엔드에서 그대로 가져오는 두 줄
+**선출은 세 단계입니다. 두 번째 단계가 집에서 이미 깨져 있습니다.**
+
+```python
+def is_scheduler_worker() -> bool:
+    # 1. uWSGI: 워커 1 만.
+    try:
+        import uwsgi
+        return uwsgi.worker_id() == 1
+    except ImportError:
+        pass
+    # 2. Werkzeug 리로더: 감시자 부모가 아니라 앱 자식만.
+    if _reloader_parent():
+        return False
+    # 3. 그 외(단일 프로세스, pytest): 이 프로세스.
+    return True
+```
+
+2단계가 필요한 이유입니다. `index.py:26` 이 `debug=not cloud` 이므로 집에서는
+Werkzeug 리로더가 켜집니다. 리로더는 모듈을 **두 프로세스**에서 실행합니다 —
+파일을 감시하는 부모와 실제 앱을 띄우는 자식입니다. 둘 다 `create_app()` 을
+부르고 둘 다 uWSGI 가 아니므로, 1·3단계만 있으면 **한 대의 개발 머신에서
+스케줄러가 둘** 뜹니다.
+
+이것은 앞으로 생길 문제가 아니라 **이미 그런 상태입니다.**
+`msr_image/scheduler.py` 의 기존 가드는 `"msr_image_scheduler" in
+app.extensions` 인데, 이는 app 객체 하나 안에서만 유효하며 프로세스 경계를 볼
+수 없습니다. 실무상 무해했을 뿐(삭제는 멱등이고 집 캐시는 작습니다) "정확히
+하나"라는 성질은 집에서 성립한 적이 없습니다.
+
+부모와 자식을 가르는 것은 `WERKZEUG_RUN_MAIN` 입니다 — 리로더가 **자식에게만**
+넣어 주는 환경변수입니다. 따라서 "리로더 부모"는 `app.debug` 가 참이면서
+`WERKZEUG_RUN_MAIN` 이 없는 경우로 정확히 식별됩니다. uWSGI·클라우드에서는
+`debug` 가 거짓이므로 이 판정에 걸리지 않고 1단계로 갑니다.
+
+### 3.4 `RedisJobStore` 는 쓰지 않습니다
+
+`flask_modules` 는 `RedisJobStore` 를 쓰지만 여기서는 쓰지 않습니다
+(user-confirmed 2026-08-01).
+
+이 저장소의 작업은 `JOB_REGISTRY` 에 **코드로 선언**되어 부팅마다 다시
+등록되고, 세 트리거가 모두 cron 입니다. cron 은 절대 벽시계 기준이므로 재시작
+후 새 스케줄러가 계산하는 다음 발화 시각이 곧 정답입니다. 즉 스케줄 자체를
+Redis 에 보존해서 얻는 것이 거의 없습니다.
+
+반대로 치르는 비용은 작지 않습니다. `RedisJobStore` 는 작업을 pickle 하는데,
+`functools.wraps` 로 감싼 클로저를 pickle 하면 래퍼의 `__qualname__` 이 원래
+함수를 가리키므로 **복원된 작업이 락과 로거를 통째로 우회**합니다.
+`flask_modules` 가 `func="api.schedule:run_registered_job"` 라는 문자열 경로
+간접층을 두는 이유가 이것이며, 거기에 더해 레지스트리에서 지운 작업이 Redis 에
+남아 계속 발화하는 문제를 막는 orphan 수거까지 필요해집니다. 그 위험은 전부
+**집에서 재현할 수 없는 부분**에 몰려 있습니다.
+
+포기하는 것은 하나입니다 — 프로세스가 03:10 에 죽어 있었다면 그 실행은 유실로
+**탐지되지 않고** 그냥 건너뛰어집니다. 다음 발화는 정상입니다.
+
+락은 그대로 Redis 를 씁니다. jobstore 와 락은 다른 문제를 풀며, 여러 워커가
+동시에 같은 작업을 실행하는 것을 막는 쪽은 락입니다.
+
+### 3.5 사무실 백엔드에서 그대로 가져오는 두 줄
 
 `extension.py` 에서 사소해 보이지만 반드시 유지해야 하는 부분입니다.
 
@@ -263,6 +327,24 @@ dispatch 되는 기능을 추가하는 것은 다른 행위이며, 그렇게 하
 집 쪽 경로는 `SKEWNONO_WEEKLY_TREND_DIR` 로 재정의합니다. `msr_image` 의
 `IMAGE_CACHE_DIR` 과 같은 규칙이며, 기본값도 같은 `var/` 아래입니다.
 
+**읽기 경로는 의도적으로 갈라집니다 — mock 은 스냅샷을 읽지 않습니다.**
+
+사무실 어댑터는 과거 주차를 스냅샷에서 읽고, 스냅샷이 없는 과거 주차는
+**응답에서 키 자체를 뺍니다**(datatable 문서의 읽기 규칙 3). 사무실에서는
+옳습니다. 집에 그 규칙을 그대로 옮기면 파괴적입니다 — 새로 받은 체크아웃에는
+스냅샷이 하나도 없으므로 `recipe-trend` 가 8개 대신 **1개 날짜만** 돌려주고,
+트렌드 차트는 월요일이 여덟 번 실제로 지나갈 때까지 비어 있게 됩니다.
+
+따라서 `providers/statistics.py` 의 `get_weekly_trend_data` 는 **지금처럼 모든
+주차를 라이브로 계산합니다.** 결정론적 seed(`_seed_for(lot_cd, point_index)`)
+덕분에 같은 날짜는 항상 같은 값이므로, 집에서 트렌드 화면은 오늘과 똑같이
+동작합니다.
+
+집에서 `write_weekly_snapshot()` 이 하는 일은 **payload 를 만들어 파일로
+남기는 것까지**이며, 그 파일을 다시 읽어 화면에 그리지는 않습니다. 검증도
+거기까지입니다(§ 8 의 왕복 테스트). 이 분기는 mock 의 docstring 에 적어 두어
+나중에 "사무실과 다르니 맞추자"는 수정이 화면을 비우지 않도록 합니다.
+
 `msr_image` 의 `DiskCache` / `MinioImageCache` 분기와 같은 형태이므로, 새로 만드는
 패턴이 아니라 따를 선례가 있습니다.
 
@@ -328,10 +410,13 @@ ring buffer 로 유지합니다. 작업이 셋이고 하루 몇 건씩 쌓이므
 | 테스트 | 확인하는 것 |
 | --- | --- |
 | 레지스트리 슬로팅 | 어떤 두 작업도 같은 발화 순간을 공유하지 않으며, 모든 항목이 `lock_ttl` 과 `fn` 을 가짐 |
-| 선출 | `get_mode() == "mock"` → 항상 선출, `worker_id() != 1` → 미선출이며 `register_with_scheduler=False` |
+| 선출 — uWSGI | `worker_id() == 1` 만 선출, 나머지 셋은 스케줄러를 만들지 않음 |
+| 선출 — 리로더 | `debug=True` + `WERKZEUG_RUN_MAIN` 없음(감시자 부모) → 미선출, 있음(앱 자식) → 선출. 집 개발 서버에서 스케줄러가 정확히 하나임을 보장 |
+| 선출 — 단일 프로세스 | uWSGI 도 리로더도 아니면(pytest, `debug=False` 실행) 선출 |
 | 락 | 두 번째 동시 호출이 건너뛰고 `skip` 기록을 **정확히 한 줄** 남김(`start`/`skip`/`end` 아님) |
 | 멱등성 | `create_app()` 두 번에 스케줄러 하나, `app.testing` 이면 시작하지 않음(현재 가드 승계) |
-| 스냅샷 왕복 | `write_weekly_snapshot()` → `get_weekly_trend_data()` 가 같은 summary 를 읽어냄 |
+| 스냅샷 왕복 | `write_weekly_snapshot()` 이 남긴 파일을 다시 읽어 payload 가 `build` 결과와 일치함(§ 6.2 — 화면 읽기 경로는 타지 않음) |
+| 트렌드 화면 불변 | 스냅샷이 하나도 없는 상태에서 `get_weekly_trend_data()` 가 여전히 8개 날짜를 돌려줌 — mock 에 사무실 읽기 규칙이 새어 들어오면 실패 |
 | sweep | 정확히 `keep_weeks` 만 남기고 key 날짜로 지우며, 백필된 오래된 주도 삭제됨 |
 | 이전 | `msr_image/tests/test_scheduler.py` 가 새 task 모듈을 향하도록 변경 |
 
@@ -357,8 +442,6 @@ Redis 기반 락과 jobstore 는 집에서 실제 서버를 상대로 검증할 
 - **워커 선출이 실제 uWSGI 4워커에서 동작하는가.** `uwsgi.worker_id()` 경로는 집의
   `python index.py` 에서 한 번도 실행되지 않습니다. `/api/health/jobs` 가 작업당
   하루 한 줄만 보이면 성공이고, 네 줄이 보이면 선출이 실패한 것입니다.
-- **`RedisJobStore` 왕복.** 작업이 pickle 되어 저장되고 재부팅 후 복원되는지.
-  특히 `func="..."` 문자열 경로로 저장되어 래핑을 우회하지 않는지.
 - **락 TTL 갱신이 장시간 작업에서 유지되는가.** 스냅샷 적재가 `lock_ttl` 600초를
   넘길 경우 워치독이 갱신하는지 — 갱신에 실패하면 락이 조용히 보호를 멈춥니다.
 - **첫 스냅샷 객체의 실제 크기**(datatable 문서의 기존 항목). 예상보다 크면 적재
