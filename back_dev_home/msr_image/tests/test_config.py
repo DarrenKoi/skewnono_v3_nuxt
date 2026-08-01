@@ -7,7 +7,7 @@ def test_defaults_when_env_empty():
     assert cfg.ftp_password == "hid"
     assert cfg.ftp_port == 21
     assert cfg.ftp_concurrency == 6
-    assert cfg.ttl_hours == 168
+    assert cfg.ttl_hours == 72
     assert cfg.purge_hour == 3
     assert cfg.cache_prefix == "image_cache/"
     assert cfg.allowed_subnets == []
@@ -36,4 +36,4 @@ def test_blank_and_garbage_numeric_fall_back_to_defaults():
     })
     assert cfg.ftp_timeout == 8.0
     assert cfg.ftp_concurrency == 6
-    assert cfg.ttl_hours == 168
+    assert cfg.ttl_hours == 72

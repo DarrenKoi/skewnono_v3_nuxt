@@ -57,7 +57,7 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | `SKEWNONO_IMAGE_CACHE_BUCKET` | MinIO 캐시 버킷 | 없음(office에서 필수 설정) |
 | `SKEWNONO_IMAGE_CACHE_PREFIX` | MinIO 캐시 오브젝트 키 prefix | `image_cache/` |
 | `IMAGE_CACHE_DIR` | 홈/mock 디스크 캐시 루트(office에서는 사용하지 않음) | `var/image_cache` |
-| `IMAGE_CACHE_TTL_HOURS` | 캐시 보존 시간; 이보다 오래된 항목을 purge가 삭제 | `168`(7일) |
+| `IMAGE_CACHE_TTL_HOURS` | 캐시 보존 시간; 이보다 오래된 항목을 purge가 삭제 | `72`(3일) |
 | `IMAGE_CACHE_PURGE_HOUR` | 야간 purge cron 실행 시각(0–23) | `3` |
 | `SKEWNONO_MSR_IMAGE_MAX_JOBS` | 동시 실행 가능한 다운로드 job 수 | `2` |
 | `SKEWNONO_MSR_IMAGE_JOB_TTL` | job 상태 보존 시간(초); Redis 키 TTL로도 사용 | `3600` |
@@ -169,7 +169,8 @@ home/mock은 단일 프로세스이므로 `MemoryJobRegistry`를 그대로 유�
 - office 기준 정리 주체는 **둘**입니다. (1) 이 앱의 APScheduler purge가 매일
   `IMAGE_CACHE_PURGE_HOUR`시에 돌고, (2) Airflow DAG `minio_purge_image_cache`
   (`flask_modules` 저장소의 `airflow_mgmt/`, 매일 03:35 KST)가 같은 prefix를
-  `last_modified` 기준으로 훑습니다. 둘 다 **7일**로 맞춰져 있습니다. DAG는 앱이
+  `last_modified` 기준으로 훑습니다. 둘 다 **3일**로 맞춰져 있습니다
+  (2026-08-02에 7일에서 함께 줄였습니다, user-confirmed). DAG는 앱이
   내려가 있는 동안 쌓인 오브젝트를 잡는 안전망이므로, 이 앱의 보존 기간만 더
   짧게 바꾸면 DAG는 영구히 아무것도 찾지 못합니다. 한쪽을 조정하면 반드시 다른
   쪽도 함께 맞추십시오.
