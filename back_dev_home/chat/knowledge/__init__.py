@@ -1,0 +1,1 @@
+"""Chat knowledge provider contracts."""

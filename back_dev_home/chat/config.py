@@ -26,6 +26,50 @@ def get_timeout() -> float:
 
 def list_models() -> list[dict]:
     raw = os.environ.get("CHAT_MODELS")
-    if not raw:
-        return [dict(m) for m in DEFAULT_MODELS]
-    return json.loads(raw)
+    models = DEFAULT_MODELS if not raw else json.loads(raw)
+    normalized = []
+    for row in models:
+        model = dict(row)
+        model.setdefault("supports_tools", False)
+        model.setdefault("supports_vision", False)
+        normalized.append(model)
+    return normalized
+
+
+def find_model(model_id: str) -> dict | None:
+    return next((model for model in list_models() if model["id"] == model_id), None)
+
+
+def _choice(name: str, default: str, allowed: set[str]) -> str:
+    value = os.environ.get(name, default).strip().lower()
+    if value not in allowed:
+        choices = ", ".join(sorted(allowed))
+        raise ValueError(f"{name} must be one of: {choices}")
+    return value
+
+
+def get_runtime_name() -> str:
+    return _choice("SKEWNONO_CHAT_RUNTIME", "direct", {"direct", "agent"})
+
+
+def get_knowledge_provider_name() -> str:
+    return _choice(
+        "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock", {"mock", "office"}
+    )
+
+
+def get_scope_provider_name() -> str:
+    return _choice("SKEWNONO_CHAT_SCOPE_PROVIDER", "mock", {"mock", "office"})
+
+
+def get_max_tool_calls() -> int:
+    return min(max(int(os.environ.get("SKEWNONO_CHAT_MAX_TOOL_CALLS", "6")), 1), 12)
+
+
+def get_agent_timeout() -> float:
+    return min(max(float(os.environ.get("SKEWNONO_CHAT_AGENT_TIMEOUT", "60")), 1), 120)
+
+
+def get_rag_source_root() -> str | None:
+    value = os.environ.get("SKEWNONO_RAG_SOURCE_ROOT", "").strip()
+    return value or None
