@@ -73,8 +73,15 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
     trend = get_weekly_trend_data(None, points=1, interval_days=7, include_recipes=False)
     bucket = trend.get(anchor)
     if bucket is None:
-        # 요청된 주차가 mock 의 창 밖입니다. 가장 최근 주차로 payload 를 만들되
-        # 이름은 요청된 주차로 둡니다 — 재적재(backfill)를 흉내 내는 경로입니다.
+        # 드문 예외가 아니라 **``date_key`` 를 넘긴 모든 호출의 유일한 경로**
+        # 입니다. 위에서 ``points=1`` 로 받으므로 ``trend`` 에는 이번 주차 하나만
+        # 들어 있고, 이번 주차가 아닌 이름은 전부 여기로 옵니다. 즉 집에서
+        # ``write_weekly_snapshot("2026-06-01")`` 은 6월 이름표를 단 이번 주차
+        # 데이터를 씁니다.
+        #
+        # 집에서는 이 파일을 읽는 화면이 없으므로(모듈 docstring — mock 은 트렌드를
+        # 매번 라이브로 계산합니다) 그대로 둡니다. 사무실 어댑터는 지난 주차를
+        # 실제 스냅샷에서 읽으므로 같은 대체를 하면 안 됩니다.
         bucket = trend[next(reversed(trend))]
     return {
         "date": anchor,

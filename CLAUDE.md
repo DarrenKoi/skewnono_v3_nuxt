@@ -112,9 +112,13 @@ Backend, from the repo root (CPython 3.14 venv; no activation step needed):
 
 ```bash
 .venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
-.venv/bin/python -m pytest -q                          # full suite (~2090 tests, ~9 s)
+.venv/bin/python -m pytest -q                          # full suite (~2180 tests, ~72 s)
 .venv/bin/python -m pytest back_dev_home/<feature> -q  # one feature
 ```
+
+(The device-statistics weekly-snapshot tests dominate that runtime: each one
+builds a real 4000-lot payload. The suite has not rotted — that is where the
+seconds go.)
 
 Run pytest as `python -m pytest` from the root — `-m` is what puts the root on
 `sys.path` so tests can import `back_dev_home.*`. The bare `-q` form and
