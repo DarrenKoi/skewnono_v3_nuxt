@@ -656,10 +656,11 @@ utility로 분리하여 Node test runner로 검증합니다.
 
 ## 16. Scope 밖 질문 처리
 
-거절 응답은 지원 범위를 간단히 설명하고 가능한 질문 예시를 제공합니다. Retrieval을
-호출하지 않았으므로 citation은 빈 list입니다. HTTP error가 아니라 정상 assistant
-message로 저장하여 사용자가 `incorrect_scope_rejection` downvote를 남길 수 있게
-합니다.
+거절 응답은 지원 범위를 간단히 설명합니다. 이번 scaffold에서는 장비 매뉴얼,
+E-beam 계측, 팀 회의·이메일·보고서라는 지원 범주를 안내하며, 구체적인 질문 예시는
+추가하지 않습니다. Retrieval을 호출하지 않았으므로 citation은 빈 list입니다. HTTP
+error가 아니라 정상 assistant message로 저장하여 사용자가
+`incorrect_scope_rejection` downvote를 남길 수 있게 합니다.
 
 Mixed query는 지원되는 부분만 처리하고 나머지 부분은 답하지 않았음을 알립니다.
 Scope policy의 `supported_query`를 retrieval query 시작점으로 사용하되, 원래 user
