@@ -88,7 +88,7 @@ meta (JSON)
   BOARD_WINDOW_SEC = 600      : 화면이 보여주는 구간(최근 10분)
   FUTURE_TOLERANCE_SEC = 300  : 미래로 이만큼 넘게 찍힌 이벤트는 버립니다
   PRUNE_SEC = 900             : 이보다 오래된 member 를 삭제
-  TTL_SEC = 86400             : key 자체의 만료
+  KEY_TTL_SEC = 86400         : 하루 동안 아무도 열지 않은 fac 의 key 정리
 
   PRUNE_SEC 은 반드시 BOARD_WINDOW_SEC 이상이어야 합니다. 더 짧으면 아직
   화면에 보여주고 있는 이벤트를 지웁니다 — contracts.py 가 import 시점에
