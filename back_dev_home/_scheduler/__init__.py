@@ -34,9 +34,11 @@ def _disabled() -> bool:
     """Env kill switch, read at call time.
 
     Set to 0/false/no to keep the scheduler from starting at all. The test
-    suite sets it (see back_dev_home/conftest.py): tests build apps with
-    `create_app()` and only set `app.testing` afterwards, so the app.testing
-    guard below cannot catch them -- by then the scheduler thread exists.
+    suite sets it in the ROOT conftest.py -- root, not back_dev_home/, because
+    `testpaths` has two collection roots and a conftest only covers its own.
+    Tests build apps with `create_app()` and only set `app.testing` afterwards,
+    so the app.testing guard below cannot catch them -- by then the scheduler
+    thread exists.
     It also gives an operator a way to stop the scheduler without a code
     change, which matters because the jobs touch the image cache and MinIO.
     """

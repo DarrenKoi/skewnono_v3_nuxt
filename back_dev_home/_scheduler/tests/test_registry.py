@@ -8,19 +8,34 @@ from back_dev_home._scheduler.runlog import MemoryRunLog
 
 
 CFG = load_scheduler_config({})
-TRIGGERS = build_schedule(CFG)
+
+
+@pytest.fixture
+def triggers(monkeypatch):
+    """Triggers built from the SHIPPED defaults, not from the ambient .env.
+
+    `build_schedule` resolves the purge hour through msr_image's config, so
+    without clearing IMAGE_CACHE_PURGE_HOUR these assertions would read whatever
+    the developer's (or the office's) .env happens to set. A .env moving the
+    purge outside 01:00-08:00 would then fail the quiet-window test on a
+    perfectly valid setting -- a failure about config, dressed up as a failure
+    about the registry. `test_the_purge_hour_env_var_is_honored` covers the
+    override path deliberately; these cover the defaults.
+    """
+    monkeypatch.delenv("IMAGE_CACHE_PURGE_HOUR", raising=False)
+    return build_schedule(CFG)
 
 
 def _field(trigger, name: str) -> str:
     return str(next(f for f in trigger.fields if f.name == name))
 
 
-def test_every_entry_has_a_function_and_a_trigger():
+def test_every_entry_has_a_function_and_a_trigger(triggers):
     for name, spec in JOB_REGISTRY.items():
         assert callable(spec["fn"]), f"{name} has no callable fn"
         assert callable(spec.get("cron")), f"{name} has no cron field factory"
         assert isinstance(spec.get("lock_ttl"), int), f"{name} has no lock_ttl"
-        assert name in TRIGGERS, f"{name} builds no trigger"
+        assert name in triggers, f"{name} builds no trigger"
 
 
 def test_all_three_jobs_are_registered():
@@ -31,11 +46,11 @@ def test_all_three_jobs_are_registered():
     }
 
 
-def test_no_two_jobs_share_a_fire_instant():
+def test_no_two_jobs_share_a_fire_instant(triggers):
     # Cron fires at an exact instant, so two jobs written minute=0 start
     # TOGETHER, not "around" the hour.
     slots = []
-    for name, trigger in TRIGGERS.items():
+    for name, trigger in triggers.items():
         fields = {f.name: str(f) for f in trigger.fields}
         slots.append(
             (fields.get("day_of_week"), fields.get("hour"), fields.get("minute"))
@@ -43,18 +58,18 @@ def test_no_two_jobs_share_a_fire_instant():
     assert len(set(slots)) == len(slots), f"two jobs share a fire instant: {slots}"
 
 
-def test_every_job_fires_inside_the_quiet_window():
+def test_every_job_fires_inside_the_quiet_window(triggers):
     # 01:00-08:00 is the confirmed quiet window (user-confirmed 2026-08-01).
-    for name, trigger in TRIGGERS.items():
+    for name, trigger in triggers.items():
         hour = int(_field(trigger, "hour"))
         assert 1 <= hour < 8, f"{name} fires at {hour}, outside the quiet window"
 
 
-def test_the_sweep_runs_after_the_write():
+def test_the_sweep_runs_after_the_write(triggers):
     # Sweeping first would race the write and could delete the oldest kept
     # snapshot in the same hour the newest arrives.
     def hour(name):
-        return int(_field(TRIGGERS[name], "hour"))
+        return int(_field(triggers[name], "hour"))
 
     assert hour("weekly_snapshot_sweep") > hour("weekly_snapshot_write")
 
