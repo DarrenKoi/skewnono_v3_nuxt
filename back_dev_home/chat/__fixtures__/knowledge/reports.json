@@ -1,0 +1,47 @@
+[
+  {
+    "source_id": "report-measurement-a",
+    "source_type": "report",
+    "title": "Synthetic Monthly Measurement TAT A",
+    "snippet": "The monthly measurement TAT scenario stayed within the simulated target.",
+    "revision": "2026-01",
+    "occurred_at": "2026-01-31T00:00:00Z",
+    "section": "Monthly scenario",
+    "page": 3,
+    "region": "summary-a",
+    "locator": "report-measurement-a#summary",
+    "score": null,
+    "access": {"users": [], "groups": [], "fabs": []},
+    "search_text": "measurement monthly tat scenario synthetic"
+  },
+  {
+    "source_id": "report-measurement-b",
+    "source_type": "report",
+    "title": "Synthetic Monthly Measurement TAT B",
+    "snippet": "The monthly measurement TAT scenario identified a practice queue delay.",
+    "revision": "2026-02",
+    "occurred_at": "2026-02-28T00:00:00Z",
+    "section": "Monthly scenario",
+    "page": 4,
+    "region": "summary-b",
+    "locator": "report-measurement-b#summary",
+    "score": null,
+    "access": {"users": [], "groups": [], "fabs": []},
+    "search_text": "measurement monthly tat scenario synthetic"
+  },
+  {
+    "source_id": "report-measurement-c",
+    "source_type": "report",
+    "title": "Synthetic Monthly Measurement TAT C",
+    "snippet": "The monthly measurement TAT scenario recorded a stable practice result.",
+    "revision": "2026-03",
+    "occurred_at": "2026-03-31T00:00:00Z",
+    "section": "Monthly scenario",
+    "page": 5,
+    "region": "summary-c",
+    "locator": "report-measurement-c#summary",
+    "score": null,
+    "access": {"users": [], "groups": [], "fabs": []},
+    "search_text": "measurement monthly tat scenario synthetic"
+  }
+]

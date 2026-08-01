@@ -1,0 +1,47 @@
+[
+  {
+    "source_id": "email-maintenance-public",
+    "source_type": "email",
+    "title": "Synthetic Maintenance Notice",
+    "snippet": "Scheduled maintenance will pause the sandbox measurement service briefly.",
+    "revision": null,
+    "occurred_at": "2026-04-02T01:00:00Z",
+    "section": "Notice",
+    "page": null,
+    "region": "body",
+    "locator": "email-maintenance-public#notice",
+    "score": null,
+    "access": {"users": [], "groups": [], "fabs": []},
+    "search_text": "maintenance notice scheduled sandbox measurement service"
+  },
+  {
+    "source_id": "email-private-u1",
+    "source_type": "email",
+    "title": "Synthetic Maintenance Follow-up",
+    "snippet": "This private follow-up contains a practice maintenance checklist.",
+    "revision": null,
+    "occurred_at": "2026-04-03T02:00:00Z",
+    "section": "Follow-up",
+    "page": null,
+    "region": "body",
+    "locator": "email-private-u1#follow-up",
+    "score": null,
+    "access": {"users": ["u1"], "groups": [], "fabs": []},
+    "search_text": "maintenance private follow up checklist"
+  },
+  {
+    "source_id": "email-maintenance-fab-sim-a",
+    "source_type": "email",
+    "title": "Synthetic Simulation Area Maintenance",
+    "snippet": "The simulation area maintenance window has moved to the next practice cycle.",
+    "revision": null,
+    "occurred_at": "2026-04-07T03:00:00Z",
+    "section": "Schedule",
+    "page": null,
+    "region": "body",
+    "locator": "email-maintenance-fab-sim-a#schedule",
+    "score": null,
+    "access": {"users": [], "groups": [], "fabs": ["fab-sim-a"]},
+    "search_text": "maintenance simulation area schedule practice"
+  }
+]
