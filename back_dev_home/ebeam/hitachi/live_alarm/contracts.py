@@ -1,8 +1,9 @@
 """Stable response contracts for the live_alarm endpoint.
 
-The writer runs in a different service and does NOT import this module —
-the shared contract is the Redis key layout, not Python types. This file
-is the SKEWNONO-side statement of that same shape.
+The board is refreshed on demand by refresh.py, behind a short cache and a
+lock, rather than by a separate writer service. These constants are the whole
+tuning surface: the cache TTL bounds office API load, the board window bounds
+what the screen shows, and PRUNE_SEC bounds what Redis keeps.
 """
 
 from __future__ import annotations
@@ -18,11 +19,11 @@ __all__ = [
     "AlarmEvent",
     "LiveAlarmPayload",
     "BOARD_WINDOW_SEC",
-    "POLL_WINDOW_SEC",
-    "WRITER_INTERVAL_SEC",
-    "WRITER_PRUNE_SEC",
+    "PRUNE_SEC",
     "STALE_AFTER_SEC",
     "FUTURE_TOLERANCE_SEC",
+    "CACHE_TTL_SEC",
+    "LOCK_TTL_SEC",
     "ALID_KIND",
 ]
 
@@ -31,15 +32,22 @@ Kind = Literal["align", "meas"]
 FeedStatus = Literal["live", "stale", "not_configured"]
 
 BOARD_WINDOW_SEC = 600      # what the reader cuts to — the screen's horizon
-POLL_WINDOW_SEC = 60        # normal writer query window
-WRITER_INTERVAL_SEC = 15    # writer job period
-WRITER_PRUNE_SEC = 900      # what the writer keeps
-STALE_AFTER_SEC = 90        # 6 missed cycles; absorbs uWSGI worker recycles
+PRUNE_SEC = 900             # how much history the ZSET keeps
+STALE_AFTER_SEC = 90        # ~3 missed refreshes at the viewer-driven cadence
 FUTURE_TOLERANCE_SEC = 300  # events dated further ahead than this are dropped
 
-assert WRITER_PRUNE_SEC >= BOARD_WINDOW_SEC, (
-    "WRITER_PRUNE_SEC must be >= BOARD_WINDOW_SEC, otherwise the writer "
-    "deletes events the reader is still supposed to show."
+# How long one successful office call is reused. The in-house alarm API is
+# called at most once per facility per this many seconds, no matter how many
+# viewers are polling or how fast they poll.
+CACHE_TTL_SEC = 20
+# In-flight guard AND failure backoff: the lock is released on success but
+# left to expire on failure, so an office API already in trouble is not
+# retried by every poll of every viewer.
+LOCK_TTL_SEC = 20
+
+assert PRUNE_SEC >= BOARD_WINDOW_SEC, (
+    "PRUNE_SEC must be >= BOARD_WINDOW_SEC, otherwise the refresh deletes "
+    "events the reader is still supposed to show."
 )
 
 ALID_KIND: dict[str, Kind] = {"9006": "align", "9100": "meas"}
@@ -52,7 +60,7 @@ class AlarmEvent(TypedDict):
     kind: Kind
     alarm_name: str
     occurred_at: str     # "YYYY-MM-DD HH:MM:SS+09:00"
-    occurred_epoch: int  # ZSET score; parsed once by the writer
+    occurred_epoch: int  # ZSET score; parsed once at refresh time
     recipe_id: str
     operation_desc: str
     lot_type_cd: str
@@ -62,8 +70,15 @@ class LiveAlarmPayload(TypedDict):
     fab_name: str
     tool_type: ToolType
     feed_status: FeedStatus
-    polled_at: str | None
+    # Last SUCCESSFUL office fetch. None when there has never been one.
+    fetched_at: str | None
+    # Always now - BOARD_WINDOW_SEC for a configured fab: the board covers a
+    # fixed horizon, so this is derived rather than reported by a writer.
     covered_since: str | None
     server_now: str
     board_window_sec: int
+    # Alarms in this facility's feed whose eqp_id is absent from the sem_list
+    # roster, so they belong to no fab. Counted rather than shown: a roster
+    # gap and a genuinely quiet fab would otherwise render identically.
+    unmatched_count: int
     events: list[AlarmEvent]

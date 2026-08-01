@@ -4,14 +4,22 @@ from back_dev_home.ebeam.hitachi.live_alarm import board
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import STALE_AFTER_SEC
 
 
-def _meta(polled_at: int, covered_since: int = 0) -> dict:
-    return {"polled_at": polled_at, "covered_since": covered_since}
+def _meta(fetched_at: int) -> dict:
+    return {"fetched_at": fetched_at}
 
 
 def test_unknown_fab_is_not_configured():
-    # Not in the writer's registry: this fab was never wired, which is a
-    # different fact from "the feed died" and must look different on screen.
+    # The roster holds no tool of this type in this fab, which is a different
+    # fact from "the feed died" and must look different on screen.
     assert board.feed_status_for(_meta(1000), known=False, now=1000) == "not_configured"
+
+
+def test_feed_status_reads_fetched_at_not_polled_at():
+    # polled_at was the writer's heartbeat; fetched_at is stamped only after a
+    # SUCCESSFUL office call. A meta blob carrying the old key must read as
+    # stale rather than being silently accepted as a fresh feed.
+    assert board.feed_status_for({"polled_at": 1000}, known=True, now=1000) == "stale"
+    assert board.feed_status_for(_meta(1000), known=True, now=1000) == "live"
 
 
 def test_missing_meta_on_a_known_fab_is_stale():

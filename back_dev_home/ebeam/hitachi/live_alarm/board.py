@@ -26,15 +26,19 @@ def feed_status_for(meta: dict[str, Any] | None, known: bool, *, now: int) -> Fe
     """Which of the three empty states is this?
 
     "No alarms" is ambiguous on its own: a healthy quiet fab, a dead feed,
-    and an unconfigured fab all render as an empty list. `known` (is this
-    fab in the writer's registry?) separates the third; the heartbeat age
-    separates the first two.
+    and a fab with no tools all render as an empty list. `known` (does the
+    sem_list roster hold any tool of this type in this fab?) separates the
+    third; the age of the last SUCCESSFUL fetch separates the first two.
+
+    `fetched_at` is stamped only after the office call returns, so a failing
+    feed ages into "stale" instead of reporting a fresh heartbeat over data
+    that was never refreshed.
     """
     if not known:
         return "not_configured"
-    if not meta or "polled_at" not in meta:
+    if not meta or "fetched_at" not in meta:
         return "stale"
-    return "live" if now - int(meta["polled_at"]) <= STALE_AFTER_SEC else "stale"
+    return "live" if now - int(meta["fetched_at"]) <= STALE_AFTER_SEC else "stale"
 
 
 def dedupe_by_id(events: Iterable[AlarmEvent]) -> list[AlarmEvent]:
