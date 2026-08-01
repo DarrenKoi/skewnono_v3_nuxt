@@ -97,6 +97,39 @@ def _resolve_fab_name() -> str | None:
     return raw or None
 
 
+def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
+    """The preamble the three tiered read routes share.
+
+    Returns ``(context, None)`` or ``(None, coded_response)``, where context is
+    ``(tool_type, recipe_name, parameter, fab_name)``. Written once because the
+    404 semantics below are argued for at length and were being copied verbatim
+    into each new route — the kind of duplication that drifts silently, since
+    nothing fails when one copy's message or status stops matching the others.
+    """
+    tool_type = _resolve_tool_type(tool_slug)
+    if not tool_type:
+        return None, (jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400)
+
+    recipe_name = (request.args.get("recipe_name") or "").strip()
+    parameter = (request.args.get("parameter") or "").strip()
+    if not recipe_name:
+        return None, (jsonify({"error": "recipe_name is required"}), 400)
+    if needs_parameter and not parameter:
+        return None, (jsonify({"error": "parameter is required"}), 400)
+
+    return (tool_type, recipe_name, parameter, _resolve_fab_name()), None
+
+
+def _parameter_missing(parameter: str):
+    """404 on the PARAMETER, not on an empty result.
+
+    A parameter can legitimately have no measurement point, so collapsing the
+    two would report a typo'd name as "no points" — an answer that looks like
+    data rather than a mistake.
+    """
+    return jsonify({"error": f"parameter not in recipe: {parameter}"}), 404
+
+
 @bp.errorhandler(MsrImageError)
 def _handle_msr_image_error(exc: MsrImageError):
     """Every route in this blueprint answers an unreachable tool the same way.
@@ -150,15 +183,11 @@ def recipe_search_parameters(tool_slug: str):
     returned so a caller can drop straight into POST param-detail for bulk work
     without a second recipe-detail call.
     """
-    tool_type = _resolve_tool_type(tool_slug)
-    if not tool_type:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+    context, failed = _resolve_recipe_request(tool_slug, needs_parameter=False)
+    if failed:
+        return failed
+    tool_type, recipe_name, _, fab_name = context
 
-    recipe_name = (request.args.get("recipe_name") or "").strip()
-    if not recipe_name:
-        return jsonify({"error": "recipe_name is required"}), 400
-
-    fab_name = _resolve_fab_name()
     detail = get_recipe_open_data(
         recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
     )
@@ -172,23 +201,16 @@ def recipe_search_measurement_points(tool_slug: str):
     ``parameter`` is required: the unfiltered table is what recipe-detail
     already returns.
     """
-    tool_type = _resolve_tool_type(tool_slug)
-    if not tool_type:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
-
-    recipe_name = (request.args.get("recipe_name") or "").strip()
-    parameter = (request.args.get("parameter") or "").strip()
-    if not recipe_name or not parameter:
-        return jsonify({"error": "recipe_name and parameter are required"}), 400
+    context, failed = _resolve_recipe_request(tool_slug, needs_parameter=True)
+    if failed:
+        return failed
+    tool_type, recipe_name, parameter, fab_name = context
 
     detail = get_recipe_open_data(
-        recipe_id=recipe_name, fac_id=_resolve_fab_name(), tool_category=tool_type
+        recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
     )
-    # 404 on the PARAMETER, not on an empty point list: a parameter can
-    # legitimately have no measurement point, and collapsing the two would
-    # report a typo'd name as "no points".
     if not param_info.rows_for_parameter(detail, parameter):
-        return jsonify({"error": f"parameter not in recipe: {parameter}"}), 404
+        return _parameter_missing(parameter)
 
     return jsonify(param_info.build_measurement_points(detail, parameter))
 
@@ -201,27 +223,22 @@ def recipe_search_param_info(tool_slug: str):
     idp_image_info rows naming different files. ``include`` narrows what is
     READ, not merely what is returned — see ``param_info._PART_SLOTS``.
     """
-    tool_type = _resolve_tool_type(tool_slug)
-    if not tool_type:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
-
-    recipe_name = (request.args.get("recipe_name") or "").strip()
-    parameter = (request.args.get("parameter") or "").strip()
-    if not recipe_name or not parameter:
-        return jsonify({"error": "recipe_name and parameter are required"}), 400
+    context, failed = _resolve_recipe_request(tool_slug, needs_parameter=True)
+    if failed:
+        return failed
+    tool_type, recipe_name, parameter, fab_name = context
 
     try:
         include = param_info.parse_include(request.args.get("include"))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    fab_name = _resolve_fab_name()
     detail = get_recipe_open_data(
         recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
     )
     rows = param_info.rows_for_parameter(detail, parameter)
     if not rows:
-        return jsonify({"error": f"parameter not in recipe: {parameter}"}), 404
+        return _parameter_missing(parameter)
 
     # An unreachable tool raises SourceUnavailable from deep in the FTP layer
     # and is answered by the blueprint's MsrImageError handler.

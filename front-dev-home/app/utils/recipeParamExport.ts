@@ -127,11 +127,17 @@ function overviewSheet(input: ParamExportInput): ParamSheet {
   return { name: '개요', rows }
 }
 
-function blockSheet(name: string, block: SettingBlock | null | undefined): ParamSheet {
+function blockSheet(
+  name: string,
+  block: SettingBlock | null | undefined,
+  /** Sheets whose shape is promised regardless of the data. AF_PR is
+   *  section/key/value by contract — a file that happened to carry no section
+   *  must not silently demote it to two columns and change the sheet a script
+   *  is parsing. Derivation can only ADD the column, never remove it. */
+  alwaysSectioned = false
+): ParamSheet {
   if (!block) return { name, rows: [[NO_FILE]] }
-  // Derived rather than passed in, so a file that unexpectedly carries sections
-  // keeps them instead of having the column dropped by its call site.
-  const sectioned = block.rows.some(row => row.section != null)
+  const sectioned = alwaysSectioned || block.rows.some(row => row.section != null)
   const rows: ParamCell[][] = [
     [`source: ${block.source}`],
     sectioned ? ['section', 'key', 'value'] : ['key', 'value']
@@ -186,7 +192,7 @@ export function buildParamWorkbook(input: ParamExportInput): ParamWorkbook {
     sheets: [
       overviewSheet(input),
       blockSheet('AMP', input.detail?.amp),
-      blockSheet('AF_PR', input.detail?.af_pr),
+      blockSheet('AF_PR', input.detail?.af_pr, true),
       sheet
     ],
     images

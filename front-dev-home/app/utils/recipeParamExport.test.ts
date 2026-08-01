@@ -115,6 +115,21 @@ test('AF_PR keeps section as its own column, not a flattened label', () => {
   assert.deepEqual(rows[3], ['ADD2', 'MODE', 'MANUAL'])
 })
 
+test('AF_PR keeps three columns even when no row carries a section', () => {
+  // The sheet's shape is a contract a script may parse. Derivation may ADD the
+  // column (see below) but must never be able to take it away.
+  const wb = buildParamWorkbook({
+    ...input([]),
+    detail: {
+      ...DETAIL,
+      af_pr: { source: 'ENMP0000', rows: [{ key: 'MODE', value: 'AUTO' }] }
+    }
+  })
+  const rows = sheet(wb, 'AF_PR').rows
+  assert.deepEqual(rows[1], ['section', 'key', 'value'])
+  assert.deepEqual(rows[2], ['', 'MODE', 'AUTO'])
+})
+
 test('the section column is derived from the rows, not the sheet name', () => {
   // AMP has no sections today, but a file that grows them must not lose the
   // column just because its call site once said "not sectioned".

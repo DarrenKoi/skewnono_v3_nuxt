@@ -174,7 +174,12 @@ def test_include_images_keeps_only_the_three_image_slots():
     assert set(calls[0]["slots"]) == {"img_add1", "image_add3", "img_meas1"}
 
 
-def test_param_info_caps_occurrences():
+def test_param_info_caps_occurrences_and_says_so():
+    """A cap that truncated silently would be the defect occurrences prevents.
+
+    The caller must be able to tell "this parameter has 200 rows" from "this
+    parameter has more and you were given 200".
+    """
     detail = _detail()
     detail["idp_image_info"] = [_row("Para_X", seq) for seq in range(1, 260)]
     out = param_info.build_param_info(
@@ -182,6 +187,26 @@ def test_param_info_caps_occurrences():
         param_info.INCLUDE_PARTS, _fetch_stub([]),
     )
     assert len(out["occurrences"]) == param_info.MAX_OCCURRENCES
+    assert out["total_occurrences"] == 259
+    assert out["truncated"] is True
+
+
+def test_param_info_is_not_flagged_truncated_when_it_is_whole():
+    out = param_info.build_param_info(
+        _detail(), "Para_13", "cd-sem", "M11",
+        param_info.INCLUDE_PARTS, _fetch_stub([]),
+    )
+    assert out["total_occurrences"] == 2
+    assert out["truncated"] is False
+
+
+def test_parameter_list_ignores_rows_with_no_parameter_when_counting():
+    detail = _detail()
+    detail["idp_image_info"] = [*detail["idp_image_info"], _row("", 99)]
+    out = param_info.build_parameter_list(detail, "cd-sem", "M11")
+    assert out["total_rows"] == 4
+    # Para_1 and Para_13 — the blank row is not a third parameter.
+    assert out["distinct_parameters"] == 2
 
 
 def test_param_info_on_an_unknown_parameter_fetches_nothing():

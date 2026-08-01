@@ -45,25 +45,25 @@ __all__ = [
 ]
 
 
-INCLUDE_PARTS: tuple[str, ...] = ("amp", "af_pr", "images")
-
-# Which slot each part's files are named by. Dropping a slot is what makes
-# ``include=`` a real cost control: both adapters plan reads through
-# ``rawfiles.slot_sources``, which reads every slot with ``slots.get(...)``, so
-# an ABSENT key takes the same branch as an empty one and the read never
-# happens. Filtering the RESPONSE instead would cost the same FTP session.
+# Which slot each part's files are named by, taken WHOLE from rawfiles rather
+# than restated. Dropping a slot is what makes ``include=`` a real cost control:
+# both adapters plan reads through ``rawfiles.slot_sources``, which reads every
+# slot with ``slots.get(...)``, so an ABSENT key takes the same branch as an
+# empty one and the read never happens. Filtering the RESPONSE instead would
+# cost the same FTP session.
 #
-# ``images`` is taken FROM rawfiles rather than restated: that module owns the
-# slot->file mapping precisely so it is "parity by construction" rather than by
-# discipline (its own docstring). Restating the tuple here would mean a fourth
-# confirmed image slot silently kept being dropped from ``include=images``,
-# with no test failing — this endpoint would just return fewer images than
-# param-detail does for the same row.
-_PART_SLOTS: dict[str, tuple[str, ...]] = {
-    "amp": ("img_meas2",),
-    "af_pr": ("img_add2",),
-    "images": rawfiles.IMAGE_SLOT_KEYS,
-}
+# That is exactly why the table cannot live here: a slot renamed in
+# ``slot_sources`` but not here would make ``include=amp`` drop the slot the
+# planner still reads from, so the endpoint would return nothing while paying
+# for the file — and no test would fail.
+_PART_SLOTS = rawfiles.PART_SLOTS
+
+# The parts a caller may ask for, in response order. Derived so the two cannot
+# disagree about what a legal part is.
+INCLUDE_PARTS: tuple[str, ...] = ("amp", "af_pr", "images")
+assert set(INCLUDE_PARTS) == set(_PART_SLOTS), (
+    "every include= part must name the slots it reads"
+)
 
 # The ceiling routes.py applies to param-detail's item list, which is where
 # these items end up. Defined here and imported there rather than written twice:
@@ -104,7 +104,13 @@ def build_parameter_list(
         "tool_type": tool_type,
         "locator": detail.get("locator", {}),
         "total_rows": len(rows),
-        "distinct_parameters": len({row.get("Parameter") for row in rows}),
+        # Only rows that actually name a parameter. Counting `row.get(...)`
+        # unguarded lets a sparse office row contribute `None` as if it were a
+        # distinct parameter — invisible against the mock, which always fills
+        # the column.
+        "distinct_parameters": len({
+            row.get("Parameter") for row in rows if row.get("Parameter")
+        }),
         "mother_rows": sum(1 for row in rows if row.get("Mother_Para")),
         "addressing_rows": sum(1 for row in rows if row.get("Addressing")),
         "rows": rows,
@@ -207,6 +213,12 @@ def build_param_info(
     locator = detail.get("locator", {})
     if rows is None:
         rows = rows_for_parameter(detail, parameter)
+    # SAID, not silently done. This function argues a few lines below that
+    # zipping loosely is unacceptable because it would drop occurrences without
+    # a cue; a cap that truncated silently would be the same defect wearing a
+    # constant's name — a caller would read N occurrences and have no way to
+    # know the parameter had more.
+    total_occurrences = len(rows)
     rows = rows[:MAX_OCCURRENCES]
     keep_slots = _slots_to_keep(include)
     items: list[ParamDetailRequestItem] = [
@@ -227,6 +239,8 @@ def build_param_info(
         # Sorted so the echoed list is stable regardless of the frozenset's
         # iteration order — a response field a caller may assert on.
         "include": [part for part in INCLUDE_PARTS if part in include],
+        "total_occurrences": total_occurrences,
+        "truncated": total_occurrences > len(rows),
         # strict=True on purpose. Both adapters contract to return exactly one
         # entry per item; a mismatch means a provider bug, and zipping loosely
         # would silently DROP occurrences — the same class of quiet wrong answer

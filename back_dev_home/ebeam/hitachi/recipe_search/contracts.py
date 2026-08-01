@@ -307,4 +307,10 @@ class ParamInfoResponse(TypedDict):
     parameter: str
     locator: IdpLocator
     include: list[str]
+    # How many rows name this parameter, before the cap. ``truncated`` says
+    # whether ``occurrences`` is the whole story: a cap that quietly shortened
+    # the list would be the very defect ``occurrences`` exists to prevent,
+    # committed by the code meant to prevent it.
+    total_occurrences: int
+    truncated: bool
     occurrences: list[ParamOccurrence]

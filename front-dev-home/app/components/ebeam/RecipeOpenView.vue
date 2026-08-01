@@ -108,31 +108,41 @@
                   variant="outline"
                   icon="i-lucide-file-down"
                   :loading="exporting"
-                  :disabled="paramPending || !paramDetail"
+                  :disabled="exportDisabled"
                   label="Excel 다운로드"
-                  @click="downloadExcel"
+                  @click="downloadExcel(false)"
                 />
-                <UPopover :content="{ align: 'end' }">
+                <UPopover
+                  v-model:open="optionsOpen"
+                  :content="{ align: 'end' }"
+                >
                   <UButton
                     size="xs"
                     color="neutral"
                     variant="ghost"
                     icon="i-lucide-chevron-down"
-                    :disabled="exporting"
+                    :disabled="exportDisabled"
                     aria-label="다운로드 옵션"
                   />
                   <template #content>
-                    <div class="w-64 space-y-2 p-3">
+                    <div class="w-72 space-y-2 p-3">
                       <p class="sk-label">
                         이미지 포함
                       </p>
                       <p class="sk-meta">
-                        측정 이미지는 항상 포함됩니다. Addressing 이미지는 장비에서 파일을 2장 더 받아오므로 필요할 때만 선택하십시오.
+                        측정 이미지는 항상 포함됩니다. Addressing 이미지는 장비에서 파일을 2장 더 받아오므로 필요할 때만 내려받으십시오.
                       </p>
-                      <UCheckbox
-                        v-model="includeAddressing"
+                      <!-- An ACTION, not a remembered setting: a sticky
+                           checkbox would silently change what the main button
+                           does on a later visit. -->
+                      <UButton
                         size="xs"
-                        label="Addressing 이미지 포함"
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-images"
+                        block
+                        label="Addressing 이미지까지 포함해 다운로드"
+                        @click="downloadExcel(true)"
                       />
                     </div>
                   </template>
@@ -416,20 +426,32 @@ watch([paramRequestKey, () => data.value?.locator?.eqp_ip], () => {
   void loadParamDetail()
 }, { immediate: true })
 
-// Addressing images are opt-in: they are two of the three pictures and the ones
-// a reader most often does not need. 측정 이미지 is unconditional.
-const includeAddressing = ref(false)
 const exporting = ref(false)
+const optionsOpen = ref(false)
 const toast = useToast()
 
-const downloadExcel = async () => {
+// One condition for BOTH halves of the control: with separate ones the menu
+// stayed live while the button it belongs to was dead, offering an action that
+// could not run.
+const exportDisabled = computed(() => paramPending.value || !paramDetail.value)
+
+/**
+ * Export the selected row.
+ *
+ * 측정 이미지 is unconditional; Addressing is the caller's choice per click
+ * rather than a remembered setting, so the same button always does the same
+ * thing. They are two of the three pictures and the ones a reader least often
+ * needs, which is why they are not the default.
+ */
+const downloadExcel = async (withAddressing: boolean) => {
   const row = selectedIdp.value
+  optionsOpen.value = false
   if (!row || !paramDetail.value || exporting.value) return
   exporting.value = true
   try {
     const slots = [
       ...EXPORT_IMAGE_SLOTS.measure,
-      ...(includeAddressing.value ? EXPORT_IMAGE_SLOTS.addressing : [])
+      ...(withAddressing ? EXPORT_IMAGE_SLOTS.addressing : [])
     ]
     const workbook = buildParamWorkbook({
       recipeId: titleRecipeName.value,

@@ -34,6 +34,8 @@ __all__ = [
     "ALIGN_OPTICS",
     "EMPTY_SLOT",
     "IMAGE_SLOT_KEYS",
+    "PART_SLOTS",
+    "SETTING_SLOT",
     "SLOT_PREFIX",
     "align_names",
     "align_optics",
@@ -60,6 +62,22 @@ EMPTY_SLOT = "non"
 # have no image of their own; image_add3 breaks the img_* naming run but IS an
 # image, which is exactly why it is listed rather than derived from a prefix.
 IMAGE_SLOT_KEYS: tuple[str, ...] = ("img_add1", "image_add3", "img_meas1")
+
+# The slot each SETTING file is named by. Read by ``slot_sources`` below, so the
+# names exist once rather than as literals inside it — ``param_info`` needs the
+# same mapping to decide which slots an ``include=`` request may drop, and a
+# second copy there would let a renamed slot make ``include=amp`` fetch nothing
+# while ``slot_sources`` kept reading the real file.
+SETTING_SLOT: dict[str, str] = {"amp": "img_meas2", "af_pr": "img_add2"}
+
+# Every part a caller can ask for, to the slots naming its files. The union of
+# these is what ``slot_sources`` consults, which is what makes dropping a slot
+# equivalent to not reading its file.
+PART_SLOTS: dict[str, tuple[str, ...]] = {
+    "amp": (SETTING_SLOT["amp"],),
+    "af_pr": (SETTING_SLOT["af_pr"],),
+    "images": IMAGE_SLOT_KEYS,
+}
 
 # Which optic took an align image, by align point number (user-confirmed
 # 2026-07-29). Align points are not scattered positions on the wafer so much as
@@ -179,8 +197,8 @@ def slot_sources(
     is the thing the contract tests exist to protect — two hand-kept-in-sync
     copies would be parity by discipline instead of by construction.
     """
-    amp = setting_name(slots.get("img_meas2"))
-    af_pr = setting_name(slots.get("img_add2"), pr_to_en=True)
+    amp = setting_name(slots.get(SETTING_SLOT["amp"]))
+    af_pr = setting_name(slots.get(SETTING_SLOT["af_pr"]), pr_to_en=True)
     images = [
         (slot, name, cond_source(name))
         for slot in IMAGE_SLOT_KEYS

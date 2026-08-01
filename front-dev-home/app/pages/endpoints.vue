@@ -268,7 +268,7 @@ const apiGroups: ApiGroup[] = [
       {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-search/param-info',
-        summary: 'parameter의 AMP, AF/PR, 이미지별 빔 조건을 반환합니다. 같은 parameter가 여러 row에 걸쳐 있으면 occurrences 배열로 모두 내려갑니다. 장비 FTP를 읽으므로 occurrence당 최대 5개 파일을 조회합니다.',
+        summary: 'parameter의 AMP, AF/PR, 이미지별 빔 조건을 반환합니다. 같은 parameter가 여러 row에 걸쳐 있으면 occurrences 배열로 모두 내려갑니다(200건 상한, 초과 시 truncated=true와 total_occurrences로 알려 줍니다). 장비 FTP를 읽으므로 occurrence당 최대 5개 파일을 조회합니다.',
         args: [
           TOOL_SLUG_ARG,
           { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름' },
