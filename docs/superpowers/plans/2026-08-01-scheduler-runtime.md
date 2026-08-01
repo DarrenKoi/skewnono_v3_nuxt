@@ -1135,8 +1135,16 @@ def test_default_date_is_a_monday():
 def test_default_date_matches_a_week_the_trend_returns():
     # The mock anchors weeks on BASE_TIME, not today. A snapshot named for a
     # week the trend never returns would be unreadable by construction.
+    #
+    # One lot, not all 4000: this asserts which DATE KEYS come back, and the
+    # key set is identical either way -- while all-lots costs ~35s here.
+    from back_dev_home.ebeam.cdsem.device_statistics.providers.statistics import (
+        _lot_index,
+    )
+
+    one_lot = [next(iter(_lot_index()))]
     payload = build_weekly_snapshot()
-    assert payload["date"] in get_weekly_trend_data(points=8)
+    assert payload["date"] in get_weekly_trend_data(one_lot, points=8)
 
 
 def test_write_then_read_back_round_trips(tmp_path, monkeypatch):
@@ -1184,8 +1192,15 @@ def test_trend_still_returns_every_week_with_no_snapshots(tmp_path, monkeypatch)
     # snapshot. If that rule ever leaks into the mock, a fresh checkout returns
     # 1 date instead of 8 and the trend chart goes blank until eight Mondays
     # have physically passed. The mock computes every week live, on purpose.
+    # One lot, for the same reason as the anchor test above: the guard is
+    # about which dates appear, not which lots.
+    from back_dev_home.ebeam.cdsem.device_statistics.providers.statistics import (
+        _lot_index,
+    )
+
     monkeypatch.setenv("SKEWNONO_WEEKLY_TREND_DIR", str(tmp_path))
-    assert len(get_weekly_trend_data(points=8)) == 8
+    one_lot = [next(iter(_lot_index()))]
+    assert len(get_weekly_trend_data(one_lot, points=8)) == 8
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -1267,7 +1282,10 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
     없습니다(docs/datatables/device_statistics_weekly_trend.txt).
     """
     anchor = date_key or _current_week()
-    trend = get_weekly_trend_data(None, points=8, interval_days=7, include_recipes=False)
+    # points=1, not 8. A snapshot is ONE week, and the mock costs ~4.6s per
+    # week across all 4000 lots -- asking for 8 would make every write eight
+    # times slower for seven buckets thrown away on the next line.
+    trend = get_weekly_trend_data(None, points=1, interval_days=7, include_recipes=False)
     bucket = trend.get(anchor)
     if bucket is None:
         # 요청된 주차가 mock 의 창 밖입니다. 가장 최근 주차로 payload 를 만들되
