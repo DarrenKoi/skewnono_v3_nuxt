@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import openai
 import pytest
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -28,6 +29,7 @@ from back_dev_home.chat.runtime.contracts import (
     RuntimeLimitExceeded,
     RuntimeTimeout,
     RuntimeUnavailable,
+    RuntimeUpstreamError,
 )
 from back_dev_home.chat.runtime.providers import agent, direct
 from back_dev_home.chat.tools import (
@@ -84,6 +86,22 @@ class ScriptedToolModel(BaseChatModel):
         else:
             message = AIMessage(content="", tool_calls=self.calls)
         return ChatResult(generations=[ChatGeneration(message=message)])
+
+
+class FailingModel(BaseChatModel):
+    """Raise one configured model-gateway error when the graph invokes it."""
+
+    error: Any
+
+    @property
+    def _llm_type(self) -> str:
+        return "failing-model"
+
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        raise self.error
 
 
 @pytest.fixture(autouse=True)
@@ -167,6 +185,25 @@ def test_direct_runtime_normalizes_reply_and_preserves_thread_style(monkeypatch)
             {"role": "user", "content": "alarm reset"},
         ],
     }
+
+
+@pytest.mark.parametrize(
+    ("model_error", "runtime_error"),
+    [
+        (llm.ChatTimeout("slow"), RuntimeTimeout),
+        (llm.ChatUpstreamError("offline"), RuntimeUpstreamError),
+    ],
+)
+def test_direct_runtime_normalizes_model_gateway_failures(
+    monkeypatch, model_error, runtime_error
+):
+    def fail(*_args, **_kwargs):
+        raise model_error
+
+    monkeypatch.setattr(llm, "send_chat", fail)
+
+    with pytest.raises(runtime_error):
+        direct.invoke(make_request())
 
 
 def test_direct_selector_does_not_import_agent_or_langchain():
@@ -428,6 +465,36 @@ def test_agent_maps_knowledge_failures_without_fallback(
 
     with pytest.raises(runtime_error):
         agent.invoke(make_request(), model=scripted_manual_model)
+
+
+@pytest.mark.parametrize(
+    ("model_error", "runtime_error"),
+    [
+        (
+            openai.APITimeoutError(httpx.Request("POST", "https://model.test")),
+            RuntimeTimeout,
+        ),
+        (
+            openai.APIConnectionError(
+                message="offline",
+                request=httpx.Request("POST", "https://model.test"),
+            ),
+            RuntimeUpstreamError,
+        ),
+        (httpx.ReadTimeout("slow"), RuntimeTimeout),
+        (httpx.ConnectError("offline"), RuntimeUpstreamError),
+    ],
+)
+def test_agent_normalizes_only_model_gateway_failures(model_error, runtime_error):
+    with pytest.raises(runtime_error):
+        agent.invoke(make_request(), model=FailingModel(error=model_error))
+
+
+def test_agent_does_not_swallow_programmer_errors():
+    with pytest.raises(ValueError, match="broken graph state"):
+        agent.invoke(
+            make_request(), model=FailingModel(error=ValueError("broken graph state"))
+        )
 
 
 def test_agent_policy_precedes_untrusted_thread_style():

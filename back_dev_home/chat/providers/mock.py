@@ -266,6 +266,18 @@ def get_message_by_request(thread_id, request_id, role):
     return message
 
 
+def get_owned_message(user_id, message_id):
+    conn = _connect()
+    row = conn.execute(
+        f"SELECT {_MESSAGE_COLUMNS} FROM messages "
+        "WHERE id=? AND thread_id IN (SELECT id FROM threads WHERE user_id=?)",
+        (message_id, user_id),
+    ).fetchone()
+    message = None if row is None else _hydrate_message(conn, row)
+    conn.close()
+    return message
+
+
 def append_user_message(thread_id, content, request_id):
     conn = _connect()
     existing = _get_message_by_request(conn, thread_id, request_id, "user")

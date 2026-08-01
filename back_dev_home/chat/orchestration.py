@@ -17,6 +17,9 @@ SCOPE_REFUSAL = (
     "이 채팅은 장비 매뉴얼, E-beam 계측, 팀 회의·이메일·보고서 관련 질문을 "
     "지원합니다. 해당 범위의 질문으로 다시 요청해 주세요."
 )
+MIXED_SCOPE_NOTICE = (
+    "지원 범위를 벗어난 부분은 제외하고, 지원되는 업무 관련 질문에만 답변했습니다."
+)
 
 
 class ThreadNotFound(LookupError):
@@ -102,6 +105,8 @@ class ChatOrchestrator:
             "scope_decision": decision,
         }
         result = self._runtime_invoker(runtime_request)
+        if decision["status"] == "mixed":
+            result["content"] = f"{MIXED_SCOPE_NOTICE}\n\n{result['content']}"
         return self._store.complete_turn(thread_id, request_id, result)
 
     @staticmethod

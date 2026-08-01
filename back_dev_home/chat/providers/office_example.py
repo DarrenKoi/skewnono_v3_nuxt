@@ -32,6 +32,7 @@ rename_thread = _not_connected
 delete_thread = _not_connected
 append_message = _not_connected
 get_message_by_request = _not_connected
+get_owned_message = _not_connected
 append_user_message = _not_connected
 set_scope_decision = _not_connected
 complete_turn = _not_connected

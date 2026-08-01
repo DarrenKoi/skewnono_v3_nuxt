@@ -5,7 +5,7 @@ from uuid import UUID
 from flask import Blueprint, g, request
 
 from back_dev_home._auth.errors import error_json
-from back_dev_home.chat import config, data, guard, llm
+from back_dev_home.chat import config, data, guard
 from back_dev_home.chat.orchestration import (
     ModelDoesNotSupportTools,
     ThreadNotFound,
@@ -16,6 +16,7 @@ from back_dev_home.chat.runtime.contracts import (
     RuntimeLimitExceeded,
     RuntimeTimeout,
     RuntimeUnavailable,
+    RuntimeUpstreamError,
 )
 from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
@@ -64,24 +65,15 @@ def _feedback_input(body):
     return {"rating": rating, "reasons": reasons, "comment": comment}
 
 
-def _owned_message(user_id, message_id):
-    for summary in data.list_threads(user_id):
-        thread = data.get_thread(user_id, summary["id"])
-        if thread is None:
-            continue
-        for message in thread["messages"]:
-            if message["id"] == message_id:
-                return message
-    return None
-
-
-def _missing_feedback_target(user_id, message_id):
-    message = _owned_message(user_id, message_id)
-    if message is not None and message["role"] != "assistant":
+def _feedback_target_error(user_id, message_id):
+    message = data.get_owned_message(user_id, message_id)
+    if message is None:
+        return error_json("not_found", "message not found", 404)
+    if message["role"] != "assistant":
         return error_json(
             "bad_request", "feedback is only supported for assistant messages", 400
         )
-    return error_json("not_found", "message not found", 404)
+    return None
 
 
 @bp.get("/chat/models")
@@ -156,14 +148,12 @@ def chat_send_message(thread_id):
         return error_json("runtime_unavailable", str(exc), 503)
     except RuntimeTimeout as exc:
         return error_json("gateway_timeout", str(exc), 504)
+    except RuntimeUpstreamError as exc:
+        return error_json("bad_gateway", str(exc), 502)
     except RuntimeLimitExceeded as exc:
         return error_json("runtime_limit_exceeded", str(exc), 422)
     except guard.ChatEgressBlocked as exc:
         return error_json("egress_blocked", exc.message, 403)
-    except llm.ChatTimeout as exc:
-        return error_json("gateway_timeout", exc.message, 504)
-    except llm.ChatUpstreamError as exc:
-        return error_json("bad_gateway", exc.message, 502)
     return {"data": assistant}
 
 
@@ -175,21 +165,20 @@ def chat_put_feedback(message_id):
     feedback = _feedback_input(body)
     if feedback is None:
         return error_json("bad_request", "invalid feedback", 400)
+    target_error = _feedback_target_error(_uid(), message_id)
+    if target_error is not None:
+        return target_error
     stored = data.put_feedback(_uid(), message_id, feedback)
     if stored is None:
-        return _missing_feedback_target(_uid(), message_id)
+        return error_json("not_found", "message not found", 404)
     return {"data": stored}
 
 
 @bp.delete("/chat/messages/<message_id>/feedback")
 def chat_delete_feedback(message_id):
+    target_error = _feedback_target_error(_uid(), message_id)
+    if target_error is not None:
+        return target_error
     if data.delete_feedback(_uid(), message_id):
         return {"data": {"id": message_id, "feedback": None}}
-    message = _owned_message(_uid(), message_id)
-    if message is None:
-        return error_json("not_found", "message not found", 404)
-    if message["role"] != "assistant":
-        return error_json(
-            "bad_request", "feedback is only supported for assistant messages", 400
-        )
     return {"data": {"id": message_id, "feedback": None}}

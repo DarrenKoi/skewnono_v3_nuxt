@@ -334,6 +334,17 @@ def test_feedback_requires_assistant_ownership(monkeypatch, tmp_path):
     assert data.get_thread("u1", thread["id"])["messages"][-1]["feedback"] is None
 
 
+def test_get_owned_message_hides_other_users_and_preserves_role():
+    thread = data.create_thread("u1", "m1")
+    user_message = data.append_user_message(
+        thread["id"], "alarm", "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    )
+
+    assert data.get_owned_message("u1", user_message["id"])["role"] == "user"
+    assert data.get_owned_message("u2", user_message["id"]) is None
+    assert data.get_owned_message("u1", "missing") is None
+
+
 @pytest.mark.parametrize("cleanup", ["delete", "purge"])
 def test_thread_cleanup_removes_message_children(monkeypatch, tmp_path, cleanup):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))

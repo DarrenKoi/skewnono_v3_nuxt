@@ -6,6 +6,8 @@ import json
 import time
 from typing import Any
 
+import httpx
+import openai
 from langchain.agents import create_agent
 from langchain.agents.middleware import ToolCallLimitMiddleware
 from langchain.agents.middleware.tool_call_limit import ToolCallLimitExceededError
@@ -26,6 +28,7 @@ from back_dev_home.chat.runtime.contracts import (
     RuntimeResult,
     RuntimeTimeout,
     RuntimeUnavailable,
+    RuntimeUpstreamError,
 )
 from back_dev_home.chat.tools import (
     build_search_emails_tool,
@@ -147,6 +150,10 @@ def invoke(
         raise RuntimeTimeout("Knowledge retrieval timed out.") from error
     except KnowledgeUnavailable as error:
         raise RuntimeUnavailable("Knowledge retrieval is unavailable.") from error
+    except (openai.APITimeoutError, httpx.TimeoutException) as error:
+        raise RuntimeTimeout("The model gateway timed out.") from error
+    except (openai.APIError, httpx.HTTPError) as error:
+        raise RuntimeUpstreamError("The model gateway is unavailable.") from error
 
     messages = state["messages"]
     sources, traces = _collect_artifacts(messages, maximum)

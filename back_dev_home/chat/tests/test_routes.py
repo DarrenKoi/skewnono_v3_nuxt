@@ -8,6 +8,7 @@ from back_dev_home.chat.runtime.contracts import (
     RuntimeLimitExceeded,
     RuntimeTimeout,
     RuntimeUnavailable,
+    RuntimeUpstreamError,
 )
 from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
@@ -323,10 +324,16 @@ def test_feedback_missing_or_unowned_message_is_hidden(client):
         assert client.delete(path).status_code == 404
 
 
-def test_feedback_rejects_owned_user_message(client):
+def test_feedback_rejects_owned_user_message_before_writing(client, monkeypatch):
     thread = data.create_thread("u1", "m1")
     user_message = data.append_user_message(thread["id"], "alarm", REQUEST_ID)
     path = f"/api/chat/messages/{user_message['id']}/feedback"
+
+    def unexpected_write(*_args, **_kwargs):
+        pytest.fail("invalid feedback target must be rejected before storage mutation")
+
+    monkeypatch.setattr(data, "put_feedback", unexpected_write)
+    monkeypatch.setattr(data, "delete_feedback", unexpected_write)
 
     assert client.put(path, json={"rating": "up", "reasons": []}).status_code == 400
     assert client.delete(path).status_code == 400
@@ -339,6 +346,7 @@ def test_feedback_rejects_owned_user_message(client):
         (RuntimeUnavailable("offline"), 503),
         (ScopeUnavailable("scope offline"), 503),
         (RuntimeTimeout("slow"), 504),
+        (RuntimeUpstreamError("gateway failed"), 502),
         (RuntimeLimitExceeded("too many"), 422),
     ],
 )

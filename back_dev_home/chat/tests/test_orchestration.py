@@ -230,10 +230,14 @@ def test_mixed_scope_sends_supported_query_but_persists_original(
         runtime_name_finder=lambda: "direct",
     )
 
-    orchestrator.send_message(
+    assistant = orchestrator.send_message(
         "u1", "t1", "alarm reset and movie recommendations", REQUEST_ID
     )
 
+    assert assistant["content"] == (
+        "지원 범위를 벗어난 부분은 제외하고, 지원되는 업무 관련 질문에만 "
+        "답변했습니다.\n\nanswer"
+    )
     assert fake_store.thread["messages"][0]["content"] == (
         "alarm reset and movie recommendations"
     )

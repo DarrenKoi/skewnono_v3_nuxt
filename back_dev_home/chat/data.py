@@ -9,8 +9,9 @@ __all__ = [
     "Message", "Thread", "ThreadDetail", "ThreadSummary",
     "create_thread", "list_threads", "get_thread",
     "rename_thread", "delete_thread", "append_message",
-    "get_message_by_request", "append_user_message", "set_scope_decision",
-    "complete_turn", "put_feedback", "delete_feedback", "purge_expired",
+    "get_message_by_request", "get_owned_message", "append_user_message",
+    "set_scope_decision", "complete_turn", "put_feedback", "delete_feedback",
+    "purge_expired",
 ]
 
 
@@ -48,6 +49,10 @@ def append_message(thread_id, role, content, meta=None):
 
 def get_message_by_request(thread_id, request_id, role):
     return _provider().get_message_by_request(thread_id, request_id, role)
+
+
+def get_owned_message(user_id, message_id):
+    return _provider().get_owned_message(user_id, message_id)
 
 
 def append_user_message(thread_id, content, request_id):

@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from back_dev_home.chat import llm
-from back_dev_home.chat.runtime.contracts import RuntimeRequest, RuntimeResult
+from back_dev_home.chat.runtime.contracts import (
+    RuntimeRequest,
+    RuntimeResult,
+    RuntimeTimeout,
+    RuntimeUpstreamError,
+)
 
 
 def invoke(request: RuntimeRequest) -> RuntimeResult:
@@ -18,7 +23,12 @@ def invoke(request: RuntimeRequest) -> RuntimeResult:
             },
         )
 
-    reply = llm.send_chat(request["model"], messages)
+    try:
+        reply = llm.send_chat(request["model"], messages)
+    except llm.ChatTimeout as error:
+        raise RuntimeTimeout(str(error)) from error
+    except llm.ChatUpstreamError as error:
+        raise RuntimeUpstreamError(str(error)) from error
     return {
         "content": reply["content"],
         "runtime": "direct",

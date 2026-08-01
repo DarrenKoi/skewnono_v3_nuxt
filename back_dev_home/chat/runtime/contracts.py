@@ -44,6 +44,10 @@ class RuntimeTimeout(RuntimeError):
     pass
 
 
+class RuntimeUpstreamError(RuntimeError):
+    pass
+
+
 class RuntimeLimitExceeded(RuntimeError):
     pass
 
