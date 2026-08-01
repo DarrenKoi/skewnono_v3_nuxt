@@ -22,6 +22,15 @@ def test_keep_weeks_reads_the_env(monkeypatch):
     assert keep_weeks() == 4
 
 
+def test_keep_weeks_is_floored_at_one(monkeypatch):
+    # 0 and negatives parse cleanly through int() and would sweep EVERY
+    # snapshot -- unrecoverable, since the source index holds current state
+    # only. Clamp rather than act on an unsafe retention value.
+    for raw in ("0", "-1", "-52"):
+        monkeypatch.setenv("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", raw)
+        assert keep_weeks() == 1, raw
+
+
 def test_keep_weeks_falls_back_on_garbage(monkeypatch):
     monkeypatch.setenv("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", "soon")
     assert keep_weeks() == 12

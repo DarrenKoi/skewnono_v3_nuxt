@@ -23,11 +23,26 @@ logger = logging.getLogger("skewnono.scheduler")
 def keep_weeks() -> int:
     """Retention, in weeks. The screen shows 8 (default ``points``); 12 leaves
     headroom if that is raised. Expected to change once the first snapshot's
-    real size is known, so it is an env var rather than a constant."""
+    real size is known, so it is an env var rather than a constant.
+
+    Floored at 1. ``0`` and negatives parse cleanly through ``int()`` and would
+    mean "delete every snapshot" -- and the snapshots are unrecoverable, since
+    the source index only holds current state. Refusing an unsafe retention
+    value rather than acting on it follows ``msr_image/cache.py``, which raises
+    on an empty cache prefix for the same reason; here we clamp instead of
+    raising because the scheduler must still run its other jobs.
+    """
     try:
-        return int(os.environ.get("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", "").strip())
+        weeks = int(os.environ.get("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", "").strip())
     except ValueError:
         return 12
+    if weeks < 1:
+        logger.warning(
+            "SKEWNONO_WEEKLY_TREND_KEEP_WEEKS=%d would delete every snapshot; "
+            "clamping to 1", weeks,
+        )
+        return 1
+    return weeks
 
 
 def write_weekly_snapshot() -> str:
