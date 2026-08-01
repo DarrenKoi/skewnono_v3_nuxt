@@ -284,7 +284,4 @@ def create_app() -> Flask:
 
     _install_rate_limit(app)
 
-    from back_dev_home.msr_image.scheduler import start_purge_scheduler
-    start_purge_scheduler(app)
-
     return app
