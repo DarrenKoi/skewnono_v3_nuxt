@@ -63,7 +63,9 @@ recipe 단위 상세(*_rcp_info)는 스냅샷에 넣지 않습니다.
     write_weekly_snapshot()          # 이번 주 월요일 키로 적재
     write_weekly_snapshot("2026-07-20")   # 특정 주차 재적재(덮어쓰기, 재실행 안전)
 
-스케줄러 자체는 아직 없습니다 — 사무실에서 붙일 작업입니다.
+스케줄러는 2026-08-01 에 붙었습니다 — back_dev_home/_scheduler/ 의
+weekly_snapshot_write 작업이 월요일 01:00 에 이 함수를 부릅니다.
+사무실에서는 cp office_example.py office.py 만 하면 켜집니다.
 
 읽기 규칙
 ========================================================================
@@ -80,7 +82,10 @@ OFFICE-VERIFY
 
 - 첫 적재 후 실제 객체 크기(device 전체 기준). 예상보다 크면 적재 단위를 fab 별로
   쪼개는 것을 검토합니다.
-- 보존 기간. 화면이 8주(기본 points)만 보므로 그보다 오래된 객체는 지울 수 있으나,
-  MinIO 자격증명이 prefix 로 제한되어 native lifecycle 을 걸 수 없습니다 — 지운다면
-  이미지 캐시처럼 애플리케이션 쪽 sweep 이 필요합니다
-  (docs/datatables/msr_image_ftp.txt 의 보존 정책 참고).
+- 보존 기간은 구현되었습니다. weekly_snapshot_sweep 이 월요일 02:30 에 돌며
+  가장 최근 SKEWNONO_WEEKLY_TREND_KEEP_WEEKS(기본 12) 주차만 남깁니다.
+  **key 의 날짜로 지우며 last_modified 로 하지 않습니다** — 재적재한 과거
+  주차는 last_modified 가 오늘이므로, 그 기준이면 오래된 백필을 남기고
+  정상적인 최근 것을 지웁니다.
+  OFFICE-VERIFY: 첫 sweep 이 지운 개수와 남긴 개수, 그리고 잘못된 prefix 로
+  실행했을 때 AccessDenied 가 삼켜지지 않고 예외로 올라오는지.

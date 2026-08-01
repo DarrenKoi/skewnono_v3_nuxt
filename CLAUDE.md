@@ -92,7 +92,9 @@ assumption).
 
 ### Feature-sliced Backend Layout
 - Each Nuxt feature tab has a matching folder under `back_dev_home/`. Most are top-level (`sem_list/`, `msr_file/`, `msr_image/`, `afm/`, `meas_hist/`, `chat/`, …); the e-beam tabs nest by vendor — `ebeam/hitachi/<feature>/` (`storage`, `skew`, `recipe_tat`, `recipe_search`, `pm_planning`, `fail_issue`, `hardware`, `lateral_recipe`, `live_alarm`) and `ebeam/cdsem/device_statistics/`.
-- Underscore-prefixed folders (`_runtime/`, `_auth/`, `_core/`, `_logging/`, `_spa/`) are shared plumbing, **not** features — the app factory skips them.
+- Underscore-prefixed folders (`_runtime/`, `_auth/`, `_core/`, `_logging/`,
+  `_scheduler/`, `_spa/`) are shared plumbing, **not** features — the app
+  factory skips them.
 - Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs.
 - `back_dev_home/health/` owns the backend service health API. Add shared backend helpers only when a concrete feature needs them.
 - `back_dev_home/__init__.py` is the app factory. Blueprints are **auto-discovered**: it rglobs for `routes.py`, skips any `_`-prefixed path, and registers each module's `bp` under `/api` — raising if a `routes.py` does not export a `Blueprint` named `bp`. Adding a feature means adding the folder; never edit the factory to register it.
@@ -140,6 +142,11 @@ Playwright MCP by hand; see the `verify` skill.
 - `/api/*` is rate-limited to 20 req / 5 s per user — space out curl loops or vary the identity.
 - Identity at home is the `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix = blocked by access control.
 - `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaults on macOS/Python 3.14 when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
+- Periodic jobs live in `back_dev_home/_scheduler/`, not in feature folders.
+  Exactly one process runs them (uWSGI worker 1; the Werkzeug reloader's app
+  child at home). `wsgi.ini`'s `lazy-apps` and `enable-threads` are
+  load-bearing for this — see `docs/deployment.md`. Check runs with
+  `GET /api/health/jobs`.
 
 ## Development Notes
 
