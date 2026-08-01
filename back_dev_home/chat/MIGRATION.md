@@ -164,6 +164,32 @@ purge_expired(days=30)
 selector가 thread storage를 stub으로 전환합니다. 구현과 fake-client 검증 전에는
 복사하지 않습니다.
 
+### Office retention job rollout checklist
+
+Office thread storage는 mock의 list 요청 시 purge에 의존하지 않고 별도 scheduled
+retention job을 운영해야 합니다. 다음 항목의 실제 값은 확인되지 않았으며, 모두 사내
+운영 결정으로 rollout 전에 담당자와 값을 배정하고 승인 기록을 남겨야 합니다.
+
+- [ ] **Owner:** Job 운영 책임자와 부재 시 대응 책임자를 지정합니다. 실제 team 또는
+  담당자 이름은 사내 운영 문서에만 기록합니다.
+- [ ] **Execution schedule:** 실행 주기, timezone, 허용 maintenance window와 중복 실행
+  방지 방식을 결정합니다. 이 문서는 확인되지 않은 시각이나 주기를 기본값으로
+  가정하지 않습니다.
+- [ ] **Purge contract:** Job은 office provider의 `purge_expired(days=...)`와 같은
+  cutoff 의미를 사용합니다. 만료 thread 삭제 시 message, source, tool trace,
+  feedback이 같은 transaction 또는 검증된 cascade로 함께 삭제되어야 하며 orphan
+  row를 허용하지 않습니다.
+- [ ] **Retry와 failure 처리:** Idempotent 재실행 조건, retry 횟수와 backoff,
+  partial failure 복구 절차를 결정합니다. 실패를 성공으로 기록하거나 다음 주기까지
+  조용히 방치하지 않습니다.
+- [ ] **Monitoring과 alerting:** 실행 시작·종료, duration, cutoff, 삭제 건수, failure
+  class를 content 없이 관측하고, failure threshold, alert 수신 경로와 escalation
+  책임자를 지정합니다.
+- [ ] **Verification evidence:** Office-local dry run과 실제 scheduled run의 job ID,
+  적용 cutoff, 삭제·잔존 건수, orphan 0건 확인, 의도적 failure 뒤 retry/alert 결과를
+  승인 기록에 남깁니다. Query, message, feedback 본문이나 credential은 증빙에
+  포함하지 않습니다.
+
 ## Source와 index 준비 checklist
 
 다음 값은 사내에서 실제 system owner와 mapping을 확인한 뒤 office-local 설정 또는
@@ -198,6 +224,14 @@ tool trace, source reference/score, rating/reason/comment가 결합될 수 있�
 업무 데이터로 취급합니다. 이번 scaffold에는 export, dashboard, training dataset 생성이
 포함되지 않습니다. Application log에는 query, answer, retrieval query/snippet, 원문,
 page image, 내부 hostname/index, credential을 남기지 않습니다.
+
+Raw 운영 query, reaction과 tool trace는 원형 그대로 evaluation dataset에 사용하지
+않습니다. 향후 evaluation case가 필요하면 사람이 내용과 권한을 검토하고 식별자·사내
+경로·민감 업무 내용을 de-identify한 case에 한하여, 목적·보존 기간·접근자·삭제 절차를
+정한 별도의 문서 승인을 받은 뒤 포함할 수 있습니다. Human review, de-identification,
+별도 승인은 모두 필수이며 하나라도 없으면 dataset으로 이동하지 않습니다. Evaluation
+export, training dataset 생성과 model training/fine-tuning은 계속 이 scaffold의 범위
+밖입니다.
 
 ## 검증 순서
 
