@@ -12,9 +12,14 @@ __all__ = [
     "CompareRecipe",
     "IdpImageInfoRow",
     "IdpLocator",
+    "MeasurementPointsResponse",
     "ParamDetailRequestItem",
     "ParamDetailResponse",
     "ParamImage",
+    "ParamInfoImage",
+    "ParamInfoResponse",
+    "ParamOccurrence",
+    "ParameterListResponse",
     "RecipeCompareResponse",
     "RecipeDetailResponse",
     "RecipeSearchResponse",
@@ -212,3 +217,86 @@ class RecipeCompareResponse(TypedDict):
     tool_type: ToolType
     fab_name: str | None
     recipes: list[CompareRecipe]
+
+
+# ── tiered read endpoints (spec 2026-08-02) ───────────────────────────────
+#
+# Three responses split on READ COST, not on subject matter. idp_image_info and
+# wafer_mp_info come from the .idp parse already in hand; amp, af_pr and each
+# image's cond cost up to five FTP reads per occurrence off the measuring tool
+# itself. Serving both from one endpoint would make every list-browsing script
+# pay the deep tier's price against a production tool.
+
+
+class ParameterListResponse(TypedDict):
+    """Tier 0 — every idp_image_info row, no tool I/O.
+
+    ``total_rows`` rather than ``total``: the grain is the ROW, and a bare
+    ``total`` is the field a caller misreads as a parameter count. A row of
+    idp_image_info is one image DEFINITION, so one parameter can occupy several
+    rows — ``distinct_parameters`` is carried so the number a user actually
+    wants needs no client-side dedup. ``mother_rows`` and ``addressing_rows``
+    are row counts too, and are named to say so.
+
+    The locator is returned so a caller can drop straight into POST
+    param-detail for bulk work without a second recipe-detail call.
+    """
+    recipe_id: str
+    fab_name: str | None
+    tool_type: ToolType
+    locator: IdpLocator
+    total_rows: int
+    distinct_parameters: int
+    mother_rows: int
+    addressing_rows: int
+    rows: list[IdpImageInfoRow]
+
+
+class MeasurementPointsResponse(TypedDict):
+    """Tier 1 — wafer_mp_info filtered to one parameter. No tool I/O."""
+    recipe_id: str
+    parameter: str
+    total: int
+    points: list[WaferMpInfoRow]
+
+
+# One image slot, flattened. The SettingBlock's file name moves to
+# ``cond_source`` so the rows are a plain list; a caller wanting the block shape
+# verbatim uses param-detail.
+ParamInfoImage = TypedDict("ParamInfoImage", {
+    "slot": str,
+    "stage": str,
+    "name": str,
+    "cond": list[SettingRow],
+    "cond_source": str | None
+})
+
+# One idp_image_info row's worth of raw-folder settings. Every settings key is
+# NotRequired because ``include=`` omits the parts it was not asked for — and
+# omits them by never READING their files, not by deleting them afterwards.
+ParamOccurrence = TypedDict("ParamOccurrence", {
+    "idp": IdpImageInfoRow,
+    "amp": NotRequired[list[SettingRow]],
+    "amp_source": NotRequired[str | None],
+    "af_pr": NotRequired[list[SettingRow]],
+    "af_pr_source": NotRequired[str | None],
+    "images": NotRequired[list[ParamInfoImage]]
+})
+
+
+class ParamInfoResponse(TypedDict):
+    """Tier 2 — the raw-recipe-folder settings for one parameter.
+
+    ★ ``occurrences`` is a LIST because a parameter is not a row: Para_13 at
+      SEQ 4/6 and at SEQ 11/15 name different files. A single-object response
+      would have to pick one silently — the bug a param-keyed cache already
+      caused once (``useRecipeParamDetail.ts:83``), reproduced for every
+      caller instead of just the browser.
+    """
+    recipe_id: str
+    fab_name: str | None
+    tool_type: ToolType
+    parameter: str
+    locator: IdpLocator
+    include: list[str]
+    occurrences: list[ParamOccurrence]
