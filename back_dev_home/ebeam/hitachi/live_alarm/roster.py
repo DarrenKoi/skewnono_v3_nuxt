@@ -22,7 +22,7 @@ from back_dev_home.sem_list.contracts import SemListRow
 __all__ = ["RosterIndex", "build_index", "load_index", "norm"]
 
 
-def norm(value) -> str:
+def norm(value: object) -> str:
     """Roster text arrives from parquet/Redis cells carrying case and spaces.
 
     Public because callers compare their own inputs against index keys, and a
@@ -54,13 +54,6 @@ class RosterIndex:
 
     def placement_of(self, eqp_id: str) -> tuple[str, ToolType] | None:
         return self.placement_by_eqp.get(norm(eqp_id))
-
-    def fabs_for(self, tool_type: ToolType) -> list[str]:
-        """Every fab holding a tool of this family, sorted. Used by the mock."""
-        return sorted(
-            fab for fab, placed_type in self.fac_id_by_placement
-            if placed_type == tool_type
-        )
 
     def eqp_ids_in(self, fab_name: str, tool_type: ToolType) -> list[str]:
         """Every tool of this family in this fab, sorted. Used by the mock."""

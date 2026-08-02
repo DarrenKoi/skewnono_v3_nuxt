@@ -62,7 +62,7 @@ def test_the_office_is_called_again_once_the_ttl_lapses():
 def test_a_concurrent_caller_serves_the_old_board_instead_of_fetching():
     # Simulates the lock being held by another request already in flight.
     client, spy = FakeRedis(), Spy([_row()])
-    _, _, lock_key = refresh.keys(FAC)
+    lock_key = refresh.keys(FAC).lock
     client.set(lock_key, "someone-elses-token", nx=True, ex=LOCK_TTL_SEC)
     _fresh(client, spy, NOW)
     assert spy.calls == []
@@ -90,7 +90,7 @@ def test_a_failed_fetch_backs_off_until_the_lock_expires():
 def test_a_successful_fetch_releases_the_lock_immediately():
     client, spy = FakeRedis(), Spy([_row()])
     _fresh(client, spy, NOW)
-    _, _, lock_key = refresh.keys(FAC)
+    lock_key = refresh.keys(FAC).lock
     assert client.get(lock_key) is None
 
 
@@ -99,7 +99,7 @@ def test_a_slow_fetch_does_not_delete_its_successors_lock():
     # holder's lock expires mid-fetch, a successor takes it, and the original
     # then finishes and releases — which must be a no-op on the new holder.
     client = FakeRedis()
-    _, _, lock_key = refresh.keys(FAC)
+    lock_key = refresh.keys(FAC).lock
 
     def slow(fac_id):
         client.advance(LOCK_TTL_SEC)                      # our lock lapses
@@ -119,7 +119,7 @@ def test_overlapping_snapshots_accumulate_into_one_deduped_board():
     _fresh(client, first, NOW)
     client.advance(CACHE_TTL_SEC)
     _fresh(client, second, NOW + CACHE_TTL_SEC)
-    events_key, _, _ = refresh.keys(FAC)
+    events_key = refresh.keys(FAC).events
     assert len(client.store_zset(events_key)) == 2
 
 
@@ -165,7 +165,19 @@ def test_each_facility_has_its_own_cache_and_lock():
 
 def test_unreadable_meta_is_treated_as_cold_rather_than_fresh():
     client, spy = FakeRedis(), Spy([_row()])
-    _, meta_key, _ = refresh.keys(FAC)
+    meta_key = refresh.keys(FAC).meta
     client.set(meta_key, "{not json")
     _fresh(client, spy, NOW)
     assert spy.calls == [FAC]
+
+
+def test_sibling_fabs_of_one_facility_share_a_single_upstream_call():
+    """The headline claim: M16A/M16B/M16C cost ONE office call between them.
+
+    Each fab resolves to fac_id M16, so the second and third viewers hit a
+    warm cache. Keying by fab_name instead would have made this three.
+    """
+    client, spy = FakeRedis(), Spy([_row()])
+    for _ in ("M16A", "M16B", "M16C"):
+        refresh.ensure_fresh(client, "M16", now=NOW, fetch=spy)
+    assert spy.calls == ["M16"]

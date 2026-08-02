@@ -42,6 +42,15 @@ ZSET accumulates successive snapshots and prunes at PRUNE_SEC, so the board is
 rebuilt correctly whether the office returns a rolling history or only the
 alarms active right now.
 
+OFFICE-VERIFY: whether HV-SEM alarms are in the feed at all. The POC function
+was named `get_cdsem_alarms`. If the feed is CD-SEM-only, `/api/hvsem/live-alarm`
+will read "live" with an empty board forever — the roster resolves TP tools to
+a real fac_id, so it never falls to not_configured. That is a dead feed wearing
+a quiet fab's face, the exact state this feature exists to make visible. If the
+office confirms CD-SEM-only, hv-sem must return not_configured explicitly.
+
+OFFICE-VERIFY: the real fac_id value set beyond R3 / M16.
+
 Office reads take `now` from REDIS's clock, not the app server's, because the
 refresh prunes against that same clock — the two can then never disagree about
 the boundary. This mock uses the local clock, which is the honest home
@@ -133,15 +142,19 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     eqp_ids = index.eqp_ids_in(fab_name, tool_type) or [_UNROSTERED_EQP_ID]
     events = [_event(now, i, eqp_ids[i % len(eqp_ids)]) for i in range(count)]
 
+    # One minute in four the facility feed also carries an alarm from
+    # equipment no roster knows. Generated as a REAL event and then withheld,
+    # rather than incrementing a bare counter, so unmatched_count never claims
+    # more was dropped than the feed actually held — the office computes it
+    # the same way, by counting events it could not attribute.
+    withheld = [_event(now, count, _UNROSTERED_EQP_ID)] if count == 3 else []
+
     return board.payload(
         tool_type=tool_type,
         fab_name=fab_name,
         now=now,
         configured=True,
         meta={"fetched_at": now - 2000 if stale else now},
-        # Non-zero on one minute in four, so the roster-gap line is reachable
-        # at home. A mock that always reported 0 would leave that UI path
-        # unexercised until it first appeared at the office.
-        unmatched_count=1 if count == 3 else 0,
+        unmatched_count=len(withheld),
         events=sorted(events, key=lambda e: e["occurred_epoch"], reverse=True),
     )

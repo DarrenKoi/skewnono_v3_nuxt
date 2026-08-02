@@ -28,9 +28,11 @@ export interface LiveAlarmPayload {
   covered_since: string | null
   server_now: string
   board_window_sec: number
-  // Alarms in this facility's feed whose equipment is absent from the
+  // Alarms in this FACILITY's feed whose equipment is absent from the
   // sem_list roster, so they belong to no fab. Shown as a count, never as
-  // rows: they cannot be attributed to the fab being viewed.
+  // rows: they cannot be attributed to any fab, let alone this one. Scope is
+  // the facility, not the fab — sibling fabs (M16A/B/C) read one shared board
+  // and therefore report the same number.
   unmatched_count: number
   events: LiveAlarmEvent[]
 }

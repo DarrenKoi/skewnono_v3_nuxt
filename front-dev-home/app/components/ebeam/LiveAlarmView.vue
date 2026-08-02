@@ -115,12 +115,16 @@ useHead({
     </div>
 
     <!-- Reported outside the board, not as a row: these alarms belong to no
-         fab, so placing them in this fab's list would be a guess. -->
+         fab, so placing them in this fab's list would be a guess. The count
+         is FACILITY-wide (one office call serves every fab in a fac), which
+         the wording has to say — sibling fabs all show the same number, and
+         "이 팹에서" would be a claim the number cannot support. -->
     <p
       v-if="unmatchedCount > 0"
       class="sk-meta"
     >
-      장비 목록에 없는 알람 {{ unmatchedCount }}건은 표시하지 않았습니다.
+      장비 목록에 없어 팹을 특정할 수 없는 알람이 이 설비군 피드에
+      {{ unmatchedCount }}건 있습니다.
     </p>
   </div>
 </template>

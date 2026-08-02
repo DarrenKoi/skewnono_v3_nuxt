@@ -8,6 +8,7 @@ what the screen shows, and PRUNE_SEC bounds what Redis keeps.
 
 from __future__ import annotations
 
+from datetime import timedelta, timezone
 from typing import Literal, TypedDict
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
@@ -26,7 +27,12 @@ __all__ = [
     "LOCK_TTL_SEC",
     "KEY_TTL_SEC",
     "ALID_KIND",
+    "KST",
 ]
+
+# Korea has no DST, so a fixed +09:00 offset is exact. Declared once here
+# rather than per module: two copies is two places to get an offset wrong.
+KST = timezone(timedelta(hours=9))
 
 
 Kind = Literal["align", "meas"]

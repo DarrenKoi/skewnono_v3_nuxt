@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any, Iterable
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
     BOARD_WINDOW_SEC,
+    KST,
     STALE_AFTER_SEC,
     AlarmEvent,
     FeedStatus,
@@ -22,8 +23,6 @@ from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
 
 
 log = logging.getLogger(__name__)
-
-KST = timezone(timedelta(hours=9))
 
 __all__ = ["feed_status_for", "dedupe_by_id", "parse_members", "iso", "payload"]
 
@@ -109,7 +108,7 @@ def parse_members(raw: Iterable[bytes]) -> list[AlarmEvent]:
     """Decode ZSET members, skipping anything unreadable OR wrong-shaped.
 
     Members outlive the build that wrote them — they sit in Redis for up to
-    TTL_SEC, so a rolling restart or a schema change can leave a member this
+    KEY_TTL_SEC, so a rolling restart or a schema change can leave a member this
     build cannot parse. Dropping that one member beats 500ing the endpoint —
     same leniency `flask_modules`' read_task_logs applies to malformed log
     entries.

@@ -89,10 +89,8 @@ def _build_board(
     meta: dict | None,
 ) -> LiveAlarmPayload:
     """Read one fab's board out of its facility's ZSET. Assumes it is fresh."""
-    events_key, _, _ = refresh.keys(fac_id)
-
     raw = client.zrangebyscore(
-        events_key,
+        refresh.keys(fac_id).events,
         now - BOARD_WINDOW_SEC,
         # Not "+inf": a fast upstream clock would otherwise pin a far-future
         # event to the top of the board forever.

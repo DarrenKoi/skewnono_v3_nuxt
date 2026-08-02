@@ -12,16 +12,15 @@ rows before calling in, so this module stays testable with plain literals.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any
 
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
     ALID_KIND,
     FUTURE_TOLERANCE_SEC,
+    KST,
 )
 
-
-KST = timezone(timedelta(hours=9))
 
 __all__ = ["to_events", "canonical_json"]
 

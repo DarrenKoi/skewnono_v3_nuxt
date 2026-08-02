@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import NamedTuple
 
 from redis.exceptions import LockError
 from redis.lock import Lock
@@ -47,22 +48,29 @@ log = logging.getLogger(__name__)
 
 KEY_PREFIX = "skewnono:live_alarm"
 
-__all__ = ["keys", "read_meta", "ensure_fresh"]
+__all__ = ["BoardKeys", "keys", "read_meta", "ensure_fresh"]
 
 
-def keys(fac_id: str) -> tuple[str, str, str]:
+class BoardKeys(NamedTuple):
+    """Named so callers stop writing ``events_key, _, _ = keys(fac_id)``."""
+
+    events: str
+    meta: str
+    lock: str
+
+
+def keys(fac_id: str) -> BoardKeys:
     """events, meta, lock — all scoped to the FACILITY, not the fab.
 
     fac_id is the granularity the office call is parameterized by, so M16A,
     M16B and M16C share one entry and issue one upstream call between them.
     """
     base = f"{KEY_PREFIX}:{fac_id}"
-    return f"{base}:events", f"{base}:meta", f"{base}:lock"
+    return BoardKeys(f"{base}:events", f"{base}:meta", f"{base}:lock")
 
 
 def read_meta(client, fac_id: str) -> dict | None:
-    _, meta_key, _ = keys(fac_id)
-    raw = client.get(meta_key)
+    raw = client.get(keys(fac_id).meta)
     if not raw:
         return None
     try:
@@ -77,14 +85,17 @@ def read_meta(client, fac_id: str) -> dict | None:
 
 
 def _write_board(client, fac_id: str, events: list[dict], now: int) -> None:
-    events_key, meta_key, _ = keys(fac_id)
+    board_keys = keys(fac_id)
     pipe = client.pipeline()
     if events:
         # redis-py rejects an empty mapping, and a quiet facility is normal.
-        pipe.zadd(events_key, {canonical_json(e): e["occurred_epoch"] for e in events})
-    pipe.zremrangebyscore(events_key, "-inf", now - PRUNE_SEC)
-    pipe.expire(events_key, KEY_TTL_SEC)
-    pipe.set(meta_key, json.dumps({"fetched_at": now}), ex=KEY_TTL_SEC)
+        pipe.zadd(
+            board_keys.events,
+            {canonical_json(e): e["occurred_epoch"] for e in events},
+        )
+    pipe.zremrangebyscore(board_keys.events, "-inf", now - PRUNE_SEC)
+    pipe.expire(board_keys.events, KEY_TTL_SEC)
+    pipe.set(board_keys.meta, json.dumps({"fetched_at": now}), ex=KEY_TTL_SEC)
     pipe.execute()
 
 
@@ -104,8 +115,7 @@ def ensure_fresh(client, fac_id: str, *, now: int, fetch) -> dict | None:
     # compare-and-delete to release, so a fetch that outlived its TTL cannot
     # delete the successor's lock. Same choice _scheduler/locks.py made, and
     # for the same reason — the release script is the driver's, not ours.
-    _, _, lock_key = keys(fac_id)
-    lock = Lock(client, lock_key, timeout=LOCK_TTL_SEC, thread_local=False)
+    lock = Lock(client, keys(fac_id).lock, timeout=LOCK_TTL_SEC, thread_local=False)
     if not lock.acquire(blocking=False):
         return meta   # another request is fetching; serve what is already here
 

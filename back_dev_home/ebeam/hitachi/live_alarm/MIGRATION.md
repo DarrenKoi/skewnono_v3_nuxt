@@ -37,6 +37,25 @@ def get_live_alarms(fac_id: str) -> pd.DataFrame:
 선택 컬럼이 비어 있으면 `NaN` 이어도 됩니다. `normalize.py` 가 `NaN`/`NaT`/
 `None` 을 빈 문자열로 바꿔 화면에 `nan` 이라는 글자가 찍히지 않게 합니다.
 
+### timeout 은 이 함수 안에서 걸어야 합니다
+
+**`get_live_alarms` 는 반드시 자체 timeout 을 걸어야 하며, 그 값은 `LOCK_TTL_SEC`
+(20초)보다 짧아야 합니다.** SKEWNONO 는 이 호출에 timeout 을 걸지 않습니다 —
+조회 수단(HTTP/DB/MES 클라이언트)을 office 쪽만 알기 때문입니다.
+
+20초를 넘기면 락이 만료되어 **다음 요청이 두 번째 조회를 시작합니다.** 느린
+사내 API 앞에서 호출이 겹치는 것이 이 설계가 막으려던 바로 그 상황이므로,
+timeout 은 선택이 아닙니다. 권장값은 connect 3초 / read 7초입니다(예전 writer
+가 쓰던 `LIVE_ALARM_HTTP_TIMEOUT=3,7` 과 같은 값).
+
+```python
+response = requests.get(url, params=..., timeout=(3, 7))
+```
+
+조회가 실패하면 예외를 그대로 올립니다. 빈 DataFrame 을 돌려주면 "조회 성공,
+알람 없음" 으로 기록되어 `fetched_at` 이 갱신되고, 화면은 피드가 죽은 줄
+모르게 됩니다.
+
 ### 인자는 fac_id 입니다
 
 `fac_id` 는 fab 을 묶은 **상위 단위**(`M16`, `R3`)이고, 화면 URL 이 나르는
