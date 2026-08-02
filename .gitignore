@@ -136,7 +136,10 @@ back_dev_home/msr_image/providers/office.py
 #              fabricated recipe data from production, at HTTP 200.
 #   pulled  -> a tracked copy would carry 사내 parser details out of the office.
 # Same rule, same reason, as providers/office.py above.
-/office_utils/
+# No trailing slash on purpose: a dir-only pattern would stop matching the
+# moment office_utils is a symlink to a copy kept outside the worktree (git
+# classifies a symlink as a file), and the link would surface as untracked.
+/office_utils
 
 # Playwright test runner artifacts (the MCP session dumps live in .playwright-mcp/).
 # No leading slash, so this matches at any depth -- front-dev-home/test-results/
