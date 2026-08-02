@@ -167,24 +167,29 @@
             </div>
           </section>
 
-          <section class="grid gap-4 md:grid-cols-3">
-            <div
-              v-for="area in overviewAreas"
-              :key="area.title"
-              class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950"
-            >
-              <div class="flex items-center gap-2">
-                <UIcon
-                  :name="area.icon"
-                  class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
-                />
-                <h2 class="text-base font-semibold">
-                  {{ area.title }}
-                </h2>
+          <section>
+            <h2 class="mb-4 sk-heading">
+              E-Beam Metrology
+            </h2>
+            <div class="grid gap-4 md:grid-cols-3">
+              <div
+                v-for="area in overviewAreas"
+                :key="area.title"
+                class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950"
+              >
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    :name="area.icon"
+                    class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                  />
+                  <h3 class="text-base font-semibold">
+                    {{ area.title }}
+                  </h3>
+                </div>
+                <p class="mt-3 sk-body leading-6">
+                  {{ area.description }}
+                </p>
               </div>
-              <p class="mt-3 sk-body leading-6">
-                {{ area.description }}
-              </p>
             </div>
           </section>
 
@@ -367,19 +372,19 @@ type PageGuide = {
 
 const overviewAreas = [
   {
-    title: '공통',
-    icon: 'i-lucide-layout-grid',
-    description: '홈에서 작업 영역을 선택하고, 개인 설정과 사용 통계를 관리합니다. 운영자는 요청 로그를 추적합니다.'
-  },
-  {
-    title: 'E-Beam Metrology',
+    title: '장비 현황',
     icon: 'i-lucide-microscope',
-    description: 'CD-SEM, HV-SEM 장비 현황과 storage, hardware 상태를 확인하고 recipe 검색, TAT, fail issue, 측정 데이터 분석을 수행합니다.'
+    description: 'Fab별 CD-SEM, HV-SEM 장비 목록과 storage, hardware 보조 서비스 상태를 확인합니다.'
   },
   {
-    title: 'AFM Metrology',
-    icon: 'i-lucide-ruler',
-    description: 'Fab별 AFM tool을 선택해 measurement file을 검색하고, 상세 profile 분석과 여러 측정의 비교를 수행합니다.'
+    title: 'Recipe 분석',
+    icon: 'i-lucide-search-code',
+    description: 'Recipe 검색에서 open recipe 구조, lateral 보유 현황, 측정 이력까지 이어서 확인합니다.'
+  },
+  {
+    title: '계측 데이터 분석',
+    icon: 'i-lucide-chart-no-axes-combined',
+    description: 'Recipe TAT와 fail 이슈, device 통계, MSR 기반 CD 분포와 wafer map을 함께 살펴봅니다.'
   }
 ]
 
@@ -448,6 +453,10 @@ const sectionMeta: { key: GuideSection, label: string, icon: string }[] = [
   { key: 'ebeam', label: 'E-Beam Metrology', icon: 'i-lucide-microscope' },
   { key: 'afm', label: 'AFM Metrology', icon: 'i-lucide-ruler' }
 ]
+
+// 안내에 싣는 section. '공통'은 홈·Settings처럼 자명하거나 관리자 전용 화면이라 제외하고,
+// AFM Metrology는 다음 버전에 공개하므로 지금은 감춰 둡니다 (guide 정의는 그대로 둡니다).
+const visibleSections: GuideSection[] = ['ebeam']
 
 const pageGuides: PageGuide[] = [
   {
@@ -686,16 +695,19 @@ const pageGuides: PageGuide[] = [
   }
 ]
 
+const visiblePageGuides = pageGuides.filter(page => visibleSections.includes(page.section))
+
 const activePageId = ref('overview')
 const selectedPageGuide = computed<PageGuide>(() =>
-  pageGuides.find(page => page.id === activePageId.value) ?? pageGuides[0]!
+  visiblePageGuides.find(page => page.id === activePageId.value) ?? visiblePageGuides[0]!
 )
 
 const guideSections = computed(() =>
   sectionMeta
+    .filter(section => visibleSections.includes(section.key))
     .map(section => ({
       ...section,
-      pages: pageGuides.filter(page => page.section === section.key)
+      pages: visiblePageGuides.filter(page => page.section === section.key)
     }))
     .filter(section => section.pages.length > 0)
 )
