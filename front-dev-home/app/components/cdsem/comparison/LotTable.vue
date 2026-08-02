@@ -164,6 +164,47 @@
           </div>
         </template>
 
+        <template #point_median-cell="{ row }">
+          <span
+            v-if="row.original.has_profile"
+            class="font-mono text-[12px] text-(--sk-ink-muted)"
+          >{{ row.original.point_median }}</span>
+          <span
+            v-else
+            class="text-(--sk-ink-subtle)"
+            :title="text.noProfile"
+          >—</span>
+        </template>
+
+        <template #outlier_count-cell="{ row }">
+          <UButton
+            v-if="row.original.outlier_count > 0"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="-my-1 h-6 gap-1 px-1.5"
+            :aria-label="`${row.original.lot_cd} outlier ${row.original.outlier_count}건 자세히`"
+            @click.stop="emit('open-outliers', row.original.lot_cd)"
+          >
+            <span class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-rose-100 px-1.5 font-mono text-[11px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+              {{ row.original.outlier_count }}
+            </span>
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="h-3 w-3 text-(--sk-ink-subtle)"
+            />
+          </UButton>
+          <span
+            v-else-if="row.original.has_profile"
+            class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-(--sk-surface) px-1.5 font-mono text-[11px] font-semibold tabular-nums text-(--sk-ink-subtle)"
+          >0</span>
+          <span
+            v-else
+            class="text-(--sk-ink-subtle)"
+            :title="text.noProfile"
+          >—</span>
+        </template>
+
         <template #ctn_desc-cell="{ row }">
           <span
             class="block max-w-md truncate text-(--sk-ink-muted)"
@@ -183,18 +224,23 @@ import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import { paraTotal, verdictSortValue, type HealthAugmentedRow } from '~/utils/lotHealth'
 import type { HealthLevel } from '~/utils/ruleEngine'
+import type { ProfiledLotRow } from '~/utils/comparisonRows'
 import { healthSwatches } from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
-  rows: HealthAugmentedRow[]
+  rows: ProfiledLotRow[]
 }>()
 
-const emit = defineEmits<{ (e: 'select-lot', row: HealthAugmentedRow): void }>()
+const emit = defineEmits<{
+  (e: 'select-lot', row: HealthAugmentedRow): void
+  (e: 'open-outliers', lot_cd: string): void
+}>()
 
 const text = {
   title: 'Lot 요약',
-  subtitle: '행을 클릭하면 recipe 상세와 추이를 확인합니다.',
+  subtitle: '행을 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 과다 측정 파라미터를 확인합니다.',
+  noProfile: '이 lot 의 recipe 파라미터를 불러오지 못했습니다',
   empty: '표시할 lot 이 없습니다. 다른 bucket 을 선택해 보세요.',
   copy: '클립보드 복사',
   copyAria: '표를 클립보드에 복사',
@@ -231,7 +277,7 @@ const healthSortValue = (r: HealthAugmentedRow) => verdictSortValue(r.verdict)
 
 const sorting = ref<SortingState>([{ id: 'health', desc: false }])
 
-const columns: TableColumn<HealthAugmentedRow>[] = [
+const columns: TableColumn<ProfiledLotRow>[] = [
   { accessorKey: 'lot_cd', header: 'lot', size: 120 },
   { id: 'stage', accessorFn: r => r.dev_stage, header: 'stage', size: 72 },
   { id: 'health', accessorFn: healthSortValue, header: 'health', size: 90 },
@@ -241,12 +287,17 @@ const columns: TableColumn<HealthAugmentedRow>[] = [
   { id: 'para_total', accessorFn: paraTotal, header: 'para 합계', size: 90 },
   { accessorKey: 'avail_recipe', header: '운용 recipe', size: 100 },
   { accessorKey: 'total_recipe', header: '전체 recipe', size: 100 },
+  // 측정 프로파일 — 과다 측정 디바이스 탐지. 요약 버킷이 아니라 recipe_params 에서
+  // 옵니다(버킷을 바꿔도 기준선이 움직이면 안 되므로).
+  { accessorKey: 'point_median', header: '중앙값', size: 90 },
+  { accessorKey: 'outlier_count', header: 'outlier', size: 90 },
   { accessorKey: 'ctn_desc', header: 'description' }
 ]
 
 const sortableColumnIds = [
   'lot_cd', 'stage', 'health', 'violations', 'coverage',
-  'para_total', 'avail_recipe', 'total_recipe', 'ctn_desc'
+  'para_total', 'avail_recipe', 'total_recipe',
+  'point_median', 'outlier_count', 'ctn_desc'
 ] as const
 
 const getSortIcon = (direction: false | 'asc' | 'desc') => {
@@ -258,12 +309,14 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
 const tableUi = {
   tr: 'cursor-pointer select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  // nowrap: 열이 늘어나 폭이 빠듯해지면 브라우저가 한글 헤더를 글자 단위로 세로
+  // 배열해 버립니다("측/정/중/앙/값"). 줄바꿈을 막고 가로 스크롤로 넘깁니다.
+  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40 whitespace-nowrap'
 }
 
 // Mirror the active column sort so exports match what the user sees;
 // UTable sorts internally and never mutates props.rows.
-const exportSortValue: Record<string, (r: HealthAugmentedRow) => string | number> = {
+const exportSortValue: Record<string, (r: ProfiledLotRow) => string | number> = {
   lot_cd: r => r.lot_cd,
   stage: r => r.dev_stage,
   health: healthSortValue,
@@ -272,6 +325,8 @@ const exportSortValue: Record<string, (r: HealthAugmentedRow) => string | number
   para_total: paraTotal,
   avail_recipe: r => r.avail_recipe,
   total_recipe: r => r.total_recipe,
+  point_median: r => r.point_median,
+  outlier_count: r => r.outlier_count,
   ctn_desc: r => r.ctn_desc
 }
 
@@ -297,13 +352,17 @@ const lotTable = () => {
     'lot_cd', 'fac_id', 'stage', 'health', 'violation_recipes',
     'judged_recipes', 'total_recipes', 'coverage',
     'para_16', 'para_13', 'para_9', 'para_5', 'para_total',
-    'avail_recipe', 'total_recipe', 'ctn_desc'
+    'avail_recipe', 'total_recipe', 'point_median', 'outlier_count', 'ctn_desc'
   ]
+  // 프로파일이 없는 lot 은 0 이 아니라 빈 칸으로 나갑니다 — 표의 "—" 와 같은 뜻이고,
+  // 스프레드시트에서 "측정 0건" 으로 집계되면 안 됩니다.
   const rows = exportRows.value.map(r => [
     r.lot_cd, r.fac_id, r.dev_stage, r.verdict.health ?? '', r.verdict.violation_recipes,
     r.verdict.judged_recipes, r.verdict.total_recipes, r.verdict.coverage.toFixed(3),
     r.para_16, r.para_13, r.para_9, r.para_5, paraTotal(r),
-    r.avail_recipe, r.total_recipe, r.ctn_desc
+    r.avail_recipe, r.total_recipe,
+    r.has_profile ? r.point_median : '', r.has_profile ? r.outlier_count : '',
+    r.ctn_desc
   ])
   return { headers, rows }
 }

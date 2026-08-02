@@ -181,8 +181,9 @@
         </section>
 
         <CdsemComparisonLotTable
-          :rows="augmentedRows"
+          :rows="profiledRows"
           @select-lot="openLotDetail"
+          @open-outliers="openOutlierDrill"
         />
         <CdsemComparisonLotDetailModal
           v-model:open="lotModalOpen"
@@ -190,6 +191,11 @@
           :bucket="selectedBucket"
           :recipe-rows="recipeRowsForBucket"
           :trend="trend ?? null"
+        />
+        <EbeamDevstatDrillSlideover
+          v-model:open="drillOpen"
+          :device="activeDrill"
+          highlight-label="초과"
         />
       </div>
     </template>
@@ -205,6 +211,9 @@ import {
   type HealthAugmentedRow, type RuleSet
 } from '~/utils/lotHealth'
 import type { RecipeInput } from '~/utils/ruleEngine'
+import { buildDeviceOutliers, groupRecipesByLot, attachProfile } from '~/utils/deviceProfile'
+import { toOutlierDrill, type DrillDevice } from '~/utils/deviceDrill'
+import type { ProfiledLotRow } from '~/utils/comparisonRows'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
 
@@ -374,6 +383,15 @@ const lotVerdicts = computed(() =>
 
 const augmentedRows = computed<HealthAugmentedRow[]>(() =>
   rows.value.map(row => augmentRow(row, lotVerdicts.value.get(row.lot_cd)))
+)
+
+// 측정 프로파일(과다 측정 탐지). 별도 페이지였다가 이 표에 합쳤습니다 — 같은
+// grain(디바이스 1행)이라 페이지를 나누면 나머지 열이 전부 중복이었습니다.
+// 이미 받아 둔 recipeParams 를 재사용하므로 추가 요청은 없습니다.
+const deviceOutliers = computed(() => buildDeviceOutliers(recipeParams.value ?? []))
+
+const profiledRows = computed<ProfiledLotRow[]>(() =>
+  augmentedRows.value.map(row => attachProfile(row, deviceOutliers.value.get(row.lot_cd)))
 )
 
 const sortedRows = computed<SummaryRow[]>(() => {
@@ -558,8 +576,21 @@ const openLotDetail = (row: HealthAugmentedRow) => {
   lotModalOpen.value = true
 }
 
+const drillOpen = ref(false)
+const activeDrill = ref<DrillDevice | null>(null)
+
+const openOutlierDrill = (lot_cd: string) => {
+  const recipes = groupRecipesByLot(recipeParams.value ?? []).get(lot_cd) ?? []
+  const result = deviceOutliers.value.get(lot_cd)
+  if (!result) return
+  activeDrill.value = toOutlierDrill(lot_cd, recipes[0]?.ctn_desc ?? '', recipes, result)
+  drillOpen.value = true
+}
+
 // Caps (and therefore health/violations) are bucket-dependent, so an open
 // modal would show stale numbers after a bucket switch — close it instead.
+// The outlier drill is deliberately NOT closed: its baseline is every parameter
+// the device measures, so a bucket switch cannot change what it shows.
 watch(selectedBucket, () => {
   lotModalOpen.value = false
 })
