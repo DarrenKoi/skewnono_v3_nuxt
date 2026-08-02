@@ -356,7 +356,7 @@ useHead({
   title: '소개 | SKEWNONO'
 })
 
-type GuideSection = 'common' | 'ebeam' | 'afm'
+type GuideSection = 'common' | 'ebeam' | 'afm' | 'admin'
 
 type PageGuide = {
   id: string
@@ -451,12 +451,13 @@ const audiences = [
 const sectionMeta: { key: GuideSection, label: string, icon: string }[] = [
   { key: 'common', label: '공통', icon: 'i-lucide-layout-grid' },
   { key: 'ebeam', label: 'E-Beam Metrology', icon: 'i-lucide-microscope' },
-  { key: 'afm', label: 'AFM Metrology', icon: 'i-lucide-ruler' }
+  { key: 'afm', label: 'AFM Metrology', icon: 'i-lucide-ruler' },
+  { key: 'admin', label: '관리자', icon: 'i-lucide-shield-check' }
 ]
 
-// 안내에 싣는 section. '공통'은 홈·Settings처럼 자명하거나 관리자 전용 화면이라 제외하고,
+// 안내에 싣는 section. 관리자 전용 화면은 일반 사용자에게 노출하지 않고,
 // AFM Metrology는 다음 버전에 공개하므로 지금은 감춰 둡니다 (guide 정의는 그대로 둡니다).
-const visibleSections: GuideSection[] = ['ebeam']
+const visibleSections: GuideSection[] = ['common', 'ebeam']
 
 const pageGuides: PageGuide[] = [
   {
@@ -466,7 +467,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-house',
     section: 'common',
     purpose: 'SKEWNONO의 첫 진입 화면입니다.',
-    description: '사용자가 CD-SEM, HV-SEM, AFM 같은 작업 영역을 선택하고 각 장비군의 대표 상태를 빠르게 확인하는 허브 역할을 합니다.',
+    description: 'CD-SEM, HV-SEM 같은 E-Beam 작업 영역을 선택하고 각 장비군의 대표 상태를 빠르게 확인하는 허브 역할을 합니다.',
     users: '일반 엔지니어, 장비 담당자, 신규 사용자',
     notes: ['장비군 선택은 사용자의 의도가 강하므로 상단에서 과도한 교차 전환을 강요하지 않습니다.']
   },
@@ -487,17 +488,17 @@ const pageGuides: PageGuide[] = [
     path: '/activity',
     icon: 'i-lucide-bar-chart-3',
     section: 'common',
-    purpose: '사용자가 SKEWNONO를 어떻게 쓰고 있는지 확인하는 화면입니다.',
-    description: '내 활동 요약과 관리자용 사용자 활동 통계를 보여줍니다.',
-    users: '일반 사용자, 관리자',
-    notes: ['관리자용 전체 사용자 통계는 권한이 필요합니다.']
+    purpose: 'SKEWNONO가 어떻게 쓰이고 있는지 확인하는 화면입니다.',
+    description: '내 최근 활동과 자주 쓰는 기능을 요약하고, 많이 쓰이는 기능과 Fab별 사용 추이를 함께 보여줍니다.',
+    users: '전체 사용자',
+    notes: ['개인 활동과 전체 집계를 나란히 두어 내 사용 패턴을 전체 흐름과 비교할 수 있습니다.']
   },
   {
     id: 'admin-logs',
     title: '운영 로그',
     path: '/admin/logs',
     icon: 'i-lucide-file-search',
-    section: 'common',
+    section: 'admin',
     purpose: '운영자가 요청 로그와 오류를 추적하는 URL-only 화면입니다.',
     description: 'OpenSearch 기반 로그를 level, path, user_id 등으로 필터링해 장애나 사용자 요청 흐름을 확인합니다.',
     users: '관리자, 운영 담당자',
@@ -508,7 +509,7 @@ const pageGuides: PageGuide[] = [
     title: '접근 권한 관리',
     path: '/admin/access',
     icon: 'i-lucide-shield-check',
-    section: 'common',
+    section: 'admin',
     purpose: 'X-사번 차단 규칙의 예외 허용 목록을 관리하는 관리자 전용 화면입니다.',
     description: 'X로 시작하는 사번은 기본 차단되며, 이 화면에서 예외로 허용하거나 최근 차단 시도를 확인해 원클릭으로 허용합니다.',
     users: '관리자',
