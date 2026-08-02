@@ -266,6 +266,34 @@ tool**: these are live metrology recipes on production equipment.
   covers the mapping with hand-built DataFrames and needs neither
   `office_utils` nor `office.py`, so it also runs on a clean checkout.
   Details: `docs/datatables/recipe_idp.txt` §집에서의 대역.
+- **Where the real `office_utils` comes from, and how to get it back.** The
+  office copy is not produced by this repo and is in no commit — `git log
+  --diff-filter=A -- 'office_utils/*'` is empty on every branch. If it is
+  deleted at the office, git cannot restore it; you re-copy it from its
+  original 사내 location.
+
+  | Fact | Value |
+  | --- | --- |
+  | Source path | **OFFICE-VERIFY** — record it here the next time you copy it |
+  | Tracked | never, in either direction (`.gitignore:/office_utils`) |
+  | Restore | re-copy from the source above; do **not** copy the home stand-in |
+
+  It survives `reset --hard`, `checkout`, `restore`, and `stash` already —
+  those only touch tracked paths. The one command that removes it is `git
+  clean` with `-x`/`-X`, which is what happened on 2026-08-03. Two hardenings,
+  either or both:
+
+  1. `git init office_utils/` — `git clean -fdx` skips a nested repository
+     (`Skipping repository office_utils/`) and needs `-ff` to override.
+  2. Keep the package outside the worktree and symlink it in. Imports are
+     unaffected (the repo root is `sys.path[0]`), and `clean -fdx` can then
+     destroy only the link. Do not park the path entry in
+     `.venv/site-packages` — `.venv/` is ignored too, so it is the same
+     `clean -fdx` bait.
+
+  If you restore from a reflog or a backup, confirm you got the real parser
+  and not the stand-in: the stand-in logs `HOME STAND-IN — 파싱하지 않았음`
+  on every call, so that line in an office log means the wrong copy is live.
 - Notes: this endpoint mimics "the IDP payload the frontend will request
   after a user chooses one recipe" (module docstring) — unlike `/recipes`,
   the office implementation is expected to assemble real per-recipe detail
