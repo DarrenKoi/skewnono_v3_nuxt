@@ -2,17 +2,14 @@
   <div class="dashboard-surface flex flex-col gap-3 rounded-2xl p-4 lg:flex-row lg:items-center">
     <div class="min-w-0 flex-1">
       <div class="mb-1.5 flex items-center gap-2">
+        <AppBackButton
+          :to="backRoute"
+          label="Recipe 검색"
+          class="-ml-2"
+        />
         <p class="sk-eyebrow text-(--sk-brand)">
           비교 대상 recipe · {{ selected.length }}
         </p>
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-arrow-left"
-          label="Recipe 검색"
-          :to="backRoute"
-        />
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
         <span

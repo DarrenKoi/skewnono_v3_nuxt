@@ -37,14 +37,9 @@ const items = computed(() => buildRecipeDetailNavItems(
       aria-label="Recipe 상세 화면 이동"
       class="flex flex-wrap items-center gap-2"
     >
-      <UButton
-        size="md"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-arrow-left"
-        label="Recipe 검색으로"
-        class="rounded-full font-semibold"
+      <AppBackButton
         :to="backRoute"
+        label="Recipe 검색으로"
       />
       <div class="inline-flex flex-wrap items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60">
         <UButton

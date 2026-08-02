@@ -8,11 +8,7 @@
       :as-of="data?.date ?? ''"
     >
       <template #leading>
-        <UButton
-          size="sm"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-arrow-left"
+        <AppBackButton
           :label="text.back"
           @click="goBack"
         />

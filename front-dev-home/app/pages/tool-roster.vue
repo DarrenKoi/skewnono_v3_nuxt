@@ -7,14 +7,7 @@
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3">
-            <UButton
-              to="/"
-              size="sm"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-arrow-left"
-              label="뒤로가기"
-            />
+            <AppBackButton to="/" />
             <span
               class="h-6 w-px bg-(--sk-border-soft)"
               aria-hidden="true"

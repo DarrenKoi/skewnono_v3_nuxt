@@ -2,20 +2,27 @@
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <section class="dashboard-surface rounded-3xl p-5 md:p-6">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div class="min-w-0">
-          <AfmBreadcrumb
-            :tool="toolId"
-            :current="filename"
-            class="mb-2"
+        <div class="flex min-w-0 items-start gap-3">
+          <AppBackButton
+            :to="`/afm/${toolId}`"
+            label="Back to search"
+            class="mt-0.5 shrink-0"
           />
-          <h1 class="truncate text-xl md:text-2xl font-semibold tracking-tight font-mono">
-            {{ filename }}
-          </h1>
-          <p class="sk-meta mt-1">
-            {{ toolId.toUpperCase() }}
-            <span v-if="information?.['Recipe ID']"> · {{ information['Recipe ID'] }}</span>
-            <span v-if="information?.['Lot ID']"> · {{ information['Lot ID'] }}</span>
-          </p>
+          <div class="min-w-0">
+            <AfmBreadcrumb
+              :tool="toolId"
+              :current="filename"
+              class="mb-2"
+            />
+            <h1 class="truncate text-xl md:text-2xl font-semibold tracking-tight font-mono">
+              {{ filename }}
+            </h1>
+            <p class="sk-meta mt-1">
+              {{ toolId.toUpperCase() }}
+              <span v-if="information?.['Recipe ID']"> · {{ information['Recipe ID'] }}</span>
+              <span v-if="information?.['Lot ID']"> · {{ information['Lot ID'] }}</span>
+            </p>
+          </div>
         </div>
         <div class="flex flex-wrap gap-2">
           <UDropdownMenu
@@ -33,15 +40,6 @@
               내보내기
             </UButton>
           </UDropdownMenu>
-          <UButton
-            :to="`/afm/${toolId}`"
-            size="sm"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-arrow-left"
-          >
-            Back to search
-          </UButton>
         </div>
       </div>
     </section>

@@ -2,28 +2,26 @@
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <section class="dashboard-surface rounded-3xl p-5 md:p-6">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div class="min-w-0">
-          <AfmBreadcrumb
-            :tool="toolId"
-            current="See Together"
-            class="mb-2"
+        <div class="flex min-w-0 items-start gap-3">
+          <AppBackButton
+            :to="`/afm/${toolId}`"
+            label="Back to search"
+            class="mt-0.5 shrink-0"
           />
-          <h1 class="text-xl md:text-2xl font-semibold tracking-tight">
-            Time series comparison
-          </h1>
-          <p class="sk-meta mt-1">
-            {{ toolName }} - {{ groupedItems.length }} selected measurements
-          </p>
+          <div class="min-w-0">
+            <AfmBreadcrumb
+              :tool="toolId"
+              current="See Together"
+              class="mb-2"
+            />
+            <h1 class="text-xl md:text-2xl font-semibold tracking-tight">
+              Time series comparison
+            </h1>
+            <p class="sk-meta mt-1">
+              {{ toolName }} - {{ groupedItems.length }} selected measurements
+            </p>
+          </div>
         </div>
-        <UButton
-          :to="`/afm/${toolId}`"
-          size="sm"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-arrow-left"
-        >
-          Back to search
-        </UButton>
       </div>
     </section>
 
