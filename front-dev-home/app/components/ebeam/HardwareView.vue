@@ -463,7 +463,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
             <template v-if="servicePending">
               <span class="inline-flex items-center gap-2">
                 <UIcon
-                  name="i-lucide-loader-2"
+                  name="i-lucide-loader-circle"
                   class="h-4 w-4 animate-spin"
                 />
                 {{ activeServiceDetail.label }} 데이터를 불러오는 중...

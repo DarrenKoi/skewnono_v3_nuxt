@@ -1,0 +1,64 @@
+<!--
+  Shown from the first paint until the root Suspense resolves. This app is
+  ssr:false AND app.vue awaits the identity gate before rendering the shell,
+  so without this the whole viewport is blank for the length of that request —
+  the one loading gap no in-app <Suspense> boundary can cover, because the
+  boundary would have to live above app.vue.
+
+  Token values are inlined rather than referenced as var(--sk-*): this markup
+  is in the HTML document before the app stylesheet is guaranteed to have
+  applied, so a var() reference can resolve to nothing and render invisible.
+  Keep the literals in sync with --sk-canvas / --sk-ink-muted in
+  app/assets/css/main.css.
+-->
+<div class="sk-spa-loading" role="status" aria-live="polite">
+  <div class="sk-spa-loading__spinner" aria-hidden="true"></div>
+  <p class="sk-spa-loading__text">스큐노노를 불러오는 중입니다.</p>
+</div>
+
+<style>
+.sk-spa-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  background: oklch(0.96 0.012 80);
+  font-family: 'Spoqa Han Sans Neo', system-ui, sans-serif;
+}
+
+.sk-spa-loading__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid oklch(0.47 0.014 60 / 0.25);
+  border-top-color: oklch(0.47 0.014 60);
+  border-radius: 9999px;
+  animation: sk-spa-spin 0.7s linear infinite;
+}
+
+.sk-spa-loading__text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: oklch(0.47 0.014 60);
+}
+
+@keyframes sk-spa-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Motion is decorative here — the text already carries the message. */
+@media (prefers-reduced-motion: reduce) {
+  .sk-spa-loading__spinner { animation-duration: 2.4s; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .sk-spa-loading { background: oklch(0.21 0.008 70); }
+  .sk-spa-loading__spinner {
+    border-color: oklch(0.74 0.008 70 / 0.25);
+    border-top-color: oklch(0.74 0.008 70);
+  }
+  .sk-spa-loading__text { color: oklch(0.74 0.008 70); }
+}
+</style>

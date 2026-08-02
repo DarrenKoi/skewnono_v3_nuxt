@@ -20,9 +20,11 @@ watch(fabName, (next) => {
 </script>
 
 <template>
-  <EbeamRecipeLateralView
-    :fab="fabName"
-    tool-label="HV-SEM"
-    tool-type="hv-sem"
-  />
+  <AppAsyncBoundary title="Recipe 횡전개 정보를 불러오는 중입니다.">
+    <EbeamRecipeLateralView
+      :fab="fabName"
+      tool-label="HV-SEM"
+      tool-type="hv-sem"
+    />
+  </AppAsyncBoundary>
 </template>

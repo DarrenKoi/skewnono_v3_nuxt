@@ -20,9 +20,11 @@ watch(fabName, (next) => {
 </script>
 
 <template>
-  <EbeamRecipeMeasHistView
-    :fab="fabName"
-    tool-label="HV-SEM"
-    tool-type="hv-sem"
-  />
+  <AppAsyncBoundary title="측정 이력을 불러오는 중입니다.">
+    <EbeamRecipeMeasHistView
+      :fab="fabName"
+      tool-label="HV-SEM"
+      tool-type="hv-sem"
+    />
+  </AppAsyncBoundary>
 </template>

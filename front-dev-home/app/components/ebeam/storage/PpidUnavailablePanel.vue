@@ -43,16 +43,11 @@
       />
     </div>
 
-    <div
+    <AppLoadingState
       v-if="pending"
-      class="flex items-center justify-center gap-2 px-4 py-10 text-sm text-(--sk-ink-muted)"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      PPID 미접속 정보를 불러오는 중입니다.
-    </div>
+      variant="inline"
+      title="PPID 미접속 정보를 불러오는 중입니다."
+    />
     <div
       v-else-if="error"
       class="px-4 py-10 text-center text-sm text-rose-600 dark:text-rose-400"

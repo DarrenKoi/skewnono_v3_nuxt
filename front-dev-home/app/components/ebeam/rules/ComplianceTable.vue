@@ -15,16 +15,11 @@
     >
       {{ text.empty }}
     </div>
-    <div
+    <AppLoadingState
       v-else-if="pending"
-      class="flex items-center justify-center gap-2 py-12 sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      {{ text.loading }}
-    </div>
+      variant="inline"
+      :title="text.loading"
+    />
     <div
       v-else-if="error"
       class="py-12 text-center text-sm text-rose-600 dark:text-rose-300"

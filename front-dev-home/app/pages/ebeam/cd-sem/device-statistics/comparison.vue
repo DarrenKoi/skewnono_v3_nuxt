@@ -103,16 +103,12 @@
         </div>
       </div>
 
-      <div
+      <AppLoadingState
         v-if="pending"
-        class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-12 sk-body"
-      >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="h-4 w-4 animate-spin"
-        />
-        {{ text.loading }}
-      </div>
+        variant="inline"
+        class="dashboard-surface rounded-2xl"
+        :title="text.loading"
+      />
       <div
         v-else-if="error"
         class="dashboard-surface rounded-2xl px-4 py-12 text-center sk-body text-rose-600 dark:text-rose-300"

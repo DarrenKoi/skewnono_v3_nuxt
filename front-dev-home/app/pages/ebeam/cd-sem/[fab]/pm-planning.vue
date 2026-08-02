@@ -1,9 +1,11 @@
 <template>
-  <EbeamPmPlanningView
-    :fab="fabName"
-    tool-label="CD-SEM"
-    tool-type="cd-sem"
-  />
+  <AppAsyncBoundary title="PM 계획 데이터를 불러오는 중입니다.">
+    <EbeamPmPlanningView
+      :fab="fabName"
+      tool-label="CD-SEM"
+      tool-type="cd-sem"
+    />
+  </AppAsyncBoundary>
 </template>
 
 <script setup lang="ts">

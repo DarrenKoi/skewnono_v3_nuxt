@@ -7,16 +7,12 @@
     icon="i-lucide-images"
   >
     <!-- Loading -->
-    <div
+    <AppLoadingState
       v-if="analysis.focusPending.value"
-      class="flex h-96 items-center justify-center gap-2 sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      불러오는 중…
-    </div>
+      variant="inline"
+      class="h-96"
+      title="불러오는 중입니다."
+    />
 
     <!-- ── SINGLE scope: priority visual-evidence review queue ─────────────── -->
     <div

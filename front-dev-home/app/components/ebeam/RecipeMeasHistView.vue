@@ -198,18 +198,10 @@ const tableUi = {
       />
     </div>
 
-    <div
+    <AppLoadingState
       v-else-if="pending"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-      />
-      <p class="mt-2">
-        측정 이력을 불러오는 중입니다.
-      </p>
-    </div>
+      title="측정 이력을 불러오는 중입니다."
+    />
 
     <div
       v-else-if="error"

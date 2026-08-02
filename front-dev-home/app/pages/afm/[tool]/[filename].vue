@@ -46,16 +46,12 @@
       </div>
     </section>
 
-    <div
+    <AppLoadingState
       v-if="pending"
-      class="dashboard-surface flex items-center justify-center gap-2 rounded-2xl px-4 py-16 sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      Loading measurement detail…
-    </div>
+      variant="inline"
+      class="dashboard-surface rounded-2xl"
+      title="측정 상세 정보를 불러오는 중입니다."
+    />
     <div
       v-else-if="error"
       class="dashboard-surface rounded-2xl px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"

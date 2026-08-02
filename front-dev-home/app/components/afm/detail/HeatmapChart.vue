@@ -33,16 +33,12 @@
       </div>
     </template>
 
-    <div
+    <AppLoadingState
       v-if="loading"
-      class="flex h-72 items-center justify-center sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="mr-2 h-4 w-4 animate-spin"
-      />
-      Loading heat map…
-    </div>
+      variant="inline"
+      class="h-72"
+      title="히트맵을 불러오는 중입니다."
+    />
     <div
       v-else-if="profile.length === 0"
       class="flex h-72 items-center justify-center text-center sk-body"

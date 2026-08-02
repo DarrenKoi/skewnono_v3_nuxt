@@ -15,18 +15,10 @@
       @update:selected-eqp-id="selectedEqpId = $event"
     />
 
-    <div
+    <AppLoadingState
       v-if="status === 'pending' && !tools.length"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-2"
-        class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-      />
-      <p class="mt-2">
-        Loading fleet skew snapshot...
-      </p>
-    </div>
+      title="Fleet skew 스냅샷을 불러오는 중입니다."
+    />
 
     <div
       v-else-if="error"

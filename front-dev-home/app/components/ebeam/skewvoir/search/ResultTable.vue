@@ -52,16 +52,11 @@
       />
     </div>
 
-    <div
+    <AppLoadingState
       v-if="bodyState === 'loading'"
-      class="flex items-center justify-center gap-2 px-4 py-12 sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      검색 중입니다.
-    </div>
+      variant="inline"
+      title="검색 중입니다."
+    />
 
     <!-- Default state: no query yet. This is the page's landing state — rows
          are never auto-shown here. -->

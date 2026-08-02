@@ -271,6 +271,35 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 - Don't put a data value below 12px, and don't invent a third sub-12px tier — 10px mono eyebrow and 11px micro-label are the complete list.
 - Don't introduce long transitions, skeletons, or shimmers; `transition-colors duration-200`, `animate-spin`, and `sk-pulse` are the entire motion vocabulary.
 
+## Loading States
+
+Loading is never hand-rolled. Four surfaces cover every case, and a page that
+fetches must use one of them — a frozen previous page is not a loading state.
+
+| Case | Use | Renders |
+|---|---|---|
+| A panel that has not rendered yet | `<AppLoadingState>` (default `variant="block"`) | Own `dashboard-surface` card, indeterminate `UProgress`, centered title + optional `description` |
+| A row *inside* a card that already exists | `<AppLoadingState variant="inline">` | `loader-circle` + `animate-spin` and the title on one centered line, no second surface |
+| A page whose view `await`s its data in setup | `<AppAsyncBoundary title="…">` wrapping the view | A `<Suspense :timeout="0">` whose fallback is the block variant |
+| The app shell, before the identity gate resolves | `app/spa-loading-template.html` | Full-viewport spinner + title; the only loading state outside Vue |
+
+Rules:
+
+- **Never nest surfaces.** `variant="inline"` exists because a block variant
+  inside a `UCard` renders a card within a card. When the inline row *is* the
+  top-level panel, pass `dashboard-surface rounded-2xl` to it instead.
+- **Don't fight the padding.** The variants own their padding; pass sizing
+  (`h-72`, `flex-1`) rather than a competing `py-*`, which is a specificity
+  coin-flip. Tailwind v4 has no `!py-*` prefix escape hatch.
+- **A page-level boundary is required whenever the view awaits.** Without it the
+  suspension bubbles up to Nuxt's `<NuxtPage>` boundary and the router holds the
+  *previous* page on screen with no feedback at all.
+- Copy is Korean and ends in `~중입니다.`; match the wording between a view's
+  first-load and refetch states so the two don't read as different events.
+- Bare-spinner overlays on an image (gallery thumbnails, the lightbox, the
+  evidence drawer) are deliberately **not** `AppLoadingState` — they carry no
+  text and sit on a non-card surface.
+
 ## Responsive Behavior
 
 ### Breakpoints

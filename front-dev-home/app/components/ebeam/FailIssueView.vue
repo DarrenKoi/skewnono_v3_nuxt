@@ -78,18 +78,10 @@
     </div>
 
     <template v-else>
-      <div
+      <AppLoadingState
         v-if="status === 'pending' && !alignRows.length && !measRows.length"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center sk-body"
-      >
-        <UIcon
-          name="i-lucide-loader-2"
-          class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-        />
-        <p class="mt-2">
-          Loading fail-issue data…
-        </p>
-      </div>
+        title="Fail 이슈 데이터를 불러오는 중입니다."
+      />
       <div
         v-else-if="!summary?.total_executions"
         class="dashboard-surface rounded-2xl px-6 py-12 text-center"

@@ -187,16 +187,11 @@
     />
 
     <section class="dashboard-surface overflow-hidden rounded-lg border border-(--sk-border)">
-      <div
+      <AppLoadingState
         v-if="pending"
-        class="flex items-center justify-center gap-2 px-4 py-12 sk-body"
-      >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="h-4 w-4 animate-spin"
-        />
-        Loading logs...
-      </div>
+        variant="inline"
+        title="활동 로그를 불러오는 중입니다."
+      />
 
       <!-- On error, logs still holds the previous page's rows; rendering them
            under the newly requested page number would mislabel stale data. -->

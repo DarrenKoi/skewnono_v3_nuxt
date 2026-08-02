@@ -38,13 +38,10 @@
       v-if="!me && !loadError"
       class="dashboard-surface"
     >
-      <div class="flex items-center justify-center gap-2 py-12 sk-body">
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="animate-spin"
-        />
-        사용 통계를 불러오는 중입니다.
-      </div>
+      <AppLoadingState
+        variant="inline"
+        title="사용 통계를 불러오는 중입니다."
+      />
     </UCard>
 
     <!-- Personal panel: always visible -->

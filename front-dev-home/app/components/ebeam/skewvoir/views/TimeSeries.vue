@@ -137,16 +137,12 @@
           </div>
         </template>
 
-        <div
+        <AppLoadingState
           v-if="analysis.setPending.value"
-          class="flex h-72 items-center justify-center gap-2 sk-body"
-        >
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="h-4 w-4 animate-spin"
-          />
-          추이 데이터를 불러오는 중…
-        </div>
+          variant="inline"
+          class="h-72"
+          title="추이 데이터를 불러오는 중입니다."
+        />
 
         <!-- Fewer than two measurements: the empty state, NOT a lens. Placed
              ahead of the three lens branches so none of them can render a

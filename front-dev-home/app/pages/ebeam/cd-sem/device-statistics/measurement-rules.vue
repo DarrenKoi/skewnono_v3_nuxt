@@ -1,5 +1,7 @@
 <template>
-  <EbeamMeasurementRulesView />
+  <AppAsyncBoundary title="측정 규칙을 불러오는 중입니다.">
+    <EbeamMeasurementRulesView />
+  </AppAsyncBoundary>
 </template>
 
 <script setup lang="ts">

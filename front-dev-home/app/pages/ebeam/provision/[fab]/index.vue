@@ -18,10 +18,12 @@ watch(() => route.params.fab, (newFab) => {
 </script>
 
 <template>
-  <EbeamToolInventoryView
-    tool-type="provision"
-    :fab="fabName"
-    :title="`Provision - ${fabName}`"
-    subtitle="Mocked backend inventory filtered by fab."
-  />
+  <AppAsyncBoundary title="장비 리스트를 불러오는 중입니다.">
+    <EbeamToolInventoryView
+      tool-type="provision"
+      :fab="fabName"
+      :title="`Provision - ${fabName}`"
+      subtitle="Mocked backend inventory filtered by fab."
+    />
+  </AppAsyncBoundary>
 </template>

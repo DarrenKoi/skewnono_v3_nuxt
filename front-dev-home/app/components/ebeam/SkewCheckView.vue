@@ -9,12 +9,10 @@
       :stats="metaStats"
     />
 
-    <div
+    <AppLoadingState
       v-if="pending"
-      class="sk-body"
-    >
-      불러오는 중…
-    </div>
+      title="장비간 스큐 데이터를 불러오는 중입니다."
+    />
     <div
       v-else-if="!payload?.available"
       class="text-sm text-(--sk-bad)"

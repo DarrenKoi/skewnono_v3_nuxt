@@ -20,9 +20,11 @@ watch(fabName, (next) => {
 </script>
 
 <template>
-  <EbeamRecipeSearchView
-    :fab="fabName"
-    tool-label="CD-SEM"
-    tool-type="cd-sem"
-  />
+  <AppAsyncBoundary title="Recipe 목록을 불러오는 중입니다.">
+    <EbeamRecipeSearchView
+      :fab="fabName"
+      tool-label="CD-SEM"
+      tool-type="cd-sem"
+    />
+  </AppAsyncBoundary>
 </template>

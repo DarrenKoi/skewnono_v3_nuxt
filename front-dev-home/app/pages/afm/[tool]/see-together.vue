@@ -144,16 +144,12 @@
         </header>
 
         <div class="p-4">
-          <div
+          <AppLoadingState
             v-if="pending"
-            class="flex h-96 items-center justify-center sk-body"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="mr-2 h-4 w-4 animate-spin"
-            />
-            Loading grouped measurement details...
-          </div>
+            variant="inline"
+            class="h-96"
+            title="측정 상세 데이터를 불러오는 중입니다."
+          />
           <div
             v-else-if="loadedPayloads.length === 0"
             class="flex h-96 items-center justify-center text-center sk-body"

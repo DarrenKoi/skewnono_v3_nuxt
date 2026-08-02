@@ -52,18 +52,10 @@
         @download="downloadExcel"
       />
 
-      <div
+      <AppLoadingState
         v-if="pending"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
-      >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-        />
-        <p class="mt-2">
-          비교 데이터를 불러오는 중입니다.
-        </p>
-      </div>
+        title="비교 데이터를 불러오는 중입니다."
+      />
 
       <div
         v-else-if="error"

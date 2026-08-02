@@ -1,15 +1,11 @@
 <template>
   <div class="space-y-3">
-    <div
+    <AppLoadingState
       v-if="analysis.focusPending.value"
-      class="dashboard-surface flex h-72 items-center justify-center gap-2 rounded-(--sk-r-card) sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      불러오는 중…
-    </div>
+      variant="inline"
+      class="dashboard-surface h-72 rounded-(--sk-r-card)"
+      title="불러오는 중입니다."
+    />
 
     <div
       v-else-if="!params.length"

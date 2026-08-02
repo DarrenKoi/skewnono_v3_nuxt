@@ -233,16 +233,11 @@
             />
           </div>
 
-          <div
+          <AppLoadingState
             v-if="pending"
-            class="flex items-center justify-center gap-2 px-4 py-12 text-sm text-(--sk-ink-muted)"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="h-4 w-4 animate-spin"
-            />
-            {{ text.loading }}
-          </div>
+            variant="inline"
+            :title="text.loading"
+          />
           <div
             v-else-if="error"
             class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"

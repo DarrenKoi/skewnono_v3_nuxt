@@ -209,16 +209,11 @@
           </div>
         </template>
 
-        <div
+        <AppLoadingState
           v-if="hwPending"
-          class="flex items-center justify-center gap-2 py-10 sk-body"
-        >
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="h-4 w-4 animate-spin"
-          />
-          장비 FDC 모니터링 조회 중…
-        </div>
+          variant="inline"
+          title="장비 FDC 모니터링을 조회하는 중입니다."
+        />
         <div
           v-else-if="!hardware || hardware.available === false"
           class="py-10 text-center sk-body"

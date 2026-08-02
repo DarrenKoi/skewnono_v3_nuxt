@@ -79,18 +79,10 @@
 
     <template v-else>
       <!-- Empty / loading state -->
-      <div
+      <AppLoadingState
         v-if="status === 'pending' && !rankingRows.length"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
-      >
-        <UIcon
-          name="i-lucide-loader-2"
-          class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-        />
-        <p class="mt-2">
-          Loading recipe TAT…
-        </p>
-      </div>
+        title="Recipe TAT 데이터를 불러오는 중입니다."
+      />
       <div
         v-else-if="!rankingRows.length"
         class="dashboard-surface rounded-2xl px-6 py-12 text-center"

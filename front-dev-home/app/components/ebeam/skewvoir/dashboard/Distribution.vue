@@ -7,16 +7,12 @@
     icon="i-lucide-bar-chart-3"
     body-class="flex flex-col"
   >
-    <div
+    <AppLoadingState
       v-if="analysis.focusPending.value"
-      class="flex flex-1 items-center justify-center gap-2 sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      불러오는 중…
-    </div>
+      variant="inline"
+      class="flex-1"
+      title="불러오는 중입니다."
+    />
     <EbeamSkewvoirDistributionChart
       v-else-if="hasData"
       :rows="analysis.siteRows.value"

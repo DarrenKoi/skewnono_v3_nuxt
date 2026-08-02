@@ -30,16 +30,12 @@
       />
     </template>
 
-    <div
+    <AppLoadingState
       v-if="analysis.focusPending.value"
-      class="flex flex-1 items-center justify-center gap-2 sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-4 w-4 animate-spin"
-      />
-      불러오는 중…
-    </div>
+      variant="inline"
+      class="flex-1"
+      title="불러오는 중입니다."
+    />
 
     <div
       v-else-if="rows.length"

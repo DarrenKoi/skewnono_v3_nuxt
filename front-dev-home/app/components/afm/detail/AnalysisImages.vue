@@ -21,16 +21,12 @@
       class="w-full"
     >
       <template #content="{ item }">
-        <div
+        <AppLoadingState
           v-if="stateFor(item.value).pending"
-          class="flex h-56 items-center justify-center sk-body"
-        >
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="mr-2 h-4 w-4 animate-spin"
-          />
-          Loading images…
-        </div>
+          variant="inline"
+          class="h-56"
+          title="이미지를 불러오는 중입니다."
+        />
         <div
           v-else-if="stateFor(item.value).images.length === 0"
           class="flex h-56 flex-col items-center justify-center text-center sk-body"

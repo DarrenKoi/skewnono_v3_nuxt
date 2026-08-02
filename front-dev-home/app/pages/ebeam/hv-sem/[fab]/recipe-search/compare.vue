@@ -1,9 +1,11 @@
 <template>
-  <EbeamRecipeCompareView
-    :fab="fabName"
-    tool-label="HV-SEM"
-    tool-type="hv-sem"
-  />
+  <AppAsyncBoundary title="비교 데이터를 불러오는 중입니다.">
+    <EbeamRecipeCompareView
+      :fab="fabName"
+      tool-label="HV-SEM"
+      tool-type="hv-sem"
+    />
+  </AppAsyncBoundary>
 </template>
 
 <script setup lang="ts">

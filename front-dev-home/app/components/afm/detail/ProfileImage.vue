@@ -35,16 +35,12 @@
       </div>
     </template>
 
-    <div
+    <AppLoadingState
       v-if="loading"
-      class="flex h-72 items-center justify-center sk-body"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="mr-2 h-4 w-4 animate-spin"
-      />
-      Loading image…
-    </div>
+      variant="inline"
+      class="h-72"
+      title="이미지를 불러오는 중입니다."
+    />
     <div
       v-else-if="!url"
       class="flex h-72 flex-col items-center justify-center text-center sk-body"

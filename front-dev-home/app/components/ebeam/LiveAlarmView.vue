@@ -106,6 +106,12 @@ useHead({
         />
       </template>
 
+      <AppLoadingState
+        v-else-if="!hasLoaded"
+        variant="inline"
+        title="라이브 알람 피드를 불러오는 중입니다."
+      />
+
       <p
         v-else
         class="px-4 py-10 text-center sk-body text-(--sk-ink-muted)"

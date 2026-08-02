@@ -587,35 +587,19 @@ const openMeasHist = (row: RecipeSearchResult) => {
         </section>
 
         <main class="min-w-0">
-          <div
+          <AppLoadingState
             v-if="viewState === 'catalog-loading'"
-            class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-            />
-            <p class="mt-2">
-              Recipe 목록을 불러오는 중입니다.
-            </p>
-          </div>
+            title="Recipe 목록을 불러오는 중입니다."
+          />
 
           <!-- Before a query exists the guidance lives inline in the lookup
                card above; render nothing here instead of a floating card. -->
           <template v-else-if="viewState === 'idle'" />
 
-          <div
+          <AppLoadingState
             v-else-if="viewState === 'fallback-loading'"
-            class="dashboard-surface rounded-2xl px-6 py-12 text-center text-sm text-(--sk-ink-muted)"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="mx-auto h-5 w-5 animate-spin text-(--sk-ink-muted)"
-            />
-            <p class="mt-2">
-              OpenSearch에서 Recipe를 검색하는 중입니다.
-            </p>
-          </div>
+            title="OpenSearch에서 Recipe를 검색하는 중입니다."
+          />
 
           <div
             v-else-if="viewState === 'empty'"
