@@ -12,12 +12,20 @@
 import { detectDeviceOutliers, type DeviceOutlierResult } from './outlierDetect.ts'
 import type { RecipeInput } from './ruleEngine'
 
+/**
+ * null (not 0) when recipe_params has nothing for the lot — "측정 0건" and "아직
+ * 안 왔다" must stay distinguishable all the way to the CSV, and a nullable
+ * number says that in the type instead of pairing a zero with a boolean flag.
+ */
 export interface DeviceProfile {
   /** Median point_count across every parameter the device measures. */
-  point_median: number
+  point_median: number | null
   /** Parameters whose point_count exceeds median × multiplier. */
-  outlier_count: number
+  outlier_count: number | null
 }
+
+/** A row of some other surface, joined with its measurement profile. */
+export type Profiled<T> = T & DeviceProfile
 
 /** Group flat recipe rows by device. Exported so the drill-down can reuse it. */
 export const groupRecipesByLot = (recipes: RecipeInput[]): Map<string, RecipeInput[]> => {
@@ -30,25 +38,24 @@ export const groupRecipesByLot = (recipes: RecipeInput[]): Map<string, RecipeInp
   return map
 }
 
-/** lot_cd → full outlier result (median, threshold, and the flagged parameters). */
-export const buildDeviceOutliers = (recipes: RecipeInput[]): Map<string, DeviceOutlierResult> => {
+/**
+ * lot_cd → full outlier result (median, threshold, and the flagged parameters).
+ *
+ * Takes the grouped map rather than the flat rows so the caller can keep the
+ * grouping: the drill-down needs the same `RecipeInput[]` this walks, and
+ * regrouping the whole payload to recover one lot is a full re-scan per click.
+ */
+export const buildDeviceOutliers = (byLot: Map<string, RecipeInput[]>): Map<string, DeviceOutlierResult> => {
   const out = new Map<string, DeviceOutlierResult>()
-  for (const [lot_cd, rows] of groupRecipesByLot(recipes)) {
+  for (const [lot_cd, rows] of byLot) {
     out.set(lot_cd, detectDeviceOutliers(rows))
   }
   return out
 }
 
-/**
- * Attach the profile metrics to a summary row.
- *
- * A missing result is NOT zero-filled into `point_median: 0` and left at that —
- * the caller needs to tell "measured 0" apart from "recipe_params hasn't landed
- * for this lot", so `has_profile` carries that distinction to the cell renderer.
- */
-export const attachProfile = <T>(row: T, result: DeviceOutlierResult | undefined): T & DeviceProfile & { has_profile: boolean } => ({
+/** Attach the profile metrics to a row of another surface (a bucket summary row). */
+export const attachProfile = <T>(row: T, result: DeviceOutlierResult | undefined): Profiled<T> => ({
   ...row,
-  point_median: result?.median ?? 0,
-  outlier_count: result?.outlier_count ?? 0,
-  has_profile: result !== undefined
+  point_median: result?.median ?? null,
+  outlier_count: result?.outlier_count ?? null
 })

@@ -166,19 +166,24 @@
 
         <template #point_median-cell="{ row }">
           <span
-            v-if="row.original.has_profile"
-            class="font-mono text-[12px] text-(--sk-ink-muted)"
-          >{{ row.original.point_median }}</span>
-          <span
-            v-else
+            v-if="row.original.point_median === null"
             class="text-(--sk-ink-subtle)"
             :title="text.noProfile"
           >—</span>
+          <span
+            v-else
+            class="font-mono text-[12px] text-(--sk-ink-muted)"
+          >{{ row.original.point_median }}</span>
         </template>
 
         <template #outlier_count-cell="{ row }">
+          <span
+            v-if="row.original.outlier_count === null"
+            class="text-(--sk-ink-subtle)"
+            :title="text.noProfile"
+          >—</span>
           <UButton
-            v-if="row.original.outlier_count > 0"
+            v-else-if="row.original.outlier_count > 0"
             size="xs"
             color="neutral"
             variant="ghost"
@@ -186,7 +191,7 @@
             :aria-label="`${row.original.lot_cd} outlier ${row.original.outlier_count}건 자세히`"
             @click.stop="emit('open-outliers', row.original.lot_cd)"
           >
-            <span class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-rose-100 px-1.5 font-mono text-[11px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
+            <span :class="[countPill, 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300']">
               {{ row.original.outlier_count }}
             </span>
             <UIcon
@@ -195,14 +200,9 @@
             />
           </UButton>
           <span
-            v-else-if="row.original.has_profile"
-            class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-(--sk-surface) px-1.5 font-mono text-[11px] font-semibold tabular-nums text-(--sk-ink-subtle)"
-          >0</span>
-          <span
             v-else
-            class="text-(--sk-ink-subtle)"
-            :title="text.noProfile"
-          >—</span>
+            :class="[countPill, 'bg-(--sk-surface) text-(--sk-ink-subtle)']"
+          >0</span>
         </template>
 
         <template #ctn_desc-cell="{ row }">
@@ -224,12 +224,12 @@ import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import { paraTotal, verdictSortValue, type HealthAugmentedRow } from '~/utils/lotHealth'
 import type { HealthLevel } from '~/utils/ruleEngine'
-import type { ProfiledLotRow } from '~/utils/comparisonRows'
+import type { Profiled } from '~/utils/deviceProfile'
 import { healthSwatches } from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
-  rows: ProfiledLotRow[]
+  rows: Profiled<HealthAugmentedRow>[]
 }>()
 
 const emit = defineEmits<{
@@ -248,6 +248,9 @@ const text = {
 } as const
 
 const healthLevels: HealthLevel[] = ['red', 'yellow', 'green']
+
+// Shared box for the outlier count so the alert and zero states can't drift apart.
+const countPill = 'inline-flex h-5 min-w-7 items-center justify-center rounded px-1.5 font-mono text-[11px] font-semibold tabular-nums'
 
 const counts = computed<Record<HealthLevel, number>>(() => ({
   red: props.rows.filter(r => r.verdict.health === 'red').length,
@@ -275,9 +278,14 @@ const coverageTitle = (r: HealthAugmentedRow) => {
 // 정렬은 lotHealth 가 정의합니다 — 판정 없음이 항상 맨 뒤로 갑니다.
 const healthSortValue = (r: HealthAugmentedRow) => verdictSortValue(r.verdict)
 
+// 프로파일이 없는 lot 은 -1 로 정렬합니다. null 을 그대로 넘기면 표(TanStack)와
+// CSV 가 각자 다른 규칙으로 섞어 두 결과가 어긋납니다.
+const profileSortValue = (key: 'point_median' | 'outlier_count') =>
+  (r: Profiled<HealthAugmentedRow>) => r[key] ?? -1
+
 const sorting = ref<SortingState>([{ id: 'health', desc: false }])
 
-const columns: TableColumn<ProfiledLotRow>[] = [
+const columns: TableColumn<Profiled<HealthAugmentedRow>>[] = [
   { accessorKey: 'lot_cd', header: 'lot', size: 120 },
   { id: 'stage', accessorFn: r => r.dev_stage, header: 'stage', size: 72 },
   { id: 'health', accessorFn: healthSortValue, header: 'health', size: 90 },
@@ -289,8 +297,8 @@ const columns: TableColumn<ProfiledLotRow>[] = [
   { accessorKey: 'total_recipe', header: '전체 recipe', size: 100 },
   // 측정 프로파일 — 과다 측정 디바이스 탐지. 요약 버킷이 아니라 recipe_params 에서
   // 옵니다(버킷을 바꿔도 기준선이 움직이면 안 되므로).
-  { accessorKey: 'point_median', header: '중앙값', size: 90 },
-  { accessorKey: 'outlier_count', header: 'outlier', size: 90 },
+  { id: 'point_median', accessorFn: profileSortValue('point_median'), header: '중앙값', size: 90 },
+  { id: 'outlier_count', accessorFn: profileSortValue('outlier_count'), header: 'outlier', size: 90 },
   { accessorKey: 'ctn_desc', header: 'description' }
 ]
 
@@ -316,7 +324,7 @@ const tableUi = {
 
 // Mirror the active column sort so exports match what the user sees;
 // UTable sorts internally and never mutates props.rows.
-const exportSortValue: Record<string, (r: ProfiledLotRow) => string | number> = {
+const exportSortValue: Record<string, (r: Profiled<HealthAugmentedRow>) => string | number> = {
   lot_cd: r => r.lot_cd,
   stage: r => r.dev_stage,
   health: healthSortValue,
@@ -325,8 +333,8 @@ const exportSortValue: Record<string, (r: ProfiledLotRow) => string | number> = 
   para_total: paraTotal,
   avail_recipe: r => r.avail_recipe,
   total_recipe: r => r.total_recipe,
-  point_median: r => r.point_median,
-  outlier_count: r => r.outlier_count,
+  point_median: profileSortValue('point_median'),
+  outlier_count: profileSortValue('outlier_count'),
   ctn_desc: r => r.ctn_desc
 }
 
@@ -361,7 +369,7 @@ const lotTable = () => {
     r.verdict.judged_recipes, r.verdict.total_recipes, r.verdict.coverage.toFixed(3),
     r.para_16, r.para_13, r.para_9, r.para_5, paraTotal(r),
     r.avail_recipe, r.total_recipe,
-    r.has_profile ? r.point_median : '', r.has_profile ? r.outlier_count : '',
+    r.point_median ?? '', r.outlier_count ?? '',
     r.ctn_desc
   ])
   return { headers, rows }

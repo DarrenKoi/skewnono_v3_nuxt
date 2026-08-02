@@ -211,9 +211,8 @@ import {
   type HealthAugmentedRow, type RuleSet
 } from '~/utils/lotHealth'
 import type { RecipeInput } from '~/utils/ruleEngine'
-import { buildDeviceOutliers, groupRecipesByLot, attachProfile } from '~/utils/deviceProfile'
+import { buildDeviceOutliers, groupRecipesByLot, attachProfile, type Profiled } from '~/utils/deviceProfile'
 import { toOutlierDrill, type DrillDevice } from '~/utils/deviceDrill'
-import type { ProfiledLotRow } from '~/utils/comparisonRows'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
 
@@ -388,9 +387,15 @@ const augmentedRows = computed<HealthAugmentedRow[]>(() =>
 // 측정 프로파일(과다 측정 탐지). 별도 페이지였다가 이 표에 합쳤습니다 — 같은
 // grain(디바이스 1행)이라 페이지를 나누면 나머지 열이 전부 중복이었습니다.
 // 이미 받아 둔 recipeParams 를 재사용하므로 추가 요청은 없습니다.
-const deviceOutliers = computed(() => buildDeviceOutliers(recipeParams.value ?? []))
+//
+// 묶기는 한 번만 합니다. drill 이 필요로 하는 것도 여기서 만든 바로 그
+// RecipeInput[] 이라, 클릭할 때마다 전체 payload(lot 당 약 124 KB)를 다시
+// 훑지 않게 map 을 그대로 들고 갑니다.
+const recipesByLot = computed(() => groupRecipesByLot(recipeParams.value ?? []))
 
-const profiledRows = computed<ProfiledLotRow[]>(() =>
+const deviceOutliers = computed(() => buildDeviceOutliers(recipesByLot.value))
+
+const profiledRows = computed<Profiled<HealthAugmentedRow>[]>(() =>
   augmentedRows.value.map(row => attachProfile(row, deviceOutliers.value.get(row.lot_cd)))
 )
 
@@ -580,7 +585,7 @@ const drillOpen = ref(false)
 const activeDrill = ref<DrillDevice | null>(null)
 
 const openOutlierDrill = (lot_cd: string) => {
-  const recipes = groupRecipesByLot(recipeParams.value ?? []).get(lot_cd) ?? []
+  const recipes = recipesByLot.value.get(lot_cd) ?? []
   const result = deviceOutliers.value.get(lot_cd)
   if (!result) return
   activeDrill.value = toOutlierDrill(lot_cd, recipes[0]?.ctn_desc ?? '', recipes, result)

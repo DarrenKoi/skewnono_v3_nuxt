@@ -34,10 +34,10 @@ test('groupRecipesByLot: empty input → empty map', () => {
 test('buildDeviceOutliers: each device gets its OWN baseline, not a fleet-wide one', () => {
   // R000 measures ~10 points; R0A1 measures ~100. If the baseline were pooled,
   // every R0A1 parameter would read as an outlier of R000's median.
-  const map = buildDeviceOutliers([
+  const map = buildDeviceOutliers(groupRecipesByLot([
     recipe('R000', 'A', [10, 10, 10, 12]),
     recipe('R0A1', 'B', [100, 100, 100, 120])
-  ])
+  ]))
   assert.equal(map.get('R000')!.median, 10)
   assert.equal(map.get('R0A1')!.median, 100)
   assert.equal(map.get('R000')!.outlier_count, 0)
@@ -45,7 +45,7 @@ test('buildDeviceOutliers: each device gets its OWN baseline, not a fleet-wide o
 })
 
 test('buildDeviceOutliers: flags a parameter above median × 2', () => {
-  const map = buildDeviceOutliers([recipe('R000', 'A', [10, 10, 10, 50])])
+  const map = buildDeviceOutliers(groupRecipesByLot([recipe('R000', 'A', [10, 10, 10, 50])]))
   const r = map.get('R000')!
   assert.equal(r.median, 10)
   assert.equal(r.outlier_count, 1)
@@ -58,15 +58,15 @@ test('attachProfile: merges metrics onto the row without dropping its own fields
   assert.equal(out.lot_cd, 'R000')
   assert.equal(out.avail_recipe, 42)
   assert.equal(out.point_median, 128)
-  assert.equal(out.has_profile, true)
+  assert.equal(out.outlier_count, 0)
 })
 
-test('attachProfile: a lot with no recipe_params is distinguishable from a real zero', () => {
+test('attachProfile: a lot with no recipe_params is null, NOT a zero that would sum wrong', () => {
   const missing = attachProfile({ lot_cd: 'R000' }, undefined)
-  assert.equal(missing.point_median, 0)
-  assert.equal(missing.has_profile, false)
+  assert.equal(missing.point_median, null)
+  assert.equal(missing.outlier_count, null)
 
   const measuredZero = attachProfile({ lot_cd: 'R000' }, { median: 0, threshold: 0, outliers: [], outlier_count: 0 })
   assert.equal(measuredZero.point_median, 0)
-  assert.equal(measuredZero.has_profile, true)
+  assert.equal(measuredZero.outlier_count, 0)
 })

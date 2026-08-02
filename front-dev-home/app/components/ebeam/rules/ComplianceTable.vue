@@ -89,6 +89,7 @@
 import type { RecipeInput, RuleCell } from '~/utils/ruleEngine'
 import { evaluateLot } from '~/utils/ruleEngine'
 import { toViolationDrill, type DrillDevice } from '~/utils/deviceDrill'
+import { groupRecipesByLot } from '~/utils/deviceProfile'
 
 const props = defineProps<{ cells: RuleCell[] }>()
 
@@ -113,15 +114,7 @@ const { data, pending, error } = await useAsyncData<RecipeInput[]>(
   { watch: [r3Lots] }
 )
 
-const recipesByLot = computed(() => {
-  const map = new Map<string, RecipeInput[]>()
-  for (const r of data.value ?? []) {
-    const bucket = map.get(r.lot_cd)
-    if (bucket) bucket.push(r)
-    else map.set(r.lot_cd, [r])
-  }
-  return map
-})
+const recipesByLot = computed(() => groupRecipesByLot(data.value ?? []))
 
 interface ComplianceRow { lot_cd: string, recipe_count: number, violation_count: number }
 

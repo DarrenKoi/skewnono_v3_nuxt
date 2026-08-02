@@ -75,7 +75,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
 
       <div
         class="flex flex-col justify-center py-1.5 pr-4"
-        :class="$slots.leading ? 'pl-0' : 'pl-3'"
+        :class="{ 'pl-3': !$slots.leading }"
       >
         <p
           v-if="eyebrow"
