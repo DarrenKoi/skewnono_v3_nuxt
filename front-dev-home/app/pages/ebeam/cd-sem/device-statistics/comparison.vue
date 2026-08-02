@@ -7,11 +7,11 @@
       :stats="metaStats"
       :as-of="data?.date ?? ''"
     >
-      <template #actions>
+      <template #leading>
         <UButton
           size="sm"
           color="neutral"
-          variant="outline"
+          variant="ghost"
           icon="i-lucide-arrow-left"
           :label="text.back"
           @click="goBack"

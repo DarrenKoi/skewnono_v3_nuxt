@@ -59,9 +59,24 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
 
 <template>
   <div class="dashboard-surface flex flex-wrap items-stretch gap-y-1.5 rounded-[var(--sk-r-card)] p-1.5">
-    <!-- LEFT cluster — title pod + toggle, locked together -->
+    <!-- LEFT cluster — leading action + title pod + toggle, locked together -->
     <div class="flex shrink-0 items-stretch">
-      <div class="flex flex-col justify-center py-1.5 pl-3 pr-4">
+      <!-- Leading is opt-in: sub-pages entered from a parent page put their
+           돌아가기 button here, so back navigation reads left-to-right ahead of the
+           title (the same shape as /tool-roster and Recipe 상세 nav) instead of
+           sitting in the far-right #actions cluster. -->
+      <template v-if="$slots.leading">
+        <div class="flex items-center pl-1.5">
+          <slot name="leading" />
+        </div>
+
+        <div class="my-2 mx-1.5 w-px bg-(--sk-border-soft)" />
+      </template>
+
+      <div
+        class="flex flex-col justify-center py-1.5 pr-4"
+        :class="$slots.leading ? 'pl-0' : 'pl-3'"
+      >
         <p
           v-if="eyebrow"
           class="sk-eyebrow"
