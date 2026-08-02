@@ -6,7 +6,14 @@ office data (see `_runtime/office_registry.py`). With 30 templates spread
 across nested folders it is hard to tell which ones have been copied, so the
 default action here is a **status report**, not a copy.
 
-Run FROM THE REPO ROOT:
+Both invocation forms work, and neither depends on your cwd -- every path is
+resolved from this file, not from where you stand:
+
+    .venv/bin/python -m scripts.sync_office_adapters
+    .venv/bin/python scripts/sync_office_adapters.py
+
+Use the venv interpreter either way: importing the classifier pulls in
+`back_dev_home/__init__.py`, so Flask must be installed.
 
     # 1. See where every adapter stands (safe, changes nothing)
     .venv/bin/python -m scripts.sync_office_adapters
@@ -54,18 +61,25 @@ import subprocess
 import sys
 from pathlib import Path
 
-from back_dev_home._runtime import office_template
-from back_dev_home._runtime.office_template import (
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_ROOT = REPO_ROOT / "back_dev_home"
+
+# Running a file directly puts `scripts/` on sys.path, not the repo root, so
+# `back_dev_home` would be unimportable -- only `-m` adds the root. Add it here
+# so `python scripts/sync_office_adapters.py` works too. Insert the root (not
+# this folder): the import below must resolve to the same module object the
+# app and tests use, and `from scripts import ...` must keep working.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from back_dev_home._runtime import office_template  # noqa: E402
+from back_dev_home._runtime.office_template import (  # noqa: E402
     EDITED,
     MISSING,
     STALE,
     SYNCED,
     Adapter,
 )
-
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 
 # Statuses a copy may overwrite freely: either there is nothing there, or
 # what is there is provably recoverable from git history.
