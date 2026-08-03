@@ -46,7 +46,7 @@
              on engineering desktop displays. -->
         <EbeamSkewvoirSearchResultTable
           class="xl:min-h-0 xl:flex-1"
-          :rows="search.narrowedRows.value"
+          :rows="search.sortedRows.value"
           :total="search.total.value"
           :capped="search.capped.value"
           :out-of-retention="search.outOfRetention.value"
@@ -57,12 +57,15 @@
           :narrow-text="search.narrowText.value"
           :retention-days="search.retentionDays.value"
           :selected="selection.selected.value"
+          :sort="search.sort.value"
+          :sort-is-partial="search.sortIsPartial.value"
           @update:narrow-text="search.narrowText.value = $event"
           @open="open"
           @toggle="selection.toggle"
           @select-rows="selection.setMany"
           @load-more="search.loadMore"
           @retry="search.search"
+          @toggle-sort="search.toggleSort"
         />
       </main>
 

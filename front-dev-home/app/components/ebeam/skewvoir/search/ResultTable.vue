@@ -144,20 +144,36 @@
                 @update:model-value="toggleVisible"
               />
             </th>
-            <th class="px-3 py-1.5 sk-eyebrow">
-              LOT
-            </th>
-            <th class="px-3 py-1.5 sk-eyebrow">
-              RECIPE
-            </th>
-            <th class="px-3 py-1.5 sk-eyebrow">
-              EQ
-            </th>
-            <th class="px-3 py-1.5 sk-eyebrow">
-              FAB
-            </th>
-            <th class="px-3 py-1.5 sk-eyebrow">
-              CAPTURED
+            <th
+              v-for="column in COLUMNS"
+              :key="column.label"
+              class="px-3 py-1.5"
+              :class="{ 'sk-eyebrow': !column.sortKey }"
+              :aria-sort="column.sortKey ? ariaSort(column.sortKey) : undefined"
+            >
+              <!-- Sortable headers are real <button>s rather than a click
+                   handler on the <th>: the control has to be reachable and
+                   operable from the keyboard, while aria-sort has to sit on the
+                   <th> itself to be announced as the column's state. -->
+              <button
+                v-if="column.sortKey"
+                type="button"
+                class="group flex items-center gap-1 sk-eyebrow transition-colors hover:text-(--sk-ink)"
+                :class="{ 'text-(--sk-ink)': sort.key === column.sortKey }"
+                @click="emit('toggleSort', column.sortKey)"
+              >
+                {{ column.label }}
+                <UIcon
+                  :name="sortIcon(column.sortKey)"
+                  class="h-3 w-3"
+                  :class="sort.key === column.sortKey
+                    ? 'opacity-100'
+                    : 'opacity-0 transition-opacity group-hover:opacity-40'"
+                />
+              </button>
+              <template v-else>
+                {{ column.label }}
+              </template>
             </th>
             <th class="px-3 py-1.5" />
           </tr>
@@ -207,6 +223,19 @@
         </tbody>
       </table>
 
+      <!-- The sort runs in the browser over the rows already fetched, so while
+           results remain unloaded it has re-ordered a page and not the result
+           set. Saying so is the whole reason this is safe to ship client-side:
+           a `RECIPE ↑` header otherwise reads as authoritative over all
+           `total` hits, and quietly answers "which recipe ran first" with the
+           wrong row. -->
+      <p
+        v-if="sortIsPartial"
+        class="border-t border-(--sk-border-soft) bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400"
+      >
+        불러온 {{ rows.length }}건만 정렬했습니다. 전체 {{ total.toLocaleString() }}건 기준으로 정렬하려면 더 보기로 결과를 모두 불러오세요.
+      </p>
+
       <div
         v-if="hasMore"
         class="border-t border-(--sk-border-soft) p-2"
@@ -227,6 +256,7 @@
 
 <script setup lang="ts">
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
+import type { MeasHistSort, MeasHistSortKey } from '~/utils/measHistSort'
 
 const props = defineProps<{
   rows: MeasHistRow[]
@@ -240,6 +270,8 @@ const props = defineProps<{
   narrowText: string
   retentionDays: number
   selected: MeasHistRow[]
+  sort: MeasHistSort
+  sortIsPartial: boolean
 }>()
 
 const emit = defineEmits<{
@@ -248,8 +280,36 @@ const emit = defineEmits<{
   'selectRows': [rows: MeasHistRow[], enabled: boolean]
   'loadMore': []
   'retry': []
+  'toggleSort': [column: MeasHistSortKey]
   'update:narrowText': [value: string]
 }>()
+
+// Declared here rather than in the template so the header order and the body's
+// <td> order have one place to be checked against each other. FAB carries no
+// sortKey on purpose: it is a coarse facet with its own dropdown filter, so
+// ordering by it only groups rows, which filtering already does better.
+const COLUMNS: { label: string, sortKey: MeasHistSortKey | null }[] = [
+  { label: 'LOT', sortKey: 'lot' },
+  { label: 'RECIPE', sortKey: 'recipe' },
+  { label: 'EQ', sortKey: 'eq' },
+  { label: 'FAB', sortKey: null },
+  { label: 'CAPTURED', sortKey: 'timestamp' }
+]
+
+const ariaSort = (column: MeasHistSortKey) =>
+  props.sort.key === column
+    ? (props.sort.dir === 'asc' ? 'ascending' : 'descending')
+    : 'none'
+
+// The inactive columns still render an arrow (revealed on hover) so the header
+// advertises that it is sortable before it is clicked; 'up' is the direction
+// that first click would apply.
+const sortIcon = (column: MeasHistSortKey) => {
+  const dir = props.sort.key === column
+    ? props.sort.dir
+    : (column === 'timestamp' ? 'desc' : 'asc')
+  return dir === 'asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'
+}
 
 const selectedIds = computed(() => new Set(props.selected.map(row => row.msr)))
 const isSelected = (msr: string) => selectedIds.value.has(msr)

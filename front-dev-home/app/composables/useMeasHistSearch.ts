@@ -6,6 +6,14 @@ import {
   type SkewvoirCategory
 } from '~/utils/measHistCascade'
 import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
+import {
+  DEFAULT_MEAS_HIST_SORT,
+  isReordered,
+  nextMeasHistSort,
+  sortMeasHistRows,
+  type MeasHistSort,
+  type MeasHistSortKey
+} from '~/utils/measHistSort'
 
 // No `recipe` field: recipes are found via the search bar only (there is no
 // RECIPE dropdown — see FilterBar.vue). Bare recipe fragments use `q`;
@@ -243,6 +251,29 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     )
   })
 
+  // Column ordering, applied on top of the narrowing above. Sorting after
+  // narrowing is the correct order of the two: narrowing is a set operation and
+  // sorting an ordering one, so doing it the other way would re-sort on every
+  // keystroke of 결과 내 좁히기 for no change in the visible order.
+  //
+  // Session state like the rest of the search, so returning from an analysis
+  // finds the table ordered the way it was left. Defaults to the backend's own
+  // timestamp-desc, meaning nothing moves until a header is actually clicked.
+  const sort = useState<MeasHistSort>(key('sort'), () => ({ ...DEFAULT_MEAS_HIST_SORT }))
+
+  const sortedRows = computed(() => sortMeasHistRows(narrowedRows.value, sort.value))
+
+  const toggleSort = (column: MeasHistSortKey) => {
+    sort.value = nextMeasHistSort(sort.value, column)
+  }
+
+  // The sort covers only what has been LOADED. While more rows remain unfetched
+  // and the user has moved off the backend's own order, the table is showing a
+  // re-ordered page rather than a re-ordered result set — a difference the UI
+  // has to state, since a `RECIPE ↑` header otherwise reads as authoritative
+  // over all `total` hits. Clearing it is what 더 보기 is for.
+  const sortIsPartial = computed(() => isReordered(sort.value) && hasMore.value)
+
   const resetFilters = () => {
     filters.value = { fab: [], category: [], model: [], eq: [], from: '', to: '' }
   }
@@ -266,6 +297,10 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     pending.value = false
     queryText.value = ''
     narrowText.value = ''
+    // Cleared here but deliberately NOT in `search()`: the sort is a view
+    // preference over whatever the results are, so running a new query keeps
+    // it, while an explicit full reset puts the table back to newest-first.
+    sort.value = { ...DEFAULT_MEAS_HIST_SORT }
     resetFilters()
     rows.value = []
     total.value = 0
@@ -301,6 +336,10 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     parsed,
     rows,
     narrowedRows,
+    sortedRows,
+    sort,
+    sortIsPartial,
+    toggleSort,
     total,
     capped,
     outOfRetention,
