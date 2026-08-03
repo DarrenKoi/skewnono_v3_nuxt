@@ -107,6 +107,14 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
             # The other SPA branch: answered with index.html, flag NOT set.
             return "INDEX"
 
+        @app.post("/api/page-view")
+        def _beacon():
+            # Stands in for the beacon route Task 5 adds: a handler that
+            # knows what page it represents and promotes that slug onto the
+            # log row before the middleware's after_request runs.
+            activity_mod.promote_page_view("mag_pixel")
+            return "", 204
+
         activity_mod.install_activity_logging(app)
         logger.addHandler(_Sink())
         return app.test_client()
@@ -265,6 +273,25 @@ def test_the_middleware_shares_one_feature_computation_with_the_writer(
 
     assert _only(records, "request").feature == "storage"
     assert recorded[0][1] == "storage"
+
+
+def test_a_promoted_page_slug_becomes_the_logged_feature(make_app, records):
+    """Without this the beacon would rank a feature called "page-view"."""
+    client = make_app(user_id="2067928")
+
+    client.post("/api/page-view")
+
+    record = _only(records, "request")
+    assert record.feature == "mag_pixel"
+    assert (record.activity_kind, record.activity_weight) == ("page_view", 1)
+
+
+def test_an_unpromoted_request_still_uses_the_path(make_app, records):
+    client = make_app(user_id="2067928")
+
+    client.get("/api/sem-list")
+
+    assert _only(records, "request").feature == "sem_list"
 
 
 def test_an_unhandled_exception_is_logged_with_its_traceback(make_app, records):

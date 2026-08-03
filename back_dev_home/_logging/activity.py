@@ -57,6 +57,16 @@ def promote_request_fab_names(*values: str | None) -> None:
     g._activity_fab_name_list = normalize_fab_name_list([*existing, *values])
 
 
+def promote_page_view(slug: str) -> None:
+    """Declare which PAGE this request represents, overriding the path.
+
+    The beacon's own path is /api/page-view, which says nothing about what
+    the user opened. Same mechanism as promote_request_fab_names: the handler
+    puts it on ``g``, the after_request middleware reads it.
+    """
+    g._activity_page_slug = slug
+
+
 def _build_extra(
     *,
     event,
@@ -153,7 +163,7 @@ def install_activity_logging(app: Flask) -> None:
         remote = request.remote_addr or "-"
         status = response.status_code
         path = request.path
-        feature = route_to_feature(path)
+        feature = getattr(g, "_activity_page_slug", None) or route_to_feature(path)
         level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
         extra = _build_extra(
             event="request",
