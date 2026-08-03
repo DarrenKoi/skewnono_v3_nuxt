@@ -43,6 +43,15 @@ there. Two were wrong until 2026-07-27 and are now corrected: `Rel_MoveY`
 (was RelMoveY), and `img_meas2`, which carries P_No's value rather than a
 filename.
 
+★ The three-key mapping on the line above is 2026-07-27's confirmed shape, and
+  on 2026-08-03 the CLOUD returned something else — an iterable of dicts, seen
+  only through the `TypeError` it caused. Which shape the office parser
+  produces today is OFFICE-VERIFY (`docs/datatables/recipe_idp.txt` §파서 반환
+  구조 carries the one-liner to settle it). Nothing here needs to change for
+  it: this mock never calls the parser, and the home stand-in at the repo root
+  still returns the documented mapping. It is noted so a home session reading
+  this file does not take that line as settled.
+
 `align_images` and `amp_info` are NOT among the parser's keys. Their source is
 the RAW-RECIPE FOLDER beside the .idp (`data/{idw}/{idp}/`), read by a second
 사내 parser, `office_utils.idp_amp_reader` — see the 2026-07-29 spec and

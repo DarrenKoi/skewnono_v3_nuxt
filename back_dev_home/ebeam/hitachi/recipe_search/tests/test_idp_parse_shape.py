@@ -119,11 +119,60 @@ def test_recovery_warns_that_the_doc_disagrees(tables, caplog):
     assert "recipe_idp.txt" in caplog.text
 
 
+def test_series_of_tables_is_recovered(tables):
+    """A Series fits the cloud traceback as well as a list does.
+
+    `sorted()` iterates ANY iterable, so `'<' not supported between instances
+    of 'dict' and 'dict'` never narrowed the container to a list — only its
+    elements to dicts.
+    """
+    result = office_example._normalize_frames(
+        pd.Series([frame.to_dict(orient="list") for frame in tables.values()]),
+        "R3.idp",
+    )
+
+    assert _markers(result)["wafer_mp_info"] == "mp"
+
+
+def test_two_frames_claiming_one_table_is_an_error_not_a_coin_toss(tables):
+    """First-wins would be exactly the positional guess columns are here to refuse."""
+    doubled = [*tables.values(), _frame(MP_COLUMNS, "second-mp")]
+
+    with pytest.raises(LookupError) as excinfo:
+        office_example._normalize_frames(doubled, "R3.idp")
+
+    assert "wafer_mp_info" in str(excinfo.value)
+
+
+def test_documented_keys_holding_non_frames_are_diagnosed_here(tables):
+    """Right keys, wrong values: catch it now, not later on `frame.columns`.
+
+    `_records` would raise `AttributeError` — a 500 with a traceback pointing
+    at the mapping code rather than at the parser that broke its contract.
+    """
+    with pytest.raises(LookupError) as excinfo:
+        office_example._normalize_frames(
+            {**tables, "wafer_align_info": "/tmp/align.csv"}, "R3.idp",
+        )
+
+    assert "wafer_align_info" in str(excinfo.value)
+
+
+def test_documented_keys_holding_column_dicts_are_converted(tables):
+    """The keys are documented, so the values are trusted enough to convert."""
+    as_dicts = {name: frame.to_dict(orient="list") for name, frame in tables.items()}
+
+    result = office_example._normalize_frames(as_dicts, "R3.idp")
+
+    assert _markers(result)["idp_image_info"] == "image"
+
+
 def test_list_of_dicts_reports_the_shape_instead_of_crashing(tables):
     """The 2026-08-03 cloud failure: `sorted()` over dicts raised TypeError.
 
-    A LookupError is the contract — anything else reaches the client as a 500
-    with a traceback that names the diagnostic, not the data.
+    A bare `LookupError` is the contract: the app-wide handler
+    (`back_dev_home/__init__.py`) turns it into a JSON 502 carrying the
+    message, so the shape reaches the screen. A `TypeError` is an opaque 500.
     """
     rows = [{"whatever": 1}, {"whatever": 2}]
 

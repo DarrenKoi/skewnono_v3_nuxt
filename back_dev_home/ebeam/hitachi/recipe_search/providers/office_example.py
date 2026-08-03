@@ -854,6 +854,14 @@ def _describe(value: Any) -> str:
     return f"{type(value).__name__}({value!r:.60})"
 
 
+def _parse_error(source: str, saw: Any, detail: str) -> LookupError:
+    """The one shape of parse-failure message, so the variants cannot drift."""
+    return LookupError(
+        f"combined_idp_info({source}) returned {_describe(saw)} — {detail}. "
+        "docs/datatables/recipe_idp.txt is the schema of record."
+    )
+
+
 def _as_frame(value: Any) -> pd.DataFrame | None:
     """Anything table-shaped -> a DataFrame; None if it is not table-shaped."""
     if isinstance(value, pd.DataFrame):
@@ -864,6 +872,30 @@ def _as_frame(value: Any) -> pd.DataFrame | None:
         except (ValueError, TypeError):
             return None
     return None
+
+
+def _require_frame(value: Any, table: str, source: str) -> pd.DataFrame:
+    """A documented key's value -> a DataFrame, or a diagnosis.
+
+    The documented return holds DataFrames. Without this, a parser that keeps
+    the three keys but changes their values reaches ``_records`` and dies on
+    ``frame.columns`` — the same crash-instead-of-diagnosis this whole function
+    family exists to prevent, one step further down.
+    """
+    if isinstance(value, pd.DataFrame):
+        return value
+    frame = _as_frame(value)
+    if frame is None:
+        raise _parse_error(
+            source, value,
+            f"whose {table!r} is not a DataFrame and not table-shaped",
+        )
+    _LOG.warning(
+        "recipe_search: combined_idp_info(%s) returned %s for %s rather than a "
+        "DataFrame; converted. docs/datatables/recipe_idp.txt says DataFrame.",
+        source, type(value).__name__, table,
+    )
+    return frame
 
 
 def _identify_table(frame: pd.DataFrame) -> str | None:
@@ -891,46 +923,61 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
     recovery is logged as a warning: the doc is the schema of record, so a
     return shape it does not describe is a doc bug to reconcile, not a new
     normal to absorb silently.
+
+    The container is taken as anything iterable rather than ``list``/``tuple``
+    specifically. The cloud traceback proves only that ``sorted()`` compared two
+    dicts, and ``sorted()`` iterates ANY iterable — a ``Series`` or an
+    ``ndarray`` of dicts fits the evidence exactly as well, so accepting only
+    the two obvious containers would leave the reported failure unfixed.
     """
     if isinstance(raw, dict) and all(name in raw for name in _PARSED_TABLES):
-        return {name: raw[name] for name in _PARSED_TABLES}
+        return {
+            name: _require_frame(raw[name], name, source) for name in _PARSED_TABLES
+        }
 
     if isinstance(raw, dict):
         candidates, container = list(raw.values()), "mapping with undocumented keys"
-    elif isinstance(raw, (list, tuple)):
-        candidates, container = list(raw), f"bare {type(raw).__name__}"
+    elif isinstance(raw, (str, bytes, pd.DataFrame)):
+        # Iterable, but iterating them yields characters or column names — a
+        # table count of one at best, and a misleading description at worst.
+        raise _parse_error(source, raw, "which holds no tables to recover")
     else:
-        raise LookupError(
-            f"combined_idp_info({source}) returned {_describe(raw)}, which is "
-            "not the documented three-key mapping and holds no tables to "
-            "recover. docs/datatables/recipe_idp.txt is the schema of record."
-        )
+        try:
+            candidates = list(raw)
+        except TypeError:
+            raise _parse_error(
+                source, raw, "which is neither the documented mapping nor iterable",
+            ) from None
+        container = f"bare {type(raw).__name__}"
 
-    identified: dict[str, pd.DataFrame] = {}
+    # Every match is kept, not just the first: two frames answering to the same
+    # table means the columns did NOT decide it, and silently taking whichever
+    # came first is the positional guess this function exists to refuse.
+    identified: dict[str, list[pd.DataFrame]] = {}
     for candidate in candidates:
         frame = _as_frame(candidate)
         if frame is None:
             continue
         table = _identify_table(frame)
-        if table is not None and table not in identified:
-            identified[table] = frame
+        if table is not None:
+            identified.setdefault(table, []).append(frame)
 
     missing = [name for name in _PARSED_TABLES if name not in identified]
-    if missing:
-        raise LookupError(
-            f"combined_idp_info({source}) returned a {container} — "
-            f"{_describe(raw)} — and {missing} could not be recognised in it "
-            "by their documented columns. docs/datatables/recipe_idp.txt is "
-            "the schema of record."
-        )
+    ambiguous = [name for name in _PARSED_TABLES if len(identified.get(name, ())) > 1]
+    if missing or ambiguous:
+        trouble = ", ".join(filter(None, (
+            f"{missing} could not be recognised by their documented columns" if missing else "",
+            f"{ambiguous} matched more than one frame each" if ambiguous else "",
+        )))
+        raise _parse_error(source, candidates, f"a {container} in which {trouble}")
 
     _LOG.warning(
         "recipe_search: combined_idp_info(%s) returned a %s, not the documented "
         "three-key mapping. All three tables were recovered by their columns, "
         "but docs/datatables/recipe_idp.txt now disagrees with the parser — "
-        "reconcile it. Saw: %s", source, container, _describe(raw),
+        "reconcile it. Saw: %s", source, container, _describe(candidates),
     )
-    return identified
+    return {name: identified[name][0] for name in _PARSED_TABLES}
 
 
 def _parse_idp(local_path: Path) -> dict[str, pd.DataFrame]:

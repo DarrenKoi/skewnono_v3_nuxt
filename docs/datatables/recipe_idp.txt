@@ -83,13 +83,14 @@ pandas DataFrame 입니다.
   `'<' not supported between instances of 'dict' and 'dict'` 로 실패했습니다.
   adapter 의 `_parse_idp` 가 "key 3개짜리 dict 가 아니다" 라고 판단한 뒤 그 사실을
   적는 도중 `sorted(frames)` 에서 죽은 것이므로, **그 환경의 `combined_idp_info`
-  는 dict 를 여러 개 담은 list/tuple 을 돌려주었다**는 뜻입니다(dict 끼리 정렬을
-  시도했으니 원소가 dict). 위 3-key dict 는 2026-07-27 에 확인된 구조이므로,
-  사무실 parser 판(version)이 그 뒤로 바뀌었는지 **실제 반환값을 다시 확인해야**
-  합니다.
+  는 dict 를 원소로 갖는 iterable 을 돌려주었다**는 뜻입니다(dict 끼리 정렬을
+  시도했으니 원소가 dict). 다만 `sorted()` 는 iterable 이면 무엇이든 받으므로
+  list·tuple·Series·ndarray 중 무엇인지까지는 traceback 이 말해 주지 않습니다.
+  위 3-key dict 는 2026-07-27 에 확인된 구조이므로, 사무실 parser 판(version)이
+  그 뒤로 바뀌었는지 **실제 반환값을 다시 확인해야** 합니다.
 
     python -c "from office_utils.read_idp_info import combined_idp_info as f; \
-      r=f('<.idp 경로>'); print(type(r)); print(r if isinstance(r,dict) else r[:1])"
+      r=f('<.idp 경로>'); print(type(r)); print(r if isinstance(r,dict) else list(r)[:1])"
 
   확인되면 이 절을 실제 구조로 갱신하십시오. 그때까지 adapter 는
   `_normalize_frames` 로 **컬럼 이름을 보고** 세 table 을 되찾아 화면을 살려 둡니다

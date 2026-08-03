@@ -228,7 +228,15 @@ tool**: these are live metrology recipes on production equipment.
     sibling failures above, the JSON response body carries no per-tool
     detail.
   - `office_utils` not importable → `RuntimeError` (503, unconfigured).
-  - Parser returns the wrong keys → `LookupError` (502).
+  - Parser returns something other than the documented three-key mapping →
+    `_normalize_frames` tries to recover the three tables from it by matching
+    their **documented columns** (never by position), logging a WARNING that
+    names the shape it saw. Only if a table cannot be recognised — or two
+    frames answer to the same one — does it raise `LookupError` (502). The
+    2026-08-03 cloud failure is why: the old code assumed a mapping in its own
+    error message (`sorted(frames)`) and died with a `TypeError` (opaque 500)
+    instead of reporting what arrived. See `docs/datatables/recipe_idp.txt`
+    §파서 반환 구조 — the real shape there is still OFFICE-VERIFY.
   - A documented column the parser stopped emitting is **nulled, not dropped**
     (WARNING logged); an undocumented one it started emitting is **dropped**
     (INFO logged). Neither changes the response shape.
