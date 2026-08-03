@@ -2,8 +2,13 @@ Flask>=3.0
 flask-cors>=4.0
 flask-limiter>=3.5
 opensearch-py>=2,<3
-pandas>=2.2
-pyarrow>=15
+# These two floors move with numpy's, below. pandas gained numpy-2 support in
+# 2.2.2 and pyarrow in 16; the earlier releases their old floors allowed are
+# built against the numpy 1 ABI and raise on `import` under numpy 2, so a pip
+# resolver free to pick pandas 2.2.0 would trade the pickle error for a boot
+# error. Do not lower either without lowering numpy too.
+pandas>=2.2.2
+pyarrow>=16
 # Not a direct import of ours -- pandas pulls it in -- but the floor is
 # load-bearing and pandas does NOT enforce it (pandas 2.x still accepts numpy
 # 1.26). The MSR-file pickles in MinIO are written by an upstream process on
