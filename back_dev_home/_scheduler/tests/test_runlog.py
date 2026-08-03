@@ -1,8 +1,9 @@
 import pytest
 
 import json
+from zoneinfo import ZoneInfo
 
-from back_dev_home._scheduler.runlog import MemoryRunLog, RedisRunLog, utc_stamp
+from back_dev_home._scheduler.runlog import MemoryRunLog, RedisRunLog, kst_stamp
 
 
 def test_records_are_newest_first():
@@ -28,7 +29,7 @@ def test_every_record_has_ts_job_event():
     assert row["job"] == "job_a"
     assert row["event"] == "skip"
     assert row["holder"] == "host:123"
-    assert row["ts"].endswith("+00:00")
+    assert row["ts"].endswith("+09:00")
 
 
 def test_wrap_brackets_a_successful_call_with_start_and_end():
@@ -63,10 +64,29 @@ def test_wrap_uses_the_registry_name_not_the_function_name():
     assert log.read(limit=1)[0]["job"] == "registry_name"
 
 
-def test_utc_stamp_is_second_precision_aware_utc():
-    stamp = utc_stamp()
-    assert stamp.endswith("+00:00")
+def test_kst_stamp_is_second_precision_aware_kst():
+    stamp = kst_stamp()
+    assert stamp.endswith("+09:00")
     assert "." not in stamp
+
+
+def test_record_ts_matches_the_scheduler_timezone():
+    """``ts`` has to share an offset with the ``scheduled`` field beside it.
+
+    A "missed" record carries APScheduler's ``scheduled_run_time``, which is
+    tagged with ``cfg.timezone``. If ``ts`` drifts back to UTC, the two fields
+    an operator would naturally compare sit nine hours apart in one record.
+    """
+    from datetime import datetime
+
+    from back_dev_home._scheduler.config import load_scheduler_config
+
+    log = MemoryRunLog(max_records=5)
+    log.record("job_a", "missed")
+    ts_offset = datetime.fromisoformat(log.read(limit=1)[0]["ts"]).utcoffset()
+
+    scheduled = datetime.now(ZoneInfo(load_scheduler_config().timezone))
+    assert ts_offset == scheduled.utcoffset()
 
 
 # ── RedisRunLog ─────────────────────────────────────────────────────────────

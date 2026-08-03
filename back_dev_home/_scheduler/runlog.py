@@ -14,20 +14,34 @@ import logging
 import time
 from collections import deque
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime
 from functools import wraps
 from typing import Any, Protocol
+from zoneinfo import ZoneInfo
 
 log = logging.getLogger("skewnono.scheduler")
 
+KST = ZoneInfo("Asia/Seoul")
 
-def utc_stamp() -> str:
-    """Second-precision aware-UTC ISO timestamp -- the one format records use.
 
-    Stored in UTC and rendered locally by the caller, so records stay
-    comparable across hosts while operators still read Seoul time.
+def kst_stamp() -> str:
+    """Second-precision aware-KST ISO timestamp -- the one format records use.
+
+    KST rather than UTC because nothing renders these: /api/health/jobs returns
+    the record verbatim and there is no jobs UI, so the stored string *is* what
+    an operator in Korea reads.
+
+    It also has to match its neighbours. The scheduler runs on
+    ``cfg.timezone = "Asia/Seoul"``, so the ``scheduled`` field a "missed"
+    record carries (APScheduler's ``scheduled_run_time``, see
+    ``_install_missed_listener``) is already +09:00 -- a UTC ``ts`` beside it
+    put the two most comparable fields in one record nine hours apart.
+
+    Still offset-aware, so records stay comparable across hosts and a Redis
+    list holding both the old +00:00 entries and new +09:00 ones is read
+    correctly. Nothing sorts on this field -- ``read`` preserves LPUSH order.
     """
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(KST).isoformat(timespec="seconds")
 
 
 class RunLog(Protocol):
@@ -70,7 +84,7 @@ class _WrapMixin:
 
 
 def _build(job: str, event: str, extra: dict[str, Any]) -> dict[str, Any]:
-    record = {"ts": utc_stamp(), "job": job, "event": event}
+    record = {"ts": kst_stamp(), "job": job, "event": event}
     record.update(extra)
     return record
 

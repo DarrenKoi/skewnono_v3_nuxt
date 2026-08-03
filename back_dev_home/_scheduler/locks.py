@@ -19,7 +19,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from back_dev_home._scheduler.runlog import utc_stamp
+from back_dev_home._scheduler.runlog import kst_stamp
 
 log = logging.getLogger("skewnono.scheduler")
 
@@ -36,7 +36,7 @@ def lock_owner_token() -> str:
             "token": uuid.uuid4().hex,
             "host": socket.gethostname(),
             "pid": os.getpid(),
-            "acquired": utc_stamp(),
+            "acquired": kst_stamp(),
         },
         sort_keys=True,
     )
