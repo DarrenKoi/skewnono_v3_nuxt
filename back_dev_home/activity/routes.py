@@ -1,9 +1,10 @@
 import logging
 
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request
 
 from .._auth.admin import require_admin
 from .._auth.errors import error_json
+from .._logging.feature_map import page_to_feature
 from .data import (
     get_fab_page_usage,
     get_me,
@@ -61,3 +62,31 @@ def activity_user_detail(user_id: str):
         lambda: get_user_history(user_id),
         not_found=f"no activity for user {user_id!r}",
     )
+
+
+# Deliberately NOT under /api/activity: that prefix is in _OPERATION_PREFIXES,
+# so nesting the beacon there would classify every page view as weight 0.
+#
+# The handler does no work. Its entire purpose is to exist so the after_request
+# middleware logs a row, which is what carries the page view to OpenSearch at
+# the office and to the mock store at home — no new store, and no office write
+# path, which no office_example.py in this repo has.
+@bp.post("/page-view")
+def page_view():
+    payload = request.get_json(silent=True)
+    path = payload.get("path") if isinstance(payload, dict) else None
+    if not isinstance(path, str) or not path.strip():
+        return error_json("bad_request", "path is required", 400)
+    slug = page_to_feature(path)
+    if slug:
+        # Imported here, not at module load: _logging.activity imports
+        # ..activity.data, which back_dev_home/activity/__init__.py pulls in
+        # via this very routes module, so a top-level import here is
+        # circular. By request time every module is fully initialized.
+        from .._logging.activity import promote_page_view
+
+        promote_page_view(slug)
+    # An unresolvable path (ops page, tab not yet in the URL) is still a 204:
+    # the client cannot know which paths rank, and a 400 would be console noise
+    # for something that is not an error.
+    return "", 204
