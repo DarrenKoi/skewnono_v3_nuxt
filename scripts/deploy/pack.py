@@ -30,6 +30,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+try:
+    # Running as `python scripts/deploy/pack.py` puts THIS file's directory on
+    # sys.path, not the repo root, so the package spelling is unavailable —
+    # while pytest imports `scripts.deploy.pack` and has only the package
+    # spelling. Both invocations are real, so both are handled.
+    from scripts.deploy.preflight_cloud import env_file_values
+except ModuleNotFoundError:
+    from preflight_cloud import env_file_values
+
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
 # Only ops_store, minio_handler, ftp_handler and office_utils are actually
 # imported by the app — office_utils via recipe_search's deferred import (the
@@ -133,6 +142,27 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
         env_path.is_file(),
         f"{env_path} missing — create_app() load_dotenv()s this path",
         True,
+    )
+
+    # The one .env value pack has standing to judge. Everything else in that
+    # file is content this script has no opinion on (see
+    # test_preflight_does_not_inspect_env_values) — but SKEWNONO_LOG_ENV is
+    # not content, it is a property of the MACHINE, and back_dev_home is
+    # copied wholesale, so packing here sends this office PC's value to the
+    # cloud. That is how a cloud deploy came to run with `local` on
+    # 2026-08-03, writing every activity document to the office alias. The
+    # bundle's own preflight.py fails on it too, but only after the transfer.
+    log_env = (env_file_values(env_path) or {}).get("SKEWNONO_LOG_ENV", "")
+    add(
+        "logging_target",
+        log_env in ("production", ""),
+        f"{env_path} sets SKEWNONO_LOG_ENV={log_env} — that is this machine's "
+        "own logging target and the bundle is for the cloud. Activity would go "
+        "to the `skewnono_logging_local` alias, production `skewnono_logging` "
+        "would stay empty, and /admin-logs would read the same wrong alias "
+        "back, so nothing up there reports it. Set SKEWNONO_LOG_ENV=production "
+        "in the bundle's copy before transfer.",
+        False,
     )
 
     reqs = repo_root / "back_dev_home" / "requirements.txt"

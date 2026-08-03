@@ -153,7 +153,7 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 | `back_dev_home/.env` 배치 | `python preflight.py`의 파일 존재 검사 | 배포자 |
 | **`SKEWNONO_SECRET_KEY` 설정 (필수)** | 값이 없으면 앱이 **기동을 거부**합니다 | 배포자 |
 | **`SKEWNONO_LOG_ENV=production` 설정** | `python preflight.py`의 `SKEWNONO_LOG_ENV` 검사 | 배포자 |
-| `skewnono_logging` 롤오버 alias 생성 | `python ops_index_mgmt/skewnono_logging.py` | 배포자 |
+| `skewnono_logging` 롤오버 alias 생성 (**사무실에서 먼저**) | `python ops_index_mgmt/skewnono_logging.py` | 배포자 |
 
 ### `SKEWNONO_SECRET_KEY` 는 이제 필수입니다
 
@@ -203,11 +203,23 @@ OPENSEARCH_PASSWORD=<암호>
 이 `LoggingConfigurationError` 로 죽습니다. `preflight.py` 가 이 세 조합을 모두
 구분해 보고합니다.
 
+`back_dev_home/` 은 통째로 복사되므로 **사무실 PC 의 `.env` 가 그대로 번들에
+실립니다.** 즉 사무실에서 `local` 로 두고 패킹하면 그 값이 클라우드까지 따라
+갑니다. `pack.py` 가 패킹 시점에 이를 `logging_target` 경고로 알려 주며,
+`--strict` 로 패킹하면 차단 오류가 됩니다.
+
 alias 는 미리 만들어 두어야 합니다. 로그 핸들러는 대상이 **번호가 붙은 롤오버
 alias** 임을 확인한 뒤에만 색인하며, 아니면 배치를 통째로 버리고
 `[opensearch-log]` 한 줄을 남깁니다.
 
+이 작업은 **사무실 저장소에서** 수행합니다. `ops_index_mgmt/` 는 런타임에
+쓰이지 않으므로 번들에 포함되지 않으며(3장 참조), 클라우드 호스트에는 이
+스크립트가 존재하지 않습니다. 두 alias 가 같은 사내 클러스터에 있으므로 인자
+없이 한 번 실행하면 `local` 과 `production` 이 함께 생성됩니다. 멱등이라
+재실행해도 안전합니다.
+
 ```bash
+# 사무실 PC, 저장소 루트에서
 .venv/bin/python ops_index_mgmt/skewnono_logging.py --dry-run
 .venv/bin/python ops_index_mgmt/skewnono_logging.py
 ```

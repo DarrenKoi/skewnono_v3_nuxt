@@ -266,7 +266,7 @@ def check_config(root: Path) -> tuple[list[str], list[str]]:
             [],
         )
 
-    values = _env_file_values(env_path)
+    values = env_file_values(env_path)
     if values is None:
         return [], []
 
@@ -357,7 +357,7 @@ def _check_logging_target(
     return failures, warnings
 
 
-def _env_file_values(env_path: Path) -> dict[str, str] | None:
+def env_file_values(env_path: Path) -> dict[str, str] | None:
     """The .env's assignments, or None when the file could not be read.
 
     A hand-rolled scan rather than python-dotenv: this script may only import
@@ -369,6 +369,10 @@ def _env_file_values(env_path: Path) -> dict[str, str] | None:
 
     Values come back stripped, so "blank counts as absent" is a falsy check at
     every call site. Later assignments win, as they do in dotenv.
+
+    Public because pack.py reads the same file at the office, one step before
+    this script sees it on the cloud. A second copy of this parser would be a
+    second thing to keep in step with dotenv's spellings.
     """
     try:
         text = env_path.read_text(encoding="utf-8")

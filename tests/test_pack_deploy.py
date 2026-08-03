@@ -131,6 +131,66 @@ def test_preflight_does_not_inspect_env_values(tmp_path):
     assert "secret_key" not in {check.name for check in checks}
 
 
+def test_preflight_flags_an_office_logging_target_before_it_travels(tmp_path):
+    """The one exception to "pack does not inspect .env values".
+
+    SKEWNONO_LOG_ENV is not content, it is a property of the machine, and
+    back_dev_home is copied wholesale — so packing at the office is the moment
+    an office-only value starts travelling to the cloud. The cloud's own
+    preflight fails on it as well, but only after the transfer, which on a
+    host with a slow iteration loop is the difference worth having.
+    """
+    root = _make_repo(tmp_path)
+    (root / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY=k\nSKEWNONO_LOG_ENV=local\n"
+    )
+
+    checks = pack.run_preflight(root)
+
+    target = next(c for c in checks if c.name == "logging_target")
+    assert not target.ok
+    assert "production" in target.message
+
+
+def test_preflight_accepts_a_bundle_that_names_the_production_target(tmp_path):
+    root = _make_repo(tmp_path)
+    (root / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY=k\nSKEWNONO_LOG_ENV=production\n"
+    )
+
+    checks = pack.run_preflight(root)
+
+    assert next(c for c in checks if c.name == "logging_target").ok
+
+
+def test_preflight_leaves_an_unset_logging_target_to_the_cloud(tmp_path):
+    """Unset is not an office value travelling anywhere — it is a decision not
+    yet made, which the cloud's preflight reports against the .env that ends up
+    there. Failing here would block a deploy whose operator sets it after
+    transfer."""
+    root = _make_repo(tmp_path)
+    (root / "back_dev_home" / ".env").write_text("SKEWNONO_SECRET_KEY=k\n")
+
+    checks = pack.run_preflight(root)
+
+    assert next(c for c in checks if c.name == "logging_target").ok
+
+
+def test_office_logging_target_is_advisory_not_blocking(tmp_path):
+    """Advisory because the operator may intend to edit the bundle's .env after
+    the copy; --strict promotes it for a real production pack."""
+    root = _make_repo(tmp_path)
+    (root / "back_dev_home" / ".env").write_text("SKEWNONO_LOG_ENV=local\n")
+
+    assert not any(
+        f.name == "logging_target" for f in pack.blocking_failures(pack.run_preflight(root))
+    )
+    assert any(
+        f.name == "logging_target"
+        for f in pack.blocking_failures(pack.run_preflight(root, strict=True))
+    )
+
+
 def _set_build_times(root: Path, source: float, build: float) -> None:
     """Give front-dev-home/app one source file, then pin both sides' mtimes.
 
