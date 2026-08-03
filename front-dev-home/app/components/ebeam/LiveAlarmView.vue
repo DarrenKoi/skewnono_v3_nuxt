@@ -2,7 +2,7 @@
 // Shared view for the 라이브 알람 board, one per tool type. Same shape as the
 // other Ebeam*View components: the page files stay thin wrappers that only
 // resolve the fab and sync navigation state.
-import { boardCounts, formatElapsed } from '~/utils/liveAlarm'
+import { boardCounts, distinctLotCount, formatElapsed } from '~/utils/liveAlarm'
 
 const props = defineProps<{
   fab: string
@@ -39,9 +39,13 @@ const status = computed(() => {
   }[feedStatus.value]
 })
 
+// Alarm counts split by kind, plus the lot count — the alarm count alone reads
+// the same whether one lot tripped four tools or four unrelated lots each
+// tripped one, and those are different problems.
 const metaStats = computed(() => [
   { key: 'align', value: counts.value.align, label: 'Align Fail', tone: 'bad' as const },
-  { key: 'meas', value: counts.value.meas, label: '측정 연속 실패', tone: 'warn' as const }
+  { key: 'meas', value: counts.value.meas, label: '측정 실패', tone: 'warn' as const },
+  { key: 'lots', value: distinctLotCount(events.value), label: '관련 lot', tone: 'neutral' as const }
 ])
 
 useHead({

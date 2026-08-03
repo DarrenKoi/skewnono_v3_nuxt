@@ -67,7 +67,10 @@ from typing import Literal
 from back_dev_home.sem_list.contracts import PendingToolRow, SemListRow
 
 
-FAC_IDS = ["M11", "M12", "M14", "M15", "M16", "R3"]
+# The fabs actually in operation (user-confirmed 2026-08-03). M12 used to sit
+# where M10 is and was never a real fab — it made every screen that groups by
+# facility show a column nobody could reconcile against the floor.
+FAC_IDS = ["M10", "M11", "M14", "M15", "M16", "R3"]
 FAB_SUFFIXES = ["A", "B", "C"]
 
 # Fleet identity is keyed on the TOOL FAMILY, not the vendor. Both families in

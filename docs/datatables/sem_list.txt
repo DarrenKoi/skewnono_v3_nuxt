@@ -54,7 +54,10 @@ vendor_nm, eqp_ip, fab_name, updt_dt 입니다. 아직 실제 실행으로 검�
 
 컬럼 정보 (merge 후 기준, 10개 전부 필수 — 하나라도 없으면 어댑터가 에러)
 
-fac_id -> string: fab 대표 코드. 예: M11, M14, M15, M16, R3
+fac_id -> string: fab 대표 코드. 현재 운영 중인 값의 전부는
+                  R3, M16, M15, M14, M11, M10 입니다 (user-confirmed
+                  2026-08-03). 예전 문서와 mock 에 있던 M12 는 실재하지
+                  않는 값이었습니다.
 eqp_id -> string: 장비 ID. 예: 6MCDE305, 4CCD6701
 eqp_model_cd -> string: 장비 모델. 예: CG6300, CG6380, GT2000, TP4000
 eqp_grp_id -> string: 장비 그룹 ID

@@ -37,19 +37,26 @@ running fast would otherwise pin a far-future alarm to the top of the board
 permanently. PRUNE_SEC must be >= the board window or the refresh would delete
 events the reader still shows; contracts.py asserts that at import.
 
-OFFICE-VERIFY: how far back `get_live_alarms(fac_id)` reaches is unknown. The
-ZSET accumulates successive snapshots and prunes at PRUNE_SEC, so the board is
-rebuilt correctly whether the office returns a rolling history or only the
+OFFICE-VERIFY: how far back `get_ebeam_metrology_alarms(fac_id)` reaches is
+unknown. The ZSET accumulates successive snapshots and prunes at PRUNE_SEC, so
+the board is rebuilt correctly whether the office returns a rolling history or only the
 alarms active right now.
 
-OFFICE-VERIFY: whether HV-SEM alarms are in the feed at all. The POC function
-was named `get_cdsem_alarms`. If the feed is CD-SEM-only, `/api/hvsem/live-alarm`
-will read "live" with an empty board forever — the roster resolves TP tools to
-a real fac_id, so it never falls to not_configured. That is a dead feed wearing
-a quiet fab's face, the exact state this feature exists to make visible. If the
-office confirms CD-SEM-only, hv-sem must return not_configured explicitly.
+SETTLED (user-confirmed 2026-08-03): the feed covers BOTH Hitachi families.
+The POC's `get_cdsem_alarms()` is now `get_ebeam_metrology_alarms(fac_id)`, and
+CD-SEM and HV-SEM share the three ALIDs in `contracts.ALID_KIND`. So `/api/
+hvsem/live-alarm` is a real board, not the dead-feed-wearing-a-quiet-fab's-face
+this mock used to warn about. AMAT tools are a different matter: their
+measurement-failure codes are not known, so this board stays Hitachi-only and
+the roster's `model_to_tool_type` is what keeps AMAT rows off it.
 
-OFFICE-VERIFY: the real fac_id value set beyond R3 / M16.
+OFFICE-VERIFY: whether RECIPE_ID and PPID always agree. Both are carried; the
+mock deliberately makes them differ in spelling (PPID keeps the `.rcp` tail) so
+a screen that silently assumed one was the other would show it at home.
+
+The fac_id set is R3 / M16 / M15 / M14 / M11 / M10 (user-confirmed 2026-08-03).
+This mock does not hardcode them — it reads whatever the sem_list mock roster
+carries, which is the same list.
 
 Office reads take `now` from REDIS's clock, not the app server's, because the
 refresh prunes against that same clock — the two can then never disagree about
@@ -64,6 +71,7 @@ import time
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
 from back_dev_home.ebeam.hitachi.live_alarm import board, roster
 from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
+    ALID_KIND,
     BOARD_WINDOW_SEC,
     AlarmEvent,
     LiveAlarmPayload,
@@ -71,7 +79,31 @@ from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
 
 
 _RECIPES = ("MONITOR/CD_TOP_01", "MONITOR/CD_BOT_04", "", "PROD/EV_MAIN_12")
-_ALIDS = ("9006", "9100")
+
+# alid -> the AL_TEXT the tool actually emits for it. Verbatim from the office
+# (user-confirmed 2026-08-03) because these strings are the row's headline: a
+# paraphrase here would teach a wrong label to anyone building the screen
+# against the mock. The alid set itself lives in contracts.ALID_KIND — this
+# table only supplies the wording, and asserts below that it covers the same
+# ids, so a new alid cannot be added there and silently render blank here.
+_AL_TEXT = {
+    "9006": "ALIGNMENT FAIL",
+    "9007": "FAILURE IN DETECTION OF PATTERN",
+    "9035": "FAILURE IN AUTO MEASUREMENT",
+}
+_ALIDS = tuple(sorted(_AL_TEXT))
+
+assert set(_AL_TEXT) == set(ALID_KIND), (
+    "the mock must emit exactly the alids contracts.ALID_KIND renders"
+)
+
+# MESEVENTNAME / EQ_STAT / AL_TYPE / LOT_TYPE_CD value SHAPES, not office
+# values: these are the spellings the office uses (lowercase-ish free text),
+# cycled so the screen sees more than one of each. Only the AL_TEXT strings
+# above are claimed to be exact.
+_MES_EVENTS = ("waferload", "endrun", "measstart")
+_EQ_STATS = ("proc", "wait")
+_AL_TYPES = ("warning", "inform")
 
 # Set SKEWNONO_LIVE_ALARM_MOCK_STALE=1 to see the "feed died" screen at home.
 _STALE_ENV = "SKEWNONO_LIVE_ALARM_MOCK_STALE"
@@ -88,7 +120,7 @@ def _index() -> roster.RosterIndex:
 
     Built from sem_list rather than a hardcoded fab whitelist so home and
     office answer "is this fab configured?" by the SAME mechanism. The
-    whitelist this replaced listed four fac_ids (M11, M12, M14, M15) among its
+    whitelist this replaced listed four fac_ids (M11, M14, M15, M16) among its
     fab names, so 14 of the 17 fabs the sem_list mock generates rendered 미설정
     at home while the office would have served them a board — the exact
     fab/fac confusion MIGRATION.md warns about, reproduced in our own mock.
@@ -98,23 +130,49 @@ def _index() -> roster.RosterIndex:
     return roster.build_index(get_sem_list())
 
 
-def _event(now: int, index: int, eqp_id: str) -> AlarmEvent:
+def _event(now: int, index: int, eqp_id: str, model: str = "CG6300") -> AlarmEvent:
     occurred = now - (index * 137) % BOARD_WINDOW_SEC
     alid = _ALIDS[index % len(_ALIDS)]
     occurred_at = board.iso(occurred)
+    recipe_id = _RECIPES[index % len(_RECIPES)]
+    # RAWID is an int at the office; carried as a string because every other
+    # AlarmEvent field is one and the id is only ever compared, never summed.
+    # Derived from the minute so the same minute rebuilds the same board.
+    rawid = str(880_000 + (now // 60 % 1000) * 10 + index)
     return {
-        "id": f"{eqp_id}|{alid}|{occurred_at}",
+        # Mirrors normalize.py: RAWID is the id when the feed has one. The
+        # composite fallback is not exercised here on purpose — the office
+        # feed always carries RAWID, so a mock that dropped it would make the
+        # weaker path look like the normal one.
+        "id": rawid,
+        "rawid": rawid,
         "eqp_id": eqp_id,
+        "alarm_modelname": model,
         "alid": alid,
-        "kind": "align" if alid == "9006" else "meas",
-        "alarm_name": (
-            "Align Fail" if alid == "9006" else "Measurement Consecutive Fail (23/100)"
-        ),
+        # AL_CODE's meaning is still unknown (OFFICE-VERIFY). Emitted as a
+        # short opaque token rather than left blank, so a screen that decides
+        # to show it does not look empty at home and populated at the office.
+        "al_code": f"C{alid[-2:]}",
+        "al_type": _AL_TYPES[index % len(_AL_TYPES)],
+        "kind": ALID_KIND[alid],
+        "alarm_name": _AL_TEXT[alid],
         "occurred_at": occurred_at,
         "occurred_epoch": occurred,
-        "recipe_id": _RECIPES[index % len(_RECIPES)],
+        # One lot can trip several alarms, so lot_id cycles slower than the
+        # event index — a board where every row had its own lot would hide
+        # the "same lot failing on three tools" case the screen is for.
+        "lot_id": f"NX{4200 + index // 2:04d}.{index % 2 + 1}",
+        "cassette_id": f"FOUP{100 + index % 7:03d}",
+        "recipe_id": recipe_id,
+        # PPID is the same recipe as MES spells it — deliberately NOT byte
+        # equal to recipe_id, so code that assumed the two interchangeable
+        # breaks at home rather than at the office. Blank when recipe_id is.
+        "ppid": f"{recipe_id}.rcp" if recipe_id else "",
         "operation_desc": "CD MEASUREMENT",
+        "step_id": f"{1000 + index % 9:04d}",
         "lot_type_cd": "PROD" if index % 3 else "MONI",
+        "meseventname": _MES_EVENTS[index % len(_MES_EVENTS)],
+        "eq_stat": _EQ_STATS[index % len(_EQ_STATS)],
     }
 
 
@@ -140,7 +198,12 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     # (MXCD*) matched no prefix sem_list emits, so the whole attribution path
     # went unexercised at home.
     eqp_ids = index.eqp_ids_in(fab_name, tool_type) or [_UNROSTERED_EQP_ID]
-    events = [_event(now, i, eqp_ids[i % len(eqp_ids)]) for i in range(count)]
+    # ALARM_MODELNAME follows the tool family, since the alarm carries the
+    # model of the tool that raised it. A single hardcoded model would have
+    # stamped every HV-SEM row CG6300 — the same vendor/family confusion the
+    # sem_list mock had to be corrected for.
+    model = "TP4000" if tool_type == "hv-sem" else "CG6300"
+    events = [_event(now, i, eqp_ids[i % len(eqp_ids)], model) for i in range(count)]
 
     # One minute in four the facility feed also carries an alarm from
     # equipment no roster knows. Generated as a REAL event and then withheld,

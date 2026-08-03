@@ -2,17 +2,34 @@
 // and clock-free so the board's time-dependent behaviour can be tested
 // without faking timers.
 
+// Mirrors AlarmEvent in back_dev_home/.../live_alarm/contracts.py, which is
+// itself the office DataFrame flattened to snake_case. Every field is a string
+// but occurred_epoch, and none is optional: the server sends "" rather than
+// omitting a key, so a row never has to be tested for presence before display.
 export interface LiveAlarmEvent {
   id: string
+  rawid: string
   eqp_id: string
+  alarm_modelname: string
   alid: string
+  al_code: string
+  al_type: string
+  // The coarse grouping the badge and the counters use. MANY alids share one
+  // kind (9007 and 9035 are both 'meas'), so `alarm_name` is what says which
+  // failure it actually was.
   kind: 'align' | 'meas'
   alarm_name: string
   occurred_at: string
   occurred_epoch: number
+  lot_id: string
+  cassette_id: string
   recipe_id: string
+  ppid: string
   operation_desc: string
+  step_id: string
   lot_type_cd: string
+  meseventname: string
+  eq_stat: string
 }
 
 export type FeedStatus = 'live' | 'stale' | 'not_configured'
@@ -57,3 +74,20 @@ export const boardCounts = (events: LiveAlarmEvent[]): { align: number, meas: nu
   align: events.filter(e => e.kind === 'align').length,
   meas: events.filter(e => e.kind === 'meas').length
 })
+
+// Badge text per kind. '측정 실패' rather than the old '측정 연속 실패': the
+// retired 9100 was a consecutive-failure counter, while 9007/9035 fire on a
+// single failed pattern detection or auto-measurement. AL_TEXT (alarm_name) is
+// what distinguishes the two, so the badge stays the coarse label.
+export const KIND_LABEL: Record<LiveAlarmEvent['kind'], string> = {
+  align: 'Align Fail',
+  meas: '측정 실패'
+}
+
+// How many distinct lots the board touches. Worth its own number because the
+// alarm count alone reads the same whether one lot tripped four tools or four
+// unrelated lots each tripped one — the first is a lot problem, the second a
+// fleet problem, and they are acted on differently. Blank lot_ids are ignored
+// rather than counted as one shared unknown lot.
+export const distinctLotCount = (events: LiveAlarmEvent[]): number =>
+  new Set(events.map(e => e.lot_id).filter(Boolean)).size

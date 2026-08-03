@@ -15,9 +15,96 @@ polling 했으나, 그 방식은 아무도 보지 않는 새벽에도 계속 호
 
 조회 함수
 
-  office_utils.live_alarm.get_live_alarms(fac_id) -> pd.DataFrame
+  office_utils.live_alarm.get_ebeam_metrology_alarms(fac_id) -> pd.DataFrame
 
   인자는 fac_id 하나뿐입니다. 조회 구간(window)을 지정할 수 없습니다.
+
+  이름의 변천 (office 확인 2026-08-03) — POC 의 get_cdsem_alarms() 가
+  get_ebeam_metrology_alarms(fac_id) 로 승격되었습니다. 두 가지가 함께
+  바뀌었습니다.
+
+    1. fac_id 인자가 생겼습니다. 예전에는 인자가 없어 전사 알람을 받아
+       SKEWNONO 가 잘라 썼습니다.
+    2. 대상이 CD-SEM 이 아니라 e-beam metrology 전체입니다. 즉 HV-SEM 알람도
+       같은 피드에 들어옵니다.
+
+  ALID 종류별로 함수가 나뉘지 않습니다. 한 fac_id 의 알람을 ALID 구분 없이
+  전부 돌려주고, 무엇을 화면에 올릴지는 SKEWNONO 의 contracts.ALID_KIND 가
+  정합니다.
+
+fac_id 값 집합 (user-confirmed 2026-08-03)
+
+  R3, M16, M15, M14, M11, M10 — 현재 운영 중인 fab 전부입니다.
+
+  이 목록을 코드에 박아두지 않습니다. sem_list roster 의 fac_id 컬럼에서
+  읽으므로 fab 이 늘거나 줄어도 live_alarm 코드는 그대로입니다. 목록을 여기
+  적어두는 이유는 sem_list mock 이 실제와 어긋났을 때(예전에 M10 자리에 M12 가
+  들어 있었습니다) 대조할 기준이 필요하기 때문입니다.
+
+대상 ALID (user-confirmed 2026-08-03)
+
+  | ALID | kind | AL_TEXT |
+  | --- | --- | --- |
+  | 9006 | align | ALIGNMENT FAIL |
+  | 9007 | meas | FAILURE IN DETECTION OF PATTERN |
+  | 9035 | meas | FAILURE IN AUTO MEASUREMENT |
+
+  셋 다 **HITACHI 전용 코드**입니다. CD-SEM 과 HV-SEM 이 같은 코드를 씁니다.
+  AMAT(VeritySEM/Provision) 장비의 측정 실패 코드는 아직 확인되지 않았습니다
+  (OFFICE-VERIFY). 그래서 이 보드는 Hitachi 두 계열만 다루고, AMAT row 는
+  roster 의 model_to_tool_type() 단계에서 걸러집니다.
+
+  kind 는 여러 ALID 를 묶는 상위 구분입니다. 화면의 배지·집계는 kind 로 하고,
+  "어떤 실패였는지" 는 ALID 와 AL_TEXT 가 말합니다. 예전 문서에 있던 9100 은
+  POC 의 별도 함수(get_measurement_fail_alarms)에서 온 값이며 실재하지
+  않습니다 — 9007/9035 로 대체되었습니다.
+
+DataFrame 컬럼
+
+  컬럼명이 전부 **대문자**입니다. dtype 은 UTC9 만 datetime64[us], RAWID 만
+  int, 나머지는 전부 str 입니다.
+
+  | 컬럼 | dtype | 의미 |
+  | --- | --- | --- |
+  | UTC9 | datetime64[us] | 발생 시각. 한국 시간(KST)입니다 |
+  | RAWID | int | row 고유 키 |
+  | EQP_ID | str | 장비 ID. sem_list 의 eqp_id 와 같은 값 |
+  | LOT_ID | str | lot ID |
+  | RECIPE_ID | str | recipe ID |
+  | OPERATION_DESC | str | step 명 |
+  | ALID | str | 알람 코드. 위 표 참조 |
+  | AL_CODE | str | 용도 미확인 (OFFICE-VERIFY) |
+  | AL_TEXT | str | 알람 설명. 화면에 그대로 보여주는 문구 |
+  | AL_TYPE | str | inform, warning 등 알람 종류 |
+  | LOT_TYPE_CD | str | lot 구분 코드 |
+  | CASSETTE_ID | str | FOUP ID |
+  | PPID | str | recipe ID (MES 표기) |
+  | STEP_ID | str | process ID |
+  | MESEVENTNAME | str | waferload, endrun 등 이벤트 이름 |
+  | ALARM_MODELNAME | str | 장비 model 명. 예: CG5000, CG6300 |
+  | EQ_STAT | str | proc, wait 등 장비 상태 |
+  | TIMESTAMP | str | UTC-9 시각의 문자열. 예: 2026-03-03T09:32:40 |
+
+  위 목록이 전부는 아닙니다. 실제 DataFrame 에는 컬럼이 몇 개 더 있으나 화면에
+  쓰지 않아 적지 않았습니다. normalize.py 는 이름으로 찾아 읽으므로 모르는
+  컬럼이 더 있어도 무해합니다.
+
+  UTC9 vs TIMESTAMP — 같은 시각의 두 표기입니다. UTC9 를 먼저 읽고 비어 있을
+  때만 TIMESTAMP 로 넘어갑니다. UTC9 는 datetime64 라 to_dict() 를 거치면
+  Timestamp 객체가 되고, str() 에 마이크로초가 붙을 수 있습니다. TIMESTAMP 는
+  "T" 구분자를 쓰는 문자열입니다. 둘 다 offset 표기가 없으므로 KST 로 간주해
+  +09:00 을 붙입니다(변환이 아니라 표기 부여입니다).
+
+  RECIPE_ID vs PPID — 같은 recipe 를 두 시스템이 부르는 이름입니다. 항상 같은
+  값인지는 확인되지 않았습니다(OFFICE-VERIFY). 둘 다 따로 보관합니다.
+
+  RAWID 는 row 고유 키이므로 그대로 이벤트 id 로 씁니다. 예전의
+  "{eqp_id}|{alid}|{occurred_at}" 조합은 RAWID 가 없을 때만 쓰는 fallback 이며,
+  같은 장비에서 같은 초에 두 건이 나면 한 건으로 합쳐지는 약점이 있습니다.
+
+  정수 컬럼(RAWID, ALID)은 pandas 에서 null 이 하나라도 섞이면 컬럼 전체가
+  float 로 승격되어 "9006.0" 처럼 옵니다. normalize.py 가 ".0" 꼬리를
+  떼어냅니다.
 
 Key 구조
 
@@ -59,33 +146,54 @@ events ZSET
   JSON 이라 같은 이벤트를 다시 넣어도 무해하고, 이렇게 해야 사내 API 가 "지금
   발생 중" 만 돌려주더라도 최근 10분 보드를 만들 수 있습니다.
 
-  OFFICE-VERIFY: get_live_alarms(fac_id) 가 과거 몇 분까지 돌려주는지는 아직
-  확인되지 않았습니다. 10분 이상 돌려주면 장애 후 보드가 스스로 복구되고,
-  "현재 발생 중" 만 돌려주면 장애 구간만큼 보드에 구멍이 남습니다. 어느 쪽이든
-  코드는 동작하지만, 복구 가능 여부가 달라집니다.
+  OFFICE-VERIFY: get_ebeam_metrology_alarms(fac_id) 가 과거 몇 분까지
+  돌려주는지는 아직 확인되지 않았습니다. 10분 이상 돌려주면 장애 후 보드가 스스로
+  복구되고, "현재 발생 중" 만 돌려주면 장애 구간만큼 보드에 구멍이 남습니다.
+  어느 쪽이든 코드는 동작하지만, 복구 가능 여부가 달라집니다.
+
+  RAWID 가 id 가 되면서 중복 제거가 원천의 고유 키를 그대로 씁니다. 같은 row 를
+  다시 받아도 member 문자열이 같아 ZSET 이 한 건으로 유지됩니다.
 
 OFFICE-VERIFY 남은 항목
 
-  1. HV-SEM 알람이 이 피드에 들어오는지. POC 함수 이름이 get_cdsem_alarms 였고,
-     실제로 CD-SEM 만 들어온다면 /api/hvsem/live-alarm 은 영원히 "수신 중 +
-     알람 없음" 으로 보입니다. roster 가 TP 장비를 실제 fac_id 로 풀어주므로
-     not_configured 가 되지 않기 때문입니다 — 죽은 피드가 조용한 fab 으로
-     위장하는, 이 기능이 막으려던 바로 그 상태입니다. CD-SEM 전용으로 확인되면
-     hv-sem 은 명시적으로 not_configured 를 돌려주도록 고쳐야 합니다.
-  2. 실제 fac_id 값 집합. R3 / M16 외에 sem_list roster 가 담지 못하는 fac 이
-     있는지 확인이 필요합니다.
+  1. AMAT(VeritySEM/Provision) 장비의 측정 실패 ALID. 9007/9035 는 Hitachi
+     전용이라 AMAT 계열은 이 보드에 올라오지 않습니다. 사용자가 확인 예정.
+  2. AL_CODE 의 의미. ALID 와 어떻게 다른지 확인이 필요합니다.
+  3. RECIPE_ID 와 PPID 가 항상 같은 값인지.
+
+  해결됨 (2026-08-03): HV-SEM 알람이 피드에 들어오는지 → 들어옵니다. 함수가
+  get_ebeam_metrology_alarms 로 바뀌면서 e-beam metrology 전체가 대상임이
+  확인되었습니다. 실제 fac_id 값 집합도 확정되었습니다(위 참조).
 
 이벤트 field
 
-  id -> string: "{eqp_id}|{alid}|{occurred_at}" 조합. 중복 제거 키입니다.
-  eqp_id -> string: 장비 ID
-  alid -> string: 알람 ID
-  alarm_name -> string: 알람 이름
-  occurred_at -> string: "YYYY-MM-DD HH:MM:SS+09:00" (offset 명시)
-  occurred_epoch -> int: ZSET score 와 같은 값
-  recipe_id -> string
-  operation_desc -> string
-  lot_type_cd -> string
+  DataFrame 컬럼을 snake_case 로 편 형태입니다. occurred_epoch 만 int 이고
+  나머지는 전부 string 입니다. 값이 없으면 키를 빼지 않고 빈 문자열을 넣습니다 —
+  ZSET member 가 이 dict 그대로라, 어떤 때만 있는 키가 있으면 같은 알람이 서로
+  다른 member 두 개가 됩니다.
+
+  | field | 출처 컬럼 | 비고 |
+  | --- | --- | --- |
+  | id | RAWID | 중복 제거 키. 없으면 eqp_id\|alid\|occurred_at |
+  | rawid | RAWID | |
+  | eqp_id | EQP_ID | |
+  | alarm_modelname | ALARM_MODELNAME | |
+  | alid | ALID | |
+  | al_code | AL_CODE | |
+  | al_type | AL_TYPE | |
+  | kind | (ALID 에서 유도) | align 또는 meas |
+  | alarm_name | AL_TEXT | 예전 ALARM_NAME 은 fallback 으로만 남음 |
+  | occurred_at | UTC9 → TIMESTAMP | "YYYY-MM-DD HH:MM:SS+09:00" (offset 명시) |
+  | occurred_epoch | UTC9 → TIMESTAMP | int. ZSET score 와 같은 값 |
+  | lot_id | LOT_ID | |
+  | cassette_id | CASSETTE_ID | FOUP ID |
+  | recipe_id | RECIPE_ID | |
+  | ppid | PPID | |
+  | operation_desc | OPERATION_DESC | step 명 |
+  | step_id | STEP_ID | process ID |
+  | lot_type_cd | LOT_TYPE_CD | |
+  | meseventname | MESEVENTNAME | |
+  | eq_stat | EQ_STAT | |
 
   선택 컬럼이 DataFrame 에서 NaN 으로 오면 빈 문자열로 바꿉니다. 그대로 두면
   str(NaN) 이 "nan" 이라 화면에 그 글자가 찍힙니다.

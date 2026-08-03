@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { nextDelay, applyPoll, POLL_INTERVAL_MS, POLL_JITTER_MS } from './useLiveAlarmFeed.ts'
+import { makeAlarmEvent } from '../utils/liveAlarm.fixtures.ts'
 import type { LiveAlarmPayload } from '~/utils/liveAlarm'
 
 const payload = (ids: string[], serverNowEpochMs: number): LiveAlarmPayload => ({
@@ -12,11 +13,7 @@ const payload = (ids: string[], serverNowEpochMs: number): LiveAlarmPayload => (
   server_now: new Date(serverNowEpochMs).toISOString(),
   board_window_sec: 600,
   unmatched_count: 0,
-  events: ids.map(id => ({
-    id, eqp_id: 'EQ1', alid: '9006', kind: 'align' as const, alarm_name: 'Align Fail',
-    occurred_at: '2026-07-23 10:00:00+09:00', occurred_epoch: 1,
-    recipe_id: '', operation_desc: '', lot_type_cd: ''
-  }))
+  events: ids.map(id => makeAlarmEvent({ id }))
 })
 
 describe('nextDelay', () => {

@@ -51,23 +51,45 @@ def _text(row: Any, *names: str) -> str:
     return ""
 
 
-def _alid(row: Any) -> str:
-    """Normalize the alarm id to a bare integer string.
+def _int_text(row: Any, *names: str) -> str:
+    """Read an integer-valued cell as a bare integer string.
 
-    The feed reaches us through pandas, which turns an integer column into
-    "9006.0". Both spellings mean the same alarm.
+    The feed reaches us through pandas, where one null anywhere in an integer
+    column promotes the whole column to float and every value gains a ".0"
+    tail. "9006" and "9006.0" are the same alarm id, and "881423" and
+    "881423.0" are the same row — but only one spelling of each matches a
+    dict lookup or dedupes against yesterday's ZSET member.
     """
-    raw = _text(row, "ALID", "alarm_id", "alid")
+    raw = _text(row, *names)
     return raw[:-2] if raw.endswith(".0") else raw
 
 
+def _alid(row: Any) -> str:
+    return _int_text(row, "ALID", "alarm_id", "alid")
+
+
+def _rawid(row: Any) -> str:
+    return _int_text(row, "RAWID", "rawid")
+
+
 def _parse(text: str) -> datetime | None:
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            return datetime.strptime(text, fmt).replace(tzinfo=KST)
-        except ValueError:
-            continue
-    return None
+    """Read either timestamp spelling the feed uses, in KST.
+
+    `UTC9` is a datetime64[us] column, so `to_dict` hands us a Timestamp whose
+    str() may carry microseconds ("... 09:32:40.123456"); `TIMESTAMP` is a
+    plain string in ISO-T form ("2026-03-03T09:32:40"). fromisoformat covers
+    both plus the fractional part, which the two strptime formats alone did
+    not — a sub-second alarm would have been dropped as undated.
+
+    Anything without an offset is KST: both columns are already 한국 시간, so
+    attaching +09:00 relabels rather than shifts. A row that DOES carry an
+    offset is trusted as-is instead of being stamped KST twice.
+    """
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=KST)
 
 
 def to_events(rows: list[dict], *, now: int) -> list[dict]:
@@ -91,17 +113,39 @@ def to_events(rows: list[dict], *, now: int) -> list[dict]:
 
         occurred_at = moment.isoformat(sep=" ")
         eqp_id = _text(row, "EQP_ID", "eqp_id")
+        rawid = _rawid(row)
         events.append({
-            "id": f"{eqp_id}|{alid}|{occurred_at}",
+            # RAWID is the feed's own unique key, so it dedupes exactly. The
+            # composite is the fallback, and it is strictly weaker: two alarms
+            # from one tool in the same second share it and collapse into one
+            # row. Prefer the key the source hands us.
+            "id": rawid or f"{eqp_id}|{alid}|{occurred_at}",
+            "rawid": rawid,
             "eqp_id": eqp_id,
+            "alarm_modelname": _text(row, "ALARM_MODELNAME", "alarm_modelname"),
             "alid": alid,
+            "al_code": _text(row, "AL_CODE", "al_code"),
+            "al_type": _text(row, "AL_TYPE", "al_type"),
             "kind": kind,
-            "alarm_name": _text(row, "ALARM_NAME", "alarm_name"),
+            # AL_TEXT is the description the tool emits ("FAILURE IN AUTO
+            # MEASUREMENT"). ALARM_NAME is the older POC spelling, kept as a
+            # fallback so a feed predating the rename still renders a label.
+            "alarm_name": _text(row, "AL_TEXT", "al_text", "ALARM_NAME", "alarm_name"),
             "occurred_at": occurred_at,
             "occurred_epoch": occurred_epoch,
+            "lot_id": _text(row, "LOT_ID", "lot_id"),
+            "cassette_id": _text(row, "CASSETTE_ID", "cassette_id"),
+            # RECIPE_ID and PPID are the same recipe under two systems' names.
+            # Carried separately rather than coalesced: which one is populated
+            # is itself a signal, and the office has not confirmed they always
+            # agree (OFFICE-VERIFY in live_alarm_board.txt).
             "recipe_id": _text(row, "RECIPE_ID", "recipe_id"),
+            "ppid": _text(row, "PPID", "ppid"),
             "operation_desc": _text(row, "OPERATION_DESC", "operation_desc"),
+            "step_id": _text(row, "STEP_ID", "step_id"),
             "lot_type_cd": _text(row, "LOT_TYPE_CD", "lot_type_cd"),
+            "meseventname": _text(row, "MESEVENTNAME", "meseventname"),
+            "eq_stat": _text(row, "EQ_STAT", "eq_stat"),
         })
     return events
 

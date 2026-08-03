@@ -57,23 +57,29 @@ def _office_fetch():
     transient fetch failure — and without holding a lock on the way out.
     """
     try:
-        from office_utils.live_alarm import get_live_alarms
+        from office_utils.live_alarm import get_ebeam_metrology_alarms
     except ImportError as exc:
         raise RuntimeError(
-            "office_utils.live_alarm is not importable — live_alarm's office "
-            "provider needs the office-only office_utils package on sys.path. "
-            "Copy it onto this host, or run with "
-            "SKEWNONO_LIVE_ALARM_PROVIDER=mock."
+            "office_utils.live_alarm.get_ebeam_metrology_alarms is not "
+            "importable — live_alarm's office provider needs the office-only "
+            "office_utils package on sys.path. Copy it onto this host, or run "
+            "with SKEWNONO_LIVE_ALARM_PROVIDER=mock. (The function was called "
+            "get_cdsem_alarms/get_live_alarms in earlier builds; an ImportError "
+            "naming only the module usually means an old office_utils.)"
         ) from exc
 
     def fetch(fac_id: str) -> list[dict]:
         # DataFrame -> dict rows (CLAUDE.md's dataframe-dict convention).
+        # Returns EVERY alid for the facility; normalize.to_events is what
+        # cuts it to ALID_KIND, so a newly interesting alarm code is a
+        # contracts.py edit and not an office_utils change.
+        #
         # NaN survives to_dict; normalize._text is what guards it. No
         # duck-typed fallback: anything without to_dict is a contract
         # violation that must raise, because list() of a DataFrame yields
         # COLUMN NAMES, which to_events would silently drop into an empty
         # board stamped with a fresh timestamp.
-        return get_live_alarms(fac_id).to_dict(orient="records")
+        return get_ebeam_metrology_alarms(fac_id).to_dict(orient="records")
 
     return fetch
 

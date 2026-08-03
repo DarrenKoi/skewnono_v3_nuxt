@@ -60,20 +60,55 @@ assert PRUNE_SEC >= BOARD_WINDOW_SEC, (
     "events the reader is still supposed to show."
 )
 
-ALID_KIND: dict[str, Kind] = {"9006": "align", "9100": "meas"}
+# The alarm ids this board renders; everything else in the facility feed is
+# discarded by normalize.to_events. All three are HITACHI-only codes, which is
+# why the endpoint serves cd-sem and hv-sem and nothing else — the AMAT tools
+# in the same sem_list roster report measurement failure under codes nobody
+# has looked up yet (user-confirmed 2026-08-03).
+#
+#   9006  align   ALIGNMENT FAIL
+#   9007  meas    FAILURE IN DETECTION OF PATTERN
+#   9035  meas    FAILURE IN AUTO MEASUREMENT
+#
+# MANY ids map to ONE kind, so `kind` is what the UI groups and counts by and
+# `alid`/`alarm_name` is what says which failure it actually was. Adding an id
+# is a line here; adding a KIND means touching the badge and the counters too.
+ALID_KIND: dict[str, Kind] = {"9006": "align", "9007": "meas", "9035": "meas"}
 
 
 class AlarmEvent(TypedDict):
-    id: str              # f"{eqp_id}|{alid}|{occurred_at}"
+    """One alarm row, flattened from the office feed by normalize.py.
+
+    Every field is a string except `occurred_epoch`, because the office feed
+    is all-str apart from `UTC9` (datetime64[us]) and `RAWID` (int) — see
+    `docs/datatables/live_alarm_board.txt` for the column-by-column source.
+    Absent or null cells become "" rather than being omitted: the ZSET member
+    is this dict verbatim, and a key that appears only sometimes would make
+    two spellings of the same alarm two distinct members.
+    """
+
+    # RAWID when the feed carries one (it is the feed's own unique key), else
+    # f"{eqp_id}|{alid}|{occurred_at}". Dedupe key for the ZSET.
+    id: str
+    rawid: str
     eqp_id: str
+    alarm_modelname: str  # ALARM_MODELNAME — tool model, e.g. CG5000
     alid: str
+    al_code: str
+    al_type: str           # AL_TYPE — inform / warning / ...
     kind: Kind
-    alarm_name: str
-    occurred_at: str     # "YYYY-MM-DD HH:MM:SS+09:00"
-    occurred_epoch: int  # ZSET score; parsed once at refresh time
+    alarm_name: str        # AL_TEXT — the human-readable alarm description
+    occurred_at: str       # "YYYY-MM-DD HH:MM:SS+09:00"
+    occurred_epoch: int    # ZSET score; parsed once at refresh time
+    lot_id: str
+    cassette_id: str       # FOUP id
     recipe_id: str
-    operation_desc: str
+    ppid: str              # the recipe id as MES spells it
+    operation_desc: str    # step 명
+    step_id: str           # process id
     lot_type_cd: str
+    meseventname: str    # MESEVENTNAME — waferload / endrun / ...
+    eq_stat: str           # proc / wait / ...
 
 
 class LiveAlarmPayload(TypedDict):

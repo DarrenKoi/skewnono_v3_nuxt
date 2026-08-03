@@ -6,32 +6,51 @@ office 모드로 전환됩니다. 별도의 스케줄러 서비스나 writer 배
 
 ## 1. office_utils 에 알람 조회 함수를 둡니다
 
-`office_utils/live_alarm.py` 에 아래 한 함수를 구현합니다. SKEWNONO 는 이
-함수 하나만 호출합니다.
+`office_utils/live_alarm.py` 에 아래 한 함수를 둡니다. SKEWNONO 는 이 함수
+하나만 호출합니다.
 
 ```python
-def get_live_alarms(fac_id: str) -> pd.DataFrame:
+def get_ebeam_metrology_alarms(fac_id: str) -> pd.DataFrame:
     """한 fac_id 의 알람 rows 를 ALID 구분 없이 모두 돌려줍니다."""
-    align = filter_align_fail(get_cdsem_alarms(fac_id))
-    meas = get_measurement_fail_alarms(fac_id)
-    return pd.concat([align, meas], ignore_index=True)
 ```
 
-두 종류를 SKEWNONO 가 아니라 여기서 합치는 이유는, 한쪽만 실패했을 때 무엇을
-보여줄지 정하는 문제를 아예 만들지 않기 위해서입니다. import 도 호출도 실패
-경로도 하나씩만 남습니다.
+**ALID 로 미리 거르지 마십시오.** 무엇을 화면에 올릴지는
+`contracts.ALID_KIND` 가 정합니다. 여기서 걸러 보내면 관심 코드가 하나 늘 때
+office 쪽 코드를 다시 배포해야 합니다.
 
-반환 컬럼은 workflow_3 알람 표준 스키마와 같습니다.
+| ALID | kind | AL_TEXT |
+| --- | --- | --- |
+| `9006` | align | ALIGNMENT FAIL |
+| `9007` | meas | FAILURE IN DETECTION OF PATTERN |
+| `9035` | meas | FAILURE IN AUTO MEASUREMENT |
+
+셋 다 HITACHI 전용 코드이고, CD-SEM 과 HV-SEM 이 같은 코드를 씁니다. AMAT
+장비의 측정 실패 코드는 아직 확인되지 않았습니다.
+
+예전 이름 `get_cdsem_alarms()` 에서 두 가지가 바뀌었습니다 — `fac_id` 인자가
+생겼고, 대상이 CD-SEM 이 아니라 e-beam metrology 전체(CD-SEM + HV-SEM)입니다.
+
+반환 컬럼은 전부 대문자이고, `UTC9` 만 `datetime64[us]`, `RAWID` 만 `int`,
+나머지는 전부 `str` 입니다. 전체 목록과 dtype 은
+[`docs/datatables/live_alarm_board.txt`](../../../../docs/datatables/live_alarm_board.txt)
+에 있습니다. 여기 적힌 것보다 컬럼이 많아도 무해합니다 — `normalize.py` 는
+이름으로 찾아 읽습니다.
 
 | 컬럼 | 필수 | 의미 |
 | --- | --- | --- |
 | `EQP_ID` | 예 | 장비 ID. 이 값으로 sem_list 에서 fab 을 찾습니다 |
-| `ALID` | 예 | `9006` align fail, `9100` 측정 연속 실패 |
-| `UTC9` | 예 | `"%Y-%m-%d %H:%M:%S"` 발생 시각 |
-| `RECIPE_ID` | 아니오 | `"<class>/<recipe>"` |
-| `ALARM_NAME` | 아니오 | 사람이 읽는 라벨 |
-| `OPERATION_DESC` | 아니오 | 공정/스텝 설명 |
+| `ALID` | 예 | 알람 코드. 위 표 참조 |
+| `UTC9` | 예 | 발생 시각(KST). `TIMESTAMP` 로 대체 가능 |
+| `RAWID` | 아니오 | row 고유 키. 있으면 중복 제거 키로 씁니다 |
+| `AL_TEXT` | 아니오 | 알람 설명. 화면 문구가 됩니다 |
+| `AL_TYPE` | 아니오 | `inform` / `warning` |
+| `AL_CODE` | 아니오 | 용도 미확인 |
+| `LOT_ID`, `CASSETTE_ID` | 아니오 | lot / FOUP |
+| `RECIPE_ID`, `PPID` | 아니오 | 같은 recipe 의 두 표기 |
+| `OPERATION_DESC`, `STEP_ID` | 아니오 | step 명 / process ID |
 | `LOT_TYPE_CD` | 아니오 | lot 종류 코드 |
+| `MESEVENTNAME`, `EQ_STAT` | 아니오 | `waferload`·`endrun` / `proc`·`wait` |
+| `ALARM_MODELNAME` | 아니오 | 장비 model 명 |
 | `TIMESTAMP` | 아니오 | `UTC9` 가 없을 때의 대체 값 |
 
 선택 컬럼이 비어 있으면 `NaN` 이어도 됩니다. `normalize.py` 가 `NaN`/`NaT`/
@@ -39,8 +58,8 @@ def get_live_alarms(fac_id: str) -> pd.DataFrame:
 
 ### timeout 은 이 함수 안에서 걸어야 합니다
 
-**`get_live_alarms` 는 반드시 자체 timeout 을 걸어야 하며, 그 값은 `LOCK_TTL_SEC`
-(20초)보다 짧아야 합니다.** SKEWNONO 는 이 호출에 timeout 을 걸지 않습니다 —
+**`get_ebeam_metrology_alarms` 는 반드시 자체 timeout 을 걸어야 하며, 그 값은
+`LOCK_TTL_SEC`(20초)보다 짧아야 합니다.** SKEWNONO 는 이 호출에 timeout 을 걸지 않습니다 —
 조회 수단(HTTP/DB/MES 클라이언트)을 office 쪽만 알기 때문입니다.
 
 20초를 넘기면 락이 만료되어 **다음 요청이 두 번째 조회를 시작합니다.** 느린

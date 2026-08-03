@@ -15,7 +15,7 @@ Three rules hold this together:
   of every viewer.
 
 The events key stays an ACCUMULATING ZSET rather than a last-response cache.
-``get_live_alarms`` takes no window argument, so how far back it reaches is
+``get_ebeam_metrology_alarms`` takes no window argument, so how far back it reaches is
 the office's choice; if it reports only currently-active alarms, a
 last-response cache could never hold the 10-minute board. Accumulation is
 safe because ZSET members are canonical JSON, making a repeated event a no-op.
