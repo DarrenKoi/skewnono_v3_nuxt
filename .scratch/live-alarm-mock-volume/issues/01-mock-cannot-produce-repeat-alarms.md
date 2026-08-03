@@ -1,7 +1,9 @@
 # live_alarm mock cannot produce a repeated (eqp_id, ppid)
 
 Type: bug
-Status: needs-triage
+Status: done
+
+Fixed 2026-08-03 — see "How it was fixed" at the bottom.
 
 ## Background
 
@@ -86,3 +88,47 @@ screen has.
 The 2026-08-03 grouping work was scoped frontend-only, and its plan's Global
 Constraints forbade touching `back_dev_home/`. Reaching across would have
 turned a frontend branch into a backend one mid-review. Recorded here instead.
+
+## How it was fixed
+
+Three changes in
+`back_dev_home/ebeam/hitachi/live_alarm/providers/mock.py`:
+
+1. **Volume cycle.** `count = (now // 60) % 4` became
+   `_COUNTS = (0, 11, 19, 27)` indexed by the minute. The `0` keeps the quiet
+   board reachable — raising the volume must not cost the
+   "최근 10분간 알람이 없습니다." screen.
+2. **A deliberate repeat burst.** `_HOT_BURST = 6` events pinned to one
+   `eqp_id` and one recipe, alternating 9007/9035 so they land in one `meas`
+   group and prove the view groups by kind rather than by alid. Placed
+   explicitly rather than left to index cycling, which produced a pile of 3 at
+   best, only by coincidence, and would move whenever the roster size did.
+   Marked in the code as a FABRICATED CORRELATION: the shape is what the
+   screen was built for, the rate is `OFFICE-VERIFY`.
+3. **Wider id spacing.** `(now // 60 % 1000) * 10` became `* 100`. At `*10` the
+   per-minute id blocks overlapped once boards exceeded 10 events — minute
+   N's index 12 collided with minute N+1's index 2. The frontend decides "new
+   since the last poll" by id and polls straddle minute boundaries constantly,
+   so that collision would have made a genuinely new alarm fail to highlight,
+   looking like a bug in the highlight code.
+
+Resulting boards per fab, across one turn of the cycle:
+
+| slot | total | meas | groups | group counts | unmatched |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0 | 0 | 0 | — | 0 |
+| 1 | 17 | 13 | 8 | 6,1,1,1,1,1,1,1 | 0 |
+| 2 | 25 | 18 | 9 | 6,2,2,2,2,1,1,1,1 | 0 |
+| 3 | 33 | 24 | 9 | 6,3,3,2,2,2,2,2,2 | 1 |
+
+## One thing the fix nearly broke
+
+`unmatched_count` — the roster-gap screen — was keyed on `count == 3`. The new
+cycle never produces a 3, so that path became unreachable the moment the volume
+changed, **and not one existing test would have failed.** It is now keyed on the
+cycle slot, and `test_the_roster_gap_path_stays_reachable` pins it.
+
+This is the same class of defect as the original bug: a capability lost with no
+assertion watching. `tests/test_mock.py` (8 tests) now guards the mock's value
+domain — volume, the repeat, its prominence, the quiet board, id uniqueness
+within and across minutes, the blank ppid, and the roster gap.

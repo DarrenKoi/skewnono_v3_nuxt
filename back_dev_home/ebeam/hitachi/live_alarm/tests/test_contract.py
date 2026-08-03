@@ -6,15 +6,19 @@ Office: SKEWNONO_LIVE_ALARM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam
 Both providers build the payload through the same pure `board` module, so the
 three-empty-states model (live / stale / not_configured) and the alid->kind
 table are shared law, asserted unfenced. What is NOT provider-independent is
-the CONTENT of a configured fab's board: the mock derives a 0..3 event burst
-from the current minute for any fab its roster carries, while the office reader
-returns whatever the last successful office fetch put in Redis — which for a
-healthy, quiet fab is legitimately nothing. Assumptions about which fabs the
-roster carries are fenced behind get_data_provider("live_alarm") == "mock".
+the CONTENT of a configured fab's board: the mock derives its events from the
+current minute for any fab its roster carries, while the office reader returns
+whatever the last successful office fetch put in Redis — which for a healthy,
+quiet fab is legitimately nothing. Assumptions about which fabs the roster
+carries are fenced behind get_data_provider("live_alarm") == "mock".
 
-Note the event list can be empty at home too (the mock's count is
-`(now // 60) % 4`), so there is no "mock must not be empty" fence to write
-here — the emptiness itself is provider-independent.
+Note the event list can be empty at home too — the mock's volume cycle keeps a
+quiet slot on purpose — so there is no "mock must not be empty" fence to write
+here; the emptiness itself is provider-independent.
+
+What the mock must be able to REPRESENT (volume, repeats, the roster gap) is
+not this file's job either. That is `test_mock.py`, which exists because those
+properties can be lost without any shape assertion here noticing.
 """
 
 import pytest
