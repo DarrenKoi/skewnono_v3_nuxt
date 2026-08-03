@@ -12,6 +12,26 @@
         <p class="sk-meta mt-1">
           최근 활동, 자주 쓰는 기능, 전체 사용 추이를 보여줍니다.
         </p>
+        <!-- The header pill is icon-only (no width for a name in the top nav),
+             so this page is where the caller reads who they are signed in as. -->
+        <p
+          v-if="identity"
+          class="sk-meta mt-1 flex items-center gap-1.5"
+        >
+          <UIcon
+            name="i-lucide-user-round"
+            class="size-4"
+          />
+          <span class="font-medium text-(--sk-ink)">{{ displayName(identity) }}</span>
+          <span>· 사번 {{ identity.user_id }}</span>
+          <UBadge
+            v-if="isUnverifiedDeclaration(identity)"
+            color="warning"
+            variant="subtle"
+            size="sm"
+            label="미검증"
+          />
+        </p>
       </div>
       <UButton
         :loading="refreshing"
@@ -502,9 +522,13 @@ import {
   type FabUsageRow
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
+import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
 useHead({ title: '사용 통계 | SKEWNONO' })
+
+// Already fetched by the route middleware — no extra /api/me request here.
+const { identity } = useIdentity()
 
 const {
   data: me,
