@@ -2,8 +2,11 @@
 
 The mock stores the same request-scoped semantics the OpenSearch office reader
 will aggregate: entry requests count active users, feature requests also count
-page usage, and each request can belong to multiple FAB buckets. Timestamps
-stay UTC but day buckets follow ``Asia/Seoul``, matching the office reader's
+FAB page usage, and each request can belong to multiple FAB buckets. Feature
+rankings (``by_feature`` / ``daily_features``) are a separate unit driven
+entirely by ``page_view`` events — a page open is not a request, so it never
+touches the daily series, ``daily_fabs`` or ``last_seen``. Timestamps stay UTC
+but day buckets follow ``Asia/Seoul``, matching the office reader's
 ``time_zone`` aggregations — a UTC calendar here would disagree with
 production about "today" for nine hours a day.
 """
@@ -142,9 +145,19 @@ def record_request(
     activity_kind: str,
     fab_name_list: list[str],
 ) -> None:
-    """Record one already-classified human entry or feature request."""
+    """Record one already-classified human entry, feature or page-view event.
 
-    if activity_kind not in {"entry", "feature"}:
+    Two units live in this store on purpose and must not be mixed:
+
+    * request rows (entry/feature) drive the daily series, this_month,
+      active-user counts and the FAB page rankings;
+    * page_view rows drive the feature rankings ONLY.
+
+    Mixing them would silently redefine this_month.requests. See
+    docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md.
+    """
+
+    if activity_kind not in {"entry", "feature", "page_view"}:
         return
 
     now = _now()
@@ -160,6 +173,15 @@ def record_request(
             )
             _users[user_id] = state
 
+        if activity_kind == "page_view":
+            # Rankings only. A page open is not a request, so it must not
+            # touch state.daily / daily_fabs / last_seen.
+            state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
+            daily_features = state.daily_features.setdefault(today, {})
+            daily_features[feature] = daily_features.get(feature, 0) + 1
+            _prune_old_days(state, today)
+            return
+
         state.daily[today] = state.daily.get(today, 0) + 1
         state.daily_fabs.setdefault(today, set()).update(fabs)
         state.last_seen = now
@@ -168,9 +190,6 @@ def record_request(
         if activity_kind != "feature":
             return
 
-        state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
-        daily_features = state.daily_features.setdefault(today, {})
-        daily_features[feature] = daily_features.get(feature, 0) + 1
         daily_fab_features = state.daily_fab_features.setdefault(today, {})
         for fab in fabs:
             fab_features = daily_fab_features.setdefault(fab, {})
@@ -342,62 +361,47 @@ def get_fab_page_usage() -> FabUsageResponse:
     }
 
 
-# (user_id, fab, feature totals, days of activity ending today). ``sem_list``
-# stands in for entry traffic — see _seed_feature.
-_DEMO_USERS: list[tuple[str, str, dict[str, int], int]] = [
+# (user_id, fab, request feature totals, page-view totals, days of activity
+# ending today). ``sem_list`` stands in for entry traffic — see _seed_feature.
+#
+# Page-view totals are listed separately, not derived from the request totals:
+# the two have no fixed ratio in reality (mag-pixel makes no requests at all,
+# live-alarm makes hundreds per open), and a derived number would teach a
+# relationship the office data does not have.
+_DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
     (
         "kim.minju",
         "M14",
-        {
-            "sem_list": 220,
-            "recipe_search": 160,
-            "meas_hist": 45,
-            "fail_issue": 30,
-        },
+        {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},
+        {"recipe_search": 34, "meas_hist": 12, "fail_issue": 9, "mag_pixel": 4},
         14,
     ),
     (
         "park.jinho",
         "M16B",
-        {
-            "recipe_search": 190,
-            "sem_list": 120,
-            "recipe_tat": 65,
-            "storage": 25,
-        },
+        {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},
+        {"recipe_search": 28, "recipe_tat": 15, "storage": 11, "live_alarm": 6},
         12,
     ),
     (
         "lee.soyoung",
         "M11",
-        {
-            "sem_list": 140,
-            "storage": 80,
-            "fail_issue": 55,
-            "hardware": 20,
-        },
+        {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},
+        {"storage": 22, "fail_issue": 14, "hardware": 8, "live_alarm": 5},
         9,
     ),
     (
         "choi.eunwoo",
         "R3",
-        {
-            "recipe_tat": 70,
-            "sem_list": 60,
-            "recipe_search": 40,
-            "device_statistics": 25,
-        },
+        {"recipe_tat": 70, "sem_list": 60, "recipe_search": 40, "device_statistics": 25},
+        {"recipe_tat": 12, "recipe_search": 9, "device_statistics": 7, "chat": 3},
         6,
     ),
     (
         "jung.hari",
         "M15",
-        {
-            "skewvoir": 90,
-            "sem_list": 30,
-            "afm": 25,
-            "meas_hist": 15,
-        },
+        {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},
+        {"skewvoir": 19, "afm": 6, "meas_hist": 5, "mag_pixel": 3},
         4,
     ),
 ]
@@ -414,12 +418,12 @@ def _seed_feature(
     """Spread ``total`` requests evenly over the last ``days_back`` days.
 
     ``sem_list`` stands in for entry traffic: it counts toward daily totals
-    and FAB active users but never toward the feature or FAB-page rankings,
-    mirroring record_request's entry/feature split.
+    and FAB active users but never toward the FAB-page rankings, mirroring
+    record_request's entry/feature split. Feature rankings themselves
+    (``by_feature`` / ``daily_features``) are seeded separately by
+    ``_seed_page_views`` — requests no longer feed the rankings.
     """
     is_entry = feature == "sem_list"
-    if not is_entry:
-        state.by_feature[feature] = state.by_feature.get(feature, 0) + total
     for offset in range(days_back):
         count = total // days_back
         if offset < total % days_back:
@@ -431,13 +435,36 @@ def _seed_feature(
         state.daily_fabs.setdefault(day, set()).add(fab)
         if is_entry:
             continue
-        day_features = state.daily_features.setdefault(day, {})
-        day_features[feature] = day_features.get(feature, 0) + count
         fab_features = state.daily_fab_features.setdefault(
             day,
             {},
         ).setdefault(fab, {})
         fab_features[feature] = fab_features.get(feature, 0) + count
+
+
+def _seed_page_views(
+    state: _UserState,
+    feature: str,
+    total: int,
+    days_back: int,
+    today: date,
+) -> None:
+    """Spread ``total`` page opens evenly over the last ``days_back`` days.
+
+    Deliberately does NOT touch state.daily or daily_fab_features: page views
+    feed the rankings only, exactly as record_request splits them.
+    """
+    if days_back <= 0 or total <= 0:
+        return
+    per_day, remainder = divmod(total, days_back)
+    for offset in range(days_back):
+        count = per_day + (1 if offset < remainder else 0)
+        if count == 0:
+            continue
+        day = today - timedelta(days=offset)
+        state.by_feature[feature] = state.by_feature.get(feature, 0) + count
+        daily = state.daily_features.setdefault(day, {})
+        daily[feature] = daily.get(feature, 0) + count
 
 
 def seed_demo_users() -> None:
@@ -447,7 +474,7 @@ def seed_demo_users() -> None:
     now = _now()
 
     with _lock:
-        for user_id, fab, features, days_back in _DEMO_USERS:
+        for user_id, fab, features, page_views, days_back in _DEMO_USERS:
             if user_id in _users:
                 continue
             state = _UserState(
@@ -457,4 +484,6 @@ def seed_demo_users() -> None:
             )
             for feature, total in features.items():
                 _seed_feature(state, fab, feature, total, days_back, today)
+            for feature, total in page_views.items():
+                _seed_page_views(state, feature, total, days_back, today)
             _users[user_id] = state

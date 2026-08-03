@@ -14,6 +14,15 @@ def fresh_store(monkeypatch):
     return store
 
 
+@pytest.fixture
+def reset_state(monkeypatch):
+    """Like fresh_store, but for tests that read back through get_me /
+    get_fab_page_usage rather than poking _UserState directly."""
+    store: dict[str, mock._UserState] = {}
+    monkeypatch.setattr(mock, "_users", store)
+    return store
+
+
 def test_record_request_trims_day_buckets_to_the_read_window(fresh_store):
     """Per-user daily dicts must stay bounded: a long-lived dev server would
     otherwise accumulate one entry per day forever."""
@@ -80,3 +89,32 @@ def test_non_activity_kinds_are_ignored(fresh_store):
     mock.record_request("u1", "sem_list", "background", ["M14"])
 
     assert fresh_store == {}
+
+
+def test_rankings_come_from_page_views_not_requests(reset_state):
+    """A poller must not outrank a page someone actually opened."""
+    for _ in range(50):
+        mock.record_request("u1", "live_alarm", "feature", ["M14"])
+    mock.record_request("u1", "mag_pixel", "page_view", [])
+
+    top = mock.get_me("u1")["top_features"]
+
+    assert [row["feature"] for row in top] == ["mag_pixel"]
+
+
+def test_page_views_do_not_inflate_the_request_counters(reset_state):
+    """this_month.requests and the sparkline stay request-based by decision."""
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "mag_pixel", "page_view", [])
+
+    assert mock.get_me("u1")["this_month"]["requests"] == 1
+
+
+def test_fab_page_rankings_stay_request_based(reset_state):
+    """Beacons carry no fab_name, so FAB pages must keep counting requests."""
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "mag_pixel", "page_view", ["M14"])
+
+    fabs = {row["fab"]: row for row in mock.get_fab_page_usage()["fabs_30d"]}
+
+    assert [row["feature"] for row in fabs["M14"]["pages"]] == ["storage"]
