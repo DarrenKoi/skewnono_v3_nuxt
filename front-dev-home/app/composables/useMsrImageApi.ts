@@ -65,10 +65,12 @@ export const useMsrImageApi = () => {
     return { blobUrl: URL.createObjectURL(blob), cond: condRaw ? decodeURIComponent(condRaw) : null }
   }
 
-  const startDownloadAll = async (eqp_ip: string, class_name: string, msr: string) => {
+  const startDownloadAll = async (eqp_ip: string, class_name: string, msr: string, names?: string[]) => {
     const res = await $fetch<{ job_id: string }>(joinApiPath(base, '/msr-images'), {
       method: 'POST',
-      body: { eqp_ip, class_name, msr }
+      // `names` scopes the job to exactly these files (the parameter-scoped
+      // cache warmer); omitted, the server lists and fetches the whole dir.
+      body: names?.length ? { eqp_ip, class_name, msr, names } : { eqp_ip, class_name, msr }
     })
     return res.job_id
   }

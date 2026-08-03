@@ -53,6 +53,57 @@ def test_download_all_starts_and_completes(app):
     assert cache.get(ImageLocator("10.0.0.1", "ADI", "MSR_1", first)) is not None
 
 
+def test_scoped_download_fetches_exactly_the_named_images(app):
+    """`names` skips the tool listing and warms only the caller's files —
+    the parameter-scoped cache warmer's contract."""
+    client = app.test_client()
+    listed = client.get(
+        "/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    ).get_json()["images"]
+    wanted, skipped = listed[:2], listed[2]
+
+    r = client.post(
+        "/api/msr-images",
+        json={"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1", "names": wanted},
+    )
+    assert r.status_code == 202
+    st = _wait_done(client, r.get_json()["job_id"])
+    assert st["total"] == st["ok"] == len(wanted)
+
+    cache = DiskImageCache(app.config["_cache_dir"])
+    for name in wanted:
+        assert cache.get(ImageLocator("10.0.0.1", "ADI", "MSR_1", name)) is not None
+    assert cache.get(ImageLocator("10.0.0.1", "ADI", "MSR_1", skipped)) is None
+
+
+def test_scoped_download_empty_names_means_everything(app):
+    """[] is 'no scope', not 'fetch nothing' — same as omitting the key."""
+    client = app.test_client()
+    listed = client.get(
+        "/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    ).get_json()["images"]
+
+    r = client.post(
+        "/api/msr-images",
+        json={"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1", "names": []},
+    )
+    assert r.status_code == 202
+    assert _wait_done(client, r.get_json()["job_id"])["total"] == len(listed)
+
+
+def test_scoped_download_rejects_bad_names(app):
+    client = app.test_client()
+    base = {"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1"}
+
+    assert client.post("/api/msr-images", json={**base, "names": "a.jpeg"}).status_code == 400
+    assert client.post("/api/msr-images", json={**base, "names": [1, 2]}).status_code == 400
+    assert client.post("/api/msr-images", json={**base, "names": ["../escape.jpeg"]}).status_code == 400
+    assert (
+        client.post("/api/msr-images", json={**base, "names": ["a.jpeg"] * 501}).status_code
+        == 400
+    )
+
+
 def test_unknown_job_404(app):
     assert app.test_client().get("/api/msr-images/deadbeef").status_code == 404
 

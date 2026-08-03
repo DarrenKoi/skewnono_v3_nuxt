@@ -76,11 +76,21 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { measuredRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-// Warm the server-side image cache as soon as the focus MSR's tool address
-// resolves, so the SEM Image / Align panels below click into cache hits
-// instead of cold in-request FTP fetches (the cloud ingress 502s those).
-useMsrImageWarmer(useFocusImageCtx(props.analysis))
+// Warm the server-side image cache for the ACTIVE parameter's points as soon
+// as its rows resolve — and again on every parameter switch — so the SEM
+// Image panel clicks into cache hits instead of cold in-request FTP fetches
+// (the cloud ingress 502s those). Other parameters' images stay untouched
+// until opened.
+useMsrImageWarmer(useFocusImageCtx(props.analysis), () => {
+  const active = props.analysis.activeParam.value
+  const uniq = new Set<string>()
+  for (const row of measuredRows(props.analysis.siteRows.value)) {
+    if (row.parameter === active && row.mp_image_name_01) uniq.add(row.mp_image_name_01)
+  }
+  return [...uniq]
+})
 </script>

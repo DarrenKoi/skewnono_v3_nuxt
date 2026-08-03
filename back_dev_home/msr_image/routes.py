@@ -94,13 +94,15 @@ def serve_image_route():
     return Response(fetched.data, mimetype=fetched.content_type, headers=headers)
 
 
-def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency, registry):
-    """Own the whole tool round-trip: list, then fetch.
+def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency, registry, names=None):
+    """Own the whole tool round-trip: list (when unscoped), then fetch.
 
     The listing lives here rather than in the request handler because office-side
     it is an FTP call to the tool — the slowest step — and the client should not
     hold a connection open waiting for it. The job exists before this runs, so
-    both the size and any failure are reported through polling.
+    both the size and any failure are reported through polling. A caller that
+    already knows which files it wants (the parameter-scoped cache warmer)
+    passes ``names`` and skips the listing entirely.
 
     ``registry`` is handed in rather than resolved here: this thread has no app
     context, and the poll must read back the very store the POST wrote to."""
@@ -113,7 +115,8 @@ def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency, registry)
             registry.record_failure(job_id, name, error or "unknown error")
 
     try:
-        names = data.list_images(eqp_ip, class_name, msr)
+        if names is None:
+            names = data.list_images(eqp_ip, class_name, msr)
         registry.set_total(job_id, len(names))
         data.download_all(eqp_ip, class_name, msr, names, on_file, concurrency)
     except Exception:
@@ -125,6 +128,11 @@ def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency, registry)
         registry.finish(job_id)
 
 
+# A scoped warm names at most one parameter's points; anything past this is a
+# malformed caller, not a big parameter.
+_MAX_JOB_NAMES = 500
+
+
 @bp.post("/msr-images")
 def download_all_route():
     payload = request.get_json(silent=True) or {}
@@ -133,6 +141,19 @@ def download_all_route():
     msr = str(payload.get("msr") or "").strip()
     if not (eqp_ip and class_name and msr):
         return jsonify({"error": "eqp_ip, class_name, msr are required"}), 400
+
+    # Optional scope: fetch exactly these files instead of listing the whole
+    # tool directory. [] and absent both mean "everything" — the caller sending
+    # an empty scope wants the old behavior, not a no-op job.
+    raw_names = payload.get("names")
+    names = None
+    if raw_names is not None:
+        if not isinstance(raw_names, list) or not all(isinstance(n, str) for n in raw_names):
+            return jsonify({"error": "names must be a list of strings"}), 400
+        if len(raw_names) > _MAX_JOB_NAMES:
+            return jsonify({"error": f"names capped at {_MAX_JOB_NAMES}"}), 400
+        stripped = [n.strip() for n in raw_names if n.strip()]
+        names = stripped or None
 
     cfg = load_config()
     registry = make_registry(cfg, data.provider_name())
@@ -146,6 +167,10 @@ def download_all_route():
         validate_tool_ip(eqp_ip, cfg.allowed_subnets)
         validate_segment(class_name, "class_name")
         validate_segment(msr, "msr")
+        for n in names or []:
+            if len(n) > 256:
+                return jsonify({"error": "name too long"}), 400
+            validate_locator(class_name, msr, n)
         cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
     except MsrImageError as exc:
         return _error(exc)
@@ -158,7 +183,7 @@ def download_all_route():
         return jsonify({"error": "too many active downloads", "code": "too_many_jobs"}), 429
     thread = threading.Thread(
         target=_run_download,
-        args=(eqp_ip, class_name, msr, job_id, cache, cfg.ftp_concurrency, registry),
+        args=(eqp_ip, class_name, msr, job_id, cache, cfg.ftp_concurrency, registry, names),
         daemon=True,
     )
     thread.start()
