@@ -19,6 +19,10 @@ _OPERATION_PREFIXES = (
     "/api/account/api-tokens",
 )
 _BACKGROUND_EXACT = {
+    # Mounted in both layouts (default.vue, hub.vue), so it fires once per
+    # page load for every user on every page. Counting it would rank session
+    # volume rather than interest in any one page.
+    "/api/announcements",
     "/api/cdsem/live-alarm",
     "/api/hvsem/live-alarm",
     "/api/msr-image",

@@ -79,3 +79,19 @@ def test_query_redacts_sensitive_values_and_caps_length():
     assert "pw" not in sanitized
     assert sanitized.count("%5BREDACTED%5D") == 2
     assert len(sanitize_query_string(("q=" + "x" * 3000).encode())) == 2048
+
+
+def test_announcements_banner_is_background_not_a_counted_feature():
+    """The banner is in both layouts, so it fires on every page load.
+
+    Counting it would rank "how many pages were loaded", not "which page
+    people wanted" — the same distortion live-alarm's poller would cause.
+    """
+    assert classify_activity(
+        user_id="u1",
+        api_token_id=None,
+        method="GET",
+        path="/api/announcements",
+        status=200,
+        feature="announcements",
+    ) == ("background", 0)
