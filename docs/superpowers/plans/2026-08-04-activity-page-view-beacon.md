@@ -290,7 +290,8 @@ Expected: FAIL at import — `cannot import name 'page_to_feature'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Append to `back_dev_home/_logging/feature_map.py`:
+First add `import re` directly below the existing `from __future__ import
+annotations` line, then append to `back_dev_home/_logging/feature_map.py`:
 
 ```python
 # ---------------------------------------------------------------------------
@@ -336,6 +337,11 @@ _STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("/chat",        "chat"),
     ("/afm",         "afm"),
 )
+
+# Fab segments are [fab] route params. Same shape the frontend uses in
+# plugins/persist-fab.client.ts, so the two stay in agreement about what a fab
+# looks like.
+_FAB_SEGMENT = re.compile(r"^[RM]\d{1,2}[A-C]?$", re.IGNORECASE)
 
 # ?tab= on recipe-status is the real identity. align and meas are two views of
 # one feature: /api/<tool>/fail-issue returns align_fail_* and meas_fail_*
@@ -383,20 +389,23 @@ def page_to_feature(path: str) -> str | None:
 
     parts = [part for part in clean.split("/") if part]
     if parts and parts[0] == "ebeam":
-        # /ebeam/<tool>/<rest...>; <rest> may or may not start with a fab.
+        # /ebeam/<tool>/[<fab>/]<page...> — the fab is a [fab] route param,
+        # present on most pages and absent on the fabless ones
+        # (device-statistics, skewvoir). Drop it FIRST so both shapes reduce to
+        # the same page segment; checking for a page before dropping the fab
+        # would compare "M14" against the page rules and never match.
         rest = parts[2:]
+        if rest and _FAB_SEGMENT.match(rest[0]):
+            rest = rest[1:]
         if rest and rest[0] == "recipe-status":
             tab = _query_value(query, "tab")
             # No tab yet: RecipeStatusView's mount-time router.replace supplies
             # one within a tick. Waiting is what stops one visit counting twice.
             return _RECIPE_STATUS_TABS.get(tab) if tab else None
-        # Drop a leading fab segment so /ebeam/cd-sem/M14/storage and
-        # /ebeam/cd-sem/device-statistics both reduce to their page segment.
-        for candidate in (rest, rest[1:]):
-            joined = "/".join(candidate)
-            for prefix, slug in _PAGE_RULES:
-                if joined == prefix or joined.startswith(prefix + "/"):
-                    return slug
+        joined = "/".join(rest)
+        for prefix, slug in _PAGE_RULES:
+            if joined == prefix or joined.startswith(prefix + "/"):
+                return slug
         # Unmapped ebeam page: group by tool, matching route_to_feature's
         # fallback, which yields cdsem/hvsem for unmapped API paths.
         return parts[1].replace("-", "_") if len(parts) >= 2 else "ebeam"
