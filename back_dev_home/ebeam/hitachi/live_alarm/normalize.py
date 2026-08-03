@@ -135,10 +135,12 @@ def to_events(rows: list[dict], *, now: int) -> list[dict]:
             "occurred_epoch": occurred_epoch,
             "lot_id": _text(row, "LOT_ID", "lot_id"),
             "cassette_id": _text(row, "CASSETTE_ID", "cassette_id"),
-            # RECIPE_ID and PPID are the same recipe under two systems' names.
-            # Carried separately rather than coalesced: which one is populated
-            # is itself a signal, and the office has not confirmed they always
-            # agree (OFFICE-VERIFY in live_alarm_board.txt).
+            # RECIPE_ID and PPID are the same recipe under two systems' names,
+            # and the office confirmed they ALWAYS agree (2026-08-03). Both are
+            # carried rather than coalesced so this module stays a faithful
+            # flattening of the feed — picking one here would make normalize.py
+            # the place that decides which spelling is canonical, and the day
+            # they diverge that decision would be invisible.
             "recipe_id": _text(row, "RECIPE_ID", "recipe_id"),
             "ppid": _text(row, "PPID", "ppid"),
             "operation_desc": _text(row, "OPERATION_DESC", "operation_desc"),

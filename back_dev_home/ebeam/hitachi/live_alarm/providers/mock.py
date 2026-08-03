@@ -50,9 +50,12 @@ this mock used to warn about. AMAT tools are a different matter: their
 measurement-failure codes are not known, so this board stays Hitachi-only and
 the roster's `model_to_tool_type` is what keeps AMAT rows off it.
 
-OFFICE-VERIFY: whether RECIPE_ID and PPID always agree. Both are carried; the
-mock deliberately makes them differ in spelling (PPID keeps the `.rcp` tail) so
-a screen that silently assumed one was the other would show it at home.
+SETTLED (user-confirmed 2026-08-03): RECIPE_ID and PPID ALWAYS agree. This mock
+briefly emitted them differing (PPID with a `.rcp` tail) while that was an open
+question; it now emits them equal, because a mock that disagrees with the office
+on a settled fact teaches the wrong thing to every home session. Both fields are
+still carried — the office DataFrame has both columns, and dropping one here
+would mean normalize.py silently choosing which spelling is canonical.
 
 The fac_id set is R3 / M16 / M15 / M14 / M11 / M10 (user-confirmed 2026-08-03).
 This mock does not hardcode them — it reads whatever the sem_list mock roster
@@ -149,9 +152,12 @@ def _event(now: int, index: int, eqp_id: str, model: str = "CG6300") -> AlarmEve
         "eqp_id": eqp_id,
         "alarm_modelname": model,
         "alid": alid,
-        # AL_CODE's meaning is still unknown (OFFICE-VERIFY). Emitted as a
-        # short opaque token rather than left blank, so a screen that decides
-        # to show it does not look empty at home and populated at the office.
+        # AL_CODE is a number key for a category ABOVE the alid (confirmed
+        # 2026-08-03); we key off the alid and no screen shows this. WHICH
+        # alids share a code is not known, so this varies per alid rather than
+        # inventing buckets — a mock that grouped 9007+9035 under one code
+        # would be teaching a grouping nobody has verified. Not left blank
+        # either: then a screen that ever shows it looks empty only at home.
         "al_code": f"C{alid[-2:]}",
         "al_type": _AL_TYPES[index % len(_AL_TYPES)],
         "kind": ALID_KIND[alid],
@@ -164,10 +170,10 @@ def _event(now: int, index: int, eqp_id: str, model: str = "CG6300") -> AlarmEve
         "lot_id": f"NX{4200 + index // 2:04d}.{index % 2 + 1}",
         "cassette_id": f"FOUP{100 + index % 7:03d}",
         "recipe_id": recipe_id,
-        # PPID is the same recipe as MES spells it — deliberately NOT byte
-        # equal to recipe_id, so code that assumed the two interchangeable
-        # breaks at home rather than at the office. Blank when recipe_id is.
-        "ppid": f"{recipe_id}.rcp" if recipe_id else "",
+        # Byte-equal to recipe_id: the office confirmed the two columns always
+        # agree (2026-08-03). Emitted anyway rather than hardcoded blank, so a
+        # screen reading either name sees the same thing at home as at work.
+        "ppid": recipe_id,
         "operation_desc": "CD MEASUREMENT",
         "step_id": f"{1000 + index % 9:04d}",
         "lot_type_cd": "PROD" if index % 3 else "MONI",

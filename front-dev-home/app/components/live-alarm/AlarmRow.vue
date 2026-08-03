@@ -15,8 +15,8 @@ const elapsed = computed(() =>
 )
 
 // Checking the recipe is the natural next action after seeing the alarm.
-// recipe_id, not ppid: recipe-search indexes the former, and the two are not
-// confirmed to always agree (see docs/datatables/live_alarm_board.txt).
+// recipe_id, not ppid: the two always carry the same value (office-confirmed
+// 2026-08-03), so the tiebreak is that recipe-search indexes this spelling.
 const recipeLink = computed(() =>
   props.event.recipe_id
     ? `/ebeam/${props.toolSlug}/${props.fab}/recipe-search?q=${encodeURIComponent(props.event.recipe_id)}`

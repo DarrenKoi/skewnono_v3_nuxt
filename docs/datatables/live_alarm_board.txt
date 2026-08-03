@@ -19,7 +19,7 @@ polling 했으나, 그 방식은 아무도 보지 않는 새벽에도 계속 호
       뒷받침됩니다.
 
       아직 남은 OFFICE-VERIFY 항목(맨 아래)은 이 확인으로 닫히지 않습니다 —
-      "돌아간다" 와 "AL_CODE 가 무엇인가" 는 다른 질문입니다.
+      "돌아간다" 와 "AMAT 은 어떤 코드를 쓰는가" 는 다른 질문입니다.
 
 조회 함수
 
@@ -81,7 +81,7 @@ DataFrame 컬럼
   | RECIPE_ID | str | recipe ID |
   | OPERATION_DESC | str | step 명 |
   | ALID | str | 알람 코드. 위 표 참조 |
-  | AL_CODE | str | 용도 미확인 (OFFICE-VERIFY) |
+  | AL_CODE | str | ALID 보다 상위 범주의 번호 키. 화면에서 쓰지 않습니다 |
   | AL_TEXT | str | 알람 설명. 화면에 그대로 보여주는 문구 |
   | AL_TYPE | str | inform, warning 등 알람 종류 |
   | LOT_TYPE_CD | str | lot 구분 코드 |
@@ -103,8 +103,16 @@ DataFrame 컬럼
   "T" 구분자를 쓰는 문자열입니다. 둘 다 offset 표기가 없으므로 KST 로 간주해
   +09:00 을 붙입니다(변환이 아니라 표기 부여입니다).
 
-  RECIPE_ID vs PPID — 같은 recipe 를 두 시스템이 부르는 이름입니다. 항상 같은
-  값인지는 확인되지 않았습니다(OFFICE-VERIFY). 둘 다 따로 보관합니다.
+  RECIPE_ID vs PPID — 같은 recipe 를 두 시스템이 부르는 이름이고, **항상 같은
+  값입니다** (user-confirmed 2026-08-03). 그래도 둘 다 따로 보관합니다.
+  normalize.py 는 피드를 그대로 펴는 자리이지 어느 표기가 정본인지 정하는
+  자리가 아니기 때문입니다 — 한쪽으로 합쳐두면 언젠가 둘이 갈라지는 날 그
+  사실이 아무 데도 드러나지 않습니다. 화면은 recipe_id 만 씁니다(recipe-search
+  가 그 표기로 색인되어 있습니다).
+
+  AL_CODE vs ALID — AL_CODE 는 ALID 보다 **상위 범주의 번호 키**입니다
+  (user-confirmed 2026-08-03). 우리는 ALID 를 기준으로 봅니다. AL_CODE 는
+  contracts 에 담아두기만 하고 화면에는 쓰지 않습니다.
 
   RAWID 는 row 고유 키이므로 그대로 이벤트 id 로 씁니다. 예전의
   "{eqp_id}|{alid}|{occurred_at}" 조합은 RAWID 가 없을 때만 쓰는 fallback 이며,
@@ -165,13 +173,19 @@ events ZSET
 OFFICE-VERIFY 남은 항목
 
   1. AMAT(VeritySEM/Provision) 장비의 측정 실패 ALID. 9007/9035 는 Hitachi
-     전용이라 AMAT 계열은 이 보드에 올라오지 않습니다. 사용자가 확인 예정.
-  2. AL_CODE 의 의미. ALID 와 어떻게 다른지 확인이 필요합니다.
-  3. RECIPE_ID 와 PPID 가 항상 같은 값인지.
+     전용이라 AMAT 계열은 이 보드에 올라오지 않습니다. 사용자가 확인 예정
+     (2026-08-03 기준 "나중에" 로 미뤄둔 항목입니다).
+  2. get_ebeam_metrology_alarms(fac_id) 가 과거 몇 분까지 돌려주는지 (위
+     events ZSET 절 참조).
 
-  해결됨 (2026-08-03): HV-SEM 알람이 피드에 들어오는지 → 들어옵니다. 함수가
-  get_ebeam_metrology_alarms 로 바뀌면서 e-beam metrology 전체가 대상임이
-  확인되었습니다. 실제 fac_id 값 집합도 확정되었습니다(위 참조).
+  해결됨 (2026-08-03)
+
+    - HV-SEM 알람이 피드에 들어오는지 → 들어옵니다. 함수가
+      get_ebeam_metrology_alarms 로 바뀌면서 e-beam metrology 전체가 대상임이
+      확인되었습니다.
+    - 실제 fac_id 값 집합 → R3/M16/M15/M14/M11/M10 (위 참조).
+    - AL_CODE 의 의미 → ALID 상위 범주의 번호 키. 우리는 ALID 를 봅니다.
+    - RECIPE_ID 와 PPID 가 항상 같은지 → 항상 같습니다.
 
 이벤트 field
 
