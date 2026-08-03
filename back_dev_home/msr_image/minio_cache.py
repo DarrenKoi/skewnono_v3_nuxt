@@ -58,6 +58,12 @@ class MinioImageCache:
         # applies it and the client adds nothing on top.
         return f"{self.prefix}{cache_key(locator)}"
 
+    def has(self, locator: ImageLocator) -> bool:
+        """Existence only (one stat round-trip) — get() would download the
+        object body, which is exactly what the scoped warm job must avoid
+        when deciding whether a file still needs fetching."""
+        return bool(self.client.exists(self._key(locator)))
+
     def get(self, locator: ImageLocator) -> FetchedImage | None:
         key = self._key(locator)
         if not self.client.exists(key):

@@ -117,6 +117,13 @@ def _run_download(eqp_ip, class_name, msr, job_id, cache, concurrency, registry,
     try:
         if names is None:
             names = data.list_images(eqp_ip, class_name, msr)
+        else:
+            # A scoped warm re-fires per parameter switch and after refusals;
+            # don't pull files the cache already holds from the tool again.
+            names = [
+                n for n in names
+                if not cache.has(ImageLocator(eqp_ip, class_name, msr, n))
+            ]
         registry.set_total(job_id, len(names))
         data.download_all(eqp_ip, class_name, msr, names, on_file, concurrency)
     except Exception:
@@ -146,14 +153,12 @@ def download_all_route():
     # tool directory. [] and absent both mean "everything" — the caller sending
     # an empty scope wants the old behavior, not a no-op job.
     raw_names = payload.get("names")
-    names = None
     if raw_names is not None:
         if not isinstance(raw_names, list) or not all(isinstance(n, str) for n in raw_names):
             return jsonify({"error": "names must be a list of strings"}), 400
         if len(raw_names) > _MAX_JOB_NAMES:
             return jsonify({"error": f"names capped at {_MAX_JOB_NAMES}"}), 400
-        stripped = [n.strip() for n in raw_names if n.strip()]
-        names = stripped or None
+    names = raw_names or None
 
     cfg = load_config()
     registry = make_registry(cfg, data.provider_name())
@@ -170,7 +175,7 @@ def download_all_route():
         for n in names or []:
             if len(n) > 256:
                 return jsonify({"error": "name too long"}), 400
-            validate_locator(class_name, msr, n)
+            validate_segment(n, "name")  # class_name/msr are validated once above
         cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
     except MsrImageError as exc:
         return _error(exc)

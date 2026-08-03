@@ -76,6 +76,29 @@ def test_scoped_download_fetches_exactly_the_named_images(app):
     assert cache.get(ImageLocator("10.0.0.1", "ADI", "MSR_1", skipped)) is None
 
 
+def test_scoped_download_skips_names_already_cached(app):
+    """Re-warms (parameter switches, post-429 refires) must not pull files the
+    cache already holds from the tool again."""
+    client = app.test_client()
+    listed = client.get(
+        "/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    ).get_json()["images"]
+    cached, fresh = listed[0], listed[1]
+
+    warm = client.post(
+        "/api/msr-images",
+        json={"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1", "names": [cached]},
+    )
+    _wait_done(client, warm.get_json()["job_id"])
+
+    r = client.post(
+        "/api/msr-images",
+        json={"eqp_ip": "10.0.0.1", "class_name": "ADI", "msr": "MSR_1", "names": [cached, fresh]},
+    )
+    st = _wait_done(client, r.get_json()["job_id"])
+    assert st["total"] == st["ok"] == 1  # only the uncached file was fetched
+
+
 def test_scoped_download_empty_names_means_everything(app):
     """[] is 'no scope', not 'fetch nothing' — same as omitting the key."""
     client = app.test_client()

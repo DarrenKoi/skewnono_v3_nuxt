@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isMeasuredRow, measuredRows, paramValues } from './msrRows.ts'
+import { isMeasuredRow, measuredRows, paramImageRows, paramValues } from './msrRows.ts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 
 const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
@@ -61,4 +61,19 @@ test('paramValues filters by parameter AND by being measured', () => {
 test('empty input yields empty output', () => {
   assert.deepEqual(measuredRows([]), [])
   assert.deepEqual(paramValues([], 'CD_TOP'), [])
+})
+
+test('paramImageRows keeps the first measured row per distinct image of one parameter', () => {
+  const rows = [
+    row({ sequence: 1, parameter: 'CD_TOP', mp_image_name_01: 'a.jpeg' }),
+    row({ sequence: 2, parameter: 'CD_TOP', mp_image_name_01: 'a.jpeg' }), // duplicate image
+    row({ sequence: 3, parameter: 'CD_BOT', mp_image_name_01: 'b.jpeg' }), // other parameter
+    row({ sequence: 4, parameter: 'CD_TOP', mp_image_name_01: '' }), // no image
+    row({ sequence: 5, parameter: 'CD_TOP', mp_image_name_01: 'c.jpeg', cd_value: null }), // not measured
+    row({ sequence: 6, parameter: 'CD_TOP', mp_image_name_01: 'd.jpeg' })
+  ]
+  assert.deepEqual(
+    paramImageRows(rows, 'CD_TOP').map(r => [r.sequence, r.mp_image_name_01]),
+    [[1, 'a.jpeg'], [6, 'd.jpeg']]
+  )
 })

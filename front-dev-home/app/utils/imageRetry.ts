@@ -15,10 +15,6 @@
  * "이미지 없음" verdict the user can still act on. */
 export const IMAGE_RETRY_DELAYS_MS = [2500, 5000] as const
 
-export const retryDelayMs = (attemptIndex: number): number =>
-  IMAGE_RETRY_DELAYS_MS[Math.min(attemptIndex, IMAGE_RETRY_DELAYS_MS.length - 1)]
-  ?? 5000
-
 /**
  * Decorate an image URL for re-request `seq` (0 = the original URL).
  *

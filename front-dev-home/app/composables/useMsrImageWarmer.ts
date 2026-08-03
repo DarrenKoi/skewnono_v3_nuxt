@@ -1,8 +1,17 @@
 import type { ComputedRef } from 'vue'
 import type { FocusImageCtx } from '~/composables/useFocusImageCtx'
 
-// MSR contexts already handed to the backend this session. Module-level on
-// purpose: navigating away and back must not queue the same tool work twice.
+/** What to warm: the scope `id` names the unit (the active parameter) and
+ * `names` its image files. The id — not the name list — keys the dedup, so
+ * the watch key stays a few dozen bytes and never re-derives the names. */
+export interface WarmScope {
+  id: string
+  names: string[]
+}
+
+// (ctx, scope-id) pairs already handed to the backend this session.
+// Module-level on purpose: navigating away and back must not queue the same
+// tool work twice.
 const warmed = new Set<string>()
 
 /**
@@ -23,22 +32,22 @@ const warmed = new Set<string>()
  */
 export const useMsrImageWarmer = (
   ctx: ComputedRef<FocusImageCtx>,
-  names: () => string[]
+  scope: ComputedRef<WarmScope>
 ) => {
   const { startDownloadAll } = useMsrImageApi()
 
   watch(
     () => {
       const { eqp_ip, class_name, msr } = ctx.value
-      return `${eqp_ip}|${class_name}|${msr}|${[...names()].sort().join(',')}`
+      return `${eqp_ip}|${class_name}|${msr}|${scope.value.id}`
     },
     async (key) => {
       const { eqp_ip, class_name, msr } = ctx.value
-      const wanted = names()
-      if (!eqp_ip || !class_name || !msr || !wanted.length || warmed.has(key)) return
+      const { names } = scope.value
+      if (!eqp_ip || !class_name || !msr || !names.length || warmed.has(key)) return
       warmed.add(key)
       try {
-        await startDownloadAll(eqp_ip, class_name, msr, wanted)
+        await startDownloadAll(eqp_ip, class_name, msr, names)
       } catch {
         warmed.delete(key)
       }

@@ -7,7 +7,7 @@
 // the browser.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { IMAGE_RETRY_DELAYS_MS, retryDelayMs, withRetrySeq } from './imageRetry.ts'
+import { withRetrySeq } from './imageRetry.ts'
 
 test('seq 0 is the original URL, untouched', () => {
   const url = '/api/msr-image?eqp_ip=1.2.3.4&name=a.jpeg'
@@ -22,12 +22,4 @@ test('a retry appends the seq with the right separator for both URL shapes', () 
     '/api/msr-image?name=a.jpeg&retry=2'
   )
   assert.equal(withRetrySeq('/img/a.jpeg', 1), '/img/a.jpeg?retry=1')
-})
-
-test('each attempt gets its configured delay; extras reuse the last', () => {
-  IMAGE_RETRY_DELAYS_MS.forEach((ms, i) => assert.equal(retryDelayMs(i), ms))
-  assert.equal(
-    retryDelayMs(IMAGE_RETRY_DELAYS_MS.length + 5),
-    IMAGE_RETRY_DELAYS_MS[IMAGE_RETRY_DELAYS_MS.length - 1]
-  )
 })
