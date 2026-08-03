@@ -244,13 +244,17 @@ def _satisfies(installed: str, constraint: tuple[str, str]) -> bool:
 
 
 def check_config(root: Path) -> tuple[list[str], list[str]]:
-    """Check that Flask's environment file exists and chooses a secret key.
+    """Check the .env settings that decide the deploy. Returns (failures, warnings).
 
-    The file's other contents stay uninspected — preflight has no standing to
-    judge them — but SKEWNONO_SECRET_KEY decides whether create_app() raises
-    on the cloud, and a preflight that passes while uwsgi boot-loops (reason
-    visible only in uwsgi logs) is the silent-blank-window failure this script
-    exists to prevent. Same rule as create_app(): blank counts as absent.
+    Most of the file stays uninspected — preflight has no standing to judge it
+    — but two settings are checkable here and undiagnosable later:
+
+    * SKEWNONO_SECRET_KEY decides whether create_app() raises on the cloud, and
+      a preflight that passes while uwsgi boot-loops (reason visible only in
+      uwsgi logs) is the silent-blank-window failure this script exists to
+      prevent. Same rule as create_app(): blank counts as absent.
+    * SKEWNONO_LOG_ENV decides WHICH logging alias this host writes — see
+      _check_logging_target for why a valid value can still be a deploy bug.
     """
     env_path = root / "back_dev_home" / ".env"
     if not env_path.is_file():
@@ -261,45 +265,132 @@ def check_config(root: Path) -> tuple[list[str], list[str]]:
             ],
             [],
         )
-    if not _env_file_chooses_secret_key(env_path):
-        return (
-            [
-                f"SKEWNONO_SECRET_KEY not set in {env_path} — create_app() refuses "
-                "to start on the cloud without it (it signs the "
-                "self-identification session). Set any non-empty value."
-            ],
-            [],
+
+    values = _env_file_values(env_path)
+    if values is None:
+        return [], []
+
+    failures = []
+    if not values.get("SKEWNONO_SECRET_KEY", ""):
+        failures.append(
+            f"SKEWNONO_SECRET_KEY not set in {env_path} — create_app() refuses "
+            "to start on the cloud without it (it signs the "
+            "self-identification session). Set any non-empty value."
         )
-    return [], []
+
+    log_failures, warnings = _check_logging_target(values, env_path)
+    return failures + log_failures, warnings
 
 
-def _env_file_chooses_secret_key(env_path: Path) -> bool:
-    """Whether the .env assigns SKEWNONO_SECRET_KEY a non-blank value.
+def _check_logging_target(
+    values: dict[str, str],
+    env_path: Path,
+) -> tuple[list[str], list[str]]:
+    """Does this host ship activity to the PRODUCTION logging alias?
+
+    The failure this exists for is not a crash. `SKEWNONO_LOG_ENV=local` is a
+    perfectly valid value, so resolve_logging_target() accepts it, the shipper
+    installs, and every request is indexed — into `skewnono_logging_local`.
+    The production alias just stays empty, /admin-logs reads the local one
+    back, and nothing anywhere reports a problem. That cost a cloud deploy's
+    activity history on 2026-08-03, and no amount of documentation would have
+    caught it, because a correct-looking .env is exactly the symptom.
+
+    `local` is only ever right on an office PC, and this script only ever runs
+    on the cloud host, so here it is unambiguously wrong. The two aliases also
+    carry different ISM retention (office-local diagnostics vs. 365-day
+    production activity), so misfiled documents are deleted early too.
+    """
+    failures: list[str] = []
+    warnings: list[str] = []
+
+    log_env = values.get("SKEWNONO_LOG_ENV", "")
+    password = values.get("OPENSEARCH_PASSWORD", "")
+    disabled = values.get("OPENSEARCH_LOGGING_DISABLED", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+    if log_env == "local":
+        failures.append(
+            f"SKEWNONO_LOG_ENV=local in {env_path} — that is the office-PC "
+            "target. Activity would land in the `skewnono_logging_local` alias "
+            "(shorter ISM retention), production `skewnono_logging` would stay "
+            "empty, and /admin-logs would read the local alias back, so nothing "
+            "surfaces the mistake. Set SKEWNONO_LOG_ENV=production."
+        )
+    elif log_env and log_env != "production":
+        failures.append(
+            f"SKEWNONO_LOG_ENV={log_env!r} in {env_path} is neither 'local' nor "
+            "'production' — resolve_logging_target() raises "
+            "LoggingConfigurationError inside create_app() and uwsgi boot-loops. "
+            "Set SKEWNONO_LOG_ENV=production."
+        )
+    elif not log_env and password:
+        failures.append(
+            f"SKEWNONO_LOG_ENV not set in {env_path} while OPENSEARCH_PASSWORD is "
+            "— install_opensearch_logging() gets that far and then raises "
+            "LoggingConfigurationError, so create_app() dies at boot. "
+            "Set SKEWNONO_LOG_ENV=production."
+        )
+    elif not log_env:
+        warnings.append(
+            f"SKEWNONO_LOG_ENV not set in {env_path}: no OpenSearch logging, and "
+            "nothing for /admin-logs to read. Correct only if this deploy is "
+            "meant to run without activity logging."
+        )
+
+    if log_env == "production" and not password:
+        warnings.append(
+            f"OPENSEARCH_PASSWORD not set in {env_path}: install_opensearch_logging() "
+            "skips the handler with one stderr line, so `skewnono_logging` stays "
+            "empty even though SKEWNONO_LOG_ENV names it."
+        )
+
+    if disabled:
+        warnings.append(
+            f"OPENSEARCH_LOGGING_DISABLED is on in {env_path} — the write kill "
+            "switch. Activity is dropped for as long as it stays set."
+        )
+
+    return failures, warnings
+
+
+def _env_file_values(env_path: Path) -> dict[str, str] | None:
+    """The .env's assignments, or None when the file could not be read.
 
     A hand-rolled scan rather than python-dotenv: this script may only import
     what the cloud image alone supplies, and it must degrade to a report on a
     broken host — an unreadable file is a different failure that load_dotenv
-    will surface at boot, so it is not this check's call to guess at.
+    will surface at boot, so it is not this check's call to guess at. Hence
+    None rather than an empty dict, which would read as "nothing is set" and
+    manufacture verdicts about a file nobody managed to read.
+
+    Values come back stripped, so "blank counts as absent" is a falsy check at
+    every call site. Later assignments win, as they do in dotenv.
     """
     try:
         text = env_path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
-        return True
+        return None
+
+    values: dict[str, str] = {}
     for line in text.splitlines():
         line = line.strip()
         if line.startswith("export "):
             line = line[len("export "):].lstrip()
         name, sep, value = line.partition("=")
-        if name.strip() != "SKEWNONO_SECRET_KEY" or not sep:
+        name = name.strip()
+        if not sep or not name or name.startswith("#"):
             continue
         value = value.strip()
         if value[:1] in {"'", '"'} and len(value) >= 2 and value[-1:] == value[:1]:
             value = value[1:-1]  # quoted: keep content verbatim, as dotenv does
         else:
             value = value.split("#", 1)[0]  # unquoted: drop an inline comment
-        if value.strip():
-            return True
-    return False
+        values[name] = value.strip()
+    return values
 
 
 def _adapter_roster(root: Path) -> list[str]:

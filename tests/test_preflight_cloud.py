@@ -14,13 +14,19 @@ from scripts.deploy import preflight_cloud
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+# Everything check_config() insists on, so a test that varies one setting can
+# write only that setting's line and still describe a deployable host.
+LOGGING_ENV_LINES = "SKEWNONO_LOG_ENV=production\nOPENSEARCH_PASSWORD=real-password\n"
+HEALTHY_ENV = "SKEWNONO_SECRET_KEY=real-key\n" + LOGGING_ENV_LINES
+
+
 def _make_bundle(tmp_path: Path) -> Path:
     root = tmp_path / "bundle"
     (root / "back_dev_home" / "_runtime").mkdir(parents=True)
     (root / "back_dev_home" / "_runtime" / "env.py").write_text("")
     (root / "front-dev-home" / ".output" / "public").mkdir(parents=True)
     (root / "front-dev-home" / ".output" / "public" / "index.html").write_text("<!doctype html>")
-    (root / "back_dev_home" / ".env").write_text("SKEWNONO_SECRET_KEY=real-key\n")
+    (root / "back_dev_home" / ".env").write_text(HEALTHY_ENV)
     (root / "back_dev_home" / "requirements.txt").write_text("Flask>=3.0\n")
     (root / "index.py").write_text("")
     (root / "wsgi.ini").write_text("[uwsgi]\n")
@@ -147,7 +153,7 @@ def test_config_fails_when_the_secret_key_is_missing_or_blank(bundle, env_body):
     """create_app() treats a blank as absent and refuses to start on the
     cloud; a preflight that disagrees passes a bundle uwsgi will boot-loop on,
     with the reason visible only in uwsgi logs."""
-    (bundle / "back_dev_home" / ".env").write_text(env_body)
+    (bundle / "back_dev_home" / ".env").write_text(LOGGING_ENV_LINES + env_body)
 
     failures, _warnings = preflight_cloud.check_config(bundle)
 
@@ -165,9 +171,99 @@ def test_config_fails_when_the_secret_key_is_missing_or_blank(bundle, env_body):
 def test_config_accepts_the_dotenv_spellings_load_dotenv_accepts(bundle, env_body):
     """False FAILs erode trust in the checker: every spelling python-dotenv
     would load as a non-blank key must pass here too."""
-    (bundle / "back_dev_home" / ".env").write_text(env_body)
+    (bundle / "back_dev_home" / ".env").write_text(LOGGING_ENV_LINES + env_body)
 
     assert preflight_cloud.check_config(bundle) == ([], [])
+
+
+def test_config_fails_when_the_logging_target_is_the_office_local_alias(bundle):
+    """The 2026-08-03 cloud deploy: a valid value pointed at the wrong alias.
+
+    Nothing downstream can catch this -- the shipper installs, indexes happily
+    into `skewnono_logging_local`, and /admin-logs reads that same alias back,
+    so the app looks healthy while the production index stays empty.
+    """
+    (bundle / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY=real-key\n"
+        "SKEWNONO_LOG_ENV=local\n"
+        "OPENSEARCH_PASSWORD=real-password\n"
+    )
+
+    failures, _warnings = preflight_cloud.check_config(bundle)
+
+    assert any("SKEWNONO_LOG_ENV" in f and "production" in f for f in failures)
+
+
+def test_config_fails_when_the_logging_target_is_unset_but_reachable(bundle):
+    """OPENSEARCH_PASSWORD set + SKEWNONO_LOG_ENV unset is the boot-loop combo:
+    install_opensearch_logging() clears its own guards and then
+    resolve_logging_target() raises inside create_app()."""
+    (bundle / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY=real-key\nOPENSEARCH_PASSWORD=real-password\n"
+    )
+
+    failures, _warnings = preflight_cloud.check_config(bundle)
+
+    assert any("SKEWNONO_LOG_ENV" in f for f in failures)
+
+
+def test_config_fails_when_the_logging_target_is_not_a_known_environment(bundle):
+    (bundle / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY=real-key\nSKEWNONO_LOG_ENV=prod\n"
+    )
+
+    failures, _warnings = preflight_cloud.check_config(bundle)
+
+    assert any("SKEWNONO_LOG_ENV" in f for f in failures)
+
+
+def test_config_only_warns_about_a_deploy_that_ships_no_logs(bundle):
+    """No target and no credentials is a coherent choice -- logging off. It
+    still deserves a line, because the alternative reading is that someone
+    forgot, and /admin-logs will be empty either way."""
+    (bundle / "back_dev_home" / ".env").write_text("SKEWNONO_SECRET_KEY=real-key\n")
+
+    failures, warnings = preflight_cloud.check_config(bundle)
+
+    assert failures == []
+    assert any("SKEWNONO_LOG_ENV" in w for w in warnings)
+
+
+def test_config_warns_when_the_named_target_has_no_credentials(bundle):
+    """SKEWNONO_LOG_ENV=production alone reads as "logging is configured", but
+    the handler is skipped without a password and the alias stays empty."""
+    (bundle / "back_dev_home" / ".env").write_text(
+        "SKEWNONO_SECRET_KEY=real-key\nSKEWNONO_LOG_ENV=production\n"
+    )
+
+    failures, warnings = preflight_cloud.check_config(bundle)
+
+    assert failures == []
+    assert any("OPENSEARCH_PASSWORD" in w for w in warnings)
+
+
+@pytest.mark.parametrize("raw", ["true", "TRUE", "1", "yes"])
+def test_config_warns_while_the_write_kill_switch_is_on(bundle, raw):
+    """An emergency switch that outlives the emergency is a silent outage."""
+    (bundle / "back_dev_home" / ".env").write_text(
+        HEALTHY_ENV + f"OPENSEARCH_LOGGING_DISABLED={raw}\n"
+    )
+
+    failures, warnings = preflight_cloud.check_config(bundle)
+
+    assert failures == []
+    assert any("OPENSEARCH_LOGGING_DISABLED" in w for w in warnings)
+
+
+def test_config_accepts_the_logging_target_values_the_app_accepts():
+    """Preflight's notion of a valid target must not drift from the app's."""
+    from back_dev_home._logging.target import _TARGETS
+
+    source = Path(preflight_cloud.__file__).read_text(encoding="utf-8")
+
+    assert set(_TARGETS) == {"local", "production"}
+    for environment in _TARGETS:
+        assert f'"{environment}"' in source or f"'{environment}'" in source
 
 
 def _requirement_names(text: str) -> set[str]:

@@ -148,6 +148,8 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 | `LASTUSER` 쿠키가 브라우저에 전달되는지 | 페이지 접속 후 로그의 `user=` 필드 | 인프라 |
 | `back_dev_home/.env` 배치 | `python preflight.py`의 파일 존재 검사 | 배포자 |
 | **`SKEWNONO_SECRET_KEY` 설정 (필수)** | 값이 없으면 앱이 **기동을 거부**합니다 | 배포자 |
+| **`SKEWNONO_LOG_ENV=production` 설정** | `python preflight.py`의 `SKEWNONO_LOG_ENV` 검사 | 배포자 |
+| `skewnono_logging` 롤오버 alias 생성 | `python ops_index_mgmt/skewnono_logging.py` | 배포자 |
 
 ### `SKEWNONO_SECRET_KEY` 는 이제 필수입니다
 
@@ -167,6 +169,47 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 # /project/workSpace/back_dev_home/.env
 SKEWNONO_SECRET_KEY=<임의의 비어 있지 않은 문자열>
 ```
+
+### `SKEWNONO_LOG_ENV` 는 어느 인덱스에 기록할지를 정합니다
+
+활동 로그(OpenSearch)의 대상 alias 는 이 값 하나로 결정됩니다.
+
+| 값 | alias | 쓰는 곳 |
+| --- | --- | --- |
+| `local` | `skewnono_logging_local` | 사무실 PC localhost (Phase 2) |
+| `production` | `skewnono_logging` | 사내 클라우드 (Phase 3) |
+
+클라우드에서는 **반드시 `production`** 이어야 합니다. `local` 로 두어도 앱은
+정상 기동하고 요청도 빠짐없이 색인됩니다 — 다만 전부 사무실용 alias 로
+들어갑니다. `/admin-logs` 도 같은 값을 읽어 같은 alias 를 조회하므로 화면상으로
+전혀 이상이 없고, 운영 인덱스만 조용히 비어 있게 됩니다. 두 alias 는 ISM 보존
+기간도 다르므로(사무실 진단용 vs. 운영 365일) 잘못 기록된 문서는 예정보다
+일찍 삭제됩니다. 2026-08-03 클라우드 배포에서 실제로 발생한 사례입니다.
+
+```bash
+# /project/workSpace/back_dev_home/.env
+SKEWNONO_LOG_ENV=production
+OPENSEARCH_HOST=<사내 OpenSearch 호스트>
+OPENSEARCH_USER=<계정>
+OPENSEARCH_PASSWORD=<암호>
+```
+
+`OPENSEARCH_PASSWORD` 가 없으면 로그 핸들러 자체가 설치되지 않고 stderr 에 한
+줄만 남습니다. 반대로 암호만 있고 `SKEWNONO_LOG_ENV` 가 없으면 `create_app()`
+이 `LoggingConfigurationError` 로 죽습니다. `preflight.py` 가 이 세 조합을 모두
+구분해 보고합니다.
+
+alias 는 미리 만들어 두어야 합니다. 로그 핸들러는 대상이 **번호가 붙은 롤오버
+alias** 임을 확인한 뒤에만 색인하며, 아니면 배치를 통째로 버리고
+`[opensearch-log]` 한 줄을 남깁니다.
+
+```bash
+.venv/bin/python ops_index_mgmt/skewnono_logging.py --dry-run
+.venv/bin/python ops_index_mgmt/skewnono_logging.py
+```
+
+기동 후 실제 적재 여부는 `GET /api/health/logging` (관리자 전용) 의
+`target.alias` 와 `diagnostics.indexed` 로 확인합니다.
 
 ### `SKEWNONO_TRUST_PROXY` 는 nginx 뒤로 옮긴 뒤에만 설정합니다
 
@@ -231,8 +274,11 @@ SKEWNONO_SECRET_KEY=<임의의 비어 있지 않은 문자열>
 > 모든 요청이 관리자 계정 `local-dev` 로 취급되므로, `preflight.py` 의 PATH
 > 검사를 반드시 통과시켜야 합니다.
 
-`preflight.py`는 `back_dev_home/.env`의 존재 여부만 검사하며 내부 값은 읽거나
-검증하지 않습니다.
+`preflight.py`는 `back_dev_home/.env`의 값 중 **`SKEWNONO_SECRET_KEY`,
+`SKEWNONO_LOG_ENV`, `OPENSEARCH_PASSWORD`, `OPENSEARCH_LOGGING_DISABLED`** 만
+읽습니다. 앞의 둘은 값이 잘못되면 기동이 실패하거나 로그가 엉뚱한 인덱스로
+가기 때문이고, 뒤의 둘은 그 판정에 필요하기 때문입니다. 그 외의 값은 읽지도
+검증하지도 않습니다.
 
 ## 5. 전환 시 재빌드가 필요하지 않습니다
 
