@@ -24,6 +24,12 @@ from back_dev_home.activity.providers.shared import KST, TOP_FEATURES_CAP
 COMPOSITE_PAGE_SIZE = 1000
 CARDINALITY_PRECISION = 40000
 
+# Two units share one index. Request rows answer "how much work happened";
+# page_view rows answer "which page did people open". Every aggregation must
+# say which it means — see the beacon design spec.
+REQUEST_KINDS = ["entry", "feature"]
+RANKING_KIND = "page_view"
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -35,11 +41,36 @@ def _kst_day_start(now: datetime, days_ago: int) -> datetime:
     return datetime.combine(day, time.min, tzinfo=KST)
 
 
+def _kind_window(
+    start: datetime,
+    now: datetime,
+    kinds: list[str],
+) -> dict[str, Any]:
+    return {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "gte": start.isoformat(),
+                            "lte": now.isoformat(),
+                        }
+                    }
+                },
+                {"terms": {"activity_kind": kinds}},
+            ]
+        }
+    }
+
+
 def _activity_filters(user_id: str | None = None) -> list[dict[str, Any]]:
     filters: list[dict[str, Any]] = [
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},
-        {"terms": {"activity_kind": ["entry", "feature"]}},
+        # Widened for page views. Because this is the TOP-LEVEL query, every
+        # aggregation below must now state its own kind — a request-based agg
+        # that omits it would silently start counting page views.
+        {"terms": {"activity_kind": ["entry", "feature", "page_view"]}},
     ]
     if user_id is not None:
         filters.append({"term": {"user_id": user_id}})
@@ -136,14 +167,7 @@ class ActivityOpenSearchReader:
                 "first_seen": {"min": {"field": "@timestamp"}},
                 "last_seen": {"max": {"field": "@timestamp"}},
                 "this_month": {
-                    "filter": {
-                        "range": {
-                            "@timestamp": {
-                                "gte": month_start.isoformat(),
-                                "lte": now.isoformat(),
-                            }
-                        }
-                    },
+                    "filter": _kind_window(month_start, now, REQUEST_KINDS),
                     "aggs": {
                         "days": {
                             "date_histogram": {
@@ -156,14 +180,7 @@ class ActivityOpenSearchReader:
                     },
                 },
                 "daily": {
-                    "filter": {
-                        "range": {
-                            "@timestamp": {
-                                "gte": day_30.isoformat(),
-                                "lte": now.isoformat(),
-                            }
-                        }
-                    },
+                    "filter": _kind_window(day_30, now, REQUEST_KINDS),
                     "aggs": {
                         "days": {
                             "date_histogram": daily_histogram,
@@ -171,7 +188,7 @@ class ActivityOpenSearchReader:
                     },
                 },
                 "features": {
-                    "filter": {"term": {"activity_kind": "feature"}},
+                    "filter": {"term": {"activity_kind": RANKING_KIND}},
                     "aggs": {
                         "items": {
                             "terms": {
@@ -263,14 +280,7 @@ class ActivityOpenSearchReader:
 
         def user_window(start: datetime) -> dict[str, Any]:
             return {
-                "filter": {
-                    "range": {
-                        "@timestamp": {
-                            "gte": start.isoformat(),
-                            "lte": now.isoformat(),
-                        }
-                    }
-                },
+                "filter": _kind_window(start, now, REQUEST_KINDS),
                 "aggs": {
                     "users": {
                         "cardinality": {
@@ -283,21 +293,7 @@ class ActivityOpenSearchReader:
 
         def feature_window(start: datetime) -> dict[str, Any]:
             return {
-                "filter": {
-                    "bool": {
-                        "filter": [
-                            {
-                                "range": {
-                                    "@timestamp": {
-                                        "gte": start.isoformat(),
-                                        "lte": now.isoformat(),
-                                    }
-                                }
-                            },
-                            {"term": {"activity_kind": "feature"}},
-                        ]
-                    }
-                },
+                "filter": _kind_window(start, now, [RANKING_KIND]),
                 "aggs": {
                     "items": {
                         "terms": {
@@ -386,7 +382,7 @@ class ActivityOpenSearchReader:
                                 "feature_only": {
                                     "filter": {
                                         "term": {
-                                            "activity_kind": "feature"
+                                            "activity_kind": RANKING_KIND
                                         }
                                     },
                                     "aggs": {
@@ -502,6 +498,12 @@ class ActivityOpenSearchReader:
                                 "feature_only": {
                                     "filter": {
                                         "term": {
+                                            # Stays request-based: beacons
+                                            # carry no fab_name (it is only
+                                            # known once the user has picked a
+                                            # fab and a data request goes
+                                            # out), so page views cannot
+                                            # answer a per-FAB question.
                                             "activity_kind": "feature"
                                         }
                                     },

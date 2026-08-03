@@ -84,7 +84,88 @@ def _history_response(total=5):
     }
 
 
-def test_history_query_uses_kst_bounds_and_feature_only_ranking():
+def _summary_response():
+    return {
+        "aggregations": {
+            "dau": {"doc_count": 3, "users": {"value": 2}},
+            "wau": {"doc_count": 8, "users": {"value": 4}},
+            "mau": {"doc_count": 13, "users": {"value": 6}},
+            "top_features_7d": {
+                "doc_count": 5,
+                "items": {
+                    "buckets": [{"key": "storage", "doc_count": 5}]
+                },
+            },
+            "top_features_30d": {
+                "doc_count": 9,
+                "items": {
+                    "buckets": [{"key": "recipe_search", "doc_count": 9}]
+                },
+            },
+        }
+    }
+
+
+def _fab_response():
+    return {
+        "aggregations": {
+            "fabs": {
+                "buckets": [
+                    {
+                        "key": {"fab": "M14"},
+                        "doc_count": 9,
+                        "active_users": {"value": 2},
+                        "feature_only": {
+                            "pages": {
+                                "buckets": [
+                                    {"key": "storage", "doc_count": 7}
+                                ]
+                            }
+                        },
+                    },
+                    {
+                        "key": {"fab": "M16"},
+                        "doc_count": 1,
+                        "active_users": {"value": 1},
+                        "feature_only": {"pages": {"buckets": []}},
+                    },
+                    {
+                        "key": {"fab": None},
+                        "doc_count": 4,
+                        "active_users": {"value": 1},
+                        "feature_only": {"pages": {"buckets": []}},
+                    },
+                ]
+            }
+        }
+    }
+
+
+def _empty_fab_response():
+    return {"aggregations": {"fabs": {"buckets": []}}}
+
+
+def _kind_terms(node, found=None):
+    """Every activity_kind value asserted anywhere in a query body."""
+    found = [] if found is None else found
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if (
+                key in ("term", "terms")
+                and isinstance(value, dict)
+                and "activity_kind" in value
+            ):
+                entry = value["activity_kind"]
+                found.extend(entry if isinstance(entry, list) else [entry])
+            else:
+                _kind_terms(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _kind_terms(item, found)
+    return found
+
+
+def test_history_query_uses_kst_bounds_and_page_view_ranking():
     reader, search, aliases = _reader([_history_response()])
 
     payload = reader.get_me("u1")
@@ -93,7 +174,7 @@ def test_history_query_uses_kst_bounds_and_feature_only_ranking():
     common = [
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},
-        {"terms": {"activity_kind": ["entry", "feature"]}},
+        {"terms": {"activity_kind": ["entry", "feature", "page_view"]}},
         {"term": {"user_id": "u1"}},
     ]
     body = search.bodies[0]
@@ -111,8 +192,12 @@ def test_history_query_uses_kst_bounds_and_feature_only_ranking():
         },
     }
     assert body["aggs"]["features"]["filter"] == {
-        "term": {"activity_kind": "feature"}
+        "term": {"activity_kind": "page_view"}
     }
+    # The widened top-level query means the request-based windows must state
+    # their own kinds; if they stop doing so they silently count page views.
+    assert _kind_terms(body["aggs"]["this_month"]) == ["entry", "feature"]
+    assert _kind_terms(body["aggs"]["daily"]) == ["entry", "feature"]
     assert payload["user_id"] == "u1"
     assert payload["is_admin"] is False
     assert payload["this_month"] == {"requests": 5, "days_active": 2}
@@ -138,26 +223,7 @@ def test_missing_user_history_returns_none():
 
 
 def test_summary_normalizes_cardinality_and_trailing_windows():
-    response = {
-        "aggregations": {
-            "dau": {"doc_count": 3, "users": {"value": 2}},
-            "wau": {"doc_count": 8, "users": {"value": 4}},
-            "mau": {"doc_count": 13, "users": {"value": 6}},
-            "top_features_7d": {
-                "doc_count": 5,
-                "items": {
-                    "buckets": [{"key": "storage", "doc_count": 5}]
-                },
-            },
-            "top_features_30d": {
-                "doc_count": 9,
-                "items": {
-                    "buckets": [{"key": "recipe_search", "doc_count": 9}]
-                },
-            },
-        }
-    }
-    reader, search, _aliases = _reader([response])
+    reader, search, _aliases = _reader([_summary_response()])
 
     payload = reader.get_summary()
 
@@ -172,21 +238,44 @@ def test_summary_normalizes_cardinality_and_trailing_windows():
         ],
     }
     aggs = search.bodies[0]["aggs"]
-    assert aggs["dau"]["filter"]["range"]["@timestamp"]["gte"].startswith(
-        "2026-07-27T00:00:00+09:00"
-    )
-    assert aggs["wau"]["filter"]["range"]["@timestamp"]["gte"].startswith(
-        "2026-07-21T00:00:00+09:00"
-    )
-    assert aggs["mau"]["filter"]["range"]["@timestamp"]["gte"].startswith(
-        "2026-06-28T00:00:00+09:00"
-    )
+
+    def window_start(name):
+        clauses = aggs[name]["filter"]["bool"]["filter"]
+        return clauses[0]["range"]["@timestamp"]["gte"]
+
+    assert window_start("dau").startswith("2026-07-27T00:00:00+09:00")
+    assert window_start("wau").startswith("2026-07-21T00:00:00+09:00")
+    assert window_start("mau").startswith("2026-06-28T00:00:00+09:00")
     assert aggs["top_features_7d"]["filter"]["bool"]["filter"][1] == {
-        "term": {"activity_kind": "feature"}
+        "terms": {"activity_kind": ["page_view"]}
     }
 
 
-def test_users_are_paged_sorted_and_favorite_is_feature_only():
+def test_summary_ranks_page_views_but_counts_users_from_requests():
+    reader, search, _ = _reader([_summary_response()])
+
+    reader.get_summary()
+
+    body = search.bodies[-1]
+    ranking = body["aggs"]["top_features_7d"]["filter"]
+    assert _kind_terms(ranking) == ["page_view"]
+
+    dau = body["aggs"]["dau"]["filter"]
+    assert sorted(_kind_terms(dau)) == ["entry", "feature"]
+
+
+def test_fab_page_ranking_stays_request_based():
+    """Beacons carry no fab_name, so this aggregation cannot switch."""
+    reader, search, _ = _reader([_fab_response(), _empty_fab_response()])
+
+    reader.get_fab_page_usage()
+
+    fab_agg = search.bodies[-1]["aggs"]
+    assert "page_view" not in _kind_terms(fab_agg)
+    assert "feature" in _kind_terms(fab_agg)
+
+
+def test_users_are_paged_sorted_and_favorite_is_page_view_only():
     responses = [
         {
             "aggregations": {
@@ -249,45 +338,14 @@ def test_users_are_paged_sorted_and_favorite_is_feature_only():
     }
     favorite_filter = search.bodies[0]["aggs"]["users"]["aggs"]["feature_only"]
     assert favorite_filter["filter"] == {
-        "term": {"activity_kind": "feature"}
+        "term": {"activity_kind": "page_view"}
     }
 
 
 def test_fab_totals_use_distinct_users_and_normalize_missing_keys():
-    response_7d = {
-        "aggregations": {
-            "fabs": {
-                "buckets": [
-                    {
-                        "key": {"fab": "M14"},
-                        "doc_count": 9,
-                        "active_users": {"value": 2},
-                        "feature_only": {
-                            "pages": {
-                                "buckets": [
-                                    {"key": "storage", "doc_count": 7}
-                                ]
-                            }
-                        },
-                    },
-                    {
-                        "key": {"fab": "M16"},
-                        "doc_count": 1,
-                        "active_users": {"value": 1},
-                        "feature_only": {"pages": {"buckets": []}},
-                    },
-                    {
-                        "key": {"fab": None},
-                        "doc_count": 4,
-                        "active_users": {"value": 1},
-                        "feature_only": {"pages": {"buckets": []}},
-                    },
-                ]
-            }
-        }
-    }
-    response_30d = {"aggregations": {"fabs": {"buckets": []}}}
-    reader, _search, _aliases = _reader([response_7d, response_30d])
+    reader, _search, _aliases = _reader(
+        [_fab_response(), _empty_fab_response()]
+    )
 
     payload = reader.get_fab_page_usage()
 
