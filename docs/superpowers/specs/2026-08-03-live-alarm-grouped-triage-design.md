@@ -64,7 +64,7 @@ NuxtUI 4.10 레지스트리에는 `UButtonGroup`이 없습니다. 이 저장소�
 | 항목 | 값 |
 | --- | --- |
 | stateKey | `live-alarm:filter` |
-| storageKey | `skewnono:live-alarm:filter` |
+| storageKey | `skewnono:live-alarm.filter` |
 | default | `'all'` |
 | isEmpty | `value => value === 'all'` |
 
