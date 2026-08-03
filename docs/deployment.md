@@ -30,6 +30,26 @@ npm --prefix front-dev-home run build
 올바른 경로에 올바른 구조로 도착했는지 확인합니다. 두 번째 실행은 의존성
 설치가 끝났는지 확인합니다.
 
+### 클라우드 이미지에 미리 설치된 패키지
+
+클라우드 호스트는 일부 패키지를 이미 설치한 상태로 제공됩니다. `pip install -r`
+은 **이미 설치된 패키지가 명시된 버전 조건을 위반할 때만** 업그레이드하므로,
+`requirements.txt` 에 적히지 않은 하위 의존성은 이미지가 주는 낡은 버전 그대로
+남습니다. 2026-08-03 클라우드 배포에서 `minio_handler` 의 `pickle.loads` 가
+`ModuleNotFoundError: No module named 'numpy._core'` 로 실패한 원인이 이것입니다.
+numpy 가 `requirements.txt` 에 선언되어 있지 않아 pandas 를 통해 간접 설치되었고,
+이미지의 numpy 1 이 그대로 유지되었습니다.
+
+따라서 **버전이 중요한 패키지는 간접 의존성이라도 `requirements.txt` 에 직접
+선언합니다.** 선언하지 않은 조건은 pip 가 강제할 방법이 없습니다.
+
+`preflight.py` 의 `VERSION` 검사는 설치된 버전이 `requirements.txt` 의 조건을
+만족하는지 확인합니다. import 성공만으로는 버전을 증명할 수 없고, 오프라인
+미러에 해당 릴리스가 없거나 root 소유 `site-packages` 에 권한 오류가 나거나
+시스템 사본이 venv 를 가리는 경우 모두 설치가 조용히 실패하기 때문입니다.
+실패 줄에는 설치된 버전과 **실제 설치 경로**가 함께 출력되므로, 가려진 사본을
+바로 구분할 수 있습니다.
+
 ## 2. 경로가 곧 설정입니다
 
 이 배포에서 가장 조심해야 할 부분입니다. `back_dev_home/_runtime/env.py` 의

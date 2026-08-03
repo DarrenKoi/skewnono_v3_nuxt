@@ -22,7 +22,9 @@ which packages are missing.
 
 import argparse
 import importlib
+import re
 import sys
+from importlib import metadata
 from pathlib import Path
 
 CLOUD_PREFIX = Path("/project/workSpace")
@@ -100,42 +102,145 @@ def check_imports() -> tuple[list[str], list[str]]:
                 f"run: pip install -r back_dev_home/requirements.txt  [{pip_name}]"
             )
 
-    failures.extend(_check_numpy_major())
-
     notes.append("identity: LASTUSER cookie (no cloud-image SSO module needed)")
 
     return failures, notes
 
 
-def _check_numpy_major() -> list[str]:
-    """numpy must be >= 2, and presence alone does not prove it.
+# Symptom hints for floors whose violation is undiagnosable from the version
+# number alone. Keyed by pip name; only worth an entry when the package imports
+# fine at the wrong version and fails much later, somewhere unrelated-looking.
+VERSION_SYMPTOMS = {
+    "numpy": (
+        "MinIO pickles are written upstream on numpy 2 and name `numpy._core`, "
+        "absent in numpy 1: msr_file's get_pickle() raises ModuleNotFoundError "
+        "at the first /api/msr-file request, in a traceback that reads as a "
+        "MinIO fault."
+    ),
+}
 
-    The MSR-file adapter unpickles payloads written upstream on numpy 2, and
-    those pickles name `numpy._core.*` — absent in numpy 1. An install that
-    predates the requirements pin, or a site-packages numpy shadowing the venv,
-    imports fine and then fails only at the first /api/msr-file request, with a
-    traceback that reads as a MinIO problem. Cheaper to catch here.
+
+def check_versions(root: Path) -> tuple[list[str], list[str]]:
+    """Do the INSTALLED versions satisfy requirements.txt? Returns (failures, notes).
+
+    The cloud image preinstalls part of our dependency set, and `pip install -r`
+    upgrades a preinstalled package only when its version violates a specifier
+    we actually wrote down. So every floor that matters has to be declared —
+    and then verified here, because the install can still be defeated: an
+    offline mirror without the release, a permission error on a root-owned
+    site-packages, or a system copy shadowing the venv on sys.path. All three
+    leave `import` working and the version wrong, which check_imports() passes.
+
+    Deliberately no `packaging` dependency: this runs before pip install.
     """
-    try:
-        import numpy
-    except ImportError:
-        return []  # already reported by the import loop above
+    failures: list[str] = []
+    notes: list[str] = []
 
-    version = getattr(numpy, "__version__", "0")
+    requirements = root / "back_dev_home" / "requirements.txt"
     try:
-        major = int(version.split(".", 1)[0])
-    except ValueError:
-        return [f"NUMPY unparseable version {version!r}; expected >= 2"]
+        body = requirements.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        # The import loop still covers presence; the bundle-layout check owns
+        # the verdict on a requirements.txt that did not survive transfer.
+        return [], [f"could not read {requirements}; version floors unverified"]
 
-    if major < 2:
-        return [
-            f"NUMPY {version} at {numpy.__file__} is too old. MinIO pickles are "
-            "written on numpy 2 and reference `numpy._core`, which numpy 1 does "
-            "not have: msr_file's get_pickle() raises ModuleNotFoundError. "
-            "run: pip install -r back_dev_home/requirements.txt  [numpy>=2]"
+    for pip_name, constraints in _parse_requirements(body):
+        installed = _installed_version(pip_name)
+        if installed is None:
+            continue  # absent — check_imports() already names it
+
+        unmet = [c for c in constraints if not _satisfies(installed, c)]
+        if not unmet:
+            continue
+
+        detail = f"{pip_name} {installed}"
+        location = _installed_location(pip_name)
+        if location:
+            detail += f" at {location}"
+        message = (
+            f"VERSION {detail} does not satisfy "
+            f"{','.join(op + ver for op, ver in unmet)}; "
+            "run: pip install -r back_dev_home/requirements.txt"
+        )
+        symptom = VERSION_SYMPTOMS.get(pip_name)
+        if symptom:
+            message += f" — {symptom}"
+        failures.append(message)
+
+    return failures, notes
+
+
+def _parse_requirements(body: str) -> list[tuple[str, list[tuple[str, str]]]]:
+    """`name>=1,<2` -> ("name", [(">=", "1"), ("<", "2")]). Comments dropped.
+
+    Handles only what our requirements.txt uses. An unrecognized line yields no
+    constraints rather than a parse error: preflight reporting a bogus version
+    failure would be worse than it reporting none.
+    """
+    parsed = []
+    for raw in body.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        match = re.match(r"^([A-Za-z0-9._-]+)\s*(.*)$", line)
+        if not match:
+            continue
+        name, tail = match.group(1), match.group(2)
+        constraints = [
+            (op, ver.strip())
+            for op, ver in re.findall(r"(>=|<=|==|>|<|!=)\s*([^,\s]+)", tail)
         ]
+        parsed.append((name, constraints))
+    return parsed
 
-    return []
+
+def _installed_version(pip_name: str) -> str | None:
+    try:
+        return metadata.version(pip_name)
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def _installed_location(pip_name: str) -> str | None:
+    """Where the distribution actually lives — the tell for a shadowing copy."""
+    try:
+        return str(metadata.distribution(pip_name).locate_file(""))
+    except Exception:
+        return None
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    """`2.5.0` -> (2, 5, 0). Trailing non-digits are dropped per component, so
+    a pre-release like `2.0.0rc1` reads as (2, 0, 0) — close enough to compare
+    against an integer floor, and never the reason a deploy is blocked."""
+    parts = []
+    for component in re.split(r"[.\-_+]", version):
+        digits = re.match(r"\d+", component)
+        parts.append(int(digits.group()) if digits else 0)
+    return tuple(parts)
+
+
+def _satisfies(installed: str, constraint: tuple[str, str]) -> bool:
+    op, required = constraint
+    left = _version_tuple(installed)
+    right = _version_tuple(required)
+    width = max(len(left), len(right))
+    left += (0,) * (width - len(left))
+    right += (0,) * (width - len(right))
+
+    if op == ">=":
+        return left >= right
+    if op == ">":
+        return left > right
+    if op == "<=":
+        return left <= right
+    if op == "<":
+        return left < right
+    if op == "==":
+        return left == right
+    if op == "!=":
+        return left != right
+    return True  # unknown operator: not preflight's call
 
 
 def check_config(root: Path) -> tuple[list[str], list[str]]:
@@ -225,8 +330,11 @@ def main(argv: list[str] | None = None) -> int:
     failures = check_layout(root)
     import_failures, notes = check_imports()
     failures += import_failures
+    version_failures, version_notes = check_versions(root)
+    failures += version_failures
     config_failures, warnings = check_config(root)
     failures += config_failures
+    warnings += version_notes
 
     for note in notes:
         print(f"  ok   {note}")
