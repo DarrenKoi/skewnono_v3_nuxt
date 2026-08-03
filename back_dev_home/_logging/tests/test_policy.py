@@ -95,3 +95,31 @@ def test_announcements_banner_is_background_not_a_counted_feature():
         status=200,
         feature="announcements",
     ) == ("background", 0)
+
+
+def test_page_view_beacon_is_its_own_counted_kind():
+    assert classify_activity(
+        user_id="u1",
+        api_token_id=None,
+        method="POST",
+        path="/api/page-view",
+        status=204,
+        feature="mag_pixel",
+    ) == ("page_view", 1)
+
+
+def test_page_view_beacon_obeys_the_usual_disqualifiers():
+    """An unidentified, token-driven or failed beacon is not a page open."""
+    for user_id, token_id, status in [
+        (None, None, 204),
+        ("u1", "tok", 204),
+        ("u1", None, 429),
+    ]:
+        assert classify_activity(
+            user_id=user_id,
+            api_token_id=token_id,
+            method="POST",
+            path="/api/page-view",
+            status=status,
+            feature="mag_pixel",
+        ) == ("operation", 0)

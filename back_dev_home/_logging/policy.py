@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import Literal, NamedTuple
 from urllib.parse import parse_qsl, urlencode
 
-ActivityKind = Literal["entry", "feature", "background", "operation"]
+ActivityKind = Literal["entry", "feature", "background", "operation", "page_view"]
 
 
 class ActivityDecision(NamedTuple):
@@ -27,6 +27,11 @@ _BACKGROUND_EXACT = {
     "/api/hvsem/live-alarm",
     "/api/msr-image",
 }
+# The beacon endpoint. Mounted at the top level rather than under
+# /api/activity on purpose: that prefix is in _OPERATION_PREFIXES, and
+# nesting the beacon there would need a carve-out inside the precedence
+# chain below — the one place in this module that must stay readable.
+PAGE_VIEW_PATH = "/api/page-view"
 _BACKGROUND_CHILD_PREFIXES = ("/api/msr-images",)
 _SENSITIVE_QUERY_PARTS = (
     "password",
@@ -64,6 +69,8 @@ def classify_activity(
         or any(_at_or_below(path, prefix) for prefix in _OPERATION_PREFIXES)
     ):
         return ActivityDecision("operation", 0)
+    if path == PAGE_VIEW_PATH:
+        return ActivityDecision("page_view", 1)
     if path in _BACKGROUND_EXACT or any(
         path.startswith(prefix + "/") for prefix in _BACKGROUND_CHILD_PREFIXES
     ):
