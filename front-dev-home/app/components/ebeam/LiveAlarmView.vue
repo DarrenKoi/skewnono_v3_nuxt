@@ -65,7 +65,7 @@ useHead({
     <EbeamMetaBar
       :eyebrow="eyebrow"
       title="라이브 알람"
-      subtitle="최근 10분간 발생한 Align 실패 · 측정 연속 실패"
+      subtitle="최근 10분간 발생한 Align 실패 · 측정 실패"
       :stats="metaStats"
     >
       <template #actions>

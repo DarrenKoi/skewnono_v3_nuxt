@@ -93,8 +93,12 @@ const details = computed(() => [
          the alid so an unfamiliar message can be looked up. -->
     <p class="mt-1 sk-body text-(--sk-ink-muted)">
       <span class="font-mono text-xs">{{ event.alid }}</span>
-      <template v-if="event.alarm_name"> · {{ event.alarm_name }}</template>
-      <template v-if="event.alarm_modelname"> · {{ event.alarm_modelname }}</template>
+      <span v-if="event.alarm_name">
+        · {{ event.alarm_name }}
+      </span>
+      <span v-if="event.alarm_modelname">
+        · {{ event.alarm_modelname }}
+      </span>
     </p>
 
     <p
