@@ -366,6 +366,32 @@ def test_transport_failure_retries_twice_then_succeeds():
         handler.close()
 
 
+def test_diagnostics_stamps_are_kst_but_the_document_stays_utc():
+    """The two clocks in this module are not the same clock.
+
+    ``last_success_at``/``last_failure_at`` are read by a person curling
+    /api/health/logging in Korea, so they carry +09:00. The indexed
+    ``@timestamp`` stays UTC — activity's reader re-buckets it with
+    ``time_zone: Asia/Seoul`` and would double-shift a KST document.
+    """
+    docs = _BulkRecorder(responses=[(1, [])])
+    handler = _ParkedBulkShipper(
+        index_service_factory=_ready_index_factory,
+        doc_service_factory=lambda _client, _index: docs,
+    )
+    try:
+        doc = handler._record_to_doc(_record())
+        handler._flush([doc])
+        handler._record_failure(bulk_failures=1)
+        snapshot = handler.snapshot()
+
+        assert snapshot.last_success_at.endswith("+09:00")
+        assert snapshot.last_failure_at.endswith("+09:00")
+        assert doc["@timestamp"].endswith("+00:00")
+    finally:
+        handler.close()
+
+
 def test_non_rollover_alias_is_never_bulk_written():
     docs = _BulkRecorder(responses=[])
     handler = _ParkedBulkShipper(

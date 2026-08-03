@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from back_dev_home._logging.target import (
     LoggingConfigurationError,
@@ -32,6 +33,8 @@ DEFAULT_INDEX = "skewnono_logging"
 DEFAULT_BUFFER_SIZE = 100
 DEFAULT_FLUSH_INTERVAL = 5.0
 DEFAULT_QUEUE_SIZE = 10_000
+
+KST = ZoneInfo("Asia/Seoul")
 
 _KNOWN_EXTRA_KEYS = (
     "event",
@@ -134,8 +137,20 @@ def _bounded(value: Any, limit: int) -> str:
     return str(value)[:limit]
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def _kst_now() -> str:
+    """Wall-clock stamp for the two operator-facing diagnostics fields.
+
+    KST because the only reader is a person at ``GET /api/health/logging``
+    asking "did shipping stop, and when?" — and every deployment that answers
+    that question sits in Korea. Offset-aware (``+09:00``) rather than a naive
+    Korean string, so the instant survives being parsed elsewhere.
+
+    Deliberately *not* the clock used for the indexed document's
+    ``@timestamp`` (see ``_record_to_doc``): stored log timestamps stay UTC,
+    which is what activity/providers/opensearch_reader.py re-buckets with
+    ``time_zone: Asia/Seoul``.
+    """
+    return datetime.now(KST).isoformat(timespec="seconds")
 
 
 def _make_index_service(client: Any, index: str) -> Any:
@@ -360,7 +375,7 @@ class OpenSearchBulkHandler(logging.Handler):
             if success_count:
                 with self._stats_lock:
                     self._indexed += success_count
-                    self._last_success_at = _utc_now()
+                    self._last_success_at = _kst_now()
             if not errors:
                 return
 
@@ -423,7 +438,7 @@ class OpenSearchBulkHandler(logging.Handler):
             self._queue_full_dropped += queue_full_dropped
             self._bulk_dropped += bulk_dropped
             self._bulk_failures += bulk_failures
-            self._last_failure_at = _utc_now()
+            self._last_failure_at = _kst_now()
 
     def _report_failure(self, reason: str) -> None:
         now = time.monotonic()
