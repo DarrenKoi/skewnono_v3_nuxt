@@ -45,10 +45,10 @@ def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> Reci
 
 def get_recipe_open_data(
     recipe_id: str | None = None,
-    fac_id: str | None = None,
+    fab_name: str | None = None,
     tool_category: str | None = None,
 ) -> RecipeDetailResponse:
-    return _provider().get_recipe_open_data(recipe_id, fac_id, tool_category)
+    return _provider().get_recipe_open_data(recipe_id, fab_name, tool_category)
 
 
 def get_recipe_compare_data(

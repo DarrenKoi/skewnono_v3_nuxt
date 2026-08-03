@@ -50,7 +50,7 @@ def _detail():
         "wafer_align_info": [],
         "locator": LOCATOR,
         "recipe_id": "RCP_001",
-        "fac_id": "M11",
+        "fab_name": "M11",
         "tool_category": "cd-sem",
         "timestamp": "2026-08-02T00:00:00",
     }

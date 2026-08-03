@@ -25,7 +25,7 @@ const param = (name: string): CompareParameter => ({
 const LOCATOR = { eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B' }
 
 const recipe = (id: string, params: string[]): CompareRecipe => ({
-  recipe_id: id, fac_id: 'R3', locator: LOCATOR, parameters: params.map(param)
+  recipe_id: id, fab_name: 'R3', locator: LOCATOR, parameters: params.map(param)
 })
 
 test('classifyCoverage: all / unique / partial', () => {
@@ -78,7 +78,7 @@ const detailWith = (rows: Record<string, string>): CompareParamDetail => ({
 })
 
 const recipeWithAmp = (id: string, _unused: unknown[] = []): CompareRecipe => ({
-  recipe_id: id, fac_id: 'R3', locator: LOCATOR,
+  recipe_id: id, fab_name: 'R3', locator: LOCATOR,
   parameters: [{
     Parameter: 'WAFER',
     idp: { Addressing: true, Double_Addressing: false, Mother_Para: true, Region: 5, Meas_Counting: 3, dnumber_removed: false },
@@ -188,7 +188,7 @@ test('blockForSlot routes img_meas2 to amp and img_add2 to af_pr', () => {
 test('buildIdpRows compares per-parameter fields', () => {
   const rows = buildIdpRows([
     recipeWithAmp('A', []),
-    { recipe_id: 'B', fac_id: 'R3', locator: LOCATOR, parameters: [{
+    { recipe_id: 'B', fab_name: 'R3', locator: LOCATOR, parameters: [{
       Parameter: 'WAFER',
       idp: { Addressing: true, Double_Addressing: false, Mother_Para: true, Region: 8, Meas_Counting: 3, dnumber_removed: false },
       images: { img_add1: '', img_add2: '', image_add3: '', img_meas1: '', img_meas2: '' }
@@ -207,7 +207,7 @@ test('buildIdpRows spells booleans the way BoolPill does, not as String(true)', 
 test('imageFilenames returns per-recipe slot filename or null', () => {
   const files = imageFilenames([
     recipeWithAmp('A', []),
-    { recipe_id: 'B', fac_id: 'R3', locator: LOCATOR, parameters: [] }
+    { recipe_id: 'B', fab_name: 'R3', locator: LOCATOR, parameters: [] }
   ], 'WAFER', 'img_meas1')
   assert.deepEqual(files, ['A_m1', null])
 })

@@ -201,7 +201,7 @@ class RecipeDetailResponse(TypedDict):
     # those three endpoints (spec 2026-07-29).
     locator: IdpLocator
     recipe_id: str
-    fac_id: str
+    fab_name: str
     tool_category: str
     timestamp: str
 
@@ -214,7 +214,7 @@ class CompareParameter(TypedDict):
 
 class CompareRecipe(TypedDict):
     recipe_id: str
-    fac_id: str
+    fab_name: str
     # Per-recipe, because compare fetches AMP for the visible cell across every
     # selected recipe and each one lives on its own tool.
     locator: IdpLocator

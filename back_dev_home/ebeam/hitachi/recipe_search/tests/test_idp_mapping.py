@@ -32,7 +32,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.providers import office_example
 
 
 RECIPE_ID = "ADI/ADI_CD_BIAS_001"
-FAC_ID = "R3"
+FAB_NAME = "R3"
 TOOL_CATEGORY = "cd-sem"
 
 MP_COLUMNS = [
@@ -134,7 +134,7 @@ LOCATION = office_example._IdpLocation(
 
 def _map(**overrides: pd.DataFrame) -> RecipeDetailResponse:
     return office_example._to_detail_response(
-        _frames(**overrides), RECIPE_ID, FAC_ID, TOOL_CATEGORY, LOCATION
+        _frames(**overrides), RECIPE_ID, FAB_NAME, TOOL_CATEGORY, LOCATION
     )
 
 
@@ -142,7 +142,7 @@ def test_parsed_frames_map_to_the_detail_contract():
     detail = _map()
     assert_matches(detail, RecipeDetailResponse)
     assert detail["recipe_id"] == RECIPE_ID
-    assert detail["fac_id"] == FAC_ID
+    assert detail["fab_name"] == FAB_NAME
     assert detail["tool_category"] == TOOL_CATEGORY
 
 

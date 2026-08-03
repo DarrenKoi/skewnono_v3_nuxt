@@ -154,7 +154,7 @@ tool**: these are live metrology recipes on production equipment.
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipe-detail
 
 - Handler: `routes.py` → `data.get_recipe_open_data(recipe_id=recipe_name,
-  fac_id=fab_name, tool_category=tool_type)`. `recipe_name` is required
+  fab_name=fab_name, tool_category=tool_type)`. `recipe_name` is required
   (400 if missing/blank); `fab_name`/`tool_type` resolve the same way as
   `/recipes`.
 - Contract: `RecipeDetailResponse` —
@@ -166,13 +166,22 @@ tool**: these are live metrology recipes on production equipment.
       idp_image_info: list[IdpImageInfoRow]
       locator: IdpLocator          # eqp_ip / class_name / idw / idp
       recipe_id: str
-      fac_id: str
+      fab_name: str
       tool_category: str
       timestamp: str
   ```
 
+  **`fac_id` → `fab_name`, renamed 2026-08-03.** The value never changed —
+  `routes.py` always passed `_resolve_fab_name()` into it and both adapters
+  immediately re-read it as a fab name — but `fac_id` is device_statistics'
+  key, not this feature's (`docs/datatables/README.md`). **An `office.py` copied
+  before that date still emits `fac_id`**, which the SPA no longer reads:
+  re-copy with `python -m scripts.sync_office_adapters --force recipe_search`.
+  The argument is passed positionally through `data.py`, so a stale copy keeps
+  answering — it just answers with the old key.
+
 - Mock behavior: generates all five recipe-open tables for one recipe, seeded
-  from `sha256(recipe_id:fac_id:tool_category)` (defaults `"DUMMY_RECIPE_001"`,
+  from `sha256(recipe_id:fab_name:tool_category)` (defaults `"DUMMY_RECIPE_001"`,
   `"R3"`, `"cd-sem"` when args are `None`) so a given recipe/fab/tool triple is
   reproducible. `wafer_mp_info` is 50 measurement-point rows, `wafer_align_info`
   is 10 alignment rows, and `idp_image_info` is 20 rows (one per synthetic
@@ -203,7 +212,7 @@ tool**: these are live metrology recipes on production equipment.
   registry hash field and meas_hist's `full_name` — so the id the search table
   hands back is already the lookup key, and its `/` prefix is the FTP class
   directory. The Redis registry is tried first and is all-or-nothing: if either
-  hash misses, or `fac_id` is blank, the whole location falls to meas_hist rather
+  hash misses, or `fab_name` is blank, the whole location falls to meas_hist rather
   than blending the two. Both paths return tool candidates in preference order
   (registry: `available == "On"` first; meas_hist: newest run first) and
   `_download_first` walks them until one serves the file. On the meas_hist
@@ -325,7 +334,7 @@ tool**: these are live metrology recipes on production equipment.
 
   class CompareRecipe(TypedDict):
       recipe_id: str
-      fac_id: str
+      fab_name: str
       parameters: list[CompareParameter]
 
   class CompareParameter(TypedDict):
@@ -336,7 +345,7 @@ tool**: these are live metrology recipes on production equipment.
   ```
 
 - Mock behavior: for each name in `recipe_names` (blank names skipped after
-  `.strip()`), calls `get_recipe_open_data(recipe_id=name, fac_id=fab_name,
+  `.strip()`), calls `get_recipe_open_data(recipe_id=name, fab_name=fab_name,
   tool_category=tool_type)` and reshapes its `idp_image_info` into
   a compact per-parameter view — so compare data always matches what
   `/recipe-detail` would return for the same recipe. `idp` is restricted to

@@ -1027,14 +1027,14 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
 
 def get_recipe_open_data(
     recipe_id: str | None = None,
-    fac_id: str | None = None,
+    fab_name: str | None = None,
     tool_category: str | None = None
 ) -> RecipeDetailResponse:
     """Generate all three recipe-open tables for one recipe."""
     resolved_recipe_id = recipe_id or "DUMMY_RECIPE_001"
-    resolved_fac_id = fac_id or "R3"
+    resolved_fab_name = fab_name or "R3"
     resolved_tool_category = tool_category or "cd-sem"
-    rng = random.Random(_seed_for_values(resolved_recipe_id, resolved_fac_id, resolved_tool_category))
+    rng = random.Random(_seed_for_values(resolved_recipe_id, resolved_fab_name, resolved_tool_category))
 
     idp_rows = generate_idp_image_info(rng=rng)
 
@@ -1044,7 +1044,7 @@ def get_recipe_open_data(
         "idp_image_info": idp_rows,
         "locator": _fake_locator(resolved_recipe_id),
         "recipe_id": resolved_recipe_id,
-        "fac_id": resolved_fac_id,
+        "fab_name": resolved_fab_name,
         "tool_category": resolved_tool_category,
         "timestamp": datetime.now().isoformat()
     }
@@ -1068,7 +1068,7 @@ def get_recipe_compare_data(
         if not clean:
             continue
         detail = get_recipe_open_data(
-            recipe_id=clean, fac_id=fab_name, tool_category=tool_type
+            recipe_id=clean, fab_name=fab_name, tool_category=tool_type
         )
 
         seen: set[str] = set()
@@ -1087,7 +1087,7 @@ def get_recipe_compare_data(
             })
         recipes.append({
             "recipe_id": detail["recipe_id"],
-            "fac_id": detail["fac_id"],
+            "fab_name": detail["fab_name"],
             "locator": detail["locator"],
             "parameters": parameters
         })

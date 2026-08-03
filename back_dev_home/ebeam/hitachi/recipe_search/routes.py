@@ -169,7 +169,7 @@ def recipe_search_recipe_detail(tool_slug: str):
 
     return jsonify(get_recipe_open_data(
         recipe_id=recipe_name,
-        fac_id=_resolve_fab_name(),
+        fab_name=_resolve_fab_name(),
         tool_category=tool_type
     ))
 
@@ -189,7 +189,7 @@ def recipe_search_parameters(tool_slug: str):
     tool_type, recipe_name, _, fab_name = context
 
     detail = get_recipe_open_data(
-        recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
+        recipe_id=recipe_name, fab_name=fab_name, tool_category=tool_type
     )
     return jsonify(param_info.build_parameter_list(detail, tool_type, fab_name))
 
@@ -207,7 +207,7 @@ def recipe_search_measurement_points(tool_slug: str):
     tool_type, recipe_name, parameter, fab_name = context
 
     detail = get_recipe_open_data(
-        recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
+        recipe_id=recipe_name, fab_name=fab_name, tool_category=tool_type
     )
     if not param_info.rows_for_parameter(detail, parameter):
         return _parameter_missing(parameter)
@@ -234,7 +234,7 @@ def recipe_search_param_info(tool_slug: str):
         return jsonify({"error": str(exc)}), 400
 
     detail = get_recipe_open_data(
-        recipe_id=recipe_name, fac_id=fab_name, tool_category=tool_type
+        recipe_id=recipe_name, fab_name=fab_name, tool_category=tool_type
     )
     rows = param_info.rows_for_parameter(detail, parameter)
     if not rows:

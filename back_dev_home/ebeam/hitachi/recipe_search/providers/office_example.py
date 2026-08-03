@@ -1064,7 +1064,7 @@ def _records(frame: pd.DataFrame, columns: list[str], table: str) -> list[dict[s
 def _to_detail_response(
     frames: dict[str, pd.DataFrame],
     recipe_id: str,
-    fac_id: str,
+    fab_name: str,
     tool_category: str,
     location: _IdpLocation,
 ) -> RecipeDetailResponse:
@@ -1119,7 +1119,7 @@ def _to_detail_response(
             "idp": location.idp_stem,
         },
         "recipe_id": recipe_id,
-        "fac_id": fac_id,
+        "fab_name": fab_name,
         "tool_category": tool_category,
         # Volatile, scrubbed by the parity harness (VOLATILE_KEYS) — office
         # does not have to match the mock byte-for-byte here.
@@ -1573,7 +1573,7 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
 
 def get_recipe_open_data(
     recipe_id: str | None = None,
-    fac_id: str | None = None,
+    fab_name: str | None = None,
     tool_category: str | None = None,
 ) -> RecipeDetailResponse:
     """One recipe's IDP tables: locate -> download -> parse -> map.
@@ -1592,7 +1592,7 @@ def get_recipe_open_data(
     if not recipe:
         raise ValueError("recipe_id is required for recipe open.")
     tool_type: ToolType = tool_category or "cd-sem"
-    fab_name = (fac_id or "").strip() or None
+    fab_name = (fab_name or "").strip() or None
 
     locations = _locate_idp(tool_type, recipe, fab_name)
     with tempfile.TemporaryDirectory(prefix="skewnono-idp-") as tmp_dir:

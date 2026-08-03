@@ -21,7 +21,7 @@ export interface CompareParameter {
 
 export interface CompareRecipe {
   recipe_id: string
-  fac_id: string
+  fab_name: string
   /** Per recipe, because each one's raw folder lives on its own tool. */
   locator: IdpLocator
   parameters: CompareParameter[]

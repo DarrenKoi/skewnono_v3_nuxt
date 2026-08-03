@@ -88,7 +88,7 @@ export interface RecipeDetailResponse {
   idp_image_info: IdpImageInfoRow[]
   locator: IdpLocator
   recipe_id: string
-  fac_id: string
+  fab_name: string
   tool_category: RecipeSearchToolType
   timestamp: string
 }
