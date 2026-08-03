@@ -11,6 +11,8 @@ historical series. Add aliases instead (multiple paths → same slug).
 
 from __future__ import annotations
 
+import re
+
 
 # Ordered list of (path_prefix, slug). Longest prefix wins, so put more
 # specific rules first. Trailing slashes in the prefix are stripped at lookup.
@@ -72,3 +74,122 @@ def route_to_feature(path: str) -> str:
         return "(non-api)"
     parts = [p for p in path.split("/") if p]
     return parts[1] if len(parts) >= 2 else "(root)"
+
+
+# ---------------------------------------------------------------------------
+# Frontend page paths → the SAME slugs as above.
+#
+# This is a second map rather than a rewrite of route_to_feature because the
+# two vocabularies are genuinely different shapes: /ebeam/<tool>/<fab>/
+# recipe-status is ONE route carrying TWO features (?tab=), which has no
+# counterpart on the API side. Slug constants are shared, so the historical
+# series stays continuous.
+#
+# Paths arrive query-inclusive. Only recipe-status reads the query.
+_OPS_PAGE_PREFIXES = (
+    "/activity",
+    "/admin",
+    "/settings",
+    "/endpoints",
+    "/identify",
+    "/intro",
+)
+
+# Page segment (after /ebeam/<tool>/<fab>/) → slug. Longest match wins, so the
+# nested recipe-search children are listed before their parent.
+_PAGE_RULES: tuple[tuple[str, str], ...] = (
+    ("recipe-search/meas-hist", "meas_hist"),
+    ("recipe-search",           "recipe_search"),
+    ("device-statistics",       "device_statistics"),
+    ("skewvoir",                "skewvoir"),
+    ("storage",                 "storage"),
+    ("hardware",                "hardware"),
+    ("live-alarm",              "live_alarm"),
+    ("skew-check",              "skew_check"),
+    ("pm-planning",             "pm_planning"),
+    # Legacy routes; middleware redirects them to recipe-status, but a beacon
+    # that beats the redirect must still land on the right slug.
+    ("recipe-tat",              "recipe_tat"),
+    ("fail-issue",              "fail_issue"),
+)
+
+_STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
+    ("/tool-roster", "sem_list"),
+    ("/mag-pixel",   "mag_pixel"),
+    ("/chat",        "chat"),
+    ("/afm",         "afm"),
+)
+
+# Fab segments are [fab] route params. Same shape the frontend uses in
+# plugins/persist-fab.client.ts, so the two stay in agreement about what a fab
+# looks like.
+_FAB_SEGMENT = re.compile(r"^[RM]\d{1,2}[A-C]?$", re.IGNORECASE)
+
+# ?tab= on recipe-status is the real identity. align and meas are two views of
+# one feature: /api/<tool>/fail-issue returns align_fail_* and meas_fail_*
+# together.
+_RECIPE_STATUS_TABS = {
+    "tat":   "recipe_tat",
+    "align": "fail_issue",
+    "meas":  "fail_issue",
+}
+
+
+def _split_query(path: str) -> tuple[str, str]:
+    head, _, query = path.partition("?")
+    return head.rstrip("/") or "/", query
+
+
+def _query_value(query: str, key: str) -> str | None:
+    for pair in query.split("&"):
+        name, _, value = pair.partition("=")
+        if name == key and value:
+            return value
+    return None
+
+
+def page_to_feature(path: str) -> str | None:
+    """Map a FRONTEND route path to a feature slug for page-view ranking.
+
+    ``path`` includes the query string. Returns None for ops pages (logged but
+    never ranked, matching _OPERATION_PREFIXES) and for a page whose identity
+    is not yet resolvable — the caller must not record a page view for None.
+    """
+    if not path:
+        return None
+    clean, query = _split_query(path)
+    if any(
+        clean == prefix or clean.startswith(prefix + "/")
+        for prefix in _OPS_PAGE_PREFIXES
+    ):
+        return None
+    if clean == "/":
+        return "home"
+    for prefix, slug in _STANDALONE_PAGE_RULES:
+        if clean == prefix or clean.startswith(prefix + "/"):
+            return slug
+
+    parts = [part for part in clean.split("/") if part]
+    if parts and parts[0] == "ebeam":
+        # /ebeam/<tool>/[<fab>/]<page...> — the fab is a [fab] route param,
+        # present on most pages and absent on the fabless ones
+        # (device-statistics, skewvoir). Drop it FIRST so both shapes reduce to
+        # the same page segment; checking for a page before dropping the fab
+        # would compare "M14" against the page rules and never match.
+        rest = parts[2:]
+        if rest and _FAB_SEGMENT.match(rest[0]):
+            rest = rest[1:]
+        if rest and rest[0] == "recipe-status":
+            tab = _query_value(query, "tab")
+            # No tab yet: RecipeStatusView's mount-time router.replace supplies
+            # one within a tick. Waiting is what stops one visit counting twice.
+            return _RECIPE_STATUS_TABS.get(tab) if tab else None
+        joined = "/".join(rest)
+        for prefix, slug in _PAGE_RULES:
+            if joined == prefix or joined.startswith(prefix + "/"):
+                return slug
+        # Unmapped ebeam page: group by tool, matching route_to_feature's
+        # fallback, which yields cdsem/hvsem for unmapped API paths.
+        return parts[1].replace("-", "_") if len(parts) >= 2 else "ebeam"
+
+    return parts[0].replace("-", "_") if parts else None

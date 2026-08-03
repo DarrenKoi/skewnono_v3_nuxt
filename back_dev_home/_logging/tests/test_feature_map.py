@@ -12,6 +12,7 @@ import pytest
 from back_dev_home._logging.feature_map import (
     _FEATURE_RULES,
     _TOOL_PAGE_RULES,
+    page_to_feature,
     route_to_feature,
 )
 
@@ -89,3 +90,73 @@ def test_more_specific_rules_are_ordered_first():
             assert not shadowed or slug == earlier_slug, (
                 f"{prefix} is unreachable behind {earlier_prefix}"
             )
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        # The three pages this work exists for.
+        ("/mag-pixel", "mag_pixel"),
+        ("/chat", "chat"),
+        ("/ebeam/cd-sem/M14/live-alarm", "live_alarm"),
+        ("/ebeam/hv-sem/M16B/live-alarm", "live_alarm"),
+        # recipe-status is one route carrying two features.
+        ("/ebeam/cd-sem/M14/recipe-status?tab=tat", "recipe_tat"),
+        ("/ebeam/cd-sem/M14/recipe-status?tab=align", "fail_issue"),
+        ("/ebeam/cd-sem/M14/recipe-status?tab=meas", "fail_issue"),
+        # Deeper routes win over their parent.
+        ("/ebeam/cd-sem/M14/recipe-search/meas-hist", "meas_hist"),
+        ("/ebeam/cd-sem/M14/recipe-search", "recipe_search"),
+        ("/ebeam/cd-sem/M14/recipe-search/compare", "recipe_search"),
+        # Fab is a variable segment; both tools share page slugs.
+        ("/ebeam/cd-sem/M14/storage", "storage"),
+        ("/ebeam/hv-sem/M11/hardware", "hardware"),
+        ("/ebeam/cd-sem/R3/skew-check", "skew_check"),
+        ("/ebeam/cd-sem/M15/pm-planning", "pm_planning"),
+        # Fabless ebeam pages.
+        ("/ebeam/cd-sem/device-statistics", "device_statistics"),
+        ("/ebeam/cd-sem/device-statistics/comparison", "device_statistics"),
+        ("/ebeam/hv-sem/skewvoir/analysis", "skewvoir"),
+        # Standalone pages.
+        ("/tool-roster", "sem_list"),
+        ("/afm/HVM1", "afm"),
+        ("/", "home"),
+        # Legacy routes that redirect; mapped defensively so a beacon that
+        # beats the redirect is not misfiled.
+        ("/ebeam/cd-sem/M14/recipe-tat", "recipe_tat"),
+        ("/ebeam/cd-sem/M14/fail-issue", "fail_issue"),
+    ],
+)
+def test_page_to_feature_maps_frontend_paths(path, expected):
+    assert page_to_feature(path) == expected
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/activity",
+        "/admin/logs",
+        "/admin/access",
+        "/settings",
+        "/endpoints",
+        "/identify",
+        "/intro",
+    ],
+)
+def test_ops_pages_are_not_ranked(path):
+    assert page_to_feature(path) is None
+
+
+def test_recipe_status_without_a_tab_is_unresolved():
+    """RecipeStatusView writes ?tab= back on mount, so the beacon waits.
+
+    Firing on the bare path AND again after the router.replace would count
+    one visit twice.
+    """
+    assert page_to_feature("/ebeam/cd-sem/M14/recipe-status") is None
+
+
+def test_unknown_pages_fall_back_to_a_derived_slug():
+    """Same policy as route_to_feature: a new page groups sanely until mapped."""
+    assert page_to_feature("/thickness") == "thickness"
+    assert page_to_feature("/ebeam/verity-sem/M14") == "verity_sem"
