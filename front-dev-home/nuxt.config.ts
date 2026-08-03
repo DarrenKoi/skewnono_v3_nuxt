@@ -20,11 +20,22 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'SKEWNONO',
+      // Chrome re-runs icon selection on every same-document history
+      // navigation, and the analysis page rewrites the URL on every parameter
+      // click (useSkewvoirRoute) — so a fetched icon is re-requested per click.
+      // Cache headers only soften that, and only where they are set: Flask
+      // sends max-age=86400 but the SPA mount is cloud-only, while the dev
+      // server serves public/ as `max-age=0` (revalidate every time). The SVG
+      // is therefore INLINED as a data: URI — 508 bytes in index.html that
+      // resolve with no request, identically in dev, Nitro and Flask. Keep it
+      // in sync with public/favicon/favicon.svg if the mark ever changes.
+      //
+      // favicon.ico stays as the pre-SVG fallback; it already embeds 16/32/48,
+      // which is why the separate 16x16 and 32x32 PNG links are gone. Every
+      // extra candidate is one more file Chrome walks when a fetch fails.
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22 shape-rendering=%22geometricPrecision%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%225%22 fill=%22%23f0eee9%22/%3E%3Crect x=%220.8%22 y=%220.8%22 width=%2230.4%22 height=%2230.4%22 rx=%224.5%22 fill=%22none%22 stroke=%22%23111214%22 stroke-width=%221.6%22/%3E%3Cline x1=%229%22 y1=%2224%22 x2=%2218%22 y2=%228%22 stroke=%22%23111214%22 stroke-width=%223.2%22 stroke-linecap=%22square%22/%3E%3Cline x1=%2216%22 y1=%2224%22 x2=%2225%22 y2=%228%22 stroke=%22%23c8321f%22 stroke-width=%223.2%22 stroke-linecap=%22square%22/%3E%3C/svg%3E' },
         { rel: 'icon', href: '/favicon/favicon.ico', sizes: 'any' },
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon/favicon-32.png' },
-        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon/favicon-16.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png' },
         { rel: 'manifest', href: '/favicon/site.webmanifest' }
       ],
