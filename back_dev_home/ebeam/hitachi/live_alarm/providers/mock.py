@@ -1,9 +1,26 @@
 """Phase 1 adapter. No Redis, no network — but not empty either.
 
 An always-empty mock makes the page impossible to develop against, so
-this emits a small deterministic set of alarms derived from the current
+this emits a deterministic set of alarms derived from the current
 minute. The same minute always produces the same board, which keeps
 tests stable while the screen still visibly changes as time passes.
+
+WHAT THIS MOCK DELIBERATELY SHAPES (and where it therefore differs):
+
+The board's 측정 실패 view groups alarms by `(eqp_id, ppid)` and ranks by
+count, because the situation worth acting on is one tool running one recipe
+failing over and over. So this mock places such a pile on every non-empty
+board — see `_HOT_BURST`. That correlation is FABRICATED: the shape is real
+(it is what the screen was built for), the RATE is not something home can
+know, and is marked OFFICE-VERIFY.
+
+Until 2026-08-03 the volume was `(now // 60) % 4`, i.e. 0..3 events spread
+over a dozen tools, and two alarms sharing a tool AND a recipe essentially
+never occurred. Every path the grouped view added was unreachable at home
+while every shape test passed — a mock whose value domain was narrower than
+the thing it stands for, which is the failure mode CLAUDE.md warns about.
+`tests/test_mock.py` now guards that domain: volume, the repeat, the quiet
+board, the blank ppid, and the roster gap.
 
 Office counterpart — schema of record: `docs/datatables/live_alarm_board.txt`.
 Unlike every other feature here, the office READ SOURCE IS NOT THE SYSTEM OF
@@ -117,6 +134,25 @@ _STALE_ENV = "SKEWNONO_LIVE_ALARM_MOCK_STALE"
 # mock emits is, by construction, in the roster.
 _UNROSTERED_EQP_ID = "MCD999"
 
+# Events per board, cycled by minute. One slot is 0 so a quiet board stays
+# reachable; the rest are sized so that cycling `eqp_ids` (8-17 per fab) against
+# `_RECIPES` (4) wraps often enough to put several alarms on the same tool.
+_COUNTS = (0, 11, 19, 27)
+
+# ONE tool running ONE recipe, failing over and over: the situation the 측정
+# 실패 grouping exists to surface, and the reason that view ranks by count.
+#
+# Placed deliberately rather than left to the cycling above, which produces a
+# pile of 3 at best and only by coincidence — too weak to develop a ranked view
+# against, and too fragile to rely on (it moves whenever the roster size does).
+#
+# FABRICATED CORRELATION, not an office observation. How often a single PPID
+# actually piles up within ten minutes is OFFICE-VERIFY. The mock claims only
+# that the SHAPE occurs, which is what the screen was built for; it claims
+# nothing about the rate. See CLAUDE.md on marking where a mock deliberately
+# differs from what it stands in for.
+_HOT_BURST = 6
+
 
 def _index() -> roster.RosterIndex:
     """The same roster the office reader uses, over the sem_list MOCK fleet.
@@ -133,15 +169,36 @@ def _index() -> roster.RosterIndex:
     return roster.build_index(get_sem_list())
 
 
-def _event(now: int, index: int, eqp_id: str, model: str = "CG6300") -> AlarmEvent:
+def _event(
+    now: int,
+    index: int,
+    eqp_id: str,
+    model: str = "CG6300",
+    alid: str | None = None,
+    recipe_id: str | None = None,
+) -> AlarmEvent:
+    """One alarm. `alid` and `recipe_id` default to cycling off the index.
+
+    They are overridable so a caller can PIN them — which is what the repeat
+    burst in `get_board` does. Cycling alone can only produce a repeated
+    (eqp_id, ppid) by coincidence, and coincidence is not a property a screen
+    can be developed against.
+    """
     occurred = now - (index * 137) % BOARD_WINDOW_SEC
-    alid = _ALIDS[index % len(_ALIDS)]
+    alid = alid if alid is not None else _ALIDS[index % len(_ALIDS)]
     occurred_at = board.iso(occurred)
-    recipe_id = _RECIPES[index % len(_RECIPES)]
+    recipe_id = recipe_id if recipe_id is not None else _RECIPES[index % len(_RECIPES)]
     # RAWID is an int at the office; carried as a string because every other
     # AlarmEvent field is one and the id is only ever compared, never summed.
     # Derived from the minute so the same minute rebuilds the same board.
-    rawid = str(880_000 + (now // 60 % 1000) * 10 + index)
+    #
+    # The minute is multiplied by 100, not 10, so the per-minute id blocks do
+    # not overlap: at *10, minute N's index 12 collided with minute N+1's
+    # index 2. The frontend decides "new since the last poll" by id, and polls
+    # straddle minute boundaries constantly — a collision there would make a
+    # genuinely new alarm fail to highlight, and it would look like a bug in
+    # the highlight code rather than in this line.
+    rawid = str(880_000 + (now // 60 % 1000) * 100 + index)
     return {
         # Mirrors normalize.py: RAWID is the id when the feed has one. The
         # composite fallback is not exercised here on purpose — the office
@@ -198,7 +255,12 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
 
     stale = os.environ.get(_STALE_ENV, "").strip().lower() in {"1", "true", "yes"}
     # Vary the count by minute so the board visibly changes during development.
-    count = (now // 60) % 4
+    # The cycle keeps a 0 so the "최근 10분간 알람이 없습니다." screen stays
+    # reachable at home; the other slots are large enough that the 측정 실패
+    # view has something to group. See _HOT_BURST below for why size alone is
+    # not sufficient.
+    slot = (now // 60) % len(_COUNTS)
+    count = _COUNTS[slot]
     # Real ids from the roster, so an alarm row resolves to the fab being
     # viewed exactly as it does at the office. The previous fabricated ids
     # (MXCD*) matched no prefix sem_list emits, so the whole attribution path
@@ -211,12 +273,39 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     model = "TP4000" if tool_type == "hv-sem" else "CG6300"
     events = [_event(now, i, eqp_ids[i % len(eqp_ids)], model) for i in range(count)]
 
+    # The repeat burst: one tool, one recipe, several measurement failures.
+    # Indices continue past `count` so every event on the board still has a
+    # distinct id. Skipped entirely on the quiet slot — a board that is
+    # supposed to be empty must actually be empty.
+    hot_eqp = eqp_ids[0]
+    hot_recipe = _RECIPES[0]
+    burst = [
+        # Alternates 9007/9035: both are `meas`, so they land in ONE group.
+        # That is the point — the view groups by kind and (eqp_id, ppid), not
+        # by alid, and a burst of a single alid would not prove it.
+        _event(
+            now, count + n, hot_eqp, model,
+            alid="9007" if n % 2 else "9035",
+            recipe_id=hot_recipe,
+        )
+        for n in range(_HOT_BURST if count else 0)
+    ]
+    events += burst
+
     # One minute in four the facility feed also carries an alarm from
     # equipment no roster knows. Generated as a REAL event and then withheld,
     # rather than incrementing a bare counter, so unmatched_count never claims
     # more was dropped than the feed actually held — the office computes it
     # the same way, by counting events it could not attribute.
-    withheld = [_event(now, count, _UNROSTERED_EQP_ID)] if count == 3 else []
+    #
+    # Keyed on the CYCLE SLOT, not on `count`. It used to read `count == 3`,
+    # which silently became unreachable the moment the volume cycle stopped
+    # producing a 3 — taking the whole roster-gap path with it.
+    withheld = (
+        [_event(now, count + _HOT_BURST, _UNROSTERED_EQP_ID)]
+        if slot == len(_COUNTS) - 1
+        else []
+    )
 
     return board.payload(
         tool_type=tool_type,
