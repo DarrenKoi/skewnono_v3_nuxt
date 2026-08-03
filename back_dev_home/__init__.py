@@ -242,7 +242,7 @@ def create_app() -> Flask:
 
         # x_for ONLY. The spec asks for this to fix the client IP, and the
         # other headers are not free: trusting X-Forwarded-Proto on a
-        # deployment that is deliberately http-only (sknn.skhynix.com) would
+        # deployment that is deliberately http-only (skewnono.skhynix.com) would
         # let a proxy header flip url_for() to https and break every generated
         # link, and X-Forwarded-Host would do the same to the hostname.
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)

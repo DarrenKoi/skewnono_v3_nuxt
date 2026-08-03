@@ -32,8 +32,8 @@ test('joins an absolute base, keeping scheme, host and port intact', () => {
     'http://localhost:5000/api/health/services'
   )
   assert.equal(
-    joinApiPath('http://sknn.skhynix.com/api', '/announcements'),
-    'http://sknn.skhynix.com/api/announcements'
+    joinApiPath('http://skewnono.skhynix.com/api', '/announcements'),
+    'http://skewnono.skhynix.com/api/announcements'
   )
   // The trailing-slash rule applies to an absolute base too.
   assert.equal(joinApiPath('http://localhost:5000/api/', 'x'), 'http://localhost:5000/api/x')

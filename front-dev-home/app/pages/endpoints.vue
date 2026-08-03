@@ -3,7 +3,7 @@ useHead({
   title: 'API 리스트 | SKEWNONO'
 })
 
-const BASE_URL = 'http://sknn.skhynix.com/api'
+const BASE_URL = 'http://skewnono.skhynix.com/api'
 
 type ApiMethod = 'GET' | 'POST' | 'DELETE'
 
