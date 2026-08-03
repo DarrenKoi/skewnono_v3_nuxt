@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { measuredRows } from '~/utils/msrRows'
+import { paramImageRows } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -84,13 +84,13 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 // as its rows resolve — and again on every parameter switch — so the SEM
 // Image panel clicks into cache hits instead of cold in-request FTP fetches
 // (the cloud ingress 502s those). Other parameters' images stay untouched
-// until opened.
-useMsrImageWarmer(useFocusImageCtx(props.analysis), () => {
+// until opened. paramImageRows is the same derivation the gallery renders,
+// so what we warm and what we show cannot drift.
+useMsrImageWarmer(useFocusImageCtx(props.analysis), computed(() => {
   const active = props.analysis.activeParam.value
-  const uniq = new Set<string>()
-  for (const row of measuredRows(props.analysis.siteRows.value)) {
-    if (row.parameter === active && row.mp_image_name_01) uniq.add(row.mp_image_name_01)
+  return {
+    id: active,
+    names: paramImageRows(props.analysis.siteRows.value, active).map(r => r.mp_image_name_01)
   }
-  return [...uniq]
-})
+}))
 </script>

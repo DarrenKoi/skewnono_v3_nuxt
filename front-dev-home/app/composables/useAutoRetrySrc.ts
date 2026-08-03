@@ -1,4 +1,4 @@
-import { IMAGE_RETRY_DELAYS_MS, retryDelayMs, withRetrySeq } from '../utils/imageRetry.ts'
+import { IMAGE_RETRY_DELAYS_MS, withRetrySeq } from '../utils/imageRetry.ts'
 
 /**
  * An <img> src that survives the cloud ingress killing a slow first load.
@@ -15,9 +15,12 @@ import { IMAGE_RETRY_DELAYS_MS, retryDelayMs, withRetrySeq } from '../utils/imag
  * change (new image) abandons any pending retry and restores the budget.
  */
 export const useAutoRetrySrc = (source: () => string | null | undefined) => {
+  // seq only counts up (also across manual resets), so every re-request is a
+  // URL string the browser has not seen for this image. attempts counts the
+  // current image's errors; one more error than there are delays means the
+  // budget is spent.
   const seq = ref(0)
-  const exhausted = ref(false)
-  let remaining = IMAGE_RETRY_DELAYS_MS.length
+  const attempts = ref(0)
   let timer: ReturnType<typeof setTimeout> | null = null
 
   const clear = () => {
@@ -32,17 +35,13 @@ export const useAutoRetrySrc = (source: () => string | null | undefined) => {
     return base ? withRetrySeq(base, seq.value) : base
   })
 
+  const exhausted = computed(() => attempts.value > IMAGE_RETRY_DELAYS_MS.length)
+
   const onError = () => {
-    if (!source()) return
-    if (remaining <= 0) {
-      exhausted.value = true
-      return
-    }
-    const delay = retryDelayMs(IMAGE_RETRY_DELAYS_MS.length - remaining)
-    remaining -= 1
-    clear()
-    // seq keeps counting up across manual resets, so every re-request is a
-    // string the browser has not seen for this image.
+    if (!source() || exhausted.value) return
+    const delay = IMAGE_RETRY_DELAYS_MS[attempts.value]
+    attempts.value += 1
+    if (delay === undefined) return // budget spent — exhausted just flipped
     timer = setTimeout(() => {
       timer = null
       seq.value += 1
@@ -52,15 +51,13 @@ export const useAutoRetrySrc = (source: () => string | null | undefined) => {
   /** Manual retry: refill the auto budget and re-request immediately. */
   const reset = () => {
     clear()
-    remaining = IMAGE_RETRY_DELAYS_MS.length
-    exhausted.value = false
+    attempts.value = 0
     seq.value += 1
   }
 
   watch(source, () => {
     clear()
-    remaining = IMAGE_RETRY_DELAYS_MS.length
-    exhausted.value = false
+    attempts.value = 0
     seq.value = 0
   })
 

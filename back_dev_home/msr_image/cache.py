@@ -19,6 +19,7 @@ def cache_key(locator: ImageLocator) -> str:
 
 class ImageCache(Protocol):
     def get(self, locator: ImageLocator) -> FetchedImage | None: ...
+    def has(self, locator: ImageLocator) -> bool: ...
     def put(self, locator: ImageLocator, fetched: FetchedImage) -> None: ...
     def purge(self, ttl_hours: int) -> int: ...
 
@@ -29,6 +30,11 @@ class DiskImageCache:
 
     def _path(self, locator: ImageLocator) -> Path:
         return self.root / cache_key(locator)
+
+    def has(self, locator: ImageLocator) -> bool:
+        """Existence only — no body read. The scoped warm job uses this to
+        skip files already cached without paying a full get()."""
+        return self._path(locator).is_file()
 
     def get(self, locator: ImageLocator) -> FetchedImage | None:
         path = self._path(locator)

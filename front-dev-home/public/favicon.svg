@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="geometricPrecision">
-  <rect width="32" height="32" rx="5" fill="#f0eee9"></rect>
-  <rect x="0.8" y="0.8" width="30.4" height="30.4" rx="4.5" fill="none" stroke="#111214" stroke-width="1.6"></rect>
-  <line x1="9" y1="24" x2="18" y2="8" stroke="#111214" stroke-width="3.2" stroke-linecap="square"></line>
-  <line x1="16" y1="24" x2="25" y2="8" stroke="#c8321f" stroke-width="3.2" stroke-linecap="square"></line>
-</svg>

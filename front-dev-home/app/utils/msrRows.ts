@@ -21,6 +21,24 @@ export const isMeasuredRow = (row: MsrFileRow): row is MeasuredMsrRow =>
 
 export const measuredRows = (rows: MsrFileRow[]): MeasuredMsrRow[] => rows.filter(isMeasuredRow)
 
+// The ONE place we say which image files belong to a parameter: the first
+// measured row per distinct mp_image_name_01, in row order. The gallery grid
+// renders these; the cache warmer prefetches exactly the same set — sharing
+// the derivation is what keeps "what we warm" and "what we show" identical.
+export const paramImageRows = (rows: MsrFileRow[], parameter: string): MeasuredMsrRow[] => {
+  const seen = new Set<string>()
+  const out: MeasuredMsrRow[] = []
+  for (const row of rows) {
+    if (row.parameter !== parameter || !isMeasuredRow(row)) continue
+    const name = row.mp_image_name_01
+    if (name && !seen.has(name)) {
+      seen.add(name)
+      out.push(row)
+    }
+  }
+  return out
+}
+
 // Measured CD values for one parameter, in row order.
 export const paramValues = (rows: MsrFileRow[], parameter: string): number[] => {
   const out: number[] = []

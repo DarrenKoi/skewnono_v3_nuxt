@@ -42,9 +42,7 @@ def register_spa(app: Flask) -> None:
                 # no-cache that means a favicon revalidation per click (and,
                 # when the backend is unhealthy, a retry cascade across every
                 # declared icon). A day of staleness is fine for both.
-                elif path.startswith(("favicon/", "fonts/")) or path in (
-                    "favicon.ico", "favicon.svg", "favicon.png",
-                ):
+                elif path.startswith(("favicon/", "fonts/")) or path == "favicon.ico":
                     resp.headers["Cache-Control"] = "public, max-age=86400"
                 return resp
         return send_from_directory(root_str, "index.html")

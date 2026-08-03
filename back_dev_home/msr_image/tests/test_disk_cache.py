@@ -12,6 +12,13 @@ def test_key_is_deterministic():
     assert cache_key(LOC) == "10.0.0.1/ADI/MSR_1/shot01.jpeg"
 
 
+def test_has_reports_presence_without_reading_the_body(tmp_path):
+    cache = DiskImageCache(str(tmp_path))
+    assert not cache.has(LOC)
+    cache.put(LOC, IMG)
+    assert cache.has(LOC)
+
+
 def test_miss_returns_none(tmp_path):
     cache = DiskImageCache(str(tmp_path))
     assert cache.get(LOC) is None

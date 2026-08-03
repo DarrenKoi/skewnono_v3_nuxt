@@ -121,7 +121,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFilters.vue'
 import { isTiffName } from '~/utils/imageKind'
-import { measuredRows } from '~/utils/msrRows'
+import { paramImageRows } from '~/utils/msrRows'
 import { buildReviewQueue, resolveEvidenceOnly, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
@@ -242,17 +242,8 @@ const onEvidence = (entry: ReviewEntry) => {
 }
 
 // ── SET scope: existing filename grid (unchanged behaviour) ──────────────────
-const images = computed(() => {
-  const seen = new Set<string>()
-  const out: { name: string, chip: string, cd: number }[] = []
-  for (const r of measuredRows(props.analysis.siteRows.value)) {
-    if (r.parameter !== props.analysis.activeParam.value) continue
-    const name = r.mp_image_name_01
-    if (name && !seen.has(name)) {
-      seen.add(name)
-      out.push({ name, chip: r.chip_number, cd: r.cd_value })
-    }
-  }
-  return out
-})
+const images = computed(() =>
+  paramImageRows(props.analysis.siteRows.value, props.analysis.activeParam.value)
+    .map(r => ({ name: r.mp_image_name_01, chip: r.chip_number, cd: r.cd_value }))
+)
 </script>

@@ -34,7 +34,6 @@
         @click="emit('open')"
       >
         <img
-          :key="src ?? undefined"
           :src="src ?? undefined"
           :alt="entry.image"
           loading="lazy"
@@ -156,13 +155,9 @@ const isTiff = computed(() => isTiffName(props.entry.image))
 const loaded = ref(false)
 const { src, onError, exhausted: failed, reset: retry } = useAutoRetrySrc(() => props.src)
 
-watch(failed, () => {
-  loaded.value = false
-})
-
-// A new image (focus/param switch reusing this card) resets the load state
-// (useAutoRetrySrc resets its own budget when the src changes).
-watch(() => props.entry.image, () => {
+// One watch covers both resets: `src` changes on a new image AND on every
+// retry re-request, and `loaded` may only be true for the current src.
+watch(src, () => {
   loaded.value = false
 })
 

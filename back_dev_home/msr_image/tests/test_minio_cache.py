@@ -61,6 +61,13 @@ def test_miss_returns_none():
     assert cache.get(LOC) is None
 
 
+def test_has_is_a_stat_not_a_download():
+    cache, _ = _cache()
+    assert not cache.has(LOC)
+    cache.put(LOC, IMG)
+    assert cache.has(LOC)
+
+
 def test_put_then_get_roundtrips_with_metadata():
     cache, fake = _cache()
     cache.put(LOC, IMG)
