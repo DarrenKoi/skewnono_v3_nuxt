@@ -35,6 +35,16 @@
           원본 다운로드
         </a>
       </div>
+      <!-- The cache warmer is still pulling this parameter's images off the
+           tool. Asking for one now would be a cold in-request FTP fetch, which
+           the cloud ingress 502s (and the browser logs, unsuppressably) — so
+           wait for the job and turn the first request into a cache hit. -->
+      <AppLoadingState
+        v-else-if="holdForWarm"
+        variant="inline"
+        class="flex-1"
+        :title="warmLabel"
+      />
       <div
         v-else-if="measuredName && focusCtx.eqp_ip && !loadFailed"
         class="relative min-h-0 flex-1 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
@@ -83,10 +93,14 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import type { WarmState } from '~/composables/useMsrImageWarmer'
 import { isTiffName } from '~/utils/imageKind'
+import { warmProgressLabel } from '~/utils/imageWarm'
 import { measuredRows } from '~/utils/msrRows'
 
-const props = defineProps<{ analysis: SkewvoirAnalysis }>()
+// `warm` is optional so the panel still renders standalone; without it the
+// image is requested straight away, which is the pre-gate behaviour.
+const props = defineProps<{ analysis: SkewvoirAnalysis, warm?: WarmState }>()
 
 const { imageUrl } = useMsrImageApi()
 
@@ -128,7 +142,17 @@ const missingReason = computed(() => {
   return null
 })
 
+// Hold the <img> back only when there is something to hold: with no image or
+// no tool, 이미지 없음 is already the right answer and waiting would just
+// delay it. TIFF is excluded by branch order — its card requests no bytes.
+const holdForWarm = computed(() =>
+  props.warm?.status === 'warming' && !!measuredName.value && !!focusCtx.value.eqp_ip)
+
+const warmLabel = computed(() =>
+  warmProgressLabel(props.warm?.done ?? 0, props.warm?.total ?? 0))
+
 const meta = computed(() => {
+  if (holdForWarm.value) return '준비 중'
   const seq = props.analysis.focusedSequence.value
   const ok = measuredName.value && !loadFailed.value
   return seq != null && ok ? `seq ${seq}` : (ok ? '측정 이미지' : '없음')

@@ -33,11 +33,15 @@
         :aria-label="`${entry.chip} 이미지 열기`"
         @click="emit('open')"
       >
+        <!-- Hidden until it paints: `alt` is the image filename, and a pending
+             <img> renders it, so the tile would show a wall of text under the
+             spinner instead of a clean loading state. -->
         <img
           :src="src ?? undefined"
           :alt="entry.image"
           loading="lazy"
           class="h-full w-full object-cover"
+          :class="loaded ? undefined : 'opacity-0'"
           @load="loaded = true"
           @error="onError"
         >

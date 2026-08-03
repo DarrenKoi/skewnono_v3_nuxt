@@ -10,11 +10,18 @@
     @pointercancel="onPointerUp"
     @dblclick="scale > 1 ? reset() : zoomTo(2)"
   >
+    <!-- Hidden until it paints. A pending or failed <img> renders its `alt`,
+         and `alt` here is the image FILENAME — so without this the panel shows
+         a bare "..._SIDEWALL_ANGLE_8430.jpeg" for the whole load (and the
+         whole auto-retry window), which reads as broken rather than loading.
+         opacity, not v-if/display:none: the element must stay in the document
+         for @load/@error to fire, and `alt` stays put for screen readers. -->
     <img
       :src="displaySrc ?? undefined"
       :alt="alt"
       draggable="false"
       class="pointer-events-none absolute inset-0 h-full w-full object-contain"
+      :class="loaded ? undefined : 'opacity-0'"
       :style="imgStyle"
       @load="loaded = true"
       @error="onImgError"

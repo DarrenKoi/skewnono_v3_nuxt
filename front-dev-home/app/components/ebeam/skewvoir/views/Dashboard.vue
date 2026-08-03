@@ -64,6 +64,7 @@
         <EbeamSkewvoirDashboardSemImage
           class="min-h-[26rem] flex-[3] xl:min-h-0"
           :analysis="analysis"
+          :warm="imageWarm"
         />
         <EbeamSkewvoirDashboardDistribution
           class="min-h-0 flex-[2]"
@@ -82,11 +83,13 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 // Warm the server-side image cache for the ACTIVE parameter's points as soon
 // as its rows resolve — and again on every parameter switch — so the SEM
-// Image panel clicks into cache hits instead of cold in-request FTP fetches
-// (the cloud ingress 502s those). Other parameters' images stay untouched
-// until opened. paramImageRows is the same derivation the gallery renders,
-// so what we warm and what we show cannot drift.
-useMsrImageWarmer(useFocusImageCtx(props.analysis), computed(() => {
+// Image panel asks for a cache hit instead of a cold in-request FTP fetch
+// (the cloud ingress 502s those, and the browser logs every one). Other
+// parameters' images stay untouched until opened. paramImageRows is the same
+// derivation the gallery renders, so what we warm and what we show cannot
+// drift. The state is handed to the panel so it can WAIT for the cache rather
+// than race it — the warm is the reason the request succeeds.
+const imageWarm = useMsrImageWarmer(useFocusImageCtx(props.analysis), computed(() => {
   const active = props.analysis.activeParam.value
   return {
     id: active,
