@@ -3,10 +3,9 @@ useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
   ],
-  link: [
-    { rel: 'icon', type: 'image/svg+xml', sizes: 'any', href: '/favicon.svg' },
-    { rel: 'icon', type: 'image/png', sizes: '256x256', href: '/favicon.png' }
-  ],
+  // Icons are declared ONCE, in nuxt.config.ts (the /favicon/ set). A second
+  // set here doubles Chrome's icon-candidate list, and every candidate is
+  // retried on each navigation whenever the backend fails an icon fetch.
   htmlAttrs: {
     lang: 'en'
   }

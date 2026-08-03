@@ -108,6 +108,16 @@ def test_hashed_bundles_are_cached_immutably_and_the_index_is_not(client):
     assert index.headers.get("ETag")  # conditional revalidation still applies
 
 
+def test_icons_get_a_real_max_age_not_no_cache(client):
+    """Chrome re-resolves the page icon on every history navigation, and the
+    SPA rewrites the URL per parameter click — Flask's default no-cache turns
+    that into a favicon request per click. A day of cache stops the noise."""
+    icon = client.get("/favicon.ico")
+
+    assert "max-age=86400" in icon.headers["Cache-Control"]
+    assert "no-cache" not in icon.headers["Cache-Control"]
+
+
 @pytest.mark.parametrize(
     "path",
     [

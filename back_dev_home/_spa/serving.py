@@ -31,10 +31,20 @@ def register_spa(app: Flask) -> None:
             else:
                 setattr(g, STATIC_FILE_FLAG, True)
                 # Nuxt content-hashes everything under _nuxt/, so those files
-                # never change in place — cache hard. index.html and public/
-                # assets keep Flask's default conditional (ETag) caching so a
-                # fresh deploy is picked up on the next request.
+                # never change in place — cache hard. index.html and other
+                # public/ assets keep Flask's default conditional (ETag)
+                # caching so a fresh deploy is picked up on the next request.
                 if path.startswith("_nuxt/"):
                     resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                # Icons and fonts are the exception to the conditional rule:
+                # Chrome re-resolves the page icon on history navigations, and
+                # the SPA rewrites the URL on every parameter click — under
+                # no-cache that means a favicon revalidation per click (and,
+                # when the backend is unhealthy, a retry cascade across every
+                # declared icon). A day of staleness is fine for both.
+                elif path.startswith(("favicon/", "fonts/")) or path in (
+                    "favicon.ico", "favicon.svg", "favicon.png",
+                ):
+                    resp.headers["Cache-Control"] = "public, max-age=86400"
                 return resp
         return send_from_directory(root_str, "index.html")
