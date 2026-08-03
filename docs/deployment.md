@@ -77,6 +77,7 @@ SPA 경로가 어긋납니다.
 | `back_dev_home/` | Flask 백엔드 전체입니다. |
 | `front-dev-home/.output/public/` | 빌드된 SPA 입니다. |
 | `ops_store/`, `minio_handler/`, `ftp_handler/` | 앱이 실제로 import 하는 벤더 패키지입니다. |
+| `office_utils/` | recipe open 이 지연 import 하는 사내 IDP 파서입니다. 없으면 recipe open 이 FTP 다운로드 후 파싱 단계에서 실패합니다. |
 
 | 제외 | 이유 |
 | --- | --- |
@@ -102,6 +103,9 @@ SPA 경로가 어긋납니다.
 - `back_dev_home/<feature>/providers/office.py` — 사내 데이터 어댑터입니다.
 - `back_dev_home/.env` — `create_app()` 이 읽는 설정입니다.
 - `minio_handler/minio_config.py` — MinIO 접속 정보입니다.
+- `office_utils/` — 사내 IDP 파서입니다. `pack.py` 의 `verify_bundle` 이
+  `office_utils/read_idp_info.py` 부재를 잡고, 클라우드 `preflight.py` 도
+  경고를 냅니다.
 
 `git archive` 로 번들을 만들면 이 파일들이 빠진 채로 정상 기동하여 운영 환경에서
 mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때문에 가장 위험한

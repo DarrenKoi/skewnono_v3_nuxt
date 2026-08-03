@@ -438,6 +438,17 @@ def main(argv: list[str] | None = None) -> int:
             "No providers/office.py found — every feature will serve mock data."
         )
 
+    # recipe open imports the 사내 IDP parser lazily, so its absence never
+    # fails boot or preflight imports — it surfaces as a 500 on the first
+    # recipe-open request. Warn rather than fail: only that feature needs it.
+    if not (root / "office_utils" / "read_idp_info.py").is_file():
+        warnings.append(
+            f"{root / 'office_utils' / 'read_idp_info.py'} missing — recipe "
+            "open will fail at the parse step (the FTP fetch succeeds, then "
+            "combined_idp_info is unimportable). Re-pack with an office_utils/ "
+            "at the repo root, or copy the folder onto the host."
+        )
+
     for warning in warnings:
         print(f"  WARN {warning}")
 

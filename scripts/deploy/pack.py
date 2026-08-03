@@ -31,14 +31,18 @@ from datetime import datetime
 from pathlib import Path
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
-# Only ops_store, minio_handler and ftp_handler are actually imported by the
-# app; ops_index_mgmt (index-creation tooling) is deliberately absent.
+# Only ops_store, minio_handler, ftp_handler and office_utils are actually
+# imported by the app — office_utils via recipe_search's deferred import (the
+# 사내 IDP parser behind recipe open; without it every recipe-open request
+# fails after the FTP fetch). ops_index_mgmt (index-creation tooling) is
+# deliberately absent.
 INCLUDED_ROOTS = (
     "back_dev_home",
     "front-dev-home/.output/public",
     "ops_store",
     "minio_handler",
     "ftp_handler",
+    "office_utils",
 )
 
 # Directory names removed anywhere in the copied tree.
@@ -230,6 +234,16 @@ def verify_bundle(dest: Path) -> list[str]:
     index_html = dest / "front-dev-home" / ".output" / "public" / "index.html"
     if not index_html.is_file():
         failures.append(f"missing {index_html}")
+
+    # office_utils is gitignored (like providers/office.py), so a checkout that
+    # never had it packs a bundle where recipe open 500s on the parse step —
+    # with copy_bundle silently skipping the absent root. Catch it here.
+    idp_parser = dest / "office_utils" / "read_idp_info.py"
+    if not idp_parser.is_file():
+        failures.append(
+            f"missing {idp_parser} — recipe open needs the 사내 IDP parser; "
+            "office_utils/ was absent (or empty) in the working tree"
+        )
 
     if list(dest.rglob("__pycache__")):
         failures.append("__pycache__ survived the prune")

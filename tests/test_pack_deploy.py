@@ -7,8 +7,9 @@ from pathlib import Path
 from scripts.deploy import pack
 
 
-def test_includes_the_three_vendored_packages_the_app_imports():
-    for name in ("ops_store", "minio_handler", "ftp_handler"):
+def test_includes_the_vendored_packages_the_app_imports():
+    """office_utils rides along for recipe open's deferred 사내 parser import."""
+    for name in ("ops_store", "minio_handler", "ftp_handler", "office_utils"):
         assert name in pack.INCLUDED_ROOTS
 
 
@@ -57,9 +58,10 @@ def _make_repo(tmp_path: Path) -> Path:
     (root / "front-dev-home" / ".output" / "public").mkdir(parents=True)
     (root / "front-dev-home" / ".output" / "public" / "index.html").write_text("<x>")
     (root / "front-dev-home" / "app").mkdir(parents=True)
-    for name in ("ops_store", "minio_handler", "ftp_handler"):
+    for name in ("ops_store", "minio_handler", "ftp_handler", "office_utils"):
         (root / name).mkdir()
         (root / name / "__init__.py").write_text("")
+    (root / "office_utils" / "read_idp_info.py").write_text("")
     (root / "index.py").write_text("")
     (root / "wsgi.ini").write_text("")
     return root
@@ -271,6 +273,17 @@ def test_verify_catches_a_mangled_bundle(tmp_path):
     (dest / "front-dev-home" / ".output" / "public" / "index.html").unlink()
 
     assert pack.verify_bundle(dest) != []
+
+
+def test_verify_catches_a_missing_idp_parser(tmp_path):
+    """copy_bundle skips an absent root silently; recipe open then 500s on
+    the cloud with nothing failing at pack time. verify must name it."""
+    repo = _make_repo(tmp_path)
+    (repo / "office_utils" / "read_idp_info.py").unlink()
+    dest = tmp_path / "bundle"
+    pack.copy_bundle(repo, dest)
+
+    assert any("read_idp_info" in f for f in pack.verify_bundle(dest))
 
 
 def test_manifest_records_the_adapter_roster(tmp_path):
