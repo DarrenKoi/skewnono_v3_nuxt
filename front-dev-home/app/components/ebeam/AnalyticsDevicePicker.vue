@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-(--sk-r-card) px-3.5 py-2.5">
+  <div class="dashboard-surface rounded-(--sk-r-card) px-3.5 py-4">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <h3 class="sk-title">
@@ -50,7 +50,7 @@
         icon="i-lucide-search"
         placeholder="디바이스 검색"
       />
-      <div class="flex max-h-28 min-w-0 flex-1 flex-wrap items-center gap-1.5 overflow-y-auto border-l border-(--sk-border-soft) pl-3">
+      <div class="flex max-h-32 min-w-0 flex-1 flex-wrap items-center gap-1.5 overflow-y-auto border-l border-(--sk-border-soft) py-1 pl-3">
         <button
           v-for="device in chipStrip"
           :key="device.lot_cd"
