@@ -16,7 +16,7 @@ Built office transition skills (/leave-office, /back-to-office); extended MSR fi
 Shipped network_sharpness_cdsem service with quarterly/daily tab UI. Designed and implemented CD outlier detection using median+MAD for skewvoir TimeSeriesChart with per-point recoloring (flags mean/spread anomalies). Dead-code cleanup pass on hardware/device-statistics and skewvoir (4 stale/export removals). 97 tests, 2 commits.
 
 ## Week of 2026-06-23
-Merged feat/tool-skew-mgmt to main (+68 commits, 65 tests). Fixed Lucene icons for offline Windows by bundling 15 icons. Compacted device-statistics/measurement-rules UI (CapCell/Row/Matrix, reduced vertical spacing). Removed hardcoded --port from dev config; enabled NUXT_PORT env var. Fixed useRoute-in-middleware pattern in semaphore components. Added network_sharpness daily service with quarterly/daily tab grouping.
+Merged feat/tool-skew-mgmt to main (+68 commits, 65 tests). Fixed Lucide icons for offline Windows by bundling 15 icons. Compacted device-statistics/measurement-rules UI (CapCell/Row/Matrix, reduced vertical spacing). Removed hardcoded --port from dev config; enabled NUXT_PORT env var. Fixed useRoute-in-middleware pattern in semaphore components. Added network_sharpness daily service with quarterly/daily tab grouping.
 
 ## Week of 2026-06-16
 Locked skew-check terminology (fleet/consensus/residual/site-pool) and variance decomposition strategy. Refined skew-check logic (per-day median consensus, 10-meas/1wk window, 2wk max-lookback). Ported dev server 3100→3000. Drafted PM Up-gate spec (CD_MONITORING+BSM with fleet-skew advisory, no block).
