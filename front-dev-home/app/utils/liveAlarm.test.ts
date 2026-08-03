@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { diffNewIds, formatElapsed, boardCounts, distinctLotCount } from './liveAlarm.ts'
+import {
+  diffNewIds, formatElapsed, boardCounts, distinctLotCount,
+  filterEvents, groupMeasEvents
+} from './liveAlarm.ts'
+import type { LiveAlarmEvent } from './liveAlarm.ts'
 import { makeAlarmEvent } from './liveAlarm.fixtures.ts'
 
 const event = (id: string, kind: 'align' | 'meas') =>
@@ -88,5 +92,108 @@ describe('distinctLotCount', () => {
 
   it('returns zero for an empty board', () => {
     assert.equal(distinctLotCount([]), 0)
+  })
+})
+
+describe('filterEvents', () => {
+  const events = [event('a', 'align'), event('m', 'meas'), event('b', 'align')]
+
+  it('returns every event unchanged for "all"', () => {
+    assert.deepEqual(filterEvents(events, 'all'), events)
+  })
+
+  it('keeps only align events for "align"', () => {
+    assert.deepEqual(filterEvents(events, 'align').map(e => e.id), ['a', 'b'])
+  })
+
+  it('keeps only meas events for "meas"', () => {
+    assert.deepEqual(filterEvents(events, 'meas').map(e => e.id), ['m'])
+  })
+
+  it('returns an empty array rather than throwing on an empty board', () => {
+    assert.deepEqual(filterEvents([], 'meas'), [])
+  })
+})
+
+describe('groupMeasEvents', () => {
+  const meas = (over: Partial<LiveAlarmEvent>) =>
+    makeAlarmEvent({ kind: 'meas', alid: '9007', ...over })
+
+  it('ignores align events entirely', () => {
+    assert.deepEqual(groupMeasEvents([makeAlarmEvent({ kind: 'align' })]), [])
+  })
+
+  it('groups by eqp_id and ppid together, not either alone', () => {
+    const groups = groupMeasEvents([
+      meas({ id: '1', eqp_id: 'EQ1', ppid: 'R_A' }),
+      meas({ id: '2', eqp_id: 'EQ1', ppid: 'R_B' }),
+      meas({ id: '3', eqp_id: 'EQ2', ppid: 'R_A' })
+    ])
+    assert.deepEqual(groups.map(g => g.key), [
+      JSON.stringify(['EQ1', 'R_A']),
+      JSON.stringify(['EQ1', 'R_B']),
+      JSON.stringify(['EQ2', 'R_A'])
+    ])
+  })
+
+  it('sorts by count descending so the worst offender is first', () => {
+    const groups = groupMeasEvents([
+      meas({ id: '1', eqp_id: 'EQ1', ppid: 'ONCE' }),
+      meas({ id: '2', eqp_id: 'EQ2', ppid: 'TWICE' }),
+      meas({ id: '3', eqp_id: 'EQ2', ppid: 'TWICE' })
+    ])
+    assert.deepEqual(groups.map(g => g.count), [2, 1])
+    assert.equal(groups[0]?.key, JSON.stringify(['EQ2', 'TWICE']))
+  })
+
+  it('breaks a count tie by most recent occurrence', () => {
+    const groups = groupMeasEvents([
+      meas({ id: '1', eqp_id: 'EQ1', ppid: 'OLD', occurred_epoch: 100 }),
+      meas({ id: '2', eqp_id: 'EQ2', ppid: 'NEW', occurred_epoch: 500 })
+    ])
+    assert.deepEqual(groups.map(g => g.key), [
+      JSON.stringify(['EQ2', 'NEW']),
+      JSON.stringify(['EQ1', 'OLD'])
+    ])
+  })
+
+  it('orders events inside a group newest first', () => {
+    const groups = groupMeasEvents([
+      meas({ id: 'old', eqp_id: 'EQ1', ppid: 'R', occurred_epoch: 10 }),
+      meas({ id: 'new', eqp_id: 'EQ1', ppid: 'R', occurred_epoch: 90 })
+    ])
+    assert.deepEqual(groups[0]?.events.map(e => e.id), ['new', 'old'])
+    assert.equal(groups[0]?.latestEpoch, 90)
+  })
+
+  it('buckets a blank ppid under a label instead of dropping it', () => {
+    const groups = groupMeasEvents([meas({ id: '1', eqp_id: 'EQ1', ppid: '' })])
+    assert.equal(groups[0]?.key, JSON.stringify(['EQ1', '']))
+    assert.equal(groups[0]?.ppidLabel, '(PPID 없음)')
+    assert.equal(groups[0]?.count, 1)
+  })
+
+  it('does not collide when a literal separator character sits in different fields', () => {
+    // Before the JSON encoding, `${eqp_id}|${ppid}` would merge these two:
+    // ("TP01|A", "R") and ("TP01", "A|R") both produced the string "TP01|A|R".
+    const groups = groupMeasEvents([
+      meas({ id: '1', eqp_id: 'TP01|A', ppid: 'R' }),
+      meas({ id: '2', eqp_id: 'TP01', ppid: 'A|R' })
+    ])
+    const keys = groups.map(g => g.key)
+    assert.equal(new Set(keys).size, 2)
+    assert.equal(groups.length, 2)
+    assert.ok(groups.every(g => g.count === 1))
+  })
+
+  it('counts distinct lots, ignoring blanks', () => {
+    const groups = groupMeasEvents([
+      meas({ id: '1', eqp_id: 'EQ1', ppid: 'R', lot_id: 'L1' }),
+      meas({ id: '2', eqp_id: 'EQ1', ppid: 'R', lot_id: 'L1' }),
+      meas({ id: '3', eqp_id: 'EQ1', ppid: 'R', lot_id: 'L2' }),
+      meas({ id: '4', eqp_id: 'EQ1', ppid: 'R', lot_id: '' })
+    ])
+    assert.equal(groups[0]?.count, 4)
+    assert.equal(groups[0]?.lotCount, 2)
   })
 })
