@@ -51,6 +51,12 @@ const emptyMessage = computed(() => ({
 const filterTabsEl = ref<HTMLElement | null>(null)
 const tabId = (value: AlarmFilter) => `live-alarm-filter-${value}`
 
+// One stable id shared by all three tabs' aria-controls, rather than one that
+// varies with the selected filter: the board underneath is a single region
+// that changes content, not three separate panels, so the two unselected tabs
+// would otherwise point at an id nothing claims.
+const PANEL_ID = 'live-alarm-board'
+
 const onFilterKeydown = (event: KeyboardEvent): void => {
   const current = FILTER_ORDER.indexOf(filter.value)
   let next = current
@@ -141,7 +147,11 @@ useHead({
       :description="error"
     />
 
+    <!-- Hidden on uncollected fabs: every mode renders the same "not collected"
+         sentence there, so the control would offer a choice that does
+         nothing — see TimeSeries.vue's lensTabsVisible for the precedent. -->
     <div
+      v-if="feedStatus !== 'not_configured'"
       ref="filterTabsEl"
       role="tablist"
       aria-label="알람 종류 필터"
@@ -156,6 +166,7 @@ useHead({
         role="tab"
         :tabindex="filter === option.value ? 0 : -1"
         :aria-selected="filter === option.value"
+        :aria-controls="PANEL_ID"
         class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
         :class="filter === option.value
           ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
@@ -166,7 +177,15 @@ useHead({
       </button>
     </div>
 
-    <div class="dashboard-surface overflow-hidden rounded-[var(--sk-r-card)]">
+    <!-- The tablist is conditional, so the panel only claims to be its
+         tabpanel while a tab actually exists — a dangling aria-labelledby is
+         worse than no relationship at all. The id stays unconditional. -->
+    <div
+      :id="PANEL_ID"
+      class="dashboard-surface overflow-hidden rounded-[var(--sk-r-card)]"
+      :role="feedStatus !== 'not_configured' ? 'tabpanel' : undefined"
+      :aria-labelledby="feedStatus !== 'not_configured' ? tabId(filter) : undefined"
+    >
       <p
         v-if="feedStatus === 'not_configured'"
         class="px-4 py-10 text-center sk-body text-(--sk-ink-muted)"

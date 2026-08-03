@@ -341,7 +341,7 @@ Rules:
 - Destructive actions have no component yet; the `text-rose-600` + confirm-dialog rule is untested.
 - `prefers-reduced-motion` is not handled; only `animate-spin` and `sk-pulse` would be affected.
 - Skeleton/shimmer loading states are deliberately not adopted; if load times grow, that decision should be revisited here first.
-- `--sk-accent-border` / `--sk-accent-tint` are defined but currently unused (the old crimson-bordered card treatment was retired in favor of the paper shadow).
+- `--sk-accent-border` is defined but currently unused (the old crimson-bordered card treatment was retired in favor of the paper shadow). `--sk-accent-tint` is used — it is the live-alarm new-arrival highlight, on both `AlarmRow.vue` and `MeasGroup.vue`'s group header.
 - The zinc scale remains in `main.css` for Tailwind compatibility; it is no longer NuxtUI's neutral (that is `paper` now), and its only sanctioned direct uses are table hovers and empty-state text.
 
 ## Changelog

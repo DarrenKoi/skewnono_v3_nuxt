@@ -129,7 +129,11 @@ describe('groupMeasEvents', () => {
       meas({ id: '2', eqp_id: 'EQ1', ppid: 'R_B' }),
       meas({ id: '3', eqp_id: 'EQ2', ppid: 'R_A' })
     ])
-    assert.deepEqual(groups.map(g => g.key), ['EQ1|R_A', 'EQ1|R_B', 'EQ2|R_A'])
+    assert.deepEqual(groups.map(g => g.key), [
+      JSON.stringify(['EQ1', 'R_A']),
+      JSON.stringify(['EQ1', 'R_B']),
+      JSON.stringify(['EQ2', 'R_A'])
+    ])
   })
 
   it('sorts by count descending so the worst offender is first', () => {
@@ -139,7 +143,7 @@ describe('groupMeasEvents', () => {
       meas({ id: '3', eqp_id: 'EQ2', ppid: 'TWICE' })
     ])
     assert.deepEqual(groups.map(g => g.count), [2, 1])
-    assert.equal(groups[0]?.key, 'EQ2|TWICE')
+    assert.equal(groups[0]?.key, JSON.stringify(['EQ2', 'TWICE']))
   })
 
   it('breaks a count tie by most recent occurrence', () => {
@@ -147,7 +151,10 @@ describe('groupMeasEvents', () => {
       meas({ id: '1', eqp_id: 'EQ1', ppid: 'OLD', occurred_epoch: 100 }),
       meas({ id: '2', eqp_id: 'EQ2', ppid: 'NEW', occurred_epoch: 500 })
     ])
-    assert.deepEqual(groups.map(g => g.key), ['EQ2|NEW', 'EQ1|OLD'])
+    assert.deepEqual(groups.map(g => g.key), [
+      JSON.stringify(['EQ2', 'NEW']),
+      JSON.stringify(['EQ1', 'OLD'])
+    ])
   })
 
   it('orders events inside a group newest first', () => {
@@ -161,9 +168,22 @@ describe('groupMeasEvents', () => {
 
   it('buckets a blank ppid under a label instead of dropping it', () => {
     const groups = groupMeasEvents([meas({ id: '1', eqp_id: 'EQ1', ppid: '' })])
-    assert.equal(groups[0]?.key, 'EQ1|')
+    assert.equal(groups[0]?.key, JSON.stringify(['EQ1', '']))
     assert.equal(groups[0]?.ppidLabel, '(PPID 없음)')
     assert.equal(groups[0]?.count, 1)
+  })
+
+  it('does not collide when a literal separator character sits in different fields', () => {
+    // Before the JSON encoding, `${eqp_id}|${ppid}` would merge these two:
+    // ("TP01|A", "R") and ("TP01", "A|R") both produced the string "TP01|A|R".
+    const groups = groupMeasEvents([
+      meas({ id: '1', eqp_id: 'TP01|A', ppid: 'R' }),
+      meas({ id: '2', eqp_id: 'TP01', ppid: 'A|R' })
+    ])
+    const keys = groups.map(g => g.key)
+    assert.equal(new Set(keys).size, 2)
+    assert.equal(groups.length, 2)
+    assert.ok(groups.every(g => g.count === 1))
   })
 
   it('counts distinct lots, ignoring blanks', () => {

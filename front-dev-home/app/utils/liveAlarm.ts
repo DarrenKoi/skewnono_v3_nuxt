@@ -111,7 +111,9 @@ export const NO_PPID_LABEL = '(PPID 없음)'
 // One (eqp_id, ppid) pile of measurement failures. `key` is derived from the
 // pair rather than from an array index because applyPoll replaces the whole
 // events array every 15 seconds: a positional key would reset each group's
-// expand/collapse state on every poll.
+// expand/collapse state on every poll. It is JSON-encoded rather than
+// delimiter-joined so a literal separator character inside either field can
+// never merge two distinct groups.
 export interface MeasGroupItem {
   key: string
   eqpId: string
@@ -132,7 +134,7 @@ export const groupMeasEvents = (events: LiveAlarmEvent[]): MeasGroupItem[] => {
   const buckets = new Map<string, LiveAlarmEvent[]>()
   for (const event of events) {
     if (event.kind !== 'meas') continue
-    const key = `${event.eqp_id}|${event.ppid}`
+    const key = JSON.stringify([event.eqp_id, event.ppid])
     const bucket = buckets.get(key)
     if (bucket) bucket.push(event)
     else buckets.set(key, [event])
