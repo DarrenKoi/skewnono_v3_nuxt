@@ -11,12 +11,12 @@
     @dblclick="scale > 1 ? reset() : zoomTo(2)"
   >
     <img
-      :src="src"
+      :src="displaySrc ?? undefined"
       :alt="alt"
       draggable="false"
       class="pointer-events-none absolute inset-0 h-full w-full object-contain"
       :style="imgStyle"
-      @error="emit('error')"
+      @error="onImgError"
     >
 
     <!-- Zoom controls -->
@@ -71,6 +71,15 @@ const props = withDefaults(defineProps<{ src: string, alt?: string }>(), { alt: 
 // Bubbled when the image itself fails to load (missing/failed file on the
 // server) so the host can swap in an explicit "이미지 없음" placeholder.
 const emit = defineEmits<{ error: [] }>()
+
+// A failed load auto-retries on a short backoff before the error bubbles: on
+// the cloud, a cold image's first request can be 502'd by the ingress while
+// Flask completes the tool-FTP fetch into the MinIO cache — the retry then
+// hits that cache. Only an exhausted budget reaches the host's failure state.
+const { src: displaySrc, onError: onImgError, exhausted } = useAutoRetrySrc(() => props.src)
+watch(exhausted, (is) => {
+  if (is) emit('error')
+})
 
 const MIN = 1
 const MAX = 6

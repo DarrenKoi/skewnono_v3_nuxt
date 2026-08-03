@@ -34,7 +34,7 @@
         @click="emit('open')"
       >
         <img
-          :key="nonce"
+          :key="src ?? undefined"
           :src="src ?? undefined"
           :alt="entry.image"
           loading="lazy"
@@ -148,33 +148,22 @@ const emit = defineEmits<{ open: [], focus: [] }>()
 
 const isTiff = computed(() => isTiffName(props.entry.image))
 
-// Per-image load state. `nonce` cache-busts a retry so the browser re-requests a
-// URL it previously cached as failed. All state is LOCAL to this card, so a
-// sibling's failure never touches this one (acceptance: independent per-image).
+// Per-image load state, LOCAL to this card so a sibling's failure never
+// touches this one (acceptance: independent per-image). Load failures
+// auto-retry on a short backoff first — on the cloud a cold image's first
+// request can be 502'd by the ingress while Flask completes the fetch into
+// the MinIO cache — and only an exhausted budget shows the manual 재시도.
 const loaded = ref(false)
-const failed = ref(false)
-const nonce = ref(0)
+const { src, onError, exhausted: failed, reset: retry } = useAutoRetrySrc(() => props.src)
 
-const src = computed(() => {
-  if (!props.src) return null
-  return nonce.value > 0 ? `${props.src}${props.src.includes('?') ? '&' : '?'}_r=${nonce.value}` : props.src
+watch(failed, () => {
+  loaded.value = false
 })
 
-const onError = () => {
-  failed.value = true
-  loaded.value = false
-}
-const retry = () => {
-  failed.value = false
-  loaded.value = false
-  nonce.value++
-}
-
-// A new image (focus/param switch reusing this card) resets the load state.
+// A new image (focus/param switch reusing this card) resets the load state
+// (useAutoRetrySrc resets its own budget when the src changes).
 watch(() => props.entry.image, () => {
   loaded.value = false
-  failed.value = false
-  nonce.value = 0
 })
 
 const roleClass = (role: 'bad' | 'warn' | 'muted'): string => {
