@@ -58,6 +58,27 @@ columns : value (examples)
                     "(unnamed)" 예약 토큰으로 인코딩합니다 —
                     app/utils/skewvoirAnalysis/routeQuery.ts 를 참고하시기
                     바랍니다.
+                    (3) 한 recipe 가 측정하는 parameter 집합은 실행(run)이
+                    아니라 recipe 의 속성입니다. recipe 는 고정된 측정
+                    프로그램이므로, 같은 recipe_name 을 가진 모든 실행은 같은
+                    parameter 를 측정합니다. 이름 없는 dummy 측정점의 개수도
+                    같은 이유로 recipe 속성입니다 — 해당 recipe 가 안정화
+                    shot 으로 시작하거나 시작하지 않거나, 둘 중 하나입니다.
+                    OFFICE-VERIFY (2026-08-04): 도메인 추론이며 아직 실제
+                    데이터로 확인하지 않았습니다. 확인 방법은 같은
+                    recipe_name 의 MSR 을 여러 건 뽑아 df_result_data 의
+                    parameter 고유값 집합이 서로 일치하는지 비교하는
+                    것입니다. 성립하지 않는다면 (예: recipe revision 에 따라
+                    측정 parameter 가 바뀐다면) 다중 MSR 비교는 recipe_name
+                    이 아니라 revision 단위로 묶어야 합니다.
+                    스큐보아가 이 성질에 직접 의존합니다. 프런트엔드는 초점
+                    parameter 의 unit 을 모르는 MSR 을 metadata-missing 으로
+                    분석에서 제외하므로 (app/utils/skewvoirAnalysis/
+                    compatibility.ts), parameter 집합이 실행마다 다르면
+                    사용자가 직접 고른 세트의 상당수가 Time-Series 에서
+                    조용히 빠집니다. mock 이 이 성질을 재현합니다 —
+                    back_dev_home/msr_file/providers/mock.py 의
+                    _program_params 를 참고하시기 바랍니다.
 "cd_value" :43.14, None
 "no_of_mp_image": 1, 0
 "mp_image_name 01": image file name — .jpeg 프리뷰와 .tif 원본이 섞여 있음

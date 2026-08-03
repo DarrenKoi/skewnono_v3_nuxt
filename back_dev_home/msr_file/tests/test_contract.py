@@ -61,10 +61,25 @@ def test_coordinate_metadata_is_emitted(response):
 
 
 def test_parameter_and_unit_are_emitted(response):
+    """Every summary carries both keys, and every NAMED one is actually named.
+
+    The `parameter` key may legitimately be "": that is the unnamed settling-shot
+    summary, which test_dummy_mp_gets_its_own_unnamed_summary below requires to
+    exist whenever a recipe opens with settling shots. Asserting a truthy name on
+    every summary contradicted that test outright, and only passed because `_MSR`
+    happened to draw zero settling shots — a coincidence of the seed, not a
+    property of the contract. Scoping the name check to named summaries is what
+    the assertion always meant.
+    """
     assert response["parameters"], "at least one parameter summary is required"
     for summary in response["parameters"]:
-        assert summary.get("parameter")
+        assert "parameter" in summary
         assert "unit" in summary, "each parameter summary must carry its own unit"
+
+    named = [s for s in response["parameters"] if s["parameter"] != ""]
+    assert named, "a measurement must summarize at least one named parameter"
+    for summary in named:
+        assert summary["parameter"].strip(), "a named summary cannot be whitespace"
 
 
 def test_per_row_acquisition_fields_are_emitted(response):

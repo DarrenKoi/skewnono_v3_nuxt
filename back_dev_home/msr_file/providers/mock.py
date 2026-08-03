@@ -24,6 +24,32 @@ A single per-MSR ``health`` scalar (0 = nominal, 1 = strongly abnormal) biases
 BOTH the CD drift and the FDC drift, so an unhealthy tool shows correlated CD ↔
 FDC excursions — that correlation is exactly what the skewvoir analysis surfaces.
 
+THREE SEED IDENTITIES, NOT ONE. Determinism per-MSR is necessary but not
+sufficient: some facts belong to the recipe, not to the run. Which identity a
+property is seeded from IS the domain model here, so it is stated once:
+
+    program (recipe)  WHAT is measured — the parameter set, the settling-shot
+                      count, the measurement-point count, and the CD target the
+                      recipe aims at. Every run of one recipe agrees on these.
+    tool (eqp_id)     HOW this tool reads a given feature — a fixed measurement
+                      bias. This is the tool skew the analysis exists to find,
+                      so it is deliberately NOT keyed on the recipe: one tool
+                      reads the same way across every program it runs.
+    run (msr)         What is genuinely per-execution — wafer geometry, health,
+                      site noise, injected outliers, quality scores.
+
+Seeding a program-level fact from the msr is the bug this layering replaces. It
+made every run of one recipe measure a different, randomly drawn parameter
+subset, so 스큐보아's multi-MSR Time-Series excluded most of a selected set as
+`metadata-missing` (app/utils/skewvoirAnalysis/compatibility.ts) and the trend
+it did plot was uncorrelated noise. See ``_program_params`` and ``_cd_field``.
+
+A run with NO parent meas_hist row belongs to no recipe, so it is its own
+program (program key = its msr). That is the honest answer — with no parent
+there is no recipe to belong to — and it keeps parentless synthetic MSRs
+varying, which is what the contract tests use to exercise both settling-shot
+paths.
+
 Two columns are renamed from the pickle spec because the literal names are not
 usable as Python identifiers in a TypedDict: `class` -> `class_name` (keyword)
 and `object` -> `object_type` (shadows the builtin). The wire format uses the
@@ -464,18 +490,69 @@ class CdField(NamedTuple):
     hi: float
 
 
-def _cd_field(msr: str, parameter: str, health: float) -> CdField:
-    """Per-(MSR, parameter) wafer CD model. Sites cluster tightly around ``mean``
-    with a smooth centre→edge trend (``radial_amp``) and small run-to-run noise
-    (``site_sigma``), so leave-one-out outlier detection flags only genuine
-    excursions — not most of the wafer. ``mean`` rises with ``health`` so a
-    tool's CD tracks its FDC excursion across the multi-measurement trend."""
+# How far each layer of the CD model moves the mean, as a fraction of the
+# parameter's physical span. The ORDER is load-bearing, not the exact numbers:
+# tool > site > run. A tool's bias has to be larger than both the within-wafer
+# noise and the run-to-run wobble it is read through, or the tool-skew lens is
+# ranking values it cannot actually separate.
+_TOOL_SKEW_FRAC = 0.035    # per-(eqp, parameter) fixed measurement bias
+_SITE_SIGMA_FRAC = 0.012   # within-wafer site-to-site noise
+_RUN_OFFSET_FRAC = 0.010   # per-run wobble around this tool's level
+_RUN_OFFSET_CLAMP = 2.5    # in units of _RUN_OFFSET_FRAC, so one run can't fly off
+_HEALTH_DRIFT_FRAC = 0.12  # how far a fully unhealthy run is pushed off target
+
+
+def _cd_field(
+    msr: str, program_key: str, eqp_id: str, parameter: str, health: float
+) -> CdField:
+    """Wafer CD model, as four additive layers over one parameter.
+
+        mean = recipe target + tool bias + run wobble + health drift
+
+    Each layer is seeded from the identity it actually belongs to (see the
+    module docstring). That split is the whole point: a single per-MSR draw
+    made every run of a recipe an independent uniform sample, so a Time-Series
+    trend across a set was scatter with no centre and the tool-skew panel
+    ranked noise. With the layers separated, a set of runs clusters around the
+    recipe's target, tools separate from each other by a fixed amount, and an
+    unhealthy run is the visible excursion above both.
+
+    Sites still cluster tightly around ``mean`` with a smooth centre→edge trend
+    (``radial_amp``, a process signature and so also a recipe property) and
+    small site noise (``site_sigma``), so leave-one-out outlier detection flags
+    genuine excursions rather than most of the wafer.
+    """
     lo, hi, _ = _param_spec(parameter)
     span = hi - lo
-    rng = random.Random(_seed(f"{msr}:{parameter}", 431))
-    mean = lo + span * rng.uniform(0.42, 0.58) + span * 0.12 * health
-    radial_amp = span * rng.uniform(0.03, 0.06) * (1.0 if rng.random() < 0.5 else -1.0)
-    return CdField(mean=mean, radial_amp=radial_amp, site_sigma=span * 0.012, lo=lo, hi=hi)
+
+    # 1. The recipe's target. A recipe measures a feature to a spec, so every
+    #    run of it aims at the same number — this is the trend's centre line.
+    program_rng = random.Random(_seed(f"program:{program_key}:{parameter}", 431))
+    target = lo + span * program_rng.uniform(0.42, 0.58)
+    radial_amp = span * program_rng.uniform(0.03, 0.06) * (
+        1.0 if program_rng.random() < 0.5 else -1.0
+    )
+
+    # 2. Tool skew: how THIS tool reads THIS feature, fixed for that pairing.
+    #    Keyed on (eqp, parameter) and NOT the recipe, so a tool's bias is the
+    #    same across every program it runs — which is what makes a skew finding
+    #    transferable instead of an artifact of one recipe. A parentless run has
+    #    no tool to attribute, so it carries no skew rather than a fabricated one.
+    tool_offset = 0.0
+    if eqp_id:
+        tool_rng = random.Random(_seed(f"tool:{eqp_id}:{parameter}", 577))
+        tool_offset = span * _TOOL_SKEW_FRAC * tool_rng.uniform(-1.0, 1.0)
+
+    # 3. Run-to-run wobble around the tool's level, plus the health drift that
+    #    makes an unhealthy run the excursion the trend is meant to expose.
+    run_rng = random.Random(_seed(f"{msr}:{parameter}", 431))
+    wobble = max(-_RUN_OFFSET_CLAMP, min(_RUN_OFFSET_CLAMP, run_rng.gauss(0, 1)))
+    run_offset = span * _RUN_OFFSET_FRAC * wobble
+
+    mean = target + tool_offset + run_offset + span * _HEALTH_DRIFT_FRAC * health
+    return CdField(
+        mean=mean, radial_amp=radial_amp, site_sigma=span * _SITE_SIGMA_FRAC, lo=lo, hi=hi
+    )
 
 
 def _cd_value(
@@ -504,26 +581,71 @@ def _resolve_params(class_name: str) -> tuple[str, ...]:
     return PARAMETER_MAPPING.get(measurement_class, FALLBACK_PARAMS)
 
 
+# ── Program (recipe) properties ──────────────────────────────────────────────
+# A recipe is a fixed measurement program, so these three are the same for every
+# run of it. They are seeded from the program key rather than the msr; see the
+# module docstring's three-seed-identities note for why that distinction is the
+# domain model and not an implementation detail.
+
+
+def _program_params(program_key: str, class_name: str) -> tuple[str, ...]:
+    """WHICH parameters this recipe measures.
+
+    Returned in PARAMETER_MAPPING order rather than draw order, so the set reads
+    in its canonical order everywhere it is listed.
+    """
+    pool = _resolve_params(class_name)
+    rng = random.Random(_seed(f"program:{program_key}", 1301))
+    picked = set(rng.sample(pool, min(rng.randint(1, 3), len(pool))))
+    return tuple(param for param in pool if param in picked)
+
+
+def _program_dummy_count(program_key: str) -> int:
+    """How many unnamed settling shots the recipe opens with.
+
+    A program either starts with settling shots or it does not, so this cannot
+    vary run to run. Seeded so that some programs carry them and some do not,
+    which is what keeps BOTH paths exercised at home (see the settling-shot note
+    in _build_rows and docs/datatables/msr_file_pickle.txt).
+    """
+    return random.Random(_seed(f"program:{program_key}", 911)).choice((0, 0, 0, 1, 1, 2, 3))
+
+
+def _program_step_count(program_key: str) -> int:
+    """How many measurement points the recipe visits, before the parent's image
+    budget clamps it (see _build_rows)."""
+    return random.Random(_seed(f"program:{program_key}", 1487)).randint(20, 80)
+
+
 def _build_rows(
-    msr: str, class_name: str, total_images: int, health: float, offset: int = 0
+    msr: str,
+    class_name: str,
+    total_images: int,
+    health: float,
+    program_key: str,
+    eqp_id: str,
+    offset: int = 0,
 ) -> list[MsrFileRow]:
     seed = _seed(msr, offset)
     rng = random.Random(seed)
 
-    params_pool = _resolve_params(class_name)
-    # STEP count, not measurement-point count: each step now emits one row (one
+    selected_params = _program_params(program_key, class_name)
+    # STEP count, not measurement-point count: each step emits one row (one
     # sequence) PER PARAMETER, so points are num_measurements * num_params.
     # Deliberately still bounded by total_images // 2 rather than that product —
     # dividing by num_params drops low-image MSRs (min total_images is 42) below
     # 20 steps, and the every-20th-step failure rule would then never fire, so
-    # those MSRs would carry no null-cd_value rows at all. Note this bound no
-    # longer caps total row count the way it once did: rows = num_measurements *
-    # num_params, so a 3-parameter MSR can claim ~1.5x more measurement points
-    # than the parent's total_images ever produced — total_images // 2 only
-    # bounds the STEP count now, not the point count it used to approximate.
-    num_measurements = min(rng.randint(20, 80), max(1, total_images // 2))
-    num_params = min(rng.randint(1, 3), len(params_pool))
-    selected_params = rng.sample(params_pool, num_params)
+    # those MSRs would carry no null-cd_value rows at all. Note this bound does
+    # not cap total row count: rows = num_measurements * num_params, so a
+    # 3-parameter MSR can claim ~1.5x more measurement points than the parent's
+    # total_images ever produced — total_images // 2 bounds the STEP count only.
+    #
+    # The clamp is the one place a program property still bends to the run: two
+    # runs of one recipe whose parents report very different total_images can
+    # land on different step counts. That is a limit of deriving the budget from
+    # meas_hist rather than a modelling claim — the parameter set, which is what
+    # cross-MSR analysis keys on, stays identical either way.
+    num_measurements = min(_program_step_count(program_key), max(1, total_images // 2))
 
     geom = _wafer_geometry(msr)
     dies = _measured_dies(msr)
@@ -537,15 +659,16 @@ def _build_rows(
     # stable by the time the recipe's actual parameters are measured, and they
     # produce SEM images that reviewers do look at.
     #
-    # Seeded per-MSR so some measurements carry them and some do not — that is
-    # what keeps BOTH paths exercised at home, which is the whole point of
-    # teaching the mock this shape (see docs/datatables/msr_file_pickle.txt).
+    # HOW MANY is a program property (_program_dummy_count) — a recipe either
+    # opens with settling shots or it does not, so every run of it agrees. Their
+    # CONTENT stays per-run: the values, images and scores below come from a
+    # per-MSR rng, because two runs of one recipe do not repeat the same shots.
     dummy_rng = random.Random(_seed(msr, 911))
-    num_dummy = dummy_rng.choice((0, 0, 0, 1, 1, 2, 3))
+    num_dummy = _program_dummy_count(program_key)
 
     # Per-parameter wafer CD model + a handful of injected outliers, so most sites
     # sit tight (few flags) while the 이상 UI still has genuine excursions to show.
-    fields = {p: _cd_field(msr, p, health) for p in selected_params}
+    fields = {p: _cd_field(msr, program_key, eqp_id, p, health) for p in selected_params}
     measured_steps = [s for s in range(1, num_measurements + 1) if s % 20 != 0]
     outliers_by_param: dict[str, dict[int, float]] = {}
     for p in selected_params:
@@ -799,7 +922,18 @@ def get_msr_file(
         total_images = parent["total_images"]
 
     health = _health(msr)
-    rows = _build_rows(msr, class_name, total_images, health)
+    # The two identities beyond the run itself (see the module docstring). Both
+    # are read from the parent row, so a measurement's program and tool are the
+    # ones meas_hist already recorded — never separately invented here. With no
+    # parent there is no recipe and no tool: the run becomes its own program and
+    # carries no tool skew, rather than borrowing an identity it cannot know.
+    #
+    # This deliberately does NOT reuse _exe_detail_info's recipe_name, which
+    # falls back to a shared "<CLASS>_UNKNOWN" display string — as a seed that
+    # would make every parentless MSR one identical program.
+    program_key = parent["recipe_name"] if parent else msr
+    eqp_id = parent["eqp_id"] if parent else ""
+    rows = _build_rows(msr, class_name, total_images, health, program_key, eqp_id)
 
     # One row is one measurement and each carries its own sequence, so this set
     # is simply every row — the office invariant len(rows) == len(dynamic_fdc)
