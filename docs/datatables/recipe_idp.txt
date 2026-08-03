@@ -97,6 +97,21 @@ pandas DataFrame 입니다.
   (위치로는 추측하지 않습니다 — 순서가 바뀌면 조용히 틀리므로). 되찾을 때마다
   "이 문서와 parser 가 어긋났다" 는 WARNING 을 남깁니다.
 
+★ 2차 관측 (OFFICE-VERIFY 2026-08-03, 같은 날 두 번째 502) — 위 복구가 낸 502
+  message 가 container 의 정체를 더 좁혀 주었습니다:
+
+    tuple 2개 원소, 각 원소는 **문서화된 key 3개를 모두 가진 dict**
+    (idp_image_info / wafer_align_info / wafer_mp_info)
+
+  즉 parser 는 낱개 table 을 흩어 담은 것이 아니라 **3-key mapping 자체를 tuple 로
+  감싸서** 돌려줍니다. 두 dict 의 value 가 무엇인지(둘 다 DataFrame 세트인지, 한쪽은
+  metadata 그림자인지)는 message 가 key 만 보여 주어 아직 모릅니다 — 위 확인
+  command 를 실행해 이 절을 갱신하십시오. adapter 는 이제 candidate dict 의 세
+  value 가 각각 자기 key 의 table 로 **컬럼 검증**될 때 그 mapping 을 채택합니다.
+  검증을 통과한 mapping 이 서로 다른 두 벌이면(예: OM/SEM 분리) 고르지 않고 두 벌의
+  내용을 담은 502 를 냅니다 — 이후 error message 는 dict 의 value 까지 서술하므로
+  다음 실패는 스스로 정체를 밝힙니다.
+
 wafer_mp_info
 -------------
 

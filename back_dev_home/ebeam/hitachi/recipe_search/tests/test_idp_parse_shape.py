@@ -201,6 +201,64 @@ def test_non_container_return_is_reported(tables):
     assert "NoneType" in str(excinfo.value)
 
 
+def test_tuple_wrapping_the_documented_mapping_is_unwrapped(tables, caplog):
+    """The second 2026-08-03 cloud failure: a tuple of TWO three-key dicts.
+
+    The 502 message proved the shape — `(dict(keys [3 documented keys]),
+    dict(keys [same]))` — but not the dicts' values. Whatever the shadow dict
+    holds, a candidate whose three values identify as their own tables by
+    columns IS the documented mapping, and must be recovered rather than fed
+    to `pd.DataFrame()` and declared missing. The shadow comes first so the
+    recovery cannot be a positional guess.
+    """
+    shadow = {name: "unparsed-section-text" for name in tables}
+
+    with caplog.at_level("WARNING"):
+        result = office_example._normalize_frames((shadow, tables), "R3.idp")
+
+    assert _markers(result) == {
+        "wafer_mp_info": "mp",
+        "wafer_align_info": "align",
+        "idp_image_info": "image",
+    }
+    assert "recipe_idp.txt" in caplog.text
+
+
+def test_duplicate_documented_mappings_collapse_to_one(tables):
+    """Equal copies carry no ambiguity — refusing here would kill a good parse."""
+    copies = ({name: frame.copy() for name, frame in tables.items()}, tables)
+
+    result = office_example._normalize_frames(copies, "R3.idp")
+
+    assert _markers(result)["wafer_mp_info"] == "mp"
+
+
+def test_two_distinct_documented_mappings_refuse_to_choose(tables):
+    """Two full table sets (e.g. an OM/SEM split) — picking one would render a
+    plausible screen over the wrong half of the data."""
+    other = {
+        "wafer_mp_info": _frame(MP_COLUMNS, "other-mp"),
+        "wafer_align_info": _frame(ALIGN_COLUMNS, "other-align"),
+        "idp_image_info": _frame(IMAGE_COLUMNS, "other-image"),
+    }
+
+    with pytest.raises(LookupError) as excinfo:
+        office_example._normalize_frames((tables, other), "R3.idp")
+
+    assert "documented mapping" in str(excinfo.value)
+
+
+def test_unrecognisable_dicts_are_described_by_their_values(tables):
+    """Keys alone told us nothing on 2026-08-03 — the next message must show
+    what the dicts HOLD, so the office error is self-diagnosing."""
+    shadow = {name: "unparsed-section-text" for name in tables}
+
+    with pytest.raises(LookupError) as excinfo:
+        office_example._normalize_frames((shadow,), "R3.idp")
+
+    assert "unparsed-section-text" in str(excinfo.value)
+
+
 def test_shared_columns_alone_cannot_identify_a_table():
     """`Parameter` + `img_meas2` sit in two tables; a frame of just those is ambiguous.
 

@@ -847,7 +847,14 @@ def _describe(value: Any) -> str:
     if isinstance(value, pd.DataFrame):
         return f"DataFrame({len(value)} rows, columns {[str(c) for c in value.columns][:16]})"
     if isinstance(value, dict):
-        return f"dict(keys {sorted(str(key) for key in value)[:16]})"
+        # Values described alongside keys: the second 2026-08-03 cloud 502
+        # named the keys of two dicts (the three documented names, twice) and
+        # nothing else, leaving what they HELD as guesswork. Sorted by key so
+        # the message is stable across parser insertion orders.
+        items = ", ".join(
+            f"{key}={_describe(value[key])}" for key in sorted(value, key=str)[:8]
+        )
+        return f"dict({len(value)} items: {items})"
     if isinstance(value, (list, tuple)):
         inner = ", ".join(_describe(item) for item in value[:4])
         return f"{type(value).__name__}({len(value)} items: {inner})"
@@ -929,6 +936,15 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
     dicts, and ``sorted()`` iterates ANY iterable — a ``Series`` or an
     ``ndarray`` of dicts fits the evidence exactly as well, so accepting only
     the two obvious containers would leave the reported failure unfixed.
+
+    The second cloud 502 (2026-08-03, OFFICE-VERIFY) narrowed the shape: a
+    tuple of TWO dicts, EACH carrying the three documented keys — the
+    container wraps the documented mapping itself, it does not scatter loose
+    tables. So candidates are also tried AS the mapping: one qualifies when
+    each documented key's value identifies, by columns, as that key's own
+    table. A shadow dict with the same keys but non-table values (whatever the
+    second element holds) fails that test and falls away by content, not by
+    position.
     """
     if isinstance(raw, dict) and all(name in raw for name in _PARSED_TABLES):
         return {
@@ -949,6 +965,47 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
                 source, raw, "which is neither the documented mapping nor iterable",
             ) from None
         container = f"bare {type(raw).__name__}"
+
+    # A candidate that IS the documented mapping (the observed tuple-of-dicts
+    # shape) beats identifying loose frames: its key->table assignment is the
+    # parser's own, verified per key by columns before it is believed.
+    qualifying: list[dict[str, pd.DataFrame]] = []
+    for candidate in candidates:
+        if not (isinstance(candidate, dict)
+                and all(name in candidate for name in _PARSED_TABLES)):
+            continue
+        frames: dict[str, pd.DataFrame] = {}
+        for name in _PARSED_TABLES:
+            frame = _as_frame(candidate[name])
+            if frame is None or _identify_table(frame) != name:
+                break
+            frames[name] = frame
+        else:
+            qualifying.append(frames)
+
+    if qualifying:
+        first = qualifying[0]
+        if any(
+            not first[name].equals(other[name])
+            for other in qualifying[1:] for name in _PARSED_TABLES
+        ):
+            # Two DIFFERENT full table sets (an OM/SEM split would look like
+            # this). Choosing one renders a plausible screen over the wrong
+            # half of the data — worse than the error, which now describes
+            # both sets' contents.
+            raise _parse_error(
+                source, candidates,
+                f"a {container} holding {len(qualifying)} distinct copies of "
+                "the documented mapping, which columns cannot choose between",
+            )
+        _LOG.warning(
+            "recipe_search: combined_idp_info(%s) returned a %s wrapping the "
+            "documented three-key mapping; unwrapped it after verifying each "
+            "table by its columns. docs/datatables/recipe_idp.txt now "
+            "disagrees with the parser — reconcile it. Saw: %s",
+            source, container, _describe(candidates),
+        )
+        return first
 
     # Every match is kept, not just the first: two frames answering to the same
     # table means the columns did NOT decide it, and silently taking whichever
