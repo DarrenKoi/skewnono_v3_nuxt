@@ -35,6 +35,7 @@ RUNTIME_PACKAGES = (
     ("flask_limiter", "flask-limiter"),
     ("pandas", "pandas"),
     ("pyarrow", "pyarrow"),
+    ("numpy", "numpy"),
     ("redis", "redis"),
     ("minio", "minio"),
     ("opensearchpy", "opensearch-py"),
@@ -99,9 +100,42 @@ def check_imports() -> tuple[list[str], list[str]]:
                 f"run: pip install -r back_dev_home/requirements.txt  [{pip_name}]"
             )
 
+    failures.extend(_check_numpy_major())
+
     notes.append("identity: LASTUSER cookie (no cloud-image SSO module needed)")
 
     return failures, notes
+
+
+def _check_numpy_major() -> list[str]:
+    """numpy must be >= 2, and presence alone does not prove it.
+
+    The MSR-file adapter unpickles payloads written upstream on numpy 2, and
+    those pickles name `numpy._core.*` — absent in numpy 1. An install that
+    predates the requirements pin, or a site-packages numpy shadowing the venv,
+    imports fine and then fails only at the first /api/msr-file request, with a
+    traceback that reads as a MinIO problem. Cheaper to catch here.
+    """
+    try:
+        import numpy
+    except ImportError:
+        return []  # already reported by the import loop above
+
+    version = getattr(numpy, "__version__", "0")
+    try:
+        major = int(version.split(".", 1)[0])
+    except ValueError:
+        return [f"NUMPY unparseable version {version!r}; expected >= 2"]
+
+    if major < 2:
+        return [
+            f"NUMPY {version} at {numpy.__file__} is too old. MinIO pickles are "
+            "written on numpy 2 and reference `numpy._core`, which numpy 1 does "
+            "not have: msr_file's get_pickle() raises ModuleNotFoundError. "
+            "run: pip install -r back_dev_home/requirements.txt  [numpy>=2]"
+        ]
+
+    return []
 
 
 def check_config(root: Path) -> tuple[list[str], list[str]]:
