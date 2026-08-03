@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
+  <div class="dashboard-surface rounded-(--sk-r-card) px-3.5 py-2.5">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <h3 class="sk-title">
@@ -22,7 +22,7 @@
 
     <div
       v-if="categoryField && categoryOptions.length"
-      class="mb-2 flex min-w-0 flex-wrap items-start gap-2"
+      class="mb-6 flex min-w-0 flex-wrap items-start gap-2 border-b border-(--sk-border-soft) pb-4"
     >
       <span class="mt-1.5 shrink-0 font-mono text-[10px] text-(--sk-ink-muted)">{{ categoryField }}</span>
       <div class="flex min-w-0 flex-wrap items-center gap-1">
