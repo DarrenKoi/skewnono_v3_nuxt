@@ -819,6 +819,119 @@ def _download_first(
 
 _PARSED_TABLES = ("wafer_mp_info", "wafer_align_info", "idp_image_info")
 
+# Each table's documented columns. Used ONLY to recognise a table when the
+# parser hands back a bare container instead of the documented mapping, so the
+# recovery below identifies tables by what they contain rather than by their
+# position — position would map silently wrong on a parser that reorders.
+_TABLE_COLUMNS: dict[str, frozenset[str]] = {
+    "wafer_mp_info": frozenset(WaferMpInfoRow.__annotations__),
+    "wafer_align_info": frozenset(WaferAlignInfoRow.__annotations__),
+    "idp_image_info": frozenset(IdpImageInfoRow.__annotations__),
+}
+
+# How many documented columns a frame must share with a table before it counts
+# as that table. ``Parameter`` and ``img_meas2`` appear in two of the three, so
+# anything below 3 could match the wrong one; every real table clears it (mp
+# and image have 14 columns each, align has 6).
+_IDENTIFY_MIN_COLUMNS = 3
+
+
+def _describe(value: Any) -> str:
+    """One unknown object -> a short description. Must never raise.
+
+    Every caller is on an error path, so a description that itself throws
+    replaces the diagnosis with a second, less informative traceback — which is
+    exactly what ``sorted()`` over a list of dicts used to do here
+    (``'<' not supported between instances of 'dict' and 'dict'``).
+    """
+    if isinstance(value, pd.DataFrame):
+        return f"DataFrame({len(value)} rows, columns {[str(c) for c in value.columns][:16]})"
+    if isinstance(value, dict):
+        return f"dict(keys {sorted(str(key) for key in value)[:16]})"
+    if isinstance(value, (list, tuple)):
+        inner = ", ".join(_describe(item) for item in value[:4])
+        return f"{type(value).__name__}({len(value)} items: {inner})"
+    return f"{type(value).__name__}({value!r:.60})"
+
+
+def _as_frame(value: Any) -> pd.DataFrame | None:
+    """Anything table-shaped -> a DataFrame; None if it is not table-shaped."""
+    if isinstance(value, pd.DataFrame):
+        return value
+    if isinstance(value, (dict, list, tuple)):
+        try:
+            return pd.DataFrame(value)
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def _identify_table(frame: pd.DataFrame) -> str | None:
+    """Which documented table is this, judged by its columns alone."""
+    columns = {str(column) for column in frame.columns}
+    scored = sorted(
+        ((len(columns & documented), table)
+         for table, documented in _TABLE_COLUMNS.items()),
+        reverse=True,
+    )
+    (best_score, best_table), (runner_up_score, _) = scored[0], scored[1]
+    if best_score < _IDENTIFY_MIN_COLUMNS or best_score == runner_up_score:
+        return None
+    return best_table
+
+
+def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
+    """Parser output -> the three documented tables, or a usable error.
+
+    The documented return is a three-key mapping (``recipe_idp.txt`` §파서 반환
+    구조, user-confirmed 2026-07-27) and that path is untouched. A parser that
+    returns a bare container of tables instead is recovered from — by matching
+    documented columns, never by position — because the alternative is a dead
+    screen at the office over a shape home can neither see nor reproduce. Every
+    recovery is logged as a warning: the doc is the schema of record, so a
+    return shape it does not describe is a doc bug to reconcile, not a new
+    normal to absorb silently.
+    """
+    if isinstance(raw, dict) and all(name in raw for name in _PARSED_TABLES):
+        return {name: raw[name] for name in _PARSED_TABLES}
+
+    if isinstance(raw, dict):
+        candidates, container = list(raw.values()), "mapping with undocumented keys"
+    elif isinstance(raw, (list, tuple)):
+        candidates, container = list(raw), f"bare {type(raw).__name__}"
+    else:
+        raise LookupError(
+            f"combined_idp_info({source}) returned {_describe(raw)}, which is "
+            "not the documented three-key mapping and holds no tables to "
+            "recover. docs/datatables/recipe_idp.txt is the schema of record."
+        )
+
+    identified: dict[str, pd.DataFrame] = {}
+    for candidate in candidates:
+        frame = _as_frame(candidate)
+        if frame is None:
+            continue
+        table = _identify_table(frame)
+        if table is not None and table not in identified:
+            identified[table] = frame
+
+    missing = [name for name in _PARSED_TABLES if name not in identified]
+    if missing:
+        raise LookupError(
+            f"combined_idp_info({source}) returned a {container} — "
+            f"{_describe(raw)} — and {missing} could not be recognised in it "
+            "by their documented columns. docs/datatables/recipe_idp.txt is "
+            "the schema of record."
+        )
+
+    _LOG.warning(
+        "recipe_search: combined_idp_info(%s) returned a %s, not the documented "
+        "three-key mapping. All three tables were recovered by their columns, "
+        "but docs/datatables/recipe_idp.txt now disagrees with the parser — "
+        "reconcile it. Saw: %s", source, container, _describe(raw),
+    )
+    return identified
+
 
 def _parse_idp(local_path: Path) -> dict[str, pd.DataFrame]:
     """Run the 사내 IDP parser over a downloaded file.
@@ -844,15 +957,7 @@ def _parse_idp(local_path: Path) -> dict[str, pd.DataFrame]:
             "(docs/datatables/recipe_idp.txt §집에서의 대역)."
         ) from exc
 
-    frames = combined_idp_info(local_path)
-    missing = [name for name in _PARSED_TABLES if name not in frames]
-    if missing:
-        raise LookupError(
-            f"combined_idp_info({local_path.name}) returned keys "
-            f"{sorted(frames)} — missing {missing}. "
-            "docs/datatables/recipe_idp.txt is the schema of record."
-        )
-    return frames
+    return _normalize_frames(combined_idp_info(local_path), local_path.name)
 
 
 # ── recipe open, step 4: map to the contract (pure) ───────────────────────

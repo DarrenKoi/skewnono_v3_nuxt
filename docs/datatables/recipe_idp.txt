@@ -79,6 +79,23 @@ pandas DataFrame 입니다.
   집(Phase 1)에서는 저장소 root 의 `office_utils/` 가 같은 이름으로 이 자리를
   대신합니다. 아래 "집에서의 대역" 절을 참고하십시오.
 
+★ 반환 구조 불일치 관측 (OFFICE-VERIFY 2026-08-03) — 클라우드에서 recipe open 이
+  `'<' not supported between instances of 'dict' and 'dict'` 로 실패했습니다.
+  adapter 의 `_parse_idp` 가 "key 3개짜리 dict 가 아니다" 라고 판단한 뒤 그 사실을
+  적는 도중 `sorted(frames)` 에서 죽은 것이므로, **그 환경의 `combined_idp_info`
+  는 dict 를 여러 개 담은 list/tuple 을 돌려주었다**는 뜻입니다(dict 끼리 정렬을
+  시도했으니 원소가 dict). 위 3-key dict 는 2026-07-27 에 확인된 구조이므로,
+  사무실 parser 판(version)이 그 뒤로 바뀌었는지 **실제 반환값을 다시 확인해야**
+  합니다.
+
+    python -c "from office_utils.read_idp_info import combined_idp_info as f; \
+      r=f('<.idp 경로>'); print(type(r)); print(r if isinstance(r,dict) else r[:1])"
+
+  확인되면 이 절을 실제 구조로 갱신하십시오. 그때까지 adapter 는
+  `_normalize_frames` 로 **컬럼 이름을 보고** 세 table 을 되찾아 화면을 살려 둡니다
+  (위치로는 추측하지 않습니다 — 순서가 바뀌면 조용히 틀리므로). 되찾을 때마다
+  "이 문서와 parser 가 어긋났다" 는 WARNING 을 남깁니다.
+
 wafer_mp_info
 -------------
 
