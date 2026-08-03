@@ -273,6 +273,7 @@ test('parseTsView defaults to trend and corrects an unknown value', () => {
 test('parseTsAxis defaults to time; parseTsBaseline defaults to raw', () => {
   assert.equal(parseTsAxis(undefined), 'time')
   assert.equal(parseTsAxis('order'), 'order')
+  assert.equal(parseTsAxis('eqp'), 'eqp')
   assert.equal(parseTsAxis('bogus'), 'time')
   assert.equal(parseTsBaseline(undefined), 'raw')
   assert.equal(parseTsBaseline('resid'), 'resid')
@@ -294,7 +295,9 @@ test('encodeTsView / parseTsView round-trip, and the default stays out of the UR
 test('encodeTsAxis / parseTsAxis round-trip, and the default stays out of the URL', () => {
   assert.equal(encodeTsAxis('time'), null) // default stays out of the URL
   assert.equal(encodeTsAxis('order'), 'order')
+  assert.equal(encodeTsAxis('eqp'), 'eqp')
   assert.equal(parseTsAxis(encodeTsAxis('order')), 'order')
+  assert.equal(parseTsAxis(encodeTsAxis('eqp')), 'eqp')
   assert.equal(parseTsAxis(encodeTsAxis('time')), 'time')
   assert.equal(parseTsAxis(undefined), parseTsAxis(encodeTsAxis('time')))
 })

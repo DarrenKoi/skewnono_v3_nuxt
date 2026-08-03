@@ -17,6 +17,7 @@ import {
 import { paramLabel, sortByRowMpOrder } from '~/utils/skewvoirAnalysis/paramOrder'
 import { activeParamPool, resolveActiveParam } from '~/utils/skewvoirAnalysis/activeParam'
 import {
+  buildSequenceSeries,
   buildSetDistributionGroups,
   buildToolSkew,
   buildTrendSeries,
@@ -65,12 +66,49 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
 
   const rows = computed<MeasHistRow[]>(() => hist.value?.rows ?? [])
+
+  // The OTHER SEM family's history, fetched lazily the first time the URL set
+  // holds an msr the primary family cannot resolve. Search spans both families,
+  // so a curated set may legitimately mix them — the analysis resolves against
+  // both instead of excluding the other family's picks (the old behavior, which
+  // surfaced as a "이 장비군 검색 결과에 없어 제외되었습니다" alert).
+  const otherToolType: MeasHistToolType = ws.toolType === 'cd-sem' ? 'hv-sem' : 'cd-sem'
+  const { data: otherHist, execute: loadOtherHist } = useAsyncData<MeasHistResponse>(
+    `skewvoir-meas-hist:${otherToolType}`,
+    () => fetchMeasHist({ toolType: otherToolType }),
+    {
+      immediate: false,
+      default: () => ({ tool_type: otherToolType, fab_name: null, recipe_name: null, total: 0, rows: [] }),
+      getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    }
+  )
+
+  // One-shot trigger: fires only once the PRIMARY history has answered (an
+  // empty primary list would otherwise call every id unresolved and fetch the
+  // other family on every screen), and never re-fires after it has fired.
+  const otherHistWanted = ref(false)
+  watch([() => ws.msrList.value, rows], ([list, primary]) => {
+    if (otherHistWanted.value || primary.length === 0) return
+    const known = new Set(primary.map(r => r.msr))
+    if (list.some(id => !known.has(id))) {
+      otherHistWanted.value = true
+      loadOtherHist()
+    }
+  }, { immediate: true })
+
+  // Both families' rows, primary first. Everything that resolves an msr to its
+  // history row (focus, curated set, picker candidates) reads THIS list.
+  const allRows = computed<MeasHistRow[]>(() => {
+    const other = otherHist.value?.rows ?? []
+    return other.length ? [...rows.value, ...other] : rows.value
+  })
+
   // The URL-pinned focus msr, independent of whether meas_hist has a matching
   // row (a deep-link msr may not) — the reliable "which chip is active" key
   // for the focus-switcher chip strip.
   const focusMsr = computed<string | null>(() => ws.selection.value?.msr ?? null)
   const focusRow = computed<MeasHistRow | null>(() =>
-    rows.value.find(r => r.msr === focusMsr.value) ?? null
+    allRows.value.find(r => r.msr === focusMsr.value) ?? null
   )
   // The focus measurement's fab (per-measurement, e.g. 'M11B') — for fab-scoped
   // links like the recipe 열어보기 page.
@@ -363,7 +401,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const wantSet = computed(() => shouldLoadSet(ws.scope.value, ws.activeKind.value))
 
   // meas_hist row lookup by msr, for resolving the curated set + picker labels.
-  const rowByMsr = computed(() => new Map(rows.value.map(r => [r.msr, r])))
+  // Built over BOTH families' rows so a cross-family pick resolves like any other.
+  const rowByMsr = computed(() => new Map(allRows.value.map(r => [r.msr, r])))
 
   // Chip-strip label for an msr in the URL `msrs` set: the row's eqp_id +
   // timestamp when meas_hist has loaded a row for it, else the bare msr id
@@ -385,8 +424,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   }
 
   // All analyzable measurements — the candidate pool for the Time-Series picker.
+  // Spans both families once the other family's history has been pulled in.
   const candidateRows = computed<MeasHistRow[]>(() =>
-    rows.value.filter(r => r.msr_check === 'Yes')
+    allRows.value.filter(r => r.msr_check === 'Yes')
   )
 
   // The EXPLICIT curated comparison set, resolved from the URL `msrs` list (in
@@ -421,10 +461,31 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
     // A non-empty key means a non-empty `setRows` — the key IS the joined msr
     // list — so there is no empty-list case left to guard here.
+    //
+    // INCREMENTAL: only the msrs not already in `setFiles` are fetched, and the
+    // ones still wanted are carried over. Without this, every set edit (one
+    // add/remove in the 세트 편집 picker) re-downloaded the ENTIRE batch — ~2 MB
+    // per click at mock scale, and at office latencies whole seconds of spinner
+    // for files the browser already held.
     const list = setRows.value
+    const have = setFiles.value
+    const carried = new Map(
+      list.filter(r => have.has(r.msr)).map(r => [r.msr, have.get(r.msr)!] as const)
+    )
+    const missing = list.filter(r => !have.has(r.msr))
+
+    if (missing.length === 0) {
+      // Pure removal (or reorder): nothing to fetch, so the map narrows to the
+      // wanted msrs synchronously and the spinner never shows.
+      setFiles.value = carried
+      setFilesKey.value = key
+      setPending.value = false
+      return
+    }
+
     setPending.value = true
     try {
-      const res = await fetchMsrFiles(list.map(r => ({
+      const res = await fetchMsrFiles(missing.map(r => ({
         msr: r.msr,
         className: r.class_name,
         totalImages: r.total_images
@@ -435,7 +496,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       // writes back) would then judge against a set the screen is not showing.
       // fetchMsrFiles retries on 429, so that window is seconds, not microtasks.
       if (key !== setKey.value) return
-      setFiles.value = new Map(res.map(f => [f.msr, f]))
+      const next = new Map(carried)
+      for (const f of res) next.set(f.msr, f)
+      setFiles.value = next
       setFilesKey.value = key
     } catch {
       // Leave the previous map in place on failure rather than blanking the chart.
@@ -524,6 +587,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
   // One box per measurement, from the site rows already loaded in setFiles.
   const distributionGroups = computed(() => buildSetDistributionGroups(
+    trendRowInputs.value, setFiles.value, activeParam.value
+  ))
+
+  // Every loaded measurement's internal sequence for the active parameter —
+  // the Sequence Trend overlay (one line per measurement, colored by tool).
+  const sequenceGroups = computed(() => buildSequenceSeries(
     trendRowInputs.value, setFiles.value, activeParam.value
   ))
 
@@ -695,6 +764,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     trendPoints,
     setBaselineValue,
     distributionGroups,
+    sequenceGroups,
     toolSkewRows,
     toolCount,
     paramOptions,

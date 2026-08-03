@@ -8,28 +8,17 @@
     v-if="analysis.scope.value === 'set'"
     class="space-y-3"
   >
-    <!-- Integrity. TWO distinct failures, deliberately not merged into one line.
-         An id the measurement history could not resolve (usually a selection that
-         spans both SEM families, since search spans them but analysis loads one
-         tool type) is a different problem from a resolved measurement whose file
-         the batch endpoint skipped. Both report; neither blocks. -->
-    <UAlert
-      v-if="integrity.unresolvedMsrs.length"
-      color="warning"
-      variant="soft"
-      icon="i-lucide-triangle-alert"
-      :title="`${integrity.unresolvedMsrs.length}개 측정이 이 장비군 검색 결과에 없어 제외되었습니다.`"
-      description="다른 장비군에서 고른 측정은 이 분석에 포함되지 않습니다."
-    />
-    <!-- Resolved but never loaded: POST /api/msr-files silently skips MSRs it
-         cannot find, so without this the miss would masquerade as “이 파라미터가
-         없다” and quietly shrink every denominator on the page.
+    <!-- Integrity. Cross-family picks now resolve like any other (the analysis
+         reads BOTH families' histories), so the only failure left to report is
+         a resolved measurement whose file the batch endpoint skipped: POST
+         /api/msr-files silently skips MSRs it cannot find, so without this the
+         miss would masquerade as “이 파라미터가 없다” and quietly shrink every
+         denominator on the page.
 
-         Gated on `setPending` — unlike the unresolved-id alert above, which
-         reads measurement history that is already in hand, this one compares
-         against the batch's result. While the batch is in flight `loaded` is 0,
-         so an ungated alert accuses the request of failing every single time,
-         for as long as it takes. -->
+         Gated on `setPending` — this compares against the batch's result.
+         While the batch is in flight `loaded` is 0, so an ungated alert
+         accuses the request of failing every single time, for as long as it
+         takes. -->
     <UAlert
       v-if="!analysis.setPending.value && integrity.resolved > integrity.loaded"
       color="warning"
@@ -40,7 +29,7 @@
     />
 
     <div class="flex flex-wrap items-center gap-2">
-      <EbeamSkewvoirTimeseriesParamCoverageSelect
+      <EbeamSkewvoirTimeseriesParamCoverageList
         :options="analysis.paramOptions.value"
         :model-value="analysis.activeParam.value"
         @update:model-value="ws.setParam($event)"
@@ -257,20 +246,22 @@
       </EbeamSkewvoirPanelFrame>
     </div>
 
-    <!-- Sequence Trend plots the focus measurement's INTERNAL order — a different
+    <!-- Sequence Trend plots each measurement's INTERNAL order — a different
          axis from the three lenses above, not a fourth one of them, so it stays
-         put rather than joining the switch. -->
+         put rather than joining the switch. The whole set is overlaid, one line
+         per measurement colored by tool, with the focus line emphasized. -->
     <EbeamSkewvoirPanelFrame
       title="Sequence Trend"
-      :meta="`focus · ${analysis.focusRow.value?.lot_id ?? '—'}`"
+      :meta="`${analysis.sequenceGroups.value.length}개 측정 · focus ${analysis.focusRow.value?.lot_id ?? '—'}`"
       icon="i-lucide-activity"
     >
       <template #actions>
         <SkAnomalyBadge :verdict="analysis.focusVerdict.value" />
       </template>
       <EbeamSkewvoirSequenceTrend
-        v-if="hasFocusData"
-        :rows="analysis.siteRows.value"
+        v-if="analysis.sequenceGroups.value.length"
+        :groups="analysis.sequenceGroups.value"
+        :focus-msr="analysis.focusMsr.value"
         :parameter="analysis.activeParam.value"
         :unit="analysis.activeUnit.value"
       />
@@ -278,7 +269,7 @@
         v-else
         class="flex h-56 items-center justify-center sk-body"
       >
-        focus 측정의 sequence 데이터가 없습니다.
+        이 파라미터의 sequence 데이터가 없습니다.
       </div>
     </EbeamSkewvoirPanelFrame>
   </div>
@@ -301,7 +292,6 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { TsAxisMode, TsBaseline, TsView } from '~/utils/skewvoirAnalysis/types'
 import { placeTrendPoints } from '~/utils/skewvoirAnalysis/timeSeries'
-import { isMeasuredRow } from '~/utils/msrRows'
 
 // `ws` carries the URL-pinned lens, axis mode and baseline; `analysis` carries
 // everything derived from the loaded set.
@@ -329,7 +319,8 @@ const LENS_ORDER: readonly TsView[] = LENSES.map(l => l.value)
 
 const AXIS_OPTIONS: readonly { value: TsAxisMode, label: string }[] = [
   { value: 'time', label: '시간' },
-  { value: 'order', label: '순서' }
+  { value: 'order', label: '순서' },
+  { value: 'eqp', label: '장비' }
 ]
 const BASELINE_OPTIONS: readonly { value: TsBaseline, label: string }[] = [
   { value: 'raw', label: '원시값' },
@@ -437,11 +428,12 @@ const activeMeta = computed(() => {
   if (props.ws.tsView.value === 'skew') {
     return `${props.analysis.toolCount.value}개 장비 · 세트 기준 대비${missingParamMeta.value}`
   }
+  // The min/max band is not drawn under the eqp axis, so the meta must not
+  // claim it is.
+  if (props.ws.tsAxis.value === 'eqp') {
+    return `mean per 측정 · 장비별 · ${param}${missingParamMeta.value}`
+  }
   const hidden = unplaceable.value ? ` · 시간축 배치 불가 ${unplaceable.value}개` : ''
   return `mean ± min/max · ${param}${missingParamMeta.value}${hidden}`
 })
-
-const hasFocusData = computed(() =>
-  props.analysis.siteRows.value.some(r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r))
-)
 </script>

@@ -181,8 +181,9 @@ export type SequenceAxisMode = 'param' | 'all'
 export type TsView = 'trend' | 'dist' | 'skew'
 
 /** Time-Series x-axis scaling. `time` is honest about cadence; `order` is the
- *  escape hatch when measurements bunch into an unreadable smear. */
-export type TsAxisMode = 'time' | 'order'
+ *  escape hatch when measurements bunch into an unreadable smear; `eqp` groups
+ *  the measurements into one column per tool (x = eqp_id, y = CD value). */
+export type TsAxisMode = 'time' | 'order' | 'eqp'
 
 /** Time-Series value baseline: plotted as measured, or as a delta from the
  *  set's median (`세트 기준`). */

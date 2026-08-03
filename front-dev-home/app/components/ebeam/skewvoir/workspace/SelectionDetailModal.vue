@@ -78,6 +78,11 @@
           class="flex flex-col gap-1.5 border-t border-(--sk-border-soft) pt-3"
         >
           <span class="sk-label">세트 편집</span>
+          <!-- `virtualize` because the candidate pool is every analyzable
+               measurement of BOTH families — a few hundred at mock scale,
+               thousands at office retention. Rendering them all as DOM nodes
+               is what made this popup drag; virtualization keeps the open cost
+               flat regardless of pool size. -->
           <USelectMenu
             :model-value="ws.msrList.value"
             multiple
@@ -86,6 +91,7 @@
             :search-input="{ placeholder: 'lot / eq 로 검색…' }"
             placeholder="측정 추가/제거"
             size="sm"
+            virtualize
             @update:model-value="onEditSet"
           />
         </div>

@@ -1,10 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  setBaseline, buildTrendSeries, placeTrendPoints,
+  setBaseline, buildTrendSeries, placeTrendPoints, distinctEqpIds,
   buildSetDistributionGroups, buildToolSkew, distinctToolCount,
-  setParamOptions, setIntegrity,
-  type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput, type OptionFileInput
+  setParamOptions, setIntegrity, buildSequenceSeries,
+  type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput,
+  type OptionFileInput, type SeqFileInput
 } from './timeSeries.ts'
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 
@@ -156,6 +157,15 @@ test('placeTrendPoints keeps a ts of 0 rather than treating it as missing', () =
   assert.deepEqual(out.map(e => e.x), [0])
 })
 
+test('placeTrendPoints puts every point on its tool column under an eqp axis', () => {
+  // distinctEqpIds is sorted, so TP01 → 0 and TP02 → 1; the null-ts point is
+  // still placeable because the eqp axis positions by tool, not by time.
+  assert.deepEqual(distinctEqpIds(placeable), ['TP01', 'TP02'])
+  const out = placeTrendPoints(placeable, 'eqp')
+  assert.deepEqual(out.map(e => e.p.msr), ['m1', 'm2', 'm3'])
+  assert.deepEqual(out.map(e => e.x), [0, 0, 1])
+})
+
 const siteRow = (parameter: string, mp_number: number, cd_value: number | null) =>
   ({ parameter, mp_number, cd_value })
 
@@ -264,7 +274,7 @@ test('setParamOptions sorts by coverage, then MP order, then name', () => {
   assert.deepEqual(setParamOptions(rows, files).map(o => o.parameter), ['A_EARLY', 'B_LATE', 'RARE'])
 })
 
-test('setIntegrity separates unresolved ids from unloaded files and counts recipes', () => {
+test('setIntegrity counts requested vs resolved vs loaded and counts recipes', () => {
   const resolved = [
     { ...row('m1', 'TP01', 't1'), recipeName: 'RCP_A' },
     { ...row('m2', 'TP02', 't2'), recipeName: 'RCP_B' }
@@ -274,7 +284,6 @@ test('setIntegrity separates unresolved ids from unloaded files and counts recip
   assert.equal(out.requested, 3)
   assert.equal(out.resolved, 2)
   assert.equal(out.loaded, 1)
-  assert.deepEqual(out.unresolvedMsrs, ['ghost'])
   assert.equal(out.recipeCount, 2)
 })
 
@@ -287,7 +296,6 @@ test('setIntegrity on a clean single-recipe set reports nothing to warn about', 
     ['m1', optFile(['WAFER'], [])], ['m2', optFile(['WAFER'], [])]
   ])
   const out = setIntegrity(['m1', 'm2'], resolved, files)
-  assert.deepEqual(out.unresolvedMsrs, [])
   assert.equal(out.recipeCount, 1)
   assert.equal(out.loaded, 2)
 })
@@ -334,4 +342,26 @@ test('setParamOptions sorts an unranked parameter last within its coverage tier,
     ])]
   ])
   assert.deepEqual(setParamOptions(rows, files).map(o => o.parameter), ['RANKED', 'UNRANKED'])
+})
+
+test('buildSequenceSeries overlays one line per loaded measurement, sequence-sorted', () => {
+  const rows = [row('m1', 'TP01', 't1'), row('m2', 'TP02', 't2'), row('m3', 'TP03', 't3')]
+  const files = new Map<string, SeqFileInput>([
+    ['m1', { rows: [
+      { parameter: 'WAFER', mp_number: 1, sequence: 3, cd_value: 12 },
+      { parameter: 'WAFER', mp_number: 0, sequence: 1, cd_value: 10 },
+      { parameter: 'GATE_CD', mp_number: 2, sequence: 2, cd_value: 99 }
+    ] }],
+    ['m2', { rows: [
+      { parameter: 'WAFER', mp_number: -1, sequence: 0, cd_value: null }
+    ] }]
+    // m3 has no file at all (not loaded).
+  ])
+  const out = buildSequenceSeries(rows, files, 'WAFER')
+  // m2 has no measured WAFER site and m3 never loaded — both drop, same rule
+  // as the distribution lens. m1's points come back in sequence order despite
+  // the shuffled input, scoped to the requested parameter.
+  assert.deepEqual(out.map(g => g.msr), ['m1'])
+  assert.equal(out[0]!.eqpId, 'TP01')
+  assert.deepEqual(out[0]!.points, [[1, 10], [3, 12]])
 })
