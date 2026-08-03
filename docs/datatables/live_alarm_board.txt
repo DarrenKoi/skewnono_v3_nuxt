@@ -13,6 +13,14 @@ Redis 는 사내 alarm API 앞에 놓인 짧은 캐시이고, 화면을 여는 �
 polling 했으나, 그 방식은 아무도 보지 않는 새벽에도 계속 호출했고 배포 대상이
 하나 더 필요했습니다.
 
+상태: office 확인 2026-08-03 — 사무실에서 실제로 동작하는 것을 확인했습니다.
+      office.py 어댑터가 사내 alarm API 를 호출해 보드를 채웠습니다. 아래
+      함수 이름, fac_id 인자, ALID 3종, 컬럼 스키마는 모두 실제 조회로
+      뒷받침됩니다.
+
+      아직 남은 OFFICE-VERIFY 항목(맨 아래)은 이 확인으로 닫히지 않습니다 —
+      "돌아간다" 와 "AL_CODE 가 무엇인가" 는 다른 질문입니다.
+
 조회 함수
 
   office_utils.live_alarm.get_ebeam_metrology_alarms(fac_id) -> pd.DataFrame
@@ -41,7 +49,7 @@ fac_id 값 집합 (user-confirmed 2026-08-03)
   적어두는 이유는 sem_list mock 이 실제와 어긋났을 때(예전에 M10 자리에 M12 가
   들어 있었습니다) 대조할 기준이 필요하기 때문입니다.
 
-대상 ALID (user-confirmed 2026-08-03)
+대상 ALID (user-confirmed 2026-08-03, office 확인 2026-08-03)
 
   | ALID | kind | AL_TEXT |
   | --- | --- | --- |
