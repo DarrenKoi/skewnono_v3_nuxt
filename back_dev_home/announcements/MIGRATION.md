@@ -142,12 +142,13 @@ offset — must not drift between providers, since the same operator writes both
     cached — every request re-checks the active window.
   - Row shape passthrough: rows are returned exactly as parsed from JSON
     (no field renaming or reshaping) as long as they match
-    `Announcement` — `id`, `level`, `title`, `body` are the fields
-    actually present in the current single-row fixture
-    (`announcements/announcements.json`); `starts_at`/`ends_at` are
-    optional and only used for filtering, not required in the output.
+    `Announcement` — `id`, `level`, `title`, `body` are the required
+    fields; `starts_at`/`ends_at` are optional and only used for
+    filtering, not required in the output.
   - Empty handling: no active announcements is a valid response —
-    `[]` — not an error.
+    `[]` — not an error, and it is the shipped default:
+    `announcements/announcements.json` holds `[]` until an operator posts
+    a notice, so the banner is absent rather than showing filler.
   - Ordering: rows are returned in file order (the same order as
     `announcements.json`); there is no sort applied.
 - Office behavior: one `GET skewnono:announcements`, parsed as a JSON array,
@@ -155,9 +156,10 @@ offset — must not drift between providers, since the same operator writes both
   are identical by construction. Row order is preserved (no sort), rows pass
   through unreshaped, and every failure path yields `[]` — see the degradation
   table above.
-- Notes: the parity harness pins `GET /api/announcements` as a `200`
-  response reflecting the single demo row in
-  `announcements/announcements.json`. The contract test in
+- Notes: `tests/test_routes.py` pins `GET /api/announcements` as a `200`
+  carrying the contract shape, and asserts nothing about the row count —
+  the shipped file is empty and operators add rows to it, so both `[]` and
+  a live banner are correct. The contract test in
   `tests/test_contract.py` calls `data.get_announcements()` directly, so
   it always exercises the real `AnnouncementsResponse` shape regardless
   of what `routes.py` does with the result.

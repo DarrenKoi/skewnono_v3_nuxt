@@ -57,12 +57,12 @@ def test_get_announcements_is_200_with_the_contract_shape():
     response = _client().get("/api/announcements")
 
     assert response.status_code == 200
-    rows = response.get_json()
-    assert_matches(rows, AnnouncementsResponse)
-    if get_data_provider("announcements") == "mock":
-        # announcements.json ships one unbounded row, so an empty body here
-        # means the read broke. An office store may genuinely hold nothing.
-        assert rows, "mock announcements.json must yield at least one row"
+    assert_matches(response.get_json(), AnnouncementsResponse)
+    # Deliberately no assertion on the row COUNT. The shipped
+    # announcements.json is empty and operators add a row only when there is
+    # something to post, so both `[]` and a live banner are correct here —
+    # pinning either would make a routine operator edit fail the suite. That
+    # the file is actually read is pinned below, against a temp file.
 
 
 @mock_only
