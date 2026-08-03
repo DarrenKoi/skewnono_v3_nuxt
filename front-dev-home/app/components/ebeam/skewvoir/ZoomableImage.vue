@@ -16,8 +16,21 @@
       draggable="false"
       class="pointer-events-none absolute inset-0 h-full w-full object-contain"
       :style="imgStyle"
+      @load="loaded = true"
       @error="onImgError"
     >
+
+    <!-- The auto-retry window otherwise reads as a broken/blank panel: keep a
+         spinner up until the first successful paint of the current image. -->
+    <div
+      v-if="!loaded"
+      class="pointer-events-none absolute inset-0 flex items-center justify-center"
+    >
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="h-5 w-5 animate-spin text-(--sk-ink-subtle)"
+      />
+    </div>
 
     <!-- Zoom controls -->
     <div class="absolute right-2 bottom-2 flex items-center gap-0.5 rounded-(--sk-r-nav) border border-(--sk-border) bg-(--sk-surface)/90 p-0.5 shadow-sm backdrop-blur-sm">
@@ -77,6 +90,7 @@ const emit = defineEmits<{ error: [] }>()
 // Flask completes the tool-FTP fetch into the MinIO cache — the retry then
 // hits that cache. Only an exhausted budget reaches the host's failure state.
 const { src: displaySrc, onError: onImgError, exhausted } = useAutoRetrySrc(() => props.src)
+const loaded = ref(false)
 watch(exhausted, (is) => {
   if (is) emit('error')
 })
@@ -149,6 +163,9 @@ const onPointerUp = (e: PointerEvent) => {
   }
 }
 
-// A new image starts fresh at fit-to-container.
-watch(() => props.src, reset)
+// A new image starts fresh at fit-to-container, spinner up until it paints.
+watch(() => props.src, () => {
+  loaded.value = false
+  reset()
+})
 </script>

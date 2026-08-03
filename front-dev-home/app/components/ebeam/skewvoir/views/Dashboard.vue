@@ -77,5 +77,10 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
-defineProps<{ analysis: SkewvoirAnalysis }>()
+const props = defineProps<{ analysis: SkewvoirAnalysis }>()
+
+// Warm the server-side image cache as soon as the focus MSR's tool address
+// resolves, so the SEM Image / Align panels below click into cache hits
+// instead of cold in-request FTP fetches (the cloud ingress 502s those).
+useMsrImageWarmer(useFocusImageCtx(props.analysis))
 </script>
