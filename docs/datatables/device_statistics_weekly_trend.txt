@@ -83,7 +83,8 @@ OFFICE-VERIFY
 - 첫 적재 후 실제 객체 크기(device 전체 기준). 예상보다 크면 적재 단위를 fab 별로
   쪼개는 것을 검토합니다.
 - 보존 기간은 구현되었습니다. weekly_snapshot_sweep 이 월요일 02:30 에 돌며
-  가장 최근 SKEWNONO_WEEKLY_TREND_KEEP_WEEKS(기본 12) 주차만 남깁니다.
+  가장 최근 SKEWNONO_WEEKLY_TREND_KEEP_WEEKS(기본 26 — 6개월 보존 요구,
+  user-confirmed 2026-08-04) 주차만 남깁니다.
   **key 의 날짜로 지우며 last_modified 로 하지 않습니다** — 재적재한 과거
   주차는 last_modified 가 오늘이므로, 그 기준이면 오래된 백필을 남기고
   정상적인 최근 것을 지웁니다.

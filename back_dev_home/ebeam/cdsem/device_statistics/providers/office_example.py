@@ -986,7 +986,7 @@ def write_weekly_snapshot(date_key: str | None = None) -> str:
     return key
 
 
-def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
+def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
     """가장 최근 ``keep_weeks`` 주차만 남기고 MinIO 객체를 지웁니다.
 
     **key 의 날짜로 판단하며 ``last_modified`` 로 하지 않습니다.** 이미지 캐시는

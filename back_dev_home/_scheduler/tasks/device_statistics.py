@@ -21,9 +21,9 @@ logger = logging.getLogger("skewnono.scheduler")
 
 
 def keep_weeks() -> int:
-    """Retention, in weeks. The screen shows 8 (default ``points``); 12 leaves
-    headroom if that is raised. Expected to change once the first snapshot's
-    real size is known, so it is an env var rather than a constant.
+    """Retention, in weeks. The requirement is six months of trend history
+    (user-confirmed 2026-08-04), so the default is 26. It stays an env var so
+    tuning after the first real snapshot's size is known never needs a deploy.
 
     Floored at 1. ``0`` and negatives parse cleanly through ``int()`` and would
     mean "delete every snapshot" -- and the snapshots are unrecoverable, since
@@ -35,7 +35,7 @@ def keep_weeks() -> int:
     try:
         weeks = int(os.environ.get("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", "").strip())
     except ValueError:
-        return 12
+        return 26
     if weeks < 1:
         logger.warning(
             "SKEWNONO_WEEKLY_TREND_KEEP_WEEKS=%d would delete every snapshot; "

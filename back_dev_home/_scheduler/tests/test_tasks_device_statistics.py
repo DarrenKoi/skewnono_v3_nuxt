@@ -12,9 +12,9 @@ def test_both_tasks_take_no_arguments():
     assert list(inspect.signature(sweep_weekly_snapshots).parameters) == []
 
 
-def test_keep_weeks_defaults_to_twelve(monkeypatch):
+def test_keep_weeks_defaults_to_six_months(monkeypatch):
     monkeypatch.delenv("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", raising=False)
-    assert keep_weeks() == 12
+    assert keep_weeks() == 26
 
 
 def test_keep_weeks_reads_the_env(monkeypatch):
@@ -33,7 +33,7 @@ def test_keep_weeks_is_floored_at_one(monkeypatch):
 
 def test_keep_weeks_falls_back_on_garbage(monkeypatch):
     monkeypatch.setenv("SKEWNONO_WEEKLY_TREND_KEEP_WEEKS", "soon")
-    assert keep_weeks() == 12
+    assert keep_weeks() == 26
 
 
 def test_write_then_sweep_end_to_end(tmp_path, monkeypatch):
