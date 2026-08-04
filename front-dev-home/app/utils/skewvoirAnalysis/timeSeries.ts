@@ -131,19 +131,29 @@ export const buildTrendSeries = (
 /** A trend point paired with the x value it is drawn at. */
 export interface PlacedTrendPoint {
   p: TrendPoint
-  /** Epoch ms under a `time` axis; the point's index under `order`. */
+  /** Epoch ms under a `time` axis; the point's index under `order`; the tool's
+   *  index into `distinctEqpIds` under `eqp`. */
   x: number
 }
+
+/** The category-axis labels for `eqp` mode, in a deterministic order (sorted by
+ *  id). BOTH the chart's axis data and placeTrendPoints index into this same
+ *  list, so a point can never land under another tool's label. */
+export const distinctEqpIds = (points: readonly TrendPoint[]): string[] =>
+  [...new Set(points.map(p => p.eqpId))].sort((a, b) => a.localeCompare(b))
 
 /** The points the trend chart can actually position, in plot order.
  *
  *  A measurement whose timestamp would not parse has NO position on a time
  *  axis, so the `time` branch drops it. `order` plots by index, which every
  *  point has, so it drops nothing — an unparseable timestamp is still a real
- *  measurement and the order axis can show it honestly.
+ *  measurement and the order axis can show it honestly. `eqp` places every
+ *  point on its tool's column (each point has an eqpId), so it also drops
+ *  nothing.
  *
  *  Under `order` the x is the index into the FULL array, so it lines up with a
- *  category axis whose `data` is built from every point.
+ *  category axis whose `data` is built from every point; under `eqp` it is the
+ *  index into `distinctEqpIds`, the same list the axis renders.
  *
  *  Exported rather than kept inside the chart component so a panel can report
  *  what the chart hid — `points.length - placeTrendPoints(points, mode).length`
@@ -151,10 +161,15 @@ export interface PlacedTrendPoint {
 export const placeTrendPoints = (
   points: readonly TrendPoint[],
   axisMode: TsAxisMode
-): PlacedTrendPoint[] =>
-  points
+): PlacedTrendPoint[] => {
+  if (axisMode === 'eqp') {
+    const eqps = distinctEqpIds(points)
+    return points.map(p => ({ p, x: eqps.indexOf(p.eqpId) }))
+  }
+  return points
     .map((p, i) => ({ p, x: axisMode === 'time' ? p.ts : i }))
     .filter((e): e is PlacedTrendPoint => e.x != null)
+}
 
 /** The site facts the distribution lens needs.
  *
@@ -336,13 +351,12 @@ export interface IntegrityRowInput extends TrendRowInput {
 export interface SetIntegrity {
   /** Ids in the URL `msrs`. */
   requested: number
-  /** Ids that matched a measurement-history row. */
+  /** Ids that matched a measurement-history row. Since the analysis resolves
+   *  against BOTH SEM families' histories, an unresolved id means a stale or
+   *  hand-edited link, not a cross-family pick. */
   resolved: number
   /** Resolved measurements whose MsrFile actually came back. */
   loaded: number
-  /** Ids the history could not resolve — most often a cross-family selection,
-   *  since search spans both SEM families but analysis loads one tool type. */
-  unresolvedMsrs: string[]
   /** Distinct recipes in the set. >1 means tool skew is confounded. */
   recipeCount: number
 }
@@ -351,13 +365,117 @@ export const setIntegrity = (
   msrList: readonly string[],
   resolvedRows: readonly IntegrityRowInput[],
   files: ReadonlyMap<string, unknown>
-): SetIntegrity => {
-  const resolvedIds = new Set(resolvedRows.map(r => r.msr))
-  return {
-    requested: msrList.length,
-    resolved: resolvedRows.length,
-    loaded: resolvedRows.filter(r => files.has(r.msr)).length,
-    unresolvedMsrs: msrList.filter(id => !resolvedIds.has(id)),
-    recipeCount: new Set(resolvedRows.map(r => r.recipeName)).size
+): SetIntegrity => ({
+  requested: msrList.length,
+  resolved: resolvedRows.length,
+  loaded: resolvedRows.filter(r => files.has(r.msr)).length,
+  recipeCount: new Set(resolvedRows.map(r => r.recipeName)).size
+})
+
+/** The site facts one Sequence Trend line needs. `sequence` and `chip_number`
+ *  on top of the distribution lens's fields: the x axis IS the sequence, and
+ *  every sequence step is a MOVE to a different die — so what a point stands
+ *  for is "this die, measured at this point in the run", not a bare index. */
+export interface SeqSiteInput extends DistSiteInput {
+  sequence: number
+  /** Die index `"col,row"`, as `MsrFileRow.chip_number` carries it. */
+  chip_number: string
+}
+
+export interface SeqFileInput {
+  rows: SeqSiteInput[]
+}
+
+/** A Sequence Trend datum: the sequence step, the value measured there, and the
+ *  die it was measured on.
+ *
+ *  A 3-tuple rather than an object because ECharts maps a value array
+ *  positionally (dim0 → x, dim1 → y) and hands the whole array to the tooltip
+ *  untouched — so the chip rides along with no parallel lookup structure that
+ *  could drift out of step with the series. */
+export type SequencePoint = [sequence: number, value: number, chip: string]
+
+/** One Sequence Trend line per measurement in the set. */
+export interface SequenceGroup {
+  msr: string
+  label: string
+  eqpId: string
+  /** [sequence, cd_value, chip_number] in sequence order. */
+  points: SequencePoint[]
+}
+
+/** Every loaded measurement's internal sequence for one parameter, so the
+ *  Sequence Trend can overlay the whole set (one line per measurement, colored
+ *  by tool) instead of showing the focus alone. A measurement with no measured
+ *  site for the parameter contributes no line — same drop rule as the
+ *  distribution lens. */
+export const buildSequenceSeries = (
+  rows: readonly TrendRowInput[],
+  files: ReadonlyMap<string, SeqFileInput>,
+  parameter: string
+): SequenceGroup[] => {
+  const groups: SequenceGroup[] = []
+  for (const row of rows) {
+    const file = files.get(row.msr)
+    if (!file) continue
+    const points: SequencePoint[] = []
+    for (const site of file.rows) {
+      if (site.parameter === parameter && isMeasuredSite(site)) {
+        points.push([site.sequence, site.cd_value, site.chip_number])
+      }
+    }
+    if (points.length === 0) continue
+    points.sort((a, b) => a[0] - b[0])
+    groups.push({ msr: row.msr, label: row.label, eqpId: row.eqpId, points })
   }
+  return groups
+}
+
+/** The x bounds the Sequence Trend axis should use, or null when nothing is
+ *  drawn (leave the axis to ECharts; there is no shape to distort).
+ *
+ *  The axis must be bounded by the DATA, not by zero. An ECharts `type: 'value'`
+ *  axis defaults to `scale: false`, which always includes the origin — so a
+ *  recipe whose sequences run 5000…5100 draws every point into the last 2% of a
+ *  0–5100 axis. The result reads as a vertical smear, and the flatness is an
+ *  artifact of the origin rather than a fact about the measurement.
+ *
+ *  Padded by 2% of the span so the first and last points sit inside the frame
+ *  instead of on it, then rounded OUTWARD to whole numbers: a sequence is an
+ *  integer step counter, so a fractional bound is both meaningless and visible —
+ *  ECharts prints the exact max as the end tick, which is how a 128-step run
+ *  ends up labelled `130.52`. A single distinct sequence has zero span, which
+ *  would collapse the axis, so it is given a ±1 window and lands mid-axis.
+ *
+ *  Pure and exported so the bound is unit-tested rather than an expression
+ *  buried in a chart option. */
+export const sequenceAxisBounds = (
+  groups: readonly SequenceGroup[]
+): { min: number, max: number } | null => {
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  for (const g of groups) {
+    for (const [seq] of g.points) {
+      if (seq < min) min = seq
+      if (seq > max) max = seq
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+  if (min === max) return { min: min - 1, max: max + 1 }
+  // At least 1 so a short run (span < 50) still gets a visible margin.
+  const pad = Math.max(1, Math.ceil((max - min) * 0.02))
+  return { min: min - pad, max: max + pad }
+}
+
+/** `chip_number` ("3,-2") as a display pair ("3, -2").
+ *
+ *  Lives beside the builder rather than inside the chart so every consumer
+ *  formats a die the same way. An unparseable value comes back as-is: a raw
+ *  string in the tooltip beats a confidently wrong die. */
+export const formatChip = (chip: string): string => {
+  const parts = chip.split(',')
+  if (parts.length !== 2) return chip
+  const x = parts[0]!.trim()
+  const y = parts[1]!.trim()
+  return x && y ? `${x}, ${y}` : chip
 }

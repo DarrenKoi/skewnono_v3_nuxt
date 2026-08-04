@@ -144,7 +144,7 @@ export const DEFAULT_TS_AXIS: TsAxisMode = 'time'
 export const DEFAULT_TS_BASELINE: TsBaseline = 'raw'
 
 const TS_VIEWS: readonly TsView[] = ['trend', 'dist', 'skew']
-const TS_AXES: readonly TsAxisMode[] = ['time', 'order']
+const TS_AXES: readonly TsAxisMode[] = ['time', 'order', 'eqp']
 const TS_BASELINES: readonly TsBaseline[] = ['raw', 'resid']
 
 /** Lens for the Time-Series view. An unknown value corrects to `trend` rather
