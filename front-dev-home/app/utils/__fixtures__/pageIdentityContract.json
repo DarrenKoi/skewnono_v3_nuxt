@@ -67,12 +67,16 @@
   {
     "path": "/ebeam/cd-sem/M14/recipe-status",
     "query": { "tab": "align" },
-    "slug": "fail_issue"
+    "slug": "fail_issue",
+    "finerThanSlug": true,
+    "comment": "Product decision: align and meas count as separate opens despite sharing fail_issue slug"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-status",
     "query": { "tab": "meas" },
-    "slug": "fail_issue"
+    "slug": "fail_issue",
+    "finerThanSlug": true,
+    "comment": "Product decision: meas and align count as separate opens despite sharing fail_issue slug"
   },
   {
     "path": "/ebeam/cd-sem/M14/hardware",

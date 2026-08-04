@@ -14,6 +14,8 @@ const loadContract = () => {
     path: string
     query: Record<string, unknown>
     slug: string | null
+    finerThanSlug?: boolean
+    comment?: string
   }>
 }
 
@@ -40,15 +42,14 @@ test('different pages are different identities', () => {
   )
 })
 
-test('recipe-status tabs are two different identities (tat vs align/meas)', () => {
+test('recipe-status tabs are three different identities', () => {
   const tat = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'tat' })
   const align = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'align' })
   const meas = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'meas' })
 
-  // tat is one feature (recipe_tat), align and meas are the same feature (fail_issue)
-  assert.notEqual(tat, align)
-  assert.equal(align, meas)
-  assert.equal(new Set([tat, align, meas]).size, 2)
+  // Three distinct identities: product ranks them separately even though align and meas
+  // share the same backend slug (fail_issue)
+  assert.equal(new Set([tat, align, meas]).size, 3)
 })
 
 test('recipe-status without a tab is unresolved', () => {
@@ -151,20 +152,25 @@ test('skewvoir is the same across tool types', () => {
 
 test('contract: identity partitions match backend slug partitions', () => {
   // Two paths must produce the same identity IFF the backend maps them to the same slug.
-  // This test ensures drift between frontend and backend is caught mechanically.
+  // Exception: finerThanSlug rows are intentional — they differ in identity despite
+  // sharing a slug, as a product decision. This test ensures drift is caught mechanically.
 
-  // Build a map from slug to list of (path, query) pairs
-  const slugToRows = new Map<string | null, Array<{ path: string, query: Record<string, unknown> }>>()
-  for (const row of contract) {
+  // Separate marked and unmarked rows
+  const markedRows = contract.filter(r => r.finerThanSlug)
+  const unmarkedRows = contract.filter(r => !r.finerThanSlug)
+
+  // Build maps by slug for each group
+  const slugToUnmarkedRows = new Map<string | null, typeof unmarkedRows>()
+  for (const row of unmarkedRows) {
     const key = row.slug
-    if (!slugToRows.has(key)) {
-      slugToRows.set(key, [])
+    if (!slugToUnmarkedRows.has(key)) {
+      slugToUnmarkedRows.set(key, [])
     }
-    slugToRows.get(key)!.push({ path: row.path, query: row.query })
+    slugToUnmarkedRows.get(key)!.push(row)
   }
 
-  // For each slug, all rows with that slug must produce the same identity
-  for (const [slug, rows] of slugToRows.entries()) {
+  // For unmarked rows with the same slug, all must produce the same identity
+  for (const [slug, rows] of slugToUnmarkedRows.entries()) {
     const identities = rows.map(row => resolvePageIdentity(row.path, row.query))
 
     // All identities must be equal (or all null for unresolved pages)
@@ -173,22 +179,38 @@ test('contract: identity partitions match backend slug partitions', () => {
       assert.equal(
         identities[i],
         first,
-        `Rows with slug "${slug}" produced different identities: ${first} vs ${identities[i]}`
+        `Unmarked rows with slug "${slug}" produced different identities: ${first} vs ${identities[i]}`
       )
     }
   }
 
-  // For any two slugs that are different and non-null, no two rows can produce the same identity
-  const nonNullSlugs = Array.from(slugToRows.keys()).filter((slug): slug is string => slug !== null)
-  for (let i = 0; i < nonNullSlugs.length; i++) {
-    for (let j = i + 1; j < nonNullSlugs.length; j++) {
-      const slug1 = nonNullSlugs[i] as string
-      const slug2 = nonNullSlugs[j] as string
+  // Marked rows can have different identities but still share a slug—that's their point.
+  // But they must NOT collide with unmarked rows.
+  const unmarkedIdentities = new Set<string | null>()
+  for (const row of unmarkedRows) {
+    unmarkedIdentities.add(resolvePageIdentity(row.path, row.query))
+  }
 
-      const rows1Opt = slugToRows.get(slug1)
-      const rows2Opt = slugToRows.get(slug2)
-      const rows1 = rows1Opt ?? []
-      const rows2 = rows2Opt ?? []
+  for (const markedRow of markedRows) {
+    const markedIdentity = resolvePageIdentity(markedRow.path, markedRow.query)
+    assert.ok(
+      !unmarkedIdentities.has(markedIdentity),
+      `Marked row ${markedRow.path} produced identity ${markedIdentity} `
+      + `that collides with an unmarked row. Marked rows must be enumerated, not left to chance.`
+    )
+  }
+
+  // For any two different non-null unmarked slugs, rows must produce different identities
+  const nonNullUnmarkedSlugs = Array.from(slugToUnmarkedRows.keys()).filter(
+    (slug): slug is string => slug !== null
+  )
+  for (let i = 0; i < nonNullUnmarkedSlugs.length; i++) {
+    for (let j = i + 1; j < nonNullUnmarkedSlugs.length; j++) {
+      const slug1 = nonNullUnmarkedSlugs[i] as string
+      const slug2 = nonNullUnmarkedSlugs[j] as string
+
+      const rows1 = slugToUnmarkedRows.get(slug1) ?? []
+      const rows2 = slugToUnmarkedRows.get(slug2) ?? []
       if (rows1.length === 0 || rows2.length === 0) continue
 
       const first1 = rows1[0]!
@@ -199,13 +221,13 @@ test('contract: identity partitions match backend slug partitions', () => {
       assert.notEqual(
         identity1,
         identity2,
-        `Different slugs "${slug1}" and "${slug2}" produced the same identity: ${identity1}`
+        `Different unmarked slugs "${slug1}" and "${slug2}" produced the same identity: ${identity1}`
       )
     }
   }
 
   // Null slug rows must produce null identity
-  const nullRows = slugToRows.get(null) ?? []
+  const nullRows = unmarkedRows.filter(r => r.slug === null)
   for (const row of nullRows) {
     const identity = resolvePageIdentity(row.path, row.query)
     assert.equal(

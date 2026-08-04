@@ -21,11 +21,12 @@ const TAB_ROUTE = 'recipe-status'
 const VALID_TABS = new Set(['tat', 'align', 'meas'])
 
 // recipe-status tabs map to two backend features: tat→recipe_tat, align/meas→fail_issue.
-// Map tabs to canonical tab for identity: align and meas are the same feature.
+// But the product ranks separately: align and meas count as distinct opens even though
+// they share a slug. Identity remains three-way so analytics count them distinctly.
 const RECIPE_STATUS_TAB_MAP: Record<string, string> = {
   tat: 'tat',
   align: 'align',
-  meas: 'align' // Same feature as align (fail_issue)
+  meas: 'meas' // Counts separately despite sharing slug with align (fail_issue)
 }
 
 // Ordered rules: longest/most specific first. Each rule is a path fragment
