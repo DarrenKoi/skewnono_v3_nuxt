@@ -23,6 +23,7 @@
 import type { EChartsOption } from 'echarts'
 import { stableYRange, tightYRange, type StableYRangeOptions } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
+import { trendSymbolSize } from '~/utils/chartSymbolSize'
 
 const props = defineProps<{
   label: string
@@ -62,6 +63,29 @@ const formatTime = (value: number | string) => {
 
 // Points arrive ascending (oldest first) from the panel.
 const overlays = computed(() => props.overlays ?? [])
+
+// Dots are sized from the room actually available — see chartSymbolSize.ts for
+// why spacing rather than point count decides it. The host has to be measured
+// because the same chart renders full-width in SharpnessPanel and half-width in
+// BsmPanel's side-by-side panes.
+const hostWidth = ref(0)
+let observer: ResizeObserver | null = null
+watch(chartEl, (el) => {
+  observer?.disconnect()
+  observer = null
+  if (!el) return
+  observer = new ResizeObserver(([entry]) => {
+    if (entry) hostWidth.value = entry.contentRect.width
+  })
+  observer.observe(el)
+}, { immediate: true })
+onBeforeUnmount(() => observer?.disconnect())
+
+// Sized against the grid's inner width, so the margins below have to be kept in
+// step with the `grid` option.
+const symbolSize = computed(() =>
+  trendSymbolSize(hostWidth.value - 72, props.points.length) // grid left 56 + right 16
+)
 const hasOverlays = computed(() => overlays.value.length > 0)
 
 // The y-axis must span the overlays too, or comparison tools drawn at a
@@ -107,7 +131,7 @@ const chartOption = computed<EChartsOption>(() => ({
       data: props.points.map(p => ({
         name: p.key,
         value: [toEpoch(p.ts), p.value],
-        symbolSize: p.key === props.selected ? 12 : 5
+        symbolSize: p.key === props.selected ? symbolSize.value + 5 : symbolSize.value
       }))
     },
     ...overlays.value.map(o => ({
@@ -122,5 +146,22 @@ const chartOption = computed<EChartsOption>(() => ({
   ]
 }))
 
-useEchart(chartEl, chartOption, { onClick: ts => emit('select', ts) })
+// Picking the measurement nearest the clicked time, rather than requiring a hit
+// on the symbol itself. `onClick` alone means the target is only as wide as the
+// dot, which readers were missing; this makes the whole plot area the target,
+// so a near-miss still selects what the reader was aiming at. Both fire — a
+// direct hit goes through onClick and never reaches here.
+const selectNearest = (x: number) => {
+  let best: { key: string, gap: number } | null = null
+  for (const p of props.points) {
+    const gap = Math.abs(toEpoch(p.ts) - x)
+    if (!best || gap < best.gap) best = { key: p.key, gap }
+  }
+  if (best) emit('select', best.key)
+}
+
+useEchart(chartEl, chartOption, {
+  onClick: ts => emit('select', ts),
+  onGridClick: x => selectNearest(x)
+})
 </script>
