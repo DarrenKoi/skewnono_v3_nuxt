@@ -1,0 +1,72 @@
+skewnono_chat_logging / skewnono_chat_logging_local — chat 대화 기록 (OpenSearch)
+
+출처: SKEWNONO 자체 생성 인덱스입니다. chat feature 가 완료된 대화 turn 마다
+문서 1건을 적재하며, 스키마의 진실 원천은
+ops_index_mgmt/skewnono_chat_logging.py 의 CHAT_MAPPING_PROPERTIES 와
+back_dev_home/chat/conversation_log.py 의 build_turn_document() 입니다.
+(설계 2026-08-04, 클러스터 반영은 OFFICE-VERIFY — 사무실에서 provisioning
+script 를 실행해야 alias 가 생깁니다.)
+
+왜 별도 인덱스인가
+- skewnono_logging(활동 로그)은 query·answer 본문을 절대 저장하지 않는다는
+  규약이 있습니다(chat/MIGRATION.md). 대화 본문을 보존하려면 보존 기간과 접근
+  통제를 따로 관리할 수 있는 전용 인덱스가 필요합니다.
+- 발신 logger(skewnono.chat.conversation)는 propagate=False 이므로 대화 문서가
+  root logger 를 타고 활동 인덱스로 새어 들어갈 수 없습니다.
+
+환경과 alias
+- office PC localhost -> alias skewnono_chat_logging_local, 보존 rollover 후 30일
+- production cloud    -> alias skewnono_chat_logging,       보존 rollover 후 365일
+- 두 family 는 같은 mapping/rollover(10GB 또는 30일)이며 보존 기간만 다릅니다.
+- 활동 로그와 달리 shard 1 + replica 1 입니다 — turn 당 문서 1건이라 쓰기량이
+  요청 로그보다 훨씬 적습니다.
+- 쓰기 alias 는 skewnono_logging 과 같은 SKEWNONO_LOG_ENV 를
+  back_dev_home/_logging/target.py 의 resolve_chat_conversation_target() 이
+  해석해 결정합니다. 코드에 alias 문자열을 직접 쓰지 않습니다.
+- provisioning: .venv/bin/python ops_index_mgmt/skewnono_chat_logging.py
+  (idempotent, --dry-run 지원). ops_index_mgmt 는 flask_modules 에서 vendored
+  된 폴더이므로 이 스크립트를 flask_modules 사본에도 추가해야 합니다.
+
+무엇이 문서가 되는가
+- ChatOrchestrator.send_message() 가 assistant turn 을 저장 완료한 직후 1건을
+  emit 합니다(back_dev_home/chat/orchestration.py 의 _record_conversation).
+- scope 거절(out_of_scope/unsafe)도 turn 이므로 기록됩니다 — runtime 은
+  scope_rejection, tool_call_count 는 0 입니다.
+- 같은 request_id 재전송(idempotent replay)은 send_message 가 완료된 turn 을
+  조기 반환하므로 중복 기록되지 않습니다.
+- runtime 실패(timeout, 402x/50x 계열)는 assistant turn 이 저장되지 않으므로
+  기록하지 않습니다. user turn 만 남은 상태는 이 인덱스에 나타나지 않습니다.
+- 전송은 OpenSearchBulkHandler 파이프라인(버퍼·재시도·event_id=_id)을 그대로
+  재사용하므로 재시도가 중복 문서를 만들지 않고, 적재 실패가 chat 응답을
+  깨뜨리지 않습니다(손실 허용 telemetry).
+
+mapping (dynamic: false — 아래 필드만 색인됩니다)
+event_id -> keyword: 문서 _id. bulk retry 중복 방지.
+@timestamp -> date: UTC ISO-8601 (offset 포함). 집계는 time_zone Asia/Seoul 명시.
+service -> keyword: 고정값 skewnono
+deployment -> keyword: local | production
+host -> keyword: 실행 host 이름
+user_id -> keyword: thread 소유자 (인증 identity)
+thread_id -> keyword: 대화 thread ID
+request_id -> keyword: turn 의 idempotency UUID (frontend 생성)
+message_id -> keyword: 저장된 assistant message ID — feedback 과 join 하는 열쇠
+model -> keyword: 응답 모델. scope 거절이면 thread 의 모델로 대체.
+runtime -> keyword: direct | agent | scope_rejection
+scope_status -> keyword: in_scope | mixed | out_of_scope | unsafe
+scope_reason_code -> keyword: scope classifier 의 사유 코드
+user_content -> text: 사용자 질문 본문 (최대 8,000자 절단)
+assistant_content -> text: 응답 본문 (최대 8,000자 절단)
+prompt_tokens -> integer / completion_tokens -> integer: 없으면 필드 생략
+latency_ms -> integer: runtime 왕복 시간
+source_count -> integer: 응답에 첨부된 SourceRef 수
+source_ids -> keyword: SourceRef 의 stable source_id 목록 (빈 list 가능)
+tool_call_count -> integer: agent tool 호출 수 (direct/거절 turn 은 0)
+
+어댑터 소비 규약
+- None 값 필드는 저장 시 생략됩니다(null 컬럼 없음) — exists query 로 구분합니다.
+- user_content/assistant_content 는 text 이므로 정확 일치·집계 대상이 아닙니다.
+  집계는 keyword 필드(model, runtime, scope_status, user_id 등)로만 합니다.
+- 개인정보·민감 업무 내용이 본문에 포함되므로 이 인덱스를 읽는 화면·export 를
+  추가하려면 chat/MIGRATION.md 의 evaluation 제한(사람 검토, de-identify, 별도
+  승인)을 먼저 따릅니다. raw 본문을 학습 데이터로 직행시키지 않습니다.
+- 날짜 경계 집계는 time_zone: Asia/Seoul 을 명시합니다(@timestamp 는 UTC).

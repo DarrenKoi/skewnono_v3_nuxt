@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
-from back_dev_home.chat import config, data
+from back_dev_home.chat import config, conversation_log, data
 from back_dev_home.chat.contracts import Message
 from back_dev_home.chat.runtime import data as runtime_data
 from back_dev_home.chat.runtime.contracts import RuntimeRequest, RuntimeResult
@@ -44,12 +45,14 @@ class ChatOrchestrator:
         model_finder: Callable[[str], dict | None] = config.find_model,
         *,
         runtime_name_finder: Callable[[], str] = config.get_runtime_name,
+        conversation_recorder: Callable[..., None] = conversation_log.record_turn,
     ) -> None:
         self._store = store
         self._scope_classifier = scope_classifier
         self._runtime_invoker = runtime_invoker
         self._model_finder = model_finder
         self._runtime_name_finder = runtime_name_finder
+        self._conversation_recorder = conversation_recorder
 
     def send_message(
         self,
@@ -87,11 +90,20 @@ class ChatOrchestrator:
         self._store.set_scope_decision(thread_id, request_id, decision)
 
         if decision["status"] in {"out_of_scope", "unsafe"}:
-            return self._store.complete_turn(
+            assistant = self._store.complete_turn(
                 thread_id,
                 request_id,
                 self._scope_rejection_result(),
             )
+            self._record_conversation(
+                user_id,
+                thread["model"],
+                user_message["content"],
+                assistant,
+                decision,
+                tool_call_count=0,
+            )
+            return assistant
 
         persisted = self._store.get_thread(user_id, thread_id)
         if persisted is None:
@@ -114,7 +126,42 @@ class ChatOrchestrator:
         result = self._runtime_invoker(runtime_request)
         if decision["status"] == "mixed":
             result["content"] = f"{MIXED_SCOPE_NOTICE}\n\n{result['content']}"
-        return self._store.complete_turn(thread_id, request_id, result)
+        assistant = self._store.complete_turn(thread_id, request_id, result)
+        self._record_conversation(
+            user_id,
+            thread["model"],
+            user_message["content"],
+            assistant,
+            decision,
+            tool_call_count=len(result["tool_traces"]),
+        )
+        return assistant
+
+    def _record_conversation(
+        self,
+        user_id: str,
+        thread_model: str,
+        user_content: str,
+        assistant: Message,
+        decision: ScopeDecision,
+        *,
+        tool_call_count: int,
+    ) -> None:
+        # The conversation record is telemetry riding on a turn that already
+        # succeeded; a recorder failure costs the record, never the response.
+        try:
+            self._conversation_recorder(
+                user_id=user_id,
+                thread_model=thread_model,
+                user_content=user_content,
+                assistant=assistant,
+                decision=decision,
+                tool_call_count=tool_call_count,
+            )
+        except Exception:
+            logging.getLogger("skewnono.chat").exception(
+                "failed to record chat conversation turn"
+            )
 
     @staticmethod
     def _runtime_messages(

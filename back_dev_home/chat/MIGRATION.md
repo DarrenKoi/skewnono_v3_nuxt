@@ -248,6 +248,38 @@ retention job을 운영해야 합니다. 다음 항목의 실제 값은 확인�
 scan하여 index를 build하지 않으며, offline ingestion이 만든 immutable/versioned
 artifact만 read-only로 엽니다.
 
+## 대화 기록 인덱스 (skewnono_chat_logging)
+
+완료된 대화 turn은 활동 로그와 분리된 전용 OpenSearch 인덱스에 1건씩 기록합니다.
+활동 인덱스(`skewnono_logging`)는 본문을 절대 저장하지 않는다는 규약을 유지하고,
+대화 본문은 보존·접근을 따로 통제할 수 있는 이 인덱스에만 둡니다.
+
+| 항목 | 값 |
+| --- | --- |
+| Alias | `skewnono_chat_logging`(production, 보존 365일) / `skewnono_chat_logging_local`(local, 보존 30일) |
+| Alias 선택 | `SKEWNONO_LOG_ENV` — `_logging/target.py`의 `resolve_chat_conversation_target()` |
+| Provisioning | `.venv/bin/python ops_index_mgmt/skewnono_chat_logging.py` (idempotent, `--dry-run` 지원) |
+| Emit 지점 | `orchestration.py`의 `_record_conversation` — assistant turn 저장 직후 |
+| 전송 | `chat/conversation_log.py` — `OpenSearchBulkHandler` 파이프라인 재사용, `propagate=False` |
+| 설치 gate | 활동 로그와 동일 — office mode + `OPENSEARCH_PASSWORD`, `OPENSEARCH_LOGGING_DISABLED`로 차단 |
+
+동작 계약은 다음과 같습니다.
+
+- Scope 거절 turn도 기록합니다(`runtime=scope_rejection`, `tool_call_count=0`).
+- 같은 `request_id` replay는 완료된 turn을 조기 반환하므로 중복 기록되지 않습니다.
+- Runtime 실패는 assistant turn이 저장되지 않으므로 기록하지 않습니다.
+- 기록 실패는 응답을 깨뜨리지 않습니다 — 손실 허용 telemetry이며, 실패는
+  `skewnono.chat` logger의 예외 로그로만 관측합니다.
+- 본문은 각 8,000자에서 절단합니다. 문서 스키마의 진실 원천은
+  `ops_index_mgmt/skewnono_chat_logging.py`의 `CHAT_MAPPING_PROPERTIES`이며,
+  필드를 추가할 때는 `build_turn_document()`·mapping·
+  `docs/datatables/skewnono_chat_logging.txt` 세 곳을 함께 갱신한 뒤 사무실에서
+  additive mapping update를 실행합니다.
+- 이 인덱스는 thread storage가 아닙니다. Thread CRUD·replay·feedback은 계속
+  thread storage provider가 담당하며, 이 인덱스는 append-only 기록입니다.
+- 본문이 포함되므로 이 인덱스를 읽는 화면·export를 추가하려면 아래 evaluation
+  제한(사람 검토, de-identification, 별도 승인)을 먼저 따릅니다.
+
 ## Feedback와 evaluation 제한
 
 현재 feedback은 chat history와 같은 retention 정책을 따르며 mock 기본값은 30일입니다.
@@ -259,7 +291,8 @@ Evaluation bundle에는 user query, assistant answer, scope decision, runtime/mo
 tool trace, source reference/score, rating/reason/comment가 결합될 수 있으므로 민감
 업무 데이터로 취급합니다. 이번 scaffold에는 export, dashboard, training dataset 생성이
 포함되지 않습니다. Application log에는 query, answer, retrieval query/snippet, 원문,
-page image, 내부 hostname/index, credential을 남기지 않습니다.
+page image, 내부 hostname/index, credential을 남기지 않습니다. 대화 본문의 유일한
+승인된 적재처는 위의 전용 인덱스(`skewnono_chat_logging`)입니다.
 
 Raw 운영 query, reaction과 tool trace는 원형 그대로 evaluation dataset에 사용하지
 않습니다. 향후 evaluation case가 필요하면 사람이 내용과 권한을 검토하고 식별자·사내
