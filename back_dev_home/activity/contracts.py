@@ -13,6 +13,8 @@ __all__ = [
     "SummaryResponse",
     "UserListRow",
     "UserListResponse",
+    "NamedUserListRow",
+    "NamedUserListResponse",
     "UserHistoryResponse",
     "FabPageCount",
     "FabUsageRow",
@@ -65,6 +67,28 @@ class UserListRow(TypedDict):
 class UserListResponse(TypedDict):
     generated_at: str
     users: list[UserListRow]
+
+
+class NamedUserListRow(UserListRow):
+    """A listed user after the route joined the member directory onto it.
+
+    Split from ``UserListRow`` on purpose. The activity providers read the
+    logging store, which knows employee numbers and no names at all, so making
+    them promise ``emp_nm`` would be a promise neither adapter could keep. The
+    name is added in ``routes.py`` from ``_auth.directory``, and this is the
+    shape that reaches the SPA.
+
+    ``emp_nm`` is None whenever the directory could not answer — no row for
+    that empno, Redis unreachable, a malformed document. The frontend falls
+    back to showing the employee number alone.
+    """
+
+    emp_nm: str | None
+
+
+class NamedUserListResponse(TypedDict):
+    generated_at: str
+    users: list[NamedUserListRow]
 
 
 class UserHistoryResponse(TypedDict):

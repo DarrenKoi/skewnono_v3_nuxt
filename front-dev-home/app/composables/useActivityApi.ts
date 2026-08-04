@@ -52,6 +52,11 @@ export interface UserListRow {
   days_active_30d: number
   last_seen: string | null
   favorite_feature: string | null
+  /** Member-directory name, joined onto the row in
+   *  back_dev_home/activity/routes.py. Null when the directory has no row for
+   *  that employee number or could not be reached — the table then shows the
+   *  employee number alone. */
+  emp_nm: string | null
 }
 
 export interface UserListResponse {

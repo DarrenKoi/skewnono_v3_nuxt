@@ -137,6 +137,15 @@ composite aggregation, page by page. Returns `requests_30d`,
 `days_active_30d`, `last_seen` and the feature-only `favorite_feature`, sorted
 by `(-requests_30d, user_id)`.
 
+The response also carries `emp_nm`, but **an office adapter must not produce
+it**. The logging store records employee numbers and no names, so the provider
+contract stays `UserListRow`; `routes.py` joins the member directory on top and
+returns `NamedUserListRow`. That join is one `HMGET members <empnos…>` via
+`_auth.directory.lookup_members()`, which decides for itself whether to dial
+office Redis or fabricate home rows — so it needs nothing from either adapter.
+`emp_nm` is `null` when the directory has no row for that empno or cannot be
+reached; the table then shows the employee number alone.
+
 ### `GET /api/activity/users/<user_id>`
 
 **Admin only** (`403 forbidden` otherwise). Returns the personal history shape.

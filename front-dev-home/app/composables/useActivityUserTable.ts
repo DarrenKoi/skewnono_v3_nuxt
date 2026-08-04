@@ -4,7 +4,7 @@ import {
   type UserHistoryResponse,
   type UserListRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel } from '~/utils/activity'
+import { activityFeatureLabel, userDisplayName, userSearchText } from '~/utils/activity'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 type UserSort = 'requests' | 'days' | 'recent' | 'name'
@@ -41,7 +41,7 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
     const matched = rows.value.filter((row) => {
       if (featureFilter.value !== 'all' && row.favorite_feature !== featureFilter.value) return false
       if (!term) return true
-      return [row.user_id, row.favorite_feature ?? '', activityFeatureLabel(row.favorite_feature)]
+      return [userSearchText(row), row.favorite_feature ?? '', activityFeatureLabel(row.favorite_feature)]
         .join(' ')
         .toLocaleLowerCase('ko-KR')
         .includes(term)
@@ -56,7 +56,12 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
         return (right.last_seen ? Date.parse(right.last_seen) : 0)
           - (left.last_seen ? Date.parse(left.last_seen) : 0)
       }
-      if (sort.value === 'name') return left.user_id.localeCompare(right.user_id)
+      // Sorts by the label the column actually shows, so a row with no
+      // directory name files under its employee number rather than dropping
+      // to the end. 'ko' collation because most of these are Korean names.
+      if (sort.value === 'name') {
+        return userDisplayName(left).localeCompare(userDisplayName(right), 'ko')
+      }
       return right.requests_30d - left.requests_30d
         || left.user_id.localeCompare(right.user_id)
     })
@@ -73,8 +78,12 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
   }
 
   const tableData = () => ({
-    headers: ['사용자', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
+    // 이름 and 사번 are separate columns here, unlike the on-screen cell that
+    // stacks them: an export is what gets pasted into a spreadsheet and
+    // filtered on, and a merged "고대영 (2067928)" string cannot be.
+    headers: ['이름', '사번', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
     rows: filteredRows.value.map(row => [
+      row.emp_nm ?? '',
       row.user_id,
       row.requests_30d,
       row.days_active_30d,

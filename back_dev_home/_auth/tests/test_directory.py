@@ -19,6 +19,7 @@ from back_dev_home._auth.directory import (
     MEMBERS_KEY,
     bare_member,
     lookup_member,
+    lookup_members,
     probe_member,
     reset_cache,
 )
@@ -47,6 +48,16 @@ class _FakeRedis:
             raise self._raises
         value = self._values.get(field)
         return value if value is None else value.encode("utf-8")
+
+    def hmget(self, key, fields):
+        self.calls.append((key, list(fields)))
+        if self._raises is not None:
+            raise self._raises
+        return [
+            None if self._values.get(field) is None
+            else self._values[field].encode("utf-8")
+            for field in fields
+        ]
 
 
 @pytest.fixture(autouse=True)
@@ -345,3 +356,87 @@ def test_home_never_dials_redis_for_a_probe(monkeypatch):
     probe_member("2067928")
 
     assert called == []
+
+
+# --- the bulk read -----------------------------------------------------------
+#
+# `lookup_members` exists so a screen that lists people costs one round trip
+# instead of one per row. It answers for every id it was asked about, and the
+# same "never raises" rule applies: a directory problem costs names, not rows.
+
+
+OTHER_DOC = {"empno": "1234567", "emp_nm": "홍길동", "dept_nm": "계측기술팀"}
+
+
+def test_bulk_lookup_is_one_hmget_for_every_id(redis_returning):
+    """The whole point. A loop of `lookup_member` would be N round trips."""
+    client = redis_returning(
+        {"2067928": json.dumps(MEMBER_DOC), "1234567": json.dumps(OTHER_DOC)}
+    )
+
+    members = lookup_members(["2067928", "1234567"])
+
+    assert client.calls == [(MEMBERS_KEY, ["2067928", "1234567"])]
+    assert members["2067928"]["emp_nm"] == "고대영"
+    assert members["1234567"]["emp_nm"] == "홍길동"
+
+
+def test_bulk_lookup_answers_for_ids_with_no_row(redis_returning):
+    redis_returning({"2067928": json.dumps(MEMBER_DOC)})
+
+    members = lookup_members(["2067928", "9999999"])
+
+    assert members["9999999"] == bare_member("9999999")
+
+
+def test_bulk_lookup_survives_one_undecodable_row(redis_returning):
+    """One malformed document must not cost the whole table its names."""
+    redis_returning(
+        {"2067928": json.dumps(MEMBER_DOC), "1234567": "not json at all"}
+    )
+
+    members = lookup_members(["2067928", "1234567"])
+
+    assert members["2067928"]["emp_nm"] == "고대영"
+    assert members["1234567"] == bare_member("1234567")
+
+
+def test_bulk_lookup_survives_redis_being_down(redis_returning):
+    redis_returning(raises=OSError("connection refused"))
+
+    members = lookup_members(["2067928", "1234567"])
+
+    assert members == {
+        "2067928": bare_member("2067928"),
+        "1234567": bare_member("1234567"),
+    }
+
+
+def test_bulk_lookup_dedupes_and_skips_empty_ids(redis_returning):
+    """Ids come from a payload we did not build; asking twice would waste a
+    field and a blank id would query a hash key that cannot exist."""
+    client = redis_returning({"2067928": json.dumps(MEMBER_DOC)})
+
+    members = lookup_members(["2067928", "2067928", "", "1234567"])
+
+    assert client.calls == [(MEMBERS_KEY, ["2067928", "1234567"])]
+    assert set(members) == {"2067928", "1234567"}
+
+
+def test_bulk_lookup_of_nothing_does_not_dial_redis(redis_returning):
+    """An admin screen with no rows yet must not cost a round trip."""
+    client = redis_returning({})
+
+    assert lookup_members([]) == {}
+    assert client.calls == []
+
+
+def test_bulk_lookup_fabricates_at_home(monkeypatch):
+    """Same reason as `lookup_member`: home exercises the enriched shape, and
+    the distinct empno in each stand-in name keeps a list readable."""
+    monkeypatch.setattr(directory_mod, "get_mode", lambda: "mock")
+
+    members = lookup_members(["2067928", "1234567"])
+
+    assert members["2067928"]["emp_nm"] == "홍길동(2067928)"
+    assert members["1234567"]["emp_nm"] == "홍길동(1234567)"

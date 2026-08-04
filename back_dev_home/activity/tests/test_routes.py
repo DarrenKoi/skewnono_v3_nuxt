@@ -21,7 +21,11 @@ def make_client(monkeypatch):
     monkeypatch.setattr(routes, "get_me", lambda user_id: {"user_id": user_id})
     monkeypatch.setattr(routes, "get_summary", lambda: {"dau": 0})
     monkeypatch.setattr(routes, "get_fab_page_usage", lambda: {"fabs_7d": []})
-    monkeypatch.setattr(routes, "get_users_list", lambda: {"users": []})
+    monkeypatch.setattr(
+        routes,
+        "get_users_list",
+        lambda: {"generated_at": "2026-08-05T00:00:00+09:00", "users": []},
+    )
     monkeypatch.setattr(
         routes, "get_user_history", lambda user_id: {"user_id": user_id}
     )
@@ -72,6 +76,92 @@ def test_aggregate_views_stay_open_to_normal_users(make_client, path):
     client = make_client("1234567", "cookie")
 
     assert client.get(path).status_code == 200
+
+
+# --- the member-directory join on /activity/users ---------------------------
+#
+# The providers read the logging store, which records employee numbers and no
+# names, so the name is attached in the route. These cover the three answers
+# the directory can give for one row: a name, no row, and no directory.
+
+
+@pytest.fixture
+def users_route(monkeypatch, make_client):
+    """An admin client whose users list is two rows with chosen directory answers."""
+
+    def build(members):
+        monkeypatch.setattr(
+            routes,
+            "get_users_list",
+            lambda: {
+                "generated_at": "2026-08-05T00:00:00+09:00",
+                "users": [
+                    {
+                        "user_id": "2067928",
+                        "requests_30d": 9,
+                        "days_active_30d": 3,
+                        "last_seen": None,
+                        "favorite_feature": "storage",
+                    },
+                    {
+                        "user_id": "1234567",
+                        "requests_30d": 2,
+                        "days_active_30d": 1,
+                        "last_seen": None,
+                        "favorite_feature": None,
+                    },
+                ],
+            },
+        )
+        monkeypatch.setattr(routes, "lookup_members", lambda ids: members)
+        return make_client("local-dev", "local")
+
+    return build
+
+
+def test_listed_users_carry_their_directory_name(users_route):
+    client = users_route(
+        {
+            "2067928": {"empno": "2067928", "emp_nm": "고대영"},
+            "1234567": {"empno": "1234567", "emp_nm": "홍길동"},
+        }
+    )
+
+    users = client.get("/api/activity/users").json["users"]
+
+    assert [(row["user_id"], row["emp_nm"]) for row in users] == [
+        ("2067928", "고대영"),
+        ("1234567", "홍길동"),
+    ]
+
+
+def test_a_user_with_no_directory_row_still_appears(users_route):
+    """Contractors and service accounts hold a cookie without a member row."""
+    client = users_route({"2067928": {"empno": "2067928", "emp_nm": "고대영"}})
+
+    users = client.get("/api/activity/users").json["users"]
+
+    assert [(row["user_id"], row["emp_nm"]) for row in users] == [
+        ("2067928", "고대영"),
+        ("1234567", None),
+    ]
+    # The row is otherwise untouched — a missing name costs the name only.
+    assert users[1]["requests_30d"] == 2
+
+
+def test_an_unreachable_directory_costs_the_names_not_the_table(users_route):
+    """lookup_members degrades to bare records rather than raising."""
+    client = users_route(
+        {
+            "2067928": {"empno": "2067928", "emp_nm": None},
+            "1234567": {"empno": "1234567", "emp_nm": None},
+        }
+    )
+
+    response = client.get("/api/activity/users")
+
+    assert response.status_code == 200
+    assert [row["emp_nm"] for row in response.json["users"]] == [None, None]
 
 
 def test_a_declared_admin_id_does_not_pass_the_gate(make_client):

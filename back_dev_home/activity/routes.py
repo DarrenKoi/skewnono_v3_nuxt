@@ -3,8 +3,10 @@ import logging
 from flask import Blueprint, g, jsonify, request
 
 from .._auth.admin import require_admin
+from .._auth.directory import lookup_members
 from .._auth.errors import error_json
 from .._logging.feature_map import page_to_feature
+from .contracts import NamedUserListResponse
 from .data import (
     get_fab_page_usage,
     get_me,
@@ -47,12 +49,37 @@ def activity_fabs():
     return _query(get_fab_page_usage)
 
 
+def _named_users_list() -> NamedUserListResponse:
+    """The users list with each employee number expanded into a person.
+
+    The join lives here rather than in the providers because it is the same
+    join on both sides of the swap: ``lookup_members`` decides for itself
+    whether to dial office Redis or fabricate a home row, so neither
+    ``mock.py`` nor ``office.py`` has anything to contribute. Putting it in the
+    route also keeps the provider contract honest — the logging store records
+    employee numbers and no names, so ``UserListRow`` should not promise one.
+
+    A directory that cannot answer costs the names and not the table:
+    ``lookup_members`` never raises, and ``emp_nm`` is simply None.
+    """
+    payload = get_users_list()
+    rows = payload["users"]
+    members = lookup_members(row["user_id"] for row in rows)
+    return {
+        "generated_at": payload["generated_at"],
+        "users": [
+            {**row, "emp_nm": members.get(row["user_id"], {}).get("emp_nm")}
+            for row in rows
+        ],
+    }
+
+
 # Per-employee enumeration is admin-only; the aggregate views above
 # (/me, /summary, /fabs) stay open to every identified user.
 @bp.get("/activity/users")
 @require_admin
 def activity_users():
-    return _query(get_users_list)
+    return _query(_named_users_list)
 
 
 @bp.get("/activity/users/<user_id>")

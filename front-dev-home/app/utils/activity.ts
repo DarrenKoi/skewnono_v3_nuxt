@@ -1,4 +1,24 @@
-import type { DailyCount } from '~/composables/useActivityApi'
+import type { DailyCount, UserListRow } from '~/composables/useActivityApi'
+
+/** What identifies a person in a listing — the two columns the member-directory
+ *  join touches. Narrower than `UserListRow` so these read as row-identity
+ *  helpers rather than table-wide ones. */
+type ListedUser = Pick<UserListRow, 'user_id' | 'emp_nm'>
+
+/** The name the 사용자 column leads with: the member-directory name when the
+ *  backend found one, the employee number otherwise (a contractor or service
+ *  account with no directory row, or a directory that was unreachable).
+ *
+ *  The same rule as `identityDisplay.displayName` uses for the header pill,
+ *  kept separate because a listed row carries `emp_nm` flat while an identity
+ *  nests it under `member`. */
+export const userDisplayName = (row: ListedUser): string =>
+  row.emp_nm?.trim() || row.user_id
+
+/** Everything about a person the search box should match — name and employee
+ *  number both, so an admin who knows either one can find the row. */
+export const userSearchText = (row: ListedUser): string =>
+  `${row.emp_nm ?? ''} ${row.user_id}`
 
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.

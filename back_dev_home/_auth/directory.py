@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Iterable
 from functools import lru_cache
 from typing import Literal, NamedTuple, Optional, TypedDict
 
@@ -48,6 +49,7 @@ from .._runtime.office_redis import STORE_ERRORS, redis_client_or_none, redis_te
 logger = logging.getLogger(__name__)
 
 # HGET members <empno> -> a UTF-8 JSON document with the fields below.
+# (HMGET for the bulk read; same hash, same document shape.)
 # user-confirmed 2026-07-31, whole read path: the office does
 # `json.loads(redis.hget("members", str(LASTUSER)).decode("utf-8"))`.
 # The decode still degrades rather than raising — not because the encoding is
@@ -249,6 +251,66 @@ def lookup_member(user_id: Optional[str]) -> Optional[Member]:
     if get_mode() != "office":
         return _home_member(user_id)
     return probe_member(user_id).member or bare_member(user_id)
+
+
+def lookup_members(user_ids: Iterable[str]) -> dict[str, Member]:
+    """Profiles for many employee numbers, keyed by id.
+
+    For screens that list people rather than greet one — the admin activity
+    table asks for every user it is about to render. Doing that with
+    ``lookup_member`` in a loop would be one HGET per row and one socket
+    round trip per row; ``HMGET`` asks the same question once.
+
+    Deliberately *not* cached, unlike ``probe_member``. The per-user cache
+    exists because ``/api/me`` runs on every page load; this runs when an admin
+    opens one screen, so a cache would mostly hold entries nobody reads again
+    and would make the table show names that an org reshuffle already changed.
+    The single round trip is what makes that affordable.
+
+    Never raises, for the same reason ``lookup_member`` never does: a directory
+    outage must cost the names and not the page. Every id asked for is present
+    in the result, carrying at least its empno.
+    """
+    # Dedupe but keep the caller's order, so the HMGET fields line up with the
+    # ids we zip them back against.
+    wanted = list(dict.fromkeys(uid for uid in user_ids if uid))
+    if not wanted:
+        return {}
+
+    if get_mode() != "office":
+        return {uid: _home_member(uid) for uid in wanted}
+
+    members = {uid: bare_member(uid) for uid in wanted}
+
+    client = redis_client_or_none()
+    if client is None:
+        logger.warning(
+            "office mode but Redis is unconfigured; "
+            "member names will be missing for every listed user"
+        )
+        return members
+
+    try:
+        raw_values = client.hmget(MEMBERS_KEY, wanted)
+    except STORE_ERRORS as exc:
+        logger.warning("member directory unreachable for %d users: %s", len(wanted), exc)
+        return members
+
+    for user_id, raw in zip(wanted, raw_values):
+        if raw is None:
+            # No directory row — ordinary for contractors and service accounts.
+            continue
+        try:
+            members[user_id] = _decode(raw, user_id)
+        except (ValueError, TypeError, UnicodeDecodeError) as exc:
+            # One malformed document must not cost the whole table its names.
+            logger.warning(
+                "member document for %s is not the expected JSON object (%s: %s)",
+                user_id,
+                type(exc).__name__,
+                exc,
+            )
+    return members
 
 
 def reset_cache() -> None:

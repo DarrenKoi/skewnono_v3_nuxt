@@ -341,7 +341,7 @@
             icon="i-lucide-search"
             color="neutral"
             variant="subtle"
-            placeholder="사용자 또는 기능 검색"
+            placeholder="이름·사번 또는 기능 검색"
           />
           <USelect
             v-model="featureFilter"
@@ -424,8 +424,21 @@
                   @keydown.enter="toggleUser(row.user_id)"
                   @keydown.space.prevent="toggleUser(row.user_id)"
                 >
-                  <td class="py-2.5 pr-4 sk-value-num">
-                    {{ row.user_id }}
+                  <!-- Name leads, employee number underneath rather than
+                       instead of: every other screen and the activity log
+                       itself key on the empno, so it has to stay readable.
+                       No second line when there is no name — the id is
+                       already the first one. -->
+                  <td class="py-2.5 pr-4">
+                    <div class="sk-value">
+                      {{ userDisplayName(row) }}
+                    </div>
+                    <div
+                      v-if="row.emp_nm"
+                      class="sk-meta"
+                    >
+                      {{ row.user_id }}
+                    </div>
                   </td>
                   <td class="py-2.5 pr-4 text-right sk-value-num">
                     {{ row.requests_30d.toLocaleString() }}
@@ -527,7 +540,7 @@ import {
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice } from '~/utils/activity'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, userDisplayName } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 

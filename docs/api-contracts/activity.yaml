@@ -151,13 +151,26 @@ types:
       nullable: true
       description: trailing 30 KST 날짜에서 page_view 수가 가장 많은 slug입니다.
 
+  NamedUserListRow:
+    description: >-
+      UserListRow에 member directory 이름을 붙인 형태이며, /api/activity/users가
+      실제로 반환하는 행입니다. logging store는 사번만 기록하므로 provider는
+      emp_nm을 만들 수 없고, routes.py가 _auth.directory에서 조회해 붙입니다.
+    extends: UserListRow
+    emp_nm:
+      type: string
+      nullable: true
+      description: >-
+        Redis `members` 해시의 이름입니다. 해당 사번의 row가 없거나 directory를
+        조회할 수 없으면 null이며, 이때 화면은 사번만 표시합니다.
+
   UserListResponse:
     generated_at:
       type: string
       format: ISO 8601 UTC
     users:
       type: array
-      items: UserListRow
+      items: NamedUserListRow
       description: >-
         전체 사용자를 requests_30d 내림차순, user_id 오름차순으로 정렬합니다.
         OpenSearch composite aggregation을 끝까지 순회하며 HTTP pagination은 없습니다.
