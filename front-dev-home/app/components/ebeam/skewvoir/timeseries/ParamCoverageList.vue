@@ -8,8 +8,14 @@
        measurements carry should look different from picking one they all share"
        — better, not worse: when every chip wore an `n/n` badge, the partial ones
        had to be found by reading, and a row of identical `30/30`s was pure
-       noise. Now a coverage number appearing AT ALL is the signal, and it wears
-       the warning tone so it registers before the parameter name does.
+       noise. Now a coverage number appearing AT ALL is the signal.
+
+       The badge stays MUTED rather than warning-toned. A cross-recipe set is
+       partial on nearly every parameter, so a semantic tone fires on all of
+       them at once and stops distinguishing anything — an amber wall is the
+       same non-signal the `30/30` wall was. The set-level warning about mixed
+       recipes is what says "this set is a weak basis"; a per-chip tone would
+       only repeat it sixteen times.
 
        The 파라미터 label is not decoration: without it a bare wrap of mono chips
        under the integrity alerts reads as output, not as the control that
@@ -37,16 +43,11 @@
       >
         {{ paramLabel(o.parameter) }}
         <!-- Partial coverage only. Kept INSIDE the button rather than beside it
-             so the chip stays one hit target. On the selected chip the warning
-             tone would fight the ink fill, so it becomes a translucent overlay
-             — white over the near-black light-mode fill, black over the cream
-             dark-mode one. -->
+             so the chip stays one hit target. On the selected chip it rides the
+             ink fill at reduced opacity; elsewhere it is a muted count. -->
         <span
           v-if="o.covered < o.loaded"
-          class="rounded-full px-1 py-px text-[10px] tabular-nums"
-          :class="o.parameter === modelValue
-            ? 'bg-white/20 dark:bg-black/15'
-            : 'bg-(--sk-warn-soft) text-(--sk-warn)'"
+          class="text-[10px] tabular-nums opacity-60"
         >{{ o.covered }}/{{ o.loaded }}</span>
       </button>
     </div>

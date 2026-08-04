@@ -389,8 +389,24 @@ test('sequenceAxisBounds spans every group, not just the first', () => {
     seqGroup([[10, 1, '0,0'], [90, 1, '1,0']])
   ])
   assert.ok(bounds)
-  assert.equal(bounds.min, 10 - 1.6)
-  assert.equal(bounds.max, 90 + 1.6)
+  assert.equal(bounds.min, 10 - 2) // ceil(2% of 80)
+  assert.equal(bounds.max, 90 + 2)
+})
+
+test('sequenceAxisBounds stays on whole numbers', () => {
+  // ECharts prints the exact min/max as the end ticks, so a fractional bound is
+  // visible: a 2..128 run was labelled `130.52`. Sequences are integer steps.
+  const bounds = sequenceAxisBounds([seqGroup([[2, 1, '0,0'], [128, 1, '1,0']])])
+  assert.ok(bounds)
+  assert.ok(Number.isInteger(bounds.min), `min ${bounds.min} is not whole`)
+  assert.ok(Number.isInteger(bounds.max), `max ${bounds.max} is not whole`)
+  assert.deepEqual(bounds, { min: -1, max: 131 })
+})
+
+test('sequenceAxisBounds keeps a visible margin on a short run', () => {
+  // 2% of a 5-wide span rounds to a pad of 1, not 0 — otherwise the first and
+  // last points sit exactly on the frame.
+  assert.deepEqual(sequenceAxisBounds([seqGroup([[1, 1, '0,0'], [6, 1, '1,0']])]), { min: 0, max: 7 })
 })
 
 test('sequenceAxisBounds gives a single sequence a window instead of a zero-width axis', () => {

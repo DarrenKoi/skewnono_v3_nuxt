@@ -441,8 +441,11 @@ export const buildSequenceSeries = (
  *  artifact of the origin rather than a fact about the measurement.
  *
  *  Padded by 2% of the span so the first and last points sit inside the frame
- *  instead of on it. A single distinct sequence has zero span, which would
- *  collapse the axis, so it is given a ±1 window and lands mid-axis.
+ *  instead of on it, then rounded OUTWARD to whole numbers: a sequence is an
+ *  integer step counter, so a fractional bound is both meaningless and visible —
+ *  ECharts prints the exact max as the end tick, which is how a 128-step run
+ *  ends up labelled `130.52`. A single distinct sequence has zero span, which
+ *  would collapse the axis, so it is given a ±1 window and lands mid-axis.
  *
  *  Pure and exported so the bound is unit-tested rather than an expression
  *  buried in a chart option. */
@@ -459,7 +462,8 @@ export const sequenceAxisBounds = (
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) return null
   if (min === max) return { min: min - 1, max: max + 1 }
-  const pad = (max - min) * 0.02
+  // At least 1 so a short run (span < 50) still gets a visible margin.
+  const pad = Math.max(1, Math.ceil((max - min) * 0.02))
   return { min: min - pad, max: max + pad }
 }
 
