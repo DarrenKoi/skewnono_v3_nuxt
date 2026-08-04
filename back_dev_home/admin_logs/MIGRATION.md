@@ -84,7 +84,9 @@ Supported query parameters:
   is rejected with `400 invalid_log_query`.
 - `level`, `event`, `method`, `user_id`, `feature`, `path`
 - `activity_kind`: narrows the activity classification to one of `entry`,
-  `feature`, `background` or `operation`.
+  `feature`, `page_view`, `background` or `operation`. A `page_view` row is a
+  page-open beacon (`POST /api/page-view`); its `feature` field holds the slug
+  of the page the user opened, not the beacon's own path.
 - `fab_name`: narrows by FAB name. Several may be given comma-separated; they go
   through the same `normalize_fab_name_list` normalization as the writer and are
   matched as a terms query against `fab_name_list`.
