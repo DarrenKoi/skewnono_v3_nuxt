@@ -23,7 +23,7 @@ def _try_api_token():
     """Authenticate via Authorization: Bearer skn_... on /api/* requests.
 
     Returns (matched, response):
-      matched=False           → no Authorization header, fall through to SSO
+      matched=False           → no Authorization header, fall through to cookie
       matched=True, response=None → token accepted, request proceeds
       matched=True, response=<401> → token present but invalid; do not redirect
     """
