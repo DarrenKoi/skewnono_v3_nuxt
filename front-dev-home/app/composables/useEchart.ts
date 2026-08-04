@@ -5,6 +5,19 @@ import { registerEchartsThemes } from '~/utils/echartsThemes'
 import { chartExportFilename } from '~/utils/chartExport'
 import { withPreservedZoom, type ZoomWindow } from '~/utils/chartZoom'
 
+export interface GridClickDetail {
+  // Axis values under the cursor: a fractional category position for a category
+  // axis (round it for the index), the data value for a value/time axis.
+  x: number
+  y: number
+  // Which grid was hit — matters for multi-grid charts (small multiples, matrix
+  // cells) where the same x means a different series per pane.
+  gridIndex: number
+  // Data units per screen pixel on each axis, for weighing x against y.
+  dataPerPixelX: number
+  dataPerPixelY: number
+}
+
 interface UseEchartOptions {
   // Fired when a series element (e.g. a bar) is clicked. Receives the
   // x-axis category for category-bucketed series — for our charts that's
@@ -22,7 +35,14 @@ interface UseEchartOptions {
   // multi-grid charts — small multiples, matrix cells — where the same x value
   // means a different series depending on which pane was clicked. Single-grid
   // callers can ignore it.
-  onGridClick?: (xValue: number, gridIndex: number) => void
+  //
+  // `y` is the value-axis counterpart of `x`. Comparing the two directly is a
+  // mistake — they carry different units (nm against seconds, say) — so the
+  // detail also reports how much data one pixel is worth on each axis. Dividing
+  // by those converts a data-space gap into the on-screen gap the reader
+  // actually judged, which is what `nearestPoint` in utils/chartNearest.ts
+  // wants. See that file for why pixels are the only fair space to pick in.
+  onGridClick?: (detail: GridClickDetail) => void
   // Fired when a series element is clicked, carrying the datum's index within
   // its series. `onClick` forwards the category NAME, which is not an identity
   // for charts whose labels are display strings rather than ids — the caller
@@ -124,9 +144,24 @@ export const useEchart = (
       const gridCount = Array.isArray(grids) ? Math.max(grids.length, 1) : 1
       for (let gridIndex = 0; gridIndex < gridCount; gridIndex++) {
         if (!chart.containPixel({ gridIndex }, point)) continue
-        const converted = chart.convertFromPixel({ gridIndex }, point)
-        const xValue = Array.isArray(converted) ? Number(converted[0]) : NaN
-        if (Number.isFinite(xValue)) callback(xValue, gridIndex)
+        const at = chart.convertFromPixel({ gridIndex }, point)
+        if (!Array.isArray(at)) return
+        const x = Number(at[0])
+        const y = Number(at[1])
+        if (!Number.isFinite(x)) return
+        // One pixel right and down, converted the same way: the difference is
+        // what a pixel is worth in data units on each axis. Two conversions
+        // instead of one per candidate point, and it costs nothing on a chart
+        // with no y component to weigh (the caller simply ignores it).
+        const stepped = chart.convertFromPixel({ gridIndex }, [point[0] + 1, point[1] + 1])
+        const at1 = Array.isArray(stepped) ? stepped : [x, y]
+        callback({
+          x,
+          y,
+          gridIndex,
+          dataPerPixelX: Math.abs(Number(at1[0]) - x) || 1,
+          dataPerPixelY: Math.abs(Number(at1[1]) - y) || 1
+        })
         return
       }
     })

@@ -83,6 +83,7 @@ import type { EChartsOption } from 'echarts'
 import type { SpatialResult, SpatialLayerKey } from '~/utils/skewvoirAnalysis/spatial'
 import type { WaferGeometry } from '~/utils/waferGeometry'
 import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
+import { nearestPoint } from '~/utils/chartNearest'
 
 const props = defineProps<{
   spatial: SpatialResult
@@ -262,5 +263,20 @@ const option = computed<EChartsOption>(() => ({
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
-useEchart(chartEl, option, { onClick: name => emit('focus', name) })
+useEchart(chartEl, option, {
+  onClick: name => emit('focus', name),
+  // Sites sit sparsely on the wafer, so the reader points at a location and the
+  // nearest site wins. Half a die pitch keeps a click in the empty space
+  // between sites — or outside the wafer entirely — from focusing a site the
+  // reader was not looking at.
+  onGridClick: (detail) => {
+    const pitchPx = (props.geo.pitchXmm || 0) / detail.dataPerPixelX
+    const chip = nearestPoint(
+      points.value.map(p => ({ x: p.x, y: p.y, item: p.chip })),
+      detail,
+      { maxDistancePx: Math.max(16, pitchPx * 0.75) }
+    )
+    if (chip) emit('focus', chip)
+  }
+})
 </script>

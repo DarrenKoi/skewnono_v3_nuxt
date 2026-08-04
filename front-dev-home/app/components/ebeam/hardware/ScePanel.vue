@@ -661,6 +661,6 @@ const evolutionOption = computed<EChartsOption>(() => {
 // category axis of 0..359, so the converted value IS the index (setCoeffIndex
 // rounds and clamps it).
 useEchart(evolutionEl, evolutionOption, {
-  onGridClick: x => setCoeffIndex(x)
+  onGridClick: ({ x }) => setCoeffIndex(x)
 })
 </script>

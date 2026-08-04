@@ -12,6 +12,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { alignToSequences, type SeqPoint } from '~/utils/skewvoirAnalysis/sequence'
+import { nearestIndex } from '~/utils/chartNearest'
 
 // A single SHARED-CURSOR sequence pane. Repurposed from the old FDC-only trend
 // into a generic measurement-order line so the CD pane and every dynamic-FDC
@@ -115,6 +116,15 @@ useEchart(chartEl, option, {
   onClick: (name) => {
     const seq = Number(name)
     if (Number.isFinite(seq)) emit('select', seq)
+  },
+  // A 5px dot is a ~10px target, and the panes stack several to a screen — too
+  // small to hit reliably. Clicking anywhere in the pane moves the shared
+  // cursor to the sequence under the pointer instead, which is also what the
+  // vertical cursor line already implies is clickable.
+  onGridClick: ({ x }) => {
+    const index = nearestIndex(x, props.sequences.length)
+    const seq = index == null ? null : props.sequences[index]
+    if (seq != null) emit('select', seq)
   }
 })
 </script>

@@ -10,6 +10,7 @@
 import type { EChartsOption } from 'echarts'
 import { radialYExtent, type RadialBandMode, type RadialProfileResult } from '~/utils/radialAnalysis'
 import { SK_STATE } from '~/utils/chartPalette'
+import { nearestPoint } from '~/utils/chartNearest'
 
 const props = withDefaults(defineProps<{
   profile: RadialProfileResult
@@ -304,5 +305,30 @@ const option = computed<EChartsOption>(() => {
 })
 
 const chartEl = ref<HTMLDivElement | null>(null)
-useEchart(chartEl, option, { onClick: name => emit('focus', Number(name)) })
+// Which points a click can land on depends on the pane: the main grid plots
+// value against radius, the residual grid (when shown) plots residual against
+// the same radius. Picking against the wrong pane's y would select by a number
+// the reader cannot see.
+const clickableIn = (gridIndex: number) => {
+  if (gridIndex === 0) {
+    return props.profile.points.map(point => ({
+      x: point.radius,
+      y: point.value,
+      item: point.sequence
+    }))
+  }
+  return props.profile.points.flatMap(point => point.residual == null
+    ? []
+    : [{ x: point.radius, y: point.residual, item: point.sequence }])
+}
+
+useEchart(chartEl, option, {
+  onClick: name => emit('focus', Number(name)),
+  // 6-7px dots along a fitted curve — small enough that readers were missing
+  // them while clearly aiming at one.
+  onGridClick: (detail) => {
+    const seq = nearestPoint(clickableIn(detail.gridIndex), detail)
+    if (seq != null) emit('focus', seq)
+  }
+})
 </script>

@@ -33,6 +33,7 @@ import type { TsAxisMode, TsBaseline } from '~/utils/skewvoirAnalysis/types'
 import { placeTrendPoints, distinctEqpIds } from '~/utils/skewvoirAnalysis/timeSeries'
 import { rankToolColors, toolLegendChips } from '~/utils/skewvoirAnalysis/toolColors'
 import { SK_STATE } from '~/utils/chartPalette'
+import { nearestPoint } from '~/utils/chartNearest'
 
 const props = defineProps<{
   points: TrendPoint[]
@@ -277,12 +278,30 @@ const option = computed<EChartsOption>(() => ({
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
+// Every plotted measurement, flattened out of the per-tool series so a click
+// can be resolved against all of them at once. Several tools overlap in this
+// chart, so the pick has to weigh both axes — the reader aims at a dot, not at
+// a moment, and two tools an hour apart are told apart by their value.
+const clickable = computed(() =>
+  toolSeries.value.flatMap(series =>
+    series.data.map(datum => ({ x: datum.value[0], y: datum.value[1], item: datum.point.msr }))
+  )
+)
+
 useEchart(chartEl, option, {
   onDataIndex: (dataIndex: number, seriesIndex: number) => {
     // The band series are `silent: true` so they should never fire, but an
     // out-of-range index resolves to undefined and emits nothing rather than
     // selecting the wrong measurement.
     const msr = toolSeries.value[seriesIndex - bandCount.value]?.data[dataIndex]?.point.msr
+    if (msr) emit('select', msr)
+  },
+  // A near-miss on a 7px dot used to do nothing. Now it selects the measurement
+  // nearest the pointer — but only within the pick radius, since this chart has
+  // legitimately empty regions (a tool that stopped reporting) where selecting
+  // something far away would be a guess, not a correction.
+  onGridClick: (detail) => {
+    const msr = nearestPoint(clickable.value, detail)
     if (msr) emit('select', msr)
   }
 })

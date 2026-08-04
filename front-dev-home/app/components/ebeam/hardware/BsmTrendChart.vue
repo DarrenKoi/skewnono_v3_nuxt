@@ -24,6 +24,7 @@ import type { EChartsOption } from 'echarts'
 import { stableYRange, tightYRange, type StableYRangeOptions } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import { trendSymbolSize } from '~/utils/chartSymbolSize'
+import { nearestPoint } from '~/utils/chartNearest'
 
 const props = defineProps<{
   label: string
@@ -68,18 +69,7 @@ const overlays = computed(() => props.overlays ?? [])
 // why spacing rather than point count decides it. The host has to be measured
 // because the same chart renders full-width in SharpnessPanel and half-width in
 // BsmPanel's side-by-side panes.
-const hostWidth = ref(0)
-let observer: ResizeObserver | null = null
-watch(chartEl, (el) => {
-  observer?.disconnect()
-  observer = null
-  if (!el) return
-  observer = new ResizeObserver(([entry]) => {
-    if (entry) hostWidth.value = entry.contentRect.width
-  })
-  observer.observe(el)
-}, { immediate: true })
-onBeforeUnmount(() => observer?.disconnect())
+const hostWidth = useElementWidth(chartEl)
 
 // Sized against the grid's inner width, so the margins below have to be kept in
 // step with the `grid` option.
@@ -151,17 +141,18 @@ const chartOption = computed<EChartsOption>(() => ({
 // dot, which readers were missing; this makes the whole plot area the target,
 // so a near-miss still selects what the reader was aiming at. Both fire — a
 // direct hit goes through onClick and never reaches here.
-const selectNearest = (x: number) => {
-  let best: { key: string, gap: number } | null = null
-  for (const p of props.points) {
-    const gap = Math.abs(toEpoch(p.ts) - x)
-    if (!best || gap < best.gap) best = { key: p.key, gap }
-  }
-  if (best) emit('select', best.key)
-}
+// This is a trend read left-to-right — one measurement per timestamp — so the
+// click means "that moment" and how high the cursor sat carries no intent.
+const candidates = computed(() =>
+  props.points.map(p => ({ x: toEpoch(p.ts), y: 0, item: p.key }))
+)
 
 useEchart(chartEl, chartOption, {
   onClick: ts => emit('select', ts),
-  onGridClick: x => selectNearest(x)
+  onGridClick: (detail) => {
+    // No radius cap: anywhere inside the plot is a deliberate pick of a moment.
+    const key = nearestPoint(candidates.value, detail, { xOnly: true, maxDistancePx: Infinity })
+    if (key) emit('select', key)
+  }
 })
 </script>

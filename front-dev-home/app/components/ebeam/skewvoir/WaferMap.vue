@@ -11,6 +11,7 @@ import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 import type { WaferGeometry } from '~/utils/waferGeometry'
 import { buildWaferPoints, type WaferPoint } from '~/utils/waferPoints'
+import { nearestPoint } from '~/utils/chartNearest'
 import { buildWaferAxis } from '~/utils/waferAxis'
 import { dieGridLineData } from '~/utils/waferDieGrid'
 import { formatWaferTooltip } from '~/utils/waferTooltip'
@@ -280,5 +281,28 @@ const option = computed<EChartsOption>(() => ({
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
-useEchart(chartEl, option, { onClick: name => emit('focus', Number(name)) })
+// Both axes are millimetres on the same scale here, and the natural pick radius
+// is the die itself: a click inside a die means that die, wherever the measured
+// point sits within it. Floored so a wafer full of tiny dies is still clickable,
+// and capped by the same rule so a click in the empty corner outside the wafer
+// selects nothing rather than snapping to the nearest edge die.
+const pickRadiusPx = (detail: { dataPerPixelX: number }) => {
+  const pitchPx = (props.geo.pitchXmm || 0) / detail.dataPerPixelX
+  return Math.max(16, pitchPx * 0.75)
+}
+
+useEchart(chartEl, option, {
+  onClick: name => emit('focus', Number(name)),
+  // In Die mode the tiles are custom-rendered rects, which do fire clicks; in
+  // Field mode the target is a 13px dot. Either way a near-miss used to do
+  // nothing, and on a wafer map the reader is plainly pointing at a location.
+  onGridClick: (detail) => {
+    const seq = nearestPoint(
+      activePoints.value.map(p => ({ x: p.x, y: p.y, item: p.seq })),
+      detail,
+      { maxDistancePx: pickRadiusPx(detail) }
+    )
+    if (seq != null) emit('focus', seq)
+  }
+})
 </script>

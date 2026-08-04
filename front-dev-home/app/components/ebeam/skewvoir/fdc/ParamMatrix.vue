@@ -20,6 +20,7 @@ import type {
 } from 'echarts'
 import type { MatrixCell, MatrixRow, ParamMatrixModel } from '~/utils/skewvoirAnalysis/paramMatrix'
 import { SK_STATE } from '~/utils/chartPalette'
+import { nearestIndex } from '~/utils/chartNearest'
 
 // The FDC sparkline matrix: one mini line chart per param, laid out by the
 // ECharts 6 `matrix` coordinate system. Each cell is a full cartesian grid with
@@ -261,8 +262,9 @@ useEchart(chartEl, option, {
   exportName: 'fdc-param-matrix',
   // One gesture, two effects: move the shared cursor (what every other pane's
   // click does) and open the clicked param's full-size pane.
-  onGridClick: (xValue, gridIndex) => {
-    const seq = props.model.sequences[Math.round(xValue)]
+  onGridClick: ({ x, gridIndex }) => {
+    const index = nearestIndex(x, props.model.sequences.length)
+    const seq = index == null ? null : props.model.sequences[index]
     if (seq != null) emit('select', seq)
     const cell = flatCells.value[gridIndex]?.cell
     if (cell && cell.category !== 'cd') emit('drill', cell.param)

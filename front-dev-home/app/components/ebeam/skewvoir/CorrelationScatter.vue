@@ -13,6 +13,7 @@
 import type { EChartsOption } from 'echarts'
 import type { PairedPoint } from '~/utils/skewvoirAnalysis/relationships'
 import { pearson, spearman, fitLine } from '~/utils/stats'
+import { nearestPoint } from '~/utils/chartNearest'
 
 // Param-vs-param correlation renders only pre-paired points. Relationship joins
 // belong to utils/skewvoirAnalysis/relationships so every scope shares one
@@ -121,5 +122,21 @@ const option = computed<EChartsOption>(() => ({
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
-useEchart(chartEl, option, { onClick: chip => emit('focus', chip) })
+// A scatter is aimed at in two dimensions, so the pick weighs both axes — and
+// they hold different units (a CD in nm against an overlay in the same or
+// another scale), which is why the pick happens in screen space.
+const clickable = computed(() =>
+  props.points.map(point => ({ x: point.x, y: point.y, item: point.chip }))
+)
+
+useEchart(chartEl, option, {
+  onClick: chip => emit('focus', chip),
+  // 7px dots in a cloud: a near-miss selected nothing, which read as the chart
+  // ignoring the click. The radius cap keeps a click in genuinely empty space
+  // (a sparse corner of the cloud) from focusing an unrelated site.
+  onGridClick: (detail) => {
+    const chip = nearestPoint(clickable.value, detail)
+    if (chip) emit('focus', chip)
+  }
+})
 </script>
