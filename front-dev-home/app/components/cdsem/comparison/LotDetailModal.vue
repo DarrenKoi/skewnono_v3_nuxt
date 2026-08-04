@@ -14,7 +14,7 @@
         <div class="flex items-stretch gap-3">
           <span
             class="w-[5px] flex-none rounded-[2px]"
-            :style="{ background: stripeColor }"
+            :style="{ background: healthStripeColor(row.verdict.health) }"
             aria-hidden="true"
           />
           <div class="min-w-0 flex-1">
@@ -22,18 +22,19 @@
               <span class="font-mono text-[22px] font-extrabold leading-tight tracking-tight tabular-nums text-(--sk-ink)">{{ row.lot_cd }}</span>
               <span
                 v-if="row.verdict.health"
-                class="inline-flex h-[26px] items-center rounded-md px-2.5 font-mono text-sm font-bold"
-                :style="healthBadgeStyle"
+                class="sk-badge sk-badge-lg font-bold"
+                :style="healthBadgeStyle(row.verdict.health, isDark)"
               >{{ row.verdict.health }}</span>
               <span
                 v-else
-                class="inline-flex h-[26px] items-center rounded-md bg-(--sk-muted-surface) px-2.5 font-mono text-sm font-semibold text-(--sk-ink-subtle) ring-1 ring-(--sk-border) ring-inset"
+                class="sk-badge sk-badge-lg bg-(--sk-muted-surface) text-(--sk-ink-subtle) ring-1 ring-(--sk-border) ring-inset"
               >{{ text.noRules }}</span>
               <CdsemComparisonStageChip
                 :stage="row.dev_stage"
                 :inferred="row.stage_inferred"
+                large
               />
-              <span class="inline-flex h-[26px] items-center rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-sm font-semibold text-(--sk-accent) ring-1 ring-(--sk-accent-border) ring-inset">{{ bucket }}</span>
+              <span class="sk-badge sk-badge-lg bg-(--sk-accent-tint) text-(--sk-accent) ring-1 ring-(--sk-accent-border) ring-inset">{{ bucket }}</span>
             </div>
 
             <p class="mt-1.5 sk-card-desc">
@@ -122,7 +123,7 @@
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="font-mono text-[17px] font-bold leading-tight tracking-tight text-(--sk-ink)">{{ recipe.recipe_id }}</span>
-                  <span class="inline-flex h-6 items-center rounded-md bg-(--sk-muted-surface) px-2.5 font-mono text-[13px] font-semibold text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ recipe.oper_id }}</span>
+                  <span class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ recipe.oper_id }}</span>
                 </div>
                 <p class="mt-1.5 sk-card-desc">
                   {{ recipe.oper_desc || '—' }}
@@ -185,7 +186,7 @@ import type {
   SummaryBucketKey
 } from '~/composables/useRecipeStatisticsApi'
 
-import { healthSwatches, paraColors, paraColorsDark, paraOrder } from './healthTokens'
+import { healthBadgeStyle, healthStripeColor, paraColors, paraColorsDark, paraOrder } from './healthTokens'
 
 const props = defineProps<{
   row: HealthAugmentedRow | null
@@ -220,23 +221,6 @@ const modalUi = {
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 const paraPalette = computed(() => isDark.value ? paraColorsDark : paraColors)
-
-// 판정 없음(룰 없는 fab)은 중성 회색입니다 — 초록과 섞이면 "판정했고 괜찮다" 로
-// 읽힙니다. 룰이 없어 아무 말도 하지 않은 것과는 다릅니다.
-const stripeColor = computed(() => {
-  const health = props.row?.verdict.health
-  return health ? healthSwatches[health].dot : 'var(--sk-border)'
-})
-
-const healthBadgeStyle = computed(() => {
-  const health = props.row?.verdict.health
-  if (!health) return {}
-  const swatch = healthSwatches[health]
-  return {
-    background: isDark.value ? swatch.tintDark : swatch.tint,
-    color: isDark.value ? swatch.inkDark : swatch.ink
-  }
-})
 
 const lotRecipes = computed<RecipeInfoRow[]>(() => {
   const lotCd = props.row?.lot_cd

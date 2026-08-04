@@ -10,7 +10,7 @@
       <h3 class="sk-panel-title">
         {{ text.step3Title }}
       </h3>
-      <span class="text-sm text-(--sk-ink-muted)">
+      <span class="sk-hint">
         {{ activeTab === 'selection' ? text.step3HintSelection : text.step3HintPresets }}
       </span>
     </div>
@@ -168,7 +168,7 @@
                   >
                     {{ preset.comments }}
                   </p>
-                  <p class="mt-1 flex items-center gap-1 sk-meta">
+                  <p class="mt-1 flex items-center gap-1 sk-caption">
                     <UIcon
                       name="i-lucide-clock-3"
                       class="h-2.5 w-2.5"

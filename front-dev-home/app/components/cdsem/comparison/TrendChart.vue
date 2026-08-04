@@ -59,6 +59,7 @@ import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
 import { paraColors, paraColorsDark } from './healthTokens'
 import type { SummaryBucketKey, RecipeTrendResponse } from '~/composables/useRecipeStatisticsApi'
 import { extractParaTrend, formatTrendTick, type ParaKey } from '~/utils/paraTrendSeries'
+import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from '~/utils/chartType'
 
 type TrendMode = 'lines' | 'stacked'
 
@@ -160,21 +161,21 @@ const option = computed<EChartsOption>(() => {
       right: 38,
       itemWidth: 10,
       itemHeight: 10,
-      textStyle: { fontSize: 13 },
+      textStyle: CHART_LEGEND_LABEL,
       data: data.series.map(s => s.label)
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: data.dates.map(formatTrendTick),
-      axisLabel: { fontSize: 13 }
+      axisLabel: CHART_AXIS_LABEL
     },
     yAxis: {
       type: 'value',
       name: 'recipe 수',
-      nameTextStyle: { fontSize: 13, align: 'left' },
+      nameTextStyle: { ...CHART_LEGEND_LABEL, align: 'left' },
       minInterval: 1,
-      axisLabel: { fontSize: 13 },
+      axisLabel: CHART_AXIS_LABEL,
       splitLine: { lineStyle: { opacity: 0.35 } }
     },
     series: data.series.map(s => ({
@@ -201,7 +202,7 @@ const option = computed<EChartsOption>(() => {
         ? { show: false }
         : {
             show: true,
-            fontSize: 13,
+            ...CHART_LEGEND_LABEL,
             fontWeight: 'bold' as const,
             color: pal[s.key],
             formatter: s.label

@@ -592,6 +592,46 @@ body {
   color: var(--sk-ink-muted);
   text-wrap: pretty;
 }
+
+/* Short guidance beside a panel title ("체크박스로 여러 개 선택"). Reads at the
+   same 14px as a card value but muted, so it steps back without shrinking —
+   it is an instruction the user follows once, not chrome. */
+.sk-hint {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--sk-ink-muted);
+}
+
+/* Status BADGE — the short tag beside a card headline (health, stage, bucket,
+   oper_id, category). Geometry and type only; the caller supplies the colour,
+   either as a utility pair or as an inline style from healthTokens.
+   Separating those is what lets one badge carry a health tint and the next a
+   neutral surface without either restating the size.
+
+   This exists for the same reason CHIP_BASE does in utils/chipClass.ts, and
+   it lives in CSS rather than beside it because a badge's colour never needs
+   a JS branch the way an active/inactive chip's does. */
+.sk-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* One step up, for badges sitting beside the 22px lot_cd in a detail header
+   rather than the 18px one on a card. Compose: `sk-badge sk-badge-lg`. */
+.sk-badge-lg {
+  height: 26px;
+  font-size: 14px;
+}
 } /* @layer components */
 
 /* Liveness halo on the backend-health dot — a 1.6s outward fade. The halo

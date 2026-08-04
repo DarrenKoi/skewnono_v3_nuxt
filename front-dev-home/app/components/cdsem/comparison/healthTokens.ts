@@ -49,6 +49,27 @@ export const healthSwatches: Record<HealthLevel, HealthSwatch> = {
   }
 }
 
+// 아래 두 함수가 여기 있는 이유는 이 파일 머리말과 같습니다: swatch 를 실제
+// 색으로 바꾸는 규칙이 화면마다 한 벌씩 생기면, 같은 판정이 화면마다 다른
+// 색으로 보일 수 있습니다. health 를 색으로 옮기는 일은 전부 이 파일이 합니다.
+//
+// `health === null` 은 "룰이 없어 판정하지 않았다" 입니다. 초록이 아니라
+// 중성 회색으로 나가야 합니다 — 초록은 "판정했고 괜찮다" 라는 뜻이라,
+// 아무 말도 하지 않은 것과 섞이면 없는 보증을 준 것이 됩니다.
+
+/** 카드 왼쪽 띠 색. 판정 없음이면 테두리색(중성). */
+export const healthStripeColor = (health: HealthLevel | null): string =>
+  health ? healthSwatches[health].dot : 'var(--sk-border)'
+
+/** tint 배경 + ink 글자. 판정 없음이면 호출부가 중성 배지를 그립니다. */
+export const healthBadgeStyle = (health: HealthLevel, isDark: boolean) => {
+  const swatch = healthSwatches[health]
+  return {
+    background: isDark ? swatch.tintDark : swatch.tint,
+    color: isDark ? swatch.inkDark : swatch.ink
+  }
+}
+
 // Parameter category palette — an ORDINAL ramp, not four categorical hues.
 // para_16 → para_5 is an ordered measurement-density scale, so a single warm
 // hue (45°, the --sk-accent family) carries identity through lightness alone.

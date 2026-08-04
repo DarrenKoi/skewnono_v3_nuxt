@@ -9,10 +9,10 @@
     <template #body>
       <div class="space-y-2.5">
         <div class="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-          <span class="text-sm text-(--sk-ink-muted)">
+          <span class="sk-hint">
             recipe <span class="sk-field-value font-semibold text-(--sk-ink)">{{ device?.recipes.length ?? 0 }}</span>개
           </span>
-          <span class="inline-flex items-center gap-2 text-sm text-(--sk-ink-muted)">
+          <span class="sk-hint inline-flex items-center gap-2">
             <span class="inline-block h-2.5 w-2.5 rounded-full bg-rose-500" />
             {{ highlightLabel }} recipe <span class="sk-field-value font-semibold text-(--sk-ink)">{{ device?.flagged_recipe_count ?? 0 }}</span>개
             · 파라미터 <span class="sk-field-value font-semibold text-(--sk-ink)">{{ device?.flagged_param_count ?? 0 }}</span>개
@@ -50,7 +50,7 @@
                 <span class="text-sm tabular-nums text-(--sk-ink-muted)">{{ recipe.total_params }} params</span>
                 <span
                   v-if="recipe.flagged_count > 0"
-                  class="inline-flex h-[26px] items-center rounded-md bg-rose-100 px-2.5 font-mono text-sm font-bold tabular-nums text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                  class="sk-badge sk-badge-lg bg-rose-100 font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                 >{{ highlightLabel }} {{ recipe.flagged_count }}</span>
               </span>
             </button>

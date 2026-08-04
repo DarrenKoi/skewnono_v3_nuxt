@@ -51,7 +51,7 @@
           <h3 class="sk-panel-title">
             {{ text.step1Title }}
           </h3>
-          <span class="text-sm text-(--sk-ink-muted)">
+          <span class="sk-hint">
             {{ hasRSelection ? text.step1HintR : text.step1HintM }}
           </span>
         </div>
@@ -129,78 +129,37 @@
           </div>
         </div>
 
-        <div
-          v-if="hasRSelection"
-          class="filter-card"
-        >
+        <div class="filter-card">
           <div class="filter-card__head">
-            <span class="filter-card__title">Lot</span>
-            <span class="sk-field-name">lot_cd · {{ lotOptions.length }}개 중 {{ stepOneLotStrip.chips.length }}개 표시</span>
+            <span class="filter-card__title">{{ identityFilter.title }}</span>
+            <span class="sk-field-name">{{ identityFilter.fieldName }} · {{ identityFilter.total }}개 중 {{ identityFilter.strip.chips.length }}개 표시</span>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
             <UInput
-              v-model="lotSearch"
+              v-model="identitySearch"
               class="w-48 shrink-0"
               size="md"
               color="neutral"
               variant="subtle"
               icon="i-lucide-search"
-              :placeholder="text.lotSearch"
+              :placeholder="identityFilter.placeholder"
             />
             <button
-              v-for="lot in stepOneLotStrip.chips"
-              :key="lot"
+              v-for="value in identityFilter.strip.chips"
+              :key="value"
               type="button"
-              :class="[CHIP_BASE_MONO, chipClass(isLotSelected(lot))]"
-              @click="toggleLot(lot)"
+              :class="[identityFilter.mono ? CHIP_BASE_MONO : CHIP_BASE, chipClass(identityFilter.isSelected(value))]"
+              @click="identityFilter.toggle(value)"
             >
-              {{ lot }}
+              {{ value }}
             </button>
             <button
-              v-if="stepOneLotStrip.overflowCount > 0 || lotChipsExpanded"
+              v-if="identityFilter.strip.overflowCount > 0 || chipsExpanded"
               type="button"
-              class="inline-flex h-[34px] items-center gap-1 rounded-lg bg-(--sk-muted-surface) px-3 text-[13px] font-semibold text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-              @click="lotChipsExpanded = !lotChipsExpanded"
+              :class="[CHIP_BASE, 'bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-(--sk-border-soft) hover:text-(--sk-ink)']"
+              @click="chipsExpanded = !chipsExpanded"
             >
-              {{ lotChipsExpanded ? text.collapseChips : `${text.expandChips} +${stepOneLotStrip.overflowCount}` }}
-            </button>
-          </div>
-        </div>
-
-        <div
-          v-else
-          class="filter-card"
-        >
-          <div class="filter-card__head">
-            <span class="filter-card__title">Tech</span>
-            <span class="sk-field-name">tech_nm · {{ techOptions.length }}개 중 {{ stepOneTechStrip.chips.length }}개 표시</span>
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <UInput
-              v-model="techSearch"
-              class="w-48 shrink-0"
-              size="md"
-              color="neutral"
-              variant="subtle"
-              icon="i-lucide-search"
-              :placeholder="text.techSearch"
-            />
-            <button
-              v-for="tech in stepOneTechStrip.chips"
-              :key="tech"
-              type="button"
-              :class="[CHIP_BASE, chipClass(isTechSelected(tech))]"
-              @click="toggleTech(tech)"
-            >
-              {{ tech }}
-            </button>
-            <button
-              v-if="stepOneTechStrip.overflowCount > 0 || techChipsExpanded"
-              type="button"
-              class="inline-flex h-[34px] items-center gap-1 rounded-lg bg-(--sk-muted-surface) px-3 text-[13px] font-semibold text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-              @click="techChipsExpanded = !techChipsExpanded"
-            >
-              {{ techChipsExpanded ? text.collapseChips : `${text.expandChips} +${stepOneTechStrip.overflowCount}` }}
+              {{ chipsExpanded ? text.collapseChips : `${text.expandChips} +${identityFilter.strip.overflowCount}` }}
             </button>
           </div>
         </div>
@@ -215,7 +174,7 @@
           <h3 class="sk-panel-title">
             {{ text.step2Title }}
           </h3>
-          <span class="text-sm text-(--sk-ink-muted)">
+          <span class="sk-hint">
             {{ text.step2Hint }}
           </span>
         </div>
@@ -302,40 +261,40 @@
                오른쪽 큰 숫자. description 은 잘리지 않고 그대로 읽힙니다. -->
           <template v-else-if="view === 'cards'">
             <p
-              v-if="pagedRows.length === 0"
+              v-if="deviceCards.length === 0"
               class="px-4 py-12 text-center sk-body text-(--sk-ink-muted)"
             >
               {{ text.emptyRows }}
             </p>
             <label
-              v-for="row in pagedRows"
-              :key="row.lot_cd"
+              v-for="card in deviceCards"
+              :key="card.row.lot_cd"
               class="flex cursor-pointer items-start gap-3.5 border-b border-(--sk-border-soft) px-4 py-3.5 transition-colors last:border-b-0 hover:bg-(--sk-muted-surface) has-checked:bg-(--sk-accent-tint)"
             >
               <input
                 type="checkbox"
-                :checked="isDeviceSelected(row.lot_cd)"
+                :checked="isDeviceSelected(card.row.lot_cd)"
                 class="mt-1 h-[18px] w-[18px] flex-none rounded accent-(--sk-accent)"
-                @change="toggleDeviceSelect(row.lot_cd)"
+                @change="toggleDeviceSelect(card.row.lot_cd)"
               >
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="sk-card-id">{{ row.lot_cd }}</span>
+                  <span class="sk-card-id">{{ card.row.lot_cd }}</span>
                   <span
-                    v-for="badge in cardBadges(row)"
+                    v-for="badge in card.badges"
                     :key="badge.label"
-                    class="inline-flex h-[22px] items-center rounded-md px-2 text-[13px] font-bold"
+                    class="sk-badge font-bold"
                     :class="badge.accent
-                      ? 'bg-(--sk-brand-soft) text-(--sk-brand-ink)'
-                      : 'bg-(--sk-muted-surface) font-mono font-semibold text-(--sk-ink-muted)'"
+                      ? 'bg-(--sk-brand-soft) font-sans text-(--sk-brand-ink)'
+                      : 'bg-(--sk-muted-surface) text-(--sk-ink-muted)'"
                   >{{ badge.label }}</span>
                 </div>
                 <p class="mt-1.5 sk-card-desc">
-                  {{ row.ctn_desc || '—' }}
+                  {{ card.row.ctn_desc || '—' }}
                 </p>
                 <div class="mt-1.5 flex flex-wrap gap-x-5 gap-y-0.5">
                   <span
-                    v-for="field in cardMeta(row)"
+                    v-for="field in card.meta"
                     :key="field.label"
                     class="sk-field-label"
                   >
@@ -345,9 +304,9 @@
               </div>
               <div class="flex-none pl-2 text-right">
                 <div
-                  v-if="measCountByLot.get(row.lot_cd) !== undefined"
+                  v-if="card.measCount !== undefined"
                   class="font-mono text-[19px] font-semibold leading-tight tabular-nums text-(--sk-ink)"
-                >{{ measCountByLot.get(row.lot_cd)!.toLocaleString() }}</div>
+                >{{ card.measCount.toLocaleString() }}</div>
                 <div
                   v-else
                   class="font-mono text-[19px] font-semibold leading-tight text-(--sk-ink-subtle)"
@@ -522,8 +481,10 @@ const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 // 8, not 24: at 34px the chips are twice the old height, so a 24-chip strip
 // became four wrapped rows and pushed Step 2 below the fold. "전체 보기" lifts
 // the cap for the rare case where someone is hunting a specific lot.
-const STEP1_LOT_CHIP_BUDGET = 8
-const STEP1_TECH_CHIP_BUDGET = 8
+//
+// R3 의 lot 과 M 계열의 tech 가 같은 값을 씁니다 — 두 스트립은 같은 자리에
+// 배타적으로 서므로 예산이 갈라질 이유가 없습니다.
+const STEP1_CHIP_BUDGET = 8
 
 const {
   selectedFab,
@@ -545,14 +506,16 @@ const lotSearch = ref('')
 const techSearch = ref('')
 const tableSearch = ref('')
 const currentPage = ref(1)
-// 12: 행 카드 한 장이 표 한 행보다 훨씬 높아, 25 로 두면 한 페이지가 화면
-// 세 개 분량이 됩니다. 표 보기로 옮겨 25/50/100 을 고를 수 있습니다.
-const pageSize = ref('12')
-
-const lotChipsExpanded = ref(false)
-const techChipsExpanded = ref(false)
 
 const view = useRowCardView('device-stats:listView', 'skewnono:deviceStatistics.listView')
+
+// 기본 페이지 크기는 보기 방식을 따릅니다. 행 카드 한 장이 표 한 행보다 훨씬
+// 높아 25 로 두면 한 페이지가 화면 세 개 분량이 되지만, 표 보기를 저장해 둔
+// 사람에게까지 12행을 강요하면 정렬·붙여넣기 하러 온 쪽이 손해를 봅니다.
+// 첫 값만 정하고 그 뒤로는 사용자가 고른 값을 그대로 둡니다.
+const pageSize = ref(view.value === 'cards' ? '12' : '25')
+
+const chipsExpanded = ref(false)
 
 // 측정 상위 N 필터 — null 이면 전체. 세션 한정 상태라 preferences 에 넣지
 // 않습니다(순위 탐색용 토글이지, 남겨 둘 작업 조건이 아닙니다).
@@ -785,6 +748,17 @@ const cardMeta = (row: DeviceRow): CardField[] => {
   ]
 }
 
+// 카드가 그릴 것을 미리 한 번만 만들어 둡니다. 두 함수를 템플릿에서 바로
+// 부르면 행마다 새 배열·새 객체가 나오고, 체크박스 하나를 눌러 페이지가 다시
+// 그려질 때마다 보이는 모든 행이 그 일을 되풀이합니다. computed 로 감싸면
+// pagedRows 가 실제로 바뀔 때(필터·정렬·페이지 이동)만 다시 만듭니다.
+const deviceCards = computed(() => pagedRows.value.map(row => ({
+  row,
+  badges: cardBadges(row),
+  meta: cardMeta(row),
+  measCount: measCountByLot.value.get(row.lot_cd)
+})))
+
 const r3ColumnMetadata = [
   { key: 'fac_id', label: 'Fab', size: 72 },
   { key: 'plan_catg_type', label: 'Plan Catg', size: 96 },
@@ -911,19 +885,60 @@ const buildChipStrip = (
   }
 }
 
+const chipBudget = computed(() =>
+  chipsExpanded.value ? Number.MAX_SAFE_INTEGER : STEP1_CHIP_BUDGET
+)
+
 const stepOneLotStrip = computed(() => buildChipStrip(
   lotOptions.value,
   searchedLotOptions.value,
   selectedLotSet.value,
-  lotChipsExpanded.value ? Number.MAX_SAFE_INTEGER : STEP1_LOT_CHIP_BUDGET
+  chipBudget.value
 ))
 
 const stepOneTechStrip = computed(() => buildChipStrip(
   techOptions.value,
   visibleTechOptions.value,
   selectedTechSet.value,
-  techChipsExpanded.value ? Number.MAX_SAFE_INTEGER : STEP1_TECH_CHIP_BUDGET
+  chipBudget.value
 ))
+
+// R3 는 lot_cd 로, M 계열은 tech_nm 으로 디바이스를 지목합니다. 두 필터는 같은
+// 자리에 배타적으로 서고 생김새도 같아서, 마크업을 한 벌만 두고 어느 필드를
+// 다루는지만 갈아 끼웁니다 — 두 벌이면 한쪽에만 "전체 보기" 가 붙거나 칩 높이가
+// 갈라지고, 그 차이는 두 fab 을 번갈아 보지 않는 한 아무도 알아채지 못합니다.
+const identityFilter = computed(() => hasRSelection.value
+  ? {
+      title: 'Lot',
+      fieldName: 'lot_cd',
+      placeholder: text.lotSearch,
+      // lot_cd 는 사람이 한 글자씩 대조하는 식별자라 mono 로 세웁니다.
+      mono: true,
+      total: lotOptions.value.length,
+      strip: stepOneLotStrip.value,
+      isSelected: isLotSelected,
+      toggle: toggleLot
+    }
+  : {
+      title: 'Tech',
+      fieldName: 'tech_nm',
+      placeholder: text.techSearch,
+      mono: false,
+      total: techOptions.value.length,
+      strip: stepOneTechStrip.value,
+      isSelected: isTechSelected,
+      toggle: toggleTech
+    })
+
+// 검색어 자체는 fab 별로 따로 둡니다 — R3 에서 치던 lot 검색어가 M16 으로
+// 넘어가 tech 검색어가 되면 안 됩니다.
+const identitySearch = computed({
+  get: () => hasRSelection.value ? lotSearch.value : techSearch.value,
+  set: (value: string) => {
+    if (hasRSelection.value) lotSearch.value = value
+    else techSearch.value = value
+  }
+})
 
 const proceedToStatistics = async () => {
   if (selectedDeviceLots.value.length === 0) return
@@ -1007,6 +1022,7 @@ const resetAllFilters = () => {
   techSearch.value = ''
   tableSearch.value = ''
   currentPage.value = 1
+  chipsExpanded.value = false
 }
 
 const hasActiveFilters = computed(() => {

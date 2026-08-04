@@ -1,7 +1,7 @@
 <template>
   <span
-    class="inline-flex h-6 items-center rounded-md px-2.5 font-mono text-[13px] font-semibold tracking-wide tabular-nums ring-1"
-    :class="chipClass"
+    class="sk-badge tracking-wide ring-1"
+    :class="[chipClass, { 'sk-badge-lg': large }]"
     :title="inferred ? 'stage 추출 실패 — EV cap 적용 중' : `stage: ${stage}`"
   >
     <span
@@ -19,6 +19,8 @@ import type { DevStage } from '~/utils/lotHealth'
 const props = defineProps<{
   stage: DevStage
   inferred?: boolean
+  /** 상세 헤더처럼 22px lot_cd 옆에 설 때. 카드 위에서는 기본 크기입니다. */
+  large?: boolean
 }>()
 
 const chipClass = computed(() => {

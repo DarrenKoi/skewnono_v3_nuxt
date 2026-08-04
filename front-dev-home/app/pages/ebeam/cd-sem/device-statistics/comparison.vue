@@ -230,6 +230,7 @@ import { buildDeviceOutliers, groupRecipesByLot, attachProfile, type Profiled } 
 import { toOutlierDrill, type DrillDevice } from '~/utils/deviceDrill'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
+import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from '~/utils/chartType'
 
 definePageMeta({
   hideFabSidebar: true
@@ -501,20 +502,13 @@ const baseTooltip = {
   formatter: formatBarTooltip
 }
 
-// ECharts 는 캔버스에 직접 글자를 그리므로 CSS 변수(--font-mono)를 해석하지
-// 못합니다. 축 눈금과 막대 위 값이 카드 안의 mono 숫자와 같은 활자로 보이도록
-// 스택을 문자열로 그대로 넘깁니다.
-const CHART_MONO = '\'JetBrains Mono\', ui-monospace, \'SF Mono\', Menlo, Consolas, monospace'
-
-const baseAxisLabel = { fontSize: 13, fontFamily: CHART_MONO }
-
 // top:36 은 예전에 차트 안 범례가 앉던 자리였습니다. 범례를 카드 헤더로 올린
 // 지금은 막대 위 값 라벨이 잘리지 않게 하는 여백입니다.
 const baseGrid = { left: 48, right: 16, top: 36, bottom: 55, containLabel: true }
 
 const baseYAxis = {
   type: 'value' as const,
-  axisLabel: baseAxisLabel,
+  axisLabel: CHART_AXIS_LABEL,
   splitLine: { show: false }
 }
 
@@ -550,8 +544,7 @@ const sigmaLineStyle = computed(() => ({
 const barValueLabel = computed(() => ({
   show: true,
   position: 'top' as const,
-  fontSize: 13,
-  fontFamily: CHART_MONO,
+  ...CHART_AXIS_LABEL,
   fontWeight: 600 as const,
   color: chartInk.value
 }))
@@ -561,7 +554,7 @@ const buildStatsMarkLine = (avg: number, sd: number) => ({
   silent: true,
   lineStyle: { type: 'dashed' as const, color: chartInk.value, width: 1.5 },
   label: {
-    fontSize: 13,
+    ...CHART_LEGEND_LABEL,
     color: chartInk.value,
     backgroundColor: 'transparent'
   },
@@ -590,7 +583,7 @@ const buildStatsMarkLine = (avg: number, sd: number) => ({
 const buildCategoryAxis = () => ({
   type: 'category' as const,
   data: lotLabels.value,
-  axisLabel: { ...baseAxisLabel, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
+  axisLabel: { ...CHART_AXIS_LABEL, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
 })
 
 // 범례는 카드 헤더가 그립니다(위 template) — 여기서 legend 를 다시 켜면 같은

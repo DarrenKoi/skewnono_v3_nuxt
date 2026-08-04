@@ -91,7 +91,7 @@
       >
         <span
           class="w-[5px] flex-none"
-          :style="{ background: stripeColor(row) }"
+          :style="{ background: healthStripeColor(row.verdict.health) }"
           aria-hidden="true"
         />
 
@@ -101,12 +101,12 @@
               <span class="sk-card-id">{{ row.lot_cd }}</span>
               <span
                 v-if="row.verdict.health"
-                class="inline-flex h-6 items-center rounded-md px-2.5 font-mono text-[13px] font-bold"
-                :style="healthBadgeStyle(row.verdict.health)"
+                class="sk-badge font-bold"
+                :style="healthBadgeStyle(row.verdict.health, isDark)"
               >{{ row.verdict.health }}</span>
               <span
                 v-else
-                class="inline-flex h-6 items-center rounded-md bg-(--sk-muted-surface) px-2.5 font-mono text-[13px] font-semibold text-(--sk-ink-subtle) ring-1 ring-(--sk-border) ring-inset"
+                class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-subtle) ring-1 ring-(--sk-border) ring-inset"
                 :title="coverageTitle(row)"
               >{{ text.noRules }}</span>
               <CdsemComparisonStageChip
@@ -123,25 +123,16 @@
               <span class="sk-field-label">
                 {{ text.violations }}
                 <span
-                  v-if="row.verdict.kind === 'judged'"
-                  class="sk-field-value font-semibold text-(--sk-ink)"
-                >{{ row.verdict.violation_recipes }} / {{ row.verdict.judged_recipes }}</span>
-                <span
-                  v-else
                   class="sk-field-value"
-                >—</span>
+                  :class="{ 'font-semibold text-(--sk-ink)': row.verdict.kind === 'judged' }"
+                >{{ formatViolations(row.verdict) }}</span>
               </span>
               <span
                 class="sk-field-label"
                 :title="coverageTitle(row)"
               >
                 {{ text.coverage }}
-                <span class="sk-field-value">
-                  <template v-if="row.verdict.kind === 'judged'">
-                    {{ row.verdict.judged_recipes }} / {{ row.verdict.total_recipes }} ({{ percent(row.verdict.coverage) }})
-                  </template>
-                  <template v-else>0 / {{ row.verdict.total_recipes }}</template>
-                </span>
+                <span class="sk-field-value">{{ formatCoverage(row.verdict) }}</span>
               </span>
               <span class="sk-field-label">
                 {{ text.recipeRatio }}
@@ -292,33 +283,16 @@
 
         <template #violations-cell="{ row }">
           <span
-            v-if="row.original.verdict.kind === 'judged'"
             class="tabular-nums"
-          >
-            <span class="font-semibold text-(--sk-ink)">{{ row.original.verdict.violation_recipes }}</span>
-            <span class="text-(--sk-ink-subtle)"> / {{ row.original.verdict.judged_recipes }}</span>
-          </span>
-          <span
-            v-else
-            class="text-(--sk-ink-subtle)"
-          >—</span>
+            :class="row.original.verdict.kind === 'judged' ? 'text-(--sk-ink)' : 'text-(--sk-ink-subtle)'"
+          >{{ formatViolations(row.original.verdict) }}</span>
         </template>
 
         <template #coverage-cell="{ row }">
           <span
-            class="tabular-nums"
+            class="tabular-nums text-(--sk-ink-muted)"
             :title="coverageTitle(row.original)"
-          >
-            <template v-if="row.original.verdict.kind === 'judged'">
-              <span class="font-semibold text-(--sk-ink)">{{ row.original.verdict.judged_recipes }}</span>
-              <span class="text-(--sk-ink-subtle)"> / {{ row.original.verdict.total_recipes }}</span>
-              <span class="ml-1 text-[13px] text-(--sk-ink-subtle)">({{ percent(row.original.verdict.coverage) }})</span>
-            </template>
-            <span
-              v-else
-              class="text-(--sk-ink-subtle)"
-            >0 / {{ row.original.verdict.total_recipes }}</span>
-          </span>
+          >{{ formatCoverage(row.original.verdict) }}</span>
         </template>
 
         <template #params-cell="{ row }">
@@ -392,10 +366,13 @@ import { computed, ref } from 'vue'
 import { useColorMode } from '#imports'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import { paraTotal, verdictSortValue, type HealthAugmentedRow } from '~/utils/lotHealth'
+import { paraTotal, verdictSortValue, type HealthAugmentedRow, type LotVerdict } from '~/utils/lotHealth'
 import type { HealthLevel } from '~/utils/ruleEngine'
 import type { Profiled } from '~/utils/deviceProfile'
-import { healthSwatches, paraColors, paraColorsDark, paraOrder } from './healthTokens'
+import {
+  healthBadgeStyle, healthStripeColor, healthSwatches,
+  paraColors, paraColorsDark, paraOrder
+} from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 const props = defineProps<{
@@ -437,23 +414,18 @@ const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 const paraPalette = computed(() => isDark.value ? paraColorsDark : paraColors)
 
-// 카드 배지는 tint 배경 + ink 글자입니다. dot 하나만 쓰던 표와 달리 카드에서는
-// 판정이 색면(色面)이라, 같은 swatch 의 밝기 짝을 그대로 씁니다.
-const healthBadgeStyle = (level: HealthLevel) => {
-  const swatch = healthSwatches[level]
-  return {
-    background: isDark.value ? swatch.tintDark : swatch.tint,
-    color: isDark.value ? swatch.inkDark : swatch.ink
-  }
-}
-
-// 판정 없음(룰 없는 fab)은 띠도 중성 회색입니다 — 초록과 섞이면 "판정했고
-// 괜찮다" 로 읽힙니다. 룰이 없어 아무 말도 하지 않은 것과는 다릅니다.
-const stripeColor = (row: HealthAugmentedRow) =>
-  row.verdict.health ? healthSwatches[row.verdict.health].dot : 'var(--sk-border)'
-
 // Shared box for the outlier count so the alert and zero states can't drift apart.
 const countPill = 'inline-flex h-6 min-w-8 items-center justify-center rounded px-1.5 font-mono text-[13px] font-semibold tabular-nums'
+
+// 카드와 표가 같은 문자열을 씁니다. 두 표면이 각자 조건문을 들고 있으면
+// "판정 없음" 을 한쪽은 —, 다른 쪽은 0 으로 쓰는 식으로 갈라집니다.
+const formatViolations = (v: LotVerdict) =>
+  v.kind === 'judged' ? `${v.violation_recipes} / ${v.judged_recipes}` : '—'
+
+const formatCoverage = (v: LotVerdict) =>
+  v.kind === 'judged'
+    ? `${v.judged_recipes} / ${v.total_recipes} (${percent(v.coverage)})`
+    : `0 / ${v.total_recipes}`
 
 const counts = computed<Record<HealthLevel, number>>(() => ({
   red: props.rows.filter(r => r.verdict.health === 'red').length,

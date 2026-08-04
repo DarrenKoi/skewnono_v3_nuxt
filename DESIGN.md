@@ -145,13 +145,21 @@ The table above is calibrated for a **real table**: a shared column header carri
 | `.sk-field-value` | The number that label points at | 14px · 500 · mono tabular · ink-muted |
 | `.sk-field-name` | A raw **backend field name** shown to the user (`prod_catg_cd`) | 13px · 400 · mono · ink-subtle |
 | `.sk-panel-title` | Title of a panel holding cards | 16px · 700 · ink |
+| `.sk-hint` | Short guidance beside a panel title ("체크박스로 여러 개 선택") | 14px · 400 · ink-muted |
 | `.sk-caption` | Footnote / caption under a card stack | 13px/1.5 · 400 · ink-muted |
 
 Three rules govern the tier. **Nothing goes below 13px** — the sub-12px chrome tiers do not exist here, because on a card there is no column header to demote and a label sits inline with its value. **`.sk-field-name` is the one mono-13px exception**, and it exists to hold raw DB column names visually apart from the Korean words a person actually reads; a Korean label never takes it. **Prose is never truncated** — `.sk-card-desc` wraps, because the reason to spend a card's vertical budget is to show the description the table had to clip. Emphasis is a call-site utility (`.sk-field-value font-semibold text-(--sk-ink)` for the one number that matters), not a second class.
 
-Chip geometry that pairs with this tier lives in `utils/chipClass.ts` as `CHIP_BASE` (34px tall, 14px label) — always applied together with `chipClass(active)`.
+Two shapes pair with the tier, split by whether the colour needs a JS branch:
 
-Adopted by: CD-SEM 디바이스 통계 (`index.vue`), 디바이스 분석 (`comparison.vue`), `LotTable`, `LotDetailModal`, `DrillSlideover`. Screens that are genuinely tables keep the table tiers.
+- **`.sk-badge`** (`main.css`) — the short tag beside a card headline: health, stage, bucket, `oper_id`, category. 24px tall, mono 13px; `.sk-badge-lg` steps it to 26px/14px for the detail header, where it stands beside a 22px `lot_cd` rather than an 18px one. Geometry and type only — the caller supplies colour, as a utility pair or as an inline style from `healthTokens`.
+- **`CHIP_BASE` / `CHIP_BASE_MONO`** (`utils/chipClass.ts`) — filter chips, 34px tall with a 14px label. These live in TS rather than CSS because a chip's colour *does* need a branch: always apply them together with `chipClass(active)`.
+
+Health colour is never computed at a call site. `healthTokens.ts` owns the whole mapping — `healthSwatches`, plus `healthStripeColor(health)` and `healthBadgeStyle(health, isDark)` — so a `null` verdict ("룰이 없어 판정하지 않음") renders neutral grey everywhere instead of reading as grey on one screen and green on the next.
+
+Charts can reach none of the above: ECharts paints to a canvas, where CSS classes and `var(--font-mono)` do not apply. `utils/chartType.ts` restates the tier's floor for that one context — `CHART_AXIS_LABEL` (mono 13px) and `CHART_LEGEND_LABEL` — and every chart on these screens reads from it.
+
+Adopted by: CD-SEM 디바이스 통계 (`index.vue`), 디바이스 분석 (`comparison.vue`), `LotTable`, `LotDetailModal`, `TrendChart`, `StageChip`, `CompareCart`, `DrillSlideover`. Screens that are genuinely tables keep the table tiers.
 
 ## Layout
 
