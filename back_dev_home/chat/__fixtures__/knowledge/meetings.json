@@ -10,9 +10,10 @@
     "page": null,
     "region": "agenda-2",
     "locator": "meeting-process-window-2026-01#decision",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": []},
-    "search_text": "process decision window simulation review"
+    "search_text": "process decision window simulation review 공정 윈도우 결정 검토 시뮬레이션"
   },
   {
     "source_id": "meeting-alarm-training-2026-02",
@@ -25,9 +26,10 @@
     "page": null,
     "region": "action-1",
     "locator": "meeting-alarm-training-2026-02#action-1",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": ["metrology"], "fabs": []},
-    "search_text": "alarm training acknowledge reset action"
+    "search_text": "alarm training acknowledge reset action 알람 교육 리셋 조치"
   },
   {
     "source_id": "meeting-sampling-plan-2026-03",
@@ -40,8 +42,9 @@
     "page": null,
     "region": "plan-3",
     "locator": "meeting-sampling-plan-2026-03#plan-3",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": ["fab-sim-a"]},
-    "search_text": "sampling weekly plan sandbox review"
+    "search_text": "sampling weekly plan sandbox review 샘플링 주간 계획 검토"
   }
 ]

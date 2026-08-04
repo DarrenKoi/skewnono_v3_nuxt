@@ -10,9 +10,10 @@
     "page": 3,
     "region": "summary-a",
     "locator": "report-measurement-a#summary",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": []},
-    "search_text": "measurement monthly tat scenario synthetic"
+    "search_text": "measurement monthly tat scenario synthetic 계측 월간 tat 시나리오 합성"
   },
   {
     "source_id": "report-measurement-b",
@@ -25,9 +26,10 @@
     "page": 4,
     "region": "summary-b",
     "locator": "report-measurement-b#summary",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": []},
-    "search_text": "measurement monthly tat scenario synthetic"
+    "search_text": "measurement monthly tat scenario synthetic 계측 월간 tat 시나리오 합성"
   },
   {
     "source_id": "report-measurement-c",
@@ -40,8 +42,9 @@
     "page": 5,
     "region": "summary-c",
     "locator": "report-measurement-c#summary",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": []},
-    "search_text": "measurement monthly tat scenario synthetic"
+    "search_text": "measurement monthly tat scenario synthetic 계측 월간 tat 시나리오 합성"
   }
 ]

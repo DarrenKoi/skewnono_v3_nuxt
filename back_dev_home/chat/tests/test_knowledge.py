@@ -49,6 +49,43 @@ def test_email_search_hides_unaddressed_fixture(monkeypatch):
     assert all(row["source_id"] != "email-private-u1" for row in rows)
 
 
+@pytest.mark.parametrize("query", ["alarm reset", "알람 리셋", "얼라인 alarm 리셋"])
+def test_manual_search_answers_korean_and_english_alike(monkeypatch, query):
+    """Catches a tokenizer that drops Hangul and reports 'no results'.
+
+    A Korean question must not be answerable only because it happens to
+    contain an English word. The failure this pins is silent: an empty token
+    set short-circuits to [], which is indistinguishable from a real miss.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+
+    rows = data.search_manuals(query, {}, METROLOGY_USER, 5)
+
+    assert rows
+    assert rows[0]["source_id"] == "manual-alarm-r2-p12"
+
+
+def test_figure_bearing_evidence_carries_an_opaque_figure_id(monkeypatch):
+    """Catches figure_id being dropped, or carrying a storage key/path."""
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+
+    row = data.search_manuals("alarm reset", {}, METROLOGY_USER, 5)[0]
+
+    figure_id = row["figure_id"]
+    assert figure_id == "fig-alarm-r2-p12"
+    assert "/" not in figure_id and not figure_id.endswith(".webp")
+
+
+def test_text_evidence_reports_no_figure(monkeypatch):
+    """Catches a provider inventing a figure for text-only evidence."""
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+
+    rows = data.search_emails("maintenance", None, METROLOGY_USER, 5)
+
+    assert rows
+    assert all(row["figure_id"] is None for row in rows)
+
+
 def test_search_removes_private_fixture_metadata(monkeypatch):
     """Catches accidental exposure of access rules or search-only fixture text."""
     monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")

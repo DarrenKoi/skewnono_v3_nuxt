@@ -34,7 +34,16 @@ Normalized raw hit — one mapping per result, keys:
 | ``page``        | int or None   | 1-based page number                   |
 | ``region``      | str or None   | approved page region reference        |
 | ``locator``     | str or None   | stable approved locator — never a URL or filesystem/MinIO path |
+| ``figure_id``   | str or None   | opaque figure token — None for text/table evidence |
 | ``score``       | float or None | ranking diagnostic                    |
+
+``figure_id`` identifies the figure a chunk was extracted from. It is the one
+key whose value the application later turns into storage access, so it is an
+OPAQUE TOKEN, not a key: emit the bare id, never a bucket, prefix, path
+separator or ``.webp`` suffix. The serving side owns the whole key template
+(``{prefix}{figure_id}.webp``) and rejects any id outside
+``^[A-Za-z0-9_-]{1,128}$`` before it reaches storage, so an id carrying a path
+is a hit that will simply never render. Text and table chunks emit ``None``.
 
 ``source_type`` is stamped by this adapter from the called function, never
 read from the hit. Malformed hits raise ``KnowledgeUnavailable`` (index/schema
@@ -63,7 +72,14 @@ _RESULT_LIMIT = 5
 
 _SOURCE_TYPES = ("manual", "meeting", "email", "report")
 
-_OPTIONAL_STR_KEYS = ("revision", "occurred_at", "section", "region", "locator")
+_OPTIONAL_STR_KEYS = (
+    "revision",
+    "occurred_at",
+    "section",
+    "region",
+    "locator",
+    "figure_id",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +113,18 @@ def _build_request(
     OFFICE-TODO: embed the ``scope`` access filter (user_id/groups/fabs) in
     the request itself so unauthorized sources are excluded at query time and
     their existence, title, count, and score are never observable. Restrict
-    the field projection to the normalized raw hit keys.
+    the field projection to the normalized raw hit keys — ``figure_id``
+    included, or every hit arrives figure-less.
+
+    One request must serve Korean and English TOGETHER. Users mix them in a
+    single question ("얼라인 alarm 리셋"), and the corpus mixes them too, so a
+    request that only satisfies one language silently halves recall instead of
+    failing visibly. The k-NN leg handles this if the embedding model is
+    multilingual — confirm that it is rather than assuming. Any lexical/BM25
+    leg needs an explicit Korean analyzer: OpenSearch's default ``standard``
+    analyzer splits Hangul into single characters, which matches nothing
+    useful. Do not translate or language-detect the query and dispatch one
+    branch; that turns a mixed-language question into a worse monolingual one.
     """
     raise KnowledgeUnavailable(
         "The chat knowledge office provider is not connected: "

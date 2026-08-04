@@ -39,6 +39,7 @@
 | `hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc` | 연결 |
 | `skewnono_logging.txt` | OpenSearch `skewnono_logging{,_local}` (자체 생성) | `activity`, `admin_logs` | 연결(alias office 확인 2026-07-28) |
 | `skewnono_chat_logging.txt` | OpenSearch `skewnono_chat_logging{,_local}` (자체 생성) | `chat` (대화 turn 기록) | 연결(alias 생성 user-confirmed 2026-08-04) |
+| `chat_rag_contract.txt` | OpenSearch RAG 인덱스(k-NN) + MinIO figure 저장소 | `chat` (근거 검색) | **미연결**(mock) — 계약만 확정, office 어댑터는 template |
 | `recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |
 | `parameter_info.txt` | 미정 — IDP 파서가 돌려주지 않음(`amp_info`) | `recipe_search` 자세히 보기 | **미연결**(mock) |
 | `recipe_params.txt` | `sknn-planstep-r3`(recipe 목록) + `cdsem_idp_ver`(파라미터) — `planstep_r3.txt` 참고 | `device_statistics` | 구현완료(사무실 검증 대기) |

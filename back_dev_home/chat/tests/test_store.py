@@ -15,6 +15,36 @@ def temp_db(tmp_path, monkeypatch):
     monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "mock")
 
 
+def test_existing_db_gains_new_source_columns(tmp_path):
+    """Catches a source column added to the DDL but not migrated.
+
+    CREATE TABLE IF NOT EXISTS never revisits an existing table, so a dev or
+    an office host carrying a chat.db from before the column would keep a
+    table without it and fail on the next INSERT — long after the change
+    looked green on a fresh database.
+    """
+    legacy = sqlite3.connect(str(tmp_path / "chat.db"))
+    legacy.executescript(
+        """
+        CREATE TABLE message_sources (
+          message_id TEXT NOT NULL, position INTEGER NOT NULL,
+          source_id TEXT NOT NULL, source_type TEXT NOT NULL,
+          title TEXT NOT NULL, snippet TEXT NOT NULL, revision TEXT,
+          occurred_at TEXT, section TEXT, page INTEGER, region TEXT,
+          locator TEXT, score REAL, PRIMARY KEY (message_id, position)
+        );
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    conn = mock._connect()
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(message_sources)")}
+    conn.close()
+
+    assert "figure_id" in columns
+
+
 def test_create_and_list_thread():
     t = data.create_thread("u1", "m1", system_prompt="be brief")
     assert t["title"] == "New chat"
@@ -167,6 +197,7 @@ def test_complete_turn_hydrates_sources_traces_and_feedback(monkeypatch, tmp_pat
                 "page": 12,
                 "region": None,
                 "locator": "manual-1#page=12",
+                "figure_id": "fig-manual-1-p12",
                 "score": 0.9,
             }],
             "tool_traces": [{
@@ -185,6 +216,10 @@ def test_complete_turn_hydrates_sources_traces_and_feedback(monkeypatch, tmp_pat
     })
     stored = data.get_thread("u1", thread["id"])["messages"][-1]
     assert stored["sources"][0]["source_id"] == "manual-1"
+    # Catches a source field that survives the response but not the reload:
+    # complete_turn returns its input, so only a re-read proves the column
+    # exists in the INSERT, the SELECT and the table.
+    assert stored["sources"][0]["figure_id"] == "fig-manual-1-p12"
     assert stored["feedback"]["rating"] == "down"
     conn = sqlite3.connect(str(tmp_path / "chat.db"))
     trace = conn.execute(
@@ -285,6 +320,7 @@ def test_complete_turn_rolls_back_partial_rows(monkeypatch, tmp_path):
                     "page": None,
                     "region": None,
                     "locator": None,
+                    "figure_id": None,
                     "score": None,
                 }],
                 "tool_traces": [],
@@ -372,6 +408,7 @@ def test_thread_cleanup_removes_message_children(monkeypatch, tmp_path, cleanup)
                 "page": None,
                 "region": None,
                 "locator": None,
+                "figure_id": None,
                 "score": None,
             }],
             "tool_traces": [{

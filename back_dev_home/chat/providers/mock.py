@@ -26,11 +26,14 @@ def _now() -> str:
 
 
 def _ensure_column(
-    conn: sqlite3.Connection, column_name: str, declaration: str
+    conn: sqlite3.Connection, table: str, column_name: str, declaration: str
 ) -> None:
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(messages)")}
+    """Additively migrate an existing chat.db — CREATE TABLE IF NOT EXISTS
+    never revisits a table that already exists, so a column added to the DDL
+    alone would be missing from every database created before it."""
+    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if column_name not in columns:
-        conn.execute(f"ALTER TABLE messages ADD COLUMN {column_name} {declaration}")
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column_name} {declaration}")
 
 
 def _connect() -> sqlite3.Connection:
@@ -50,10 +53,10 @@ def _connect() -> sqlite3.Connection:
         """
     )
     with conn:
-        _ensure_column(conn, "request_id", "TEXT")
-        _ensure_column(conn, "runtime", "TEXT")
-        _ensure_column(conn, "scope_status", "TEXT")
-        _ensure_column(conn, "scope_reason_code", "TEXT")
+        _ensure_column(conn, "messages", "request_id", "TEXT")
+        _ensure_column(conn, "messages", "runtime", "TEXT")
+        _ensure_column(conn, "messages", "scope_status", "TEXT")
+        _ensure_column(conn, "messages", "scope_reason_code", "TEXT")
         conn.executescript(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_message_request_role
@@ -73,6 +76,7 @@ def _connect() -> sqlite3.Connection:
               page INTEGER,
               region TEXT,
               locator TEXT,
+              figure_id TEXT,
               score REAL,
               PRIMARY KEY (message_id, position)
             );
@@ -98,6 +102,7 @@ def _connect() -> sqlite3.Connection:
             );
             """
         )
+        _ensure_column(conn, "message_sources", "figure_id", "TEXT")
     return conn
 
 
@@ -105,8 +110,8 @@ def _hydrate_message(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     message = dict(row)
     source_rows = conn.execute(
         "SELECT source_id,source_type,title,snippet,revision,occurred_at,section,"
-        "page,region,locator,score FROM message_sources WHERE message_id=? "
-        "ORDER BY position ASC",
+        "page,region,locator,figure_id,score FROM message_sources "
+        "WHERE message_id=? ORDER BY position ASC",
         (message["id"],),
     ).fetchall()
     feedback_row = conn.execute(
@@ -349,13 +354,13 @@ def complete_turn(thread_id, request_id, result):
                     conn.execute(
                         "INSERT INTO message_sources (message_id,position,source_id,"
                         "source_type,title,snippet,revision,occurred_at,section,page,region,"
-                        "locator,score) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        "locator,figure_id,score) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (
                             message_id, position, source["source_id"],
                             source["source_type"], source["title"], source["snippet"],
                             source["revision"], source["occurred_at"], source["section"],
                             source["page"], source["region"], source["locator"],
-                            source["score"],
+                            source["figure_id"], source["score"],
                         ),
                     )
                 for position, trace in enumerate(result["tool_traces"]):

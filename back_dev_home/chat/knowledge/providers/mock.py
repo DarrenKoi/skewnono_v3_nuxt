@@ -1,4 +1,20 @@
-"""Deterministic lexical search over deliberately synthetic knowledge fixtures."""
+"""Deterministic lexical search over deliberately synthetic knowledge fixtures.
+
+Stands in for the office RAG index (OpenSearch k-NN over manuals, meeting
+summaries, emails and reports; figures in MinIO). Deliberate differences:
+retrieval here is whole-token set overlap rather than embedding similarity, so
+scores are small integers rather than the office's float distances, and there
+is no semantic matching at all — only literal shared tokens.
+
+Fixture content is synthetic and mixes Korean and English on purpose. Users
+ask in either language or both at once, so an English-only mock would report
+zero results for a Korean question that the office index answers fine, and
+every home session would be tuning against a retrieval path that cannot do
+what the real one does. ``figure_id`` is populated only on the manual records
+that would plausibly carry an extracted figure; text and table evidence
+carries ``None``. The values are opaque tokens with no MinIO object behind
+them — the mock cannot know real office figure ids.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +27,11 @@ from back_dev_home.chat.knowledge.contracts import AccessScope, Evidence
 
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "__fixtures__" / "knowledge"
-_TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+# Hangul is in the class deliberately: without it every Korean query tokenizes
+# to the empty set and short-circuits to "no results" — a silent wrong answer,
+# not an error. Syllable-level, so it matches whole words only (no stemming,
+# no 조사 stripping); that is weaker than the office analyzer, never stricter.
+_TOKEN_PATTERN = re.compile(r"[a-z0-9가-힣]+")
 
 
 def _tokens(value: str) -> set[str]:

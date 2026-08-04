@@ -39,6 +39,7 @@ _RAW_HIT = {
     "page": 3,
     "region": "steps-1-2",
     "locator": "manual-synthetic-r1#page=3",
+    "figure_id": "fig-synthetic-r1-p3",
     "score": 12.5,
 }
 
@@ -96,6 +97,7 @@ def test_each_search_maps_raw_hits_and_stamps_source_type(
         "page",
         "region",
         "locator",
+        "figure_id",
     ):
         assert row[key] == _RAW_HIT[key]
     assert row["score"] == pytest.approx(12.5)
@@ -155,6 +157,7 @@ def test_rank_order_is_preserved(monkeypatch):
         {"page": 0},
         {"page": True},
         {"revision": 2},
+        {"figure_id": 7},
         {"score": "high"},
     ],
 )

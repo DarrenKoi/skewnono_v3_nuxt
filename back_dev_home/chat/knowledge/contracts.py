@@ -20,6 +20,9 @@ class Evidence(TypedDict):
     page: int | None
     region: str | None
     locator: str | None
+    # Opaque figure token, never a storage key: the server owns the bucket,
+    # prefix and extension. None for text and table evidence.
+    figure_id: str | None
     score: float | None
 
 

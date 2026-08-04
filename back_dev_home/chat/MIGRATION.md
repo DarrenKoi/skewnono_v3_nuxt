@@ -132,7 +132,20 @@ search_reports(
 | `page` | 1-based page 번호이며 적용할 수 없으면 `None`입니다. |
 | `region` | 승인된 page region/bounding reference이며 없으면 `None`입니다. |
 | `locator` | 임의 URL이나 filesystem path가 아닌 안정된 승인 locator입니다. |
+| `figure_id` | 그림 chunk의 opaque token이며 text/table chunk는 `None`입니다. |
 | `score` | 같은 source 검색 결과의 ranking 진단용 값이며 없으면 `None`입니다. |
+
+`figure_id`는 애플리케이션이 저장소 접근으로 바꾸는 유일한 값이므로 `locator`와 다른
+규칙을 따릅니다. Bucket, prefix, 경로 구분자, `.webp` 확장자를 포함하지 않는 맨 id만
+반환합니다. 키 조립(`{prefix}{figure_id}.webp`)과 `^[A-Za-z0-9_-]{1,128}$` 검증은 serving
+쪽이 전담하므로, 경로가 섞인 id는 오류가 아니라 렌더되지 않는 그림이 됩니다.
+
+Retrieval query 한 번이 한국어와 영어를 **동시에** 만족시켜야 합니다. 사용자는 한 질문
+안에서 두 언어를 섞고 코퍼스도 섞여 있으므로, 한 언어만 만족시키는 요청은 실패하지 않고
+recall만 조용히 반토막 냅니다. k-NN leg는 embedding 모델이 multilingual이면 해결되며 이는
+가정이 아니라 확인 대상입니다. Lexical/BM25 leg를 함께 쓴다면 한국어 analyzer를 명시해야
+합니다 — OpenSearch 기본 `standard` analyzer는 한글을 한 글자씩 분해합니다. 질의를 언어
+판별로 분기하거나 번역해서 보내지 않습니다.
 
 Access filter는 retrieval query 단계에 적용합니다. 검색 후 Python filtering만으로 권한을
 보완하지 않습니다. 권한이 없는 source의 존재, title, count 또는 score도 노출하지
@@ -159,6 +172,33 @@ Agent runtime은 이를 각각 `403`, `504`, `503` 계열로 변환합니다. Re
 direct runtime, mock provider 또는 다른 source로 자동 전환하지 않습니다. Partial
 assistant/source/trace row도 저장하지 않으며, 이미 저장된 user turn은 같은
 `request_id` retry를 위해 유지합니다.
+
+## Figure serving — 설계 확정, 구현 보류
+
+2026-08-04 기준 figure endpoint는 **만들지 않았습니다**. RAG 자체가 작업 중이므로
+필요해지는 시점에 진행합니다. `figure_id`는 계약과 저장소에 먼저 흘려 두었으므로 office
+retrieval이 값을 채우기 시작해도 스키마 변경 없이 받을 수 있습니다.
+
+구현 시 합의된 설계입니다.
+
+| 항목 | 결정 |
+| --- | --- |
+| Route | `GET /api/chat/figures/<figure_id>` |
+| 구현 참고 | `back_dev_home/msr_image/routes.py`의 `serve_image_route` — `Response(bytes, mimetype=...)` + `Cache-Control` |
+| 인가 | 인증된 사용자면 통과합니다. `/api/*`가 이미 신원 gate 뒤이므로 추가 확인을 하지 않습니다. |
+| Key | `{prefix}{figure_id}.webp` |
+| 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`, `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `figures/`) |
+| 검증 | 저장소 호출 전에 `^[A-Za-z0-9_-]{1,128}$`에 맞지 않는 id는 `404` |
+
+인가 결정에 남는 위험을 명시합니다. Retrieval은 `AccessScope`로 걸러지지만 이 endpoint는
+걸러지지 않으므로, group/FAB 제한 매뉴얼의 **그림**은 `figure_id`를 아는 사용자면 그룹
+밖에서도 받을 수 있습니다. 그림 자체가 접근 제한 정보를 담는 것이 확인되면 이 결정을 다시
+검토합니다.
+
+Prefix를 환경 변수로 두는 이유는 사무실 MinIO credential이 사용자 namespace로 제한될 수
+있기 때문입니다. 이미지 캐시에서 실제로 그랬으므로(`msr_image/minio_cache.py`의 `_key`
+주석) `figures/`를 코드에 하드코딩하지 않고, 제한이 확인되면 prefix에 전체 경로
+(예: `user/2067928/figures/`)를 넣습니다.
 
 ## Scope provider 구현 계약
 

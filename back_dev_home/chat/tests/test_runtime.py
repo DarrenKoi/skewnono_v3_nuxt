@@ -392,6 +392,7 @@ def test_tool_truncates_snippets_before_model_and_artifact_exposure(monkeypatch)
         "page": 1,
         "region": None,
         "locator": None,
+        "figure_id": None,
         "score": 1.0,
     }
     monkeypatch.setenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "10")
@@ -424,6 +425,7 @@ def test_agent_rejects_aggregate_evidence_before_model_consumption(monkeypatch):
         "page": 1,
         "region": None,
         "locator": None,
+        "figure_id": None,
         "score": 1.0,
     }
     monkeypatch.setenv("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "200")

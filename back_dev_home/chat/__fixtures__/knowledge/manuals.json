@@ -10,9 +10,10 @@
     "page": 12,
     "region": "steps-1-3",
     "locator": "manual-alarm-r2#page=12",
+    "figure_id": "fig-alarm-r2-p12",
     "score": null,
     "access": {"users": [], "groups": ["metrology"], "fabs": []},
-    "search_text": "alarm reset vacuum acknowledge recovery"
+    "search_text": "alarm reset vacuum acknowledge recovery 알람 리셋 진공 확인 복구"
   },
   {
     "source_id": "manual-calibration-r1-p7",
@@ -25,9 +26,10 @@
     "page": 7,
     "region": "checklist-a",
     "locator": "manual-calibration-r1#page=7",
+    "figure_id": "fig-calibration-r1-p7",
     "score": null,
     "access": {"users": [], "groups": [], "fabs": []},
-    "search_text": "calibration reference coupon check startup"
+    "search_text": "calibration reference coupon check startup 캘리브레이션 기준 쿠폰 점검 시작"
   },
   {
     "source_id": "manual-optics-r3-p21",
@@ -40,8 +42,9 @@
     "page": 21,
     "region": "profile-verify",
     "locator": "manual-optics-r3#page=21",
+    "figure_id": "fig-optics-r3-p21",
     "score": null,
     "access": {"users": [], "groups": [], "fabs": ["fab-sim-b"]},
-    "search_text": "optics simulated profile baseline verify"
+    "search_text": "optics simulated profile baseline verify 광학 프로파일 기준선 검증"
   }
 ]

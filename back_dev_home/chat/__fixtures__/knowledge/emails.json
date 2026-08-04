@@ -10,9 +10,10 @@
     "page": null,
     "region": "body",
     "locator": "email-maintenance-public#notice",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": []},
-    "search_text": "maintenance notice scheduled sandbox measurement service"
+    "search_text": "maintenance notice scheduled sandbox measurement service 정비 공지 예정 계측 서비스"
   },
   {
     "source_id": "email-private-u1",
@@ -25,9 +26,10 @@
     "page": null,
     "region": "body",
     "locator": "email-private-u1#follow-up",
+    "figure_id": null,
     "score": null,
     "access": {"users": ["u1"], "groups": [], "fabs": []},
-    "search_text": "maintenance private follow up checklist"
+    "search_text": "maintenance private follow up checklist 정비 개인 후속 체크리스트"
   },
   {
     "source_id": "email-maintenance-fab-sim-a",
@@ -40,8 +42,9 @@
     "page": null,
     "region": "body",
     "locator": "email-maintenance-fab-sim-a#schedule",
+    "figure_id": null,
     "score": null,
     "access": {"users": [], "groups": [], "fabs": ["fab-sim-a"]},
-    "search_text": "maintenance simulation area schedule practice"
+    "search_text": "maintenance simulation area schedule practice 정비 시뮬레이션 구역 일정 연습"
   }
 ]
