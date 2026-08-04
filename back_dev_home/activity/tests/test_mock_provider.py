@@ -110,6 +110,22 @@ def test_page_views_do_not_inflate_the_request_counters(reset_state):
     assert mock.get_me("u1")["this_month"]["requests"] == 1
 
 
+def test_a_page_view_only_user_still_has_a_last_seen(reset_state):
+    """Presence, not volume: mag_pixel issues no API calls at all, so a user
+    who only opens it would otherwise read as never-seen while ranking in the
+    page list."""
+    mock.record_request("u1", "mag_pixel", "page_view", [])
+
+    payload = mock.get_me("u1")
+
+    assert payload["last_seen"] is not None
+    assert payload["first_seen"] is not None
+    # ...while the counters it must not touch stay at zero.
+    assert payload["this_month"]["requests"] == 0
+    assert all(day["count"] == 0 for day in payload["daily"])
+    assert mock.get_fab_page_usage()["fabs_30d"] == []
+
+
 def test_fab_page_rankings_stay_request_based(reset_state):
     """Beacons carry no fab_name, so FAB pages must keep counting requests."""
     mock.record_request("u1", "storage", "feature", ["M14"])

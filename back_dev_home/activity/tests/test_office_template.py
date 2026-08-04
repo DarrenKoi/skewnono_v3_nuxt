@@ -266,13 +266,24 @@ def test_summary_ranks_page_views_but_counts_users_from_requests():
 
 def test_fab_page_ranking_stays_request_based():
     """Beacons carry no fab_name, so this aggregation cannot switch."""
+    # get_fab_page_usage issues TWO searches — a 7d window then a 30d one — so
+    # the fake client needs two responses queued or the second call pops an
+    # empty list. Only the last body is asserted on here.
     reader, search, _ = _reader([_fab_response(), _empty_fab_response()])
 
     reader.get_fab_page_usage()
 
-    fab_agg = search.bodies[-1]["aggs"]
+    body = search.bodies[-1]
+    fab_agg = body["aggs"]
     assert "page_view" not in _kind_terms(fab_agg)
     assert "feature" in _kind_terms(fab_agg)
+    # The whole fab query is narrowed, so the composite bucketing and the
+    # active_users cardinality cannot see a beacon either — otherwise a page
+    # open would invent a "미지정" fab and an active user for it.
+    assert "page_view" not in _kind_terms(body["query"])
+    assert {"terms": {"activity_kind": ["entry", "feature"]}} in (
+        body["query"]["bool"]["filter"]
+    )
 
 
 def test_users_are_paged_sorted_and_favorite_is_page_view_only():
@@ -284,8 +295,13 @@ def test_users_are_paged_sorted_and_favorite_is_page_view_only():
                     "buckets": [
                         {
                             "key": {"user_id": "u2"},
-                            "doc_count": 2,
-                            "days": {"buckets": [{"doc_count": 2}]},
+                            # doc_count on the bucket now spans page views
+                            # too; only requests_only may be counted.
+                            "doc_count": 40,
+                            "requests_only": {
+                                "doc_count": 2,
+                                "days": {"buckets": [{"doc_count": 2}]},
+                            },
                             "last_seen": {
                                 "value_as_string": "2026-07-25T00:00:00Z"
                             },
@@ -307,12 +323,15 @@ def test_users_are_paged_sorted_and_favorite_is_page_view_only():
                     "buckets": [
                         {
                             "key": {"user_id": "u1"},
-                            "doc_count": 5,
-                            "days": {
-                                "buckets": [
-                                    {"doc_count": 2},
-                                    {"doc_count": 3},
-                                ]
+                            "doc_count": 99,
+                            "requests_only": {
+                                "doc_count": 5,
+                                "days": {
+                                    "buckets": [
+                                        {"doc_count": 2},
+                                        {"doc_count": 3},
+                                    ]
+                                },
                             },
                             "last_seen": {
                                 "value_as_string": "2026-07-27T02:00:00Z"
@@ -340,6 +359,19 @@ def test_users_are_paged_sorted_and_favorite_is_page_view_only():
     assert favorite_filter["filter"] == {
         "term": {"activity_kind": "page_view"}
     }
+    # The counters read requests_only, not the widened bucket doc_count.
+    assert [row["requests_30d"] for row in payload["users"]] == [5, 2]
+    assert [row["days_active_30d"] for row in payload["users"]] == [2, 1]
+    user_aggs = search.bodies[0]["aggs"]["users"]["aggs"]
+    assert user_aggs["requests_only"]["filter"] == {
+        "terms": {"activity_kind": ["entry", "feature"]}
+    }
+    # last_seen stays outside the kind split on purpose: presence, not volume.
+    assert _kind_terms(user_aggs["last_seen"]) == []
+    assert [row["last_seen"] for row in payload["users"]] == [
+        "2026-07-27T02:00:00Z",
+        "2026-07-25T00:00:00Z",
+    ]
 
 
 def test_fab_totals_use_distinct_users_and_normalize_missing_keys():

@@ -29,6 +29,7 @@ CARDINALITY_PRECISION = 40000
 # say which it means — see the beacon design spec.
 REQUEST_KINDS = ["entry", "feature"]
 RANKING_KIND = "page_view"
+ALL_KINDS = [*REQUEST_KINDS, RANKING_KIND]
 
 
 def _utc_now() -> datetime:
@@ -63,14 +64,18 @@ def _kind_window(
     }
 
 
-def _activity_filters(user_id: str | None = None) -> list[dict[str, Any]]:
+def _activity_filters(
+    user_id: str | None = None,
+    kinds: list[str] = ALL_KINDS,
+) -> list[dict[str, Any]]:
     filters: list[dict[str, Any]] = [
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},
-        # Widened for page views. Because this is the TOP-LEVEL query, every
-        # aggregation below must now state its own kind — a request-based agg
-        # that omits it would silently start counting page views.
-        {"terms": {"activity_kind": ["entry", "feature", "page_view"]}},
+        # Defaults to every kind, page views included. Because this is the
+        # TOP-LEVEL query, an aggregation under it that omits its own kind
+        # would silently start counting page views — so each one states it.
+        # A query needing none of them narrows here instead (see _fab_window).
+        {"terms": {"activity_kind": kinds}},
     ]
     if user_id is not None:
         filters.append({"term": {"user_id": user_id}})
@@ -164,6 +169,12 @@ class ActivityOpenSearchReader:
             "track_total_hits": True,
             "query": {"bool": {"filter": _activity_filters(user_id)}},
             "aggs": {
+                # Deliberately NOT kind-filtered. "When did we first/last see
+                # this person" is a presence question, not a request-volume
+                # one, so page views count. Some pages (mag-pixel) issue no
+                # API calls at all; a user who only opens those would
+                # otherwise show a null last_seen while ranking in the page
+                # list.
                 "first_seen": {"min": {"field": "@timestamp"}},
                 "last_seen": {"max": {"field": "@timestamp"}},
                 "this_month": {
@@ -367,15 +378,31 @@ class ActivityOpenSearchReader:
                     },
                     "aggs": {
                         "users": {
+                            # A composite agg may not be nested under a filter
+                            # agg, so the kind split happens per user bucket:
+                            # requests_only holds everything that COUNTS.
                             "composite": composite,
                             "aggs": {
-                                "days": {
-                                    "date_histogram": {
-                                        "field": "@timestamp",
-                                        "calendar_interval": "day",
-                                        "time_zone": "Asia/Seoul",
-                                    }
+                                "requests_only": {
+                                    "filter": {
+                                        "terms": {
+                                            "activity_kind": REQUEST_KINDS
+                                        }
+                                    },
+                                    "aggs": {
+                                        "days": {
+                                            "date_histogram": {
+                                                "field": "@timestamp",
+                                                "calendar_interval": "day",
+                                                "time_zone": "Asia/Seoul",
+                                            }
+                                        }
+                                    },
                                 },
+                                # Deliberately NOT kind-filtered: last_seen is
+                                # a presence signal, so a page open counts as
+                                # having seen the user even though it is not
+                                # a request.
                                 "last_seen": {
                                     "max": {"field": "@timestamp"}
                                 },
@@ -401,7 +428,8 @@ class ActivityOpenSearchReader:
             )
             users = response.get("aggregations", {}).get("users", {})
             for bucket in users.get("buckets", []):
-                requests = int(bucket.get("doc_count", 0))
+                requests_only = bucket.get("requests_only", {})
+                requests = int(requests_only.get("doc_count", 0))
                 if requests <= 0:
                     continue
                 favorites = (
@@ -417,7 +445,7 @@ class ActivityOpenSearchReader:
                         "requests_30d": requests,
                         "days_active_30d": sum(
                             1
-                            for day in bucket.get("days", {}).get(
+                            for day in requests_only.get("days", {}).get(
                                 "buckets",
                                 [],
                             )
@@ -471,7 +499,13 @@ class ActivityOpenSearchReader:
                     "query": {
                         "bool": {
                             "filter": [
-                                *_activity_filters(),
+                                # Narrowed for the WHOLE fab query: no
+                                # aggregation here wants page views, and a
+                                # beacon carries no fab_name, so admitting one
+                                # would invent a "미지정" fab bucket and count
+                                # its opener as an active user of a fab they
+                                # never selected.
+                                *_activity_filters(kinds=REQUEST_KINDS),
                                 {
                                     "range": {
                                         "@timestamp": {

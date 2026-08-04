@@ -5,7 +5,11 @@ will aggregate: entry requests count active users, feature requests also count
 FAB page usage, and each request can belong to multiple FAB buckets. Feature
 rankings (``by_feature`` / ``daily_features``) are a separate unit driven
 entirely by ``page_view`` events — a page open is not a request, so it never
-touches the daily series, ``daily_fabs`` or ``last_seen``. Timestamps stay UTC
+touches the daily series or ``daily_fabs``. ``last_seen`` is the deliberate
+exception: it answers "when did we last see this person", a presence question
+rather than a request-volume one, so a page open DOES advance it. Some pages
+(mag-pixel) make no API calls at all, and a user who only opens those must not
+read as never-seen while ranking in the page list. Timestamps stay UTC
 but day buckets follow ``Asia/Seoul``, matching the office reader's
 ``time_zone`` aggregations — a UTC calendar here would disagree with
 production about "today" for nine hours a day.
@@ -151,7 +155,8 @@ def record_request(
 
     * request rows (entry/feature) drive the daily series, this_month,
       active-user counts and the FAB page rankings;
-    * page_view rows drive the feature rankings ONLY.
+    * page_view rows drive the feature rankings only — plus ``last_seen``,
+      which is a presence signal rather than a counter (see module docstring).
 
     Mixing them would silently redefine this_month.requests. See
     docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md.
@@ -175,7 +180,9 @@ def record_request(
 
         if activity_kind == "page_view":
             # Rankings only. A page open is not a request, so it must not
-            # touch state.daily / daily_fabs / last_seen.
+            # touch state.daily / daily_fabs / daily_fab_features.
+            # last_seen is the exception: presence, not volume.
+            state.last_seen = now
             state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
             daily_features = state.daily_features.setdefault(today, {})
             daily_features[feature] = daily_features.get(feature, 0) + 1
