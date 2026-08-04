@@ -237,6 +237,12 @@
           :items="topFeaturesForWindow"
           empty-text="아직 데이터가 없습니다."
         />
+        <p
+          v-if="rankingNotice"
+          class="mt-2 text-xs text-(--sk-ink-subtle)"
+        >
+          {{ rankingNotice }}
+        </p>
       </UCard>
 
       <!-- Fab별 페이지 사용 -->
@@ -521,7 +527,7 @@ import {
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, summarizePersonalActivity } from '~/utils/activity'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
@@ -673,6 +679,9 @@ const topFeaturesForWindow = computed<FeatureCount[]>(() => {
     ? summary.value.top_features_7d
     : summary.value.top_features_30d
 })
+const rankingNotice = computed(() =>
+  pageViewNotice(windowKey.value === '7d' ? 7 : 30, new Date())
+)
 
 // --- shared usage: Fab page breakdown ---
 const fabWindowKey = ref<'7d' | '30d'>('7d')

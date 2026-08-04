@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activityFeatureLabel, summarizePersonalActivity } from './activity.ts'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE } from './activity.ts'
 
 test('activityFeatureLabel translates known keys and humanizes unknown keys', () => {
   assert.equal(activityFeatureLabel('recipe_search'), 'Recipe 검색')
@@ -31,4 +31,19 @@ test('summarizePersonalActivity handles an empty comparison window', () => {
 
   assert.equal(summarizePersonalActivity(daily).changePercent, null)
   assert.equal(summarizePersonalActivity([]).averagePerActiveDay30, 0)
+})
+
+test('the notice shows while the window reaches before collection started', () => {
+  const since = new Date(`${PAGE_VIEW_SINCE}T00:00:00+09:00`)
+  const threeDaysIn = new Date(since.getTime() + 3 * 86_400_000)
+
+  assert.match(pageViewNotice(7, threeDaysIn) ?? '', /2026/)
+})
+
+test('the notice disappears once the window is fully covered', () => {
+  const since = new Date(`${PAGE_VIEW_SINCE}T00:00:00+09:00`)
+  const wellAfter = new Date(since.getTime() + 40 * 86_400_000)
+
+  assert.equal(pageViewNotice(7, wellAfter), null)
+  assert.equal(pageViewNotice(30, wellAfter), null)
 })

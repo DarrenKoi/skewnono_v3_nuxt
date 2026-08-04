@@ -68,3 +68,19 @@ export const summarizePersonalActivity = (series: DailyCount[]): PersonalActivit
       : null
   }
 }
+
+/** The day page-view ranking began. Rows logged before this are
+ *  activity_kind "feature" and are deliberately not backfilled, so a window
+ *  reaching further back than this is showing a partial picture and must say
+ *  so — an almost-empty ranking otherwise reads as a bug. */
+export const PAGE_VIEW_SINCE = '2026-08-04'
+
+export const pageViewNotice = (
+  windowDays: number,
+  today: Date
+): string | null => {
+  const since = new Date(`${PAGE_VIEW_SINCE}T00:00:00+09:00`)
+  const windowStart = new Date(today.getTime() - (windowDays - 1) * 86_400_000)
+  if (windowStart >= since) return null
+  return `${PAGE_VIEW_SINCE}부터 페이지 조회 기준으로 집계합니다`
+}
