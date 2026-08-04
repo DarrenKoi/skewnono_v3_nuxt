@@ -99,15 +99,26 @@ mapping:
   feature:
     type: keyword
     optional: true
-    description: route_to_feature가 만든 안정적인 feature slug입니다.
+    description: >-
+      route_to_feature가 request path로 만든 안정적인 feature slug입니다.
+      activity_kind가 page_view인 행은 예외입니다. 그 행의 feature에는 beacon
+      자신의 path(/api/page-view)가 아니라 사용자가 연 페이지의 slug가
+      들어갑니다. handler가 frontend path를 page_to_feature로 해석한 뒤
+      promote_page_view()로 승격한 값이며, page_to_feature는 route_to_feature와
+      같은 slug 어휘를 공유합니다.
   activity_kind:
     type: keyword
     optional: true
     enum:
       - entry
       - feature
+      - page_view
       - background
       - operation
+    description: >-
+      page_view는 POST /api/page-view beacon이 남긴 "사용자가 이 페이지를
+      열었다"는 행입니다. feature ranking은 이 kind만 세고, entry와 feature는
+      API 요청량으로만 셉니다. background와 operation은 세지 않습니다.
   activity_weight:
     type: integer
     optional: true
@@ -153,27 +164,43 @@ request_activity_classification:
         - /api/activity, /api/admin, /api/health 하위 요청
         - /api/account/api-tokens 하위 요청
     - order: 2
+      kind: page_view
+      weight: 1
+      when:
+        - POST /api/page-view beacon이면서 handler가 page slug를 승격한 경우
+      note: >-
+        승격이 유일한 신호입니다. path를 해석할 수 없어(운영 페이지, tab이 아직
+        없는 recipe-status) slug가 승격되지 않은 beacon은 응답은 204지만
+        operation/0으로 분류되어 아무 것도 기록하지 않습니다. 그렇지 않으면
+        beacon 자신의 path가 "page-view"라는 feature slug로 순위에 오릅니다.
+    - order: 3
       kind: background
       weight: 0
       when:
         - 등록된 polling, prefetch 또는 자동 refresh 요청
-    - order: 3
+    - order: 4
       kind: entry
       weight: 1
       when:
         - feature가 sem_list인 인증된 사용자의 성공 요청
-    - order: 4
+    - order: 5
       kind: feature
       weight: 1
       when:
         - 그 밖의 인증된 사용자의 성공한 product API 요청
   rule: 먼저 일치한 단계가 최종 결과이며 뒤 단계로 진행하지 않습니다.
+  no_backfill: >-
+    page_view kind가 도입되기 전에 기록된 문서는 모두 activity_kind=feature이며
+    재분류되지 않습니다. 따라서 feature ranking은 배포 시점부터 빈 상태로 시작해
+    최대 30일에 걸쳐 채워집니다. (OFFICE-VERIFY: 실제 office OpenSearch에서
+    검증되지 않았습니다.)
 
 event_rules:
   - 모든 Flask 요청은 activity 포함 여부와 관계없이 event=request 문서가 됩니다.
   - 처리 중 예외는 같은 request_id의 별도 event=request_exception 문서가 될 수 있습니다.
   - activity reader는 event=request만 읽어 예외 문서를 중복 활동으로 세지 않습니다.
   - 일반 application log는 request 전용 필드를 생략할 수 있습니다.
+  - POST /api/page-view beacon도 별도 store 없이 이 canonical 문서 하나로만 기록됩니다.
   - office activity record_request는 별도 문서를 쓰지 않으며 canonical writer만 기록합니다.
   - mock activity provider만 UI와 계약 검증용 인메모리 기록을 유지합니다.
 

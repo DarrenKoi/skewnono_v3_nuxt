@@ -2,7 +2,9 @@ import type { DailyCount } from '~/composables/useActivityApi'
 
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
-// `cdsem` / `hvsem` only appear via the fallback for unmapped paths.
+// `cdsem`, `hvsem`, `verity_sem`, `provision` and `thickness` only appear via
+// the fallback for pages with no explicit rule — they are real routes, so they
+// get real labels rather than the humanize fallback.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',
@@ -21,12 +23,15 @@ const FEATURE_LABELS: Record<string, string> = {
   mag_pixel: 'Mag/Pixel 가이드',
   meas_hist: '측정 이력',
   pm_planning: 'PM Planning',
+  provision: 'Provision',
   recipe_search: 'Recipe 검색',
   recipe_tat: 'Recipe TAT',
   sem_list: 'SEM List',
   skew_check: 'Skew Check',
   skewvoir: 'Skewvoir',
-  storage: 'Storage'
+  storage: 'Storage',
+  thickness: 'Thickness Metrology',
+  verity_sem: 'VeritySEM'
 }
 
 export const activityFeatureLabel = (feature: string | null | undefined): string => {
@@ -72,7 +77,13 @@ export const summarizePersonalActivity = (series: DailyCount[]): PersonalActivit
 /** The day page-view ranking began. Rows logged before this are
  *  activity_kind "feature" and are deliberately not backfilled, so a window
  *  reaching further back than this is showing a partial picture and must say
- *  so — an almost-empty ranking otherwise reads as a bug. */
+ *  so — an almost-empty ranking otherwise reads as a bug.
+ *
+ *  DEPLOY STEP: this is the HOME date. Home and office deploy separately, so
+ *  the office copy must be reset to the day the office actually deploys —
+ *  otherwise the caption claims collection started weeks early and vanishes
+ *  while the office ranking is still filling. See
+ *  back_dev_home/activity/MIGRATION.md, "Deploy step: PAGE_VIEW_SINCE". */
 export const PAGE_VIEW_SINCE = '2026-08-04'
 
 export const pageViewNotice = (

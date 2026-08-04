@@ -71,10 +71,29 @@ classification outcome), so the feature-ranking aggregations above return
 nothing for pre-existing history. The site-wide and personal top-feature
 lists — and `favorite_feature` in the user list — start at zero on deploy and
 fill in as real beacons land over the following 30 days. The frontend shows a
-caption noting collection started 2026-08-04. This has not been run against a
+caption noting when collection started. This has not been run against a
 real office OpenSearch cluster; the aggregation shapes above are read
 directly from `opensearch_reader.py` but the resulting numbers are
 `OFFICE-VERIFY`.
+
+### Deploy step: `PAGE_VIEW_SINCE`
+
+`front-dev-home/app/utils/activity.ts` holds
+`PAGE_VIEW_SINCE = '2026-08-04'` — the day the beacon started collecting **at
+home**. Home and office deploy separately by design, so that date is wrong at
+the office the moment it is conveyed.
+
+**Set it to the date of the office deploy, as part of that deploy**, before
+building the frontend. It is not cosmetic: the constant decides when the
+"페이지 조회 기준으로 집계합니다" caption appears. Left at the home date, the
+caption claims collection began weeks before any office beacon existed, and it
+disappears from the 7-day view while that view is still mostly empty — which is
+exactly the "almost-empty ranking reads as a bug" case the caption exists to
+prevent.
+
+The same applies again to the production deploy if local and production are
+switched on separately: the date belongs to whichever alias the ranking reads
+(`SKEWNONO_LOG_ENV`).
 
 Document timestamps are stored in UTC. The following calendar windows are
 computed in `Asia/Seoul`:

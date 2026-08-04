@@ -92,6 +92,7 @@ def _build_extra(
         path=path,
         status=status,
         feature=feature,
+        page_slug=getattr(g, "_activity_page_slug", None),
     )
     return {
         "event": event,

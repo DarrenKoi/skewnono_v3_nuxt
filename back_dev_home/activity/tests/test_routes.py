@@ -8,7 +8,9 @@ require a trusted admin identity.
 import pytest
 from flask import Flask, g
 
+from back_dev_home._logging.activity import install_activity_logging
 from back_dev_home.activity import routes
+from back_dev_home.activity.providers import mock
 
 
 @pytest.fixture
@@ -103,12 +105,60 @@ def test_page_view_beacon_rejects_a_missing_path(make_client):
     assert client.post("/api/page-view", data="not json").status_code == 400
 
 
-def test_an_unresolvable_page_is_accepted_but_not_ranked(make_client):
+@pytest.fixture
+def beacon_client(monkeypatch):
+    """A beacon client with the REAL activity middleware and an empty store.
+
+    The plain ``make_client`` app has no after_request middleware, so it can
+    only observe the status code. Recording happens in
+    ``_logging/activity.py``, so proving "not ranked" needs that installed and
+    the mock provider's process-local store swapped for a fresh one.
+    """
+    monkeypatch.setenv("SKEWNONO_ACTIVITY_PROVIDER", "mock")
+    store: dict[str, mock._UserState] = {}
+    monkeypatch.setattr(mock, "_users", store)
+
+    app = Flask(__name__)
+
+    @app.before_request
+    def identity():
+        g.user_id = "1234567"
+        g.identity_source = "cookie"
+
+    app.register_blueprint(routes.bp, url_prefix="/api")
+    install_activity_logging(app)
+    return app.test_client(), store
+
+
+def test_a_resolvable_page_is_recorded_as_that_page(beacon_client):
+    """The positive control: without it, an empty store proves nothing."""
+    client, store = beacon_client
+
+    assert client.post("/api/page-view", json={"path": "/mag-pixel"}).status_code == 204
+
+    assert store["1234567"].by_feature == {"mag_pixel": 1}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/settings",
+        "/admin/logs",
+        "/ebeam/cd-sem/M14/recipe-status",
+    ],
+    ids=["ops-page", "ops-child-page", "recipe-status-without-a-tab"],
+)
+def test_an_unresolvable_page_is_accepted_but_not_ranked(beacon_client, path):
     """An ops page or a tab-less recipe-status is a 204 that records nothing.
 
     A 400 here would make the browser console noisy for a case that is not an
-    error — the plugin cannot know which paths the backend ranks.
+    error — the plugin cannot know which paths the backend ranks. But the row
+    must not be counted either: with no promoted slug the middleware would
+    otherwise fall back to route_to_feature("/api/page-view") and rank the
+    literal slug "page-view" as if it were a page.
     """
-    client = make_client("1234567", "cookie")
+    client, store = beacon_client
 
-    assert client.post("/api/page-view", json={"path": "/settings"}).status_code == 204
+    assert client.post("/api/page-view", json={"path": path}).status_code == 204
+
+    assert store == {}

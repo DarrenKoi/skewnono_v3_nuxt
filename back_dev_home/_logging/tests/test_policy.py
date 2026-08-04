@@ -13,6 +13,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
         path="/api/sem-list",
         status=200,
         feature="sem_list",
+        page_slug=None,
     ) == ("operation", 0)
     assert classify_activity(
         user_id="u1",
@@ -21,6 +22,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
         path="/api/cdsem/live-alarm",
         status=200,
         feature="live_alarm",
+        page_slug=None,
     ) == ("background", 0)
     assert classify_activity(
         user_id="u1",
@@ -29,6 +31,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
         path="/api/sem-list",
         status=200,
         feature="sem_list",
+        page_slug=None,
     ) == ("entry", 1)
     assert classify_activity(
         user_id="u1",
@@ -37,6 +40,7 @@ def test_activity_precedence_is_operation_background_entry_feature():
         path="/api/cdsem/recipe-search",
         status=200,
         feature="recipe_search",
+        page_slug=None,
     ) == ("feature", 1)
 
 
@@ -59,6 +63,7 @@ def test_failed_anonymous_and_internal_requests_are_operation():
             path=path,
             status=status,
             feature="x",
+            page_slug=None,
         ) == ("operation", 0)
 
 
@@ -94,6 +99,7 @@ def test_announcements_banner_is_background_not_a_counted_feature():
         path="/api/announcements",
         status=200,
         feature="announcements",
+        page_slug=None,
     ) == ("background", 0)
 
 
@@ -105,7 +111,27 @@ def test_page_view_beacon_is_its_own_counted_kind():
         path="/api/page-view",
         status=204,
         feature="mag_pixel",
+        page_slug="mag_pixel",
     ) == ("page_view", 1)
+
+
+def test_a_beacon_with_no_promoted_slug_records_nothing():
+    """An unresolvable page is still a 204, but it must not become a feature.
+
+    Without a promoted slug the middleware falls back to
+    route_to_feature("/api/page-view") — the literal slug "page-view" — so
+    counting the row would rank the beacon endpoint itself alongside real
+    pages. Promotion is the signal: no slug, no page view.
+    """
+    assert classify_activity(
+        user_id="u1",
+        api_token_id=None,
+        method="POST",
+        path="/api/page-view",
+        status=204,
+        feature="page-view",
+        page_slug=None,
+    ) == ("operation", 0)
 
 
 def test_page_view_beacon_obeys_the_usual_disqualifiers():
@@ -122,4 +148,5 @@ def test_page_view_beacon_obeys_the_usual_disqualifiers():
             path="/api/page-view",
             status=status,
             feature="mag_pixel",
+            page_slug="mag_pixel",
         ) == ("operation", 0)

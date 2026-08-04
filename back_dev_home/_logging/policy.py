@@ -56,6 +56,7 @@ def classify_activity(
     path: str,
     status: int,
     feature: str,
+    page_slug: str | None,
 ) -> ActivityDecision:
     if (
         not user_id
@@ -70,7 +71,15 @@ def classify_activity(
     ):
         return ActivityDecision("operation", 0)
     if path == PAGE_VIEW_PATH:
-        return ActivityDecision("page_view", 1)
+        # Promotion is the signal. The handler calls promote_page_view() only
+        # when page_to_feature resolved the reported path, so no slug means the
+        # page was unrankable (an ops page, a recipe-status without its tab).
+        # Recording it anyway would rank the beacon's own path as a feature.
+        return (
+            ActivityDecision("page_view", 1)
+            if page_slug
+            else ActivityDecision("operation", 0)
+        )
     if path in _BACKGROUND_EXACT or any(
         path.startswith(prefix + "/") for prefix in _BACKGROUND_CHILD_PREFIXES
     ):

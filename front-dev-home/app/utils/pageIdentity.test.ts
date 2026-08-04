@@ -151,7 +151,9 @@ test('skewvoir is the same across tool types', () => {
 })
 
 test('tool landing pages keep their tool and stay off the home identity', () => {
-  // page_to_feature gives these home, cd_sem, cd_sem, hv_sem — three identities.
+  // page_to_feature gives these home, cdsem, cdsem, hvsem — three identities.
+  // (cdsem/hvsem, not cd_sem/hv_sem: the same slugs route_to_feature already
+  // emits for /api/cdsem/... — one tool, one slug.)
   const home = resolvePageIdentity('/', {})
   const cdsem = resolvePageIdentity('/ebeam/cd-sem', {})
   const cdsemFab = resolvePageIdentity('/ebeam/cd-sem/M14', {})

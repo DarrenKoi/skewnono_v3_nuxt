@@ -449,6 +449,7 @@ const activityKindOptions = [
   { label: 'All activity', value: ALL_SENTINEL },
   { label: 'Entry', value: 'entry' },
   { label: 'Feature', value: 'feature' },
+  { label: 'Page view', value: 'page_view' },
   { label: 'Background', value: 'background' },
   { label: 'Operation', value: 'operation' }
 ]

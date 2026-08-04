@@ -154,19 +154,19 @@
   {
     "path": "/ebeam/cd-sem",
     "query": {},
-    "slug": "cd_sem",
+    "slug": "cdsem",
     "comment": "Tool landing page"
   },
   {
     "path": "/ebeam/cd-sem/M14",
     "query": {},
-    "slug": "cd_sem",
+    "slug": "cdsem",
     "comment": "Tool landing page under a fab — same slug as the fabless landing"
   },
   {
     "path": "/ebeam/hv-sem/R3",
     "query": {},
-    "slug": "hv_sem",
+    "slug": "hvsem",
     "comment": "A different tool landing, so a different identity"
   },
   {

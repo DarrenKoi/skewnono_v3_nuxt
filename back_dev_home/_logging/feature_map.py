@@ -120,6 +120,13 @@ _STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("/afm",         "afm"),
 )
 
+# Frontend tool segment → the slug route_to_feature already emits for the same
+# tool (/api/cdsem/... → "cdsem"). One tool, one slug, in both vocabularies.
+_TOOL_SEGMENT_SLUGS = {
+    "cd-sem": "cdsem",
+    "hv-sem": "hvsem",
+}
+
 # Fab segments are [fab] route params. Same shape the frontend uses in
 # plugins/persist-fab.client.ts, so the two stay in agreement about what a fab
 # looks like.
@@ -189,7 +196,12 @@ def page_to_feature(path: str) -> str | None:
             if joined == prefix or joined.startswith(prefix + "/"):
                 return slug
         # Unmapped ebeam page: group by tool, matching route_to_feature's
-        # fallback, which yields cdsem/hvsem for unmapped API paths.
-        return parts[1].replace("-", "_") if len(parts) >= 2 else "ebeam"
+        # fallback, which yields cdsem/hvsem for unmapped API paths. The tool
+        # segment is spelled with a hyphen in the frontend route and without
+        # one in the API path, so it is translated rather than underscored —
+        # writing cd_sem here would be a SECOND spelling of a slug that has
+        # already been written, and this module forbids that (see header).
+        tool = parts[1] if len(parts) >= 2 else "ebeam"
+        return _TOOL_SEGMENT_SLUGS.get(tool, tool.replace("-", "_"))
 
     return parts[0].replace("-", "_") if parts else None

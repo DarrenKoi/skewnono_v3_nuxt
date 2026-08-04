@@ -115,16 +115,26 @@ query 를 보는 경로는 `recipe-status` 하나뿐입니다.
 backend slug 도 이미 둘로 나뉘어 있으므로, 이 route 에 한해 `tab` 을
 정체성에 포함합니다.
 
-| frontend 경로 | slug |
-| --- | --- |
-| `…/recipe-status?tab=tat` | `recipe_tat` |
-| `…/recipe-status?tab=align` | `fail_issue` |
-| `…/recipe-status?tab=meas` | `fail_issue` |
-| `…/recipe-status` (tab 미확정) | beacon 발화하지 않음 |
+| frontend 경로 | 정체성 | slug |
+| --- | --- | --- |
+| `…/recipe-status?tab=tat` | 고유 | `recipe_tat` |
+| `…/recipe-status?tab=align` | 고유 | `fail_issue` |
+| `…/recipe-status?tab=meas` | 고유 | `fail_issue` |
+| `…/recipe-status` (tab 미확정) | 없음 | beacon 발화하지 않음 |
 
-`align` 과 `meas` 가 같은 slug 인 이유는 두 tab 이 같은
-`/api/<tool>/fail-issue` 응답의 `align_fail_*` 과 `meas_fail_*` 를 각각
-보여주는 하나의 기능이기 때문입니다.
+`tat`, `align`, `meas` 는 **서로 다른 세 개의 정체성**입니다. Align Fail 과
+Meas Fail 은 같은 `fail_issue` slug 를 기록하지만, 각각 한 번의 페이지 열람으로
+따로 셉니다.
+
+> 이 결정은 `align` 과 `meas` 를 하나의 정체성으로 합치던 최초 설계를
+> 대체합니다. 두 tab 이 같은 `/api/<tool>/fail-issue` 응답의 `align_fail_*` 과
+> `meas_fail_*` 를 각각 보여주므로 backend slug 는 하나로 남지만, 제품 관점에서
+> Align Fail 과 Meas Fail 은 사용자가 따로 찾아 여는 별개의 화면이라는 것이
+> 기획 판단이었습니다. 그래서 slug 는 공유하되 정체성만 나눕니다.
+
+slug 를 공유하면서 정체성만 더 잘게 나누는 것은 이 세 행에 한정된 예외이며,
+`pageIdentityContract.json` 에서 `finerThanSlug: true` 로 표시되고
+`pageIdentity.test.ts` 가 네 번째 예외가 조용히 늘어나지 못하도록 막습니다.
 
 tab 이 없는 상태에서 발화하지 않는 이유는 중복 집계를 막기 위해서입니다.
 `RecipeStatusView.vue` 는 mount 시 `router.replace` 로 `?tab=` 을 URL 에 다시
