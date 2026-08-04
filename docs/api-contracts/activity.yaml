@@ -30,8 +30,25 @@ activity_filter:
   activity_kind:
     - entry
     - feature
-  active_user_metrics: entry와 feature를 모두 포함합니다.
-  feature_rankings: feature만 포함하며 entry는 제외합니다.
+    - page_view
+  active_user_metrics: >-
+    entry와 feature만 포함합니다(page_view 제외). dau/wau/mau, this_month,
+    daily sparkline, 사용자 목록의 requests_30d/days_active_30d가 여기 속합니다.
+  feature_rankings: >-
+    page_view만 포함합니다(entry, feature 제외). top_features, top_features_7d/30d,
+    favorite_feature가 여기 속합니다. POST /api/page-view가 남긴 행만 순위에
+    들어갑니다.
+  fab_page_rankings: >-
+    feature만 포함합니다(entry, page_view 제외). /api/activity/fabs의 pages는
+    beacon 문서에 fab_name이 없어 여전히 API 요청 문서만 씁니다.
+  presence_metrics: >-
+    kind로 거르지 않습니다. first_seen/last_seen은 요청량이 아니라 "마지막으로
+    본 시각"을 묻는 질문이라 page_view도 포함합니다.
+  no_backfill: >-
+    2026-08-04 이전에 기록된 문서는 모두 activity_kind=feature이며 page_view로
+    재분류되지 않습니다. 따라서 feature_rankings는 배포 시점부터 빈 상태로
+    시작해 최대 30일에 걸쳐 채워집니다. (OFFICE-VERIFY: 실제 office
+    OpenSearch에서 검증되지 않았습니다.)
 
 types:
   FeatureCount:
@@ -226,6 +243,34 @@ endpoints:
       status: 200
       body: FabUsageResponse
 
+  - path: /api/page-view
+    method: POST
+    auth: signed-in user
+    description: >-
+      Nuxt SPA가 다른 페이지를 열 때마다 쏘는 beacon입니다. /api/activity 하위가
+      아니라 최상위에 마운트되어 있습니다 — /api/activity는 operation prefix라
+      거기 두면 모든 page view가 activity_weight=0으로 분류됩니다. path가 알려진
+      페이지로 resolve되면 activity_kind=page_view, feature=해당 페이지 slug인
+      로그 행 1건이 기록됩니다(beacon 자신의 경로가 아닙니다). resolve되지
+      않는 path(운영 페이지, 아직 URL에 반영되지 않은 tab 등)는 조용히
+      무시하고 204를 돌려줍니다 — 클라이언트는 어떤 path가 순위에 들어가는지
+      알 수 없으므로 400으로 취급하지 않습니다.
+    request_body:
+      path:
+        type: string
+        description: >-
+          query를 포함한 프론트엔드 route path입니다. 예:
+          /ebeam/cd-sem/M14/recipe-status?tab=tat
+    response:
+      status: 204
+      body: none
+      description: 정상 접수입니다. 순위 반영 여부는 path가 알려진 페이지인지에 달려 있습니다.
+    errors:
+      - status: 400
+        code: bad_request
+        message: path is required
+        when: path가 없거나 공백뿐인 문자열인 경우
+
 errors:
   - status: 503
     code: activity_query_failed
@@ -241,6 +286,18 @@ notes:
   - >-
     entry 요청은 active user, 개인 요청 수, 활동일, first_seen, last_seen에
     포함되지만 top feature, favorite feature, FAB pages에는 포함되지 않습니다.
+  - >-
+    page_view는 반대입니다 — top feature, favorite feature 순위에는 포함되지만
+    active user 수, 개인 요청 수(this_month/requests_30d), 활동일에는
+    포함되지 않습니다. first_seen/last_seen에는 entry/feature와 마찬가지로
+    포함됩니다. FAB pages는 page_view를 아예 쓰지 않습니다(beacon에
+    fab_name이 없음). (2026-08-04)
+  - >-
+    page_view는 2026-08-04 배포로 처음 기록되기 시작했고 backfill이 없습니다.
+    그 이전 문서는 activity_kind=feature로 남아 있어 top feature/favorite
+    feature 순위에서 보이지 않으므로, 이 순위들은 배포 시점부터 빈 상태로
+    시작해 최대 30일에 걸쳐 채워집니다. (OFFICE-VERIFY: 실제 office
+    OpenSearch에서는 아직 검증되지 않았습니다.)
   - >-
     API token 요청, 익명 요청, 실패 응답, operation, background 요청은 canonical
     로그에는 남을 수 있지만 activity_weight가 0이므로 활동 지표에서 제외됩니다.

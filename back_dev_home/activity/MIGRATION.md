@@ -26,17 +26,55 @@ adapter.
 
 ## What the data means
 
-A request document counts toward activity only if it satisfies all of:
+The base query behind every aggregation (`_activity_filters()` in
+`providers/opensearch_reader.py`) requires:
 
 - `event=request`
 - `activity_weight=1`
-- `activity_kind` is `entry` or `feature`
+- `activity_kind` in `entry`, `feature`, `page_view` by default
 - it carries an identified person's `user_id`
 
-`entry` is the landing request on `/api/sem-list`. It counts toward active
-users, request totals and first/last seen, but **not** toward the top-feature or
-FAB-page rankings. Only `feature` documents contribute to feature rankings and
-page counts.
+That default admits `page_view`, so **every aggregation nested under it
+re-states its own kind** — nothing may rely on the top-level filter alone, or
+it would silently start counting page views. `providers/opensearch_reader.py`
+defines two kind groups: `REQUEST_KINDS = ["entry", "feature"]` (request
+volume) and `RANKING_KIND = "page_view"` (which page someone opened):
+
+- **Request-volume aggregations** — `this_month`, `daily`, `dau`/`wau`/`mau`,
+  the 30-day user list's `requests_only` (and the `days_active_30d` histogram
+  nested under it) — filter to `REQUEST_KINDS`. `entry` (the landing request
+  on `/api/sem-list`) counts here, so it contributes to active-user counts,
+  personal request totals and the daily sparkline, but not to any ranking.
+- **Feature-ranking aggregations** — `features` (personal top features),
+  `top_features_7d`/`top_features_30d` (site-wide), and the user list's
+  `feature_only` (`favorite_feature`) — filter to `RANKING_KIND`, i.e.
+  `page_view` only. `feature` (API-request) documents no longer feed these
+  rankings; only a fired beacon does.
+- **`first_seen` and `last_seen`** (in `_history_query`, and the per-user
+  `last_seen` in the users-list composite) are deliberately **not**
+  kind-filtered. "When did we last see this person" is a presence question,
+  not a request-volume one, so `page_view` rows count — a user who only opens
+  a page issuing no API calls (e.g. the mag-pixel calculator) would otherwise
+  show a null `last_seen` while still appearing in the page list.
+- **The FAB page ranking is the one deliberate exception.** `_fab_window()`
+  narrows its whole query to `REQUEST_KINDS` (not even `entry`, just
+  `["entry", "feature"]` filtered again to the `feature`-only `pages` sub-agg)
+  and never admits `page_view`: a beacon carries no `fab_name`, because the
+  fab is only known once the user has picked one and a data request goes
+  out. Admitting page views here would either drop them into a fabricated
+  "미지정" bucket or drop them silently — both wrong — so `get_fab_page_usage`
+  stays request-based end to end.
+
+**No backfill, so rankings start empty.** Rows logged before this feature
+shipped all carry `activity_kind: "feature"` (`page_view` did not exist as a
+classification outcome), so the feature-ranking aggregations above return
+nothing for pre-existing history. The site-wide and personal top-feature
+lists — and `favorite_feature` in the user list — start at zero on deploy and
+fill in as real beacons land over the following 30 days. The frontend shows a
+caption noting collection started 2026-08-04. This has not been run against a
+real office OpenSearch cluster; the aggregation shapes above are read
+directly from `opensearch_reader.py` but the resulting numbers are
+`OFFICE-VERIFY`.
 
 Document timestamps are stored in UTC. The following calendar windows are
 computed in `Asia/Seoul`:
@@ -85,6 +123,22 @@ by `(-requests_30d, user_id)`.
 **Admin only** (`403 forbidden` otherwise). Returns the personal history shape.
 No result is `404 not_found`; a failed OpenSearch query is
 `503 activity_query_failed`.
+
+### `POST /api/page-view`
+
+Registered on this same blueprint but deliberately mounted at `/api/page-view`,
+not under `/api/activity` — that prefix is an operation prefix
+(`_logging/policy.py`), and nesting the beacon there would classify every page
+view as `activity_weight=0`. The handler (`routes.py::page_view`) does no
+querying itself; it validates `{"path": string}`, resolves it to a feature
+slug with `page_to_feature()`, and — if it resolves — calls
+`promote_page_view(slug)` so the `after_request` middleware in
+`_logging/activity.py` logs a `page_view` row with that slug in `feature`.
+Responses are `204` whether or not the path resolved (an unrankable path, e.g.
+an ops page or a tab not yet reflected in the URL, is not an error the client
+can act on) and `400` only when `path` is missing or blank. There is no office
+write path for this route — same as every other `activity` endpoint, writes
+happen once, in the shared middleware, not in a provider adapter.
 
 ## Who may read what
 

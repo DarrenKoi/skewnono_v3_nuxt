@@ -40,7 +40,11 @@ status -> integer: HTTP status
 latency_ms -> integer: 요청 처리 시간
 remote_addr -> keyword: 내부 client/proxy 주소
 feature -> keyword: page-level feature slug (_logging/feature_map.py 가 결정)
-activity_kind -> keyword: entry | feature | background | operation
+activity_kind -> keyword: entry | feature | background | operation | page_view
+  page_view 는 POST /api/page-view beacon 이 남기는 행이며 feature 필드에는
+  beacon 경로가 아니라 사용자가 연 페이지의 slug 이 들어갑니다
+  (_logging/activity.py 의 promote_page_view). 순위 집계는 page_view 를,
+  요청 총계·활성 사용자·FAB 순위는 entry|feature 를 읽습니다. (2026-08-04)
 activity_weight -> integer: 활동 집계 대상이면 1, 아니면 0
 fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M14"] 형태이며
   context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
@@ -97,10 +101,19 @@ alias 판정 시 주의 (office 확인 2026-07-28)
   path terms aggregation 결과가 /api/... 위주인 것이 정상입니다.
 
 어댑터 소비 규약
-- 활동 지표(activity reader)는 event=request AND activity_weight=1 AND
-  activity_kind IN (entry, feature) 만 셉니다. top feature / FAB page 순위는
-  activity_kind=feature 만 씁니다. entry(sem_list 진입)는 DAU/WAU/MAU 에는
-  포함하고 순위에는 넣지 않습니다.
+- 활동 지표(activity reader)의 최상위 query 는 event=request AND
+  activity_weight=1 AND activity_kind IN (entry, feature, page_view) 이며,
+  그 아래 각 집계가 자신이 셀 kind 를 다시 명시합니다. 요청 총계·활성 사용자
+  (DAU/WAU/MAU)·개인 daily 시리즈·30일 사용자 목록은 entry|feature 만 읽고,
+  top feature 순위(summary, me, 사용자별 history)는 page_view 만 읽습니다.
+  FAB 페이지 순위(/api/activity/fabs 의 pages)는 예외적으로 여전히 feature 를
+  읽습니다 — beacon 문서에는 fab_name_list 가 없어 FAB 별 집계에 쓸 수
+  없습니다. first_seen/last_seen 은 kind 로 걸러내지 않습니다 — "마지막으로
+  본 시각"은 요청량이 아니라 존재 여부를 묻는 질문이라 page_view 도
+  포함합니다. entry(sem_list 진입)는 DAU/WAU/MAU 에는 포함하고 순위에는
+  넣지 않습니다. (2026-08-04) page_view 도입 이전 문서는 activity_kind=feature
+  로 남아 있어 새 순위 집계에는 보이지 않으므로, 순위는 배포 시점부터
+  빈 상태로 시작해 30일에 걸쳐 채워집니다. backfill 은 없습니다.
 - OPTIONS/HEAD 요청은 분류 단계에서 operation/0 이므로 활동 지표에 나타나지
   않습니다 (CORS preflight 오염 방지, 2026-07-27 수정).
 - 날짜 경계는 반드시 time_zone: Asia/Seoul 로 집계합니다. @timestamp 를 UTC 로
