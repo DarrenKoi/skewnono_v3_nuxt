@@ -1,4 +1,4 @@
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 import pytest
 from flask import Flask
@@ -66,3 +66,41 @@ def test_list_rejects_path_traversal_class_name(client):
     r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=..%2fADI&msr=MSR_1")
     assert r.status_code == 400
     assert r.get_json()["code"] == "invalid_locator"
+
+
+def test_serve_sets_content_disposition_filename(client):
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    name = client.get(f"/api/msr-images?{q}").get_json()["images"][0]
+    r = client.get(f"/api/msr-image?{q}&name={name}")
+    assert r.status_code == 200
+    cd = r.headers["Content-Disposition"]
+    # inline, not attachment: the gallery reads these bytes through <img> and
+    # fetch(); inline is neutral there while curl -OJ still picks the name up.
+    assert cd.startswith("inline;")
+    assert f'filename="{name}"' in cd
+
+
+def test_serve_escapes_quote_in_filename(client):
+    # validate_segment rejects / \ and control chars but NOT a double quote,
+    # so the quote is the one character that can break out of the header's
+    # quoted-string. It must arrive escaped, not raw.
+    name = 'sh"ot.jpeg'
+    r = client.get(
+        "/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name=" + quote(name)
+    )
+    assert r.status_code == 200
+    cd = r.headers["Content-Disposition"]
+    assert '\\"' in cd
+    assert 'filename="sh"ot.jpeg"' not in cd
+
+
+def test_serve_handles_non_ascii_filename(client):
+    # Werkzeug encodes header values as latin-1 and raises on anything else,
+    # so a non-ASCII name must not reach the quoted-string form unencoded.
+    name = "샷01.jpeg"
+    r = client.get(
+        "/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name=" + quote(name)
+    )
+    assert r.status_code == 200
+    cd = r.headers["Content-Disposition"]
+    assert "filename*=UTF-8''" in cd

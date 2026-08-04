@@ -46,6 +46,26 @@ def _require(*names: str) -> dict[str, str] | None:
     return out
 
 
+def _content_disposition(name: str) -> str:
+    """RFC 6266 disposition for a caller-supplied image filename.
+
+    ``inline``, not ``attachment``: the gallery reads these bytes through
+    ``<img :src>`` and ``fetch()`` + blob, and inline is neutral for both
+    while ``curl -OJ`` still picks the filename up either way. The target
+    audience is Python and curl, so attachment would add browser-behavior
+    risk for no gain.
+
+    Both parameter forms are emitted. ``validate_locator`` rejects ``/``,
+    ``\\`` and control chars but NOT a double quote, so the quoted-string
+    form is escaped rather than trusted; and a non-ASCII name cannot ride
+    in it at all, because Werkzeug encodes header values as latin-1 and
+    raises on anything else.
+    """
+    ascii_name = name.encode("ascii", "replace").decode("ascii")
+    escaped = ascii_name.replace("\\", "\\\\").replace('"', '\\"')
+    return f"inline; filename=\"{escaped}\"; filename*=UTF-8''{quote(name, safe='')}"
+
+
 @bp.get("/msr-images")
 def list_images_route():
     args = _require("eqp_ip", "class_name", "msr")
@@ -88,7 +108,10 @@ def serve_image_route():
     except MsrImageError as exc:
         return _error(exc)
 
-    headers = {"Cache-Control": "public, max-age=3600"}
+    headers = {
+        "Cache-Control": "public, max-age=3600",
+        "Content-Disposition": _content_disposition(args["name"]),
+    }
     if fetched.cond is not None:
         headers["X-Msr-Cond"] = quote(fetched.cond)
     return Response(fetched.data, mimetype=fetched.content_type, headers=headers)
