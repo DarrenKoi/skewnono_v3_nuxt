@@ -58,7 +58,6 @@ const IDENTITY_RULES = [
   '/msr-files',
   '/msr-image',
   '/sem-list',
-  '/meas-hist',
   '/tool-roster',
   '/mag-pixel',
   '/chat',

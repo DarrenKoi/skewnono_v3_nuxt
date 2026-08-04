@@ -195,6 +195,45 @@ test('skewvoir does not share the msr-file identity', () => {
   )
 })
 
+// The ONE approved exception, enumerated so the fixture cannot quietly grow a fourth.
+const APPROVED_FINER_ROWS = [
+  '/ebeam/cd-sem/M14/recipe-status?tab=tat',
+  '/ebeam/cd-sem/M14/recipe-status?tab=align',
+  '/ebeam/cd-sem/M14/recipe-status?tab=meas'
+]
+
+const rowLabel = (row: { path: string, query: Record<string, unknown> }) => {
+  const pairs = Object.entries(row.query ?? {}).map(
+    ([key, value]) => `${key}=${Array.isArray(value) ? value[0] : value}`
+  )
+  return pairs.length ? `${row.path}?${pairs.join('&')}` : row.path
+}
+
+test('contract: every ranked page resolves to a non-null identity', () => {
+  // A null identity means the beacon never fires — the page silently stops being
+  // counted, which is the worst failure the governing rule exists to prevent.
+  // Only rows the backend itself declines to rank (slug null: ops pages, and
+  // recipe-status before its tab lands) may resolve to null.
+  for (const row of contract) {
+    if (row.slug === null) continue
+    const identity = resolvePageIdentity(row.path, row.query)
+    assert.notEqual(
+      identity,
+      null,
+      `${rowLabel(row)} has slug "${row.slug}" but resolved to null — `
+      + 'a real page open would go uncounted.'
+    )
+  }
+})
+
+test('contract: the finerThanSlug marker is exactly the three recipe-status tabs', () => {
+  // Without this, future drift could be silenced by marking the failing row
+  // instead of fixing it. A fourth marker must force a conversation.
+  const marked = contract.filter(r => r.finerThanSlug).map(rowLabel).sort()
+
+  assert.deepEqual(marked, [...APPROVED_FINER_ROWS].sort())
+})
+
 test('contract: identity partitions match backend slug partitions', () => {
   // Two paths must produce the same identity IFF the backend maps them to the same slug.
   // Exception: finerThanSlug rows are intentional — they differ in identity despite
