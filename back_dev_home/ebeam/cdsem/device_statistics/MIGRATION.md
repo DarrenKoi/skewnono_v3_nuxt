@@ -339,31 +339,28 @@ docstring.
   parameter data. Cell match order matters: `r3-sample-core-tvpv` must
   precede the general `r3-sample-dram`/`r3-sample-nand` cells so the
   frontend's first-match selection picks the more specific cell.
-- Office data source: **none — rules are app-owned state, not office data.**
-  There is no upstream table to read, so the adapter reads the published
-  version out of the Redis hash `v3_device_statistics_rules` (field =
-  `fac_id`, value = `RuleVersion` JSON) and returns `None` when nothing has
-  been published, which the route turns into a 404. Seed it once with
-  `.venv/bin/python -m scripts.seed_device_statistics_rules` (publishes the
-  mock's D8/D19 seed matrix verbatim; refuses to overwrite an existing
-  published version without `--force`). Version history and rollback (D12)
-  remain out of scope for this seam.
-
+- Office data source: **none — the office adapter returns the same in-code
+  seed (`providers/rules.py`) as the mock.** In-app rule editing will not be
+  built (decided 2026-08-04): rule changes are made by editing `rules.py`
+  and deploying, so git history is the version history and the two
+  providers can never diverge. The earlier design (publish to the Redis
+  hash `v3_device_statistics_rules`, seeded by a script) was discarded —
+  it bought nothing without a save path and produced a 404 for every fab
+  until someone remembered to publish (which is exactly what happened
+  office-side on 2026-08-04). `fac_id` values without a seed entry still
+  404, by contract.
 - Notes: not a huge-payload endpoint — one fab's rule set is a handful of
-  cells. `save`/`history`/`rollback` are explicitly out of scope for this
-  seam (per the mock's own docstring, "step 3/5" — a future feature, not
-  part of this office migration).
+  cells.
 - Troubleshooting — **comparison page shows 판정 범위 `0 / N` for every R3
-  lot** (observed office-side 2026-08-04). Two known causes, told apart by
-  the coverage-cell tooltip:
-  1. Rules never published — **confirmed as the actual office cause
-     2026-08-04** (`rules?fac_id=R3` 404 in the web console):
-     run `.venv/bin/python -m scripts.seed_device_statistics_rules` once
-     from the repo root at the office. The tooltip says "계측 룰이 없습니다".
-  2. Rules published but every recipe falls out as gray (e.g. `phase` is
+  lot**. Two known causes, told apart by the coverage-cell tooltip:
+  1. `rules?fac_id=R3` returns 404 (tooltip: "계측 룰이 없습니다") — with
+     the current adapter this can only be a **stale `office.py`** still
+     reading the discarded Redis hash. Refresh it:
+     `python -m scripts.sync_office_adapters device_statistics`.
+  2. Rules load but every recipe falls out as gray (e.g. `phase` is
      null because real device `ctn_desc` strings don't carry parseable
      EV/TV/PV tokens, or `memory_class` is unknown and Pool lots lack a
-     `yield_check` annotation). The tooltip now lists the per-reason gray
+     `yield_check` annotation). The tooltip lists the per-reason gray
      counts ("룰은 있으나 전 recipe 가 판정에서 제외 — …") so the blocking
      derivation can be identified on the spot.
 

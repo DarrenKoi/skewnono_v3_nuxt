@@ -131,14 +131,11 @@ def test_weekly_trend_data_matches_contract():
 
 
 def test_rules_matches_contract():
+    # Provider-independent: BOTH providers serve the same in-code seed
+    # (providers/rules.py) — in-app rule editing was dropped 2026-08-04, so
+    # there is no "published elsewhere" state and R3 must always resolve.
     rules = data.get_rules("R3")
-    if _is_mock():
-        # Mock-only: providers/rules.py ships exactly one seeded fab. Office
-        # may serve more than one fab and more than one version (MIGRATION.md),
-        # and R3 having no published rule version there is not a failure.
-        assert rules is not None, "the mock rule seed must ship an R3 version"
-    if rules is None:
-        pytest.skip("active provider serves no rule version for R3")
+    assert rules is not None, "the R3 rule seed must resolve under any provider"
 
     assert_matches(rules, RuleVersion)
     assert rules["thresholds"]["yellow_at"] <= rules["thresholds"]["red_at"]

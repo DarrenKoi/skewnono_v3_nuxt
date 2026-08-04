@@ -75,10 +75,12 @@ MinIO 에 적재**하고 이 어댑터는 그것을 읽습니다.
 
 계측 룰(get_rules)
 ─────────────────
-룰은 사무실 DB 에서 **읽어오는 값이 아니라 이 앱이 소유하는 상태**입니다
-(rule-editor-structure.md §2). 원천이 없으므로 Redis 해시에 발행해 두고
-읽습니다 — 미발행이면 ``None`` 을 돌려주고 route 가 404 로 바꿉니다(계약대로).
-최초 1회 :func:`publish_rules` 로 seed 하십시오.
+룰은 사무실 DB 에서 읽어오는 값이 아니라 **코드가 소유합니다** — office 도
+mock 과 같은 ``providers/rules.py`` seed 를 그대로 반환합니다. 앱 내 편집
+저장은 하지 않기로 결정했고(user-confirmed 2026-08-04), 룰 변경은 그때그때
+rules.py 를 고쳐 배포합니다 — git 이력이 곧 버전 이력입니다. 예전의 Redis
+발행(publish_rules / v3_device_statistics_rules)은 이 결정으로 폐기했습니다;
+발행 전 404 가 나던 운영 함정만 있었고 사 주는 것이 없었습니다.
 
 At the office
 ─────────────
@@ -131,6 +133,9 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
 from back_dev_home.ebeam.cdsem.device_statistics.oper_order import (
     sort_key as _oper_sort_key,
 )
+from back_dev_home.ebeam.cdsem.device_statistics.providers.rules import (
+    get_rules as _seed_rules,
+)
 from back_dev_home.ebeam.hitachi._office_search import (
     KST,
     aggregate as _aggregate,
@@ -152,7 +157,6 @@ __all__ = [
     "build_weekly_snapshot",
     "write_weekly_snapshot",
     "sweep_weekly_snapshots",
-    "publish_rules",
 ]
 
 
@@ -166,9 +170,6 @@ HVM_KEY = "device_desc"     # M 계열 양산 카탈로그 (parquet DataFrame)
 PLANSTEP_INDEX = "sknn-planstep-r3"
 LOT_HIST_INDEX = "ebeam_tas_lot_hist"
 IDP_INDEX = "cdsem_idp_ver"
-
-# 계측 룰을 발행해 두는 Redis 해시 (field = fac_id, value = RuleVersion JSON).
-RULES_KEY = "v3_device_statistics_rules"
 
 # MinIO 주차 스냅샷 접두사. 설정된 기본 prefix 위에 얹힙니다 — 사무실 자격증명은
 # user/<사번>/ 아래로 제한되어 있어 버킷 레벨 조작은 하지 않습니다.
@@ -1138,44 +1139,14 @@ def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
 
 
 def get_rules(fac_id: str) -> RuleVersion | None:
-    """발행된 현재 룰 버전. 미발행이면 None (route 가 404 로 변환)."""
-    wanted = (fac_id or "").strip()
-    if not wanted:
-        return None
-    try:
-        raw = redis_client().hget(RULES_KEY, wanted.encode())
-    except STORE_ERRORS as exc:
-        raise unreachable(
-            f"Redis unreachable while reading {RULES_KEY!r}", exc
-        ) from exc
-    if raw is None:
-        _LOG.info(
-            "device_statistics: no rule version published for %r under %r — "
-            "seed it with publish_rules()", wanted, RULES_KEY,
-        )
-        return None
-    try:
-        value = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise LookupError(
-            f"Redis {RULES_KEY!r}[{wanted!r}] is not valid JSON -> "
-            f"{type(exc).__name__}: {exc}"
-        ) from exc
-    if not isinstance(value, dict):
-        raise LookupError(
-            f"Redis {RULES_KEY!r}[{wanted!r}] deserialized to "
-            f"{type(value).__name__}, expected a RuleVersion object"
-        )
-    return value  # type: ignore[return-value]
+    """현재 룰 버전 — mock 과 같은 코드 seed(providers/rules.py)를 그대로.
 
-
-def publish_rules(fac_id: str, version: RuleVersion) -> None:
-    """룰 버전을 발행합니다. 최초 seed 와 편집 저장(D12)이 쓰는 쓰기 경로입니다."""
-    redis_client().hset(
-        RULES_KEY,
-        fac_id.strip().encode(),
-        json.dumps(version, ensure_ascii=False).encode(),
-    )
+    룰은 앱 내에서 편집 저장하지 않기로 결정했으므로(user-confirmed
+    2026-08-04) office 별 저장소가 필요 없습니다. 룰을 바꿀 때는 rules.py 를
+    고쳐 배포합니다 — 두 provider 가 한 seed 를 읽으니 집과 사무실 화면이
+    갈라질 수 없습니다. 알 수 없는 fab 은 None (route 가 404 로 변환).
+    """
+    return _seed_rules(fac_id)
 
 
 if __name__ == "__main__":
@@ -1245,5 +1216,6 @@ if __name__ == "__main__":
     print(f"\n  skip_yn 분포: {distribution}")
     print(f"    != {SKIPPED!r} (진행 중): {measuring}/{len(steps)}")
 
-    published = "발행됨" if get_rules("R3") else "미발행 (publish_rules 필요)"
-    print(f"\n  rules(R3): {published}")
+    r3_rules = get_rules("R3")
+    cells = len(r3_rules["cells"]) if r3_rules else 0
+    print(f"\n  rules(R3): 코드 seed, cells {cells}개")

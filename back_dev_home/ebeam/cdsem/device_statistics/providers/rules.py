@@ -1,5 +1,9 @@
-"""계측 룰(파라미터 cap 정책) 데이터 표면입니다. Phase 1 은 in-memory seed,
-Phase 2/3 은 동일 시그니처로 DB(버전 이력 테이블) 교체.
+"""계측 룰(파라미터 cap 정책) 데이터 표면입니다 — **모든 Phase 의 단일 원천**.
+
+office 어댑터도 이 seed 를 그대로 반환합니다 (user-confirmed 2026-08-04).
+앱 내 편집 저장(D12 save/history/rollback)은 하지 않기로 결정했고, 룰을 바꿀
+때는 이 파일을 직접 고쳐 배포합니다 — git 이력이 곧 버전 이력입니다. 예전
+계획이던 Redis 발행/DB 교체는 폐기했습니다(발행 전 404 만 낳는 운영 함정).
 
 설계:   docs/issues/ground_rules/rule-editor-structure.md (§2 데이터 모델, §6 백엔드)
 결정:   docs/issues/ground_rules/grilling-log.md (D8 cap 표 · D6 Sample · D15 M-fab · D16 threshold)
@@ -7,8 +11,7 @@ Phase 2/3 은 동일 시그니처로 DB(버전 이력 테이블) 교체.
 엔진:   front-dev-home/app/utils/ruleEngine.ts (이 셀들을 client-side 로 소비·판정)
 
 원칙(§8-bis): 백엔드는 raw 룰만 보낸다. 위반 판정·신호등 색은 프론트(ruleEngine)가
-client-side 로 계산한다. 본 모듈은 현재 버전(seed)만 노출한다 — save/history/rollback
-(D12)은 step 3/5 에서 추가.
+client-side 로 계산한다.
 
 Internal module: callers outside this feature must import the public
 surface from `device_statistics.data` (the provider switch), not this file
