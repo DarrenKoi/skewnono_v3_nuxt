@@ -141,6 +141,7 @@ const chartOption = computed<EChartsOption>(() => ({
 // dot, which readers were missing; this makes the whole plot area the target,
 // so a near-miss still selects what the reader was aiming at. Both fire — a
 // direct hit goes through onClick and never reaches here.
+//
 // This is a trend read left-to-right — one measurement per timestamp — so the
 // click means "that moment" and how high the cursor sat carries no intent.
 const candidates = computed(() =>
