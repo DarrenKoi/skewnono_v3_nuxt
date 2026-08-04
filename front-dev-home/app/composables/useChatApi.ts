@@ -75,6 +75,15 @@ export const useChatApi = () => {
   const config = useRuntimeConfig()
   const url = (p: string) => joinApiPath(config.public.apiBase, p)
 
+  /**
+   * Whether chat is in service on this deployment.
+   *
+   * One SPA bundle ships to every phase, so the page cannot tell production
+   * from the office on its own — the backend is the only thing that knows.
+   */
+  const fetchAvailability = async (): Promise<boolean> =>
+    (await $fetch<{ data: { available: boolean } }>(url('/chat/availability'))).data.available
+
   const fetchModels = async (): Promise<ChatModel[]> =>
     (await $fetch<{ data: ChatModel[] }>(url('/chat/models'))).data
 
@@ -124,6 +133,7 @@ export const useChatApi = () => {
   }
 
   return {
+    fetchAvailability,
     fetchModels, fetchThreads, fetchThread,
     createThread, renameThread, deleteThread, sendMessage,
     putFeedback, deleteFeedback

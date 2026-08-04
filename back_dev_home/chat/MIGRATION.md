@@ -4,6 +4,30 @@
 구현하기 위한 handoff 계약입니다. 실제 hostname, credential, index alias, raw mapping,
 사내 sample 문서 및 원문은 저장소에 commit하지 않습니다.
 
+## 페이지 공개 여부
+
+Chat은 아직 서비스 시작 전이므로 production cloud에서는 페이지가 "준비 중" 안내로
+대체됩니다. 집과 사무실에서는 평소대로 열립니다.
+
+| 항목 | 값 |
+| --- | --- |
+| 환경 변수 | `SKEWNONO_CHAT_UNDER_DEVELOPMENT` (1/0) |
+| 기본값 | `is_cloud()` — cloud면 안내, 나머지는 정상 |
+| Endpoint | `GET /api/chat/availability` → `{"data": {"available": bool}}` |
+| SPA | `pages/chat.vue`가 mount 시 1회 조회합니다. |
+
+**서비스 시작은 cloud host의 `.env`에 `SKEWNONO_CHAT_UNDER_DEVELOPMENT=0`을 넣고
+재기동하는 것이 전부입니다.** 코드 변경도 재배포도 필요하지 않습니다.
+
+이것은 **페이지 gate이며 authorization gate가 아닙니다.** `/api/chat/*`는 cloud에서도
+계속 응답하므로 페이지가 가려진 상태에서도 API를 그대로 시험할 수 있습니다. 접근을
+막아야 하는 상황이 오면 이 flag를 확장하지 말고 별도의 인증 장치를 씁니다.
+
+SPA는 하나의 bundle이 세 phase에 모두 배포되므로 phase를 스스로 알 수 없습니다.
+따라서 backend가 데이터로 알려주는 형태여야 하며, 프론트가 phase로 분기하지
+않습니다. Availability 조회가 실패하면 안내가 아니라 정상 UI로 falls through
+합니다 — backend 장애를 "서비스 시작 안 함"으로 잘못 표시하지 않기 위해서입니다.
+
 ## 현재 경계와 선택 matrix
 
 Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값을 다른 선택점의 준비

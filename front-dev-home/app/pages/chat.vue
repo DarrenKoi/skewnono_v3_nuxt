@@ -175,7 +175,24 @@ const saveFeedback = async (messageId: string, input: FeedbackInput | null) => {
   }
 }
 
+/**
+ * null until the backend answers. The chat UI is withheld during that gap on
+ * purpose: rendering it optimistically would flash a working-looking chat page
+ * at production users for one round trip before the notice replaced it.
+ */
+const available = ref<boolean | null>(null)
+
 onMounted(async () => {
+  try {
+    available.value = await api.fetchAvailability()
+  } catch {
+    // A failed availability check must not read as "not in service" — that
+    // would turn a backend outage into a false launch announcement. Fall
+    // through to the real UI and let its own errors say what is wrong.
+    available.value = true
+  }
+  if (!available.value) return
+
   models.value = await api.fetchModels()
   selectedModel.value = models.value[0]?.id ?? ''
   await loadThreads()
@@ -183,7 +200,26 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="sk-chat-shell dashboard-surface rounded-[var(--sk-r-card)]">
+  <div
+    v-if="available === false"
+    class="sk-chat-shell dashboard-surface rounded-[var(--sk-r-card)] sk-chat-notice"
+  >
+    <UIcon
+      name="i-lucide-construction"
+      class="w-16 h-16 mb-6 text-(--sk-ink-subtle)"
+    />
+    <h1 class="sk-page-title mb-2">
+      채팅
+    </h1>
+    <p class="sk-body text-(--sk-ink-muted)">
+      현재 준비 중인 기능입니다. 서비스가 시작되면 안내해 드리겠습니다.
+    </p>
+  </div>
+
+  <div
+    v-else-if="available"
+    class="sk-chat-shell dashboard-surface rounded-[var(--sk-r-card)]"
+  >
     <!-- Mobile backdrop -->
     <div
       v-if="sidebarOpen"
@@ -270,6 +306,17 @@ onMounted(async () => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Reuses the shell so the notice fills the same padded slot as the real page
+   — a short auto-height card would leave the panel floating in the layout. */
+.sk-chat-notice {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  background: var(--sk-canvas);
 }
 
 .sk-chat-sidebar-slot {

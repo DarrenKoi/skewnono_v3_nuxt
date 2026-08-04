@@ -76,6 +76,22 @@ def _feedback_target_error(user_id, message_id):
     return None
 
 
+@bp.get("/chat/availability")
+def chat_availability():
+    """Whether the SPA should render the chat page or a not-in-service notice.
+
+    Deployment shape is not knowable to the SPA — one bundle ships to all
+    three phases — so the frontend has to be told rather than branch on the
+    phase itself. Its own endpoint rather than a field on ``/api/me``: that
+    payload is shared by three identity endpoints and this is not identity,
+    and the chat page is the only caller, so it costs nothing on app boot.
+
+    Carries no reason string. "Why" is deployment detail and the SPA shows
+    the same notice either way.
+    """
+    return {"data": {"available": not config.is_under_development()}}
+
+
 @bp.get("/chat/models")
 def chat_models():
     return {"data": config.list_models()}

@@ -32,6 +32,33 @@ def client(tmp_path, monkeypatch):
     return app.test_client()
 
 
+def test_availability_reports_the_page_gate(client, monkeypatch):
+    """Catches the SPA losing its only signal that chat is not in service."""
+    monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "1")
+    assert client.get("/api/chat/availability").get_json()["data"] == {
+        "available": False
+    }
+
+    monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "0")
+    assert client.get("/api/chat/availability").get_json()["data"] == {
+        "available": True
+    }
+
+
+def test_under_development_does_not_disable_the_chat_api(client, monkeypatch):
+    """Catches the page gate turning into an authorization gate.
+
+    The notice hides the page; /api/chat/* deliberately keeps answering so the
+    feature stays exercisable on a host where the page is hidden.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "1")
+
+    created = client.post("/api/chat/threads", json={"model": "m1"})
+
+    assert created.status_code == 201
+    assert client.get("/api/chat/models").status_code == 200
+
+
 def test_models_endpoint(client):
     r = client.get("/api/chat/models")
     assert r.status_code == 200

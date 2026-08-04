@@ -91,3 +91,50 @@ def test_evidence_bounds_have_application_defaults_and_hard_maxima(monkeypatch):
     monkeypatch.setenv("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "999999")
     assert config.get_max_snippet_chars() == 4000
     assert config.get_max_evidence_chars() == 40000
+
+
+def test_under_development_follows_the_deploy_unless_overridden(monkeypatch):
+    """Catches chat looking live to production users, or hidden at the office.
+
+    The default has to track the deploy rather than a checked-in constant: a
+    hardcoded True would hide the page at home and at the office too, and a
+    hardcoded False is exactly the state this flag exists to prevent.
+    """
+    monkeypatch.delenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", raising=False)
+
+    monkeypatch.setattr(config, "is_cloud", lambda: True)
+    assert config.is_under_development() is True
+    monkeypatch.setattr(config, "is_cloud", lambda: False)
+    assert config.is_under_development() is False
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("1", True), ("true", True), ("on", True), ("YES", True),
+     ("0", False), ("false", False), ("off", False), ("nonsense", False)],
+)
+def test_under_development_override_beats_the_deploy_default(monkeypatch, raw, expected):
+    """Catches an override that can only turn the notice on, never off.
+
+    Launch day is a config flip on the cloud host, so `0` has to beat a
+    cloud default of True — an override honoured in one direction only would
+    leave no way to ship without a code change.
+    """
+    monkeypatch.setattr(config, "is_cloud", lambda: True)
+    monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", raw)
+
+    assert config.is_under_development() is expected
+
+
+def test_blank_override_falls_through_to_the_deploy_default(monkeypatch):
+    """Catches a blank env var being read as an explicit 'no'.
+
+    An empty SKEWNONO_CHAT_UNDER_DEVELOPMENT= line in .env means "unset", not
+    "launch". Treating it as an override would silently expose the page in
+    production on the strength of a stray line.
+    """
+    monkeypatch.setattr(config, "is_cloud", lambda: True)
+
+    for blank in ("", "   "):
+        monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", blank)
+        assert config.is_under_development() is True

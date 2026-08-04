@@ -3,6 +3,8 @@
 import json
 import os
 
+from back_dev_home._runtime.env import is_cloud
+
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_TIMEOUT = 60.0
 MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT = 32
@@ -10,6 +12,28 @@ DEFAULT_MODELS = [
     {"id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (free)"},
     {"id": "google/gemini-2.0-flash-exp:free", "label": "Gemini 2.0 Flash (free)"},
 ]
+
+
+def is_under_development() -> bool:
+    """Whether the SPA should show the chat page as not-yet-in-service.
+
+    Defaults to true on the production cloud and false everywhere else: chat
+    is usable at home and at the office while it is being built, but must not
+    look like a live service to production users yet.
+
+    ``SKEWNONO_CHAT_UNDER_DEVELOPMENT`` (1/0) overrides in both directions, so
+    launching is a config change on the cloud host rather than a code change —
+    the same cross-phase rule the rest of this module follows. Read per call,
+    not cached, so flipping it takes effect on the next request.
+
+    This gates the PAGE only. ``/api/chat/*`` keeps answering everywhere,
+    which is deliberate: it stays exercisable on the cloud host while the
+    page is hidden. Do not turn this into an authorization check.
+    """
+    raw = os.environ.get("SKEWNONO_CHAT_UNDER_DEVELOPMENT")
+    if raw is not None and raw.strip():
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return is_cloud()
 
 
 def get_base_url() -> str:
