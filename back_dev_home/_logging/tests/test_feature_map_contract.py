@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from .._logging import feature_map
+from back_dev_home._logging import feature_map
 
 
 def load_contract():
