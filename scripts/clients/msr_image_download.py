@@ -29,6 +29,11 @@ LIST_PATH = "/api/msr-images"
 IMAGE_PATH = "/api/msr-image"
 TIMEOUT = 60
 
+# Mirrors back_dev_home/msr_image/routes.py:_MAX_JOB_NAMES -- a warm POST
+# larger than this 400s, so a big pending list has to be chunked rather than
+# posted whole (see `warm()`'s docstring for why losing the warm matters).
+_MAX_WARM_BATCH = 500
+
 
 class ApiError(RuntimeError):
     def __init__(self, status: int, code: str, message: str) -> None:
@@ -46,7 +51,14 @@ def build_url(base: str, path: str, params: dict | None = None) -> str:
 
 
 def api_call(base, path, token, *, params=None, method="GET", body=None, raw=False):
-    """One HTTP call. Returns parsed JSON, or raw bytes when raw=True."""
+    """One HTTP call. Returns parsed JSON, or (bytes, content_type) when raw=True.
+
+    The content type rides along with raw bytes so a caller writing to disk
+    (`download_msr`) can refuse to save a body that isn't actually an image --
+    an HTTP-only internal network can put an HTML captive-portal or proxy-error
+    page behind a 200, and that page would otherwise be renamed into place as
+    if it were the requested file.
+    """
     data = json.dumps(body).encode() if body is not None else None
     req = Request(build_url(base, path, params), data=data, method=method)
     req.add_header("Authorization", f"Bearer {token}")
@@ -55,6 +67,7 @@ def api_call(base, path, token, *, params=None, method="GET", body=None, raw=Fal
     try:
         with urlopen(req, timeout=TIMEOUT) as resp:
             payload = resp.read()
+            content_type = resp.headers.get("Content-Type", "")
     except HTTPError as exc:
         detail = exc.read()
         try:
@@ -66,7 +79,7 @@ def api_call(base, path, token, *, params=None, method="GET", body=None, raw=Fal
         ) from None
     except URLError as exc:
         raise ApiError(0, "unreachable", str(exc.reason)) from None
-    return payload if raw else json.loads(payload)
+    return (payload, content_type) if raw else json.loads(payload)
 
 
 def call_with_retry(fn, attempts: int = 5):
@@ -88,8 +101,22 @@ def call_with_retry(fn, attempts: int = 5):
 
 def safe_filename(name: str) -> str:
     """The server validates these names, but this function writes to the
-    user's disk -- re-check rather than trust a remote value."""
-    if not name or name in (".", "..") or "/" in name or "\\" in name:
+    user's disk -- re-check rather than trust a remote value.
+
+    Mirrors back_dev_home/msr_image/paths.py:validate_segment (reject any
+    separator, NUL, control char, or leading/trailing whitespace), plus a
+    client-only rule: ':' is banned too, because PureWindowsPath treats
+    "C:evil.exe" as drive-relative. That value has no leading slash and
+    would otherwise clear every other check here, yet `Path("out") / name`
+    can still land outside "out" once combined with a drive letter.
+    """
+    if not name or name in (".", ".."):
+        raise ValueError(f"unsafe filename: {name!r}")
+    if "/" in name or "\\" in name or ":" in name:
+        raise ValueError(f"unsafe filename: {name!r}")
+    if any(ord(c) < 32 for c in name):
+        raise ValueError(f"unsafe filename: {name!r}")
+    if name.strip() != name:
         raise ValueError(f"unsafe filename: {name!r}")
     return name
 
@@ -142,32 +169,58 @@ def warm(base, token, row, names) -> None:
         time.sleep(0.5)
 
 
-def download_msr(base, token, row, out_dir, *, ext=None) -> int:
-    """List, warm, then fetch one MSR's images. Returns files newly written."""
+def download_msr(base, token, row, out_dir, *, ext=None) -> tuple[int, int]:
+    """List, warm, then fetch one MSR's images. Returns (written, failed).
+
+    `row["msr"]` becomes a filesystem directory name below. A search row is
+    nominally trusted data, but validating it the same way as an image name
+    costs nothing and closes the same hole: an absolute or drive-relative
+    value would otherwise ride straight into `out_dir / row["msr"]` and
+    write outside `out_dir`.
+    """
+    msr_dir = safe_filename(row["msr"])
     params = {"eqp_ip": row["eqp_ip"], "class_name": row["class_name"], "msr": row["msr"]}
     if ext:
         params["ext"] = ext
     names = api_call(base, LIST_PATH, token, params=params)["images"]
     if not names:
-        return 0
+        return 0, 0
 
-    target = out_dir / row["msr"]
+    target = out_dir / msr_dir
     target.mkdir(parents=True, exist_ok=True)
     pending = [n for n in names if not (target / safe_filename(n)).exists()]
     if not pending:
-        return 0
+        return 0, 0
 
-    warm(base, token, row, pending)
+    # A single warm POST is capped server-side at _MAX_WARM_BATCH names; past
+    # that it 400s and `warm()` falls back to "skip warming", which degrades
+    # exactly the run that would benefit most. Batch instead of dropping it.
+    for i in range(0, len(pending), _MAX_WARM_BATCH):
+        warm(base, token, row, pending[i:i + _MAX_WARM_BATCH])
 
     written = 0
+    failed = 0
     for name in pending:
         dest = target / safe_filename(name)
         try:
-            payload = api_call(
+            payload, content_type = api_call(
                 base, IMAGE_PATH, token, params={**params, "name": name}, raw=True
             )
         except ApiError as exc:
             print(f"  {name}: {exc}")
+            failed += 1
+            continue
+        # A 200 with a non-image body (proxy/captive-portal HTML, an empty
+        # response) must not be saved as if it were the file: it would be
+        # renamed into place and every later run's exists() check would then
+        # skip it forever, silently and permanently.
+        if not content_type.startswith("image/"):
+            print(f"  {name}: unexpected content-type {content_type!r}; skipped")
+            failed += 1
+            continue
+        if not payload:
+            print(f"  {name}: empty response body; skipped")
+            failed += 1
             continue
         # Write to .part and rename, so an interrupted run never leaves a
         # truncated file that the exists() check above would later skip.
@@ -175,7 +228,7 @@ def download_msr(base, token, row, out_dir, *, ext=None) -> int:
         part.write_bytes(payload)
         part.replace(dest)
         written += 1
-    return written
+    return written, failed
 
 
 def main(argv=None) -> int:
@@ -220,13 +273,21 @@ def main(argv=None) -> int:
 
     print(f"{len(rows)} measurement(s) matched.")
     total = 0
+    total_failed = 0
     for row in rows:
         print(f"- {row['msr']} ({row['eqp_id']})")
         try:
-            total += download_msr(args.base_url, token, row, out_dir, ext=args.ext)
-        except ApiError as exc:
+            written, failed = download_msr(args.base_url, token, row, out_dir, ext=args.ext)
+        except (ApiError, ValueError) as exc:
             print(f"  failed: {exc}")
+            total_failed += 1
+            continue
+        total += written
+        total_failed += failed
     print(f"Done. {total} new file(s) under {out_dir}")
+    if total_failed:
+        print(f"{total_failed} failure(s) -- see above.")
+        return 1
     return 0
 
 
