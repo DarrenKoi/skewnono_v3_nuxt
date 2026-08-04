@@ -72,6 +72,33 @@
         </div>
       </div>
 
+      <div class="mb-2 flex items-start gap-2 min-w-0">
+        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">측정 상위</span>
+        <div class="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            :class="chipClass(selectedTopN === null)"
+            @click="selectedTopN = null"
+          >
+            {{ text.topNAll }}
+          </button>
+          <button
+            v-for="option in topNOptions"
+            :key="option"
+            type="button"
+            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium tabular-nums ring-1 transition-colors"
+            :class="chipClass(selectedTopN === option)"
+            @click="selectedTopN = selectedTopN === option ? null : option"
+          >
+            상위 {{ option }}
+          </button>
+          <span class="ml-1 text-[10px] text-(--sk-ink-muted)">
+            {{ text.topNHint }}
+          </span>
+        </div>
+      </div>
+
       <div
         v-if="hasRSelection"
         class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
@@ -321,7 +348,7 @@
 
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
+import type { DeviceDescRow, MeasActivityRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
 import type { DevicePreset } from '~/composables/useDevicePresets'
 import {
   DEFAULT_DEVICE_FAB,
@@ -340,7 +367,7 @@ definePageMeta({
 type DeviceRow = R3DeviceGrpRow | DeviceDescRow
 
 const { setToolType, setFab } = useNavigation()
-const { fetchDeviceDesc, fetchR3DeviceGrp } = useDeviceStatisticsApi()
+const { fetchDeviceDesc, fetchMeasActivity, fetchR3DeviceGrp } = useDeviceStatisticsApi()
 
 const text = {
   title: '디바이스 통계',
@@ -365,6 +392,8 @@ const text = {
   step1Title: '빠른 필터',
   step1HintR: '카테고리 / Lot으로 좁히기',
   step1HintM: 'Tech로 좁히기',
+  topNAll: '전체',
+  topNHint: '최근 90일 측정 건수 순위 기준',
   step2Title: '디바이스 선택',
   step2Hint: '체크박스로 여러 개 선택'
 } as const
@@ -406,6 +435,11 @@ const tableSearch = ref('')
 const currentPage = ref(1)
 const pageSize = ref('25')
 
+// 측정 상위 N 필터 — null 이면 전체. 세션 한정 상태라 preferences 에 넣지
+// 않습니다(순위 탐색용 토글이지, 남겨 둘 작업 조건이 아닙니다).
+const topNOptions = [10, 25, 50] as const
+const selectedTopN = ref<number | null>(null)
+
 const { data, pending, error } = await useAsyncData<DeviceRow[]>(
   'device-statistics',
   () => {
@@ -413,6 +447,15 @@ const { data, pending, error } = await useAsyncData<DeviceRow[]>(
       ? fetchR3DeviceGrp()
       : fetchDeviceDesc([selectedFab.value])
   },
+  { watch: [selectedFab] }
+)
+
+// lot_cd 별 최근 90일 측정 건수 순위 (meas_count 내림차순, fab 단위).
+// 실패해도 페이지의 나머지는 살아야 하므로 카탈로그 fetch 와 분리합니다 —
+// 순위가 없으면 측정 상위 필터가 빈 결과를 낼 뿐입니다.
+const { data: measActivity } = await useAsyncData<MeasActivityRow[]>(
+  'device-meas-activity',
+  () => fetchMeasActivity(selectedFab.value),
   { watch: [selectedFab] }
 )
 
@@ -480,7 +523,41 @@ const buildSearchText = (row: DeviceRow) => {
     .join('\u0000')
 }
 
+// 측정 상위 N 집합. 순위 목록을 현재 fab 의 카탈로그 행과 교집합한 뒤 앞에서
+// N 개를 취합니다 — 순위에는 카탈로그에 없는 lot 이 있을 수 있어(office 는
+// hist 에만 존재하는 lot 가능), 교집합 없이 자르면 표가 N 개보다 적게 남습니다.
+const topLotSet = computed<Set<string> | null>(() => {
+  const limit = selectedTopN.value
+  if (limit === null) return null
+
+  const catalogLots = new Set(
+    (hasRSelection.value ? r3Rows.value : mRows.value).map(row => row.lot_cd)
+  )
+  const top = new Set<string>()
+
+  for (const entry of measActivity.value ?? []) {
+    if (!catalogLots.has(entry.lot_cd)) continue
+    top.add(entry.lot_cd)
+    if (top.size >= limit) break
+  }
+
+  return top
+})
+
+// lot_cd -> 순위 index. 측정 상위 필터가 켜졌을 때 표를 순위순으로 세우는 데
+// 씁니다 — 필터만 걸고 lot_cd 순으로 두면 "상위 10" 인데 1위가 어디 있는지
+// 다시 찾아야 합니다.
+const measRankIndex = computed(() => {
+  const map = new Map<string, number>()
+  ;(measActivity.value ?? []).forEach((entry, index) => map.set(entry.lot_cd, index))
+  return map
+})
+
 const matchesDomainFilters = (row: DeviceRow) => {
+  if (topLotSet.value && !topLotSet.value.has(row.lot_cd)) {
+    return false
+  }
+
   if (hasRSelection.value) {
     const r3Row = row as R3DeviceGrpRow
     const matchesCategory = selectedProdCategories.value.length === 0
@@ -496,6 +573,16 @@ const matchesDomainFilters = (row: DeviceRow) => {
 
 const sortedRows = computed(() => {
   const sourceRows: DeviceRow[] = hasRSelection.value ? r3Rows.value : mRows.value
+
+  // 측정 상위 필터가 켜지면 순위순으로 — 순위 밖(순위 목록에 없는) lot 은 맨 뒤.
+  if (selectedTopN.value !== null) {
+    const rank = measRankIndex.value
+    return [...sourceRows].sort((left, right) => {
+      const leftRank = rank.get(left.lot_cd) ?? Number.MAX_SAFE_INTEGER
+      const rightRank = rank.get(right.lot_cd) ?? Number.MAX_SAFE_INTEGER
+      return leftRank - rightRank || sortCollator.compare(left.lot_cd, right.lot_cd)
+    })
+  }
 
   return [...sourceRows].sort((left, right) => sortCollator.compare(left.lot_cd, right.lot_cd))
 })
@@ -737,6 +824,7 @@ const resetAllFilters = () => {
   selectedProdCategories.value = []
   selectedLots.value = []
   selectedTechs.value = []
+  selectedTopN.value = null
   lotSearch.value = ''
   techSearch.value = ''
   tableSearch.value = ''
@@ -748,17 +836,22 @@ const hasActiveFilters = computed(() => {
     || selectedProdCategories.value.length > 0
     || selectedLots.value.length > 0
     || selectedTechs.value.length > 0
+    || selectedTopN.value !== null
     || lotSearch.value.length > 0
     || techSearch.value.length > 0
     || tableSearch.value.length > 0
 })
 
 const activeDomainFilterCount = computed(() => {
+  const topNActive = Number(selectedTopN.value !== null)
+
   if (hasRSelection.value) {
-    return Number(selectedProdCategories.value.length > 0) + Number(selectedLots.value.length > 0)
+    return topNActive
+      + Number(selectedProdCategories.value.length > 0)
+      + Number(selectedLots.value.length > 0)
   }
 
-  return Number(selectedTechs.value.length > 0)
+  return topNActive + Number(selectedTechs.value.length > 0)
 })
 
 const activeFilterCount = computed(() => activeDomainFilterCount.value + (normalizedTableSearch.value ? 1 : 0))
@@ -878,7 +971,7 @@ watch([filteredRowCount, pageSize], () => {
   }
 })
 
-watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, tableSearch], () => {
+watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, selectedTopN, tableSearch], () => {
   currentPage.value = 1
 })
 

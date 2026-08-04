@@ -2,6 +2,7 @@ from flask import Blueprint, abort, jsonify, request
 
 from back_dev_home.ebeam.cdsem.device_statistics.data import (
     get_device_desc,
+    get_meas_activity,
     get_r3_device_grp,
     get_recipe_params,
     get_rules,
@@ -23,6 +24,18 @@ def device_desc():
 
     rows = get_device_desc(fac_ids)
     return jsonify(rows)
+
+
+@bp.get("/cdsem/device-statistics/meas-activity")
+def meas_activity():
+    # lot_cd 별 최근 90일 측정 건수 순위 (meas_count 내림차순). 빠른 필터의
+    # "측정 상위 N" 이 소비합니다. fab 축이 없으면 순위가 의미를 잃으므로
+    # fac_id 는 필수입니다 (rules 와 같은 방침).
+    fac_id = request.args.get("fac_id", "").strip()
+    if not fac_id:
+        abort(400, description="fac_id query parameter is required")
+
+    return jsonify(get_meas_activity(fac_id))
 
 
 @bp.get("/cdsem/device-statistics/recipe-statistics")

@@ -144,6 +144,27 @@ docstring.
   The same 90-day `ebeam_tas_lot_hist` activity filter as `r3-device-grp`
   applies office-side (user-confirmed 2026-08-04, see the note there).
 
+## Endpoint: GET /api/cdsem/device-statistics/meas-activity
+
+- Handler: `routes.py` → `meas_activity()`. Requires `fac_id` (400 without
+  it, same policy as `rules` — a ranking without a fab axis is meaningless).
+  Calls `data.get_meas_activity(fac_id)`.
+- Contract: `list[MeasActivityRow]` (`{lot_cd, meas_count}`), **sorted by
+  `meas_count` descending** — the contract promises the order because the
+  frontend's 측정 상위 N quick filter takes the first N entries after
+  intersecting with the visible catalog. An unknown fab returns `[]`, never
+  another fab's ranking.
+- Mock behavior: deterministic per-lot fake counts (hash of `lot_cd`,
+  pressed into a heavy tail — a few busy devices, a long quiet tail) over
+  the fab's catalog lots. Absolute values are fabricated; only the ranking
+  behavior is being stood in for.
+- Office data source: the same `ebeam_tas_lot_hist` terms aggregation as
+  `_active_lot_cds`, narrowed by `fab_id` term + 90-day `event_tm` range;
+  `doc_count` per `lot_cd.keyword` bucket is the measurement count
+  (`ebeam_tas_lot_hist.txt` activity-count usage). OFFICE-VERIFY: confirm
+  R3 documents carry `fab_id="R3"` — if not, R3 ranks come back empty and
+  the 측정 상위 filter silently blanks the R3 table only.
+
 ## Endpoint: GET /api/cdsem/device-statistics/recipe-statistics
 
 - Handler: `routes.py` → `recipe_statistics()`. Reads `lot_cds` from the

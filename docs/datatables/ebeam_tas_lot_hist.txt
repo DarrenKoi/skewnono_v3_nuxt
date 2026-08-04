@@ -66,6 +66,13 @@ _active_lot_cds 입니다. meas_hist 화면의 device 목록과 같은 원천이
 집합이 어긋나지 않습니다. 60일(recipe_tat)과 90일(device-statistics)은 근거가
 달라 상수를 공유하지 않습니다.
 
+같은 집계의 doc_count 가 곧 lot_cd 별 측정 건수(활동량)입니다 — 위 L52 의
+activity-count 용법. device-statistics 의 GET /meas-activity 가 fab_id term
++ 90일 창으로 좁힌 이 순위를 meas_count 내림차순으로 내려 주고, 화면의
+빠른 필터 "측정 상위 N"(10/25/50)이 그것을 소비합니다 (user-confirmed
+2026-08-04). OFFICE-VERIFY: R3 문서의 fab_id 값이 "R3" 인지 첫 실행에서
+확인 — 아니면 R3 순위만 빈 배열이 됩니다.
+
 조회 방법(device-statistics — M fab 스텝, user-confirmed 2026-07-30)
 
 device-statistics 의 공정 스텝 소스는 fab 계열에 따라 **둘로 갈립니다**.

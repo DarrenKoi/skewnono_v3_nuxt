@@ -119,6 +119,7 @@ from back_dev_home._runtime.office_redis import (
 )
 from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     DeviceDescRow,
+    MeasActivityRow,
     ParameterRow,
     R3DeviceGrpRow,
     RecipeInfoRow,
@@ -143,6 +144,7 @@ from back_dev_home.ebeam.hitachi._office_search import (
 __all__ = [
     "get_r3_device_grp",
     "get_device_desc",
+    "get_meas_activity",
     "get_recipe_params",
     "get_weekly_trend_data",
     "get_rules",
@@ -185,6 +187,9 @@ FULL_NAME_KW = "full_name.keyword"
 LOT_CD_KW = "lot_cd.keyword"
 OPER_DET_DESC_KW = "oper_det_desc.keyword"
 LOT_HIST_TIME_F = "event_tm"
+# upstream field 이름은 fab_id 입니다 — 우리 코드의 fab_name 규칙은 우리 필드
+# 이름에 대한 것이고, index 가 저장한 이름으로 질의합니다 (ebeam_tas_lot_hist.txt).
+FAB_ID_KW = "fab_id.keyword"
 
 # device code -> prod_id. 다른 접미사가 있는지는 probe 의 [3] 단계가 셉니다.
 PROD_ID_SUFFIX = "_BASE"
@@ -357,6 +362,44 @@ def get_device_desc(fac_ids: list[str] | None = None) -> list[DeviceDescRow]:
     if not wanted:
         return rows  # 전부 공백이면 필터 없음 (mock 과 동일)
     return [row for row in rows if row["fac_id"].strip().upper() in wanted]
+
+
+def get_meas_activity(fac_id: str) -> list[MeasActivityRow]:
+    """한 fab 의 lot_cd 별 최근 90일 측정 건수, meas_count 내림차순.
+
+    _active_lot_cds 와 같은 index·같은 창을 fab 하나로 좁힌 terms 집계입니다 —
+    doc_count 가 곧 측정 건수(활동량)입니다 (ebeam_tas_lot_hist.txt L52 의
+    activity-count 용법). 화면(측정 상위 N 필터)은 이 순위를 카탈로그 행과
+    교집합해 상위 N 개만 보여줍니다.
+
+    OFFICE-VERIFY: R3 lot 이 이 index 에 fab_id="R3" 로 실리는지 첫 실행에서
+    확인하십시오 — 아니라면 R3 는 순위가 빈 배열로 내려가고, 화면의 측정 상위
+    필터가 R3 에서만 조용히 아무것도 남기지 않습니다.
+    """
+    wanted = fac_id.strip().upper()
+    if not wanted:
+        return []
+    floor = (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    aggs = {"lots": {"terms": {"field": LOT_CD_KW, "size": _MAX_ACTIVE_LOTS}}}
+    result = _aggregate(
+        LOT_HIST_INDEX,
+        aggs,
+        _query([
+            {"term": {FAB_ID_KW: wanted}},
+            {"range": {LOT_HIST_TIME_F: {"gte": floor}}},
+        ]),
+    )
+    buckets = result.get("lots", {}).get("buckets", [])
+    ranked: list[MeasActivityRow] = [
+        {"lot_cd": _text(bucket.get("key")), "meas_count": _as_int(bucket.get("doc_count"))}
+        for bucket in buckets
+        if _text(bucket.get("key"))
+    ]
+    # terms 는 기본이 doc_count desc 지만, 계약이 정렬을 약속하므로 명시합니다.
+    ranked.sort(key=lambda entry: (-entry["meas_count"], entry["lot_cd"]))
+    return ranked
 
 
 # ───────────────────────── lot -> fab 계열 ─────────────────────────

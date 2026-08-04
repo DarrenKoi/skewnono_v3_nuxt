@@ -24,6 +24,7 @@ from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.cdsem.device_statistics import data
 from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     DeviceDescRow,
+    MeasActivityRow,
     R3DeviceGrpRow,
     RecipeParamsRow,
     RuleVersion,
@@ -62,6 +63,31 @@ def test_device_desc_matches_contract():
     if _is_mock():
         # Same fabricated source as r3_device_grp above.
         assert rows, "mock device_desc must not be empty"
+
+
+def test_meas_activity_matches_contract():
+    rows = data.get_meas_activity("R3")
+    assert_matches(rows, list[MeasActivityRow])
+
+    # 계약이 정렬(meas_count 내림차순)을 약속합니다 — 화면의 "측정 상위 N" 이
+    # 앞에서 N 개를 자르는 근거이므로, 순서가 깨지면 필터가 조용히 틀립니다.
+    counts = [row["meas_count"] for row in rows]
+    assert counts == sorted(counts, reverse=True), "meas-activity must be sorted desc"
+    assert all(count >= 0 for count in counts)
+
+    if _is_mock():
+        assert rows, "mock meas_activity must not be empty for R3"
+        # mock 순위는 카탈로그의 lot 만 다룹니다. office 는 카탈로그에 없는
+        # lot_cd 가 순위에 있을 수 있어(hist 에만 존재) 이 포함관계를
+        # 강제하지 않습니다 — 화면이 교집합을 취합니다.
+        catalog = {row["lot_cd"] for row in data.get_r3_device_grp()}
+        assert {row["lot_cd"] for row in rows} <= catalog
+
+
+def test_meas_activity_unknown_fab_is_empty():
+    # fab 축이 없는 순위는 의미가 없고, 알 수 없는 fab 이 다른 fab 의 순위로
+    # 해석되면 안 됩니다. 어느 provider 든 빈 배열이 정답입니다.
+    assert data.get_meas_activity("does-not-exist") == []
 
 
 def test_recipe_params_matches_contract():

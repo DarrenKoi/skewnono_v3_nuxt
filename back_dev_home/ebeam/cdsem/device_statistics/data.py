@@ -16,6 +16,7 @@ from back_dev_home._runtime.data_provider import get_data_provider
 __all__ = [
     "get_r3_device_grp",
     "get_device_desc",
+    "get_meas_activity",
     "get_recipe_params",
     "get_weekly_trend_data",
     "get_rules",
@@ -38,6 +39,10 @@ def get_r3_device_grp():
 
 def get_device_desc(fac_ids: list[str] | None = None):
     return _provider().get_device_desc(fac_ids)
+
+
+def get_meas_activity(fac_id: str):
+    return _provider().get_meas_activity(fac_id)
 
 
 def get_recipe_params(lot_cds: list[str] | None = None):

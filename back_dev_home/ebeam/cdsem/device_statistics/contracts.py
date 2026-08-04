@@ -13,6 +13,7 @@ from typing import Literal, TypedDict
 __all__ = [
     "R3DeviceGrpRow",
     "DeviceDescRow",
+    "MeasActivityRow",
     "RecipeInfoRow",
     "SummaryRow",
     "TrendBucket",
@@ -50,6 +51,14 @@ class DeviceDescRow(TypedDict):
     chg_tm: str
     tech_nm: str
     rnd_connector: str
+
+
+class MeasActivityRow(TypedDict):
+    """한 fab 의 최근 측정 활동 순위 한 건 — meas_count 내림차순으로 정렬되어
+    내려갑니다. 원천은 ebeam_tas_lot_hist 의 최근 90일 lot_cd 별 문서 수입니다."""
+
+    lot_cd: str
+    meas_count: int
 
 
 class RecipeInfoRow(TypedDict):

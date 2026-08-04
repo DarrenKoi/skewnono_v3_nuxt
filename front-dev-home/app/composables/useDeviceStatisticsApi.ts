@@ -25,6 +25,12 @@ export interface DeviceDescRow {
   rnd_connector: string
 }
 
+/** 한 fab 의 최근 90일 측정 활동 순위 한 건. meas_count 내림차순으로 옵니다. */
+export interface MeasActivityRow {
+  lot_cd: string
+  meas_count: number
+}
+
 export const useDeviceStatisticsApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
@@ -44,6 +50,13 @@ export const useDeviceStatisticsApi = () => {
     )
   }
 
+  const fetchMeasActivity = async (facId: string): Promise<MeasActivityRow[]> => {
+    return await $fetch<MeasActivityRow[]>(
+      joinApiPath(base, '/cdsem/device-statistics/meas-activity'),
+      { query: { fac_id: facId } }
+    )
+  }
+
   const fetchRecipeParams = async (lotCds: string[] = []): Promise<RecipeInput[]> => {
     // 빈 목록이면 아예 요청하지 않습니다. 이 엔드포인트는 lot_cds 가 없으면
     // **전 lot** 을 돌려주는데 그것이 599,899 recipe / 약 522 MB 입니다.
@@ -60,6 +73,7 @@ export const useDeviceStatisticsApi = () => {
   return {
     fetchR3DeviceGrp,
     fetchDeviceDesc,
+    fetchMeasActivity,
     fetchRecipeParams
   }
 }

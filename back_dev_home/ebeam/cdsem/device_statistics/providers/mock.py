@@ -51,6 +51,7 @@ from functools import lru_cache
 
 from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     DeviceDescRow,
+    MeasActivityRow,
     ParameterRow,
     R3DeviceGrpRow,
     RecipeInfoRow,
@@ -198,6 +199,44 @@ def get_device_desc(fac_ids: list[str] | None = None) -> list[DeviceDescRow]:
     return [row for row in rows if row["fac_id"] in normalized_fac_ids]
 
 
+def _meas_count(lot_cd: str) -> int:
+    """이 lot 의 최근 90일 측정 건수 대역 — lot_cd 만으로 결정론적입니다.
+
+    실물 분포는 소수 양산 주력 device 에 측정이 몰리는 heavy-tail 이므로,
+    균등 난수 대신 제곱으로 눌러 상위 소수 + 긴 꼬리 모양을 만듭니다. 절대값은
+    mock 이 알 수 없는 사실이라 자릿수(수십~수천)만 실물스럽게 잡습니다.
+    """
+    digest = 0
+    for ch in lot_cd:
+        digest = (digest * 131 + ord(ch)) & 0xFFFFFFFF
+    unit = ((digest * 2654435761) & 0xFFFFFFFF) / 0xFFFFFFFF  # 0.0 ~ 1.0
+    return 10 + round((unit ** 4) * 4990)
+
+
+def get_meas_activity(fac_id: str) -> list[MeasActivityRow]:
+    """한 fab 의 lot_cd 별 최근 측정 건수, meas_count 내림차순.
+
+    원천(office)은 ebeam_tas_lot_hist 최근 90일의 lot_cd terms 집계입니다.
+    mock 은 그 창의 실제 활동을 알 수 없으므로 카탈로그의 lot 전부에
+    결정론적 가짜 건수를 부여합니다 — 순위 화면(측정 상위 N 필터)이 집에서
+    안정적으로 동작하는 것이 목적입니다. 같은 lot_cd 는 항상 같은 순위입니다.
+    """
+    wanted = fac_id.strip().upper()
+    rows: list[DeviceDescRow] | list[R3DeviceGrpRow]
+    if wanted.startswith("R"):
+        rows = [r for r in get_r3_device_grp() if r["fac_id"].strip().upper() == wanted]
+    else:
+        rows = get_device_desc([wanted])
+
+    ranked: list[MeasActivityRow] = [
+        {"lot_cd": row["lot_cd"], "meas_count": _meas_count(row["lot_cd"])}
+        for row in rows
+    ]
+    # 동률은 lot_cd 로 갈라 정렬을 결정론적으로 유지합니다.
+    ranked.sort(key=lambda entry: (-entry["meas_count"], entry["lot_cd"]))
+    return ranked
+
+
 # ---------------------------------------------------------------------------
 # 공개 표면 재노출 — statistics.py 의 트렌드/요약 로직과 recipe_params.py /
 # rules.py 를 본 모듈에서 가져옵니다. data.py 의 provider 스위치는 항상 본
@@ -227,9 +266,11 @@ __all__ = [
     "TrendBucket",
     "RecipeParamsRow",
     "ParameterRow",
+    "MeasActivityRow",
     "BASE_TIME",
     "get_r3_device_grp",
     "get_device_desc",
+    "get_meas_activity",
     "get_weekly_trend_data",
     "get_recipe_params",
     "get_lot_index",
