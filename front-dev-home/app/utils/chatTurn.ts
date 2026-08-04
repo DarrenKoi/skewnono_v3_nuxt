@@ -1,3 +1,5 @@
+import { generateUuid } from './uuid.ts'
+
 export interface PendingChatTurn {
   threadId: string
   content: string
@@ -15,7 +17,7 @@ export type ThreadTurnStates = Record<string, ThreadTurnState>
 export const createPendingChatTurn = (
   threadId: string,
   content: string,
-  makeId: () => string = () => crypto.randomUUID()
+  makeId: () => string = generateUuid
 ): PendingChatTurn => ({ threadId, content, requestId: makeId() })
 
 export const isPendingTurnForThread = (
