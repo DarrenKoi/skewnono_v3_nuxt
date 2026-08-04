@@ -344,8 +344,10 @@ docstring.
   version out of the Redis hash `v3_device_statistics_rules` (field =
   `fac_id`, value = `RuleVersion` JSON) and returns `None` when nothing has
   been published, which the route turns into a 404. Seed it once with
-  `publish_rules(fac_id, version)` from the adapter module. Version history
-  and rollback (D12) remain out of scope for this seam.
+  `.venv/bin/python -m scripts.seed_device_statistics_rules` (publishes the
+  mock's D8/D19 seed matrix verbatim; refuses to overwrite an existing
+  published version without `--force`). Version history and rollback (D12)
+  remain out of scope for this seam.
 
 - Notes: not a huge-payload endpoint — one fab's rule set is a handful of
   cells. `save`/`history`/`rollback` are explicitly out of scope for this
@@ -354,9 +356,10 @@ docstring.
 - Troubleshooting — **comparison page shows 판정 범위 `0 / N` for every R3
   lot** (observed office-side 2026-08-04). Two known causes, told apart by
   the coverage-cell tooltip:
-  1. Rules never published: `curl <host>/api/cdsem/device-statistics/rules?fac_id=R3`
-     returns 404 → run `publish_rules("R3", ...)` once against the office
-     Redis. The tooltip says "계측 룰이 없습니다".
+  1. Rules never published — **confirmed as the actual office cause
+     2026-08-04** (`rules?fac_id=R3` 404 in the web console):
+     run `.venv/bin/python -m scripts.seed_device_statistics_rules` once
+     from the repo root at the office. The tooltip says "계측 룰이 없습니다".
   2. Rules published but every recipe falls out as gray (e.g. `phase` is
      null because real device `ctn_desc` strings don't carry parseable
      EV/TV/PV tokens, or `memory_class` is unknown and Pool lots lack a
