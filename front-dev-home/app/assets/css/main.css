@@ -500,6 +500,98 @@ body {
   letter-spacing: -0.01em;
   color: var(--sk-ink);
 }
+
+/* ── Row-card idiom ───────────────────────────────────────────────────────
+   A second, LARGER tier of the roles above, for screens that trade columns
+   for rows: one record = one card, read top-to-bottom instead of scanned
+   across a dense grid. Used by CD-SEM 디바이스 통계 / 디바이스 분석.
+
+   The tiers above stay as they are — they are correct for a real table,
+   where a shared column header carries the field name and the eye compares
+   down a column. A card has no column header, so every value has to carry
+   its own label, and both have to survive being read once in passing. That
+   is why nothing here is below 13px and why labels are a full 13px rather
+   than the table's 11px: the label is now inline with the value, not
+   factored out into a header row.
+
+   Colour comes from the same --sk-* tokens as the table tiers, so light and
+   dark invert automatically and no new hue enters the system. */
+
+/* Card headline — the identifier the card is ABOUT (lot_cd, recipe_id).
+   Mono because it is a machine identifier the user matches character by
+   character against a terminal or a spreadsheet. */
+.sk-card-id {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sk-ink);
+}
+
+/* Prose ON a card — ctn_desc, oper_desc. Full sentences, never truncated:
+   1.45 leading because Korean at 15px needs the extra room between lines. */
+.sk-card-desc {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--sk-ink);
+  text-wrap: pretty;
+}
+
+/* Inline field label on a card's meta line ("위반", "판정 범위"). Human
+   words, sans, subtle — it names the number sitting next to it. */
+.sk-field-label {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--sk-ink-subtle);
+}
+
+/* The number that label points at. Mono + tabular so a column of them still
+   lines up even though there is no column. */
+.sk-field-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--sk-ink-muted);
+}
+
+/* A raw BACKEND FIELD NAME shown to the user (prod_catg_cd, avail_recipe,
+   bucket). The one intentional sub-14px tier on a card: it stays mono 13px
+   so it reads as "the column this maps to in the DB", visually separate
+   from the Korean label a person actually reads. */
+.sk-field-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--sk-ink-subtle);
+}
+
+/* Title of a panel that holds cards — sits above the card stack, one step
+   below .sk-heading (18px) and well above the dense .sk-title (13px). */
+.sk-panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--sk-ink);
+}
+
+/* Footnote / caption under a card stack. The floor of the card idiom —
+   13px, the same size as a field label, because a caveat the user must be
+   able to act on ("합성값입니다") is not decoration. */
+.sk-caption {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--sk-ink-muted);
+  text-wrap: pretty;
+}
 } /* @layer components */
 
 /* Liveness halo on the backend-health dot — a 1.6s outward fade. The halo

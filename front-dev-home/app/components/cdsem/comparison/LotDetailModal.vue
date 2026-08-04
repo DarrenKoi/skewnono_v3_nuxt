@@ -2,75 +2,94 @@
   <UModal
     v-model:open="open"
     :title="row?.lot_cd ?? ''"
-    :ui="{ content: 'w-[95vw] sm:max-w-[1400px] sm:max-h-[calc(100dvh-2rem)]' }"
+    :ui="modalUi"
   >
     <template #body>
       <div
         v-if="row"
         class="space-y-4"
       >
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span class="font-mono text-[15px] font-bold tabular-nums text-(--sk-ink)">{{ row.lot_cd }}</span>
-          <CdsemComparisonStageChip
-            :stage="row.dev_stage"
-            :inferred="row.stage_inferred"
+        <!-- 헤더 3줄. 예전에는 lot · stage · health · violations · recipe ·
+             description 이 mono 11px 한 줄에 모두 들어가 있었습니다. -->
+        <div class="flex items-stretch gap-3">
+          <span
+            class="w-[5px] flex-none rounded-[2px]"
+            :style="{ background: stripeColor }"
+            aria-hidden="true"
           />
-          <span
-            v-if="row.verdict.health"
-            class="inline-flex items-center gap-1.5"
-          >
-            <span
-              class="h-2 w-2 rounded-full"
-              :style="{ background: healthSwatches[row.verdict.health].dot }"
-            />
-            <span class="font-mono text-[11px] font-semibold text-(--sk-ink-muted)">{{ row.verdict.health }}</span>
-          </span>
-          <span
-            v-else
-            class="inline-flex items-center gap-1.5"
-          >
-            <span class="h-2 w-2 rounded-full bg-(--sk-border)" />
-            <span class="font-mono text-[11px] font-medium text-(--sk-ink-subtle)">{{ text.noRules }}</span>
-          </span>
-          <span
-            v-if="row.verdict.kind === 'judged'"
-            class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)"
-          >
-            violations <span class="font-bold text-(--sk-ink)">{{ row.verdict.violation_recipes }}</span>
-            / {{ row.verdict.judged_recipes }} recipe
-            <span
-              v-if="row.verdict.gray_recipes > 0"
-              class="text-(--sk-ink-subtle)"
-            >(판정 제외 {{ row.verdict.gray_recipes }})</span>
-          </span>
-          <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
-            recipe <span class="font-bold text-(--sk-ink)">{{ row.avail_recipe }}</span> / {{ row.total_recipe }}
-          </span>
-          <span
-            class="min-w-0 flex-1 truncate text-[11px] text-(--sk-ink-subtle)"
-            :title="row.ctn_desc"
-          >{{ row.ctn_desc || '—' }}</span>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-mono text-[22px] font-extrabold leading-tight tracking-tight tabular-nums text-(--sk-ink)">{{ row.lot_cd }}</span>
+              <span
+                v-if="row.verdict.health"
+                class="inline-flex h-[26px] items-center rounded-md px-2.5 font-mono text-sm font-bold"
+                :style="healthBadgeStyle"
+              >{{ row.verdict.health }}</span>
+              <span
+                v-else
+                class="inline-flex h-[26px] items-center rounded-md bg-(--sk-muted-surface) px-2.5 font-mono text-sm font-semibold text-(--sk-ink-subtle) ring-1 ring-(--sk-border) ring-inset"
+              >{{ text.noRules }}</span>
+              <CdsemComparisonStageChip
+                :stage="row.dev_stage"
+                :inferred="row.stage_inferred"
+              />
+              <span class="inline-flex h-[26px] items-center rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-sm font-semibold text-(--sk-accent) ring-1 ring-(--sk-accent-border) ring-inset">{{ bucket }}</span>
+            </div>
+
+            <p class="mt-1.5 sk-card-desc">
+              {{ row.ctn_desc || '—' }}
+            </p>
+
+            <div class="mt-2 flex flex-wrap gap-x-5 gap-y-0.5">
+              <span class="sk-field-label">
+                {{ text.violations }}
+                <span
+                  v-if="row.verdict.kind === 'judged'"
+                  class="sk-field-value font-semibold text-(--sk-ink)"
+                >{{ row.verdict.violation_recipes }} / {{ row.verdict.judged_recipes }} recipe</span>
+                <span
+                  v-else
+                  class="sk-field-value"
+                >—</span>
+              </span>
+              <span
+                v-if="row.verdict.gray_recipes > 0"
+                class="sk-field-label"
+              >
+                {{ text.grayRecipes }}
+                <span class="sk-field-value">{{ row.verdict.gray_recipes }}</span>
+              </span>
+              <span class="sk-field-label">
+                {{ text.recipeRatio }}
+                <span class="sk-field-value">{{ row.avail_recipe }} / {{ row.total_recipe }}</span>
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div class="space-y-1.5">
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <span class="sk-field-label">{{ text.paraDist }}</span>
+            <div class="flex flex-wrap items-center gap-3">
+              <span
+                v-for="key in paraOrder"
+                :key="key"
+                class="inline-flex items-center gap-1.5 font-mono text-[13px] text-(--sk-ink-muted)"
+              >
+                <span
+                  class="h-2.5 w-2.5 rounded-[3px]"
+                  :style="{ background: paraPalette[key] }"
+                />
+                {{ key }}
+              </span>
+            </div>
+          </div>
           <CdsemComparisonStackedBar
             :row="row"
-            :height="20"
+            :label="row.lot_cd"
+            :height="26"
             :show-values="true"
           />
-          <div class="flex flex-wrap items-center gap-3">
-            <span
-              v-for="key in paraOrder"
-              :key="key"
-              class="inline-flex items-center gap-1.5 font-mono text-[10px] text-(--sk-ink-muted)"
-            >
-              <span
-                class="h-2 w-2 rounded-[3px]"
-                :style="{ background: paraPalette[key] }"
-              />
-              {{ key }}
-            </span>
-          </div>
         </div>
 
         <CdsemComparisonTrendChart
@@ -80,57 +99,73 @@
         />
 
         <div class="space-y-2">
-          <p class="sk-title">
-            recipe · {{ row.lot_cd }}
-          </p>
+          <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <p class="sk-panel-title">
+              recipe
+            </p>
+            <span class="sk-field-name">{{ row.lot_cd }}</span>
+            <span class="sk-field-label">{{ lotRecipes.length }}건</span>
+          </div>
+
           <div
-            v-if="lotRecipes.length > 0"
-            class="overflow-hidden rounded-lg ring-1 ring-(--sk-border-soft)"
+            v-if="sortedRecipes.length > 0"
+            class="space-y-2"
           >
-            <UTable
-              v-model:sorting="recipeSorting"
-              class="max-h-[28rem]"
-              :columns="recipeColumns"
-              :data="lotRecipes"
-              :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
-              sticky="header"
-              :ui="tableUi"
+            <!-- 10열 표를 카드로. recipe_id 가 제목, oper_desc 는 잘리지 않고,
+                 seq 는 라벨 달린 메타 줄, para 분포는 오른쪽 블록입니다. -->
+            <div
+              v-for="recipe in sortedRecipes"
+              :key="recipe.recipe_id"
+              class="flex flex-wrap items-start gap-x-5 gap-y-3 rounded-xl bg-(--sk-surface) px-4 py-3 ring-1 ring-(--sk-border-soft)"
+              :class="{ 'opacity-60': recipe.para_all === 0 }"
             >
-              <template
-                v-for="id in recipeColumnIds"
-                :key="id"
-                #[`${id}-header`]="{ column }"
-              >
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
-                  :trailing-icon="getSortIcon(column.getIsSorted())"
-                  @click="column.toggleSorting(column.getIsSorted() === 'asc')"
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-mono text-[17px] font-bold leading-tight tracking-tight text-(--sk-ink)">{{ recipe.recipe_id }}</span>
+                  <span class="inline-flex h-6 items-center rounded-md bg-(--sk-muted-surface) px-2.5 font-mono text-[13px] font-semibold text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ recipe.oper_id }}</span>
+                </div>
+                <p class="mt-1.5 sk-card-desc">
+                  {{ recipe.oper_desc || '—' }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-x-5 gap-y-0.5">
+                  <span class="sk-field-label">
+                    oper_seq <span class="sk-field-value">{{ recipe.oper_seq }}</span>
+                  </span>
+                  <span class="sk-field-label">
+                    samp_seq <span class="sk-field-value">{{ recipe.samp_seq }}</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="w-50 flex-none">
+                <div class="mb-1.5 flex items-baseline justify-between gap-2">
+                  <span class="sk-field-label">{{ text.paraDist }}</span>
+                  <span class="sk-field-value text-[15px] font-semibold text-(--sk-ink)">{{ recipe.para_all }}</span>
+                </div>
+                <CdsemComparisonStackedBar
+                  v-if="recipe.para_all > 0"
+                  :row="recipe"
+                  :label="recipe.recipe_id"
+                  :height="18"
+                  :normalize="false"
+                  :max-total="maxRecipeParaTotal"
+                />
+                <p
+                  v-else
+                  class="sk-field-label"
                 >
-                  {{ column.columnDef.header }}
-                </UButton>
-              </template>
+                  {{ text.noParams }}
+                </p>
+              </div>
+            </div>
 
-              <template #recipe_id-cell="{ row: r }">
-                <span class="font-mono font-semibold text-(--sk-ink)">{{ r.original.recipe_id }}</span>
-              </template>
-
-              <template #oper_desc-cell="{ row: r }">
-                <span
-                  class="block max-w-[200px] truncate text-(--sk-ink-muted)"
-                  :title="r.original.oper_desc"
-                >{{ r.original.oper_desc || '—' }}</span>
-              </template>
-            </UTable>
-            <p class="border-t border-(--sk-border-soft) px-3 py-1.5 text-[10.5px] text-(--sk-ink-subtle)">
+            <p class="sk-caption px-1">
               {{ text.seqCaveat }}
             </p>
           </div>
           <p
             v-else
-            class="py-2 text-center text-[11px] font-medium text-(--sk-ink-subtle)"
+            class="py-2 text-center sk-body text-(--sk-ink-muted)"
           >
             {{ text.recipeEmpty }}
           </p>
@@ -141,10 +176,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useColorMode } from '#imports'
-import type { TableColumn } from '@nuxt/ui'
-import type { SortingState } from '@tanstack/vue-table'
 import type { HealthAugmentedRow } from '~/utils/lotHealth'
 import type {
   RecipeInfoRow,
@@ -166,13 +199,44 @@ const open = defineModel<boolean>('open', { required: true })
 const text = {
   recipeEmpty: '이 lot 의 recipe 가 현재 bucket 에 없습니다.',
   noRules: '룰 없음',
+  noParams: '파라미터 없음',
+  violations: '위반',
+  grayRecipes: '판정 제외',
+  recipeRatio: '운용 / 전체 recipe',
+  paraDist: 'para 분포',
   // M 계열은 원천에 순서 field 가 없어 oper_seq/samp_seq 를 공정 접두사 순위로
   // 합성합니다 — 화면 표기 의무 (docs/datatables/ebeam_tas_lot_hist.txt ★).
   seqCaveat: 'M 계열 fab 의 oper_seq · samp_seq 는 합성값으로, 실제 운영 공정 순서를 반영하지 않습니다.'
 } as const
 
+// title 은 prop 으로 계속 넘깁니다 — Reka 의 DialogTitle 이 대화상자의 접근
+// 가능한 이름이라, 지우면 스크린 리더에 이름 없는 창이 열립니다. 다만 화면
+// 에서는 감춥니다: 바로 아래 본문 헤더가 같은 lot 코드를 22px 로 다시 씁니다.
+const modalUi = {
+  content: 'w-[95vw] sm:max-w-[1400px] sm:max-h-[calc(100dvh-2rem)]',
+  title: 'sr-only'
+} as const
+
 const colorMode = useColorMode()
-const paraPalette = computed(() => colorMode.value === 'dark' ? paraColorsDark : paraColors)
+const isDark = computed(() => colorMode.value === 'dark')
+const paraPalette = computed(() => isDark.value ? paraColorsDark : paraColors)
+
+// 판정 없음(룰 없는 fab)은 중성 회색입니다 — 초록과 섞이면 "판정했고 괜찮다" 로
+// 읽힙니다. 룰이 없어 아무 말도 하지 않은 것과는 다릅니다.
+const stripeColor = computed(() => {
+  const health = props.row?.verdict.health
+  return health ? healthSwatches[health].dot : 'var(--sk-border)'
+})
+
+const healthBadgeStyle = computed(() => {
+  const health = props.row?.verdict.health
+  if (!health) return {}
+  const swatch = healthSwatches[health]
+  return {
+    background: isDark.value ? swatch.tintDark : swatch.tint,
+    color: isDark.value ? swatch.inkDark : swatch.ink
+  }
+})
 
 const lotRecipes = computed<RecipeInfoRow[]>(() => {
   const lotCd = props.row?.lot_cd
@@ -180,35 +244,14 @@ const lotRecipes = computed<RecipeInfoRow[]>(() => {
   return props.recipeRows.filter(r => r.lot_cd === lotCd)
 })
 
-const recipeSorting = ref<SortingState>([{ id: 'para_all', desc: true }])
+// 표가 정렬 헤더로 하던 일을 카드에서는 기본 순서 하나가 대신합니다 —
+// 파라미터가 많은 recipe 가 먼저입니다(표의 기본 정렬과 같습니다).
+const sortedRecipes = computed(() =>
+  [...lotRecipes.value].sort((a, b) => b.para_all - a.para_all || a.recipe_id.localeCompare(b.recipe_id))
+)
 
-const recipeColumns: TableColumn<RecipeInfoRow>[] = [
-  { accessorKey: 'recipe_id', header: 'recipe_id' },
-  { accessorKey: 'oper_id', header: 'oper_id', size: 110 },
-  { accessorKey: 'oper_desc', header: 'oper_desc', size: 200 },
-  { accessorKey: 'oper_seq', header: 'oper_seq', size: 84 },
-  { accessorKey: 'samp_seq', header: 'samp_seq', size: 84 },
-  { accessorKey: 'para_16', header: 'para_16', size: 80 },
-  { accessorKey: 'para_13', header: 'para_13', size: 80 },
-  { accessorKey: 'para_9', header: 'para_9', size: 80 },
-  { accessorKey: 'para_5', header: 'para_5', size: 80 },
-  { accessorKey: 'para_all', header: 'param_total', size: 96 }
-]
-
-const recipeColumnIds = [
-  'recipe_id', 'oper_id', 'oper_desc', 'oper_seq', 'samp_seq',
-  'para_16', 'para_13', 'para_9', 'para_5', 'para_all'
-] as const
-
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
-
-const tableUi = {
-  tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
-}
+// 카드마다 막대를 제 합계로 정규화하면 파라미터 3개짜리 recipe 와 40개짜리
+// recipe 의 막대가 똑같이 꽉 차 보입니다. lot 안에서 서로 비교되도록 최대값을
+// 공유합니다.
+const maxRecipeParaTotal = computed(() => Math.max(0, ...lotRecipes.value.map(r => r.para_all)))
 </script>

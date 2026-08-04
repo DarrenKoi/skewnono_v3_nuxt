@@ -1,16 +1,16 @@
 <template>
   <div class="space-y-2">
-    <div class="flex items-center gap-2 px-1">
+    <div class="flex items-center gap-2.5 px-1">
       <span
-        class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold transition-colors"
+        class="inline-flex h-6 w-6 items-center justify-center rounded-full font-mono text-[13px] font-bold transition-colors"
         :class="selectedDeviceLots.length > 0 || presets.length > 0
           ? 'bg-(--sk-accent) text-white'
           : 'bg-zinc-200 text-(--sk-ink-muted) dark:bg-zinc-700'"
       >3</span>
-      <h3 class="sk-title">
+      <h3 class="sk-panel-title">
         {{ text.step3Title }}
       </h3>
-      <span class="sk-meta">
+      <span class="text-sm text-(--sk-ink-muted)">
         {{ activeTab === 'selection' ? text.step3HintSelection : text.step3HintPresets }}
       </span>
     </div>
@@ -28,7 +28,7 @@
           :key="tab.id"
           :aria-pressed="activeTab === tab.id"
           type="button"
-          class="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200"
+          class="flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors duration-200"
           :class="activeTab === tab.id
             ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 sk-nav-accent'
             : 'text-(--sk-ink-muted) hover:text-(--sk-ink) hover:bg-zinc-100/70 dark:hover:bg-zinc-800/60'"
@@ -36,7 +36,7 @@
         >
           <UIcon
             :name="tab.icon"
-            class="h-3 w-3"
+            class="h-4 w-4"
           />
           {{ tab.label }}
           <UBadge
@@ -68,17 +68,17 @@
               :key="row.lot_cd"
               class="group flex items-center gap-2 px-3.5 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
             >
-              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-zinc-100 font-mono text-[11px] text-(--sk-ink-muted) dark:bg-zinc-800">
+              <span class="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md bg-(--sk-muted-surface) font-mono text-[13px] tabular-nums text-(--sk-ink-muted)">
                 {{ index + 1 }}
               </span>
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5">
-                  <span class="sk-value-num">{{ row.lot_cd }}</span>
-                  <span class="text-[11px] uppercase tracking-wide text-(--sk-ink-muted)">
+                <div class="flex flex-wrap items-baseline gap-2">
+                  <span class="font-mono text-[15px] font-semibold tabular-nums text-(--sk-ink)">{{ row.lot_cd }}</span>
+                  <span class="text-[13px] text-(--sk-ink-muted)">
                     {{ deviceChipLabel(row) }}
                   </span>
                 </div>
-                <p class="truncate text-[10px] text-(--sk-ink)">
+                <p class="truncate text-[13px] text-(--sk-ink-muted)">
                   {{ row.ctn_desc }}
                 </p>
               </div>
@@ -90,7 +90,7 @@
               >
                 <UIcon
                   name="i-lucide-x"
-                  class="h-3 w-3"
+                  class="h-4 w-4"
                 />
               </button>
             </div>
@@ -100,10 +100,9 @@
         <div class="space-y-2 border-t border-zinc-100 bg-zinc-50/40 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/30">
           <UButton
             block
-            size="md"
             :disabled="selectedDeviceLots.length === 0"
             :trailing-icon="selectedDeviceLots.length > 0 ? 'i-lucide-arrow-right' : undefined"
-            class="bg-(--sk-accent) text-white ring-1 ring-(--sk-accent) hover:bg-(--sk-accent)/90 disabled:opacity-50"
+            class="h-[42px] bg-(--sk-accent) text-[15px] font-bold text-white ring-1 ring-(--sk-accent) hover:bg-(--sk-accent)/90 disabled:opacity-50"
             :ui="{ label: 'flex-1 text-center' }"
             @click="emit('proceed')"
           >
@@ -111,12 +110,11 @@
           </UButton>
           <UButton
             block
-            size="sm"
             color="neutral"
             variant="outline"
             icon="i-lucide-bookmark-plus"
             :disabled="selectedDeviceLots.length === 0"
-            class="disabled:opacity-50"
+            class="h-[38px] text-sm font-semibold disabled:opacity-50"
             @click="showSaveDialog = true"
           >
             {{ text.saveAsPreset }}
@@ -124,7 +122,7 @@
           <button
             v-if="selectedDeviceLots.length > 0"
             type="button"
-            class="block w-full text-center text-[11px] text-(--sk-ink-muted) hover:text-(--sk-ink)"
+            class="block w-full text-center text-[13px] text-(--sk-ink-muted) hover:text-(--sk-ink)"
             @click="clearDeviceSelection"
           >
             {{ text.clearAll }}
@@ -153,20 +151,20 @@
               <div class="flex items-start gap-2">
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    <span class="truncate sk-title">{{ preset.name }}</span>
+                    <span class="truncate text-[15px] font-bold text-(--sk-ink)">{{ preset.name }}</span>
                     <span
                       v-if="preset.fab"
-                      class="shrink-0 rounded bg-(--sk-accent-tint) px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-wide text-(--sk-accent) ring-1 ring-(--sk-accent-border)"
+                      class="shrink-0 rounded bg-(--sk-accent-tint) px-1.5 py-0.5 font-mono text-[13px] uppercase tracking-wide text-(--sk-accent) ring-1 ring-(--sk-accent-border)"
                     >
                       {{ preset.fab }}
                     </span>
-                    <span class="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-(--sk-ink-muted) dark:bg-zinc-800">
+                    <span class="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[13px] tabular-nums text-(--sk-ink-muted) dark:bg-zinc-800">
                       {{ preset.lots.length }}{{ text.lotsSuffix }}
                     </span>
                   </div>
                   <p
                     v-if="preset.comments"
-                    class="mt-1 line-clamp-2 text-[11px] leading-snug text-(--sk-ink)"
+                    class="mt-1 line-clamp-2 text-[13px] leading-snug text-(--sk-ink)"
                   >
                     {{ preset.comments }}
                   </p>

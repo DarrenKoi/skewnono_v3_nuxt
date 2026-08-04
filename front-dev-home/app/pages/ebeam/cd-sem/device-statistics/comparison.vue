@@ -41,47 +41,52 @@
     </div>
 
     <template v-else>
-      <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
-        <div class="space-y-1.5">
-          <span class="font-mono text-[10px] text-(--sk-ink-muted)">bucket</span>
-          <div
-            role="radiogroup"
-            aria-label="Summary bucket"
-            class="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-4"
-          >
-            <button
-              v-for="option in bucketOptions"
-              :key="option.value"
-              type="button"
-              role="radio"
-              :aria-checked="selectedBucket === option.value"
-              class="rounded-lg px-3 py-2 text-left ring-1 transition-colors"
-              :class="selectedBucket === option.value
-                ? 'bg-(--sk-accent-tint) ring-(--sk-accent)'
-                : 'bg-white ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:ring-zinc-700 dark:hover:bg-zinc-800'"
-              @click="selectedBucket = option.value"
-            >
-              <span
-                class="flex items-center gap-1.5 text-[12px] font-semibold"
-                :class="selectedBucket === option.value ? 'text-(--sk-accent)' : 'text-(--sk-ink)'"
-              >
-                {{ option.label }}
-                <UIcon
-                  v-if="selectedBucket === option.value"
-                  name="i-lucide-check"
-                  class="h-3.5 w-3.5"
-                />
-              </span>
-              <span class="mt-0.5 block text-[11px] leading-4 text-(--sk-ink-muted)">{{ option.description }}</span>
-            </button>
-          </div>
+      <div class="dashboard-surface rounded-2xl px-4 py-3.5">
+        <div class="flex items-baseline gap-2.5">
+          <span class="sk-panel-title">{{ text.bucketTitle }}</span>
+          <span class="sk-field-name">bucket</span>
         </div>
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <span class="font-mono text-[10px] text-(--sk-ink-muted)">sort</span>
+        <div
+          role="radiogroup"
+          aria-label="Summary bucket"
+          class="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          <button
+            v-for="option in bucketOptions"
+            :key="option.value"
+            type="button"
+            role="radio"
+            :aria-checked="selectedBucket === option.value"
+            class="flex flex-col gap-1.5 rounded-xl px-3.5 py-3 text-left ring-1 transition-colors"
+            :class="selectedBucket === option.value
+              ? 'bg-(--sk-accent-tint) ring-(--sk-accent)'
+              : 'bg-(--sk-surface) ring-(--sk-border) hover:bg-(--sk-muted-surface)'"
+            @click="selectedBucket = option.value"
+          >
+            <span class="flex items-center gap-2">
+              <span
+                class="text-base font-bold"
+                :class="selectedBucket === option.value ? 'text-(--sk-accent)' : 'text-(--sk-ink)'"
+              >{{ option.label }}</span>
+              <UIcon
+                v-if="selectedBucket === option.value"
+                name="i-lucide-check"
+                class="h-4 w-4 text-(--sk-accent)"
+              />
+            </span>
+            <!-- 13.5px/1.5 — bucket 설명은 이 페이지에서 유일하게 여러 줄로 읽는
+                 문장이라, 카드 값(14px)보다 살짝 작되 행간을 넉넉히 줍니다. -->
+            <span class="text-[13.5px] leading-[1.5] text-pretty text-(--sk-ink-muted)">{{ option.description }}</span>
+            <span class="sk-field-name">{{ option.value }}</span>
+          </button>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2.5 border-t border-(--sk-border-soft) pt-3">
+          <span class="text-[15px] font-bold text-(--sk-ink)">{{ text.sortTitle }}</span>
+          <span class="sk-field-name">sort</span>
           <div
             role="radiogroup"
             aria-label="Sort by metric"
-            class="flex flex-wrap items-center gap-1"
+            class="flex flex-wrap items-center gap-1.5"
           >
             <button
               v-for="option in sortOptions"
@@ -89,8 +94,7 @@
               type="button"
               role="radio"
               :aria-checked="selectedSort === option.value"
-              class="inline-flex h-7 items-center gap-1 rounded-md px-3 text-[12px] font-medium ring-1 transition-colors"
-              :class="chipClass(selectedSort === option.value)"
+              :class="[CHIP_BASE, chipClass(selectedSort === option.value)]"
               @click="selectedSort = option.value"
             >
               {{ option.label }}
@@ -143,11 +147,26 @@
               :ui="{ body: 'p-3 sm:p-3', header: 'px-4 py-3 sm:px-4' }"
             >
               <template #header>
-                <div class="flex items-center justify-between gap-3">
-                  <p class="sk-title">
+                <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <p class="sk-panel-title">
                     {{ text.chartStackedTitle }}
                   </p>
-                  <span class="text-[11px] text-(--sk-ink-muted)">para_16 / 13 / 9 / 5</span>
+                  <!-- 범례를 카드 헤더로 올렸습니다. ECharts 안의 범례는
+                       11px 고정에 캔버스 글꼴이라 카드의 활자와 어긋났고,
+                       차트 위쪽 공간을 먹어 막대를 눌렀습니다. -->
+                  <div class="flex flex-wrap items-center gap-3">
+                    <span
+                      v-for="key in paraOrder"
+                      :key="key"
+                      class="inline-flex items-center gap-1.5 font-mono text-sm text-(--sk-ink-muted)"
+                    >
+                      <span
+                        class="h-2.5 w-2.5 rounded-[3px]"
+                        :style="{ background: paraPalette[key] }"
+                      />
+                      {{ key }}
+                    </span>
+                  </div>
                 </div>
               </template>
               <div
@@ -162,10 +181,10 @@
             >
               <template #header>
                 <div class="flex items-center justify-between gap-3">
-                  <p class="sk-title">
+                  <p class="sk-panel-title">
                     {{ text.chartAvailRecipeTitle }}
                   </p>
-                  <span class="text-[11px] text-(--sk-ink-muted)">avail_recipe</span>
+                  <span class="sk-field-name">avail_recipe</span>
                 </div>
               </template>
               <div
@@ -237,7 +256,9 @@ const text = {
   chartsGroupTitle: '파라미터 비교',
   chartsGroupSubtitle: '선택한 Lot 전체의 분포를 한눈에 봅니다.',
   chartStackedTitle: '파라미터 분포 (스택)',
-  chartAvailRecipeTitle: '운용 레시피수'
+  chartAvailRecipeTitle: '운용 레시피수',
+  bucketTitle: '요약 범위',
+  sortTitle: '정렬'
 } as const
 
 const metaStats = computed<MetaBarStat[]>(() =>
@@ -480,11 +501,20 @@ const baseTooltip = {
   formatter: formatBarTooltip
 }
 
+// ECharts 는 캔버스에 직접 글자를 그리므로 CSS 변수(--font-mono)를 해석하지
+// 못합니다. 축 눈금과 막대 위 값이 카드 안의 mono 숫자와 같은 활자로 보이도록
+// 스택을 문자열로 그대로 넘깁니다.
+const CHART_MONO = '\'JetBrains Mono\', ui-monospace, \'SF Mono\', Menlo, Consolas, monospace'
+
+const baseAxisLabel = { fontSize: 13, fontFamily: CHART_MONO }
+
+// top:36 은 예전에 차트 안 범례가 앉던 자리였습니다. 범례를 카드 헤더로 올린
+// 지금은 막대 위 값 라벨이 잘리지 않게 하는 여백입니다.
 const baseGrid = { left: 48, right: 16, top: 36, bottom: 55, containLabel: true }
 
 const baseYAxis = {
   type: 'value' as const,
-  axisLabel: { fontSize: 10 },
+  axisLabel: baseAxisLabel,
   splitLine: { show: false }
 }
 
@@ -493,12 +523,16 @@ const baseDataZoom = [
   { type: 'slider' as const, xAxisIndex: 0, height: 21, bottom: 6, brushSelect: false }
 ]
 
-// Deliberately keyed to colorMode, NOT to the chart theme. These lines are
+// Deliberately keyed to colorMode, NOT to the chart theme. These marks are
 // drawn onto a transparent canvas over the app's card, so what they must
 // contrast with is the CARD -- and the theme picker is independent of color
 // mode, so a light theme (matlab, vintage, ...) can be active in dark mode.
 // Sourcing this from the theme's ink renders #262626 on a dark card.
-const markLineColor = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
+//
+// Used by the stat markLines AND the bar-top value labels: both are our own
+// annotations sitting on the card, as opposed to the series colours, which
+// come from the theme.
+const chartInk = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
 
 // Same para palette as the table's StackedBar cells (dark-aware), so the
 // stacked chart, table, and detail modal all read as one color system.
@@ -506,18 +540,29 @@ const paraPalette = computed(() => colorMode.value === 'dark' ? paraColorsDark :
 
 const sigmaLineStyle = computed(() => ({
   type: 'dotted' as const,
-  color: markLineColor.value,
+  color: chartInk.value,
   width: 1,
   opacity: 0.55
+}))
+
+// 막대 위 값. hideOverlap 은 series 쪽 labelLayout 이 맡습니다 — lot 이 많아
+// 축이 빽빽해지면 라벨이 서로 밟고 올라서는 대신 조용히 사라집니다.
+const barValueLabel = computed(() => ({
+  show: true,
+  position: 'top' as const,
+  fontSize: 13,
+  fontFamily: CHART_MONO,
+  fontWeight: 600 as const,
+  color: chartInk.value
 }))
 
 const buildStatsMarkLine = (avg: number, sd: number) => ({
   symbol: 'none' as const,
   silent: true,
-  lineStyle: { type: 'dashed' as const, color: markLineColor.value, width: 1.5 },
+  lineStyle: { type: 'dashed' as const, color: chartInk.value, width: 1.5 },
   label: {
-    fontSize: 10,
-    color: markLineColor.value,
+    fontSize: 13,
+    color: chartInk.value,
     backgroundColor: 'transparent'
   },
   data: [
@@ -542,16 +587,19 @@ const buildStatsMarkLine = (avg: number, sd: number) => ({
   ]
 })
 
+const buildCategoryAxis = () => ({
+  type: 'category' as const,
+  data: lotLabels.value,
+  axisLabel: { ...baseAxisLabel, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
+})
+
+// 범례는 카드 헤더가 그립니다(위 template) — 여기서 legend 를 다시 켜면 같은
+// 네 항목이 두 벌 나옵니다.
 const stackedOption = computed<EChartsOption>(() => ({
   tooltip: baseTooltip,
-  legend: { top: 0, right: 0, textStyle: { fontSize: 11 } },
   grid: baseGrid,
   dataZoom: baseDataZoom,
-  xAxis: {
-    type: 'category',
-    data: lotLabels.value,
-    axisLabel: { fontSize: 10, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
-  },
+  xAxis: buildCategoryAxis(),
   yAxis: baseYAxis,
   series: paraOrder.map((key, index) => ({
     name: key,
@@ -559,8 +607,18 @@ const stackedOption = computed<EChartsOption>(() => ({
     stack: 'para',
     itemStyle: { color: paraPalette.value[key] },
     data: sortedRows.value.map(r => r[key]),
+    // 값 라벨은 마지막 조각에만 답니다. 조각마다 달면 스택 안에 숫자 넷이
+    // 겹쳐 쌓이고, 정작 읽고 싶은 것은 기둥 전체의 합계입니다. 마지막 조각의
+    // 위쪽이 곧 스택의 꼭대기이므로 position:'top' 이 합계 자리에 놓입니다.
     ...(index === paraOrder.length - 1
-      ? { markLine: buildStatsMarkLine(avgStackTotal.value, stdStackTotal.value) }
+      ? {
+          markLine: buildStatsMarkLine(avgStackTotal.value, stdStackTotal.value),
+          label: {
+            ...barValueLabel.value,
+            formatter: ({ dataIndex }: { dataIndex: number }) => String(stackTotals.value[dataIndex] ?? '')
+          },
+          labelLayout: { hideOverlap: true }
+        }
       : {})
   }))
 }))
@@ -569,17 +627,15 @@ const availRecipeOption = computed<EChartsOption>(() => ({
   tooltip: baseTooltip,
   grid: baseGrid,
   dataZoom: baseDataZoom,
-  xAxis: {
-    type: 'category',
-    data: lotLabels.value,
-    axisLabel: { fontSize: 10, interval: 0, rotate: lotLabels.value.length > 8 ? 35 : 0 }
-  },
+  xAxis: buildCategoryAxis(),
   yAxis: baseYAxis,
   series: [{
     name: 'avail_recipe',
     type: 'bar',
     // No itemStyle.color: sole series, so ECharts already assigns palette[0].
     data: sortedRows.value.map(r => r.avail_recipe),
+    label: barValueLabel.value,
+    labelLayout: { hideOverlap: true },
     markLine: buildStatsMarkLine(avgAvailRecipe.value, stdAvailRecipe.value)
   }]
 }))
@@ -653,9 +709,11 @@ onMounted(() => {
   color: var(--sk-ink);
 }
 
+/* 400, not 500: Spoqa 의 획은 작을수록 뭉치므로 한글은 굵기 대신 크기로
+   읽히게 합니다 (12px/500 → 14px/400). */
 .comparison-section-head__subtitle {
   margin: 4px 0 0;
-  font: 500 12px/1.4 var(--font-sans);
+  font: 400 14px/1.45 var(--font-sans);
   color: var(--sk-ink-muted);
 }
 </style>

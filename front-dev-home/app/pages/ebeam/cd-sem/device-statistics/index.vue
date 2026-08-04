@@ -41,30 +41,32 @@
       </template>
     </EbeamMetaBar>
 
-    <!-- Step 1 — Quick filter strip -->
-    <div class="dashboard-surface rounded-2xl px-3.5 py-2.5">
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">1</span>
-          <h3 class="sk-title">
+    <!-- Step 1 — 그룹별 필터 카드. 예전에는 세 그룹이 한 줄짜리 칩 스트립으로
+         나란히 붙어 있어서, 어느 칩이 어느 필터에 속하는지 왼쪽 끝의 10px
+         mono 필드명을 되짚어야 알 수 있었습니다. -->
+    <div class="dashboard-surface rounded-2xl px-4 py-3.5">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[13px] font-bold text-white">1</span>
+          <h3 class="sk-panel-title">
             {{ text.step1Title }}
           </h3>
-          <span class="text-[11px] text-(--sk-ink-muted)">
+          <span class="text-sm text-(--sk-ink-muted)">
             {{ hasRSelection ? text.step1HintR : text.step1HintM }}
           </span>
         </div>
         <div class="flex items-center gap-2">
           <span
             v-if="hasActiveFilters"
-            class="inline-flex h-5 items-center rounded bg-(--sk-accent-tint) px-1.5 font-mono text-[11px] tabular-nums text-(--sk-accent)"
+            class="inline-flex h-[30px] items-center rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-sm font-semibold tabular-nums text-(--sk-accent)"
           >
             {{ filteredRowCount.toLocaleString() }} / {{ rows.length.toLocaleString() }}
           </span>
           <UButton
-            size="xs"
             color="neutral"
             variant="ghost"
             icon="i-lucide-rotate-ccw"
+            class="h-[34px] px-3 text-sm font-semibold"
             :label="text.reset"
             :disabled="!hasActiveFilters"
             @click="resetAllFilters"
@@ -72,46 +74,54 @@
         </div>
       </div>
 
-      <div class="mb-2 flex items-start gap-2 min-w-0">
-        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">측정 상위</span>
-        <div class="flex flex-wrap items-center gap-1">
-          <button
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(selectedTopN === null)"
-            @click="selectedTopN = null"
-          >
-            {{ text.topNAll }}
-          </button>
-          <button
-            v-for="option in topNOptions"
-            :key="option"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium tabular-nums ring-1 transition-colors"
-            :class="chipClass(selectedTopN === option)"
-            @click="selectedTopN = selectedTopN === option ? null : option"
-          >
-            상위 {{ option }}
-          </button>
-          <span class="ml-1 text-[10px] text-(--sk-ink-muted)">
-            {{ text.topNHint }}
-          </span>
-        </div>
-      </div>
-
       <div
-        v-if="hasRSelection"
-        class="flex flex-col gap-2 xl:grid xl:grid-cols-12"
+        class="grid grid-cols-1 gap-3"
+        :class="hasRSelection
+          ? 'xl:grid-cols-[minmax(220px,0.8fr)_minmax(220px,0.8fr)_2fr]'
+          : 'xl:grid-cols-[minmax(220px,0.8fr)_3fr]'"
       >
-        <div class="flex items-start gap-2 min-w-0 xl:col-span-4">
-          <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">prod_catg_cd</span>
-          <div class="flex flex-wrap items-center gap-1">
+        <div
+          class="filter-card"
+          :title="text.topNHint"
+        >
+          <div class="filter-card__head">
+            <span class="filter-card__title">{{ text.topNTitle }}</span>
+            <span class="sk-field-name">{{ text.topNScope }}</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              :class="[CHIP_BASE, chipClass(selectedTopN === null)]"
+              @click="selectedTopN = null"
+            >
+              {{ text.topNAll }}
+            </button>
+            <button
+              v-for="option in topNOptions"
+              :key="option"
+              type="button"
+              :class="[CHIP_BASE_MONO, chipClass(selectedTopN === option)]"
+              @click="selectedTopN = selectedTopN === option ? null : option"
+            >
+              {{ option }}
+            </button>
+          </div>
+        </div>
+
+        <div
+          v-if="hasRSelection"
+          class="filter-card"
+        >
+          <div class="filter-card__head">
+            <span class="filter-card__title">{{ text.categoryTitle }}</span>
+            <span class="sk-field-name">prod_catg_cd</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
             <button
               v-for="category in prodCategoryOptions"
               :key="category"
               type="button"
-              class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-              :class="chipClass(isProdCategorySelected(category))"
+              :class="[CHIP_BASE, chipClass(isProdCategorySelected(category))]"
               @click="toggleProdCategory(category)"
             >
               {{ category }}
@@ -119,69 +129,80 @@
           </div>
         </div>
 
-        <div class="flex items-start gap-2 min-w-0 xl:col-span-8">
-          <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">lot_cd</span>
-          <UInput
-            v-model="lotSearch"
-            class="w-44 shrink-0"
-            size="xs"
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-search"
-            :placeholder="text.lotSearch"
-          />
-          <div class="flex flex-wrap items-center gap-1 min-w-0">
+        <div
+          v-if="hasRSelection"
+          class="filter-card"
+        >
+          <div class="filter-card__head">
+            <span class="filter-card__title">Lot</span>
+            <span class="sk-field-name">lot_cd · {{ lotOptions.length }}개 중 {{ stepOneLotStrip.chips.length }}개 표시</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <UInput
+              v-model="lotSearch"
+              class="w-48 shrink-0"
+              size="md"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-search"
+              :placeholder="text.lotSearch"
+            />
             <button
               v-for="lot in stepOneLotStrip.chips"
               :key="lot"
               type="button"
-              class="inline-flex h-6 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
-              :class="chipClass(isLotSelected(lot))"
+              :class="[CHIP_BASE_MONO, chipClass(isLotSelected(lot))]"
               @click="toggleLot(lot)"
             >
               {{ lot }}
             </button>
-            <span
-              v-if="stepOneLotStrip.overflowCount > 0"
-              class="font-mono text-[10px] text-(--sk-ink-muted)"
+            <button
+              v-if="stepOneLotStrip.overflowCount > 0 || lotChipsExpanded"
+              type="button"
+              class="inline-flex h-[34px] items-center gap-1 rounded-lg bg-(--sk-muted-surface) px-3 text-[13px] font-semibold text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+              @click="lotChipsExpanded = !lotChipsExpanded"
             >
-              +{{ stepOneLotStrip.overflowCount }}
-            </span>
+              {{ lotChipsExpanded ? text.collapseChips : `${text.expandChips} +${stepOneLotStrip.overflowCount}` }}
+            </button>
           </div>
         </div>
-      </div>
 
-      <div
-        v-else
-        class="flex items-start gap-2 min-w-0"
-      >
-        <span class="mt-1.5 font-mono text-[10px] text-(--sk-ink-muted) shrink-0">tech_nm</span>
-        <UInput
-          v-model="techSearch"
-          class="w-44 shrink-0"
-          size="xs"
-          color="neutral"
-          variant="subtle"
-          icon="i-lucide-search"
-          :placeholder="text.techSearch"
-        />
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <button
-            v-for="tech in stepOneTechStrip.chips"
-            :key="tech"
-            type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
-            :class="chipClass(isTechSelected(tech))"
-            @click="toggleTech(tech)"
-          >
-            {{ tech }}
-          </button>
-          <span
-            v-if="stepOneTechStrip.overflowCount > 0"
-            class="font-mono text-[10px] text-(--sk-ink-muted)"
-          >
-            +{{ stepOneTechStrip.overflowCount }}
-          </span>
+        <div
+          v-else
+          class="filter-card"
+        >
+          <div class="filter-card__head">
+            <span class="filter-card__title">Tech</span>
+            <span class="sk-field-name">tech_nm · {{ techOptions.length }}개 중 {{ stepOneTechStrip.chips.length }}개 표시</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <UInput
+              v-model="techSearch"
+              class="w-48 shrink-0"
+              size="md"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-search"
+              :placeholder="text.techSearch"
+            />
+            <button
+              v-for="tech in stepOneTechStrip.chips"
+              :key="tech"
+              type="button"
+              :class="[CHIP_BASE, chipClass(isTechSelected(tech))]"
+              @click="toggleTech(tech)"
+            >
+              {{ tech }}
+            </button>
+            <button
+              v-if="stepOneTechStrip.overflowCount > 0 || techChipsExpanded"
+              type="button"
+              class="inline-flex h-[34px] items-center gap-1 rounded-lg bg-(--sk-muted-surface) px-3 text-[13px] font-semibold text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+              @click="techChipsExpanded = !techChipsExpanded"
+            >
+              {{ techChipsExpanded ? text.collapseChips : `${text.expandChips} +${stepOneTechStrip.overflowCount}` }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -189,12 +210,12 @@
     <!-- Step 2 (table) + Step 3 (cart) -->
     <div class="grid grid-cols-12 gap-3">
       <div class="col-span-12 space-y-2 lg:col-span-8">
-        <div class="flex items-center gap-2 px-1">
-          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[10px] font-bold text-white">2</span>
-          <h3 class="sk-title">
+        <div class="flex items-center gap-2.5 px-1">
+          <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-(--sk-accent) font-mono text-[13px] font-bold text-white">2</span>
+          <h3 class="sk-panel-title">
             {{ text.step2Title }}
           </h3>
-          <span class="text-[11px] text-(--sk-ink-muted)">
+          <span class="text-sm text-(--sk-ink-muted)">
             {{ text.step2Hint }}
           </span>
         </div>
@@ -205,14 +226,14 @@
         >
           <template #header>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <p class="text-xs text-(--sk-ink-muted) tabular-nums">
+              <p class="text-sm tabular-nums text-(--sk-ink-muted)">
                 {{ pageStart }}-{{ pageEnd }} / {{ filteredRowCount }} rows
               </p>
               <UButton
-                size="xs"
                 color="neutral"
                 variant="outline"
                 icon="i-lucide-rotate-ccw"
+                class="h-[34px] px-3 text-sm font-semibold"
                 :label="text.resetAll"
                 :disabled="!hasActiveFilters"
                 @click="resetAllFilters"
@@ -220,40 +241,44 @@
             </div>
           </template>
 
-          <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 px-4 py-2.5 dark:border-zinc-800/70">
+          <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border-soft) px-4 py-3">
             <UInput
               v-model="tableSearch"
               class="min-w-56 flex-1"
-              size="xs"
+              size="md"
               color="neutral"
               variant="subtle"
               icon="i-lucide-search"
               :placeholder="text.tableSearch"
             />
+            <AppViewToggle
+              v-model="view"
+              :aria-label="text.viewToggle"
+            />
             <USelect
               v-model="pageSize"
               class="w-28"
-              size="xs"
+              size="md"
               color="neutral"
               variant="subtle"
               :items="pageSizeOptions"
             />
             <UTooltip text="클립보드 복사">
               <UButton
-                size="xs"
                 color="neutral"
                 variant="outline"
                 icon="i-lucide-clipboard"
+                class="h-[34px] px-3 text-sm font-semibold"
                 :aria-label="text.clipboardCopy"
                 :disabled="filteredRowCount === 0"
                 @click="copyDeviceList"
               />
             </UTooltip>
             <UButton
-              size="xs"
               color="neutral"
               variant="outline"
               icon="i-lucide-download"
+              class="h-[34px] px-3.5 text-sm font-semibold"
               :label="text.csvDownload"
               :disabled="filteredRowCount === 0"
               @click="downloadDeviceListCsv"
@@ -267,10 +292,74 @@
           />
           <div
             v-else-if="error"
-            class="px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-300"
+            class="px-4 py-12 text-center sk-body text-rose-600 dark:text-rose-300"
           >
             {{ text.loadError }}
           </div>
+
+          <!-- 행 카드. 10열 표에서 옮긴 것: Lot 은 카드 제목, Category/Grade 는
+               배지, Fab·Tech 같은 고정값은 라벨 달린 메타 줄, Meas (90d)는
+               오른쪽 큰 숫자. description 은 잘리지 않고 그대로 읽힙니다. -->
+          <template v-else-if="view === 'cards'">
+            <p
+              v-if="pagedRows.length === 0"
+              class="px-4 py-12 text-center sk-body text-(--sk-ink-muted)"
+            >
+              {{ text.emptyRows }}
+            </p>
+            <label
+              v-for="row in pagedRows"
+              :key="row.lot_cd"
+              class="flex cursor-pointer items-start gap-3.5 border-b border-(--sk-border-soft) px-4 py-3.5 transition-colors last:border-b-0 hover:bg-(--sk-muted-surface) has-checked:bg-(--sk-accent-tint)"
+            >
+              <input
+                type="checkbox"
+                :checked="isDeviceSelected(row.lot_cd)"
+                class="mt-1 h-[18px] w-[18px] flex-none rounded accent-(--sk-accent)"
+                @change="toggleDeviceSelect(row.lot_cd)"
+              >
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="sk-card-id">{{ row.lot_cd }}</span>
+                  <span
+                    v-for="badge in cardBadges(row)"
+                    :key="badge.label"
+                    class="inline-flex h-[22px] items-center rounded-md px-2 text-[13px] font-bold"
+                    :class="badge.accent
+                      ? 'bg-(--sk-brand-soft) text-(--sk-brand-ink)'
+                      : 'bg-(--sk-muted-surface) font-mono font-semibold text-(--sk-ink-muted)'"
+                  >{{ badge.label }}</span>
+                </div>
+                <p class="mt-1.5 sk-card-desc">
+                  {{ row.ctn_desc || '—' }}
+                </p>
+                <div class="mt-1.5 flex flex-wrap gap-x-5 gap-y-0.5">
+                  <span
+                    v-for="field in cardMeta(row)"
+                    :key="field.label"
+                    class="sk-field-label"
+                  >
+                    {{ field.label }} <span class="sk-field-value">{{ field.value || '—' }}</span>
+                  </span>
+                </div>
+              </div>
+              <div class="flex-none pl-2 text-right">
+                <div
+                  v-if="measCountByLot.get(row.lot_cd) !== undefined"
+                  class="font-mono text-[19px] font-semibold leading-tight tabular-nums text-(--sk-ink)"
+                >{{ measCountByLot.get(row.lot_cd)!.toLocaleString() }}</div>
+                <div
+                  v-else
+                  class="font-mono text-[19px] font-semibold leading-tight text-(--sk-ink-subtle)"
+                  :title="text.noMeasRank"
+                >—</div>
+                <div class="mt-0.5 sk-field-label">
+                  {{ text.measCaption }}
+                </div>
+              </div>
+            </label>
+          </template>
+
           <UTable
             v-else
             class="max-h-136 font-mono-ids"
@@ -286,7 +375,7 @@
                 type="checkbox"
                 :checked="allOnPageSelected"
                 :aria-label="text.step2Hint"
-                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                class="h-4 w-4 rounded accent-(--sk-accent)"
                 @change="togglePageSelection"
               >
             </template>
@@ -294,7 +383,7 @@
               <input
                 type="checkbox"
                 :checked="isDeviceSelected(row.original.lot_cd)"
-                class="h-3.5 w-3.5 rounded accent-(--sk-accent)"
+                class="h-4 w-4 rounded accent-(--sk-accent)"
                 @click.stop
                 @change="toggleDeviceSelect(row.original.lot_cd)"
               >
@@ -307,35 +396,35 @@
               <span
                 v-else
                 class="text-(--sk-ink-subtle)"
-                title="최근 90일 측정 순위에 없는 lot 입니다"
+                :title="text.noMeasRank"
               >—</span>
             </template>
             <template #ctn_desc-cell="{ row }">
-              <span class="block max-w-md truncate text-zinc-600 dark:text-zinc-300">
+              <span class="block max-w-md truncate text-(--sk-ink-muted)">
                 {{ row.original.ctn_desc }}
               </span>
             </template>
           </UTable>
 
-          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70">
-            <p class="text-xs text-(--sk-ink-muted) tabular-nums">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-(--sk-border-soft) px-4 py-3">
+            <p class="text-sm tabular-nums text-(--sk-ink-muted)">
               Page {{ currentPage }} / {{ pageCount }}
             </p>
             <div class="flex gap-2">
               <UButton
-                size="xs"
                 color="neutral"
                 variant="outline"
                 icon="i-lucide-chevron-left"
+                class="h-[34px] px-3.5 text-sm font-semibold"
                 :label="text.prev"
                 :disabled="currentPage <= 1"
                 @click="currentPage -= 1"
               />
               <UButton
-                size="xs"
                 color="neutral"
                 variant="outline"
                 trailing-icon="i-lucide-chevron-right"
+                class="h-[34px] px-3.5 text-sm font-semibold"
                 :label="text.next"
                 :disabled="currentPage >= pageCount"
                 @click="currentPage += 1"
@@ -368,7 +457,7 @@ import {
 } from '~/composables/useDeviceStatisticsPreferences'
 import { sameFab } from '~/utils/fab'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { chipClass } from '~/utils/chipClass'
+import { CHIP_BASE, CHIP_BASE_MONO, chipClass } from '~/utils/chipClass'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 
 definePageMeta({
@@ -401,12 +490,20 @@ const text = {
   prev: '이전',
   next: '다음',
   step1Title: '빠른 필터',
-  step1HintR: '카테고리 / Lot으로 좁히기',
+  step1HintR: '한 그룹씩 읽고 고르기',
   step1HintM: 'Tech로 좁히기',
   topNAll: '전체',
+  topNTitle: '측정 상위',
+  topNScope: '90일 기준',
   topNHint: '최근 90일 측정 건수 순위 기준',
+  categoryTitle: '카테고리',
+  expandChips: '전체 보기',
+  collapseChips: '접기',
   step2Title: '디바이스 선택',
-  step2Hint: '체크박스로 여러 개 선택'
+  step2Hint: '체크박스로 여러 개 선택',
+  viewToggle: '디바이스 목록 보기 방식',
+  measCaption: '90일 측정',
+  noMeasRank: '최근 90일 측정 순위에 없는 lot 입니다'
 } as const
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
@@ -421,8 +518,12 @@ const deviceFabOptions: { label: string, value: DeviceFab }[] = [
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 // Step 1 keeps the lot/tech chip strips compact: surface a small budget of unselected options,
 // always paired with any currently-selected ones so they remain togglable from the strip.
-const STEP1_LOT_CHIP_BUDGET = 24
-const STEP1_TECH_CHIP_BUDGET = 24
+//
+// 8, not 24: at 34px the chips are twice the old height, so a 24-chip strip
+// became four wrapped rows and pushed Step 2 below the fold. "전체 보기" lifts
+// the cap for the rare case where someone is hunting a specific lot.
+const STEP1_LOT_CHIP_BUDGET = 8
+const STEP1_TECH_CHIP_BUDGET = 8
 
 const {
   selectedFab,
@@ -444,7 +545,14 @@ const lotSearch = ref('')
 const techSearch = ref('')
 const tableSearch = ref('')
 const currentPage = ref(1)
-const pageSize = ref('25')
+// 12: 행 카드 한 장이 표 한 행보다 훨씬 높아, 25 로 두면 한 페이지가 화면
+// 세 개 분량이 됩니다. 표 보기로 옮겨 25/50/100 을 고를 수 있습니다.
+const pageSize = ref('12')
+
+const lotChipsExpanded = ref(false)
+const techChipsExpanded = ref(false)
+
+const view = useRowCardView('device-stats:listView', 'skewnono:deviceStatistics.listView')
 
 // 측정 상위 N 필터 — null 이면 전체. 세션 한정 상태라 preferences 에 넣지
 // 않습니다(순위 탐색용 토글이지, 남겨 둘 작업 조건이 아닙니다).
@@ -636,10 +744,46 @@ const pagedRows = computed(() => {
 })
 
 const pageSizeOptions = [
+  { label: '12개', value: '12' },
   { label: '25개', value: '25' },
   { label: '50개', value: '50' },
   { label: '100개', value: '100' }
 ]
+
+// 행 카드가 보여 줄 배지와 메타 줄. 열 정의(r3ColumnMetadata / deviceDesc…)와
+// 나란히 두는 것은 같은 필드를 두 형태로 그리기 때문입니다 — 표 보기는 열,
+// 카드 보기는 배지 + 라벨 달린 값. 어느 쪽도 상대의 필드를 몰래 빠뜨리지
+// 않도록 이 자리에서 함께 읽히게 했습니다.
+type CardBadge = { label: string, accent?: boolean }
+type CardField = { label: string, value: string }
+
+const isR3Row = (row: DeviceRow): row is R3DeviceGrpRow => 'prod_catg_cd' in row
+
+const cardBadges = (row: DeviceRow): CardBadge[] => {
+  if (!isR3Row(row)) return [{ label: row.tech_nm, accent: true }]
+  return [
+    { label: row.prod_catg_cd, accent: true },
+    { label: `Grade ${row.plan_grade_cd}` }
+  ]
+}
+
+const cardMeta = (row: DeviceRow): CardField[] => {
+  if (!isR3Row(row)) {
+    return [
+      { label: 'Fab', value: row.fac_id },
+      { label: 'R&D Connector', value: row.rnd_connector },
+      { label: 'Changed', value: row.chg_tm }
+    ]
+  }
+  return [
+    { label: 'Fab', value: row.fac_id },
+    { label: 'R Tech', value: row.tech_cd },
+    { label: 'Density', value: row.den_type },
+    { label: 'Group', value: row.prod_grp_typ },
+    { label: 'Gen', value: row.gen_typ },
+    { label: 'Plan', value: row.plan_catg_type }
+  ]
+}
 
 const r3ColumnMetadata = [
   { key: 'fac_id', label: 'Fab', size: 72 },
@@ -700,8 +844,8 @@ const columns = computed<TableColumn<DeviceRow>[]>(() => {
 const tableMeta = {
   class: {
     tr: 'cursor-pointer select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-    td: 'py-1.5 px-3 text-[12.5px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-    th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+    td: 'py-2 px-3 text-sm whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
+    th: 'py-2 px-3 text-[13px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
   }
 }
 
@@ -771,14 +915,14 @@ const stepOneLotStrip = computed(() => buildChipStrip(
   lotOptions.value,
   searchedLotOptions.value,
   selectedLotSet.value,
-  STEP1_LOT_CHIP_BUDGET
+  lotChipsExpanded.value ? Number.MAX_SAFE_INTEGER : STEP1_LOT_CHIP_BUDGET
 ))
 
 const stepOneTechStrip = computed(() => buildChipStrip(
   techOptions.value,
   visibleTechOptions.value,
   selectedTechSet.value,
-  STEP1_TECH_CHIP_BUDGET
+  techChipsExpanded.value ? Number.MAX_SAFE_INTEGER : STEP1_TECH_CHIP_BUDGET
 ))
 
 const proceedToStatistics = async () => {
@@ -1024,8 +1168,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Step 1 필터 카드 — 한 그룹이 한 상자 안에 들어가야 어느 칩이 어느 필터인지
+   제목만 보고 알 수 있습니다. */
+.filter-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--sk-muted-surface);
+  border: 1px solid var(--sk-border-soft);
+}
+
+.filter-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.filter-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sk-ink);
+}
+
 .font-mono-ids :deep(td) {
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 /* ctn_desc is always the last column in both R3 and device_desc layouts and

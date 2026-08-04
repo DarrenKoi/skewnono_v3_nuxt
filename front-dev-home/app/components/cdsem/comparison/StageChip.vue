@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex h-[18px] items-center rounded-[6px] px-1.5 font-mono text-[10px] font-semibold tracking-wide tabular-nums ring-1"
+    class="inline-flex h-6 items-center rounded-md px-2.5 font-mono text-[13px] font-semibold tracking-wide tabular-nums ring-1"
     :class="chipClass"
     :title="inferred ? 'stage 추출 실패 — EV cap 적용 중' : `stage: ${stage}`"
   >

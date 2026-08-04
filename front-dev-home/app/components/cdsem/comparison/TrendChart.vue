@@ -160,21 +160,21 @@ const option = computed<EChartsOption>(() => {
       right: 38,
       itemWidth: 10,
       itemHeight: 10,
-      textStyle: { fontSize: 10 },
+      textStyle: { fontSize: 13 },
       data: data.series.map(s => s.label)
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: data.dates.map(formatTrendTick),
-      axisLabel: { fontSize: 10 }
+      axisLabel: { fontSize: 13 }
     },
     yAxis: {
       type: 'value',
       name: 'recipe 수',
-      nameTextStyle: { fontSize: 10, align: 'left' },
+      nameTextStyle: { fontSize: 13, align: 'left' },
       minInterval: 1,
-      axisLabel: { fontSize: 10 },
+      axisLabel: { fontSize: 13 },
       splitLine: { lineStyle: { opacity: 0.35 } }
     },
     series: data.series.map(s => ({
@@ -201,7 +201,7 @@ const option = computed<EChartsOption>(() => {
         ? { show: false }
         : {
             show: true,
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: 'bold' as const,
             color: pal[s.key],
             formatter: s.label

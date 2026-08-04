@@ -133,6 +133,26 @@ The hierarchy above is implemented as a small set of **role-named classes** in `
 
 Rules that fall out of the table, enforced by which class you pick: **values are ink, labels are muted** (choosing `.sk-value` vs `.sk-label` *is* the litmus test); **a value is never `.sk-eyebrow`/`.sk-label`** (those are sub-12px, chrome-only); dark-mode colour follows for free because the classes reference `--sk-*` tokens. Spacing, alignment and layout stay as Tailwind utilities at the call site — these classes own type only. NuxtUI components keep inheriting type through the token bridge; use these on hand-written markup.
 
+### The row-card tier
+
+The table above is calibrated for a **real table**: a shared column header carries the field name once, and the eye compares straight down a column. Some screens trade that density away — one record becomes one card, read top-to-bottom in passing rather than scanned across a grid. A card has no column header, so every value carries its own inline label, and both have to survive a single reading. The table tiers are too small for that job, so those screens use a second, larger set of roles:
+
+| Class | Role — purpose / location | Size · weight · colour |
+|---|---|---|
+| `.sk-card-id` | The identifier the card is **about** (`lot_cd`, `recipe_id`) | 18px · 700 · mono tabular -0.01em · ink |
+| `.sk-card-desc` | Prose on a card (`ctn_desc`, `oper_desc`) — never truncated | 15px/1.45 · 400 · ink |
+| `.sk-field-label` | Inline label on a meta line (`위반`, `판정 범위`) | 13px · 400 · ink-subtle |
+| `.sk-field-value` | The number that label points at | 14px · 500 · mono tabular · ink-muted |
+| `.sk-field-name` | A raw **backend field name** shown to the user (`prod_catg_cd`) | 13px · 400 · mono · ink-subtle |
+| `.sk-panel-title` | Title of a panel holding cards | 16px · 700 · ink |
+| `.sk-caption` | Footnote / caption under a card stack | 13px/1.5 · 400 · ink-muted |
+
+Three rules govern the tier. **Nothing goes below 13px** — the sub-12px chrome tiers do not exist here, because on a card there is no column header to demote and a label sits inline with its value. **`.sk-field-name` is the one mono-13px exception**, and it exists to hold raw DB column names visually apart from the Korean words a person actually reads; a Korean label never takes it. **Prose is never truncated** — `.sk-card-desc` wraps, because the reason to spend a card's vertical budget is to show the description the table had to clip. Emphasis is a call-site utility (`.sk-field-value font-semibold text-(--sk-ink)` for the one number that matters), not a second class.
+
+Chip geometry that pairs with this tier lives in `utils/chipClass.ts` as `CHIP_BASE` (34px tall, 14px label) — always applied together with `chipClass(active)`.
+
+Adopted by: CD-SEM 디바이스 통계 (`index.vue`), 디바이스 분석 (`comparison.vue`), `LotTable`, `LotDetailModal`, `DrillSlideover`. Screens that are genuinely tables keep the table tiers.
+
 ## Layout
 
 ### Spacing System
