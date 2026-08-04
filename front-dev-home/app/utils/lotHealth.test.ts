@@ -3,7 +3,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  augmentRow, buildLotVerdicts, extractStage, isJudgeExempt, paraTotal, recipeKey, verdictSortValue,
+  augmentRow, buildLotVerdicts, extractStage, isJudgeExempt, paraTotal, recipeKey,
+  scopeRecipesToBucket, verdictSortValue,
   type RuleSet
 } from './lotHealth.ts'
 import type { RecipeInput, RuleCell } from './ruleEngine.ts'
@@ -217,6 +218,57 @@ test('a bucket that excludes every recipe of a lot drops the lot entirely', () =
 
 test('recipeKey separates lot and recipe unambiguously', () => {
   assert.notEqual(recipeKey('R00', '0-A'), recipeKey('R000', '-A'))
+})
+
+// --- scopeRecipesToBucket: 두 축(recipe · 파라미터)을 좁히는 유일한 지점 ---
+
+const mixed = (recipe_id: string): RecipeInput => recipe(recipe_id, 5, {
+  parameters: [
+    { name: 'EDGE_L', point_count: 5, mother: true },
+    { name: 'EDGE_R', point_count: 40, mother: false },
+    { name: 'WAFER_CD', point_count: 9 } // 플래그 없음 = mother 아님
+  ]
+})
+
+test('scoping drops recipes outside the bucket', () => {
+  const scoped = scopeRecipesToBucket(
+    [mixed('A'), mixed('B')], new Set([recipeKey('R000', 'A')]), false
+  )
+  assert.deepEqual(scoped.map(r => r.recipe_id), ['A'])
+})
+
+test('without motherOnly every parameter survives', () => {
+  const scoped = scopeRecipesToBucket([mixed('A')], new Set([recipeKey('R000', 'A')]), false)
+  assert.equal(scoped[0]!.parameters.length, 3)
+})
+
+test('motherOnly keeps only mother parameters', () => {
+  const scoped = scopeRecipesToBucket([mixed('A')], new Set([recipeKey('R000', 'A')]), true)
+  assert.deepEqual(scoped[0]!.parameters.map(p => p.name), ['EDGE_L'])
+})
+
+test('motherOnly does not mutate the source rows', () => {
+  // 같은 recipeParams 배열을 버킷을 바꿔 가며 다시 좁힙니다. 원본을 건드리면
+  // 두 번째 버킷은 이미 잘려 나간 배열을 보게 됩니다.
+  const rows = [mixed('A')]
+  scopeRecipesToBucket(rows, new Set([recipeKey('R000', 'A')]), true)
+  assert.equal(rows[0]!.parameters.length, 3)
+})
+
+test('health and the outlier baseline see the same scoped rows', () => {
+  // 이 함수가 존재하는 이유 그 자체 — 두 소비처가 같은 배열을 받습니다.
+  // 40 point 짜리 EDGE_R 은 mother 가 아니므로 mother view 에서는 cap 위반도
+  // outlier 후보도 되지 않아야 합니다.
+  const keys = new Set([recipeKey('R000', 'A')])
+  const everything = scopeRecipesToBucket([mixed('A')], keys, false)
+  const motherView = scopeRecipesToBucket([mixed('A')], keys, true)
+
+  assert.equal(buildLotVerdicts(everything, rulesByFab).get('R000')!.violation_recipes, 1)
+  assert.equal(buildLotVerdicts(motherView, rulesByFab).get('R000')!.violation_recipes, 0)
+  assert.equal(
+    motherView.flatMap(r => r.parameters).some(p => p.point_count === 40), false,
+    'outlier 기준선도 같은 배열에서 나오므로 40 point 파라미터가 남으면 안 됩니다'
+  )
 })
 
 // --- multiple lots ---

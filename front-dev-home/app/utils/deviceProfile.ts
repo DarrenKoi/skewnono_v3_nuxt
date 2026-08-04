@@ -3,10 +3,17 @@
 // page's Lot 요약 table, because both surfaces are the same grain (one row per
 // device) and the standalone page duplicated every other column.
 //
-// Deliberately bucket-independent: the outlier baseline is every point_count the
-// device measures, so switching the summary bucket must NOT move the median. A
-// bucket-scoped baseline would make "이 디바이스는 과다 측정인가" depend on which
-// step filter the user happens to be looking at.
+// Bucket-scoped (changed 2026-08-04, user-confirmed). The median and outlier
+// count are computed over whatever recipes and parameters the selected bucket
+// admits, so they move with the bucket like every other column in the table.
+// This reverses the earlier design, which froze the baseline at "every
+// point_count the device measures" so a bucket switch could not move the
+// median — the bucket is now the analysis scope, not a display filter.
+//
+// This module does NOT scope anything itself; it profiles whatever rows it is
+// handed. The caller narrows once via lotHealth.scopeRecipesToBucket and passes
+// the SAME array to buildLotVerdicts, so health and the profile can never end
+// up describing different populations within one table row.
 // Value import carries the explicit .ts so `node --test` resolves it without a
 // bundler (see lotHealth.ts) — type-only imports are erased and don't need it.
 import { detectDeviceOutliers, type DeviceOutlierResult } from './outlierDetect.ts'

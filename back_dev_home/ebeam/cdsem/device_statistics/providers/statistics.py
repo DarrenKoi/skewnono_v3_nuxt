@@ -64,10 +64,17 @@ skip_yn 은 실물과 값 도메인·극성을 맞췄습니다 (user-confirmed 2
 버킷 이름을 박아서, recipe-params 와 recipe_id 로 조인이 아예 되지 않았습니다.
 
   all            모든 Step (Full job + Sample job)
-  only_normal    스텝명에 CD 가 포함된 Step
-  mother_normal  skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이 순수한 CD
+  only_normal    skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이 순수한 CD
                  ("CD(E)", "CD(F)" 는 제외)
+  mother_normal  only_normal 과 같은 스텝 필터 + mother 파라가 있는 recipe 만.
+                 para_* 도 mother 파라만 셉니다 (한 단계 아래로 들어갑니다).
   only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
+
+only_normal / mother_normal 은 skip 을 **멤버십에서** 거르므로 두 버킷의
+``avail_recipe`` 는 항상 ``total_recipe`` 와 같습니다 (user-confirmed
+2026-08-04). all / only_sample 에서만 두 값이 갈립니다.
+
+규칙 전문과 정정 이력은 providers/recipe_population.py 의 docstring 입니다.
 
 주간 트렌드의 실물 경로 (설계 확정 2026-07-31)
 ─────────────────────────────────────────────
@@ -224,6 +231,36 @@ def _to_recipe_row(
     }
 
 
+def _to_mother_row(row: RecipeInfoRow, identity: RecipeIdentity) -> RecipeInfoRow:
+    """mother_normal 버킷용 행 — 같은 recipe 인데 ``para_*`` 만 mother 기준입니다.
+
+    이미 만들어 둔 행에서 **파생**합니다. ``_to_recipe_row`` 를 한 번 더 부르면
+    chg_tm 난수가 recipe 당 두 배로 뽑혀 나머지 세 버킷의 chg_tm 이 전부 다른
+    값이 됩니다 — 버킷 하나를 고치는 변경이 화면 전체를 흔들면 안 됩니다.
+
+    recipe_id 는 그대로이므로 recipe-params 와의 조인은 유지됩니다. 이 버킷에서
+    "같은 recipe 인데 para 가 작다" 는 것이 곧 mother view 의 정의입니다.
+    """
+    para_16 = identity["mother_para_16"]
+    para_13 = identity["mother_para_13"]
+    para_9 = identity["mother_para_9"]
+    para_5 = identity["mother_para_5"]
+    para_all = para_16 + para_13 + para_9 + para_5
+
+    return {
+        **row,
+        "para_all": para_all,
+        "para_16": para_16,
+        "para_13": para_13,
+        "para_9": para_9,
+        "para_5": para_5,
+        "para_16_percent": _percent(para_16, para_all),
+        "para_13_percent": _percent(para_13, para_all),
+        "para_9_percent": _percent(para_9, para_all),
+        "para_5_percent": _percent(para_5, para_all),
+    }
+
+
 def _bucketed_recipe_rows(
     rng: random.Random,
     lot_cd: str,
@@ -238,6 +275,9 @@ def _bucketed_recipe_rows(
     않습니다. 같은 recipe 가 여러 버킷에 나오면 같은 recipe_id 를 갖고, 그 id 로
     recipe-params 와 조인됩니다 (실물에서 recipe_id 가 cdsem_idp_ver.full_name
     과 같은 조인 키이기 때문입니다 — docs/datatables/idp_ver.txt L55).
+
+    mother_normal 만 자기 행을 따로 만듭니다 — 같은 recipe 라도 이 버킷에서는
+    para_* 가 mother 기준이라 다른 세 버킷과 행 객체를 공유할 수 없습니다.
     """
     population = build_population(lot_cd, point_index, points)
     rows_by_id = {
@@ -245,7 +285,12 @@ def _bucketed_recipe_rows(
         for identity in population
     }
     return {
-        bucket: [rows_by_id[identity["recipe_id"]] for identity in members]
+        bucket: [
+            _to_mother_row(rows_by_id[identity["recipe_id"]], identity)
+            if bucket == "mother_normal"
+            else rows_by_id[identity["recipe_id"]]
+            for identity in members
+        ]
         for bucket, members in bucket_members(population).items()
     }
 

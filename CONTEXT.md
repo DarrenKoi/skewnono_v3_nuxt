@@ -36,15 +36,19 @@ Recipe와 쌍을 이루는 측정 step 식별자. 같은 recipe_id라도 oper_id
 
 [[bucket]]과의 매핑: `only_sample`=Sample, `only_normal`=Main, **`all`=Main+추가계측**, `mother_normal`=Main(Mother 파라 view). 룰 검증은 `only_sample`→Sample 룰, 그 외 버킷→Main 룰(추가계측 행은 skip).
 
+`only_normal`(=Main)의 판별은 **스텝명 끝 토큰이 정확히 `CD`** 인지이며(`CD(E)`/`CD(F)` 인 추가계측은 빠집니다), skip 된 스텝(`skip_yn == "Y"`)도 제외합니다. `mother_normal`은 그 위에서 [[mother-vs-son]]의 mother 파라만 남기므로, 두 버킷은 **같은 스텝 집합**을 공유하고 파라미터 축에서만 갈립니다 (user-confirmed 2026-08-04).
+
 ### Bucket (페이지 단위 기준 보기)
 
 Recipe step을 묶어 보는 4가지 보기 모드: `all`, `only_normal`, `mother_normal`, `only_sample`. [[mother-vs-son]] 관계가 bucket 선택의 의미를 결정합니다.
 
-Bucket은 [[analysis-scope]](=fab)와 달리 **데이터를 잘라내지 않습니다**. 같은 lot·recipe 집합을 그대로 둔 채, **어느 step 묶음을 [[계측-룰]] 검사 입력으로 쓸지** 재해석하는 *기준 보기*입니다. 따라서 신호등·매트릭스·테이블·트렌드 모든 zone 의 숫자가 bucket 값에 종속합니다.
+Bucket은 **분석 범위(analysis scope)** 입니다. 같은 lot 집합을 유지한 채 그 아래의 step·파라미터를 잘라 내며, 잘린 범위가 곧 계산 입력이 됩니다. 따라서 신호등·매트릭스·테이블·트렌드 모든 zone 의 숫자가 bucket 값에 종속합니다.
 
 네 가지 속성으로 정의합니다:
 
-- **재해석 (not subsetting)** — bucket 을 바꿔도 보이는 lot·recipe 집합은 그대로. 룰 검사 입력만 달라짐.
+- **범위 좁히기 (subsetting)** — bucket 은 step 을, `mother_normal` 은 파라미터까지 잘라 냅니다. lot 목록은 그대로지만 그 lot 의 para 합계·health·중앙값·outlier 는 모두 잘린 범위 위에서 다시 계산됩니다.
+
+  (2026-08-04 정정: 이 문서는 원래 bucket 을 "데이터를 잘라내지 않는 재해석" 으로 적었습니다. 구현은 처음부터 step 을 잘랐고, 사용자 확인으로 `mother_normal` 이 파라미터까지 자르게 되어 그 표현은 더 이상 맞지 않습니다.)
 - **Page-wide** — 페이지 안의 모든 계산 zone 이 동일 값을 공유. zone 별 local override 없음.
 - **Singleton** — 한 번에 정확히 하나만 활성. 두 bucket side-by-side 비교 surface 없음.
 - **URL-stateful & audience-shared** — bucket 은 URL query 에 박혀, [[audiences]] 간 link forward 시 같은 기준 보기로 열림. 사용자별 sticky preference 가 아님.

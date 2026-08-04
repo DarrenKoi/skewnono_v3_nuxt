@@ -18,9 +18,10 @@ from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population imp
     bucket_members,
     build_population,
     ends_with_pure_cd,
-    is_normal_step,
+    is_normal_bucket_step,
     is_sample_recipe,
     lot_trajectory,
+    mother_para_all,
 )
 from back_dev_home.ebeam.cdsem.device_statistics.providers.statistics import (
     DEFAULT_TREND_POINTS,
@@ -91,14 +92,71 @@ def test_bucket_membership_follows_the_documented_predicates():
     members = bucket_members(population)
 
     assert members["only_normal"] == [
-        r for r in population if is_normal_step(r["oper_desc"])
+        r for r in population
+        if is_normal_bucket_step(r["oper_desc"], r["skip_yn"])
     ]
     assert members["only_sample"] == [
         r for r in population if is_sample_recipe(r["recipe_id"])
     ]
-    # mother_normal 은 skip 되지 않은 것만 — "Y" 는 skip 입니다.
-    assert all(r["skip_yn"].strip().upper() != "Y" for r in members["mother_normal"])
-    assert all(ends_with_pure_cd(r["oper_desc"]) for r in members["mother_normal"])
+    # only_normal 은 skip 되지 않은 것만 — "Y" 는 skip 입니다 — 그리고 스텝명 끝이
+    # 순수한 CD 인 것만입니다("CD(E)" 인 추가계측은 빠집니다).
+    assert all(r["skip_yn"].strip().upper() != "Y" for r in members["only_normal"])
+    assert all(ends_with_pure_cd(r["oper_desc"]) for r in members["only_normal"])
+
+
+def test_mother_normal_shares_the_step_filter_and_narrows_by_mother():
+    """mother_normal 은 only_normal 의 **부분집합**이며, 갈리는 축은 mother 뿐입니다.
+
+    스텝을 더 좁히는 버킷이 아니라 한 단계 아래(파라미터)로 들어가는 버킷입니다
+    (user-confirmed 2026-08-04). 두 조건이 다시 갈라지면 여기서 먼저 깨집니다.
+    """
+    population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    members = bucket_members(population)
+
+    normal_ids = {r["recipe_id"] for r in members["only_normal"]}
+    mother_ids = {r["recipe_id"] for r in members["mother_normal"]}
+
+    assert mother_ids <= normal_ids
+    assert members["mother_normal"] == [
+        r for r in members["only_normal"] if mother_para_all(r) > 0
+    ]
+    # 양쪽 경로가 집에서 실제로 실행되는지 — mother 없는 recipe 가 하나도 없으면
+    # "recipe 를 좁힌다" 는 규칙이 한 번도 검증되지 않습니다.
+    assert mother_ids, "mother 를 가진 recipe 가 하나도 없습니다"
+    assert normal_ids - mother_ids, "mother 없는 recipe 가 하나도 없습니다"
+
+
+def test_mother_para_never_exceeds_its_bin():
+    """``mother_para_N <= para_N``. 넘으면 화면에서 100% 를 넘는 막대가 됩니다."""
+    population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    for identity in population:
+        for key in ("para_16", "para_13", "para_9", "para_5"):
+            assert identity[f"mother_{key}"] <= identity[key], identity["recipe_id"]
+
+
+def test_mother_normal_summary_counts_only_mother_parameters(trend):
+    """이 버킷의 para_* 는 mother 기준이라 only_normal 보다 작아야 합니다."""
+    latest = list(trend)[-1]
+    normal = next(r for r in trend[latest]["only_normal_summary"] if r["lot_cd"] == "R000")
+    mother = next(r for r in trend[latest]["mother_normal_summary"] if r["lot_cd"] == "R000")
+
+    assert 0 < mother["para_all"] < normal["para_all"]
+
+
+def test_mother_flag_agrees_between_statistics_and_recipe_params():
+    """두 표면이 "이 recipe 에 mother 가 있는가" 에 같은 답을 해야 합니다.
+
+    요약의 para_* 와 health 가 읽는 parameters 는 서로 다른 모듈이 각자 난수로
+    만듭니다. 여기가 갈라지면 mother_normal 버킷에는 있는데 mother 파라가 하나도
+    없는 recipe 가 생기고, 프론트엔드의 health 가 조용히 0/0 으로 떨어집니다 —
+    오류가 아니라 "판정 없음" 으로만 보이므로 발견이 아주 늦습니다.
+    """
+    population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    has_mother = {r["recipe_id"]: mother_para_all(r) > 0 for r in population}
+
+    for row in get_recipe_params(["R000"]):
+        flagged = any(p["mother"] for p in row["parameters"])
+        assert flagged == has_mother[row["recipe_id"]], row["recipe_id"]
 
 
 def test_bucket_hierarchy_matches_the_screen_ordering(trend):
@@ -117,27 +175,32 @@ def test_bucket_hierarchy_matches_the_screen_ordering(trend):
 # ── office 어댑터와의 규칙 일치 (드리프트 방지) ───────────────────────────
 
 CLASSIFICATION_EXAMPLES = [
-    # (oper_desc, recipe_id)
-    ("SNC2(CELL OPEN ETCH CLN CD)", "RCP-R000-001"),
-    ("SNC2(CELL OPEN ETCH CLN CD(E))", "RCP-R000-002"),
-    ("SNC2(CELL OPEN ETCH CLN CD(F))", "RCP-R000-003_S"),
-    ("PLD3(GATE POLY ETCH)", "RCP-R000-004SE"),
-    ("MTC1(METAL1 CMP CD)", "RCP-R000-005"),
-    ("", ""),
-    ("VIA1(VIA ETCH CLN CD)", "RCP-R000-006_s"),
+    # (oper_desc, skip_yn, recipe_id)
+    ("SNC2(CELL OPEN ETCH CLN CD)", "N", "RCP-R000-001"),
+    ("SNC2(CELL OPEN ETCH CLN CD)", "Y", "RCP-R000-001"),   # skip -> 버킷 밖
+    ("SNC2(CELL OPEN ETCH CLN CD)", "", "RCP-R000-001"),    # 빈 값 -> 측정 중
+    ("SNC2(CELL OPEN ETCH CLN CD(E))", "N", "RCP-R000-002"),
+    ("SNC2(CELL OPEN ETCH CLN CD(F))", "N", "RCP-R000-003_S"),
+    ("PLD3(GATE POLY ETCH)", "N", "RCP-R000-004SE"),
+    ("MTC1(METAL1 CMP CD)", "N", "RCP-R000-005"),
+    ("", "", ""),
+    ("VIA1(VIA ETCH CLN CD)", "N", "RCP-R000-006_s"),
 ]
 
 
-@pytest.mark.parametrize("oper_desc,recipe_id", CLASSIFICATION_EXAMPLES)
-def test_predicates_agree_with_the_office_adapter(oper_desc, recipe_id):
+@pytest.mark.parametrize("oper_desc,skip_yn,recipe_id", CLASSIFICATION_EXAMPLES)
+def test_predicates_agree_with_the_office_adapter(oper_desc, skip_yn, recipe_id):
     """mock 과 office_example 이 같은 답을 내야 합니다.
 
     두 벌이 갈라지면 집에서 만든 화면이 사무실에서 다르게 나옵니다. office 쪽은
     복사본(office.py)이 되는 템플릿이라 한쪽만 고치기 쉬워, 예시 표로 함께 묶습니다.
     """
-    assert is_normal_step(oper_desc) == office_example._is_normal_step(oper_desc)
     assert ends_with_pure_cd(oper_desc) == office_example._ends_with_pure_cd(oper_desc)
     assert is_sample_recipe(recipe_id) == office_example._is_sample_recipe(recipe_id)
+    assert (
+        is_normal_bucket_step(oper_desc, skip_yn)
+        == office_example._is_normal_bucket_step(oper_desc, skip_yn)
+    )
 
 
 def test_non_sample_ids_never_match_the_sample_suffix_by_accident():

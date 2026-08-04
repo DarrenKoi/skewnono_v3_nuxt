@@ -98,24 +98,57 @@ mother_normal 버킷을 동시에 뒤집으므로 어댑터와 mock 양쪽에서
 recipe_id 채움 비율을 함께 봅니다. "Y"/"N" 두 버킷의 합이 전체 문서 수보다 작으면
 그 차이가 빈 값입니다.
 
-화면의 네 버킷 — 스텝을 어떻게 나누는가 (user-confirmed 2026-07-31)
+화면의 네 버킷 — 스텝을 어떻게 나누는가 (user-confirmed 2026-08-04)
 
 recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷으로 나눠
 보여줍니다. 이 index 에 버킷 컬럼이 있는 것이 아니라 **스텝 이름과 recipe 이름에서
 어댑터가 파생**합니다.
 
   all            모든 Step. Full job 과 Sample job 을 함께 포함합니다.
-  only_normal    스텝명에 CD 가 포함된 Step (정규 recipe).
-  mother_normal  skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이
+  only_normal    skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이
                  **순수한 CD** 인 것.
                  "CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외합니다. 실제 스텝명이
                  "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는 괄호를
                  벗긴 뒤 마지막 토큰이 정확히 "CD" 인지로 판별합니다.
+  mother_normal  only_normal 과 **같은 스텝 필터**를 쓰고, 거기서 **mother
+                 파라미터를 1개 이상 가진 recipe** 만 남깁니다. para_16/13/9/5
+                 집계도 mother 파라만 셉니다.
+                 이 버킷은 스텝을 더 좁히는 것이 아니라 **한 단계 아래(파라미터)로
+                 들어갑니다** — CONTEXT.md 의 "mother_normal = Main(Mother 파라
+                 view)" 가 그 뜻입니다. mother 판별은 이 index 가 아니라 idp
+                 쪽입니다 (아래 "mother_para 출처" 참고).
   only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step. 축이 스텝명이
                  아니라 recipe 이름인 것이 핵심이며, 끝자리 고정(anchored)이어야
                  합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 같은 평범한
                  단어까지 Sample 로 잡힙니다. 스텝 코드(괄호 앞)로 판단하면
                  오검출이 생긴다는 담당자 확인이 있었습니다.
+
+only_normal / mother_normal 은 skip 을 **멤버십에서** 거르므로, 이 두 버킷의
+avail_recipe 는 항상 total_recipe 와 같습니다. all / only_sample 에서만 두 값이
+갈립니다 (user-confirmed 2026-08-04).
+
+정정 이력 (2026-08-04): 2026-07-31 기록은 only_normal 을 "스텝명에 CD 가 포함된
+Step" 으로, mother_normal 을 "skip 되지 않은 순수 CD 스텝" 으로 적었습니다. 둘 다
+틀렸습니다 — 전자는 "CD(E)"/"CD(F)" 인 **추가계측까지 Main 으로** 셌고, 후자는
+mother 파라미터를 전혀 보지 않았습니다. 두 버킷은 같은 스텝 필터를 공유하며
+mother 로만 갈립니다.
+
+mother_para 출처 — 미해결 (2026-08-04)
+
+  Mother_Para 는 **파라미터 1개당 bool** 입니다 (docs/datatables/recipe_idp.txt,
+  office 확인 2026-07-28). 문제는 그 값이 있는 곳입니다:
+
+    cdsem_idp_ver.parameters   -> {name: point_count}. mother 를 담을 자리가 없음
+    장비 FTP 의 {idp_name}.idp -> Mother_Para 가 있는 유일한 확인된 출처
+                                  (recipe 1건당 파일 1개)
+
+  device-statistics 는 device 4000개 × recipe 100~200개 규모라 FTP 경로로는
+  실시간 조회가 불가능합니다. 따라서 사무실에서 mother_normal 을 켜려면 먼저
+  이 출처를 해결해야 합니다. 어댑터는 그때까지 parameters blob 에 플래그가
+  실려 오는지 보고, 없으면 경고 로그를 남기고 이 버킷을 **비웁니다** (규칙을
+  그대로 적용한 결과입니다 — only_normal 로 슬쩍 대체하면 요약은 숫자를 내는데
+  health 는 판정할 파라미터가 없어 0/0 이 되는, 두 표면이 어긋난 화면이 됩니다).
+  해결 후보는 back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md 참고.
 
 주의 — mock 과 다른 점
 

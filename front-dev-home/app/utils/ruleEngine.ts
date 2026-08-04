@@ -34,7 +34,17 @@ export interface RuleCell {
   name_overrides: NameOverride[]
 }
 
-export interface Parameter { name: string, point_count: number }
+/**
+ * `mother` — 이 파라미터 자신이 mother 인가 (idp 의 `Mother_Para`). son 은
+ * mother 와 같은 image 에서 자기 cd_value 를 얻으므로 측정 시간(TAT)을 움직이는
+ * 것은 mother 수입니다. mother_normal 버킷이 이 플래그로 좁혀집니다
+ * (lotHealth.scopeRecipesToBucket).
+ *
+ * optional 인 것은 이 엔진 자체가 mother 를 보지 않기 때문입니다 — 좁히기는
+ * 호출자가 미리 끝내고 들어옵니다. 룰 검증 테스트가 파라미터를 손으로 만들 때
+ * 이 필드를 쓰지 않아도 되게 두었습니다.
+ */
+export interface Parameter { name: string, point_count: number, mother?: boolean }
 
 /** One recipe as it arrives from the backend (recipe-params dataset). */
 export interface RecipeInput {

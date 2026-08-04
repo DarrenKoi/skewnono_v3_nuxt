@@ -213,8 +213,9 @@ docstring.
   each recipe's newest `parameters` blob. Because this route only ever reads
   the latest date, it never touches the weekly snapshots. Bucket membership
   (all / only_normal / mother_normal / only_sample) is derived from the step
-  name and the recipe name — see `docs/datatables/planstep_r3.txt` "화면의 네
-  버킷".
+  name, the recipe name, and — for `mother_normal` only — the per-parameter
+  mother flag. See `docs/datatables/planstep_r3.txt` "화면의 네 버킷" and the
+  **mother_para 출처** section at the end of this file.
 - Notes: **huge-payload endpoint.** Called with no `lot_cds` filter, this
   fans out over every lot in the mock (2000 R3 + 2000 M-fab = 4000 lots)
   and returns a full cross-product — this is how the original capture
@@ -404,6 +405,44 @@ docstring.
   size (a handful of lots × 8 weekly points × 4 summary rows) is smaller
   than `recipe-statistics`'s even before any date-range narrowing is
   applied.
+
+## mother_para 출처 — 사무실 미해결 (2026-08-04)
+
+`mother_normal` 버킷은 파라미터마다의 mother 플래그를 필요로 합니다. 집에서는
+mock 이 만들어 주지만, **사무실에서는 아직 채울 방법이 없습니다.**
+
+| 후보 원천 | 상태 |
+| --- | --- |
+| `cdsem_idp_ver.parameters` | 확인된 형태가 `{name: point_count}` — 플래그를 담을 자리 없음 |
+| 장비 FTP `{idp_name}.idp` | `Mother_Para` 가 확인된 유일한 곳. recipe 1건당 파일 1개 |
+
+FTP 경로는 device 4000개 × recipe 100~200개 규모에서 쓸 수 없습니다. recipe
+open 화면(`recipe_search`)이 그 경로를 쓰는 이유는 사용자가 **한 recipe** 를
+지목해 열기 때문입니다.
+
+어댑터의 현재 동작 (`providers/office_example.py`):
+
+1. `_normalize_parameters` 가 blob 이 `[{name, point_count, ...}]` 형태이면
+   `mother` / `Mother_Para` / `mother_para` 중 하나에서 플래그를 읽습니다.
+2. 어느 recipe 에서도 못 읽으면 `_idp_parameters` 가 **경고 로그**를 남기고
+   mother 정보 없음을 알립니다.
+3. 그 경우 `mother_normal` 버킷은 **비게** 됩니다. 멤버 조건이 "mother 를 가진
+   recipe" 이므로 규칙을 데이터에 그대로 적용한 결과입니다.
+
+`only_normal` 로 슬쩍 대체하지 않는 것이 중요합니다 — 그러면 요약은 숫자를
+보여주는데 프론트엔드의 health 는 판정할 파라미터가 없어 0/0 이 되어, 한 표의
+열들이 서로 다른 답을 하는 화면이 됩니다. 빈 버킷은 눈에 보이고, 이유는 로그가
+말합니다.
+
+**해결 방향** (가장 직접적인 순서):
+
+1. 적재 쪽에서 `cdsem_idp_ver` 의 `parameters` 를
+   `[{name, point_count, Mother_Para}]` 형태로 넓힙니다 — 어댑터는 코드 변경
+   없이 바로 읽습니다(위 1번).
+2. 또는 recipe 단위 mother 파라 개수만 담은 별도 index/Redis 키를 만듭니다
+   (버킷 멤버십과 `para_*` 재집계에는 개수만 있으면 충분합니다).
+3. 어느 쪽도 어려우면 주간 스냅샷 적재 시점에 FTP 를 한 번 훑어 기록하는
+   배치를 검토합니다 — 실시간 조회만 불가능한 것이지 주 1회 배치는 가능합니다.
 
 ## Verify
 

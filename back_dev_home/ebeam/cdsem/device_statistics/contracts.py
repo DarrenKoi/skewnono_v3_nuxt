@@ -132,6 +132,13 @@ class TrendBucket(_TrendBucketSummary, total=False):
 class ParameterRow(TypedDict):
     name: str
     point_count: int
+    # 이 파라미터 자신이 mother 인가 (idp_image_info.Mother_Para — 진짜 bool,
+    # office 확인 2026-07-28). son 은 mother 와 같은 image 에서 자기 cd_value 를
+    # 얻으므로 측정 시간(TAT)을 움직이는 것은 mother 수입니다.
+    #
+    # 프론트엔드는 mother_normal 버킷에서 이 플래그로 파라미터를 걸러 계측 룰을
+    # 검증하고 outlier 기준선을 잡습니다 (utils/lotHealth.scopeRecipesToBucket).
+    mother: bool
 
 
 class RecipeParamsRow(TypedDict):

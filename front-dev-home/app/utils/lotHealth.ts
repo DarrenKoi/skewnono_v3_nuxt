@@ -70,6 +70,41 @@ const JUDGE_EXEMPT_SUFFIX = /(_WCDU|_FCDU|_FULL)$/i
 export const isJudgeExempt = (recipeId: string): boolean =>
   JUDGE_EXEMPT_SUFFIX.test((recipeId || '').trim())
 
+/**
+ * recipe-params 를 선택된 버킷의 범위로 좁힙니다 — **두 축을 한 번에**.
+ *
+ * 1. recipe 축: `bucketKeys` 에 있는 recipe 만. 요약 행은 버킷 단위인데
+ *    recipe-params 에는 버킷 축이 없으므로, 좁히지 않으면 버킷을 바꿔도 health
+ *    만 그대로인 모순이 생깁니다. recipe_id 로 좁힐 수 있는 것은 그것이 표면을
+ *    가로지르는 조인 키이기 때문입니다 (docs/datatables/idp_ver.txt L55).
+ * 2. 파라미터 축: `motherOnly` 면 mother 파라만. mother_normal 은 스텝을 더
+ *    좁히는 버킷이 아니라 **한 단계 아래로 들어가는** 버킷이기 때문입니다.
+ *
+ * 이 함수가 따로 있는 이유는 소비처가 둘이기 때문입니다 — `buildLotVerdicts`
+ * (health/violations/판정범위)와 `buildDeviceOutliers`(중앙값/outlier)가 **같은**
+ * 배열을 받아야 표 한 행의 열들이 서로 다른 모수집단을 말하지 않습니다. 각자
+ * 좁히게 두면 언젠가 한쪽만 고쳐집니다.
+ *
+ * 순수 함수라 `node --test` 가 그대로 실행합니다 — 페이지 컴포넌트 안에 두면
+ * 테스트가 볼 수 없습니다.
+ */
+export const scopeRecipesToBucket = (
+  recipes: RecipeInput[],
+  bucketKeys: Set<string>,
+  motherOnly: boolean
+): RecipeInput[] => {
+  const scoped: RecipeInput[] = []
+  for (const recipe of recipes) {
+    if (!bucketKeys.has(recipeKey(recipe.lot_cd, recipe.recipe_id))) continue
+    scoped.push(
+      motherOnly
+        ? { ...recipe, parameters: recipe.parameters.filter(p => p.mother) }
+        : recipe
+    )
+  }
+  return scoped
+}
+
 const emptyVerdict = (): LotVerdict => ({
   kind: 'no-rules',
   health: null,

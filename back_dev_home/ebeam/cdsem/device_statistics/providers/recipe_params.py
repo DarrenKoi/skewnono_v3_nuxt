@@ -38,10 +38,18 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     RecipeParamsRow,
 )
 from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population import (
+    MOTHER_SHARE,
     RecipeIdentity,
     build_population,
     is_sample_recipe,
+    mother_para_all,
 )
+
+
+# mother 표시를 point_count rng 와 갈라놓는 salt. 같은 rng 를 더 굴리면 뒤따르는
+# recipe 의 파라미터 값이 전부 달라집니다 (recipe_population._MOTHER_SALT 와 같은
+# 이유입니다).
+_MOTHER_MARK_SALT = 70009
 
 
 # recipe 수·이름은 이제 recipe_population 이 정합니다 — 여기서 따로 세면 두 표면의
@@ -84,7 +92,9 @@ def _build_parameters(rng: random.Random, bloated: bool, over_measured: bool) ->
     params: list[ParameterRow] = []
 
     def add(name: str, lo: int, hi: int) -> None:
-        params.append({"name": name, "point_count": rng.randint(lo, hi)})
+        # mother 는 _mark_mothers 가 나중에 켭니다 — 여기서 굴리면 아래 난수 순서가
+        # 밀려 기존 point_count 가 전부 다른 값이 됩니다.
+        params.append({"name": name, "point_count": rng.randint(lo, hi), "mother": False})
 
     add(rng.choice(WAFER_NAMES), *TYPICAL_POINTS["WAFER"])
     for name in rng.sample(LEVEL_NAMES, rng.randint(1, 4)):
@@ -102,13 +112,37 @@ def _build_parameters(rng: random.Random, bloated: bool, over_measured: bool) ->
     # over_measured recipe: push ONE EDGE param far above its peers so both the
     # within-device outlier detector and the R3 EDGE cap flag it.
     if over_measured and params:
-        params[-1] = {"name": "EDGE_R", "point_count": rng.randint(40, 60)}
+        params[-1] = {"name": "EDGE_R", "point_count": rng.randint(40, 60), "mother": False}
 
     return params
 
 
+def _mark_mothers(
+    params: list[ParameterRow], has_mother: bool, mother_rng: random.Random
+) -> None:
+    """``parameters`` 중 mother 인 것을 켭니다 (제자리 수정).
+
+    ``has_mother`` 는 :func:`recipe_population.build_population` 이 만든
+    identity 가 정합니다 — 이 표면이 따로 굴리면 안 됩니다. recipe-statistics 의
+    mother_normal 버킷 멤버십이 바로 그 identity 로 정해지므로, 두 표면이
+    어긋나면 **버킷에는 있는데 mother 파라가 하나도 없는 recipe** 가 생기고
+    프론트엔드의 health 가 조용히 0/0(판정 없음)으로 떨어집니다.
+
+    ``mother_rng`` 를 따로 받는 이유도 같습니다 — 위 point_count 를 뽑는 rng 를
+    여기서 더 굴리면 뒤따르는 recipe 의 파라미터 값이 전부 달라집니다.
+    """
+    if not has_mother or not params:
+        return
+    # son 이 mother 의 image 를 함께 쓰므로 mother 는 소수입니다. 최소 1개는
+    # 반드시 켜야 has_mother 가 참이라는 identity 의 말과 일치합니다.
+    count = max(1, round(len(params) * mother_rng.uniform(*MOTHER_SHARE)))
+    for index in mother_rng.sample(range(len(params)), min(count, len(params))):
+        params[index]["mother"] = True
+
+
 def _build_recipe(
     rng: random.Random,
+    mother_rng: random.Random,
     identity: RecipeIdentity,
     lot_cd: str,
     fac_id: str,
@@ -126,6 +160,9 @@ def _build_recipe(
     bloated = rng.random() < 0.08       # ~8% of recipes over-parameterized
     over_measured = rng.random() < 0.05  # ~5% with a point-count outlier
     parameters = _build_parameters(rng, bloated, over_measured)
+    # mother 보유 여부는 identity 가 정합니다 — recipe-statistics 의 mother_normal
+    # 버킷 멤버십과 같은 원천이어야 두 표면이 갈라지지 않습니다.
+    _mark_mothers(parameters, mother_para_all(identity) > 0, mother_rng)
 
     return {
         "lot_cd": lot_cd,
@@ -179,8 +216,11 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
             lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS
         )
         rng = random.Random(_seed_for(lot_cd, 4242))
+        mother_rng = random.Random(_seed_for(lot_cd, 4242) ^ _MOTHER_MARK_SALT)
         for idx, identity in enumerate(population):
-            rows.append(_build_recipe(rng, identity, lot_cd, fac_id, prod_catg_cd, idx))
+            rows.append(
+                _build_recipe(rng, mother_rng, identity, lot_cd, fac_id, prod_catg_cd, idx)
+            )
     return rows
 
 

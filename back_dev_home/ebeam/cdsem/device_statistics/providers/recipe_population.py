@@ -40,17 +40,48 @@ recipe 를 판정 범위에서 뺍니다 (lotHealth.isJudgeExempt).
 덕분에 트렌드 차트가 실제로 방향을 갖고, 3주 전에 있던 recipe 가 이번 주에도 같은
 recipe_id 로 남아 있습니다.
 
-분류 규칙 (user-confirmed 2026-07-31, docs/datatables/planstep_r3.txt L105-111)
-──────────────────────────────────────────────────────────────────────────────
+분류 규칙 (user-confirmed 2026-08-04, docs/datatables/planstep_r3.txt)
+─────────────────────────────────────────────────────────────────────
   all            모든 Step
-  only_normal    스텝명에 CD 가 토큰으로 등장하는 Step
-  mother_normal  skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이 **순수한 CD**
+  only_normal    skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이 **순수한 CD**
                  ("CD(E)", "CD(F)" 는 제외)
+  mother_normal  only_normal 과 **같은 스텝 필터** + mother 파라미터를 1개 이상
+                 가진 recipe 만. para_* 집계도 **mother 파라만** 셉니다.
   only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
 
-아래 세 판정 함수는 office_example.py 의 동명 함수와 같은 규칙입니다. 두 벌이
+only_normal 과 mother_normal 이 같은 스텝 필터를 공유하는 것이 핵심입니다 —
+mother_normal 은 스텝을 더 좁히는 것이 아니라 **한 단계 아래(파라미터)로**
+들어갑니다. CONTEXT.md 의 "mother_normal = Main(Mother 파라 view)" 가 그 뜻입니다.
+
+정정 이력 (2026-08-04): 이전에는 only_normal 이 이름 **어디든** CD 토큰이 있으면
+통과시켜 "CD(E)"/"CD(F)" 인 추가계측까지 Main 으로 셌고, mother_normal 은
+파라미터를 전혀 보지 않고 스텝만 갈랐습니다. 둘 다 틀렸습니다. 그때 쓰던
+``is_normal_step``(CD 토큰 아무 위치)은 소비처가 사라져 삭제했습니다 — 안 쓰는
+판정 함수를 남기는 것이 두 정의가 다시 갈라지는 경로이기 때문입니다.
+
+아래 판정 함수는 office_example.py 의 동명 함수와 같은 규칙입니다. 두 벌이
 갈라지면 집에서 만든 화면이 사무실에서 다르게 나오므로, tests 가 같은 예시 표로
 양쪽을 함께 검증합니다.
+
+mother 파라미터 (docs/datatables/recipe_idp.txt L182, office 확인 2026-07-28)
+─────────────────────────────────────────────────────────────────────────────
+``Mother_Para`` 는 **파라미터 1개당 bool** 입니다 — True 면 그 파라미터가 mother
+이고, son 들은 mother 와 같은 image 에서 자기 cd_value 를 얻습니다. 측정
+시간(TAT)을 움직이는 것은 mother 수이므로 mother_normal 이 "TAT 최적화 대상" 을
+보는 view 입니다.
+
+이 mock 은 recipe 마다 mother 파라 개수를 :class:`RecipeIdentity` 에 실어 둡니다.
+그 값이 **단일 진실 원천**인 것이 중요합니다 — 요약의 para_* 와 health 가 읽는
+recipe_params 의 parameters 는 서로 다른 모듈이 각자 난수로 만들기 때문에, "이
+recipe 에 mother 가 있는가" 를 두 곳에서 따로 정하면 *para 합계는 줄었는데
+health 는 그대로*인, 오류 없이 조용히 어긋나는 화면이 됩니다.
+
+OFFICE-VERIFY: mother 발생률(여기서는 recipe 의 약 85%가 보유, 보유 시 각 bin 의
+25~45%)은 실물에서 확인된 바 없습니다. 사무실에서는 **원천 자체가 미해결**입니다
+— ``cdsem_idp_ver.parameters`` 는 ``{name: point_count}`` 라 mother 플래그를 담을
+자리가 없고, ``Mother_Para`` 가 확인된 곳은 장비 FTP 의 ``.idp`` 원본 파일뿐입니다
+(recipe 1건당 파일 1개라 device 4000개 규모로는 조회 불가). MIGRATION.md 의
+"mother_para 출처" 절을 보십시오.
 
 Internal module: 이 feature 밖에서는 device_statistics.data 를 통해 쓰십시오.
 """
@@ -65,18 +96,10 @@ from typing import TypedDict
 # 인 것이 핵심입니다.
 _SAMPLE_SUFFIX = re.compile(r"(_S|SE)$", re.IGNORECASE)
 
-# 이름 어디든 CD 가 토큰으로 등장하면 정규(Normal) step.
-_CD_TOKEN = re.compile(r"\bCD\b", re.IGNORECASE)
-
 
 def is_sample_recipe(recipe_id: str) -> bool:
     """recipe 이름이 "_S"/"SE" 로 끝나는가."""
     return bool(_SAMPLE_SUFFIX.search((recipe_id or "").strip()))
-
-
-def is_normal_step(oper_desc: str) -> bool:
-    """스텝명 어디든 CD 가 토큰으로 있는가."""
-    return bool(_CD_TOKEN.search(oper_desc or ""))
 
 
 def ends_with_pure_cd(oper_desc: str) -> bool:
@@ -100,8 +123,23 @@ def is_measuring(skip_yn: str) -> bool:
     return (skip_yn or "").strip().upper() != "Y"
 
 
+def is_normal_bucket_step(oper_desc: str, skip_yn: str) -> bool:
+    """only_normal / mother_normal 이 **공유**하는 스텝 필터.
+
+    두 버킷이 같은 스텝 집합을 쓴다는 사실은 도메인 규칙이지 우연이 아니므로
+    (mother_normal 은 스텝이 아니라 파라미터를 좁힙니다), 조건을 두 군데에
+    복사하지 않고 이 한 함수를 양쪽이 부릅니다.
+    """
+    return is_measuring(skip_yn) and ends_with_pure_cd(oper_desc)
+
+
 class RecipeIdentity(TypedDict):
-    """statistics 와 recipe_params 가 공유하는 recipe 한 건."""
+    """statistics 와 recipe_params 가 공유하는 recipe 한 건.
+
+    ``mother_para_*`` 는 같은 bin 의 ``para_*`` 중 mother 인 개수이며 항상
+    ``<= para_*`` 입니다. 넷이 모두 0 이면 이 recipe 에는 mother 가 없고,
+    따라서 mother_normal 버킷에 들어가지 않습니다.
+    """
 
     recipe_id: str
     oper_id: str
@@ -115,6 +153,10 @@ class RecipeIdentity(TypedDict):
     para_13: int
     para_9: int
     para_5: int
+    mother_para_16: int
+    mother_para_13: int
+    mother_para_9: int
+    mother_para_5: int
 
 
 # ── 이름 어휘 ────────────────────────────────────────────────────────────
@@ -126,12 +168,13 @@ _STEP_WORDS = (
     "HARD MASK OPEN", "BIT LINE ETCH",
 )
 
-# 스텝명 접미 비율이 곧 버킷 크기입니다 — only_normal 은 CD 가 들어간 전부(약 67%),
-# mother_normal 은 그중 "순수한 CD" 이면서 측정 중인 것(약 38%)입니다. 예전
-# RECIPE_COUNT_RANGES 가 만들던 상대 서열(all > only_normal > mother_normal >
-# only_sample)을 유지해 비교 페이지의 막대 순서가 바뀌지 않습니다.
-_PURE_CD_RATIO = 0.45      # "… CLN CD)"     -> only_normal + mother_normal 후보
-_PAREN_CD_RATIO = 0.22     # "… CLN CD(E))"  -> only_normal 만
+# 스텝명 접미 비율이 곧 버킷 크기입니다. only_normal 은 "순수한 CD" 이면서 측정
+# 중인 것(0.45 × 0.85 ≈ 38%), mother_normal 은 그중 mother 를 가진 것
+# (38% × 85% ≈ 32%)입니다. 비교 페이지의 막대 서열
+# (all > only_normal > mother_normal > only_sample)이 이 비율에서 나오므로,
+# only_sample(25%)보다 mother_normal 이 커야 서열이 유지됩니다.
+_PURE_CD_RATIO = 0.45      # "… CLN CD)"     -> only_normal 후보
+_PAREN_CD_RATIO = 0.22     # "… CLN CD(E))"  -> 추가계측, 이제 어느 CD 버킷에도 없음
 # 나머지 33% 는 CD 없는 스텝 -> 어느 CD 버킷에도 안 들어갑니다.
 
 _CD_VARIANTS = ("CD(E)", "CD(F)")
@@ -173,6 +216,26 @@ BLANK_SKIP_YN_RATIO = 0.15
 # 정체성 풀 seed 를 주차 seed 와 갈라놓는 salt. 주차별 rng 와 섞이면 풀이 주차마다
 # 달라져 recipe_id 안정성이 깨집니다.
 _IDENTITY_SALT = 90001
+
+# mother 파라 개수를 만드는 rng 를 정체성 rng 와 갈라놓는 salt.
+#
+# 이 분리는 편의가 아니라 **필수**입니다. mother 값을 `_identity_pool` 루프 안에서
+# 굴리면 난수 호출 수가 recipe 당 늘어나 풀 뒷부분 recipe 가 전부 다른 값으로 다시
+# 태어나고, recipe_id 와 oper_desc 까지 바뀝니다 — 결정론에 기대는 화면·테스트가
+# 통째로 흔들립니다(`_recipe_name` 의 같은 주의 참고). 완성된 풀을 별도 rng 로 한 번
+# 더 훑으면 기존 값은 한 바이트도 움직이지 않습니다.
+_MOTHER_SALT = 70003
+
+# mother 파라를 1개 이상 가진 recipe 비율. 100% 로 두면 mother_normal 의 recipe
+# 집합이 only_normal 과 항상 같아져, "mother 없는 recipe 는 빠진다" 는 경로가
+# 집에서 한 번도 실행되지 않습니다 (OFFICE-VERIFY — 실물 비율 미확인).
+_MOTHER_RECIPE_RATIO = 0.85
+
+# mother 를 가진 recipe 에서 각 bin 의 mother 비중. son 이 mother 의 image 를
+# 함께 쓰므로 mother 는 소수입니다 (OFFICE-VERIFY — 실물 비중 미확인).
+MOTHER_SHARE = (0.25, 0.45)
+
+_PARA_KEYS = ("para_16", "para_13", "para_9", "para_5")
 
 
 # ── 주차별 궤적 ──────────────────────────────────────────────────────────
@@ -279,9 +342,34 @@ def _identity_pool(lot_cd: str) -> list[RecipeIdentity]:
             "para_13": rng.randint(*PARA_RANGES["para_13"]),
             "para_9": rng.randint(*PARA_RANGES["para_9"]),
             "para_5": rng.randint(*PARA_RANGES["para_5"]),
+            # 바로 아래 별도 rng 가 채웁니다. 여기서 굴리면 위 난수 순서가 밀려
+            # 풀 전체가 다른 값으로 다시 태어납니다 (_MOTHER_SALT 주석 참고).
+            "mother_para_16": 0,
+            "mother_para_13": 0,
+            "mother_para_9": 0,
+            "mother_para_5": 0,
         })
 
+    _assign_mother_counts(pool, lot_cd)
     return pool
+
+
+def _assign_mother_counts(pool: list[RecipeIdentity], lot_cd: str) -> None:
+    """완성된 풀에 mother 파라 개수를 채웁니다 (제자리 수정).
+
+    별도 rng 를 쓰는 이유는 :data:`_MOTHER_SALT` 의 주석에 있습니다.
+    """
+    mother_rng = random.Random(_identity_seed(lot_cd) ^ _MOTHER_SALT)
+
+    for identity in pool:
+        has_mother = mother_rng.random() < _MOTHER_RECIPE_RATIO
+        for key in _PARA_KEYS:
+            total = identity[key]  # type: ignore[literal-required]
+            share = mother_rng.uniform(*MOTHER_SHARE)
+            # bin 이 비어 있으면 mother 도 0. 비어 있지 않은데 반올림이 0 이면
+            # 1 로 올립니다 — share <= 0.45 라 total 을 넘을 수 없습니다.
+            count = max(1, round(total * share)) if has_mother and total > 0 else 0
+            identity[f"mother_{key}"] = count  # type: ignore[literal-required]
 
 
 def _scaled(value: int, factor: float, jitter: float) -> int:
@@ -316,28 +404,46 @@ def build_population(
     week_wobble = jitter_rng.uniform(0.96, 1.04)
     para_scale = (0.82 + 0.18 * scale) * week_wobble
 
-    return [
-        {
-            **identity,
-            "para_16": _scaled(identity["para_16"], para_scale, jitter_rng.uniform(0.94, 1.06)),
-            "para_13": _scaled(identity["para_13"], para_scale, jitter_rng.uniform(0.94, 1.06)),
-            "para_9": _scaled(identity["para_9"], para_scale, jitter_rng.uniform(0.94, 1.06)),
-            "para_5": _scaled(identity["para_5"], para_scale, jitter_rng.uniform(0.94, 1.06)),
-        }
-        for identity in present
-    ]
+    scaled: list[RecipeIdentity] = []
+    for identity in present:
+        row = dict(identity)
+        for key in _PARA_KEYS:
+            # bin 하나당 jitter 를 **한 번만** 뽑아 total 과 mother 에 함께 씁니다.
+            # 따로 뽑으면 recipe 당 난수 호출이 4 -> 8 로 늘어 기존 para_* 가 전부
+            # 다른 값이 됩니다 (_MOTHER_SALT 주석의 같은 이유).
+            jitter = jitter_rng.uniform(0.94, 1.06)
+            total = _scaled(identity[key], para_scale, jitter)  # type: ignore[literal-required]
+            mother = identity[f"mother_{key}"]  # type: ignore[literal-required]
+            row[key] = total
+            # 같은 배율을 걸어도 반올림 때문에 total 을 넘을 수 있으므로 잘라 둡니다 —
+            # mother > total 은 계약 위반이고, 화면에서는 100% 넘는 막대가 됩니다.
+            row[f"mother_{key}"] = min(total, _scaled(mother, para_scale, jitter)) if mother else 0
+        scaled.append(row)  # type: ignore[arg-type]
+
+    return scaled
+
+
+def mother_para_all(identity: RecipeIdentity) -> int:
+    """이 recipe 의 mother 파라 총 개수. 0 이면 mother_normal 에서 빠집니다."""
+    return sum(identity[f"mother_{key}"] for key in _PARA_KEYS)  # type: ignore[literal-required]
 
 
 def bucket_members(
     population: list[RecipeIdentity]
 ) -> dict[str, list[RecipeIdentity]]:
-    """네 버킷의 recipe 집합. 한 recipe 가 여러 버킷에 들어갈 수 있습니다."""
+    """네 버킷의 recipe 집합. 한 recipe 가 여러 버킷에 들어갈 수 있습니다.
+
+    only_normal 과 mother_normal 은 **같은 스텝 필터**를 씁니다 — mother_normal
+    은 거기서 mother 파라가 없는 recipe 만 더 떨어뜨립니다. para_* 를 mother
+    기준으로 다시 세는 것은 statistics.py 의 몫입니다(여기서는 멤버십만 정합니다).
+    """
+    normal = [
+        r for r in population
+        if is_normal_bucket_step(r["oper_desc"], r["skip_yn"])
+    ]
     return {
         "all": list(population),
-        "only_normal": [r for r in population if is_normal_step(r["oper_desc"])],
-        "mother_normal": [
-            r for r in population
-            if is_measuring(r["skip_yn"]) and ends_with_pure_cd(r["oper_desc"])
-        ],
+        "only_normal": normal,
+        "mother_normal": [r for r in normal if mother_para_all(r) > 0],
         "only_sample": [r for r in population if is_sample_recipe(r["recipe_id"])],
     }

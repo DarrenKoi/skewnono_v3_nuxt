@@ -33,10 +33,20 @@ idp_ver.txt, device_desc.txt, r3_device_grp.txt 에 있습니다.
 프론트(comparison.vue)의 네 버킷은 **스텝 이름**으로 갈립니다.
 
     all            모든 Step (Full job + Sample job)
-    only_normal    스텝명에 CD 가 포함된 Step (정규 recipe)
-    mother_normal  **skip 되지 않은**(skip_yn != "Y") Step 중 스텝명 끝이
+    only_normal    **skip 되지 않은**(skip_yn != "Y") Step 중 스텝명 끝이
                    **순수한 CD** 인 것 ("CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외)
+    mother_normal  only_normal 과 **같은 스텝 필터** + mother 파라미터를 1개
+                   이상 가진 recipe 만. para_* 집계도 **mother 파라만** 셉니다.
     only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
+
+only_normal 과 mother_normal 이 같은 스텝 필터를 공유하는 것이 핵심입니다 —
+mother_normal 은 스텝을 더 좁히는 것이 아니라 **한 단계 아래(파라미터)로**
+들어갑니다 (user-confirmed 2026-08-04). 2026-08-04 이전에는 only_normal 이 이름
+어디든 CD 토큰이 있으면 통과시켜 추가계측("CD(E)")까지 Main 으로 셌고,
+mother_normal 은 파라미터를 보지 않았습니다. 둘 다 틀렸습니다.
+
+skip 을 **멤버십에서** 거르므로 두 버킷의 ``avail_recipe`` 는 항상
+``total_recipe`` 와 같습니다. all / only_sample 에서만 두 값이 갈립니다.
 
 Sample 판정만 축이 다릅니다 — 스텝명이 아니라 **recipe 이름**을 봅니다
 (user-confirmed 2026-07-31). 스텝 코드로 판단하면 오검출이 생기고, 이름 어디든
@@ -593,11 +603,19 @@ def _steps_for(lot_cd: str, fac_id: str) -> list[dict[str, Any]]:
 _IDP_CHUNK = 500
 
 
-def _normalize_parameters(blob: Any) -> dict[str, int]:
-    """``parameters`` blob -> ``{name: point_count}``.
+# mother 플래그가 실릴 수 있는 key 이름. 적재 쪽 표기가 확정되지 않아 세 가지를
+# 모두 봅니다 — idp 원본 컬럼명은 ``Mother_Para`` 입니다
+# (docs/datatables/recipe_idp.txt L182, office 확인 2026-07-28).
+_MOTHER_KEYS = ("mother", "Mother_Para", "mother_para")
 
-    확인된 형태는 dict[str, int] 입니다(user-confirmed 2026-07-30). list 분기는
-    적재 쪽이 ``[{name, point_count}, ...]`` 로 바뀌었을 때를 위한 관용이며,
+
+def _normalize_parameters(blob: Any) -> tuple[dict[str, int], set[str]]:
+    """``parameters`` blob -> ``({name: point_count}, {mother 인 name})``.
+
+    확인된 형태는 dict[str, int] 입니다(user-confirmed 2026-07-30) — 그 형태에는
+    **mother 플래그가 실릴 자리가 없어** 두 번째 값이 항상 빈 집합입니다. list
+    분기는 적재 쪽이 ``[{name, point_count, ...}, ...]`` 로 바뀌었을 때를 위한
+    관용이며, 그 경우에만 :data:`_MOTHER_KEYS` 중 하나에서 mother 를 읽습니다.
     둘 다 아니면 빈 dict 가 되어 para_* 가 0 이 됩니다.
     """
     if isinstance(blob, dict):
@@ -606,32 +624,58 @@ def _normalize_parameters(blob: Any) -> dict[str, int]:
             key = _text(name)
             if key:
                 params[key] = _as_int(value)
-        return params
+        return params, set()
     if isinstance(blob, list):
         params = {}
+        mothers: set[str] = set()
         for entry in blob:
             if not isinstance(entry, dict):
                 continue
             key = _text(entry.get("name"))
-            if key:
-                params[key] = _as_int(entry.get("point_count"))
-        return params
-    return {}
+            if not key:
+                continue
+            params[key] = _as_int(entry.get("point_count"))
+            if any(bool(entry.get(flag)) for flag in _MOTHER_KEYS):
+                mothers.add(key)
+        return params, mothers
+    return {}, set()
 
 
-def _idp_parameters(recipe_ids: list[str]) -> dict[str, dict[str, int]]:
-    """recipe_id -> ``{parameter_name: point_count}`` (최신 version 1건).
+def _idp_parameters(
+    recipe_ids: list[str]
+) -> tuple[dict[str, dict[str, int]], dict[str, set[str]] | None]:
+    """recipe_id -> ``{parameter_name: point_count}`` (최신 version 1건) 과
+    recipe_id -> ``{mother 인 parameter 이름}``.
 
     recipe 마다 질의를 날리면 device 하나에 100~200 왕복이 됩니다. terms 집계 +
     ``top_hits(size=1, sort=version desc)`` 로 **device 당 1회**로 줄이고
     ``_source`` 를 parameters 로 제한합니다 — 이 두 제한은 선택이 아니라
     필수입니다(idp_ver.txt payload 주의).
+
+    ★ OFFICE-VERIFY (미해결) — mother_para 의 출처
+
+      두 번째 반환값이 ``None`` 이면 **이 index 에서 mother 를 판별할 수 없다**는
+      뜻이고, 그때 mother_normal 버킷은 비게 됩니다(멤버 조건이 "mother 를 가진
+      recipe" 이므로 규칙을 그대로 적용한 결과입니다).
+
+      현재 상태가 그렇습니다. ``cdsem_idp_ver.parameters`` 의 확인된 형태는
+      ``{name: point_count}`` 라 mother 플래그를 담을 자리가 없고,
+      ``Mother_Para`` 가 확인된 곳은 **장비 FTP 의 ``.idp`` 원본 파일**뿐입니다
+      (docs/datatables/recipe_idp.txt — recipe 1건당 파일 1개를
+      ``office_utils/read_idp_info.py`` 로 파싱). device 4000개 × recipe
+      100~200개 규모에서는 그 경로로 조회할 수 없습니다.
+
+      그래서 이 함수는 blob 이 list 형태로 바뀌어 플래그를 실어 주면 그대로 읽고,
+      아니면 **경고를 남기고** degrade 합니다. 조용히 같아지면 화면이 "mother
+      view 가 동작한다" 고 거짓말하므로, 로그가 유일한 방어선입니다. 해결
+      방향은 MIGRATION.md 의 "mother_para 출처" 절에 있습니다.
     """
     unique = [rid for rid in dict.fromkeys(recipe_ids) if rid]
     if not unique:
-        return {}
+        return {}, None
 
     out: dict[str, dict[str, int]] = {}
+    mothers_out: dict[str, set[str]] = {}
     for start in range(0, len(unique), _IDP_CHUNK):
         chunk = unique[start:start + _IDP_CHUNK]
         aggs = {
@@ -656,8 +700,22 @@ def _idp_parameters(recipe_ids: list[str]) -> dict[str, dict[str, int]]:
             if not hits:
                 continue
             blob = hits[0].get("_source", {}).get("parameters")
-            out[_text(bucket.get("key"))] = _normalize_parameters(blob)
-    return out
+            recipe_id = _text(bucket.get("key"))
+            out[recipe_id], mothers = _normalize_parameters(blob)
+            if mothers:
+                mothers_out[recipe_id] = mothers
+
+    if not mothers_out:
+        # 한 recipe 도 mother 를 실어 오지 않았습니다 — "mother 가 없는 device"
+        # 가 아니라 **판별 자체가 불가능**한 상태입니다. 위 OFFICE-VERIFY 참고.
+        _LOG.warning(
+            "device_statistics: no Mother_Para on any of %d recipe(s) in %r — "
+            "the mother_normal bucket will be EMPTY. The flag lives in the "
+            "tool-FTP .idp file, not this index; see MIGRATION.md 'mother_para 출처'.",
+            len(unique), IDP_INDEX,
+        )
+        return out, None
+    return out, mothers_out
 
 
 def _para_counts(params: dict[str, int]) -> dict[str, int]:
@@ -696,9 +754,6 @@ def _percent(part: int, total: int) -> float:
 # recipe_class 까지 뒤집혀 잘못된 cap 으로 위반 판정이 납니다.
 _SAMPLE_SUFFIX = re.compile(r"(_S|SE)$", re.IGNORECASE)
 
-# 이름 어디든 CD 가 토큰으로 등장하면 정규(Normal) step.
-_CD_TOKEN = re.compile(r"\bCD\b", re.IGNORECASE)
-
 
 def _is_sample_recipe(recipe_id: str) -> bool:
     """recipe 이름이 "_S"/"SE" 로 끝나는가.
@@ -707,10 +762,6 @@ def _is_sample_recipe(recipe_id: str) -> bool:
     확인이 있었습니다. 축이 스텝명이 아니라 recipe 이름인 것이 핵심입니다.
     """
     return bool(_SAMPLE_SUFFIX.search((recipe_id or "").strip()))
-
-
-def _is_normal_step(oper_desc: str) -> bool:
-    return bool(_CD_TOKEN.search(oper_desc or ""))
 
 
 def _ends_with_pure_cd(oper_desc: str) -> bool:
@@ -726,15 +777,40 @@ def _ends_with_pure_cd(oper_desc: str) -> bool:
     return stripped.split()[-1].upper() == "CD"
 
 
-def _bucket_members(steps: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    """네 버킷의 스텝 집합. 한 스텝이 여러 버킷에 들어갈 수 있습니다."""
+def _is_normal_bucket_step(oper_desc: str, skip_yn: str) -> bool:
+    """only_normal / mother_normal 이 **공유**하는 스텝 필터.
+
+    두 버킷이 같은 스텝 집합을 쓴다는 것은 도메인 규칙입니다 — mother_normal 은
+    스텝이 아니라 파라미터를 좁힙니다. 조건을 두 군데에 복사하지 않고 이 한
+    함수를 양쪽이 부릅니다 (mock 의 ``is_normal_bucket_step`` 과 같은 규칙).
+    """
+    return _is_measuring(skip_yn) and _ends_with_pure_cd(oper_desc)
+
+
+def _bucket_members(
+    steps: list[dict[str, Any]],
+    mothers_by_recipe: dict[str, set[str]] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """네 버킷의 스텝 집합. 한 스텝이 여러 버킷에 들어갈 수 있습니다.
+
+    ``mothers_by_recipe`` 는 recipe_id -> mother 파라미터 이름 집합입니다.
+    mother_normal 은 그 집합이 비어 있지 않은 recipe 만 남깁니다.
+
+    mother 를 판별할 수 없으면(빈 dict) 이 버킷은 **비어 있게** 됩니다. 규칙을
+    데이터에 그대로 적용한 결과이고, 의도된 동작입니다 — only_normal 로 슬쩍
+    대체하면 요약은 숫자를 보여주는데 health 는 판정할 파라미터가 없어 0/0 이
+    되는, 두 표면이 서로 다른 답을 하는 화면이 됩니다. 빈 버킷은 눈에 보이고,
+    이유는 :func:`_idp_parameters` 의 경고 로그가 말합니다.
+    """
+    mothers = mothers_by_recipe or {}
+    normal = [
+        s for s in steps
+        if _is_normal_bucket_step(s["oper_desc"], s["skip_yn"])
+    ]
     return {
         "all": list(steps),
-        "only_normal": [s for s in steps if _is_normal_step(s["oper_desc"])],
-        "mother_normal": [
-            s for s in steps
-            if _is_measuring(s["skip_yn"]) and _ends_with_pure_cd(s["oper_desc"])
-        ],
+        "only_normal": normal,
+        "mother_normal": [s for s in normal if mothers.get(s["recipe_id"])],
         "only_sample": [s for s in steps if _is_sample_recipe(s["recipe_id"])],
     }
 
@@ -807,7 +883,9 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
         memory_class = _memory_class_auto(prod_catg_cd)
 
         steps = _steps_for(lot_cd, fac_id)
-        params_by_recipe = _idp_parameters([s["recipe_id"] for s in steps])
+        params_by_recipe, mothers_by_recipe = _idp_parameters(
+            [s["recipe_id"] for s in steps]
+        )
 
         seen: set[str] = set()
         for step in steps:
@@ -817,8 +895,17 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
             if not recipe_id or recipe_id in seen:
                 continue
             seen.add(recipe_id)
+            # mother 를 판별할 수 없으면(None) 전부 False 로 둡니다 — 프론트엔드의
+            # mother_normal 필터가 빈 결과를 내는 편이, 임의로 True 를 칠해
+            # "mother view 가 동작한다" 고 거짓말하는 것보다 낫습니다. 판별
+            # 불가는 위 _idp_parameters 가 로그로 알립니다.
+            mothers = (mothers_by_recipe or {}).get(recipe_id, set())
             parameters: list[ParameterRow] = [
-                {"name": name, "point_count": point_count}
+                {
+                    "name": name,
+                    "point_count": point_count,
+                    "mother": name in mothers,
+                }
                 for name, point_count in sorted(
                     params_by_recipe.get(recipe_id, {}).items()
                 )
@@ -841,6 +928,25 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
 
 
 # ─────────────────────── 주간 트렌드 (요약 + 스냅샷) ───────────────────────
+
+
+def _params_for_bucket(
+    bucket: str,
+    recipe_id: str,
+    points_by_recipe: dict[str, dict[str, int]],
+    mothers_by_recipe: dict[str, set[str]] | None,
+) -> dict[str, int]:
+    """이 버킷이 para_* 로 세어야 할 파라미터.
+
+    mother_normal 만 mother 로 좁힙니다 — 나머지 세 버킷은 recipe 의 파라미터를
+    그대로 셉니다. mother 를 판별할 수 없으면 그 recipe 는 애초에 mother_normal
+    멤버가 아니므로(:func:`_bucket_members`), 여기 빈 dict 가 오는 일은 없습니다.
+    """
+    points = points_by_recipe.get(recipe_id, {})
+    if bucket != "mother_normal":
+        return points
+    mothers = (mothers_by_recipe or {}).get(recipe_id, set())
+    return {name: pc for name, pc in points.items() if name in mothers}
 
 
 def _recipe_row(
@@ -932,12 +1038,17 @@ def _live_bucket(lot_cds: list[str], include_recipes: bool) -> TrendBucket:
             continue
         ctn_desc = meta.get(lot_cd, {}).get("ctn_desc", "")
         steps = _steps_for(lot_cd, fac_id)
-        params_by_recipe = _idp_parameters([s["recipe_id"] for s in steps])
+        params_by_recipe, mothers_by_recipe = _idp_parameters(
+            [s["recipe_id"] for s in steps]
+        )
 
-        for name, members in _bucket_members(steps).items():
+        for name, members in _bucket_members(steps, mothers_by_recipe).items():
             recipes = [
                 _recipe_row(
-                    lot_cd, fac_id, step, params_by_recipe.get(step["recipe_id"], {})
+                    lot_cd, fac_id, step,
+                    _params_for_bucket(
+                        name, step["recipe_id"], params_by_recipe, mothers_by_recipe
+                    ),
                 )
                 for step in members
             ]
@@ -1175,10 +1286,19 @@ if __name__ == "__main__":
             f"{step['recipe_id']}"
         )
 
-    members = _bucket_members(steps)
+    # mother 를 실제로 조회해서 넘깁니다 — 기본값으로 부르면 mother_normal 이
+    # 늘 0 으로 나와, 진단이 "출처 미해결" 을 "이 device 에 mother 가 없음" 처럼
+    # 보여 줍니다.
+    _, mothers_by_recipe = _idp_parameters([s["recipe_id"] for s in steps])
+    members = _bucket_members(steps, mothers_by_recipe)
     print("\n  버킷별 스텝 수:")
     for name in RCP_BUCKETS:
         print(f"    {name:<14} {len(members[name]):>5}")
+    if not mothers_by_recipe:
+        print(
+            "    NOTE: 어느 recipe 에서도 Mother_Para 를 읽지 못해 mother_normal "
+            "이 0 입니다 — 출처 미해결 (MIGRATION.md 'mother_para 출처')."
+        )
 
     params = get_recipe_params([lot_cd])
     print(f"\n  recipe-params: {len(params)}행 (기대: 100~200)")

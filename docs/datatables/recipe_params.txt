@@ -20,11 +20,44 @@ recipe_class -> string: Main 또는 Sample 입니다 (D2).
 family -> string: Core, Pool, VG_RTC_Cubic 중 하나입니다 (D3).
 phase -> string|null: t-EV, EV, TV, PV 또는 null 입니다 (D3).
 memory_class_auto -> string: DRAM, NAND, unknown 중 하나입니다. Tech/Advanced 는 unknown(수동) 입니다 (D7).
-parameters -> records: 측정 파라미터 배열입니다. 각 원소는 {name, point_count} 입니다.
+parameters -> records: 측정 파라미터 배열입니다. 각 원소는 {name, point_count, mother} 입니다.
 
 parameters 원소
 name -> string: 파라미터 이름. 타입은 longest-prefix(EDGE_EX > EDGE > WAFER > LEVEL)로 파생되며, 그 외는 OTHER 입니다.
 point_count -> int: 해당 파라미터의 측정 point 수입니다.
+mother -> bool: 이 파라미터 자신이 mother 인지입니다 (idp 의 Mother_Para, office 확인 2026-07-28).
+
+mother 컬럼 — 무엇에 쓰이는가 (user-confirmed 2026-08-04)
+
+son 파라미터는 mother 와 **같은 image** 에서 자기 cd_value 를 얻으므로 측정
+시간(TAT)을 움직이는 것은 mother 수입니다. 그래서 comparison 화면의
+mother_normal 버킷은 이 플래그로 파라미터를 좁혀서
+
+  - para_16/13/9/5 (Lot 요약의 "para 분포"·"para 합계")
+  - 계측 룰 검증 (health / violations / 판정 범위)
+  - 측정 프로파일 (중앙값 / outlier)
+
+셋을 **모두** 같은 mother 집합 위에서 계산합니다. 프론트엔드에서는
+utils/lotHealth.ts 의 scopeRecipesToBucket 한 곳이 이 좁히기를 담당하며, 세
+소비처가 같은 배열을 받습니다 — 각자 좁히게 두면 언젠가 한쪽만 고쳐져 표 한
+행의 열들이 서로 다른 모수집단을 말하게 됩니다.
+
+mother 를 가진 파라미터가 하나도 없는 recipe 는 mother_normal 버킷에 아예
+들어가지 않습니다 (recipe 와 파라미터 **양쪽**을 좁힙니다).
+
+★ 출처 미해결 (2026-08-04) — 이 컬럼은 **사무실에서 아직 채울 수 없습니다.**
+
+  Mother_Para 가 확인된 유일한 곳은 장비 FTP 의 {idp_name}.idp 원본 파일이고
+  (docs/datatables/recipe_idp.txt), 이 응답의 parameters 원천인
+  cdsem_idp_ver.parameters 는 {name: point_count} 라 플래그를 담을 자리가
+  없습니다. recipe 1건당 파일 1개를 내려받아야 하므로 device 4000개 규모에서는
+  그 경로를 쓸 수 없습니다.
+
+  어댑터는 blob 이 [{name, point_count, ...}] 형태로 바뀌어 플래그를 실어 주면
+  그대로 읽고(키 후보: mother / Mother_Para / mother_para), 아니면 경고 로그를
+  남기고 mother 를 전부 false 로 둡니다. 그 경우 mother_normal 버킷은 비어
+  있게 되며, 이는 규칙을 데이터에 그대로 적용한 결과입니다.
+  해결 후보는 device_statistics/MIGRATION.md 의 "mother_para 출처" 절입니다.
 
 recipe 이름 접미사 — 판정 외 job (user-confirmed 2026-08-04)
 
@@ -41,6 +74,11 @@ Mock 생성 규칙
 2. 약 8% recipe 는 기타(OTHER) 파라미터가 많은 bloated recipe 입니다 (D10 신호 검증용).
 3. 약 5% recipe 는 EDGE point 수가 또래 대비 큰 outlier 를 포함합니다 (outlier 뷰·R3 cap 검증용).
 4. 약 10% recipe 는 판정 외 job 접미사(_WCDU/_FCDU/_FULL)를 갖습니다 (판정 제외 경로 검증용).
+5. 약 85% recipe 만 mother 파라를 갖고(보유 시 파라미터의 25~45%), 나머지 15% 는
+   mother 가 없어 mother_normal 버킷에서 빠집니다 — "recipe 도 좁힌다" 는 규칙이
+   집에서 실제로 실행되게 하려는 것입니다. 이 비율은 OFFICE-VERIFY 입니다(실물
+   미확인). mother 보유 여부는 recipe-statistics 의 버킷 멤버십과 **같은 원천**
+   (recipe_population 의 RecipeIdentity)에서 나오므로 두 표면이 갈라지지 않습니다.
 
 
 ========================================================================

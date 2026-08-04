@@ -203,7 +203,7 @@ import type { EChartsOption } from 'echarts'
 import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
 import { summaryToRecipeInfoBucket, type RecipeInfoRow, type SummaryBucketKey, type SummaryRow } from '~/composables/useRecipeStatisticsApi'
 import {
-  augmentRow, buildLotVerdicts, paraTotal, recipeKey,
+  augmentRow, buildLotVerdicts, paraTotal, recipeKey, scopeRecipesToBucket,
   type HealthAugmentedRow, type RuleSet
 } from '~/utils/lotHealth'
 import type { RecipeInput } from '~/utils/ruleEngine'
@@ -257,12 +257,12 @@ const bucketOptions: BucketOption[] = [
   {
     label: 'Only Normal',
     value: 'only_normal_summary',
-    description: '정규 Recipe만 표시합니다. 스텝명에 CD만 포함된 Step 기준입니다.'
+    description: '정규 Recipe만 표시합니다. 측정 중이면서 스텝명이 CD로 끝나는 Step 기준이며, CD(E)·CD(F) 같은 추가계측은 제외합니다.'
   },
   {
     label: 'Mother Normal',
     value: 'mother_normal_summary',
-    description: '정규 Recipe 중 TAT에 영향을 주는 파라미터만 선별합니다.'
+    description: 'Only Normal과 같은 Step에서 TAT에 영향을 주는 Mother 파라미터만 봅니다. para 합계·health·outlier가 모두 Mother 기준입니다.'
   },
   {
     label: 'Only Sample',
@@ -372,8 +372,22 @@ const bucketRecipeKeys = computed(() => {
   return keys
 })
 
+// 버킷 범위를 **한 번만** 좁힙니다. 아래 두 소비처(health / 측정 프로파일)가 같은
+// 배열을 받아야 표 한 행의 열들이 서로 다른 모수집단을 말하지 않습니다.
+// mother_normal 은 recipe 뿐 아니라 파라미터까지 좁히는 유일한 버킷입니다 —
+// 스텝 필터는 only_normal 과 같고, 대신 mother 파라만 봅니다.
+const bucketRecipes = computed(() =>
+  scopeRecipesToBucket(
+    recipeParams.value ?? [],
+    bucketRecipeKeys.value,
+    selectedBucket.value === 'mother_normal_summary'
+  )
+)
+
+// bucketKeys 는 넘기지 않습니다 — bucketRecipes 가 이미 좁혀 왔습니다. 두 번
+// 좁히면 어느 쪽이 진짜 범위인지 읽는 사람이 알 수 없습니다.
 const lotVerdicts = computed(() =>
-  buildLotVerdicts(recipeParams.value ?? [], rulesByFab.value ?? {}, bucketRecipeKeys.value)
+  buildLotVerdicts(bucketRecipes.value, rulesByFab.value ?? {})
 )
 
 const augmentedRows = computed<HealthAugmentedRow[]>(() =>
@@ -387,7 +401,7 @@ const augmentedRows = computed<HealthAugmentedRow[]>(() =>
 // 묶기는 한 번만 합니다. drill 이 필요로 하는 것도 여기서 만든 바로 그
 // RecipeInput[] 이라, 클릭할 때마다 전체 payload(lot 당 약 124 KB)를 다시
 // 훑지 않게 map 을 그대로 들고 갑니다.
-const recipesByLot = computed(() => groupRecipesByLot(recipeParams.value ?? []))
+const recipesByLot = computed(() => groupRecipesByLot(bucketRecipes.value))
 
 const deviceOutliers = computed(() => buildDeviceOutliers(recipesByLot.value))
 
@@ -595,12 +609,15 @@ const openOutlierDrill = (lot_cd: string) => {
   drillOpen.value = true
 }
 
-// Caps (and therefore health/violations) are bucket-dependent, so an open
-// modal would show stale numbers after a bucket switch — close it instead.
-// The outlier drill is deliberately NOT closed: its baseline is every parameter
-// the device measures, so a bucket switch cannot change what it shows.
+// 버킷이 바뀌면 열려 있던 두 오버레이를 모두 닫습니다 — 둘 다 버킷 범위의
+// 숫자를 들고 있어서, 열어 둔 채로 두면 이전 버킷의 값을 계속 보여줍니다.
+//
+// drill 은 예전에 일부러 열어 두었습니다("기준선이 디바이스가 측정하는 모든
+// 파라미터라 버킷이 바뀌어도 보여줄 것이 안 변한다"). 2026-08-04 부터 중앙값·
+// outlier 도 버킷 범위로 계산하므로 그 전제가 더는 참이 아닙니다.
 watch(selectedBucket, () => {
   lotModalOpen.value = false
+  drillOpen.value = false
 })
 
 const goBack = async () => {
