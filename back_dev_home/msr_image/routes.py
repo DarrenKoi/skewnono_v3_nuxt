@@ -16,6 +16,15 @@ from back_dev_home.msr_image.paths import validate_locator, validate_segment, va
 
 bp = Blueprint("msr_image", __name__)
 
+# Tools are not consistent about which spelling they write -- office serves
+# .jpeg/.jpg/.tif/.tiff (MIGRATION.md, office 확인 2026-07-24) while the mock
+# emits only .jpeg/.tif. Grouping means a caller never has to know which
+# spelling a given tool happened to use.
+_EXT_GROUPS: dict[str, tuple[str, ...]] = {
+    "jpg": (".jpg", ".jpeg"),
+    "tif": (".tif", ".tiff"),
+}
+
 
 def _error(exc: MsrImageError):
     return jsonify({"error": str(exc) or exc.code, "code": exc.code}), exc.status
@@ -72,6 +81,10 @@ def list_images_route():
     if args is None:
         return jsonify({"error": "eqp_ip, class_name, msr are required"}), 400
     cfg = load_config()
+    ext = (request.args.get("ext") or "").strip().lower()
+    if ext and ext not in _EXT_GROUPS:
+        allowed = ", ".join(sorted(_EXT_GROUPS))
+        return jsonify({"error": f"unknown ext {ext!r}; allowed: {allowed}"}), 400
     try:
         validate_tool_ip(args["eqp_ip"], cfg.allowed_subnets)
         validate_segment(args["class_name"], "class_name")
@@ -79,6 +92,9 @@ def list_images_route():
         names = data.list_images(args["eqp_ip"], args["class_name"], args["msr"])
     except MsrImageError as exc:
         return _error(exc)
+    if ext:
+        suffixes = _EXT_GROUPS[ext]
+        names = [n for n in names if n.lower().endswith(suffixes)]
     body: ImageListResponse = {
         "msr": args["msr"],
         "class_name": args["class_name"],

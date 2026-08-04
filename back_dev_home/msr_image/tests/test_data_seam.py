@@ -39,3 +39,18 @@ def test_make_cache_office_rejects_root_prefix():
     cfg = load_config({"SKEWNONO_IMAGE_CACHE_BUCKET": "b", "SKEWNONO_IMAGE_CACHE_PREFIX": "/"})
     with pytest.raises(ConfigError):
         make_cache(cfg, provider="office")
+
+
+def test_list_images_seam_signature_is_three_args():
+    """The ext filter lives in routes.py, deliberately, and must stay there.
+
+    Pushing it into the provider would widen this signature, and every office
+    checkout's gitignored providers/office.py is a COPY -- it would keep the
+    old signature and the app factory would fail to boot until someone ran
+    `python -m scripts.sync_office_adapters msr_image`. Filtering a returned
+    list is presentation, not data access.
+    """
+    import inspect
+
+    params = list(inspect.signature(data.list_images).parameters)
+    assert params == ["eqp_ip", "class_name", "msr"]

@@ -104,3 +104,36 @@ def test_serve_handles_non_ascii_filename(client):
     assert r.status_code == 200
     cd = r.headers["Content-Disposition"]
     assert "filename*=UTF-8''" in cd
+
+
+def test_list_ext_jpg_returns_only_jpeg_family(client):
+    r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=jpg")
+    assert r.status_code == 200
+    images = r.get_json()["images"]
+    assert images
+    assert all(n.endswith((".jpg", ".jpeg")) for n in images)
+    assert r.get_json()["total"] == len(images)
+
+
+def test_list_ext_tif_returns_only_tiff_family(client):
+    r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=tif")
+    assert r.status_code == 200
+    assert all(n.endswith((".tif", ".tiff")) for n in r.get_json()["images"])
+
+
+def test_list_without_ext_is_unchanged(client):
+    # Regression guard for the gallery: it sends no ext and must keep seeing
+    # every file the provider returns.
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    everything = client.get(f"/api/msr-images?{q}").get_json()["images"]
+    jpg = client.get(f"/api/msr-images?{q}&ext=jpg").get_json()["images"]
+    tif = client.get(f"/api/msr-images?{q}&ext=tif").get_json()["images"]
+    assert sorted(everything) == sorted(jpg + tif)
+    assert len(everything) > len(jpg)  # the mock always emits at least one .tif
+
+
+def test_list_rejects_unknown_ext(client):
+    # A silent empty list would read as "this MSR has no images".
+    r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=png")
+    assert r.status_code == 400
+    assert "ext" in r.get_json()["error"]
