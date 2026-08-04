@@ -39,8 +39,11 @@ activity_filter:
     favorite_feature가 여기 속합니다. POST /api/page-view가 남긴 행만 순위에
     들어갑니다.
   fab_page_rankings: >-
-    feature만 포함합니다(entry, page_view 제외). /api/activity/fabs의 pages는
-    beacon 문서에 fab_name이 없어 여전히 API 요청 문서만 씁니다.
+    2단계 필터입니다(_fab_window). 전체 fab query 자체가 entry+feature로
+    걸려 있어 /api/activity/fabs의 fab별 total과 active_users(사용자 수
+    cardinality)는 entry를 포함합니다. 그 아래 pages sub-aggregation만 다시
+    feature 하나로 좁혀 entry를 뺍니다. page_view는 두 단계 모두에서
+    제외됩니다 — beacon 문서에는 fab_name이 없습니다.
   presence_metrics: >-
     kind로 거르지 않습니다. first_seen/last_seen은 요청량이 아니라 "마지막으로
     본 시각"을 묻는 질문이라 page_view도 포함합니다.
@@ -54,10 +57,14 @@ types:
   FeatureCount:
     feature:
       type: string
-      description: route_to_feature가 만든 안정적인 feature slug입니다.
+      description: route_to_feature 또는 page_to_feature가 만든 안정적인 feature slug입니다.
     count:
       type: integer
-      description: 해당 기간의 feature request 문서 수입니다.
+      description: >-
+        해당 기간의 문서 수입니다. 이 type을 쓰는 필드마다 어떤 activity_kind를
+        세는지가 다릅니다 — top_features/top_features_7d/30d/favorite_feature는
+        page_view만, FabUsageRow.pages는 feature만 셉니다. 필드별 설명을
+        참조하세요.
 
   DailyCount:
     date:
@@ -88,7 +95,9 @@ types:
     top_features:
       type: array
       items: FeatureCount
-      description: 보존 구간 전체에서 feature 요청 수 기준 상위 10개입니다.
+      description: >-
+        보존 구간 전체에서 page_view 수 기준 상위 10개입니다(2026-08-04 이전
+        activity_kind=feature 문서는 집계되지 않습니다).
     daily:
       type: array
       items: DailyCount
@@ -118,11 +127,11 @@ types:
     top_features_7d:
       type: array
       items: FeatureCount
-      description: trailing 7 KST 날짜의 feature 요청 상위 10개입니다.
+      description: trailing 7 KST 날짜의 page_view 상위 10개입니다.
     top_features_30d:
       type: array
       items: FeatureCount
-      description: trailing 30 KST 날짜의 feature 요청 상위 10개입니다.
+      description: trailing 30 KST 날짜의 page_view 상위 10개입니다.
 
   UserListRow:
     user_id:
@@ -140,7 +149,7 @@ types:
     favorite_feature:
       type: string
       nullable: true
-      description: trailing 30 KST 날짜에서 feature 요청 수가 가장 많은 slug입니다.
+      description: trailing 30 KST 날짜에서 page_view 수가 가장 많은 slug입니다.
 
   UserListResponse:
     generated_at:
