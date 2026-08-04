@@ -150,6 +150,51 @@ test('skewvoir is the same across tool types', () => {
   assert.equal(cdsemSkewvoir, hvsemSkewvoir)
 })
 
+test('tool landing pages keep their tool and stay off the home identity', () => {
+  // page_to_feature gives these home, cd_sem, cd_sem, hv_sem — three identities.
+  const home = resolvePageIdentity('/', {})
+  const cdsem = resolvePageIdentity('/ebeam/cd-sem', {})
+  const cdsemFab = resolvePageIdentity('/ebeam/cd-sem/M14', {})
+  const hvsemFab = resolvePageIdentity('/ebeam/hv-sem/R3', {})
+
+  assert.equal(cdsem, cdsemFab)
+  assert.equal(new Set([home, cdsem, hvsemFab]).size, 3)
+  assert.ok(cdsem)
+})
+
+test('a fabless page shape shares the fab shape identity', () => {
+  assert.equal(
+    resolvePageIdentity('/ebeam/cd-sem/hardware', {}),
+    resolvePageIdentity('/ebeam/cd-sem/M14/hardware', {})
+  )
+})
+
+test('legacy recipe-tat and fail-issue routes are their own identities', () => {
+  const tat = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-tat', {})
+  const fail = resolvePageIdentity('/ebeam/cd-sem/M14/fail-issue', {})
+  const statusTat = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'tat' })
+
+  assert.notEqual(tat, fail)
+  assert.notEqual(tat, statusTat)
+})
+
+test('ops pages have no rankable identity', () => {
+  assert.equal(resolvePageIdentity('/admin/logs', {}), null)
+  assert.equal(resolvePageIdentity('/activity', {}), null)
+})
+
+test('skewvoir does not share the msr-file identity', () => {
+  // /msr-file, /msr-files and /msr-image are API paths with their own slugs;
+  // fusing them onto /skewvoir would merge four distinct backend slugs.
+  const skewvoir = resolvePageIdentity('/ebeam/cd-sem/skewvoir', {})
+
+  assert.notEqual(skewvoir, resolvePageIdentity('/msr-file', {}))
+  assert.notEqual(
+    resolvePageIdentity('/msr-file', {}),
+    resolvePageIdentity('/msr-files', {})
+  )
+})
+
 test('contract: identity partitions match backend slug partitions', () => {
   // Two paths must produce the same identity IFF the backend maps them to the same slug.
   // Exception: finerThanSlug rows are intentional — they differ in identity despite

@@ -47,9 +47,8 @@
   {
     "path": "/ebeam/cd-sem/M14/recipe-search/meas-hist",
     "query": {},
-    "slug": "recipe_search",
-    "finerThanSlug": true,
-    "comment": "Frontend design: meas-hist sub-page is counted separately despite recipe_search slug"
+    "slug": "meas_hist",
+    "comment": "Own slug, so a distinct identity is required by the rule — not an exception"
   },
   {
     "path": "/ebeam/hv-sem/R3/recipe-search",
@@ -62,9 +61,113 @@
     "slug": "hardware"
   },
   {
+    "path": "/ebeam/cd-sem/hardware",
+    "query": {},
+    "slug": "hardware",
+    "comment": "Fabless shape of the same page"
+  },
+  {
+    "path": "/ebeam/hv-sem/R3/hardware",
+    "query": {},
+    "slug": "hardware"
+  },
+  {
     "path": "/ebeam/cd-sem/M14/pm-planning",
     "query": {},
     "slug": "pm_planning"
+  },
+  {
+    "path": "/ebeam/cd-sem/pm-planning",
+    "query": {},
+    "slug": "pm_planning",
+    "comment": "Fabless shape of the same page"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-tat",
+    "query": {},
+    "slug": "recipe_tat",
+    "comment": "Legacy _PAGE_RULES route; middleware redirects to recipe-status"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/fail-issue",
+    "query": {},
+    "slug": "fail_issue",
+    "comment": "Legacy _PAGE_RULES route; middleware redirects to recipe-status"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": {},
+    "slug": null,
+    "comment": "No tab yet — the component writes ?tab= back on mount"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": { "tab": "tat" },
+    "slug": "recipe_tat",
+    "finerThanSlug": true,
+    "comment": "Approved exception: the three tabs are three opens"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": { "tab": "align" },
+    "slug": "fail_issue",
+    "finerThanSlug": true,
+    "comment": "Approved exception: Align Fail counts separately from Meas Fail"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": { "tab": "meas" },
+    "slug": "fail_issue",
+    "finerThanSlug": true,
+    "comment": "Approved exception: Meas Fail counts separately from Align Fail"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/live-alarm",
+    "query": {},
+    "slug": "live_alarm"
+  },
+  {
+    "path": "/ebeam/hv-sem/R3/live-alarm",
+    "query": {},
+    "slug": "live_alarm"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/skew-check",
+    "query": {},
+    "slug": "skew_check"
+  },
+  {
+    "path": "/ebeam/cd-sem/skewvoir",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/ebeam/cd-sem/skewvoir/analysis",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/ebeam/hv-sem/skewvoir",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/ebeam/cd-sem",
+    "query": {},
+    "slug": "cd_sem",
+    "comment": "Tool landing page"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14",
+    "query": {},
+    "slug": "cd_sem",
+    "comment": "Tool landing page under a fab — same slug as the fabless landing"
+  },
+  {
+    "path": "/ebeam/hv-sem/R3",
+    "query": {},
+    "slug": "hv_sem",
+    "comment": "A different tool landing, so a different identity"
   },
   {
     "path": "/afm",
@@ -84,32 +187,33 @@
   {
     "path": "/msr-file",
     "query": {},
-    "slug": "skewvoir"
+    "slug": "msr_file"
   },
   {
     "path": "/msr-files",
     "query": {},
-    "slug": "skewvoir"
+    "slug": "msr_files"
   },
   {
     "path": "/msr-image",
     "query": {},
-    "slug": "skewvoir"
+    "slug": "msr_image"
   },
   {
     "path": "/sem-list",
     "query": {},
-    "slug": "sem_list"
+    "slug": "sem_list",
+    "comment": "Alias of /tool-roster — same slug, so it must share its identity"
   },
   {
     "path": "/tool-roster",
     "query": {},
-    "slug": "tool-roster"
+    "slug": "sem_list"
   },
   {
     "path": "/mag-pixel",
     "query": {},
-    "slug": "mag-pixel"
+    "slug": "mag_pixel"
   },
   {
     "path": "/chat",
@@ -119,6 +223,18 @@
   {
     "path": "/",
     "query": {},
-    "slug": "(root)"
+    "slug": "home"
+  },
+  {
+    "path": "/admin/logs",
+    "query": {},
+    "slug": null,
+    "comment": "Ops page: logged but never ranked"
+  },
+  {
+    "path": "/unknown-page",
+    "query": {},
+    "slug": "unknown_page",
+    "comment": "Unmapped page falls back to its first segment"
   }
 ]
