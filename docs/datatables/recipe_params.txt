@@ -26,10 +26,21 @@ parameters 원소
 name -> string: 파라미터 이름. 타입은 longest-prefix(EDGE_EX > EDGE > WAFER > LEVEL)로 파생되며, 그 외는 OTHER 입니다.
 point_count -> int: 해당 파라미터의 측정 point 수입니다.
 
+recipe 이름 접미사 — 판정 외 job (user-confirmed 2026-08-04)
+
+실물 recipe 이름은 "_S"/"SE"(Sample) 외에 "_WCDU" / "_FCDU" / "_FULL" 로 끝날
+수 있습니다 — CDU(wafer/field CD uniformity)·full-map 측정 job 입니다. 이
+접미사는 이름의 일부라서 cdsem_idp_ver.full_name 조인 키를 깨지 않습니다.
+프론트엔드(lotHealth.isJudgeExempt)는 이 세 접미사의 recipe 를 계측 룰
+판정 범위에서 **분자·분모 모두** 제외합니다 — gray(분모에 남는 판정 보류)와
+다릅니다. recipe_class 파생 규칙(_S/SE)과는 겹치지 않으므로 서로 간섭하지
+않습니다.
+
 Mock 생성 규칙
 1. lot_cd 별 결정론적 seed(statistics._seed_for)로 recipe·parameter 를 생성합니다.
 2. 약 8% recipe 는 기타(OTHER) 파라미터가 많은 bloated recipe 입니다 (D10 신호 검증용).
 3. 약 5% recipe 는 EDGE point 수가 또래 대비 큰 outlier 를 포함합니다 (outlier 뷰·R3 cap 검증용).
+4. 약 10% recipe 는 판정 외 job 접미사(_WCDU/_FCDU/_FULL)를 갖습니다 (판정 제외 경로 검증용).
 
 
 ========================================================================

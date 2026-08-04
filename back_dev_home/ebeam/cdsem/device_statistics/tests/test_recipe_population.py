@@ -141,16 +141,35 @@ def test_predicates_agree_with_the_office_adapter(oper_desc, recipe_id):
 
 
 def test_non_sample_ids_never_match_the_sample_suffix_by_accident():
-    """비-Sample id 는 숫자로 끝나야 합니다.
+    """비-Sample id 는 숫자 또는 판정 외 job 접미사로 끝나야 합니다.
 
     office 쪽 주석이 경고하듯 ``SE`` 를 이름 끝에서 찾으면 PHASE/BASE/SET 같은
     평범한 단어가 전부 Sample 이 됩니다. mock 이 그 함정을 우연히 밟지 않는지 봅니다.
+    판정 외 접미사(_WCDU/_FCDU/_FULL — user-confirmed 2026-08-04)는 실물 이름의
+    일부이며 ``(_S|SE)$`` 와 겹치지 않습니다.
     """
+    exempt = ("_WCDU", "_FCDU", "_FULL")
     population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     for identity in population:
         recipe_id = identity["recipe_id"]
         if not is_sample_recipe(recipe_id):
-            assert recipe_id[-1].isdigit(), recipe_id
+            assert recipe_id[-1].isdigit() or recipe_id.endswith(exempt), recipe_id
+
+
+def test_judge_exempt_suffixes_are_present_in_the_pool():
+    """판정 외 job 이름이 실제로 생성되는지 봅니다.
+
+    없으면 프론트엔드의 exempt 경로(lotHealth.isJudgeExempt)가 집에서 한 번도
+    실행되지 않습니다 — mock 이 office 를 대역한다는 원칙(CLAUDE.md)입니다.
+    """
+    population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    present = {
+        suffix
+        for suffix in ("_WCDU", "_FCDU", "_FULL")
+        for r in population
+        if r["recipe_id"].endswith(suffix)
+    }
+    assert present == {"_WCDU", "_FCDU", "_FULL"}, present
 
 
 # ── 주차 궤적 ────────────────────────────────────────────────────────────

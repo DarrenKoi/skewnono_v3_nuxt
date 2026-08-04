@@ -87,14 +87,22 @@ docstring.
   has no source column and is synthesized as `{fac_id}-{lot_cd}` (a row index
   would move every device's id whenever the catalog changes). See
   `docs/datatables/r3_device_grp.txt`.
-- Notes: **this endpoint has no query params and always returns the full
-  2000-row table** — unlike `recipe-statistics`/`recipe-params`/
-  `recipe-trend` below, there is no narrowing here to preserve; office
-  should expect callers (including the parity harness) to always fetch the
-  whole table. `lot_cd` is the join key shared with `device-desc` below —
-  office must keep both tables' `lot_cd` vocabularies compatible for
-  `recipe-params`/`recipe-statistics`/`recipe-trend`'s downstream lot
-  lookups to work at all.
+- Notes: **this endpoint has no query params** — unlike
+  `recipe-statistics`/`recipe-params`/`recipe-trend` below, there is no
+  lot-narrowing here to preserve. `lot_cd` is the join key shared with
+  `device-desc` below — office must keep both tables' `lot_cd` vocabularies
+  compatible for `recipe-params`/`recipe-statistics`/`recipe-trend`'s
+  downstream lot lookups to work at all.
+- Office activity filter (user-confirmed 2026-08-04): the office adapter
+  intersects the catalog with the unique `lot_cd` set from the last 90 days
+  of `ebeam_tas_lot_hist` (`_active_lot_cds`, same window as the M-fab step
+  query) so the picker only lists devices with recent measurement activity —
+  the raw catalog still contains retired lots. The mock does NOT stand in
+  for this filter (it cannot know which lots are genuinely recent) and
+  returns the full universe; only the office adapter narrows. OFFICE-VERIFY:
+  confirm R3 lot codes actually appear in `ebeam_tas_lot_hist.lot_cd` (the
+  recipe_tat adapter joins the same set against `r3_device_grp`, so they
+  should).
 
 ## Endpoint: GET /api/cdsem/device-statistics/device-desc
 
@@ -133,6 +141,8 @@ docstring.
   fac_id-filtered) table with no lot-narrowing — no huge-payload concern
   here relative to the trend/params endpoints below, but the unfiltered
   call is still ~2000 rows; office does not need to artificially cap it.
+  The same 90-day `ebeam_tas_lot_hist` activity filter as `r3-device-grp`
+  applies office-side (user-confirmed 2026-08-04, see the note there).
 
 ## Endpoint: GET /api/cdsem/device-statistics/recipe-statistics
 
@@ -320,6 +330,18 @@ docstring.
   cells. `save`/`history`/`rollback` are explicitly out of scope for this
   seam (per the mock's own docstring, "step 3/5" — a future feature, not
   part of this office migration).
+- Troubleshooting — **comparison page shows 판정 범위 `0 / N` for every R3
+  lot** (observed office-side 2026-08-04). Two known causes, told apart by
+  the coverage-cell tooltip:
+  1. Rules never published: `curl <host>/api/cdsem/device-statistics/rules?fac_id=R3`
+     returns 404 → run `publish_rules("R3", ...)` once against the office
+     Redis. The tooltip says "계측 룰이 없습니다".
+  2. Rules published but every recipe falls out as gray (e.g. `phase` is
+     null because real device `ctn_desc` strings don't carry parseable
+     EV/TV/PV tokens, or `memory_class` is unknown and Pool lots lack a
+     `yield_check` annotation). The tooltip now lists the per-reason gray
+     counts ("룰은 있으나 전 recipe 가 판정에서 제외 — …") so the blocking
+     derivation can be identified on the spot.
 
 ## Endpoint: GET /api/cdsem/device-statistics/recipe-trend
 

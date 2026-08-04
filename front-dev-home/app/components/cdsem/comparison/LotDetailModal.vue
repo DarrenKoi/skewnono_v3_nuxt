@@ -2,7 +2,7 @@
   <UModal
     v-model:open="open"
     :title="row?.lot_cd ?? ''"
-    :ui="{ content: 'w-[92vw] sm:max-w-[860px]' }"
+    :ui="{ content: 'w-[92vw] sm:max-w-[1040px]' }"
   >
     <template #body>
       <div
@@ -116,7 +116,17 @@
               <template #recipe_id-cell="{ row: r }">
                 <span class="font-mono font-semibold text-(--sk-ink)">{{ r.original.recipe_id }}</span>
               </template>
+
+              <template #oper_desc-cell="{ row: r }">
+                <span
+                  class="block max-w-[200px] truncate text-(--sk-ink-muted)"
+                  :title="r.original.oper_desc"
+                >{{ r.original.oper_desc || '—' }}</span>
+              </template>
             </UTable>
+            <p class="border-t border-(--sk-border-soft) px-3 py-1.5 text-[10.5px] text-(--sk-ink-subtle)">
+              {{ text.seqCaveat }}
+            </p>
           </div>
           <p
             v-else
@@ -155,7 +165,10 @@ const open = defineModel<boolean>('open', { required: true })
 
 const text = {
   recipeEmpty: '이 lot 의 recipe 가 현재 bucket 에 없습니다.',
-  noRules: '룰 없음'
+  noRules: '룰 없음',
+  // M 계열은 원천에 순서 field 가 없어 oper_seq/samp_seq 를 공정 접두사 순위로
+  // 합성합니다 — 화면 표기 의무 (docs/datatables/ebeam_tas_lot_hist.txt ★).
+  seqCaveat: 'M 계열 fab 의 oper_seq · samp_seq 는 합성값으로, 실제 운영 공정 순서를 반영하지 않습니다.'
 } as const
 
 const colorMode = useColorMode()
@@ -172,6 +185,9 @@ const recipeSorting = ref<SortingState>([{ id: 'para_all', desc: true }])
 const recipeColumns: TableColumn<RecipeInfoRow>[] = [
   { accessorKey: 'recipe_id', header: 'recipe_id' },
   { accessorKey: 'oper_id', header: 'oper_id', size: 110 },
+  { accessorKey: 'oper_desc', header: 'oper_desc', size: 200 },
+  { accessorKey: 'oper_seq', header: 'oper_seq', size: 84 },
+  { accessorKey: 'samp_seq', header: 'samp_seq', size: 84 },
   { accessorKey: 'para_16', header: 'para_16', size: 80 },
   { accessorKey: 'para_13', header: 'para_13', size: 80 },
   { accessorKey: 'para_9', header: 'para_9', size: 80 },
@@ -180,7 +196,8 @@ const recipeColumns: TableColumn<RecipeInfoRow>[] = [
 ]
 
 const recipeColumnIds = [
-  'recipe_id', 'oper_id', 'para_16', 'para_13', 'para_9', 'para_5', 'para_all'
+  'recipe_id', 'oper_id', 'oper_desc', 'oper_seq', 'samp_seq',
+  'para_16', 'para_13', 'para_9', 'para_5', 'para_all'
 ] as const
 
 const getSortIcon = (direction: false | 'asc' | 'desc') => {

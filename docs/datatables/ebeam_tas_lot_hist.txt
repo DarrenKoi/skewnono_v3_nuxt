@@ -55,6 +55,17 @@ oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. �
 필요하다면 lot_cd.keyword 에 대한 terms aggregation 이 전체 row 를 내려받는
 range_dataframe_all 보다 가볍습니다(인덱스 규모에 따라 선택).
 
+조회 방법(device-statistics — 카탈로그 필터, user-confirmed 2026-08-04)
+
+recipe_tat 과 같은 이유로 device-statistics 의 device 목록(r3-device-grp /
+device-desc 응답)도 이 index 로 거릅니다 — Redis 카탈로그는 폐기된 lot_cd 까지
+담고 있으므로, 최근 90일 창(아래 스텝 조회와 같은 창)의 unique lot_cd 와
+교집합을 취해 "현재 생산 중" 만 목록에 남깁니다. 구현은
+back_dev_home/ebeam/cdsem/device_statistics/providers/office_example.py 의
+_active_lot_cds 입니다. meas_hist 화면의 device 목록과 같은 원천이라 두 화면의
+집합이 어긋나지 않습니다. 60일(recipe_tat)과 90일(device-statistics)은 근거가
+달라 상수를 공유하지 않습니다.
+
 조회 방법(device-statistics — M fab 스텝, user-confirmed 2026-07-30)
 
 device-statistics 의 공정 스텝 소스는 fab 계열에 따라 **둘로 갈립니다**.

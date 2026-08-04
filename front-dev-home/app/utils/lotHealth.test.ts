@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  augmentRow, buildLotVerdicts, extractStage, paraTotal, recipeKey, verdictSortValue,
+  augmentRow, buildLotVerdicts, extractStage, isJudgeExempt, paraTotal, recipeKey, verdictSortValue,
   type RuleSet
 } from './lotHealth.ts'
 import type { RecipeInput, RuleCell } from './ruleEngine.ts'
@@ -141,6 +141,55 @@ test('rules present but EVERY recipe gray is no-verdict, not green', () => {
   assert.equal(v.coverage, 0)
 })
 
+// --- judge-exempt jobs (_WCDU / _FCDU / _FULL, user-confirmed 2026-08-04) ---
+
+test('isJudgeExempt matches the three suffixes, case-insensitive, at the end only', () => {
+  assert.equal(isJudgeExempt('RCP-R000-001_WCDU'), true)
+  assert.equal(isJudgeExempt('RCP-R000-001_FCDU'), true)
+  assert.equal(isJudgeExempt('RCP-R000-001_full'), true)
+  // 접미사가 아니라 중간에 있으면 판정 대상입니다.
+  assert.equal(isJudgeExempt('RCP_FULL-R000-001'), false)
+  assert.equal(isJudgeExempt('RCP-R000-001'), false)
+  assert.equal(isJudgeExempt(''), false)
+})
+
+test('exempt recipes leave BOTH the numerator and the denominator', () => {
+  const rows = [
+    recipe('A', 20), // violating
+    recipe('B', 5),
+    // 위반 point 수라도 판정 외 job 이면 아무 데도 집계되지 않아야 합니다.
+    recipe('C_WCDU', 99),
+    recipe('D_FULL', 99)
+  ]
+  const v = buildLotVerdicts(rows, rulesByFab).get('R000')!
+
+  assert.equal(v.total_recipes, 2, 'exempt jobs must not dilute the denominator')
+  assert.equal(v.judged_recipes, 2)
+  assert.equal(v.violation_recipes, 1)
+  assert.equal(v.exempt_recipes, 2)
+  assert.equal(v.coverage, 1, 'coverage stays intact when only exempt jobs are removed')
+})
+
+test('a lot whose recipes are ALL exempt still gets a verdict carrying the count', () => {
+  const rows = [recipe('A_FCDU', 5), recipe('B_FULL', 5)]
+  const v = buildLotVerdicts(rows, rulesByFab).get('R000')!
+
+  assert.equal(v.kind, 'no-rules')
+  assert.equal(v.health, null)
+  assert.equal(v.total_recipes, 0)
+  assert.equal(v.exempt_recipes, 2, 'the tooltip needs the count to explain the empty coverage')
+})
+
+test('bucket scoping still applies before the exempt filter', () => {
+  const rows = [recipe('A', 5), recipe('B_WCDU', 5)]
+  const v = buildLotVerdicts(
+    rows, rulesByFab, new Set([recipeKey('R000', 'A')])
+  ).get('R000')!
+  // 버킷에 없는 exempt recipe 는 exempt 로도 세지 않습니다.
+  assert.equal(v.exempt_recipes, 0)
+  assert.equal(v.total_recipes, 1)
+})
+
 // --- bucket scoping (the whole reason the filter exists) ---
 
 test('bucket keys scope the verdict to the selected bucket', () => {
@@ -188,7 +237,7 @@ test('no-verdict lots sort last, red first', () => {
   const mk = (health: 'red' | 'yellow' | 'green', ratio: number) => ({
     kind: 'judged' as const, health, violation_ratio: ratio,
     violation_recipes: 0, judged_recipes: 4, total_recipes: 4,
-    gray_recipes: 0, gray_reasons: {}, coverage: 1
+    gray_recipes: 0, gray_reasons: {}, exempt_recipes: 0, coverage: 1
   })
   const order = [
     mk('green', 0), mk('red', 0.5), undefined, mk('yellow', 0.15)
@@ -239,7 +288,7 @@ test('within one colour the worse ratio comes first', () => {
   const mk = (ratio: number) => ({
     kind: 'judged' as const, health: 'red' as const, violation_ratio: ratio,
     violation_recipes: 0, judged_recipes: 4, total_recipes: 4,
-    gray_recipes: 0, gray_reasons: {}, coverage: 1
+    gray_recipes: 0, gray_reasons: {}, exempt_recipes: 0, coverage: 1
   })
   assert.ok(verdictSortValue(mk(0.9)) < verdictSortValue(mk(0.3)))
 })

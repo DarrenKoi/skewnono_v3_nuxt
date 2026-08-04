@@ -268,11 +268,21 @@ const percent = (value: number) => `${Math.round(value * 100)}%`
 /** gray 사유별 건수를 툴팁 한 줄로. 왜 판정 대상에서 빠졌는지 말해 줍니다. */
 const coverageTitle = (r: HealthAugmentedRow) => {
   const v = r.verdict
-  if (v.kind === 'no-rules') return `${r.fac_id} 에는 계측 룰이 없습니다 (D22)`
+  // 판정 외 job(_WCDU/_FCDU/_FULL)은 분모에도 없으므로 항상 꼬리로만 언급합니다.
+  const exempt = v.exempt_recipes > 0 ? ` · 판정 외 job ${v.exempt_recipes}건 (WCDU/FCDU/FULL)` : ''
+  if (v.kind === 'no-rules') {
+    // 같은 kind 라도 원인이 둘입니다 — gray 가 있으면 룰은 있었던 것입니다.
+    // 사무실에서 "판정 범위 전부 0" 이 보일 때 이 툴팁이 원인을 가릅니다.
+    if (v.gray_recipes > 0) {
+      const detail = Object.entries(v.gray_reasons).map(([reason, n]) => `${reason} ${n}건`).join(', ')
+      return `룰은 있으나 전 recipe 가 판정에서 제외되었습니다 — ${detail}${exempt}`
+    }
+    return `${r.fac_id} 의 계측 룰이 없습니다 — M 계열은 D22 폐기, R3 라면 룰 미발행(publish_rules) 확인${exempt}`
+  }
   const reasons = Object.entries(v.gray_reasons)
-  if (reasons.length === 0) return `${v.judged_recipes}건 모두 판정했습니다`
+  if (reasons.length === 0) return `${v.judged_recipes}건 모두 판정했습니다${exempt}`
   const detail = reasons.map(([reason, n]) => `${reason} ${n}건`).join(', ')
-  return `판정 ${v.judged_recipes} / 전체 ${v.total_recipes} — 제외: ${detail}`
+  return `판정 ${v.judged_recipes} / 전체 ${v.total_recipes} — 제외: ${detail}${exempt}`
 }
 
 // 정렬은 lotHealth 가 정의합니다 — 판정 없음이 항상 맨 뒤로 갑니다.

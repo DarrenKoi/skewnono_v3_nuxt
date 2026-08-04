@@ -299,14 +299,58 @@ def _hvm_rows() -> list[DeviceDescRow]:
     return rows
 
 
+# 최근 활동 창의 unique lot_cd 상한(terms agg size). 카탈로그 자체가 수천 행
+# 규모라 이 값이면 전부 담깁니다 — 넘치면 조용히 잘라 device 를 잃는 대신
+# 실패시킵니다 (MAX_STEPS_PER_DEVICE 와 같은 방침).
+_MAX_ACTIVE_LOTS = 50_000
+
+
+@ttl_cache
+def _active_lot_cds() -> set[str]:
+    """최근 ``MFAB_WINDOW_DAYS`` 일의 ebeam_tas_lot_hist 에 나타난 lot_cd 집합.
+
+    두 카탈로그(Redis)는 폐기된 lot_cd 까지 전부 담고 있어(device_desc.txt),
+    recipe_tat 이 하듯 최근 측정 활동이 있는 lot 만 목록에 남깁니다
+    (user-confirmed 2026-08-04). meas_hist 화면의 device 목록과 같은 원천이라
+    두 화면의 "현재 생산 중" 집합이 어긋나지 않습니다.
+
+    창은 스텝 조회(_mfab_steps)와 같은 90일을 씁니다 — 목록에 있는 device 는
+    스텝도 있어야 하므로, 두 창이 갈라지면 "목록에는 있는데 스텝이 빈" device
+    가 생깁니다. recipe_tat 의 60일과 상수를 공유하지 않는 이유는
+    ebeam_tas_lot_hist.txt 에 있습니다.
+    """
+    floor = (datetime.now(KST) - timedelta(days=MFAB_WINDOW_DAYS)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    aggs = {"lots": {"terms": {"field": LOT_CD_KW, "size": _MAX_ACTIVE_LOTS}}}
+    result = _aggregate(
+        LOT_HIST_INDEX,
+        aggs,
+        _query([{"range": {LOT_HIST_TIME_F: {"gte": floor}}}]),
+    )
+    buckets = result.get("lots", {}).get("buckets", [])
+    if len(buckets) >= _MAX_ACTIVE_LOTS:
+        raise LookupError(
+            f"{LOT_HIST_INDEX!r} returned {_MAX_ACTIVE_LOTS}+ unique lot_cds in "
+            f"the {MFAB_WINDOW_DAYS}-day window. A truncated set silently drops "
+            "devices from the picker; raise _MAX_ACTIVE_LOTS or narrow the window."
+        )
+    return {_text(bucket.get("key")) for bucket in buckets if _text(bucket.get("key"))}
+
+
 def get_r3_device_grp() -> list[R3DeviceGrpRow]:
-    """R3/R&D 카탈로그 전체 (query param 없음 — MIGRATION.md)."""
-    return list(_r3_rows())
+    """R3/R&D 카탈로그 — 최근 활동이 있는 lot 만 (query param 없음 — MIGRATION.md)."""
+    active = _active_lot_cds()
+    return [row for row in _r3_rows() if row["lot_cd"] in active]
 
 
 def get_device_desc(fac_ids: list[str] | None = None) -> list[DeviceDescRow]:
-    """M 계열 양산 카탈로그. ``fac_ids`` 는 대문자 정확 일치 필터입니다."""
-    rows = list(_hvm_rows())
+    """M 계열 양산 카탈로그 — 최근 활동이 있는 lot 만.
+
+    ``fac_ids`` 는 대문자 정확 일치 필터입니다.
+    """
+    active = _active_lot_cds()
+    rows = [row for row in _hvm_rows() if row["lot_cd"] in active]
     if not fac_ids:
         return rows
     wanted = {value.strip().upper() for value in fac_ids if value.strip()}
@@ -320,7 +364,13 @@ def get_device_desc(fac_ids: list[str] | None = None) -> list[DeviceDescRow]:
 
 @ttl_cache
 def _lot_index() -> dict[str, str]:
-    """lot_cd -> fac_id. 두 카탈로그의 합집합 (mock 의 _lot_index 와 같은 역할)."""
+    """lot_cd -> fac_id. 두 카탈로그의 합집합 (mock 의 _lot_index 와 같은 역할).
+
+    일부러 최근 활동 필터(_active_lot_cds)를 걸지 않습니다 — 이것은 **목록이
+    아니라 해석기**입니다. 카트에 담긴 lot 이 조회 시점에 90일 창 밖으로
+    나갔더라도, 명시적으로 요청된 lot 의 fac_id 는 해석해 줘야 화면이 빈 응답
+    대신 데이터를 보여줍니다.
+    """
     index: dict[str, str] = {}
     for row in _r3_rows():
         index[row["lot_cd"]] = row["fac_id"]

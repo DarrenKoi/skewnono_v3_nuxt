@@ -47,6 +47,11 @@ export interface LotVerdict {
   gray_recipes: number
   /** "memory_class 미설정" 등 사유별 건수. 툴팁이 그대로 보여줍니다. */
   gray_reasons: Record<string, number>
+  /**
+   * 판정 외 job(_WCDU/_FCDU/_FULL) 건수. total_recipes 에 **포함되지 않고**
+   * coverage 에도 영향이 없습니다 — 툴팁이 알려주기 위한 집계일 뿐입니다.
+   */
+  exempt_recipes: number
   /** judged / total. 0 이면 아무것도 판정하지 못했습니다. */
   coverage: number
 }
@@ -54,6 +59,16 @@ export interface LotVerdict {
 /** `lot_cd`+`recipe_id` 한 쌍의 키. 버킷 필터가 이 키로 좁힙니다. */
 export const recipeKey = (lotCd: string, recipeId: string): string =>
   `${lotCd}\u0000${recipeId}`
+
+// 판정 외(exempt) job. recipe 이름이 이 접미사로 끝나면 CDU·full-map 측정 job
+// 이라 파라미터 point cap 판정의 대상이 아닙니다 (user-confirmed 2026-08-04).
+// gray(판정 보류 — 분모에 남아 coverage 를 낮춤)와 달리 분자·분모 **모두**에서
+// 빠집니다 — 애초에 판정 범위 밖인 recipe 입니다.
+const JUDGE_EXEMPT_SUFFIX = /(_WCDU|_FCDU|_FULL)$/i
+
+/** recipe 가 판정 범위 밖의 job(_WCDU/_FCDU/_FULL)인가. */
+export const isJudgeExempt = (recipeId: string): boolean =>
+  JUDGE_EXEMPT_SUFFIX.test((recipeId || '').trim())
 
 const emptyVerdict = (): LotVerdict => ({
   kind: 'no-rules',
@@ -64,6 +79,7 @@ const emptyVerdict = (): LotVerdict => ({
   total_recipes: 0,
   gray_recipes: 0,
   gray_reasons: {},
+  exempt_recipes: 0,
   coverage: 0
 })
 
@@ -83,9 +99,16 @@ export const buildLotVerdicts = (
   bucketKeys: Set<string> | null = null
 ): Map<string, LotVerdict> => {
   const byLot = new Map<string, RecipeInput[]>()
+  const exemptByLot = new Map<string, number>()
 
   for (const row of recipeParams) {
     if (bucketKeys && !bucketKeys.has(recipeKey(row.lot_cd, row.recipe_id))) continue
+    // 판정 외 job 은 분자·분모 어디에도 들어가지 않습니다 — 건수만 세어 툴팁이
+    // "빠진 게 아니라 범위 밖" 임을 말할 수 있게 합니다.
+    if (isJudgeExempt(row.recipe_id)) {
+      exemptByLot.set(row.lot_cd, (exemptByLot.get(row.lot_cd) ?? 0) + 1)
+      continue
+    }
     const bucket = byLot.get(row.lot_cd)
     if (bucket) bucket.push(row)
     else byLot.set(row.lot_cd, [row])
@@ -103,7 +126,8 @@ export const buildLotVerdicts = (
     if (!rules || rules.cells.length === 0) {
       verdicts.set(lotCd, {
         ...emptyVerdict(),
-        total_recipes: recipes.length
+        total_recipes: recipes.length,
+        exempt_recipes: exemptByLot.get(lotCd) ?? 0
       })
       continue
     }
@@ -133,8 +157,17 @@ export const buildLotVerdicts = (
       total_recipes: total,
       gray_recipes: total - judged,
       gray_reasons: grayReasons,
+      exempt_recipes: exemptByLot.get(lotCd) ?? 0,
       coverage: total === 0 ? 0 : judged / total
     })
+  }
+
+  // 전 recipe 가 판정 외 job 인 lot 은 byLot 에 아예 없습니다. verdict 를 빈
+  // 손으로 두면 "0 / 0" 이 데이터 유실처럼 읽히므로, 판정 외 건수만 실은 verdict
+  // 를 만들어 툴팁이 사유를 말하게 합니다.
+  for (const [lotCd, exempt] of exemptByLot) {
+    if (verdicts.has(lotCd)) continue
+    verdicts.set(lotCd, { ...emptyVerdict(), exempt_recipes: exempt })
   }
 
   return verdicts

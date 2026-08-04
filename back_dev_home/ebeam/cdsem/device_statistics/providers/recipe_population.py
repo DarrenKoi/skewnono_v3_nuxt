@@ -5,7 +5,11 @@
 ``recipe_id`` 는 실물에서 **DB 를 가로지르는 조인 키**입니다 —
 sknn-planstep-r3 의 recipe_id 가 cdsem_idp_ver 의 full_name 과 같은 값이고
 (docs/datatables/idp_ver.txt L55), ebeam_tas_lot_hist 의 recipe_id 도 "다른 DB 의
-full_name 과 동일 체계"입니다 (ebeam_tas_lot_hist.txt L34). 접미사가 붙지 않습니다.
+full_name 과 동일 체계"입니다 (ebeam_tas_lot_hist.txt L34). 우리가 가공 접미사를
+덧붙이지 않습니다 — 단, 실물 recipe **이름 자체**는 "_S"/"SE"(Sample) 외에
+"_WCDU"/"_FCDU"/"_FULL"(CDU·full-map job, user-confirmed 2026-08-04)로 끝날 수
+있고, 이는 이름의 일부이므로 조인 키를 깨지 않습니다. 프론트엔드는 이 세 접미사의
+recipe 를 판정 범위에서 뺍니다 (lotHealth.isJudgeExempt).
 
 예전 mock 은 버킷마다, 그리고 주차마다 recipe 를 **따로** 만들고 id 에 버킷 이름을
 박았습니다 (``RCP-R000-ALL-000`` / ``RCP-R000-MOT-000``). 그래서
@@ -135,6 +139,13 @@ _CD_VARIANTS = ("CD(E)", "CD(F)")
 # recipe 이름이 "_S"/"SE" 로 끝나는 비율 = only_sample 버킷 크기.
 _SAMPLE_RATIO = 0.25
 
+# 판정 외(exempt) job 접미사 — CDU·full-map 측정 job 은 recipe 이름이 이렇게
+# 끝납니다 (user-confirmed 2026-08-04). 프론트엔드 lotHealth.isJudgeExempt 가
+# 이 접미사를 판정 범위(분자·분모 모두)에서 뺍니다 — mock 이 이 이름을 만들지
+# 않으면 그 경로가 집에서 한 번도 실행되지 않습니다.
+_JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_FULL")
+_JUDGE_EXEMPT_RATIO = 0.10
+
 _OPER_PREFIXES = (
     "ETCH", "DEPO", "LITH", "IMPL", "CLEAN", "ANNL", "INSP", "MEAS",
     "CMP", "STRIP", "OXID", "DIFF",
@@ -220,13 +231,19 @@ def _step_name(rng: random.Random) -> str:
 
 
 def _recipe_name(rng: random.Random, lot_cd: str, idx: int) -> str:
-    """접미사 없는 base + Sample 이면 "_S"/"SE".
+    """base + Sample 이면 "_S"/"SE", 일부는 판정 외 job 접미사(_WCDU 등).
 
-    비-Sample id 는 숫자로 끝나므로 ``(_S|SE)$`` 에 우연히 걸리지 않습니다.
+    비-Sample·비-exempt id 는 숫자로 끝나므로 ``(_S|SE)$`` 에 우연히 걸리지
+    않습니다. exempt 분기는 **같은 roll 을 나눠 쓰고** 접미사를 idx 로 골라
+    rng 호출 수를 바꾸지 않습니다 — 호출 수가 달라지면 풀의 뒤쪽 recipe 전부가
+    다른 값으로 다시 태어나, 결정론에 기대는 화면·테스트가 통째로 흔들립니다.
     """
     base = f"RCP-{lot_cd}-{idx:03d}"
-    if rng.random() < _SAMPLE_RATIO:
+    roll = rng.random()
+    if roll < _SAMPLE_RATIO:
         return base + rng.choice(("_S", "SE"))
+    if roll < _SAMPLE_RATIO + _JUDGE_EXEMPT_RATIO:
+        return base + _JUDGE_EXEMPT_SUFFIXES[idx % len(_JUDGE_EXEMPT_SUFFIXES)]
     return base
 
 

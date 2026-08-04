@@ -41,6 +41,9 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
   eqp_id -> string: 장비 ID.
   recipe_id -> string: recipe 식별자. **다른 DB 의 full_name 과 동일한 값**입니다 —
                        cdsem_idp_ver.full_name 과 이 값으로 조인합니다.
+                       이름이 "_WCDU"/"_FCDU"/"_FULL" 로 끝나면 CDU·full-map
+                       측정 job 으로, 계측 룰 판정 범위에서 제외됩니다
+                       (user-confirmed 2026-08-04 — recipe_params.txt).
   bak_eqp_yn -> string: "Y" | "N". 백업 장비 지정 여부입니다.
   bak_eqp_id_lval -> string: 백업 장비 목록을 슬래시로 이어붙인 문자열입니다.
                              예 "MCD018 / MCD018 / ...". 단일 문자열이므로 장비별로
