@@ -13,6 +13,7 @@ from ._auth.middleware import install_identity_middleware
 from ._auth.provider import ANONYMOUS, CloudIdentityProvider, LocalIdentityProvider
 from ._logging.activity import install_activity_logging
 from ._runtime.boot import log_provider_table
+from .chat.conversation_log import install_chat_conversation_logging
 from ._runtime.data_provider import get_mode, validate_env
 from ._runtime.env import is_cloud
 
@@ -222,6 +223,7 @@ def create_app() -> Flask:
     provider = CloudIdentityProvider() if is_cloud() else LocalIdentityProvider()
     install_identity_middleware(app, provider)
     install_activity_logging(app)
+    install_chat_conversation_logging()
 
     # wsgi.ini exposes http-socket directly today, so request.remote_addr is
     # already the real client IP and trusting X-Forwarded-For would let any
