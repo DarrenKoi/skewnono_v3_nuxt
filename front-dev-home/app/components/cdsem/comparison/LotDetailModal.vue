@@ -2,7 +2,7 @@
   <UModal
     v-model:open="open"
     :title="row?.lot_cd ?? ''"
-    :ui="{ content: 'w-[92vw] sm:max-w-[1040px]' }"
+    :ui="{ content: 'w-[95vw] sm:max-w-[1400px] sm:max-h-[calc(100dvh-2rem)]' }"
   >
     <template #body>
       <div
@@ -89,7 +89,7 @@
           >
             <UTable
               v-model:sorting="recipeSorting"
-              class="max-h-80"
+              class="max-h-[28rem]"
               :columns="recipeColumns"
               :data="lotRecipes"
               :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"

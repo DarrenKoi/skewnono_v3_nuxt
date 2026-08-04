@@ -437,8 +437,15 @@ const formatBarTooltip = (raw: TopLevelFormatterParams) => {
   if (arr.length === 0) return ''
   const lot = (arr[0]?.name as string | undefined) ?? ''
   const desc = ctnDescByLot.value[lot] ?? ''
+  // No fixed color here: every chart theme paints the tooltip on a dark
+  // translucent panel (echartsThemes furniture), so a hardcoded gray like
+  // #888 lands at ~2.5:1 contrast. Inheriting the theme's tooltip ink and
+  // de-emphasising with opacity stays legible under every theme/mode pair.
   const header = `<div style="font-weight:600">${escapeHtml(lot)}</div>`
-    + (desc ? `<div style="font-size:10px;color:#888;margin:2px 0 6px">${escapeHtml(desc)}</div>` : '')
+    + (desc
+      ? '<div style="font-size:12px;opacity:0.85;margin:2px 0 6px;'
+      + `max-width:320px;white-space:normal;line-height:1.45">${escapeHtml(desc)}</div>`
+      : '')
   const lines = arr.map((p) => {
     // ECharts marker can be a rich-text token object when textStyle.rich is
     // configured; we don't use rich text, so the runtime value is always

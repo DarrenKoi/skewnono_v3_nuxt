@@ -272,7 +272,7 @@ useEchart(chartEl, option, { exportName: 'para-trend' })
 
 .trend-chart__canvas {
   width: 100%;
-  height: 260px;
+  height: 320px;
 }
 
 .trend-chart__hint {
