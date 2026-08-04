@@ -1,6 +1,23 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { resolvePageIdentity, buildPageViewPath } from './pageIdentity.ts'
+
+// Contract test: frontend identity must partition paths the same way the backend's
+// page_to_feature does — two paths share an identity IFF their slugs are identical.
+const loadContract = () => {
+  const __dir = dirname(fileURLToPath(import.meta.url))
+  const fixture = readFileSync(join(__dir, '__fixtures__/pageIdentityContract.json'), 'utf-8')
+  return JSON.parse(fixture) as Array<{
+    path: string
+    query: Record<string, unknown>
+    slug: string | null
+  }>
+}
+
+const contract = loadContract()
 
 test('a fab switch on the same page is the same identity', () => {
   const a = resolvePageIdentity('/ebeam/cd-sem/M14/storage', {})
@@ -23,12 +40,15 @@ test('different pages are different identities', () => {
   )
 })
 
-test('recipe-status tabs are three different identities', () => {
+test('recipe-status tabs are two different identities (tat vs align/meas)', () => {
   const tat = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'tat' })
   const align = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'align' })
   const meas = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'meas' })
 
-  assert.equal(new Set([tat, align, meas]).size, 3)
+  // tat is one feature (recipe_tat), align and meas are the same feature (fail_issue)
+  assert.notEqual(tat, align)
+  assert.equal(align, meas)
+  assert.equal(new Set([tat, align, meas]).size, 2)
 })
 
 test('recipe-status without a tab is unresolved', () => {
@@ -103,4 +123,95 @@ test('fab switch invariance holds on collapsed pages', () => {
 
   assert.equal(m14search, m16search)
   assert.equal(m14stats, m16stats)
+})
+
+test('tool segment is normalized (cd-sem and hv-sem are the same identity)', () => {
+  const cdsemStorage = resolvePageIdentity('/ebeam/cd-sem/M14/storage', {})
+  const hvsemStorage = resolvePageIdentity('/ebeam/hv-sem/M14/storage', {})
+  const cdsemStats = resolvePageIdentity('/ebeam/cd-sem/device-statistics', {})
+  const hvsemStats = resolvePageIdentity('/ebeam/hv-sem/device-statistics', {})
+
+  assert.equal(cdsemStorage, hvsemStorage)
+  assert.equal(cdsemStats, hvsemStats)
+})
+
+test('skewvoir is the same identity for both index and analysis', () => {
+  const index = resolvePageIdentity('/ebeam/cd-sem/skewvoir', {})
+  const analysis = resolvePageIdentity('/ebeam/cd-sem/skewvoir/analysis', {})
+
+  assert.equal(index, analysis)
+})
+
+test('skewvoir is the same across tool types', () => {
+  const cdsemSkewvoir = resolvePageIdentity('/ebeam/cd-sem/skewvoir', {})
+  const hvsemSkewvoir = resolvePageIdentity('/ebeam/hv-sem/skewvoir', {})
+
+  assert.equal(cdsemSkewvoir, hvsemSkewvoir)
+})
+
+test('contract: identity partitions match backend slug partitions', () => {
+  // Two paths must produce the same identity IFF the backend maps them to the same slug.
+  // This test ensures drift between frontend and backend is caught mechanically.
+
+  // Build a map from slug to list of (path, query) pairs
+  const slugToRows = new Map<string | null, Array<{ path: string, query: Record<string, unknown> }>>()
+  for (const row of contract) {
+    const key = row.slug
+    if (!slugToRows.has(key)) {
+      slugToRows.set(key, [])
+    }
+    slugToRows.get(key)!.push({ path: row.path, query: row.query })
+  }
+
+  // For each slug, all rows with that slug must produce the same identity
+  for (const [slug, rows] of slugToRows.entries()) {
+    const identities = rows.map(row => resolvePageIdentity(row.path, row.query))
+
+    // All identities must be equal (or all null for unresolved pages)
+    const first = identities[0]
+    for (let i = 1; i < identities.length; i++) {
+      assert.equal(
+        identities[i],
+        first,
+        `Rows with slug "${slug}" produced different identities: ${first} vs ${identities[i]}`
+      )
+    }
+  }
+
+  // For any two slugs that are different and non-null, no two rows can produce the same identity
+  const nonNullSlugs = Array.from(slugToRows.keys()).filter((slug): slug is string => slug !== null)
+  for (let i = 0; i < nonNullSlugs.length; i++) {
+    for (let j = i + 1; j < nonNullSlugs.length; j++) {
+      const slug1 = nonNullSlugs[i] as string
+      const slug2 = nonNullSlugs[j] as string
+
+      const rows1Opt = slugToRows.get(slug1)
+      const rows2Opt = slugToRows.get(slug2)
+      const rows1 = rows1Opt ?? []
+      const rows2 = rows2Opt ?? []
+      if (rows1.length === 0 || rows2.length === 0) continue
+
+      const first1 = rows1[0]!
+      const first2 = rows2[0]!
+      const identity1 = resolvePageIdentity(first1.path, first1.query)
+      const identity2 = resolvePageIdentity(first2.path, first2.query)
+
+      assert.notEqual(
+        identity1,
+        identity2,
+        `Different slugs "${slug1}" and "${slug2}" produced the same identity: ${identity1}`
+      )
+    }
+  }
+
+  // Null slug rows must produce null identity
+  const nullRows = slugToRows.get(null) ?? []
+  for (const row of nullRows) {
+    const identity = resolvePageIdentity(row.path, row.query)
+    assert.equal(
+      identity,
+      null,
+      `Unresolved page ${row.path} produced identity ${identity} instead of null`
+    )
+  }
 })

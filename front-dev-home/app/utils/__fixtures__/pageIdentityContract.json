@@ -1,0 +1,177 @@
+[
+  {
+    "path": "/ebeam/cd-sem/M14/storage",
+    "query": {},
+    "slug": "storage"
+  },
+  {
+    "path": "/ebeam/hv-sem/R3/storage",
+    "query": {},
+    "slug": "storage"
+  },
+  {
+    "path": "/ebeam/cd-sem/device-statistics",
+    "query": {},
+    "slug": "device_statistics"
+  },
+  {
+    "path": "/ebeam/cd-sem/device-statistics/comparison",
+    "query": {},
+    "slug": "device_statistics"
+  },
+  {
+    "path": "/ebeam/hv-sem/device-statistics",
+    "query": {},
+    "slug": "device_statistics"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-search",
+    "query": {},
+    "slug": "recipe_search"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-search/compare",
+    "query": {},
+    "slug": "recipe_search"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-search/open",
+    "query": {},
+    "slug": "recipe_search"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-search/lateral",
+    "query": {},
+    "slug": "recipe_search"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-search/meas-hist",
+    "query": {},
+    "slug": "meas_hist"
+  },
+  {
+    "path": "/ebeam/hv-sem/R3/recipe-search",
+    "query": {},
+    "slug": "recipe_search"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": {},
+    "slug": null
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": { "tab": "tat" },
+    "slug": "recipe_tat"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": { "tab": "align" },
+    "slug": "fail_issue"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/recipe-status",
+    "query": { "tab": "meas" },
+    "slug": "fail_issue"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/hardware",
+    "query": {},
+    "slug": "hardware"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/live-alarm",
+    "query": {},
+    "slug": "live_alarm"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/skew-check",
+    "query": {},
+    "slug": "skew_check"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/pm-planning",
+    "query": {},
+    "slug": "pm_planning"
+  },
+  {
+    "path": "/ebeam/cd-sem/skewvoir",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/ebeam/cd-sem/skewvoir/analysis",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/ebeam/hv-sem/skewvoir",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/afm",
+    "query": {},
+    "slug": "afm"
+  },
+  {
+    "path": "/afm/map608/a.tif",
+    "query": {},
+    "slug": "afm"
+  },
+  {
+    "path": "/afm/mapc01/b.tif",
+    "query": {},
+    "slug": "afm"
+  },
+  {
+    "path": "/msr-file",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/msr-files",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/msr-image",
+    "query": {},
+    "slug": "skewvoir"
+  },
+  {
+    "path": "/sem-list",
+    "query": {},
+    "slug": "sem_list"
+  },
+  {
+    "path": "/tool-roster",
+    "query": {},
+    "slug": "tool_roster"
+  },
+  {
+    "path": "/mag-pixel",
+    "query": {},
+    "slug": "mag_pixel"
+  },
+  {
+    "path": "/chat",
+    "query": {},
+    "slug": "chat"
+  },
+  {
+    "path": "/",
+    "query": {},
+    "slug": "(root)"
+  },
+  {
+    "path": "/admin/logs",
+    "query": {},
+    "slug": "admin_logs"
+  },
+  {
+    "path": "/unknown-page",
+    "query": {},
+    "slug": "unknown_page"
+  }
+]
