@@ -28,23 +28,41 @@
       description="아래 집계의 분모에서 빠져 있습니다."
     />
 
-    <div class="flex flex-wrap items-center gap-2">
-      <EbeamSkewvoirTimeseriesParamCoverageList
-        :options="analysis.paramOptions.value"
-        :model-value="analysis.activeParam.value"
-        @update:model-value="ws.setParam($event)"
-      />
-      <!-- Recipe mixing confounds the skew lens: an offset between two tools that
-           ran different recipes is not attributable to the tools. -->
-      <span
-        v-if="integrity.recipeCount > 1"
-        class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-1 font-mono text-[10px] text-(--sk-warn)"
-      >recipe {{ integrity.recipeCount }}종 혼재 · 장비 차이로 해석하기 어렵습니다.</span>
-    </div>
+    <EbeamSkewvoirTimeseriesParamCoverageList
+      :options="analysis.paramOptions.value"
+      :model-value="analysis.activeParam.value"
+      @update:model-value="ws.setParam($event)"
+    />
 
-    <!-- Lens switch. There is no `UButtonGroup` in NuxtUI 4.10 (the registry has
-         UFieldGroup and UTabs); this repo's own precedent for exactly this control
-         is a hand-rolled tablist with native buttons and a roving tabindex — see
+    <!-- Recipe mixing confounds the skew lens: an offset between two tools that
+         ran different recipes is not attributable to the tools.
+
+         On its own line rather than trailing the parameter chips: a warning
+         wrapped into the middle of a chip flow reads as one more parameter, and
+         it moves every time the list rewraps. -->
+    <p
+      v-if="integrity.recipeCount > 1"
+      class="flex w-fit items-center gap-1.5 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-1 text-[11px] text-(--sk-warn)"
+    >
+      <UIcon
+        name="i-lucide-triangle-alert"
+        class="size-3.5 shrink-0"
+      />
+      recipe {{ integrity.recipeCount }}종 혼재 · 장비 차이로 해석하기 어렵습니다.
+    </p>
+
+    <!-- Lens switch — the primary control on this page: it decides which of the
+         three questions (추이 / 분포 / 장비 skew) the whole panel below answers.
+         It was sized like an incidental filter (text-xs on a hairline track),
+         so it read as decoration and users missed that the other two lenses
+         existed. It now wears the app's standard segmented-track skin — h-9,
+         text-sm, icon + label, active pill lifted on a white surface — the same
+         one EquipmentStatusSubTabs and the Recipe TAT 전체 요약/디바이스별 toggle
+         use, so it reads as a view switch on sight.
+
+         There is no `UButtonGroup` in NuxtUI 4.10 (the registry has UFieldGroup
+         and UTabs); this repo's precedent for exactly this control is a
+         hand-rolled tablist with native buttons and a roving tabindex — see
          fdc/SequenceWorkbench.vue, whose keydown handling this mirrors.
 
          Hidden while loading and while there is nothing to show: an empty tab
@@ -54,7 +72,7 @@
       ref="lensTabsEl"
       role="tablist"
       aria-label="Time-Series 보기"
-      class="inline-flex w-fit items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
+      class="inline-flex w-fit items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
       @keydown="onLensKeydown"
     >
       <button
@@ -66,12 +84,16 @@
         :tabindex="ws.tsView.value === lens.value ? 0 : -1"
         :aria-selected="ws.tsView.value === lens.value"
         :aria-controls="panelId(lens.value)"
-        class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
+        class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
         :class="ws.tsView.value === lens.value
-          ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
+          ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
           : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
         @click="ws.setTsView(lens.value)"
       >
+        <UIcon
+          :name="lens.icon"
+          class="size-4 shrink-0"
+        />
         {{ lens.label }}
       </button>
     </div>
@@ -108,6 +130,7 @@
                 :variant="ws.tsAxis.value === opt.value ? 'soft' : 'ghost'"
                 :aria-pressed="ws.tsAxis.value === opt.value"
                 :label="opt.label"
+                :title="opt.hint"
                 @click="ws.setTsAxis(opt.value)"
               />
             </div>
@@ -120,6 +143,7 @@
                 :variant="ws.tsBaseline.value === opt.value ? 'soft' : 'ghost'"
                 :aria-pressed="ws.tsBaseline.value === opt.value"
                 :label="opt.label"
+                :title="opt.hint"
                 @click="ws.setTsBaseline(opt.value)"
               />
             </div>
@@ -249,10 +273,15 @@
     <!-- Sequence Trend plots each measurement's INTERNAL order — a different
          axis from the three lenses above, not a fourth one of them, so it stays
          put rather than joining the switch. The whole set is overlaid, one line
-         per measurement colored by tool, with the focus line emphasized. -->
+         per measurement colored by tool, with the focus line emphasized.
+
+         The meta names chip (x, y) because the sequence is a die-to-die route,
+         not a clock: without that, a rise along the axis is read as drift over
+         time when it may be an ordinary across-wafer signature. The per-point
+         die is in the chart's tooltip. -->
     <EbeamSkewvoirPanelFrame
       title="Sequence Trend"
-      :meta="`${analysis.sequenceGroups.value.length}개 측정 · focus ${analysis.focusRow.value?.lot_id ?? '—'}`"
+      :meta="`${analysis.sequenceGroups.value.length}개 측정 · chip (x, y) 이동 순서 · focus ${analysis.focusRow.value?.lot_id ?? '—'}`"
       icon="i-lucide-activity"
     >
       <template #actions>
@@ -310,21 +339,28 @@ const methodItems = [
   { label: '표준편차(σ) · 진단', value: 'stddev' }
 ]
 
-const LENSES: readonly { value: TsView, label: string }[] = [
-  { value: 'trend', label: '추이' },
-  { value: 'dist', label: '분포' },
-  { value: 'skew', label: '장비 skew' }
+// The icon is part of the lens definition, not a separate lookup — the tab strip
+// and the active panel header both read it here, so they cannot disagree.
+const LENSES: readonly { value: TsView, label: string, icon: string }[] = [
+  { value: 'trend', label: '추이', icon: 'i-lucide-trending-up' },
+  { value: 'dist', label: '분포', icon: 'i-lucide-chart-candlestick' },
+  { value: 'skew', label: '장비 skew', icon: 'i-lucide-scale' }
 ]
 const LENS_ORDER: readonly TsView[] = LENSES.map(l => l.value)
 
-const AXIS_OPTIONS: readonly { value: TsAxisMode, label: string }[] = [
-  { value: 'time', label: '시간' },
-  { value: 'order', label: '순서' },
-  { value: 'eqp', label: '장비' }
+const AXIS_OPTIONS: readonly { value: TsAxisMode, label: string, hint: string }[] = [
+  { value: 'time', label: '시간', hint: '측정 시각 기준으로 배치합니다.' },
+  { value: 'order', label: '순서', hint: '측정 순서대로 균등 간격으로 배치합니다.' },
+  { value: 'eqp', label: '장비', hint: '장비별 열로 모아 배치합니다.' }
 ]
-const BASELINE_OPTIONS: readonly { value: TsBaseline, label: string }[] = [
-  { value: 'raw', label: '원시값' },
-  { value: 'resid', label: '잔차' }
+
+// `원시값` read as jargon for "the number before we did something to it", which
+// is not what this toggle offers: the choice is between the measured value and
+// its distance from the set's median. `측정값` names the thing itself and pairs
+// cleanly with `잔차` — 측정값을 볼 것인가, 세트 기준과의 잔차를 볼 것인가.
+const BASELINE_OPTIONS: readonly { value: TsBaseline, label: string, hint: string }[] = [
+  { value: 'raw', label: '측정값', hint: '측정된 값을 그대로 표시합니다.' },
+  { value: 'resid', label: '잔차', hint: '세트 기준(측정 평균들의 중앙값) 대비 차이를 표시합니다.' }
 ]
 
 const tabId = (lens: TsView): string => `ts-lens-${lens}-tab`
@@ -413,11 +449,11 @@ const activeTitle = computed(() => ({
   skew: '장비 skew'
 }[props.ws.tsView.value]))
 
-const activeIcon = computed(() => ({
-  trend: 'i-lucide-trending-up',
-  dist: 'i-lucide-chart-candlestick',
-  skew: 'i-lucide-scale'
-}[props.ws.tsView.value]))
+// Read off LENSES so the panel header and the tab it belongs to always show the
+// same icon.
+const activeIcon = computed(() =>
+  LENSES.find(l => l.value === props.ws.tsView.value)?.icon ?? 'i-lucide-trending-up'
+)
 
 const activeMeta = computed(() => {
   const param = props.analysis.activeParamLabel.value

@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import {
   setBaseline, buildTrendSeries, placeTrendPoints, distinctEqpIds,
   buildSetDistributionGroups, buildToolSkew, distinctToolCount,
-  setParamOptions, setIntegrity, buildSequenceSeries,
+  setParamOptions, setIntegrity, buildSequenceSeries, sequenceAxisBounds, formatChip,
   type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput,
-  type OptionFileInput, type SeqFileInput
+  type OptionFileInput, type SeqFileInput, type SequenceGroup
 } from './timeSeries.ts'
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 
@@ -344,16 +344,16 @@ test('setParamOptions sorts an unranked parameter last within its coverage tier,
   assert.deepEqual(setParamOptions(rows, files).map(o => o.parameter), ['RANKED', 'UNRANKED'])
 })
 
-test('buildSequenceSeries overlays one line per loaded measurement, sequence-sorted', () => {
+test('buildSequenceSeries overlays one line per loaded measurement, sequence-sorted, carrying the chip', () => {
   const rows = [row('m1', 'TP01', 't1'), row('m2', 'TP02', 't2'), row('m3', 'TP03', 't3')]
   const files = new Map<string, SeqFileInput>([
     ['m1', { rows: [
-      { parameter: 'WAFER', mp_number: 1, sequence: 3, cd_value: 12 },
-      { parameter: 'WAFER', mp_number: 0, sequence: 1, cd_value: 10 },
-      { parameter: 'GATE_CD', mp_number: 2, sequence: 2, cd_value: 99 }
+      { parameter: 'WAFER', mp_number: 1, sequence: 3, cd_value: 12, chip_number: '2,-1' },
+      { parameter: 'WAFER', mp_number: 0, sequence: 1, cd_value: 10, chip_number: '0,0' },
+      { parameter: 'GATE_CD', mp_number: 2, sequence: 2, cd_value: 99, chip_number: '1,0' }
     ] }],
     ['m2', { rows: [
-      { parameter: 'WAFER', mp_number: -1, sequence: 0, cd_value: null }
+      { parameter: 'WAFER', mp_number: -1, sequence: 0, cd_value: null, chip_number: '0,0' }
     ] }]
     // m3 has no file at all (not loaded).
   ])
@@ -363,5 +363,51 @@ test('buildSequenceSeries overlays one line per loaded measurement, sequence-sor
   // the shuffled input, scoped to the requested parameter.
   assert.deepEqual(out.map(g => g.msr), ['m1'])
   assert.equal(out[0]!.eqpId, 'TP01')
-  assert.deepEqual(out[0]!.points, [[1, 10], [3, 12]])
+  // dim2 is the die the value was measured on — this is what the tooltip reads,
+  // so a point that lost its chip would silently become unattributable.
+  assert.deepEqual(out[0]!.points, [[1, 10, '0,0'], [3, 12, '2,-1']])
+})
+
+const seqGroup = (points: SequenceGroup['points']): SequenceGroup =>
+  ({ msr: 'm', label: 'l', eqpId: 'TP01', points })
+
+test('sequenceAxisBounds brackets the DATA, never the origin', () => {
+  // The regression this guards: a recipe whose sequences start at 5000 drew
+  // every point into the last 2% of a 0-5100 axis, because an ECharts value
+  // axis includes zero unless told otherwise. The bounds must sit ON the run.
+  const bounds = sequenceAxisBounds([seqGroup([[5000, 10, '0,0'], [5100, 11, '1,0']])])
+  assert.ok(bounds)
+  assert.equal(bounds.min, 5000 - 2) // 2% of the 100-wide span
+  assert.equal(bounds.max, 5100 + 2)
+  // Emphatically not anchored at zero: the drawn span must dominate the axis.
+  assert.ok(bounds.min > 4000)
+})
+
+test('sequenceAxisBounds spans every group, not just the first', () => {
+  const bounds = sequenceAxisBounds([
+    seqGroup([[50, 1, '0,0']]),
+    seqGroup([[10, 1, '0,0'], [90, 1, '1,0']])
+  ])
+  assert.ok(bounds)
+  assert.equal(bounds.min, 10 - 1.6)
+  assert.equal(bounds.max, 90 + 1.6)
+})
+
+test('sequenceAxisBounds gives a single sequence a window instead of a zero-width axis', () => {
+  // min === max would collapse the axis; the point must land mid-frame.
+  assert.deepEqual(sequenceAxisBounds([seqGroup([[7, 1, '0,0']])]), { min: 6, max: 8 })
+})
+
+test('sequenceAxisBounds returns null when nothing is drawn', () => {
+  assert.equal(sequenceAxisBounds([]), null)
+  assert.equal(sequenceAxisBounds([seqGroup([])]), null)
+})
+
+test('formatChip spaces the die pair and passes anything else through untouched', () => {
+  assert.equal(formatChip('3,-2'), '3, -2')
+  assert.equal(formatChip('3, -2'), '3, -2')
+  // Never guess a die: an unparseable value is shown as-is rather than as (0,0).
+  assert.equal(formatChip(''), '')
+  assert.equal(formatChip('3'), '3')
+  assert.equal(formatChip('1,2,3'), '1,2,3')
 })

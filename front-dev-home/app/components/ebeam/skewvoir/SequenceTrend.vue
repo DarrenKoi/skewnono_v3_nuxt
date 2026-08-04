@@ -29,11 +29,17 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { SequenceGroup } from '~/utils/skewvoirAnalysis/timeSeries'
+import { formatChip, sequenceAxisBounds } from '~/utils/skewvoirAnalysis/timeSeries'
 import { rankToolColors, toolLegendChips } from '~/utils/skewvoirAnalysis/toolColors'
 
 // cd_value across measurement order WITHIN each MSR, the whole set overlaid —
 // one line per measurement, colored by tool, so intra-wafer drift can be read
 // against the other tools' profiles instead of in isolation.
+//
+// The x axis is the recipe's measurement ORDER, and each step is a move to a
+// different die — so a point is "chip (col,row), measured Nth", and the tooltip
+// says so. Without the die, a rise across the axis is unattributable: it reads
+// as tool drift over time when it may be a plain across-wafer signature.
 const props = defineProps<{
   groups: SequenceGroup[]
   /** The focus measurement's line is emphasized, not isolated. */
@@ -49,6 +55,10 @@ const sk = useChartPalette()
 const toolColor = computed(() => rankToolColors(props.groups.map(g => g.eqpId)))
 const legendChips = computed(() => toolLegendChips(toolColor.value))
 
+// Axis bounds from the DATA rather than from zero — see sequenceAxisBounds.
+// Null when nothing is drawn, which leaves the axis to ECharts.
+const xBounds = computed(() => sequenceAxisBounds(props.groups))
+
 const option = computed<EChartsOption>(() => ({
   tooltip: {
     // `item`, not `axis`: sequences from different measurements interleave, so
@@ -57,13 +67,14 @@ const option = computed<EChartsOption>(() => ({
     trigger: 'item',
     formatter: (params) => {
       const p = Array.isArray(params) ? params[0] : params
-      const hit = p as { seriesIndex?: number, value?: number[] }
+      // dim2 is chip_number, carried through untouched by ECharts.
+      const hit = p as { seriesIndex?: number, value?: [number, number, string] }
       const group = props.groups[hit.seriesIndex ?? -1]
       if (!group || !hit.value) return ''
       return [
         group.label,
         `eqp: ${group.eqpId}`,
-        `seq ${hit.value[0]}`,
+        `seq ${hit.value[0]} · chip (${formatChip(hit.value[2] ?? '')})`,
         `${props.parameter}: <b>${hit.value[1]}</b> ${props.unit}`
       ].join('<br/>')
     }
@@ -71,9 +82,16 @@ const option = computed<EChartsOption>(() => ({
   grid: { left: 40, right: 16, top: 24, bottom: 32, containLabel: true },
   xAxis: {
     type: 'value',
-    name: 'sequence',
+    name: 'sequence (chip 이동 순서)',
     nameLocation: 'middle',
     nameGap: 24,
+    // `scale: true` releases the axis from the origin; the explicit bounds then
+    // pin it to the drawn range. Both are needed — `scale` alone still lets
+    // ECharts nice-round outward, which re-introduces the very dead space a
+    // high-numbered sequence run is being rescued from.
+    scale: true,
+    min: xBounds.value?.min,
+    max: xBounds.value?.max,
     axisLabel: { fontSize: 10 },
     nameTextStyle: { fontSize: 10 }
   },

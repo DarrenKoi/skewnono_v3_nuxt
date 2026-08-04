@@ -372,23 +372,36 @@ export const setIntegrity = (
   recipeCount: new Set(resolvedRows.map(r => r.recipeName)).size
 })
 
-/** The site facts one Sequence Trend line needs. `sequence` on top of the
- *  distribution lens's fields, because the x axis IS the sequence. */
+/** The site facts one Sequence Trend line needs. `sequence` and `chip_number`
+ *  on top of the distribution lens's fields: the x axis IS the sequence, and
+ *  every sequence step is a MOVE to a different die — so what a point stands
+ *  for is "this die, measured at this point in the run", not a bare index. */
 export interface SeqSiteInput extends DistSiteInput {
   sequence: number
+  /** Die index `"col,row"`, as `MsrFileRow.chip_number` carries it. */
+  chip_number: string
 }
 
 export interface SeqFileInput {
   rows: SeqSiteInput[]
 }
 
+/** A Sequence Trend datum: the sequence step, the value measured there, and the
+ *  die it was measured on.
+ *
+ *  A 3-tuple rather than an object because ECharts maps a value array
+ *  positionally (dim0 → x, dim1 → y) and hands the whole array to the tooltip
+ *  untouched — so the chip rides along with no parallel lookup structure that
+ *  could drift out of step with the series. */
+export type SequencePoint = [sequence: number, value: number, chip: string]
+
 /** One Sequence Trend line per measurement in the set. */
 export interface SequenceGroup {
   msr: string
   label: string
   eqpId: string
-  /** [sequence, cd_value] in sequence order. */
-  points: [number, number][]
+  /** [sequence, cd_value, chip_number] in sequence order. */
+  points: SequencePoint[]
 }
 
 /** Every loaded measurement's internal sequence for one parameter, so the
@@ -405,10 +418,10 @@ export const buildSequenceSeries = (
   for (const row of rows) {
     const file = files.get(row.msr)
     if (!file) continue
-    const points: [number, number][] = []
+    const points: SequencePoint[] = []
     for (const site of file.rows) {
       if (site.parameter === parameter && isMeasuredSite(site)) {
-        points.push([site.sequence, site.cd_value])
+        points.push([site.sequence, site.cd_value, site.chip_number])
       }
     }
     if (points.length === 0) continue
@@ -416,4 +429,49 @@ export const buildSequenceSeries = (
     groups.push({ msr: row.msr, label: row.label, eqpId: row.eqpId, points })
   }
   return groups
+}
+
+/** The x bounds the Sequence Trend axis should use, or null when nothing is
+ *  drawn (leave the axis to ECharts; there is no shape to distort).
+ *
+ *  The axis must be bounded by the DATA, not by zero. An ECharts `type: 'value'`
+ *  axis defaults to `scale: false`, which always includes the origin — so a
+ *  recipe whose sequences run 5000…5100 draws every point into the last 2% of a
+ *  0–5100 axis. The result reads as a vertical smear, and the flatness is an
+ *  artifact of the origin rather than a fact about the measurement.
+ *
+ *  Padded by 2% of the span so the first and last points sit inside the frame
+ *  instead of on it. A single distinct sequence has zero span, which would
+ *  collapse the axis, so it is given a ±1 window and lands mid-axis.
+ *
+ *  Pure and exported so the bound is unit-tested rather than an expression
+ *  buried in a chart option. */
+export const sequenceAxisBounds = (
+  groups: readonly SequenceGroup[]
+): { min: number, max: number } | null => {
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  for (const g of groups) {
+    for (const [seq] of g.points) {
+      if (seq < min) min = seq
+      if (seq > max) max = seq
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+  if (min === max) return { min: min - 1, max: max + 1 }
+  const pad = (max - min) * 0.02
+  return { min: min - pad, max: max + pad }
+}
+
+/** `chip_number` ("3,-2") as a display pair ("3, -2").
+ *
+ *  Lives beside the builder rather than inside the chart so every consumer
+ *  formats a die the same way. An unparseable value comes back as-is: a raw
+ *  string in the tooltip beats a confidently wrong die. */
+export const formatChip = (chip: string): string => {
+  const parts = chip.split(',')
+  if (parts.length !== 2) return chip
+  const x = parts[0]!.trim()
+  const y = parts[1]!.trim()
+  return x && y ? `${x}, ${y}` : chip
 }
