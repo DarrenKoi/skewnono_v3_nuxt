@@ -4,8 +4,11 @@ skewnono_chat_logging / skewnono_chat_logging_local — chat 대화 기록 (Open
 문서 1건을 적재하며, 스키마의 진실 원천은
 ops_index_mgmt/skewnono_chat_logging.py 의 CHAT_MAPPING_PROPERTIES 와
 back_dev_home/chat/conversation_log.py 의 build_turn_document() 입니다.
-(설계 2026-08-04, 클러스터 반영은 OFFICE-VERIFY — 사무실에서 provisioning
-script 를 실행해야 alias 가 생깁니다.)
+(설계 2026-08-04. 클러스터 반영은 office 확인 2026-08-04 —
+skewnono_chat_logging alias 생성을 user-confirmed. local family 는
+provisioning script 의 기본 실행이 함께 만들지만 개별 확인은 받지
+않았으므로, 사무실 localhost 에서 처음 쓸 때 GET /api/health/logging 류의
+증상이 보이면 script 를 한 번 더 실행하면 됩니다 — idempotent 합니다.)
 
 왜 별도 인덱스인가
 - skewnono_logging(활동 로그)은 query·answer 본문을 절대 저장하지 않는다는
