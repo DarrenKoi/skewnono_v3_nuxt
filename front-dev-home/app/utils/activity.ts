@@ -1,7 +1,8 @@
 import type { DailyCount } from '~/composables/useActivityApi'
 
-// Page-level slugs — see back_dev_home/_logging/feature_map.py. `cdsem` /
-// `hvsem` only appear via the fallback for unmapped tool-slug endpoints.
+// Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
+// the API-path map and the frontend-path map used by the page-view beacon.
+// `cdsem` / `hvsem` only appear via the fallback for unmapped paths.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',
@@ -9,11 +10,15 @@ const FEATURE_LABELS: Record<string, string> = {
   announcements: '공지사항',
   api_tokens: 'API 토큰',
   cdsem: 'CD-SEM',
+  chat: 'AI 어시스턴트',
   device_statistics: '디바이스 통계',
   fail_issue: 'Fail Issue',
   hardware: 'Hardware 모니터링',
   health: '서비스 상태',
+  home: '홈',
   hvsem: 'HV-SEM',
+  live_alarm: 'Live Alarm',
+  mag_pixel: 'Mag/Pixel 가이드',
   meas_hist: '측정 이력',
   pm_planning: 'PM Planning',
   recipe_search: 'Recipe 검색',
