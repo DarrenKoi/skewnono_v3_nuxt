@@ -299,6 +299,17 @@
                 @change="toggleDeviceSelect(row.original.lot_cd)"
               >
             </template>
+            <template #meas_count-cell="{ row }">
+              <span
+                v-if="measCountByLot.get(row.original.lot_cd) !== undefined"
+                class="tabular-nums text-(--sk-ink-muted)"
+              >{{ measCountByLot.get(row.original.lot_cd)!.toLocaleString() }}</span>
+              <span
+                v-else
+                class="text-(--sk-ink-subtle)"
+                title="최근 90일 측정 순위에 없는 lot 입니다"
+              >—</span>
+            </template>
             <template #ctn_desc-cell="{ row }">
               <span class="block max-w-md truncate text-zinc-600 dark:text-zinc-300">
                 {{ row.original.ctn_desc }}
@@ -553,6 +564,14 @@ const measRankIndex = computed(() => {
   return map
 })
 
+// lot_cd -> 측정 건수. Meas (90d) 열이 읽습니다 — 순위에 없는 lot 은
+// undefined 로 남겨 "0건" 과 "순위 자료 없음" 을 구분합니다.
+const measCountByLot = computed(() => {
+  const map = new Map<string, number>()
+  for (const entry of measActivity.value ?? []) map.set(entry.lot_cd, entry.meas_count)
+  return map
+})
+
 const matchesDomainFilters = (row: DeviceRow) => {
   if (topLotSet.value && !topLotSet.value.has(row.lot_cd)) {
     return false
@@ -647,6 +666,25 @@ const deviceDescColumnMetadata = [
 const columns = computed<TableColumn<DeviceRow>[]>(() => {
   const meta = hasRSelection.value ? r3ColumnMetadata : deviceDescColumnMetadata
 
+  const mapped: TableColumn<DeviceRow>[] = meta.map(column => ({
+    accessorKey: column.key as string,
+    header: column.label,
+    size: column.size
+  }))
+
+  // Lot 바로 뒤에 측정 건수 열 — 측정 상위 필터가 자르는 근거 숫자를 표에서
+  // 바로 보여줍니다. 행 데이터가 아니라 순위 응답에서 조인하는 파생 열이라
+  // metadata 표(행 key 기반)에는 넣지 않습니다.
+  const lotIndex = mapped.findIndex(
+    column => (column as { accessorKey?: string }).accessorKey === 'lot_cd'
+  )
+  mapped.splice(lotIndex + 1, 0, {
+    id: 'meas_count',
+    header: 'Meas (90d)',
+    size: 100,
+    accessorFn: row => measCountByLot.value.get(row.lot_cd) ?? null
+  })
+
   return [
     {
       id: 'select',
@@ -655,11 +693,7 @@ const columns = computed<TableColumn<DeviceRow>[]>(() => {
       enableSorting: false,
       enableHiding: false
     },
-    ...meta.map(column => ({
-      accessorKey: column.key as string,
-      header: column.label,
-      size: column.size
-    }))
+    ...mapped
   ]
 })
 
@@ -904,11 +938,19 @@ const csvFileName = computed(() => {
 
 const deviceTable = () => {
   const meta = hasRSelection.value ? r3ColumnMetadata : deviceDescColumnMetadata
+  // 화면과 같은 자리(Lot 뒤)에 Meas (90d)를 넣습니다. 순위에 없는 lot 은 0 이
+  // 아니라 빈 칸 — 스프레드시트에서 "측정 0건" 으로 집계되면 안 됩니다.
+  const lotIndex = meta.findIndex(column => column.key === 'lot_cd')
+  const headers = meta.map(column => column.label)
+  headers.splice(lotIndex + 1, 0, 'Meas (90d)')
+
   return {
-    headers: meta.map(column => column.label),
-    rows: filteredRows.value.map(row =>
-      meta.map(column => getDeviceRowValue(row, column.key as string))
-    )
+    headers,
+    rows: filteredRows.value.map((row) => {
+      const values = meta.map(column => getDeviceRowValue(row, column.key as string))
+      values.splice(lotIndex + 1, 0, measCountByLot.value.get(row.lot_cd) ?? '')
+      return values
+    })
   }
 }
 
