@@ -23,11 +23,12 @@ API tokens** 에서 발급하며, 응답에 담긴 평문(`plaintext`)은 **그 
 표시**됩니다. 이후에는 서버가 SHA-256 해시만 보관하므로 다시 볼 수 없고,
 분실 시 폐기 후 재발급해야 합니다.
 
-발급에는 브라우저 세션이 필요합니다. `POST /api/account/api-tokens`는 사람이
-로그인한 세션(SSO 쿠키)에서만 호출할 수 있고, 이미 발급된 토큰으로 인증한
-호출은 403으로 거부됩니다(`back_dev_home/api_tokens/routes.py:16-27`의
-`_reject_token_auth`). 즉 **스크립트가 자기 토큰을 스스로 발급할 수는
-없습니다** — 최초 1회는 반드시 누군가 브라우저로 로그인해 발급해야 합니다.
+발급에는 브라우저 세션이 필요합니다. `POST /api/account/api-tokens`는
+`LASTUSER` 신원 쿠키로 식별된 사람의 브라우저 세션에서만 호출할 수 있고,
+이미 발급된 토큰으로 인증한 호출은 403으로 거부됩니다
+(`back_dev_home/api_tokens/routes.py:16-27`의 `_reject_token_auth`). 즉
+**스크립트가 자기 토큰을 스스로 발급할 수는 없습니다** — 최초 1회는 반드시
+누군가 브라우저로 로그인해 발급해야 합니다.
 
 토큰 체계 전반(형식, 로깅, 권한 범위, 사무실 스왑 계약)은
 [`api-tokens.md`](./api-tokens.md)를 참고합니다.
@@ -117,6 +118,16 @@ curl -OJ \
   "http://skewnono.skhynix.com/api/msr-image?eqp_ip=10.44.9.153&class_name=CNT&msr=20260803_RCP01_KPB266344_ECDX285&name=001.jpg"
 ```
 
+> **비-ASCII 파일명 주의**: 이미지 파일명에 한글 등 비-ASCII 문자가 있으면
+> `Content-Disposition`의 ASCII `filename="..."` 파라미터는 `???.jpeg`
+> 같은 자리표시자로 채워지고, 실제 이름은 `filename*=UTF-8''...` 쪽에만
+> 담깁니다(RFC 6266). `curl -OJ`는 ASCII 파라미터만 읽으므로 이런 경우
+> `?`가 포함된 이름으로 저장을 시도하며, 이는 Windows에서 유효한 파일명이
+> 아닙니다. 비-ASCII 파일명이 섞여 있을 수 있다면 `curl -OJ` 대신
+> `scripts/clients/msr_image_download.py`를 쓰는 편이 안전합니다 — 이
+> 클라이언트는 `filename*=UTF-8''` 쪽이 아니라 목록 조회로 얻은 원래
+> 이름을 그대로 사용해 저장하므로 이 문제를 겪지 않습니다.
+
 `ext=jpg`로 미리보기 가능한 파일만 목록을 받습니다.
 
 ```bash
@@ -199,7 +210,7 @@ def download_msr(base, token, row, out_dir, *, ext=None) -> tuple[int, int]:
 
 | 상태 | 의미 | 클라이언트 동작 |
 | --- | --- | --- |
-| `401 invalid_token` | 토큰이 잘못되었거나 폐기됨 | 즉시 명확한 메시지와 함께 종료. 재시도는 도움이 되지 않습니다 |
+| `401 invalid_token` | 토큰이 잘못되었거나 폐기됨 | `search()` 단계라면 즉시 명확한 메시지와 함께 종료(재시도는 도움이 되지 않습니다). 이미지별 fetch 단계에서 토큰이 도중에 폐기된 경우에는 즉시 멈추지 않고 남은 이미지마다 오류를 한 줄씩 출력하며 계속 진행하다가, 모든 MSR을 처리한 뒤 종료 코드 1로 끝납니다 |
 | `429` | 1단계 탐색 호출(`/api/meas-hist/search`)에서만 발생 가능 | backoff 후 재시도 |
 | `503` | `SourceUnavailable` — 장비 FTP 접속 불가 | 해당 MSR을 보고하고 다음 MSR로 진행 |
 | `404 unknown_job` | job 만료(`SKEWNONO_MSR_IMAGE_JOB_TTL`, 기본 1시간) | warm을 건너뛰고 직접 GET으로 진행 |

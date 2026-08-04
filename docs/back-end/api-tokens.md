@@ -60,7 +60,7 @@ SKEWNONO의 모든 데이터는 `/api/*` 엔드포인트를 통해 노출됩니�
 
 | 단계 | 엔드포인트 | 누가 호출 가능 |
 | --- | --- | --- |
-| 발급 | `POST /api/account/api-tokens` | 사람 세션만 (SSO 쿠키) |
+| 발급 | `POST /api/account/api-tokens` | 사람 세션만 (`LASTUSER` 쿠키) |
 | 목록 조회 | `GET /api/account/api-tokens` | 사람 세션 + 토큰 세션 모두 |
 | 폐기 | `DELETE /api/account/api-tokens/<id>` | 사람 세션만 |
 

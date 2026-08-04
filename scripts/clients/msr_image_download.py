@@ -18,6 +18,7 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -179,10 +180,11 @@ def download_msr(base, token, row, out_dir, *, ext=None) -> tuple[int, int]:
     write outside `out_dir`.
     """
     msr_dir = safe_filename(row["msr"])
-    params = {"eqp_ip": row["eqp_ip"], "class_name": row["class_name"], "msr": row["msr"]}
-    if ext:
-        params["ext"] = ext
-    names = api_call(base, LIST_PATH, token, params=params)["images"]
+    # GET /api/msr-image takes no `ext` parameter -- only the listing call
+    # does -- so the locator params used for fetching stay ext-free.
+    locator_params = {"eqp_ip": row["eqp_ip"], "class_name": row["class_name"], "msr": row["msr"]}
+    list_params = {**locator_params, "ext": ext} if ext else locator_params
+    names = api_call(base, LIST_PATH, token, params=list_params)["images"]
     if not names:
         return 0, 0
 
@@ -204,7 +206,7 @@ def download_msr(base, token, row, out_dir, *, ext=None) -> tuple[int, int]:
         dest = target / safe_filename(name)
         try:
             payload, content_type = api_call(
-                base, IMAGE_PATH, token, params={**params, "name": name}, raw=True
+                base, IMAGE_PATH, token, params={**locator_params, "name": name}, raw=True
             )
         except ApiError as exc:
             print(f"  {name}: {exc}")
@@ -232,8 +234,6 @@ def download_msr(base, token, row, out_dir, *, ext=None) -> tuple[int, int]:
 
 
 def main(argv=None) -> int:
-    from pathlib import Path
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default=os.environ.get("SKEWNONO_BASE_URL", DEFAULT_BASE))
     parser.add_argument("--lot", help="lot_id, e.g. KPB266344 (NOT the 3-char lot_cd)")

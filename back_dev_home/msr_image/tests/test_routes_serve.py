@@ -132,6 +132,35 @@ def test_list_without_ext_is_unchanged(client):
     assert len(everything) > len(jpg)  # the mock always emits at least one .tif
 
 
+def test_list_ext_filter_covers_all_office_extension_spellings(client, monkeypatch):
+    # The mock provider only ever emits .jpeg/.tif (MIGRATION.md), so every
+    # other test above exercises _EXT_GROUPS against just those two spellings.
+    # Office tools write four spellings -- .jpeg/.jpg/.tif/.tiff -- so a
+    # regression in the .jpg or .tiff branch would pass every test at home.
+    # Route around the mock here and hand list_images() a synthetic listing
+    # that covers all four, plus a mixed-case name and a non-image name.
+    synthetic = [
+        "shot01.jpeg",
+        "shot02.jpg",
+        "shot03.tif",
+        "shot04.tiff",
+        "SHOT05.JPG",
+        "SHOT06.TIFF",
+        "readme.txt",
+    ]
+    monkeypatch.setattr(
+        "back_dev_home.msr_image.data.list_images",
+        lambda eqp_ip, class_name, msr: list(synthetic),
+    )
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    jpg = client.get(f"/api/msr-images?{q}&ext=jpg").get_json()["images"]
+    tif = client.get(f"/api/msr-images?{q}&ext=tif").get_json()["images"]
+    assert sorted(jpg) == sorted(["shot01.jpeg", "shot02.jpg", "SHOT05.JPG"])
+    assert sorted(tif) == sorted(["shot03.tif", "shot04.tiff", "SHOT06.TIFF"])
+    assert "readme.txt" not in jpg
+    assert "readme.txt" not in tif
+
+
 def test_list_rejects_unknown_ext(client):
     # A silent empty list would read as "this MSR has no images".
     r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=png")
