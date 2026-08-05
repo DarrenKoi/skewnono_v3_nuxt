@@ -8,7 +8,7 @@ Four knobs matter, and for jobs measured in minutes the last two matter most.
 
 ``lock_ttl`` Orphan-clear window only -- a live run re-arms its own TTL, so it
              may overrun this freely. Smaller is better: it bounds how long a
-             lock left by a killed process blocks the job. All three jobs are
+             lock left by a killed process blocks the job. Every job here is
              daily or weekly, so any value under a day skips zero runs. Do NOT
              reason "weekly job, weekly TTL" -- that is this knob's most common
              mistake.
@@ -19,8 +19,12 @@ Four knobs matter, and for jobs measured in minutes the last two matter most.
              snapshot write does not retry until next Monday, so six hours of
              grace costs nothing and saves a week.
 
-Hours all sit inside 01:00-08:00, the confirmed quiet window (user-confirmed
-2026-08-01), and the sweep deliberately follows the write.
+The *data* jobs all sit inside 01:00-08:00, the confirmed quiet window
+(user-confirmed 2026-08-01), and the sweep deliberately follows the write. The
+two host-maintenance jobs -- ``uwsgi_touch_reload`` and ``log_retention`` --
+sit just after midnight instead, which is the point of them: the reload exists
+to hand each working day a process that booted minutes ago, and the log sweep
+follows it so the day's fresh log file is never a sweep candidate.
 
 **Cron fields are stored, not triggers.** A ``CronTrigger`` built at import
 time binds ``get_localzone()`` for good -- APScheduler never re-applies the
@@ -42,6 +46,8 @@ from back_dev_home._scheduler.tasks.device_statistics import (
     write_weekly_snapshot,
 )
 from back_dev_home._scheduler.tasks.image_cache import purge_image_cache
+from back_dev_home._scheduler.tasks.log_retention import purge_old_logs
+from back_dev_home._scheduler.tasks.uwsgi_reload import touch_reload
 
 def _image_cache_purge_cron() -> dict:
     """Nightly. :10 keeps it clear of the two weekly slots below.
@@ -62,6 +68,24 @@ def _weekly_snapshot_write_cron() -> dict:
     return {"day_of_week": "mon", "hour": 1, "minute": 0}
 
 
+def _uwsgi_reload_cron() -> dict:
+    """00:05 nightly (user-confirmed 2026-08-05), the one job outside the
+    01:00-08:00 quiet window and outside it on purpose: the point is to start
+    each day on a process that booted minutes ago, so it has to run before the
+    day's work, not in the middle of the night's."""
+    return {"hour": 0, "minute": 5}
+
+
+def _log_retention_cron() -> dict:
+    """00:20, deliberately after the reload rather than before.
+
+    uWSGI opens the new day's log file as it comes back up, so sweeping
+    afterwards means the file the fresh instance is writing to is the newest
+    one in the directory -- never a file the sweep just considered. Fifteen
+    minutes is far more than the reload needs; it costs nothing here."""
+    return {"hour": 0, "minute": 20}
+
+
 def _weekly_snapshot_sweep_cron() -> dict:
     """90 minutes after the write, never before: sweeping first could delete
     the oldest kept snapshot in the same hour the newest arrives, and a failed
@@ -73,6 +97,23 @@ JOB_REGISTRY: dict[str, dict] = {
     "image_cache_purge": {
         "fn": purge_image_cache,
         "cron": _image_cache_purge_cron,
+        "lock_ttl": 600,
+        "misfire_grace_time": 3600,
+    },
+    "uwsgi_touch_reload": {
+        "fn": touch_reload,
+        "cron": _uwsgi_reload_cron,
+        # Short on purpose: the touch reloads the very worker holding this
+        # lock, so the release may never run. 120s keeps the orphan from
+        # outliving the reload it caused.
+        "lock_ttl": 120,
+        # A reload that starts late is still a reload; but one that slips past
+        # the morning is worse than none, so grace stops at two hours.
+        "misfire_grace_time": 7200,
+    },
+    "log_retention": {
+        "fn": purge_old_logs,
+        "cron": _log_retention_cron,
         "lock_ttl": 600,
         "misfire_grace_time": 3600,
     },

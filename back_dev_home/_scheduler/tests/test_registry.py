@@ -38,11 +38,13 @@ def test_every_entry_has_a_function_and_a_trigger(triggers):
         assert name in triggers, f"{name} builds no trigger"
 
 
-def test_all_three_jobs_are_registered():
+def test_every_job_is_registered():
     assert set(JOB_REGISTRY) == {
         "image_cache_purge",
         "weekly_snapshot_write",
         "weekly_snapshot_sweep",
+        "uwsgi_touch_reload",
+        "log_retention",
     }
 
 
@@ -58,11 +60,41 @@ def test_no_two_jobs_share_a_fire_instant(triggers):
     assert len(set(slots)) == len(slots), f"two jobs share a fire instant: {slots}"
 
 
-def test_every_job_fires_inside_the_quiet_window(triggers):
+# The two host-maintenance jobs run just after midnight by design, so they are
+# NOT quiet-window jobs. Named here rather than skipped by a range check, so
+# adding a third job outside 01:00-08:00 is a deliberate edit to this list and
+# not something a passing suite hides. (user-confirmed 2026-08-05)
+_NIGHTLY_MAINTENANCE = {"uwsgi_touch_reload", "log_retention"}
+
+
+def test_every_data_job_fires_inside_the_quiet_window(triggers):
     # 01:00-08:00 is the confirmed quiet window (user-confirmed 2026-08-01).
     for name, trigger in triggers.items():
+        if name in _NIGHTLY_MAINTENANCE:
+            continue
         hour = int(_field(trigger, "hour"))
         assert 1 <= hour < 8, f"{name} fires at {hour}, outside the quiet window"
+
+
+def test_the_nightly_reload_fires_at_five_past_midnight(triggers):
+    # 00:05 is the requirement itself, not an implementation detail: the point
+    # is to hand each working day a process that booted minutes earlier.
+    trigger = triggers["uwsgi_touch_reload"]
+    assert (_field(trigger, "hour"), _field(trigger, "minute")) == ("0", "5")
+
+
+def test_the_log_sweep_follows_the_reload(triggers):
+    # uWSGI opens the new day's log file as it comes back up; sweeping first
+    # would have the sweep and the reload interleave over the same directory.
+    reload_at = (
+        int(_field(triggers["uwsgi_touch_reload"], "hour")),
+        int(_field(triggers["uwsgi_touch_reload"], "minute")),
+    )
+    sweep_at = (
+        int(_field(triggers["log_retention"], "hour")),
+        int(_field(triggers["log_retention"], "minute")),
+    )
+    assert sweep_at > reload_at
 
 
 def test_the_sweep_runs_after_the_write(triggers):
