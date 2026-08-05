@@ -293,3 +293,44 @@ test('the CD row has no manufactured gaps once the axis is scoped', () => {
   const cd = matrix.rows.find(r => r.kind === 'cd')!.cells[0]!
   assert.deepEqual(cd.values, [100, 104, 108])
 })
+
+// ---------------------------------------------------------------------------
+// hideUnavailable: the tooltip-declutter toggle
+// ---------------------------------------------------------------------------
+
+test('hideUnavailable drops 평가 불가 cells and counts what it hid', () => {
+  const src = orderedSource()
+  const m = buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src, { hideUnavailable: true })
+  const names = m.rows.filter(r => r.kind === 'category').flatMap(r => r.cells).map(c => c.param)
+  assert.deepEqual(names, ['Up', 'Down'])
+  assert.equal(m.hiddenUnavailable, 1)
+})
+
+test('hideUnavailable defaults off: 평가 불가 cells stay and nothing is counted hidden', () => {
+  const m = build(orderedSource())
+  assert.equal(m.hiddenUnavailable, 0)
+  assert.ok(m.rows.flatMap(r => r.cells).some(c => c.rState === 'unavailable'))
+})
+
+test('hiding every FDC cell degrades to the CD row, never an empty matrix', () => {
+  const src = orderedSource()
+  src.dynamic_fdc = {
+    1: { Flat: 5 }, 2: { Flat: 5 }, 3: { Flat: 5 }, 4: { Flat: 5 }
+  } as unknown as Record<string, Record<string, number>>
+  src.fdc_params = oneCategory(['Flat'])
+  const m = buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src, { hideUnavailable: true })
+  assert.equal(m.rows.length, 1)
+  assert.equal(m.rows[0]?.kind, 'cd')
+  assert.equal(m.columns, 1)
+  assert.equal(m.hiddenUnavailable, 1)
+})
+
+test('hideUnavailable leaves the evidence ranking untouched', () => {
+  const src = orderedSource()
+  const shown = buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src)
+  const hidden = buildParamMatrix(analyzeSequence(src, 'CD_TOP', 'nm'), src, { hideUnavailable: true })
+  assert.deepEqual(
+    shown.rows.find(r => r.kind === 'evidence')?.cells.map(c => c.param),
+    hidden.rows.find(r => r.kind === 'evidence')?.cells.map(c => c.param)
+  )
+})

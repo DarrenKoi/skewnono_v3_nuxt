@@ -169,7 +169,7 @@ test('unmeasured (mp_number < 0 / null cd) rows are excluded via isMeasuredRow',
 // CD ↔ dynamic FDC join (same MSR + same sequence)
 // ---------------------------------------------------------------------------
 
-test('CD↔FDC joins on same MSR + sequence and flags the demo coupling', () => {
+test('CD↔FDC joins on same MSR + sequence and flags the join shape', () => {
   const rows: MsrFileRow[] = [
     row({ sequence: 1, chip_number: '0, 0', parameter: 'CD_TOP', cd_value: 100 }),
     row({ sequence: 2, chip_number: '1, 0', parameter: 'CD_TOP', cd_value: 110 }),
@@ -184,7 +184,6 @@ test('CD↔FDC joins on same MSR + sequence and flags the demo coupling', () => 
   assert.equal(res.pairN, 3)
   assert.equal(res.readiness, 'ready')
   assert.equal(res.sameMsrSequenceJoin, true)
-  assert.equal(res.demoCoupled, true)
   assert.ok(res.pearson != null && res.pearson > 0.99)
   const p1 = res.points.find(p => p.sequence === 1)!
   assert.equal(p1.x, 100)

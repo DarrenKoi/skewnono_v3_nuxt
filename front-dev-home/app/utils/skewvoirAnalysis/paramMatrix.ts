@@ -60,8 +60,18 @@ export interface ParamMatrixModel {
   rows: MatrixRow[]
   /** The shared sequence axis every cell indexes. */
   sequences: number[]
-  /** True when any r came from a demo-coupled join. Always true on home mock. */
-  demoCoupled: boolean
+  /** How many FDC cells `hideUnavailable` dropped. Zero when the option is off.
+   * Surfaced so the view can say what it hid — a silent drop would read as
+   * "not measured" rather than "hidden by choice". */
+  hiddenUnavailable: number
+}
+
+export interface ParamMatrixOptions {
+  /** Drop FDC cells whose CD relation is 평가 불가 (no pairs, too few, or a
+   * constant axis). They crowd the matrix and drag their reason strings into
+   * the linked-axis tooltip; hiding them is a view preference, so it lives
+   * here as an option rather than a hard rule. */
+  hideUnavailable?: boolean
 }
 
 /** category code → Korean label, taken from the backend's own labelling rather
@@ -99,7 +109,8 @@ const wrapCategory = (label: string, cells: MatrixCell[]): MatrixRow[] => {
 
 export const buildParamMatrix = (
   model: SequenceModel,
-  source: SequenceSource
+  source: SequenceSource,
+  options: ParamMatrixOptions = {}
 ): ParamMatrixModel => {
   const sequences = model.sequences
   const cdParam = model.parameter
@@ -119,8 +130,7 @@ export const buildParamMatrix = (
     duplicated: false
   }
 
-  let demoCoupled = false
-  const fdcCells: MatrixCell[] = model.fdc.map((series) => {
+  const allFdcCells: MatrixCell[] = model.fdc.map((series) => {
     // ALWAYS the parameter-scoped inner join, regardless of the sequence
     // axis mode: `source.rows` here is unscoped (every parameter's rows),
     // and buildCdFdcRelationship inner-joins CD against dynamic_fdc on its
@@ -132,7 +142,6 @@ export const buildParamMatrix = (
     // whole-MSR comparison) was the deliberate call, and this mismatch under
     // it is a known, accepted gap rather than an oversight.
     const rel = buildCdFdcRelationship(source.rows, cdParam, series.param, source.dynamic_fdc)
-    if (rel.demoCoupled) demoCoupled = true
     const ready = rel.readiness === 'ready' && rel.pearson != null
     return {
       param: series.param,
@@ -148,6 +157,13 @@ export const buildParamMatrix = (
       duplicated: false
     }
   })
+
+  // The CD reference is never hidden — with every FDC cell 평가 불가 and
+  // hidden, the matrix degrades to the CD row alone rather than to nothing.
+  const fdcCells = options.hideUnavailable === true
+    ? allFdcCells.filter(c => c.rState !== 'unavailable')
+    : allFdcCells
+  const hiddenUnavailable = allFdcCells.length - fdcCells.length
 
   const rows: MatrixRow[] = [
     { kind: 'cd', label: 'CD', cells: [cdCell] }
@@ -180,5 +196,5 @@ export const buildParamMatrix = (
     .filter(r => r.kind !== 'cd')
     .reduce((max, r) => Math.max(max, r.cells.length), 0)
 
-  return { columns: Math.max(1, widest), rows, sequences, demoCoupled }
+  return { columns: Math.max(1, widest), rows, sequences, hiddenUnavailable }
 }

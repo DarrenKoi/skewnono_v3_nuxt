@@ -82,16 +82,15 @@
         <EbeamSkewvoirPanelFrame
           v-if="viewMode === 'matrix'"
           title="파라미터 매트릭스"
-          :meta="`${matrix.rows.length} rows · ${matrix.columns} cols · CD 대비 상관`"
+          :meta="matrixMeta"
           icon="i-lucide-grid-3x3"
         >
           <template #actions>
-            <span
-              v-if="matrix.demoCoupled"
-              class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
-            >
-              데모 데이터 · 방법 검증 불가
-            </span>
+            <USwitch
+              v-model="hideUnavailable"
+              size="xs"
+              label="평가 불가 숨기기"
+            />
           </template>
           <EbeamSkewvoirFdcParamMatrix
             :model="matrix"
@@ -226,11 +225,6 @@
             :meta="fdcMeta(series)"
             icon="i-lucide-waves"
           >
-            <template #actions>
-              <span class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)">
-                데모 데이터 · 방법 검증 불가
-              </span>
-            </template>
             <EbeamSkewvoirFdcSequenceTrend
               :points="series.points"
               :sequences="model.sequences"
@@ -417,7 +411,21 @@ const axisMode = computed({
   set: (v: SequenceAxisMode) => props.analysis.setFdcAxis(v)
 })
 
-const matrix = computed(() => buildParamMatrix(model.value, source.value))
+// 평가 불가 파라미터를 매트릭스(와 그 tooltip)에서 숨기는 사용자 선택 —
+// persisted, so the preference survives view swaps and reloads.
+const hideUnavailable = useSkewvoirFdcHideUnavailable()
+
+const matrix = computed(() =>
+  buildParamMatrix(model.value, source.value, { hideUnavailable: hideUnavailable.value })
+)
+
+const matrixMeta = computed(() => {
+  const base = `${matrix.value.rows.length} rows · ${matrix.value.columns} cols · CD 대비 상관`
+  // Say what the toggle hid — a silently thinner matrix reads as "not measured".
+  return matrix.value.hiddenUnavailable > 0
+    ? `${base} · 평가 불가 ${matrix.value.hiddenUnavailable}개 숨김`
+    : base
+})
 
 // Drill-down: bring the clicked param's full-size pane into view. `nearest` is
 // deliberate — it is a no-op when the pane is already on screen, so a click

@@ -50,17 +50,6 @@
         />
         동일 MSR · sequence 조인
       </span>
-      <!-- Home-mock demo coupling warning for CD↔FDC. -->
-      <span
-        v-if="result.demoCoupled"
-        class="inline-flex items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-warn)/15 px-2 py-0.5 text-[11px] font-medium text-(--sk-warn)"
-      >
-        <UIcon
-          name="i-lucide-triangle-alert"
-          class="h-3 w-3"
-        />
-        데모 데이터 · 방법 검증 불가
-      </span>
     </div>
   </div>
 </template>

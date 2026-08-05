@@ -12,10 +12,7 @@
 //                 observation has matching coordinate sets.
 //   • CD ↔ FDC  — a CD parameter vs a per-sequence dynamic FDC channel of the
 //                 SAME MSR, paired by sequence. This is a same-MSR + same-sequence
-//                 join (flagged in the result), and on the Phase-1 home mock CD and
-//                 dynamic FDC are coupled through a shared `health` scalar, so the
-//                 result is flagged `demoCoupled` — the correlation is NOT method-
-//                 validated evidence.
+//                 join (flagged in the result).
 //
 // CRITICAL readiness: when there are ZERO pairs, or either axis is CONSTANT (zero
 // variance), the answer is `평가 불가` (unavailable) — NOT a fabricated r = 0.
@@ -57,9 +54,8 @@ export interface RelationshipResult {
   // Why the relationship is unavailable (null when ready). Distinguishes the two
   // honest failures — no pairs vs a constant axis — so the UI never lies with r=0.
   reason: string | null
-  // Chart-meta flags.
+  // Chart-meta flag.
   sameMsrSequenceJoin: boolean
-  demoCoupled: boolean
 }
 
 const isConstant = (nums: number[]): boolean => {
@@ -96,7 +92,7 @@ const finalize = (
   yLabel: string,
   points: PairedPoint[],
   missingN: number,
-  meta: { sameMsrSequenceJoin: boolean, demoCoupled: boolean }
+  meta: { sameMsrSequenceJoin: boolean }
 ): RelationshipResult => {
   const { readiness, reason } = assess(points)
   const pairs = points.map(p => [p.x, p.y] as [number, number])
@@ -115,8 +111,7 @@ const finalize = (
     spearman: rho,
     readiness,
     reason,
-    sameMsrSequenceJoin: meta.sameMsrSequenceJoin,
-    demoCoupled: meta.demoCoupled
+    sameMsrSequenceJoin: meta.sameMsrSequenceJoin
   }
 }
 
@@ -212,8 +207,7 @@ export const buildCdCdRelationship = (
   points.sort((a, b) => a.sequence - b.sequence || a.key.localeCompare(b.key))
 
   return finalize('cd-cd', paramX, paramY, points, missingN, {
-    sameMsrSequenceJoin: false,
-    demoCoupled: false
+    sameMsrSequenceJoin: false
   })
 }
 
@@ -221,7 +215,7 @@ export const buildCdCdRelationship = (
  * Exact-pair join of a CD parameter against a per-sequence dynamic FDC channel of
  * the SAME MSR, keyed by sequence (dynamic_fdc is keyed by sequence string).
  * Sequences with a measured CD but no FDC value (or vice versa) are dropped and
- * counted as `missing`. Same-MSR + same-sequence join; demo-coupled on home mock.
+ * counted as `missing`. Same-MSR + same-sequence join.
  */
 export const buildCdFdcRelationship = (
   rows: MsrFileRow[],
@@ -254,7 +248,6 @@ export const buildCdFdcRelationship = (
   for (const seq of fdcBySeq.keys()) if (!cdBySeq.has(seq)) missingN++
 
   return finalize('cd-fdc', cdParam, fdcParam, points, missingN, {
-    sameMsrSequenceJoin: true,
-    demoCoupled: true
+    sameMsrSequenceJoin: true
   })
 }
