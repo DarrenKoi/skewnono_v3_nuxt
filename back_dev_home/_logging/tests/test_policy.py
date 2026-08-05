@@ -150,3 +150,45 @@ def test_page_view_beacon_obeys_the_usual_disqualifiers():
             feature="mag_pixel",
             page_slug="mag_pixel",
         ) == ("operation", 0)
+
+
+def test_identity_plumbing_is_never_a_counted_feature():
+    """/api/me and /api/identify are the auth gate, not product usage.
+
+    route_to_feature has no rule for either, so its first-segment fallback
+    named them "me" and "identify" and the ranking humanized those into "Me"
+    and "Identify" — endpoint names sitting in a list of pages. They also
+    inflated this_month.requests, which counts deliberate human actions.
+
+    The frontend /identify page is already in _OPS_PAGE_PREFIXES; these are
+    its API counterparts, so both vocabularies now agree.
+    """
+    for method, path in [
+        ("GET", "/api/me"),
+        ("POST", "/api/identify"),
+        ("DELETE", "/api/identify"),
+    ]:
+        assert classify_activity(
+            user_id="u1",
+            api_token_id=None,
+            method=method,
+            path=path,
+            status=200,
+            feature="x",
+            page_slug=None,
+        ) == ("operation", 0)
+
+
+def test_meas_hist_is_not_swallowed_by_the_me_prefix():
+    """/api/me is prefix-matched, so a route that merely starts with "me"
+    must keep counting. _at_or_below requires a "/" boundary — this is the
+    test that holds that boundary in place."""
+    assert classify_activity(
+        user_id="u1",
+        api_token_id=None,
+        method="GET",
+        path="/api/meas-hist",
+        status=200,
+        feature="meas_hist",
+        page_slug=None,
+    ) == ("feature", 1)

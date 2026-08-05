@@ -17,6 +17,13 @@ _OPERATION_PREFIXES = (
     "/api/admin",
     "/api/health",
     "/api/account/api-tokens",
+    # The auth gate, not product usage. route_to_feature has no rule for
+    # either, so its first-segment fallback named them "me" and "identify" and
+    # the ranking showed endpoint names among the pages. The frontend
+    # /identify page is already in _OPS_PAGE_PREFIXES, so excluding these
+    # keeps the two vocabularies saying the same thing.
+    "/api/me",
+    "/api/identify",
 )
 _BACKGROUND_EXACT = {
     # Mounted in both layouts (default.vue, hub.vue), so it fires once per
