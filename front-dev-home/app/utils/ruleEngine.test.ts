@@ -227,11 +227,11 @@ test('D19 Sample Core TV/PV EDGE 16 beats phase-blind Sample (order = precedence
     selector: { fac_id: 'R3', recipe_class: 'Sample', family: 'Core', phase_in: ['TV', 'PV'] },
     caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 0, _other: 0 },
     // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
-  // 포함 (user-confirmed 2026-08-05).
-  name_overrides: [
-    { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
-    { patterns: ['DUMMY'], match: 'affix', cap: null }
-  ]
+    // 포함 (user-confirmed 2026-08-05).
+    name_overrides: [
+      { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
+      { patterns: ['DUMMY'], match: 'affix', cap: null }
+    ]
   }
   const coreTvpvSample = applyAnnotation(
     recipe({ recipe_class: 'Sample', family: 'Core', phase: 'PV', parameters: [{ name: 'EDGE', point_count: 14 }] })
