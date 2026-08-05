@@ -132,10 +132,6 @@ const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
         >
           <td class="whitespace-nowrap px-2 py-1">
             {{ magLabel(row.mag) }}
-            <span
-              v-if="row.assumed"
-              class="ml-1 rounded-[var(--sk-r-chip)] bg-(--sk-warn-soft) px-1 text-[10px] font-semibold text-(--sk-warn)"
-            >가정</span>
           </td>
           <td
             class="whitespace-nowrap px-2 py-1 text-right"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fovNm, isAssumedMag, marginSensitivity, pixelGuidance, type CalcInput, type Recommendation } from '~/utils/magPixel'
+import { fovNm, marginSensitivity, pixelGuidance, type CalcInput, type Recommendation } from '~/utils/magPixel'
 
 const props = defineProps<{
   rec: Recommendation
@@ -43,10 +43,6 @@ const marginPctLabel = computed(() =>
     : '—'
 )
 
-/** 원본 문서에서 확인되지 않아 가정한 GT 600K+ 구간인지. ResultTable.vue의 `가정`
- *  배지와 같은 판정을 헤드라인·민감도 표에도 적용해, 표와 추천 카드가 서로
- *  다른 신뢰도를 말하지 않게 한다. */
-const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.calc.series, mag)
 </script>
 
 <template>
@@ -72,10 +68,6 @@ const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.
           <span class="font-mono text-[38px] font-bold leading-none tracking-tight tabular-nums text-(--sk-ink)">
             {{ magLabel(rec.mag) }}
           </span>
-          <span
-            v-if="isMagAssumed(rec.mag)"
-            class="rounded-[var(--sk-r-chip)] bg-(--sk-warn-soft) px-1.5 py-px text-[10px] font-semibold text-(--sk-warn)"
-          >가정</span>
           <span class="font-mono text-base font-semibold text-(--sk-ink-muted)">×</span>
           <span class="font-mono text-[26px] font-bold leading-none tracking-tight tabular-nums text-(--sk-ink)">
             {{ rec.pixels ?? '—' }} px
@@ -181,10 +173,6 @@ const isMagAssumed = (mag: number | null) => mag !== null && isAssumedMag(props.
             </td>
             <td class="border-t border-(--sk-border-soft) py-1 pl-1.5 text-right sk-value-num">
               {{ magLabel(row.mag) }}
-              <span
-                v-if="isMagAssumed(row.mag)"
-                class="ml-1 rounded-[var(--sk-r-chip)] bg-(--sk-warn-soft) px-1 text-[10px] font-semibold text-(--sk-warn)"
-              >가정</span>
             </td>
           </tr>
         </tbody>

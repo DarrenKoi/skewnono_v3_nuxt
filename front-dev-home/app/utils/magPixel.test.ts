@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fovUm, fovNm, parsePixelSetting, pixelSizeNm, pxPerCd, scanTimeFactor,
-  seriesFromModel, magRange, isAssumedMag, buildMagPixelTable, SERIES_MODEL,
+  seriesFromModel, magRange, buildMagPixelTable, SERIES_MODEL,
   requiredFovNm, recommend, cellVerdict, marginSensitivity, pixelGuidance,
   MARGIN_PRESETS, DEFAULT_MARGIN, DEFAULT_MIN_PX_PER_CD,
   edgeIntensity, samplePixelNm, edgeWindowHalfNm, edgeStrip, edgeComparePair,
@@ -130,13 +130,14 @@ test('magRange carries the corrected 5000, not the 4900 typo', () => {
   assert.ok(!magRange('CG').includes(4900))
 })
 
-test('isAssumedMag flags only the unverified GT tail above 500K', () => {
-  // the source doc says "500000 이후 단위가 어떻게 되는지 확인 안되지만,
-  // 100000단위로 가정" — those rows must not read as confirmed
-  assert.equal(isAssumedMag('GT', 600_000), true)
-  assert.equal(isAssumedMag('GT', 1_000_000), true)
-  assert.equal(isAssumedMag('GT', 500_000), false)
-  assert.equal(isAssumedMag('CG', 500_000), false)
+test('the GT tail above 500K is the confirmed 100K ladder', () => {
+  // user-confirmed 2026-08-06: GT2000 really does step 600K..1000K by 100K.
+  // This was once an assumption the UI badged as `가정`; the badge is gone, so
+  // this test is now the only thing pinning the five values.
+  assert.deepEqual(
+    magRange('GT').filter(m => m > 500_000),
+    [600_000, 700_000, 800_000, 900_000, 1_000_000]
+  )
 })
 
 test('buildMagPixelTable emits one row per mag with all four pixel settings', () => {
@@ -145,23 +146,19 @@ test('buildMagPixelTable emits one row per mag with all four pixel settings', ()
   const row = rows.find(r => r.mag === 180_000)
   assert.notEqual(row, undefined)
   near(row!.fovNm, 750)
-  assert.equal(row!.assumed, false)
   assert.equal(row!.cells.length, 4)
   assert.deepEqual(row!.cells.map(c => c.pixels), [512, 1024, 2048, 4096])
   near(row!.cells[0]!.nmPerPx, 1.46484375)
   assert.equal(row!.cells[1]!.scanFactor, 4)
 })
 
-test('buildMagPixelTable flags the unconfirmed GT tail through to the row data', () => {
-  // isAssumedMag is tested in isolation, but the table's `assumed` wiring is
-  // what the UI badges — drive it through buildMagPixelTable, and pin BOTH
-  // sides of the 500K boundary so `assumed: false` cannot pass.
+test('buildMagPixelTable carries the GT tail through to the row data', () => {
   const rows = buildMagPixelTable('GT')
   assert.equal(rows.length, 28)
-  assert.equal(rows.find(r => r.mag === 500_000)?.assumed, false)
-  assert.equal(rows.find(r => r.mag === 600_000)?.assumed, true)
-  assert.equal(rows.find(r => r.mag === 1_000_000)?.assumed, true)
-  assert.equal(rows.filter(r => r.assumed).length, 5)
+  const tail = rows.find(r => r.mag === 1_000_000)
+  assert.notEqual(tail, undefined)
+  near(tail!.fovNm, 135)
+  assert.equal(tail!.cells.length, 4)
 })
 
 const input = (over: Partial<CalcInput> = {}): CalcInput => ({

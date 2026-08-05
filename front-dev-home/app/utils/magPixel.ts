@@ -91,13 +91,14 @@ const MAG_CG: readonly number[] = [
 ]
 
 /**
- * GT 계열이 500K 위로 더 갖는 구간 (5개).
- * 원본 문서가 "확인 안되지만 100000단위로 가정"이라고 명시한 값이므로
- * isAssumedMag()로 표시해 확정값과 구분한다.
+ * GT 계열이 500K 위로 더 갖는 구간 (5개). 한때 원본 문서가 "확인 안되지만
+ * 100000단위로 가정"이라고 적어 `가정` 배지로 구분했으나, 100000 단위가
+ * 맞다고 확정되었다 (user-confirmed 2026-08-06). CG 구간과 신뢰도가 같으므로
+ * 더 이상 구분하지 않는다.
  */
-const MAG_GT_ASSUMED: readonly number[] = [600_000, 700_000, 800_000, 900_000, 1_000_000]
+const MAG_GT_EXTENDED: readonly number[] = [600_000, 700_000, 800_000, 900_000, 1_000_000]
 
-const MAG_GT: readonly number[] = [...MAG_CG, ...MAG_GT_ASSUMED]
+const MAG_GT: readonly number[] = [...MAG_CG, ...MAG_GT_EXTENDED]
 
 const SERIES_PREFIXES: readonly MagSeries[] = ['CG', 'GT']
 
@@ -122,10 +123,6 @@ export const SERIES_MODEL: Readonly<Record<MagSeries, string>> = {
 export const magRange = (series: MagSeries): readonly number[] =>
   series === 'GT' ? MAG_GT : MAG_CG
 
-/** 원본 문서에서 확인되지 않아 가정한 구간인지. */
-export const isAssumedMag = (series: MagSeries, mag: number): boolean =>
-  series === 'GT' && MAG_GT_ASSUMED.includes(mag)
-
 export interface MagPixelCell {
   pixels: number
   nmPerPx: number
@@ -136,8 +133,6 @@ export interface MagPixelCell {
 export interface MagPixelRow {
   mag: number
   fovNm: number
-  /** true면 원본 문서 미확인 구간 — 화면에서 `가정` 배지를 붙인다. */
-  assumed: boolean
   cells: MagPixelCell[]
 }
 
@@ -153,7 +148,7 @@ export const buildMagPixelTable = (series: MagSeries): MagPixelRow[] => {
       if (factor === null) continue
       cells.push({ pixels, nmPerPx: fov / pixels, scanFactor: factor })
     }
-    rows.push({ mag, fovNm: fov, assumed: isAssumedMag(series, mag), cells })
+    rows.push({ mag, fovNm: fov, cells })
   }
   return rows
 }
