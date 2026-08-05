@@ -266,6 +266,26 @@
             >
               {{ text.emptyRows }}
             </p>
+            <!-- 표의 헤더 행에 해당합니다. 전체 선택 체크박스는 표와 같은
+                 페이지 단위이고, '90일 측정'은 카드마다 반복하지 않고 여기서
+                 오른쪽 숫자 열 위에 한 번만 답니다. -->
+            <div
+              v-else
+              class="flex items-center gap-3.5 border-b border-(--sk-border-soft) px-4 py-2"
+            >
+              <label class="flex cursor-pointer items-center gap-3.5">
+                <input
+                  type="checkbox"
+                  :checked="allOnPageSelected"
+                  class="h-[18px] w-[18px] flex-none rounded accent-(--sk-accent)"
+                  @change="togglePageSelection"
+                >
+                <span class="sk-field-label">{{ text.selectAll }}</span>
+              </label>
+              <span class="ml-auto w-24 flex-none pl-2 text-right sk-field-label">
+                {{ text.measCaption }}
+              </span>
+            </div>
             <label
               v-for="card in deviceCards"
               :key="card.row.lot_cd"
@@ -302,7 +322,7 @@
                   </span>
                 </div>
               </div>
-              <div class="flex-none pl-2 text-right">
+              <div class="w-24 flex-none pl-2 text-right">
                 <div
                   v-if="card.measCount !== undefined"
                   class="font-mono text-[19px] font-semibold leading-tight tabular-nums text-(--sk-ink)"
@@ -312,9 +332,6 @@
                   class="font-mono text-[19px] font-semibold leading-tight text-(--sk-ink-subtle)"
                   :title="text.noMeasRank"
                 >—</div>
-                <div class="mt-0.5 sk-field-label">
-                  {{ text.measCaption }}
-                </div>
               </div>
             </label>
           </template>
@@ -333,7 +350,7 @@
               <input
                 type="checkbox"
                 :checked="allOnPageSelected"
-                :aria-label="text.step2Hint"
+                :aria-label="text.selectAll"
                 class="h-4 w-4 rounded accent-(--sk-accent)"
                 @change="togglePageSelection"
               >
@@ -461,6 +478,7 @@ const text = {
   step2Title: '디바이스 선택',
   step2Hint: '체크박스로 여러 개 선택',
   viewToggle: '디바이스 목록 보기 방식',
+  selectAll: '이 페이지 전체 선택',
   measCaption: '90일 측정',
   noMeasRank: '최근 90일 측정 순위에 없는 lot 입니다'
 } as const
