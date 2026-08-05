@@ -42,7 +42,6 @@ const marginPctLabel = computed(() =>
     ? `${Math.round((marginNm.value / recFovNm.value) * 100)}%`
     : '—'
 )
-
 </script>
 
 <template>
