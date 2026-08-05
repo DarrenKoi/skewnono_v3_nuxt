@@ -5,7 +5,7 @@ import {
   recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
   formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp,
-  isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain
+  isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain, formatFixed
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
@@ -408,4 +408,34 @@ test('isSequenceSection matches the prefix, tolerates case and padding, ignores 
   assert.equal(isSequenceSection(null), false)
   assert.equal(isSequenceSection(undefined), false)
   assert.equal(isSequenceSection(''), false)
+})
+
+test('formatFixed prints a number at the requested precision', () => {
+  assert.equal(formatFixed(52.676, 3), '52.676')
+  assert.equal(formatFixed(-25.24, 3), '-25.240')
+  assert.equal(formatFixed(0, 3), '0.000')
+})
+
+test('formatFixed accepts the STRING the office parser sent on 2026-08-05', () => {
+  // The bug: `row['Coordinate.X'].toFixed(3)` on "52.676" threw
+  // "toFixed is not a function" inside a computed, so the align table never
+  // rendered and the modal could not be closed.
+  assert.equal(formatFixed('52.676', 3), '52.676')
+  assert.equal(formatFixed('-25.240', 3), '-25.240')
+})
+
+test('formatFixed renders missing data as a dash, never as 0.000', () => {
+  // Number(null) and Number('') are both 0. A coordinate that reads 0.000
+  // puts a measurement point at the wafer centre — absent must look absent.
+  assert.equal(formatFixed(null, 3), '—')
+  assert.equal(formatFixed(undefined, 3), '—')
+  assert.equal(formatFixed('', 3), '—')
+})
+
+test('formatFixed falls back rather than throwing on anything unparseable', () => {
+  assert.equal(formatFixed('n/a', 3), '—')
+  assert.equal(formatFixed(Number.NaN, 3), '—')
+  assert.equal(formatFixed(Infinity, 3), '—')
+  assert.equal(formatFixed({}, 3), '—')
+  assert.equal(formatFixed('n/a', 3, ''), '')
 })

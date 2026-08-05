@@ -141,8 +141,24 @@ img_meas2 -> int64: **P_No 와 같은 값** (user-confirmed 2026-07-27)
   같은 이름의 컬럼이 idp_image_info 에도 있지만 그쪽은 실제 image 슬롯이므로,
   **두 table 의 img_meas2 는 서로 다른 것**입니다.
 
-OFFICE-VERIFY: img_meas2 의 dtype 이 int64 인지 문자열로 된 숫자인지는 실제 파싱
-결과로 확인해야 합니다. P_No 와 "같은 값"이라는 것만 확인되었습니다.
+★★ dtype 은 위 표를 믿으면 안 됩니다 (office 확인 2026-08-05)
+
+  parser 가 숫자 컬럼을 **문자열로 돌려주는 경우가 실제로 있습니다.**
+  wafer_align_info 의 Coordinate.X 가 "52.676" 처럼 str 로 왔습니다. 세 table
+  모두 같은 위험이 있다고 보아야 하며, img_meas2 의 dtype 을 두고 오래 남아
+  있던 OFFICE-VERIFY 항목도 같은 성격의 질문이었습니다.
+
+  그래서 office adapter 의 `_records` 는 이제 contracts.py 가 선언한 타입으로
+  **변환**합니다(신뢰하지 않습니다). 변환 불가한 값은 None 이 되고 (table,
+  column) 당 warning 한 줄이 남습니다. bool 만은 문자열에서 추론하지 않습니다 —
+  `bool("False")` 가 True 라서, 틀린 값을 넣느니 비우는 편이 낫습니다.
+
+  이 사고가 어떻게 드러났는지 기록해 둡니다. 응답은 200 이었고 백엔드는 아무
+  것도 로그하지 않았습니다. 브라우저에서 `.toFixed(3)` 가
+  "toFixed is not a function" 으로 터지면서 **align 표가 안 그려지고 동시에
+  모달의 닫기 버튼도 죽었습니다** — 렌더 중 예외는 빈 칸이 아니라 그 subtree
+  전체를 가져갑니다. mock 은 dtype map 으로 frame 을 만들기 때문에 이 계열의
+  버그를 절대 재현하지 못합니다.
 
 wafer_align_info
 ----------------
@@ -406,11 +422,13 @@ office adapter 는 이 경우를 이미 warning 으로 남기지만, 화면은 �
 
 MP table 표시 컬럼
 
-  화면은 Parameter 를 뺀 13개 컬럼을 모두 보여줍니다. Parameter 를 빼는 이유는
-  이미 그 값으로 필터링된 결과이기 때문입니다.
+  화면은 Parameter 와 img_meas2 를 뺀 12개 컬럼을 보여줍니다. Parameter 를 빼는
+  이유는 이미 그 값으로 필터링된 결과이기 때문입니다.
 
-  img_meas2 는 P_No 와 값이 같으므로 table 에 같은 숫자가 두 번 나옵니다.
-  raw data 확인용으로 일부러 남겨 둔 것이며, 화면을 줄이려면 가장 먼저 뺄 컬럼입니다.
+  img_meas2 는 P_No 와 값이 같아서 뺐습니다 (user-confirmed 2026-08-05). 같은
+  숫자가 다른 이름으로 두 번 나오면 두 개의 사실처럼 읽힙니다. 응답에는 그대로
+  들어 있으므로 raw data 가 필요하면 API 로 볼 수 있습니다.
+  idp_image_info 의 img_meas2 는 8자 slot key 라 별개이며 계속 표시됩니다.
 
 
 raw recipe folder — AMP / focus / beam condition (user-confirmed 2026-07-29)

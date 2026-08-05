@@ -1116,8 +1116,80 @@ def _scalar(value: Any) -> Any:
     return value
 
 
-def _records(frame: pd.DataFrame, columns: list[str], table: str) -> list[dict[str, Any]]:
+def _coerce(value: Any, declared: Any, table: str, column: str, seen: set) -> Any:
+    """One cell -> the type ``contracts.py`` promises the frontend.
+
+    The office parser is not obliged to hand back the dtypes the schema doc
+    records, and on 2026-08-05 it did not: ``Coordinate.X`` arrived as the
+    string ``"52.676"``. Nothing here raised — ``_scalar`` passes a str
+    through, the response was a valid 200 — and the browser called
+    ``.toFixed(3)`` on it, which threw inside a computed and took out both the
+    align table and the modal's close button.
+
+    So the adapter converts rather than trusts. That is what
+    "office adapters must normalize results to the contract" has to mean for
+    TYPES as well as for shape; the mock builds its frames from a dtype map
+    and can never reproduce the failure.
+
+    Unconvertible values become ``None`` — a blank cell the screen already
+    knows how to draw — and are logged once per (table, column) via ``seen``,
+    because a 4000-row frame with one bad column would otherwise write 4000
+    identical warnings.
+
+    ``bool`` is deliberately NOT inferred from text: ``bool("False")`` is
+    True, and those three flags colour the screen. An unrecognised bool is
+    dropped like any other unconvertible value.
+    """
+    if value is None or declared not in (int, float, bool, str):
+        return value
+    if isinstance(value, bool):
+        # Checked before int: bool IS an int subclass, so True would otherwise
+        # satisfy the int branch and pass silently into a numeric column.
+        return value if declared is bool else _coerce_fail(table, column, value, seen)
+    if declared is bool:
+        return _coerce_fail(table, column, value, seen)
+    if declared is str:
+        return value if isinstance(value, str) else str(value)
+    if isinstance(value, (int, float)) and declared is float:
+        return float(value)
+    if isinstance(value, int) and declared is int:
+        return value
+    try:
+        # float() first even for an int column: "1.0" is what a float64 cell
+        # stringifies to, and int("1.0") raises.
+        number = float(value)
+    except (TypeError, ValueError):
+        return _coerce_fail(table, column, value, seen)
+    if declared is int:
+        return int(number)
+    return number
+
+
+def _coerce_fail(table: str, column: str, value: Any, seen: set) -> None:
+    """Log once per (table, column) and blank the cell."""
+    if (table, column) not in seen:
+        seen.add((table, column))
+        _LOG.warning(
+            "recipe_search: %s.%s from the IDP parser is not the type "
+            "contracts.py declares and could not be converted (e.g. %r, a %s) "
+            "— those cells are blank. Record the real type in "
+            "docs/datatables/recipe_idp.txt.",
+            table, column, value, type(value).__name__,
+        )
+    return None
+
+
+def _records(
+    frame: pd.DataFrame, columns: dict[str, Any], table: str
+) -> list[dict[str, Any]]:
     """DataFrame -> contract rows: documented columns only, in contract order.
+
+    ``columns`` is a row TypedDict's ``__annotations__`` — names AND declared
+    types, so this is the one place that guarantees what leaves the adapter
+    matches what the frontend was told to expect. It also keeps the two
+    ``img_meas2`` columns straight without a special case: a str in
+    ``idp_image_info`` (a slot key) and an int in ``wafer_mp_info`` (P_No), so
+    each table is coerced against its own contract.
 
     Restricting to the contract keeps the response shape stable when the
     parser gains a column, and filling an absent one with ``None`` keeps the
@@ -1142,7 +1214,14 @@ def _records(frame: pd.DataFrame, columns: list[str], table: str) -> list[dict[s
 
     present = [column for column in columns if column in frame.columns]
     rows = frame[present].to_dict(orient="records") if present else []
-    return [{column: _scalar(row.get(column)) for column in columns} for row in rows]
+    seen: set = set()
+    return [
+        {
+            column: _coerce(_scalar(row.get(column)), declared, table, column, seen)
+            for column, declared in columns.items()
+        }
+        for row in rows
+    ]
 
 
 def _to_detail_response(
@@ -1160,17 +1239,17 @@ def _to_detail_response(
     """
     idp_image_info: list[IdpImageInfoRow] = _records(
         frames["idp_image_info"],
-        list(IdpImageInfoRow.__annotations__),
+        IdpImageInfoRow.__annotations__,
         "idp_image_info",
     )
     wafer_mp_info: list[WaferMpInfoRow] = _records(
         frames["wafer_mp_info"],
-        list(WaferMpInfoRow.__annotations__),
+        WaferMpInfoRow.__annotations__,
         "wafer_mp_info",
     )
     wafer_align_info: list[WaferAlignInfoRow] = _records(
         frames["wafer_align_info"],
-        list(WaferAlignInfoRow.__annotations__),
+        WaferAlignInfoRow.__annotations__,
         "wafer_align_info",
     )
 

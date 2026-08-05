@@ -159,7 +159,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { IdpLocator, WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
 import { fetchAlignDetail, recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import type { AlignPoint } from '~/composables/useRecipeParamDetail'
-import { recipeTableUi } from '~/utils/recipeView'
+import { formatFixed, recipeTableUi } from '~/utils/recipeView'
 
 type AlignDisplayRow = {
   Align_No: number
@@ -228,12 +228,17 @@ watch(open, (isOpen) => {
   if (loadedFor.value !== wantKey.value && !pending.value) void load()
 })
 
+// Formatted through `formatFixed` rather than `.toFixed`: this computed runs
+// during render, so anything it throws takes the table AND the modal's close
+// button with it — which is exactly what a string `Coordinate.X` from the
+// office parser did on 2026-08-05. The backend now coerces to the contract;
+// this is the layer that keeps the next violation to a dash.
 const displayRows = computed<AlignDisplayRow[]>(() => props.rows.map(row => ({
   Align_No: row.Align_No,
   Chip_X: row['Chip.X'],
   Chip_Y: row['Chip.Y'],
-  Coordinate_X: row['Coordinate.X'].toFixed(3),
-  Coordinate_Y: row['Coordinate.Y'].toFixed(3),
+  Coordinate_X: formatFixed(row['Coordinate.X'], 3),
+  Coordinate_Y: formatFixed(row['Coordinate.Y'], 3),
   P_No: row['P.No']
 })))
 

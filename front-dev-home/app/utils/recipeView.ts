@@ -208,6 +208,29 @@ export const readRecipeSourceQuery = (
   route: RouteLocationNormalizedLoaded
 ): RecipeSearchSource => route.query.source === 'opensearch' ? 'opensearch' : 'redis'
 
+/**
+ * A numeric IDP cell as fixed-point text, tolerating a cell that is not a
+ * number.
+ *
+ * `Coordinate.X` is declared `float` in the backend contract, and on
+ * 2026-08-05 the office parser sent it as the string "52.676". The call it hit
+ * was a bare `row['Coordinate.X'].toFixed(3)`, which threw inside a computed —
+ * so the align table never rendered AND the modal stopped responding to its
+ * own close button. A thrown render is not a blank cell; it takes the whole
+ * subtree with it.
+ *
+ * The backend now converts against the contract, which is where the bug is
+ * actually fixed. This exists so the next contract violation costs one dash
+ * instead of a frozen dialog: a display formatter has no business trusting
+ * that a value it is about to print is a number.
+ */
+export const formatFixed = (value: unknown, digits: number, fallback = '—'): string => {
+  const number = typeof value === 'number' ? value : Number(value)
+  // Number(null) is 0 and Number('') is 0 — both are missing data, not zero.
+  if (value === null || value === undefined || value === '') return fallback
+  return Number.isFinite(number) ? number.toFixed(digits) : fallback
+}
+
 export const formatRecipeTimestamp = (iso: string, opts: { withSeconds?: boolean } = {}): string => {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso

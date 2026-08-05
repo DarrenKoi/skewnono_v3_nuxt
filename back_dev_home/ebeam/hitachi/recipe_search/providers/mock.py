@@ -52,6 +52,17 @@ filename.
   still returns the documented mapping. It is noted so a home session reading
   this file does not take that line as settled.
 
+★ The dtypes here are NOT what the office sends, and cannot be. This mock emits
+  a real float where the contract says float, so every value is already the
+  declared type. On 2026-08-05 the office parser sent `Coordinate.X` as the
+  STRING "52.676"; the response was a valid 200, the backend logged nothing,
+  and the browser's `.toFixed(3)` threw inside a computed — taking out the
+  align table AND the modal's close button together. The office adapter now
+  coerces to `contracts.py` in `_records`, which is where that class of bug is
+  caught. Do NOT teach this mock to emit strings to "cover" it: a mock that
+  imitates a malformed office response teaches the frontend to expect one.
+  (`docs/datatables/recipe_idp.txt` §dtype 은 위 표를 믿으면 안 됩니다.)
+
 `align_images` and `amp_info` are NOT among the parser's keys. Their source is
 the RAW-RECIPE FOLDER beside the .idp (`data/{idw}/{idp}/`), read by a second
 사내 parser, `office_utils.idp_amp_reader` — see the 2026-07-29 spec and
