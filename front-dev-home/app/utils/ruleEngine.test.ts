@@ -19,7 +19,12 @@ const sampleDram: RuleCell = {
   id: 'r3-sample-dram',
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 0 },
-  name_overrides: [{ patterns: ['WAFER', 'WF'], match: 'affix', cap: null }]
+  // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
+  // 포함 (user-confirmed 2026-08-05).
+  name_overrides: [
+    { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
+    { patterns: ['DUMMY'], match: 'affix', cap: null }
+  ]
 }
 const wfOverride = { patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains' as const, cap: 13 }
 // D8 — Core early NAND (EDGE 8), Core TV/PV (EDGE/EDGE_EX 16, no memory split)
@@ -52,7 +57,12 @@ const sampleNand: RuleCell = {
   id: 'r3-sample-nand',
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'NAND' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 8, EDGE_EX: 0, _other: 0 },
-  name_overrides: [{ patterns: ['WAFER', 'WF'], match: 'affix', cap: null }]
+  // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
+  // 포함 (user-confirmed 2026-08-05).
+  name_overrides: [
+    { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
+    { patterns: ['DUMMY'], match: 'affix', cap: null }
+  ]
 }
 // D15 — same selector shape, different fab (M-fab recipe_class × memory_class)
 const mfabMainDram: RuleCell = {
@@ -114,6 +124,28 @@ test('capFor: OTHER param uses name-override then _other', () => {
 test('capFor: Sample affix exemption returns null (no limit)', () => {
   assert.equal(capFor({ name: 'X_WF', point_count: 99 }, sampleDram), null) // exempt
   assert.equal(capFor({ name: 'RANDOM', point_count: 1 }, sampleDram), 0) // _other 0
+})
+
+// Sample 셀의 _other 는 0 이라, 면제가 없으면 자리 표시용 DUMMY 가 point 1 만
+// 있어도 항상 위반입니다 (user-confirmed 2026-08-05).
+test('capFor: Sample DUMMY is exempt, not capped at 0', () => {
+  assert.equal(capFor({ name: 'DUMMY', point_count: 1 }, sampleDram), null)
+  assert.equal(capFor({ name: 'DUMMY_1', point_count: 9 }, sampleDram), null)
+  assert.equal(capFor({ name: 'CD_DUMMY', point_count: 9 }, sampleDram), null)
+})
+
+test('evaluateRecipe: a Sample DUMMY no longer makes the recipe violate', () => {
+  const merged = applyAnnotation(recipe({
+    recipe_class: 'Sample',
+    parameters: [{ name: 'WAFER_CD', point_count: 13 }, { name: 'DUMMY', point_count: 1 }]
+  }))
+  const evaluated = evaluateRecipe(merged, resolveRuleCell(merged, [sampleDram]))
+
+  assert.equal(evaluated.pass, true)
+  assert.deepEqual(evaluated.violation_params, [])
+  // 목록에서 빼는 것이 아니라 판정에서만 빼므로 파라미터 수는 그대로입니다.
+  assert.equal(evaluated.total_params, 2)
+  assert.equal(evaluated.results.find(r => r.name === 'DUMMY')?.cap, null)
 })
 
 // --- D8/D14 cell resolution ---
@@ -194,7 +226,12 @@ test('D19 Sample Core TV/PV EDGE 16 beats phase-blind Sample (order = precedence
     id: 'r3-sample-core-tvpv',
     selector: { fac_id: 'R3', recipe_class: 'Sample', family: 'Core', phase_in: ['TV', 'PV'] },
     caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 0, _other: 0 },
-    name_overrides: [{ patterns: ['WAFER', 'WF'], match: 'affix', cap: null }]
+    // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
+  // 포함 (user-confirmed 2026-08-05).
+  name_overrides: [
+    { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
+    { patterns: ['DUMMY'], match: 'affix', cap: null }
+  ]
   }
   const coreTvpvSample = applyAnnotation(
     recipe({ recipe_class: 'Sample', family: 'Core', phase: 'PV', parameters: [{ name: 'EDGE', point_count: 14 }] })

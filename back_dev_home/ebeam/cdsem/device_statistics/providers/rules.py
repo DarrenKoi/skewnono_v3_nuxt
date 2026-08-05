@@ -34,8 +34,23 @@ _MAIN_OVERRIDES: list[NameOverride] = [
     {"patterns": ["DSPT", "WF", "WAFER"], "match": "contains", "cap": 13},
 ]
 # Sample: 비-WAFER 0, 단 WF/WAFER affix 면제 (D6).
+#
+# DUMMY 도 면제입니다 (user-confirmed 2026-08-05). Sample 셀의 ``_other`` 가 0
+# 이라, 자리를 채우는 placeholder 파라미터인 DUMMY 가 **측정 point 가 1 이라도
+# 있으면 자동으로 위반**이 됩니다. 실제로 그렇게 잡히고 있었고, 그 위반은
+# recipe 를 고쳐서 없앨 수 있는 종류가 아닙니다 — 재는 대상이 아니라 자리
+# 표시이기 때문입니다. 위반 목록에 남겨 두면 고칠 수 있는 진짜 위반이 그만큼
+# 묻힙니다.
+#
+# cap=None 은 "상한 없음 = 절대 위반 아님" 입니다(D9) — 목록에서 빼는 것이
+# 아니라 판정에서만 빼므로, recipe 의 파라미터 수에는 그대로 남습니다.
+#
+# match 를 affix 로 둔 것은 바로 위 WAFER/WF 규칙과 같은 의미를 쓰기 위해서
+# 입니다 — "DUMMY", "DUMMY_1", "CD_DUMMY" 는 잡고, 이름 한복판에 우연히 든
+# 경우는 잡지 않습니다.
 _SAMPLE_OVERRIDES: list[NameOverride] = [
     {"patterns": ["WAFER", "WF"], "match": "affix", "cap": None},
+    {"patterns": ["DUMMY"], "match": "affix", "cap": None},
 ]
 
 # D16 — fab-level 신호등 경계 seed 기본값. 편집 가능하되 거의 안 바꿈(D18).

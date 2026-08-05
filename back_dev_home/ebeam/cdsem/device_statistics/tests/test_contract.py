@@ -208,3 +208,32 @@ def test_rules_unknown_fab_returns_none():
     # Provider-independent: the route turns None into a 404, so an unknown fab
     # must never resolve to some other fab's caps.
     assert data.get_rules("does-not-exist") is None
+
+
+def test_sample_cells_exempt_the_dummy_parameter():
+    """Sample 셀은 DUMMY 를 판정에서 면제해야 합니다 (user-confirmed 2026-08-05).
+
+    Sample 셀의 ``_other`` 는 0 이라, 면제가 없으면 자리 표시용 파라미터인
+    DUMMY 가 point 1 만 있어도 **항상 위반**입니다. 그 위반은 recipe 를 고쳐서
+    없앨 수 있는 종류가 아니라, 고칠 수 있는 진짜 위반을 목록에서 밀어냅니다.
+
+    ``cap: None`` 이 프론트엔드 capFor 의 "상한 없음 = 절대 위반 아님" 입니다
+    (D9). 값이 0 이면 정반대 뜻이 되므로 None 인 것을 명시적으로 봅니다.
+    """
+    rules = data.get_rules("R3")
+    assert rules is not None
+
+    sample_cells = [
+        cell for cell in rules["cells"]
+        if cell["selector"].get("recipe_class") == "Sample"
+    ]
+    assert sample_cells, "R3 에 Sample 셀이 있어야 이 규칙이 의미를 갖습니다"
+
+    for cell in sample_cells:
+        assert cell["caps"]["_other"] == 0, cell["id"]
+        dummy = [
+            ov for ov in cell["name_overrides"]
+            if any(p.upper() == "DUMMY" for p in ov["patterns"])
+        ]
+        assert len(dummy) == 1, f"{cell['id']} 에 DUMMY 면제가 없습니다"
+        assert dummy[0]["cap"] is None, f"{cell['id']} 의 DUMMY cap 은 None 이어야 합니다"
