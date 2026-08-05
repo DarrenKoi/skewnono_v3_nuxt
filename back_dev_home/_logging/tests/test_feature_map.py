@@ -7,14 +7,19 @@ slugs turns one popular page into two unpopular ones. The module says both in
 prose; these pin them.
 """
 
+import re
+
 import pytest
 
+from back_dev_home import create_app
 from back_dev_home._logging.feature_map import (
     _FEATURE_RULES,
     _TOOL_PAGE_RULES,
+    _TOOL_SLUGS,
     page_to_feature,
     route_to_feature,
 )
+from back_dev_home._logging.policy import PAGE_VIEW_PATH
 
 
 @pytest.mark.parametrize("page,slug", _TOOL_PAGE_RULES)
@@ -33,8 +38,28 @@ def test_aliases_collapse_into_the_slug_they_belong_to():
 
 
 def test_the_msr_apis_all_count_as_skewvoir():
-    for path in ("/api/msr-file", "/api/msr-files", "/api/msr-image"):
+    for path in (
+        "/api/msr-file",
+        "/api/msr-files",
+        "/api/msr-image",
+        # Plural: a sibling of /api/msr-image, not a child of it, so the
+        # singular rule never covered it.
+        "/api/msr-images",
+        "/api/msr-images/job-1",
+    ):
         assert route_to_feature(path) == "skewvoir", path
+
+
+def test_the_two_vocabularies_agree_on_live_alarm():
+    """The API map and the page map are halves of one vocabulary.
+
+    live-alarm shipped with a page rule and no API rule, so the board's poll
+    was filed under the tool fallback while its page views were filed under
+    live_alarm — one feature reading as two in the same log.
+    """
+    assert route_to_feature("/api/cdsem/live-alarm") == "live_alarm"
+    assert route_to_feature("/api/hvsem/live-alarm") == "live_alarm"
+    assert page_to_feature("/ebeam/cd-sem/M14/live-alarm") == "live_alarm"
 
 
 def test_a_rule_matches_its_own_subtree():
@@ -90,6 +115,35 @@ def test_more_specific_rules_are_ordered_first():
             assert not shadowed or slug == earlier_slug, (
                 f"{prefix} is unreachable behind {earlier_prefix}"
             )
+
+
+def test_no_registered_route_still_needs_the_fallback():
+    """The guard this module was missing.
+
+    The first-segment fallback is a safety net for a route that shipped ahead
+    of its rule; a route already in the url_map must not still be leaning on
+    it. Both ways that shows up have happened here: an /api/<tool>/... path
+    landing on the bare tool slug, which reads as "an e-beam page nobody
+    mapped" (live-alarm), and a dashed slug, which the index field and Redis
+    hash key convention forbid (msr-images).
+    """
+    routes = [str(rule) for rule in create_app().url_map.iter_rules()]
+    unmapped = []
+    for raw in routes:
+        if not raw.startswith("/api/"):
+            continue
+        for tool in _TOOL_SLUGS:
+            # Both tool spellings, and any other converter filled with a value
+            # that cannot itself match a rule.
+            path = re.sub(r"<[^>]+>", "x", raw.replace("<tool_slug>", tool))
+            # The beacon's feature is the page it REPORTS, not its own path —
+            # the middleware overrides route_to_feature for it.
+            if path == PAGE_VIEW_PATH:
+                continue
+            slug = route_to_feature(path)
+            if slug in _TOOL_SLUGS or "-" in slug:
+                unmapped.append((path, slug))
+    assert not unmapped
 
 
 @pytest.mark.parametrize(

@@ -25,13 +25,21 @@ _OPERATION_PREFIXES = (
     "/api/me",
     "/api/identify",
 )
+# Requests a person did not ask for, one way or another. They are still LOGGED
+# under their real feature slug — only the usage weight is zero, so the ranking
+# stays a ranking of interest rather than of request volume.
 _BACKGROUND_EXACT = {
     # Mounted in both layouts (default.vue, hub.vue), so it fires once per
     # page load for every user on every page. Counting it would rank session
     # volume rather than interest in any one page.
     "/api/announcements",
+    # A poll, not a visit: useLiveAlarmFeed re-fetches on a timer for as long
+    # as the board is open, so counting each response would rank the page by
+    # how long it was left on screen. The live_alarm page open is counted once
+    # by the page-view beacon instead.
     "/api/cdsem/live-alarm",
     "/api/hvsem/live-alarm",
+    # One request per image in the viewer, so a single MSR open lands dozens.
     "/api/msr-image",
 }
 # The beacon endpoint. Mounted at the top level rather than under

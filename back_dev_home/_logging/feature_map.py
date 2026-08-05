@@ -32,6 +32,7 @@ _TOOL_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("storage",           "storage"),
     ("ppid-unavailable",  "storage"),   # StorageView side panel
     ("hardware",          "hardware"),
+    ("live-alarm",        "live_alarm"),
     ("skew",              "skew_check"),
     ("pm-planning",       "pm_planning"),
 )
@@ -45,6 +46,12 @@ _FEATURE_RULES: tuple[tuple[str, str], ...] = tuple(
     ("/api/msr-file",           "skewvoir"),
     ("/api/msr-files",          "skewvoir"),
     ("/api/msr-image",          "skewvoir"),
+    # Plural, and NOT a subtree of the singular rule above: the lookup only
+    # matches an exact path or a `prefix + "/"` child, so /api/msr-images
+    # needs its own line. Without it the fallback emitted the slug
+    # "msr-images" — dashed, which the index field and Redis hash key
+    # convention forbid, and a phantom feature beside skewvoir's own.
+    ("/api/msr-images",         "skewvoir"),
     # Standalone pages.
     ("/api/sem-list",           "sem_list"),
     ("/api/meas-hist",          "meas_hist"),
