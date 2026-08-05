@@ -48,8 +48,16 @@
               </span>
               <span class="flex flex-none items-center gap-3">
                 <span class="text-sm tabular-nums text-(--sk-ink-muted)">{{ recipe.total_params }} params</span>
+                <!-- 특수 job 은 파라미터당 point 수가 정상 recipe 의 몇 배라,
+                     이 배지가 없으면 큰 숫자가 초과 표시 없이 놓인 것이 규칙
+                     고장으로 읽힙니다. -->
                 <span
-                  v-if="recipe.flagged_count > 0"
+                  v-if="recipe.exempt"
+                  class="sk-badge bg-(--sk-muted-surface) font-sans font-semibold text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset"
+                  :title="EXEMPT_TITLE"
+                >{{ EXEMPT_BADGE }}</span>
+                <span
+                  v-else-if="recipe.flagged_count > 0"
                   class="sk-badge sk-badge-lg bg-rose-100 font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                 >{{ highlightLabel }} {{ recipe.flagged_count }}</span>
               </span>
@@ -96,6 +104,11 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ 'update:open': [boolean] }>()
+
+// 웨이퍼 전면을 훑는 job 이라 설계대로 많이 잽니다 — "초과" 가 아닙니다.
+const EXEMPT_BADGE = '분석 제외'
+const EXEMPT_TITLE = 'CDU·full/half-map 측정 job(_WCDU/_FCDU/_FULL/_HALF)입니다. '
+  + '설계상 측정 규모가 정상 recipe 와 달라 중앙값 기준선과 초과 판정에서 모두 빠집니다.'
 
 const highlightLabel = computed(() => props.highlightLabel ?? '초과')
 const expanded = ref<Set<string>>(new Set())

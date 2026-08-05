@@ -1,6 +1,7 @@
 // Shared drill-down view-model (D22). Both the descriptive (outlier) and
 // prescriptive (cap-violation) surfaces normalize into DrillDevice so a single
 // slideover renders both. Adapters are pure + unit-tested.
+import { isExemptJob } from './lotHealth.ts'
 import type { RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
@@ -17,6 +18,15 @@ export interface DrillRecipe {
   total_params: number
   flagged_count: number
   parameters: DrillParameter[]
+  /**
+   * 분석 범위 밖의 특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)인가.
+   *
+   * 목록에서 **빼지 않고 표시만** 합니다. 이 job 들은 파라미터당 point 수가
+   * 정상 recipe 의 몇 배라, 아무 말 없이 미표시로 두면 "104 point 인데 왜 초과가
+   * 아니지" 로 읽혀 제외 규칙이 고장난 것처럼 보입니다. 빼 버리면 이번에는
+   * 디바이스가 실제로 돌리는 recipe 가 목록에서 사라집니다.
+   */
+  exempt?: boolean
 }
 
 export interface DrillDevice {
@@ -41,7 +51,16 @@ export const toOutlierDrill = (
       return { name: p.name, point_count: p.point_count, flagged, note: flagged ? `> ${result.threshold}` : undefined }
     })
     const flagged_count = parameters.filter(p => p.flagged).length
-    return { recipe_id: r.recipe_id, flagged: flagged_count > 0, total_params: parameters.length, flagged_count, parameters }
+    return {
+      recipe_id: r.recipe_id,
+      flagged: flagged_count > 0,
+      total_params: parameters.length,
+      flagged_count,
+      parameters,
+      // detectDeviceOutliers 가 이미 뺐으므로 여기서 flagged 가 켜질 일은
+      // 없습니다. 그 사실을 화면이 말하게 하는 것이 이 플래그의 역할입니다.
+      exempt: isExemptJob(r.recipe_id)
+    }
   })
   return {
     lot_cd,

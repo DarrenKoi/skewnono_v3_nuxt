@@ -42,6 +42,24 @@ test('no outliers → every recipe unflagged, counts zero', () => {
   assert.ok(drill.recipes.every(r => !r.flagged))
 })
 
+test('an exempt job stays in the list, unflagged and marked', () => {
+  const recipes = [recipe('A', [10, 10, 10, 10]), recipe('B_WCDU', [800, 800])]
+  const drill = toOutlierDrill('R000', '', recipes, detectDeviceOutliers(recipes))
+
+  const exempt = drill.recipes.find(r => r.recipe_id === 'B_WCDU')!
+  // 목록에서 빼면 디바이스가 실제로 돌리는 recipe 가 사라집니다.
+  assert.ok(exempt, 'the exempt job must still be listed')
+  assert.equal(exempt.exempt, true, 'and it must say why it carries no 초과 badge')
+  assert.equal(exempt.flagged, false)
+  assert.equal(exempt.flagged_count, 0)
+  // 파라미터는 실제 값 그대로 보여줍니다 — 감추는 것이 아니라 설명하는 것입니다.
+  assert.equal(exempt.parameters[0]?.point_count, 800)
+  assert.equal(exempt.parameters[0]?.flagged, false)
+
+  assert.equal(drill.recipes.find(r => r.recipe_id === 'A')!.exempt, false)
+  assert.equal(drill.flagged_recipe_count, 0)
+})
+
 const coreEarlyDram: RuleCell = {
   id: 'r3-core-tev-dram',
   selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['t-EV', 'EV'], memory_class: 'DRAM' },
