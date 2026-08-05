@@ -341,7 +341,7 @@
             icon="i-lucide-search"
             color="neutral"
             variant="subtle"
-            placeholder="이름·사번 또는 기능 검색"
+            placeholder="이름·사번·팀 또는 기능 검색"
           />
           <USelect
             v-model="featureFilter"
@@ -396,6 +396,9 @@
                 <th class="py-2 pr-4">
                   사용자
                 </th>
+                <th class="py-2 pr-4">
+                  팀
+                </th>
                 <th class="py-2 pr-4 text-right">
                   요청 (30일)
                 </th>
@@ -440,6 +443,12 @@
                       {{ row.user_id }}
                     </div>
                   </td>
+                  <!-- Its own column rather than a third line under the name:
+                       the team is a different axis from "who is this", and a
+                       column is what an admin scans down to compare orgs. -->
+                  <td class="py-2.5 pr-4 sk-value">
+                    {{ userTeamLabel(row) }}
+                  </td>
                   <td class="py-2.5 pr-4 text-right sk-value-num">
                     {{ row.requests_30d.toLocaleString() }}
                   </td>
@@ -461,7 +470,7 @@
                   class="border-b border-(--sk-border)"
                 >
                   <td
-                    colspan="6"
+                    colspan="7"
                     class="py-3 pl-4 pr-4 bg-zinc-50/60 dark:bg-zinc-900/40"
                   >
                     <div
@@ -516,7 +525,7 @@
               </template>
               <tr v-if="filteredUsers.length === 0">
                 <td
-                  colspan="6"
+                  colspan="7"
                   class="py-10 text-center sk-body"
                 >
                   검색·필터 조건에 맞는 사용자가 없습니다.
@@ -540,7 +549,7 @@ import {
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, userDisplayName } from '~/utils/activity'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, userDisplayName, userTeamLabel } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 

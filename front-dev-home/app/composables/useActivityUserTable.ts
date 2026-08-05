@@ -81,10 +81,13 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
     // 이름 and 사번 are separate columns here, unlike the on-screen cell that
     // stacks them: an export is what gets pasted into a spreadsheet and
     // filtered on, and a merged "고대영 (2067928)" string cannot be.
-    headers: ['이름', '사번', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
+    headers: ['이름', '사번', '팀', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
     rows: filteredRows.value.map(row => [
       row.emp_nm ?? '',
       row.user_id,
+      // The raw value, not userTeamLabel — a spreadsheet wants a blank cell to
+      // filter on, not the em dash the screen shows.
+      row.dept_nm ?? '',
       row.requests_30d,
       row.days_active_30d,
       activityFeatureLabel(row.favorite_feature),

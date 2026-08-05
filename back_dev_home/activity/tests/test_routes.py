@@ -81,8 +81,9 @@ def test_aggregate_views_stay_open_to_normal_users(make_client, path):
 # --- the member-directory join on /activity/users ---------------------------
 #
 # The providers read the logging store, which records employee numbers and no
-# names, so the name is attached in the route. These cover the three answers
-# the directory can give for one row: a name, no row, and no directory.
+# names or teams, so both are attached in the route. These cover the answers
+# the directory can give for one row: a full row, no row, no directory, and a
+# partial row that has one field and not the other.
 
 
 @pytest.fixture
@@ -119,49 +120,79 @@ def users_route(monkeypatch, make_client):
     return build
 
 
-def test_listed_users_carry_their_directory_name(users_route):
+def test_listed_users_carry_their_directory_name_and_team(users_route):
     client = users_route(
         {
-            "2067928": {"empno": "2067928", "emp_nm": "고대영"},
-            "1234567": {"empno": "1234567", "emp_nm": "홍길동"},
+            "2067928": {
+                "empno": "2067928",
+                "emp_nm": "고대영",
+                "dept_nm": "계측기술팀",
+            },
+            "1234567": {
+                "empno": "1234567",
+                "emp_nm": "홍길동",
+                "dept_nm": "공정기술팀",
+            },
         }
     )
 
     users = client.get("/api/activity/users").json["users"]
 
-    assert [(row["user_id"], row["emp_nm"]) for row in users] == [
-        ("2067928", "고대영"),
-        ("1234567", "홍길동"),
+    assert [(row["user_id"], row["emp_nm"], row["dept_nm"]) for row in users] == [
+        ("2067928", "고대영", "계측기술팀"),
+        ("1234567", "홍길동", "공정기술팀"),
     ]
 
 
 def test_a_user_with_no_directory_row_still_appears(users_route):
     """Contractors and service accounts hold a cookie without a member row."""
-    client = users_route({"2067928": {"empno": "2067928", "emp_nm": "고대영"}})
+    client = users_route(
+        {"2067928": {"empno": "2067928", "emp_nm": "고대영", "dept_nm": "계측기술팀"}}
+    )
 
     users = client.get("/api/activity/users").json["users"]
 
-    assert [(row["user_id"], row["emp_nm"]) for row in users] == [
-        ("2067928", "고대영"),
-        ("1234567", None),
+    assert [(row["user_id"], row["emp_nm"], row["dept_nm"]) for row in users] == [
+        ("2067928", "고대영", "계측기술팀"),
+        ("1234567", None, None),
     ]
-    # The row is otherwise untouched — a missing name costs the name only.
+    # The row is otherwise untouched — a missing profile costs the profile only.
     assert users[1]["requests_30d"] == 2
 
 
-def test_an_unreachable_directory_costs_the_names_not_the_table(users_route):
+def test_a_partial_member_row_yields_the_field_it_has(users_route):
+    """Everything but empno is optional in a member document, so one field
+    being absent must not take the other down with it."""
+    client = users_route(
+        {
+            "2067928": {"empno": "2067928", "emp_nm": "고대영"},
+            "1234567": {"empno": "1234567", "dept_nm": "공정기술팀"},
+        }
+    )
+
+    users = client.get("/api/activity/users").json["users"]
+
+    assert [(row["emp_nm"], row["dept_nm"]) for row in users] == [
+        ("고대영", None),
+        (None, "공정기술팀"),
+    ]
+
+
+def test_an_unreachable_directory_costs_the_profiles_not_the_table(users_route):
     """lookup_members degrades to bare records rather than raising."""
     client = users_route(
         {
-            "2067928": {"empno": "2067928", "emp_nm": None},
-            "1234567": {"empno": "1234567", "emp_nm": None},
+            "2067928": {"empno": "2067928", "emp_nm": None, "dept_nm": None},
+            "1234567": {"empno": "1234567", "emp_nm": None, "dept_nm": None},
         }
     )
 
     response = client.get("/api/activity/users")
 
     assert response.status_code == 200
-    assert [row["emp_nm"] for row in response.json["users"]] == [None, None]
+    assert [
+        (row["emp_nm"], row["dept_nm"]) for row in response.json["users"]
+    ] == [(None, None), (None, None)]
 
 
 def test_a_declared_admin_id_does_not_pass_the_gate(make_client):

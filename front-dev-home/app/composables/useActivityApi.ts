@@ -57,6 +57,10 @@ export interface UserListRow {
    *  that employee number or could not be reached — the table then shows the
    *  employee number alone. */
   emp_nm: string | null
+  /** Member-directory team, from the same join. Nullable independently of
+   *  `emp_nm`: a member document may be partial, so a row can carry a name and
+   *  no team. */
+  dept_nm: string | null
 }
 
 export interface UserListResponse {

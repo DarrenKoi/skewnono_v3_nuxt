@@ -1,6 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE, userDisplayName, userSearchText } from './activity.ts'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
+
+/** A listed row's identity fields, with the directory having answered fully. */
+const listed = (over = {}) => ({
+  user_id: '2067928',
+  emp_nm: '고대영',
+  dept_nm: '계측기술팀',
+  ...over
+})
 
 test('activityFeatureLabel translates known keys and humanizes unknown keys', () => {
   assert.equal(activityFeatureLabel('recipe_search'), 'Recipe 검색')
@@ -9,20 +17,30 @@ test('activityFeatureLabel translates known keys and humanizes unknown keys', ()
 })
 
 test('userDisplayName prefers the directory name and falls back to the empno', () => {
-  assert.equal(userDisplayName({ user_id: '2067928', emp_nm: '고대영' }), '고대영')
+  assert.equal(userDisplayName(listed()), '고대영')
   // No directory row (contractor, service account) or an unreachable directory.
-  assert.equal(userDisplayName({ user_id: '2067928', emp_nm: null }), '2067928')
+  assert.equal(userDisplayName(listed({ emp_nm: null })), '2067928')
   // A blank name is the same as no name — it must not render an empty cell.
-  assert.equal(userDisplayName({ user_id: '2067928', emp_nm: '  ' }), '2067928')
+  assert.equal(userDisplayName(listed({ emp_nm: '  ' })), '2067928')
 })
 
-test('userSearchText matches on either the name or the employee number', () => {
-  const text = userSearchText({ user_id: '2067928', emp_nm: '고대영' })
+test('userTeamLabel dashes when the directory had no team', () => {
+  assert.equal(userTeamLabel(listed()), '계측기술팀')
+  assert.equal(userTeamLabel(listed({ dept_nm: null })), '—')
+  assert.equal(userTeamLabel(listed({ dept_nm: '  ' })), '—')
+  // A member document may be partial, so the two fields fall back separately.
+  assert.equal(userTeamLabel(listed({ emp_nm: null })), '계측기술팀')
+})
+
+test('userSearchText matches on the name, the employee number or the team', () => {
+  const text = userSearchText(listed())
 
   assert.ok(text.includes('고대영'))
   assert.ok(text.includes('2067928'))
-  // A nameless row is still findable by its id.
-  assert.ok(userSearchText({ user_id: '1234567', emp_nm: null }).includes('1234567'))
+  assert.ok(text.includes('계측기술팀'))
+  // A row the directory knows nothing about is still findable by its id.
+  const bare = userSearchText(listed({ user_id: '1234567', emp_nm: null, dept_nm: null }))
+  assert.ok(bare.includes('1234567'))
 })
 
 test('summarizePersonalActivity compares the latest two seven-day windows', () => {

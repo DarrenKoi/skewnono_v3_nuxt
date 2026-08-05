@@ -1,9 +1,9 @@
 import type { DailyCount, UserListRow } from '~/composables/useActivityApi'
 
-/** What identifies a person in a listing — the two columns the member-directory
- *  join touches. Narrower than `UserListRow` so these read as row-identity
- *  helpers rather than table-wide ones. */
-type ListedUser = Pick<UserListRow, 'user_id' | 'emp_nm'>
+/** Who a listed person is — the columns the member-directory join touches.
+ *  Narrower than `UserListRow` so these read as row-identity helpers rather
+ *  than table-wide ones. */
+type ListedUser = Pick<UserListRow, 'user_id' | 'emp_nm' | 'dept_nm'>
 
 /** The name the 사용자 column leads with: the member-directory name when the
  *  backend found one, the employee number otherwise (a contractor or service
@@ -15,10 +15,17 @@ type ListedUser = Pick<UserListRow, 'user_id' | 'emp_nm'>
 export const userDisplayName = (row: ListedUser): string =>
   row.emp_nm?.trim() || row.user_id
 
-/** Everything about a person the search box should match — name and employee
- *  number both, so an admin who knows either one can find the row. */
+/** The team the 팀 column shows, or a dash when the directory had no team for
+ *  this person — an empty cell reads as a rendering bug rather than as an
+ *  answer. Matches `activityFeatureLabel`, which dashes the same way. */
+export const userTeamLabel = (row: ListedUser): string =>
+  row.dept_nm?.trim() || '—'
+
+/** Everything about a person the search box should match — name, employee
+ *  number and team, so an admin who knows any one of them can find the row.
+ *  Searching a team is how you narrow the table to one org. */
 export const userSearchText = (row: ListedUser): string =>
-  `${row.emp_nm ?? ''} ${row.user_id}`
+  `${row.emp_nm ?? ''} ${row.user_id} ${row.dept_nm ?? ''}`
 
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.

@@ -73,17 +73,23 @@ class NamedUserListRow(UserListRow):
     """A listed user after the route joined the member directory onto it.
 
     Split from ``UserListRow`` on purpose. The activity providers read the
-    logging store, which knows employee numbers and no names at all, so making
-    them promise ``emp_nm`` would be a promise neither adapter could keep. The
-    name is added in ``routes.py`` from ``_auth.directory``, and this is the
-    shape that reaches the SPA.
+    logging store, which knows employee numbers and no names or teams at all,
+    so making them promise these would be a promise neither adapter could
+    keep. They are added in ``routes.py`` from ``_auth.directory``, and this
+    is the shape that reaches the SPA.
 
-    ``emp_nm`` is None whenever the directory could not answer — no row for
-    that empno, Redis unreachable, a malformed document. The frontend falls
-    back to showing the employee number alone.
+    Both are None whenever the directory could not answer — no row for that
+    empno, Redis unreachable, a malformed document — and either can be None on
+    its own, because a member row may be partial. The frontend falls back to
+    the employee number alone for the name, and to a dash for the team.
+
+    The directory also carries ``organ_cd`` and ``upper_organ_nm``; they stay
+    out of this shape because nothing renders them, and an API field with no
+    reader is a field that quietly rots.
     """
 
     emp_nm: str | None
+    dept_nm: str | None
 
 
 class NamedUserListResponse(TypedDict):

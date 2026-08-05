@@ -153,9 +153,11 @@ types:
 
   NamedUserListRow:
     description: >-
-      UserListRow에 member directory 이름을 붙인 형태이며, /api/activity/users가
-      실제로 반환하는 행입니다. logging store는 사번만 기록하므로 provider는
-      emp_nm을 만들 수 없고, routes.py가 _auth.directory에서 조회해 붙입니다.
+      UserListRow에 member directory의 이름과 소속 팀을 붙인 형태이며,
+      /api/activity/users가 실제로 반환하는 행입니다. logging store는 사번만
+      기록하므로 provider는 이 두 필드를 만들 수 없고, routes.py가
+      _auth.directory에서 조회해 붙입니다. directory의 organ_cd와
+      upper_organ_nm은 화면에 표시하지 않으므로 포함하지 않습니다.
     extends: UserListRow
     emp_nm:
       type: string
@@ -163,6 +165,12 @@ types:
       description: >-
         Redis `members` 해시의 이름입니다. 해당 사번의 row가 없거나 directory를
         조회할 수 없으면 null이며, 이때 화면은 사번만 표시합니다.
+    dept_nm:
+      type: string
+      nullable: true
+      description: >-
+        Redis `members` 해시의 소속 팀명입니다. member row는 부분적일 수 있어
+        emp_nm과 독립적으로 null일 수 있으며, 이때 화면은 —를 표시합니다.
 
   UserListResponse:
     generated_at:

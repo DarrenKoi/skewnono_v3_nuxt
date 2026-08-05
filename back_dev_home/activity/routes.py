@@ -57,10 +57,11 @@ def _named_users_list() -> NamedUserListResponse:
     whether to dial office Redis or fabricate a home row, so neither
     ``mock.py`` nor ``office.py`` has anything to contribute. Putting it in the
     route also keeps the provider contract honest — the logging store records
-    employee numbers and no names, so ``UserListRow`` should not promise one.
+    employee numbers and no names or teams, so ``UserListRow`` should not
+    promise either.
 
     A directory that cannot answer costs the names and not the table:
-    ``lookup_members`` never raises, and ``emp_nm`` is simply None.
+    ``lookup_members`` never raises, and the joined fields are simply None.
     """
     payload = get_users_list()
     rows = payload["users"]
@@ -68,7 +69,14 @@ def _named_users_list() -> NamedUserListResponse:
     return {
         "generated_at": payload["generated_at"],
         "users": [
-            {**row, "emp_nm": members.get(row["user_id"], {}).get("emp_nm")}
+            {
+                **row,
+                # .get on both sides: the directory answers for every id it was
+                # asked about, but a member row may be partial — a missing team
+                # is not worth failing a table over.
+                "emp_nm": members.get(row["user_id"], {}).get("emp_nm"),
+                "dept_nm": members.get(row["user_id"], {}).get("dept_nm"),
+            }
             for row in rows
         ],
     }
