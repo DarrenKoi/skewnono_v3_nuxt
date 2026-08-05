@@ -100,12 +100,40 @@
         />
 
         <div class="space-y-2">
-          <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <p class="sk-panel-title">
               recipe
             </p>
             <span class="sk-field-name">{{ row.lot_cd }}</span>
             <span class="sk-field-label">{{ lotRecipes.length }}건</span>
+
+            <!-- 화면은 recipe 단위 카드지만, 엑셀로 가져가고 싶은 것은 그
+                 아래 파라미터까지 편 표입니다 — 스텝·recipe_id·파라미터·측정
+                 point 한 줄씩. 그래서 카드를 그대로 옮기지 않고 한 단계 더
+                 편 표를 내보냅니다. -->
+            <div class="ml-auto flex items-center gap-2">
+              <span class="sk-field-label">{{ paramRowCount.toLocaleString() }}행</span>
+              <UTooltip :text="text.copyHint">
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-clipboard"
+                  class="h-[34px] px-3 text-sm font-semibold"
+                  :aria-label="text.copyHint"
+                  :disabled="paramRowCount === 0"
+                  @click="copyParamTable"
+                />
+              </UTooltip>
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-download"
+                class="h-[34px] px-3.5 text-sm font-semibold"
+                :label="text.csvDownload"
+                :disabled="paramRowCount === 0"
+                @click="downloadParamTable"
+              />
+            </div>
           </div>
 
           <div
@@ -178,8 +206,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useColorMode } from '#imports'
+import { useColorMode, useToast } from '#imports'
 import type { HealthAugmentedRow } from '~/utils/lotHealth'
+import type { RecipeInput } from '~/utils/ruleEngine'
+import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from '~/utils/lotParamExport'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import type {
   RecipeInfoRow,
   RecipeTrendResponse,
@@ -192,6 +223,14 @@ const props = defineProps<{
   row: HealthAugmentedRow | null
   bucket: SummaryBucketKey
   recipeRows: RecipeInfoRow[]
+  /**
+   * 이 lot 의 recipe-params — **이미 버킷 범위로 좁혀진** 것입니다.
+   *
+   * 모달이 직접 좁히지 않는 이유는 페이지가 이미 한 번 좁혀 두었기 때문입니다
+   * (comparison.vue 의 bucketRecipes). 여기서 또 좁히면 health·outlier 와 이
+   * 파일이 서로 다른 모집단을 말할 수 있는 두 번째 경로가 생깁니다.
+   */
+  recipeParams: RecipeInput[]
   trend: RecipeTrendResponse | null
 }>()
 
@@ -205,6 +244,8 @@ const text = {
   grayRecipes: '판정 제외',
   recipeRatio: '운용 / 전체 recipe',
   paraDist: 'para 분포',
+  csvDownload: 'CSV 다운로드',
+  copyHint: '파라미터 표를 클립보드에 복사 (엑셀에 붙여넣기)',
   // M 계열은 원천에 순서 field 가 없어 oper_seq/samp_seq 를 공정 접두사 순위로
   // 합성합니다 — 화면 표기 의무 (docs/datatables/ebeam_tas_lot_hist.txt ★).
   seqCaveat: 'M 계열 fab 의 oper_seq · samp_seq 는 합성값으로, 실제 운영 공정 순서를 반영하지 않습니다.'
@@ -238,4 +279,29 @@ const sortedRecipes = computed(() =>
 // recipe 의 막대가 똑같이 꽉 차 보입니다. lot 안에서 서로 비교되도록 최대값을
 // 공유합니다.
 const maxRecipeParaTotal = computed(() => Math.max(0, ...lotRecipes.value.map(r => r.para_all)))
+
+// 파일의 행 순서는 화면의 카드 순서입니다 — 표와 파일을 나란히 놓고 읽을 수
+// 있어야 하므로 sortedRecipes 를 그대로 넘깁니다. 목록 필터가 하나뿐이라
+// LotTable 처럼 정렬 ref 를 공유할 필요는 없고, 같은 computed 를 쓰는 것으로
+// 충분합니다.
+const paramRows = computed(() => buildLotParamRows(sortedRecipes.value, props.recipeParams))
+const paramRowCount = computed(() => paramRows.value.length)
+
+const headers = [...LOT_PARAM_HEADERS]
+
+const downloadParamTable = () => {
+  if (!props.row) return
+  downloadCsv(lotParamFileName(props.row.lot_cd, props.bucket), headers, paramRows.value)
+}
+
+const toast = useToast()
+
+const copyParamTable = async () => {
+  const ok = await copyTableToClipboard(headers, paramRows.value)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
 </script>

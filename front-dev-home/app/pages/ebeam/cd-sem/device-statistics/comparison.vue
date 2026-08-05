@@ -205,6 +205,7 @@
           :row="selectedLotRow"
           :bucket="selectedBucket"
           :recipe-rows="recipeRowsForBucket"
+          :recipe-params="selectedLotParams"
           :trend="trend ?? null"
         />
         <EbeamDevstatDrillSlideover
@@ -646,6 +647,15 @@ const openLotDetail = (row: HealthAugmentedRow) => {
   selectedLotRow.value = row
   lotModalOpen.value = true
 }
+
+// 모달의 CSV 내보내기가 쓰는 파라미터. drill 과 **같은 map** 에서 꺼냅니다 —
+// 이미 버킷 범위로 좁혀진 recipesByLot 이라, 파일이 화면의 health·outlier 와
+// 다른 모집단을 말할 수 없습니다. 열려 있는 lot 것만 넘겨 모달은 좁히는 일을
+// 하지 않습니다.
+const selectedLotParams = computed<RecipeInput[]>(() => {
+  const lotCd = selectedLotRow.value?.lot_cd
+  return lotCd ? recipesByLot.value.get(lotCd) ?? [] : []
+})
 
 const drillOpen = ref(false)
 const activeDrill = ref<DrillDevice | null>(null)
