@@ -299,6 +299,55 @@
         </div>
       </UCard>
 
+      <!-- Admin tools: the two /admin pages are deliberately kept out of the
+           nav (see intro.vue's visibleSections), so this is the only place an
+           admin can reach them without typing the URL. -->
+      <UCard
+        v-if="isAdmin"
+        class="dashboard-surface"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
+              <UIcon name="i-lucide-shield-check" />
+              관리자 도구
+            </span>
+            <UBadge
+              color="warning"
+              variant="subtle"
+              size="sm"
+            >
+              관리자 전용
+            </UBadge>
+          </div>
+        </template>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <NuxtLink
+            v-for="link in adminLinks"
+            :key="link.to"
+            :to="link.to"
+            class="group flex items-start gap-3 rounded-(--sk-r-card) border border-(--sk-border) p-3 transition hover:bg-(--sk-accent-soft)"
+          >
+            <UIcon
+              :name="link.icon"
+              class="size-5 shrink-0 mt-0.5 text-(--sk-ink-muted)"
+            />
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-(--sk-ink) flex items-center gap-1.5">
+                {{ link.title }}
+                <UIcon
+                  name="i-lucide-arrow-right"
+                  class="size-3.5 opacity-0 transition group-hover:opacity-100"
+                />
+              </div>
+              <p class="sk-meta mt-0.5">
+                {{ link.description }}
+              </p>
+            </div>
+          </NuxtLink>
+        </div>
+      </UCard>
+
       <!-- Users table: per-employee rows are admin-only (backend returns 403) -->
       <UCard
         v-if="isAdmin"
@@ -566,6 +615,22 @@ const {
 } = await useActivityMe()
 
 const isAdmin = computed(() => me.value?.is_admin === true)
+
+// Kept in sync with intro.vue's `section: 'admin'` page guides.
+const adminLinks = [
+  {
+    to: '/admin/logs',
+    icon: 'i-lucide-file-search',
+    title: '운영 로그',
+    description: 'level·path·사번으로 요청 로그와 오류를 추적합니다.'
+  },
+  {
+    to: '/admin/access',
+    icon: 'i-lucide-shield-check',
+    title: '접근 권한 관리',
+    description: 'X-사번 차단 예외를 허용하고 최근 차단 시도를 확인합니다.'
+  }
+]
 
 // Summary + fab breakdown are shared activity views, so every viewer fetches
 // them. The users list is admin-only on the backend (403 otherwise), so it is
