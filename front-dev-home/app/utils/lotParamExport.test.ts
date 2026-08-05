@@ -101,3 +101,15 @@ test('filename sanitises the lot code and names the bucket', () => {
   assert.equal(lotParamFileName('R0/A8', 'all'), 'R0_A8_all_params.csv')
   assert.equal(lotParamFileName('', 'all'), 'unknown_all_params.csv')
 })
+
+// 페이지가 넘기는 것은 API 의 버킷 키라 "_summary" 가 붙어 있습니다. 그대로
+// 쓰면 파일 이름이 스스로를 요약이라고 잘못 소개합니다.
+test('filename drops the bucket key\'s _summary tail', () => {
+  assert.equal(lotParamFileName('R0A8', 'all_summary'), 'R0A8_all_params.csv')
+  assert.equal(
+    lotParamFileName('R0A8', 'mother_normal_summary'),
+    'R0A8_mother_normal_params.csv'
+  )
+  // 꼬리가 아니라 중간에 있으면 건드리지 않습니다.
+  assert.equal(lotParamFileName('R0A8', 'summary_x'), 'R0A8_summary_x_params.csv')
+})
