@@ -7,7 +7,7 @@
       :stats="metaStats"
     />
 
-    <div class="dashboard-surface rounded-2xl p-3">
+    <div class="dashboard-surface rounded-[var(--sk-r-card)] p-3">
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 class="sk-title">
           {{ text.mainTitle }}
@@ -17,31 +17,38 @@
         </span>
       </div>
 
-      <!-- fixed caps + legend -->
-      <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 sk-meta">
-        <span
-          v-if="fixedEntries.length > 0"
-          class="inline-flex items-center gap-1.5"
-        >
-          {{ text.fixedLead }}
+      <!-- fixed caps + legend; the legend renders real CapCells so it cannot
+           drift from what the matrix below actually paints -->
+      <div class="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--sk-r-chip)] border border-(--sk-border-soft) bg-(--sk-muted-surface) px-3 py-2">
+        <template v-if="fixedEntries.length > 0">
+          <span class="sk-label">{{ text.fixedLead }}</span>
           <span
             v-for="fixed in fixedEntries"
             :key="fixed.key"
-            class="inline-flex h-5 items-center gap-1 rounded border border-(--sk-border) bg-(--sk-surface) px-1.5 font-mono text-[11px] text-(--sk-ink)"
-          >{{ fixed.key }} <b class="font-semibold">{{ fixed.value }}</b></span>
-          {{ text.fixedNote }}
+            class="inline-flex h-7 items-center gap-1.5 rounded-[var(--sk-r-chip)] border border-(--sk-border) bg-(--sk-surface) px-2 font-mono text-[12px] text-(--sk-ink-muted)"
+          >{{ fixed.key }}<b class="text-[13px] font-bold tabular-nums text-(--sk-ink)">{{ fixed.value }}</b></span>
+          <span class="sk-meta">{{ text.fixedNote }}</span>
+          <span
+            class="h-5 w-px bg-(--sk-border)"
+            aria-hidden="true"
+          />
+        </template>
+
+        <span class="sk-label">{{ text.legendLead }}</span>
+        <span class="inline-flex items-center gap-1.5">
+          <EbeamRulesCapCell :value="9" />
+          <span class="sk-meta">{{ text.legendCap }}</span>
         </span>
         <span class="inline-flex items-center gap-1.5">
-          <span class="inline-flex h-5 min-w-7 items-center justify-center rounded border border-(--sk-border) bg-(--sk-surface) font-mono text-[11px] text-(--sk-ink)">9</span>
-          {{ text.legendCap }}
+          <EbeamRulesCapCell :value="0" />
+          <span class="sk-meta">{{ text.legendZero }}</span>
         </span>
         <span class="inline-flex items-center gap-1.5">
-          <span class="inline-flex h-5 min-w-7 items-center justify-center rounded border border-(--sk-border) bg-(--sk-surface) font-mono text-[11px] text-(--sk-ink-subtle)">0</span>
-          {{ text.legendZero }}
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="inline-flex h-5 min-w-7 items-center justify-center rounded border border-(--sk-accent-border) bg-(--sk-accent-tint) font-mono text-[11px] text-(--sk-accent)">16</span>
-          {{ text.legendExpanded }}
+          <EbeamRulesCapCell
+            :value="16"
+            emphasis
+          />
+          <span class="sk-meta">{{ text.legendExpanded }}</span>
         </span>
       </div>
 
@@ -98,6 +105,7 @@ const text = {
   mainHint: '칸 = 최대 측정 포인트 수(cap, ≤) · EV = EV 포함 이전 · TV = TV 포함 이후',
   fixedLead: '고정 cap',
   fixedNote: '모든 룰 공통 · 변경 없음',
+  legendLead: '범례',
   legendCap: '상한',
   legendZero: '측정 금지',
   legendExpanded: 'EDGE·EDGE_EX 확대 (TV 포함 이후 · 수율 후)',

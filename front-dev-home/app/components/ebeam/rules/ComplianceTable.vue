@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-2xl p-3">
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] p-3">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h3 class="sk-title">
         {{ text.title }}
@@ -32,39 +32,40 @@
     >
       <thead>
         <tr class="border-b border-(--sk-border)">
-          <th class="px-3 py-2 text-left sk-eyebrow">
+          <th class="w-[240px] px-3 py-2 text-left whitespace-nowrap sk-label">
             디바이스
           </th>
-          <th class="px-2 py-2 text-right sk-eyebrow">
+          <th class="w-[120px] px-2 py-2 text-right whitespace-nowrap sk-label">
             recipe
           </th>
-          <th class="px-2 py-2 text-right sk-eyebrow">
+          <th class="w-[120px] px-2 py-2 text-right whitespace-nowrap sk-label">
             위반 recipe
           </th>
-          <th class="px-2 py-2" />
+          <th class="w-[92px] px-2 py-2" />
+          <th class="w-full" />
         </tr>
       </thead>
       <tbody>
         <tr
           v-for="dev in deviceRows"
           :key="dev.lot_cd"
-          class="border-t border-(--sk-border) transition-colors hover:bg-(--sk-accent-tint)/40"
+          class="border-t border-(--sk-border-soft) transition-colors hover:bg-(--sk-accent-soft)"
         >
-          <td class="px-3 py-1 sk-value-num">
+          <td class="px-3 py-1.5 sk-value-num font-semibold">
             {{ dev.lot_cd }}
           </td>
-          <td class="px-2 py-1 text-right font-mono text-[12.5px] tabular-nums text-(--sk-ink-muted)">
+          <td class="px-2 py-1.5 text-right sk-value-num">
             {{ dev.recipe_count }}
           </td>
-          <td class="px-2 py-1 text-right">
+          <td class="px-2 py-1.5 text-right">
             <span
-              class="inline-flex h-5 min-w-7 items-center justify-center rounded px-1.5 font-mono text-[11px] font-semibold tabular-nums"
+              class="inline-flex h-6 min-w-8 items-center justify-center rounded-[var(--sk-r-chip)] border px-1.5 font-mono text-[12px] font-semibold tabular-nums"
               :class="dev.violation_count > 0
-                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
-                : 'bg-(--sk-surface) text-(--sk-ink-subtle)'"
+                ? 'border-(--sk-bad-border) bg-(--sk-bad-soft) text-(--sk-bad)'
+                : 'border-(--sk-border) bg-(--sk-muted-surface) text-(--sk-ink-muted)'"
             >{{ dev.violation_count }}</span>
           </td>
-          <td class="px-2 py-1 text-right">
+          <td class="px-2 py-1.5 text-right">
             <UButton
               size="xs"
               color="neutral"
@@ -73,6 +74,7 @@
               @click="openDrill(dev.lot_cd)"
             />
           </td>
+          <td />
         </tr>
       </tbody>
     </table>

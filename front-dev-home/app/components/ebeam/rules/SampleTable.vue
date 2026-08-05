@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-2xl p-3">
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] p-3">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h3 class="sk-title">
         {{ text.title }}
@@ -13,53 +13,52 @@
       <table class="w-full border-collapse">
         <thead>
           <tr class="border-b border-(--sk-border)">
-            <th class="px-3 py-1.5 text-left sk-eyebrow">
+            <th class="w-[264px] border-r border-(--sk-border-soft) px-3 py-2 text-left whitespace-nowrap sk-label">
               룰 셀
             </th>
             <th
               v-for="column in CAP_COLUMNS"
               :key="column.key"
-              class="px-2 py-1.5 text-center sk-eyebrow"
+              class="w-[116px] px-2 py-2 text-center whitespace-nowrap sk-label"
             >
               {{ column.label }}
             </th>
+            <th class="w-full" />
           </tr>
         </thead>
         <tbody>
           <tr
             v-for="row in rows"
             :key="row.cell.id"
-            class="border-t border-(--sk-border) transition-colors hover:bg-(--sk-accent-tint)/40"
+            class="border-t border-(--sk-border-soft) transition-colors hover:bg-(--sk-accent-soft)"
           >
-            <td class="px-3 py-1 text-left whitespace-nowrap">
+            <td class="border-r border-(--sk-border-soft) px-3 py-1.5 text-left whitespace-nowrap">
               <div class="flex items-center gap-2">
                 <span
-                  class="text-[12.5px]"
-                  :class="row.label === '기본' ? 'text-(--sk-ink-subtle)' : 'font-medium text-(--sk-ink)'"
+                  class="sk-value"
+                  :class="row.label === '기본' ? 'text-(--sk-ink-muted)' : 'font-semibold'"
                 >{{ row.label }}</span>
                 <span
                   v-if="row.hint"
-                  class="text-[11px] text-(--sk-ink-subtle)"
+                  class="sk-label"
                 >{{ row.hint }}</span>
-                <span
+                <EbeamRulesMemoryChip
                   v-if="row.memory"
-                  class="inline-flex h-5 items-center rounded px-1.5 font-mono text-[10px] font-semibold ring-1"
-                  :class="row.memory === 'NAND'
-                    ? 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60'
-                    : 'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900/60'"
-                >{{ row.memory }}</span>
+                  :memory="row.memory"
+                />
               </div>
             </td>
             <td
               v-for="column in CAP_COLUMNS"
               :key="column.key"
-              class="px-2 py-1 text-center"
+              class="px-2 py-1.5 text-center"
             >
               <EbeamRulesCapCell
                 :value="capValue(row.cell, column.key)"
                 :emphasis="row.expanded && column.key !== '_other'"
               />
             </td>
+            <td />
           </tr>
         </tbody>
       </table>
@@ -67,13 +66,13 @@
 
     <p
       v-if="overrides.length > 0"
-      class="mt-1.5 px-3 text-xs text-(--sk-ink-subtle)"
+      class="mt-2 border-t border-(--sk-border-soft) px-3 pt-2"
     >
-      ▸ 이름 예외 (기타 파라 전용):
+      <span class="sk-label">▸ 이름 예외 (기타 파라 전용)</span>
       <code
         v-for="(ov, index) in overrides"
         :key="index"
-        class="font-mono text-(--sk-ink-muted)"
+        class="ml-1.5 font-mono text-[12px] text-(--sk-ink)"
       >{{ overrideLabel(ov) }}</code>
     </p>
   </div>

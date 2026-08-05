@@ -3,16 +3,17 @@
     <table class="w-full border-collapse">
       <thead>
         <tr class="border-b border-(--sk-border)">
-          <th class="px-3 py-1.5 text-left sk-eyebrow">
+          <th class="w-[264px] border-r border-(--sk-border-soft) px-3 py-2 text-left whitespace-nowrap sk-label">
             룰 셀
           </th>
           <th
             v-for="column in CAP_COLUMNS"
             :key="column.key"
-            class="px-2 py-1.5 text-center sk-eyebrow"
+            class="w-[116px] px-2 py-2 text-center whitespace-nowrap sk-label"
           >
             {{ column.label }}
           </th>
+          <th class="w-full" />
         </tr>
       </thead>
       <tbody>
@@ -20,10 +21,10 @@
           v-for="group in groups"
           :key="group.key"
         >
-          <tr>
+          <tr class="border-t border-(--sk-border)">
             <td
-              :colspan="CAP_COLUMNS.length + 1"
-              class="px-3 pt-2.5 pb-0.5 text-left sk-eyebrow"
+              :colspan="CAP_COLUMNS.length + 2"
+              class="bg-(--sk-muted-surface) px-3 py-1.5 text-left sk-value font-semibold"
             >
               {{ group.label }}
             </td>
@@ -37,14 +38,14 @@
           <tr
             v-for="(ov, index) in group.overrides"
             :key="`${group.key}-ov-${index}`"
-            class="bg-(--sk-accent-tint)/30"
+            class="border-t border-(--sk-border-soft)"
           >
             <td
-              :colspan="CAP_COLUMNS.length + 1"
-              class="px-3 py-1 pl-6 text-left text-xs text-(--sk-ink-subtle)"
+              :colspan="CAP_COLUMNS.length + 2"
+              class="px-3 py-1.5 pl-6 text-left"
             >
-              ▸ 이름 예외 (기타 파라 전용):
-              <code class="font-mono text-(--sk-ink-muted)">{{ overrideLabel(ov) }}</code>
+              <span class="sk-label">▸ 이름 예외 (기타 파라 전용)</span>
+              <code class="ml-1.5 font-mono text-[12px] text-(--sk-ink)">{{ overrideLabel(ov) }}</code>
             </td>
           </tr>
         </template>

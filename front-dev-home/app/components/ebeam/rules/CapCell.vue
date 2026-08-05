@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex h-6 min-w-11 items-center justify-center rounded-md border px-2 font-mono text-[13px] font-semibold tabular-nums"
+    class="inline-flex h-7 min-w-12 items-center justify-center rounded-[var(--sk-r-chip)] border px-2 font-mono text-[13px] tabular-nums"
     :class="cellClass"
     :title="title"
   >
@@ -16,6 +16,11 @@
 //   n         → upper bound
 // emphasis marks caps opened up beyond the EV baseline (TV 포함 이후 · 수율 후);
 // it only tints positive caps — 0/— keep their own meaning.
+//
+// A cap is a data value, so DESIGN.md's "values are ink" rule holds in every
+// state: the digit never drops below --sk-ink-muted. State rides on weight,
+// border and fill instead — which is also why emphasis uses crimson purely as
+// trim (border + tint) and never as the digit's colour.
 const props = defineProps<{
   value: number | undefined
   emphasis?: boolean
@@ -34,15 +39,17 @@ const title = computed(() => {
 })
 
 const cellClass = computed(() => {
+  // "—" is the one state that is not a value, so ink-subtle is correct here.
   if (isNA.value) {
-    return 'border-dashed border-(--sk-border) bg-transparent text-(--sk-ink-subtle)'
+    return 'border-dashed border-(--sk-border) bg-transparent font-medium text-(--sk-ink-subtle)'
   }
+  // 0 = 측정 금지. Recessive through the muted fill, still legible at ink-muted.
   if (isZero.value) {
-    return 'border-(--sk-border) bg-(--sk-surface) text-(--sk-ink-subtle)'
+    return 'border-(--sk-border) bg-(--sk-muted-surface) font-semibold text-(--sk-ink-muted)'
   }
   if (props.emphasis) {
-    return 'border-(--sk-accent-border) bg-(--sk-accent-tint) text-(--sk-accent)'
+    return 'border-(--sk-accent-border) bg-(--sk-accent-tint) font-bold text-(--sk-ink)'
   }
-  return 'border-(--sk-border) bg-(--sk-surface) text-(--sk-ink)'
+  return 'border-(--sk-border) bg-(--sk-surface) font-semibold text-(--sk-ink)'
 })
 </script>
