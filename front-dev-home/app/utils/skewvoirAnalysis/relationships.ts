@@ -91,8 +91,7 @@ const finalize = (
   xLabel: string,
   yLabel: string,
   points: PairedPoint[],
-  missingN: number,
-  meta: { sameMsrSequenceJoin: boolean }
+  missingN: number
 ): RelationshipResult => {
   const { readiness, reason } = assess(points)
   const pairs = points.map(p => [p.x, p.y] as [number, number])
@@ -111,7 +110,9 @@ const finalize = (
     spearman: rho,
     readiness,
     reason,
-    sameMsrSequenceJoin: meta.sameMsrSequenceJoin
+    // cd-fdc is BY CONSTRUCTION a same-MSR + same-sequence join, so the flag
+    // is derived from the join kind — a call site cannot state it wrongly.
+    sameMsrSequenceJoin: join === 'cd-fdc'
   }
 }
 
@@ -206,9 +207,7 @@ export const buildCdCdRelationship = (
   }
   points.sort((a, b) => a.sequence - b.sequence || a.key.localeCompare(b.key))
 
-  return finalize('cd-cd', paramX, paramY, points, missingN, {
-    sameMsrSequenceJoin: false
-  })
+  return finalize('cd-cd', paramX, paramY, points, missingN)
 }
 
 /**
@@ -247,7 +246,5 @@ export const buildCdFdcRelationship = (
   for (const seq of cdBySeq.keys()) if (!fdcBySeq.has(seq)) missingN++
   for (const seq of fdcBySeq.keys()) if (!cdBySeq.has(seq)) missingN++
 
-  return finalize('cd-fdc', cdParam, fdcParam, points, missingN, {
-    sameMsrSequenceJoin: true
-  })
+  return finalize('cd-fdc', cdParam, fdcParam, points, missingN)
 }
