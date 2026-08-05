@@ -2,6 +2,7 @@
 // prescriptive (cap-violation) surfaces normalize into DrillDevice so a single
 // slideover renders both. Adapters are pure + unit-tested.
 import { isExemptJob } from './lotHealth.ts'
+import { isOutlierExemptParam } from './outlierDetect.ts'
 import type { RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
@@ -9,7 +10,15 @@ export interface DrillParameter {
   name: string
   point_count: number
   flagged: boolean
-  note?: string // why it was flagged, e.g. "> 20" (outlier) or "cap 10" (violation)
+  /**
+   * 이 행을 한마디로 설명하는 꼬리표. 걸렸으면 왜 걸렸는지("> 20" outlier,
+   * "cap 10" violation), 분석에서 빠졌으면 빠졌다는 사실("분석 제외")입니다.
+   *
+   * 빠진 것도 말해 주어야 하는 이유는 ALIGN 때문입니다 — point 40 짜리가 아무
+   * 표시 없이 놓여 있고 바로 위 정상 파라미터 13 은 붉게 잡혀 있으면, 규칙이
+   * 고장난 것으로 읽힙니다. 값을 감추지 않고 이유만 답니다.
+   */
+  note?: string
 }
 
 export interface DrillRecipe {
@@ -37,6 +46,9 @@ export interface DrillDevice {
   flagged_param_count: number
 }
 
+/** DUMMY·ALIGN 행의 꼬리표. recipe 층의 '분석 제외' 배지와 같은 말을 씁니다. */
+const EXEMPT_PARAM_NOTE = '분석 제외'
+
 /** Descriptive adapter — within-device point-count outliers (Plan 1). */
 export const toOutlierDrill = (
   lot_cd: string,
@@ -48,7 +60,12 @@ export const toOutlierDrill = (
   const drillRecipes: DrillRecipe[] = recipes.map((r) => {
     const parameters: DrillParameter[] = r.parameters.map((p) => {
       const flagged = flaggedKey.has(`${r.recipe_id} ${p.name}`)
-      return { name: p.name, point_count: p.point_count, flagged, note: flagged ? `> ${result.threshold}` : undefined }
+      // 제외된 파라미터는 flagged 가 될 수 없으므로 두 꼬리표가 부딪히지
+      // 않습니다 — detectDeviceOutliers 가 같은 술어로 이미 걸러 냈습니다.
+      const note = flagged
+        ? `> ${result.threshold}`
+        : isOutlierExemptParam(p.name) ? EXEMPT_PARAM_NOTE : undefined
+      return { name: p.name, point_count: p.point_count, flagged, note }
     })
     const flagged_count = parameters.filter(p => p.flagged).length
     return {
