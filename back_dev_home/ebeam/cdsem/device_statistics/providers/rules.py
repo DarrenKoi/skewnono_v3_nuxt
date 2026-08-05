@@ -46,8 +46,13 @@ _MAIN_OVERRIDES: list[NameOverride] = [
 # 아니라 판정에서만 빼므로, recipe 의 파라미터 수에는 그대로 남습니다.
 #
 # match 를 affix 로 둔 것은 바로 위 WAFER/WF 규칙과 같은 의미를 쓰기 위해서
-# 입니다 — "DUMMY", "DUMMY_1", "CD_DUMMY" 는 잡고, 이름 한복판에 우연히 든
+# 입니다 — "Dummy", "Dummy_1", "CD_Dummy" 는 잡고, 이름 한복판에 우연히 든
 # 경우는 잡지 않습니다.
+#
+# 패턴을 대문자로 적었지만 **실물 표기는 "Dummy"** 입니다 (user-confirmed
+# 2026-08-05) — 다른 파라미터가 대체로 전부 대문자인데 이 이름만 그렇지
+# 않습니다. ruleEngine.matchName 이 양쪽을 대문자로 올려 비교하므로 어느 표기든
+# 걸립니다. 여기 대문자는 비교용 정규형이지 데이터의 모습이 아닙니다.
 _SAMPLE_OVERRIDES: list[NameOverride] = [
     {"patterns": ["WAFER", "WF"], "match": "affix", "cap": None},
     {"patterns": ["DUMMY"], "match": "affix", "cap": None},

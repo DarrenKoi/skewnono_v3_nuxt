@@ -47,20 +47,20 @@ test('an exempt PARAMETER is labelled, so a big unflagged number reads as intent
     ...recipe('A', []),
     parameters: [
       { name: 'WAFER_CD', point_count: 5 },
-      { name: 'ALIGN', point_count: 40 },
-      { name: 'DUMMY', point_count: 1 }
+      { name: 'Align', point_count: 40 },
+      { name: 'Dummy', point_count: 1 }
     ]
   }]
   const drill = toOutlierDrill('R000', '', recipes, detectDeviceOutliers(recipes))
   const params = drill.recipes[0]!.parameters
 
-  const align = params.find(p => p.name === 'ALIGN')!
+  const align = params.find(p => p.name === 'Align')!
   assert.equal(align.flagged, false)
   assert.equal(align.note, '분석 제외')
   // 값은 감추지 않습니다 — 이유만 답니다.
   assert.equal(align.point_count, 40)
 
-  assert.equal(params.find(p => p.name === 'DUMMY')!.note, '분석 제외')
+  assert.equal(params.find(p => p.name === 'Dummy')!.note, '분석 제외')
   // 정상 파라미터는 꼬리표가 없습니다.
   assert.equal(params.find(p => p.name === 'WAFER_CD')!.note, undefined)
 })

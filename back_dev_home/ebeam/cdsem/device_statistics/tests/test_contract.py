@@ -170,6 +170,39 @@ def test_exempt_jobs_measure_at_a_different_scale():
     )
 
 
+def test_dummy_and_align_keep_their_real_mixed_case_spelling():
+    """Dummy·Align 은 **대문자가 아닙니다** (user-confirmed 2026-08-05).
+
+    실물 파라미터 이름은 대체로 전부 대문자인데 이 둘만 그렇지 않습니다. 걸러
+    내는 쪽(outlierDetect.isOutlierExemptParam, 룰의 name_override)은 양쪽 다
+    대소문자를 무시하므로 어느 표기든 동작하지만, **mock 이 대문자로 만들면
+    그 대소문자 무시 경로가 집에서 한 번도 실행되지 않습니다** — 규칙을
+    `name == "DUMMY"` 로 좁히는 회귀가 집에서는 통과하고 사무실에서만 새어
+    나갑니다.
+
+    그래서 여기서 보는 것은 "존재" 가 아니라 **표기** 입니다.
+    """
+    if not _is_mock():
+        pytest.skip("office 이름 표기는 우리가 정하지 않습니다")
+
+    names = {
+        param["name"]
+        for row in data.get_recipe_params([_sample_lot_cd()])
+        for param in row["parameters"]
+    }
+
+    for spelling in ("Dummy", "Align"):
+        assert spelling in names, f"mock 이 {spelling} 을 만들지 않았습니다"
+        assert spelling.upper() not in names, (
+            f"{spelling.upper()} 는 실물 표기가 아닙니다 — 대문자로 만들면 "
+            "대소문자 무시 경로가 집에서 검증되지 않습니다"
+        )
+
+    # 나머지 파라미터가 전부 대문자라는 것이 위 두 이름을 특별하게 만듭니다.
+    others = names - {"Dummy", "Align"}
+    assert others and all(name == name.upper() for name in others), sorted(others)
+
+
 def test_weekly_trend_data_matches_contract():
     # Same narrowing rationale as recipe_params above.
     lot_cd = _sample_lot_cd()

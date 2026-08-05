@@ -33,29 +33,41 @@ name -> string: 파라미터 이름. 타입은 longest-prefix(EDGE_EX > EDGE > W
 point_count -> int: 해당 파라미터의 측정 point 수입니다.
 mother -> bool: 이 파라미터 자신이 mother 인지입니다 (idp 의 Mother_Para, office 확인 2026-07-28).
 
-측정이 아닌 파라미터 — DUMMY / ALIGN (user-confirmed 2026-08-05)
+측정이 아닌 파라미터 — Dummy / Align (user-confirmed 2026-08-05)
 
 둘 다 실물에 있는 파라미터 이름이며, **CD 를 재는 파라미터가 아닙니다**.
 
-  DUMMY  자리를 채우는 placeholder. 재는 대상 자체가 아닙니다.
-  ALIGN  정렬(addressing)용. 측정이 아니라 측정을 위한 준비라, 그 point 수는
+  Dummy  자리를 채우는 placeholder. 재는 대상 자체가 아닙니다.
+  Align  정렬(addressing)용. 측정이 아니라 측정을 위한 준비라, 그 point 수는
          "얼마나 많이 쟀는가" 라는 질문의 답에 들어가면 안 됩니다. 설비 알람도
          align(9006)과 meas(9007)를 다른 사건으로 셉니다.
+
+이름 표기 (user-confirmed 2026-08-05)
+
+파라미터 이름은 대체로 **전부 대문자**입니다 (WAFER_CD, EDGE_L, OVL_X …).
+그런데 이 둘만 그렇지 않습니다 — "Dummy", "Align" 처럼 첫 글자만 대문자입니다.
+
+그래서 두 걸러내는 자리 모두 **대소문자를 무시**합니다. 코드나 룰 데이터에
+대문자로 적힌 곳들(NON_MEASUREMENT_PARAMS, name_override 의 patterns)은 비교
+전에 이름을 대문자로 올리기 때문에 쓰는 **정규형**이지, 데이터의 모습이
+아닙니다. 표기를 하나로 못박는 회귀(`name == "DUMMY"` 같은)는 mock 이 실물
+표기를 쓰는 한 집에서 바로 걸립니다 — 그래서 mock 도 "Dummy"/"Align" 로
+만듭니다.
 
 빠지는 자리가 서로 다르니 함께 보아야 합니다.
 
   outlier(outlierDetect.isOutlierExemptParam)
-      DUMMY·ALIGN **둘 다** 중앙값 기준선에서도 초과 목록에서도 빠집니다.
-      남겨 두면 ALIGN 의 큰 point 수가 기준선을 끌어올려 정상 파라미터의 진짜
+      Dummy·Align **둘 다** 중앙값 기준선에서도 초과 목록에서도 빠집니다.
+      남겨 두면 Align 의 큰 point 수가 기준선을 끌어올려 정상 파라미터의 진짜
       과다 측정이 문턱 아래로 숨습니다.
 
   판정(계측 룰)
-      DUMMY **만** 면제입니다 — Sample 셀의 name_override 에 cap=None 으로
+      Dummy **만** 면제입니다 — Sample 셀의 name_override 에 cap=None 으로
       들어 있습니다 (providers/rules.py). Sample 셀은 _other cap 이 0 이라
-      면제가 없으면 DUMMY 가 point 1 만 있어도 항상 위반이고, 그 위반은 recipe
+      면제가 없으면 Dummy 가 point 1 만 있어도 항상 위반이고, 그 위반은 recipe
       를 고쳐 없앨 수 있는 종류가 아니라 고칠 수 있는 진짜 위반을 밀어냅니다.
-      ALIGN 은 아직 판정 면제가 아닙니다 — 요청 범위가 outlier 집계였습니다
-      (OFFICE-VERIFY: Sample recipe 의 ALIGN 이 위반으로 잡히는지 미확인).
+      Align 은 아직 판정 면제가 아닙니다 — 요청 범위가 outlier 집계였습니다
+      (OFFICE-VERIFY: Sample recipe 의 Align 이 위반으로 잡히는지 미확인).
 
 두 자리를 한 스위치로 묶지 않은 것은 성격이 다르기 때문입니다 — outlier 는
 서술적 통계, cap 은 규범입니다. 묶으면 룰 한 칸을 고칠 때 중앙값 기준선까지
@@ -138,9 +150,9 @@ Mock 생성 규칙
    배율 자체는 OFFICE-VERIFY 입니다 — "자릿수가 다르다" 는 성질만 재현하고
    절대값은 흉내 내지 않습니다. 배율이 1 이면 제외 규칙을 지워도 테스트가 조용히
    통과하므로, 이 값은 장식이 아니라 회귀의 조건입니다.
-5. Sample recipe 에는 DUMMY(point 1)와 ALIGN(point 40)이 붙습니다. 값을 이렇게 고른
-   것은 두 제외 경로가 집에서 **눈에 보이게** 하기 위해서입니다 — DUMMY 1 은
-   Sample 셀 cap 0 을 곧바로 넘어 판정 면제가 빠지면 위반 수가 늘고, ALIGN 40 은
+5. Sample recipe 에는 Dummy(point 1)와 Align(point 40)이 붙습니다. 값을 이렇게 고른
+   것은 두 제외 경로가 집에서 **눈에 보이게** 하기 위해서입니다 — Dummy 1 은
+   Sample 셀 cap 0 을 곧바로 넘어 판정 면제가 빠지면 위반 수가 늘고, Align 40 은
    정상 중앙값(약 6)의 문턱을 훌쩍 넘어 outlier 제외가 빠지면 Sample recipe 마다
    초과가 하나씩 생깁니다. 값은 OFFICE-VERIFY 이고, point_count 는 rng 가 아니라
    고정값입니다 — rng 를 한 번이라도 더 굴리면 lot 단위로 공유되는 seed 때문에

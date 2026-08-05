@@ -129,15 +129,15 @@ test('capFor: Sample affix exemption returns null (no limit)', () => {
 // Sample 셀의 _other 는 0 이라, 면제가 없으면 자리 표시용 DUMMY 가 point 1 만
 // 있어도 항상 위반입니다 (user-confirmed 2026-08-05).
 test('capFor: Sample DUMMY is exempt, not capped at 0', () => {
-  assert.equal(capFor({ name: 'DUMMY', point_count: 1 }, sampleDram), null)
-  assert.equal(capFor({ name: 'DUMMY_1', point_count: 9 }, sampleDram), null)
-  assert.equal(capFor({ name: 'CD_DUMMY', point_count: 9 }, sampleDram), null)
+  assert.equal(capFor({ name: 'Dummy', point_count: 1 }, sampleDram), null)
+  assert.equal(capFor({ name: 'Dummy_1', point_count: 9 }, sampleDram), null)
+  assert.equal(capFor({ name: 'CD_Dummy', point_count: 9 }, sampleDram), null)
 })
 
 test('evaluateRecipe: a Sample DUMMY no longer makes the recipe violate', () => {
   const merged = applyAnnotation(recipe({
     recipe_class: 'Sample',
-    parameters: [{ name: 'WAFER_CD', point_count: 13 }, { name: 'DUMMY', point_count: 1 }]
+    parameters: [{ name: 'WAFER_CD', point_count: 13 }, { name: 'Dummy', point_count: 1 }]
   }))
   const evaluated = evaluateRecipe(merged, resolveRuleCell(merged, [sampleDram]))
 
@@ -145,7 +145,7 @@ test('evaluateRecipe: a Sample DUMMY no longer makes the recipe violate', () => 
   assert.deepEqual(evaluated.violation_params, [])
   // 목록에서 빼는 것이 아니라 판정에서만 빼므로 파라미터 수는 그대로입니다.
   assert.equal(evaluated.total_params, 2)
-  assert.equal(evaluated.results.find(r => r.name === 'DUMMY')?.cap, null)
+  assert.equal(evaluated.results.find(r => r.name === 'Dummy')?.cap, null)
 })
 
 // --- D8/D14 cell resolution ---

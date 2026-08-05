@@ -119,8 +119,20 @@ test('a device measuring ONLY exempt jobs reports an empty baseline, not a huge 
 
 // --- 측정이 아닌 파라미터 제외 (user-confirmed 2026-08-05) ---
 
+// 실물 표기는 "Dummy" / "Align" 입니다 — 다른 파라미터가 대체로 전부 대문자인
+// 것과 달리 이 둘만 그렇지 않습니다 (user-confirmed 2026-08-05). 그 표기를 맨
+// 앞에 두는 것은, 나머지가 전부 통과해도 **이것 하나가 실패하면 실물이 새는**
+// 항목이기 때문입니다.
+test('isOutlierExemptParam matches the real mixed-case spelling', () => {
+  assert.equal(isOutlierExemptParam('Dummy'), true)
+  assert.equal(isOutlierExemptParam('Align'), true)
+})
+
 test('isOutlierExemptParam matches DUMMY and ALIGN as an affix, case-insensitive', () => {
-  for (const name of ['DUMMY', 'dummy', 'DUMMY_1', 'CD_DUMMY', 'ALIGN', 'align', 'ALIGN_2', 'X_ALIGN']) {
+  for (const name of [
+    'Dummy', 'DUMMY', 'dummy', 'Dummy_1', 'DUMMY_1', 'CD_Dummy', 'CD_DUMMY',
+    'Align', 'ALIGN', 'align', 'Align_2', 'ALIGN_2', 'X_Align', 'X_ALIGN'
+  ]) {
     assert.equal(isOutlierExemptParam(name), true, name)
   }
   // 한복판에 우연히 든 낱말은 잡지 않습니다 — 룰 데이터의 affix 매칭과 같은 의미.
@@ -132,7 +144,7 @@ test('isOutlierExemptParam matches DUMMY and ALIGN as an affix, case-insensitive
 test('DUMMY and ALIGN never appear as outliers, however many points they carry', () => {
   const r = detectDeviceOutliers([
     namedRecipe('A', [['WAFER_CD', 6], ['EDGE_L', 6], ['LEVEL_1', 6], ['OVL_X', 6]]),
-    namedRecipe('B', [['DUMMY', 400], ['ALIGN', 400]])
+    namedRecipe('B', [['Dummy', 400], ['Align', 400]])
   ])
   assert.equal(r.outlier_count, 0)
   assert.deepEqual(r.outliers, [])
@@ -143,9 +155,9 @@ test('DUMMY and ALIGN never appear as outliers, however many points they carry',
 test('excluding them keeps the baseline on real measurements', () => {
   const r = detectDeviceOutliers([
     namedRecipe('A', [['WAFER_CD', 5], ['EDGE_L', 5], ['LEVEL_1', 5]]),
-    namedRecipe('B', [['ALIGN', 40], ['ALIGN_2', 40], ['DUMMY', 40], ['OVL_X', 30]])
+    namedRecipe('B', [['Align', 40], ['Align_2', 40], ['Dummy', 40], ['OVL_X', 30]])
   ])
-  // ALIGN/DUMMY 를 세면 중앙값이 40 쪽으로 올라가 OVL_X 30 이 숨습니다.
+  // Align·Dummy 를 세면 중앙값이 40 쪽으로 올라가 OVL_X 30 이 숨습니다.
   assert.equal(r.median, 5)
   assert.equal(r.threshold, 10)
   assert.equal(r.outlier_count, 1)
@@ -153,7 +165,7 @@ test('excluding them keeps the baseline on real measurements', () => {
 })
 
 test('a recipe of nothing but non-measurement params contributes no baseline', () => {
-  const r = detectDeviceOutliers([namedRecipe('A', [['DUMMY', 9], ['ALIGN', 9]])])
+  const r = detectDeviceOutliers([namedRecipe('A', [['Dummy', 9], ['Align', 9]])])
   assert.equal(r.median, 0)
   assert.equal(r.outlier_count, 0)
 })

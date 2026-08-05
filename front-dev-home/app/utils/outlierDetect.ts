@@ -26,10 +26,16 @@ export const DEFAULT_OUTLIER_MULTIPLIER = 2
  * CD 측정량을 논하는 자리에 낄 수 없는 파라미터 이름 (user-confirmed
  * 2026-08-05). 둘 다 실물에 있는 이름입니다.
  *
- *   DUMMY — 자리를 채우는 placeholder. 재는 대상 자체가 아닙니다.
- *   ALIGN — 정렬(addressing)용. 측정이 아니라 **측정을 위한 준비**라, 그 point
+ *   Dummy — 자리를 채우는 placeholder. 재는 대상 자체가 아닙니다.
+ *   Align — 정렬(addressing)용. 측정이 아니라 **측정을 위한 준비**라, 그 point
  *           수는 "얼마나 많이 쟀는가" 라는 질문의 답에 들어가면 안 됩니다.
  *           (설비 알람도 align 9006 과 meas 9007 을 다른 사건으로 셉니다.)
+ *
+ * 실물 표기는 위처럼 **대문자가 아닙니다** — 다른 파라미터가 대체로 전부
+ * 대문자인 것과 달리 이 둘만 "Dummy"/"Align" 입니다 (user-confirmed
+ * 2026-08-05). 아래 목록을 대문자로 적어 둔 것은 비교 전에 이름을 대문자로
+ * 올리기 때문이지, 실물이 그렇게 생겨서가 아닙니다. 어느 표기로 와도 걸려야
+ * 합니다 — 표기를 하나로 못박는 순간 사무실에서 조용히 새어 나갑니다.
  *
  * 이 목록이 **outlier 전용**인 것이 중요합니다. 판정(cap) 쪽의 DUMMY 면제는
  * 룰 데이터의 name_override(`cap: null`)가 표현하고, 그래야 셀마다 켜고 끌 수
@@ -37,12 +43,13 @@ export const DEFAULT_OUTLIER_MULTIPLIER = 2
  * 술어로 묶으면 룰 한 칸을 고칠 때 중앙값 기준선까지 따라 움직입니다 —
  * outlier 는 서술적 통계고 cap 은 규범이라, 둘은 같은 스위치를 쓰면 안 됩니다.
  *
- * ALIGN 은 지금 판정에서는 빼지 **않습니다** — 요청 범위가 outlier 집계였고,
+ * Align 은 지금 판정에서는 빼지 **않습니다** — 요청 범위가 outlier 집계였고,
  * 판정까지 넓히는 것은 룰 데이터의 결정이라 여기서 몰래 하지 않습니다.
  *
  * 규칙은 룰 데이터의 affix 매칭과 같은 의미입니다: 이름이 그 낱말로 시작하거나
  * 끝나면 참, 한복판에 우연히 든 것은 거짓.
  */
+// 대문자로 적힌 것은 **비교용 정규형**입니다 — 실물 표기가 아닙니다(위 주석).
 const NON_MEASUREMENT_PARAMS = ['DUMMY', 'ALIGN'] as const
 
 export const isOutlierExemptParam = (name: string): boolean => {

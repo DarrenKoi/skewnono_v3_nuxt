@@ -71,26 +71,35 @@ EDGE_EX_NAMES = ("EDGE_EX_L", "EDGE_EX_R")
 OTHER_NAMES = ("OVL_X", "OVL_Y", "DSPT_1", "CD_BAR", "PITCH_A", "OVL_WF", "SPACE_1")
 
 # CD 측정량을 논하는 자리에 낄 수 없는 파라미터들. 둘 다 실물에 있는 이름
-# 입니다 (user-confirmed 2026-08-05; DUMMY 는 skewvoir 쪽에서도 실제 파라미터
-# 이름으로 확인됨).
+# 입니다 (user-confirmed 2026-08-05).
+#
+# **대소문자가 이 값들의 핵심입니다.** 실물 파라미터 이름은 대체로 전부 대문자
+# 인데(위 OTHER_NAMES 처럼) 이 둘만 그렇지 않습니다 — "Dummy", "Align" 입니다
+# (user-confirmed 2026-08-05). 그래서 걸러 내는 쪽은 양쪽 모두 대소문자를
+# 무시하고, mock 은 **실물 표기 그대로** 씁니다.
+#
+# 여기를 대문자로 적어 두면 두 가지를 동시에 잃습니다: 대소문자 무시 경로가
+# 집에서 한 번도 실행되지 않고, mock 이 "이 이름도 대문자다" 라는 거짓을
+# 가르칩니다. 규칙을 `name == "DUMMY"` 로 좁혀 놔도 집에서는 통과하고 사무실
+# 에서만 조용히 새어 나가는 종류의 실수입니다.
 #
 # point_count 를 이렇게 고른 것은 **두 제외 경로가 집에서 눈에 보이게** 하기
 # 위해서입니다. 값이 아무거나면 규칙을 지워도 화면이 똑같아 회귀가 조용히
 # 통과합니다.
 #
-#   DUMMY 1  — Sample 셀은 _other cap 이 0 이라 1 이면 곧바로 위반입니다.
+#   Dummy 1  — Sample 셀은 _other cap 이 0 이라 1 이면 곧바로 위반입니다.
 #              면제가 빠지는 순간 위반 수가 눈에 띄게 늡니다.
-#   ALIGN 40 — 정상 파라미터 중앙값(약 6)의 배수라 문턱(중앙값×2)을 훌쩍 넘습니다.
+#   Align 40 — 정상 파라미터 중앙값(약 6)의 배수라 문턱(중앙값×2)을 훌쩍 넘습니다.
 #              제외가 빠지면 Sample recipe 마다 outlier 가 하나씩 생깁니다.
 #
-# OFFICE-VERIFY: 실물 값은 확인된 바 없습니다 — "규칙이 걸리는 쪽" 이라는
-# 성질만 재현하고 절대값은 흉내 내지 않습니다.
+# OFFICE-VERIFY: point 값 자체는 확인된 바 없습니다 — "규칙이 걸리는 쪽" 이라는
+# 성질만 재현하고 절대값은 흉내 내지 않습니다. 이름의 표기는 확인된 사실입니다.
 #
 # OTHER_NAMES 에 넣지 않은 것은 저 풀이 rng 로 뽑히는 대상이라, 원소를 더하면
 # 뒤따르는 모든 recipe 의 파라미터 값이 달라지기 때문입니다.
 NON_MEASUREMENT_PARAMS: tuple[tuple[str, int], ...] = (
-    ("DUMMY", 1),
-    ("ALIGN", 40),
+    ("Dummy", 1),
+    ("Align", 40),
 )
 
 # Typical point counts per type (cap-respecting baseline so most recipes pass).
