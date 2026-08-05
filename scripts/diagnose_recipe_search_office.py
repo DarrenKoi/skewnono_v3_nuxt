@@ -29,9 +29,27 @@ back_dev_home/.env the same way the adapter does)::
     .venv/bin/python -m scripts.diagnose_recipe_search_office "ADI/X" --fab M14A
     .venv/bin/python -m scripts.diagnose_recipe_search_office "ADI/X" --tool hvsem
 
-Nothing here writes: it is read-only against Redis and OpenSearch, and it does
-not open an FTP session. Locating the file is the step that 502s; downloading
-it fails differently (503, or a 502 naming the tool) and is out of scope.
+Stages 1-4 write nothing and open no FTP session: they are read-only against
+Redis and OpenSearch, and locating the file is the step that 502s.
+
+``--fetch`` adds stages 5-6, which go past locating into the office_utils
+surface itself — download the ``.idp``, parse it FROM BYTES, and run one
+parameter's slots through the five raw readers::
+
+    .venv/bin/python -m scripts.diagnose_recipe_search_office "1/AC_M2_TAT" --fetch
+    ... --fetch --parameter CD_MEAS_01     # a specific parameter, not the first
+
+Those two are opt-in because they dial the measuring tool. They exist for the
+2026-08-05 change: the adapter stopped writing the ``.idp`` to a temp file on
+the strength of ``combined_idp_info`` accepting bytes — user-confirmed, but
+never executed at the office and untestable from home. Stage 5 parses the same
+bytes both ways and reports whether they agree, so the claim is checked by a
+command instead of by a user hitting a 502. If it turns out to be wrong,
+``SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1`` in ``back_dev_home/.env`` restores the
+old behaviour without an edit.
+
+Still nothing writes to the tool, and with the hatch off nothing writes to the
+Flask host either.
 """
 
 from __future__ import annotations
@@ -319,7 +337,200 @@ def _check_verdict(adapter: ModuleType, family: str, fab: str, recipe: str) -> N
         _info(f"{location.eqp_id or '?'} @ {location.eqp_ip}  "
               f"{adapter._idp_remote_path(location)}")
     _info("Locating succeeded, so a 502 now would come from the FTP download "
-          "instead. Probe that with scripts/probe_recipe_ftp.py.")
+          "instead — add --fetch to carry on into it.")
+
+
+# ── stage 5: download and parse, the step --fetch adds ───────────────────
+
+
+def _check_fetch(
+    adapter: ModuleType, family: str, fab: str, recipe: str
+) -> tuple[dict, dict] | None:
+    """Download the .idp and hand the parser BYTES, the 2026-08-05 change.
+
+    Split from stage 4 because it is the first step that opens an FTP session
+    and the first that runs 사내 code. Everything above is read-only against
+    Redis and OpenSearch and safe to run against anything.
+
+    ``combined_idp_info`` accepting bytes is user-confirmed but had never been
+    executed when the adapter stopped writing its temp file, so this stage
+    parses TWICE — once from bytes, once through the escape hatch's temp file —
+    and reports whether the two agree. That comparison is the whole reason the
+    stage exists: if bytes are rejected or quietly return something different,
+    it says so here instead of on a user's screen as a 502.
+    """
+    _rule("5. Download + parse (--fetch)")
+
+    try:
+        locations = adapter._locate_idp(_TOOL_TYPE[family], recipe, fab)
+        data, location = adapter._download_first(locations)
+    except Exception as exc:  # noqa: BLE001 — a diagnosis must not itself crash
+        _bad(f"{type(exc).__name__}: {exc}")
+        _info("The download failed, so nothing below can run. "
+              "scripts/probe_recipe_ftp.py explores the FTP tree itself.")
+        return None
+
+    _ok(f"downloaded {len(data)} bytes from {location.eqp_id or '?'} "
+        f"@ {location.eqp_ip} — nothing was written to disk.")
+    _info(f"first 16 bytes: {data[:16].hex(' ')}")
+
+    label = f"{location.idp_stem}.idp"
+    try:
+        frames = adapter._parse_idp(data, label)
+    except Exception as exc:  # noqa: BLE001
+        _bad(f"combined_idp_info(bytes) -> {type(exc).__name__}: {exc}")
+        _info("If this is a TypeError or an encoding error, the parser wants a "
+              "path after all. Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in "
+              "back_dev_home/.env, restart Flask to restore the temp file, and "
+              "tell home — docs/datatables/recipe_idp.txt records the opposite.")
+        return None
+
+    _ok("combined_idp_info(bytes) returned the three documented tables:")
+    for name, frame in frames.items():
+        _info(f"{name}: {len(frame)} rows x {len(frame.columns)} cols")
+    if _is_home_standin("office_utils.read_idp_info"):
+        _bad("but this is the HOME STAND-IN — every value above is fabricated. "
+             "Run this at the office for it to mean anything.")
+
+    _compare_with_tempfile(adapter, data, label, frames)
+    # The same locator _to_detail_response sends to the browser, so stage 6
+    # reaches the raw folder exactly the way param-detail does.
+    locator = {
+        "eqp_ip": location.eqp_ip,
+        "class_name": location.class_name,
+        "idw": location.idw_stem,
+        "idp": location.idp_stem,
+    }
+    return frames, locator
+
+
+def _is_home_standin(module_name: str) -> bool:
+    """Is the office_utils module in play the gitignored home stand-in?
+
+    Only the stand-ins define IS_HOME_STANDIN, so this is False at the office
+    and False as well if office_utils is absent entirely.
+
+    It IMPORTS rather than reading ``sys.modules``: the adapter imports these
+    modules inside the functions that use them, so a stage that asks before
+    calling one would read an empty ``sys.modules`` and wrongly report office
+    data. Importing is safe — both modules are import-side-effect-free.
+    """
+    try:
+        return bool(getattr(importlib.import_module(module_name), "IS_HOME_STANDIN", False))
+    except ImportError:
+        return False
+
+
+def _compare_with_tempfile(
+    adapter: ModuleType, data: bytes, label: str, frames: dict
+) -> None:
+    """Does parsing a path give the same answer as parsing the bytes?
+
+    A silent disagreement is worse than a rejection: the screen fills in either
+    way, and only the values are wrong.
+    """
+    previous = os.environ.get("SKEWNONO_RECIPE_IDP_VIA_TEMPFILE")
+    os.environ["SKEWNONO_RECIPE_IDP_VIA_TEMPFILE"] = "1"
+    try:
+        via_path = adapter._parse_idp(data, label)
+    except Exception as exc:  # noqa: BLE001
+        _info(f"(the temp-file fallback itself raised {type(exc).__name__}: "
+              f"{exc} — the bytes path above is the only one that works)")
+        return
+    finally:
+        if previous is None:
+            os.environ.pop("SKEWNONO_RECIPE_IDP_VIA_TEMPFILE", None)
+        else:
+            os.environ["SKEWNONO_RECIPE_IDP_VIA_TEMPFILE"] = previous
+
+    differing = [
+        name for name in frames
+        if not frames[name].equals(via_path.get(name))
+    ]
+    if differing and _is_home_standin("office_utils.read_idp_info"):
+        _info("(the home stand-in fabricates from whatever it is handed, so "
+              "bytes and a path necessarily differ here — this comparison only "
+              "means something at the office.)")
+        return
+    if not differing:
+        _ok("parsing the same bytes through a temp file gives an IDENTICAL "
+            "result — the disk write really was unnecessary.")
+        return
+
+    _bad(f"bytes and path DISAGREE on: {', '.join(differing)}.")
+    for name in differing:
+        mine, theirs = frames[name], via_path.get(name)
+        _info(f"{name}: bytes {mine.shape} vs path "
+              f"{getattr(theirs, 'shape', type(theirs).__name__)}")
+    _info("Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in back_dev_home/.env and "
+          "restart: the path result is the one that was in production before "
+          "2026-08-05. Then send this output home.")
+
+
+# ── stage 6: the five raw readers ────────────────────────────────────────
+
+
+def _check_readers(
+    adapter: ModuleType, frames: dict, locator: dict, parameter: str | None
+) -> None:
+    """Run one parameter's slots through the readers and print what came back.
+
+    The readers are the other half of the office_utils surface and their return
+    CONTAINERS are the part home cannot see: ENMP returns a dict of dicts, the
+    align batch keys by optic, and values are not all strings. A shape that
+    changes renders as an empty 설정 panel rather than an error, so this prints
+    what actually arrived rather than asserting anything about it.
+    """
+    _rule("6. Raw-folder readers (--fetch)")
+
+    if _is_home_standin("office_utils.idp_amp_reader"):
+        _bad("the HOME STAND-IN is installed — the settings below are "
+             "fabricated and their FIELD NAMES are placeholders (AMP_FIELD_1).")
+
+    rows = frames.get("idp_image_info")
+    if rows is None or rows.empty:
+        _bad("idp_image_info is empty — no parameter to follow into the folder.")
+        return
+
+    wanted = (parameter or "").strip()
+    match = rows[rows["Parameter"] == wanted] if wanted else rows.head(1)
+    if match.empty:
+        _bad(f"no idp_image_info row has Parameter=={wanted!r}. Available: "
+             f"{', '.join(map(str, rows['Parameter'].head(8)))}")
+        return
+
+    row = match.iloc[0].to_dict()
+    slots = {
+        slot: str(row.get(slot, ""))
+        for slot in ("img_add1", "img_add2", "img_meas1", "img_meas2", "image_add3")
+    }
+    _info(f"Parameter={row.get('Parameter')!r}  slots={slots}")
+
+    try:
+        detail = adapter.get_param_detail([{
+            "locator": locator,
+            "parameter": str(row.get("Parameter")),
+            "slots": slots,
+        }])
+    except Exception as exc:  # noqa: BLE001
+        _bad(f"get_param_detail -> {type(exc).__name__}: {exc}")
+        return
+
+    for response in detail:
+        _ok(f"parameter {response['parameter']!r}")
+        for key in ("amp", "af_pr"):
+            block = response.get(key)
+            if block is None:
+                _info(f"{key}: 파일 없음 (slot empty, file missing, or unparsed)")
+            else:
+                sample = ", ".join(
+                    f"{r['key']}={r['value']}" for r in block["rows"][:3]
+                )
+                _info(f"{key}: {len(block['rows'])} rows — {sample}")
+        for image in response.get("images", []):
+            cond = image.get("cond")
+            _info(f"image {image.get('slot')}={image.get('name')}: "
+                  f"{'파일 없음' if cond is None else str(len(cond['rows'])) + ' cond rows'}")
 
 
 def _text(value: object) -> str:
@@ -336,6 +547,15 @@ def main() -> int:
     parser.add_argument("recipe", help='full_name, e.g. "1/AC_M2_TAT"')
     parser.add_argument("--fab", default="R3", help="fab name (default: R3)")
     parser.add_argument("--tool", default="cdsem", choices=sorted(_TOOL_TYPE))
+    parser.add_argument(
+        "--fetch", action="store_true",
+        help="carry on past locating: download the .idp, parse it from BYTES, "
+             "and run one parameter's slots through the five raw readers",
+    )
+    parser.add_argument(
+        "--parameter", default=None,
+        help="with --fetch, which parameter to follow (default: the first)",
+    )
     args = parser.parse_args()
 
     fab = args.fab.strip().upper()
@@ -361,6 +581,17 @@ def main() -> int:
 
     _check_meas_hist(adapter, args.tool, fab, recipe)
     _check_verdict(adapter, args.tool, fab, recipe)
+
+    if args.fetch:
+        fetched = _check_fetch(adapter, args.tool, fab, recipe)
+        if fetched is not None:
+            frames, locator = fetched
+            _check_readers(adapter, frames, locator, args.parameter)
+    else:
+        _rule("5-6. Download, parse and readers")
+        _info("skipped: add --fetch. Those stages open an FTP session to the "
+              "tool and run 사내 office_utils code, so they are opt-in.")
+
     return 0
 
 

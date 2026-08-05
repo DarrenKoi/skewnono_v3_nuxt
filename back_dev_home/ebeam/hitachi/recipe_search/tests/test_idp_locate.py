@@ -385,28 +385,28 @@ THREE = [
 
 def _always_raise(exception_type, message):
     """A _download_idp stand-in that fails on every tool."""
-    def _download(location, dest_dir):
+    def _download(location):
         raise exception_type(f"{message} ({location.eqp_id})")
     return _download
 
 
 class TestDownloadFirst:
-    def test_first_success_wins_and_stops(self, monkeypatch, tmp_path):
+    def test_first_success_wins_and_stops(self, monkeypatch):
         dialed = []
 
-        def _download(location, dest_dir):
+        def _download(location):
             dialed.append(location.eqp_id)
             if location.eqp_id != "CG6300_07":
                 raise LookupError("connection refused")
-            return dest_dir / "A.idp"
+            return b"IDP-A"
 
         monkeypatch.setattr(oe, "_download_idp", _download)
-        assert oe._download_first(THREE, tmp_path)[0] == tmp_path / "A.idp"
+        assert oe._download_first(THREE)[0] == b"IDP-A"
         # Stopped at the first success — the third tool was never dialed.
         assert dialed == ["CG6300_01", "CG6300_07"]
 
     def test_it_returns_the_tool_that_actually_served_the_file(
-        self, monkeypatch, tmp_path
+        self, monkeypatch
     ):
         """Not the first candidate — the one that WON.
 
@@ -415,37 +415,37 @@ class TestDownloadFirst:
         the first candidate instead would point every follow-up call at a tool
         that did not have the recipe.
         """
-        def _download(location, dest_dir):
+        def _download(location):
             if location.eqp_id != "CG6300_07":
                 raise LookupError("connection refused")
-            return dest_dir / "A.idp"
+            return b"IDP-A"
 
         monkeypatch.setattr(oe, "_download_idp", _download)
-        _path, location = oe._download_first(THREE, tmp_path)
+        _data, location = oe._download_first(THREE)
         assert location.eqp_id == "CG6300_07"
         assert location is THREE[1]
 
-    def test_every_tool_failing_names_each_one(self, monkeypatch, tmp_path):
+    def test_every_tool_failing_names_each_one(self, monkeypatch):
         monkeypatch.setattr(
             oe, "_download_idp", _always_raise(LookupError, "no such file")
         )
         with pytest.raises(LookupError) as excinfo:
-            oe._download_first(THREE, tmp_path)
+            oe._download_first(THREE)
         message = str(excinfo.value)
         assert "Tried 3 tool(s)" in message
         assert "CG6300_01" in message and "CG6380_02" in message
 
-    def test_one_blocked_ip_is_skipped_not_fatal(self, monkeypatch, tmp_path):
-        def _download(location, dest_dir):
+    def test_one_blocked_ip_is_skipped_not_fatal(self, monkeypatch):
+        def _download(location):
             if location.eqp_id == "CG6300_01":
                 raise InvalidToolIp("outside the allowed subnets")
-            return dest_dir / "A.idp"
+            return b"IDP-A"
 
         monkeypatch.setattr(oe, "_download_idp", _download)
         # A single stale roster IP must not fail a recipe held on three tools.
-        assert oe._download_first(THREE, tmp_path)[0] == tmp_path / "A.idp"
+        assert oe._download_first(THREE)[0] == b"IDP-A"
 
-    def test_every_ip_blocked_reraises_the_guard(self, monkeypatch, tmp_path):
+    def test_every_ip_blocked_reraises_the_guard(self, monkeypatch):
         monkeypatch.setattr(
             oe, "_download_idp", _always_raise(InvalidToolIp, "outside subnets")
         )
@@ -455,23 +455,23 @@ class TestDownloadFirst:
         # blocked[0]` specifically — a bare `pytest.raises(InvalidToolIp)`
         # cannot tell that apart from a freshly constructed InvalidToolIp.
         with pytest.raises(InvalidToolIp, match=r"\(CG6300_01\)"):
-            oe._download_first(THREE, tmp_path)
+            oe._download_first(THREE)
 
     def test_mixed_blocked_and_failed_raises_lookup_error_naming_both(
-        self, monkeypatch, tmp_path
+        self, monkeypatch
     ):
         # THREE = [CG6300_01, CG6300_07, CG6380_02]. If `blocked` truthiness
         # ever replaced the `len(blocked) == len(candidates)` guard, this
         # mixed case would wrongly raise InvalidToolIp instead of LookupError
         # — silently turning an informative 502 into a generic 500.
-        def _download(location, dest_dir):
+        def _download(location):
             if location.eqp_id == "CG6300_01":
                 raise InvalidToolIp("outside the allowed subnets")
             raise LookupError("no such file")
 
         monkeypatch.setattr(oe, "_download_idp", _download)
         with pytest.raises(LookupError) as excinfo:
-            oe._download_first(THREE, tmp_path)
+            oe._download_first(THREE)
         message = str(excinfo.value)
         # Not InvalidToolIp: excinfo.type asserts the exact raised type since
         # pytest.raises(LookupError) alone would also accept a subclass.

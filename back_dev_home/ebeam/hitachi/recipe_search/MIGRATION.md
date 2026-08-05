@@ -108,9 +108,11 @@ adapter needs no edit at all — only the mock's tables and that document.
 There is no write mode and no plan for one: it displays recipe settings.
 `/compare` and `/param-detail` are POSTs only because they take a list body —
 `/api/*` allows 20 requests per 5 s, and a 20-recipe compare would trip that as
-separate GETs. The one local write in the adapter is a temp file, because
-`combined_idp_info` takes a path rather than bytes. **Nothing may write to the
-tool**: these are live metrology recipes on production equipment.
+separate GETs. The adapter writes nothing anywhere: `combined_idp_info` accepts
+bytes (user-confirmed 2026-08-05), like the five raw readers, so the `.idp` is
+parsed in memory instead of through the temp file this section used to describe.
+**Nothing may write to the tool**: these are live metrology recipes on
+production equipment.
 
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipes
 

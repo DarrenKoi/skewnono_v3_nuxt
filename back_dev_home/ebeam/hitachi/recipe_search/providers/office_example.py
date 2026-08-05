@@ -132,9 +132,11 @@ file is normal rather than an error.
 READ-ONLY, by design (user-confirmed 2026-07-30). This screen shows recipe
 settings; there is no write mode. Every route is a read — the two POSTs take a
 list body only because ``/api/*`` allows 20 requests per 5 s and a 20-recipe
-compare would trip that as separate GETs. The single local write below is a
-temp file, because ``combined_idp_info`` takes a path rather than bytes.
-**Nothing may ever write to the tool**: these are live metrology recipes.
+compare would trip that as separate GETs. **Nothing is written anywhere**:
+neither to the tool — these are live metrology recipes — nor to the Flask host,
+since ``combined_idp_info`` accepts bytes as well as a path (user-confirmed
+2026-08-05), the same as the five raw readers. The temp file this module kept
+until then existed only to satisfy a path-only signature that never was one.
 
 Connection settings come from ``REDIS_*`` and ``OPENSEARCH_*`` in
 ``back_dev_home/.env`` (self-loaded), and FTP credentials from
@@ -147,6 +149,7 @@ switch, no env var needed — and run the Verify command in MIGRATION.md.
 import ast
 import json
 import logging
+import os
 import tempfile
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -714,12 +717,12 @@ def _downloader(downloader_cls, config):
     )
 
 
-def _download_idp(location: _IdpLocation, dest_dir: Path) -> Path:
-    """RETR the .idp to ``dest_dir`` and return the local path.
+def _download_idp(location: _IdpLocation) -> bytes:
+    """RETR the .idp and return its bytes.
 
-    The parser reads a file, so the bytes have to land on disk before it is
-    called — this returns a path rather than bytes to keep that ordering
-    explicit at the call site.
+    Nothing lands on disk: ``combined_idp_info`` takes bytes (user-confirmed
+    2026-08-05), so the download goes straight to the parser the same way the
+    raw-folder files go straight to the five readers.
 
     Raises:
         LookupError: the tool refused the connection or does not have the file.
@@ -750,18 +753,17 @@ def _download_idp(location: _IdpLocation, dest_dir: Path) -> Path:
             f"({location.eqp_ip}, transport: {transport}) — {reasons}"
         )
 
-    local_path = dest_dir / f"{location.idp_stem}.idp"
-    local_path.write_bytes(fetched[remote_path])
+    data = fetched[remote_path]
     _LOG.info(
         "recipe_search: fetched %s (%d bytes) from %s via %s",
-        remote_path, len(fetched[remote_path]), location.eqp_ip, transport,
+        remote_path, len(data), location.eqp_ip, transport,
     )
-    return local_path
+    return data
 
 
 def _download_first(
-    candidates: list[_IdpLocation], dest_dir: Path
-) -> tuple[Path, _IdpLocation]:
+    candidates: list[_IdpLocation],
+) -> tuple[bytes, _IdpLocation]:
     """Try each candidate in order; return the first success AND its location.
 
     The location is returned, not just the path, because the caller has to know
@@ -784,7 +786,7 @@ def _download_first(
     blocked = []
     for location in candidates:
         try:
-            return _download_idp(location, dest_dir), location
+            return _download_idp(location), location
         except InvalidToolIp as exc:
             # Skipped rather than raised: one stale roster IP must not fail
             # every recipe held on that tool. The guard still refuses to dial
@@ -1037,8 +1039,21 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
     return {name: identified[name][0] for name in _PARSED_TABLES}
 
 
-def _parse_idp(local_path: Path) -> dict[str, pd.DataFrame]:
-    """Run the 사내 IDP parser over a downloaded file.
+def _parse_idp(data: bytes, label: str) -> dict[str, pd.DataFrame]:
+    """Run the 사내 IDP parser over the downloaded bytes.
+
+    ``label`` never reaches the parser — it names the source in the LookupError
+    ``_normalize_frames`` raises, which is the only diagnosis anyone gets for a
+    parse that happened where no debugger can be attached.
+
+    ESCAPE HATCH: ``SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1`` restores the pre-
+    2026-08-05 behaviour — write the bytes to a temp file and pass the parser a
+    path. "combined_idp_info takes bytes" is user-confirmed but has never been
+    executed at the office, and this file cannot be tested from home, so the day
+    it turns out the office parser wants a path there must be a way to keep
+    recipe 열어보기 alive that does not require an edit, a review and a pull on
+    an office PC. Set it in ``back_dev_home/.env``, restart, and tell home.
+    Delete this branch once the bytes path has served real traffic.
 
     ``office_utils`` is imported here rather than at module scope on purpose:
     it exists only on office machines (home has a gitignored stand-in), and a
@@ -1061,7 +1076,19 @@ def _parse_idp(local_path: Path) -> dict[str, pd.DataFrame]:
             "(docs/datatables/recipe_idp.txt §집에서의 대역)."
         ) from exc
 
-    return _normalize_frames(combined_idp_info(local_path), local_path.name)
+    if os.getenv("SKEWNONO_RECIPE_IDP_VIA_TEMPFILE", "").strip() == "1":
+        _LOG.warning(
+            "recipe_search: SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 — parsing %s "
+            "through a temp file. Report this: it means combined_idp_info "
+            "rejected bytes, contradicting docs/datatables/recipe_idp.txt.",
+            label,
+        )
+        with tempfile.TemporaryDirectory(prefix="skewnono-idp-") as tmp_dir:
+            local_path = Path(tmp_dir) / label
+            local_path.write_bytes(data)
+            return _normalize_frames(combined_idp_info(local_path), label)
+
+    return _normalize_frames(combined_idp_info(data), label)
 
 
 # ── recipe open, step 4: map to the contract (pure) ───────────────────────
@@ -1639,11 +1666,11 @@ def get_recipe_open_data(
     history; either way it yields tool candidates in preference order and the
     download walks them until one answers.
 
-    The download lands in a temp directory that is removed on the way out.
-    Nothing is cached: a recipe's .idp is small, and with the registry path the
-    lookup is now two Redis reads rather than an OpenSearch query. If 열어보기
-    latency ever becomes a complaint this is still the seam to put a TTL cache
-    behind (keyed on the recipe triple, not on the path).
+    The .idp never touches the Flask host's disk — it is fetched, parsed and
+    dropped. Nothing is cached either: a recipe's .idp is small, and with the
+    registry path the lookup is two Redis reads rather than an OpenSearch query.
+    If 열어보기 latency ever becomes a complaint this is still the seam to put a
+    TTL cache behind (keyed on the recipe triple).
     """
     recipe = (recipe_id or "").strip()
     if not recipe:
@@ -1652,9 +1679,8 @@ def get_recipe_open_data(
     fab_name = (fab_name or "").strip() or None
 
     locations = _locate_idp(tool_type, recipe, fab_name)
-    with tempfile.TemporaryDirectory(prefix="skewnono-idp-") as tmp_dir:
-        local_path, location = _download_first(locations, Path(tmp_dir))
-        frames = _parse_idp(local_path)
+    data, location = _download_first(locations)
+    frames = _parse_idp(data, f"{location.idp_stem}.idp")
 
     return _to_detail_response(frames, recipe, fab_name or "", tool_type, location)
 
