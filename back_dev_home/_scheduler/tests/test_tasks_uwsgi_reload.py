@@ -31,15 +31,15 @@ def _ini(tmp_path, body: str):
 
 
 def test_an_absolute_target_is_read_verbatim(tmp_path):
-    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = /project/workSpace/reload.trigger\n")
+    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = /project/workSpace/restart.txt\n")
     assert parse_touch_reload(ini) == [
-        type(tmp_path)("/project/workSpace/reload.trigger")
+        type(tmp_path)("/project/workSpace/restart.txt")
     ]
 
 
 def test_percent_d_resolves_to_the_ini_directory(tmp_path):
-    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = %dreload.trigger\n")
-    assert parse_touch_reload(ini) == [tmp_path / "reload.trigger"]
+    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = %drestart.txt\n")
+    assert parse_touch_reload(ini) == [tmp_path / "restart.txt"]
 
 
 def test_percent_p_resolves_to_the_ini_itself(tmp_path):
@@ -48,15 +48,15 @@ def test_percent_p_resolves_to_the_ini_itself(tmp_path):
 
 
 def test_a_relative_target_resolves_against_the_ini_directory(tmp_path):
-    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = reload.trigger\n")
-    assert parse_touch_reload(ini) == [tmp_path / "reload.trigger"]
+    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = restart.txt\n")
+    assert parse_touch_reload(ini) == [tmp_path / "restart.txt"]
 
 
 def test_an_unresolvable_magic_variable_is_dropped_not_guessed(tmp_path):
     # %c is the directory's BASENAME. Treating it as the directory would build
     # /project/workSpace/workSpace/... and touch a file uWSGI never reads --
     # a job that then "succeeds" nightly while reloading nothing.
-    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = %c/reload.trigger\n")
+    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = %c/restart.txt\n")
     assert parse_touch_reload(ini) == []
 
 
@@ -116,13 +116,13 @@ def test_outside_uwsgi_nothing_is_touched(tmp_path, monkeypatch):
     # Home and Phase 2 do not run uWSGI at all; a touch there would only
     # litter a developer's checkout.
     monkeypatch.setattr(uwsgi_reload, "under_uwsgi", lambda: False)
-    target = tmp_path / "reload.trigger"
+    target = tmp_path / "restart.txt"
     assert touch_reload({"SKEWNONO_RELOAD_TOUCH_FILE": str(target)}) == 0
     assert not target.exists()
 
 
 def test_an_existing_trigger_gets_a_newer_mtime(tmp_path, inside_uwsgi):
-    target = tmp_path / "reload.trigger"
+    target = tmp_path / "restart.txt"
     target.write_text("")
     os.utime(target, (0, 0))
     assert touch_reload({"SKEWNONO_RELOAD_TOUCH_FILE": str(target)}) == 1
@@ -132,7 +132,7 @@ def test_an_existing_trigger_gets_a_newer_mtime(tmp_path, inside_uwsgi):
 def test_a_missing_trigger_is_created(tmp_path, inside_uwsgi):
     # uWSGI records mtime 0 for an absent trigger at boot, so the file
     # appearing IS the reload signal.
-    target = tmp_path / "reload.trigger"
+    target = tmp_path / "restart.txt"
     assert touch_reload({"SKEWNONO_RELOAD_TOUCH_FILE": str(target)}) == 1
     assert target.exists()
 
@@ -150,9 +150,9 @@ def test_an_untouchable_target_does_not_stop_the_others(tmp_path, inside_uwsgi):
 
 
 def test_the_ini_targets_are_touched_when_no_override_is_set(tmp_path, inside_uwsgi):
-    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = %dreload.trigger\n")
+    ini = _ini(tmp_path, "[uwsgi]\ntouch-reload = %drestart.txt\n")
     assert touch_reload({"SKEWNONO_UWSGI_INI": str(ini)}) == 1
-    assert (tmp_path / "reload.trigger").exists()
+    assert (tmp_path / "restart.txt").exists()
 
 
 def test_under_uwsgi_is_false_in_this_test_process():

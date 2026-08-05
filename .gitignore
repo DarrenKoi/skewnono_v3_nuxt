@@ -78,9 +78,11 @@ pnpm-debug.log*
 logs/
 *.log
 
-# uWSGI touch-reload trigger (wsgi.ini). Created by the nightly reload job on
-# whichever host runs uWSGI; it is state, not config.
-reload.trigger
+# uWSGI touch-reload trigger — the deploy root's restart.txt (wsgi.ini names
+# it). Touched by the nightly reload job on whichever host runs uWSGI; it is
+# state, not config. Anchored to the root so a restart.txt someone adds under
+# docs/ or rag_sources/ is still tracked.
+/restart.txt
 
 # Local generated previews
 SKEWNONO CD-SEM Viewer _standalone_.html

@@ -171,13 +171,17 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 않는 파일을 매일 밤 건드리며 "성공"으로 보이는 상태를 막기 위함입니다.
 
 ```ini
-touch-reload    = %dreload.trigger
+touch-reload    = %drestart.txt
 ```
+
+`%d` 는 `wsgi.ini` 가 있는 디렉터리(뒤에 슬래시 포함)이므로 클라우드에서는
+`/project/workSpace/restart.txt` 를 가리킵니다 (user-confirmed 2026-08-05).
 
 `wsgi.ini` 는 번들에 들어가지 않고 클라우드 호스트에 영구 보관되므로, 이 줄은
 클라우드의 `/project/workSpace/wsgi.ini` 에 **한 번 직접 추가**해야 합니다.
-트리거 파일은 미리 만들어 둘 필요가 없습니다. uWSGI 는 없는 트리거의 mtime 을
-0 으로 기록하고, 작업이 첫 실행에서 파일을 생성합니다.
+`restart.txt` 는 미리 만들어 둘 필요가 없습니다. uWSGI 는 없는 트리거의 mtime 을
+0 으로 기록하고, 작업이 첫 실행에서 파일을 생성합니다. 손으로 즉시 재기동할 때도
+같은 파일을 쓰면 됩니다 — `touch /project/workSpace/restart.txt`.
 
 이 작업은 프로세스가 실제 uWSGI 워커일 때만 동작합니다(`import uwsgi` 성공
 여부로 판정). 집(Werkzeug)과 Phase 2(Flask dev server)에서는 아무 파일도 만들지
