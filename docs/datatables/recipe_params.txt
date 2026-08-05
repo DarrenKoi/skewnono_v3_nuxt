@@ -66,13 +66,25 @@ mother 를 가진 파라미터가 하나도 없는 recipe 는 mother_normal 버�
   해결 후보는 device_statistics/MIGRATION.md 의 "mother_para 출처" 절입니다.
 
 recipe 이름 접미사 — 특수 측정 job
-(_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF user-confirmed 2026-08-05)
+(_WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
+ _HALF/_BCDU/_MTX 및 "_*CDU" 패턴 user-confirmed 2026-08-05)
 
-실물 recipe 이름은 "_S"/"SE"(Sample) 외에 "_WCDU" / "_FCDU" / "_FULL" /
-"_HALF" 로 끝날 수 있습니다 — CDU(wafer/field CD uniformity)·full/half-map
-측정 job 입니다. 이 접미사는 이름의 일부라서 cdsem_idp_ver.full_name 조인 키를
-깨지 않습니다. recipe_class 파생 규칙(_S/SE)과도 겹치지 않으므로 서로 간섭하지
+실물 recipe 이름은 "_S"/"SE"(Sample) 외에 아래로 끝날 수 있습니다.
+
+  "_*CDU"   CDU(CD uniformity) 측정 job. **목록이 아니라 패턴입니다** — 앞
+            글자는 어떤 map 을 재는지를 뜻할 뿐이고(W=wafer, F=field, B=…)
+            종류가 늘 수 있습니다. 확인된 예: _WCDU, _FCDU, _BCDU.
+  "_FULL"   full-map 측정 job.
+  "_HALF"   half-map 측정 job.
+  "_MTX"    matrix 측정 job.
+
+CDU 를 패턴으로 적어 두는 것이 중요합니다. 처음에는 _WCDU/_FCDU 만 열거했고,
+그래서 실물의 _BCDU 가 어느 제외 경로에도 걸리지 않고 분석에 그대로 섞여
+들었습니다 (2026-08-05). 접미사를 하나씩 세는 방식 자체가 이 데이터에 맞지
 않습니다.
+
+이 접미사는 이름의 일부라서 cdsem_idp_ver.full_name 조인 키를 깨지 않습니다.
+recipe_class 파생 규칙(_S/SE)과도 겹치지 않으므로 서로 간섭하지 않습니다.
 
 이 job 들은 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와
 다른 차원**입니다. 그래서 프론트엔드의 두 분석 모두에서 빠집니다.
@@ -87,8 +99,11 @@ Mock 생성 규칙
 1. lot_cd 별 결정론적 seed(statistics._seed_for)로 recipe·parameter 를 생성합니다.
 2. 약 8% recipe 는 기타(OTHER) 파라미터가 많은 bloated recipe 입니다 (D10 신호 검증용).
 3. 약 5% recipe 는 EDGE point 수가 또래 대비 큰 outlier 를 포함합니다 (outlier 뷰·R3 cap 검증용).
-4. 약 10% recipe 는 특수 측정 job 접미사(_WCDU/_FCDU/_FULL/_HALF)를 갖고, 그 recipe 의
-   point_count 는 정상 recipe 의 8배입니다 (판정·outlier 두 제외 경로 검증용).
+4. 약 10% recipe 는 특수 측정 job 접미사(_WCDU/_FCDU/_BCDU/_FULL/_HALF/_MTX)를 갖고,
+   그 recipe 의 point_count 는 정상 recipe 의 8배입니다 (판정·outlier 두 제외 경로
+   검증용). 이 목록은 **표본**일 뿐 판정 기준이 아닙니다 — 기준은 위의 "_*CDU"
+   패턴이고, _BCDU 를 표본에 넣어 둔 이유는 열거 목록에 없던 이름이 실제로 새어
+   나갔기 때문입니다.
    배율 자체는 OFFICE-VERIFY 입니다 — "자릿수가 다르다" 는 성질만 재현하고
    절대값은 흉내 내지 않습니다. 배율이 1 이면 제외 규칙을 지워도 테스트가 조용히
    통과하므로, 이 값은 장식이 아니라 회귀의 조건입니다.

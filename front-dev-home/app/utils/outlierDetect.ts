@@ -3,7 +3,7 @@
 // A parameter is an outlier when point_count > multiplier × median.
 // Pure + framework-free (mirrors ruleEngine.ts), unit-tested with node --test.
 //
-// 특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)은 기준선에서도, 초과 표시 대상에서도
+// 특수 측정 job(_*CDU/_FULL/_HALF/_MTX)은 기준선에서도, 초과 표시 대상에서도
 // 빠집니다 (user-confirmed 2026-08-05). 웨이퍼 전면을 훑는 것이 목적인 job 이라
 // 파라미터당 point_count 가 정상 recipe 와 자릿수부터 다릅니다 — 섞어 두면
 //

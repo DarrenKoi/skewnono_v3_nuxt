@@ -67,13 +67,18 @@ test('an exempt job is never flagged, however many points it measures', () => {
   assert.deepEqual(r.outliers, [])
 })
 
-test('all four suffixes are excluded', () => {
+test('every exempt job kind is excluded — the CDU family by pattern', () => {
   const r = detectDeviceOutliers([
     recipe('A', [10, 10, 10, 10]),
     recipe('B_WCDU', [800]),
     recipe('C_FCDU', [800]),
-    recipe('D_FULL', [800]),
-    recipe('E_HALF', [800])
+    recipe('D_BCDU', [800]),
+    // 아직 이름을 본 적 없는 CDU 종류도 같은 규칙을 따라야 합니다 — 목록으로
+    // 두었을 때 _BCDU 가 새어 나간 것이 이 테스트가 있는 이유입니다.
+    recipe('E_XCDU', [800]),
+    recipe('F_FULL', [800]),
+    recipe('G_HALF', [800]),
+    recipe('H_MTX', [800])
   ])
   assert.equal(r.median, 10, 'the baseline is the normal recipes only')
   assert.equal(r.outlier_count, 0)

@@ -15,6 +15,7 @@ from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_params import 
 )
 from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population import (
     POOL_RANGE,
+    _JUDGE_EXEMPT_SUFFIXES,
     bucket_members,
     build_population,
     ends_with_pure_cd,
@@ -225,16 +226,18 @@ def test_non_sample_ids_never_match_the_sample_suffix_by_accident():
 
     office 쪽 주석이 경고하듯 ``SE`` 를 이름 끝에서 찾으면 PHASE/BASE/SET 같은
     평범한 단어가 전부 Sample 이 됩니다. mock 이 그 함정을 우연히 밟지 않는지 봅니다.
-    특수 job 접미사(_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF
-    user-confirmed 2026-08-05)는 실물 이름의 일부이며 ``(_S|SE)$`` 와 겹치지
-    않습니다.
+    특수 job 접미사(_WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
+    _HALF/_BCDU/_MTX user-confirmed 2026-08-05)는 실물 이름의 일부이며
+    ``(_S|SE)$`` 와 겹치지 않습니다.
     """
-    exempt = ("_WCDU", "_FCDU", "_FULL", "_HALF")
     population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     for identity in population:
         recipe_id = identity["recipe_id"]
         if not is_sample_recipe(recipe_id):
-            assert recipe_id[-1].isdigit() or recipe_id.endswith(exempt), recipe_id
+            assert (
+                recipe_id[-1].isdigit()
+                or recipe_id.endswith(_JUDGE_EXEMPT_SUFFIXES)
+            ), recipe_id
 
 
 def test_judge_exempt_suffixes_are_present_in_the_pool():
@@ -244,7 +247,7 @@ def test_judge_exempt_suffixes_are_present_in_the_pool():
     outlierDetect)가 집에서 한 번도 실행되지 않습니다 — mock 이 office 를
     대역한다는 원칙(CLAUDE.md)입니다.
     """
-    expected = {"_WCDU", "_FCDU", "_FULL", "_HALF"}
+    expected = set(_JUDGE_EXEMPT_SUFFIXES)
     population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     present = {
         suffix
@@ -255,17 +258,33 @@ def test_judge_exempt_suffixes_are_present_in_the_pool():
     assert present == expected, present
 
 
-def test_is_exempt_job_agrees_with_the_names_the_pool_generates():
-    """공개 술어와 이름 생성이 같은 접미사 목록을 본다는 확인.
+def test_is_exempt_job_covers_every_name_the_pool_generates():
+    """판정 술어가 생성된 이름을 빠짐없이 잡는지 봅니다.
 
     ``recipe_params`` 가 측정 배율을 먹일 대상을 이 술어로 고르므로, 둘이
     갈라지면 *이름은 _HALF 인데 측정 규모는 정상* 인 recipe 가 생깁니다.
     """
     population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
-    exempt = ("_WCDU", "_FCDU", "_FULL", "_HALF")
     for identity in population:
         recipe_id = identity["recipe_id"]
-        assert is_exempt_job(recipe_id) == recipe_id.endswith(exempt), recipe_id
+        expected = recipe_id.endswith(_JUDGE_EXEMPT_SUFFIXES)
+        assert is_exempt_job(recipe_id) is expected, recipe_id
+
+
+def test_is_exempt_job_is_a_pattern_not_the_generation_list():
+    """표본에 없는 CDU 이름도 잡아야 합니다.
+
+    이것이 이 규칙의 핵심입니다 — _WCDU/_FCDU 만 열거해 두었더니 실물의 _BCDU
+    가 그대로 분석에 섞여 들었습니다 (user-confirmed 2026-08-05). 앞 글자는 어떤
+    map 을 재는지를 뜻할 뿐이라 종류가 늘 수 있으므로, 판정은 목록이 아니라
+    "_*CDU" 패턴이어야 합니다.
+    """
+    for name in ("RCP-R000-001_BCDU", "RCP-R000-001_XCDU", "RCP-R000-001_CDU"):
+        assert is_exempt_job(name), name
+
+    # 끝에 고정입니다 — 이름 한복판의 CDU 나 밑줄 없는 CDU 는 정상 recipe 입니다.
+    for name in ("RCP_WCDU-R000-001", "RCP-R000-001CDU", "RCP-R000-001"):
+        assert not is_exempt_job(name), name
 
 
 # ── 주차 궤적 ────────────────────────────────────────────────────────────

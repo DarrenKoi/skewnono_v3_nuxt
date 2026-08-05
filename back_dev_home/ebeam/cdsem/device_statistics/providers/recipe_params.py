@@ -79,7 +79,7 @@ TYPICAL_POINTS = {
     "OTHER": (1, 8),
 }
 
-# 특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)의 측정 배율. 웨이퍼 전면을 훑는 job 이라
+# 특수 측정 job(_*CDU/_FULL/_HALF/_MTX)의 측정 배율. 웨이퍼 전면을 훑는 job 이라
 # 파라미터당 point 수가 정상 recipe 와 자릿수부터 다릅니다.
 #
 # 이 배율이 없으면 mock 의 CDU job 이 정상 recipe 와 똑같이 측정하는 것처럼

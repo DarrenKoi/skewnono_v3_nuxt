@@ -107,7 +107,7 @@ const emit = defineEmits<{ 'update:open': [boolean] }>()
 
 // 웨이퍼 전면을 훑는 job 이라 설계대로 많이 잽니다 — "초과" 가 아닙니다.
 const EXEMPT_BADGE = '분석 제외'
-const EXEMPT_TITLE = 'CDU·full/half-map 측정 job(_WCDU/_FCDU/_FULL/_HALF)입니다. '
+const EXEMPT_TITLE = 'CDU 계열(_*CDU)·full/half-map·matrix 측정 job(_FULL/_HALF/_MTX)입니다. '
   + '설계상 측정 규모가 정상 recipe 와 달라 중앙값 기준선과 초과 판정에서 모두 빠집니다.'
 
 const highlightLabel = computed(() => props.highlightLabel ?? '초과')

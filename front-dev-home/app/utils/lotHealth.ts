@@ -48,7 +48,7 @@ export interface LotVerdict {
   /** "memory_class 미설정" 등 사유별 건수. 툴팁이 그대로 보여줍니다. */
   gray_reasons: Record<string, number>
   /**
-   * 판정 외 job(_WCDU/_FCDU/_FULL/_HALF) 건수. total_recipes 에 **포함되지 않고**
+   * 판정 외 job(_*CDU/_FULL/_HALF/_MTX) 건수. total_recipes 에 **포함되지 않고**
    * coverage 에도 영향이 없습니다 — 툴팁이 알려주기 위한 집계일 뿐입니다.
    */
   exempt_recipes: number
@@ -61,18 +61,24 @@ export const recipeKey = (lotCd: string, recipeId: string): string =>
   `${lotCd}\u0000${recipeId}`
 
 // 특수 측정 job. recipe 이름이 이 접미사로 끝나면 CDU·full/half-map 측정 job
-// 입니다 (_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF user-confirmed
-// 2026-08-05). 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와
-// 다른 차원**이고, 그래서 두 분석 모두에서 빠집니다.
+// 입니다. 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와 다른
+// 차원**이고, 그래서 두 분석 모두에서 빠집니다.
 //
 //   판정(cap) — gray(판정 보류 — 분모에 남아 coverage 를 낮춤)와 달리 분자·분모
 //               **모두**에서 빠집니다. 애초에 판정 범위 밖인 recipe 입니다.
 //   outlier   — 중앙값 기준선에서도, 초과 표시 대상에서도 빠집니다
 //               (outlierDetect.ts). 남겨 두면 이 job 들의 큰 point_count 가
 //               기준선을 끌어올려 정상 recipe 의 진짜 과다 측정을 가립니다.
-const EXEMPT_JOB_SUFFIX = /(_WCDU|_FCDU|_FULL|_HALF)$/i
+//
+// CDU 쪽은 **목록이 아니라 패턴**입니다 — "_*CDU" 면 전부입니다 (user-confirmed
+// 2026-08-05). 앞 글자는 어떤 map 을 재는지를 뜻할 뿐이고(W=wafer, F=field,
+// B=…), 종류는 늘 수 있습니다. _WCDU/_FCDU 를 하나씩 적어 두었더니 _BCDU 가
+// 그대로 새어 나왔습니다 — 접미사를 열거하는 방식 자체가 틀린 모양이었습니다.
+// _FULL/_HALF/_MTX 는 CDU 가 아닌 별개의 job 이라 계속 이름으로 답니다
+// (_MTX user-confirmed 2026-08-05).
+const EXEMPT_JOB_SUFFIX = /(_[A-Z]*CDU|_FULL|_HALF|_MTX)$/i
 
-/** recipe 가 분석 범위 밖의 특수 job(_WCDU/_FCDU/_FULL/_HALF)인가. */
+/** recipe 가 분석 범위 밖의 특수 job("_*CDU"/_FULL/_HALF/_MTX)인가. */
 export const isExemptJob = (recipeId: string): boolean =>
   EXEMPT_JOB_SUFFIX.test((recipeId || '').trim())
 

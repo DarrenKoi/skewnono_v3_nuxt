@@ -143,19 +143,38 @@ test('rules present but EVERY recipe gray is no-verdict, not green', () => {
 })
 
 // --- exempt jobs (_WCDU / _FCDU / _FULL user-confirmed 2026-08-04,
-//     _HALF user-confirmed 2026-08-05) ---
+//     _HALF / _BCDU / _MTX user-confirmed 2026-08-05) ---
 
-test('isExemptJob matches the four suffixes, case-insensitive, at the end only', () => {
+test('isExemptJob matches ANY _*CDU job, not a fixed list', () => {
   assert.equal(isExemptJob('RCP-R000-001_WCDU'), true)
   assert.equal(isExemptJob('RCP-R000-001_FCDU'), true)
+  // 열거 목록에 없던 이름 — 이것이 새어 나가서 패턴으로 바꿨습니다.
+  assert.equal(isExemptJob('RCP-R000-001_BCDU'), true)
+  // 아직 본 적 없는 앞 글자도 같은 규칙을 따라야 합니다.
+  assert.equal(isExemptJob('RCP-R000-001_XCDU'), true)
+  assert.equal(isExemptJob('RCP-R000-001_bcdu'), true)
+  assert.equal(isExemptJob('RCP-R000-001_CDU'), true)
+})
+
+test('isExemptJob matches the named non-CDU jobs, case-insensitive', () => {
   assert.equal(isExemptJob('RCP-R000-001_full'), true)
   assert.equal(isExemptJob('RCP-R000-001_HALF'), true)
   assert.equal(isExemptJob('RCP-R000-001_half'), true)
+  assert.equal(isExemptJob('RCP-R000-001_MTX'), true)
+  assert.equal(isExemptJob('RCP-R000-001_mtx'), true)
+})
+
+test('isExemptJob anchors at the end and does not over-match', () => {
   // 접미사가 아니라 중간에 있으면 판정 대상입니다.
   assert.equal(isExemptJob('RCP_FULL-R000-001'), false)
   assert.equal(isExemptJob('RCP_HALF-R000-001'), false)
+  assert.equal(isExemptJob('RCP_WCDU-R000-001'), false)
   assert.equal(isExemptJob('RCP-R000-001'), false)
   assert.equal(isExemptJob(''), false)
+  // "CDU" 로 끝나도 앞의 밑줄이 없으면 특수 job 이 아닙니다 — 이름 한복판에서
+  // 우연히 끝나는 경우까지 먹으면 정상 recipe 가 조용히 분석에서 빠집니다.
+  assert.equal(isExemptJob('RCP-R000-001CDU'), false)
+  assert.equal(isExemptJob('RCP-R000-001MTX'), false)
 })
 
 test('exempt recipes leave BOTH the numerator and the denominator', () => {

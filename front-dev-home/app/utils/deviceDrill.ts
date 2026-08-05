@@ -19,7 +19,7 @@ export interface DrillRecipe {
   flagged_count: number
   parameters: DrillParameter[]
   /**
-   * 분석 범위 밖의 특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)인가.
+   * 분석 범위 밖의 특수 측정 job(_*CDU/_FULL/_HALF/_MTX)인가.
    *
    * 목록에서 **빼지 않고 표시만** 합니다. 이 job 들은 파라미터당 point 수가
    * 정상 recipe 의 몇 배라, 아무 말 없이 미표시로 두면 "104 point 인데 왜 초과가

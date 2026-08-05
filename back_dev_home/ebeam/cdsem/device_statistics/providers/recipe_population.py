@@ -96,6 +96,13 @@ from typing import TypedDict
 # 인 것이 핵심입니다.
 _SAMPLE_SUFFIX = re.compile(r"(_S|SE)$", re.IGNORECASE)
 
+# 특수 측정 job 접미사. CDU 는 **목록이 아니라 패턴**입니다 — 앞 글자는 어떤
+# map 을 재는지를 뜻할 뿐이라(W=wafer, F=field, B=…) 종류가 늘 수 있고, 실제로
+# _WCDU/_FCDU 만 적어 두었더니 _BCDU 가 새어 나왔습니다 (user-confirmed
+# 2026-08-05). _FULL/_HALF/_MTX 는 CDU 가 아닌 별개 job 이라 이름으로 답니다.
+# 프론트엔드 lotHealth.EXEMPT_JOB_SUFFIX 와 같은 식이어야 합니다.
+_EXEMPT_JOB_SUFFIX = re.compile(r"(_[A-Z]*CDU|_FULL|_HALF|_MTX)$", re.IGNORECASE)
+
 
 def is_sample_recipe(recipe_id: str) -> bool:
     """recipe 이름이 "_S"/"SE" 로 끝나는가."""
@@ -105,13 +112,15 @@ def is_sample_recipe(recipe_id: str) -> bool:
 def is_exempt_job(recipe_id: str) -> bool:
     """recipe 이름이 특수 측정 job 접미사로 끝나는가.
 
-    프론트엔드 ``lotHealth.isExemptJob`` 과 같은 규칙입니다. 이 표면에서도
+    프론트엔드 ``lotHealth.isExemptJob`` 과 **같은 정규식**입니다. 이 표면에서도
     공개 함수인 이유는 소비처가 둘이기 때문입니다 — 이름을 만드는
     :func:`_recipe_name` 과, 그 job 의 측정 규모를 정하는 ``recipe_params``.
-    접미사 목록을 두 곳에 적어 두면 한쪽만 늘어납니다.
+
+    :data:`_JUDGE_EXEMPT_SUFFIXES` 로 판정하지 **않는** 것이 중요합니다. 그
+    튜플은 mock 이 만들어 볼 표본일 뿐이고, 판정 기준은 패턴입니다 — 표본에
+    없는 "_BCDU" 도 걸러야 하기 때문입니다.
     """
-    name = (recipe_id or "").strip().upper()
-    return name.endswith(_JUDGE_EXEMPT_SUFFIXES)
+    return bool(_EXEMPT_JOB_SUFFIX.search((recipe_id or "").strip()))
 
 
 def ends_with_pure_cd(oper_desc: str) -> bool:
@@ -200,12 +209,22 @@ _CD_VARIANTS = ("CD(E)", "CD(F)", "CD(BENDING)")
 # recipe 이름이 "_S"/"SE" 로 끝나는 비율 = only_sample 버킷 크기.
 _SAMPLE_RATIO = 0.25
 
-# 특수 측정 job 접미사 — CDU·full/half-map 측정 job 은 recipe 이름이 이렇게
-# 끝납니다 (_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF user-confirmed
-# 2026-08-05). 프론트엔드 lotHealth.isExemptJob 이 이 접미사를 판정 범위(분자·
-# 분모 모두)에서, outlierDetect 가 중앙값 기준선과 초과 목록에서 뺍니다 — mock 이
-# 이 이름을 만들지 않으면 그 두 경로가 집에서 한 번도 실행되지 않습니다.
-_JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_FULL", "_HALF")
+# 만들어 볼 특수 측정 job 접미사 **표본**입니다 — 판정 기준이 아닙니다.
+# 기준은 :data:`_EXEMPT_JOB_SUFFIX` 패턴이고, 여기 있는 것은 그 패턴이 집에서
+# 실제로 지나가도록 이름을 찍어 내기 위한 목록입니다.
+#
+# _BCDU 가 들어 있는 이유가 그 구분을 말해 줍니다. 이 이름은 어느 열거 목록에도
+# 없었고 그래서 조용히 새어 나갔습니다 (user-confirmed 2026-08-05) — 표본에
+# 넣어 두면 "_*CDU 라면 무엇이든" 이라는 규칙이 회귀로 고정됩니다. 표본을 늘려도
+# 판정은 바뀌지 않는다는 점이 핵심입니다.
+#
+# 프론트엔드 lotHealth.isExemptJob 이 이 job 을 판정 범위(분자·분모 모두)에서,
+# outlierDetect 가 중앙값 기준선과 초과 목록에서 뺍니다 — mock 이 이 이름을
+# 만들지 않으면 그 두 경로가 집에서 한 번도 실행되지 않습니다.
+#
+# _WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
+# _HALF/_BCDU/_MTX user-confirmed 2026-08-05.
+_JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_BCDU", "_FULL", "_HALF", "_MTX")
 _JUDGE_EXEMPT_RATIO = 0.10
 
 _OPER_PREFIXES = (
