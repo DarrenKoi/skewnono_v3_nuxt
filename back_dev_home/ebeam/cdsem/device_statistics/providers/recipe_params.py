@@ -41,6 +41,7 @@ from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population imp
     MOTHER_SHARE,
     RecipeIdentity,
     build_population,
+    is_exempt_job,
     is_sample_recipe,
     mother_para_all,
 )
@@ -78,6 +79,22 @@ TYPICAL_POINTS = {
     "OTHER": (1, 8),
 }
 
+# 특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)의 측정 배율. 웨이퍼 전면을 훑는 job 이라
+# 파라미터당 point 수가 정상 recipe 와 자릿수부터 다릅니다.
+#
+# 이 배율이 없으면 mock 의 CDU job 이 정상 recipe 와 똑같이 측정하는 것처럼
+# 보여, **실물에 대해 거짓을 가르칩니다**. 동시에 이 job 들을 중앙값 기준선에서
+# 빼는 outlierDetect 의 이유(큰 값이 기준선을 끌어올려 진짜 과다 측정을 가림)가
+# 집에서는 한 번도 재현되지 않습니다 — 배율이 1 이면 빼나 마나 같은 값이라
+# 회귀가 조용히 통과합니다.
+#
+# 이미 뽑은 값에 곱하기만 합니다. 여기서 rng 를 더 굴리면 뒤따르는 recipe 의
+# 파라미터가 전부 다른 값으로 다시 태어납니다 (_mark_mothers 의 같은 주의).
+#
+# OFFICE-VERIFY: 실물 배율은 확인된 바 없습니다 — "자릿수가 다르다" 는 성질만
+# 재현하고 절대값은 흉내 내지 않습니다.
+EXEMPT_JOB_POINT_SCALE = 8
+
 
 def _memory_class_auto(prod_catg_cd: str) -> str:
     c = prod_catg_cd.upper()
@@ -88,7 +105,9 @@ def _memory_class_auto(prod_catg_cd: str) -> str:
     return "unknown"  # Tech / Advanced / absent → 수동 (D7)
 
 
-def _build_parameters(rng: random.Random, bloated: bool, over_measured: bool) -> list[ParameterRow]:
+def _build_parameters(
+    rng: random.Random, bloated: bool, over_measured: bool, exempt_job: bool = False
+) -> list[ParameterRow]:
     params: list[ParameterRow] = []
 
     def add(name: str, lo: int, hi: int) -> None:
@@ -113,6 +132,12 @@ def _build_parameters(rng: random.Random, bloated: bool, over_measured: bool) ->
     # within-device outlier detector and the R3 EDGE cap flag it.
     if over_measured and params:
         params[-1] = {"name": "EDGE_R", "point_count": rng.randint(40, 60), "mother": False}
+
+    # 특수 측정 job 은 마지막에 통째로 배율만 먹입니다 — 이름·개수·순서는 그대로
+    # 두어야 위 난수 순서가 한 칸도 밀리지 않습니다.
+    if exempt_job:
+        for param in params:
+            param["point_count"] *= EXEMPT_JOB_POINT_SCALE
 
     return params
 
@@ -159,7 +184,9 @@ def _build_recipe(
     phase = rng.choice(PHASES)
     bloated = rng.random() < 0.08       # ~8% of recipes over-parameterized
     over_measured = rng.random() < 0.05  # ~5% with a point-count outlier
-    parameters = _build_parameters(rng, bloated, over_measured)
+    parameters = _build_parameters(
+        rng, bloated, over_measured, is_exempt_job(identity["recipe_id"])
+    )
     # mother 보유 여부는 identity 가 정합니다 — recipe-statistics 의 mother_normal
     # 버킷 멤버십과 같은 원천이어야 두 표면이 갈라지지 않습니다.
     _mark_mothers(parameters, mother_para_all(identity) > 0, mother_rng)

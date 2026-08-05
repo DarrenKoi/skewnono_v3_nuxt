@@ -279,7 +279,7 @@ const bucketOptions: BucketOption[] = [
   {
     label: 'Only Normal',
     value: 'only_normal_summary',
-    description: '정규 Recipe만 표시합니다. 측정 중이면서 스텝명이 CD로 끝나는 Step 기준이며, CD(E)·CD(F) 같은 추가계측은 제외합니다.'
+    description: '정규 Recipe만 표시합니다. 측정 중이면서 스텝명이 CD로 끝나는 Step 기준이며, CD(E)·CD(F)·CD(BENDING)처럼 괄호가 붙은 추가계측은 제외합니다.'
   },
   {
     label: 'Mother Normal',

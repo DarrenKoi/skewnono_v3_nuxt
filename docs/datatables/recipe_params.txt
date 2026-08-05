@@ -21,6 +21,12 @@ family -> string: Core, Pool, VG_RTC_Cubic 중 하나입니다 (D3).
 phase -> string|null: t-EV, EV, TV, PV 또는 null 입니다 (D3).
 memory_class_auto -> string: DRAM, NAND, unknown 중 하나입니다. Tech/Advanced 는 unknown(수동) 입니다 (D7).
 parameters -> records: 측정 파라미터 배열입니다. 각 원소는 {name, point_count, mother} 입니다.
+                       **순서가 의미를 갖습니다** — recipe 가 파라미터를 적어 둔
+                       순서 그대로이며, WAFER 계열이 맨 앞에 오는 것이 관례입니다
+                       (user-confirmed 2026-08-05). 어댑터는 이 순서를 바꾸지
+                       않습니다. 이름순으로 정렬하면 "WAFER" 가 알파벳상 거의
+                       끝이라 가장 중요한 파라미터가 목록 맨 아래로 밀립니다 —
+                       office 어댑터가 실제로 그랬고 2026-08-05 에 걷어냈습니다.
 
 parameters 원소
 name -> string: 파라미터 이름. 타입은 longest-prefix(EDGE_EX > EDGE > WAFER > LEVEL)로 파생되며, 그 외는 OTHER 입니다.
@@ -59,21 +65,33 @@ mother 를 가진 파라미터가 하나도 없는 recipe 는 mother_normal 버�
   있게 되며, 이는 규칙을 데이터에 그대로 적용한 결과입니다.
   해결 후보는 device_statistics/MIGRATION.md 의 "mother_para 출처" 절입니다.
 
-recipe 이름 접미사 — 판정 외 job (user-confirmed 2026-08-04)
+recipe 이름 접미사 — 특수 측정 job
+(_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF user-confirmed 2026-08-05)
 
-실물 recipe 이름은 "_S"/"SE"(Sample) 외에 "_WCDU" / "_FCDU" / "_FULL" 로 끝날
-수 있습니다 — CDU(wafer/field CD uniformity)·full-map 측정 job 입니다. 이
-접미사는 이름의 일부라서 cdsem_idp_ver.full_name 조인 키를 깨지 않습니다.
-프론트엔드(lotHealth.isJudgeExempt)는 이 세 접미사의 recipe 를 계측 룰
-판정 범위에서 **분자·분모 모두** 제외합니다 — gray(분모에 남는 판정 보류)와
-다릅니다. recipe_class 파생 규칙(_S/SE)과는 겹치지 않으므로 서로 간섭하지
+실물 recipe 이름은 "_S"/"SE"(Sample) 외에 "_WCDU" / "_FCDU" / "_FULL" /
+"_HALF" 로 끝날 수 있습니다 — CDU(wafer/field CD uniformity)·full/half-map
+측정 job 입니다. 이 접미사는 이름의 일부라서 cdsem_idp_ver.full_name 조인 키를
+깨지 않습니다. recipe_class 파생 규칙(_S/SE)과도 겹치지 않으므로 서로 간섭하지
 않습니다.
+
+이 job 들은 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와
+다른 차원**입니다. 그래서 프론트엔드의 두 분석 모두에서 빠집니다.
+
+  판정(lotHealth.isExemptJob) — 계측 룰 판정 범위에서 **분자·분모 모두**
+      제외합니다. gray(분모에 남는 판정 보류)와 다릅니다.
+  outlier(outlierDetect)     — point_count 중앙값 **기준선에서도**, 초과 표시
+      대상에서도 제외합니다. 남겨 두면 이 job 들의 큰 point_count 가 기준선을
+      끌어올려 정상 recipe 의 진짜 과다 측정이 문턱 아래로 숨습니다.
 
 Mock 생성 규칙
 1. lot_cd 별 결정론적 seed(statistics._seed_for)로 recipe·parameter 를 생성합니다.
 2. 약 8% recipe 는 기타(OTHER) 파라미터가 많은 bloated recipe 입니다 (D10 신호 검증용).
 3. 약 5% recipe 는 EDGE point 수가 또래 대비 큰 outlier 를 포함합니다 (outlier 뷰·R3 cap 검증용).
-4. 약 10% recipe 는 판정 외 job 접미사(_WCDU/_FCDU/_FULL)를 갖습니다 (판정 제외 경로 검증용).
+4. 약 10% recipe 는 특수 측정 job 접미사(_WCDU/_FCDU/_FULL/_HALF)를 갖고, 그 recipe 의
+   point_count 는 정상 recipe 의 8배입니다 (판정·outlier 두 제외 경로 검증용).
+   배율 자체는 OFFICE-VERIFY 입니다 — "자릿수가 다르다" 는 성질만 재현하고
+   절대값은 흉내 내지 않습니다. 배율이 1 이면 제외 규칙을 지워도 테스트가 조용히
+   통과하므로, 이 값은 장식이 아니라 회귀의 조건입니다.
 5. 약 85% recipe 만 mother 파라를 갖고(보유 시 파라미터의 25~45%), 나머지 15% 는
    mother 가 없어 mother_normal 버킷에서 빠집니다 — "recipe 도 좁힌다" 는 규칙이
    집에서 실제로 실행되게 하려는 것입니다. 이 비율은 OFFICE-VERIFY 입니다(실물

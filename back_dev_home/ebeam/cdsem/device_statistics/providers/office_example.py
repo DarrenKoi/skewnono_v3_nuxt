@@ -900,15 +900,21 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
             # "mother view 가 동작한다" 고 거짓말하는 것보다 낫습니다. 판별
             # 불가는 위 _idp_parameters 가 로그로 알립니다.
             mothers = (mothers_by_recipe or {}).get(recipe_id, set())
+            # **원본 순서 그대로** 냅니다 (user-confirmed 2026-08-05). 이 dict 의
+            # key 순서는 recipe 가 파라미터를 적어 둔 순서이고, 그 순서 자체가
+            # 정보입니다 — WAFER 계열이 맨 앞에 오는 것이 관례이고 엔지니어가
+            # drill 을 위에서부터 읽습니다. 예전에는 여기서 이름순으로 정렬해
+            # "WAFER" 가 알파벳상 거의 끝이라 **가장 중요한 파라미터가 목록
+            # 맨 아래로** 밀려 있었습니다. json.loads 와 dict 는 삽입 순서를
+            # 지키므로 정렬만 걷어내면 OpenSearch _source 의 순서가 그대로
+            # 화면까지 옵니다.
             parameters: list[ParameterRow] = [
                 {
                     "name": name,
                     "point_count": point_count,
                     "mother": name in mothers,
                 }
-                for name, point_count in sorted(
-                    params_by_recipe.get(recipe_id, {}).items()
-                )
+                for name, point_count in params_by_recipe.get(recipe_id, {}).items()
             ]
             rows.append({
                 "lot_cd": lot_cd,

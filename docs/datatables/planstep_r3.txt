@@ -41,9 +41,11 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
   eqp_id -> string: 장비 ID.
   recipe_id -> string: recipe 식별자. **다른 DB 의 full_name 과 동일한 값**입니다 —
                        cdsem_idp_ver.full_name 과 이 값으로 조인합니다.
-                       이름이 "_WCDU"/"_FCDU"/"_FULL" 로 끝나면 CDU·full-map
-                       측정 job 으로, 계측 룰 판정 범위에서 제외됩니다
-                       (user-confirmed 2026-08-04 — recipe_params.txt).
+                       이름이 "_WCDU"/"_FCDU"/"_FULL"/"_HALF" 로 끝나면
+                       CDU·full/half-map 측정 job 으로, 계측 룰 판정 범위와
+                       point_count outlier 기준선 양쪽에서 제외됩니다
+                       (_WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
+                       _HALF user-confirmed 2026-08-05 — recipe_params.txt).
   bak_eqp_yn -> string: "Y" | "N". 백업 장비 지정 여부입니다.
   bak_eqp_id_lval -> string: 백업 장비 목록을 슬래시로 이어붙인 문자열입니다.
                              예 "MCD018 / MCD018 / ...". 단일 문자열이므로 장비별로
@@ -107,9 +109,13 @@ recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷�
   all            모든 Step. Full job 과 Sample job 을 함께 포함합니다.
   only_normal    skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이
                  **순수한 CD** 인 것.
-                 "CD(E)", "CD(F)" 처럼 괄호가 붙으면 제외합니다. 실제 스텝명이
-                 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는 괄호를
-                 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지로 판별합니다.
+                 "CD(E)", "CD(F)", "CD(BENDING)" 처럼 괄호가 붙으면 제외합니다.
+                 실제 스텝명이 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로
+                 닫히므로, 닫는 괄호를 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지로
+                 판별합니다.
+                 괄호 꼬리는 한 글자(E/F)만이 아니라 **단어**일 수 있습니다 —
+                 "CD(BENDING)" 이 확인된 예입니다 (user-confirmed 2026-08-05).
+                 판별 규칙이 꼬리의 길이를 가정하지 않는 것이 그래서 중요합니다.
   mother_normal  only_normal 과 **같은 스텝 필터**를 쓰고, 거기서 **mother
                  파라미터를 1개 이상 가진 recipe** 만 남깁니다. para_16/13/9/5
                  집계도 mother 파라만 셉니다.

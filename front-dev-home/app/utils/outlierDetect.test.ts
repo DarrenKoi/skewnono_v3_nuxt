@@ -58,3 +58,46 @@ test('multiplier is configurable', () => {
 test('default multiplier is 2', () => {
   assert.equal(DEFAULT_OUTLIER_MULTIPLIER, 2)
 })
+
+// --- 특수 측정 job 제외 (user-confirmed 2026-08-05) ---
+
+test('an exempt job is never flagged, however many points it measures', () => {
+  const r = detectDeviceOutliers([recipe('A', [10, 10, 10, 10]), recipe('B_WCDU', [800])])
+  assert.equal(r.outlier_count, 0, 'a full-map job measures a lot by design')
+  assert.deepEqual(r.outliers, [])
+})
+
+test('all four suffixes are excluded', () => {
+  const r = detectDeviceOutliers([
+    recipe('A', [10, 10, 10, 10]),
+    recipe('B_WCDU', [800]),
+    recipe('C_FCDU', [800]),
+    recipe('D_FULL', [800]),
+    recipe('E_HALF', [800])
+  ])
+  assert.equal(r.median, 10, 'the baseline is the normal recipes only')
+  assert.equal(r.outlier_count, 0)
+})
+
+// 이것이 이 규칙의 진짜 이유입니다. exempt job 이 기준선에 남아 있으면 중앙값이
+// 끌려 올라가 **정상 recipe 의 진짜 과다 측정이 문턱 아래로 숨습니다**.
+test('excluding exempt jobs keeps a real outlier in a normal recipe visible', () => {
+  const rows = [
+    recipe('A', [10, 10, 10, 10, 10, 10]),
+    recipe('B', [40]), // 진짜 과다 측정 — 정상 recipe 인데 4배
+    recipe('X_FULL', [400, 400, 400, 400, 400, 400, 400])
+  ]
+  const r = detectDeviceOutliers(rows)
+
+  // exempt 를 세면 중앙값이 400 쪽으로 끌려가 threshold 가 40 을 넘고 B 가 숨습니다.
+  assert.equal(r.median, 10)
+  assert.equal(r.threshold, 20)
+  assert.equal(r.outlier_count, 1)
+  assert.equal(r.outliers[0]?.recipe_id, 'B')
+})
+
+test('a device measuring ONLY exempt jobs reports an empty baseline, not a huge one', () => {
+  const r = detectDeviceOutliers([recipe('A_WCDU', [500, 500]), recipe('B_FCDU', [500])])
+  assert.equal(r.median, 0)
+  assert.equal(r.outlier_count, 0)
+})

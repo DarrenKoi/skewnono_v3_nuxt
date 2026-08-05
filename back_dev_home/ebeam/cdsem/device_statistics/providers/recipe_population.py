@@ -102,12 +102,26 @@ def is_sample_recipe(recipe_id: str) -> bool:
     return bool(_SAMPLE_SUFFIX.search((recipe_id or "").strip()))
 
 
+def is_exempt_job(recipe_id: str) -> bool:
+    """recipe 이름이 특수 측정 job 접미사로 끝나는가.
+
+    프론트엔드 ``lotHealth.isExemptJob`` 과 같은 규칙입니다. 이 표면에서도
+    공개 함수인 이유는 소비처가 둘이기 때문입니다 — 이름을 만드는
+    :func:`_recipe_name` 과, 그 job 의 측정 규모를 정하는 ``recipe_params``.
+    접미사 목록을 두 곳에 적어 두면 한쪽만 늘어납니다.
+    """
+    name = (recipe_id or "").strip().upper()
+    return name.endswith(_JUDGE_EXEMPT_SUFFIXES)
+
+
 def ends_with_pure_cd(oper_desc: str) -> bool:
-    """스텝명 끝이 **순수한 CD** 인가 — "CD(E)" / "CD(F)" 는 제외.
+    """스텝명 끝이 **순수한 CD** 인가 — "CD(E)"/"CD(F)"/"CD(BENDING)" 은 제외.
 
     실제 스텝명은 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는
     괄호를 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지 봅니다. "…CLN CD(E))" 는
-    벗겨도 마지막 토큰이 "CD(E" 라 걸러집니다.
+    벗겨도 마지막 토큰이 "CD(E" 라 걸러집니다. 꼬리가 단어인
+    "…CLN CD(BENDING))" 도 같은 이유로 "CD(BENDING" 이 되어 걸러집니다 —
+    규칙이 꼬리의 길이를 가정하지 않는 것이 핵심입니다.
     """
     stripped = (oper_desc or "").strip().rstrip(")]} \t")
     if not stripped:
@@ -177,16 +191,21 @@ _PURE_CD_RATIO = 0.45      # "… CLN CD)"     -> only_normal 후보
 _PAREN_CD_RATIO = 0.22     # "… CLN CD(E))"  -> 추가계측, 이제 어느 CD 버킷에도 없음
 # 나머지 33% 는 CD 없는 스텝 -> 어느 CD 버킷에도 안 들어갑니다.
 
-_CD_VARIANTS = ("CD(E)", "CD(F)")
+# 추가계측 스텝명의 괄호 꼬리. "CD(BENDING)" 은 user-confirmed 2026-08-05 —
+# 실물의 꼬리는 한 글자(E/F)만이 아니라 단어일 수 있습니다. 여기에 단어형이
+# 하나도 없으면 `ends_with_pure_cd` 의 "닫는 괄호를 벗긴 뒤 마지막 토큰" 규칙이
+# 한 글자 꼬리에서만 검증되어, only_normal 버킷이 집에서 좁게 확인됩니다.
+_CD_VARIANTS = ("CD(E)", "CD(F)", "CD(BENDING)")
 
 # recipe 이름이 "_S"/"SE" 로 끝나는 비율 = only_sample 버킷 크기.
 _SAMPLE_RATIO = 0.25
 
-# 판정 외(exempt) job 접미사 — CDU·full-map 측정 job 은 recipe 이름이 이렇게
-# 끝납니다 (user-confirmed 2026-08-04). 프론트엔드 lotHealth.isJudgeExempt 가
-# 이 접미사를 판정 범위(분자·분모 모두)에서 뺍니다 — mock 이 이 이름을 만들지
-# 않으면 그 경로가 집에서 한 번도 실행되지 않습니다.
-_JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_FULL")
+# 특수 측정 job 접미사 — CDU·full/half-map 측정 job 은 recipe 이름이 이렇게
+# 끝납니다 (_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF user-confirmed
+# 2026-08-05). 프론트엔드 lotHealth.isExemptJob 이 이 접미사를 판정 범위(분자·
+# 분모 모두)에서, outlierDetect 가 중앙값 기준선과 초과 목록에서 뺍니다 — mock 이
+# 이 이름을 만들지 않으면 그 두 경로가 집에서 한 번도 실행되지 않습니다.
+_JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_FULL", "_HALF")
 _JUDGE_EXEMPT_RATIO = 0.10
 
 _OPER_PREFIXES = (

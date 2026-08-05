@@ -18,6 +18,7 @@ from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population imp
     bucket_members,
     build_population,
     ends_with_pure_cd,
+    is_exempt_job,
     is_normal_bucket_step,
     is_sample_recipe,
     lot_trajectory,
@@ -181,11 +182,27 @@ CLASSIFICATION_EXAMPLES = [
     ("SNC2(CELL OPEN ETCH CLN CD)", "", "RCP-R000-001"),    # 빈 값 -> 측정 중
     ("SNC2(CELL OPEN ETCH CLN CD(E))", "N", "RCP-R000-002"),
     ("SNC2(CELL OPEN ETCH CLN CD(F))", "N", "RCP-R000-003_S"),
+    # 괄호 꼬리가 단어인 경우 (user-confirmed 2026-08-05). 규칙이 꼬리의 길이를
+    # 가정하지 않는지 — 한 글자 예시만으로는 드러나지 않습니다.
+    ("SNC2(CELL OPEN ETCH CLN CD(BENDING))", "N", "RCP-R000-007"),
     ("PLD3(GATE POLY ETCH)", "N", "RCP-R000-004SE"),
     ("MTC1(METAL1 CMP CD)", "N", "RCP-R000-005"),
     ("", "", ""),
     ("VIA1(VIA ETCH CLN CD)", "N", "RCP-R000-006_s"),
+    ("MTC1(METAL1 CMP CD)", "N", "RCP-R000-008_HALF"),
 ]
+
+
+def test_paren_cd_steps_are_excluded_from_only_normal_whatever_the_tail():
+    """"CD(...)" 꼬리는 길이와 무관하게 추가계측입니다.
+
+    only_normal 이 답하는 질문이 "정규 CD 측정 스텝인가" 이므로, 꼬리가 한
+    글자든(E/F) 단어든(BENDING) 똑같이 빠져야 합니다.
+    """
+    assert ends_with_pure_cd("SNC2(CELL OPEN ETCH CLN CD)") is True
+    for tail in ("E", "F", "BENDING", "REWORK"):
+        oper_desc = f"SNC2(CELL OPEN ETCH CLN CD({tail}))"
+        assert ends_with_pure_cd(oper_desc) is False, oper_desc
 
 
 @pytest.mark.parametrize("oper_desc,skip_yn,recipe_id", CLASSIFICATION_EXAMPLES)
@@ -208,10 +225,11 @@ def test_non_sample_ids_never_match_the_sample_suffix_by_accident():
 
     office 쪽 주석이 경고하듯 ``SE`` 를 이름 끝에서 찾으면 PHASE/BASE/SET 같은
     평범한 단어가 전부 Sample 이 됩니다. mock 이 그 함정을 우연히 밟지 않는지 봅니다.
-    판정 외 접미사(_WCDU/_FCDU/_FULL — user-confirmed 2026-08-04)는 실물 이름의
-    일부이며 ``(_S|SE)$`` 와 겹치지 않습니다.
+    특수 job 접미사(_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF
+    user-confirmed 2026-08-05)는 실물 이름의 일부이며 ``(_S|SE)$`` 와 겹치지
+    않습니다.
     """
-    exempt = ("_WCDU", "_FCDU", "_FULL")
+    exempt = ("_WCDU", "_FCDU", "_FULL", "_HALF")
     population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     for identity in population:
         recipe_id = identity["recipe_id"]
@@ -220,19 +238,34 @@ def test_non_sample_ids_never_match_the_sample_suffix_by_accident():
 
 
 def test_judge_exempt_suffixes_are_present_in_the_pool():
-    """판정 외 job 이름이 실제로 생성되는지 봅니다.
+    """특수 측정 job 이름이 실제로 생성되는지 봅니다.
 
-    없으면 프론트엔드의 exempt 경로(lotHealth.isJudgeExempt)가 집에서 한 번도
-    실행되지 않습니다 — mock 이 office 를 대역한다는 원칙(CLAUDE.md)입니다.
+    없으면 프론트엔드의 두 exempt 경로(판정 lotHealth.isExemptJob, outlier
+    outlierDetect)가 집에서 한 번도 실행되지 않습니다 — mock 이 office 를
+    대역한다는 원칙(CLAUDE.md)입니다.
     """
+    expected = {"_WCDU", "_FCDU", "_FULL", "_HALF"}
     population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     present = {
         suffix
-        for suffix in ("_WCDU", "_FCDU", "_FULL")
+        for suffix in expected
         for r in population
         if r["recipe_id"].endswith(suffix)
     }
-    assert present == {"_WCDU", "_FCDU", "_FULL"}, present
+    assert present == expected, present
+
+
+def test_is_exempt_job_agrees_with_the_names_the_pool_generates():
+    """공개 술어와 이름 생성이 같은 접미사 목록을 본다는 확인.
+
+    ``recipe_params`` 가 측정 배율을 먹일 대상을 이 술어로 고르므로, 둘이
+    갈라지면 *이름은 _HALF 인데 측정 규모는 정상* 인 recipe 가 생깁니다.
+    """
+    population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    exempt = ("_WCDU", "_FCDU", "_FULL", "_HALF")
+    for identity in population:
+        recipe_id = identity["recipe_id"]
+        assert is_exempt_job(recipe_id) == recipe_id.endswith(exempt), recipe_id
 
 
 # ── 주차 궤적 ────────────────────────────────────────────────────────────

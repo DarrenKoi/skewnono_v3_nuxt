@@ -30,6 +30,9 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
     RuleVersion,
     TrendBucket,
 )
+from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_population import (
+    is_exempt_job,
+)
 
 
 def _is_mock() -> bool:
@@ -109,6 +112,62 @@ def test_recipe_params_matches_contract():
         # Every mock lot has fabricated recipes behind it; a real lot can have
         # no recipe rows yet.
         assert rows, "mock recipe_params must not be empty for a known lot"
+
+
+def test_parameter_order_is_the_recipe_order_not_alphabetical():
+    """``parameters`` 순서는 recipe 가 적어 둔 순서 그대로여야 합니다.
+
+    순서 자체가 정보입니다 — WAFER 계열이 맨 앞에 오는 것이 관례이고, drill 을
+    펼친 엔지니어가 위에서부터 읽습니다 (user-confirmed 2026-08-05). 이름순으로
+    정렬하면 "WAFER" 가 알파벳상 거의 끝이라 **가장 중요한 파라미터가 목록 맨
+    아래로** 밀립니다. office 어댑터가 실제로 그랬습니다.
+
+    두 표면 모두에 걸리는 계약이라 여기서 지킵니다 — mock 은 WAFER 를 먼저
+    만들고, office 는 _source dict 의 삽입 순서를 그대로 냅니다.
+    """
+    rows = data.get_recipe_params([_sample_lot_cd()])
+    if not rows:
+        pytest.skip("no recipe rows for this lot")
+
+    for row in rows:
+        names = [param["name"] for param in row["parameters"]]
+        if len(names) < 2:
+            continue
+        assert names != sorted(names) or len(set(names)) == 1, (
+            f"{row['recipe_id']} 의 파라미터가 이름순입니다 — 원본 순서가 "
+            f"정렬로 덮였을 수 있습니다: {names}"
+        )
+        if _is_mock():
+            # mock 은 WAFER → LEVEL → EDGE → OTHER 순으로 만듭니다.
+            assert names[0].startswith("WAFER"), names
+
+
+def test_exempt_jobs_measure_at_a_different_scale():
+    """특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)은 정상 recipe 보다 훨씬 크게 잽니다.
+
+    프론트엔드가 이 job 들을 outlier 중앙값 기준선에서 빼는 이유가 바로 이
+    규모 차이입니다 (outlierDetect.ts). mock 이 같은 규모로 만들면 그 회귀가
+    집에서 조용히 통과합니다.
+    """
+    if not _is_mock():
+        pytest.skip("office 값은 우리가 정하지 않습니다")
+
+    rows = data.get_recipe_params([_sample_lot_cd()])
+    exempt_points: list[int] = []
+    normal_points: list[int] = []
+    for row in rows:
+        target = (
+            exempt_points
+            if is_exempt_job(row["recipe_id"])
+            else normal_points
+        )
+        target.extend(param["point_count"] for param in row["parameters"])
+
+    assert exempt_points, "mock 이 특수 job 을 하나도 만들지 않았습니다"
+    assert normal_points
+    assert max(exempt_points) > max(normal_points), (
+        "특수 job 이 정상 recipe 와 같은 규모면 outlier 제외 규칙이 무의미합니다"
+    )
 
 
 def test_weekly_trend_data_matches_contract():

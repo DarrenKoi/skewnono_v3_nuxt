@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  augmentRow, buildLotVerdicts, extractStage, isJudgeExempt, paraTotal, recipeKey,
+  augmentRow, buildLotVerdicts, extractStage, isExemptJob, paraTotal, recipeKey,
   scopeRecipesToBucket, verdictSortValue,
   type RuleSet
 } from './lotHealth.ts'
@@ -142,16 +142,20 @@ test('rules present but EVERY recipe gray is no-verdict, not green', () => {
   assert.equal(v.coverage, 0)
 })
 
-// --- judge-exempt jobs (_WCDU / _FCDU / _FULL, user-confirmed 2026-08-04) ---
+// --- exempt jobs (_WCDU / _FCDU / _FULL user-confirmed 2026-08-04,
+//     _HALF user-confirmed 2026-08-05) ---
 
-test('isJudgeExempt matches the three suffixes, case-insensitive, at the end only', () => {
-  assert.equal(isJudgeExempt('RCP-R000-001_WCDU'), true)
-  assert.equal(isJudgeExempt('RCP-R000-001_FCDU'), true)
-  assert.equal(isJudgeExempt('RCP-R000-001_full'), true)
+test('isExemptJob matches the four suffixes, case-insensitive, at the end only', () => {
+  assert.equal(isExemptJob('RCP-R000-001_WCDU'), true)
+  assert.equal(isExemptJob('RCP-R000-001_FCDU'), true)
+  assert.equal(isExemptJob('RCP-R000-001_full'), true)
+  assert.equal(isExemptJob('RCP-R000-001_HALF'), true)
+  assert.equal(isExemptJob('RCP-R000-001_half'), true)
   // 접미사가 아니라 중간에 있으면 판정 대상입니다.
-  assert.equal(isJudgeExempt('RCP_FULL-R000-001'), false)
-  assert.equal(isJudgeExempt('RCP-R000-001'), false)
-  assert.equal(isJudgeExempt(''), false)
+  assert.equal(isExemptJob('RCP_FULL-R000-001'), false)
+  assert.equal(isExemptJob('RCP_HALF-R000-001'), false)
+  assert.equal(isExemptJob('RCP-R000-001'), false)
+  assert.equal(isExemptJob(''), false)
 })
 
 test('exempt recipes leave BOTH the numerator and the denominator', () => {
@@ -172,7 +176,7 @@ test('exempt recipes leave BOTH the numerator and the denominator', () => {
 })
 
 test('a lot whose recipes are ALL exempt still gets a verdict carrying the count', () => {
-  const rows = [recipe('A_FCDU', 5), recipe('B_FULL', 5)]
+  const rows = [recipe('A_FCDU', 5), recipe('B_HALF', 5)]
   const v = buildLotVerdicts(rows, rulesByFab).get('R000')!
 
   assert.equal(v.kind, 'no-rules')

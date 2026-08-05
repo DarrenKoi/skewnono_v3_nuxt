@@ -443,8 +443,12 @@ const percent = (value: number) => `${Math.round(value * 100)}%`
 /** gray 사유별 건수를 툴팁 한 줄로. 왜 판정 대상에서 빠졌는지 말해 줍니다. */
 const coverageTitle = (r: HealthAugmentedRow) => {
   const v = r.verdict
-  // 판정 외 job(_WCDU/_FCDU/_FULL)은 분모에도 없으므로 항상 꼬리로만 언급합니다.
-  const exempt = v.exempt_recipes > 0 ? ` · 판정 외 job ${v.exempt_recipes}건 (WCDU/FCDU/FULL)` : ''
+  // 특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)은 분모에도 없으므로 항상 꼬리로만
+  // 언급합니다. outlier 기준선에서도 빠진다는 것을 여기서 함께 말해 둡니다 —
+  // 같은 행의 "측정점 중앙값" 이 무엇을 세지 않았는지 읽는 사람이 알아야 합니다.
+  const exempt = v.exempt_recipes > 0
+    ? ` · 특수 job ${v.exempt_recipes}건 (WCDU/FCDU/FULL/HALF) 은 판정·outlier 모두에서 제외`
+    : ''
   if (v.kind === 'no-rules') {
     // 같은 kind 라도 원인이 둘입니다 — gray 가 있으면 룰은 있었던 것입니다.
     // 사무실에서 "판정 범위 전부 0" 이 보일 때 이 툴팁이 원인을 가릅니다.

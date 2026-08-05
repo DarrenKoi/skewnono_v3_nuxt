@@ -48,7 +48,7 @@ export interface LotVerdict {
   /** "memory_class 미설정" 등 사유별 건수. 툴팁이 그대로 보여줍니다. */
   gray_reasons: Record<string, number>
   /**
-   * 판정 외 job(_WCDU/_FCDU/_FULL) 건수. total_recipes 에 **포함되지 않고**
+   * 판정 외 job(_WCDU/_FCDU/_FULL/_HALF) 건수. total_recipes 에 **포함되지 않고**
    * coverage 에도 영향이 없습니다 — 툴팁이 알려주기 위한 집계일 뿐입니다.
    */
   exempt_recipes: number
@@ -60,15 +60,21 @@ export interface LotVerdict {
 export const recipeKey = (lotCd: string, recipeId: string): string =>
   `${lotCd}\u0000${recipeId}`
 
-// 판정 외(exempt) job. recipe 이름이 이 접미사로 끝나면 CDU·full-map 측정 job
-// 이라 파라미터 point cap 판정의 대상이 아닙니다 (user-confirmed 2026-08-04).
-// gray(판정 보류 — 분모에 남아 coverage 를 낮춤)와 달리 분자·분모 **모두**에서
-// 빠집니다 — 애초에 판정 범위 밖인 recipe 입니다.
-const JUDGE_EXEMPT_SUFFIX = /(_WCDU|_FCDU|_FULL)$/i
+// 특수 측정 job. recipe 이름이 이 접미사로 끝나면 CDU·full/half-map 측정 job
+// 입니다 (_WCDU/_FCDU/_FULL user-confirmed 2026-08-04, _HALF user-confirmed
+// 2026-08-05). 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와
+// 다른 차원**이고, 그래서 두 분석 모두에서 빠집니다.
+//
+//   판정(cap) — gray(판정 보류 — 분모에 남아 coverage 를 낮춤)와 달리 분자·분모
+//               **모두**에서 빠집니다. 애초에 판정 범위 밖인 recipe 입니다.
+//   outlier   — 중앙값 기준선에서도, 초과 표시 대상에서도 빠집니다
+//               (outlierDetect.ts). 남겨 두면 이 job 들의 큰 point_count 가
+//               기준선을 끌어올려 정상 recipe 의 진짜 과다 측정을 가립니다.
+const EXEMPT_JOB_SUFFIX = /(_WCDU|_FCDU|_FULL|_HALF)$/i
 
-/** recipe 가 판정 범위 밖의 job(_WCDU/_FCDU/_FULL)인가. */
-export const isJudgeExempt = (recipeId: string): boolean =>
-  JUDGE_EXEMPT_SUFFIX.test((recipeId || '').trim())
+/** recipe 가 분석 범위 밖의 특수 job(_WCDU/_FCDU/_FULL/_HALF)인가. */
+export const isExemptJob = (recipeId: string): boolean =>
+  EXEMPT_JOB_SUFFIX.test((recipeId || '').trim())
 
 /**
  * recipe-params 를 선택된 버킷의 범위로 좁힙니다 — **두 축을 한 번에**.
@@ -140,7 +146,7 @@ export const buildLotVerdicts = (
     if (bucketKeys && !bucketKeys.has(recipeKey(row.lot_cd, row.recipe_id))) continue
     // 판정 외 job 은 분자·분모 어디에도 들어가지 않습니다 — 건수만 세어 툴팁이
     // "빠진 게 아니라 범위 밖" 임을 말할 수 있게 합니다.
-    if (isJudgeExempt(row.recipe_id)) {
+    if (isExemptJob(row.recipe_id)) {
       exemptByLot.set(row.lot_cd, (exemptByLot.get(row.lot_cd) ?? 0) + 1)
       continue
     }
