@@ -133,3 +133,46 @@ def test_office_provider_does_not_fall_back_to_mock(monkeypatch):
 
     with pytest.raises(KnowledgeUnavailable, match="office"):
         data.search_manuals("alarm reset", {}, METROLOGY_USER, 5)
+
+
+from back_dev_home.chat.knowledge.data import available_sources
+
+_ALL = ("manual", "meeting", "email", "report")
+
+
+def test_available_sources_is_every_source_at_home(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", raising=False)
+    assert available_sources() == _ALL
+
+
+def test_available_sources_defaults_to_manual_at_the_office(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.delenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", raising=False)
+    assert available_sources() == ("manual",)
+
+
+def test_available_sources_reads_the_office_source_list(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", "email, manual")
+    assert available_sources() == ("manual", "email")
+
+
+def test_available_sources_rejects_an_unknown_source(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", "manual,wiki")
+    with pytest.raises(ValueError):
+        available_sources()
+
+
+def test_available_sources_rejects_an_empty_source_list(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", "  ,  ")
+    with pytest.raises(ValueError):
+        available_sources()
+
+
+def test_available_sources_does_not_import_the_office_module(monkeypatch):
+    """Listing sources must not require the gitignored office.py to exist."""
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.delenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", raising=False)
+    assert available_sources() == ("manual",)

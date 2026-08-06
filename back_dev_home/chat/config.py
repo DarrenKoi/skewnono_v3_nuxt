@@ -130,3 +130,29 @@ def get_max_evidence_chars() -> int:
 def get_rag_source_root() -> str | None:
     value = os.environ.get("SKEWNONO_RAG_SOURCE_ROOT", "").strip()
     return value or None
+
+
+KNOWLEDGE_SOURCES: tuple[str, ...] = ("manual", "meeting", "email", "report")
+
+
+def get_knowledge_sources() -> tuple[str, ...]:
+    """Office-side sources whose retrieval path is ready.
+
+    A source is listed only once its index exists. Unlisted sources are not
+    exposed to the model at all — returning an empty result instead would read
+    as "there is nothing about this in the meeting notes", which is a claim we
+    cannot make about a source we never indexed.
+    """
+    name = "SKEWNONO_CHAT_KNOWLEDGE_SOURCES"
+    raw = os.environ.get(name, "manual")
+    requested = {part.strip().lower() for part in raw.split(",") if part.strip()}
+    if not requested:
+        raise ValueError(f"{name} must name at least one knowledge source.")
+    unknown = sorted(requested - set(KNOWLEDGE_SOURCES))
+    if unknown:
+        allowed = ", ".join(KNOWLEDGE_SOURCES)
+        raise ValueError(
+            f"{name} must be a comma-separated subset of: {allowed}. "
+            f"Unknown: {', '.join(unknown)}."
+        )
+    return tuple(source for source in KNOWLEDGE_SOURCES if source in requested)

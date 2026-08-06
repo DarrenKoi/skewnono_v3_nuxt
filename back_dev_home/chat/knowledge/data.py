@@ -5,7 +5,11 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Mapping
 
-from back_dev_home.chat.config import get_knowledge_provider_name
+from back_dev_home.chat.config import (
+    KNOWLEDGE_SOURCES,
+    get_knowledge_provider_name,
+    get_knowledge_sources,
+)
 from back_dev_home.chat.knowledge.contracts import (
     AccessScope,
     Evidence,
@@ -14,6 +18,19 @@ from back_dev_home.chat.knowledge.contracts import (
 
 
 _OFFICE_MODULE = "back_dev_home.chat.knowledge.providers.office"
+
+
+def available_sources() -> tuple[str, ...]:
+    """Sources the selected provider can actually answer for.
+
+    Mock answers for all four so the home session exercises the whole tool
+    assembly path. Office answers only for the sources whose index exists.
+    This never imports the provider module — listing what is ready must not
+    depend on the gitignored office copy being present.
+    """
+    if get_knowledge_provider_name() != "office":
+        return KNOWLEDGE_SOURCES
+    return get_knowledge_sources()
 
 
 def _provider():
