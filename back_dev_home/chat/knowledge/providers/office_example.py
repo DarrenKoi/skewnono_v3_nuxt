@@ -9,7 +9,7 @@ The contract half of this adapter is already written and must not change:
 ``_search()`` clamps limits, short-circuits empty queries, converts every
 backend failure into the typed exceptions from ``contracts.py``, and
 ``_to_evidence()`` strictly validates each raw hit into an ``Evidence`` row.
-The office implementation fills exactly three seams:
+The office implementation fills exactly four seams:
 
 * ``_config()``       — load office settings (hosts, index aliases, timeouts)
   from environment/.env. Never accept them from user input or model arguments.
@@ -20,6 +20,10 @@ The office implementation fills exactly three seams:
 * ``_execute(source_type, request)`` — call the office backend and return raw
   hits as a list of mappings in the NORMALIZED RAW HIT shape below (rank
   order preserved). Map backend-specific errors in ``_translate_error()``.
+* ``_rerank(source_type, query, hits)`` — score the candidates with the
+  approved in-house reranker and return one score per hit in the same order.
+  The sort, the score substitution and the five-row cap belong to the contract
+  half; never reorder or truncate inside this seam.
 
 Normalized raw hit — one mapping per result, keys:
 
@@ -59,6 +63,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from back_dev_home.chat import config
 from back_dev_home.chat.knowledge.contracts import (
     AccessScope,
     Evidence,
@@ -110,6 +115,10 @@ def _build_request(
 ) -> Mapping[str, Any]:
     """Build the backend search request for one source type.
 
+    ``limit`` is the CANDIDATE count to retrieve, not the number of rows the
+    caller receives. The contract half reranks those candidates and truncates
+    to the application's five-row cap afterwards, so fetch all of them.
+
     OFFICE-TODO: embed the ``scope`` access filter (user_id/groups/fabs) in
     the request itself so unauthorized sources are excluded at query time and
     their existence, title, count, and score are never observable. Restrict
@@ -146,6 +155,32 @@ def _execute(source_type: str, request: Mapping[str, Any]) -> list[Mapping[str, 
     )
 
 
+def _rerank(
+    source_type: str,
+    query: str,
+    hits: list[Mapping[str, Any]],
+) -> list[float]:
+    """Score each candidate hit against the query.
+
+    OFFICE-TODO: call the approved in-house reranker and return ONE score per
+    hit, in the SAME ORDER as ``hits``. Higher is better. The contract half
+    below owns the sort and the row cap, so never reorder or truncate here.
+
+    When reranking happens inside the search backend itself (the C1 path in
+    the design spec), return each hit's existing ``score`` — that keeps this
+    seam an identity ordering without special-casing the contract half.
+
+    Do not silently skip the rerank when the service is down: raise, and let
+    ``_search()`` route it through ``_translate_error()``. Returning the raw
+    retrieval order would look like a working answer of measurably worse
+    quality, which is the failure mode this contract exists to prevent.
+    """
+    raise KnowledgeUnavailable(
+        "The chat knowledge office provider is not connected: _rerank() is "
+        "not implemented."
+    )
+
+
 def _translate_error(error: Exception) -> Exception:
     """Map backend-specific exceptions onto the typed contract exceptions.
 
@@ -167,6 +202,39 @@ def _translate_error(error: Exception) -> Exception:
 # ---------------------------------------------------------------------------
 
 
+def _rank_hits(
+    source_type: str,
+    query: str,
+    hits: list[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    """Order candidates by rerank score. Contract half — the office copy must not edit.
+
+    The sort is stable, so equal scores keep the backend's original order. The
+    rerank score replaces the retrieval score in the emitted row because that
+    is the number that actually decided the ranking.
+    """
+    if not hits:
+        return []
+
+    scores = _rerank(source_type, query, hits)
+    if not isinstance(scores, (list, tuple)) or len(scores) != len(hits):
+        raise KnowledgeUnavailable(
+            "Office knowledge rerank returned a score count that does not "
+            "match the hit count."
+        )
+
+    scored: list[tuple[Mapping[str, Any], float]] = []
+    for hit, score in zip(hits, scores, strict=True):
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            raise KnowledgeUnavailable(
+                "Office knowledge rerank returned a non-numeric score."
+            )
+        scored.append(({**hit, "score": float(score)}, float(score)))
+
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    return [hit for hit, _ in scored]
+
+
 def _search(
     source_type: str,
     query: str,
@@ -181,15 +249,17 @@ def _search(
     if not trimmed:
         return []
 
-    request = _build_request(source_type, trimmed, filters, scope, bounded)
+    candidates = max(bounded, config.get_knowledge_candidate_pool())
+    request = _build_request(source_type, trimmed, filters, scope, candidates)
     try:
         raw_hits = _execute(source_type, request)
+        ranked = _rank_hits(source_type, trimmed, raw_hits)
     except (KnowledgeDenied, KnowledgeTimeout, KnowledgeUnavailable):
         raise
     except Exception as error:  # noqa: BLE001 — everything becomes a typed error
         raise _translate_error(error) from error
 
-    return [_to_evidence(source_type, hit) for hit in raw_hits[:bounded]]
+    return [_to_evidence(source_type, hit) for hit in ranked[:bounded]]
 
 
 def _to_evidence(source_type: str, hit: Mapping[str, Any]) -> Evidence:

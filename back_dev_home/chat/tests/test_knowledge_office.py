@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pytest
 
+from back_dev_home.chat import config
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
@@ -125,23 +126,40 @@ def test_limit_is_clamped_and_truncates_hits(monkeypatch):
     _passthrough_request(monkeypatch)
     hits = [dict(_RAW_HIT, source_id=f"manual-synthetic-{i}") for i in range(9)]
     calls = _fake_execute(monkeypatch, hits)
+    monkeypatch.setattr(
+        office,
+        "_rerank",
+        lambda source_type, query, hits: [
+            float(len(hits) - index) for index in range(len(hits))
+        ],
+    )
 
     rows = office.search_manuals("alarm", None, _SCOPE, 99)
 
     assert [row["source_id"] for row in rows] == [
         f"manual-synthetic-{i}" for i in range(5)
     ]
-    assert calls[0][1]["limit"] == 5
+    assert calls[0][1]["limit"] == config.get_knowledge_candidate_pool()
 
 
-def test_rank_order_is_preserved(monkeypatch):
-    """Catches re-sorting that would break backend ranking."""
+def test_rerank_order_decides_the_final_order(monkeypatch):
+    """The rerank score, not the backend's retrieval rank, decides the final order.
+
+    backend 순위가 아니라 리랭크 점수가 최종 순서를 정한다.
+    """
     _passthrough_request(monkeypatch)
     hits = [
         dict(_RAW_HIT, source_id="manual-b", score=1.0),
         dict(_RAW_HIT, source_id="manual-a", score=9.0),
     ]
     _fake_execute(monkeypatch, hits)
+    monkeypatch.setattr(
+        office,
+        "_rerank",
+        lambda source_type, query, hits: [
+            float(len(hits) - index) for index in range(len(hits))
+        ],
+    )
 
     rows = office.search_manuals("alarm", None, _SCOPE, 5)
 

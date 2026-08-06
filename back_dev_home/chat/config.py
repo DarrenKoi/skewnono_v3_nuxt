@@ -156,3 +156,13 @@ def get_knowledge_sources() -> tuple[str, ...]:
             f"Unknown: {', '.join(unknown)}."
         )
     return tuple(source for source in KNOWLEDGE_SOURCES if source in requested)
+
+
+def get_knowledge_candidate_pool() -> int:
+    """How many candidates the office retrieval fetches before reranking.
+
+    A cross-encoder reranker costs linearly in candidates, so this stays small.
+    The application owns it — the adapter must not widen its own input.
+    """
+    raw = os.environ.get("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "24")
+    return min(max(int(raw), 5), 50)
