@@ -40,6 +40,8 @@ Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값�
 | Runtime | `SKEWNONO_CHAT_RUNTIME=agent` | 네 read-only retrieval tool을 제한된 횟수로 실행합니다. | `supports_tools=false` model은 user turn 저장 전에 `400`으로 거절합니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=mock` | Synthetic fixture를 결정적으로 검색합니다. | Office source나 network가 필요하지 않습니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office` | 사내 read-only index를 검색합니다. | Adapter 또는 설정이 없으면 `503`이며 mock으로 전환하지 않습니다. |
+| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_SOURCES`(기본 `manual`) | Office provider가 실제로 답할 수 있는 source 집합을 고릅니다(`manual`/`meeting`/`email`/`report`의 comma-separated subset). | 알 수 없는 값이나 빈 값은 `ValueError`로 boot를 중단합니다. 준비되지 않은 source는 tool로도 노출되지 않습니다. |
+| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES`(기본 `24`) | Office retrieval이 rerank 전에 가져오는 후보 수입니다(5~50으로 clamp). | Application이 소유하는 상한이며 adapter가 자기 입력을 넓힐 수 없습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=mock` | 제한된 deterministic classifier를 사용합니다. | Office dependency가 필요하지 않습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=office` | 승인된 사내 scope classifier를 사용합니다. | Adapter가 없으면 `503`이며 mock으로 전환하지 않습니다. |
 | Thread storage | `SKEWNONO_CHAT_PROVIDER=mock` | SQLite에 thread, turn, source, trace, feedback을 저장합니다. | 기본 보존 기간은 30일입니다. |
@@ -106,11 +108,12 @@ Frontend와 backend의 해당 타입도 같은 release 단위로 유지합니다
 
 Tracked template인 `knowledge/providers/office_example.py`를
 `knowledge/providers/office.py`로 복사한 뒤 gitignored copy만 구현합니다. Template은
-계약 절반(`_search` limit/오류 변환, `_to_evidence` 엄격 검증, 네 공개 함수)이 이미
-작성된 skeleton이며, office copy는 `OFFICE-TODO`로 표시된 세 seam —
-`_config()`, `_build_request()`, `_execute()` — 과 `_translate_error()`의 client별
-오류 mapping만 구현합니다. "do not edit below" 표시 아래의 계약 절반은 수정하지
-않습니다. 다음 네 공개 signature를 그대로 유지합니다.
+계약 절반(`_search` limit/오류 변환, `_rank_hits` 정렬·절단, `_to_evidence` 엄격
+검증, 네 공개 함수)이 이미 작성된 skeleton이며, office copy는 `OFFICE-TODO`로
+표시된 네 seam — `_config()`, `_build_request()`, `_execute()`,
+`_rerank(source_type, query, hits) -> list[float]` — 과 `_translate_error()`의
+client별 오류 mapping만 구현합니다. "do not edit below" 표시 아래의 계약 절반은
+수정하지 않습니다. 다음 네 공개 signature를 그대로 유지합니다.
 
 ```python
 search_manuals(
@@ -142,6 +145,21 @@ search_reports(
 ) -> list[Evidence]
 ```
 
+위 signature의 `limit`은 공개 함수 호출자에게는 최종 행 수(최대 5)이지만,
+`_build_request()`가 받는 `limit`은 그 값이 아니라 **후보 수**입니다. `_search()`가
+`max(bounded, config.get_knowledge_candidate_pool())`로 후보 수를 계산해
+`_build_request()`에 넘기므로, office adapter는 요청한 후보를 전부 가져와야 하며
+스스로 줄이면 안 됩니다. 정렬(`_rank_hits()`)과 상한 5행 절단은 tracked 계약
+절반이 소유합니다 — office copy는 `_rerank()`가 반환한 점수로 정렬된 뒤 이미
+절단된 결과만 봅니다.
+
+네 번째 seam `_rerank(source_type, query, hits) -> list[float]`은 후보 각각에
+`hits`와 같은 순서로 점수 하나씩(높을수록 우수) 반환합니다. 이 seam은 순서를
+바꾸거나 절단해서는 안 됩니다 — 정렬·절단은 `_rank_hits()`가 담당합니다. 리랭크가
+실패하거나 미구현이면 원 순위를 그대로 쓰지 않고 `KnowledgeUnavailable`을
+올립니다. C1(OpenSearch가 rerank까지 수행)으로 전환하면 `_rerank()`는 각 hit의
+기존 `score`를 그대로 돌려주는 항등 함수가 됩니다.
+
 각 반환 행은 `knowledge/contracts.py`의 다음 `Evidence` field를 모두 포함합니다.
 
 | Field | 규칙 |
@@ -166,14 +184,31 @@ search_reports(
 
 Retrieval query 한 번이 한국어와 영어를 **동시에** 만족시켜야 합니다. 사용자는 한 질문
 안에서 두 언어를 섞고 코퍼스도 섞여 있으므로, 한 언어만 만족시키는 요청은 실패하지 않고
-recall만 조용히 반토막 냅니다. k-NN leg는 embedding 모델이 multilingual이면 해결되며 이는
-가정이 아니라 확인 대상입니다. Lexical/BM25 leg를 함께 쓴다면 한국어 analyzer를 명시해야
-합니다 — OpenSearch 기본 `standard` analyzer는 한글을 한 글자씩 분해합니다. 질의를 언어
-판별로 분기하거나 번역해서 보내지 않습니다.
+recall만 조용히 반토막 냅니다. 검색은 Nori BM25 ⊕ BGE-M3 dense의 2-leg hybrid이며(설계
+`docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md`), BGE-M3가
+multilingual이므로 k-NN leg에서 한/영 요건이 충족됩니다(user-confirmed 2026-08-06).
+Lexical leg는 Nori analyzer로 확정했습니다(user-confirmed 2026-08-06) — OpenSearch
+기본 `standard` analyzer는 한글을 한 글자씩 분해하므로 씁니다. 질의를 언어 판별로
+분기하거나 번역해서 보내지 않습니다. 후보 20~30건을 `bge-reranker-v2-m3` 크로스인코더로
+재점수화한 뒤 상한 5행으로 절단합니다 — 상세는 `docs/datatables/chat_rag_contract.txt`의
+"검색 방식" 절을 참고합니다. 모델 호출은 `office.py`가 사내 embedding/rerank API를
+직접 호출하는 C2 경로입니다(user-confirmed 2026-08-07); C1(OpenSearch ML Commons remote
+connector)은 사내 host가 `trusted_connector_endpoints_regex`에 없어 보류입니다(office
+확인 2026-08-07).
 
 Access filter는 retrieval query 단계에 적용합니다. 검색 후 Python filtering만으로 권한을
 보완하지 않습니다. 권한이 없는 source의 존재, title, count 또는 score도 노출하지
 않습니다. Empty result는 빈 list이며 다른 source나 mock 검색으로 대체하지 않습니다.
+
+이 네 공개 함수는 provider가 준비된 모든 source에 대해 항상 호출 가능한 signature로
+유지되지만, 실제로 tool로 노출되는지는 **source별 준비 상태**가 결정합니다.
+`knowledge/data.py`의 `available_sources()`는 mock에서는 네 소스 전부를, office에서는
+`get_knowledge_sources()`(`SKEWNONO_CHAT_KNOWLEDGE_SOURCES`, 기본 `manual`)가 반환하는
+집합만 돌려줍니다 — office provider 모듈을 import하지 않고 판단합니다.
+`runtime/providers/agent.py`의 `_build_tools()`가 그 목록에 있는 source에만 tool을
+만들므로, 준비되지 않은 source는 tool 자체가 없습니다. 인덱스가 없는 source에 빈 list를
+돌려주는 방식은 택하지 않습니다 — 모델이 "그 소스에는 관련 내용이 없다"로 잘못 읽기
+때문입니다. 노출되는 tool이 하나도 없으면 `RuntimeUnavailable`을 올립니다.
 
 Agent model에 공개되는 tool argument는 `query`뿐입니다. `AccessScope`의 `user_id`,
 `groups`, `fabs`, index/collection 이름, host, credential, limit은 Flask가 인증·설정에서
@@ -300,6 +335,11 @@ retention job을 운영해야 합니다. 다음 항목의 실제 값은 확인�
 - [ ] Embedding model identity, dimension과 index build version의 일치를 확인합니다.
 - [ ] Chunk/vector ID에서 document, section, page, region으로 가는 manifest를 확인합니다.
 - [ ] Manual revision 우선순위, superseded 문서 제외 규칙과 stable source ID를 확인합니다.
+  매뉴얼 범위에서는 해당 없음 (user-confirmed 2026-08-06) — 매뉴얼은 개정되지
+  않으므로 이번 연결에서는 의미가 없습니다. 항목은 지우지 않습니다: 회의록·메일·
+  리포트를 연결할 때 다시 필요해집니다. `source_id`의 결정적 유도(재색인 시에도
+  안정)는 매뉴얼 불변과 무관하게 계속 유지합니다 — chunking을 튜닝하면 재색인하게
+  됩니다.
 - [ ] Meeting, email, report의 기준 date field, timezone과 retention을 확인합니다.
 - [ ] Identity에서 email recipient, group, FAB를 계산하는 authoritative access resolver와 identity 누락 시 deny 규칙을 확인합니다.
 - [ ] Access filter가 query 단계에 적용되고 허용되지 않은 field가 projection에서 제외되는지 확인합니다.
@@ -386,6 +426,18 @@ filter 증명, raw row 정규화, client 오류 mapping — 을 fake client/raw 
 
 ```bash
 .venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q
+```
+
+`back_dev_home/chat/tests/test_knowledge_office_template.py`는 위 skip을 메웁니다.
+`test_knowledge_office.py`가 gitignored office copy를 import하기 때문에 home에서
+통째로 skip되는 사이, tracked `office_example.py`의 계약 절반 — 후보 over-fetch,
+`_rerank()` 점수로 재정렬, tie는 backend 순서 유지, 5행 절단, 점수 개수 불일치·비수치
+점수·미구현 rerank가 모두 `KnowledgeUnavailable`이 되는 것 — 은 이 파일이 home에서
+매 회 검증합니다. `office.py`는 계약 절반을 byte-identical로 상속하므로 이 테스트가
+office copy에도 그대로 적용됩니다.
+
+```bash
+.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office_template.py -q
 ```
 
 ### Office-local smoke

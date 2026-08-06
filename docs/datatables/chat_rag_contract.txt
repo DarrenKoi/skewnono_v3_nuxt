@@ -7,9 +7,11 @@ back_dev_home/chat/knowledge/contracts.py 의 Evidence 이고, office 어댑터�
 raw hit 을 이 모양으로 정규화합니다.
 
 (설계 user-confirmed 2026-08-04. k-NN 질의 자체는 사내에서 동작 확인됨을
-user-confirmed 로 받았습니다. 인덱스 이름, host, embedding 모델, figure
-bucket 이름은 아직 OFFICE-VERIFY 이며 이 문서에 적지 않습니다 —
-credential 과 사내 식별자는 저장소에 commit 하지 않습니다.)
+user-confirmed 로 받았습니다. Embedding/rerank 모델 계열(BGE-M3,
+bge-reranker-v2-m3)과 검색 방식(2-leg hybrid)은 user-confirmed 로 닫혔습니다
+— 아래 "검색 방식" 절 참고. 인덱스 이름, host, figure bucket 이름은 아직
+OFFICE-VERIFY 이며 이 문서에 적지 않습니다 — credential 과 사내 식별자는
+저장소에 commit 하지 않습니다.)
 
 무엇이 Evidence 한 행이 되는가
 - 검색 결과 chunk 1건이 Evidence 1행입니다. 한 검색당 최대 5행이며 상한은
@@ -72,13 +74,70 @@ figure 제공 (설계만, 아직 구현하지 않음)
   섞여 있습니다. 따라서 한 번의 요청이 두 언어를 동시에 만족시켜야 합니다.
 - 한 언어만 만족시키는 요청은 오류를 내지 않고 recall 만 조용히 반토막
   냅니다 — 빈 결과와 진짜 miss 를 구분할 수 없습니다.
-- k-NN leg 는 embedding 모델이 multilingual 이면 자연히 해결됩니다.
-  multilingual 인지 **확인**해야 하며 가정하면 안 됩니다(OFFICE-VERIFY).
-- lexical/BM25 leg 를 쓴다면 한국어 analyzer 를 명시해야 합니다. OpenSearch
-  기본 standard analyzer 는 한글을 한 글자씩 쪼개므로 쓸모 있는 매칭이
-  나오지 않습니다.
+- k-NN leg 는 BGE-M3 dense 를 사용합니다(user-confirmed 2026-08-06). BGE-M3 는
+  multilingual 이므로 한/영 동시 요건이 이 leg 에서 충족됩니다. multilingual
+  여부는 더 이상 OFFICE-VERIFY 가 아닙니다.
+- lexical/BM25 leg 는 Nori analyzer 를 확보했습니다(user-confirmed
+  2026-08-06). OpenSearch 기본 standard analyzer 는 한글을 한 글자씩 쪼개
+  쓸모 있는 매칭이 나오지 않으므로, 한국어 text 필드에는 Nori 를 명시적으로
+  지정합니다.
 - 질의를 언어 판별해서 한쪽으로 분기하거나 번역해서 보내지 않습니다. 섞인
   질문을 더 나쁜 단일 언어 질문으로 바꾸는 일입니다.
+
+검색 방식 — 2-leg hybrid + 크로스인코더 rerank (user-confirmed 2026-08-06/07)
+- 검색은 Nori BM25 ⊕ BGE-M3 dense 의 2-leg hybrid 입니다. BGE-M3 의 sparse
+  representation 은 쓰지 않습니다 — dense 하나로 이미 multilingual 요건을
+  만족하므로 sparse leg 를 더해 얻는 이득보다 왕복 비용이 큽니다.
+- Hybrid 결과 중 후보 20~30건(`SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES`, 기본
+  24, 5~50 으로 clamp)을 뽑아 `bge-reranker-v2-m3` 크로스인코더로 재점수화한
+  뒤, 점수순 정렬 후 상한 5행으로 절단합니다. 정렬과 절단은 애플리케이션
+  (tracked 계약 절반)이 소유하며 모델이나 어댑터가 늘릴 수 없습니다.
+- 크로스인코더는 후보 수에 선형으로 비쌉니다. 20~30 으로 시작해 사무실에서
+  실측하며, 50 은 체감될 수 있습니다.
+
+모델 호출 위치 — C2 (user-confirmed 2026-08-07)
+- BGE-M3 embedding 과 `bge-reranker-v2-m3` rerank 는 사내 API 로 제공됩니다.
+  `office.py` 가 이 API 를 **직접** 호출합니다(C2). OpenSearch 의 ML Commons
+  remote connector 로 클러스터가 직접 호출하게 하는 경로(C1)는 보류입니다 —
+  `plugins.ml_commons.trusted_connector_endpoints_regex` 에 사내 host 가
+  등록되어 있지 않습니다(office 확인 2026-08-07).
+- C2 는 tool 호출 1회당 Flask 왕복 3회(embedding → OpenSearch → rerank)입니다.
+  C1 으로 전환하면 왕복이 1회로 줄지만, 클러스터 cluster-wide 설정 변경 권한과
+  운영 협의가 선행되어야 합니다. 전환 시 바뀌는 범위는 gitignored `office.py`
+  의 `_execute()` 와 `_rerank()` 뿐이며, 추적되는 계약(`chat_rag_contract.txt`
+  의 필드, `Evidence` 12필드)은 바뀌지 않습니다.
+
+`element_type` — 인덱스 내부 전용, Evidence 로 내보내지 않음
+- 인덱스는 chunk 마다 `element_type` 을 갖지만 이는 검색 엔진 내부 값이며
+  애플리케이션 `Evidence` 계약에는 없는 필드입니다. 프론트로 끌어올리면 안
+  됩니다.
+- 현재 어휘는 `paragraph`, `procedure`, `warning`, `caution`, `alarm`,
+  `parameter`, `table`, `parts_list`, `troubleshooting`, `figure_caption`,
+  `figure_description` 11종입니다. 라벨링이 망설여지는 원인은 어휘 자체가
+  아니라 하나의 열거형에 축이 네 개(형태·기능·안전 등급·도메인 개체) 눌려
+  있는 것입니다 — 경고가 포함된 절차 단계, 파라미터 표, 알람 대처 표처럼
+  동시에 참인 chunk 에서 거짓 선택을 강요합니다.
+- 축을 분리한 `block_type`(형태) / `intent`(기능, 다중 가능) /
+  `safety_level`(원문 머리말 그대로, OFFICE-VERIFY) / `is_generated`(bool,
+  우선순위 최상) / `alarm_codes`(추출 필드, 라벨이 아님) 로의 재구성을
+  권고합니다. 강제는 아닙니다 — 자세한 근거는
+  `docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md` 5.1절을
+  참고합니다.
+- `is_generated` 를 최우선으로 두는 이유는 나머지와 성격이 다르기 때문입니다.
+  틀려도 검색 품질만 나빠지는 다른 축과 달리, 이것은 기계가 생성한 문장을
+  사람이 쓴 근거로 인용하는 문제이며 나중에 소급 판별할 수 없습니다.
+- `alarm_codes` 는 확정된 ALID 집합을 담습니다 — `9006`(align),
+  `9007`·`9035`(meas), Hitachi 한정입니다.
+- `safety_level` 은 OFFICE-VERIFY 입니다. 매뉴얼이 ANSI Z535.6 계열 머리말
+  (DANGER / WARNING / CAUTION / NOTICE)을 쓰는지 미확인입니다.
+
+범위 — 매뉴얼 1종 우선
+- 이번 연결은 매뉴얼(manual) 1종만 대상입니다. 매뉴얼은 개정되지 않습니다
+  (user-confirmed 2026-08-06) — revision 우선순위, superseded 문서 제외는
+  매뉴얼 범위에서는 해당 없습니다.
+- 회의록·메일·리포트는 뒤로 미룹니다. 메일·회의록은 수신자/참석자 단위
+  권한이라 authoritative access resolver 가 선행되어야 하며, 현재
+  `AccessScope` 는 `groups`/`fabs` 가 빈 list 입니다.
 
 집(mock)과의 차이 — back_dev_home/chat/knowledge/providers/mock.py
 - mock 은 __fixtures__/knowledge/*.json 에 대한 토큰 집합 교집합 검색입니다.
@@ -94,3 +153,5 @@ figure 제공 (설계만, 아직 구현하지 않음)
 관련 문서
 - back_dev_home/chat/MIGRATION.md — office 전환 순서, selector, 상한값
 - docs/datatables/skewnono_chat_logging.txt — 대화 turn 기록 인덱스(별개)
+- docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md — 검색 방식,
+  모델 호출 위치(C1/C2), `element_type` 축 분리 권고의 설계 확정 문서

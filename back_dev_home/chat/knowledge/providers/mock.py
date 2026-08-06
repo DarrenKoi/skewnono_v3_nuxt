@@ -1,10 +1,15 @@
 """Deterministic lexical search over deliberately synthetic knowledge fixtures.
 
-Stands in for the office RAG index (OpenSearch k-NN over manuals, meeting
-summaries, emails and reports; figures in MinIO). Deliberate differences:
-retrieval here is whole-token set overlap rather than embedding similarity, so
-scores are small integers rather than the office's float distances, and there
-is no semantic matching at all — only literal shared tokens.
+Stands in for the office RAG index (OpenSearch, manuals/meeting summaries/
+emails/reports; figures in MinIO). The office path is a 2-leg hybrid search —
+Nori BM25 ⊕ BGE-M3 dense k-NN — over-fetching 20-30 candidates and reranking
+them with the ``bge-reranker-v2-m3`` cross-encoder before truncating to five
+rows (see ``docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md``).
+This mock has none of that: retrieval here is whole-token set overlap against
+the fixture files, so there is no embedding similarity and no cross-encoder
+rerank — only literal shared tokens. Consequently ``score`` here is a small
+integer (token overlap count), not the office's rerank score (a float from
+``bge-reranker-v2-m3``).
 
 Fixture content is synthetic and mixes Korean and English on purpose. Users
 ask in either language or both at once, so an English-only mock would report
@@ -14,6 +19,13 @@ what the real one does. ``figure_id`` is populated only on the manual records
 that would plausibly carry an extracted figure; text and table evidence
 carries ``None``. The values are opaque tokens with no MinIO object behind
 them — the mock cannot know real office figure ids.
+
+This mock answers all four sources unconditionally, even though the office
+provider currently exposes only ``manual`` (``get_knowledge_sources()``
+defaults to ``SKEWNONO_CHAT_KNOWLEDGE_SOURCES=manual``). That is deliberate:
+home sessions need to exercise the whole tool-assembly path
+(``available_sources()`` -> ``_build_tools()``), not just the one source the
+office side has connected so far.
 """
 
 from __future__ import annotations
