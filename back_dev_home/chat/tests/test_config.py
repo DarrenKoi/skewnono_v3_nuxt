@@ -126,6 +126,27 @@ def test_under_development_override_beats_the_deploy_default(monkeypatch, raw, e
     assert config.is_under_development() is expected
 
 
+def test_knowledge_candidate_pool_default_and_clamp(monkeypatch):
+    """Catches a typo'd env var name or a dropped clamp reaching the backend.
+
+    The default (unset) case exercises the fallback; a below-floor value, an
+    above-ceiling value, and a normal in-range value each exercise both the
+    read of SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES and the min(max(x, 5), 50)
+    clamp, so a widened over-fetch (e.g. an unclamped 5000) would fail here.
+    """
+    monkeypatch.delenv("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", raising=False)
+    assert config.get_knowledge_candidate_pool() == 24
+
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "1")
+    assert config.get_knowledge_candidate_pool() == 5
+
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "5000")
+    assert config.get_knowledge_candidate_pool() == 50
+
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "31")
+    assert config.get_knowledge_candidate_pool() == 31
+
+
 def test_blank_override_falls_through_to_the_deploy_default(monkeypatch):
     """Catches a blank env var being read as an explicit 'no'.
 

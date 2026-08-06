@@ -82,6 +82,11 @@ def test_each_search_maps_raw_hits_and_stamps_source_type(
     """Catches a search function dropping fields or trusting hit source_type."""
     _passthrough_request(monkeypatch)
     _fake_execute(monkeypatch, [dict(_RAW_HIT, source_type="report")])
+    monkeypatch.setattr(
+        office,
+        "_rerank",
+        lambda source_type, query, hits: [hit["score"] for hit in hits],
+    )
 
     rows = search("alarm reset", None, _SCOPE, 5)
 
@@ -176,13 +181,25 @@ def test_rerank_order_decides_the_final_order(monkeypatch):
         {"page": True},
         {"revision": 2},
         {"figure_id": 7},
-        {"score": "high"},
     ],
 )
 def test_malformed_hits_raise_unavailable(monkeypatch, broken):
-    """Catches schema drift being passed through as citations."""
+    """Catches schema drift being passed through as citations.
+
+    ``score`` is deliberately not parametrized here: ``_rank_hits`` always
+    overwrites a hit's ``score`` with the rerank score before ``_to_evidence``
+    ever sees it, so a malformed raw ``score`` on the input hit can never
+    reach the validation this test exercises. The non-numeric-rerank-score
+    case lives in ``test_knowledge_office_template.py`` instead, against the
+    contract half that actually produces the value.
+    """
     _passthrough_request(monkeypatch)
     _fake_execute(monkeypatch, [dict(_RAW_HIT, **broken)])
+    monkeypatch.setattr(
+        office,
+        "_rerank",
+        lambda source_type, query, hits: [hit["score"] for hit in hits],
+    )
 
     with pytest.raises(KnowledgeUnavailable):
         office.search_manuals("alarm", None, _SCOPE, 5)

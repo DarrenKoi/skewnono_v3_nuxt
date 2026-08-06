@@ -57,13 +57,13 @@ def seams(monkeypatch):
 
 
 def test_candidate_pool_over_fetches_beyond_the_row_limit(seams, monkeypatch):
-    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "24")
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "31")
     seams["hits"] = [_hit("a", 1.0)]
     seams["scores"] = [1.0]
 
     template.search_manuals("alarm reset", None, _SCOPE, 5)
 
-    assert seams["build_request_limit"] == 24
+    assert seams["build_request_limit"] == 31
 
 
 def test_rerank_reorders_and_replaces_the_score(seams):
