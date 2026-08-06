@@ -195,8 +195,8 @@ C1으로 전환하면 리랭크가 클러스터 안에서 끝나므로 `_rerank(
 
 ## 8. Tool 노출 — `available_sources()`
 
-`knowledge/data.py`에 `available_sources()`를 추가하고, `orchestration.py`가 그
-목록으로만 tool closure를 만듭니다.
+`knowledge/data.py`에 `available_sources()`를 추가하고, `runtime/providers/agent.py`의
+`_build_tools()`가 그 목록으로만 tool closure를 만듭니다.
 
 | provider | 반환 | 모델에 보이는 tool |
 | --- | --- | --- |
@@ -204,8 +204,8 @@ C1으로 전환하면 리랭크가 클러스터 안에서 끝나므로 `_rerank(
 | office | `SKEWNONO_CHAT_KNOWLEDGE_SOURCES`(기본 `manual`) | 현재 1개 |
 
 이 설계는 이 저장소의 presence-based selection 원칙을 소스 단위로 내린 것입니다.
-나중에 메일을 붙일 때 `orchestration.py`를 고치지 않고 환경 변수와 실제 인덱스만
-늘어납니다. 준비되지 않은 소스에 빈 list를 돌려주지 않는 이유는, 그것이 모델에게
+나중에 메일을 붙일 때 `runtime/providers/agent.py`를 고치지 않고 환경 변수와 실제
+인덱스만 늘어납니다. 준비되지 않은 소스에 빈 list를 돌려주지 않는 이유는, 그것이 모델에게
 "해당 소스에 관련 내용이 없다"로 읽히기 때문입니다 — 색인이 없는 것과 진짜 없는
 것이 구분되지 않습니다. 부수적으로 tool 왕복이 줄어 지연도 함께 줄어듭니다.
 

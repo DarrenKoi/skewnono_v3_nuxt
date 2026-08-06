@@ -87,6 +87,28 @@ def get_mode() -> DataProvider:
     return "office" if detect_site() == "office" else "mock"
 
 
+def _validate_chat_knowledge_sources_at_boot() -> None:
+    """Raise the same RuntimeError-at-startup shape for a bad source list.
+
+    ``SKEWNONO_CHAT_KNOWLEDGE_SOURCES`` is otherwise read lazily, per request,
+    by ``available_sources()`` -> ``agent._build_tools()`` — so a typo'd value
+    used to boot clean and only fail with a 500 on the first chat message,
+    after the user turn was already persisted. Validated here, alongside the
+    other lazy chat selectors, only when the knowledge provider is actually
+    ``office`` — mock stays exactly as unvalidated as before.
+
+    Imported locally rather than at module scope: this module is shared
+    plumbing with no reason to hard-depend on the chat feature package at
+    import time.
+    """
+    from back_dev_home.chat.config import get_knowledge_sources
+
+    try:
+        get_knowledge_sources()
+    except ValueError as error:
+        raise RuntimeError(str(error)) from error
+
+
 def _unhonorable(slug: str, env_name: str) -> RuntimeError:
     """The one message for "=office cannot be served".
 
@@ -170,7 +192,14 @@ def validate_env() -> None:
         if not (name.startswith(_PREFIX) and name.endswith(_SUFFIX)):
             continue
         if name in _LAZY_SUB_PROVIDER_ENVS:
-            _validated(os.environ[name], name)
+            provider = _validated(os.environ[name], name)
+            if name == "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER" and provider == "office":
+                # The knowledge provider choice gates a second, otherwise-lazy
+                # selector (which sources are ready) — validate it in the
+                # same sweep so a typo fails at boot, not on the first chat
+                # message. Only reachable when office is actually selected,
+                # so mock's boot behaviour is unchanged.
+                _validate_chat_knowledge_sources_at_boot()
             continue  # lazy selectors name no generic feature
         if name == _GLOBAL_ENV:
             continue  # mode selector names no generic feature

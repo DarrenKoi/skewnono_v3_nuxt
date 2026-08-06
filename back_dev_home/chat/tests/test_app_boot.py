@@ -36,6 +36,26 @@ def test_invalid_lazy_chat_selector_fails_at_startup(monkeypatch, env_name):
         create_app()
 
 
+def test_invalid_chat_knowledge_sources_fails_at_startup_when_provider_is_office(
+    monkeypatch,
+):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", "manuals")
+
+    with pytest.raises(RuntimeError, match="SKEWNONO_CHAT_KNOWLEDGE_SOURCES"):
+        create_app()
+
+
+def test_invalid_chat_knowledge_sources_stays_lazy_when_provider_is_mock(
+    monkeypatch,
+):
+    # Same bad value, but the provider is still mock (the default), so this
+    # selector is never reached and boot must not fail on it.
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", "manuals")
+
+    create_app()  # must not raise
+
+
 def test_office_chat_sub_providers_start_then_fail_lazily(
     monkeypatch, tmp_path
 ):

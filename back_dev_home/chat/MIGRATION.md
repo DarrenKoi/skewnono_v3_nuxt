@@ -40,7 +40,7 @@ Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값�
 | Runtime | `SKEWNONO_CHAT_RUNTIME=agent` | 네 read-only retrieval tool을 제한된 횟수로 실행합니다. | `supports_tools=false` model은 user turn 저장 전에 `400`으로 거절합니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=mock` | Synthetic fixture를 결정적으로 검색합니다. | Office source나 network가 필요하지 않습니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office` | 사내 read-only index를 검색합니다. | Adapter 또는 설정이 없으면 `503`이며 mock으로 전환하지 않습니다. |
-| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_SOURCES`(기본 `manual`) | Office provider가 실제로 답할 수 있는 source 집합을 고릅니다(`manual`/`meeting`/`email`/`report`의 comma-separated subset). | 알 수 없는 값이나 빈 값은 `ValueError`로 boot를 중단합니다. 준비되지 않은 source는 tool로도 노출되지 않습니다. |
+| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_SOURCES`(기본 `manual`) | Office provider가 실제로 답할 수 있는 source 집합을 고릅니다(`manual`/`meeting`/`email`/`report`의 comma-separated subset). | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office`일 때만 boot에서 함께 검증하며, 알 수 없는 값이나 빈 값은 `RuntimeError`로 startup을 중단합니다. `mock`일 때는 검증하지 않습니다(lazy). 준비되지 않은 source는 tool로도 노출되지 않습니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES`(기본 `24`) | Office retrieval이 rerank 전에 가져오는 후보 수입니다(5~50으로 clamp). | Application이 소유하는 상한이며 adapter가 자기 입력을 넓힐 수 없습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=mock` | 제한된 deterministic classifier를 사용합니다. | Office dependency가 필요하지 않습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=office` | 승인된 사내 scope classifier를 사용합니다. | Adapter가 없으면 `503`이며 mock으로 전환하지 않습니다. |
@@ -420,9 +420,10 @@ export, training dataset 생성과 model training/fine-tuning은 계속 이 scaf
 존재합니다. Home에서는 gitignored `office.py`가 없어 module 단위로 skip하고,
 office에서 복사 직후부터 계약 절반(정확한 `Evidence` field mapping, limit,
 empty result, rank ordering 유지, typed exception)을 fake seam으로 검증합니다.
-Office 구현 시에는 파일 하단의 `OFFICE-TODO` skip test 세 건 — query-time access
-filter 증명, raw row 정규화, client 오류 mapping — 을 fake client/raw result 주입
-방식으로 채웁니다. Live service는 호출하지 않습니다.
+Office 구현 시에는 파일 하단의 `OFFICE-TODO` skip test 네 건 — query-time access
+filter 증명, raw row 정규화, client 오류 mapping, rerank가 hits와 같은 순서로
+점수를 반환하는지 — 을 fake client/raw result 주입 방식으로 채웁니다. Live
+service는 호출하지 않습니다.
 
 ```bash
 .venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q

@@ -37,7 +37,11 @@ def _hit(source_id: str, score: float) -> dict:
 
 @pytest.fixture
 def seams(monkeypatch):
-    """Patch the three OFFICE-TODO seams and record what they were given."""
+    """Patch the three seams the contract half calls and record what they were given.
+
+    ``_config`` is the fourth OFFICE-TODO seam but is never patched here: the
+    contract half (``_search`` / ``_rank_hits``) never calls it, so it has
+    nothing to fake."""
     calls: dict = {}
 
     def fake_build_request(source_type, query, filters, scope, limit):
@@ -106,6 +110,25 @@ def test_a_rerank_score_count_mismatch_is_unavailable(seams):
 def test_a_non_numeric_rerank_score_is_unavailable(seams):
     seams["hits"] = [_hit("a", 1.0)]
     seams["scores"] = ["high"]
+
+    with pytest.raises(KnowledgeUnavailable):
+        template.search_manuals("alarm reset", None, _SCOPE, 5)
+
+
+def test_a_nan_rerank_score_is_unavailable(seams):
+    """NaN compares False against everything, so a stable sort would leave it
+    wherever it landed and flask.jsonify would emit a bare NaN token that the
+    SPA's JSON.parse cannot read on an otherwise-200 response."""
+    seams["hits"] = [_hit("a", 1.0)]
+    seams["scores"] = [float("nan")]
+
+    with pytest.raises(KnowledgeUnavailable):
+        template.search_manuals("alarm reset", None, _SCOPE, 5)
+
+
+def test_an_infinite_rerank_score_is_unavailable(seams):
+    seams["hits"] = [_hit("a", 1.0)]
+    seams["scores"] = [float("inf")]
 
     with pytest.raises(KnowledgeUnavailable):
         template.search_manuals("alarm reset", None, _SCOPE, 5)

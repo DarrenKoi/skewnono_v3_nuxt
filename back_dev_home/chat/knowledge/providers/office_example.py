@@ -61,6 +61,7 @@ and follow the ladder in ``back_dev_home/chat/MIGRATION.md``.
 
 from __future__ import annotations
 
+import math
 from typing import Any, Mapping
 
 from back_dev_home.chat import config
@@ -229,7 +230,12 @@ def _rank_hits(
             raise KnowledgeUnavailable(
                 "Office knowledge rerank returned a non-numeric score."
             )
-        scored.append(({**hit, "score": float(score)}, float(score)))
+        value = float(score)
+        if not math.isfinite(value):
+            raise KnowledgeUnavailable(
+                "Office knowledge rerank returned a non-finite score."
+            )
+        scored.append(({**hit, "score": value}, value))
 
     scored.sort(key=lambda pair: pair[1], reverse=True)
     return [hit for hit, _ in scored]

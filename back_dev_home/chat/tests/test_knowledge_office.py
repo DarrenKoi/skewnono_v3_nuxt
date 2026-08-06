@@ -260,3 +260,20 @@ def test_office_client_errors_map_to_typed_exceptions():
     """OFFICE-TODO: raise the office client library's real authorization and
     timeout exception types and assert they map to KnowledgeDenied and
     KnowledgeTimeout respectively."""
+
+
+@pytest.mark.skip(reason="OFFICE-TODO: implement against the office _rerank")
+def test_rerank_returns_one_score_per_hit_in_input_order():
+    """OFFICE-TODO: call office._rerank against a fake rerank client and
+    assert it returns exactly len(hits) scores, aligned to hits by position
+    (not by the client's response order).
+
+    The contract half (_rank_hits) owns the sort and the five-row cap, so
+    this seam must never reorder or truncate on its own. Build the fake
+    client so its response arrives in a DIFFERENT order than `hits` (e.g.
+    sorted descending by the client's own opinion of relevance) and assert
+    the scores this function returns still line up with `hits` by index —
+    not by the client's ordering. If the implementation instead returns
+    scores in the client's response order, this test must fail: that bug
+    silently scores every result against the wrong document, and the only
+    symptom in production is 'answers feel worse'."""
