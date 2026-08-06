@@ -18,6 +18,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
 from back_dev_home.chat import config, guard
+from back_dev_home.chat.knowledge import data as knowledge_data
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
     KnowledgeLimitExceeded,
@@ -43,7 +44,7 @@ from back_dev_home.chat.tools.evidence import EvidenceBudget
 
 
 _APPLICATION_POLICY = """Application-owned policy (higher priority than thread preferences):
-- Use only the four provided read-only retrieval tools.
+- Use only the provided read-only retrieval tools.
 - Search only sources needed to answer the supported work query; use each source's own tool when several source types are needed.
 - If retrieval returns no evidence, say that no evidence was found.
 - Do not state company facts that are absent from retrieved evidence.
@@ -90,6 +91,34 @@ class _AgentRunGate:
 
 
 _AGENT_RUN_GATE = _AgentRunGate()
+
+
+_TOOL_BUILDERS = {
+    "manual": build_search_manuals_tool,
+    "meeting": build_search_meeting_summaries_tool,
+    "email": build_search_emails_tool,
+    "report": build_search_reports_tool,
+}
+
+
+def _build_tools(
+    request: RuntimeRequest,
+    evidence_budget: EvidenceBudget,
+) -> list:
+    """Expose one tool per source the provider can actually answer for.
+
+    A source without an index is hidden rather than answered with an empty
+    list: an empty list reads to the model as "nothing relevant exists in that
+    source", which is a different claim from "that source is not searchable".
+    """
+    tools = [
+        _TOOL_BUILDERS[source](request["access_scope"], evidence_budget)
+        for source in knowledge_data.available_sources()
+        if source in _TOOL_BUILDERS
+    ]
+    if not tools:
+        raise RuntimeUnavailable("No chat knowledge source is available.")
+    return tools
 
 
 def _build_system_prompt(request: RuntimeRequest) -> str:
@@ -222,14 +251,7 @@ def invoke(
         raise RuntimeLimitExceeded("The agent run capacity is exhausted.")
     try:
         evidence_budget = EvidenceBudget.from_config()
-        tools = [
-            build_search_manuals_tool(request["access_scope"], evidence_budget),
-            build_search_meeting_summaries_tool(
-                request["access_scope"], evidence_budget
-            ),
-            build_search_emails_tool(request["access_scope"], evidence_budget),
-            build_search_reports_tool(request["access_scope"], evidence_budget),
-        ]
+        tools = _build_tools(request, evidence_budget)
         graph = create_agent(
             model=model or _build_model(request, base_url, timeout),
             tools=tools,

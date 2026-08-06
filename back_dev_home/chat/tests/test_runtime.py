@@ -41,6 +41,7 @@ from back_dev_home.chat.tools import (
     build_search_meeting_summaries_tool,
     build_search_reports_tool,
 )
+from back_dev_home.chat.tools.evidence import EvidenceBudget
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -797,3 +798,32 @@ def test_agent_builds_default_model_from_chat_config(
         "api_key": "test-key",
         "timeout": 23.0,
     }
+
+
+def test_agent_exposes_every_tool_at_home(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", raising=False)
+    tools = agent._build_tools(make_request(), EvidenceBudget.from_config())
+    assert [tool.name for tool in tools] == [
+        "search_manuals",
+        "search_meeting_summaries",
+        "search_emails",
+        "search_reports",
+    ]
+
+
+def test_agent_hides_tools_for_sources_without_an_index(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", "manual")
+    tools = agent._build_tools(make_request(), EvidenceBudget.from_config())
+    assert [tool.name for tool in tools] == ["search_manuals"]
+
+
+def test_agent_refuses_to_run_with_no_available_source(monkeypatch):
+    monkeypatch.setattr(agent.knowledge_data, "available_sources", lambda: ())
+    with pytest.raises(RuntimeUnavailable):
+        agent._build_tools(make_request(), EvidenceBudget.from_config())
+
+
+def test_application_policy_does_not_hardcode_the_tool_count():
+    """The prompt must stay true when only one source is exposed."""
+    assert "four" not in agent._APPLICATION_POLICY.lower()
