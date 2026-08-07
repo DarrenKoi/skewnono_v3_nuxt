@@ -33,7 +33,11 @@ __all__ = [
 
 
 ToolType = Literal["cd-sem", "hv-sem"]
-RecipeSearchRow = str
+
+
+class RecipeSearchRow(TypedDict):
+    recipe_name: str
+    fab_name: str
 
 WaferMpInfoRow = TypedDict("WaferMpInfoRow", {
     "ChipNo_X": int,
@@ -185,7 +189,9 @@ class AlignDetailResponse(TypedDict):
 
 class RecipeSearchResponse(TypedDict):
     tool_type: ToolType
-    fab_name: str | None
+    # Echo of the requested fabs (uppercase). Empty when the caller omitted
+    # fab_name — the all-fab union; the rows still carry per-row provenance.
+    fab_names: list[str]
     total: int
     rows: list[RecipeSearchRow]
 

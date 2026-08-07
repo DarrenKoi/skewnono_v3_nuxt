@@ -1,9 +1,25 @@
 import logging
 
+import pytest
 from flask import Flask, g
 
 from back_dev_home._logging import activity as activity_mod
 from back_dev_home.ebeam.hitachi.recipe_search import routes
+
+
+@pytest.fixture()
+def client():
+    app = Flask(__name__)
+    app.register_blueprint(routes.bp, url_prefix="/api")
+    return app.test_client()
+
+
+def test_recipes_route_parses_comma_fab_list(client):
+    res = client.get("/api/cdsem/recipe-search/recipes?fab_name=r3,m16b")
+    assert res.status_code == 200
+    body = res.get_json()
+    assert body["fab_names"] == ["R3", "M16B"]
+    assert {row["fab_name"] for row in body["rows"]} == {"R3", "M16B"}
 
 
 def test_compare_promotes_body_fab_without_logging_the_body(

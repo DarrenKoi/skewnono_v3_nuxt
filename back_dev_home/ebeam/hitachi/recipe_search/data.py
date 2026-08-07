@@ -5,6 +5,8 @@ providers/mock.py or providers/office.py. ``ToolType`` is a
 provider-independent type alias and lives here.
 """
 
+from collections.abc import Sequence
+
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignDetailResponse,
@@ -39,8 +41,11 @@ def _provider():
     return mock
 
 
-def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> RecipeSearchResponse:
-    return _provider().get_recipe_catalog(tool_type, fab_name)
+def get_recipe_catalog(
+    tool_type: ToolType,
+    fab_names: Sequence[str] | None = None,
+) -> RecipeSearchResponse:
+    return _provider().get_recipe_catalog(tool_type, fab_names)
 
 
 def get_recipe_open_data(

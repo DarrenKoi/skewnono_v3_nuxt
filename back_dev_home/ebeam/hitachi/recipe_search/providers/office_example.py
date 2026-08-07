@@ -151,6 +151,7 @@ import json
 import logging
 import os
 import tempfile
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from platform import system
@@ -242,7 +243,7 @@ def _parse_str_list(value) -> list[str]:
     return [name.strip() for name in value.split(",") if name.strip()]
 
 
-def _unique(names: list[RecipeSearchRow]) -> list[RecipeSearchRow]:
+def _unique(names: list[str]) -> list[str]:
     """De-dup, first-seen order preserved.
 
     The hashes are named ``*_unique_rcp_list``, so upstream already promises
@@ -261,7 +262,12 @@ def _missing_key_error(key: str) -> LookupError:
     )
 
 
-def _recipes_for_fab(client, key: str, fab_name: str) -> list[RecipeSearchRow]:
+def _tagged_rows(names: Iterable[str], fab_name: str) -> list[RecipeSearchRow]:
+    fab = fab_name.strip().upper()
+    return [{"recipe_name": name, "fab_name": fab} for name in names]
+
+
+def _recipes_for_fab(client, key: str, fab_name: str) -> list[str]:
     """One fab's recipe names. Unknown fab -> empty, missing key -> error.
 
     A missing *field* and a missing *key* mean different things: the first is
@@ -279,39 +285,42 @@ def _recipes_for_fab(client, key: str, fab_name: str) -> list[RecipeSearchRow]:
 
 
 def _all_recipes(client, key: str) -> list[RecipeSearchRow]:
-    """Every fab's recipe names, de-duped in first-seen order.
+    """Every fab's recipe names, tagged with the owning fab.
 
-    Reached only when the caller omits ``fab_name``; the frontend always
-    sends one, so this is the blank-query edge case.
+    Reached only when the caller omits ``fab_name``. The hash field IS the
+    provenance (field = lowercase fab), and the row grain is (recipe, fab),
+    so there is no cross-fab dedupe — a name present in two fabs is two rows.
     """
     entries = client.hgetall(key)
     if not entries:
         raise _missing_key_error(key)
-    names: list[RecipeSearchRow] = []
-    for value in entries.values():
-        names.extend(_parse_str_list(value))
-    return _unique(names)
+    rows: list[RecipeSearchRow] = []
+    for field, value in entries.items():
+        fab = field.decode() if isinstance(field, bytes) else str(field)
+        rows.extend(_tagged_rows(_unique(_parse_str_list(value)), fab))
+    return rows
 
 
 def get_recipe_catalog(
     tool_type: ToolType,
-    fab_name: str | None = None,
+    fab_names: Sequence[str] | None = None,
 ) -> RecipeSearchResponse:
     key = _RECIPE_HASH.get(tool_type)
     if key is None:
         raise ValueError(
             f"Unknown tool_type {tool_type!r}; expected one of {sorted(_RECIPE_HASH)}"
         )
-
+    requested = [fab.strip().upper() for fab in (fab_names or ()) if fab and fab.strip()]
     client = _redis_client()
-    rows = (
-        _recipes_for_fab(client, key, fab_name)
-        if fab_name
-        else _all_recipes(client, key)
-    )
+    if requested:
+        rows: list[RecipeSearchRow] = []
+        for fab in requested:
+            rows.extend(_tagged_rows(_recipes_for_fab(client, key, fab), fab))
+    else:
+        rows = _all_recipes(client, key)
     return {
         "tool_type": tool_type,
-        "fab_name": fab_name,
+        "fab_names": requested,
         "total": len(rows),
         "rows": rows,
     }
@@ -1769,11 +1778,11 @@ if __name__ == "__main__":
     #     .venv/bin/python -m back_dev_home.ebeam.hitachi.recipe_search.providers.office
     # (`python path/to/office.py` will NOT work: package imports need -m.)
     for tool in ("cd-sem", "hv-sem"):
-        catalog = get_recipe_catalog(tool, "R3")
+        catalog = get_recipe_catalog(tool, ("R3",))
         print(f"{tool}: {catalog['total']} recipes for R3")
         if catalog["rows"]:
             first = catalog["rows"][0]
             print("  first:", first)
-            detail = get_recipe_open_data(first, "R3", tool)
+            detail = get_recipe_open_data(first["recipe_name"], "R3", tool)
             for table in _PARSED_TABLES:
                 print(f"  {table}: {len(detail[table])} rows")

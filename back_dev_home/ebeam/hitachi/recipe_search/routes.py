@@ -97,6 +97,11 @@ def _resolve_fab_name() -> str | None:
     return raw or None
 
 
+def _resolve_fab_names() -> tuple[str, ...]:
+    raw = request.args.get("fab_name") or ""
+    return tuple(part.strip().upper() for part in raw.split(",") if part.strip())
+
+
 def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
     """The preamble the three tiered read routes share.
 
@@ -154,7 +159,9 @@ def recipe_search_recipes(tool_slug: str):
     if not tool_type:
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
 
-    return jsonify(get_recipe_catalog(tool_type, _resolve_fab_name()))
+    fab_names = _resolve_fab_names()
+    promote_request_fab_names(*fab_names)
+    return jsonify(get_recipe_catalog(tool_type, fab_names or None))
 
 
 @bp.get("/<tool_slug>/recipe-search/recipe-detail")
