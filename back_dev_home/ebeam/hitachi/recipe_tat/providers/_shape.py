@@ -51,6 +51,16 @@ def build_equipments_payload(
     평균이라 해당 항이 정확히 1.0을 기여합니다. 비교 정보가 없는 일감은
     지수를 1.0 쪽으로 희석시킬 뿐 없는 경보를 만들지 않습니다 — 의도된
     성질입니다.
+
+    **지수는 fab 하나 안에서만 비교 가능합니다.** `base(r)`은 조회 범위
+    전체의 레시피별 평균이라, 여러 fab을 함께 조회하면 base가 fab들을 섞은
+    값이 됩니다. 그러면 fab 단위의 속도 차이가 그 fab 장비 *전부*의 지수로
+    나타납니다 — mock의 cd-sem 전 fab 조회에서 M14(meastime ×1.25)의 장비별
+    지수 중앙값이 1.13, M11(×0.74)이 0.76으로 측정됩니다. 장비 상태가 아니라
+    fab을 잰 것이므로 배지 임계값은 단일 fab 조회 기준으로 잡아야 합니다.
+    사무실에서도 같은 상관이 나타나는지는 OFFICE-VERIFY 이며(MIGRATION.md),
+    나타난다면 `base(r)`을 `(fab_name, recipe)`별로 계산해야 합니다. 지금
+    바꾸지 않는 이유는 근거가 mock 의 지어낸 fab 배수뿐이기 때문입니다.
     """
     per_tool: dict[str, dict] = {}
     per_recipe: dict[str, dict] = {}
@@ -92,7 +102,15 @@ def build_equipments_payload(
         top_name, top_cell = max(
             cells.items(), key=lambda item: item[1]["tat"], default=(None, None)
         )
-        expected = sum(cell["count"] * base[name] for name, cell in cells.items())
+        # `if name in base` — count 가 0 인 레시피는 base 에 없습니다. mock 은
+        # 행마다 count 1 을 더하므로 도달할 수 없지만, office 의 composite 는
+        # doc_count 0 인 버킷을 낼 수 있습니다. 0.0 으로 채우지 않고 건너뛰는
+        # 이유: 기여할 실행이 없는 항은 분모에서 빠져야 하고, 0.0 을 더하면
+        # 분모만 작아져 지수가 조용히 부풀어 오릅니다.
+        expected = sum(
+            cell["count"] * base[name]
+            for name, cell in cells.items() if name in base
+        )
 
         equipments.append({
             "eqp_id": tool["eqp_id"],

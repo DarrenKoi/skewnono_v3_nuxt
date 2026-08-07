@@ -219,8 +219,13 @@ def test_get_equipments_usage_ratio_is_defined_on_time_not_count():
 
     # 두 기준이 갈리는 쌍이 하나도 없으면 위 단언은 우연히도 실행 수 기준과
     # 구별되지 않습니다. mock이 그 구별을 실제로 만들어내는지 확인합니다.
+    #
+    # 부등호를 양쪽 다 strict 하게 씁니다. `(a>b) != (c>d)` 형태는 exec_count
+    # 가 그냥 **같기만** 해도 참이 되는데, 장비 84대짜리 기본 조회에서 실행 수
+    # 동률은 사실상 확실히 생깁니다 — 그러면 이 주석이 말하는 순위 역전을
+    # 하나도 보여주지 못한 채 통과합니다.
     diverges = any(
-        (a["total_meastime"] > b["total_meastime"]) != (a["exec_count"] > b["exec_count"])
+        a["total_meastime"] > b["total_meastime"] and a["exec_count"] < b["exec_count"]
         for a in rows for b in rows if a is not b
     )
     assert diverges, "시간 순서와 실행 수 순서가 갈리는 장비 쌍이 없습니다"
@@ -263,6 +268,10 @@ def test_get_equipments_mock_exercises_every_badge_state():
     rows = payload["equipments"]
     indexed = [r for r in rows if r["tat_index"] is not None]
     assert any(r["tat_index"] is None for r in rows), "표본 미달 장비가 없습니다"
+    # indexed 가 비면 아래 max()가 ValueError 로 터져 의도한 메시지를 삼킵니다.
+    # 게다가 바로 위 단언은 그 상황에서도 통과하므로(전부 None), 이 가드가
+    # 없으면 "모든 장비가 표본 미달"이라는 mock 퇴행이 엉뚱한 예외로 보고됩니다.
+    assert indexed, "tat_index 가 계산된 장비가 하나도 없습니다 (전부 표본 미달)"
     assert max(r["tat_index"] for r in indexed) > 1.05, "느린 장비가 없습니다"
     assert min(r["usage_ratio"] for r in rows) < 0.85, "저사용 장비가 없습니다"
     assert max(r["top_recipe_share"] for r in rows) >= 0.50, "편중 장비가 없습니다"

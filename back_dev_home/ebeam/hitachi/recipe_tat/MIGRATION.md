@@ -216,6 +216,42 @@ work without the bridge; the contract gate never passes `lot_cd`.
 - Notes: drives the "디바이스별" quick-filter chip strip — an empty result is
   valid (no chips), not an error.
 
+## Endpoint: GET /api/<tool_slug>/recipe-tat/equipments
+
+The office adapter is **not connected yet** — `providers/office_example.py` holds
+an arity-only stub raising `NotImplementedError`. The composite aggregation that
+fills it in is a separate task; this section records only what the office
+implementer must check first. The contract (`EquipmentsPayload`, `EquipmentRow`,
+`FleetReference`) is already in `contracts.py`.
+
+Both providers MUST call
+`providers/_shape.build_equipments_payload(tool_type, fab_names, start_date,
+end_date, grid)` rather than aggregating themselves. The office side only builds
+the grid — `(eqp_id, fab_name, eqp_model_cd, full_name, meas_counts,
+total_meastime)` per (장비, 레시피) cell — and the shared assembler derives the
+index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 숫자가
+어긋나고, 그때 어느 쪽이 맞는지 판정할 방법이 없습니다.
+
+- **OFFICE-VERIFY — does `tat_index` correlate with `fab_name`?** `tat_index` is
+  an indirect standardization against `base(r)`, the per-recipe mean over the
+  whole queried scope. If a recipe genuinely runs in several fabs at different
+  rates, a multi-fab query blends them into `base(r)` and every tool in the
+  slower fab reads slow — measuring the fab, not the tool. In the mock this is
+  clearly visible (cd-sem, all fabs: M14 median index 1.13 at meastime ×1.25,
+  M11 0.76 at ×0.74), but the mock's per-fab multiplier is fabricated, so it is
+  no evidence about the real fleet. At the office, group `tat_index` by
+  `fab_name` on a fleet-wide query and check for that correlation. **If it is
+  present, `base(r)` should be computed per `(fab_name, recipe)` instead of
+  scope-wide.** We are deliberately NOT making that change now — until the
+  office numbers say otherwise, badge thresholds must be calibrated on a
+  single-fab scope.
+- **OFFICE-VERIFY — `TAT_INDEX_MIN_SAMPLE` (=12).** Tools with fewer executions
+  in the window get `tat_index: None`. Check the real per-tool execution-count
+  distribution: set too high, the column is all `—`; too low, noise gets a badge.
+- **OFFICE-VERIFY — `eqp_model_cd.keyword`.** `docs/datatables/meas_hist.txt`
+  records `eqp_model_cd` as `text`; whether the `.keyword` sub-field needed to
+  aggregate on it exists is unconfirmed.
+
 ## Verify
 
 Standalone smoke test (prints anchor + per-tool summary/ranking/trend;

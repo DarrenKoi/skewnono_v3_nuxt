@@ -67,6 +67,7 @@ __all__ = [
     "get_summary",
     "get_daily_trend",
     "get_devices",
+    "get_equipments",
 ]
 
 
@@ -77,6 +78,17 @@ def get_meas_hist(*args: Any, **kwargs: Any) -> Any:
     raise NotImplementedError(
         "get_meas_hist (raw rows) is intentionally not connected for office "
         "mode — the Recipe-TAT routes use the aggregation endpoints below."
+    )
+
+
+def get_equipments(*args: Any, **kwargs: Any) -> Any:
+    # Task 6 이 이 자리에 composite 집계 구현을 채웁니다. 그때까지는 arity 만
+    # 맞춘 스텁입니다 — parity sweep(tests/test_office_adapter_parity.py)이
+    # dispatcher 가 찾는 이름을 요구하고, 빨간 sweep 은 곧 무시되는 sweep 이
+    # 되기 때문입니다.
+    raise NotImplementedError(
+        "get_equipments office adapter is not connected yet — see "
+        "recipe_tat/MIGRATION.md"
     )
 
 
