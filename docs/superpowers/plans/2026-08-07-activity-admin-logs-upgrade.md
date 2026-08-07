@@ -1271,8 +1271,10 @@ Check, with a screenshot saved under `.playwright-mcp/screenshots/`:
 
 - [ ] **Step 6: Verify `/activity` as `local-dev`**
 
-1. The 사용자 table is sorted most-recent-first on load and the 초기화 button is **disabled**.
-2. Changing the sort enables 초기화; pressing it returns to 최근 활동 순.
+1. The 사용자 table is sorted most-recent-first on load and the **새로고침** button
+   (the control-reset button beside the CSV export — relabelled from 초기화 by
+   commit `69c60c6`, behaviour unchanged) is **disabled**.
+2. Changing the sort enables 새로고침; pressing it returns to 최근 활동 순.
 3. The `Fab별 페이지 사용` card header reads `· FAB 무관 페이지 제외` and no `미지정` entry appears in the fab list.
 4. Navigate to `/`, then to `/ebeam/cd-sem/M14`, and confirm in the network panel that a `POST /api/page-view` fires for the second and **not** the first.
 
