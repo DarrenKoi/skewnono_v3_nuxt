@@ -2,6 +2,7 @@ export type RecipeSearchSource = 'redis' | 'opensearch'
 
 export interface RecipeSelectionEntry {
   name: string
+  fab_name: string
   source: RecipeSearchSource
 }
 
@@ -15,17 +16,22 @@ export interface RecipeSelectionCapabilities {
 const isSource = (value: unknown): value is RecipeSearchSource =>
   value === 'redis' || value === 'opensearch'
 
+/** Same `${fab}|${name}` pairing recipeSearchMatch's toRecipeSearchResults
+ * uses for its dedupe key — one convention across both utils. */
+const entryKey = (name: string, fabName: string) => `${fabName}|${name}`
+
 const toEntry = (value: unknown): RecipeSelectionEntry | null => {
   if (typeof value === 'string') {
     const name = value.trim()
-    return name ? { name, source: 'redis' } : null
+    return name ? { name, fab_name: '', source: 'redis' } : null
   }
   if (!value || typeof value !== 'object') return null
 
   const candidate = value as Record<string, unknown>
   const name = typeof candidate.name === 'string' ? candidate.name.trim() : ''
+  const fabName = typeof candidate.fab_name === 'string' ? candidate.fab_name.trim().toUpperCase() : ''
   return name && isSource(candidate.source)
-    ? { name, source: candidate.source }
+    ? { name, fab_name: fabName, source: candidate.source }
     : null
 }
 
@@ -33,48 +39,58 @@ export const normalizeRecipeSelectionEntries = (
   parsed: unknown
 ): RecipeSelectionEntry[] => {
   if (!Array.isArray(parsed)) return []
-  const byName = new Map<string, RecipeSelectionEntry>()
+  const byKey = new Map<string, RecipeSelectionEntry>()
   for (const value of parsed) {
     const entry = toEntry(value)
     if (!entry) continue
-    const existing = byName.get(entry.name)
-    if (!existing || entry.source === 'redis') byName.set(entry.name, entry)
+    const key = entryKey(entry.name, entry.fab_name)
+    const existing = byKey.get(key)
+    if (!existing || entry.source === 'redis') byKey.set(key, entry)
   }
-  return [...byName.values()]
+  return [...byKey.values()]
 }
 
 export const upsertRecipeSelection = (
   entries: RecipeSelectionEntry[],
   rawName: string,
+  fabName: string,
   source: RecipeSearchSource
 ): RecipeSelectionEntry[] => {
   const name = rawName.trim()
   if (!name) return entries
-  const index = entries.findIndex(entry => entry.name === name)
-  if (index < 0) return [...entries, { name, source }]
+  const key = entryKey(name, fabName)
+  const index = entries.findIndex(entry => entryKey(entry.name, entry.fab_name) === key)
+  if (index < 0) return [...entries, { name, fab_name: fabName, source }]
   if (entries[index]!.source === 'redis' || source === 'opensearch') return entries
-  return entries.map((entry, at) => at === index ? { name, source: 'redis' } : entry)
+  return entries.map((entry, at) => at === index ? { name, fab_name: fabName, source: 'redis' } : entry)
 }
 
 export const removeRecipeSelection = (
   entries: RecipeSelectionEntry[],
-  name: string
-): RecipeSelectionEntry[] => entries.filter(entry => entry.name !== name)
+  name: string,
+  fabName: string
+): RecipeSelectionEntry[] => {
+  const key = entryKey(name, fabName)
+  return entries.filter(entry => entryKey(entry.name, entry.fab_name) !== key)
+}
 
 export const promoteRecipeSelectionsToRedis = (
   entries: RecipeSelectionEntry[],
-  redisNames: string[]
+  rows: Array<{ recipe_name: string, fab_name: string }>
 ): RecipeSelectionEntry[] => {
-  const catalog = new Set(redisNames)
+  const fabByName = new Map<string, string>()
+  for (const row of rows) {
+    if (!fabByName.has(row.recipe_name)) fabByName.set(row.recipe_name, row.fab_name)
+  }
   let changed = false
   const next = entries.map((entry) => {
-    if (entry.source === 'opensearch' && catalog.has(entry.name)) {
+    if (entry.source === 'opensearch' && fabByName.has(entry.name)) {
       changed = true
-      return { ...entry, source: 'redis' as const }
+      return { ...entry, fab_name: fabByName.get(entry.name)!, source: 'redis' as const }
     }
     return entry
   })
-  return changed ? next : entries
+  return changed ? normalizeRecipeSelectionEntries(next) : entries
 }
 
 export const capabilitiesForRecipeSelection = (
@@ -91,9 +107,9 @@ export const canCompareRecipeSelection = (
   entries: RecipeSelectionEntry[]
 ): boolean => entries.length >= 2 && capabilitiesForRecipeSelection(entries).compare
 
-export const recipeNamesForCompare = (
+export const recipesForCompare = (
   entries: RecipeSelectionEntry[]
-): string[] | null =>
+): Array<{ recipe_name: string, fab_name: string }> | null =>
   canCompareRecipeSelection(entries)
-    ? entries.map(entry => entry.name)
+    ? entries.map(entry => ({ recipe_name: entry.name, fab_name: entry.fab_name }))
     : null

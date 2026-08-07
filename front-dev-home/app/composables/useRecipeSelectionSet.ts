@@ -1,6 +1,8 @@
-// Per-(toolType, fab) persistent recipe working set, persisted via
-// usePersistedState so the set survives full reloads. The set powers compare
-// (this pass) and, later, a recipe switcher in open/lateral/meas-hist.
+// Per-toolType persistent recipe working set, persisted via usePersistedState
+// so the set survives full reloads. Selection identity is the (name, fab)
+// pair — the same recipe name can be selected from more than one fab in one
+// working set. The set powers compare (this pass) and, later, a recipe
+// switcher in open/lateral/meas-hist.
 
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import {
@@ -13,43 +15,42 @@ import {
   type RecipeSelectionEntry
 } from '~/utils/recipeSelection'
 
-const storageKey = (toolType: string, fab: string) =>
-  `skewnono:recipe-search.selection.${toolType}.${fab || 'ALL'}`
+const storageKey = (toolType: string) =>
+  `skewnono:recipe-search.selection.v2.${toolType}`
 
-export const useRecipeSelectionSet = (toolType: RecipeSearchToolType, fab: string) => {
-  const scope = `${toolType}:${fab || 'ALL'}`
-
+export const useRecipeSelectionSet = (toolType: RecipeSearchToolType) => {
   const entries = usePersistedState<RecipeSelectionEntry[]>(
-    `recipe-search:selection:${scope}`,
-    storageKey(toolType, fab),
+    `recipe-search:selection:v2:${toolType}`,
+    storageKey(toolType),
     { default: () => [], normalize: normalizeRecipeSelectionEntries }
   )
 
   const selected = computed(() => entries.value.map(entry => entry.name))
   const capabilities = computed(() => capabilitiesForRecipeSelection(entries.value))
-  const has = (name: string) => entries.value.some(entry => entry.name === name)
-  const sourceOf = (name: string): RecipeSearchSource =>
-    entries.value.find(entry => entry.name === name)?.source ?? 'redis'
+  const has = (name: string, fabName: string) =>
+    entries.value.some(entry => entry.name === name && entry.fab_name === fabName)
+  const sourceOf = (name: string, fabName: string): RecipeSearchSource =>
+    entries.value.find(entry => entry.name === name && entry.fab_name === fabName)?.source ?? 'redis'
 
-  const add = (name: string, source: RecipeSearchSource = 'redis') => {
-    entries.value = upsertRecipeSelection(entries.value, name, source)
+  const add = (name: string, fabName: string, source: RecipeSearchSource = 'redis') => {
+    entries.value = upsertRecipeSelection(entries.value, name, fabName, source)
   }
 
-  const remove = (name: string) => {
-    entries.value = removeRecipeSelection(entries.value, name)
+  const remove = (name: string, fabName: string) => {
+    entries.value = removeRecipeSelection(entries.value, name, fabName)
   }
 
-  const toggle = (name: string, source: RecipeSearchSource = 'redis') => {
-    if (has(name)) remove(name)
-    else add(name, source)
+  const toggle = (name: string, fabName: string, source: RecipeSearchSource = 'redis') => {
+    if (has(name, fabName)) remove(name, fabName)
+    else add(name, fabName, source)
   }
 
   const clear = () => {
     entries.value = []
   }
 
-  const promoteRedis = (names: string[]) => {
-    entries.value = promoteRecipeSelectionsToRedis(entries.value, names)
+  const promoteRedis = (rows: Array<{ recipe_name: string, fab_name: string }>) => {
+    entries.value = promoteRecipeSelectionsToRedis(entries.value, rows)
   }
 
   const count = computed(() => entries.value.length)

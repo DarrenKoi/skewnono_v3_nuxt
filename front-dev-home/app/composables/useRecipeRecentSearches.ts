@@ -1,20 +1,20 @@
-// Per-(toolType, fab) recent recipe-search terms, persisted via
-// usePersistedState so the list survives full reloads.
+// Per-toolType recent recipe-search terms, persisted via usePersistedState
+// so the list survives full reloads. Search terms are fab-agnostic — a
+// recipe-name search typed while browsing one fab is just as useful when
+// switching to another, so the list no longer scopes by fab.
 
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 
 const MAX_RECENT_SEARCHES = 10
 const MIN_RECORD_LENGTH = 3
 
-const storageKey = (toolType: string, fab: string) =>
-  `skewnono:recipe-search.recent.${toolType}.${fab || 'ALL'}`
+const storageKey = (toolType: string) =>
+  `skewnono:recipe-search.recent.v2.${toolType}`
 
-export const useRecipeRecentSearches = (toolType: RecipeSearchToolType, fab: string) => {
-  const scope = `${toolType}:${fab || 'ALL'}`
-
+export const useRecipeRecentSearches = (toolType: RecipeSearchToolType) => {
   const recentSearches = usePersistedState<string[]>(
-    `recipe-search:recent:${scope}`,
-    storageKey(toolType, fab),
+    `recipe-search:recent:v2:${toolType}`,
+    storageKey(toolType),
     { default: () => [], normalize: normalizeStringArray }
   )
 

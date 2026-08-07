@@ -1,7 +1,6 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { IdpLocator, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { ImageSlotKey } from '~/utils/recipeView'
-import { normalizeFab } from '~/utils/fab'
 
 export interface CompareIdpFields {
   Addressing: boolean
@@ -27,16 +26,20 @@ export interface CompareRecipe {
   parameters: CompareParameter[]
 }
 
+export interface CompareRecipeRef {
+  recipe_name: string
+  fab_name: string
+}
+
 export interface RecipeCompareResponse {
   tool_type: RecipeSearchToolType
-  fab_name: string | null
+  fab_names: string[]
   recipes: CompareRecipe[]
 }
 
 export interface RecipeCompareParams {
   toolType: RecipeSearchToolType
-  fabName?: string
-  recipeNames: string[]
+  recipes: CompareRecipeRef[]
 }
 
 const TOOL_TO_BACKEND_SLUG: Record<RecipeSearchToolType, string> = {
@@ -52,9 +55,8 @@ export const useRecipeCompareApi = () => {
 
   const fetchCompare = async (params: RecipeCompareParams): Promise<RecipeCompareResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const fabName = normalizeFab(params.fabName)
-    const names = params.recipeNames.map(name => name.trim()).filter(Boolean)
-    const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${[...names].sort().join('|')}`
+    const refs = params.recipes.filter(r => r.recipe_name.trim())
+    const cacheKey = `${params.toolType}:${refs.map(r => `${r.fab_name}:${r.recipe_name}`).sort().join('|')}`
     const existing = inFlightCompares.get(cacheKey)
 
     if (existing) {
@@ -65,7 +67,7 @@ export const useRecipeCompareApi = () => {
       joinApiPath(base, `/${slug}/recipe-search/compare`),
       {
         method: 'POST',
-        body: { recipe_names: names, ...(fabName ? { fab_name: fabName } : {}) }
+        body: { recipes: refs }
       }
     ).finally(() => {
       inFlightCompares.delete(cacheKey)
