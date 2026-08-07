@@ -10,8 +10,7 @@
       v-if="hasData"
       ref="chartEl"
       data-testid="sparkline-canvas"
-      class="w-full"
-      :class="zoomable ? 'h-24' : 'h-16'"
+      class="w-full h-16"
     />
     <div
       v-else
@@ -20,7 +19,7 @@
       30일간 활동이 없습니다.
     </div>
     <div
-      v-if="hasData && !zoomable"
+      v-if="hasData"
       class="flex justify-between text-[10px] text-(--sk-ink-muted) mt-1 tabular-nums"
     >
       <span>{{ firstLabel }}</span>
@@ -45,12 +44,8 @@ const props = withDefaults(
     // tell "my activity" from "the user I expanded" at a glance; both follow
     // the active ECharts theme rather than a hardcoded hex.
     tone?: 'series' | 'brand'
-    // The zoom slider costs ~20px, a third of the flat host. Only the
-    // standalone card can spare it — inside the user table this sits in a
-    // third of a row and the bars would vanish under the slider.
-    zoomable?: boolean
   }>(),
-  { tone: 'series', zoomable: false }
+  { tone: 'series' }
 )
 
 const chartEl = ref<HTMLDivElement | null>(null)
@@ -58,7 +53,7 @@ const sk = useChartPalette()
 
 const hasData = computed(() => sparklineHasData(props.series))
 const barColor = computed(() => (props.tone === 'brand' ? sk.value.brand : sk.value.series))
-const option = computed(() => buildSparklineOption(props.series, barColor.value, props.zoomable))
+const option = computed(() => buildSparklineOption(props.series, barColor.value))
 
 // The host sits inside v-if, so an empty series never mounts it and no chart is
 // created — which matters in the user table, where every expanded row would

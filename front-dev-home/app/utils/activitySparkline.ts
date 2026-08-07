@@ -8,8 +8,8 @@ import type { DailyCount } from '~/composables/useActivityApi'
  * option is a plain object literal, and `npm test` runs this file directly
  * under `node --test`, where pulling in echarts would drag a browser-only
  * dependency into the test process for no gain. Keeping it out is what makes
- * the bar mapping, the zoom toggle and the tooltip text testable as pure
- * functions — the chart itself is only verifiable in a browser.
+ * the bar mapping and the tooltip text testable as pure functions — the chart
+ * itself is only verifiable in a browser.
  */
 
 /** 'MM.DD' as ko-KR renders it ("07. 01."), or the raw string when it will not parse. */
@@ -36,8 +36,7 @@ export const formatSparklineTooltip = (iso: string, count: number): string =>
 
 export const buildSparklineOption = (
   series: DailyCount[],
-  barColor: string,
-  zoomable: boolean
+  barColor: string
 ): EChartsOption => ({
   // No axis furniture. The host is 64px tall and the total/dates live in HTML
   // around the canvas, so every pixel in here belongs to the bars.
@@ -45,7 +44,7 @@ export const buildSparklineOption = (
     left: 0,
     right: 0,
     top: 2,
-    bottom: zoomable ? 20 : 2,
+    bottom: 2,
     containLabel: false
   },
   xAxis: {
@@ -77,14 +76,6 @@ export const buildSparklineOption = (
       return formatSparklineTooltip(String(axisValue ?? ''), Number(data ?? 0))
     }
   },
-  ...(zoomable
-    ? {
-        dataZoom: [
-          { type: 'inside' as const },
-          { type: 'slider' as const, height: 14, bottom: 0 }
-        ]
-      }
-    : {}),
   series: [{
     type: 'bar',
     data: series.map(d => d.count),

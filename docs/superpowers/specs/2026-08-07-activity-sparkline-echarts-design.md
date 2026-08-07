@@ -3,21 +3,30 @@
 작성일: 2026-08-07
 대상: `front-dev-home/app/components/activity/Sparkline.vue`
 
+## 변경 이력
+
+**2026-08-08 — 줌 기능 철회.** 실제로 붙여 본 뒤 슬라이더가 64px 호스트의 3분의 1을
+차지하면서 컨트롤이 아니라 장식처럼 읽힌다고 판단해 걷어냈습니다. 이 문서에서 줌 관련
+설계(`zoomable` prop, `dataZoom`, `h-24` 호스트, 줌일 때 날짜 줄 숨김)는 모두
+철회되었으며 아래 본문은 그 결과로 수정되었습니다. **툴팁은 그대로 남습니다.**
+
+ECharts 전환의 근거가 툴팁 하나로 좁아졌지만 전환 자체는 유지합니다. 툴팁만으로도 히트
+영역 계산·커서 위치 역산을 직접 쓰지 않아도 되고, 하드코딩 hex를 `chartPalette` 정책 아래로
+가져온 것은 줌과 무관하게 남는 이득이기 때문입니다.
+
 ## 배경
 
 `/activity` 페이지의 "30일 활동" 막대는 손으로 작성한 SVG입니다. 하루당 `<rect>` 하나를
 `viewBox="0 0 300 60"` 안에 배치하고, `preserveAspectRatio="none"`으로 컨테이너 폭에
 늘리는 방식입니다. 축도 툴팁도 없기 때문에 차트 라이브러리 없이도 충분했습니다.
 
-이제 두 가지 기능이 필요해졌습니다.
+이제 날짜별 툴팁이 필요해졌습니다.
 
 | 요구 | 손코딩 SVG로 구현할 경우 |
 | --- | --- |
 | 날짜별 툴팁 / hover | 히트 영역 계산, 커서 위치→인덱스 역산, 툴팁 위치 보정을 직접 작성해야 합니다 |
-| 기간 줌 / 범위 선택 | 드래그 상태 관리, 뷰포트 클리핑, 슬라이더 UI를 직접 작성해야 합니다 |
 
-두 기능 모두 `composables/useEchart.ts`가 이미 제공하는 것이므로, 이 컴포넌트를 ECharts로
-전환합니다.
+`composables/useEchart.ts`가 이미 제공하는 것이므로, 이 컴포넌트를 ECharts로 전환합니다.
 
 ## 범위
 
@@ -31,14 +40,14 @@ ECharts로 옮기면 `truncate` + `title` 툴팁, 스크린리더 접근성, 항
 
 `Sparkline`은 두 곳에서 쓰입니다.
 
-| 위치 | 맥락 | 줌 | 색 역할 |
-| --- | --- | --- | --- |
-| `activity.vue:128` | "30일 활동" 단독 카드 | 사용 | `series` |
-| `activity.vue:579` | 사용자 상세 확장 행, `lg:grid-cols-3`의 1/3 폭 | 사용 안 함 | `brand` |
+| 위치 | 맥락 | 색 역할 |
+| --- | --- | --- |
+| `activity.vue:128` | "30일 활동" 단독 카드 | `series` |
+| `activity.vue:576` | 사용자 상세 확장 행, `lg:grid-cols-3`의 1/3 폭 | `brand` |
 
-확장 행에서 줌을 끄는 이유는 공간입니다. 64px 높이에 dataZoom 슬라이더를 넣으면 막대에
-남는 높이가 50px 아래로 떨어져 차트가 슬라이더 장식처럼 보입니다. 툴팁은 양쪽 모두
-제공합니다.
+두 소비처는 색만 다르고 동작은 같습니다. 처음에는 단독 카드에만 줌을 주려 했으나
+(확장 행은 폭이 3분의 1이라 슬라이더가 막대를 삼킴), 실제로는 단독 카드에서도 64px 중
+20px를 슬라이더가 가져가 같은 문제가 났습니다. 그래서 줌 자체를 걷어냈습니다.
 
 확장 행은 사용자마다 인스턴스가 하나씩 생기지만 누수는 없습니다. `useEchart.ts:237-273`이
 `elRef` 변경 시와 `onBeforeUnmount`에서 `dispose()`를 호출하고 `ResizeObserver`도
@@ -55,8 +64,7 @@ ECharts option을 만드는 순수 함수입니다. `echarts`를 import하지 �
 ```ts
 export const buildSparklineOption = (
   series: DailyCount[],
-  barColor: string,
-  zoomable: boolean
+  barColor: string
 ): EChartsOption
 ```
 
@@ -73,7 +81,6 @@ export const buildSparklineOption = (
 props: {
   series: DailyCount[]
   tone?: 'series' | 'brand'   // 기본 'series'
-  zoomable?: boolean          // 기본 false
 }
 ```
 
@@ -123,11 +130,8 @@ props: {
 축을 그리면 64px 중 상당 부분을 축이 가져가 막대가 뭉개집니다. 기존 레이아웃 계약을
 지키는 쪽이 안전합니다.
 
-`zoomable: true`일 때만 달라지는 것:
-
-- `dataZoom`: `[{ type: 'inside' }, { type: 'slider', height: 14, bottom: 0 }]`
-- 호스트 높이: `h-16` → `h-24` (슬라이더 몫)
-- 양끝 날짜 HTML은 숨깁니다. 슬라이더가 같은 정보를 더 정확히 보여주므로 중복입니다.
+`dataZoom`은 넣지 않습니다. 호스트 높이는 두 소비처 모두 `h-16`이고, 양끝 날짜 HTML도
+항상 표시합니다. 줌을 붙였다가 걷어낸 경위는 맨 위 "변경 이력"에 있습니다.
 
 ## 빈 상태
 
@@ -146,7 +150,9 @@ props: {
 
 - 시리즈 길이와 `series[0].data` 길이가 일치할 것
 - 막대 값이 입력 `count`와 순서대로 1:1 대응할 것
-- `zoomable: true`면 `dataZoom`이 존재하고, `false`면 존재하지 않을 것
+- `dataZoom`이 존재하지 않을 것 (줌 철회를 테스트로 못박아, 나중에 다시 넣으려면
+  테스트와 먼저 다퉈야 하도록)
+- `grid.bottom`이 2일 것 — 막대 아래에 아무것도 놓이지 않음
 - 넘긴 `barColor`가 `series[0].itemStyle.color`에 반영될 것
 - 빈 시리즈에서 예외 없이 빈 `data`를 돌려줄 것
 - 날짜 포맷이 `MM.DD`일 것
@@ -176,9 +182,9 @@ props: {
 - `npm run typecheck`
 - `npm run lint`
 - `npm run lint:md` (이 문서)
-- 브라우저 확인: `/activity`에서 (1) 막대 hover 시 툴팁, (2) 메인 카드 슬라이더 드래그로
-  기간 축소, (3) 사용자 행을 펼쳤을 때 확장 행 sparkline이 다른 색으로 뜨고 슬라이더가
-  없을 것, (4) 활동 없는 사용자에서 빈 상태 문구, (5) 다크 모드에서 막대가 보일 것
+- 브라우저 확인: `/activity`에서 (1) 막대 hover 시 툴팁, (2) 두 sparkline 어디에도 줌
+  슬라이더가 없을 것, (3) 사용자 행을 펼쳤을 때 확장 행 sparkline이 다른 색으로 뜰 것,
+  (4) 활동 없는 사용자에서 빈 상태 문구, (5) 다크 모드에서 막대가 보일 것
 
 ## 하지 않는 것
 

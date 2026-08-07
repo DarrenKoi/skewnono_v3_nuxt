@@ -28,7 +28,7 @@ test('totals the counts and reports whether any activity exists', () => {
 })
 
 test('maps every day to one bar, in order', () => {
-  const option = buildSparklineOption(SERIES, '#123456', false)
+  const option = buildSparklineOption(SERIES, '#123456')
   const series = option.series as Array<{ data: number[], type: string }>
   assert.equal(series.length, 1)
   assert.equal(series[0]!.type, 'bar')
@@ -39,28 +39,25 @@ test('maps every day to one bar, in order', () => {
 })
 
 test('paints the bars with the colour it was handed', () => {
-  const option = buildSparklineOption(SERIES, '#123456', false)
+  const option = buildSparklineOption(SERIES, '#123456')
   const series = option.series as Array<{ itemStyle: { color: string } }>
   assert.equal(series[0]!.itemStyle.color, '#123456')
 })
 
-test('adds dataZoom only when zoomable', () => {
-  assert.equal(buildSparklineOption(SERIES, '#123456', false).dataZoom, undefined)
-
-  const zoomed = buildSparklineOption(SERIES, '#123456', true)
-  const dataZoom = zoomed.dataZoom as Array<{ type: string }>
-  assert.deepEqual(dataZoom.map(z => z.type), ['inside', 'slider'])
+test('draws no zoom control', () => {
+  // The slider was tried and pulled: it ate a third of a 64px host and read as
+  // furniture rather than a control. Asserted rather than merely absent so a
+  // future "just add dataZoom" has to argue with a test first.
+  assert.equal(buildSparklineOption(SERIES, '#123456').dataZoom, undefined)
 })
 
-test('reserves bottom room for the slider only when zoomable', () => {
-  const flat = buildSparklineOption(SERIES, '#123456', false).grid as { bottom: number }
-  const zoomed = buildSparklineOption(SERIES, '#123456', true).grid as { bottom: number }
-  assert.equal(flat.bottom, 2)
-  assert.ok(zoomed.bottom > flat.bottom, 'the slider needs bottom padding')
+test('leaves the plot area unpadded — nothing sits below the bars', () => {
+  const grid = buildSparklineOption(SERIES, '#123456').grid as { bottom: number }
+  assert.equal(grid.bottom, 2)
 })
 
 test('survives an empty series', () => {
-  const option = buildSparklineOption([], '#123456', false)
+  const option = buildSparklineOption([], '#123456')
   const series = option.series as Array<{ data: number[] }>
   assert.deepEqual(series[0]!.data, [])
 })

@@ -125,10 +125,7 @@
             30일 활동
           </span>
         </template>
-        <ActivitySparkline
-          :series="me.daily"
-          zoomable
-        />
+        <ActivitySparkline :series="me.daily" />
       </UCard>
 
       <UCard class="dashboard-surface lg:col-span-3">

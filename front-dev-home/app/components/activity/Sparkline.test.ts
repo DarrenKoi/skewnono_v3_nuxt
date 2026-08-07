@@ -32,7 +32,6 @@ const renderSparkline = async (data: Record<string, unknown>) => {
 test('renders the total above the chart and only dates below it', async () => {
   const html = await renderSparkline({
     hasData: true,
-    zoomable: false,
     firstLabel: '07. 01.',
     totalLabel: '합계 10',
     lastLabel: '07. 30.'
@@ -51,27 +50,9 @@ test('renders the total above the chart and only dates below it', async () => {
   )
 })
 
-test('drops the date row when the zoom slider is shown', async () => {
-  const html = await renderSparkline({
-    hasData: true,
-    zoomable: true,
-    firstLabel: '07. 01.',
-    totalLabel: '합계 10',
-    lastLabel: '07. 30.'
-  })
-
-  assert.ok(html.includes('data-testid="sparkline-canvas"'), 'the chart host must render')
-  assert.equal(
-    html.includes('07. 01.'),
-    false,
-    'the slider already shows the range, so the date row would be a duplicate'
-  )
-})
-
 test('renders the empty state instead of a chart host', async () => {
   const html = await renderSparkline({
     hasData: false,
-    zoomable: false,
     firstLabel: '',
     totalLabel: '',
     lastLabel: ''
