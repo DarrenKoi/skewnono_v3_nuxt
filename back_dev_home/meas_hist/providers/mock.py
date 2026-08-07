@@ -33,6 +33,9 @@ Other office properties this mock cannot demonstrate:
   the latest data date, not wall clock — and recipe_tat and fail_issue share one
   cached anchor so the recipe-status tabs always agree on 데이터 기준 날짜.
 * pagination is from/size with from+size <= 10000 (index.max_result_window).
+* every mock row carries a nonblank `fab_name`, so the office dirty-data path
+  where documents LACK the field — surfacing in the `recipe_names` snapshot as
+  `fab_name: ""` ("owner unknown", OFFICE-VERIFY) — never exercises at home.
 
 ★ INGESTION PREREQUISITE for `q` free-text search: it queries the `search_all`
 wildcard field (`meas_hist/opensearch_query.py`). If the loader has not indexed
@@ -50,6 +53,7 @@ from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
 from back_dev_home.meas_hist.contracts import (
     MeasHistFacetsResponse,
     MeasHistFacetValue,
+    MeasHistRecipeName,
     MeasHistResponse,
     MeasHistRow,
     MeasHistSearchResponse,
@@ -555,8 +559,14 @@ def search_meas_hist(
 
             rows.append(row)
 
-    recipe_names = (
-        sorted({row["full_name"] for row in rows})
+    # (full_name, fab_name) pairs, not bare names — the recipe-search
+    # fallback badges and owner-routes each discovered name by fab, and every
+    # matching row already carries its fab.
+    recipe_names: list[MeasHistRecipeName] = (
+        [
+            MeasHistRecipeName(full_name=name, fab_name=fab)
+            for name, fab in sorted({(row["full_name"], row["fab_name"]) for row in rows})
+        ]
         if recipe_terms
         else []
     )

@@ -56,51 +56,86 @@ export const rankRecipeMatches = <T>(
   return buckets.flat()
 }
 
-/**
- * Distinct meas-hist full_names that satisfy the same AND-token match as the
- * catalog lookup. The meas-hist search endpoint ORs its `recipe` terms
- * server-side, so this client-side re-check restores AND semantics before the
- * UI claims "found in measurement history".
- */
-export const matchingHistoryNames = (fullNames: string[], tokens: string[]): string[] => {
-  const matched: string[] = []
+/** One snapshot entry: a distinct meas-hist full_name and the fab it was
+ * measured in. `fab_name` is `''` when the owner is unknown — a legacy
+ * names-only backend, or office documents with no fab field. */
+export interface RecipeNamePair {
+  recipe_name: string
+  fab_name: string
+}
+
+const dedupePairs = (pairs: RecipeNamePair[]): RecipeNamePair[] => {
   const seen = new Set<string>()
-  for (const name of fullNames) {
-    if (seen.has(name)) continue
-    seen.add(name)
-    if (matchesRecipeQuery(name.toLowerCase(), tokens)) matched.push(name)
+  const out: RecipeNamePair[] = []
+  for (const pair of pairs) {
+    const key = recipePairKey(pair.fab_name, pair.recipe_name)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(pair)
   }
-  return matched
+  return out
+}
+
+/**
+ * Distinct meas-hist (full_name, fab) pairs that satisfy the same AND-token
+ * match as the catalog lookup. The meas-hist search endpoint ORs its
+ * `recipe` terms server-side, so this client-side re-check restores AND
+ * semantics before the UI claims "found in measurement history".
+ */
+export const matchingHistoryPairs = (
+  pairs: RecipeNamePair[],
+  tokens: string[]
+): RecipeNamePair[] =>
+  dedupePairs(pairs).filter(pair => matchesRecipeQuery(pair.recipe_name.toLowerCase(), tokens))
+
+/** A raw `recipe_names` entry as a pair — `{full_name, fab_name}` objects
+ * from the current backend, bare name strings from a stale office adapter
+ * (fab unknown). Anything else is invalid and poisons the snapshot. */
+const toSnapshotPair = (value: unknown): RecipeNamePair | null => {
+  if (typeof value === 'string') {
+    const name = value.trim()
+    return name ? { recipe_name: name, fab_name: '' } : null
+  }
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as Record<string, unknown>
+  if (typeof candidate.full_name !== 'string' || !candidate.full_name.trim()) return null
+  if (typeof candidate.fab_name !== 'string') return null
+  return {
+    recipe_name: candidate.full_name.trim(),
+    fab_name: candidate.fab_name.trim().toUpperCase()
+  }
 }
 
 export const normalizeRecipeNameSnapshot = (input: {
   recipe_names?: unknown
   recipe_names_complete?: unknown
-  rows: Array<{ full_name?: unknown }>
-}): { names: string[], complete: boolean } => {
-  const rowNames = input.rows
-    .map(row => row.full_name)
-    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+  rows: Array<{ full_name?: unknown, fab_name?: unknown }>
+}): { pairs: RecipeNamePair[], complete: boolean } => {
+  const rowPairs = dedupePairs(input.rows.flatMap((row) => {
+    if (typeof row.full_name !== 'string' || !row.full_name.trim()) return []
+    const fab = typeof row.fab_name === 'string' ? row.fab_name.trim().toUpperCase() : ''
+    return [{ recipe_name: row.full_name.trim(), fab_name: fab }]
+  }))
 
   if (!Array.isArray(input.recipe_names)) {
     return {
-      names: rowNames,
+      pairs: rowPairs,
       complete: false
     }
   }
 
-  const names = input.recipe_names.filter(
-    (name): name is string => typeof name === 'string' && name.trim().length > 0
-  )
-  if (names.length !== input.recipe_names.length) {
+  const pairs = input.recipe_names
+    .map(toSnapshotPair)
+    .filter((pair): pair is RecipeNamePair => pair !== null)
+  if (pairs.length !== input.recipe_names.length) {
     return {
-      names: [...new Set([...names, ...rowNames])],
+      pairs: dedupePairs([...pairs, ...rowPairs]),
       complete: false
     }
   }
 
   return {
-    names,
+    pairs: dedupePairs(pairs),
     complete: input.recipe_names_complete === true
   }
 }

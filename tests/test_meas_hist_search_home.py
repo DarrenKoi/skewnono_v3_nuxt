@@ -77,21 +77,34 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
         self.assertIn("recipe_names", result)
         self.assertIn("recipe_names_complete", result)
         self.assertEqual(len(result["rows"]), 1)
+        # The snapshot must cover the FULL matching row set — as (name, fab)
+        # pairs — even though only one raw row was requested.
+        full = search_meas_hist(recipe=["CD_BIAS"], limit=10000)
         self.assertEqual(
             result["recipe_names"],
+            [
+                {"full_name": name, "fab_name": fab}
+                for name, fab in sorted(
+                    {(row["full_name"], row["fab_name"]) for row in full["rows"]}
+                )
+            ],
+        )
+        self.assertEqual(
+            sorted({entry["full_name"] for entry in result["recipe_names"]}),
             [
                 "ADI/ADI_CD_BIAS_001",
                 "ADI/ADI_CD_BIAS_ABC123_PROD_00006",
                 "ADI/ADI_CD_BIAS_ABC123_STD_00001",
             ],
         )
+        self.assertTrue(all(entry["fab_name"] for entry in result["recipe_names"]))
         self.assertTrue(result["recipe_names_complete"])
 
     def test_recipe_names_keep_the_broad_or_candidate_set_for_multiple_terms(self):
         result = search_meas_hist(recipe=["CD_BIAS", "GATE_PITCH"], limit=1)
 
         self.assertEqual(
-            result["recipe_names"],
+            sorted({entry["full_name"] for entry in result["recipe_names"]}),
             [
                 "ADI/ADI_CD_BIAS_001",
                 "ADI/ADI_CD_BIAS_ABC123_PROD_00006",

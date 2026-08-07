@@ -80,6 +80,7 @@ from back_dev_home.ebeam.hitachi._office_meas_hist import (
 from back_dev_home.meas_hist.contracts import (
     MeasHistFacetsResponse,
     MeasHistFacetValue,
+    MeasHistRecipeName,
     MeasHistResponse,
     MeasHistRow,
 )
@@ -113,6 +114,10 @@ _RECIPE_KW = "recipe_name.keyword"
 # buckets beyond `size`; the fleet has at most a few hundred eqp_ids and a
 # handful of fabs/models, so this is a ceiling, not a tuning knob.
 _FACET_SIZE = 1000
+
+# Cap for the per-recipe `fabs` terms sub-agg in the recipe_names snapshot —
+# comfortably above the fab count (about a dozen), same ceiling-not-knob idea.
+_RECIPE_FABS_SIZE = 16
 
 
 def _indices(tool_type: ToolType | None) -> str:
@@ -423,7 +428,7 @@ def search_meas_hist(
 
     total = 0
     rows: list[MeasHistRow] = []
-    recipe_names: list[str] = []
+    recipe_names: list[MeasHistRecipeName] = []
     recipe_terms = [value for value in (recipe or []) if value.strip()]
     recipe_names_complete = False
     if not out_of_retention:
@@ -466,13 +471,17 @@ def search_meas_hist(
         total = _total(result)
         rows = _rows(result, tool_type) if size > 0 else []
         if recipe_terms:
+            # A `fabs` terms sub-agg per full_name bucket — same pattern the
+            # recipe_tat/fail_issue office rankings use. The outer query
+            # already carries any fab filter, so the sub-agg only ever sees
+            # in-scope fabs.
             buckets = _composite_buckets(
                 _indices(tool_type),
                 _FULL_KW,
-                {},
+                {"fabs": {"terms": {"field": _FAB_KW, "size": _RECIPE_FABS_SIZE}}},
                 query,
             )
-            recipe_name_set: set[str] = set()
+            pair_set: set[tuple[str, str]] = set()
             for bucket_position, bucket in enumerate(buckets, start=1):
                 value = bucket["key"]["group"]
                 if not isinstance(value, str) or not value.strip():
@@ -482,8 +491,43 @@ def search_meas_hist(
                         "'key.group' must be a nonblank string; "
                         f"got {type(value).__name__}."
                     )
-                recipe_name_set.add(value.strip())
-            recipe_names = sorted(recipe_name_set)
+                full_name = value.strip()
+                fabs_agg = bucket.get("fabs")
+                if not isinstance(fabs_agg, dict) or not isinstance(
+                    fabs_agg.get("buckets"), list
+                ):
+                    raise RuntimeError(
+                        "OpenSearch full_name composite "
+                        f"bucket {bucket_position} for {_indices(tool_type)!r} "
+                        "is missing the 'fabs' terms sub-aggregation."
+                    )
+                fab_values: list[str] = []
+                for fab_position, fab_bucket in enumerate(
+                    fabs_agg["buckets"], start=1
+                ):
+                    fab_value = (
+                        fab_bucket.get("key")
+                        if isinstance(fab_bucket, dict)
+                        else None
+                    )
+                    if not isinstance(fab_value, str) or not fab_value.strip():
+                        raise RuntimeError(
+                            "OpenSearch full_name composite "
+                            f"bucket {bucket_position} fab bucket "
+                            f"{fab_position} for {_indices(tool_type)!r} "
+                            "'key' must be a nonblank string; "
+                            f"got {type(fab_value).__name__}."
+                        )
+                    fab_values.append(fab_value.strip())
+                # Docs with no fab_name at all (dirty office data) must not
+                # hide the recipe: keep the name discoverable with an empty
+                # fab — "owner unknown" per the contract.
+                for fab_value in fab_values or [""]:
+                    pair_set.add((full_name, fab_value))
+            recipe_names = [
+                MeasHistRecipeName(full_name=name, fab_name=fab)
+                for name, fab in sorted(pair_set)
+            ]
             recipe_names_complete = True
 
     return MeasHistSearchResponse(

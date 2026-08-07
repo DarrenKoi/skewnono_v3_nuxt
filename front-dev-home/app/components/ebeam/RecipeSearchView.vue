@@ -6,13 +6,14 @@ import {
   activeRecipeResults,
   isRecipeQueryEligible,
   matchesRecipeQuery,
-  matchingHistoryNames,
+  matchingHistoryPairs,
   normalizeRecipeNameSnapshot,
   rankRecipeMatches,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
   toRecipeSearchResults,
   tokenizeRecipeQuery,
+  type RecipeNamePair,
   type RecipeSearchResult
 } from '~/utils/recipeSearchMatch'
 import { buildFabSegment } from '~/utils/fab'
@@ -96,7 +97,7 @@ const redisMatchedRows = computed<RecipeSearchRow[]>(() => {
   return rankRecipeMatches(searchableRows.value, query.value)
 })
 
-const historyMatches = ref<string[]>([])
+const historyMatches = ref<RecipeNamePair[]>([])
 const fallbackPending = ref(false)
 const fallbackSettled = ref(false)
 const fallbackFailed = ref(false)
@@ -106,7 +107,7 @@ const redisResults = computed(() =>
   toRecipeSearchResults(redisMatchedRows.value, 'redis')
 )
 const fallbackResults = computed(() =>
-  toRecipeSearchResults(historyMatches.value.map(name => ({ recipe_name: name, fab_name: '' })), 'opensearch')
+  toRecipeSearchResults(historyMatches.value, 'opensearch')
 )
 const filteredRows = computed(() =>
   activeRecipeResults(redisResults.value, fallbackResults.value)
@@ -213,8 +214,9 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 // ~15 min fresh. When a 3+ char lookup matches nothing, probe measurement
 // history so a just-created recipe isn't mistaken for a typo.
 const HISTORY_PROBE_DEBOUNCE_MS = 600
-// Raw rows are irrelevant to fallback discovery. The additive recipe_names
-// contract returns the complete distinct full_name snapshot in one request.
+// Raw rows are irrelevant to fallback discovery. The recipe_names contract
+// returns the complete distinct (full_name, fab_name) snapshot in one
+// request, so fallback rows carry their owner fab like catalog rows do.
 const HISTORY_PROBE_RAW_LIMIT = 1
 
 const { searchMeasHist } = useMeasHistApi()
@@ -287,11 +289,11 @@ watch(historyProbeKey, (key) => {
       })
       if (seq !== historyProbeSeq) return
       const recipeNameSnapshot = normalizeRecipeNameSnapshot(response)
-      const matchedNames = matchingHistoryNames(recipeNameSnapshot.names, tokens)
-      const rankedNames = rankRecipeMatches(
-        matchedNames.map(name => ({
-          value: name,
-          searchText: name.trim().toLowerCase()
+      const matchedPairs = matchingHistoryPairs(recipeNameSnapshot.pairs, tokens)
+      const rankedPairs = rankRecipeMatches(
+        matchedPairs.map(pair => ({
+          value: pair,
+          searchText: pair.recipe_name.trim().toLowerCase()
         })),
         queryAtProbe
       )
@@ -299,8 +301,8 @@ watch(historyProbeKey, (key) => {
       // Same-scope Redis retries revalidate in the background but never erase
       // a previously usable fallback snapshot. A query/scope change or a Redis
       // match is the explicit invalidation boundary above.
-      if (!retainedResults || rankedNames.length) {
-        historyMatches.value = rankedNames
+      if (!retainedResults || rankedPairs.length) {
+        historyMatches.value = rankedPairs
         fallbackTruncated.value = incomplete
       } else if (incomplete) {
         fallbackTruncated.value = true

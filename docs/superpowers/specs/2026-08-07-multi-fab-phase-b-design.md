@@ -74,12 +74,13 @@ Phase 1의 지배 규약을 그대로 씁니다.
 - 행에 FAB 배지 표시 — 선택 FAB이 2개 이상일 때만. 배지 색은 `--sk-*`
   토큰만 사용하고 스타일은 DESIGN.md를 따릅니다.
 - OpenSearch fallback probe는 이미 리스트 인자(`fab: string[]`)를 받으므로
-  `fabs` 전체를 넘깁니다. 다만 probe가 실제로 소비하는 것은 meas-hist의
-  `recipe_names` 스냅샷이며, 이 스냅샷은 이름만 담을 뿐 FAB 정보를 담지
-  않습니다. 그 결과 fallback 행은 `fab_name: ''`으로 채워지고, 배지는
-  표시되지 않으며, 상세 라우트는 소유 FAB이 비어 있어 `primaryFab`으로
-  대체됩니다. FAB별로 태그하려면 스냅샷 자체를 (name, fab) 쌍으로 확장해야
-  하며, 이는 확정된 작업이 아니라 향후 검토 과제로 남겨 둡니다.
+  `fabs` 전체를 넘깁니다. probe가 소비하는 meas-hist `recipe_names`
+  스냅샷은 후속 작업(2026-08-08)에서 `{full_name, fab_name}` 쌍으로
+  확장되었습니다. 그 결과 fallback 행도 카탈로그 행과 동일하게 FAB 배지를
+  달고 소유 FAB 쿼리로 상세 라우팅됩니다. 이름만 담는 구형 office 어댑터가
+  응답하면 fab이 빈 문자열로 남아, 배지 없이 `primaryFab`으로 대체되는
+  기존 동작이 유지됩니다. 세부는 `back_dev_home/meas_hist/MIGRATION.md`를
+  참고합니다.
 - 목록은 지금도 클라이언트 페이지네이션(메모리 내 배열)이므로 2 FAB 시
   약 10만 행은 구조 변경 없이 수용합니다. 문자열 → 객체 행 전환에 따른
   렌더·필터 경로만 수정합니다.
@@ -199,10 +200,16 @@ feature 모두** 해당합니다 — ranking/카탈로그 집계 로직이 공�
 배포에서 재복사가 필요합니다. 부팅 로그의 `STALE office.py` 표시와
 `python -m scripts.sync_office_adapters`가 최종 판정입니다.
 
+후속 작업(2026-08-08)으로 **meas_hist도 재복사 대상에 추가**되었습니다 —
+`recipe_names` 스냅샷이 `{full_name, fab_name}` 쌍으로 확장되었기
+때문입니다(4.3절, `back_dev_home/meas_hist/MIGRATION.md` 참고).
+
 ## 11. 하지 않는 것
 
 - meas_hist·lateral_recipe 백엔드 변경 — 상세 화면이 소유 FAB 단일
-  조회를 유지하므로 불필요합니다.
+  조회를 유지하므로 불필요합니다. (후속 작업 2026-08-08: meas_hist의
+  `recipe_names` 스냅샷만 (name, fab) 쌍으로 확장 — 4.3절 참고. 상세
+  화면 조회 경로는 여전히 변경 없음.)
 - 구 selection·recent localStorage 키 마이그레이션 — 방치해도 무해합니다.
 - FAB별 시리즈 분리 차트, 사이드바 즐겨찾기 필터(Phase 1에서 제외 확정).
 - skew-check·pm-planning의 다중 FAB.
