@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
 
-const { toolType, fab, favorites, navigateToToolType, navigateToFab } = useNavigation()
+const { toolType, fab, fabs, favorites, navigateToToolType, navigateToFab, toggleFab } = useNavigation()
 const { toolTypes } = useToolData()
 
 const SIDEBAR_COLLAPSED_KEY = 'skewnono:fabSidebar.collapsed'
@@ -30,8 +30,15 @@ const fabNames = computed(() => extractFabNames(semRows.value ?? []))
 const fabItems = computed(() => fabNames.value.map(name => ({
   id: name,
   label: name,
-  active: fab.value === name
+  active: fabs.value.includes(name),
+  primary: fab.value === name
 })))
+
+// 일반 클릭 = 단독 선택(기존 습관 유지), Cmd/Ctrl+클릭 = 추가·제거.
+const onFabClick = (event: MouseEvent, id: string) => {
+  if (event.metaKey || event.ctrlKey) toggleFab(id)
+  else navigateToFab(id)
+}
 
 const countsByToolType = computed(() => {
   const counts = new Map<string, number>()
@@ -173,31 +180,54 @@ const activeToolLabel = computed(() =>
         class="border-t border-zinc-200/70 dark:border-zinc-800/70 my-2"
       />
 
-      <button
+      <div
         v-for="item in fabItems"
         :key="item.id"
-        :aria-label="sidebarCollapsed ? item.label : undefined"
-        :aria-pressed="item.active"
-        :title="sidebarCollapsed ? item.label : undefined"
-        type="button"
-        class="relative flex items-center rounded-lg cursor-pointer transition-all duration-200 w-full"
+        class="group/fab relative flex items-center rounded-lg transition-all duration-200 w-full"
         :class="[
-          sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-1.5',
           item.active
             ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-fab-active'
-            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800',
+          item.active && !item.primary ? 'opacity-85' : ''
         ]"
-        @click="navigateToFab(item.id)"
       >
-        <span
+        <button
+          :aria-label="sidebarCollapsed ? item.label : undefined"
+          :aria-pressed="item.active"
+          :title="sidebarCollapsed ? `${item.label} (Cmd/Ctrl+클릭: 추가 선택)` : undefined"
+          type="button"
+          class="flex items-center flex-1 min-w-0 cursor-pointer"
+          :class="sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-1.5'"
+          @click="onFabClick($event, item.id)"
+        >
+          <span
+            v-if="!sidebarCollapsed"
+            class="text-sm font-semibold tracking-wide tabular-nums truncate"
+          >{{ item.label }}</span>
+          <span
+            v-else
+            class="text-[11px] font-semibold tracking-tight"
+          >{{ item.label }}</span>
+        </button>
+        <button
           v-if="!sidebarCollapsed"
-          class="text-sm font-semibold tracking-wide tabular-nums truncate"
-        >{{ item.label }}</span>
-        <span
-          v-else
-          class="text-[11px] font-semibold tracking-tight"
-        >{{ item.label }}</span>
-      </button>
+          type="button"
+          role="checkbox"
+          :aria-checked="item.active"
+          :aria-label="`${item.label} 다중 선택 토글`"
+          class="mr-2 flex items-center justify-center w-4 h-4 rounded border transition-colors shrink-0"
+          :class="item.active
+            ? 'bg-white/20 border-white/40 dark:bg-zinc-900/20 dark:border-zinc-900/40 opacity-100'
+            : 'border-(--sk-border-soft) opacity-0 group-hover/fab:opacity-100'"
+          @click.stop="toggleFab(item.id)"
+        >
+          <UIcon
+            v-if="item.active"
+            name="i-lucide-check"
+            class="w-3 h-3"
+          />
+        </button>
+      </div>
     </nav>
   </aside>
 </template>
