@@ -24,7 +24,7 @@ def fail_issue_summary(tool_slug: str):
 
     return jsonify(get_summary(
         scope.tool_type,
-        scope.fab_name,
+        scope.fab_names or None,
         scope.start_date,
         scope.end_date,
         lot_cd=scope.lot_cd,
@@ -39,14 +39,14 @@ def fail_issue_daily_trend(tool_slug: str):
 
     points = get_daily_trend(
         scope.tool_type,
-        scope.fab_name,
+        scope.fab_names or None,
         scope.start_date,
         scope.end_date,
         lot_cd=scope.lot_cd,
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_name": scope.fab_name,
+        "fab_names": list(scope.fab_names),
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "lot_cd": scope.lot_cd,
@@ -62,7 +62,7 @@ def fail_issue_align_ranking(tool_slug: str):
 
     rows = get_align_ranking(
         scope.tool_type,
-        scope.fab_name,
+        scope.fab_names or None,
         scope.start_date,
         scope.end_date,
         limit=scope.limit,
@@ -70,7 +70,7 @@ def fail_issue_align_ranking(tool_slug: str):
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_name": scope.fab_name,
+        "fab_names": list(scope.fab_names),
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "limit": scope.limit,
@@ -87,7 +87,7 @@ def fail_issue_meas_ranking(tool_slug: str):
 
     rows = get_meas_ranking(
         scope.tool_type,
-        scope.fab_name,
+        scope.fab_names or None,
         scope.start_date,
         scope.end_date,
         limit=scope.limit,
@@ -95,7 +95,7 @@ def fail_issue_meas_ranking(tool_slug: str):
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_name": scope.fab_name,
+        "fab_names": list(scope.fab_names),
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "limit": scope.limit,
@@ -112,13 +112,13 @@ def fail_issue_devices(tool_slug: str):
 
     devices = get_devices(
         scope.tool_type,
-        scope.fab_name,
+        scope.fab_names or None,
         scope.start_date,
         scope.end_date,
     )
     return jsonify({
         "tool_type": scope.tool_type,
-        "fab_name": scope.fab_name,
+        "fab_names": list(scope.fab_names),
         "start_date": scope.start_date,
         "end_date": scope.end_date,
         "devices": devices

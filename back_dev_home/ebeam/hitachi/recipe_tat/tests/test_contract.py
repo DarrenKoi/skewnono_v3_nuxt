@@ -30,8 +30,8 @@ def _default_scope():
 
 
 def test_get_ranking_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    rows = data.get_ranking(tool_type, fab_name, start_date, end_date, limit=0, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    rows = data.get_ranking(tool_type, fab_names, start_date, end_date, limit=0, lot_cd=None)
     assert isinstance(rows, list)
     for row in rows:
         assert_matches(row, RankingRow)
@@ -40,9 +40,9 @@ def test_get_ranking_matches_contract():
 def test_get_ranking_limit_zero_is_uncapped():
     # limit=0 (the route default) must return EVERY recipe in the range —
     # a positive limit trims the same, fully-sorted ranking from the top.
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    everything = data.get_ranking(tool_type, fab_name, start_date, end_date, limit=0, lot_cd=None)
-    top = data.get_ranking(tool_type, fab_name, start_date, end_date, limit=5, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    everything = data.get_ranking(tool_type, fab_names, start_date, end_date, limit=0, lot_cd=None)
+    top = data.get_ranking(tool_type, fab_names, start_date, end_date, limit=5, lot_cd=None)
     assert len(top) <= 5
     assert len(everything) >= len(top)
     if get_data_provider("recipe_tat") == "mock":
@@ -64,24 +64,24 @@ def test_office_get_meas_hist_is_intentionally_disconnected():
 
 
 def test_get_summary_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
+    tool_type, fab_names, start_date, end_date = _default_scope()
     assert_matches(
-        data.get_summary(tool_type, fab_name, start_date, end_date, lot_cd=None),
+        data.get_summary(tool_type, fab_names, start_date, end_date, lot_cd=None),
         SummaryPayload,
     )
 
 
 def test_get_daily_trend_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    points = data.get_daily_trend(tool_type, fab_name, start_date, end_date, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    points = data.get_daily_trend(tool_type, fab_names, start_date, end_date, lot_cd=None)
     assert isinstance(points, list)
     for point in points:
         assert_matches(point, DailyTrendPoint)
 
 
 def test_get_devices_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    devices = data.get_devices(tool_type, fab_name, start_date, end_date)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    devices = data.get_devices(tool_type, fab_names, start_date, end_date)
     assert isinstance(devices, list)
     for device in devices:
         assert_matches(device, DeviceRow)

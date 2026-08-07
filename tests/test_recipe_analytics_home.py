@@ -52,10 +52,10 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         self.assertEqual(ranking["limit"], 3)
         self.assertLessEqual(len(ranking["rows"]), 3)
         self.assertEqual(set(trend), {
-            "tool_type", "fab_name", "start_date", "end_date", "lot_cd", "points"
+            "tool_type", "fab_names", "start_date", "end_date", "lot_cd", "points"
         })
         self.assertEqual(set(devices), {
-            "tool_type", "fab_name", "start_date", "end_date", "devices"
+            "tool_type", "fab_names", "start_date", "end_date", "devices"
         })
 
     def test_fail_issue_routes_keep_their_wire_shapes(self):
@@ -111,6 +111,23 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
 
         self.assertGreater(summary["total_executions"], 0)
         self.assertGreater(fail_summary["total_executions"], 0)
+
+    def test_comma_fab_names_filter_as_a_union(self):
+        r3 = self.client.get(
+            "/api/cdsem/recipe-tat/ranking?fab_name=R3"
+        ).get_json()
+        both = self.client.get(
+            "/api/cdsem/recipe-tat/ranking?fab_name=R3,M16B"
+        ).get_json()
+        self.assertEqual(both["fab_names"], ["R3", "M16B"])
+        # Union: the combined pool covers at least the single-fab pool.
+        self.assertGreaterEqual(len(both["rows"]), len(r3["rows"]))
+
+    def test_fail_issue_summary_echoes_fab_names_list(self):
+        summary = self.client.get(
+            "/api/cdsem/fail-issue/summary?fab_name=r3,m16b"
+        ).get_json()
+        self.assertEqual(summary["fab_names"], ["R3", "M16B"])
 
     # Split in two, each guarded on its own feature: a checkout can have
     # recipe_tat wired and fail_issue not, so the two cannot share one skipIf.

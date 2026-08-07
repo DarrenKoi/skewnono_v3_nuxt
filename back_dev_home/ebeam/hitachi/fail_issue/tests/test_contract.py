@@ -68,8 +68,8 @@ def _assert_triage_table(rows, count_key: str, rate_key: str) -> None:
 
 
 def test_get_summary_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    summary = data.get_summary(tool_type, fab_name, start_date, end_date, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    summary = data.get_summary(tool_type, fab_names, start_date, end_date, lot_cd=None)
     assert_matches(summary, SummaryPayload)
 
     # Counting laws, true of any correct aggregator: a fail is one of the
@@ -90,8 +90,8 @@ def test_get_summary_matches_contract():
 
 
 def test_get_daily_trend_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    points = data.get_daily_trend(tool_type, fab_name, start_date, end_date, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    points = data.get_daily_trend(tool_type, fab_names, start_date, end_date, lot_cd=None)
     assert isinstance(points, list)
     for point in points:
         assert_matches(point, DailyTrendPoint)
@@ -113,8 +113,8 @@ def test_get_daily_trend_matches_contract():
 
 
 def test_get_align_ranking_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    rows = data.get_align_ranking(tool_type, fab_name, start_date, end_date, limit=1000, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    rows = data.get_align_ranking(tool_type, fab_names, start_date, end_date, limit=1000, lot_cd=None)
     assert isinstance(rows, list)
     for row in rows:
         assert_matches(row, AlignRankingRow)
@@ -129,8 +129,8 @@ def test_get_align_ranking_matches_contract():
 
 
 def test_get_meas_ranking_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    rows = data.get_meas_ranking(tool_type, fab_name, start_date, end_date, limit=1000, lot_cd=None)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    rows = data.get_meas_ranking(tool_type, fab_names, start_date, end_date, limit=1000, lot_cd=None)
     assert isinstance(rows, list)
     for row in rows:
         assert_matches(row, MeasRankingRow)
@@ -147,8 +147,8 @@ def test_get_meas_ranking_matches_contract():
 
 
 def test_get_devices_matches_contract():
-    tool_type, fab_name, start_date, end_date = _default_scope()
-    devices = data.get_devices(tool_type, fab_name, start_date, end_date)
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    devices = data.get_devices(tool_type, fab_names, start_date, end_date)
     assert isinstance(devices, list)
     for device in devices:
         assert_matches(device, DeviceRow)

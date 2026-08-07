@@ -24,6 +24,10 @@ NOTE: `_lot_index` is currently sourced from `cdsem.device_statistics`.
 HV-SEM responses derived from this data layer reuse the CD-SEM mock lot
 index until an HV-SEM-specific lot pool is introduced — acceptable for
 mock-only Phase 1 since no HV-SEM frontend currently calls these endpoints.
+
+Multi-fab filtering (`fab_names`) is a case-insensitive set union — a row
+passes if its `fab_name` matches ANY entry; an empty tuple or `None` means
+no fab filter at all.
 """
 
 import random
@@ -318,7 +322,7 @@ def get_meas_hist() -> list[MeasHistRow]:
 @lru_cache(maxsize=256)
 def _filter_rows(
     tool_type: ToolType | None,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
@@ -327,22 +331,23 @@ def _filter_rows(
     # filter args. Memoizing here cuts the 6000-row scan from 3× to 1× per
     # unique window. Sized for ~tool_type × fab × preset_window × lot_cd —
     # keeps the unfiltered (lot_cd=None) entry warm even when the user
-    # cycles through many devices.
+    # cycles through many devices. `fab_names` must be a tuple (hashable),
+    # never a list — lru_cache requires hashable arguments.
     return filter_measurements(
         _generate_meas_hist(),
-        MeasurementScope(tool_type, fab_name, start_date, end_date, lot_cd),
+        MeasurementScope(tool_type, fab_names, start_date, end_date, lot_cd),
     )
 
 
 def get_ranking(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     limit: int = 0,
     lot_cd: str | None = None
 ) -> list[RankingRow]:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
@@ -396,12 +401,12 @@ def get_ranking(
 
 def get_summary(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
 ) -> SummaryPayload:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     total_executions = len(rows)
     total_tat_seconds = sum(row["meastime"] for row in rows)
@@ -410,7 +415,7 @@ def get_summary(
 
     return {
         "tool_type": tool_type,
-        "fab_name": fab_name,
+        "fab_names": list(fab_names or []),
         "start_date": start_date,
         "end_date": end_date,
         "anchor_date": ANCHOR_TIME.date().isoformat(),
@@ -423,12 +428,12 @@ def get_summary(
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
 ) -> list[DailyTrendPoint]:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     bucket: dict[str, dict] = {}
     for row in rows:
@@ -460,7 +465,7 @@ def get_daily_trend(
 
 def get_devices(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None
 ) -> list[DeviceRow]:
@@ -470,7 +475,7 @@ def get_devices(
     devices that actually have data in the window keeps the picker honest
     (no zero-result chips).
     """
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date)
     metadata = lot_metadata()
 
     bucket: dict[str, dict] = {}

@@ -22,6 +22,10 @@ and avoids generating a parallel 6000-row dataset.
 읽어와 동일한 집계 (count, rate, daily series) 를 수행해야 합니다.
 MEAS_FAIL_THRESHOLD 의 값은 YAML 계약에 명시되어 있으므로 임의로
 변경하지 마세요 — Phase 1/2 간 수치가 어긋날 수 있습니다.
+
+Multi-fab filtering (`fab_names`) is a case-insensitive set union — a row
+passes if its `fab_name` matches ANY entry; an empty tuple or `None` means
+no fab filter at all.
 """
 
 import random
@@ -192,7 +196,7 @@ def _all_fail_rows() -> tuple[FailRow, ...]:
 @lru_cache(maxsize=256)
 def _filter_rows(
     tool_type: ToolType | None,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
@@ -200,9 +204,11 @@ def _filter_rows(
     # Each page load hits summary + daily-trend + align-ranking +
     # meas-ranking with the same filter args. Memoizing here means the
     # 6000-row scan runs once per unique window instead of four times.
+    # `fab_names` must be a tuple (hashable), never a list — lru_cache
+    # requires hashable arguments.
     return filter_measurements(
         _all_fail_rows(),
-        MeasurementScope(tool_type, fab_name, start_date, end_date, lot_cd),
+        MeasurementScope(tool_type, fab_names, start_date, end_date, lot_cd),
     )
 
 
@@ -222,12 +228,12 @@ def _is_meas_fail(row: FailRow) -> bool:
 
 def get_summary(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
 ) -> SummaryPayload:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     total = len(rows)
     align_fails = sum(1 for r in rows if _is_align_fail(r))
@@ -239,7 +245,7 @@ def get_summary(
 
     return {
         "tool_type": tool_type,
-        "fab_name": fab_name,
+        "fab_names": list(fab_names or []),
         "start_date": start_date,
         "end_date": end_date,
         "anchor_date": ANCHOR_TIME.date().isoformat(),
@@ -258,12 +264,12 @@ def get_summary(
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None
 ) -> list[DailyTrendPoint]:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     bucket: dict[str, dict[str, int]] = {}
     for row in rows:
@@ -307,13 +313,13 @@ def get_daily_trend(
 
 def get_align_ranking(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     limit: int = 0,
     lot_cd: str | None = None
 ) -> list[AlignRankingRow]:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
@@ -362,13 +368,13 @@ def get_align_ranking(
 
 def get_meas_ranking(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     limit: int = 0,
     lot_cd: str | None = None
 ) -> list[MeasRankingRow]:
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date, lot_cd)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date, lot_cd)
 
     grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
@@ -420,7 +426,7 @@ def get_meas_ranking(
 
 def get_devices(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None
 ) -> list[DeviceRow]:
@@ -430,7 +436,7 @@ def get_devices(
     strip surfaces the most-problematic devices first — matches the
     intent of the 디바이스별 view ("which device should I look at?").
     """
-    rows = _filter_rows(tool_type, fab_name, start_date, end_date)
+    rows = _filter_rows(tool_type, fab_names, start_date, end_date)
     metadata = lot_metadata()
 
     bucket: dict[str, dict] = {}

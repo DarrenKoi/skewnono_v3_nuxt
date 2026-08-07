@@ -23,7 +23,7 @@ DEFAULT_LIMIT = 0
 @dataclass(frozen=True)
 class AnalyticsRequestScope:
     tool_type: ToolType
-    fab_name: str | None
+    fab_names: tuple[str, ...]
     start_date: str
     end_date: str
     lot_cd: str | None
@@ -51,7 +51,11 @@ def resolve_analytics_scope(
 
     return AnalyticsRequestScope(
         tool_type=tool_type,
-        fab_name=(request.args.get("fab_name") or "").strip() or None,
+        fab_names=tuple(
+            part.strip().upper()
+            for part in (request.args.get("fab_name") or "").split(",")
+            if part.strip()
+        ),
         start_date=start_date,
         end_date=end_date,
         lot_cd=(request.args.get("lot_cd") or "").strip() or None,

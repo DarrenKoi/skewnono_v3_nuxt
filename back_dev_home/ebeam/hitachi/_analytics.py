@@ -20,7 +20,7 @@ RowT = TypeVar("RowT", bound=Mapping[str, object])
 @dataclass(frozen=True)
 class MeasurementScope:
     tool_type: ToolType | None
-    fab_name: str | None
+    fab_names: tuple[str, ...] | None
     start_date: str | None
     end_date: str | None
     lot_cd: str | None = None
@@ -47,13 +47,15 @@ def filter_measurements(
     scope: MeasurementScope,
 ) -> tuple[RowT, ...]:
     """Apply the shared tool/fab/lot/date semantics to measurement rows."""
-    fab_norm = scope.fab_name.upper() if scope.fab_name else None
+    fab_norms = (
+        {fab.upper() for fab in scope.fab_names} if scope.fab_names else None
+    )
     out: list[RowT] = []
 
     for row in rows:
         if scope.tool_type and row["tool_type"] != scope.tool_type:
             continue
-        if fab_norm and str(row["fab_name"]).upper() != fab_norm:
+        if fab_norms and str(row["fab_name"]).upper() not in fab_norms:
             continue
         if scope.lot_cd and row["lot_cd"] != scope.lot_cd:
             continue

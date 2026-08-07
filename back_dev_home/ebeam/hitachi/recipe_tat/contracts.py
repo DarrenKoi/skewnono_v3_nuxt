@@ -51,7 +51,7 @@ class RankingRow(TypedDict):
 
 class SummaryPayload(TypedDict):
     tool_type: ToolType
-    fab_name: str | None
+    fab_names: list[str]
     start_date: str | None
     end_date: str | None
     # `anchor_date` reports the latest UTC date for which the underlying
