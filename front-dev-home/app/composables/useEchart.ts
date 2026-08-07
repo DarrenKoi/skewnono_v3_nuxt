@@ -116,6 +116,19 @@ export const useEchart = (
   let chart: ECharts | null = null
   let sizeObserver: ResizeObserver | null = null
   let dlButton: HTMLButtonElement | null = null
+  // Set by bindGridHover; null until a caller opts into hover picking.
+  let resetHover: (() => void) | null = null
+
+  // Before a dispose. `resetHover` cancels the pending frame — which matters
+  // because `resolve` closes over the OUTER `chart`, so a frame left scheduled
+  // across a dispose + re-init (the theme swap does both synchronously) would
+  // wake up, find the REPLACEMENT chart in that variable, and dispatch against
+  // it using pixels measured on the old one. Dropping the reference too keeps a
+  // dead closure from being reachable after bindGridHover installs a fresh one.
+  const releaseHover = () => {
+    resetHover?.()
+    resetHover = null
+  }
 
   const bindClick = () => {
     const callback = options.onClick
@@ -213,6 +226,18 @@ export const useEchart = (
     let frame = 0
     let shown: { seriesIndex: number, dataIndex: number } | null = null
 
+    // Drop every trace of an in-flight hover. Published so the paths that
+    // invalidate the tooltip from OUTSIDE this binding can call it — see
+    // `resetHover` below for why each of them has to.
+    resetHover = () => {
+      pending = null
+      if (frame) {
+        cancelAnimationFrame(frame)
+        frame = 0
+      }
+      shown = null
+    }
+
     const resolve = () => {
       frame = 0
       const at = pending
@@ -244,15 +269,8 @@ export const useEchart = (
     // Leaving the canvas entirely never produces a mousemove inside a grid, so
     // without this the last tooltip would stay pinned after the pointer is gone.
     chart.getZr().on('globalout', () => {
-      pending = null
-      if (frame) {
-        cancelAnimationFrame(frame)
-        frame = 0
-      }
-      if (shown && chart) {
-        chart.dispatchAction({ type: 'hideTip' })
-        shown = null
-      }
+      if (shown && chart) chart.dispatchAction({ type: 'hideTip' })
+      resetHover?.()
     })
   }
 
@@ -326,6 +344,7 @@ export const useEchart = (
   // button); when a fresh element mounts, init against the new node.
   watch(elRef, (next, prev) => {
     if (prev && prev !== next) {
+      releaseHover()
       chart?.dispose()
       chart = null
       unmountDownloadButton()
@@ -342,6 +361,14 @@ export const useEchart = (
     if (!chart) return
     const live = (chart.getOption() as { dataZoom?: ZoomWindow[] }).dataZoom
     chart.setOption(withPreservedZoom(next, live), true)
+    // The rebuild dismisses whatever tooltip was on screen, so the hover
+    // binding's memory of "I am showing datum N" is now a lie. Left standing, a
+    // pointer that has not moved gets no fresh mousemove to correct it, and the
+    // next one that resolves to the SAME datum is deduped away — so the tooltip
+    // stays gone until the reader happens to cross a different point. Clicking a
+    // trend point does exactly this: it moves the focus, which rebuilds the
+    // sequence chart's option under a cursor that never left the canvas.
+    resetHover?.()
   })
 
   // ECharts binds a theme at init time; swapping themes requires dispose +
@@ -350,6 +377,7 @@ export const useEchart = (
   // rather than assumed to persist.
   watch(themeId, () => {
     if (!elRef.value) return
+    releaseHover()
     chart?.dispose()
     chart = null
     unmountDownloadButton()
@@ -357,6 +385,7 @@ export const useEchart = (
   })
 
   onBeforeUnmount(() => {
+    releaseHover()
     sizeObserver?.disconnect()
     sizeObserver = null
     unmountDownloadButton()
