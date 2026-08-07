@@ -4,7 +4,7 @@ export type FailIssueToolType = 'cd-sem' | 'hv-sem'
 
 export interface FailIssueSummary {
   tool_type: FailIssueToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string | null
   end_date: string | null
   // Latest UTC date the backend has data for. Used as the date-picker's
@@ -34,7 +34,7 @@ export interface FailIssueDailyTrendPoint {
 
 export interface FailIssueDailyTrendResponse {
   tool_type: FailIssueToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   lot_cd: string | null
@@ -54,7 +54,7 @@ export interface FailIssueAlignRow {
 
 export interface FailIssueAlignRankingResponse {
   tool_type: FailIssueToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   limit: number
@@ -76,7 +76,7 @@ export interface FailIssueMeasRow {
 
 export interface FailIssueMeasRankingResponse {
   tool_type: FailIssueToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   limit: number
@@ -95,7 +95,7 @@ export interface FailIssueDeviceRow {
 
 export interface FailIssueDevicesResponse {
   tool_type: FailIssueToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   devices: FailIssueDeviceRow[]
@@ -103,7 +103,7 @@ export interface FailIssueDevicesResponse {
 
 export interface FailIssueQuery {
   toolType: FailIssueToolType
-  fabName?: string
+  fabNames?: string[]
   startDate?: string
   endDate?: string
   limit?: number
@@ -114,7 +114,7 @@ const buildQuery = (params: FailIssueQuery) => {
   const query: Record<string, string> = {}
   if (params.startDate) query.start_date = params.startDate
   if (params.endDate) query.end_date = params.endDate
-  if (params.fabName) query.fab_name = params.fabName
+  if (params.fabNames?.length) query.fab_name = params.fabNames.join(',')
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
   return query
@@ -171,7 +171,7 @@ export const useFailIssueApi = () => {
     // (this endpoint is the source of truth for which lot_cds exist).
     const scope: FailIssueQuery = {
       toolType: params.toolType,
-      fabName: params.fabName,
+      fabNames: params.fabNames,
       startDate: params.startDate,
       endDate: params.endDate
     }

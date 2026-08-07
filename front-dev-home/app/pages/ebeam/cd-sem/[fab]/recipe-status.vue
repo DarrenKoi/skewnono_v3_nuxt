@@ -1,11 +1,11 @@
 <template>
   <EbeamRecipeStatusView
-    :fab="primaryFab"
+    :fabs="fabs"
     tool-label="CD-SEM"
     tool-type="cd-sem"
   />
 </template>
 
 <script setup lang="ts">
-const { primaryFab } = useFabRoute('cd-sem')
+const { fabs } = useFabRoute('cd-sem')
 </script>

@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-3">
     <EbeamMetaBar
-      :eyebrow="`${toolLabel} · ${fab}`"
+      :eyebrow="`${toolLabel} · ${fabs.join(' + ')}`"
       title="Recipe 현황"
     >
       <template #toggle>
@@ -40,14 +40,14 @@
         <EbeamRecipeTatView
           v-if="activeTab === 'tat'"
           v-model:include-today="includeToday"
-          :fab="fab"
+          :fabs="fabs"
           :tool-label="toolLabel"
           :tool-type="toolType"
         />
         <EbeamFailIssueView
           v-else
           v-model:include-today="includeToday"
-          :fab="fab"
+          :fabs="fabs"
           :tool-label="toolLabel"
           :tool-type="toolType"
           :section="activeTab"
@@ -66,7 +66,7 @@ import type { FailIssueToolType } from '~/composables/useFailIssueApi'
 import { matchFeatureFromPath } from '~/utils/features'
 
 defineProps<{
-  fab: string
+  fabs: string[]
   toolLabel: string
   toolType: FailIssueToolType
 }>()

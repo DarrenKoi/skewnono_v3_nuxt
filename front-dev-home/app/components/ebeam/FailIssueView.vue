@@ -229,7 +229,7 @@
           <template #actions-cell="{ row }">
             <EbeamRecipeRowActions
               :tool-type="toolType"
-              :fab="fab"
+              :fab="primaryFab"
               :recipe-name="row.original.recipe_name"
             />
           </template>
@@ -252,7 +252,7 @@
           <template #actions-cell="{ row }">
             <EbeamRecipeRowActions
               :tool-type="toolType"
-              :fab="fab"
+              :fab="primaryFab"
               :recipe-name="row.original.recipe_name"
             />
           </template>
@@ -280,9 +280,10 @@ import {
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
+import { DEFAULT_FAB } from '~/utils/fab'
 
 const props = defineProps<{
-  fab: string
+  fabs: string[]
   toolLabel: string
   toolType: FailIssueToolType
   // Which failure aspect to render — the merged Recipe 현황 page shows each
@@ -294,7 +295,11 @@ const includeToday = defineModel<boolean>('includeToday', { required: true })
 
 const sk = useChartPalette()
 
-const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
+const identity = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
+
+// Recipe detail screens are still a single-fab registry until Phase B, so the
+// row-actions link needs one representative fab rather than the full union.
+const primaryFab = computed(() => props.fabs[0] ?? DEFAULT_FAB)
 const showAlign = computed(() => props.section === 'align')
 const showMeas = computed(() => props.section === 'meas')
 const viewTitle = computed(() => props.section === 'align' ? 'Align Fail' : 'Meas Fail')
@@ -337,7 +342,7 @@ const {
 
 const queryParams = computed(() => ({
   toolType: props.toolType,
-  fabName: props.fab || undefined,
+  fabNames: props.fabs.length > 0 ? props.fabs : undefined,
   startDate: userDateRange.value.start || undefined,
   endDate: userDateRange.value.end || undefined,
   // No limit: the backend treats an omitted/0 limit as "all rows in range".
@@ -345,7 +350,7 @@ const queryParams = computed(() => ({
 }))
 
 const cacheKey = computed(
-  () => `fail-issue:${queryParams.value.toolType}:${queryParams.value.fabName ?? 'ALL'}`
+  () => `fail-issue:${queryParams.value.toolType}:${queryParams.value.fabNames?.join(',') ?? 'ALL'}`
     + `:${queryParams.value.startDate ?? 'auto'}:${queryParams.value.endDate ?? 'auto'}`
     + `:${queryParams.value.lotCd ?? '*'}`
 )
@@ -368,7 +373,7 @@ const { data, status } = await useAsyncData(
 // source of truth for which lot_cds exist in scope, so a current selection
 // must not filter the picker itself.
 const devicesCacheKey = computed(
-  () => `fail-issue-devices:${queryParams.value.toolType}:${queryParams.value.fabName ?? 'ALL'}`
+  () => `fail-issue-devices:${queryParams.value.toolType}:${queryParams.value.fabNames?.join(',') ?? 'ALL'}`
     + `:${queryParams.value.startDate ?? 'auto'}:${queryParams.value.endDate ?? 'auto'}`
 )
 const { data: devicesData } = await useAsyncData(
@@ -658,7 +663,7 @@ const measColumns: TableColumn<FailIssueMeasRow>[] = [
 
 const exportFileBase = computed(() => {
   const today = new Date().toISOString().slice(0, 10)
-  const fab = (props.fab || 'all').toLowerCase()
+  const fab = (props.fabs.join('+') || 'all').toLowerCase()
   return `${props.toolType}-${fab}-fail-issue-${today}`
 })
 

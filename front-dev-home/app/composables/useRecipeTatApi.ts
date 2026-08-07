@@ -16,7 +16,7 @@ export interface RecipeTatRow {
 
 export interface RecipeTatRankingResponse {
   tool_type: RecipeTatToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   // Echo of the requested cap. 0 means uncapped — the backend returned every
@@ -27,7 +27,7 @@ export interface RecipeTatRankingResponse {
 
 export interface RecipeTatSummary {
   tool_type: RecipeTatToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string | null
   end_date: string | null
   // Latest UTC date for which the backend has data. The popover uses this
@@ -48,7 +48,7 @@ export interface RecipeTatDailyTrendPoint {
 
 export interface RecipeTatDailyTrendResponse {
   tool_type: RecipeTatToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   points: RecipeTatDailyTrendPoint[]
@@ -66,7 +66,7 @@ export interface RecipeTatDeviceRow {
 
 export interface RecipeTatDevicesResponse {
   tool_type: RecipeTatToolType
-  fab_name: string | null
+  fab_names: string[]
   start_date: string
   end_date: string
   devices: RecipeTatDeviceRow[]
@@ -74,7 +74,7 @@ export interface RecipeTatDevicesResponse {
 
 export interface RecipeTatQuery {
   toolType: RecipeTatToolType
-  fabName?: string
+  fabNames?: string[]
   // Both bounds optional. When omitted, the backend defaults to the last
   // 14 days ending at its data-anchor date — clients should prefer that
   // over guessing wall-clock today, which can drift past the mock ceiling.
@@ -92,7 +92,7 @@ const buildQuery = (params: RecipeTatQuery) => {
   }
   if (params.startDate) query.start_date = params.startDate
   if (params.endDate) query.end_date = params.endDate
-  if (params.fabName) query.fab_name = params.fabName
+  if (params.fabNames?.length) query.fab_name = params.fabNames.join(',')
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
   return query
@@ -145,7 +145,7 @@ export const useRecipeTatApi = () => {
     // shared query object without polluting the request.
     const scope: RecipeTatQuery = {
       toolType: params.toolType,
-      fabName: params.fabName,
+      fabNames: params.fabNames,
       startDate: params.startDate,
       endDate: params.endDate
     }
