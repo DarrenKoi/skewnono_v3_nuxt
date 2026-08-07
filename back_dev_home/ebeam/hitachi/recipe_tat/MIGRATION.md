@@ -218,11 +218,18 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/equipments
 
-The office adapter is **not connected yet** — `providers/office_example.py` holds
-an arity-only stub raising `NotImplementedError`. The composite aggregation that
-fills it in is a separate task; this section records only what the office
-implementer must check first. The contract (`EquipmentsPayload`, `EquipmentRow`,
-`FleetReference`) is already in `contracts.py`.
+- Handler: `routes.py` → `data.get_equipments(scope.tool_type, scope.fab_names,
+  scope.start_date, scope.end_date)`. Contract: `EquipmentsPayload`
+  (`EquipmentRow`, `FleetReference`) in `contracts.py`.
+- Office data source: **one** `composite` aggregation with **four** sources —
+  `[eqp_id.keyword, fab_name.keyword, eqp_model_cd.keyword, full_name.keyword]`,
+  named `eqp` / `fab` / `model` / `recipe` — plus a `sum(meastime)` sub-agg,
+  walked page by page exactly like `/ranking` and `/devices`. Per bucket:
+  `doc_count` → `meas_counts`, `sum(meastime)` → `total_meastime`.
+- 버킷 수는 대략 (장비 수 × 레시피 수)입니다. `fab_name`과 `eqp_model_cd`는
+  `eqp_id`에 **함수 종속**이라 버킷을 곱하지 않습니다 — 그래서 네 소스를 한
+  번에 묶는 편이 버킷마다 `top_hits`로 문서를 하나씩 더 읽는 것보다
+  쌉니다. 카티전 폭발로 오해하고 `top_hits`로 "최적화"하지 마십시오.
 
 Both providers MUST call
 `providers/_shape.build_equipments_payload(tool_type, fab_names, start_date,
@@ -250,17 +257,34 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
   distribution: set too high, the column is all `—`; too low, noise gets a badge.
 - **OFFICE-VERIFY — `eqp_model_cd.keyword`.** `docs/datatables/meas_hist.txt`
   records `eqp_model_cd` as `text`; whether the `.keyword` sub-field needed to
-  aggregate on it exists is unconfirmed.
+  aggregate on it exists is unconfirmed. 이것이 **첫 실행에서 확인할 첫 번째
+  항목**입니다: 없으면 composite 이 `illegal_argument_exception`으로 즉시
+  실패합니다(조용히 틀리지는 않습니다). 없을 때의 대처는 `model` 소스를 빼고
+  모델을 다른 경로로 되찾는 것입니다 — 버킷당 `top_hits`(size 1, `_source:
+  ["eqp_model_cd"]`) 또는 sem_list 의 장비 카탈로그 조인. **분석되는 raw
+  `eqp_model_cd` 로 그냥 바꾸면 안 됩니다**: 토큰화되어 `VERITYSEM_5` 가
+  `veritysem` / `5` 두 버킷으로 쪼개진 채 모델명 행세를 하고, 이쪽은 에러 없이
+  조용히 틀립니다.
+- **OFFICE-VERIFY — 배지 임계값.** 첫 실행에서 아래를 호출하고
+  `fleet.percentiles`를 읽어 `front-dev-home/app/utils/equipmentSignals.ts`의
+  상수 네 개(`USAGE_FLOOR`, `TAT_CEIL`, `TAT_FLOOR`, `SHARE_CEIL`)를 맞춘 뒤
+  그 파일의 `OFFICE-VERIFY` 주석을 `office 확인 YYYY-MM-DD`로 바꿉니다.
+
+  ```bash
+  curl -s "$BASE/api/cdsem/recipe-tat/equipments?start_date=…&end_date=…" \
+    | python -m json.tool
+  ```
+
+  같은 실행에서 `occupancy`의 절대 수준을 MES 가동률과 나란히 놓고 그 격차를
+  `docs/datatables/meas_hist.txt`에 기록합니다 — 이 값은 **측정 점유율**이지
+  장비 가동률이 아닙니다(로딩·대기·PM이 빠져 있어 항상 낮게 읽힙니다).
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/equipment-compare
 
-The office adapter is **not connected yet** — `providers/office_example.py` holds
-an arity-only stub raising `NotImplementedError`. The contract
-(`EquipmentComparePayload`, `EquipmentTrendSeries`, `EquipmentRecipeRow`,
-`EquipmentRecipeCell`) is already in `contracts.py`.
-
 - Called as `get_equipment_compare(scope.tool_type, scope.fab_names or None,
-  scope.start_date, scope.end_date, scope.eqp_ids)`. No `lot_cd`: this view
+  scope.start_date, scope.end_date, scope.eqp_ids)`. Contract:
+  `EquipmentComparePayload` (`EquipmentTrendSeries`, `EquipmentRecipeRow`,
+  `EquipmentRecipeCell`) in `contracts.py`. No `lot_cd`: this view
   compares the tools the user checked in the `/equipments` table, and a device
   selection would silently narrow one column more than another.
 - `scope.eqp_ids` is a **≤ 5 tuple** (`_analytics_routes.MAX_EQP_IDS`). The cap
@@ -275,10 +299,17 @@ Both providers MUST call
 start_date, end_date, eqp_ids, trend_rows, recipe_rows)`. The office side only
 builds two grids on top of one `terms` filter over the selected `eqp_id`s:
 
-| Grid | Tuple | Suggested aggregation |
+| Grid | Tuple | Aggregation |
 | --- | --- | --- |
-| `trend_rows` | `(eqp_id, date, total_meastime, exec_count)` | composite over `eqp_id.keyword` × `date_histogram(day)` |
-| `recipe_rows` | `(eqp_id, full_name, meas_counts, total_meastime)` | composite over `eqp_id.keyword` × `full_name.keyword` |
+| `trend_rows` | `(eqp_id, date, total_meastime, exec_count)` | `terms(eqp_id, size=len(selected))` → `date_histogram(day, extended_bounds)` |
+| `recipe_rows` | `(eqp_id, full_name, meas_counts, total_meastime)` | composite `[eqp_id, full_name]` + `sum(meastime)` |
+
+**트렌드의 `terms`는 이 모듈에서 유일하게 안전한 `terms`입니다.** 선택은
+라우트에서 5개로 상한이 걸려 있어(`_analytics_routes.MAX_EQP_IDS`) `size =
+len(selected)`가 후보를 전부 덮습니다 — 다른 집계들이 composite 페이지네이션을
+쓰는 이유(`size` 절단, 서브집계 정렬 시 합계 근사)가 여기서는 발생하지
+않습니다. 레시피 격자는 반대로 레시피 수에 상한이 없으므로 composite 입니다:
+`terms`로 바꾸면 잘린 레시피가 표에서 통째로 사라지되 에러는 나지 않습니다.
 
 The union of recipes, the zero-filled cells, the column order and the sort are
 all the assembler's job. 사무실 어댑터가 "그 장비가 실제로 돈 레시피"만 격자에
@@ -315,8 +346,12 @@ Contract gate (`.env` loaded by `back_dev_home/conftest.py`):
 
     SKEWNONO_RECIPE_TAT_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_tat
 
-Both run from the repo root. All four contract cases should pass once
+Both run from the repo root. Every contract case should pass once
 OpenSearch (`meas_hist_*` + `ebeam_tas_lot_hist`) and Redis (`device_desc`) are
 reachable and populated. `test_get_devices` exercises the full bridge
 (meas_hist agg → lot_id→lot_cd map → device_desc join), so it needs both
 `OPENSEARCH_*` and `REDIS_*` set.
+
+`tests/test_office_template.py`는 사무실 없이도 도는 유일한 어댑터 테스트입니다
+(`_composite_buckets` / `_aggregate` 만 가짜로 바꾸고 버킷 → 격자 번역을
+검사합니다). 격자 번역을 손보면 사무실에 가기 전에 여기서 먼저 확인하십시오.

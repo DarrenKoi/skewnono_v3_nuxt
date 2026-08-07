@@ -85,6 +85,13 @@ FULL_NAME_KW = "full_name.keyword"   # class_name/recipe_name composite group ke
 FAB_NAME_KW = "fab_name.keyword"     # fab selection filter
 EQP_ID_KW = "eqp_id.keyword"         # sample_eqp_ids
 LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
+# 장비별 뷰의 모델 열. OFFICE-VERIFY: docs/datatables/meas_hist.txt 는
+# eqp_model_cd 를 text 로만 적고 있어 .keyword 서브필드 존재가 미확인입니다.
+# 없으면 이 소스를 composite 에서 빼고 모델을 다른 경로로 되찾습니다 —
+# 버킷당 top_hits(size 1) 또는 sem_list 의 장비 카탈로그. 분석되는 raw text
+# 필드로 그냥 바꾸면 안 됩니다: 토큰화되어 "VERITYSEM_5" 가 "veritysem"/"5"
+# 로 쪼개진 채 모델명 행세를 합니다(에러 없이 조용히 틀립니다).
+EQP_MODEL_CD_KW = "eqp_model_cd.keyword"
 
 
 def _range_clause(start_date: str | None, end_date: str | None) -> dict[str, Any]:
@@ -126,8 +133,53 @@ def filter_clauses(
 _COMPOSITE_PAGE_SIZE = 1000
 
 
+def _composite_sources(field: str | Sequence[tuple[str, str]]) -> list[dict[str, Any]]:
+    """composite 의 sources 절을 만듭니다.
+
+    문자열 하나면 예전과 똑같이 ``group`` 이라는 이름의 소스 하나입니다 —
+    기존 호출자(사무실의 갱신되지 않은 office.py 포함)가 그대로 동작해야
+    합니다. (이름, 필드) 목록을 주면 그 순서대로 다중 소스가 됩니다.
+    """
+    if isinstance(field, str):
+        return [{"group": {"terms": {"field": field}}}]
+    return [{name: {"terms": {"field": path}}} for name, path in field]
+
+
+def _validate_composite_key(
+    key: Mapping[str, Any],
+    names: tuple[str, ...],
+    *,
+    location: str,
+    label: str,
+) -> None:
+    """Check a composite ``key``/``after_key`` against the declared sources.
+
+    Shared by the bucket and ``after_key`` checks. The one-source wording is
+    kept verbatim — a message an office operator has already seen once should
+    not change spelling just because the helper learned to take more sources.
+    """
+    if set(key) != set(names):
+        expected = (
+            f"exactly one key named {names[0]!r}"
+            if len(names) == 1
+            else f"exactly the keys {list(names)!r}"
+        )
+        raise RuntimeError(
+            f"{location} {label!r} must contain {expected}; "
+            f"got keys {list(key)!r}."
+        )
+    for name in names:
+        value = key[name]
+        if value is None or not isinstance(value, (str, int, float, bool)):
+            raise RuntimeError(
+                f"{location} '{label}.{name}' must be a non-null JSON scalar "
+                f"(string, number, or boolean); got {type(value).__name__}."
+            )
+
+
 def _validated_composite_bucket(
     bucket: Any,
+    names: tuple[str, ...],
     *,
     index: str,
     page_number: int,
@@ -142,27 +194,17 @@ def _validated_composite_bucket(
     key = bucket.get("key")
     if not isinstance(key, Mapping):
         raise RuntimeError(f"{location} 'key' must be a mapping.")
-    if set(key) != {"group"}:
-        raise RuntimeError(
-            f"{location} 'key' must contain exactly one key named 'group'; "
-            f"got keys {list(key)!r}."
-        )
-    group = key["group"]
-    if group is None or not isinstance(group, (str, int, float, bool)):
-        raise RuntimeError(
-            f"{location} 'key.group' must be a non-null JSON scalar "
-            f"(string, number, or boolean); got {type(group).__name__}."
-        )
+    _validate_composite_key(key, names, location=location, label="key")
     return dict(bucket)
 
 
 def composite_buckets(
     index: str,
-    field: str,
+    field: str | Sequence[tuple[str, str]],
     sub_aggs: dict[str, Any],
     query_body: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    """Every bucket for ``terms(field)`` via a paginated composite aggregation.
+    """Every bucket for a terms/composite grouping via a paginated composite aggregation.
 
     A plain ``terms`` agg has two problems here: it truncates at ``size`` (the
     fleet has far more recipes/lots than any fixed cap over a wide date range),
@@ -174,7 +216,12 @@ def composite_buckets(
     Each page bucket carries ``key.group`` (the term), ``doc_count``, and the
     requested ``sub_aggs`` results. ``sub_aggs`` may be empty (bucket walk
     only — e.g. a distinct count that needs post-mapping in Python).
+
+    ``field`` 가 문자열이면 버킷 키는 ``key.group`` 입니다(기존 동작).
+    (이름, 필드) 목록을 주면 ``key.<이름>`` 으로 각각 접근합니다.
     """
+    sources = _composite_sources(field)
+    names = tuple(next(iter(source)) for source in sources)
     buckets: list[dict[str, Any]] = []
     after: dict[str, Any] | None = None
     seen_after_keys: list[dict[str, Any]] = []
@@ -182,7 +229,7 @@ def composite_buckets(
     while True:
         composite: dict[str, Any] = {
             "size": _COMPOSITE_PAGE_SIZE,
-            "sources": [{"group": {"terms": {"field": field}}}],
+            "sources": sources,
         }
         if after is not None:
             composite["after"] = after
@@ -221,6 +268,7 @@ def composite_buckets(
             buckets.append(
                 _validated_composite_bucket(
                     bucket,
+                    names,
                     index=index,
                     page_number=page_number,
                     bucket_position=bucket_position,
@@ -234,19 +282,12 @@ def composite_buckets(
                 f"OpenSearch composite page {page_number} for {index!r} "
                 "'after_key' must be a mapping when present."
             )
-        if set(next_after) != {"group"}:
-            raise RuntimeError(
-                f"OpenSearch composite page {page_number} for {index!r} "
-                "'after_key' must contain exactly one key named 'group'; "
-                f"got keys {list(next_after)!r}."
-            )
-        group = next_after["group"]
-        if group is None or not isinstance(group, (str, int, float, bool)):
-            raise RuntimeError(
-                f"OpenSearch composite page {page_number} for {index!r} "
-                "'after_key.group' must be a non-null JSON scalar "
-                f"(string, number, or boolean); got {type(group).__name__}."
-            )
+        _validate_composite_key(
+            next_after,
+            names,
+            location=f"OpenSearch composite page {page_number} for {index!r}",
+            label="after_key",
+        )
         after_key = dict(next_after)
         if any(after_key == seen for seen in seen_after_keys):
             raise RuntimeError(

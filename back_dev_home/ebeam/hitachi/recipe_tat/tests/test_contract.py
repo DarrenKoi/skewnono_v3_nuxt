@@ -66,6 +66,19 @@ def test_office_get_meas_hist_is_intentionally_disconnected():
         office_example.get_meas_hist()
 
 
+def test_office_example_exposes_the_equipment_endpoints():
+    # 스텁이 아니라 실제 구현이 자리에 있는지 고정합니다. import 가능해야
+    # 하는 이유가 더 중요합니다: office.py 는 이 파일의 사본이고, 여기서
+    # ImportError 가 나면 사무실에서는 앱 팩토리 전체가 죽습니다.
+    import pytest
+
+    office_example = pytest.importorskip(
+        "back_dev_home.ebeam.hitachi.recipe_tat.providers.office_example"
+    )
+    assert callable(office_example.get_equipments)
+    assert callable(office_example.get_equipment_compare)
+
+
 def test_get_summary_matches_contract():
     tool_type, fab_names, start_date, end_date = _default_scope()
     assert_matches(

@@ -22,6 +22,13 @@ needs the raw rows — every endpoint is a server-side aggregation over
                  so empty days are zero-filled, matching the mock.
 * anchor       — ``max(timestamp)`` across both aliases: the date-picker
                  ceiling (the real latest data date, NOT wall-clock).
+* equipments   — one composite over ``[eqp_id, fab_name, eqp_model_cd,
+                 full_name]`` + ``sum(meastime)``; the grid it yields is
+                 assembled by ``providers/_shape.py``, shared with the mock.
+* equipment-compare
+               — ``terms(eqp_id)`` → ``date_histogram(day)`` for the trend,
+                 plus a composite over ``[eqp_id, full_name]`` for the recipe
+                 grid; assembled by the same shared module.
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,
 ``cp office_example.py office.py``, set ``SKEWNONO_RECIPE_TAT_PROVIDER=office``
@@ -34,6 +41,8 @@ from typing import Any
 from back_dev_home.ebeam.hitachi._office_meas_hist import (
     CURRENT_WINDOW_DAYS as _CURRENT_WINDOW_DAYS,
     EQP_ID_KW as _EQP_KW,
+    EQP_MODEL_CD_KW as _EQP_MODEL_KW,
+    FAB_NAME_KW as _FAB_KW,
     FULL_NAME_KW as _FULL_KW,
     INDEX as _INDEX,
     LOT_ID_KW as _LOT_ID_KW,
@@ -54,9 +63,15 @@ from back_dev_home.ebeam.hitachi._office_meas_hist import (
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
+    EquipmentsPayload,
     RankingRow,
     SummaryPayload,
     ToolType,
+)
+from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    build_equipment_compare_payload,
+    build_equipments_payload,
 )
 
 
@@ -82,25 +97,133 @@ def get_meas_hist(*args: Any, **kwargs: Any) -> Any:
     )
 
 
-def get_equipments(*args: Any, **kwargs: Any) -> Any:
-    # Task 6 이 이 자리에 composite 집계 구현을 채웁니다. 그때까지는 arity 만
-    # 맞춘 스텁입니다 — parity sweep(tests/test_office_adapter_parity.py)이
-    # dispatcher 가 찾는 이름을 요구하고, 빨간 sweep 은 곧 무시되는 sweep 이
-    # 되기 때문입니다.
-    raise NotImplementedError(
-        "get_equipments office adapter is not connected yet — see "
-        "recipe_tat/MIGRATION.md"
+def get_equipments(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+) -> EquipmentsPayload:
+    """장비별 집계. composite 한 번으로 표에 필요한 값이 전부 나옵니다.
+
+    소스가 4개인 이유: fab_name 과 eqp_model_cd 는 eqp_id 에 함수 종속이라
+    버킷 수를 곱하지 않고(장비 수 × 레시피 수 그대로), 대신 top_hits 서브집계
+    없이 표의 fab/model 열을 채울 수 있습니다. 카티전 폭발이 아니므로
+    top_hits 로 "최적화" 하지 마십시오 — 버킷당 문서를 하나씩 더 읽는 쪽이
+    비쌉니다.
+
+    지수·중앙값·분위수는 파이썬에서 파생합니다 — mock 과 같은 코드 경로를
+    타야 두 provider 의 숫자가 어긋나지 않습니다.
+    """
+    clauses = _filter_clauses(fab_names, start_date, end_date)
+    buckets = _composite_buckets(
+        _INDEX[tool_type],
+        [
+            ("eqp", _EQP_KW),
+            ("fab", _FAB_KW),
+            ("model", _EQP_MODEL_KW),
+            ("recipe", _FULL_KW),
+        ],
+        {"tat": {"sum": {"field": _MEAS_F}}},
+        _query(clauses),
+    )
+
+    grid: list[tuple[str, str, str, str, int, int]] = [
+        (
+            _text(b["key"]["eqp"]),
+            _text(b["key"]["fab"]),
+            _text(b["key"]["model"]),
+            _text(b["key"]["recipe"]),
+            int(b["doc_count"]),
+            int(b.get("tat", {}).get("value") or 0),
+        )
+        for b in buckets
+    ]
+    return build_equipments_payload(
+        tool_type, fab_names, start_date, end_date, grid
     )
 
 
-def get_equipment_compare(*args: Any, **kwargs: Any) -> Any:
-    # Task 6 이 이 자리에 집계 구현을 채웁니다. 그때까지는 arity 만 맞춘
-    # 스텁입니다 — parity sweep(tests/test_office_adapter_parity.py)이
-    # dispatcher 가 찾는 이름을 요구하고, 빨간 sweep 은 곧 무시되는 sweep 이
-    # 되기 때문입니다.
-    raise NotImplementedError(
-        "get_equipment_compare office adapter is not connected yet — see "
-        "recipe_tat/MIGRATION.md"
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...],
+) -> EquipmentComparePayload:
+    """선택 장비의 일별 트렌드 + 레시피 격자.
+
+    집계 2개입니다 — 요청은 2건 이상(composite 는 페이지마다 한 건).
+    """
+    selected = list(dict.fromkeys(eqp_ids))
+    if not selected:
+        return build_equipment_compare_payload(
+            tool_type, fab_names, start_date, end_date, [], [], []
+        )
+
+    clauses = _filter_clauses(fab_names, start_date, end_date)
+    clauses.append({"terms": {_EQP_KW: selected}})
+
+    histogram: dict[str, Any] = {
+        "field": _TIME_F,
+        "calendar_interval": "day",
+        "format": "yyyy-MM-dd",
+        "min_doc_count": 0,
+    }
+    # /daily-trend 와 같은 zero-fill. 조립기는 요청 기간의 날짜 칸에만 행을
+    # 꽂으므로 형식이 어긋나면 조용히 0 차트가 됩니다 — MIGRATION.md 참고.
+    if start_date and end_date:
+        histogram["extended_bounds"] = {"min": start_date, "max": end_date}
+
+    # 이 모듈에서 유일하게 `terms` 가 안전한 자리입니다: 선택은 라우트에서
+    # 5개로 상한이 걸려 있어(_analytics_routes.MAX_EQP_IDS) size 로 전부
+    # 덮습니다. 다른 집계들이 composite 페이지네이션을 쓰는 이유(절단 + 합의
+    # 근사)가 여기서는 발생하지 않습니다.
+    trend_result = _aggregate(
+        _INDEX[tool_type],
+        {
+            "by_eqp": {
+                "terms": {"field": _EQP_KW, "size": len(selected)},
+                "aggs": {
+                    "by_day": {
+                        "date_histogram": histogram,
+                        "aggs": {"tat": {"sum": {"field": _MEAS_F}}},
+                    }
+                },
+            }
+        },
+        _query(clauses),
+    )
+    trend_rows = [
+        (
+            _text(eqp_bucket["key"]),
+            str(day_bucket["key_as_string"]),
+            int(day_bucket.get("tat", {}).get("value") or 0),
+            int(day_bucket["doc_count"]),
+        )
+        for eqp_bucket in trend_result.get("by_eqp", {}).get("buckets", [])
+        for day_bucket in eqp_bucket.get("by_day", {}).get("buckets", [])
+    ]
+
+    # 레시피 격자는 composite: 선택 장비들이 함께 돈 레시피 수에 상한이 없어
+    # terms 로는 잘립니다(잘린 레시피는 표에서 통째로 사라집니다).
+    recipe_buckets = _composite_buckets(
+        _INDEX[tool_type],
+        [("eqp", _EQP_KW), ("recipe", _FULL_KW)],
+        {"tat": {"sum": {"field": _MEAS_F}}},
+        _query(clauses),
+    )
+    recipe_rows = [
+        (
+            _text(b["key"]["eqp"]),
+            _text(b["key"]["recipe"]),
+            int(b["doc_count"]),
+            int(b.get("tat", {}).get("value") or 0),
+        )
+        for b in recipe_buckets
+    ]
+
+    return build_equipment_compare_payload(
+        tool_type, fab_names, start_date, end_date, selected, trend_rows, recipe_rows
     )
 
 

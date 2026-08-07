@@ -1,8 +1,31 @@
-"""Focused tests for shared meas_hist OpenSearch pagination helpers."""
+"""Focused tests for shared meas_hist OpenSearch pagination helpers.
+
+`_composite_sources` 는 OpenSearch 없이 순수 함수로 검사합니다. 기존
+`field: str` 호출을 깨면 사무실의 아직 갱신되지 않은 office.py 사본들이
+import 에러로 앱 팩토리 전체를 죽입니다 — 그래서 하위호환이 테스트로
+고정되어야 합니다.
+"""
 
 import pytest
 
 from back_dev_home.ebeam.hitachi import _office_meas_hist
+from back_dev_home.ebeam.hitachi._office_meas_hist import _composite_sources
+
+
+def test_single_field_keeps_the_legacy_group_source():
+    assert _composite_sources("full_name.keyword") == [
+        {"group": {"terms": {"field": "full_name.keyword"}}}
+    ]
+
+
+def test_multiple_sources_preserve_order_and_names():
+    assert _composite_sources([
+        ("eqp", "eqp_id.keyword"),
+        ("fab", "fab_name.keyword"),
+    ]) == [
+        {"eqp": {"terms": {"field": "eqp_id.keyword"}}},
+        {"fab": {"terms": {"field": "fab_name.keyword"}}},
+    ]
 
 
 def _stub_composite_pages(monkeypatch, pages, *, page_size=2):
@@ -344,6 +367,92 @@ def test_composite_buckets_preserves_valid_scalar_after_key_group(
     sent_group = calls[1][1]["comp"]["composite"]["after"]["group"]
     assert sent_group == group
     assert type(sent_group) is type(group)
+
+
+def test_composite_buckets_accepts_multi_source_bucket_keys(monkeypatch):
+    # 다중 소스로 부르면 버킷 키는 소스 이름마다 하나씩입니다. 검증기가
+    # 'group' 하나만 허용하면 /equipments 의 4-소스 집계가 첫 버킷에서
+    # 죽습니다.
+    page_buckets = [
+        {"key": {"eqp": "CD01", "recipe": "ADI/A"}, "doc_count": 3, "tat": {"value": 30}},
+        {"key": {"eqp": "CD02", "recipe": "ADI/B"}, "doc_count": 1, "tat": {"value": 9}},
+    ]
+    _stub_composite_pages(monkeypatch, [{"comp": {"buckets": page_buckets}}])
+
+    assert _office_meas_hist.composite_buckets(
+        "meas_hist_cdsem",
+        [("eqp", "eqp_id.keyword"), ("recipe", "full_name.keyword")],
+        {"tat": {"sum": {"field": "meastime"}}},
+        None,
+    ) == page_buckets
+
+
+def test_composite_buckets_paginates_with_a_multi_source_after_key(monkeypatch):
+    after_key = {"eqp": "CD01", "recipe": "ADI/A"}
+    calls = _stub_composite_pages(
+        monkeypatch,
+        [
+            {"comp": {"buckets": [{"key": after_key}], "after_key": after_key}},
+            {"comp": {"buckets": []}},
+        ],
+        page_size=1,
+    )
+
+    assert _office_meas_hist.composite_buckets(
+        "meas_hist_cdsem",
+        [("eqp", "eqp_id.keyword"), ("recipe", "full_name.keyword")],
+        {},
+        None,
+    ) == [{"key": after_key}]
+    assert calls[0][1]["comp"]["composite"]["sources"] == [
+        {"eqp": {"terms": {"field": "eqp_id.keyword"}}},
+        {"recipe": {"terms": {"field": "full_name.keyword"}}},
+    ]
+    assert calls[1][1]["comp"]["composite"]["after"] == after_key
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        {"eqp": "CD01"},                            # 소스 하나가 빠짐
+        {"eqp": "CD01", "group": "ADI/A"},          # 옛 이름이 섞임
+        {"eqp": "CD01", "recipe": "ADI/A", "x": 1},  # 모르는 키가 더 있음
+    ],
+)
+def test_composite_buckets_rejects_multi_source_key_with_wrong_schema(monkeypatch, key):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": key}]}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"bucket 1.*page 1.*meas_hist_cdsem.*key.*exactly.*eqp.*recipe",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            [("eqp", "eqp_id.keyword"), ("recipe", "full_name.keyword")],
+            {},
+            None,
+        )
+
+
+def test_composite_buckets_rejects_a_non_scalar_multi_source_key_value(monkeypatch):
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": {"eqp": "CD01", "recipe": None}}]}}],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"bucket 1.*page 1.*meas_hist_cdsem.*key\.recipe.*JSON scalar",
+    ):
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem",
+            [("eqp", "eqp_id.keyword"), ("recipe", "full_name.keyword")],
+            {},
+            None,
+        )
 
 
 def test_composite_buckets_rejects_a_repeated_after_key(monkeypatch):
