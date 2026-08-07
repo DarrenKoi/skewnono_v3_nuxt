@@ -226,7 +226,7 @@ export function imageFilenames(
 export interface ValueBucket {
   value: string
   count: number
-  recipeIds: string[]
+  labels: string[]
   isOutlier: boolean
 }
 
@@ -237,6 +237,21 @@ export interface WorkbookSheet {
 
 export interface CompareWorkbook {
   sheets: WorkbookSheet[]
+}
+
+/**
+ * Display labels for a compared recipe set: bare recipe_id, UNLESS the set
+ * spans more than one fab — the same recipe name can legitimately appear once
+ * per fab in a cross-fab compare, and two identically-labeled entries over
+ * genuinely different data is exactly the kind of silent-wrong-answer the
+ * compare screens must not produce. Shared by the workbook export's column
+ * headers and CompareGrouping's expanded-bucket recipe list.
+ */
+export function compareRecipeLabels(
+  recipes: Array<Pick<CompareRecipe, 'recipe_id' | 'fab_name'>>
+): string[] {
+  const multiFab = new Set(recipes.map(r => r.fab_name)).size > 1
+  return recipes.map(r => (multiFab ? `${r.recipe_id} (${r.fab_name})` : r.recipe_id))
 }
 
 /** `${recipePairKey(fab_name, recipe_id)}::${parameter}` -> that pair's fetched settings. */
@@ -257,13 +272,7 @@ export function buildCompareWorkbook(
    */
   details: CompareDetailIndex = new Map()
 ): CompareWorkbook {
-  // Column labels: bare recipe_id, UNLESS the export spans more than one fab
-  // — the same recipe name can legitimately appear once per fab in a
-  // cross-fab compare, and two identically-labeled columns with genuinely
-  // different data is exactly the kind of silent-wrong-answer this export
-  // must not produce.
-  const multiFab = new Set(recipes.map(r => r.fab_name)).size > 1
-  const recipeLabels = recipes.map(r => (multiFab ? `${r.recipe_id} (${r.fab_name})` : r.recipe_id))
+  const recipeLabels = compareRecipeLabels(recipes)
   const sheets: WorkbookSheet[] = []
 
   const overlap = buildOverlap(recipes)
@@ -349,21 +358,21 @@ export async function downloadCompareWorkbook(
   URL.revokeObjectURL(url)
 }
 
-export function groupFieldValues(pairs: { recipeId: string, value: string }[]): ValueBucket[] {
+export function groupFieldValues(pairs: { label: string, value: string }[]): ValueBucket[] {
   const map = new Map<string, string[]>()
   const order: string[] = []
-  for (const { recipeId, value } of pairs) {
+  for (const { label, value } of pairs) {
     if (!map.has(value)) {
       map.set(value, [])
       order.push(value)
     }
-    map.get(value)!.push(recipeId)
+    map.get(value)!.push(label)
   }
 
   const buckets: ValueBucket[] = order.map(value => ({
     value,
     count: map.get(value)!.length,
-    recipeIds: map.get(value)!,
+    labels: map.get(value)!,
     isOutlier: false
   }))
   buckets.sort((a, b) => b.count - a.count)

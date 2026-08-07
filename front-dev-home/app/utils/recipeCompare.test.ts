@@ -8,7 +8,7 @@ import {
   commonParameters,
   buildIdpRows, buildSettingRows, blockForSlot, cellsDiffer, imageFilenames,
   groupFieldValues,
-  buildCompareWorkbook, compareDetailKey,
+  buildCompareWorkbook, compareDetailKey, compareRecipeLabels,
   type CompareParamDetail, type CompareDetailIndex
 } from './recipeCompare.ts'
 import type { CompareRecipe, CompareParameter } from '../composables/useRecipeCompareApi.ts'
@@ -247,18 +247,18 @@ test('imageFilenames returns per-recipe slot filename or null', () => {
 
 test('groupFieldValues sorts buckets by count desc', () => {
   const buckets = groupFieldValues([
-    { recipeId: 'A', value: '50K' }, { recipeId: 'B', value: '80K' },
-    { recipeId: 'C', value: '50K' }, { recipeId: 'D', value: '50K' }
+    { label: 'A', value: '50K' }, { label: 'B', value: '80K' },
+    { label: 'C', value: '50K' }, { label: 'D', value: '50K' }
   ])
   assert.deepEqual(buckets.map(b => b.value), ['50K', '80K'])
-  assert.deepEqual(buckets[0]?.recipeIds, ['A', 'C', 'D'])
+  assert.deepEqual(buckets[0]?.labels, ['A', 'C', 'D'])
 })
 
 test('groupFieldValues flags a small minority as outlier', () => {
   const pairs = [
-    ...Array.from({ length: 62 }, (_, i) => ({ recipeId: `a${i}`, value: '50K' })),
-    ...Array.from({ length: 31 }, (_, i) => ({ recipeId: `b${i}`, value: '80K' })),
-    ...Array.from({ length: 7 }, (_, i) => ({ recipeId: `c${i}`, value: '100K' }))
+    ...Array.from({ length: 62 }, (_, i) => ({ label: `a${i}`, value: '50K' })),
+    ...Array.from({ length: 31 }, (_, i) => ({ label: `b${i}`, value: '80K' })),
+    ...Array.from({ length: 7 }, (_, i) => ({ label: `c${i}`, value: '100K' }))
   ]
   const buckets = groupFieldValues(pairs)
   const byValue = Object.fromEntries(buckets.map(b => [b.value, b]))
@@ -269,14 +269,25 @@ test('groupFieldValues flags a small minority as outlier', () => {
 
 test('groupFieldValues flags nothing on a tie for largest', () => {
   const buckets = groupFieldValues([
-    { recipeId: 'A', value: 'x' }, { recipeId: 'B', value: 'y' }
+    { label: 'A', value: 'x' }, { label: 'B', value: 'y' }
   ])
   assert.equal(buckets.every(b => !b.isOutlier), true)
 })
 
 test('groupFieldValues: single value is never an outlier', () => {
-  const buckets = groupFieldValues([{ recipeId: 'A', value: 'x' }, { recipeId: 'B', value: 'x' }])
+  const buckets = groupFieldValues([{ label: 'A', value: 'x' }, { label: 'B', value: 'x' }])
   assert.equal(buckets[0]?.isOutlier, false)
+})
+
+test('compareRecipeLabels fab-qualifies only when the set spans fabs', () => {
+  assert.deepEqual(
+    compareRecipeLabels([recipe('A', []), recipe('B', [])]),
+    ['A', 'B']
+  )
+  assert.deepEqual(
+    compareRecipeLabels([recipe('A', [], 'R3'), recipe('A', [], 'M16B')]),
+    ['A (R3)', 'A (M16B)']
+  )
 })
 
 test('buildCompareWorkbook emits Overlap + IDP + one sheet per slot', () => {
