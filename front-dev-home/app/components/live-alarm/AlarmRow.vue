@@ -8,6 +8,7 @@ const props = defineProps<{
   isNew: boolean
   toolSlug: string
   fab: string
+  fabBadge?: string
 }>()
 
 const elapsed = computed(() =>
@@ -57,6 +58,12 @@ const details = computed(() => [
       </UBadge>
 
       <span class="text-lg font-semibold tracking-tight">{{ event.eqp_id }}</span>
+      <span
+        v-if="fabBadge"
+        class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+      >
+        {{ fabBadge }}
+      </span>
 
       <span class="text-sm text-muted">{{ elapsed }}</span>
 

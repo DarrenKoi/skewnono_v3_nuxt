@@ -9,6 +9,7 @@
 export interface LiveAlarmEvent {
   id: string
   rawid: string
+  fab_name: string
   eqp_id: string
   alarm_modelname: string
   alid: string
@@ -35,7 +36,11 @@ export interface LiveAlarmEvent {
 export type FeedStatus = 'live' | 'stale' | 'not_configured'
 
 export interface LiveAlarmPayload {
-  fab_name: string
+  fab_names: string[]
+  // Requested fabs with no office adapter yet — reported by the server,
+  // never guessed client-side, so a fab that later gains an adapter starts
+  // appearing without a frontend change.
+  not_configured_fabs: string[]
   tool_type: string
   feed_status: FeedStatus
   // Last SUCCESSFUL office fetch — null when there has never been one. The

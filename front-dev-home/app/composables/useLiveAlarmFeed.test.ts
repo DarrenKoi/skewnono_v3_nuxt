@@ -4,8 +4,13 @@ import { nextDelay, applyPoll, POLL_INTERVAL_MS, POLL_JITTER_MS } from './useLiv
 import { makeAlarmEvent } from '../utils/liveAlarm.fixtures.ts'
 import type { LiveAlarmPayload } from '~/utils/liveAlarm'
 
-const payload = (ids: string[], serverNowEpochMs: number): LiveAlarmPayload => ({
-  fab_name: 'R3',
+const payload = (
+  ids: string[],
+  serverNowEpochMs: number,
+  over: Partial<LiveAlarmPayload> = {}
+): LiveAlarmPayload => ({
+  fab_names: ['R3'],
+  not_configured_fabs: [],
   tool_type: 'cd-sem',
   feed_status: 'live',
   fetched_at: '2026-07-23 10:00:00+09:00',
@@ -13,7 +18,8 @@ const payload = (ids: string[], serverNowEpochMs: number): LiveAlarmPayload => (
   server_now: new Date(serverNowEpochMs).toISOString(),
   board_window_sec: 1200,
   unmatched_count: 0,
-  events: ids.map(id => makeAlarmEvent({ id }))
+  events: ids.map(id => makeAlarmEvent({ id })),
+  ...over
 })
 
 describe('nextDelay', () => {
@@ -63,6 +69,16 @@ describe('applyPoll', () => {
     const third = applyPoll(second, payload(['a', 'b'], 3000), 3000)
     assert.deepEqual(third.arrivedIds, [])
     assert.deepEqual(third.unseenIds, ['b'])
+  })
+
+  it('carries not_configured_fabs and per-event fab', () => {
+    const state = applyPoll(
+      {},
+      payload(['a'], 1000, { fab_names: ['R3', 'M16B'], not_configured_fabs: ['M16B'] }),
+      1000
+    )
+    assert.deepEqual(state.notConfiguredFabs, ['M16B'])
+    assert.equal(state.events[0]?.fab_name, 'R3')
   })
 
   it('derives the clock offset from server_now minus receive time', () => {

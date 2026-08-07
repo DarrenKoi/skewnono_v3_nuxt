@@ -5,19 +5,13 @@
 // therefore a fresh feed, whenever the fab segment changes.
 definePageMeta({ key: route => route.fullPath })
 
-const { fabs, primaryFab } = useFabRoute('cd-sem')
+const { fabs } = useFabRoute('cd-sem')
 </script>
 
 <template>
-  <div class="space-y-3">
-    <NavFabScopeNotice
-      :fabs="fabs"
-      :primary-fab="primaryFab"
-    />
-    <EbeamLiveAlarmView
-      :fab="primaryFab"
-      tool-label="CD-SEM"
-      tool-type="cd-sem"
-    />
-  </div>
+  <EbeamLiveAlarmView
+    :fabs="fabs"
+    tool-label="CD-SEM"
+    tool-type="cd-sem"
+  />
 </template>

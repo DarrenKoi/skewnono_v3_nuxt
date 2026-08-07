@@ -8,6 +8,7 @@ const props = defineProps<{
   highlightIds: string[]
   toolSlug: string
   fab: string
+  fabBadge?: string
 }>()
 
 // Component-local, and it survives polling: the parent keys the v-for by
@@ -41,6 +42,7 @@ const elapsed = computed(() =>
     :is-new="highlightSet.has(group.events[0].id)"
     :tool-slug="toolSlug"
     :fab="fab"
+    :fab-badge="fabBadge"
   />
 
   <div
@@ -60,6 +62,12 @@ const elapsed = computed(() =>
       />
 
       <span class="text-lg font-semibold tracking-tight">{{ group.eqpId }}</span>
+      <span
+        v-if="fabBadge"
+        class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+      >
+        {{ fabBadge }}
+      </span>
       <span class="font-mono text-sm text-(--sk-ink-muted)">{{ group.ppidLabel }}</span>
 
       <!-- The count is the argument this whole view exists to make, so it is
@@ -79,6 +87,7 @@ const elapsed = computed(() =>
         :is-new="highlightSet.has(event.id)"
         :tool-slug="toolSlug"
         :fab="fab"
+        :fab-badge="fabBadge"
       />
     </div>
   </div>
