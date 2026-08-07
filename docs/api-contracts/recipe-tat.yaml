@@ -96,7 +96,7 @@ types:
     top_recipe:
       type: string
       nullable: true
-      description: "<class>/<recipe>" of the equipment's most-run recipe by meas_counts. Null when the equipment ran no recipes in the window.
+      description: <class>/<recipe> of the equipment's most-run recipe by meas_counts. Null when the equipment ran no recipes in the window.
     top_recipe_share:
       type: number
       description: top_recipe's share of this equipment's exec_count (0.0 when top_recipe is null)
