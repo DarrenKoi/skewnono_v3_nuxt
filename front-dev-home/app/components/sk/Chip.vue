@@ -97,8 +97,12 @@ defineEmits<{ (e: 'click', payload: MouseEvent): void }>()
   flex-shrink: 0;
 }
 
+/* 12px, not 10px: this badge holds a NUMBER the reader is meant to read — a
+   tool count, a zero-family size, a coverage fraction — and DESIGN.md's floor is
+   that a data value never renders below 12px. 10px is reserved for mono
+   uppercase eyebrows, which this is not. */
 .sk-chip__count {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 4px;
@@ -109,5 +113,16 @@ defineEmits<{ (e: 'click', payload: MouseEvent): void }>()
 .sk-chip--active .sk-chip__count {
   background: rgba(255, 255, 255, 0.18);
   color: rgba(255, 237, 223, 0.95);
+}
+
+/* The rule above puts near-white on the active fill, which is right only while
+   that fill is dark. `--sk-brand` is dark in both themes, but `--sk-ink`
+   INVERTS to cream in dark mode, so an ink-toned chip rendered its count as
+   white on cream — legible in light mode, invisible in dark. sk-nav-pill hit
+   this first and solved it the same way (see NavPill.vue's .dark override);
+   scoped to --ink here because the brand tone genuinely does not need it. */
+.dark .sk-chip--active.sk-chip--ink .sk-chip__count {
+  background: rgba(21, 17, 13, 0.18);
+  color: rgba(21, 17, 13, 0.9);
 }
 </style>
