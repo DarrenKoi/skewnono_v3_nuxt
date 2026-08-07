@@ -100,7 +100,7 @@ export const useEchart = (
   const { themeId, surface } = useEchartsTheme()
 
   let chart: ECharts | null = null
-  let resizeHandler: (() => void) | null = null
+  let sizeObserver: ResizeObserver | null = null
   let dlButton: HTMLButtonElement | null = null
 
   const bindClick = () => {
@@ -215,10 +215,16 @@ export const useEchart = (
     bindDataIndex()
     bindGridClick()
     mountDownloadButton()
-    if (!resizeHandler) {
-      resizeHandler = () => chart?.resize()
-      window.addEventListener('resize', resizeHandler)
+    // Observe the HOST, not the window: a window listener misses hosts whose
+    // size is driven by their own props — ParamMatrix's height is a function of
+    // its row count, so 평가 불가 숨기기 shrinks the div while the canvas kept
+    // its init-time size and overflowed the panel. Element resize also covers
+    // every window resize that matters (the hosts are width-bound to layout).
+    if (!sizeObserver) {
+      sizeObserver = new ResizeObserver(() => chart?.resize())
     }
+    sizeObserver.disconnect()
+    sizeObserver.observe(elRef.value)
   }
 
   onMounted(() => {
@@ -261,10 +267,8 @@ export const useEchart = (
   })
 
   onBeforeUnmount(() => {
-    if (resizeHandler) {
-      window.removeEventListener('resize', resizeHandler)
-      resizeHandler = null
-    }
+    sizeObserver?.disconnect()
+    sizeObserver = null
     unmountDownloadButton()
     chart?.dispose()
     chart = null
