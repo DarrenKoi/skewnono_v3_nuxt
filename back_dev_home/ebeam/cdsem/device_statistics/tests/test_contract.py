@@ -270,3 +270,16 @@ def test_sample_cells_exempt_the_dummy_parameter():
         ]
         assert len(dummy) == 1, f"{cell['id']} 에 DUMMY 면제가 없습니다"
         assert dummy[0]["cap"] is None, f"{cell['id']} 의 DUMMY cap 은 None 이어야 합니다"
+
+
+def test_lot_index_fac_ids_match_the_operating_fabs():
+    # M12는 실재하지 않습니다 — docs/datatables/sem_list.txt (user-confirmed
+    # 2026-08-03). sem_list가 장비 명부의 진실이고, lot 풀의 fac_id는 그
+    # 어휘를 벗어나면 안 됩니다. 벗어나면 recipe_tat의 장비<->lot 짝짓기가
+    # 조용히 폴백 경로로 새어 나갑니다.
+    from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index
+    from back_dev_home.sem_list.providers.mock import FAC_IDS
+
+    fac_ids = set(_lot_index().values())
+    assert fac_ids <= set(FAC_IDS), f"sem_list에 없는 fac_id: {fac_ids - set(FAC_IDS)}"
+    assert "M12" not in fac_ids

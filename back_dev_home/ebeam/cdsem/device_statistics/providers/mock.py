@@ -7,7 +7,7 @@
 사무실 원천 (user-confirmed 2026-07-31)
 
 이 mock 이 대역하는 실제 소스는 Redis 의 두 key 입니다. `device_desc` 가
-M 계열 양산 카탈로그로 `_generate_device_desc()` 의 M11/M12/M14/M15/M16
+M 계열 양산 카탈로그로 `_generate_device_desc()` 의 M10/M11/M14/M15/M16
 rows 에 대응하고, `r3_device_grp` 가 R3 연구개발 카탈로그로
 `_generate_r3_device_grp()` 의 fac_id="R3" rows 에 대응합니다. 두 key 는
 device-statistics 의 initial setup 카탈로그이며 요청에 따라 여기서 device
@@ -63,7 +63,11 @@ from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
 
 R3_ROW_COUNT = 2000
 M_ROW_COUNT = 2000
-M_FAC_IDS = ["M11", "M12", "M14", "M15", "M16"]
+# 운영 중인 M-fab 전부입니다. 예전 mock에 있던 M12는 실재하지 않는 값이었고
+# (docs/datatables/sem_list.txt, user-confirmed 2026-08-03), sem_list의 FAC_IDS가
+# 이 어휘의 진실입니다. 여기가 어긋나면 recipe_tat이 장비(sem_list)와
+# lot(여기)을 fac_id로 짝지을 때 만나지 못하는 조합이 생깁니다.
+M_FAC_IDS = ["M10", "M11", "M14", "M15", "M16"]
 
 PLAN_CATG_TYPES = ["FULL", "ADTPJT", "MODULE", ""]
 PROD_CATG_CODES = ["DRAM", "Tech", "Advanced", "FLASH", "NAND"]
@@ -75,8 +79,8 @@ PLAN_GRADE_CODES = ["P1", "P2", "P3", "P4", "P5", ""]
 
 M_TECH_NAMES = ["TP", "4G", "AA", "7D", "3D", "C2", "N2", "Q7", "R1", "None"]
 M_LOT_PREFIX_BY_FAC = {
+    "M10": "0",
     "M11": "1",
-    "M12": "2",
     "M14": "4",
     "M15": "5",
     "M16": "6"

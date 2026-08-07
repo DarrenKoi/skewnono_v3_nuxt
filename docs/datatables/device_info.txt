@@ -6,7 +6,8 @@ M 계열 Fab에서는 device_desc를 기준으로 fac_id -> tech_nm 순서로 �
 
 입력 device_desc 필수 컬럼
 
-fac_id -> string: fab 대표 코드. 예: M11, M12, M14, M15, M16
+fac_id -> string: fab 대표 코드. 예: M10, M11, M14, M15, M16, R3
+                  (M12는 실재하지 않습니다 — sem_list.txt 참조, user-confirmed 2026-08-03)
 lot_cd -> string: 개발 디바이스 lot 코드
 ctn_desc -> string: 개발 디바이스 설명. pool 여부, 개발 phase, 개발 코드명을 파악하는 원문
 chg_tm -> string: 개발 정보 등록 또는 변경 시점. ISO datetime string

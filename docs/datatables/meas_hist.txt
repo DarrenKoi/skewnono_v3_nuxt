@@ -8,7 +8,8 @@ Recipe 검색에서는 Redis에서 받은 recipe_name 문자열 목록만 검색
 Column -> Type: Value 설명
 
 id -> string: mock row 고유 ID = msr
-fac_id -> string: fab 대표 코드. 예: M11, M12, M14, M15, M16, R3
+fac_id -> string: fab 대표 코드. 예: M10, M11, M14, M15, M16, R3
+                  (M12는 실재하지 않습니다 — sem_list.txt 참조, user-confirmed 2026-08-03)
 fab_name -> string: 실제 화면에서 선택하는 fab 이름. 예: M16A, M16B, R3, R4
 vendor_nm -> string: 장비 vendor. HITACHI, AMAT
 eqp_id -> string: 장비 ID. sem-list mock data의 eqp_id와 같은 형식을 사용
