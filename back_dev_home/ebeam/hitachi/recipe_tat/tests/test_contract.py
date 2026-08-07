@@ -85,3 +85,17 @@ def test_get_devices_matches_contract():
     assert isinstance(devices, list)
     for device in devices:
         assert_matches(device, DeviceRow)
+
+
+def test_ranking_rows_carry_contributing_fabs():
+    rows = data.get_ranking("cd-sem", ("R3", "M16B"), None, None, limit=20)
+    assert rows
+    for row in rows:
+        assert row["fab_names"] == sorted(row["fab_names"])
+        assert row["fab_names"]
+        assert set(row["fab_names"]) <= {"R3", "M16B"}
+
+
+def test_single_fab_ranking_tags_that_fab_only():
+    rows = data.get_ranking("cd-sem", ("R3",), None, None, limit=5)
+    assert all(row["fab_names"] == ["R3"] for row in rows)

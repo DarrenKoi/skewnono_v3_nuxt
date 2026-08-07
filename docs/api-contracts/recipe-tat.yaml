@@ -31,6 +31,9 @@ types:
     sample_lot_cds:
       type: array
       description: Up to 5 distinct lot codes the recipe was run against
+    fab_names:
+      type: array of string
+      description: Fabs contributing to the aggregate, sorted ascending
 
   Summary:
     tool_type:

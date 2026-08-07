@@ -34,6 +34,7 @@ from typing import Any
 from back_dev_home.ebeam.hitachi._office_meas_hist import (
     CURRENT_WINDOW_DAYS as _CURRENT_WINDOW_DAYS,
     EQP_ID_KW as _EQP_KW,
+    FAB_NAME_KW as _FAB_KW,
     FULL_NAME_KW as _FULL_KW,
     INDEX as _INDEX,
     LOT_ID_KW as _LOT_ID_KW,
@@ -100,6 +101,7 @@ def get_ranking(
         "eqps": {"terms": {"field": _EQP_KW, "size": 5}},
         # A handful of lot_ids per recipe, mapped to lot_cds below.
         "lots": {"terms": {"field": _LOT_ID_KW, "size": 25}},
+        "fabs": {"terms": {"field": _FAB_KW, "size": 16}},
         "top": {
             "top_hits": {
                 "size": 1,
@@ -129,6 +131,8 @@ def get_ranking(
         sample_lot_cds = sorted(
             {bridge.get(_text(b["key"]), "") for b in lot_buckets} - {""}
         )[:5]
+        fab_buckets = bucket.get("fabs", {}).get("buckets", [])
+        fab_names = sorted({str(b["key"]).upper() for b in fab_buckets})
 
         rows.append(
             RankingRow(
@@ -141,6 +145,7 @@ def get_ranking(
                 avg_meastime=avg,
                 sample_lot_cds=sample_lot_cds,
                 sample_eqp_ids=sample_eqps,
+                fab_names=fab_names,
             )
         )
     return rows

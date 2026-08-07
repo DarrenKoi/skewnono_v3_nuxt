@@ -47,6 +47,9 @@ class RankingRow(TypedDict):
     avg_meastime: float
     sample_lot_cds: list[str]
     sample_eqp_ids: list[str]
+    # Fabs whose measurements entered this aggregate, sorted asc. The detail
+    # link uses this to route to the owning fab's registry (multi-fab spec §6.1).
+    fab_names: list[str]
 
 
 class SummaryPayload(TypedDict):
