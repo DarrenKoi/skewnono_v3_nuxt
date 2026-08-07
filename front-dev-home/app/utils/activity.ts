@@ -27,6 +27,28 @@ export const userTeamLabel = (row: ListedUser): string =>
 export const userSearchText = (row: ListedUser): string =>
   `${row.emp_nm ?? ''} ${row.user_id} ${row.dept_nm ?? ''}`
 
+/** The FAB bucket name the backend gives documents that carry no fab_name.
+ *
+ *  The same literal lives in
+ *  back_dev_home/activity/providers/opensearch_reader.py, which writes it.
+ *  Two copies of one string, so changing either alone silently stops the
+ *  filter below from matching and the bucket reappears. */
+export const UNASSIGNED_FAB = '미지정'
+
+/** Fab rows worth showing in the Fab별 페이지 사용 card.
+ *
+ *  Drops the 미지정 bucket. It is NOT "users who did not pick a fab" — it is
+ *  traffic from pages that have no fab at all: device_statistics queries by
+ *  fac_id, and AFM and parts of skewvoir never send one. Sitting beside M14
+ *  and R3 it reads as an unattributed remainder of the same population, which
+ *  is the opposite of what it is.
+ *
+ *  Generic over the row so the test can pass `{ fab }` alone rather than
+ *  building a whole FabUsageRow. */
+export const rankableFabRows = <T extends { fab: string }>(
+  rows: readonly T[]
+): T[] => rows.filter(row => row.fab !== UNASSIGNED_FAB)
+
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
 // `cdsem`, `hvsem`, `provision`, `verity_sem` and `home` are no longer written:

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE, rankableFabRows, UNASSIGNED_FAB, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
 
 /** A listed row's identity fields, with the directory having answered fully. */
 const listed = (over = {}) => ({
@@ -81,4 +81,22 @@ test('the notice disappears once the window is fully covered', () => {
 
   assert.equal(pageViewNotice(7, wellAfter), null)
   assert.equal(pageViewNotice(30, wellAfter), null)
+})
+
+test('rankableFabRows drops the fab-less bucket and preserves order', () => {
+  const rows = [{ fab: 'M14' }, { fab: UNASSIGNED_FAB }, { fab: 'R3' }]
+
+  assert.deepEqual(rankableFabRows(rows), [{ fab: 'M14' }, { fab: 'R3' }])
+})
+
+test('rankableFabRows is a no-op when the backend sent no fab-less bucket', () => {
+  const rows = [{ fab: 'M14' }, { fab: 'R3' }]
+
+  assert.deepEqual(rankableFabRows(rows), rows)
+})
+
+test('rankableFabRows can empty the list entirely', () => {
+  // A window in which only fab-less pages were used. The card must render its
+  // empty state, not a one-row chart of nothing.
+  assert.deepEqual(rankableFabRows([{ fab: UNASSIGNED_FAB }]), [])
 })

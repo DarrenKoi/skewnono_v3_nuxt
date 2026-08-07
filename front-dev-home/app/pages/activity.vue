@@ -248,10 +248,14 @@
       <!-- Fab별 페이지 사용 -->
       <UCard class="dashboard-surface">
         <template #header>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-3">
             <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
               <UIcon name="i-lucide-factory" />
               Fab별 페이지 사용
+              <!-- rankableFabRows drops the 미지정 bucket. Saying so matters:
+                   a silent omission reads as "this is all the traffic", and
+                   device-statistics and AFM are missing from this card entirely. -->
+              <span class="sk-meta font-normal">· FAB 무관 페이지 제외</span>
             </span>
             <UTabs
               v-model="fabWindowKey"
@@ -598,7 +602,7 @@ import {
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, userDisplayName, userTeamLabel } from '~/utils/activity'
+import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
@@ -773,9 +777,11 @@ const rankingNotice = computed(() =>
 // --- shared usage: Fab page breakdown ---
 const fabWindowKey = ref<'7d' | '30d'>('7d')
 const fabsForWindow = computed<FabUsageRow[]>(() =>
-  fabWindowKey.value === '7d'
-    ? fabs.value?.fabs_7d ?? []
-    : fabs.value?.fabs_30d ?? []
+  rankableFabRows(
+    fabWindowKey.value === '7d'
+      ? fabs.value?.fabs_7d ?? []
+      : fabs.value?.fabs_30d ?? []
+  )
 )
 const selectedFab = ref<string | null>(null)
 watchEffect(() => {
