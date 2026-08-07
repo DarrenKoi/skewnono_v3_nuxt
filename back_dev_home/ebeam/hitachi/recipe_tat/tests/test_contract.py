@@ -286,7 +286,17 @@ def test_get_equipments_mock_exercises_every_badge_state():
     # 게다가 바로 위 단언은 그 상황에서도 통과하므로(전부 None), 이 가드가
     # 없으면 "모든 장비가 표본 미달"이라는 mock 퇴행이 엉뚱한 예외로 보고됩니다.
     assert indexed, "tat_index 가 계산된 장비가 하나도 없습니다 (전부 표본 미달)"
-    assert max(r["tat_index"] for r in indexed) > 1.05, "느린 장비가 없습니다"
+    # 프론트엔드 equipmentSignals.ts의 TAT_CEIL은 1.10입니다. 예전 기준
+    # (> 1.05)은 그 배지가 실제로 뜰 수 있는지 증명하지 못하는 채로도
+    # 통과했습니다 — R3는 mock의 5대짜리 셀 감쇠 때문에 최악의 fab이라
+    # (recipe_tat/providers/mock.py의 _tool_scalars 독스트링 참고),
+    # 1.12로 올려 TAT_CEIL을 실제로 넘는지 검증합니다. 백엔드가 프론트엔드
+    # 상수를 import할 수 없어 이 주석이 둘을 묶어 둡니다 — TAT_CEIL이
+    # 바뀌면 이 숫자도 같이 봐야 합니다.
+    assert max(r["tat_index"] for r in indexed) > 1.12, "느린 장비가 없습니다"
+    # 대칭 검증: 프론트엔드 TAT_FLOOR는 0.92입니다. 느림과 같은 이유로
+    # 빠름 배지도 실제로 뜨는지 검증이 필요합니다.
+    assert min(r["tat_index"] for r in indexed) < 0.92, "빠른 장비가 없습니다"
     assert min(r["usage_ratio"] for r in rows) < 0.85, "저사용 장비가 없습니다"
     assert max(r["top_recipe_share"] for r in rows) >= 0.50, "편중 장비가 없습니다"
 

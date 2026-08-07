@@ -332,6 +332,21 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
   같은 실행에서 `occupancy`의 절대 수준을 MES 가동률과 나란히 놓고 그 격차를
   `docs/datatables/meas_hist.txt`에 기록합니다 — 이 값은 **측정 점유율**이지
   장비 가동률이 아닙니다(로딩·대기·PM이 빠져 있어 항상 낮게 읽힙니다).
+- **OFFICE-VERIFY — `TAT_CEIL`은 mock 기준으로는 오히려 관대할 가능성.**
+  `tat_index = total / expected`이고 `expected`의 `base(r)`(레시피 r의 플릿
+  평균)에는 그 장비 자신의 측정도 섞입니다. mock은 칸 하나가 장비 5대뿐이라
+  느린 장비 한 대가 자기 레시피의 플릿 평균을 상당히 끌어올려 자기 지수를
+  스스로 감쇠시킵니다 — `recipe_tat/providers/mock.py`의 `_tool_scalars`
+  독스트링에 기록된 것처럼, 순번 0(느림) 장비의 speed를 정상 폭(±4%)을 훨씬
+  넘는 U(1.60, 1.75)까지 올려야만 `TAT_CEIL=1.10`을 홈에서 넘길 수 있었습니다
+  (U(1.12, 1.20)이었을 때는 cd-sem 17개 칸 전부에서 느림 배지가 구조적으로
+  뜨지 않았습니다). 장비가 5대보다 훨씬 많은 실제 사무실 칸에서는 이 감쇠가
+  약해져, 같은 정도의 물리적 느림이 mock보다 훨씬 높은 지수로 읽힐 것으로
+  예상됩니다 — 즉 `TAT_CEIL=1.10`은 mock의 작은 셀이 아니라 사무실 실
+  플릿에서는 관대한(느린 장비를 놓치는 쪽) 임계값일 가능성이 있습니다.
+  사무실에서 `fleet.percentiles`와 함께, 장비 수가 많은 칸(예: 같은
+  `eqp_model_cd`가 여러 대인 fab)의 `tat_index` 분포도 함께 확인해 이 셀
+  크기 효과의 크기를 가늠해야 합니다.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/equipment-compare
 
