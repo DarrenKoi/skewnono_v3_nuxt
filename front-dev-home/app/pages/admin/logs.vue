@@ -51,6 +51,7 @@
           size="xs"
           :color="statusPreset === preset.value ? 'primary' : 'neutral'"
           :variant="statusPreset === preset.value ? 'solid' : 'outline'"
+          :aria-pressed="statusPreset === preset.value"
           @click="applyStatusPreset(preset.value)"
         >
           {{ preset.label }}

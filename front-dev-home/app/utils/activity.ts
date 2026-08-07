@@ -29,7 +29,7 @@ export const userSearchText = (row: ListedUser): string =>
 
 /** The FAB bucket name the backend gives documents that carry no fab_name.
  *
- *  The literal '미지정' lives also in
+ *  The literal '미지정' also lives in
  *  back_dev_home/activity/providers/opensearch_reader.py, which writes it.
  *  Two copies of one string, so changing either alone silently stops the
  *  filter below from matching and the bucket reappears. */
@@ -51,10 +51,21 @@ export const rankableFabRows = <T extends { fab: string }>(
 
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
-// `cdsem`, `hvsem`, `provision`, `verity_sem` and `home` are no longer written:
-// the fab hub became `tool_inventory` and `/` stopped being ranked. Their labels
-// STAY — rows already in OpenSearch keep ranking until the 30-day window rolls
-// past them, and a missing label renders them as `Cdsem`.
+//
+// Two different reasons an entry below has no corresponding "explicit" rule
+// in feature_map.py, so neither can be deleted on the same schedule:
+//   - `home` is retired: `/` stopped being ranked (page_to_feature returns
+//     None for it). Its label is needed only until the rows already written
+//     under it age out of the 30-day ranking window — after that it can go.
+//   - `cdsem`, `hvsem`, `provision`, `verity_sem`, `thickness` are fallback
+//     slugs, not retired ones: any e-beam page with no explicit _PAGE_RULES
+//     entry still falls back to its tool segment (page_to_feature's bottom
+//     branch), and any non-ebeam page with no rule falls back to its first
+//     path segment. Both fallbacks are exercised today by real unmapped
+//     pages (e.g. /thickness) and are pinned by
+//     test_unknown_pages_fall_back_to_a_derived_slug. Their labels are
+//     PERMANENT — deleting them on a 30-day clock makes the ranking render
+//     `Cdsem` / `Verity Sem` the next time an unmapped page is visited.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',

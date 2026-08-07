@@ -163,7 +163,7 @@ test('the fab hub is one identity across every tool family', () => {
   ])
 
   assert.equal(identities.size, 1)
-  assert.ok(identities.has('/tool-inventory'))
+  assert.ok(identities.has('#tool-inventory'))
 })
 
 test('an unmapped e-beam page falls back to its tool, not to the fab hub', () => {

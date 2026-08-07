@@ -13,7 +13,9 @@
  *  Nothing else may.
  *
  *  No slug strings live here — the backend owns that vocabulary. This table
- *  holds route fragments only.
+ *  holds route fragments only, with one synthesized exception:
+ *  TOOL_INVENTORY_PATH, which no real route ever produces (see its own
+ *  comment below).
  *
  *  Almost every query param is state within a page (fab, ppid, filters) and
  *  must not re-fire the beacon. `tab` on recipe-status is the exception: that
@@ -35,7 +37,15 @@ const VALID_TABS = new Set(['tat', 'align', 'meas'])
 // The four tool families share no path segment for this page, so the identity
 // they must all collapse onto has to be synthesized. Matches the backend's
 // `tool_inventory` slug.
-const TOOL_INVENTORY_PATH = '/tool-inventory'
+//
+// Deliberately spelled with a leading `#`, not `/`: a canonical path is always
+// built as `'/' + segments.join('/')`, so no real route can ever produce a
+// leading `#`. Spelling this as `/tool-inventory` would share a namespace with
+// real route fragments — if a page ever appeared at that path, its canonical
+// form would collide with this constant and silently merge into the fab hub,
+// an agreement the contract fixture cannot catch because both halves would
+// agree with each other.
+const TOOL_INVENTORY_PATH = '#tool-inventory'
 
 // Ops pages are logged but never ranked — the backend returns None for them.
 // Mirrors _OPS_PAGE_PREFIXES.
@@ -90,7 +100,10 @@ interface Canonical {
   path: string
   /** For /ebeam routes, the tool landing page — the identity an unmapped
    *  e-beam page falls back to, matching the backend's `parts[1]` fallback.
-   *  Non-empty so the four tool landings never collapse into each other. */
+   *  The four tool landings themselves now collapse into one identity
+   *  (TOOL_INVENTORY_PATH) — what `landing` keeps apart is the four
+   *  UNMAPPED-page fallbacks, one per tool, from colliding into each
+   *  other. */
   landing: string | null
 }
 
