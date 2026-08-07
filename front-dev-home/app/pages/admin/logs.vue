@@ -272,8 +272,16 @@
                 <td class="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-600 dark:text-zinc-300">
                   {{ row.event || '-' }}
                 </td>
-                <td class="whitespace-nowrap px-3 py-2 font-mono text-[11px]">
-                  {{ row.user_id || '-' }}
+                <td class="whitespace-nowrap px-3 py-2">
+                  <div class="text-[11px]">
+                    {{ userCell(row.user_id).name }}
+                  </div>
+                  <div
+                    v-if="userCell(row.user_id).empno"
+                    class="font-mono text-[10px] text-(--sk-ink-muted)"
+                  >
+                    {{ userCell(row.user_id).empno }}
+                  </div>
                 </td>
                 <td class="px-3 py-2 font-mono text-[11px]">
                   {{ row.method || '-' }}
@@ -545,6 +553,16 @@ const formatTime = (value: string | null) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('ko-KR', { hour12: false })
+}
+
+// Name leads, employee number underneath rather than instead of — the same
+// rule the /activity user table uses, and for the same reason: the log filters
+// and every other screen key on the empno, so it has to stay readable. No
+// second line when there is no name; the id is already the first one.
+const userCell = (userId: string | null) => {
+  if (!userId) return { name: '-', empno: null }
+  const name = logs.value?.members?.[userId]
+  return name ? { name, empno: userId } : { name: userId, empno: null }
 }
 
 const levelColor = (level: string | null): 'neutral' | 'info' | 'warning' | 'error' => {

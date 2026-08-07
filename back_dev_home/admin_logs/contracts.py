@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, TypedDict
 
 
-__all__ = ["LogItem", "LogQueryResponse"]
+__all__ = ["LogItem", "LogQueryResponse", "NamedLogQueryResponse"]
 
 
 class LogItem(TypedDict):
@@ -40,3 +40,25 @@ class LogQueryResponse(TypedDict):
     page_count: int
     filters: dict[str, Any]
     items: list[LogItem]
+
+
+class NamedLogQueryResponse(LogQueryResponse):
+    """A log page with its employee numbers expanded into names.
+
+    What the ROUTE returns; the providers return ``LogQueryResponse``. The
+    logging store records employee numbers and no names, so LogItem must not
+    promise one — see activity/routes.py, which split the same way.
+
+    ``members`` is a sibling map rather than a field on each row for two
+    reasons. A 200-row page usually holds fewer than ten distinct users, so
+    per-row names would repeat the same string dozens of times. And LogItem
+    already carries the verbatim source document as ``raw`` — an ``emp_nm``
+    sitting beside a ``raw`` that has no such field would read as an
+    OpenSearch field it is not.
+
+    Employee numbers the directory could not name are OMITTED rather than
+    mapped to None: the caller falls back to the number, so an entry would say
+    nothing, and the value type stays a plain str.
+    """
+
+    members: dict[str, str]

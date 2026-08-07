@@ -51,6 +51,13 @@ export interface AdminLogsResponse {
    * OpenSearch result window. The pager must use this, not recompute it. */
   page_count: number
   filters: Record<string, unknown>
+  /** Employee number → directory name, for the rows on this page only.
+   *
+   * A sibling map rather than a field on AdminLogItem: the backend joins it in
+   * the route, so it is not part of the OpenSearch document each row carries in
+   * `raw`. Employee numbers the directory could not name are absent — fall
+   * back to the number itself. */
+  members: Record<string, string>
   items: AdminLogItem[]
 }
 
