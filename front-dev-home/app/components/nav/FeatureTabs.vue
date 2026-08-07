@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
 import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature } from '~/utils/features'
-import { fabSegment } from '~/utils/fab'
+import { buildFabSegment } from '~/utils/fab'
 import { isHeaderInfoPath } from '~/utils/headerNav'
 
 const route = useRoute()
-const { fab, toolType: storeToolType } = useNavigation()
+const { fabs, toolType: storeToolType } = useNavigation()
 const isEbeamRoute = useEbeamRoute()
 
 // Header-right info pages keep the feature tabs so the user can jump back to the main
@@ -71,12 +71,13 @@ const getFeatureRoute = (feature: string) => {
   }
 
   // For fab-dependent features we need a fab segment in the URL. Prefer the one already in
-  // the path; on a fabless feature page there is none, so fall back to the store's last fab
-  // and finally to R3. Both go through fabSegment, so a hand-typed uppercase URL does not
-  // propagate uppercase into the links we build.
+  // the path — since Phase 1 it may be a multi-fab list ("r3,m16b"), which passes through
+  // untouched so feature switches keep the whole selection. On a fabless feature page there
+  // is none, so fall back to the store's fab list and finally to R3. buildFabSegment
+  // lowercases, so a hand-typed uppercase URL does not propagate into the links we build.
   const basePath = route.path.replace(FEATURE_SLUG_SUFFIX_REGEX, '')
   const pathFab = basePath.split('/')[3]
-  const segment = fabSegment(pathFab || fab.value)
+  const segment = pathFab ? pathFab.toLowerCase() : buildFabSegment(fabs.value)
 
   if (feature === 'index') return `/ebeam/${toolType}/${segment}`
   return `/ebeam/${toolType}/${segment}/${feature}`

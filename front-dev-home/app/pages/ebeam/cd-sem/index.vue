@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useNavigationStore } from '~/stores/navigation'
-import { fabSegment } from '~/utils/fab'
+import { buildFabSegment } from '~/utils/fab'
 
 // Redirect-only page: route to the user's last-visited fab (restored by persist-fab.client.ts),
 // or to R3 on first visit (first item under our R&D-first sort order).
@@ -10,8 +10,8 @@ definePageMeta({
   middleware: () => {
     // Read the store directly — useNavigation() also calls useRoute()/useRouter(),
     // which Nuxt warns against inside middleware. We only need `fab` here.
-    const { fab } = useNavigationStore()
-    return navigateTo(`/ebeam/cd-sem/${fabSegment(fab.value)}`, { replace: true })
+    const { fabs } = useNavigationStore()
+    return navigateTo(`/ebeam/cd-sem/${buildFabSegment(fabs.value)}`, { replace: true })
   }
 })
 </script>

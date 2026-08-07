@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useNavigationStore } from '~/stores/navigation'
-import { fabSegment } from '~/utils/fab'
+import { buildFabSegment } from '~/utils/fab'
 
 definePageMeta({
   middleware: () => {
     // Read the store directly — useNavigation() also calls useRoute()/useRouter(),
     // which Nuxt warns against inside middleware. We only need `fab` here.
-    const { fab } = useNavigationStore()
-    return navigateTo(`/ebeam/verity-sem/${fabSegment(fab.value)}`, { replace: true })
+    const { fabs } = useNavigationStore()
+    return navigateTo(`/ebeam/verity-sem/${buildFabSegment(fabs.value)}`, { replace: true })
   }
 })
 </script>

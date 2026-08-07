@@ -1,7 +1,7 @@
 import type { ToolType, Fab } from '~/stores/navigation'
 import { useNavigationStore } from '~/stores/navigation'
 import { isFablessFeature, matchFeatureFromPath } from '~/utils/features'
-import { NO_FAB, fabSegment } from '~/utils/fab'
+import { NO_FAB, fabSegment, buildFabSegment, toggleFabInList } from '~/utils/fab'
 
 export const useNavigation = () => {
   const store = useNavigationStore()
@@ -33,7 +33,7 @@ export const useNavigation = () => {
     }
 
     const featureSuffix = enabled ? `/${feature}` : ''
-    return `/ebeam/${toolType}/${fabSegment(store.fab.value)}${featureSuffix}`
+    return `/ebeam/${toolType}/${buildFabSegment(store.fabs.value)}${featureSuffix}`
   }
 
   const navigateToToolType = (toolType: ToolType) => {
@@ -77,10 +77,33 @@ export const useNavigation = () => {
     router.push(`/ebeam/${toolType}/${fabSegment(fab)}`)
   }
 
+  // Checkbox path: add/remove one fab, stay on the current feature, keep its
+  // query params. Same-URL guard: toggleFabInList may return the list unchanged
+  // (last-fab removal), in which case there is nothing to route to.
+  const toggleFab = (fab: Fab) => {
+    const current = store.fabs.value
+    const next = toggleFabInList(current, fab)
+    if (next.join(',') === current.join(',')) return
+    store.setFabs(next)
+
+    const toolType = store.toolType.value
+    const feature = currentFeature()
+    const featureEnabled = feature !== '' && featureEnabledForToolType(feature, toolType)
+    if (featureEnabled && isFablessFeature(feature)) return
+
+    const segment = buildFabSegment(next)
+    if (featureEnabled) {
+      router.push({ path: `/ebeam/${toolType}/${segment}/${feature}`, query: route.query })
+      return
+    }
+    router.push(`/ebeam/${toolType}/${segment}`)
+  }
+
   return {
     ...store,
     toolTypeHref,
     navigateToToolType,
-    navigateToFab
+    navigateToFab,
+    toggleFab
   }
 }
