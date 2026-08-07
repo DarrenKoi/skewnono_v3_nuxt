@@ -544,4 +544,4 @@ Chunking, embedding model, vector dimension, index mapping은 SKEWNONO 구현 �
 - `back_dev_home/_infra/redis.py`
 - `wsgi.ini`
 - `docs/back-end/office-data-adapters.md`
-- `docs/development-workflow.md`
+- `docs/development-workflow.md` (이후 삭제 — git 이력에서만 확인 가능합니다)

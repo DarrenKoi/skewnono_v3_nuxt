@@ -1,10 +1,12 @@
 # API Contracts
 
-Each YAML file defines one resource's API endpoints. Both the Nuxt mock server routes (Phase 1) and the Flask backend (Phase 2/3) must implement these contracts identically.
+Each YAML file defines one resource's API endpoints. Flask serves `/api/*` in every phase, so both adapters behind a feature's `data.py` dispatcher — `providers/mock.py` at home and `providers/office.py` at the office — must satisfy these contracts identically.
 
 ## Purpose
 
-These contracts are the bridge between home (frontend) and work (backend) development. When you see real data at work, document its schema here. At home, Claude reads these contracts to generate TypeScript types and mock server routes.
+These contracts are the bridge between home (frontend) and work (backend) development. When you see real data at work, document its schema here. At home, Claude reads these contracts to generate TypeScript types and mock adapters.
+
+A feature's `providers/mock.py` names its contract file in the module docstring (`계약: docs/api-contracts/<resource>.yaml`). Office-DB *facts* belong in `docs/datatables/<source>.txt` instead — see that folder's `README.md`.
 
 ## File Naming
 

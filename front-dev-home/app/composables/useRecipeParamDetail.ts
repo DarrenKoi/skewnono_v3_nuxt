@@ -3,8 +3,7 @@
  *
  * Fetched on click rather than with the recipe, because each parameter costs up
  * to five files off the measuring tool's own FTP server and most parameters are
- * never opened. See
- * `docs/superpowers/specs/2026-07-29-raw-recipe-folder-amp-and-conditions-design.md`.
+ * never opened. See `docs/datatables/recipe_idp.txt`.
  *
  * The rows are OPEN key/value, not fixed columns: the office parser's field
  * names are still unverified, and an open shape renders an unexpected key
