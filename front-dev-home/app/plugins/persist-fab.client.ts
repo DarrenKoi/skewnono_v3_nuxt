@@ -1,30 +1,32 @@
 import { useNavigationStore } from '~/stores/navigation'
-import { NO_FAB, normalizeFab } from '~/utils/fab'
+import { normalizeFab } from '~/utils/fab'
 
 // New key (was 'skewnono:fab') — old fac_id values like "R3"/"M11" are no longer valid
 // fab_names, so dropping the old key avoids redirecting users to no-data URLs after deploy.
+// Since Phase 1 the value is a comma-joined multi-fab list; a pre-existing single value
+// reads back as a one-element list with no migration step.
 const STORAGE_KEY = 'skewnono:fab_name'
 
-// Matches fab_name shape: R or M, 1-2 digits, optional A-C suffix. Permissive enough to accept
-// any future fab_name from the API; strict enough to reject stale fac_id values. Tested against
-// the normalized (uppercase) form, since a value persisted from a lowercase API response would
-// otherwise be rejected here and silently reset the user's fab on the next load.
+// Matches fab_name shape: R or M, 1-2 digits, optional A-C suffix. Validated per token so
+// one stale entry drops alone instead of resetting the whole selection.
 const FAB_NAME_PATTERN = /^[RM]\d{1,2}[A-C]?$/
 
 export default defineNuxtPlugin(() => {
   const store = useNavigationStore()
 
-  // The pattern already rejects '' and the sentinel — both fail the leading [RM].
-  const saved = normalizeFab(window.localStorage.getItem(STORAGE_KEY))
-  if (FAB_NAME_PATTERN.test(saved)) {
-    store.setFab(saved)
+  const saved = (window.localStorage.getItem(STORAGE_KEY) ?? '')
+    .split(',')
+    .map(normalizeFab)
+    .filter(token => FAB_NAME_PATTERN.test(token))
+  if (saved.length > 0) {
+    store.setFabs(saved)
   }
 
-  watch(() => store.fab.value, (next) => {
-    if (next === NO_FAB) {
+  watch(() => store.fabs.value, (next) => {
+    if (next.length === 0) {
       window.localStorage.removeItem(STORAGE_KEY)
     } else {
-      window.localStorage.setItem(STORAGE_KEY, next)
+      window.localStorage.setItem(STORAGE_KEY, next.join(','))
     }
   })
 })
