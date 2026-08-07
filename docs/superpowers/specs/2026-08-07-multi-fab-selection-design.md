@@ -42,7 +42,7 @@
 | Feature | 페이지 | 변경 |
 | --- | --- | --- |
 | storage | `[fab]/storage/` | 백엔드 변경 없음(이미 목록형). 프론트가 목록을 넘기도록 연결만 합니다. |
-| hardware | `[fab]/hardware.vue` | routes의 `_resolve_fab_name` → 쉼표 목록, provider까지 목록 전달. |
+| hardware | `[fab]/hardware.vue` | 프론트엔드만 — 장비 선택 목록 필터를 FAB set으로 확장(5.2 참조). |
 | recipe-tat | `[fab]/recipe-tat/` | 공유 scope/filter 변경으로 획득(아래 5절). |
 | fail-issue | `[fab]/fail-issue.vue` | 공유 scope/filter 변경으로 획득. |
 | recipe-status | `[fab]/recipe-status.vue` | fail_issue API를 쓰므로 함께 획득. |
@@ -119,8 +119,11 @@ live-alarm, skew-check, pm-planning, device-statistics·skewvoir(원래 fabless)
 
 ### 5.2 개별 feature
 
-- hardware: `_resolve_fab_name` → 쉼표 목록 파싱, data 함수·provider 시그니처
-  `fab_name: str | None` → `fab_names: list[str] | None`.
+- hardware: **백엔드 변경 없음** (설계 후 구현 조사에서 확정). hardware API는
+  장비 단위(`/hardware/<eqp_id>/<service>`)이고 `fab_name` 파라미터는 선택된
+  장비 자신의 fab을 그대로 보내는 컨텍스트 값이다. FAB 필터의 실체는
+  프론트엔드의 장비 선택 목록(`useSemListApi.filterRows`) — 그 함수만
+  목록을 받게 확장한다.
 - storage: 변경 없음(이미 목록형 — Phase 1의 참조 구현).
 
 ### 5.3 mock provider
