@@ -13,6 +13,19 @@ list may be JSON (`["a","b"]`) or a Python repr (`['a','b']`) depending on the
 writer, with a comma-split as a last resort (recipe names carry `/` and `_` but
 never commas).
 
+★ LOWERCASE IS A CONTRACT THE LOADING JOB MUST HOLD, and it broke once. On
+  2026-08-07 the office hash was populated with UPPERCASE fields and every
+  search returned nothing; the DB was regenerated in lowercase and search
+  recovered (office 확인 2026-08-07). Note the failure MODE, because it is why
+  this was slow to see: a missing FIELD is a legitimate empty result ("this fab
+  has no recipes") and only a missing KEY is a 502, so wrong-case loading is
+  indistinguishable from an empty fab by the response alone — `HKEYS` on the
+  live hash is the only thing that settles it. The same rule and the same
+  verification date cover the two per-fab registry hashes below, where the fab
+  is part of the KEY NAME rather than a field; there the failure is quieter
+  still, since recipe open just falls through to the meas_hist path and keeps
+  answering 200 for any recipe that has been measured.
+
 Searching the name list rather than 측정 이력 is deliberate: a recipe that has
 never been measured still exists and must be findable.
 
