@@ -432,8 +432,8 @@
             size="sm"
             color="neutral"
             variant="ghost"
-            icon="i-lucide-rotate-ccw"
-            label="초기화"
+            icon="i-lucide-refresh-cw"
+            label="새로고침"
             :disabled="!hasActiveUserControls"
             @click="resetUserControls"
           />
