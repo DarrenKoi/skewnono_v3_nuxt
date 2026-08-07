@@ -12,7 +12,12 @@ type UserSort = 'requests' | 'days' | 'recent' | 'name'
 export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) => {
   const query = ref('')
   const featureFilter = ref('all')
-  const sort = ref<UserSort>('requests')
+  // 최근 활동 순 by default: the question that opens this table is almost
+  // always "who is using it right now", not "who used it most over 30 days".
+  // Three places hold this default — this ref, hasActiveControls and
+  // resetControls — and they must agree, or the 초기화 button lights up on
+  // first render and then resets to something that was never the default.
+  const sort = ref<UserSort>('recent')
   const toast = useToast()
 
   const sortOptions = [
@@ -55,6 +60,11 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
       if (sort.value === 'recent') {
         return (right.last_seen ? Date.parse(right.last_seen) : 0)
           - (left.last_seen ? Date.parse(left.last_seen) : 0)
+          // Ties are ordinary — several people last active in the same second,
+          // and every row with a null last_seen scores 0. Without a tiebreak
+          // their order is whatever the backend happened to send, which it
+          // does not promise to keep stable between refreshes.
+          || left.user_id.localeCompare(right.user_id)
       }
       // Sorts by the label the column actually shows, so a row with no
       // directory name files under its employee number rather than dropping
@@ -68,13 +78,13 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
   })
 
   const hasActiveControls = computed(() =>
-    Boolean(query.value) || featureFilter.value !== 'all' || sort.value !== 'requests'
+    Boolean(query.value) || featureFilter.value !== 'all' || sort.value !== 'recent'
   )
 
   const resetControls = () => {
     query.value = ''
     featureFilter.value = 'all'
-    sort.value = 'requests'
+    sort.value = 'recent'
   }
 
   const tableData = () => ({
