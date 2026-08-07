@@ -19,10 +19,7 @@ const route = useRoute()
 const { fetchLateralRecipe } = useLateralRecipeApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
-// The route's OWN [fab] segment, not the owner fab: a multi-fab sidebar
-// selection must survive the trip back to recipe-search even though this
-// recipe's data was fetched from a single owner fab.
-const routeFabSegment = computed(() => String(route.params.fab || props.fab.toLowerCase()))
+const routeFabSegment = useRouteFabSegment(() => props.fab)
 
 const cacheKey = computed(() => `lateral:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 

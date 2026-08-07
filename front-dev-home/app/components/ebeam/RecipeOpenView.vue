@@ -269,10 +269,7 @@ const { fetchRecipeDetail } = useRecipeSearchApi()
 const recipeName = computed(() => readRecipeNameQuery(route))
 const source = computed(() => readRecipeSourceQuery(route))
 const isSupportedSource = computed(() => isRecipeDetailScreenSupported('open', source.value))
-// The route's OWN [fab] segment, not the owner fab: a multi-fab sidebar
-// selection (e.g. "r3,m16b") must survive the trip back to recipe-search even
-// though this recipe's data was fetched from a single owner fab.
-const routeFabSegment = computed(() => String(route.params.fab || props.fab.toLowerCase()))
+const routeFabSegment = useRouteFabSegment(() => props.fab)
 const backRoute = computed(() => `/ebeam/${props.toolType}/${routeFabSegment.value}/recipe-search`)
 const cacheKey = computed(() => (
   `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${source.value}:${recipeName.value}`

@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { readRecipeOwnerFabQuery } from '~/utils/recipeView'
-
-const { primaryFab } = useFabRoute('hv-sem')
-const route = useRoute()
-const ownerFab = computed(() => readRecipeOwnerFabQuery(route) || primaryFab.value)
+const { ownerFab } = useRecipeDetailRouting('hv-sem')
 </script>
 
 <template>
