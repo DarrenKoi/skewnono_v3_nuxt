@@ -3,13 +3,13 @@
     <!-- 선택 요약: 플릿 표에서 이미 받은 행으로 계산하므로 추가 요청 없음 -->
     <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5">
       <span
-        v-for="(row, index) in rows"
+        v-for="row in rows"
         :key="row.eqp_id"
         class="inline-flex h-7 items-center gap-2 rounded-md px-2.5 text-[11px] ring-1 ring-(--sk-border-soft)"
       >
         <span
           class="h-2 w-2 rounded-full"
-          :style="{ backgroundColor: palette[index % palette.length] }"
+          :style="{ backgroundColor: colorByEqpId.get(row.eqp_id) }"
         />
         <span class="font-mono font-semibold text-(--sk-ink)">{{ row.eqp_id }}</span>
         <span class="text-(--sk-ink-muted)">
@@ -105,6 +105,15 @@ const props = defineProps<{
 const { fetchRecipeTatEquipmentCompare } = useRecipeTatApi()
 const { palette } = useEchartsTheme()
 
+// 칩 점 색과 트렌드 라인 색이 같은 eqp_id에 대해 어긋나지 않도록 하나의
+// 인덱스에서만 파생시킵니다. eqpIds(요청 순서)가 정준입니다 — API가 이
+// 순서 그대로 trends.eqp_id를 echo하고, rows(플릿 표 순서로 필터된
+// selectedRows)는 클릭 순서와 다를 수 있어 그 자체로는 색 소스가 될 수
+// 없습니다.
+const colorByEqpId = computed(() => new Map(
+  props.eqpIds.map((id, index) => [id, palette.value[index % palette.value.length]])
+))
+
 const queryParams = computed(() => ({
   toolType: props.toolType,
   fabNames: props.fabs.length > 0 ? props.fabs : undefined,
@@ -158,13 +167,13 @@ const trendOption = computed<EChartsOption>(() => {
     },
     // areaStyle을 쓰지 않습니다: 다중 시리즈에 채움을 주면 hover 시 blur가
     // 채움을 지워서 화면이 깨진 것처럼 보입니다.
-    series: trends.value.map((series, index) => ({
+    series: trends.value.map(series => ({
       type: 'line' as const,
       name: series.eqp_id,
       smooth: true,
       showSymbol: false,
-      itemStyle: { color: palette.value[index % palette.value.length] },
-      lineStyle: { color: palette.value[index % palette.value.length] },
+      itemStyle: { color: colorByEqpId.value.get(series.eqp_id) },
+      lineStyle: { color: colorByEqpId.value.get(series.eqp_id) },
       data: series.points.map(point => point.total_meastime)
     }))
   }
