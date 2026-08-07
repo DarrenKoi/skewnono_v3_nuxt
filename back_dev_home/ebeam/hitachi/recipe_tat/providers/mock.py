@@ -74,10 +74,14 @@ from back_dev_home.ebeam.hitachi._tool_specs import model_to_tool_type
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
+    EquipmentsPayload,
     MeasHistRow,
     RankingRow,
     SummaryPayload,
     ToolType,
+)
+from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    build_equipments_payload,
 )
 from back_dev_home.sem_list.providers import mock as sem_list_mock
 
@@ -91,6 +95,7 @@ __all__ = [
     "get_summary",
     "get_daily_trend",
     "get_devices",
+    "get_equipments",
 ]
 
 
@@ -639,6 +644,36 @@ def get_devices(
             reverse=True
         )
     ]
+
+
+def get_equipments(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None
+) -> EquipmentsPayload:
+    """범위 안의 행을 (장비, 레시피) 격자로 접어 공용 조립기에 넘깁니다.
+
+    office 어댑터는 같은 격자를 OpenSearch composite 집계로 만들어 같은
+    조립기를 부릅니다 — 두 provider 의 숫자가 정의상 일치합니다.
+    """
+    cells: dict[tuple[str, str], list] = {}
+    for row in _filter_rows(tool_type, fab_names, start_date, end_date):
+        key = (row["eqp_id"], row["full_name"])
+        cell = cells.get(key)
+        if cell is None:
+            cells[key] = [
+                row["eqp_id"], row["fab_name"], row["eqp_model_cd"],
+                row["full_name"], 1, row["meastime"]
+            ]
+            continue
+        cell[4] += 1
+        cell[5] += row["meastime"]
+
+    return build_equipments_payload(
+        tool_type, fab_names, start_date, end_date,
+        [tuple(cell) for cell in cells.values()]
+    )
 
 
 if __name__ == "__main__":
