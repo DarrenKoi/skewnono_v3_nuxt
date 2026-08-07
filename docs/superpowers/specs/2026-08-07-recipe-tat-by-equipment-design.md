@@ -34,8 +34,10 @@ Recipe TAT은 오늘 두 가지 시점만 제공합니다.
 | 방치 신호 | 저사용 · 느림 · 레시피 편중 세 가지 (user-confirmed 2026-08-07). | |
 | 측정 0건 장비 | **표에 넣지 않습니다.** | sem_list 명부 조인이 필요해 office 어댑터에 Redis 의존이 추가됩니다. 이번 범위 밖(user-confirmed 2026-08-07). |
 | 느림 지표 | 단순 평균 TAT이 아니라 **레시피 구성으로 정규화한 지수**(`tat_index`). | 3절 참고. 단순 평균은 장비 상태가 아니라 레시피 구성 차이를 재는 지표입니다. |
+| 사용량 기준 | 실행 **횟수**가 아니라 **측정 점유 시간**. | 가동률은 "얼마나 바빴는가"이지 "몇 번 돌았는가"가 아닙니다. 긴 레시피를 도는 장비는 실행 횟수가 적어도 놀고 있지 않습니다(user-confirmed 2026-08-07). |
 | API | 새 엔드포인트 2개. 기존 4개(`ranking`/`summary`/`daily-trend`/`devices`)는 **손대지 않습니다.** | 4절 참고. |
-| 임계값 위치 | 비율 계산은 백엔드, **배지 임계값은 프론트엔드.** | 비율은 전체 데이터가 있어야 나오고(중앙값·플릿 평균), 임계값은 조정이 잦은 표시 정책이라 provider 계약 밖에 둡니다. |
+| 임계값 위치 | 비율·**분위수** 계산은 백엔드, 배지 판정은 프론트엔드 한 파일. | 3.5절. 실 분포를 집에서 볼 수 없으므로 임계값을 한 곳에 모으고 분위수를 함께 내려보내 사무실에서 한 번에 조정합니다. |
+| 임계값 상태 | 전부 **OFFICE-VERIFY** — 집에서 정한 숫자는 자리표시자입니다. | 실 플릿은 가동률이 대부분 90% 이상으로 촘촘히 몰려 있어서 85%만 되어도 이상 신호일 수 있습니다(user-confirmed 2026-08-07). mock으로는 이 폭을 알 수 없습니다. |
 | mock 장비 플릿 | **전면 수정.** sem_list를 장비 명부로 삼고, 생성 순서를 장비→lot으로 뒤집습니다. | 6절 참고. 현재 mock은 문서화된 규칙을 어기고 있고, 그대로 두면 느림 신호를 집에서 검증할 수 없습니다(user-confirmed 2026-08-07). |
 | 컴포넌트 배치 | `RecipeTatView.vue`의 기존 본문은 **건드리지 않고** 모드 분기만 추가. 장비별은 새 컴포넌트 3개. | 이미 729줄이라 여기에 얹으면 1100줄이 됩니다. 동작 중인 두 뷰의 회귀 위험을 0으로 둡니다. |
 
@@ -64,7 +66,7 @@ tat_index(t) = actual(t) / expected(t)
 
 성질 두 가지를 명시해 둡니다.
 
-- **표본 하한.** `meas_counts(t) < TAT_INDEX_MIN_SAMPLE`(기본 20)이면
+- **표본 하한.** `meas_counts(t) < TAT_INDEX_MIN_SAMPLE`(기본 12, OFFICE-VERIFY)이면
   `tat_index`는 `null`입니다. 3건짜리 장비의 지수는 신호가 아니라 잡음이고,
   잡음에 경고 배지를 다는 순간 화면 전체의 신뢰가 무너집니다. 프론트엔드는
   `null`을 `—`로 렌더링하고 배지를 달지 않습니다.
@@ -73,13 +75,30 @@ tat_index(t) = actual(t) / expected(t)
   기여합니다. 즉 비교 정보가 없는 일감은 지수를 1.0 쪽으로 희석시킬 뿐,
   없는 경보를 만들어내지 않습니다. 의도된 성질입니다.
 
-### 3.2 나머지 두 신호
+### 3.2 나머지 신호
 
 | 지표 | 정의 | 의미 |
 | --- | --- | --- |
-| `usage_ratio` | `exec_count ÷ 플릿 중앙값 exec_count` | 0.2 = 또래의 1/5만 돎 |
+| `occupancy` | `total_meastime ÷ 조회 기간 총 초` | 절대값. 0.62 = 기간의 62%를 측정에 씀 |
+| `usage_ratio` | `total_meastime ÷ 플릿 중앙값 total_meastime` | 상대값. 0.8 = 또래의 80%만 바빴음 |
 | `recipe_count` | 이 장비가 돈 distinct `full_name` 수 | 커버리지 |
 | `top_recipe_share` | 1위 레시피의 TAT ÷ 이 장비 총 TAT | 편중도 |
+
+**실행 횟수가 아니라 측정 시간이 기준입니다.** 가동률은 "얼마나 바빴는가"이지
+"몇 번 돌았는가"가 아닙니다. ADI 같은 긴 레시피를 도는 장비는 실행 횟수가
+적어도 놀고 있지 않습니다. `exec_count`는 표에 계속 표시하되 신호 판정에는
+쓰지 않습니다.
+
+**`occupancy`가 무엇이 아닌지 명확히 해둡니다.** 이 값은 `meas_hist`의
+`meastime` 합에서 나오므로 **측정 점유율**이지 MES가 보고하는 장비 가동률이
+아닙니다. 로딩·언로딩·대기·PM이 빠져 있어서 실제 가동률보다 낮게 읽힙니다.
+두 숫자를 같은 것으로 보고 임계값을 옮겨오면 안 됩니다 — 3.5절의 사무실
+확인 절차가 이 때문에 필요합니다.
+
+`occupancy`(절대)와 `usage_ratio`(상대)를 **둘 다** 내려보냅니다. 상대값만
+있으면 플릿 전체가 놀고 있어도 "다들 정상"이라고 말하고, 절대값만 있으면
+측정 점유율과 실 가동률의 격차만큼 통째로 어긋납니다. 어느 쪽이 신호를
+싣고 있는지는 사무실 데이터를 봐야 압니다.
 
 또래 집단(peer group)은 **조회 범위 그 자체**입니다 — 사용자가 이미
 사이드바에서 fab을, 탭에서 tool_type을 골랐으므로 그 안의 장비들이 곧
@@ -88,22 +107,77 @@ tat_index(t) = actual(t) / expected(t)
 
 ### 3.3 빈 범위 처리
 
-조회 범위에 측정이 하나도 없으면 `equipments`는 빈 목록이고 `fleet`의
-모든 수치는 0입니다. `usage_ratio`는 중앙값이 0일 때 0.0으로 둡니다(장비가
-목록에 있다면 실행수가 1 이상이라 실제로는 도달하지 않는 경로지만, 0으로
-나누지 않도록 명시적으로 막습니다). 프론트엔드는 기존 `전체 요약` 뷰와 같은
-"측정 없음" 빈 상태를 재사용합니다.
+조회 범위에 측정이 하나도 없으면 `equipments`는 빈 목록, `fleet`의 모든
+수치는 0, `percentiles`는 빈 dict입니다. `usage_ratio`는 중앙값이 0일 때
+0.0으로 둡니다(목록에 오른 장비는 `total_meastime`이 1 이상이라 실제로는
+도달하지 않는 경로지만, 0으로 나누지 않도록 명시적으로 막습니다).
+`occupancy`는 `window_seconds`가 0이면 0.0입니다.
 
-### 3.4 배지 임계값 (프론트엔드)
+프론트엔드는 기존 `전체 요약` 뷰와 같은 "측정 없음" 빈 상태를 재사용하고,
+`percentiles`가 비어 있으면 배지를 하나도 달지 않습니다 — 3.4절의 판정이
+분위수를 AND 조건으로 요구하므로 이건 자동으로 성립하지만, 테스트로
+고정해 둡니다.
+
+### 3.4 배지 판정 — 분위수 ∧ 절대 임계값
+
+집에서는 실 플릿의 분포 폭을 알 수 없습니다. 현업 확인에 따르면 장비 가동률은
+대부분 90% 이상으로 촘촘히 몰려 있어서 **85%만 되어도 이상 신호**일 수
+있습니다. 즉 mock을 보고 고른 절대 임계값은 거의 확실히 틀립니다.
+
+절대 임계값 하나에만 기대지도, 분위수 하나에만 기대지도 않습니다.
+
+- 절대 임계값만 쓰면 → 상수가 실 분포와 어긋나는 순간 전부 정상이거나
+  전부 경고가 됩니다.
+- 분위수만 쓰면 → 플릿이 완전히 건강해도 **항상 하위 10%를 경고**합니다.
+  "제일 낮은 장비"와 "문제 있는 장비"는 다릅니다.
+
+그래서 **둘을 AND로 묶습니다.** 꼬리에 있으면서 동시에 절대 기준을 넘긴
+장비만 배지를 답니다. 분위수가 잘못된 상수를 막아주고, 절대 기준이 건강한
+플릿에서의 헛경보를 막아줍니다.
 
 `front-dev-home/app/utils/equipmentSignals.ts` 순수 함수 + 단위 테스트.
 
 | 배지 | 조건 |
 | --- | --- |
-| `저사용` | `usage_ratio < 0.35` |
-| `느림` | `tat_index !== null && tat_index >= 1.15` |
-| `빠름` | `tat_index !== null && tat_index <= 0.85` (중립 표시, 경고 아님) |
-| `편중` | `recipe_count < fleet.median_recipe_count × 0.4` 또는 `top_recipe_share >= 0.6` |
+| `저사용` | `usage_ratio <= fleet.percentiles.usage_ratio.p10` **AND** `usage_ratio < USAGE_FLOOR` |
+| `느림` | `tat_index !== null` **AND** `tat_index >= …tat_index.p90` **AND** `tat_index > TAT_CEIL` |
+| `빠름` | `tat_index !== null && tat_index <= …tat_index.p10 && tat_index < TAT_FLOOR` (중립 표시) |
+| `편중` | `recipe_count <= …recipe_count.p10` **AND** `top_recipe_share >= SHARE_CEIL` |
+
+절대 상수의 **초기값은 자리표시자입니다.** 전부 `OFFICE-VERIFY`로 표시하고
+한 파일에 모아둡니다.
+
+```ts
+// OFFICE-VERIFY — 사무실 실 분포 확인 전까지는 전부 자리표시자입니다.
+// 조정 절차는 3.5절. 값이 확정되면 이 주석을 `office 확인 YYYY-MM-DD`로 바꿉니다.
+export const USAGE_FLOOR = 0.85   // 플릿이 촘촘하다는 현업 확인 반영 (0.35 → 0.85)
+export const TAT_CEIL    = 1.10
+export const TAT_FLOOR   = 0.92
+export const SHARE_CEIL  = 0.50
+```
+
+배지가 잘못 조정되어 있어도 **표는 항상 원 수치를 보여줍니다.** 배지는
+눈길을 유도하는 장치일 뿐이고, 판단 근거는 열에 그대로 남습니다.
+
+### 3.5 사무실 확인 절차 (OFFICE-VERIFY)
+
+임계값 조정에 필요한 정보를 응답이 이미 싣고 있으므로, 사무실에서 별도
+분석 없이 한 번의 호출로 끝납니다.
+
+1. `GET /cdsem/recipe-tat/equipments?start_date=…&end_date=…` 를 fab 없이
+   한 번 호출합니다.
+2. `fleet.percentiles`의 `usage_ratio` / `tat_index` / `occupancy` /
+   `recipe_count` p10·p25·p50·p75·p90을 읽습니다.
+3. 실 분포가 촘촘하면(예: `usage_ratio` p10이 0.93) 절대 상수를 그 안쪽으로
+   좁힙니다. 넓으면 반대로 넓힙니다.
+4. `equipmentSignals.ts`의 상수 네 개만 고치고 `OFFICE-VERIFY` 주석을
+   `office 확인 YYYY-MM-DD`로 바꿉니다. 백엔드·계약 변경은 없습니다.
+5. `occupancy`의 절대 수준을 MES 가동률과 나란히 놓고 둘의 격차를
+   `docs/datatables/meas_hist.txt`에 기록합니다 — 3.2절이 경고한 그
+   격차의 실측값입니다.
+
+`fleet.percentiles`를 계약에 넣은 이유가 이것입니다. 이게 없으면 사무실에서
+임계값을 맞추는 일이 raw 데이터를 따로 뽑아 분석하는 별도 과제가 됩니다.
 
 ## 4. API
 
@@ -130,29 +204,36 @@ GET /<tool_slug>/recipe-tat/equipment-compare
 ### 4.2 계약 (`recipe_tat/contracts.py` 추가분)
 
 ```python
-TAT_INDEX_MIN_SAMPLE = 20      # 이 미만이면 tat_index = None
+TAT_INDEX_MIN_SAMPLE = 12      # 이 미만이면 tat_index = None. OFFICE-VERIFY
 MAX_COMPARE_EQPS = 5           # equipment-compare가 받는 장비 수 상한
 
 class EquipmentRow(TypedDict):
     eqp_id: str
     fab_name: str
     eqp_model_cd: str
-    exec_count: int
+    exec_count: int                # 표시용. 신호 판정에는 쓰지 않음(3.2)
     total_meastime: int
     avg_meastime: float
     recipe_count: int
     top_recipe: str | None
     top_recipe_share: float
     tat_index: float | None        # 3.1 참고. 표본 미달이면 None
-    usage_ratio: float
+    occupancy: float               # total_meastime / 조회 기간 총 초
+    usage_ratio: float             # total_meastime / 플릿 중앙값
 
 class FleetReference(TypedDict):
     tool_count: int
     total_executions: int
     total_meastime: int
-    median_exec_count: float
+    window_seconds: int            # occupancy 분모. 기간 검증용으로 에코
+    median_total_meastime: float
     median_recipe_count: float
     min_sample: int                # TAT_INDEX_MIN_SAMPLE 에코
+    # 배지 임계값을 사무실에서 조정하기 위한 분포 요약(3.5절).
+    # 키: "usage_ratio" | "tat_index" | "occupancy" | "recipe_count"
+    # 값: {"p10","p25","p50","p75","p90"}. tat_index는 None인 장비를 제외하고
+    # 계산하며, 대상 장비가 없으면 빈 dict.
+    percentiles: dict[str, dict[str, float]]
 
 class EquipmentsPayload(TypedDict):
     tool_type: ToolType
@@ -242,10 +323,16 @@ utils/equipmentSignals.ts                       배지 판정 순수 함수 + �
 
 **플릿 표** (선택 없음 = 기본 상태)
 
-열: `☐ | eqp_id | fab | model | 실행수 | 총 TAT | 평균 | 레시피수 |
-TAT index | share | 신호`. 기본 정렬 총 TAT 내림차순, 정렬 가능 열은
-실행수·총TAT·평균·레시피수·TAT index. eqp_id/model 검색. 체크박스는 최대 5대,
+열: `☐ | eqp_id | fab | model | 실행수 | 총 TAT | 점유율 | 평균 | 레시피수 |
+TAT index | 신호`. 기본 정렬 총 TAT 내림차순, 정렬 가능 열은 실행수·총TAT·
+점유율·평균·레시피수·TAT index. eqp_id/model 검색. 체크박스는 최대 5대,
 초과 시 나머지가 비활성화됩니다.
+
+`점유율`은 `occupancy`를 백분율로 렌더링하고, 헤더 툴팁에 3.2절의 단서를
+답니다 — *"측정 시간 기준입니다. 로딩·대기·PM이 빠져 있어 MES 가동률보다
+낮게 읽힙니다."* 이 문장이 없으면 사용자가 62%를 보고 장비가 놀고 있다고
+읽습니다. `TAT index`가 `null`인 행은 `—`로 표시하고 정렬 시 맨 뒤로
+보냅니다.
 
 **비교 패널** (1대 이상 선택 시)
 
@@ -312,36 +399,70 @@ recipe-tat-compare:{toolType}:{fabs}:{start}:{end}:{정렬된 eqp_ids}
 
 | 스칼라 | 분포 | 만들어내는 화면 상태 |
 | --- | --- | --- |
-| `speed` | 대부분 `N(1.0, 0.08)`, 2~3대를 `1.25~1.40`에 고정 | `느림` 배지 |
-| `workload` | 대부분 1.0, 일부를 `0.15` | `저사용` 배지, 그리고 표본 미달로 `tat_index = null` |
+| `speed` | 대부분 `U(0.96, 1.04)`, 2대를 `1.12~1.20`에 고정 | `느림` 배지 |
+| `workload` | 대부분 `U(0.92, 1.08)`, 2대를 `0.70~0.80`, 1대를 `0.30` | `저사용` 배지 + 표본 미달로 `tat_index = null` |
 | `class_affinity` | 약 10%의 장비를 1~2개 class에 고정 | `편중` 배지 |
 
-`workload`가 낮은 장비는 표본 하한에 걸려 `tat_index`가 `null`이 되는데,
-이건 부작용이 아니라 **의도한 것**입니다 — mock이 UI의 모든 상태(정상/느림/
-저사용/편중/표본미달)를 실제로 만들어내야 홈에서 검증이 가능합니다.
+**폭이 좁은 것이 핵심입니다.** 실 플릿은 가동률이 대부분 90% 이상으로 몰려
+있다는 현업 확인이 있었습니다. 정상 장비를 `U(0.92, 1.08)`처럼 촘촘하게 두어야
+mock이 "건강한 플릿은 편차가 크다"는 거짓을 가르치지 않고, 3.4절의 분위수 ∧
+절대 임계값 조합도 실제와 비슷한 조건에서 시험됩니다. 초판 초안의
+`0.15`(약 6.7배 격차)는 이 점에서 틀린 값이었습니다.
 
-### 6.3 데이터 밀도
+`0.30`짜리 장비 한 대만은 **의도적으로 과장한 극단 사례**입니다. 실 데이터에
+그런 장비가 있다는 주장이 아니라, 표본 미달 경로(`tat_index = null`)를
+UI에서 실제로 밟아보기 위한 장치입니다. docstring에 그렇게 적습니다.
 
-`tat_index`가 표본 하한 20을 넘으려면 기본 조회(fab 1개 · 14일)에서 장비당
-30건 안팎이 필요합니다. 현재 설정으로는 장비당 2~4건이라 트렌드조차 그려지지
-않습니다.
+낮은 `workload` 장비가 표본 하한에 걸려 `tat_index`가 `null`이 되는 것도
+부작용이 아니라 **의도한 것**입니다 — mock이 UI의 모든 상태(정상/느림/저사용/
+편중/표본미달)를 실제로 만들어내야 홈에서 검증이 가능합니다.
+
+### 6.3 데이터 밀도와 조회 기간
+
+현재 밀도는 쓸 수 없는 수준입니다. 실측하면 `cd-sem / M14A / 최근 14일` 조회에
+걸리는 측정이 **전 장비 합쳐 7건**입니다. 장비별로 나누면 트렌드는커녕 표조차
+의미가 없습니다.
+
+여기에 더 긴 기간도 볼 수 있어야 한다는 요구가 겹칩니다(user-confirmed
+2026-08-07). 두 요구는 같은 방향입니다 — 기간을 늘리려면 이력 창을 넓혀야 하고,
+넓힌 창에서 기본 조회 밀도를 유지하려면 행 수를 그만큼 더 늘려야 합니다.
 
 | 상수 | 현재 | 변경 | 근거 |
 | --- | --- | --- | --- |
-| `HISTORY_WINDOW_DAYS` | 120 | 60 | 날짜 프리셋 최대가 30일이라 60일이면 2배 여유입니다. `meas_hist.txt` 규칙 6("최근 60일")과도 일치합니다. |
-| `TOTAL_MEAS_ROWS` | 6,000 | 22,000 | 아래 계산 |
-| 활성 장비 (tool_type × fab_name당) | — | 5 | fab 1~2개 선택 시 비교 대상 5~10대 |
+| `HISTORY_WINDOW_DAYS` | 120 | **180** | 90일 프리셋에 2배 여유 |
+| 날짜 프리셋 | Today/7/14/30 | **+60/90** | `DateRangePopover`의 `DEFAULT_PRESETS`. 소비처는 RecipeTat·FailIssue 둘뿐이고 skewvoir는 자체 프리셋을 넘깁니다 |
+| `TOTAL_MEAS_ROWS` | 6,000 | **55,000** | 아래 계산 |
+| `TAT_INDEX_MIN_SAMPLE` | — | **12** | 20이면 기본 조회에서 절반이 `—`로 비어 보입니다. OFFICE-VERIFY |
+| 활성 장비 (tool_type × fab_name당) | — | **5** | fab 1~2개 선택 시 비교 대상 5~10대 |
 
 ```text
-필요 총 row = 목표 30건/장비 × 5장비 × 17 fab_name × (60일 / 14일) × 2 tool_type
-            ≈ 22,000
+목표: 기본 조회(fab 1개 · 14일)에서 장비당 25건 → 표본 하한 12를 넉넉히 넘김
+
+필요 총 row = 25건 × 5장비 × 17 fab_name × (180일 / 14일) × 2 tool_type
+            ≈ 55,000
+
+검산: 27,500 cd-sem ÷ 180일 = 153건/일 ÷ 17 fab = 9건/일/fab ÷ 5장비
+     = 1.8건/일/장비 × 14일 = 25건 ✓   (90일 조회 시 162건 ✓)
 ```
 
 fab_name 17개 = `R3, R4` + `M10/M11/M14/M15/M16` × `A/B/C`.
 
-비용: 생성은 `lru_cache`로 1회, 22k dict 루프는 100ms대입니다. `_filter_rows`가
-한 번에 훑는 행이 22k로 늘지만 이 함수도 `lru_cache(256)`이라 조회 조합당
-한 번입니다.
+**비용은 추정이 아니라 실측입니다** (2026-08-07, 이 저장소 mock 기준):
+
+| row 수 | 생성 시간 | 메모리 |
+| --- | --- | --- |
+| 6,000 (현재) | 0.10s | 5.1MB |
+| 30,000 | 0.50s | 25.3MB |
+| 60,000 | 0.98s | 50.5MB |
+
+행당 842 bytes로 정확히 선형이므로 55,000행은 **약 46MB, 생성 0.9초**입니다.
+생성은 `lru_cache`로 프로세스당 1회입니다. `_filter_rows`의 스캔은 6,000행에
+0.9ms로 측정되었으므로 55,000행에서 약 8ms이고, 이 함수도 `lru_cache(256)`이라
+조회 조합당 한 번만 냅니다.
+
+밀도에 관한 주의 하나: 이 숫자들은 **집계를 제대로 돌려보기 위한 최소치**이지
+사무실 측정 물량에 대한 주장이 아닙니다. 실제 CD-SEM은 이보다 훨씬 많이
+측정합니다. docstring에 그렇게 적습니다.
 
 ### 6.4 파급
 
@@ -349,10 +470,20 @@ fab_name 17개 = `R3, R4` + `M10/M11/M14/M15/M16` × `A/B/C`.
   `get_meas_hist`를 임포트) — 개선이 그대로 전파됩니다. 회귀 확인 대상입니다.
 - `sample_eqp_ids`는 두 feature의 계약에 들어 있지만 형식을 검사하는 테스트는
   없고(길이 ≤ 5만 검사), 프론트엔드는 렌더링하지 않습니다.
+- 날짜 프리셋에 60/90일을 더하면 `FailIssueView`도 함께 넓어집니다. 같은
+  meas_hist row를 읽으므로 밀도 개선의 수혜자이기도 합니다. skewvoir
+  `FilterBar`는 자체 프리셋을 넘기므로 영향 없습니다.
 - CLAUDE.md 규칙에 따라 `docs/datatables/meas_hist.txt`와 mock docstring을
-  같은 커밋에서 갱신합니다. sem_list에서 장비를 가져온다는 사실, 장비별
-  스칼라가 무엇을 흉내내는 것인지(실 데이터의 값이 아니라 **분산의 존재**),
-  60일 창을 명시합니다.
+  같은 커밋에서 갱신합니다. 담을 내용:
+  - sem_list를 장비 명부로 삼는다는 사실(규칙 1이 이미 요구하던 것)
+  - 장비별 스칼라가 흉내내는 것은 실 데이터의 **값**이 아니라 **편차가
+    존재한다는 사실**이며, 정상 장비의 폭을 좁게 둔 근거(현업 확인:
+    가동률 대부분 90% 이상)
+  - 이력 창 **180일** — 규칙 6이 "최근 60일"이라고 적고 있으므로 이 줄을
+    함께 고칩니다. 장비별 뷰가 90일 조회를 지원하려면 60일로는 부족합니다.
+  - mock 측정 물량은 집계 검증용 최소치이지 사무실 물량이 아니라는 단서
+- `equipmentSignals.ts`의 임계값 네 개는 `OFFICE-VERIFY` 표시로 들어갑니다
+  (3.4·3.5절).
 
 ### 6.5 구현 전 확인 사항
 
@@ -363,6 +494,9 @@ fab_name 17개 = `R3, R4` + `M10/M11/M14/M15/M16` × `A/B/C`.
 - sem_list의 `_generate_rows()`가 tool_type × fab_name 조합마다 5대 이상을
   만드는지. 부족한 칸이 있으면 그 칸의 활성 장비 수를 실제 보유분으로
   낮춥니다(없는 장비를 지어내지 않습니다).
+- 55,000행 생성이 pytest 수집 시간에 미치는 영향. 현재 전체 스위트가
+  약 72초이고 device-statistics가 그 대부분입니다. recipe_tat/fail_issue
+  테스트가 첫 호출에서 0.9초를 한 번 더 무는 정도여야 합니다.
 
 ## 7. 테스트
 
@@ -373,23 +507,39 @@ fab_name 17개 = `R3, R4` + `M10/M11/M14/M15/M16` × `A/B/C`.
   장비에서 `None`, 표본 충족 장비에서 양수
 - `tat_index`의 정의 검증 — 모든 장비가 같은 레시피 구성을 갖는 인공
   입력에서는 지수가 `avg_meastime` 비율과 일치해야 합니다
+- `occupancy` — `total_meastime / fleet.window_seconds`와 일치하고
+  `window_seconds`가 요청 기간(포함 일수 × 86400)과 일치
+- `usage_ratio` — 중앙값 장비가 1.0 부근, 그리고 **실행 횟수가 아니라
+  측정 시간 기준**임을 고정: 실행이 적지만 긴 레시피를 도는 인공 장비가
+  실행이 많고 짧은 장비보다 높은 `usage_ratio`를 가져야 합니다
+- `percentiles` — 각 키가 p10..p90 단조 증가, `tat_index` 분위수가 `None`
+  장비를 제외하고 계산됨, 빈 범위에서 빈 dict
 - `/equipment-compare` — `eqp_id` 쉼표 파싱, `MAX_COMPARE_EQPS` 절단이
   `eqp_ids` 에코에 반영, 모든 `recipes[].cells` 길이가 선택 장비 수와 동일
   (미실행 장비는 0), 트렌드가 요청 기간 전체를 0으로 채움
 - 잘못된 `tool_slug` → 400
 - mock 플릿 정합성 — 모든 row의 `(eqp_id, fab_name, eqp_model_cd)`가
   sem_list row와 일치하고, 한 `eqp_id`가 두 fab에 나타나지 않음
+- **mock 밀도 회귀 가드** — 기본 조회(fab 1개 · 14일 · cd-sem)에서 장비당
+  중앙 실행 수가 `TAT_INDEX_MIN_SAMPLE` 이상. 이 테스트가 없으면 나중에
+  누가 행 수를 줄였을 때 표가 조용히 `—`로 채워집니다
+- **mock이 모든 UI 상태를 만들어내는지** — 기본 조회 안에 `느림` 후보,
+  `저사용` 후보, `편중` 후보, `tat_index is None` 장비가 각각 1대 이상
 
 **프론트엔드**
 
-- `equipmentSignals.ts` 배지 판정 단위 테스트 (`node --test`), 특히
-  `tat_index === null` 경로
+- `equipmentSignals.ts` 배지 판정 단위 테스트 (`node --test`):
+  - `tat_index === null` → 배지 없음
+  - 분위수 꼬리지만 절대 기준 미달 → 배지 없음 (건강한 촘촘한 플릿)
+  - 절대 기준 초과지만 분위수 꼬리 아님 → 배지 없음
+  - 둘 다 충족 → 배지
+  - `percentiles`가 빈 dict → 배지 없음
 
 **전체**
 
 `.venv/bin/python -m pytest -q` · `npm test` · `npm run typecheck` ·
 `npm run lint` · `npm run lint:md`, 그리고 브라우저에서 세 모드 전환 ·
-체크박스 상한 · 배지 · 오버레이 hover 확인.
+체크박스 상한 · 배지 · 오버레이 hover · **90일 프리셋** 확인.
 
 ## 8. 범위 밖
 
