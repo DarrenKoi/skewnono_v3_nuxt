@@ -20,7 +20,11 @@ export interface RecipeSearchParams {
   fabNames?: string[]
 }
 
-export interface RecipeDetailParams extends RecipeSearchParams {
+export interface RecipeDetailParams {
+  toolType: RecipeSearchToolType
+  // A detail lookup is owned by exactly one fab (the recipe's home fab), so
+  // this stays singular even though the list endpoint takes fabNames.
+  fabName?: string
   recipeName: string
 }
 
