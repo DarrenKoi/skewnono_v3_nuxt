@@ -12,9 +12,10 @@ types:
     tool_type:
       type: string
       enum: ["cd-sem", "hv-sem"]
-    fab_name:
-      type: string
-      description: null when not filtered
+    fab_names:
+      type: array of string
+      description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
+      examples: [[R3, M16B]]
     start_date:
       type: string
       format: "YYYY-MM-DD"
@@ -132,7 +133,7 @@ endpoints:
       fab_name:
         type: string
         required: false
-        description: Strict fab_name match (case-insensitive). R3/R4 do not collapse.
+        description: Strict fab_name match (case-insensitive). R3/R4 do not collapse. Accepts a comma-separated list of fab names (e.g. "R3,M16B") — values are uppercased server-side and matched as a union (합집합) — a row passes if its fab_name matches ANY listed fab.
       start_date:
         type: string
         required: false
@@ -158,6 +159,7 @@ endpoints:
       fab_name:
         type: string
         required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the summary endpoint's fab_name for the full description.
       start_date:
         type: string
         required: false
@@ -172,8 +174,9 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_name:
-          type: string
+        fab_names:
+          type: array of string
+          description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
         start_date:
           type: string
         end_date:
@@ -191,6 +194,7 @@ endpoints:
       fab_name:
         type: string
         required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the summary endpoint's fab_name for the full description.
       start_date:
         type: string
         required: false
@@ -209,8 +213,9 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_name:
-          type: string
+        fab_names:
+          type: array of string
+          description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
         start_date:
           type: string
         end_date:
@@ -230,6 +235,7 @@ endpoints:
       fab_name:
         type: string
         required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the summary endpoint's fab_name for the full description.
       start_date:
         type: string
         required: false
@@ -248,8 +254,9 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_name:
-          type: string
+        fab_names:
+          type: array of string
+          description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
         start_date:
           type: string
         end_date:
@@ -269,6 +276,7 @@ endpoints:
       fab_name:
         type: string
         required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the summary endpoint's fab_name for the full description.
       start_date:
         type: string
         required: false
@@ -280,8 +288,9 @@ endpoints:
       body:
         tool_type:
           type: string
-        fab_name:
-          type: string
+        fab_names:
+          type: array of string
+          description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
         start_date:
           type: string
         end_date:

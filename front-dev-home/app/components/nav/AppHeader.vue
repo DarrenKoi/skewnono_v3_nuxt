@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HeaderLink } from '~/utils/headerNav'
 import { useNavigationStore } from '~/stores/navigation'
-import { fabSegment } from '~/utils/fab'
+import { buildFabSegment } from '~/utils/fab'
 import { HEADER_LINKS } from '~/utils/headerNav'
 
 const route = useRoute()
@@ -10,11 +10,13 @@ const nav = useNavigationStore()
 const ACTIVE_CLASS = 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-nav-accent'
 
 // live-alarm is fab-scoped, so the top-nav icon jumps to the remembered
-// tool/fab (default cd-sem / R3 before any ebeam visit). Only cd-sem and
+// tool/fab selection (default cd-sem / R3 before any ebeam visit). Uses the
+// full fabs list, not just the primary, so a multi-fab selection survives
+// the URL round-trip instead of collapsing to fabs[0]. Only cd-sem and
 // hv-sem have this board.
 const liveAlarmTarget = computed(() => {
   const tt = nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem'
-  return `/ebeam/${tt}/${fabSegment(nav.fab.value)}/live-alarm`
+  return `/ebeam/${tt}/${buildFabSegment(nav.fabs.value)}/live-alarm`
 })
 
 const linkTarget = (link: HeaderLink) => link.to ?? liveAlarmTarget.value
