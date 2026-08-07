@@ -1,0 +1,185 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import {
+  equipmentSignals,
+  SIGNAL_META,
+  type FleetPercentiles
+} from './equipmentSignals.ts'
+
+// 촘촘한 플릿을 흉내낸 분위수. 실 플릿은 가동률이 대부분 90% 이상으로
+// 몰려 있다는 현업 확인을 반영합니다.
+const percentiles: FleetPercentiles = {
+  usage_ratio: { p10: 0.82, p25: 0.94, p50: 1.00, p75: 1.06, p90: 1.14 },
+  tat_index: { p10: 0.94, p25: 0.97, p50: 1.00, p75: 1.04, p90: 1.13 },
+  recipe_count: { p10: 4, p25: 12, p50: 20, p75: 28, p90: 34 }
+}
+
+const healthy = { tat_index: 1.0, usage_ratio: 1.0, recipe_count: 20, top_recipe_share: 0.2 }
+
+test('건강한 장비에는 배지를 달지 않는다', () => {
+  assert.deepEqual(equipmentSignals(healthy, percentiles), [])
+})
+
+test('tat_index가 null이면 느림/빠름 판정을 하지 않는다', () => {
+  // 표본 미달은 "느리지 않다"가 아니라 "모른다"입니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: null }, percentiles),
+    []
+  )
+})
+
+test('분위수 꼬리지만 절대 기준을 넘지 않으면 배지가 없다', () => {
+  // 완전히 건강한 플릿에서도 누군가는 하위 10%입니다. 그것만으로는
+  // 문제가 아닙니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, usage_ratio: 0.82 }, percentiles),
+    []
+  )
+})
+
+test('절대 기준을 넘어도 분위수 꼬리가 아니면 배지가 없다', () => {
+  // 상수가 실 분포와 어긋났을 때 전부 경고가 되는 것을 막습니다.
+  const wide: FleetPercentiles = {
+    ...percentiles,
+    usage_ratio: { p10: 0.30, p25: 0.50, p50: 1.00, p75: 1.50, p90: 2.00 }
+  }
+  assert.deepEqual(equipmentSignals({ ...healthy, usage_ratio: 0.80 }, wide), [])
+})
+
+test('꼬리이면서 절대 기준을 넘으면 저사용', () => {
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, usage_ratio: 0.70 }, percentiles),
+    ['underused']
+  )
+})
+
+test('꼬리이면서 절대 기준을 넘으면 느림', () => {
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: 1.22 }, percentiles),
+    ['slow']
+  )
+})
+
+test('빠름은 하위 꼬리 + 절대 기준', () => {
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: 0.90 }, percentiles),
+    ['fast']
+  )
+})
+
+test('편중은 레시피 수 꼬리와 상위 레시피 비중을 모두 요구한다', () => {
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, recipe_count: 3, top_recipe_share: 0.2 }, percentiles),
+    []
+  )
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, recipe_count: 3, top_recipe_share: 0.7 }, percentiles),
+    ['narrow']
+  )
+})
+
+test('분위수가 비면 아무 배지도 달지 않는다', () => {
+  // 빈 범위 = 판단 근거 없음. 근거 없이 경고하지 않습니다.
+  const empty: FleetPercentiles = {
+    usage_ratio: {}, tat_index: {}, occupancy: {}, recipe_count: {}
+  }
+  assert.deepEqual(
+    equipmentSignals({ tat_index: 9, usage_ratio: 0.01, recipe_count: 1, top_recipe_share: 1 }, empty),
+    []
+  )
+})
+
+test('여러 신호가 동시에 나올 수 있다', () => {
+  assert.deepEqual(
+    equipmentSignals(
+      { tat_index: 1.30, usage_ratio: 0.60, recipe_count: 2, top_recipe_share: 0.9 },
+      percentiles
+    ),
+    ['underused', 'slow', 'narrow']
+  )
+})
+
+test('모든 신호에 표시용 메타가 있다', () => {
+  for (const signal of ['slow', 'fast', 'underused', 'narrow'] as const) {
+    assert.ok(SIGNAL_META[signal].label.length > 0)
+  }
+})
+
+// 아래는 브리프 원본 테스트 이후 뮤테이션 점검으로 추가한 회귀 테스트입니다.
+// 브리프가 준 "꼬리지만 절대 기준 미달" / "절대 기준을 넘어도 꼬리 아님"
+// 쌍은 usage_ratio(저사용)에만 있고, 그마저도 usage_ratio 시험값(0.82)이
+// percentiles.usage_ratio.p10과 정확히 같아 꼬리 "경계"에서 걸러질 뿐이라
+// 절대 기준(USAGE_FLOOR) 절반의 필요성은 증명하지 못합니다(그 절반을
+// equipmentSignals.ts에서 통째로 지워도 브리프 원본 11개 테스트는 전부
+// 통과 — 실제로 지워서 확인함). slow/fast/narrow는 대응하는 쌍이 아예
+// 없어 두 절반 중 어느 쪽을 지워도 원본 11개가 전부 통과합니다. 아래
+// 여섯 개는 각 배지의 두 절반이 개별적으로 필요조건임을 증명합니다 —
+// 각각 실제로 그 절반을 지워서 이 테스트가 깨지는 것을 확인했습니다.
+
+test('slow: 절대 기준을 넘어도 분위수 꼬리가 아니면 배지가 없다', () => {
+  // TAT_CEIL(1.10) < tat_index의 p90(1.13). 그 사이 값(1.12)은 절대 기준은
+  // 넘지만 아직 상위 10% 밖입니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: 1.12 }, percentiles),
+    []
+  )
+})
+
+test('slow: 분위수 꼬리지만 절대 기준을 넘지 않으면 배지가 없다', () => {
+  const narrowSpread: FleetPercentiles = {
+    ...percentiles,
+    tat_index: { ...percentiles.tat_index, p90: 1.05 }
+  }
+  // p90을 TAT_CEIL(1.10) 아래로 좁히면, 그 사이 값(1.08)은 상위 10%에는
+  // 들어가지만 절대 기준은 아직 넘지 않습니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: 1.08 }, narrowSpread),
+    []
+  )
+})
+
+test('fast: 분위수 꼬리지만 절대 기준을 넘지 않으면 배지가 없다', () => {
+  // TAT_FLOOR(0.92) < tat_index의 p10(0.94). 그 사이 값(0.93)은 하위 10%에는
+  // 들어가지만 절대 기준은 아직 넘지 않습니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: 0.93 }, percentiles),
+    []
+  )
+})
+
+test('fast: 절대 기준을 넘어도 분위수 꼬리가 아니면 배지가 없다', () => {
+  const wideSpread: FleetPercentiles = {
+    ...percentiles,
+    tat_index: { ...percentiles.tat_index, p10: 0.88 }
+  }
+  // p10을 TAT_FLOOR(0.92) 아래로 넓히면, 그 사이 값(0.90)은 절대 기준은
+  // 넘지만 아직 하위 10% 밖입니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, tat_index: 0.90 }, wideSpread),
+    []
+  )
+})
+
+test('narrow: 상위 레시피 비중이 높아도 레시피 수가 꼬리가 아니면 배지가 없다', () => {
+  // recipe_count(10)는 p10(4)보다 커서 꼬리 밖이지만 top_recipe_share(0.7)는
+  // SHARE_CEIL(0.5)을 넘습니다.
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, recipe_count: 10, top_recipe_share: 0.7 }, percentiles),
+    []
+  )
+})
+
+test('underused: 진짜 꼬리 안쪽 값이 절대 기준을 넘지 않으면 배지가 없다', () => {
+  const tightSpread: FleetPercentiles = {
+    ...percentiles,
+    usage_ratio: { ...percentiles.usage_ratio, p10: 0.90 }
+  }
+  // p10을 USAGE_FLOOR(0.85) 위로 올리면, 그 사이 값(0.87)은 하위 10%에는
+  // 들어가지만 절대 기준은 아직 넘지 않습니다. (원본 테스트의 0.82는
+  // p10과 정확히 같아 꼬리 "경계"에서 걸러질 뿐, 이 절반을 증명하지
+  // 못합니다.)
+  assert.deepEqual(
+    equipmentSignals({ ...healthy, usage_ratio: 0.87 }, tightSpread),
+    []
+  )
+})
