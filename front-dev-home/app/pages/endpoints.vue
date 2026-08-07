@@ -132,6 +132,13 @@ const LIMIT_ARG: ApiArg = {
   note: '반환 row 수 제한'
 }
 
+const EQP_ID_ARG: ApiArg = {
+  name: 'eqp_id',
+  kind: 'query',
+  required: false,
+  note: '쉼표로 여러 장비 지정 (예: ECXDX123,ECDX456). 최대 5개, 초과분은 잘림'
+}
+
 const apiGroups: ApiGroup[] = [
   {
     name: '공통',
@@ -448,6 +455,24 @@ const apiGroups: ApiGroup[] = [
         response: 'RecipeTatDeviceResponse',
         auth: '토큰 가능',
         example: { path: '/cdsem/recipe-tat/devices', query: { fab_name: 'M11' } }
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-tat/equipments',
+        summary: '장비별 fleet table row와 배지 판정용 fleet 분위수를 반환합니다.',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS],
+        response: 'RecipeTatEquipmentsResponse',
+        auth: '토큰 가능',
+        example: { path: '/cdsem/recipe-tat/equipments', query: { fab_name: 'R3' } }
+      },
+      {
+        method: 'GET',
+        path: '/api/{tool_slug}/recipe-tat/equipment-compare',
+        summary: '선택한 장비(최대 5대)의 trend와 recipe 매트릭스를 반환합니다.',
+        args: [TOOL_SLUG_ARG, FAB_NAME_ARG, ...PERIOD_ARGS, EQP_ID_ARG],
+        response: 'RecipeTatEquipmentCompareResponse',
+        auth: '토큰 가능',
+        example: { path: '/cdsem/recipe-tat/equipment-compare', query: { fab_name: 'R3', eqp_id: 'ECXDX123,ECDX456' } }
       }
     ]
   },

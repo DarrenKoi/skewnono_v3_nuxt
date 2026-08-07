@@ -77,6 +77,144 @@ types:
     total_meastime:
       type: integer
 
+  EquipmentRow:
+    eqp_id:
+      type: string
+      examples: ["ECXDX123"]
+    fab_name:
+      type: string
+    eqp_model_cd:
+      type: string
+    exec_count:
+      type: integer
+    total_meastime:
+      type: integer
+    avg_meastime:
+      type: number
+    recipe_count:
+      type: integer
+    top_recipe:
+      type: string
+      nullable: true
+      description: "<class>/<recipe>" of the equipment's most-run recipe by meas_counts. Null when the equipment ran no recipes in the window.
+    top_recipe_share:
+      type: number
+      description: top_recipe's share of this equipment's exec_count (0.0 when top_recipe is null)
+    tat_index:
+      type: number
+      nullable: true
+      description: >-
+        Indirect-standardized ratio of actual total_meastime to the TAT this equipment's
+        recipe mix would predict. 1.25 = 25% slower than expected. Null when exec_count is
+        below TAT_INDEX_MIN_SAMPLE (12) — too few executions for the ratio to be signal.
+    occupancy:
+      type: number
+      description: >-
+        total_meastime / window_seconds. NOT MES uptime — meastime excludes loading/queueing/PM,
+        so this reads lower than the MES utilization figure.
+    usage_ratio:
+      type: number
+      description: total_meastime / fleet median_total_meastime
+
+  FleetReference:
+    tool_count:
+      type: integer
+    total_executions:
+      type: integer
+    total_meastime:
+      type: integer
+    window_seconds:
+      type: integer
+    median_total_meastime:
+      type: number
+    median_recipe_count:
+      type: number
+    min_sample:
+      type: integer
+      description: Echo of TAT_INDEX_MIN_SAMPLE — the exec_count floor below which tat_index is null
+    percentiles:
+      type: object
+      description: >-
+        Keyed by "usage_ratio" | "tat_index" | "occupancy" | "recipe_count", each value an object
+        with p10/p25/p50/p75/p90 keys. tat_index excludes equipments with a null tat_index; empty
+        object if no equipment qualifies.
+
+  EquipmentsPayload:
+    tool_type:
+      type: string
+    fab_names:
+      type: array of string
+      description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
+    start_date:
+      type: string
+      nullable: true
+    end_date:
+      type: string
+      nullable: true
+    fleet:
+      type: FleetReference
+    equipments:
+      type: array
+      items: EquipmentRow
+
+  EquipmentTrendSeries:
+    eqp_id:
+      type: string
+    points:
+      type: array
+      items: DailyTrendPoint
+
+  EquipmentRecipeCell:
+    eqp_id:
+      type: string
+    meas_counts:
+      type: integer
+    total_meastime:
+      type: integer
+    avg_meastime:
+      type: number
+
+  EquipmentRecipeRow:
+    class_name:
+      type: string
+    recipe_name:
+      type: string
+    full_name:
+      type: string
+      format: "<class>/<recipe>"
+    total_meastime:
+      type: integer
+      description: Sum across all selected equipments. Sort key for the row order.
+    cells:
+      type: array
+      items: EquipmentRecipeCell
+      description: >-
+        One cell per requested eqp_id, in request order. An equipment that never ran this
+        recipe still gets a cell with zeroed counts — columns must not shift when a tool
+        skipped a recipe.
+
+  EquipmentComparePayload:
+    tool_type:
+      type: string
+    fab_names:
+      type: array of string
+      description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
+    start_date:
+      type: string
+      nullable: true
+    end_date:
+      type: string
+      nullable: true
+    eqp_ids:
+      type: array of string
+      description: The eqp_id list actually used, after the MAX_EQP_IDS (5) cap — echoed so a silent truncation is never silent.
+    trends:
+      type: array
+      items: EquipmentTrendSeries
+    recipes:
+      type: array
+      items: EquipmentRecipeRow
+
 endpoints:
   - path: /api/cdsem/recipe-tat/ranking
     method: GET
@@ -227,8 +365,58 @@ endpoints:
           type: array
           items: DeviceRow
 
+  - path: /api/cdsem/recipe-tat/equipments
+    method: GET
+    description: Per-equipment fleet table for the window — one row per eqp_id that ran at least one recipe, plus a fleet-wide reference block for badge thresholds (usage_ratio/tat_index/occupancy/recipe_count percentiles).
+    query_params:
+      tool_type:
+        type: string
+        enum: ["cd-sem", "hv-sem"]
+        required: true
+      fab_name:
+        type: string
+        required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the ranking endpoint's fab_name for the full description.
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+    response:
+      status: 200
+      body: EquipmentsPayload
+
+  - path: /api/cdsem/recipe-tat/equipment-compare
+    method: GET
+    description: Trend + recipe-matrix comparison for up to 5 selected equipments within the window.
+    query_params:
+      tool_type:
+        type: string
+        enum: ["cd-sem", "hv-sem"]
+        required: true
+      fab_name:
+        type: string
+        required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the ranking endpoint's fab_name for the full description.
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      eqp_id:
+        type: string
+        required: false
+        description: Comma-separated list of eqp_id, NOT uppercased (exact-match key, unlike fab_name). Capped at 5 — extras beyond MAX_EQP_IDS are silently dropped, then echoed back via the response's eqp_ids so the truncation is visible.
+    response:
+      status: 200
+      body: EquipmentComparePayload
+
 notes:
   - Office must anchor the date window on max(timestamp) from the source index — do NOT use wall-clock now(). Phase 1 mock anchors on import-time wall-clock (ANCHOR_TIME) which drifts; production should be deterministic per query.
   - Source schema is docs/datatables/meas_hist.txt. The TAT dashboard only needs timing fields; office should drop msr/align/image counts and idp paths just like the mock does, to keep payloads small.
   - The path prefix /cdsem/recipe-tat is used for both tool types — clients pass tool_type as a query param. Do not split into /cdsem/... and /hvsem/... paths in the office.
   - lru_cache(maxsize=256) on _filter_rows in the mock keys on (tool_type, fab_names, start_date, end_date, lot_cd), where fab_names is the resolved tuple of uppercased fab names (hashable, required by lru_cache) — not the raw comma-separated fab_name query string. Office should cache the filter result similarly since each page hit triggers ranking + summary + daily-trend + devices with identical filters.
+  - equipments and equipment-compare do not accept lot_cd — they answer "what equipment exists / how do these equipments compare" and must not be narrowed by the lot-detail slideover's selection.
+  - tat_index is null below TAT_INDEX_MIN_SAMPLE (12) executions; top_recipe is null when an equipment ran zero recipes in the window. Both nulls are meaningful (insufficient sample / no data), not missing-field bugs — the frontend should render them as "—", not 0.
