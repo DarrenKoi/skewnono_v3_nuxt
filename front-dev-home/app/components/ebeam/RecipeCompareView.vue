@@ -84,12 +84,12 @@
           <span
             v-for="recipe in recipes"
             :key="`${recipe.fab_name}:${recipe.recipe_id}`"
-            class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-zinc-50 px-2 py-1 font-mono text-[11px] text-(--sk-ink) dark:bg-zinc-900"
+            class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-muted-surface) px-2 py-1 font-mono text-[11px] text-(--sk-ink)"
           >
             {{ recipe.recipe_id }}
             <span
               v-if="(data?.fab_names.length ?? 0) > 1"
-              class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+              class="sk-fab-badge"
             >
               {{ recipe.fab_name }}
             </span>

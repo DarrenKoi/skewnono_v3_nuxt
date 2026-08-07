@@ -45,7 +45,7 @@
               {{ shortId(col.recipe_id) }}
               <span
                 v-if="multiFab"
-                class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+                class="sk-fab-badge"
               >
                 {{ col.fab_name }}
               </span>

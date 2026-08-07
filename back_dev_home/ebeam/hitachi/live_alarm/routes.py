@@ -14,7 +14,7 @@ def live_alarm_board(tool_slug: str):
         return jsonify(error=f"unknown tool slug: {tool_slug}"), 400
 
     raw = request.args.get("fab_name") or ""
-    fab_names = tuple(part.strip() for part in raw.split(",") if part.strip())
+    fab_names = tuple(part.strip().upper() for part in raw.split(",") if part.strip())
     if not fab_names:
         return jsonify(error="fab_name is required"), 400
 

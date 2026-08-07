@@ -60,7 +60,7 @@ const details = computed(() => [
       <span class="text-lg font-semibold tracking-tight">{{ event.eqp_id }}</span>
       <span
         v-if="fabBadge"
-        class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+        class="sk-fab-badge"
       >
         {{ fabBadge }}
       </span>

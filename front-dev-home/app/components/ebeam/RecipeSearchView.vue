@@ -770,7 +770,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
                   </span>
                   <span
                     v-if="multiFab && row.original.fab_name"
-                    class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+                    class="sk-fab-badge"
                   >
                     {{ row.original.fab_name }}
                   </span>

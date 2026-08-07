@@ -56,7 +56,7 @@ const emit = defineEmits<{
       >
         <span
           v-if="entry.fab_name"
-          class="shrink-0 rounded bg-(--sk-brand)/15 px-1 py-0.5 font-sans text-[9px] font-semibold text-(--sk-brand)"
+          class="sk-fab-badge shrink-0"
         >{{ entry.fab_name }}</span>
         <span class="truncate">{{ entry.name }}</span>
         <button
