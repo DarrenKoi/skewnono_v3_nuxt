@@ -124,6 +124,10 @@
       align_fail_count: int
       align_fail_rate: float
       sample_eqp_ids: list[str]
+      # Fabs whose measurements entered this aggregate, sorted asc
+      # (multi-fab phase B, 2026-08-07). The detail link uses this to route
+      # to the owning fab's registry (multi-fab spec §6.1).
+      fab_names: list[str]
   ```
 
 - Mock behavior: groups rows in scope by `(class_name, recipe_name)`, counts
@@ -131,8 +135,16 @@
   (this is a triage table, not a full recipe listing), then ranks by
   `(align_fail_count, align_fail_rate)` descending. Truncated to `limit`
   (default 1000). `sample_eqp_ids` is capped to the first 5 distinct sorted
-  values.
+  values. `fab_names` is the group's distinct `fab_name` values, sorted —
+  collected into the same per-group `set` the grouping already builds.
 - Office data source: <!-- OFFICE: OpenSearch meas_hist index, terms aggregation on (class_name, recipe_name) filtered to align_fail=="Fail", with a having-count>0 equivalent -->
+  `fab_names` comes from a sibling `terms` sub-agg on `fab_name.keyword`
+  (size 16), placed on the recipe bucket **outside** the align-fail `filter`
+  sub-agg — so it reports every fab that ran the recipe in scope, not only
+  the fabs that failed. Bucket keys are `.upper()`-ed and sorted before
+  returning; this is defensive, not a real normalization — `fab_name` is
+  already stored uppercase (`_office_meas_hist.py`'s `filter_clauses`
+  comment), so the call only guards a future writer that lowercases.
 - Notes: `rank` is 1-indexed post-truncation. A recipe with zero align fails
   never appears — an office adapter must apply the same drop, not return
   zero-count rows.
@@ -155,6 +167,10 @@
       meas_fail_rate: float
       avg_fail_ratio: float
       sample_eqp_ids: list[str]
+      # Fabs whose measurements entered this aggregate, sorted asc
+      # (multi-fab phase B, 2026-08-07). The detail link uses this to route
+      # to the owning fab's registry (multi-fab spec §6.1).
+      fab_names: list[str]
   ```
 
 - Mock behavior: same shape as `/align-ranking` but keyed on
@@ -162,8 +178,14 @@
   additionally reports `avg_fail_ratio` (mean `fail_ratio` across ALL
   executions in the group, not just the failing ones). Groups with zero
   meas-fails are dropped; ranked by `(meas_fail_count, meas_fail_rate)`
-  descending, truncated to `limit`.
+  descending, truncated to `limit`. `fab_names` is the group's distinct
+  `fab_name` values, sorted, same as `/align-ranking`.
 - Office data source: <!-- OFFICE: OpenSearch meas_hist index, terms aggregation on (class_name, recipe_name) with avg(fail_ratio) + filtered count where fail_ratio > threshold -->
+  `fab_names` comes from the same sibling `terms` sub-agg on
+  `fab_name.keyword` (size 16, outside the fail `filter` sub-agg, `.upper()`
+  -ed and sorted) described under `/align-ranking` — both rankings share the
+  recipe-bucket builder, so the sub-agg and its defensive `.upper()` are
+  added once, not per endpoint.
 - Notes: `avg_fail_ratio` is over the full group, not the failing subset —
   do not average only the fail rows.
 

@@ -186,10 +186,13 @@ Phase 1의 지배 규약을 그대로 씁니다.
 ## 10. office 전달 메모
 
 `office_example.py`가 바뀌는 feature는 사무실에서 `office.py` 재복사가
-필요합니다: **recipe_search, live_alarm**은 확실하고, recipe_tat·
-fail_issue는 ranking 집계 변경이 공유 `_analytics.py`(추적 파일)에
-국한되면 불필요합니다 — 부팅 로그의 `STALE office.py` 표시와
-`python -m scripts.sync_office_adapters`가 최종 판정합니다.
+필요합니다. **recipe_search, live_alarm, recipe_tat, fail_issue 네
+feature 모두** 해당합니다 — ranking/카탈로그 집계 로직이 공유 추적
+파일(`_office_meas_hist.py` 등)이 아니라 **각 provider 자신의
+`office_example.py`**(`get_recipe_catalog`, `get_board`, `get_ranking`,
+`get_align_ranking`/`get_meas_ranking`)에 있으므로, 넷 다 같은 office
+배포에서 재복사가 필요합니다. 부팅 로그의 `STALE office.py` 표시와
+`python -m scripts.sync_office_adapters`가 최종 판정입니다.
 
 ## 11. 하지 않는 것
 

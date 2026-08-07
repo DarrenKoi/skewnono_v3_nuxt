@@ -102,6 +102,11 @@ cp office_example.py office.py
 `office.py` 파일이 존재한다는 사실 자체가 이 기능을 office 모드로
 전환합니다. 별도의 환경 변수 설정은 필요하지 않습니다.
 
+**이미 `office.py` 를 복사해 둔 배포라면, 다중 FAB 병합(2026-08-07)이
+`office_example.py` 를 바꿨으므로 재복사가 필요합니다** — 5절 참고. 부팅
+로그의 `STALE office.py: live_alarm` 표시나
+`python -m scripts.sync_office_adapters live_alarm` 로 확인·갱신합니다.
+
 ## 3. 동작 확인
 
 ```bash
@@ -131,6 +136,52 @@ redis-cli --scan --pattern 'skewnono:live_alarm:*'
 호출이 이보다 잦다면 `CACHE_TTL_SEC` 이 아니라 락을 의심합니다. Redis 가 여러
 대로 분리돼 있으면 `SET NX` 가 인스턴스마다 따로 걸려 상한이 인스턴스 수만큼
 늘어납니다.
+
+**다중 FAB 을 선택해도 이 fac_id 당 상한 자체는 바뀌지 않습니다.** 늘어나는
+것은 선택한 서로 다른 fac 의 **개수(K)** 뿐입니다 — 자세한 내용은 5절.
+
+## 5. 다중 FAB 병합 (multi-fab phase B, 2026-08-07)
+
+`get_board(tool_type, fab_names)` — 인자가 단일 `fab_name` 에서 리스트로
+바뀌었습니다. 이 절이 설명하는 병합 로직은 `office_example.py` 안에 있으므로,
+2절의 재복사 안내를 따르십시오.
+
+### fac 중복 제거
+
+선택한 FAB 목록은 먼저 `fac_id_for(fab, tool_type)` 로 fac_id 로 바뀌고,
+그 결과에서 **중복이 제거된** fac 집합만 실제로 조회합니다(`dict.fromkeys`).
+`M16A`/`M16B`/`M16C` 는 fac_id 를 공유하므로 셋을 동시에 선택해도 조회는
+1회입니다. 4절의 fac_id 당 20초 상한은 그대로이고, 곱해지는 것은 선택한
+서로 다른 fac 의 개수(K) 뿐입니다 — `R3`+`M16B` 를 함께 선택하면 fac 이
+둘(`R3`, `M16`)이므로 호출도 2배, `M16A`+`M16B`+`M16C` 만 선택하면 fac 이
+하나이므로 1배(중복 제거 전과 같음)입니다.
+
+### `AlarmEvent.fab_name` — reader 가 그때그때 붙이는 값
+
+`fab_name` 은 office feed 에도, Redis ZSET 에 저장되는 이벤트 member 에도
+**없습니다**. `office_utils.get_ebeam_metrology_alarms` 가 돌려주는 컬럼도,
+ZSET 에 쓰는 직렬화도 이 필드를 모릅니다 — 1절의 계약은 그대로입니다.
+board 를 조립할 때마다 roster 의 `placement_of(eqp_id)` 로 다시 계산해
+붙이므로, 이미 저장된 이벤트라도 fab 소속은 항상 조회 시점의 roster 를
+따릅니다. `eqp_id` 가 어느 fab 에도 속하지 않으면(roster 에 아직 없는
+장비) `unmatched_count` 에 더해지고 이벤트는 버려집니다.
+
+### `merged_meta` — worst-of
+
+여러 fac 를 병합할 때 `board.merged_meta()` 가 `feed_status` 판단에 쓸
+메타를 하나로 합칩니다. 규칙은 worst-of 입니다 — 선택된 fac 중 **하나라도**
+한 번도 조회에 성공한 적이 없으면(그 fac 의 메타에 `fetched_at` 이 없으면)
+전체를 `None` 으로 돌려 `feed_status` 를 `stale` 로 만들고, 전부 성공
+이력이 있으면 그중 **가장 오래된** `fetched_at` 을 보고합니다. 신선한 fac
+뒤에 오래된 fac 이 숨어 화면이 "다 최신"으로 보이는 일을 막기 위함입니다.
+
+### `not_configured_fabs` — 부분 미구성
+
+선택한 FAB 중 이 tool_type 의 장비를 가진 fac 이 하나도 없는 FAB 은
+`not_configured_fabs` 에 담기고, 나머지 구성된 FAB 만으로 보드가 정상
+렌더링됩니다. 선택한 FAB **전부**가 미구성일 때만 `feed_status` 가
+`not_configured` 가 됩니다 — 하나라도 구성돼 있으면 보드는 그 FAB 의
+데이터로 정상 표시되고, 미구성 FAB 은 화면 하단 한 줄에 이름만 남습니다.
 
 ## 주의
 
