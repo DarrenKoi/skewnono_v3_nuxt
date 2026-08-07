@@ -127,7 +127,7 @@
         </template>
         <ActivitySparkline
           :series="me.daily"
-          color="from-sky-400 to-violet-500"
+          zoomable
         />
       </UCard>
 
@@ -578,7 +578,7 @@
                         </div>
                         <ActivitySparkline
                           :series="userDetail.daily"
-                          color="from-rose-400 to-amber-500"
+                          tone="brand"
                         />
                       </div>
                     </div>
