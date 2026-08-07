@@ -71,8 +71,7 @@ const IDENTITY_RULES = [
   '/sem-list',
   '/tool-roster',
   '/mag-pixel',
-  '/chat',
-  '/'
+  '/chat'
 ]
 
 // Distinct routes the backend gives ONE slug, so they must share one identity.
@@ -137,6 +136,12 @@ export const resolvePageIdentity = (
   if (isOpsPath(path)) return null
 
   const { path: canonical, landing } = canonicalize(path)
+
+  // The hub at / is a waypoint everyone passes through, not a ranked feature.
+  // The backend returns None for it, so the beacon must not fire either — and
+  // a null here means report() returns before its $fetch, so no row is written
+  // at all rather than a weight-0 one.
+  if (canonical === '/') return null
 
   // recipe-status carries two features behind one route.
   if (canonical === `/${TAB_ROUTE}` || canonical.endsWith(`/${TAB_ROUTE}`)) {

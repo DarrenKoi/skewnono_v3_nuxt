@@ -239,7 +239,8 @@
   {
     "path": "/",
     "query": {},
-    "slug": "home"
+    "slug": null,
+    "comment": "The hub is a waypoint, not a ranked feature — no beacon fires"
   },
   {
     "path": "/admin/logs",

@@ -178,7 +178,14 @@ def page_to_feature(path: str) -> str | None:
     ):
         return None
     if clean == "/":
-        return "home"
+        # The hub everyone passes through on the way somewhere else. A real
+        # page, but not a rankable one: its count is "who opened the app",
+        # which DAU/WAU/MAU already report, and leaving it in pushes a genuine
+        # feature out of the Top 10.
+        #
+        # Not in _OPS_PAGE_PREFIXES because it is product surface, not an ops
+        # screen — the exclusion is for a different reason and says so here.
+        return None
     for prefix, slug in _STANDALONE_PAGE_RULES:
         if clean == prefix or clean.startswith(prefix + "/"):
             return slug

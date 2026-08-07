@@ -183,7 +183,6 @@ def test_no_registered_route_still_needs_the_fallback():
         # Standalone pages.
         ("/tool-roster", "sem_list"),
         ("/afm/HVM1", "afm"),
-        ("/", "home"),
         # Legacy routes that redirect; mapped defensively so a beacon that
         # beats the redirect is not misfiled.
         ("/ebeam/cd-sem/M14/recipe-tat", "recipe_tat"),
@@ -208,6 +207,17 @@ def test_page_to_feature_maps_frontend_paths(path, expected):
 )
 def test_ops_pages_are_not_ranked(path):
     assert page_to_feature(path) is None
+
+
+def test_the_home_hub_is_not_ranked():
+    """/ is a real page but a waypoint: everyone passes through it.
+
+    Not an ops page — it is product surface — so it is excluded here rather
+    than via _OPS_PAGE_PREFIXES. Ranking it answers "who opened the app", which
+    DAU already answers, while costing a real feature its Top 10 slot. None
+    means the frontend beacon never fires, so no row is written at all.
+    """
+    assert page_to_feature("/") is None
 
 
 def test_recipe_status_without_a_tab_is_unresolved():

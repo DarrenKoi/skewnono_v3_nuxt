@@ -196,6 +196,12 @@ test('ops pages have no rankable identity', () => {
   assert.equal(resolvePageIdentity('/activity', {}), null)
 })
 
+test('the home hub has no rankable identity', () => {
+  // Not an ops page — product surface excluded for a different reason: it is
+  // a waypoint, and DAU already counts how many people passed through.
+  assert.equal(resolvePageIdentity('/', {}), null)
+})
+
 test('skewvoir does not share the msr-file identity', () => {
   // /msr-file, /msr-files and /msr-image are API paths with their own slugs;
   // fusing them onto /skewvoir would merge four distinct backend slugs.
