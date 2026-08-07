@@ -87,10 +87,14 @@ EQP_ID_KW = "eqp_id.keyword"         # sample_eqp_ids
 LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
 # 장비별 뷰의 모델 열. OFFICE-VERIFY: docs/datatables/meas_hist.txt 는
 # eqp_model_cd 를 text 로만 적고 있어 .keyword 서브필드 존재가 미확인입니다.
-# 없으면 이 소스를 composite 에서 빼고 모델을 다른 경로로 되찾습니다 —
-# 버킷당 top_hits(size 1) 또는 sem_list 의 장비 카탈로그. 분석되는 raw text
-# 필드로 그냥 바꾸면 안 됩니다: 토큰화되어 "VERITYSEM_5" 가 "veritysem"/"5"
-# 로 쪼개진 채 모델명 행세를 합니다(에러 없이 조용히 틀립니다).
+# **없어도 예외가 나지 않습니다** — 매핑에 없는 필드를 composite 소스로 쓰면
+# 매칭되는 문서가 없어 버킷이 0개가 되고, /equipments 는 200 에 빈 표를
+# 돌려줍니다("이 기간에 데이터 없음"과 구분되지 않습니다). 크래시를 기다리지
+# 말고 recipe_tat/MIGRATION.md 의 실행 수 대조를 돌리십시오. 대처는 이 소스를
+# 빼고 모델을 다른 경로로 되찾는 것 — 버킷당 top_hits(size 1) 또는 sem_list 의
+# 장비 카탈로그. 분석되는 raw text 필드로 그냥 바꾸면 안 됩니다: 토큰화되어
+# "VERITYSEM_5" 가 "veritysem"/"5" 로 쪼개진 채 모델명 행세를 합니다
+# (이쪽도 에러 없이 조용히 틀립니다).
 EQP_MODEL_CD_KW = "eqp_model_cd.keyword"
 
 
@@ -157,6 +161,12 @@ def _validate_composite_key(
     Shared by the bucket and ``after_key`` checks. The one-source wording is
     kept verbatim — a message an office operator has already seen once should
     not change spelling just because the helper learned to take more sources.
+
+    NOTE: this rejects a ``null`` key value, so ``missing_bucket: true`` on any
+    composite source is NOT a drop-in change — that option's whole point is a
+    bucket whose key value is ``null`` for the missing field. Anyone turning it
+    on to stop `missing_bucket: false` from dropping documents (see
+    recipe_tat/MIGRATION.md) has to relax this check for that source first.
     """
     if set(key) != set(names):
         expected = (

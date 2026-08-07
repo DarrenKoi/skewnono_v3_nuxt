@@ -258,13 +258,67 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
 - **OFFICE-VERIFY — `eqp_model_cd.keyword`.** `docs/datatables/meas_hist.txt`
   records `eqp_model_cd` as `text`; whether the `.keyword` sub-field needed to
   aggregate on it exists is unconfirmed. 이것이 **첫 실행에서 확인할 첫 번째
-  항목**입니다: 없으면 composite 이 `illegal_argument_exception`으로 즉시
-  실패합니다(조용히 틀리지는 않습니다). 없을 때의 대처는 `model` 소스를 빼고
-  모델을 다른 경로로 되찾는 것입니다 — 버킷당 `top_hits`(size 1, `_source:
-  ["eqp_model_cd"]`) 또는 sem_list 의 장비 카탈로그 조인. **분석되는 raw
-  `eqp_model_cd` 로 그냥 바꾸면 안 됩니다**: 토큰화되어 `VERITYSEM_5` 가
-  `veritysem` / `5` 두 버킷으로 쪼개진 채 모델명 행세를 하고, 이쪽은 에러 없이
-  조용히 틀립니다.
+  항목**입니다.
+
+  **크래시를 기다리지 마십시오.** 매핑에 없는 필드를 composite 소스로 쓰는 것은
+  OpenSearch 에서 에러가 아닙니다 — 그 소스에 값을 가진 문서가 하나도 없을 뿐
+  이라 버킷이 0개가 되고, `/equipments` 는 **200 에 `equipments: []`,
+  `fleet.tool_count: 0`** 을 돌려줍니다. 화면상 "이 기간에 측정이 없음"과
+  구분되지 않으므로, 확인 없이 넘어가면 이 항목이 "이상 없음"으로 체크되고
+  장비별 뷰만 조용히 빈 채로 남습니다.
+
+  **대신 이 대조를 돌리십시오** — 같은 tool/fab/기간으로 두 엔드포인트를 부르고
+  실행 수가 일치하는지 봅니다.
+
+  ```bash
+  curl -s "$BASE/api/cdsem/recipe-tat/equipments?start_date=…&end_date=…" \
+    | python -c 'import json,sys; print(json.load(sys.stdin)["fleet"]["total_executions"])'
+  curl -s "$BASE/api/cdsem/recipe-tat/summary?start_date=…&end_date=…" \
+    | python -c 'import json,sys; print(json.load(sys.stdin)["total_executions"])'
+  ```
+
+  두 값이 같아야 합니다. `/summary` 는 composite 을 타지 않으므로 이 대조 하나가
+  아래 `missing_bucket` 항목까지 함께 잡습니다. `0` 과 양수면 서브필드가 없는
+  것이고, 둘 다 양수인데 `/equipments` 쪽이 작으면 네 소스 중 하나에 값이 없는
+  문서가 있는 것입니다.
+
+  서브필드가 없을 때의 대처는 `model` 소스를 빼고 모델을 다른 경로로 되찾는
+  것입니다 — 버킷당 `top_hits`(size 1, `_source: ["eqp_model_cd"]`) 또는
+  sem_list 의 장비 카탈로그 조인. **분석되는 raw `eqp_model_cd` 로 그냥 바꾸면
+  안 됩니다**: 토큰화되어 `VERITYSEM_5` 가 `veritysem` / `5` 두 버킷으로 쪼개진
+  채 모델명 행세를 하고, 이쪽도 에러 없이 조용히 틀립니다.
+- **OFFICE-VERIFY — `missing_bucket: false` 로 인한 누락.** composite 의
+  기본값이라 **네 소스 중 하나라도** 값이 없는 문서는 집계에서 통째로 빠집니다.
+  해당 (장비, 레시피) 칸이 표에서 사라지고 `fleet.total_meastime` 이 조용히 적게
+  잡힙니다 — 여기도 에러가 없습니다. 위의 실행 수 대조가 이것도 잡습니다.
+  `missing_bucket: true` 로 켜는 것은 **드롭인 교체가 아닙니다**:
+  `_office_meas_hist._validate_composite_key` 가 `null` 키 값을 `RuntimeError`
+  로 거부하므로 그 검사를 해당 소스에 대해 먼저 풀어야 합니다.
+- **OFFICE-VERIFY — `eqp_id` 하나가 여러 `fab_name` 으로 나타나는가?**
+  `_shape.build_equipments_payload` 는 장비 행을 `setdefault` 로 만들기 때문에
+  `fab_name`·`eqp_model_cd` 는 **처음 만난 버킷의 값**이 남고
+  `exec_count`·`total_meastime` 은 모든 버킷에 걸쳐 합산됩니다. 장비가 조회
+  기간 중 fab 을 옮겼거나 모델 코드가 정정되었다면 표시값과 합계가 어긋납니다.
+  mock 은 장비당 fab 이 하나라 이 경우를 만들 수 없습니다. 첫날 확인하기는
+  쉽고 나중에 알아채기는 사실상 불가능하므로 먼저 보십시오.
+
+  **응답으로는 확인할 수 없습니다** — `setdefault` 가 `eqp_id` 하나로 묶으므로
+  중복 행은 애초에 나오지 않습니다. 인덱스에 직접 물어야 합니다.
+
+  ```bash
+  curl -s -u "$OPENSEARCH_USER:$OPENSEARCH_PASSWORD" \
+    "https://$OPENSEARCH_HOST:$OPENSEARCH_PORT/meas_hist_cdsem/_search" \
+    -H 'Content-Type: application/json' -d '{
+      "size": 0,
+      "aggs": {"tools": {"terms": {"field": "eqp_id.keyword", "size": 2000},
+        "aggs": {"fabs": {"cardinality": {"field": "fab_name.keyword"}},
+                 "models": {"cardinality": {"field": "eqp_model_cd.keyword"}}}}}
+    }' | python -c 'import json,sys; b=json.load(sys.stdin)["aggregations"]["tools"]["buckets"]; bad=[(x["key"], x["fabs"]["value"], x["models"]["value"]) for x in b if x["fabs"]["value"] > 1 or x["models"]["value"] > 1]; print(len(bad), "tools with >1 fab_name or >1 eqp_model_cd:", bad[:10])'
+  ```
+
+  `0` 이 아니면 `_shape.py` 의 집계 키를 `(eqp_id, fab_name)` 으로 올릴지
+  결정해야 합니다. (이 쿼리는 `eqp_model_cd.keyword` 존재 여부도 같이
+  알려줍니다 — 서브필드가 없으면 `models` 가 전부 `0` 으로 나옵니다.)
 - **OFFICE-VERIFY — 배지 임계값.** 첫 실행에서 아래를 호출하고
   `fleet.percentiles`를 읽어 `front-dev-home/app/utils/equipmentSignals.ts`의
   상수 네 개(`USAGE_FLOOR`, `TAT_CEIL`, `TAT_FLOOR`, `SHARE_CEIL`)를 맞춘 뒤

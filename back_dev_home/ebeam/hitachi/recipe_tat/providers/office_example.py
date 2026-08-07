@@ -70,6 +70,7 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     ToolType,
 )
 from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    EquipmentGridRow,
     build_equipment_compare_payload,
     build_equipments_payload,
 )
@@ -127,7 +128,9 @@ def get_equipments(
         _query(clauses),
     )
 
-    grid: list[tuple[str, str, str, str, int, int]] = [
+    # 격자 타입은 조립기에서 가져옵니다 — fab 과 model 을 서로 바꿔 넣는 실수가
+    # 집에서는 테스트로 잡히지 않는 종류라, 정적 압력이라도 걸어 둡니다.
+    grid: list[EquipmentGridRow] = [
         (
             _text(b["key"]["eqp"]),
             _text(b["key"]["fab"]),
@@ -178,6 +181,12 @@ def get_equipment_compare(
     # 5개로 상한이 걸려 있어(_analytics_routes.MAX_EQP_IDS) size 로 전부
     # 덮습니다. 다른 집계들이 composite 페이지네이션을 쓰는 이유(절단 + 합의
     # 근사)가 여기서는 발생하지 않습니다.
+    #
+    # 위의 `selected` dedupe 는 조립기(_shape.py)의 dedupe 와 중복처럼 보이지만
+    # 지우면 안 됩니다: 조립기 것은 **응답을 만들 때** 돌고, 이건 그 전에
+    # **쿼리를 만들 때** 돕니다. 양쪽이 같은 규칙을 쓰는 덕분에 아래 `size` 가
+    # 응답이 에코하는 eqp_ids 수와 정확히 일치합니다 — 그 결합이 "size 가
+    # 후보를 전부 덮는다"는 위 문단의 근거입니다.
     trend_result = _aggregate(
         _INDEX[tool_type],
         {

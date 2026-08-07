@@ -369,6 +369,55 @@ def test_composite_buckets_preserves_valid_scalar_after_key_group(
     assert type(sent_group) is type(group)
 
 
+def test_legacy_error_wording_is_byte_identical(monkeypatch):
+    """소스가 하나일 때의 문구는 글자 그대로 보존됩니다.
+
+    위 검사들의 정규식(`.*key.*exactly.*group`)은 "exactly one key **called**
+    'group'" 같은 재작문을 통과시킵니다. 사무실 운영자가 한 번 본 문구를
+    로그에서 grep 하거나 문서에 붙여 둘 수 있으므로 == 로 못 박습니다.
+    """
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": {"other": "A"}}]}}],
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem", "full_name.keyword", {}, None
+        )
+    assert str(excinfo.value) == (
+        "OpenSearch composite bucket 1 on page 1 for 'meas_hist_cdsem' "
+        "'key' must contain exactly one key named 'group'; got keys ['other']."
+    )
+
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [{"key": {"group": None}}]}}],
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem", "full_name.keyword", {}, None
+        )
+    assert str(excinfo.value) == (
+        "OpenSearch composite bucket 1 on page 1 for 'meas_hist_cdsem' "
+        "'key.group' must be a non-null JSON scalar "
+        "(string, number, or boolean); got NoneType."
+    )
+
+    _stub_composite_pages(
+        monkeypatch,
+        [{"comp": {"buckets": [], "after_key": {"cursor": "A"}}}],
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        _office_meas_hist.composite_buckets(
+            "meas_hist_cdsem", "full_name.keyword", {}, None
+        )
+    assert str(excinfo.value) == (
+        "OpenSearch composite page 1 for 'meas_hist_cdsem' "
+        "'after_key' must contain exactly one key named 'group'; "
+        "got keys ['cursor']."
+    )
+
+
 def test_composite_buckets_accepts_multi_source_bucket_keys(monkeypatch):
     # 다중 소스로 부르면 버킷 키는 소스 이름마다 하나씩입니다. 검증기가
     # 'group' 하나만 허용하면 /equipments 의 4-소스 집계가 첫 버킷에서
