@@ -1,22 +1,23 @@
 import { joinApiPath } from '~/utils/apiPath'
-import { normalizeFab } from '~/utils/fab'
+import { canonicalFabList } from '~/utils/fab'
 
 export type RecipeSearchToolType = 'cd-sem' | 'hv-sem'
 
 export interface RecipeSearchRow {
   recipe_name: string
+  fab_name: string
 }
 
 export interface RecipeSearchResponse {
   tool_type: RecipeSearchToolType
-  fab_name: string | null
+  fab_names: string[]
   total: number
-  rows: string[]
+  rows: RecipeSearchRow[]
 }
 
 export interface RecipeSearchParams {
   toolType: RecipeSearchToolType
-  fabName?: string
+  fabNames?: string[]
 }
 
 export interface RecipeDetailParams extends RecipeSearchParams {
@@ -111,15 +112,15 @@ export const useRecipeSearchApi = () => {
 
   const fetchRecipeList = async (params: RecipeSearchParams): Promise<RecipeSearchResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const fabName = normalizeFab(params.fabName)
-    const cacheKey = `${params.toolType}:${fabName || 'ALL'}`
+    const fabKey = canonicalFabList(params.fabNames ?? []).join(',')
+    const cacheKey = `${params.toolType}:${fabKey || 'ALL'}`
     const existing = inFlightRecipeLists.get(cacheKey)
 
     if (existing) {
       return await existing
     }
 
-    const query = fabName ? { fab_name: fabName } : undefined
+    const query = fabKey ? { fab_name: fabKey } : undefined
     const request = $fetch<RecipeSearchResponse>(
       joinApiPath(base, `/${slug}/recipe-search/recipes`),
       { query }

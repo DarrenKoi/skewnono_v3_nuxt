@@ -106,20 +106,24 @@ export const normalizeRecipeNameSnapshot = (input: {
 
 export interface RecipeSearchResult {
   recipe_name: string
+  fab_name: string
   source: RecipeSearchSource
 }
 
 export const toRecipeSearchResults = (
-  names: string[],
+  rows: Array<{ recipe_name: string, fab_name: string }>,
   source: RecipeSearchSource
 ): RecipeSearchResult[] => {
   const seen = new Set<string>()
   const results: RecipeSearchResult[] = []
-  for (const raw of names) {
-    const recipeName = raw.trim()
-    if (!recipeName || seen.has(recipeName)) continue
-    seen.add(recipeName)
-    results.push({ recipe_name: recipeName, source })
+  for (const row of rows) {
+    const recipeName = row.recipe_name.trim()
+    if (!recipeName) continue
+    const fabName = (row.fab_name ?? '').trim().toUpperCase()
+    const key = `${fabName}|${recipeName}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    results.push({ recipe_name: recipeName, fab_name: fabName, source })
   }
   return results
 }

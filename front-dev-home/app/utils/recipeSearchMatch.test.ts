@@ -228,14 +228,42 @@ test('separator-only input cannot become eligible for fallback probing', () => {
 })
 
 test('source-aware results dedupe names and Redis results always win', () => {
-  const redis = toRecipeSearchResults(['A', 'B'], 'redis')
-  const fallback = toRecipeSearchResults(['B', 'C', 'C'], 'opensearch')
+  const redis = toRecipeSearchResults(
+    [{ recipe_name: 'A', fab_name: 'R3' }, { recipe_name: 'B', fab_name: 'R3' }],
+    'redis'
+  )
+  const fallback = toRecipeSearchResults(
+    [
+      { recipe_name: 'B', fab_name: 'R3' },
+      { recipe_name: 'C', fab_name: 'R3' },
+      { recipe_name: 'C', fab_name: 'R3' }
+    ],
+    'opensearch'
+  )
   assert.deepEqual(fallback, [
-    { recipe_name: 'B', source: 'opensearch' },
-    { recipe_name: 'C', source: 'opensearch' }
+    { recipe_name: 'B', fab_name: 'R3', source: 'opensearch' },
+    { recipe_name: 'C', fab_name: 'R3', source: 'opensearch' }
   ])
   assert.equal(activeRecipeResults(redis, fallback), redis)
   assert.equal(activeRecipeResults([], fallback), fallback)
+})
+
+test('toRecipeSearchResults keeps both fab copies of a duplicate name', () => {
+  const rows = [
+    { recipe_name: 'A/B_1', fab_name: 'R3' },
+    { recipe_name: 'A/B_1', fab_name: 'M16B' },
+    { recipe_name: 'A/B_1', fab_name: 'R3' }
+  ]
+  const results = toRecipeSearchResults(rows, 'redis')
+  assert.deepEqual(results, [
+    { recipe_name: 'A/B_1', fab_name: 'R3', source: 'redis' },
+    { recipe_name: 'A/B_1', fab_name: 'M16B', source: 'redis' }
+  ])
+})
+
+test('toRecipeSearchResults blank fab is allowed (opensearch fallback)', () => {
+  const results = toRecipeSearchResults([{ recipe_name: 'X', fab_name: '' }], 'opensearch')
+  assert.deepEqual(results, [{ recipe_name: 'X', fab_name: '', source: 'opensearch' }])
 })
 
 test('view state distinguishes fallback loading, results, empty and both-source failure', () => {
