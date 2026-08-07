@@ -7,7 +7,8 @@ import {
 
 const props = defineProps<{
   toolType: string
-  fab: string
+  fabSegment: string
+  ownerFab: string
   recipeName: string
   activeScreen: RecipeDetailScreen
   // Optional secondary line under the recipe name (e.g. timestamp).
@@ -19,15 +20,16 @@ const source = computed(() => readRecipeSourceQuery(route))
 // Always route straight back to the recipe-search list — never rely on
 // browser history, which may have landed the user here from elsewhere.
 const backRoute = computed(() => (
-  `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`
+  `/ebeam/${props.toolType}/${props.fabSegment.toLowerCase()}/recipe-search`
 ))
 const items = computed(() => buildRecipeDetailNavItems(
   props.toolType,
-  props.fab,
+  props.fabSegment,
   props.recipeName,
   props.activeScreen,
   route.query.set,
-  source.value
+  source.value,
+  props.ownerFab
 ))
 </script>
 

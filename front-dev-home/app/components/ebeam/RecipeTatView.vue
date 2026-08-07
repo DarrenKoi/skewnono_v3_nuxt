@@ -240,7 +240,8 @@
             <template #actions-cell="{ row }">
               <EbeamRecipeRowActions
                 :tool-type="toolType"
-                :fab="primaryFab"
+                :fab-segment="fabSegment"
+                :fab-names="row.original.fab_names ?? []"
                 :recipe-name="row.original.recipe_name"
               />
             </template>
@@ -296,7 +297,7 @@ import {
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
-import { DEFAULT_FAB } from '~/utils/fab'
+import { buildFabSegment } from '~/utils/fab'
 
 const props = defineProps<{
   fabs: string[]
@@ -308,9 +309,7 @@ const includeToday = defineModel<boolean>('includeToday', { required: true })
 
 const identity = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
 
-// Recipe detail screens are still a single-fab registry until Phase B, so the
-// row-actions link needs one representative fab rather than the full union.
-const primaryFab = computed(() => props.fabs[0] ?? DEFAULT_FAB)
+const fabSegment = computed(() => buildFabSegment(props.fabs))
 
 // Empty means "let the server resolve its default window"; computing
 // "today" locally drifts past the mock's ANCHOR_TIME for long-running
