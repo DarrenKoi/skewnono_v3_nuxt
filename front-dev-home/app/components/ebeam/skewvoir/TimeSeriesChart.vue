@@ -176,6 +176,14 @@ const option = computed<EChartsOption>(() => ({
     // every tool's nearest datum as if they shared an x. The hovered symbol
     // carries its own TrendPoint, so what is shown is what is under the cursor.
     trigger: 'item',
+    // ECharts defaults the tooltip DOM to `white-space: nowrap` with
+    // `overflow: visible`, and sizes the box off the lines it measured. A
+    // verdict reason ("산포 나머지 평균 1.34 대비 +36.9% … 허용 ±10% 초과") is far
+    // longer than the numeric lines above it, so it ran straight out of the
+    // panel and rendered as red text lying on the x-axis labels — the one line
+    // explaining WHY a dot is red was the only unreadable line in the tooltip.
+    // Wrapping inside a bounded box keeps it on the dark background.
+    extraCssText: 'white-space: normal; max-width: 360px;',
     formatter: (params) => {
       const hit = Array.isArray(params) ? params[0] : params
       // The band series carry plain [x, y] arrays and are silent, so a miss
@@ -278,13 +286,27 @@ const option = computed<EChartsOption>(() => ({
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
-// Every plotted measurement, flattened out of the per-tool series so a click
+// Every plotted measurement, flattened out of the per-tool series so a pointer
 // can be resolved against all of them at once. Several tools overlap in this
 // chart, so the pick has to weigh both axes — the reader aims at a dot, not at
 // a moment, and two tools an hour apart are told apart by their value.
-const clickable = computed(() =>
-  toolSeries.value.flatMap(series =>
-    series.data.map(datum => ({ x: datum.value[0], y: datum.value[1], item: datum.point.msr }))
+//
+// Each candidate carries its ECharts address (series + datum index) alongside
+// the msr, because this ONE list now answers both questions asked of the chart:
+// which measurement a click selects, and which datum the tooltip describes.
+// Deriving those separately is how the two would drift apart.
+const pickable = computed(() =>
+  toolSeries.value.flatMap((series, toolIndex) =>
+    series.data.map((datum, dataIndex) => ({
+      x: datum.value[0],
+      y: datum.value[1],
+      item: {
+        msr: datum.point.msr,
+        // Shifted past the band series, which are drawn ahead of the tool ones.
+        seriesIndex: toolIndex + bandCount.value,
+        dataIndex
+      }
+    }))
   )
 )
 
@@ -301,8 +323,14 @@ useEchart(chartEl, option, {
   // legitimately empty regions (a tool that stopped reporting) where selecting
   // something far away would be a guess, not a correction.
   onGridClick: (detail) => {
-    const msr = nearestPoint(clickable.value, detail)
-    if (msr) emit('select', msr)
-  }
+    const hit = nearestPoint(pickable.value, detail)
+    if (hit) emit('select', hit.msr)
+  },
+  // The tooltip rides the SAME pick as the click, so the dot a near-miss
+  // selects is the dot the tooltip explains. Before this the two disagreed:
+  // `trigger: 'item'` demanded a hit on the 7px symbol itself while the click
+  // forgave 44px, so the usual outcome of aiming at a dot was a selection with
+  // no tooltip to say what had been selected.
+  onGridHover: detail => nearestPoint(pickable.value, detail)
 })
 </script>
