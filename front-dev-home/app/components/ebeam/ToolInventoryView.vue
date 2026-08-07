@@ -141,6 +141,9 @@
 
         <!-- Every cell below is a data value, so all of them take full ink and
              the td's text size — no muted ink, no per-cell sizes. -->
+        <template #fab_name-cell="{ row }">
+          <span class="sk-value">{{ row.original.fab_name }}</span>
+        </template>
         <template #eqp_model_cd-cell="{ row }">
           <span class="sk-value">{{ row.original.eqp_model_cd }}</span>
         </template>
@@ -173,13 +176,14 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import type { Fab, ToolType } from '~/stores/navigation'
+import type { ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { buildFabSegment } from '~/utils/fab'
 
 const props = defineProps<{
-  fab: Fab
+  fabs: string[]
   eyebrow?: string
   cadence?: string
   subtitle: string
@@ -191,7 +195,7 @@ const { filterRows } = useSemListApi()
 const { setSelectedTool } = useNavigation()
 
 const { data: allRows } = await useSemList()
-const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fab))
+const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fabs))
 
 const globalFilter = ref('')
 const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
@@ -210,7 +214,7 @@ const toggleAvailabilityFilter = (target: 'On' | 'Off') => {
 
 const goToHardware = (eqpId: string) => {
   setSelectedTool(eqpId)
-  return navigateTo(`/ebeam/${props.toolType}/${props.fab.toLowerCase()}/hardware`)
+  return navigateTo(`/ebeam/${props.toolType}/${buildFabSegment(props.fabs)}/hardware`)
 }
 
 const modelFilterOptions = computed(() => [
@@ -305,7 +309,7 @@ const onSelectStat = (key: string) => {
 
 const exportFileName = computed(() => {
   const today = new Date().toISOString().slice(0, 10)
-  return `${props.toolType}-${props.fab.toLowerCase()}-tool-inventory-${today}.csv`
+  return `${props.toolType}-${props.fabs.join('+').toLowerCase()}-tool-inventory-${today}.csv`
 })
 
 const hasActiveTableControls = computed(() => {
@@ -333,6 +337,7 @@ type ColumnConfig = { id: keyof SemListRow, header: string, size: number }
 const columnConfigs: ColumnConfig[] = [
   { id: 'available', header: 'Status', size: 120 },
   { id: 'eqp_id', header: 'Equipment ID', size: 220 },
+  { id: 'fab_name', header: 'Fab', size: 64 },
   { id: 'eqp_model_cd', header: 'Model', size: 140 },
   { id: 'vendor_nm', header: 'Vendor', size: 110 },
   { id: 'eqp_ip', header: 'IP Address', size: 176 },

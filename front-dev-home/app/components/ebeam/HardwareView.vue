@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { Fab } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { HardwareMetricTone, HardwareMetricValue, HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { parseBmPmEvents, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
-  fab: Fab
+  fabs: string[]
   toolLabel: string
   // Hardware services only exist for CD-SEM / HV-SEM, so the prop is the
   // narrow HardwareToolType — this is also what fetchService() requires.
@@ -82,13 +81,15 @@ if (storeSelectedToolId.value) {
   setSelectedTool('')
 }
 
-const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fab))
+const fabsKey = computed(() => props.fabs.join(','))
+
+const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fabs))
 
 const onlineCount = computed(() => rows.value.filter(row => row.available === 'On').length)
 
 // Fab/scope rides in the mono eyebrow; the <h1> stays the fixed page name
 // (DESIGN.md §7.8). ON count is read-only — list filtering lives in the rail.
-const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
+const identity = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ') || '—'}`)
 
 const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'online', label: '장비 ON', value: onlineCount.value, tone: 'ok' },
@@ -176,7 +177,7 @@ watch(searchedRows, (nextRows) => {
 // evaluated once at setup — prop changes must come through `watch` to
 // trigger refetches.
 const { data: servicePayload, pending: servicePending, error: serviceError } = await useAsyncData<HardwarePayload | null>(
-  `hardware:${props.toolType}:${props.fab}`,
+  `hardware:${props.toolType}:${props.fabs.join(',')}`,
   () => fetchService({
     toolType: props.toolType,
     service: activeService.value,
@@ -186,7 +187,7 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
     end: windowEnd.value
   }),
   {
-    watch: [() => props.toolType, () => props.fab, activeService, () => selectedTool.value?.eqp_id]
+    watch: [() => props.toolType, fabsKey, activeService, () => selectedTool.value?.eqp_id]
   }
 )
 
@@ -200,7 +201,7 @@ const overlayToggleVisible = computed(() => OVERLAY_SERVICES.includes(activeServ
 // Second cached fetch of the existing bm-pm endpoint — events for whatever
 // tab is active. Failure/empty just means no markers; charts are unaffected.
 const { data: bmPmPayload } = await useAsyncData<HardwarePayload | null>(
-  `hardware:bmpm-events:${props.toolType}:${props.fab}`,
+  `hardware:bmpm-events:${props.toolType}:${props.fabs.join(',')}`,
   () => {
     const eqpId = selectedTool.value?.eqp_id
     if (!eqpId) return Promise.resolve(null)
@@ -213,7 +214,7 @@ const { data: bmPmPayload } = await useAsyncData<HardwarePayload | null>(
       end: windowEnd.value
     })
   },
-  { watch: [() => props.toolType, () => props.fab, () => selectedTool.value?.eqp_id] }
+  { watch: [() => props.toolType, fabsKey, () => selectedTool.value?.eqp_id] }
 )
 
 const overlayEvents = computed<BmPmEvent[]>(() =>
@@ -232,7 +233,7 @@ watch(() => selectedTool.value?.eqp_id, () => {
 // SCE compares from `settings` already in the payload; MDC 시계열 needs each
 // picked tool's own history, so fetch their mdc docs on demand.
 const { data: compareMdcDocs } = await useAsyncData<Record<string, Record<string, unknown>[]>>(
-  `hardware:mdc-compare:${props.toolType}:${props.fab}`,
+  `hardware:mdc-compare:${props.toolType}:${props.fabs.join(',')}`,
   async () => {
     if (activeService.value !== 'mdc' || compareIds.value.length === 0) return {}
     const ids = [...compareIds.value]

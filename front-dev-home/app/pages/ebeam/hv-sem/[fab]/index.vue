@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { fabs, primaryFab } = useFabRoute('hv-sem')
+const { fabs } = useFabRoute('hv-sem')
 </script>
 
 <template>
@@ -7,7 +7,7 @@ const { fabs, primaryFab } = useFabRoute('hv-sem')
     <AppAsyncBoundary title="장비 리스트를 불러오는 중입니다.">
       <EbeamToolInventoryView
         tool-type="hv-sem"
-        :fab="primaryFab"
+        :fabs="fabs"
         :eyebrow="`HV-SEM · ${fabs.join(' + ')}`"
         title="장비 상태"
         subtitle="스큐노노가 현재 접근 가능한 장비 리스트입니다."

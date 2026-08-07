@@ -62,20 +62,8 @@ export const useStorageApi = (tool: StorageTool = 'cd-sem') => {
     return await $fetch<PpidUnavailableSnapshot>(ppidUnavailableUrl, { query, signal })
   }
 
-  // The URL's fab segment IS a fab_name (e.g. "M16A", "R3", "R4"), which is exactly the
-  // granularity storage filters on — so pass it straight through, no fac_id collapse.
-  const fetchByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<StorageRow[]> => {
-    return await fetchStorageRows([urlFab], signal)
-  }
-
-  const fetchPpidUnavailableByUrlFab = async (urlFab: string, signal?: AbortSignal): Promise<PpidUnavailableSnapshot> => {
-    return await fetchPpidUnavailableRows([urlFab], signal)
-  }
-
   return {
     fetchStorageRows,
-    fetchByUrlFab,
-    fetchPpidUnavailableRows,
-    fetchPpidUnavailableByUrlFab
+    fetchPpidUnavailableRows
   }
 }

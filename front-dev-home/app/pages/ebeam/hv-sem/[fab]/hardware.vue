@@ -1,11 +1,11 @@
 <script setup lang="ts">
-const { primaryFab } = useFabRoute('hv-sem')
+const { fabs } = useFabRoute('hv-sem')
 </script>
 
 <template>
   <AppAsyncBoundary title="하드웨어 상태 데이터를 불러오는 중입니다.">
     <EbeamHardwareView
-      :fab="primaryFab"
+      :fabs="fabs"
       tool-label="HV-SEM"
       tool-type="hv-sem"
     />

@@ -39,13 +39,15 @@ export const useSemListApi = () => {
     return await $fetch<SemListResponse>(semListUrl)
   }
 
-  const filterRows = (rows: SemListRow[], toolType: ToolType, fab: Fab = NO_FAB): SemListRow[] => {
+  const filterRows = (rows: SemListRow[], toolType: ToolType, fab: Fab | readonly Fab[] = NO_FAB): SemListRow[] => {
     // Normalized once, not per row: row.fab_name carries whatever casing its source DB used,
     // so the comparison has to be case-insensitive — a raw `===` empties the whole list.
-    const target = hasFab(fab) ? normalizeFab(fab) : ''
+    // An empty target set means "no fab filter".
+    const list = Array.isArray(fab) ? fab : [fab]
+    const targets = new Set(list.filter(hasFab).map(normalizeFab))
     return rows.filter((row) => {
       if (classifyToolType(row.eqp_model_cd) !== toolType) return false
-      if (target !== '' && normalizeFab(row.fab_name) !== target) return false
+      if (targets.size > 0 && !targets.has(normalizeFab(row.fab_name))) return false
       return true
     })
   }

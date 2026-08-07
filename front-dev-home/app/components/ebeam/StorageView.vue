@@ -206,7 +206,7 @@
       :latest-date="ppidLatestDate"
       :pending="ppidUnavailablePending"
       :error="ppidUnavailableError"
-      :fab="props.fab"
+      :fab="props.fabs.join(' + ')"
       :tool-label="props.toolLabel"
     />
   </div>
@@ -215,16 +215,16 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
-import type { Fab, ToolType } from '~/stores/navigation'
+import type { ToolType } from '~/stores/navigation'
 import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composables/useStorageApi'
 import { isStorageUnavailable } from '~/composables/useStorageApi'
 import { copyTextToClipboard } from '~/utils/csvDownload'
 import { storageUsageTier } from '~/utils/storageUsage'
-import { sameFab } from '~/utils/fab'
+import { normalizeFab } from '~/utils/fab'
 import type { MetaBarStat } from './MetaBar.vue'
 
 const props = defineProps<{
-  fab: Fab
+  fabs: string[]
   toolLabel: string
   toolType: ToolType
 }>()
@@ -232,23 +232,25 @@ const props = defineProps<{
 // Backend storage routes only exist for cd-sem and hv-sem in 2026; default cd-sem
 // for any future toolType so the SPA still gets a sensible response.
 const storageTool: StorageTool = props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
-const { fetchByUrlFab, fetchPpidUnavailableByUrlFab } = useStorageApi(storageTool)
+const { fetchStorageRows, fetchPpidUnavailableRows } = useStorageApi(storageTool)
 
 // Meta bar (design option E): stable "장비 상태" title, fab as eyebrow, freshness
 // cadence carries the daily update timing the old subtitle used to spell out.
 const subtitle = '스큐노노가 획득한 장비 용량 정보입니다.'
-const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
+const eyebrow = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
 
 // Abort in-flight fetches on unmount so a fast tab-toggle doesn't leave zombie
 // requests consuming the backend rate-limit budget the next mount needs.
 const abortController = new AbortController()
 onScopeDispose(() => abortController.abort())
 
+const fabsKey = computed(() => props.fabs.join(','))
+
 const { data, pending, error } = await useAsyncData(
-  () => `storage:${storageTool}:${props.fab}`,
-  () => fetchByUrlFab(props.fab, abortController.signal),
+  () => `storage:${storageTool}:${fabsKey.value}`,
+  () => fetchStorageRows(props.fabs, abortController.signal),
   {
-    watch: [() => props.fab],
+    watch: [fabsKey],
     default: () => [] as StorageRow[],
     getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
   }
@@ -259,21 +261,22 @@ const {
   pending: ppidUnavailablePending,
   error: ppidUnavailableError
 } = await useAsyncData(
-  () => `ppid-unavailable:${storageTool}:${props.fab}`,
-  () => fetchPpidUnavailableByUrlFab(props.fab, abortController.signal),
+  () => `ppid-unavailable:${storageTool}:${fabsKey.value}`,
+  () => fetchPpidUnavailableRows(props.fabs, abortController.signal),
   {
-    watch: [() => props.fab],
+    watch: [fabsKey],
     default: (): PpidUnavailableSnapshot => ({ latest_date: '', rows: [] }),
     getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
   }
 )
 
-// The backend now filters storage by the exact fab_name (the URL's fab
-// segment), so `data` already carries only this fab's rows. This filter is a
+// The backend now filters storage by the exact fab_name list (the URL's fab
+// segment), so `data` already carries only these fabs' rows. This filter is a
 // defensive guard: it re-asserts the tool type and fab_name in case the cached
 // payload and the current URL ever disagree.
+const wantedFabs = computed(() => new Set(props.fabs.map(normalizeFab)))
 const rows = computed(() => (data.value ?? []).filter(row =>
-  classifyToolType(row.eqp_model_cd) === props.toolType && sameFab(row.fab_name, props.fab)
+  classifyToolType(row.eqp_model_cd) === props.toolType && wantedFabs.value.has(normalizeFab(row.fab_name))
 ))
 
 const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? '')
@@ -283,7 +286,7 @@ const ppidLatestDate = computed(() => ppidUnavailableData.value?.latest_date ?? 
 // data-quality gaps stay visible rather than silently filtered out.
 const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? []).filter(row =>
   (row.eqp_model_cd === '' || classifyToolType(row.eqp_model_cd) === props.toolType)
-  && (sameFab(row.fab_name, props.fab) || row.fab_name === '')
+  && (wantedFabs.value.has(normalizeFab(row.fab_name)) || row.fab_name === '')
 ))
 
 const parsePercent = (label: string): number => {
