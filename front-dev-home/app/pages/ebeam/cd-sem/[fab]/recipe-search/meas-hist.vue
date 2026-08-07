@@ -4,7 +4,7 @@ const { fabs, primaryFab } = useFabRoute('cd-sem')
 
 <template>
   <div class="space-y-3">
-    <FabScopeNotice
+    <NavFabScopeNotice
       :fabs="fabs"
       :primary-fab="primaryFab"
     />

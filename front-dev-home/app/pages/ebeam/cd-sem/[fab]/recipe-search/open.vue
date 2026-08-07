@@ -4,7 +4,7 @@ const { fabs, primaryFab } = useFabRoute('cd-sem')
 
 <template>
   <div class="flex h-full min-h-0 flex-col gap-3">
-    <FabScopeNotice
+    <NavFabScopeNotice
       :fabs="fabs"
       :primary-fab="primaryFab"
     />
