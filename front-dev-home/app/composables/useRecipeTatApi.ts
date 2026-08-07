@@ -72,6 +72,48 @@ export interface RecipeTatDevicesResponse {
   devices: RecipeTatDeviceRow[]
 }
 
+export const MAX_COMPARE_EQPS = 5
+
+export interface RecipeTatEquipmentRow {
+  eqp_id: string
+  fab_name: string
+  eqp_model_cd: string
+  // 표시용. 신호 판정에는 쓰지 않습니다 — 가동률은 "얼마나 바빴는가"이지
+  // "몇 번 돌았는가"가 아닙니다.
+  exec_count: number
+  total_meastime: number
+  avg_meastime: number
+  recipe_count: number
+  top_recipe: string | null
+  top_recipe_share: number
+  // 실제 총 TAT / 이 장비의 레시피 구성이면 걸렸어야 할 TAT.
+  // 표본 미달이면 null.
+  tat_index: number | null
+  // 측정 점유율. MES 가동률이 아닙니다 — 로딩·대기·PM이 빠져 있습니다.
+  occupancy: number
+  usage_ratio: number
+}
+
+export interface RecipeTatFleetReference {
+  tool_count: number
+  total_executions: number
+  total_meastime: number
+  window_seconds: number
+  median_total_meastime: number
+  median_recipe_count: number
+  min_sample: number
+  percentiles: Record<string, Record<string, number>>
+}
+
+export interface RecipeTatEquipmentsResponse {
+  tool_type: RecipeTatToolType
+  fab_names: string[]
+  start_date: string | null
+  end_date: string | null
+  fleet: RecipeTatFleetReference
+  equipments: RecipeTatEquipmentRow[]
+}
+
 export interface RecipeTatQuery {
   toolType: RecipeTatToolType
   fabNames?: string[]
@@ -155,11 +197,30 @@ export const useRecipeTatApi = () => {
     )
   }
 
+  const fetchRecipeTatEquipments = async (
+    params: RecipeTatQuery
+  ): Promise<RecipeTatEquipmentsResponse> => {
+    // /devices 와 같은 이유로 lot_cd·limit 을 벗겨냅니다: 이 엔드포인트는
+    // 범위 안에 어떤 장비가 있는지에 대한 진실이라 선택으로 걸러지면
+    // 안 됩니다.
+    const scope: RecipeTatQuery = {
+      toolType: params.toolType,
+      fabNames: params.fabNames,
+      startDate: params.startDate,
+      endDate: params.endDate
+    }
+    return await $fetch<RecipeTatEquipmentsResponse>(
+      joinApiPath(base, `/${toolSlug(params.toolType)}/recipe-tat/equipments`),
+      { query: buildQuery(scope) }
+    )
+  }
+
   return {
     fetchRecipeTatRanking,
     fetchRecipeTatSummary,
     fetchRecipeTatDailyTrend,
-    fetchRecipeTatDevices
+    fetchRecipeTatDevices,
+    fetchRecipeTatEquipments
   }
 }
 

@@ -60,9 +60,17 @@
       :reset-key="devicesCacheKey"
     />
 
+    <!-- 장비별: 별도 컴포넌트 트리. 기존 본문은 건드리지 않습니다. -->
+    <EbeamRecipeTatEquipmentView
+      v-if="viewMode === 'by-equipment'"
+      :fabs="fabs"
+      :tool-type="toolType"
+      :date-range="dateRange"
+    />
+
     <!-- 디바이스별 mode without a selection: prompt instead of dashboard -->
     <div
-      v-if="viewMode === 'by-device' && !selectedLot"
+      v-else-if="viewMode === 'by-device' && !selectedLot"
       class="dashboard-surface rounded-2xl px-6 py-12 text-center"
     >
       <UIcon
@@ -331,16 +339,17 @@ const topNLimit = computed(() => Number.parseInt(topNLimitText.value, 10))
 // independent of the device-statistics compare cart.
 const VIEW_MODES = [
   { value: 'summary', label: '전체 요약', icon: 'i-lucide-layers' },
-  { value: 'by-device', label: '디바이스별', icon: 'i-lucide-cpu' }
+  { value: 'by-device', label: '디바이스별', icon: 'i-lucide-cpu' },
+  { value: 'by-equipment', label: '장비별', icon: 'i-lucide-microscope' }
 ] as const
 type ViewMode = typeof VIEW_MODES[number]['value']
 
 const viewMode = ref<ViewMode>('summary')
-const metaSubtitle = computed(() =>
-  viewMode.value === 'by-device'
-    ? 'Recipe별 측정 시간 (TAT) 디바이스별로 분석합니다.'
-    : 'Recipe별 측정 시간 (TAT)을 Fab 기준으로 분석합니다.'
-)
+const metaSubtitle = computed(() => {
+  if (viewMode.value === 'by-device') return 'Recipe별 측정 시간 (TAT) 디바이스별로 분석합니다.'
+  if (viewMode.value === 'by-equipment') return '장비(eqp_id)별 측정 부하와 소요 시간을 비교합니다.'
+  return 'Recipe별 측정 시간 (TAT)을 Fab 기준으로 분석합니다.'
+})
 const selectedLot = ref<string | null>(null)
 
 const {
