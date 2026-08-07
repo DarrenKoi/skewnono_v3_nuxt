@@ -12,6 +12,14 @@
   ingestion and stored on the document, so read the field — do not re-derive
   it from `fail_images` / `total_images`, and do not rescale it. Nothing
   downstream multiplies by 100; the UI appends `%` to the number as it stands.
+- Unlike recipe_tat/fail_issue, this feature did NOT gain a `fab_names`
+  tuple in the multi-fab selection work: `/meas-hist`'s `fab_name` stays a
+  single `str | None`, and `/meas-hist/search`'s `fab` stays the
+  already-plural `list[str] | None` it was before that work (an OR filter,
+  unrelated to the sidebar's multi-fab selection). The frontend narrows the
+  sidebar's selection down to `useFabRoute().primaryFab` before calling
+  `/api/meas-hist` — intentional for Phase 1, revisit only if Phase B widens
+  this endpoint too.
 - Definition of done: the Verify command at the bottom is green.
 
 ## Endpoint: GET /api/meas-hist

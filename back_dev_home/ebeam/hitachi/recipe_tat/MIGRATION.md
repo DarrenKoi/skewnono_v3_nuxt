@@ -20,11 +20,21 @@ Measurement history lives in the office **OpenSearch** cluster (via
 
 The adapter never pulls raw rows — every endpoint is a **server-side
 aggregation** over `meastime` (per-execution TAT, seconds) sliced by
-`timestamp` (the date range) and optionally `fab_name`. Text fields are
+`timestamp` (the date range) and optionally one or more fabs. Text fields are
 aggregated/filtered through their `.keyword` sub-fields (`text` is tokenized;
 exact match / aggregation needs `.keyword`). Connection via `OPENSEARCH_HOST`
 / `OPENSEARCH_PORT` / `OPENSEARCH_USER` / `OPENSEARCH_PASSWORD` in
 `back_dev_home/.env` (port defaults to 443/SSL).
+
+Every `data.py`/provider function takes `fab_names: tuple[str, ...] | None`
+(the multi-fab sidebar selection) rather than a single `fab_name: str |
+None`. The shared `back_dev_home/ebeam/hitachi/_office_meas_hist.filter_clauses`
+turns that tuple into the OpenSearch filter: one selected fab still emits a
+single `term` clause on `fab_name.keyword` (byte-identical to the
+pre-multi-fab query), and 2+ selected fabs emit one `terms` clause — a
+**union** (여러 FAB 을 선택하면 합집합으로 집계됩니다), matching the mock's
+case-insensitive "a row passes if `fab_name` matches ANY selected fab"
+semantics. An empty tuple or `None` means no fab filter at all (fleet-wide).
 
 **`lot_cd` is NOT a meas_hist field** (and `lot_id` does not encode it). The
 **bridge** is OpenSearch `ebeam_tas_lot_hist`, which carries both `lot_id` and
@@ -61,7 +71,7 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/ranking
 
-- Handler: `routes.py` → `data.get_ranking(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_ranking(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date, limit=scope.limit, lot_cd=scope.lot_cd)`.
   `tool_slug` (`cdsem`/`hvsem`) resolves to `ToolType` (`cd-sem`/`hv-sem`); an
   unrecognized slug short-circuits to a 400 before `data.py` is called.
@@ -80,9 +90,10 @@ work without the bridge; the contract gate never passes `lot_cd`.
       sample_eqp_ids: list[str]
   ```
 
-- Mock behavior: filters meas_hist rows in scope (`tool_type` / `fab_name` /
-  date range / optional `lot_cd`), groups by `(class_name, recipe_name)`,
-  sums `meastime` and execution counts per group, then ranks by
+- Mock behavior: filters meas_hist rows in scope (`tool_type` / `fab_names`
+  (union of the selected fabs) / date range / optional `lot_cd`), groups by
+  `(class_name, recipe_name)`, sums `meastime` and execution counts per
+  group, then ranks by
   `total_meastime` descending (ties keep dict-insertion order — not
   explicitly tie-broken). Truncated to `limit` only when `limit > 0`
   (default 0 = uncapped: every recipe in the date range is returned).
@@ -107,14 +118,14 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/summary
 
-- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`.
 - Contract: `SummaryPayload` —
 
   ```python
   class SummaryPayload(TypedDict):
       tool_type: ToolType
-      fab_name: str | None
+      fab_names: list[str]
       start_date: str | None
       end_date: str | None
       anchor_date: str
@@ -140,7 +151,7 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/daily-trend
 
-- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`.
 - Contract: `list[DailyTrendPoint]` —
 
@@ -167,7 +178,7 @@ work without the bridge; the contract gate never passes `lot_cd`.
 
 ## Endpoint: GET /api/<tool_slug>/recipe-tat/devices
 
-- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date)` (no `lot_cd` — this endpoint enumerates
   the lot_cds, so it can't itself be scoped by one).
 - Contract: `list[DeviceRow]` —
@@ -196,8 +207,9 @@ work without the bridge; the contract gate never passes `lot_cd`.
   is joined from the Redis `device_desc` catalog (`fac_id, lot_cd, stn_desc,
   chg_tm, tech_nm, rnd_connector`). `exec_count`/`total_meastime` are the real
   in-scope execution count and summed `meastime`; rows are ordered by
-  `total_meastime` desc. `fab_name` filters via `fab_name.keyword` (fine-grained,
-  same as the other endpoints). Metadata follows the mock's exactly-one rule:
+  `total_meastime` desc. `fab_names` filters via the shared `filter_clauses`
+  helper (`term`/`terms` on `fab_name.keyword` — a union across 2+ selected
+  fabs), same as the other endpoints. Metadata follows the mock's exactly-one rule:
   M-fab devices carry `tech_nm` (from `device_desc`), R3/R&D devices carry
   `prod_catg_cd` (from the Redis `r3_device_grp` DataFrame, `lot_cd →
   prod_catg_cd`).

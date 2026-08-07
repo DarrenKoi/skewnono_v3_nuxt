@@ -23,6 +23,15 @@
   adapter uses the same module, so after pulling this template both
   `office.py` copies (fail_issue AND recipe_tat) must be re-`cp`'d from
   their templates in the same deploy.
+- Every `data.py`/provider function takes `fab_names: tuple[str, ...] | None`
+  (the multi-fab sidebar selection) rather than a single `fab_name: str |
+  None`. The shared `_office_meas_hist.filter_clauses` turns that tuple into
+  the OpenSearch filter: one selected fab still emits a single `term` clause
+  on `fab_name.keyword` (byte-identical to the pre-multi-fab query), and 2+
+  selected fabs emit one `terms` clause — a **union** (여러 FAB 을 선택하면
+  합집합으로 집계됩니다), matching the mock's case-insensitive "a row passes
+  if `fab_name` matches ANY selected fab" semantics. An empty tuple or `None`
+  means no fab filter at all (fleet-wide).
 
 ## Shared: get_anchor_time()
 
@@ -39,7 +48,7 @@
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/summary
 
-- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_summary(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`. `tool_slug`
   (`cdsem`/`hvsem`) resolves to `ToolType`; an unrecognized slug short-circuits
   to a 400 before `data.py` is called.
@@ -48,7 +57,7 @@
   ```python
   class SummaryPayload(TypedDict):
       tool_type: ToolType
-      fab_name: str | None
+      fab_names: list[str]
       start_date: str | None
       end_date: str | None
       anchor_date: str
@@ -77,7 +86,7 @@
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/daily-trend
 
-- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_daily_trend(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date, lot_cd=scope.lot_cd)`.
 - Contract: `list[DailyTrendPoint]` —
 
@@ -101,7 +110,7 @@
 ## Endpoint: GET /api/<tool_slug>/fail-issue/align-ranking
 
 - Handler: `routes.py` → `data.get_align_ranking(scope.tool_type,
-  scope.fab_name, scope.start_date, scope.end_date, limit=scope.limit,
+  scope.fab_names, scope.start_date, scope.end_date, limit=scope.limit,
   lot_cd=scope.lot_cd)`.
 - Contract: `list[AlignRankingRow]` —
 
@@ -131,7 +140,7 @@
 ## Endpoint: GET /api/<tool_slug>/fail-issue/meas-ranking
 
 - Handler: `routes.py` → `data.get_meas_ranking(scope.tool_type,
-  scope.fab_name, scope.start_date, scope.end_date, limit=scope.limit,
+  scope.fab_names, scope.start_date, scope.end_date, limit=scope.limit,
   lot_cd=scope.lot_cd)`.
 - Contract: `list[MeasRankingRow]` —
 
@@ -160,7 +169,7 @@
 
 ## Endpoint: GET /api/<tool_slug>/fail-issue/devices
 
-- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_name,
+- Handler: `routes.py` → `data.get_devices(scope.tool_type, scope.fab_names,
   scope.start_date, scope.end_date)` (no `lot_cd` — this endpoint enumerates
   the lot_cds).
 - Contract: `list[DeviceRow]` —
