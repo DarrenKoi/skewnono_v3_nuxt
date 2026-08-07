@@ -2,12 +2,14 @@
   <div class="flex h-full min-h-[640px] flex-col gap-4">
     <EbeamRecipeSwitcher
       :tool-type="toolType"
-      :fab="fab"
+      :fab-segment="routeFabSegment"
+      :owner-fab="fab"
       active-screen="open"
     />
     <EbeamRecipeDetailNav
       :tool-type="toolType"
-      :fab="fab"
+      :fab-segment="routeFabSegment"
+      :owner-fab="fab"
       :recipe-name="titleRecipeName || recipeName"
       active-screen="open"
     />
@@ -267,7 +269,11 @@ const { fetchRecipeDetail } = useRecipeSearchApi()
 const recipeName = computed(() => readRecipeNameQuery(route))
 const source = computed(() => readRecipeSourceQuery(route))
 const isSupportedSource = computed(() => isRecipeDetailScreenSupported('open', source.value))
-const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
+// The route's OWN [fab] segment, not the owner fab: a multi-fab sidebar
+// selection (e.g. "r3,m16b") must survive the trip back to recipe-search even
+// though this recipe's data was fetched from a single owner fab.
+const routeFabSegment = computed(() => String(route.params.fab || props.fab.toLowerCase()))
+const backRoute = computed(() => `/ebeam/${props.toolType}/${routeFabSegment.value}/recipe-search`)
 const cacheKey = computed(() => (
   `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${source.value}:${recipeName.value}`
 ))

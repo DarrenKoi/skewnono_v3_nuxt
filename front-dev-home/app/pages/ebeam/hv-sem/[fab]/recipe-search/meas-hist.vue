@@ -1,19 +1,17 @@
 <script setup lang="ts">
-const { fabs, primaryFab } = useFabRoute('hv-sem')
+import { readRecipeOwnerFabQuery } from '~/utils/recipeView'
+
+const { primaryFab } = useFabRoute('hv-sem')
+const route = useRoute()
+const ownerFab = computed(() => readRecipeOwnerFabQuery(route) || primaryFab.value)
 </script>
 
 <template>
-  <div class="space-y-3">
-    <NavFabScopeNotice
-      :fabs="fabs"
-      :primary-fab="primaryFab"
+  <AppAsyncBoundary title="측정 이력을 불러오는 중입니다.">
+    <EbeamRecipeMeasHistView
+      :fab="ownerFab"
+      tool-label="HV-SEM"
+      tool-type="hv-sem"
     />
-    <AppAsyncBoundary title="측정 이력을 불러오는 중입니다.">
-      <EbeamRecipeMeasHistView
-        :fab="primaryFab"
-        tool-label="HV-SEM"
-        tool-type="hv-sem"
-      />
-    </AppAsyncBoundary>
-  </div>
+  </AppAsyncBoundary>
 </template>

@@ -45,7 +45,7 @@
 
     <template v-else>
       <EbeamRecipeCompareRecipeSetBar
-        :selected="selected"
+        :entries="entries"
         :back-route="backRoute"
         :can-export="!!data && selectedParameters.length > 0"
         @remove="remove"
@@ -80,6 +80,22 @@
       </div>
 
       <template v-else-if="recipes.length">
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="recipe in recipes"
+            :key="`${recipe.fab_name}:${recipe.recipe_id}`"
+            class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-zinc-50 px-2 py-1 font-mono text-[11px] text-(--sk-ink) dark:bg-zinc-900"
+          >
+            {{ recipe.recipe_id }}
+            <span
+              v-if="(data?.fab_names.length ?? 0) > 1"
+              class="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300"
+            >
+              {{ recipe.fab_name }}
+            </span>
+          </span>
+        </div>
+
         <EbeamRecipeCompareParameterSelector
           v-model="selectedParameters"
           :rows="overlapRows"
@@ -170,7 +186,6 @@
 </template>
 
 <script setup lang="ts">
-import type { Fab } from '~/stores/navigation'
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { RecipeCompareResponse } from '~/composables/useRecipeCompareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
@@ -189,38 +204,40 @@ import {
 import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamDetail'
 import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
-import { recipeNamesForCompare } from '~/utils/recipeSelection'
+import { recipesForCompare } from '~/utils/recipeSelection'
+import { buildFabSegment } from '~/utils/fab'
 
 const props = defineProps<{
-  fab: Fab
+  fabs: string[]
   toolLabel: string
   toolType: RecipeSearchToolType
 }>()
 
-const { entries, selected, remove } = useRecipeSelectionSet(props.toolType, props.fab)
+const fabSegment = computed(() => buildFabSegment(props.fabs))
+const { entries, selected, remove } = useRecipeSelectionSet(props.toolType)
 const { fetchCompare } = useRecipeCompareApi()
 
-const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
+const backRoute = computed(() => `/ebeam/${props.toolType}/${fabSegment.value}/recipe-search`)
 const containsFallback = computed(() =>
   entries.value.some(entry => entry.source === 'opensearch')
 )
-const compareNames = computed(() => recipeNamesForCompare(entries.value))
-const compareAllowed = computed(() => compareNames.value !== null)
-const cacheKey = computed(() =>
-  compareNames.value
-    ? `recipe-compare:${props.toolType}:${props.fab || 'ALL'}:${[...compareNames.value].sort().join('|')}`
-    : `recipe-compare:unsupported:${props.toolType}:${props.fab || 'ALL'}`
-)
+const compareRecipes = computed(() => recipesForCompare(entries.value))
+const compareAllowed = computed(() => compareRecipes.value !== null)
+const cacheKey = computed(() => {
+  const refs = compareRecipes.value
+  return refs
+    ? `recipe-compare:${props.toolType}:${refs.map(r => `${r.fab_name}:${r.recipe_name}`).sort().join('|')}`
+    : `recipe-compare:unsupported:${props.toolType}`
+})
 
 const { data, pending, error, refresh } = await useAsyncData<RecipeCompareResponse | null>(
   () => cacheKey.value,
   () => {
-    const names = compareNames.value
-    return names
+    const refs = compareRecipes.value
+    return refs
       ? fetchCompare({
           toolType: props.toolType,
-          fabName: props.fab,
-          recipeNames: names
+          recipes: refs
         })
       : Promise.resolve(null)
   },
@@ -273,7 +290,7 @@ watch(selectedParameters, (params) => {
   }
 }, { immediate: true })
 
-const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
+const identity = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
 const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'recipes', label: 'Recipes', value: selected.value.length.toLocaleString(), tone: 'accent' },
   { key: 'params', label: 'Params', value: selectedParameters.value.length.toLocaleString(), tone: 'neutral' }
@@ -368,7 +385,7 @@ const downloadExcel = async () => {
       : undefined
     await downloadCompareWorkbook(
       workbook,
-      `recipe-compare_${props.toolType}_${props.fab}.xlsx`,
+      `recipe-compare_${props.toolType}_${props.fabs.join('+').toLowerCase()}.xlsx`,
       imageBlock
     )
   } catch (err) {

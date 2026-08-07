@@ -1,19 +1,17 @@
 <script setup lang="ts">
-const { fabs, primaryFab } = useFabRoute('cd-sem')
+import { readRecipeOwnerFabQuery } from '~/utils/recipeView'
+
+const { primaryFab } = useFabRoute('cd-sem')
+const route = useRoute()
+const ownerFab = computed(() => readRecipeOwnerFabQuery(route) || primaryFab.value)
 </script>
 
 <template>
-  <div class="space-y-3">
-    <NavFabScopeNotice
-      :fabs="fabs"
-      :primary-fab="primaryFab"
+  <AppAsyncBoundary title="측정 이력을 불러오는 중입니다.">
+    <EbeamRecipeMeasHistView
+      :fab="ownerFab"
+      tool-label="CD-SEM"
+      tool-type="cd-sem"
     />
-    <AppAsyncBoundary title="측정 이력을 불러오는 중입니다.">
-      <EbeamRecipeMeasHistView
-        :fab="primaryFab"
-        tool-label="CD-SEM"
-        tool-type="cd-sem"
-      />
-    </AppAsyncBoundary>
-  </div>
+  </AppAsyncBoundary>
 </template>
