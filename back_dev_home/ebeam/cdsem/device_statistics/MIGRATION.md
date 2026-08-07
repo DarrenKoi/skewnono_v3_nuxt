@@ -107,7 +107,7 @@ docstring.
 ## Endpoint: GET /api/cdsem/device-statistics/device-desc
 
 - Handler: `routes.py` → `device_desc()`. Reads `fac_id` from the query
-  string as a comma-separated list (`?fac_id=M11,M12`), splits and strips
+  string as a comma-separated list (`?fac_id=M11,M10`), splits and strips
   it, then calls `data.get_device_desc(fac_ids)` (empty list becomes
   `None`, meaning "no filter").
 - Contract: `list[DeviceDescRow]` —
@@ -124,7 +124,7 @@ docstring.
   ```
 
 - Mock behavior: a fixed, memoized 2000-row universe (400 rows per fab)
-  spread across `M11`/`M12`/`M14`/`M15`/`M16`, generated once with RNG seed
+  spread across `M10`/`M11`/`M14`/`M15`/`M16`, generated once with RNG seed
   `20260427` independently of `r3_device_grp` — `rnd_connector` (the R&D
   code name a device carried pre-mass-production) is deliberately NOT
   derived from any r3_device_grp field, matching real-world data

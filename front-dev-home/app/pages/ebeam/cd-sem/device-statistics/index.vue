@@ -488,8 +488,8 @@ const deviceFabOptions: { label: string, value: DeviceFab }[] = [
   { label: 'M16', value: 'M16' },
   { label: 'M15', value: 'M15' },
   { label: 'M14', value: 'M14' },
-  { label: 'M12', value: 'M12' },
-  { label: 'M11', value: 'M11' }
+  { label: 'M11', value: 'M11' },
+  { label: 'M10', value: 'M10' }
 ]
 
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })

@@ -45,7 +45,7 @@ types:
       format: "<fac_id>-NNNN"
     fac_id:
       type: string
-      enum: ["M11", "M12", "M14", "M15", "M16"]
+      enum: ["M10", "M11", "M14", "M15", "M16"]
     lot_cd:
       type: string
       format: "<fac-prefix><base36 2 or 3-digit>"
@@ -244,7 +244,7 @@ endpoints:
       fac_id:
         type: string
         required: false
-        description: Comma-separated fac_ids (e.g. "M11,M12"). Case-insensitive. Returns all when omitted.
+        description: Comma-separated fac_ids (e.g. "M11,M10"). Case-insensitive. Returns all when omitted.
     response:
       status: 200
       body:

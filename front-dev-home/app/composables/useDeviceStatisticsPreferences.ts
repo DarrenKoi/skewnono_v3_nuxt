@@ -1,10 +1,10 @@
 import { normalizeFab } from '~/utils/fab'
 
-export type DeviceFab = 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
+export type DeviceFab = 'R3' | 'M10' | 'M11' | 'M14' | 'M15' | 'M16'
 
 export const DEFAULT_DEVICE_FAB: DeviceFab = 'R3'
 
-const DEVICE_FABS = new Set<DeviceFab>(['R3', 'M11', 'M12', 'M14', 'M15', 'M16'])
+const DEVICE_FABS = new Set<DeviceFab>(['R3', 'M10', 'M11', 'M14', 'M15', 'M16'])
 const STORAGE_KEYS = {
   fab: 'skewnono:deviceStatistics.selectedFab',
   categories: 'skewnono:deviceStatistics.selectedProdCategories',
