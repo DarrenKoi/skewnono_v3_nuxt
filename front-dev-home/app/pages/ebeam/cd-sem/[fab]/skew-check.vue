@@ -1,28 +1,17 @@
 <template>
-  <EbeamSkewCheckView
-    :fab="fabName"
-    tool-label="CD-SEM"
-    tool-type="cd-sem"
-  />
+  <div class="space-y-3">
+    <FabScopeNotice
+      :fabs="fabs"
+      :primary-fab="primaryFab"
+    />
+    <EbeamSkewCheckView
+      :fab="primaryFab"
+      tool-label="CD-SEM"
+      tool-type="cd-sem"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
-import type { Fab } from '~/stores/navigation'
-
-const route = useRoute()
-const { setToolType, setFab } = useNavigation()
-
-const fabName = computed(() => String(route.params.fab ?? '').toUpperCase())
-
-const applyFab = (next: string) => {
-  if (!next) return
-  setFab(next as Fab)
-}
-
-setToolType('cd-sem')
-applyFab(fabName.value)
-
-watch(fabName, (next) => {
-  applyFab(next)
-})
+const { fabs, primaryFab } = useFabRoute('cd-sem')
 </script>
