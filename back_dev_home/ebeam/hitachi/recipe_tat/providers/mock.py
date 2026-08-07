@@ -15,21 +15,39 @@ Schema follows `docs/datatables/meas_hist.txt`. We intentionally drop the
 wider columns (msr / align / image counts / idp paths) — TAT only needs
 timing, so adding them would bloat payloads without changing the dashboard.
 
+장비 플릿은 sem_list mock에서 옵니다 (_tool_fleet). eqp_id / fab_name /
+eqp_model_cd / vendor_nm 을 sem_list row에서 그대로 복사하며, 지어내지
+않습니다 — meas_hist.txt 생성 규칙 1과 _tool_specs.py 모듈 docstring이
+요구하는 방식입니다. 행 생성 순서는 장비 → lot → 레시피이고, lot은 장비가
+선 fab(fac_id)의 것만 뽑습니다.
+
+lot 색인(_lot_index)은 6개 fac_id를 모두 덮습니다 (R3 2000건, M10/M11/M14/
+M15/M16 각 400건 — Task 1의 M12→M10 정정 이후). 그래도 lot이 없는 fac이
+생기면 그 장비는 측정 없이 남습니다: 다른 fab의 lot으로 조용히 폴백하면
+lot이 속한 fab과 장비가 선 fab이 어긋난 행이 생기는데, 그것이야말로 이
+mock이 없애려는 비정합입니다.
+
+장비별 고정 스칼라(speed / workload / recipe_lock)가 흉내내는 것은 사무실
+데이터의 *값*이 아니라 *장비 사이에 편차가 존재한다는 사실*입니다. 정상
+장비의 폭을 ±8 %로 좁게 둔 근거는 실 플릿의 가동률이 대부분 90 % 이상으로
+몰려 있다는 현업 확인입니다(user-confirmed 2026-08-07). R3의 거의 놀고 있는
+장비 한 대는 tat_index=None(표본 미달) 경로를 UI에서 밟기 위해 의도적으로
+과장한 사례이지 실 데이터에 대한 주장이 아닙니다.
+
+측정 물량(TOTAL_MEAS_ROWS)은 집계와 화면을 제대로 돌려보기 위한 최소치이지
+사무실 물량이 아닙니다. 실제 CD-SEM은 이보다 훨씬 많이 측정합니다.
+
 사무실 주의사항: ANCHOR_TIME 은 모듈 로드 시점의 wall-clock 입니다. 사무실
 구현은 wall-clock 대신 실 인덱스의 max(timestamp) 를 anchor 로 사용해야
 합니다. (routes.py 의 _resolve_dates 가 ANCHOR_TIME.date() 를 기본 윈도
 끝점으로 사용함을 인지)
-
-NOTE: `_lot_index` is currently sourced from `cdsem.device_statistics`.
-HV-SEM responses derived from this data layer reuse the CD-SEM mock lot
-index until an HV-SEM-specific lot pool is introduced — acceptable for
-mock-only Phase 1 since no HV-SEM frontend currently calls these endpoints.
 
 Multi-fab filtering (`fab_names`) is a case-insensitive set union — a row
 passes if its `fab_name` matches ANY entry; an empty tuple or `None` means
 no fab filter at all.
 """
 
+import bisect
 import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -42,6 +60,7 @@ from back_dev_home.ebeam.hitachi._analytics import (
     lot_metadata,
     parse_iso_date,
 )
+from back_dev_home.ebeam.hitachi._tool_specs import model_to_tool_type
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
@@ -50,6 +69,7 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     SummaryPayload,
     ToolType,
 )
+from back_dev_home.sem_list.providers import mock as sem_list_mock
 
 
 __all__ = [
@@ -79,36 +99,6 @@ KST = timezone(timedelta(hours=9), "KST")
 ANCHOR_TIME = datetime.now(KST).replace(microsecond=0)
 
 
-# Tool model -> tool type mapping. CG family is CD-SEM; TP / VERITYSEM /
-# PROVISION are HV-SEM. Mirrors the meas_hist.txt rule "CG -> cd-sem,
-# TP / PROVISION / VERITYSEM -> hv-sem".
-TOOL_MODELS: dict[ToolType, tuple[tuple[str, str], ...]] = {
-    # (eqp_model_cd, vendor_nm)
-    "cd-sem": (
-        ("CG6300", "HITACHI"),
-        ("CG6380", "HITACHI"),
-        ("CG5000", "HITACHI")
-    ),
-    "hv-sem": (
-        ("TP4000", "HITACHI"),
-        ("VERITYSEM_5", "AMAT"),
-        ("PROVISION_3", "AMAT")
-    )
-}
-
-# fab_name choices per fac_id. Must match SemList's vocabulary so the
-# FAB sidebar's selections actually filter rows here — every M-fab carries
-# A/B/C sub-fabs in SemList, R3 lots can land on R3 or R4.
-FAB_NAMES_BY_FAC: dict[str, tuple[str, ...]] = {
-    "R3": ("R3", "R4"),
-    "M11": ("M11A", "M11B", "M11C"),
-    "M12": ("M12A", "M12B", "M12C"),
-    "M14": ("M14A", "M14B", "M14C"),
-    "M15": ("M15A", "M15B", "M15C"),
-    "M16": ("M16A", "M16B", "M16C")
-}
-
-
 # Recipe class -> baseline meastime range (seconds). QC is fast, ADI/AEI
 # are heaviest. This shapes the TAT ranking — without per-class spread the
 # dashboard would be uniform noise.
@@ -132,7 +122,7 @@ FAB_CLASS_MIX: dict[str, tuple[str, ...]] = {
     "R3": ("ADI", "ADI", "AEI", "GATE", "OVL", "QC"),
     "R4": ("QC", "QC", "OVL", "CNT", "EDGE", "DEF"),
     "M11": ("DEF", "DEF", "EDGE", "QC", "CNT", "OVL"),
-    "M12": ("GATE", "GATE", "CNT", "OVL", "QC", "ADI"),
+    "M10": ("GATE", "GATE", "CNT", "OVL", "QC", "ADI"),
     "M14": ("ADI", "GATE", "GATE", "EDGE", "AEI", "OVL"),
     "M15": ("AEI", "AEI", "OVL", "QC", "CNT", "DEF"),
     "M16": ("ADI", "ADI", "DEF", "CNT", "GATE", "QC")
@@ -142,7 +132,7 @@ FAB_MEASTIME_MULTIPLIER: dict[str, float] = {
     "R3": 1.12,
     "R4": 0.82,
     "M11": 0.74,
-    "M12": 0.95,
+    "M10": 0.95,
     "M14": 1.25,
     "M15": 1.03,
     "M16": 1.18
@@ -162,29 +152,114 @@ CLASS_RECIPE_TEMPLATES: dict[str, tuple[str, ...]] = {
 }
 
 RECIPE_DEFINITIONS_PER_TOOL = 60      # distinct recipes per tool_type
-TOTAL_MEAS_ROWS = 6000                 # split evenly across both tool types
-HISTORY_WINDOW_DAYS = 120              # extends past 30-day default range
+TOTAL_MEAS_ROWS = 55_000              # 기본 조회(fab 1개·14일)에서 장비당 ~25건
+HISTORY_WINDOW_DAYS = 180             # 90일 프리셋에 2배 여유
+
+ACTIVE_TOOLS_PER_FAB = 5    # (tool_type, fab_name) 칸마다 실제로 측정하는 장비 수
 
 
 @lru_cache(maxsize=1)
-def _lot_pool() -> tuple[tuple[str, str], ...]:
-    return tuple(_lot_index().items())
+def _tool_fleet() -> dict[ToolType, tuple[dict, ...]]:
+    """sem_list 명부에서 활성 장비를 뽑고 장비별 고정 스칼라를 붙입니다.
+
+    eqp_id는 절대 지어내지 않습니다 — sem_list가 장비 명부의 진실이고
+    (_tool_specs.py 모듈 docstring), fab_name/eqp_model_cd/vendor_nm은 그
+    장비의 sem_list row에서 그대로 복사합니다(meas_hist.txt 생성 규칙 1).
+
+    sem_list mock은 eqp_id가 중복될 수 있으므로(300행 중 고유 290개)
+    첫 행이 이기도록 dedupe합니다. dedupe하지 않으면 한 eqp_id가 두 fab에
+    속하게 되어 "장비는 fab 하나에 산다"는 불변식이 첫날부터 깨집니다.
+
+    장비별 스칼라(speed/workload/recipe_lock)가 흉내내는 것은 실 데이터의 *값*이
+    아니라 *편차가 존재한다는 사실*입니다. 정상 장비의 폭을 좁게(±8 %) 둔
+    것은 실 플릿의 가동률이 대부분 90 % 이상으로 몰려 있다는 현업 확인을
+    반영한 것입니다(user-confirmed 2026-08-07). 칸마다 역할을 고정 배정하는
+    이유는 어느 fab을 보더라도 UI의 모든 배지 상태를 한 번씩 밟아보기
+    위해서이지, 실제로 5대 중 1대가 느리다는 주장이 아닙니다.
+    """
+    rng = random.Random(20260807)
+
+    roster: dict[str, dict] = {}
+    for row in sem_list_mock._generate_rows():
+        roster.setdefault(row["eqp_id"], row)
+
+    cells: dict[tuple[ToolType, str], list[dict]] = {}
+    for eqp_id in sorted(roster):                 # 정렬 = 결정론
+        row = roster[eqp_id]
+        tool_type = model_to_tool_type(row["eqp_model_cd"])
+        if tool_type is None:                     # AMAT VeritySEM/Provision — 2027년 이후
+            continue
+        cells.setdefault((tool_type, row["fab_name"]), []).append(row)
+
+    fleet: dict[ToolType, list[dict]] = {"cd-sem": [], "hv-sem": []}
+    for (tool_type, fab_name), members in sorted(cells.items()):
+        # 보유분보다 많이 뽑지 않습니다 — hv-sem에는 5대 미만인 칸이 여럿입니다
+        # (예: M10B는 1대). 없는 장비를 지어내지 않습니다.
+        active = members[:ACTIVE_TOOLS_PER_FAB]
+        for index, row in enumerate(active):
+            fleet[tool_type].append({
+                "eqp_id": row["eqp_id"],
+                "fab_name": row["fab_name"],
+                "fac_id": row["fac_id"],
+                "eqp_model_cd": row["eqp_model_cd"],
+                "vendor_nm": row["vendor_nm"],
+                **_tool_scalars(rng, index, fab_name),
+            })
+
+    return {tool_type: tuple(tools) for tool_type, tools in fleet.items()}
+
+
+def _tool_scalars(rng: random.Random, index: int, fab_name: str) -> dict:
+    """칸 안의 순번으로 역할을 고정 배정합니다 (0=느림, 1=저사용, 2=편중).
+
+    순번 배정이라 fab을 어디로 바꿔도 배지 상태가 하나씩 나타납니다.
+    R3의 순번 3만 예외적으로 거의 놀게 두어 tat_index=None 경로(표본 미달)를
+    기본 화면에서 밟을 수 있게 합니다 — 실 데이터에 그런 장비가 있다는
+    주장이 아니라 UI 상태를 시연하기 위해 의도적으로 과장한 사례입니다.
+    """
+    normal_speed = round(rng.uniform(0.96, 1.04), 4)
+    normal_workload = round(rng.uniform(0.92, 1.08), 4)
+
+    if index == 0:
+        return {"speed": round(rng.uniform(1.12, 1.20), 4),
+                "workload": normal_workload, "recipe_lock": 0}
+    if index == 1:
+        return {"speed": normal_speed,
+                "workload": round(rng.uniform(0.70, 0.80), 4), "recipe_lock": 0}
+    if index == 2:
+        # 편중은 class가 아니라 **레시피** 단위로 좁혀야 합니다. class 하나에도
+        # 레시피가 7~8개 있어서, class만 고정하면 recipe_count가 여전히 7~8이고
+        # top_recipe_share는 0.15 언저리라 '편중'으로 보이지 않습니다.
+        return {"speed": normal_speed, "workload": normal_workload, "recipe_lock": 2}
+    if index == 3 and fab_name == "R3":
+        return {"speed": normal_speed, "workload": 0.30, "recipe_lock": 0}
+    return {"speed": normal_speed, "workload": normal_workload, "recipe_lock": 0}
+
+
+@lru_cache(maxsize=1)
+def _lots_by_fac() -> dict[str, tuple[str, ...]]:
+    """fac_id -> 그 fab의 lot_cd들. 측정은 장비가 있는 fab에서 일어납니다."""
+    grouped: dict[str, list[str]] = {}
+    for lot_cd, fac_id in sorted(_lot_index().items()):
+        grouped.setdefault(fac_id, []).append(lot_cd)
+    return {fac_id: tuple(lots) for fac_id, lots in grouped.items()}
 
 
 @lru_cache(maxsize=1)
 def _recipe_definitions() -> tuple[dict, ...]:
     """Stable per-recipe metadata generated once.
 
-    Each entry pins a tool_type, class, recipe_name, eqp_model and a baseline
-    meastime — every measurement row for that recipe samples meastime around
-    the baseline so a single recipe has a recognizable "size" on the chart.
+    Each entry pins a tool_type, class, recipe_name and a baseline meastime —
+    every measurement row for that recipe samples meastime around the baseline
+    so a single recipe has a recognizable "size" on the chart. Equipment
+    identity is NOT pinned here: it comes from the tool the row runs on
+    (`_tool_fleet`), because a recipe is not owned by one model.
     """
     rng = random.Random(20260508)
     classes = tuple(CLASS_MEASTIME_BANDS.keys())
     recipes: list[dict] = []
 
     for tool_type in ("cd-sem", "hv-sem"):
-        models = TOOL_MODELS[tool_type]
         for index in range(RECIPE_DEFINITIONS_PER_TOOL):
             class_name = rng.choice(classes)
             template = rng.choice(CLASS_RECIPE_TEMPLATES[class_name])
@@ -194,16 +269,12 @@ def _recipe_definitions() -> tuple[dict, ...]:
             min_t, max_t = CLASS_MEASTIME_BANDS[class_name]
             baseline = rng.randint(min_t, max_t)
 
-            eqp_model_cd, vendor_nm = rng.choice(models)
-
             recipes.append({
                 "tool_type": tool_type,
                 "class_name": class_name,
                 "recipe_name": recipe_name,
                 "full_name": full_name,
-                "baseline_meastime": baseline,
-                "eqp_model_cd": eqp_model_cd,
-                "vendor_nm": vendor_nm
+                "baseline_meastime": baseline
             })
 
     return tuple(recipes)
@@ -216,11 +287,6 @@ def _format_iso(dt: datetime) -> str:
 def _build_lot_id(rng: random.Random, lot_cd: str) -> str:
     suffix = f"{rng.randint(1, 999999):06d}"
     return f"{lot_cd}{suffix}"
-
-
-def _build_eqp_id(rng: random.Random, eqp_model_cd: str) -> str:
-    family = eqp_model_cd[:4].upper()
-    return f"{family}-{rng.randint(1, 24):02d}"
 
 
 def _recipe_indexes(
@@ -241,33 +307,76 @@ def _recipe_indexes(
     )
 
 
-def _pick_recipe_for_fab(
+def _pick_recipe_for_tool(
     rng: random.Random,
     by_tool_class: dict[tuple[ToolType, str], tuple[dict, ...]],
     by_tool: dict[ToolType, tuple[dict, ...]],
     tool_type: ToolType,
-    fab_name: str
+    tool: dict
 ) -> dict:
-    class_name = rng.choice(FAB_CLASS_MIX.get(fab_base(fab_name), DEFAULT_CLASS_MIX))
+    # 편중 장비는 자기 레시피 몇 개만 돕니다 — recipe_count가 작고
+    # top_recipe_share가 큰, 커버리지 신호가 실제로 보이는 형태입니다.
+    locked = _locked_recipes(by_tool, tool_type, tool)
+    if locked:
+        return locked[rng.randrange(len(locked))]
+
+    mix = FAB_CLASS_MIX.get(fab_base(tool["fab_name"]), DEFAULT_CLASS_MIX)
+    class_name = rng.choice(mix)
     candidates = by_tool_class.get((tool_type, class_name)) or by_tool[tool_type]
     return candidates[rng.randrange(len(candidates))]
 
 
+@lru_cache(maxsize=256)
+def _locked_recipe_indexes(eqp_id: str, pool_size: int, count: int) -> tuple[int, ...]:
+    """편중 장비가 고정으로 도는 레시피 인덱스. eqp_id로 시드해 안정적입니다."""
+    if count <= 0 or pool_size <= 0:
+        return ()
+    picker = random.Random(f"recipe-lock:{eqp_id}")
+    return tuple(picker.sample(range(pool_size), min(count, pool_size)))
+
+
+def _locked_recipes(
+    by_tool: dict[ToolType, tuple[dict, ...]],
+    tool_type: ToolType,
+    tool: dict
+) -> tuple[dict, ...]:
+    pool = by_tool[tool_type]
+    indexes = _locked_recipe_indexes(tool["eqp_id"], len(pool), tool["recipe_lock"])
+    return tuple(pool[index] for index in indexes)
+
+
 @lru_cache(maxsize=1)
 def _generate_meas_hist() -> tuple[MeasHistRow, ...]:
-    """Generate the full meas_hist mock universe.
+    """meas_hist mock 전체를 생성합니다.
 
-    Determinism is the contract: the same (tool_type, date_range) query
-    must always return byte-identical aggregates so the dashboard does
-    not shimmer between renders.
+    순서가 중요합니다: **장비 → lot → 레시피**. 측정은 어떤 fab의 어떤
+    장비에서 일어나고, lot이 거기 들어오고, 그 lot에 레시피가 돕니다.
+    예전 구현은 lot에서 시작해 fab을 고르고 장비를 지어냈는데, 그러면
+    같은 장비가 여러 fab에 나타나고 meastime이 장비와 무관해집니다.
+
+    결정론이 계약입니다: 같은 (tool_type, 기간) 질의는 항상 같은 집계를
+    돌려줘야 대시보드가 렌더 사이에 흔들리지 않습니다.
     """
     rng = random.Random(20260508)
     recipes = _recipe_definitions()
     by_tool_class, by_tool = _recipe_indexes(recipes)
-    lots = _lot_pool()
+    fleet = _tool_fleet()
+    lots_by_fac = _lots_by_fac()
 
-    if not lots or not recipes:
+    if not recipes or not any(fleet.values()):
         return ()
+
+    # workload 가중 추출용 누적 가중치 (tool_type별로 한 번 계산)
+    weighted: dict[ToolType, tuple[list[dict], list[float]]] = {}
+    for tool_type, tools in fleet.items():
+        if not tools:
+            continue
+        cumulative: list[float] = []
+        running = 0.0
+        for tool in tools:
+            running += tool["workload"]
+            cumulative.append(running)
+        weighted[tool_type] = (list(tools), cumulative)
 
     rows: list[MeasHistRow] = []
     history_start = ANCHOR_TIME - timedelta(days=HISTORY_WINDOW_DAYS)
@@ -275,33 +384,45 @@ def _generate_meas_hist() -> tuple[MeasHistRow, ...]:
 
     for index in range(TOTAL_MEAS_ROWS):
         tool_type: ToolType = "cd-sem" if index % 2 == 0 else "hv-sem"
-        lot_cd, fac_id = lots[rng.randrange(len(lots))]
-        fab_name = rng.choice(FAB_NAMES_BY_FAC.get(fac_id, (fac_id,)))
-        recipe = _pick_recipe_for_fab(rng, by_tool_class, by_tool, tool_type, fab_name)
+        if tool_type not in weighted:
+            continue
+        tools, cumulative = weighted[tool_type]
+        tool = tools[bisect.bisect_left(cumulative, rng.uniform(0, cumulative[-1]))]
+
+        # lot은 장비가 선 fab의 것만. Task 1에서 fac 어휘를 통일했으므로
+        # 여기서 비는 fac은 없어야 하지만, sem_list에만 있고 lot이 없는
+        # fac이 생기면 그 장비는 측정 없이 남습니다(조용한 폴백 금지).
+        lots = lots_by_fac.get(tool["fac_id"])
+        if not lots:
+            continue
+        lot_cd = lots[rng.randrange(len(lots))]
+
+        recipe = _pick_recipe_for_tool(rng, by_tool_class, by_tool, tool_type, tool)
 
         offset = rng.randint(0, window_seconds - 1)
         end_dt = history_start + timedelta(seconds=offset)
 
-        baseline = recipe["baseline_meastime"]
-        # ±25 % jitter around baseline, clamped to a sensible floor.
+        # meastime = 레시피 baseline × fab 성격 × **장비 speed** × jitter.
+        # 장비 항이 여기 들어와야 tat_index가 잡음이 아닌 신호가 됩니다.
         jitter = rng.uniform(-0.25, 0.25)
-        fab_multiplier = FAB_MEASTIME_MULTIPLIER.get(fab_base(fab_name), 1.0)
-        meastime = max(30, int(baseline * fab_multiplier * (1 + jitter)))
+        fab_multiplier = FAB_MEASTIME_MULTIPLIER.get(fab_base(tool["fab_name"]), 1.0)
+        meastime = max(
+            30,
+            int(recipe["baseline_meastime"] * fab_multiplier * tool["speed"] * (1 + jitter))
+        )
 
         start_dt = end_dt - timedelta(seconds=meastime)
-        eqp_id = _build_eqp_id(rng, recipe["eqp_model_cd"])
-        lot_id = _build_lot_id(rng, lot_cd)
 
         rows.append({
             "id": f"MEAS-{index + 1:06d}",
-            "fac_id": fac_id,
-            "fab_name": fab_name,
-            "vendor_nm": recipe["vendor_nm"],
-            "eqp_id": eqp_id,
-            "eqp_model_cd": recipe["eqp_model_cd"],
-            "tool_type": recipe["tool_type"],
+            "fac_id": tool["fac_id"],
+            "fab_name": tool["fab_name"],
+            "vendor_nm": tool["vendor_nm"],
+            "eqp_id": tool["eqp_id"],
+            "eqp_model_cd": tool["eqp_model_cd"],
+            "tool_type": tool_type,
             "lot_cd": lot_cd,
-            "lot_id": lot_id,
+            "lot_id": _build_lot_id(rng, lot_cd),
             "class_name": recipe["class_name"],
             "recipe_name": recipe["recipe_name"],
             "full_name": recipe["full_name"],
@@ -328,7 +449,7 @@ def _filter_rows(
     lot_cd: str | None = None
 ) -> tuple[MeasHistRow, ...]:
     # Each page load hits ranking + summary + daily-trend with the same
-    # filter args. Memoizing here cuts the 6000-row scan from 3× to 1× per
+    # filter args. Memoizing here cuts the 55,000-row scan from 3× to 1× per
     # unique window. Sized for ~tool_type × fab × preset_window × lot_cd —
     # keeps the unfiltered (lot_cd=None) entry warm even when the user
     # cycles through many devices. `fab_names` must be a tuple (hashable),

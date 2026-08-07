@@ -11,11 +11,13 @@ aspects derived from the meas_hist schema:
 * `fail_ratio` > MEAS_FAIL_THRESHOLD: image-level failure during the run.
   A recipe-side problem — surfaced as a per-recipe ranking.
 
-Phase 1 implementation reuses recipe_tat's 6000-row meas_hist universe as
+Phase 1 implementation reuses recipe_tat's 55,000-row meas_hist universe as
 the source of (eqp, recipe, lot, timestamp) tuples and enriches each row
 with deterministic fail metadata. Sharing the row universe keeps the two
 dashboards consistent (a recipe with heavy TAT can also show high fails)
-and avoids generating a parallel 6000-row dataset.
+and avoids generating a parallel 55,000-row dataset. The equipment identity
+in those rows comes from the sem_list roster, so this feature's per-tool
+samples name real fleet tools too.
 
 사무실 주의사항: 사무실 구현은 recipe_tat 결과에 join 하지 말고 OpenSearch
 의 meas_hist 인덱스에서 align_fail/fail_ratio/msr_check 컬럼을 그대로
@@ -91,7 +93,7 @@ FAB_ALIGN_FAIL_RATE: dict[str, float] = {
     "R3":  0.11,
     "R4":  0.06,
     "M11": 0.08,
-    "M12": 0.05,
+    "M10": 0.05,
     "M14": 0.15,
     "M15": 0.09,
     "M16": 0.12
@@ -102,7 +104,7 @@ FAB_MEAS_FAIL_RATE: dict[str, float] = {
     "R3":  0.14,
     "R4":  0.08,
     "M11": 0.07,
-    "M12": 0.12,
+    "M10": 0.12,
     "M14": 0.19,
     "M15": 0.10,
     "M16": 0.16
@@ -203,7 +205,7 @@ def _filter_rows(
 ) -> tuple[FailRow, ...]:
     # Each page load hits summary + daily-trend + align-ranking +
     # meas-ranking with the same filter args. Memoizing here means the
-    # 6000-row scan runs once per unique window instead of four times.
+    # 55,000-row scan runs once per unique window instead of four times.
     # `fab_names` must be a tuple (hashable), never a list — lru_cache
     # requires hashable arguments.
     return filter_measurements(
