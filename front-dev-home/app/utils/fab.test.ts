@@ -155,6 +155,6 @@ test('buildFabSegment round-trips parseFabSegment and lowercases', () => {
 test('toggleFabInList adds, removes, and refuses to empty the list', () => {
   assert.deepEqual(toggleFabInList(['R3'], 'm16b'), ['R3', 'M16B'])
   assert.deepEqual(toggleFabInList(['R3', 'M16B'], 'M16B'), ['R3'])
-  assert.deepEqual(toggleFabInList(['R3'], 'R3'), ['R3'])   // 마지막 1개는 못 뺀다
-  assert.deepEqual(toggleFabInList(['R3'], 'all'), ['R3'])  // sentinel은 무시
+  assert.deepEqual(toggleFabInList(['R3'], 'R3'), ['R3']) // 마지막 1개는 못 뺀다
+  assert.deepEqual(toggleFabInList(['R3'], 'all'), ['R3']) // sentinel은 무시
 })
