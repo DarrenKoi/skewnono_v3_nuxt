@@ -432,15 +432,24 @@
             :disabled="filteredUsers.length === 0"
             @click="downloadUsersCsv"
           />
-          <UButton
-            size="sm"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-refresh-cw"
-            label="새로고침"
-            :disabled="!hasActiveUserControls"
-            @click="resetUserControls"
-          />
+          <!-- Deliberately NOT 새로고침: the page header already has a button
+               by that name, and it does something else entirely (refetches
+               every activity query from the server). This one only clears the
+               toolbar above — search box, feature filter, sort — and touches
+               nothing on the server. Naming the target is also what keeps it
+               from reading as destructive next to a table of per-employee
+               records, which is why it is not 초기화 either. -->
+          <UTooltip text="검색어·기능 필터·정렬을 기본값으로 되돌립니다">
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-filter-x"
+              label="필터 해제"
+              :disabled="!hasActiveUserControls"
+              @click="resetUserControls"
+            />
+          </UTooltip>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
