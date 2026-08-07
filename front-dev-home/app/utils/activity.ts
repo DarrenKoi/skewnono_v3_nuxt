@@ -29,11 +29,11 @@ export const userSearchText = (row: ListedUser): string =>
 
 /** The FAB bucket name the backend gives documents that carry no fab_name.
  *
- *  The same literal lives in
+ *  The literal '미지정' lives also in
  *  back_dev_home/activity/providers/opensearch_reader.py, which writes it.
  *  Two copies of one string, so changing either alone silently stops the
  *  filter below from matching and the bucket reappears. */
-export const UNASSIGNED_FAB = '미지정'
+export const FABLESS_BUCKET = '미지정'
 
 /** Fab rows worth showing in the Fab별 페이지 사용 card.
  *
@@ -47,7 +47,7 @@ export const UNASSIGNED_FAB = '미지정'
  *  building a whole FabUsageRow. */
 export const rankableFabRows = <T extends { fab: string }>(
   rows: readonly T[]
-): T[] => rows.filter(row => row.fab !== UNASSIGNED_FAB)
+): T[] => rows.filter(row => row.fab !== FABLESS_BUCKET)
 
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
