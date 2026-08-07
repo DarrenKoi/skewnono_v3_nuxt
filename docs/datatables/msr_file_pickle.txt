@@ -210,7 +210,14 @@ values: all floats
 "WaferAlignRotationCalib"
 
 This can be varied based on the models.
-there can be either more or less. 
+there can be either more or less.
+
+일부 채널은 run 내내 값이 변하지 않는 상수(설정값 성격)입니다 (user-confirmed
+2026-08-07). 스큐보아 FDC 분석의 "평가 불가 (한 축의 분산이 없습니다)" 판정과
+"평가 불가 숨기기" 토글은 이런 상수 채널을 전제로 만들어졌습니다. 어떤 채널이
+상수인지는 OFFICE-VERIFY — mock 은 위 key 목록에서 설정값으로 보이는 VT, ESCdV
+두 개를 상수로 골라 세웠을 뿐, 실제로 그 둘이 상수라는 관측은 아닙니다. 실장비
+확인 후 이 줄과 mock.py 의 DYNAMIC_FDC_SPECS 주석을 함께 갱신하십시오.
 
 
 

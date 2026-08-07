@@ -13,7 +13,11 @@ Beyond per-measurement CD values, the MinIO-parsed pickle carries FDC telemetry
 (fixed_fdc / dynamic_fdc) that lets 스큐보아 cross-check CD drift against tool
 condition. We model the abnormal-behavior FDC params called out in
 docs/datatables/hardware.txt (Brightness/Contrast, Stigma X·Y, OBJECT_SEM·VRD
-defocus, LFB imageshift / alignment stage-drift).
+defocus, LFB imageshift / alignment stage-drift), plus two deliberately
+CONSTANT setpoint channels (VT, ESCdV — see DYNAMIC_FDC_SPECS). Real tools
+stream flat channels alongside the varying ones (user-confirmed 2026-08-07),
+and a mock without any would let every 평가 불가/숨기기 code path in 스큐보아
+go untested at home — which is how the 2026-08-07 matrix-overflow bug shipped.
 
 The data is not generated independently: it is derived from a parent meas_hist
 row (its msr / class_name / total_images). Generation is deterministic from the
@@ -358,6 +362,16 @@ DYNAMIC_FDC_SPECS: dict[str, FdcSpec] = {
     "ImageShiftY": FdcSpec(0.0, 1.2, "nm", "stage_drift", 8.0),  # LFB imageshift Y
     "Alignment2X": FdcSpec(0.0, 0.8, "nm", "stage_drift", 4.5),  # LFB alignment 2X
     "Alignment2Y": FdcSpec(0.0, 0.8, "nm", "stage_drift", 4.5),  # LFB alignment 2Y
+    # Setpoint-like channels that sit CONSTANT across the whole run (gain and
+    # sigma both 0). That real tools stream flat channels is user-confirmed
+    # 2026-08-07 — it is the entire reason 스큐보아's 평가 불가 (constant axis)
+    # verdict and its 숨기기 toggle exist, and without these the home mock could
+    # never exercise either path. WHICH channels sit constant is OFFICE-VERIFY:
+    # these two are taken from the real dynamic_fdc key list in
+    # docs/datatables/msr_file_pickle.txt as plausible setpoints, not observed
+    # office behavior.
+    "VT": FdcSpec(1200.0, 0.0, "V", "source", 0.0),
+    "ESCdV": FdcSpec(2500.0, 0.0, "V", "echuck", 0.0),
 }
 
 FIXED_FDC_SPECS: dict[str, FdcSpec] = {
@@ -845,7 +859,9 @@ def _build_fdc(
 
         mean = fmean(values)
         std = pstdev(values) if len(values) > 1 else 0.0
-        drift_sigma = round(abs(mean - spec.nominal) / spec.sigma, 2)
+        # A constant channel (sigma 0) has no noise scale to measure drift in;
+        # it also cannot drift, so its abnormality is 0 by definition.
+        drift_sigma = 0.0 if spec.sigma == 0 else round(abs(mean - spec.nominal) / spec.sigma, 2)
         summaries.append(FdcParamSummary(
             name=name,
             category=spec.category,
