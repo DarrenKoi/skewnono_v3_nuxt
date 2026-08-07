@@ -114,6 +114,38 @@ export interface RecipeTatEquipmentsResponse {
   equipments: RecipeTatEquipmentRow[]
 }
 
+export interface RecipeTatEquipmentTrendSeries {
+  eqp_id: string
+  points: RecipeTatDailyTrendPoint[]
+}
+
+export interface RecipeTatEquipmentRecipeCell {
+  eqp_id: string
+  meas_counts: number
+  total_meastime: number
+  avg_meastime: number
+}
+
+export interface RecipeTatEquipmentRecipeRow {
+  class_name: string
+  recipe_name: string
+  full_name: string
+  total_meastime: number
+  // 선택 장비 수만큼, 요청 순서 그대로. 미실행 장비는 0으로 채워집니다.
+  cells: RecipeTatEquipmentRecipeCell[]
+}
+
+export interface RecipeTatEquipmentCompareResponse {
+  tool_type: RecipeTatToolType
+  fab_names: string[]
+  start_date: string | null
+  end_date: string | null
+  // 실제로 사용된 목록(상한 적용 후). 요청보다 짧으면 절단된 것입니다.
+  eqp_ids: string[]
+  trends: RecipeTatEquipmentTrendSeries[]
+  recipes: RecipeTatEquipmentRecipeRow[]
+}
+
 export interface RecipeTatQuery {
   toolType: RecipeTatToolType
   fabNames?: string[]
@@ -126,6 +158,8 @@ export interface RecipeTatQuery {
   // 디바이스별 view passes a single lot_cd to scope ranking / summary /
   // daily-trend to one product device. Omit for the 전체 요약 view.
   lotCd?: string
+  // 장비별 비교 뷰가 최대 MAX_COMPARE_EQPS 대를 쉼표로 보냅니다.
+  eqpIds?: string[]
 }
 
 const buildQuery = (params: RecipeTatQuery) => {
@@ -137,6 +171,7 @@ const buildQuery = (params: RecipeTatQuery) => {
   if (params.fabNames?.length) query.fab_name = params.fabNames.join(',')
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
+  if (params.eqpIds?.length) query.eqp_id = params.eqpIds.join(',')
   return query
 }
 
@@ -215,12 +250,22 @@ export const useRecipeTatApi = () => {
     )
   }
 
+  const fetchRecipeTatEquipmentCompare = async (
+    params: RecipeTatQuery
+  ): Promise<RecipeTatEquipmentCompareResponse> => {
+    return await $fetch<RecipeTatEquipmentCompareResponse>(
+      joinApiPath(base, `/${toolSlug(params.toolType)}/recipe-tat/equipment-compare`),
+      { query: buildQuery(params) }
+    )
+  }
+
   return {
     fetchRecipeTatRanking,
     fetchRecipeTatSummary,
     fetchRecipeTatDailyTrend,
     fetchRecipeTatDevices,
-    fetchRecipeTatEquipments
+    fetchRecipeTatEquipments,
+    fetchRecipeTatEquipmentCompare
   }
 }
 

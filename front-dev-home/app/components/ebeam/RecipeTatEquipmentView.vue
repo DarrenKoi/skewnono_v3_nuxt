@@ -29,12 +29,16 @@
         @update:selected="selected = $event"
       />
 
-      <!-- Task 9가 여기에 <EbeamRecipeTatEquipmentCompare>를 넣습니다.
-           존재하지 않는 컴포넌트 태그는 typecheck도 lint도 잡지 못하고
-           브라우저에서 빈 영역으로만 나타나므로, 이 task에서는 참조하지
-           않습니다. -->
+      <EbeamRecipeTatEquipmentCompare
+        v-if="selected.length"
+        :tool-type="toolType"
+        :fabs="fabs"
+        :date-range="dateRange"
+        :eqp-ids="selected"
+        :rows="selectedRows"
+      />
       <div
-        v-if="!selected.length"
+        v-else
         class="dashboard-surface rounded-2xl px-6 py-10 text-center"
       >
         <UIcon
@@ -96,4 +100,8 @@ watch(cacheKey, () => {
 
 const equipmentRows = computed(() => data.value?.equipments ?? [])
 const percentiles = computed(() => data.value?.fleet.percentiles ?? {})
+
+const selectedRows = computed(
+  () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
+)
 </script>
