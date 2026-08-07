@@ -43,7 +43,7 @@ interface FeedState {
 }
 
 // Pure reducer: one poll response in, next state out. The server ships a
-// complete 10-minute board, so this replaces rather than merges — that is
+// complete 20-minute board, so this replaces rather than merges — that is
 // the whole reason the client carries no accumulation logic.
 export const applyPoll = (
   prev: Partial<FeedState>,

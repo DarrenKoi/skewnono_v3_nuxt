@@ -17,7 +17,7 @@ Three rules hold this together:
 The events key stays an ACCUMULATING ZSET rather than a last-response cache.
 ``get_ebeam_metrology_alarms`` takes no window argument, so how far back it reaches is
 the office's choice; if it reports only currently-active alarms, a
-last-response cache could never hold the 10-minute board. Accumulation is
+last-response cache could never hold the 20-minute board. Accumulation is
 safe because ZSET members are canonical JSON, making a repeated event a no-op.
 
 Nothing here imports ``office_utils`` or knows what the office is: ``fetch``

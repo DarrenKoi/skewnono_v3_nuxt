@@ -41,9 +41,9 @@ const hasRows = computed(() => visibleEvents.value.length > 0 || measGroups.valu
 // Per-mode, because "이 팹은 조용하다" and "이 필터에 해당하는 것이 없다" are
 // different facts and a single sentence can only claim one of them.
 const emptyMessage = computed(() => ({
-  all: '최근 10분간 알람이 없습니다.',
-  align: '최근 10분간 Align 실패가 없습니다.',
-  meas: '최근 10분간 측정 실패가 없습니다.'
+  all: '최근 20분간 알람이 없습니다.',
+  align: '최근 20분간 Align 실패가 없습니다.',
+  meas: '최근 20분간 측정 실패가 없습니다.'
 }[filter.value]))
 
 // Roving tabindex, mirroring TimeSeries.vue's lens switch: arrow keys move the
@@ -122,7 +122,7 @@ useHead({
     <EbeamMetaBar
       :eyebrow="eyebrow"
       title="라이브 알람"
-      subtitle="최근 10분간 발생한 Align 실패 · 측정 실패"
+      subtitle="최근 20분간 발생한 Align 실패 · 측정 실패"
       :stats="metaStats"
     >
       <template #actions>

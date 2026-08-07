@@ -93,7 +93,7 @@ def test_the_repeat_is_pronounced_enough_to_rank(at_minute):
 
 
 def test_an_empty_board_stays_reachable(at_minute):
-    # Raising the volume must not cost the empty state. "최근 10분간 알람이
+    # Raising the volume must not cost the empty state. "최근 20분간 알람이
     # 없습니다." is a real screen, and a mock that is never quiet means nobody
     # sees it until the office does.
     assert any(board["events"] == [] for board in _cycle_boards(at_minute))

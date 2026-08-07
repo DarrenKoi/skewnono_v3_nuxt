@@ -146,7 +146,7 @@ def test_a_sub_second_utc9_is_kept_not_dropped():
 def test_timestamps_without_an_offset_are_read_as_kst():
     # Both columns are already 한국 시간, so attaching +09:00 relabels rather
     # than shifts. Reading them as UTC would put every alarm 9 hours in the
-    # past and off the 10-minute board entirely.
+    # past and off the 20-minute board entirely.
     assert to_events([_row()], now=NOW)[0]["occurred_at"] == "2001-09-09 10:46:40+09:00"
 
 

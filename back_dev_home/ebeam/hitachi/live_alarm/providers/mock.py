@@ -48,7 +48,7 @@ no tool of the requested family is `not_configured`, which is a different fact
 from a configured fab that is merely quiet.
 
 Windows come from `contracts.py` and are shared with this mock, so home and
-office cut the board the same way: BOARD_WINDOW_SEC (600) back, and only
+office cut the board the same way: BOARD_WINDOW_SEC (1200) back, and only
 FUTURE_TOLERANCE_SEC (300) forward — not +inf, because one upstream clock
 running fast would otherwise pin a far-future alarm to the top of the board
 permanently. PRUNE_SEC must be >= the board window or the refresh would delete
@@ -147,7 +147,7 @@ _COUNTS = (0, 11, 19, 27)
 # against, and too fragile to rely on (it moves whenever the roster size does).
 #
 # FABRICATED CORRELATION, not an office observation. How often a single PPID
-# actually piles up within ten minutes is OFFICE-VERIFY. The mock claims only
+# actually piles up within the board window is OFFICE-VERIFY. The mock claims only
 # that the SHAPE occurs, which is what the screen was built for; it claims
 # nothing about the rate. See CLAUDE.md on marking where a mock deliberately
 # differs from what it stands in for.
@@ -255,7 +255,7 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
 
     stale = os.environ.get(_STALE_ENV, "").strip().lower() in {"1", "true", "yes"}
     # Vary the count by minute so the board visibly changes during development.
-    # The cycle keeps a 0 so the "최근 10분간 알람이 없습니다." screen stays
+    # The cycle keeps a 0 so the "최근 20분간 알람이 없습니다." screen stays
     # reachable at home; the other slots are large enough that the 측정 실패
     # view has something to group. See _HOT_BURST below for why size alone is
     # not sufficient.

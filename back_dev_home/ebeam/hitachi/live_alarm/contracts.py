@@ -38,8 +38,11 @@ KST = timezone(timedelta(hours=9))
 Kind = Literal["align", "meas"]
 FeedStatus = Literal["live", "stale", "not_configured"]
 
-BOARD_WINDOW_SEC = 600      # what the reader cuts to — the screen's horizon
-PRUNE_SEC = 900             # how much history the ZSET keeps
+# 20 minutes, widened from 10 on 2026-08-07: viewers reported that alarms fell
+# off the board before anyone had finished triaging them. PRUNE_SEC keeps its
+# 1.5x headroom over the window (see the assert below).
+BOARD_WINDOW_SEC = 1200     # what the reader cuts to — the screen's horizon
+PRUNE_SEC = 1800            # how much history the ZSET keeps
 STALE_AFTER_SEC = 90        # ~3 missed refreshes at the viewer-driven cadence
 FUTURE_TOLERANCE_SEC = 300  # events dated further ahead than this are dropped
 
