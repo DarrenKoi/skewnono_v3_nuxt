@@ -3,7 +3,7 @@ const { fabs, primaryFab } = useFabRoute('hv-sem')
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="flex h-full min-h-0 flex-col gap-3">
     <FabScopeNotice
       :fabs="fabs"
       :primary-fab="primaryFab"
