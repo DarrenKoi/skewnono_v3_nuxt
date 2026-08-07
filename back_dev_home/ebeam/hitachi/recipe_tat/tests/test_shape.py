@@ -14,7 +14,9 @@ office 어댑터(Task 6)는 mock 을 전혀 거치지 않고 이 함수를 부�
 
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import TAT_INDEX_MIN_SAMPLE
 from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    build_equipment_compare_payload,
     build_equipments_payload,
+    days_in_range,
     window_seconds,
 )
 
@@ -141,3 +143,192 @@ def test_window_seconds_includes_both_endpoints_and_refuses_bad_ranges():
     assert window_seconds("2026-07-25", "2026-08-08") == 15 * 86400
     assert window_seconds("2026-08-08", "2026-07-25") == 0    # 뒤집힌 범위
     assert window_seconds(None, "2026-08-08") == 0
+
+
+def test_days_in_range_includes_both_endpoints_and_refuses_bad_ranges():
+    assert days_in_range("2026-08-01", "2026-08-03") == [
+        "2026-08-01", "2026-08-02", "2026-08-03"
+    ]
+    assert days_in_range("2026-08-01", "2026-08-01") == ["2026-08-01"]
+    assert days_in_range("2026-08-03", "2026-08-01") == []    # 뒤집힌 범위
+    assert days_in_range(None, "2026-08-03") == []
+    assert days_in_range("2026-08-01", None) == []
+
+
+# --------------------------------------------------------------------------
+# build_equipment_compare_payload
+#
+# 프론트엔드는 `cells` 를 **위치로** 읽습니다 — n번째 칸이 응답의 n번째
+# eqp_id 라고 믿습니다. 그래서 아래 격자는 세 가지 그럴듯한 오구현이 모두
+# 실패하도록 짜여 있습니다:
+#
+#   1. 열을 집합(set)으로 만든 구현      -> 순서가 요청과 달라집니다
+#   2. 열을 격자 등장 순서로 만든 구현    -> REQUESTED 와 다릅니다
+#   3. 실제로 돈 장비만 열로 만든 구현    -> ONLY_A 행이 4칸이 안 됩니다
+#
+# 요청 순서(EQ-C, EQ-A, EQ-IDLE, EQ-B)는 격자 등장 순서(EQ-A, EQ-B, EQ-C)와
+# 다르고, 알파벳 순서·집합 순회 순서와도 다릅니다. 칸마다 값이 전부 달라서
+# 열이 한 칸만 밀려도 값 단언에서 잡힙니다.
+# --------------------------------------------------------------------------
+
+COMPARE_START, COMPARE_END = "2026-08-01", "2026-08-03"
+
+# EQ-IDLE 은 선택됐지만 이 범위에 측정이 하나도 없는 장비입니다.
+REQUESTED = ("EQ-C", "EQ-A", "EQ-IDLE", "EQ-B")
+
+# (eqp_id, full_name, meas_counts, total_meastime)
+RECIPE_GRID = [
+    ("EQ-A", "ADI/SHARED_001", 3, 300),      # 100 s/회
+    ("EQ-B", "ADI/SHARED_001", 5, 1000),     # 200 s/회
+    ("EQ-C", "ADI/SHARED_001", 2, 500),      # 250 s/회
+    ("EQ-A", "QC/ONLY_A_001", 4, 400),       # EQ-A 만 돈 레시피
+    ("EQ-OUTSIDE", "ADI/SHARED_001", 99, 99_000),   # 선택되지 않은 장비
+]
+
+# (eqp_id, date, total_meastime, exec_count)
+TREND_GRID = [
+    ("EQ-A", "2026-08-02", 300, 3),
+    ("EQ-A", "2026-08-01", 400, 4),
+    ("EQ-B", "2026-08-02", 1000, 5),
+    ("EQ-C", "2026-08-03", 500, 2),
+    ("EQ-A", "2026-07-30", 999, 9),          # 조회 범위 밖의 날
+    ("EQ-OUTSIDE", "2026-08-01", 999, 9),    # 선택되지 않은 장비
+]
+
+
+def _compare(eqp_ids=REQUESTED, trend_rows=TREND_GRID, recipe_rows=RECIPE_GRID):
+    return build_equipment_compare_payload(
+        "cd-sem", (FAB,), COMPARE_START, COMPARE_END, eqp_ids, trend_rows, recipe_rows
+    )
+
+
+def _recipe_row(payload, full_name) -> dict:
+    return next(row for row in payload["recipes"] if row["full_name"] == full_name)
+
+
+def test_compare_cells_follow_the_requested_order_not_the_grid_order():
+    """모든 행의 칸이 **요청 순서 그대로** 4개여야 합니다.
+
+    이 단언이 지키는 것은 프론트엔드가 `cells[i]` 를 `eqp_ids[i]` 로 읽는다는
+    계약입니다. 라벨만 맞고 값이 밀린 구현을 잡으려고 값까지 함께 고정합니다 —
+    칸마다 (건수, 시간, 평균)이 전부 다른 값이라 한 칸만 어긋나도 실패합니다.
+    """
+    payload = _compare()
+    assert payload["eqp_ids"] == list(REQUESTED)
+
+    shared = _recipe_row(payload, "ADI/SHARED_001")
+    assert shared["cells"] == [
+        {"eqp_id": "EQ-C", "meas_counts": 2, "total_meastime": 500, "avg_meastime": 250.0},
+        {"eqp_id": "EQ-A", "meas_counts": 3, "total_meastime": 300, "avg_meastime": 100.0},
+        {"eqp_id": "EQ-IDLE", "meas_counts": 0, "total_meastime": 0, "avg_meastime": 0.0},
+        {"eqp_id": "EQ-B", "meas_counts": 5, "total_meastime": 1000, "avg_meastime": 200.0},
+    ]
+
+
+def test_compare_zero_fills_tools_that_never_ran_the_recipe():
+    """한 장비만 돈 레시피도 선택 장비 수만큼 칸을 갖습니다.
+
+    돈 장비만 칸을 만드는 구현이면 이 행은 1칸짜리가 되어, 프론트엔드에서
+    EQ-A 의 숫자가 EQ-C 열 아래에 그려집니다.
+    """
+    only_a = _recipe_row(_compare(), "QC/ONLY_A_001")
+    assert only_a["cells"] == [
+        {"eqp_id": "EQ-C", "meas_counts": 0, "total_meastime": 0, "avg_meastime": 0.0},
+        {"eqp_id": "EQ-A", "meas_counts": 4, "total_meastime": 400, "avg_meastime": 100.0},
+        {"eqp_id": "EQ-IDLE", "meas_counts": 0, "total_meastime": 0, "avg_meastime": 0.0},
+        {"eqp_id": "EQ-B", "meas_counts": 0, "total_meastime": 0, "avg_meastime": 0.0},
+    ]
+
+
+def test_compare_ignores_grid_rows_for_unselected_tools():
+    """선택 밖 장비의 행은 합계에도 열에도 들어오지 않습니다.
+
+    office 집계는 필터를 걸어도 선택 밖 버킷을 낼 수 있습니다(예: 상한 절단
+    이후). 그 행을 그냥 넣으면 `cells[eqp_id]` 에서 KeyError 로 터지고,
+    합계만 더하는 구현이면 조용히 남의 시간이 섞입니다.
+    """
+    payload = _compare()
+    assert "EQ-OUTSIDE" not in payload["eqp_ids"]
+    assert all(series["eqp_id"] != "EQ-OUTSIDE" for series in payload["trends"])
+    # 500 + 300 + 1000 — EQ-OUTSIDE 의 99,000 이 빠져 있어야 합니다.
+    assert _recipe_row(payload, "ADI/SHARED_001")["total_meastime"] == 1800
+
+
+def test_compare_recipes_are_sorted_by_the_selection_total():
+    payload = _compare()
+    assert [row["full_name"] for row in payload["recipes"]] == [
+        "ADI/SHARED_001", "QC/ONLY_A_001"
+    ]
+    assert [row["total_meastime"] for row in payload["recipes"]] == [1800, 400]
+
+
+def test_compare_splits_full_name_at_the_first_slash_only():
+    """full_name = f"{class_name}/{recipe_name}" 이므로 첫 '/' 로만 나눕니다.
+
+    레시피 이름 자체에 '/' 가 들어간 경우 마지막 '/' 로 나누면 class 가
+    "OVL/M2M" 이 되어 표의 class 열이 조용히 틀립니다.
+    """
+    row = _recipe_row(
+        _compare(eqp_ids=("EQ-A",), trend_rows=[],
+                 recipe_rows=[("EQ-A", "OVL/M2M/REV2", 1, 50)]),
+        "OVL/M2M/REV2",
+    )
+    assert row["class_name"] == "OVL"
+    assert row["recipe_name"] == "M2M/REV2"
+
+
+def test_compare_trends_zero_fill_every_day_and_drop_out_of_range_rows():
+    """트렌드 x축은 조회 기간의 모든 날이고, 범위 밖 행은 버립니다.
+
+    조용한 날을 건너뛰면 선택 장비들의 x축이 서로 달라져 겹쳐 그릴 수
+    없습니다. 그리고 EQ-IDLE 처럼 측정이 하나도 없는 장비도 계열을 가져야
+    범례에서 사라지지 않습니다.
+    """
+    payload = _compare()
+    assert [series["eqp_id"] for series in payload["trends"]] == list(REQUESTED)
+
+    by_id = {series["eqp_id"]: series["points"] for series in payload["trends"]}
+    for points in by_id.values():
+        assert [point["date"] for point in points] == [
+            "2026-08-01", "2026-08-02", "2026-08-03"
+        ]
+
+    # 2026-07-30 행(999 s)은 범위 밖이라 어느 날에도 더해지지 않습니다.
+    assert by_id["EQ-A"] == [
+        {"date": "2026-08-01", "total_meastime": 400, "exec_count": 4},
+        {"date": "2026-08-02", "total_meastime": 300, "exec_count": 3},
+        {"date": "2026-08-03", "total_meastime": 0, "exec_count": 0},
+    ]
+    assert all(
+        point["total_meastime"] == 0 and point["exec_count"] == 0
+        for point in by_id["EQ-IDLE"]
+    )
+
+
+def test_compare_dedupes_the_selection_and_keeps_the_first_position():
+    """중복 eqp_id 는 열을 하나만 차지합니다.
+
+    같은 장비를 두 열로 그리면 합계가 두 번 세어진 것처럼 읽히고, 열 수가
+    사용자가 체크한 수와 달라집니다.
+    """
+    payload = _compare(eqp_ids=("EQ-B", "EQ-A", "EQ-B"))
+    assert payload["eqp_ids"] == ["EQ-B", "EQ-A"]
+    assert [series["eqp_id"] for series in payload["trends"]] == ["EQ-B", "EQ-A"]
+    for row in payload["recipes"]:
+        assert [cell["eqp_id"] for cell in row["cells"]] == ["EQ-B", "EQ-A"]
+
+
+def test_compare_with_no_selection_still_echoes_the_scope():
+    """선택이 비면 빈 응답이지만 조회 범위는 그대로 되돌려줍니다.
+
+    프론트엔드가 응답만 보고 "어떤 조회의 결과인가"를 알 수 있어야, 늦게
+    도착한 응답을 현재 필터와 대조해 버릴 수 있습니다.
+    """
+    payload = _compare(eqp_ids=())
+    assert payload["eqp_ids"] == []
+    assert payload["trends"] == []
+    assert payload["recipes"] == []
+    assert payload["tool_type"] == "cd-sem"
+    assert payload["fab_names"] == [FAB]
+    assert payload["start_date"] == COMPARE_START
+    assert payload["end_date"] == COMPARE_END

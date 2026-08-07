@@ -18,6 +18,10 @@ DEFAULT_DAYS = 14
 # measurements. 0 means "no cap": every recipe in the date range is returned,
 # so fleet-wide ranges never silently drop the tail of the ranking.
 DEFAULT_LIMIT = 0
+# equipment-compare 가 한 번에 받는 장비 수 상한. 요청 형태에 관한 값이라
+# 계약이 아니라 파서가 소유합니다. fail_issue 도 같은 헬퍼를 쓰지만 이
+# 필드를 읽지 않으므로 무해합니다.
+MAX_EQP_IDS = 5
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,7 @@ class AnalyticsRequestScope:
     end_date: str
     lot_cd: str | None
     limit: int
+    eqp_ids: tuple[str, ...]
 
 
 def resolve_analytics_scope(
@@ -60,6 +65,13 @@ def resolve_analytics_scope(
         end_date=end_date,
         lot_cd=(request.args.get("lot_cd") or "").strip() or None,
         limit=max(0, limit),
+        # eqp_id 는 정확 일치 키입니다. fab_name 과 달리 대문자로 정규화하지
+        # 않습니다 — 사무실 인덱스의 표기를 그대로 term 조회해야 합니다.
+        eqp_ids=tuple(
+            part.strip()
+            for part in (request.args.get("eqp_id") or "").split(",")
+            if part.strip()
+        )[:MAX_EQP_IDS],
     )
 
 

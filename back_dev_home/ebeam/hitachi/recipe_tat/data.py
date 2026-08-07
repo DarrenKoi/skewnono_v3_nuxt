@@ -6,6 +6,7 @@ from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
     EquipmentsPayload,
     MeasHistRow,
     RankingRow,
@@ -27,6 +28,7 @@ __all__ = [
     "get_daily_trend",
     "get_devices",
     "get_equipments",
+    "get_equipment_compare",
 ]
 
 
@@ -101,3 +103,15 @@ def get_equipments(
     end_date: str | None,
 ) -> EquipmentsPayload:
     return _provider().get_equipments(tool_type, fab_names, start_date, end_date)
+
+
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...],
+) -> EquipmentComparePayload:
+    return _provider().get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, eqp_ids
+    )

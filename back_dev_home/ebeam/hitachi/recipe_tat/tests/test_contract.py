@@ -13,6 +13,7 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     TAT_INDEX_MIN_SAMPLE,
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
     EquipmentsPayload,
     RankingRow,
     SummaryPayload,
@@ -275,3 +276,134 @@ def test_get_equipments_mock_exercises_every_badge_state():
     assert max(r["tat_index"] for r in indexed) > 1.05, "느린 장비가 없습니다"
     assert min(r["usage_ratio"] for r in rows) < 0.85, "저사용 장비가 없습니다"
     assert max(r["top_recipe_share"] for r in rows) >= 0.50, "편중 장비가 없습니다"
+
+
+def _two_busiest_eqp_ids():
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    rows = data.get_equipments(tool_type, fab_names, start_date, end_date)["equipments"]
+    return tuple(row["eqp_id"] for row in rows[:2])
+
+
+def test_get_equipment_compare_matches_contract():
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    payload = data.get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, _two_busiest_eqp_ids()
+    )
+    assert_matches(payload, EquipmentComparePayload)
+
+
+def test_get_equipment_compare_zero_fills_every_cell():
+    # 모든 행의 cells 길이가 선택 장비 수와 같아야 합니다. 짧으면 프론트엔드
+    # 열이 밀려서 다른 장비의 숫자를 보여주게 됩니다.
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    eqp_ids = _two_busiest_eqp_ids()
+    payload = data.get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, eqp_ids
+    )
+    for row in payload["recipes"]:
+        assert [cell["eqp_id"] for cell in row["cells"]] == list(eqp_ids)
+
+
+def test_get_equipment_compare_trends_cover_the_whole_range():
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    eqp_ids = _two_busiest_eqp_ids()
+    payload = data.get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, eqp_ids
+    )
+    assert [series["eqp_id"] for series in payload["trends"]] == list(eqp_ids)
+    for series in payload["trends"]:
+        dates = [point["date"] for point in series["points"]]
+        assert dates[0] == start_date and dates[-1] == end_date
+        assert dates == sorted(dates)
+        assert len(dates) == DEFAULT_DAYS + 1
+
+
+def test_get_equipment_compare_recipes_sorted_by_total_desc():
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    payload = data.get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, _two_busiest_eqp_ids()
+    )
+    totals = [row["total_meastime"] for row in payload["recipes"]]
+    assert totals == sorted(totals, reverse=True)
+
+
+def test_get_equipment_compare_with_no_eqp_ids_is_empty():
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    payload = data.get_equipment_compare(tool_type, fab_names, start_date, end_date, ())
+    assert payload["eqp_ids"] == []
+    assert payload["trends"] == []
+    assert payload["recipes"] == []
+
+
+def test_get_equipment_compare_agrees_with_the_equipments_table():
+    # 두 엔드포인트가 같은 장비의 같은 기간을 다르게 집계하면, 사용자는
+    # 표에서 고른 숫자가 비교 화면에서 달라지는 것을 보게 됩니다.
+    tool_type, fab_names, start_date, end_date = _default_scope()
+    eqp_ids = _two_busiest_eqp_ids()
+    table = {
+        row["eqp_id"]: row
+        for row in data.get_equipments(tool_type, fab_names, start_date, end_date)[
+            "equipments"
+        ]
+    }
+    payload = data.get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, eqp_ids
+    )
+
+    for index, eqp_id in enumerate(eqp_ids):
+        expected = table[eqp_id]
+        points = payload["trends"][index]["points"]
+        assert sum(p["total_meastime"] for p in points) == expected["total_meastime"]
+        assert sum(p["exec_count"] for p in points) == expected["exec_count"]
+
+        cells = [row["cells"][index] for row in payload["recipes"]]
+        assert sum(c["total_meastime"] for c in cells) == expected["total_meastime"]
+        assert sum(c["meas_counts"] for c in cells) == expected["exec_count"]
+        # 0 채움 칸은 레시피 수에 들어가지 않습니다 — 합집합의 다른 장비가
+        # 돈 레시피까지 세면 recipe_count 가 부풀어 오릅니다.
+        assert sum(1 for c in cells if c["meas_counts"]) == expected["recipe_count"]
+
+
+def test_request_scope_caps_and_echoes_eqp_ids():
+    # 절단을 조용히 하지 않습니다 — 6대를 보내면 5대만 쓰였다는 사실이
+    # 응답에 드러나야 합니다.
+    from flask import Flask
+
+    from back_dev_home.ebeam.hitachi._analytics_routes import (
+        MAX_EQP_IDS,
+        resolve_analytics_scope,
+    )
+
+    app = Flask(__name__)
+    query = "eqp_id=" + ",".join(f"EQP{n}" for n in range(1, 8))
+    with app.test_request_context(f"/?{query}"):
+        scope = resolve_analytics_scope("cdsem", data.get_anchor_time())
+    assert scope is not None
+    assert len(scope.eqp_ids) == MAX_EQP_IDS
+    assert scope.eqp_ids == ("EQP1", "EQP2", "EQP3", "EQP4", "EQP5")
+
+
+def test_request_scope_eqp_ids_default_to_empty():
+    from flask import Flask
+
+    from back_dev_home.ebeam.hitachi._analytics_routes import resolve_analytics_scope
+
+    app = Flask(__name__)
+    with app.test_request_context("/?fab_name=R3"):
+        scope = resolve_analytics_scope("cdsem", data.get_anchor_time())
+    assert scope is not None and scope.eqp_ids == ()
+
+
+def test_request_scope_keeps_eqp_id_case_verbatim():
+    # fab_name 과 달리 eqp_id 는 대문자로 정규화하지 않습니다 — 사무실
+    # 인덱스의 표기를 그대로 term 조회해야 하는 정확 일치 키입니다.
+    from flask import Flask
+
+    from back_dev_home.ebeam.hitachi._analytics_routes import resolve_analytics_scope
+
+    app = Flask(__name__)
+    with app.test_request_context("/?fab_name=r3&eqp_id=cd-sem_r3_01, Mx01 "):
+        scope = resolve_analytics_scope("cdsem", data.get_anchor_time())
+    assert scope is not None
+    assert scope.eqp_ids == ("cd-sem_r3_01", "Mx01")
+    assert scope.fab_names == ("R3",)

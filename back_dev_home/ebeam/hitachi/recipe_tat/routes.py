@@ -8,6 +8,7 @@ from back_dev_home.ebeam.hitachi.recipe_tat.data import (
     get_anchor_time,
     get_daily_trend,
     get_devices,
+    get_equipment_compare,
     get_equipments,
     get_ranking,
     get_summary
@@ -113,4 +114,19 @@ def recipe_tat_equipments(tool_slug: str):
         scope.fab_names or None,
         scope.start_date,
         scope.end_date,
+    ))
+
+
+@bp.get("/<tool_slug>/recipe-tat/equipment-compare")
+def recipe_tat_equipment_compare(tool_slug: str):
+    scope = resolve_analytics_scope(tool_slug, get_anchor_time())
+    if scope is None:
+        return bad_tool_slug_response()
+
+    return jsonify(get_equipment_compare(
+        scope.tool_type,
+        scope.fab_names or None,
+        scope.start_date,
+        scope.end_date,
+        scope.eqp_ids,
     ))

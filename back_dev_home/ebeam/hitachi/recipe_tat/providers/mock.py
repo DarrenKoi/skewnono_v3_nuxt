@@ -74,6 +74,7 @@ from back_dev_home.ebeam.hitachi._tool_specs import model_to_tool_type
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
     EquipmentsPayload,
     MeasHistRow,
     RankingRow,
@@ -81,6 +82,7 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
     ToolType,
 )
 from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    build_equipment_compare_payload,
     build_equipments_payload,
 )
 from back_dev_home.sem_list.providers import mock as sem_list_mock
@@ -96,6 +98,7 @@ __all__ = [
     "get_daily_trend",
     "get_devices",
     "get_equipments",
+    "get_equipment_compare",
 ]
 
 
@@ -673,6 +676,56 @@ def get_equipments(
     return build_equipments_payload(
         tool_type, fab_names, start_date, end_date,
         [tuple(cell) for cell in cells.values()]
+    )
+
+
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...]
+) -> EquipmentComparePayload:
+    """선택된 장비들의 (장비, 날짜) · (장비, 레시피) 두 격자를 만듭니다.
+
+    합집합·0채움·정렬은 전부 공용 조립기가 합니다 — office 어댑터는 같은 두
+    격자를 composite 집계로 만들어 같은 조립기를 부릅니다.
+    """
+    selected = list(dict.fromkeys(eqp_ids))
+    if not selected:
+        return build_equipment_compare_payload(
+            tool_type, fab_names, start_date, end_date, [], [], []
+        )
+
+    wanted = set(selected)
+    rows = [
+        row for row in _filter_rows(tool_type, fab_names, start_date, end_date)
+        if row["eqp_id"] in wanted
+    ]
+
+    trend_cells: dict[tuple[str, str], list] = {}
+    recipe_cells: dict[tuple[str, str], list] = {}
+    for row in rows:
+        day_key = (row["eqp_id"], row["timestamp"][:10])
+        day_cell = trend_cells.get(day_key)
+        if day_cell is None:
+            trend_cells[day_key] = [row["eqp_id"], row["timestamp"][:10], row["meastime"], 1]
+        else:
+            day_cell[2] += row["meastime"]
+            day_cell[3] += 1
+
+        recipe_key = (row["eqp_id"], row["full_name"])
+        recipe_cell = recipe_cells.get(recipe_key)
+        if recipe_cell is None:
+            recipe_cells[recipe_key] = [row["eqp_id"], row["full_name"], 1, row["meastime"]]
+        else:
+            recipe_cell[2] += 1
+            recipe_cell[3] += row["meastime"]
+
+    return build_equipment_compare_payload(
+        tool_type, fab_names, start_date, end_date, selected,
+        [tuple(cell) for cell in trend_cells.values()],
+        [tuple(cell) for cell in recipe_cells.values()]
     )
 
 

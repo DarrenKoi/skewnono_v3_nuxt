@@ -8,10 +8,13 @@ provider 는 자기 소스에서 격자(grid)만 만들고 여기로 넘깁니�
 from __future__ import annotations
 
 import statistics
+from datetime import timedelta
 from typing import Sequence
 
 from back_dev_home.ebeam.hitachi._analytics import parse_iso_date, percentile_summary
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
+    EquipmentComparePayload,
+    EquipmentRecipeRow,
     EquipmentRow,
     EquipmentsPayload,
     TAT_INDEX_MIN_SAMPLE,
@@ -30,6 +33,20 @@ def window_seconds(start_date: str | None, end_date: str | None) -> int:
     if start is None or end is None or end < start:
         return 0
     return ((end - start).days + 1) * 86400
+
+
+def days_in_range(start_date: str | None, end_date: str | None) -> list[str]:
+    """요청 기간의 모든 날짜. 트렌드 x축이 조용한 날을 건너뛰지 않게 합니다."""
+    start = parse_iso_date(start_date)
+    end = parse_iso_date(end_date)
+    if start is None or end is None or end < start:
+        return []
+    days: list[str] = []
+    cursor = start
+    while cursor <= end:
+        days.append(cursor.date().isoformat())
+        cursor += timedelta(days=1)
+    return days
 
 
 def build_equipments_payload(
@@ -159,4 +176,116 @@ def build_equipments_payload(
             }
         },
         "equipments": equipments
+    }
+
+
+# (eqp_id, date, total_meastime, exec_count)
+TrendGridRow = tuple[str, str, int, int]
+# (eqp_id, full_name, meas_counts, total_meastime)
+RecipeGridRow = tuple[str, str, int, int]
+
+
+def build_equipment_compare_payload(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: Sequence[str],
+    trend_rows: Sequence[TrendGridRow],
+    recipe_rows: Sequence[RecipeGridRow],
+) -> EquipmentComparePayload:
+    """선택된 장비들의 일별 트렌드와 레시피 구성을 한 응답에 담습니다.
+
+    레시피 행은 선택 장비들의 **합집합**이고, 돌지 않은 장비 칸은 0으로
+    채웁니다. 클라이언트가 장비별 응답 여러 개를 조인하면 이 합집합과
+    0채움을 매번 다시 만들어야 하고, 한 번 어긋나면 열이 밀려 다른 장비의
+    숫자를 보여주게 됩니다.
+    """
+    selected = list(dict.fromkeys(eqp_ids))     # 순서 보존 dedupe
+    if not selected:
+        return {
+            "tool_type": tool_type,
+            "fab_names": list(fab_names or []),
+            "start_date": start_date,
+            "end_date": end_date,
+            "eqp_ids": [],
+            "trends": [],
+            "recipes": []
+        }
+
+    days = days_in_range(start_date, end_date)
+    trend: dict[str, dict[str, dict]] = {
+        eqp_id: {day: {"total_meastime": 0, "exec_count": 0} for day in days}
+        for eqp_id in selected
+    }
+    for eqp_id, day, tat, counts in trend_rows:
+        bucket = trend.get(eqp_id, {}).get(day)
+        if bucket is not None:
+            bucket["total_meastime"] += tat
+            bucket["exec_count"] += counts
+
+    grid: dict[str, dict] = {}
+    for eqp_id, full_name, counts, tat in recipe_rows:
+        if eqp_id not in trend:
+            continue
+        # office 문서에는 class_name/recipe_name 이 따로 있지만 격자 키는
+        # full_name 하나입니다. full_name = f"{class_name}/{recipe_name}" 이
+        # 계약이므로 첫 '/' 로 되살립니다.
+        class_name, _, recipe_name = full_name.partition("/")
+        recipe = grid.setdefault(full_name, {
+            "class_name": class_name,
+            "recipe_name": recipe_name,
+            "full_name": full_name,
+            "total_meastime": 0,
+            "cells": {picked: {"count": 0, "tat": 0} for picked in selected}
+        })
+        recipe["total_meastime"] += tat
+        cell = recipe["cells"][eqp_id]
+        cell["count"] += counts
+        cell["tat"] += tat
+
+    recipes: list[EquipmentRecipeRow] = [
+        {
+            "class_name": entry["class_name"],
+            "recipe_name": entry["recipe_name"],
+            "full_name": entry["full_name"],
+            "total_meastime": entry["total_meastime"],
+            "cells": [
+                {
+                    "eqp_id": eqp_id,
+                    "meas_counts": entry["cells"][eqp_id]["count"],
+                    "total_meastime": entry["cells"][eqp_id]["tat"],
+                    "avg_meastime": round(
+                        entry["cells"][eqp_id]["tat"] / entry["cells"][eqp_id]["count"], 2
+                    ) if entry["cells"][eqp_id]["count"] else 0.0
+                }
+                for eqp_id in selected
+            ]
+        }
+        for entry in sorted(
+            grid.values(), key=lambda e: e["total_meastime"], reverse=True
+        )
+    ]
+
+    return {
+        "tool_type": tool_type,
+        "fab_names": list(fab_names or []),
+        "start_date": start_date,
+        "end_date": end_date,
+        "eqp_ids": selected,
+        "trends": [
+            {
+                "eqp_id": eqp_id,
+                "points": [
+                    {
+                        "date": day,
+                        "total_meastime": trend[eqp_id][day]["total_meastime"],
+                        "exec_count": trend[eqp_id][day]["exec_count"]
+                    }
+                    for day in days
+                ]
+            }
+            for eqp_id in selected
+        ],
+        "recipes": recipes
     }

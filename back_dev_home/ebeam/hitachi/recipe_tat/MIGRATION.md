@@ -252,6 +252,58 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
   records `eqp_model_cd` as `text`; whether the `.keyword` sub-field needed to
   aggregate on it exists is unconfirmed.
 
+## Endpoint: GET /api/<tool_slug>/recipe-tat/equipment-compare
+
+The office adapter is **not connected yet** — `providers/office_example.py` holds
+an arity-only stub raising `NotImplementedError`. The contract
+(`EquipmentComparePayload`, `EquipmentTrendSeries`, `EquipmentRecipeRow`,
+`EquipmentRecipeCell`) is already in `contracts.py`.
+
+- Called as `get_equipment_compare(scope.tool_type, scope.fab_names or None,
+  scope.start_date, scope.end_date, scope.eqp_ids)`. No `lot_cd`: this view
+  compares the tools the user checked in the `/equipments` table, and a device
+  selection would silently narrow one column more than another.
+- `scope.eqp_ids` is a **≤ 5 tuple** (`_analytics_routes.MAX_EQP_IDS`). The cap
+  belongs to the request parser, not the contract, and the response echoes the
+  list as actually used so truncation is visible rather than silent.
+- `eqp_id` arrives **verbatim** — unlike `fab_name` it is not upper-cased,
+  because it is an exact-match key for a `term`/`terms` query against
+  `_office_meas_hist.EQP_ID_KW` (already used by `/ranking`'s `eqps` sub-agg).
+
+Both providers MUST call
+`providers/_shape.build_equipment_compare_payload(tool_type, fab_names,
+start_date, end_date, eqp_ids, trend_rows, recipe_rows)`. The office side only
+builds two grids on top of one `terms` filter over the selected `eqp_id`s:
+
+| Grid | Tuple | Suggested aggregation |
+| --- | --- | --- |
+| `trend_rows` | `(eqp_id, date, total_meastime, exec_count)` | composite over `eqp_id.keyword` × `date_histogram(day)` |
+| `recipe_rows` | `(eqp_id, full_name, meas_counts, total_meastime)` | composite over `eqp_id.keyword` × `full_name.keyword` |
+
+The union of recipes, the zero-filled cells, the column order and the sort are
+all the assembler's job. 사무실 어댑터가 "그 장비가 실제로 돈 레시피"만 격자에
+넣어도 정상 동작합니다 — 나머지 칸은 조립기가 0으로 채웁니다. 반대로 격자를
+미리 정렬하거나 열을 미리 맞출 필요는 없습니다.
+
+- **`date` must be spelled `YYYY-MM-DD`.** The assembler indexes trend rows into
+  a pre-built per-day bucket map (`_shape.days_in_range`), so a row whose date
+  string does not match a day in the requested range is **dropped silently** —
+  that is deliberate (it also discards out-of-range buckets), but it means a
+  `date_histogram` returning epoch millis or `yyyy-MM-dd'T'HH:mm:ss` produces an
+  all-zero chart with no error. Use `"format": "yyyy-MM-dd"` and read
+  `key_as_string`, exactly as `/daily-trend` already does.
+- Timestamps in `meas_hist_*` are KST stored as UTC (see
+  `_office_meas_hist`), so the day boundaries here must match the ones
+  `/daily-trend` and the date filter already use. A histogram with a different
+  `time_zone` would put the same measurement on a different day than the
+  `/equipments` table counts it on.
+- **OFFICE-VERIFY — a tool with no rows in the window.** The frontend picks
+  tools from `/equipments`, so every selected tool normally has data. The
+  assembler still emits an all-zero series and zero cells for one that does not
+  (the mock cannot produce that case; `tests/test_shape.py`'s `EQ-IDLE` pins the
+  behaviour). Confirm the office aggregation simply returns no bucket for such a
+  tool rather than failing the whole request.
+
 ## Verify
 
 Standalone smoke test (prints anchor + per-tool summary/ranking/trend;

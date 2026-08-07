@@ -59,6 +59,25 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
             "tool_type", "fab_names", "start_date", "end_date", "devices"
         })
 
+    def test_equipment_compare_route_forwards_the_requested_eqp_ids(self):
+        # 라우트가 scope.eqp_ids 를 잊거나 순서를 바꿔 넘기면, 위치로 읽히는
+        # cells 가 다른 장비 열 아래에 그려집니다. 표에서 고른 순서와 **반대로**
+        # 요청해, 라우트가 목록을 실제로 실어 나르는지 확인합니다.
+        table = self.client.get("/api/cdsem/recipe-tat/equipments").get_json()
+        picked = [row["eqp_id"] for row in table["equipments"][:2]]
+        self.assertEqual(len(picked), 2)
+        requested = list(reversed(picked))
+
+        payload = self.client.get(
+            "/api/cdsem/recipe-tat/equipment-compare?eqp_id=" + ",".join(requested)
+        ).get_json()
+
+        self.assertEqual(payload["eqp_ids"], requested)
+        self.assertEqual([s["eqp_id"] for s in payload["trends"]], requested)
+        self.assertTrue(payload["recipes"])
+        for row in payload["recipes"]:
+            self.assertEqual([c["eqp_id"] for c in row["cells"]], requested)
+
     def test_fail_issue_routes_keep_their_wire_shapes(self):
         summary = self.client.get("/api/hvsem/fail-issue/summary").get_json()
         align = self.client.get(
