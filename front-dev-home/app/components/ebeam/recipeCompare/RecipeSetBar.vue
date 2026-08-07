@@ -14,7 +14,7 @@
       <div class="flex flex-wrap items-center gap-1.5">
         <span
           v-for="entry in entries"
-          :key="`${entry.fab_name}:${entry.name}`"
+          :key="recipePairKey(entry.fab_name, entry.name)"
           class="inline-flex max-w-[240px] items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[11px] text-(--sk-ink)"
         >
           <span class="truncate">{{ entry.name }}</span>
@@ -48,6 +48,7 @@
 
 <script setup lang="ts">
 import type { RecipeSelectionEntry } from '~/utils/recipeSelection'
+import { recipePairKey } from '~/utils/recipePair'
 
 defineProps<{
   entries: RecipeSelectionEntry[]

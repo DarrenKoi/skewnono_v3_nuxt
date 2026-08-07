@@ -49,7 +49,7 @@
             </th>
             <th
               v-for="col in columns"
-              :key="recipeCompareKey(col.fab_name, col.recipe_id)"
+              :key="recipePairKey(col.fab_name, col.recipe_id)"
               class="px-2 py-2 text-center font-medium"
               :title="col.recipe_id"
             >
@@ -89,11 +89,11 @@
             </td>
             <td
               v-for="col in columns"
-              :key="recipeCompareKey(col.fab_name, col.recipe_id)"
+              :key="recipePairKey(col.fab_name, col.recipe_id)"
               class="px-2 py-1.5 text-center"
-              :class="row.presentIn.includes(recipeCompareKey(col.fab_name, col.recipe_id)) ? 'text-emerald-500' : 'text-(--sk-ink-subtle)'"
+              :class="row.presentIn.includes(recipePairKey(col.fab_name, col.recipe_id)) ? 'text-emerald-500' : 'text-(--sk-ink-subtle)'"
             >
-              {{ row.presentIn.includes(recipeCompareKey(col.fab_name, col.recipe_id)) ? '✓' : '—' }}
+              {{ row.presentIn.includes(recipePairKey(col.fab_name, col.recipe_id)) ? '✓' : '—' }}
             </td>
           </tr>
           <tr v-if="filteredRows.length === 0">
@@ -116,9 +116,9 @@ import {
   type CoverageFilter,
   type OverlapRow,
   commonParameters,
-  filterOverlap,
-  recipeCompareKey
+  filterOverlap
 } from '~/utils/recipeCompare'
+import { recipePairKey } from '~/utils/recipePair'
 
 export interface ParameterSelectorColumn {
   recipe_id: string

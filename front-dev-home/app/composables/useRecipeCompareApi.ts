@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import { recipePairSetKey } from '~/utils/recipePair'
 import type { IdpLocator, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { ImageSlotKey } from '~/utils/recipeView'
 
@@ -56,7 +57,7 @@ export const useRecipeCompareApi = () => {
   const fetchCompare = async (params: RecipeCompareParams): Promise<RecipeCompareResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
     const refs = params.recipes.filter(r => r.recipe_name.trim())
-    const cacheKey = `${params.toolType}:${refs.map(r => `${r.fab_name}:${r.recipe_name}`).sort().join('|')}`
+    const cacheKey = `${params.toolType}:${recipePairSetKey(refs)}`
     const existing = inFlightCompares.get(cacheKey)
 
     if (existing) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RecipeSelectionCapabilities, RecipeSelectionEntry } from '~/utils/recipeSelection'
+import { recipePairKey } from '~/utils/recipePair'
 
 defineProps<{
   selected: RecipeSelectionEntry[]
@@ -51,7 +52,7 @@ const emit = defineEmits<{
     >
       <span
         v-for="entry in selected"
-        :key="`${entry.fab_name}|${entry.name}`"
+        :key="recipePairKey(entry.fab_name, entry.name)"
         class="inline-flex max-w-full items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1.5 pl-2.5 pr-1 font-mono text-[11px] text-(--sk-ink)"
       >
         <span

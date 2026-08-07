@@ -44,9 +44,9 @@ test('buildOverlap marks shared, partial, unique parameters', () => {
   // lookup reads as possibly-undefined. The row type itself is still checked.
   const byName = Object.fromEntries(rows.map(r => [r.parameter, r]))
   assert.equal(byName.WAFER!.coverage, 'all')
-  // presentIn is fab-qualified (`${fab_name}:${recipe_id}`), not bare ids —
+  // presentIn is fab-qualified (`${fab_name}|${recipe_id}`), not bare ids —
   // see the same-name-two-fabs tests below for why.
-  assert.deepEqual(byName.WAFER!.presentIn, ['R3:A', 'R3:B', 'R3:C'])
+  assert.deepEqual(byName.WAFER!.presentIn, ['R3|A', 'R3|B', 'R3|C'])
   assert.equal(byName.P5!.coverage, 'partial')
   assert.equal(byName.P8!.coverage, 'unique')
   assert.equal(byName.P12!.coverage, 'unique')
@@ -72,7 +72,7 @@ test('buildOverlap keeps same-name recipes on different fabs distinct', () => {
   assert.equal(wafer.total, 2)
   // classifyCoverage treats any count <= 1 as 'unique', independent of total.
   assert.equal(wafer.coverage, 'unique')
-  assert.deepEqual(wafer.presentIn, ['R3:A'])
+  assert.deepEqual(wafer.presentIn, ['R3|A'])
 })
 
 test('buildOverlap counts a parameter once per (fab, recipe) even when ids match', () => {
@@ -86,7 +86,7 @@ test('buildOverlap counts a parameter once per (fab, recipe) even when ids match
   // 'partial' (1/2) for a parameter both recipes actually have.
   assert.equal(wafer.count, 2)
   assert.equal(wafer.coverage, 'all')
-  assert.deepEqual(wafer.presentIn, ['R3:A', 'M16B:A'])
+  assert.deepEqual(wafer.presentIn, ['R3|A', 'M16B|A'])
 })
 
 test('filterOverlap + commonParameters', () => {

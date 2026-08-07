@@ -1,6 +1,7 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
 import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
+import { recipePairKey } from './recipePair.ts'
 
 // Relative `.ts` specifiers, not the `~` alias: `node --test` cannot resolve
 // `~`, but it does resolve these, and `nuxt typecheck` accepts them (verified
@@ -40,7 +41,7 @@ export type CoverageFilter = 'all' | 'common' | 'partial' | 'unique'
 
 export interface OverlapRow {
   parameter: string
-  /** `recipeCompareKey(fab_name, recipe_id)` pairs, not bare recipe ids. */
+  /** `recipePairKey(fab_name, recipe_id)` pairs, not bare recipe ids. */
   presentIn: string[]
   count: number
   total: number
@@ -53,24 +54,13 @@ export function classifyCoverage(count: number, total: number): Coverage {
   return 'partial'
 }
 
-/**
- * A compared recipe's identity for every per-recipe Map/Set key in this
- * module. Backend `recipe_id` equals `recipe_name` and is NOT scoped by fab
- * — cross-fab compare can legitimately put two recipes with the same id (one
- * per fab) in the same request, and keying on the bare id would silently
- * merge them. Same `${fab}:${id}` convention `RecipeCompareView`'s cacheKey
- * already uses.
- */
-export const recipeCompareKey = (fabName: string, recipeId: string): string =>
-  `${fabName}:${recipeId}`
-
 export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
   const total = recipes.length
   const order: string[] = []
   const present = new Map<string, Set<string>>()
 
   for (const recipe of recipes) {
-    const key = recipeCompareKey(recipe.fab_name, recipe.recipe_id)
+    const key = recipePairKey(recipe.fab_name, recipe.recipe_id)
     const seenInRecipe = new Set<string>()
     for (const p of recipe.parameters) {
       if (seenInRecipe.has(p.Parameter)) continue
@@ -91,8 +81,8 @@ export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
       // specific column against `presentIn` cannot tell them apart.
       parameter,
       presentIn: recipes
-        .filter(r => keys.has(recipeCompareKey(r.fab_name, r.recipe_id)))
-        .map(r => recipeCompareKey(r.fab_name, r.recipe_id)),
+        .filter(r => keys.has(recipePairKey(r.fab_name, r.recipe_id)))
+        .map(r => recipePairKey(r.fab_name, r.recipe_id)),
       count: keys.size,
       total,
       coverage: classifyCoverage(keys.size, total)
@@ -249,11 +239,11 @@ export interface CompareWorkbook {
   sheets: WorkbookSheet[]
 }
 
-/** `${recipeCompareKey(fab_name, recipe_id)}::${parameter}` -> that pair's fetched settings. */
+/** `${recipePairKey(fab_name, recipe_id)}::${parameter}` -> that pair's fetched settings. */
 export type CompareDetailIndex = Map<string, CompareParamDetail>
 
 export const compareDetailKey = (fabName: string, recipeId: string, parameter: string) =>
-  `${recipeCompareKey(fabName, recipeId)}::${parameter}`
+  `${recipePairKey(fabName, recipeId)}::${parameter}`
 
 export function buildCompareWorkbook(
   recipes: CompareRecipe[],
@@ -282,7 +272,7 @@ export function buildCompareWorkbook(
     overlapRows.push([
       row.parameter,
       row.coverage,
-      ...recipes.map(r => (row.presentIn.includes(recipeCompareKey(r.fab_name, r.recipe_id)) ? '✓' : '—'))
+      ...recipes.map(r => (row.presentIn.includes(recipePairKey(r.fab_name, r.recipe_id)) ? '✓' : '—'))
     ])
   }
   sheets.push({ name: 'Overlap', rows: overlapRows })

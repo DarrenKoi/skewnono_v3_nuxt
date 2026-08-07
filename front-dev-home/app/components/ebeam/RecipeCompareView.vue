@@ -83,7 +83,7 @@
         <div class="flex flex-wrap gap-1.5">
           <span
             v-for="recipe in recipes"
-            :key="`${recipe.fab_name}:${recipe.recipe_id}`"
+            :key="recipePairKey(recipe.fab_name, recipe.recipe_id)"
             class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-muted-surface) px-2 py-1 font-mono text-[11px] text-(--sk-ink)"
           >
             {{ recipe.recipe_id }}
@@ -205,6 +205,7 @@ import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamD
 import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import { recipesForCompare } from '~/utils/recipeSelection'
+import { recipePairKey, recipePairSetKey } from '~/utils/recipePair'
 import { buildFabSegment } from '~/utils/fab'
 
 const props = defineProps<{
@@ -226,7 +227,7 @@ const compareAllowed = computed(() => compareRecipes.value !== null)
 const cacheKey = computed(() => {
   const refs = compareRecipes.value
   return refs
-    ? `recipe-compare:${props.toolType}:${refs.map(r => `${r.fab_name}:${r.recipe_name}`).sort().join('|')}`
+    ? `recipe-compare:${props.toolType}:${recipePairSetKey(refs)}`
     : `recipe-compare:unsupported:${props.toolType}`
 })
 

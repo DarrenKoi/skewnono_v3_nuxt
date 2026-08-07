@@ -1,3 +1,5 @@
+import { recipePairKey } from './recipePair.ts'
+
 export type RecipeSearchSource = 'redis' | 'opensearch'
 
 export interface RecipeSelectionEntry {
@@ -15,10 +17,6 @@ export interface RecipeSelectionCapabilities {
 
 const isSource = (value: unknown): value is RecipeSearchSource =>
   value === 'redis' || value === 'opensearch'
-
-/** Same `${fab}|${name}` pairing recipeSearchMatch's toRecipeSearchResults
- * uses for its dedupe key — one convention across both utils. */
-const entryKey = (name: string, fabName: string) => `${fabName}|${name}`
 
 const toEntry = (value: unknown): RecipeSelectionEntry | null => {
   if (typeof value === 'string') {
@@ -43,7 +41,7 @@ export const normalizeRecipeSelectionEntries = (
   for (const value of parsed) {
     const entry = toEntry(value)
     if (!entry) continue
-    const key = entryKey(entry.name, entry.fab_name)
+    const key = recipePairKey(entry.fab_name, entry.name)
     const existing = byKey.get(key)
     if (!existing || entry.source === 'redis') byKey.set(key, entry)
   }
@@ -58,8 +56,8 @@ export const upsertRecipeSelection = (
 ): RecipeSelectionEntry[] => {
   const name = rawName.trim()
   if (!name) return entries
-  const key = entryKey(name, fabName)
-  const index = entries.findIndex(entry => entryKey(entry.name, entry.fab_name) === key)
+  const key = recipePairKey(fabName, name)
+  const index = entries.findIndex(entry => recipePairKey(entry.fab_name, entry.name) === key)
   if (index < 0) return [...entries, { name, fab_name: fabName, source }]
   if (entries[index]!.source === 'redis' || source === 'opensearch') return entries
   return entries.map((entry, at) => at === index ? { name, fab_name: fabName, source: 'redis' } : entry)
@@ -70,8 +68,8 @@ export const removeRecipeSelection = (
   name: string,
   fabName: string
 ): RecipeSelectionEntry[] => {
-  const key = entryKey(name, fabName)
-  return entries.filter(entry => entryKey(entry.name, entry.fab_name) !== key)
+  const key = recipePairKey(fabName, name)
+  return entries.filter(entry => recipePairKey(entry.fab_name, entry.name) !== key)
 }
 
 export const promoteRecipeSelectionsToRedis = (

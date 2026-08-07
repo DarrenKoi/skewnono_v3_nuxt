@@ -9,7 +9,7 @@
     </span>
     <SkNavPill
       v-for="entry in availableEntries"
-      :key="`${entry.fab_name}:${entry.name}`"
+      :key="recipePairKey(entry.fab_name, entry.name)"
       size="sm"
       :label="shortId(entry.name)"
       :aria-label="entry.name"
@@ -24,6 +24,7 @@
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import { readRecipeNameQuery, recipeDetailRoute, type RecipeDetailScreen } from '~/utils/recipeView'
 import type { RecipeSelectionEntry } from '~/utils/recipeSelection'
+import { recipePairKey } from '~/utils/recipePair'
 
 const props = defineProps<{
   toolType: RecipeSearchToolType

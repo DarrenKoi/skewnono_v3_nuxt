@@ -1,4 +1,5 @@
 import type { RecipeSearchSource } from '~/utils/recipeSelection'
+import { recipePairKey } from './recipePair.ts'
 
 /**
  * Recipe-name search matching.
@@ -120,7 +121,7 @@ export const toRecipeSearchResults = (
     const recipeName = row.recipe_name.trim()
     if (!recipeName) continue
     const fabName = (row.fab_name ?? '').trim().toUpperCase()
-    const key = `${fabName}|${recipeName}`
+    const key = recipePairKey(fabName, recipeName)
     if (seen.has(key)) continue
     seen.add(key)
     results.push({ recipe_name: recipeName, fab_name: fabName, source })

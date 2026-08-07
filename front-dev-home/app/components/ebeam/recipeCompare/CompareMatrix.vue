@@ -38,7 +38,7 @@
             </th>
             <th
               v-for="col in columns"
-              :key="recipeCompareKey(col.fab_name, col.recipe_id)"
+              :key="recipePairKey(col.fab_name, col.recipe_id)"
               class="px-2.5 py-2 text-left font-medium"
               :title="col.recipe_id"
             >
@@ -111,7 +111,8 @@
 <script setup lang="ts">
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
 import type { CompareParamDetail } from '~/utils/recipeCompare'
-import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames, recipeCompareKey } from '~/utils/recipeCompare'
+import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames } from '~/utils/recipeCompare'
+import { recipePairKey } from '~/utils/recipePair'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
