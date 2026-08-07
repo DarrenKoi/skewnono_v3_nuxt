@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignDetailResponse,
+    CompareRequestItem,
     IdpLocator,
     ParamDetailRequestItem,
     ParamDetailResponse,
@@ -58,10 +59,9 @@ def get_recipe_open_data(
 
 def get_recipe_compare_data(
     tool_type: ToolType,
-    fab_name: str | None,
-    recipe_names: list[str],
+    recipes: Sequence[CompareRequestItem],
 ) -> RecipeCompareResponse:
-    return _provider().get_recipe_compare_data(tool_type, fab_name, recipe_names)
+    return _provider().get_recipe_compare_data(tool_type, recipes)
 
 
 def get_param_detail(

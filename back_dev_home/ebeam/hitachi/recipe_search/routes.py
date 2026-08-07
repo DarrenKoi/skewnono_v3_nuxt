@@ -3,6 +3,7 @@ from flask import Blueprint, Response, jsonify, request
 from back_dev_home._logging.activity import promote_request_fab_names
 from back_dev_home.ebeam.hitachi.recipe_search import param_info
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
+    CompareRequestItem,
     IdpLocator,
     ParamDetailRequestItem,
 )
@@ -261,18 +262,24 @@ def recipe_search_compare(tool_slug: str):
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
 
     payload = request.get_json(silent=True) or {}
-    recipe_names = payload.get("recipe_names")
-    if not isinstance(recipe_names, list) or not recipe_names:
-        return jsonify({"error": "recipe_names must be a non-empty list"}), 400
+    raw_recipes = payload.get("recipes")
+    if not isinstance(raw_recipes, list) or not raw_recipes:
+        return jsonify({"error": "recipes must be a non-empty list"}), 400
+    if len(raw_recipes) > 200:
+        return jsonify({"error": "recipes exceeds the 200-recipe limit"}), 400
 
-    if len(recipe_names) > 200:
-        return jsonify({"error": "recipe_names exceeds the 200-recipe limit"}), 400
+    recipes: list[CompareRequestItem] = []
+    for item in raw_recipes:
+        if not isinstance(item, dict):
+            return jsonify({"error": "recipes items must be objects"}), 400
+        name = str(item.get("recipe_name") or "").strip()
+        if not name:
+            return jsonify({"error": "recipes items need a recipe_name"}), 400
+        fab = str(item.get("fab_name") or "").strip().upper()
+        recipes.append({"recipe_name": name, "fab_name": fab})
 
-    fab_name = (payload.get("fab_name") or "").strip().upper() or None
-    promote_request_fab_names(fab_name)
-    return jsonify(
-        get_recipe_compare_data(tool_type, fab_name, [str(name) for name in recipe_names])
-    )
+    promote_request_fab_names(*(item["fab_name"] for item in recipes))
+    return jsonify(get_recipe_compare_data(tool_type, recipes))
 
 
 @bp.post("/<tool_slug>/recipe-search/param-detail")

@@ -73,6 +73,7 @@ def test_recipe_open_and_compare_match_contract():
     catalog = data.get_recipe_catalog(TOOL_TYPE)
     rows = catalog["rows"]
     recipe_name = rows[0]["recipe_name"] if rows else "RECIPE-CONTRACT-0001"
+    recipe_fab_name = rows[0]["fab_name"] if rows else ""
 
     try:
         detail = data.get_recipe_open_data(recipe_id=recipe_name)
@@ -134,7 +135,9 @@ def test_recipe_open_and_compare_match_contract():
         assert partial[0]["amp"] is None, "img_meas2 was not asked for; AMP must be unread"
         assert partial[0]["af_pr"] is None, "img_add2 was not asked for"
 
-    compare = data.get_recipe_compare_data(TOOL_TYPE, None, [recipe_name])
+    compare = data.get_recipe_compare_data(
+        TOOL_TYPE, [{"recipe_name": recipe_name, "fab_name": recipe_fab_name}]
+    )
     assert_matches(compare, RecipeCompareResponse)
     assert compare["tool_type"] == TOOL_TYPE
     # The compare view columns the recipes side by side under the headers the
@@ -214,3 +217,17 @@ def test_office_catalog_union_preserves_provenance(monkeypatch):
     # (B, R3) and (B, M16B) both survive — the union no longer dedupes names.
     names = [(r["recipe_name"], r["fab_name"]) for r in payload["rows"]]
     assert ("B", "R3") in names and ("B", "M16B") in names
+
+
+# ── compare takes per-recipe fabs (multi-fab phase B, task 2) ──────────────
+
+
+def test_mock_compare_cross_fab_recipes_differ():
+    payload = mock.get_recipe_compare_data("cd-sem", [
+        {"recipe_name": "SAME/NAME_ABC123_STD_00001", "fab_name": "R3"},
+        {"recipe_name": "SAME/NAME_ABC123_STD_00001", "fab_name": "M16B"},
+    ])
+    assert payload["fab_names"] == ["R3", "M16B"]
+    assert [r["fab_name"] for r in payload["recipes"]] == ["R3", "M16B"]
+    # Same name, different fab => genuinely different generated tables.
+    assert payload["recipes"][0]["parameters"] != payload["recipes"][1]["parameters"]

@@ -10,6 +10,7 @@ __all__ = [
     "AlignPoint",
     "CompareParameter",
     "CompareRecipe",
+    "CompareRequestItem",
     "IdpImageInfoRow",
     "IdpLocator",
     "MeasurementPointsResponse",
@@ -227,9 +228,20 @@ class CompareRecipe(TypedDict):
     parameters: list[CompareParameter]
 
 
+# One element of the compare POST body. Per-recipe rather than one shared
+# ``fab_name`` for the whole request (multi-fab phase B, task 2) — the same
+# recipe name can exist on more than one fab, and cross-fab compare needs each
+# row to say which tool it came from.
+class CompareRequestItem(TypedDict):
+    recipe_name: str
+    fab_name: str
+
+
 class RecipeCompareResponse(TypedDict):
     tool_type: ToolType
-    fab_name: str | None
+    # Distinct fabs of the compared recipes, first-seen order. Replaces the
+    # single ``fab_name`` now that the request body carries one fab per recipe.
+    fab_names: list[str]
     recipes: list[CompareRecipe]
 
 

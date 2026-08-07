@@ -102,6 +102,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignPoint,
     CompareParameter,
     CompareRecipe,
+    CompareRequestItem,
     IdpImageInfoRow,
     IdpLocator,
     ParamDetailRequestItem,
@@ -1096,8 +1097,7 @@ def get_recipe_open_data(
 
 def get_recipe_compare_data(
     tool_type: ToolType,
-    fab_name: str | None,
-    recipe_names: list[str]
+    recipes: Sequence[CompareRequestItem]
 ) -> RecipeCompareResponse:
     """Compact per-recipe comparison payload: IDP fields + slot image names.
 
@@ -1105,14 +1105,21 @@ def get_recipe_compare_data(
     it is fetched per visible cell through param-detail, so compare shows the
     same real settings the open screen does rather than its own fabrication.
     Each recipe carries its locator because those fetches are per tool.
+
+    ``recipes`` is per-recipe ``{recipe_name, fab_name}`` (multi-fab phase B,
+    task 2), so the same recipe name on two different fabs is two genuinely
+    different generated tables rather than one shared ``fab_name`` forcing
+    every recipe onto the same tool.
     """
-    recipes: list[CompareRecipe] = []
-    for name in recipe_names:
-        clean = (name or "").strip()
-        if not clean:
+    out: list[CompareRecipe] = []
+    fab_order: list[str] = []
+    for item in recipes:
+        name = (item.get("recipe_name") or "").strip()
+        if not name:
             continue
+        fab = (item.get("fab_name") or "").strip().upper() or None
         detail = get_recipe_open_data(
-            recipe_id=clean, fab_name=fab_name, tool_category=tool_type
+            recipe_id=name, fab_name=fab, tool_category=tool_type
         )
 
         seen: set[str] = set()
@@ -1129,11 +1136,13 @@ def get_recipe_compare_data(
                 # client posts back as param-detail's `slots`.
                 "images": {slot["key"]: idp[slot["key"]] for slot in IMAGE_SLOTS}
             })
-        recipes.append({
+        out.append({
             "recipe_id": detail["recipe_id"],
             "fab_name": detail["fab_name"],
             "locator": detail["locator"],
             "parameters": parameters
         })
+        if detail["fab_name"] not in fab_order:
+            fab_order.append(detail["fab_name"])
 
-    return {"tool_type": tool_type, "fab_name": fab_name, "recipes": recipes}
+    return {"tool_type": tool_type, "fab_names": fab_order, "recipes": out}

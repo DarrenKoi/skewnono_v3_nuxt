@@ -30,7 +30,7 @@ def test_compare_promotes_body_fab_without_logging_the_body(
     monkeypatch.setattr(
         routes,
         "get_recipe_compare_data",
-        lambda *_args: {"tool_type": "cd-sem", "recipes": []},
+        lambda *_args: {"tool_type": "cd-sem", "fab_names": [], "recipes": []},
     )
 
     logger = logging.getLogger("skewnono.activity")
@@ -57,7 +57,10 @@ def test_compare_promotes_body_fab_without_logging_the_body(
 
         response = app.test_client().post(
             "/api/cdsem/recipe-search/compare",
-            json={"fab_name": "m14", "recipe_names": ["R1", "R2"]},
+            json={"recipes": [
+                {"recipe_name": "R1", "fab_name": "m14"},
+                {"recipe_name": "R2", "fab_name": "m14"},
+            ]},
         )
 
         assert response.status_code == 200
@@ -70,10 +73,29 @@ def test_compare_promotes_body_fab_without_logging_the_body(
         record = request_records[0]
         assert record.fab_name_list == ["M14"]
         assert record.query_string == ""
-        assert "recipe_names" not in record.__dict__
+        assert "recipes" not in record.__dict__
         assert "R1" not in repr(record.__dict__)
         assert "R2" not in repr(record.__dict__)
     finally:
         logger.handlers[:] = saved[0]
         logger.setLevel(saved[1])
         logger.propagate = saved[2]
+
+
+def test_compare_route_takes_per_recipe_fabs(client):
+    res = client.post("/api/cdsem/recipe-search/compare", json={
+        "recipes": [
+            {"recipe_name": "A/B_ABC123_STD_00001", "fab_name": "r3"},
+            {"recipe_name": "A/B_ABC123_STD_00001", "fab_name": "m16b"},
+        ]
+    })
+    assert res.status_code == 200
+    body = res.get_json()
+    assert body["fab_names"] == ["R3", "M16B"]
+
+
+def test_compare_route_rejects_legacy_body(client):
+    res = client.post("/api/cdsem/recipe-search/compare", json={
+        "recipe_names": ["A"], "fab_name": "R3"
+    })
+    assert res.status_code == 400
