@@ -43,6 +43,19 @@
     </header>
 
     <section class="dashboard-surface rounded-lg border border-(--sk-border) p-3">
+      <div class="mb-2 flex flex-wrap items-center gap-1.5">
+        <span class="sk-eyebrow mr-1">상태</span>
+        <UButton
+          v-for="preset in statusPresets"
+          :key="preset.value"
+          size="xs"
+          :color="statusPreset === preset.value ? 'primary' : 'neutral'"
+          :variant="statusPreset === preset.value ? 'solid' : 'outline'"
+          @click="applyStatusPreset(preset.value)"
+        >
+          {{ preset.label }}
+        </UButton>
+      </div>
       <div class="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-6">
         <UInput
           v-model="draft.from"
@@ -528,6 +541,39 @@ const setPageSize = (value: string | number) => {
   if (Number.isNaN(next) || next === pageSize.value) return
   currentPage.value = 1
   pageSize.value = next
+}
+
+// Status presets. This page exists to find what broke, and status_min/max
+// already express that as a range — so a preset WRITES those two fields
+// instead of holding a state of its own. The active preset is read back out of
+// them, which is why editing the numbers by hand deselects every chip without
+// any extra wiring.
+const statusPresets = [
+  { label: '전체', value: 'all', min: '', max: '' },
+  { label: '4XX', value: '4xx', min: '400', max: '499' },
+  { label: '5XX', value: '5xx', min: '500', max: '599' },
+  { label: '오류 전체', value: 'error', min: '400', max: '599' }
+] as const
+
+// '' when the range matches no preset — chips render unselected, which is the
+// honest display for a hand-typed range.
+const statusPreset = computed(() =>
+  statusPresets.find(
+    preset => preset.min === draft.status_min && preset.max === draft.status_max
+  )?.value ?? ''
+)
+
+// Applies immediately, unlike every other control in this card. A one-click
+// "show me the errors" that needs a second click on Search is not one click.
+// The cost is that it carries along whatever else is sitting unapplied in the
+// draft — accepted, because a second apply path would be a second place for
+// the two to drift.
+const applyStatusPreset = (value: string) => {
+  const preset = statusPresets.find(item => item.value === value)
+  if (!preset) return
+  draft.status_min = preset.min
+  draft.status_max = preset.max
+  applyFilters()
 }
 
 const applyFilters = () => {
