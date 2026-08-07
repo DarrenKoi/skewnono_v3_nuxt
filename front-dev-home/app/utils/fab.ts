@@ -72,3 +72,39 @@ export const extractFabNames = (rows: { fab_name: string }[]): string[] => {
   }
   return Array.from(names).sort(sortFabNames)
 }
+
+// ---- 다중 FAB (Phase 1) ----
+// 목록 불변식의 단일 소유자: 대문자 정규화, sentinel/공백 제거, 순서 보존 중복 제거.
+export const canonicalFabList = (fabs: Iterable<string | null | undefined>): string[] => {
+  const out: string[] = []
+  for (const fab of fabs) {
+    const normalized = normalizeFab(fab)
+    if (normalized === '' || normalized === NO_FAB_CANONICAL) continue
+    if (!out.includes(normalized)) out.push(normalized)
+  }
+  return out
+}
+
+// URL의 [fab] 세그먼트 → FAB 목록. 무효 세그먼트는 R3 하나로 강등되므로 항상 길이 ≥ 1.
+export const parseFabSegment = (segment: string | string[] | null | undefined): string[] => {
+  const raw = Array.isArray(segment) ? segment.join(',') : (segment ?? '')
+  const fabs = canonicalFabList(raw.split(','))
+  return fabs.length > 0 ? fabs : [DEFAULT_FAB]
+}
+
+// FAB 목록 → URL 세그먼트. 단일 fabSegment와 같은 규칙: 저장은 대문자, 라우팅은 소문자.
+export const buildFabSegment = (fabs: readonly string[]): string => {
+  const canonical = canonicalFabList(fabs)
+  return (canonical.length > 0 ? canonical : [DEFAULT_FAB]).join(',').toLowerCase()
+}
+
+// 체크박스 토글. 마지막 남은 FAB 제거는 무시한다 — 선택이 비면 "아무 데이터도 없음"이
+// 아니라 R3 fallback으로 점프해 버려, 사용자가 방금 한 행동과 화면이 어긋난다.
+export const toggleFabInList = (fabs: readonly string[], fab: string): string[] => {
+  const canonical = canonicalFabList(fabs)
+  const target = normalizeFab(fab)
+  if (!hasFab(target)) return canonical
+  if (!canonical.includes(target)) return [...canonical, target]
+  if (canonical.length === 1) return canonical
+  return canonical.filter(f => f !== target)
+}

@@ -10,7 +10,11 @@ import {
   normalizeFab,
   sameFab,
   sortFabNames,
-  extractFabNames
+  extractFabNames,
+  canonicalFabList,
+  parseFabSegment,
+  buildFabSegment,
+  toggleFabInList
 } from './fab.ts'
 
 test('the default fab is R3', () => {
@@ -126,4 +130,31 @@ test('fabSegment never yields a value that would build a broken URL', () => {
     assert.notEqual(segment, '', `fabSegment(${String(input)}) produced an empty segment`)
     assert.notEqual(segment, NO_FAB, `fabSegment(${String(input)}) leaked the sentinel into a URL`)
   }
+})
+
+test('canonicalFabList uppercases, dedupes, keeps order, drops blanks and the sentinel', () => {
+  assert.deepEqual(canonicalFabList(['r3', 'M16B', 'R3', '', 'all', null, undefined]), ['R3', 'M16B'])
+})
+
+test('parseFabSegment splits a comma segment and falls back to R3 when nothing survives', () => {
+  assert.deepEqual(parseFabSegment('r3,m16b'), ['R3', 'M16B'])
+  assert.deepEqual(parseFabSegment('R3'), ['R3'])
+  assert.deepEqual(parseFabSegment(''), [DEFAULT_FAB])
+  assert.deepEqual(parseFabSegment(undefined), [DEFAULT_FAB])
+  assert.deepEqual(parseFabSegment(',,all,'), [DEFAULT_FAB])
+  // Vue Router가 배열을 줄 수도 있는 타입이므로 배열 입력도 흡수한다.
+  assert.deepEqual(parseFabSegment(['r3', 'm16b']), ['R3', 'M16B'])
+})
+
+test('buildFabSegment round-trips parseFabSegment and lowercases', () => {
+  assert.equal(buildFabSegment(['R3', 'M16B']), 'r3,m16b')
+  assert.equal(buildFabSegment([]), 'r3')
+  assert.deepEqual(parseFabSegment(buildFabSegment(['M16B', 'R3'])), ['M16B', 'R3'])
+})
+
+test('toggleFabInList adds, removes, and refuses to empty the list', () => {
+  assert.deepEqual(toggleFabInList(['R3'], 'm16b'), ['R3', 'M16B'])
+  assert.deepEqual(toggleFabInList(['R3', 'M16B'], 'M16B'), ['R3'])
+  assert.deepEqual(toggleFabInList(['R3'], 'R3'), ['R3'])   // 마지막 1개는 못 뺀다
+  assert.deepEqual(toggleFabInList(['R3'], 'all'), ['R3'])  // sentinel은 무시
 })
