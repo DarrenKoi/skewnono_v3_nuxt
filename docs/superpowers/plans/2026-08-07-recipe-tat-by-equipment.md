@@ -43,6 +43,7 @@ worktree에는 gitignore된 `office.py` 사본이 없으므로 `pytest`의 **ski
 | `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py` | 장비 플릿 · 행 생성 · 집계 | 2, 4, 5 |
 | `back_dev_home/ebeam/hitachi/_analytics.py` | 공유 분위수 헬퍼 | 4 |
 | `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py` | 새 TypedDict + 상수 | 4, 5 |
+| `back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py` | mock·office 공용 payload 조립 (지수·중앙값·분위수) | 4, 5 |
 | `back_dev_home/ebeam/hitachi/recipe_tat/data.py` | dispatcher 함수 2개 추가 | 4, 5 |
 | `back_dev_home/ebeam/hitachi/recipe_tat/routes.py` | 라우트 2개 추가 | 4, 5 |
 | `back_dev_home/ebeam/hitachi/_analytics_routes.py` | `eqp_ids` 파싱 | 5 |
@@ -176,7 +177,7 @@ lot_cd 접두사도 함께 이동합니다(M12='2' -> M10='0')."
 **Interfaces:**
 - Consumes: Task 1의 `_lot_index()` (fac_id ∈ sem_list 어휘)
 - Produces:
-  - `_tool_fleet() -> dict[ToolType, tuple[ToolProfile, ...]]` — `ToolProfile`은 `{"eqp_id","fab_name","fac_id","eqp_model_cd","vendor_nm","speed","workload","classes"}` 키를 가진 dict. `classes`는 `tuple[str, ...] | None`(None이면 fab 기본 mix 사용).
+  - `_tool_fleet() -> dict[ToolType, tuple[ToolProfile, ...]]` — `ToolProfile`은 `{"eqp_id","fab_name","fac_id","eqp_model_cd","vendor_nm","speed","workload","recipe_lock"}` 키를 가진 dict. `recipe_lock`은 `int` — 0이면 제한 없음, N이면 그 장비가 도는 레시피가 N개로 고정됩니다(편중 신호).
   - `ACTIVE_TOOLS_PER_FAB = 5`, `TOTAL_MEAS_ROWS = 55_000`, `HISTORY_WINDOW_DAYS = 180`
   - `get_meas_hist()` 행의 `eqp_id`/`fab_name`/`eqp_model_cd`/`vendor_nm`이 전부 sem_list row에서 옴
   - `FAB_NAMES_BY_FAC`와 `_build_eqp_id()`는 **삭제됨** — 이후 task는 이 이름을 참조하면 안 됩니다.
@@ -277,7 +278,7 @@ def _tool_fleet() -> dict[ToolType, tuple[dict, ...]]:
     첫 행이 이기도록 dedupe합니다. dedupe하지 않으면 한 eqp_id가 두 fab에
     속하게 되어 "장비는 fab 하나에 산다"는 불변식이 첫날부터 깨집니다.
 
-    장비별 스칼라(speed/workload/classes)가 흉내내는 것은 실 데이터의 *값*이
+    장비별 스칼라(speed/workload/recipe_lock)가 흉내내는 것은 실 데이터의 *값*이
     아니라 *편차가 존재한다는 사실*입니다. 정상 장비의 폭을 좁게(±8 %) 둔
     것은 실 플릿의 가동률이 대부분 90 % 이상으로 몰려 있다는 현업 확인을
     반영한 것입니다(user-confirmed 2026-08-07). 칸마다 역할을 고정 배정하는
@@ -329,17 +330,22 @@ def _tool_scalars(rng: random.Random, index: int, fab_name: str) -> dict:
 
     if index == 0:
         return {"speed": round(rng.uniform(1.12, 1.20), 4),
-                "workload": normal_workload, "classes": None}
+                "workload": normal_workload, "recipe_lock": 0}
     if index == 1:
         return {"speed": normal_speed,
-                "workload": round(rng.uniform(0.70, 0.80), 4), "classes": None}
+                "workload": round(rng.uniform(0.70, 0.80), 4), "recipe_lock": 0}
     if index == 2:
-        return {"speed": normal_speed, "workload": normal_workload,
-                "classes": (rng.choice(DEFAULT_CLASS_MIX),)}
+        # 편중은 class가 아니라 **레시피** 단위로 좁혀야 합니다. class 하나에도
+        # 레시피가 7~8개 있어서, class만 고정하면 recipe_count가 여전히 7~8이고
+        # top_recipe_share는 0.15 언저리라 '편중'으로 보이지 않습니다.
+        return {"speed": normal_speed, "workload": normal_workload, "recipe_lock": 2}
     if index == 3 and fab_name == "R3":
-        return {"speed": normal_speed, "workload": 0.30, "classes": None}
-    return {"speed": normal_speed, "workload": normal_workload, "classes": None}
+        return {"speed": normal_speed, "workload": 0.30, "recipe_lock": 0}
+    return {"speed": normal_speed, "workload": normal_workload, "recipe_lock": 0}
 ```
+
+`recipe_lock`은 "이 장비는 자기 레시피 N개만 돈다"는 뜻입니다. 0이면 제한이
+없습니다. 실제 레시피 선택은 `_pick_recipe_for_tool()`이 처리합니다(Step 4).
 
 - [ ] **Step 4: 행 생성을 장비 우선으로 재작성**
 
@@ -478,12 +484,40 @@ def _pick_recipe_for_tool(
     tool_type: ToolType,
     tool: dict
 ) -> dict:
-    # 편중 장비(classes 지정)는 자기 class만 돕니다 — 레시피 커버리지 신호.
-    mix = tool["classes"] or FAB_CLASS_MIX.get(fab_base(tool["fab_name"]), DEFAULT_CLASS_MIX)
+    # 편중 장비는 자기 레시피 몇 개만 돕니다 — recipe_count가 작고
+    # top_recipe_share가 큰, 커버리지 신호가 실제로 보이는 형태입니다.
+    locked = _locked_recipes(by_tool, tool_type, tool)
+    if locked:
+        return locked[rng.randrange(len(locked))]
+
+    mix = FAB_CLASS_MIX.get(fab_base(tool["fab_name"]), DEFAULT_CLASS_MIX)
     class_name = rng.choice(mix)
     candidates = by_tool_class.get((tool_type, class_name)) or by_tool[tool_type]
     return candidates[rng.randrange(len(candidates))]
+
+
+@lru_cache(maxsize=256)
+def _locked_recipe_indexes(eqp_id: str, pool_size: int, count: int) -> tuple[int, ...]:
+    """편중 장비가 고정으로 도는 레시피 인덱스. eqp_id로 시드해 안정적입니다."""
+    if count <= 0 or pool_size <= 0:
+        return ()
+    picker = random.Random(f"recipe-lock:{eqp_id}")
+    return tuple(picker.sample(range(pool_size), min(count, pool_size)))
+
+
+def _locked_recipes(
+    by_tool: dict[ToolType, tuple[dict, ...]],
+    tool_type: ToolType,
+    tool: dict
+) -> tuple[dict, ...]:
+    pool = by_tool[tool_type]
+    indexes = _locked_recipe_indexes(tool["eqp_id"], len(pool), tool["recipe_lock"])
+    return tuple(pool[index] for index in indexes)
 ```
+
+`_locked_recipe_indexes`가 행 생성용 `rng`가 아니라 `eqp_id`로 시드된 별도
+`Random`을 쓰는 이유: 고정 레시피는 **장비의 성질**이라 행을 몇 개 만들든
+같아야 합니다. 공유 `rng`를 쓰면 호출 순서에 따라 달라집니다.
 
 파일 상단 import에 `import bisect`를 추가하고, `from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index`는 그대로 둡니다.
 
@@ -513,7 +547,7 @@ eqp_model_cd / vendor_nm 을 sem_list row에서 그대로 복사하며, 지어�
 요구하는 방식입니다. 행 생성 순서는 장비 → lot → 레시피이고, lot은 장비가
 선 fab(fac_id)의 것만 뽑습니다.
 
-장비별 고정 스칼라(speed / workload / classes)가 흉내내는 것은 사무실
+장비별 고정 스칼라(speed / workload / recipe_lock)가 흉내내는 것은 사무실
 데이터의 *값*이 아니라 *장비 사이에 편차가 존재한다는 사실*입니다. 정상
 장비의 폭을 ±8 %로 좁게 둔 근거는 실 플릿의 가동률이 대부분 90 % 이상으로
 몰려 있다는 현업 확인입니다(user-confirmed 2026-08-07). R3의 거의 놀고 있는
@@ -688,6 +722,7 @@ git commit -m "feat(analytics): nearest-rank 분위수 요약 헬퍼
 
 **Files:**
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py`
+- Create: `back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/data.py`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/routes.py`
@@ -698,6 +733,9 @@ git commit -m "feat(analytics): nearest-rank 분위수 요약 헬퍼
 - Produces:
   - `contracts.TAT_INDEX_MIN_SAMPLE = 12`
   - `contracts.EquipmentRow`, `contracts.FleetReference`, `contracts.EquipmentsPayload`
+  - `_shape.window_seconds(start_date, end_date) -> int`
+  - `_shape.EquipmentGridRow = tuple[str, str, str, str, int, int]` — `(eqp_id, fab_name, eqp_model_cd, full_name, meas_counts, total_meastime)`
+  - `_shape.build_equipments_payload(tool_type, fab_names, start_date, end_date, grid) -> EquipmentsPayload` — **Task 6의 office 어댑터가 같은 함수를 부릅니다**
   - `data.get_equipments(tool_type, fab_names, start_date, end_date) -> EquipmentsPayload`
   - 라우트 `GET /<tool_slug>/recipe-tat/equipments`
 
@@ -808,16 +846,30 @@ def test_get_equipments_occupancy_matches_the_window():
         assert abs(row["occupancy"] - expected) < 1e-9
 
 
-def test_get_equipments_usage_ratio_follows_time_not_count():
+def test_get_equipments_usage_ratio_is_defined_on_time_not_count():
     # 실행이 적어도 긴 레시피를 도는 장비는 놀고 있지 않습니다. usage_ratio가
     # 실행 수를 따라가면 그런 장비를 저사용으로 오진합니다.
+    #
+    # "시간 내림차순이면 비율도 내림차순"은 usage_ratio = 시간/중앙값이라
+    # 항상 참이라서 아무것도 검증하지 못합니다. 정의를 직접 고정하고,
+    # 두 기준이 실제로 갈리는 장비 쌍이 존재하는지도 함께 확인합니다.
     tool_type, fab_names, start_date, end_date = _default_scope()
-    rows = data.get_equipments(tool_type, fab_names, start_date, end_date)["equipments"]
-    if len(rows) < 2:
+    payload = data.get_equipments(tool_type, fab_names, start_date, end_date)
+    rows = payload["equipments"]
+    median = payload["fleet"]["median_total_meastime"]
+    if len(rows) < 2 or not median:
         return
-    by_time = sorted(rows, key=lambda r: r["total_meastime"], reverse=True)
-    ratios = [r["usage_ratio"] for r in by_time]
-    assert ratios == sorted(ratios, reverse=True)
+
+    for row in rows:
+        assert row["usage_ratio"] == round(row["total_meastime"] / median, 4)
+
+    # 두 기준이 갈리는 쌍이 하나도 없으면 위 단언은 우연히도 실행 수 기준과
+    # 구별되지 않습니다. mock이 그 구별을 실제로 만들어내는지 확인합니다.
+    diverges = any(
+        (a["total_meastime"] > b["total_meastime"]) != (a["exec_count"] > b["exec_count"])
+        for a in rows for b in rows if a is not b
+    )
+    assert diverges, "시간 순서와 실행 수 순서가 갈리는 장비 쌍이 없습니다"
 
 
 def test_get_equipments_percentiles_cover_every_metric():
@@ -868,12 +920,42 @@ Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q -k eq
 
 Expected: 전부 FAIL — `AttributeError: module ... has no attribute 'get_equipments'`
 
-- [ ] **Step 4: mock provider 구현**
+- [ ] **Step 4: 공용 조립 함수 + mock provider 구현**
 
-`back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`의 `__all__`에 `"get_equipments"`를 더하고, import에 `percentile_summary`와 새 계약 타입들을 더한 뒤 추가:
+집계 수학(지수·중앙값·분위수)은 **mock과 office가 공유해야 합니다.** 각자
+계산하면 언젠가 어긋나고, 그때 어느 쪽이 맞는지 아무도 모릅니다. 그래서
+provider는 `(eqp_id, fab_name, eqp_model_cd, full_name, meas_counts,
+total_meastime)` 격자만 만들고, 조립은 새 파일 하나가 담당합니다.
+
+`back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py`를 새로 만듭니다:
 
 ```python
-def _window_seconds(start_date: str | None, end_date: str | None) -> int:
+"""mock·office 공용 payload 조립.
+
+provider 는 자기 소스에서 격자(grid)만 만들고 여기로 넘깁니다. 지수·중앙값·
+분위수를 두 provider 가 각자 계산하면 언젠가 어긋나고, 그때 어느 쪽이 맞는지
+판정할 방법이 없습니다.
+"""
+
+from __future__ import annotations
+
+import statistics
+from typing import Sequence
+
+from back_dev_home.ebeam.hitachi._analytics import parse_iso_date, percentile_summary
+from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
+    EquipmentRow,
+    EquipmentsPayload,
+    TAT_INDEX_MIN_SAMPLE,
+    ToolType,
+)
+
+
+# (eqp_id, fab_name, eqp_model_cd, full_name, meas_counts, total_meastime)
+EquipmentGridRow = tuple[str, str, str, str, int, int]
+
+
+def window_seconds(start_date: str | None, end_date: str | None) -> int:
     """조회 기간의 총 초. 양 끝 날짜를 모두 포함합니다(필터와 같은 규칙)."""
     start = parse_iso_date(start_date)
     end = parse_iso_date(end_date)
@@ -882,11 +964,12 @@ def _window_seconds(start_date: str | None, end_date: str | None) -> int:
     return ((end - start).days + 1) * 86400
 
 
-def get_equipments(
+def build_equipments_payload(
     tool_type: ToolType,
     fab_names: tuple[str, ...] | None,
     start_date: str | None,
-    end_date: str | None
+    end_date: str | None,
+    grid: Sequence[EquipmentGridRow],
 ) -> EquipmentsPayload:
     """장비별 집계 + 배지 판정을 위한 플릿 분포 요약.
 
@@ -901,31 +984,26 @@ def get_equipments(
     지수를 1.0 쪽으로 희석시킬 뿐 없는 경보를 만들지 않습니다 — 의도된
     성질입니다.
     """
-    rows = _filter_rows(tool_type, fab_names, start_date, end_date)
-
-    # (eqp_id, full_name) 격자 하나로 모든 지표가 나옵니다.
     per_tool: dict[str, dict] = {}
     per_recipe: dict[str, dict] = {}
-    for row in rows:
-        eqp_id = row["eqp_id"]
-        full_name = row["full_name"]
+    for eqp_id, fab_name, eqp_model_cd, full_name, counts, tat in grid:
         tool = per_tool.setdefault(eqp_id, {
             "eqp_id": eqp_id,
-            "fab_name": row["fab_name"],
-            "eqp_model_cd": row["eqp_model_cd"],
+            "fab_name": fab_name,
+            "eqp_model_cd": eqp_model_cd,
             "exec_count": 0,
             "total_meastime": 0,
             "recipes": {}
         })
-        tool["exec_count"] += 1
-        tool["total_meastime"] += row["meastime"]
+        tool["exec_count"] += counts
+        tool["total_meastime"] += tat
         cell = tool["recipes"].setdefault(full_name, {"count": 0, "tat": 0})
-        cell["count"] += 1
-        cell["tat"] += row["meastime"]
+        cell["count"] += counts
+        cell["tat"] += tat
 
         recipe = per_recipe.setdefault(full_name, {"count": 0, "tat": 0})
-        recipe["count"] += 1
-        recipe["tat"] += row["meastime"]
+        recipe["count"] += counts
+        recipe["tat"] += tat
 
     # base(r) = 레시피 r의 플릿 평균 meastime
     base = {
@@ -933,7 +1011,7 @@ def get_equipments(
         for name, agg in per_recipe.items() if agg["count"]
     }
 
-    window = _window_seconds(start_date, end_date)
+    window = window_seconds(start_date, end_date)
     totals = sorted(tool["total_meastime"] for tool in per_tool.values())
     median_total = float(statistics.median(totals)) if totals else 0.0
 
@@ -998,7 +1076,42 @@ def get_equipments(
     }
 ```
 
-파일 상단에 `import statistics`를 추가합니다.
+그리고 `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`의 `__all__`에
+`"get_equipments"`를 더하고, 격자만 만들어 넘기는 얇은 래퍼를 추가합니다:
+
+```python
+def get_equipments(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None
+) -> EquipmentsPayload:
+    """범위 안의 행을 (장비, 레시피) 격자로 접어 공용 조립기에 넘깁니다.
+
+    office 어댑터는 같은 격자를 OpenSearch composite 집계로 만들어 같은
+    조립기를 부릅니다 — 두 provider 의 숫자가 정의상 일치합니다.
+    """
+    cells: dict[tuple[str, str], list] = {}
+    for row in _filter_rows(tool_type, fab_names, start_date, end_date):
+        key = (row["eqp_id"], row["full_name"])
+        cell = cells.get(key)
+        if cell is None:
+            cells[key] = [
+                row["eqp_id"], row["fab_name"], row["eqp_model_cd"],
+                row["full_name"], 1, row["meastime"]
+            ]
+            continue
+        cell[4] += 1
+        cell[5] += row["meastime"]
+
+    return build_equipments_payload(
+        tool_type, fab_names, start_date, end_date,
+        [tuple(cell) for cell in cells.values()]
+    )
+```
+
+import에 `from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import
+build_equipments_payload`와 계약 타입 `EquipmentsPayload`를 더합니다.
 
 - [ ] **Step 5: dispatcher + 라우트 추가**
 
@@ -1060,6 +1173,7 @@ Expected: 첫 호출은 `fleet.percentiles`가 채워진 payload, 두 번째는 
 
 ```bash
 git add back_dev_home/ebeam/hitachi/recipe_tat/contracts.py \
+        back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py \
         back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
         back_dev_home/ebeam/hitachi/recipe_tat/data.py \
         back_dev_home/ebeam/hitachi/recipe_tat/routes.py \
@@ -1090,15 +1204,20 @@ fleet.percentiles를 함께 내려보냅니다. 배지 임계값을 사무실에
 **Files:**
 - Modify: `back_dev_home/ebeam/hitachi/_analytics_routes.py`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py`
+- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/data.py`, `routes.py`
 - Test: `back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`
 
 **Interfaces:**
-- Consumes: Task 4의 `_filter_rows`, `_window_seconds`
+- Consumes: Task 4의 `_filter_rows`, `_shape.window_seconds`, `_shape.parse_iso_date` 경로
 - Produces:
   - `_analytics_routes.MAX_EQP_IDS = 5`, `AnalyticsRequestScope.eqp_ids: tuple[str, ...]`
   - `contracts.EquipmentTrendSeries`, `EquipmentRecipeCell`, `EquipmentRecipeRow`, `EquipmentComparePayload`
+  - `_shape.days_in_range(start_date, end_date) -> list[str]`
+  - `_shape.TrendGridRow = tuple[str, str, int, int]` — `(eqp_id, date, total_meastime, exec_count)`
+  - `_shape.RecipeGridRow = tuple[str, str, int, int]` — `(eqp_id, full_name, meas_counts, total_meastime)`
+  - `_shape.build_equipment_compare_payload(tool_type, fab_names, start_date, end_date, eqp_ids, trend_rows, recipe_rows) -> EquipmentComparePayload` — **Task 6의 office 어댑터가 같은 함수를 부릅니다**
   - `data.get_equipment_compare(tool_type, fab_names, start_date, end_date, eqp_ids) -> EquipmentComparePayload`
   - 라우트 `GET /<tool_slug>/recipe-tat/equipment-compare`
 
@@ -1268,12 +1387,12 @@ MAX_EQP_IDS = 5
         )[:MAX_EQP_IDS],
 ```
 
-- [ ] **Step 5: mock provider 구현**
+- [ ] **Step 5: 공용 조립 함수 + mock provider 구현**
 
-`recipe_tat/providers/mock.py`의 `__all__`에 `"get_equipment_compare"`를 더하고 추가:
+Task 4와 같은 이유로 조립은 `_shape.py`가 담당합니다. `_shape.py`에 추가:
 
 ```python
-def _zero_filled_days(start_date: str | None, end_date: str | None) -> list[str]:
+def days_in_range(start_date: str | None, end_date: str | None) -> list[str]:
     """요청 기간의 모든 날짜. 트렌드 x축이 조용한 날을 건너뛰지 않게 합니다."""
     start = parse_iso_date(start_date)
     end = parse_iso_date(end_date)
@@ -1287,12 +1406,20 @@ def _zero_filled_days(start_date: str | None, end_date: str | None) -> list[str]
     return days
 
 
-def get_equipment_compare(
+# (eqp_id, date, total_meastime, exec_count)
+TrendGridRow = tuple[str, str, int, int]
+# (eqp_id, full_name, meas_counts, total_meastime)
+RecipeGridRow = tuple[str, str, int, int]
+
+
+def build_equipment_compare_payload(
     tool_type: ToolType,
     fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
-    eqp_ids: tuple[str, ...]
+    eqp_ids: Sequence[str],
+    trend_rows: Sequence[TrendGridRow],
+    recipe_rows: Sequence[RecipeGridRow],
 ) -> EquipmentComparePayload:
     """선택된 장비들의 일별 트렌드와 레시피 구성을 한 응답에 담습니다.
 
@@ -1313,37 +1440,36 @@ def get_equipment_compare(
             "recipes": []
         }
 
-    wanted = set(selected)
-    rows = [
-        row for row in _filter_rows(tool_type, fab_names, start_date, end_date)
-        if row["eqp_id"] in wanted
-    ]
-
-    days = _zero_filled_days(start_date, end_date)
+    days = days_in_range(start_date, end_date)
     trend: dict[str, dict[str, dict]] = {
         eqp_id: {day: {"total_meastime": 0, "exec_count": 0} for day in days}
         for eqp_id in selected
     }
-    grid: dict[str, dict[str, dict]] = {}
-
-    for row in rows:
-        day = row["timestamp"][:10]
-        bucket = trend[row["eqp_id"]].get(day)
+    for eqp_id, day, tat, counts in trend_rows:
+        bucket = trend.get(eqp_id, {}).get(day)
         if bucket is not None:
-            bucket["total_meastime"] += row["meastime"]
-            bucket["exec_count"] += 1
+            bucket["total_meastime"] += tat
+            bucket["exec_count"] += counts
 
-        recipe = grid.setdefault(row["full_name"], {
-            "class_name": row["class_name"],
-            "recipe_name": row["recipe_name"],
-            "full_name": row["full_name"],
+    grid: dict[str, dict] = {}
+    for eqp_id, full_name, counts, tat in recipe_rows:
+        if eqp_id not in trend:
+            continue
+        # office 문서에는 class_name/recipe_name 이 따로 있지만 격자 키는
+        # full_name 하나입니다. full_name = f"{class_name}/{recipe_name}" 이
+        # 계약이므로 첫 '/' 로 되살립니다.
+        class_name, _, recipe_name = full_name.partition("/")
+        recipe = grid.setdefault(full_name, {
+            "class_name": class_name,
+            "recipe_name": recipe_name,
+            "full_name": full_name,
             "total_meastime": 0,
-            "cells": {eqp_id: {"count": 0, "tat": 0} for eqp_id in selected}
+            "cells": {picked: {"count": 0, "tat": 0} for picked in selected}
         })
-        recipe["total_meastime"] += row["meastime"]
-        cell = recipe["cells"][row["eqp_id"]]
-        cell["count"] += 1
-        cell["tat"] += row["meastime"]
+        recipe["total_meastime"] += tat
+        cell = recipe["cells"][eqp_id]
+        cell["count"] += counts
+        cell["tat"] += tat
 
     recipes: list[EquipmentRecipeRow] = [
         {
@@ -1392,6 +1518,55 @@ def get_equipment_compare(
     }
 ```
 
+그리고 `recipe_tat/providers/mock.py`의 `__all__`에 `"get_equipment_compare"`를
+더하고 격자만 만드는 래퍼를 추가합니다:
+
+```python
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...]
+) -> EquipmentComparePayload:
+    selected = list(dict.fromkeys(eqp_ids))
+    if not selected:
+        return build_equipment_compare_payload(
+            tool_type, fab_names, start_date, end_date, [], [], []
+        )
+
+    wanted = set(selected)
+    rows = [
+        row for row in _filter_rows(tool_type, fab_names, start_date, end_date)
+        if row["eqp_id"] in wanted
+    ]
+
+    trend_cells: dict[tuple[str, str], list] = {}
+    recipe_cells: dict[tuple[str, str], list] = {}
+    for row in rows:
+        day_key = (row["eqp_id"], row["timestamp"][:10])
+        day_cell = trend_cells.get(day_key)
+        if day_cell is None:
+            trend_cells[day_key] = [row["eqp_id"], row["timestamp"][:10], row["meastime"], 1]
+        else:
+            day_cell[2] += row["meastime"]
+            day_cell[3] += 1
+
+        recipe_key = (row["eqp_id"], row["full_name"])
+        recipe_cell = recipe_cells.get(recipe_key)
+        if recipe_cell is None:
+            recipe_cells[recipe_key] = [row["eqp_id"], row["full_name"], 1, row["meastime"]]
+        else:
+            recipe_cell[2] += 1
+            recipe_cell[3] += row["meastime"]
+
+    return build_equipment_compare_payload(
+        tool_type, fab_names, start_date, end_date, selected,
+        [tuple(cell) for cell in trend_cells.values()],
+        [tuple(cell) for cell in recipe_cells.values()]
+    )
+```
+
 - [ ] **Step 6: dispatcher + 라우트**
 
 `data.py` (`__all__`과 import에 이름 추가):
@@ -1438,6 +1613,7 @@ Expected: 전부 PASS (`fail_issue`도 같은 파서를 쓰므로 함께 확인)
 ```bash
 git add back_dev_home/ebeam/hitachi/_analytics_routes.py \
         back_dev_home/ebeam/hitachi/recipe_tat/contracts.py \
+        back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py \
         back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
         back_dev_home/ebeam/hitachi/recipe_tat/data.py \
         back_dev_home/ebeam/hitachi/recipe_tat/routes.py \
@@ -1686,35 +1862,28 @@ def get_equipment_compare(
     )
 ```
 
-이 템플릿이 부르는 `build_equipments_payload` / `build_equipment_compare_payload`는 **mock과 office가 공유해야 하는 순수 조립 함수**입니다. `recipe_tat/providers/_shape.py`를 새로 만들어 거기 두고, Task 4·5에서 mock에 쓴 조립 로직을 이 함수로 옮긴 뒤 mock은 격자를 만들어 넘기기만 하게 리팩터링합니다. 두 provider가 지수·중앙값·분위수를 각자 계산하면 언젠가 어긋납니다.
+`build_equipments_payload` / `build_equipment_compare_payload`는 Task 4·5에서
+이미 `providers/_shape.py`에 만들어져 있습니다. **office 어댑터는 격자만 만들어
+그 함수들을 부릅니다** — 지수·중앙값·분위수를 두 provider가 각자 계산하면
+언젠가 어긋나고, 그때 어느 쪽이 맞는지 판정할 방법이 없습니다. `_shape.py`를
+수정할 일은 없어야 합니다.
 
-시그니처:
+import 블록에 다음을 더합니다:
 
 ```python
-def build_equipments_payload(
-    tool_type: ToolType,
-    fab_names: tuple[str, ...] | None,
-    start_date: str | None,
-    end_date: str | None,
-    # (eqp_id, fab_name, eqp_model_cd, full_name, meas_counts, total_meastime)
-    grid: Sequence[tuple[str, str, str, str, int, int]],
-) -> EquipmentsPayload: ...
-
-
-def build_equipment_compare_payload(
-    tool_type: ToolType,
-    fab_names: tuple[str, ...] | None,
-    start_date: str | None,
-    end_date: str | None,
-    eqp_ids: Sequence[str],
-    # (eqp_id, date, total_meastime, exec_count)
-    trend_rows: Sequence[tuple[str, str, int, int]],
-    # (eqp_id, full_name, meas_counts, total_meastime)
-    recipe_rows: Sequence[tuple[str, str, int, int]],
-) -> EquipmentComparePayload: ...
+from back_dev_home.ebeam.hitachi._office_meas_hist import (
+    EQP_MODEL_CD_KW as _EQP_MODEL_KW,
+    FAB_NAME_KW as _FAB_KW,
+)
+from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
+    EquipmentComparePayload,
+    EquipmentsPayload,
+)
+from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    build_equipment_compare_payload,
+    build_equipments_payload,
+)
 ```
-
-`full_name`에서 `class_name`/`recipe_name`을 되살릴 때는 첫 `/`로 나눕니다 (`full_name = f"{class_name}/{recipe_name}"`).
 
 - [ ] **Step 6: 계약 게이트가 두 provider를 모두 검사하는지 확인**
 
@@ -1770,8 +1939,6 @@ npm run lint:md
 git add back_dev_home/ebeam/hitachi/_office_meas_hist.py \
         back_dev_home/ebeam/hitachi/tests/test_office_meas_hist.py \
         back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
         back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py \
         back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md
 git commit -m "feat(recipe-tat/office): 장비별 집계 템플릿 + 다중 소스 composite
@@ -1780,8 +1947,9 @@ composite_buckets가 (이름, 필드) 목록을 받도록 확장합니다. 문�
 넘기는 기존 호출은 완전히 동일하게 동작합니다 — 사무실에는 아직 갱신되지
 않은 office.py 사본들이 있고 import 에러 하나가 앱 팩토리 전체를 죽입니다.
 
-payload 조립을 providers/_shape.py로 빼서 mock과 office가 지수·중앙값·
-분위수를 같은 코드로 계산하게 합니다. 각자 계산하면 언젠가 어긋납니다.
+office 어댑터는 격자만 만들고 조립은 Task 4·5가 만든 providers/_shape.py를
+부릅니다. mock과 office가 지수·중앙값·분위수를 각자 계산하면 언젠가
+어긋나고, 그때 어느 쪽이 맞는지 판정할 방법이 없습니다.
 
 OFFICE-VERIFY 2건을 MIGRATION.md에 남겼습니다: eqp_model_cd.keyword 존재
 여부, 그리고 fleet.percentiles로 배지 임계값 조정."
@@ -2374,16 +2542,12 @@ const tableUi = {
         @update:selected="selected = $event"
       />
 
-      <EbeamRecipeTatEquipmentCompare
-        v-if="selected.length"
-        :tool-type="toolType"
-        :fabs="fabs"
-        :date-range="dateRange"
-        :eqp-ids="selected"
-        :rows="selectedRows"
-      />
+      <!-- Task 9가 여기에 <EbeamRecipeTatEquipmentCompare>를 넣습니다.
+           존재하지 않는 컴포넌트 태그는 typecheck도 lint도 잡지 못하고
+           브라우저에서 빈 영역으로만 나타나므로, 이 task에서는 참조하지
+           않습니다. -->
       <div
-        v-else
+        v-if="!selected.length"
         class="dashboard-surface rounded-2xl px-6 py-10 text-center"
       >
         <UIcon
@@ -2445,9 +2609,6 @@ watch(cacheKey, () => {
 
 const equipmentRows = computed(() => data.value?.equipments ?? [])
 const percentiles = computed(() => data.value?.fleet.percentiles ?? {})
-const selectedRows = computed(
-  () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
-)
 </script>
 ```
 
@@ -2497,7 +2658,8 @@ const metaSubtitle = computed(() => {
 
 Run (from `front-dev-home/`): `npm run typecheck && npm run lint && npm test`
 
-Expected: 전부 PASS. 이 시점에는 `EbeamRecipeTatEquipmentCompare`가 아직 없어 typecheck가 통과해도 브라우저에서 빈 영역이 나옵니다 — Task 9에서 채웁니다.
+Expected: 전부 PASS. 이 시점에 장비를 선택하면 "장비를 선택해주세요" 안내가
+사라지고 아무것도 나오지 않습니다 — 비교 패널은 Task 9가 채웁니다.
 
 - [ ] **Step 6: 커밋**
 
@@ -2526,6 +2688,7 @@ TAT index가 null인 행은 정렬 방향과 무관하게 항상 맨 뒤로 보�
 **Files:**
 - Modify: `front-dev-home/app/composables/useRecipeTatApi.ts`
 - Create: `front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue`
+- Modify: `front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue` (비교 패널 분기 연결)
 
 **Interfaces:**
 - Consumes: Task 5의 `/equipment-compare`, Task 8의 `RecipeTatEquipmentRow`
@@ -2823,17 +2986,47 @@ const tableUi = {
 </script>
 ```
 
-- [ ] **Step 3: 검증**
+- [ ] **Step 3: 오케스트레이터에 비교 패널 연결**
+
+`RecipeTatEquipmentView.vue`에서 Task 8이 남긴 자리 주석을 실제 컴포넌트로
+교체합니다:
+
+```vue
+      <EbeamRecipeTatEquipmentCompare
+        v-if="selected.length"
+        :tool-type="toolType"
+        :fabs="fabs"
+        :date-range="dateRange"
+        :eqp-ids="selected"
+        :rows="selectedRows"
+      />
+      <div
+        v-else
+        class="dashboard-surface rounded-2xl px-6 py-10 text-center"
+      >
+```
+
+`<script setup>`에 선택된 행을 뽑는 computed를 더합니다 (추가 요청 없이 플릿
+표가 이미 받아온 행을 재사용합니다):
+
+```ts
+const selectedRows = computed(
+  () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
+)
+```
+
+- [ ] **Step 4: 검증**
 
 Run (from `front-dev-home/`): `npm run typecheck && npm run lint && npm test`
 
 Expected: 전부 PASS
 
-- [ ] **Step 4: 커밋**
+- [ ] **Step 5: 커밋**
 
 ```bash
 git add front-dev-home/app/composables/useRecipeTatApi.ts \
-        front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue
+        front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue \
+        front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue
 git commit -m "feat(recipe-tat): 장비 비교 패널 — 트렌드 오버레이 + 레시피 매트릭스
 
 1대만 골라도 열립니다. '이 장비가 무슨 레시피를 도는가'가 원 요청의 첫
@@ -2987,4 +3180,11 @@ worktree 정리는 선택이 아닙니다. 남겨두면 낡은 체크아웃이 �
 
 **Placeholder scan** — "TBD"/"적절히 처리"/"위 내용에 대한 테스트 작성" 없음. 모든 코드 단계에 실제 코드 블록이 있습니다. Task 6의 `_shape.py` 두 함수는 시그니처와 입력 격자 형태를 명시하고 본문은 Task 4·5에서 이미 쓴 로직을 옮기는 것으로 정의했습니다. Task 10 Step 2의 YAML은 필드 목록을 Task 4·5의 TypedDict와 1:1로 지정했습니다.
 
-**Type consistency** — task 사이를 넘는 이름을 대조했습니다: `percentile_summary`(3→4), `_filter_rows`/`_window_seconds`(4→5), `TAT_INDEX_MIN_SAMPLE`(4→7 개념), `MAX_EQP_IDS`(5) ↔ `MAX_COMPARE_EQPS`(8, 프론트엔드), `equipmentSignals`/`SIGNAL_META`/`FleetPercentiles`(7→8), `RecipeTatEquipmentRow`(8→9), `fetchRecipeTatEquipments`(8) / `fetchRecipeTatEquipmentCompare`(9). Task 2가 삭제하는 이름(`FAB_NAMES_BY_FAC`, `_build_eqp_id`, `TOOL_MODELS`, `_lot_pool`, `_pick_recipe_for_fab`)은 이후 어느 task도 참조하지 않습니다.
+**Type consistency** — task 사이를 넘는 이름을 대조했습니다: `percentile_summary`(3→4), `_filter_rows`(2→4→5), `_shape.window_seconds`/`build_equipments_payload`(4→6), `_shape.days_in_range`/`build_equipment_compare_payload`(5→6), `TAT_INDEX_MIN_SAMPLE`(4→7 개념), `MAX_EQP_IDS`(5) ↔ `MAX_COMPARE_EQPS`(8, 프론트엔드), `equipmentSignals`/`SIGNAL_META`/`FleetPercentiles`(7→8), `RecipeTatEquipmentRow`(8→9), `fetchRecipeTatEquipments`(8) / `fetchRecipeTatEquipmentCompare`(9), `selectedRows`(9에서 정의·사용). Task 2가 삭제하는 이름(`FAB_NAMES_BY_FAC`, `_build_eqp_id`, `TOOL_MODELS`, `_lot_pool`, `_pick_recipe_for_fab`)은 이후 어느 task도 참조하지 않습니다.
+
+**착수 전 수정한 자체 결함 4건** (계획 작성 직후의 pre-flight 스캔):
+
+1. **편중 신호가 발생하지 않는 mock** — 편중을 class 단위로 고정했는데 class 하나에도 레시피가 7~8개라 `top_recipe_share`가 0.15 언저리였습니다. Task 4의 배지 상태 테스트가 반드시 실패합니다. 레시피 단위(`recipe_lock`)로 바꿨습니다.
+2. **아무것도 검증하지 못하는 테스트** — `usage_ratio`가 시간 내림차순을 따르는지 확인하는 테스트는 `usage_ratio = 시간/중앙값`이라 항상 참이었습니다. 정의를 직접 고정하고, 시간 순서와 실행 수 순서가 갈리는 쌍이 실제로 존재하는지도 확인하도록 바꿨습니다.
+3. **Task 6이 Task 4·5의 커밋된 코드를 재작성** — `_shape.py` 분리를 office task에 미뤄뒀었습니다. Task 4·5가 처음부터 `_shape.py`에 쓰고 Task 6은 부르기만 하도록 옮겼습니다.
+4. **Task 8이 존재하지 않는 컴포넌트를 참조** — `<EbeamRecipeTatEquipmentCompare>`는 Task 9에서 생깁니다. 존재하지 않는 컴포넌트 태그는 typecheck도 lint도 잡지 못하므로 Task 8의 자체 검증이 통과하면서 실제로는 깨진 화면이 남습니다. Task 8은 자리 주석만 남기고 Task 9가 연결합니다.
