@@ -7,6 +7,7 @@ import unittest
 
 from flask import Flask
 
+from back_dev_home.ebeam.hitachi._office_meas_hist import FAB_NAME_KW, filter_clauses
 from back_dev_home.ebeam.hitachi.fail_issue.data import (
     get_anchor_time as get_fail_issue_anchor_time,
 )
@@ -148,6 +149,21 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
         os.environ["SKEWNONO_FAIL_ISSUE_PROVIDER"] = "office"
         with self.assertRaisesRegex(RuntimeError, MISSING_ADAPTER_MESSAGE):
             get_fail_issue_anchor_time()
+
+
+class TestFilterClauses(unittest.TestCase):
+    def test_single_fab_keeps_the_term_clause_shape(self):
+        clauses = filter_clauses(("r3",), "2026-01-01", "2026-01-31")
+        self.assertIn({"term": {FAB_NAME_KW: "R3"}}, clauses)
+
+    def test_multiple_fabs_become_one_terms_clause(self):
+        clauses = filter_clauses(("r3", "M16B"), "2026-01-01", "2026-01-31")
+        self.assertIn({"terms": {FAB_NAME_KW: ["R3", "M16B"]}}, clauses)
+
+    def test_no_fabs_add_no_fab_clause(self):
+        clauses = filter_clauses(None, "2026-01-01", "2026-01-31")
+        self.assertFalse(any("term" in c and FAB_NAME_KW in c.get("term", {}) for c in clauses))
+        self.assertFalse(any(FAB_NAME_KW in c.get("terms", {}) for c in clauses))
 
 
 if __name__ == "__main__":

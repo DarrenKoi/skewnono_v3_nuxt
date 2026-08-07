@@ -39,7 +39,7 @@ Connection settings come from ``OPENSEARCH_HOST`` / ``OPENSEARCH_PORT`` /
 """
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -104,16 +104,20 @@ def _range_clause(start_date: str | None, end_date: str | None) -> dict[str, Any
 
 
 def filter_clauses(
-    fab_name: str | None,
+    fab_names: Sequence[str] | None,
     start_date: str | None,
     end_date: str | None,
     lot_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     clauses: list[dict[str, Any]] = [_range_clause(start_date, end_date)]
-    if fab_name:
-        # fab_name is stored uppercase (M16A, R3, ...); the mocks compare
-        # case-insensitively, so uppercase the term for parity.
-        clauses.append({"term": {FAB_NAME_KW: fab_name.strip().upper()}})
+    # fab_name is stored uppercase (M16A, R3, ...); the mocks compare
+    # case-insensitively, so uppercase the terms for parity. One fab keeps the
+    # exact single-`term` shape existing office queries produce.
+    wanted = [fab.strip().upper() for fab in (fab_names or []) if fab.strip()]
+    if len(wanted) == 1:
+        clauses.append({"term": {FAB_NAME_KW: wanted[0]}})
+    elif wanted:
+        clauses.append({"terms": {FAB_NAME_KW: wanted}})
     if lot_ids is not None:
         clauses.append({"terms": {LOT_ID_KW: lot_ids}})
     return clauses

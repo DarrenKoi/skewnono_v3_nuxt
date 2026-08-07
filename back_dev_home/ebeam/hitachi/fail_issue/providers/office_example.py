@@ -132,13 +132,13 @@ def _distinct_lot_cds(tool_type: ToolType, clauses: list[dict[str, Any]]) -> int
 
 def get_summary(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> SummaryPayload:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     aggs = {
         "execs": {"value_count": {"field": _MEAS_F}},
@@ -159,7 +159,7 @@ def get_summary(
 
     return SummaryPayload(
         tool_type=tool_type,
-        fab_name=fab_name,
+        fab_names=list(fab_names or []),
         start_date=start_date,
         end_date=end_date,
         anchor_date=get_anchor_time().date().isoformat(),
@@ -178,13 +178,13 @@ def get_summary(
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> list[DailyTrendPoint]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     histogram: dict[str, Any] = {
         "field": _TIME_F,
@@ -279,14 +279,14 @@ def _sample_eqp_ids(bucket: dict[str, Any]) -> list[str]:
 
 def get_align_ranking(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     limit: int = 0,
     lot_cd: str | None = None,
 ) -> list[AlignRankingRow]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     fail_sub_aggs = {
         "fail": {
@@ -318,14 +318,14 @@ def get_align_ranking(
 
 def get_meas_ranking(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     limit: int = 0,
     lot_cd: str | None = None,
 ) -> list[MeasRankingRow]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     fail_sub_aggs = {
         "fail": {
@@ -363,7 +363,7 @@ def get_meas_ranking(
 
 def get_devices(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
 ) -> list[DeviceRow]:
@@ -374,7 +374,7 @@ def get_devices(
     sort surfaces the most-problematic devices first — matching the mock's
     "which device should I look at?" ordering.
     """
-    clauses = _filter_clauses(fab_name, start_date, end_date)
+    clauses = _filter_clauses(fab_names, start_date, end_date)
     lot_buckets = _composite_buckets(
         _INDEX[tool_type],
         _LOT_ID_KW,

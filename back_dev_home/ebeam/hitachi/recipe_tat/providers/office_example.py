@@ -82,14 +82,14 @@ def get_meas_hist(*args: Any, **kwargs: Any) -> Any:
 
 def get_ranking(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     limit: int = 0,
     lot_cd: str | None = None,
 ) -> list[RankingRow]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     # Composite (not terms) so the ranking covers EVERY recipe in the range:
     # a terms agg both truncates at its size cap and, when ordered by the sum
@@ -148,13 +148,13 @@ def get_ranking(
 
 def get_summary(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> SummaryPayload:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     aggs = {
         "tat": {"sum": {"field": _MEAS_F}},
@@ -170,7 +170,7 @@ def get_summary(
 
     return SummaryPayload(
         tool_type=tool_type,
-        fab_name=fab_name,
+        fab_names=list(fab_names or []),
         start_date=start_date,
         end_date=end_date,
         anchor_date=get_anchor_time().date().isoformat(),
@@ -183,13 +183,13 @@ def get_summary(
 
 def get_daily_trend(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
     lot_cd: str | None = None,
 ) -> list[DailyTrendPoint]:
     lot_ids = _lot_ids_for_lot_cd(lot_cd) if lot_cd else None
-    clauses = _filter_clauses(fab_name, start_date, end_date, lot_ids)
+    clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     histogram: dict[str, Any] = {
         "field": _TIME_F,
@@ -223,7 +223,7 @@ def get_daily_trend(
 
 def get_devices(
     tool_type: ToolType,
-    fab_name: str | None,
+    fab_names: tuple[str, ...] | None,
     start_date: str | None,
     end_date: str | None,
 ) -> list[DeviceRow]:
@@ -240,7 +240,7 @@ def get_devices(
     rule: R3/R&D devices carry ``prod_catg_cd`` (from ``r3_device_grp``),
     M-fab devices carry ``tech_nm`` (from ``device_desc``).
     """
-    clauses = _filter_clauses(fab_name, start_date, end_date)
+    clauses = _filter_clauses(fab_names, start_date, end_date)
     # Composite pagination (see composite_buckets): every in-scope lot_id,
     # not a top-N — a capped terms agg would drop lots (and thus understate
     # or lose whole devices) on fleet-wide date ranges.
