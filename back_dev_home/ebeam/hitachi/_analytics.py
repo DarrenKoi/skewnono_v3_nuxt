@@ -6,6 +6,7 @@ the same measurement scope. This module owns only that common behavior.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -90,3 +91,29 @@ def lot_metadata() -> dict[str, dict[str, str | None]]:
             "tech_nm": row["tech_nm"],
         }
     return out
+
+
+_PERCENTILE_POINTS: tuple[tuple[str, float], ...] = (
+    ("p10", 0.10), ("p25", 0.25), ("p50", 0.50), ("p75", 0.75), ("p90", 0.90),
+)
+
+
+def percentile_summary(values: Iterable[float]) -> dict[str, float]:
+    """p10/p25/p50/p75/p90을 nearest-rank로 계산합니다.
+
+    보간이 아니라 nearest-rank인 이유는 결과가 항상 실제 표본값이고 단조가
+    정의상 보장되기 때문입니다 — 프론트엔드가 "이 장비가 꼬리에 있는가"를
+    이 값들과의 단순 비교로 묻습니다.
+
+    표본이 없으면 빈 dict입니다. 호출자(그리고 UI)는 이걸 "판단 근거 없음"
+    으로 읽어야 하며, 배지를 달지 않습니다.
+    """
+    ordered = sorted(float(value) for value in values)
+    if not ordered:
+        return {}
+
+    def at(quantile: float) -> float:
+        index = math.ceil(quantile * len(ordered)) - 1
+        return ordered[max(0, min(index, len(ordered) - 1))]
+
+    return {name: at(quantile) for name, quantile in _PERCENTILE_POINTS}
