@@ -93,3 +93,22 @@ def test_parse_members_drops_a_dict_missing_required_keys():
         b'{"id":"ok","occurred_epoch":1}',
     ]
     assert [e["id"] for e in board.parse_members(raw)] == ["ok"]
+
+
+def test_merged_meta_none_when_any_fac_never_fetched():
+    assert board.merged_meta([{"fetched_at": 100}, None]) is None
+    assert board.merged_meta([]) is None
+
+
+def test_merged_meta_takes_oldest_fetch():
+    assert board.merged_meta([{"fetched_at": 100}, {"fetched_at": 40}]) == {"fetched_at": 40}
+
+
+def test_payload_lists_fabs_and_not_configured():
+    p = board.payload(
+        tool_type="cd-sem", fab_names=["R3", "M16B"], now=1000, configured=True,
+        meta={"fetched_at": 990}, not_configured_fabs=["M16B"],
+    )
+    assert p["fab_names"] == ["R3", "M16B"]
+    assert p["not_configured_fabs"] == ["M16B"]
+    assert p["feed_status"] == "live"

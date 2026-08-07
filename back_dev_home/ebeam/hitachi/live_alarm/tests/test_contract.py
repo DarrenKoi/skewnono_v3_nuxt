@@ -46,11 +46,11 @@ def _is_mock() -> bool:
 
 
 def test_get_board_matches_contract():
-    assert_matches(data.get_board(TOOL_TYPE, CONFIGURED_FAB), LiveAlarmPayload)
+    assert_matches(data.get_board(TOOL_TYPE, (CONFIGURED_FAB,)), LiveAlarmPayload)
 
 
 def test_events_match_contract():
-    board = data.get_board(TOOL_TYPE, CONFIGURED_FAB)
+    board = data.get_board(TOOL_TYPE, (CONFIGURED_FAB,))
     assert isinstance(board["events"], list)
     for event in board["events"]:
         assert_matches(event, AlarmEvent)
@@ -61,7 +61,7 @@ def test_every_event_carries_a_known_kind():
     # render. If the office feed ever carries a third alid, the board would
     # render it with no kind — so this stays UNFENCED, and reports the drift
     # rather than dying with a bare KeyError.
-    for event in data.get_board(TOOL_TYPE, CONFIGURED_FAB)["events"]:
+    for event in data.get_board(TOOL_TYPE, (CONFIGURED_FAB,))["events"]:
         expected = ALID_KIND.get(event["alid"])
         assert expected is not None, (
             f"event {event['id']!r} carries alid {event['alid']!r}, which is not "
@@ -74,7 +74,10 @@ def test_every_event_carries_a_known_kind():
 def test_events_are_newest_first():
     # Both providers sort by occurred_epoch desc; the board renders the list in
     # order, so an unsorted feed shows a stale alarm at the top.
-    epochs = [event["occurred_epoch"] for event in data.get_board(TOOL_TYPE, CONFIGURED_FAB)["events"]]
+    epochs = [
+        event["occurred_epoch"]
+        for event in data.get_board(TOOL_TYPE, (CONFIGURED_FAB,))["events"]
+    ]
     assert epochs == sorted(epochs, reverse=True)
 
 
@@ -83,11 +86,12 @@ def test_unknown_fab_is_not_configured_with_an_empty_board():
     # providers: a fab holding no tool of this family in the roster is
     # "미설정", never a healthy quiet board. A typo'd fab must look the same
     # at home as at the office.
-    board = data.get_board(TOOL_TYPE, UNKNOWN_FAB)
+    board = data.get_board(TOOL_TYPE, (UNKNOWN_FAB,))
     assert_matches(board, LiveAlarmPayload)
     assert board["feed_status"] == "not_configured"
     assert board["events"] == []
     assert board["fetched_at"] is None
+    assert board["not_configured_fabs"] == [UNKNOWN_FAB]
 
 
 def test_configured_fab_reports_a_heartbeat_state():
@@ -100,7 +104,7 @@ def test_configured_fab_reports_a_heartbeat_state():
         # it did not check.
         pytest.skip(f"{CONFIGURED_FAB} is configured by construction only under mock")
 
-    board = data.get_board(TOOL_TYPE, CONFIGURED_FAB)
+    board = data.get_board(TOOL_TYPE, (CONFIGURED_FAB,))
     assert board["feed_status"] in {"live", "stale"}
     assert board["fetched_at"] is not None
 
@@ -110,6 +114,6 @@ def test_unmatched_count_is_always_present_and_non_negative():
     # the field is what keeps "no alarms" distinguishable from "alarms we
     # could not attribute to any fab".
     for fab in (CONFIGURED_FAB, UNKNOWN_FAB):
-        board = data.get_board(TOOL_TYPE, fab)
+        board = data.get_board(TOOL_TYPE, (fab,))
         assert isinstance(board["unmatched_count"], int)
         assert board["unmatched_count"] >= 0

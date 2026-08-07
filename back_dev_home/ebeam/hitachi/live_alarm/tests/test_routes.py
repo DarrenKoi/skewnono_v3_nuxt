@@ -18,7 +18,7 @@ def test_returns_a_board_for_a_valid_tool_slug(client):
     # translators (useFailIssueApi.ts, useStorageApi.ts) convert down to.
     response = client.get("/api/cdsem/live-alarm?fab_name=R3")
     assert response.status_code == 200
-    assert response.get_json()["fab_name"] == "R3"
+    assert response.get_json()["fab_names"] == ["R3"]
 
 
 def test_hv_sem_url_exists_too(client):
@@ -31,6 +31,20 @@ def test_unknown_tool_slug_is_400(client):
 
 def test_missing_fab_name_is_400(client):
     assert client.get("/api/cdsem/live-alarm").status_code == 400
+
+
+def test_comma_list_fab_name_returns_every_requested_fab(client):
+    response = client.get("/api/cdsem/live-alarm?fab_name=R3,M16A")
+    assert response.status_code == 200
+    assert response.get_json()["fab_names"] == ["R3", "M16A"]
+
+
+def test_a_partially_unconfigured_multi_fab_selection_still_renders(client):
+    response = client.get("/api/cdsem/live-alarm?fab_name=R3,ZZZ")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["not_configured_fabs"] == ["ZZZ"]
+    assert body["feed_status"] != "not_configured"
 
 
 def test_unconfigured_fab_is_200_not_configured(client):

@@ -113,9 +113,16 @@ class AlarmEvent(TypedDict):
     meseventname: str    # MESEVENTNAME — waferload / endrun / ...
     eq_stat: str           # proc / wait / ...
 
+    # Which fab this event belongs to, derived by the READER from the roster's
+    # placement_of(eqp_id) at board-build time. Never written into the stored
+    # ZSET member: members outlive roster changes, and the roster at read time
+    # is the authority on placement.
+    fab_name: str
+
 
 class LiveAlarmPayload(TypedDict):
-    fab_name: str
+    # The requested fabs, echoed verbatim (order preserved).
+    fab_names: list[str]
     tool_type: ToolType
     feed_status: FeedStatus
     # Last SUCCESSFUL office fetch. None when there has never been one.
@@ -129,4 +136,7 @@ class LiveAlarmPayload(TypedDict):
     # roster, so they belong to no fab. Counted rather than shown: a roster
     # gap and a genuinely quiet fab would otherwise render identically.
     unmatched_count: int
+    # Requested fabs holding no tool of this family — the board still renders
+    # for the configured ones; the frontend names these in a footnote.
+    not_configured_fabs: list[str]
     events: list[AlarmEvent]

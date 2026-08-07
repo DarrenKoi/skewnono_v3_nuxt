@@ -43,7 +43,7 @@ def at_minute(monkeypatch):
 
     def _at(n: int):
         monkeypatch.setattr(mock.time, "time", lambda: BASE + n * MINUTE)
-        return mock.get_board(TOOL_TYPE, FAB)
+        return mock.get_board(TOOL_TYPE, (FAB,))
 
     return _at
 
@@ -151,3 +151,22 @@ def test_a_blank_ppid_still_occurs(at_minute):
     assert any(
         ppid == "" for board in _cycle_boards(at_minute) for (_, ppid) in _meas_groups(board)
     )
+
+
+def test_mock_board_stamps_event_fab():
+    payload = mock.get_board("cd-sem", ("R3", "M16B"))
+    assert payload["fab_names"] == ["R3", "M16B"]
+    for event in payload["events"]:
+        assert event["fab_name"] in {"R3", "M16B"}
+
+
+def test_mock_board_partial_not_configured():
+    payload = mock.get_board("cd-sem", ("R3", "NOPE"))
+    assert payload["not_configured_fabs"] == ["NOPE"]
+    assert payload["feed_status"] != "not_configured"
+
+
+def test_mock_board_all_unconfigured_is_not_configured():
+    payload = mock.get_board("cd-sem", ("NOPE1", "NOPE2"))
+    assert payload["feed_status"] == "not_configured"
+    assert payload["not_configured_fabs"] == ["NOPE1", "NOPE2"]

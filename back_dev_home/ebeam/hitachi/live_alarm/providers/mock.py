@@ -87,6 +87,7 @@ equivalent and the reason its output shifts by the minute.
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 
 from back_dev_home.ebeam.hitachi._tool_specs import ToolType
 from back_dev_home.ebeam.hitachi.live_alarm import board, roster
@@ -239,18 +240,23 @@ def _event(
     }
 
 
-def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
+def get_board(tool_type: ToolType, fab_names: Sequence[str]) -> LiveAlarmPayload:
     import os
 
     now = int(time.time())
     index = _index()
 
-    # A fab holding no tool of this family: no feed, no heartbeat — the panel
-    # says "미설정", not a healthy empty board. Decided by the roster, which is
-    # how the office decides it too.
-    if index.fac_id_for(fab_name, tool_type) is None:
+    # Per requested fab: which facility serves it, or None if this fab holds
+    # no tool of this family. Decided by the roster, which is how the office
+    # decides it too — no feed, no heartbeat, the panel says "미설정" for that
+    # fab specifically rather than for the whole (possibly multi-fab) request.
+    placements = [(fab, index.fac_id_for(fab, tool_type)) for fab in fab_names]
+    configured = [(fab, fac) for fab, fac in placements if fac is not None]
+    not_configured = [fab for fab, fac in placements if fac is None]
+    if not configured:
         return board.payload(
-            tool_type=tool_type, fab_name=fab_name, now=now, configured=False,
+            tool_type=tool_type, fab_names=list(fab_names), now=now,
+            configured=False, not_configured_fabs=not_configured,
         )
 
     stale = os.environ.get(_STALE_ENV, "").strip().lower() in {"1", "true", "yes"}
@@ -258,39 +264,51 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     # The cycle keeps a 0 so the "최근 20분간 알람이 없습니다." screen stays
     # reachable at home; the other slots are large enough that the 측정 실패
     # view has something to group. See _HOT_BURST below for why size alone is
-    # not sufficient.
+    # not sufficient. One slot shared across every configured fab, so a
+    # multi-fab board still rebuilds identically within the same minute.
     slot = (now // 60) % len(_COUNTS)
     count = _COUNTS[slot]
-    # Real ids from the roster, so an alarm row resolves to the fab being
-    # viewed exactly as it does at the office. The previous fabricated ids
-    # (MXCD*) matched no prefix sem_list emits, so the whole attribution path
-    # went unexercised at home.
-    eqp_ids = index.eqp_ids_in(fab_name, tool_type) or [_UNROSTERED_EQP_ID]
     # ALARM_MODELNAME follows the tool family, since the alarm carries the
     # model of the tool that raised it. A single hardcoded model would have
     # stamped every HV-SEM row CG6300 — the same vendor/family confusion the
     # sem_list mock had to be corrected for.
     model = "TP4000" if tool_type == "hv-sem" else "CG6300"
-    events = [_event(now, i, eqp_ids[i % len(eqp_ids)], model) for i in range(count)]
 
-    # The repeat burst: one tool, one recipe, several measurement failures.
-    # Indices continue past `count` so every event on the board still has a
-    # distinct id. Skipped entirely on the quiet slot — a board that is
-    # supposed to be empty must actually be empty.
-    hot_eqp = eqp_ids[0]
-    hot_recipe = _RECIPES[0]
-    burst = [
-        # Alternates 9007/9035: both are `meas`, so they land in ONE group.
-        # That is the point — the view groups by kind and (eqp_id, ppid), not
-        # by alid, and a burst of a single alid would not prove it.
-        _event(
-            now, count + n, hot_eqp, model,
-            alid="9007" if n % 2 else "9035",
-            recipe_id=hot_recipe,
-        )
-        for n in range(_HOT_BURST if count else 0)
-    ]
-    events += burst
+    events = []
+    for offset, (fab, _fac) in enumerate(configured):
+        # Real ids from the roster, so an alarm row resolves to the fab being
+        # viewed exactly as it does at the office. The previous fabricated ids
+        # (MXCD*) matched no prefix sem_list emits, so the whole attribution
+        # path went unexercised at home.
+        eqp_ids = index.eqp_ids_in(fab, tool_type) or [_UNROSTERED_EQP_ID]
+        # offset*100_000 keeps ids distinct across fabs without changing the
+        # per-fab shape the existing tests describe.
+        fab_events = [
+            _event(now, offset * 100_000 + i, eqp_ids[i % len(eqp_ids)], model)
+            for i in range(count)
+        ]
+        if offset == 0:
+            # The repeat burst: one tool, one recipe, several measurement
+            # failures. Stays on the first configured fab only — the point is
+            # that a single (eqp_id, ppid) can dominate a board, and putting
+            # it on every fab would not add coverage, only noise. Skipped
+            # entirely on the quiet slot — a board that is supposed to be
+            # empty must actually be empty.
+            fab_events += [
+                # Alternates 9007/9035: both are `meas`, so they land in ONE
+                # group. That is the point — the view groups by kind and
+                # (eqp_id, ppid), not by alid, and a burst of a single alid
+                # would not prove it.
+                _event(
+                    now, offset * 100_000 + count + n, eqp_ids[0], model,
+                    alid="9007" if n % 2 else "9035",
+                    recipe_id=_RECIPES[0],
+                )
+                for n in range(_HOT_BURST if count else 0)
+            ]
+        for event in fab_events:
+            event["fab_name"] = roster.norm(fab)
+        events += fab_events
 
     # One minute in four the facility feed also carries an alarm from
     # equipment no roster knows. Generated as a REAL event and then withheld,
@@ -301,18 +319,23 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
     # Keyed on the CYCLE SLOT, not on `count`. It used to read `count == 3`,
     # which silently became unreachable the moment the volume cycle stopped
     # producing a 3 — taking the whole roster-gap path with it.
+    #
+    # One withheld event per DISTINCT fac, so sibling fabs that share a
+    # facility do not double-count the same roster gap.
+    distinct_facs = list(dict.fromkeys(fac for _fab, fac in configured))
     withheld = (
-        [_event(now, count + _HOT_BURST, _UNROSTERED_EQP_ID)]
+        [_event(now, 900_000 + i, _UNROSTERED_EQP_ID) for i in range(len(distinct_facs))]
         if slot == len(_COUNTS) - 1
         else []
     )
 
     return board.payload(
         tool_type=tool_type,
-        fab_name=fab_name,
+        fab_names=list(fab_names),
         now=now,
         configured=True,
         meta={"fetched_at": now - 2000 if stale else now},
         unmatched_count=len(withheld),
+        not_configured_fabs=not_configured,
         events=sorted(events, key=lambda e: e["occurred_epoch"], reverse=True),
     )
