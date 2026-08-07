@@ -150,18 +150,29 @@ test('skewvoir is the same across tool types', () => {
   assert.equal(cdsemSkewvoir, hvsemSkewvoir)
 })
 
-test('tool landing pages keep their tool and stay off the home identity', () => {
-  // page_to_feature gives these home, cdsem, cdsem, hvsem — three identities.
-  // (cdsem/hvsem, not cd_sem/hv_sem: the same slugs route_to_feature already
-  // emits for /api/cdsem/... — one tool, one slug.)
-  const home = resolvePageIdentity('/', {})
-  const cdsem = resolvePageIdentity('/ebeam/cd-sem', {})
-  const cdsemFab = resolvePageIdentity('/ebeam/cd-sem/M14', {})
-  const hvsemFab = resolvePageIdentity('/ebeam/hv-sem/R3', {})
+test('the fab hub is one identity across every tool family', () => {
+  // /ebeam/<tool> and /ebeam/<tool>/<fab> both land on [fab]/index.vue, which
+  // renders EbeamToolInventoryView (장비 상태) for all four tool families.
+  // One page, so one identity — matching the backend's tool_inventory slug.
+  const identities = new Set([
+    resolvePageIdentity('/ebeam/cd-sem', {}),
+    resolvePageIdentity('/ebeam/cd-sem/M14', {}),
+    resolvePageIdentity('/ebeam/hv-sem/R3', {}),
+    resolvePageIdentity('/ebeam/provision/R3', {}),
+    resolvePageIdentity('/ebeam/verity-sem/M14', {})
+  ])
 
-  assert.equal(cdsem, cdsemFab)
-  assert.equal(new Set([home, cdsem, hvsemFab]).size, 3)
-  assert.ok(cdsem)
+  assert.equal(identities.size, 1)
+  assert.ok(identities.has('/tool-inventory'))
+})
+
+test('an unmapped e-beam page falls back to its tool, not to the fab hub', () => {
+  // Otherwise a page nobody mapped would be counted as 장비 상태 — a confident
+  // wrong answer where the tool fallback gives a vague right one.
+  const unmapped = resolvePageIdentity('/ebeam/cd-sem/M14/unmapped-page', {})
+
+  assert.ok(unmapped)
+  assert.notEqual(unmapped, resolvePageIdentity('/ebeam/cd-sem/M14', {}))
 })
 
 test('a fabless page shape shares the fab shape identity', () => {

@@ -193,6 +193,17 @@ def page_to_feature(path: str) -> str | None:
         rest = parts[2:]
         if rest and _FAB_SEGMENT.match(rest[0]):
             rest = rest[1:]
+        # Nothing left after the fab: /ebeam/<tool> and /ebeam/<tool>/<fab> are
+        # both [fab]/index.vue, which renders EbeamToolInventoryView (장비 상태)
+        # for all four tool families. One page, so one slug — the tool-segment
+        # fallback at the bottom of this branch used to catch it and split it
+        # four ways, which is the whole reason CD-SEM appeared in the ranking.
+        #
+        # `len(parts) >= 2` because a bare /ebeam names no tool and is not that
+        # page; it keeps the fallback, which the frontend matches with its own
+        # /ebeam early return.
+        if len(parts) >= 2 and not rest:
+            return "tool_inventory"
         if rest and rest[0] == "recipe-status":
             tab = _query_value(query, "tab")
             # No tab yet: RecipeStatusView's mount-time router.replace supplies

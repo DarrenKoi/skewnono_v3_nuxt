@@ -27,6 +27,16 @@ const FAB_SEGMENT = /^[RM]\d{1,2}[A-C]?$/i
 const TAB_ROUTE = 'recipe-status'
 const VALID_TABS = new Set(['tat', 'align', 'meas'])
 
+// The canonical path for the fab-hub shape: /ebeam/<tool> and
+// /ebeam/<tool>/<fab> with no page segment after them, which is
+// [fab]/index.vue — EbeamToolInventoryView, 장비 상태.
+//
+// Unlike every other entry in IDENTITY_RULES this is NOT a route fragment.
+// The four tool families share no path segment for this page, so the identity
+// they must all collapse onto has to be synthesized. Matches the backend's
+// `tool_inventory` slug.
+const TOOL_INVENTORY_PATH = '/tool-inventory'
+
 // Ops pages are logged but never ranked — the backend returns None for them.
 // Mirrors _OPS_PAGE_PREFIXES.
 const OPS_PREFIXES = ['/activity', '/admin', '/settings', '/endpoints', '/identify', '/intro']
@@ -51,6 +61,7 @@ const IDENTITY_RULES = [
   '/skew-check',
   '/pm-planning',
   '/skewvoir',
+  TOOL_INVENTORY_PATH,
 
   // Standalone pages.
   '/afm',
@@ -92,9 +103,11 @@ const canonicalize = (rawPath: string): Canonical => {
     if (!tool) return { path: '/ebeam', landing: '/ebeam' }
     const landing = `/ebeam/${tool}`
     const rest = segments.slice(2).filter(segment => !FAB_SEGMENT.test(segment))
-    // /ebeam/<tool> and /ebeam/<tool>/<fab> are real landing pages; an empty
-    // remainder must not become the empty path they would all share.
-    if (rest.length === 0) return { path: landing, landing }
+    // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page. Returning
+    // `landing` here would make them share an identity with any UNMAPPED page
+    // of the same tool, which falls back to `landing` below — two different
+    // slugs, one identity. The synthetic path keeps them apart.
+    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, landing }
     return { path: '/' + rest.join('/'), landing }
   }
 

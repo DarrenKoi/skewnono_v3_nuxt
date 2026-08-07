@@ -154,20 +154,36 @@
   {
     "path": "/ebeam/cd-sem",
     "query": {},
-    "slug": "cdsem",
-    "comment": "Tool landing page"
+    "slug": "tool_inventory",
+    "comment": "Fab hub, fabless shape — redirects to the fab shape below"
   },
   {
     "path": "/ebeam/cd-sem/M14",
     "query": {},
-    "slug": "cdsem",
-    "comment": "Tool landing page under a fab — same slug as the fabless landing"
+    "slug": "tool_inventory",
+    "comment": "Fab hub: [fab]/index.vue renders EbeamToolInventoryView (장비 상태)"
   },
   {
     "path": "/ebeam/hv-sem/R3",
     "query": {},
-    "slug": "hvsem",
-    "comment": "A different tool landing, so a different identity"
+    "slug": "tool_inventory",
+    "comment": "Same page under a different tool family, so the same slug"
+  },
+  {
+    "path": "/ebeam/provision/R3",
+    "query": {},
+    "slug": "tool_inventory"
+  },
+  {
+    "path": "/ebeam/verity-sem/M14",
+    "query": {},
+    "slug": "tool_inventory"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/unmapped-page",
+    "query": {},
+    "slug": "cdsem",
+    "comment": "Unmapped e-beam page still falls back to its tool, NOT to tool_inventory"
   },
   {
     "path": "/afm",

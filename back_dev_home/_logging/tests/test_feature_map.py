@@ -171,6 +171,15 @@ def test_no_registered_route_still_needs_the_fallback():
         ("/ebeam/cd-sem/device-statistics", "device_statistics"),
         ("/ebeam/cd-sem/device-statistics/comparison", "device_statistics"),
         ("/ebeam/hv-sem/skewvoir/analysis", "skewvoir"),
+        # The fab hub: /ebeam/<tool>[/<fab>] with no page after it is
+        # [fab]/index.vue, which renders EbeamToolInventoryView for every tool
+        # family. One page, one slug — the tool-segment fallback used to split
+        # it four ways.
+        ("/ebeam/cd-sem", "tool_inventory"),
+        ("/ebeam/cd-sem/M14", "tool_inventory"),
+        ("/ebeam/hv-sem/R3", "tool_inventory"),
+        ("/ebeam/provision/R3", "tool_inventory"),
+        ("/ebeam/verity-sem/M14", "tool_inventory"),
         # Standalone pages.
         ("/tool-roster", "sem_list"),
         ("/afm/HVM1", "afm"),
@@ -211,6 +220,23 @@ def test_recipe_status_without_a_tab_is_unresolved():
 
 
 def test_unknown_pages_fall_back_to_a_derived_slug():
-    """Same policy as route_to_feature: a new page groups sanely until mapped."""
+    """Same policy as route_to_feature: a new page groups sanely until mapped.
+
+    The fallback deliberately stays the TOOL slug rather than tool_inventory:
+    a future e-beam page nobody mapped must not be counted as 장비 상태, which
+    would be a confident wrong answer instead of a vague one.
+    """
     assert page_to_feature("/thickness") == "thickness"
-    assert page_to_feature("/ebeam/verity-sem/M14") == "verity_sem"
+    assert page_to_feature("/ebeam/verity-sem/M14/unmapped-page") == "verity_sem"
+    assert page_to_feature("/ebeam/cd-sem/M14/unmapped-page") == "cdsem"
+
+
+def test_bare_ebeam_is_not_the_tool_inventory_page():
+    """/ebeam alone names no tool, so it is not the fab hub.
+
+    Not a real route — pinned because the tool_inventory rule keys on "nothing
+    left after the fab", and a bare /ebeam also has nothing left. The frontend
+    returns its own /ebeam identity for this shape, so the two halves would
+    disagree if this drifted.
+    """
+    assert page_to_feature("/ebeam") == "ebeam"

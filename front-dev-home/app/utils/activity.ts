@@ -29,9 +29,10 @@ export const userSearchText = (row: ListedUser): string =>
 
 // Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
-// `cdsem`, `hvsem`, `verity_sem`, `provision` and `thickness` only appear via
-// the fallback for pages with no explicit rule — they are real routes, so they
-// get real labels rather than the humanize fallback.
+// `cdsem`, `hvsem`, `provision`, `verity_sem` and `home` are no longer written:
+// the fab hub became `tool_inventory` and `/` stopped being ranked. Their labels
+// STAY — rows already in OpenSearch keep ranking until the 30-day window rolls
+// past them, and a missing label renders them as `Cdsem`.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',
@@ -58,6 +59,7 @@ const FEATURE_LABELS: Record<string, string> = {
   skewvoir: 'Skewvoir',
   storage: 'Storage',
   thickness: 'Thickness Metrology',
+  tool_inventory: '장비 상태',
   verity_sem: 'VeritySEM'
 }
 
