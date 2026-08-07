@@ -47,13 +47,16 @@ export const equipmentSignals = (
 ): EquipmentSignal[] => {
   const signals: EquipmentSignal[] = []
 
-  // 꼬리 비교는 모두 엄격 부등호(<, >)입니다. 백분위수 자체는 "그 경계에
-  // 걸친 값"이라 아직 꼬리 "안"이 아니라 꼬리의 경계일 뿐입니다 — 경계값은
-  // 절대 기준을 넘더라도 꼬리 판정에서 제외해, 분포 폭이 절대 기준보다
-  // 좁은 구간(예: p10이 절대 기준보다 안쪽인 경우)에서 경계 자체가 항상
-  // 배지로 새는 것을 막습니다.
+  // 꼬리 비교는 모두 포함 부등호(<=, >=)입니다. percentile_summary는
+  // nearest-rank라 p10/p90은 항상 실제 표본 값 하나와 같습니다 — 장비
+  // 5대짜리 작은 셀에서는 그 표본이 곧 플릿의 최솟값/최댓값 자신인
+  // 경우가 흔합니다. 엄격 부등호(<, >)를 쓰면 그 경계를 정의하는 장비
+  // 자신이 "자기 꼬리 안"에 들지 못해, 가장 극단적인 — 정확히 배지를
+  // 달아야 할 — 장비가 구조적으로 제외됩니다. recipe_count처럼 정수형
+  // 지표는 플릿 규모가 커져도 동률이 사라지지 않으므로 이 문제는 mock
+  // 특유의 결함이 아니라 상시적입니다.
   const usageTail = at(percentiles, 'usage_ratio', 'p10')
-  if (usageTail !== null && row.usage_ratio < usageTail && row.usage_ratio < USAGE_FLOOR) {
+  if (usageTail !== null && row.usage_ratio <= usageTail && row.usage_ratio < USAGE_FLOOR) {
     signals.push('underused')
   }
 
@@ -61,11 +64,11 @@ export const equipmentSignals = (
   // 이므로 어느 쪽으로도 판정하지 않습니다.
   if (row.tat_index !== null) {
     const slowTail = at(percentiles, 'tat_index', 'p90')
-    if (slowTail !== null && row.tat_index > slowTail && row.tat_index > TAT_CEIL) {
+    if (slowTail !== null && row.tat_index >= slowTail && row.tat_index > TAT_CEIL) {
       signals.push('slow')
     }
     const fastTail = at(percentiles, 'tat_index', 'p10')
-    if (fastTail !== null && row.tat_index < fastTail && row.tat_index < TAT_FLOOR) {
+    if (fastTail !== null && row.tat_index <= fastTail && row.tat_index < TAT_FLOOR) {
       signals.push('fast')
     }
   }
@@ -73,7 +76,7 @@ export const equipmentSignals = (
   const coverageTail = at(percentiles, 'recipe_count', 'p10')
   if (
     coverageTail !== null
-    && row.recipe_count < coverageTail
+    && row.recipe_count <= coverageTail
     && row.top_recipe_share >= SHARE_CEIL
   ) {
     signals.push('narrow')
