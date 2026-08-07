@@ -82,6 +82,9 @@ class AlignRankingRow(TypedDict):
     align_fail_count: int
     align_fail_rate: float
     sample_eqp_ids: list[str]
+    # Fabs whose measurements entered this aggregate, sorted asc. The detail
+    # link uses this to route to the owning fab's registry (multi-fab spec §6.1).
+    fab_names: list[str]
 
 
 class MeasRankingRow(TypedDict):
@@ -94,6 +97,9 @@ class MeasRankingRow(TypedDict):
     meas_fail_rate: float   # fraction, 0..1 — failing rows / all rows
     avg_fail_ratio: float   # PERCENT, 0..100 — mean of the per-row fail_ratio
     sample_eqp_ids: list[str]
+    # Fabs whose measurements entered this aggregate, sorted asc. The detail
+    # link uses this to route to the owning fab's registry (multi-fab spec §6.1).
+    fab_names: list[str]
 
 
 class DeviceRow(TypedDict):

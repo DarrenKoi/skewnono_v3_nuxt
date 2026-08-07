@@ -159,3 +159,28 @@ def test_get_devices_matches_contract():
         # MIGRATION.md calls an empty office /devices result valid (no chips
         # matched); the mock's lot_cd bridge is fabricated and always resolves.
         assert devices, "mock device list must not be empty"
+
+
+def test_align_ranking_rows_carry_contributing_fabs():
+    rows = data.get_align_ranking("cd-sem", ("R3", "M16B"), None, None, limit=20)
+    assert rows
+    for row in rows:
+        assert row["fab_names"] == sorted(row["fab_names"])
+        assert row["fab_names"]
+        assert set(row["fab_names"]) <= {"R3", "M16B"}
+
+
+def test_meas_ranking_rows_carry_contributing_fabs():
+    rows = data.get_meas_ranking("cd-sem", ("R3", "M16B"), None, None, limit=20)
+    assert rows
+    for row in rows:
+        assert row["fab_names"] == sorted(row["fab_names"])
+        assert row["fab_names"]
+        assert set(row["fab_names"]) <= {"R3", "M16B"}
+
+
+def test_single_fab_rankings_tag_that_fab_only():
+    align = data.get_align_ranking("cd-sem", ("R3",), None, None, limit=5)
+    meas = data.get_meas_ranking("cd-sem", ("R3",), None, None, limit=5)
+    assert all(row["fab_names"] == ["R3"] for row in align)
+    assert all(row["fab_names"] == ["R3"] for row in meas)
