@@ -99,7 +99,7 @@
         <EbeamRecipeCompareParameterSelector
           v-model="selectedParameters"
           :rows="overlapRows"
-          :recipe-ids="recipeIds"
+          :columns="compareColumns"
         />
 
         <section
@@ -249,7 +249,9 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeCompareRespon
 )
 
 const recipes = computed(() => data.value?.recipes ?? [])
-const recipeIds = computed(() => recipes.value.map(r => r.recipe_id))
+// (recipe_id, fab_name) columns — recipe_id alone collides when the same
+// recipe name is compared across two fabs.
+const compareColumns = computed(() => recipes.value.map(r => ({ recipe_id: r.recipe_id, fab_name: r.fab_name })))
 const overlapRows = computed(() => buildOverlap(recipes.value))
 
 const selectedParameters = ref<string[]>([])
@@ -320,7 +322,7 @@ function missingPairs(parameters: string[]) {
     parameters
       .filter(parameter =>
         findParameter(recipe, parameter)
-        && !detailCache.has(compareDetailKey(recipe.recipe_id, parameter)))
+        && !detailCache.has(compareDetailKey(recipe.fab_name, recipe.recipe_id, parameter)))
       .map(parameter => ({ recipe, parameter }))
   )
 }
@@ -336,7 +338,7 @@ async function fetchInto(pairs: ReturnType<typeof missingPairs>) {
   ))
   pairs.forEach(({ recipe, parameter }, index) => {
     const detail = details[index]
-    if (detail) detailCache.set(compareDetailKey(recipe.recipe_id, parameter), detail)
+    if (detail) detailCache.set(compareDetailKey(recipe.fab_name, recipe.recipe_id, parameter), detail)
   })
 }
 
@@ -358,7 +360,7 @@ async function loadCellDetails() {
   }
   if (inFlight.value !== parameter) return
   cellDetails.value = recipes.value.map(
-    r => detailCache.get(compareDetailKey(r.recipe_id, parameter)) ?? null
+    r => detailCache.get(compareDetailKey(r.fab_name, r.recipe_id, parameter)) ?? null
   )
 }
 

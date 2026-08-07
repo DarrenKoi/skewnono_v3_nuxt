@@ -24,8 +24,8 @@ const param = (name: string): CompareParameter => ({
 
 const LOCATOR = { eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B' }
 
-const recipe = (id: string, params: string[]): CompareRecipe => ({
-  recipe_id: id, fab_name: 'R3', locator: LOCATOR, parameters: params.map(param)
+const recipe = (id: string, params: string[], fabName = 'R3'): CompareRecipe => ({
+  recipe_id: id, fab_name: fabName, locator: LOCATOR, parameters: params.map(param)
 })
 
 test('classifyCoverage: all / unique / partial', () => {
@@ -44,7 +44,9 @@ test('buildOverlap marks shared, partial, unique parameters', () => {
   // lookup reads as possibly-undefined. The row type itself is still checked.
   const byName = Object.fromEntries(rows.map(r => [r.parameter, r]))
   assert.equal(byName.WAFER!.coverage, 'all')
-  assert.deepEqual(byName.WAFER!.presentIn, ['A', 'B', 'C'])
+  // presentIn is fab-qualified (`${fab_name}:${recipe_id}`), not bare ids —
+  // see the same-name-two-fabs tests below for why.
+  assert.deepEqual(byName.WAFER!.presentIn, ['R3:A', 'R3:B', 'R3:C'])
   assert.equal(byName.P5!.coverage, 'partial')
   assert.equal(byName.P8!.coverage, 'unique')
   assert.equal(byName.P12!.coverage, 'unique')
@@ -54,6 +56,37 @@ test('buildOverlap dedupes a repeated parameter within one recipe', () => {
   const rows = buildOverlap([recipe('A', ['WAFER', 'WAFER'])])
   assert.equal(rows.length, 1)
   assert.equal(rows[0]?.count, 1)
+})
+
+test('buildOverlap keeps same-name recipes on different fabs distinct', () => {
+  // Cross-fab compare can legitimately select the same recipe name from two
+  // fabs. Keying presence on bare recipe_id would report the M16B copy as
+  // having WAFER too, just because the R3 copy does — a wrong answer with no
+  // error, since both recipes share the id 'A'.
+  const rows = buildOverlap([
+    recipe('A', ['WAFER'], 'R3'),
+    recipe('A', [], 'M16B')
+  ])
+  const wafer = rows.find(r => r.parameter === 'WAFER')!
+  assert.equal(wafer.count, 1)
+  assert.equal(wafer.total, 2)
+  // classifyCoverage treats any count <= 1 as 'unique', independent of total.
+  assert.equal(wafer.coverage, 'unique')
+  assert.deepEqual(wafer.presentIn, ['R3:A'])
+})
+
+test('buildOverlap counts a parameter once per (fab, recipe) even when ids match', () => {
+  const rows = buildOverlap([
+    recipe('A', ['WAFER'], 'R3'),
+    recipe('A', ['WAFER'], 'M16B')
+  ])
+  const wafer = rows.find(r => r.parameter === 'WAFER')!
+  // Both recipes genuinely carry WAFER, so count must be 2 — a Set keyed on
+  // the bare id 'A' would collapse both additions into one entry and report
+  // 'partial' (1/2) for a parameter both recipes actually have.
+  assert.equal(wafer.count, 2)
+  assert.equal(wafer.coverage, 'all')
+  assert.deepEqual(wafer.presentIn, ['R3:A', 'M16B:A'])
 })
 
 test('filterOverlap + commonParameters', () => {
@@ -248,8 +281,8 @@ test('groupFieldValues: single value is never an outlier', () => {
 
 test('buildCompareWorkbook emits Overlap + IDP + one sheet per slot', () => {
   const details: CompareDetailIndex = new Map([
-    [compareDetailKey('A', 'WAFER'), detailWith({ Mag: '50.0K' })],
-    [compareDetailKey('B', 'WAFER'), detailWith({ Mag: '80.0K' })]
+    [compareDetailKey('R3', 'A', 'WAFER'), detailWith({ Mag: '50.0K' })],
+    [compareDetailKey('R3', 'B', 'WAFER'), detailWith({ Mag: '80.0K' })]
   ])
   const wb = buildCompareWorkbook([recipeWithAmp('A'), recipeWithAmp('B')], ['WAFER'], details)
 
@@ -262,6 +295,32 @@ test('buildCompareWorkbook emits Overlap + IDP + one sheet per slot', () => {
 
   const meas1 = wb.sheets.find(s => s.name === 'Measure 1')!
   assert.deepEqual(meas1.rows[0], ['parameter', 'attr', 'A', 'B'])
+  const magRow = meas1.rows.find(r => r[1] === 'Mag')!
+  assert.deepEqual(magRow, ['WAFER', 'Mag', '50.0K', '80.0K'])
+})
+
+test('buildCompareWorkbook keys per-recipe settings by (fab, recipe_id), not bare id', () => {
+  // The bug this guards: with a bare-id key, `details.get('A::WAFER')` was
+  // the SAME lookup for the R3 copy of recipe 'A' and the M16B copy, so the
+  // second column silently rendered the first column's settings — on screen
+  // and in this exported sheet, with no error.
+  const details: CompareDetailIndex = new Map([
+    [compareDetailKey('R3', 'A', 'WAFER'), detailWith({ Mag: '50.0K' })],
+    [compareDetailKey('M16B', 'A', 'WAFER'), detailWith({ Mag: '80.0K' })]
+  ])
+  const wb = buildCompareWorkbook(
+    [recipe('A', ['WAFER'], 'R3'), recipe('A', ['WAFER'], 'M16B')],
+    ['WAFER'],
+    details
+  )
+
+  // Column headers disambiguate the fab once the export spans more than one —
+  // two columns both bare-labeled 'A' would be exactly as misleading as the
+  // lookup collision itself.
+  const overlap = wb.sheets.find(s => s.name === 'Overlap')!
+  assert.deepEqual(overlap.rows[0], ['parameter', 'coverage', 'A (R3)', 'A (M16B)'])
+
+  const meas1 = wb.sheets.find(s => s.name === 'Measure 1')!
   const magRow = meas1.rows.find(r => r[1] === 'Mag')!
   assert.deepEqual(magRow, ['WAFER', 'Mag', '50.0K', '80.0K'])
 })

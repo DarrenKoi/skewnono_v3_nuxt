@@ -40,6 +40,7 @@ export type CoverageFilter = 'all' | 'common' | 'partial' | 'unique'
 
 export interface OverlapRow {
   parameter: string
+  /** `recipeCompareKey(fab_name, recipe_id)` pairs, not bare recipe ids. */
   presentIn: string[]
   count: number
   total: number
@@ -52,12 +53,24 @@ export function classifyCoverage(count: number, total: number): Coverage {
   return 'partial'
 }
 
+/**
+ * A compared recipe's identity for every per-recipe Map/Set key in this
+ * module. Backend `recipe_id` equals `recipe_name` and is NOT scoped by fab
+ * — cross-fab compare can legitimately put two recipes with the same id (one
+ * per fab) in the same request, and keying on the bare id would silently
+ * merge them. Same `${fab}:${id}` convention `RecipeCompareView`'s cacheKey
+ * already uses.
+ */
+export const recipeCompareKey = (fabName: string, recipeId: string): string =>
+  `${fabName}:${recipeId}`
+
 export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
   const total = recipes.length
   const order: string[] = []
   const present = new Map<string, Set<string>>()
 
   for (const recipe of recipes) {
+    const key = recipeCompareKey(recipe.fab_name, recipe.recipe_id)
     const seenInRecipe = new Set<string>()
     for (const p of recipe.parameters) {
       if (seenInRecipe.has(p.Parameter)) continue
@@ -66,18 +79,23 @@ export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
         present.set(p.Parameter, new Set())
         order.push(p.Parameter)
       }
-      present.get(p.Parameter)!.add(recipe.recipe_id)
+      present.get(p.Parameter)!.add(key)
     }
   }
 
   return order.map((parameter) => {
-    const ids = present.get(parameter)!
+    const keys = present.get(parameter)!
     return {
+      // (fab, id) pair keys, NOT bare recipe_id — two recipes sharing a name
+      // across fabs must be distinguishable here, or a caller matching a
+      // specific column against `presentIn` cannot tell them apart.
       parameter,
-      presentIn: recipes.filter(r => ids.has(r.recipe_id)).map(r => r.recipe_id),
-      count: ids.size,
+      presentIn: recipes
+        .filter(r => keys.has(recipeCompareKey(r.fab_name, r.recipe_id)))
+        .map(r => recipeCompareKey(r.fab_name, r.recipe_id)),
+      count: keys.size,
       total,
-      coverage: classifyCoverage(ids.size, total)
+      coverage: classifyCoverage(keys.size, total)
     }
   })
 }
@@ -231,11 +249,11 @@ export interface CompareWorkbook {
   sheets: WorkbookSheet[]
 }
 
-/** `${recipe_id}::${parameter}` -> that pair's fetched settings. */
+/** `${recipeCompareKey(fab_name, recipe_id)}::${parameter}` -> that pair's fetched settings. */
 export type CompareDetailIndex = Map<string, CompareParamDetail>
 
-export const compareDetailKey = (recipeId: string, parameter: string) =>
-  `${recipeId}::${parameter}`
+export const compareDetailKey = (fabName: string, recipeId: string, parameter: string) =>
+  `${recipeCompareKey(fabName, recipeId)}::${parameter}`
 
 export function buildCompareWorkbook(
   recipes: CompareRecipe[],
@@ -249,21 +267,27 @@ export function buildCompareWorkbook(
    */
   details: CompareDetailIndex = new Map()
 ): CompareWorkbook {
-  const recipeIds = recipes.map(r => r.recipe_id)
+  // Column labels: bare recipe_id, UNLESS the export spans more than one fab
+  // — the same recipe name can legitimately appear once per fab in a
+  // cross-fab compare, and two identically-labeled columns with genuinely
+  // different data is exactly the kind of silent-wrong-answer this export
+  // must not produce.
+  const multiFab = new Set(recipes.map(r => r.fab_name)).size > 1
+  const recipeLabels = recipes.map(r => (multiFab ? `${r.recipe_id} (${r.fab_name})` : r.recipe_id))
   const sheets: WorkbookSheet[] = []
 
   const overlap = buildOverlap(recipes)
-  const overlapRows: (string | number)[][] = [['parameter', 'coverage', ...recipeIds]]
+  const overlapRows: (string | number)[][] = [['parameter', 'coverage', ...recipeLabels]]
   for (const row of overlap) {
     overlapRows.push([
       row.parameter,
       row.coverage,
-      ...recipes.map(r => (row.presentIn.includes(r.recipe_id) ? '✓' : '—'))
+      ...recipes.map(r => (row.presentIn.includes(recipeCompareKey(r.fab_name, r.recipe_id)) ? '✓' : '—'))
     ])
   }
   sheets.push({ name: 'Overlap', rows: overlapRows })
 
-  const idpRows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
+  const idpRows: (string | number)[][] = [['parameter', 'attr', ...recipeLabels]]
   for (const parameter of parameters) {
     for (const r of buildIdpRows(recipes, parameter)) {
       idpRows.push([parameter, r.label, ...r.values])
@@ -272,10 +296,10 @@ export function buildCompareWorkbook(
   sheets.push({ name: 'IDP', rows: idpRows })
 
   for (const slot of COMPARE_SLOTS) {
-    const rows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
+    const rows: (string | number)[][] = [['parameter', 'attr', ...recipeLabels]]
     for (const parameter of parameters) {
       const forParameter = recipes.map(
-        recipe => details.get(compareDetailKey(recipe.recipe_id, parameter)) ?? null
+        recipe => details.get(compareDetailKey(recipe.fab_name, recipe.recipe_id, parameter)) ?? null
       )
       for (const r of buildSettingRows(forParameter, slot.key)) {
         // Grouped settings (af_pr) are qualified rather than rendered as a
