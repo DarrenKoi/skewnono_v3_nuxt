@@ -443,7 +443,7 @@ definePageMeta({
 
 type DeviceRow = R3DeviceGrpRow | DeviceDescRow
 
-const { setToolType, setFab } = useNavigation()
+const { setToolType } = useNavigation()
 const { fetchDeviceDesc, fetchMeasActivity, fetchR3DeviceGrp } = useDeviceStatisticsApi()
 
 const text = {
@@ -1190,9 +1190,13 @@ watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, selecte
   currentPage.value = 1
 })
 
+// Tool type only. selectedFab here is a DeviceFab — a fac_id ('M16'), not a fab_name
+// ('M16A'/'M16B'/'M16C'), because device_desc has no fab_name column. Pushing it into the
+// navigation store would poison the app-wide fab_name selection (and its localStorage copy)
+// with a fab that does not exist in the sem-list roster. This page keeps its own fab in
+// useDeviceStatisticsPreferences and hides the fab sidebar, so it needs no global write.
 onMounted(() => {
   setToolType('cd-sem')
-  setFab(selectedFab.value)
 })
 </script>
 

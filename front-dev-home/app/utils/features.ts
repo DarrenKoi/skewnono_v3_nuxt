@@ -28,8 +28,9 @@ export const FEATURE_SLUG_SUFFIX_REGEX = new RegExp(
 )
 
 // Features that live at `/ebeam/{toolType}/{feature}` (no fab segment). These pages do not
-// depend on the URL fab — they ignore it (skewvoir is a placeholder) or manage their own
-// fab via the navigation store + localStorage (device-statistics).
+// depend on the URL fab — they ignore it (skewvoir is a placeholder) or keep a fab of their
+// own, separate from the navigation store (device-statistics, whose fab is a fac_id and so
+// must never be written into the fab_name-grained store).
 export const FABLESS_FEATURES = new Set<FeatureSlug>(['device-statistics', 'skewvoir'])
 
 export const isFablessFeature = (feature: string): feature is FeatureSlug => {
