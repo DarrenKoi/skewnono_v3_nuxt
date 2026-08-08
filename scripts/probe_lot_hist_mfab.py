@@ -41,7 +41,7 @@ import sys
 from typing import Any
 
 from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.ebeam.cdsem.device_statistics.oper_order import (
+from back_dev_home.ebeam.device_statistics.oper_order import (
     oper_prefix,
     sort_oper_descs,
     unknown_prefixes,

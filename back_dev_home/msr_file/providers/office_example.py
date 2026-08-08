@@ -57,7 +57,7 @@ import math
 from statistics import fmean, pstdev
 from typing import Any
 
-from back_dev_home.ebeam.hitachi._office_meas_hist import (
+from back_dev_home.ebeam._office_meas_hist import (
     ALL_INDICES as _ALL_INDICES,
     search as _os_search,
     text as _text,

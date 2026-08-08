@@ -15,7 +15,7 @@ more it under-counts. See docs/datatables/device_statistics_weekly_trend.txt.
 import logging
 import os
 
-from back_dev_home.ebeam.cdsem.device_statistics import data
+from back_dev_home.ebeam.device_statistics import data
 
 logger = logging.getLogger("skewnono.scheduler")
 

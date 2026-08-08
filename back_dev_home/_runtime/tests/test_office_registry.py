@@ -11,8 +11,8 @@ from back_dev_home._runtime import data_provider, office_registry
 def test_feature_slug_is_the_directory_name_at_any_depth(fake_tree):
     fake_tree({
         "sem_list": ["mock.py"],
-        "ebeam/hitachi/storage": ["mock.py"],
-        "ebeam/cdsem/device_statistics": ["mock.py"],
+        "ebeam/storage": ["mock.py"],
+        "ebeam/device_statistics": ["mock.py"],
     })
     assert set(office_registry.features()) == {
         "sem_list", "storage", "device_statistics",
@@ -32,8 +32,8 @@ def test_per_tab_adapters_never_enter_the_global_registry(fake_tree):
     register 'fdc' — that file is hardware's private business, resolved by
     its own _tab() fallback. The glob enforces this because 'fdc' is not
     literally named 'providers'."""
-    root = fake_tree({"ebeam/hitachi/hardware": ["mock.py", "office.py"]})
-    tab = root / "ebeam/hitachi/hardware/providers/fdc"
+    root = fake_tree({"ebeam/hardware": ["mock.py", "office.py"]})
+    tab = root / "ebeam/hardware/providers/fdc"
     tab.mkdir(parents=True)
     (tab / "office.py").write_text("")
     (tab / "mock.py").write_text("")
@@ -50,15 +50,15 @@ def test_underscore_prefixed_directories_are_skipped(fake_tree):
 
 def test_duplicate_slug_raises_with_both_paths(fake_tree):
     fake_tree({
-        "ebeam/hitachi/hardware": ["mock.py"],
-        "ebeam/cdsem/hardware": ["mock.py"],
+        "ebeam/hardware": ["mock.py"],
+        "vendor_b/hardware": ["mock.py"],
     })
     with pytest.raises(RuntimeError) as exc:
         office_registry.features()
     message = str(exc.value)
     assert "hardware" in message
-    assert "ebeam/hitachi/hardware" in message
-    assert "ebeam/cdsem/hardware" in message
+    assert "ebeam/hardware" in message
+    assert "vendor_b/hardware" in message
 
 
 def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(
@@ -76,8 +76,8 @@ def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(
     guess: resolution has no correct answer here.
     """
     fake_tree({
-        "ebeam/hitachi/hardware": ["mock.py"],
-        "ebeam/cdsem/hardware": ["mock.py"],
+        "ebeam/hardware": ["mock.py"],
+        "vendor_b/hardware": ["mock.py"],
     })
     # Set so the failure is essential to validate_env(), not incidental: this
     # variable can only mean one of the two directories, so the scan error is
@@ -89,8 +89,8 @@ def test_a_duplicate_slug_reaches_the_boot_path_with_both_paths_named(
             boot_call()
         message = str(exc.value)
         assert "Duplicate feature slug 'hardware'" in message
-        assert "back_dev_home/ebeam/hitachi/hardware" in message
-        assert "back_dev_home/ebeam/cdsem/hardware" in message
+        assert "back_dev_home/ebeam/hardware" in message
+        assert "back_dev_home/vendor_b/hardware" in message
 
 
 def test_office_adapter_without_a_mock_sibling_raises(fake_tree):
@@ -101,10 +101,10 @@ def test_office_adapter_without_a_mock_sibling_raises(fake_tree):
 
 
 def test_repo_path_is_relative_to_the_repo_root(fake_tree):
-    fake_tree({"ebeam/hitachi/storage": ["mock.py"]})
+    fake_tree({"ebeam/storage": ["mock.py"]})
     directory = office_registry.features()["storage"]
     assert office_registry.repo_path(directory) == (
-        "back_dev_home/ebeam/hitachi/storage"
+        "back_dev_home/ebeam/storage"
     )
 
 
@@ -121,7 +121,7 @@ def test_real_repo_scan_is_self_consistent():
     real = office_registry.features()
     # Named features, not a count: adding a feature is routine and must not
     # fail an unrelated test. These four span the nesting depths that exist
-    # (top level, ebeam/hitachi/, ebeam/cdsem/).
+    # (top level, ebeam/, ebeam/).
     assert {"sem_list", "storage", "hardware", "device_statistics"} <= set(real)
     # Whatever this machine has must at least be real features — an office.py
     # anywhere else would be a stray copy the orphan guard should have caught.

@@ -22,7 +22,7 @@ import os
 from datetime import timedelta
 
 from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.ebeam.hitachi.recipe_tat.providers.office import (  # type: ignore[attr-defined]
+from back_dev_home.ebeam.recipe_tat.providers.office import (  # type: ignore[attr-defined]
     _INDEX,
     get_anchor_time,
 )

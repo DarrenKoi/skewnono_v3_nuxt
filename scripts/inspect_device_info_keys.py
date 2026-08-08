@@ -57,7 +57,7 @@ from back_dev_home._runtime.office_redis import (
     redis_client,
     redis_text,
 )
-from back_dev_home.ebeam.cdsem.device_statistics.contracts import (
+from back_dev_home.ebeam.device_statistics.contracts import (
     DeviceDescRow,
     R3DeviceGrpRow,
 )
@@ -91,7 +91,7 @@ SYNTHESIZED = frozenset({"id"})
 # per column because "which columns are dirty" is what an adapter author needs.
 PLACEHOLDER_TEXT = ("None", "none", "NONE", "nan", "NaN", "NULL", "null", "")
 
-# Fields `back_dev_home/ebeam/hitachi/_analytics.py`'s `lot_metadata()` reads
+# Fields `back_dev_home/ebeam/_analytics.py`'s `lot_metadata()` reads
 # off device_statistics.data — Recipe TAT's device quick-filter chips break if
 # the office source cannot supply them (device_statistics/MIGRATION.md).
 EXTERNAL_IMPORTER_FIELDS = ("lot_cd", "fac_id", "prod_catg_cd", "tech_nm")
@@ -379,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "  Record what this run proved in BOTH places (CLAUDE.md):\n"
             "    1. docs/datatables/device_desc.txt / r3_device_grp.txt\n"
-            "    2. back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py "
+            "    2. back_dev_home/ebeam/device_statistics/providers/mock.py "
             "docstring\n"
             "  Mark each fact 'office 확인 YYYY-MM-DD'. Then implement\n"
             "  device_statistics/providers/office.py per its MIGRATION.md.\n"

@@ -34,14 +34,14 @@ from collections import Counter
 from datetime import datetime
 
 from back_dev_home._runtime.office_redis import redis_client
-from back_dev_home.ebeam.hitachi._tool_specs import (
+from back_dev_home.ebeam._tool_specs import (
     _TOOL_TYPE_BY_PREFIX,
     SLUG_TO_TOOL_TYPE,
     model_to_tool_type,
 )
 
 try:
-    from back_dev_home.ebeam.hitachi.storage.providers.office import (  # type: ignore[attr-defined]
+    from back_dev_home.ebeam.storage.providers.office import (  # type: ignore[attr-defined]
         _PPID_HASH,
         _load_ppid_snapshots,
     )
@@ -150,7 +150,7 @@ def main() -> int:
     if unknown_total:
         print(f"\n!! {unknown_total}/{len(matched)} matched IPs classify as None.")
         print("   These codes match no known series prefix. Add the series to")
-        print("   _TOOL_TYPE_BY_PREFIX in back_dev_home/ebeam/hitachi/_tool_specs.py")
+        print("   _TOOL_TYPE_BY_PREFIX in back_dev_home/ebeam/_tool_specs.py")
         print("   AND to classifyToolType() in app/composables/useSemListApi.ts --")
         print("   the two must agree or the frontend re-drops what the API returns.")
         findings.append(f"{unknown_total} IPs match no series prefix")

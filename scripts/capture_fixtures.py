@@ -55,52 +55,52 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     ("afm", "afm-analytics.json", "/api/afm/analytics?days=7"),
 
     # cdsem device statistics
-    ("ebeam/cdsem/device_statistics", "r3-device-grp.json",
+    ("ebeam/device_statistics", "r3-device-grp.json",
      "/api/cdsem/device-statistics/r3-device-grp"),
-    ("ebeam/cdsem/device_statistics", "device-desc.json",
+    ("ebeam/device_statistics", "device-desc.json",
      "/api/cdsem/device-statistics/device-desc"),
-    ("ebeam/cdsem/device_statistics", "device-desc-m11-m12.json",
+    ("ebeam/device_statistics", "device-desc-m11-m12.json",
      "/api/cdsem/device-statistics/device-desc?fac_id=M11,M12"),
-    ("ebeam/cdsem/device_statistics", "recipe-statistics.json",
+    ("ebeam/device_statistics", "recipe-statistics.json",
      "/api/cdsem/device-statistics/recipe-statistics?lot_cds=R000,R001"),
-    ("ebeam/cdsem/device_statistics", "recipe-trend.json",
+    ("ebeam/device_statistics", "recipe-trend.json",
      "/api/cdsem/device-statistics/recipe-trend?lot_cds=R000,R001"),
 
     # hitachi storage (shared CD-SEM / HV-SEM)
-    ("ebeam/hitachi/storage", "storage-cdsem.json", "/api/cdsem/storage"),
-    ("ebeam/hitachi/storage", "storage-cdsem-r3.json", "/api/cdsem/storage?fac_id=R3"),
-    ("ebeam/hitachi/storage", "storage-cdsem-ppid-unavailable.json", "/api/cdsem/ppid-unavailable"),
-    ("ebeam/hitachi/storage", "storage-hvsem.json", "/api/hvsem/storage"),
-    ("ebeam/hitachi/storage", "storage-hvsem-ppid-unavailable.json", "/api/hvsem/ppid-unavailable"),
+    ("ebeam/storage", "storage-cdsem.json", "/api/cdsem/storage"),
+    ("ebeam/storage", "storage-cdsem-r3.json", "/api/cdsem/storage?fac_id=R3"),
+    ("ebeam/storage", "storage-cdsem-ppid-unavailable.json", "/api/cdsem/ppid-unavailable"),
+    ("ebeam/storage", "storage-hvsem.json", "/api/hvsem/storage"),
+    ("ebeam/storage", "storage-hvsem-ppid-unavailable.json", "/api/hvsem/ppid-unavailable"),
 
     # hitachi recipe-tat (tool_slug in URL; URL is authoritative)
-    ("ebeam/hitachi/recipe_tat", "ranking-cdsem.json", "/api/cdsem/recipe-tat/ranking"),
-    ("ebeam/hitachi/recipe_tat", "ranking-hvsem.json", "/api/hvsem/recipe-tat/ranking"),
-    ("ebeam/hitachi/recipe_tat", "summary-cdsem.json", "/api/cdsem/recipe-tat/summary"),
-    ("ebeam/hitachi/recipe_tat", "daily-trend-cdsem.json", "/api/cdsem/recipe-tat/daily-trend"),
-    ("ebeam/hitachi/recipe_tat", "devices-cdsem.json", "/api/cdsem/recipe-tat/devices"),
+    ("ebeam/recipe_tat", "ranking-cdsem.json", "/api/cdsem/recipe-tat/ranking"),
+    ("ebeam/recipe_tat", "ranking-hvsem.json", "/api/hvsem/recipe-tat/ranking"),
+    ("ebeam/recipe_tat", "summary-cdsem.json", "/api/cdsem/recipe-tat/summary"),
+    ("ebeam/recipe_tat", "daily-trend-cdsem.json", "/api/cdsem/recipe-tat/daily-trend"),
+    ("ebeam/recipe_tat", "devices-cdsem.json", "/api/cdsem/recipe-tat/devices"),
 
     # hitachi pm-planning (CD-SEM only; fab_name is required, not defaulted)
-    ("ebeam/hitachi/pm_planning", "fleet-cdsem-m14.json",
+    ("ebeam/pm_planning", "fleet-cdsem-m14.json",
      "/api/cdsem/pm-planning/fleet?fab_name=M14"),
 
     # hitachi skew (fab_name required; recipe_id optional but pinned so the
     # captured shape stays the recipe-scoped one)
-    ("ebeam/hitachi/skew", "skew_cdsem_r3.json",
+    ("ebeam/skew", "skew_cdsem_r3.json",
      "/api/cdsem/skew/check?fab_name=R3&recipe_id=CD_MON_16"),
 
     # hitachi hardware (equipment-first path; tool_slug + eqp_id + service)
-    ("ebeam/hitachi/hardware", "hardware-bsm.json",
+    ("ebeam/hardware", "hardware-bsm.json",
      "/api/cdsem/hardware/ECXDX204/bsm?fab_name=M16B&start=2026-04-24&end=2026-05-24"),
-    ("ebeam/hitachi/hardware", "hardware-reso-center.json",
+    ("ebeam/hardware", "hardware-reso-center.json",
      "/api/cdsem/hardware/ECXDX204/reso-center?fab_name=M16B&start=2026-04-24&end=2026-05-24"),
-    ("ebeam/hitachi/hardware", "hardware-fdc.json",
+    ("ebeam/hardware", "hardware-fdc.json",
      "/api/cdsem/hardware/ECXDX204/fdc?fab_name=M16B&start=2026-05-17&end=2026-05-24"),
-    ("ebeam/hitachi/hardware", "hardware-mdc.json",
+    ("ebeam/hardware", "hardware-mdc.json",
      "/api/cdsem/hardware/ECXDX204/mdc?fab_name=M16B&end=2026-05-24"),
-    ("ebeam/hitachi/hardware", "hardware-sce.json",
+    ("ebeam/hardware", "hardware-sce.json",
      "/api/cdsem/hardware/ECXDX204/sce?fab_name=M16B&end=2026-05-24"),
-    ("ebeam/hitachi/hardware", "hardware-bm-pm.json",
+    ("ebeam/hardware", "hardware-bm-pm.json",
      "/api/cdsem/hardware/ECXDX204/bm-pm?fab_name=M16B"),
 ]
 

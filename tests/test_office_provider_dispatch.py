@@ -18,7 +18,7 @@ import pytest
 
 from tests._office_state import has_office_adapter
 
-_REQUIRED = ("ebeam/hitachi/hardware", "ebeam/hitachi/skew")
+_REQUIRED = ("ebeam/hardware", "ebeam/skew")
 _missing = [feature for feature in _REQUIRED if not has_office_adapter(feature)]
 if _missing:
     pytest.skip(
@@ -28,12 +28,12 @@ if _missing:
         allow_module_level=True,
     )
 
-from back_dev_home.ebeam.hitachi.hardware import data as hardware_data
-from back_dev_home.ebeam.hitachi.hardware.providers import mock as hardware_mock
-from back_dev_home.ebeam.hitachi.hardware.providers import office as hardware_office
-from back_dev_home.ebeam.hitachi.skew import data as skew_data
-from back_dev_home.ebeam.hitachi.skew.providers import mock as skew_mock
-from back_dev_home.ebeam.hitachi.skew.providers import office as skew_office
+from back_dev_home.ebeam.hardware import data as hardware_data
+from back_dev_home.ebeam.hardware.providers import mock as hardware_mock
+from back_dev_home.ebeam.hardware.providers import office as hardware_office
+from back_dev_home.ebeam.skew import data as skew_data
+from back_dev_home.ebeam.skew.providers import mock as skew_mock
+from back_dev_home.ebeam.skew.providers import office as skew_office
 
 
 _PROVIDER_ENV_NAMES = (

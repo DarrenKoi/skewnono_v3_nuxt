@@ -49,7 +49,7 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Literal
 
-from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
+from back_dev_home.ebeam._tool_specs import ToolType, model_to_tool_type
 from back_dev_home.meas_hist.contracts import (
     MeasHistFacetsResponse,
     MeasHistFacetValue,

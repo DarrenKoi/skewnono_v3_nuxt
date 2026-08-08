@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from back_dev_home.ebeam.hitachi._tool_specs import ToolType
+from back_dev_home.ebeam._tool_specs import ToolType
 
 
 __all__ = [

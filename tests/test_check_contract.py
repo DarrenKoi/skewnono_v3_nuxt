@@ -334,11 +334,11 @@ def test_the_request_url_uses_the_resolved_base(fixture_root, monkeypatch):
 
 def test_capture_writes_one_fixture_per_endpoint(fixture_root):
     failures = capture_fixtures.capture(
-        [("ebeam/hitachi/storage", "storage-cdsem.json", "/api/cdsem/storage")],
+        [("ebeam/storage", "storage-cdsem.json", "/api/cdsem/storage")],
         fetch=lambda url: {"rows": [{"ppid": "P1"}]},
     )
 
-    written = fixture_root / "ebeam/hitachi/storage/__fixtures__/storage-cdsem.json"
+    written = fixture_root / "ebeam/storage/__fixtures__/storage-cdsem.json"
     assert failures == []
     assert json.loads(written.read_text(encoding="utf-8")) == {"rows": [{"ppid": "P1"}]}
 
