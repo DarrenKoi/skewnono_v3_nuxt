@@ -103,6 +103,100 @@ export interface FailIssueDevicesResponse {
   devices: FailIssueDeviceRow[]
 }
 
+// 백엔드 _analytics_routes.MAX_EQP_IDS 와 같은 값입니다. 서버가 초과분을
+// 자르고 eqp_ids 로 에코하므로 이 상수는 UI 가 미리 막기 위한 것이지
+// 신뢰 경계가 아닙니다.
+export const MAX_COMPARE_EQPS = 5
+
+export interface FailIssueEquipmentRow {
+  eqp_id: string
+  fab_name: string
+  eqp_model_cd: string
+  exec_count: number
+  align_fail_count: number
+  align_fail_rate: number
+  // 이 장비의 레시피 구성이면 나왔어야 할 실패 건수. 지수 툴팁이 씁니다.
+  align_expected: number
+  // actual / expected. 표시 하한 미만이면 null — "실패하지 않았다"가 아니라
+  // "모른다"입니다. 정렬에서도 0 으로 취급하면 안 됩니다.
+  align_index: number | null
+  align_index_low: number | null
+  align_index_high: number | null
+  meas_fail_count: number
+  meas_fail_rate: number
+  meas_expected: number
+  meas_index: number | null
+  meas_index_low: number | null
+  meas_index_high: number | null
+  recipe_count: number
+  top_recipe: string | null
+  top_recipe_share: number
+}
+
+export interface FailIssueFleetReference {
+  tool_count: number
+  total_executions: number
+  align_fail_count: number
+  meas_fail_count: number
+  align_fail_rate: number
+  meas_fail_rate: number
+  median_exec_count: number
+  median_recipe_count: number
+  min_expected_fails: number
+  confidence_z: number
+  percentiles: Record<string, Record<string, number>>
+}
+
+export interface FailIssueEquipmentsResponse {
+  tool_type: FailIssueToolType
+  fab_names: string[]
+  start_date: string
+  end_date: string
+  fleet: FailIssueFleetReference
+  equipments: FailIssueEquipmentRow[]
+}
+
+export interface FailIssueEquipmentTrendPoint {
+  date: string
+  exec_count: number
+  align_fail_count: number
+  meas_fail_count: number
+}
+
+export interface FailIssueEquipmentTrendSeries {
+  eqp_id: string
+  points: FailIssueEquipmentTrendPoint[]
+}
+
+export interface FailIssueEquipmentRecipeCell {
+  eqp_id: string
+  exec_count: number
+  align_fail_count: number
+  meas_fail_count: number
+}
+
+export interface FailIssueEquipmentRecipeRow {
+  class_name: string
+  recipe_name: string
+  full_name: string
+  total_exec_count: number
+  total_align_fail_count: number
+  total_meas_fail_count: number
+  // 응답의 eqp_ids 와 같은 순서·같은 길이입니다. 백엔드가 0채움을 보장하므로
+  // 인덱스로 바로 꽂아도 됩니다.
+  cells: FailIssueEquipmentRecipeCell[]
+}
+
+export interface FailIssueEquipmentCompareResponse {
+  tool_type: FailIssueToolType
+  fab_names: string[]
+  start_date: string
+  end_date: string
+  eqp_ids: string[]
+  trends: FailIssueEquipmentTrendSeries[]
+  recipes: FailIssueEquipmentRecipeRow[]
+}
+
 export interface FailIssueQuery {
   toolType: FailIssueToolType
   fabNames?: string[]
@@ -110,6 +204,7 @@ export interface FailIssueQuery {
   endDate?: string
   limit?: number
   lotCd?: string
+  eqpIds?: string[]
 }
 
 const buildQuery = (params: FailIssueQuery) => {
@@ -119,6 +214,7 @@ const buildQuery = (params: FailIssueQuery) => {
   if (params.fabNames?.length) query.fab_name = params.fabNames.join(',')
   if (params.limit !== undefined) query.limit = String(params.limit)
   if (params.lotCd) query.lot_cd = params.lotCd
+  if (params.eqpIds?.length) query.eqp_id = params.eqpIds.join(',')
   return query
 }
 
@@ -183,12 +279,40 @@ export const useFailIssueApi = () => {
     )
   }
 
+  const fetchEquipments = async (
+    params: FailIssueQuery
+  ): Promise<FailIssueEquipmentsResponse> => {
+    // /devices 와 같이 scope 전용입니다 — lot_cd 나 eqp_id 를 넘기면 "범위
+    // 안에 어떤 장비가 있는가"라는 이 엔드포인트의 목적이 무너집니다.
+    const scope: FailIssueQuery = {
+      toolType: params.toolType,
+      fabNames: params.fabNames,
+      startDate: params.startDate,
+      endDate: params.endDate
+    }
+    return await $fetch<FailIssueEquipmentsResponse>(
+      joinApiPath(base, `/${toolSlug(params.toolType)}/fail-issue/equipments`),
+      { query: buildQuery(scope) }
+    )
+  }
+
+  const fetchEquipmentCompare = async (
+    params: FailIssueQuery
+  ): Promise<FailIssueEquipmentCompareResponse> => {
+    return await $fetch<FailIssueEquipmentCompareResponse>(
+      joinApiPath(base, `/${toolSlug(params.toolType)}/fail-issue/equipment-compare`),
+      { query: buildQuery(params) }
+    )
+  }
+
   return {
     fetchSummary,
     fetchDailyTrend,
     fetchAlignRanking,
     fetchMeasRanking,
-    fetchDevices
+    fetchDevices,
+    fetchEquipments,
+    fetchEquipmentCompare
   }
 }
 
