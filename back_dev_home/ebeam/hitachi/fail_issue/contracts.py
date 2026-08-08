@@ -8,6 +8,8 @@ from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import ToolType
 
 
 __all__ = [
+    "FAIL_INDEX_MIN_EXPECTED",
+    "CONFIDENCE_Z",
     "AlignOutcome",
     "MsrCheck",
     "FailRow",
@@ -18,6 +20,18 @@ __all__ = [
     "DeviceRow",
 ]
 
+
+# 지수를 만들 수 있는 최소 기대 실패 건수. 기대가 1건 미만이면 비율의 분모가
+# 사실상 없습니다.
+#
+# recipe_tat 의 TAT_INDEX_MIN_SAMPLE(=12, 실행 횟수) 과 달리 **OFFICE-VERIFY 가
+# 아닙니다.** 튜닝 대상이 아니라 정의의 경계이기 때문입니다. 잡음 판정은 이
+# 상수가 아니라 신뢰구간이 합니다 — 설계 3.2절.
+FAIL_INDEX_MIN_EXPECTED = 1.0
+
+# Byar 구간의 신뢰수준. 95 % 관례값이며 튜닝 대상이 아닙니다. payload 에
+# 에코하는 이유는 프론트엔드가 구간의 의미를 추측하지 않게 하기 위해서입니다.
+CONFIDENCE_Z = 1.96
 
 AlignOutcome = Literal["Pass", "Fail", "NA"]
 MsrCheck = Literal["Yes", "No"]
