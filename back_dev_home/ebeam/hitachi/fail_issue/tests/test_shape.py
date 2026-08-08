@@ -35,17 +35,20 @@ def _by_id(payload) -> dict:
 # 레시피 난이도가 다른 두 레시피를 정반대 비율로 도는 두 장비. 각 레시피에서
 # 둘 다 **정확히 플릿 평균 실패율**입니다.
 #
-#   L/EASY  기저 5 %,  L/HARD  기저 30 %
-#   EQ-EASYMIX : EASY 1000회(50 실패) + HARD  100회( 30 실패)
-#   EQ-HARDMIX : EASY  100회( 5 실패) + HARD 1000회(300 실패)
+#   align: L/EASY 기저 5 %,  L/HARD 기저 30 %  → 기대 80 / 305
+#   meas : L/EASY 기저 10 %, L/HARD 기저 40 %  → 기대 140 / 410
+#   (align 과 meas 의 건수를 서로 다르게 둔 이유: 두 열이 같은 값이면 한쪽
+#   열을 두 번 읽는 오타가 있어도 이 격자로는 잡히지 않습니다.)
+#   EQ-EASYMIX : EASY 1000회(align 50 / meas 100) + HARD 100회(align 30 / meas 40)
+#   EQ-HARDMIX : EASY  100회(align  5 / meas  10) + HARD 1000회(align 300 / meas 400)
 #
-# 원 실패율은 7.27 % 대 27.73 % 로 4배 가까이 벌어지지만 장비 상태는 동일
-# 합니다. 지수는 둘 다 정확히 1.0 이어야 합니다.
+# 원 실패율은 align 7.27 % 대 27.73 %, meas 12.73 % 대 37.27 % 로 벌어지지만
+# 장비 상태는 동일합니다. 두 지수 모두 둘 다 정확히 1.0 이어야 합니다.
 MIX_GRID = [
-    ("EQ-EASYMIX", FAB, MODEL, "L/EASY", 1000, 50, 50),
-    ("EQ-EASYMIX", FAB, MODEL, "L/HARD", 100, 30, 30),
-    ("EQ-HARDMIX", FAB, MODEL, "L/EASY", 100, 5, 5),
-    ("EQ-HARDMIX", FAB, MODEL, "L/HARD", 1000, 300, 300),
+    ("EQ-EASYMIX", FAB, MODEL, "L/EASY", 1000, 50, 100),
+    ("EQ-EASYMIX", FAB, MODEL, "L/HARD", 100, 30, 40),
+    ("EQ-HARDMIX", FAB, MODEL, "L/EASY", 100, 5, 10),
+    ("EQ-HARDMIX", FAB, MODEL, "L/HARD", 1000, 300, 400),
 ]
 
 
@@ -64,8 +67,15 @@ def test_recipe_mix_cancels_out_so_equal_tools_both_score_one():
     assert easy["align_index"] == pytest.approx(1.0, abs=1e-4)
     assert hard["align_index"] == pytest.approx(1.0, abs=1e-4)
 
-    # meas 는 같은 격자 열이므로 같은 답이 나와야 합니다. align 열을 실수로
-    # 두 번 읽는 오타를 잡습니다.
+    # align 과 meas 의 건수·기저율이 서로 다르므로, 한쪽 열을 두 번 읽는
+    # 오타는 여기서 반드시 드러납니다. (같은 값이었을 때 이 주장은
+    # 데이터가 뒷받침하지 못하는 빈 주장이었습니다.)
+    assert easy["align_fail_count"] == 80
+    assert easy["meas_fail_count"] == 140
+    assert easy["meas_expected"] == pytest.approx(140.0, abs=1e-6)
+    assert hard["meas_expected"] == pytest.approx(410.0, abs=1e-6)
+    assert easy["meas_fail_rate"] == pytest.approx(0.1273, abs=1e-4)
+    assert hard["meas_fail_rate"] == pytest.approx(0.3727, abs=1e-4)
     assert easy["meas_index"] == pytest.approx(1.0, abs=1e-4)
     assert hard["meas_index"] == pytest.approx(1.0, abs=1e-4)
 
@@ -80,11 +90,12 @@ def test_an_average_tool_gets_an_interval_that_straddles_one():
 
 
 # 세 장비가 **같은 레시피만** 돕니다 — 레시피 구성이 동일하므로 지수 차이는
-# 순수하게 장비 차이입니다. EQ-C 만 3배 실패합니다.
+# 순수하게 장비 차이입니다. EQ-C 만 3배 실패합니다. align 과 meas 건수를
+# 다르게 둔 이유는 위 MIX_GRID 와 같습니다 — 열이 뒤바뀌어도 걸리도록.
 SAME_MIX_GRID = [
-    ("EQ-A", FAB, MODEL, "L/EASY", 1000, 50, 50),
-    ("EQ-B", FAB, MODEL, "L/EASY", 1000, 50, 50),
-    ("EQ-C", FAB, MODEL, "L/EASY", 1000, 150, 150),
+    ("EQ-A", FAB, MODEL, "L/EASY", 1000, 50, 80),
+    ("EQ-B", FAB, MODEL, "L/EASY", 1000, 50, 80),
+    ("EQ-C", FAB, MODEL, "L/EASY", 1000, 150, 240),
 ]
 
 
@@ -102,6 +113,15 @@ def test_a_genuinely_worse_tool_gets_an_interval_clear_of_one():
     assert rows["EQ-A"]["align_index_high"] == pytest.approx(0.791, abs=1e-3)
     # 상한이 1.0 아래 — 진짜로 좋습니다.
     assert rows["EQ-A"]["align_index_high"] < 1.0
+
+    # 같은 장비의 meas 지수도 1.8 이지만 **다른 건수·다른 기대치**에서
+    # 나옵니다 (240 / 133.33). 두 열이 뒤바뀌면 2.88 또는 1.125 가 나와
+    # 이 두 주장이 동시에 성립할 수 없습니다.
+    assert rows["EQ-C"]["meas_fail_count"] == 240
+    assert rows["EQ-C"]["meas_expected"] == pytest.approx(133.3333, abs=1e-3)
+    assert rows["EQ-C"]["meas_index"] == pytest.approx(1.8, abs=1e-3)
+    assert rows["EQ-A"]["meas_expected"] == pytest.approx(133.3333, abs=1e-3)
+    assert rows["EQ-A"]["meas_index"] == pytest.approx(0.6, abs=1e-3)
 
 
 def test_index_is_none_below_the_display_floor():
