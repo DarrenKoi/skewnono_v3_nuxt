@@ -222,25 +222,11 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
   return 'i-lucide-arrow-up-down'
 }
 
-// `manualSorting: true` 가 없으면 아래 정렬은 **죽은 코드**입니다. UTable 은
-// 언제나 `getSortedRowModel()` 을 설치하므로, 우리가 정렬해 넘긴 배열을
-// TanStack 이 자기 `sortingFns.basic` 으로 다시 정렬합니다. 그리고
-// `compareBasic(null, x)` 는 -1 이라 null 이 가장 작은 값이 되고
-// (`sortUndefined` 는 `undefined` 에만 걸려 `null` 에는 적용되지 않습니다),
-// TAT index 오름차순에서 표본 미달 장비가 전부 맨 위로 올라옵니다 —
-// "실행이 너무 적어 판단 못 함"이 "가장 빠른 장비"로 읽히는, 표본 하한이
-// 막으려던 바로 그 오독입니다. 내림차순은 우연히 같은 답이 나와 눈에
-// 띄지 않았습니다.
-//
-// 이 한 줄이 `getSortedRowModel()` 을 통째로 우회시켜(table-core
-// `RowSorting.getSortedRowModel` → `manualSorting` 이면
-// `getPreSortedRowModel()` 반환) 아래 비교자를 유일한 정렬로 만듭니다.
-// 헤더 버튼은 그대로 `sorting` 상태만 갱신하고, 그 상태를 아래가 읽습니다.
-const sortingOptions = {
-  enableMultiSort: false,
-  enableSortingRemoval: false,
-  manualSorting: true
-}
+// 이 표는 자기 행을 스스로 정렬합니다. `manualSorting` 이 왜 지워지면 안
+// 되는지는 utils/tableSorting.ts 에 한 번만 적혀 있습니다 — 이 화면에서
+// 구체적으로 깨지는 방식은 TAT index 오름차순에서 표본 미달 장비가 맨 위로
+// 올라와 "판단 못 함"이 "가장 빠른 장비"로 읽히는 것입니다.
+const sortingOptions = MANUAL_SORTING_OPTIONS
 
 const sortedRows = computed(() => {
   const current = sorting.value[0]

@@ -71,9 +71,47 @@ export const SIGNAL_META: Record<EquipmentSignal, { label: string, tone: 'warn' 
 export const isPeerGroupComparable = (rows: readonly { fab_name: string }[]): boolean =>
   new Set(rows.map(row => row.fab_name)).size === 1
 
-const at = (percentiles: FleetPercentiles, metric: string, key: string): number | null => {
+/**
+ * One percentile off the fleet summary, or null when it is not a usable
+ * number. Missing metric, missing key, NaN and Infinity all collapse to null —
+ * "no basis to judge", which every caller turns into "no badge".
+ *
+ * Exported because fail_issue's signal module reads the same summary shape and
+ * had a byte-identical private copy until 2026-08-09.
+ */
+export const percentileAt = (
+  percentiles: FleetPercentiles,
+  metric: string,
+  key: string
+): number | null => {
   const value = percentiles?.[metric]?.[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/**
+ * The `편중` judgement: this tool runs unusually FEW recipes and leans heavily
+ * on its top one. Both halves are required — few recipes alone is a small
+ * workload, and a dominant recipe alone is normal for a dedicated tool.
+ *
+ * `<=` is load-bearing and must not be tightened to `<`. `percentile_summary`
+ * is nearest-rank, so p10 is always equal to some actual sample; in a
+ * five-tool cell that sample is often the minimum itself. With a strict
+ * inequality the tool that DEFINES the boundary falls outside its own tail —
+ * the most extreme tool, exactly the one the badge is for, is structurally
+ * excluded. recipe_count is an integer, so the ties do not thin out as the
+ * fleet grows: this is permanent, not a mock artifact.
+ *
+ * Shared with fail_issue, which shows the same badge from the same two inputs.
+ * Two copies of one predicate diverge one boundary condition at a time.
+ */
+export const isNarrowMix = (
+  row: { recipe_count: number, top_recipe_share: number },
+  percentiles: FleetPercentiles
+): boolean => {
+  const coverageTail = percentileAt(percentiles, 'recipe_count', 'p10')
+  return coverageTail !== null
+    && row.recipe_count <= coverageTail
+    && row.top_recipe_share >= SHARE_CEIL
 }
 
 export const equipmentSignals = (
@@ -90,7 +128,7 @@ export const equipmentSignals = (
   // 달아야 할 — 장비가 구조적으로 제외됩니다. recipe_count처럼 정수형
   // 지표는 플릿 규모가 커져도 동률이 사라지지 않으므로 이 문제는 mock
   // 특유의 결함이 아니라 상시적입니다.
-  const usageTail = at(percentiles, 'usage_ratio', 'p10')
+  const usageTail = percentileAt(percentiles, 'usage_ratio', 'p10')
   if (usageTail !== null && row.usage_ratio <= usageTail && row.usage_ratio < USAGE_FLOOR) {
     signals.push('underused')
   }
@@ -98,22 +136,17 @@ export const equipmentSignals = (
   // tat_index === null 은 표본 미달입니다. "느리지 않다"가 아니라 "모른다"
   // 이므로 어느 쪽으로도 판정하지 않습니다.
   if (row.tat_index !== null) {
-    const slowTail = at(percentiles, 'tat_index', 'p90')
+    const slowTail = percentileAt(percentiles, 'tat_index', 'p90')
     if (slowTail !== null && row.tat_index >= slowTail && row.tat_index > TAT_CEIL) {
       signals.push('slow')
     }
-    const fastTail = at(percentiles, 'tat_index', 'p10')
+    const fastTail = percentileAt(percentiles, 'tat_index', 'p10')
     if (fastTail !== null && row.tat_index <= fastTail && row.tat_index < TAT_FLOOR) {
       signals.push('fast')
     }
   }
 
-  const coverageTail = at(percentiles, 'recipe_count', 'p10')
-  if (
-    coverageTail !== null
-    && row.recipe_count <= coverageTail
-    && row.top_recipe_share >= SHARE_CEIL
-  ) {
+  if (isNarrowMix(row, percentiles)) {
     signals.push('narrow')
   }
 

@@ -14,11 +14,16 @@
 // 앞의 것은 통계가 답하고 뒤의 것은 사람이 정합니다. 그래서 상수만
 // OFFICE-VERIFY 입니다.
 
-// 같은 임계값을 두 번 정의하지 않습니다. `편중` 배지는 두 화면에서 같은 규칙·
-// 같은 입력(recipe_count, top_recipe_share)을 쓰므로 값도 하나여야 합니다.
-// 여기서 다시 export 하면 Nuxt 자동 import 가 같은 이름 두 개 중 하나를 조용히
-// 고르게 되고, 나중에 한쪽만 바뀌는 날 다른 화면이 남의 임계값을 씁니다.
-import { SHARE_CEIL } from './equipmentSignals.ts'
+// `편중` 배지는 두 화면에서 같은 규칙·같은 입력(recipe_count,
+// top_recipe_share)을 쓰므로 판정도 하나여야 합니다. 임계값(SHARE_CEIL)만
+// 가져오던 것을 2026-08-09부터 **판정 함수 전체**로 바꿨습니다: 이 파일에는
+// `at()` 접근자와 편중 판정 절이 통째로 복사돼 있었는데, 같은 술어의 두
+// 사본은 경계 조건 하나씩 갈라집니다 — 특히 `<=` 는 지워지기 쉽고, 지워지면
+// 배지를 달아야 할 가장 극단적인 장비가 조용히 빠집니다.
+//
+// 여기서 재수출하지 않습니다 — 재수출은 함수 하나에 Nuxt auto-import 이름을
+// 둘 만들고, 그중 하나가 조용히 선택됩니다.
+import { isNarrowMix } from './equipmentSignals.ts'
 
 // 또래 집단 판정(`isPeerGroupComparable`)은 여러 fab 을 걸친 조회에서 배지를
 // 끄는 규칙이며, 그 논거는 `./equipmentSignals.ts` 에 한 번만 적혀 있습니다.
@@ -56,15 +61,6 @@ export const FAIL_SIGNAL_META: Record<FailSignal, { label: string, tone: 'warn' 
   healthy: { label: '양호', tone: 'info' }
 }
 
-const at = (
-  percentiles: FailPercentiles,
-  metric: string,
-  key: string
-): number | null => {
-  const value = percentiles?.[metric]?.[key]
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
-}
-
 /** 구간이 1.0 의 한쪽에 완전히 있는가. false 면 표에서 지수를 죽여 그립니다. */
 export const isIndexConclusive = (row: FailEquipmentSignalInput): boolean => {
   if (row.index_low === null || row.index_high === null) return false
@@ -88,18 +84,9 @@ export const failEquipmentSignals = (
     }
   }
 
-  // 꼬리 비교는 포함 부등호입니다. percentile_summary 는 nearest-rank 라 p10
-  // 이 항상 실제 표본 값 하나와 같고, 작은 플릿에서는 그 표본이 곧 최솟값
-  // 자신입니다. 엄격 부등호를 쓰면 경계를 정의하는 장비 자신이 자기 꼬리에
-  // 들지 못해, 정확히 배지를 달아야 할 가장 극단적인 장비가 구조적으로
-  // 제외됩니다. recipe_count 는 정수라 플릿이 커져도 동률이 사라지지
-  // 않으므로 이는 상시적인 문제입니다.
-  const coverageTail = at(percentiles, 'recipe_count', 'p10')
-  if (
-    coverageTail !== null
-    && row.recipe_count <= coverageTail
-    && row.top_recipe_share >= SHARE_CEIL
-  ) {
+  // 판정은 equipmentSignals 의 것을 그대로 씁니다 — 두 화면의 `편중` 은 같은
+  // 배지이고, 포함 부등호가 왜 load-bearing 인지도 거기 한 번만 적혀 있습니다.
+  if (isNarrowMix(row, percentiles)) {
     signals.push('narrow')
   }
 
