@@ -697,7 +697,7 @@ def _idp_remote_path(location: _IdpLocation) -> str:
 
 
 def _transport():
-    """(FtpFleetDownloader, HostSpec, label) for this host.
+    """(FtpFleetDownloader, HostSpec, ListDir, label) for this host.
 
     The office Windows PC has no direct FTP egress to the tools and must go
     through the fileloader HTTP proxy; the cloud Linux host reaches them
@@ -705,10 +705,10 @@ def _transport():
     transfers here unchanged.
     """
     if system() == "Windows":
-        from ftp_handler.proxy import FtpFleetDownloader, HostSpec
-        return FtpFleetDownloader, HostSpec, "proxy (Windows)"
-    from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec
-    return FtpFleetDownloader, HostSpec, "direct"
+        from ftp_handler.proxy import FtpFleetDownloader, HostSpec, ListDir
+        return FtpFleetDownloader, HostSpec, ListDir, "proxy (Windows)"
+    from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec, ListDir
+    return FtpFleetDownloader, HostSpec, ListDir, "direct"
 
 
 def _downloader(downloader_cls, config):
@@ -746,7 +746,7 @@ def _download_idp(location: _IdpLocation) -> bytes:
     validate_tool_ip(location.eqp_ip, config.allowed_subnets)
 
     remote_path = _idp_remote_path(location)
-    downloader_cls, host_spec_cls, transport = _transport()
+    downloader_cls, host_spec_cls, _list_dir_cls, transport = _transport()
     report = _downloader(downloader_cls, config).download(
         [host_spec_cls(location.eqp_ip, files=[remote_path])]
     )
@@ -1453,7 +1453,7 @@ def _fetch_many(
         return {}
 
     config = load_config()
-    downloader_cls, host_spec_cls, transport = _transport()
+    downloader_cls, host_spec_cls, _list_dir_cls, transport = _transport()
 
     # host -> {remote_path -> [(locator key, name), ...]}. A list because two
     # locators on one host CAN resolve to the same path (the same recipe opened
@@ -1510,6 +1510,77 @@ def _fetch_raw(locator: IdpLocator, names: list[str]) -> dict[str, bytes]:
     return _fetch_many({key: names}).get(key, {})
 
 
+def _list_raw_dirs(
+    keys: set[tuple[str, str, str, str]],
+) -> dict[tuple[str, str, str, str], list[str] | None]:
+    """Each locator's raw-folder listing (basenames), or ``None`` if unlisted.
+
+    The discovery step HV-SEM makes mandatory (user-confirmed 2026-08-08): a
+    slot stem expands to stem-suffixed files (``IMMS0001-U.jpeg`` / -T / -M /
+    -L, per targeting sub-position) that no derivation can predict, so the
+    read plan has to start from what the folder actually holds. One
+    ``list_dirs`` fleet call across hosts — a compare spanning N tools stays
+    one extra round trip, mirroring ``_fetch_many``'s shape.
+
+    A listing failure is SOFT on purpose: the caller falls back to the derived
+    single ``{stem}.jpeg`` plan (the CD-SEM shape, and exactly the
+    pre-discovery behavior), and a genuinely unreachable tool still surfaces
+    as ``SourceUnavailable`` from the download step right after. Raising here
+    would turn a degraded listing into a dead screen.
+    """
+    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.paths import validate_tool_ip
+
+    if not keys:
+        return {}
+
+    config = load_config()
+    downloader_cls, host_spec_cls, list_dir_cls, transport = _transport()
+
+    dirs_for: dict[str, set[str]] = {}
+    for eqp_ip, class_name, idw, idp in keys:
+        # Same SSRF gate as _fetch_many: the IP arrives from the client.
+        validate_tool_ip(eqp_ip, config.allowed_subnets)
+        dirs_for.setdefault(eqp_ip, set()).add(rawfiles.raw_dir(class_name, idw, idp))
+
+    specs = [
+        host_spec_cls(eqp_ip, listings=[list_dir_cls(d) for d in sorted(dirs)])
+        for eqp_ip, dirs in dirs_for.items()
+    ]
+    try:
+        report = _downloader(downloader_cls, config).list_dirs(specs)
+    except Exception as exc:  # noqa: BLE001 — degrade to the derived-name plan
+        _LOG.warning("recipe_search: raw-folder listing failed via %s (%s)", transport, exc)
+        return dict.fromkeys(keys)
+
+    failed_hosts = {f.host for f in report.failures}
+    for failure in report.failures:
+        _LOG.info(
+            "recipe_search: listing failed on %s (%s) — planning with derived names",
+            failure.host, failure.error,
+        )
+
+    # HostListing merges every listed dir of one host into a single path list,
+    # so paths are attributed back to a locator by its raw-dir prefix. NLST
+    # output is normalized to full paths (same as msr_image's list_images);
+    # the nested-path guard keeps a subfolder's files (e.g. the hidden
+    # .{name}/cond.txt sidecar dirs) out of the image plan.
+    paths_by_host = report.grouped()
+    out: dict[tuple[str, str, str, str], list[str] | None] = {}
+    for key in keys:
+        eqp_ip, class_name, idw, idp = key
+        if eqp_ip not in paths_by_host and eqp_ip in failed_hosts:
+            out[key] = None
+            continue
+        prefix = rawfiles.raw_dir(class_name, idw, idp) + "/"
+        out[key] = [
+            path[len(prefix):]
+            for path in paths_by_host.get(eqp_ip, [])
+            if path.startswith(prefix) and "/" not in path[len(prefix):]
+        ]
+    return out
+
+
 def get_param_detail(
     items: list[ParamDetailRequestItem],
 ) -> list[ParamDetailResponse]:
@@ -1517,6 +1588,8 @@ def get_param_detail(
 
     Grouped by locator so a compare across N recipes on ONE tool opens one FTP
     session carrying every file, rather than N sessions of five files each.
+    The raw folders are LISTED first (one fleet call) so HV-SEM's suffixed
+    image files are discovered rather than guessed — see ``_list_raw_dirs``.
     """
     from office_utils.idp_amp_reader import (
         read_af_pr_condition,
@@ -1526,11 +1599,13 @@ def get_param_detail(
 
     stage_of = {slot["key"]: slot["stage"] for slot in IMAGE_SLOTS}
 
+    listings = _list_raw_dirs({_locator_key(item["locator"]) for item in items})
+
     wanted: dict[tuple[str, str, str, str], list[str]] = {}
     plans: list[tuple[tuple[str, str, str, str], ParamDetailRequestItem, Any]] = []
     for item in items:
         key = _locator_key(item["locator"])
-        plan = rawfiles.slot_sources(item.get("slots") or {})
+        plan = rawfiles.slot_sources(item.get("slots") or {}, listing=listings.get(key))
         amp, af_pr, images = plan
         # Settings only. The images' BYTES are deliberately NOT fetched here:
         # this response carries their filenames, and the browser pulls each one

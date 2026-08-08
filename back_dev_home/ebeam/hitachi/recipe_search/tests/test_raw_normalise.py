@@ -191,7 +191,10 @@ def test_both_providers_plan_a_parameter_identically():
 
     mock and office used to each walk the slots themselves; they now share
     rawfiles.slot_sources, and this pins that they still agree on the one thing
-    the contract tests cannot see — WHICH FILE each slot names.
+    the contract tests cannot see — WHICH FILE each slot names. Since
+    2026-08-08 the plan starts from a raw-folder listing (the office lists over
+    FTP, the mock synthesizes one), so parity means: the mock's response equals
+    slot_sources fed the same listing the mock synthesized.
     """
     from back_dev_home.ebeam.hitachi.recipe_search.providers import mock
 
@@ -203,7 +206,9 @@ def test_both_providers_plan_a_parameter_identically():
     item = {"locator": locator, "parameter": "Para_1", "slots": slots}
 
     mocked = mock.get_param_detail([item])[0]
-    amp, af_pr, images = rawfiles.slot_sources(slots)
+    amp, af_pr, images = rawfiles.slot_sources(
+        slots, listing=mock._mock_raw_listing(locator, slots)
+    )
 
     assert mocked["amp"]["source"] == amp
     assert mocked["af_pr"]["source"] == af_pr
@@ -275,13 +280,20 @@ class _FakeDownloader:
 
 
 class _FakeSpec:
-    def __init__(self, host, files=()):
-        self.host, self.files = host, list(files)
+    def __init__(self, host, files=(), listings=()):
+        self.host, self.files, self.listings = host, list(files), list(listings)
+
+
+class _FakeListDir:
+    def __init__(self, remote_dir, pattern=None):
+        self.remote_dir, self.pattern = remote_dir, pattern
 
 
 def _patch_ftp(monkeypatch, available):
     downloader = _FakeDownloader(available)
-    monkeypatch.setattr(office, "_transport", lambda: (object, _FakeSpec, "fake"))
+    monkeypatch.setattr(
+        office, "_transport", lambda: (object, _FakeSpec, _FakeListDir, "fake")
+    )
     monkeypatch.setattr(office, "_downloader", lambda _cls, _cfg: downloader)
     return downloader
 
@@ -372,3 +384,78 @@ def test_fetch_raw_is_the_single_locator_case(monkeypatch):
     _patch_ftp(monkeypatch, {(A[0], _path(A, "PRMS0001")): b"a"})
     locator = {"eqp_ip": A[0], "class_name": A[1], "idw": A[2], "idp": A[3]}
     assert office._fetch_raw(locator, ["PRMS0001"]) == {"PRMS0001": b"a"}
+
+
+# ── _list_raw_dirs ────────────────────────────────────────────────────────
+#
+# The discovery step HV-SEM requires (2026-08-08). Like _fetch_many, the FTP
+# part is office-only but the RESULT ATTRIBUTION is pure bookkeeping — and a
+# path attributed to the wrong locator reads as another recipe's images.
+
+
+class _FakeHostListing:
+    def __init__(self, host, paths):
+        self.host, self.paths = host, paths
+
+
+class _FakeListingReport:
+    def __init__(self, listings, failures=()):
+        self.listings, self.failures = listings, list(failures)
+
+    def grouped(self):
+        return {l.host: l.paths for l in self.listings}
+
+
+def _patch_listing(monkeypatch, listings, failures=()):
+    downloader = _FakeDownloader({})
+    downloader.listing_report = _FakeListingReport(
+        [_FakeHostListing(h, p) for h, p in listings.items()], failures
+    )
+    downloader.list_dirs = lambda specs: downloader.listing_report
+    monkeypatch.setattr(
+        office, "_transport", lambda: (object, _FakeSpec, _FakeListDir, "fake")
+    )
+    monkeypatch.setattr(office, "_downloader", lambda _cls, _cfg: downloader)
+    return downloader
+
+
+def test_list_raw_dirs_attributes_basenames_to_the_right_locator(monkeypatch):
+    """Full NLST paths come back per HOST; each locator gets only its own
+    folder's basenames, and the hidden .{name}/cond.txt sidecar entries (one
+    level down) stay out of the image plan."""
+    same_host_c = (A[0], "CLS", "IDW_C", "IDP_C")
+    _patch_listing(monkeypatch, {
+        A[0]: [
+            _path(A, "IMMS0001-U.jpeg"),
+            _path(A, "IMMS0001-L.jpeg"),
+            _path(same_host_c, "IMMS0009.jpeg"),
+            _path(A, ".IMMS0001-U.jpeg/cond.txt"),
+        ],
+        B[0]: [_path(B, "IMMS0002.jpeg")],
+    })
+    out = office._list_raw_dirs({A, B, same_host_c})
+
+    assert out[A] == ["IMMS0001-U.jpeg", "IMMS0001-L.jpeg"]
+    assert out[same_host_c] == ["IMMS0009.jpeg"]
+    assert out[B] == ["IMMS0002.jpeg"]
+
+
+def test_list_raw_dirs_marks_a_failed_host_unlisted_not_empty(monkeypatch):
+    """None (fall back to derived names) is not the same as [] (listed, no
+    match): a dead listing must not erase the derived-name plan."""
+    _patch_listing(
+        monkeypatch,
+        {A[0]: [_path(A, "IMMS0001.jpeg")]},
+        failures=[_FakeFailure(None, "ConnectionRefusedError", host=B[0])],
+    )
+    out = office._list_raw_dirs({A, B})
+    assert out[A] == ["IMMS0001.jpeg"]
+    assert out[B] is None
+
+
+def test_list_raw_dirs_degrades_to_none_when_the_call_itself_raises(monkeypatch):
+    downloader = _patch_listing(monkeypatch, {})
+    def _boom(_specs):
+        raise RuntimeError("proxy down")
+    downloader.list_dirs = _boom
+    assert office._list_raw_dirs({A, B}) == {A: None, B: None}

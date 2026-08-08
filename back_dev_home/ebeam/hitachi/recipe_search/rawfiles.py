@@ -22,18 +22,32 @@ Every value is ``{kind}{stage}{NNNN}`` — ``IM``/``I2`` name images, ``PR`` nam
 a setting key the tool wrote, ``EN`` names the condition file that key resolves
 to, and the stage is ``MP`` (addressing), ``MS`` (measurement) or ``AP`` (align).
 
+ONE SLOT IS NOT ALWAYS ONE FILE (user-confirmed 2026-08-08). The layout above
+is the CD-SEM shape: the slot stem plus ``.jpeg`` IS the file. HV-SEM tools
+shoot one image slot as SEVERAL files, suffixing the shared stem per targeting
+sub-position — ``IMMS0001-U.jpeg`` / ``-T`` / ``-M`` / ``-L``. Which suffixes a
+slot actually has cannot be derived (it depends on the targeting measurement
+point), so a name can only be DISCOVERED from the raw folder's listing:
+``slot_sources`` takes one and expands each slot to every matching file, and
+``image_name`` remains only as the no-listing fallback (exactly the pre-2026-08-08
+behavior, which is also the CD-SEM fast path).
+
 Schema of record: ``docs/datatables/recipe_idp.txt``. If that file and this one
 disagree, that file wins and this one is stale.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from back_dev_home.msr_image.paths import cond_path
 
 __all__ = [
     "ALIGN_OPTICS",
     "EMPTY_SLOT",
+    "IMAGE_EXTENSIONS",
     "IMAGE_SLOT_KEYS",
+    "KNOWN_STEM_SUFFIXES",
     "PART_SLOTS",
     "SETTING_SLOT",
     "SLOT_PREFIX",
@@ -43,6 +57,8 @@ __all__ = [
     "cond_remote_path",
     "cond_source",
     "image_name",
+    "image_stem",
+    "image_variants",
     "is_empty",
     "raw_dir",
     "remote_path",
@@ -97,6 +113,19 @@ SLOT_PREFIX: dict[str, str] = {
     "image_add3": "I2MP",
 }
 
+# Extensions an image file in the raw folder may carry. Same set msr_image
+# accepts (office 확인 2026-07-24 there): tools serve JPEG previews and
+# sometimes only a TIFF original, so filtering to .jpeg would make a tif-only
+# variant undiscoverable.
+IMAGE_EXTENSIONS: tuple[str, ...] = (".jpeg", ".jpg", ".tif", ".tiff")
+
+# The four HV-SEM stem suffixes reported so far (user-confirmed 2026-08-08),
+# in that reported order. ORDERING ONLY — matching is open (any "-{suffix}"
+# after the stem counts), so a fifth letter appearing on a tool is listed
+# after these rather than dropped.
+KNOWN_STEM_SUFFIXES: tuple[str, ...] = ("U", "T", "M", "L")
+_SUFFIX_RANK: dict[str, int] = {s: i for i, s in enumerate(KNOWN_STEM_SUFFIXES)}
+
 
 def is_empty(value: str | None) -> bool:
     """Does this slot name no file? Case- and whitespace-insensitive."""
@@ -112,12 +141,50 @@ def remote_path(raw: str, name: str) -> str:
     return f"{raw}/{name}"
 
 
-def image_name(value: str | None) -> str | None:
-    """``'IMMP0001' -> 'IMMP0001.jpeg'``; an empty slot -> ``None``."""
+def image_stem(value: str | None) -> str | None:
+    """The slot's 8-char stem (``'IMMP0001'``); an empty slot -> ``None``."""
     if is_empty(value):
         return None
     assert value is not None  # is_empty() already rejected None
-    return f"{value.strip()}.jpeg"
+    return value.strip()
+
+
+def image_name(value: str | None) -> str | None:
+    """``'IMMP0001' -> 'IMMP0001.jpeg'``; an empty slot -> ``None``.
+
+    The DERIVED name — correct on CD-SEM, and only the fallback elsewhere:
+    HV-SEM files suffix this stem (``IMMP0001-U.jpeg``), which no arithmetic
+    can predict. Callers holding a raw-folder listing must expand through
+    ``image_variants`` / ``slot_sources`` instead.
+    """
+    stem = image_stem(value)
+    return None if stem is None else f"{stem}.jpeg"
+
+
+def image_variants(stem: str, listing: Iterable[str]) -> list[str]:
+    """Every file in the raw-folder ``listing`` that belongs to this slot.
+
+    A file belongs when its extension is an image's and its own stem is either
+    exactly ``stem`` (CD-SEM: one file per slot) or ``stem`` plus a ``-suffix``
+    (HV-SEM: one file per targeting sub-position, user-confirmed 2026-08-08).
+    Order is deterministic for the screen: the exact-stem file first, then the
+    known suffixes in their reported order (U, T, M, L), then anything else
+    alphabetically. Listing entries may be full paths; only the basename is
+    compared, and the basename is what is returned.
+    """
+    ranked: list[tuple[int, int, str, str]] = []
+    for entry in listing:
+        base = str(entry).replace("\\", "/").rsplit("/", 1)[-1]
+        dot = base.rfind(".")
+        if dot < 0 or base[dot:].lower() not in IMAGE_EXTENSIONS:
+            continue
+        file_stem = base[:dot]
+        if file_stem == stem:
+            ranked.append((0, 0, "", base))
+        elif file_stem.startswith(f"{stem}-"):
+            suffix = file_stem[len(stem) + 1:]
+            ranked.append((1, _SUFFIX_RANK.get(suffix, len(_SUFFIX_RANK)), suffix, base))
+    return [base for *_, base in sorted(ranked)]
 
 
 def setting_name(value: str | None, *, pr_to_en: bool = False) -> str | None:
@@ -189,6 +256,7 @@ def cond_remote_path(raw: str, image_file_name: str) -> str:
 
 def slot_sources(
     slots: dict[str, str],
+    listing: Iterable[str] | None = None,
 ) -> tuple[str | None, str | None, list[tuple[str, str, str]]]:
     """One parameter's five slot values -> the files they name.
 
@@ -196,12 +264,24 @@ def slot_sources(
     either provider because both need exactly this mapping and provider parity
     is the thing the contract tests exist to protect — two hand-kept-in-sync
     copies would be parity by discipline instead of by construction.
+
+    ``listing`` is the raw folder's actual file list when the caller has one
+    (the office adapter lists it; the mock synthesizes one). With it, a slot
+    expands to EVERY matching file — several per slot on HV-SEM — so ``slot``
+    is NOT unique across the returned triples. Without it, or when a slot has
+    no match in it, the derived single ``{stem}.jpeg`` stands in, which keeps
+    a failed or absent listing exactly as good as the pre-discovery behavior.
     """
     amp = setting_name(slots.get(SETTING_SLOT["amp"]))
     af_pr = setting_name(slots.get(SETTING_SLOT["af_pr"]), pr_to_en=True)
-    images = [
-        (slot, name, cond_source(name))
-        for slot in IMAGE_SLOT_KEYS
-        if (name := image_name(slots.get(slot))) is not None
-    ]
+    listed = list(listing) if listing is not None else None
+    images: list[tuple[str, str, str]] = []
+    for slot in IMAGE_SLOT_KEYS:
+        stem = image_stem(slots.get(slot))
+        if stem is None:
+            continue
+        names = image_variants(stem, listed) if listed is not None else []
+        if not names:
+            names = [f"{stem}.jpeg"]
+        images.extend((slot, name, cond_source(name)) for name in names)
     return amp, af_pr, images

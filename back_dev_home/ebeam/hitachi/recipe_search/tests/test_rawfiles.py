@@ -87,3 +87,63 @@ def test_image_slot_keys_exclude_the_two_setting_only_columns():
     """img_add2 and img_meas2 name settings, not images — and image_add3 does
     name an image despite breaking the img_* naming run."""
     assert rawfiles.IMAGE_SLOT_KEYS == ("img_add1", "image_add3", "img_meas1")
+
+
+# ── HV-SEM: one slot, several stem-suffixed files (user-confirmed 2026-08-08) ─
+
+
+def test_image_variants_finds_the_exact_stem_and_its_suffixed_files():
+    listing = [
+        "IMMS0001.jpeg",          # the CD-SEM shape
+        "IMMS0001-U.jpeg",        # the HV-SEM shape ...
+        "IMMS0001-L.jpeg",
+        "IMMS0001-M.tif",         # ... including a tif-only sub-position
+        "IMMS0002.jpeg",          # a different slot's file
+        "IMMS00010.jpeg",         # NOT this stem: 'IMMS0001' + '0', no dash
+        ".IMMS0001-U.jpeg",       # hidden sidecar dir name, not an image
+        "PRMS0001",               # setting file: no image extension
+    ]
+    assert rawfiles.image_variants("IMMS0001", listing) == [
+        "IMMS0001.jpeg", "IMMS0001-U.jpeg", "IMMS0001-M.tif", "IMMS0001-L.jpeg",
+    ]
+
+
+def test_image_variants_orders_known_suffixes_as_reported_then_the_rest():
+    """U, T, M, L is the reported order (2026-08-08); an unknown suffix is
+    listed after them rather than dropped — matching is open, order is not."""
+    listing = [
+        "IMMS0001-X.jpeg", "IMMS0001-L.jpeg", "IMMS0001-T.jpeg", "IMMS0001-U.jpeg",
+    ]
+    assert rawfiles.image_variants("IMMS0001", listing) == [
+        "IMMS0001-U.jpeg", "IMMS0001-T.jpeg", "IMMS0001-L.jpeg", "IMMS0001-X.jpeg",
+    ]
+
+
+def test_image_variants_accepts_full_paths_and_returns_basenames():
+    listing = ["/HITACHI/DEVICE/HD/CLS/data/IDW_A/IDP_B/IMMS0001-U.jpeg"]
+    assert rawfiles.image_variants("IMMS0001", listing) == ["IMMS0001-U.jpeg"]
+
+
+def test_slot_sources_with_a_listing_expands_each_slot_to_every_file():
+    """`slot` repeats across the triples — one entry per FILE, each with its
+    own cond sidecar derived from the suffixed name."""
+    listing = ["IMMS0001-U.jpeg", "IMMS0001-L.jpeg", "IMMP0001.jpeg"]
+    _amp, _af_pr, images = rawfiles.slot_sources(
+        {"img_add1": "IMMP0001", "img_meas1": "IMMS0001"}, listing=listing
+    )
+    assert images == [
+        ("img_add1", "IMMP0001.jpeg", ".IMMP0001.jpeg/cond.txt"),
+        ("img_meas1", "IMMS0001-U.jpeg", ".IMMS0001-U.jpeg/cond.txt"),
+        ("img_meas1", "IMMS0001-L.jpeg", ".IMMS0001-L.jpeg/cond.txt"),
+    ]
+
+
+def test_slot_sources_falls_back_to_the_derived_name_when_unlisted():
+    """listing=None (failed listing) and a listed folder with no match both
+    degrade to the pre-discovery single {stem}.jpeg plan — never to nothing."""
+    expected = [("img_meas1", "IMMS0001.jpeg", ".IMMS0001.jpeg/cond.txt")]
+    for listing in (None, [], ["OTHER0001.jpeg"]):
+        _amp, _af_pr, images = rawfiles.slot_sources(
+            {"img_meas1": "IMMS0001"}, listing=listing
+        )
+        assert images == expected, f"listing={listing!r}"

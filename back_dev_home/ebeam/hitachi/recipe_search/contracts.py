@@ -139,8 +139,14 @@ SettingBlock = TypedDict("SettingBlock", {
     "rows": list[SettingRow]
 })
 
-# One image slot of one parameter. ``name`` is the full filename, ready to hand
+# One image FILE of one parameter. ``name`` is the full filename, ready to hand
 # straight to the recipe-image endpoint.
+#
+# ★ ``slot`` is NOT unique within a response's list (2026-08-08). CD-SEM has
+#   one file per slot, but HV-SEM shoots a slot as several stem-suffixed files
+#   (IMMS0001-U.jpeg / -T / -M / -L, one per targeting sub-position), each with
+#   its own cond sidecar — so one slot then contributes several entries, in
+#   rawfiles.image_variants order. Consumers must key on (slot, name).
 ParamImage = TypedDict("ParamImage", {
     "slot": str,
     "stage": str,
@@ -286,9 +292,11 @@ class MeasurementPointsResponse(TypedDict):
     points: list[WaferMpInfoRow]
 
 
-# One image slot, flattened. The SettingBlock's file name moves to
+# One image FILE, flattened. The SettingBlock's file name moves to
 # ``cond_source`` so the rows are a plain list; a caller wanting the block shape
-# verbatim uses param-detail.
+# verbatim uses param-detail. Same 2026-08-08 cardinality note as ParamImage:
+# an HV-SEM slot contributes several entries (stem-suffixed files), so ``slot``
+# is not unique — key on (slot, name).
 ParamInfoImage = TypedDict("ParamInfoImage", {
     "slot": str,
     "stage": str,

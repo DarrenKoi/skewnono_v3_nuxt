@@ -43,17 +43,55 @@ def test_the_empty_sentinel_produces_no_block_and_no_image():
 
 
 def test_only_the_three_image_slots_produce_images():
-    """img_add2 and img_meas2 name settings, not images."""
-    detail = _detail({
-        "img_add1": "IMMP0001", "img_add2": "PRMP0001", "image_add3": "I2MP0001",
-        "img_meas1": "IMMS0001", "img_meas2": "PRMS0001",
-    })
-    assert [image["name"] for image in detail["images"]] == [
-        "IMMP0001.jpeg", "I2MP0001.jpeg", "IMMS0001.jpeg",
-    ]
-    assert [image["slot"] for image in detail["images"]] == list(
+    """img_add2 and img_meas2 name settings, not images.
+
+    A slot may expand to several stem-suffixed files (the HV-SEM shape,
+    2026-08-08), so the pin is membership and slot order — every name belongs
+    to its slot's stem, and only the three image slots appear.
+    """
+    stem_of = {
+        "img_add1": "IMMP0001", "image_add3": "I2MP0001", "img_meas1": "IMMS0001",
+    }
+    detail = _detail({**stem_of, "img_add2": "PRMP0001", "img_meas2": "PRMS0001"})
+
+    assert detail["images"], "the three stems must produce at least one image"
+    assert list(dict.fromkeys(i["slot"] for i in detail["images"])) == list(
         rawfiles.IMAGE_SLOT_KEYS
     )
+    for image in detail["images"]:
+        stem = stem_of[image["slot"]]
+        assert re.fullmatch(rf"{stem}(-[A-Z]+)?\.jpeg", image["name"]), image["name"]
+
+
+def test_a_slot_can_expand_to_several_suffixed_files_each_with_its_own_cond():
+    """The HV-SEM shape (user-confirmed 2026-08-08): one img_meas1 stem, several
+    -U/-T/-M/-L files, one cond sidecar per FILE — so `slot` repeats and the
+    cond source follows the suffixed name, not the stem."""
+    for seq in range(1, 40):
+        stem = f"IMMS{seq:04d}"
+        detail = _detail({"img_meas1": stem})
+        names = [image["name"] for image in detail["images"]]
+        if len(names) <= 1:
+            continue
+        suffixes = [name[len(stem) + 1:].split(".")[0] for name in names]
+        assert all(name.startswith(f"{stem}-") for name in names)
+        assert suffixes == list(rawfiles.KNOWN_STEM_SUFFIXES[: len(names)])
+        assert [image["slot"] for image in detail["images"]] == ["img_meas1"] * len(names)
+        assert [image["cond"]["source"] for image in detail["images"]] == [
+            f".{name}/cond.txt" for name in names
+        ]
+        return
+    raise AssertionError("no img_meas1 stem expanded to suffixed files")
+
+
+def test_the_single_file_cd_sem_shape_still_occurs():
+    """Both shapes must exist at home or the CD-SEM path goes untested."""
+    for seq in range(1, 40):
+        stem = f"IMMS{seq:04d}"
+        names = [image["name"] for image in _detail({"img_meas1": stem})["images"]]
+        if names == [f"{stem}.jpeg"]:
+            return
+    raise AssertionError("no img_meas1 stem kept the single bare-stem file")
 
 
 def test_each_image_carries_its_condition_block():

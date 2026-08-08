@@ -969,6 +969,34 @@ def _fake_locator(recipe_id: str) -> IdpLocator:
     }
 
 
+def _mock_raw_listing(locator: IdpLocator, slots: dict[str, str]) -> list[str]:
+    """A synthesized raw-folder listing for this parameter's image slots.
+
+    The mock's stand-in for the FTP listing the office adapter takes before
+    planning. Per slot the seeded draw is either the single bare-stem file
+    (the CD-SEM shape) or a 2–4 file ``-U/-T/-M/-L`` subset (the HV-SEM shape,
+    user-confirmed 2026-08-08). The request carries no tool_type, so both
+    shapes appear under both slugs — what home needs is that multi-image
+    slots EXIST, not that the family split is faithful. jpeg only: TIFF is
+    confirmed for MSR result images, not for recipe raw folders.
+    """
+    idp = str((locator or {}).get("idp", ""))
+    listing: list[str] = []
+    for slot in rawfiles.IMAGE_SLOT_KEYS:
+        stem = rawfiles.image_stem((slots or {}).get(slot))
+        if stem is None:
+            continue
+        count = 1 + _seed_for_values("raw-listing", idp, stem) % 4
+        if count == 1:
+            listing.append(f"{stem}.jpeg")
+        else:
+            listing.extend(
+                f"{stem}-{suffix}.jpeg"
+                for suffix in rawfiles.KNOWN_STEM_SUFFIXES[:count]
+            )
+    return listing
+
+
 def get_param_detail(
     items: list[ParamDetailRequestItem]
 ) -> list[ParamDetailResponse]:
@@ -982,9 +1010,14 @@ def get_param_detail(
     out: list[ParamDetailResponse] = []
     for item in items:
         # Same planner the office adapter uses, so the two cannot disagree
-        # about which file a slot names.
-        amp, af_pr, images = rawfiles.slot_sources(item.get("slots") or {})
+        # about which file a slot names. The listing plays the office's FTP
+        # listing: through it an HV-SEM-shaped slot expands to its suffixed
+        # files, so ``images`` may carry several entries per slot at home too.
+        slots = item.get("slots") or {}
         locator = item.get("locator") or {}
+        amp, af_pr, images = rawfiles.slot_sources(
+            slots, listing=_mock_raw_listing(locator, slots)
+        )
         scope = (str(locator.get("idp", "")), item.get("parameter", ""))
         out.append({
             "parameter": item.get("parameter", ""),
