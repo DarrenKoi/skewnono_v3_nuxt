@@ -32,11 +32,25 @@
       </div>
     </div>
 
+    <p
+      v-if="!peerGroupComparable"
+      class="mb-3 flex items-start gap-1.5 sk-meta"
+    >
+      <UIcon
+        name="i-lucide-info"
+        class="mt-px h-3.5 w-3.5 shrink-0"
+      />
+      <span>
+        신호 배지는 fab을 하나만 선택했을 때 표시됩니다. 여러 fab을 함께 조회하면
+        레시피 길이가 fab마다 달라, 배지가 장비 차이가 아니라 fab 차이를 가리킵니다.
+      </span>
+    </p>
+
     <UTable
       v-model:sorting="sorting"
       :columns="columns"
       :data="sortedRows"
-      :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
+      :sorting-options="sortingOptions"
       sticky="header"
       :ui="tableUi"
     >
@@ -78,7 +92,14 @@
       </template>
 
       <template #signals-cell="{ row }">
-        <div class="flex flex-wrap gap-1">
+        <span
+          v-if="!peerGroupComparable"
+          class="text-(--sk-ink-muted)"
+        >—</span>
+        <div
+          v-else
+          class="flex flex-wrap gap-1"
+        >
           <span
             v-for="signal in signalsFor(row.original)"
             :key="signal"
@@ -111,6 +132,11 @@ import {
 const props = defineProps<{
   rows: RecipeTatEquipmentRow[]
   percentiles: FleetPercentiles
+  // 또래 집단이 한 fab으로 이루어져 있는가. false면 배지를 하나도 달지
+  // 않습니다 — 섞인 fab에서 배지는 장비가 아니라 fab을 가리킵니다
+  // (근거는 utils/equipmentSignals.ts의 isPeerGroupComparable 위 주석).
+  // 판정을 equipmentSignals() 안에 넣지 않은 이유도 같은 곳에 적혀 있습니다.
+  peerGroupComparable: boolean
   selected: string[]
   maxSelected: number
 }>()
@@ -150,6 +176,26 @@ const getSortIcon = (direction: false | 'asc' | 'desc') => {
   return 'i-lucide-arrow-up-down'
 }
 
+// `manualSorting: true` 가 없으면 아래 정렬은 **죽은 코드**입니다. UTable 은
+// 언제나 `getSortedRowModel()` 을 설치하므로, 우리가 정렬해 넘긴 배열을
+// TanStack 이 자기 `sortingFns.basic` 으로 다시 정렬합니다. 그리고
+// `compareBasic(null, x)` 는 -1 이라 null 이 가장 작은 값이 되고
+// (`sortUndefined` 는 `undefined` 에만 걸려 `null` 에는 적용되지 않습니다),
+// TAT index 오름차순에서 표본 미달 장비가 전부 맨 위로 올라옵니다 —
+// "실행이 너무 적어 판단 못 함"이 "가장 빠른 장비"로 읽히는, 표본 하한이
+// 막으려던 바로 그 오독입니다. 내림차순은 우연히 같은 답이 나와 눈에
+// 띄지 않았습니다.
+//
+// 이 한 줄이 `getSortedRowModel()` 을 통째로 우회시켜(table-core
+// `RowSorting.getSortedRowModel` → `manualSorting` 이면
+// `getPreSortedRowModel()` 반환) 아래 비교자를 유일한 정렬로 만듭니다.
+// 헤더 버튼은 그대로 `sorting` 상태만 갱신하고, 그 상태를 아래가 읽습니다.
+const sortingOptions = {
+  enableMultiSort: false,
+  enableSortingRemoval: false,
+  manualSorting: true
+}
+
 const sortedRows = computed(() => {
   const current = sorting.value[0]
   if (!current) return filteredRows.value
@@ -176,7 +222,8 @@ const toggle = (eqpId: string) => {
   emit('update:selected', [...props.selected, eqpId])
 }
 
-const signalsFor = (row: RecipeTatEquipmentRow) => equipmentSignals(row, props.percentiles)
+const signalsFor = (row: RecipeTatEquipmentRow) =>
+  props.peerGroupComparable ? equipmentSignals(row, props.percentiles) : []
 
 const columns: TableColumn<RecipeTatEquipmentRow>[] = [
   { id: 'pick', header: '', size: 44 },
