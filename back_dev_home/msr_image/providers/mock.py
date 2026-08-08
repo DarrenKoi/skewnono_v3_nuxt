@@ -43,15 +43,26 @@ def _seed(*parts: str) -> int:
     return int(hashlib.md5("|".join(parts).encode()).hexdigest(), 16)
 
 
+# The four HV-SEM stem suffixes (user-confirmed 2026-08-08): tools shoot one
+# targeting point as several files, e.g. S04_M0004-01MP-U.jpeg / -T / -M / -L.
+_STEM_SUFFIXES = ("U", "T", "M", "L")
+
+
 def list_images(eqp_ip: str, class_name: str, msr: str) -> list[str]:
-    count = 3 + _seed(eqp_ip, class_name, msr) % 6  # 3..8 images
+    count = 3 + _seed(eqp_ip, class_name, msr) % 6  # 3..8 shots
     # Office tools serve JPEG previews alongside TIFF originals (confirmed
     # 2026-07-24) — every 4th shot is a .tif so the frontend's no-preview
-    # fallback stays exercised at home.
-    return [
-        f"{msr}_shot{i:02d}.{'tif' if i % 4 == 0 else 'jpeg'}"
-        for i in range(1, count + 1)
-    ]
+    # fallback stays exercised at home. Every 3rd shot expands to an HV-SEM
+    # suffixed pair (2026-08-08) so suffixed names exist in the home listing;
+    # the request path treats names as opaque either way.
+    names: list[str] = []
+    for i in range(1, count + 1):
+        ext = "tif" if i % 4 == 0 else "jpeg"
+        if i % 3 == 0:
+            names += [f"{msr}_shot{i:02d}-{s}.{ext}" for s in _STEM_SUFFIXES[:2]]
+        else:
+            names.append(f"{msr}_shot{i:02d}.{ext}")
+    return names
 
 
 def _svg(locator: ImageLocator) -> bytes:

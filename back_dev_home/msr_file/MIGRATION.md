@@ -103,7 +103,12 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   → 404, same as the mock.
 - Normalization gaps handled by `build_response` (pure, pinned at home by
   `tests/test_office_template.py`): spaced pickle columns
-  (`"mp_image_name 01"`, `"meas_condition mag"`) → underscore names,
+  (`"mp_image_name 01"`, `"meas_condition mag"`) → underscore names —
+  **including every `"mp_image_name NN"` column**: since 2026-08-08 the row
+  carries them all as `mp_image_names` (NN order, `_mp_image_names`), because
+  HV-SEM shoots one targeting point as several stem-suffixed files
+  (`S04_M0004-01MP-U.jpeg` / `-T` / `-M` / `-L`, sometimes `.tif` only) and a
+  `_01`-only row structurally hid the rest —
   `object` → `object_type`, `class` → `class_name`, `"None"` strings → real
   `None`, `chip_coordinate` absent office-side → `""`. Gated-key derivations:
   `site_layout_hash` = sha1 of layout geometry + site set (map_offset

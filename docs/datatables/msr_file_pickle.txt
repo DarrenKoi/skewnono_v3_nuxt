@@ -104,9 +104,15 @@ columns : value (examples)
                     상태가 "측정 2개 이상 필요" 를 띄웠습니다.
                     ANGLE 처럼 nm 이 아닌 parameter 는 이름으로 구분되므로 이
                     기본값의 영향을 받지 않습니다 (deg).
-"no_of_mp_image": 1, 0
+"no_of_mp_image": 1, 0, 3 — 이 row 가 가진 이미지 파일 개수
 "mp_image_name 01": image file name — .jpeg 프리뷰와 .tif 원본이 섞여 있음
                     (office 확인 2026-07-24: 한 MSR 에서 26 jpeg / 13 tif)
+                    HV-SEM 은 targeting point 하나를 여러 장으로 찍으므로
+                    "mp_image_name 02", "mp_image_name 03", ... 컬럼이
+                    no_of_mp_image 만큼 이어집니다 (user-confirmed 2026-08-08).
+                    이름은 공유 stem 에 -U/-T/-M/-L suffix 를 붙인 형태이며
+                    (예: S04_M0004-01MP-U.jpeg), 어떤 구성원은 .jpeg 없이
+                    .tif 만 존재합니다. CD-SEM 은 보통 01 하나입니다.
 "meas_condition mag": magnification value (0, 250030, 250044)
 "meas_condition vac": voltage acceleration (0, 500,..)
 "meas_condition pixel": "0,0", "512,512"
@@ -294,9 +300,17 @@ there can be either more or less.
   "class"(exe_detail_info) 도 예약어라 class_name 이 됩니다.
 
   mp_image_name 은 01 하나가 아니라 NN 번호가 붙어 여러 개 존재할 수 있습니다
-  (no_of_mp_image 만큼). 화면 계약은 대표 1장(mp_image_name_01)만 쓰지만, 장비 FTP
-  이미지 목록 대조(docs/datatables/msr_image_ftp.txt)는 mp_image_name 으로 시작하는
-  컬럼 **전부**를 훑습니다.
+  (no_of_mp_image 만큼 — HV-SEM 다중 이미지, user-confirmed 2026-08-08).
+  화면 계약은 2026-08-08 부터 **컬럼 전부**를 `mp_image_names` 목록(NN 순서)으로
+  내려보내며, `mp_image_name_01` 은 대표 1장으로 유지됩니다(항상 목록의 첫
+  원소). 2026-08-08 이전에는 대표 1장만 실어 스큐보아가 HV-SEM 의 나머지
+  이미지를 볼 수 없었습니다. 장비 FTP 이미지 목록 대조
+  (docs/datatables/msr_image_ftp.txt)도 같은 컬럼 전부를 훑습니다.
+
+  프론트엔드는 이 목록을 utils/msrRows.ts 의 rowImageNames() 로만 읽습니다 —
+  목록이 없는 구형 응답(구 office.py 복사본, 캐시)은 _01 폴백으로 1장이라도
+  그립니다. cache warmer 도 같은 목록을 예열해야 합니다: 빠진 파일은 cold
+  in-request FTP 로 흘러 cloud ingress 에서 502 가 납니다.
 
 없는 field
 

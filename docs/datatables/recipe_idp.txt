@@ -535,6 +535,36 @@ idp_image_info 의 img_* 값은 모두 **8자, 확장자 없음**, {kind}{stage}
    img_add1 · image_add3 · img_meas1 셋뿐입니다. image_add3 는 img_* 이름 규칙에서
    벗어나지만 이미지가 맞습니다.
 
+HV-SEM — slot 하나가 파일 여러 개입니다 (user-confirmed 2026-08-08)
+------------------------------------------------------------------
+
+위 이름 표와 규칙 7가지는 **CD-SEM 의 모양**입니다. HV-SEM 은 targeting
+measurement point 에 따라 image slot 하나를 여러 장으로 찍고, 공유 stem 뒤에
+`-U` / `-T` / `-M` / `-L` suffix 를 붙입니다 (예: IMMS0001-U.jpeg). 그래서
+
+1. slot 값(stem)에서 파일명을 **산술로 만들 수 없습니다.** 어떤 suffix 가
+   실제로 존재하는지는 raw 폴더를 **listing** 해야만 압니다.
+   `rawfiles.slot_sources` 가 listing 을 받아 stem 일치(`stem` 정확히, 또는
+   `stem-` 로 시작) 파일 전부로 확장하고, listing 이 없거나 실패하면 기존
+   파생 이름({stem}.jpeg)으로 폴백합니다 — CD-SEM 은 그 폴백이 그대로
+   정답이므로 동작이 변하지 않습니다. office adapter 는 param-detail 계획
+   전에 `_list_raw_dirs` 로 fleet listing 1회를 수행합니다.
+2. cond sidecar 는 slot 이 아니라 **파일 단위**입니다:
+   .IMMS0001-U.jpeg/cond.txt. 따라서 ParamImage 의 slot 은 응답 안에서
+   유일 key 가 아니며, 소비처는 (slot, name) 으로 식별해야 합니다.
+3. suffix 집합이 U/T/M/L 4개로 닫혀 있다는 확인은 없습니다. 매칭은 열려
+   있고(`stem-` 뒤 무엇이든 suffix 로 봅니다), 알려진 4개는 보고된
+   순서(U, T, M, L)로 화면 정렬에만 쓰입니다. 각 글자의 의미도 아직
+   모릅니다 — OFFICE-VERIFY.
+4. 확장자도 .jpeg 확정이 아닙니다. msr 결과 이미지처럼 .tif 만 존재하는
+   파일이 있을 수 있어 매칭은 .jpeg/.jpg/.tif/.tiff 4종을 다 받습니다.
+   OFFICE-VERIFY: recipe raw 폴더에서 실제 관측된 확장자는 아직 .jpeg 뿐이라,
+   mock 의 recipe listing 은 .jpeg 만 만듭니다.
+
+wafer align 이미지(IMAP…)에 같은 suffix 확장이 있는지는 확인되지 않았습니다 —
+OFFICE-VERIFY. adapter 는 align 쪽을 종전대로 파생 이름 1개로 다루고, 없는
+파일은 파일 없음으로 그립니다.
+
 wafer align
 -----------
 

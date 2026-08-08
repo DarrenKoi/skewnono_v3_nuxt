@@ -25,6 +25,15 @@ class_name 과 msr 은 meas_hist 문서의 같은 이름 field 에서 옵니다
   jpeg 만 필터하면 TIFF 가 통째로 보이지 않게 됩니다 — 첫 사무실 점검에서 39장 중
   13장이 "없는 파일" 로 잡힌 원인이 이것이었습니다.
 
+파일 이름 (HV-SEM, user-confirmed 2026-08-08)
+
+  HV-SEM 은 targeting point 하나를 여러 장으로 찍어 공유 stem 에 -U/-T/-M/-L
+  suffix 를 붙입니다 (예: S04_M0004-01MP-U.jpeg). 어떤 구성원은 .jpeg 없이
+  .tif 만 존재합니다. 이 feature 의 요청 경로는 이름을 **불투명 문자열**로만
+  다루므로(정확 일치 fetch, hyphen 은 validate_segment 통과) 코드 변경 없이
+  동작합니다 — 어떤 이름을 요청할지는 msr_file 의 mp_image_names 목록이
+  정합니다(docs/datatables/msr_file_pickle.txt 의 어댑터 규약).
+
 경로 표기 주의
 
 FTP 목록(NLST)은 **전체 경로**를 돌려줍니다. 프론트로 내려보내는 계약은 basename

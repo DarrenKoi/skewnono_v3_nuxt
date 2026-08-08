@@ -70,6 +70,16 @@ function are gone; three endpoints replace them.
   than decoding a JSON error body as a picture.
 - **`get_param_detail` groups by locator before fetching**, so a compare across
   N recipes on one tool is one FTP session rather than N.
+- **`get_param_detail` LISTS the raw folders before planning (2026-08-08).**
+  HV-SEM expands one image slot into several stem-suffixed files
+  (`IMMS0001-U.jpeg` / `-T` / `-M` / `-L`) that no derivation can predict, so
+  the adapter runs `_list_raw_dirs` (one `list_dirs` fleet call, same
+  transport) and hands each locator's basenames to
+  `rawfiles.slot_sources(slots, listing=...)`. A listing failure is SOFT —
+  the plan falls back to the derived `{stem}.jpeg` names (the CD-SEM shape and
+  the pre-2026-08-08 behavior); an unreachable host still surfaces as 503 from
+  the download step. `slot` is therefore no longer unique in
+  `ParamDetailResponse.images` — one entry per FILE, each with its own cond.
 
 ### What the 2026-07-30 probe run changed
 

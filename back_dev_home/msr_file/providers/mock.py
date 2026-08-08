@@ -75,6 +75,17 @@ renamed keys and the frontend consumes them under those names.
 mp_number < 0 — a point with metadata but no data has no measurement. Every
 consumer must gate on this; see app/utils/msrRows.ts.
 
+IMAGES ARE A LIST (2026-08-08). The pickle numbers image columns
+"mp_image_name 01..NN" (as many as no_of_mp_image); HV-SEM tools shoot one
+targeting point as several files, suffixing the shared stem -U/-T/-M/-L, and
+some members exist only as .tif (user-confirmed 2026-08-08). The contract
+carries the full ordered list as ``mp_image_names`` with ``mp_image_name_01``
+as the representative first entry. The mock has no tool-family axis, so
+single- and multi-image rows are BOTH drawn for every class (see
+``_row_image_names``) — what home needs is that both shapes exist, not that
+the family split is faithful. Deliberate difference from the office: the
+suffix subset and jpeg/tif mix per row are seeded fabrications.
+
 UNKNOWN-SAFE SIGNATURE BOUNDARY (Task 2). The response DELIBERATELY carries no
 ``site_layout_hash``, ``recipe_revision``, ``coordinate_transform_version`` or
 ``sequence_timestamp``. The frontend compatibility signature
