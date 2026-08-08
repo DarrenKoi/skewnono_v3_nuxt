@@ -84,7 +84,7 @@ tool_type 도메인 확장에는 정면으로 영향을 받습니다(§5 참조)
 | 항목 | 결정 |
 | --- | --- |
 | 백엔드 레이아웃 | `ebeam/<feature>/` 로 평탄화 (`hitachi/`, `cdsem/` 중간 폴더 제거) |
-| 벤더 축 표현 | `<feature>/providers/<vendor>/` 하위 폴더 |
+| 벤더 축 표현 | `<feature>/providers/<adapter>/` 하위 폴더. 단위는 벤더가 아니라 **어댑터가 담당하는 범위** — `hitachi/`(cdsem+hvsem), `veritysem/`, `provision/` |
 | 개명 시점 | 즉시 실행 |
 | AMAT tool_type | `veritysem`, `provision` (하이픈 없음) |
 | `veritysem` 적용 범위 | 백엔드 슬러그 · tool_type · 프론트 라우트 · 활동 로그 슬러그 전부 |
@@ -108,9 +108,10 @@ back_dev_home/ebeam/
 │   ├── routes.py
 │   ├── providers/
 │   │   ├── mock.py             # 레지스트리가 발견하는 디스패처
-│   │   ├── office_example.py   # 벤더 디스패처
-│   │   ├── hitachi/{mock,office_example}.py
-│   │   └── amat/{mock,office_example}.py
+│   │   ├── office_example.py   # 어댑터 디스패처
+│   │   ├── hitachi/{mock,office_example}.py    # cdsem + hvsem
+│   │   ├── veritysem/{mock,office_example}.py
+│   │   └── provision/{mock,office_example}.py
 │   └── tests/
 ├── hardware/               # 탭 하위 폴더 + 벤더 하위 폴더 (2축)
 ├── skew/  recipe_tat/  recipe_search/  pm_planning/
@@ -152,19 +153,48 @@ back_dev_home/ebeam/
 `mock.py` 이므로, 이를 벤더 폴더로 옮기면 해당 feature 가 레지스트리에서
 사라지고 `get_data_provider()` 와 헬스 엔드포인트가 깨집니다.
 
-### 4.4 벤더 디스패처
+### 4.4 하위 폴더의 단위는 "어댑터가 담당하는 범위"
+
+하위 폴더를 벤더로 자를지 tool family 로 자를지가 갈립니다. 결론은 **어느
+쪽도 아니고, 하나의 오피스 어댑터가 덮는 범위**입니다.
+
+| 폴더 | 덮는 계열 | 이유 |
+| --- | --- | --- |
+| `hitachi/` | `cdsem` + `hvsem` | 현재 어댑터가 이미 `tool_slug` 를 인자로 받아 두 계열을 서빙합니다. 오피스 키는 계열별로 갈라져 있지만(`v3_df_ppid_storage_cdsem` / `_hvsem`) 어댑터 안에서 분기합니다 |
+| `veritysem/` | `veritysem` | 소스가 확인되지 않았고, 두 계열이 따로 확인될 가능성이 높습니다 |
+| `provision/` | `provision` | 위와 같습니다 |
+
+AMAT 을 `amat/` 하나로 묶지 않는 이유는 **readiness 표현** 때문입니다.
+VeritySEM 소스는 확인됐는데 Provision 은 아직인 상황에서, `amat/office.py`
+하나로는 "둘 다 연계된 척"하거나 "둘 다 막는 것" 중 하나밖에 못 합니다.
+파일 존재가 곧 스위치라는 이 저장소의 규약(§6.2 8단계)은 그 파일이 덮는
+범위가 실제 연계 단위와 일치할 때만 정확합니다.
+
+나중에 두 계열이 같은 소스를 쓰는 것으로 확인되면 `amat/` 하나로 합칠 수
+있습니다. `contracts.py` 가 공유되므로 합치는 비용은 낮습니다. 반대 방향
+(하나를 둘로 쪼개기)이 더 비싸므로 쪼갠 상태에서 출발합니다.
+
+두 축의 개수가 다르다는 점을 기억합니다 — 벤더는 2개(어댑터를 가르는 축),
+tool family 는 4개(URL·명부를 가르는 축)입니다. 벤더를 feature 위에 두면 이
+두 축이 한 경로에 뭉개집니다.
+
+### 4.5 어댑터 디스패처
 
 `hardware/providers/office_example.py` 의 `_tab()` 을 본뜨되, **폴백 정책만
 다릅니다.**
 
 ```python
-def _vendor(name: str):
-    """providers/<vendor>/office.py 를 import 합니다.
+def _adapter(name: str):
+    """providers/<adapter>/office.py 를 import 합니다.
 
     없으면 501 을 발생시킵니다. hardware 의 _tab() 은 mock 으로 폴백하지만,
-    탭은 원래 존재하는 것이고 미완인 기간이 짧습니다. 신규 벤더는 어댑터가
+    탭은 원래 존재하는 것이고 미완인 기간이 짧습니다. 신규 계열은 어댑터가
     없는 기간이 몇 달 단위이므로, 같은 폴백을 쓰면 사무실에서 조작된 mock
     데이터를 진짜처럼 몇 달간 보여주게 됩니다.
+
+    name 은 tool_slug 에서 온 어댑터 이름입니다 — cdsem/hvsem -> "hitachi",
+    veritysem -> "veritysem", provision -> "provision". 이 매핑은
+    ebeam/_tool_specs.py 가 유일한 원천입니다.
     """
     module = f"{__package__}.{name}.office"
     try:
@@ -172,7 +202,7 @@ def _vendor(name: str):
     except ModuleNotFoundError as exc:
         if exc.name != module:
             raise  # 어댑터 내부의 진짜 의존성 누락
-    raise VendorNotWired(name)
+    raise AdapterNotWired(name)
 ```
 
 `exc.name` 가드는 그대로 유지합니다. "아직 만들지 않은 어댑터"와 "만들었는데
@@ -188,12 +218,16 @@ import 가 깨진 어댑터"를 구분하는 것이 이 패턴의 핵심이며, 
 
 `ebeam/_tool_specs.py` 가 슬러그 · tool_type · 벤더의 단일 원천이 됩니다.
 
-| 슬러그 | tool_type | 벤더 |
-| --- | --- | --- |
-| `cdsem` | `cd-sem` | HITACHI |
-| `hvsem` | `hv-sem` | HITACHI |
-| `veritysem` | `veritysem` | AMAT |
-| `provision` | `provision` | AMAT |
+| 슬러그 | tool_type | 벤더 | 어댑터 폴더 |
+| --- | --- | --- | --- |
+| `cdsem` | `cd-sem` | HITACHI | `hitachi/` |
+| `hvsem` | `hv-sem` | HITACHI | `hitachi/` |
+| `veritysem` | `veritysem` | AMAT | `veritysem/` |
+| `provision` | `provision` | AMAT | `provision/` |
+
+벤더(2개)와 어댑터 폴더(3개)의 개수가 다릅니다. 벤더는 `sem_list` 의
+`vendor_nm` 과 화면 표기에 쓰이고, 어댑터 폴더는 오피스 연계 단위입니다.
+둘을 같은 것으로 다루지 않습니다.
 
 AMAT 계열은 **슬러그 = tool_type = 프론트 라우트가 한 문자열**입니다.
 이중 표기(`cdsem` ↔ `cd-sem`)는 Hitachi 레거시로만 남습니다. 제품명이
@@ -280,11 +314,11 @@ feature 추가는 Phase 1 의 반복이 됩니다.
 | --- | --- | --- | --- |
 | 1 | 계약 확인 | `<feature>/contracts.py` | 벤더별로 나누지 않습니다. AMAT 이 채우지 못하는 필드는 계약을 쪼개는 대신 null 규약(`""` / `None`)을 계약에 적습니다 |
 | 2 | 스키마 기록 | `docs/datatables/<source>.txt` | 출처 표기 필수 — `office 확인 YYYY-MM-DD` / `user-confirmed` / `OFFICE-VERIFY` |
-| 3 | mock 작성 | `providers/amat/mock.py` | `sem_list` 의 `vendor_nm='AMAT'` row 에서 **파생**합니다. 독립 생성 금지 |
-| 4 | 템플릿 작성 | `providers/amat/office_example.py` | 추적되는 템플릿. 사무실에서 `cp` 할 대상 |
-| 5 | 디스패처 배선 | `providers/{mock,office_example}.py` 의 `_vendor()` | 폴백 대신 501. `exc.name` 가드 유지 |
+| 3 | mock 작성 | `providers/<adapter>/mock.py` | `sem_list` 의 `vendor_nm='AMAT'` row 에서 **파생**합니다. 독립 생성 금지 |
+| 4 | 템플릿 작성 | `providers/<adapter>/office_example.py` | 추적되는 템플릿. 사무실에서 `cp` 할 대상 |
+| 5 | 디스패처 배선 | `providers/{mock,office_example}.py` 의 `_adapter()` | 폴백 대신 501. `exc.name` 가드 유지 |
 | 6 | 문서 갱신 | `<feature>/MIGRATION.md` | 엔드포인트 · 계약 · mock 동작 · 오피스 소스 4항목 |
-| 7 | 테스트 | `tests/test_contract.py`, `test_office_template.py` | 벤더를 파라미터로 추가 |
+| 7 | 테스트 | `tests/test_contract.py`, `test_office_template.py` | 어댑터를 파라미터로 추가 |
 | 8 | 사무실 연결 | `cp office_example.py office.py` | 이 복사가 곧 스위치입니다. `/api/health/providers` 로 확인 |
 
 ### 6.3 불변식
