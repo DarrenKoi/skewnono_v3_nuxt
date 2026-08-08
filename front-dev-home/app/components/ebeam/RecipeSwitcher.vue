@@ -25,6 +25,7 @@ import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import { readRecipeNameQuery, recipeDetailRoute, type RecipeDetailScreen } from '~/utils/recipeView'
 import type { RecipeSelectionEntry } from '~/utils/recipeSelection'
 import { recipePairKey } from '~/utils/recipePair'
+import { sameFab } from '~/utils/fab'
 
 const props = defineProps<{
   toolType: RecipeSearchToolType
@@ -51,8 +52,10 @@ const activeName = computed(() => readRecipeNameQuery(route))
 
 // Selection identity is (name, fab) — matching on name alone would mark two
 // entries active at once when the same recipe name is selected from two fabs.
+// The fab half goes through sameFab: ownerFab arrives from the query string,
+// which routes lowercase, while stored entries are uppercase.
 const isActive = (entry: RecipeSelectionEntry) =>
-  entry.name === activeName.value && entry.fab_name === props.ownerFab
+  entry.name === activeName.value && sameFab(entry.fab_name, props.ownerFab)
 
 const shortId = (id: string) => (id.length > 28 ? `…${id.slice(-26)}` : id)
 

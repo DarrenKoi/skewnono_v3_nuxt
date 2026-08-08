@@ -5,6 +5,7 @@
 // switcher in open/lateral/meas-hist.
 
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
+import { hasFab, normalizeFab, sameFab } from '~/utils/fab'
 import {
   capabilitiesForRecipeSelection,
   normalizeRecipeSelectionEntries,
@@ -27,17 +28,33 @@ export const useRecipeSelectionSet = (toolType: RecipeSearchToolType) => {
 
   const selected = computed(() => entries.value.map(entry => entry.name))
   const capabilities = computed(() => capabilitiesForRecipeSelection(entries.value))
-  const has = (name: string, fabName: string) =>
-    entries.value.some(entry => entry.name === name && entry.fab_name === fabName)
-  const sourceOf = (name: string, fabName: string): RecipeSearchSource =>
-    entries.value.find(entry => entry.name === name && entry.fab_name === fabName)?.source ?? 'redis'
 
+  // Pair equality, with the casing rule utils/fab.ts mandates: a stored fab and
+  // a backend-supplied one can differ in case and still be the same fab, and a
+  // raw `===` would then report "not selected" for a row that is. `sameFab`
+  // alone is not enough here — it answers false for a blank fab, but a blank IS
+  // the identity of a legacy migrated entry, so blank-to-blank must still match
+  // or `toggle` would neither find nor be able to re-add such an entry.
+  const isPair = (entry: RecipeSelectionEntry, name: string, fabName: string) =>
+    entry.name === name
+    && (hasFab(fabName) || hasFab(entry.fab_name)
+      ? sameFab(entry.fab_name, fabName)
+      : true)
+
+  const has = (name: string, fabName: string) =>
+    entries.value.some(entry => isPair(entry, name, fabName))
+  const sourceOf = (name: string, fabName: string): RecipeSearchSource =>
+    entries.value.find(entry => isPair(entry, name, fabName))?.source ?? 'redis'
+
+  // upsert/remove key on the raw fab string (recipePairKey is a concat), so the
+  // fab is canonicalized here — at the composable's boundary — or a lowercase
+  // caller would add a second entry beside the one `has` just matched.
   const add = (name: string, fabName: string, source: RecipeSearchSource = 'redis') => {
-    entries.value = upsertRecipeSelection(entries.value, name, fabName, source)
+    entries.value = upsertRecipeSelection(entries.value, name, normalizeFab(fabName), source)
   }
 
   const remove = (name: string, fabName: string) => {
-    entries.value = removeRecipeSelection(entries.value, name, fabName)
+    entries.value = removeRecipeSelection(entries.value, name, normalizeFab(fabName))
   }
 
   const toggle = (name: string, fabName: string, source: RecipeSearchSource = 'redis') => {

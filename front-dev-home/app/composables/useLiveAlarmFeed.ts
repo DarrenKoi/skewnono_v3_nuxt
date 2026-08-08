@@ -82,6 +82,15 @@ export const applyPoll = (
 // is no /ebeam segment on the API path; sibling routes are /api/<slug>/...
 const apiSlug = (toolSlug: string): string => toolSlug.replace('-', '')
 
+// `fabNames` is read ONCE, at call time. It has to be: the fab list is part of
+// the `useState` key, and a useState key cannot be reactive — that is what
+// gives each fab selection its own events, seen-ids and unseen count instead of
+// one bucket they overwrite in turn.
+//
+// The contract that follows is the consumer's: a component calling this must be
+// re-created when its fab list changes, or it keeps polling the fabs it was
+// born with. `LiveAlarmView` is keyed on its fab list at both call sites for
+// exactly this reason — do not remove that key.
 export const useLiveAlarmFeed = (toolSlug: string, fabNames: string[]) => {
   const fabsKey = fabNames.join(',')
   const key = `live-alarm:${toolSlug}:${fabsKey}`

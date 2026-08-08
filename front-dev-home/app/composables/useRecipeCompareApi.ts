@@ -56,7 +56,13 @@ export const useRecipeCompareApi = () => {
 
   const fetchCompare = async (params: RecipeCompareParams): Promise<RecipeCompareResponse> => {
     const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
-    const refs = params.recipes.filter(r => r.recipe_name.trim())
+    // Trim before the filter AND before the wire: filtering on `.trim()` while
+    // sending the raw name lets a padded name reach the backend, where it fails
+    // to match a registry key that the untrimmed name never had. It also splits
+    // the in-flight cache, so ' A ' and 'A' each open their own request.
+    const refs = params.recipes
+      .map(r => ({ ...r, recipe_name: r.recipe_name.trim() }))
+      .filter(r => r.recipe_name)
     const cacheKey = `${params.toolType}:${recipePairSetKey(refs)}`
     const existing = inFlightCompares.get(cacheKey)
 
