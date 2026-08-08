@@ -80,6 +80,23 @@ columns : value (examples)
                     back_dev_home/msr_file/providers/mock.py 의
                     _program_params 를 참고하시기 바랍니다.
 "cd_value" :43.14, None
+                    단위 컬럼은 없습니다. cd_value 는 단위 없는 숫자이고, 그
+                    숫자는 보통 나노미터입니다 (user-confirmed 2026-08-08).
+                    즉 "단위를 모른다" 가 아니라 "nm 이라서 안 적는다" 입니다.
+                    따라서 응답의 parameter unit 은 pickle 에서 읽는 값이 아니라
+                    parameter 이름으로 우리가 유도하는 값이며, 이름이 어떤
+                    패턴에도 걸리지 않으면 nm 입니다 — providers/mock.py 의
+                    _PARAM_SPECS / _DEFAULT_SPEC 를 참고하시기 바랍니다.
+                    office adapter 도 같은 표를 씁니다 (office_example.py 가
+                    mock._summaries 를 import 합니다).
+                    빈 문자열을 내보내면 안 됩니다. 프런트엔드는 빈 unit 을
+                    UNKNOWN 으로 읽고, 초점 parameter 의 unit 을 모르는 MSR 을
+                    metadata-missing 으로 분석에서 제외합니다 — 2026-08-08 이전
+                    에는 이름이 표에 없는 recipe (예: DEF_REVIEW_001 의 WAFER /
+                    EDGE) 가 비교 세트 전체를 제외당해, 12건을 골라도 분석 준비
+                    상태가 "측정 2개 이상 필요" 를 띄웠습니다.
+                    ANGLE 처럼 nm 이 아닌 parameter 는 이름으로 구분되므로 이
+                    기본값의 영향을 받지 않습니다 (deg).
 "no_of_mp_image": 1, 0
 "mp_image_name 01": image file name — .jpeg 프리뷰와 .tif 원본이 섞여 있음
                     (office 확인 2026-07-24: 한 MSR 에서 26 jpeg / 13 tif)

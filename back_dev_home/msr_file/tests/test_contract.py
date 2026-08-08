@@ -201,7 +201,13 @@ def test_dummy_mp_gets_its_own_unnamed_summary():
     summary = next(s for s in payload["parameters"] if s["parameter"] == "")
     dummies = [row for row in payload["rows"] if row["parameter"] == ""]
     assert summary["count"] == len(dummies)
-    assert summary["unit"] == "", "an unnamed point has no unit to report"
+    # nm, not "" — what a settling shot is missing is its NAME, not its unit. It
+    # carries a real cd_value (asserted above), and an unlabelled CD-SEM length
+    # is nanometres (user-confirmed 2026-08-08). "" would also break the unnamed
+    # point as an ANALYSIS parameter: the frontend reads a blank unit as unknown
+    # and excludes every candidate as metadata-missing, so selecting `(unnamed)`
+    # across a set would empty the comparison it was opened to make.
+    assert summary["unit"] == "nm", "an unlabelled length is still nanometres"
 
 
 # ── sequence is a global per-row counter (Task 3) ────────────────────────────

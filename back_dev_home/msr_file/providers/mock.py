@@ -363,7 +363,22 @@ _PARAM_SPECS: tuple[tuple[tuple[str, ...], float, float, str], ...] = (
     (("THICK",), 10.0, 100.0, "nm"),
     (("PITCH", "SPACE", "LINE", "LWR", "LER"), 10.0, 50.0, "nm"),
 )
-_DEFAULT_SPEC: tuple[float, float, str] = (10.0, 50.0, "")
+# nm, not "" (user-confirmed 2026-08-08). The pickle carries no unit column at
+# all — `unit` is DERIVED here from the parameter name, and this is the answer
+# for a name the table does not recognise. An unlabelled CD-SEM measurement is a
+# length in nanometres; the office data is "just a number" precisely because nm
+# is the assumed unit, not because the unit is unknown.
+#
+# It was "" until 2026-08-08, which the frontend reads as UNKNOWN — and an
+# unknown unit on a candidate is a hard `metadata-missing` exclusion
+# (app/utils/skewvoirAnalysis/compatibility.ts::compareToReference). So every
+# recipe whose parameter names miss this table (DEF_REVIEW_001's WAFER / EDGE,
+# for instance) excluded its entire comparison set from 스큐보아 analysis, and
+# 분석 준비 상태 reported 측정 2개 이상 필요 over a set of twelve.
+#
+# The range stays a CD-like 10–50, which was always an nm range: the values were
+# already nanometres, only the label was missing.
+_DEFAULT_SPEC: tuple[float, float, str] = (10.0, 50.0, "nm")
 
 
 def _param_spec(parameter: str) -> tuple[float, float, str]:
@@ -631,6 +646,13 @@ def _cd_value(
 
 
 def _unit(parameter: str) -> str:
+    """The unit for a parameter, derived from its NAME (see _PARAM_SPECS).
+
+    Cross-phase: office_example.py imports `_summaries`, which calls this, so
+    this table is the single owner of what a unit means in BOTH phases. Never
+    returns "" — an unrecognised name is nm, and the frontend treats a blank
+    unit as unknown rather than as "unitless".
+    """
     return _param_spec(parameter)[2]
 
 

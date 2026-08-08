@@ -58,6 +58,12 @@ class MsrParamSummary(TypedDict):
     std: float
     min: float
     max: float
+    # DERIVED from the parameter name, not read from the pickle — there is no
+    # unit column in df_result_data. Must never be "": the frontend reads a
+    # blank unit as UNKNOWN and excludes the MSR from cross-MSR analysis as
+    # `metadata-missing`. An unrecognised parameter is nm (user-confirmed
+    # 2026-08-08) — the office values are "just a number" because nm is the
+    # assumed unit. Both providers get this from mock._unit via mock._summaries.
     unit: str
 
 
