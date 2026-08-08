@@ -28,10 +28,16 @@ git worktree add ../skewnono-ebeam-phase0 -b work/ebeam-phase0
 cd ../skewnono-ebeam-phase0
 ```
 
-- [ ] **Step 2: 프론트 의존성 연결**
+- [ ] **Step 2: gitignored 의존성 연결**
+
+`.venv/` 와 `node_modules/` 는 둘 다 gitignored 이므로 **worktree 에는
+존재하지 않습니다.** 링크를 걸지 않으면 이 계획의 모든 테스트 명령이
+`No such file or directory` 로 죽습니다.
 
 ```bash
-ln -s ../../skewnono_v3_nuxt/front-dev-home/node_modules front-dev-home/node_modules
+ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv .venv
+ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home/node_modules \
+      front-dev-home/node_modules
 ```
 
 - [ ] **Step 3: 기준선 측정**
@@ -45,10 +51,18 @@ worktree 에는 gitignored `office.py` 가 없으므로 메인 체크아웃과 s
 수가 다릅니다. 이후 모든 검증은 **passed + skipped 합계**로 비교합니다.
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -3 && npm run typecheck 2>&1 | tail -3 && cd ..
+cd front-dev-home && npm test 2>&1 | tail -6 && npm run typecheck 2>&1 | tail -4 && cd ..
 ```
 
-기대: 프론트 테스트 통과, typecheck 0 errors. 숫자를 적어 둡니다.
+기대: 프론트 테스트 통과, typecheck 0 errors.
+
+**2026-08-09 실측 기준선** (이 worktree 에서 측정 완료):
+
+| 대상 | 값 |
+| --- | --- |
+| 백엔드 | 2954 passed + 7 skipped = **2961** (+ 11 subtests) |
+| 프론트 | **1333** pass, 0 fail |
+| typecheck | 0 errors |
 
 ---
 
