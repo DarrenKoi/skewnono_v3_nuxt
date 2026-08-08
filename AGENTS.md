@@ -39,6 +39,10 @@ Cross-phase rule:
 - Keep frontend API usage stable.
 - Change configuration and backend data-access wiring, not frontend feature code.
 - Preserve response shapes when replacing mock modules with real implementations.
+- Make mock data resemble the office data as closely as what we know allows —
+  identifier shape, which axes vary independently, spread, nulls. A mock tidier
+  than the office hides the office's bugs. Fabricate what is genuinely unknown
+  and mark it `OFFICE-VERIFY`.
 
 ## Build, Test, and Development Commands
 Use the command set that matches the workspace you are editing.

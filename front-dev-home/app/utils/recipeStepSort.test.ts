@@ -1,10 +1,10 @@
 // Lot 상세 팝업 recipe 목록의 정렬.
 // Run: node --test app/utils/recipeStepSort.test.ts
 //
-// 이 파일이 존재하는 이유가 곧 이 기능의 검증 방법입니다 — 집의 mock 은
-// recipe_id 에 pool index 를 박아 두어(`RCP-{lot}-{idx:03d}`, oper_seq = idx+1)
-// 공정순과 이름순이 **항상 같은 결과**를 냅니다. 두 정렬이 실제로 다르다는 것은
-// 브라우저로는 집에서 확인할 수 없고, 여기서만 확인됩니다.
+// 여기서 지키는 것은 **비교 함수의 규칙**입니다 — 동률을 가르는 순서, 결정론,
+// 입력 불변성. 두 정렬이 실제로 다른 표를 낸다는 사실은 mock 쪽 회귀 테스트가
+// 지킵니다 (back_dev_home/.../test_recipe_population.py
+// test_recipe_name_order_differs_from_process_order).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { byOperSeq, byRecipeId, sortSteps, stepComparator } from './recipeStepSort.ts'
@@ -31,7 +31,7 @@ test('oper_seq·samp_seq 가 모두 같으면 recipe_id 로 갈려 순서가 결
   assert.deepEqual(ids(sortSteps([...rows].reverse(), 'oper')), ['RCP-A', 'RCP-B'])
 })
 
-test('이름순은 oper_seq 를 무시한다 — 사무실에서 두 정렬이 갈리는 지점', () => {
+test('이름순은 oper_seq 를 무시한다 — 두 정렬이 갈리는 지점', () => {
   // 사무실 recipe_id 는 MMDM 이 부여한 이름이라 공정 순서와 무관합니다.
   // mock 으로는 절대 만들어지지 않는 배치입니다.
   const rows = [step('AAA_CD', 90), step('ZZZ_CD', 10), step('MMM_CD', 50)]

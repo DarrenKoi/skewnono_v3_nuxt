@@ -61,6 +61,55 @@ def test_recipe_id_carries_no_bucket_suffix(trend):
             assert marker not in row["recipe_id"], row["recipe_id"]
 
 
+# ── 이름 형태 ─────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("lot_cd", LOTS)
+def test_recipe_id_has_the_office_slash_shape(lot_cd):
+    """실물 full_name 은 "class_name/recipe_name" 입니다.
+
+    docs/datatables/recipe_name_list.txt L56 (user-confirmed 2026-07-29).
+    """
+    population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    assert population
+
+    for row in population:
+        class_name, sep, recipe_name = row["recipe_id"].partition("/")
+        assert sep == "/", row["recipe_id"]
+        assert class_name and recipe_name, row["recipe_id"]
+
+
+@pytest.mark.parametrize("lot_cd", LOTS)
+def test_recipe_name_order_differs_from_process_order(lot_cd):
+    """이름순과 공정순은 **다른 순서여야** 합니다 — 실물에서 독립인 두 축이므로.
+
+    lot 상세 팝업의 정렬 토글("공정순" / "recipe 이름")이 집에서 눈에 보이는지를
+    지키는 테스트입니다. 예전 ``RCP-{lot}-{idx:03d}`` 는 이름의 사전순이 곧
+    oper_seq 순이라 두 정렬이 **같은 표를 두 번** 냈고, 토글을 눌러도 화면이
+    그대로였습니다. 사무실에서는 recipe 이름을 MMDM 이 부여하므로 공정 순서와
+    무관합니다 — mock 도 그 독립성을 재현해야 두 정렬을 가르는 코드 경로가
+    집에서 실행됩니다.
+    """
+    population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    assert len(population) > 1
+
+    by_oper = [
+        r["recipe_id"] for r in
+        sorted(population, key=lambda r: (r["oper_seq"], r["samp_seq"], r["recipe_id"]))
+    ]
+    by_name = sorted(r["recipe_id"] for r in population)
+
+    assert by_oper != by_name
+
+
+@pytest.mark.parametrize("lot_cd", LOTS)
+def test_recipe_id_is_unique_within_a_lot(lot_cd):
+    """조인 키이므로 lot 안에서 유일해야 합니다 — 겹치면 파라미터가 섞입니다."""
+    population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    recipe_ids = [r["recipe_id"] for r in population]
+
+    assert len(recipe_ids) == len(set(recipe_ids))
+
+
 def test_only_normal_and_only_sample_ids_do_not_collide(trend):
     """예전 ``bucket[:3]`` 은 두 버킷을 똑같이 "ONL" 로 잘라 id 가 겹쳤습니다.
 

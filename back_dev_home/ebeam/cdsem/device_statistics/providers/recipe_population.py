@@ -86,6 +86,7 @@ OFFICE-VERIFY: mother 발생률(여기서는 recipe 의 약 85%가 보유, 보�
 Internal module: 이 feature 밖에서는 device_statistics.data 를 통해 쓰십시오.
 """
 
+import hashlib
 import random
 import re
 from typing import TypedDict
@@ -205,6 +206,19 @@ _PAREN_CD_RATIO = 0.22     # "… CLN CD(E))"  -> 추가계측, 이제 어느 CD
 # 하나도 없으면 `ends_with_pure_cd` 의 "닫는 괄호를 벗긴 뒤 마지막 토큰" 규칙이
 # 한 글자 꼬리에서만 검증되어, only_normal 버킷이 집에서 좁게 확인됩니다.
 _CD_VARIANTS = ("CD(E)", "CD(F)", "CD(BENDING)")
+
+# recipe 이름의 두 조각. 실물 full_name 이 "class_name/recipe_name" 이고 "/" 앞이
+# class_name 입니다 (docs/datatables/recipe_name_list.txt L56, user-confirmed
+# 2026-07-29). 어휘 자체는 지어낸 것이며 사무실의 실제 class 목록이 아닙니다
+# (OFFICE-VERIFY) — 형태만 실물을 따릅니다.
+#
+# 개수가 서로 소여야(8 과 9) digest 의 두 자리가 독립적으로 퍼집니다. 같은 수면
+# class 와 base 가 함께 움직여 이름의 다양성이 8분의 1로 접힙니다.
+_RECIPE_CLASSES = ("ADI", "AEI", "ACI", "CNT", "GATE", "EDGE", "VIA", "QC")
+_RECIPE_BASES = (
+    "CD_BIAS", "OVERLAY", "PITCH_MON", "PROFILE_SCAN", "CONTACT_CHECK",
+    "DAILY_MATCH", "SPACE_CD", "LINE_CD", "HOLE_CD",
+)
 
 # recipe 이름이 "_S"/"SE" 로 끝나는 비율 = only_sample 버킷 크기.
 _SAMPLE_RATIO = 0.25
@@ -331,15 +345,46 @@ def _step_name(rng: random.Random) -> str:
     return f"{code}({words})"
 
 
+def _name_digest(lot_cd: str, idx: int) -> int:
+    """이름 조각을 고르는 안정 digest. ``rng`` 를 쓰지 않는 것이 핵심입니다.
+
+    :func:`_recipe_name` 의 rng 호출 수를 한 번도 바꾸지 않으므로, 이름을 바꿔도
+    풀의 나머지 값(oper_id·samp_seq·para 개수…)은 한 바이트도 움직이지 않습니다.
+    파이썬 ``hash()`` 는 PYTHONHASHSEED 로 실행마다 달라져 쓸 수 없습니다.
+    """
+    digest = hashlib.sha256(f"{lot_cd}:{idx}".encode("utf-8")).hexdigest()
+    return int(digest[:12], 16)
+
+
 def _recipe_name(rng: random.Random, lot_cd: str, idx: int) -> str:
-    """base + Sample 이면 "_S"/"SE", 일부는 판정 외 job 접미사(_WCDU 등).
+    """실물 형태의 recipe_id — ``class_name/recipe_name`` + 이름의 일부인 접미사.
+
+    실물 recipe_id 는 idp registry 의 ``full_name`` 이고 "/" 앞이 class_name 인
+    슬래시 형태입니다 (docs/datatables/recipe_name_list.txt L56, user-confirmed
+    2026-07-29). recipe_search mock 도 같은 shape 를 씁니다.
+
+    **class 를 idx 가 아니라 digest 로 고르는 것이 이 함수의 요점**입니다.
+    사무실에서 recipe 이름은 MMDM 이 부여한 것이라 공정 순서와 아무 관계가
+    없는데, 예전 ``RCP-{lot}-{idx:03d}`` 는 이름의 사전순이 곧 ``oper_seq``
+    순이었습니다. 두 축이 완전상관이면 lot 상세의 정렬 토글("공정순" /
+    "recipe 이름")이 집에서 **같은 표를 두 번** 보여 주고, 두 축을 가르는 코드
+    경로가 한 번도 관찰되지 않습니다. 실물에서 독립인 축은 mock 에서도 독립이어야
+    합니다.
 
     비-Sample·비-exempt id 는 숫자로 끝나므로 ``(_S|SE)$`` 에 우연히 걸리지
     않습니다. exempt 분기는 **같은 roll 을 나눠 쓰고** 접미사를 idx 로 골라
     rng 호출 수를 바꾸지 않습니다 — 호출 수가 달라지면 풀의 뒤쪽 recipe 전부가
     다른 값으로 다시 태어나, 결정론에 기대는 화면·테스트가 통째로 흔들립니다.
+
+    lot_cd 를 이름에 남겨 recipe_id 가 lot 안에서 유일하도록 둡니다. 실물은 한
+    recipe 가 여러 device 에 걸릴 수 있으므로 이 유일성은 mock 이 실물보다 좁은
+    지점입니다 (OFFICE-VERIFY — 공유 비율 미확인).
     """
-    base = f"RCP-{lot_cd}-{idx:03d}"
+    digest = _name_digest(lot_cd, idx)
+    class_name = _RECIPE_CLASSES[digest % len(_RECIPE_CLASSES)]
+    base_name = _RECIPE_BASES[(digest // len(_RECIPE_CLASSES)) % len(_RECIPE_BASES)]
+
+    base = f"{class_name}/{base_name}_{lot_cd}_{idx:03d}"
     roll = rng.random()
     if roll < _SAMPLE_RATIO:
         return base + rng.choice(("_S", "SE"))

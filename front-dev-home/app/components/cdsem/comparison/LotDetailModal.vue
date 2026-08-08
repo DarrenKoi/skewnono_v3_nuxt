@@ -307,10 +307,9 @@ const sortOptions = [
 // 기본값으로 튕기지 않는 편이 낫습니다.
 const recipeSort = ref<RecipeSortKey>('oper')
 
-// 비교 함수는 utils/recipeStepSort.ts 에 있습니다 — 집의 mock 은 두 정렬이
-// 같은 결과를 내도록 recipe_id 를 만들기 때문에(그 파일의 주석 참고) 차이를
-// 확인할 수 있는 곳이 단위 테스트뿐이고, 컴포넌트 안에 두면 테스트가 볼 수
-// 없습니다.
+// 비교 함수는 utils/recipeStepSort.ts 에 있습니다 — 컴포넌트 안에 두면 단위
+// 테스트가 볼 수 없기 때문입니다. 두 정렬의 차이는 집의 mock 에서도 화면으로
+// 확인됩니다(그 파일의 주석 참고).
 const sortedRecipes = computed(() => sortSteps(lotRecipes.value, recipeSort.value))
 
 // 카드마다 막대를 제 합계로 정규화하면 파라미터 3개짜리 recipe 와 40개짜리

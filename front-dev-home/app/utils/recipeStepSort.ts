@@ -9,12 +9,12 @@ import type { RecipeInfoRow } from '~/composables/useRecipeStatisticsApi'
  * wafer 가 지나가는 순서와 같아야 합니다. para 가 큰 recipe 는 막대 길이로
  * 이미 눈에 띄므로 정렬까지 그 축을 쓸 이유가 없습니다.
  *
- * **집에서는 두 정렬이 같은 결과를 냅니다.** mock 의 recipe_id 가
- * `RCP-{lot}-{idx:03d}` 이고 oper_seq 가 `idx + 1` 이라, 이름순과 공정순이
- * 구조적으로 일치하기 때문입니다 (providers/recipe_population.py `_identity_pool`).
- * 사무실에서는 recipe_id 가 MMDM 이 부여한 실제 이름이라 둘이 갈라집니다 —
- * 그래서 이 파일의 테스트가 두 정렬을 구분하는 유일한 장치입니다. 화면으로는
- * 집에서 절대 확인되지 않습니다.
+ * 두 정렬은 **집에서도 다른 결과를 냅니다.** recipe_id 는 사무실에서 MMDM 이
+ * 부여한 `class_name/recipe_name` 이라 공정 순서와 무관한 축인데, mock 도 그
+ * 독립성을 재현하기 때문입니다 — class 를 lot·idx digest 로 고릅니다
+ * (providers/recipe_population.py `_recipe_name`). 예전 mock 의
+ * `RCP-{lot}-{idx:03d}` 는 oper_seq 가 `idx + 1` 이라 두 축이 완전상관이었고,
+ * 정렬 칩을 눌러도 같은 표가 다시 그려졌습니다.
  */
 export type RecipeSortKey = 'oper' | 'recipe'
 

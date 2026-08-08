@@ -177,7 +177,7 @@ types:
       type: string
     recipe_id:
       type: string
-      format: "RCP-<lot_cd>-NNN"
+      format: "<class_name>/<recipe_name> — the idp registry full_name (user-confirmed 2026-07-29). Lexical order is unrelated to oper_seq."
     fac_id:
       type: string
     ctn_desc:

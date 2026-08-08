@@ -79,8 +79,16 @@ will contradict.
 
 "Update mock.py" usually means the **docstring** — what the mock stands in for,
 and where it deliberately differs (grain, ranges, fabricated correlations).
-Change generated values only when the current ones would teach something false
-about the real data. Never make a mock imitate office values it cannot know.
+Change generated values when the current ones would teach something false
+about the real data.
+
+**A mock resembles the real thing as closely as what we know allows.** Copy every
+confirmed property — the shape of an identifier, which axes vary independently,
+how wide the spread is, whether nulls appear — because a mock that is tidier than
+the office is a mock that hides the office's bugs. Where the real value is
+genuinely unknown, fabricate a plausible one and mark it `OFFICE-VERIFY`: the
+provenance marks below are what separate a guess from a confirmed fact, so a
+guess never has to be avoided, only labelled.
 
 Where an office fact came from matters, so mark it: `office 확인 YYYY-MM-DD`
 (verified by a real run), `user-confirmed`, or `OFFICE-VERIFY` (still an
