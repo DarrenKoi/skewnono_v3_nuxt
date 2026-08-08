@@ -88,7 +88,7 @@
           >
             {{ recipe.recipe_id }}
             <span
-              v-if="(data?.fab_names.length ?? 0) > 1"
+              v-if="multiFab"
               class="sk-fab-badge"
             >
               {{ recipe.fab_name }}
@@ -189,7 +189,7 @@
 import type { RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { RecipeCompareResponse } from '~/composables/useRecipeCompareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import type { CompareParamDetail } from '~/utils/recipeCompare'
+import type { CompareColumn, CompareParamDetail } from '~/utils/recipeCompare'
 import {
   COMPARE_SLOTS,
   GROUPING_DEFAULT_THRESHOLD,
@@ -199,7 +199,8 @@ import {
   compareDetailKey,
   downloadCompareWorkbook,
   findParameter,
-  imageFilenames
+  imageFilenames,
+  spansFabs
 } from '~/utils/recipeCompare'
 import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamDetail'
 import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
@@ -250,9 +251,14 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeCompareRespon
 )
 
 const recipes = computed(() => data.value?.recipes ?? [])
-// (recipe_id, fab_name) columns — recipe_id alone collides when the same
-// recipe name is compared across two fabs.
-const compareColumns = computed(() => recipes.value.map(r => ({ recipe_id: r.recipe_id, fab_name: r.fab_name })))
+// recipe_id alone collides when the same recipe name is compared across two
+// fabs, so every compare surface is keyed on the pair.
+const compareColumns = computed<CompareColumn[]>(
+  () => recipes.value.map(r => ({ recipe_id: r.recipe_id, fab_name: r.fab_name })))
+// Asked of the compared recipes, not of the response's echoed `fab_names`:
+// one predicate, one input, so the chip cannot appear on this row and not in
+// the matrix beside it.
+const multiFab = computed(() => spansFabs(recipes.value))
 const overlapRows = computed(() => buildOverlap(recipes.value))
 
 const selectedParameters = ref<string[]>([])

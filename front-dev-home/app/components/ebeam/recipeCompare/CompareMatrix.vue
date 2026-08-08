@@ -110,8 +110,8 @@
 
 <script setup lang="ts">
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
-import type { CompareParamDetail } from '~/utils/recipeCompare'
-import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames } from '~/utils/recipeCompare'
+import type { CompareColumn, CompareParamDetail } from '~/utils/recipeCompare'
+import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames, spansFabs } from '~/utils/recipeCompare'
 import { recipePairKey } from '~/utils/recipePair'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
@@ -129,11 +129,12 @@ const props = defineProps<{
 
 const base = recipeApiBase()
 
-// (recipe_id, fab_name) columns — recipe_id alone collides when the same
-// recipe name is compared across two fabs, so the header needs the pair to
-// stay keyed correctly and to attribute each column to its fab.
-const columns = computed(() => props.recipes.map(r => ({ recipe_id: r.recipe_id, fab_name: r.fab_name })))
-const multiFab = computed(() => new Set(props.recipes.map(r => r.fab_name)).size > 1)
+// recipe_id alone collides when the same recipe name is compared across two
+// fabs, so the header needs the pair to stay keyed correctly and to attribute
+// each column to its fab.
+const columns = computed<CompareColumn[]>(
+  () => props.recipes.map(r => ({ recipe_id: r.recipe_id, fab_name: r.fab_name })))
+const multiFab = computed(() => spansFabs(props.recipes))
 const slotDescriptor = computed(() => IMAGE_SLOTS.find(s => s.key === props.slotKey) ?? IMAGE_SLOTS[0]!)
 const slotLabel = computed(() => slotDescriptor.value.stage)
 

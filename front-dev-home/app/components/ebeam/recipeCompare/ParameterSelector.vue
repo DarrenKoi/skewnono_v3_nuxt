@@ -112,27 +112,24 @@
 
 <script setup lang="ts">
 import {
+  type CompareColumn,
   type Coverage,
   type CoverageFilter,
   type OverlapRow,
   commonParameters,
-  filterOverlap
+  filterOverlap,
+  spansFabs
 } from '~/utils/recipeCompare'
 import { recipePairKey } from '~/utils/recipePair'
 
-export interface ParameterSelectorColumn {
-  recipe_id: string
-  fab_name: string
-}
-
 const props = defineProps<{
   rows: OverlapRow[]
-  columns: ParameterSelectorColumn[]
+  columns: CompareColumn[]
 }>()
 
 // recipe_id alone collides when the same recipe name is compared across two
 // fabs — the chip only earns its keep once that's actually happening.
-const multiFab = computed(() => new Set(props.columns.map(c => c.fab_name)).size > 1)
+const multiFab = computed(() => spansFabs(props.columns))
 
 const modelValue = defineModel<string[]>({ required: true })
 

@@ -13,6 +13,40 @@ import { recipePairKey } from './recipePair.ts'
 
 export const COMPARE_SLOTS = IMAGE_SLOTS
 
+/**
+ * One compared recipe, reduced to what identifies it: the (recipe_id,
+ * fab_name) pair. Every compare surface — the parameter selector's columns,
+ * the matrix's headers, the chip row, the workbook's column labels — needs
+ * exactly this and nothing else, and each had re-declared it inline until
+ * 2026-08-09.
+ *
+ * ON THE NAME. `recipe_id` is canonical: it is the catalog's `"class/recipe"`
+ * string, which is simultaneously the registry hash field and meas_hist's
+ * `full_name` (recipe_search/MIGRATION.md). The compare REQUEST body spells
+ * the same string `recipe_name` (`CompareRecipeRef`) — a wire-contract name,
+ * not a second concept, translated in exactly one place
+ * (`recipesForCompare`). Inside the frontend, say `recipe_id`.
+ */
+export interface CompareColumn {
+  recipe_id: string
+  fab_name: string
+}
+
+/**
+ * Does this compared set cross fab boundaries?
+ *
+ * The answer decides whether a bare recipe name is unambiguous. Not cosmetic:
+ * the same name can legitimately exist once per fab, so two identically
+ * labeled columns over genuinely different data is the exact
+ * silent-wrong-answer the compare screens must not produce.
+ *
+ * One predicate because three variants of it — two inline `new Set(...)`
+ * counts and one inside `compareRecipeLabels` — can disagree, and then the fab
+ * chip shows in one compare view and not another for the same data.
+ */
+export const spansFabs = (columns: Array<{ fab_name: string }>): boolean =>
+  new Set(columns.map(c => c.fab_name)).size > 1
+
 /** Structurally the compare screen's view of one parameter's settings. */
 export type CompareSettingBlock = SettingBlock
 export type CompareParamDetail = ParamDetail
@@ -264,10 +298,8 @@ export interface CompareWorkbook {
  * compare screens must not produce. Shared by the workbook export's column
  * headers and CompareGrouping's expanded-bucket recipe list.
  */
-export function compareRecipeLabels(
-  recipes: Array<Pick<CompareRecipe, 'recipe_id' | 'fab_name'>>
-): string[] {
-  const multiFab = new Set(recipes.map(r => r.fab_name)).size > 1
+export function compareRecipeLabels(recipes: CompareColumn[]): string[] {
+  const multiFab = spansFabs(recipes)
   return recipes.map(r => (multiFab ? `${r.recipe_id} (${r.fab_name})` : r.recipe_id))
 }
 

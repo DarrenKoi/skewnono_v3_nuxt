@@ -27,6 +27,18 @@ export interface CompareRecipe {
   parameters: CompareParameter[]
 }
 
+/**
+ * A recipe as the compare REQUEST body spells it.
+ *
+ * `recipe_name` here and `recipe_id` in the response are THE SAME STRING —
+ * the catalog's `"class/recipe"` value (recipe_search/MIGRATION.md). The two
+ * spellings are a wire-contract fact, not two concepts, and renaming the
+ * request field would be a backend contract change for cosmetics.
+ *
+ * So this is the only place the frontend says `recipe_name`:
+ * `recipesForCompare` produces these refs, `fetchCompare` posts them, and
+ * everything downstream speaks `recipe_id` through `CompareColumn`.
+ */
 export interface CompareRecipeRef {
   recipe_name: string
   fab_name: string
