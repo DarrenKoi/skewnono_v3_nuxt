@@ -19,6 +19,22 @@ and avoids generating a parallel 55,000-row dataset. The equipment identity
 in those rows comes from the sem_list roster, so this feature's per-tool
 samples name real fleet tools too.
 
+장비별 뷰(get_equipments / get_equipment_compare)가 흉내내는 것:
+
+이 mock 의 실패는 FAB_ALIGN_FAIL_RATE · FAB_MEAS_FAIL_RATE 라는 **fab 단위
+고정 스칼라**에서 나옵니다. 즉 mock 에는 "장비 개체차"가 존재하지 않으며,
+같은 fab 안의 장비 지수는 순수하게 표본 변동만으로 흩어집니다. 그래서
+집에서는 배지가 켜지는 것을 안정적으로 재현할 수 없습니다 — 지수 산식과
+0채움·정렬 같은 **모양**은 여기서 검증되지만, 임계값이 실제로 맞는지는
+사무실에서만 알 수 있습니다(OFFICE-VERIFY, MIGRATION.md).
+
+fab 간에는 반대로 3배 차이(0.05~0.15)가 있어서, 여러 fab 을 함께 조회하면
+지수가 장비가 아니라 fab 을 가리키는 편향이 즉시 재현됩니다. 프론트엔드가
+다중 fab 조회에서 배지를 끄는 이유가 이것입니다.
+
+장비별 편차를 여기에 지어내지 마십시오. 사무실 데이터에 대해 거짓을
+가르치게 됩니다.
+
 사무실 주의사항: 사무실 구현은 recipe_tat 결과에 join 하지 말고 OpenSearch
 의 meas_hist 인덱스에서 align_fail/fail_ratio/msr_check 컬럼을 그대로
 읽어와 동일한 집계 (count, rate, daily series) 를 수행해야 합니다.
@@ -46,10 +62,16 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     AlignRankingRow,
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
+    EquipmentsPayload,
     FailRow,
     MeasRankingRow,
     MsrCheck,
     SummaryPayload,
+)
+from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+    build_equipment_compare_payload,
+    build_equipments_payload,
 )
 from back_dev_home.ebeam.hitachi.recipe_tat.providers.mock import (
     ANCHOR_TIME,
@@ -71,7 +93,9 @@ __all__ = [
     "get_daily_trend",
     "get_align_ranking",
     "get_meas_ranking",
-    "get_devices"
+    "get_devices",
+    "get_equipments",
+    "get_equipment_compare"
 ]
 
 
@@ -475,6 +499,95 @@ def get_devices(
             reverse=True
         )
     ]
+
+
+def get_equipments(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None
+) -> EquipmentsPayload:
+    """범위 안의 행을 (장비, 레시피) 격자로 접어 공용 조립기에 넘깁니다.
+
+    office 어댑터는 같은 격자를 OpenSearch composite 집계로 만들어 같은
+    조립기를 부릅니다 — 두 provider 의 숫자가 정의상 일치합니다.
+    """
+    cells: dict[tuple[str, str], list] = {}
+    for row in _filter_rows(tool_type, fab_names, start_date, end_date):
+        key = (row["eqp_id"], row["full_name"])
+        cell = cells.get(key)
+        if cell is None:
+            cells[key] = [
+                row["eqp_id"], row["fab_name"], row["eqp_model_cd"],
+                row["full_name"], 0, 0, 0
+            ]
+            cell = cells[key]
+        cell[4] += 1
+        if _is_align_fail(row):
+            cell[5] += 1
+        if _is_meas_fail(row):
+            cell[6] += 1
+
+    return build_equipments_payload(
+        tool_type, fab_names, start_date, end_date,
+        [tuple(cell) for cell in cells.values()]
+    )
+
+
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...]
+) -> EquipmentComparePayload:
+    """선택된 장비들의 (장비, 날짜) · (장비, 레시피) 두 격자를 만듭니다.
+
+    합집합·0채움·정렬은 전부 공용 조립기가 합니다 — office 어댑터는 같은 두
+    격자를 composite 집계로 만들어 같은 조립기를 부릅니다.
+    """
+    selected = list(dict.fromkeys(eqp_ids))
+    if not selected:
+        return build_equipment_compare_payload(
+            tool_type, fab_names, start_date, end_date, [], [], []
+        )
+
+    wanted = set(selected)
+    rows = [
+        row for row in _filter_rows(tool_type, fab_names, start_date, end_date)
+        if row["eqp_id"] in wanted
+    ]
+
+    trend_cells: dict[tuple[str, str], list] = {}
+    recipe_cells: dict[tuple[str, str], list] = {}
+    for row in rows:
+        is_align = _is_align_fail(row)
+        is_meas = _is_meas_fail(row)
+        day = row["timestamp"][:10]
+
+        day_key = (row["eqp_id"], day)
+        day_cell = trend_cells.get(day_key)
+        if day_cell is None:
+            trend_cells[day_key] = [row["eqp_id"], day, 0, 0, 0]
+            day_cell = trend_cells[day_key]
+        day_cell[2] += 1
+        day_cell[3] += int(is_align)
+        day_cell[4] += int(is_meas)
+
+        recipe_key = (row["eqp_id"], row["full_name"])
+        recipe_cell = recipe_cells.get(recipe_key)
+        if recipe_cell is None:
+            recipe_cells[recipe_key] = [row["eqp_id"], row["full_name"], 0, 0, 0]
+            recipe_cell = recipe_cells[recipe_key]
+        recipe_cell[2] += 1
+        recipe_cell[3] += int(is_align)
+        recipe_cell[4] += int(is_meas)
+
+    return build_equipment_compare_payload(
+        tool_type, fab_names, start_date, end_date, selected,
+        [tuple(cell) for cell in trend_cells.values()],
+        [tuple(cell) for cell in recipe_cells.values()]
+    )
 
 
 if __name__ == "__main__":
