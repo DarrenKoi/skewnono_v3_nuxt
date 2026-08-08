@@ -435,6 +435,7 @@ import { sameFab } from '~/utils/fab'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { CHIP_BASE, CHIP_BASE_MONO, chipClass } from '~/utils/chipClass'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '~/utils/dateTime'
 
 definePageMeta({
   hideFabSidebar: true
@@ -1109,7 +1110,7 @@ const getDeviceRowValue = (row: DeviceRow, key: string) => {
 }
 
 const csvFileName = computed(() => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayStamp()
   const fab = selectedFab.value.toLowerCase()
   return `cd-sem-${fab}-device-statistics-${today}.csv`
 })

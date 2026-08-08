@@ -264,6 +264,7 @@ import {
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
 import { copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '~/utils/dateTime'
 
 const { data, status, error, execute } = usePendingTools()
 const toast = useToast()
@@ -397,7 +398,7 @@ const CSV_COLUMNS: Array<{ id: keyof PendingToolRow, header: string }> = [
 
 const downloadPendingCsv = () => {
   downloadCsv(
-    `pending-tools-${activeGroup.value}-${new Date().toISOString().slice(0, 10)}.csv`,
+    `pending-tools-${activeGroup.value}-${todayStamp()}.csv`,
     CSV_COLUMNS.map(column => column.header),
     visibleRows.value.map(row => CSV_COLUMNS.map(column => row[column.id]))
   )

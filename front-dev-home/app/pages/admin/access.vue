@@ -188,6 +188,7 @@ import {
   useAccessControlApi,
   type AccessOverview
 } from '~/composables/useAccessControlApi'
+import { formatKoreanDateTime } from '~/utils/dateTime'
 
 const { fetchOverview, addException, removeException } = useAccessControlApi()
 
@@ -238,10 +239,5 @@ const onAllow = (userId: string) => runMutation(() => addException(userId))
 
 const onRemove = (userId: string) => runMutation(() => removeException(userId))
 
-const formatTime = (value: string | null) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', { hour12: false })
-}
+const formatTime = (value: string | null) => formatKoreanDateTime(value)
 </script>

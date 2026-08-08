@@ -181,6 +181,7 @@ import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { buildFabSegment } from '~/utils/fab'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   fabs: string[]
@@ -308,7 +309,7 @@ const onSelectStat = (key: string) => {
 }
 
 const exportFileName = computed(() => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayStamp()
   return `${props.toolType}-${props.fabs.join('+').toLowerCase()}-tool-inventory-${today}.csv`
 })
 

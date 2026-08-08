@@ -125,6 +125,7 @@ import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { stableRadialRange, type StableYRangeOptions } from '~/utils/chartRange'
 import { defaultRangeFor, resolveAxisRange } from '~/utils/profileAxisRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
@@ -279,7 +280,7 @@ const scalarsTable = () => {
 
 const downloadScalarsCsv = () => {
   const { headers, rows } = scalarsTable()
-  const date = new Date().toISOString().slice(0, 10)
+  const date = todayStamp()
   downloadCsv(`sharpness-${condition.value}-${date}.csv`, headers, rows)
 }
 

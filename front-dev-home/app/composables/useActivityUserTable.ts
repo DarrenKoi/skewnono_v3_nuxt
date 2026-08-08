@@ -6,6 +6,7 @@ import {
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, userDisplayName, userSearchText } from '~/utils/activity'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '../utils/dateTime'
 
 type UserSort = 'requests' | 'days' | 'recent' | 'name'
 
@@ -107,7 +108,7 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
   })
 
   const download = () => {
-    const date = new Date().toISOString().slice(0, 10)
+    const date = todayStamp()
     const table = tableData()
     downloadCsv(`activity-users-${date}.csv`, table.headers, table.rows)
   }

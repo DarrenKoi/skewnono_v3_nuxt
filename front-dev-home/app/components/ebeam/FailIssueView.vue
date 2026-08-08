@@ -283,6 +283,7 @@ import {
 } from '~/utils/recipeStatusSummary'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   fabs: string[]
@@ -662,7 +663,7 @@ const measColumns: TableColumn<FailIssueMeasRow>[] = [
 // CSV downloads -------------------------------------------------------------
 
 const exportFileBase = computed(() => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayStamp()
   const fab = (props.fabs.join('+') || 'all').toLowerCase()
   return `${props.toolType}-${fab}-fail-issue-${today}`
 })

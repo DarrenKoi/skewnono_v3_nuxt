@@ -1,4 +1,5 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
+import { shiftIsoDate } from '../utils/dateTime'
 import {
   addSkewvoirRecentItem,
   buildSkewvoirRecentItem,
@@ -31,13 +32,6 @@ const readAll = (): SkewvoirRecentItem[] => {
   }
 }
 
-const shiftIso = (iso: string, days: number): string => {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
-  dt.setUTCDate(dt.getUTCDate() - days)
-  return dt.toISOString().slice(0, 10)
-}
-
 export const useSkewvoirRecentlyViewed = (toolType: MeasHistToolType) => {
   const all = usePersistedState<SkewvoirRecentItem[]>(
     'skewvoir-recently-viewed-store',
@@ -53,7 +47,7 @@ export const useSkewvoirRecentlyViewed = (toolType: MeasHistToolType) => {
   }
 
   const items = computed<SkewvoirRecentEntry[]>(() => {
-    const floor = anchor.value ? shiftIso(anchor.value, RETENTION_DAYS) : ''
+    const floor = anchor.value ? shiftIsoDate(anchor.value, RETENTION_DAYS) : ''
     return all.value
       .filter(item => item.toolType === toolType)
       .map((item) => {

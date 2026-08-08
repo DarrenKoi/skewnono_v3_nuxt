@@ -222,6 +222,7 @@ import { copyTextToClipboard } from '~/utils/csvDownload'
 import { storageUsageTier } from '~/utils/storageUsage'
 import { normalizeFab } from '~/utils/fab'
 import type { MetaBarStat } from './MetaBar.vue'
+import { formatDateTimeLocal } from '~/utils/dateTime'
 
 const props = defineProps<{
   fabs: string[]
@@ -353,17 +354,7 @@ const rcpClass = (count: number) => {
   }
 }
 
-const formatTimestamp = (iso: string) => {
-  if (!iso) return ''
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
-}
+const formatTimestamp = (iso: string) => formatDateTimeLocal(iso, { fallback: iso || '' })
 
 const globalFilter = ref('')
 const usageFilter = ref<'all' | 'critical' | 'warning' | 'healthy' | 'unavailable'>('all')

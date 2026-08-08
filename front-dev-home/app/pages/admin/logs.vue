@@ -379,6 +379,7 @@ import {
   type AdminLogQuery
 } from '~/composables/useAdminLogsApi'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
+import { formatDateTimeInput, formatKoreanDateTime } from '~/utils/dateTime'
 
 definePageMeta({ layout: 'hub' })
 useHead({ title: '운영 로그 | SKEWNONO' })
@@ -399,15 +400,6 @@ type DraftFilters = {
   q: string
 }
 
-const toDateTimeInput = (date: Date) => {
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`
-}
-
 const toIso = (value: string) => {
   if (!value) return ''
   const date = new Date(value)
@@ -420,8 +412,8 @@ const makeDefaultFilters = (): DraftFilters => {
   const now = new Date()
   const from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   return {
-    from: toDateTimeInput(from),
-    to: toDateTimeInput(now),
+    from: formatDateTimeInput(from),
+    to: formatDateTimeInput(now),
     level: ALL_SENTINEL,
     event: ALL_SENTINEL,
     method: ALL_SENTINEL,
@@ -595,12 +587,7 @@ const toggleRow = (id: string) => {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-const formatTime = (value: string | null) => {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR', { hour12: false })
-}
+const formatTime = (value: string | null) => formatKoreanDateTime(value, '-')
 
 // Name leads, employee number underneath rather than instead of — the same
 // rule the /activity user table uses, and for the same reason: the log filters

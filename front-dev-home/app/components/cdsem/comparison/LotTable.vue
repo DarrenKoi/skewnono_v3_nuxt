@@ -374,6 +374,7 @@ import {
   paraColors, paraColorsDark, paraOrder
 } from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   rows: Profiled<HealthAugmentedRow>[]
@@ -570,7 +571,7 @@ const lotTable = () => {
 const toast = useToast()
 
 const exportFileName = computed(() => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayStamp()
   return `cdsem-comparison-lots-${today}.csv`
 })
 

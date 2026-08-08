@@ -6,6 +6,7 @@ import {
   type SkewvoirCategory
 } from '~/utils/measHistCascade'
 import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
+import { shiftIsoDate } from '../utils/dateTime'
 import {
   DEFAULT_MEAS_HIST_SORT,
   isReordered,
@@ -39,14 +40,6 @@ export interface MeasHistFilterOptions {
 }
 
 const PAGE_SIZE = 50
-
-// Subtract days from an ISO YYYY-MM-DD without touching wall clock.
-const shiftIso = (iso: string, days: number): string => {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
-  dt.setUTCDate(dt.getUTCDate() - days)
-  return dt.toISOString().slice(0, 10)
-}
 
 // `toolType` keys the session state and NOTHING else — it never reaches
 // buildParams. The search itself still always spans both SEM families unless
@@ -94,7 +87,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   // The retention window is anchored to the backend's declared clock, never to
   // wall-clock today — the Phase 1 mock's data ends at a frozen NOW.
   const defaultRange = computed(() => ({
-    start: anchor.value ? shiftIso(anchor.value, retentionDays.value) : '',
+    start: anchor.value ? shiftIsoDate(anchor.value, retentionDays.value) : '',
     end: anchor.value
   }))
 

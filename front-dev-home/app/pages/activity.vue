@@ -612,6 +612,7 @@ import {
 import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
+import { formatKoreanDateTime } from '~/utils/dateTime'
 
 useHead({ title: '사용 통계 | SKEWNONO' })
 
@@ -691,12 +692,7 @@ const refreshAll = async () => {
 
 const myFavorite = computed(() => activityFeatureLabel(me.value?.top_features?.[0]?.feature))
 
-const formatTime = (iso: string | null | undefined) => {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('ko-KR', { hour12: false })
-}
+const formatTime = (iso: string | null | undefined) => formatKoreanDateTime(iso)
 
 const lastSeenLabel = computed(() => formatTime(me.value?.last_seen))
 

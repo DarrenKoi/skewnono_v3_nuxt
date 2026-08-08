@@ -217,6 +217,7 @@
 <script setup lang="ts">
 import type { DeviceDescRow, R3DeviceGrpRow } from '~/composables/useDeviceStatisticsApi'
 import type { DevicePreset } from '~/composables/useDevicePresets'
+import { formatDateTimeLocal } from '~/utils/dateTime'
 
 type DeviceRow = R3DeviceGrpRow | DeviceDescRow
 
@@ -293,16 +294,7 @@ const deviceChipLabel = (row: DeviceRow): string => {
   return tech ? `${row.fac_id} · ${tech}` : row.fac_id
 }
 
-const formatTimestamp = (iso: string): string => {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
-}
+const formatTimestamp = (iso: string): string => formatDateTimeLocal(iso, { fallback: '' })
 
 const onApplyPreset = (preset: DevicePreset) => {
   emit('applyPreset', preset)
