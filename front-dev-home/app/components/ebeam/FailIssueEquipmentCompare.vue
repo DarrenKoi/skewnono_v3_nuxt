@@ -43,25 +43,18 @@
                 장비별 일별 {{ aspectLabel }}
               </h3>
             </div>
-            <div
-              role="radiogroup"
-              aria-label="추이 지표"
-              class="inline-flex items-center gap-0.5 rounded-md bg-zinc-100/80 p-0.5 dark:bg-zinc-800/70"
-            >
-              <button
+            <!-- 손으로 만든 흰색/zinc 세그먼트 컨트롤은 DESIGN.md가 드리프트로
+                 지목하는 패턴입니다 — 트레이 배경이 raw zinc를 테마 서피스
+                 위로 끌어들이는 지점이었습니다. 토큰화된 SkNavPill로 대체합니다. -->
+            <div class="inline-flex items-center gap-1">
+              <SkNavPill
                 v-for="metric in TREND_METRICS"
                 :key="metric.value"
-                type="button"
-                role="radio"
-                :aria-checked="trendMetric === metric.value"
-                class="inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-semibold transition-colors"
-                :class="trendMetric === metric.value
-                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50'
-                  : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+                size="sm"
+                :label="metric.label"
+                :active="trendMetric === metric.value"
                 @click="trendMetric = metric.value"
-              >
-                {{ metric.label }}
-              </button>
+              />
             </div>
           </div>
         </template>
