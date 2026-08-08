@@ -14,10 +14,18 @@
 // 앞의 것은 통계가 답하고 뒤의 것은 사람이 정합니다. 그래서 상수만
 // OFFICE-VERIFY 입니다.
 
-// 또래 집단 판정은 recipe_tat 과 논거가 동일하므로 그 파일에서 재사용합니다.
-// 복제하면 한쪽만 고쳐지는 날이 옵니다 — 그 함수 위의 긴 주석이 왜 여러 fab
-// 에서 배지를 끄는지 설명합니다.
-export { isPeerGroupComparable } from './equipmentSignals.ts'
+// 같은 임계값을 두 번 정의하지 않습니다. `편중` 배지는 두 화면에서 같은 규칙·
+// 같은 입력(recipe_count, top_recipe_share)을 쓰므로 값도 하나여야 합니다.
+// 여기서 다시 export 하면 Nuxt 자동 import 가 같은 이름 두 개 중 하나를 조용히
+// 고르게 되고, 나중에 한쪽만 바뀌는 날 다른 화면이 남의 임계값을 씁니다.
+import { SHARE_CEIL } from './equipmentSignals.ts'
+
+// 또래 집단 판정(`isPeerGroupComparable`)은 여러 fab 을 걸친 조회에서 배지를
+// 끄는 규칙이며, 그 논거는 `./equipmentSignals.ts` 에 한 번만 적혀 있습니다.
+// 여기서 재수출하지 않습니다 — 재수출은 함수 하나에 auto-import 이름을 둘
+// 만들고, Nuxt 가 그중 하나를 조용히 고르게 만듭니다. 이 배지 정책을 쓰는
+// 화면은 `RecipeTatEquipmentView.vue` 가 하듯 `~/utils/equipmentSignals` 에서
+// 직접 가져다 씁니다.
 
 export interface FailEquipmentSignalInput {
   index: number | null
@@ -41,9 +49,6 @@ export type FailSignal = 'weak' | 'healthy' | 'narrow'
 // 조정 절차는 설계 문서 9절.
 export const FAIL_INDEX_CEIL = 1.25
 export const FAIL_INDEX_FLOOR = 0.75
-
-// equipmentSignals.ts 의 같은 이름과 같은 의미이므로 같은 값입니다.
-export const SHARE_CEIL = 0.50
 
 export const FAIL_SIGNAL_META: Record<FailSignal, { label: string, tone: 'warn' | 'info' }> = {
   weak: { label: '취약', tone: 'warn' },
