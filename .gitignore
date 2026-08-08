@@ -1,8 +1,11 @@
 # ───────────────────────────────────────────────
 # Local agent / editor state
 # ───────────────────────────────────────────────
-# .remember/ is governed by .remember/.gitignore:
-# tracks remember.md + rolled history; ignores now.md, tmp/, logs/
+# .remember/ is local-only scratch — session buffers, daily notes, the handoff
+# baton. It used to sync via .remember/.gitignore (an allowlist for remember.md
+# and the rolled history); that file is now inert, since git never descends into
+# an ignored directory. Nothing under .remember/ reaches the office checkout.
+.remember/
 .claude/settings.local.json
 .playwright-mcp
 
