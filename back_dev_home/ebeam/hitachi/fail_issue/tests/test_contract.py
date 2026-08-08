@@ -21,6 +21,8 @@ any exact-count law here would be a mock-only invariant wearing a disguise.
 
 from datetime import timedelta
 
+import pytest
+
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.hitachi.fail_issue import data
@@ -28,6 +30,9 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     AlignRankingRow,
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
+    EquipmentRow,
+    EquipmentsPayload,
     MeasRankingRow,
     SummaryPayload,
 )
@@ -184,3 +189,96 @@ def test_single_fab_rankings_tag_that_fab_only():
     meas = data.get_meas_ranking("cd-sem", ("R3",), None, None, limit=5)
     assert all(row["fab_names"] == ["R3"] for row in align)
     assert all(row["fab_names"] == ["R3"] for row in meas)
+
+
+# --- 장비별 뷰 ---------------------------------------------------------------
+
+
+def test_equipments_payload_matches_the_contract():
+    tool_type, fabs, start, end = _default_scope()
+    payload = data.get_equipments(tool_type, fabs, start, end)
+
+    assert_matches(payload, EquipmentsPayload)
+    for row in payload["equipments"]:
+        assert_matches(row, EquipmentRow)
+
+
+def test_each_tool_belongs_to_exactly_one_fab():
+    """물리 장비는 fab 하나에 있습니다.
+
+    이게 깨지면 장비별 표에서 한 장비가 여러 행으로 쪼개지고, 지수가 각
+    조각의 부분 실행 수로 계산되어 전부 틀립니다.
+    """
+    tool_type, fabs, start, end = _default_scope()
+    payload = data.get_equipments(tool_type, fabs, start, end)
+
+    seen: dict[str, str] = {}
+    for row in payload["equipments"]:
+        assert row["eqp_id"] not in seen, row["eqp_id"]
+        seen[row["eqp_id"]] = row["fab_name"]
+
+
+def test_fleet_totals_agree_with_the_rows():
+    tool_type, fabs, start, end = _default_scope()
+    payload = data.get_equipments(tool_type, fabs, start, end)
+    rows = payload["equipments"]
+    fleet = payload["fleet"]
+
+    assert fleet["tool_count"] == len(rows)
+    assert fleet["total_executions"] == sum(r["exec_count"] for r in rows)
+    assert fleet["align_fail_count"] == sum(r["align_fail_count"] for r in rows)
+    assert fleet["meas_fail_count"] == sum(r["meas_fail_count"] for r in rows)
+
+
+def test_index_and_its_interval_are_present_or_absent_together():
+    """셋 중 하나만 None 인 상태는 있을 수 없습니다."""
+    tool_type, fabs, start, end = _default_scope()
+    payload = data.get_equipments(tool_type, fabs, start, end)
+
+    for row in payload["equipments"]:
+        for aspect in ("align", "meas"):
+            triple = (
+                row[f"{aspect}_index"],
+                row[f"{aspect}_index_low"],
+                row[f"{aspect}_index_high"],
+            )
+            assert all(v is None for v in triple) or all(v is not None for v in triple), row
+            if triple[0] is not None:
+                assert triple[1] <= triple[0] <= triple[2], row
+
+
+def test_equipment_compare_payload_matches_the_contract():
+    tool_type, fabs, start, end = _default_scope()
+    fleet = data.get_equipments(tool_type, fabs, start, end)
+    picked = tuple(r["eqp_id"] for r in fleet["equipments"][:3])
+
+    payload = data.get_equipment_compare(tool_type, fabs, start, end, picked)
+    assert_matches(payload, EquipmentComparePayload)
+
+    assert payload["eqp_ids"] == list(picked)
+    for series in payload["trends"]:
+        assert series["eqp_id"] in picked
+    for recipe in payload["recipes"]:
+        assert [c["eqp_id"] for c in recipe["cells"]] == list(picked)
+
+
+def test_compare_trends_cover_the_whole_window():
+    tool_type, fabs, start, end = _default_scope()
+    fleet = data.get_equipments(tool_type, fabs, start, end)
+    picked = tuple(r["eqp_id"] for r in fleet["equipments"][:2])
+    if not picked:
+        pytest.skip("no equipment in scope")
+
+    payload = data.get_equipment_compare(tool_type, fabs, start, end, picked)
+    expected_days = DEFAULT_DAYS + 1        # 양 끝 포함
+    for series in payload["trends"]:
+        assert len(series["points"]) == expected_days
+
+
+def test_compare_with_no_selection_is_empty_not_everything():
+    """빈 선택에 전체 플릿을 돌려주면 화면이 조용히 거짓말을 합니다."""
+    tool_type, fabs, start, end = _default_scope()
+    payload = data.get_equipment_compare(tool_type, fabs, start, end, ())
+    assert payload["eqp_ids"] == []
+    assert payload["trends"] == []
+    assert payload["recipes"] == []

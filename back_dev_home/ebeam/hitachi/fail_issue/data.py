@@ -7,6 +7,8 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     AlignRankingRow,
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
+    EquipmentsPayload,
     FailRow,
     MeasRankingRow,
     SummaryPayload,
@@ -30,6 +32,8 @@ __all__ = [
     "get_align_ranking",
     "get_meas_ranking",
     "get_devices",
+    "get_equipments",
+    "get_equipment_compare",
 ]
 
 
@@ -104,3 +108,24 @@ def get_devices(
     end_date: str | None,
 ) -> list[DeviceRow]:
     return _provider().get_devices(tool_type, fab_names, start_date, end_date)
+
+
+def get_equipments(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+) -> EquipmentsPayload:
+    return _provider().get_equipments(tool_type, fab_names, start_date, end_date)
+
+
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...],
+) -> EquipmentComparePayload:
+    return _provider().get_equipment_compare(
+        tool_type, fab_names, start_date, end_date, eqp_ids
+    )
