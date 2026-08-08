@@ -12,6 +12,7 @@ Run from repo root:  .venv/bin/python -m pytest back_dev_home/msr_file
 
 import pytest
 
+from back_dev_home.meas_hist.providers.mock import find_meas_hist_by_msr
 from back_dev_home.msr_file.providers import mock
 
 _CLASS = "ADI"
@@ -63,5 +64,12 @@ def test_map_offset_is_the_offset_actually_encoded(msr):
     """The reported map_offset must equal the shared geometry's offset -- the
     regression guard against reintroducing a decorative random value."""
     payload = mock.get_msr_file(msr, _CLASS, _TOTAL_IMAGES)
-    geom = mock._wafer_geometry(msr)
+    # The geometry is keyed on the PROGRAM, so resolve the key the provider used
+    # rather than passing the msr and relying on these fixtures happening to be
+    # parentless. Spelled out because the two coincide here: a future fixture
+    # WITH a parent would otherwise compare against the wrong geometry and pass
+    # or fail for reasons that have nothing to do with map_offset.
+    parent = find_meas_hist_by_msr(msr)
+    program_key = parent["recipe_name"] if parent else msr
+    geom = mock._wafer_geometry(program_key)
     assert payload["exe_detail_info"]["map_offset"] == f"{geom.offset_x_nm},{geom.offset_y_nm}"

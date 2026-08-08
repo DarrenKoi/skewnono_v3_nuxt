@@ -33,14 +33,26 @@ sufficient: some facts belong to the recipe, not to the run. Which identity a
 property is seeded from IS the domain model here, so it is stated once:
 
     program (recipe)  WHAT is measured — the parameter set, the settling-shot
-                      count, the measurement-point count, and the CD target the
-                      recipe aims at. Every run of one recipe agrees on these.
+                      count, the measurement-point count, the CD target the
+                      recipe aims at, and WHERE it is measured: the wafer map
+                      (die array, pitch, origin, grid offset) and the die walk
+                      over it. Every run of one recipe agrees on these.
     tool (eqp_id)     HOW this tool reads a given feature — a fixed measurement
                       bias. This is the tool skew the analysis exists to find,
                       so it is deliberately NOT keyed on the recipe: one tool
                       reads the same way across every program it runs.
-    run (msr)         What is genuinely per-execution — wafer geometry, health,
-                      site noise, injected outliers, quality scores.
+    run (msr)         What is genuinely per-execution — health, site noise, the
+                      within-die jitter on each measured point, injected
+                      outliers, quality scores, images.
+
+The wafer map joined the program layer on 2026-08-08; it was the last property
+still seeded from the msr. The office's own site_layout_hash — sha1 over
+chip_array / chip_pitch / wafer_size / map_origin plus the site set
+(docs/datatables/msr_file_pickle.txt) — presupposes it: a layout digest that
+changed every run could not identify a shared layout, which is its only job.
+Keyed on the msr, two runs of ADI_CD_BIAS_001 reported 45x53 and 40x56 with
+ZERO sites in common, so 분석 준비 상태 read same-site analysis as structurally
+impossible rather than merely office-gated.
 
 Seeding a program-level fact from the msr is the bug this layering replaces. It
 made every run of one recipe measure a different, randomly drawn parameter
@@ -272,12 +284,29 @@ class WaferGeom(NamedTuple):
 
 
 @lru_cache(maxsize=256)
-def _wafer_geometry(msr: str) -> WaferGeom:
-    """Per-MSR die array, pitch and die-grid offset. Pitch = wafer diameter /
-    array count, so the array physically spans the wafer and stage coordinates
+def _wafer_geometry(program_key: str) -> WaferGeom:
+    """Die array, pitch and die-grid offset — a PROGRAM property, keyed on
+    program_key (the parent's recipe_name, else the msr). Pitch = wafer diameter
+    / array count, so the array physically spans the wafer and stage coordinates
     land inside it. The offset is kept under 0.3*pitch: a real, visible shift
-    that still never pushes a die off the wafer."""
-    rng = random.Random(_seed(msr, 313))
+    that still never pushes a die off the wafer.
+
+    Keyed on the recipe, not the run, because a recipe is a fixed measurement
+    program: two runs of it step through the same wafer map. The office says so
+    structurally — site_layout_hash is the sha1 of chip_array / chip_pitch /
+    wafer_size / map_origin plus the site set (docs/datatables/msr_file_pickle.txt),
+    and a hash that changed every run could never identify a shared layout, which
+    is the only thing it exists to do.
+
+    It was keyed on the msr until 2026-08-08, which made every run of one recipe
+    report a different wafer map — two runs of ADI_CD_BIAS_001 came out as
+    45x53 and 40x56 with ZERO sites in common. That taught the frontend's
+    cross-MSR compatibility work something false about the real data: it made
+    same-site analysis look structurally impossible rather than merely
+    office-gated. This is the last of the program properties to be moved;
+    _program_params / _program_step_count / _program_dummy_count were already
+    keyed this way."""
+    rng = random.Random(_seed(program_key, 313))
     cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
     pitch_x, pitch_y = round(_WAFER_NM / cols), round(_WAFER_NM / rows_n)
     offset_x = round(rng.uniform(-0.3, 0.3) * pitch_x)
@@ -295,7 +324,7 @@ def _die_center_nm(col: int, row: int, geom: WaferGeom) -> tuple[float, float]:
 
 
 @lru_cache(maxsize=256)
-def _measured_dies(msr: str) -> tuple[tuple[int, int], ...]:
+def _measured_dies(program_key: str) -> tuple[tuple[int, int], ...]:
     """Die (col, row) indices whose centre lies within the wafer (minus an edge
     exclusion), shuffled so a sequence→die walk spreads across the whole wafer
     instead of marching down one column.
@@ -303,8 +332,14 @@ def _measured_dies(msr: str) -> tuple[tuple[int, int], ...]:
     Eligibility is measured on the SHIFTED grid (via _die_center_nm), not on
     col*pitch: the die-grid offset moves every die by up to 0.3*pitch, so an
     unshifted test would eat into the edge exclusion and let a die's measured
-    point land off the wafer once the within-die jitter is added on top."""
-    geom = _wafer_geometry(msr)
+    point land off the wafer once the within-die jitter is added on top.
+
+    Keyed on program_key with the geometry it reads, so the ORDER is a program
+    property too: step N of one recipe lands on the same die in every run, which
+    is what makes two runs' site sets comparable at all. Runs whose step budget
+    differs (the total_images clamp in _build_rows) walk a shorter prefix of the
+    same list — a partial overlap, not a different wafer map."""
+    geom = _wafer_geometry(program_key)
     limit = _WAFER_RADIUS_NM - _EDGE_EXCLUSION_NM
     dies = [
         (col, row)
@@ -312,7 +347,7 @@ def _measured_dies(msr: str) -> tuple[tuple[int, int], ...]:
         for row in range(-(geom.rows // 2), geom.rows // 2 + 1)
         if math.hypot(*(c - _WAFER_CENTER_NM for c in _die_center_nm(col, row, geom))) <= limit
     ]
-    random.Random(_seed(msr, 971)).shuffle(dies)
+    random.Random(_seed(program_key, 971)).shuffle(dies)
     return tuple(dies)
 
 
@@ -408,10 +443,17 @@ _PROCESS_BY_CLASS: dict[str, str] = {
 SPM_POINTS = 32
 
 
-def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> ExeDetailInfo:
+def _exe_detail_info(
+    msr: str, parent: MeasHistRow | None, class_name: str, program_key: str
+) -> ExeDetailInfo:
     """Acquisition context. Sourced from the parent meas_hist row wherever
     possible so the MSR detail can never contradict the measurement history it
-    hangs off; only the wafer geometry (absent upstream) is seeded."""
+    hangs off; only the wafer geometry (absent upstream) is seeded.
+
+    `program_key` is passed in rather than derived here on purpose. The local
+    `recipe_name` below falls back to a shared "<CLASS>_UNKNOWN" display string,
+    and seeding off THAT would collapse every parentless MSR into one program —
+    the same trap get_msr_file documents at its own program_key."""
     recipe_name = parent["recipe_name"] if parent else f"{class_name}_UNKNOWN"
     lot_id = parent["lot_id"] if parent else f"LOT{_seed(msr) % 1_000_000:06d}"
     idp_name = parent["idp_name"] if parent else f"/Recipe/{class_name}/{recipe_name}.idp"
@@ -419,7 +461,9 @@ def _exe_detail_info(msr: str, parent: MeasHistRow | None, class_name: str) -> E
 
     # Array + pitch come from the shared geometry so chip_array, chip_pitch and
     # wafer_size stay mutually consistent with the chip_number / stage columns.
-    geom = _wafer_geometry(msr)
+    # Same key the rows are built with, so the reported map and the measured
+    # dies can never describe different wafers.
+    geom = _wafer_geometry(program_key)
 
     return ExeDetailInfo(
         class_name=class_name,
@@ -661,8 +705,8 @@ def _build_rows(
     # cross-MSR analysis keys on, stays identical either way.
     num_measurements = min(_program_step_count(program_key), max(1, total_images // 2))
 
-    geom = _wafer_geometry(msr)
-    dies = _measured_dies(msr)
+    geom = _wafer_geometry(program_key)
+    dies = _measured_dies(program_key)
     rows: list[MsrFileRow] = []
     span = max(1, num_measurements - 1)
 
@@ -970,7 +1014,7 @@ def get_msr_file(
         fdc_params=fdc_params,
         fixed_fdc=fixed_fdc,
         dynamic_fdc=dynamic_fdc,
-        exe_detail_info=_exe_detail_info(msr, parent, class_name),
+        exe_detail_info=_exe_detail_info(msr, parent, class_name, program_key),
         alignment=_alignment(msr, health),
         spm_dict=_spm_dict(msr),
         total=len(rows),

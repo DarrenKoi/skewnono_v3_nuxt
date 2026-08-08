@@ -86,6 +86,66 @@ def test_settling_shot_count_is_a_recipe_property():
         )
 
 
+def test_wafer_map_is_a_recipe_property():
+    """A recipe steps through a fixed wafer map, so every run of it must report
+    the same one.
+
+    This is the office's own structural claim, not a modelling preference:
+    site_layout_hash is the sha1 of chip_array / chip_pitch / wafer_size /
+    map_origin plus the site set (docs/datatables/msr_file_pickle.txt), and a
+    hash that changed every run could not identify a shared layout — which is
+    the only thing it exists to do.
+
+    Keyed on the msr until 2026-08-08, two runs of ADI_CD_BIAS_001 came out
+    45x53 and 40x56. Nothing failed: the payload stayed contract-valid, and the
+    damage landed one layer up, where 분석 준비 상태 concluded that same-site
+    analysis was structurally impossible rather than merely office-gated.
+    """
+    layout_keys = ("chip_array", "chip_pitch", "wafer_size", "map_origin")
+    for recipe_name, rows in _runs_by_recipe().items():
+        maps = set()
+        for row in rows:
+            payload = mock.get_msr_file(row["msr"])
+            assert payload is not None
+            info = payload["exe_detail_info"]
+            maps.add(tuple(info[key] for key in layout_keys))
+        assert len(maps) == 1, (
+            f"{recipe_name} reported {len(maps)} different wafer maps across "
+            f"{len(rows)} runs: {sorted(maps)}. Site keys are die INDICES — under "
+            "a different array or pitch the same chip_number is a different place."
+        )
+
+
+def test_runs_of_a_recipe_measure_nested_site_sets():
+    """Two runs of one recipe must be comparable site-by-site.
+
+    The step→die walk is a program property, so a run with a smaller step budget
+    (the total_images clamp in _build_rows) walks a PREFIX of the same die list.
+    Its sites are therefore a subset of the longer run's, never a disjoint set —
+    which is what lets layout readiness report 준비됨 on full overlap and
+    제한적 on a partial one instead of collapsing both to 불가.
+    """
+    def sites(msr: str) -> set[tuple[str, int]]:
+        payload = mock.get_msr_file(msr)
+        assert payload is not None
+        return {
+            (r["chip_number"], r["mp_number"])
+            for r in payload["rows"]
+            if r["mp_number"] >= 0
+        }
+
+    for recipe_name, rows in _runs_by_recipe().items():
+        sets = [(row["msr"], sites(row["msr"])) for row in rows]
+        base_msr, base = max(sets, key=lambda pair: len(pair[1]))
+        assert base, f"{recipe_name}/{base_msr} measured no sites at all"
+        for msr, other in sets:
+            assert other <= base, (
+                f"{recipe_name}: {msr} measured {len(other - base)} sites that "
+                f"{base_msr} never visited — the two runs cannot be compared "
+                "site-by-site, so same-site analysis has nothing to stand on."
+            )
+
+
 def test_runs_of_a_recipe_cluster_around_one_target():
     """The trend needs a centre line.
 
