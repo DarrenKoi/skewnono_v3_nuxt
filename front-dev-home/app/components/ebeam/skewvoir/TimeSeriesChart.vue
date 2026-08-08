@@ -1,8 +1,13 @@
 <template>
   <div>
-    <!-- Tool legend. This strip explains the LINE colors only — the dots carry
-         the anomaly verdict, which SkAnomalyLegend already documents beside the
-         chart. Two channels, two legends. -->
+    <!-- Tool legend. This strip explains the LINE color and the dot's RING; the
+         dot's FILL carries the anomaly verdict, which SkAnomalyLegend documents
+         beside the chart. Two channels, two legends.
+
+         The swatch is a ring, not a filled dot, so it matches the mark it
+         explains. As a filled dot it promised a solid tool-colored point that
+         this chart never draws — every solid dot on the canvas is a verdict
+         color, which is exactly how the two legends came to look interchangeable. -->
     <div
       v-if="legendChips.length"
       class="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1"
@@ -13,8 +18,8 @@
         class="inline-flex items-center gap-1 sk-meta"
       >
         <span
-          class="h-2 w-2 rounded-full"
-          :style="{ backgroundColor: chip.color }"
+          class="size-2.5 shrink-0 rounded-full border-2"
+          :style="{ borderColor: chip.color }"
         />
         {{ chip.label }}
       </span>
@@ -78,16 +83,27 @@ const sevHex = computed<Record<string, string>>(() => ({
 const sevKey = (p: TrendPoint): string =>
   !p.verdict ? 'normal' : p.verdict.status === 'insufficient' ? 'insufficient' : p.verdict.severity
 
+// The tool-identity ring drawn around every symbol. 2px reads as a ring at these
+// diameters without swallowing the fill; see TOOL_RING_WIDTH's use in symbolFor.
+const TOOL_RING_WIDTH = 2
+
 // Strictly ordered: abnormal > watch > insufficient > normal, so size alone
-// still ranks severity. The floor is 7, not 6 — an item-triggered tooltip makes
-// the symbol the ONLY hover target, and a 6px dot is a hard thing to hit on a
-// dense set. `emphasis.scale` on the series grows whichever one is hovered.
+// still ranks severity. `emphasis.scale` on the series grows whichever one is
+// hovered.
+//
+// The floor is 9, raised from 7 when the tool-identity ring moved onto the
+// symbol: the ring eats TOOL_RING_WIDTH from each side, so a 7px dot would have
+// left a 3px verdict core — the ring would have become the mark and the severity
+// color the trim, inverting which channel dominates. At 9 the smallest core is
+// 5px, still the largest thing in the symbol. It also keeps the old hit-target
+// argument intact (an item-triggered tooltip makes the symbol a hover target,
+// though onGridHover's nearest-point pick now forgives a near miss).
 const symbolFor = (key: string): number =>
-  key === 'abnormal' ? 10 : key === 'watch' ? 9 : key === 'insufficient' ? 8 : 7
+  key === 'abnormal' ? 12 : key === 'watch' ? 11 : key === 'insufficient' ? 10 : 9
 
 interface TrendDatum {
   value: [number, number]
-  itemStyle: { color: string }
+  itemStyle: { color: string, borderColor: string, borderWidth: number }
   symbolSize: number
   /** The measurement this symbol stands for. Carried on the datum because
    *  `dataIndex` now indexes ONE tool's array, so neither the tooltip nor the
@@ -95,13 +111,25 @@ interface TrendDatum {
   point: TrendPoint
 }
 
-// One series per tool. The LINE carries tool identity; each POINT keeps the
-// severity color the sevHex table produces, so a red dot still means "this
-// measurement was judged abnormal", never "this is tool 3".
+// One series per tool. Each POINT is FILLED with the severity color the sevHex
+// table produces, so a red dot still means "this measurement was judged
+// abnormal", never "this is tool 3"; tool identity rides the point's RING and
+// the connecting line.
+//
+// The ring is what makes tool identity survivable. Identity used to live on the
+// line alone, and a line needs two points: a curated set is routinely one
+// measurement per tool (24 MSR over 23 tools is a real, ordinary case), which
+// makes almost every series a lone symbol with no segment to color. The legend
+// then advertised nine tool colors that appeared nowhere on the canvas, and the
+// only colors actually drawn were the three verdict tones — the chart read as a
+// verdict map with a decorative tool legend above it. A per-symbol ring carries
+// identity at n=1, which is precisely where the line cannot.
 //
 // Under the `eqp` axis a tool's points all share one x, so the connecting line
 // would be a meaningless vertical stroke — the line is hidden there and the
-// symbols alone carry the column.
+// symbols alone carry the column. The ring keeps working there too (it is the
+// only identity channel left once the line is hidden), even though the axis
+// label already names the tool.
 //
 // This array is the ONLY grouping pass: the tooltip reads `point` off the datum
 // and the click handler indexes back into this same array, so there is no
@@ -112,7 +140,11 @@ const toolSeries = computed(() => {
     const key = sevKey(p)
     const datum: TrendDatum = {
       value: [x, p.value],
-      itemStyle: { color: sevHex.value[key]! },
+      itemStyle: {
+        color: sevHex.value[key]!,
+        borderColor: toolColor.value.get(p.eqpId) ?? sk.value.series,
+        borderWidth: TOOL_RING_WIDTH
+      },
       symbolSize: symbolFor(key),
       point: p
     }
