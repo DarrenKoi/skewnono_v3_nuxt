@@ -28,6 +28,8 @@
         :selected="selected"
         :max-selected="MAX_COMPARE_EQPS"
         @update:selected="selected = $event"
+        @download="downloadFleetCsv"
+        @copy="copyFleetTable"
       />
 
       <EbeamRecipeTatEquipmentCompare
@@ -61,9 +63,16 @@
 import { MAX_COMPARE_EQPS } from '~/utils/analyticsLimits'
 import {
   useRecipeTatApi,
+  type RecipeTatEquipmentRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import { isPeerGroupComparable } from '~/utils/equipmentSignals'
+import {
+  equipmentSignals,
+  isPeerGroupComparable,
+  SIGNAL_META
+} from '~/utils/equipmentSignals'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   fabs: string[]
@@ -113,4 +122,55 @@ const peerGroupComparable = computed(() => isPeerGroupComparable(equipmentRows.v
 const selectedRows = computed(
   () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
 )
+
+// 내보내기 -------------------------------------------------------------------
+
+// 초·비율은 화면 표기(1h 12m, 62.1%)가 아니라 원시 수치로 냅니다 — 스프레드시트로
+// 가는 값은 다시 계산될 것이므로, 사람이 읽기 좋은 포맷은 여기서 손해입니다.
+// 열 이름에 단위를 붙여 무엇으로 읽어야 하는지만 못 박습니다.
+const fleetTable = (rows: RecipeTatEquipmentRow[]) => ({
+  headers: [
+    'eqp_id', 'fab', 'model', 'exec_count', 'total_meastime_sec',
+    'occupancy_pct', 'avg_meastime_sec', 'recipe_count', 'tat_index', 'signals'
+  ],
+  // 배지는 화면과 같은 판정을 따릅니다. 또래 집단이 섞였으면 화면에서도
+  // 비어 있으므로 CSV도 비웁니다 — 표에 없는 판정을 파일로만 내보내면
+  // 그 파일이 화면보다 더 단정적으로 읽힙니다.
+  data: rows.map(row => [
+    row.eqp_id,
+    row.fab_name,
+    row.eqp_model_cd,
+    row.exec_count,
+    row.total_meastime,
+    (row.occupancy * 100).toFixed(1),
+    Math.round(row.avg_meastime),
+    row.recipe_count,
+    row.tat_index === null ? '' : row.tat_index.toFixed(2),
+    (peerGroupComparable.value ? equipmentSignals(row, percentiles.value) : [])
+      .map(signal => SIGNAL_META[signal].label)
+      .join(' | ')
+  ])
+})
+
+const exportFileName = computed(() => {
+  const fab = (props.fabs.join('+') || 'all').toLowerCase()
+  return `${props.toolType}-${fab}-recipe-tat-equipments-${todayStamp()}.csv`
+})
+
+const toast = useToast()
+
+const downloadFleetCsv = (rows: RecipeTatEquipmentRow[]) => {
+  const { headers, data } = fleetTable(rows)
+  downloadCsv(exportFileName.value, headers, data)
+}
+
+const copyFleetTable = async (rows: RecipeTatEquipmentRow[]) => {
+  const { headers, data } = fleetTable(rows)
+  const ok = await copyTableToClipboard(headers, data)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
 </script>

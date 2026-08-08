@@ -29,6 +29,29 @@
           :disabled="selected.length === 0"
           @click="emit('update:selected', [])"
         />
+        <!-- 내보내기는 화면에 보이는 것(검색·정렬 적용 후)을 그대로 냅니다.
+             랭킹 표(FailIssueRankingTable)와 같은 계약입니다: 표는 행만
+             올려보내고, 헤더·파일명은 조회 범위를 아는 부모가 짭니다. -->
+        <UTooltip text="클립보드 복사">
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-clipboard"
+            aria-label="장비 목록을 클립보드에 복사"
+            :disabled="sortedRows.length === 0"
+            @click="emit('copy', sortedRows)"
+          />
+        </UTooltip>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-download"
+          label="CSV"
+          :disabled="sortedRows.length === 0"
+          @click="emit('download', sortedRows)"
+        />
       </div>
     </div>
 
@@ -143,7 +166,11 @@ const props = defineProps<{
   maxSelected: number
 }>()
 
-const emit = defineEmits<{ 'update:selected': [string[]] }>()
+const emit = defineEmits<{
+  'update:selected': [string[]]
+  'download': [rows: RecipeTatEquipmentRow[]]
+  'copy': [rows: RecipeTatEquipmentRow[]]
+}>()
 
 const search = ref('')
 

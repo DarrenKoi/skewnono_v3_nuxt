@@ -33,14 +33,29 @@
     <template v-else>
       <UCard class="dashboard-surface">
         <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-trending-up"
-              class="h-4 w-4 text-(--sk-ink-muted)"
-            />
-            <h3 class="sk-title">
-              장비별 일별 TAT
-            </h3>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-trending-up"
+                class="h-4 w-4 text-(--sk-ink-muted)"
+              />
+              <h3 class="sk-title">
+                장비별 일별 TAT
+              </h3>
+            </div>
+            <!-- 손으로 만든 세그먼트 컨트롤 대신 토큰화된 SkNavPill을 씁니다
+                 (근거는 FailIssueEquipmentCompare.vue의 같은 블록). -->
+            <div class="inline-flex items-center gap-1">
+              <SkNavPill
+                v-for="type in CHART_TYPES"
+                :key="type.value"
+                size="sm"
+                :label="type.label"
+                :icon="type.icon"
+                :active="chartType === type.value"
+                @click="chartType = type.value"
+              />
+            </div>
           </div>
         </template>
         <div
@@ -50,13 +65,39 @@
       </UCard>
 
       <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
-        <div class="mb-3 flex flex-wrap items-center gap-2">
-          <h3 class="sk-title">
-            레시피 구성 비교
-          </h3>
-          <span class="sk-meta">
-            선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 0으로 표시됩니다.
-          </span>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="sk-title">
+              레시피 구성 비교
+            </h3>
+            <span class="sk-meta">
+              선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 0으로 표시됩니다.
+            </span>
+          </div>
+          <!-- 표는 페이지 단위로 보이지만 내보내기는 합집합 전체를 냅니다 —
+               페이지를 넘겨가며 25행씩 붙이는 것이 이 버튼이 없앨 일입니다. -->
+          <div class="flex items-center gap-2">
+            <UTooltip text="클립보드 복사">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-clipboard"
+                aria-label="레시피 구성 비교를 클립보드에 복사"
+                :disabled="recipes.length === 0"
+                @click="copyMatrix"
+              />
+            </UTooltip>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              label="CSV"
+              :disabled="recipes.length === 0"
+              @click="downloadMatrixCsv"
+            />
+          </div>
         </div>
 
         <UTable
@@ -105,6 +146,8 @@ import {
   type RecipeTatEquipmentRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   toolType: RecipeTatToolType
@@ -155,10 +198,23 @@ const recipes = computed(() => data.value?.recipes ?? [])
 
 const trendEl = ref<HTMLDivElement | null>(null)
 
+// 선은 추세를, 막대는 하루치 크기를 읽게 합니다. 며칠만 조회했을 때 선은
+// 점 두어 개를 잇는 데 그쳐 오히려 읽기 어렵습니다.
+const CHART_TYPES = [
+  { value: 'line', label: '선', icon: 'i-lucide-trending-up' },
+  { value: 'bar', label: '막대', icon: 'i-lucide-bar-chart-3' }
+] as const
+type ChartType = typeof CHART_TYPES[number]['value']
+
+const chartType = ref<ChartType>('line')
+
 const trendOption = computed<EChartsOption>(() => {
   const dates = trends.value[0]?.points.map(point => point.date) ?? []
+  const isBar = chartType.value === 'bar'
   return {
-    tooltip: { trigger: 'axis' },
+    // 막대에서는 세로선 포인터가 어느 막대를 짚었는지 흐립니다 — 그 칸 전체를
+    // 덮는 shadow 가 축 트리거의 범위와 맞습니다.
+    tooltip: { trigger: 'axis', axisPointer: { type: isBar ? 'shadow' : 'line' } },
     legend: {
       top: 0,
       textStyle: { fontSize: 10 },
@@ -179,15 +235,31 @@ const trendOption = computed<EChartsOption>(() => {
     },
     // areaStyle을 쓰지 않습니다: 다중 시리즈에 채움을 주면 hover 시 blur가
     // 채움을 지워서 화면이 깨진 것처럼 보입니다.
-    series: trends.value.map(series => ({
-      type: 'line' as const,
-      name: series.eqp_id,
-      smooth: true,
-      showSymbol: false,
-      itemStyle: { color: colorByEqpId.value.get(series.eqp_id) },
-      lineStyle: { color: colorByEqpId.value.get(series.eqp_id) },
-      data: series.points.map(point => point.total_meastime)
-    }))
+    //
+    // 막대는 쌓지 않고 나란히 둡니다(기본 grouped). 장비끼리 비교하려고
+    // 고른 화면이라 합계를 보여주는 stack은 여기서 답이 아닙니다.
+    series: trends.value.map((series) => {
+      const color = colorByEqpId.value.get(series.eqp_id)
+      const data = series.points.map(point => point.total_meastime)
+      if (isBar) {
+        return {
+          type: 'bar' as const,
+          name: series.eqp_id,
+          barMaxWidth: 18,
+          itemStyle: { color },
+          data
+        }
+      }
+      return {
+        type: 'line' as const,
+        name: series.eqp_id,
+        smooth: true,
+        showSymbol: false,
+        itemStyle: { color },
+        lineStyle: { color },
+        data
+      }
+    })
   }
 })
 
@@ -226,6 +298,51 @@ const columns = computed<TableColumn<RecipeTatEquipmentRecipeRow>[]>(() => [
     }
   }))
 ])
+
+// 매트릭스 내보내기
+
+// 화면은 한 칸에 "건수 · 시간"을 합쳐 보여주지만, CSV는 장비마다 두 열로
+// 풉니다 — 합쳐진 문자열은 스프레드시트에서 다시 쪼개야 하는 값입니다.
+const matrixTable = () => {
+  const eqpIds = data.value?.eqp_ids ?? []
+  return {
+    headers: [
+      'full_name',
+      'total_meastime_sec',
+      ...eqpIds.flatMap(eqpId => [`${eqpId}_meas_counts`, `${eqpId}_total_meastime_sec`])
+    ],
+    data: recipes.value.map(row => [
+      row.full_name,
+      row.total_meastime,
+      ...eqpIds.flatMap((_, index) => {
+        const cell = row.cells[index]
+        return [cell?.meas_counts ?? 0, cell?.total_meastime ?? 0]
+      })
+    ])
+  }
+}
+
+const exportFileName = computed(() => {
+  const fab = (props.fabs.join('+') || 'all').toLowerCase()
+  return `${props.toolType}-${fab}-recipe-tat-equipment-compare-${todayStamp()}.csv`
+})
+
+const toast = useToast()
+
+const downloadMatrixCsv = () => {
+  const { headers, data: rows } = matrixTable()
+  downloadCsv(exportFileName.value, headers, rows)
+}
+
+const copyMatrix = async () => {
+  const { headers, data: rows } = matrixTable()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
 
 // 헤더에 배경을 주지 않는 이유는 RecipeTatFleetTable.vue의 같은 블록에 있습니다:
 // sticky 헤더가 이미 테마 surface 위에 앉아 있습니다. 타입은 .sk-label에 맡깁니다.

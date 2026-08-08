@@ -55,6 +55,19 @@
                 :active="trendMetric === metric.value"
                 @click="trendMetric = metric.value"
               />
+              <span
+                class="mx-1 h-4 w-px bg-(--sk-border-soft)"
+                aria-hidden="true"
+              />
+              <SkNavPill
+                v-for="type in CHART_TYPES"
+                :key="type.value"
+                size="sm"
+                :label="type.label"
+                :icon="type.icon"
+                :active="chartType === type.value"
+                @click="chartType = type.value"
+              />
             </div>
           </div>
         </template>
@@ -65,13 +78,39 @@
       </UCard>
 
       <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
-        <div class="mb-3 flex flex-wrap items-center gap-2">
-          <h3 class="sk-title">
-            레시피별 fail 비교
-          </h3>
-          <span class="sk-meta">
-            선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 —로 표시됩니다.
-          </span>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="sk-title">
+              레시피별 fail 비교
+            </h3>
+            <span class="sk-meta">
+              선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 —로 표시됩니다.
+            </span>
+          </div>
+          <!-- 표는 페이지 단위로 보이지만 내보내기는 합집합 전체를 냅니다 —
+               페이지를 넘겨가며 25행씩 붙이는 것이 이 버튼이 없앨 일입니다. -->
+          <div class="flex items-center gap-2">
+            <UTooltip text="클립보드 복사">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-clipboard"
+                aria-label="레시피별 fail 비교를 클립보드에 복사"
+                :disabled="sortedRecipes.length === 0"
+                @click="copyMatrix"
+              />
+            </UTooltip>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              label="CSV"
+              :disabled="sortedRecipes.length === 0"
+              @click="downloadMatrixCsv"
+            />
+          </div>
         </div>
 
         <UTable
@@ -119,6 +158,8 @@ import {
   type FailIssueEquipmentRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
+import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   toolType: FailIssueToolType
@@ -141,6 +182,16 @@ const TREND_METRICS = [
 type TrendMetric = typeof TREND_METRICS[number]['value']
 
 const trendMetric = ref<TrendMetric>('count')
+
+// 선은 추세를, 막대는 하루치 크기를 읽게 합니다. 실패 건수는 0인 날이 많아
+// 선으로 그리면 바닥에 붙어 며칠이 0인지 세기 어렵습니다.
+const CHART_TYPES = [
+  { value: 'line', label: '선', icon: 'i-lucide-trending-up' },
+  { value: 'bar', label: '막대', icon: 'i-lucide-bar-chart-3' }
+] as const
+type ChartType = typeof CHART_TYPES[number]['value']
+
+const chartType = ref<ChartType>('line')
 
 const chipFailCount = (row: FailIssueEquipmentRow) =>
   props.section === 'align' ? row.align_fail_count : row.meas_fail_count
@@ -211,8 +262,11 @@ const seriesValues = (points: { exec_count: number, align_fail_count: number, me
 const trendOption = computed<EChartsOption>(() => {
   const dates = trends.value[0]?.points.map(point => point.date) ?? []
   const isRate = trendMetric.value === 'rate'
+  const isBar = chartType.value === 'bar'
   return {
-    tooltip: { trigger: 'axis' },
+    // 막대에서는 세로선 포인터가 어느 막대를 짚었는지 흐립니다 — 그 칸 전체를
+    // 덮는 shadow 가 축 트리거의 범위와 맞습니다.
+    tooltip: { trigger: 'axis', axisPointer: { type: isBar ? 'shadow' : 'line' } },
     legend: {
       top: 0,
       textStyle: { fontSize: 10 },
@@ -236,15 +290,31 @@ const trendOption = computed<EChartsOption>(() => {
     },
     // areaStyle을 쓰지 않습니다: 다중 시리즈에 채움을 주면 hover 시 blur가
     // 채움을 지워서 화면이 깨진 것처럼 보입니다.
-    series: trends.value.map(series => ({
-      type: 'line' as const,
-      name: series.eqp_id,
-      smooth: true,
-      showSymbol: false,
-      itemStyle: { color: colorByEqpId.value.get(series.eqp_id) },
-      lineStyle: { color: colorByEqpId.value.get(series.eqp_id) },
-      data: seriesValues(series.points)
-    }))
+    //
+    // 막대는 쌓지 않고 나란히 둡니다(기본 grouped). 장비끼리 비교하려고 고른
+    // 화면이고, 비율 지표는 애초에 더할 수 있는 값이 아닙니다.
+    series: trends.value.map((series) => {
+      const color = colorByEqpId.value.get(series.eqp_id)
+      const data = seriesValues(series.points)
+      if (isBar) {
+        return {
+          type: 'bar' as const,
+          name: series.eqp_id,
+          barMaxWidth: 18,
+          itemStyle: { color },
+          data
+        }
+      }
+      return {
+        type: 'line' as const,
+        name: series.eqp_id,
+        smooth: true,
+        showSymbol: false,
+        itemStyle: { color },
+        lineStyle: { color },
+        data
+      }
+    })
   }
 })
 
@@ -285,6 +355,62 @@ const columns = computed<TableColumn<FailIssueEquipmentRecipeRow>[]>(() => [
     }
   }))
 ])
+
+// 매트릭스 내보내기
+
+// 화면은 한 칸에 "fail/exec (비율)"을 합쳐 보여주지만, CSV는 장비마다 세 열로
+// 풉니다 — 합쳐진 문자열은 스프레드시트에서 다시 쪼개야 하는 값입니다.
+// 축(align/meas)은 화면과 같은 것만 냅니다.
+const matrixTable = () => {
+  const eqpIds = data.value?.eqp_ids ?? []
+  const prefix = props.section === 'align' ? 'align' : 'meas'
+  return {
+    headers: [
+      'full_name',
+      `total_${prefix}_fail_count`,
+      ...eqpIds.flatMap(eqpId => [
+        `${eqpId}_exec_count`,
+        `${eqpId}_${prefix}_fail_count`,
+        `${eqpId}_${prefix}_fail_rate_pct`
+      ])
+    ],
+    data: sortedRecipes.value.map(row => [
+      row.full_name,
+      rowTotalFails(row),
+      ...eqpIds.flatMap((_, index) => {
+        const cell = row.cells[index]
+        // 돌지 않은 장비는 화면에서 —입니다. 비율을 0으로 채우면 "돌았는데
+        // 한 번도 실패하지 않았다"로 읽히므로 빈 칸으로 둡니다.
+        if (!cell || cell.exec_count === 0) return [0, 0, '']
+        const fails = cellFails(cell)
+        return [cell.exec_count, fails, (fails / cell.exec_count * 100).toFixed(2)]
+      })
+    ])
+  }
+}
+
+const exportFileName = computed(() => {
+  const fab = (props.fabs.join('+') || 'all').toLowerCase()
+  return `${props.toolType}-${fab}-fail-issue-equipment-compare`
+    + `-${props.section}-${todayStamp()}.csv`
+})
+
+const toast = useToast()
+
+const downloadMatrixCsv = () => {
+  const { headers, data: rows } = matrixTable()
+  downloadCsv(exportFileName.value, headers, rows)
+}
+
+const copyMatrix = async () => {
+  const { headers, data: rows } = matrixTable()
+  const ok = await copyTableToClipboard(headers, rows)
+  toast.add(
+    ok
+      ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
+      : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
+}
 
 // 헤더에 배경을 주지 않는 이유는 FailIssueFleetTable.vue의 같은 블록에 있습니다.
 const tableUi = {
