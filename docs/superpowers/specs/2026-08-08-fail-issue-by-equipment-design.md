@@ -583,7 +583,29 @@ curl -s -b 'LASTUSER=local-dev' \
 
 - 측정 0건 장비를 표에 넣는 일 (명부 조인 필요).
 - `Recipe TAT` 탭의 장비별 뷰 수정. 이 작업은 그 코드를 읽기만 합니다.
+  (**예외 1건, 2026-08-09 기록** — 아래 참조.)
 - `office.py` 작성 (gitignore 대상, 사무실에서 `cp`).
 - 두 화면의 플릿 표를 공용 컴포넌트로 합치는 일. 열·지표·배지가 모두 다르고,
   지금 합치면 `section` 과 지표 종류 두 축을 동시에 받는 컴포넌트가 됩니다.
   세 번째 소비자가 생기면 그때 다시 봅니다.
+
+### 10.1 읽기 전용 펜스의 예외 (2026-08-09 기록)
+
+위 펜스에도 불구하고 이 작업은 `Recipe TAT` 쪽 파일 두 개를 수정했습니다.
+`useRecipeTatApi.ts` 에서 `MAX_COMPARE_EQPS` 를 제거하고,
+`RecipeTatEquipmentView.vue` 의 import 를 바꾼 뒤, 두 탭이 함께 쓰는
+`front-dev-home/app/utils/analyticsLimits.ts` 를 새로 만들었습니다.
+
+**사유:** Nuxt 자동 임포트 이름 충돌입니다. `useFailIssueApi.ts` 가
+`MAX_COMPARE_EQPS` 를 내보내는 순간 이미 같은 이름을 내보내던
+`useRecipeTatApi.ts` 와 부딪히고, Nuxt 는 이 경우 **빌드 WARN 하나만 남기고
+한쪽을 조용히 버립니다** — 정적 검사에 걸리지 않고 런타임에야 드러나는
+종류의 고장입니다. 펜스를 지키려면 두 탭이 같은 상수 5 를 서로 다른 이름으로
+들고 있어야 했고, 그건 값이 갈라질 자리를 만드는 선택이었습니다.
+
+**성질:** 동작 보존입니다. 상수 값(5)도, 두 뷰의 화면 동작도 그대로입니다.
+바뀐 것은 그 값이 사는 위치뿐입니다.
+
+**후속:** 이 상수의 최종 홈은 `recipe_tat/contracts.py` 입니다 —
+recipe-tat spec §4.2 가 그렇게 정해 두었고, `analyticsLimits.ts` 는 그
+백엔드 상수를 프론트에서 참조하는 자리로 남습니다.

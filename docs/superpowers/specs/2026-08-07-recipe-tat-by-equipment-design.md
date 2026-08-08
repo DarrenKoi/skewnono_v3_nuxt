@@ -105,6 +105,26 @@ tat_index(t) = actual(t) / expected(t)
 비교 대상입니다. 모델별·fab별로 더 잘게 나누지 않습니다: 하위 집단이
 2~3대까지 작아지면 중앙값이 통계가 아니라 우연이 됩니다.
 
+**개정 (2026-08-09) — 조회 범위가 여러 fab을 걸치면 배지를 달지
+않습니다.** 위 문단은 또래 집단을 더 잘게 **나누지** 말라는 규칙이고 그대로
+유효하지만, 나누지 않은 채로 여러 fab을 한 또래 집단에 넣으면 배지가 장비
+상태가 아니라 fab을 읽습니다. 구현은 `isPeerGroupComparable`
+(`front-dev-home/app/utils/equipmentSignals.ts`)로 이 경우 배지를 전부
+억제하며, 이 절이 그 동작을 승인합니다.
+
+근거는 정규화 부재입니다. `usage_ratio`·`occupancy` 어느 쪽에도 fab 단위
+정규화가 없어서, 레시피가 짧은 fab의 장비는 같은 개수를 돌아도 두 값이 함께
+낮게 나옵니다. mock에서 실제로 재현됩니다: cd-sem 전 fab 14일 조회에서
+`빠름` 9대가 전부 meastime 배수가 가장 낮은 M11이고 `저사용`도 배수가 낮은
+M11·R4에 몰리는 반면, 배수가 높은 M14·M16이 `느림`을 독차지합니다 — 어느
+쪽도 장비 상태가 아니라 fab을 읽은 결과입니다.
+
+억제는 `percentiles`가 비면 배지를 달지 않는 규칙과 같은 원리입니다:
+**판단 근거가 없으면 경고하지 않습니다.** 원 수치 열은 그대로 남으므로
+사용자가 잃는 정보는 없고, 사라지는 것은 틀릴 수 있는 해석뿐입니다.
+fab 간 비교를 배지로 되살리려면 fab 단위 정규화가 먼저 필요하며, 그
+정규화 계수는 사무실 분포를 봐야 정할 수 있습니다(3.5절).
+
 ### 3.3 빈 범위 처리
 
 조회 범위에 측정이 하나도 없으면 `equipments`는 빈 목록, `fleet`의 모든
@@ -212,7 +232,7 @@ GET /<tool_slug>/recipe-tat/equipment-compare
 
 ```python
 TAT_INDEX_MIN_SAMPLE = 12      # 이 미만이면 tat_index = None. OFFICE-VERIFY
-MAX_COMPARE_EQPS = 5           # equipment-compare가 받는 장비 수 상한
+# MAX_COMPARE_EQPS 는 여기가 아닙니다 — 아래 배치 각주를 보십시오.
 
 class EquipmentRow(TypedDict):
     eqp_id: str
@@ -283,9 +303,22 @@ provider가 봉투(scope 에코)까지 포함한 payload를 반환합니다 — 
 
 `eqp_id` 파싱은 `_analytics_routes.py`의 `AnalyticsRequestScope`에
 `eqp_ids: tuple[str, ...]` 필드를 추가해 처리합니다(쉼표 목록, 공백 제거,
-`MAX_COMPARE_EQPS`에서 절단). fail_issue도 같은 헬퍼를 쓰지만 이 필드를
-읽지 않으므로 무해합니다. **절단은 조용히 하지 않고** 응답의 `eqp_ids`
-에코로 드러냅니다.
+`MAX_COMPARE_EQPS`에서 절단). **절단은 조용히 하지 않고** 응답의 `eqp_ids`
+에코로 드러냅니다. 절단이 먼저이고 중복 제거는 그 다음입니다 — 순서가
+뒤집히면 파서가 이미 버린 여섯 번째 고유 id가 살아 들어옵니다.
+
+**`MAX_COMPARE_EQPS`의 배치 (개정 2026-08-09).** 위 코드 블록은 이 상수를
+`contracts.py`에 두는 것으로 적었으나, 구현은 `_analytics_routes.py`에
+둡니다. 요청 형태에 관한 값이지 응답 계약이 아니고, 계약에 두면 **공유
+파서가 recipe_tat의 계약을 임포트**하게 되어 같은 헬퍼를 쓰는 fail_issue까지
+끌려옵니다. 이 spec을 쓸 당시에는 소비자가 recipe_tat 하나뿐이어서 그
+역전이 보이지 않았습니다. 이탈 자체는 구현 계획
+(`docs/superpowers/plans/2026-08-07-recipe-tat-by-equipment.md` 이탈 목록)에
+이미 근거와 함께 기록돼 있고, 이 절은 그 결정을 spec 쪽에 반영한 것입니다.
+
+같은 날 백엔드 상수 이름을 `MAX_EQP_IDS` → `MAX_COMPARE_EQPS`로 바꿔
+프론트엔드(`front-dev-home/app/utils/analyticsLimits.ts`)와 맞췄습니다.
+한 숫자가 두 이름으로 살면 한쪽만 바뀌어도 아무 신호가 나지 않습니다.
 
 ### 4.3 office 어댑터 방향 (`office_example.py`)
 
