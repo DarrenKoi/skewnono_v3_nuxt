@@ -33,43 +33,74 @@
     </div>
 
     <template v-else>
-      <div
-        role="tablist"
-        aria-label="FDC 그래프 보기"
-        class="inline-flex w-fit items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
-        @keydown="onTabKeydown"
-      >
-        <button
-          id="fdc-matrix-tab"
-          type="button"
-          role="tab"
-          :tabindex="viewMode === 'matrix' ? 0 : -1"
-          :aria-selected="viewMode === 'matrix'"
-          aria-controls="fdc-matrix-panel"
-          class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="viewMode === 'matrix'
-            ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
-            : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-          @click="selectView('matrix')"
+      <!-- View switch, in its own card rather than bare on the canvas. Two
+           reasons it could not stay loose: --sk-chip-bg (L 0.95) and --sk-canvas
+           (L 0.96) are one lightness step apart, so the segmented rail it used to
+           wear was invisible exactly where it sat, and it was the only block on
+           this view with no surface under it. The bar is H/W 관리's service-tab
+           shape (HardwareView.vue) — dashboard-surface, tabs left — at the
+           documented --sk-r-card radius rather than that call site's rounded-2xl,
+           which DESIGN.md lists as drift.
+
+           The pills take DESIGN.md's `sk-nav-pill` language (ink fill = NAVIGATE;
+           the litmus test is "does pressing this change the view?" — it swaps the
+           whole panel stack). The white-pill-on-tinted-rail skin they replace is
+           the segmented control DESIGN.md files under Known Gaps.
+
+           The <SkNavPill> COMPONENT is deliberately not used, only its visual
+           language — it hardcodes `aria-pressed`, a toggle-button semantic that is
+           invalid on `role="tab"`, and these are real tabs wired to a tabpanel
+           below with roving-tabindex arrow keys. views/TimeSeries.vue made the
+           same call for the same reason. Sizing stays at SkNavPill's md tier, not
+           that view's lg: the lens switch there picks the view, these pick a
+           variant of the view you are already in. -->
+      <section class="dashboard-surface flex flex-wrap items-center rounded-(--sk-r-card) px-3 py-2.5">
+        <div
+          role="tablist"
+          aria-label="FDC 그래프 보기"
+          class="inline-flex w-fit items-center gap-1.5"
+          @keydown="onTabKeydown"
         >
-          파라미터 매트릭스
-        </button>
-        <button
-          id="fdc-individual-tab"
-          type="button"
-          role="tab"
-          :tabindex="viewMode === 'individual' ? 0 : -1"
-          :aria-selected="viewMode === 'individual'"
-          aria-controls="fdc-individual-panel"
-          class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="viewMode === 'individual'
-            ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
-            : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-          @click="selectView('individual')"
-        >
-          개별 그래프
-        </button>
-      </div>
+          <button
+            id="fdc-matrix-tab"
+            type="button"
+            role="tab"
+            :tabindex="viewMode === 'matrix' ? 0 : -1"
+            :aria-selected="viewMode === 'matrix'"
+            aria-controls="fdc-matrix-panel"
+            class="inline-flex items-center gap-2 rounded-(--sk-r-nav) border px-4 py-2 text-sm transition-colors"
+            :class="viewMode === 'matrix'
+              ? 'border-(--sk-ink) bg-(--sk-ink) font-semibold text-(--sk-ink-fg)'
+              : 'border-(--sk-border) bg-transparent font-medium text-(--sk-ink-muted) hover:bg-(--sk-muted-surface) hover:text-(--sk-ink)'"
+            @click="selectView('matrix')"
+          >
+            <UIcon
+              name="i-lucide-grid-3x3"
+              class="size-3.5 shrink-0"
+            />
+            파라미터 매트릭스
+          </button>
+          <button
+            id="fdc-individual-tab"
+            type="button"
+            role="tab"
+            :tabindex="viewMode === 'individual' ? 0 : -1"
+            :aria-selected="viewMode === 'individual'"
+            aria-controls="fdc-individual-panel"
+            class="inline-flex items-center gap-2 rounded-(--sk-r-nav) border px-4 py-2 text-sm transition-colors"
+            :class="viewMode === 'individual'
+              ? 'border-(--sk-ink) bg-(--sk-ink) font-semibold text-(--sk-ink-fg)'
+              : 'border-(--sk-border) bg-transparent font-medium text-(--sk-ink-muted) hover:bg-(--sk-muted-surface) hover:text-(--sk-ink)'"
+            @click="selectView('individual')"
+          >
+            <UIcon
+              name="i-lucide-activity"
+              class="size-3.5 shrink-0"
+            />
+            개별 그래프
+          </button>
+        </div>
+      </section>
 
       <div
         :id="activePanelId"
