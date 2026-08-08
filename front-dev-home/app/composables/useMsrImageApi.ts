@@ -54,21 +54,18 @@ export const useMsrImageApi = () => {
   const q = (eqp_ip: string, class_name: string, msr: string) =>
     `eqp_ip=${encodeURIComponent(eqp_ip)}&class_name=${encodeURIComponent(class_name)}&msr=${encodeURIComponent(msr)}`
 
-  // `preview` asks the backend for a browser-renderable rendition: TIFF
-  // originals convert to WebP server-side (2026-08-08, msr_image/preview.py);
-  // anything already renderable passes through byte-identical. The rule for
-  // call sites: DISPLAY URLs (an <img>, a blob for the viewer) send preview,
-  // DOWNLOAD links never do — the 원본 다운로드 promise is the untouched file.
+  // `preview` asks the backend for a browser-renderable rendition. The call-site
+  // rule travels with the type — see ImagePreviewOptions in utils/imageKind.ts.
   const imageUrl = (
     eqp_ip: string, class_name: string, msr: string, name: string,
-    opts?: { preview?: boolean }
+    opts?: ImagePreviewOptions
   ) =>
     `${joinApiPath(base, '/msr-image')}?${q(eqp_ip, class_name, msr)}`
     + `&name=${encodeURIComponent(name)}${opts?.preview ? '&preview=1' : ''}`
 
   const fetchImageWithCond = async (
     eqp_ip: string, class_name: string, msr: string, name: string,
-    opts?: { preview?: boolean }
+    opts?: ImagePreviewOptions
   ) => {
     const res = await fetch(imageUrl(eqp_ip, class_name, msr, name, opts))
     if (!res.ok) throw new Error(`image ${name}: ${res.status}`)

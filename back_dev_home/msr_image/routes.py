@@ -13,13 +13,13 @@ from back_dev_home.msr_image.contracts import ImageListResponse, ImageLocator
 from back_dev_home.msr_image.errors import MsrImageError
 from back_dev_home.msr_image.jobs import make_registry
 from back_dev_home.msr_image.paths import validate_locator, validate_segment, validate_tool_ip
-from back_dev_home.msr_image.preview import to_preview
+from back_dev_home.msr_image.preview import to_preview, wants_preview
 
 bp = Blueprint("msr_image", __name__)
 
 
 def _wants_preview() -> bool:
-    return (request.args.get("preview") or "").strip().lower() in ("1", "true", "yes")
+    return wants_preview(request.args.get("preview"))
 
 # Tools are not consistent about which spelling they write -- office serves
 # .jpeg/.jpg/.tif/.tiff (MIGRATION.md, office 확인 2026-07-24) while the mock
@@ -58,6 +58,31 @@ def _require(*names: str) -> dict[str, str] | None:
             return None
         out[n] = v
     return out
+
+
+# Extensions for the types the preview transform can PRODUCE.
+_RENDITION_EXTS = {"image/webp": ".webp", "image/svg+xml": ".svg"}
+
+
+def _served_name(name: str, converted_to: str | None) -> str:
+    """The filename that matches the bytes actually being served.
+
+    ``?preview=1`` on a TIFF sends WebP, and naming those bytes ``.tif`` in
+    Content-Disposition misleads anyone who saves the response directly — the
+    file will not open as the extension claims. The disposition stays
+    ``inline``; only the name is corrected.
+
+    ``converted_to`` is the new content type when the preview transform
+    actually changed it, else None. Gating on the CONVERSION rather than on the
+    outgoing type matters: the download path must keep the tool's own filename
+    verbatim, and at home the mock serves SVG bytes under a ``.jpeg`` name, so
+    a type-only check would rename a file nobody converted.
+    """
+    ext = _RENDITION_EXTS.get(converted_to or "")
+    if ext is None or name.lower().endswith(ext):
+        return name
+    stem = name.rsplit(".", 1)[0] if "." in name else name
+    return f"{stem}{ext}"
 
 
 def _content_disposition(name: str) -> str:
@@ -133,12 +158,18 @@ def serve_image_route():
     # sniff; everything else untouched). Applied AFTER the cache, so the cache
     # keeps holding originals and a preview never costs a second tool fetch.
     # The 원본 다운로드 link simply omits the flag. See msr_image/preview.py.
+    converted_to = None
     if _wants_preview():
-        fetched = to_preview(fetched)
+        rendition = to_preview(fetched)
+        if rendition.content_type != fetched.content_type:
+            converted_to = rendition.content_type
+        fetched = rendition
 
     headers = {
         "Cache-Control": "public, max-age=3600",
-        "Content-Disposition": _content_disposition(args["name"]),
+        "Content-Disposition": _content_disposition(
+            _served_name(args["name"], converted_to)
+        ),
     }
     if fetched.cond is not None:
         headers["X-Msr-Cond"] = quote(fetched.cond)

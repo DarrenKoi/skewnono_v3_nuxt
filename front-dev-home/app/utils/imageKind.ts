@@ -1,3 +1,15 @@
+// Options every image-URL builder accepts. Named once because the rule that
+// governs the flag is one rule, not one per builder: DISPLAY urls (an <img>, a
+// blob for the viewer) pass `preview: true` and get a browser-renderable
+// rendition — TIFF converts to WebP server-side (2026-08-08,
+// msr_image/preview.py), anything already renderable passes through
+// byte-identical. DOWNLOAD links omit it, because 원본 다운로드 promises the
+// untouched file. It was three anonymous inline `{ preview?: boolean }` copies
+// until 2026-08-09; an anonymous shape cannot carry that rule with it.
+export interface ImagePreviewOptions {
+  preview?: boolean
+}
+
 // SEM tools store JPEG previews alongside TIFF originals (office-confirmed
 // 2026-07-24), and the backend lists/serves both. Chromium cannot decode TIFF
 // in an <img> or blob URL, so every image consumer must branch to a download

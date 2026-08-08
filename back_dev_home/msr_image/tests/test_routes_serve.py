@@ -148,6 +148,36 @@ def test_serve_sets_content_disposition_filename(client):
     assert f'filename="{name}"' in cd
 
 
+def test_preview_filename_follows_the_converted_bytes(client):
+    """A converted response must not keep the original extension: saving it
+    would produce a file that does not open as its name claims. At home the
+    mock's .tif is SVG-labeled-as-TIFF, so preview relabels it to image/svg+xml
+    — the same rename path a real office TIFF takes to .webp."""
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    names = client.get(f"/api/msr-images?{q}").get_json()["images"]
+    tif = next(n for n in names if n.endswith(".tif"))
+
+    r = client.get(f"/api/msr-image?{q}&name={tif}&preview=1")
+    assert r.status_code == 200
+    cd = r.headers["Content-Disposition"]
+    assert cd.startswith("inline;")
+    assert f'filename="{tif}"' not in cd
+    assert f'filename="{tif[:-4]}.svg"' in cd
+
+
+def test_download_path_keeps_the_tools_own_filename(client):
+    """The counterpart guard: WITHOUT preview nothing is converted, so the name
+    is passed through untouched even though the mock's bytes are SVG under a
+    .tif name. 원본 다운로드 promises the tool's file, name included."""
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    names = client.get(f"/api/msr-images?{q}").get_json()["images"]
+    tif = next(n for n in names if n.endswith(".tif"))
+
+    r = client.get(f"/api/msr-image?{q}&name={tif}")
+    assert r.status_code == 200
+    assert f'filename="{tif}"' in r.headers["Content-Disposition"]
+
+
 def test_serve_escapes_quote_in_filename(client):
     # validate_segment rejects / \ and control chars but NOT a double quote,
     # so the quote is the one character that can break out of the header's

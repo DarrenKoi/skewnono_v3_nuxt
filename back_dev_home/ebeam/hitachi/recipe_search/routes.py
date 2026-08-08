@@ -21,10 +21,9 @@ from back_dev_home.ebeam.hitachi.recipe_search.data import (
     get_recipe_open_data,
 )
 from back_dev_home.msr_image.config import load_config
-from back_dev_home.msr_image.contracts import FetchedImage
 from back_dev_home.msr_image.errors import InvalidLocator, MsrImageError
 from back_dev_home.msr_image.paths import validate_segment, validate_tool_ip
-from back_dev_home.msr_image.preview import to_preview
+from back_dev_home.msr_image.preview import preview_bytes, wants_preview
 
 
 bp = Blueprint("ebeam_recipe_search", __name__)
@@ -398,8 +397,8 @@ def recipe_search_recipe_image(tool_slug: str):
     # JPEG files recipe folders have been observed to hold, but HV-SEM has
     # already broken one single-image assumption here (2026-08-08), so the
     # tif-only case is handled before it is observed rather than after.
-    if (request.args.get("preview") or "").strip().lower() in ("1", "true", "yes"):
-        payload, content_type, _cond = to_preview(FetchedImage(payload, content_type, None))
+    if wants_preview(request.args.get("preview")):
+        payload, content_type = preview_bytes(payload, content_type)
 
     return Response(
         payload,

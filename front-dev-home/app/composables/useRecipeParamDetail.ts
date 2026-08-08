@@ -116,10 +116,10 @@ export function recipeImageUrl(
   toolSlug: string,
   locator: IdpLocator,
   name: string,
-  // Display URLs pass { preview: true } for the browser-renderable rendition
-  // (TIFF → WebP server-side; a no-op on the JPEGs recipe folders have been
-  // observed to hold). Download links omit it — same rule as useMsrImageApi.
-  opts?: { preview?: boolean }
+  // Same flag, same rule, one type — see ImagePreviewOptions. A no-op on the
+  // JPEGs recipe folders have been observed to hold, but HV-SEM already broke
+  // one single-image assumption here, so the tif-only case is handled.
+  opts?: ImagePreviewOptions
 ): string {
   const params = new URLSearchParams({ ...locator, name })
   if (opts?.preview) params.set('preview', '1')

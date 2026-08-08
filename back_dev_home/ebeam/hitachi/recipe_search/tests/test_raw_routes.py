@@ -163,6 +163,35 @@ def test_recipe_image_serves_bytes_with_a_cache_header(client):
     assert response.data
 
 
+@pytest.mark.parametrize("flag", ["1", "true", "yes", "TRUE", " 1 "])
+def test_recipe_image_preview_flag_opts_in(client, flag):
+    """The allowlist is shared with msr_image (msr_image/preview.py's
+    wants_preview), so this route must accept exactly the same spellings. It
+    parsed the flag with its own inline copy of the expression until
+    2026-08-09; two copies of a rule that gets deliberately tightened later is
+    two rules."""
+    response = client.get("/api/cdsem/recipe-search/recipe-image",
+                          query_string={**LOCATOR, "name": "IMMP0001.jpeg",
+                                        "preview": flag})
+    assert response.status_code == 200
+    assert response.data
+
+
+@pytest.mark.parametrize("flag", ["", "0", "no", "maybe", "2"])
+def test_recipe_image_unknown_preview_values_serve_the_original(client, flag):
+    """Conservative by design: anything the allowlist does not recognise —
+    including a future spelling — gets the untouched bytes, which is what
+    every caller got before previews existed."""
+    plain = client.get("/api/cdsem/recipe-search/recipe-image",
+                       query_string={**LOCATOR, "name": "IMMP0001.jpeg"})
+    response = client.get("/api/cdsem/recipe-search/recipe-image",
+                          query_string={**LOCATOR, "name": "IMMP0001.jpeg",
+                                        "preview": flag})
+    assert response.status_code == 200
+    assert response.data == plain.data
+    assert response.mimetype == plain.mimetype
+
+
 def test_recipe_image_rejects_a_traversing_name(client):
     response = client.get("/api/cdsem/recipe-search/recipe-image",
                           query_string={**LOCATOR, "name": "../../../etc/passwd"})

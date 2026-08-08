@@ -90,6 +90,39 @@ def _tiff_to_webp(data: bytes) -> bytes:
         return out.getvalue()
 
 
+def wants_preview(raw: str | None) -> bool:
+    """Does this ``?preview`` query value ask for the rendition?
+
+    A conservative allowlist: only ``1`` / ``true`` / ``yes`` opt in, and
+    anything else — including a missing value, a typo, or a future spelling —
+    serves the original bytes. Serving the original is the safe default: it is
+    what every caller got before previews existed.
+
+    The rule lives here, next to ``to_preview``, because both route modules
+    that accept the flag need the SAME answer. It was written out twice
+    (msr_image and recipe_search) until 2026-08-09, and a rule that is
+    deliberately tightened or loosened later is exactly the kind that must not
+    be tightened in one copy only.
+
+    Takes the raw value rather than the request so this module stays free of
+    Flask and testable without a request context.
+    """
+    return (raw or "").strip().lower() in ("1", "true", "yes")
+
+
+def preview_bytes(data: bytes, content_type: str) -> tuple[bytes, str]:
+    """``to_preview`` for callers that hold bytes, not a ``FetchedImage``.
+
+    recipe_search serves raw recipe-folder files, which have no ``cond``
+    sidecar; before this existed it built a ``FetchedImage(payload, ct, None)``
+    just to reach the transform and then threw the third field away. Handing a
+    contract type a placeholder to borrow a function is how that type stops
+    meaning anything.
+    """
+    rendition = to_preview(FetchedImage(data, content_type, None))
+    return rendition.data, rendition.content_type
+
+
 def to_preview(fetched: FetchedImage) -> FetchedImage:
     """The browser-renderable rendition of ``fetched``, by content sniff.
 
