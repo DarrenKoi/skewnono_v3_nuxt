@@ -131,6 +131,184 @@ types:
       type: string
       description: Set for M-fab lots, null otherwise
 
+  EquipmentTrendPoint:
+    date:
+      type: string
+      format: "YYYY-MM-DD"
+    exec_count:
+      type: integer
+    align_fail_count:
+      type: integer
+    meas_fail_count:
+      type: integer
+      description: >-
+        Same double-counting note as DailyTrendPoint.meas_fail_count — a single row can be
+        both an align fail and a meas fail, so the two counts are independent, not exclusive.
+
+  EquipmentRow:
+    eqp_id:
+      type: string
+    fab_name:
+      type: string
+    eqp_model_cd:
+      type: string
+    exec_count:
+      type: integer
+      description: Measurement rows for this equipment in the window. Denominator of both fail-rate fields.
+    align_fail_count:
+      type: integer
+    align_fail_rate:
+      type: number
+      description: align_fail_count / exec_count. 0..1 fraction, not a percent.
+    align_expected:
+      type: number
+      description: >-
+        Expected align-fail count if this equipment's actual recipe mix had failed at each
+        recipe's fleet-average align_fail rate (indirect standardization, same technique as
+        recipe_tat's tat_index). Shown so a table tooltip can render "actual N / expected M"
+        as the evidence behind align_index — a badge with no visible evidence is either not
+        trusted or, worse, trusted blindly.
+    align_index:
+      type: number
+      nullable: true
+      description: >-
+        align_fail_count / align_expected. 1.0 means "failed exactly as its recipe mix would
+        predict"; above 1.0 means more fails than predicted, below 1.0 fewer. Null when
+        align_expected is below min_expected_fails (FleetReference.min_expected_fails, echo
+        of FAIL_INDEX_MIN_EXPECTED = 1.0) — too few expected fails for the ratio's denominator
+        to mean anything. Null means "cannot judge", never "zero" and never "healthy".
+    align_index_low:
+      type: number
+      nullable: true
+      description: >-
+        Lower bound of the 95% Byar-approximation confidence interval on align_index (z from
+        FleetReference.confidence_z). align_index, align_index_low and align_index_high are
+        always either ALL THREE null or ALL THREE populated together — never a mix.
+    align_index_high:
+      type: number
+      nullable: true
+      description: Upper bound of the same confidence interval. Same all-or-nothing null invariant as align_index_low.
+    meas_fail_count:
+      type: integer
+    meas_fail_rate:
+      type: number
+      description: meas_fail_count / exec_count. 0..1 fraction, not a percent.
+    meas_expected:
+      type: number
+      description: Same indirect-standardization definition as align_expected, computed independently for the meas aspect.
+    meas_index:
+      type: number
+      nullable: true
+      description: >-
+        Same definition as align_index, computed independently for the meas aspect against
+        meas_expected. Same null-below-min_expected_fails rule and the same "cannot judge,
+        never zero" meaning.
+    meas_index_low:
+      type: number
+      nullable: true
+      description: Same all-or-nothing null invariant as align_index_low, paired with meas_index/meas_index_high instead.
+    meas_index_high:
+      type: number
+      nullable: true
+    recipe_count:
+      type: integer
+      description: Distinct full_name recipes this equipment ran in the window. Input to the frontend's "편중" (skewed-mix) badge.
+    top_recipe:
+      type: string
+      nullable: true
+      description: >-
+        full_name of the recipe with the largest exec_count on this equipment — ranked by
+        EXECUTION COUNT, unlike recipe_tat's EquipmentRow.top_recipe which ranks by
+        total_meastime (this screen has no meastime field). Ties break on full_name
+        descending so mock (row-scan order) and office (composite-bucket order) agree on the
+        same winner.
+    top_recipe_share:
+      type: number
+      description: >-
+        top_recipe's exec_count divided by this equipment's exec_count — a share of
+        EXECUTION COUNT, not of measurement time (0.0 when top_recipe is null). This is the
+        number front-dev-home/app/utils/failEquipmentSignals.ts calibrates SHARE_CEIL against.
+
+  FleetReference:
+    tool_count:
+      type: integer
+    total_executions:
+      type: integer
+    align_fail_count:
+      type: integer
+    meas_fail_count:
+      type: integer
+    align_fail_rate:
+      type: number
+    meas_fail_rate:
+      type: number
+    median_exec_count:
+      type: number
+    median_recipe_count:
+      type: number
+    min_expected_fails:
+      type: number
+      description: >-
+        Echo of FAIL_INDEX_MIN_EXPECTED (1.0) — the align_expected/meas_expected floor below
+        which the matching *_index is null. This is a definitional boundary (a ratio needs at
+        least one expected event in its denominator to mean anything), not a tunable
+        threshold — it is design-derived, not OFFICE-VERIFY, and office data should not move
+        it.
+    confidence_z:
+      type: number
+      description: >-
+        Echo of CONFIDENCE_Z (1.96) — the z-value behind the Byar 95% confidence interval on
+        every *_index_low/*_index_high pair. Conventional two-sided 95% value — design-
+        derived, not OFFICE-VERIFY.
+    percentiles:
+      type: object
+      description: >-
+        Keyed by "align_fail_rate" | "align_index" | "meas_fail_rate" | "meas_index" |
+        "recipe_count" | "exec_count", each value an object with p10/p25/p50/p75/p90 keys.
+        *_index percentiles exclude equipments whose index is null; empty object if no
+        equipment qualifies. DIAGNOSTIC ONLY — badge decisions read the confidence interval
+        (the *_index_low/*_index_high pair on each EquipmentRow), never this block. It exists
+        so FAIL_INDEX_CEIL/FAIL_INDEX_FLOOR
+        (front-dev-home/app/utils/failEquipmentSignals.ts) can be calibrated against the real
+        office distribution — see that file's MIGRATION.md OFFICE-VERIFY entry.
+
+  EquipmentRecipeCell:
+    eqp_id:
+      type: string
+    exec_count:
+      type: integer
+    align_fail_count:
+      type: integer
+    meas_fail_count:
+      type: integer
+
+  EquipmentRecipeRow:
+    class_name:
+      type: string
+    recipe_name:
+      type: string
+    full_name:
+      type: string
+      format: "<class>/<recipe>"
+    total_exec_count:
+      type: integer
+      description: Sum across all selected equipments.
+    total_align_fail_count:
+      type: integer
+      description: Sum across all selected equipments. Part of the recipes[] sort key — see that field below.
+    total_meas_fail_count:
+      type: integer
+      description: Sum across all selected equipments. Part of the recipes[] sort key — see that field below.
+    cells:
+      type: array
+      items: EquipmentRecipeCell
+      description: >-
+        One cell per selected eqp_id, in REQUEST order — the same order as the response's
+        top-level eqp_ids (after de-duplication and the MAX_EQP_IDS truncation). An equipment
+        that never ran this recipe still gets a cell with every count zeroed; a missing cell
+        would shift the columns and make the table show a different equipment's numbers under
+        the wrong header.
+
 endpoints:
   - path: /api/<tool_slug>/fail-issue/summary
     method: GET
@@ -305,6 +483,105 @@ endpoints:
           type: array
           items: DeviceRow
 
+  - path: /api/<tool_slug>/fail-issue/equipments
+    method: GET
+    description: >-
+      Per-equipment fleet table for the window — one row per eqp_id with an
+      actual-vs-expected fail comparison (align_index, meas_index) for badge decisions, plus
+      a fleet-wide reference block (fleet) for calibrating those badges at the office.
+      Intentionally does not accept lot_cd — same reasoning as /devices: this endpoint is the
+      source of truth for which equipment exists in scope, so a device selection must not
+      filter it.
+    query_params:
+      fab_name:
+        type: string
+        required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the summary endpoint's fab_name for the full description.
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_names:
+          type: array of string
+          description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
+        start_date:
+          type: string
+        end_date:
+          type: string
+        fleet:
+          type: FleetReference
+        equipments:
+          type: array
+          items: EquipmentRow
+
+  - path: /api/<tool_slug>/fail-issue/equipment-compare
+    method: GET
+    description: Trend overlay + recipe matrix for up to 5 selected equipments within the window.
+    query_params:
+      fab_name:
+        type: string
+        required: false
+        description: Comma-separated list of fab names, uppercased server-side; multiple fabs = union (합집합). See the summary endpoint's fab_name for the full description.
+      start_date:
+        type: string
+        required: false
+      end_date:
+        type: string
+        required: false
+      eqp_id:
+        type: string
+        required: false
+        description: >-
+          Comma-separated list of eqp_id, NOT uppercased (exact-match key, unlike fab_name).
+          Truncated to MAX_EQP_IDS (5) by the request parser after de-duplication — extras
+          beyond the cap are silently dropped there, then echoed back via the response's
+          eqp_ids so the truncation is never silent to the caller.
+    response:
+      status: 200
+      body:
+        tool_type:
+          type: string
+        fab_names:
+          type: array of string
+          description: Echo of the resolved fab filter, uppercased. Empty array when not filtered.
+        start_date:
+          type: string
+        end_date:
+          type: string
+        eqp_ids:
+          type: array of string
+          description: >-
+            The eqp_id list actually used, after de-duplication and the MAX_EQP_IDS (5) cap.
+            Echoed so a silent truncation is never silent. Empty when no eqp_id was selected —
+            trends and recipes are then both empty too.
+        trends:
+          type: array
+          description: One entry per echoed eqp_id, in the same order as eqp_ids.
+          items:
+            eqp_id:
+              type: string
+            points:
+              type: array
+              items: EquipmentTrendPoint
+              description: >-
+                One point per date in [start_date, end_date] inclusive — quiet days are
+                zero-filled, never omitted, so the trend chart's x-axis has no gaps.
+        recipes:
+          type: array
+          items: EquipmentRecipeRow
+          description: >-
+            Sorted by (total_align_fail_count + total_meas_fail_count) descending, ties
+            broken by full_name ascending. The backend does not know which tab (Align Fail vs
+            Meas Fail) is active, so it guarantees only one deterministic combined order for
+            stable pagination; the frontend re-sorts by the active aspect for display.
+
 notes:
   - Two aspects per row are independent — a measurement can be both align-fail AND meas-fail. Office should not collapse them into a single "fail" boolean.
   - MEAS_FAIL_THRESHOLD is pinned at 15.0 to match the datatable spec. The summary endpoint echoes it so clients can render tooltips like "fail_ratio > 15%" without hard-coding.
@@ -312,3 +589,6 @@ notes:
   - Path slug routes the request to CD-SEM vs HV-SEM data — /cdsem and /hvsem are separate paths (unlike recipe-tat which uses /cdsem for both and disambiguates by query string).
   - Office should anchor the date window on max(timestamp) from the source index, not wall-clock now(). Phase 1 mock anchors on import-time wall-clock for the same reason recipe-tat does.
   - Align-ranking and meas-ranking both filter out zero-fail entries before applying limit. Office implementations should do the same so the table only shows triage targets.
+  - equipments and equipment-compare do not accept lot_cd — same reasoning as /devices. Both answer "what equipment exists in scope / how do these equipments compare", and a device-detail selection must not narrow that answer.
+  - EquipmentTrendPoint is a separate type from DailyTrendPoint even though the fields are identical, mirroring recipe-tat's EquipmentRow-vs-RankingRow split. Page-wide trend and per-equipment trend are separate contracts on purpose, so adding a field to one never forces a matching change on the other.
+  - On EquipmentRow, align_index/align_index_low/align_index_high (and the three meas_ equivalents) are always either ALL null together or ALL populated together. Null means "cannot judge" — never "zero" and never "healthy" — so renderers must not treat a null index as a passing badge.
