@@ -1913,12 +1913,27 @@ composite 를 두 번 도는데, (eqp × 날짜 × 레시피) 3중 소스는 90�
 - Consumes: Task 1–6 이 확정한 payload 모양.
 - Produces: 없음 (문서).
 
-- [ ] **Step 1: YAML 계약에 두 엔드포인트를 추가**
+- [ ] **Step 1: YAML 계약에 타입과 엔드포인트를 추가**
 
-기존 파일의 스타일(들여쓰기, 키 순서, 설명 문구)을 먼저 읽고 그대로 따릅니다.
-`devices` 항목 아래에 붙입니다. 설명 문자열에 `:` 가 들어가면 반드시
-따옴표로 감쌉니다 — 이 저장소에서 그 이유로 계약 파싱이 깨진 적이 있고,
-`tests/test_api_contracts.py` 가 그걸 잡습니다.
+이 파일은 **OpenAPI 가 아닙니다.** 최상위 키는
+`resource` / `description` / `base_path` / `constants` / `types` /
+`endpoints` / `notes` 이고, 구조가 다음과 같습니다.
+
+- `types:` — 이름 → 필드 맵. 각 필드는 `type`, 선택적으로 `description`,
+  `format`, `enum`, `items`, `examples`.
+- `endpoints:` — **리스트**입니다. 각 원소가
+  `- path: /api/<tool_slug>/fail-issue/<name>` 로 시작하고
+  `method` / `description` / `query_params` / `response` 를 갖습니다.
+- `response.body` 는 `types:` 의 이름 하나이거나 인라인 필드 맵입니다.
+  기존 `devices` 엔드포인트가 인라인 예시입니다.
+
+`types:` 에 `EquipmentRow` · `FleetReference` · `EquipmentTrendPoint` ·
+`EquipmentRecipeCell` · `EquipmentRecipeRow` 를 더하고, `endpoints:` 리스트
+끝(= `devices` 항목 뒤, `notes:` 앞)에 두 항목을 더합니다.
+
+설명 문자열에 `:` 가 들어가면 반드시 따옴표로 감쌉니다 — 이 저장소에서
+`recipe-tat.yaml` 이 그 이유로 깨진 채 브랜치에 실린 적이 있습니다.
+`tests/test_api_contract_yaml.py` 가 그걸 잡습니다.
 
 기록할 항목:
 
@@ -1935,9 +1950,19 @@ composite 를 두 번 도는데, (eqp × 날짜 × 레시피) 3중 소스는 90�
 
 - [ ] **Step 2: 계약 파싱 테스트를 돌린다**
 
-Run: `.venv/bin/python -m pytest tests/test_api_contracts.py -q`
+Run: `.venv/bin/python -m pytest tests/test_api_contract_yaml.py tests/test_check_contract.py -q`
 
 Expected: PASS
+
+`test_check_contract.py` 를 함께 도는 이유: 그 파일이
+`scripts/capture_fixtures.py` 의 `ENDPOINTS` 로스터를 고정하고 있습니다.
+**fail_issue 는 지금 그 로스터에 한 항목도 없고**(`__fixtures__` 디렉터리도
+없습니다) 로스터 테스트는 "픽스처가 있는데 목록에 없는 피처"만 잡으므로,
+이번 변경으로 깨지지 않습니다. 즉 **이 작업에서 로스터에 손대지 마십시오** —
+항목을 추가하려면 실행 중인 Flask 로 픽스처를 캡처해야 하고, 그러면 기존
+5개 엔드포인트까지 함께 끌어들이는 별개의 작업이 됩니다. 다만 fail_issue
+전체가 shape-drift 가드 밖에 있다는 사실은 MIGRATION.md 에 한 줄로
+적어 둡니다(Step 3).
 
 - [ ] **Step 3: `MIGRATION.md` 에 "장비별 뷰" 절을 추가**
 
@@ -1958,6 +1983,13 @@ Expected: PASS
    `/summary` 의 `total_executions` 와 같은지 확인합니다. 다르면 composite
    소스 중 하나가 문서를 떨어뜨리고 있다는 뜻이며, 가장 흔한 원인은
    `eqp_model_cd.keyword` 미존재입니다.
+5. **가드 공백 고지**: fail_issue 는 `scripts/capture_fixtures.py` 의
+   `ENDPOINTS` 로스터에 **한 항목도 없습니다.** 즉
+   `scripts/check_contract.py` 의 mock↔office 형태 대조가 이 피처를 전혀
+   보지 않으며, 그 결과는 "문제 0건"으로 읽히지 "검사 안 함"으로 읽히지
+   않습니다. 새 두 엔드포인트도 마찬가지입니다. 사무실 스왑 시 형태 대조는
+   위 4번 절차를 손으로 하십시오. 로스터 채우기는 기존 5개 엔드포인트까지
+   함께 끌어들이는 별개 작업입니다.
 
 - [ ] **Step 4: Markdown lint**
 
