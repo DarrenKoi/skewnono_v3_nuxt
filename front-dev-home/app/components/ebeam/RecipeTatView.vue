@@ -9,28 +9,18 @@
     >
       <template #toggle>
         <div class="flex flex-wrap items-center gap-2.5">
-          <div
-            role="radiogroup"
-            class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
-          >
-            <button
+          <!-- 뷰 전환은 NAVIGATE 동작이라 SkNavPill(ink fill)입니다. 직접 만든
+               white/zinc 세그먼트 컨트롤은 DESIGN.md가 이름을 대어 금지한
+               패턴이었습니다 — 트레이 배경이 zinc를 종이 위로 끌고 들어옵니다. -->
+          <div class="inline-flex items-center gap-1">
+            <SkNavPill
               v-for="mode in VIEW_MODES"
               :key="mode.value"
-              type="button"
-              role="radio"
-              :aria-checked="viewMode === mode.value"
-              class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-              :class="viewMode === mode.value
-                ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-                : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+              :label="mode.label"
+              :icon="mode.icon"
+              :active="viewMode === mode.value"
               @click="viewMode = mode.value"
-            >
-              <UIcon
-                :name="mode.icon"
-                class="h-4 w-4"
-              />
-              {{ mode.label }}
-            </button>
+            />
           </div>
           <EbeamDateRangePopover
             v-model="dateRange"
@@ -71,7 +61,7 @@
     <!-- 디바이스별 mode without a selection: prompt instead of dashboard -->
     <div
       v-else-if="viewMode === 'by-device' && !selectedLot"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      class="dashboard-surface rounded-[var(--sk-r-card)] px-6 py-12 text-center"
     >
       <UIcon
         name="i-lucide-mouse-pointer-click"
@@ -93,7 +83,7 @@
       />
       <div
         v-else-if="!rankingRows.length"
-        class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+        class="dashboard-surface rounded-[var(--sk-r-card)] px-6 py-12 text-center"
       >
         <UIcon
           name="i-lucide-inbox"
@@ -110,7 +100,7 @@
       <template v-else>
         <!-- Charts -->
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          <UCard class="dashboard-surface rounded-2xl">
+          <UCard class="dashboard-surface">
             <template #header>
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -140,7 +130,7 @@
             />
           </UCard>
 
-          <UCard class="dashboard-surface rounded-2xl">
+          <UCard class="dashboard-surface">
             <template #header>
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
@@ -168,7 +158,7 @@
         </div>
 
         <!-- Table -->
-        <div class="dashboard-surface rounded-2xl px-3.5 py-3">
+        <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="sk-title">
@@ -687,10 +677,12 @@ const columns: TableColumn<RecipeTatRow>[] = [
   }
 ]
 
+// 헤더에 배경을 주지 않는 이유는 RecipeTatFleetTable.vue의 같은 블록에 있습니다:
+// sticky 헤더가 이미 테마 surface 위에 앉아 있습니다. 타입은 .sk-label에 맡깁니다.
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 sk-label'
 }
 
 const exportFileName = computed(() => {

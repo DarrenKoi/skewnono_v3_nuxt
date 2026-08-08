@@ -6,7 +6,7 @@
     />
     <div
       v-else-if="!equipmentRows.length"
-      class="dashboard-surface rounded-2xl px-6 py-12 text-center"
+      class="dashboard-surface rounded-[var(--sk-r-card)] px-6 py-12 text-center"
     >
       <UIcon
         name="i-lucide-inbox"
@@ -40,7 +40,7 @@
       />
       <div
         v-else
-        class="dashboard-surface rounded-2xl px-6 py-10 text-center"
+        class="dashboard-surface rounded-[var(--sk-r-card)] px-6 py-10 text-center"
       >
         <UIcon
           name="i-lucide-mouse-pointer-click"

@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-2xl px-3.5 py-3">
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <h3 class="sk-title">
@@ -41,8 +41,10 @@
         class="mt-px h-3.5 w-3.5 shrink-0"
       />
       <span>
-        신호 배지는 fab을 하나만 선택했을 때 표시됩니다. 여러 fab을 함께 조회하면
-        레시피 길이가 fab마다 달라, 배지가 장비 차이가 아니라 fab 차이를 가리킵니다.
+        조회 결과가 두 개 이상의 fab에 걸쳐 있습니다. 레시피 길이가 fab마다 달라
+        신호 배지는 표시하지 않고, TAT index 열도 fab을 섞은 기준선으로 계산됩니다 —
+        이 열로 정렬하면 장비가 아니라 fab이 줄세워집니다. 장비끼리 비교하려면
+        fab을 하나만 선택하십시오.
       </span>
     </p>
 
@@ -165,8 +167,25 @@ type SortableColumnId = typeof sortableColumnIds[number]
 const OCCUPANCY_HEADER_TOOLTIP
   = '측정 시간 기준입니다. 로딩·대기·PM이 빠져 있어 MES 가동률보다 낮게 읽힙니다.'
 
-const headerTooltip = (id: SortableColumnId) =>
-  id === 'occupancy' ? OCCUPANCY_HEADER_TOOLTIP : undefined
+// TAT index는 간접표준화 지표라 열 이름만으로는 읽히지 않습니다. 설명이 없으면
+// 1.08을 "평균보다 8% 느림"이 아니라 점수로 읽습니다.
+const TAT_INDEX_HEADER_TOOLTIP
+  = '실제 총 TAT ÷ 이 장비의 레시피 구성이면 걸렸어야 할 TAT. '
+    + '1.00보다 크면 같은 일을 평균보다 느리게 했다는 뜻입니다.'
+
+// 여러 fab을 함께 조회하면 기준선이 fab을 섞어 계산됩니다. 배지와 달리 값을
+// 지우지는 않습니다 — 같은 fab 안에서는 여전히 유효하기 때문입니다. 대신 경고를
+// 정렬하려고 누르는 바로 그 헤더에 답니다. 표 위 문단만으로는 정렬하는 순간
+// 손이 닿는 곳에 경고가 없습니다.
+const TAT_INDEX_MIXED_FAB_TOOLTIP
+  = '여러 fab을 함께 조회 중입니다. 기준선이 fab을 섞어 계산되어, 이 열로 '
+    + '정렬하면 장비가 아니라 fab이 줄세워집니다.'
+
+const headerTooltip = (id: SortableColumnId) => {
+  if (id === 'occupancy') return OCCUPANCY_HEADER_TOOLTIP
+  if (id !== 'tat_index') return undefined
+  return props.peerGroupComparable ? TAT_INDEX_HEADER_TOOLTIP : TAT_INDEX_MIXED_FAB_TOOLTIP
+}
 
 const sorting = ref<SortingState>([{ id: 'total_meastime', desc: true }])
 
@@ -254,9 +273,13 @@ const columns: TableColumn<RecipeTatEquipmentRow>[] = [
   { id: 'signals', header: '신호', size: 140 }
 ]
 
+// 행 hover는 zinc 스케일을 직접 쓰는 두 곳 중 하나로 허용됩니다(DESIGN.md).
+// 헤더에는 배경이 필요 없습니다: sticky 헤더가 이미 테마 surface 위에 앉아
+// 있어서, 여기에 tint를 주면 더 차가운 두 번째 카드가 하나 더 생길 뿐입니다.
+// 타입은 .sk-label(11px/600/ink-muted)에 맡깁니다 — 장비 리스트가 참조 사례.
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 sk-label'
 }
 </script>

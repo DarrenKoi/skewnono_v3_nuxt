@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-3">
     <!-- 선택 요약: 플릿 표에서 이미 받은 행으로 계산하므로 추가 요청 없음 -->
-    <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-2xl px-3.5 py-2.5">
+    <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-[var(--sk-r-card)] px-3.5 py-2.5">
       <span
         v-for="row in rows"
         :key="row.eqp_id"
@@ -31,7 +31,7 @@
     />
 
     <template v-else>
-      <UCard class="dashboard-surface rounded-2xl">
+      <UCard class="dashboard-surface">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon
@@ -49,7 +49,7 @@
         />
       </UCard>
 
-      <div class="dashboard-surface rounded-2xl px-3.5 py-3">
+      <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <h3 class="sk-title">
             레시피 구성 비교
@@ -232,9 +232,11 @@ const columns = computed<TableColumn<RecipeTatEquipmentRecipeRow>[]>(() => [
   }))
 ])
 
+// 헤더에 배경을 주지 않는 이유는 RecipeTatFleetTable.vue의 같은 블록에 있습니다:
+// sticky 헤더가 이미 테마 surface 위에 앉아 있습니다. 타입은 .sk-label에 맡깁니다.
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 sk-label'
 }
 </script>
