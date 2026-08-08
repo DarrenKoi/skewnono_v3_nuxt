@@ -198,12 +198,51 @@ const union = (sets: ReadonlySet<string>[]): Set<string> => {
 }
 
 /**
+ * The coordinate fields that must agree before one MSR's `chip_number` can be
+ * read as the same physical die as another's. Die (3,4) is an INDEX into a wafer
+ * map — under a different array, pitch or origin it is a different place.
+ *
+ * `mapOffset` is deliberately absent, matching how the office builds
+ * site_layout_hash (docs/datatables/msr_file_pickle.txt: "map_offset 은 일부러
+ * 제외합니다 — run 마다 달라지는 align 보정이 섞여 있으면 같은 layout 이 여러
+ * 개로 쪼개집니다"). Including it here would split one layout per run and make
+ * coverage readiness permanently unavailable, which is the exact failure the
+ * office note warns about.
+ */
+const LAYOUT_COORDINATE_FIELDS = ['waferSize', 'chipArray', 'chipPitch', 'mapOrigin'] as const
+
+/** True when the set reports two DIFFERENT known values for any layout-defining
+ *  coordinate field. Unknown never conflicts, per the module's contract. */
+const coordinateConflict = (signatures: CompatibilitySignature[]): boolean =>
+  LAYOUT_COORDINATE_FIELDS.some((field) => {
+    const values = new Set<string>()
+    for (const sig of signatures) {
+      const m = sig.coordinate[field]
+      if (m.state === 'known') values.add(m.value)
+    }
+    return values.size > 1
+  })
+
+/**
  * Readiness of any capability that needs a shared physical site layout across
- * the included set. Three gates, in order:
- *  - all layout hashes known AND equal  → `ready`
- *  - site-key sets partially overlap     → `limited` (common-coverage:N)
- *  - otherwise (unknown/absent layout)   → `unavailable`
+ * the included set. In order:
+ *  - all layout hashes known AND equal        → `ready`
+ *  - site keys cover the SAME sites           → `ready` (common-coverage:N)
+ *  - site keys partially overlap              → `limited` (common-coverage:N)
+ *  - otherwise (unknown/absent/conflicting)   → `unavailable`
  * A set of fewer than two MSRs is always `unavailable` (nothing to relate).
+ *
+ * Full overlap used to fall through to `unavailable`: the coverage gate read
+ * `common.size > 0 && common.size < all.size`, so the BEST possible case — every
+ * MSR measured exactly the same sites — scored identically to no overlap at all.
+ * That is a range check written to exclude the empty case that also excluded the
+ * perfect one, and it bites at the office too whenever hashes are unknown but
+ * the sites match.
+ *
+ * The coverage gates are guarded by `coordinateConflict`, because site keys are
+ * die INDICES: without agreeing array/pitch/origin, an identical `chip_number`
+ * in two MSRs is not an identical physical site, and reporting `ready` off that
+ * would send the same-site gallery to the wrong die.
  */
 function layoutReadiness(
   signatures: CompatibilitySignature[],
@@ -221,18 +260,25 @@ function layoutReadiness(
     if (allEqual) return { status: 'ready', reasons: [] }
   }
 
-  if (siteKeys) {
+  const coordConflict = coordinateConflict(signatures)
+
+  if (siteKeys && !coordConflict) {
     const sets = signatures.map(s => siteKeys.get(s.msr) ?? new Set<string>())
     const common = intersect(sets)
     const all = union(sets)
-    if (common.size > 0 && common.size < all.size) {
-      return { status: 'limited', reasons: [`common-coverage:${common.size}`] }
+    if (common.size > 0) {
+      // The count is reported either way: under `ready` it is the evidence for
+      // the claim, under `limited` it is the size of the usable subset.
+      return {
+        status: common.size === all.size ? 'ready' : 'limited',
+        reasons: [`common-coverage:${common.size}`]
+      }
     }
   }
 
   return {
     status: 'unavailable',
-    reasons: [allKnown ? 'layout-mismatch' : 'layout-unknown']
+    reasons: [allKnown || coordConflict ? 'layout-mismatch' : 'layout-unknown']
   }
 }
 

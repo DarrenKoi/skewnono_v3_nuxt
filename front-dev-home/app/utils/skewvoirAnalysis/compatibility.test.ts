@@ -23,6 +23,10 @@ interface Opts {
   methods?: string[]
   parameter?: string
   noRecipe?: boolean
+  // Layout-defining coordinate context. `chipArray` participates in the layout
+  // comparison; `mapOffset` deliberately does not (it varies per run).
+  chipArray?: string
+  mapOffset?: string
 }
 
 const source = (msr: string, opts: Opts = {}): SignatureSource => {
@@ -36,9 +40,9 @@ const source = (msr: string, opts: Opts = {}): SignatureSource => {
       idp_name: opts.noRecipe ? undefined : `/Recipe/${opts.recipe ?? 'RCP_A'}.idp`,
       idw_name: opts.noRecipe ? undefined : `/Recipe/${opts.recipe ?? 'RCP_A'}.idw`,
       wafer_size: '300000000',
-      chip_array: '40,56',
+      chip_array: opts.chipArray ?? '40,56',
       chip_pitch: '7500000,5357142',
-      map_offset: '0,0',
+      map_offset: opts.mapOffset ?? '0,0',
       map_origin: '20,28',
       recipe_revision: opts.revision,
       site_layout_hash: opts.layoutHash
@@ -283,6 +287,55 @@ test('rows alone drive coverage readiness with no layout hash present', () => {
   })
   assert.equal(m.readiness.siteVariability.status, 'limited')
   assert.ok(m.readiness.siteVariability.reasons.some(r => r === 'common-coverage:2'))
+})
+
+// ---------------------------------------------------------------------------
+// Coverage readiness — the full-overlap case and the coordinate guard
+// ---------------------------------------------------------------------------
+
+// The regression: identical coverage is the BEST case, and the old range check
+// (`common > 0 && common < all`) dropped it into the same bucket as no overlap.
+test('identical site coverage → ready, not unavailable', () => {
+  const sites = [['1,1', 0], ['2,2', 1]] as const
+  const files = [
+    sited('a', sites, { recipe: 'RCP_A', unit: 'nm' }),
+    sited('b', sites, { recipe: 'RCP_A', unit: 'nm' })
+  ]
+  const m = buildAnalysisManifest('a', files, 'CD_TOP', {
+    siteKeys: siteKeysFromRows(files, 'CD_TOP')
+  })
+  assert.equal(m.readiness.sameSiteGallery.status, 'ready')
+  assert.deepEqual(m.readiness.sameSiteGallery.reasons, ['common-coverage:2'])
+})
+
+// A die index means nothing without the map it indexes into: same chip_number,
+// different array → different physical site.
+test('a known coordinate conflict blocks coverage readiness', () => {
+  const sites = [['1,1', 0], ['2,2', 1]] as const
+  const files = [
+    sited('a', sites, { recipe: 'RCP_A', unit: 'nm', chipArray: '40,56' }),
+    sited('b', sites, { recipe: 'RCP_A', unit: 'nm', chipArray: '44,60' })
+  ]
+  const m = buildAnalysisManifest('a', files, 'CD_TOP', {
+    siteKeys: siteKeysFromRows(files, 'CD_TOP')
+  })
+  assert.equal(m.readiness.sameSiteGallery.status, 'unavailable')
+  assert.deepEqual(m.readiness.sameSiteGallery.reasons, ['layout-mismatch'])
+})
+
+// map_offset is per-run align correction, excluded from the office's own
+// site_layout_hash. Treating it as layout-defining would split one layout into
+// one-per-run and make coverage readiness permanently unavailable.
+test('a differing map_offset alone does NOT block coverage readiness', () => {
+  const sites = [['1,1', 0], ['2,2', 1]] as const
+  const files = [
+    sited('a', sites, { recipe: 'RCP_A', unit: 'nm', mapOffset: '0,0' }),
+    sited('b', sites, { recipe: 'RCP_A', unit: 'nm', mapOffset: '120000,-98000' })
+  ]
+  const m = buildAnalysisManifest('a', files, 'CD_TOP', {
+    siteKeys: siteKeysFromRows(files, 'CD_TOP')
+  })
+  assert.equal(m.readiness.sameSiteGallery.status, 'ready')
 })
 
 test('a single-MSR scope leaves multi-MSR readiness unavailable', () => {
