@@ -24,6 +24,7 @@
       <EbeamRecipeTatFleetTable
         :rows="equipmentRows"
         :percentiles="percentiles"
+        :peer-group-comparable="peerGroupComparable"
         :selected="selected"
         :max-selected="MAX_COMPARE_EQPS"
         @update:selected="selected = $event"
@@ -62,6 +63,7 @@ import {
   useRecipeTatApi,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
+import { isPeerGroupComparable } from '~/utils/equipmentSignals'
 
 const props = defineProps<{
   fabs: string[]
@@ -100,6 +102,13 @@ watch(cacheKey, () => {
 
 const equipmentRows = computed(() => data.value?.equipments ?? [])
 const percentiles = computed(() => data.value?.fleet.percentiles ?? {})
+
+// 배지는 또래 집단이 한 fab일 때만 장비를 가리킵니다. 응답이 에코하는
+// `fab_names`가 아니라 **실제로 돌아온 행**의 fab을 세는 이유는, fab 없이
+// 조회하면(= 설계 3.5절의 사무실 확인 절차) 에코가 빈 목록인 채로 데이터는
+// 전 fab을 덮기 때문입니다. 선택한 fab 중 한 곳에 측정이 하나도 없어
+// 결과적으로 한 fab만 남는 경우도 행을 세는 쪽이 맞습니다.
+const peerGroupComparable = computed(() => isPeerGroupComparable(equipmentRows.value))
 
 const selectedRows = computed(
   () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))

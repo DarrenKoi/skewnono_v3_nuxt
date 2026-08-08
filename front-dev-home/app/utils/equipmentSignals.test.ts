@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   equipmentSignals,
+  isPeerGroupComparable,
   SIGNAL_META,
   type FleetPercentiles
 } from './equipmentSignals.ts'
@@ -117,9 +118,13 @@ test('모든 신호에 표시용 메타가 있다', () => {
 // 그 절반을 equipmentSignals.ts에서 통째로 지워도 원본 11개는 전부
 // 통과했습니다(실제로 지워서 확인). 이후 포함 부등호로 되돌리고
 // usage_ratio.p10을 0.88로 고치면서(위 test 3) underused의 절대 기준
-// 절반은 원본 테스트만으로도 증명되게 됐지만, 나머지 5개 gap은 그대로
-// 남아 이 6개가 메웁니다. 각각 실제로 해당 절반을 equipmentSignals.ts에서
-// 지워서 이 테스트가 깨지는 것과, 복원하면 다시 통과하는 것을 확인했습니다.
+// 절반은 원본 테스트만으로도 증명되게 됐습니다.
+//
+// 그래서 아래 여섯 중 다섯은 아직 무증명인 절반을 메우고, 마지막 하나
+// (underused)는 위 test 3과 같은 절반을 값이 p10과 정확히 같지 않은
+// 경우로 한 번 더 확인하는 **의도적 중복**입니다. 각각 실제로 해당 절반을
+// equipmentSignals.ts에서 지워서 이 테스트가 깨지는 것과, 복원하면 다시
+// 통과하는 것을 확인했습니다(중복인 마지막 하나 포함).
 
 test('slow: 절대 기준을 넘어도 분위수 꼬리가 아니면 배지가 없다', () => {
   // TAT_CEIL(1.10) < tat_index의 p90(1.13). 그 사이 값(1.12)은 절대 기준은
@@ -187,4 +192,41 @@ test('underused: 진짜 꼬리 안쪽 값이 절대 기준을 넘지 않으면 �
     equipmentSignals({ ...healthy, usage_ratio: 0.87 }, tightSpread),
     []
   )
+})
+
+// isPeerGroupComparable — 배지를 아예 달지 말아야 하는 조회 범위
+//
+// equipmentSignals()가 아니라 호출자가 지키는 조건이라 여기서 따로 봅니다.
+// 섞인 fab에서 배지가 실제로 무엇을 가리키는지는 mock에서 측정됐습니다:
+// cd-sem 전 fab 14일 조회에서 `빠름` 9대가 전부 meastime 배수가 가장 낮은
+// M11이었습니다(창을 6개 옮겨가며 재현, 8~9대).
+
+test('한 fab만 있는 또래 집단은 비교 가능하다', () => {
+  assert.equal(
+    isPeerGroupComparable([{ fab_name: 'R3' }, { fab_name: 'R3' }]),
+    true
+  )
+})
+
+test('fab이 둘 이상 섞이면 비교 불가다', () => {
+  // 사이드바에서 두 fab을 고른 경우 — useFabRoute가 파싱하는 정상 상태입니다.
+  assert.equal(
+    isPeerGroupComparable([{ fab_name: 'R3' }, { fab_name: 'M16B' }]),
+    false
+  )
+})
+
+test('fab 필터 없는 전 플릿 조회도 비교 불가다', () => {
+  // 설계 3.5절의 사무실 확인 절차가 fab 없이 부르는 바로 그 호출입니다.
+  // 응답의 fab_names 에코는 빈 목록이지만 데이터는 전 fab을 덮습니다 —
+  // 그래서 에코가 아니라 행의 fab을 셉니다.
+  const fleetWide = ['M11A', 'M14B', 'M15C', 'M16A', 'R3', 'R4']
+    .map(fab_name => ({ fab_name }))
+  assert.equal(isPeerGroupComparable(fleetWide), false)
+})
+
+test('행이 없으면 비교 불가다', () => {
+  // percentiles가 빈 dict일 때 배지를 달지 않는 것과 같은 이유입니다:
+  // 근거가 없으면 판정하지 않습니다.
+  assert.equal(isPeerGroupComparable([]), false)
 })

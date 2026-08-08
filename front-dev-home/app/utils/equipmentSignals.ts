@@ -21,13 +21,25 @@ export type FleetPercentiles = Record<string, Record<string, number>>
 
 export type EquipmentSignal = 'slow' | 'fast' | 'underused' | 'narrow'
 
-// OFFICE-VERIFY — 사무실 실 분포를 보기 전까지는 전부 자리표시자입니다.
-// 조정 절차는 recipe_tat/MIGRATION.md 의 "장비별 뷰" 절.
+// OFFICE-VERIFY — 사무실 실 분포를 보기 전까지는 자리표시자입니다. 이 셋은
+// `/equipments` 한 번 호출의 `fleet.percentiles` 만으로 맞출 수 있습니다.
+// 절차는 recipe_tat/MIGRATION.md 의 "장비별 뷰" 절.
 // 값이 확정되면 이 주석을 `office 확인 YYYY-MM-DD` 로 바꿉니다.
 export const USAGE_FLOOR = 0.85
-export const TAT_CEIL = 1.10
 export const TAT_FLOOR = 0.92
 export const SHARE_CEIL = 0.50
+
+// OFFICE-VERIFY — TAT_CEIL 만 주석이 따로인 이유: 이 상수는
+// `fleet.percentiles` 하나로 끝나지 않습니다. mock 은 칸 하나가 장비 5대뿐
+// 이라 느린 장비가 자기 레시피의 base(r) 을 스스로 끌어올려 자기 지수를
+// 감쇠시키고, 장비가 훨씬 많은 사무실 칸에서는 그 감쇠가 약해집니다 — 같은
+// 정도의 물리적 느림이 사무실에서는 더 높은 지수로 읽힐 것으로 예상됩니다
+// (recipe_tat/MIGRATION.md 의 "셀 크기 감쇠" 항목). 그래서 분위수를 읽는
+// 것만으로는 이 값을 검증했다고 할 수 없고, 위 셋과 함께
+// `office 확인 YYYY-MM-DD` 를 찍으면 검증하지 않은 상수에 검증 도장을 찍는
+// 셈이 됩니다. 장비 수가 많은 칸의 tat_index 분포를 따로 확인한 뒤에
+// 이 주석만 따로 바꿉니다.
+export const TAT_CEIL = 1.10
 
 export const SIGNAL_META: Record<EquipmentSignal, { label: string, tone: 'warn' | 'info' }> = {
   slow: { label: '느림', tone: 'warn' },
@@ -35,6 +47,29 @@ export const SIGNAL_META: Record<EquipmentSignal, { label: string, tone: 'warn' 
   narrow: { label: '편중', tone: 'warn' },
   fast: { label: '빠름', tone: 'info' }
 }
+
+// 또래 집단(peer group)은 조회 범위 그 자체입니다. 그래서 범위가 여러 fab을
+// 걸치면 배지가 장비가 아니라 **fab**을 가리킵니다.
+//
+//  - `tat_index`의 base(r)은 조회 범위 전체의 레시피별 평균이라, 여러 fab을
+//    함께 조회하면 fab 단위의 속도 차이가 그 fab 장비 전부의 지수가 됩니다.
+//  - `usage_ratio`/`occupancy`에는 정규화가 **아예** 없습니다. 레시피가 짧은
+//    fab의 장비는 같은 개수를 돌아도 두 값이 함께 낮게 나옵니다.
+//
+// mock에서 실제로 그렇습니다: cd-sem 전 fab 14일 조회에서 `빠름` 9대가 전부
+// (여러 창에서 8~9대) meastime 배수가 가장 낮은 M11이고, `저사용`도 배수가
+// 낮은 두 fab(M11·R4)에 몰립니다. 배수가 높은 M14/M16은 반대로 `느림`을
+// 독차지합니다 — 어느 쪽도 장비 상태가 아니라 fab을 읽은 것입니다.
+//
+// `percentiles`가 비면 배지를 달지 않는 것과 같은 이유로, 섞인 또래 집단에서도
+// 달지 않습니다: **판단 근거가 없으면 경고하지 않습니다.** 원 수치 열은 그대로
+// 남으므로 사용자가 잃는 정보는 없습니다.
+//
+// 이 판정은 `equipmentSignals()` 밖에 있습니다. 그 함수의 계약은 "행 하나와
+// 분포 하나에 대한 순수 판정"이고, fab 범위는 행에도 분포에도 들어 있지
+// 않습니다 — 호출자가 지키는 조건입니다.
+export const isPeerGroupComparable = (rows: readonly { fab_name: string }[]): boolean =>
+  new Set(rows.map(row => row.fab_name)).size === 1
 
 const at = (percentiles: FleetPercentiles, metric: string, key: string): number | null => {
   const value = percentiles?.[metric]?.[key]

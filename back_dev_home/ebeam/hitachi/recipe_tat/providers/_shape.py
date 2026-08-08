@@ -72,12 +72,28 @@ def build_equipments_payload(
     **지수는 fab 하나 안에서만 비교 가능합니다.** `base(r)`은 조회 범위
     전체의 레시피별 평균이라, 여러 fab을 함께 조회하면 base가 fab들을 섞은
     값이 됩니다. 그러면 fab 단위의 속도 차이가 그 fab 장비 *전부*의 지수로
-    나타납니다 — mock의 cd-sem 전 fab 조회에서 M14(meastime ×1.25)의 장비별
-    지수 중앙값이 1.13, M11(×0.74)이 0.76으로 측정됩니다. 장비 상태가 아니라
-    fab을 잰 것이므로 배지 임계값은 단일 fab 조회 기준으로 잡아야 합니다.
-    사무실에서도 같은 상관이 나타나는지는 OFFICE-VERIFY 이며(MIGRATION.md),
-    나타난다면 `base(r)`을 `(fab_name, recipe)`별로 계산해야 합니다. 지금
-    바꾸지 않는 이유는 근거가 mock 의 지어낸 fab 배수뿐이기 때문입니다.
+    나타납니다 — mock의 cd-sem 전 fab 조회에서 fab별 지수 중앙값은
+    `mock.FAB_MEASTIME_MULTIPLIER`의 배수 순서를 그대로 따라 줄서고, 가장
+    느린 fab과 가장 빠른 fab 사이의 격차가 배지 대역(TAT_FLOOR 0.92 ~
+    TAT_CEIL 1.10)의 폭보다 넓습니다. 여기에 실측 중앙값을 적어두지 않는
+    이유는 mock 의 앵커가 프로세스 시작 시각이라 조회 창이 매일 움직이고
+    그때마다 중앙값도 함께 움직이기 때문입니다 — 고정해 적으면 반드시
+    낡습니다. 장비 상태가 아니라 fab을 잰 것이므로 배지 임계값은 단일 fab
+    조회 기준으로 잡아야 합니다. 사무실에서도 같은 상관이 나타나는지는
+    OFFICE-VERIFY 이며(MIGRATION.md), 나타난다면 `base(r)`을
+    `(fab_name, recipe)`별로 계산해야 합니다. 지금 바꾸지 않는 이유는 근거가
+    mock 의 지어낸 fab 배수뿐이기 때문입니다.
+
+    **`usage_ratio`와 `occupancy`에는 fab 정규화가 아예 없습니다.** 지수는
+    적어도 레시피 구성으로 표준화되지만, 이 둘은 원 `total_meastime`을 각각
+    플릿 중앙값과 조회 기간으로 나눈 값일 뿐이라 정규화 항이 하나도 없습니다.
+    레시피가 짧은 fab의 장비는 같은 개수의 측정을 돌아도 두 값이 함께 낮게
+    나옵니다 — 여러 fab을 섞어 조회하면 `저사용` 배지가 방치된 장비가 아니라
+    **레시피가 짧은 fab**을 가리킵니다(mock에서 실제로 그렇습니다). 그래서
+    프론트엔드는 조회 범위에 fab이 2개 이상이면 배지를 아예 달지 않습니다
+    (`front-dev-home/app/utils/equipmentSignals.ts`의
+    `isPeerGroupComparable`). 사무실 실 분포에서도 이 편향이 나타나는지는
+    지수와 마찬가지로 OFFICE-VERIFY 입니다(MIGRATION.md).
     """
     per_tool: dict[str, dict] = {}
     per_recipe: dict[str, dict] = {}
@@ -116,8 +132,15 @@ def build_equipments_payload(
         total = tool["total_meastime"]
         cells = tool["recipes"]
 
+        # 2차 키로 full_name 을 명시합니다. tat 만으로 비교하면 동률에서
+        # dict 삽입 순서가 승자를 정하는데, 그 순서는 mock(행 스캔 순서)과
+        # office(composite 버킷 순서)가 서로 다릅니다 — 같은 장비의
+        # `top_recipe`(표시값이자 `편중` 배지의 입력)가 provider 에 따라
+        # 달라집니다. max 이므로 동률이면 full_name 이 사전순으로 뒤인 쪽이
+        # 이깁니다. 어느 쪽을 고르든 상관없고, 정해져 있다는 것만 중요합니다.
         top_name, top_cell = max(
-            cells.items(), key=lambda item: item[1]["tat"], default=(None, None)
+            cells.items(), key=lambda item: (item[1]["tat"], item[0]),
+            default=(None, None)
         )
         # `if name in base` — count 가 0 인 레시피는 base 에 없습니다. mock 은
         # 행마다 count 1 을 더하므로 도달할 수 없지만, office 의 composite 는
