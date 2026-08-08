@@ -8,11 +8,17 @@ provider 는 자기 소스에서 격자(grid)만 만들고 여기로 넘깁니�
 
 from __future__ import annotations
 
+import statistics
 from math import sqrt
+from typing import Sequence
 
+from back_dev_home.ebeam.hitachi._analytics import percentile_summary
 from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     CONFIDENCE_Z,
+    EquipmentRow,
+    EquipmentsPayload,
     FAIL_INDEX_MIN_EXPECTED,
+    ToolType,
 )
 
 
@@ -59,3 +65,184 @@ def standardised(
         return (None, None, None)
     low, high = byar_interval(observed, expected)
     return (round(observed / expected, 4), low, high)
+
+
+# (eqp_id, fab_name, eqp_model_cd, full_name, exec_count, align_fails, meas_fails)
+EquipmentGridRow = tuple[str, str, str, str, int, int, int]
+
+
+def build_equipments_payload(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    grid: Sequence[EquipmentGridRow],
+) -> EquipmentsPayload:
+    """장비별 집계 + 배지 판정을 위한 구간과 분포.
+
+    `align_index`/`meas_index`는 간접표준화입니다: 실제 실패 건수를, 이 장비의
+    레시피 구성이면 나왔어야 할 건수(레시피별 플릿 실패율 × 이 장비의 실행 수)
+    로 나눕니다. 원 실패율로 장비를 줄세우면 정렬이 까다로운 레이어를 맡은
+    장비가 저절로 불량 장비가 됩니다 — 장비 상태가 아니라 일감의 난이도를
+    잰 것입니다.
+
+    어떤 레시피를 장비 한 대만 돌았다면 그 레시피의 플릿 실패율이 곧 그
+    장비의 실패율이라 해당 항이 정확히 1.0 을 기여합니다. 비교 정보가 없는
+    일감은 지수를 1.0 쪽으로 희석시킬 뿐 없는 경보를 만들지 않습니다.
+
+    **지수는 fab 하나 안에서만 비교 가능합니다.** `base(r)`이 조회 범위 전체의
+    레시피별 평균이라, 여러 fab 을 함께 조회하면 fab 단위의 실패율 차이가 그
+    fab 장비 *전부*의 지수가 됩니다. mock 의 FAB_ALIGN_FAIL_RATE 는 fab 별로
+    0.05~0.15 로 3배 차이가 나므로 이 편향은 집에서 즉시 재현됩니다. 그래서
+    프론트엔드는 조회 범위에 fab 이 2개 이상이면 배지를 아예 달지 않습니다
+    (front-dev-home/app/utils/equipmentSignals.ts 의 isPeerGroupComparable).
+    사무실에서도 같은 상관이 나타나는지는 OFFICE-VERIFY 입니다(MIGRATION.md).
+    """
+    per_tool: dict[str, dict] = {}
+    per_recipe: dict[str, dict] = {}
+
+    for eqp_id, fab_name, model_cd, full_name, execs, align_f, meas_f in grid:
+        tool = per_tool.setdefault(eqp_id, {
+            "eqp_id": eqp_id,
+            "fab_name": fab_name,
+            "eqp_model_cd": model_cd,
+            "exec_count": 0,
+            "align_fail_count": 0,
+            "meas_fail_count": 0,
+            "recipes": {},
+        })
+        tool["exec_count"] += execs
+        tool["align_fail_count"] += align_f
+        tool["meas_fail_count"] += meas_f
+
+        cell = tool["recipes"].setdefault(full_name, {"execs": 0, "align": 0, "meas": 0})
+        cell["execs"] += execs
+        cell["align"] += align_f
+        cell["meas"] += meas_f
+
+        recipe = per_recipe.setdefault(full_name, {"execs": 0, "align": 0, "meas": 0})
+        recipe["execs"] += execs
+        recipe["align"] += align_f
+        recipe["meas"] += meas_f
+
+    # base(r) = 레시피 r 의 플릿 실패율
+    base_align = {
+        name: agg["align"] / agg["execs"]
+        for name, agg in per_recipe.items() if agg["execs"]
+    }
+    base_meas = {
+        name: agg["meas"] / agg["execs"]
+        for name, agg in per_recipe.items() if agg["execs"]
+    }
+
+    equipments: list[EquipmentRow] = []
+    for tool in per_tool.values():
+        execs = tool["exec_count"]
+        cells = tool["recipes"]
+
+        # `if name in base` — execs 가 0 인 레시피는 base 에 없습니다. mock 은
+        # 행마다 1 을 더하므로 도달할 수 없지만, office 의 composite 는
+        # doc_count 0 인 버킷을 낼 수 있습니다. 0.0 으로 채우지 않고 건너뛰는
+        # 이유: 기여할 실행이 없는 항은 분모에서 빠져야 하고, 0.0 을 더하면
+        # 분모만 작아져 지수가 조용히 부풀어 오릅니다.
+        expected_align = sum(
+            cell["execs"] * base_align[name]
+            for name, cell in cells.items() if name in base_align
+        )
+        expected_meas = sum(
+            cell["execs"] * base_meas[name]
+            for name, cell in cells.items() if name in base_meas
+        )
+
+        align_index, align_low, align_high = standardised(
+            tool["align_fail_count"], expected_align
+        )
+        meas_index, meas_low, meas_high = standardised(
+            tool["meas_fail_count"], expected_meas
+        )
+
+        # 2차 키로 full_name 을 명시합니다. execs 만으로 비교하면 동률에서 dict
+        # 삽입 순서가 승자를 정하는데, 그 순서는 mock(행 스캔 순서)과
+        # office(composite 버킷 순서)가 서로 다릅니다 — 같은 장비의 top_recipe
+        # (표시값이자 `편중` 배지의 입력)가 provider 에 따라 달라집니다. max
+        # 이므로 동률이면 full_name 이 사전순으로 뒤인 쪽이 이깁니다. 어느
+        # 쪽을 고르든 상관없고, 정해져 있다는 것만 중요합니다.
+        top_name, top_cell = max(
+            cells.items(), key=lambda item: (item[1]["execs"], item[0]),
+            default=(None, None)
+        )
+
+        equipments.append({
+            "eqp_id": tool["eqp_id"],
+            "fab_name": tool["fab_name"],
+            "eqp_model_cd": tool["eqp_model_cd"],
+            "exec_count": execs,
+            "align_fail_count": tool["align_fail_count"],
+            "align_fail_rate": round(tool["align_fail_count"] / execs, 4) if execs else 0.0,
+            "align_expected": round(expected_align, 4),
+            "align_index": align_index,
+            "align_index_low": align_low,
+            "align_index_high": align_high,
+            "meas_fail_count": tool["meas_fail_count"],
+            "meas_fail_rate": round(tool["meas_fail_count"] / execs, 4) if execs else 0.0,
+            "meas_expected": round(expected_meas, 4),
+            "meas_index": meas_index,
+            "meas_index_low": meas_low,
+            "meas_index_high": meas_high,
+            "recipe_count": len(cells),
+            "top_recipe": top_name,
+            "top_recipe_share": (
+                round(top_cell["execs"] / execs, 4) if execs and top_cell else 0.0
+            ),
+        })
+
+    # 방향이 서로 달라 한 번에 정렬할 수 없습니다. 파이썬 정렬은 안정적이므로
+    # 2차 키를 먼저 오름차순으로 깔고 1차 키를 내림차순으로 덮습니다.
+    equipments.sort(key=lambda row: row["eqp_id"])
+    equipments.sort(key=lambda row: row["exec_count"], reverse=True)
+
+    total_execs = sum(row["exec_count"] for row in equipments)
+    total_align = sum(row["align_fail_count"] for row in equipments)
+    total_meas = sum(row["meas_fail_count"] for row in equipments)
+
+    return {
+        "tool_type": tool_type,
+        "fab_names": list(fab_names or []),
+        "start_date": start_date,
+        "end_date": end_date,
+        "fleet": {
+            "tool_count": len(equipments),
+            "total_executions": total_execs,
+            "align_fail_count": total_align,
+            "meas_fail_count": total_meas,
+            "align_fail_rate": round(total_align / total_execs, 4) if total_execs else 0.0,
+            "meas_fail_rate": round(total_meas / total_execs, 4) if total_execs else 0.0,
+            "median_exec_count": float(
+                statistics.median([row["exec_count"] for row in equipments])
+            ) if equipments else 0.0,
+            "median_recipe_count": float(
+                statistics.median([row["recipe_count"] for row in equipments])
+            ) if equipments else 0.0,
+            "min_expected_fails": FAIL_INDEX_MIN_EXPECTED,
+            "confidence_z": CONFIDENCE_Z,
+            "percentiles": {
+                "exec_count": percentile_summary(r["exec_count"] for r in equipments),
+                "recipe_count": percentile_summary(r["recipe_count"] for r in equipments),
+                "align_fail_rate": percentile_summary(
+                    r["align_fail_rate"] for r in equipments
+                ),
+                "meas_fail_rate": percentile_summary(
+                    r["meas_fail_rate"] for r in equipments
+                ),
+                # None 장비는 제외 — 표본 미달은 "실패하지 않았다"가 아니라
+                # "모른다"이고, 0 으로 채우면 p10 이 통째로 무너집니다.
+                "align_index": percentile_summary(
+                    r["align_index"] for r in equipments if r["align_index"] is not None
+                ),
+                "meas_index": percentile_summary(
+                    r["meas_index"] for r in equipments if r["meas_index"] is not None
+                ),
+            },
+        },
+        "equipments": equipments,
+    }

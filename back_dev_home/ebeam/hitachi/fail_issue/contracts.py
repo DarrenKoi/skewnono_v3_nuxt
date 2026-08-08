@@ -18,6 +18,9 @@ __all__ = [
     "AlignRankingRow",
     "MeasRankingRow",
     "DeviceRow",
+    "EquipmentRow",
+    "FleetReference",
+    "EquipmentsPayload",
 ]
 
 
@@ -123,3 +126,62 @@ class DeviceRow(TypedDict):
     meas_fail_count: int
     prod_catg_cd: str | None
     tech_nm: str | None
+
+
+class EquipmentRow(TypedDict):
+    eqp_id: str
+    fab_name: str
+    eqp_model_cd: str
+    exec_count: int
+    # align --------------------------------------------------------------
+    align_fail_count: int
+    align_fail_rate: float          # fraction, 0..1
+    # 이 장비의 레시피 구성이면 나왔어야 할 실패 건수. 표의 툴팁이 이 값을
+    # 그대로 보여줍니다 — 배지가 켜진 근거를 사용자가 확인할 수 없으면
+    # 배지를 믿지 않거나, 더 나쁘게는 근거 없이 믿습니다.
+    align_expected: float
+    align_index: float | None       # actual / expected. 표시 하한 미만이면 None
+    align_index_low: float | None   # Byar 95 % 하한
+    align_index_high: float | None
+    # meas ---------------------------------------------------------------
+    meas_fail_count: int
+    meas_fail_rate: float
+    meas_expected: float
+    meas_index: float | None
+    meas_index_low: float | None
+    meas_index_high: float | None
+    # 구성 ---------------------------------------------------------------
+    recipe_count: int
+    top_recipe: str | None
+    # 실행 **횟수** 비중입니다(recipe_tat 은 TAT 비중). 실패 화면에서 "이
+    # 장비는 사실상 한 레시피만 돈다"의 근거는 시간이 아니라 횟수입니다.
+    top_recipe_share: float
+
+
+class FleetReference(TypedDict):
+    tool_count: int
+    total_executions: int
+    align_fail_count: int
+    meas_fail_count: int
+    align_fail_rate: float
+    meas_fail_rate: float
+    median_exec_count: float
+    median_recipe_count: float
+    min_expected_fails: float
+    confidence_z: float
+    # 사무실에서 FAIL_INDEX_CEIL 을 정하기 위한 분포 참고용입니다.
+    # **배지 판정에는 쓰이지 않습니다** — 잡음 판정은 신뢰구간이 합니다.
+    # 키: "align_fail_rate" | "align_index" | "meas_fail_rate" | "meas_index"
+    #     | "recipe_count" | "exec_count"
+    # 값: {"p10","p25","p50","p75","p90"}. 지수는 None 인 장비를 제외하고
+    # 계산하며, 대상 장비가 없으면 빈 dict.
+    percentiles: dict[str, dict[str, float]]
+
+
+class EquipmentsPayload(TypedDict):
+    tool_type: ToolType
+    fab_names: list[str]
+    start_date: str | None
+    end_date: str | None
+    fleet: FleetReference
+    equipments: list[EquipmentRow]
