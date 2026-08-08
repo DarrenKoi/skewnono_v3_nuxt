@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { buildReviewQueue, resolveEvidenceOnly } from './gallery.ts'
+import { buildReviewQueue, resolveEvidenceOnly, reviewImage } from './gallery.ts'
 import { parseWaferGeometry } from '../waferGeometry.ts'
 import type { MsrFileRow, ExeDetailInfo } from '~/composables/useMsrFileApi'
 
@@ -100,14 +100,23 @@ test('sequence is the tiebreak when the primary group and residual magnitude tie
   assert.deepEqual(q.entries.map(e => e.sequence), [3, 7])
 })
 
-test('a site with no image still produces an evidence entry (image field null)', () => {
+test('a site with no image still produces an evidence entry (no image names)', () => {
   const rows = [
     row({ sequence: 1, chip_number: '0, 0', cd_value: 100, no_of_mp_image: 0, mp_image_name_01: '' })
   ]
   const q = buildReviewQueue(rows, 'CD_TOP', geo())
   assert.equal(q.entries.length, 1)
-  assert.equal(q.entries[0]!.image, null)
+  assert.deepEqual(q.entries[0]!.images, [])
+  assert.equal(reviewImage(q.entries[0]!), null)
   assert.equal(q.entries[0]!.hasImage, false)
+})
+
+test('the representative image is the head of the list, never stored beside it', () => {
+  const q = buildReviewQueue(mixedRows(), 'CD_TOP', geo())
+  for (const entry of q.entries) {
+    assert.equal(reviewImage(entry), entry.images[0] ?? null)
+    assert.equal(entry.hasImage, entry.images.length > 0)
+  }
 })
 
 test('every parameter row yields exactly one entry (no image row is ever dropped)', () => {

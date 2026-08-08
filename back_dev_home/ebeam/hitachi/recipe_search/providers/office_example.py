@@ -696,8 +696,24 @@ def _idp_remote_path(location: _IdpLocation) -> str:
 # ── recipe open, step 2: fetch it (FTP) ───────────────────────────────────
 
 
-def _transport():
-    """(FtpFleetDownloader, HostSpec, ListDir, label) for this host.
+class _Transport(NamedTuple):
+    """The FTP classes this host talks to tools with, plus a log label.
+
+    Named rather than a bare 4-tuple because the three classes are structurally
+    interchangeable at the call site: every caller unpacks all four and two of
+    the three discard ``list_dir_cls``. Reorder the return and nothing here
+    complains — the failure surfaces as a broken FTP call at the office, which
+    is the worst place this repo has to debug anything.
+    """
+
+    downloader_cls: type
+    host_spec_cls: type
+    list_dir_cls: type
+    label: str
+
+
+def _transport() -> _Transport:
+    """The FTP transport for this host.
 
     The office Windows PC has no direct FTP egress to the tools and must go
     through the fileloader HTTP proxy; the cloud Linux host reaches them
@@ -706,9 +722,9 @@ def _transport():
     """
     if system() == "Windows":
         from ftp_handler.proxy import FtpFleetDownloader, HostSpec, ListDir
-        return FtpFleetDownloader, HostSpec, ListDir, "proxy (Windows)"
+        return _Transport(FtpFleetDownloader, HostSpec, ListDir, "proxy (Windows)")
     from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec, ListDir
-    return FtpFleetDownloader, HostSpec, ListDir, "direct"
+    return _Transport(FtpFleetDownloader, HostSpec, ListDir, "direct")
 
 
 def _downloader(downloader_cls, config):
@@ -746,7 +762,8 @@ def _download_idp(location: _IdpLocation) -> bytes:
     validate_tool_ip(location.eqp_ip, config.allowed_subnets)
 
     remote_path = _idp_remote_path(location)
-    downloader_cls, host_spec_cls, _list_dir_cls, transport = _transport()
+    tp = _transport()
+    downloader_cls, host_spec_cls, transport = tp.downloader_cls, tp.host_spec_cls, tp.label
     report = _downloader(downloader_cls, config).download(
         [host_spec_cls(location.eqp_ip, files=[remote_path])]
     )
@@ -1453,7 +1470,8 @@ def _fetch_many(
         return {}
 
     config = load_config()
-    downloader_cls, host_spec_cls, _list_dir_cls, transport = _transport()
+    tp = _transport()
+    downloader_cls, host_spec_cls, transport = tp.downloader_cls, tp.host_spec_cls, tp.label
 
     # host -> {remote_path -> [(locator key, name), ...]}. A list because two
     # locators on one host CAN resolve to the same path (the same recipe opened
@@ -1535,7 +1553,9 @@ def _list_raw_dirs(
         return {}
 
     config = load_config()
-    downloader_cls, host_spec_cls, list_dir_cls, transport = _transport()
+    tp = _transport()
+    downloader_cls, host_spec_cls = tp.downloader_cls, tp.host_spec_cls
+    list_dir_cls, transport = tp.list_dir_cls, tp.label
 
     dirs_for: dict[str, set[str]] = {}
     for eqp_ip, class_name, idw, idp in keys:

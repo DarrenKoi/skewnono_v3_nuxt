@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import statistics
 from datetime import timedelta
-from typing import Sequence
+from typing import NamedTuple, Sequence
 
 from back_dev_home.ebeam.hitachi._analytics import parse_iso_date, percentile_summary
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
@@ -22,8 +22,23 @@ from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
 )
 
 
-# (eqp_id, fab_name, eqp_model_cd, full_name, meas_counts, total_meastime)
-EquipmentGridRow = tuple[str, str, str, str, int, int]
+class EquipmentGridRow(NamedTuple):
+    """One (장비, 레시피) cell on its way into ``build_equipments_payload``.
+
+    Named rather than a bare 6-tuple because the row is threaded mock → shape →
+    office and four of its six fields are strings. Swapping fab_name and
+    eqp_model_cd — the office adapter's own comment warns this is the kind of
+    mistake home tests cannot catch — type-checks fine as a tuple and produces
+    a plausible-looking table. As a NamedTuple the fields are named at every
+    hand-off and the swap has to be written out loud to happen.
+    """
+
+    eqp_id: str
+    fab_name: str
+    eqp_model_cd: str
+    full_name: str
+    meas_counts: int
+    total_meastime: int
 
 
 def window_seconds(start_date: str | None, end_date: str | None) -> int:
@@ -97,24 +112,24 @@ def build_equipments_payload(
     """
     per_tool: dict[str, dict] = {}
     per_recipe: dict[str, dict] = {}
-    for eqp_id, fab_name, eqp_model_cd, full_name, counts, tat in grid:
-        tool = per_tool.setdefault(eqp_id, {
-            "eqp_id": eqp_id,
-            "fab_name": fab_name,
-            "eqp_model_cd": eqp_model_cd,
+    for row in grid:
+        tool = per_tool.setdefault(row.eqp_id, {
+            "eqp_id": row.eqp_id,
+            "fab_name": row.fab_name,
+            "eqp_model_cd": row.eqp_model_cd,
             "exec_count": 0,
             "total_meastime": 0,
             "recipes": {}
         })
-        tool["exec_count"] += counts
-        tool["total_meastime"] += tat
-        cell = tool["recipes"].setdefault(full_name, {"count": 0, "tat": 0})
-        cell["count"] += counts
-        cell["tat"] += tat
+        tool["exec_count"] += row.meas_counts
+        tool["total_meastime"] += row.total_meastime
+        cell = tool["recipes"].setdefault(row.full_name, {"count": 0, "tat": 0})
+        cell["count"] += row.meas_counts
+        cell["tat"] += row.total_meastime
 
-        recipe = per_recipe.setdefault(full_name, {"count": 0, "tat": 0})
-        recipe["count"] += counts
-        recipe["tat"] += tat
+        recipe = per_recipe.setdefault(row.full_name, {"count": 0, "tat": 0})
+        recipe["count"] += row.meas_counts
+        recipe["tat"] += row.total_meastime
 
     # base(r) = 레시피 r의 플릿 평균 meastime
     base = {

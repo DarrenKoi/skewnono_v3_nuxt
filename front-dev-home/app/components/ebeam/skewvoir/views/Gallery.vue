@@ -40,8 +40,8 @@
           v-for="entry in filteredEntries"
           :key="`${entry.chip}#${entry.sequence}`"
           :entry="entry"
-          :src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image, { preview: true }) : null"
-          :original-src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image) : null"
+          :src="entryImageUrl(entry, { preview: true })"
+          :original-src="entryImageUrl(entry)"
           :focused="entry.chip === analysis.focusedSite.value"
           @open="openViewer(entry)"
           @focus="focusSite(entry)"
@@ -128,7 +128,8 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFilters.vue'
 import { isTiffName } from '~/utils/imageKind'
 import { paramImageRows, rowImageNames } from '~/utils/msrRows'
-import { buildReviewQueue, resolveEvidenceOnly, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import { buildReviewQueue, resolveEvidenceOnly, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import type { ImagePreviewOptions } from '~/utils/imageKind'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -139,6 +140,16 @@ const { imageUrl } = useMsrImageApi()
 // Empty strings (never undefined) when the focus row hasn't resolved yet —
 // callers gate on `focusCtx.eqp_ip` before building a URL/job.
 const focusCtx = useFocusImageCtx(props.analysis)
+
+// A card's image URL, or null when there is nothing to point at (no file on
+// the row, or the focus row has not resolved a tool yet). One function so the
+// display URL and the original-download URL cannot drift apart in the
+// template — they differ by the preview flag and nothing else.
+const entryImageUrl = (entry: ReviewEntry, opts?: ImagePreviewOptions): string | null => {
+  const name = reviewImage(entry)
+  if (!name || !focusCtx.value.eqp_ip) return null
+  return imageUrl(focusCtx.value.eqp_ip, focusCtx.value.class_name, focusCtx.value.msr, name, opts)
+}
 
 // ── SINGLE scope: the review queue ───────────────────────────────────────────
 const queue = computed(() =>

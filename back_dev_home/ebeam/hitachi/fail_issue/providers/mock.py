@@ -70,6 +70,7 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     SummaryPayload,
 )
 from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+    EquipmentGridRow,
     build_equipment_compare_payload,
     build_equipments_payload,
 )
@@ -512,25 +513,30 @@ def get_equipments(
     office 어댑터는 같은 격자를 OpenSearch composite 집계로 만들어 같은
     조립기를 부릅니다 — 두 provider 의 숫자가 정의상 일치합니다.
     """
-    cells: dict[tuple[str, str], list] = {}
+    cells: dict[tuple[str, str], EquipmentGridRow] = {}
     for row in _filter_rows(tool_type, fab_names, start_date, end_date):
         key = (row["eqp_id"], row["full_name"])
         cell = cells.get(key)
         if cell is None:
-            cells[key] = [
-                row["eqp_id"], row["fab_name"], row["eqp_model_cd"],
-                row["full_name"], 0, 0, 0
-            ]
-            cell = cells[key]
-        cell[4] += 1
-        if _is_align_fail(row):
-            cell[5] += 1
-        if _is_meas_fail(row):
-            cell[6] += 1
+            cell = EquipmentGridRow(
+                eqp_id=row["eqp_id"],
+                fab_name=row["fab_name"],
+                eqp_model_cd=row["eqp_model_cd"],
+                full_name=row["full_name"],
+                exec_count=0,
+                align_fails=0,
+                meas_fails=0,
+            )
+        # `cell[5] += 1` / `cell[6] += 1` until 2026-08-09 — align and meas were
+        # two adjacent indexes, and swapping them is invisible to a shape check.
+        cells[key] = cell._replace(
+            exec_count=cell.exec_count + 1,
+            align_fails=cell.align_fails + (1 if _is_align_fail(row) else 0),
+            meas_fails=cell.meas_fails + (1 if _is_meas_fail(row) else 0),
+        )
 
     return build_equipments_payload(
-        tool_type, fab_names, start_date, end_date,
-        [tuple(cell) for cell in cells.values()]
+        tool_type, fab_names, start_date, end_date, list(cells.values())
     )
 
 

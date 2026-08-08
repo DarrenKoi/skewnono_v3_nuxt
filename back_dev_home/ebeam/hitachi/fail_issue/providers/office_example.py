@@ -499,17 +499,17 @@ def get_equipments(
     )
 
     # 격자 타입은 조립기에서 가져옵니다 — fab 과 model 을, align 과 meas 를
-    # 서로 바꿔 넣는 실수가 집에서는 테스트로 잡히지 않는 종류라, 정적
-    # 압력이라도 걸어 둡니다.
+    # 서로 바꿔 넣는 실수가 집에서는 테스트로 잡히지 않는 종류이기 때문입니다.
+    # 2026-08-09부터 EquipmentGridRow 는 NamedTuple 이라 이름으로 채웁니다.
     grid: list[EquipmentGridRow] = [
-        (
-            _text(b["key"]["eqp"]),
-            _text(b["key"]["fab"]),
-            _text(b["key"]["model"]),
-            _text(b["key"]["recipe"]),
-            int(b["doc_count"]),
-            int(b.get("align_fails", {}).get("doc_count") or 0),
-            int(b.get("meas_fails", {}).get("doc_count") or 0),
+        EquipmentGridRow(
+            eqp_id=_text(b["key"]["eqp"]),
+            fab_name=_text(b["key"]["fab"]),
+            eqp_model_cd=_text(b["key"]["model"]),
+            full_name=_text(b["key"]["recipe"]),
+            exec_count=int(b["doc_count"]),
+            align_fails=int(b.get("align_fails", {}).get("doc_count") or 0),
+            meas_fails=int(b.get("meas_fails", {}).get("doc_count") or 0),
         )
         for b in buckets
     ]

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import statistics
 from math import sqrt
-from typing import Sequence
+from typing import NamedTuple, Sequence
 
 from back_dev_home.ebeam.hitachi._analytics import percentile_summary
 from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
@@ -72,8 +72,22 @@ def standardised(
     return (round(observed / expected, 4), low, high)
 
 
-# (eqp_id, fab_name, eqp_model_cd, full_name, exec_count, align_fails, meas_fails)
-EquipmentGridRow = tuple[str, str, str, str, int, int, int]
+class EquipmentGridRow(NamedTuple):
+    """One (장비, 레시피) cell on its way into ``build_equipments_payload``.
+
+    Named for the same reason as recipe_tat's twin, only more so: this one has
+    SEVEN fields, three of them ints that all count different things. A bare
+    tuple lets align_fails and meas_fails trade places without a murmur, and
+    the resulting table is wrong in a way no shape check can see.
+    """
+
+    eqp_id: str
+    fab_name: str
+    eqp_model_cd: str
+    full_name: str
+    exec_count: int
+    align_fails: int
+    meas_fails: int
 
 
 def build_equipments_payload(
@@ -106,29 +120,29 @@ def build_equipments_payload(
     per_tool: dict[str, dict] = {}
     per_recipe: dict[str, dict] = {}
 
-    for eqp_id, fab_name, model_cd, full_name, execs, align_f, meas_f in grid:
-        tool = per_tool.setdefault(eqp_id, {
-            "eqp_id": eqp_id,
-            "fab_name": fab_name,
-            "eqp_model_cd": model_cd,
+    for row in grid:
+        tool = per_tool.setdefault(row.eqp_id, {
+            "eqp_id": row.eqp_id,
+            "fab_name": row.fab_name,
+            "eqp_model_cd": row.eqp_model_cd,
             "exec_count": 0,
             "align_fail_count": 0,
             "meas_fail_count": 0,
             "recipes": {},
         })
-        tool["exec_count"] += execs
-        tool["align_fail_count"] += align_f
-        tool["meas_fail_count"] += meas_f
+        tool["exec_count"] += row.exec_count
+        tool["align_fail_count"] += row.align_fails
+        tool["meas_fail_count"] += row.meas_fails
 
-        cell = tool["recipes"].setdefault(full_name, {"execs": 0, "align": 0, "meas": 0})
-        cell["execs"] += execs
-        cell["align"] += align_f
-        cell["meas"] += meas_f
+        cell = tool["recipes"].setdefault(row.full_name, {"execs": 0, "align": 0, "meas": 0})
+        cell["execs"] += row.exec_count
+        cell["align"] += row.align_fails
+        cell["meas"] += row.meas_fails
 
-        recipe = per_recipe.setdefault(full_name, {"execs": 0, "align": 0, "meas": 0})
-        recipe["execs"] += execs
-        recipe["align"] += align_f
-        recipe["meas"] += meas_f
+        recipe = per_recipe.setdefault(row.full_name, {"execs": 0, "align": 0, "meas": 0})
+        recipe["execs"] += row.exec_count
+        recipe["align"] += row.align_fails
+        recipe["meas"] += row.meas_fails
 
     # base(r) = 레시피 r 의 플릿 실패율
     base_align = {

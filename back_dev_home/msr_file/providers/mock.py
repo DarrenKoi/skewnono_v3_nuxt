@@ -107,6 +107,8 @@ from functools import lru_cache
 from statistics import fmean, pstdev, stdev
 from typing import NamedTuple, TypedDict
 
+from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
+
 from back_dev_home.meas_hist.contracts import MeasHistRow
 from back_dev_home.meas_hist.providers.mock import find_meas_hist_by_msr
 
@@ -727,11 +729,12 @@ def _program_step_count(program_key: str) -> int:
     return random.Random(_seed(f"program:{program_key}", 1487)).randint(20, 80)
 
 
-# The four stem suffixes HV-SEM tools append when one targeting point is shot
-# as several images (user-confirmed 2026-08-08: IMMS0001-U.jpeg style, also on
-# MSR result images e.g. S04_M0004-01MP-U.jpeg). Order matters: the pickle's
-# mp_image_name 01..NN columns list them in this order, so the mock does too.
-_MP_IMAGE_SUFFIXES = ("U", "T", "M", "L")
+# The stem suffixes HV-SEM tools append when one targeting point is shot as
+# several images (IMMS0001-U.jpeg style, also on MSR result images e.g.
+# S04_M0004-01MP-U.jpeg). Order matters: the pickle's mp_image_name 01..NN
+# columns list them in this order, so the mock does too. Shared with msr_image
+# and recipe_search — see _core/image_naming.py.
+_MP_IMAGE_SUFFIXES = HV_SEM_STEM_SUFFIXES
 
 
 def _row_image_names(msr: str, sequence: int, parameter: str, rng: random.Random) -> list[str]:

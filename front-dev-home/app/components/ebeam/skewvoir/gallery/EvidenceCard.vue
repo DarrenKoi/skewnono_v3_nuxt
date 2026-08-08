@@ -12,7 +12,7 @@
            carries preview=1, so the server serves a WebP rendition. The small
            corner tag says the file is a TIFF; the viewer offers the original. -->
       <button
-        v-if="entry.image && !failed"
+        v-if="primary && !failed"
         type="button"
         class="block h-full w-full"
         :aria-label="`${entry.chip} 이미지 열기`"
@@ -23,7 +23,7 @@
              spinner instead of a clean loading state. -->
         <img
           :src="src ?? undefined"
-          :alt="entry.image"
+          :alt="primary ?? undefined"
           loading="lazy"
           class="h-full w-full object-cover"
           :class="loaded ? undefined : 'opacity-0'"
@@ -43,7 +43,7 @@
 
       <!-- Per-image failure → retry THIS image only. -->
       <div
-        v-else-if="entry.image && failed"
+        v-else-if="primary && failed"
         class="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center"
       >
         <UIcon
@@ -69,7 +69,7 @@
           <a
             v-if="isTiff && originalSrc"
             :href="originalSrc"
-            :download="entry.image"
+            :download="primary ?? undefined"
             class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
             title="TIFF 원본 다운로드"
           >
@@ -150,7 +150,7 @@
 
 <script setup lang="ts">
 import { isTiffName } from '~/utils/imageKind'
-import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import { REASON_META, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
   entry: ReviewEntry
@@ -163,7 +163,9 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ open: [], focus: [] }>()
 
-const isTiff = computed(() => isTiffName(props.entry.image))
+// The row's representative file, derived from `images` — see reviewImage.
+const primary = computed(() => reviewImage(props.entry))
+const isTiff = computed(() => isTiffName(primary.value))
 
 // Per-image load state, LOCAL to this card so a sibling's failure never
 // touches this one (acceptance: independent per-image). Load failures

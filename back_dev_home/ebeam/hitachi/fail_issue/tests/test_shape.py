@@ -15,6 +15,7 @@ office 어댑터는 mock 을 전혀 거치지 않고 이 함수를 부르므로,
 import pytest
 
 from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+    EquipmentGridRow,
     build_equipment_compare_payload,
     build_equipments_payload,
 )
@@ -26,7 +27,13 @@ START, END = "2026-07-25", "2026-08-08"
 
 
 def _payload(grid):
-    return build_equipments_payload("cd-sem", (FAB,), START, END, grid)
+    # Fixtures stay positional — a table of 7-tuples is what makes the ratios
+    # in these tests readable at a glance. This is the ONE place position maps
+    # to name, and the constructor checks the arity, so a fixture that grows a
+    # column fails here instead of silently shifting align into meas.
+    return build_equipments_payload(
+        "cd-sem", (FAB,), START, END, [EquipmentGridRow(*row) for row in grid]
+    )
 
 
 def _by_id(payload) -> dict:

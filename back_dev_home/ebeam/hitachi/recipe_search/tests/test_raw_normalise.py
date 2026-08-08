@@ -292,7 +292,8 @@ class _FakeListDir:
 def _patch_ftp(monkeypatch, available):
     downloader = _FakeDownloader(available)
     monkeypatch.setattr(
-        office, "_transport", lambda: (object, _FakeSpec, _FakeListDir, "fake")
+        office, "_transport",
+        lambda: office._Transport(object, _FakeSpec, _FakeListDir, "fake")
     )
     monkeypatch.setattr(office, "_downloader", lambda _cls, _cfg: downloader)
     return downloader
@@ -413,7 +414,8 @@ def _patch_listing(monkeypatch, listings, failures=()):
     )
     downloader.list_dirs = lambda specs: downloader.listing_report
     monkeypatch.setattr(
-        office, "_transport", lambda: (object, _FakeSpec, _FakeListDir, "fake")
+        office, "_transport",
+        lambda: office._Transport(object, _FakeSpec, _FakeListDir, "fake")
     )
     monkeypatch.setattr(office, "_downloader", lambda _cls, _cfg: downloader)
     return downloader

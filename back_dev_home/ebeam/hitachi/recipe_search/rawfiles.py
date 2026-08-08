@@ -40,6 +40,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
 from back_dev_home.msr_image.paths import cond_path
 
 __all__ = [
@@ -119,11 +120,11 @@ SLOT_PREFIX: dict[str, str] = {
 # variant undiscoverable.
 IMAGE_EXTENSIONS: tuple[str, ...] = (".jpeg", ".jpg", ".tif", ".tiff")
 
-# The four HV-SEM stem suffixes reported so far (user-confirmed 2026-08-08),
-# in that reported order. ORDERING ONLY — matching is open (any "-{suffix}"
-# after the stem counts), so a fifth letter appearing on a tool is listed
-# after these rather than dropped.
-KNOWN_STEM_SUFFIXES: tuple[str, ...] = ("U", "T", "M", "L")
+# The HV-SEM stem suffixes, in the order the tools report them. ORDERING ONLY
+# here — matching is open (any "-{suffix}" after the stem counts), so a fifth
+# letter appearing on a tool is listed after these rather than dropped.
+# Defined in _core because msr_file and msr_image must agree with this reader.
+KNOWN_STEM_SUFFIXES: tuple[str, ...] = HV_SEM_STEM_SUFFIXES
 _SUFFIX_RANK: dict[str, int] = {s: i for i, s in enumerate(KNOWN_STEM_SUFFIXES)}
 
 

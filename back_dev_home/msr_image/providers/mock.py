@@ -34,6 +34,7 @@ and runs at home too.
 import hashlib
 from collections.abc import Callable
 
+from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
 from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
 
 OnFile = Callable[[str, FetchedImage | None, str | None], None]
@@ -43,9 +44,10 @@ def _seed(*parts: str) -> int:
     return int(hashlib.md5("|".join(parts).encode()).hexdigest(), 16)
 
 
-# The four HV-SEM stem suffixes (user-confirmed 2026-08-08): tools shoot one
-# targeting point as several files, e.g. S04_M0004-01MP-U.jpeg / -T / -M / -L.
-_STEM_SUFFIXES = ("U", "T", "M", "L")
+# Tools shoot one targeting point as several files, e.g.
+# S04_M0004-01MP-U.jpeg / -T / -M / -L. The set is a protocol fact shared with
+# msr_file and recipe_search — see _core/image_naming.py.
+_STEM_SUFFIXES = HV_SEM_STEM_SUFFIXES
 
 
 def list_images(eqp_ip: str, class_name: str, msr: str) -> list[str]:

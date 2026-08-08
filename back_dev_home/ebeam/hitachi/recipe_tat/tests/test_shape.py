@@ -14,6 +14,7 @@ office 어댑터(Task 6)는 mock 을 전혀 거치지 않고 이 함수를 부�
 
 from back_dev_home.ebeam.hitachi.recipe_tat.contracts import TAT_INDEX_MIN_SAMPLE
 from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+    EquipmentGridRow,
     build_equipment_compare_payload,
     build_equipments_payload,
     days_in_range,
@@ -27,7 +28,12 @@ START, END = "2026-07-25", "2026-08-08"
 
 
 def _payload(grid):
-    return build_equipments_payload("cd-sem", (FAB,), START, END, grid)
+    # Fixtures stay positional — a table of 6-tuples is what makes the ratios
+    # in these tests readable at a glance. This is the ONE place position maps
+    # to name, and the constructor checks the arity.
+    return build_equipments_payload(
+        "cd-sem", (FAB,), START, END, [EquipmentGridRow(*row) for row in grid]
+    )
 
 
 def _by_id(payload) -> dict:

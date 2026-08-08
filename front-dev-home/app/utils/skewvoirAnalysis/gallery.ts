@@ -58,6 +58,15 @@ export interface VendorMonitor {
   detail: string
 }
 
+/**
+ * The image that stands for a review entry: the first of its row's files, or
+ * null when the row has none (the entry still exists — an absent image never
+ * removes the evidence row). Derived, never stored, so it cannot drift from
+ * `images`.
+ */
+export const reviewImage = (entry: Pick<ReviewEntry, 'images'>): string | null =>
+  entry.images[0] ?? null
+
 /** One review-queue entry — one measured or failed site/image row. */
 export interface ReviewEntry {
   sequence: number
@@ -68,10 +77,14 @@ export interface ReviewEntry {
   unit: string
   residual: number | null // spatial residual (null when unmeasured or no trend)
   reasons: GalleryReason[]
-  image: string | null // representative first image (null when absent — the row still stays)
   // ALL image files of the site's row, pickle order. One on CD-SEM; several
   // stem-suffixed (-U/-T/-M/-L) on HV-SEM (user-confirmed 2026-08-08). The
-  // viewer offers these as sub-image variants; `image` === images[0].
+  // viewer offers these as sub-image variants.
+  //
+  // There is no sibling `image` field. It existed until 2026-08-09 alongside a
+  // hand-maintained `image === images[0]` invariant — true only for as long as
+  // every writer remembered it. Call `reviewImage(entry)` instead; it cannot
+  // disagree with the list because it IS the list's head.
   images: string[]
   hasImage: boolean
   monitor: VendorMonitor | null // vendor-score monitoring badge, separate from reasons
@@ -246,7 +259,6 @@ export const buildReviewQueue = (
     const monitor = buildMonitor(r, vendorFence)
 
     const images = rowImageNames(r)
-    const image = images[0] ?? null
     const evidenceBacked = reasons.includes('failure')
       || reasons.includes('residual')
       || reasons.includes('abnormal')
@@ -261,9 +273,8 @@ export const buildReviewQueue = (
       unit,
       residual,
       reasons,
-      image,
       images,
-      hasImage: image != null,
+      hasImage: images.length > 0,
       monitor,
       evidenceBacked,
       mag: r.meas_condition_mag,

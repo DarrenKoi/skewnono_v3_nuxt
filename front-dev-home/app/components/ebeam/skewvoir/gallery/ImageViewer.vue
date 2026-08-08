@@ -214,7 +214,7 @@
 <script setup lang="ts">
 import type { WaferGeometry } from '~/utils/waferGeometry'
 import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
-import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import { REASON_META, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
   open: boolean
@@ -246,8 +246,15 @@ watch(
   }
 )
 
-const activeName = computed<string | null>(
-  () => entry.value?.images[variantIndex.value] ?? entry.value?.image ?? null)
+// The selected variant, falling back to the entry's representative image when
+// the index is out of range (a stale index during an entry swap). That fallback
+// read `entry.image` until 2026-08-09 — the same value by invariant, which is
+// exactly why the second field was worth deleting.
+const activeName = computed<string | null>(() => {
+  const current = entry.value
+  if (!current) return null
+  return current.images[variantIndex.value] ?? reviewImage(current)
+})
 
 const isTiff = computed(() => isTiffName(activeName.value))
 const downloadUrl = computed(() => {
