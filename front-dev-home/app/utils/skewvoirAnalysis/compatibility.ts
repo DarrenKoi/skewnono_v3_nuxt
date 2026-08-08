@@ -36,6 +36,11 @@ export interface SignatureSourceRow {
   meas_condition_mag?: number | null
   meas_condition_vac?: number | null
   meas_condition_pixel?: string | null
+  // Site identity — every MsrFileRow carries both (back_dev_home/msr_file/
+  // contracts.py). Optional here only so a caller can build a signature from a
+  // trimmed row; siteKeysFromRows treats an absent chip_number as "no site".
+  chip_number?: string | null
+  mp_number?: number | null
 }
 
 export interface SignatureSourceExe {
@@ -237,8 +242,10 @@ export interface AnalysisManifestOptions {
   // MSRs the user selected. When some fail to load, this exceeds `files`; when
   // omitted, selection is assumed equal to what loaded.
   requestedMsrs?: string[]
-  // Layout-independent site identities per MSR, used only to compute `limited`
-  // common-coverage readiness. Absent in the Phase-1 mock flow → unavailable.
+  // Layout-independent site identities per MSR, used to compute coverage-based
+  // readiness when no office site_layout_hash is available. Build it with
+  // siteKeysFromRows — the columns it needs are in the Phase-1 mock. Omitted,
+  // readiness falls back to the hash, which at home is always unknown.
   siteKeys?: Map<string, ReadonlySet<string>>
 }
 
@@ -318,7 +325,56 @@ function buildGroups(signatures: CompatibilitySignature[]): CompatibilityGroup[]
   return [...groups.values()]
 }
 
-/** Serialise a CanonicalSiteKey to the opaque string readiness/site maps key on.
- * (The extraction of CanonicalSiteKeys from rows is a later-task concern.) */
+/** Serialise a CanonicalSiteKey to the opaque string readiness/site maps key on. */
 export const serializeSiteKey = (site: CanonicalSiteKey): string =>
   site.mp === null ? site.die : `${site.die}#${site.mp}`
+
+/**
+ * The set of physical sites each MSR measured for `parameter`, as serialized
+ * CanonicalSiteKeys — the input `layoutReadiness` needs to answer "do these
+ * measurements cover the same points?" without an office site_layout_hash.
+ *
+ * Everything here comes from columns the Phase-1 mock already emits. The office
+ * hash is defined over chip_array / chip_pitch / wafer_size / map_origin plus
+ * the sorted `(chip_number, dnum_group, mp_number)` site set
+ * (docs/datatables/msr_file_pickle.txt), so this is that definition's site half,
+ * recomputed from rows instead of read off a precomputed digest.
+ *
+ * `dnum_group` is deliberately not part of the key. In every sample we have it
+ * is `"<mp_number>, -1"` — redundant with mp_number, and CanonicalSiteKey has no
+ * field for it. OFFICE-VERIFY: if a real MSR ever shows dnum_group varying
+ * independently of mp_number, this key needs a third component or it will merge
+ * two distinct sites.
+ *
+ * Two exclusions, both load-bearing:
+ *  - Rows for other parameters. Site COVERAGE is per-parameter: a point that
+ *    only measured CD_BOTTOM is not coverage for CD_TOP. Falls back to all rows
+ *    when no row matches, mirroring extractSignature — a parameter label that
+ *    does not match any row must not silently produce an empty site set, which
+ *    would read as "measured nothing".
+ *  - Rows with `mp_number < 0`. That is exactly the metadata-only point whose
+ *    cd_value is None (contracts.py): the tool recorded the point and measured
+ *    nothing there, so counting it as coverage would claim data we do not have.
+ */
+export function siteKeysFromRows(
+  sources: readonly SignatureSource[],
+  parameter: string
+): Map<string, ReadonlySet<string>> {
+  const out = new Map<string, ReadonlySet<string>>()
+  for (const source of sources) {
+    const all = source.rows ?? []
+    const matching = all.filter(r => r.parameter === parameter)
+    const scoped = matching.length > 0 ? matching : all
+
+    const sites = new Set<string>()
+    for (const row of scoped) {
+      const die = row.chip_number
+      if (typeof die !== 'string' || die === '') continue
+      const mp = typeof row.mp_number === 'number' ? row.mp_number : null
+      if (mp !== null && mp < 0) continue
+      sites.add(serializeSiteKey({ die, mp }))
+    }
+    out.set(source.msr, sites)
+  }
+  return out
+}

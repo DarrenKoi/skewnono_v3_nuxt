@@ -4,6 +4,7 @@ import {
   extractSignature,
   compareToReference,
   buildAnalysisManifest,
+  siteKeysFromRows,
   type SignatureSource
 } from './compatibility.ts'
 import type { CompatibilitySignature } from './types.ts'
@@ -54,6 +55,28 @@ const source = (msr: string, opts: Opts = {}): SignatureSource => {
     }))
   }
 }
+
+/** A source whose rows carry site identity — the columns siteKeysFromRows reads.
+ *  Sites are `[chip_number, mp_number]` pairs; everything else mirrors `source`,
+ *  whose rows deliberately omit them (a trimmed row must stay legal). */
+const sited = (
+  msr: string,
+  sites: readonly (readonly [string, number])[],
+  opts: Opts = {}
+): SignatureSource => ({
+  ...source(msr, opts),
+  rows: sites.map(([die, mp]) => ({
+    parameter: opts.parameter ?? 'CD_TOP',
+    meas_method: 'Score',
+    object_type: 'MP',
+    meas_kind: 'Multi Point',
+    meas_condition_mag: 200015,
+    meas_condition_vac: 800,
+    meas_condition_pixel: '512,512',
+    chip_number: die,
+    mp_number: mp
+  }))
+})
 
 // ---------------------------------------------------------------------------
 // extractSignature — known vs unknown-safe fields
@@ -208,6 +231,58 @@ test('partial site overlap → limited with common-coverage in the reasons', () 
   assert.equal(m.readiness.siteVariability.status, 'limited')
   assert.ok(m.readiness.siteVariability.reasons.some(r => r.includes('common-coverage')))
   assert.ok(m.readiness.siteVariability.reasons.some(r => r.includes('2')))
+})
+
+// ---------------------------------------------------------------------------
+// siteKeysFromRows — the home-side stand-in for the office site_layout_hash
+// ---------------------------------------------------------------------------
+test('siteKeysFromRows builds die#mp keys per MSR', () => {
+  const keys = siteKeysFromRows([sited('a', [['1,1', 0], ['-5,0', 3]])], 'CD_TOP')
+  assert.deepEqual([...(keys.get('a') ?? [])].sort(), ['-5,0#3', '1,1#0'])
+})
+
+// mp_number < 0 is the metadata-only point whose cd_value is None. Counting it
+// would claim coverage at a site where nothing was measured.
+test('siteKeysFromRows drops points that carry metadata but no measurement', () => {
+  const keys = siteKeysFromRows([sited('a', [['1,1', 0], ['2,2', -1]])], 'CD_TOP')
+  assert.deepEqual([...(keys.get('a') ?? [])], ['1,1#0'])
+})
+
+// Coverage is per-parameter: a point measured only for another parameter is not
+// coverage for this one.
+test('siteKeysFromRows scopes coverage to the requested parameter', () => {
+  const src = sited('a', [['1,1', 0]], { parameter: 'CD_TOP' })
+  src.rows = [
+    ...(src.rows ?? []),
+    { parameter: 'CD_BOTTOM', chip_number: '9,9', mp_number: 1 }
+  ]
+  assert.deepEqual([...(siteKeysFromRows([src], 'CD_TOP').get('a') ?? [])], ['1,1#0'])
+})
+
+// Mirrors extractSignature's fallback: an unmatched parameter label must not
+// silently read as "this MSR measured nothing".
+test('siteKeysFromRows falls back to all rows when no row matches the parameter', () => {
+  const keys = siteKeysFromRows([sited('a', [['1,1', 0]], { parameter: 'CD_TOP' })], 'NOPE')
+  assert.deepEqual([...(keys.get('a') ?? [])], ['1,1#0'])
+})
+
+test('siteKeysFromRows yields an empty set for rows with no chip_number', () => {
+  const keys = siteKeysFromRows([source('a')], 'CD_TOP')
+  assert.equal(keys.get('a')?.size, 0)
+})
+
+// End-to-end: rows in, readiness out, with no office layout hash anywhere. This
+// is the path the home app actually runs.
+test('rows alone drive coverage readiness with no layout hash present', () => {
+  const files = [
+    sited('a', [['1,1', 0], ['2,2', 1], ['3,3', 2]], { recipe: 'RCP_A', unit: 'nm' }),
+    sited('b', [['2,2', 1], ['3,3', 2], ['4,4', 3]], { recipe: 'RCP_A', unit: 'nm' })
+  ]
+  const m = buildAnalysisManifest('a', files, 'CD_TOP', {
+    siteKeys: siteKeysFromRows(files, 'CD_TOP')
+  })
+  assert.equal(m.readiness.siteVariability.status, 'limited')
+  assert.ok(m.readiness.siteVariability.reasons.some(r => r === 'common-coverage:2'))
 })
 
 test('a single-MSR scope leaves multi-MSR readiness unavailable', () => {

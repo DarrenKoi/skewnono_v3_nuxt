@@ -147,8 +147,9 @@ export interface AnalysisManifest {
 // ── Types consumed by later tasks (definitions only) ─────────────────────────
 
 /** A layout-independent identity for a physical measurement site, so the same
- * site can be recognised across MSRs. Consumed by the spatial / gallery tasks;
- * its extraction algorithm is out of scope here. */
+ * site can be recognised across MSRs. Extracted from rows by `siteKeysFromRows`
+ * and serialized by `serializeSiteKey` (both in compatibility.ts) — it is what
+ * layout readiness falls back to when no office site_layout_hash exists. */
 export interface CanonicalSiteKey {
   // Die index within the wafer array (chip_number "col,row").
   die: string

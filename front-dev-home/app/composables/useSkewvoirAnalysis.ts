@@ -5,7 +5,7 @@ import { formatRecipeTimestamp } from '~/utils/recipeView'
 import { DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
 import { overviewSites, type OverviewSites } from '~/utils/overview'
 import { parseWaferGeometry, type WaferGeometry } from '~/utils/waferGeometry'
-import { buildAnalysisManifest, extractSignature, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
+import { buildAnalysisManifest, extractSignature, siteKeysFromRows, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
 import type { AnalysisManifest, ReferenceDescriptor } from '~/utils/skewvoirAnalysis/types'
 import {
   featureRows as computeFeatureRows,
@@ -633,8 +633,15 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // members (deduped, focus included) — and computes inclusion / exclusion /
   // groups / readiness against the focus for the active parameter. `requestedMsrs`
   // is the URL set so `counts.selected` (picked) and `counts.loaded` (fetched)
-  // stay distinct. No siteKeys are passed: the Phase-1 mock carries no canonical
-  // site keys, so layout-dependent readiness stays `unavailable` (intended).
+  // stay distinct.
+  //
+  // siteKeys ARE passed, derived from the rows that loaded. This used to be
+  // skipped on the belief that "the Phase-1 mock carries no canonical site keys"
+  // — which was never true: every MsrFileRow carries chip_number and mp_number,
+  // and that pair IS a CanonicalSiteKey. The claim came from the extraction
+  // being deferred to a later task, and was then read by everyone afterwards as
+  // a fact about the data. Without them, every layout-dependent capability
+  // reported 불가 at home and 분석 준비 상태 could say nothing actionable.
   const manifest = computed<AnalysisManifest>(() => {
     const focusMsr = ws.selection.value?.msr ?? ''
     const focus = focusFile.value
@@ -652,7 +659,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       sources.push(file)
     }
     return buildAnalysisManifest(focusMsr, sources, activeParam.value, {
-      requestedMsrs: ws.msrList.value
+      requestedMsrs: ws.msrList.value,
+      siteKeys: siteKeysFromRows(sources, activeParam.value)
     })
   })
 
