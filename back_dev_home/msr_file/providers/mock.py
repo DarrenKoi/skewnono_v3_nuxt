@@ -369,6 +369,12 @@ _PARAM_SPECS: tuple[tuple[tuple[str, ...], float, float, str], ...] = (
 # length in nanometres; the office data is "just a number" precisely because nm
 # is the assumed unit, not because the unit is unknown.
 #
+# The column is absent because the MEASUREMENT IMAGE carries the unit
+# (user-confirmed 2026-08-08): a reviewer opens the SEM image and reads it there,
+# so the numeric column never had to repeat it. To a person the blank is an
+# omission, not a gap — which is why nothing looked broken on screen for as long
+# as it did. Only code has to be told.
+#
 # It was "" until 2026-08-08, which the frontend reads as UNKNOWN — and an
 # unknown unit on a candidate is a hard `metadata-missing` exclusion
 # (app/utils/skewvoirAnalysis/compatibility.ts::compareToReference). So every
