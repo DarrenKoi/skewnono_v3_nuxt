@@ -983,6 +983,17 @@ def _mock_raw_listing(locator: IdpLocator, slots: dict[str, str]) -> list[str]:
     multi-image slots EXIST, not that the family split is faithful. jpeg
     only: TIFF is confirmed for MSR result images, not for recipe raw
     folders.
+
+    WHAT THIS LISTING DOES NOT EXERCISE: every name it synthesizes is built
+    FROM the expected stems, so the listing is always a subset of what the
+    planner is looking for. The office folder is not — it holds unrelated
+    files, other parameters' images and leftovers, which is the reason
+    ``image_variants`` filters the listing at all. Nothing this function emits
+    ever reaches that filter's reject branch, so an end-to-end mock run is not
+    evidence the filtering works. The rejection cases are covered directly, in
+    ``tests/test_rawfiles.py`` (foreign stems, near-miss stems like
+    ``IMMS00010``, hidden sidecars, extension-less setting files) — that suite,
+    not this one, is what guards the filter. Widen it there, not here.
     """
     idp = str((locator or {}).get("idp", ""))
     listing: list[str] = []

@@ -8,7 +8,12 @@ import { normalizeFab } from '~/utils/fab'
 //   'skewnono:fab_name' -> 'skewnono:fab_name.v2'  because device-statistics used to write
 //                          its fac_id-grained fab ('M16') here on mount. That token is
 //                          syntactically a valid fab_name, so no filter can spot it —
-//                          only a key bump clears the copies already written.
+//                          a key bump is the only way past it.
+// "Drop" means STOP READING, not delete: nothing here removes the old keys, so
+// 'skewnono:fab' and 'skewnono:fab_name' stay in every existing browser's
+// localStorage, orphaned, until that browser's storage is cleared by hand. Do
+// not wait for a cleanup pass — there isn't one. A future bump inherits the
+// same deal: the cost of a bump is one more abandoned key, paid forever.
 // The value is a comma-joined multi-fab list; a pre-existing single value reads back as a
 // one-element list with no migration step.
 const STORAGE_KEY = 'skewnono:fab_name.v2'

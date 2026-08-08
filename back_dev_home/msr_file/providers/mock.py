@@ -308,11 +308,19 @@ def _wafer_geometry(program_key: str) -> WaferGeom:
     that still never pushes a die off the wafer.
 
     Keyed on the recipe, not the run, because a recipe is a fixed measurement
-    program: two runs of it step through the same wafer map. The office says so
-    structurally — site_layout_hash is the sha1 of chip_array / chip_pitch /
+    program: two runs of it step through the same wafer map. The argument is
+    structural — site_layout_hash is the sha1 of chip_array / chip_pitch /
     wafer_size / map_origin plus the site set (docs/datatables/msr_file_pickle.txt),
     and a hash that changed every run could never identify a shared layout, which
     is the only thing it exists to do.
+
+    OFFICE-VERIFY (2026-08-08): 도메인 추론입니다 — the office has NOT confirmed
+    this, and the reasoning above is why we believe it, not evidence that it
+    holds. Same mark as the datatables entry this mirrors; the two must keep
+    telling the same provenance story. Confirm by pulling several MSRs sharing a
+    recipe_name and checking that the four layout keys and the
+    (chip_number, mp_number) set match across them. If they do not, this cache
+    key is wrong and every same-site cross-MSR comparison built on it is too.
 
     It was keyed on the msr until 2026-08-08, which made every run of one recipe
     report a different wafer map — two runs of ADI_CD_BIAS_001 came out as
