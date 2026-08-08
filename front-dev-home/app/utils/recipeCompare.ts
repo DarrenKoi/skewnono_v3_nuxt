@@ -1,6 +1,7 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
 import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
+import { imageVariantLabel } from './imageKind.ts'
 import { recipePairKey } from './recipePair.ts'
 
 // Relative `.ts` specifiers, not the `~` alias: `node --test` cannot resolve
@@ -30,7 +31,23 @@ export function blockForSlot(
   if (!detail) return null
   if (slot === 'img_meas2') return detail.amp
   if (slot === 'img_add2') return detail.af_pr
-  return detail.images.find(image => image.slot === slot)?.cond ?? null
+  const matches = detail.images.filter(image => image.slot === slot)
+  if (matches.length <= 1) return matches[0]?.cond ?? null
+  // HV-SEM: one slot, several stem-suffixed files (2026-08-08), each with its
+  // own cond sidecar. Merged into ONE block with the variant label as each
+  // row's `section`, so the (section, key) row identity the compare screen
+  // already uses (settingRowId) keeps the U/T/M/L passes apart — a bare
+  // `find()` here compared only the first file and silently ignored the rest.
+  const rows: SettingRow[] = []
+  const sources: string[] = []
+  matches.forEach((image, index) => {
+    if (!image.cond) return
+    sources.push(image.cond.source)
+    const label = imageVariantLabel(image.name, index)
+    for (const row of image.cond.rows) rows.push({ ...row, section: row.section ?? label })
+  })
+  if (!rows.length) return null
+  return { source: sources.join(' · '), rows }
 }
 
 export const GROUPING_DEFAULT_THRESHOLD = 8

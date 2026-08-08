@@ -13,7 +13,7 @@
  */
 
 import type { IdpImageInfoRow, IdpLocator } from '../composables/useRecipeSearchApi.ts'
-import type { ParamDetail, SettingBlock } from '../composables/useRecipeParamDetail.ts'
+import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS } from './recipeView.ts'
 import { downloadBlob } from './csvDownload.ts'
 
@@ -155,31 +155,41 @@ function imageSheet(
   input: ParamExportInput
 ): { sheet: ParamSheet, images: ParamImagePlacement[] } {
   const wanted = SLOT_ORDER.filter(slot => input.slots.includes(slot))
-  const bySlot = new Map((input.detail?.images ?? []).map(image => [image.slot, image]))
+  // GROUPED, not one-per-slot: an HV-SEM slot expands to several stem-suffixed
+  // files (2026-08-08). A `Map(images.map(...))` here silently kept only the
+  // last file per slot, dropping the rest from the export.
+  const bySlot = new Map<string, ParamImage[]>()
+  for (const image of input.detail?.images ?? []) {
+    const list = bySlot.get(image.slot)
+    if (list) list.push(image)
+    else bySlot.set(image.slot, [image])
+  }
   const rows: ParamCell[][] = []
   const images: ParamImagePlacement[] = []
 
   for (const slot of wanted) {
     const stage = STAGE_OF[slot] ?? slot
-    const image = bySlot.get(slot)
+    const slotImages = bySlot.get(slot) ?? []
     rows.push([stage, slot])
-    if (!image) {
+    if (!slotImages.length) {
       // The slot holds "non", or the detail never loaded. Named rather than
       // skipped, so a reader can tell "not requested" from "not present".
       rows.push(['없음'])
       rows.push([])
       continue
     }
-    rows.push([image.name])
-    images.push({ slot, stage, name: image.name, anchorRow: rows.length })
-    rows.push([])
-    if (image.cond) {
-      rows.push(['key', 'value', image.cond.source])
-      for (const row of image.cond.rows) rows.push([row.key, row.value])
-    } else {
-      rows.push([NO_FILE])
+    for (const image of slotImages) {
+      rows.push([image.name])
+      images.push({ slot, stage, name: image.name, anchorRow: rows.length })
+      rows.push([])
+      if (image.cond) {
+        rows.push(['key', 'value', image.cond.source])
+        for (const row of image.cond.rows) rows.push([row.key, row.value])
+      } else {
+        rows.push([NO_FILE])
+      }
+      rows.push([])
     }
-    rows.push([])
   }
 
   if (!rows.length) rows.push(['포함된 이미지가 없습니다.'])

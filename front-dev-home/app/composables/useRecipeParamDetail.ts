@@ -39,7 +39,11 @@ export interface SettingBlock {
 }
 
 export interface ParamImage {
-  /** `img_add1` | `image_add3` | `img_meas1` — the three slots that name an image. */
+  /** `img_add1` | `image_add3` | `img_meas1` — the three slots that name an image.
+   *
+   * ★ NOT unique within `ParamDetail.images` (2026-08-08): an HV-SEM slot
+   *   expands to several stem-suffixed files (`IMMS0001-U.jpeg` / -T / -M /
+   *   -L), one entry per FILE, each with its own cond. Key on (slot, name). */
   slot: string
   /** Human label, e.g. `Addressing 1`. */
   stage: string

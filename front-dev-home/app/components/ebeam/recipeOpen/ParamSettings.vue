@@ -24,9 +24,12 @@
           class="grid gap-3"
           :style="{ gridTemplateColumns: `repeat(${lane.images.length}, minmax(0, 1fr))` }"
         >
+          <!-- Keyed on (slot, name): an HV-SEM slot expands to several
+               stem-suffixed files (2026-08-08), so `slot` alone would collide
+               and Vue would silently drop the extra thumbnails. -->
           <EbeamRecipeOpenImgThumb
             v-for="image in lane.images"
-            :key="image.slot"
+            :key="`${image.slot}:${image.name}`"
             :label="image.slot"
             :stage="image.stage"
             :name="image.name"
@@ -49,8 +52,8 @@
 
         <EbeamRecipeOpenSettingTable
           v-for="image in lane.images"
-          :key="`cond-${image.slot}`"
-          :title="`${image.stage} 빔 조건`"
+          :key="`cond-${image.slot}:${image.name}`"
+          :title="condTitle(image, lane.images)"
           :block="image.cond"
         />
       </section>
@@ -79,6 +82,7 @@
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import type { IdpLocator } from '~/composables/useRecipeSearchApi'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
+import { imageVariantLabel } from '~/utils/imageKind'
 import {
   IMAGE_SLOTS,
   splitAfPrSectionsByDomain,
@@ -121,6 +125,14 @@ const lanes = computed(() => [
 
 const roleOf = (slotKey: string): SlotRole =>
   IMAGE_SLOTS.find(slot => slot.key === slotKey)?.role ?? 'address'
+
+// A slot that expanded to several files (HV-SEM) repeats its stage, so the
+// cond-table titles carry the variant label to stay tellable apart.
+const condTitle = (image: ParamImage, all: readonly ParamImage[]): string => {
+  const siblings = all.filter(other => other.slot === image.slot)
+  if (siblings.length <= 1) return `${image.stage} 빔 조건`
+  return `${image.stage} 빔 조건 — ${imageVariantLabel(image.name, siblings.indexOf(image))}`
+}
 
 const imageSrc = (name: string) =>
   recipeImageUrl(base, props.toolSlug, props.locator, name)

@@ -191,6 +191,36 @@ test('each image carries its own beam condition below the picture', () => {
   assert.ok(!text.includes('50k'))
 })
 
+test('an HV-SEM slot exports every suffixed file, not just the last one', () => {
+  // One slot, several stem-suffixed files (2026-08-08). The old
+  // one-ParamImage-per-slot Map kept only the LAST file — the export dropped
+  // the rest with no cue.
+  const multi = {
+    ...DETAIL,
+    images: [
+      {
+        slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0000-U.jpeg',
+        cond: { source: '.IMMS0000-U.jpeg/cond.txt', rows: [{ key: 'MAG', value: '110k' }] }
+      },
+      {
+        slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0000-L.jpeg',
+        cond: { source: '.IMMS0000-L.jpeg/cond.txt', rows: [{ key: 'MAG', value: '130k' }] }
+      }
+    ]
+  }
+  const wb = buildParamWorkbook({ ...input(MEASURE), detail: multi })
+
+  assert.deepEqual(wb.images.map(i => i.name), ['IMMS0000-U.jpeg', 'IMMS0000-L.jpeg'])
+  const text = sheet(wb, '이미지').rows.flat().join('\n')
+  assert.ok(text.includes('110k'), 'first variant cond exported')
+  assert.ok(text.includes('130k'), 'second variant cond exported')
+  // Placements still anchor at existing blank rows.
+  const rows = sheet(wb, '이미지').rows
+  for (const placement of wb.images) {
+    assert.deepEqual(rows[placement.anchorRow], [])
+  }
+})
+
 test('no slots requested still produces a readable 이미지 sheet', () => {
   const wb = buildParamWorkbook(input([]))
   assert.deepEqual(wb.images, [])

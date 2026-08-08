@@ -218,6 +218,41 @@ test('blockForSlot routes img_meas2 to amp and img_add2 to af_pr', () => {
   assert.equal(blockForSlot(null, 'img_meas1'), null)
 })
 
+test('blockForSlot merges an HV-SEM slot\'s several files into one sectioned block', () => {
+  // One slot, several stem-suffixed files, one cond each (2026-08-08). A bare
+  // find() compared only the first file and silently ignored the rest.
+  const detail: CompareParamDetail = {
+    parameter: 'WAFER',
+    amp: null,
+    af_pr: null,
+    images: [
+      {
+        slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-U.jpeg',
+        cond: { source: '.IMMS0001-U.jpeg/cond.txt', rows: [{ key: 'Mag', value: '30000' }] }
+      },
+      {
+        slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-L.jpeg',
+        cond: { source: '.IMMS0001-L.jpeg/cond.txt', rows: [{ key: 'Mag', value: '50000' }] }
+      }
+    ]
+  }
+  const block = blockForSlot(detail, 'img_meas1')!
+
+  // Same key in both variants — the section (variant label) keeps them apart,
+  // exactly the (section, key) identity settingRowId already encodes.
+  assert.deepEqual(block.rows, [
+    { key: 'Mag', value: '30000', section: 'U' },
+    { key: 'Mag', value: '50000', section: 'L' }
+  ])
+  assert.equal(block.source, '.IMMS0001-U.jpeg/cond.txt · .IMMS0001-L.jpeg/cond.txt')
+})
+
+test('blockForSlot keeps a single-file slot\'s block untouched', () => {
+  const block = blockForSlot(detailWith({ Mag: '50.0K' }), 'img_meas1')!
+  assert.equal(block.source, '.IMMS0001.jpeg/cond.txt')
+  assert.deepEqual(block.rows, [{ key: 'Mag', value: '50.0K' }])
+})
+
 test('buildIdpRows compares per-parameter fields', () => {
   const rows = buildIdpRows([
     recipeWithAmp('A', []),
