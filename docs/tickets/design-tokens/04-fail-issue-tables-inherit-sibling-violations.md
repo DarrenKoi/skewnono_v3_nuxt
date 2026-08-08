@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately. Strongly prefer landing with design-tokens/02.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — 8469edca — 02 와 한 sweep 으로 착지
 
 - [ ] No zinc utilities, no sub-12px data values, no off-scale radii in `FailIssueFleetTable.vue` / `FailIssueEquipmentCompare.vue`
 - [ ] Fix uses the same tokens / role classes chosen for design-tokens/02 — one sweep, both families

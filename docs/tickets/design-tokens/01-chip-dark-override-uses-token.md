@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — ba4926c9 — .sk-count-on-ink 로 .dark 오버라이드 자체를 제거(--sk-ink-fg 가 반전하므로)
 
 - [ ] No inline color literals remain in `Chip.vue`'s dark override
 - [ ] `NavPill.vue` and `Chip.vue` consume the same shared rule instead of two copies

@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — be9c0218 — CompareColumn·spansFabs, recipe_id 를 정본으로 확정(요청 본문의 recipe_name 은 와이어 계약)
 
 - [ ] One exported `CompareColumn` type is consumed by ParameterSelector, CompareMatrix, and RecipeCompareView
 - [ ] One shared spans-fabs predicate replaces the three variants

@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — 8469edca — analyticsTableUi (실제 사본은 3개가 아니라 4개였음)
 
 - [ ] A single shared `tableUi` source is imported by all three recipe-tat tables
 - [ ] Rendered classes are unchanged at every table (visual check)

@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — 8c4df345 — preview.py 의 wants_preview() 공유, 라우트 커버리지 추가
 
 - [ ] A single shared predicate is imported by both `msr_image` and `recipe_search` routes; the inline copy is gone
 - [ ] Unknown or missing `preview` values still serve the original bytes (no behavior change)

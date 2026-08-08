@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — 6ce0d453 — EbeamSkewvoirVariantChips, selectedIndex→variantIndex 통일
 
 - [ ] One `VariantChips` component is consumed by all three call sites; the copies are deleted
 - [ ] Selected-variant reset on image-list change behaves identically in dashboard, gallery, and drawer

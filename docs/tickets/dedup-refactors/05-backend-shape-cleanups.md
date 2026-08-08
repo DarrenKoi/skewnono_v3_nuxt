@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — d1c6984f — _core/image_naming.py, EquipmentGridRow·_Transport NamedTuple, ReviewEntry.image 삭제
 
 - [ ] The image-suffix constant has one home, imported by all three backends
 - [ ] `EquipmentGridRow` and `_transport()` results are NamedTuples; no positional unpacking remains

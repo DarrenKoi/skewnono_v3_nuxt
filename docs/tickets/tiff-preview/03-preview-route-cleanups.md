@@ -6,7 +6,7 @@
 
 **Blocked by:** 02 — Share the `?preview` flag predicate (the helper lands beside that predicate).
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — 8c4df345 — preview_bytes() 로 FetchedImage 자리표시자 제거, ImagePreviewOptions 명명, Content-Disposition 은 변환된 경우에만 확장자 교정. mock docstring 항목은 tiff-preview/01 이 폴백을 되살려 이미 참이 됨
 
 - [ ] `recipe_search` calls a bytes-level helper; no placeholder contract object is built and discarded
 - [ ] One named preview-options type is shared by the three frontend call sites

@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately. dedup-refactors/05's tuple item should absorb the fail_issue twin but does not block this.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — f59d5333 — isNarrowMix/percentileAt 공유, MANUAL_SORTING_OPTIONS 단일 출처. 컴포넌트 병합은 spec §10 대로 미시도
 
 - [ ] The `manualSorting` rationale comment is cross-referenced or single-sourced across both fleet tables
 - [ ] `at()` and the `편중` narrow clause have one home (next to `SHARE_CEIL`), consumed by both signal modules; boundary behavior (`<=`) unchanged

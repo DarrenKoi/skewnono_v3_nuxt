@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — 8469edca — .sk-count-chip role 클래스 (RecipeTatView 에는 이미 칩이 없었음)
 
 - [ ] All three count chips use `--sk-*` tokens / role classes, no zinc utilities
 - [ ] Light and dark appearance verified visually in the recipe-tat views

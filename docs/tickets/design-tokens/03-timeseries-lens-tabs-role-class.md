@@ -6,7 +6,7 @@
 
 **Blocked by:** 01 — Chip dark override consumes the `--sk-ink-fg` token (the shared role-class home lands there).
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — ba4926c9 — sk-nav-pill 지오메트리를 main.css role 클래스로 승격, lens 탭이 소비
 
 - [ ] Lens tabs reference the shared role class instead of restating pill geometry in utilities
 - [ ] The ad-hoc `text-[15px]`-style sizing is gone from the tab markup

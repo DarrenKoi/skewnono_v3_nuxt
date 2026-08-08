@@ -6,7 +6,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-09) — c7d6fbb5 — AppSelectCheck (ScePanel 의 text-white 드리프트도 함께 해소)
 
 - [ ] One shared multi-select picker component replaces the three copies
 - [ ] Landing FAB multi-select, hardware compare picker, and ScePanel all behave as before (visual check)
