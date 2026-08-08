@@ -66,27 +66,12 @@
             SEM 미리보기
           </p>
           <!-- HV-SEM sub-images of this point (-U/-T/-M/-L). NAVIGATE family. -->
-          <div
+          <EbeamSkewvoirVariantChips
             v-if="imageNames.length > 1"
-            class="mb-2 flex flex-wrap items-center gap-1"
-            role="group"
-            aria-label="측정 이미지 선택"
-          >
-            <button
-              v-for="(name, i) in imageNames"
-              :key="name"
-              type="button"
-              class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
-              :class="i === variantIndex
-                ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-                : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-              :aria-pressed="i === variantIndex"
-              :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
-              @click="variantIndex = i"
-            >
-              {{ imageVariantLabel(name, i) }}
-            </button>
-          </div>
+            v-model="variantIndex"
+            :names="imageNames"
+            class="mb-2"
+          />
           <!-- Image + 취득 조건 side by side once the drawer is at half-browser
                width; stacked again on narrow screens. -->
           <div
@@ -158,7 +143,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SpatialResult } from '~/utils/skewvoirAnalysis/spatial'
-import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
+import { isTiffName } from '~/utils/imageKind'
 import { isMeasuredRow, rowImageNames } from '~/utils/msrRows'
 
 const props = defineProps<{

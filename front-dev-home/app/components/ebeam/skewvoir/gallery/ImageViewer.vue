@@ -120,27 +120,11 @@
 
         <!-- HV-SEM sub-images of this point (-U/-T/-M/-L). NAVIGATE family:
              picking one changes which image is on stage. -->
-        <div
+        <EbeamSkewvoirVariantChips
           v-if="entry.images.length > 1"
-          class="flex flex-wrap items-center gap-1"
-          role="group"
-          aria-label="측정 이미지 선택"
-        >
-          <button
-            v-for="(name, i) in entry.images"
-            :key="name"
-            type="button"
-            class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
-            :class="i === variantIndex
-              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-              : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-            :aria-pressed="i === variantIndex"
-            :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
-            @click="variantIndex = i"
-          >
-            {{ imageVariantLabel(name, i) }}
-          </button>
-        </div>
+          v-model="variantIndex"
+          :names="entry.images"
+        />
 
         <!-- The stage shows the WebP rendition; the original TIFF is served
              untouched here. -->
@@ -213,7 +197,7 @@
 
 <script setup lang="ts">
 import type { WaferGeometry } from '~/utils/waferGeometry'
-import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
+import { isTiffName } from '~/utils/imageKind'
 import { REASON_META, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{

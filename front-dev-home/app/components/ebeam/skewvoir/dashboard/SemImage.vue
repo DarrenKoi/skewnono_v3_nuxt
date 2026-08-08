@@ -15,27 +15,11 @@
         v-if="imageNames.length > 1"
         class="mb-2 flex flex-wrap items-center justify-between gap-2"
       >
-        <div
+        <EbeamSkewvoirVariantChips
           v-if="displayMode === 'single'"
-          class="flex flex-wrap items-center gap-1"
-          role="group"
-          aria-label="측정 이미지 선택"
-        >
-          <button
-            v-for="(name, i) in imageNames"
-            :key="name"
-            type="button"
-            class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
-            :class="i === selectedIndex
-              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-              : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-            :aria-pressed="i === selectedIndex"
-            :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
-            @click="selectedIndex = i"
-          >
-            {{ imageVariantLabel(name, i) }}
-          </button>
-        </div>
+          v-model="variantIndex"
+          :names="imageNames"
+        />
         <span
           v-else
           class="sk-meta"
@@ -293,15 +277,15 @@ const displayMode = usePersistedState<'single' | 'all'>(
 const showAllGrid = computed(() =>
   displayMode.value === 'all' && imageNames.value.length > 1 && !!focusCtx.value.eqp_ip)
 
-const selectedIndex = ref(0)
+const variantIndex = ref(0)
 watch(
   () => `${focusCtx.value.msr}|${props.analysis.activeParam.value}|${measuredRow.value?.sequence ?? ''}`,
   () => {
-    selectedIndex.value = 0
+    variantIndex.value = 0
   }
 )
 
-const measuredName = computed(() => imageNames.value[selectedIndex.value] ?? imageNames.value[0] ?? null)
+const measuredName = computed(() => imageNames.value[variantIndex.value] ?? imageNames.value[0] ?? null)
 
 // A failed load is per-image: switching to another image retries cleanly.
 const loadFailed = ref(false)
@@ -349,7 +333,7 @@ const meta = computed(() => {
   }
   const ok = measuredName.value && !loadFailed.value
   const variant = imageNames.value.length > 1 && measuredName.value
-    ? ` · ${imageVariantLabel(measuredName.value, selectedIndex.value)}`
+    ? ` · ${imageVariantLabel(measuredName.value, variantIndex.value)}`
     : ''
   return seq != null && ok ? `seq ${seq}${variant}` : (ok ? `측정 이미지${variant}` : '없음')
 })
