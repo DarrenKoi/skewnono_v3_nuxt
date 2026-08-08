@@ -5,7 +5,7 @@
       <span
         v-for="row in rows"
         :key="row.eqp_id"
-        class="inline-flex h-7 items-center gap-2 rounded-md px-2.5 text-[11px] ring-1 ring-(--sk-border-soft)"
+        class="inline-flex h-7 items-center gap-2 rounded-[var(--sk-r-chip)] px-2.5 text-[12px] ring-1 ring-(--sk-border-soft)"
       >
         <span
           class="h-2 w-2 rounded-full"
@@ -413,9 +413,5 @@ const copyMatrix = async () => {
 }
 
 // 헤더에 배경을 주지 않는 이유는 FailIssueFleetTable.vue의 같은 블록에 있습니다.
-const tableUi = {
-  tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 sk-label'
-}
+const tableUi = analyticsTableUi
 </script>

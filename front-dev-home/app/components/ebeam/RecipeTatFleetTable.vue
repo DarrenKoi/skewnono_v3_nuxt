@@ -5,7 +5,7 @@
         <h3 class="sk-title">
           장비 목록
         </h3>
-        <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <span class="sk-count-chip">
           {{ filteredRows.length.toLocaleString() }} / {{ rows.length.toLocaleString() }}
         </span>
         <span class="sk-meta">
@@ -128,7 +128,7 @@
           <span
             v-for="signal in signalsFor(row.original)"
             :key="signal"
-            class="inline-flex h-5 items-center rounded px-1.5 text-[10px] font-medium ring-1"
+            class="sk-signal-badge ring-1"
             :class="SIGNAL_META[signal].tone === 'warn'
               ? 'bg-(--sk-warn-soft) text-(--sk-warn) ring-(--sk-warn-border)'
               : 'bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-(--sk-border-soft)'"
@@ -290,9 +290,5 @@ const columns: TableColumn<RecipeTatEquipmentRow>[] = [
 // 헤더에는 배경이 필요 없습니다: sticky 헤더가 이미 테마 surface 위에 앉아
 // 있어서, 여기에 tint를 주면 더 차가운 두 번째 카드가 하나 더 생길 뿐입니다.
 // 타입은 .sk-label(11px/600/ink-muted)에 맡깁니다 — 장비 리스트가 참조 사례.
-const tableUi = {
-  tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 sk-label'
-}
+const tableUi = analyticsTableUi
 </script>

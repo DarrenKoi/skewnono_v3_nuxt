@@ -484,6 +484,40 @@ body {
   color: var(--sk-ink);
 }
 
+/* "N / M" beside a table title — how many rows survive the filter.
+   Its content is DATA (two counts), so it sits at the 12px floor, not on the
+   10/11px chrome tiers. Every analytics table shipped its own copy of this in
+   zinc utilities until 2026-08-09; zinc survives only in table hovers and the
+   empty-state message. */
+.sk-count-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding-inline: 6px;
+  border-radius: var(--sk-r-sidebar);
+  background: var(--sk-muted-surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sk-ink-muted);
+}
+
+/* A signal / status badge in a data table — 느림, 편중, 취약, 양호.
+   Shell only: the tone (warn / neutral) stays at the call site because it is
+   conditional on the row. The label NAMES a category rather than reporting a
+   value, so it may use the 11px micro-label tier; the radius is the badge slot
+   of the scale (8px), never Tailwind's off-scale `rounded`. */
+.sk-signal-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding-inline: 6px;
+  border-radius: var(--sk-r-chip);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
 /* Card / section heading. */
 .sk-heading {
   font-size: 18px;
