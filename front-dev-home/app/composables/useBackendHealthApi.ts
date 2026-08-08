@@ -34,6 +34,6 @@ export const useBackendHealth = () => {
 
   return useAsyncData(HEALTH_CACHE_KEY, fetchHealth, {
     default: (): ServicesHealthResponse => ({ checked_at: '', services: [] }),
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }

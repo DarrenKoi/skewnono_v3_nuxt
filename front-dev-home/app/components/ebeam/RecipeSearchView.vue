@@ -73,7 +73,7 @@ const { data, pending, error, refresh } = await useAsyncData(
   {
     watch: [cacheKey],
     default: emptyResponse,
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   }
 )
 

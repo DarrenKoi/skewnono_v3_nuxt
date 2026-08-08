@@ -61,7 +61,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     () => fetchMeasHist({ toolType: ws.toolType }),
     {
       default: () => ({ tool_type: ws.toolType, fab_name: null, recipe_name: null, total: 0, rows: [] }),
-      getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+      getCachedData: payloadCache
     }
   )
 
@@ -79,7 +79,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     {
       immediate: false,
       default: () => ({ tool_type: otherToolType, fab_name: null, recipe_name: null, total: 0, rows: [] }),
-      getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+      getCachedData: payloadCache
     }
   )
 

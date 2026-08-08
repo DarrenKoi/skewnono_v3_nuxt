@@ -253,7 +253,7 @@ const { data, pending, error } = await useAsyncData(
   {
     watch: [fabsKey],
     default: () => [] as StorageRow[],
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   }
 )
 
@@ -267,7 +267,7 @@ const {
   {
     watch: [fabsKey],
     default: (): PpidUnavailableSnapshot => ({ latest_date: '', rows: [] }),
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   }
 )
 

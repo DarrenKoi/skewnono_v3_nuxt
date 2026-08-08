@@ -292,7 +292,7 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeDetailRespons
   {
     watch: [cacheKey],
     default: () => null,
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   }
 )
 

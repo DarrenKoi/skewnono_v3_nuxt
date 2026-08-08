@@ -22,7 +22,7 @@ export const useMeasHistFacets = (toolType?: MeasHistToolType) => {
         model: [],
         eq: []
       }),
-      getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+      getCachedData: payloadCache
     }
   )
 

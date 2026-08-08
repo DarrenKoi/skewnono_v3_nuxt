@@ -24,9 +24,7 @@ export const usePendingTools = () => {
     {
       immediate: true,
       default: () => [] as PendingToolRow[],
-      getCachedData: (key, nuxtApp, context) => context.cause === 'initial'
-        ? nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
-        : undefined
+      getCachedData: payloadCacheOnInitial
     }
   )
 }

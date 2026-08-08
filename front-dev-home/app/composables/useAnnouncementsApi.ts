@@ -31,6 +31,6 @@ export const useAnnouncements = () => {
   const { fetchAnnouncements } = useAnnouncementsApi()
   return useAsyncData(ANNOUNCEMENTS_CACHE_KEY, fetchAnnouncements, {
     default: () => [] as Announcement[],
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }

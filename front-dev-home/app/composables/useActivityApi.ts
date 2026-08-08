@@ -82,10 +82,10 @@ const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
 const FABS_KEY = 'activity-fabs'
 
-let inFlightMe: Promise<MeResponse> | null = null
-let inFlightSummary: Promise<SummaryResponse> | null = null
-let inFlightUsers: Promise<UserListResponse> | null = null
-let inFlightFabs: Promise<FabUsageResponse> | null = null
+const meSlot = createInFlightSlot<MeResponse>()
+const summarySlot = createInFlightSlot<SummaryResponse>()
+const usersSlot = createInFlightSlot<UserListResponse>()
+const fabsSlot = createInFlightSlot<FabUsageResponse>()
 
 const useActivityUrls = () => {
   const config = useRuntimeConfig()
@@ -102,65 +102,33 @@ const useActivityUrls = () => {
 
 export const useActivityMe = () => {
   const { meUrl } = useActivityUrls()
-  const fetchOnce = () => {
-    if (!inFlightMe) {
-      inFlightMe = $fetch<MeResponse>(meUrl).catch((err) => {
-        inFlightMe = null
-        throw err
-      })
-    }
-    return inFlightMe
-  }
+  const fetchOnce = () => meSlot.run(() => $fetch<MeResponse>(meUrl))
   return useAsyncData(ME_KEY, fetchOnce, {
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }
 
 export const useActivitySummary = () => {
   const { summaryUrl } = useActivityUrls()
-  const fetchOnce = () => {
-    if (!inFlightSummary) {
-      inFlightSummary = $fetch<SummaryResponse>(summaryUrl).catch((err) => {
-        inFlightSummary = null
-        throw err
-      })
-    }
-    return inFlightSummary
-  }
+  const fetchOnce = () => summarySlot.run(() => $fetch<SummaryResponse>(summaryUrl))
   return useAsyncData(SUMMARY_KEY, fetchOnce, {
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }
 
 export const useActivityUsers = () => {
   const { usersUrl } = useActivityUrls()
-  const fetchOnce = () => {
-    if (!inFlightUsers) {
-      inFlightUsers = $fetch<UserListResponse>(usersUrl).catch((err) => {
-        inFlightUsers = null
-        throw err
-      })
-    }
-    return inFlightUsers
-  }
+  const fetchOnce = () => usersSlot.run(() => $fetch<UserListResponse>(usersUrl))
   return useAsyncData(USERS_KEY, fetchOnce, {
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }
 
 export const useActivityFabs = () => {
   const { fabsUrl } = useActivityUrls()
-  const fetchOnce = () => {
-    if (!inFlightFabs) {
-      inFlightFabs = $fetch<FabUsageResponse>(fabsUrl).catch((err) => {
-        inFlightFabs = null
-        throw err
-      })
-    }
-    return inFlightFabs
-  }
+  const fetchOnce = () => fabsSlot.run(() => $fetch<FabUsageResponse>(fabsUrl))
   return useAsyncData(FABS_KEY, fetchOnce, {
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }
 
@@ -173,8 +141,8 @@ export const fetchUserHistory = async (userId: string): Promise<UserHistoryRespo
 
 // Reset every cached request so refreshAll triggers real network calls.
 export const resetActivityCache = () => {
-  inFlightMe = null
-  inFlightSummary = null
-  inFlightUsers = null
-  inFlightFabs = null
+  meSlot.reset()
+  summarySlot.reset()
+  usersSlot.reset()
+  fabsSlot.reset()
 }

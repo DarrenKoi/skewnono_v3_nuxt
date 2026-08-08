@@ -39,7 +39,7 @@ const { data, pending, error, refresh } = await useAsyncData<MeasHistResponse | 
   {
     watch: [cacheKey],
     default: () => null,
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   }
 )
 

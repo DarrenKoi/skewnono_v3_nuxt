@@ -13,7 +13,7 @@ const SEM_LIST_CACHE_KEY = 'sem-list'
 // ssr:false mode) collapse into a single network request. Nuxt's built-in
 // _asyncDataPromises dedup is keyed per call site and doesn't reliably
 // cover this layout-vs-page race in client-only rendering.
-let inFlightSemList: Promise<SemListResponse> | null = null
+const semListSlot = createInFlightSlot<SemListResponse>()
 
 export interface SemListRow {
   fac_id: string
@@ -60,17 +60,9 @@ export const useSemListApi = () => {
 
 export const useSemList = () => {
   const { fetchSemList } = useSemListApi()
-  const fetchOnce = () => {
-    if (!inFlightSemList) {
-      inFlightSemList = fetchSemList().catch((err) => {
-        inFlightSemList = null
-        throw err
-      })
-    }
-    return inFlightSemList
-  }
+  const fetchOnce = () => semListSlot.run(fetchSemList)
   return useAsyncData(SEM_LIST_CACHE_KEY, fetchOnce, {
     default: () => [] as SemListRow[],
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+    getCachedData: payloadCache
   })
 }
