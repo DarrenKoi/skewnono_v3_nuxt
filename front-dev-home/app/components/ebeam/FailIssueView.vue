@@ -9,28 +9,18 @@
     >
       <template #toggle>
         <div class="flex flex-wrap items-center gap-2.5">
-          <div
-            role="radiogroup"
-            class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
-          >
-            <button
+          <!-- 뷰 전환은 NAVIGATE 동작이라 SkNavPill(ink fill)입니다. 직접 만든
+               white/zinc 세그먼트 컨트롤은 DESIGN.md가 이름을 대어 금지한
+               패턴이었습니다 — 트레이 배경이 zinc를 종이 위로 끌고 들어옵니다. -->
+          <div class="inline-flex items-center gap-1">
+            <SkNavPill
               v-for="mode in VIEW_MODES"
               :key="mode.value"
-              type="button"
-              role="radio"
-              :aria-checked="viewMode === mode.value"
-              class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
-              :class="viewMode === mode.value
-                ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-                : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+              :label="mode.label"
+              :icon="mode.icon"
+              :active="viewMode === mode.value"
               @click="viewMode = mode.value"
-            >
-              <UIcon
-                :name="mode.icon"
-                class="h-4 w-4"
-              />
-              {{ mode.label }}
-            </button>
+            />
           </div>
           <EbeamDateRangePopover
             v-model="dateRange"
@@ -60,9 +50,18 @@
       :reset-key="devicesCacheKey"
     />
 
+    <!-- 장비별: 별도 컴포넌트 트리. 기존 본문은 건드리지 않습니다. -->
+    <EbeamFailIssueEquipmentView
+      v-if="viewMode === 'by-equipment'"
+      :fabs="fabs"
+      :tool-type="toolType"
+      :date-range="dateRange"
+      :section="section"
+    />
+
     <!-- 디바이스별 mode without a selection: prompt -->
     <div
-      v-if="viewMode === 'by-device' && !selectedLot"
+      v-else-if="viewMode === 'by-device' && !selectedLot"
       class="dashboard-surface rounded-2xl px-6 py-12 text-center"
     >
       <UIcon
@@ -312,7 +311,8 @@ const userDateRange = ref({ start: '', end: '' })
 
 const VIEW_MODES = [
   { value: 'summary', label: '전체 요약', icon: 'i-lucide-layers' },
-  { value: 'by-device', label: '디바이스별', icon: 'i-lucide-cpu' }
+  { value: 'by-device', label: '디바이스별', icon: 'i-lucide-cpu' },
+  { value: 'by-equipment', label: '장비별', icon: 'i-lucide-microscope' }
 ] as const
 type ViewMode = typeof VIEW_MODES[number]['value']
 
@@ -327,9 +327,11 @@ const viewMode = ref<ViewMode>('summary')
 const chartType = ref<ChartType>('bar')
 const metaSubtitle = computed(() => {
   const aspect = props.section === 'align' ? 'Align Fail' : 'Measurement Fail'
-  return viewMode.value === 'by-device'
-    ? `${aspect}을 디바이스별로 분석합니다.`
-    : `${aspect}을 Fab 기준으로 분석합니다.`
+  if (viewMode.value === 'by-device') return `${aspect}을 디바이스별로 분석합니다.`
+  if (viewMode.value === 'by-equipment') {
+    return `${aspect}을 장비(eqp_id)별로 비교합니다. 레시피 구성으로 정규화한 지수입니다.`
+  }
+  return `${aspect}을 Fab 기준으로 분석합니다.`
 })
 const selectedLot = ref<string | null>(null)
 
