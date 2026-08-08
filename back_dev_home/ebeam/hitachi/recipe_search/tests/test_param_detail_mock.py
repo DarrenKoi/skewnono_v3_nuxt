@@ -45,9 +45,9 @@ def test_the_empty_sentinel_produces_no_block_and_no_image():
 def test_only_the_three_image_slots_produce_images():
     """img_add2 and img_meas2 name settings, not images.
 
-    A slot may expand to several stem-suffixed files (the HV-SEM shape,
-    2026-08-08), so the pin is membership and slot order — every name belongs
-    to its slot's stem, and only the three image slots appear.
+    img_meas1 may expand to several stem-suffixed files (the HV-SEM shape,
+    2026-08-08), so its pin is membership; the addressing slots never expand
+    (user-confirmed 2026-08-08), so theirs is the exact bare-stem file.
     """
     stem_of = {
         "img_add1": "IMMP0001", "image_add3": "I2MP0001", "img_meas1": "IMMS0001",
@@ -60,7 +60,20 @@ def test_only_the_three_image_slots_produce_images():
     )
     for image in detail["images"]:
         stem = stem_of[image["slot"]]
-        assert re.fullmatch(rf"{stem}(-[A-Z]+)?\.jpeg", image["name"]), image["name"]
+        if image["slot"] == "img_meas1":
+            assert re.fullmatch(rf"{stem}(-[A-Z]+)?\.jpeg", image["name"]), image["name"]
+        else:
+            assert image["name"] == f"{stem}.jpeg"
+
+
+def test_addressing_slots_never_expand_to_suffixed_files():
+    """Addressing tops out at its two slots, one file each — no -U/-T/-M/-L
+    (user-confirmed 2026-08-08). Sweep enough stems that a reintroduced
+    seeded draw on the addressing slots could not slip through."""
+    for seq in range(1, 40):
+        slots = {"img_add1": f"IMMP{seq:04d}", "image_add3": f"I2MP{seq:04d}"}
+        names = [image["name"] for image in _detail(slots)["images"]]
+        assert names == [f"IMMP{seq:04d}.jpeg", f"I2MP{seq:04d}.jpeg"]
 
 
 def test_a_slot_can_expand_to_several_suffixed_files_each_with_its_own_cond():

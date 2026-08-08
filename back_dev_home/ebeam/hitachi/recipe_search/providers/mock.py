@@ -973,18 +973,25 @@ def _mock_raw_listing(locator: IdpLocator, slots: dict[str, str]) -> list[str]:
     """A synthesized raw-folder listing for this parameter's image slots.
 
     The mock's stand-in for the FTP listing the office adapter takes before
-    planning. Per slot the seeded draw is either the single bare-stem file
-    (the CD-SEM shape) or a 2–4 file ``-U/-T/-M/-L`` subset (the HV-SEM shape,
-    user-confirmed 2026-08-08). The request carries no tool_type, so both
-    shapes appear under both slugs — what home needs is that multi-image
-    slots EXIST, not that the family split is faithful. jpeg only: TIFF is
-    confirmed for MSR result images, not for recipe raw folders.
+    planning. Suffix expansion is a MEASUREMENT-image phenomenon: only
+    ``img_meas1`` draws between the single bare-stem file (the CD-SEM shape)
+    and a 2–4 file ``-U/-T/-M/-L`` subset (the HV-SEM shape, user-confirmed
+    2026-08-08). Addressing tops out at the two slots themselves —
+    ``img_add1`` and ``image_add3``, one bare-stem file each, no suffixes
+    (user-confirmed 2026-08-08). The request carries no tool_type, so both
+    measurement shapes appear under both slugs — what home needs is that
+    multi-image slots EXIST, not that the family split is faithful. jpeg
+    only: TIFF is confirmed for MSR result images, not for recipe raw
+    folders.
     """
     idp = str((locator or {}).get("idp", ""))
     listing: list[str] = []
     for slot in rawfiles.IMAGE_SLOT_KEYS:
         stem = rawfiles.image_stem((slots or {}).get(slot))
         if stem is None:
+            continue
+        if slot != "img_meas1":
+            listing.append(f"{stem}.jpeg")
             continue
         count = 1 + _seed_for_values("raw-listing", idp, stem) % 4
         if count == 1:

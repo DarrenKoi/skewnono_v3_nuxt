@@ -539,8 +539,12 @@ HV-SEM — slot 하나가 파일 여러 개입니다 (user-confirmed 2026-08-08)
 ------------------------------------------------------------------
 
 위 이름 표와 규칙 7가지는 **CD-SEM 의 모양**입니다. HV-SEM 은 targeting
-measurement point 에 따라 image slot 하나를 여러 장으로 찍고, 공유 stem 뒤에
-`-U` / `-T` / `-M` / `-L` suffix 를 붙입니다 (예: IMMS0001-U.jpeg). 그래서
+measurement point 에 따라 **측정 이미지(img_meas1)** 하나를 여러 장으로 찍고,
+공유 stem 뒤에 `-U` / `-T` / `-M` / `-L` suffix 를 붙입니다
+(예: IMMS0001-U.jpeg). addressing 은 다릅니다 — 최대 2장이고 그 2장이 곧
+img_add1 · image_add3 두 slot 이므로, slot 당 1장이며 suffix 확장은 없다고
+보면 됩니다 (user-confirmed 2026-08-08; mock 도 img_meas1 만 확장합니다).
+그래서
 
 1. slot 값(stem)에서 파일명을 **산술로 만들 수 없습니다.** 어떤 suffix 가
    실제로 존재하는지는 raw 폴더를 **listing** 해야만 압니다.
