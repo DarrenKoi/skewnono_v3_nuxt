@@ -134,18 +134,7 @@
                     </span>
                   </template>
                   <template #item-leading="{ item }">
-                    <span
-                      class="flex h-4 w-4 items-center justify-center rounded border"
-                      :class="selectedRevisions.includes(item.value)
-                        ? 'border-(--sk-ink) bg-(--sk-ink) text-white dark:text-zinc-900'
-                        : 'border-(--sk-border)'"
-                    >
-                      <UIcon
-                        v-if="selectedRevisions.includes(item.value)"
-                        name="i-lucide-check"
-                        class="h-3 w-3"
-                      />
-                    </span>
+                    <AppSelectCheck :checked="selectedRevisions.includes(item.value)" />
                   </template>
                   <!-- Bulk actions live in the footer for the same reasons as
                        the 비교 장비 picker: they read against the list they act

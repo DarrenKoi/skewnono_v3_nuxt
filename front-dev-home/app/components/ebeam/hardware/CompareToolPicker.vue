@@ -31,18 +31,7 @@
       <!-- Leading checkbox sits right before the tool name (no far-right gap);
            the default trailing check is hidden via :ui above. -->
       <template #item-leading="{ item }">
-        <span
-          class="flex h-4 w-4 items-center justify-center rounded border"
-          :class="modelValue.includes(item)
-            ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-            : 'border-(--sk-border)'"
-        >
-          <UIcon
-            v-if="modelValue.includes(item)"
-            name="i-lucide-check"
-            class="h-3 w-3"
-          />
-        </span>
+        <AppSelectCheck :checked="modelValue.includes(item)" />
       </template>
 
       <!-- Bulk actions act on the matches, so they belong below the list they

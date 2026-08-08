@@ -96,18 +96,7 @@ const systemStatus = computed(() => {
               :ui="{ itemTrailingIcon: 'hidden' }"
             >
               <template #item-leading="{ item }">
-                <span
-                  class="flex h-4 w-4 items-center justify-center rounded border"
-                  :class="selectedFabs.includes(item)
-                    ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-                    : 'border-(--sk-border)'"
-                >
-                  <UIcon
-                    v-if="selectedFabs.includes(item)"
-                    name="i-lucide-check"
-                    class="h-3 w-3"
-                  />
-                </span>
+                <AppSelectCheck :checked="selectedFabs.includes(item)" />
               </template>
             </USelectMenu>
           </div>
