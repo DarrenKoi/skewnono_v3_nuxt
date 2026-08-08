@@ -210,6 +210,56 @@ def test_dummy_mp_gets_its_own_unnamed_summary():
     assert summary["unit"] == "nm", "an unlabelled length is still nanometres"
 
 
+# ── mp_image_names (HV-SEM multi-image rows, user-confirmed 2026-08-08) ─────
+# HV-SEM tools shoot several images per targeting point; the pickle numbers
+# them mp_image_name 01..NN and suffixes the shared stem (-U/-T/-M/-L). The
+# contract carries the full ordered list; _01 stays as the representative.
+
+
+def test_row_image_list_is_consistent_with_count_and_representative(response):
+    for row in response["rows"]:
+        assert row["no_of_mp_image"] == len(row["mp_image_names"]), \
+            "no_of_mp_image must count exactly the names the row carries"
+        if row["mp_image_names"]:
+            assert row["mp_image_name_01"] == row["mp_image_names"][0], \
+                "_01 is the representative: always the list's first entry"
+        else:
+            assert row["mp_image_name_01"] == ""
+
+
+def test_single_and_multi_image_rows_both_exist():
+    """Both tool-family shapes must exist at home or one path goes untested."""
+    single = multi = 0
+    for i in range(40):
+        payload = mock.get_msr_file(f"MSR-IMG-MIX-{i:04d}", _CLASS, _TOTAL_IMAGES)
+        assert payload is not None
+        for row in payload["rows"]:
+            if len(row["mp_image_names"]) == 1:
+                single += 1
+            elif len(row["mp_image_names"]) > 1:
+                multi += 1
+    assert single, "no single-image (CD-SEM shape) row was generated"
+    assert multi, "no multi-image (HV-SEM shape) row was generated"
+
+
+def test_multi_image_rows_share_one_stem_with_ordered_suffixes():
+    for i in range(40):
+        payload = mock.get_msr_file(f"MSR-IMG-MIX-{i:04d}", _CLASS, _TOTAL_IMAGES)
+        assert payload is not None
+        for row in payload["rows"]:
+            names = row["mp_image_names"]
+            if len(names) <= 1:
+                continue
+            stems = [name.rsplit(".", 1)[0] for name in names]
+            bases = {stem.rsplit("-", 1)[0] for stem in stems}
+            suffixes = [stem.rsplit("-", 1)[1] for stem in stems]
+            assert len(bases) == 1, f"one point, one stem: {names}"
+            assert suffixes == list(mock._MP_IMAGE_SUFFIXES[: len(suffixes)]), \
+                f"suffixes must follow pickle column order: {names}"
+            return
+    pytest.fail("no multi-image row found to assert the suffix convention on")
+
+
 # ── sequence is a global per-row counter (Task 3) ────────────────────────────
 # `_MSR`'s seeded draw happens to select exactly ONE parameter (verified: seed
 # 1471759110 draws num_params=1 for ("MSR-CONTRACT-0001", "ADI", 40)). With one

@@ -59,12 +59,30 @@ def _result_rows() -> list[dict]:
             "dnum_group": "-1,-1",
             "mp_number": -1,
             "no_of_mp_image": 0,
+            # An imageless row's name cell arrives as the string "None"
+            # (docs §값 타입) — it must fold to "" / an empty list, not "None".
+            "mp_image_name 01": "None",
             "addressing1_score": "None",
             "addressing2_score": "None",
             "measurement_score": "None",
             "meas_kind": "None",
         },
-        {**base, "sequence": 3, "parameter": "CD_BOTTOM", "cd_value": 41.02, "chip_number": "0,-5"},
+        # Sequence 3 is the HV-SEM shape: several images per targeting point,
+        # numbered "mp_image_name 01..NN", stem-suffixed -U/-M/-L, one of them
+        # tif-only (user-confirmed 2026-08-08). The other rows' frames get NaN
+        # in the extra columns — text() must fold NaN to "" (dropped), which is
+        # exactly what a real mixed CD/HV pickle produces.
+        {
+            **base,
+            "sequence": 3,
+            "parameter": "CD_BOTTOM",
+            "cd_value": 41.02,
+            "chip_number": "0,-5",
+            "no_of_mp_image": 3,
+            "mp_image_name 01": "S04_M0004-01MP-U.jpeg",
+            "mp_image_name 02": "S04_M0004-01MP-M.jpeg",
+            "mp_image_name 03": "S04_M0004-01MP-L.tif",
+        },
     ]
 
 
@@ -142,6 +160,36 @@ def test_row_key_renames(response):
     assert row["msr"] == _MSR
     # No chip_coordinate column office-side -> "" (documented contract gap).
     assert row["chip_coordinate"] == ""
+
+
+def test_all_mp_image_columns_are_collected(response):
+    """mp_image_names carries every "mp_image_name NN" column, in NN order.
+
+    Until 2026-08-08 the row builder normalized all the columns and then read
+    only _01, so HV-SEM rows (several images per targeting point) reached the
+    screen with one image. The 01 column stays as the representative."""
+    single, empty, multi = response["rows"][0], response["rows"][1], response["rows"][2]
+
+    assert multi["mp_image_names"] == [
+        "S04_M0004-01MP-U.jpeg",
+        "S04_M0004-01MP-M.jpeg",
+        "S04_M0004-01MP-L.tif",
+    ]
+    assert multi["mp_image_name_01"] == multi["mp_image_names"][0]
+    assert multi["no_of_mp_image"] == 3
+
+    # The single-image (CD-SEM shape) row still carries exactly its one name...
+    assert single["mp_image_names"] == [single["mp_image_name_01"]]
+    # ...and the imageless row folds the NaN cells to an empty list, not ["nan"].
+    assert empty["mp_image_names"] == []
+
+
+def test_mp_image_columns_sort_numerically_not_lexically():
+    """"mp_image_name 10" must follow 09, not land between 01 and 02."""
+    rec = {f"mp_image_name_{i:02d}": f"IMG-{i:02d}.jpeg" for i in (10, 2, 1, 9)}
+    assert office_example._mp_image_names(rec) == [
+        "IMG-01.jpeg", "IMG-02.jpeg", "IMG-09.jpeg", "IMG-10.jpeg",
+    ]
 
 
 def test_none_string_coercions(response):

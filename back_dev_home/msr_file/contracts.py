@@ -40,6 +40,14 @@ class MsrFileRow(TypedDict):
     cd_value: float | None
     no_of_mp_image: int
     mp_image_name_01: str
+    # ALL of the row's image files, in pickle column order (mp_image_name_01,
+    # _02, ... — as many as no_of_mp_image). CD-SEM rows carry one; HV-SEM rows
+    # carry several, one per targeting sub-position, distinguished by a stem
+    # suffix (e.g. S04_M0004-01MP-U.jpeg / -T / -M / -L; sometimes only a .tif
+    # exists — user-confirmed 2026-08-08). mp_image_name_01 stays as the
+    # representative first image; consumers that render or warm images must
+    # read THIS list or they silently drop every non-first HV-SEM image.
+    mp_image_names: list[str]
     meas_condition_mag: int      # pickle "meas_condition mag"
     meas_condition_vac: int      # pickle "meas_condition vac"
     meas_condition_pixel: str    # pickle "meas_condition pixel"

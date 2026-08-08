@@ -127,6 +127,11 @@ class MsrFileRow(TypedDict):
     cd_value: float | None
     no_of_mp_image: int
     mp_image_name_01: str
+    # All image files of the row, pickle column order (mp_image_name_01.._NN,
+    # len == no_of_mp_image). Multi-image rows model HV-SEM, whose tools shoot
+    # several images per targeting point and suffix the shared stem (-U/-T/-M/-L,
+    # user-confirmed 2026-08-08). Mirrors contracts.MsrFileRow.
+    mp_image_names: list[str]
     meas_condition_mag: int      # pickle "meas_condition mag"
     meas_condition_vac: int      # pickle "meas_condition vac"
     meas_condition_pixel: str    # pickle "meas_condition pixel"
@@ -703,6 +708,35 @@ def _program_step_count(program_key: str) -> int:
     return random.Random(_seed(f"program:{program_key}", 1487)).randint(20, 80)
 
 
+# The four stem suffixes HV-SEM tools append when one targeting point is shot
+# as several images (user-confirmed 2026-08-08: IMMS0001-U.jpeg style, also on
+# MSR result images e.g. S04_M0004-01MP-U.jpeg). Order matters: the pickle's
+# mp_image_name 01..NN columns list them in this order, so the mock does too.
+_MP_IMAGE_SUFFIXES = ("U", "T", "M", "L")
+
+
+def _row_image_names(msr: str, sequence: int, parameter: str, rng: random.Random) -> list[str]:
+    """The image file names of one measured row (pickle mp_image_name 01..NN).
+
+    A single-image row keeps the bare stem (the CD-SEM convention); a
+    multi-image row suffixes the shared stem -U/-T/-M/-L (the HV-SEM
+    convention). The mock has no tool-family axis, so both shapes are drawn for
+    every class — what matters at home is that multi-image rows EXIST, not
+    which tool produced them. Extensions are drawn per file: office tools mix
+    JPEG previews with TIFF originals (office 확인 2026-07-24: 26 jpeg / 13 tif
+    in one MSR) and a sub-image sometimes exists only as .tif (user-confirmed
+    2026-08-08), so a per-file draw keeps tif-only members in the value domain.
+    """
+    count = 1 + rng.randint(0, 3)
+    stem = f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}"
+    if count == 1:
+        return [f"{stem}.{'tif' if rng.random() < 0.3 else 'jpeg'}"]
+    return [
+        f"{stem}-{suffix}.{'tif' if rng.random() < 0.3 else 'jpeg'}"
+        for suffix in _MP_IMAGE_SUFFIXES[:count]
+    ]
+
+
 def _build_rows(
     msr: str,
     class_name: str,
@@ -773,6 +807,12 @@ def _build_rows(
     dummy_x, dummy_y = dies[0]
     dummy_center_x_nm, dummy_center_y_nm = _die_center_nm(dummy_x, dummy_y, geom)
     for sequence in range(1, num_dummy + 1):
+        # No parameter segment in the filename — there is no name to put there.
+        # Settling shots are single-image on both tool families.
+        dummy_image = (
+            f"{msr}_{sequence:03d}_{dummy_rng.randint(0, 9999):04d}"
+            f".{'tif' if dummy_rng.random() < 0.3 else 'jpeg'}"
+        )
         rows.append(MsrFileRow(
             msr=msr,
             sequence=sequence,
@@ -785,11 +825,8 @@ def _build_rows(
             parameter="",
             cd_value=round(dummy_rng.uniform(10.0, 50.0), 3),
             no_of_mp_image=1,
-            # No parameter segment in the filename — there is no name to put there.
-            mp_image_name_01=(
-                f"{msr}_{sequence:03d}_{dummy_rng.randint(0, 9999):04d}"
-                f".{'tif' if dummy_rng.random() < 0.3 else 'jpeg'}"
-            ),
+            mp_image_name_01=dummy_image,
+            mp_image_names=[dummy_image],
             meas_condition_mag=_MAGNIFICATIONS[(sequence + seed) % len(_MAGNIFICATIONS)],
             meas_condition_vac=_VOLTAGES[(sequence + seed) % len(_VOLTAGES)],
             meas_condition_pixel=_PIXELS[(sequence + seed) % len(_PIXELS)],
@@ -862,6 +899,7 @@ def _build_rows(
 
         for parameter in selected_params:
             running_sequence += 1
+            image_names = [] if empty else _row_image_names(msr, running_sequence, parameter, rng)
             rows.append(MsrFileRow(
                 msr=msr,
                 sequence=running_sequence,
@@ -875,16 +913,9 @@ def _build_rows(
                     fields[parameter], radius_norm, health, seq_frac, rng,
                     outliers_by_param[parameter].get(step, 0.0),
                 ),
-                no_of_mp_image=0 if empty else 1 + rng.randint(0, 4),
-                # Office tools mix JPEG previews with TIFF originals (confirmed
-                # 2026-07-24: 26 jpeg / 13 tif in one real MSR). TIFF has no
-                # browser preview, so keeping the mix exercises both the render
-                # path and the download fallback at home.
-                mp_image_name_01=(
-                    "" if empty
-                    else f"{msr}_{running_sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}"
-                    f".{'tif' if rng.random() < 0.3 else 'jpeg'}"
-                ),
+                no_of_mp_image=len(image_names),
+                mp_image_name_01=image_names[0] if image_names else "",
+                mp_image_names=image_names,
                 meas_condition_mag=meas_mag,
                 meas_condition_vac=meas_vac,
                 meas_condition_pixel=meas_pixel,

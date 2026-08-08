@@ -86,8 +86,19 @@ types:
       description: NULLABLE — null exactly when mp_number < 0. Never coerce to 0.
     no_of_mp_image:
       type: integer
+      description: How many image files the row carries (== len(mp_image_names)).
     mp_image_name_01:
       type: string
+      description: Representative first image — always mp_image_names[0], "" when the row has none.
+    mp_image_names:
+      type: array
+      items: string
+      description: >
+        ALL image files of the row, pickle column order (mp_image_name 01..NN).
+        CD-SEM rows carry one; HV-SEM rows carry several, one per targeting
+        sub-position, stem-suffixed -U/-T/-M/-L (e.g. S04_M0004-01MP-U.jpeg;
+        sometimes .tif only — user-confirmed 2026-08-08). Renderers and cache
+        warmers must read this list, not just _01.
     meas_condition_mag:
       type: integer
       description: Magnification — per-row-varying acquisition field (signature source). 0 on metadata-only rows.

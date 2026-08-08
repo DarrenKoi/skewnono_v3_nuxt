@@ -192,6 +192,27 @@ def _records(df_result_data: Any) -> list[dict[str, Any]]:
     ]
 
 
+def _mp_image_names(rec: dict[str, Any]) -> list[str]:
+    """Every ``mp_image_name NN`` column of one row, in NN order, empties dropped.
+
+    The pickle numbers the columns 01..NN (as many as ``no_of_mp_image``).
+    CD-SEM rows populate one; HV-SEM tools shoot several images per targeting
+    point and populate 01, 02, 03, ... with stem-suffixed names
+    (e.g. S04_M0004-01MP-U.jpeg / -T / -M / -L, sometimes .tif only —
+    user-confirmed 2026-08-08). Until 2026-08-08 ``_row`` read only the 01
+    column, which is why 스큐보아 could not show any non-first HV-SEM image.
+    """
+    named: list[tuple[int, str]] = []
+    for key, value in rec.items():
+        tail = str(key).removeprefix("mp_image_name_")
+        if tail == str(key) or not tail.isdigit():
+            continue
+        name = _text(value)
+        if name:
+            named.append((int(tail), name))
+    return [name for _, name in sorted(named)]
+
+
 def _row(msr: str, rec: dict[str, Any]) -> MsrFileRow:
     meas_kind = _text(rec.get("meas_kind")) or None
     return MsrFileRow(
@@ -209,6 +230,7 @@ def _row(msr: str, rec: dict[str, Any]) -> MsrFileRow:
         cd_value=_float_or_none(rec.get("cd_value")),
         no_of_mp_image=_int(rec.get("no_of_mp_image")),
         mp_image_name_01=_text(rec.get("mp_image_name_01")),
+        mp_image_names=_mp_image_names(rec),
         meas_condition_mag=_int(rec.get("meas_condition_mag")),
         meas_condition_vac=_int(rec.get("meas_condition_vac")),
         meas_condition_pixel=_text(rec.get("meas_condition_pixel")),
