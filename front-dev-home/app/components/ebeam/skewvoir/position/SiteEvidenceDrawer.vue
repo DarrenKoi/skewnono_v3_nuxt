@@ -65,6 +65,28 @@
           <p class="mb-1.5 sk-eyebrow text-[12px]">
             SEM 미리보기
           </p>
+          <!-- HV-SEM sub-images of this point (-U/-T/-M/-L). NAVIGATE family. -->
+          <div
+            v-if="imageNames.length > 1"
+            class="mb-2 flex flex-wrap items-center gap-1"
+            role="group"
+            aria-label="측정 이미지 선택"
+          >
+            <button
+              v-for="(name, i) in imageNames"
+              :key="name"
+              type="button"
+              class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+              :class="i === variantIndex
+                ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+                : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+              :aria-pressed="i === variantIndex"
+              :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
+              @click="variantIndex = i"
+            >
+              {{ imageVariantLabel(name, i) }}
+            </button>
+          </div>
           <!-- Image + 취득 조건 side by side once the drawer is at half-browser
                width; stacked again on narrow screens. -->
           <div
@@ -145,8 +167,8 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SpatialResult } from '~/utils/skewvoirAnalysis/spatial'
-import { isTiffName } from '~/utils/imageKind'
-import { isMeasuredRow } from '~/utils/msrRows'
+import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
+import { isMeasuredRow, rowImageNames } from '~/utils/msrRows'
 
 const props = defineProps<{
   open: boolean
@@ -165,15 +187,27 @@ const site = computed(() => {
   return props.spatial.sites.find(s => s.chip === key) ?? null
 })
 
-// SEM micrograph for the focused site's sequence, from the raw row.
-const imageName = computed(() => {
+// SEM micrograph(s) for the focused site's sequence, from the raw row. One on
+// CD-SEM; several stem-suffixed sub-images on HV-SEM (user-confirmed
+// 2026-08-08), offered as variants below the preview.
+const imageNames = computed(() => {
   const s = site.value
-  if (!s) return null
+  if (!s) return []
   const row = props.analysis.siteRows.value.find(
     r => r.parameter === props.analysis.activeParam.value && isMeasuredRow(r) && r.sequence === s.sequence
   )
-  return row?.mp_image_name_01 || null
+  return row ? rowImageNames(row) : []
 })
+
+const variantIndex = ref(0)
+watch(
+  () => `${site.value?.chip ?? ''}#${site.value?.sequence ?? ''}`,
+  () => {
+    variantIndex.value = 0
+  }
+)
+
+const imageName = computed(() => imageNames.value[variantIndex.value] ?? imageNames.value[0] ?? null)
 
 // Every image in this drawer belongs to the FOCUS MSR — same context as the
 // gallery (focusRow's eqp_ip/class_name + focusMsr).

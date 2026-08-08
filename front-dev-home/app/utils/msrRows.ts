@@ -21,10 +21,12 @@ export const isMeasuredRow = (row: MsrFileRow): row is MeasuredMsrRow =>
 
 export const measuredRows = (rows: MsrFileRow[]): MeasuredMsrRow[] => rows.filter(isMeasuredRow)
 
-// The ONE place we say which image files belong to a parameter: the first
-// measured row per distinct mp_image_name_01, in row order. The gallery grid
-// renders these; the cache warmer prefetches exactly the same set — sharing
-// the derivation is what keeps "what we warm" and "what we show" identical.
+// The ONE place we say which image-carrying ROWS belong to a parameter: the
+// first measured row per distinct mp_image_name_01, in row order. The gallery
+// grid renders these; the cache warmer prefetches exactly the same set —
+// sharing the derivation is what keeps "what we warm" and "what we show"
+// identical. Consumers expand each row to its FILES via rowImageNames below
+// (an HV-SEM row carries several).
 export const paramImageRows = (rows: MsrFileRow[], parameter: string): MeasuredMsrRow[] => {
   const seen = new Set<string>()
   const out: MeasuredMsrRow[] = []
@@ -37,6 +39,17 @@ export const paramImageRows = (rows: MsrFileRow[], parameter: string): MeasuredM
     }
   }
   return out
+}
+
+// The image files of ONE row, in pickle column order. `mp_image_names` is the
+// contract since 2026-08-08 (an HV-SEM row carries several stem-suffixed
+// files); the `_01` fallback keeps anything that predates the field — a cached
+// response, an older office adapter — rendering its single image instead of
+// none.
+export const rowImageNames = (row: MsrFileRow): string[] => {
+  const names = (row.mp_image_names ?? []).filter(name => !!name)
+  if (names.length > 0) return names
+  return row.mp_image_name_01 ? [row.mp_image_name_01] : []
 }
 
 // Measured CD values for one parameter, in row order.

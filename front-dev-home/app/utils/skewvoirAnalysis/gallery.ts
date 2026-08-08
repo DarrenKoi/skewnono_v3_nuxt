@@ -28,7 +28,7 @@
 // explicit `.ts` extension.
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import { parsePixelSetting, pixelSizeNm } from '../magPixel.ts'
-import { isMeasuredRow } from '../msrRows.ts'
+import { isMeasuredRow, rowImageNames } from '../msrRows.ts'
 import { iqrFences } from '../stats.ts'
 import type { WaferGeometry } from '../waferGeometry.ts'
 import { analyzeSpatial, type SpatialReadiness } from './spatial.ts'
@@ -68,7 +68,11 @@ export interface ReviewEntry {
   unit: string
   residual: number | null // spatial residual (null when unmeasured or no trend)
   reasons: GalleryReason[]
-  image: string | null // mp_image_name_01 (null when absent — the row still stays)
+  image: string | null // representative first image (null when absent — the row still stays)
+  // ALL image files of the site's row, pickle order. One on CD-SEM; several
+  // stem-suffixed (-U/-T/-M/-L) on HV-SEM (user-confirmed 2026-08-08). The
+  // viewer offers these as sub-image variants; `image` === images[0].
+  images: string[]
   hasImage: boolean
   monitor: VendorMonitor | null // vendor-score monitoring badge, separate from reasons
   evidenceBacked: boolean // failure || residual — gates the `이상·실패 우선` filter
@@ -241,7 +245,8 @@ export const buildReviewQueue = (
     // Vendor-score monitoring badge — separate from reasons.
     const monitor = buildMonitor(r, vendorFence)
 
-    const image = r.mp_image_name_01 && r.mp_image_name_01.length > 0 ? r.mp_image_name_01 : null
+    const images = rowImageNames(r)
+    const image = images[0] ?? null
     const evidenceBacked = reasons.includes('failure')
       || reasons.includes('residual')
       || reasons.includes('abnormal')
@@ -257,6 +262,7 @@ export const buildReviewQueue = (
       residual,
       reasons,
       image,
+      images,
       hasImage: image != null,
       monitor,
       evidenceBacked,

@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isMeasuredRow, measuredRows, paramImageRows, paramValues } from './msrRows.ts'
+import { isMeasuredRow, measuredRows, paramImageRows, paramValues, rowImageNames } from './msrRows.ts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 
 const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
@@ -75,5 +75,30 @@ test('paramImageRows keeps the first measured row per distinct image of one para
   assert.deepEqual(
     paramImageRows(rows, 'CD_TOP').map(r => [r.sequence, r.mp_image_name_01]),
     [[1, 'a.jpeg'], [6, 'd.jpeg']]
+  )
+})
+
+test('rowImageNames returns the full HV-SEM list, in pickle order', () => {
+  const names = ['s-U.jpeg', 's-T.jpeg', 's-M.tif', 's-L.jpeg']
+  assert.deepEqual(
+    rowImageNames(row({ mp_image_name_01: 's-U.jpeg', mp_image_names: names, no_of_mp_image: 4 })),
+    names
+  )
+})
+
+test('rowImageNames falls back to mp_image_name_01 when the list is absent or empty', () => {
+  // Absent: a cached response or an office adapter copy predating 2026-08-08.
+  assert.deepEqual(rowImageNames(row({ mp_image_name_01: 'a.jpeg' })), ['a.jpeg'])
+  assert.deepEqual(
+    rowImageNames(row({ mp_image_name_01: 'a.jpeg', mp_image_names: [] })),
+    ['a.jpeg']
+  )
+})
+
+test('rowImageNames is empty for an imageless row and drops empty entries', () => {
+  assert.deepEqual(rowImageNames(row({ mp_image_name_01: '', no_of_mp_image: 0 })), [])
+  assert.deepEqual(
+    rowImageNames(row({ mp_image_name_01: 'a.jpeg', mp_image_names: ['', 'a.jpeg'] })),
+    ['a.jpeg']
   )
 })

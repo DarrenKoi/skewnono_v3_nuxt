@@ -77,7 +77,7 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { paramImageRows } from '~/utils/msrRows'
+import { paramImageRows, rowImageNames } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -93,7 +93,10 @@ const imageWarm = useMsrImageWarmer(useFocusImageCtx(props.analysis), computed((
   const active = props.analysis.activeParam.value
   return {
     id: active,
-    names: paramImageRows(props.analysis.siteRows.value, active).map(r => r.mp_image_name_01)
+    // EVERY file of every point — an HV-SEM point carries several suffixed
+    // images (2026-08-08), and any one the warm set misses would fall back to
+    // the cold in-request FTP path the cloud ingress 502s.
+    names: paramImageRows(props.analysis.siteRows.value, active).flatMap(r => rowImageNames(r))
   }
 }))
 </script>

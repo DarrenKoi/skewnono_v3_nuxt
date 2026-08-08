@@ -31,6 +31,14 @@ export interface MsrFileRow {
   cd_value: number | null
   no_of_mp_image: number
   mp_image_name_01: string
+  // ALL image files of the row, pickle column order (mp_image_name 01..NN).
+  // CD-SEM rows carry one; HV-SEM rows carry several — one per targeting
+  // sub-position, stem-suffixed -U/-T/-M/-L, sometimes .tif only
+  // (user-confirmed 2026-08-08). mp_image_name_01 stays as the representative
+  // first entry. OPTIONAL because a response can predate the field (an older
+  // office adapter copy, a cached payload) — never index it directly; read it
+  // via utils/msrRows rowImageNames(), whose _01 fallback covers exactly that.
+  mp_image_names?: string[]
   meas_condition_mag: number
   meas_condition_vac: number
   meas_condition_pixel: string

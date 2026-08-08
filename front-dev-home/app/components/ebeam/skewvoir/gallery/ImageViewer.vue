@@ -11,14 +11,14 @@
       <div class="relative flex min-w-0 flex-1 flex-col">
         <div class="relative min-h-0 flex-1">
           <EbeamSkewvoirZoomableImage
-            v-if="entry.image && !failed && blobUrl"
-            :key="entry.image + nonce"
+            v-if="activeName && !failed && blobUrl"
+            :key="activeName + nonce"
             :src="blobUrl"
-            :alt="entry.image"
+            :alt="activeName"
             class="h-full w-full"
           />
           <div
-            v-else-if="entry.image && loading"
+            v-else-if="activeName && loading"
             class="flex h-full items-center justify-center gap-2 text-white/70"
           >
             <UIcon
@@ -29,7 +29,7 @@
           <!-- TIFF originals: no browser preview exists (Chromium can't decode
                TIFF), so the honest render is a download hand-off. -->
           <div
-            v-else-if="entry.image && isTiff && !failed"
+            v-else-if="activeName && isTiff && !failed"
             class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
           >
             <UIcon
@@ -40,7 +40,7 @@
             <a
               v-if="downloadUrl"
               :href="downloadUrl"
-              :download="entry.image"
+              :download="activeName"
               class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-[11px] text-white/80 hover:text-white"
             >
               <UIcon
@@ -58,9 +58,9 @@
               name="i-lucide-image-off"
               class="h-8 w-8"
             />
-            <span class="text-sm">{{ entry.image ? '이미지 로드 실패' : '이미지 없음' }}</span>
+            <span class="text-sm">{{ activeName ? '이미지 로드 실패' : '이미지 없음' }}</span>
             <button
-              v-if="entry.image"
+              v-if="activeName"
               type="button"
               class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-[11px] text-white/80 hover:text-white"
               @click="retry"
@@ -142,6 +142,30 @@
           >취득 점수↓</span>
         </div>
 
+        <!-- HV-SEM sub-images of this point (-U/-T/-M/-L). NAVIGATE family:
+             picking one changes which image is on stage. -->
+        <div
+          v-if="entry.images.length > 1"
+          class="flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="측정 이미지 선택"
+        >
+          <button
+            v-for="(name, i) in entry.images"
+            :key="name"
+            type="button"
+            class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+            :class="i === variantIndex
+              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+              : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            :aria-pressed="i === variantIndex"
+            :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
+            @click="variantIndex = i"
+          >
+            {{ imageVariantLabel(name, i) }}
+          </button>
+        </div>
+
         <dl class="space-y-1.5">
           <div
             v-for="item in meta"
@@ -198,7 +222,7 @@
 
 <script setup lang="ts">
 import type { WaferGeometry } from '~/utils/waferGeometry'
-import { isTiffName } from '~/utils/imageKind'
+import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
 import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
@@ -221,9 +245,22 @@ const { fetchImageWithCond, imageUrl } = useMsrImageApi()
 
 const entry = computed<ReviewEntry | null>(() => props.entries[props.index] ?? null)
 
-const isTiff = computed(() => isTiffName(entry.value?.image))
+// One point, several sub-images on HV-SEM (-U/-T/-M/-L, 2026-08-08). The
+// selection is per-entry: stepping to another site starts back at the first.
+const variantIndex = ref(0)
+watch(
+  () => `${entry.value?.chip ?? ''}#${entry.value?.sequence ?? ''}`,
+  () => {
+    variantIndex.value = 0
+  }
+)
+
+const activeName = computed<string | null>(
+  () => entry.value?.images[variantIndex.value] ?? entry.value?.image ?? null)
+
+const isTiff = computed(() => isTiffName(activeName.value))
 const downloadUrl = computed(() => {
-  const name = entry.value?.image
+  const name = activeName.value
   return name && props.eqp_ip ? imageUrl(props.eqp_ip, props.class_name, props.msr, name) : null
 })
 
@@ -249,7 +286,7 @@ const loadImage = async () => {
   // early-return on an empty context (otherwise a slow prior fetch could
   // resolve and install a stale blob after we've navigated to no image).
   const token = ++loadToken
-  const name = entry.value?.image
+  const name = activeName.value
   revokeBlob()
   cond.value = null
   failed.value = false
@@ -292,9 +329,9 @@ const step = (delta: number) => {
   emit('update:index', next)
 }
 
-// A new image (or a changed MSR context) reloads the blob.
+// A new image (a changed MSR context, entry step, or variant pick) reloads.
 watch(
-  () => `${props.eqp_ip}|${props.class_name}|${props.msr}|${entry.value?.image ?? ''}`,
+  () => `${props.eqp_ip}|${props.class_name}|${props.msr}|${activeName.value ?? ''}`,
   () => {
     nonce.value = 0
     loadImage()

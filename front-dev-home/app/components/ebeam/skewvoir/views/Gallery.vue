@@ -121,7 +121,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { ReviewFilter } from '~/components/ebeam/skewvoir/gallery/ReviewFilters.vue'
 import { isTiffName } from '~/utils/imageKind'
-import { paramImageRows } from '~/utils/msrRows'
+import { paramImageRows, rowImageNames } from '~/utils/msrRows'
 import { buildReviewQueue, resolveEvidenceOnly, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
@@ -241,9 +241,11 @@ const onEvidence = (entry: ReviewEntry) => {
   drawerOpen.value = true
 }
 
-// ── SET scope: existing filename grid (unchanged behaviour) ──────────────────
+// ── SET scope: existing filename grid ────────────────────────────────────────
+// One tile per FILE: an HV-SEM point contributes each of its stem-suffixed
+// images (2026-08-08), all under the same chip/cd caption.
 const images = computed(() =>
   paramImageRows(props.analysis.siteRows.value, props.analysis.activeParam.value)
-    .map(r => ({ name: r.mp_image_name_01, chip: r.chip_number, cd: r.cd_value }))
+    .flatMap(r => rowImageNames(r).map(name => ({ name, chip: r.chip_number, cd: r.cd_value })))
 )
 </script>

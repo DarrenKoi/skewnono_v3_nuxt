@@ -7,6 +7,31 @@
       icon="i-lucide-image"
       body-class="flex flex-col"
     >
+      <!-- One targeting point, several images (HV-SEM: -U/-T/-M/-L). The
+           selector sits OUTSIDE the render branches below so a TIFF-only or
+           failed variant can still be switched away from. NAVIGATE family:
+           picking a sub-image changes the view, it narrows no data. -->
+      <div
+        v-if="imageNames.length > 1"
+        class="mb-2 flex flex-wrap items-center gap-1"
+        role="group"
+        aria-label="측정 이미지 선택"
+      >
+        <button
+          v-for="(name, i) in imageNames"
+          :key="name"
+          type="button"
+          class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+          :class="i === selectedIndex
+            ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+            : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+          :aria-pressed="i === selectedIndex"
+          :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
+          @click="selectedIndex = i"
+        >
+          {{ imageVariantLabel(name, i) }}
+        </button>
+      </div>
       <AppLoadingState
         v-if="analysis.focusPending.value"
         variant="inline"
@@ -94,9 +119,9 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { WarmState } from '~/composables/useMsrImageWarmer'
-import { isTiffName } from '~/utils/imageKind'
+import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
 import { warmProgressLabel } from '~/utils/imageWarm'
-import { measuredRows } from '~/utils/msrRows'
+import { measuredRows, rowImageNames } from '~/utils/msrRows'
 
 // `warm` is optional so the panel still renders standalone; without it the
 // image is requested straight away, which is the pre-gate behaviour.
@@ -114,18 +139,33 @@ const resolveImageUrl = (name: string): string | null => {
   return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name) : null
 }
 
-// The micrograph for the active parameter. With a focused point, ONLY that
-// point's image qualifies — a focused point with a failed/missing image shows
+// The micrograph's row for the active parameter. With a focused point, ONLY
+// that point qualifies — a focused point with a failed/missing image shows
 // the 이미지 없음 state instead of silently borrowing another point's image.
-// With no focus, the first measured point's image leads.
-const measuredName = computed(() => {
+// With no focus, the first measured point leads.
+const measuredRow = computed(() => {
   const rows = measuredRows(props.analysis.siteRows.value).filter(r => r.parameter === props.analysis.activeParam.value)
   const focused = props.analysis.focusedSequence.value
   if (focused != null) {
-    return rows.find(r => r.sequence === focused)?.mp_image_name_01 || null
+    return rows.find(r => r.sequence === focused) ?? null
   }
-  return rows[0]?.mp_image_name_01 || null
+  return rows[0] ?? null
 })
+
+// A point's image files: one on CD-SEM, several stem-suffixed on HV-SEM
+// (user-confirmed 2026-08-08). The selection is per-point — moving to another
+// point (or parameter/MSR) starts back at the first image.
+const imageNames = computed(() => (measuredRow.value ? rowImageNames(measuredRow.value) : []))
+
+const selectedIndex = ref(0)
+watch(
+  () => `${focusCtx.value.msr}|${props.analysis.activeParam.value}|${measuredRow.value?.sequence ?? ''}`,
+  () => {
+    selectedIndex.value = 0
+  }
+)
+
+const measuredName = computed(() => imageNames.value[selectedIndex.value] ?? imageNames.value[0] ?? null)
 
 // A failed load is per-image: switching to another image retries cleanly.
 const loadFailed = ref(false)
@@ -155,6 +195,9 @@ const meta = computed(() => {
   if (holdForWarm.value) return '준비 중'
   const seq = props.analysis.focusedSequence.value
   const ok = measuredName.value && !loadFailed.value
-  return seq != null && ok ? `seq ${seq}` : (ok ? '측정 이미지' : '없음')
+  const variant = imageNames.value.length > 1 && measuredName.value
+    ? ` · ${imageVariantLabel(measuredName.value, selectedIndex.value)}`
+    : ''
+  return seq != null && ok ? `seq ${seq}${variant}` : (ok ? `측정 이미지${variant}` : '없음')
 })
 </script>
