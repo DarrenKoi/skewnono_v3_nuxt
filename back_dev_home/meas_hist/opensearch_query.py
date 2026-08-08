@@ -15,6 +15,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from back_dev_home._core.opensearch import escape_wildcard_literal
+
 
 SEARCH_ALL_FIELD = "search_all"
 SEARCH_ALL_MAPPING: dict[str, str] = {"type": "wildcard"}
@@ -48,9 +50,10 @@ def build_search_all_value(row: Mapping[str, Any]) -> str:
     )
 
 
-def _escape_wildcard_literal(value: str) -> str:
-    """Treat user ``*``/``?`` characters literally inside our wildcard."""
-    return value.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?")
+# Aliased, not re-implemented: `providers/office.py` is a gitignored copy that
+# imports this private name, so deleting it here would break the office adapter
+# until someone re-ran sync_office_adapters. The alias keeps that copy working.
+_escape_wildcard_literal = escape_wildcard_literal
 
 
 def build_q_fallback_clause(terms: Sequence[str]) -> dict[str, Any] | None:

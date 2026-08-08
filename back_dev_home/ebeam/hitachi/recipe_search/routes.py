@@ -1,5 +1,9 @@
 from flask import Blueprint, Response, jsonify, request
 
+from back_dev_home._core.request_args import (
+    resolve_fab_name,
+    resolve_fab_names,
+)
 from back_dev_home._logging.activity import promote_request_fab_names
 from back_dev_home.ebeam.hitachi.recipe_search import param_info
 from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
@@ -93,16 +97,6 @@ def _validated_locator(raw: object, allowed_subnets: list[str] | None = None) ->
     return locator
 
 
-def _resolve_fab_name() -> str | None:
-    raw = (request.args.get("fab_name") or "").strip().upper()
-    return raw or None
-
-
-def _resolve_fab_names() -> tuple[str, ...]:
-    raw = request.args.get("fab_name") or ""
-    return tuple(part.strip().upper() for part in raw.split(",") if part.strip())
-
-
 def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
     """The preamble the three tiered read routes share.
 
@@ -123,7 +117,7 @@ def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
     if needs_parameter and not parameter:
         return None, (jsonify({"error": "parameter is required"}), 400)
 
-    return (tool_type, recipe_name, parameter, _resolve_fab_name()), None
+    return (tool_type, recipe_name, parameter, resolve_fab_name()), None
 
 
 def _parameter_missing(parameter: str):
@@ -160,7 +154,7 @@ def recipe_search_recipes(tool_slug: str):
     if not tool_type:
         return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
 
-    fab_names = _resolve_fab_names()
+    fab_names = resolve_fab_names()
     promote_request_fab_names(*fab_names)
     return jsonify(get_recipe_catalog(tool_type, fab_names or None))
 
@@ -177,7 +171,7 @@ def recipe_search_recipe_detail(tool_slug: str):
 
     return jsonify(get_recipe_open_data(
         recipe_id=recipe_name,
-        fab_name=_resolve_fab_name(),
+        fab_name=resolve_fab_name(),
         tool_category=tool_type
     ))
 

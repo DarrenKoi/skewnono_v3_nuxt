@@ -1,15 +1,11 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
+from back_dev_home._core.request_args import resolve_fab_name
 from back_dev_home.ebeam.hitachi._tool_specs import VALID_TOOL_SLUGS
 from back_dev_home.ebeam.hitachi.pm_planning.data import get_pm_planning_fleet
 
 
 bp = Blueprint("ebeam_pm_planning", __name__)
-
-
-def _resolve_fab_name() -> str | None:
-    raw = (request.args.get("fab_name") or "").strip()
-    return raw or None
 
 
 def _bad_slug_response():
@@ -23,7 +19,7 @@ def pm_planning_fleet(tool_slug: str):
     if tool_slug != "cdsem":
         return jsonify({"error": "pm-planning is available for CD-SEM only"}), 400
 
-    fab_name = _resolve_fab_name()
+    fab_name = resolve_fab_name()
     if not fab_name:
         return jsonify({"error": "fab_name query parameter is required"}), 400
 

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from back_dev_home._core.opensearch import wildcard_clause
 from back_dev_home._logging.policy import normalize_fab_name_list
 from back_dev_home.admin_logs.contracts import LogItem, LogQueryResponse
 
@@ -140,7 +141,7 @@ def _build_filter_query(
 
     path = _read_str(params, "path")
     if path:
-        filters.append({"wildcard": {"path": f"*{path}*"}})
+        filters.append(wildcard_clause("path", path))
 
     status_range: dict[str, int] = {}
     status_min = _read_str(params, "status_min")
@@ -159,8 +160,7 @@ def _build_filter_query(
             {"match_phrase": {field: q}} for field in _FREE_TEXT_PHRASE_FIELDS
         ]
         should += [
-            {"wildcard": {field: f"*{q}*"}}
-            for field in _FREE_TEXT_WILDCARD_FIELDS
+            wildcard_clause(field, q) for field in _FREE_TEXT_WILDCARD_FIELDS
         ]
         must.append({"bool": {"should": should, "minimum_should_match": 1}})
 

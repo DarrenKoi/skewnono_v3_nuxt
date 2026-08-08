@@ -3,6 +3,7 @@ from flask import Flask, g
 
 import ops_store
 from back_dev_home._auth.provider import SOURCE_LOCAL
+from back_dev_home._core.opensearch import wildcard_clause
 from back_dev_home.admin_logs import routes
 from back_dev_home.admin_logs.providers import mock, office_example
 from back_dev_home.admin_logs.query import (
@@ -143,8 +144,41 @@ def test_free_text_matches_error_name_as_substring():
     value; the free-text box promises substring semantics like path."""
     should = parse_log_query({"q": "timeout"}).query["bool"]["must"][0]["bool"]["should"]
 
-    assert {"wildcard": {"error_name": "*timeout*"}} in should
+    assert wildcard_clause("error_name", "timeout") in should
     assert {"match_phrase": {"error_name": "timeout"}} not in should
+
+
+def test_free_text_treats_user_wildcards_as_literal_characters():
+    """The mock free-text filter is a plain Python substring test, so a user
+    typing `*` means an asterisk. Interpolated raw into a wildcard pattern it
+    would become match-anything and the office would return rows home never
+    does — a divergence no home test can see."""
+    should = parse_log_query({"q": "GET *"}).query["bool"]["must"][0]["bool"]["should"]
+    patterns = [
+        clause["wildcard"][field]["value"]
+        for clause in should
+        if "wildcard" in clause
+        for field in clause["wildcard"]
+    ]
+
+    assert patterns and all(p == "*GET \\**" for p in patterns)
+
+
+def test_free_text_and_path_match_case_insensitively_like_the_mock():
+    """providers/mock.py lowercases both sides for `q` and `path`. A bare
+    wildcard clause is case-SENSITIVE, so without this flag the same query
+    quietly returns fewer rows at the office than at home."""
+    parsed = parse_log_query({"q": "timeout", "path": "/api/sem"})
+    should = parsed.query["bool"]["must"][0]["bool"]["should"]
+    path_clause = next(
+        c for c in parsed.query["bool"]["filter"] if "wildcard" in c
+    )
+
+    assert path_clause["wildcard"]["path"]["case_insensitive"] is True
+    for clause in should:
+        if "wildcard" in clause:
+            for field in clause["wildcard"]:
+                assert clause["wildcard"][field]["case_insensitive"] is True
 
 
 def test_activity_kind_and_fab_name_narrow_the_query():

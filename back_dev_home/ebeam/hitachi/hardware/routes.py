@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 
+from back_dev_home._core.request_args import resolve_fab_name
 from back_dev_home.ebeam.hitachi._tool_specs import VALID_TOOL_SLUGS
 from back_dev_home.ebeam.hitachi.hardware.contracts import VALID_SERVICES
 from back_dev_home.ebeam.hitachi.hardware.data import get_hardware_service
@@ -21,11 +22,6 @@ def _resolve_eqp_id(raw_segment: str) -> str | None:
     if not seg or seg == "_":
         return None
     return seg
-
-
-def _resolve_fab_name() -> str | None:
-    raw = (request.args.get("fab_name") or "").strip()
-    return raw or None
 
 
 def _parse_iso(raw: str | None) -> datetime | None:
@@ -58,7 +54,7 @@ def hardware_service(tool_slug: str, eqp_id: str, service: str):
         tool_slug,
         service,  # type: ignore[arg-type]
         _resolve_eqp_id(eqp_id),
-        _resolve_fab_name(),
+        resolve_fab_name(),
         start,
         end,
     )

@@ -1,15 +1,11 @@
 from flask import Blueprint, jsonify, request
 
+from back_dev_home._core.request_args import resolve_fab_name
 from back_dev_home.ebeam.hitachi._tool_specs import resolve_tool_type_from_slug
 from back_dev_home.ebeam.hitachi.lateral_recipe.data import get_lateral_recipe
 
 
 bp = Blueprint("ebeam_lateral_recipe", __name__)
-
-
-def _resolve_fab_name() -> str | None:
-    raw = (request.args.get("fab_name") or "").strip().upper()
-    return raw or None
 
 
 @bp.get("/<tool_slug>/recipe-search/lateral")
@@ -22,4 +18,4 @@ def recipe_search_lateral(tool_slug: str):
     if not recipe_name:
         return jsonify({"error": "recipe_name is required"}), 400
 
-    return jsonify(get_lateral_recipe(tool_type, _resolve_fab_name(), recipe_name))
+    return jsonify(get_lateral_recipe(tool_type, resolve_fab_name(), recipe_name))
