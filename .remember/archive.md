@@ -1,5 +1,8 @@
 # Archive
 
+## Week of 2026-08-03
+Bucket refactor: mother→RecipeIdentity consolidation (single source); health/outlier filters (backend/frontend) with bar-chart tooltips and LotDetailModal 1400×968 redesign. UI rework: ViewToggle, LotTable, StageChip typography. Tests 1177/1177 ✓, typecheck/lint clean, docs (recipe_params.txt, CONTEXT.md, MIGRATION.md), browser tested, committed.
+
 ## Week of 2026-07-28
 Merged pending-tools→main; shipped /tool-roster + /api/sem-list (180-day filter, IP-export, pending-tools classifier). Refactored recipe-open, ENMP readers, Redis adapters (503 handlers, 1827 tests). Completed numpy.bool_→bool refactor (20+ sites, BoolPill removal), fixed recipe comparison/IDP tests (1516 pass). Audited Progress.bento (76 endpoints, 31–55k LOC); pushed openwiki regen.
 
