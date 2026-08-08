@@ -15,11 +15,16 @@ from typing import Sequence
 from back_dev_home.ebeam.hitachi._analytics import percentile_summary
 from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     CONFIDENCE_Z,
+    EquipmentComparePayload,
+    EquipmentRecipeRow,
     EquipmentRow,
     EquipmentsPayload,
     FAIL_INDEX_MIN_EXPECTED,
     ToolType,
 )
+# 날짜 채움 규칙은 recipe_tat 이 이미 갖고 있습니다. 복제하면 두 화면의 x축이
+# 서로 다른 날 개수를 그리게 되고, 그 어긋남은 조용합니다.
+from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import days_in_range
 
 
 def byar_interval(
@@ -245,4 +250,137 @@ def build_equipments_payload(
             },
         },
         "equipments": equipments,
+    }
+
+
+# (eqp_id, date, exec_count, align_fails, meas_fails)
+TrendGridRow = tuple[str, str, int, int, int]
+# (eqp_id, full_name, exec_count, align_fails, meas_fails)
+RecipeGridRow = tuple[str, str, int, int, int]
+
+
+def build_equipment_compare_payload(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: Sequence[str],
+    trend_rows: Sequence[TrendGridRow],
+    recipe_rows: Sequence[RecipeGridRow],
+) -> EquipmentComparePayload:
+    """선택된 장비들의 일별 추이와 레시피별 실패 구성을 한 응답에 담습니다.
+
+    레시피 행은 선택 장비들의 **합집합**이고, 돌지 않은 장비 칸은 0 으로
+    채웁니다. 클라이언트가 장비별 응답 여러 개를 조인하면 이 합집합과 0채움을
+    매번 다시 만들어야 하고, 한 번 어긋나면 열이 밀려 다른 장비의 숫자를
+    보여주게 됩니다.
+    """
+    selected = list(dict.fromkeys(eqp_ids))     # 순서 보존 dedupe
+    if not selected:
+        return {
+            "tool_type": tool_type,
+            "fab_names": list(fab_names or []),
+            "start_date": start_date,
+            "end_date": end_date,
+            "eqp_ids": [],
+            "trends": [],
+            "recipes": [],
+        }
+
+    days = days_in_range(start_date, end_date)
+    trend: dict[str, dict[str, dict]] = {
+        eqp_id: {
+            day: {"exec_count": 0, "align_fail_count": 0, "meas_fail_count": 0}
+            for day in days
+        }
+        for eqp_id in selected
+    }
+    for eqp_id, day, execs, align_f, meas_f in trend_rows:
+        bucket = trend.get(eqp_id, {}).get(day)
+        if bucket is not None:
+            bucket["exec_count"] += execs
+            bucket["align_fail_count"] += align_f
+            bucket["meas_fail_count"] += meas_f
+
+    grid: dict[str, dict] = {}
+    for eqp_id, full_name, execs, align_f, meas_f in recipe_rows:
+        if eqp_id not in trend:
+            continue
+        # office 문서에는 class_name/recipe_name 이 따로 있지만 격자 키는
+        # full_name 하나입니다. full_name = f"{class_name}/{recipe_name}" 이
+        # 계약이므로 첫 '/' 로 되살립니다.
+        class_name, _, recipe_name = full_name.partition("/")
+        recipe = grid.setdefault(full_name, {
+            "class_name": class_name,
+            "recipe_name": recipe_name,
+            "full_name": full_name,
+            "total_exec_count": 0,
+            "total_align_fail_count": 0,
+            "total_meas_fail_count": 0,
+            "cells": {
+                picked: {"execs": 0, "align": 0, "meas": 0} for picked in selected
+            },
+        })
+        recipe["total_exec_count"] += execs
+        recipe["total_align_fail_count"] += align_f
+        recipe["total_meas_fail_count"] += meas_f
+        cell = recipe["cells"][eqp_id]
+        cell["execs"] += execs
+        cell["align"] += align_f
+        cell["meas"] += meas_f
+
+    # 활성 탭을 백엔드가 모르므로 두 지표의 합으로 정렬하고, 동률은 full_name
+    # 으로 파훼합니다. 프론트엔드가 활성 aspect 로 다시 정렬하지만, 이 순서가
+    # 결정적이지 않으면 페이지네이션이 흔들립니다.
+    ordered = sorted(
+        grid.values(),
+        key=lambda e: (
+            -(e["total_align_fail_count"] + e["total_meas_fail_count"]),
+            e["full_name"],
+        ),
+    )
+
+    recipes: list[EquipmentRecipeRow] = [
+        {
+            "class_name": entry["class_name"],
+            "recipe_name": entry["recipe_name"],
+            "full_name": entry["full_name"],
+            "total_exec_count": entry["total_exec_count"],
+            "total_align_fail_count": entry["total_align_fail_count"],
+            "total_meas_fail_count": entry["total_meas_fail_count"],
+            "cells": [
+                {
+                    "eqp_id": eqp_id,
+                    "exec_count": entry["cells"][eqp_id]["execs"],
+                    "align_fail_count": entry["cells"][eqp_id]["align"],
+                    "meas_fail_count": entry["cells"][eqp_id]["meas"],
+                }
+                for eqp_id in selected
+            ],
+        }
+        for entry in ordered
+    ]
+
+    return {
+        "tool_type": tool_type,
+        "fab_names": list(fab_names or []),
+        "start_date": start_date,
+        "end_date": end_date,
+        "eqp_ids": selected,
+        "trends": [
+            {
+                "eqp_id": eqp_id,
+                "points": [
+                    {
+                        "date": day,
+                        "exec_count": trend[eqp_id][day]["exec_count"],
+                        "align_fail_count": trend[eqp_id][day]["align_fail_count"],
+                        "meas_fail_count": trend[eqp_id][day]["meas_fail_count"],
+                    }
+                    for day in days
+                ],
+            }
+            for eqp_id in selected
+        ],
+        "recipes": recipes,
     }

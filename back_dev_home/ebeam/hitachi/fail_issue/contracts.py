@@ -21,6 +21,11 @@ __all__ = [
     "EquipmentRow",
     "FleetReference",
     "EquipmentsPayload",
+    "EquipmentTrendPoint",
+    "EquipmentTrendSeries",
+    "EquipmentRecipeCell",
+    "EquipmentRecipeRow",
+    "EquipmentComparePayload",
 ]
 
 
@@ -185,3 +190,50 @@ class EquipmentsPayload(TypedDict):
     end_date: str | None
     fleet: FleetReference
     equipments: list[EquipmentRow]
+
+
+# `EquipmentTrendPoint` 는 기존 `DailyTrendPoint` 와 필드가 같지만 **별도
+# 타입으로 둡니다.** 기존 타입은 페이지 전역 추이의 계약이고 이 타입은 장비
+# 단위 추이의 계약이라, 한쪽에 필드를 더할 때 다른 쪽이 따라 움직여야 할
+# 이유가 없습니다.
+class EquipmentTrendPoint(TypedDict):
+    date: str
+    exec_count: int
+    align_fail_count: int
+    meas_fail_count: int
+
+
+class EquipmentTrendSeries(TypedDict):
+    eqp_id: str
+    points: list[EquipmentTrendPoint]
+
+
+class EquipmentRecipeCell(TypedDict):
+    eqp_id: str
+    exec_count: int
+    align_fail_count: int
+    meas_fail_count: int
+
+
+class EquipmentRecipeRow(TypedDict):
+    class_name: str
+    recipe_name: str
+    full_name: str
+    # 선택된 장비 전체의 합.
+    total_exec_count: int
+    total_align_fail_count: int
+    total_meas_fail_count: int
+    # 선택된 장비 수만큼, 요청 순서 그대로. 그 장비가 이 레시피를 돌지
+    # 않았으면 0 으로 채웁니다 — 열이 밀리면 비교표가 거짓말을 합니다.
+    cells: list[EquipmentRecipeCell]
+
+
+class EquipmentComparePayload(TypedDict):
+    tool_type: ToolType
+    fab_names: list[str]
+    start_date: str | None
+    end_date: str | None
+    # 실제로 사용된 목록(상한 적용 후). 절단을 조용히 하지 않기 위한 에코입니다.
+    eqp_ids: list[str]
+    trends: list[EquipmentTrendSeries]
+    recipes: list[EquipmentRecipeRow]

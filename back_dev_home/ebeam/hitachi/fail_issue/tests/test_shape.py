@@ -15,6 +15,7 @@ office 어댑터는 mock 을 전혀 거치지 않고 이 함수를 부르므로,
 import pytest
 
 from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+    build_equipment_compare_payload,
     build_equipments_payload,
 )
 
@@ -211,3 +212,118 @@ def test_empty_grid_yields_an_empty_but_well_formed_payload():
     assert payload["fleet"]["align_fail_rate"] == 0.0
     assert payload["fleet"]["median_exec_count"] == 0.0
     assert payload["fleet"]["percentiles"]["exec_count"] == {}
+
+
+# --- 비교 payload -----------------------------------------------------------
+
+COMPARE_START, COMPARE_END = "2026-08-01", "2026-08-03"   # 3일
+
+
+def _compare(eqp_ids, trend_rows, recipe_rows):
+    return build_equipment_compare_payload(
+        "cd-sem", (FAB,), COMPARE_START, COMPARE_END,
+        eqp_ids, trend_rows, recipe_rows,
+    )
+
+
+def test_cells_follow_the_requested_order_and_zero_fill_absentees():
+    """열이 밀리면 비교표가 다른 장비의 숫자를 보여줍니다.
+
+    EQ-TWO 는 R/ONLYONE 을 돌지 않았으므로 그 칸이 0 이어야 하고, cells 의
+    순서는 요청 순서(EQ-ONE, EQ-TWO)를 그대로 따라야 합니다.
+    """
+    payload = _compare(
+        ["EQ-ONE", "EQ-TWO"],
+        [],
+        [
+            ("EQ-ONE", "R/ONLYONE", 100, 10, 12),
+            ("EQ-ONE", "R/SHARED", 50, 5, 6),
+            ("EQ-TWO", "R/SHARED", 70, 7, 8),
+        ],
+    )
+
+    assert payload["eqp_ids"] == ["EQ-ONE", "EQ-TWO"]
+    by_name = {row["full_name"]: row for row in payload["recipes"]}
+
+    only = by_name["R/ONLYONE"]
+    assert [c["eqp_id"] for c in only["cells"]] == ["EQ-ONE", "EQ-TWO"]
+    assert only["cells"][0]["align_fail_count"] == 10
+    assert only["cells"][1] == {
+        "eqp_id": "EQ-TWO",
+        "exec_count": 0,
+        "align_fail_count": 0,
+        "meas_fail_count": 0,
+    }
+
+    shared = by_name["R/SHARED"]
+    assert shared["total_exec_count"] == 120
+    assert shared["total_align_fail_count"] == 12
+    assert shared["total_meas_fail_count"] == 14
+
+
+def test_full_name_splits_into_class_and_recipe_on_the_first_slash():
+    payload = _compare(
+        ["EQ-ONE"], [], [("EQ-ONE", "ADI/M1/CD", 10, 1, 1)]
+    )
+    row = payload["recipes"][0]
+    assert row["class_name"] == "ADI"
+    assert row["recipe_name"] == "M1/CD"
+    assert row["full_name"] == "ADI/M1/CD"
+
+
+def test_trends_cover_every_day_in_range_even_when_silent():
+    """조용한 날을 건너뛰면 x축이 거짓말을 합니다."""
+    payload = _compare(
+        ["EQ-ONE"],
+        [("EQ-ONE", "2026-08-02", 30, 3, 4)],
+        [],
+    )
+    points = payload["trends"][0]["points"]
+    assert [p["date"] for p in points] == ["2026-08-01", "2026-08-02", "2026-08-03"]
+    assert points[0]["exec_count"] == 0
+    assert points[1]["align_fail_count"] == 3
+    assert points[2]["meas_fail_count"] == 0
+
+
+def test_rows_outside_the_selection_are_ignored():
+    """범위 밖 장비의 행이 섞여 들어와도 합계를 오염시키면 안 됩니다."""
+    payload = _compare(
+        ["EQ-ONE"],
+        [("EQ-GHOST", "2026-08-02", 999, 99, 99)],
+        [("EQ-GHOST", "R/SHARED", 999, 99, 99)],
+    )
+    assert payload["recipes"] == []
+    assert all(p["exec_count"] == 0 for p in payload["trends"][0]["points"])
+
+
+def test_duplicate_eqp_ids_collapse_while_preserving_order():
+    payload = _compare(["EQ-B", "EQ-A", "EQ-B"], [], [])
+    assert payload["eqp_ids"] == ["EQ-B", "EQ-A"]
+
+
+def test_empty_selection_returns_an_empty_payload():
+    payload = _compare([], [], [])
+    assert payload["eqp_ids"] == []
+    assert payload["trends"] == []
+    assert payload["recipes"] == []
+
+
+def test_recipes_sort_by_combined_fails_then_name():
+    """백엔드는 활성 탭을 모르므로 두 지표를 합친 결정적 순서만 보장합니다.
+
+    프론트엔드가 활성 aspect 로 다시 정렬하지만, 페이지네이션이 안정적이려면
+    백엔드 순서에 동률 파훼가 있어야 합니다.
+    """
+    payload = _compare(
+        ["EQ-ONE"],
+        [],
+        [
+            ("EQ-ONE", "R/LOW", 100, 1, 1),
+            ("EQ-ONE", "R/HIGH", 100, 20, 30),
+            ("EQ-ONE", "B/TIE", 100, 5, 5),
+            ("EQ-ONE", "A/TIE", 100, 5, 5),
+        ],
+    )
+    assert [r["full_name"] for r in payload["recipes"]] == [
+        "R/HIGH", "A/TIE", "B/TIE", "R/LOW"
+    ]
