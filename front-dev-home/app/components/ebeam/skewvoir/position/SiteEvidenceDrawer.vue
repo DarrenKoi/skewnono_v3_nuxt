@@ -114,35 +114,26 @@
                   class="h-5 w-5 animate-spin"
                 />
               </div>
-              <!-- TIFF originals have no browser preview — hand off to download. -->
-              <div
-                v-else-if="imageName && isTiffName(imageName) && !imageFailed"
-                class="flex h-40 flex-col items-center justify-center gap-1.5 rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
-              >
-                <UIcon
-                  name="i-lucide-file-image"
-                  class="h-5 w-5 text-(--sk-ink-subtle)"
-                />
-                <span>TIFF 원본 · 미리보기 미지원</span>
-                <a
-                  v-if="downloadUrl"
-                  :href="downloadUrl"
-                  :download="imageName"
-                  class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-                >
-                  <UIcon
-                    name="i-lucide-download"
-                    class="h-3 w-3"
-                  />
-                  원본 다운로드
-                </a>
-              </div>
               <div
                 v-else
                 class="flex h-40 items-center justify-center rounded-(--sk-r-chip) border border-dashed border-(--sk-border) sk-body"
               >
                 {{ imageFailed ? '이미지 로드 실패' : '측정 이미지가 없습니다.' }}
               </div>
+              <!-- The preview above is the server-side WebP rendition of a
+                   TIFF original; this link serves the untouched file. -->
+              <a
+                v-if="imageName && isTiffName(imageName) && downloadUrl"
+                :href="downloadUrl"
+                :download="imageName"
+                class="mt-1.5 inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+              >
+                <UIcon
+                  name="i-lucide-download"
+                  class="h-3 w-3"
+                />
+                TIFF 원본 다운로드
+              </a>
             </div>
 
             <div v-if="imageCond">
@@ -252,18 +243,17 @@ const loadImage = async () => {
   }
   imageLoading.value = true
   try {
-    const res = await fetchImageWithCond(ctx.eqp_ip, ctx.class_name, ctx.msr, name)
+    // preview: the display rendition — the server converts a TIFF original to
+    // WebP (2026-08-08); anything else passes through byte-identical. The
+    // TIFF 원본 다운로드 link below the image keeps serving the real file.
+    const res = await fetchImageWithCond(
+      ctx.eqp_ip, ctx.class_name, ctx.msr, name, { preview: true }
+    )
     if (token !== loadToken) {
       URL.revokeObjectURL(res.blobUrl)
       return
     }
-    if (isTiffName(name)) {
-      // No browser can render the blob; the fetch still warmed the server
-      // cache (instant 다운로드 click) and delivered the cond.
-      URL.revokeObjectURL(res.blobUrl)
-    } else {
-      blobUrl.value = res.blobUrl
-    }
+    blobUrl.value = res.blobUrl
     imageCond.value = res.cond
   } catch {
     if (token === loadToken) imageFailed.value = true

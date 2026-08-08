@@ -8,26 +8,11 @@
     <!-- Image well — each card owns its own load/error state, so one failed URL
          never blocks the rest of the grid. -->
     <div class="relative aspect-square w-full bg-(--sk-chip-bg)">
-      <!-- TIFF originals can't render in <img> (Chromium); attempting one would
-           always land in the "로드 실패" branch. Open the viewer instead — it
-           offers the download. -->
+      <!-- TIFFs render like everything else since 2026-08-08: the grid's src
+           carries preview=1, so the server serves a WebP rendition. The small
+           corner tag says the file is a TIFF; the viewer offers the original. -->
       <button
-        v-if="entry.image && isTiff"
-        type="button"
-        class="flex h-full w-full flex-col items-center justify-center gap-1.5 text-center"
-        :aria-label="`${entry.chip} TIFF 원본 열기`"
-        @click="emit('open')"
-      >
-        <UIcon
-          name="i-lucide-file-image"
-          class="h-5 w-5 text-(--sk-ink-subtle)"
-        />
-        <span class="sk-meta">TIFF 원본</span>
-        <span class="font-mono text-[9px] text-(--sk-ink-subtle)">미리보기 없음 · 열어서 다운로드</span>
-      </button>
-
-      <button
-        v-else-if="entry.image && !failed"
+        v-if="entry.image && !failed"
         type="button"
         class="block h-full w-full"
         :aria-label="`${entry.chip} 이미지 열기`"
@@ -102,11 +87,18 @@
       </div>
 
       <!-- Vendor monitoring badge — SEPARATE axis (never a verdict). -->
-      <span
-        v-if="entry.monitor?.low"
-        class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
-        title="취득 점수 모니터링(판정 아님)"
-      >취득↓</span>
+      <div class="absolute top-1 right-1 flex flex-col items-end gap-0.5">
+        <span
+          v-if="entry.monitor?.low"
+          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
+          title="취득 점수 모니터링(판정 아님)"
+        >취득↓</span>
+        <span
+          v-if="isTiff"
+          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
+          title="TIFF 원본 — 미리보기는 변환본, 원본은 뷰어에서 다운로드"
+        >TIFF</span>
+      </div>
     </div>
 
     <!-- Caption: chip/MP, sequence, value, residual. -->

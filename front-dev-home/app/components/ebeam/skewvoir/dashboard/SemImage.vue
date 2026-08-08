@@ -38,60 +38,57 @@
         class="flex-1"
         title="불러오는 중입니다."
       />
-      <!-- TIFF originals have no browser preview — hand off to download. -->
-      <div
-        v-else-if="measuredName && focusCtx.eqp_ip && isTiffName(measuredName)"
-        class="flex flex-1 flex-col items-center justify-center gap-2 rounded-(--sk-r-chip) border border-(--sk-border) sk-body"
-      >
-        <UIcon
-          name="i-lucide-file-image"
-          class="h-6 w-6 text-(--sk-ink-subtle)"
-        />
-        <span>TIFF 원본 — 브라우저 미리보기 미지원</span>
-        <a
-          :href="resolveImageUrl(measuredName)!"
-          :download="measuredName"
-          class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-        >
-          <UIcon
-            name="i-lucide-download"
-            class="h-3 w-3"
-          />
-          원본 다운로드
-        </a>
-      </div>
       <!-- The cache warmer is still pulling this parameter's images off the
            tool. Asking for one now would be a cold in-request FTP fetch, which
            the cloud ingress 502s (and the browser logs, unsuppressably) — so
-           wait for the job and turn the first request into a cache hit. -->
+           wait for the job and turn the first request into a cache hit. TIFFs
+           are held too since 2026-08-08: their preview derives server-side
+           from the cached original, so the warm is what makes it a cache hit. -->
       <AppLoadingState
         v-else-if="holdForWarm"
         variant="inline"
         class="flex-1"
         :title="warmLabel"
       />
+      <!-- TIFF originals render through the server-side WebP preview
+           (?preview=1); the download button serves the untouched file. -->
       <div
         v-else-if="measuredName && focusCtx.eqp_ip && !loadFailed"
         class="relative min-h-0 flex-1 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
       >
         <EbeamSkewvoirZoomableImage
           :key="measuredName"
-          :src="resolveImageUrl(measuredName)!"
+          :src="displayImageUrl(measuredName)!"
           :alt="measuredName"
           class="h-full w-full"
           @error="loadFailed = true"
         />
-        <button
-          type="button"
-          class="absolute top-2 right-2 rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface)/90 p-1.5 text-(--sk-ink-muted) shadow-sm backdrop-blur-sm transition-colors duration-200 hover:text-(--sk-ink)"
-          aria-label="전체 화면"
-          @click="zoomSrc = resolveImageUrl(measuredName)"
-        >
-          <UIcon
-            name="i-lucide-maximize-2"
-            class="h-4 w-4"
-          />
-        </button>
+        <div class="absolute top-2 right-2 flex items-center gap-1.5">
+          <a
+            v-if="isTiffName(measuredName)"
+            :href="resolveImageUrl(measuredName)!"
+            :download="measuredName"
+            class="rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface)/90 p-1.5 text-(--sk-ink-muted) shadow-sm backdrop-blur-sm transition-colors duration-200 hover:text-(--sk-ink)"
+            aria-label="TIFF 원본 다운로드"
+            title="TIFF 원본 다운로드"
+          >
+            <UIcon
+              name="i-lucide-download"
+              class="h-4 w-4"
+            />
+          </a>
+          <button
+            type="button"
+            class="rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface)/90 p-1.5 text-(--sk-ink-muted) shadow-sm backdrop-blur-sm transition-colors duration-200 hover:text-(--sk-ink)"
+            aria-label="전체 화면"
+            @click="zoomSrc = displayImageUrl(measuredName)"
+          >
+            <UIcon
+              name="i-lucide-maximize-2"
+              class="h-4 w-4"
+            />
+          </button>
+        </div>
       </div>
       <!-- Explicit missing-image state: the selected point has no image (failed
            measurement, no file, or the file itself failed to load). Never fall
@@ -139,6 +136,14 @@ const resolveImageUrl = (name: string): string | null => {
   return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name) : null
 }
 
+// What the <img>/lightbox loads: the browser-renderable rendition (TIFF →
+// server-side WebP; a passthrough otherwise). resolveImageUrl stays the
+// untouched original for the 원본 다운로드 link.
+const displayImageUrl = (name: string): string | null => {
+  const ctx = focusCtx.value
+  return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name, { preview: true }) : null
+}
+
 // The micrograph's row for the active parameter. With a focused point, ONLY
 // that point qualifies — a focused point with a failed/missing image shows
 // the 이미지 없음 state instead of silently borrowing another point's image.
@@ -184,7 +189,8 @@ const missingReason = computed(() => {
 
 // Hold the <img> back only when there is something to hold: with no image or
 // no tool, 이미지 없음 is already the right answer and waiting would just
-// delay it. TIFF is excluded by branch order — its card requests no bytes.
+// delay it. TIFFs are held like every other image (2026-08-08): their WebP
+// preview derives server-side from the cached original the warmer pulls.
 const holdForWarm = computed(() =>
   props.warm?.status === 'warming' && !!measuredName.value && !!focusCtx.value.eqp_ip)
 

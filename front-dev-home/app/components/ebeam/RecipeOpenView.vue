@@ -488,7 +488,7 @@ const openLightbox = (image: ParamImage) => {
     slot: image.slot,
     stage: image.stage,
     name: image.name,
-    src: recipeImageUrl(recipeApiBase(), toolSlug.value, locator.value, image.name),
+    src: recipeImageUrl(recipeApiBase(), toolSlug.value, locator.value, image.name, { preview: true }),
     role: IMAGE_SLOTS.find(s => s.key === image.slot)?.role ?? 'address',
     cond: image.cond
   }

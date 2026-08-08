@@ -40,7 +40,7 @@
           v-for="entry in filteredEntries"
           :key="`${entry.chip}#${entry.sequence}`"
           :entry="entry"
-          :src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image) : null"
+          :src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image, { preview: true }) : null"
           :focused="entry.chip === analysis.focusedSite.value"
           @open="openViewer(entry)"
           @focus="focusSite(entry)"
@@ -64,22 +64,27 @@
         :key="img.name"
         class="overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
       >
-        <!-- TIFF originals can't render in <img>; offer the download instead. -->
+        <!-- TIFFs render through the server-side WebP preview; clicking the
+             tile downloads the untouched original (the TIFF corner tag is the
+             cue that a click means download). -->
         <a
           v-if="isTiffName(img.name)"
           :href="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
           :download="img.name"
-          class="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-(--sk-chip-bg) text-center"
+          class="relative block"
+          :title="`${img.name} — TIFF 원본 다운로드`"
         >
-          <UIcon
-            name="i-lucide-file-image"
-            class="h-5 w-5 text-(--sk-ink-subtle)"
-          />
-          <span class="sk-meta">TIFF · 다운로드</span>
+          <img
+            :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name, { preview: true }) : undefined"
+            :alt="img.name"
+            class="aspect-square w-full object-cover"
+            loading="lazy"
+          >
+          <span class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm">TIFF</span>
         </a>
         <img
           v-else
-          :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
+          :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name, { preview: true }) : undefined"
           :alt="img.name"
           class="aspect-square w-full object-cover"
           loading="lazy"

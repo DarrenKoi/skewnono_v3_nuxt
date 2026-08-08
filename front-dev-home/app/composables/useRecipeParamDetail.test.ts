@@ -38,6 +38,19 @@ describe('recipeImageUrl', () => {
     assert.equal(params.get('name'), 'IMMP0001.jpeg')
   })
 
+  it('adds preview=1 only for display URLs — download links stay untouched', () => {
+    // preview asks the server for the browser-renderable rendition (TIFF →
+    // WebP, 2026-08-08); the plain URL is the 원본 다운로드 promise.
+    const display = new URLSearchParams(
+      recipeImageUrl(BASE, 'cdsem', LOCATOR, 'IMMS0001-U.tif', { preview: true }).split('?')[1]
+    )
+    const plain = new URLSearchParams(
+      recipeImageUrl(BASE, 'cdsem', LOCATOR, 'IMMS0001-U.tif').split('?')[1]
+    )
+    assert.equal(display.get('preview'), '1')
+    assert.equal(plain.get('preview'), null)
+  })
+
   it('encodes a name that would otherwise break the query string', () => {
     const url = recipeImageUrl(BASE, 'cdsem', LOCATOR, 'A&B 0001.jpeg')
     assert.ok(!url.includes('A&B 0001'))

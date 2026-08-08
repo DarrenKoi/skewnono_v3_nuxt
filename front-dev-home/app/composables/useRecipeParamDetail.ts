@@ -115,9 +115,14 @@ export function recipeImageUrl(
   base: string,
   toolSlug: string,
   locator: IdpLocator,
-  name: string
+  name: string,
+  // Display URLs pass { preview: true } for the browser-renderable rendition
+  // (TIFF → WebP server-side; a no-op on the JPEGs recipe folders have been
+  // observed to hold). Download links omit it — same rule as useMsrImageApi.
+  opts?: { preview?: boolean }
 ): string {
   const params = new URLSearchParams({ ...locator, name })
+  if (opts?.preview) params.set('preview', '1')
   return `${joinApiPath(base, `/${toolSlug}/recipe-search/recipe-image`)}?${params.toString()}`
 }
 

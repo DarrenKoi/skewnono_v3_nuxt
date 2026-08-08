@@ -134,6 +134,8 @@ const condTitle = (image: ParamImage, all: readonly ParamImage[]): string => {
   return `${image.stage} 빔 조건 — ${imageVariantLabel(image.name, siblings.indexOf(image))}`
 }
 
+// Display rendition: a TIFF raw file converts to WebP server-side; the JPEGs
+// recipe folders have been observed to hold pass through byte-identical.
 const imageSrc = (name: string) =>
-  recipeImageUrl(base, props.toolSlug, props.locator, name)
+  recipeImageUrl(base, props.toolSlug, props.locator, name, { preview: true })
 </script>

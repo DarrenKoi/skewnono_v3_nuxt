@@ -26,30 +26,6 @@
               class="h-6 w-6 animate-spin"
             />
           </div>
-          <!-- TIFF originals: no browser preview exists (Chromium can't decode
-               TIFF), so the honest render is a download hand-off. -->
-          <div
-            v-else-if="activeName && isTiff && !failed"
-            class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
-          >
-            <UIcon
-              name="i-lucide-file-image"
-              class="h-8 w-8"
-            />
-            <span class="text-sm">TIFF 원본 — 브라우저 미리보기가 지원되지 않습니다</span>
-            <a
-              v-if="downloadUrl"
-              :href="downloadUrl"
-              :download="activeName"
-              class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-[11px] text-white/80 hover:text-white"
-            >
-              <UIcon
-                name="i-lucide-download"
-                class="h-3.5 w-3.5"
-              />
-              원본 다운로드
-            </a>
-          </div>
           <div
             v-else
             class="flex h-full flex-col items-center justify-center gap-2 text-white/70"
@@ -165,6 +141,21 @@
             {{ imageVariantLabel(name, i) }}
           </button>
         </div>
+
+        <!-- The stage shows the WebP rendition; the original TIFF is served
+             untouched here. -->
+        <a
+          v-if="isTiff && downloadUrl"
+          :href="downloadUrl"
+          :download="activeName ?? undefined"
+          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-[11px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+        >
+          <UIcon
+            name="i-lucide-download"
+            class="h-3.5 w-3.5"
+          />
+          TIFF 원본 다운로드
+        </a>
 
         <dl class="space-y-1.5">
           <div
@@ -298,18 +289,18 @@ const loadImage = async () => {
   }
   loading.value = true
   try {
-    const res = await fetchImageWithCond(props.eqp_ip, props.class_name, props.msr, name)
+    // preview: the display rendition — the server converts a TIFF original to
+    // WebP (2026-08-08) and passes anything else through byte-identical, so
+    // the blob always renders. The 원본 다운로드 link (rail, when isTiff)
+    // keeps pointing at the unconverted file.
+    const res = await fetchImageWithCond(
+      props.eqp_ip, props.class_name, props.msr, name, { preview: true }
+    )
     if (token !== loadToken) {
       URL.revokeObjectURL(res.blobUrl)
       return
     }
-    if (isTiffName(name)) {
-      // No browser can render the blob; the fetch still warmed the server
-      // cache (so the 다운로드 click is instant) and delivered the cond.
-      URL.revokeObjectURL(res.blobUrl)
-    } else {
-      blobUrl.value = res.blobUrl
-    }
+    blobUrl.value = res.blobUrl
     cond.value = res.cond
   } catch {
     if (token === loadToken) failed.value = true
