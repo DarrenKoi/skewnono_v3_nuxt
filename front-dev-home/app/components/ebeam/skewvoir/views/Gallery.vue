@@ -41,6 +41,7 @@
           :key="`${entry.chip}#${entry.sequence}`"
           :entry="entry"
           :src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image, { preview: true }) : null"
+          :original-src="entry.image && focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, entry.image) : null"
           :focused="entry.chip === analysis.focusedSite.value"
           @open="openViewer(entry)"
           @focus="focusSite(entry)"

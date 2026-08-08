@@ -203,6 +203,24 @@
           v-if="missingReason"
           class="sk-meta"
         >{{ missingReason }}</span>
+        <!-- A TIFF that failed to render is not a TIFF that failed to exist:
+             the WebP preview is a server-side conversion, so an undecodable or
+             unsupported original lands here while the file itself is fine to
+             download. Keeping the original reachable is the constraint
+             msr_image/preview.py's docstring states, and the same affordance
+             ImageViewer and SiteEvidenceDrawer offer from their own failures. -->
+        <a
+          v-if="downloadName"
+          :href="resolveImageUrl(downloadName)!"
+          :download="downloadName"
+          class="mt-1 inline-flex items-center gap-1.5 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2.5 py-1 text-(--sk-ink-muted) transition-colors duration-200 sk-meta hover:text-(--sk-ink)"
+        >
+          <UIcon
+            name="i-lucide-download"
+            class="h-3.5 w-3.5"
+          />
+          TIFF 원본 다운로드
+        </a>
       </div>
     </EbeamSkewvoirPanelFrame>
 
@@ -290,6 +308,17 @@ const loadFailed = ref(false)
 watch(measuredName, () => {
   loadFailed.value = false
 })
+
+// The original this point's placeholder can still offer, or null. Requires a
+// resolvable URL (a name AND a tool) and a TIFF — for every other kind the
+// placeholder means the bytes are genuinely absent, so a download link would
+// only 404. This is deliberately NOT gated on `loadFailed`: a TIFF held back
+// by a missing preview and one whose <img> errored are the same situation to
+// the user, and both leave the original fetchable.
+const downloadName = computed(() =>
+  measuredName.value && focusCtx.value.eqp_ip && isTiffName(measuredName.value)
+    ? measuredName.value
+    : null)
 
 // Why the placeholder is showing, for the small line under 이미지 없음.
 const missingReason = computed(() => {

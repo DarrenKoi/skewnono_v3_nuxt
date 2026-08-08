@@ -51,17 +51,35 @@
           class="h-5 w-5 text-(--sk-ink-subtle)"
         />
         <span class="sk-meta">이미지 로드 실패</span>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-          @click="retry"
-        >
-          <UIcon
-            name="i-lucide-rotate-ccw"
-            class="h-3 w-3"
-          />
-          재시도
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+            @click="retry"
+          >
+            <UIcon
+              name="i-lucide-rotate-ccw"
+              class="h-3 w-3"
+            />
+            재시도
+          </button>
+          <!-- A TIFF whose WebP rendition failed is still a downloadable file:
+               the conversion is server-side, so retry may never succeed while
+               the original is intact. Same affordance the viewer rail offers. -->
+          <a
+            v-if="isTiff && originalSrc"
+            :href="originalSrc"
+            :download="entry.image"
+            class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+            title="TIFF 원본 다운로드"
+          >
+            <UIcon
+              name="i-lucide-download"
+              class="h-3 w-3"
+            />
+            원본
+          </a>
+        </div>
       </div>
 
       <!-- No image on this site — the evidence row stays. -->
@@ -137,6 +155,10 @@ import { REASON_META, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 const props = defineProps<{
   entry: ReviewEntry
   src: string | null
+  // The untouched file, no `preview=1`. `src` is a server-side WebP rendition,
+  // so it can fail on an original that is perfectly downloadable — the failure
+  // tile offers this instead of leaving a corrupt TIFF unreachable.
+  originalSrc?: string | null
   focused?: boolean
 }>()
 const emit = defineEmits<{ open: [], focus: [] }>()
