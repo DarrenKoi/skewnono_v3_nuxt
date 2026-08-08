@@ -8,29 +8,81 @@
       body-class="flex flex-col"
     >
       <!-- One targeting point, several images (HV-SEM: -U/-T/-M/-L). The
-           selector sits OUTSIDE the render branches below so a TIFF-only or
-           failed variant can still be switched away from. NAVIGATE family:
-           picking a sub-image changes the view, it narrows no data. -->
+           header sits OUTSIDE the render branches below so a TIFF-only or
+           failed variant can still be switched away from. Both controls are
+           NAVIGATE family: they change what is shown, they narrow no data. -->
       <div
         v-if="imageNames.length > 1"
-        class="mb-2 flex flex-wrap items-center gap-1"
-        role="group"
-        aria-label="측정 이미지 선택"
+        class="mb-2 flex flex-wrap items-center justify-between gap-2"
       >
-        <button
-          v-for="(name, i) in imageNames"
-          :key="name"
-          type="button"
-          class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
-          :class="i === selectedIndex
-            ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-            : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-          :aria-pressed="i === selectedIndex"
-          :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
-          @click="selectedIndex = i"
+        <div
+          v-if="displayMode === 'single'"
+          class="flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="측정 이미지 선택"
         >
-          {{ imageVariantLabel(name, i) }}
-        </button>
+          <button
+            v-for="(name, i) in imageNames"
+            :key="name"
+            type="button"
+            class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+            :class="i === selectedIndex
+              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+              : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            :aria-pressed="i === selectedIndex"
+            :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
+            @click="selectedIndex = i"
+          >
+            {{ imageVariantLabel(name, i) }}
+          </button>
+        </div>
+        <span
+          v-else
+          class="sk-meta"
+        >{{ imageNames.length }}장 전체</span>
+
+        <!-- The reviewer's choice of HOW a multi-image point renders: one
+             image with the selector above, or every sub-image at once.
+             Persisted — a reviewer who compares depths side by side keeps
+             the mode across reloads. -->
+        <div
+          class="flex items-center gap-1"
+          role="group"
+          aria-label="표시 방식"
+        >
+          <button
+            type="button"
+            class="rounded-(--sk-r-sidebar) border p-1 transition-colors duration-200"
+            :class="displayMode === 'single'
+              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+              : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            :aria-pressed="displayMode === 'single'"
+            aria-label="하나씩 보기"
+            title="하나씩 보기"
+            @click="displayMode = 'single'"
+          >
+            <UIcon
+              name="i-lucide-image"
+              class="h-3.5 w-3.5"
+            />
+          </button>
+          <button
+            type="button"
+            class="rounded-(--sk-r-sidebar) border p-1 transition-colors duration-200"
+            :class="displayMode === 'all'
+              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+              : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            :aria-pressed="displayMode === 'all'"
+            aria-label="전체 보기"
+            title="전체 보기"
+            @click="displayMode = 'all'"
+          >
+            <UIcon
+              name="i-lucide-layout-grid"
+              class="h-3.5 w-3.5"
+            />
+          </button>
+        </div>
       </div>
       <AppLoadingState
         v-if="analysis.focusPending.value"
@@ -50,6 +102,51 @@
         class="flex-1"
         :title="warmLabel"
       />
+      <!-- 전체 mode: every sub-image of the point at once, labeled by its
+           variant. Same preview URLs the single mode uses, so switching modes
+           costs no extra fetch. A thumb click enlarges in the lightbox. -->
+      <div
+        v-else-if="showAllGrid"
+        class="grid min-h-0 flex-1 auto-rows-fr content-start gap-2 overflow-auto"
+        :class="imageNames.length > 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'"
+      >
+        <figure
+          v-for="(name, i) in imageNames"
+          :key="name"
+          class="relative min-h-0 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
+        >
+          <button
+            type="button"
+            class="block h-full w-full cursor-zoom-in"
+            :aria-label="`이미지 ${imageVariantLabel(name, i)} 확대해서 보기`"
+            @click="zoomSrc = displayImageUrl(name)"
+          >
+            <img
+              :src="displayImageUrl(name)!"
+              :alt="name"
+              loading="lazy"
+              decoding="async"
+              class="h-full w-full object-cover"
+            >
+          </button>
+          <span class="absolute top-1 left-1 rounded-(--sk-r-sidebar) bg-(--sk-ink)/85 px-1.5 py-0.5 font-mono text-[11px] font-medium text-(--sk-ink-fg)">
+            {{ imageVariantLabel(name, i) }}
+          </span>
+          <a
+            v-if="isTiffName(name)"
+            :href="resolveImageUrl(name)!"
+            :download="name"
+            class="absolute top-1 right-1 rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface)/90 p-1 text-(--sk-ink-muted) shadow-sm backdrop-blur-sm transition-colors duration-200 hover:text-(--sk-ink)"
+            aria-label="TIFF 원본 다운로드"
+            title="TIFF 원본 다운로드"
+          >
+            <UIcon
+              name="i-lucide-download"
+              class="h-3 w-3"
+            />
+          </a>
+        </figure>
+      </div>
       <!-- TIFF originals render through the server-side WebP preview
            (?preview=1); the download button serves the untouched file. -->
       <div
@@ -162,6 +259,22 @@ const measuredRow = computed(() => {
 // point (or parameter/MSR) starts back at the first image.
 const imageNames = computed(() => (measuredRow.value ? rowImageNames(measuredRow.value) : []))
 
+// How a multi-image point renders: 'single' (one image + variant chips) or
+// 'all' (every sub-image as labeled thumbnails). A reviewer PREFERENCE, not
+// per-point state, so it persists across points, parameters and reloads.
+const displayMode = usePersistedState<'single' | 'all'>(
+  'skewvoir-sem-image-display',
+  'skewnono:skewvoir:sem-image-display',
+  {
+    default: () => 'single',
+    normalize: parsed => (parsed === 'all' ? 'all' : 'single'),
+    isEmpty: value => value === 'single'
+  }
+)
+
+const showAllGrid = computed(() =>
+  displayMode.value === 'all' && imageNames.value.length > 1 && !!focusCtx.value.eqp_ip)
+
 const selectedIndex = ref(0)
 watch(
   () => `${focusCtx.value.msr}|${props.analysis.activeParam.value}|${measuredRow.value?.sequence ?? ''}`,
@@ -200,6 +313,11 @@ const warmLabel = computed(() =>
 const meta = computed(() => {
   if (holdForWarm.value) return '준비 중'
   const seq = props.analysis.focusedSequence.value
+  if (showAllGrid.value) {
+    return seq != null
+      ? `seq ${seq} · ${imageNames.value.length}장`
+      : `측정 이미지 ${imageNames.value.length}장`
+  }
   const ok = measuredName.value && !loadFailed.value
   const variant = imageNames.value.length > 1 && measuredName.value
     ? ` · ${imageVariantLabel(measuredName.value, selectedIndex.value)}`
