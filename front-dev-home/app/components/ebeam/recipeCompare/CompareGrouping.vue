@@ -22,7 +22,7 @@
         v-if="expanded === `${field.key}::pick`"
         class="basis-full pt-1 pl-28 font-mono text-[10px] text-(--sk-ink-muted)"
       >
-        {{ expandedRecipeIds.join(', ') }}
+        {{ expandedLabels.join(', ') }}
       </div>
     </div>
     <p
@@ -42,6 +42,7 @@ import {
   type ValueBucket,
   buildSettingRows,
   buildIdpRows,
+  compareRecipeLabels,
   groupFieldValues
 } from '~/utils/recipeCompare'
 import type { ImageSlotKey } from '~/utils/recipeView'
@@ -61,12 +62,15 @@ interface GroupedField {
   buckets: ValueBucket[]
 }
 
-const recipeIds = computed(() => props.recipes.map(r => r.recipe_id))
+// Fab-qualified on a cross-fab compare ('A (R3)'), bare otherwise — the
+// expanded bucket list must not show one ambiguous bare id twice when the
+// same recipe name is compared across two fabs.
+const recipeLabels = computed(() => compareRecipeLabels(props.recipes))
 
 const groupRow = (row: MatrixRow): GroupedField => ({
   key: row.key,
   label: row.label,
-  buckets: groupFieldValues(row.values.map((value, i) => ({ recipeId: recipeIds.value[i]!, value })))
+  buckets: groupFieldValues(row.values.map((value, i) => ({ label: recipeLabels.value[i]!, value })))
 })
 
 const fields = computed<GroupedField[]>(() => {
@@ -79,18 +83,18 @@ const fields = computed<GroupedField[]>(() => {
 })
 
 const expanded = ref<string | null>(null)
-const expandedRecipeIds = ref<string[]>([])
+const expandedLabels = ref<string[]>([])
 
 const toggleExpand = (fieldKey: string, value: string) => {
   const token = `${fieldKey}::pick`
   const field = fields.value.find(f => f.key === fieldKey)
   const bucket = field?.buckets.find(b => b.value === value)
-  if (expanded.value === token && expandedRecipeIds.value.join() === (bucket?.recipeIds ?? []).join()) {
+  if (expanded.value === token && expandedLabels.value.join() === (bucket?.labels ?? []).join()) {
     expanded.value = null
-    expandedRecipeIds.value = []
+    expandedLabels.value = []
     return
   }
   expanded.value = token
-  expandedRecipeIds.value = bucket?.recipeIds ?? []
+  expandedLabels.value = bucket?.labels ?? []
 }
 </script>

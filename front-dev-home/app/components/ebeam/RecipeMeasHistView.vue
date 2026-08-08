@@ -19,6 +19,7 @@ const route = useRoute()
 const { fetchMeasHist } = useMeasHistApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
+const routeFabSegment = useRouteFabSegment(() => props.fab)
 
 const cacheKey = computed(() => `meas-hist:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 
@@ -159,13 +160,15 @@ const tableUi = {
   <div class="space-y-4">
     <EbeamRecipeSwitcher
       :tool-type="toolType"
-      :fab="fab"
+      :fab-segment="routeFabSegment"
+      :owner-fab="fab"
       active-screen="meas-hist"
     />
     <div class="space-y-3">
       <EbeamRecipeDetailNav
         :tool-type="toolType"
-        :fab="fab"
+        :fab-segment="routeFabSegment"
+        :owner-fab="fab"
         :recipe-name="recipeName"
         active-screen="meas-hist"
       />
@@ -194,7 +197,7 @@ const tableUi = {
         color="neutral"
         variant="outline"
         label="Recipe 검색으로 돌아가기"
-        :to="`/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search`"
+        :to="`/ebeam/${toolType}/${routeFabSegment}/recipe-search`"
       />
     </div>
 

@@ -85,6 +85,9 @@ types:
     sample_eqp_ids:
       type: array
       description: Up to 5 distinct equipment IDs from align-fail rows for this recipe
+    fab_names:
+      type: array of string
+      description: Fabs contributing to the aggregate, sorted ascending
 
   MeasRankingRow:
     rank:
@@ -108,6 +111,9 @@ types:
       description: Mean fail_ratio across all executions of this recipe in the window (not only the failing ones). Percent, 0..100 — unlike meas_fail_rate, which is a 0..1 fraction of rows. Useful for distinguishing "always slightly dirty" recipes from "occasionally catastrophic".
     sample_eqp_ids:
       type: array
+    fab_names:
+      type: array of string
+      description: Fabs contributing to the aggregate, sorted ascending
 
   DeviceRow:
     lot_cd:

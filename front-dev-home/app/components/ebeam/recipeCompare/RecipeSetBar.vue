@@ -8,21 +8,21 @@
           class="-ml-2"
         />
         <p class="sk-eyebrow text-(--sk-brand)">
-          비교 대상 recipe · {{ selected.length }}
+          비교 대상 recipe · {{ entries.length }}
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
         <span
-          v-for="name in selected"
-          :key="name"
+          v-for="entry in entries"
+          :key="recipePairKey(entry.fab_name, entry.name)"
           class="inline-flex max-w-[240px] items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[11px] text-(--sk-ink)"
         >
-          <span class="truncate">{{ name }}</span>
+          <span class="truncate">{{ entry.name }}</span>
           <button
             type="button"
-            :aria-label="`Remove ${name}`"
+            :aria-label="`Remove ${entry.name}`"
             class="rounded-md p-0.5 hover:bg-zinc-300 dark:hover:bg-zinc-600"
-            @click="emit('remove', name)"
+            @click="emit('remove', entry.name, entry.fab_name)"
           >
             <UIcon
               name="i-lucide-x"
@@ -47,14 +47,17 @@
 </template>
 
 <script setup lang="ts">
+import type { RecipeSelectionEntry } from '~/utils/recipeSelection'
+import { recipePairKey } from '~/utils/recipePair'
+
 defineProps<{
-  selected: string[]
+  entries: RecipeSelectionEntry[]
   backRoute: string
   canExport: boolean
 }>()
 
 const emit = defineEmits<{
-  remove: [name: string]
+  remove: [name: string, fabName: string]
   download: []
 }>()
 </script>

@@ -112,6 +112,23 @@
                  point 한 줄씩. 그래서 카드를 그대로 옮기지 않고 한 단계 더
                  편 표를 내보냅니다. -->
             <div class="ml-auto flex items-center gap-2">
+              <div
+                role="radiogroup"
+                aria-label="recipe 정렬"
+                class="flex items-center gap-1.5"
+              >
+                <button
+                  v-for="option in sortOptions"
+                  :key="option.value"
+                  type="button"
+                  role="radio"
+                  :aria-checked="recipeSort === option.value"
+                  :class="[CHIP_BASE, chipClass(recipeSort === option.value)]"
+                  @click="recipeSort = option.value"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
               <span class="sk-field-label">{{ paramRowCount.toLocaleString() }}행</span>
               <UTooltip :text="text.copyHint">
                 <UButton
@@ -148,18 +165,21 @@
               class="flex flex-wrap items-start gap-x-5 gap-y-3 rounded-xl bg-(--sk-surface) px-4 py-3 ring-1 ring-(--sk-border-soft)"
               :class="{ 'opacity-60': recipe.para_all === 0 }"
             >
+              <!-- 카드의 주어는 **스텝(oper_desc)** 입니다. recipe_id 가 아닙니다 —
+                   이 목록을 읽는 질문이 "이 device 는 어느 공정에서 무엇을 재는가"
+                   이고, recipe 이름은 그 스텝을 재는 job 의 이름일 뿐이기 때문입니다.
+                   그래서 headline 은 .sk-card-id(카드가 다루는 대상), recipe_id 는
+                   한 단계 아래 .sk-field-value 로 내려갑니다. -->
               <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="font-mono text-[17px] font-bold leading-tight tracking-tight text-(--sk-ink)">{{ recipe.recipe_id }}</span>
-                  <span class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ recipe.oper_id }}</span>
-                </div>
-                <p class="mt-1.5 sk-card-desc">
-                  {{ recipe.oper_desc || '—' }}
-                </p>
-                <div class="mt-2 flex flex-wrap gap-x-5 gap-y-0.5">
+                <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span class="sk-card-id">{{ recipe.oper_desc || '—' }}</span>
                   <span class="sk-field-label">
-                    oper_seq <span class="sk-field-value">{{ recipe.oper_seq }}</span>
+                    oper_seq <span class="sk-field-value font-semibold text-(--sk-ink)">{{ recipe.oper_seq }}</span>
                   </span>
+                </div>
+                <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span class="sk-field-value">{{ recipe.recipe_id }}</span>
+                  <span class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ recipe.oper_id }}</span>
                   <span class="sk-field-label">
                     samp_seq <span class="sk-field-value">{{ recipe.samp_seq }}</span>
                   </span>
@@ -211,6 +231,8 @@ import type { HealthAugmentedRow } from '~/utils/lotHealth'
 import type { RecipeInput } from '~/utils/ruleEngine'
 import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from '~/utils/lotParamExport'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { CHIP_BASE, chipClass } from '~/utils/chipClass'
+import { sortSteps, type RecipeSortKey } from '~/utils/recipeStepSort'
 import type {
   RecipeInfoRow,
   RecipeTrendResponse,
@@ -269,11 +291,27 @@ const lotRecipes = computed<RecipeInfoRow[]>(() => {
   return props.recipeRows.filter(r => r.lot_cd === lotCd)
 })
 
-// 표가 정렬 헤더로 하던 일을 카드에서는 기본 순서 하나가 대신합니다 —
-// 파라미터가 많은 recipe 가 먼저입니다(표의 기본 정렬과 같습니다).
-const sortedRecipes = computed(() =>
-  [...lotRecipes.value].sort((a, b) => b.para_all - a.para_all || a.recipe_id.localeCompare(b.recipe_id))
-)
+const sortOptions = [
+  { label: '공정순', value: 'oper' },
+  { label: 'recipe 이름', value: 'recipe' }
+] as const satisfies readonly { label: string, value: RecipeSortKey }[]
+
+// 기본은 **공정순(oper_seq)** 입니다. 예전 기본은 para_all 내림차순이었는데,
+// 그것은 "어느 recipe 가 제일 무거운가" 라는 질문의 순서입니다. 이 목록을 여는
+// 질문은 "이 device 가 공정을 따라가며 무엇을 재는가" 이므로, 순서가 곧 공정
+// 흐름이어야 합니다 — 그래야 위에서 아래로 읽는 것이 wafer 가 지나가는 순서와
+// 같아집니다. para 가 큰 recipe 는 막대 길이로 이미 눈에 띕니다.
+//
+// ref 는 모달이 살아 있는 동안 유지됩니다(모달은 v-model:open 으로 감췄다
+// 보였다 할 뿐 unmount 되지 않습니다). lot 을 바꿔 가며 볼 때 정렬이 매번
+// 기본값으로 튕기지 않는 편이 낫습니다.
+const recipeSort = ref<RecipeSortKey>('oper')
+
+// 비교 함수는 utils/recipeStepSort.ts 에 있습니다 — 집의 mock 은 두 정렬이
+// 같은 결과를 내도록 recipe_id 를 만들기 때문에(그 파일의 주석 참고) 차이를
+// 확인할 수 있는 곳이 단위 테스트뿐이고, 컴포넌트 안에 두면 테스트가 볼 수
+// 없습니다.
+const sortedRecipes = computed(() => sortSteps(lotRecipes.value, recipeSort.value))
 
 // 카드마다 막대를 제 합계로 정규화하면 파라미터 3개짜리 recipe 와 40개짜리
 // recipe 의 막대가 똑같이 꽉 차 보입니다. lot 안에서 서로 비교되도록 최대값을
@@ -281,9 +319,8 @@ const sortedRecipes = computed(() =>
 const maxRecipeParaTotal = computed(() => Math.max(0, ...lotRecipes.value.map(r => r.para_all)))
 
 // 파일의 행 순서는 화면의 카드 순서입니다 — 표와 파일을 나란히 놓고 읽을 수
-// 있어야 하므로 sortedRecipes 를 그대로 넘깁니다. 목록 필터가 하나뿐이라
-// LotTable 처럼 정렬 ref 를 공유할 필요는 없고, 같은 computed 를 쓰는 것으로
-// 충분합니다.
+// 있어야 하므로 sortedRecipes 를 그대로 넘깁니다. 정렬 칩을 바꾸면 내려받는
+// 파일의 순서도 함께 바뀌는 것이 의도입니다.
 const paramRows = computed(() => buildLotParamRows(sortedRecipes.value, props.recipeParams))
 const paramRowCount = computed(() => paramRows.value.length)
 

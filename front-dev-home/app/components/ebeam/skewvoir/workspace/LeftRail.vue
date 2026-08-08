@@ -267,7 +267,7 @@ const router = useRouter()
 const openRecipe = () => {
   const recipe = props.ws.selection.value?.recipe
   if (!recipe || !props.fab) return
-  const route = recipeDetailRoute(props.ws.toolType, props.fab, 'open', recipe)
+  const route = recipeDetailRoute(props.ws.toolType, props.fab, 'open', recipe, 'redis', props.fab)
   window.open(router.resolve(route).href, '_blank', 'noopener')
 }
 

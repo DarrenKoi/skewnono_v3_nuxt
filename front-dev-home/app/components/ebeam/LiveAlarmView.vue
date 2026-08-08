@@ -4,17 +4,21 @@
 // resolve the fab and sync navigation state.
 import { boardCounts, distinctLotCount, formatElapsed, filterEvents, groupMeasEvents } from '~/utils/liveAlarm'
 import type { AlarmFilter } from '~/utils/liveAlarm'
+import { buildFabSegment } from '~/utils/fab'
 
 const props = defineProps<{
-  fab: string
+  fabs: string[]
   toolLabel: string
   toolType: string
 }>()
 
-const fabSlug = computed(() => props.fab.toLowerCase())
+const fabSegment = computed(() => buildFabSegment(props.fabs))
+const multiFab = computed(() => props.fabs.length > 1)
 
-const { events, hasLoaded, feedStatus, fetchedAt, unmatchedCount, serverOffsetMs, unseenCount, highlightIds, error, markSeen }
-  = useLiveAlarmFeed(props.toolType, props.fab)
+const {
+  events, hasLoaded, feedStatus, fetchedAt, unmatchedCount, notConfiguredFabs,
+  serverOffsetMs, unseenCount, highlightIds, error, markSeen
+} = useLiveAlarmFeed(props.toolType, props.fabs)
 
 const highlightSet = computed(() => new Set(highlightIds.value))
 const counts = computed(() => boardCounts(events.value))
@@ -75,7 +79,7 @@ const onFilterKeydown = (event: KeyboardEvent): void => {
   })
 }
 
-const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
+const eyebrow = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
 
 // The last-updated time is shown whether or not there are alarms. An empty
 // board means nothing on its own: "quiet fab" and "we know nothing" render
@@ -108,8 +112,8 @@ const metaStats = computed(() => [
 useHead({
   title: computed(() =>
     unseenCount.value
-      ? `(${unseenCount.value}) 라이브 알람 · ${props.fab}`
-      : `라이브 알람 · ${props.fab}`
+      ? `(${unseenCount.value}) 라이브 알람 · ${props.fabs.join(' + ')}`
+      : `라이브 알람 · ${props.fabs.join(' + ')}`
   )
 })
 </script>
@@ -190,7 +194,7 @@ useHead({
         v-if="feedStatus === 'not_configured'"
         class="px-4 py-10 text-center sk-body text-(--sk-ink-muted)"
       >
-        {{ fab }} 팹은 아직 라이브 알람 수집 대상이 아닙니다.
+        {{ fabs.join(' + ') }} 팹은 아직 라이브 알람 수집 대상이 아닙니다.
       </p>
 
       <template v-else-if="hasRows">
@@ -201,7 +205,8 @@ useHead({
           :server-offset-ms="serverOffsetMs"
           :is-new="highlightSet.has(event.id)"
           :tool-slug="toolType"
-          :fab="fabSlug"
+          :fab="fabSegment"
+          :fab-badge="multiFab ? event.fab_name : ''"
         />
         <LiveAlarmMeasGroup
           v-for="group in measGroups"
@@ -210,7 +215,8 @@ useHead({
           :server-offset-ms="serverOffsetMs"
           :highlight-ids="highlightIds"
           :tool-slug="toolType"
-          :fab="fabSlug"
+          :fab="fabSegment"
+          :fab-badge="multiFab ? (group.events[0]?.fab_name ?? '') : ''"
         />
       </template>
 
@@ -239,6 +245,18 @@ useHead({
     >
       장비 목록에 없어 팹을 특정할 수 없는 알람이 이 설비군 피드에
       {{ unmatchedCount }}건 있습니다.
+    </p>
+
+    <!-- Partial-config footnote: selected fabs the server has no office
+         adapter for yet. Distinct from the unmatched-count paragraph above —
+         that one is alarms with no fab; this one is fabs with no alarms at
+         all, silently missing from the merged board otherwise. -->
+    <p
+      v-if="notConfiguredFabs.length"
+      class="sk-meta"
+    >
+      {{ notConfiguredFabs.join(', ') }} 팹은 아직 라이브 알람 수집 대상이
+      아니라 이 보드에 포함되지 않습니다.
     </p>
   </div>
 </template>

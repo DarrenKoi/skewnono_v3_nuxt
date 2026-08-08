@@ -1,6 +1,6 @@
 // Test-only builder for LiveAlarmEvent. Lives beside the type rather than
 // inside one test file because two suites need it, and because the contract
-// has 19 fields: an inline literal per suite means every field the backend
+// has 20 fields: an inline literal per suite means every field the backend
 // adds has to be pasted into both, and a suite that skips one stops compiling
 // for a reason unrelated to what it tests.
 //
@@ -10,6 +10,7 @@ import type { LiveAlarmEvent } from './liveAlarm.ts'
 export const makeAlarmEvent = (over: Partial<LiveAlarmEvent> = {}): LiveAlarmEvent => ({
   id: '881423',
   rawid: '881423',
+  fab_name: 'R3',
   eqp_id: 'EQ1',
   alarm_modelname: 'CG6300',
   alid: '9006',

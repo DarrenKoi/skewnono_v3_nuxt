@@ -332,9 +332,11 @@ def get_align_ranking(
             "full_name": row["full_name"],
             "exec_count": 0,
             "align_fail_count": 0,
-            "eqp_ids": set()
+            "eqp_ids": set(),
+            "fabs": set()
         })
         bucket["exec_count"] += 1
+        bucket["fabs"].add(str(row["fab_name"]).upper())
         if _is_align_fail(row):
             bucket["align_fail_count"] += 1
             bucket["eqp_ids"].add(row["eqp_id"])
@@ -362,7 +364,8 @@ def get_align_ranking(
             "exec_count": exec_count,
             "align_fail_count": fail_count,
             "align_fail_rate": rate,
-            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5]
+            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5],
+            "fab_names": sorted(bucket["fabs"])
         })
 
     return out
@@ -388,10 +391,12 @@ def get_meas_ranking(
             "exec_count": 0,
             "meas_fail_count": 0,
             "fail_ratio_sum": 0.0,
-            "eqp_ids": set()
+            "eqp_ids": set(),
+            "fabs": set()
         })
         bucket["exec_count"] += 1
         bucket["fail_ratio_sum"] += row["fail_ratio"]
+        bucket["fabs"].add(str(row["fab_name"]).upper())
         if _is_meas_fail(row):
             bucket["meas_fail_count"] += 1
             bucket["eqp_ids"].add(row["eqp_id"])
@@ -420,7 +425,8 @@ def get_meas_ranking(
             "meas_fail_count": fail_count,
             "meas_fail_rate": rate,
             "avg_fail_ratio": avg_ratio,
-            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5]
+            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5],
+            "fab_names": sorted(bucket["fabs"])
         })
 
     return out

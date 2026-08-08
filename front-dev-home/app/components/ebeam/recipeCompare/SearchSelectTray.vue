@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import type { RecipeSelectionCapabilities } from '~/utils/recipeSelection'
+import type { RecipeSelectionCapabilities, RecipeSelectionEntry } from '~/utils/recipeSelection'
+import { recipePairKey } from '~/utils/recipePair'
 
 defineProps<{
-  selected: string[]
+  selected: RecipeSelectionEntry[]
   capabilities: RecipeSelectionCapabilities
 }>()
 
 const emit = defineEmits<{
-  remove: [name: string]
+  // Selection identity is the (name, fab) pair — see useRecipeSelectionSet —
+  // so removing a chip must name both to disambiguate the same recipe name
+  // selected from two different fabs.
+  remove: [name: string, fabName: string]
   clear: []
   open: []
   lateral: []
@@ -47,16 +51,20 @@ const emit = defineEmits<{
       class="mt-3 flex max-h-64 flex-wrap content-start gap-1.5 overflow-y-auto"
     >
       <span
-        v-for="name in selected"
-        :key="name"
+        v-for="entry in selected"
+        :key="recipePairKey(entry.fab_name, entry.name)"
         class="inline-flex max-w-full items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1.5 pl-2.5 pr-1 font-mono text-[11px] text-(--sk-ink)"
       >
-        <span class="truncate">{{ name }}</span>
+        <span
+          v-if="entry.fab_name"
+          class="sk-fab-badge shrink-0"
+        >{{ entry.fab_name }}</span>
+        <span class="truncate">{{ entry.name }}</span>
         <button
           type="button"
           class="shrink-0 rounded-md p-0.5 text-(--sk-ink-muted) transition hover:bg-zinc-300 hover:text-(--sk-ink) dark:hover:bg-zinc-600"
-          :aria-label="`Remove ${name}`"
-          @click="emit('remove', name)"
+          :aria-label="`Remove ${entry.name}`"
+          @click="emit('remove', entry.name, entry.fab_name)"
         >
           <UIcon
             name="i-lucide-x"

@@ -92,6 +92,7 @@ fabricated; only the shape imitates.
 
 import hashlib
 import random
+from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache
 
@@ -101,6 +102,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     AlignPoint,
     CompareParameter,
     CompareRecipe,
+    CompareRequestItem,
     IdpImageInfoRow,
     IdpLocator,
     ParamDetailRequestItem,
@@ -154,6 +156,12 @@ COMPARE_IDP_FIELDS: tuple[str, ...] = (
 
 RECIPE_COUNT = 50_000
 
+# Stand-in for the office HGETALL field set: the office catalog hash holds one
+# field per fab, so "no fab requested" means "every fab in the hash". The mock
+# cannot know the real field set; two fabs is enough to exercise the union and
+# the ~20% duplicate-name overlap.
+_DEFAULT_FAB_NAMES: tuple[str, ...] = ("R3", "M16B")
+
 NAME_PATTERNS: tuple[tuple[str, str], ...] = (
     ("RACE", "DEAE"),
     ("EA", "ERJERI_TEA"),
@@ -188,7 +196,7 @@ def _build_recipe_name(index: int, rng: random.Random) -> str:
 
 
 @lru_cache(maxsize=16)
-def _generate_recipe_rows(tool_type: ToolType, fab_name: str | None) -> tuple[RecipeSearchRow, ...]:
+def _generate_recipe_rows(tool_type: ToolType, fab_name: str | None) -> tuple[str, ...]:
     rng = random.Random(_seed_for(tool_type, fab_name))
     return tuple(_build_recipe_name(index, rng) for index in range(RECIPE_COUNT))
 
@@ -369,13 +377,26 @@ def generate_idp_image_info(
     return data
 
 
-def get_recipe_catalog(tool_type: ToolType, fab_name: str | None = None) -> RecipeSearchResponse:
-    rows = list(_generate_recipe_rows(tool_type, fab_name))
+def get_recipe_catalog(
+    tool_type: ToolType,
+    fab_names: Sequence[str] | None = None,
+) -> RecipeSearchResponse:
+    # _generate_recipe_rows is seeded on (tool_type, fab), so one fab's rows are
+    # identical whether it is requested alone or as part of a union — same as
+    # the office hash, where each fab is its own field.
+    requested = [fab.strip().upper() for fab in (fab_names or ()) if fab and fab.strip()]
+    targets = requested or list(_DEFAULT_FAB_NAMES)
+    rows: list[RecipeSearchRow] = []
+    for fab in targets:
+        rows.extend(
+            {"recipe_name": name, "fab_name": fab}
+            for name in _generate_recipe_rows(tool_type, fab)
+        )
     return {
         "tool_type": tool_type,
-        "fab_name": fab_name,
+        "fab_names": requested,
         "total": len(rows),
-        "rows": rows
+        "rows": rows,
     }
 
 
@@ -1076,8 +1097,7 @@ def get_recipe_open_data(
 
 def get_recipe_compare_data(
     tool_type: ToolType,
-    fab_name: str | None,
-    recipe_names: list[str]
+    recipes: Sequence[CompareRequestItem]
 ) -> RecipeCompareResponse:
     """Compact per-recipe comparison payload: IDP fields + slot image names.
 
@@ -1085,14 +1105,21 @@ def get_recipe_compare_data(
     it is fetched per visible cell through param-detail, so compare shows the
     same real settings the open screen does rather than its own fabrication.
     Each recipe carries its locator because those fetches are per tool.
+
+    ``recipes`` is per-recipe ``{recipe_name, fab_name}`` (multi-fab phase B,
+    task 2), so the same recipe name on two different fabs is two genuinely
+    different generated tables rather than one shared ``fab_name`` forcing
+    every recipe onto the same tool.
     """
-    recipes: list[CompareRecipe] = []
-    for name in recipe_names:
-        clean = (name or "").strip()
-        if not clean:
+    out: list[CompareRecipe] = []
+    fab_order: list[str] = []
+    for item in recipes:
+        name = (item.get("recipe_name") or "").strip()
+        if not name:
             continue
+        fab = (item.get("fab_name") or "").strip().upper() or None
         detail = get_recipe_open_data(
-            recipe_id=clean, fab_name=fab_name, tool_category=tool_type
+            recipe_id=name, fab_name=fab, tool_category=tool_type
         )
 
         seen: set[str] = set()
@@ -1109,11 +1136,13 @@ def get_recipe_compare_data(
                 # client posts back as param-detail's `slots`.
                 "images": {slot["key"]: idp[slot["key"]] for slot in IMAGE_SLOTS}
             })
-        recipes.append({
+        out.append({
             "recipe_id": detail["recipe_id"],
             "fab_name": detail["fab_name"],
             "locator": detail["locator"],
             "parameters": parameters
         })
+        if detail["fab_name"] not in fab_order:
+            fab_order.append(detail["fab_name"])
 
-    return {"tool_type": tool_type, "fab_name": fab_name, "recipes": recipes}
+    return {"tool_type": tool_type, "fab_names": fab_order, "recipes": out}

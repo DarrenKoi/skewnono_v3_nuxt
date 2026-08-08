@@ -540,12 +540,14 @@ def get_ranking(
             "meas_counts": 0,
             "total_meastime": 0,
             "lot_cds": set(),
-            "eqp_ids": set()
+            "eqp_ids": set(),
+            "fabs": set()
         })
         bucket["meas_counts"] += 1
         bucket["total_meastime"] += row["meastime"]
         bucket["lot_cds"].add(row["lot_cd"])
         bucket["eqp_ids"].add(row["eqp_id"])
+        bucket["fabs"].add(str(row["fab_name"]).upper())
 
     ranked = sorted(
         grouped.values(),
@@ -574,7 +576,8 @@ def get_ranking(
             "total_meastime": total,
             "avg_meastime": avg,
             "sample_lot_cds": sample_lots,
-            "sample_eqp_ids": sample_eqps
+            "sample_eqp_ids": sample_eqps,
+            "fab_names": sorted(bucket["fabs"])
         })
 
     return out

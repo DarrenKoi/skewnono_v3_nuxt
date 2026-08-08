@@ -4,7 +4,7 @@ import {
   activeRecipeResults,
   isRecipeQueryEligible,
   matchesRecipeQuery,
-  matchingHistoryNames,
+  matchingHistoryPairs,
   normalizeRecipeNameSnapshot,
   rankRecipeMatches,
   resolveRecipeSearchViewState,
@@ -100,32 +100,52 @@ test('ranks exact, prefix, substring and token-only matches while preserving tie
   )
 })
 
-test('history names re-apply AND semantics over the server OR results', () => {
+const pair = (recipe_name: string, fab_name = '') => ({ recipe_name, fab_name })
+
+test('history pairs re-apply AND semantics over the server OR results', () => {
   const tokens = tokenizeRecipeQuery('CD_MON')
-  // The server ORs terms, so rows matching only "cd" or only "mon" come back.
-  const rows = [
-    'ADI/CD_BIAS_ABC123_STD_00001',
-    'ETC/GATE_MON_ABC123_STD_00002',
-    'ADI/CD_MON_ABC123_ENG_00003'
+  // The server ORs terms, so pairs matching only "cd" or only "mon" come back.
+  const pairs = [
+    pair('ADI/CD_BIAS_ABC123_STD_00001', 'R3'),
+    pair('ETC/GATE_MON_ABC123_STD_00002', 'R3'),
+    pair('ADI/CD_MON_ABC123_ENG_00003', 'M16B')
   ]
-  assert.deepEqual(matchingHistoryNames(rows, tokens), ['ADI/CD_MON_ABC123_ENG_00003'])
+  assert.deepEqual(
+    matchingHistoryPairs(pairs, tokens),
+    [pair('ADI/CD_MON_ABC123_ENG_00003', 'M16B')]
+  )
 })
 
-test('history names are deduped, preserving first-seen order', () => {
+test('history pairs are deduped by (name, fab), preserving first-seen order', () => {
   const tokens = tokenizeRecipeQuery('CD')
-  const rows = ['ADI/CD_A', 'ADI/CD_B', 'ADI/CD_A']
-  assert.deepEqual(matchingHistoryNames(rows, tokens), ['ADI/CD_A', 'ADI/CD_B'])
+  const pairs = [pair('ADI/CD_A', 'R3'), pair('ADI/CD_B', 'R3'), pair('ADI/CD_A', 'R3')]
+  assert.deepEqual(
+    matchingHistoryPairs(pairs, tokens),
+    [pair('ADI/CD_A', 'R3'), pair('ADI/CD_B', 'R3')]
+  )
 })
 
-test('history names are empty for an empty token list', () => {
-  assert.deepEqual(matchingHistoryNames(['ADI/CD_A'], []), [])
+test('history pairs keep both fab copies of a duplicate name', () => {
+  const tokens = tokenizeRecipeQuery('CD')
+  const pairs = [pair('ADI/CD_A', 'R3'), pair('ADI/CD_A', 'M16B')]
+  assert.deepEqual(
+    matchingHistoryPairs(pairs, tokens),
+    [pair('ADI/CD_A', 'R3'), pair('ADI/CD_A', 'M16B')]
+  )
 })
 
-test('recipe-name snapshot uses raw rows when additive fields are unavailable', () => {
-  const rows = [{ full_name: 'RAW/A' }, { full_name: 'RAW/B' }]
+test('history pairs are empty for an empty token list', () => {
+  assert.deepEqual(matchingHistoryPairs([pair('ADI/CD_A', 'R3')], []), [])
+})
+
+test('recipe-name snapshot uses raw rows when snapshot fields are unavailable', () => {
+  const rows = [
+    { full_name: 'RAW/A', fab_name: 'R3' },
+    { full_name: 'RAW/B', fab_name: 'M16B' }
+  ]
 
   assert.deepEqual(normalizeRecipeNameSnapshot({ rows }), {
-    names: ['RAW/A', 'RAW/B'],
+    pairs: [pair('RAW/A', 'R3'), pair('RAW/B', 'M16B')],
     complete: false
   })
   assert.deepEqual(normalizeRecipeNameSnapshot({
@@ -133,49 +153,73 @@ test('recipe-name snapshot uses raw rows when additive fields are unavailable', 
     recipe_names_complete: true,
     rows
   }), {
-    names: ['RAW/A', 'RAW/B'],
+    pairs: [pair('RAW/A', 'R3'), pair('RAW/B', 'M16B')],
     complete: false
   })
 })
 
 test('recipe-name snapshot uses raw rows when an array has no valid members', () => {
+  // A row without a usable fab still names the recipe — owner unknown.
   assert.deepEqual(normalizeRecipeNameSnapshot({
     recipe_names: [null],
     recipe_names_complete: true,
-    rows: [{ full_name: 'RAW/A' }, { full_name: 'RAW/B' }]
+    rows: [{ full_name: 'RAW/A', fab_name: 'R3' }, { full_name: 'RAW/B' }]
   }), {
-    names: ['RAW/A', 'RAW/B'],
+    pairs: [pair('RAW/A', 'R3'), pair('RAW/B', '')],
     complete: false
   })
 })
 
 test('recipe-name snapshot merges valid partial members with raw rows', () => {
   assert.deepEqual(normalizeRecipeNameSnapshot({
-    recipe_names: ['SNAPSHOT/A', null, 'SNAPSHOT/B'],
+    recipe_names: [
+      { full_name: 'SNAPSHOT/A', fab_name: 'R3' },
+      null,
+      { full_name: 'SNAPSHOT/B', fab_name: 'M16B' }
+    ],
     recipe_names_complete: true,
     rows: [
-      { full_name: 'RAW/A' },
-      { full_name: 'SNAPSHOT/A' }
+      { full_name: 'RAW/A', fab_name: 'R3' },
+      { full_name: 'SNAPSHOT/A', fab_name: 'R3' }
     ]
   }), {
-    names: ['SNAPSHOT/A', 'SNAPSHOT/B', 'RAW/A'],
+    pairs: [pair('SNAPSHOT/A', 'R3'), pair('SNAPSHOT/B', 'M16B'), pair('RAW/A', 'R3')],
     complete: false
   })
 })
 
 test('recipe-name snapshot removes blanks and duplicates from partial data', () => {
+  // The lowercase 'r3' copy normalizes to the same (name, fab) pair and the
+  // blank full_name entry is invalid, forcing the merge-with-rows path.
   assert.deepEqual(normalizeRecipeNameSnapshot({
-    recipe_names: ['SNAPSHOT/A', '', 'SNAPSHOT/A'],
+    recipe_names: [
+      { full_name: 'SNAPSHOT/A', fab_name: 'R3' },
+      { full_name: '', fab_name: 'R3' },
+      { full_name: 'SNAPSHOT/A', fab_name: 'r3' }
+    ],
     recipe_names_complete: true,
     rows: [
-      { full_name: 'SNAPSHOT/A' },
-      { full_name: 'RAW/A' },
-      { full_name: ' ' },
-      { full_name: 'RAW/A' }
+      { full_name: 'SNAPSHOT/A', fab_name: 'R3' },
+      { full_name: 'RAW/A', fab_name: 'R3' },
+      { full_name: ' ', fab_name: 'R3' },
+      { full_name: 'RAW/A', fab_name: 'R3' }
     ]
   }), {
-    names: ['SNAPSHOT/A', 'RAW/A'],
+    pairs: [pair('SNAPSHOT/A', 'R3'), pair('RAW/A', 'R3')],
     complete: false
+  })
+})
+
+test('recipe-name snapshot accepts legacy bare-name entries with unknown fab', () => {
+  // A stale office adapter still serves plain strings; the names must stay
+  // usable (untagged) rather than poisoning the whole snapshot.
+  assert.deepEqual(normalizeRecipeNameSnapshot({
+    recipe_names: ['LEGACY/A', 'LEGACY/B'],
+    recipe_names_complete: true,
+    rows: []
+  }), {
+    pairs: [pair('LEGACY/A', ''), pair('LEGACY/B', '')],
+    complete: true
   })
 })
 
@@ -183,20 +227,23 @@ test('recipe-name snapshot preserves an intentionally empty complete array', () 
   assert.deepEqual(normalizeRecipeNameSnapshot({
     recipe_names: [],
     recipe_names_complete: true,
-    rows: [{ full_name: 'RAW/A' }]
+    rows: [{ full_name: 'RAW/A', fab_name: 'R3' }]
   }), {
-    names: [],
+    pairs: [],
     complete: true
   })
 })
 
-test('recipe-name snapshot preserves fully valid names', () => {
+test('recipe-name snapshot preserves fully valid pairs and uppercases fabs', () => {
   assert.deepEqual(normalizeRecipeNameSnapshot({
-    recipe_names: ['SNAPSHOT/B', 'SNAPSHOT/A'],
+    recipe_names: [
+      { full_name: 'SNAPSHOT/B', fab_name: 'm16b' },
+      { full_name: 'SNAPSHOT/A', fab_name: 'R3' }
+    ],
     recipe_names_complete: true,
-    rows: [{ full_name: 'RAW/A' }]
+    rows: [{ full_name: 'RAW/A', fab_name: 'R3' }]
   }), {
-    names: ['SNAPSHOT/B', 'SNAPSHOT/A'],
+    pairs: [pair('SNAPSHOT/B', 'M16B'), pair('SNAPSHOT/A', 'R3')],
     complete: true
   })
 })
@@ -228,14 +275,42 @@ test('separator-only input cannot become eligible for fallback probing', () => {
 })
 
 test('source-aware results dedupe names and Redis results always win', () => {
-  const redis = toRecipeSearchResults(['A', 'B'], 'redis')
-  const fallback = toRecipeSearchResults(['B', 'C', 'C'], 'opensearch')
+  const redis = toRecipeSearchResults(
+    [{ recipe_name: 'A', fab_name: 'R3' }, { recipe_name: 'B', fab_name: 'R3' }],
+    'redis'
+  )
+  const fallback = toRecipeSearchResults(
+    [
+      { recipe_name: 'B', fab_name: 'R3' },
+      { recipe_name: 'C', fab_name: 'R3' },
+      { recipe_name: 'C', fab_name: 'R3' }
+    ],
+    'opensearch'
+  )
   assert.deepEqual(fallback, [
-    { recipe_name: 'B', source: 'opensearch' },
-    { recipe_name: 'C', source: 'opensearch' }
+    { recipe_name: 'B', fab_name: 'R3', source: 'opensearch' },
+    { recipe_name: 'C', fab_name: 'R3', source: 'opensearch' }
   ])
   assert.equal(activeRecipeResults(redis, fallback), redis)
   assert.equal(activeRecipeResults([], fallback), fallback)
+})
+
+test('toRecipeSearchResults keeps both fab copies of a duplicate name', () => {
+  const rows = [
+    { recipe_name: 'A/B_1', fab_name: 'R3' },
+    { recipe_name: 'A/B_1', fab_name: 'M16B' },
+    { recipe_name: 'A/B_1', fab_name: 'R3' }
+  ]
+  const results = toRecipeSearchResults(rows, 'redis')
+  assert.deepEqual(results, [
+    { recipe_name: 'A/B_1', fab_name: 'R3', source: 'redis' },
+    { recipe_name: 'A/B_1', fab_name: 'M16B', source: 'redis' }
+  ])
+})
+
+test('toRecipeSearchResults blank fab is allowed (opensearch fallback)', () => {
+  const results = toRecipeSearchResults([{ recipe_name: 'X', fab_name: '' }], 'opensearch')
+  assert.deepEqual(results, [{ recipe_name: 'X', fab_name: '', source: 'opensearch' }])
 })
 
 test('view state distinguishes fallback loading, results, empty and both-source failure', () => {

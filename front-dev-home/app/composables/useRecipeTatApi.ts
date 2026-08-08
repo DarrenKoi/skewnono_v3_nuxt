@@ -12,6 +12,7 @@ export interface RecipeTatRow {
   avg_meastime: number
   sample_lot_cds: string[]
   sample_eqp_ids: string[]
+  fab_names: string[]
 }
 
 export interface RecipeTatRankingResponse {

@@ -42,28 +42,42 @@
          it moves every time the list rewraps. -->
     <p
       v-if="integrity.recipeCount > 1"
-      class="flex w-fit items-center gap-1.5 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-1 text-[11px] text-(--sk-warn)"
+      class="flex w-fit items-center gap-1.5 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2.5 py-1.5 text-sm text-(--sk-warn)"
     >
       <UIcon
         name="i-lucide-triangle-alert"
-        class="size-3.5 shrink-0"
+        class="size-4 shrink-0"
       />
       recipe {{ integrity.recipeCount }}종 혼재 · 장비 차이로 해석하기 어렵습니다.
     </p>
 
     <!-- Lens switch — the primary control on this page: it decides which of the
          three questions (추이 / 분포 / 장비 skew) the whole panel below answers.
-         It was sized like an incidental filter (text-xs on a hairline track),
-         so it read as decoration and users missed that the other two lenses
-         existed. It now wears the app's standard segmented-track skin — h-9,
-         text-sm, icon + label, active pill lifted on a white surface — the same
-         one EquipmentStatusSubTabs and the Recipe TAT 전체 요약/디바이스별 toggle
-         use, so it reads as a view switch on sight.
 
-         There is no `UButtonGroup` in NuxtUI 4.10 (the registry has UFieldGroup
-         and UTabs); this repo's precedent for exactly this control is a
-         hand-rolled tablist with native buttons and a roving tabindex — see
-         fdc/SequenceWorkbench.vue, whose keydown handling this mirrors.
+         It has now been resized twice. It started as an incidental filter
+         (text-xs on a hairline track), which read as decoration and hid that the
+         other two lenses existed; the fix was the app's standard segmented-track
+         skin — h-9 / text-sm / white pill on a zinc rail — shared with
+         EquipmentStatusSubTabs and the Recipe TAT 전체 요약/디바이스별 toggle.
+         That was still too quiet, because the shared skin is built for SUB-tabs:
+         controls that pick a variant of the view you are already in. This one
+         picks the view.
+
+         So it deliberately leaves that skin and takes DESIGN.md's `sk-nav-pill`
+         language instead — ink fill, --sk-r-nav radius, 15px — which the
+         selection-primitive decision flow assigns to exactly this job
+         ("changes route/view → sk-nav-pill", and it lists section toggles like
+         BSM/FDC/BM·PM as the precedent). Do not "restore consistency" with
+         EquipmentStatusSubTabs here: outranking a sub-tab strip is the point.
+
+         The <SkNavPill> COMPONENT is deliberately not used, only its visual
+         language. The pill hardcodes `aria-pressed`, which is a toggle-button
+         semantic and invalid on `role="tab"` — and these are real tabs, wired to
+         a tabpanel below via aria-controls/aria-labelledby with roving-tabindex
+         arrow keys (mirroring fdc/SequenceWorkbench.vue). Adopting the component
+         would trade working keyboard navigation for markup tidiness. Colours are
+         --sk-* tokens rather than the previous raw zinc-* utilities, so dark
+         mode follows for free.
 
          Hidden while loading and while there is nothing to show: an empty tab
          strip over a spinner offers a choice that does nothing. -->
@@ -72,7 +86,7 @@
       ref="lensTabsEl"
       role="tablist"
       aria-label="Time-Series 보기"
-      class="inline-flex w-fit items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
+      class="inline-flex w-fit items-center gap-1.5"
       @keydown="onLensKeydown"
     >
       <button
@@ -84,15 +98,15 @@
         :tabindex="ws.tsView.value === lens.value ? 0 : -1"
         :aria-selected="ws.tsView.value === lens.value"
         :aria-controls="panelId(lens.value)"
-        class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+        class="inline-flex h-11 items-center gap-2 rounded-(--sk-r-nav) border px-5 text-[15px] font-semibold transition-colors"
         :class="ws.tsView.value === lens.value
-          ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
-          : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+          ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+          : 'border-(--sk-border) bg-transparent text-(--sk-ink-muted) hover:bg-(--sk-muted-surface) hover:text-(--sk-ink)'"
         @click="ws.setTsView(lens.value)"
       >
         <UIcon
           :name="lens.icon"
-          class="size-4 shrink-0"
+          class="size-[18px] shrink-0"
         />
         {{ lens.label }}
       </button>
@@ -110,6 +124,7 @@
         :title="activeTitle"
         :meta="activeMeta"
         :icon="activeIcon"
+        title-size="md"
       >
         <!-- Axis mode and baseline are per-lens view state carried in the URL, so
              they ride the trend panel's header the way FDC 분석 carries its axis
@@ -176,47 +191,47 @@
           <div class="mb-2 flex flex-wrap items-center gap-2">
             <USelect
               v-model="anomalyCfg.method"
-              size="xs"
+              size="sm"
               :items="methodItems"
-              class="min-w-[11rem]"
+              class="min-w-[12rem]"
             />
             <template v-if="anomalyCfg.method === 'range'">
-              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              <label class="flex items-center gap-1.5 sk-field-label">
                 주의 ±<UInput
                   v-model.number="anomalyCfg.range.watchPct"
                   type="number"
                   min="0"
-                  size="xs"
-                  class="w-14"
+                  size="sm"
+                  class="w-16"
                 />%
               </label>
-              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              <label class="flex items-center gap-1.5 sk-field-label">
                 이상 ±<UInput
                   v-model.number="anomalyCfg.range.abnormalPct"
                   type="number"
                   min="0"
-                  size="xs"
-                  class="w-14"
+                  size="sm"
+                  class="w-16"
                 />%
               </label>
             </template>
             <template v-else>
-              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              <label class="flex items-center gap-1.5 sk-field-label">
                 주의 ±<UInput
                   v-model.number="anomalyCfg.stddev.watchK"
                   type="number"
                   min="0"
-                  size="xs"
-                  class="w-14"
+                  size="sm"
+                  class="w-16"
                 />σ
               </label>
-              <label class="flex items-center gap-1 font-mono text-[10px] text-(--sk-ink-muted)">
+              <label class="flex items-center gap-1.5 sk-field-label">
                 이상 ±<UInput
                   v-model.number="anomalyCfg.stddev.abnormalK"
                   type="number"
                   min="0"
-                  size="xs"
-                  class="w-14"
+                  size="sm"
+                  class="w-16"
                 />σ
               </label>
             </template>
@@ -283,6 +298,7 @@
       title="Sequence Trend"
       :meta="`${analysis.sequenceGroups.value.length}개 측정 · chip (x, y) 이동 순서 · focus ${analysis.focusRow.value?.lot_id ?? '—'}`"
       icon="i-lucide-activity"
+      title-size="md"
     >
       <template #actions>
         <SkAnomalyBadge :verdict="analysis.focusVerdict.value" />

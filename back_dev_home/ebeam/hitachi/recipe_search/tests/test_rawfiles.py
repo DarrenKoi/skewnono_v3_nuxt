@@ -1,7 +1,8 @@
 """Naming rules for the raw-recipe folder. Pure — these run anywhere.
 
 Every assertion here encodes an office fact from
-``docs/superpowers/specs/2026-07-29-raw-recipe-folder-amp-and-conditions-design.md``.
+``docs/datatables/recipe_idp.txt`` — see its "raw recipe folder — AMP / focus /
+beam condition" section.
 A change to one of them is a change to what the office was observed to do, not a
 refactor — so each test is named for the fact it holds rather than the function
 it calls.

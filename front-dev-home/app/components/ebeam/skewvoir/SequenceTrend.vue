@@ -31,6 +31,7 @@ import type { EChartsOption } from 'echarts'
 import type { SequenceGroup } from '~/utils/skewvoirAnalysis/timeSeries'
 import { formatChip, sequenceAxisBounds } from '~/utils/skewvoirAnalysis/timeSeries'
 import { rankToolColors, toolLegendChips } from '~/utils/skewvoirAnalysis/toolColors'
+import { nearestPoint } from '~/utils/chartNearest'
 
 // cd_value across measurement order WITHIN each MSR, the whole set overlaid —
 // one line per measurement, colored by tool, so intra-wafer drift can be read
@@ -123,5 +124,29 @@ const option = computed<EChartsOption>(() => ({
 }))
 
 const chartEl = ref<HTMLDivElement | null>(null)
-useEchart(chartEl, option)
+
+// This chart draws the smallest symbols in the app — 3.5px, 5px on the focus
+// line — so an item-triggered tooltip was effectively unreachable: the reader
+// had to land inside a 3.5px dot on one of a dozen overlaid lines. The pick
+// below hands the tooltip a radius, the same way the trend chart's does.
+//
+// Series order matches props.groups exactly (the option's series is a straight
+// .map over it), which is what makes seriesIndex here a valid ECharts address —
+// the same invariant the tooltip formatter already relies on.
+const pickable = computed(() =>
+  props.groups.flatMap((group, seriesIndex) =>
+    group.points.map((point, dataIndex) => ({
+      x: point[0],
+      y: point[1],
+      item: { seriesIndex, dataIndex }
+    }))
+  )
+)
+
+useEchart(chartEl, option, {
+  // A tighter radius than the 44px default: lines here are dense and overlaid,
+  // so a generous pick would routinely describe a neighbouring measurement's
+  // point rather than the one under the cursor.
+  onGridHover: detail => nearestPoint(pickable.value, detail, { maxDistancePx: 22 })
+})
 </script>

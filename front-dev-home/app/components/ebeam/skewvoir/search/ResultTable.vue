@@ -200,7 +200,23 @@
               {{ row.lot_id }}
             </td>
             <td class="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-300">
-              {{ row.full_name }}
+              <!-- The row navigates on click, so a drag-select over the recipe
+                   name ends in a click and opens the analysis view instead of
+                   copying. The button is the escape hatch, and @click.stop is
+                   what keeps pressing it from navigating too. -->
+              <div class="flex items-center gap-1">
+                <span>{{ row.full_name }}</span>
+                <UTooltip text="레시피명 복사">
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-copy"
+                    :aria-label="`${row.full_name} 복사`"
+                    @click.stop="copyRecipe(row.full_name)"
+                  />
+                </UTooltip>
+              </div>
             </td>
             <td class="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-300">
               {{ row.eqp_id }}
@@ -257,6 +273,7 @@
 <script setup lang="ts">
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MeasHistSort, MeasHistSortKey } from '~/utils/measHistSort'
+import { copyTextToClipboard } from '~/utils/csvDownload'
 
 const props = defineProps<{
   rows: MeasHistRow[]
@@ -309,6 +326,21 @@ const sortIcon = (column: MeasHistSortKey) => {
     ? props.sort.dir
     : (column === 'timestamp' ? 'desc' : 'asc')
   return dir === 'asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'
+}
+
+const toast = useToast()
+
+// copyTextToClipboard, not navigator.clipboard: production is served over
+// plain http, where the Clipboard API is absent because it is secure-context
+// only. The util carries the execCommand fallback that keeps this working
+// there.
+const copyRecipe = async (recipe: string) => {
+  const ok = await copyTextToClipboard(recipe)
+  toast.add(
+    ok
+      ? { title: '레시피명이 복사되었습니다', description: recipe, icon: 'i-lucide-check', color: 'success' }
+      : { title: '레시피명 복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
+  )
 }
 
 const selectedIds = computed(() => new Set(props.selected.map(row => row.msr)))

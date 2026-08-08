@@ -1,27 +1,32 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Fab } from '~/stores/navigation'
-import type { RecipeSearchResponse, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
+import type { RecipeSearchResponse, RecipeSearchRow, RecipeSearchToolType } from '~/composables/useRecipeSearchApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import {
   activeRecipeResults,
   isRecipeQueryEligible,
   matchesRecipeQuery,
-  matchingHistoryNames,
+  matchingHistoryPairs,
   normalizeRecipeNameSnapshot,
   rankRecipeMatches,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
   toRecipeSearchResults,
   tokenizeRecipeQuery,
+  type RecipeNamePair,
   type RecipeSearchResult
 } from '~/utils/recipeSearchMatch'
+import { buildFabSegment } from '~/utils/fab'
 
 const props = defineProps<{
-  fab: Fab
+  fabs: string[]
   toolLabel: string
   toolType: RecipeSearchToolType
 }>()
+
+const fabsKey = computed(() => props.fabs.join(','))
+const multiFab = computed(() => props.fabs.length > 1)
+const fabSegment = computed(() => buildFabSegment(props.fabs))
 
 const DEFAULT_PAGE_SIZE = '50'
 
@@ -31,7 +36,7 @@ const {
   recordRecentSearch,
   removeRecentSearch,
   clearRecentSearches
-} = useRecipeRecentSearches(props.toolType, props.fab)
+} = useRecipeRecentSearches(props.toolType)
 
 const route = useRoute()
 const router = useRouter()
@@ -53,18 +58,18 @@ const query = ref(readStringQuery('q'))
 const pageSize = ref(initialPageSize)
 const currentPage = ref(readPageQuery())
 
-const cacheKey = computed(() => `recipe-search:${props.toolType}:${props.fab || 'ALL'}`)
+const cacheKey = computed(() => `recipe-search:${props.toolType}:${fabsKey.value || 'ALL'}`)
 
 const emptyResponse = (): RecipeSearchResponse => ({
   tool_type: props.toolType,
-  fab_name: props.fab || null,
+  fab_names: [...props.fabs],
   total: 0,
   rows: []
 })
 
 const { data, pending, error, refresh } = await useAsyncData(
   () => cacheKey.value,
-  () => fetchRecipeList({ toolType: props.toolType, fabName: props.fab }),
+  () => fetchRecipeList({ toolType: props.toolType, fabNames: props.fabs }),
   {
     watch: [cacheKey],
     default: emptyResponse,
@@ -72,8 +77,8 @@ const { data, pending, error, refresh } = await useAsyncData(
   }
 )
 
-const recipeNames = computed(() => data.value?.rows ?? [])
-const totalRows = computed(() => data.value?.total ?? recipeNames.value.length)
+const recipeRows = computed(() => data.value?.rows ?? [])
+const totalRows = computed(() => data.value?.total ?? recipeRows.value.length)
 const normalizedQuery = computed(() => query.value.trim().toLowerCase())
 const canSearch = computed(() => isRecipeQueryEligible(query.value))
 // `_` segments carry meaning (manufacturing tech codes), so the query is
@@ -81,25 +86,25 @@ const canSearch = computed(() => isRecipeQueryEligible(query.value))
 const queryTokens = computed(() => tokenizeRecipeQuery(query.value))
 
 const searchableRows = computed(() => {
-  return recipeNames.value.map(recipeName => ({
-    value: recipeName,
-    searchText: recipeName.trim().toLowerCase()
+  return recipeRows.value.map(row => ({
+    value: row,
+    searchText: row.recipe_name.trim().toLowerCase()
   }))
 })
 
-const redisMatchedNames = computed<string[]>(() => {
+const redisMatchedRows = computed<RecipeSearchRow[]>(() => {
   if (!canSearch.value) return []
   return rankRecipeMatches(searchableRows.value, query.value)
 })
 
-const historyMatches = ref<string[]>([])
+const historyMatches = ref<RecipeNamePair[]>([])
 const fallbackPending = ref(false)
 const fallbackSettled = ref(false)
 const fallbackFailed = ref(false)
 const fallbackTruncated = ref(false)
 
 const redisResults = computed(() =>
-  toRecipeSearchResults(redisMatchedNames.value, 'redis')
+  toRecipeSearchResults(redisMatchedRows.value, 'redis')
 )
 const fallbackResults = computed(() =>
   toRecipeSearchResults(historyMatches.value, 'opensearch')
@@ -143,7 +148,7 @@ const pageSizeOptions = [
 
 // Fab/scope rides in the mono eyebrow; the <h1> stays the fixed page name so
 // the header never renames itself per fab (DESIGN.md §7.8).
-const identity = computed(() => `${props.toolLabel} · ${props.fab || '—'}`)
+const identity = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ') || '—'}`)
 
 const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'loaded', label: 'Loaded', value: totalRows.value.toLocaleString(), tone: 'neutral' },
@@ -209,15 +214,16 @@ watch([query, pageSize, currentPage], ([nextQuery, nextSize, nextPage]) => {
 // ~15 min fresh. When a 3+ char lookup matches nothing, probe measurement
 // history so a just-created recipe isn't mistaken for a typo.
 const HISTORY_PROBE_DEBOUNCE_MS = 600
-// Raw rows are irrelevant to fallback discovery. The additive recipe_names
-// contract returns the complete distinct full_name snapshot in one request.
+// Raw rows are irrelevant to fallback discovery. The recipe_names contract
+// returns the complete distinct (full_name, fab_name) snapshot in one
+// request, so fallback rows carry their owner fab like catalog rows do.
 const HISTORY_PROBE_RAW_LIMIT = 1
 
 const { searchMeasHist } = useMeasHistApi()
 
 const fallbackScopeKey = computed(() =>
   canSearch.value
-    ? `${props.toolType}:${props.fab || 'ALL'}:${normalizedQuery.value}`
+    ? `${props.toolType}:${fabsKey.value || 'ALL'}:${normalizedQuery.value}`
     : ''
 )
 
@@ -225,7 +231,7 @@ const historyProbeKey = computed(() =>
   shouldProbeRecipeFallback({
     canSearch: canSearch.value,
     catalogPending: pending.value,
-    redisMatchCount: redisMatchedNames.value.length
+    redisMatchCount: redisMatchedRows.value.length
   })
     ? `${fallbackScopeKey.value}:${error.value ? 'redis-error' : 'redis-miss'}`
     : ''
@@ -252,8 +258,8 @@ watch(fallbackScopeKey, () => {
 
 // Redis always wins. Once the refreshed catalog contains a match, discard the
 // fallback snapshot and cancel any logically stale OpenSearch scan.
-watch(redisMatchedNames, (names) => {
-  if (!names.length) return
+watch(redisMatchedRows, (rows) => {
+  if (!rows.length) return
   clearTimeout(historyProbeTimer)
   ++historyProbeSeq
   clearFallbackResults()
@@ -277,17 +283,17 @@ watch(historyProbeKey, (key) => {
     try {
       const response = await searchMeasHist({
         toolType: props.toolType,
-        fab: props.fab ? [props.fab] : undefined,
+        fab: props.fabs.length ? [...props.fabs] : undefined,
         recipe: tokens,
         limit: HISTORY_PROBE_RAW_LIMIT
       })
       if (seq !== historyProbeSeq) return
       const recipeNameSnapshot = normalizeRecipeNameSnapshot(response)
-      const matchedNames = matchingHistoryNames(recipeNameSnapshot.names, tokens)
-      const rankedNames = rankRecipeMatches(
-        matchedNames.map(name => ({
-          value: name,
-          searchText: name.trim().toLowerCase()
+      const matchedPairs = matchingHistoryPairs(recipeNameSnapshot.pairs, tokens)
+      const rankedPairs = rankRecipeMatches(
+        matchedPairs.map(pair => ({
+          value: pair,
+          searchText: pair.recipe_name.trim().toLowerCase()
         })),
         queryAtProbe
       )
@@ -295,8 +301,8 @@ watch(historyProbeKey, (key) => {
       // Same-scope Redis retries revalidate in the background but never erase
       // a previously usable fallback snapshot. A query/scope change or a Redis
       // match is the explicit invalidation boundary above.
-      if (!retainedResults || rankedNames.length) {
-        historyMatches.value = rankedNames
+      if (!retainedResults || rankedPairs.length) {
+        historyMatches.value = rankedPairs
         fallbackTruncated.value = incomplete
       } else if (incomplete) {
         fallbackTruncated.value = true
@@ -373,16 +379,16 @@ const tableUi = {
   th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
-const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search/${subpath}`
+const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${fabSegment.value}/recipe-search/${subpath}`
 
-const getRecipeDetailRoute = (recipeName: string, source = sourceOf(recipeName)) =>
-  recipeDetailRoute(props.toolType, props.fab, 'open', recipeName, source)
+const getRecipeDetailRoute = (row: RecipeSearchResult) =>
+  recipeDetailRoute(props.toolType, fabSegment.value, 'open', row.recipe_name, row.source, row.fab_name)
 
-const getLateralRoute = (recipeName: string, source = sourceOf(recipeName)) =>
-  recipeDetailRoute(props.toolType, props.fab, 'lateral', recipeName, source)
+const getLateralRoute = (row: RecipeSearchResult) =>
+  recipeDetailRoute(props.toolType, fabSegment.value, 'lateral', row.recipe_name, row.source, row.fab_name)
 
-const getMeasHistRoute = (recipeName: string, source = sourceOf(recipeName)) =>
-  recipeDetailRoute(props.toolType, props.fab, 'meas-hist', recipeName, source)
+const getMeasHistRoute = (row: RecipeSearchResult) =>
+  recipeDetailRoute(props.toolType, fabSegment.value, 'meas-hist', row.recipe_name, row.source, row.fab_name)
 
 const {
   entries,
@@ -393,11 +399,10 @@ const {
   remove,
   clear,
   count,
-  sourceOf,
   promoteRedis
-} = useRecipeSelectionSet(props.toolType, props.fab)
+} = useRecipeSelectionSet(props.toolType)
 
-watch(recipeNames, names => promoteRedis(names), { immediate: true })
+watch(recipeRows, rows => promoteRedis(rows), { immediate: true })
 
 const selectionGuidance = computed(() => {
   if (
@@ -411,12 +416,12 @@ const selectionGuidance = computed(() => {
 
 const togglePageSelection = () => {
   const allSelected = pagedRows.value.length > 0
-    && pagedRows.value.every(row => has(row.recipe_name))
+    && pagedRows.value.every(row => has(row.recipe_name, row.fab_name))
   if (allSelected) {
-    pagedRows.value.forEach(row => remove(row.recipe_name))
+    pagedRows.value.forEach(row => remove(row.recipe_name, row.fab_name))
   } else {
     pagedRows.value.forEach((row) => {
-      if (!has(row.recipe_name)) toggle(row.recipe_name, row.source)
+      if (!has(row.recipe_name, row.fab_name)) toggle(row.recipe_name, row.fab_name, row.source)
     })
   }
 }
@@ -437,32 +442,32 @@ const withSetFlag = (target: { path: string, query: Record<string, string> }) =>
 const openSetDetail = () => {
   const first = firstSelectedEntry.value
   if (first && capabilities.value.open) {
-    router.push(withSetFlag(getRecipeDetailRoute(first.name, first.source)))
+    router.push(withSetFlag(getRecipeDetailRoute({ recipe_name: first.name, fab_name: first.fab_name, source: first.source })))
   }
 }
 const openSetLateral = () => {
   const first = firstSelectedEntry.value
-  if (first) router.push(withSetFlag(getLateralRoute(first.name, first.source)))
+  if (first) router.push(withSetFlag(getLateralRoute({ recipe_name: first.name, fab_name: first.fab_name, source: first.source })))
 }
 const openSetMeasHist = () => {
   const first = firstSelectedEntry.value
-  if (first) router.push(withSetFlag(getMeasHistRoute(first.name, first.source)))
+  if (first) router.push(withSetFlag(getMeasHistRoute({ recipe_name: first.name, fab_name: first.fab_name, source: first.source })))
 }
 
 const openRecipeDetail = (row: RecipeSearchResult) => {
   if (row.source !== 'redis') return
   recordRecentSearch(query.value.trim())
-  router.push(getRecipeDetailRoute(row.recipe_name, row.source))
+  router.push(getRecipeDetailRoute(row))
 }
 
 const openLateral = (row: RecipeSearchResult) => {
   recordRecentSearch(query.value.trim())
-  router.push(getLateralRoute(row.recipe_name, row.source))
+  router.push(getLateralRoute(row))
 }
 
 const openMeasHist = (row: RecipeSearchResult) => {
   recordRecentSearch(query.value.trim())
-  router.push(getMeasHistRoute(row.recipe_name, row.source))
+  router.push(getMeasHistRoute(row))
 }
 </script>
 
@@ -746,7 +751,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
 
               <template #select-header>
                 <UCheckbox
-                  :model-value="pagedRows.length > 0 && pagedRows.every(row => has(row.recipe_name))"
+                  :model-value="pagedRows.length > 0 && pagedRows.every(row => has(row.recipe_name, row.fab_name))"
                   aria-label="현재 페이지 전체 선택"
                   @update:model-value="togglePageSelection"
                 />
@@ -754,9 +759,9 @@ const openMeasHist = (row: RecipeSearchResult) => {
 
               <template #select-cell="{ row }">
                 <UCheckbox
-                  :model-value="has(row.original.recipe_name)"
+                  :model-value="has(row.original.recipe_name, row.original.fab_name)"
                   :aria-label="`${row.original.recipe_name} 선택`"
-                  @update:model-value="toggle(row.original.recipe_name, row.original.source)"
+                  @update:model-value="toggle(row.original.recipe_name, row.original.fab_name, row.original.source)"
                 />
               </template>
 
@@ -764,6 +769,12 @@ const openMeasHist = (row: RecipeSearchResult) => {
                 <div class="flex items-center gap-2">
                   <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
                     {{ row.original.recipe_name }}
+                  </span>
+                  <span
+                    v-if="multiFab && row.original.fab_name"
+                    class="sk-fab-badge"
+                  >
+                    {{ row.original.fab_name }}
                   </span>
                   <span
                     v-if="row.original.source === 'opensearch'"
@@ -904,7 +915,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
 
         <aside class="min-w-0">
           <EbeamRecipeCompareSearchSelectTray
-            :selected="selected"
+            :selected="entries"
             :capabilities="capabilities"
             @remove="remove"
             @clear="clear"

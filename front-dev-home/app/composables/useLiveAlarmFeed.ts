@@ -39,6 +39,9 @@ interface FeedState {
   // Non-zero means the feed carried alarms this build could not attribute to
   // any fab — a roster gap, not a quiet board.
   unmatchedCount: number
+  // Requested fabs the server has no office adapter for yet — reported so
+  // the board can say so, distinct from unmatchedCount's roster gap.
+  notConfiguredFabs: string[]
   serverOffsetMs: number
 }
 
@@ -68,6 +71,7 @@ export const applyPoll = (
     feedStatus: payload.feed_status,
     fetchedAt: payload.fetched_at,
     unmatchedCount: payload.unmatched_count,
+    notConfiguredFabs: payload.not_configured_fabs,
     serverOffsetMs: Date.parse(payload.server_now) - receivedAtMs
   }
 }
@@ -78,12 +82,13 @@ export const applyPoll = (
 // is no /ebeam segment on the API path; sibling routes are /api/<slug>/...
 const apiSlug = (toolSlug: string): string => toolSlug.replace('-', '')
 
-export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
-  const key = `live-alarm:${toolSlug}:${fabName}`
+export const useLiveAlarmFeed = (toolSlug: string, fabNames: string[]) => {
+  const fabsKey = fabNames.join(',')
+  const key = `live-alarm:${toolSlug}:${fabsKey}`
   const state = useState<FeedState>(key, () => ({
     events: [], ids: [], seenIds: [], unseenIds: [], arrivedIds: [],
     initialized: false, feedStatus: 'live', fetchedAt: null, unmatchedCount: 0,
-    serverOffsetMs: 0
+    notConfiguredFabs: [], serverOffsetMs: 0
   }))
   const errorState = useState<string | null>(`${key}:error`, () => null)
   // Transient row emphasis, kept out of the reducer: a row highlights when it
@@ -122,7 +127,7 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
     try {
       const payload = await $fetch<LiveAlarmPayload>(
         `/api/${apiSlug(toolSlug)}/live-alarm`,
-        { params: { fab_name: fabName } }
+        { params: { fab_name: fabsKey } }
       )
       state.value = applyPoll(state.value, payload, Date.now())
       state.value.arrivedIds.forEach(highlight)
@@ -196,6 +201,9 @@ export const useLiveAlarmFeed = (toolSlug: string, fabName: string) => {
     // Reported, never rendered as rows: an unattributable alarm belongs to no
     // fab, so showing it here would put it on the wrong board.
     unmatchedCount: computed(() => state.value.unmatchedCount),
+    // Requested fabs with no office adapter yet — reported so the board can
+    // say which of the selected fabs it is silently not covering.
+    notConfiguredFabs: computed(() => state.value.notConfiguredFabs),
     serverOffsetMs: computed(() => state.value.serverOffsetMs),
     // Persistent unread count (drives the tab title); cleared by markSeen.
     unseenCount: computed(() => state.value.unseenIds.length),

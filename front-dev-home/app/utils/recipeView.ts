@@ -149,18 +149,20 @@ export const isRecipeDetailScreenSupported = (
 
 export const recipeDetailRoute = (
   toolType: string,
-  fab: string,
+  fabSegment: string,
   screen: RecipeDetailScreen,
   recipeName: string,
-  source: RecipeSearchSource = 'redis'
+  source: RecipeSearchSource = 'redis',
+  ownerFab = ''
 ) => {
   if (!isRecipeDetailScreenSupported(screen, source)) {
     throw new RangeError('OpenSearch recipes do not support the open detail view')
   }
   return {
-    path: `/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search/${screen}`,
+    path: `/ebeam/${toolType}/${fabSegment.toLowerCase()}/recipe-search/${screen}`,
     query: {
       recipe_name: recipeName,
+      ...(ownerFab ? { fab_name: ownerFab.toUpperCase() } : {}),
       ...(source === 'opensearch' ? { source } : {})
     }
   }
@@ -180,15 +182,16 @@ export const RECIPE_ROW_ACTIONS: readonly RecipeRowAction[] = [
 
 export const buildRecipeDetailNavItems = (
   toolType: string,
-  fab: string,
+  fabSegment: string,
   recipeName: string,
   activeScreen: RecipeDetailScreen,
   setFlag: unknown,
-  source: RecipeSearchSource = 'redis'
+  source: RecipeSearchSource = 'redis',
+  ownerFab = ''
 ) => RECIPE_ROW_ACTIONS
   .filter(action => isRecipeDetailScreenSupported(action.screen, source))
   .map((action) => {
-    const target = recipeDetailRoute(toolType, fab, action.screen, recipeName, source)
+    const target = recipeDetailRoute(toolType, fabSegment, action.screen, recipeName, source, ownerFab)
     return {
       ...action,
       active: action.screen === activeScreen,
@@ -202,6 +205,12 @@ export const readRecipeNameQuery = (route: RouteLocationNormalizedLoaded): strin
   const raw = route.query.recipe_name
   const value = Array.isArray(raw) ? raw[0] : raw
   return typeof value === 'string' ? value.trim() : ''
+}
+
+export const readRecipeOwnerFabQuery = (route: RouteLocationNormalizedLoaded): string => {
+  const raw = route.query.fab_name
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return typeof value === 'string' ? value.trim().toUpperCase() : ''
 }
 
 export const readRecipeSourceQuery = (

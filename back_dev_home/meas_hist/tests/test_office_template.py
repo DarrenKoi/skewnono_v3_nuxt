@@ -52,7 +52,7 @@ def _stable_window(monkeypatch):
     )
 
 
-def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_names(monkeypatch):
+def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_pairs(monkeypatch):
     captured = {}
     _stable_window(monkeypatch)
     monkeypatch.setattr(
@@ -68,10 +68,21 @@ def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_names(monkey
             "sub_aggs": sub_aggs,
             "query": query,
         }
+        # Two buckets for the same full_name with different fab sub-buckets
+        # must accumulate into distinct (name, fab) pairs, not collapse.
         return [
-            {"key": {"group": "Z/Z_RECIPE"}},
-            {"key": {"group": "A/A_RECIPE"}},
-            {"key": {"group": "A/A_RECIPE"}},
+            {
+                "key": {"group": "Z/Z_RECIPE"},
+                "fabs": {"buckets": [{"key": "R3", "doc_count": 4}]},
+            },
+            {
+                "key": {"group": "A/A_RECIPE"},
+                "fabs": {"buckets": [{"key": "M16B", "doc_count": 2}]},
+            },
+            {
+                "key": {"group": "A/A_RECIPE"},
+                "fabs": {"buckets": [{"key": "R3", "doc_count": 1}]},
+            },
         ]
 
     monkeypatch.setattr(
@@ -90,14 +101,64 @@ def test_recipe_name_composite_reuses_raw_query_and_extracts_sorted_names(monkey
         limit=1,
     )
 
-    assert result["recipe_names"] == ["A/A_RECIPE", "Z/Z_RECIPE"]
+    assert result["recipe_names"] == [
+        {"full_name": "A/A_RECIPE", "fab_name": "M16B"},
+        {"full_name": "A/A_RECIPE", "fab_name": "R3"},
+        {"full_name": "Z/Z_RECIPE", "fab_name": "R3"},
+    ]
     assert result["recipe_names_complete"] is True
     assert captured["composite"] == {
         "index": "meas_hist_cdsem",
         "field": "full_name.keyword",
-        "sub_aggs": {},
+        "sub_aggs": {"fabs": {"terms": {"field": "fab_name.keyword", "size": 16}}},
         "query": captured["raw_body"]["query"],
     }
+
+
+def test_recipe_name_composite_keeps_names_with_no_fab_buckets(monkeypatch):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(
+        office_example,
+        "_os_search",
+        lambda index: captured.setdefault("raw_index", index) and _FakeSearch(captured),
+    )
+    monkeypatch.setattr(
+        office_example,
+        "_composite_buckets",
+        lambda *_args, **_kwargs: [
+            {"key": {"group": "A/NO_FAB_RECIPE"}, "fabs": {"buckets": []}},
+        ],
+        raising=False,
+    )
+
+    result = office_example.search_meas_hist(recipe=["NO_FAB"], limit=1)
+
+    # Dirty office docs without fab_name must not hide the recipe — the pair
+    # survives with an empty fab ("owner unknown" per the contract).
+    assert result["recipe_names"] == [
+        {"full_name": "A/NO_FAB_RECIPE", "fab_name": ""},
+    ]
+    assert result["recipe_names_complete"] is True
+
+
+def test_recipe_name_composite_rejects_missing_fabs_sub_aggregation(monkeypatch):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(
+        office_example,
+        "_os_search",
+        lambda index: captured.setdefault("raw_index", index) and _FakeSearch(captured),
+    )
+    monkeypatch.setattr(
+        office_example,
+        "_composite_buckets",
+        lambda *_args, **_kwargs: [{"key": {"group": "A/A_RECIPE"}}],
+        raising=False,
+    )
+
+    with pytest.raises(RuntimeError, match=r"fabs.*sub-aggregation"):
+        office_example.search_meas_hist(recipe=["CD_BIAS"], limit=1)
 
 
 @pytest.mark.parametrize("group", ["", "   ", 7, False])

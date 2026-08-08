@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
   formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
-  readRecipeNameQuery, readRecipeSourceQuery, formatRecipeTimestamp,
+  readRecipeNameQuery, readRecipeSourceQuery, readRecipeOwnerFabQuery, formatRecipeTimestamp,
   isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain, formatFixed
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
@@ -147,6 +147,23 @@ test('OpenSearch detail routes carry source while Redis routes keep legacy URLs'
   )
 })
 
+test('recipeDetailRoute keeps the multi-fab segment and carries the owner fab', () => {
+  const route = recipeDetailRoute('cd-sem', 'R3,M16B', 'open', 'A/B_1', 'redis', 'M16B')
+  assert.equal(route.path, '/ebeam/cd-sem/r3,m16b/recipe-search/open')
+  assert.equal(route.query.fab_name, 'M16B')
+  assert.equal(route.query.recipe_name, 'A/B_1')
+})
+
+test('recipeDetailRoute omits fab_name when no owner is given', () => {
+  const route = recipeDetailRoute('cd-sem', 'r3', 'lateral', 'A/B_1')
+  assert.equal('fab_name' in route.query, false)
+})
+
+test('recipeDetailRoute uppercases the owner fab regardless of input casing', () => {
+  const route = recipeDetailRoute('cd-sem', 'r3', 'open', 'A', 'redis', 'm16b')
+  assert.equal(route.query.fab_name, 'M16B')
+})
+
 test('OpenSearch cannot construct an unsupported open detail route', () => {
   assert.throws(
     () => recipeDetailRoute('cdsem', 'R3', 'open', 'CD_A', 'opensearch'),
@@ -234,6 +251,25 @@ test('readRecipeNameQuery is empty when the query is missing or valueless', () =
   assert.equal(readRecipeNameQuery(routeWith({ recipe_name: [] })), '')
   assert.equal(readRecipeNameQuery(routeWith({ recipe_name: [null] })), '')
   assert.equal(readRecipeNameQuery(routeWith({ other: 'CD_A' })), '')
+})
+
+// --- readRecipeOwnerFabQuery ---
+
+test('readRecipeOwnerFabQuery reads, trims, and uppercases the fab_name query', () => {
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ fab_name: 'm16b' })), 'M16B')
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ fab_name: '  r3  ' })), 'R3')
+})
+
+test('readRecipeOwnerFabQuery takes the first value of a repeated query key', () => {
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ fab_name: ['R3', 'M16B'] })), 'R3')
+})
+
+test('readRecipeOwnerFabQuery is empty when the query is missing or valueless', () => {
+  assert.equal(readRecipeOwnerFabQuery(routeWith({})), '')
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ fab_name: null })), '')
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ fab_name: [] })), '')
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ fab_name: [null] })), '')
+  assert.equal(readRecipeOwnerFabQuery(routeWith({ other: 'R3' })), '')
 })
 
 test('readRecipeSourceQuery accepts only the explicit OpenSearch marker', () => {

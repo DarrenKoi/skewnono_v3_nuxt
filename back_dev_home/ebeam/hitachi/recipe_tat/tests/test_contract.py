@@ -434,3 +434,17 @@ def test_request_scope_keeps_eqp_id_case_verbatim():
     assert scope is not None
     assert scope.eqp_ids == ("cd-sem_r3_01", "Mx01")
     assert scope.fab_names == ("R3",)
+
+
+def test_ranking_rows_carry_contributing_fabs():
+    rows = data.get_ranking("cd-sem", ("R3", "M16B"), None, None, limit=20)
+    assert rows
+    for row in rows:
+        assert row["fab_names"] == sorted(row["fab_names"])
+        assert row["fab_names"]
+        assert set(row["fab_names"]) <= {"R3", "M16B"}
+
+
+def test_single_fab_ranking_tags_that_fab_only():
+    rows = data.get_ranking("cd-sem", ("R3",), None, None, limit=5)
+    assert all(row["fab_names"] == ["R3"] for row in rows)

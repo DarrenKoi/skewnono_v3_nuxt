@@ -4,7 +4,8 @@
 - 상태: 대화 승인 완료, 문서 검토 대기
 - 기능 slug: `chat-agentic-rag-integration-scaffold`
 - 구현 범위: mock knowledge를 사용하는 RAG 통합 scaffold
-- 이전 문서: `2026-07-17-chat-agentic-rag-foundation-design.md`
+- 이전 문서: 2026-07-17 Chat Agentic RAG Foundation 설계 (문서 정리 시 삭제,
+  git 이력에서만 확인 가능합니다)
 
 이 문서는 2026-07-17 설계를 대체합니다. 이전 문서의 Flask 내부 runtime seam,
 read-only tool, citation-first 원칙은 유지하지만, 초기 agent runtime을 Deep Agents가

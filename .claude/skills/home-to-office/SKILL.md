@@ -8,7 +8,8 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, Write
 # Office Sync Check
 
 Audit one or more `back_dev_home/` features against the provider convention
-(spec: `docs/superpowers/specs/2026-07-16-mock-to-office-migration-design.md`)
+(rules: `docs/back-end/provider-selection.md`, adapter guidance:
+`docs/back-end/office-data-adapters.md`)
 so that everything created or modified at home is office-ready: folder
 structure, contracts, gates, and the GLM 5.2 prompt.
 

@@ -19,6 +19,7 @@ const route = useRoute()
 const { fetchLateralRecipe } = useLateralRecipeApi()
 
 const recipeName = computed(() => readRecipeNameQuery(route))
+const routeFabSegment = useRouteFabSegment(() => props.fab)
 
 const cacheKey = computed(() => `lateral:${props.toolType}:${props.fab || 'ALL'}:${recipeName.value}`)
 
@@ -104,13 +105,15 @@ const tableUi = recipeTableUi
   <div class="space-y-4">
     <EbeamRecipeSwitcher
       :tool-type="toolType"
-      :fab="fab"
+      :fab-segment="routeFabSegment"
+      :owner-fab="fab"
       active-screen="lateral"
     />
     <div class="space-y-3">
       <EbeamRecipeDetailNav
         :tool-type="toolType"
-        :fab="fab"
+        :fab-segment="routeFabSegment"
+        :owner-fab="fab"
         :recipe-name="recipeName"
         active-screen="lateral"
       />
@@ -139,7 +142,7 @@ const tableUi = recipeTableUi
         color="neutral"
         variant="outline"
         label="Recipe 검색으로 돌아가기"
-        :to="`/ebeam/${toolType}/${fab.toLowerCase()}/recipe-search`"
+        :to="`/ebeam/${toolType}/${routeFabSegment}/recipe-search`"
       />
     </div>
 

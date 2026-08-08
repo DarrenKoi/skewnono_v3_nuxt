@@ -48,12 +48,18 @@
               coverage
             </th>
             <th
-              v-for="id in recipeIds"
-              :key="id"
+              v-for="col in columns"
+              :key="recipePairKey(col.fab_name, col.recipe_id)"
               class="px-2 py-2 text-center font-medium"
-              :title="id"
+              :title="col.recipe_id"
             >
-              {{ shortId(id) }}
+              {{ shortId(col.recipe_id) }}
+              <span
+                v-if="multiFab"
+                class="sk-fab-badge"
+              >
+                {{ col.fab_name }}
+              </span>
             </th>
           </tr>
         </thead>
@@ -82,17 +88,17 @@
               </span>
             </td>
             <td
-              v-for="id in recipeIds"
-              :key="id"
+              v-for="col in columns"
+              :key="recipePairKey(col.fab_name, col.recipe_id)"
               class="px-2 py-1.5 text-center"
-              :class="row.presentIn.includes(id) ? 'text-emerald-500' : 'text-(--sk-ink-subtle)'"
+              :class="row.presentIn.includes(recipePairKey(col.fab_name, col.recipe_id)) ? 'text-emerald-500' : 'text-(--sk-ink-subtle)'"
             >
-              {{ row.presentIn.includes(id) ? '✓' : '—' }}
+              {{ row.presentIn.includes(recipePairKey(col.fab_name, col.recipe_id)) ? '✓' : '—' }}
             </td>
           </tr>
           <tr v-if="filteredRows.length === 0">
             <td
-              :colspan="3 + recipeIds.length"
+              :colspan="3 + columns.length"
               class="px-3 py-6 text-center text-(--sk-ink-muted)"
             >
               일치하는 파라미터가 없습니다.
@@ -112,11 +118,21 @@ import {
   commonParameters,
   filterOverlap
 } from '~/utils/recipeCompare'
+import { recipePairKey } from '~/utils/recipePair'
+
+export interface ParameterSelectorColumn {
+  recipe_id: string
+  fab_name: string
+}
 
 const props = defineProps<{
   rows: OverlapRow[]
-  recipeIds: string[]
+  columns: ParameterSelectorColumn[]
 }>()
+
+// recipe_id alone collides when the same recipe name is compared across two
+// fabs — the chip only earns its keep once that's actually happening.
+const multiFab = computed(() => new Set(props.columns.map(c => c.fab_name)).size > 1)
 
 const modelValue = defineModel<string[]>({ required: true })
 

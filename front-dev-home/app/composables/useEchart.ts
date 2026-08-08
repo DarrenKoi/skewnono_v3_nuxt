@@ -43,6 +43,20 @@ interface UseEchartOptions {
   // actually judged, which is what `nearestPoint` in utils/chartNearest.ts
   // wants. See that file for why pixels are the only fair space to pick in.
   onGridClick?: (detail: GridClickDetail) => void
+  // Fired as the pointer moves inside a plot area, with the same converted
+  // detail `onGridClick` receives. Return the datum the pointer is nearest —
+  // normally by running the SAME `nearestPoint` pick the click handler uses —
+  // and the tooltip is shown for it; return null and it is hidden.
+  //
+  // This is what gives an item-triggered tooltip a pick radius. `trigger:
+  // 'item'` alone only fires on a literal hit against the drawn symbol, so on a
+  // chart with small dots the tooltip is unreachable long before the click is.
+  // Supplying this makes both use one radius, so a near-miss that selects a
+  // point also explains it.
+  //
+  // Coordinates in, coordinates out: the ECharts instance stays private to this
+  // composable, and the dispatch is done here.
+  onGridHover?: (detail: GridClickDetail) => { seriesIndex: number, dataIndex: number } | null
   // Fired when a series element is clicked, carrying the datum's index within
   // its series. `onClick` forwards the category NAME, which is not an identity
   // for charts whose labels are display strings rather than ids — the caller
@@ -102,6 +116,19 @@ export const useEchart = (
   let chart: ECharts | null = null
   let sizeObserver: ResizeObserver | null = null
   let dlButton: HTMLButtonElement | null = null
+  // Set by bindGridHover; null until a caller opts into hover picking.
+  let resetHover: (() => void) | null = null
+
+  // Before a dispose. `resetHover` cancels the pending frame — which matters
+  // because `resolve` closes over the OUTER `chart`, so a frame left scheduled
+  // across a dispose + re-init (the theme swap does both synchronously) would
+  // wake up, find the REPLACEMENT chart in that variable, and dispatch against
+  // it using pixels measured on the old one. Dropping the reference too keeps a
+  // dead closure from being reachable after bindGridHover installs a fresh one.
+  const releaseHover = () => {
+    resetHover?.()
+    resetHover = null
+  }
 
   const bindClick = () => {
     const callback = options.onClick
@@ -126,6 +153,45 @@ export const useEchart = (
     })
   }
 
+  // Pixel → axis space, against whichever grid the pointer is over. Shared by
+  // the click and hover bindings: they differ only in which ZRender event wakes
+  // them and what they do with the result, and a second copy of this conversion
+  // is exactly how a chart ends up with a click radius that disagrees with its
+  // hover radius. Returns null when the pointer is outside every grid.
+  const gridDetailAt = (offsetX: number, offsetY: number): GridClickDetail | null => {
+    if (!chart) return null
+    const point: [number, number] = [offsetX, offsetY]
+    // A chart may stack several grids (e.g. one panel per value type), so
+    // find the one the pointer landed in and convert against its axes. Read the
+    // grid count off the option we were handed, not chart.getOption() — that
+    // deep-clones the whole option (axis category arrays and all series data
+    // included) on every event just to read an array length.
+    const grids = (optionRef.value as { grid?: unknown[] }).grid
+    const gridCount = Array.isArray(grids) ? Math.max(grids.length, 1) : 1
+    for (let gridIndex = 0; gridIndex < gridCount; gridIndex++) {
+      if (!chart.containPixel({ gridIndex }, point)) continue
+      const at = chart.convertFromPixel({ gridIndex }, point)
+      if (!Array.isArray(at)) return null
+      const x = Number(at[0])
+      const y = Number(at[1])
+      if (!Number.isFinite(x)) return null
+      // One pixel right and down, converted the same way: the difference is
+      // what a pixel is worth in data units on each axis. Two conversions
+      // instead of one per candidate point, and it costs nothing on a chart
+      // with no y component to weigh (the caller simply ignores it).
+      const stepped = chart.convertFromPixel({ gridIndex }, [point[0] + 1, point[1] + 1])
+      const at1 = Array.isArray(stepped) ? stepped : [x, y]
+      return {
+        x,
+        y,
+        gridIndex,
+        dataPerPixelX: Math.abs(Number(at1[0]) - x) || 1,
+        dataPerPixelY: Math.abs(Number(at1[1]) - y) || 1
+      }
+    }
+    return null
+  }
+
   // Series clicks come from ECharts' own dispatcher, which requires a hit on a
   // rendered element. Grid clicks have to come from the underlying ZRender
   // canvas instead, then be converted from pixels back to axis space.
@@ -133,37 +199,78 @@ export const useEchart = (
     const callback = options.onGridClick
     if (!chart || !callback) return
     chart.getZr().on('click', (event) => {
-      if (!chart) return
-      const point: [number, number] = [event.offsetX, event.offsetY]
-      // A chart may stack several grids (e.g. one panel per value type), so
-      // find the one the click landed in and convert against its axes. Read the
-      // grid count off the option we were handed, not chart.getOption() — that
-      // deep-clones the whole option (axis category arrays and all series data
-      // included) on every click just to read an array length.
-      const grids = (optionRef.value as { grid?: unknown[] }).grid
-      const gridCount = Array.isArray(grids) ? Math.max(grids.length, 1) : 1
-      for (let gridIndex = 0; gridIndex < gridCount; gridIndex++) {
-        if (!chart.containPixel({ gridIndex }, point)) continue
-        const at = chart.convertFromPixel({ gridIndex }, point)
-        if (!Array.isArray(at)) return
-        const x = Number(at[0])
-        const y = Number(at[1])
-        if (!Number.isFinite(x)) return
-        // One pixel right and down, converted the same way: the difference is
-        // what a pixel is worth in data units on each axis. Two conversions
-        // instead of one per candidate point, and it costs nothing on a chart
-        // with no y component to weigh (the caller simply ignores it).
-        const stepped = chart.convertFromPixel({ gridIndex }, [point[0] + 1, point[1] + 1])
-        const at1 = Array.isArray(stepped) ? stepped : [x, y]
-        callback({
-          x,
-          y,
-          gridIndex,
-          dataPerPixelX: Math.abs(Number(at1[0]) - x) || 1,
-          dataPerPixelY: Math.abs(Number(at1[1]) - y) || 1
-        })
+      const detail = gridDetailAt(event.offsetX, event.offsetY)
+      if (detail) callback(detail)
+    })
+  }
+
+  // Hover counterpart to bindGridClick, and the reason it exists: an
+  // item-triggered tooltip only fires on a literal hit against the rendered
+  // symbol, so a chart drawing 4–10px dots had a ~44px CLICK target (via
+  // onGridClick + nearestPoint) and a 4–10px HOVER target for the tooltip. The
+  // near-miss selected the point and showed nothing, which reads as the chart
+  // half-responding. Routing the tooltip through the caller's own pick makes one
+  // radius govern both.
+  //
+  // The caller returns coordinates rather than receiving the ECharts instance:
+  // this composable hands out converted values and keeps `chart` private, and a
+  // getter added for one component would be reachable by every future one.
+  const bindGridHover = () => {
+    const callback = options.onGridHover
+    if (!chart || !callback) return
+
+    // mousemove fires per pixel and the caller's pick is O(points), so coalesce
+    // to one resolve per frame. Only the latest position matters — an older
+    // pending one would show a tooltip the pointer has already left.
+    let pending: [number, number] | null = null
+    let frame = 0
+    let shown: { seriesIndex: number, dataIndex: number } | null = null
+
+    // Drop every trace of an in-flight hover. Published so the paths that
+    // invalidate the tooltip from OUTSIDE this binding can call it — see
+    // `resetHover` below for why each of them has to.
+    resetHover = () => {
+      pending = null
+      if (frame) {
+        cancelAnimationFrame(frame)
+        frame = 0
+      }
+      shown = null
+    }
+
+    const resolve = () => {
+      frame = 0
+      const at = pending
+      pending = null
+      if (!chart || !at) return
+      const detail = gridDetailAt(at[0], at[1])
+      const hit = detail ? callback(detail) : null
+      if (!hit) {
+        // Only hide a tip this binding put up. Blanket-hiding on every empty
+        // frame would fight any tooltip ECharts raised on its own.
+        if (shown) {
+          chart.dispatchAction({ type: 'hideTip' })
+          shown = null
+        }
         return
       }
+      // Re-dispatching the same target every frame makes the tooltip flicker,
+      // so only act when the pick actually moves to another datum.
+      if (shown && shown.seriesIndex === hit.seriesIndex && shown.dataIndex === hit.dataIndex) return
+      shown = hit
+      chart.dispatchAction({ type: 'showTip', seriesIndex: hit.seriesIndex, dataIndex: hit.dataIndex })
+    }
+
+    chart.getZr().on('mousemove', (event) => {
+      pending = [event.offsetX, event.offsetY]
+      if (!frame) frame = requestAnimationFrame(resolve)
+    })
+
+    // Leaving the canvas entirely never produces a mousemove inside a grid, so
+    // without this the last tooltip would stay pinned after the pointer is gone.
+    chart.getZr().on('globalout', () => {
+      if (shown && chart) chart.dispatchAction({ type: 'hideTip' })
+      resetHover?.()
     })
   }
 
@@ -214,6 +321,7 @@ export const useEchart = (
     bindClick()
     bindDataIndex()
     bindGridClick()
+    bindGridHover()
     mountDownloadButton()
     // Observe the HOST, not the window: a window listener misses hosts whose
     // size is driven by their own props — ParamMatrix's height is a function of
@@ -236,6 +344,7 @@ export const useEchart = (
   // button); when a fresh element mounts, init against the new node.
   watch(elRef, (next, prev) => {
     if (prev && prev !== next) {
+      releaseHover()
       chart?.dispose()
       chart = null
       unmountDownloadButton()
@@ -252,6 +361,14 @@ export const useEchart = (
     if (!chart) return
     const live = (chart.getOption() as { dataZoom?: ZoomWindow[] }).dataZoom
     chart.setOption(withPreservedZoom(next, live), true)
+    // The rebuild dismisses whatever tooltip was on screen, so the hover
+    // binding's memory of "I am showing datum N" is now a lie. Left standing, a
+    // pointer that has not moved gets no fresh mousemove to correct it, and the
+    // next one that resolves to the SAME datum is deduped away — so the tooltip
+    // stays gone until the reader happens to cross a different point. Clicking a
+    // trend point does exactly this: it moves the focus, which rebuilds the
+    // sequence chart's option under a cursor that never left the canvas.
+    resetHover?.()
   })
 
   // ECharts binds a theme at init time; swapping themes requires dispose +
@@ -260,6 +377,7 @@ export const useEchart = (
   // rather than assumed to persist.
   watch(themeId, () => {
     if (!elRef.value) return
+    releaseHover()
     chart?.dispose()
     chart = null
     unmountDownloadButton()
@@ -267,6 +385,7 @@ export const useEchart = (
   })
 
   onBeforeUnmount(() => {
+    releaseHover()
     sizeObserver?.disconnect()
     sizeObserver = null
     unmountDownloadButton()

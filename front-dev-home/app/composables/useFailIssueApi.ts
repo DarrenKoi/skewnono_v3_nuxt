@@ -50,6 +50,7 @@ export interface FailIssueAlignRow {
   align_fail_count: number
   align_fail_rate: number
   sample_eqp_ids: string[]
+  fab_names: string[]
 }
 
 export interface FailIssueAlignRankingResponse {
@@ -72,6 +73,7 @@ export interface FailIssueMeasRow {
   meas_fail_rate: number
   avg_fail_ratio: number
   sample_eqp_ids: string[]
+  fab_names: string[]
 }
 
 export interface FailIssueMeasRankingResponse {

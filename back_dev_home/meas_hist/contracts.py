@@ -10,6 +10,7 @@ from back_dev_home.ebeam.hitachi._tool_specs import ToolType
 __all__ = [
     "MeasHistRow",
     "MeasHistResponse",
+    "MeasHistRecipeName",
     "MeasHistSearchResponse",
     "MeasHistFacetValue",
     "MeasHistFacetsResponse",
@@ -52,10 +53,24 @@ class MeasHistResponse(TypedDict):
     rows: list[MeasHistRow]
 
 
+class MeasHistRecipeName(TypedDict):
+    """One distinct (recipe, fab) the current recipe filter matched.
+
+    The pair grain exists for multi-fab recipe-search: the fallback probe
+    tags every discovered name with the fab it was measured in, so the UI
+    can badge and owner-route it exactly like a catalog row. ``fab_name``
+    may be ``""`` when the source documents carry no fab (dirty office
+    data) — "name known, owner unknown", never a reason to hide the name.
+    """
+
+    full_name: str
+    fab_name: str
+
+
 class MeasHistSearchResponse(TypedDict):
     total: int
     capped: bool
-    recipe_names: list[str]
+    recipe_names: list[MeasHistRecipeName]
     recipe_names_complete: bool
     offset: int
     limit: int

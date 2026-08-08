@@ -2,12 +2,14 @@
   <div class="flex h-full min-h-[640px] flex-col gap-4">
     <EbeamRecipeSwitcher
       :tool-type="toolType"
-      :fab="fab"
+      :fab-segment="routeFabSegment"
+      :owner-fab="fab"
       active-screen="open"
     />
     <EbeamRecipeDetailNav
       :tool-type="toolType"
-      :fab="fab"
+      :fab-segment="routeFabSegment"
+      :owner-fab="fab"
       :recipe-name="titleRecipeName || recipeName"
       active-screen="open"
     />
@@ -267,7 +269,8 @@ const { fetchRecipeDetail } = useRecipeSearchApi()
 const recipeName = computed(() => readRecipeNameQuery(route))
 const source = computed(() => readRecipeSourceQuery(route))
 const isSupportedSource = computed(() => isRecipeDetailScreenSupported('open', source.value))
-const backRoute = computed(() => `/ebeam/${props.toolType}/${props.fab.toLowerCase()}/recipe-search`)
+const routeFabSegment = useRouteFabSegment(() => props.fab)
+const backRoute = computed(() => `/ebeam/${props.toolType}/${routeFabSegment.value}/recipe-search`)
 const cacheKey = computed(() => (
   `recipe-open:${props.toolType}:${props.fab || 'ALL'}:${source.value}:${recipeName.value}`
 ))

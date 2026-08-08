@@ -20,36 +20,46 @@
        The 파라미터 label is not decoration: without it a bare wrap of mono chips
        under the integrity alerts reads as output, not as the control that
        drives every chart on the page. -->
-  <div class="flex items-start gap-2">
-    <span class="mt-1.5 shrink-0 sk-meta">파라미터</span>
+  <div class="dashboard-surface flex flex-col gap-2 rounded-(--sk-r-card) px-3 py-2.5">
+    <!-- On its own surface, under a full panel title. A bare label plus a chip
+         row sat at the same visual weight as the integrity alerts stacked above
+         it, so the one control every chart on this page obeys read as another
+         notice to skim past. The panel is the distinction; the title states the
+         job the label was already trying to do. -->
+    <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <h3 class="sk-panel-title">
+        파라미터
+      </h3>
+      <p class="sk-hint">
+        아래 모든 차트가 선택한 파라미터를 따릅니다.
+      </p>
+    </div>
     <div
       role="group"
       aria-label="분석 파라미터"
-      class="flex flex-wrap items-center gap-1"
+      class="flex flex-wrap items-center gap-1.5"
     >
-      <button
+      <!-- SkChip rather than a hand-rolled button: DESIGN.md's selection
+           primitives route "narrows data on the same page" to sk-chip, and this
+           narrows every chart below to one parameter. `tone="ink"` keeps the ink
+           fill the hand-rolled version had, so only the size changes. The label
+           stays mono because a parameter is a raw backend field name, not a word.
+
+           Coverage rides the chip's own `count` slot — still partial-only, still
+           muted, both for the reasons in the header comment. -->
+      <SkChip
         v-for="o in options"
         :key="o.parameter"
-        type="button"
-        :aria-pressed="o.parameter === modelValue"
+        tone="ink"
+        :active="o.parameter === modelValue"
+        :count="o.covered < o.loaded ? `${o.covered}/${o.loaded}` : null"
         :title="o.covered === o.loaded
           ? `${paramLabel(o.parameter)} · 측정 ${o.loaded}개 모두 보유`
           : `${paramLabel(o.parameter)} · 측정 ${o.loaded}개 중 ${o.covered}개만 보유`"
-        class="inline-flex h-7 items-center gap-1.5 rounded-(--sk-r-chip) px-2.5 font-mono text-[11px] leading-none transition-colors"
-        :class="o.parameter === modelValue
-          ? 'bg-(--sk-ink) font-semibold text-(--sk-ink-fg)'
-          : 'bg-(--sk-chip-bg) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
         @click="emit('update:modelValue', o.parameter)"
       >
-        {{ paramLabel(o.parameter) }}
-        <!-- Partial coverage only. Kept INSIDE the button rather than beside it
-             so the chip stays one hit target. On the selected chip it rides the
-             ink fill at reduced opacity; elsewhere it is a muted count. -->
-        <span
-          v-if="o.covered < o.loaded"
-          class="text-[10px] tabular-nums opacity-60"
-        >{{ o.covered }}/{{ o.loaded }}</span>
-      </button>
+        <span class="font-mono">{{ paramLabel(o.parameter) }}</span>
+      </SkChip>
     </div>
   </div>
 </template>

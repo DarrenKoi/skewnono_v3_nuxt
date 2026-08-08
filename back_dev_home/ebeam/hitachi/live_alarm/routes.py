@@ -13,8 +13,9 @@ def live_alarm_board(tool_slug: str):
     if tool_type is None:
         return jsonify(error=f"unknown tool slug: {tool_slug}"), 400
 
-    fab_name = (request.args.get("fab_name") or "").strip()
-    if not fab_name:
+    raw = request.args.get("fab_name") or ""
+    fab_names = tuple(part.strip().upper() for part in raw.split(",") if part.strip())
+    if not fab_names:
         return jsonify(error="fab_name is required"), 400
 
-    return jsonify(get_board(tool_type, fab_name))
+    return jsonify(get_board(tool_type, fab_names))

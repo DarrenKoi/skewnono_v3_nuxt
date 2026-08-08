@@ -86,6 +86,9 @@ export interface MeasHistSearchParams {
 export interface MeasHistSearchResponse {
   total: number
   capped: boolean
+  /** `{full_name, fab_name}` pairs from the current backend (bare strings
+   * from a stale office adapter). Deliberately `unknown`: the shape is
+   * validated client-side by `normalizeRecipeNameSnapshot`. */
   recipe_names?: unknown
   recipe_names_complete?: unknown
   offset: number

@@ -76,10 +76,14 @@
 - Contract: `MeasHistSearchResponse` —
 
   ```python
+  class MeasHistRecipeName(TypedDict):
+      full_name: str
+      fab_name: str   # "" = owner unknown (fab_name 없는 문서)
+
   class MeasHistSearchResponse(TypedDict):
       total: int
       capped: bool
-      recipe_names: list[str]
+      recipe_names: list[MeasHistRecipeName]
       recipe_names_complete: bool
       offset: int
       limit: int
@@ -100,13 +104,22 @@
   paginated by `offset`/`limit` (`limit` clamped to `[1, DEFAULT_LIMIT * 10]`).
 - Office data source: <!-- OFFICE: OpenSearch meas_hist index, bool{must:[terms...]} + date range query -->
 - **레시피 이름 스냅샷:** 유효한 구조화 `recipe` 검색어가 있는 요청만
-  `recipe_names` 열거를 수행합니다. Mock provider는 모든 필터를 적용한 전체
-  후보에서 raw row 페이지를 자르기 전에 중복 없는 `full_name`을 계산합니다.
-  Office provider는 raw search와 동일한 bool query 및
-  `full_name.keyword` composite aggregation을 사용하여 전체 이름을
-  열거합니다. 따라서 열거가 정상 완료된 보존 기간 내 요청은 raw row의
-  `offset`/`limit` 및 `MAX_RESULT_WINDOW`와 관계없이
-  `recipe_names_complete: true`를 반환합니다.
+  `recipe_names` 열거를 수행합니다. 2026-08-08부터 스냅샷 항목은 문자열이
+  아니라 `{full_name, fab_name}` 쌍입니다 — recipe-search fallback이 발견한
+  이름에 FAB 배지·소유 FAB 라우팅을 붙이기 위해서입니다. Mock provider는
+  모든 필터를 적용한 전체 후보에서 raw row 페이지를 자르기 전에 중복 없는
+  `(full_name, fab_name)` 쌍을 계산합니다. Office provider는 raw search와
+  동일한 bool query로 `full_name.keyword` composite aggregation을 돌리되,
+  버킷마다 `fabs` terms sub-aggregation(`fab_name.keyword`, size 16)을
+  붙여 쌍을 얻습니다. `fabs` sub-aggregation 자체가 없는 응답은 어댑터
+  버그로 보고 RuntimeError를 던지지만, fab 버킷이 비어 있는 이름(문서에
+  `fab_name`이 없는 dirty data)은 `fab_name: ""`으로 살려 둡니다 — 이름을
+  숨기는 쪽이 더 나쁘기 때문입니다. 열거가 정상 완료된 보존 기간 내 요청은
+  raw row의 `offset`/`limit` 및 `MAX_RESULT_WINDOW`와 관계없이
+  `recipe_names_complete: true`를 반환합니다. **이 계약 변경으로 사무실에서
+  `office.py` 재복사가 필요합니다** — 구형 복사본이 문자열 스냅샷을
+  반환하면 프론트엔드는 배지 없는(owner unknown) 행으로 강등해 동작은
+  유지되지만, 부팅 로그의 `STALE office.py` 표시가 재복사를 안내합니다.
 - 구조화 `recipe` 검색어가 없으면 열거를 요청하지 않으므로
   `recipe_names: []`, `recipe_names_complete: false`를 반환합니다. 날짜가
   잘못되었거나 요청 범위가 보존 기간보다 완전히 과거 또는 미래이면

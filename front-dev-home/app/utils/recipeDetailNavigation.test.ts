@@ -26,3 +26,24 @@ test('preserves the work-set flag on every hop', () => {
     { recipe_name: 'HV-RECIPE', set: '1' }
   ])
 })
+
+test('carries the owner fab on every hop, keeping the multi-fab path segment', () => {
+  const items = buildRecipeDetailNavItems(
+    'cd-sem', 'r3,m16b', 'RECIPE-01', 'lateral', undefined, 'redis', 'm16b'
+  )
+  assert.deepEqual(items.map(item => item.to.path), [
+    '/ebeam/cd-sem/r3,m16b/recipe-search/open',
+    '/ebeam/cd-sem/r3,m16b/recipe-search/lateral',
+    '/ebeam/cd-sem/r3,m16b/recipe-search/meas-hist'
+  ])
+  for (const item of items) {
+    assert.deepEqual(item.to.query, { recipe_name: 'RECIPE-01', fab_name: 'M16B' })
+  }
+})
+
+test('omits the fab_name query when no owner fab is given', () => {
+  const items = buildRecipeDetailNavItems(
+    'cd-sem', 'R3', 'RECIPE-01', 'open', undefined
+  )
+  for (const item of items) assert.equal('fab_name' in item.to.query, false)
+})

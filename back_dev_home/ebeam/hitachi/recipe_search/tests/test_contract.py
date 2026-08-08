@@ -33,6 +33,7 @@ from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
     RecipeDetailResponse,
     RecipeSearchResponse,
 )
+from back_dev_home.ebeam.hitachi.recipe_search.providers import mock, office_example
 
 
 TOOL_TYPE = "cd-sem"
@@ -51,7 +52,11 @@ def test_recipe_catalog_matches_contract():
     # well, so a drift here is a bug under either provider.
     assert catalog["total"] == len(catalog["rows"])
     assert catalog["tool_type"] == TOOL_TYPE
-    assert len(set(catalog["rows"])) == len(catalog["rows"]), "recipe names must be de-duped"
+    # De-dup is per (recipe, fab), not per name: an omitted fab_name is now a
+    # union across fabs, and the two default mock fabs share ~20% of their
+    # names by construction (see test_mock_catalog_duplicate_names_stay_per_fab).
+    pairs = [(row["recipe_name"], row["fab_name"]) for row in catalog["rows"]]
+    assert len(set(pairs)) == len(pairs), "(recipe, fab) rows must be de-duped"
 
     if _is_mock():
         # The mock synthesizes a fixed 50,000-name catalog, so an empty one
@@ -67,7 +72,8 @@ def test_recipe_open_and_compare_match_contract():
     # detail/compare exercised even when the catalog is empty.
     catalog = data.get_recipe_catalog(TOOL_TYPE)
     rows = catalog["rows"]
-    recipe_name = rows[0] if rows else "RECIPE-CONTRACT-0001"
+    recipe_name = rows[0]["recipe_name"] if rows else "RECIPE-CONTRACT-0001"
+    recipe_fab_name = rows[0]["fab_name"] if rows else ""
 
     try:
         detail = data.get_recipe_open_data(recipe_id=recipe_name)
@@ -129,9 +135,99 @@ def test_recipe_open_and_compare_match_contract():
         assert partial[0]["amp"] is None, "img_meas2 was not asked for; AMP must be unread"
         assert partial[0]["af_pr"] is None, "img_add2 was not asked for"
 
-    compare = data.get_recipe_compare_data(TOOL_TYPE, None, [recipe_name])
+    compare = data.get_recipe_compare_data(
+        TOOL_TYPE, [{"recipe_name": recipe_name, "fab_name": recipe_fab_name}]
+    )
     assert_matches(compare, RecipeCompareResponse)
     assert compare["tool_type"] == TOOL_TYPE
     # The compare view columns the recipes side by side under the headers the
     # caller passed; a recipe nobody asked for has no column to land in.
     assert {entry["recipe_id"] for entry in compare["recipes"]} <= {recipe_name}
+
+
+# ── catalog rows carry their owning fab (multi-fab phase B, task 1) ────────
+
+
+def test_mock_catalog_rows_carry_owning_fab():
+    payload = mock.get_recipe_catalog("cd-sem", ("R3", "M16B"))
+    assert payload["fab_names"] == ["R3", "M16B"]
+    assert payload["total"] == len(payload["rows"])
+    assert {row["fab_name"] for row in payload["rows"]} == {"R3", "M16B"}
+    assert all(row["recipe_name"] for row in payload["rows"])
+
+
+def test_mock_catalog_duplicate_names_stay_per_fab():
+    payload = mock.get_recipe_catalog("cd-sem", ("R3", "M16B"))
+    r3 = {r["recipe_name"] for r in payload["rows"] if r["fab_name"] == "R3"}
+    m16b = {r["recipe_name"] for r in payload["rows"] if r["fab_name"] == "M16B"}
+    shared = r3 & m16b
+    # ~20% of mock names overlap by construction; both copies must survive.
+    assert shared
+    rows_for_shared = [
+        r for r in payload["rows"] if r["recipe_name"] in shared
+    ]
+    assert len(rows_for_shared) == 2 * len(shared)
+
+
+def test_mock_catalog_single_fab_rows_match_union_slice():
+    solo = mock.get_recipe_catalog("cd-sem", ("R3",))
+    union = mock.get_recipe_catalog("cd-sem", ("R3", "M16B"))
+    union_r3 = [r for r in union["rows"] if r["fab_name"] == "R3"]
+    assert solo["rows"] == union_r3
+
+
+def test_mock_catalog_omitted_fab_uses_default_fabs_and_empty_echo():
+    payload = mock.get_recipe_catalog("cd-sem", None)
+    assert payload["fab_names"] == []
+    assert {row["fab_name"] for row in payload["rows"]} == {"R3", "M16B"}
+
+
+class _FakeCatalogRedis:
+    def __init__(self, entries):
+        self._entries = entries  # {b"r3": b'["A", "B"]', ...}
+
+    def hget(self, key, field):
+        return self._entries.get(field.encode())
+
+    def hgetall(self, key):
+        return self._entries
+
+    def exists(self, key):
+        return 1 if self._entries else 0
+
+
+def test_office_catalog_tags_rows_per_requested_fab(monkeypatch):
+    fake = _FakeCatalogRedis({b"r3": b'["A", "B"]', b"m16b": b'["B", "C"]'})
+    monkeypatch.setattr(office_example, "_redis_client", lambda: fake)
+    payload = office_example.get_recipe_catalog("cd-sem", ("R3", "M16B"))
+    assert payload["fab_names"] == ["R3", "M16B"]
+    assert payload["rows"] == [
+        {"recipe_name": "A", "fab_name": "R3"},
+        {"recipe_name": "B", "fab_name": "R3"},
+        {"recipe_name": "B", "fab_name": "M16B"},
+        {"recipe_name": "C", "fab_name": "M16B"},
+    ]
+
+
+def test_office_catalog_union_preserves_provenance(monkeypatch):
+    fake = _FakeCatalogRedis({b"r3": b'["A", "B"]', b"m16b": b'["B"]'})
+    monkeypatch.setattr(office_example, "_redis_client", lambda: fake)
+    payload = office_example.get_recipe_catalog("cd-sem", None)
+    assert payload["fab_names"] == []
+    # (B, R3) and (B, M16B) both survive — the union no longer dedupes names.
+    names = [(r["recipe_name"], r["fab_name"]) for r in payload["rows"]]
+    assert ("B", "R3") in names and ("B", "M16B") in names
+
+
+# ── compare takes per-recipe fabs (multi-fab phase B, task 2) ──────────────
+
+
+def test_mock_compare_cross_fab_recipes_differ():
+    payload = mock.get_recipe_compare_data("cd-sem", [
+        {"recipe_name": "SAME/NAME_ABC123_STD_00001", "fab_name": "R3"},
+        {"recipe_name": "SAME/NAME_ABC123_STD_00001", "fab_name": "M16B"},
+    ])
+    assert payload["fab_names"] == ["R3", "M16B"]
+    assert [r["fab_name"] for r in payload["recipes"]] == ["R3", "M16B"]
+    # Same name, different fab => genuinely different generated tables.
+    assert payload["recipes"][0]["parameters"] != payload["recipes"][1]["parameters"]

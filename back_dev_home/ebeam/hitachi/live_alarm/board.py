@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Iterable
 
@@ -24,7 +25,14 @@ from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
 
 log = logging.getLogger(__name__)
 
-__all__ = ["feed_status_for", "dedupe_by_id", "parse_members", "iso", "payload"]
+__all__ = [
+    "feed_status_for",
+    "dedupe_by_id",
+    "parse_members",
+    "iso",
+    "payload",
+    "merged_meta",
+]
 
 
 def iso(epoch: int | None) -> str | None:
@@ -56,11 +64,12 @@ def feed_status_for(meta: dict[str, Any] | None, known: bool, *, now: int) -> Fe
 def payload(
     *,
     tool_type: ToolType,
-    fab_name: str,
+    fab_names: Sequence[str],
     now: int,
     configured: bool,
     meta: dict[str, Any] | None = None,
     unmatched_count: int = 0,
+    not_configured_fabs: Sequence[str] = (),
     events: Iterable[AlarmEvent] = (),
 ) -> LiveAlarmPayload:
     """The one LiveAlarmPayload constructor both providers use.
@@ -70,9 +79,13 @@ def payload(
     field this feature most needs to be right (`fetched_at`, which must be
     absent unless a fetch actually succeeded) would be the one most likely to
     drift between them. Adding a field is now one edit, not four.
+
+    `configured` now means "at least one requested fab is configured" — a
+    multi-fab request with a partial roster miss still renders a board for
+    the fabs that ARE configured, and names the rest in `not_configured_fabs`.
     """
     return {
-        "fab_name": fab_name,
+        "fab_names": list(fab_names),
         "tool_type": tool_type,
         "feed_status": feed_status_for(meta, configured, now=now),
         "fetched_at": iso(meta["fetched_at"]) if meta else None,
@@ -82,8 +95,19 @@ def payload(
         "server_now": iso(now),
         "board_window_sec": BOARD_WINDOW_SEC,
         "unmatched_count": unmatched_count,
+        "not_configured_fabs": list(not_configured_fabs),
         "events": list(events),
     }
+
+
+def merged_meta(metas: Sequence[dict[str, Any] | None]) -> dict[str, Any] | None:
+    """Worst-of merge across facilities: None if ANY fac has never fetched
+    (feed_status_for then says stale), else the OLDEST fetched_at — so one
+    stale fac makes the merged board stale rather than hiding behind a
+    fresher sibling."""
+    if not metas or any(m is None or "fetched_at" not in m for m in metas):
+        return None
+    return {"fetched_at": min(int(m["fetched_at"]) for m in metas)}
 
 
 def dedupe_by_id(events: Iterable[AlarmEvent]) -> list[AlarmEvent]:

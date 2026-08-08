@@ -109,11 +109,12 @@
         <template #header>
           <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
             <UIcon name="i-lucide-pie-chart" />
-            내가 자주 쓰는 기능
+            내가 자주 쓰는 기능 Top 5
           </span>
         </template>
         <ActivityFeatureBarList
           :items="me.top_features"
+          :cap="5"
           empty-text="아직 기록된 활동이 없습니다."
         />
       </UCard>
@@ -125,10 +126,7 @@
             30일 활동
           </span>
         </template>
-        <ActivitySparkline
-          :series="me.daily"
-          color="from-sky-400 to-violet-500"
-        />
+        <ActivitySparkline :series="me.daily" />
       </UCard>
 
       <UCard class="dashboard-surface lg:col-span-3">
@@ -578,7 +576,7 @@
                         </div>
                         <ActivitySparkline
                           :series="userDetail.daily"
-                          color="from-rose-400 to-amber-500"
+                          tone="brand"
                         />
                       </div>
                     </div>

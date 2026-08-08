@@ -6,41 +6,12 @@
     >
       <span>{{ totalLabel }}</span>
     </div>
-    <svg
+    <div
       v-if="hasData"
-      :viewBox="`0 0 ${width} ${height}`"
+      ref="chartEl"
+      data-testid="sparkline-canvas"
       class="w-full h-16"
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <linearGradient
-          :id="gradientId"
-          x1="0"
-          x2="1"
-          y1="0"
-          y2="0"
-        >
-          <stop
-            offset="0%"
-            :stop-color="gradientStops.start"
-          />
-          <stop
-            offset="100%"
-            :stop-color="gradientStops.end"
-          />
-        </linearGradient>
-      </defs>
-      <rect
-        v-for="bar in bars"
-        :key="bar.x"
-        :x="bar.x"
-        :y="bar.y"
-        :width="barWidth"
-        :height="bar.h"
-        rx="1.5"
-        :fill="`url(#${gradientId})`"
-      />
-    </svg>
+    />
     <div
       v-else
       class="sk-body h-16 flex items-center"
@@ -59,69 +30,42 @@
 
 <script setup lang="ts">
 import type { DailyCount } from '~/composables/useActivityApi'
-
-// Tailwind gradient class -> resolved SVG stop colors. Keeps the prop API
-// consistent with the rest of the page (other places use "from-X to-Y")
-// without forcing inline styles at the call site.
-const GRADIENT_MAP: Record<string, { start: string, end: string }> = {
-  'from-sky-400 to-violet-500': { start: '#38bdf8', end: '#8b5cf6' },
-  'from-rose-400 to-amber-500': { start: '#fb7185', end: '#f59e0b' },
-  'from-emerald-400 to-sky-500': { start: '#34d399', end: '#0ea5e9' }
-}
+import {
+  buildSparklineOption,
+  formatSparklineDay,
+  sparklineHasData,
+  sparklineTotal
+} from '~/utils/activitySparkline'
 
 const props = withDefaults(
   defineProps<{
     series: DailyCount[]
-    color?: string
+    // Which palette role paints the bars. The page uses two so the reader can
+    // tell "my activity" from "the user I expanded" at a glance; both follow
+    // the active ECharts theme rather than a hardcoded hex.
+    tone?: 'series' | 'brand'
   }>(),
-  { color: 'from-sky-400 to-violet-500' }
+  { tone: 'series' }
 )
 
-const gradientStops = computed(
-  () => GRADIENT_MAP[props.color] ?? GRADIENT_MAP['from-sky-400 to-violet-500']!
+const chartEl = ref<HTMLDivElement | null>(null)
+const sk = useChartPalette()
+
+const hasData = computed(() => sparklineHasData(props.series))
+const barColor = computed(() => (props.tone === 'brand' ? sk.value.brand : sk.value.series))
+const option = computed(() => buildSparklineOption(props.series, barColor.value))
+
+// The host sits inside v-if, so an empty series never mounts it and no chart is
+// created — which matters in the user table, where every expanded row would
+// otherwise cost an instance. useEchart's elRef watch initialises against the
+// node if and when it appears.
+useEchart(chartEl, option, { disableDownload: true })
+
+const totalLabel = computed(() => `합계 ${sparklineTotal(props.series)}`)
+const firstLabel = computed(() =>
+  props.series.length ? formatSparklineDay(props.series[0]!.date) : ''
 )
-
-// Each Sparkline instance needs a unique <linearGradient id="..."> so multiple
-// sparklines on the page don't share/overwrite each other's defs.
-const uid = useId()
-const gradientId = computed(() => `sparkline-gradient-${uid}`)
-
-const width = 300
-const height = 60
-const padding = 4
-
-const maxCount = computed(() => props.series.reduce((m, d) => Math.max(m, d.count), 0))
-const hasData = computed(() => maxCount.value > 0)
-const total = computed(() => props.series.reduce((s, d) => s + d.count, 0))
-
-const barWidth = computed(() => {
-  if (!props.series.length) return 0
-  return Math.max(1, (width - padding * 2) / props.series.length - 1)
-})
-
-const bars = computed(() => {
-  const n = props.series.length
-  if (!n || maxCount.value <= 0) return []
-  const usableW = width - padding * 2
-  const slot = usableW / n
-  const usableH = height - padding * 2
-  return props.series.map((d, i) => {
-    const h = (d.count / maxCount.value) * usableH
-    return {
-      x: padding + i * slot,
-      y: height - padding - h,
-      h: Math.max(0, h)
-    }
-  })
-})
-
-const formatDay = (iso: string) => {
-  const date = new Date(`${iso}T00:00:00Z`)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
-}
-
-const firstLabel = computed(() => (props.series.length ? formatDay(props.series[0]!.date) : ''))
-const lastLabel = computed(() => (props.series.length ? formatDay(props.series[props.series.length - 1]!.date) : ''))
-const totalLabel = computed(() => `합계 ${total.value}`)
+const lastLabel = computed(() =>
+  props.series.length ? formatSparklineDay(props.series[props.series.length - 1]!.date) : ''
+)
 </script>

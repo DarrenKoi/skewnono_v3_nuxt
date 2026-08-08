@@ -37,12 +37,18 @@
               {{ slotLabel }}
             </th>
             <th
-              v-for="id in recipeIds"
-              :key="id"
+              v-for="col in columns"
+              :key="recipePairKey(col.fab_name, col.recipe_id)"
               class="px-2.5 py-2 text-left font-medium"
-              :title="id"
+              :title="col.recipe_id"
             >
-              {{ shortId(id) }}
+              {{ shortId(col.recipe_id) }}
+              <span
+                v-if="multiFab"
+                class="sk-fab-badge"
+              >
+                {{ col.fab_name }}
+              </span>
             </th>
           </tr>
         </thead>
@@ -106,6 +112,7 @@
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
 import type { CompareParamDetail } from '~/utils/recipeCompare'
 import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames } from '~/utils/recipeCompare'
+import { recipePairKey } from '~/utils/recipePair'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
@@ -122,7 +129,11 @@ const props = defineProps<{
 
 const base = recipeApiBase()
 
-const recipeIds = computed(() => props.recipes.map(r => r.recipe_id))
+// (recipe_id, fab_name) columns — recipe_id alone collides when the same
+// recipe name is compared across two fabs, so the header needs the pair to
+// stay keyed correctly and to attribute each column to its fab.
+const columns = computed(() => props.recipes.map(r => ({ recipe_id: r.recipe_id, fab_name: r.fab_name })))
+const multiFab = computed(() => new Set(props.recipes.map(r => r.fab_name)).size > 1)
 const slotDescriptor = computed(() => IMAGE_SLOTS.find(s => s.key === props.slotKey) ?? IMAGE_SLOTS[0]!)
 const slotLabel = computed(() => slotDescriptor.value.stage)
 

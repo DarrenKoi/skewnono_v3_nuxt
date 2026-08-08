@@ -141,6 +141,11 @@ Field(mapping) -> Type: 설명
    (meas_hist/opensearch_query.py 의 SEARCH_ALL_MAPPING +
    build_search_all_value) 를 loader 가 색인해야 동작 — 필드가 없으면
    q 조건은 아무 문서도 매칭하지 않습니다(에러는 아님).
+   recipe_names 스냅샷(2026-08-08 부터 {full_name, fab_name} 쌍)은 raw
+   search 와 같은 bool query 로 composite(full_name.keyword) 를 돌리고
+   버킷마다 terms(fab_name.keyword, size 16) sub-agg 를 붙여 얻습니다.
+   fab 버킷이 비면 fab_name "" 로 이름을 살립니다 — fab_name 없는 문서가
+   실제로 존재하는지는 OFFICE-VERIFY.
 
 장비 가동률 — 장비별(eqp_id) 뷰의 임계값을 정할 때 읽어야 하는 절
 

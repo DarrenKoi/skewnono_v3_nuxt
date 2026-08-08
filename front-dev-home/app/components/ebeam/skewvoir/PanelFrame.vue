@@ -2,9 +2,12 @@
   <section class="dashboard-surface flex flex-col rounded-(--sk-r-card)">
     <!-- Panel header: title + optional meta, with an inline segmented toggle and
          an actions slot on the right (matches the sample's panel chrome). -->
-    <header class="flex items-center justify-between gap-2 border-b border-(--sk-border-soft) px-3 py-2">
+    <header class="flex items-center justify-between gap-2 border-b border-(--sk-border-soft) px-3 py-2.5">
       <div class="flex min-w-0 items-baseline gap-2">
-        <h2 class="truncate sk-title">
+        <h2
+          class="truncate"
+          :class="titleSize === 'md' ? 'sk-panel-title' : 'sk-title'"
+        >
           {{ title }}
         </h2>
         <span
@@ -22,7 +25,7 @@
             v-for="opt in toggles"
             :key="opt"
             type="button"
-            class="rounded-[6px] px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+            class="rounded-[6px] px-2.5 py-1 font-mono text-xs font-medium transition-colors duration-200"
             :class="opt === active
               ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
               : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -64,12 +67,20 @@ const props = withDefaults(defineProps<{
   toggles?: string[]
   /** Controlled active toggle (v-model). Omit for uncontrolled internal state. */
   modelValue?: string
+  /** Title tier. `sm` (13px, `.sk-title`) is the default because most callers
+   *  are cells in a dense multi-column grid — the 측정 개요 dashboard packs
+   *  Wafer Map / 파라미터 요약 / Measurement Points / SEM Image / Radius into
+   *  one row, and at 16px those headings truncate to "Wafer …" / "Measure…".
+   *  `md` (16px, `.sk-panel-title`) is for panels that own the full width, where
+   *  13px left the heading smaller than the labels inside the panel. */
+  titleSize?: 'sm' | 'md'
   /** Placeholder icon shown when the default body slot is empty. */
   icon?: string
   /** Min-height utility for the placeholder body, e.g. 'min-h-48'. */
   placeholderHeight?: string
   bodyClass?: string
 }>(), {
+  titleSize: 'sm',
   icon: 'i-lucide-bar-chart-3',
   placeholderHeight: 'min-h-40'
 })

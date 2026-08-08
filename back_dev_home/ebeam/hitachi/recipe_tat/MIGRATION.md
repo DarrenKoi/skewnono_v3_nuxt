@@ -9,6 +9,13 @@
   `providers/office_example.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
+- **`office_example.py` changed for `/ranking`'s `fab_names` (multi-fab
+  phase B, 2026-08-07): re-copy at the office.** The ranking aggregation
+  lives in this provider's own template, not only in the shared
+  `_office_meas_hist.py` module fail_issue also uses — so this copy needs
+  refreshing independently of whether fail_issue's does. Boot log's `STALE
+  office.py` line / `python -m scripts.sync_office_adapters recipe_tat`
+  confirm and fix a stale one.
 
 ## Data source: OpenSearch `meas_hist_*` (+ pending Redis lot map)
 
@@ -88,6 +95,10 @@ work without the bridge; the contract gate never passes `lot_cd`.
       avg_meastime: float
       sample_lot_cds: list[str]
       sample_eqp_ids: list[str]
+      # Fabs whose measurements entered this aggregate, sorted asc
+      # (multi-fab phase B, 2026-08-07). The detail link uses this to route
+      # to the owning fab's registry (multi-fab spec §6.1).
+      fab_names: list[str]
   ```
 
 - Mock behavior: filters meas_hist rows in scope (`tool_type` / `fab_names`
@@ -100,7 +111,10 @@ work without the bridge; the contract gate never passes `lot_cd`.
   `sample_lot_cds`/`sample_eqp_ids` are each capped to the first 5 distinct
   values (sorted), not the full set. (Office `sample_lot_cds` comes from a
   `lot_id` terms sub-agg mapped to lot_cds via the bridge; `sample_eqp_ids`
-  from an `eqp_id.keyword` terms sub-agg.)
+  from an `eqp_id.keyword` terms sub-agg.) `fab_names` is the group's set of
+  distinct `fab_name` values, sorted — the mock already iterates rows with a
+  `fab_name` on each, so collecting into a `set` alongside the existing
+  group-by costs nothing extra.
 - Office data source: paginated `composite` aggregation on
   `full_name.keyword` (the `class_name/recipe_name` composite = the group
   key), walked page by page via `after_key` so **every** recipe in the range
@@ -112,7 +126,15 @@ work without the bridge; the contract gate never passes `lot_cd`.
   `terms` sub-agg on `eqp_id.keyword` (size 5, then sorted) fills
   `sample_eqp_ids`. `sample_lot_cds` comes from a `lot_id` terms sub-agg
   mapped through the `ebeam_tas_lot_hist` bridge; passing `lot_cd` resolves
-  to a `lot_id` terms filter via the same bridge.
+  to a `lot_id` terms filter via the same bridge. `fab_names` comes from a
+  sibling `terms` sub-agg on `fab_name.keyword` (size 16 — one bucket per
+  known fab, well above the current fab count, so it is never truncated the
+  way a recipe-cardinality agg would need to worry about), bucket keys
+  `.upper()`-ed and sorted. The `.upper()` is defensive rather than a real
+  normalization: `fab_name` is stored **uppercase already** (`M16A`, `R3`,
+  ...) per `_office_meas_hist.py`'s `filter_clauses` comment, so this only
+  guards against a future writer that lowercases; it does not paper over any
+  known office data issue.
 - Notes: `rank` is 1-indexed and reflects position after both sorting and
   `limit` truncation.
 

@@ -256,6 +256,7 @@ def get_ranking(
         "eqps": {"terms": {"field": _EQP_KW, "size": 5}},
         # A handful of lot_ids per recipe, mapped to lot_cds below.
         "lots": {"terms": {"field": _LOT_ID_KW, "size": 25}},
+        "fabs": {"terms": {"field": _FAB_KW, "size": 16}},
         "top": {
             "top_hits": {
                 "size": 1,
@@ -285,6 +286,8 @@ def get_ranking(
         sample_lot_cds = sorted(
             {bridge.get(_text(b["key"]), "") for b in lot_buckets} - {""}
         )[:5]
+        fab_buckets = bucket.get("fabs", {}).get("buckets", [])
+        fab_names = sorted({str(b["key"]).upper() for b in fab_buckets})
 
         rows.append(
             RankingRow(
@@ -297,6 +300,7 @@ def get_ranking(
                 avg_meastime=avg,
                 sample_lot_cds=sample_lot_cds,
                 sample_eqp_ids=sample_eqps,
+                fab_names=fab_names,
             )
         )
     return rows

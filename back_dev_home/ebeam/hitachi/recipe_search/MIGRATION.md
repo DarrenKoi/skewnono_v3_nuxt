@@ -116,42 +116,71 @@ production equipment.
 
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipes
 
-- Handler: `routes.py` → `data.get_recipe_catalog(tool_type, fab_name)`.
+- Handler: `routes.py` → `data.get_recipe_catalog(tool_type, fab_names)`.
   `tool_slug` is `cdsem`/`hvsem`, resolved to `ToolType` (`"cd-sem"`/`"hv-sem"`)
-  via `TOOL_BY_SLUG`; `fab_name` comes from the `?fab_name=` query param
-  (uppercased, `None` if blank).
+  via `TOOL_BY_SLUG`; `fab_names` comes from `_resolve_fab_names()` — the
+  `?fab_name=` query param split on `,`, each part stripped and uppercased,
+  empty tuple if the param is blank. `routes.py` passes `fab_names or None`,
+  so an empty tuple and an omitted param behave identically (the all-fab
+  union).
 - Contract: `RecipeSearchResponse` —
 
   ```python
+  class RecipeSearchRow(TypedDict):
+      recipe_name: str
+      fab_name: str
+
   class RecipeSearchResponse(TypedDict):
       tool_type: ToolType
-      fab_name: str | None
+      fab_names: list[str]   # echo of the requested fabs; [] on the all-fab union
       total: int
-      rows: list[RecipeSearchRow]  # RecipeSearchRow = str (a recipe name)
+      rows: list[RecipeSearchRow]
   ```
 
-- Mock behavior: synthesizes exactly 50,000 recipe-name strings
-  (`RECIPE_COUNT`), deterministically seeded from `sha256(tool_type:fab_name)`
-  so repeated calls with the same `(tool_type, fab_name)` return byte-identical
-  rows (`@lru_cache`-memoized in `_generate_recipe_rows`). Names follow the
-  shape `"<CLASS>/<BASE>_ABC123_<VARIANT>_<00001-suffix>"`, cycling through 10
-  fixed `(class, base)` patterns.
+  **Row grain changed from a bare recipe-name string to a `(recipe_name,
+  fab_name)` pair (multi-fab phase B, 2026-08-07).** The same recipe name can
+  exist on more than one fab — mock cd-sem R3∩M16B overlaps at roughly 20%
+  (9,984 of 50,000, user-confirmed 2026-08-07) — so every row now says which
+  fab it came from, and the same name on two fabs is two adjacent rows, never
+  deduped against each other.
+- Mock behavior: for each requested fab (or every fab in `_DEFAULT_FAB_NAMES`
+  when `fab_names` is empty), synthesizes 50,000 recipe-name strings
+  (`RECIPE_COUNT`) via `_generate_recipe_rows(tool_type, fab)`, seeded from
+  `sha256(tool_type:fab)` per fab exactly as before multi-fab — just called
+  once per fab and concatenated rather than once per request, so one fab's
+  rows are byte-identical whether requested alone or as part of a union.
+  Names follow the shape `"<CLASS>/<BASE>_ABC123_<VARIANT>_<00001-suffix>"`,
+  cycling through 10 fixed `(class, base)` patterns.
 - Office data source: **WIRED.** Redis hash per tool family —
   `v3_cdsem_unique_rcp_list` (cd-sem) / `v3_hvsem_unique_rcp_list` (hv-sem).
   Fields are **lowercase** fab names, values are that fab's recipe-name list
   (`{"m14a": ["1/AC_M2_TAT", ...], "r3": [...]}`). `routes.py` uppercases
   `fab_name`, so the adapter lowercases at the Redis boundary and echoes the
-  caller's uppercase spelling back in the response.
-  - Missing hash *field* (unknown fab) → empty `rows`, `total: 0`.
-  - Missing hash *key* → `LookupError` (JSON 502): the upstream job never ran.
-  - No `fab_name` → union of every field, de-duped. The frontend always sends
-    a fab, so this is the blank-query edge case only.
+  caller's uppercase spelling back on every row.
+  - Fab(s) requested → one `HGET` per fab, each result tagged with that fab
+    (`_tagged_rows`). Missing hash *field* (unknown fab) → no rows for that
+    one fab, not a whole-request failure. Missing hash *key* → `LookupError`
+    (JSON 502): the upstream job never ran.
+  - No `fab_name` (blank query — the frontend always sends a fab, so this is
+    the blank-query edge case only) → `HGETALL` over every field, and **the
+    field name IS the provenance**: each field's rows are tagged with that
+    field (lowercase fab, re-uppercased for the row). This replaces the
+    pre-multi-fab path, which flattened and deduped the union into bare
+    recipe-name strings and destroyed which fab each name came from.
+    `_unique` still runs, but only WITHIN one fab's own list (the hash's own
+    `*_unique_rcp_list` promise) — never across fabs, since the row grain is
+    `(recipe, fab)` and two fabs sharing a name is not a duplicate to collapse.
   - Values parse as JSON, then Python `repr`, then comma-separated, so the
     adapter does not care which the writer job used.
 - Notes: per the module docstring, "the office source is expected to return
   only a large Redis-backed recipe-name list" — the office implementation is
   expected to be a plain name lookup, not the full synthetic generator.
-  `total` must equal `len(rows)`.
+  `total` must equal `len(rows)`. **`office_example.py` changed for this
+  (multi-fab phase B, 2026-08-07): re-copy at the office** —
+  `python -m scripts.sync_office_adapters recipe_search` (or
+  `cp office_example.py office.py`). The boot log's `STALE office.py` line
+  flags a pre-2026-08-07 copy, which still answers 200 with bare-string rows
+  and a single `fab_name` field the frontend no longer reads.
 
 ## Endpoint: GET /api/\<tool_slug\>/recipe-search/recipe-detail
 
@@ -320,51 +349,71 @@ production equipment.
 
 ## Endpoint: POST /api/\<tool_slug\>/recipe-search/compare
 
-- Handler: `routes.py` → `data.get_recipe_compare_data(tool_type, fab_name,
-  recipe_names)`. The request body comes from the frontend compare picker
-  (see `front-dev-home` recipe-search compare UI) as JSON:
-  `{"recipe_names": [...], "fab_name": "..."}`. `recipe_names` must be a
-  non-empty list (400 if missing/empty/not-a-list) capped at 200 entries
-  (400 if exceeded); `fab_name` is optional, uppercased, `None` if blank.
+- Handler: `routes.py` → `data.get_recipe_compare_data(tool_type, recipes)`.
+  The request body comes from the frontend compare picker (see
+  `front-dev-home` recipe-search compare UI) as JSON:
+  `{"recipes": [{"recipe_name": "...", "fab_name": "..."}, ...]}`.
+  **Replaces the pre-multi-fab `{"recipe_names": [...], "fab_name": "..."}`
+  shape (2026-08-07, no back-compat kept — 사내 consumers only).** `recipes`
+  must be a non-empty list of objects (400 if missing/empty/not-a-list),
+  each needing a non-blank `recipe_name` (400 otherwise), capped at 200
+  entries (400 if exceeded).
 - Contract: `RecipeCompareResponse` —
 
   ```python
+  class CompareRequestItem(TypedDict):
+      recipe_name: str
+      fab_name: str
+
   class RecipeCompareResponse(TypedDict):
       tool_type: ToolType
-      fab_name: str | None
+      # Distinct fabs of the compared recipes, first-seen order. Replaces the
+      # single fab_name now that the request carries one fab per recipe.
+      fab_names: list[str]
       recipes: list[CompareRecipe]
 
   class CompareRecipe(TypedDict):
       recipe_id: str
       fab_name: str
+      locator: IdpLocator
       parameters: list[CompareParameter]
 
   class CompareParameter(TypedDict):
       Parameter: str
       idp: dict[str, object]    # subset of IdpImageInfoRow: COMPARE_IDP_FIELDS
       images: dict[str, str]    # IMAGE_SLOTS key -> filename
-      amp: list[AmpRow]
   ```
 
-- Mock behavior: for each name in `recipe_names` (blank names skipped after
-  `.strip()`), calls `get_recipe_open_data(recipe_id=name, fab_name=fab_name,
-  tool_category=tool_type)` and reshapes its `idp_image_info` into
-  a compact per-parameter view — so compare data always matches what
-  `/recipe-detail` would return for the same recipe. `idp` is restricted to
+- Mock behavior: for each `{recipe_name, fab_name}` item (blank names
+  skipped after `.strip()`), calls `get_recipe_open_data(recipe_id=name,
+  fab_name=fab, tool_category=tool_type)` and reshapes its `idp_image_info`
+  into a compact per-parameter view — so compare data always matches what
+  `/recipe-detail` would return for the same `(recipe, fab)`. **Cross-fab
+  compare is the point of this shape**: the same recipe name requested with
+  two different `fab_name`s produces two genuinely different generated
+  tables, because `get_recipe_open_data` seeds on
+  `(recipe_id, fab_name, tool_category)`. `idp` is restricted to
   `COMPARE_IDP_FIELDS` (`Addressing`, `Double_Addressing`, `Mother_Para`,
   `Region`, `Meas_Counting`, `dnumber_removed`); `images` maps each
   `IMAGE_SLOTS` key to that parameter's slot value, which the client posts
-  straight back as `/param-detail`'s `slots`. AMP is no longer part of this
+  straight back as `/param-detail`'s `slots`. AMP is not part of this
   payload — compare fetches it per visible cell, so the two screens cannot
-  disagree. Each recipe carries its own `locator`, because those fetches are per
-  tool. Duplicate `Parameter` values within one
-  recipe's `idp_image_info` are de-duplicated (first occurrence wins).
+  disagree. Each recipe carries its own `locator`, because those fetches are
+  per tool. Duplicate `Parameter` values within one recipe's
+  `idp_image_info` are de-duplicated (first occurrence wins). The response's
+  `fab_names` is the distinct set of *resolved* `detail["fab_name"]` values,
+  first-seen order — not a verbatim echo of the request body, since a blank
+  `fab_name` in an item resolves through `get_recipe_open_data`'s own
+  default.
 - Office data source: **NOT WIRED — mock-backed**, and now the only endpoint
   that is. Re-exported (not reimplemented) so that when the batched IDP fetch
   lands it can be derived from open rather than growing a second data path.
   Until then compare disagrees with `/recipe-detail` for the same recipe;
-  see Status above.
-  <!-- OFFICE: same IDP payload source as /recipe-detail, batched per recipe_names -->
+  see Status above. Because it is a re-export rather than a separate
+  implementation, it already speaks the new `recipes: [{recipe_name,
+  fab_name}]` body with no adapter change of its own — office risk here is
+  unchanged by multi-fab phase B.
+  <!-- OFFICE: same IDP payload source as /recipe-detail, batched per recipe -->
 - Notes: `get_recipe_compare_data` reuses `get_recipe_open_data` internally
   "so compare matches open" (source comment) — an office implementation
   should preserve that invariant (compare output for a recipe should be

@@ -55,6 +55,7 @@ from typing import Any
 
 from back_dev_home.ebeam.hitachi._office_meas_hist import (
     EQP_ID_KW as _EQP_KW,
+    FAB_NAME_KW as _FAB_KW,
     FULL_NAME_KW as _FULL_KW,
     INDEX as _INDEX,
     LOT_ID_KW as _LOT_ID_KW,
@@ -235,6 +236,7 @@ def _ranked_recipe_buckets(
     """
     sub_aggs = {
         **fail_sub_aggs,
+        "fabs": {"terms": {"field": _FAB_KW, "size": 16}},
         "top": {
             "top_hits": {
                 "size": 1,
@@ -277,6 +279,11 @@ def _sample_eqp_ids(bucket: dict[str, Any]) -> list[str]:
     return sorted(str(b["key"]) for b in eqp_buckets)[:5]
 
 
+def _bucket_fab_names(bucket: dict[str, Any]) -> list[str]:
+    fab_buckets = bucket.get("fabs", {}).get("buckets", [])
+    return sorted({str(b["key"]).upper() for b in fab_buckets})
+
+
 def get_align_ranking(
     tool_type: ToolType,
     fab_names: tuple[str, ...] | None,
@@ -311,6 +318,7 @@ def get_align_ranking(
                 align_fail_count=fail_count,
                 align_fail_rate=_rate(fail_count, exec_count),
                 sample_eqp_ids=_sample_eqp_ids(bucket),
+                fab_names=_bucket_fab_names(bucket),
             )
         )
     return rows
@@ -356,6 +364,7 @@ def get_meas_ranking(
                     float(bucket.get("ratio", {}).get("value") or 0.0), 4
                 ),
                 sample_eqp_ids=_sample_eqp_ids(bucket),
+                fab_names=_bucket_fab_names(bucket),
             )
         )
     return rows

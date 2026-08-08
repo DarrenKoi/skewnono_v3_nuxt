@@ -1,6 +1,7 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
 import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
+import { recipePairKey } from './recipePair.ts'
 
 // Relative `.ts` specifiers, not the `~` alias: `node --test` cannot resolve
 // `~`, but it does resolve these, and `nuxt typecheck` accepts them (verified
@@ -40,6 +41,7 @@ export type CoverageFilter = 'all' | 'common' | 'partial' | 'unique'
 
 export interface OverlapRow {
   parameter: string
+  /** `recipePairKey(fab_name, recipe_id)` pairs, not bare recipe ids. */
   presentIn: string[]
   count: number
   total: number
@@ -58,6 +60,7 @@ export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
   const present = new Map<string, Set<string>>()
 
   for (const recipe of recipes) {
+    const key = recipePairKey(recipe.fab_name, recipe.recipe_id)
     const seenInRecipe = new Set<string>()
     for (const p of recipe.parameters) {
       if (seenInRecipe.has(p.Parameter)) continue
@@ -66,18 +69,23 @@ export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
         present.set(p.Parameter, new Set())
         order.push(p.Parameter)
       }
-      present.get(p.Parameter)!.add(recipe.recipe_id)
+      present.get(p.Parameter)!.add(key)
     }
   }
 
   return order.map((parameter) => {
-    const ids = present.get(parameter)!
+    const keys = present.get(parameter)!
     return {
+      // (fab, id) pair keys, NOT bare recipe_id — two recipes sharing a name
+      // across fabs must be distinguishable here, or a caller matching a
+      // specific column against `presentIn` cannot tell them apart.
       parameter,
-      presentIn: recipes.filter(r => ids.has(r.recipe_id)).map(r => r.recipe_id),
-      count: ids.size,
+      presentIn: recipes
+        .filter(r => keys.has(recipePairKey(r.fab_name, r.recipe_id)))
+        .map(r => recipePairKey(r.fab_name, r.recipe_id)),
+      count: keys.size,
       total,
-      coverage: classifyCoverage(ids.size, total)
+      coverage: classifyCoverage(keys.size, total)
     }
   })
 }
@@ -218,7 +226,7 @@ export function imageFilenames(
 export interface ValueBucket {
   value: string
   count: number
-  recipeIds: string[]
+  labels: string[]
   isOutlier: boolean
 }
 
@@ -231,11 +239,26 @@ export interface CompareWorkbook {
   sheets: WorkbookSheet[]
 }
 
-/** `${recipe_id}::${parameter}` -> that pair's fetched settings. */
+/**
+ * Display labels for a compared recipe set: bare recipe_id, UNLESS the set
+ * spans more than one fab — the same recipe name can legitimately appear once
+ * per fab in a cross-fab compare, and two identically-labeled entries over
+ * genuinely different data is exactly the kind of silent-wrong-answer the
+ * compare screens must not produce. Shared by the workbook export's column
+ * headers and CompareGrouping's expanded-bucket recipe list.
+ */
+export function compareRecipeLabels(
+  recipes: Array<Pick<CompareRecipe, 'recipe_id' | 'fab_name'>>
+): string[] {
+  const multiFab = new Set(recipes.map(r => r.fab_name)).size > 1
+  return recipes.map(r => (multiFab ? `${r.recipe_id} (${r.fab_name})` : r.recipe_id))
+}
+
+/** `${recipePairKey(fab_name, recipe_id)}::${parameter}` -> that pair's fetched settings. */
 export type CompareDetailIndex = Map<string, CompareParamDetail>
 
-export const compareDetailKey = (recipeId: string, parameter: string) =>
-  `${recipeId}::${parameter}`
+export const compareDetailKey = (fabName: string, recipeId: string, parameter: string) =>
+  `${recipePairKey(fabName, recipeId)}::${parameter}`
 
 export function buildCompareWorkbook(
   recipes: CompareRecipe[],
@@ -249,21 +272,21 @@ export function buildCompareWorkbook(
    */
   details: CompareDetailIndex = new Map()
 ): CompareWorkbook {
-  const recipeIds = recipes.map(r => r.recipe_id)
+  const recipeLabels = compareRecipeLabels(recipes)
   const sheets: WorkbookSheet[] = []
 
   const overlap = buildOverlap(recipes)
-  const overlapRows: (string | number)[][] = [['parameter', 'coverage', ...recipeIds]]
+  const overlapRows: (string | number)[][] = [['parameter', 'coverage', ...recipeLabels]]
   for (const row of overlap) {
     overlapRows.push([
       row.parameter,
       row.coverage,
-      ...recipes.map(r => (row.presentIn.includes(r.recipe_id) ? '✓' : '—'))
+      ...recipes.map(r => (row.presentIn.includes(recipePairKey(r.fab_name, r.recipe_id)) ? '✓' : '—'))
     ])
   }
   sheets.push({ name: 'Overlap', rows: overlapRows })
 
-  const idpRows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
+  const idpRows: (string | number)[][] = [['parameter', 'attr', ...recipeLabels]]
   for (const parameter of parameters) {
     for (const r of buildIdpRows(recipes, parameter)) {
       idpRows.push([parameter, r.label, ...r.values])
@@ -272,10 +295,10 @@ export function buildCompareWorkbook(
   sheets.push({ name: 'IDP', rows: idpRows })
 
   for (const slot of COMPARE_SLOTS) {
-    const rows: (string | number)[][] = [['parameter', 'attr', ...recipeIds]]
+    const rows: (string | number)[][] = [['parameter', 'attr', ...recipeLabels]]
     for (const parameter of parameters) {
       const forParameter = recipes.map(
-        recipe => details.get(compareDetailKey(recipe.recipe_id, parameter)) ?? null
+        recipe => details.get(compareDetailKey(recipe.fab_name, recipe.recipe_id, parameter)) ?? null
       )
       for (const r of buildSettingRows(forParameter, slot.key)) {
         // Grouped settings (af_pr) are qualified rather than rendered as a
@@ -335,21 +358,21 @@ export async function downloadCompareWorkbook(
   URL.revokeObjectURL(url)
 }
 
-export function groupFieldValues(pairs: { recipeId: string, value: string }[]): ValueBucket[] {
+export function groupFieldValues(pairs: { label: string, value: string }[]): ValueBucket[] {
   const map = new Map<string, string[]>()
   const order: string[] = []
-  for (const { recipeId, value } of pairs) {
+  for (const { label, value } of pairs) {
     if (!map.has(value)) {
       map.set(value, [])
       order.push(value)
     }
-    map.get(value)!.push(recipeId)
+    map.get(value)!.push(label)
   }
 
   const buckets: ValueBucket[] = order.map(value => ({
     value,
     count: map.get(value)!.length,
-    recipeIds: map.get(value)!,
+    labels: map.get(value)!,
     isOutlier: false
   }))
   buckets.sort((a, b) => b.count - a.count)

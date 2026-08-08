@@ -82,7 +82,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 | --- | --- | --- |
 | 사무실 측 인덱스/스키마 | `docs/datatables/<table>.txt` | 실 OpenSearch 매핑 변경·신규 발견 시 |
 | 계약 변경 사항 | `docs/api-contracts/<feature>.yaml` | 실 데이터에서 새 필드/제약 발견 시 |
-| 드리프트 리포트 | `docs/swap-drift/<feature>-<date>.md` | 사무실 LLM이 작성한 픽스처 vs 실 데이터 차이 |
+| 드리프트 기록 | `docs/datatables/<table>.txt` + 해당 기능의 `MIGRATION.md` | 픽스처 vs 실 데이터 차이를 발견했을 때 |
 | 사무실 픽스처 (선택) | `back_dev_home/<feature>/__fixtures__/office/*.json` | 사외 유출 위험 없는 익명화 가능 시 |
 
 ### 4.3 사이클 한 바퀴 표준 절차
@@ -112,7 +112,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 [사무실 세션 종료 시]
 10. PORT=5000 python -m scripts.check_contract  # 픽스처와 구조 일치 확인
-11. 드리프트가 있으면 docs/swap-drift/ 에 기록
+11. 드리프트가 있으면 docs/datatables/ 와 mock.py 양쪽에 기록
 12. 새 필드/제약은 docs/api-contracts/에 반영
 13. git commit (사무실 분기 또는 patch 파일)
 
@@ -209,7 +209,8 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 1. `python index.py` 가 사무실 설정으로 기동합니다.
 2. `python scripts/check_contract.py` 가 통과합니다 (실패 시 키/타입 차이가 그대로 출력됩니다).
 3. `.env` 의 `NUXT_API_TARGET` 을 사무실 호스트로 변경하고 Nuxt 가 정상 렌더되는지 확인합니다.
-4. 차이가 있으면 `docs/swap-drift/<feature>-<YYYY-MM-DD>.md` 에 기록한 뒤 댁으로 가져갑니다.
+4. 차이가 있으면 `docs/datatables/<table>.txt` 와 해당 기능의 `providers/mock.py`
+   양쪽에 기록한 뒤 댁으로 가져갑니다 (CLAUDE.md 의 "두 곳에 함께 기록" 규칙).
 
 ## 8. 한 줄 요약
 
