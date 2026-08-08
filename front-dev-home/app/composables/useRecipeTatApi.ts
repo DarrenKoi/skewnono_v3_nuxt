@@ -73,8 +73,6 @@ export interface RecipeTatDevicesResponse {
   devices: RecipeTatDeviceRow[]
 }
 
-export const MAX_COMPARE_EQPS = 5
-
 export interface RecipeTatEquipmentRow {
   eqp_id: string
   fab_name: string

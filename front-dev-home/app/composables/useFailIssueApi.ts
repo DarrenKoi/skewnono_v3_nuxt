@@ -103,11 +103,6 @@ export interface FailIssueDevicesResponse {
   devices: FailIssueDeviceRow[]
 }
 
-// 백엔드 _analytics_routes.MAX_EQP_IDS 와 같은 값입니다. 서버가 초과분을
-// 자르고 eqp_ids 로 에코하므로 이 상수는 UI 가 미리 막기 위한 것이지
-// 신뢰 경계가 아닙니다.
-export const MAX_COMPARE_EQPS = 5
-
 export interface FailIssueEquipmentRow {
   eqp_id: string
   fab_name: string

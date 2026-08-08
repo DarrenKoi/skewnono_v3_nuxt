@@ -58,8 +58,8 @@
 </template>
 
 <script setup lang="ts">
+import { MAX_COMPARE_EQPS } from '~/utils/analyticsLimits'
 import {
-  MAX_COMPARE_EQPS,
   useRecipeTatApi,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
