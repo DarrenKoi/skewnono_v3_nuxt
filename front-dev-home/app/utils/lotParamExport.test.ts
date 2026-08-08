@@ -38,13 +38,13 @@ const params = (recipe_id: string, entries: [string, number][]): RecipeInput => 
 
 test('one row per parameter, joined on recipe_id', () => {
   const rows = buildLotParamRows(
-    [infoRow('RCP-001', 'SNC2(CELL OPEN ETCH CLN CD)')],
+    [infoRow('RCP-001', 'CBL ETCH CD')],
     [params('RCP-001', [['WAFER_CD', 13], ['EDGE_L', 8]])]
   )
 
   assert.deepEqual(rows, [
-    ['R000', 'SNC2(CELL OPEN ETCH CLN CD)', 'RCP-001', 'WAFER_CD', '13'],
-    ['R000', 'SNC2(CELL OPEN ETCH CLN CD)', 'RCP-001', 'EDGE_L', '8']
+    ['R000', 'CBL ETCH CD', 'RCP-001', 'WAFER_CD', '13'],
+    ['R000', 'CBL ETCH CD', 'RCP-001', 'EDGE_L', '8']
   ])
 })
 

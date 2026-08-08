@@ -5,7 +5,11 @@ M 계열 양산 fab 의 스텝은 OpenSearch ``ebeam_tas_lot_hist`` 에서 오�
 를 가짐 — docs/datatables/ebeam_tas_lot_hist.txt). 대신 oper_det_desc 가 관례적인
 공정 접두사로 시작하므로, 그 접두사의 순서로 정렬합니다.
 
-    "SNC2(CELL OPEN ETCH CLN CD)" -> 접두사 "SNC2"
+    "CBL ETCH CD"    -> 접두사 "CBL"
+    "ISO PTN CD(E)"  -> 접두사 "ISO"
+
+스텝명은 접두사로 시작해 띄어쓰기로 이어지는 문자열이고 "/" 는 쓰이지 않습니다
+(user-confirmed 2026-08-09).
 
 **중요 — 이 순서는 근사입니다.** 실제 공정 순서는 tool 마다 다릅니다(user-confirmed
 2026-07-30). 따라서 이 정렬은 "화면에 안정적이고 대체로 공정 흐름에 가까운 순서로
@@ -61,7 +65,8 @@ UNKNOWN_RANK: int = len(OPER_PREFIX_ORDER)
 def oper_prefix(desc: str) -> str | None:
     """``oper_det_desc`` 앞머리의 공정 접두사. 못 찾으면 None.
 
-    longest-prefix 로 찾습니다 — "SNC2(...)" 는 SNC2 이고 SNC 나 SN 이 아닙니다.
+    longest-prefix 로 찾습니다 — "SNC2 CELL OPEN ETCH CLN CD" 는 SNC2 이고
+    SNC 나 SN 이 아닙니다.
     """
     if not desc:
         return None

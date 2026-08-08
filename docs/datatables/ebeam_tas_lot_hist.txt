@@ -108,7 +108,12 @@ M fab 경로는 다음과 같습니다.
     ISO, CW, BG, MBO, BLC, POM, PRW, NW, GT, CBL,
     SNC, M0C, SNC2, SN, ILD, M2, M2C, M3, M4, RDL
 
-    예: "SNC2(CELL OPEN ETCH CLN CD)" -> 접두사 "SNC2"
+    예: "CBL ETCH CD"   -> 접두사 "CBL"
+        "ISO PTN CD(E)" -> 접두사 "ISO"
+
+스텝 이름은 접두사로 시작해 **띄어쓰기로 이어지는** 문자열이며 "/" 는 쓰이지
+않습니다 (user-confirmed 2026-08-09). 이름 전체를 괄호로 감싸지 않고, 닫는 괄호는
+추가계측 꼬리 "CD(E)" 에만 붙습니다.
 
 주의 — **longest-prefix** 로 매칭해야 합니다. 목록에 SNC / SNC2 / SN 이 함께 있고
 M2 / M2C 도 함께 있어서, 앞에서부터 startswith 로 처음 맞는 것을 고르면 "SNC2..."

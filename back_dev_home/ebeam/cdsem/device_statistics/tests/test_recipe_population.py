@@ -9,6 +9,7 @@ recipe-params 의 교집합이 0건이었습니다.
 
 import pytest
 
+from back_dev_home.ebeam.cdsem.device_statistics.oper_order import oper_prefix
 from back_dev_home.ebeam.cdsem.device_statistics.providers import office_example
 from back_dev_home.ebeam.cdsem.device_statistics.providers.recipe_params import (
     get_recipe_params,
@@ -99,6 +100,25 @@ def test_recipe_name_order_differs_from_process_order(lot_cd):
     by_name = sorted(r["recipe_id"] for r in population)
 
     assert by_oper != by_name
+
+
+@pytest.mark.parametrize("lot_cd", LOTS)
+def test_oper_desc_has_the_office_shape(lot_cd):
+    """스텝명은 "CBL ETCH CD" 형태 — 접두사 + 띄어쓰기, 슬래시 없음.
+
+    user-confirmed 2026-08-09. 예전 mock 의 "SNC2(CELL OPEN ETCH CLN CD)" 는 이름
+    전체를 괄호로 감싼 형태라, 닫는 괄호가 늘 이름 끝에 있다는 잘못된 인상을
+    줬습니다 — 실물에서 그 괄호는 추가계측 꼬리 "CD(E)" 에만 붙습니다.
+    """
+    population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    assert population
+
+    for row in population:
+        desc = row["oper_desc"]
+        assert "/" not in desc, desc
+        assert " " in desc, desc
+        assert not desc.startswith("("), desc
+        assert oper_prefix(desc) is not None, desc
 
 
 @pytest.mark.parametrize("lot_cd", LOTS)
@@ -225,21 +245,23 @@ def test_bucket_hierarchy_matches_the_screen_ordering(trend):
 
 # ── office 어댑터와의 규칙 일치 (드리프트 방지) ───────────────────────────
 
+# 스텝명은 "CBL ETCH CD" 처럼 공정 접두사로 시작해 띄어쓰기로 이어지며, "/" 는
+# 쓰이지 않습니다 (user-confirmed 2026-08-09).
 CLASSIFICATION_EXAMPLES = [
     # (oper_desc, skip_yn, recipe_id)
-    ("SNC2(CELL OPEN ETCH CLN CD)", "N", "RCP-R000-001"),
-    ("SNC2(CELL OPEN ETCH CLN CD)", "Y", "RCP-R000-001"),   # skip -> 버킷 밖
-    ("SNC2(CELL OPEN ETCH CLN CD)", "", "RCP-R000-001"),    # 빈 값 -> 측정 중
-    ("SNC2(CELL OPEN ETCH CLN CD(E))", "N", "RCP-R000-002"),
-    ("SNC2(CELL OPEN ETCH CLN CD(F))", "N", "RCP-R000-003_S"),
+    ("CBL ETCH CD", "N", "ADI/CD_BIAS_R000_001"),
+    ("CBL ETCH CD", "Y", "ADI/CD_BIAS_R000_001"),   # skip -> 버킷 밖
+    ("CBL ETCH CD", "", "ADI/CD_BIAS_R000_001"),    # 빈 값 -> 측정 중
+    ("ISO PTN CD(E)", "N", "AEI/OVERLAY_R000_002"),
+    ("SNC2 CELL OPEN ETCH CLN CD(F)", "N", "QC/LINE_CD_R000_003_S"),
     # 괄호 꼬리가 단어인 경우 (user-confirmed 2026-08-05). 규칙이 꼬리의 길이를
     # 가정하지 않는지 — 한 글자 예시만으로는 드러나지 않습니다.
-    ("SNC2(CELL OPEN ETCH CLN CD(BENDING))", "N", "RCP-R000-007"),
-    ("PLD3(GATE POLY ETCH)", "N", "RCP-R000-004SE"),
-    ("MTC1(METAL1 CMP CD)", "N", "RCP-R000-005"),
+    ("ISO PTN CD(BENDING)", "N", "GATE/HOLE_CD_R000_007"),
+    ("GT GATE POLY ETCH", "N", "VIA/SPACE_CD_R000_004SE"),
+    ("M2 METAL1 CMP CD", "N", "CNT/PITCH_MON_R000_005"),
     ("", "", ""),
-    ("VIA1(VIA ETCH CLN CD)", "N", "RCP-R000-006_s"),
-    ("MTC1(METAL1 CMP CD)", "N", "RCP-R000-008_HALF"),
+    ("ILD VIA ETCH CLN CD", "N", "EDGE/PROFILE_SCAN_R000_006_s"),
+    ("M2 METAL1 CMP CD", "N", "ACI/DAILY_MATCH_R000_008_HALF"),
 ]
 
 
@@ -249,9 +271,9 @@ def test_paren_cd_steps_are_excluded_from_only_normal_whatever_the_tail():
     only_normal 이 답하는 질문이 "정규 CD 측정 스텝인가" 이므로, 꼬리가 한
     글자든(E/F) 단어든(BENDING) 똑같이 빠져야 합니다.
     """
-    assert ends_with_pure_cd("SNC2(CELL OPEN ETCH CLN CD)") is True
+    assert ends_with_pure_cd("CBL ETCH CD") is True
     for tail in ("E", "F", "BENDING", "REWORK"):
-        oper_desc = f"SNC2(CELL OPEN ETCH CLN CD({tail}))"
+        oper_desc = f"ISO PTN CD({tail})"
         assert ends_with_pure_cd(oper_desc) is False, oper_desc
 
 

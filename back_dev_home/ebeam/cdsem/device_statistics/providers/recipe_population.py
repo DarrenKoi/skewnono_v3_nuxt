@@ -91,6 +91,8 @@ import random
 import re
 from typing import TypedDict
 
+from back_dev_home.ebeam.cdsem.device_statistics.oper_order import OPER_PREFIX_ORDER
+
 
 # ── 분류 규칙 (office_example.py 와 동일) ──────────────────────────────────
 # recipe 이름이 "_S"/"SE" 로 끝나면 Sample. 축이 스텝명이 아니라 **recipe 이름**
@@ -127,11 +129,12 @@ def is_exempt_job(recipe_id: str) -> bool:
 def ends_with_pure_cd(oper_desc: str) -> bool:
     """스텝명 끝이 **순수한 CD** 인가 — "CD(E)"/"CD(F)"/"CD(BENDING)" 은 제외.
 
-    실제 스텝명은 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는
-    괄호를 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지 봅니다. "…CLN CD(E))" 는
-    벗겨도 마지막 토큰이 "CD(E" 라 걸러집니다. 꼬리가 단어인
-    "…CLN CD(BENDING))" 도 같은 이유로 "CD(BENDING" 이 되어 걸러집니다 —
-    규칙이 꼬리의 길이를 가정하지 않는 것이 핵심입니다.
+    실제 스텝명은 "CBL ETCH CD" 처럼 공정 접두사로 시작해 띄어쓰기로 이어지는
+    문자열이고, 추가계측은 "ISO PTN CD(E)" 처럼 꼬리가 괄호로 닫힙니다
+    (user-confirmed 2026-08-09). 그래서 닫는 괄호를 벗긴 뒤 마지막 토큰이 정확히
+    "CD" 인지 봅니다 — "ISO PTN CD(E)" 는 벗겨도 마지막 토큰이 "CD(E" 라
+    걸러지고, 꼬리가 단어인 "ISO PTN CD(BENDING)" 도 "CD(BENDING" 이 되어
+    같은 이유로 걸러집니다. 규칙이 꼬리의 길이를 가정하지 않는 것이 핵심입니다.
     """
     stripped = (oper_desc or "").strip().rstrip(")]} \t")
     if not stripped:
@@ -184,12 +187,37 @@ class RecipeIdentity(TypedDict):
 
 
 # ── 이름 어휘 ────────────────────────────────────────────────────────────
-# 실제 스텝명은 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 코드(설명 … 접미)입니다.
-_STEP_CODES = ("SNC2", "SNB1", "PLD3", "MTC1", "GTE2", "ACT4", "VIA1", "CNT3")
+# 실제 스텝명은 "CBL ETCH CD" · "ISO PTN CD(E)" 처럼 **공정 접두사로 시작해
+# 띄어쓰기로 이어지는** 문자열입니다 (user-confirmed 2026-08-09). "/" 는 쓰이지
+# 않습니다 — 슬래시가 들어가는 것은 recipe_id 쪽(full_name)입니다.
+#
+# 접두사는 :data:`OPER_PREFIX_ORDER` 에서 골라 씁니다 — 그 tuple 이 실물 접두사의
+# 단일 원천(user-confirmed 2026-07-30)이므로 여기서 목록을 다시 적으면 두 벌이
+# 갈라질 뿐입니다. 예전 mock 의 코드(SNB1·PLD3·MTC1…)는 지어낸 값이라 그 목록에
+# 없었고, 그래서 M 계열 정렬이 집에서 전부 UNKNOWN_RANK 로 떨어져 접두사 rank
+# 경로가 사실상 검증되지 않았습니다.
+#
+# **개수가 8 인 것이 load-bearing 입니다.** ``random.choice`` 는 시퀀스 길이만큼의
+# 난수 비트를 소비하므로(``_randbelow`` 의 bit_length + 거절 재시도), 길이를 바꾸면
+# 그 뒤의 모든 값이 다시 태어납니다 — 실제로 20개로 늘렸더니 exempt job 접미사
+# 하나(_WCDU)가 풀에서 사라져 그 판정 경로의 집 커버리지가 조용히 없어졌습니다.
+# 어휘를 늘리고 싶다면 값 변화가 의도된 변경일 때 하고, 그때 픽스처·비율 테스트를
+# 함께 확인하십시오.
+#
+# 공정 순서의 앞·중간·뒤에서 고르게 뽑았습니다(ISO 가 가장 앞, RDL 이 가장 뒤).
+# SNC2 를 넣은 것은 longest-prefix 함정(SNC2 가 SNC·SN 으로 잡히면 안 됨)이 집에서
+# 실제 데이터로 지나가게 하려는 것입니다.
+_STEP_PREFIXES = ("ISO", "BLC", "GT", "CBL", "SNC2", "ILD", "M2", "RDL")
+assert set(_STEP_PREFIXES) <= set(OPER_PREFIX_ORDER)
+
+# 접두사와 "CD" 사이의 설명 토큰. 실물 예시("CBL ETCH CD", "ISO PTN CD(E)")처럼
+# 한 단어짜리와 여러 단어짜리가 섞입니다 — 길이를 하나로 고정하면 스텝명을 공백으로
+# 자르는 코드가 집에서 한 가지 형태로만 검증됩니다. 개수 9 는 위와 같은 이유로
+# 바꾸지 마십시오.
 _STEP_WORDS = (
+    "ETCH", "PTN", "CLN", "CMP",
     "CELL OPEN ETCH CLN", "GATE POLY ETCH", "ACTIVE TRENCH CLN",
-    "METAL1 CMP", "CONTACT OPEN", "VIA ETCH CLN", "SPACER DEPO",
-    "HARD MASK OPEN", "BIT LINE ETCH",
+    "METAL1 CMP", "VIA ETCH CLN",
 )
 
 # 스텝명 접미 비율이 곧 버킷 크기입니다. only_normal 은 "순수한 CD" 이면서 측정
@@ -335,14 +363,23 @@ def _skip_yn(rng: random.Random) -> str:
 
 
 def _step_name(rng: random.Random) -> str:
-    code = rng.choice(_STEP_CODES)
+    """"CBL ETCH CD" · "ISO PTN CD(E)" — 접두사 + 설명 토큰 + CD 꼬리.
+
+    이름 전체를 괄호로 감싸지 않습니다. 예전 mock 의 "SNC2(CELL OPEN ETCH CLN CD)"
+    형태는 실물이 아니었고(user-confirmed 2026-08-09), 괄호가 늘 이름 끝에 있다는
+    잘못된 인상을 줬습니다 — 실물에서 닫는 괄호는 추가계측 꼬리 "CD(E)" 에만
+    붙습니다.
+
+    rng 호출 순서(choice → choice → random → 조건부 choice)는 그대로입니다.
+    """
+    prefix = rng.choice(_STEP_PREFIXES)
     words = rng.choice(_STEP_WORDS)
     roll = rng.random()
     if roll < _PURE_CD_RATIO:
-        return f"{code}({words} CD)"
+        return f"{prefix} {words} CD"
     if roll < _PURE_CD_RATIO + _PAREN_CD_RATIO:
-        return f"{code}({words} {rng.choice(_CD_VARIANTS)})"
-    return f"{code}({words})"
+        return f"{prefix} {words} {rng.choice(_CD_VARIANTS)}"
+    return f"{prefix} {words}"
 
 
 def _name_digest(lot_cd: str, idx: int) -> int:

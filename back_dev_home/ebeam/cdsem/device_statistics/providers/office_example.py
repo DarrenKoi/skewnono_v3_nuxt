@@ -767,9 +767,10 @@ def _is_sample_recipe(recipe_id: str) -> bool:
 def _ends_with_pure_cd(oper_desc: str) -> bool:
     """스텝명 끝이 **순수한 CD** 인가 — "CD(E)" / "CD(F)" 는 제외.
 
-    실제 스텝명은 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로 닫히므로, 닫는
-    괄호를 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지 봅니다. "…CLN CD(E))" 는
-    벗겨도 마지막 토큰이 "CD(E" 라 걸러집니다.
+    실제 스텝명은 "CBL ETCH CD" 처럼 공정 접두사로 시작해 띄어쓰기로 이어지고,
+    추가계측은 "ISO PTN CD(E)" 처럼 꼬리가 괄호로 닫힙니다 (user-confirmed
+    2026-08-09). 그래서 닫는 괄호를 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지
+    봅니다 — "ISO PTN CD(E)" 는 벗겨도 마지막 토큰이 "CD(E" 라 걸러집니다.
     """
     stripped = (oper_desc or "").strip().rstrip(")]} \t")
     if not stripped:

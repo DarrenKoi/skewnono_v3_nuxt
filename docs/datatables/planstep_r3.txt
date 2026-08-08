@@ -34,8 +34,15 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
   main_oper_id -> string: 대표 operation ID. 여러 sample 스텝이 하나의 main operation
                           아래로 묶입니다.
   main_oper_yn -> string: "Y" | "N". 이 row 가 main operation 인지 여부입니다.
-  oper_desc -> string: operation 설명. 예 "SNC2(CELL OPEN ETCH CLN CD)".
-                       화면에 보여주는 스텝 이름입니다.
+  oper_desc -> string: operation 설명. 화면에 보여주는 스텝 이름입니다.
+                       예 "CBL ETCH CD", "ISO PTN CD(E)"
+                       (user-confirmed 2026-08-09).
+                       공정 접두사(OPER_PREFIX_ORDER — ebeam_tas_lot_hist.txt)로
+                       시작해 **띄어쓰기로 이어지는** 문자열이며, 띄어쓰기가
+                       여러 번 들어가는 것이 보통입니다. "/" 는 쓰이지 않습니다
+                       — 슬래시가 들어가는 것은 recipe_id(full_name) 쪽입니다.
+                       이름 전체를 괄호로 감싸지 않습니다. 닫는 괄호는 추가계측
+                       꼬리 "CD(E)" 에만 붙습니다.
   oper_seq -> int: operation(공정) 순서.
   samp_seq -> int: sample 순서. 같은 oper_seq 안에서의 측정 순서입니다.
   eqp_id -> string: 장비 ID.
@@ -114,9 +121,9 @@ recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷�
   only_normal    skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이
                  **순수한 CD** 인 것.
                  "CD(E)", "CD(F)", "CD(BENDING)" 처럼 괄호가 붙으면 제외합니다.
-                 실제 스텝명이 "SNC2(CELL OPEN ETCH CLN CD)" 처럼 괄호로
-                 닫히므로, 닫는 괄호를 벗긴 뒤 마지막 토큰이 정확히 "CD" 인지로
-                 판별합니다.
+                 실제 스텝명은 "CBL ETCH CD" 처럼 띄어쓰기로 이어지고 추가계측만
+                 "ISO PTN CD(E)" 처럼 괄호로 닫히므로, 닫는 괄호를 벗긴 뒤 마지막
+                 토큰이 정확히 "CD" 인지로 판별합니다.
                  괄호 꼬리는 한 글자(E/F)만이 아니라 **단어**일 수 있습니다 —
                  "CD(BENDING)" 이 확인된 예입니다 (user-confirmed 2026-08-05).
                  판별 규칙이 꼬리의 길이를 가정하지 않는 것이 그래서 중요합니다.
