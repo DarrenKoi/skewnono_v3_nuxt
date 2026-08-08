@@ -230,6 +230,37 @@ def test_fleet_totals_agree_with_the_rows():
     assert fleet["meas_fail_count"] == sum(r["meas_fail_count"] for r in rows)
 
 
+def test_equipments_fleet_totals_agree_with_summary():
+    """mock.get_equipments 의 위치 기반 격자 인덱싱(cell[4]/[5]/[6])을 지킵니다.
+
+    providers/mock.py 는 exec/align/meas 를 이름 없이 리스트 위치로 채웁니다
+    (cell[4]=exec_count, cell[5]=align_fail_count, cell[6]=meas_fail_count) —
+    이 순서가 실수로 바뀌어도 test_fleet_totals_agree_with_the_rows 는 잡지
+    못합니다: 그 테스트는 /equipments 응답 내부(fleet vs rows)의 일관성만
+    보고, /equipments 와 /summary 처럼 서로 다른 경로로 같은 창을 집계한
+    두 값을 대조하지 않기 때문입니다. 여기서 그 대조를 합니다 —
+    MIGRATION.md 가 office 의 수동 대조 절차로 이미 지시하는 바로 그
+    비교입니다.
+
+    mock 전용으로 걸어 둡니다: MIGRATION.md 는 eqp_model_cd.keyword 매핑이
+    없으면 office 의 /equipments 가 (실제로는 데이터가 있어도) 빈 표를
+    돌려주는 반면 /summary 는 정상 숫자를 돌려주는, 알려진 office 상황을
+    문서화하고 있습니다. 이 테스트를 걸어 두지 않으면 그 문서화된 진단
+    신호가 빨간 스위트로 뒤집힙니다.
+    """
+    if not _is_mock():
+        pytest.skip("office 는 eqp_model_cd.keyword 미매핑 시 /equipments 만 비어 있을 수 있음 (MIGRATION.md)")
+
+    tool_type, fabs, start, end = _default_scope()
+    equipments = data.get_equipments(tool_type, fabs, start, end)
+    summary = data.get_summary(tool_type, fabs, start, end, lot_cd=None)
+    fleet = equipments["fleet"]
+
+    assert fleet["total_executions"] == summary["total_executions"]
+    assert fleet["align_fail_count"] == summary["align_fail_count"]
+    assert fleet["meas_fail_count"] == summary["meas_fail_count"]
+
+
 def test_index_and_its_interval_are_present_or_absent_together():
     """셋 중 하나만 None 인 상태는 있을 수 없습니다."""
     tool_type, fabs, start, end = _default_scope()

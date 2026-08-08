@@ -463,6 +463,19 @@ def get_equipments(
     지수·구간·중앙값·분위수는 파이썬에서 파생합니다 — mock 과 같은 코드
     경로를 타야 두 provider 의 숫자가 어긋나지 않습니다.
 
+    OFFICE-VERIFY: 위 함수 종속 가정은 한 eqp_id 가 fab_name/eqp_model_cd
+    각각 표기가 정확히 하나일 때만 성립합니다. 어떤 창(window) 안에서 같은
+    eqp_id 가 두 가지 fab_name 또는 eqp_model_cd 표기로 나타나면 composite
+    버킷이 둘로 갈라집니다 — 그런데 `_shape.py` 의 `per_tool` 딕셔너리는
+    eqp_id 하나로만 키를 잡으므로, 실행·align/meas 카운트는 두 버킷이
+    합산되어 그대로 맞고 fab_name/eqp_model_cd 만 먼저 도착한 버킷 쪽 값을
+    조용히 남깁니다. 화면에 보이는 증상은 열 하나가 틀리는 정도가 아니라,
+    표 전체의 배지가 꺼지는 것입니다 — fab_name 이 섞이면 프런트의
+    `isPeerGroupComparable` 이 그 표를 비교 불가로 판정하기 때문입니다.
+    `test_each_tool_belongs_to_exactly_one_fab` 는 이 상황을 잡지 못합니다 —
+    그 테스트는 eqp_id 중복 행이 없는지만 확인하는데, 병합 후에는 중복이
+    없기 때문입니다.
+
     OFFICE-VERIFY: eqp_model_cd.keyword 의 존재는 미확인입니다. 매핑에 없는
     필드를 composite 소스로 쓰면 **예외가 아니라 빈 버킷**이 나와
     /equipments 가 200 에 빈 표를 돌려줍니다("이 기간에 데이터 없음"과

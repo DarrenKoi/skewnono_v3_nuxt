@@ -272,6 +272,16 @@ types:
         (front-dev-home/app/utils/failEquipmentSignals.ts) can be calibrated against the real
         office distribution — see that file's MIGRATION.md OFFICE-VERIFY entry.
 
+  EquipmentTrendSeries:
+    eqp_id:
+      type: string
+    points:
+      type: array
+      items: EquipmentTrendPoint
+      description: >-
+        One point per date in [start_date, end_date] inclusive — quiet days are zero-filled,
+        never omitted, so the trend chart's x-axis has no gaps.
+
   EquipmentRecipeCell:
     eqp_id:
       type: string
@@ -568,16 +578,8 @@ endpoints:
             trends and recipes are then both empty too.
         trends:
           type: array
+          items: EquipmentTrendSeries
           description: One entry per echoed eqp_id, in the same order as eqp_ids.
-          items:
-            eqp_id:
-              type: string
-            points:
-              type: array
-              items: EquipmentTrendPoint
-              description: >-
-                One point per date in [start_date, end_date] inclusive — quiet days are
-                zero-filled, never omitted, so the trend chart's x-axis has no gaps.
         recipes:
           type: array
           items: EquipmentRecipeRow

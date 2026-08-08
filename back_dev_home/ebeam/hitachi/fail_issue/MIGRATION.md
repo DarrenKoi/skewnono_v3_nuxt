@@ -335,8 +335,7 @@
 맡고 있어, 손으로 고를 상수가 recipe_tat 의 장비별 뷰보다 적습니다.
 
 1. **`FAIL_INDEX_CEIL = 1.25` / `FAIL_INDEX_FLOOR = 0.75`**
-   (`front-dev-home/app/utils/failEquipmentSignals.ts` — 이 파일은 아직
-   없으며 뒤 태스크가 만듭니다. 경로만 미리 적어 둡니다.) 이 둘은 **통계
+   (`front-dev-home/app/utils/failEquipmentSignals.ts`) 이 둘은 **통계
    추정이 아니라 업무 판단**입니다: 신뢰구간이 이미 잡음을 걸러내므로,
    이 상수를 잘못 잡아도 배지가 잡음 위에서 뜨는 일은 없고 다만 너무
    드물게 또는 너무 자주 뜰 뿐입니다. 조정 절차는
