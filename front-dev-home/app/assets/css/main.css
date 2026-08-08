@@ -484,6 +484,78 @@ body {
   color: var(--sk-ink);
 }
 
+/* NAVIGATE pill — the geometry and states DESIGN.md assigns to controls that
+   change the view (product tabs, feature tabs, section toggles, sub-tabs).
+   `<SkNavPill>` is the usual way to get it.
+   It is a role class rather than component-scoped CSS because the component
+   cannot serve every consumer: it hardcodes `aria-pressed`, a toggle-button
+   semantic that is invalid on `role="tab"`, so a real tablist (skewvoir's
+   Time-Series lens switch) has to own its markup. Before 2026-08-09 that
+   tablist restated the geometry in ad-hoc utilities — `h-11 px-5 text-[15px]`
+   — which meant a pill retone moved the component and quietly left the tabs
+   behind. Same rule now, different markup around it. */
+.sk-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--sk-r-nav);
+  border: 1px solid var(--sk-border);
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.sk-nav-pill--sm { padding: 6px 12px; font-size: 13px; }
+.sk-nav-pill--md { padding: 9px 16px; font-size: 14px; }
+.sk-nav-pill--lg { padding: 11px 22px; font-size: 15px; }
+
+.sk-nav-pill--rest {
+  background: transparent;
+  color: var(--sk-ink-muted);
+}
+.sk-nav-pill--rest:hover {
+  background: var(--sk-muted-surface);
+  color: var(--sk-ink);
+  border-color: var(--sk-border);
+}
+
+.sk-nav-pill--active {
+  background: var(--sk-ink);
+  color: var(--sk-ink-fg);
+  border-color: var(--sk-ink);
+  font-weight: 600;
+}
+
+.sk-nav-pill--disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.sk-nav-pill--disabled:hover {
+  background: transparent;
+  color: var(--sk-ink-muted);
+}
+
+/* A count badge sitting ON the active `--sk-ink` fill (nav pills, ink-toned
+   chips). Both colours derive from `--sk-ink-fg`, the token that already means
+   "the foreground for an ink fill" — and because that token INVERTS with the
+   theme, this one rule is correct in light and dark alike.
+   That is the whole point: the components used to carry a hand-resolved
+   `rgba(21, 17, 13, …)` — dark mode's `--sk-ink-fg` written out by hand — in a
+   `.dark` override. A literal of a token's current value is worse than an
+   arbitrary hex: it looks deliberate, but it freezes today's value, so the next
+   retone leaves the badge stale while everything around it moves. Deriving
+   from the token deletes the override entirely instead of just de-literalising
+   it. Do NOT use this for `--sk-brand` fills: brand is dark in both themes, so
+   its foreground must not invert. */
+.sk-count-on-ink {
+  background: color-mix(in srgb, var(--sk-ink-fg) 18%, transparent);
+  color: color-mix(in srgb, var(--sk-ink-fg) 92%, transparent);
+}
+
 /* "N / M" beside a table title — how many rows survive the filter.
    Its content is DATA (two counts), so it sits at the 12px floor, not on the
    10/11px chrome tiers. Every analytics table shipped its own copy of this in

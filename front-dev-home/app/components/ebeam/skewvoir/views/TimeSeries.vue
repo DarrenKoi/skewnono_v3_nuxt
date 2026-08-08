@@ -75,9 +75,14 @@
          semantic and invalid on `role="tab"` — and these are real tabs, wired to
          a tabpanel below via aria-controls/aria-labelledby with roving-tabindex
          arrow keys (mirroring fdc/SequenceWorkbench.vue). Adopting the component
-         would trade working keyboard navigation for markup tidiness. Colours are
-         --sk-* tokens rather than the previous raw zinc-* utilities, so dark
-         mode follows for free.
+         would trade working keyboard navigation for markup tidiness.
+
+         It takes the pill's ROLE CLASSES (`sk-nav-pill` + size + state, in
+         main.css) rather than restating its geometry in utilities. Rejecting
+         the component was sound; copying its `h-11 px-5 text-[15px]` was how
+         that sound decision quietly recreated the dependency, so a pill retone
+         would move SkNavPill and leave these tabs behind. Same rule, different
+         markup around it.
 
          Hidden while loading and while there is nothing to show: an empty tab
          strip over a spinner offers a choice that does nothing. -->
@@ -98,10 +103,8 @@
         :tabindex="ws.tsView.value === lens.value ? 0 : -1"
         :aria-selected="ws.tsView.value === lens.value"
         :aria-controls="panelId(lens.value)"
-        class="inline-flex h-11 items-center gap-2 rounded-(--sk-r-nav) border px-5 text-[15px] font-semibold transition-colors"
-        :class="ws.tsView.value === lens.value
-          ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
-          : 'border-(--sk-border) bg-transparent text-(--sk-ink-muted) hover:bg-(--sk-muted-surface) hover:text-(--sk-ink)'"
+        class="sk-nav-pill sk-nav-pill--lg"
+        :class="ws.tsView.value === lens.value ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
         @click="ws.setTsView(lens.value)"
       >
         <UIcon

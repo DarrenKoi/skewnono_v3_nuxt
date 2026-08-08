@@ -21,6 +21,7 @@
     <span
       v-if="count != null"
       class="sk-chip__count"
+      :class="active && tone === 'ink' ? 'sk-count-on-ink' : null"
     >{{ count }}</span>
   </button>
 </template>
@@ -110,19 +111,19 @@ defineEmits<{ (e: 'click', payload: MouseEvent): void }>()
   color: var(--sk-ink-subtle);
   font-variant-numeric: tabular-nums;
 }
-.sk-chip--active .sk-chip__count {
+/* The BRAND fill only. `--sk-brand` is dark in both themes, so its count keeps
+   a near-white foreground that must NOT invert — which is exactly why this
+   cannot be folded into the shared rule below. */
+.sk-chip--active.sk-chip--brand .sk-chip__count {
   background: rgba(255, 255, 255, 0.18);
   color: rgba(255, 237, 223, 0.95);
 }
 
-/* The rule above puts near-white on the active fill, which is right only while
-   that fill is dark. `--sk-brand` is dark in both themes, but `--sk-ink`
-   INVERTS to cream in dark mode, so an ink-toned chip rendered its count as
-   white on cream — legible in light mode, invisible in dark. sk-nav-pill hit
-   this first and solved it the same way (see NavPill.vue's .dark override);
-   scoped to --ink here because the brand tone genuinely does not need it. */
-.dark .sk-chip--active.sk-chip--ink .sk-chip__count {
-  background: rgba(21, 17, 13, 0.18);
-  color: rgba(21, 17, 13, 0.9);
-}
+/* The INK fill inverts with the theme (near-black in light, cream in dark), so
+   a fixed near-white count is legible in light mode and invisible in dark.
+   The fix is `.sk-count-on-ink` (main.css), applied in the template and shared
+   with SkNavPill: both colours derive from `--sk-ink-fg`, which inverts along
+   with the fill. It replaced a hand-resolved `rgba(21, 17, 13, …)` — dark
+   mode's token value written out by hand — that lived in a `.dark` override
+   here and, byte-for-byte, in NavPill.vue. */
 </style>

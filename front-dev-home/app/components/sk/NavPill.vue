@@ -24,7 +24,7 @@
     <span
       v-if="count != null"
       class="sk-nav-pill__count"
-      :class="countTone === 'brand' ? 'sk-nav-pill__count--brand' : null"
+      :class="countClass"
     >{{ count }}</span>
     <UIcon
       v-if="trailingIcon"
@@ -86,53 +86,24 @@ const ariaPressed = computed(() => {
   if (props.disabled) return undefined
   return props.active
 })
+
+// A brand-toned count keeps its own palette. Otherwise, once the pill is
+// active the count sits on the `--sk-ink` fill and takes the shared
+// `.sk-count-on-ink` treatment (main.css) — the same rule SkChip's ink-toned
+// count uses, so a retone of `--sk-ink-fg` reaches both.
+const countClass = computed(() => {
+  if (props.countTone === 'brand') return 'sk-nav-pill__count--brand'
+  return props.active ? 'sk-count-on-ink' : null
+})
 </script>
 
 <style scoped>
-.sk-nav-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: var(--sk-r-nav);
-  border: 1px solid var(--sk-border);
-  font-family: inherit;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  white-space: nowrap;
-  text-decoration: none;
-}
-
-.sk-nav-pill--sm { padding: 6px 12px; font-size: 13px; }
-.sk-nav-pill--md { padding: 9px 16px; font-size: 14px; }
-.sk-nav-pill--lg { padding: 11px 22px; font-size: 15px; }
-
-.sk-nav-pill--rest {
-  background: transparent;
-  color: var(--sk-ink-muted);
-}
-.sk-nav-pill--rest:hover {
-  background: var(--sk-muted-surface);
-  color: var(--sk-ink);
-  border-color: var(--sk-border);
-}
-
-.sk-nav-pill--active {
-  background: var(--sk-ink);
-  color: var(--sk-ink-fg);
-  border-color: var(--sk-ink);
-  font-weight: 600;
-}
-
-.sk-nav-pill--disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-.sk-nav-pill--disabled:hover {
-  background: transparent;
-  color: var(--sk-ink-muted);
-}
+/* The pill's geometry and states live in main.css, not here: DESIGN.md
+   describes `sk-nav-pill` as a ROLE CLASS, and a second consumer already
+   needs it — skewvoir's Time-Series lens tabs, which cannot use this
+   component (it hardcodes `aria-pressed`, invalid on `role="tab"`) but must
+   not drift from its look. The parts below stay scoped because they are this
+   component's internals; nothing outside renders them. */
 
 .sk-nav-pill__icon,
 .sk-nav-pill__trailing {
@@ -156,14 +127,9 @@ const ariaPressed = computed(() => {
   font-variant-numeric: tabular-nums;
 }
 
-.sk-nav-pill--active .sk-nav-pill__count {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(232, 225, 210, 0.95);
-}
-.dark .sk-nav-pill--active .sk-nav-pill__count {
-  background: rgba(21, 17, 13, 0.18);
-  color: rgba(21, 17, 13, 0.9);
-}
+/* The active count's colours come from `.sk-count-on-ink` (main.css), applied
+   in the template — one rule shared with SkChip, derived from `--sk-ink-fg` so
+   it follows the theme instead of being written out per mode. */
 
 .sk-nav-pill__count--brand {
   background: var(--sk-brand-soft);
