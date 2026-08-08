@@ -573,9 +573,11 @@ endpoints:
         eqp_ids:
           type: array of string
           description: >-
-            The eqp_id list actually used, after de-duplication and the MAX_EQP_IDS (5) cap.
-            Echoed so a silent truncation is never silent. Empty when no eqp_id was selected —
-            trends and recipes are then both empty too.
+            The eqp_id list actually used: the raw list truncated to MAX_EQP_IDS (5) FIRST,
+            then de-duplicated — the same order the eqp_id parameter describes, never the
+            reverse. De-duplicating first would admit a sixth distinct id the parser had
+            already dropped. Echoed so a truncation is never silent to the caller. Empty
+            when no eqp_id was selected — trends and recipes are then both empty too.
         trends:
           type: array
           items: EquipmentTrendSeries
