@@ -7,19 +7,20 @@ const { toolTypes } = useToolData()
 const { fabs: afmFabs, afmToolHref } = useAfmToolData()
 // AFM is hidden until the feature is ready — see useAfmAvailability.ts.
 const afmEnabled = useAfmEnabled()
-const { fab, setFab, toolTypeHref } = useNavigation()
+const { fabs, setFabs, toolTypeHref } = useNavigation()
 
 const { data: semRows } = await useSemList()
 const { data: healthData, error: healthError } = useBackendHealth()
 
-const fabOptions = computed(() => extractFabNames(semRows.value ?? []).map(name => ({
-  label: name,
-  value: name
-})))
+// Plain string items: the model is then a string[] of fab names, which is exactly
+// what setFabs() takes — no value-key mapping, and the item slots get the name itself.
+const fabOptions = computed(() => extractFabNames(semRows.value ?? []))
 
-const selectedFab = computed<string | undefined>({
-  get: () => hasFab(fab.value) ? fab.value : undefined,
-  set: value => setFab(value ?? NO_FAB)
+// Multi-select. setFabs canonicalizes (uppercase, deduped, order preserved), and
+// fabs[0] stays the primary fab that single-fab consumers read as `fab`.
+const selectedFabs = computed<string[]>({
+  get: () => [...fabs.value],
+  set: value => setFabs(value)
 })
 
 const rowsByToolType = computed(() => {
@@ -77,17 +78,38 @@ const systemStatus = computed(() => {
             >
               FAB 선택
             </label>
-            <USelect
+            <!-- Checkbox multi-select, same pattern as hardware/CompareToolPicker:
+                 leading checkbox, default trailing check hidden. The fab list is short,
+                 so the search input is off. -->
+            <USelectMenu
               id="landing-fab-select"
-              v-model="selectedFab"
-              class="w-36"
+              v-model="selectedFabs"
+              multiple
+              class="w-48"
               size="md"
               color="neutral"
               variant="subtle"
               icon="i-lucide-factory"
               placeholder="R3 (기본)"
               :items="fabOptions"
-            />
+              :search-input="false"
+              :ui="{ itemTrailingIcon: 'hidden' }"
+            >
+              <template #item-leading="{ item }">
+                <span
+                  class="flex h-4 w-4 items-center justify-center rounded border"
+                  :class="selectedFabs.includes(item)
+                    ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+                    : 'border-(--sk-border)'"
+                >
+                  <UIcon
+                    v-if="selectedFabs.includes(item)"
+                    name="i-lucide-check"
+                    class="h-3 w-3"
+                  />
+                </span>
+              </template>
+            </USelectMenu>
           </div>
         </div>
         <HomeBackendHealthCard
