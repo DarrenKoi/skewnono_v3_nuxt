@@ -81,21 +81,11 @@
         v-if="status === 'pending' && !rankingRows.length"
         title="Recipe TAT 데이터를 불러오는 중입니다."
       />
-      <div
+      <AppEmptyState
         v-else-if="!rankingRows.length"
-        class="dashboard-surface rounded-[var(--sk-r-card)] px-6 py-12 text-center"
-      >
-        <UIcon
-          name="i-lucide-inbox"
-          class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
-        />
-        <p class="mt-2 sk-body">
-          No measurements in this range
-        </p>
-        <p class="mt-1 sk-meta">
-          Try widening the date range or selecting a different fab.
-        </p>
-      </div>
+        title="No measurements in this range"
+        description="Try widening the date range or selecting a different fab."
+      />
 
       <template v-else>
         <!-- Charts -->

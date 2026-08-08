@@ -18,10 +18,20 @@ DEFAULT_DAYS = 14
 # measurements. 0 means "no cap": every recipe in the date range is returned,
 # so fleet-wide ranges never silently drop the tail of the ranking.
 DEFAULT_LIMIT = 0
-# equipment-compare 가 한 번에 받는 장비 수 상한. 요청 형태에 관한 값이라
-# 계약이 아니라 파서가 소유합니다. fail_issue 도 같은 헬퍼를 쓰지만 이
-# 필드를 읽지 않으므로 무해합니다.
-MAX_EQP_IDS = 5
+# equipment-compare 가 한 번에 받는 장비 수 상한.
+#
+# 정의가 여기 있는 이유: 요청 형태에 관한 값이지 응답 계약이 아니고, 이 파서를
+# recipe_tat 과 fail_issue 가 함께 씁니다. recipe-tat spec §4.2 는 홈을
+# `recipe_tat/contracts.py` 로 적었지만 — 소비자가 recipe_tat 하나뿐이던
+# 때입니다 — 그대로 하면 공유 plumbing 이 기능 하나의 계약을 임포트하고
+# fail_issue 까지 끌려옵니다. 이 이탈은 구현 계획에 근거와 함께 기록돼
+# 있고(docs/superpowers/plans/2026-08-07-recipe-tat-by-equipment.md 의
+# 이탈 목록), spec §4.2 도 그 결정을 가리킵니다.
+#
+# 이름은 프론트엔드 `utils/analyticsLimits.ts` 의 MAX_COMPARE_EQPS 와
+# 맞춥니다. 2026-08-09 이전에는 여기가 `MAX_EQP_IDS` 였습니다: 같은 숫자가 두
+# 이름으로 살면 한쪽만 바뀌어도 아무것도 깨지지 않은 것처럼 보입니다.
+MAX_COMPARE_EQPS = 5
 
 
 @dataclass(frozen=True)
@@ -71,7 +81,7 @@ def resolve_analytics_scope(
             part.strip()
             for part in (request.args.get("eqp_id") or "").split(",")
             if part.strip()
-        )[:MAX_EQP_IDS],
+        )[:MAX_COMPARE_EQPS],
     )
 
 

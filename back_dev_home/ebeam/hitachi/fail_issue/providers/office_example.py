@@ -562,7 +562,7 @@ def get_equipment_compare(
     # 90일 × 5대면 버킷이 수만 개라 페이지 왕복만 수백 번입니다.
     #
     # 이 모듈에서 `terms` 가 안전한 유일한 자리입니다: 선택은 라우트에서 5개로
-    # 상한이 걸려 있어(_analytics_routes.MAX_EQP_IDS) `size` 가 후보를 전부
+    # 상한이 걸려 있어(_analytics_routes.MAX_COMPARE_EQPS) `size` 가 후보를 전부
     # 덮습니다. 위의 dedupe 와 조립기의 dedupe 가 같은 규칙이라 size 는 응답이
     # 에코하는 eqp_ids 수와 정확히 일치합니다.
     #

@@ -115,6 +115,31 @@ class TestRecipeAnalyticsRoutes(unittest.TestCase):
             {"error": "tool_slug must be 'cdsem' or 'hvsem'"},
         )
 
+    def test_every_analytics_endpoint_rejects_an_unknown_tool_slug(self):
+        """Scope resolution is shared, so this is cheap — but the contract
+        tests are the mock->office swap guard, and the office adapter has to
+        reproduce the same 400 on every route. An endpoint with no assertion
+        here is where the two adapters are free to diverge quietly.
+
+        The equipment routes are the ones this covers that /summary did not;
+        fail-issue's twins are included because they resolve scope through the
+        very same helper and cost nothing to pin.
+        """
+        paths = (
+            "/api/unknown/recipe-tat/equipments",
+            "/api/unknown/recipe-tat/equipment-compare",
+            "/api/unknown/fail-issue/equipments",
+            "/api/unknown/fail-issue/equipment-compare",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.get_json(),
+                    {"error": "tool_slug must be 'cdsem' or 'hvsem'"},
+                )
+
     def test_lot_scope_is_applied_consistently(self):
         devices = self.client.get("/api/cdsem/recipe-tat/devices").get_json()[
             "devices"

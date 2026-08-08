@@ -397,7 +397,7 @@ def test_request_scope_caps_and_echoes_eqp_ids():
     from flask import Flask
 
     from back_dev_home.ebeam.hitachi._analytics_routes import (
-        MAX_EQP_IDS,
+        MAX_COMPARE_EQPS,
         resolve_analytics_scope,
     )
 
@@ -406,7 +406,7 @@ def test_request_scope_caps_and_echoes_eqp_ids():
     with app.test_request_context(f"/?{query}"):
         scope = resolve_analytics_scope("cdsem", data.get_anchor_time())
     assert scope is not None
-    assert len(scope.eqp_ids) == MAX_EQP_IDS
+    assert len(scope.eqp_ids) == MAX_COMPARE_EQPS
     assert scope.eqp_ids == ("EQP1", "EQP2", "EQP3", "EQP4", "EQP5")
 
 

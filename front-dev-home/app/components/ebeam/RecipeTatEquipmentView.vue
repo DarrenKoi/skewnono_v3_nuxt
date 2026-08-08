@@ -4,21 +4,12 @@
       v-if="status === 'pending' && !equipmentRows.length"
       title="장비별 데이터를 불러오는 중입니다."
     />
-    <div
+    <!-- 전체 요약과 같은 빈 상태입니다(설계 3.3절) — 문구만 이 뷰의 것입니다. -->
+    <AppEmptyState
       v-else-if="!equipmentRows.length"
-      class="dashboard-surface rounded-[var(--sk-r-card)] px-6 py-12 text-center"
-    >
-      <UIcon
-        name="i-lucide-inbox"
-        class="mx-auto h-6 w-6 text-(--sk-ink-muted)"
-      />
-      <p class="mt-2 sk-body">
-        이 기간에 측정한 장비가 없습니다.
-      </p>
-      <p class="mt-1 sk-meta">
-        기간을 넓히거나 다른 fab을 선택해보세요.
-      </p>
-    </div>
+      title="이 기간에 측정한 장비가 없습니다."
+      description="기간을 넓히거나 다른 fab을 선택해보세요."
+    />
 
     <template v-else>
       <EbeamRecipeTatFleetTable

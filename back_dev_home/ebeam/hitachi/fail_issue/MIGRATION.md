@@ -280,7 +280,7 @@
 
 - Handler: `routes.py` → `data.get_equipment_compare(scope.tool_type,
   scope.fab_names, scope.start_date, scope.end_date, scope.eqp_ids)`.
-  `scope.eqp_ids` is a **≤ 5 tuple** (`_analytics_routes.MAX_EQP_IDS`) — the
+  `scope.eqp_ids` is a **≤ 5 tuple** (`_analytics_routes.MAX_COMPARE_EQPS`) — the
   cap belongs to the request parser, and the response echoes the list
   actually used (`eqp_ids`) so a truncation is never silent.
 - Contract: `EquipmentComparePayload` (`EquipmentTrendSeries`,
@@ -299,7 +299,7 @@
     생겨 조립기의 `"YYYY-MM-DD"` 칸과 하나도 맞지 않습니다 — 추이가 **예외
     없이 전부 0** 이 되고 빈 데이터와 구분되지 않습니다. 이 모듈에서
     `terms` 가 안전한 유일한 자리인 이유는 선택이 라우트에서 5개로 상한이
-    걸려 있어(`MAX_EQP_IDS`) `size = len(selected)` 가 후보를 전부 덮기
+    걸려 있어(`MAX_COMPARE_EQPS`) `size = len(selected)` 가 후보를 전부 덮기
     때문입니다 — 다른 집계가 composite 페이지네이션을 쓰는 이유(절단,
     서브집계 정렬 근사)가 여기서는 생기지 않습니다.
   - 레시피 격자는 `composite [eqp_id, full_name]` 입니다 — 레시피 수에

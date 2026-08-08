@@ -411,7 +411,7 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
   `EquipmentRecipeCell`) in `contracts.py`. No `lot_cd`: this view
   compares the tools the user checked in the `/equipments` table, and a device
   selection would silently narrow one column more than another.
-- `scope.eqp_ids` is a **≤ 5 tuple** (`_analytics_routes.MAX_EQP_IDS`). The cap
+- `scope.eqp_ids` is a **≤ 5 tuple** (`_analytics_routes.MAX_COMPARE_EQPS`). The cap
   belongs to the request parser, not the contract, and the response echoes the
   list as actually used so truncation is visible rather than silent.
 - `eqp_id` arrives **verbatim** — unlike `fab_name` it is not upper-cased,
@@ -429,7 +429,7 @@ builds two grids on top of one `terms` filter over the selected `eqp_id`s:
 | `recipe_rows` | `(eqp_id, full_name, meas_counts, total_meastime)` | composite `[eqp_id, full_name]` + `sum(meastime)` |
 
 **트렌드의 `terms`는 이 모듈에서 유일하게 안전한 `terms`입니다.** 선택은
-라우트에서 5개로 상한이 걸려 있어(`_analytics_routes.MAX_EQP_IDS`) `size =
+라우트에서 5개로 상한이 걸려 있어(`_analytics_routes.MAX_COMPARE_EQPS`) `size =
 len(selected)`가 후보를 전부 덮습니다 — 다른 집계들이 composite 페이지네이션을
 쓰는 이유(`size` 절단, 서브집계 정렬 시 합계 근사)가 여기서는 발생하지
 않습니다. 레시피 격자는 반대로 레시피 수에 상한이 없으므로 composite 입니다:

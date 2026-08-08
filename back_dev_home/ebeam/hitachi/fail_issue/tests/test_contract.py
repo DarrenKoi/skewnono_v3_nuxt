@@ -313,3 +313,51 @@ def test_compare_with_no_selection_is_empty_not_everything():
     assert payload["eqp_ids"] == []
     assert payload["trends"] == []
     assert payload["recipes"] == []
+
+
+def _compare_over_http(query: str) -> dict:
+    """The compare endpoint through its real route, so BOTH halves of the cap
+    run: `_analytics_routes` truncates the raw list, and this feature's own
+    `_shape.py` assembles the `eqp_ids` echo. Calling `data.*` directly (as the
+    tests above do) skips the parser and therefore never sees a truncation."""
+    from flask import Flask
+
+    from back_dev_home.ebeam.hitachi.fail_issue.routes import bp
+
+    app = Flask(__name__)
+    app.register_blueprint(bp, url_prefix="/api")
+    response = app.test_client().get(f"/api/cdsem/fail-issue/equipment-compare?{query}")
+    assert response.status_code == 200
+    return response.get_json()
+
+
+def test_over_the_cap_is_truncated_and_the_echo_says_so():
+    """6대를 보내면 5대만 쓰이고, 응답이 그 사실을 에코합니다.
+
+    파서는 두 기능이 공유하지만 에코는 기능별 payload 조립이므로, recipe_tat
+    쪽이 초록이어도 이쪽에 대해서는 아무것도 말해주지 않습니다."""
+    from back_dev_home.ebeam.hitachi._analytics_routes import MAX_COMPARE_EQPS
+
+    requested = [f"EQP{n}" for n in range(1, 7)]
+    payload = _compare_over_http("eqp_id=" + ",".join(requested))
+
+    assert len(payload["eqp_ids"]) == MAX_COMPARE_EQPS
+    assert payload["eqp_ids"] == requested[:MAX_COMPARE_EQPS]
+    assert requested[MAX_COMPARE_EQPS] not in payload["eqp_ids"]
+    # 에코 밖의 장비는 payload 어디에도 없습니다 — 잘려나간 6번째가 trends 나
+    # recipes 셀로 되돌아오면 에코가 payload 를 대변하지 못하게 됩니다.
+    dropped = requested[MAX_COMPARE_EQPS]
+    assert all(series["eqp_id"] != dropped for series in payload["trends"])
+    for recipe in payload["recipes"]:
+        assert [cell["eqp_id"] for cell in recipe["cells"]] == payload["eqp_ids"]
+
+
+def test_truncation_happens_before_de_duplication():
+    """`eqp_id=X,X,X,X,X,Y` → `["X"]`, 절대 `["X", "Y"]` 가 아닙니다.
+
+    반복 값이 절단 슬롯을 소비하므로 Y 는 질의에 닿지도 못합니다. 순서가
+    뒤집히면(먼저 dedupe) 파서가 이미 버린 6번째 고유 id 가 살아 들어옵니다 —
+    docs/api-contracts/fail-issue.yaml 의 eqp_id / eqp_ids 두 설명이 함께
+    규정하는 순서이고, 이 테스트가 그 문장을 지킵니다."""
+    payload = _compare_over_http("eqp_id=X,X,X,X,X,Y")
+    assert payload["eqp_ids"] == ["X"]

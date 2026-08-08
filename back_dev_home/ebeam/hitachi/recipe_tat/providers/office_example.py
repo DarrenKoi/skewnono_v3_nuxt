@@ -178,7 +178,7 @@ def get_equipment_compare(
         histogram["extended_bounds"] = {"min": start_date, "max": end_date}
 
     # 이 모듈에서 유일하게 `terms` 가 안전한 자리입니다: 선택은 라우트에서
-    # 5개로 상한이 걸려 있어(_analytics_routes.MAX_EQP_IDS) size 로 전부
+    # 5개로 상한이 걸려 있어(_analytics_routes.MAX_COMPARE_EQPS) size 로 전부
     # 덮습니다. 다른 집계들이 composite 페이지네이션을 쓰는 이유(절단 + 합의
     # 근사)가 여기서는 발생하지 않습니다.
     #
