@@ -303,11 +303,12 @@ types:
       type: array
       items: EquipmentRecipeCell
       description: >-
-        One cell per selected eqp_id, in REQUEST order — the same order as the response's
-        top-level eqp_ids (after de-duplication and the MAX_EQP_IDS truncation). An equipment
-        that never ran this recipe still gets a cell with every count zeroed; a missing cell
-        would shift the columns and make the table show a different equipment's numbers under
-        the wrong header.
+        One cell per selected eqp_id, in the same order as the response's top-level eqp_ids —
+        whatever that final list turned out to be after the request parser's truncation and
+        the assembler's de-duplication (see the eqp_id query param below for the exact order
+        those two steps run in). An equipment that never ran this recipe still gets a cell
+        with every count zeroed; a missing cell would shift the columns and make the table
+        show a different equipment's numbers under the wrong header.
 
 endpoints:
   - path: /api/<tool_slug>/fail-issue/summary
@@ -540,9 +541,13 @@ endpoints:
         required: false
         description: >-
           Comma-separated list of eqp_id, NOT uppercased (exact-match key, unlike fab_name).
-          Truncated to MAX_EQP_IDS (5) by the request parser after de-duplication — extras
-          beyond the cap are silently dropped there, then echoed back via the response's
-          eqp_ids so the truncation is never silent to the caller.
+          The request parser splits the raw list and truncates it to the first MAX_EQP_IDS
+          (5) entries FIRST, in raw request order, WITHOUT de-duplicating; de-duplication
+          happens afterwards, while the payload is assembled. Order matters: repeated values
+          consume truncation slots, so "eqp_id=X,X,X,X,X,Y" (6 raw values, 2 distinct) yields
+          a parsed slice of five X's — Y never reaches the query at all — and the final
+          eqp_ids in the response is ["X"], not ["X", "Y"]. The response's eqp_ids echoes
+          whatever list survives both steps, so the truncation is never silent to the caller.
     response:
       status: 200
       body:
