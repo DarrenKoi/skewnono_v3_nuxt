@@ -514,10 +514,16 @@ def get_equipment_compare(
 ) -> EquipmentComparePayload:
     """선택 장비의 (장비, 날짜)·(장비, 레시피) 두 격자.
 
-    composite 를 두 번 도는 이유: 한 번에 (eqp, 날짜, 레시피) 3중 소스로
-    걷으면 버킷 수가 장비 × 일수 × 레시피로 곱해집니다. 90일 × 200레시피
-    × 5대면 9만 버킷이고, 그중 대부분이 doc_count 0 입니다. 두 번 도는 쪽이
-    싸고, 두 격자의 쓰임이 서로 독립적입니다.
+    두 격자는 서로 다른 집계 메커니즘을 씁니다. 레시피 격자는 composite
+    walk 입니다 — after_key 로 페이지네이션해 정확하고 절단이 없습니다.
+    날짜 격자는 composite 가 아니라 ``terms(eqp) × date_histogram(day)``
+    입니다: composite 는 날짜를 **일 단위로 묶을 수 없어서**(아래 주석 참고)
+    다른 메커니즘이 필요합니다.
+
+    (eqp, 날짜, 레시피) 3중 소스 하나로 걷지 않는 이유는 여전합니다: 버킷
+    수가 장비 × 일수 × 레시피로 곱해져, 90일 × 200레시피 × 5대면 9만
+    버킷이고 그중 대부분이 doc_count 0 입니다. 두 번(또는 두 메커니즘으로)
+    나눠 도는 쪽이 싸고, 두 격자의 쓰임이 서로 독립적입니다.
     """
     selected = list(dict.fromkeys(eqp_ids))
     if not selected:
@@ -534,35 +540,51 @@ def get_equipment_compare(
         "meas_fails": {"filter": _MEAS_FAIL_FILTER},
     }
 
-    day_buckets = _composite_buckets(
+    # 추이는 composite 가 아니라 terms(eqp) × date_histogram(day) 입니다.
+    # composite 로는 날짜를 **일 단위로 묶을 수 없습니다**: _composite_sources 가
+    # (이름, 필드) 를 언제나 {"terms": {"field": ...}} 로 감싸므로, timestamp 를
+    # 소스로 주면 ns 정밀도 instant 마다 버킷이 하나씩 생깁니다. 키도 epoch
+    # millis 로 나와 조립기의 "YYYY-MM-DD" 칸과 하나도 맞지 않고, 그러면 추이가
+    # **예외 없이 전부 0** 이 됩니다 — 빈 데이터와 구분되지 않습니다. 게다가
+    # 90일 × 5대면 버킷이 수만 개라 페이지 왕복만 수백 번입니다.
+    #
+    # 이 모듈에서 `terms` 가 안전한 유일한 자리입니다: 선택은 라우트에서 5개로
+    # 상한이 걸려 있어(_analytics_routes.MAX_EQP_IDS) `size` 가 후보를 전부
+    # 덮습니다. 위의 dedupe 와 조립기의 dedupe 가 같은 규칙이라 size 는 응답이
+    # 에코하는 eqp_ids 수와 정확히 일치합니다.
+    #
+    # date_histogram 에 format 을 주면 key_as_string 이 곧바로 "YYYY-MM-DD"
+    # 이므로 문자열을 잘라 쓸 필요가 없습니다. min_doc_count 0 + extended_bounds
+    # 는 조용한 날도 버킷을 내게 합니다 — get_daily_trend 와 같은 zero-fill.
+    histogram: dict[str, Any] = {
+        "field": _TIME_F,
+        "calendar_interval": "day",
+        "format": "yyyy-MM-dd",
+        "min_doc_count": 0,
+    }
+    if start_date and end_date:
+        histogram["extended_bounds"] = {"min": start_date, "max": end_date}
+
+    trend_result = _aggregate(
         _INDEX[tool_type],
-        [
-            ("eqp", _EQP_KW),
-            # OFFICE-VERIFY — timestamp 는 date 타입이라 terms 소스의 키가
-            # epoch millis 로 나올 수 있습니다. 그러면 str(key)[:10] 이
-            # "1754678912" 같은 문자열이 되어 days_in_range 의 "2026-08-01"
-            # 과 하나도 맞지 않고, **예외 없이 추이가 전부 0** 으로 나옵니다
-            # (빈 데이터와 구분되지 않습니다). 사무실에서 첫 호출 시 버킷
-            # 키를 눈으로 확인하십시오. millis 라면 이 소스를
-            # {"date_histogram": {"field": TIME_FIELD,
-            #                     "calendar_interval": "1d",
-            #                     "format": "yyyy-MM-dd"}}
-            # 로 바꿉니다 — composite 는 date_histogram 소스를 지원하며,
-            # format 을 주면 키가 곧바로 "2026-08-01" 입니다.
-            ("day", _TIME_F),
-        ],
-        sub_aggs,
+        {
+            "by_eqp": {
+                "terms": {"field": _EQP_KW, "size": len(selected)},
+                "aggs": {"by_day": {"date_histogram": histogram, "aggs": sub_aggs}},
+            }
+        },
         _query(clauses),
     )
     trend_grid: list[TrendGridRow] = [
         (
-            _text(b["key"]["eqp"]),
-            str(b["key"]["day"])[:10],
-            int(b["doc_count"]),
-            int(b.get("align_fails", {}).get("doc_count") or 0),
-            int(b.get("meas_fails", {}).get("doc_count") or 0),
+            _text(eqp_bucket["key"]),
+            str(day_bucket["key_as_string"]),
+            int(day_bucket["doc_count"]),
+            int(day_bucket.get("align_fails", {}).get("doc_count") or 0),
+            int(day_bucket.get("meas_fails", {}).get("doc_count") or 0),
         )
-        for b in day_buckets
+        for eqp_bucket in trend_result.get("by_eqp", {}).get("buckets", [])
+        for day_bucket in eqp_bucket.get("by_day", {}).get("buckets", [])
     ]
 
     recipe_buckets = _composite_buckets(
