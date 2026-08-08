@@ -13,8 +13,13 @@ from back_dev_home.msr_image.contracts import ImageListResponse, ImageLocator
 from back_dev_home.msr_image.errors import MsrImageError
 from back_dev_home.msr_image.jobs import make_registry
 from back_dev_home.msr_image.paths import validate_locator, validate_segment, validate_tool_ip
+from back_dev_home.msr_image.preview import to_preview
 
 bp = Blueprint("msr_image", __name__)
+
+
+def _wants_preview() -> bool:
+    return (request.args.get("preview") or "").strip().lower() in ("1", "true", "yes")
 
 # Tools are not consistent about which spelling they write -- office serves
 # .jpeg/.jpg/.tif/.tiff (MIGRATION.md, office 확인 2026-07-24) while the mock
@@ -123,6 +128,13 @@ def serve_image_route():
             cache.put(locator, fetched)
     except MsrImageError as exc:
         return _error(exc)
+
+    # ?preview=1 — a browser-renderable rendition (TIFF → WebP, by content
+    # sniff; everything else untouched). Applied AFTER the cache, so the cache
+    # keeps holding originals and a preview never costs a second tool fetch.
+    # The 원본 다운로드 link simply omits the flag. See msr_image/preview.py.
+    if _wants_preview():
+        fetched = to_preview(fetched)
 
     headers = {
         "Cache-Control": "public, max-age=3600",

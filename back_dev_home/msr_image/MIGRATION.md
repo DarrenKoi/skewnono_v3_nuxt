@@ -37,6 +37,14 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | `fetch_image` | `(locator, _config=None) -> FetchedImage` | 이미지 바이트를 내려받아 확장자 기준 content-type(`image/jpeg` 또는 `image/tiff`)으로 반환하고, cond 사이드카는 best-effort로 붙입니다. 브라우저는 TIFF 를 `<img>` 로 렌더링하지 못하므로 frontend 는 TIFF 에 다운로드 fallback 을 보여줍니다 |
 | `download_all` | `(eqp_ip, class_name, msr, names, on_file, concurrency=6, _config=None)` | 같은 장비를 가리키는 `HostSpec` n개를 한 번의 fleet 호출로 넘겨 연결 n개로 분산하고, 파일별 진행 상황을 `on_file` 콜백에 스트리밍으로 보고합니다 |
 
+- `GET /msr-image?...&preview=1` 은 응답 직전에 `preview.py` 의
+  `to_preview()` 를 거칩니다 (2026-08-08): 바이트가 실제 TIFF(magic 판별)면
+  Pillow 로 WebP 변환(16-bit grayscale 은 0.5/99.5 percentile stretch 로
+  8-bit 정규화), 아니면 그대로 통과합니다. adapter 는 이 flag 를 모릅니다 —
+  변환은 route 계층이고, cache 는 계속 원본만 저장하므로 preview 요청이
+  tool fetch 를 추가로 만들지 않습니다. Pillow 는 lazy import 라 미설치
+  host 도 preview 외 경로는 전부 동작합니다 (requirements.txt `Pillow>=10`,
+  preflight 검사 포함). 변환 실패는 원본 그대로 + WARNING (500 금지).
 - 경로 조립은 `paths.py`(`image_dir`/`image_path`/`cond_path`)가 전담하며,
   office 어댑터는 이를 그대로 재사용합니다. `_ROOT`(`/HITACHI/DEVICE/HD`)가
   실제 장비 경로와 다르면 `paths.py`를 함께 확인해야 합니다.

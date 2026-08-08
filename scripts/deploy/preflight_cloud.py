@@ -40,6 +40,7 @@ RUNTIME_PACKAGES = (
     ("numpy", "numpy"),
     ("redis", "redis"),
     ("minio", "minio"),
+    ("PIL", "Pillow"),
     ("opensearchpy", "opensearch-py"),
     ("apscheduler", "apscheduler"),
     ("dotenv", "python-dotenv"),

@@ -45,6 +45,74 @@ def test_serve_second_hit_is_cached(client):
     assert client.get(url).status_code == 200  # served from disk cache
 
 
+def _first_tif_name(client) -> str:
+    names = client.get(
+        "/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=tif"
+    ).get_json()["images"]
+    assert names, "the mock always emits at least one .tif"
+    return names[0]
+
+
+def test_serve_tif_without_preview_keeps_the_tiff_label(client):
+    """The download link sends no preview flag and must get the original —
+    at home that is the SVG placeholder labeled image/tiff (the label is what
+    keeps the no-preview TIFF path reachable offline)."""
+    name = _first_tif_name(client)
+    r = client.get(f"/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name={quote(name)}")
+    assert r.status_code == 200
+    assert r.mimetype == "image/tiff"
+
+
+def test_serve_tif_with_preview_is_browser_renderable(client):
+    """?preview=1 must never answer image/tiff — office-side it converts the
+    bytes to WebP; at home the mock's SVG placeholder is relabeled to the SVG
+    it actually is. Both render in an <img>."""
+    name = _first_tif_name(client)
+    r = client.get(
+        f"/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name={quote(name)}&preview=1"
+    )
+    assert r.status_code == 200
+    assert r.mimetype == "image/svg+xml"
+    assert "X-Msr-Cond" in r.headers, "the cond must survive the preview rendition"
+
+
+def test_serve_preview_converts_real_tiff_bytes(client, monkeypatch):
+    """Office shape: the provider returns REAL TIFF bytes; preview=1 serves
+    WebP while the plain URL keeps serving the original."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    from back_dev_home.msr_image.contracts import FetchedImage
+
+    buf = BytesIO()
+    Image.new("L", (16, 16), 128).save(buf, "TIFF")
+    tiff = buf.getvalue()
+    monkeypatch.setattr(
+        "back_dev_home.msr_image.data.fetch_image",
+        lambda locator: FetchedImage(tiff, "image/tiff", "mag=1"),
+    )
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_REAL&name=real01.tif"
+    plain = client.get(f"/api/msr-image?{q}")
+    assert plain.mimetype == "image/tiff" and plain.data == tiff
+
+    r = client.get(f"/api/msr-image?{q}&preview=1")
+    assert r.status_code == 200
+    assert r.mimetype == "image/webp"
+    assert r.data[:4] == b"RIFF" and r.data[8:12] == b"WEBP"
+
+
+def test_serve_preview_is_a_noop_on_jpeg_names(client):
+    names = client.get(
+        "/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=jpg"
+    ).get_json()["images"]
+    q = f"eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name={quote(names[0])}"
+    plain = client.get(f"/api/msr-image?{q}")
+    previewed = client.get(f"/api/msr-image?{q}&preview=1")
+    assert previewed.mimetype == plain.mimetype
+    assert previewed.data == plain.data
+
+
 def test_missing_params_400(client):
     assert client.get("/api/msr-image?eqp_ip=10.0.0.1&name=x.jpeg").status_code == 400
 

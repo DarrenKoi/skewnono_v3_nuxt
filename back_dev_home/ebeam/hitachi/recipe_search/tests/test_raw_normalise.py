@@ -403,7 +403,7 @@ class _FakeListingReport:
         self.listings, self.failures = listings, list(failures)
 
     def grouped(self):
-        return {l.host: l.paths for l in self.listings}
+        return {hl.host: hl.paths for hl in self.listings}
 
 
 def _patch_listing(monkeypatch, listings, failures=()):

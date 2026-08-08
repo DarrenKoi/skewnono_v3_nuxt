@@ -21,8 +21,10 @@ from back_dev_home.ebeam.hitachi.recipe_search.data import (
     get_recipe_open_data,
 )
 from back_dev_home.msr_image.config import load_config
+from back_dev_home.msr_image.contracts import FetchedImage
 from back_dev_home.msr_image.errors import InvalidLocator, MsrImageError
 from back_dev_home.msr_image.paths import validate_segment, validate_tool_ip
+from back_dev_home.msr_image.preview import to_preview
 
 
 bp = Blueprint("ebeam_recipe_search", __name__)
@@ -391,6 +393,13 @@ def recipe_search_recipe_image(tool_slug: str):
         # A real 404, so <img> falls back to its own broken state instead of
         # trying to decode a JSON error body as a picture.
         return jsonify({"error": f"image not found: {name}"}), 404
+
+    # ?preview=1 — same TIFF→WebP rendition msr_image serves; a no-op on the
+    # JPEG files recipe folders have been observed to hold, but HV-SEM has
+    # already broken one single-image assumption here (2026-08-08), so the
+    # tif-only case is handled before it is observed rather than after.
+    if (request.args.get("preview") or "").strip().lower() in ("1", "true", "yes"):
+        payload, content_type, _cond = to_preview(FetchedImage(payload, content_type, None))
 
     return Response(
         payload,
