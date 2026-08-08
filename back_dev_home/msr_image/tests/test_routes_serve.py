@@ -102,6 +102,92 @@ def test_serve_preview_converts_real_tiff_bytes(client, monkeypatch):
     assert r.data[:4] == b"RIFF" and r.data[8:12] == b"WEBP"
 
 
+def _tiff_bytes(size=(16, 16)) -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("L", size, 128).save(buf, "TIFF")
+    return buf.getvalue()
+
+
+def test_preview_conversion_runs_once_and_is_cached(client, monkeypatch):
+    """The WebP rendition is written to the image cache under its own key, so a
+    repeat view is a cache read rather than another Pillow decode + encode. The
+    conversion is the expensive half of a preview request (TIFF decode, float64
+    percentile stretch, WebP encode) and it used to run on every GET."""
+    from back_dev_home.msr_image import preview as preview_mod
+    from back_dev_home.msr_image.contracts import FetchedImage
+
+    tiff = _tiff_bytes()
+    monkeypatch.setattr(
+        "back_dev_home.msr_image.data.fetch_image",
+        lambda locator: FetchedImage(tiff, "image/tiff", "mag=1"),
+    )
+    conversions = []
+    real = preview_mod._tiff_to_webp
+    monkeypatch.setattr(
+        preview_mod, "_tiff_to_webp", lambda data: (conversions.append(1), real(data))[1]
+    )
+
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_CACHE&name=real01.tif&preview=1"
+    first = client.get(f"/api/msr-image?{q}")
+    second = client.get(f"/api/msr-image?{q}")
+
+    assert first.status_code == second.status_code == 200
+    assert first.mimetype == second.mimetype == "image/webp"
+    assert first.data == second.data
+    assert len(conversions) == 1, "the rendition was re-encoded instead of cached"
+
+
+def test_cached_rendition_keeps_the_cond_header_and_webp_filename(client, monkeypatch):
+    """A rendition read back from cache must be indistinguishable from a freshly
+    converted one — same cond sidecar, same corrected .webp filename."""
+    from back_dev_home.msr_image.contracts import FetchedImage
+
+    monkeypatch.setattr(
+        "back_dev_home.msr_image.data.fetch_image",
+        lambda locator: FetchedImage(_tiff_bytes(), "image/tiff", "mag=7"),
+    )
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_HDR&name=real02.tif&preview=1"
+    client.get(f"/api/msr-image?{q}")
+    r = client.get(f"/api/msr-image?{q}")
+    assert unquote(r.headers["X-Msr-Cond"]) == "mag=7"
+    assert 'filename="real02.webp"' in r.headers["Content-Disposition"]
+
+
+def test_caching_a_rendition_does_not_shadow_the_original(client, monkeypatch):
+    """원본 다운로드 reads the same locator without the flag; it must still get
+    the tool's TIFF bytes after a preview has been cached."""
+    from back_dev_home.msr_image.contracts import FetchedImage
+
+    tiff = _tiff_bytes()
+    monkeypatch.setattr(
+        "back_dev_home.msr_image.data.fetch_image",
+        lambda locator: FetchedImage(tiff, "image/tiff", "mag=1"),
+    )
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_BOTH&name=real03.tif"
+    assert client.get(f"/api/msr-image?{q}&preview=1").mimetype == "image/webp"
+    plain = client.get(f"/api/msr-image?{q}")
+    assert plain.mimetype == "image/tiff"
+    assert plain.data == tiff
+    assert 'filename="real03.tif"' in plain.headers["Content-Disposition"]
+
+
+def test_non_webp_previews_are_not_cached(client):
+    """At home the mock's .tif is SVG-labeled-as-TIFF: preview only relabels the
+    content type, costing nothing. Writing those bytes to a ``.preview.webp``
+    key would store a file whose name lies about what is in it."""
+    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1"
+    tif = _first_tif_name(client)
+    r = client.get(f"/api/msr-image?{q}&name={quote(tif)}&preview=1")
+    assert r.mimetype == "image/svg+xml"
+    cache_root = client.application.extensions
+    disk = next(v for k, v in cache_root.items() if k.startswith("msr_image_cache::"))
+    assert list(disk.root.rglob("*.preview.webp")) == []
+
+
 def test_serve_preview_is_a_noop_on_jpeg_names(client):
     names = client.get(
         "/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=jpg"

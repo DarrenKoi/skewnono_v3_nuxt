@@ -143,27 +143,49 @@ def serve_image_route():
         return jsonify({"error": "name too long"}), 400
     cfg = load_config()
     locator = ImageLocator(args["eqp_ip"], args["class_name"], args["msr"], args["name"])
+    preview = _wants_preview()
+    # The content type the preview transform PRODUCED, when it changed one; None
+    # on the plain path. Drives the served filename — see _served_name.
+    converted_to = None
     try:
         validate_tool_ip(args["eqp_ip"], cfg.allowed_subnets)
         validate_locator(args["class_name"], args["msr"], args["name"])
         cache = _get_cache(cfg)  # may raise ConfigError (office misconfig)
-        fetched = cache.get(locator)
-        if fetched is None:
-            fetched = data.fetch_image(locator)
-            cache.put(locator, fetched)
+
+        # ?preview=1 — a browser-renderable rendition (TIFF → WebP, by content
+        # sniff; everything else untouched). The 원본 다운로드 link omits the
+        # flag and reads the same locator. See msr_image/preview.py.
+        #
+        # The rendition has its own cache entry, so ask for it FIRST: conversion
+        # is the expensive half of a preview request (TIFF decode, float64
+        # percentile stretch, WebP encode — all GIL-bound on a worker thread),
+        # and before renditions were cached it ran on every single GET. The
+        # originals entry is untouched by this, so a preview still never costs
+        # a second tool fetch and the download path still finds its TIFF.
+        fetched = cache.get(locator, preview=True) if preview else None
+        if fetched is not None:
+            # A rendition is only ever in the cache because a conversion made
+            # it — which is exactly what _served_name needs to know.
+            converted_to = fetched.content_type
+        else:
+            fetched = cache.get(locator)
+            if fetched is None:
+                fetched = data.fetch_image(locator)
+                cache.put(locator, fetched)
+            if preview:
+                rendition = to_preview(fetched)
+                if rendition.content_type != fetched.content_type:
+                    converted_to = rendition.content_type
+                    # Cache only a real TIFF → WebP conversion. to_preview's
+                    # other branches (the mock's SVG-labeled-as-TIFF relabel,
+                    # and the untouched passthrough) hand back the SAME bytes,
+                    # so storing them would buy nothing and would park non-WebP
+                    # bytes under a key named ``.preview.webp``.
+                    if rendition.content_type == "image/webp":
+                        cache.put(locator, rendition, preview=True)
+                fetched = rendition
     except MsrImageError as exc:
         return _error(exc)
-
-    # ?preview=1 — a browser-renderable rendition (TIFF → WebP, by content
-    # sniff; everything else untouched). Applied AFTER the cache, so the cache
-    # keeps holding originals and a preview never costs a second tool fetch.
-    # The 원본 다운로드 link simply omits the flag. See msr_image/preview.py.
-    converted_to = None
-    if _wants_preview():
-        rendition = to_preview(fetched)
-        if rendition.content_type != fetched.content_type:
-            converted_to = rendition.content_type
-        fetched = rendition
 
     headers = {
         "Cache-Control": "public, max-age=3600",

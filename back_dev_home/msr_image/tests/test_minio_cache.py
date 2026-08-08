@@ -20,22 +20,41 @@ class _Obj:
         self.last_modified = last_modified
 
 
+class _NoSuchKey(Exception):
+    """Shaped like minio's S3Error: what MinioImageCache.get sniffs is ``.code``.
+
+    Duck-typed rather than the real S3Error because ``minio`` is an office-only
+    dependency and these tests run at home.
+    """
+
+    code = "NoSuchKey"
+
+
 class FakeMinio:
     """In-memory stand-in for minio_handler.MinioObject (only what we use)."""
 
     def __init__(self):
         self.store = {}  # key -> (bytes, metadata, last_modified)
+        self.calls = []  # every round trip, in order — proves the call count
 
     def put(self, key, data, *, content_type="application/octet-stream", metadata=None, **kw):
+        self.calls.append(("put", key))
         self.store[key] = (bytes(data), dict(metadata or {}), datetime.now(timezone.utc))
 
     def exists(self, key, **kw):
+        self.calls.append(("exists", key))
         return key in self.store
 
     def get(self, key, **kw):
+        self.calls.append(("get", key))
+        if key not in self.store:
+            raise _NoSuchKey(key)
         return self.store[key][0]
 
     def stat(self, key, **kw):
+        self.calls.append(("stat", key))
+        if key not in self.store:
+            raise _NoSuchKey(key)
         _, metadata, lm = self.store[key]
         # minio returns user metadata with an x-amz-meta- prefix; emulate it.
         prefixed = {f"x-amz-meta-{k}": v for k, v in metadata.items()}
@@ -78,6 +97,73 @@ def test_put_then_get_roundtrips_with_metadata():
     assert got.data == IMG.data
     assert got.content_type == "image/jpeg"
     assert got.cond == "mag=50000"
+
+
+def test_hit_costs_two_round_trips_not_three():
+    """get() used to stat (via exists), then GET, then stat again. The gallery
+    fans these out, so the redundant existence probe was pure added latency."""
+    cache, fake = _cache()
+    cache.put(LOC, IMG)
+    fake.calls.clear()
+    assert cache.get(LOC) is not None
+    assert [c[0] for c in fake.calls] == ["get", "stat"]
+
+
+def test_miss_does_not_500_when_the_object_vanishes_mid_read():
+    """A purge between the old exists() and get() turned a miss into a raise.
+    Sniffing the not-found code off the GET itself removes the window."""
+    cache, fake = _cache()
+    fake.calls.clear()
+    assert cache.get(LOC) is None
+    assert [c[0] for c in fake.calls] == ["get"]
+
+
+def test_a_non_missing_error_still_propagates():
+    """Only "not found" means miss. A permissions or transport failure must not
+    be swallowed into a silent cache miss that then refetches from the tool."""
+    cache, fake = _cache()
+
+    class _Denied(Exception):
+        code = "AccessDenied"
+
+    def boom(key, **kw):
+        raise _Denied(key)
+
+    fake.get = boom
+    try:
+        cache.get(LOC)
+    except _Denied:
+        pass
+    else:
+        raise AssertionError("AccessDenied was swallowed as a cache miss")
+
+
+def test_preview_rendition_is_a_separate_object():
+    cache, fake = _cache()
+    webp = FetchedImage(b"RIFF\x00\x00\x00\x00WEBP", "image/webp", "mag=50000")
+    cache.put(LOC, IMG)
+    cache.put(LOC, webp, preview=True)
+    assert sorted(fake.store) == [
+        "image_cache/10.0.0.1/ADI/MSR_1/shot01.jpeg",
+        "image_cache/10.0.0.1/ADI/MSR_1/shot01.jpeg.preview.webp",
+    ]
+    assert cache.get(LOC).content_type == "image/jpeg"
+    got = cache.get(LOC, preview=True)
+    assert got.content_type == "image/webp"
+    assert got.data == webp.data
+    assert got.cond == "mag=50000"
+
+
+def test_purge_sweeps_renditions_with_the_same_prefix_pass():
+    """Renditions live under the same cache prefix, so the nightly last_modified
+    sweep must reach them without any extra rule."""
+    cache, fake = _cache()
+    cache.put(LOC, FetchedImage(b"RIFF", "image/webp", None), preview=True)
+    key = "image_cache/10.0.0.1/ADI/MSR_1/shot01.jpeg.preview.webp"
+    data, meta, _ = fake.store[key]
+    fake.store[key] = (data, meta, datetime.now(timezone.utc) - timedelta(hours=100))
+    assert cache.purge(ttl_hours=72) == 1
+    assert fake.store == {}
 
 
 def test_shared_hit_across_instances():
@@ -151,6 +237,8 @@ class PrefixFake:
         return self._resolve(key) in self.store
 
     def get(self, key, **kw):
+        if self._resolve(key) not in self.store:
+            raise _NoSuchKey(key)
         return self.store[self._resolve(key)][0]
 
     def stat(self, key, **kw):

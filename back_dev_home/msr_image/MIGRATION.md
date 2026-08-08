@@ -37,14 +37,33 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | `fetch_image` | `(locator, _config=None) -> FetchedImage` | 이미지 바이트를 내려받아 확장자 기준 content-type(`image/jpeg` 또는 `image/tiff`)으로 반환하고, cond 사이드카는 best-effort로 붙입니다. 브라우저는 TIFF 를 `<img>` 로 렌더링하지 못하므로 frontend 는 TIFF 에 다운로드 fallback 을 보여줍니다 |
 | `download_all` | `(eqp_ip, class_name, msr, names, on_file, concurrency=6, _config=None)` | 같은 장비를 가리키는 `HostSpec` n개를 한 번의 fleet 호출로 넘겨 연결 n개로 분산하고, 파일별 진행 상황을 `on_file` 콜백에 스트리밍으로 보고합니다 |
 
-- `GET /msr-image?...&preview=1` 은 응답 직전에 `preview.py` 의
-  `to_preview()` 를 거칩니다 (2026-08-08): 바이트가 실제 TIFF(magic 판별)면
-  Pillow 로 WebP 변환(16-bit grayscale 은 0.5/99.5 percentile stretch 로
-  8-bit 정규화), 아니면 그대로 통과합니다. adapter 는 이 flag 를 모릅니다 —
-  변환은 route 계층이고, cache 는 계속 원본만 저장하므로 preview 요청이
-  tool fetch 를 추가로 만들지 않습니다. Pillow 는 lazy import 라 미설치
-  host 도 preview 외 경로는 전부 동작합니다 (requirements.txt `Pillow>=10`,
-  preflight 검사 포함). 변환 실패는 원본 그대로 + WARNING (500 금지).
+- `GET /msr-image?...&preview=1` 은 `preview.py` 의 `to_preview()` 를 거칩니다
+  (2026-08-08): 바이트가 실제 TIFF(magic 판별)면 Pillow 로 WebP 변환(16-bit
+  grayscale 은 0.5/99.5 percentile stretch 로 8-bit 정규화), 아니면 그대로
+  통과합니다. adapter 는 이 flag 를 모릅니다 — 변환은 route 계층입니다.
+  Pillow 는 lazy import 라 미설치 host 도 preview 외 경로는 전부 동작합니다
+  (requirements.txt `Pillow>=10`, preflight 검사 포함). 변환 실패는 원본 그대로
+  + WARNING (500 금지).
+- **변환 결과(WebP)는 캐시에 저장됩니다** (2026-08-09). 키는 원본 키에
+  `.preview.webp` 를 덧붙인 별도 엔트리이고(`cache.PREVIEW_SUFFIX`), 원본
+  엔트리는 그대로 남습니다. 그래서 preview 요청은 여전히 tool fetch 를 추가로
+  만들지 않으면서, **같은 이미지를 다시 볼 때 Pillow 디코드/인코드를 반복하지
+  않습니다**. 이전에는 매 GET 마다 재변환했고, 이것이 preview 요청 비용의
+  대부분이었습니다(TIFF 디코드 + float64 percentile + WebP 인코드가 전부
+  GIL 을 잡는 CPU 작업).
+  - 저장 대상은 **실제 TIFF→WebP 변환뿐**입니다. `to_preview()` 의 나머지 두
+    갈래(mock 의 SVG-labeled-as-TIFF 재라벨, 무변환 통과)는 바이트가 동일해서
+    캐시할 것이 없고, 저장하면 `.preview.webp` 라는 이름이 거짓이 됩니다.
+  - 렌디션은 원본과 같은 prefix 아래 있으므로 앱 purge 와 Airflow DAG
+    `minio_purge_image_cache` 가 **추가 규칙 없이 함께** 훑습니다.
+  - office 어댑터는 이 변경과 무관합니다 — 캐시 계층만 바뀌었습니다.
+- MinIO 캐시 `get()` 은 히트 시 왕복 2회(GET + stat), 미스 시 1회입니다
+  (2026-08-09). 이전에는 `exists()` 프로브까지 3회였고, 그 프로브와 GET
+  사이에 purge 가 끼면 "캐시 없음"이어야 할 상황이 500 으로 터졌습니다.
+  not-found 는 이제 GET 예외의 `.code`(`NoSuchKey`/`NoSuchObject`/`NotFound`)
+  로 판별합니다. 왕복 1회는 body 와 stat 을 함께 주는 minio_handler 호출이
+  있어야 가능한데, 해당 패키지는 vendored 라 `flask_modules` 와 동시에
+  고쳐야 하므로 보류했습니다.
 - 경로 조립은 `paths.py`(`image_dir`/`image_path`/`cond_path`)가 전담하며,
   office 어댑터는 이를 그대로 재사용합니다. `_ROOT`(`/HITACHI/DEVICE/HD`)가
   실제 장비 경로와 다르면 `paths.py`를 함께 확인해야 합니다.
