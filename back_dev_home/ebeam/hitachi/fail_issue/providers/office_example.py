@@ -43,6 +43,11 @@ Aggregation shapes per endpoint:
                   sub-aggs, rolled up per lot_cd through the bridge, joined
                   with the exactly-one metadata rule (R3 ``prod_catg_cd`` vs
                   M-fab ``tech_nm``), sorted by combined fail count.
+* equipments   — composite over (eqp_id, fab_name, eqp_model_cd, full_name);
+                 버킷당 doc_count 와 align/meas filter 서브집계 2개.
+                 지수·구간·분위수는 _shape 가 파생합니다.
+* equipment-compare — 같은 필터에 eqp_id terms 를 더해 두 번 walk:
+                 (eqp_id, 날짜)와 (eqp_id, full_name).
 
 At the office: fill in OPENSEARCH_* / REDIS_* in ``back_dev_home/.env``,
 then ``cp office_example.py office.py`` — that file's existence is the
@@ -55,6 +60,7 @@ from typing import Any
 
 from back_dev_home.ebeam.hitachi._office_meas_hist import (
     EQP_ID_KW as _EQP_KW,
+    EQP_MODEL_CD_KW as _EQP_MODEL_KW,
     FAB_NAME_KW as _FAB_KW,
     FULL_NAME_KW as _FULL_KW,
     INDEX as _INDEX,
@@ -77,8 +83,17 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     AlignRankingRow,
     DailyTrendPoint,
     DeviceRow,
+    EquipmentComparePayload,
+    EquipmentsPayload,
     MeasRankingRow,
     SummaryPayload,
+)
+from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+    EquipmentGridRow,
+    RecipeGridRow,
+    TrendGridRow,
+    build_equipment_compare_payload,
+    build_equipments_payload,
 )
 # Single source for the threshold — pinned by the YAML contract; importing it
 # (instead of redefining 0.15 here) makes Phase 1/2 disagreement impossible.
@@ -96,6 +111,8 @@ __all__ = [
     "get_align_ranking",
     "get_meas_ranking",
     "get_devices",
+    "get_equipments",
+    "get_equipment_compare",
 ]
 
 
@@ -427,6 +444,148 @@ def get_devices(
         key=lambda r: r["align_fail_count"] + r["meas_fail_count"], reverse=True
     )
     return rows
+
+
+def get_equipments(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+) -> EquipmentsPayload:
+    """장비별 집계. composite 한 번으로 표에 필요한 값이 전부 나옵니다.
+
+    소스가 4개인 이유: fab_name 과 eqp_model_cd 는 eqp_id 에 함수 종속이라
+    버킷 수를 곱하지 않고(장비 수 × 레시피 수 그대로), 대신 top_hits 서브집계
+    없이 표의 fab/model 열을 채울 수 있습니다. 카티전 폭발이 아니므로
+    top_hits 로 "최적화" 하지 마십시오 — 버킷당 문서를 하나씩 더 읽는 쪽이
+    비쌉니다.
+
+    지수·구간·중앙값·분위수는 파이썬에서 파생합니다 — mock 과 같은 코드
+    경로를 타야 두 provider 의 숫자가 어긋나지 않습니다.
+
+    OFFICE-VERIFY: eqp_model_cd.keyword 의 존재는 미확인입니다. 매핑에 없는
+    필드를 composite 소스로 쓰면 **예외가 아니라 빈 버킷**이 나와
+    /equipments 가 200 에 빈 표를 돌려줍니다("이 기간에 데이터 없음"과
+    구분되지 않습니다). 자세한 대처는 _office_meas_hist.EQP_MODEL_CD_KW
+    위의 주석에 있습니다.
+    """
+    clauses = _filter_clauses(fab_names, start_date, end_date)
+    buckets = _composite_buckets(
+        _INDEX[tool_type],
+        [
+            ("eqp", _EQP_KW),
+            ("fab", _FAB_KW),
+            ("model", _EQP_MODEL_KW),
+            ("recipe", _FULL_KW),
+        ],
+        {
+            "align_fails": {"filter": _ALIGN_FAIL_FILTER},
+            "meas_fails": {"filter": _MEAS_FAIL_FILTER},
+        },
+        _query(clauses),
+    )
+
+    # 격자 타입은 조립기에서 가져옵니다 — fab 과 model 을, align 과 meas 를
+    # 서로 바꿔 넣는 실수가 집에서는 테스트로 잡히지 않는 종류라, 정적
+    # 압력이라도 걸어 둡니다.
+    grid: list[EquipmentGridRow] = [
+        (
+            _text(b["key"]["eqp"]),
+            _text(b["key"]["fab"]),
+            _text(b["key"]["model"]),
+            _text(b["key"]["recipe"]),
+            int(b["doc_count"]),
+            int(b.get("align_fails", {}).get("doc_count") or 0),
+            int(b.get("meas_fails", {}).get("doc_count") or 0),
+        )
+        for b in buckets
+    ]
+    return build_equipments_payload(
+        tool_type, fab_names, start_date, end_date, grid
+    )
+
+
+def get_equipment_compare(
+    tool_type: ToolType,
+    fab_names: tuple[str, ...] | None,
+    start_date: str | None,
+    end_date: str | None,
+    eqp_ids: tuple[str, ...],
+) -> EquipmentComparePayload:
+    """선택 장비의 (장비, 날짜)·(장비, 레시피) 두 격자.
+
+    composite 를 두 번 도는 이유: 한 번에 (eqp, 날짜, 레시피) 3중 소스로
+    걷으면 버킷 수가 장비 × 일수 × 레시피로 곱해집니다. 90일 × 200레시피
+    × 5대면 9만 버킷이고, 그중 대부분이 doc_count 0 입니다. 두 번 도는 쪽이
+    싸고, 두 격자의 쓰임이 서로 독립적입니다.
+    """
+    selected = list(dict.fromkeys(eqp_ids))
+    if not selected:
+        return build_equipment_compare_payload(
+            tool_type, fab_names, start_date, end_date, [], [], []
+        )
+
+    clauses = _filter_clauses(fab_names, start_date, end_date)
+    # eqp_id 는 정확 일치 키입니다 — 대문자로 정규화하지 않습니다.
+    clauses = [*clauses, {"terms": {_EQP_KW: selected}}]
+
+    sub_aggs = {
+        "align_fails": {"filter": _ALIGN_FAIL_FILTER},
+        "meas_fails": {"filter": _MEAS_FAIL_FILTER},
+    }
+
+    day_buckets = _composite_buckets(
+        _INDEX[tool_type],
+        [
+            ("eqp", _EQP_KW),
+            # OFFICE-VERIFY — timestamp 는 date 타입이라 terms 소스의 키가
+            # epoch millis 로 나올 수 있습니다. 그러면 str(key)[:10] 이
+            # "1754678912" 같은 문자열이 되어 days_in_range 의 "2026-08-01"
+            # 과 하나도 맞지 않고, **예외 없이 추이가 전부 0** 으로 나옵니다
+            # (빈 데이터와 구분되지 않습니다). 사무실에서 첫 호출 시 버킷
+            # 키를 눈으로 확인하십시오. millis 라면 이 소스를
+            # {"date_histogram": {"field": TIME_FIELD,
+            #                     "calendar_interval": "1d",
+            #                     "format": "yyyy-MM-dd"}}
+            # 로 바꿉니다 — composite 는 date_histogram 소스를 지원하며,
+            # format 을 주면 키가 곧바로 "2026-08-01" 입니다.
+            ("day", _TIME_F),
+        ],
+        sub_aggs,
+        _query(clauses),
+    )
+    trend_grid: list[TrendGridRow] = [
+        (
+            _text(b["key"]["eqp"]),
+            str(b["key"]["day"])[:10],
+            int(b["doc_count"]),
+            int(b.get("align_fails", {}).get("doc_count") or 0),
+            int(b.get("meas_fails", {}).get("doc_count") or 0),
+        )
+        for b in day_buckets
+    ]
+
+    recipe_buckets = _composite_buckets(
+        _INDEX[tool_type],
+        [("eqp", _EQP_KW), ("recipe", _FULL_KW)],
+        sub_aggs,
+        _query(clauses),
+    )
+    recipe_grid: list[RecipeGridRow] = [
+        (
+            _text(b["key"]["eqp"]),
+            _text(b["key"]["recipe"]),
+            int(b["doc_count"]),
+            int(b.get("align_fails", {}).get("doc_count") or 0),
+            int(b.get("meas_fails", {}).get("doc_count") or 0),
+        )
+        for b in recipe_buckets
+    ]
+
+    return build_equipment_compare_payload(
+        tool_type, fab_names, start_date, end_date, selected,
+        trend_grid, recipe_grid,
+    )
 
 
 if __name__ == "__main__":
