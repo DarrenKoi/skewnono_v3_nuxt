@@ -169,7 +169,7 @@
           :rows="rankingRows"
           :columns="columns"
           :sortable-ids="sortableColumnIds"
-          default-sort-id="total_meastime"
+          :default-sort-id="DEFAULT_SORT_ID"
           :reset-key="cacheKey"
           :search-predicate="rankingSearchPredicate"
           @update:state="onTableState"
@@ -179,7 +179,7 @@
           <template #title-extra>
             <span
               v-if="rankingLimit && rankingRows.length >= rankingLimit"
-              class="font-mono text-[10px] text-amber-600 dark:text-amber-400"
+              class="font-mono text-[10px] text-(--sk-warn)"
             >capped at {{ rankingLimit.toLocaleString() }}</span>
           </template>
           <template #actions-cell="{ row }">
@@ -430,8 +430,13 @@ useEchart(trendEl, trendOption, { exportName: 'daily-tat-trend' })
 const sortableColumnIds = ['meas_counts', 'avg_meastime', 'total_meastime'] as const
 type SortableColumnId = typeof sortableColumnIds[number]
 
+// Stated once. The table owns the sort, but the bar chart labels itself from it
+// before the first `update:state` lands, so a second literal here would let the
+// chart caption disagree with the table for one tick after the default changed.
+const DEFAULT_SORT_ID: SortableColumnId = 'total_meastime'
+
 const sorting = ref<SortingState>([
-  { id: 'total_meastime', desc: true }
+  { id: DEFAULT_SORT_ID, desc: true }
 ])
 const sortedRankingRows = ref<RecipeTatRow[]>([])
 const tableSearch = ref('')
@@ -463,7 +468,7 @@ const BAR_METRICS: Record<SortableColumnId, { label: string, format: (v: number)
 }
 
 const barMetric = computed(() => {
-  const id = (sorting.value[0]?.id ?? 'total_meastime') as SortableColumnId
+  const id = (sorting.value[0]?.id ?? DEFAULT_SORT_ID) as SortableColumnId
   return { id, ...BAR_METRICS[id] }
 })
 

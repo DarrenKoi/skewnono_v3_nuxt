@@ -6,7 +6,7 @@ import {
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, userDisplayName, userSearchText } from '~/utils/activity'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-import { todayStamp } from '../utils/dateTime'
+import { todayStamp } from '../utils/dateTime.ts'
 
 type UserSort = 'requests' | 'days' | 'recent' | 'name'
 

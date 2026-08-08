@@ -2,6 +2,7 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
 import type { SettingBlock, SettingRow } from '~/composables/useRecipeParamDetail'
 import type { RecipeSearchSource } from '~/utils/recipeSelection'
+import { formatDateTimeLocal } from './dateTime.ts'
 
 export const recipeTableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
@@ -240,19 +241,9 @@ export const formatFixed = (value: unknown, digits: number, fallback = '—'): s
   return Number.isFinite(number) ? number.toFixed(digits) : fallback
 }
 
-export const formatRecipeTimestamp = (iso: string, opts: { withSeconds?: boolean } = {}): string => {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const yyyy = date.getFullYear()
-  const mm = pad(date.getMonth() + 1)
-  const dd = pad(date.getDate())
-  const hh = pad(date.getHours())
-  const mi = pad(date.getMinutes())
-
-  if (opts.withSeconds) {
-    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${pad(date.getSeconds())}`
-  }
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
-}
+// Kept as a named recipe-domain alias over the shared formatter — 6 call sites
+// and a test block already speak in these terms, and those tests now double as
+// a contract check on `formatDateTimeLocal`. Its defaults already match what
+// this did: '' for empty input, the input echoed back when unparseable.
+export const formatRecipeTimestamp = (iso: string, opts: { withSeconds?: boolean } = {}): string =>
+  formatDateTimeLocal(iso, { withSeconds: opts.withSeconds })

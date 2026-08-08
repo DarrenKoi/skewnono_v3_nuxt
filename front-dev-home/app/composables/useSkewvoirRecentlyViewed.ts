@@ -1,5 +1,5 @@
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
-import { shiftIsoDate } from '../utils/dateTime'
+import { shiftIsoDate } from '../utils/dateTime.ts'
 import {
   addSkewvoirRecentItem,
   buildSkewvoirRecentItem,
