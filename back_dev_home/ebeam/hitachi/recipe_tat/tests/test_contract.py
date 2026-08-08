@@ -288,11 +288,15 @@ def test_get_equipments_mock_exercises_every_badge_state():
     assert indexed, "tat_index 가 계산된 장비가 하나도 없습니다 (전부 표본 미달)"
     # 프론트엔드 equipmentSignals.ts의 TAT_CEIL은 1.10입니다. 예전 기준
     # (> 1.05)은 그 배지가 실제로 뜰 수 있는지 증명하지 못하는 채로도
-    # 통과했습니다 — R3는 mock의 5대짜리 셀 감쇠 때문에 최악의 fab이라
-    # (recipe_tat/providers/mock.py의 _tool_scalars 독스트링 참고),
-    # 1.12로 올려 TAT_CEIL을 실제로 넘는지 검증합니다. 백엔드가 프론트엔드
-    # 상수를 import할 수 없어 이 주석이 둘을 묶어 둡니다 — TAT_CEIL이
-    # 바뀌면 이 숫자도 같이 봐야 합니다.
+    # 통과했습니다 — 1.12로 올려 TAT_CEIL을 여유 있게 넘는지 검증합니다.
+    # 백엔드가 프론트엔드 상수를 import할 수 없어 이 주석이 둘을 묶어
+    # 둡니다 — TAT_CEIL이 바뀌면 이 숫자도 같이 봐야 합니다.
+    #
+    # 조회 범위가 R3인 이유는 R3가 최악의 칸이어서가 **아닙니다** — 5대짜리
+    # 셀 감쇠가 가장 심한 칸은 M11A입니다(recipe_tat/providers/mock.py의
+    # _tool_scalars 독스트링). R3인 이유는 workload 0.30짜리 표본 미달 장비를
+    # R3에만 심어 두었기 때문입니다. 위의 "표본 미달 장비가 없습니다" 단언이
+    # 성립하는 fab이 R3 하나뿐이라 이 조회가 R3여야 합니다.
     assert max(r["tat_index"] for r in indexed) > 1.12, "느린 장비가 없습니다"
     # 대칭 검증: 프론트엔드 TAT_FLOOR는 0.92입니다. 느림과 같은 이유로
     # 빠름 배지도 실제로 뜨는지 검증이 필요합니다.

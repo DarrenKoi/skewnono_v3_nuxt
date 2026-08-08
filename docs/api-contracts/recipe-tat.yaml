@@ -96,10 +96,19 @@ types:
     top_recipe:
       type: string
       nullable: true
-      description: <class>/<recipe> of the equipment's most-run recipe by meas_counts. Null when the equipment ran no recipes in the window.
+      description: >-
+        <class>/<recipe> of the recipe with the largest total_meastime on this equipment —
+        ranked by MEASUREMENT TIME, not by execution count. A tool mixing QC (60-200 s) and
+        ADI (320-900 s) names a different recipe under the two rankings. Ties break on
+        full_name so mock and office agree. Null when the equipment ran no recipes in the
+        window.
     top_recipe_share:
       type: number
-      description: top_recipe's share of this equipment's exec_count (0.0 when top_recipe is null)
+      description: >-
+        top_recipe's total_meastime divided by this equipment's total_meastime — a share of
+        MEASUREMENT TIME, not of exec_count (0.0 when top_recipe is null). SHARE_CEIL in
+        front-dev-home/app/utils/equipmentSignals.ts is calibrated against this number at the
+        office, and "share of executions" would call for a materially different constant.
     tat_index:
       type: number
       nullable: true

@@ -138,6 +138,28 @@ def test_below_the_sample_floor_the_index_is_unknown_not_fast():
     assert set(percentiles.values()) == {rows["EQ-BUSY"]["tat_index"]}
 
 
+def test_top_recipe_ties_break_on_full_name_not_insertion_order():
+    """총 TAT 이 같은 레시피가 둘일 때 승자가 격자 순서에 흔들리지 않습니다.
+
+    `top_recipe` 는 표에 그대로 표시되고 `편중` 배지의 입력이기도 합니다.
+    tat 만으로 `max` 를 하면 동률에서 dict 삽입 순서 — 즉 격자가 도착한
+    순서 — 가 승자를 정하는데, 그 순서는 mock(행 스캔)과 office(composite
+    버킷)가 서로 다릅니다. 같은 격자를 뒤집어 넣어도 같은 답이 나와야
+    합니다.
+    """
+    forward = [
+        ("EQ-TIE", FAB, MODEL, "QC/AAA_001", 6, 600),
+        ("EQ-TIE", FAB, MODEL, "QC/ZZZ_001", 6, 600),
+    ]
+    reverse = list(reversed(forward))
+
+    assert _by_id(_payload(forward))["EQ-TIE"]["top_recipe"] == \
+        _by_id(_payload(reverse))["EQ-TIE"]["top_recipe"]
+    # 어느 쪽이 이기는지까지 못박아 둡니다 — "정해져 있다"만 검사하면
+    # 규칙을 뒤집는 변경이 조용히 통과합니다.
+    assert _by_id(_payload(forward))["EQ-TIE"]["top_recipe"] == "QC/ZZZ_001"
+
+
 def test_window_seconds_includes_both_endpoints_and_refuses_bad_ranges():
     assert window_seconds("2026-08-01", "2026-08-01") == 86400
     assert window_seconds("2026-07-25", "2026-08-08") == 15 * 86400
