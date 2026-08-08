@@ -77,6 +77,59 @@ test('promotion adopts the catalog row fab and dedupes', () => {
   assert.deepEqual(next, [{ name: 'X', fab_name: 'R3', source: 'redis' }])
 })
 
+// 승격은 (recipe_name, fab_name) 쌍으로 맞춥니다. 이름만 보고 카탈로그 첫 행의
+// fab을 채택하면, R3∩M16B 이름 중복(약 20%)에서 선택 항목이 조용히 다른 fab으로
+// 재라우팅됩니다 — 비교 본문과 `&fab_name=` 소유 fab이 함께 어긋납니다.
+test('promotion never rewrites an entry fab to another fab that shares the name', () => {
+  const entries: RecipeSelectionEntry[] = [
+    { name: 'SHARED', fab_name: 'M16B', source: 'opensearch' },
+    { name: 'SHARED', fab_name: 'R3', source: 'opensearch' }
+  ]
+  const next = promoteRecipeSelectionsToRedis(entries, [
+    { recipe_name: 'SHARED', fab_name: 'R3' },
+    { recipe_name: 'SHARED', fab_name: 'M16B' }
+  ])
+  assert.deepEqual(next, [
+    { name: 'SHARED', fab_name: 'M16B', source: 'redis' },
+    { name: 'SHARED', fab_name: 'R3', source: 'redis' }
+  ])
+})
+
+test('an entry whose own fab has no catalog row is not promoted by another fab row', () => {
+  const entries: RecipeSelectionEntry[] = [
+    { name: 'SHARED', fab_name: 'M16B', source: 'opensearch' }
+  ]
+  assert.deepEqual(
+    promoteRecipeSelectionsToRedis(entries, [{ recipe_name: 'SHARED', fab_name: 'R3' }]),
+    entries
+  )
+})
+
+// fab 미상 항목만 이름 전용 조회를 씁니다. 이름이 두 fab에 걸치면 추측하지 않고
+// 자기 fab('')을 그대로 둡니다 — 틀린 fab을 채우는 것보다 미상이 낫습니다.
+test('a fab-unknown entry is left alone when the name maps to more than one fab', () => {
+  const entries: RecipeSelectionEntry[] = [
+    { name: 'SHARED', fab_name: '', source: 'opensearch' }
+  ]
+  assert.deepEqual(
+    promoteRecipeSelectionsToRedis(entries, [
+      { recipe_name: 'SHARED', fab_name: 'R3' },
+      { recipe_name: 'SHARED', fab_name: 'M16B' }
+    ]),
+    entries
+  )
+})
+
+test('pair matching is case-insensitive on fab, like every other fab comparison', () => {
+  const entries: RecipeSelectionEntry[] = [
+    { name: 'A', fab_name: 'R3', source: 'opensearch' }
+  ]
+  assert.deepEqual(
+    promoteRecipeSelectionsToRedis(entries, [{ recipe_name: 'A', fab_name: 'r3' }]),
+    [{ name: 'A', fab_name: 'R3', source: 'redis' }]
+  )
+})
+
 test('selection capabilities are the intersection across all entries', () => {
   assert.deepEqual(capabilitiesForRecipeSelection([]), {
     open: false,

@@ -1,3 +1,4 @@
+import { hasFab, normalizeFab, sameFab } from './fab.ts'
 import { recipePairKey } from './recipePair.ts'
 
 export type RecipeSearchSource = 'redis' | 'opensearch'
@@ -72,21 +73,56 @@ export const removeRecipeSelection = (
   return entries.filter(entry => recipePairKey(entry.fab_name, entry.name) !== key)
 }
 
+/**
+ * Promote OpenSearch-sourced selections that the Redis catalog now contains.
+ *
+ * Matching is on the (recipe_name, fab_name) PAIR, never the bare name. A
+ * recipe name is not unique across fabs — R3 and M16B share roughly a fifth of
+ * their names — so a name-only lookup can adopt another fab's row and rewrite
+ * the entry's own fab. Nothing errors when that happens: the compare body and
+ * the `&fab_name=` owner-fab routing both follow the rewritten value, and the
+ * user simply reads the wrong fab's numbers.
+ *
+ * An entry that carries no fab yet (`''`) is the one case a name-only lookup is
+ * allowed — there is no pair to match on. Even then an ambiguous name is left
+ * alone rather than guessed: unknown beats confidently wrong, and the entry
+ * stays promotable on the next catalog load that resolves it.
+ */
 export const promoteRecipeSelectionsToRedis = (
   entries: RecipeSelectionEntry[],
   rows: Array<{ recipe_name: string, fab_name: string }>
 ): RecipeSelectionEntry[] => {
-  const fabByName = new Map<string, string>()
+  // Fabs per recipe name, canonicalized — the catalog reports whatever casing
+  // its source DB stores, so 'r3' and 'R3' must not read as two fabs.
+  const fabsByName = new Map<string, Set<string>>()
   for (const row of rows) {
-    if (!fabByName.has(row.recipe_name)) fabByName.set(row.recipe_name, row.fab_name)
+    const fab = normalizeFab(row.fab_name)
+    if (!fab) continue
+    const fabs = fabsByName.get(row.recipe_name)
+    if (fabs) fabs.add(fab)
+    else fabsByName.set(row.recipe_name, new Set([fab]))
   }
+
+  // The fab this entry should be promoted to, or null to leave it as it is.
+  const promotedFab = (entry: RecipeSelectionEntry): string | null => {
+    const fabs = fabsByName.get(entry.name)
+    if (!fabs) return null
+    if (hasFab(entry.fab_name)) {
+      // Pair-exact: the catalog must list this name under THIS entry's fab.
+      const hit = [...fabs].find(fab => sameFab(fab, entry.fab_name))
+      return hit ?? null
+    }
+    // Fab-unknown: adopt the catalog's fab only when the name names one fab.
+    return fabs.size === 1 ? [...fabs][0]! : null
+  }
+
   let changed = false
   const next = entries.map((entry) => {
-    if (entry.source === 'opensearch' && fabByName.has(entry.name)) {
-      changed = true
-      return { ...entry, fab_name: fabByName.get(entry.name)!, source: 'redis' as const }
-    }
-    return entry
+    if (entry.source !== 'opensearch') return entry
+    const fab = promotedFab(entry)
+    if (fab === null) return entry
+    changed = true
+    return { ...entry, fab_name: fab, source: 'redis' as const }
   })
   return changed ? normalizeRecipeSelectionEntries(next) : entries
 }
