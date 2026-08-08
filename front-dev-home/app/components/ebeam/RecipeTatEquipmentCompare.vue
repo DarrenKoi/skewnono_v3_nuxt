@@ -20,65 +20,77 @@
       </span>
     </div>
 
-    <UCard class="dashboard-surface rounded-2xl">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-trending-up"
-            class="h-4 w-4 text-(--sk-ink-muted)"
-          />
+    <!-- 선택이 바뀌면 이전 선택의 차트/열을 계속 보여주는 대신 로딩으로
+         바꿉니다. mock 에서는 즉시라 눈에 띄지 않지만, office 는 composite
+         집계라 초 단위입니다 — 그 사이 화면에 남는 숫자는 지금 체크된
+         장비의 것이 아닙니다. 위의 선택 요약 칩은 플릿 표 행(props)에서
+         나오므로 요청과 무관하게 즉시 맞고, 그래서 로딩 밖에 둡니다. -->
+    <AppLoadingState
+      v-if="status === 'pending'"
+      title="장비 비교 데이터를 불러오는 중입니다."
+    />
+
+    <template v-else>
+      <UCard class="dashboard-surface rounded-2xl">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon
+              name="i-lucide-trending-up"
+              class="h-4 w-4 text-(--sk-ink-muted)"
+            />
+            <h3 class="sk-title">
+              장비별 일별 TAT
+            </h3>
+          </div>
+        </template>
+        <div
+          ref="trendEl"
+          class="h-[360px] w-full"
+        />
+      </UCard>
+
+      <div class="dashboard-surface rounded-2xl px-3.5 py-3">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
           <h3 class="sk-title">
-            장비별 일별 TAT
+            레시피 구성 비교
           </h3>
+          <span class="sk-meta">
+            선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 0으로 표시됩니다.
+          </span>
         </div>
-      </template>
-      <div
-        ref="trendEl"
-        class="h-[360px] w-full"
-      />
-    </UCard>
 
-    <div class="dashboard-surface rounded-2xl px-3.5 py-3">
-      <div class="mb-3 flex flex-wrap items-center gap-2">
-        <h3 class="sk-title">
-          레시피 구성 비교
-        </h3>
-        <span class="sk-meta">
-          선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 0으로 표시됩니다.
-        </span>
-      </div>
+        <UTable
+          :columns="columns"
+          :data="pagedRecipes"
+          sticky="header"
+          :ui="tableUi"
+        />
 
-      <UTable
-        :columns="columns"
-        :data="pagedRecipes"
-        sticky="header"
-        :ui="tableUi"
-      />
-
-      <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
-        <span class="tabular-nums">
-          {{ pageStart }}–{{ pageEnd }} of {{ recipes.length.toLocaleString() }}
-        </span>
-        <div class="flex gap-1">
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-chevron-left"
-            :disabled="currentPage <= 1"
-            @click="currentPage -= 1"
-          />
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            trailing-icon="i-lucide-chevron-right"
-            :disabled="currentPage >= pageCount"
-            @click="currentPage += 1"
-          />
+        <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
+          <span class="tabular-nums">
+            {{ pageStart }}–{{ pageEnd }} of {{ recipes.length.toLocaleString() }}
+          </span>
+          <div class="flex gap-1">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-chevron-left"
+              :disabled="currentPage <= 1"
+              @click="currentPage -= 1"
+            />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              trailing-icon="i-lucide-chevron-right"
+              :disabled="currentPage >= pageCount"
+              @click="currentPage += 1"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -130,7 +142,7 @@ const cacheKey = computed(
     + `:${[...props.eqpIds].sort().join(',')}`
 )
 
-const { data } = await useAsyncData(
+const { data, status } = await useAsyncData(
   () => cacheKey.value,
   () => fetchRecipeTatEquipmentCompare(queryParams.value),
   { watch: [cacheKey] }
